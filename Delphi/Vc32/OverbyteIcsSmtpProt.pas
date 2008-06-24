@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      6.06
+Version:      6.08
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -292,9 +292,11 @@ Aug 29, 2007 V6.05  A. Garrels: FLineOffset was not reset properly, see
                     see new event OnAttachContentTypeEh that is
                     basically a copy of OnAttachContentType with an additional
                     parameter (idea of the feature Bjørnar Nielsen).
-Mar 24, 2008 V6.06  Francois Piette made some changes to prepare code
+Dec 29, 2007 V6.06  A.Garrels made WSocketSessionConnected virtual (SSL).
+Feb 11, 2008 V6.07  Angus SSL version now supports sync methods                    
+Mar 24, 2008 V6.08  Francois Piette made some changes to prepare code
                     for Unicode.
-                                         
+                    
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSmtpProt;
@@ -339,8 +341,8 @@ uses
     OverbyteIcsMimeUtils;
 
 const
-  SmtpCliVersion     = 606;
-  CopyRight : String = ' SMTP component (c) 1997-2008 Francois Piette V6.06 ';
+  SmtpCliVersion     = 608;
+  CopyRight : String = ' SMTP component (c) 1997-2008 Francois Piette V6.08 ';
   smtpProtocolError  = 20600; {AG}
 
 {$IFDEF VER80}
@@ -366,30 +368,23 @@ type
     TSmtpMimeState   = (smtpMimeIntro,       smtpMimePlainText,
                         smtpMimeHtmlText,    smtpMimeImages,    smtpMimeDone);
 {Start AG/SSL}
-{$IFDEF USE_SSL}
     TSmtpRequest     = (smtpConnect,         smtpHelo,          smtpMailFrom,
                         smtpVrfy,            smtpRcptTo,        smtpData,
                         smtpQuit,            smtpRset,          smtpOpen,
                         smtpMail,            smtpEhlo,          smtpAuth,
-                        smtpStartTls,        smtpCustom);
-    TSmtpFct         = (smtpFctNone,         smtpFctHelo,       smtpFctConnect,
-                        smtpFctMailFrom,     smtpFctRcptTo,     smtpFctData,
-                        smtpFctVrfy,         smtpFctQuit,       smtpFctRset,
-                        smtpFctEhlo,         smtpFctAuth,       smtpFctStartTls);
-    TSmtpSslMode     = (smtpSslNone,         smtpSslConnection, smtpSslTlsHandshake);
-{$ELSE}
-    TSmtpRequest     = (smtpConnect,         smtpHelo,          smtpMailFrom,
-                        smtpVrfy,            smtpRcptTo,        smtpData,
-                        smtpQuit,            smtpRset,          smtpOpen,
-                        smtpMail,            smtpEhlo,          smtpAuth,
+                     {$IFDEF USE_SSL}
+                        smtpStartTls,
+                     {$ENDIF}
                         smtpCustom);
     TSmtpFct         = (smtpFctNone,         smtpFctHelo,       smtpFctConnect,
                         smtpFctMailFrom,     smtpFctRcptTo,     smtpFctData,
                         smtpFctVrfy,         smtpFctQuit,       smtpFctRset,
-                        smtpFctEhlo,         smtpFctAuth);
-{$ENDIF}
+                        smtpFctEhlo,         smtpFctAuth
+                     {$IFDEF USE_SSL}
+                        , smtpFctStartTls
+                     {$ENDIF}
+                        ); 
 {End AG/SSL}
-
     TSmtpFctSet      = set of TSmtpFct;
     TSmtpContentType = (smtpHtml,            smtpPlainText);
     TSmtpAuthType    = (smtpAuthNone,        smtpAuthPlain,     smtpAuthLogin,
@@ -574,7 +569,7 @@ type
         procedure   SetMailMessage(newValue : TStrings);
         procedure   CheckReady;
         procedure   WSocketDnsLookupDone(Sender: TObject; ErrorCode: Word);
-        procedure   WSocketSessionConnected(Sender: TObject; ErrorCode: Word);
+        procedure   WSocketSessionConnected(Sender: TObject; ErrorCode: Word); virtual;
         procedure   WSocketDataAvailable(Sender: TObject; ErrorCode: Word);
         procedure   WSocketDataSent(Sender : TObject; ErrorCode : Word);
         procedure   WSocketSessionClosed(Sender : TObject; ErrorCode : WORD);
@@ -842,13 +837,6 @@ type
         {AG end}
     end;
 
-{ You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
-{$IFDEF USE_SSL}
-    {$I OverByteIcsSmtpProtIntfSsl.inc}
-{$ENDIF}
-
     { TSyncSmtpCli add synchronous functions. You should avoid using this   }
     { component because synchronous function, apart from being easy, result }
     { in lower performance programs.                                        }
@@ -884,6 +872,13 @@ type
         property MultiThreaded : Boolean read  FMultiThreaded
                                          write FMultiThreaded;
     end;
+
+{ You must define USE_SSL so that SSL code is included in the component.    }
+{ To be able to compile the component, you must have the SSL related files  }
+{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{$IFDEF USE_SSL}
+{$I OverByteIcsSmtpProtIntfSsl.inc}
+{$ENDIF}
 
     THtmlSmtpCli = class(TSmtpCli)
     private
@@ -2459,10 +2454,10 @@ begin
         Addr := ParseEmail(S, Alias);
         if Length(Alias) > 0 then begin
             if (not Allow8Bit) and NeedsEncoding(Alias) then
-                    Alias := HdrEncodeInLine(Alias, SpecialsRFC822,
-                                             EncType, Charset,
-                                             75 - Length(HdrName) + 1,
-                                             DoFold)
+                Alias := HdrEncodeInLine(Alias, SpecialsRFC822,
+                                         EncType, Charset,
+                                         75 - Length(HdrName) + 1,
+                                         DoFold)
             else begin
                 { We have to quote some specials}
                 S := '"';
@@ -3137,7 +3132,7 @@ begin
            (PChar(Data)[1] = '.') then // remove a doubled dot
             FOutStream.Write(PChar(Data)[1], Len - 1)
         else
-        FOutStream.Write(Data^, Len);
+            FOutStream.Write(Data^, Len);
         FOutStream.Write(PChar(#13#10)^, 2);
     end;
     if FSendMode = smtpToStream then

@@ -1,0 +1,44 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{14eaeacb-7e67-461a-86cf-4aae42c5d931}</ProjectGuid>
+  </PropertyGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <Projects Include="..\..\..\Delphi\VC32\OverbyteIcsBcb110Package.cbproj" />
+    <Projects Include="OverbyteIcsHttpTst.cbproj" />
+  </ItemGroup>
+  <ProjectExtensions>
+    <Borland.Personality>Default.Personality</Borland.Personality>
+    <Borland.ProjectType />
+    <BorlandProject>
+  <BorlandProject xmlns=""> <Default.Personality> </Default.Personality> </BorlandProject></BorlandProject>
+  </ProjectExtensions>
+  <Target Name="OverbyteIcsBcb110Package">
+    <MSBuild Projects="..\..\..\Delphi\VC32\OverbyteIcsBcb110Package.cbproj" Targets="" />
+  </Target>
+  <Target Name="OverbyteIcsBcb110Package:Clean">
+    <MSBuild Projects="..\..\..\Delphi\VC32\OverbyteIcsBcb110Package.cbproj" Targets="Clean" />
+  </Target>
+  <Target Name="OverbyteIcsBcb110Package:Make">
+    <MSBuild Projects="..\..\..\Delphi\VC32\OverbyteIcsBcb110Package.cbproj" Targets="Make" />
+  </Target>
+  <Target Name="OverbyteIcsHttpTst">
+    <MSBuild Projects="OverbyteIcsHttpTst.cbproj" Targets="" />
+  </Target>
+  <Target Name="OverbyteIcsHttpTst:Clean">
+    <MSBuild Projects="OverbyteIcsHttpTst.cbproj" Targets="Clean" />
+  </Target>
+  <Target Name="OverbyteIcsHttpTst:Make">
+    <MSBuild Projects="OverbyteIcsHttpTst.cbproj" Targets="Make" />
+  </Target>
+  <Target Name="Build">
+    <CallTarget Targets="OverbyteIcsBcb110Package;OverbyteIcsHttpTst" />
+  </Target>
+  <Target Name="Clean">
+    <CallTarget Targets="OverbyteIcsBcb110Package:Clean;OverbyteIcsHttpTst:Clean" />
+  </Target>
+  <Target Name="Make">
+    <CallTarget Targets="OverbyteIcsBcb110Package:Make;OverbyteIcsHttpTst:Make" />
+  </Target>
+  <Import Condition="Exists('$(MSBuildBinPath)\Borland.Group.Targets')" Project="$(MSBuildBinPath)\Borland.Group.Targets" />
+</Project>

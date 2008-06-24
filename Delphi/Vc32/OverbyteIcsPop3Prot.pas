@@ -4,7 +4,7 @@ Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      6.01
+Version:      6.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -121,9 +121,11 @@ Feb 21, 2005  V2.26 Fixed WSocketDataAvailable to repeat in case of line
               too long. Thanks to Piotr Hellrayzer Dalek.
 May 24, 2005  V2.27 Bjornar Nielsen <bjornar@sentinel.no> added HeaderCc
               property.
-Mar 23, 2006 V6.00  New version started from ICS-V5
-Mar 24, 2008 V6.01 Francois Piette made some changes to prepare code
-                   for Unicode.
+Mar 23, 2006  V6.00  New version started from ICS-V5
+Dec 29, 2007  V6.01  A.Garrels made WSocketSessionConnected virtual (SSL).
+Feb 11, 2008  V6.02  Angus SSL version now supports sync methods
+Mar 24, 2008  V6.03 Francois Piette made some changes to prepare code
+                    for Unicode.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -166,8 +168,8 @@ uses
     OverbyteIcsMD5;
 
 const
-    Pop3CliVersion     = 601;
-    CopyRight : String = ' POP3 component (c) 1997-2008 F. Piette V6.01 ';
+    Pop3CliVersion     = 603;
+    CopyRight : String = ' POP3 component (c) 1997-2008 F. Piette V6.03 ';
 {$IFDEF VER80}
     { Delphi 1 has a 255 characters string limitation }
     POP3_RCV_BUF_SIZE = 255;
@@ -186,16 +188,25 @@ type
     TPop3Request  = (pop3Connect, pop3User, pop3Pass, pop3RPop, pop3Quit,
                      pop3Stat,    pop3List, pop3Retr, pop3Top,  pop3Dele,
                      pop3Noop,    pop3Last, pop3RSet, pop3Uidl, pop3APop,
-                     pop3Open,    pop3Auth, pop3Custom);
+                     pop3Open,    pop3Auth,
+                 {$IFDEF USE_SSL}
+                     pop3StartTls,
+                 {$ENDIF}    
+                     pop3Custom);
     TPop3Fct      = (pop3FctNone, pop3FctConnect, pop3FctUser, pop3FctPass,
                      pop3FctRPop, pop3FctQuit,    pop3FctAPop, pop3FctStat,
                      pop3FctList, pop3FctUidl,    pop3FctRetr, pop3FctTop,
-                     pop3FctDele, pop3FctNoop,    pop3FctRSet, pop3FctLast);
+                     pop3FctDele, pop3FctNoop,    pop3FctRSet, pop3FctLast
+                 {$IFDEF USE_SSL}
+                     , pop3FctStartTls
+                 {$ENDIF}
+                     );
     TPop3AuthType = (popAuthNone,    popAuthLogin,
                      popAuthCramMD5, popAuthCramSHA1); {HLX}
+
     TPop3FctSet   = set of TPop3Fct;
     TPop3NextProc = procedure of object;
-    TPop3RequestDone        = procedure(Sender  : TObject;
+    TPop3RequestDone        = procedure(Sender    : TObject;
                                         RqType    : TPop3Request;
                                         Error     : Word) of object;
     TPop3Method   = function : boolean of object;
@@ -242,7 +253,7 @@ type
         FMsgUidl            : String;
         FMsgLines           : Integer;
         FTag                : LongInt;
-        FWaitingOnQuit      : Boolean;
+        // FWaitingOnQuit      : Boolean; Bad code, see TriggerRequestDone
         FHeaderPart         : Boolean;
         FHeaderKeyword      : String;
         FHeaderData         : String;
@@ -288,6 +299,7 @@ type
                                    aOnLine  : TNotifyEvent;
                                    aOnEnd   : TNotifyEvent;
                                    aProcess : TNotifyEvent);
+        procedure   CreateCtrlSocket; virtual;
         procedure   GetALine;
         procedure   StatDone;
         procedure   ListAllDone;
@@ -303,13 +315,13 @@ type
         procedure   HandleBackGroundException(E: Exception); override;
         procedure   WMPop3RequestDone(var msg: TMessage); virtual;
         procedure   WSocketDnsLookupDone(Sender: TObject; Error: Word);
-        procedure   WSocketSessionConnected(Sender: TObject; Error: Word);
+        procedure   WSocketSessionConnected(Sender: TObject; Error: Word); virtual;
         procedure   WSocketDataAvailable(Sender: TObject; Error: Word);
         procedure   WSocketSessionClosed(Sender : TObject; Error : WORD);
         procedure   DisplayLastResponse;
         procedure   TriggerDisplay(Msg : String);
         procedure   TriggerSessionConnected(Error : Word); virtual;
-        procedure   TriggerSessionClosed(Error : Word);
+        procedure   TriggerSessionClosed(Error : Word); virtual;
         procedure   TriggerResponse(Msg : String); virtual;
         procedure   TriggerStateChange; virtual;
         procedure   TriggerRequestDone(Error: Word); virtual;
@@ -324,7 +336,7 @@ type
         procedure   ProcessUidl(Sender : TObject);
         procedure   ProcessList(Sender : TObject);
         procedure   CheckReady;
-        procedure   DoHighLevelAsync;
+        procedure   DoHighLevelAsync; virtual;
         procedure   AuthLoginNext;
         procedure   AuthLoginPass;
 {$IFDEF DELPHI5_UP}
@@ -475,9 +487,11 @@ type
         property OnSessionClosed;
     end;
 
+
     { TSyncPop3Cli add synchronous functions. You should avoid using this   }
     { component because synchronous function, apart from being easy, result }
     { in lower performance programs.                                        }
+
     TSyncPop3Cli = class(TPop3Cli)
     protected
         FTimeout       : Integer;                 { Given in seconds }
@@ -511,6 +525,13 @@ type
         property MultiThreaded : Boolean read  FMultiThreaded
                                          write FMultiThreaded;
     end;
+
+{ You must define USE_SSL so that SSL code is included in the component.    }
+{ To be able to compile the component, you must have the SSL related files  }
+{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{$IFDEF USE_SSL}
+{$I OverByteIcsPop3ProtIntfSsl.inc}
+{$ENDIF}
 
 procedure Register;
 
@@ -641,11 +662,19 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomPop3Cli.CreateCtrlSocket;
+begin
+    FWSocket := TWSocket.Create(nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TCustomPop3Cli.Create(AOwner : TComponent);
 begin
     inherited Create(AOwner);
     AllocateHWnd;
-    FWSocket                 := TWSocket.Create(nil);
+    //FWSocket                 := TWSocket.Create(nil);
+    CreateCtrlSocket;
     FWSocket.OnSessionClosed := WSocketSessionClosed;
     FProtocolState           := pop3Disconnected;
     FState                   := pop3Ready;
@@ -937,6 +966,7 @@ end;
 procedure TCustomPop3Cli.TriggerRequestDone(Error: Word);
 begin
     { Special processing for Quit (Roger Morton 24-12-99) }
+(*  This code is bad!
     if FRequestType = pop3Quit then begin
         if FWaitingOnQuit then
             { When the second RqDone arrives (from WSocketSessionClosed),   }
@@ -954,7 +984,7 @@ begin
         { following a Quit                                                  }
         FWaitingOnQuit := False;
     end;
-
+*)
     if not FRequestDoneFlag then begin
         FRequestDoneFlag := TRUE;
         if Assigned(FNextRequest) then begin
@@ -2147,11 +2177,20 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure Register;
 begin
-    RegisterComponents('FPiette', [TPop3Cli, TSyncPop3Cli]);
+    RegisterComponents('FPiette', [TPop3Cli,
+                                {$IFDEF USE_SSL}
+                                   TSslPop3Cli,
+                                {$ENDIF}   
+                                   TSyncPop3Cli]);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-
+{ You must define USE_SSL so that SSL code is included in the component.    }
+{ To be able to compile the component, you must have the SSL related files  }
+{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{$IFDEF USE_SSL}
+{$I OverbyteIcsPop3ProtImplSsl.inc}
+{$ENDIF}
 end.
 

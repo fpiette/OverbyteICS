@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      6.00.3
+Version:      6.00.4
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -385,6 +385,8 @@ Mar 17, 2007 V6.00.3 Introduced THttpBigInt to support documents longer
 Mar 19, 2007 V6.00.3 A.Garrels fixed a memory leak of FSendBuffer and
              FReceiveBuffer. Check for negative value of FReceiveLen in
              SocketDataAvailable.
+May 27, 2008 V6.00.4 A.Garrels Workaround in GetHeaderLineNext. Ignore body data
+             sent in the HEAD response by buggy servers.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -455,7 +457,7 @@ uses
 
 const
     HttpCliVersion       = 600;
-    CopyRight : String   = ' THttpCli (c) 1997-2007 F. Piette V6.00.3 ';
+    CopyRight : String   = ' THttpCli (c) 1997-2008 F. Piette V6.00.4 ';
     DefaultProxyPort     = '80';
 {$IFDEF DELPHI1}
     { Delphi 1 has a 255 characters string limitation }
@@ -2587,6 +2589,14 @@ begin
                     FCtrlSocket.CloseDelayed;  { Added 10/01/2004 }
                 end;
             end
+            else if FRequestType = httpHEAD then begin            //AG 05/27/08
+                { With HEAD command, we don't expect a document } //AG 05/27/08
+                { but some server send one !                    } //AG 05/27/08
+                FReceiveLen := 0;      { Cancel received data   } //AG 05/27/08
+                StateChange(httpWaitingBody);                     //AG 05/27/08
+                FNext := nil;                                     //AG 05/27/08
+                SetReady;                                         //AG 05/27/08
+            end                                                   //AG 05/27/08
             else
                 SetReady;
             Exit;

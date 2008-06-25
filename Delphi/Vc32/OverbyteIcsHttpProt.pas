@@ -975,8 +975,134 @@ type
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-    {$I OverbyteIcsHttpProtIntfSsl.inc}
+{*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+Author:       François PIETTE
+Description:  A component adding SSL support to THttpCli.
+              This unit contains the interface for the component.
+              It is included in HttpProt.pas unit when USE_SSL is defined.
+              The implementation part is in HttpProtImplSsl.inc.
+              Make use of OpenSSL (http://www.openssl.org).
+              Make use of freeware TSslWSocket component from ICS.
+Creation:     Feb 15, 2003
+Version:      1.00
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+              francois.piette@rtfm.be      http://www.rtfm.be/fpiette
+              francois.piette@pophost.eunet.be
+Support:      Use the mailing list ics-ssl@elists.org
+              Follow "SSL" link at http://www.overbyte.be for subscription.
+Legal issues: Copyright (C) 2003 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              <francois.piette@overbyte.be>
+              SSL implementation includes code written by Arno Garrels,
+              Berlin, Germany, contact: <arno.garrels@gmx.de>
+
+              This software is provided 'as-is', without any express or
+              implied warranty.  In no event will the author be held liable
+              for any  damages arising from the use of this software.
+
+              This code is _NOT_ freeware nor Open Source.
+              To use it, you must financially contribute to the development.
+              See SSL page on the author website for details.
+
+              Once you got the right to use this software, you can use in your
+              own applications only. Distributing the source code or compiled
+              units or packages is prohibed.
+
+              As this code make use of OpenSSL, your rights are restricted by
+              OpenSSL license. See http://www.openssl.org for details.
+
+              Further, the following restrictions applies:
+
+              1. The origin of this software must not be misrepresented,
+                 you must not claim that you wrote the original software.
+                 If you use this software in a product, an acknowledgment
+                 in the product documentation would be appreciated but is
+                 not required.
+
+              2. Altered source versions must be plainly marked as such, and
+                 must not be misrepresented as being the original software.
+
+              3. This notice may not be removed or altered from any source
+                 distribution.
+
+              4. You must register this software by sending a picture postcard
+                 to the author. Use a nice stamp and mention your name, street
+                 address, EMail address and any comment you like to say.
+
+History:
+
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF VER80}
+    Bomb('This unit require a 32 bit compiler !');
 {$ENDIF}
+{$B-}                                 { Enable partial boolean evaluation   }
+{$T-}                                 { Untyped pointers                    }
+{$X+}                                 { Enable extended syntax              }
+{$H+}                                 { Use long strings                    }
+{$J+}                                 { Allow typed constant to be modified }
+
+const
+     SslHttpCliVersion            = 100;
+     SslHttpCliDate               = 'Feb 15, 2003';
+     SslHttpCliCopyRight : String = ' TSslHttpCli (c) 2003 Francois Piette V1.00.0 ';
+
+type
+    TSslHttpCli = class(THttpCli)
+    protected
+        FOnSslVerifyPeer : TSslVerifyPeerEvent;
+        FOnSslCliGetSession     : TSslCliGetSession;
+        FOnSslCliNewSession     : TSslCliNewSession;
+        FOnSslHandshakeDone     : TSslHandshakeDoneEvent;
+        FOnSslCliCertRequest    : TSslCliCertRequest;
+        procedure CreateSocket; override;
+        procedure DoBeforeConnect; override;
+        procedure SetSslContext(Value: TSslContext);
+        function  GetSslContext: TSslContext;
+        procedure SetSslAcceptableHosts(Value : TStrings);
+        function  GetSslAcceptableHosts: TStrings;
+
+        procedure TransferSslVerifyPeer(Sender        : TObject;
+                                        var Ok        : Integer;
+                                        Cert           : TX509Base); virtual;
+        procedure TransferSslCliGetSession(Sender      : TObject;
+                                       var SslSession  : Pointer;
+                                      var FreeSession  : Boolean); virtual;
+        procedure TransferSslCliNewSession(Sender      : TObject;
+                                          SslSession   : Pointer;
+                                          WasReused    : Boolean;
+                                      var IncRefCount  : Boolean); virtual;
+        procedure TransferSslCliCertRequest(Sender     : TObject;
+                                            var Cert   : TX509Base); virtual;
+        {procedure TransferSslHandshakeDone(Sender         : TObject;
+                                           ErrCode        : Word;
+                                           PeerCert       : TX509Base;
+                                           var Disconnect : Boolean); virtual;}
+    public
+        constructor Create(AOwner : TComponent); override;
+        destructor  Destroy; override;
+        procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
+    published
+        property SslContext         : TSslContext         read  GetSslContext
+                                                          write SetSslContext;
+        property SslAcceptableHosts : TStrings            read  GetSslAcceptableHosts
+                                                          write SetSslAcceptableHosts;
+        property OnSslVerifyPeer    : TSslVerifyPeerEvent read  FOnSslVerifyPeer
+                                                          write FOnSslVerifyPeer;
+        property OnSslCliGetSession : TSslCliGetSession
+                                                          read  FOnSslCliGetSession
+                                                          write FOnSslCliGetSession;
+        property OnSslCliNewSession : TSslCliNewSession
+                                                          read  FOnSslCliNewSession
+                                                          write FOnSslCliNewSession;
+        property OnSslHandshakeDone : TSslHandshakeDoneEvent
+                                                          read  FOnSslHandshakeDone
+                                                          write FOnSslHandshakeDone;
+        property OnSslCliCertRequest : TSslCliCertRequest read  FOnSslCliCertRequest
+                                                          write FOnSslCliCertRequest;
+    end;
+
+{$ENDIF} // USE_SSL
 
 procedure Register;
 procedure ReplaceExt(var FName : String; const newExt : String);
@@ -4328,8 +4454,170 @@ end;
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-    {$I OverbyteIcsHttpProtImplSsl.inc}
+{$IFDEF VER80}
+    Bomb('This unit require a 32 bit compiler !');
 {$ENDIF}
+{$B-}                                 { Enable partial boolean evaluation   }
+{$T-}                                 { Untyped pointers                    }
+{$X+}                                 { Enable extended syntax              }
+{$H+}                                 { Use long strings                    }
+{$J+}                                 { Allow typed constant to be modified }
+{ If you use Delphi 7, you may wants to disable warnings for unsafe type,   }
+{ unsafe code and unsafe typecast in the project options. Those warning are }
+{ intended for .NET programs. You may also want to turn off deprecated      }
+{ symbol and platform symbol warnings.                                      }
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TSslHttpCli.Create(AOwner : TComponent);
+begin
+    inherited Create(AOwner);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor  TSslHttpCli.Destroy;
+begin
+    inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpCli.CreateSocket;
+begin
+    FCtrlSocket           := TSslWSocket.Create(Self);
+    FCtrlSocket.SslEnable := TRUE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpCli.DoBeforeConnect;
+begin
+    inherited DoBeforeConnect;
+    FCtrlSocket.OnSslVerifyPeer := TransferSslVerifyPeer;
+    FCtrlSocket.OnSslCliGetSession  := TransferSslCliGetSession;
+    FCtrlSocket.OnSslCliNewSession  := TransferSslCliNewSession;
+    FCtrlSocket.OnSslHandshakeDone  := SslHandshakeDone;
+    FCtrlSocket.OnSslCliCertRequest := TransferSslCliCertRequest;
+    if FProxy <> '' then
+        FCtrlSocket.SslEnable := FALSE
+    else
+        FCtrlSocket.SslEnable := (FProtocol = 'https');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslHttpCli.GetSslContext: TSslContext;
+begin
+    Result := FCtrlSocket.SslContext
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpCli.SetSslContext(Value: TSslContext);
+begin
+    FCtrlSocket.SslContext := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpCli.TransferSslCliCertRequest(
+    Sender      : TObject;
+    var Cert    : TX509Base);
+begin
+    if Assigned(FOnSslCliCertRequest) then
+        FOnSslCliCertRequest(Self, Cert);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpCli.TransferSslVerifyPeer(
+    Sender        : TObject;
+    var Ok        : Integer;
+    Cert       : TX509Base);
+begin
+    if Assigned(FOnSslVerifyPeer) then
+        FOnSslVerifyPeer(Self, Ok, Cert);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpCli.TransferSslCliGetSession(Sender: TObject;
+    var SslSession: Pointer; var FreeSession: Boolean);
+begin
+    if Assigned(FOnSslCliGetSession) then
+        FOnSslCliGetSession(Self, SslSession, FreeSession);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpCli.TransferSslCliNewSession(Sender: TObject;
+    SslSession: Pointer; WasReused: Boolean; var IncRefCount: Boolean);
+begin
+    if Assigned(FOnSslCliNewSession) then
+        FOnSslCliNewSession(Self, SslSession, WasReused, IncRefCount);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{procedure TSslHttpCli.TransferSslHandshakeDone(Sender: TObject;
+    ErrCode: Word; PeerCert: TX509Base;  var Disconnect : Boolean);
+begin
+    if Assigned(FOnSslHandshakeDone) then
+        FOnSslHandshakeDone(Sender, ErrCode, PeerCert, Disconnect);
+end;}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// Just to make UI easier: parse a semi-colon delimited texte string with
+// a list of hosts and build the FSslAcceptableHosts list.
+procedure TSslHttpCli.SetAcceptableHostsList(
+    const SemiColonSeparatedList : String);
+var
+    Host : String;
+    Buf  : String;
+    I    : Integer;
+begin
+    SslAcceptableHosts.Clear;
+    Buf := SemiColonSeparatedList;
+    while TRUE do begin
+        I := Pos(';', Buf);
+        if I > 0 then begin
+            Host := Trim(Copy(Buf, 1, I - 1));
+            if Host > '' then
+                SslAcceptableHosts.Add(Host);
+            Delete(Buf, 1, I);
+        end
+        else begin
+            Host := Trim(Buf);
+            if Host > '' then
+                SslAcceptableHosts.Add(Host);
+            break;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpCli.SetSslAcceptableHosts(Value : TStrings);
+begin
+    if Assigned(FCtrlSocket) then
+        FCtrlSocket.SslAcceptableHosts := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  TSslHttpCli.GetSslAcceptableHosts: TStrings;
+begin
+    if Assigned(FCtrlSocket) then
+        Result := FCtrlSocket.SslAcceptableHosts
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF} // USE_SSL
 
 end.
 

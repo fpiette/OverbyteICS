@@ -266,8 +266,99 @@ type
     end;
 
 {$IFDEF USE_SSL}
-    {$I OverbyteIcsWSocketSIntfSsl.inc}
-{$ENDIF}
+{*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+Author:       François PIETTE
+Description:  A component adding SSL support to TWSocketServer.
+              This unit contains the interface par for the component.
+              It is included in WSocketS.pas unit when USE_SSL is defined.
+              The implementation part is in WSocketSImplSsl.inc.
+              Make use of OpenSSL (http://www.openssl.org).
+              Make use of freeware TWSocket component from ICS.
+Creation:     Jan 24, 2003
+Version:      1.00
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+Support:      Use the mailing list ics-ssl@elists.org
+              Follow "SSL" link at http://www.overbyte.be for subscription.
+Legal issues: Copyright (C) 2003-2005 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              <francois.piette@overbyte.be>
+
+              This software is provided 'as-is', without any express or
+              implied warranty.  In no event will the author be held liable
+              for any  damages arising from the use of this software.
+
+              This code is _NOT_ freeware nor Open Source.
+              To use it, you must financially contribute to the development.
+              See SSL page on the author website for details.
+
+              Once you got the right to use this software, you can use in your
+              own applications only. Distributing the source code or compiled
+              units or packages is prohibed.
+
+              As this code make use of OpenSSL, your rights are restricted by
+              OpenSSL license. See http://www.openssl.org for details.
+
+              Further, the following restrictions applies:
+
+              1. The origin of this software must not be misrepresented,
+                 you must not claim that you wrote the original software.
+                 If you use this software in a product, an acknowledgment
+                 in the product documentation would be appreciated but is
+                 not required.
+
+              2. Altered source versions must be plainly marked as such, and
+                 must not be misrepresented as being the original software.
+
+              3. This notice may not be removed or altered from any source
+                 distribution.
+
+              4. You must register this software by sending a picture postcard
+                 to the author. Use a nice stamp and mention your name, street
+                 address, EMail address and any comment you like to say.
+
+History:
+
+
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+const
+     SslWSocketServerVersion            = 100;
+     SslWSocketServerDate               = 'Feb 02, 2003';
+     SslWSocketServerCopyRight : String = ' TSslWSocket (c) 2003 Francois Piette V1.00.3 ';
+
+type
+    TSslWSocketClient = class(TWSocketClient)
+    public
+        constructor Create(AOwner : TComponent); override;
+        procedure   StartConnection; override;
+    end;
+
+    TSslWSocketServer = class(TWSocketServer)
+    protected
+        procedure TriggerClientConnect(Client : TWSocketClient; Error : Word); override;
+        procedure TriggerClientCreate(Client : TWSocketClient); override;
+    public
+        constructor Create(AOwner : TComponent); override;
+        property  ClientClass;
+        property  ClientCount;
+        property  Client;
+        property  SslMode;
+    published
+        property  SslContext;
+        property  Banner;
+        property  BannerTooBusy;
+        property  MaxClients;
+        property  OnClientDisconnect;
+        property  OnClientConnect;
+        property  SslEnable;
+        property  SslAcceptableHosts;
+        property  OnSslVerifyPeer;
+        property  OnSslSetSessionIDContext;
+        property  OnSslSvrNewSession;
+        property  OnSslSvrGetSession;
+        property  OnSslHandshakeDone;
+    end;
+{$ENDIF} // USE_SSL
 
 {$IFDEF WIN32}
 procedure Register;
@@ -616,11 +707,79 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF USE_SSL}
-    {$I OverbyteIcsWSocketSImplSsl.inc}
-{$ENDIF}
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TSslWSocketServer.Create(AOwner : TComponent);
+begin
+    inherited Create(AOwner);
+    // Server socket doesn't use SSL to listen for clients
+    FSslEnable       := TRUE;
+    Port             := '443';
+    Proto            := 'tcp';
+    Addr             := '0.0.0.0';
+    SslMode          := sslModeServer;
+end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslWSocketServer.TriggerClientCreate(Client : TWSocketClient);
+begin
+    inherited TriggerClientCreate(Client);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslWSocketServer.TriggerClientConnect(
+    Client : TWSocketClient; Error : Word);
+begin
+    inherited TriggerClientConnect(Client, Error);
+    { The event handler may have closed the connection }
+    { The event handler may also have started the SSL }
+    if (Error <> 0) or (Client.State <> wsConnected) or
+       (Client.SslState > sslNone) then
+        Exit;
+    Client.SslEnable := FSslEnable;
+    if Client.SslEnable then begin
+        Client.SslMode                  := FSslMode;
+        Client.SslAcceptableHosts       := FSslAcceptableHosts;
+        Client.SslContext               := FSslContext;
+        Client.OnSslVerifyPeer          := OnSslVerifyPeer;
+        Client.OnSslSetSessionIDContext := OnSslSetSessionIDContext;
+        Client.OnSslSvrNewSession       := OnSslSvrNewSession;
+        Client.OnSslSvrGetSession       := OnSslSvrGetSession;
+        Client.OnSslHandshakeDone       := OnSslHandshakeDone;
+        try
+            if Client.SslMode = sslModeClient then
+                Client.StartSslHandshake
+            else
+                Client.AcceptSslHandshake;
+        except
+            on E: Exception do begin                            // AG 12/18/05
+                Client.SslEnable := False;
+                Client.Abort;
+                { Don't abort silently }
+                Client.HandleBackGroundException(E);            // AG 12/18/05
+            end;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TSslWSocketClient.Create(AOwner : TComponent);
+begin
+    inherited Create(AOwner);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslWSocketClient.StartConnection;
+begin
+    inherited StartConnection;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF} // USE_SSL
 
 end.
 

@@ -439,8 +439,16 @@ type
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-    {$I OverbyteIcsNntpCliIntfSsl.inc}
-{$ENDIF}
+    TSslNntpCli = class(TNntpCli)
+    protected
+        procedure CreateSocket; override;
+        procedure SetSslContext(const Value : TSslContext);
+        function  GetSslContext: TSslContext;
+    published
+        property SslContext : TSslContext read  GetSslContext
+                                          write SetSslContext;
+    end;
+{$ENDIF} // USE_ SSL
 
 
 procedure ParseListLine(const Line          : String;
@@ -2065,8 +2073,31 @@ end;
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-    {$I OverbyteIcsNntpCliImplSsl.inc}
-{$ENDIF}
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslNntpCli.CreateSocket;
+begin
+    FWSocket           := TSslWSocket.Create(Self);
+    FWSocket.SslEnable := TRUE;
+    FWSocket.SslMode   := sslModeClient;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslNntpCli.SetSslContext(const Value : TSslContext);
+begin
+    FWSocket.SslContext := Value
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslNntpCli.GetSslContext: TSslContext;
+begin
+    Result := FWSocket.SslContext
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF} // USE_SSL
 
 end.
 

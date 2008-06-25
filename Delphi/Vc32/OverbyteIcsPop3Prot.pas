@@ -530,8 +530,91 @@ type
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-{$I OverByteIcsPop3ProtIntfSsl.inc}
-{$ENDIF}
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+Author:       Arno Garrels <arno.garrels@gmx.de>
+Creation:     30 December 2007
+Version:      1.0 Beta
+Updated:      11 February 2008
+Description:  A component adding SSL/TLS support to TPop3Cli.
+              This unit contains the interface section of the component.
+              It is included in Pop3Prot.pas unit when USE_SSL is defined.
+              Make use of OpenSSL (http://www.openssl.org).
+              Make use of freeware TWSocket component from ICS
+              Source code available from http://www.overbyte.be
+
+Features:     - Explicite SSL/TLS thru command STLS (abbrevation of STARTTLS).
+              - Implicite SSL/TLS connections on a dedicated port (default 995).
+
+Testing:      A nice made test server represents the free SSL/TLS capable
+              mail server 'Hamster' including full Delphi source,
+              available at: http://tglsoft.de/
+              Also googlemail/gmail POP3 servers support explicite TLS on port 995.
+
+ToDo:
+
+Updates:
+11 Feb 2008  V6.02  Angus SSL version now supports sync methods
+
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+    TPop3SslType  = (pop3TlsNone, pop3TlsImplicite, pop3TlsExplicite);
+    TSslPop3Cli = class(TSyncPop3Cli)
+    protected
+        FSslType            : TPop3SslType; 
+        FOnSslHandshakeDone : TSslHandshakeDoneEvent;
+        function    GetSslAcceptableHosts: TStrings;
+        procedure   SetSslAcceptableHosts(const Value: TStrings);
+        function    GetSslCliGetSession: TSslCliGetSession;
+        function    GetSslCliNewSession: TSslCliNewSession;
+        function    GetSslVerifyPeer: TSslVerifyPeerEvent;
+        procedure   SetSslCliGetSession(const Value: TSslCliGetSession);
+        procedure   SetSslCliNewSession(const Value: TSslCliNewSession);
+        procedure   SetSslVerifyPeer(const Value: TSslVerifyPeerEvent);
+        function    GetSslCliCertRequest: TSslCliCertRequest;
+        procedure   SetSslCliCertRequest(const Value: TSslCliCertRequest);
+        procedure   TransferSslHandshakeDone(Sender         : TObject;
+                                             ErrCode        : Word;
+                                             PeerCert       : TX509Base;
+                                             var Disconnect : Boolean); virtual;
+        procedure   WSocketSessionConnected(Sender : TObject;
+                                            Error  : Word); override;
+        procedure   TlsNext;
+        procedure   DoHighLevelAsync; override;
+        procedure   CreateCtrlSocket; override;
+        procedure   SetSslContext(Value: TSslContext);
+        function    GetSslContext: TSslContext;
+    public
+        procedure   Stls; virtual;
+        //procedure   Abort; override;
+        procedure   Open; override;
+        procedure   Connect; override;
+        property    SslAcceptableHosts   : TStrings
+                                                  read  GetSslAcceptableHosts
+                                                  write SetSslAcceptableHosts;
+    published
+        property    SslType            : TPop3SslType
+                                                  read  FSslType
+                                                  write FSslType;
+        property    SslContext         : TSslContext
+                                                  read  GetSslContext
+                                                  write SetSslContext;
+        property    OnSslVerifyPeer    : TSslVerifyPeerEvent
+                                                  read  GetSslVerifyPeer
+                                                  write SetSslVerifyPeer;
+        property    OnSslCliGetSession : TSslCliGetSession
+                                                  read  GetSslCliGetSession
+                                                  write SetSslCliGetSession;
+        property    OnSslCliNewSession : TSslCliNewSession
+                                                  read  GetSslCliNewSession
+                                                  write SetSslCliNewSession;
+        property    OnSslHandshakeDone : TSslHandshakeDoneEvent
+                                                  read  FOnSslHandshakeDone
+                                                  write FOnSslHandshakeDone;
+        property    OnSslCliCertRequest : TSslCliCertRequest
+                                                  read  GetSslCliCertRequest
+                                                  write SetSslCliCertRequest;
+    end;
+{$ENDIF} // USE_SSL
 
 procedure Register;
 
@@ -2190,7 +2273,401 @@ end;
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-{$I OverbyteIcsPop3ProtImplSsl.inc}
-{$ENDIF}
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+procedure TSslPop3Cli.Connect;
+begin
+    FWSocket.SslEnable := FALSE; // We handle everything in code
+    inherited Connect;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.CreateCtrlSocket;
+begin
+    FWSocket := TSslWSocket.Create(nil);
+    FWSocket.SslMode := sslModeClient;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslPop3Cli.GetSslContext: TSslContext;
+begin
+    if Assigned(FWSocket) then
+        Result := FWSocket.SslContext
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslPop3Cli.GetSslCliGetSession: TSslCliGetSession;
+begin
+    if Assigned(FWSocket) then
+        Result := FWSocket.OnSslCliGetSession
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslPop3Cli.GetSslCliNewSession: TSslCliNewSession;
+begin
+    if Assigned(FWSocket) then
+        Result := FWSocket.OnSslCliNewSession
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslPop3Cli.GetSslVerifyPeer: TSslVerifyPeerEvent;
+begin
+    if Assigned(FWSocket) then
+        Result := FWSocket.OnSslVerifyPeer
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.SetSslCliGetSession(const Value: TSslCliGetSession);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.OnSslCliGetSession := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.SetSslCliNewSession(const Value: TSslCliNewSession);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.OnSslCliNewSession := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.SetSslVerifyPeer(const Value: TSslVerifyPeerEvent);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.OnSslVerifyPeer := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslPop3Cli.GetSslAcceptableHosts: TStrings;
+begin
+    if Assigned(FWSocket) then
+        Result := FWSocket.SslAcceptableHosts
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.SetSslAcceptableHosts(const Value: TStrings);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.SslAcceptableHosts.Assign(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslPop3Cli.GetSslCliCertRequest: TSslCliCertRequest;
+begin
+    if Assigned(FWSocket) then
+        Result := FWSocket.OnSslCliCertRequest
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.SetSslCliCertRequest(
+  const Value: TSslCliCertRequest);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.OnSslCliCertRequest := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.SetSslContext(Value: TSslContext);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.SslContext := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.Open;
+begin
+    if FSslType = pop3TlsExplicite then
+        HighLevelAsync(pop3Open, [pop3FctConnect, pop3FctStartTls,
+                                  pop3FctUser, pop3FctPass])
+    else
+        inherited Open;    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.TransferSslHandshakeDone(Sender: TObject; ErrCode: Word;
+  PeerCert: TX509Base; var Disconnect: Boolean);
+begin
+    if Assigned(FOnSslHandShakeDone) then
+        FOnSslHandShakeDone(Sender, ErrCode, PeerCert, Disconnect);
+    if (ErrCode = 0) and (not Disconnect) and
+       (FWSocket.State = wsConnected) then begin
+        with (Sender as TSslWSocket) do
+            TriggerDisplay(
+                           Format('! Secure connection with %s, cipher %s, ' +
+                                  '%d secret bits (%d total)',
+                                  [SslVersion, SslCipher, SslSecretBits,
+                                   SslTotalBits])
+                           ); 
+        if FSslType = pop3TlsImplicite then
+            StateChange(pop3WaitingBanner)
+        else begin
+            FProtocolState := pop3WaitingUser;
+            TriggerRequestDone(0);
+        end;
+    end
+    else begin
+        if (FWSocket.State = wsConnected) then begin
+            { Temporarily disable RequestDone }
+            FRequestDoneFlag := TRUE;
+            FWSocket.Abort;
+            FRequestDoneFlag := FALSE;
+        end;
+        FErrorMessage  := '-ERR SSL Handshake';
+        FStatusCode    := 500;
+        FRequestResult := FStatusCode;
+        FNextRequest   := nil;
+        TriggerRequestDone(FRequestResult);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.Stls;
+begin
+    if (FSslType = pop3TlsImplicite) or (FProtocolState = pop3Transaction) then
+    begin
+        FErrorMessage := '-ERR STLS command invalid now';
+        Display(FErrorMessage);
+        raise Pop3Exception.Create(FErrorMessage);
+    end;
+    FFctPrv := pop3FctStartTls;
+    ExecAsync(pop3StartTls, 'STLS', pop3WaitingUser, TlsNext);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.TlsNext;
+begin
+    if FRequestResult <> 0 then begin
+        TriggerRequestDone(FRequestResult);
+        Exit;
+    end;
+    TriggerDisplay('! Starting SSL handshake');
+    FWSocket.OnSslHandshakeDone := TransferSslHandShakeDone;
+    FWSocket.SslEnable := TRUE;
+    try
+        //raise Exception.Create('Test');
+        FWSocket.StartSslHandshake;
+    except
+        on E: Exception do begin
+            FWSocket.SslEnable := FALSE;
+            FErrorMessage  := '-ERR SslHandshake ' + E.Classname + ' ' +
+                              E.Message;
+            FStatusCode    := 500;
+            FRequestResult := FStatusCode;
+            { Temporarily disable RequestDone }
+            FRequestDoneFlag := TRUE;
+            FWSocket.Abort; { here we must not abort, however it's more secure }
+            FRequestDoneFlag := FALSE;
+            FNextRequest := nil;
+            TriggerRequestDone(FRequestResult);
+        end
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.WSocketSessionConnected(Sender: TObject; Error: Word);
+begin
+    if (FSslType <> pop3TlsImplicite) or (Error <> 0) then
+        inherited WSocketSessionConnected(Sender, Error)
+    else begin
+        FConnected := TRUE;
+        TriggerDisplay('! Starting SSL handshake');
+        FWSocket.OnSslHandshakeDone := TransferSslHandShakeDone;
+        FWSocket.SslEnable := TRUE;
+        try
+            //raise Exception.Create('Test');
+            FWSocket.StartSslHandshake;
+        except
+            on E: Exception do begin
+                FWSocket.SslEnable := FALSE;
+                FErrorMessage  := '-ERR SslHandshake ' + E.Classname + ' ' +
+                                  E.Message; 
+                FStatusCode    := 500;
+                FRequestResult := FStatusCode;
+                { Temporarily disable RequestDone }
+                FRequestDoneFlag := TRUE;
+                FWSocket.Abort;
+                FRequestDoneFlag := FALSE;
+                FNextRequest := nil;
+                TriggerRequestDone(FRequestResult);
+            end;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslPop3Cli.DoHighLevelAsync;
+begin
+    {$IFDEF TRACE} TriggerDisplay('! HighLevelAsync ' + IntToStr(FRequestResult)); {$ENDIF}
+    if FState = pop3Abort then begin
+        {$IFDEF TRACE} TriggerDisplay('! Abort detected'); {$ENDIF}
+        FFctSet := [];
+        FHighLevelResult := 426;
+        FErrorMessage    := '426 Operation aborted.';
+    end;
+
+    FNextRequest := DoHighLevelAsync;
+
+    if FRequestResult <> 0 then begin
+        { Previous command had errors }
+        FHighLevelResult := FRequestResult;
+        if (FFctPrv = pop3FctQuit) or (not (pop3FctQuit in FFctSet)) then
+            FFctSet := []
+        else
+            FFctSet := [pop3FctQuit];
+    end;
+
+    if pop3FctConnect in FFctSet then begin
+        FFctPrv := pop3FctConnect;
+        FFctSet := FFctSet - [FFctPrv];
+        Connect;
+        Exit;
+    end;
+
+    if pop3FctStartTls in FFctSet then begin
+        FFctPrv := pop3FctStartTls;
+        FFctSet := FFctSet - [FFctPrv];
+        Stls;
+        Exit;
+    end;
+
+    if pop3FctUser in FFctSet then begin
+        FFctPrv := pop3FctUser;
+        FFctSet := FFctSet - [FFctPrv];
+        User;
+        Exit;
+    end;
+
+    if pop3FctPass in FFctSet then begin
+        FFctPrv := pop3FctPass;
+        FFctSet := FFctSet - [FFctPrv];
+        Pass;
+        Exit;
+    end;
+
+    if pop3FctRPop in FFctSet then begin
+        FFctPrv := pop3FctRPop;
+        FFctSet := FFctSet - [FFctPrv];
+        RPop;
+        Exit;
+    end;
+
+    if pop3FctDele in FFctSet then begin
+        FFctPrv := pop3FctDele;
+        FFctSet := FFctSet - [FFctPrv];
+        Dele;
+        Exit;
+    end;
+
+    if pop3FctNoop in FFctSet then begin
+        FFctPrv := pop3FctNoop;
+        FFctSet := FFctSet - [FFctPrv];
+        Noop;
+        Exit;
+    end;
+
+    if pop3FctList in FFctSet then begin
+        FFctPrv := pop3FctList;
+        FFctSet := FFctSet - [FFctPrv];
+        List;
+        Exit;
+    end;
+
+    if pop3FctRSet in FFctSet then begin
+        FFctPrv := pop3FctRSet;
+        FFctSet := FFctSet - [FFctPrv];
+        RSet;
+        Exit;
+    end;
+
+    if pop3FctAPop in FFctSet then begin
+        FFctPrv := pop3FctAPop;
+        FFctSet := FFctSet - [FFctPrv];
+        APop;
+        Exit;
+    end;
+
+    if pop3FctRetr in FFctSet then begin
+        FFctPrv := pop3FctRetr;
+        FFctSet := FFctSet - [FFctPrv];
+        Retr;
+        Exit;
+    end;
+
+    if pop3FctTop in FFctSet then begin
+        FFctPrv := pop3FctTop;
+        FFctSet := FFctSet - [FFctPrv];
+        Top;
+        Exit;
+    end;
+
+    if pop3FctStat in FFctSet then begin
+        FFctPrv := pop3FctStat;
+        FFctSet := FFctSet - [FFctPrv];
+        Stat;
+        Exit;
+    end;
+
+    if pop3FctUidl in FFctSet then begin
+        FFctPrv := pop3FctUidl;
+        FFctSet := FFctSet - [FFctPrv];
+        Uidl;
+        Exit;
+    end;
+
+    if pop3FctLast in FFctSet then begin
+        FFctPrv := pop3FctLast;
+        FFctSet := FFctSet - [FFctPrv];
+        Last;
+        Exit;
+    end;
+
+    if pop3FctQuit in FFctSet then begin
+        FFctPrv := pop3FctQuit;
+        FFctSet := FFctSet - [FFctPrv];
+        Quit;
+        Exit;
+    end;
+
+    {$IFDEF TRACE} TriggerDisplay('! HighLevelAsync done'); {$ENDIF}
+    FFctSet          := [];
+    FNextRequest     := nil;
+    FRequestDoneFlag := FALSE;
+    TriggerRequestDone(FHighLevelResult);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF} // USE_SSL
 end.
 

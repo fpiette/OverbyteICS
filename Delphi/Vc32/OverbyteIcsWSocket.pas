@@ -1212,8 +1212,814 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-{$I OverbyteIcsWSocketIntfSsl.inc}
+{*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+Author:       François PIETTE
+Description:  A component adding SSL support to TWSocket.
+              This unit contains the interface for the component.
+              It is included in WSocket.pas unit when USE_SSL is defined.
+              The implementation part is in WSocketImplSsl.inc.
+              Make use of OpenSSL (http://www.openssl.org).
+              Make use of freeware TWSocket component from ICS.
+              This version has been developped with the excellent collaboration
+              and expertize from Arno Garrels <arno.garrels@gmx.de> and
+              Benjamin Stadin <stadin@gmx.de>. They worked very hard to make
+              this code working.
+Creation:     Jan 11, 2003
+Version:      1.00.9
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+Support:      Use the mailing list ics-ssl@elists.org
+              Follow "SSL" link at http://www.overbyte.be for subscription.
+Legal issues: Copyright (C) 2003-2005 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              <francois.piette@overbyte.be>
+
+              This software is provided 'as-is', without any express or
+              implied warranty.  In no event will the author be held liable
+              for any  damages arising from the use of this software.
+
+              This code is _NOT_ freeware nor Open Source.
+              To use it, you must financially contribute to the development.
+              See SSL page on the author website for details.
+
+              Once you got the right to use this software, you can use in your
+              own applications only. Distributing the source code or compiled
+              units or packages is prohibed.
+
+              As this code make use of OpenSSL, your rights are restricted by
+              OpenSSL license. See http://www.openssl.org for details.
+
+              Further, the following restrictions applies:
+
+              1. The origin of this software must not be misrepresented,
+                 you must not claim that you wrote the original software.
+                 If you use this software in a product, an acknowledgment
+                 in the product documentation would be appreciated but is
+                 not required.
+
+              2. Altered source versions must be plainly marked as such, and
+                 must not be misrepresented as being the original software.
+
+              3. This notice may not be removed or altered from any source
+                 distribution.
+
+              4. You must register this software by sending a picture postcard
+                 to the author. Use a nice stamp and mention your name, street
+                 address, EMail address and any comment you like to say.
+
+Reference guide:
+    SslCertFile     Filename of the certificate sent to the remote site for
+                    authetification, in PEM format.
+    SslPassPhrase   Password phrase used to protect SslCertFile.
+    SslPrivKeyFile  Private key used to encrypt data. Must correspond to the
+                    public key stored in the certificate identified by
+                    SslCertFile.
+    SslCAFile       Filename of CA certificates in PEM format. The file can
+                    contain several CA certificates identified by
+                    -----BEGIN CERTIFICATE-----
+                    ... (CA certificate in base64 encoding) ...
+                    -----END CERTIFICATE-----
+                    sequences. Before, between, and after the certificates text
+                    is allowed which can be used e.g. for descriptions of the
+                    certificates.
+                    CAFile can be an empty string if CAPath is used.
+    SslCAPath       Directory containing CA certificates in PEM format. The
+                    files each contain one CA certificate. The files are looked
+                    up by the CA subject name hash value, which must hence be
+                    available.
+                    If more than one CA certificate with the same name hash
+                    value exist, the extension must be different (e.g.
+                    9d66eef0.0, 9d66eef0.1 etc). The search is performed in
+                    the ordering of the extension number, regardless of other
+                    properties of the certificates.
+                    To create the hash value for filenames, use the command
+                    line: openssl x509 -hash -noout -in YourCert.pem
+                    The output is a 8 digit hex number you _must_ use as file
+                    name for a given certificate in CAPath directory. Can be
+                    any extension, using a numeric extension is handy.
+
+History:
+Jan 19, 2003 V1.00.2 First pre-relase version. Works with TWSocket version 5.00.
+             Lot of things remains to do. Currently support basic connections
+             (Socks doesn't work, line mode doesn't work).
+Mar 04, 2003 V1.00.3 Socks and LineMode support
+Apr 14, 2003 V1.00.4 Fixed bugs related to premature session close
+Apr 04, 2004 V1.00.5 Verified with new WSocket version
+Aug 31, 2005 V1.00.8 Use the code from Arno Garrels <arno.garrels@gmx.de> and
+              Benjamin Stadin <stadin@gmx.de>. They worked very hard to make
+              this code working.
+Dec 07, 2005 V1.00.9 A. Garrels fixed an issue with BIO I/O functions.
+             Support of OSSL v0.9.8a added. Changed load order of OpenSSL
+             libraries. A received SSL shutdown notification in Do_FD_READ was
+             not detected, fixed. OpenSSL releases from 0.9.7g up to 0.9.8a
+             should be supported. New OpenSSL version check, an exception is
+             raised if version is not in the range of supported versions. In
+             order to disable the version check uncomment define
+             NO_OSSL_VERSION_CHECK in IcsLIBEAY.pas and rebuild all. Two new
+             methods of TSslContext to ease verification of client certificates.
+             They create/modify the list of acceptable CAs sent to the client
+             when a server requests a client certificate, AddClientCAFromFile
+             and SetClientCAListFromFile, see comments on top of the functions.
+             SslOptions modified. SSLv3 renegotiaton added, there are two
+             new functions SslStartRenegotiation and SslRenegotiatePending,
+             see comments on top of the functions. When renegotiation is
+             requested in server mode a new SslOption should be set also it's
+             sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION.
+Dec 19, 2005 Angus new wsocket logging
+Jan 18, 2006 Arno Garrels: A lot of bugs fixed probably alot of new added ;-)
+             bidirectional shutdown added.
+Jan 26, 2006 Type of TSslSessionIdContext changed to AnsiString due to problems
+             with BCB.
+Mar 02, 2006 Removed function SslStateToStr which was wrong and not used.
+             Arno Garrels fixed TCustomSslWSocket.Do_FD_CLOSE
+Mar 06, 2006 A. Garrels: Removed the so called fix from Mar 02 in Do_FD_CLOSE
+             because it it wasn't a real fix. Instead several changes at
+             several places were required to fix the shutdown problems. Fixed
+             error "Undeclared identifier RaiseLastOpenSslError" when
+             NO_DEBUG_LOG was defined. Added properties ValidNotBefore and
+             ValidNotAfter to TX509Base.
+             Multi-threading: OpenSSL library is thread safe as long as the
+             application provides an appropriate locking callback. Implemented
+             such callbacks as two components see unit IcsSslThrdLock.
+             Changed InitContext to always set session cache options, because
+             the default OpenSSL setting is to use the internal cache.
+Jun 20, 2007 Changes by Arno Garrels: Fixed TX509Base.PostConnectionCheck to
+             handle wildcard certificates. Property TX509Base.SubjectCName may
+             now include a list of strings separated by CRLF (many certificates
+             use multiple common name fields). Common name fields encoded 
+             Unicode or UTF-8 are now converted to ansi string. New properties
+             TX509Base.FirstVerifyResult and TX509Base.FirstVerifyErrMsg
+             hold the first verify result, because a certificate may pass
+             verification process several times which overwrites value of
+             VerifyResult.
+Nov 08, 2007 A. Garrels added property PublicKey to TX509Base.
+
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF VER80}
+    Bomb('This unit require a 32 bit compiler !');
 {$ENDIF}
+{$B-}                                 { Enable partial boolean evaluation   }
+{$T-}                                 { Untyped pointers                    }
+{$X+}                                 { Enable extended syntax              }
+{$H+}                                 { Use long strings                    }
+{$J+}                                 { Allow typed constant to be modified }
+{$IFDEF DEBUG_DUMP}
+    {$DEFINE DEBUG_OUTPUT}
+{$ENDIF}
+const
+     SslWSocketVersion            = 100;
+     SslWSocketDate               = 'Jan 18, 2006';
+     SslWSocketCopyRight : String = ' TSslWSocket (c) 2003-2006 Francois Piette V1.00.5e ';
+
+const
+     
+     //SSL_POST_CONNECTION_CHECK_FAILED = 12101;
+     sslProtocolError                 = 20100;
+     SSL_BUFFER_SIZE                  = 4096;
+     msgSslCtxNotInit                 = 'SSL context not initialized';
+
+{$IFNDEF NO_ADV_MT}
+var
+     LockPwdCB          : TRtlCriticalSection;
+     LockVerifyCB       : TRtlCriticalSection;
+     LockInfoCB         : TRtlCriticalSection;
+     LockRemSessCB      : TRtlCriticalSection;
+     LockNewSessCB      : TRtlCriticalSection;
+     LockGetSessCB      : TRtlCriticalSection;
+     LockClientCertCB   : TRtlCriticalSection;
+{$ENDIF}
+     procedure UnloadSsl;
+     procedure LoadSsl;
+
+type
+//    TSslDebugLevel = (ssldbgNone, ssldbgError, ssldbgInfo, ssldbgDump); angus
+
+    TSslBaseComponent = class(TComponent)
+    protected
+        FSslInitialized : Boolean;
+        FLastSslError : Integer;
+
+    {$IFNDEF NO_DEBUG_LOG}                                             { V5.21 }
+        FIcsLogger  : TIcsLogger;
+        procedure   SetIcsLogger(const Value : TIcsLogger); virtual;   { V5.21 }
+        procedure   Notification(AComponent  : TComponent;             { V5.21 }
+                                 Operation   : TOperation); override;
+        procedure   DebugLog(LogOption : TLogOption;                   { V5.21 }
+                             const Msg : string); virtual;
+        function    CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { V5.21 }
+    {$ENDIF}
+        procedure   RaiseLastOpenSslError(EClass          : ExceptClass;
+                                          Dump            : Boolean = FALSE;
+                                          const CustomMsg : String  = ''); virtual;
+        procedure   InitializeSsl;
+        procedure   FinalizeSsl;
+    public
+        constructor Create(AOwner: TComponent); override;
+        destructor  Destroy; override;
+        property    LastSslError : Integer read FLastSslError;
+{$IFNDEF NO_DEBUG_LOG}
+    published
+        property    IcsLogger : TIcsLogger                read  FIcsLogger    { V5.21 }
+                                                          write SetIcsLogger;
+{$ENDIF}
+    end;
+    (*
+    TX509Stack = class(TObject) // Not yet used, but will be soon!
+    private
+        FStack : PSTACK;
+        FCount : Integer;
+    protected
+        function    GetCert(Index : Integer): PX509;
+        procedure   SetCert(Index : Integer; const Value : PX509);
+        procedure   SetStack(const Value : PStack);
+        function    InternalInsert(Cert : PX509; Index : Integer): Integer;
+    public
+        constructor Create;
+        destructor  Destroy; override;
+        function    Add(Cert : PX509): Integer;
+        procedure   Clear;
+        procedure   Insert(Cert : PX509; Index : Integer);
+        function    IndexOf(Cert : PX509): Integer;
+        procedure   Delete(Index : Integer);
+        property    Count                   : Integer           read  FCount;
+        property    Certs[index : Integer]  : PX509             read  GetCert
+                                                                write SetCert; default;
+        property    Stack: PSTACK                               read  FStack
+                                                                write SetStack;
+    end;
+    *)
+{$IFNDEF COMPILER6_UP}
+const                                                             {AG 02/06/06}
+    MinDateTime: TDateTime = -657434.0;      { 01/01/0100 12:00:00.000 AM }
+    MaxDateTime: TDateTime =  2958465.99999; { 12/31/9999 11:59:59.999 PM }
+{$ENDIF}
+type
+    EX509Exception = class(Exception);
+    TExtension = packed record
+        Critical  : Boolean;
+        ShortName : String;
+        Value     : String; // may be also one or multiple Name=value pairs,
+    end;                    // separated by a CRLF
+
+    PExtension = ^TExtension;
+    TBioOpenMethode = (bomRead, bomWrite);
+    TX509Base = class(TSslBaseComponent)
+    private
+        FX509               : Pointer;
+        FPrivateKey         : Pointer;
+    protected
+        FVerifyResult       : Integer;  // current verify result
+        FSha1Hash           : String;
+        FVerifyDepth        : Integer;
+        FCustomVerifyResult : Integer;
+        FFirstVerifyResult  : Integer;                      {05/21/2007 AG}
+        procedure   FreeAndNilX509;
+        procedure   SetX509(X509: Pointer);
+        procedure   SetPrivateKey(PKey: Pointer);
+        function    GetPublicKey: Pointer;
+        function    GetVerifyErrorMsg: String;
+        function    GetFirstVerifyErrorMsg: String;         {05/21/2007 AG}
+        function    GetIssuerOneLine: String;
+        function    GetSubjectOneLine: String;
+        function    GetSerialNum: Integer; virtual;
+        function    GetSubjectCName: String;
+        function    GetSubjectAltName: TExtension; virtual;
+        function    GetExtension(Index: Integer): TExtension; virtual;
+        function    GetExtensionCount: Integer;
+        function    GetValidNotBefore: TDateTime;              {AG 02/06/06}
+        function    GetValidNotAfter: TDateTime;               {AG 02/06/06}
+        function    GetHasExpired: Boolean;                    {AG 02/06/06}
+        procedure   AssignDefaults; virtual;
+        function    UnknownExtDataToStr(Ext: PX509_Extension) : String;
+        function    GetSha1Hash: String;
+        function    OpenFileBio(const FileName  : String;
+                                Methode         : TBioOpenMethode): PBIO;
+    public
+        constructor Create(AOwner: TComponent; X509: Pointer = nil); reintroduce;
+        destructor  Destroy; override;
+        function    ExtByName(const ShortName: String): Integer;
+        function    PostConnectionCheck(HostOrIp: String): Boolean; virtual;
+        function    GetRawText: String;                        {05/21/2007 AG}
+        procedure   LoadFromPemFile(const FileName: String;
+                                    IncludePrivateKey: Boolean = False;
+                                    const Password: String = '');
+        procedure   SaveToPemFile(const FileName: String;
+                                  IncludePrivateKey: Boolean = False);
+        procedure   PrivateKeyLoadFromPemFile(const FileName: String;
+                                              const Password: String = '');
+        procedure   PrivateKeySaveToPemFile(const FileName: String);
+        property    IssuerOneLine       : String        read  GetIssuerOneLine;
+        property    SubjectOneLine      : String        read  GetSubjectOneLine;
+        property    SerialNum           : Integer       read  GetSerialNum;
+        property    VerifyResult        : Integer       read  FVerifyResult
+                                                        write FVerifyResult;
+        property    VerifyErrMsg        : String        read  GetVerifyErrorMsg;
+        property    VerifyDepth         : Integer       read  FVerifyDepth
+                                                        write FVerifyDepth;
+        property    CustomVerifyResult  : Integer       read  FCustomVerifyResult
+                                                        write FCustomVerifyResult;
+        property    FirstVerifyResult   : Integer       read  FFirstVerifyResult {05/21/2007 AG}
+                                                        write FFirstVerifyResult;
+        property    FirstVerifyErrMsg   : String        read  GetFirstVerifyErrorMsg; {05/21/2007 AG}
+        property    X509                : Pointer       read  FX509
+                                                        write SetX509;
+        property    PrivateKey          : Pointer       read  FPrivateKey
+                                                        write SetPrivateKey;
+        property    PublicKey           : Pointer       read  GetPublicKey;      {AG 11/08/07}
+        property    SubjectCName        : String        read  GetSubjectCName;
+        property    SubjectAltName      : TExtension    read  GetSubjectAltName;
+        property    ExtensionCount      : Integer       read  GetExtensionCount;
+        property    Extensions[index: Integer] : TExtension read GetExtension;
+        property    Sha1Hash            : String        read  FSha1Hash;
+        property    ValidNotBefore      : TDateTime     read  GetValidNotBefore; {AG 02/06/06}
+        property    ValidNotAfter       : TDateTime     read  GetValidNotAfter;  {AG 02/06/06}
+        property    HasExpired          : Boolean       read  GetHasexpired;     {AG 02/06/06}
+    end;
+
+    TX509Class = class of TX509Base;
+
+    TCustomSslWSocket = class; //forward
+
+    TX509List  = class(TObject)
+    { Written by Arno Garrels, for ICS    }
+    { Contact: email arno.garrels@gmx.de  }
+    private
+        FList               : TComponentList;
+        FX509Class          : TX509Class;
+        FOwner              : TComponent;
+        FLastVerifyResult   : Integer;
+    protected
+        function    GetCount: Integer;
+        function    GetX509Base(Index: Integer): TX509Base;
+        procedure   SetX509Base(Index: Integer; Value: TX509Base);
+        function    GetByPX509(const X509: PX509) : TX509Base;
+    public
+        constructor Create(AOwner: TComponent); reintroduce;
+        destructor  Destroy; override;
+        procedure   Clear;
+        function    Add(X509 : PX509 = nil) : TX509Base;
+        procedure   Delete(const Index: Integer);
+        function    IndexOf(const X509Base : TX509Base): Integer;
+        function    GetByHash(const Sha1Hash : String): TX509Base;
+        property    Count                       : Integer       read  GetCount;
+        property    Items[index: Integer]       : TX509Base     read  GetX509Base
+                                                                write SetX509Base; default;
+        property    X509Class                   : TX509Class    read  FX509Class
+                                                                write FX509Class;
+        property    LastVerifyResult            : Integer       read  FLastVerifyResult;
+    end;
+
+    TSslContextRemoveSession = procedure(Sender: TObject;
+                                         SslSession : Pointer) of object;
+    // SSL Version selection
+    TSslVersionMethod = (sslV2,
+                         sslV2_CLIENT,
+                         sslV2_SERVER,
+                         sslV3,
+                         sslV3_CLIENT,
+                         sslV3_SERVER,
+                         sslTLS_V1,
+                         sslTLS_V1_CLIENT,
+                         sslTLS_V1_SERVER,
+                         sslV23,
+                         sslV23_CLIENT,
+                         sslV23_SERVER);
+
+    TSslVerifyPeerMode = (SslVerifyMode_NONE,
+                          SslVerifyMode_PEER,
+                          SslVerifyMode_FAIL_IF_NO_PEER_CERT,
+                          SslVerifyMode_CLIENT_ONCE);
+    TSslVerifyPeerModes = set of TSslVerifyPeerMode;
+
+    TSslOption  = (sslOpt_CIPHER_SERVER_PREFERENCE,
+                   sslOpt_MICROSOFT_SESS_ID_BUG,
+                   sslOpt_NETSCAPE_CHALLENGE_BUG,
+                   sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG,
+                   sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG,
+                   sslOpt_MICROSOFT_BIG_SSLV3_BUFFER,
+                   sslOpt_MSIE_SSLV2_RSA_PADDING,
+                   sslOpt_SSLEAY_080_CLIENT_DH_BUG,
+                   sslOpt_TLS_D5_BUG,
+                   sslOpt_TLS_BLOCK_PADDING_BUG,
+                   sslOpt_TLS_ROLLBACK_BUG,
+                   sslOpt_DONT_INSERT_EMPTY_FRAGMENTS,
+                   sslOpt_SINGLE_DH_USE,
+                   sslOpt_EPHEMERAL_RSA,
+                   sslOpt_NO_SSLv2,
+                   sslOpt_NO_SSLv3,
+                   sslOpt_NO_TLSv1,
+                   sslOpt_PKCS1_CHECK_1,
+                   sslOpt_PKCS1_CHECK_2,
+                   sslOpt_NETSCAPE_CA_DN_BUG,
+                   sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, // 12/09/05
+                   sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG);
+    TSslOptions = set of TSslOption;
+
+    TSslSessCacheMode = (//sslSESS_CACHE_OFF,
+                         sslSESS_CACHE_CLIENT,
+                         sslSESS_CACHE_SERVER,
+                         //sslSESS_CACHE_BOTH,
+                         sslSESS_CACHE_NO_AUTO_CLEAR,
+                         sslSESS_CACHE_NO_INTERNAL_LOOKUP,
+                         sslSESS_CACHE_NO_INTERNAL_STORE{,
+                         sslSESS_CACHE_NO_INTERNAL});
+    TSslSessCacheModes = set of TSslSessCacheMode;
+
+    TSslSessionIdContext = String;//[SSL_MAX_SSL_SESSION_ID_LENGTH];
+
+    {
+    TSslX509Trust = (ssl_X509_TRUST_NOT_DEFINED, // Custom value
+                     ssl_X509_TRUST_COMPAT,
+                     ssl_X509_TRUST_SSL_CLIENT,
+                     ssl_X509_TRUST_SSL_SERVER,
+                     ssl_X509_TRUST_EMAIL,
+                     ssl_X509_TRUST_OBJECT_SIGN,
+                     ssl_X509_TRUST_OCSP_SIGN,
+                     ssl_X509_TRUST_OCSP_REQUEST); }
+
+    ESslContextException = class(Exception);
+
+    TInfoExtractMode = (emCert, {emKey,} emCRL);
+    TSslContext = class(TSslBaseComponent)
+    protected
+        FSslCtx                     : PSSL_CTX;
+        FSslVersionMethod           : TSslVersionMethod;
+        FSslCertFile                : String;
+        FSslPassPhrase              : String;
+        FSslPrivKeyFile             : String;
+        FSslCAFile                  : String;
+        FSslCAPath                  : String;
+        FSslCRLFile                 : String;
+        FSslCRLPath                 : String;
+        //FSslIntermCAFile            : String;
+        //FSslIntermCAPath            : String;
+        FSslVerifyPeer              : Boolean;
+        FSslVerifyDepth             : Integer;
+        FSslOptionsValue            : Longint;
+        FSslCipherList              : String;
+        FSslSessCacheModeValue      : Longint;
+        FSslSessionCacheSize        : Longint;
+        FSslSessionTimeout          : Longword;
+        FSslDefaultSessionIDContext : TSslSessionIdContext;
+        FOnRemoveSession            : TSslContextRemoveSession;
+        FSslVerifyPeerModes         : TSslVerifyPeerModes;
+        FSslVerifyPeerModesValue    : Integer;
+        //FSslX509Trust               : TSslX509Trust;
+{$IFNDEF NO_ADV_MT}
+        FLock                       : TRtlCriticalSection;
+        procedure Lock;
+        procedure Unlock;
+{$ENDIF}
+        function  InitializeCtx : PSSL_CTX;
+        procedure SetSslCertFile(const Value : String);
+        procedure SetSslPassPhrase(const Value : String);
+        procedure SetSslPrivKeyFile(const Value : String);
+        procedure SetSslCAFile(const Value : String);
+        procedure SetSslCAPath(const Value : String);
+        procedure SetSslCRLFile(const Value : String);
+        procedure SetSslCRLPath(const Value : String);
+        procedure SetSslSessionCacheSize(Value : Longint);
+        procedure SetSslOptions(Value : TSslOptions);
+        function  GetSslOptions : TSslOptions;
+        procedure SetSslSessCacheModes(Value : TSslSessCacheModes);
+        function  GetSslSessCacheModes : TSslSessCacheModes;
+        procedure SetSslCipherList(const Value : String);
+        procedure SetSslVerifyPeerModes(const Value : TSslVerifyPeerModes);
+        procedure SetSslVerifyPeer(const Value: Boolean);
+        procedure SetSslDefaultSessionIDContext(Value: TSslSessionIdContext);
+        procedure SetSslSessionTimeout(Value : Longword);
+        procedure SetSslVersionMethod(Value : TSslVersionMethod);
+        function  OpenFileBio(const FileName : String;
+            Methode : TBioOpenMethode): PBIO;
+        function  LoadStackFromInfoFile(const FileName : String;
+            Mode : TInfoExtractMode): PStack;
+        procedure LoadVerifyLocations(const CAFile, CAPath: String);
+        procedure LoadCertFromChainFile(const FileName : String);
+        procedure LoadPKeyFromFile(const FileName : String);
+        //procedure DebugLogInfo(const Msg: string);        { V5.21 } 
+        //procedure SetSslX509Trust(const Value: TSslX509Trust);
+        function  GetIsCtxInitialized : Boolean; 
+    public
+        constructor Create(AOwner: TComponent); override;
+        destructor  Destroy; override;
+        procedure   InitContext;
+        procedure   DeInitContext;
+        function    TrustCert(Cert : TX509Base): Boolean;
+        procedure   LoadCrlFromFile(const Filename: String);
+        procedure   LoadCrlFromPath(const Path: String);
+        procedure   AddClientCAFromFile(const FileName: String);
+        procedure   SetClientCAListFromFile(const FileName: String);
+        property    IsCtxInitialized : Boolean read GetIsCtxInitialized;
+    published
+        property  SslCertFile       : String            read  FSslCertFile
+                                                        write SetSslCertFile;
+        property  SslPassPhrase     : String            read  FSslPassPhrase
+                                                        write SetSslPassPhrase;
+        property  SslPrivKeyFile    : String            read  FSslPrivKeyFile
+                                                        write SetSslPrivKeyFile;
+        property  SslCAFile         : String            read  FSslCAFile
+                                                        write SetSslCAFile;
+        property  SslCAPath         : String            read  FSslCAPath
+                                                        write SetSslCAPath;
+        property  SslCRLFile        : String            read  FSslCRLFile
+                                                        write SetSslCRLFile;
+        property  SslCRLPath        : String            read  FSslCRLPath
+                                                        write SetSslCRLPath;
+        {property  SslIntermCAFile   : String            read  FSslIntermCAFile
+                                                        write FSslIntermCAFile;
+        property  SslIntermCAPath    : String           read  FSslIntermCAPath
+                                                        write FSslIntermCAPath;}
+        property  SslVerifyPeer     : Boolean           read  FSslVerifyPeer
+                                                        write SetSslVerifyPeer;
+        property  SslVerifyDepth    : Integer           read  FSslVerifyDepth
+                                                        write FSslVerifyDepth;
+        property  SslOptions        : TSslOptions       read  GetSslOptions
+                                                        write SetSslOptions;
+        property  SslVerifyPeerModes : TSslVerifyPeerModes
+                                                    read  FSslVerifyPeerModes
+                                                    write SetSslVerifyPeerModes;
+        property  SslSessionCacheModes : TSslSessCacheModes
+                                                    read  GetSslSessCacheModes
+                                                    write SetSslSessCacheModes;
+        property  SslCipherList     : String            read  FSslCipherList
+                                                        write SetSslCipherList;
+        property  SslVersionMethod  : TSslVersionMethod
+                                                        read  FSslVersionMethod
+                                                        write SetSslVersionMethod;
+        property  SslSessionTimeout : Longword          read  FSslSessionTimeout
+                                                        write SetSslSessionTimeout;
+        property  SslSessionCacheSize : Integer
+                                                    read  FSslSessionCacheSize
+                                                    write SetSslSessionCacheSize;
+        property  SslDefaultSessionIDContext : TSslSessionIdContext
+                                                read  FSslDefaultSessionIDContext
+                                                write SetSslDefaultSessionIDContext;
+        {property  SslX509Trust      : TSslX509Trust         read  FSslX509Trust
+                                                            write SetSslX509Trust;}
+        property  OnRemoveSession   : TSslContextRemoveSession
+                                                        read  FOnRemoveSession
+                                                        write FOnRemoveSession;
+    end;
+
+    {TSslState = (sslNone,
+                 sslWantConnect,
+                 sslConnectWantRead,
+                 sslConnectWantWrite,
+                 sslConnected,
+                 sslAccepted,
+                 sslAcceptWantRead,
+                 sslAcceptWantWrite,
+                 sslWriteWantRead,
+                 sslWriteWantWrite,
+                 sslShutdown,
+                 sslShutdownWantRead,
+                 sslShutdownWantWrite);
+     }
+
+    TSslState = (sslNone,  // Not yet finished, Francois, could you care about states ??
+                 sslHandshakeInit,
+                 sslHandshakeStarted,
+                 sslHandshakeFailed,
+                 sslEstablished,
+                 sslInShutdown,
+                 sslShutdownComplete);
+
+  TSslVerifyPeerEvent = procedure (Sender    : TObject;
+                                   var Ok    : Integer;
+                                   Cert      : TX509Base) of object;
+  TSslHandshakeDoneEvent = procedure (Sender            : TObject;
+                                      ErrCode           : Word;
+                                      PeerCert          : TX509Base;
+                                      var Disconnect    : Boolean) of object;
+  TSslEvent = (sslFdRead, sslFdWrite, sslFdClose);
+  TSslPendingEvents = set of TSslEvent;
+  TSslMode  = (sslModeClient, sslModeServer);
+  //Client-side session caching
+  TSslCliGetSession         = procedure(Sender          : TObject;
+                                        var SslSession  : Pointer;
+                                        var FreeSession : Boolean) of object;
+  TSslCliNewSession         = procedure(Sender          : TObject;
+                                        SslSession      : Pointer;
+                                        WasReused       : Boolean;
+                                        var IncRefCount : Boolean) of object;
+
+  //Server-side session caching
+  TSslSetSessionIDContext   = procedure(Sender                  : TObject;
+                                        var SessionIDContext    : TSslSessionIdContext) of object;
+  TSslSvrNewSession         = procedure(Sender                  : TObject;
+                                        SslSession              : Pointer;
+                                        SessId                  : Pointer;
+                                        Idlen                   : Integer;
+                                        var AddToInternalCache  : Boolean) of object;
+  TSslSvrGetSession         = procedure(Sender                  : TObject;
+                                        var SslSession          : Pointer;
+                                        SessId                  : Pointer;
+                                        Idlen                   : Integer;
+                                        var IncRefCount         : Boolean) of object;
+
+  TSslCliCertRequest        = procedure(Sender     : TObject;
+                                        var Cert   : TX509Base) of object;
+  TSslShutDownComplete      = procedure(Sender          : TObject;
+                                        Bidirectional   : Boolean;
+                                        ErrCode         : Integer) of object;
+  TCustomSslWSocket = class(TCustomSocksWSocket)
+  protected
+        FSslContext                 : TSslContext;
+        FOnSslSvrNewSession         : TSslSvrNewSession;
+        FOnSslSvrGetSession         : TSslSvrGetSession;
+        FOnSslCliGetSession         : TSslCliGetSession;
+        FOnSslCliNewSession         : TSslCliNewSession;
+        FOnSslSetSessionIDContext   : TSslSetSessionIDContext;
+        FOnSslCliCertRequest        : TSslCliCertRequest;
+        FX509Class                  : TX509Class;
+        FSslCertChain               : TX509List;
+        FSslMode                    : TSslMode;
+        //FTriggerCount               : Integer; //Test
+        FSslBufList                 : TIcsBufferHandler;
+        FExplizitSsl                : Boolean;
+        bSslAllSent                 : Boolean;
+        FMayTriggerFD_Read          : Boolean;
+        FMayTriggerFD_Write         : Boolean;
+        FMayTriggerDoRecv           : Boolean;
+        FMayTriggerSslTryToSend     : Boolean;
+        //FHandShakeDoneInvoked       : Boolean;
+        FCloseCalled                : Boolean;
+        //FCloseReceived              : Boolean;
+        FPendingSslEvents           : TSslPendingEvents;
+        FSslIntShutDown             : Integer;
+        FShutDownHow                : Integer;
+        FSslEnable                  : Boolean;
+        //FSslEstablished           : Boolean;
+        FLastSslError               : Integer;
+        FSslInRenegotiation         : Boolean;    // <= 01/01/06
+        FSslBioWritePendingBytes    : Integer;
+        FSendPending                : Boolean;
+        FSslBiShutDownFlag          : Boolean;    // <= 01/08/06
+        FOnSslShutDownComplete      : TSslShutDownComplete;
+        FNetworkError               : Integer;
+        FSslInitialized             : Boolean;
+        FInHandshake                : Boolean;
+        FHandshakeDone              : Boolean;
+        FSslVersNum                 : Integer;        //12/09/05
+        FSSLState                   : TSslState;
+        FSsl_In_CB                  : Boolean;
+        FSsl                        : PSSL;
+        FSslBio                     : PBIO;
+        FIBio                       : PBIO;
+        FNBio                       : PBIO;
+        FSslAcceptableHosts         : TStrings;
+        FSslVerifyResult            : Integer;
+        FSslVersion                 : String;
+        FSslCipher                  : String;
+        FSslTotalBits               : Integer;
+        FSslSecretBits              : Integer;
+        FMsg_WM_TRIGGER_DATASENT    : UINT;
+        FMsg_WM_SSL_ASYNCSELECT     : UINT;
+        FMsg_WM_RESET_SSL           : UINT;
+        FMsg_WM_BI_SSL_SHUTDOWN     : UINT;
+        FMsg_WM_TRIGGER_SSL_SHUTDOWN_COMPLETED : UINT;
+        FOnSslVerifyPeer            : TSslVerifyPeerEvent;
+        FOnSslHandshakeDone         : TSslHandshakeDoneEvent;
+        //procedure   SetSslEnable(const Value: Boolean); virtual;
+        procedure   RaiseLastOpenSslError(EClass          : ExceptClass;
+                                          Dump            : Boolean = FALSE;
+                                          const CustomMsg : String  = ''); virtual;
+        function  SocketDataPending : Boolean;
+        procedure InternalShutdown(How: Integer);
+        procedure PutDataInSslBuffer(Data: Pointer; Len: Integer);
+        procedure DeleteBufferedSslData;
+        function  GetRcvdCount : LongInt; override;
+        procedure WMSslBiShutDown(var msg: TMessage);
+        procedure WMSslASyncSelect(var msg: TMessage);
+        procedure WMTriggerSslShutDownComplete(var msg: TMessage);
+        procedure Do_SSL_FD_READ(var Msg: TMessage);
+        function  TriggerEvent(Event: TSslEvent; ErrCode: Word): Boolean;
+
+        procedure AssignDefaultValue; override;
+        procedure Do_FD_CONNECT(var Msg : TMessage); override;
+        procedure Do_FD_READ(var Msg : TMessage); override;
+        procedure Do_FD_WRITE(var Msg : TMessage); override;
+        procedure Do_FD_CLOSE(var Msg : TMessage); override;
+        procedure Do_FD_ACCEPT(var Msg : TMessage); override;
+        //procedure WMSslHandshakeDone(var msg: TMessage); message WM_TRIGGER_SSLHANDSHAKEDONE;
+        function  SslShutdownCompleted(How: Integer) : Boolean;
+        function  DoRecv(var Buffer : TWSocketData;
+                         BufferSize : Integer;
+                         Flags      : Integer) : Integer; override;
+        procedure TryToSend; override;
+        procedure InitializeSsl;
+        procedure FinalizeSsl;
+        procedure InitSSLConnection(ClientMode : Boolean; pSSLContext : PSSL_CTX = nil);
+        //function  LoadCertificate(out ErrMsg : String) : Boolean;
+        procedure DupConnected; override;
+        procedure InternalClose(bShut : Boolean; Error : Word); override;
+        procedure InternalAbort(ErrCode : Word); override;
+        procedure WndProc(var MsgRec: TMessage); override;
+        procedure SetSslAcceptableHosts(Value : TStrings);
+        procedure TriggerEvents;
+        procedure TriggerSessionConnected(ErrCode : Word); override;
+        procedure TriggerSslHandshakeDone(ErrCode : Word); virtual;
+        procedure TriggerSslVerifyPeer(var Ok     : Integer;
+                                       Cert       : TX509Base); virtual;
+        procedure TriggerSslCliNewSession; virtual;
+        procedure SetSslContext(const Value: TSslContext);
+        procedure Notification(AComponent: TComponent; Operation: TOperation); override;
+        procedure TriggerSslShutDownComplete(ErrCode: Integer); virtual;
+        function  MsgHandlersCount : Integer; override;
+        procedure AllocateMsgHandlers; override;
+        procedure FreeMsgHandlers; override;
+        property  X509Class : TX509Class read FX509Class write FX509Class;
+    public
+        constructor Create(AOwner : TComponent); override;
+        destructor  Destroy; override;
+        procedure   ResetSSL;
+        procedure   Listen; override;
+        function    Accept : TSocket; override;
+        procedure   Close; override;
+        procedure   Dup(NewHSocket: Integer); override;
+        procedure   ThreadAttach; override;
+        //procedure DoSslShutdown;
+        procedure   ResetSslDelayed;
+        procedure   SslBiShutDownAsync;
+        function    SslStartRenegotiation : Boolean;
+        function    SslRenegotiatePending : Boolean;
+        function    SslSessionReused : Boolean;
+        procedure   Shutdown(How : Integer); override;
+        procedure   PutDataInSendBuffer(Data : TWSocketData; Len : Integer); override;
+        procedure   StartSslHandshake;
+        procedure   AcceptSslHandshake;
+        procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
+
+        property    LastSslError       : Integer          read FLastSslError;
+        property    ExplizitSsl        : Boolean          read  FExplizitSsl
+                                                          write FExplizitSsl;
+        property  OnSslShutDownComplete : TSslShutDownComplete
+                                               read   FOnSslShutDownComplete
+                                               write  FOnSslShutDownComplete;
+        property  SSL                :  PSsl              read  FSsl;
+                                                          //write FSsl;
+        property  SslInRenegotiation : Boolean            read  FSslInRenegotiation; //<= 01/01/06 AG
+        property  SslEnable          : Boolean            read  FSslEnable
+                                                          write FSslEnable;
+        //property  SslEstablished      : Boolean           read  FSslEstablished;
+        property  SslState            : TSslState         read  FSslState;
+        property  SslContext          : TSslContext       read  FSslContext
+                                                          write SetSslContext;
+        property  SslCertChain        : TX509List         read  FSslCertChain;
+
+        property  OnSslVerifyPeer : TSslVerifyPeerEvent   read  FOnSslVerifyPeer
+                                                          write FOnSslVerifyPeer;
+        property  OnSslCliCertRequest : TSslCliCertRequest
+                                                          read  FOnSslCliCertRequest
+                                                          write FOnSslCliCertRequest;
+        property  OnSslHandshakeDone : TSslHandshakeDoneEvent
+                                                          read  FOnSslHandshakeDone
+                                                          write FOnSslHandshakeDone;
+        property  OnSslSvrNewSession : TSslSvrNewSession  read  FOnSslSvrNewSession
+                                                          write FOnSslSvrNewSession;
+        property  OnSslSvrGetSession : TSslSvrGetSession  read  FOnSslSvrGetSession
+                                                          write FOnSslSvrGetSession;
+        property  OnSslCliGetSession : TSslCliGetSession
+                                                          read  FOnSslCliGetSession
+                                                          write FOnSslCliGetSession;
+        property  OnSslCliNewSession : TSslCliNewSession  read  FOnSslCliNewSession
+                                                          write FOnSslCliNewSession;
+        property  OnSslSetSessionIDContext : TSslSetSessionIDContext
+                                                          read  FOnSslSetSessionIDContext
+                                                          write FOnSslSetSessionIDContext;
+        property  SslAcceptableHosts : TStrings           read  FSslAcceptableHosts
+                                                          write SetSslAcceptableHosts;
+        property  SslMode            : TSslMode           read  FSslMode
+                                                          write FSslMode;
+        property  SslVersion    : String                  read  FSslVersion;
+        property  SslCipher     : String                  read  FSslCipher;
+        property  SslTotalBits  : Integer                 read  FSslTotalBits;
+        property  SslSecretBits : Integer                 read  FSslSecretBits;
+  private
+      function my_WSocket_recv(s: TSocket;
+                               var Buf: TWSocketData; len, flags: Integer): Integer;
+      function my_RealSend(Buf : TWSocketData; Len : Integer) : Integer;
+{$IFNDEF NO_DEBUG_LOG}
+      function GetMyBioName(B: PBIO) : String;
+{$ENDIF}
+      function my_BIO_ctrl_pending(B: PBIO) : integer;
+      function my_BIO_read(B: PBIO; Buf: Pointer; Len: Integer): Integer;
+      function my_BIO_write(B: PBIO; Buf: Pointer; Len: Integer): Integer;
+      function my_BIO_ctrl(bp: PBIO; Cmd: Integer; LArg: LongInt; PArg: Pointer): LongInt;
+      function my_BIO_ctrl_get_write_guarantee(b: PBIO): Integer;
+      function my_BIO_ctrl_get_read_request(b: PBIO): Integer; 
+      function my_BIO_should_retry(b: PBIO): Boolean;
+      procedure HandleSslError;
+  end;
+
+//procedure OutputDebugString(const Msg: String);
+
+var
+    SslCritSect : TRTLCriticalSection;
+
+type    
+
+{$ENDIF} // USE_SSL
 
   TLineLimitEvent = procedure (Sender        : TObject;
                                RcvdLength    : LongInt;
@@ -8955,8 +9761,5313 @@ end;
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-{$I OverbyteIcsWSocketImplSsl.inc}
+var
+    //GSslInitialized     : Integer = 0;
+    SslRefCount         : Integer = 0;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(* procedure OutputDebugString(const Msg : String);  angus
+begin
+{$IFDEF DEBUG_OUTPUT}
+        WriteLn(LogFile, Msg {+ ' ThreadID: ' + IntToHex(GetCurrentThreadID, 8)});
+        Flush(LogFile);
+{#$ELSE}
+    //WinProcs.OutputDebugString(PChar(Msg));
 {$ENDIF}
+end;  *)
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+var TraceCount : Integer = 0;
+(*procedure OutputTrace(const Msg: String);
+begin
+    OutputDebugString(Msg);
+    if TraceCount = 15 then
+         TraceCount := 15;
+end; *)
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure LoadSsl;
+var
+    Tick : Cardinal;
+    F    : TextFile;
+    S    : String;
+    I, J : Integer;
+begin
+    EnterCriticalSection(SslCritSect);
+    try
+        if SslRefCount = 0 then begin
+            // Load LIBEAY DLL
+            // Must be loaded before SSlEAY for the versioncheck to work!
+            if not OverbyteIcsLIBEAY.Load then begin
+                    AssignFile(F, 'FailedIcsLIBEAY.txt');
+                Rewrite(F);
+                S := OverbyteIcsLIBEAY.WhichFailedToLoad;
+                I := 1;
+                while I < Length(S) do begin
+                    J := I;
+                    while (I <= Length(S)) and (S[I] <> ' ') do
+                        Inc(I);
+                    Inc(I);
+                    WriteLn(F, Copy(S, J, I - J));
+                end;
+                CloseFile(F);
+                if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
+                    FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
+                    OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
+                end;
+                raise Exception.Create('Unable to load LIBEAY DLL. Can''t find ' + S);
+            end;
+            // Load SSlEAY DLL
+            if not OverbyteIcsSSLEAY.Load then begin
+                AssignFile(F, 'FailedIcsSSLEAY.txt');
+                Rewrite(F);
+                S := OverbyteIcsSSLEAY.WhichFailedToLoad;
+                I := 1;
+                while I < Length(S) do begin
+                    J := I;
+                    while (I <= Length(S)) and (S[I] <> ' ') do
+                        Inc(I);
+                    Inc(I);
+                    WriteLn(F, Copy(S, J, I - J));
+                end;
+                CloseFile(F);
+                if OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle <> 0 then begin
+                    FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
+                    OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle := 0;
+                end;
+                if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
+                    FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
+                    OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
+                end;
+                raise Exception.Create('Unable to load SSLEAY DLL. Can''t find ' + S);
+            end;
+
+            // Global system initialization
+            if f_SSL_library_init <> 1 then begin
+                if OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle <> 0 then begin
+                    FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
+                    OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle := 0;
+                end;
+                if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
+                    FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
+                    OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
+                end;
+            end;
+            f_SSL_load_error_strings;
+            Tick := GetTickCount;           // probably weak
+            f_RAND_seed(@Tick, SizeOf(Tick));
+        end; // SslRefCount = 0
+        Inc(SslRefCount);
+    finally
+        LeaveCriticalSection(SslCritSect);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure UnloadSsl;
+begin
+    EnterCriticalSection(SslCritSect);
+    try
+        Dec(SslRefCount);
+        if SslRefCount > 0 then
+            Exit
+        else begin
+            if OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle <> 0 then begin
+                FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
+                OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle := 0;
+            end;
+            if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
+                FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
+                OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
+            end;
+        end;
+    finally
+        LeaveCriticalSection(SslCritSect);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function SslErrorToStr(Err: Integer): String;
+begin
+    case Err of
+        SSL_ERROR_ZERO_RETURN      :  Result := 'SSL_ERROR_ZERO_RETURN';  // A closure alert has occurred in the protocol
+        SSL_ERROR_WANT_CONNECT     :  Result := 'SSL_ERROR_WANT_CONNECT';
+        SSL_ERROR_WANT_ACCEPT      :  Result := 'SSL_ERROR_WANT_ACCEPT';
+        SSL_ERROR_WANT_READ        :  Result := 'SSL_ERROR_WANT_READ';
+        SSL_ERROR_WANT_WRITE       :  Result := 'SSL_ERROR_WANT_WRITE';
+        SSL_ERROR_WANT_X509_LOOKUP :  Result := 'SSL_ERROR_WANT_X509_LOOKUP';
+        SSL_ERROR_SYSCALL          :  Result := 'SSL_ERROR_SYSCALL';
+        SSL_ERROR_SSL              :  Result := 'SSL_ERROR_SSL';
+        else
+            Result := 'Unknown';
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function print_errors: String;
+var
+    Flags    : Integer;
+    Line     : Integer;
+    Data     : PChar;
+    FileName : PChar;
+    ErrCode  : Cardinal;
+begin
+    result := '' ;
+    ErrCode := f_ERR_get_error_line_data(@FileName, @Line, @Data, @Flags);
+    while ErrCode <> 0 do begin
+        if result <> '' then result := result + #13#10;
+        result := result + 'error code: ' + IntToStr(ErrCode) +
+                          ' in ' + FileName + ' line ' + IntToStr(line);
+        if (Data <> nil) and ((Flags and ERR_TXT_STRING) <> 0) then
+                result := result + #13#10 + 'error data: ' + StrPas(Data);
+        ErrCode := f_ERR_get_error_line_data(@FileName, @Line, @Data, @Flags);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function print_error: String;
+var
+    ErrCode : Integer;
+begin
+    ErrCode := f_ERR_peek_error;
+    SetLength(result, 255);
+    f_ERR_error_string_n(ErrCode, PChar(Result), Length(Result));
+    SetLength(Result, StrLen(PChar(Result)));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function LastOpenSslErrMsg(Dump: Boolean): String;
+var
+    ErrMsg  : String;
+    ErrCode : Integer;
+begin
+    ErrCode := f_ERR_get_error;
+    SetLength(Result, 120);
+    f_ERR_error_string_n(ErrCode, PChar(Result), Length(Result));
+    SetLength(Result, StrLen(PChar(Result)));
+    if Dump then begin
+        ErrCode := f_ERR_get_error;
+        while ErrCode <> 0 do begin
+            SetLength(ErrMsg, 120);
+            f_ERR_error_string_n(ErrCode, PChar(ErrMsg), Length(ErrMsg));
+            SetLength(ErrMsg, StrLen(PChar(ErrMsg)));
+            Result := Result + #13#10 + ErrMsg;
+            ErrCode := f_ERR_get_error;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslBaseComponent.RaiseLastOpenSslError(
+    EClass          : ExceptClass;
+    Dump            : Boolean = FALSE;
+    const CustomMsg : String  = '');
+begin
+    FLastSslError := f_ERR_peek_error;
+    if Length(CustomMsg) > 0 then
+        raise EClass.Create(#13#10 + CustomMsg + #13#10 +
+                            LastOpenSslErrMsg(Dump) + #13#10)
+    else
+        raise EClass.Create(#13#10 + LastOpenSslErrMsg(Dump) + #13#10);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TSslBaseComponent.Create(AOwner: TComponent);
+begin
+    inherited Create(AOwner);
+    FLastSslError   := 0;
+    FSslInitialized := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TSslBaseComponent.Destroy;
+begin
+    FinalizeSsl;
+    inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslBaseComponent.FinalizeSsl;
+begin
+    if not FSslInitialized then
+        Exit;
+    UnloadSsl;
+    FSslInitialized := FALSE;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslBaseComponent.InitializeSsl;
+begin
+    if FSslInitialized then
+        Exit;
+    LoadSsl;
+    FSslInitialized := TRUE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}  { V5.21 }
+{$IFNDEF NO_DEBUG_LOG}
+function TSslBaseComponent.CheckLogOptions(const LogOption: TLogOption): Boolean;
+begin
+    Result := Assigned(FIcsLogger) and (LogOption in FIcsLogger.LogOptions);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslBaseComponent.DebugLog(LogOption: TLogOption; const Msg: String);
+begin
+    if Assigned(FIcsLogger) then
+        {if loAddStamp in FIcsLogger.LogOptions then
+            FIcsLogger.DoDebugLog(Self, LogOption,
+                                  IcsLoggerAddTimeStamp + ' ' + Msg)
+        else}
+        FIcsLogger.DoDebugLog(Self, LogOption, Msg);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslBaseComponent.Notification(
+    AComponent : TComponent;
+    Operation  : TOperation);
+begin
+    inherited Notification(AComponent, Operation);
+    if Operation = opRemove then begin
+        if AComponent = FIcsLogger then
+            FIcsLogger := nil;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslBaseComponent.SetIcsLogger(const Value: TIcsLogger);
+begin
+    FIcsLogger := Value;
+    if Value <> nil then
+        Value.FreeNotification(Self);
+end;
+{$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TX509List.Create(AOwner: TComponent);
+begin
+    inherited Create;
+    FOwner            := AOwner;
+    FX509Class        := TX509Base;
+    FList             := TComponentList.Create;
+    FList.OwnsObjects := TRUE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TX509List.Destroy;
+begin
+    if Assigned(FList) then
+        FreeAndNil(FList);
+    inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509List.Clear;
+begin
+    FList.Clear;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509List.Delete(const Index: Integer);
+begin
+    FList.Delete(Index);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.GetByHash(const Sha1Hash: String): TX509Base;
+var
+    I : Integer;
+begin
+    for I := 0 to FList.Count -1 do begin
+        if not Assigned(FList[I]) then
+            Continue;
+        Result := TX509Base(FList[I]);
+        if CompareStr(Result.Sha1Hash, Sha1Hash) = 0 then
+            Exit;
+    end;
+    Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.GetCount: Integer;
+begin
+    Result := FList.Count;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.GetX509Base(Index: Integer): TX509Base;
+begin
+    Result := TX509Base(FList[Index]);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.IndexOf(const X509Base: TX509Base): Integer;
+begin
+    Result := FList.IndexOf(X509Base);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509List.SetX509Base(Index: Integer; Value: TX509Base);
+var
+    X : TX509Base;
+begin
+    X := TX509Base(FList[Index]);
+    if Assigned(X) then
+        X.Free;
+    FList[Index] := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.Add(X509: PX509 = nil): TX509Base;
+begin
+    Result := FX509Class.Create(FOwner, X509);
+    FList.Add(Result);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.GetByPX509(const X509: PX509): TX509Base;
+var
+    Len  : Integer;
+    Hash : String;
+begin
+    if Assigned(X509) then begin
+        Len := 20;
+        SetLength(Hash, Len);
+        f_X509_digest(X509, f_EVP_sha1, PChar(Hash), @Len);
+        SetLength(Hash, StrLen(@Hash[1]));
+        Result := GetByHash(Hash);
+    end
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TSslContext.Create(AOwner: TComponent);
+begin
+    inherited Create(AOwner);
+{$IFNDEF NO_ADV_MT}
+    InitializeCriticalSection(FLock);
+{$ENDIF}
+    FSslCtx := nil;
+    SetSslVerifyPeerModes([SslVerifyMode_PEER]);
+    SetSslCipherList('ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH');
+    FSslVersionMethod    := sslV23;
+    SslVerifyDepth       := 9;
+    FSslSessionTimeOut   := 0; // OSSL-default
+    FSslSessionCacheSize := SSL_SESSION_CACHE_MAX_SIZE_DEFAULT;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TSslContext.Destroy;
+begin
+    DeInitContext;
+{$IFNDEF NO_ADV_MT}
+    DeleteCriticalSection(FLock);
+{$ENDIF}
+    inherited Destroy;
+end;
+
+
+(*
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.TriggerDebugLog (LogOption: TLogOption;   { V5.21 }
+                                                 const Msg, Data: String);
+var
+    S: String;
+begin
+    if loOptStamp in FLogOptions then
+        S := WSocketAddTimeStamp + ' ' + Msg
+    else
+        S := Msg;
+    if loOptEvent in FLogOptions then begin
+        if Assigned (FOnIcsLogEvent) then
+                        FOnIcsLogEvent(Self, LogOption, S, '');
+    end;
+    if loOptOutDebug in FLogOptions then OutputDebugString(Pchar(S));
+    if loOptFile in FLogOptions then begin
+        if WSocketOpenLogFile then WriteLn(WSocketLogFile, S);
+    end;
+end;     *)
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslContext.InitializeCtx: PSSL_CTX;
+var
+    Meth : PSSL_METHOD;
+begin
+    case FSslVersionMethod of
+    sslV2:            Meth := f_SSLv2_method;
+    sslV2_CLIENT:     Meth := f_SSLv2_client_method;
+    sslV2_SERVER:     Meth := f_SSLv2_server_method;
+    sslV3:            Meth := f_SSLv3_method;
+    sslV3_CLIENT:     Meth := f_SSLv3_client_method;
+    sslV3_SERVER:     Meth := f_SSLv3_server_method;
+    sslTLS_V1:        Meth := f_TLSv1_method;
+    sslTLS_V1_CLIENT: Meth := f_TLSv1_client_method;
+    sslTLS_V1_SERVER: Meth := f_TLSv1_server_method;
+    sslV23:           Meth := f_SSLv23_method;
+    sslV23_CLIENT:    Meth := f_SSLv23_client_method;
+    sslV23_SERVER:    Meth := f_SSLv23_server_method;
+    else              raise ESslContextException.Create('Unknown SslVersionMethod');
+    end;
+    Result := f_SSL_CTX_new(Meth);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslContext.GetIsCtxInitialized : Boolean;
+begin
+    Result := FSslCtx <> nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslContext.TrustCert(Cert: TX509Base): Boolean;
+var
+    St : PX509_STORE;
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        Result := FALSE;
+        if (not Assigned(FSslCtx)) then
+            raise ESslContextException.Create(msgSslCtxNotInit);
+        if (not Assigned(Cert)) or (not Assigned(Cert.X509)) then
+            Exit;
+        //St := nil;
+        St := f_SSL_CTX_get_cert_store(FSslCtx);
+        if Assigned(St) then
+            Result := f_X509_STORE_add_cert(St, Cert.X509) <> 0;
+        { Fails if cert exists in store }
+{$IFNDEF NO_DEBUG_LOG}
+        if (not Result) and
+            CheckLogOptions(loSslErr) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+            DebugLog(loSslErr, LastOpenSslErrMsg(TRUE));
+{$ELSE}
+        if (not Result) then
+            f_ERR_clear_error;
+{$ENDIF}
+{$IFNDEF NO_ADV_MT}    
+    finally
+        Unlock;
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function PasswordCallBack(
+    Buf      : PChar;
+    Num      : Integer;
+    RWFlag   : Integer;
+    UserData : Pointer) : Integer; cdecl;
+var
+    Obj : TSslContext;
+begin
+{$IFNDEF NO_ADV_MT}
+    EnterCriticalSection(LockPwdCB);
+    try
+{$ENDIF}
+        Obj := TSslContext(UserData);
+        if (num < (Length(Obj.SslPassPhrase) + 1)) or
+           (Length(Obj.SslPassPhrase) = 0) then
+            Result := 0
+        else begin
+            Move(Obj.SslPassPhrase[1], Buf^, Length(Obj.SslPassPhrase) + 1);
+            Result := Length(Obj.SslPassPhrase);
+        end;
+{$IFNDEF NO_ADV_MT}
+    finally
+        LeaveCriticalSection(LockPwdCB)
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function PeerVerifyCallback(
+    Ok       : Integer;
+    StoreCtx : PX509_STORE_CTX) : Integer; cdecl;
+var
+    MySsl   : PSSL;
+    Obj     : TCustomSslWSocket;
+    Cert    : PX509;
+    CurCert : TX509Base;
+begin
+{$IFNDEF NO_ADV_MT}
+    EnterCriticalSection(LockVerifyCB);
+    try
+{$ENDIF}
+        // Retrieve the pointer to the SSL of the current connection
+        MySsl := f_X509_STORE_CTX_get_ex_data(
+                                StoreCtx, f_SSL_get_ex_data_X509_STORE_CTX_idx);
+        // Retrieve the object reference we stored at index 0
+        Obj   := TCustomSslWSocket(f_SSL_get_ex_data(MySsl, 0));
+        if Assigned(Obj) then begin
+            Obj.Pause;
+            Obj.FSsl_In_CB := TRUE;
+            try
+                Cert := f_X509_STORE_CTX_get_current_cert(StoreCtx);
+                { Lookup this cert in our custom list (chain) }
+                CurCert := Obj.SslCertChain.GetByPX509(Cert);
+                { Add it to our list }
+                if not Assigned(CurCert) then begin
+                    Obj.SslCertChain.X509Class := Obj.X509Class;
+                    CurCert := Obj.SslCertChain.Add(Cert);
+                    CurCert.VerifyResult := f_X509_STORE_CTX_get_error(StoreCtx);
+                    CurCert.FFirstVerifyResult := CurCert.VerifyResult;
+                end
+                else { Unfortunately me must overwrite here }
+                    CurCert.VerifyResult := f_X509_STORE_CTX_get_error(StoreCtx);
+                CurCert.VerifyDepth := f_X509_STORE_CTX_get_error_depth(StoreCtx);
+                //CurCert.CustomVerifyResult := CurCert.VerifyResult; // don't overwrite
+                Obj.SslCertChain.FLastVerifyResult := CurCert.VerifyResult;
+{$IFNDEF NO_DEBUG_LOG}
+                if Obj.CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+                    Obj.DebugLog(loSslInfo,'VCB> VerifyPeer: Subject = '  + CurCert.SubjectOneLine);
+                    Obj.DebugLog(loSslInfo,'VCB> VerifyPeer: Serial  = $' + IntToHex(CurCert.SerialNum, 8));
+                    Obj.DebugLog(loSslInfo,'VCB> VerifyPeer: Error   = '  + CurCert.VerifyErrMsg);
+                end;
+{$ENDIF}
+                // Save verify result
+                Obj.FSslVerifyResult := CurCert.VerifyResult;
+                Obj.TriggerSslVerifyPeer(Ok, CurCert);
+                if Ok <> 0 then
+                    Obj.FSslVerifyResult := X509_V_OK;
+            finally
+                Obj.Resume;
+                Obj.FSsl_In_CB := FALSE;
+                if Obj.FHSocket = INVALID_SOCKET then
+                    PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
+            end;
+        end;
+        Result := Ok;
+{$IFNDEF NO_ADV_MT}
+    finally
+        LeaveCriticalSection(LockVerifyCB);
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure RemoveSessionCallback(const Ctx : PSSL_CTX; Sess : PSSL_SESSION); cdecl;
+var
+    Obj : TSslContext;
+begin
+   { If remove_session_cb is not null, it will be called when               }
+   { a session-id is removed from the cache.  After the call,               }
+   { OpenSSL will SSL_SESSION_free() it.                                    }
+   { Also: It is invoked whenever a SSL_SESSION is destroyed.  It is called }
+   { just before the session object is destroyed because it is invalid or   }
+   { has expired.                                                           }
+{$IFNDEF NO_ADV_MT}
+    EnterCriticalSection(LockRemSessCB);
+    try
+{$ENDIF}                                                             
+        Obj := TSslContext(f_SSL_CTX_get_ex_data(Ctx, 0));
+        if Assigned(Obj) then begin
+{$IFNDEF NO_DEBUG_LOG}
+            if Obj.CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+                Obj.DebugLog(loSslInfo,'RSCB> Session removed');
+{$ENDIF}
+            if Assigned(Obj.FOnRemoveSession) then
+                Obj.FOnRemoveSession(Obj, Sess);
+        end;
+{$IFNDEF NO_ADV_MT}
+    finally
+        LeaveCriticalSection(LockRemSessCB);
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function Ics_EVP_PKEY_dup(PKey: PEVP_PKEY): PEVP_PKEY;
+begin
+    Result := nil;
+    if PKey <> nil then begin
+        EnterCriticalSection(SslCritSect);
+        try
+            Inc(PKey^.references);
+            Result := PKey;
+        finally
+            LeaveCriticalSection(SslCritSect);
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function ClientCertCallback(
+    Ssl     : PSSL;
+    X509    : PPX509;
+    PKEY    : PPEVP_PKEY): Integer; cdecl;
+var
+    Obj  : TCustomSslWSocket;
+    Cert : TX509Base;
+    X, P : Pointer;
+begin
+    { It's called when a client certificate is requested by a server and no    }
+    { certificate was yet set for the SSL object. client_cert_cb() is the      }
+    { application defined callback. If it wants to set a certificate, a        }
+    { certificate/private key combination must be set using the x509 and pkey  }
+    { arguments and ``1'' must be returned. The certificate will be installed  }
+    { into ssl, see the NOTES and BUGS sections. If no certificate should be   }
+    { set, ``0'' has to be returned and no certificate will be sent.           }
+    { A negative return value will suspend the handshake and the handshake     }
+    { function will return immediatly. SSL_get_error(3) will return            }
+    { SSL_ERROR_WANT_X509_LOOKUP to indicate, that the handshake was suspended.}
+    { The next call to the handshake function will again lead to the call of   }
+    { client_cert_cb(). It is the job of the client_cert_cb() to store         }
+    { information about the state of the last call, if required to continue.   }
+
+    { Called when a client certificate is requested but there is not one set   }
+    { against the SSL_CTX or the SSL.  If the callback returns 1, x509 and     }
+    { pkey need to point to valid data.  The library will free these when      }
+    { required so if the application wants to keep these around, increment     }
+    { their reference counts.  If 0 is returned, no client cert is             }
+    { available.  If -1 is returned, it is assumed that the callback needs     }
+    { to be called again at a later point in time.  SSL_connect will return    }
+    { -1 and SSL_want_x509_lookup(ssl) returns TRUE.  Remember that            }
+    { application data can be attached to an SSL structure via the             }
+
+{$IFNDEF NO_ADV_MT}
+    EnterCriticalSection(LockClientCertCB);
+    try
+{$ENDIF}
+        Result := 0;
+        Obj := TCustomSslWSocket(f_SSL_get_ex_data(Ssl, 0));
+        if Assigned(Obj) then begin
+            Obj.FSsl_In_CB := TRUE;
+            Obj.Pause;
+            try
+                if Assigned(Obj.FOnSslCliCertRequest) then begin
+                    Cert := nil;
+                    try
+                        Obj.FOnSslCliCertRequest(Obj, Cert);
+                        if (Cert <> nil) and (Cert.X509 <> nil) and
+                           (Cert.PrivateKey <> nil) then begin
+                            X     := f_X509_dup(Cert.X509);
+                            P     := Ics_EVP_PKEY_dup(Cert.FPrivateKey);
+                            X509^  := X;
+                            PKEY^  := P;
+                            Result := 1;
+                        end
+                        else begin
+                            //X509  := nil;
+                            //PKEY  := nil;
+                        end;
+                    except
+                        // psst
+                    end;
+                end;
+            finally
+                Obj.Resume;
+                Obj.FSsl_In_CB := FALSE;
+                if Obj.FHSocket = INVALID_SOCKET then
+                    PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
+            end;
+        end;
+{$IFNDEF NO_ADV_MT}
+    finally
+        LeaveCriticalSection(LockClientCertCB)
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF NO_ADV_MT}
+procedure TSslContext.Lock;
+begin
+    EnterCriticalSection(FLock)
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.Unlock;
+begin
+    LeaveCriticalSection(FLock)
+end;
+
+{$ENDIF}
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function NewSessionCallback(const SSL : PSSL; Sess : PSSL_SESSION): Integer; cdecl;
+var
+    Obj                : TCustomSslWSocket;
+    AddToInternalCache : Boolean;
+    SessID             : Pointer;
+    IdLen              : Integer;
+begin
+   { If this callback is not null, it will be called each                  }
+   { time a session id is added to the cache.  If this function            }
+   { returns 1, it means that the callback will do a                       }
+   { SSL_SESSION_free() when it has finished using it. Otherwise,          }
+   { on 0, it means the callback has finished with it.                     }
+   { Also: If this function returns 0,  the session object will not be     }
+   { cached. A nonzero return allows the session to be cached              }
+   
+{$IFNDEF NO_ADV_MT}
+    EnterCriticalSection(LockNewSessCB);
+    try
+{$ENDIF}
+        Result := 0;
+        Obj := TCustomSslWSocket(f_SSL_get_ex_data(SSL, 0));
+        if not Assigned(Obj) then
+            raise Exception.Create('NewSessionCallback Obj not assigned');
+        Obj.FSsl_In_CB := TRUE;
+        try
+{$IFNDEF NO_DEBUG_LOG}
+            if Obj.CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+                Obj.DebugLog(loSslInfo, 'NSCB> New session created');
+{$ENDIF}
+            //f_SSL_session_get_id(Sess, SessID, IdLen); { 03/02/07 AG }
+            SessID := f_SSL_SESSION_get_id(Sess, IdLen); { 03/02/07 AG }
+            AddToInternalCache := FALSE; // not sure about the default value
+            if Assigned(Obj.FOnSslSvrNewSession) then
+                Obj.FOnSslSvrNewSession(Obj, Sess, SessID, IdLen, AddToInternalCache);
+            if AddToInternalCache then
+                Result := 1
+            else
+                Result := 0;
+        finally
+            Obj.FSsl_In_CB := FALSE;
+            if Obj.FHSocket = INVALID_SOCKET then
+                PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
+        end;
+{$IFNDEF NO_ADV_MT}
+    finally
+        LeaveCriticalSection(LockNewSessCB);
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function GetSessionCallback(
+    const SSL : PSSL;
+    SessId    : Pointer;
+    IdLen     : Integer;
+    Ref       : PInteger) : PSSL_SESSION; cdecl;
+var
+    Obj         : TCustomSslWSocket;
+    Sess        : Pointer;
+    IncRefCount : Boolean;
+begin
+    { SessId = Session ID that's being requested by the peer.             }
+    { The Session ID is distinctly different from the session ID context  }                                            
+    { Ref = An output from the callback. It is used to allow the          }
+    { callback to specify whether the reference count on the returned     }
+    { session object should be incremented or not. It returns as          }
+    { nonzero if the object's reference count should be incremented;      }
+    { otherwise, zero is returned                                         }
+
+{$IFNDEF NO_ADV_MT}
+    EnterCriticalSection(LockGetSessCB);
+    try
+{$ENDIF}
+        Result := nil;
+        Obj := TCustomSslWSocket(f_SSL_get_ex_data(SSL, 0));
+        if not Assigned(Obj) then
+            raise Exception.Create('GetSessionCallback Obj not assigned');
+        Obj.FSsl_In_CB := TRUE;
+        try
+{$IFNDEF NO_DEBUG_LOG}
+            if Obj.CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+                Obj.DebugLog(loSslInfo, 'GSCB> Get session');
+{$ENDIF}
+            Sess := nil;
+            IncRefCount := (Ref^ <> 0);
+            if Assigned(Obj.FOnSslSvrGetSession) then
+                Obj.FOnSslSvrGetSession(Obj, Sess, SessId, IdLen, IncRefCount);
+            if IncRefCount then
+                Ref^ := 1
+            else
+                Ref^ := 0;
+            Result := Sess;
+        finally
+            Obj.FSsl_In_CB := FALSE;
+            if Obj.FHSocket = INVALID_SOCKET then
+                PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
+        end;
+{$IFNDEF NO_ADV_MT}
+    finally
+        LeaveCriticalSection(LockGetSessCB);
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslContext.OpenFileBio(
+    const FileName    : String;
+    Methode           : TBioOpenMethode): PBIO;
+begin
+    if Filename = '' then
+        raise ESslContextException.Create('File name not specified');
+    if (Methode = bomRead) and (not FileExists(Filename)) then
+        raise ESslContextException.Create('File not found "' +
+                                          Filename + '"');
+    if Methode = bomRead then
+        Result := f_BIO_new_file(PChar(Filename), PChar('r+'))
+    else
+        Result := f_BIO_new_file(PChar(Filename), PChar('w+'));
+    if Result = nil then
+        RaiseLastOpenSslError(ESslContextException, FALSE,
+                              'Error on opening file "' + Filename + '"');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ A X509_INFO may contain x509/crl/pkey sets, PEM format only }
+function TSslContext.LoadStackFromInfoFile(const FileName: String;
+    Mode: TInfoExtractMode): PStack;
+var
+    InfoStack   : PStack;
+    CertInfo    : PX509_INFO;
+    InBIO       : PBIO;
+    //PKey        : PX509_PKEY;
+begin
+    //InfoStack := nil;
+    //CertInfo  := nil;
+    //InBIO     := nil;
+    Result      := nil;
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if FileName = '' then
+        Exit;
+    InBIO := OpenFileBio(FileName, bomRead);
+    try
+        // This loads from a file, a stack of x509/crl/pkey sets
+        InfoStack := PStack(f_PEM_X509_INFO_read_bio(InBIO, nil, nil, nil));
+        if not Assigned(InfoStack) then
+            raise ESslContextException.CreateFmt('Error reading info file "%s"',
+                                                 [FileName]);
+        try
+            if f_sk_num(InfoStack) > 0 then
+                Result := f_sk_new_null
+            else
+                Exit;
+            if Result = nil then
+                raise ESslContextException.Create('Error creating Stack');
+            // Scan over it and pull out what is needed
+            while f_sk_num(InfoStack) > 0 do begin
+                CertInfo := PX509_INFO(f_sk_delete(InfoStack, 0));
+                case Mode of
+                emCert :
+                    if CertInfo^.x509 <> nil then
+                        f_sk_insert(Result, PChar(f_X509_dup(CertInfo^.x509)),
+                                                  f_sk_num(Result) + 1);
+                { A Dup-function for X509_PKEY is still missing in OpenSsl arrg!
+                emKey :
+                    if CertInfo^.x_pkey <> nil then
+                        f_sk_insert(Result, PChar(f_X509_PKEY_dup(CertInfo^.x_pkey)),
+                                                  f_sk_num(Result) + 1);}
+                emCrl :
+                    if CertInfo^.crl <> nil then
+                        f_sk_insert(Result, PChar(f_X509_CRL_dup(CertInfo^.crl)),
+                                                  f_sk_num(Result) + 1);
+                end; //case
+                f_X509_INFO_free(CertInfo);
+            end;
+        finally
+             f_sk_pop_free(InfoStack, @f_X509_INFO_free);
+        end;
+    finally
+       f_Bio_free(InBio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ PEM format only, the file may contain multiple certificates.              }
+{ Loads intermediate CA certificates needed to build a complete chain.      }
+{ PEM format only, any file of a given directory }
+{ PEM format only, the file may contain multiple CRL's }
+procedure TSslContext.LoadCrlFromFile(const Filename: String);
+var
+    CRL      : PX509_CRL;
+    St       : PX509_STORE;
+    CrlStack : PStack;
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        if not Assigned(FSslCtx) then
+            raise ESslContextException.Create(msgSslCtxNotInit);
+        if (Filename <> '') and (not FileExists(Filename)) then
+            raise ESslContextException.Create('CRL file not found "' +
+                                              Filename + '"');
+        if Filename <> '' then begin
+            //CrlStack := nil;
+            CrlStack := LoadStackFromInfoFile(FileName, emCrl);
+            if not Assigned(CrlStack) then
+                raise ESslContextException.Create('Error on reading CRL file "' +
+                                                  Filename + '"');
+            try
+                //St := nil;
+                St := f_SSL_CTX_get_cert_store(FSslCtx);
+                if not Assigned(St) then
+                    raise ESslContextException.Create('Error on opening store');
+                while f_sk_num(CrlStack) > 0 do begin
+                    //Crl := nil;
+                    Crl := PX509_CRL(f_sk_delete(CrlStack, 0));
+                    if Assigned(Crl) then
+                        try
+                            { Fails if CRL is already in hash table }
+                            if f_X509_STORE_add_crl(St, Crl) = 0 then
+{$IFNDEF NO_DEBUG_LOG}
+                                if CheckLogOptions(loSslErr) then  { V5.21 }
+                                    DebugLog(loSslErr, LastOpenSslErrMsg(True));
+{$ELSE}
+                                f_ERR_clear_error;
+{$ENDIF};
+                        finally
+                            f_X509_CRL_free(Crl);
+                        end;
+                    end;
+            finally
+                f_sk_pop_free(CrlStack, @f_X509_CRL_free);
+            end;
+        end;
+{$IFNDEF NO_ADV_MT}        
+    finally
+        Unlock;
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ PEM format only, any file of a given directory }
+procedure TSslContext.LoadCrlFromPath(const Path: String);
+var
+    SRec  : TSearchRec;
+    Found : Boolean;
+    S     : String;
+begin
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (Path <> '') and (not DirectoryExists(Path)) then
+        raise ESslContextException.Create('CRL directory not found "' +
+                                          Path + '"');
+    if Path <> '' then begin
+        S := IncludeTrailingPathDelimiter(Path);
+        Found := FindFirst(S + '*.*', faAnyFile - faDirectory, SRec) = 0;
+        if Found then
+            try
+                while Found do begin
+                    LoadCrlFromFile(S + SRec.Name);
+                    Found := FindNext(SRec) = 0;
+                end;
+            finally
+                FindClose(SRec);
+            end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.LoadVerifyLocations(const CAFile, CAPath: String);
+var
+    PCAPath : PChar;
+    PCAFile : PChar;
+begin
+    // Load the CAs we trust
+    //
+    // If CAfile is not NIL, it points to a file of CA certificates in PEM
+    // format. The file can contain several CA certificates.
+    //
+    // If CApath is not NIL, it points to a directory containing CA
+    // certificates in PEM format. The files each contain one CA certificate.
+    // The files are looked up by the CA subject name hash value, which must
+    // hence be available. If more than one CA certificate with the same name
+    // hash value exist, the extension must be different (e.g. 9d66eef0.0,
+    // 9d66eef0.1 etc). The search is performed in the ordering of the
+    // extension number, regardless of other properties of the certificates.
+    // The certificates in CApath are only looked up when required, e.g. when
+    // building the certificate chain or when actually performing the
+    // verification of a peer certificate. When looking up CA certificates,
+    // the OpenSSL library will first search the certificates in CAfile, then
+    // those in CApath. 
+
+    if FSslCtx = nil then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (CAFile <> '') and (not FileExists(CAFile)) then
+        raise ESslContextException.Create('File not found "' + CAFile + '"');
+    if (Length(CAPath) > 0) and (not DirectoryExists(CAPath)) then
+        raise ESslContextException.Create('Directory not found "' + CAPath + '"');
+    if Length(CAPath) > 0 then
+        PCAPath := PChar(CAPath)
+    else
+        PCAPath := nil;
+    if Length(CAFile) > 0 then
+        PCAFile := PChar(CAFile)
+    else
+        PCAFile := nil;
+    if ((PCAFile <> nil) or (PCAPath <> nil)) and
+       (f_SSL_CTX_load_verify_locations(FSslCtx,
+                                        PCAFile, PCAPath) = 0) then
+        RaiseLastOpenSslError(ESslContextException, TRUE,
+                              'Can''t read CA File "' +
+                              FSslCAFile + '" or ' +
+                              'CA Path "' + CAPath + '"');
+    if (PCAFile = nil) and (PCAPath = nil) and
+       (f_SSL_CTX_set_default_verify_paths(FSslCtx) <> 1) then
+        RaiseLastOpenSslError(ESslContextException, TRUE,
+                              'Error loading default CA file ' +
+                              'and/or directory');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.LoadCertFromChainFile(const FileName: String);
+begin
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (FileName <> '') and (not FileExists(FileName)) then
+        raise ESslContextException.Create('File not found "' + FileName + '"');
+    if (FileName <> '') and
+       (f_SSL_CTX_use_certificate_chain_file(FSslCtx,
+                                             PChar(FileName)) = 0) then begin
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslErr) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+            DebugLog(loSslErr, LastOpenSslErrMsg(TRUE));
+{$ELSE}
+        f_ERR_clear_error;
+{$ENDIF}
+        RaiseLastOpenSslError(ESslContextException, TRUE,
+                              'Can''t read certificate ' +
+                              'file "' + FileName + '"');
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.LoadPKeyFromFile(const FileName: String);
+begin
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (FileName <> '') and (not FileExists(FileName)) then
+        raise ESslContextException.Create('File not found "' + FileName + '"');
+    if (FileName <> '') and
+       (f_SSL_CTX_use_PrivateKey_file(FSslCtx, PChar(FileName),
+                                      SSL_FILETYPE_PEM) = 0) then begin
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+            DebugLog(loSslInfo, LastOpenSslErrMsg(TRUE));
+{$ELSE}
+        f_ERR_clear_error;
+{$ENDIF}
+        RaiseLastOpenSslError(ESslContextException, TRUE,
+                              'Can''t load private key ' +
+                              'file "' + FileName + '"');
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Open a PEM CA certificate file and add the CA name extracted              }
+{ to the list of CAs sent to the client when requesting a client            }
+{ certificate, usefull only in server mode.                                 }
+procedure TSslContext.AddClientCAFromFile(const FileName: String);
+var
+    X : TX509Base;
+begin
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (Filename <> '') and (not FileExists(Filename)) then
+        raise ESslContextException.Create('Certificate file not found "' +
+                                          Filename + '"');
+    if Filename <> '' then begin
+        X := TX509Base.Create(nil);
+        try
+            X.LoadFromPemFile(FileName);
+            if f_SSL_CTX_add_client_CA(FSslCtx, X.X509) <> 1 then
+                RaiseLastOpenSslError(ESslContextException, TRUE,
+                                      'Can''t load client CA ' +
+                                      'file "' + FileName + '"');
+        finally
+            X.Free;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Scan all certificates in a PEM CAfile and list their names as acceptable  }
+{ CAs sent to the client when we request a client certificate. Usefull only }
+{ in server mode.                                                           }
+procedure TSslContext.SetClientCAListFromFile(const FileName: String);
+var
+    Sk : PSTACK_OF_X509_NAME;
+begin
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (Filename <> '') and (not FileExists(Filename)) then
+        raise ESslContextException.Create('Certificate file not found "' +
+                                          Filename + '"');
+    if Filename <> '' then begin
+        Sk := f_SSL_load_client_CA_file(PChar(FileName));
+        if not Assigned(Sk) then
+            raise ESslContextException.Create('Error on reading certificate ' +
+                                              'file "' + Filename + '"');
+        f_SSL_CTX_set_client_CA_list(FSslCTX, Sk); // frees Sk
+    end;    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.InitContext;
+var
+    SslSessCacheModes : TSslSessCacheModes;
+begin
+    InitializeSsl; //loads libs
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        if not Assigned(FSslCtx) then begin
+            // Create new context
+            FSslCtx := InitializeCtx;
+            if not Assigned(FSslCtx) then
+                raise ESslContextException.Create('Failed to initialize context');
+        end;
+
+        try
+            // Set the password callback and our custom user data
+            f_SSL_CTX_set_default_passwd_cb(FSslCtx, PasswordCallBack);
+            f_SSL_CTX_set_default_passwd_cb_userdata(FSslCtx, Self);
+
+            // Load our key and certificate
+            LoadPKeyFromFile(FSslPrivKeyFile);
+            LoadCertFromChainFile(FSslCertFile);
+
+            // See notes in the procedure
+            LoadVerifyLocations(FSslCAFile, FSslCAPath);
+
+            LoadCRLFromFile(FSslCRLFile);
+            LoadCRLFromPath(FSslCRLPath);
+            //f_SSL_CTX_ctrl(FSslCtx, SSL_CTRL_MODE, SSL_MODE_ENABLE_PARTIAL_WRITE, nil); // Test
+
+            //raise Exception.Create('Test');
+
+            // Now the verify stuff
+            SetSslVerifyPeerModes(SslVerifyPeerModes);
+            {if FSslX509Trust <> ssl_X509_TRUST_NOT_DEFINED then
+                if f_SSL_CTX_set_trust(FSslCtx, Integer(FSslX509Trust)) = 0 then
+                    raise Exception.Create('Error setting trust'); }
+
+            if FSslOptionsValue <> 0 then
+            { adds the options set via bitmask in options to ssl. }
+            { Options already set before are not cleared! }
+                f_SSL_CTX_set_options(FSslCtx, FSslOptionsValue);
+
+            if FSslCipherList <> '' then begin
+                if f_SSL_CTX_set_cipher_list(FSslCtx,
+                                             PChar(FSslCipherList)) = 0 then
+                    RaiseLastOpenSslError(ESslContextException, TRUE,
+                                          'Error loading cipher list');
+            end
+            else
+                raise ESslContextException.Create('Cipher list empty');
+
+            // Session caching stuff
+            SslSessCacheModes := GetSslSessCacheModes;
+
+            //if SslSessCacheModes <> [] then   // AG 03/03/06 internal cache is ON by default 
+                f_SSL_CTX_set_session_cache_mode(FSslCtx, FSslSessCacheModeValue);
+
+            if not (sslSESS_CACHE_NO_INTERNAL_STORE in SslSessCacheModes) then begin
+                { Exdata needed in RemoveCallback only }
+                if f_SSL_CTX_set_ex_data(FSslCtx, 0, PChar(Self)) = 0 then
+                    RaiseLastOpenSslError(ESslContextException, TRUE,
+                                          'SSL_CTX_set_ex_data failed');
+                f_SSL_CTX_sess_set_remove_cb(FSslCtx, RemoveSessionCallback);
+                if FSslSessionCacheSize <> SSL_SESSION_CACHE_MAX_SIZE_DEFAULT then
+                    f_SSL_CTX_sess_set_cache_size(FSslCtx, FSslSessionCacheSize);
+            end;
+            if (sslSESS_CACHE_SERVER in SslSessCacheModes) then begin
+                { Set the timeout for newly created sessions                }
+                if FSslSessionTimeout > 0 then
+                    f_SSL_CTX_set_timeout(FSslCtx, FSslSessionTimeout);
+                { Set session callbacks, ssl server mode only               }
+                f_SSL_CTX_sess_set_new_cb(FSslCtx, NewSessionCallback);
+                f_SSL_CTX_sess_set_get_cb(FSslCtx, GetSessionCallback);
+                if Length(FSslDefaultSessionIDContext) > 0 then
+                    if f_SSL_CTX_set_session_id_context(FSslCtx,
+                                  @FSslDefaultSessionIDContext[1],
+                                  Length(FSslDefaultSessionIDContext)) = 0 then
+                        RaiseLastOpenSslError(ESslContextException, TRUE,
+                                              'ssl_ctx_set_session_id_context ' +
+                                              'failed');
+            end;
+        except
+            if Assigned(FSslCtx) then begin
+                f_SSL_CTX_free(FSslCtx);
+                FSslCtx := nil;
+            end;
+            raise
+        end;
+{$IFNDEF NO_ADV_MT}        
+    finally
+        Unlock
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.DeInitContext;
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        if Assigned(FSslCtx) then begin
+            { The context lives as long as there are open sessions associated }
+            { even when we called f_SSL_CTX_free(), so some cleanup is needed }
+            f_SSL_CTX_set_ex_data(FSslCtx, 0, nil);    //MainFix    // AG 12/25/07
+            { It may be a good idea to disable all callbacks as well }
+            { before freeing the context pointer, should not hurt,   }
+            { otherwise please let me know }
+            f_SSL_CTX_sess_set_remove_cb(FSslCtx, nil);             // AG 12/25/07
+            f_SSL_CTX_sess_set_new_cb(FSslCtx, nil);                // AG 12/25/07
+            f_SSL_CTX_sess_set_get_cb(FSslCtx, nil);                // AG 12/25/07
+            f_SSL_CTX_set_default_passwd_cb(FSslCtx, nil);          // AG 12/25/07
+            f_SSL_CTX_set_default_passwd_cb_userdata(FSslCtx, nil); // AG 12/25/07
+            f_SSL_CTX_free(FSslCtx);
+            FSslCtx := nil;
+        end;
+{$IFNDEF NO_ADV_MT}
+    finally
+        Unlock;
+    end;
+{$ENDIF}    
+    FinalizeSsl;
+end; 
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslCAFile(const Value: String);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        if CompareStr(FSslCAFile, Value) = 0 then
+            Exit;
+        FSslCAFile := Value;
+        if Assigned(FSslCtx) then
+            LoadVerifyLocations(FSslCAFile, FSslCAPath);
+{$IFNDEF NO_ADV_MT}
+    finally
+        Unlock
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslCAPath(const Value: String);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        if CompareStr(FSslCAPath, Value) = 0 then
+            Exit;
+        FSslCAPath := Value;
+        if Assigned(FSslCtx) then
+            LoadVerifyLocations(FSslCAFile, FSslCAPath);
+{$IFNDEF NO_ADV_MT}        
+    finally
+        Unlock
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslCertFile(const Value: String);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        if CompareStr(Value, FSslCertFile) = 0 then
+            Exit;
+        FSslCertFile := Value;
+        if Assigned(FSslCtx) then
+            LoadCertFromChainFile(FSslCertFile);
+{$IFNDEF NO_ADV_MT}        
+    finally
+        Unlock
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslCRLFile(const Value: String);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslCRLFile := Value
+{$IFNDEF NO_ADV_MT}        
+    finally
+        Unlock
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslCRLPath(const Value: String);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslCRLPath := Value
+{$IFNDEF NO_ADV_MT}
+    finally
+        Unlock
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslPassPhrase(const Value: String);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslPassPhrase := Value
+{$IFNDEF NO_ADV_MT}        
+    finally
+        Unlock
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslPrivKeyFile(const Value: String);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        if (CompareStr(Value, FSslPrivKeyFile) = 0) then
+            Exit;
+        FSslPrivKeyFile := Value;
+        if Assigned(FSslCtx) then
+            LoadPKeyFromFile(FSslPrivKeyFile);
+{$IFNDEF NO_ADV_MT}        
+    finally
+        Unlock
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslSessionCacheSize(Value: Longint);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslSessionCacheSize := Value
+{$IFNDEF NO_ADV_MT}        
+    finally
+        Unlock
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslSessionTimeout(Value: Longword);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslSessionTimeout := Value
+{$IFNDEF NO_ADV_MT}        
+    finally
+        Unlock
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslVersionMethod(Value: TSslVersionMethod);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslVersionMethod := Value
+{$IFNDEF NO_ADV_MT}        
+    finally
+        Unlock
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslContext.GetSslOptions: TSslOptions;
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        Result := [];
+        if (FSslOptionsValue and SSL_OP_CIPHER_SERVER_PREFERENCE) <> 0 then
+            Result := Result + [sslOpt_CIPHER_SERVER_PREFERENCE];
+        if (FSslOptionsValue and SSL_OP_MICROSOFT_SESS_ID_BUG) <> 0 then
+            Result := Result + [sslOpt_MICROSOFT_SESS_ID_BUG];
+        if (FSslOptionsValue and SSL_OP_NETSCAPE_CHALLENGE_BUG) <> 0 then
+            Result := Result + [sslOpt_NETSCAPE_CHALLENGE_BUG];
+        if (FSslOptionsValue and SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG) <> 0 then
+            Result := Result + [sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG];
+        if (FSslOptionsValue and SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG) <> 0 then
+            Result := Result + [sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG];
+        if (FSslOptionsValue and SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER) <> 0 then
+            Result := Result + [sslOpt_MICROSOFT_BIG_SSLV3_BUFFER];
+        if (FSslOptionsValue and SSL_OP_MSIE_SSLV2_RSA_PADDING) <> 0 then
+            Result := Result + [sslOpt_MSIE_SSLV2_RSA_PADDING];
+        if (FSslOptionsValue and SSL_OP_SSLEAY_080_CLIENT_DH_BUG) <> 0 then
+            Result := Result + [sslOpt_SSLEAY_080_CLIENT_DH_BUG];
+        if (FSslOptionsValue and SSL_OP_TLS_D5_BUG) <> 0 then
+            Result := Result + [sslOpt_TLS_D5_BUG];
+        if (FSslOptionsValue and SSL_OP_TLS_BLOCK_PADDING_BUG) <> 0 then
+            Result := Result + [sslOpt_TLS_BLOCK_PADDING_BUG];
+        if (FSslOptionsValue and SSL_OP_TLS_ROLLBACK_BUG) <> 0 then
+            Result := Result + [sslOpt_TLS_ROLLBACK_BUG];
+        if (FSslOptionsValue and SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) <> 0 then
+            Result := Result + [sslOpt_DONT_INSERT_EMPTY_FRAGMENTS];
+        if (FSslOptionsValue and SSL_OP_SINGLE_DH_USE) <> 0 then
+            Result := Result + [sslOpt_SINGLE_DH_USE];
+        if (FSslOptionsValue and SSL_OP_EPHEMERAL_RSA) <> 0 then
+            Result := Result + [sslOpt_EPHEMERAL_RSA];
+        if (FSslOptionsValue and SSL_OP_NO_SSLv2) <> 0 then
+            Result := Result + [sslOpt_NO_SSLv2];
+        if (FSslOptionsValue and SSL_OP_NO_SSLv3) <> 0 then
+            Result := Result + [sslOpt_NO_SSLv3];
+        if (FSslOptionsValue and SSL_OP_NO_TLSv1) <> 0 then
+            Result := Result + [sslOpt_NO_TLSv1];
+        if (FSslOptionsValue and SSL_OP_PKCS1_CHECK_1) <> 0 then
+            Result := Result + [sslOpt_PKCS1_CHECK_1];
+        if (FSslOptionsValue and SSL_OP_PKCS1_CHECK_2) <> 0 then
+            Result := Result + [sslOpt_PKCS1_CHECK_2];
+        if (FSslOptionsValue and SSL_OP_NETSCAPE_CA_DN_BUG) <> 0 then
+            Result := Result + [sslOpt_NETSCAPE_CA_DN_BUG];
+        if (FSslOptionsValue and SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION) <> 0 then
+            Result := Result + [sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION];
+        if (FSslOptionsValue and SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG) <> 0 then
+            Result := Result + [sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG];
+{$IFNDEF NO_ADV_MT}            
+    finally
+        Unlock
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslOptions(Value: TSslOptions);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslOptionsValue := 0;
+        if sslOpt_CIPHER_SERVER_PREFERENCE in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_CIPHER_SERVER_PREFERENCE;
+        if sslOpt_MICROSOFT_SESS_ID_BUG in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_MICROSOFT_SESS_ID_BUG;
+        if sslOpt_NETSCAPE_CHALLENGE_BUG in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_NETSCAPE_CHALLENGE_BUG;
+        if sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG;
+        if sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG;
+        if sslOpt_MICROSOFT_BIG_SSLV3_BUFFER in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER;
+        if sslOpt_MSIE_SSLV2_RSA_PADDING in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_MSIE_SSLV2_RSA_PADDING;
+        if sslOpt_SSLEAY_080_CLIENT_DH_BUG in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_SSLEAY_080_CLIENT_DH_BUG;
+        if sslOpt_TLS_D5_BUG in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_TLS_D5_BUG;
+        if sslOpt_TLS_BLOCK_PADDING_BUG in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_TLS_BLOCK_PADDING_BUG;
+        if sslOpt_TLS_ROLLBACK_BUG in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_TLS_ROLLBACK_BUG;
+        if sslOpt_DONT_INSERT_EMPTY_FRAGMENTS in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS;
+        if sslOpt_SINGLE_DH_USE in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_SINGLE_DH_USE;
+        if sslOpt_EPHEMERAL_RSA in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_EPHEMERAL_RSA;
+        if sslOpt_NO_SSLv2 in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_NO_SSLv2;
+        if sslOpt_NO_SSLv3 in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_NO_SSLv3;
+        if sslOpt_NO_TLSv1 in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_NO_TLSv1;
+        if sslOpt_PKCS1_CHECK_1 in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_PKCS1_CHECK_1;
+        if sslOpt_PKCS1_CHECK_2 in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_PKCS1_CHECK_2;
+        if sslOpt_NETSCAPE_CA_DN_BUG in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_NETSCAPE_CA_DN_BUG;
+        if sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION in Value then
+            FSslOptionsValue := FSslOptionsValue + SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
+        if sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG in Value then
+            FSslOptionsValue := FSslOptionsValue + LongInt(SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG);
+{$IFNDEF NO_ADV_MT}            
+    finally
+        Unlock;
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslSessCacheModes(Value: TSslSessCacheModes);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslSessCacheModeValue := SSL_SESS_CACHE_OFF;
+        {if sslCm_SSL_SESS_CACHE_OFF in Value then
+            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_OFF;}
+        if sslSESS_CACHE_CLIENT in Value then
+            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_CLIENT;
+        if sslSESS_CACHE_SERVER in Value then
+            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_SERVER;
+        {if sslSESS_CACHE_BOTH in Value then
+            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_BOTH;}
+        if sslSESS_CACHE_NO_AUTO_CLEAR in Value then
+            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_NO_AUTO_CLEAR;
+        if sslSESS_CACHE_NO_INTERNAL_LOOKUP in Value then
+            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_NO_INTERNAL_LOOKUP;
+        if sslSESS_CACHE_NO_INTERNAL_STORE in Value then
+            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_NO_INTERNAL_STORE;
+        {if sslSESS_CACHE_NO_INTERNAL in Value then
+            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_NO_INTERNAL;}
+{$IFNDEF NO_ADV_MT}            
+    finally
+        Unlock;
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslContext.GetSslSessCacheModes: TSslSessCacheModes;
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        Result := [];
+        {if (FSslSessCacheModeValue and SSL_SESS_CACHE_OFF) <> 0 then
+            Result := [sslSESS_CACHE_OFF];}
+        if (FSslSessCacheModeValue and SSL_SESS_CACHE_CLIENT) <> 0 then
+            Result := Result + [sslSESS_CACHE_CLIENT];
+        if (FSslSessCacheModeValue and SSL_SESS_CACHE_SERVER) <> 0 then
+            Result := Result + [sslSESS_CACHE_SERVER];
+        {if (FSslSessCacheModeValue and SSL_SESS_CACHE_BOTH) <> 0 then
+            Result := Result + [sslSESS_CACHE_BOTH];}
+        if (FSslSessCacheModeValue and SSL_SESS_CACHE_NO_AUTO_CLEAR) <> 0 then
+            Result := Result + [sslSESS_CACHE_NO_AUTO_CLEAR];
+        if (FSslSessCacheModeValue and SSL_SESS_CACHE_NO_INTERNAL_LOOKUP) <> 0 then
+            Result := Result + [sslSESS_CACHE_NO_INTERNAL_LOOKUP];
+        if (FSslSessCacheModeValue and SSL_SESS_CACHE_NO_INTERNAL_STORE) <> 0 then
+            Result := Result + [sslSESS_CACHE_NO_INTERNAL_STORE];
+        {if (FSslSessCacheModeValue and SSL_SESS_CACHE_NO_INTERNAL) <> 0 then
+            Result := Result + [sslSESS_CACHE_NO_INTERNAL]; }
+{$IFNDEF NO_ADV_MT}            
+    finally
+        Unlock;
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslCipherList(const Value: String);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        if FSslCipherList = Value then
+            Exit;   // No change, do nothing
+        // Now should check the syntax. Will do later :-)
+        FSslCipherList := Value;
+{$IFNDEF NO_ADV_MT}        
+    finally
+        Unlock
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslVerifyPeerModes(
+    const Value: TSslVerifyPeerModes);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        if Value <> FSslVerifyPeerModes then begin
+            FSslVerifyPeerModesValue := 0;
+            if (SslVerifyMode_NONE in Value) then
+                FSslVerifyPeerModesValue := FSslVerifyPeerModesValue or SSL_VERIFY_NONE;
+            if (SslVerifyMode_PEER in Value) then
+                FSslVerifyPeerModesValue := FSslVerifyPeerModesValue or SSL_VERIFY_PEER;
+            if (SslVerifyMode_FAIL_IF_NO_PEER_CERT in Value) then
+                FSslVerifyPeerModesValue := FSslVerifyPeerModesValue or SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+            if (SslVerifyMode_CLIENT_ONCE in Value) then
+                FSslVerifyPeerModesValue := FSslVerifyPeerModesValue or SSL_VERIFY_CLIENT_ONCE;
+            FSslVerifyPeerModes := Value;
+        end;
+
+        if not Assigned(FSslCtx) then
+            Exit;
+
+        { We may change these settings any time since they won't change active Ssl's }
+        if FSslVerifyPeer then begin
+            if f_SSL_CTX_get_verify_mode(FSslCtx) <> FSslVerifyPeerModesValue then begin
+                f_SSL_CTX_set_verify(FSslCtx, FSslVerifyPeerModesValue, PeerVerifyCallback);
+{$IFDEF OPENSSL_VERSION_NUMBER_LESS_THAN_0x00905100L}
+                f_SSL_CTX_set_verify_depth(FSslCtx, 1);
+{$ELSE}
+                f_SSL_CTX_set_verify_depth(FSslCtx, FSslVerifyDepth);
+{$ENDIF}
+            end;
+        end
+        else begin
+            f_SSL_CTX_set_verify(FSslCtx, 0, nil);
+            f_SSL_CTX_set_verify_depth(FSslCtx, 0);
+        end;
+{$IFNDEF NO_ADV_MT}
+    finally
+        Unlock;
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslVerifyPeer(const Value: Boolean);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        if Value <> FSslVerifyPeer then begin
+            FSslVerifyPeer := Value;
+            SetSslVerifyPeerModes(FSslVerifyPeerModes);
+        end;
+{$IFNDEF NO_ADV_MT}        
+    finally
+        Unlock;
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslDefaultSessionIDContext(
+    Value: TSslSessionIdContext);
+begin
+{$IFNDEF NO_ADV_MT}
+    Lock;
+    try
+{$ENDIF}
+        if Length(Value) > SSL_MAX_SSL_SESSION_ID_LENGTH then
+            SetLength(Value, SSL_MAX_SSL_SESSION_ID_LENGTH);
+        if FSslDefaultSessionIDContext <> Value then begin
+            FSslDefaultSessionIDContext := Value;
+            if Assigned(FSslCtx) and (SSL_SESS_CACHE_SERVER and
+               FSslSessCacheModeValue <> 1) then begin
+                if Length(Value) > 0 then
+                    f_SSL_CTX_set_session_id_context(FSslCtx,
+                                                     @Value[1],
+                                                     Length(Value))
+                else
+                    f_SSL_CTX_set_session_id_context(FSslCtx, nil, 0);
+            end;
+        end;
+{$IFNDEF NO_ADV_MT}
+    finally
+        Unlock
+    end;
+{$ENDIF}    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{procedure TSslContext.SetSslX509Trust(const Value: TSslX509Trust);
+begin
+    if Value <> FSslX509Trust then begin
+        FSslX509Trust := Value;
+        if Assigned(FSslCtx) then
+            if FSslX509Trust <> ssl_X509_TRUST_NOT_DEFINED then
+                if f_SSL_CTX_set_trust(FSslCtx, Integer(FSslX509Trust)) = 0 then
+                    raise Exception.Create('Error setting trust');
+    end;
+end; }
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
+{ TX509Stack }
+constructor TX509Stack.Create;
+begin
+    inherited Create;
+    FStack := nil;
+    FStack := f_sk_new_null;
+    FCount := 0;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TX509Stack.Destroy;
+begin
+    if Assigned(FStack) then begin
+        Clear;
+        f_sk_free(FStack);
+        FStack := nil;
+    end;
+    inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Stack.Add(Cert: PX509): Integer;
+begin
+    Result := InternalInsert(Cert, f_sk_num(FStack)) - 1;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Stack.Clear;
+begin
+     while FCount > 0 do
+        Delete(0);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Stack.SetStack(const Value: PSTACK);
+var
+    I: Integer;
+begin
+    Clear;
+    if Value <> nil then
+        for I := 0 to f_sk_num(Value) - 1 do
+            Add(PX509(f_sk_value(Value, I)));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Stack.Delete(Index: Integer);
+var
+    P : PChar;
+begin
+    P := nil;
+    P := f_sk_delete(FStack, Index);
+    if P <> nil then begin
+        Dec(FCount);
+        f_X509_free(PX509(P));
+    end else
+        raise EX509Exception.Create('Delete failed');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Stack.IndexOf(Cert: PX509): Integer;
+begin
+    Result := 0;
+    while (Result < FCount) and
+          (PX509(f_sk_value(FStack, Result)) <> Cert) do
+        Inc(Result);
+    if Result = FCount then
+        Result := -1;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Stack.Insert(Cert: PX509; Index: Integer);
+begin
+    InternalInsert(Cert, Index)
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Stack.InternalInsert(Cert: PX509; Index: Integer): Integer;
+var
+    P : PX509;
+begin
+    if (Index < 0) then
+        raise EX509Exception.Create('Invalid index');
+    if Cert = nil then
+        raise EX509Exception.Create('Cert not assigned');
+    P := nil;
+    P := f_X509_dup(Cert);  // increment reference count
+    if P = nil then
+        raise EX509Exception.Create('X509_dup failed');
+    Result := f_sk_insert(FStack, PChar(P), Index);
+    if Result = 0 then
+        f_X509_free(P)
+    else
+        FCount := Result;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Stack.GetCert(Index: Integer): PX509;
+begin
+    Result := PX509(f_sk_value(FStack, Index));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Stack.SetCert(Index: Integer; const Value: PX509);
+begin
+    if (Index < 0) or (Index >= FCount) then
+        raise EX509Exception.Create('Invalid index');
+    Delete(Index);
+    InternalInsert(Value, Index);
+end;
+
+*)
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TX509Base.Create(AOwner: TComponent; X509: Pointer = nil);
+begin
+    inherited Create(AOwner);
+    FPrivateKey := nil;
+    AssignDefaults;
+    if Assigned(X509) then begin
+        InitializeSsl;
+        FX509     := f_X509_dup(X509);
+        FSha1Hash := GetSha1Hash;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TX509Base.Destroy;
+begin
+    FreeAndNilX509;
+    if Assigned(FPrivateKey) then begin
+        f_EVP_PKEY_free(FPrivateKey);
+        FPrivateKey := nil;
+    end;
+    inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.FreeAndNilX509;
+begin
+    if Assigned(FX509) then begin
+        f_X509_free(FX509);
+        FX509 := nil;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.SetX509(X509: Pointer);
+begin
+    InitializeSsl;
+    FreeAndNilX509;
+    AssignDefaults;
+    if Assigned(X509) then begin
+        FX509     := f_X509_dup(X509);
+        FSha1Hash := GetSha1Hash;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.SetPrivateKey(PKey: Pointer);
+begin
+    InitializeSsl;
+    if Assigned(FPrivateKey) then begin
+        f_EVP_PKEY_free(FPrivateKey);
+        FPrivateKey := nil;
+    end;
+    if Assigned(PKey) then
+        FPrivateKey := Ics_EVP_PKEY_dup(PKey);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetPublicKey: Pointer;                       {AG 11/08/07}
+begin
+    if Assigned(FX509) then
+        Result := f_X509_get_pubkey(FX509)
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetExtensionCount: Integer;
+begin
+    if Assigned(FX509) then
+        Result := f_X509_get_ext_count(FX509)
+    else
+        Result := 0;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.ExtByName(const ShortName: String): Integer;
+var
+    Ext     : PX509_EXTENSION;
+    Count   : Integer;
+    I       : Integer;
+    Len     : Integer;
+    ExtStr  : PChar;
+    B       : PBIO;
+    Nid     : Integer;
+begin
+    Result := -1;
+    if Assigned(FX509) then begin
+        Count := GetExtensionCount;
+        for I := 0 to Count -1 do begin
+            //Ext := nil;
+            Ext := f_X509_get_ext(FX509, I);
+            if not Assigned(Ext) then
+                Continue;
+            Nid := f_OBJ_obj2nid(f_X509_EXTENSION_get_object(Ext));
+            if Nid <> NID_undef then begin
+                ExtStr := f_OBJ_nid2sn(Nid);
+                if StrLIComp(ExtStr, PChar(ShortName), 255) = 0 then begin
+                    Result := I;
+                    Exit;
+                end;
+            end
+            else begin // custom extension
+                //B := nil;
+                B := f_BIO_new(f_BIO_s_mem);
+                if Assigned(B) then begin
+                    try
+                        f_i2a_ASN1_OBJECT(B, f_X509_EXTENSION_get_object(Ext));
+                        Len := f_BIO_ctrl(B, BIO_CTRL_PENDING, 0, nil);
+                        if Len > 0 then begin
+                            GetMem(ExtStr, Len);
+                            try
+                                f_Bio_read(B, ExtStr, Len);
+                                if StrLIComp(ExtStr, PChar(ShortName), 255) = 0 then begin
+                                    Result := I;
+                                    Exit;
+                                end;
+                            finally
+                                FreeMem(ExtStr);
+                            end;
+                        end;
+                    finally
+                        f_bio_free(B);
+                    end;
+                end;
+            end;
+        end;
+    end
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetIssuerOneLine: String;
+begin
+    Result := '';
+    if not Assigned(FX509) then
+        Exit;
+    SetLength(Result, 512);
+    Result := f_X509_NAME_oneline(f_X509_get_issuer_name(FX509),
+                                  PChar(Result),
+                                  Length(Result));
+    SetLength(Result, StrLen(PChar(Result)));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetSerialNum: Integer;
+begin
+    if Assigned(FX509) then
+        Result := f_ASN1_INTEGER_get(f_X509_get_serialNumber(FX509))
+    else
+        Result := -1;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetSha1Hash: String;
+var
+    Len : Integer;
+begin
+    if Assigned(FX509) then begin
+        Len := 20;
+        SetLength(Result, Len);
+        f_X509_digest(FX509, f_EVP_sha1, PChar(Result), @Len);
+        SetLength(Result, StrLen(@Result[1]));
+    end
+    else
+        Result := '';
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.UnknownExtDataToStr(Ext: PX509_Extension) : String;
+{var
+    B   : PBIO;
+    Len : Integer; }
+begin
+    Result := Asn1ToString(PASN1_STRING(f_X509_EXTENSION_get_data(Ext)));
+    {B := f_BIO_new(f_BIO_s_mem);
+    if Assigned(B) then begin
+        try
+            f_ASN1_STRING_print(B, PASN1_STRING(f_X509_EXTENSION_get_data(Ext)));
+            Len := f_BIO_ctrl(B, BIO_CTRL_PENDING, 0, nil);
+            SetLength(Result, Len);
+            if Len > 0 then begin
+                f_Bio_read(B, PChar(Result), Len);
+                SetLength(Result, StrLen(PChar(Result)));
+            end;
+        finally
+            f_BIO_free(B);
+        end;
+    end
+    else
+        Result := '';}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetExtension(Index: Integer): TExtension;
+var
+    ExtCount : Integer;
+    J        : Integer;
+    Ext      : PX509_EXTENSION;
+    Value    : PChar;
+    Meth     : PX509V3_EXT_METHOD;
+    Data     : PChar;
+    Val      : PSTACK;
+    NVal     : PCONF_VALUE;
+    ext_str  : Pointer;
+    B        : PBIO;
+    Nid      : Integer;
+begin
+    Result.Critical  := FALSE;
+    Result.ShortName := '';
+    Result.Value     := '';
+    if not Assigned(FX509) then
+        Exit;
+    ExtCount := ExtensionCount;
+    if (Index < 0) or (Index > ExtCount -1) then
+        raise EX509Exception.Create('Extension index out of bounds');
+    Value   := nil;
+    Meth    := nil;
+    Val     := nil;
+    ext_str := nil;
+    //Ext   := nil;
+    Ext     := f_X509_get_ext(FX509, Index);
+    if not Assigned(Ext) then
+        raise EX509Exception.Create('Extension not assigned');
+    Result.Critical := f_X509_EXTENSION_get_critical(Ext) > 0;
+    Nid := f_OBJ_obj2nid(f_X509_EXTENSION_get_object(Ext));
+    if Nid <> NID_undef then
+        Result.ShortName := StrPas(f_OBJ_nid2sn(Nid))
+    else begin // custom extension
+        //B := nil;
+        B := f_BIO_new(f_BIO_s_mem);
+        if Assigned(B) then begin
+            try
+                f_i2a_ASN1_OBJECT(B, f_X509_EXTENSION_get_object(Ext));
+                J := f_BIO_ctrl(B, BIO_CTRL_PENDING, 0, nil);
+                SetLength(Result.ShortName, J);
+                if J > 0 then begin
+                    f_Bio_read(B, PChar(Result.ShortName), J);
+                    SetLength(Result.ShortName, StrLen(PChar(Result.ShortName)));
+                end;
+            finally
+                f_bio_free(B);
+            end;
+        end;
+    end;
+
+    try
+        Meth := f_X509V3_EXT_get(Ext);
+        if Meth = nil then begin
+            Result.Value := UnknownExtDataToStr(Ext);
+            Exit;
+        end;
+        Data := Ext^.value^.data;
+        if Assigned(Meth^.it) then
+            ext_str := f_ASN1_item_d2i(nil,
+                                       @Data,
+                                       Ext^.value^.length,
+                                       ASN1_ITEM_ptr(Meth^.it))
+        else
+            ext_str := Meth^.d2i(nil, @Data, Ext^.value^.length);
+
+        if not Assigned(ext_str) then begin
+            Result.Value := UnknownExtDataToStr(Ext);
+            Exit;
+        end;
+
+        if Assigned(Meth^.i2s) then begin
+            Value := Meth^.i2s(Meth, ext_str);
+            if Assigned(Value) then
+                Result.Value := StrPas(Value);
+        end
+        else if Assigned(Meth^.i2v) then begin
+            Val := Meth^.i2v(Meth, ext_str, nil);
+            if not Assigned(Val) then
+                Exit;
+            J := 0;
+            while J < f_sk_num(val) do begin
+                NVal := PCONF_VALUE(f_sk_value(Val, J));
+                if Length(Result.Value) > 0 then
+                    Result.Value := Result.Value + #13#10;
+                Result.Value := Result.Value + StrPas(NVal^.name);
+                if (StrPas(NVal^.value) <> '') and (StrPas(NVal^.name) <> '') then
+                    Result.Value := Result.Value + '=';
+                Result.Value := Result.Value + StrPas(NVal^.value);
+                Inc(J);
+            end;
+        end
+        else if Assigned(Meth^.i2r) then begin
+            //B := nil;
+            B := f_BIO_new(f_BIO_s_mem);
+            if Assigned(B) then
+                try
+                    Meth.i2r(Meth, ext_str, B, 0);
+                    J := f_BIO_ctrl(B, BIO_CTRL_PENDING, 0, nil);
+                    SetLength(Result.Value, J);
+                    if J > 0 then begin
+                        f_Bio_read(B, PChar(Result.Value), J);
+                        SetLength(Result.Value, StrLen(PChar(Result.Value)));
+                        { This method separates multiple values by LF } // should I remove this stuff?
+                        while (Length(Result.Value) > 0) and
+                              (Result.Value[Length(Result.Value)] = #10) do
+                            SetLength(Result.Value, Length(Result.Value) -1);
+                        Result.Value := StringReplace(Result.Value, #10, #13#10, [rfReplaceAll]);
+                    end;
+                finally
+                    f_bio_free(B);
+                end;
+        end;
+    finally
+        if Assigned(Val) then
+            f_sk_pop_free(Val, @f_X509V3_conf_free);
+        if Assigned(Value) then
+            f_CRYPTO_free(Value);
+        if Assigned(Meth) and Assigned(ext_str) then
+            if Assigned(Meth^.it) then
+                f_ASN1_item_free(ext_str, ASN1_ITEM_ptr(Meth^.it))
+            else
+                Meth^.ext_free(ext_str);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetSubjectAltName: TExtension;
+var
+    I : Integer;
+begin
+    Result.Critical  := FALSE;
+    Result.ShortName := '';
+    Result.Value     := '';
+    I := ExtByName('subjectAltName');
+    if I > -1 then
+        Result := GetExtension(I);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Changed to return a list, separated by CRLF }
+function TX509Base.GetSubjectCName: String;
+var
+    Subj    : PX509_NAME;
+    Entry   : PX509_NAME_ENTRY;
+    Asn1    : PASN1_STRING;
+    LastPos : Integer;
+begin
+    Result := '';
+    Entry  := nil;
+    if not Assigned(FX509) then
+        Exit;
+    Subj := f_X509_get_subject_name(FX509);
+    if Subj <> nil then
+    begin
+        LastPos := -1;
+        repeat
+            LastPos := f_X509_NAME_get_index_by_NID(Subj, NID_commonName, LastPos);
+            if LastPos > -1 then
+                Entry := f_X509_NAME_get_entry(Subj, LastPos)
+            else
+                Break;
+            if Assigned(Entry) then begin
+                Asn1 := f_X509_NAME_ENTRY_get_data(Entry);
+                if Assigned(Asn1) then
+                    Result := Result + Asn1ToString(Asn1) + #13#10;
+            end;
+        until
+            LastPos = -1;
+
+        while (Length(Result) > 0) and (Result[Length(Result)] in [#13, #10]) do
+            SetLength(Result, Length(Result) - 1);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetSubjectOneLine: String;
+begin
+    Result := '';
+    if not Assigned(FX509) then
+        Exit;
+    SetLength(Result, 512);
+    Result := f_X509_NAME_oneline(f_X509_get_subject_name(FX509),
+                                  PChar(Result),
+                                  Length(Result));
+    SetLength(Result, StrLen(PChar(Result)));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetVerifyErrorMsg: String;
+begin
+    if Assigned(FX509) then
+        Result := StrPas(f_X509_verify_cert_error_string(FVerifyResult))
+    else
+        Result := '';
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetFirstVerifyErrorMsg: String;            {05/21/2007 AG}
+begin
+    if Assigned(FX509) then
+        Result := StrPas(f_X509_verify_cert_error_string(FFirstVerifyResult))
+    else
+        Result := '';
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetValidNotAfter: TDateTime;                 {AG 02/06/06}
+begin
+    if Assigned(FX509) then
+        if Asn1ToUTDateTime(f_Ics_X509_get_notAfter(FX509), Result) then
+            Exit;
+    Result := MinDateTime; 
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetValidNotBefore: TDateTime;                {AG 02/06/06}
+begin
+    if Assigned(FX509) then
+        if Asn1ToUTDateTime(f_Ics_X509_get_notBefore(FX509), Result) then
+            Exit;
+    Result := MaxDateTime;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetHasExpired: Boolean;                      {AG 02/06/06}
+
+    function GetCurrentBias : TDateTime;
+    const
+        MinsPerDay = 1440;
+    var
+        TZInfo: TTimeZoneInformation;
+    begin
+        case GetTimeZoneInformation(TZInfo) of
+            TIME_ZONE_ID_DAYLIGHT:
+                Result := (TZInfo.Bias + TZInfo.DaylightBias) / MinsPerDay;
+            TIME_ZONE_ID_STANDARD:
+                Result := (TZInfo.Bias + TZInfo.StandardBias) / MinsPerDay;
+            else
+                Result := TZInfo.Bias / MinsPerDay;
+        end;
+    end;
+
+    function CompDateTime(const A, B: TDateTime): Integer;
+    begin
+        if Trunc(A) = Trunc(B) then
+            Result := 0
+        else if A < B then
+            Result := -1
+        else
+            Result := 1;
+    end;
+    
+var
+    CurUT  : TDateTime;
+begin
+    CurUT  :=  Now + GetCurrentBias;
+    Result := (CompDateTime(CurUT, ValidNotAfter)  = 1) or
+                   (CompDateTime(CurUT, ValidNotBefore) = -1);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.AssignDefaults;
+begin
+    FVerifyDepth        := 0;
+    FSha1Hash           := '';
+    FVerifyResult       := X509_V_ERR_APPLICATION_VERIFICATION;
+    FCustomVerifyResult := X509_V_ERR_APPLICATION_VERIFICATION;
+    FFirstVerifyResult  := X509_V_ERR_APPLICATION_VERIFICATION;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.PostConnectionCheck(HostOrIp: String): Boolean;
+var
+    I      : Integer;
+    Ext    : TExtension;
+    Li     : TStringList;   
+    Mask   : TMask;
+begin
+    Result := FALSE;
+    if (not Assigned(FX509)) or (Length(HostOrIp) = 0) then
+        Exit;
+    Li := TStringList.Create;
+    try
+        Li.Text := GetSubjectCName;
+        for I := 0 to Li.Count - 1 do begin
+            if Li[I] <> '' then begin
+                Mask := TMask.Create(Li[I]);
+                try
+                    Result := Mask.Matches(HostOrIP);
+                    if Result then Exit;
+                finally
+                    Mask.Free;
+                end;
+            end;
+        end;
+
+        Ext := GetSubjectAltName;
+        if Length(Ext.ShortName) > 0 then begin
+            Li.Text := Ext.Value;
+            for I := 0 to Li.Count -1 do begin
+                if (Pos('IP',  UpperCase(Li.Names[I])) = 1) or
+                   (Pos('DNS', UpperCase(Li.Names[I])) = 1) then begin
+                    Mask := TMask.Create(Li.Values[Li.Names[I]]);
+                    try
+                        Result := Mask.Matches(HostOrIP);
+                        if Result then Exit;
+                    finally
+                        Mask.Free;
+                    end;
+                end;
+            end;
+        end;
+    finally
+        Li.Free;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.OpenFileBio(
+    const FileName    : String;
+    Methode           : TBioOpenMethode): PBIO;
+begin
+    if (Filename = '') then
+        raise EX509Exception.Create('File name not specified');
+    if (Methode = bomRead) and (not FileExists(Filename)) then
+        raise EX509Exception.Create('File not found "' +
+                                          Filename + '"');
+    if Methode = bomRead then
+        Result := f_BIO_new_file(PChar(Filename), PChar('r+'))
+    else
+        Result := f_BIO_new_file(PChar(Filename), PChar('w+'));
+
+    if (Result = nil) then
+        RaiseLastOpenSslError(EX509Exception, TRUE,
+                             'Error on opening file "' + Filename + '"');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.PrivateKeyLoadFromPemFile(const FileName: String;
+    const Password: String = '');
+var
+    PKey    : PEVP_PKEY;
+    FileBio : PBIO;
+begin
+    InitializeSsl;
+    FileBio := OpenFileBio(FileName, bomRead);
+    try
+        PKey := f_PEM_read_bio_PrivateKey(FileBio, nil, nil, PChar(Password));
+        if not Assigned(PKey) then
+            RaiseLastOpenSslError(EX509Exception, TRUE,
+                                  'Error reading private key file "' +
+                                   Filename + '"');
+        try
+            if Assigned(FX509) then
+                if f_X509_check_private_key(FX509, PKey) < 1 then
+                    raise EX509Exception.Create('Certificate and private key ' +
+                                                'do not match');
+            PrivateKey := PKey;
+        finally
+            f_EVP_PKEY_free(PKey);
+        end;
+    finally
+        f_bio_free(FileBio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ todo: Actually the private key is written unprotected }
+procedure TX509Base.PrivateKeySaveToPemFile(const FileName: String);
+var
+    FileBio : PBIO;
+begin
+    InitializeSsl;
+    if not Assigned(FPrivateKey) then
+        raise EX509Exception.Create('Private key not assigned');
+    FileBio := OpenFileBio(FileName, bomWrite);
+    try
+        if f_PEM_write_bio_PrivateKey(FileBio, FPrivateKey, nil, nil, 0,
+                                      nil, nil) = 0 then
+            RaiseLastOpenSslError(EX509Exception, TRUE,
+                                  'Error writing private key to file');
+    finally
+        f_bio_free(FileBio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.LoadFromPemFile(const FileName: String;
+    IncludePrivateKey: Boolean = FALSE; const Password: String = '');
+var
+    FileBio : PBIO;
+    X       : PX509;
+    PKey    : PEVP_PKEY;
+begin
+    InitializeSsl;
+    FileBio   := OpenFileBio(FileName, bomRead);
+    try
+        X := f_PEM_read_bio_X509(FileBio, nil, nil, PChar(Password));
+        if not Assigned(X) then
+            RaiseLastOpenSslError(EX509Exception, TRUE,
+                                  'Error reading certificate file "' +
+                                  Filename + '"');
+        try
+            if (not IncludePrivateKey) and Assigned(FPrivateKey) then
+                if f_X509_check_private_key(X, FPrivateKey) < 1 then
+                    raise EX509Exception.Create('Certificate and private key ' +
+                                                'do not match');
+            if IncludePrivateKey then begin
+                f_BIO_ctrl(FileBio, BIO_CTRL_RESET, 0, nil);
+                PKey := f_PEM_read_bio_PrivateKey(FileBio, nil, nil, PChar(Password));
+                if not Assigned(PKey) then
+                    RaiseLastOpenSslError(EX509Exception, TRUE,
+                                          'Error reading private key file "' +
+                                           Filename + '"');
+                try
+                    if f_X509_check_private_key(X, PKey) < 1 then
+                        raise EX509Exception.Create('Certificate and private key ' +
+                                                    'do not match');
+                     X509       := X;
+                     PrivateKey := PKey;
+                finally
+                    f_EVP_PKEY_free(PKey);
+                end;
+            end else
+                X509 := X;
+        finally
+            f_X509_free(X);
+        end;
+    finally
+        f_bio_free(FileBio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ todo: Actually the private key is written unprotected }
+procedure TX509Base.SaveToPemFile(const FileName: String;
+    IncludePrivateKey: Boolean = FALSE);
+var
+    FileBio : PBIO;
+begin
+    InitializeSsl;
+    if not Assigned(FX509) then
+        raise EX509Exception.Create('X509 not assigned');
+    if IncludePrivateKey and (not Assigned(FPrivateKey)) then
+        raise EX509Exception.Create('Private key not assigned');
+    FileBio := OpenFileBio(FileName, bomWrite);
+    try
+        if IncludePrivateKey and
+           (f_PEM_write_bio_PrivateKey(FileBio, FPrivateKey, nil, nil, 0,
+                                       nil, nil) = 0) then
+            RaiseLastOpenSslError(EX509Exception, TRUE,
+                                  'Error writing private key to file');
+        if f_PEM_write_bio_X509(FileBio, FX509) = 0 then
+            RaiseLastOpenSslError(EX509Exception, TRUE,
+                                  'Error writing certificate to file');
+    finally
+        f_bio_free(FileBio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetRawText: String;                        {05/21/2007 AG}
+var
+    Bio  : PBIO;
+    Len  : Integer;
+begin
+    Result := '';
+    if FX509 = nil then Exit;
+    Bio := f_BIO_new(f_BIO_s_mem);
+    if Assigned(Bio) then
+    try
+        f_X509_print(Bio, FX509);
+        Len := f_BIO_ctrl(Bio, BIO_CTRL_PENDING, 0, nil);
+        SetLength(Result, Len);
+        if Len > 0 then begin
+            f_Bio_read(Bio, PChar(Result), Len);
+            SetLength(Result, StrLen(PChar(Result)));
+        end;
+    finally
+        f_bio_free(Bio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF NO_DEBUG_LOG}
+function TCustomSslWSocket.GetMyBioName(B: PBIO) : String;
+begin
+         if (b = Fibio)   then Result := 'ibio'
+    else if (b = Fnbio)   then Result := 'nbio'
+    else if (b = Fsslbio) then Result := 'sslbio'
+    else                       Result := 'bio';
+end;
+{$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.my_BIO_ctrl_pending(B: PBIO) : integer;
+begin
+    HandleSslError;
+    if b = nil then begin
+        Result := 0;
+        Exit;
+    end;
+    Result := f_BIO_ctrl_pending(B);
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+    Inc(TraceCount);
+        DebugLog(loSslInfo, Format('%s BIO_ctrl_pending(%s) = %d   [%d]',
+                       [IntToHex(Integer(Self), 8), GetMyBioName(b),
+                        Result, TraceCount]));
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function DataToString(Buf : Pointer; Len : Integer) : String;
+var
+    P : PChar;
+begin
+    P      := PChar(Buf);
+    Result := '';
+    while Len > 0 do begin
+        if P^ in [#32..#126] then
+            Result := Result + P^
+        else
+            Result := Result + '$' + IntToHex(Ord(P^), 2) + ' ';
+        Inc(P);
+        Dec(Len);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF DELPHI6_UP}
+function BoolToStr(B: Boolean; UseBoolStrs: Boolean = FALSE): String;
+begin
+    Result := IntToStr(Ord(B))
+end;
+{$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.my_BIO_read(B: PBIO; Buf: Pointer; Len: Integer): Integer;
+begin
+    HandleSslError;
+    if b = nil then begin
+        Result := 0;
+        Exit;
+    end;
+    Result := f_BIO_read(B, Buf, Len);
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+    Inc(TraceCount);
+        DebugLog(loSslInfo, Format('%s BIO_read(%s, 0x%x, %d) = %d   [%d]',
+                       [IntToHex(Integer(Self), 8), GetMyBioName(b),
+                       Integer(Buf), Len, Result,
+                              TraceCount]));
+    end
+    else if CheckLogOptions(loSslDump) then begin
+        Inc(TraceCount);
+        DebugLog(loSslDump, Format('%s BIO_read(%s, 0x%x, %d) = %d   [%d] Data:%s',
+                       [IntToHex(Integer(Self), 8), GetMyBioName(b),
+                       Integer(Buf), Len, Result,
+                              TraceCount, DataToString(Buf, Result)]));
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.my_BIO_ctrl(
+    bp: PBIO; Cmd: Integer; LArg: LongInt; PArg: Pointer): LongInt;
+{$IFNDEF NO_DEBUG_LOG}
+var
+    CmdName  : String;
+    LArgName : String;
+{$ENDIF}
+begin
+    if bp = nil then begin
+        Result := 0;
+        Exit;
+    end;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        LArgName := IntToStr(LArg);
+        case (cmd) of
+        BIO_CTRL_FLUSH:         CmdName := 'BIO_CTRL_FLUSH';
+        BIO_CTRL_PENDING:       CmdName := 'BIO_CTRL_PENDING';
+        BIO_C_DO_STATE_MACHINE: CmdName := 'BIO_C_DO_STATE_MACHINE'; // <= 02/01/06 AG
+        BIO_C_SET_SSL:
+            begin
+                CmdName := 'BIO_C_SET_SSL';
+                case (larg) of
+                BIO_NOCLOSE: LArgName := 'BIO_NOCLOSE';
+                end;
+            end;
+        else
+            CmdName := IntToStr(Cmd);
+        end;
+    end;
+{$ENDIF}
+    Result := f_BIO_ctrl(bp, Cmd, LArg, PArg);
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+    Inc(TraceCount);
+        DebugLog(loSslInfo, Format('%s BIO_ctrl(%s, %s, %s, 0x%x) = %d   [%d]',
+                             [IntToHex(Integer(Self), 8), GetMyBioName(bp),
+                              CmdName, LArgName, Integer(PArg), Result,
+                              TraceCount]));
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.my_BIO_ctrl_get_write_guarantee(b: PBIO): Integer;
+begin
+    HandleSslError;
+    if b = nil then begin
+        Result := 0;
+        Exit;
+    end;
+    Result := f_BIO_ctrl_get_write_guarantee(b);
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin  { V5.21 }
+    Inc(TraceCount);
+        DebugLog(loSslInfo, Format('%s BIO_ctrl_get_write_guarantee(%s) = %d   [%d]',
+                       [IntToHex(Integer(Self), 8), GetMyBioName(b),
+                        Result, TraceCount]));
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{#$IFDEF SSL_NEVER}
+function TCustomSslWSocket.my_BIO_ctrl_get_read_request(b: PBIO): Integer;
+begin
+    HandleSslError;
+    if b = nil then begin
+        Result := 0;
+        Exit;
+    end;
+    Result := f_BIO_ctrl_get_read_request(b);
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin  { V5.21 }
+        Inc(TraceCount);
+        DebugLog(loSslInfo, Format('%s BIO_ctrl_get_read_request(%s) = %d   [%d]',
+                                   [IntToHex(Integer(Self), 8), GetMyBioName(b),
+                                   Result, TraceCount]));
+    end;
+{$ENDIF}    
+end;
+{#$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.my_BIO_write(B: PBIO; Buf: Pointer; Len: Integer): Integer;
+begin
+    HandleSslError;
+    if b = nil then begin
+        Result := 0;
+        Exit;
+    end;
+    Result := f_BIO_write(B, Buf, Len);
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin  { V5.21 }
+        Inc(TraceCount);
+        DebugLog(loSslInfo, Format('%s BIO_write(%s, 0x%x, %d) = %d   [%d]',
+                                   [IntToHex(Integer(Self), 8), GetMyBioName(b),
+                                   Integer(Buf),  Len, Result, TraceCount]));
+    end
+    else if CheckLogOptions(loSslDump) then begin
+        Inc(TraceCount);
+        DebugLog(loSslDump, Format('%s BIO_write(%s, 0x%x, %d) = %d   [%d] Data:%s',
+                                   [IntToHex(Integer(Self), 8), GetMyBioName(b),
+                                   Integer(Buf), Len, Result,
+                                   TraceCount, DataToString(Buf, Result)]));
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.HandleSslError;
+begin
+    FLastSslError := f_ERR_peek_error;
+    if FLastSslError = 0 then
+        Exit;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslErr) then begin
+        Inc(TraceCount);
+        DebugLog(loSslErr, Format('%s  %d  [%d] %s',
+                                  [IntToHex(Integer(Self), 8),
+                                   FHSocket, TraceCount,
+                                   LastOpenSslErrMsg(TRUE)]));
+    end
+    else
+        f_ERR_clear_error;
+{$ELSE}
+    f_ERR_clear_error;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.my_WSocket_recv(s: TSocket; var Buf: TWSocketData;
+    len, flags: Integer): Integer;
+begin
+    Result := WSocket_recv(s, Buf, Len, Flags);
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin  { V5.21 }
+        Inc(TraceCount);
+        DebugLog(loSslInfo, Format('%s Winsock recv( %d, 0x%x, %d, %d) = %d   [%d]',
+                                   [IntToHex(Integer(Self), 8), s, Integer(Buf),
+                                   Len, Flags, Result, TraceCount]));
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.my_RealSend(Buf : TWSocketData; Len : Integer) : Integer;
+begin
+    Result := RealSend(Buf, Len);
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin  { V5.21 }
+        Inc(TraceCount);
+        DebugLog(loSslInfo, Format('%s my_RealSend (0x%x, %d, %d) = %d   [%d]',
+                                   [IntToHex(Integer(Self), 8), FHSocket,
+                                   Integer(Buf), Len, Result, TraceCount]));
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.my_BIO_should_retry(b: PBIO): Boolean;
+begin
+    if b = nil then begin
+        Result := FALSE;
+        Exit;
+    end;
+    Result := BIO_should_retry(b);
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin  { V5.21 }
+        Inc(TraceCount);
+        DebugLog(loSslInfo, Format('%s BIO_should_retry(%s) = %d   [%d]',
+                       [IntToHex(Integer(Self), 8), GetMyBioName(b),
+                       Ord(Result), TraceCount]))
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TCustomSslWSocket.Create(AOwner: TComponent);
+begin
+    FSslEnable              := FALSE;
+    FSslContext             := nil;
+    FSslAcceptableHosts     := TStringList.Create;
+    FSslCertChain           := TX509List.Create(Self);
+    FX509Class              := TX509Base;
+    FSsl                    := nil;
+    FSslbio                 := nil;
+    FIBIO                   := nil;
+    FNBIO                   := nil;
+
+    FSslInitialized         := FALSE;
+    FNetworkError           := 0;
+    FSslIntShutDown         := 0;
+    FSslVerifyResult        := 0;
+
+    FMayTriggerFD_Read      := TRUE;
+    FMayTriggerFD_Write     := TRUE;
+    FMayTriggerDoRecv       := TRUE;
+    FMayTriggerSslTryToSend := TRUE;
+    FCloseCalled            := FALSE;
+    //FCloseReceived          := FALSE;
+    
+    //FMayInternalSslShut     := TRUE;
+    inherited Create(AOwner);
+    FSslBufList := TIcsBufferHandler.Create(nil);
+    FSslBufList.BufSize := SSL_BUFFER_SIZE;  // 4096              {AG 10/10/07}
+{ IFDEF DEBUG_OUTPUT}
+//    FSslDebugLevel := ssldbgDump;
+{ ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TCustomSslWSocket.Destroy;
+begin
+    inherited Destroy;
+    if Assigned(FSslAcceptableHosts) then
+        FreeAndNil(FSslAcceptableHosts);
+    DeleteBufferedSslData;
+    FreeAndNil(FSslBufList);
+    if Assigned(FSslCertChain) then
+        FreeAndNil(FSslCertChain);
+    FinalizeSSL;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.InitializeSsl;
+begin
+    if FSslInitialized then
+        Exit;
+    LoadSsl;
+    FSslInitialized := TRUE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.FinalizeSsl;
+begin
+    if not FSslInitialized then
+        Exit;
+    ResetSsl;
+    UnloadSsl;
+    FSslInitialized := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.Accept: TSocket;
+begin
+    Result := inherited Accept;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.Do_FD_ACCEPT(var Msg: TMessage);
+begin
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' Do_FD_ACCEPT ' + IntToStr(FHSocket));
+{$ENDIF}
+    inherited Do_FD_ACCEPT(msg);  
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.SocketDataPending : Boolean;
+var
+    Count : Integer;
+begin
+    FLastError := WSocket_Synchronized_ioctlsocket(FHSocket, FIONREAD, Count);
+    Result := Count > 0;
+    if FLastError = SOCKET_ERROR then begin
+        FLastError := WSocket_WSAGetLastError;
+        if (FLastError > WSABASEERR) and (FLastError <> WSAEWOULDBLOCK) and
+           (FLastError <> WSAENOTCONN) then
+        else
+            FLastError := 0;
+    end;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                 ' Socket data pending: ' + IntToStr(Count) + ' Err: ' +
+                 IntToStr(FLastError) + ' ' + IntToStr(FHSocket));
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.Do_FD_CLOSE(var Msg: TMessage);
+var
+    SslStOk : Boolean;
+begin
+    if (not FSslEnable) or (FSocksState <> socksData) or
+       (not Assigned(FSsl)) then begin
+        inherited Do_FD_CLOSE(msg);
+        Exit;
+    end;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' TCustomSslWSocket.Do_FD_CLOSE error #' +
+                      IntToStr(msg.LParamHi) + ' ' + IntToStr(FHSocket));
+{$ENDIF}
+    if (FState = wsConnecting) or (FHSocket = INVALID_SOCKET) then
+        Exit;
+
+    SslStOk := f_SSL_state(FSsl) = SSL_ST_OK;
+
+    if not FCloseCalled then begin
+        FCloseCalled := TRUE;
+{$IFNDEF NO_DEBUG_LOG}        
+        if CheckLogOptions(loSslInfo) then
+            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                     ' *CloseCalled ' + IntToStr(FHSocket));
+{$ENDIF}
+    end;
+    if FNetworkError = 0 then begin
+        { The connection was closed , we need to read as much as we can }
+        { as well as process data pending in the SslBio }
+        if (SslStOk and (my_BIO_ctrl_pending(FSslbio) > 0)) then begin
+            TriggerEvents;
+            Exit;
+        end
+        else if SocketDataPending and (FLastError = 0) then
+            // We'll receive a FD_READ message
+            Exit
+        else if (FLastError > WSABASEERR) then
+            FNetworkError := FLastError;
+
+        if SslStOk and (FSslIntShutDown < 2) then begin
+            FSslBiShutDownFlag := FALSE;
+            InternalShutDown(1);
+            Exit;
+        end
+    end;
+
+    if FNetworkError > 0 then begin
+        if (msg.LParamHi = 0) then
+            msg.LParamHi := FNetworkError;
+    end;
+
+    if (not SslStOk) and
+       (not (csDestroying in ComponentState)) then begin         // AG 03/03/06
+        TriggerSslHandshakeDone(1);
+        if (FState = wsConnected) and (FSslIntShutDown < 2) and  // AG 03/03/06
+           (msg.LParamHi = 0) then begin                         // AG 03/03/06
+            inherited ShutDown(1);                               // AG 03/03/06
+        end;
+    end;
+
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                 ' FCloseInvoked=' + IntToStr(Ord(FCloseInvoked)) + ' ' +
+                 IntToStr(FHSocket));
+{$ENDIF}
+    if (not FCloseInvoked) and
+       (not (csDestroying in ComponentState)) then begin   // AG 03/03/06
+        FCloseInvoked := TRUE;
+        TriggerSessionClosed(msg.LParamHi);
+    end;
+
+    FSslEnable := FALSE;
+    ResetSsl;
+
+    if FState <> wsClosed then begin
+        //inherited ShutDown(1);              // call winsock shutdown
+        inherited InternalClose(FALSE, msg.LParamHi);  // close the socket
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.Do_FD_CONNECT(var Msg: TMessage);
+begin
+    {if FSslEnable and (Msg.LParamHi = 0) then
+        StartSslHandshake;} // moved to TriggerSessionConnected
+    FCloseCalled    := FALSE;
+    FSslIntShutDown := 0;
+    inherited Do_FD_CONNECT(Msg);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.TriggerEvent(Event: TSslEvent; ErrCode: Word): Boolean;
+{$IFNDEF NO_DEBUG_LOG}
+var
+    S : String;
+{$ENDIF}
+begin
+    Result := FALSE;
+    if not FSslEnable then Exit;
+    { Returns TRUE if a message was posted successfully }
+    if not (Event in FPendingSslEvents) then begin
+        case Event of
+            sslFdRead  :  Result := PostMessage(Handle, FMsg_WM_SSL_ASYNCSELECT,
+                                          FHSocket, MakeLong(FD_READ, ErrCode));
+            sslFdWrite :  Result := PostMessage(Handle, FMsg_WM_SSL_ASYNCSELECT,
+                                         FHSocket, MakeLong(FD_WRITE, ErrCode));
+            sslFdClose :  Result := PostMessage(Handle, FMsg_WM_SSL_ASYNCSELECT,
+                                         FHSocket, MakeLong(FD_CLOSE, ErrCode));
+        end;
+        if Result then
+            FPendingSslEvents := FPendingSslEvents + [Event];
+    end;
+{$IFNDEF NO_DEBUG_LOG}
+    if Result and CheckLogOptions(loSslInfo) then begin
+        case Event of
+            sslFdRead  : S := 'sslFdRead ';
+            sslFdWrite : S := 'sslFdWrite ';
+            sslFdClose : S := 'sslFdClose ';
+            else
+                S := 'Unknown';
+        end;
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                 ' TriggerEvent ' + S + IntToStr(FHSocket));
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.ThreadAttach;
+begin
+    inherited ThreadAttach;
+    { Re-post pending events to the new window }
+    if sslFdRead in FPendingSslEvents then begin
+        FPendingSslEvents := FPendingSslEvents - [sslFdRead];
+        TriggerEvent(sslFdRead, 0);
+    end;
+    if sslFdWrite in FPendingSslEvents then begin
+        FPendingSslEvents := FPendingSslEvents - [sslFdWrite];
+        TriggerEvent(sslFdWrite, 0);
+    end;
+    if sslFdClose in FPendingSslEvents then begin
+        FPendingSslEvents := FPendingSslEvents - [sslFdClose];
+        TriggerEvent(sslFdClose, 0);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.Do_SSL_FD_READ(var Msg: TMessage);
+begin
+    WSocket_Synchronized_WSAASyncSelect(FHSocket,
+                                        Handle,
+                                        FMsg_WM_ASYNCSELECT,
+                                        FD_WRITE or FD_CLOSE or FD_CONNECT);
+    try
+        Do_FD_READ(Msg);
+    finally
+        WSocket_Synchronized_WSAASyncSelect(FHSocket,
+                                            Handle,
+                                            FMsg_WM_ASYNCSELECT,
+                                            FD_READ or FD_WRITE or FD_CLOSE or
+                                            FD_CONNECT);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.Do_FD_READ(var Msg: TMessage);
+var
+    Len        : Integer; // How much to receive
+    Buffer     : array [0..(SSL_BUFFER_SIZE * 2) -1] of Char;
+    NumRead    : Integer;
+    nError     : Integer;
+    Res        : Integer;
+    PBuf       : TWSocketData;
+begin
+    if (not FSslEnable) or (FSocksState <> socksData) then begin
+        inherited Do_FD_READ(msg);
+        Exit;
+    end;
+
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' TCustomSslWSocket.Do_FD_READ ' + IntToStr(FHSocket));
+{$ENDIF}
+
+    if (FNetworkError > 0) then
+        Exit;
+
+    if (f_SSL_state(FSsl) = SSL_ST_OK) and (FSslBioWritePendingBytes < 0) and // <= 12/08/05
+       (my_BIO_ctrl_pending(FSslbio) > 0) then begin
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+               ' TriggerDataAvailable (Do_FD_READ_1) ' + IntToStr(FHSocket));
+{$ENDIF}
+        TriggerDataAvailable(0);
+        Exit;
+    end;
+
+    FMayTriggerFD_Read := FALSE;
+
+    { Get number of bytes we can receive and store in the network input bio.  }
+    { New call to BIO_ctrl_get_read_request in order to read only the amount  }
+    { of data from the socket that is needed to satisfy a read request, if    }
+    { any. Without that call I had random errors on bi-directional shutdowns. }
+    Len := my_BIO_ctrl_get_read_request(FNBio);
+    if Len = 0 then
+        Len := my_BIO_ctrl_get_write_guarantee(FNBio);
+    if Len > SizeOf(Buffer) then
+        Len := SizeOf(Buffer)
+    else if Len = 0 then begin
+        FMayTriggerFD_Read := TRUE;
+        TriggerEvents;
+        Exit;
+    end;
+    // Receive data
+    PBuf := @Buffer[0];
+    NumRead := my_WSocket_recv(FHSocket, PBuf, Len, 0);
+    if (NumRead > 0) then begin
+        // Store it in the network input bio and process data
+        my_BIO_write(FNBio, @Buffer, NumRead);
+        my_BIO_ctrl(FNBio, BIO_CTRL_FLUSH, 0, nil);
+        // Look if input data was valid.
+        // We may not call BIO_read if a write operation is pending !!
+        if (FSslBioWritePendingBytes < 0) then begin
+            Res := my_BIO_read(FSslBio, Pointer(1), 0);
+            if Res < 0 then begin
+                if not my_BIO_should_retry(FSslBio) then begin
+                    HandleSslError;
+                    if (not FExplizitSsl) or
+                       (f_SSL_state(FSsl) <> SSL_ST_OK) then begin
+                        WSocket_WSASetLastError(WSAECONNABORTED);
+                        FNetworkError := WSAECONNABORTED;
+                        FLastError    := WSAECONNABORTED; //XX
+                        TriggerEvent(sslFdClose, 0);
+                    end
+                    else begin
+                        WSocket_WSASetLastError(WSAEWOULDBLOCK);
+                        FLastError := WSAEWOULDBLOCK; //XX
+                        FSslEnable := False;
+                        ResetSsl;
+                        if FSslIntShutDown < 2 then
+                            TriggerSslShutDownComplete(FLastSslError);
+                    end;
+{$IFNDEF NO_DEBUG_LOG}
+                    if CheckLogOptions(loSslInfo) then  { V5.21 }
+                        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                                 ' NetworkError #' + IntToStr(FNetworkError));
+{$ENDIF}
+                    Exit;
+                end
+                else begin
+                    FMayTriggerDoRecv := TRUE;
+                    WSocket_WSASetLastError(WSAEWOULDBLOCK);
+                    FLastError := WSAEWOULDBLOCK; //XX
+                end;
+            end
+            else if (FSslVersNum >= SSL3_VERSION) then begin // Doesn't work in SSLv2 - 12/06/05
+                if f_SSL_get_Error(FSSL, Res) = SSL_ERROR_ZERO_RETURN then begin
+                { SSL closure alert received }
+                    if FSslState < sslInShutdown then
+                        FSslState := sslInShutdown;
+                    if (not FSslBiShutDownFlag) and (FSslIntShutDown = 2) then
+                        TriggerEvent(sslFdClose, FNetWorkError);
+                end;
+                WSocket_WSASetLastError(WSAEWOULDBLOCK);
+                FLastError := WSAEWOULDBLOCK; //XX
+                FMayTriggerDoRecv := TRUE;
+            end;
+        end
+        else begin
+            FMayTriggerDoRecv := TRUE;
+            WSocket_WSASetLastError(WSAEWOULDBLOCK);
+            FLastError := WSAEWOULDBLOCK; //XX
+{$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslInfo) then  { V5.21 }
+               DebugLog(loSslInfo, 'SslBio write operation pending: ' +
+                                        IntToStr(FSslBioWritePendingBytes));
+{$ENDIF}
+        end;
+    end else
+    if Numread = 0 then begin
+        if FState = wsconnected then begin
+            TriggerEvent(sslFdClose, msg.LParamHi);
+        end;
+    end
+    else if Numread = SOCKET_ERROR then begin
+        nError := WSocket_WSAGetLastError;
+        if (nError > WSABASEERR) and (nError <> WSAEWOULDBLOCK) and
+           (nError <> WSAENOTCONN) then begin
+            FNetworkError := nError;
+            FLastError    := FNetworkError;
+            TriggerEvent(sslFdClose, 0);
+{$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslErr) then  { V5.21 }
+                DebugLog(loSslErr, IntToHex(Integer(Self), 8) +
+                         ' NetworkError #' + IntToStr(FNetworkError));
+{$ENDIF}
+            Exit;
+        end;
+    end;
+
+    if (f_SSL_state(FSsl) = SSL_ST_OK) {(FSslState >= sslEstablished)} and (FSslBioWritePendingBytes < 0) and // <= 12/08/05
+       (my_BIO_ctrl_pending(FSslbio) > 0) then begin
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                     ' TriggerDataAvailable (Do_FD_READ_2) ' +
+                     IntToStr(FHSocket));
+{$ENDIF}
+        TriggerDataAvailable(0);
+    end;
+
+    if (FSslIntShutDown = 1) and SslShutDownCompleted(FShutDownHow) then begin
+        if not FSslBiShutDownFlag then begin
+            TriggerEvent(sslFdClose, 0);
+            Exit;
+        end;
+    end;
+
+    TriggerEvents;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.Do_FD_WRITE(var Msg: TMessage);
+var
+    Len        : Integer;    // How much to send
+    Buffer     : array [0..16383] of Char;
+    NumRead    : Integer;
+    NumSent    : Integer;
+    Err        : Longword;
+begin
+    if (not FSslEnable) or (FSocksState <> socksData) then begin
+        inherited Do_FD_WRITE(msg);
+        Exit;
+    end;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' TCustomSslWSocket.Do_FD_WRITE ' + IntToStr(FHSocket));
+{$ENDIF}
+    if (FNetworkError > 0) then
+        Exit;
+
+    FMayTriggerFD_Write := FALSE;
+
+    // Send encrypted data in the send buffer
+    inherited TryToSend;
+    // May have closed the connection
+    if (FHSocket = INVALID_SOCKET) then begin
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +  ' INVALID_SOCKET');
+{$ENDIF}
+        Exit;
+    end
+    else if not bAllSent then begin
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) + ' * Not bAllSent ' + IntToStr(FHSocket));
+{$ENDIF}
+        FMayTriggerFD_Write := TRUE;
+        { AG 01/10/07 - Outcommented next line in order to avoid too many  }
+        { socket errors WSAEWOULDBLOCK, this is experimental and needs to  }
+        { be tested heavily! If you experience strange hangs uncomment it  }
+        { again.                                                           }
+        //TriggerEvents;
+        Exit;  // We have not sent everything
+    end;
+
+    // Send the data waiting in the network bio
+    Len     := my_BIO_ctrl_pending(FNBio);
+    NumRead := my_BIO_read(FNBio, @Buffer, Len);
+    if NumRead <= 0 then
+        FMayTriggerFD_Write := TRUE;
+
+    while (NumRead > 0) do begin
+        NumSent := my_RealSend(@Buffer, NumRead{len});
+        if NumSent = 0 then begin
+            if FState = wsconnected then
+                TriggerEvent(sslFdClose, 0);
+        end;
+        if (NumSent = SOCKET_ERROR) or (NumSent < NumRead) then begin
+            if NumSent = SOCKET_ERROR then begin
+                Err := WSocket_WSAGetLastError;
+                if (Err > WSABASEERR) and
+                   (Err <> WSAEWOULDBLOCK) and
+                   (Err <> WSAENOTCONN) then begin
+                    FNetworkError := Err;
+                    FLastError    := Err; //XX
+                    TriggerEvent(sslFdClose, 0);    
+{$IFNDEF NO_DEBUG_LOG}
+                    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+                        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                            ' Winsock Error ' + WSocketErrorDesc(FNetworkError) +
+                            ' ' + IntToStr(FHSocket));
+{$ENDIF}
+                    Exit;
+                end
+                else
+                    NumSent := 0;
+            end;
+            bAllSent := FALSE;
+            inherited PutDataInSendBuffer(@Buffer[NumSent], NumRead - NumSent);
+        end;
+        if NumSent = 0 then
+            break;
+
+        Len := my_BIO_ctrl_pending(FNBio);
+        if Len = 0 then begin
+            FMayTriggerFD_Write := TRUE;
+            break;
+        end;
+        NumRead := my_BIO_read(FNBio, @Buffer, Len);
+        if Numread <= 0 then
+            FMayTriggerFD_Write := TRUE;
+    end;
+
+    if (f_Ssl_State(FSsl) = SSL_ST_OK) then begin                    // <= 12/08/05
+        if not bSslAllSent then
+            TryToSend
+        (* else if {bSslAllSent and} bAllSent and (my_BIO_ctrl_pending(FNBio)= 0) and
+            (FSslState = sslEstablished) {FSslEstablished} then begin *)
+        else if bAllSent and // condition replaced, note check in front 12/08/05
+            (my_BIO_ctrl_pending(FNBio)= 0) and FSendPending then begin
+            //Inc(FTriggerCount); //test
+            FSendPending := FALSE;
+            TriggerDataSent(0);
+        end;
+    end;
+
+    if (FSslIntShutDown = 1) and SslShutDownCompleted(FShutDownHow) then begin
+        if not FSslBiShutDownFlag then begin
+            TriggerEvent(sslFdClose, 0);
+            Exit;
+        end;
+    end;
+
+    TriggerEvents;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.DoRecv(
+    var Buffer : TWSocketData;
+    BufferSize : Integer;
+    Flags      : Integer): Integer;
+var
+    Numread : Integer;
+begin
+    if (not FSslEnable) or (FSocksState <> socksData) then begin
+        Result := inherited DoRecv(Buffer, BufferSize, Flags);
+        Exit;
+    end;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' TCustomSslWSocket.DoRecv ' + IntToStr(FHSocket));
+{$ENDIF}
+    if FNetworkError > 0 then begin
+        if (my_BIO_ctrl_pending(FSslbio) > 0) and
+           (FSslIntShutDown = 0) then begin
+            Result := my_BIO_read(FSslbio, @Buffer, BufferSize);
+            Exit;
+        end;
+        WSocket_WSASetLastError(FNetworkError);
+        FLastError := FNetworkError; //XX
+        Result     := SOCKET_ERROR;
+        Exit;
+    end;
+    if FSslIntShutDown = 1 then begin
+        WSocket_WSASetLastError(WSAESHUTDOWN);
+        FLastError := WSAESHUTDOWN; //XX
+        Result := SOCKET_ERROR;
+        Exit;
+    end;
+    if (BufferSize = 0) then begin
+        Result := 0;
+        Exit;
+    end;
+    if (f_SSL_state(FSsl) <> SSL_ST_OK) or                //<= 01/01/06 AG
+       (my_BIO_ctrl_pending(FSslbio) = 0) then begin
+        if FState = wsclosed then begin
+            Result := 0;
+            Exit;
+        end;
+        if FCloseCalled then begin
+            TriggerEvent(sslFdClose, 0);
+            Result := 0;
+            Exit;
+        end
+        else if FState <> wsconnected then begin
+            WSocket_WSASetLastError(FNetworkError);
+            FLastError := FNetworkError; //XX
+            Result := SOCKET_ERROR;
+            Exit;
+        end;
+        FMayTriggerDoRecv := TRUE;
+        TriggerEvents;
+        WSocket_WSASetLastError(WSAEWOULDBLOCK);
+        FLastError := WSAEWOULDBLOCK; //XX
+        Result := SOCKET_ERROR;
+        Exit;
+    end;
+
+    Numread := my_BIO_read(FSslbio, Buffer, BufferSize);
+
+    if Numread = 0 then begin
+        if f_SSL_get_error(FSsl, Numread) = SSL_ERROR_ZERO_RETURN then begin
+            { SSL closure alert received }
+            if  FSslState < sslInShutdown then
+                FSslState := sslInShutdown;
+        end;
+        FMayTriggerDoRecv := TRUE;
+        TriggerEvents;
+        WSocket_WSASetLastError(WSAEWOULDBLOCK);
+        FLastError := WSAEWOULDBLOCK; //XX
+        Result := SOCKET_ERROR;
+        Exit;
+    end;
+
+    if Numread < 0 then begin
+        if not my_BIO_should_retry(FSslbio) then begin
+            HandleSslError;
+            if not FExplizitSsl then begin
+                FNetworkError := WSAECONNABORTED;
+                WSocket_WSASetLastError(WSAECONNABORTED);
+                FLastError := WSAECONNABORTED; //XX
+                TriggerEvent(sslFdClose, 0);
+                Result := SOCKET_ERROR;
+            end
+            else begin
+                WSocket_WSASetLastError(WSAEWOULDBLOCK);
+                FLastError := WSAEWOULDBLOCK; //XX
+                Result     := SOCKET_ERROR;
+                FSslEnable := FALSE;
+                ResetSsl;
+                if FSslIntShutDown < 2 then
+                    TriggerSslShutDownComplete(FLastSslError);
+            end;
+{$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+                DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                                 ' NetworkError #' + IntToStr(FNetworkError));
+{$ENDIF}
+            Exit;
+        end
+        else begin
+            FMayTriggerDoRecv := TRUE;
+            // FMayTriggerFD_READ := TRUE;     // <= 12/14/05 ???
+            TriggerEvents;
+            WSocket_WSASetLastError(WSAEWOULDBLOCK);
+            FLastError := WSAEWOULDBLOCK; //XX
+            Result     := SOCKET_ERROR;
+            Exit;
+        end;
+    end;
+    FMayTriggerDoRecv := TRUE;
+    TriggerEvents;
+    Result := Numread;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.GetRcvdCount : LongInt;
+begin
+    if csDesigning in ComponentState then begin
+        Result := -1;
+        Exit;
+    end;
+
+    if (not FSslEnable) or (FSocksState <> socksData) then 
+        Result := inherited GetRcvdCount
+    else
+        Result := my_BIO_ctrl_pending(FSslbio);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
+procedure TCustomSslWSocket.DoSslShutdown;
+var
+    ErrCode : Integer;
+begin
+    if Assigned(FSsl) then begin
+        ErrCode := f_SSL_get_shutdown(FSsl);
+        if ErrCode = 0 then begin // nobody has done anything so far
+            FSSL_State := sslShutdown;
+            ErrCode    := f_SSL_shutdown(FSsl);
+            if ErrCode = 0 then begin
+                f_SSL_shutdown(FSsl);
+                OutputDebugString(IntToHex(Integer(Self), 8) +
+                                  ' SSL_shutdown has to be called once more');
+                // The shutdown is not yet finished. SSL_shutdown() has to be called
+                // for a second time, if a bidirectional shutdown shall be performed.
+            end;
+        end;
+    end;
+end;
+
+*)
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.Close;
+begin
+    if not FCloseCalled then begin
+        FCloseCalled       := TRUE;
+        FSslBiShutDownFlag := FALSE;
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then
+            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                     ' *CloseCalled ' + IntToStr(FHSocket));
+{$ENDIF}
+    end;
+
+    if FSslEnable and Assigned(FSsl) and
+      (f_SSL_state(FSsl) = SSL_ST_OK) and (my_BIO_ctrl_pending(FSslbio) > 0) then
+        TriggerEvents
+    else
+       inherited Close;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.Shutdown(How : Integer);
+begin
+    if (FHSocket = INVALID_SOCKET) then
+        Exit;
+    if (not FSslEnable) or (not Assigned(FSsl)) then begin
+        inherited ShutDown(How);
+        Exit;
+    end;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                 ' TCustomSslWSocket.ShutDown ' + IntToStr(How) + ' ' +
+                 IntToStr(FHSocket));
+{$ENDIF}
+    FShutDownHow       := How;
+    FSslBiShutDownFlag := FALSE;
+    InternalShutDown(How);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.SslShutdownCompleted(How: Integer) : Boolean;
+var
+    Buffer  : array [0..1023] of Char;
+    NumRead : Integer;
+begin
+    if (not FSslEnable) or (not Assigned(FSsl)) then begin
+        Result := TRUE;
+        if FSslIntShutDown < 2 then begin
+            FSslBiShutDownFlag := FALSE;
+            FSslIntShutDown    := 2;
+            if Assigned(FSsl) then
+                ResetSsl;
+            TriggerSslShutDownComplete(FNetworkError);
+        end;
+        if FState <> wsClosed then begin
+            inherited ShutDown(How);
+            inherited InternalClose(FALSE, 0);
+        end;
+        Exit;
+    end;
+    Result := FALSE;
+{   Manifest constants for Shutdown
+    SD_RECEIVE                = 0;  // disables receives
+    SD_SEND                   = 1;  // disables sends, Use this one for graceful close
+    SD_BOTH                   = 2;  // disables both sends and receives
+}
+    try
+        if (FNetworkError = 0) and
+           ((FSslIntShutDown = 0) or (not bAllSent) {or (not bSslAllSent)}) then
+            Exit;
+
+        { A bi-directional SSL shutdown w/o socket  close. We need to       }
+        { receive peer's shutdown notification before the SSL can be killed }
+        { and communication may continue in plaintext data.                 }
+        if FSslBiShutDownFlag and (FNetworkError = 0) then begin
+            NumRead := f_SSL_get_shutdown(FSsl);
+            if (NumRead and SSL_RECEIVED_SHUTDOWN = 0) or
+               (NumRead and SSL_SENT_SHUTDOWN = 0) then
+                Exit;
+        end;
+
+        // Empty read buffer
+        repeat
+            Numread := f_BIO_read(FSslbio, @Buffer, SizeOf(Buffer));
+        until numread <= 0;
+
+        if (my_BIO_ctrl_pending(FNbio) > 0) and (FNetworkError = 0) then
+            Exit
+        else begin  // SSL ShutDown is finished
+            Result := TRUE;
+            if FSslIntShutDown < 2 then begin
+                FSslIntShutDown := 2;
+                FSslState := sslShutdownComplete;
+                if FSslBiShutDownFlag then begin
+                    FSslEnable := FALSE;
+                    ResetSsl;
+                end;
+                TriggerSslShutDownComplete(FNetworkError);
+                if not FSslBiShutDownFlag then begin
+                    inherited ShutDown(FShutDownHow);
+                    //if not FCloseCalled then
+                        TriggerEvent(sslFdClose, 0);
+                end;
+            end;
+        end;
+    finally
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then
+            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                     ' SslShutdownCompleted *'+ IntToStr(Ord(Result)) + '* ' +
+                     IntToStr(FHSocket));
+{$ENDIF}
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.InternalShutdown(How: Integer);
+var
+    Res, Err : Integer;
+begin
+    // Apache server www.dfn-pca.de:443
+{   Manifest constants for Shutdown
+    SD_RECEIVE                = 0;  // disables receives
+    SD_SEND                   = 1;  // disables sends, Use this one for graceful close
+    SD_BOTH                   = 2;   //disables both sends and receives
+}
+    if (FHSocket = INVALID_SOCKET) or
+       (not FSslEnable) or (not Assigned(FSsl) or
+       (FSslState = sslShutdownComplete)) then begin
+        Exit;
+    end;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                 ' SslInternalShutdown ' + IntToStr(FHSocket));
+{$ENDIF}
+
+    if FSslIntShutDown = 0 then
+        FSslIntShutDown := 1
+    else begin
+        if not SslShutDownCompleted(How) then begin
+            TriggerEvents;
+            WSocket_Synchronized_WSASetLastError(WSAEWOULDBLOCK);
+            FLastError := WSAEWOULDBLOCK;
+        end;
+        Exit;
+    end;
+
+    if not FSslBiShutDownFlag then begin
+        Res := f_SSL_get_shutdown(FSsl);
+        if (Res and SSL_RECEIVED_SHUTDOWN = 0) then // not yet received a notify
+            Res := f_SSL_shutdown(FSsl)             // send our notify
+        else
+            Res := 1;
+    end
+    else
+        Res := f_SSL_shutdown(FSsl);             // send our notify
+
+    if Res >= 0 then begin
+        if Res = 0 then begin  // we have not yet received a notify from the peer
+            FSslState := sslInShutdown;
+            f_SSL_shutdown(FSsl);
+        end;
+        if not SslShutDownCompleted(How) then begin
+            FMayTriggerFD_Write := TRUE;
+            TriggerEvents;
+            WSocket_Synchronized_WSASetLastError(WSAEWOULDBLOCK);
+            FLastError := WSAEWOULDBLOCK {WSAECONNABORTED}; //XX  AG //03/03/06
+        end;
+    end
+    else begin
+        Err := f_SSL_get_error(FSsl, -1);
+        if (Err = SSL_ERROR_WANT_READ) or
+           (Err = SSL_ERROR_WANT_WRITE) then begin
+            TriggerEvents;
+            WSocket_Synchronized_WSASetLastError(WSAEWOULDBLOCK);
+            FLastError := WSAEWOULDBLOCK {WSAECONNABORTED}; //XX  AG //03/03/06
+        end
+        else if not SslShutDownCompleted(How) then begin
+            TriggerEvents;
+            WSocket_Synchronized_WSASetLastError(WSAEWOULDBLOCK);
+            FLastError := WSAEWOULDBLOCK {WSAECONNABORTED}; //XX  AG //03/03/06
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.WMTriggerSslShutDownComplete(var msg: TMessage);
+begin
+    TriggerSslShutDownComplete(msg.LParam);
+end;    
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.TriggerSslShutDownComplete(ErrCode: Integer);
+begin
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then
+        DebugLog(loSslInfo,
+                 Format('%s TriggerSslShutDownComplete(%d) %d',
+                        [IntToHex(Integer(Self), 8), ErrCode, FHSocket]));
+{$ENDIF}
+    if Assigned(FOnSslShutdownComplete) then
+        FOnSslShutdownComplete(Self, FSslBiShutDownFlag, ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
+// Return FALSE if check failed and connection must be close
+function TCustomSslWSocket.PostConnectionCheck : Integer;
+var
+    Cert     : PX509;
+    ExtCount : Integer;
+    I, J     : Integer;
+    Ext      : PX509_EXTENSION;
+    ExtStr   : PChar;
+    Meth     : PX509V3_EXT_METHOD;
+    Data     : PChar;
+    Val      : PSTACK;
+    NVal     : PCONF_VALUE;
+    Subj     : PX509_NAME;
+    HostBuf  : String;
+begin
+    Result := X509_V_ERR_APPLICATION_VERIFICATION;
+    Cert   := f_SSL_get_peer_certificate(FSsl);
+    if Cert = nil then begin
+        OutputDebugString('PostConnectionCheck: No certificate');
+        Exit;
+    end;
+
+    ExtCount := f_X509_get_ext_count(Cert);
+    if ExtCount > 0 then begin
+        for I := 0 to ExtCount - 1 do begin
+            Ext    := f_X509_get_ext(Cert, I);
+            ExtStr := f_OBJ_nid2sn(f_OBJ_obj2nid(f_X509_EXTENSION_get_object(Ext)));
+            if StrLIComp(ExtStr, 'subjectAltName', 255) = 0 then begin
+                // UNTESTED CODE
+                Meth := f_X509V3_EXT_get(Ext);
+                if Meth = nil then
+                    break;
+                if not Assigned(Meth.i2v) then
+                    Break;                    
+                Data := Ext^.value^.data;
+                Val  := Meth^.i2v(Meth,
+                                  meth^.d2i(nil, @Data, Ext^.value^.length),
+                                  nil);
+                J := 0;
+                while J < f_sk_num(val) do begin
+                    NVal := PCONF_VALUE(f_sk_value(Val, J));
+                    if (StrLIComp(NVal^.name, 'DNS', 255) = 0) then begin
+                        HostBuf := StrPas(NVal^.value);
+                        if FSslAcceptableHosts.IndexOf(HostBuf) >= 0 then begin
+                            Result := FSslVerifyResult;
+                            f_X509_free(Cert);
+                            Exit;
+                        end;
+                    end;
+                    Inc(J);
+                end;
+                // END OF UNTESTED CODE
+            end;
+        end;
+    end;
+
+    Subj := f_X509_get_subject_name(Cert);
+    if Subj <> nil then begin
+        SetLength(HostBuf, 256);
+        if f_X509_NAME_get_text_by_NID(Subj, NID_commonName, @HostBuf[1], Length(HostBuf)) > 0 then begin
+            SetLength(HostBuf, StrLen(@HostBuf[1]));
+            if FSslAcceptableHosts.IndexOf(HostBuf) < 0 then begin
+                // Not found
+                f_X509_free(Cert);
+                Exit;
+            end
+        end;
+    end;
+
+    Result := FSslVerifyResult;
+    f_X509_free(Cert);
+end;
+
+ *)
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.SetSslAcceptableHosts(Value : TStrings);
+begin
+    FSslAcceptableHosts.Assign(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.SetSslContext(const Value: TSslContext);
+begin
+    FSslContext := Value;
+    if Value <> nil then
+        Value.FreeNotification(Self);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.Dup(NewHSocket: Integer); 
+begin
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' Dup accepting accepted socket = ' +
+                      IntToStr(NewHSocket));
+{$ENDIF}
+    inherited Dup(NewHSocket);
+    ChangeState(wsConnected);
+    if FSslEnable then begin
+        try
+            case FSslMode of
+                sslModeServer : AcceptSslHandshake;
+                sslModeClient : StartSslHandshake;
+            else
+                raise Exception.Create('Invalid SslMode');
+            end;
+        except
+            on E : Exception do begin
+                FSslEnable := FALSE;
+                ResetSSL;
+                inherited InternalClose(FALSE, WSAECONNABORTED);
+                HandleBackGroundException(E);
+            end;
+        end;
+    end;    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure InfoCallBack(const ssl: PSSL; Where: Integer; Ret: Integer); cdecl;
+var
+{$IFNDEF NO_DEBUG_LOG}
+    Str : String;
+    W   : Integer;
+    Err : Integer;
+{$ENDIF}
+    Obj : TCustomSslWSocket;
+begin
+{$IFNDEF NO_ADV_MT}
+    EnterCriticalSection(LockInfoCB);
+    try
+{$ENDIF}
+        // TSslDebugLevel = (ssldbgNone, ssldbgError, ssldbgInfo, ssldbgDump);
+        Obj := TCustomSslWSocket(f_SSL_get_ex_data(Ssl, 0));
+        if not Assigned(Obj) then
+            raise Exception.Create('ICB> Extended data not assigned fatal error!');
+        Obj.FSsl_In_CB := TRUE;
+        try
+{$IFNDEF NO_DEBUG_LOG}
+            if Obj.CheckLogOptions(loSslErr) or
+               Obj.CheckLogOptions(loSslInfo) then begin
+                W := Where and (not SSL_ST_MASK);
+                if (W and SSL_ST_CONNECT) <> 0 then
+                    Str := 'SSL_connect: '
+                else if (w and SSL_ST_ACCEPT) <> 0 then
+                    Str := 'SSL_accept: '
+                else
+                    Str := 'undefined: ';
+
+                if ((Where and SSL_CB_LOOP) <> 0) then begin
+                    if Obj.CheckLogOptions(loSslInfo) then
+                        Obj.DebugLog(loSslInfo, 'ICB> ' + Str +
+                                        f_SSL_state_string_long(ssl));
+                end
+                else if ((Where and SSL_CB_ALERT) <> 0) and
+                        Obj.CheckLogOptions(loSslInfo) then begin
+                    if (Where and SSL_CB_READ) <> 0 then
+                        Str := 'read '
+                    else
+                        Str := 'write ';
+
+                    Obj.DebugLog(loSslInfo, 'ICB> ' + 'SSL3 alert ' + Str +
+                                 f_SSL_alert_type_string_long(ret) + ' ' +
+                                 f_SSL_alert_desc_string_long(ret));
+                end
+                else if (Where and SSL_CB_EXIT) <> 0 then begin
+                    if Ret = 0 then begin
+                        if Obj.CheckLogOptions(loSslInfo) then
+                            Obj.DebugLog(loSslInfo,'ICB> ' + Str + 'failed in ' +
+                                            f_SSL_state_string_long(ssl));
+                    end
+                    else if Ret < 0 then begin
+                        Err := f_ssl_get_error(ssl, Ret);
+                        if ((Err <> SSL_ERROR_WANT_READ) or
+                            (Err <> SSL_ERROR_WANT_WRITE)) then
+                                Obj.DebugLog(loSslInfo, 'ICB> ' + Str + 'error in ' +
+                              f_SSL_state_string_long(ssl));
+                    end;
+                end;
+            end;
+{$ENDIF}
+            if (Where and SSL_CB_HANDSHAKE_START) <> 0 then begin
+                Obj.FInHandshake   := TRUE;
+                if Obj.SslState >= sslEstablished then
+                    Obj.FSslInRenegotiation := TRUE;
+{$IFNDEF NO_DEBUG_LOG}
+                if Obj.CheckLogOptions(loSslInfo) then
+                    Obj.DebugLog(loSslInfo, 'ICB> SSL_CB_HANDSHAKE_START');
+{$ENDIF}
+            end
+            else if (Where and SSL_CB_HANDSHAKE_DONE) > 0 then begin
+                Obj.FInHandshake     := FALSE;
+                Obj.FHandshakeDone   := TRUE;
+                //PostMessage(Obj.FWindowHandle, WM_TRIGGER_SSLHANDSHAKEDONE, 0, 0);
+                //Obj.TriggerSslHandshakeDone(Err);
+                //Obj.FSSLState  := sslEstablished;
+{$IFNDEF NO_DEBUG_LOG}
+                if Obj.CheckLogOptions(loSslErr) or
+                   Obj.CheckLogOptions(loSslInfo) then begin
+                    Err := f_SSL_get_verify_result(Ssl);
+                    if Obj.CheckLogOptions(loSslInfo) or (Err <> X509_V_OK) then
+                       Obj.DebugLog(loSslInfo, 'ICB> SSL_CB_HANDSHAKE_DONE ' +
+                                       'Error: ' + IntToStr(Err));
+                end;
+{$ENDIF}
+            end
+        finally
+            Obj.FSsl_In_CB := FALSE;
+            if Obj.FHSocket = INVALID_SOCKET then
+                PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
+        end;
+{$IFNDEF NO_ADV_MT}
+    finally
+        LeaveCriticalSection(LockInfoCB);
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{
+procedure TCustomSslWSocket.WMSslHandshakeDone(var msg: TMessage);
+begin
+    TriggerSslHandshakeDone(0);
+end;
+}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*procedure TCustomSslWSocket.SslDebugLog(Msg : String);
+begin
+    // Not yet fully done, ToDo!
+{$IFDEF DEBUG_OUTPUT}
+    OutputDebugString(Msg);
+{$ENDIF}
+    //TriggerDebugDisplay(Msg);
+end;    *)
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.SslSessionReused : Boolean;
+begin
+    Result := FSslEnable and Assigned(FSsl) and (f_SSL_session_reused(FSsl) = 1);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Server mode checks whether a renegotiation request is pending             }
+function TCustomSslWSocket.SslRenegotiatePending : Boolean;
+begin
+    Result := FSslEnable and Assigned(FSsl) and
+              (f_SSL_renegotiate_pending(FSsl) = 1);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Forces a SSL re-negotiation, app. data can still be received.             }
+function TCustomSslWSocket.SslStartRenegotiation : Boolean;
+var
+    TmpInt  : Integer;
+    Ver     : Integer;
+    Pen     : Integer;
+begin
+    Result := FALSE;
+    if FSslEnable and Assigned(FSsl) then begin
+        TmpInt := f_SSL_state(FSsl);
+        Ver    := f_SSL_version(FSsl);
+        Pen    := f_SSL_renegotiate_pending(FSsl);
+        if not ((TmpInt = SSL_ST_OK) and
+                (Ver >= SSL3_VERSION) and
+                (Pen = 0)) then begin
+{$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslErr) then begin
+                DebugLog(loSslErr,
+                         Format('%s ! Cannot start re-negotiation  State ' +
+                                '%d Version (0x%x) RenegotiatePending %d ' +
+                                '%d',
+                                [IntToHex(Integer(Self), 8),
+                                TmpInt, Ver, Pen, FHSocket]));
+            end;
+{$ENDIF}
+            Exit;
+        end;
+        if f_SSL_renegotiate(FSsl) = 0 then begin
+            HandleSslError;
+{$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslErr) then begin  { V5.21 }
+                DebugLog(loSslErr, IntToHex(Integer(Self), 8) +
+                         ' ! SSL_renegotiate() failed');
+            end
+{$ENDIF}
+        end
+        else begin
+            TmpInt := my_BIO_ctrl(FSslBio, BIO_C_DO_STATE_MACHINE, 0, nil); //<= 02/01/06 BS => f_SSL_do_handshake(FSsl)
+            FSslBioWritePendingBytes := -1;
+            if TmpInt = -1 then begin
+                if not my_BIO_should_retry(FSslBio) then begin
+                    HandleSslError;
+{$IFNDEF NO_DEBUG_LOG}
+                    if CheckLogOptions(loSslErr) then
+                        DebugLog(loSslErr, IntToHex(Integer(Self), 8) +
+                                 ' ! Re-negotiation failed');
+{$ENDIF}
+                    FNetworkError := WSAECONNABORTED;
+                    WSocket_WSASetLastError(WSAECONNABORTED);
+                    TriggerEvent(sslFdClose, 0);
+                    Exit;
+                end;
+            end;
+{$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslInfo) then  { V5.21 }
+                DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                         ' ! Re-negotiation started ' +  IntToStr(FHSocket));
+{$ENDIF}
+            Result := TRUE;
+            if FMayTriggerFD_Write then begin          //<= 02/01/06 AG
+                if TriggerEvent(sslFdWrite, 0) then    //<= 02/01/06 AG
+                    FMayTriggerFD_Write := False;      //<= 02/01/06 AG
+            end;
+        end;
+    end;    
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.StartSslHandshake;
+begin
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' StartSslHandshake ' + IntToStr(FHSocket));
+{$ENDIF}
+    if not FSslEnable then
+        Exit;
+    if not Assigned(FSslContext) then
+        raise Exception.Create('SSL requires a context object');
+    if Assigned(FSsl) then
+        ResetSsl;    
+    FSslState := sslHandshakeInit;
+    FSslMode  := sslModeClient;
+    try
+        if (FSslContext.FSslCtx = nil) then
+            FSslContext.InitContext;
+        InitSslConnection(TRUE, FSslContext.FSslCtx);
+    except
+        on E : Exception do begin
+            FSslState := sslNone;
+{$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslInfo) then  { V5.21 }
+                DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                          ' Fatal error SSL handshake ' + IntToStr(FHSocket) +
+                          ' ' + E.Classname + ' ' + E.Message);
+{$ENDIF}
+            //TriggerSslHandshakeDone(2); ?
+            raise
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.AcceptSslHandshake;
+begin
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' AcceptSslHandshake ' + IntToStr(FHSocket));
+{$ENDIF}
+    if not FSslEnable then
+        Exit;
+    if not Assigned(FSslContext) then
+        raise Exception.Create('SSL requires a context object');
+    if Assigned(FSsl) then
+        ResetSsl;
+    FSslState      := sslHandshakeInit;
+    FSslMode       := sslModeServer;
+    try
+        if (FSslContext.FSslCtx = nil) then
+            FSslContext.InitContext;
+        InitSslConnection(FALSE, FSslContext.FSslCtx);
+    except
+        on E : Exception do begin
+            FSslState  := sslNone; 
+{$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+                DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                          ' Fatal error SSL handshake ' + IntToStr(FHSocket) +
+                          ' ' + E.Classname + ': ' + E.Message);
+{$ENDIF}
+            //TriggerSslHandshakeDone(2); ?
+            raise
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.DupConnected;
+begin
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' DupConnected');
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSSLWSocket.InternalAbort(ErrCode : Word);
+begin
+    FSslEnable := FALSE;
+    ResetSsl;
+    CancelDnsLookup;
+    DeleteBufferedData;
+    { Be sure to close as fast as possible (abortive close) }
+    if (State = wsConnected) and (FProto = IPPROTO_TCP) then begin
+        LingerOnOff := wsLingerOff;
+        SetLingerOption;
+    end;
+    //inherited ShutDown(2);
+    inherited InternalClose(FALSE, ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.InternalClose(bShut: Boolean; Error: Word);
+begin
+    if (not FSslEnable) or (not Assigned(FSsl)) then begin
+        inherited InternalClose(bShut, Error);
+        Exit;
+    end;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' SslInternalClose ' + IntToStr(FHSocket));
+{$ENDIF}
+    if FHSocket = INVALID_SOCKET then begin
+        if FState <> wsClosed then begin
+            ChangeState(wsClosed);
+            AssignDefaultValue;
+        end;
+        Exit;
+    end;
+    if FState = wsClosed then
+        Exit;
+    
+
+    if bShut then begin
+        if (not (csDestroying in Componentstate)) and (FSslIntShutDown = 0) then // AG 03/03/06
+            ShutDown(1) // sends a SSL shutdown notify, then calls inherited ShutDown(1);
+        else begin
+            if FSslIntShutDown = 0 then
+                inherited ShutDown(1);
+            inherited InternalClose(FALSE, Error); // close the socket
+        end;
+    end
+    else
+        inherited InternalClose(FALSE, Error); // close the socket
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.Listen;
+begin
+    inherited Listen;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' Listening');
+{$ENDIF}                      
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.TriggerSslVerifyPeer(
+    var Ok     : Integer;
+    Cert       : TX509Base);
+begin
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, 'TriggerSslVerifyPeer');
+{$ENDIF}
+    if Assigned(FOnSslVerifyPeer) then
+        FOnSslVerifyPeer(Self, Ok, Cert);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{var
+    FCount : Integer = 0; //Test}
+procedure TCustomSslWSocket.InitSSLConnection(ClientMode : Boolean;
+    pSSLContext : PSSL_CTX = nil);
+var
+    Options           : Integer;
+    SessionIDContext  : TSslSessionIdContext; // for session caching in ssl server mode
+    SslCachedSession  : Pointer;
+    FreeSession       : Boolean;
+begin
+    if not FSslEnable then
+        Exit;
+    //Inc(FCount); // Test
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' InitSSLConnection ' + IntToStr(FHSocket));
+{$ENDIF}
+    FSslCertChain.Clear;
+    //FTriggerCount            := 0; //Test
+    FShutDownHow             := 1;
+    FSslIntShutDown          := 0;
+    FNetworkError            := 0;
+    FLastSslError            := 0;
+    FSslBiShutDownFlag       := FALSE;
+    FCloseCalled             := FALSE;
+    //FCloseReceived           := FALSE;
+    //FHandShakeDoneInvoked    := FALSE;
+    FPendingSslEvents        := [];
+    FMayTriggerFD_Read       := TRUE;  // <= 01/06/2006 AG
+    FMayTriggerFD_Write      := TRUE;  // <= 01/06/2006 AG
+    FMayTriggerDoRecv        := TRUE;  // <= 01/06/2006 AG
+    FMayTriggerSslTryToSend  := TRUE;  // <= 01/06/2006 AG
+    InitializeSsl;
+    try
+        EnterCriticalSection(SslCritSect);
+        try
+            {if Assigned(FSsl) then
+                ResetSsl; // resets FSslState to sslModeNone
+            FSslState := sslHandshakeInit;}
+            //Create new SSL Object
+            FSsl := f_SSL_new(pSSLContext);
+            if not Assigned(FSsl) then
+                RaiseLastOpenSslError(Exception, TRUE,
+                                      'Error on creating the Ssl object');
+
+            //Create BIOs
+            FSslBio := f_BIO_new(f_BIO_f_ssl());
+            f_BIO_new_bio_pair(@FIBio, SSL_BUFFER_SIZE, @FNBio, SSL_BUFFER_SIZE);
+            if (FSslBio = nil) or (FNBio = nil) or (FIBio = nil) then
+                RaiseLastOpenSslError(Exception, TRUE,
+                                      'Creating BIOs failed');
+
+            Options := f_SSL_ctrl(FSsl, SSL_CTRL_OPTIONS, 0, nil);
+            Options := Options or SSL_OP_ALL;
+            f_SSL_ctrl(FSsl, SSL_CTRL_OPTIONS, Options, nil);
+
+            if f_SSL_set_ex_data(FSsl, 0, Self) <> 1 then
+                RaiseLastOpenSslError(Exception, TRUE,
+                                      'SSL_set_ex_data failed');
+
+            {if FCount mod 2 = 0 then  // Test
+                raise Exception.Create('Test exception');}
+
+            // Init SSL connection
+            if ClientMode then begin
+                // If we want send client certificates different from default
+                if (FSslContext.SslCertFile = '') and
+                   Assigned(FOnSslCliCertRequest) and
+                   (not Assigned(f_SSL_CTX_get_client_cert_cb(
+                          FSslContext.FSslCtx))) then
+                    f_SSL_CTX_set_client_cert_cb(FSslContext.FSslCtx,
+                                                 ClientCertCallBack);
+                // Get a cached session from the application
+                SslCachedSession := nil;
+                FreeSession      := TRUE;
+                if Assigned(FOnSslCliGetSession) then
+                    FOnSslCliGetSession(Self, SslCachedSession, FreeSession);
+                if Assigned(SslCachedSession) and
+                   (f_SSL_set_session(FSsl, SslCachedSession) = 1) then begin  // 01/14/06 AG
+{$IFNDEF NO_DEBUG_LOG}
+                    if CheckLogOptions(loSslInfo) then  { V5.21 }
+                        DebugLog(loSslInfo,IntToHex(Integer(Self), 8) +
+                                 ' Reuse session [' +
+                                 IntToHex(Integer(SslCachedSession), 8) +']');
+{$ENDIF}
+                    if FreeSession then
+                        f_SSL_SESSION_Free(SslCachedSession);
+                    SslCachedSession := nil;
+                end
+                else
+                    f_SSL_set_session(FSsl, nil);
+
+                f_SSL_set_connect_state(FSsl);
+            end
+            else begin // Server mode
+                if Assigned(FOnSslSetSessionIDContext) then begin
+                    SessionIDContext := '';
+                    FOnSslSetSessionIDContext(Self, SessionIDContext);
+                    if Length(SessionIDContext) > 0 then begin
+                        if Length(SessionIDContext) > SSL_MAX_SSL_SESSION_ID_LENGTH then
+                            SetLength(SessionIDContext, SSL_MAX_SSL_SESSION_ID_LENGTH);
+                        if f_ssl_set_session_id_context(FSsl,
+                               @SessionIDContext[1],
+                               Length(SessionIDContext)) = 0 then begin
+{$IFNDEF NO_DEBUG_LOG}
+                            if CheckLogOptions(loSslErr) then { V5.21 }
+                                DebugLog(loSslErr, IntToHex(Integer(Self), 8) +
+                                    ' ssl_set_session_id_context failed' +
+                                    IntToStr(FHSocket));
+
+                        end
+                        else begin
+                            if CheckLogOptions(loSslInfo) then
+                                DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                                ' SessionIDContext: ' + SessionIDContext + ' ' +
+                                IntToStr(FHSocket));
+{$ENDIF}
+                        end;
+                    end;
+                end; {else
+                    f_SSL_set_session(FSsl, nil)};
+                f_SSL_set_accept_state(FSsl);
+            end;
+
+            f_SSL_set_bio(FSsl, FIBio, FIBio);
+            f_SSL_set_info_callback(FSsl, InfoCallBack);
+
+            f_ERR_clear_error;
+
+            my_BIO_ctrl(FSslBio, BIO_C_SET_SSL, BIO_NOCLOSE, FSsl);
+
+            Options := my_BIO_read(FSslbio, Pointer(1), 0); // reuse of int var Options!
+            if Options < 0 then begin
+                if not my_BIO_should_retry(FSslbio) then
+                    HandleSslError;
+            end;
+            //Initialize SSL negotiation
+            if (FState = wsConnected) then begin
+                TriggerEvent(sslFdRead, 0);
+                TriggerEvent(sslFdWrite, 0);
+            end;
+            // Not a real error. Used to break the loop in TCustomWSocket.ASyncReceive
+            FLastError := -1;
+            FSslState  := sslHandshakeStarted;
+        finally
+            LeaveCriticalSection(SslCritSect);
+        end;
+    except
+        SslCachedSession := nil;                                 // 01/14/06 AG
+        FSslState := sslHandshakeFailed; // just to allow the Reset
+        ResetSsl;
+        FSslState := sslHandshakeFailed;
+        raise
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.AssignDefaultValue;
+begin
+    ResetSsl;
+    inherited AssignDefaultValue;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.DeleteBufferedSslData;
+begin
+    if not Assigned(FSslBufList) then
+        Exit;
+    { Delete all data buffer }
+    FSslBufList.Lock;
+    try
+        FSslBufList.DeleteAllData;
+    finally
+        FSslBufList.UnLock;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.PutDataInSslBuffer(Data : Pointer; Len : Integer);
+begin
+    FSendPending := TRUE;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin  { V5.21 }
+        Inc(TraceCount);
+        DebugLog(loSslInfo,
+                 Format('%s PutDataInSslBuffer %s len %d  [%d] ',
+                       [IntToHex(Integer(Self), 8), IntToStr(FHSocket),
+                        Len, TraceCount]));
+    end
+    else if CheckLogOptions(loSslDump) then begin  { V5.21 }
+        Inc(TraceCount);
+        DebugLog(loSslDump,
+                 Format('%s PutDataInSslBuffer %s [%d] Data:%s',
+                        [IntToHex(Integer(Self), 8), IntToStr(FHSocket),
+                        TraceCount, DataToString(Data, Len)]));
+    end;
+{$ENDIF}
+    if (Len <= 0) or (Data = nil) then
+        Exit;
+
+    FSslBufList.Lock;
+    try
+        FSslBufList.Write(Data, Len);
+        bSslAllSent := FALSE;
+    finally
+        FSslBufList.UnLock;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.ResetSslDelayed;
+begin
+    PostMessage(FWindowHandle, FMsg_WM_RESET_SSL, 0, 0);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.ResetSSL;
+begin
+    if FSsl_In_CB or (FSslState = sslHandshakeInit) then
+        Exit;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) and Assigned(FSsl) then  { V5.21 }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                 ' ResetSslSession ' + IntToStr(FHSocket));
+{$ENDIF}
+    DeleteBufferedSslData;
+    FSslVersion              := 'Unknown';
+    FSslCipher               := FSslVersion;
+    FSslTotalBits            := 0;
+    FSslSecretBits           := 0;
+    FSslVersNum              := 0;
+
+    FInHandshake             := FALSE;
+    FHandshakeDone           := FALSE;
+    FSslBioWritePendingBytes := -1;
+    FSslInRenegotiation      := FALSE;
+    FNetworkError            := 0;
+    FSslState                := sslNone;
+
+    if Assigned(FSsl) then // Avoids sending a shutdown notify on freeing the SSL
+        f_SSL_set_shutdown(FSsl, SSL_SENT_SHUTDOWN);
+
+    if Assigned(FSslbio) then
+        f_BIO_free(FSslbio);
+    FSslbio := nil;
+
+    if Assigned(FNbio) then
+        f_BIO_free(FNbio);
+    FNbio := nil;
+
+    if Assigned(Fibio) then
+        f_BIO_free(FIbio);
+    FIbio := nil;
+
+    if Assigned(FSsl) then
+        f_SSL_free(FSsl);
+    FSsl := nil;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.RaiseLastOpenSslError(
+    EClass          : ExceptClass;
+    Dump            : Boolean = FALSE;
+    const CustomMsg : String  = '');
+begin
+    FLastSslError := f_ERR_peek_error;
+    if Length(CustomMsg) > 0 then
+        raise EClass.Create(#13#10 + CustomMsg + #13#10 +
+                            LastOpenSslErrMsg(Dump) + #13#10)
+    else
+        raise EClass.Create(#13#10 + LastOpenSslErrMsg(Dump) + #13#10);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
+function TCustomSslWSocket.LoadCertificate(out ErrMsg : String) : Boolean;
+var
+    PCAPath    : PChar;
+    PCAFile    : PChar;
+    Mode       : Integer;
+    ErrCode    : Integer;
+    LibErrCode : Integer;
+    FctErrCode : Integer;
+    WhyErrCode : Integer;
+begin
+    Result := FALSE;
+    try
+        // Load our keys and certificates
+        if (FSslCertFile <> '') and
+           (not FileExists(FSslCertFile)) then begin
+            ErrMsg := 'File not found "' + FSslCertFile + '"';
+            Exit;
+        end;
+        if (FSslPrivKeyFile <> '') and
+           (not FileExists(FSslPrivKeyFile)) then begin
+            ErrMsg := 'File not found "' + FSslPrivKeyFile + '"';
+            Exit;
+           end;
+        if (FSslCAFile <> '') and
+           (not FileExists(FSslCAFile)) then begin
+            ErrMsg := 'File not found "' + FSslCAFile + '"';
+            Exit;
+        end;
+
+        if (FSslCertFile <> '') and
+           (f_SSL_CTX_use_certificate_chain_file(FSslCtx,
+                                                 PChar(FSslCertFile)) = 0)
+        then begin
+            ErrCode    := f_ERR_peek_error;
+            LibErrCode := ERR_GET_LIB(ErrCode);
+            FctErrCode := ERR_GET_FUNC(ErrCode);
+            WhyErrCode := ERR_GET_REASON(ErrCode);
+            if ((LibErrCode = ERR_LIB_SSL) or
+                (LibErrCode = ERR_LIB_SSL23) or
+                (LibErrCode = ERR_LIB_SSL2) or
+                (LibErrCode = ERR_LIB_SSL3)) then begin
+                // No an error related to the certificate file, but the SSL
+                // protocol (probably remote has shutdown). This error is
+                // catched later. We can safely ignore here.
+                // ToDo: confirm this behaviour
+                Result := TRUE;
+                Exit;
+            end;
+            OutputDebugString('ErrCode           = ' + IntToHex(ErrCode, 8));
+            OutputDebugString('Library(ErrCode)  = ' + IntToStr(LibErrCode));
+            OutputDebugString('Function(ErrCode) = ' + IntToStr(FctErrCode));
+            OutputDebugString('Reason(ErrCode)   = ' + IntToStr(WhyErrCode));
+            print_errors;
+            ErrMsg := 'Can''t read certificate file "' + FSslCertFile + '"';
+            Exit;
+        end;
+
+        f_SSL_CTX_set_default_passwd_cb(FSslCtx, @PasswordCallBack);
+        f_SSL_CTX_set_default_passwd_cb_userdata(FSslCtx, Self);
+        if (Length(FSslPrivKeyFile) > 0) and
+           (f_SSL_CTX_use_PrivateKey_file(FSslCtx, PChar(FSslPrivKeyFile),
+                                          SSL_FILETYPE_PEM) = 0) then begin
+            ErrCode    := f_ERR_peek_error;
+            LibErrCode := ERR_GET_LIB(ErrCode);
+            FctErrCode := ERR_GET_FUNC(ErrCode);
+            WhyErrCode := ERR_GET_REASON(ErrCode);
+            OutputDebugString('ErrCode           = ' + IntToHex(ErrCode, 8));
+            OutputDebugString('Library(ErrCode)  = ' + IntToStr(LibErrCode));
+            OutputDebugString('Function(ErrCode) = ' + IntToStr(FctErrCode));
+            OutputDebugString('Reason(ErrCode)   = ' + IntToStr(WhyErrCode));
+            print_errors;
+            ErrMsg := 'Can''t read key file "' + FSslPrivKeyFile + '"';
+            Exit;
+        end;
+
+        if Length(FSslContext.SslCAPath) > 0 then
+            PCAPath := PChar(FSslContext.SslCAPath)
+        else
+            PCAPath := nil;
+        if Length(FSslCAFile) > 0 then
+            PCAFile := PChar(FSslCAFile)
+        else
+            PCAFile := nil;
+
+        // Load the CAs we trust
+        //
+        // If CAfile is not NIL, it points to a file of CA certificates in PEM
+        // format. The file can contain several CA certificates.
+        //
+        // If CApath is not NIL, it points to a directory containing CA
+        // certificates in PEM format. The files each contain one CA certificate.
+        // The files are looked up by the CA subject name hash value, which must
+        // hence be available. If more than one CA certificate with the same name
+        // hash value exist, the extension must be different (e.g. 9d66eef0.0,
+        // 9d66eef0.1 etc). The search is performed in the ordering of the
+        // extension number, regardless of other properties of the certificates.
+        if ((PCAFile <> nil) or (PCAPath <> nil)) and
+           (f_SSL_CTX_load_verify_locations(FSslCtx,
+                                            PCAFile, PCAPath) = 0) then begin
+            ErrMsg := 'Can''t read CA File "' + FSslCAFile + '" or ' +
+                                   'CA Path "' + FSslContext.SslCAPath + '"';
+            Exit;
+        end;
+
+        if (PCAFile = nil) and (PCAPath = nil) and
+           (f_SSL_CTX_set_default_verify_paths(FSslCtx) <> 1) then begin
+            ErrMsg := 'Error loading default CA file and/or directory';
+            Exit;
+        end;
+
+        if FSslVerifyPeer then begin
+            Mode := 0;
+            if (SslVerifyMode_NONE in FSslVerifyPeerModes) then
+                Mode := Mode or SSL_VERIFY_NONE;
+            if (SslVerifyMode_PEER in FSslVerifyPeerModes) then
+                Mode := Mode or SSL_VERIFY_PEER;
+            if (SslVerifyMode_FAIL_IF_NO_PEER_CERT in FSslVerifyPeerModes) then
+                Mode := Mode or SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+            if (SslVerifyMode_CLIENT_ONCE in FSslVerifyPeerModes) then
+                Mode := Mode or SSL_VERIFY_CLIENT_ONCE;
+
+            f_SSL_CTX_set_verify(FSslCtx, Mode, PeerVerifyCallback);
+            f_SSL_CTX_set_verify_depth(FSslCtx, FSslVerifyDepth);
+        end;
+
+        if FSslOptionsValue <> 0 then
+            f_SSL_CTX_set_options(FSslCtx, FSslOptionsValue);
+
+        if FSslCipherList <> '' then begin
+            if f_SSL_CTX_set_cipher_list(FSslCtx,
+                                         PChar(FSslCipherList)) <> 1 then begin
+                ErrMsg := 'Error loading cipher list';
+            end;
+        end;
+
+{$IFDEF  OPENSSL_VERSION_NUMBER_LESS_THAN_0x00905100L}
+        f_SSL_CTX_set_verify_depth(FSslCtx, 1);
+{$ENDIF}
+        Result := TRUE;
+    except
+        on E:Exception do begin
+            ErrMsg := 'LoadCertificate failed. ' +
+                      E.ClassName + ': ' + E.Message;
+            OutputDebugString(ErrMsg);
+        end;
+    end;
+end;
+ *)
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Writes unencrypted data from the buffer to the SslBio                     }
+procedure TCustomSslWSocket.TryToSend;
+var
+    Len       : Integer;
+    Count     : Integer;
+    Data      : TWSocketData;
+begin
+    if (not FSslEnable) or (FSocksState <> socksData) then begin
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' TryToSend ' + IntToStr(FHSocket));
+{$ENDIF}
+        inherited TryToSend;
+        Exit;
+    end;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                      ' SslTryToSend ' + IntToStr(FHSocket));
+{$ENDIF}
+    FSslBufList.Lock;
+    try
+        if (FHSocket = INVALID_SOCKET) or (FSslBufList.IsEmpty) then begin
+            bSslAllSent := TRUE;
+            Exit;
+        end;
+
+        while TRUE do begin
+            Len := FSslBufList.Peek(Data);
+            if Len <= 0 then begin
+                // Buffer is empty, every thing has been sent
+                bSslAllSent := TRUE;
+                break;
+            end;
+            if (FHSocket = INVALID_SOCKET) or                { No more socket  }
+               (FSslBufList.IsEmpty) then                    { Nothing to send }
+                Exit;
+            if FNetworkError > 0 then begin
+                WSocket_WSASetLastError(FNetworkError);
+                FLastError := FNetworkError; //XX
+                TriggerEvent(sslFdClose, 0);  // AG 03/03/06
+                Exit;
+            end;
+            if FCloseCalled then begin      // AG 03/03/06  moved here
+            { We don't trigger any error so far, just ignoring user data }
+            { to be sent. We could close at once with WSAESHUTDOWN ?     }
+                //FLastError := WSAESHUTDOWN;
+                TriggerEvent(sslFdClose, 0);
+                Exit;
+            end;
+            if (FSslIntShutDown > 0) then begin
+                WSocket_WSASetLastError(WSAESHUTDOWN);
+                FLastError := WSAESHUTDOWN; //XX
+                if not FSslBiShutDownFlag then
+                    TriggerEvent(sslFdClose, 0);
+                Exit;
+            end;
+            if (not Assigned(FSsl)) or (f_SSL_state(FSsl) <> SSL_ST_OK) or {(FSslState < sslEstablished)}
+               (f_SSL_renegotiate_pending(FSsl) = 1) then begin    // <= 12/31/05 AG
+               { Don't write app. data while in handshake }        // <= 12/31/05 AG
+                FMayTriggerSslTryToSend := TRUE;
+                WSocket_WSASetLastError(WSAEWOULDBLOCK);
+                FLastError := WSAEWOULDBLOCK; //XX
+                Exit;
+            end;
+
+            {if FCloseCalled then begin      // AG 03/03/06 moved up
+                TriggerEvent(sslFdClose, 0);
+                Exit;
+            end;}
+
+            if FSslBioWritePendingBytes >= 0 then
+                Len := FSslBioWritePendingBytes;
+
+            Count := my_BIO_write(FSslbio, Data, Len);
+            if Count = 0 then begin
+                FSslBioWritePendingBytes := -1;
+                my_BIO_ctrl(FSslbio, BIO_CTRL_FLUSH, 0, nil);
+                WSocket_WSASetLastError(WSAECONNABORTED);
+                FLastError := WSAECONNABORTED; //XX
+                break;
+            end;
+            if Count < 0 then begin
+                if my_BIO_should_retry(FSslbio) then begin
+                    FSslBioWritePendingBytes := Len;
+                    if FState = wsClosed then
+                        Exit;
+                    if FState <> wsConnected then begin
+                        WSocket_WSASetLastError(FNetworkError);
+                        FLastError := FNetworkError; //XX
+                        Exit;
+                    end;
+                    FMayTriggerSslTryToSend := TRUE;
+                    TriggerEvents;
+                    WSocket_WSASetLastError(WSAEWOULDBLOCK);
+                    FLastError := WSAEWOULDBLOCK; //XX
+                    Exit;
+                end;
+                { Fatal error if BIO_should_retry = FALSE }
+                HandleSslError;
+                if FState = wsClosed then
+                    Exit
+                else if FState <> wsConnected then begin
+                    WSocket_WSASetLastError(FNetworkError);
+                    FLastError := FNetworkError; //XX
+                    Exit;
+                end;
+(*
+{$IFNDEF NO_DEBUG_LOG}
+                    if CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+                        Err := f_SSL_get_error(FSSL, Count);
+                        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                                 ' BIO_write error: ' + IntToStr(Err) +
+                                 ' ' +  SslErrorToStr(Err) + ' ' +
+                                 IntToStr(FHSocket));
+                        DebugLog(loSslInfo, LastOpenSslErrMsg(TRUE));
+                    end;
+{$ENDIF}
+*)
+                WSocket_WSASetLastError(WSAECONNABORTED);
+                FLastError := WSAECONNABORTED; //XX
+                TriggerEvent(sslFdClose, 0);
+                Exit;
+            end;
+            my_BIO_ctrl(FSslbio, BIO_CTRL_FLUSH, 0, nil);
+            FSslBioWritePendingBytes := -1;
+            FSslBufList.Remove(Count);
+            if Count < Len then
+                { Could not write as much as we wanted. Stop sending }
+                break;
+        end; //while
+    finally
+        FSslBufList.Unlock;
+    end;
+    FMayTriggerSslTryToSend := TRUE;
+    TriggerEvents;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.SslBiShutDownAsync;
+begin
+    PostMessage(FWindowHandle, FMsg_WM_BI_SSL_SHUTDOWN, 0, 0);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.WMSslBiShutDown(var msg: TMessage);
+begin
+    if FSslEnable and (FSslIntShutDown = 0) then begin
+        FSslBiShutDownFlag  := TRUE;
+        InternalShutdown(0);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.WMSslASyncSelect(var msg: TMessage);
+begin
+{ Select messages not posted by the socket but from the component }
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin { V5.21 }
+        if __DataSocket = Self then
+            DebugLog(loSslInfo, 'SslAsyncSelect DataSocket ' + IntToStr(msg.wParam) +
+                     ', ' +  IntToStr(msg.LParamLo) + WinsockMsgToString(Msg))
+        else
+            DebugLog(loSslInfo, 'SslAsyncSelect ' + IntToStr(msg.wParam) + ', ' +
+                      IntToStr(msg.LParamLo) + WinsockMsgToString(Msg));
+    end;
+{$ENDIF}
+    if (msg.wParam <> FHSocket) then
+        Exit;
+    {  ?
+    if FPaused then
+        exit;
+    }
+    if msg.lParamLo and FD_READ <> 0 then begin
+        FPendingSslEvents := FPendingSslEvents - [sslFdRead];
+        Do_Ssl_FD_READ(Msg)
+    end
+    else if msg.lParamLo and FD_WRITE <> 0 then begin
+        FPendingSslEvents := FPendingSslEvents - [sslFdWrite];
+        Do_FD_WRITE(Msg)
+    end
+    else if msg.lParamLo and FD_CLOSE <> 0 then begin
+        FPendingSslEvents := FPendingSslEvents - [sslFdClose];
+        Do_FD_CLOSE(Msg)
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.WndProc(var MsgRec: TMessage);
+begin
+    try                                                          // <= 12/12/05
+        if MsgRec.Msg = FMsg_WM_SSL_ASyncSelect then
+            WMSslASyncSelect(MsgRec)
+        else if MsgRec.Msg = FMsg_WM_TRIGGER_DATASENT then
+            TriggerDataSent(0)
+        {else if MsgRec.Msg = WM_TRIGGER_SSLHANDSHAKEDONE then
+            WMSslHandshakeDone(MsgRec)}
+        else if MsgRec.Msg = FMsg_WM_RESET_SSL then
+            ResetSsl
+        else if MsgRec.Msg = FMsg_WM_BI_SSL_SHUTDOWN then
+            WMSslBiShutDown(MsgRec)
+        else if MsgRec.Msg = FMsg_WM_TRIGGER_SSL_SHUTDOWN_COMPLETED then
+            WMTriggerSslShutDownComplete(MsgRec)
+        else
+            inherited WndProc(MsgRec);
+    except                                                       // <= 12/12/05
+        on E:Exception do
+            HandleBackGroundException(E);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.Notification(AComponent: TComponent; operation: TOperation);
+begin
+    inherited Notification(AComponent, operation);
+    if operation = opRemove then begin
+        if AComponent = FSslContext then
+            FSslContext := nil;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+procedure TCustomSslWSocket.TriggerEvents;
+var
+    State   : Integer;
+{$IFNDEF NO_DEBUG_LOG}
+    Str   : String;
+{$ENDIF}
+begin
+    if not Assigned(FSsl) or (not FSslEnable) then
+        Exit;
+    State := f_SSL_state(FSsl);
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then begin { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        Str := IntToHex(Integer(Self), 8) +  ' TriggerEvents ' +
+           IntToStr(FHSocket) + ' SslState: ';
+    if State and SSL_ST_INIT <> 0  then
+        Str := Str + 'SSL_ST_INIT '
+    else if State = SSL_ST_OK then
+        Str := Str + 'SSL_ST_OK '
+    else
+        Str := Str + IntToHex(State, 8);
+
+        DebugLog(loSslInfo, Str +
+              ' // MayFD_Read='      + BoolToStr(FMayTriggerFD_Read, FALSE) +
+              ' MayDoRecv='       + BoolToStr(FMayTriggerDoRecv, FALSE)  +
+              ' MayFD_Write='     + BoolToStr(FMayTriggerFD_Write, FALSE) +
+              ' MaySslTryToSend=' + BoolToStr(FMayTriggerSslTryToSend, FALSE) +
+              ' bSslAllSent='     + BoolToStr(bSslAllSent, FALSE) +
+              ' bAllSent='        + BoolToStr(bAllSent, FALSE));
+    end;
+{$ENDIF}
+
+    if FHandshakeDone = TRUE then begin
+        FHandshakeDone := FALSE;
+        TriggerSslHandshakeDone(0);
+        if FSslInRenegotiation then
+            FSslInRenegotiation := FALSE;
+    end;
+
+    if (my_BIO_ctrl_pending(FNbio) > 0) then begin
+        if FMayTriggerFD_Write then begin
+            if TriggerEvent(sslFdWrite, 0) then
+                FMayTriggerFD_Write := FALSE;
+        end;
+    end
+    else if (not bAllSent) and (State = SSL_ST_OK) and
+            (my_BIO_ctrl_get_write_guarantee(FSslbio) > 0) and
+             FMayTriggerFD_Write{FMayTriggerSslTryToSend} then begin  // AG 03/03/06
+        if TriggerEvent(sslFdWrite, 0) then
+            FMayTriggerFD_Write{FMayTriggerSslTryToSend} := FALSE;    // AG 03/03/06
+    end
+    else if (not bSslAllSent) and (State = SSL_ST_OK) and
+             FMayTriggerSslTryToSend then begin
+        FMayTriggerSslTryToSend := FALSE;
+        TryToSend;
+    end
+    else if bAllSent and bSslAllSent and FSendPending and
+       (State = SSL_ST_OK) then begin
+        //Inc(FTriggerCount);
+        FSendPending := FALSE;
+        TriggerDataSent(0);
+    end;
+
+    if (State = SSL_ST_OK) and (my_BIO_ctrl_pending(FSslbio) > 0) then begin
+        if FMayTriggerDoRecv  then begin
+            if TriggerEvent(sslFdRead, 0) then
+                FMayTriggerDoRecv := FALSE;
+        end;
+    end
+    else if (my_BIO_ctrl_get_write_guarantee(FNbio) > 0) and
+             FMayTriggerFD_Read then begin
+        if TriggerEvent(sslFdRead, 0) then
+            FMayTriggerFD_Read := FALSE;
+    end;
+
+    {if FCloseReceived and (FSslIntShutDown = 0) then
+        TriggerEvent(sslFdClose, 0)
+    else}
+    if ((FCloseCalled and (FSslIntShutDown = 0)) or
+       ((FSslIntShutDown = 2) and not FSslBiShutdownFlag)) and   // AG 03/03/06
+       (State = SSL_ST_OK) and (my_BIO_ctrl_pending(FSslbio) = 0) then
+        TriggerEvent(sslFdClose, 0);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.TriggerSessionConnected(ErrCode: Word);
+begin
+    inherited TriggerSessionConnected(ErrCode);
+    { An upper layer may have started the SSL! So we check FSsl=nil as well }
+    if FSslEnable and (ErrCode = 0) and (FSsl = nil) then begin
+        try
+            { Both procedures may raise an exception! }
+            if FSslMode = sslModeClient then
+                StartSslHandshake
+            else
+                AcceptSslHandshake;
+                //raise Exception.Create('******** TEST ************');
+        except
+            on E : Exception do begin
+                FSslEnable := FALSE;
+                ResetSsl;
+                inherited InternalClose(FALSE, WSAECONNABORTED);
+                HandleBackGroundException(E);
+            end;    
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// Just to make UI easier: parse a semi-colon delimited texte string with
+// a list of hosts and build the FSslAcceptableHosts list.
+procedure TCustomSslWSocket.SetAcceptableHostsList(
+    const SemiColonSeparatedList : String);
+var
+    Host : String;
+    Buf  : String;
+    I    : Integer;
+begin
+    FSslAcceptableHosts.Clear;
+    Buf := SemiColonSeparatedList;
+    while TRUE do begin
+        I := Pos(';', Buf);
+        if I > 0 then begin
+            Host := Trim(Copy(Buf, 1, I - 1));
+            if Host > '' then
+                FSslAcceptableHosts.Add(Host);
+            Delete(Buf, 1, I);
+        end
+        else begin
+            Host := Trim(Buf);
+            if Host > '' then
+                FSslAcceptableHosts.Add(Host);
+            break;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.TriggerSslCliNewSession;
+var
+    CurrentSession : Pointer;
+    IncRefCount    : Boolean;
+begin
+    // Sessions are created by a ssl server only
+    if (FSslMode = sslModeClient) and Assigned(FOnSslCliNewSession) and
+        Assigned(FSsl) then begin
+        if FSslState = sslEstablished then
+            CurrentSession := f_SSL_get_Session(FSsl)
+        else
+            CurrentSession := nil; // bad session
+        IncRefCount := FALSE;
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) + ' CliNewSession [' +
+                          IntToHex(Integer(CurrentSession), 8) + '] ' +
+                              'Reused: ' + BoolToStr(SslSessionReused, TRUE));
+{$ENDIF}
+        EnterCriticalSection(SslCritSect);
+        try
+            FOnSslCliNewSession(Self, CurrentSession,
+                                SslSessionReused,
+                                IncRefCount);
+            if IncRefCount and (CurrentSession <> nil) then
+                f_SSL_get1_Session(FSsl);
+        finally
+            LeaveCriticalSection(SslCritSect);
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.TriggerSslHandshakeDone(ErrCode : Word);
+var
+    Cipher       : Pointer;
+    Cert         : PX509;
+    PeerCert     : TX509Base;
+    Disconnect   : Boolean;
+    FreePeerCert : Boolean;
+begin
+    if (FHSocket = INVALID_SOCKET) then
+        ErrCode := 1;
+    if (ErrCode = 0) and Assigned(FSsl) then
+        FSslState := sslEstablished
+    else
+        FSslState := sslHandshakeFailed;
+    PeerCert                := nil;
+    FreePeerCert            := FALSE;
+    FSslCertChain.X509Class := FX509Class;
+    if (ErrCode = 0) and Assigned(FSsl) then begin
+        FSslVersion       := f_SSL_get_version(FSsl);
+        FSslVersNum       := f_SSL_version(FSsl);
+        Cipher            := f_SSL_get_current_cipher(FSsl);
+        if Assigned(Cipher) then begin
+            FSslCipher     := f_SSL_CIPHER_get_name(Cipher);
+            FSslSecretBits := f_SSL_CIPHER_get_bits(Cipher, @FSslTotalBits);
+        end;
+        if FSslContext.FSslVerifyPeer and (not SslSessionReused) then begin
+            Cert := f_SSL_get_peer_certificate(FSsl); // increments reference count
+            try
+                PeerCert := FSslCertChain.GetByPX509(Cert);
+                { No peer certificate in the chain, let's create a dummy }
+                if not Assigned(PeerCert) then begin  {05/21/2007 AG}
+                    PeerCert := TX509Base.Create(nil);
+                    PeerCert.X509 := Cert; // most likely nil
+                    FreePeerCert := TRUE;
+                    PeerCert.FVerifyResult := f_SSL_get_verify_result(FSsl);
+                end; {05/21/2007 AG}
+            finally
+                if Assigned(Cert) then
+                    f_X509_free(Cert); // so always free it
+            end;
+        end;
+    end; //ErrCode = 0
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+        DebugLog(loSslInfo, Format('%s SslHandshakeDone(%d) %d. Secure connection ' +
+                             'with %s, cipher %s, %d secret bits (%d total), ' +
+                             'session reused=%s',
+                             [IntToHex(Integer(Self), 8), ErrCode, FHSocket,
+                             SslVersion, SslCipher, SslSecretBits,
+                             SslTotalBits, BoolToStr(SslSessionReused, TRUE)]));
+{$ENDIF}
+    { No peer certificate in the chain, let's create a dummy }
+    if not Assigned(PeerCert) then begin
+        PeerCert := TX509Base.Create(nil);
+        FreePeerCert := TRUE;
+    end;
+    try
+        Disconnect := FALSE;
+        if Assigned(FOnSslHandshakeDone) then
+            FOnSslHandshakeDone(Self, ErrCode, PeerCert, Disconnect);
+        if Disconnect and (ErrCode = 0) then
+            Close{Delayed?}
+        else if (ErrCode = 0) then
+            // Publish the new session so that the application can cache it.
+            TriggerSslCliNewSession;
+    finally
+        if FreePeerCert then
+            FreeAndNil(PeerCert);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.PutDataInSendBuffer(Data : TWSocketData; Len : Integer);
+begin
+    if (not FSslEnable) or (FSocksState <> socksData) then begin
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then begin { V5.21 }
+            Inc(TraceCount);
+            DebugLog(loSslDump, Format('%s PutDataInSendBuffer %s  len %d [%d]',
+                             [IntToHex(Integer(Self), 8), IntToStr(FHSocket),
+                             Len, TraceCount]));
+        end
+        else if CheckLogOptions(loSslDump) then begin { V5.21 }
+            Inc(TraceCount);
+            DebugLog(loSslDump, Format('%s PutDataInSendBuffer %s [%d] Data:%s',
+                             [IntToHex(Integer(Self), 8), IntToStr(FHSocket),
+                             TraceCount, DataToString(Data, Len)]));
+        end;
+{$ENDIF}
+        inherited PutDataInSendBuffer(Data, Len);
+        Exit;
+    end;
+    if Len <= 0 then
+        Exit;
+    bSslAllSent := FALSE;
+    PutDataInSslBuffer(Data, Len);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.MsgHandlersCount : Integer;
+begin
+    Result := 5 + inherited MsgHandlersCount;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.AllocateMsgHandlers;
+begin
+    inherited AllocateMsgHandlers;
+    FMsg_WM_TRIGGER_DATASENT    := FWndHandler.AllocateMsgHandler(Self);
+    FMsg_WM_SSL_ASYNCSELECT     := FWndHandler.AllocateMsgHandler(Self);
+    FMsg_WM_RESET_SSL           := FWndHandler.AllocateMsgHandler(Self);
+    FMsg_WM_BI_SSL_SHUTDOWN     := FWndHandler.AllocateMsgHandler(Self);
+    FMsg_WM_TRIGGER_SSL_SHUTDOWN_COMPLETED := FWndHandler.AllocateMsgHandler(Self);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.FreeMsgHandlers;
+begin
+    if Assigned(FWndHandler) then begin
+        FWndHandler.UnregisterMessage(FMsg_WM_TRIGGER_DATASENT);
+        FWndHandler.UnregisterMessage(FMsg_WM_SSL_ASYNCSELECT);
+        FWndHandler.UnregisterMessage(FMsg_WM_RESET_SSL);
+        FWndHandler.UnregisterMessage(FMsg_WM_BI_SSL_SHUTDOWN);
+        FWndHandler.UnregisterMessage(FMsg_WM_TRIGGER_SSL_SHUTDOWN_COMPLETED);
+    end;
+    inherited FreeMsgHandlers;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF} // USE_SSL
 
 {$IFDEF DELPHI1}
 begin

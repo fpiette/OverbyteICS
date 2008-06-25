@@ -881,8 +881,107 @@ type
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-{$I OverByteIcsSmtpProtIntfSsl.inc}
-{$ENDIF}
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+Author:       Arno Garrels <arno.garrels@gmx.de>
+              by the help of Francois PIETTE <francois.piette@overbyte.be>
+              (plenty of code copied from Francois's HTTPS client)
+Creation:     20 august 2003
+Updated:      11 February 2008
+Version:      1.0 Beta
+Description:  A component adding SSL/TLS support to TSmtpCli.
+              This unit contains the interface section of the component.
+              It is included in SmtpProt.pas unit when USE_SSL is defined.
+              Make use of OpenSSL (http://www.openssl.org).
+              Make use of freeware TWSocket component from ICS
+              Source code available from http://www.overbyte.be
+
+Features:     - Explicite SSL/TLS thru command STARTTLS.
+              - Implicite SSL/TLS connections on a dedicated port (default 465).
+
+Testing:      A nice made test server represents the free SSL/TLS capable
+              mail server 'Hamster' including full Delphi source,
+              available at: http://tglsoft.de/
+              Also both Explicite and Implicite TLS is supported by
+              googlemail/gmail.
+
+ToDo:
+
+Updates:
+Dec 29, 2007  Reworked the component. After command StartTls completed you
+              must issue command Ehlo again, this is of course only necessary
+              when the Non-Highlevel functions are used. Property SmtpSslMode
+              has been renamed to SslType, also the values have been renamed.
+11 Feb 2008  V6.07  Angus SSL version now supports sync methods
+
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+type
+    TSmtpSslType     = (smtpTlsNone,  smtpTlsImplicite,  smtpTlsExplicite);
+    TSslSmtpCli = class(TSyncSmtpCli)
+    protected
+        FSslType                    : TSmtpSslType;
+        FOnSslHandshakeDone         : TSslHandshakeDoneEvent;
+        FTlsSupported               : Boolean;
+        FMsg_WM_SMTP_QUIT_DELAYED   : UINT;
+        function    GetSslAcceptableHosts: TStrings;
+        procedure   SetSslAcceptableHosts(const Value: TStrings);
+        function    GetSslCliGetSession: TSslCliGetSession;
+        function    GetSslCliNewSession: TSslCliNewSession;
+        function    GetSslVerifyPeer: TSslVerifyPeerEvent;
+        procedure   SetSslCliGetSession(const Value: TSslCliGetSession);
+        procedure   SetSslCliNewSession(const Value: TSslCliNewSession);
+        procedure   SetSslVerifyPeer(const Value: TSslVerifyPeerEvent);
+        function    GetSslCliCertRequest: TSslCliCertRequest;
+        procedure   SetSslCliCertRequest(const Value: TSslCliCertRequest);
+        procedure   SetSslContext(Value: TSslContext);
+        function    GetSslContext: TSslContext;
+        procedure   TransferSslHandshakeDone(Sender         : TObject;
+                                             ErrCode        : Word;
+                                             PeerCert       : TX509Base;
+                                             var Disconnect : Boolean);
+        procedure   GetSecurityExtensions(const Msg: String);
+        procedure   TlsNext;
+        procedure   DoHighLevelAsync; override;
+        procedure   TriggerResponse(Msg : String); override;
+        procedure   CreateSocket; override;
+        procedure   WSocketSessionConnected(Sender  : TObject;
+                                            Error   : Word); override;
+        procedure   WndProc(var MsgRec: TMessage); override;
+        procedure   WMSmtpQuitDelayed(var Msg: TMessage);
+        function    MsgHandlersCount : Integer; override;
+        procedure   AllocateMsgHandlers; override;
+        procedure   FreeMsgHandlers; override;
+    public
+        procedure   StartTls; virtual;
+        procedure   Open; override;
+        procedure   Connect; override;
+        procedure   Ehlo; override;
+        property    SmtpTlsSupported  : Boolean     read  FTlsSupported;
+        property    SslAcceptableHosts : TStrings   read  GetSslAcceptableHosts
+                                                    write SetSslAcceptableHosts;
+    published
+        property SslType              : TSmtpSslType  read  FSslType
+                                                      write FSslType;
+        property SslContext           : TSslContext   read  GetSslContext
+                                                      write SetSslContext;
+        property OnSslVerifyPeer      : TSslVerifyPeerEvent
+                                                      read  GetSslVerifyPeer
+                                                      write SetSslVerifyPeer;
+        property OnSslCliGetSession   : TSslCliGetSession
+                                                      read  GetSslCliGetSession
+                                                      write SetSslCliGetSession;
+        property OnSslCliNewSession   : TSslCliNewSession
+                                                      read  GetSslCliNewSession
+                                                      write SetSslCliNewSession;
+        property OnSslHandshakeDone   : TSslHandshakeDoneEvent
+                                                      read  FOnSslHandshakeDone
+                                                      write FOnSslHandshakeDone;
+        property OnSslCliCertRequest  : TSslCliCertRequest
+                                                      read  GetSslCliCertRequest
+                                                      write SetSslCliCertRequest;
+    end;
+{$ENDIF} // USE_SSL
 
     THtmlSmtpCli = class(TSmtpCli)
     private
@@ -4367,8 +4466,476 @@ end;
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-    {$I OverbyteIcsSmtpProtImplSsl.inc}
-{$ENDIF}
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.CreateSocket;
+begin
+    FWSocket         := TSslWSocket.Create(nil);
+    FWSocket.SslMode := sslModeClient;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslSmtpCli.GetSslAcceptableHosts: TStrings;
+begin
+    if Assigned(FWSocket) then
+        Result := FWSocket.SslAcceptableHosts
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.SetSslAcceptableHosts(const Value: TStrings);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.SslAcceptableHosts.Assign(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslSmtpCli.GetSslContext: TSslContext;
+begin
+    if Assigned(FWSocket) then
+        Result := FWSocket.SslContext
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.SetSslContext(Value: TSslContext);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.SslContext := Value
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslSmtpCli.GetSslCliNewSession: TSslCliNewSession;
+begin
+    if Assigned(FWSocket) then
+        Result := FWSocket.OnSslCliNewSession
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslSmtpCli.GetSslCliGetSession: TSslCliGetSession;
+begin
+    if Assigned(FWSocket) then
+        Result := FWSocket.OnSslCliGetSession
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslSmtpCli.GetSslVerifyPeer: TSslVerifyPeerEvent;
+begin
+    if Assigned(FWSocket) then
+        Result := FWSocket.OnSslVerifyPeer
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.SetSslCliGetSession(const Value: TSslCliGetSession);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.OnSslCliGetSession := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.SetSslCliNewSession(const Value: TSslCliNewSession);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.OnSslCliNewSession := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.SetSslVerifyPeer(const Value: TSslVerifyPeerEvent);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.OnSslVerifyPeer := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslSmtpCli.GetSslCliCertRequest: TSslCliCertRequest;
+begin
+    if Assigned(FWSocket) then
+        Result := FWSocket.OnSslCliCertRequest
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.SetSslCliCertRequest(
+  const Value: TSslCliCertRequest);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.OnSslCliCertRequest := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.GetSecurityExtensions(const Msg: String);
+var
+    S : String;
+begin
+    S := UpperCase(Trim(FLastResponse));
+    if CompareText(Copy(S, 5, 12), 'STARTTLS') = 0 then
+        FTlsSupported := TRUE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.TransferSslHandshakeDone(
+    Sender         : TObject;
+    ErrCode        : Word;
+    PeerCert       : TX509Base;
+    var Disconnect : Boolean);
+begin
+    if Assigned(FOnSslHandShakeDone) then
+        FOnSslHandShakeDone(Sender, ErrCode, PeerCert, Disconnect);
+
+    if (ErrCode = 0) and (not Disconnect) and
+       (FWSocket.State = wsConnected) then
+    begin
+        with (Sender as TSslWSocket) do
+            TriggerDisplay(Format('Secure connection with %s, cipher %s, ' +
+                             '%d secret bits (%d total)',
+                             [SslVersion, SslCipher, SslSecretBits,
+                             SslTotalBits]));
+        if FSslType = smtpTlsImplicite then
+            StateChange(smtpWaitingBanner)
+        else
+            TriggerRequestDone(0); // EHLO command has to be issued again
+    end
+    else begin
+        if (FWSocket.State = wsConnected) then begin
+            { Temporarily disable RequestDone }
+            FRequestDoneFlag := TRUE;
+            FWSocket.Abort;
+            FRequestDoneFlag := FALSE;
+        end;
+        FStatusCode    := 500;
+        FRequestResult := FStatusCode;
+        //FHighLevelResult := 500;
+        FErrorMessage    := 'SSL Handshake failed';
+        TriggerDisplay(FErrorMessage);
+        FNextRequest := nil;
+        TriggerRequestDone(FRequestResult);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.TlsNext;
+begin
+    if FRequestResult <> 0 then begin
+        TriggerRequestDone(FRequestResult);
+        Exit;
+    end;
+    FWSocket.OnSslHandshakeDone := TransferSslHandshakeDone;
+    TriggerDisplay('Starting SSL handshake');
+    try
+        //raise Exception.Create('Test');
+        FWSocket.SslEnable := TRUE;
+        FWSocket.StartSslHandshake;
+    except
+        on E: Exception do begin
+            FWSocket.SslEnable := FALSE;
+            FStatusCode    := 500;
+            FRequestResult := FStatusCode;
+            FLastResponse  := E.Classname + ' ' + E.Message;
+            SetErrorMessage;
+            { Temporarily disable RequestDone }
+            FRequestDoneFlag := TRUE;
+            FWSocket.Abort; { here we must not abort, however it's more secure }
+            FRequestDoneFlag := FALSE;
+            FNextRequest := nil;
+            TriggerRequestDone(FStatusCode)
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.StartTls;  // RFC 2487
+var
+     ErrMsg : String;
+begin
+     if not FESmtpSupported then
+         ErrMsg := '500 ESMTP not supported.';
+     if (not FTlsSupported) and (ErrMsg = '') then
+         ErrMsg := '500 STARTTLS is not available.';
+     if (FSslType = smtpTlsImplicite) and (ErrMsg = '') then
+         ErrMsg := '500 STARTTLS is not supported with a implicite SSL connection';
+     if ErrMsg <> '' then begin
+         FLastResponse := ErrMsg;
+         FErrorMessage := ErrMsg;
+         FStatusCode    := 500;
+         FRequestResult := FStatusCode;
+         FRequestDoneFlag := FALSE;
+         FNextRequest := nil;
+         TriggerRequestDone(FStatusCode);
+         Exit;//***
+     end;
+     FFctPrv := smtpFctStartTls;
+     ExecAsync(smtpStartTls, 'STARTTLS', [220], TlsNext);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.WSocketSessionConnected(Sender: TObject; Error: Word);
+begin
+    if (FSslType <> smtpTlsImplicite) or (Error <> 0) then
+        inherited WSocketSessionConnected(Sender, Error)
+    else begin
+        FConnected := TRUE;
+        TriggerDisplay('! Starting SSL handshake');
+        FWSocket.OnSslHandshakeDone := TransferSslHandShakeDone;
+        FWSocket.SslEnable := TRUE;
+        try
+            //raise Exception.Create('Test');
+            FWSocket.StartSslHandshake;
+        except
+            on E: Exception do begin
+                FWSocket.SslEnable := FALSE;
+                FErrorMessage  := 'SSL Handshake failed ' + E.Classname + ' ' +
+                                  E.Message; 
+                FStatusCode    := 500;
+                FRequestResult := FStatusCode;
+                { Temporarily disable RequestDone }
+                FRequestDoneFlag := TRUE;
+                FWSocket.Abort;
+                FRequestDoneFlag := FALSE;
+                FNextRequest := nil;
+                TriggerRequestDone(FRequestResult);
+            end;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.TriggerResponse(Msg : String);
+begin
+    { Search for "STARTTLS" in multiline EHLO response }
+    if FFctPrv = smtpFctEhlo then
+        GetSecurityExtensions(Msg);
+    inherited TriggerResponse(Msg);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.DoHighLevelAsync;
+begin
+{$IFDEF TRACE} TriggerDisplay('! HighLevelAsync ' + IntToStr(FRequestResult)); {$ENDIF}
+    if FState = smtpAbort then begin
+        {$IFDEF TRACE} TriggerDisplay('! Abort detected'); {$ENDIF}
+        FFctSet := [];
+        FHighLevelResult := 426;
+        FRequestResult   := 426;  { SJF }
+        FErrorMessage    := '426 Operation aborted.';
+    end;
+
+    FNextRequest := DoHighLevelAsync;
+
+    if FRequestResult <> 0 then begin
+        { Previous command had errors }
+        { EHLO wasn't supported, so just log in with HELO }
+        if FFctPrv = smtpFctEhlo then
+            FFctSet := [smtpFctHelo]
+        else begin
+            FHighLevelResult := FRequestResult;
+            if (FFctPrv = smtpFctQuit) or (not (smtpFctQuit in FFctSet)) then
+                FFctSet := []
+            else
+                FFctSet := [smtpFctQuit];
+        end;
+    end;
+
+    try
+        if smtpFctConnect in FFctSet then begin
+            FFctPrv := smtpFctConnect;
+            FFctSet := FFctSet - [FFctPrv];
+            Connect;
+            Exit;
+        end;
+
+        if smtpFctHelo in FFctSet then begin
+            FFctPrv := smtpFctHelo;
+            FFctSet := FFctSet - [FFctPrv];
+            Helo;
+            Exit;
+        end;
+
+        if smtpFctEhlo in FFctSet then begin
+            FFctPrv := smtpFctEhlo;
+            FFctSet := FFctSet - [FFctPrv];
+            Ehlo;
+            Exit;
+        end;
+
+        if smtpFctStartTls in FFctSet then begin
+            FFctPrv := smtpFctStartTls;
+            FFctSet := FFctSet - [FFctPrv];
+            { Add Ehlo to the set it has to be re-issued after STARTTLS }
+            FFctSet := FFctSet + [smtpFctEhlo];
+            StartTls;
+            Exit;
+        end;
+
+        if smtpFctAuth in FFctSet then begin
+            FFctPrv := smtpFctAuth;
+            FFctSet := FFctSet - [FFctPrv];
+            Auth;
+            Exit;
+        end;
+
+        if smtpFctVrfy in FFctSet then begin
+            FFctPrv := smtpFctVrfy;
+            FFctSet := FFctSet - [FFctPrv];
+            Vrfy;
+            Exit;
+        end;
+
+        if smtpFctMailFrom in FFctSet then begin
+            FFctPrv := smtpFctMailFrom;
+            FFctSet := FFctSet - [FFctPrv];
+            MailFrom;
+            Exit;
+        end;
+
+        if smtpFctRcptTo in FFctSet then begin
+            FFctPrv := smtpFctRcptTo;
+            FFctSet := FFctSet - [FFctPrv];
+            RcptTo;
+            Exit;
+        end;
+
+        if smtpFctData in FFctSet then begin
+            FFctPrv := smtpFctData;
+            FFctSet := FFctSet - [FFctPrv];
+            Data;
+            Exit;
+        end;
+
+        if smtpFctQuit in FFctSet then begin
+            FFctPrv := smtpFctQuit;
+            FFctSet := FFctSet - [FFctPrv];
+            Quit;
+            Exit;
+        end;
+    except
+        on E : Exception do begin
+          {$IFDEF TRACE}
+            TriggerDisplay('! ' + E.ClassName + ': "' + E.Message + '"');
+          {$ENDIF}
+            FHighLevelResult := 500;
+            FRequestResult   := 500;
+            FErrorMessage    := '500 Internal client error ' +
+                                E.ClassName + ': "' + E.Message + '"';
+        end;
+    end;
+    {$IFDEF TRACE} TriggerDisplay('! HighLevelAsync done'); {$ENDIF}
+    FFctSet          := [];
+    FNextRequest     := nil;
+    FRequestDoneFlag := FALSE;
+    TriggerRequestDone(FHighLevelResult);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.Open;
+begin
+    if FSslType = smtpTlsExplicite then begin
+        if FAuthType <> smtpAuthNone then
+            HighLevelAsync(smtpOpen, [smtpFctConnect, smtpFctEhlo,
+                                      smtpFctStartTls, smtpFctAuth])
+        else
+            HighLevelAsync(smtpOpen, [smtpFctConnect, smtpFctEhlo,
+                                      smtpFctStartTls]);
+    end
+    else
+        inherited Open;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.Connect;
+begin
+    FTlsSupported      := FALSE;
+    FWSocket.SslEnable := FALSE; // We handle everything in code
+    inherited Connect;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.Ehlo;
+begin
+    FTlsSupported := FALSE;
+    inherited Ehlo;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.WndProc(var MsgRec: TMessage);
+begin
+    try
+        with MsgRec do begin
+            if Msg = FMsg_WM_SMTP_QUIT_DELAYED then
+                WMSmtpQuitDelayed(MsgRec)
+            else
+                inherited WndProc(MsgRec);
+        end;
+    except
+        on E:Exception do
+            HandleBackGroundException(E);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.WMSmtpQuitDelayed(var Msg: TMessage);
+begin
+    Quit;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslSmtpCli.MsgHandlersCount : Integer;
+begin
+    Result := 1 + inherited MsgHandlersCount;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.AllocateMsgHandlers;
+begin
+    inherited AllocateMsgHandlers;
+    FMsg_WM_SMTP_QUIT_DELAYED  := FWndHandler.AllocateMsgHandler(Self);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslSmtpCli.FreeMsgHandlers;
+begin
+    if Assigned(FWndHandler) then
+        FWndHandler.UnregisterMessage(FMsg_WM_SMTP_QUIT_DELAYED);
+    inherited FreeMsgHandlers;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF} // USE_SSL
 
 end.
 

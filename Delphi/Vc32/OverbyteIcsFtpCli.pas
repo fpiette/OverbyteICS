@@ -1523,8 +1523,153 @@ type
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-    {$I OverbyteIcsFtpCliIntfSsl.inc}
+{*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+Author:       François PIETTE
+Description:  A component adding SSL support to TFtpCli (RFC-2228).
+              This unit contains the implementaion for the component.
+              It is included in FtpCli.pas unit when USE_SSL is defined.
+              Make use of OpenSSL (http://www.openssl.org).
+              Make use of freeware TWSocket component from ICS.
+Creation:     May 15, 2004
+Version:      1.00.0
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+Support:      Use the mailing list ics-ssl@elists.org
+              Follow "SSL" link at http://www.overbyte.be for subscription.
+Legal issues: Copyright (C) 2004-2005 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              <francois.piette@overbyte.be>
+              SSL implementation includes code written by Arno Garrels,
+              Berlin, Germany, contact: <arno.garrels@gmx.de>
+              
+              This software is provided 'as-is', without any express or
+              implied warranty.  In no event will the author be held liable
+              for any  damages arising from the use of this software.
+
+              This code is _NOT_ freeware nor Open Source.
+              To use it, you must financially contribute to the development.
+              See SSL page on the author website for details.
+
+              Once you got the right to use this software, you can use in your
+              own applications only. Distributing the source code or compiled
+              units or packages is prohibed.
+
+              As this code make use of OpenSSL, your rights are restricted by
+              OpenSSL license. See http://www.openssl.org for details.
+
+              Further, the following restrictions applies:
+
+              1. The origin of this software must not be misrepresented,
+                 you must not claim that you wrote the original software.
+                 If you use this software in a product, an acknowledgment
+                 in the product documentation would be appreciated but is
+                 not required.
+
+              2. Altered source versions must be plainly marked as such, and
+                 must not be misrepresented as being the original software.
+
+              3. This notice may not be removed or altered from any source
+                 distribution.
+
+              4. You must register this software by sending a picture postcard
+                 to the author. Use a nice stamp and mention your name, street
+                 address, EMail address and any comment you like to say.
+
+History:
+
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF VER80}
+    Bomb('This unit require a 32 bit compiler !');
 {$ENDIF}
+{$B-}                                 { Enable partial boolean evaluation   }
+{$T-}                                 { Untyped pointers                    }
+{$X+}                                 { Enable extended syntax              }
+{$H+}                                 { Use long strings                    }
+{$J+}                                 { Allow typed constant to be modified }
+{ If you use Delphi 7, you may wants to disable warnings for unsage type,   }
+{ unsafe code and unsafe typecast in the project options. Those warning are }
+{ intended for .NET programs. You may also want to turn off deprecated      }
+{ symbol and platform symbol warnings.                                      }
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+type
+    TSslFtpClient = class(TFtpClient)
+    protected
+        FProtLevel              : String;
+        FProtLevelSent          : String;
+        FRenegInitFlag          : Boolean;
+        FPBSZSize               : Integer;
+        FOnSslHandshakeDone     : TSslHandshakeDoneEvent;
+        FOnSslVerifyPeer        : TSslVerifyPeerEvent;
+        FOnSslCliGetSession     : TSslCliGetSession;
+        FOnSslCliNewSession     : TSslCliNewSession;
+        FOnSslCliCertRequest    : TSslCliCertRequest;
+        function  GetSslContext : TSslContext;
+        procedure SetSslContext(Value: TSslContext);
+        procedure SetSslAcceptableHosts(Value : TStrings);
+        function  GetSslAcceptableHosts: TStrings;
+        procedure ControlSocketSessionConnected(Sender: TObject; ErrCode: Word); override;
+        procedure DataSocketPutAppendInit(const TargetPort, TargetIP : String); override;
+        procedure DataSocketGetInit(const TargetPort, TargetIP : String); override; 
+        procedure SetProtLevel(const Value : String); virtual;
+        procedure SetSslType(const Value: TFtpCliSslType); override;
+        procedure ControlSocketSslShutDownComplete(Sender     : TObject;
+                                                Bidirectional : Boolean;
+                                                ErrCode       : Integer); virtual;
+        procedure TransferSslHandshakeDone(Sender         : TObject;
+                                           ErrCode        : Word;
+                                           PeerCert       : TX509Base;
+                                           var Disconnect : Boolean); virtual;
+        procedure TransferSslVerifyPeer(Sender        : TObject;
+                                        var Ok        : Integer;
+                                        Cert          : TX509Base); virtual;
+        procedure TransferSslCliGetSession(Sender  : TObject;
+                                       var SslSession : Pointer;
+                                       var FreeSession: Boolean); virtual;
+        procedure TransferSslCliNewSession(Sender      : TObject;
+                                           SslSession  : Pointer;
+                                           WasReused   : Boolean;
+                                          var IncRefCount: Boolean); virtual;
+        procedure TransferSslCliCertRequest(Sender     : TObject;
+                                            var Cert   : TX509Base); virtual;
+    public
+        constructor Create(AOwner : TComponent); override;
+        procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
+        procedure   OpenAsync;       override;
+        procedure   AuthAsync;       override;
+        procedure   ProtAsync;       override;
+        procedure   PbszAsync;       override;
+        procedure   CccAsync;        override;
+
+    published
+        property SslContext         : TSslContext         read  GetSslContext
+                                                          write SetSslContext;
+        property SslType            : TFtpCliSslType      read  FSslType
+                                                          write FSslType;
+        property SslAcceptableHosts : TStrings            read  GetSslAcceptableHosts
+                                                          write SetSslAcceptableHosts;
+        property ProtLevel          : String              read  FProtLevel
+                                                          write SetProtLevel;
+        property PBSZSize           : Integer             read  FPBSZSize
+                                                          write FPBSZSize;
+        property OnSslVerifyPeer    : TSslVerifyPeerEvent read  FOnSslVerifyPeer
+                                                          write FOnSslVerifyPeer;
+        property OnSslCliGetSession : TSslCliGetSession
+                                                          read  FOnSslCliGetSession
+                                                          write FOnSslCliGetSession;
+        property OnSslCliNewSession : TSslCliNewSession
+                                                          read  FOnSslCliNewSession
+                                                          write FOnSslCliNewSession;
+        property OnSslHandshakeDone : TSslHandshakeDoneEvent
+                                                          read  FOnSslHandshakeDone
+                                                          write FOnSslHandshakeDone;
+        property OnSslCliCertRequest : TSslCliCertRequest read  FOnSslCliCertRequest
+                                                          write FOnSslCliCertRequest;
+    end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF} // USE_SSL
 
 function LookupFTPReq (const RqType: TFtpRequest): String;    { V2.113 angus }
 function LookupFtpState (const FtpState: TFtpState): String;  { V2.113 angus }
@@ -6028,8 +6173,319 @@ end;
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-    {$I OverbyteIcsFtpCliImplSsl.inc}
-{$ENDIF}
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TSslFtpClient.Create(AOwner : TComponent);
+begin
+    inherited Create(AOwner);
+    FProtLevel     := 'C';
+    FProtLevelSent := '';
+    FPBSZSize      := 0;
+    FRenegInitFlag := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.SetProtLevel(const Value : String);
+begin
+    if (Value <> 'P') and (Value <> 'C') then
+        raise Exception.Create('Protection level must be ''P'' or ''C''.');
+    FProtLevel := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.OpenAsync;
+begin
+    FProtLevelSent := '';
+    inherited OpenAsync;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.AuthAsync;
+var
+    S : String;
+begin    
+    if FSslType = sslTypeAuthSsl then
+        S := 'AUTH SSL'
+    else
+        S := 'AUTH TLS';
+    FFctPrv := ftpFctAuth;
+    ExecAsync(ftpAuthAsync, S, [234, 334], nil); // 334 invalid see RFC4217
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.CccAsync;
+begin
+    FFctPrv  := ftpFctCcc;
+    ExecAsync(ftpCccAsync, 'CCC', [200], nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.ProtAsync;
+begin
+    FFctPrv        := ftpFctProt;
+    FProtLevelSent := FProtLevel;
+    ExecAsync(ftpProtAsync, 'PROT ' + FProtLevelSent, [200], nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.PBSZAsync;
+begin
+    FFctPrv := ftpFctProt;
+    ExecAsync(ftpProtAsync, 'PBSZ ' + IntToStr(FPBSZSize), [200], nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslFtpClient.GetSslContext: TSslContext;
+begin
+    Result := FControlSocket.SslContext
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.SetSslContext(Value: TSslContext);
+begin
+    FControlSocket.SslContext := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.TransferSslHandshakeDone(Sender: TObject;
+    ErrCode: Word; PeerCert: TX509Base;  var Disconnect : Boolean);
+begin
+    if (ErrCode <> 0) then begin
+        FLastResponse := '535 SSL handshake failed. Error #' + IntToStr(ErrCode);
+        DisplayLastResponse;
+        FStatusCode    := 535;
+        FRequestResult := FStatusCode;
+        SetErrorMessage;
+    end
+    else
+        TriggerDisplay('! SSL handshake OK');
+
+    if Assigned(FOnSslHandshakeDone) then
+        FOnSslHandshakeDone(Self, ErrCode, PeerCert, Disconnect);   // 12/14/05
+
+    { Trigger RequestDone when we initiated a re-negotiation on AUTH }
+    if FRenegInitFlag then begin
+        FRenegInitFlag := FALSE;
+        if Assigned(FDoneAsync) then
+            FDoneAsync
+        else
+            TriggerRequestDone(FRequestResult);
+        Exit;
+    end;
+
+    if ((Sender = FDataSocket) or (FSslType = sslTypeImplizit) or
+        (Sender as TCustomSslWSocket).SslInRenegotiation) and
+       (FState <> ftpAbort) and FConnected then
+        Exit;
+
+    if Assigned(FDoneAsync) then
+        FDoneAsync
+    else
+        TriggerRequestDone(FRequestResult);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.TransferSslCliCertRequest(
+    Sender      : TObject;
+    var Cert    : TX509Base);
+begin
+    if Assigned(FOnSslCliCertRequest) then
+        FOnSslCliCertRequest(Self, Cert);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.TransferSslVerifyPeer(
+    Sender        : TObject;
+    var Ok        : Integer;
+    Cert          : TX509Base);
+begin
+    if Assigned(FOnSslVerifyPeer) then
+        FOnSslVerifyPeer(Self, Ok, Cert);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.TransferSslCliGetSession(Sender: TObject;
+    var SslSession: Pointer; var FreeSession: Boolean);
+begin
+    if Assigned(FOnSslCliGetSession) then
+        FOnSslCliGetSession(Self, SslSession, FreeSession);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.TransferSslCliNewSession(Sender: TObject;
+    SslSession: Pointer; WasReused  : Boolean; var IncRefCount: Boolean);
+begin
+    if Assigned(FOnSslCliNewSession) then
+        FOnSslCliNewSession(Self, SslSession, WasReused, IncRefCount);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.ControlSocketSslShutDownComplete(
+    Sender          : TObject;
+    Bidirectional   : Boolean;
+    ErrCode         : Integer);
+begin
+    TriggerDisplay('! Control channel SSL shutdown complete');
+    FControlSocket.OnSslShutDownComplete := nil;
+    if (ErrCode > 0) then begin
+        FStatusCode    := ErrCode;
+        FRequestResult := ErrCode;
+        FLastResponse  := IntToStr(ErrCode) + ' Bidirectional SSL shutdown failed';
+        FNextRequest   := nil;
+        SetErrorMessage;
+    end;
+    if Assigned(FDoneAsync) then
+        FDoneAsync
+    else
+        TriggerRequestDone(FRequestResult);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// Just to make UI easier: parse a semi-colon delimited texte string with
+// a list of hosts and build the FSslAcceptableHosts list.
+procedure TSslFtpClient.SetAcceptableHostsList(
+    const SemiColonSeparatedList : String);
+var
+    Host : String;
+    Buf  : String;
+    I    : Integer;
+begin
+    SslAcceptableHosts.Clear;
+    Buf := SemiColonSeparatedList;
+    while TRUE do begin
+        I := Pos(';', Buf);
+        if I > 0 then begin
+            Host := Trim(Copy(Buf, 1, I - 1));
+            if Host > '' then
+                SslAcceptableHosts.Add(Host);
+            Buf := Copy(Buf, I + 1, Length(Buf));
+            //System.Delete(Buf, 1, I);
+        end
+        else begin
+            Host := Trim(Buf);
+            if Host > '' then
+                SslAcceptableHosts.Add(Host);
+            break;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.SetSslAcceptableHosts(Value : TStrings);
+begin
+    if Assigned(FControlSocket) then
+        FControlSocket.SslAcceptableHosts := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  TSslFtpClient.GetSslAcceptableHosts: TStrings;
+begin
+    if Assigned(FControlSocket) then
+        Result := FControlSocket.SslAcceptableHosts
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.DataSocketPutAppendInit(const TargetPort, TargetIP : String);
+begin
+    inherited DataSocketPutAppendInit(TargetPort, TargetIP);
+    FDataSocket.OnSessionClosed := DataSocketPutSessionClosed;
+    if FSslType <> ssltypeNone then begin
+        FDataSocket.SslAcceptableHosts        := FControlSocket.SslAcceptableHosts;
+        FDataSocket.SslEnable                 := (FProtLevelSent = 'P');
+        if FDataSocket.SslEnable then begin
+            FDataSocket.SslContext            := FControlSocket.SslContext;
+            FDataSocket.SslMode               := SslModeClient;
+            FDataSocket.OnSslVerifyPeer       := FControlSocket.OnSslVerifyPeer;
+            FDataSocket.OnSslHandshakeDone    := FControlSocket.OnSslHandshakeDone;
+            FDataSocket.OnSslCliGetSession    := FControlSocket.OnSslCliGetSession;
+            FDataSocket.OnSslCliNewSession    := FControlSocket.OnSslCliNewSession;
+            FDataSocket.OnSslCliCertRequest   := FControlSocket.OnSslCliCertRequest;
+        end;
+    end
+    else
+        FDataSocket.SslEnable := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.DataSocketGetInit(const TargetPort, TargetIP : String);
+begin
+    inherited DataSocketGetInit(TargetPort, TargetIP);
+    FDataSocket.SslAcceptableHosts        := FControlSocket.SslAcceptableHosts;
+    FDataSocket.SslEnable                 := (FProtLevelSent = 'P');
+    if FDataSocket.SslEnable then begin
+        FDataSocket.SslContext            := FControlSocket.SslContext;
+        FDataSocket.SslMode               := SslModeClient;
+        FDataSocket.OnSslVerifyPeer       := FControlSocket.OnSslVerifyPeer;
+        FDataSocket.OnSslHandshakeDone    := FControlSocket.OnSslHandshakeDone;
+        FDataSocket.OnSslCliGetSession    := FControlSocket.OnSslCliGetSession;
+        FDataSocket.OnSslCliNewSession    := FControlSocket.OnSslCliNewSession;
+        FDataSocket.OnSslCliCertRequest   := FControlSocket.OnSslCliCertRequest;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.ControlSocketSessionConnected(Sender: TObject; ErrCode: Word);
+begin
+    inherited ControlSocketSessionConnected(Sender, ErrCode);
+    if FConnected then begin
+        FControlSocket.SslEnable := FSslType = sslTypeImplizit;
+        if FControlSocket.SslEnable then
+        try
+            FControlSocket.SslMode             := sslModeClient;
+            FControlSocket.OnSslHandshakeDone  := TransferSslHandshakeDone;
+            FControlSocket.OnSslVerifyPeer     := TransferSslVerifyPeer;
+            FControlSocket.OnSslCliGetSession  := TransferSslCliGetSession;
+            FControlSocket.OnSslCliNewSession  := TransferSslCliNewSession;
+            FControlSocket.OnSslCliCertRequest := TransferSslCliCertRequest;
+            FControlSocket.StartSslHandshake;
+            //TriggerDisplay('! Starting SSL handshake');
+        except
+            on E:Exception do begin
+                TriggerDisplay('! Init SSL failed ' + E.Message);
+                FStatusCode    := 550;
+                FRequestResult := FStatusCode;
+                FLastResponse  := IntToStr(FStatusCode) + ' ' + E.Message;
+                SetErrorMessage; { Heedong Lim, 05/14/1999 }
+                FNextRequest   := nil;
+                TriggerRequestDone(FRequestResult);
+                FControlSocket.Close;
+                StateChange(ftpReady);
+            end;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpClient.SetSslType(const Value: TFtpCliSslType);
+begin
+    FSslType := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF} // USE_SSL
 
 end.
 

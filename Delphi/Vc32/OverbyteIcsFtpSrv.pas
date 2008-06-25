@@ -1196,8 +1196,157 @@ type
     end;
 
 {$IFDEF USE_SSL}
-{$I OverbyteIcsFtpSrvIntfSsl.inc}
-{$ENDIF}
+{*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+Author:       Arno Garrels
+Description:  A component adding TLS/SSL support to TFtpServer.
+              This unit contains the implementation for the component.
+              It is included in FtpSrv.pas.pas unit when USE_SSL is defined.
+              The interface part is in FtpSrvIntfSsl.inc.
+              Make use of OpenSSL (http://www.openssl.org).              
+              Make use of freeware TWSocket component from ICS.
+Creation:     Oct 21, 2005
+Version:      1.03
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+              francois.piette@rtfm.be      http://www.rtfm.be/fpiette
+              francois.piette@pophost.eunet.be              
+Support:      Use the mailing list ics-ssl@elists.org
+              Follow "SSL" link at http://www.overbyte.be for subscription.
+Legal issues: Copyright (C) 2003 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              <francois.piette@overbyte.be>
+              SSL implementation includes code written by Arno Garrels,
+              Berlin, Germany, contact: <arno.garrels@gmx.de>
+              
+              This software is provided 'as-is', without any express or
+              implied warranty.  In no event will the author be held liable
+              for any  damages arising from the use of this software.
+
+              This code is _NOT_ freeware nor Open Source.
+              To use it, you must financially contribute to the development.
+              See SSL page on the author website for details.
+
+              Once you got the right to use this software, you can use in your
+              own applications only. Distributing the source code or compiled
+              units or packages is prohibed.
+
+              As this code make use of OpenSSL, your rights are restricted by
+              OpenSSL license. See http://www.openssl.org for details.
+
+              Further, the following restrictions applies:
+
+              1. The origin of this software must not be misrepresented,
+                 you must not claim that you wrote the original software.
+                 If you use this software in a product, an acknowledgment
+                 in the product documentation would be appreciated but is
+                 not required.
+
+              2. Altered source versions must be plainly marked as such, and
+                 must not be misrepresented as being the original software.
+
+              3. This notice may not be removed or altered from any source
+                 distribution.
+
+              4. You must register this software by sending a picture postcard
+                 to the author. Use a nice stamp and mention your name, street
+                 address, EMail address and any comment you like to say.
+
+History:
+
+
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}    
+    TFtpSslType  = (ftpAuthSsl,      ftpAuthTls,     ftpAuthTlsP,
+                    ftpAuthTlsC ,    ftpImplicitSsl);
+    TFtpSslTypes = set of TFtpSslType;
+    
+
+    TSslFtpServer = class(TFtpServer)
+    protected
+        FFtpSslTypes                        : TFtpSslTypes;
+        FOnSslHandshakeDone                 : TSslHandshakeDoneEvent;
+        FOnSslVerifyPeer                    : TSslVerifyPeerEvent;
+        FOnSslSvrGetSession                 : TSslSvrGetSession;
+        FOnSslSvrNewSession                 : TSslSvrNewSession;
+        FOnSslSetSessionIDContext           : TSslSetSessionIDContext;
+        FMsg_WM_FTPSRV_ABORT_TRANSFER       : UINT;
+        FMsg_WM_FTPSRV_Close_Data           : UINT;
+
+        procedure ClientPassiveSessionAvailable(Sender : TObject;
+                                                AError : Word); override;
+        procedure ClientDataSent(Sender : TObject; AError : Word); override; { 1.03 }
+        procedure TriggerClientConnect(Client        : TFtpCtrlSocket;
+                                       AError        : Word); override;
+        procedure SendAnswer(Client                  : TFtpCtrlSocket;
+                             Answer                  : TFtpString); override;
+        procedure TriggerStorSessionConnected(Client : TFtpCtrlSocket;
+                                              Data   : TWSocket;
+                                              AError : Word); override;
+        procedure TriggerRetrSessionConnected(Client : TFtpCtrlSocket;
+                                              Data   : TWSocket;
+                                              AError : Word); override;
+        function  GetSslContext : TSslContext;
+        procedure SetSslContext(Value : TSslContext);
+        procedure CommandCCC(Client       : TFtpCtrlSocket;   { 1.03 }
+                              var Keyword : TFtpString;
+                              var Params  : TFtpString;
+                              var Answer  : TFtpString); virtual;
+        procedure CommandPBSZ(Client      : TFtpCtrlSocket;   { 1.03 }
+                              var Keyword : TFtpString;
+                              var Params  : TFtpString;
+                              var Answer  : TFtpString); virtual;
+        procedure CommandAUTH(Client      : TFtpCtrlSocket;   { AG }
+                              var Keyword : TFtpString;
+                              var Params  : TFtpString;
+                              var Answer  : TFtpString); virtual;
+        procedure CommandPROT(Client      : TFtpCtrlSocket;   { AG }
+                              var Keyword : TFtpString;
+                              var Params  : TFtpString;
+                              var Answer  : TFtpString); virtual;
+        procedure TransferSslVerifyPeer(Sender        : TObject;
+                                        var Ok        : Integer;
+                                        Cert          : TX509Base); virtual;
+        procedure TransferSslHandshakeDone(Sender         : TObject;
+                                           ErrCode        : Word;
+                                           PeerCert       : TX509Base;
+                                           var Disconnect : Boolean); virtual;
+        procedure TransferSslSetSessionIDContext(Sender : TObject;
+                                   var SessionIDContext : TSslSessionIdContext); virtual;
+        procedure TransferSslSvrNewSession(Sender       : TObject;
+                                        SslSession      : Pointer;
+                                        SessId          : Pointer;
+                                        Idlen           : Integer;
+                                 var AddToInternalCache : Boolean); virtual;
+        procedure TransferSslSvrGetSession(Sender          : TObject;
+                                         var SslSession : Pointer;
+                                         SessId         : Pointer;
+                                         Idlen          : Integer;
+                                         var IncRefCount: Boolean); virtual;
+        procedure SetFtpSslTypes(const Value: TFtpSslTypes); { 1.04 }
+    public
+        constructor Create(AOwner: TComponent); override;
+        function  MsgHandlersCount : Integer; override;
+        procedure AllocateMsgHandlers; override;
+        procedure FreeMsgHandlers; override;
+        //destructor  Destroy; override;
+    published
+        property  SslContext         : TSslContext         read  GetSslContext
+                                                           write SetSslContext;
+        property  OnSslVerifyPeer    : TSslVerifyPeerEvent read  FOnSslVerifyPeer
+                                                           write FOnSslVerifyPeer;
+        property  OnSslSetSessionIDContext : TSslSetSessionIDContext
+                                                           read  FOnSslSetSessionIDContext
+                                                           write FOnSslSetSessionIDContext;
+        property  OnSslSvrNewSession : TSslSvrNewSession   read  FOnSslSvrNewSession
+                                                           write FOnSslSvrNewSession;
+        property  OnSslSvrGetSession : TSslSvrGetSession   read  FOnSslSvrGetSession
+                                                           write FOnSslSvrGetSession;
+        property  OnSslHandshakeDone : TSslHandshakeDoneEvent
+                                                           read  FOnSslHandshakeDone
+                                                           write FOnSslHandshakeDone;
+        property  FtpSslTypes        : TFtpSslTypes        read  FFtpSslTypes  { 1.03 }
+                                                           write SetFtpSslTypes; { 1.04 }
+    end;
+{$ENDIF} // USE_SSL
 
 function GetZlibCacheFileName(const S : String) : String;  { angus V1.54 }
 
@@ -6018,8 +6167,525 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF USE_SSL}
-{$I OverbyteIcsFtpSrvImplSsl.inc}
-{$ENDIF}
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.SetFtpSslTypes(const Value: TFtpSslTypes); { 1.04 }
+begin
+    { Implizit SSL cannot be combined with explizit SSL }
+    if Value <> FFtpSslTypes then begin
+        if (ftpImplicitSsl in Value) and
+           ((ftpAuthSsl in Value) or
+           (ftpAuthTls in Value) or
+           (ftpAuthTlsP in Value) or
+           (ftpAuthTlsC in Value)) then begin
+            FFtpSslTypes := [];
+            raise Exception.Create('Option ftpImplicitSsl cannot be combined ' +
+                                   'with explizit SSL types.');
+         end
+         else
+            FFtpSslTypes := Value;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.ClientDataSent(Sender : TObject; AError : Word);    { 1.03 }
+var
+    Client : TFtpCtrlSocket;
+begin
+    Client := Sender as TFtpCtrlSocket;
+    (*
+    if Client.AuthFlag then begin
+        Client.AuthFlag := FALSE;
+        try
+            if AError = 0 then
+                Client.AcceptSslHandshake
+            else begin
+                Client.CurFtpSslType            := curftpSslNone;
+                Client.SslEnable                := FALSE;
+                Client.OnSslVerifyPeer          := nil;
+                Client.OnSslHandshakeDone       := nil;
+                Client.OnSslSvrNewSession       := nil;
+                Client.OnSslSvrGetSession       := nil;
+                Client.OnSslSetSessionIDContext := nil;
+            end;
+        except
+            Client.CurFtpSslType            := curftpSslNone;
+            Client.SslEnable                := FALSE;
+            Client.OnSslVerifyPeer          := nil;
+            Client.OnSslHandshakeDone       := nil;
+            Client.OnSslSvrNewSession       := nil;
+            Client.OnSslSvrGetSession       := nil;
+            Client.OnSslSetSessionIDContext := nil;
+            Client.Close;
+        end;
+    end
+    else *)
+    if Client.CccFlag then begin
+        if AError = 0 then begin
+            Client.SslBiShutDownAsync;
+            Client.CurFtpSslType := curftpSslNone;
+        end;
+        Client.CccFlag := FALSE;
+    end;
+    inherited ClientDataSent(Sender, AError);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.CommandCCC(                                           { 1.03 }
+    Client      : TFtpCtrlSocket;
+    var Keyword : TFtpString;
+    var Params  : TFtpString;
+    var Answer  : TFtpString);
+begin
+    if (FFtpSslTypes = []) or (ftpImplicitSsl in FFtpSslTypes) then begin
+        Answer := Format(msgCmdUnknown, [Keyword]);
+        Exit;
+    end;
+    if Client.FtpState <> ftpcReady then begin
+        Answer := msgNotLogged;
+        Exit;
+    end;
+    Client.CurCmdType := ftpcCCC;
+    if (Client.SslState <> sslEstablished) then begin
+        Answer := Format(msgErrInSslOnly, ['CCC']);
+        Exit;
+    end;
+    if (Client.CurFtpSslType = curftpSslNone) then begin
+        Answer := Format(msgAuthNoSupport, [Params]);
+        Exit;
+    end;
+    Answer := msgCccOk;
+    Client.CccFlag := TRUE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.CommandAUTH(
+    Client      : TFtpCtrlSocket;
+    var Keyword : TFtpString;
+    var Params  : TFtpString;
+    var Answer  : TFtpString);
+var
+    PlainAnswer : TFtpString;
+    TmpCurFtpSslType : TCurFtpSslType;
+begin
+    {
+    msgAuthOk         = '234 Using authentication type %s';
+    msgAuthDenied     = '502 %s authentication not allowed'; // SSL/TLS
+    msgAuthInitError  = '431 Could not initialize %s connection';
+    msgAuthNoSupport  = '504 Auth type "%s" not supported';
+
+    // AUTH TLS-P = AUTH SSL + PROT P
+    // AUTH TLS-C = AUTH SSL + PROT C
+    }
+    if (FFtpSslTypes = []) or (ftpImplicitSsl in FFtpSslTypes) then begin
+        Answer := Format(msgCmdUnknown, [Keyword]);
+        Exit;
+    end;
+
+    Client.CurCmdType := ftpcAUTH;
+    TmpCurFtpSslType  := curftpSslNone;
+    if      (Params = 'TLS')   and (ftpAuthTls  in FFtpSslTypes) then TmpCurFtpSslType := curftpAuthTls
+    else if (Params = 'SSL')   and (ftpAuthSsl  in FFtpSslTypes) then TmpCurFtpSslType := curftpAuthSsl
+    else if (Params = 'TLS-C') and (ftpAuthTlsC in FFtpSslTypes) then TmpCurFtpSslType := curftpAuthTlsC
+    else if (Params = 'TLS-P') and (ftpAuthTlsP in FFtpSslTypes) then TmpCurFtpSslType := curftpAuthTlsP;
+
+    if (TmpCurFtpSslType = curftpSslNone) then begin
+        Answer := Format(msgAuthNoSupport, [Params]);
+        Exit;
+    end;
+
+    try
+        Client.SslEnable                := True;
+        Client.SslMode                  := sslModeServer;
+        Client.SslContext               := FServSocket.SslContext;
+        Client.OnSslVerifyPeer          := TransferSslVerifyPeer;
+        Client.OnSslHandshakeDone       := TransferSslHandshakeDone;
+        Client.OnSslSvrNewSession       := TransferSslSvrNewSession;
+        Client.OnSslSvrGetSession       := TransferSslSvrGetSession;
+        Client.OnSslSetSessionIDContext := TransferSslSetSessionIDContext;
+        { AUTH in plaintext mode }
+        if (Client.SslState = sslNone) then begin
+            Client.AcceptSslHandshake;
+            PlainAnswer := Format(msgAuthOk, [Params]) ;
+            TriggerSendAnswer(Client, PlainAnswer);
+            PlainAnswer := PlainAnswer + #13#10;
+            Client.SslSendPlain(@PlainAnswer[1], Length(PlainAnswer));
+            Client.CurFtpSslType  := TmpCurFtpSslType;
+        end  { AUTH in SSL mode, negotiates a new SSL session }
+        else
+            if (Client.SslState = sslEstablished) and Assigned(Client.Ssl) then begin
+                if f_SSL_version(Client.SSL) >= SSL3_VERSION then
+                    Answer := msgAuthYetSetOkV3
+                else
+                    Answer := msgAuthYetSetOkV2;
+                Client.CurFtpSslType  := TmpCurFtpSslType;
+        end
+        else
+            Answer := Format(msgAuthDenied, ['SSL/TLS']);
+        Client.FtpState  := ftpcWaitingUserCode;     // Need to force re-login
+        if Client.CurFtpSslType <> curftpAuthTlsP then
+            Client.ProtP     := FALSE               // Need to reset prot-level as well
+        else
+            Client.ProtP     := TRUE;
+    except
+        Client.CurFtpSslType            := curftpSslNone;
+        Client.SslEnable                := False;
+        Client.OnSslVerifyPeer          := nil;
+        Client.OnSslHandshakeDone       := nil;
+        Client.OnSslSvrNewSession       := nil;
+        Client.OnSslSvrGetSession       := nil;
+        Client.OnSslSetSessionIDContext := nil;
+        Answer := Format(msgAuthInitError, [Params]);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ DATA CHANNEL PROTECTION LEVEL }
+procedure TSslFtpServer.CommandPROT(
+    Client      : TFtpCtrlSocket;
+    var Keyword : TFtpString;
+    var Params  : TFtpString;
+    var Answer  : TFtpString);
+begin
+    { Possible levels
+    C - Clear
+    S - Safe
+    E - Confidential
+    P - Private
+
+    msgProtOk         = '200 Protection level set to %s';
+    msgProtNotExists  = '504 Protection level ''%s'' not supported';
+    msgProtUnknown    = '504 Protection level ''%s'' not recognized';
+   }
+    if (FFtpSslTypes = []) then begin
+        Answer := Format(msgCmdUnknown, [Keyword]);
+        Exit;
+    end;
+    if Client.FtpState <> ftpcReady then begin
+        Answer := msgNotLogged;
+        Exit;
+    end;
+    Client.CurCmdType := ftpcPROT;
+    if (Client.SslState = sslEstablished) then
+    begin
+        if (Params = 'C') or (Params = 'P') then begin
+            Client.ProtP := Params = 'P';
+            Answer := Format(msgProtOK, [Params]);
+        end else
+        if (Params = 'S') or (Params = 'E') then
+            Answer := Format(msgProtNoSupport, [Params])
+        else
+            Answer := Format(msgProtUnknown, [Params])
+    end else
+       Answer := Format(msgErrInSslOnly, ['PROT']);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.CommandPBSZ(
+    Client      : TFtpCtrlSocket;
+    var Keyword : TFtpString;
+    var Params  : TFtpString;
+    var Answer  : TFtpString);
+begin
+    { Dummy command to fullfill RFC4217 }
+    if (FFtpSslTypes = []) then begin
+        Answer := Format(msgCmdUnknown, [Keyword]);
+        Exit;
+    end;
+    if Client.FtpState <> ftpcReady then begin
+        Answer := msgNotLogged;
+        Exit;
+    end;
+    if (Client.SslState = sslEstablished) then
+    begin
+        Client.CurCmdType := ftpcPBSZ;
+        Answer            := msgPbszOk;
+    end
+    else
+        Answer := Format(msgErrInSslOnly, ['PBSZ']);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TSslFtpServer.Create(AOwner: TComponent);
+begin
+    inherited Create(AOwner);
+    FFtpSslTypes   := [];
+    AddCommand('AUTH', CommandAUTH);
+    AddCommand('PROT', CommandPROT);
+    AddCommand('PBSZ', CommandPBSZ);
+    AddCommand('CCC',  CommandCCC);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslFtpServer.GetSslContext: TSslContext;
+begin
+    Result := FServSocket.SslContext
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.SetSslContext(Value: TSslContext);
+begin
+    FServSocket.SslContext := Value
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.SendAnswer(Client: TFtpCtrlSocket;
+  Answer: TFtpString);
+begin
+    if (Client.CurCmdType = ftpcAUTH) and (Answer = '') then
+        Exit;
+    inherited SendAnswer(Client, Answer);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.TransferSslHandshakeDone(Sender: TObject;
+  ErrCode: Word; PeerCert: TX509Base; var Disconnect: Boolean);
+var
+    Client  : TFtpCtrlSocket;
+begin
+    if Assigned(FOnSslHandshakeDone) then
+        FOnSslHandshakeDone(Sender, ErrCode, PeerCert, Disconnect);
+    { If SSL handshake failed fatal the socket has been closed already. }
+    { Then a "226 File OK" is sent anyway, even with code below.        } //fix needed?
+    if (ErrCode <> 0) or Disconnect then begin
+        if not (Sender is TFtpCtrlSocket) then begin
+            Client := TFtpCtrlSocket((Sender as TWSocket).Owner);
+            Client.AbortingTransfer := TRUE;
+            Client.TransferError    := 'SSL handshake failed';
+            PostMessage(FHandle, FMsg_WM_FTPSRV_Close_Data,
+                        WPARAM(Client.ID), LPARAM(Client));
+            Disconnect := FALSE;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.TransferSslSetSessionIDContext(Sender: TObject;
+  var SessionIDContext: TSslSessionIdContext);
+begin
+    if Assigned(FOnSslSetSessionIDContext) then
+        FOnSslSetSessionIDContext(Sender, SessionIDContext);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.TransferSslSvrGetSession(Sender: TObject;
+  var SslSession: Pointer; SessId: Pointer; Idlen: Integer;
+  var IncRefCount: Boolean);
+begin
+    if Assigned(FOnSslSvrGetSession) then
+        FOnSslSvrGetSession(Sender, SslSession, SessId, IdLen, IncRefCount);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.TransferSslSvrNewSession(Sender: TObject;
+  SslSession, SessId: Pointer; Idlen: Integer;
+  var AddToInternalCache: Boolean);
+begin
+    if Assigned(FOnSslSvrNewSession) then
+        FOnSslSvrNewSession(Sender, SslSession, SessID, IDLen, AddToInternalCache);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.TransferSslVerifyPeer(Sender: TObject;
+  var Ok: Integer; Cert: TX509Base);
+begin
+    if Assigned(FOnSslVerifyPeer) then
+        FOnSslVerifyPeer(Sender, Ok, Cert);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.TriggerClientConnect(
+    Client  : TFtpCtrlSocket;
+    AError  : Word);
+begin
+    inherited TriggerClientConnect(Client, AError);
+    if FClientList.IndexOf(Client) < 0 then
+        Exit;
+    { The event handler may have closed the connection }
+    if Client.State <> wsConnected then
+        Exit;
+    Client.SslEnable  := ftpImplicitSsl in TSslFtpServer(Self).FFtpSslTypes;
+    if Client.SslEnable then begin
+        Client.CurFtpSslType            := curftpImplicitSsl;
+        Client.SslMode                  := sslModeServer;
+        Client.SslContext               := FServSocket.SslContext;
+        Client.OnSslVerifyPeer          := TransferSslVerifyPeer;
+        Client.OnSslHandshakeDone       := TransferSslHandshakeDone;
+        Client.OnSslSvrNewSession       := TransferSslSvrNewSession;
+        Client.OnSslSvrGetSession       := TransferSslSvrGetSession;
+        Client.OnSslSetSessionIDContext := TransferSslSetSessionIDContext;
+        try
+            Client.AcceptSslHandshake;
+        except
+            Client.SslEnable := False;
+            Client.Banner := msgErrSslInit;
+            Client.StartConnection;
+            Client.Close;
+        end;
+    end;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.ClientPassiveSessionAvailable(Sender : TObject; AError : Word);
+var
+    Client  : TFtpCtrlSocket;
+    Data    : TWSocket;
+begin
+    Data    := TWSocket(Sender);
+    Client  := TFtpCtrlSocket(Data.Owner);
+    Client.DataSocket.SslEnable := False; // we need to start SSL by ourself
+
+    inherited ClientPassiveSessionAvailable(Sender, AError);
+
+    if (not Client.PassiveStart) and Client.ProtP and
+       (Client.DataSocket.SslState = sslNone) then
+    begin
+        Client.DataSocket.SslEnable                 := TRUE;
+        Client.DataSocket.SslMode                   := sslModeServer;
+        Client.DataSocket.SslContext                := SslContext;
+        Client.DataSocket.OnSslVerifyPeer           := TransferSslVerifyPeer;
+        Client.DataSocket.OnSslHandshakeDone        := TransferSslHandshakeDone;
+        Client.DataSocket.OnSslSvrNewSession        := TransferSslSvrNewSession;
+        Client.DataSocket.OnSslSvrGetSession        := TransferSslSvrGetSession;
+        Client.DataSocket.OnSslSetSessionIDContext  := TransferSslSetSessionIDContext;
+        try
+            Client.DataSocket.AcceptSslHandshake;
+        except
+            Client.DataSocket.SslEnable                := False;
+            Client.DataSocket.OnSslVerifyPeer          := nil;
+            Client.DataSocket.OnSslHandshakeDone       := nil;
+            Client.DataSocket.OnSslSvrNewSession       := nil;
+            Client.DataSocket.OnSslSvrGetSession       := nil;
+            Client.DataSocket.OnSslSetSessionIDContext := nil;
+            SendAnswer(Client, Format(msgAuthInitError, ['SSL']));
+            PostMessage(FHandle, FMsg_WM_FTPSRV_Close_Data,
+                        WPARAM(Client.ID), LPARAM(Client));
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.TriggerStorSessionConnected(Client: TFtpCtrlSocket;
+  Data: TWSocket; AError: Word);
+begin
+    inherited TriggerStorSessionConnected(Client, Data, AError);
+    if ((not Client.PassiveStart) and Client.PassiveConnected) or
+       (AError <> 0) then
+        Exit;
+    Client.DataSocket.SslEnable := False;
+    if (Client.DataSocket.State = wsConnected) then
+    begin
+        if Client.ProtP and (Client.DataSocket.SslState = sslNone) then
+        begin
+            Client.DataSocket.SslEnable                 := True;
+            Client.DataSocket.SslMode                   := sslModeServer;
+            Client.DataSocket.SslContext                := SslContext;
+            Client.DataSocket.OnSslVerifyPeer           := TransferSslVerifyPeer;
+            Client.DataSocket.OnSslHandshakeDone        := TransferSslHandshakeDone;
+            Client.DataSocket.OnSslSvrNewSession        := TransferSslSvrNewSession;
+            Client.DataSocket.OnSslSvrGetSession        := TransferSslSvrGetSession;
+            Client.DataSocket.OnSslSetSessionIDContext  := TransferSslSetSessionIDContext;
+            try
+                Client.DataSocket.AcceptSslHandshake;
+            except
+                Client.DataSocket.SslEnable := False;
+                Client.DataSocket.OnSslVerifyPeer           := nil;
+                Client.DataSocket.OnSslHandshakeDone        := nil;
+                Client.DataSocket.OnSslSvrNewSession        := nil;
+                Client.DataSocket.OnSslSvrGetSession        := nil;
+                Client.DataSocket.OnSslSetSessionIDContext  := nil;
+                Client.AbortingTransfer := TRUE;
+                Client.TransferError    := msgErrSslInit;
+                PostMessage(FHandle, FMsg_WM_FTPSRV_ABORT_TRANSFER,
+                        WPARAM(Client.ID), LPARAM(Client));
+            end;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.TriggerRetrSessionConnected(Client: TFtpCtrlSocket;
+  Data: TWSocket; AError: Word);
+begin
+    inherited TriggerRetrSessionConnected(Client, Data, AError);
+
+    if ((not Client.PassiveStart) and Client.PassiveConnected) or
+       (AError <> 0) then
+        Exit;
+
+    Client.DataSocket.SslEnable := False;
+    if Client.ProtP and (Client.DataSocket.SslState = sslNone) then begin
+        Client.DataSocket.SslEnable                 := True;
+        Client.DataSocket.SslMode                   := sslModeServer;
+        Client.DataSocket.SslContext                := SslContext;
+        Client.DataSocket.OnSslVerifyPeer           := TransferSslVerifyPeer;
+        Client.DataSocket.OnSslHandshakeDone        := TransferSslHandshakeDone;
+        Client.DataSocket.OnSslSvrNewSession        := TransferSslSvrNewSession;
+        Client.DataSocket.OnSslSvrGetSession        := TransferSslSvrGetSession;
+        Client.DataSocket.OnSslSetSessionIDContext  := TransferSslSetSessionIDContext;
+        try
+            Client.DataSocket.AcceptSslHandshake;
+        except
+            Client.DataSocket.SslEnable                := False;
+            Client.DataSocket.OnSslVerifyPeer          := nil;
+            Client.DataSocket.OnSslHandshakeDone       := nil;
+            Client.DataSocket.OnSslSvrNewSession       := nil;
+            Client.DataSocket.OnSslSvrGetSession       := nil;
+            Client.DataSocket.OnSslSetSessionIDContext := nil;
+            Client.AbortingTransfer := TRUE;
+            raise Exception.Create(msgErrSslInit);
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslFtpServer.MsgHandlersCount : Integer;
+begin
+    Result := 2 + inherited MsgHandlersCount;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.AllocateMsgHandlers;
+begin
+    inherited AllocateMsgHandlers;
+    FMsg_WM_FTPSRV_ABORT_TRANSFER    := FWndHandler.AllocateMsgHandler(Self);
+    FMsg_WM_FTPSRV_Close_Data     := FWndHandler.AllocateMsgHandler(Self);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServer.FreeMsgHandlers;
+begin
+    if Assigned(FWndHandler) then begin
+        FWndHandler.UnregisterMessage(FMsg_WM_FTPSRV_ABORT_TRANSFER);
+        FWndHandler.UnregisterMessage(FMsg_WM_FTPSRV_Close_Data);
+    end;
+    inherited FreeMsgHandlers;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF} // USE_SSL
 
 end.
 

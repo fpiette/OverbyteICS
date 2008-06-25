@@ -994,8 +994,135 @@ type
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-    {$I OverbyteIcsHttpSrvIntfSsl.inc}
+{*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+Author:       François PIETTE
+Description:  A component adding SSL support to THttpServer.
+              This unit contains the interface for the component.
+              It is included in HttpSrv.pas unit when USE_SSL is defined.
+              The implementation part is in HttpSrvImplSsl.inc.
+              Make use of OpenSSL (http://www.openssl.org).
+              Make use of freeware TSslWSocket component from ICS.
+Creation:     Jul 20, 2003
+Version:      1.00
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+Support:      Use the mailing list ics-ssl@elists.org
+              Follow "SSL" link at http://www.overbyte.be for subscription.
+Legal issues: Copyright (C) 2003-2005 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              <francois.piette@overbyte.be>
+              SSL implementation includes code written by Arno Garrels,
+              Berlin, Germany, contact: <arno.garrels@gmx.de>
+
+              This software is provided 'as-is', without any express or
+              implied warranty.  In no event will the author be held liable
+              for any  damages arising from the use of this software.
+
+              This code is _NOT_ freeware nor Open Source.
+              To use it, you must financially contribute to the development.
+              See SSL page on the author website for details.
+
+              Once you got the right to use this software, you can use in your
+              own applications only. Distributing the source code or compiled
+              units or packages is prohibed.
+
+              As this code make use of OpenSSL, your rights are restricted by
+              OpenSSL license. See http://www.openssl.org for details.
+
+              Further, the following restrictions applies:
+
+              1. The origin of this software must not be misrepresented,
+                 you must not claim that you wrote the original software.
+                 If you use this software in a product, an acknowledgment
+                 in the product documentation would be appreciated but is
+                 not required.
+
+              2. Altered source versions must be plainly marked as such, and
+                 must not be misrepresented as being the original software.
+
+              3. This notice may not be removed or altered from any source
+                 distribution.
+
+              4. You must register this software by sending a picture postcard
+                 to the author. Use a nice stamp and mention your name, street
+                 address, EMail address and any comment you like to say.
+
+History:
+
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF VER80}
+    Bomb('This unit require a 32 bit compiler !');
 {$ENDIF}
+{$B-}                                 { Enable partial boolean evaluation   }
+{$T-}                                 { Untyped pointers                    }
+{$X+}                                 { Enable extended syntax              }
+{$H+}                                 { Use long strings                    }
+{$J+}                                 { Allow typed constant to be modified }
+
+const
+     SslHttpSrvVersion            = 100;
+     SslHttpSrvDate               = 'Jul 20, 2003';
+     SslHttpSrvCopyRight : String = ' TSslHttpSrv (c) 2003-2005 Francois Piette V1.00.0 ';
+
+type
+    TSslHttpServer = class(THttpServer)
+    protected
+        FOnSslHandshakeDone            : TSslHandshakeDoneEvent;
+        FOnSslVerifyPeer : TSslVerifyPeerEvent;
+        FOnSslSetSessionIDContext      : TSslSetSessionIDContext;
+        FOnSslSvrNewSession            : TSslSvrNewSession;
+        FOnSslSvrGetSession            : TSslSvrGetSession;
+        procedure CreateSocket; override;
+        procedure SetSslContext(Value: TSslContext);
+        function  GetSslContext: TSslContext;
+        procedure SetSslAcceptableHosts(Value : TStrings);
+        function  GetSslAcceptableHosts: TStrings;
+        procedure TransferSslVerifyPeer(Sender        : TObject;
+                                        var Ok        : Integer;
+                                        Cert          : TX509Base); virtual;
+        procedure TransferSslHandshakeDone(Sender         : TObject;
+                                           ErrCode        : Word;
+                                           PeerCert       : TX509Base;
+                                           var Disconnect : Boolean); virtual;
+        procedure TransferSslSetSessionIDContext(Sender : TObject;
+                                          var SessionIDContext : TSslSessionIdContext); virtual;
+        procedure TransferSslSvrNewSession(Sender          : TObject;
+                                        SslSession      : Pointer;
+                                        SessId          : Pointer;
+                                        Idlen           : Integer;
+                                 var AddToInternalCache : Boolean); virtual;
+        procedure TransferSslSvrGetSession(Sender          : TObject;
+                                         var SslSession : Pointer;
+                                         SessId         : Pointer;
+                                         Idlen          : Integer;
+                                         var IncRefCount: Boolean); virtual;
+        procedure WSocketServerClientConnect(Sender  : TObject;
+                                             Client  : TWSocketClient;
+                                             ErrCode : Word); override;
+        procedure WSocketServerClientCreate(Sender : TObject;
+                                            Client : TWSocketClient); override;
+    public
+        constructor Create(AOwner : TComponent); override;
+        destructor  Destroy; override;
+        procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
+    published
+        property  SslContext         : TSslContext         read  GetSslContext
+                                                           write SetSslContext;
+        property  OnSslVerifyPeer    : TSslVerifyPeerEvent read  FOnSslVerifyPeer
+                                                           write FOnSslVerifyPeer;
+        property  OnSslSetSessionIDContext : TSslSetSessionIDContext
+                                                           read  FOnSslSetSessionIDContext
+                                                           write FOnSslSetSessionIDContext;
+        property  OnSslSvrNewSession : TSslSvrNewSession   read  FOnSslSvrNewSession
+                                                           write FOnSslSvrNewSession;
+        property  OnSslSvrGetSession : TSslSvrGetSession   read  FOnSslSvrGetSession
+                                                           write FOnSslSvrGetSession;
+        property  OnSslHandshakeDone : TSslHandshakeDoneEvent
+                                                           read  FOnSslHandshakeDone
+                                                           write FOnSslHandshakeDone;
+    end;
+
+{$ENDIF} // USE_SSL
 
 { Retrieve a single value by name out of an cookies string.                 }
 function GetCookieValue(
@@ -4458,8 +4585,147 @@ end;
 { To be able to compile the component, you must have the SSL related files  }
 { which are _NOT_ freeware. See http://www.overbyte.be for details.         }
 {$IFDEF USE_SSL}
-    {$I OverbyteIcsHttpSrvImplSsl.inc}
-{$ENDIF}
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+constructor TSslHttpServer.Create(AOwner: TComponent);
+begin
+    inherited Create(AOwner);
+    //SslVersionMethod       := sslV23_SERVER;
+    FWSocketServer.SslMode                  := sslModeServer;
+    FWSocketServer.OnSslVerifyPeer          := TransferSslVerifyPeer;
+    FWSocketServer.OnSslSetSessionIDContext := TransferSslSetSessionIDContext;
+    FWSocketServer.OnSslSvrNewSession       := TransferSslSvrNewSession;
+    FWSocketServer.OnSslSvrGetSession       := TransferSslSvrGetSession;
+    FWSocketServer.OnSslHandshakeDone       := TransferSslHandshakeDone;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TSslHttpServer.Destroy;
+begin
+    inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpServer.CreateSocket;
+begin
+    FWSocketServer := TSslWSocketServer.Create(Self);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpServer.WSocketServerClientCreate(
+    Sender : TObject;
+    Client : TWSocketClient);
+begin
+    THttpConnection(Client).OnSslSetSessionIDContext := TransferSslSetSessionIDContext;
+    THttpConnection(Client).OnSslVerifyPeer          := TransferSslVerifyPeer;
+    THttpConnection(Client).OnSslSvrNewSession       := TransferSslSvrNewSession;
+    THttpConnection(Client).OnSslSvrGetSession       := TransferSslSvrGetSession;
+    THttpConnection(Client).OnSslSetSessionIDContext := TransferSslSetSessionIDContext;
+    THttpConnection(Client).OnSslHandshakeDone       := TransferSslHandshakeDone;
+    inherited WSocketServerClientCreate(Sender, Client);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslHttpServer.GetSslContext: TSslContext;
+begin
+    Result := FWSocketServer.SslContext
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpServer.SetSslContext(Value: TSslContext);
+begin
+    FWSocketServer.SslContext := Value
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpServer.SetSslAcceptableHosts(Value : TStrings);
+begin
+    TSslWSocketServer(FWSocketServer).SslAcceptableHosts := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  TSslHttpServer.GetSslAcceptableHosts: TStrings;
+begin
+    Result := TSslWSocketServer(FWSocketServer).SslAcceptableHosts;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpServer.TransferSslVerifyPeer(
+    Sender        : TObject;
+    var Ok        : Integer;
+    Cert          : TX509Base);
+begin
+    if Assigned(FOnSslVerifyPeer) then
+        FOnSslVerifyPeer(Sender, Ok, Cert);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpServer.TransferSslSetSessionIDContext(Sender: TObject;
+    var SessionIDContext: TSslSessionIdContext);
+begin
+    if Assigned(FOnSslSetSessionIDContext) then
+        FOnSslSetSessionIDContext(Sender, SessionIDContext);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpServer.TransferSslSvrGetSession(Sender: TObject;
+    var SslSession : Pointer; SessId: Pointer; IdLen: Integer;
+    var IncRefCount: Boolean);
+begin
+    if Assigned(FOnSslSvrGetSession) then
+        FOnSslSvrGetSession(Sender, SslSession, SessId, IdLen, IncRefCount);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpServer.TransferSslSvrNewSession(Sender: TObject;
+    SslSession: Pointer; SessId : Pointer; Idlen : Integer;
+    var AddToInternalCache : Boolean);
+begin
+    if Assigned(FOnSslSvrNewSession) then
+        FOnSslSvrNewSession(Sender, SslSession, SessID, IDLen, AddToInternalCache);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpServer.TransferSslHandshakeDone(Sender: TObject;
+    ErrCode: Word; PeerCert: TX509Base;  var Disconnect : Boolean);
+begin
+    if Assigned(FOnSslHandshakeDone) then
+        FOnSslHandshakeDone(Sender, ErrCode, PeerCert, Disconnect);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpServer.WSocketServerClientConnect(
+    Sender  : TObject;
+    Client  : TWSocketClient;
+    ErrCode : Word);
+begin
+    inherited WSocketServerClientConnect(Sender, Client, ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpServer.SetAcceptableHostsList(
+    const SemiColonSeparatedList : String);
+begin
+    FWSocketServer.SetAcceptableHostsList(SemiColonSeparatedList);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF} // USE_SSL
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

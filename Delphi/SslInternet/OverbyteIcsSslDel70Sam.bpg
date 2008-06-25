@@ -1,0 +1,47 @@
+#------------------------------------------------------------------------------
+VERSION = BWS.01
+#------------------------------------------------------------------------------
+!ifndef ROOT
+ROOT = $(MAKEDIR)\..
+!endif
+#------------------------------------------------------------------------------
+MAKE = $(ROOT)\bin\make.exe -$(MAKEFLAGS) -f$**
+DCC = $(ROOT)\bin\dcc32.exe $**
+BRCC = $(ROOT)\bin\brcc32.exe $**
+#------------------------------------------------------------------------------
+PROJECTS = OverbyteIcsSslDel70.bpl OverbyteIcsSslWebServ.exe \
+  OverbyteIcsSslFtpServ.exe OverbyteIcsSslFtpTst.exe OverbyteIcsSslMailSnd.exe \
+  OverbyteIcsSslNewsRdr.exe OverbyteIcsSimpleSslCli.exe \
+  OverbyteIcsHttpsServer.exe OverbyteIcsPemTool.exe
+#------------------------------------------------------------------------------
+default: $(PROJECTS)
+#------------------------------------------------------------------------------
+
+OverbyteIcsSslDel70.bpl: ..\Vc32\OverbyteIcsSslDel70.dpk
+  $(DCC)
+
+OverbyteIcsSslWebServ.exe: OverbyteIcsSslWebServ.dpr
+  $(DCC)
+
+OverbyteIcsSslFtpServ.exe: OverbyteIcsSslFtpServ.dpr
+  $(DCC)
+
+OverbyteIcsSslFtpTst.exe: OverbyteIcsSslFtpTst.dpr
+  $(DCC)
+
+OverbyteIcsSslMailSnd.exe: OverbyteIcsSslMailSnd.dpr
+  $(DCC)
+
+OverbyteIcsSslNewsRdr.exe: OverbyteIcsSslNewsRdr.dpr
+  $(DCC)
+
+OverbyteIcsSimpleSslCli.exe: OverbyteIcsSimpleSslCli.dpr
+  $(DCC)
+
+OverbyteIcsHttpsServer.exe: OverbyteIcsHttpsServer.dpr
+  $(DCC)
+
+OverbyteIcsPemTool.exe: OverbyteIcsPemTool.dpr
+  $(DCC)
+
+

@@ -2196,6 +2196,7 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF USE_MODEZ}
 procedure ZlibOnProgress(
     Sender: TObject;
     Count: Int64;
@@ -2208,7 +2209,7 @@ begin
         MyClient.FOnZlibProgress (Sender, Count, Cancel);
     end;
 end;
-
+{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomFtpCli.DestroyLocalStream;

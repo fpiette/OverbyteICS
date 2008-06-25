@@ -1,3 +1,44 @@
+{*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+Author:       Arno Garrels
+Description:  Some more function headers of LIBEAY32.DLL which are not
+              declared/used in OverbyteIcsLibeay.pas (OpenSSL)
+              This is only the subset and may grow.
+Creation:     Jan 12, 2003
+Version:      1.00
+EMail:        arno.garrels@gmx.de
+Support:      Use the mailing list ics@elists.org
+              Follow the link at http://www.overbyte.be for subscription.
+Legal issues: Copyright (C) 2003-2008 by Arno Garrels created for use with
+              ICS.
+              This software is provided 'as-is', without any express or
+              implied warranty.  In no event will the author be held liable
+              for any  damages arising from the use of this software.
+
+              As this code make use of OpenSSL, your rights are restricted by
+              OpenSSL license. See http://www.openssl.org for details.
+
+              Further, the following restrictions applies:
+
+              1. The origin of this software must not be misrepresented,
+                 you must not claim that you wrote the original software.
+                 If you use this software in a product, an acknowledgment
+                 in the product documentation would be appreciated but is
+                 not required.
+
+              2. Altered source versions must be plainly marked as such, and
+                 must not be misrepresented as being the original software.
+
+              3. This notice may not be removed or altered from any source
+                 distribution.
+
+              4. You must register this software by sending a picture postcard
+                 to the author. Use a nice stamp and mention your name, street
+                 address, EMail address and any comment you like to say.
+
+History:
+
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
 {$T-}                                 { Untyped pointers                    }
 {$X+}                                 { Enable extended syntax              }
@@ -147,7 +188,6 @@ f_EVP_md5                 : function: PEVP_MD; cdecl = nil;
 
 var
   LibeayExLoaded: Boolean = FALSE;
-  THE_GLIBEAY_DLL_Handle : THandle = 0;
 
 procedure LoadLibeayEx;
 function  IcsRandSeedFromFile(const FileName: String; MaxBytes: Integer = -1): Integer;
@@ -232,17 +272,9 @@ procedure LoadLibeayEx;
 const
     Msg = 'GetProcAddress failed ';
 begin
-    {if not Load then Exit;
-    LibeayExLoaded :=  LibeayExLoaded and (GLIBEAY_DLL_Handle = THE_GLIBEAY_DLL_Handle);
-    if not LibeayExLoaded then
-        THE_GLIBEAY_DLL_Handle := GLIBEAY_DLL_Handle
-    else
-        Exit;}
-
     if LibeayExLoaded and (GLIBEAY_DLL_Handle <> 0) then Exit;
     if GLIBEAY_DLL_Handle = 0 then
         Load;
-
     f_RAND_pseudo_bytes := GetProcAddress(GLIBEAY_DLL_Handle, 'RAND_pseudo_bytes');
     if not Assigned(f_RAND_pseudo_bytes) then
         raise Exception.Create(Msg + 'RAND_pseudo_bytes');

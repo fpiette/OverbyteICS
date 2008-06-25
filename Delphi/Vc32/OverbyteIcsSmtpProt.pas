@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      6.08
+Version:      6.09
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -293,9 +293,13 @@ Aug 29, 2007 V6.05  A. Garrels: FLineOffset was not reset properly, see
                     basically a copy of OnAttachContentType with an additional
                     parameter (idea of the feature Bjørnar Nielsen).
 Dec 29, 2007 V6.06  A.Garrels made WSocketSessionConnected virtual (SSL).
-Feb 11, 2008 V6.07  Angus SSL version now supports sync methods                    
+Feb 11, 2008 V6.07  Angus SSL version now supports sync methods
 Mar 24, 2008 V6.08  Francois Piette made some changes to prepare code
                     for Unicode.
+Apr 08, 2008 V6.09  A.Garrels wrapped some method calls in DoHighLevelAsync
+                    in a try-except block to trigger RequestDone with error
+                    '500 Internal client error' and the exception message.
+                    This bug was found by Bjørnar Nielsen.
                     
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -341,8 +345,8 @@ uses
     OverbyteIcsMimeUtils;
 
 const
-  SmtpCliVersion     = 608;
-  CopyRight : String = ' SMTP component (c) 1997-2008 Francois Piette V6.08 ';
+  SmtpCliVersion     = 609;
+  CopyRight : String = ' SMTP component (c) 1997-2008 Francois Piette V6.09 ';
   smtpProtocolError  = 20600; {AG}
 
 {$IFDEF VER80}
@@ -2803,66 +2807,80 @@ begin
         end;
     end;
 
-    if smtpFctConnect in FFctSet then begin
-        FFctPrv := smtpFctConnect;
-        FFctSet := FFctSet - [FFctPrv];
-        Connect;
-        Exit;
-    end;
+    try
+        if smtpFctConnect in FFctSet then begin
+            FFctPrv := smtpFctConnect;
+            FFctSet := FFctSet - [FFctPrv];
+            Connect;
+            Exit;
+        end;
 
-    if smtpFctHelo in FFctSet then begin
-        FFctPrv := smtpFctHelo;
-        FFctSet := FFctSet - [FFctPrv];
-        Helo;
-        Exit;
-    end;
+        if smtpFctHelo in FFctSet then begin
+            FFctPrv := smtpFctHelo;
+            FFctSet := FFctSet - [FFctPrv];
+            Helo;
+            Exit;
+        end;
 
-    if smtpFctEhlo in FFctSet then begin
-        FFctPrv := smtpFctEhlo;
-        FFctSet := FFctSet - [FFctPrv];
-        Ehlo;
-        Exit;
-    end;
-    if smtpFctAuth in FFctSet then begin
-        FFctPrv := smtpFctAuth;
-        FFctSet := FFctSet - [FFctPrv];
-        Auth;
-        Exit;
-    end;
+        if smtpFctEhlo in FFctSet then begin
+            FFctPrv := smtpFctEhlo;
+            FFctSet := FFctSet - [FFctPrv];
+            Ehlo;
+            Exit;
+        end;
 
-    if smtpFctVrfy in FFctSet then begin
-        FFctPrv := smtpFctVrfy;
-        FFctSet := FFctSet - [FFctPrv];
-        Vrfy;
-        Exit;
-    end;
+        if smtpFctAuth in FFctSet then begin
+            FFctPrv := smtpFctAuth;
+            FFctSet := FFctSet - [FFctPrv];
+            Auth;
+            Exit;
+        end;
 
-    if smtpFctMailFrom in FFctSet then begin
-        FFctPrv := smtpFctMailFrom;
-        FFctSet := FFctSet - [FFctPrv];
-        MailFrom;
-        Exit;
-    end;
+        if smtpFctVrfy in FFctSet then begin
+            FFctPrv := smtpFctVrfy;
+            FFctSet := FFctSet - [FFctPrv];
+            Vrfy;
+            Exit;
+        end;
 
-    if smtpFctRcptTo in FFctSet then begin
-        FFctPrv := smtpFctRcptTo;
-        FFctSet := FFctSet - [FFctPrv];
-        RcptTo;
-        Exit;
-    end;
+        if smtpFctMailFrom in FFctSet then begin
+            FFctPrv := smtpFctMailFrom;
+            FFctSet := FFctSet - [FFctPrv];
+            MailFrom;
+            Exit;
+        end;
 
-    if smtpFctData in FFctSet then begin
-        FFctPrv := smtpFctData;
-        FFctSet := FFctSet - [FFctPrv];
-        Data;
-        Exit;
-    end;
+        if smtpFctRcptTo in FFctSet then begin
+            FFctPrv := smtpFctRcptTo;
+            FFctSet := FFctSet - [FFctPrv];
+            RcptTo;
+            Exit;
+        end;
 
-    if smtpFctQuit in FFctSet then begin
-        FFctPrv := smtpFctQuit;
-        FFctSet := FFctSet - [FFctPrv];
-        Quit;
-        Exit;
+        if smtpFctData in FFctSet then begin
+            FFctPrv := smtpFctData;
+            FFctSet := FFctSet - [FFctPrv];
+            Data;
+            Exit;
+        end;
+
+        if smtpFctQuit in FFctSet then begin
+            FFctPrv := smtpFctQuit;
+            FFctSet := FFctSet - [FFctPrv];
+            Quit;
+            Exit;
+        end;
+
+    except
+        on E : Exception do begin
+          {$IFDEF TRACE}
+            TriggerDisplay('! ' + E.ClassName + ': "' + E.Message + '"');
+          {$ENDIF}
+            FHighLevelResult := 500;
+            FRequestResult   := 500;
+            FErrorMessage    := '500 Internal client error ' +
+                                E.ClassName + ': "' + E.Message + '"';
+        end;
     end;
 
     {$IFDEF TRACE} TriggerDisplay('! HighLevelAsync done'); {$ENDIF}

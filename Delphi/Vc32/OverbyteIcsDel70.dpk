@@ -97,6 +97,7 @@ contains
   OverbyteIcsCRC in 'OverbyteIcsCRC.pas',
   OverbyteIcsMultiProgressBar in 'OverbyteIcsMultiProgressBar.pas',
   OverbyteIcsMultipartHttpDownloader in 'OverbyteIcsMultipartHttpDownloader.pas',
-  OverbyteIcsMultipartFtpDownloader in 'OverbyteIcsMultipartFtpDownloader.pas';
+  OverbyteIcsMultipartFtpDownloader in 'OverbyteIcsMultipartFtpDownloader.pas',
+  OverbyteIcsOneTimePw in 'OverbyteIcsOneTimePw.pas';
 
 end.

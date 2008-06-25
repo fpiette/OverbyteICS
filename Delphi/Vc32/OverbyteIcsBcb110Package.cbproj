@@ -218,6 +218,8 @@
     </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsWSocketS.pas">
       <BuildOrder>67</BuildOrder>
+	<DelphiCompile Include="OverbyteIcsOneTimePw.pas">
+      <BuildOrder>68</BuildOrder>  
     </DelphiCompile>
     <None Include="OverbyteIcsDnsQuery.dcr">
       <BuildOrder>7</BuildOrder>

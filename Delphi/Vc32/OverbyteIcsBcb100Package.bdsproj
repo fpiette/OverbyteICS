@@ -235,6 +235,7 @@
         <FILE FILENAME="OverbyteIcsMultiProgressBar.dcr" CONTAINERID="DcrTool" LOCALCOMMAND="" UNITNAME="" FORMNAME="" DESIGNCLASS=""/>
         <FILE FILENAME="OverbyteIcsMimeDec.pas" CONTAINERID="PascalCompiler" LOCALCOMMAND="" UNITNAME="OverbyteIcsMimeDec" FORMNAME="" DESIGNCLASS=""/>
         <FILE FILENAME="OverbyteIcsMimeDec.dcr" CONTAINERID="DcrTool" LOCALCOMMAND="" UNITNAME="" FORMNAME="" DESIGNCLASS=""/>
+		<FILE FILENAME="OverbyteIcsOneTimePw.pas" CONTAINERID="PascalCompiler" LOCALCOMMAND="" UNITNAME="OverbyteIcsOneTimePw" FORMNAME="" DESIGNCLASS=""/>
       </FILELIST>
       <IDEOPTIONS>
         <VersionInfo>

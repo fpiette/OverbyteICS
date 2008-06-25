@@ -2,8 +2,6 @@ object SmtpTestForm: TSmtpTestForm
   Left = 93
   Top = 294
   Caption = 'SmtpTestForm'
-  ClientHeight = 441
-  ClientWidth = 600
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -35,7 +33,6 @@ object SmtpTestForm: TSmtpTestForm
     ScrollBars = ssBoth
     ShowHint = True
     TabOrder = 0
-    ExplicitWidth = 608
   end
   object DisplayMemo: TMemo
     Left = 0
@@ -57,8 +54,6 @@ object SmtpTestForm: TSmtpTestForm
     ScrollBars = ssBoth
     ShowHint = True
     TabOrder = 1
-    ExplicitWidth = 608
-    ExplicitHeight = 55
   end
   object ToolsPanel: TPanel
     Left = 0
@@ -67,7 +62,6 @@ object SmtpTestForm: TSmtpTestForm
     Height = 185
     Align = alTop
     TabOrder = 2
-    ExplicitWidth = 608
     object Label1: TLabel
       Left = 22
       Top = 11
@@ -343,7 +337,7 @@ object SmtpTestForm: TSmtpTestForm
       ParentShowHint = False
       ShowHint = True
       TabOrder = 19
-      OnClick = DataButtonClick
+      OnClick = OpenButtonClick
     end
     object UsernameEdit: TEdit
       Left = 80
@@ -459,7 +453,6 @@ object SmtpTestForm: TSmtpTestForm
     Height = 17
     Align = alTop
     TabOrder = 3
-    ExplicitWidth = 608
     object Label6: TLabel
       Left = 16
       Top = 2
@@ -487,7 +480,6 @@ object SmtpTestForm: TSmtpTestForm
     ScrollBars = ssVertical
     ShowHint = True
     TabOrder = 4
-    ExplicitWidth = 608
   end
   object InfoPanel: TPanel
     Left = 0
@@ -496,7 +488,6 @@ object SmtpTestForm: TSmtpTestForm
     Height = 17
     Align = alTop
     TabOrder = 5
-    ExplicitWidth = 608
     object Label7: TLabel
       Left = 16
       Top = 2

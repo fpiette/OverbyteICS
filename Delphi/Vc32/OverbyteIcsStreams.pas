@@ -4,9 +4,13 @@ Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Oct 25, 2005
 Description:  Fast streams for ICS tested on D5 and D7.
 Version:      6.06
-Legal issues: Copyright (C) 2005 by Arno Garrels, Berlin, Germany,
-              contact: <arno.garrels@gmx.de>
-              
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+Support:      Use the mailing list twsocket@elists.org
+              Follow "support" link at http://www.overbyte.be for subscription.
+Legal issues: Copyright (C) 2005-2008 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              <francois.piette@overbyte.be>
+
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
               for any  damages arising from the use of this software.
@@ -27,6 +31,11 @@ Legal issues: Copyright (C) 2005 by Arno Garrels, Berlin, Germany,
 
               3. This notice may not be removed or altered from any source
                  distribution.
+
+              4. You must register this software by sending a picture postcard
+                 to the author. Use a nice stamp and mention your name, street
+                 address, EMail address and any comment you like to say.
+
 
 History:
 Jan 05, 2006 V1.01 F. Piette added missing resourcestring for Delphi 6

@@ -1,24 +1,26 @@
 {*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-Author:       Arno Garrels
+Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  Some more function headers of LIBEAY32.DLL which are not
               declared/used in OverbyteIcsLibeay.pas (OpenSSL)
               This is only the subset and may grow.
-Creation:     Jan 12, 2003
+Creation:     Jan 12, 2005
 Version:      1.00
-EMail:        arno.garrels@gmx.de
-Support:      Use the mailing list ics@elists.org
-              Follow the link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2008 by Arno Garrels created for use with
-              ICS.
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+Support:      Use the mailing list ics-ssl@elists.org
+              Follow "SSL" link at http://www.overbyte.be for subscription.
+Legal issues: Copyright (C) 2005-2008 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              <francois.piette@overbyte.be>
+
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
               for any  damages arising from the use of this software.
 
-              As this code make use of OpenSSL, your rights are restricted by
-              OpenSSL license. See http://www.openssl.org for details.
-
-              Further, the following restrictions applies:
+              Permission is granted to anyone to use this software for any
+              purpose, including commercial applications, and to alter it
+              and redistribute it freely, subject to the following
+              restrictions:
 
               1. The origin of this software must not be misrepresented,
                  you must not claim that you wrote the original software.
@@ -35,6 +37,7 @@ Legal issues: Copyright (C) 2003-2008 by Arno Garrels created for use with
               4. You must register this software by sending a picture postcard
                  to the author. Use a nice stamp and mention your name, street
                  address, EMail address and any comment you like to say.
+
 
 History:
 

@@ -11,7 +11,7 @@ Version:      6.09
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2008 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -878,34 +878,30 @@ type
     end;
 
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+{*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 Author:       Arno Garrels <arno.garrels@gmx.de>
               by the help of Francois PIETTE <francois.piette@overbyte.be>
               (plenty of code copied from Francois's HTTPS client)
-Creation:     20 august 2003
-Updated:      11 February 2008
-Version:      1.0 Beta
-Description:  A component adding SSL/TLS support to TSmtpCli.
-              This unit contains the interface section of the component.
-              It is included in SmtpProt.pas unit when USE_SSL is defined.
-              Make use of OpenSSL (http://www.openssl.org).
-              Make use of freeware TWSocket component from ICS
-              Source code available from http://www.overbyte.be
-
-Features:     - Explicite SSL/TLS thru command STARTTLS.
-              - Implicite SSL/TLS connections on a dedicated port (default 465).
+Description:  A component adding SSL support to TSmtpCli.
+              Requires OpenSSL (http://www.openssl.org).
+              More details in ReadMeIcsSsl.txt and IcsSslHowTo.txt.
+              SSL demo applications can be found in /Delphi/SslInternet.
+              If you use Delphi 7 and later, you may want to disable warnings
+              for unsage type, unsafe code and unsafe typecast in the project
+              options. Those warning are intended for .NET programs. You may
+              also want to turn off deprecated symbol and platform symbol
+              warnings.
+Features:     - Explicit SSL/TLS thru command STARTTLS.
+              - Implicit SSL/TLS connections on a dedicated port (default 465).
 
 Testing:      A nice made test server represents the free SSL/TLS capable
               mail server 'Hamster' including full Delphi source,
               available at: http://tglsoft.de/
-              Also both Explicite and Implicite TLS is supported by
+              Also both Explicit and Implicit TLS is supported by
               googlemail/gmail.
-
-ToDo:
 
 Updates:
 Dec 29, 2007  Reworked the component. After command StartTls completed you
@@ -914,7 +910,7 @@ Dec 29, 2007  Reworked the component. After command StartTls completed you
               has been renamed to SslType, also the values have been renamed.
 11 Feb 2008  V6.07  Angus SSL version now supports sync methods
 
-* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
 type
     TSmtpSslType     = (smtpTlsNone,  smtpTlsImplicite,  smtpTlsExplicite);
@@ -4463,8 +4459,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslSmtpCli.CreateSocket;

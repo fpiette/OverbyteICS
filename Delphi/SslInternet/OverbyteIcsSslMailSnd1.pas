@@ -35,6 +35,10 @@ Legal issues: Copyright (C) 1997-2003 by François PIETTE
               3. This notice may not be removed or altered from any source
                  distribution.
 
+              4. You must register this software by sending a picture postcard
+                 to the author. Use a nice stamp and mention your name, street
+                 address, EMail address and any comment you like to say.
+
 Updates:
 Aug 20, 2003 SSL support added by Arno Garrels <arno.garrels@gmx.de>.
 Dec 29, 2007 A. Garrels reworked SSL, simplified verification code.

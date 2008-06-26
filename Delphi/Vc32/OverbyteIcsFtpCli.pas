@@ -2,13 +2,13 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V6.01
+Version:      V6.02
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2007 by François PIETTE
+Legal issues: Copyright (C) 1996-2008 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -192,13 +192,13 @@ Methods:
    ones to build robust applications. Their name end with Async like GetAsync)
   (There are other less used methods, see code below)
 
-How to use FTPS (TLS/SSL/Implizit SSL) ?                           - V2.106
+How to use FTPS (TLS/SSL/Implicit SSL) ?                           - V2.106
    First you need to have ICS-SSL and recompile the component and your project
    having symbol USE_SSL defined. Then specify the SSLType, either use
    explicit command AUTH after Open command to request TLS/SSL protection of
    the control channel on standard port from server, or you may use one of
    the high level commands which will automatically invoke Auth TLS/SSl once
-   connected to the server. Implizit SSL is another method that establishes
+   connected to the server. Implicit SSL is another method that establishes
    always a secure control channel (no AUTH command is required). To protect
    the data channel as well issue "PBSZ 0" and "PROT P" once the control
    channel is protected, or "PROT C" to clear the data channel.
@@ -764,10 +764,11 @@ Jan 06, 2008 V2.113 recognise more FEAT extensions, by Angus Robertson, angus@ma
              ZlibWorkDir runtime property is path where temporary ZLIB files are written
                   defaulting to system temp path
              improved error handling decompressing ZLIB stream
-     (usage of new commands is detailed above in quick reference)
+             (usage of new commands is detailed above in quick reference)
 Mar 24, 2008 V6.01 Bumped version number to 6.01
              Francois Piette made some changes to prepare code for Unicode.
-
+Jun 25, 2008 V6.02 A. Garrels, ZlibOnProgress needs to be compiled conditionally.
+             SSL code merged.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -817,9 +818,8 @@ uses
 {$IFNDEF NOFORMS}
     Forms, Controls,
 {$ENDIF}
-{ You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ You must define USE_SSL so that SSL code is included in the component.   }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.         }
 {$IFDEF USE_SSL}
     OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
 {$ENDIF}
@@ -842,8 +842,8 @@ uses
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 601;
-  CopyRight : String = ' TFtpCli (c) 1996-2008 F. Piette V6.01 ';
+  FtpCliVersion      = 602;
+  CopyRight : String = ' TFtpCli (c) 1996-2008 F. Piette V6.02 ';
   FtpClientId : String = 'ICS FTP Client V2.113 ';   { V2.113 sent with CLNT command  }
 
 const
@@ -856,7 +856,7 @@ const
 {$ENDIF}
 
 type
-  { Types sslTypeAuthTls, sslTypeAuthSsl are known as explizit protection }
+  { sslTypeAuthTls, sslTypeAuthSsl are known as explicit SSL }
   TFtpCliSslType  = (sslTypeNone, sslTypeAuthTls, sslTypeAuthSsl,        { V2.106 }
                      sslTypeImplizit);
   TFtpOption      = (ftpAcceptLF, ftpNoAutoResumeAt, ftpWaitUsingSleep, ftpBandwidthControl); { V2.106 }
@@ -1519,63 +1519,20 @@ type
 {$ENDIF}
   end;
 
-{ You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ You must define USE_SSL so that SSL code is included in the component.   }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.         }
 {$IFDEF USE_SSL}
 {*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-Author:       François PIETTE
 Description:  A component adding SSL support to TFtpCli (RFC-2228).
-              This unit contains the implementaion for the component.
-              It is included in FtpCli.pas unit when USE_SSL is defined.
-              Make use of OpenSSL (http://www.openssl.org).
-              Make use of freeware TWSocket component from ICS.
-Creation:     May 15, 2004
-Version:      1.00.0
-EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list ics-ssl@elists.org
-              Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2005 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
-              <francois.piette@overbyte.be>
-              SSL implementation includes code written by Arno Garrels,
-              Berlin, Germany, contact: <arno.garrels@gmx.de>
-              
-              This software is provided 'as-is', without any express or
-              implied warranty.  In no event will the author be held liable
-              for any  damages arising from the use of this software.
-
-              This code is _NOT_ freeware nor Open Source.
-              To use it, you must financially contribute to the development.
-              See SSL page on the author website for details.
-
-              Once you got the right to use this software, you can use in your
-              own applications only. Distributing the source code or compiled
-              units or packages is prohibed.
-
-              As this code make use of OpenSSL, your rights are restricted by
-              OpenSSL license. See http://www.openssl.org for details.
-
-              Further, the following restrictions applies:
-
-              1. The origin of this software must not be misrepresented,
-                 you must not claim that you wrote the original software.
-                 If you use this software in a product, an acknowledgment
-                 in the product documentation would be appreciated but is
-                 not required.
-
-              2. Altered source versions must be plainly marked as such, and
-                 must not be misrepresented as being the original software.
-
-              3. This notice may not be removed or altered from any source
-                 distribution.
-
-              4. You must register this software by sending a picture postcard
-                 to the author. Use a nice stamp and mention your name, street
-                 address, EMail address and any comment you like to say.
-
-History:
+              Requires OpenSSL (http://www.openssl.org).
+              More details in ReadMeIcsSsl.txt and IcsSslHowTo.txt.
+              SSL demo applications can be found in /Delphi/SslInternet.
+              If you use Delphi 7 and later, you may want to disable warnings
+              for unsafe type, unsafe code and unsafe typecast in the project
+              options. Those warning are intended for .NET programs. You may
+              also want to turn off deprecated symbol and platform symbol
+              warnings.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF VER80}
@@ -6171,8 +6128,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TSslFtpClient.Create(AOwner : TComponent);

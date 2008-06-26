@@ -10,6 +10,8 @@ Support:      Use the mailing list twsocket@elists.org
 Legal issues: Copyright (C) 1997-2007 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
+              SSL implementation includes code written by Arno Garrels,
+              Berlin, Germany, contact: <arno.garrels@gmx.de>
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -31,6 +33,10 @@ Legal issues: Copyright (C) 1997-2007 by François PIETTE
 
               3. This notice may not be removed or altered from any source
                  distribution.
+
+              4. You must register this software by sending a picture postcard
+                 to the author. Use a nice stamp and mention your name, street
+                 address, EMail address and any comment you like to say.
 
 Updates:
 Nov 12, 1997  V1.01 Added a GetAll button to get all messages waiting in the

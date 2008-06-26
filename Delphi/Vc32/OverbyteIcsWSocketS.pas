@@ -8,7 +8,7 @@ Version:      6.00b
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2007 by François PIETTE
+Legal issues: Copyright (C) 1999-2008 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -83,13 +83,11 @@ unit OverbyteIcsWSocketS;
 
 interface
 
-{ You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
-
 {$B-}           { Enable partial boolean evaluation   }
 {$T-}           { Untyped pointers                    }
 {$X+}           { Enable extended syntax              }
+{ You must define USE_SSL so that SSL code is included in the component.    }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$I OverbyteIcsDefs.inc}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
@@ -265,60 +263,21 @@ type
         property  OnClientConnect;
     end;
 
+{ You must define USE_SSL so that SSL code is included in the component.    }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
 {*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 Author:       François PIETTE
 Description:  A component adding SSL support to TWSocketServer.
-              This unit contains the interface par for the component.
-              It is included in WSocketS.pas unit when USE_SSL is defined.
-              The implementation part is in WSocketSImplSsl.inc.
-              Make use of OpenSSL (http://www.openssl.org).
-              Make use of freeware TWSocket component from ICS.
-Creation:     Jan 24, 2003
-Version:      1.00
-EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list ics-ssl@elists.org
-              Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2005 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
-              <francois.piette@overbyte.be>
-
-              This software is provided 'as-is', without any express or
-              implied warranty.  In no event will the author be held liable
-              for any  damages arising from the use of this software.
-
-              This code is _NOT_ freeware nor Open Source.
-              To use it, you must financially contribute to the development.
-              See SSL page on the author website for details.
-
-              Once you got the right to use this software, you can use in your
-              own applications only. Distributing the source code or compiled
-              units or packages is prohibed.
-
-              As this code make use of OpenSSL, your rights are restricted by
-              OpenSSL license. See http://www.openssl.org for details.
-
-              Further, the following restrictions applies:
-
-              1. The origin of this software must not be misrepresented,
-                 you must not claim that you wrote the original software.
-                 If you use this software in a product, an acknowledgment
-                 in the product documentation would be appreciated but is
-                 not required.
-
-              2. Altered source versions must be plainly marked as such, and
-                 must not be misrepresented as being the original software.
-
-              3. This notice may not be removed or altered from any source
-                 distribution.
-
-              4. You must register this software by sending a picture postcard
-                 to the author. Use a nice stamp and mention your name, street
-                 address, EMail address and any comment you like to say.
-
-History:
-
+              Requires OpenSSL (http://www.openssl.org).
+              More details in ReadMeIcsSsl.txt and IcsSslHowTo.txt.
+              SSL demo applications can be found in /Delphi/SslInternet.
+              If you use Delphi 7 and later, you may want to disable warnings
+              for unsage type, unsafe code and unsafe typecast in the project
+              options. Those warning are intended for .NET programs. You may
+              also want to turn off deprecated symbol and platform symbol
+              warnings.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 const

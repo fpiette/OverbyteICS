@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      6.00.4
+Version:      6.00.5
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -11,7 +11,7 @@ Credit:       This component was based on a freeware from by Andreas
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2008 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -387,7 +387,7 @@ Mar 19, 2007 V6.00.3 A.Garrels fixed a memory leak of FSendBuffer and
              SocketDataAvailable.
 May 27, 2008 V6.00.4 A.Garrels Workaround in GetHeaderLineNext. Ignore body data
              sent in the HEAD response by buggy servers.
-
+Jun 25, 2008 V6.00.5 A. Garrels SSL code merged.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -437,9 +437,8 @@ uses
     {$IFNDEF NOFORMS}
     Forms, Controls,
     {$ENDIF}
-{ You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ You must define USE_SSL so that SSL code is included in the component.   }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.         }
 {$IFDEF USE_SSL}
     OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
 {$ENDIF}
@@ -457,7 +456,7 @@ uses
 
 const
     HttpCliVersion       = 600;
-    CopyRight : String   = ' THttpCli (c) 1997-2008 F. Piette V6.00.4 ';
+    CopyRight : String   = ' THttpCli (c) 1997-2008 F. Piette V6.00.5 ';
     DefaultProxyPort     = '80';
 {$IFDEF DELPHI1}
     { Delphi 1 has a 255 characters string limitation }
@@ -971,66 +970,20 @@ type
                                                               write FOnBeforeHeaderSend;
     end;
 
-{ You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ You must define USE_SSL so that SSL code is included in the component.   }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.         }
 {$IFDEF USE_SSL}
 {*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-Author:       François PIETTE
 Description:  A component adding SSL support to THttpCli.
-              This unit contains the interface for the component.
-              It is included in HttpProt.pas unit when USE_SSL is defined.
-              The implementation part is in HttpProtImplSsl.inc.
-              Make use of OpenSSL (http://www.openssl.org).
-              Make use of freeware TSslWSocket component from ICS.
-Creation:     Feb 15, 2003
-Version:      1.00
-EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-              francois.piette@rtfm.be      http://www.rtfm.be/fpiette
-              francois.piette@pophost.eunet.be
-Support:      Use the mailing list ics-ssl@elists.org
-              Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
-              <francois.piette@overbyte.be>
-              SSL implementation includes code written by Arno Garrels,
-              Berlin, Germany, contact: <arno.garrels@gmx.de>
-
-              This software is provided 'as-is', without any express or
-              implied warranty.  In no event will the author be held liable
-              for any  damages arising from the use of this software.
-
-              This code is _NOT_ freeware nor Open Source.
-              To use it, you must financially contribute to the development.
-              See SSL page on the author website for details.
-
-              Once you got the right to use this software, you can use in your
-              own applications only. Distributing the source code or compiled
-              units or packages is prohibed.
-
-              As this code make use of OpenSSL, your rights are restricted by
-              OpenSSL license. See http://www.openssl.org for details.
-
-              Further, the following restrictions applies:
-
-              1. The origin of this software must not be misrepresented,
-                 you must not claim that you wrote the original software.
-                 If you use this software in a product, an acknowledgment
-                 in the product documentation would be appreciated but is
-                 not required.
-
-              2. Altered source versions must be plainly marked as such, and
-                 must not be misrepresented as being the original software.
-
-              3. This notice may not be removed or altered from any source
-                 distribution.
-
-              4. You must register this software by sending a picture postcard
-                 to the author. Use a nice stamp and mention your name, street
-                 address, EMail address and any comment you like to say.
-
-History:
+              Requires OpenSSL (http://www.openssl.org).
+              More details in ReadMeIcsSsl.txt and IcsSslHowTo.txt.
+              SSL demo applications can be found in /Delphi/SslInternet.
+              If you use Delphi 7 and later, you may want to disable warnings
+              for unsage type, unsafe code and unsafe typecast in the project
+              options. Those warning are intended for .NET programs. You may
+              also want to turn off deprecated symbol and platform symbol
+              warnings.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF VER80}
@@ -1045,7 +998,7 @@ History:
 const
      SslHttpCliVersion            = 100;
      SslHttpCliDate               = 'Feb 15, 2003';
-     SslHttpCliCopyRight : String = ' TSslHttpCli (c) 2003 Francois Piette V1.00.0 ';
+     SslHttpCliCopyRight : String = ' TSslHttpCli (c) 2008 Francois Piette V1.00.0 ';
 
 type
     TSslHttpCli = class(THttpCli)
@@ -4451,8 +4404,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
 {$IFDEF VER80}
     Bomb('This unit require a 32 bit compiler !');

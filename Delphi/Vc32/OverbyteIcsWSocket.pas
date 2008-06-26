@@ -7,7 +7,7 @@ Version:      6.08
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2007 by François PIETTE
+Legal issues: Copyright (C) 1996-2008 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -670,8 +670,7 @@ interface
 
 uses
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
   OverbyteIcsSSLEAY, OverbyteIcsLIBEAY, Contnrs, Masks, { Masks added AG 06/20/07 }  
 {$ENDIF}
@@ -1209,8 +1208,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
   end;
 
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
 {*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
@@ -1226,46 +1224,7 @@ Description:  A component adding SSL support to TWSocket.
               Benjamin Stadin <stadin@gmx.de>. They worked very hard to make
               this code working.
 Creation:     Jan 11, 2003
-Version:      1.00.9
-EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list ics-ssl@elists.org
-              Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2005 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
-              <francois.piette@overbyte.be>
-
-              This software is provided 'as-is', without any express or
-              implied warranty.  In no event will the author be held liable
-              for any  damages arising from the use of this software.
-
-              This code is _NOT_ freeware nor Open Source.
-              To use it, you must financially contribute to the development.
-              See SSL page on the author website for details.
-
-              Once you got the right to use this software, you can use in your
-              own applications only. Distributing the source code or compiled
-              units or packages is prohibed.
-
-              As this code make use of OpenSSL, your rights are restricted by
-              OpenSSL license. See http://www.openssl.org for details.
-
-              Further, the following restrictions applies:
-
-              1. The origin of this software must not be misrepresented,
-                 you must not claim that you wrote the original software.
-                 If you use this software in a product, an acknowledgment
-                 in the product documentation would be appreciated but is
-                 not required.
-
-              2. Altered source versions must be plainly marked as such, and
-                 must not be misrepresented as being the original software.
-
-              3. This notice may not be removed or altered from any source
-                 distribution.
-
-              4. You must register this software by sending a picture postcard
-                 to the author. Use a nice stamp and mention your name, street
-                 address, EMail address and any comment you like to say.
+Version:      1.00.9 
 
 Reference guide:
     SslCertFile     Filename of the certificate sent to the remote site for
@@ -2026,8 +1985,7 @@ type
                                var ClearData : Boolean) of object;
                                
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 
 {$IFDEF USE_SSL}              // Makes the IDE happy
   TBaseParentWSocket = TCustomSslWSocket;
@@ -2190,8 +2148,7 @@ type
   end;
 
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
   TSslWSocket = class(TWSocket)
   public
@@ -9758,8 +9715,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
 var
     //GSslInitialized     : Integer = 0;

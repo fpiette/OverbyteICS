@@ -11,23 +11,17 @@ Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2006 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
-
+              SSL implementation includes code written by Arno Garrels,
+              Berlin, Germany, contact: <arno.garrels@gmx.de>
+              
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
               for any  damages arising from the use of this software.
 
-              This code is _NOT_ freeware nor Open Source.
-              To use it, you must financially contribute to the development.
-              See SSL page on the author website for details.
-
-              Once you got the right to use this software, you can use in your
-              own applications only. Distributing the source code or compiled
-              units or packages is prohibed.
-
-              As this code make use of OpenSSL, your rights are restricted by
-              OpenSSL license. See http://www.openssl.org for details.
-
-              Further, the following restrictions applies:
+              Permission is granted to anyone to use this software for any
+              purpose, including commercial applications, and to alter it
+              and redistribute it freely, subject to the following
+              restrictions:
 
               1. The origin of this software must not be misrepresented,
                  you must not claim that you wrote the original software.

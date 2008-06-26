@@ -1,31 +1,24 @@
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-Author:       Arno Garrels
+Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Nov 01, 2005
 Description:  Implementation of OpenSsl thread locking (Windows);
 Version:      1.01
-EMail:        arno.garrels@gmx.de
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2005 by Arno Garrels, Berlin, Germany,
-              <arno.garrels@gmx.de> contributed to the ICS-SSL project.
+Legal issues: Copyright (C) 2005-2008 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
               for any  damages arising from the use of this software.
 
-              This code is _NOT_ freeware nor Open Source.
-              To use it, you must financially contribute to the development.
-              See SSL page on the author website for details.
-
-              Once you got the right to use this software, you can use in your
-              own applications only. Distributing the source code or compiled
-              units or packages is prohibed.
-
-              As this code make use of OpenSSL, your rights are restricted by
-              OpenSSL license. See http://www.openssl.org for details.
-
-              Further, the following restrictions applies:
+              Permission is granted to anyone to use this software for any
+              purpose, including commercial applications, and to alter it
+              and redistribute it freely, subject to the following
+              restrictions:
 
               1. The origin of this software must not be misrepresented,
                  you must not claim that you wrote the original software.
@@ -43,6 +36,7 @@ Legal issues: Copyright (C) 2005 by Arno Garrels, Berlin, Germany,
                  to the author. Use a nice stamp and mention your name, street
                  address, EMail address and any comment you like to say.
 
+
 How to use:  TSslStaticLock and TSslDynamicLock implement the locking callbacks
              required for OpenSSL to be thread-safe. Currently (v0.98a)
              only static locking is used by OpenSSL, dynamic locking is
@@ -57,17 +51,14 @@ How to use:  TSslStaticLock and TSslDynamicLock implement the locking callbacks
 
 History:
 March 03, 2006 Version 1.01, new property Enabled, OpenSSL is now loaded
-          when Enabled is set to TRUE. 
+          when Enabled is set to TRUE.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslThrdLock;
 {$IFDEF VER80}
-    Bomb('This unit require a 32 bit compiler !');
-{$ENDIF} 
-{$IFNDEF USE_SSL}
-    Bomb('Add USE_SSL in the define section in project options');
+    Bomb('This unit requires a 32 bit compiler !');
 {$ENDIF}
-
 {$B-}              { Enable partial boolean evaluation   }
 {$T-}              { Untyped pointers                    }
 {$X+}              { Enable extended syntax              }
@@ -76,6 +67,9 @@ unit OverbyteIcsSslThrdLock;
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
     {$WARN SYMBOL_DEPRECATED OFF}
+{$ENDIF}
+{$IFNDEF USE_SSL}
+    Bomb('Define USE_SSL in OverbyteIcsDefs.inc');
 {$ENDIF}
 {#$DEFINE NO_DYNLOCK}
 

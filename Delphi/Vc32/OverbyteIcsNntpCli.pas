@@ -7,7 +7,7 @@ Version:      6.01
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2008 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -136,8 +136,7 @@ uses
     Forms,
 {$ENDIF}
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
     OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
 {$ENDIF}
@@ -436,9 +435,21 @@ type
     end;
 
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
+{*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+Description:  A component adding SSL support to TNntpCli.
+              Requires OpenSSL (http://www.openssl.org).
+              More details in ReadMeIcsSsl.txt and IcsSslHowTo.txt.
+              SSL demo applications can be found in /Delphi/SslInternet.
+              If you use Delphi 7 and later, you may want to disable warnings
+              for unsage type, unsafe code and unsafe typecast in the project
+              options. Those warning are intended for .NET programs. You may
+              also want to turn off deprecated symbol and platform symbol
+              warnings.
+
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
     TSslNntpCli = class(TNntpCli)
     protected
         procedure CreateSocket; override;
@@ -2070,8 +2081,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslNntpCli.CreateSocket;

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      6.01
+Version:      6.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -296,6 +296,8 @@ Dec 04, 2007 V1.54 added more FEAT extensions, by Angus Robertson, angus@magsys.
             ensure file stream closed if session terminates unexpectedly  
 Mar 24, 2008 V6.01 Bumped version number to 6.01
              Francois Piette made some changes to prepare code for Unicode.
+Jun 25, 2008 V6.02 A. Garrels SSL code merged. 
+
 Angus pending -
 CRC on the fly
 MD5 on the fly for downloads if not cached already
@@ -375,8 +377,8 @@ uses
     OverbyteIcsMD5;
 
 const
-    FtpServerVersion         = 601;
-    CopyRight : String       = ' TFtpServer (c) 1998-2008 F. Piette V6.01 ';
+    FtpServerVersion         = 602;
+    CopyRight : String       = ' TFtpServer (c) 1998-2008 F. Piette V6.02 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
 
 type
@@ -1195,70 +1197,26 @@ type
                                                       write FOnDisplay;
     end;
 
+{ You must define USE_SSL so that SSL code is included in the component.   }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.         }
 {$IFDEF USE_SSL}
 {*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 Author:       Arno Garrels
 Description:  A component adding TLS/SSL support to TFtpServer.
-              This unit contains the implementation for the component.
-              It is included in FtpSrv.pas.pas unit when USE_SSL is defined.
-              The interface part is in FtpSrvIntfSsl.inc.
-              Make use of OpenSSL (http://www.openssl.org).              
-              Make use of freeware TWSocket component from ICS.
-Creation:     Oct 21, 2005
-Version:      1.03
-EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-              francois.piette@rtfm.be      http://www.rtfm.be/fpiette
-              francois.piette@pophost.eunet.be              
-Support:      Use the mailing list ics-ssl@elists.org
-              Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
-              <francois.piette@overbyte.be>
-              SSL implementation includes code written by Arno Garrels,
-              Berlin, Germany, contact: <arno.garrels@gmx.de>
-              
-              This software is provided 'as-is', without any express or
-              implied warranty.  In no event will the author be held liable
-              for any  damages arising from the use of this software.
+              Requires OpenSSL (http://www.openssl.org).
+              More details in ReadMeIcsSsl.txt and IcsSslHowTo.txt.
+              SSL demo applications can be found in /Delphi/SslInternet.
+              If you use Delphi 7 and later, you may want to disable warnings
+              for unsage type, unsafe code and unsafe typecast in the project
+              options. Those warning are intended for .NET programs. You may
+              also want to turn off deprecated symbol and platform symbol
+              warnings.
 
-              This code is _NOT_ freeware nor Open Source.
-              To use it, you must financially contribute to the development.
-              See SSL page on the author website for details.
-
-              Once you got the right to use this software, you can use in your
-              own applications only. Distributing the source code or compiled
-              units or packages is prohibed.
-
-              As this code make use of OpenSSL, your rights are restricted by
-              OpenSSL license. See http://www.openssl.org for details.
-
-              Further, the following restrictions applies:
-
-              1. The origin of this software must not be misrepresented,
-                 you must not claim that you wrote the original software.
-                 If you use this software in a product, an acknowledgment
-                 in the product documentation would be appreciated but is
-                 not required.
-
-              2. Altered source versions must be plainly marked as such, and
-                 must not be misrepresented as being the original software.
-
-              3. This notice may not be removed or altered from any source
-                 distribution.
-
-              4. You must register this software by sending a picture postcard
-                 to the author. Use a nice stamp and mention your name, street
-                 address, EMail address and any comment you like to say.
-
-History:
-
-
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}    
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
     TFtpSslType  = (ftpAuthSsl,      ftpAuthTls,     ftpAuthTlsP,
                     ftpAuthTlsC ,    ftpImplicitSsl);
     TFtpSslTypes = set of TFtpSslType;
-    
 
     TSslFtpServer = class(TFtpServer)
     protected
@@ -6166,6 +6124,8 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ You must define USE_SSL so that SSL code is included in the component.    }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslFtpServer.SetFtpSslTypes(const Value: TFtpSslTypes); { 1.04 }

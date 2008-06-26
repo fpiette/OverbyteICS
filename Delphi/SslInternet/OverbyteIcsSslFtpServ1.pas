@@ -12,7 +12,7 @@ Version:      1.07
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2006 by François PIETTE
+Legal issues: Copyright (C) 1998-2008 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -38,6 +38,10 @@ Legal issues: Copyright (C) 1998-2006 by François PIETTE
 
               3. This notice may not be removed or altered from any source
                  distribution.
+
+              4. You must register this software by sending a picture postcard
+                 to the author. Use a nice stamp and mention your name, street
+                 address, EMail address and any comment you like to say.
 
 History:
 Apr 29, 1998  V0.90 Released for beta testing.

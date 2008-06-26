@@ -570,3 +570,8 @@ Sept 2, 2005 V1.06 64-bit streams are Delphi 6 and later
   {$DEFINE VCL}
 {$ENDIF}
 
+{$IFNDEF FPC}             { Not for FPC ?                           }
+  {$IFDEF VCL}            { Not for .NET                            }
+    //{$DEFINE USE_SSL}     { Uncommend this line to include SSL code }
+  {$ENDIF}
+{$ENDIF}

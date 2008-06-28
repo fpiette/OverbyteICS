@@ -765,7 +765,7 @@ begin
 
     if SslTypeCombobox.ItemIndex > -1 then begin
         FtpClient1.SslType := TFtpCliSslType(SslTypeCombobox.ItemIndex);
-        if FtpClient1.SslType = sslTypeImplizit then
+        if FtpClient1.SslType = sslTypeImplicit then
             FtpClient1.Port := SslPortEdit.Text;
     end;
 

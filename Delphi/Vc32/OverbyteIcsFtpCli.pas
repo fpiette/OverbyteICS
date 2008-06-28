@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V6.02
+Version:      V6.03
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -769,7 +769,8 @@ Mar 24, 2008 V6.01 Bumped version number to 6.01
              Francois Piette made some changes to prepare code for Unicode.
 Jun 25, 2008 V6.02 A. Garrels, ZlibOnProgress needs to be compiled conditionally.
              SSL code merged.
-
+Jun 28, 2008 v6.03 **Breaking Change** enum item "sslTypeImplizit" renamed to
+             "sslTypeImplicit".
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpCli;
@@ -842,8 +843,8 @@ uses
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 602;
-  CopyRight : String = ' TFtpCli (c) 1996-2008 F. Piette V6.02 ';
+  FtpCliVersion      = 603;
+  CopyRight : String = ' TFtpCli (c) 1996-2008 F. Piette V6.03 ';
   FtpClientId : String = 'ICS FTP Client V2.113 ';   { V2.113 sent with CLNT command  }
 
 const
@@ -858,7 +859,7 @@ const
 type
   { sslTypeAuthTls, sslTypeAuthSsl are known as explicit SSL }
   TFtpCliSslType  = (sslTypeNone, sslTypeAuthTls, sslTypeAuthSsl,        { V2.106 }
-                     sslTypeImplizit);
+                     sslTypeImplicit);
   TFtpOption      = (ftpAcceptLF, ftpNoAutoResumeAt, ftpWaitUsingSleep, ftpBandwidthControl); { V2.106 }
   TFtpOptions     = set of TFtpOption;
   TFtpExtension   = (ftpFeatNone, ftpFeatSize, ftpFeatRest, ftpFeatMDTMYY,
@@ -6238,7 +6239,7 @@ begin
         Exit;
     end;
 
-    if ((Sender = FDataSocket) or (FSslType = sslTypeImplizit) or
+    if ((Sender = FDataSocket) or (FSslType = sslTypeImplicit) or
         (Sender as TCustomSslWSocket).SslInRenegotiation) and
        (FState <> ftpAbort) and FConnected then
         Exit;
@@ -6406,7 +6407,7 @@ procedure TSslFtpClient.ControlSocketSessionConnected(Sender: TObject; ErrCode: 
 begin
     inherited ControlSocketSessionConnected(Sender, ErrCode);
     if FConnected then begin
-        FControlSocket.SslEnable := FSslType = sslTypeImplizit;
+        FControlSocket.SslEnable := FSslType = sslTypeImplicit;
         if FControlSocket.SslEnable then
         try
             FControlSocket.SslMode             := sslModeClient;

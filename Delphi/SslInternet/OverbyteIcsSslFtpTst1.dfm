@@ -1027,7 +1027,7 @@ object FtpReceiveForm: TFtpReceiveForm
         'sslTypeNone'
         'sslTypeAuthTls'
         'sslTypeAuthSsl'
-        'sslTypeImplizit')
+        'sslTypeImplicit')
     end
     object SslPortEdit: TEdit
       Left = 560

@@ -172,8 +172,8 @@ uses
     OverbyteIcsMD5;
 
 const
-    Pop3CliVersion     = 603;
-    CopyRight : String = ' POP3 component (c) 1997-2008 F. Piette V6.03 ';
+    Pop3CliVersion     = 604;
+    CopyRight : String = ' POP3 component (c) 1997-2008 F. Piette V6.04 ';
 {$IFDEF VER80}
     { Delphi 1 has a 255 characters string limitation }
     POP3_RCV_BUF_SIZE = 255;

@@ -442,8 +442,8 @@ object POP3ExcercizerForm: TPOP3ExcercizerForm
       Text = 'None (Plain Text)'
       Items.Strings = (
         'None (Plain Text)'
-        'Implicite (TLS Connection)'
-        'Explicite (STLS)')
+        'Implicit (TLS Connection)'
+        'Explicit (STLS)')
     end
     object STlsButton: TButton
       Left = 136
@@ -499,6 +499,8 @@ object POP3ExcercizerForm: TPOP3ExcercizerForm
     OnUidlLine = SslPop3ClientUidlLine
     OnHeaderEnd = SslPop3ClientHeaderEnd
     OnRequestDone = SslPop3ClientRequestDone
+    Timeout = 15
+    MultiThreaded = False
     SslType = pop3TlsNone
     SslContext = SslContext1
     OnSslVerifyPeer = SslPop3ClientSslVerifyPeer
@@ -526,6 +528,8 @@ object POP3ExcercizerForm: TPOP3ExcercizerForm
     AuthType = popAuthNone
     MsgLines = 0
     MsgNum = 0
+    Timeout = 15
+    MultiThreaded = False
     SslType = pop3TlsNone
     Left = 80
     Top = 300

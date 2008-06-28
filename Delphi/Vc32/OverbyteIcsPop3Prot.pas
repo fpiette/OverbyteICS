@@ -128,7 +128,10 @@ Dec 29, 2007  V6.01  A.Garrels made WSocketSessionConnected virtual (SSL).
 Feb 11, 2008  V6.02  Angus SSL version now supports sync methods
 Mar 24, 2008  V6.03 Francois Piette made some changes to prepare code
                     for Unicode.
+Jun 28, 2008  V6.04 **Bracking Change** enum items "pop3TlsImplicite", "pop3TlsExplicite"
+              renamed to "pop3TlsImplicit", "pop3TlsExplicit"
 
+              
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPop3Prot;
 
@@ -543,8 +546,8 @@ Description:  A component adding SSL/TLS support to TPop3Cli.
               Make use of freeware TWSocket component from ICS
               Source code available from http://www.overbyte.be
 
-Features:     - Explicite SSL/TLS thru command STLS (abbrevation of STARTTLS).
-              - Implicite SSL/TLS connections on a dedicated port (default 995).
+Features:     - Explicit SSL/TLS thru command STLS (abbrevation of STARTTLS).
+              - Implicit SSL/TLS connections on a dedicated port (default 995).
 
 Testing:      A nice made test server represents the free SSL/TLS capable
               mail server 'Hamster' including full Delphi source,
@@ -557,7 +560,7 @@ Updates:
 11 Feb 2008  V6.02  Angus SSL version now supports sync methods
 
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-    TPop3SslType  = (pop3TlsNone, pop3TlsImplicite, pop3TlsExplicite);
+    TPop3SslType  = (pop3TlsNone, pop3TlsImplicit, pop3TlsExplicit);
     TSslPop3Cli = class(TSyncPop3Cli)
     protected
         FSslType            : TPop3SslType; 
@@ -2401,7 +2404,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslPop3Cli.Open;
 begin
-    if FSslType = pop3TlsExplicite then
+    if FSslType = pop3TlsExplicit then
         HighLevelAsync(pop3Open, [pop3FctConnect, pop3FctStartTls,
                                   pop3FctUser, pop3FctPass])
     else
@@ -2424,7 +2427,7 @@ begin
                                   [SslVersion, SslCipher, SslSecretBits,
                                    SslTotalBits])
                            ); 
-        if FSslType = pop3TlsImplicite then
+        if FSslType = pop3TlsImplicit then
             StateChange(pop3WaitingBanner)
         else begin
             FProtocolState := pop3WaitingUser;
@@ -2450,7 +2453,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslPop3Cli.Stls;
 begin
-    if (FSslType = pop3TlsImplicite) or (FProtocolState = pop3Transaction) then
+    if (FSslType = pop3TlsImplicit) or (FProtocolState = pop3Transaction) then
     begin
         FErrorMessage := '-ERR STLS command invalid now';
         Display(FErrorMessage);
@@ -2495,7 +2498,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslPop3Cli.WSocketSessionConnected(Sender: TObject; Error: Word);
 begin
-    if (FSslType <> pop3TlsImplicite) or (Error <> 0) then
+    if (FSslType <> pop3TlsImplicit) or (Error <> 0) then
         inherited WSocketSessionConnected(Sender, Error)
     else begin
         FConnected := TRUE;

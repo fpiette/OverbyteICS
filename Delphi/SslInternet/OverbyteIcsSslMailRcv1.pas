@@ -345,9 +345,9 @@ begin
     SslPop3Client.Host           := HostEdit.Text;
     SslPop3Client.Port           := PortEdit.Text;
     SslPop3Client.SslType        := TPop3SslType(SslTypeCombobox.ItemIndex);
-    if ((SslPop3Client.SslType = pop3TlsImplicite) and
+    if ((SslPop3Client.SslType = pop3TlsImplicit) and
        ((MethodName = 'Open') or (MethodName = 'Connect'))) or
-       ((SslPop3Client.SslType = pop3TlsExplicite) and
+       ((SslPop3Client.SslType = pop3TlsExplicit) and
        ((MethodName = 'STLS') or (MethodName = 'Open'))) then
        { Assign properties, they are applied when the context gets initialized.}
         SetSslVerifyProps;

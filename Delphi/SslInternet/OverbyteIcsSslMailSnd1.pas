@@ -736,7 +736,7 @@ begin
                           SslSmtpClient.Ehlo;
                   end;
     smtpHelo:     SslSmtpClient.MailFrom;
-    smtpEhlo: if SslSmtpClient.SslType = smtpTlsExplicite then begin
+    smtpEhlo: if SslSmtpClient.SslType = smtpTlsExplicit then begin
                   Inc(FEhloCount);
                   if FEhloCount = 1 then
                       SslSmtpClient.StartTls

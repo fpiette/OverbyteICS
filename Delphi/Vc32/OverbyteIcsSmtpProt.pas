@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      6.09
+Version:      6.10
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -300,7 +300,9 @@ Apr 08, 2008 V6.09  A.Garrels wrapped some method calls in DoHighLevelAsync
                     in a try-except block to trigger RequestDone with error
                     '500 Internal client error' and the exception message.
                     This bug was found by Bjørnar Nielsen.
-                    
+Jun 28, 2008 V6.10  **Bracking Change** enum items "smtpTlsImplicite",
+                    "smtpTlsExplicite" renamed to "smtpTlsImplicit",
+                    "smtpTlsExplicit".
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSmtpProt;
@@ -345,8 +347,8 @@ uses
     OverbyteIcsMimeUtils;
 
 const
-  SmtpCliVersion     = 609;
-  CopyRight : String = ' SMTP component (c) 1997-2008 Francois Piette V6.09 ';
+  SmtpCliVersion     = 610;
+  CopyRight : String = ' SMTP component (c) 1997-2008 Francois Piette V6.10 ';
   smtpProtocolError  = 20600; {AG}
 
 {$IFDEF VER80}
@@ -913,7 +915,7 @@ Dec 29, 2007  Reworked the component. After command StartTls completed you
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
 type
-    TSmtpSslType     = (smtpTlsNone,  smtpTlsImplicite,  smtpTlsExplicite);
+    TSmtpSslType     = (smtpTlsNone,  smtpTlsImplicit,  smtpTlsExplicit);
     TSslSmtpCli = class(TSyncSmtpCli)
     protected
         FSslType                    : TSmtpSslType;
@@ -4607,7 +4609,7 @@ begin
                              '%d secret bits (%d total)',
                              [SslVersion, SslCipher, SslSecretBits,
                              SslTotalBits]));
-        if FSslType = smtpTlsImplicite then
+        if FSslType = smtpTlsImplicit then
             StateChange(smtpWaitingBanner)
         else
             TriggerRequestDone(0); // EHLO command has to be issued again
@@ -4670,7 +4672,7 @@ begin
          ErrMsg := '500 ESMTP not supported.';
      if (not FTlsSupported) and (ErrMsg = '') then
          ErrMsg := '500 STARTTLS is not available.';
-     if (FSslType = smtpTlsImplicite) and (ErrMsg = '') then
+     if (FSslType = smtpTlsImplicit) and (ErrMsg = '') then
          ErrMsg := '500 STARTTLS is not supported with a implicite SSL connection';
      if ErrMsg <> '' then begin
          FLastResponse := ErrMsg;
@@ -4690,7 +4692,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslSmtpCli.WSocketSessionConnected(Sender: TObject; Error: Word);
 begin
-    if (FSslType <> smtpTlsImplicite) or (Error <> 0) then
+    if (FSslType <> smtpTlsImplicit) or (Error <> 0) then
         inherited WSocketSessionConnected(Sender, Error)
     else begin
         FConnected := TRUE;
@@ -4851,7 +4853,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslSmtpCli.Open;
 begin
-    if FSslType = smtpTlsExplicite then begin
+    if FSslType = smtpTlsExplicit then begin
         if FAuthType <> smtpAuthNone then
             HighLevelAsync(smtpOpen, [smtpFctConnect, smtpFctEhlo,
                                       smtpFctStartTls, smtpFctAuth])

@@ -522,8 +522,8 @@ object SslSmtpTestForm: TSslSmtpTestForm
       TabOrder = 12
       Items.Strings = (
         'None'
-        'Implicite (TLS Connection)'
-        'Explicite (STARTTLS)')
+        'Implicit (TLS Connection)'
+        'Explicit (STARTTLS)')
     end
     object KeyEdit: TEdit
       Left = 270
@@ -650,6 +650,8 @@ object SslSmtpTestForm: TSslSmtpTestForm
     OnHeaderLine = SslSmtpClientHeaderLine
     OnRequestDone = SslSmtpClientRequestDone
     OnBeforeFileOpen = SslSmtpClientBeforeFileOpen
+    Timeout = 15
+    MultiThreaded = False
     SslType = smtpTlsNone
     SslContext = SslContext1
     Left = 68

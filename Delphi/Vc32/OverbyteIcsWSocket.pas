@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      6.08
+Version:      6.10
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -595,7 +595,7 @@ Mar 10, 2008 V6.09 Francois Piette & Arno Garrels made some changes to
                    WSocket_gethostname conversion from String to AnsiString
                    WSocketGetProc and WSocket2GetProc use AnsiString
                    GetAliasList simplified and use AnsiString
-
+Jun 29, 2008 V6.10 Local variable FHandle removed from TCustomWSocket.
 
 About multithreading and event-driven:
     TWSocket is a pure asynchronous component. It is non-blocking and
@@ -690,8 +690,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 608;
-  CopyRight    : String     = ' TWSocket (c) 1996-2007 Francois Piette V6.08 ';
+  WSocketVersion            = 610;
+  CopyRight    : String     = ' TWSocket (c) 1996-2008 Francois Piette V6.10 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -785,7 +785,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
   {$ENDIF}
     FDnsLookupCheckMsg  : Boolean;
     FDnsLookupTempMsg   : TMessage;
-    FHandle             : HWND;
+    //FHandle             : HWND;
   {$IFDEF CLR}
     FDnsLookupGCH       : GCHandle;
     FDnsLookupIntPtr    : IntPtr;

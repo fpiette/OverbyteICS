@@ -47,7 +47,6 @@ May 31, 2004 V5.01 Used ICSDEFS.INC the same way as in other units
 Mar 24, 2008 V6.02 Francois Piette made some changes to prepare code
                    for Unicode.
 
-
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverByteIcsWSocketE;
 
@@ -94,7 +93,7 @@ uses
 
 const
     WSocketEVersion          = 602;
-    CopyRight : String       = ' WSocketE (c) 2002-2007 F. Piette V6.02 ';
+    CopyRight : String       = ' WSocketE (c) 2002-2008 F. Piette V6.02 ';
 
 {$IFDEF WIN32}
 type
@@ -120,8 +119,7 @@ begin
     RegisterComponents('FPiette',
                        [TWSocket
 { You must define USE_SSL so that SSL code is included in the component.    }
-{ To be able to compile the component, you must have the SSL related files  }
-{ which are _NOT_ freeware. See http://www.overbyte.be for details.         }
+{ Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
                         , TSslWSocket
                         , TSslContext

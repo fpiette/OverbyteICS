@@ -26,7 +26,8 @@
       <Projects Name="OverbyteIcsNsLookup.exe">OverbyteIcsNsLookup.bdsproj</Projects>
       <Projects Name="OverbyteIcsHttpMultipartDownload.exe">OverbyteIcsHttpMultipartDownload.bdsproj</Projects>
       <Projects Name="OverbyteIcsFtpMultipartDownload.exe">OverbyteIcsFtpMultipartDownload.bdsproj</Projects>
-      <Projects Name="Targets">OverbyteIcsDel100Package.bpl OverByteIcsWndControlTest.exe OverbyteIcsConFtp.exe OverbyteIcsFtpTst.exe OverbyteIcsHttpTst.exe OverbyteIcsTcpSrv.exe OverbyteIcsWebServ.exe OverbyteIcsFtpServ.exe OverbyteIcsMailSnd.exe OverbyteIcsMailRcv.exe OverbyteIcsHttpPost.exe OverbyteIcsNewsReader.exe OverbyteIcsTelnetClient.exe OverbyteIcsPingTst.exe OverbyteIcsNsLookup.exe OverbyteIcsHttpMultipartDownload.exe OverbyteIcsFtpMultipartDownload.exe</Projects>
+      <Projects Name="OverbyteIcsDnsLook.exe">OverbyteIcsDnsLook.bdsproj</Projects>
+      <Projects Name="Targets">OverbyteIcsDel100Package.bpl OverByteIcsWndControlTest.exe OverbyteIcsConFtp.exe OverbyteIcsFtpTst.exe OverbyteIcsHttpTst.exe OverbyteIcsTcpSrv.exe OverbyteIcsWebServ.exe OverbyteIcsFtpServ.exe OverbyteIcsMailSnd.exe OverbyteIcsMailRcv.exe OverbyteIcsHttpPost.exe OverbyteIcsNewsReader.exe OverbyteIcsTelnetClient.exe OverbyteIcsPingTst.exe OverbyteIcsNsLookup.exe OverbyteIcsHttpMultipartDownload.exe OverbyteIcsFtpMultipartDownload.exe OverbyteIcsDnsLook.exe</Projects>
     </Projects>
     <Dependencies/>
   </Default.Personality>

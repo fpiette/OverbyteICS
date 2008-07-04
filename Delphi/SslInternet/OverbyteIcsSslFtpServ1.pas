@@ -3,12 +3,12 @@
 Author:       François PIETTE
 Description:  This is a demo program showing how to use the TFtpServer
               component to build a FTP server.
-              Waring: As this demo is writtent, full access is given to all
+              Warning: As this demo is written, full access is given to all
               users to all files accessible by the computer running the demo.
               In production program, you should add code to implement
               security issues.
 Creation:     April 21, 1998
-Version:      1.07
+Version:      1.08
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -58,6 +58,7 @@ Jul 30, 2001  V1.04 Add Trim function for Delphi 1
 Feb 26, 2002  V1.05 Add DisconectAll in main menu
 Jun 07, 2002  V1.06 Added a processing thread (not for Delphi 1) for Get
 Oct 21, 2005  V1.07 Arno Garrels added SSL features.
+Jun 04, 2008  V1.08 Arno Garrels adjusted WorkerThreadTerminated().                 
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -76,8 +77,8 @@ uses
   OverbyteIcsWndControl;
 
 const
-  FtpServVersion      = 107;
-  CopyRight : String  = ' SslFtpServer (c) 1998-2006 F. Piette V1.07 ';
+  FtpServVersion      = 108;
+  CopyRight : String  = ' SslFtpServer (c) 1998-2008 F. Piette V1.08 ';
   WM_APPSTARTUP       = WM_USER + 1;
 
 type
@@ -968,9 +969,10 @@ end;
 procedure TSslFtpServerForm.WorkerThreadTerminated(Sender : TObject);
 var
     MyThread : TGetProcessingThread;
+    Answer   : TFtpString;
 begin
     MyThread := Sender as TGetProcessingThread;
-    MyThread.Server.DoStartSendData(MyThread.Client);
+    MyThread.Server.DoStartSendData(MyThread.Client, Answer);
 end;
 
 

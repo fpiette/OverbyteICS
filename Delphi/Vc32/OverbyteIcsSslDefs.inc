@@ -7,3 +7,8 @@
 { in previous versions. Leave it commented if you want to support OpenSSL      }
 { v0.9.8e only without using our 'hacks' but newly exported functions, default }
 {#$DEFINE BEFORE_OSSL_098E}
+
+{ Uncommented next line will create files containing debug information if the  }
+{ OpenSSL libraries failed to load.                                            }
+{ File names: FailedIcsSSLEAY.txt and FailedIcsLIBEAY.txt                      }
+{#$DEFINE LOADSSL_ERROR_FILE}

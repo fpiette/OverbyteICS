@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      6.10
+Version:      6.11
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -596,6 +596,8 @@ Mar 10, 2008 V6.09 Francois Piette & Arno Garrels made some changes to
                    WSocketGetProc and WSocket2GetProc use AnsiString
                    GetAliasList simplified and use AnsiString
 Jun 29, 2008 V6.10 Local variable FHandle removed from TCustomWSocket.
+Jul 04, 2008 Rev.58 SSL - Still lacked a few changes I made last year.
+
 
 About multithreading and event-driven:
     TWSocket is a pure asynchronous component. It is non-blocking and
@@ -690,8 +692,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 610;
-  CopyRight    : String     = ' TWSocket (c) 1996-2008 Francois Piette V6.10 ';
+  WSocketVersion            = 611;
+  CopyRight    : String     = ' TWSocket (c) 1996-2008 Francois Piette V6.11 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -9004,7 +9006,7 @@ var
 {$ENDIF}
 begin
     if FLineMode and (FLineLength > 0) then begin
-        { We are in line mode an a line is received }
+        { We are in line mode and a line is received }
         if FLineLength <= BufferSize then begin
             { User buffer is greater than received data, copy all and clear }
             {$IFDEF CLR}
@@ -9749,7 +9751,10 @@ var
     Tick : Cardinal;
     F    : TextFile;
     S    : String;
+{$IFDEF LOADSSL_ERROR_FILE} // Optional define in OverbyteIcsSslDefs.inc
+    F    : TextFile;
     I, J : Integer;
+{$ENDIF}
 begin
     EnterCriticalSection(SslCritSect);
     try
@@ -9757,7 +9762,8 @@ begin
             // Load LIBEAY DLL
             // Must be loaded before SSlEAY for the versioncheck to work!
             if not OverbyteIcsLIBEAY.Load then begin
-                    AssignFile(F, 'FailedIcsLIBEAY.txt');
+            {$IFDEF LOADSSL_ERROR_FILE}
+                AssignFile(F, ExtractFilePath(ParamStr(0)) + 'FailedIcsLIBEAY.txt');
                 Rewrite(F);
                 S := OverbyteIcsLIBEAY.WhichFailedToLoad;
                 I := 1;
@@ -9769,6 +9775,7 @@ begin
                     WriteLn(F, Copy(S, J, I - J));
                 end;
                 CloseFile(F);
+            {$ENDIF}
                 if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
                     FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
                     OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
@@ -9777,7 +9784,8 @@ begin
             end;
             // Load SSlEAY DLL
             if not OverbyteIcsSSLEAY.Load then begin
-                AssignFile(F, 'FailedIcsSSLEAY.txt');
+            {$IFDEF LOADSSL_ERROR_FILE}
+                AssignFile(F, ExtractFilePath(ParamStr(0)) + 'FailedIcsSSLEAY.txt');
                 Rewrite(F);
                 S := OverbyteIcsSSLEAY.WhichFailedToLoad;
                 I := 1;
@@ -9789,6 +9797,7 @@ begin
                     WriteLn(F, Copy(S, J, I - J));
                 end;
                 CloseFile(F);
+            {$ENDIF}    
                 if OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle <> 0 then begin
                     FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
                     OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle := 0;
@@ -9827,10 +9836,9 @@ procedure UnloadSsl;
 begin
     EnterCriticalSection(SslCritSect);
     try
-        Dec(SslRefCount);
-        if SslRefCount > 0 then
-            Exit
-        else begin
+        if SslRefCount > 0 then        {AG 12/30/07}
+            Dec(SslRefCount);
+        if SslRefCount = 0 then begin  {AG 12/30/07}
             if OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle <> 0 then begin
                 FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
                 OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle := 0;
@@ -12626,6 +12634,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TCustomSslWSocket.Create(AOwner: TComponent);
 begin
+    inherited Create(AOwner);
     FSslEnable              := FALSE;
     FSslContext             := nil;
     FSslAcceptableHosts     := TStringList.Create;
@@ -12649,7 +12658,7 @@ begin
     //FCloseReceived          := FALSE;
     
     //FMayInternalSslShut     := TRUE;
-    inherited Create(AOwner);
+    //inherited Create(AOwner);
     FSslBufList := TIcsBufferHandler.Create(nil);
     FSslBufList.BufSize := SSL_BUFFER_SIZE;  // 4096              {AG 10/10/07}
 { IFDEF DEBUG_OUTPUT}
@@ -12804,7 +12813,8 @@ begin
                  ' FCloseInvoked=' + IntToStr(Ord(FCloseInvoked)) + ' ' +
                  IntToStr(FHSocket));
 {$ENDIF}
-    if (not FCloseInvoked) and
+
+    if (FHSocket <> INVALID_SOCKET) and (not FCloseInvoked) and  {AG 12/30/07}
        (not (csDestroying in ComponentState)) then begin   // AG 03/03/06
         FCloseInvoked := TRUE;
         TriggerSessionClosed(msg.LParamHi);
@@ -13135,7 +13145,7 @@ begin
                    (Err <> WSAENOTCONN) then begin
                     FNetworkError := Err;
                     FLastError    := Err; //XX
-                    TriggerEvent(sslFdClose, 0);    
+                    TriggerEvent(sslFdClose, 0);
 {$IFNDEF NO_DEBUG_LOG}
                     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
                         DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +

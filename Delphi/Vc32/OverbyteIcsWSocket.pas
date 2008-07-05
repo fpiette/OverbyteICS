@@ -9749,7 +9749,6 @@ end; *)
 procedure LoadSsl;
 var
     Tick : Cardinal;
-    F    : TextFile;
     S    : String;
 {$IFDEF LOADSSL_ERROR_FILE} // Optional define in OverbyteIcsSslDefs.inc
     F    : TextFile;

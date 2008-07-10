@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     Sep 03, 2004
-Version:      1.00
+Version:      1.01
 Description:  MD4 is an implementation of the MD4 Message-Digest Algorithm
               as described in RFC1320
 Credit:       This unit is based on code written by David Barton

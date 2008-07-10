@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  TFtpCtrlSocket component. It handle the client connection for
               the TFtpServer component.
 Creation:     April 21, 1998
-Version:      1.52
+Version:      6.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -81,6 +81,7 @@ Dec 03, 2007  V1.54 added more FEAT extensions, by Angus Robertson, angus@magsys
 Dec 09, 2007 V1.55 mode z bug fix for resumed transfers
 Jan 08, 2008 V1.57 added FileModeRead and FileModeWrite as public so share locking
                can be changed, use FileModeRead for MD5SUM (not locked)
+Jul 10, 2008 V6.03 bumped version to match OverbyteFtpCli               
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpSrvC;

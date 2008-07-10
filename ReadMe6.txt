@@ -119,37 +119,39 @@ Always upgrade your compiler with the latest update available from Borland.
 Always updade your system with http://windowsupdate.microsoft.com
 
 DELPHI 2007/WIN32:
-Directory VC32 contains IcsDel110.dproj which is a package source for
+Directory VC32 contains OverbyteIcsDel110Package.dproj which is a package source for
 all components. Using Delphi, do a file/open project (Ctrl-F11, browse to the 
-VC32 directory. Select IcsDel110.dproj and open it. Then in the project
-manager view, right-click on IcsDel110, then click on Install button.
+VC32 directory. Select OverbyteIcsDel110Package.dproj and open it. Then in the project
+manager view, right-click on OverbyteIcsDel110Package, then click on Install button.
 After a few seconds, you should have a dialog box telling you the package 
-IcsDel100.bpl has been installed with a bunch of new components registered.
+OverbyteIcsDel110Package.bpl has been installed with a bunch of new components registered.
 Then do a "Save All" (Shift-Ctrl-S) and a "Close All".
 Having installed the package, verify that the VC32 directory has been added to
 the Win32 Library Path (Tools / Options / Delphi Options / Library - Win32 / 
-Library Path). If not, add it manually.
+Library Path). If not, add it manually. It is not mandatory to add vc32 to the global
+Delphi path, but it will be much easier for you because otherwise you'll have to
+add it to each project.
 
 Once the package is installed, you may open the sample projects. There is a
-project group called Del110Sam.groupproj which has all sample programs. Open it
+project group called OverByteIcsDel110Sam.groupproj which has all sample programs. Open it
 with file/open project (Ctrl-F11), browse to the Internet directory, select 
-and open Del110Sam.groupproj. You will get some dialog box telling you that
+and open OverByteIcsDel110Sam.groupproj. You will get some dialog box telling you that
 resource files are missing (they have not been included in the zip file to 
 save space) and are recreated by Delphi. It is OK. Any other error message 
 is a problem you should fix. After all resource files have been recreated,
-you should see in the project manager a group of projects called Del110Sam.
+you should see in the project manager a group of projects called OverByteIcsDel110Sam.
 In this group, you'll find all sample programs.
 
 To compile all samples at once, do Project / Build all projects. This will 
 take some time to compile all sample programs. Delphi may run out of
-memory if you don't have large RAM installed. If this happend, just build
-the project one by one.
+memory if you don't have enough RAM installed in your computer. 
+If this happend, just build the projects one by one.
 
 DELPHI 2006/WIN32:
-Directory VC32 contains IcsDel100.bdsproj which is a package source for
+Directory VC32 contains OverbyteIcsDel100.bdsproj which is a package source for
 all components. Using Delphi, do a file/open project (Ctrl-F11, browse to the 
-VC32 directory. Select IcsDel100.bdsproj and open it. Then in the project
-manager view, right-click on IcsDel100.bpl, then click on Install button.
+VC32 directory. Select OverbyteIcsDel100.bdsproj and open it. Then in the project
+manager view, right-click on OverbyteIcsDel100.bpl, then click on Install button.
 After a few seconds, you should have a dialog box telling you the package 
 IcsDel100.bpl has been installed with a bunch of new components registered.
 Then do a "Save All" (Shift-Ctrl-S) and a "Close All".
@@ -158,41 +160,34 @@ the Win32 Library Path (Tools / Options / Delphi Options / Library - Win32 /
 Library Path). If not, add it manually.
 
 Once the package is installed, you may open the sample projects. There is a
-project group called Del100Sam.bdsgroup which has all sample programs. Open it
+project group called OverbyteDel100Sam.bdsgroup which has all sample programs. Open it
 with file/open project (Ctrl-F11), browse to the Internet directory, select 
-and open Del100Sam.bdsgroup. You will get some dialog box telling you that
+and open OverbyteDel100Sam.bdsgroup. You will get some dialog box telling you that
 resource files are missing (they have not been included in the zip file to 
 save space) and are recreated by Delphi. It is OK. Any other error message 
 is a problem you should fix. After all resource files have been recreated,
-you should see in the project manager a group of projects called Del100Sam.
+you should see in the project manager a group of projects called OverbyteDel100Sam.
 In this group, you'll find all sample programs.
 
 To compile all samples at once, do Project / Build all projects. This will 
 take some time to compile all sample programs. Delphi may run out of
 memory if you don't have large RAM installed. If this happend, just build
 the project one by one.
-
-DELPHI2006/.NET
-Directory Delphi\DotNet contains IcsDotNet.bdsgroup with all projects.
-Open it and build all projects.
 
 DELPHI 2005/WIN32: 
 Follow Delphi 2006/Win32 installion. Replace "90" by "100" in all project group
 or packages.
 
-DELPHI 2005/.NET
-Follow Delphi 2006/.NET installation
-
-DELPHI 7: Directory VC32 contains IcsDel70.dpk which is a package source for
+DELPHI 7: Directory VC32 contains OverbyteIcsDel70.dpk which is a package source for
 all components. Using Delphi, do a file/open, select *.dpk and browse to
-the VC32 directory. Select IcsDel70.dpk and open it. Then click on the 
+the VC32 directory. Select OverbyteIcsDel70.dpk and open it. Then click on the 
 Install button. You should see the FPiette tab on the component gallery.
 Add VC32 directory path to your library path (Tools menu / Environment Options
 / Library / Library Path. Add VC32 path at the end of the existing path).
 
 Once the package is installed, you may open the sample projects. There is a
-project group called Del70Sam.bpg which has all sample programs. Open it
-with file/open, browse to the Internet directory, select and open Del70Sam.bpg.
+project group called OverbyteDel70Sam.bpg which has all sample programs. Open it
+with file/open, browse to the Internet directory, select and open OverbyteDel70Sam.bpg.
 Then Project/Build all projects. You'll get all sample programs compiled.
 It is likely that for each project, Delphi complains about a missing .res
 file. This is not a problem, Delphi will recreate it as needed. They have not
@@ -201,7 +196,7 @@ been included to save space in the zip file.
 Note 1: Delphi may run out of memory if you ask to compile all projects at 
 once. If you have not enough RAM, then compile each project individually.
 
-Note 2: Delphi 7 has new warnings which triggers a lot of messages for 100% OK
+Note 2: Delphi has warnings which triggers a lot of messages for 100% OK
 code. You can turn those warnings off in the project/ options / Compiler messages
 and deselecting: "Deprecated symbol", "Platform symbol", "usafe type", "unsafe code", 
 "usafe typecast". Those are intended for .NET and Linux portability. You can
@@ -220,15 +215,15 @@ You can't have Delphi 2006 and CBuilder 2006 packages installed at the
 same time in the IDE. So when switching from one to the other, be sure to
 remove the one you don't need.
 If you need both BCB and Delphi personnalities ate the same time, then
-use Delphi 2006 package (IcsDel100.bpl) and change his options to make it
+use Delphi 2006 package (OverbyteIcsDel100.bpl) and change his options to make it
 a dual mode Delphi/CPP package. See Borland documentation.
 
 BCB6: First you need to install all components. There is a package in
-Delphi\VC32 directory, called IcsBcb60.bpk. You do File/Open project and
-browse to IcsBcb60.bpk. Select and open it, then Project/Build IcsBcb60.
+Delphi\VC32 directory, called OverbyteIcsBcb60.bpk. You do File/Open project and
+browse to OverbyteIcsBcb60.bpk. Select and open it, then Project/Build OverbyteIcsBcb60.
 Once the package is compiled, you can install it into your component
 palette: Component/Install Packages, click the Add button and select 
-Delphi\VC32\IcsBcb60.bpl (you just generated this file by compiling the 
+Delphi\VC32\OverbyteIcsBcb60.bpl (you just generated this file by compiling the 
 package). Click OK button. You must now see FPiette Tab on the component 
 gallery.
 
@@ -236,7 +231,7 @@ Once the components are all installed, you may open the sample projects
 each one after the other and compile them. For each project, do file/open
 and select the dpr file in the internet directory. Then Project/Build All.
 Projects are located in CPP/INTERNET/BCB6. There is also a project group
-Bcb60Sam.bpg which contains all sample projects.
+OverbyteBcb60Sam.bpg which contains all sample projects.
 It is likely that for each project, Bcb complains about a missing .res
 file. This is not a problem, Bcb will recreate it as needed. They have not
 been included to save space in the zip file.
@@ -260,12 +255,10 @@ at design time, you'll have it at runtime !
 - If you have Delphi or BCB complaining about a file not found, add VC32
 directory to your library path.
 
-- If you are using BCB3, 4, 5 or 6, you may encounter an error at link time 
+- If you are using BCB you may encounter an error at link time 
 such as "Unable to open file MWBCB30.LIB" (or other libs). This is a bug
-in BCB. To solve it, close BCB and open the package or project file with 
-notepad or any text editor and remove any reference to the missing libraries. 
-Then start BCB again, reopen the project and rebuilt it. With BCB5/6 you can
-edit project option file (right click in project manager).
+in BCB. To solve it, you can edit project option file (right click in 
+project manager) and remove any reference to the missing libraries.
 
 - Don't forget that the C++Builder components are located in .\delphi\vc32 
 which is object pascal source code (not a problem for C++Builder, just 
@@ -276,43 +269,47 @@ directory.
 - The following is a list of the files that should be installed in order to
 properly add all of the available components in this collection:
 
-> DnsQuery         DNS lookup component - useful for getting MX records
-> EmulVT.pas       ANSI terminal emulation in a control
-> FingCli.pas      FINGER client protocol - Find informations about user
-> FtpCli.pas       FTP client protocol - file transfert
-> FtpSrv.pas       FTP server protocol - file transfert
-> HttpProt.pas     HTTP client protocol - used by the web
-> HttpSrv.pas      HTTP server protocol - used to build webservers
-> IcsLogger.pas    A component to log informations
-> MimeDec.pas      MIME component - decode file attach, use with POP3
-> NntpCli.pas      NNTP client protocol - send and receive newsgroups messages
-> Ping.pas         ICMP echo protocol - ping a host
-> Pop3Prot.pas     POP3 client protocol - get mail from mail server
-> SmtpProt.pas     SMTP client protocol - send mail to server
-> TnCnx.pas        TELNET client protocol - terminal emulation protocol
-> TnEmulVT.pas     TELNET and ANSI terminal emulation combined
-> TnScript.pas     TELNET client protocol - with automation
-> Wait.pas         A kind of progress bar - now obsolete, forget it for new cod
-> WSocket.pas      Winsock component - TCP, UDP, DNS,...
-> WSocketE.pas     Register procedure andproperty editor for TWSocket
-> WSocketS.pas     Winsock component for building servers
-> WSocketTS.pas    Winsock component for building multithreaded servers
+> OverbyteIcsDnsQuery         DNS lookup component - useful for getting MX records
+> OverbyteIcsEmulVT.pas       ANSI terminal emulation in a control
+> OverbyteIcsFingCli.pas      FINGER client protocol - Find informations about user
+> OverbyteIcsFtpCli.pas       FTP client protocol - file transfert
+> OverbyteIcsFtpSrv.pas       FTP server protocol - file transfert
+> OverbyteIcsHttpProt.pas     HTTP client protocol - used by the web
+> OverbyteIcsHttpSrv.pas      HTTP server protocol - used to build webservers
+> OverbyteIcsIcsLogger.pas    A component to log informations
+> OverbyteIcsMimeDec.pas      MIME component - decode file attach, use with POP3
+> OverbyteIcsNntpCli.pas      NNTP client protocol - send and receive newsgroups messages
+> OverbyteIcsPing.pas         ICMP echo protocol - ping a host
+> OverbyteIcsPop3Prot.pas     POP3 client protocol - get mail from mail server
+> OverbyteIcsSmtpProt.pas     SMTP client protocol - send mail to server
+> OverbyteIcsTnCnx.pas        TELNET client protocol - terminal emulation protocol
+> OverbyteIcsTnEmulVT.pas     TELNET and ANSI terminal emulation combined
+> OverbyteIcsTnScript.pas     TELNET client protocol - with automation
+> OverbyteIcsWait.pas         A kind of progress bar - now obsolete, forget it for new cod
+> OverbyteIcsWSocket.pas      Winsock component - TCP, UDP, DNS,...
+> OverbyteIcsWSocketE.pas     Register procedure andproperty editor for TWSocket
+> OverbyteIcsWSocketS.pas     Winsock component for building servers
+> OverbyteIcsWSocketTS.pas    Winsock component for building multithreaded servers
 
 As a rule, the components are the files which have a Register procedure.
 
 - The following list support and utilities units:
-> Icmp.pas         ICMP protocol support, used by the PING component
-> IcsCRC.pas       32 bit CRC computation
-> IcsDES.pas       Implementation of the Data Encryption Standard (DES)
-> IcsMD4.pas       Implementation of the MD4 Message-Digest Algorithm 
-> IcsMD5.pas       Implementation of the MD5 Message-Digest Algorithm
-> IcsSHA1.pas      Implementation of US Secure Hash Algorithm 1 (SHA1)
-> IcsURL.pas       Support routines for URL handling
-> MimeUtil.pas     Support routines for MIME standard
+> OverbyteIcsIcmp.pas         ICMP protocol support, used by the PING component
+> OverbyteIcsIcsCRC.pas       32 bit CRC computation
+> OverbyteIcsIcsDES.pas       Implementation of the Data Encryption Standard (DES)
+> OverbyteIcsIcsMD4.pas       Implementation of the MD4 Message-Digest Algorithm 
+> OverbyteIcsIcsMD5.pas       Implementation of the MD5 Message-Digest Algorithm
+> OverbyteIcsIcsSHA1.pas      Implementation of US Secure Hash Algorithm 1 (SHA1)
+> OverbyteIcsIcsURL.pas       Support routines for URL handling
+> OverbyteIcsMimeUtil.pas     Support routines for MIME standard
 
 
 Sample applications:
 --------------------
+
+Note: All sample file names begins with prefix "OverbyteIcs". Some samples listed
+below maybe missing from distribution because the are from version 5 and not yet
+ported to V6. If you need those samples, download V5.
 
 BASFTP          Basic FTP client program
 CLIDEMO         Example of client for SRVDEMO

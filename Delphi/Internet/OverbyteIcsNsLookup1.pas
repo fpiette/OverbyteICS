@@ -47,7 +47,7 @@ interface
 uses
   WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, IniFiles, StdCtrls, ExtCtrls, Buttons,
-  OverbyteIcsWinSock, OverbyteIcsWSocket, OverbyteIcsDnsQuery, DnsQuery;
+  OverbyteIcsWinSock, OverbyteIcsWSocket, OverbyteIcsDnsQuery;
 
 const
   NsLookVersion      = 600;

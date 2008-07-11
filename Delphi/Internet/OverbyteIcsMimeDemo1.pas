@@ -53,7 +53,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ExtCtrls, IniFiles,
-  OverbyteIcsMimeUtils, OverbyteIcsMimeDec, MimeDec;
+  OverbyteIcsMimeUtils, OverbyteIcsMimeDec;
 
 const
   MimeDemoVersion    = 104;

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      6.02
+Version:      6.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -293,10 +293,14 @@ Dec 04, 2007 V1.54 added more FEAT extensions, by Angus Robertson, angus@magsys.
              passive port pool now issues incrementing ports instead of the sames ones
 03 Mar 2008 V1.57 added SrvFileModeRead and SrvFileModeWrite as public so share locking
                can be changed, use SrvFileModeRead for MD5SUM (not locked)
-            ensure file stream closed if session terminates unexpectedly  
+            ensure file stream closed if session terminates unexpectedly
 Mar 24, 2008 V6.01 Bumped version number to 6.01
              Francois Piette made some changes to prepare code for Unicode.
-Jun 25, 2008 V6.02 A. Garrels SSL code merged. 
+Jun 25, 2008 V6.02 A. Garrels SSL code merged.
+Jul 11, 2008 V6.03 Angus fixed 'Unicode' bug introduced in V6.01 that stopped PORT command working
+
+
+
 
 Angus pending -
 CRC on the fly
@@ -1652,6 +1656,11 @@ begin
               ((Ch >= '0') and (Ch <= '9'));
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IsDigit(Ch : Char) : Boolean;   { V6.03 }
+begin
+    Result := (Ch >= '0') and (Ch <= '9');
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function atosi(const value : String) : Integer;  { angus V1.38 signed integer, added "const", AG }
@@ -3044,7 +3053,7 @@ begin
     while (I <= Length(Src)) and IsSpace(Src[I]) do
         Inc(I);
     Result := 0;
-    while (I <= Length(Src)) and IsSpace(Src[I]) do begin
+    while (I <= Length(Src)) and IsDigit(Src[I]) do begin    { V6.03 }
         Result := Result * 10 + Ord(Src[I]) - Ord('0');
         Inc(I);
     end;

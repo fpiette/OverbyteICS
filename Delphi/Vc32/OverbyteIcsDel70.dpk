@@ -43,7 +43,7 @@ package OverbyteIcsDel70;
 {$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DESCRIPTION 'Overbyte ICS for Delphi 7'}
+{$DESCRIPTION 'Overbyte ICS V6 for Delphi 7'}
 {$IMPLICITBUILD ON}
 
 requires

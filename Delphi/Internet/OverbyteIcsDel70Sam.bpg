@@ -16,7 +16,7 @@ PROJECTS = OverbyteIcsDel70.bpl OverByteIcsWndControlTest.exe \
   OverbyteIcsNewsReader.exe OverbyteIcsTelnetClient.exe OverbyteIcsPingTst.exe \
   OverbyteIcsNsLookup.exe OverbyteIcsHttpMultipartDownload.exe \
   OverbyteIcsFtpMultipartDownload.exe OverbyteIcsMailHtml.exe \
-  OverbyteIcsDnsLook.exe OverbyteIcsDnsResolver.exe \
+  OverbyteIcsDnsLook.exe OverbyteIcsDnsResolver.exe OverbyteIcsConHttp.exe \
   
 #------------------------------------------------------------------------------
 default: $(PROJECTS)
@@ -81,3 +81,7 @@ OverbyteIcsDnsLook.exe: OverbyteIcsDnsLook.dpr
 
 OverbyteIcsDnsResolver.exe: OverbyteIcsDnsResolver.dpr
   $(DCC)
+
+OverbyteIcsConHttp.exe: OverbyteIcsConHttp.dpr
+  $(DCC)
+  

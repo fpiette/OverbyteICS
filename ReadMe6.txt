@@ -3,7 +3,7 @@ ICS - Internet Component Suite - V6
 (Aka FPIETTE's Components)
 
 
-Revised: June 30, 2008
+Revised: July 12, 2008
 http://www.overbyte.be
 
 Table of content:
@@ -15,6 +15,7 @@ Table of content:
 - Contributions
 - Installation
 - Sample applications
+- About SSL
 - Support
 - Release notes
 - Midware
@@ -27,6 +28,9 @@ Legal issues:
               Copyright (C) 1997-2008 by François PIETTE 
               Rue de Grady 24, 4053 Embourg, Belgium
               <francois.piette@overbyte.be>
+
+              SSL implementation includes code written by Arno Garrels,
+              Berlin, Germany, contact: <arno.garrels@gmx.de>
 
               This software is provided 'as-is', without any express or
               implied warranty. In no event will the author be held liable
@@ -52,6 +56,11 @@ Legal issues:
               4. You must register this software by sending a picture postcard
                  to the author. Use a nice stamp and mention your name, street
                  address, EMail address and any comment you like to say.
+
+              5. As this code make use of OpenSSL, your rights are restricted 
+                 by OpenSSL license as soon as you use any SSL feature.
+                 See http://www.openssl.org for details.
+
 
 
 Donate
@@ -94,7 +103,6 @@ Installation:
 -------------
 
 ICS-V6 has been designed for Delphi 7 and up, and BCB6 and up.
-See also ReadMeICSSSL.txt for SSL specific stuff.
 
 The zip file has subdirectories in it. You must use the WinZip "Use folder 
 names" option to restore this directory tree or you will have problems 
@@ -104,6 +112,7 @@ This is the subdirectory layout:
 
 .\                            Info directory
 .\delphi\internet             Delphi.W32 sample applications (all Win32 Delphi versions)
+.\delphi\sslinternet          Delphi.W32 SSL-enabled sample applications (all Win32 Delphi versions)
 .\delphi\internet\WebServData Directory for WebServ demo data files
 .\delphi\dotnet               Delphi.NET components and applications 
 .\cpp\internet                C++Builder sample applications
@@ -117,6 +126,10 @@ and obj files from vc32 and internet directories. This applies to all Win32 vers
 For Delphi.NET, remove all dcpil files.
 Always upgrade your compiler with the latest update available from Borland.
 Always updade your system with http://windowsupdate.microsoft.com
+
+When the components are "SSL-enabled" by defining USE_SSL symbol, you must have 
+LIBEAY32.DLL and SSLEAY32.DLL available somewhere in your path. 
+See http://www.openssl.org for instructions, licensing and source code.
 
 DELPHI 2007/WIN32:
 Directory VC32 contains OverbyteIcsDel110Package.dproj which is a package source for
@@ -381,6 +394,7 @@ Note 2: Not all samples have been rewritten in C++ for BCB. And those rewritten 
         frequently much simpler. So BCB user: have a look at the Delphi sample too !
 Note 3: Follow "UserMade" link on ICS website to find more sample programs written by
         ICS users.
+Note 4: See folder SslInternet for SSL-enabled versions of the samples.
 
 As explained in the component installation, you may encounter an error loading
 a sample application or running it. This may be because the last time I
@@ -402,6 +416,60 @@ It is possible to use several Delphi or BCB versions at the same time, but
 before switching from one to the other, you MUST delete all DCU, OBJ, ILS, 
 ILF, TDS, ILC and ILD files.For BCB, you sometimes need to delete HPP files
 as well. They will be recreated when you reinstall ICS components.
+
+About SSL:
+----------
+TSslWSocket and TSslWSocketServer component are derived from the standard 
+TWSocket and TWSocketServer component. The SSL code is compiled into the
+component only if you define USE_SSL symbol to your packages and projects.
+Just add USE_SSL to the defines in the project or package options and
+recompile everything.
+
+The components make use of LIBEAY32.DLL and SSLEAY32.DLL to handle SSL
+protocol stuff. The DLLs are dynamically loaded at runtime. It means that
+the DLLs will only be required at runtime when you first make use of a SSL
+function. Your applications will run on systems without OpenSSL DLLs as long
+as you don't call any SSL function.
+
+This version requires OpenSsl version 0.98e! If you need to support 
+older OpenSsl versions as well (not recommended) define symbol 
+BEFORE_OSSL_098E in OverbyteIcsSslDefs.inc and rebuild all.
+
+Most ICS components have their SSL enabled counter part. They work exactly
+the same way as the regular component except when SSL specific stuff is needed,
+for example certificates. To support SSL stuff, the SSL-enabled version use
+some new properties, events and methods. Many sample programs have their
+SSL-enabled counter part in a separate sources located in SslInternet folder.
+
+SSL certificates:
+To make use of SSL, you frequently need certificates. I provide some demo
+certificates I built using command line OpenSSL tool. PEM certificates can 
+be opened by a text editor, LF as well as CRLF are allowed as line breaks.
+
+CACERT.PEM :   A demo certificate for "Example CA" 
+01CERT.PEM :   A demo certificate which is signed by CACERT.PEM
+01KEY.PEM :    A demo private key for 01CERT.PEM
+               Passphrase is "password".
+CLIENT.PEM :   A demo certificate and private key.
+               Passphrase is "password".
+SERVER.PEM :   A demo certificate and private key.
+               Passphrase is "password".
+ROOT.PEM :     A demo CA certificate.
+               Passphrase is "password".               
+TRUSTEDCABUNDLE.PEM :
+               A demo CA file in PEM format containing multiple
+               wellknown root CA certificates to be spezified in
+               property CA Path of the demo applications. Read
+               the comments included in this file.
+6F6359FC.0 :   Located in sub directory SslInternet\TrustedCaStore,
+               it's the file CACERT.PEM stored with a hashed file
+               name. Directory TrustedCaStore can be spezified in
+               property CA Path of the demo applications.                                   
+
+For details about certificate, see the excellent book:
+  "Network security with OpenSSL", O'Reilly, ISBN 10: 0-596-00270-X
+
+You will find more informations in IcsSslHowTo.txt file.
 
 
 Support:

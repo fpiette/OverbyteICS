@@ -5,6 +5,8 @@ ReadMeOverbyteIcsV6beta.txt
 IcsMidwareCodingStyle.doc
 ReadMe6.txt
 Clean.bat
+IcsSslHowTo.txt
+Default.dof
 
 Delphi\Internet\fp_small.gif
 Delphi\Internet\ics_logo.gif
@@ -286,10 +288,6 @@ cpp\Internet\Bcb2007\OverbyteIcsHttpTst.res
 cpp\Internet\OverbyteIcsHttpTst1.cpp
 cpp\Internet\OverbyteIcsHttpTst1.dfm
 cpp\Internet\OverbyteIcsHttpTst1.h
-
-ReadMeIcsSsl.txt
-IcsSslHowTo.txt
-Default.dof
 
 Delphi\Vc32\OverbyteIcsSslBcb100Package.bdsproj
 Delphi\Vc32\OverbyteIcsSslBcb100Package.cpp

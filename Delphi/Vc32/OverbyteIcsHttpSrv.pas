@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      6.01
+Version:      6.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -63,6 +63,7 @@ Authentication:
   Use the OnAuthResult event to log authentication success or failure. 
 
 History:
+If not otherwise noted, changes are by Francois Piette
 Nov 12, 1999 Beta 3 Added Linger properties
 Apr 23, 2000 Beta 4 Added Delphi 1 compatibility
              Made everything public in THttpConnection because BCB has problems
@@ -197,6 +198,7 @@ Aug 10, 2007 V1.62 AG - New property SndBlkSize specifies the size of data
              chunks put into the send buffer in THttpConnection.
 Mar 24, 2008 V6.01 Bumped version number to 6.01
              Francois Piette made some changes to prepare code for Unicode.
+Jul 13, 2008 V6.02 Revised socket names used for debugging purpose
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -262,8 +264,8 @@ uses
     OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 601;
-    CopyRight : String = ' THttpServer (c) 1999-2008 F. Piette V6.01 ';
+    THttpServerVersion = 602;
+    CopyRight : String = ' THttpServer (c) 1999-2008 F. Piette V6.02 ';
     //WM_HTTP_DONE       = WM_USER + 40;
     HA_MD5             = 0;
     HA_MD5_SESS        = 1;
@@ -1204,6 +1206,7 @@ constructor THttpServer.Create(AOwner: TComponent);
 begin
     inherited Create(AOwner);
     CreateSocket;
+    FWSocketServer.Name := ClassName + '_SrvSocket' + IntToStr(SafeWSocketGCount);
     FClientClass   := THttpConnection;
     FOptions       := [];
     FAddr          := '0.0.0.0';

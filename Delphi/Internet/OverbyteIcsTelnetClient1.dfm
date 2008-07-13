@@ -58,9 +58,10 @@ object TelnetForm: TTelnetForm
     Xlat = True
     MonoChrome = False
     Log = False
+    LogFileName = 'EMULVT.LOG'
     Rows = 25
     Cols = 80
-    BackRows = 25
+    BackRows = 50
     BackColor = vtsYellow
     Options = [vtoBackColor]
     LineHeight = 16

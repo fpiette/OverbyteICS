@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      6.11
+Version:      6.12
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -596,7 +596,8 @@ Mar 10, 2008 V6.09 Francois Piette & Arno Garrels made some changes to
                    WSocketGetProc and WSocket2GetProc use AnsiString
                    GetAliasList simplified and use AnsiString
 Jun 29, 2008 V6.10 Local variable FHandle removed from TCustomWSocket.
-Jul 04, 2008 Rev.58 SSL - Still lacked a few changes I made last year.
+Jul 04, 2008 V6.11 Rev.58 SSL - Still lacked a few changes I made last year.
+Jul 13, 2008 V6.12 Added SafeWSocketGCount
 
 
 About multithreading and event-driven:
@@ -692,8 +693,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 611;
-  CopyRight    : String     = ' TWSocket (c) 1996-2008 Francois Piette V6.11 ';
+  WSocketVersion            = 612;
+  CopyRight    : String     = ' TWSocket (c) 1996-2008 Francois Piette V6.12 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -2521,6 +2522,10 @@ function WSocket_accept(s: TSocket; addr: PSockAddr; addrlen: PInteger): TSocket
 {$ENDIF}
 {$ENDIF}
 
+{$IFNDEF NO_ADV_MT}
+function SafeWSocketGCount : Integer;
+{$ENDIF}
+
 const
     WSocketGCount   : Integer = 0;
     WSocketGForced  : boolean = FALSE;
@@ -3993,6 +3998,15 @@ procedure SafeDecrementCount;
 begin
     EnterCriticalSection(GWSockCritSect);
     Dec(WSocketGCount);
+    LeaveCriticalSection(GWSockCritSect);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function SafeWSocketGCount : Integer;
+begin
+    EnterCriticalSection(GWSockCritSect);
+    Result := WSocketGCount;
     LeaveCriticalSection(GWSockCritSect);
 end;
 {$ENDIF}

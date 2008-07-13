@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  TFtpCtrlSocket component. It handle the client connection for
               the TFtpServer component.
 Creation:     April 21, 1998
-Version:      6.03
+Version:      6.04
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2007 by François PIETTE
+Legal issues: Copyright (C) 1998-2008 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -38,6 +38,7 @@ Legal issues: Copyright (C) 1998-2007 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
+If not otherwise noted, changes are by Francois Piette
 Apr 29, 1998  V0.90 released for beta testing.
 May 03, 1998  V0.93 Adapted for Delphi 2.0 and C++Builder
 May 04, 1998  V0.94 Added support for UNC (not finished !)
@@ -81,7 +82,9 @@ Dec 03, 2007  V1.54 added more FEAT extensions, by Angus Robertson, angus@magsys
 Dec 09, 2007 V1.55 mode z bug fix for resumed transfers
 Jan 08, 2008 V1.57 added FileModeRead and FileModeWrite as public so share locking
                can be changed, use FileModeRead for MD5SUM (not locked)
-Jul 10, 2008 V6.03 bumped version to match OverbyteFtpCli               
+Jul 10, 2008 V6.03 bumped version to match OverbyteFtpCli
+Jul 13, 2008 V6.04 Made ReadCount a public property
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpSrvC;
@@ -374,11 +377,16 @@ type
                                                  write SetDirectory;
         property HomeDir : String                read  FHomeDir
                                                  write SetHomeDir;  { AG V1.52}
-        property AbortingTransfer : Boolean      read  FAbortingTransfer
+        property AbortingTransfer   : Boolean    read  FAbortingTransfer
                                                  write SetAbortingTransfer;
-        property ID               : LongInt      read  FID
+        property ID                 : LongInt    read  FID
                                                  write FID;
-        property PeerSAddr        : TSockAddr    read  FPeerSAddr;  { AG V1.47 }
+        property PeerSAddr          : TSockAddr  read  FPeerSAddr;  { AG V1.47 }
+{$IFDEF STREAM64}                      { V5.26 }
+        property ReadCount          : Int64      read  FReadCount;
+{$ELSE}
+        property ReadCount          : LongInt    read  FReadCount;
+{$ENDIF}
     published
         property FtpState : TFtpCtrlState  read  FFtpState
                                            write FFtpState;

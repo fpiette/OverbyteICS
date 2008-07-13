@@ -2,6 +2,8 @@ object SmtpTestForm: TSmtpTestForm
   Left = 93
   Top = 294
   Caption = 'SmtpTestForm'
+  ClientHeight = 269
+  ClientWidth = 546
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -17,7 +19,7 @@ object SmtpTestForm: TSmtpTestForm
   object MsgMemo: TMemo
     Left = 0
     Top = 185
-    Width = 600
+    Width = 546
     Height = 120
     Hint = 'Enter the message text in this memo'
     Align = alTop
@@ -37,7 +39,7 @@ object SmtpTestForm: TSmtpTestForm
   object DisplayMemo: TMemo
     Left = 0
     Top = 388
-    Width = 600
+    Width = 546
     Height = 53
     Hint = 'This memo shows info messages'
     Align = alClient
@@ -58,10 +60,11 @@ object SmtpTestForm: TSmtpTestForm
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
-    Width = 600
+    Width = 546
     Height = 185
     Align = alTop
     TabOrder = 2
+    ExplicitWidth = 600
     object Label1: TLabel
       Left = 22
       Top = 11
@@ -449,7 +452,7 @@ object SmtpTestForm: TSmtpTestForm
   object AttachPanel: TPanel
     Left = 0
     Top = 305
-    Width = 600
+    Width = 546
     Height = 17
     Align = alTop
     TabOrder = 3
@@ -464,7 +467,7 @@ object SmtpTestForm: TSmtpTestForm
   object FileAttachMemo: TMemo
     Left = 0
     Top = 322
-    Width = 600
+    Width = 546
     Height = 49
     Hint = 'Enter the attached file path, one per line'
     Align = alTop
@@ -484,7 +487,7 @@ object SmtpTestForm: TSmtpTestForm
   object InfoPanel: TPanel
     Left = 0
     Top = 371
-    Width = 600
+    Width = 546
     Height = 17
     Align = alTop
     TabOrder = 5

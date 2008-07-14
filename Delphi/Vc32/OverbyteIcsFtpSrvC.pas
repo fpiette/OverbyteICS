@@ -142,8 +142,8 @@ uses
     OverbyteIcsWinsock, OverbyteIcsWSocket, OverbyteIcsWSockBuf;
 
 const
-    FtpCtrlSocketVersion = 157;
-    CopyRight : String   = ' TFtpCtrlSocket  (c) 1998-2008 F. Piette V1.57 ';
+    FtpCtrlSocketVersion = 604;
+    CopyRight : String   = ' TFtpCtrlSocket  (c) 1998-2008 F. Piette V6.04 ';
     DefaultRcvSize       = 2048;
     UtcDateMaskPacked    = 'yyyymmddhhnnss';         { angus V1.38 }
 

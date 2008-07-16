@@ -21,6 +21,20 @@ Delphi\Internet\OverbyteIcsConHttp.bdsproj
 Delphi\Internet\OverbyteIcsConHttp.dproj
 Delphi\Internet\OverbyteIcsConHttp.dpr
 
+Delphi\Internet\OverbyteIcsHttpAsy.bdsproj
+Delphi\Internet\OverbyteIcsHttpAsy.dproj
+Delphi\Internet\OverbyteIcsHttpAsy.dpr
+Delphi\Internet\OverbyteIcsHttpAsy.res
+Delphi\Internet\OverbyteIcsHttpAsy1.pas
+Delphi\Internet\OverbyteIcsHttpAsy1.dfm
+
+Delphi\Internet\OverbyteIcsHttpAsp.bdsproj
+Delphi\Internet\OverbyteIcsHttpAsp.dproj
+Delphi\Internet\OverbyteIcsHttpAsp.dpr
+Delphi\Internet\OverbyteIcsHttpAsp.res
+Delphi\Internet\OverbyteIcsHttpAsp1.pas
+Delphi\Internet\OverbyteIcsHttpAsp1.dfm
+
 Delphi\Internet\OverbyteIcsDnsLook.bdsproj
 Delphi\Internet\OverbyteIcsDnsLook.dproj
 Delphi\Internet\OverbyteIcsDnsLook.dpr

@@ -6,11 +6,11 @@ Description:  A simple HTTPS client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      1.05
+Version:      1.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2006 by François PIETTE
+Legal issues: Copyright (C) 2003-2008 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -49,7 +49,8 @@ Nov 08, 2005  V1.04 Arno Garrels adjusted a few type casts in some event
               handlers. Put in OpenSSL version info.
 Dec 20, 2005  V1.05 Angus Robertson added new LogOptions and GZIP decompression
                 and display more log lines 
-
+Jul 18, 2008  V1.06 A. Garrels fixed an AV in SslHttpCli1SslCliCertRequest
+               
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -88,10 +89,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 105;
+     HttpsTstVersion     = 106;
      HttpsTstDate        = 'Dec 21, 2005';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2006 Francois Piette V1.05.0 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2008 Francois Piette V1.06.0 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -934,6 +935,8 @@ begin
     { the server requested a certificate from the client,              }
     { and of course only in case of the SSL session wasn't reused.     }
     if not Assigned(FClientCerts) then begin
+        if not Assigned(ClientCertDlg) then
+            Application.CreateForm(TClientCertDlg, ClientCertDlg);
         { Create a pool of client certs }
         ClientCertDlg.CertListBox.Clear;
         FClientCerts := TX509List.Create(Self);

@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      6.11
+Version:      6.12
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -305,7 +305,8 @@ Jun 28, 2008 V6.10  **Bracking Change** enum items "smtpTlsImplicite",
                     "smtpTlsExplicite" renamed to "smtpTlsImplicit",
                     "smtpTlsExplicit".
 Jul 13, 2008 V6.11  F. Piette revised socket names used for debugging purpose
-                    A. Grrels fixed RcptToNext
+                    A. Garrels fixed RcptToNext
+Jul 14, 2008 V6.12  A. Garrels added property HtmlCharset to THtmlSmtpCli.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -351,8 +352,8 @@ uses
     OverbyteIcsMimeUtils;
 
 const
-  SmtpCliVersion     = 610;
-  CopyRight : String = ' SMTP component (c) 1997-2008 Francois Piette V6.10 ';
+  SmtpCliVersion     = 612;
+  CopyRight : String = ' SMTP component (c) 1997-2008 Francois Piette V6.12 ';
   smtpProtocolError  = 20600; {AG}
 
 {$IFDEF VER80}
@@ -1031,6 +1032,8 @@ type
                                        write SetPlainText;
         property HtmlText  : TStrings  read  FHtmlText
                                        write SetHtmlText;
+        property HtmlCharset : String  read  FHtmlCharSet
+                                       write FHtmlCharSet;
     end;
 
 { Function to convert a TDateTime to an RFC822 timestamp string }

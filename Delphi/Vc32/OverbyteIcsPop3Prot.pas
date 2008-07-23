@@ -128,7 +128,7 @@ Dec 29, 2007  V6.01  A.Garrels made WSocketSessionConnected virtual (SSL).
 Feb 11, 2008  V6.02  Angus SSL version now supports sync methods
 Mar 24, 2008  V6.03 Francois Piette made some changes to prepare code
                     for Unicode.
-Jun 28, 2008  V6.04 **Bracking Change** enum items "pop3TlsImplicite", "pop3TlsExplicite"
+Jun 28, 2008  V6.04 **Breaking Change** enum items "pop3TlsImplicite", "pop3TlsExplicite"
               renamed to "pop3TlsImplicit", "pop3TlsExplicit"
 
               

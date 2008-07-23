@@ -301,7 +301,7 @@ Apr 08, 2008 V6.09  A.Garrels wrapped some method calls in DoHighLevelAsync
                     in a try-except block to trigger RequestDone with error
                     '500 Internal client error' and the exception message.
                     This bug was found by Bjørnar Nielsen.
-Jun 28, 2008 V6.10  **Bracking Change** enum items "smtpTlsImplicite",
+Jun 28, 2008 V6.10  **Breaking Change** enum items "smtpTlsImplicite",
                     "smtpTlsExplicite" renamed to "smtpTlsImplicit",
                     "smtpTlsExplicit".
 Jul 13, 2008 V6.11  F. Piette revised socket names used for debugging purpose

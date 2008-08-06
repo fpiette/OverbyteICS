@@ -101,6 +101,8 @@ http://downloads.sourceforge.net/mingw/MinGW-5.1.3.exe?modtime=1168794334&big_mi
 6a) type "ms\mingw32.bat"
 6b) wait and drink beer :-)
 7) check if all is well: "cd out", "..\ms\test"
+8) libssl32.dll and libleay32.dll are written to the OpenSSL root folder.
+9) Rename libssl32.dll to ssleay32.dll.
 
 And don't be as stupid as me, if you have other gcc tool chains like 
 phone compilers in the path variable, make sure that you set the mingw 

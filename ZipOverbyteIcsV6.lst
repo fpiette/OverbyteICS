@@ -346,6 +346,7 @@ Delphi\SslInternet\OverbyteIcsSslDel70Sam.bpg
 Delphi\SslInternet\OverbyteIcsHttpsTst.bdsproj
 Delphi\SslInternet\OverbyteIcsHttpsTst.dproj
 Delphi\SslInternet\OverbyteIcsHttpsTst.dpr
+Delphi\SslInternet\OverbyteIcsHttpsTst.res
 Delphi\SslInternet\OverbyteIcsHttpsTst.dof
 Delphi\SslInternet\OverbyteIcsHttpsTst1.dfm
 Delphi\SslInternet\OverbyteIcsHttpsTst1.pas
@@ -355,6 +356,7 @@ Delphi\SslInternet\OverbyteIcsCliCertDlg.pas
 Delphi\SslInternet\OverbyteIcsHttpsServer.bdsproj
 Delphi\SslInternet\OverbyteIcsHttpsServer.dproj
 Delphi\SslInternet\OverbyteIcsHttpsServer.dpr
+Delphi\SslInternet\OverbyteIcsHttpsServer.res
 Delphi\SslInternet\OverbyteIcsHttpsServer.dof
 Delphi\SslInternet\OverbyteIcsHttpsServer1.dfm
 Delphi\SslInternet\OverbyteIcsHttpsServer1.pas
@@ -362,6 +364,7 @@ Delphi\SslInternet\OverbyteIcsHttpsServer1.pas
 Delphi\SslInternet\OverbyteIcsSslWebServ.bdsproj
 Delphi\SslInternet\OverbyteIcsSslWebServ.dproj
 Delphi\SslInternet\OverbyteIcsSslWebServ.dpr
+Delphi\SslInternet\OverbyteIcsSslWebServ.res
 Delphi\SslInternet\OverbyteIcsSslWebServ.dof
 Delphi\SslInternet\OverbyteIcsSslWebServ1.dfm
 Delphi\SslInternet\OverbyteIcsSslWebServ1.pas
@@ -369,6 +372,7 @@ Delphi\SslInternet\OverbyteIcsSslWebServ1.pas
 Delphi\SslInternet\OverbyteIcsSimpleSslCli.bdsproj
 Delphi\SslInternet\OverbyteIcsSimpleSslCli.dproj
 Delphi\SslInternet\OverbyteIcsSimpleSslCli.dpr
+Delphi\SslInternet\OverbyteIcsSimpleSslCli.res
 Delphi\SslInternet\OverbyteIcsSimpleSslCli.dof
 Delphi\SslInternet\OverbyteIcsSimpleSslCli1.dfm
 Delphi\SslInternet\OverbyteIcsSimpleSslCli1.pas
@@ -376,6 +380,7 @@ Delphi\SslInternet\OverbyteIcsSimpleSslCli1.pas
 Delphi\SslInternet\OverbyteIcsSslFtpTst.bdsproj
 Delphi\SslInternet\OverbyteIcsSslFtpTst.dproj
 Delphi\SslInternet\OverbyteIcsSslFtpTst.dpr
+Delphi\SslInternet\OverbyteIcsSslFtpTst.res
 Delphi\SslInternet\OverbyteIcsSslFtpTst.dof
 Delphi\SslInternet\OverbyteIcsSslFtpTst1.dfm
 Delphi\SslInternet\OverbyteIcsSslFtpTst1.pas
@@ -385,6 +390,7 @@ Delphi\SslInternet\OverbyteIcsSslFtpTst2.pas
 Delphi\SslInternet\OverbyteIcsSslFtpServ.bdsproj
 Delphi\SslInternet\OverbyteIcsSslFtpServ.dproj
 Delphi\SslInternet\OverbyteIcsSslFtpServ.dpr
+Delphi\SslInternet\OverbyteIcsSslFtpServ.res
 Delphi\SslInternet\OverbyteIcsSslFtpServ.dof
 Delphi\SslInternet\OverbyteIcsSslFtpServ1.dfm
 Delphi\SslInternet\OverbyteIcsSslFtpServ1.pas
@@ -392,6 +398,7 @@ Delphi\SslInternet\OverbyteIcsSslFtpServ1.pas
 Delphi\SslInternet\OverbyteIcsSslMailSnd.bdsproj
 Delphi\SslInternet\OverbyteIcsSslMailSnd.dproj
 Delphi\SslInternet\OverbyteIcsSslMailSnd.dpr
+Delphi\SslInternet\OverbyteIcsSslMailSnd.res
 Delphi\SslInternet\OverbyteIcsSslMailSnd.dof
 Delphi\SslInternet\OverbyteIcsSslMailSnd1.dfm
 Delphi\SslInternet\OverbyteIcsSslMailSnd1.pas
@@ -399,6 +406,7 @@ Delphi\SslInternet\OverbyteIcsSslMailSnd1.pas
 Delphi\SslInternet\OverbyteIcsSslNewsRdr.bdsproj
 Delphi\SslInternet\OverbyteIcsSslNewsRdr.dproj
 Delphi\SslInternet\OverbyteIcsSslNewsRdr.dpr
+Delphi\SslInternet\OverbyteIcsSslNewsRdr.res
 Delphi\SslInternet\OverbyteIcsSslNewsRdr.dof
 Delphi\SslInternet\OverbyteIcsSslNewsRdr1.dfm
 Delphi\SslInternet\OverbyteIcsSslNewsRdr1.pas
@@ -406,12 +414,14 @@ Delphi\SslInternet\OverbyteIcsSslNewsRdr1.pas
 Delphi\SslInternet\OverbyteIcsSimpleSslServer.bdsproj
 Delphi\SslInternet\OverbyteIcsSimpleSslServer.dproj
 Delphi\SslInternet\OverbyteIcsSimpleSslServer.dpr
+Delphi\SslInternet\OverbyteIcsSimpleSslServer.res
 Delphi\SslInternet\OverbyteIcsSimpleSslServer.dof
 Delphi\SslInternet\OverbyteIcsSimpleSslServer1.dfm
 Delphi\SslInternet\OverbyteIcsSimpleSslServer1.pas
 
 Delphi\SslInternet\OverbyteIcsPemTool.dproj
 Delphi\SslInternet\OverbyteIcsPemTool.dpr
+Delphi\SslInternet\OverbyteIcsPemTool.res
 Delphi\SslInternet\OverbyteIcsPemTool.dof
 Delphi\SslInternet\OverbyteIcsPemTool1.dfm
 Delphi\SslInternet\OverbyteIcsPemTool1.pas

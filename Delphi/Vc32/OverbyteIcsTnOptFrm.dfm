@@ -1,14 +1,14 @@
 object OptForm: TOptForm
   Left = 370
   Top = 179
+  Width = 289
+  Height = 379
   Caption = 'Options'
-  ClientHeight = 335
-  ClientWidth = 282
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -13
-  Font.Name = 'System'
+  Font.Name = 'MS Sans Serif'
   Font.Style = []
   OldCreateOrder = True
   OnClose = FormClose
@@ -19,35 +19,35 @@ object OptForm: TOptForm
   object Label1: TLabel
     Left = 8
     Top = 11
-    Width = 36
+    Width = 34
     Height = 16
     Caption = 'Rows'
   end
   object Label2: TLabel
     Left = 8
     Top = 43
-    Width = 29
+    Width = 27
     Height = 16
     Caption = 'Cols'
   end
   object Label3: TLabel
     Left = 8
     Top = 74
-    Width = 50
+    Width = 46
     Height = 16
     Caption = 'LHeight'
   end
   object Label4: TLabel
     Left = 128
     Top = 12
-    Width = 69
+    Width = 63
     Height = 16
     Caption = 'Line Zoom'
   end
   object Label5: TLabel
     Left = 128
     Top = 44
-    Width = 71
+    Width = 66
     Height = 16
     Caption = 'Char Zoom'
   end

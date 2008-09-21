@@ -209,6 +209,9 @@ Delphi\Vc32\OverbyteIcsDefs.inc
 Delphi\VC32\OverbyteIcsBcb110Package.cbproj
 Delphi\VC32\OverbyteIcsBcb110Package.cpp
 Delphi\VC32\OverbyteIcsBcb110Package.res
+Delphi\VC32\OverbyteIcsSslBcb110Package.cbproj
+Delphi\VC32\OverbyteIcsSslBcb110Package.cpp
+Delphi\VC32\OverbyteIcsSslBcb110Package.res
 Delphi\Vc32\OverbyteIcsDel100Package.bdsproj
 Delphi\Vc32\OverbyteIcsDel100Package.dpk
 Delphi\Vc32\OverbyteIcsDel100Package.res

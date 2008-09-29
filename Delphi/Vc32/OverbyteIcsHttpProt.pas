@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      6.00.5
+Version:      6.00.7
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -388,6 +388,9 @@ Mar 19, 2007 V6.00.3 A.Garrels fixed a memory leak of FSendBuffer and
 May 27, 2008 V6.00.4 A.Garrels Workaround in GetHeaderLineNext. Ignore body data
              sent in the HEAD response by buggy servers.
 Jun 25, 2008 V6.00.5 A. Garrels SSL code merged.
+Sep 28, 2008 V6.00.7 Maurizio Lotauro fixed a bug with premature received
+             401/407 responses while data was still being sent with POST and PUT
+             requests.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -456,7 +459,7 @@ uses
 
 const
     HttpCliVersion       = 600;
-    CopyRight : String   = ' THttpCli (c) 1997-2008 F. Piette V6.00.5 ';
+    CopyRight : String   = ' THttpCli (c) 1997-2008 F. Piette V6.00.7 ';
     DefaultProxyPort     = '80';
 {$IFDEF DELPHI1}
     { Delphi 1 has a 255 characters string limitation }
@@ -574,6 +577,7 @@ type
         FHeaderLineCount      : Integer;
         FBodyLineCount        : Integer;
         FAllowedToSend        : Boolean;
+        FDelaySetReady        : Boolean;        { 09/26/08 ML }
         FURL                  : String;
         FPath                 : String;
         FDocName              : String;
@@ -582,7 +586,7 @@ type
         FConnection           : String;         { for Keep-alive }
         FProxyConnection      : String;         { for proxy keep-alive }
         FCurrConnection       : String;
-        FCurrProxyConnection  : String;   
+        FCurrProxyConnection  : String;
         FAgent                : String;
         FAccept               : String;
         FAcceptLanguage       : String;
@@ -685,6 +689,7 @@ type
         procedure AllocateMsgHandlers; override;
         procedure FreeMsgHandlers; override;
         function  MsgHandlersCount: Integer; override;
+        procedure CheckDelaySetReady;                       { 09/26/08 ML }
 {$IFNDEF NO_DEBUG_LOG}
         function  GetIcsLogger: TIcsLogger;                 { V1.91 }
         procedure SetIcsLogger(const Value: TIcsLogger);    { V1.91 }
@@ -2069,11 +2074,13 @@ begin
                             (FProxyAuthNTLMState = ntlmMsg1)) then begin
                         TriggerSendBegin;
                         FAllowedToSend := TRUE;
+                        FDelaySetReady := FALSE;     { 09/26/08 ML }
                         SocketDataSent(FCtrlSocket, 0);
                     end;
 {$ELSE}
                     TriggerSendBegin;
                     FAllowedToSend := TRUE;
+                    FDelaySetReady := FALSE;     { 09/26/08 ML }
                     SocketDataSent(FCtrlSocket, 0);
 {$ENDIF}
                 end;
@@ -2084,11 +2091,13 @@ begin
                     if not ((FAuthNTLMState = ntlmMsg1) or (FProxyAuthNTLMState = ntlmMsg1)) then begin
                     TriggerSendBegin;
                     FAllowedToSend := TRUE;
+                    FDelaySetReady := FALSE;     { 09/26/08 ML }
                     SocketDataSent(FCtrlSocket, 0);
                 end;
 {$ELSE}
                     TriggerSendBegin;
                     FAllowedToSend := TRUE;
+                    FDelaySetReady := FALSE;     { 09/26/08 ML }
                     SocketDataSent(FCtrlSocket, 0);
 {$ENDIF}
                 end;
@@ -2514,7 +2523,7 @@ begin
                 (FCloseReq) then     { SAE 01/06/04 }
                 FCtrlSocket.CloseDelayed
             else
-                SetReady;
+                CheckDelaySetReady;  { 09/26/08 ML }
         end;
     end;
 {$IFNDEF NO_DEBUG_LOG}
@@ -2677,7 +2686,7 @@ begin
                 SetReady;                                         //AG 05/27/08
             end                                                   //AG 05/27/08
             else
-                SetReady;
+                CheckDelaySetReady;  { 09/26/08 ML }
             Exit;
         end;
         DocExt := LowerCase(ExtractFileExt(FDocName));
@@ -2708,7 +2717,7 @@ begin
             if FLocationFlag then
                 StartRelocation
             else
-                SetReady;
+                CheckDelaySetReady; { 09/26/08 ML }
         end;
         { if FStatusCode >= 400 then }   { 01/11/01 }
         {    FCtrlSocket.Close;      }
@@ -2983,6 +2992,7 @@ begin
     FContentEncoding  := '';
 {$ENDIF}
     FAllowedToSend    := FALSE;
+    FDelaySetReady    := FALSE;     { 09/26/08 ML }
     FLocation         := FURL;
     FDoAuthor.Clear;
 
@@ -3539,7 +3549,7 @@ begin
             else if FLocationFlag then   { 28/12/2003 }
                 StartRelocation
             else
-                SetReady;
+                CheckDelaySetReady; { 09/26/08 ML }
         end;
         { FReceiveLen := 0;   22/02/02 }
         Exit;
@@ -3907,11 +3917,13 @@ begin
                         (FProxyAuthNTLMState = ntlmMsg1)) then begin
                 TriggerSendBegin;
                 FAllowedToSend := TRUE;
+                FDelaySetReady := FALSE;     { 09/26/08 ML }
                 SocketDataSent(FCtrlSocket, 0);
             end;
 {$ELSE}
                 TriggerSendBegin;
                 FAllowedToSend := TRUE;
+                FDelaySetReady := FALSE;     { 09/26/08 ML }
                 SocketDataSent(FCtrlSocket, 0);
 {$ENDIF}
             end;
@@ -3922,11 +3934,13 @@ begin
                 if not ((FAuthNTLMState = ntlmMsg1) or (FProxyAuthNTLMState = ntlmMsg1)) then begin
                 TriggerSendBegin;
                 FAllowedToSend := TRUE;
+                FDelaySetReady := FALSE;     { 09/26/08 ML }
                 SocketDataSent(FCtrlSocket, 0);
             end;
 {$ELSE}
                 TriggerSendBegin;
                 FAllowedToSend := TRUE;
+                FDelaySetReady := FALSE;     { 09/26/08 ML }
                 SocketDataSent(FCtrlSocket, 0);
 {$ENDIF}
             end;
@@ -3964,6 +3978,10 @@ begin
     if Len <= 0 then begin
         FAllowedToSend := FALSE;
         TriggerSendEnd;
+        if FDelaySetReady then begin     { 09/26/08 ML }
+          FDelaySetReady := FALSE;       { 09/26/08 ML }
+          SetReady;                      { 09/26/08 ML }
+        end;                             { 09/26/08 ML }
         Exit;
     end;
 
@@ -4399,6 +4417,17 @@ begin
 {$ENDIF}
     inherited ThreadDetach;
     FCtrlSocket.ThreadDetach;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpCli.CheckDelaySetReady;                        { 09/26/08 ML }
+begin
+    if FAllowedToSend and ((FStatusCode = 401) or (FStatusCode = 407)) then
+        FDelaySetReady := TRUE
+    else
+        //SetReady;
+        PostMessage(Handle, FMsg_WM_HTTP_SET_READY, 0, 0);
 end;
 
 

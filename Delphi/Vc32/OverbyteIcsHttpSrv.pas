@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      6.02
+Version:      6.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -199,6 +199,7 @@ Aug 10, 2007 V1.62 AG - New property SndBlkSize specifies the size of data
 Mar 24, 2008 V6.01 Bumped version number to 6.01
              Francois Piette made some changes to prepare code for Unicode.
 Jul 13, 2008 V6.02 Revised socket names used for debugging purpose
+Oct 10, 2008 V6.03 A. Garrels fixed TextToHtmlText() to work in all locales.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -264,8 +265,8 @@ uses
     OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 602;
-    CopyRight : String = ' THttpServer (c) 1999-2008 F. Piette V6.02 ';
+    THttpServerVersion = 603;
+    CopyRight : String = ' THttpServer (c) 1999-2008 F. Piette V6.03 ';
     //WM_HTTP_DONE       = WM_USER + 40;
     HA_MD5             = 0;
     HA_MD5_SESS        = 1;
@@ -3779,18 +3780,22 @@ const
 var
     I, J : Integer;
     Sub  : String;
+    Temp : WideString;
 begin
     Result := '';
     I := 1;
-    while I <= Length(Src) do begin
+    { Convert the ANSI string to Unicode with default code page !! HTML     }
+    { entities represent iso-8859-1 (Latin1) and Unicode character numbers  }
+    Temp := Src;
+    while I <= Length(Temp) do begin
         J   := I;
         Sub := '';
-        while (I <= Length(Src)) and (Ord(Src[I]) < Low(HtmlSpecialChars)) do begin
-            case Src[I] of
+        while (I <= Length(Temp)) and (Ord(Temp[I]) < Low(HtmlSpecialChars)) do begin
+            case Temp[I] of
             ' '  : begin
-                       if (I > 1) and (Src[I - 1] = ' ') then begin
+                       if (I > 1) and (Temp[I - 1] = ' ') then begin
                            { Replace multiple spaces by &nbsp; }
-                           while (I <= Length(Src)) and (Src[I] = ' ') do begin
+                           while (I <= Length(Temp)) and (Temp[I] = ' ') do begin
                                Sub := Sub + '&nbsp;';
                                Inc(I);
                            end;
@@ -3810,19 +3815,22 @@ begin
                 Inc(I);
             end;
             if Length(Sub) > 0 then begin
-                Result := Result + Copy(Src, J, I - J) + Sub;
+                Result := Result + Copy(Temp, J, I - J) + Sub;
                 Inc(I);
                 J      := I;
                 Sub    := '';
             end;
         end;
 
-        if I > Length(Src) then begin
-            Result := Result + Copy(Src, J, I - J);
+        if I > Length(Temp) then begin
+            Result := Result + Copy(Temp, J, I - J);
             Exit;
         end;
-        Result := Result + Copy(Src, J, I - J) + '&' +
-                  HtmlSpecialChars[Ord(Src[I])] + ';';
+        if Ord(Temp[I]) > 255 then
+            Result := Result + Copy(Temp, J, I - J) + '&#' + IntToStr(Ord(Temp[I])) + ';'
+        else
+            Result := Result + Copy(Temp, J, I - J) + '&' +
+                    String(HtmlSpecialChars[Ord(Temp[I])]) + ';';
         Inc(I);
     end;
 end;

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      6.12
+Version:      6.13
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -598,7 +598,8 @@ Mar 10, 2008 V6.09 Francois Piette & Arno Garrels made some changes to
 Jun 29, 2008 V6.10 Local variable FHandle removed from TCustomWSocket.
 Jul 04, 2008 V6.11 Rev.58 SSL - Still lacked a few changes I made last year.
 Jul 13, 2008 V6.12 Added SafeWSocketGCount
-
+Oct 22, 2008 V6.13 A. Garrels removed the const modifier from parameter Data
+             in function SendTo to fix a bug in C++ Builder.
 
 About multithreading and event-driven:
     TWSocket is a pure asynchronous component. It is non-blocking and
@@ -693,8 +694,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 612;
-  CopyRight    : String     = ' TWSocket (c) 1996-2008 Francois Piette V6.12 ';
+  WSocketVersion            = 613;
+  CopyRight    : String     = ' TWSocket (c) 1996-2008 Francois Piette V6.13 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -987,7 +988,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     function    Send(DataByte : Byte) : Integer; overload; virtual;
     function    SendTo(Dest       : TSockAddr;
                        DestLen    : Integer;
-                       const Data : TWSocketData;
+                       {$IFDEF CLR} const {$ENDIF} Data : TWSocketData;
                        Len        : Integer) : Integer; virtual;
     function    SendStr(const Str : AnsiString) : Integer; {$IFDEF COMPILER12_UP} overload; {$ENDIF} virtual;
 {$IFDEF COMPILER12_UP}
@@ -5461,7 +5462,7 @@ end;
 function TCustomWSocket.SendTo(
     Dest       : TSockAddr;
     DestLen    : Integer;
-    const Data : TWSocketData;
+    {$IFDEF CLR} const {$ENDIF} Data : TWSocketData;
     Len        : Integer) : Integer;
 begin
     Result := WSocket_Synchronized_SendTo(FHSocket, Data, Len, FSendFlags,

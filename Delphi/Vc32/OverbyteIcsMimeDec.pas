@@ -6,7 +6,7 @@ Object:       TMimeDecode is a component whose job is to decode MIME encoded
               decode messages received with a POP3 or NNTP component.
               MIME is described in RFC-1521. Headers are described if RFC-822.
 Creation:     March 08, 1998
-Version:      6.03
+Version:      6.04
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -247,6 +247,8 @@ Nov 13, 2007  V6.01 Fixed TMimeDecode.ProcessPartLine to avoid adding a CRLF
 Nov 14, 2007  V6.02 Added Cc decoding
 Mar 10, 2008  V6.03 Francois Piette made some changes to prepare code
                     for Unicode.
+Oct 23, 2008  V6.04 Arno - PrepareNextPart did not clear FPartCharset.
+              Property ApplicationType was not implemented.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -280,8 +282,8 @@ uses
     SysUtils, Classes;
 
 const
-    MimeDecodeVersion  = 603;
-    CopyRight : String = ' TMimeDecode (c) 1998-2008 Francois Piette V6.03 ';
+    MimeDecodeVersion  = 604;
+    CopyRight : String = ' TMimeDecode (c) 1998-2008 Francois Piette V6.04 ';
 
 type
     TMimeDecodePartLine = procedure (Sender  : TObject;
@@ -1371,6 +1373,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TMimeDecode.PrepareNextPart;
 begin
+    FApplicationType         := '';
+    FPartCharset             := '';
     FPartEncoding            := '';
     FPartContentType         := '';
     FPartDisposition         := '';
@@ -1494,6 +1498,8 @@ begin
     p := GetToken(FCurrentData, KeyWord, Delim);
     if KeyWord = 'content-type' then begin
         p := GetTokenEx(p, FPartContentType, Delim);
+        if Pos('application/', FPartContentType) = 1 then
+            FApplicationType := Copy(FPartContentType, 13, MaxInt);
         while Delim = ';' do begin
             p := GetToken(p, Token, Delim);
             if Delim = '=' then begin

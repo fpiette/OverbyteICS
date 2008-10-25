@@ -169,7 +169,7 @@ type
 implementation
 
 resourcestring
-    ERR_GETCODING_OVERRIDE = 'GetCoding must be overriden in %s';
+    ERR_GETCODING_OVERRIDE = 'GetCoding must be overridden in %s';
 
 type
     PContCoding = ^TContCoding;

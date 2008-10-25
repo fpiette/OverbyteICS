@@ -380,7 +380,7 @@ Jul 15, 2000 V4.18 Alon Gingold <gingold@hiker.org.il> changed
              TCustomSocksWSocket calls to inherited triggers of
              TriggerSessionConnected and TriggerDataAvailable.
              Now, it calls the trigger directly. This solves the problem
-             of descendent classes with overriden triggers, not being
+             of descendent classes with overridden triggers, not being
              called when a REAL connection was established, and when real
              data starts coming in. Special care MUST be taken in such
              overridden triggers to ONLY call the inherited trigger AND
@@ -4953,7 +4953,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { This procedure handle all messages for TWSocket. All exceptions must be   }
 { handled or the application will be shutted down !                         }
-{ If WndProc is overriden in descendent components, then the same exception }
+{ If WndProc is overridden in descendent components, then the same exception }
 { handling *MUST* be setup because descendent component code is executed    }
 { before the base class code.                                               }
 procedure TCustomWSocket.WndProc(var MsgRec: TMessage);

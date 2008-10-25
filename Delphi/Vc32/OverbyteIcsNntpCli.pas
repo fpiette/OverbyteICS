@@ -56,7 +56,7 @@ Sep 29, 1998  V1.02 Checked length of FLastResponse before writing it to stream.
 Feb 01, 1999  V1.03 Added nntpConnect to solve connection problem after an
               abort. Thanks to Eric Fortier <efortier@videotron.ca>.
 Feb 27, 1999  V1.04 Made Connect, Abort and Quit method virtual so that they
-              can be overriden in descending components.
+              can be overridden in descending components.
               Checked line length in ParseListLine.
 Mar 31, 1999  V1.05 Made all methods virtual.
 Aug 14, 1999  V1.06 Implemented MODE READER and XHDR

@@ -414,9 +414,9 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-// MsgHandlersCount _must_ be overriden in derived classes to adjust the number
+// MsgHandlersCount _must_ be overridden in derived classes to adjust the number
 // of message handlers needed.
-// The overrident method should looks like this:
+// The overridden method should looks like this:
 // function TCustomWSocket.MsgHandlersCount : Integer;
 // begin
 //     Result := 7 +                           // New MsgHandlers count
@@ -429,7 +429,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-// AllocateMsgHandlers _must_ be overriden in derived classes to allocate
+// AllocateMsgHandlers _must_ be overridden in derived classes to allocate
 // new MsgHandlers. Don't forget to call the inherited one first !
 procedure TIcsWndControl.AllocateMsgHandlers;
 begin
@@ -438,7 +438,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-// FreeMsgHandlers _must_ be overriden in derived classes to free
+// FreeMsgHandlers _must_ be overridden in derived classes to free
 // allocated MsgHandlers. Don't forget to call the inherited one first !
 procedure TIcsWndControl.FreeMsgHandlers;
 begin
@@ -642,7 +642,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-// Message handler for all messages. This _must_ be overriden by derived
+// Message handler for all messages. This _must_ be overridden by derived
 // component to handle his own messages and call inherited to handle all
 // ancestor's messages.
 procedure TIcsWndControl.WndProc(var MsgRec: TMessage);
@@ -743,7 +743,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TIcsWndControl.AbortComponent;
 begin
-    // To be overriden in derived classes
+    // To be overridden in derived classes
 end;
 
 

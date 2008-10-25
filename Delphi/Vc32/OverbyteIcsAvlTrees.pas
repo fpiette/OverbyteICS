@@ -45,14 +45,14 @@ type
 
     TBal = -1..1;
 
-    TAvlTreeNode = class             // Base node should be overriden!!
+    TAvlTreeNode = class             // Base node should be overridden!!
     private
         Bal   : TBal;
         Left  : TAvlTreeNode;
         Right : TAvlTreeNode;
     end;
 
-    TAvlTree = class(TObject)        // Base tree must be overriden!!
+    TAvlTree = class(TObject)        // Base tree must be overridden!!
     private
         FFoundNode   : TAvlTreeNode;
         FRoot        : TAvlTreeNode;

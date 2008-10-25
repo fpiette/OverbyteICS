@@ -7,7 +7,7 @@ Object:       This program is a demo for TMimeDecode component.
               decode messages received with a POP3 component.
               MIME is described in RFC-1521. headers are described if RFC-822.
 Creation:     March 08, 1998
-Version:      1.05
+Version:      1.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -43,7 +43,7 @@ May 04, 2002  V1.03 Adapted InLineDecodeLine event to new Len argument.
               Added file store for UUEncoded files.
 Nov 01, 2002  V1.04 Changed PChar arguments to Pointer to work around Delphi 7
               bug with PAnsiChar<->PChar (change has be done in component).
-
+Oct 25, 2008  V1.06 In MimeDecode1PartEnd the LineBuffer was not null-terminated. 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMimeDemo1;
@@ -56,8 +56,8 @@ uses
   OverbyteIcsMimeUtils, OverbyteIcsMimeDec;
 
 const
-  MimeDemoVersion    = 104;
-  CopyRight : String = ' MimeDemo (c) 1998-2008 F. Piette V1.04 ';
+  MimeDemoVersion    = 106;
+  CopyRight : String = ' MimeDemo (c) 1998-2008 F. Piette V1.06 ';
 
 type
   TMimeDecodeForm = class(TForm)
@@ -196,6 +196,7 @@ end;
 procedure TMimeDecodeForm.MimeDecode1PartEnd(Sender: TObject);
 begin
     if FCharCnt > 0 then begin
+	    FLineBuf[FCharCnt] := #0;
         Display(StrPas(FLineBuf));
         FCharCnt := 0;
     end;

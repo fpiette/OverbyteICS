@@ -7,11 +7,11 @@ Description:  A very fast external SSL-session-cache component.
               Uses OpenSSL (http://www.openssl.org).
               Uses freeware TSslWSocket component  from ICS
               (Internet Component Suite).
-Version:      1.01
+Version:      1.02
 EMail:        <arno.garrels@gmx.de>
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2006-2007 by Arno Garrels, Berlin, Germany,
+Legal issues: Copyright (C) 2006-2008 by Arno Garrels, Berlin, Germany,
               <arno.garrels@gmx.de>
 
               This software is freeware and provided 'as-is', without any
@@ -42,7 +42,7 @@ Legal issues: Copyright (C) 2006-2007 by Arno Garrels, Berlin, Germany,
 
 History:
 06/28/2007 v1.01 A. Garrels fixed a bug with multiple instances.
-
+Oct 23, 08 V1.01 Line indentations corrected.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslSessionCache;
@@ -314,7 +314,7 @@ begin
     begin
         dwRes := WaitForMultipleObjects(2,
                                        @fhArray,
-                                           False,
+                                       False,
                                        Interval);
         // Flush - delete expired entries
         if (dwRes = WAIT_TIMEOUT) then
@@ -330,7 +330,7 @@ begin
         else if ((dwRes - WAIT_ABANDONED_0) = 0) or
                          ((dwRes - WAIT_ABANDONED_0) = 1) then
             Break //***
-                else
+        else
             RaiseLastOSError;
     end; // True-loop
 end;
@@ -412,7 +412,7 @@ begin
         else if FFlushInterval < 1000 then
             FFlushInterval := 1000;
         if (csDesigning in ComponentState) then
-            Exit;    
+            Exit;
         if FSetFlushEv <> 0 then
             SetEvent(FSetFlushEv);
     finally

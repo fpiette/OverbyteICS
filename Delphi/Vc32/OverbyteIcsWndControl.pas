@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Creation:     Octobre 2002
 Description:  Composant non-visuel avec un handle de fenêtre.
-Version:      1.06
+Version:      1.09
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2002-2007 by François PIETTE
+Legal issues: Copyright (C) 2002-2008 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -70,6 +70,7 @@ Historique:
                  Primož Gabrijelcic <primoz@gabrijelcic.org>). D7 code explorer
                  displays all classes again. 
 21/07/2007 V1.07 Updated TIcsTimer for .NET environment.
+15/11/2008 V1.09 Olivier Sannier improved unit finalization, comments in source.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -99,8 +100,8 @@ uses
   OverbyteIcsTypes, OverbyteIcsLibrary;
 
 const
-  TIcsWndControlVersion  = 106;
-  CopyRight : String     = ' TIcsWndControl (c) 2002-2007 F. Piette V1.07 ';
+  TIcsWndControlVersion  = 109;
+  CopyRight : String     = ' TIcsWndControl (c) 2002-2008 F. Piette V1.09 ';
 
   WH_MAX_MSG                   = 100;
   IcsWndControlWindowClassName = 'IcsWndControlWindowClass';
@@ -287,6 +288,10 @@ var
   // the GWndHandlerMsgLow + WH_MAX_MSG
   GWndHandlerMsgLow   : Integer;
 
+  // Will be used by the last socket to know if it must cleanup the global
+  // handler because the unit has been finalized before the socket was diposed
+  GUnitFinalized: Boolean; { V1.09 }
+
 implementation
 
 // Forward declaration for our Windows callback function
@@ -295,6 +300,25 @@ function WndControlWindowsProc(
     auMsg   : UINT;
     awParam : WPARAM;
     alParam : LPARAM): LRESULT; {$IFNDEF CLR} stdcall; {$ENDIF} forward;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure FinalizeGlobalHandler; { V1.09 }
+begin
+    // If the list is empty, we can safely delete the global handler,
+    // else we leave it up to the last socket to do the cleanup
+    GWndHandlerPool.Lock;
+    try
+        if GWndHandlerPool.FList.Count > 0 then
+            Exit;
+    finally
+        GWndHandlerPool.UnLock;
+    end;
+    GWndHandlerPool.Free;
+    GWndHandlerPool := nil;
+    DeleteCriticalSection(GWndHandlerCritSect);
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF CLR}
@@ -456,6 +480,19 @@ procedure TIcsWndControl.AllocateHWnd;
 begin
     if FHandle <> 0 then
         Exit;              // Already done
+        
+    // Despite the precautions taken not to destroy GWndHandlerPool via the
+    // finalization when a socket is still there, we could still be going
+    // through this code in the following situation:
+    //
+    //   Application shuts down
+    //   A thread is still running and creates a new socket
+    //
+    // Note that this is highly unlikely, but as a courtesy to developers
+    // we raise an assertion error when this happens.
+    // The solution to this problem is to make sure that all threads are
+    // finished before the application is terminated itself.
+    Assert(not GUnitFinalized, 'Unit is already finalized, check your threads!!!'); { V1.09 }
 
     FThreadId := GetCurrentThreadId;
     GWndHandlerPool.Lock;
@@ -492,6 +529,8 @@ begin
     finally
         GWndHandlerPool.UnLock;
     end;
+    if GUnitFinalized then     { V1.09 }
+        FinalizeGlobalHandler; { V1.09 }
 end;
 
 
@@ -1269,7 +1308,7 @@ initialization
     InitializeCriticalSection(GWndHandlerCritSect);
 
 finalization
-    GWndHandlerPool.Free;
-    DeleteCriticalSection(GWndHandlerCritSect);
+    FinalizeGlobalHandler;  { V1.09 }
+    GUnitFinalized := True; { V1.09 }
 
 end.

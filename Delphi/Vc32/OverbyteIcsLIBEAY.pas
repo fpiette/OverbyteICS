@@ -54,6 +54,8 @@ May 24, 2007 A.Garrels: Added code to handle ASN1 BMPString and Utf8 string
              types.            
 Aug 19, 2008 A.Garrels checked against OpenSSL v0.9.8h and added that version
              as maximum version.
+Aug 19, 2008 A.Garrels checked against OpenSSL v0.9.8i and added that version
+             as maximum version.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -575,21 +577,22 @@ const
     { one, except the patch level got the highest bit set, to keep continuity.}
     { The number was therefore 0x0090581f.                                    }
 
-    //OSSL_VER_0906G = $00090607f; no longer supported
-    OSSL_VER_0907G = $00090707f;
-    OSSL_VER_0907I = $00090709f;
-    OSSL_VER_0908  = $000908000;
-    OSSL_VER_0908A = $00090801f;
-    OSSL_VER_0908E = $00090805f;
-    OSSL_VER_0908H = $00090808f;
+    //OSSL_VER_0906G = $0090607f; no longer supported
+    OSSL_VER_0907G = $0090707f;
+    OSSL_VER_0907I = $0090709f;
+    OSSL_VER_0908  = $00908000;
+    OSSL_VER_0908A = $0090801f;
+    OSSL_VER_0908E = $0090805f;
+    OSSL_VER_0908H = $0090808f;
+    OSSL_VER_0908I = $0090809f;
     // Or should we also create an dynamic array of Longword we would add only
     // tested/wanted versions?
 {$IFDEF BEFORE_OSSL_098E}
     MIN_OSSL_VER   = OSSL_VER_0907G;
-    MAX_OSSL_VER   = OSSL_VER_0908H;
+    MAX_OSSL_VER   = OSSL_VER_0908I;
 {$ELSE}
     MIN_OSSL_VER   = OSSL_VER_0908E;
-    MAX_OSSL_VER   = OSSL_VER_0908H;
+    MAX_OSSL_VER   = OSSL_VER_0908I;
 {$ENDIF}
 
 implementation

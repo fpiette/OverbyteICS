@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V6.03
+Version:      V6.04
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -771,6 +771,8 @@ Jun 25, 2008 V6.02 A. Garrels, ZlibOnProgress needs to be compiled conditionally
              SSL code merged.
 Jun 28, 2008 v6.03 **Breaking Change** enum item "sslTypeImplizit" renamed to
              "sslTypeImplicit".
+Nov 18, 2008 V6.04 Arno - Protection level on the data channel was not set
+             properly. Set it only in case of PROT command succeeded.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpCli;
@@ -843,9 +845,9 @@ uses
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 603;
-  CopyRight : String = ' TFtpCli (c) 1996-2008 F. Piette V6.03 ';
-  FtpClientId : String = 'ICS FTP Client V6.03 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 604;
+  CopyRight : String = ' TFtpCli (c) 1996-2008 F. Piette V6.04 ';
+  FtpClientId : String = 'ICS FTP Client V6.04 ';   { V2.113 sent with CLNT command  }
 
 const
   BLOCK_SIZE          = 1460; { 1514 - TCP header size }
@@ -1555,6 +1557,7 @@ type
     protected
         FProtLevel              : String;
         FProtLevelSent          : String;
+        FProtDataFlag           : Boolean;  { AG V6.04 }
         FRenegInitFlag          : Boolean;
         FPBSZSize               : Integer;
         FOnSslHandshakeDone     : TSslHandshakeDoneEvent;
@@ -2629,6 +2632,14 @@ begin
     ExtractMoreResults;
 
 {$IFDEF USE_SSL}
+    if not (Self is TSslFtpClient) then begin  { AG V6.04 }
+        if Assigned(FDoneAsync) then
+            FDoneAsync
+        else
+            TriggerRequestDone(FRequestResult);
+        Exit;
+    end;
+
     if (FFctPrv in [ftpFctAuth]) and
        ((FStatusCode = 234) or (FStatusCode = 334)) then begin
         { Renegotiate the session if already in secure mode }  { V2.106 }
@@ -2683,6 +2694,19 @@ begin
         FControlSocket.OnSslShutDownComplete :=
                            TSslFtpClient(Self).ControlSocketSslShutDownComplete;
         FControlSocket.SslBiShutDownAsync;
+    end
+    else if (FFctPrv in [ftpFctProt]) and (FStatusCode = 200) then { AG V6.04 }
+    begin
+        { Change data connection SSL protection }
+        if (TSslFtpClient(Self).FProtLevelSent = 'P')  then
+            TSslFtpClient(Self).FProtDataFlag := TRUE
+        else if (TSslFtpClient(Self).FProtLevelSent = 'C') then
+            TSslFtpClient(Self).FProtDataFlag := FALSE;
+
+        if Assigned(FDoneAsync) then
+            FDoneAsync
+        else
+            TriggerRequestDone(FRequestResult);
     end
     else
 {$ENDIF}
@@ -3936,7 +3960,7 @@ begin
 
 {$IFDEF USE_SSL}
     if (Self is TSslFtpClient) then begin      { V2.107 }
-        TCustomSslWSocket(FDataSocket).SslEnable := TSslFtpClient(Self).FProtLevelSent = 'P';
+        TCustomSslWSocket(FDataSocket).SslEnable := TSslFtpClient(Self).FProtDataFlag; { AG V6.04 }
         if TCustomSslWSocket(FDataSocket).SslEnable then begin
             TCustomSslWSocket(FDataSocket).SslContext          := FControlSocket.SslContext;
             TCustomSslWSocket(FDataSocket).SslMode             := sslModeClient;
@@ -4022,7 +4046,7 @@ begin
 {$IFDEF USE_SSL}                                                    // 12/15/05 Many properties missing!
     if (Self is TSslFtpClient) then begin      { V2.107 }
         TCustomSslWSocket(FDataSocket).SslMode   := sslModeClient;
-        TCustomSslWSocket(FDataSocket).SslEnable := TSslFtpClient(Self).FProtLevelSent = 'P';
+        TCustomSslWSocket(FDataSocket).SslEnable := TSslFtpClient(Self).FProtDataFlag; { AG V6.04 }
         if TCustomSslWSocket(FDataSocket).SslEnable then begin
             TCustomSslWSocket(FDataSocket).SslContext          := FControlSocket.SslContext;
             TCustomSslWSocket(FDataSocket).OnSslVerifyPeer     := FControlSocket.OnSslVerifyPeer;
@@ -6155,6 +6179,7 @@ end;
 procedure TSslFtpClient.OpenAsync;
 begin
     FProtLevelSent := '';
+    FProtDataFlag  := FALSE; { AG V6.04 }
     inherited OpenAsync;
 end;
 
@@ -6368,7 +6393,7 @@ begin
     FDataSocket.OnSessionClosed := DataSocketPutSessionClosed;
     if FSslType <> ssltypeNone then begin
         FDataSocket.SslAcceptableHosts        := FControlSocket.SslAcceptableHosts;
-        FDataSocket.SslEnable                 := (FProtLevelSent = 'P');
+        FDataSocket.SslEnable                 := FProtDataFlag; { AG V6.04 }
         if FDataSocket.SslEnable then begin
             FDataSocket.SslContext            := FControlSocket.SslContext;
             FDataSocket.SslMode               := SslModeClient;
@@ -6389,7 +6414,7 @@ procedure TSslFtpClient.DataSocketGetInit(const TargetPort, TargetIP : String);
 begin
     inherited DataSocketGetInit(TargetPort, TargetIP);
     FDataSocket.SslAcceptableHosts        := FControlSocket.SslAcceptableHosts;
-    FDataSocket.SslEnable                 := (FProtLevelSent = 'P');
+    FDataSocket.SslEnable                 := FProtDataFlag; { AG V6.04 }
     if FDataSocket.SslEnable then begin
         FDataSocket.SslContext            := FControlSocket.SslContext;
         FDataSocket.SslMode               := SslModeClient;

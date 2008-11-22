@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      6.04
+Version:      6.05
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -301,6 +301,10 @@ Jun 25, 2008 V6.02 A. Garrels SSL code merged.
 Jul 11, 2008 V6.03 Angus fixed 'Unicode' bug introduced in V6.01 that stopped PORT command working
 Jul 13, 2008 V6.04 Revised socket names used for debugging purpose
                    Added ListenBackLog property
+Nov 22, 2008 V6.05 Arno fixed the FEAT response, rfc2389 says that each feature
+             line in the feature-listing begins with a single space. But in the
+             ICS FTP server a feature line in the listing began with two spaces
+             which prevented some clients from seeing the features.
 
 
 Angus pending -
@@ -382,8 +386,8 @@ uses
     OverbyteIcsMD5;
 
 const
-    FtpServerVersion         = 604;
-    CopyRight : String       = ' TFtpServer (c) 1998-2008 F. Piette V6.04 ';
+    FtpServerVersion         = 605;
+    CopyRight : String       = ' TFtpServer (c) 1998-2008 F. Piette V6.05 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
 
 type
@@ -5288,33 +5292,33 @@ begin
     try
         Client.CurCmdType := ftpcFEAT;
         Answer := msgFeatFollows + #13#10 +
-                  '  SIZE'+ #13#10 +
-                  '  REST STREAM'+ #13#10 +      { angus V1.39 (been supported for years) }
-                  '  MDTM'+ #13#10 +
-                  '  MDTM YYYYMMDDHHMMSS[+-TZ] filename'+ #13#10 +       { angus V1.38 }
-                  '  MLST size*;type*;perm*;create*;modify*;'+ #13#10 +  { angus V1.38 }
-                  '  MFMT'+ #13#10 +                                     { angus V1.39 }
-                  '  MD5'+ #13#10 +                                      { angus V1.39 }
-                  '  XCRC "filename" start end'+ #13#10 +                { angus V1.54 }
-                  '  XMD5 "filename" start end'+ #13#10 +                { angus V1.54 }
-                  '  CLNT'+ #13#10 +                                     { angus V1.54 }
-                  '  SITE INDEX;ZONE';                                   { angus V1.54 }
+                  ' SIZE'+ #13#10 +
+                  ' REST STREAM'+ #13#10 +      { angus V1.39 (been supported for years) }
+                  ' MDTM'+ #13#10 +
+                  ' MDTM YYYYMMDDHHMMSS[+-TZ] filename'+ #13#10 +       { angus V1.38 }
+                  ' MLST size*;type*;perm*;create*;modify*;'+ #13#10 +  { angus V1.38 }
+                  ' MFMT'+ #13#10 +                                     { angus V1.39 }
+                  ' MD5'+ #13#10 +                                      { angus V1.39 }
+                  ' XCRC "filename" start end'+ #13#10 +                { angus V1.54 }
+                  ' XMD5 "filename" start end'+ #13#10 +                { angus V1.54 }
+                  ' CLNT'+ #13#10 +                                     { angus V1.54 }
+                  ' SITE INDEX;ZONE';                                   { angus V1.54 }
         if Assigned (FOnSiteMsg) then Answer := Answer + ';MSG';         { angus V1.54 }
         if Assigned (FOnSiteExec) then Answer := Answer + ';EXEC';       { angus V1.54 }
         if Assigned (FOnSitePaswd) then Answer := Answer + ';PSWD';      { angus V1.54 }
         if ftpsSiteXmlsd in FOptions then
                                       Answer := Answer + ';CMLSD;DMLSD'; { angus V1.54 }
         Answer := Answer + #13#10;
-        if Assigned (FOnCombine) then Answer := Answer + '  COMB'+ #13#10; { angus V1.54 }
+        if Assigned (FOnCombine) then Answer := Answer + ' COMB'+ #13#10; { angus V1.54 }
     {$IFDEF USE_MODEZ}              { angus V1.54 }
         if ftpModeZCompress in Client.Options then
-                                      Answer := Answer + '  MODE Z'+ #13#10;
+                                      Answer := Answer + ' MODE Z'+ #13#10;
     {$ENDIF}
     {$IFDEF USE_SSL}
         if Self is TSslFtpServer then begin     {  V1.48 }
         if TSslFtpserver(Self).FFtpSslTypes <> [] then begin             { V1.47 }
                 if not (ftpImplicitSsl in TSslFtpserver(Self).FFtpSslTypes) then begin
-                Answer := Answer + '  AUTH ';
+                Answer := Answer + ' AUTH ';
                 if ftpAuthTls in TSslFtpserver(Self).FFtpSslTypes then
                     Answer := Answer + 'TLS;';
                 if ftpAuthSsl in TSslFtpserver(Self).FFtpSslTypes then
@@ -5324,12 +5328,12 @@ begin
                 if ftpAuthTlsC in TSslFtpserver(Self).FFtpSslTypes then
                     Answer := Answer + 'TLS-C;';
                 Answer := Answer +  #13#10 +
-                          '  CCC'+ #13#10;
+                          ' CCC'+ #13#10;
             {if TSslFtpserver(Self).FFtpSslType = sslTypeAuthSsl then
                 Answer := Answer + '  AUTH TLS;SSL;' + #13#10;}
             end;
-            Answer := Answer + '  PROT C;P;' + #13#10 +
-                               '  PBSZ'      + #13#10;
+            Answer := Answer + ' PROT C;P;' + #13#10 +
+                               ' PBSZ'      + #13#10;
             end;
         end;
     {$ENDIF}

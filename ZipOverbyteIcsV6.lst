@@ -1,6 +1,6 @@
-ZipOverbyteIcsV6beta.bat
-7-ZipOverbyteIcsV6beta.bat
-ZipOverbyteIcsV6beta.lst
+ZipOverbyteIcsV6.bat
+7-ZipOverbyteIcsV6.bat
+ZipOverbyteIcsV6.lst
 IcsMidwareCodingStyle.doc
 ReadMe6.txt
 Clean.bat
@@ -9,6 +9,14 @@ Default.dof
 
 Delphi\Internet\fp_small.gif
 Delphi\Internet\ics_logo.gif
+
+Delphi\Internet\OverbyteIcsCliDemo.bdsproj
+Delphi\Internet\OverbyteIcsCliDemo.dproj
+Delphi\Internet\OverbyteIcsCliDemo.dpr
+Delphi\Internet\OverbyteIcsCliDemo.res
+Delphi\Internet\OverbyteIcsCliDemo1.pas
+Delphi\Internet\OverbyteIcsCliDemo1.dfm
+
 Delphi\Internet\OverbyteIcsConFtp.bdsproj
 Delphi\Internet\OverbyteIcsConFtp.dpr
 Delphi\Internet\OverbyteIcsConFtp.dproj

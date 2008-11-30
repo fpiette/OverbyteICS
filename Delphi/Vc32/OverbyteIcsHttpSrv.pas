@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      6.03
+Version:      6.04
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -200,6 +200,10 @@ Mar 24, 2008 V6.01 Bumped version number to 6.01
              Francois Piette made some changes to prepare code for Unicode.
 Jul 13, 2008 V6.02 Revised socket names used for debugging purpose
 Oct 10, 2008 V6.03 A. Garrels fixed TextToHtmlText() to work in all locales.
+Oct 28, 2008 V6.04 A.Garrels - Replaced symbol UseInt64ForHttpRange by STREAM64.
+             Fixed responses and  an infinite loop when a byte-range-set was
+             unsatisfiable. Added a fix for content ranges with files > 2GB as
+             suggested by Lars Gehre <lars@dvbviewer.com>.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -221,7 +225,9 @@ unit OverbyteIcsHttpSrv;
 {$IFDEF BCB3_UP}
     {$ObjExportAll On}
 {$ENDIF}
-
+{$IFDEF UseInt64ForHttpRange} // just for backwards compatibility
+    {$DEFINE STREAM64}
+{$ENDIF}
 { DEFINE USE_ZLIB} { Experimental code, doesn't work yet }
 
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
@@ -265,8 +271,8 @@ uses
     OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 603;
-    CopyRight : String = ' THttpServer (c) 1999-2008 F. Piette V6.03 ';
+    THttpServerVersion = 604;
+    CopyRight : String = ' THttpServer (c) 1999-2008 F. Piette V6.04 ';
     //WM_HTTP_DONE       = WM_USER + 40;
     HA_MD5             = 0;
     HA_MD5_SESS        = 1;
@@ -312,7 +318,7 @@ type
     THttpConnectionState = (hcRequest, hcHeader, hcPostedData);
     THttpOption          = (hoAllowDirList, hoAllowOutsideRoot);
     THttpOptions         = set of THttpOption;
-{$IFDEF UseInt64ForHttpRange}
+{$IFDEF STREAM64}
     THttpRangeInt        = Int64;
 {$ELSE}
     THttpRangeInt        = LongInt;   { Limited to 2GB size }
@@ -364,7 +370,8 @@ type
         procedure Assign(Source: THttpRangeList);
         function  CreateRangeStream(SourceStream    : TStream;
                                     ContentString   : String;
-                                    CompleteDocSize : THttpRangeInt): TStream;
+                                    CompleteDocSize : THttpRangeInt;
+                                    var SyntaxError : Boolean): TStream;
         function  Valid: Boolean;
         procedure InitFromString(AStr: String);
         property  Items[NIndex: Integer]: THttpRange read  GetItems
@@ -393,11 +400,12 @@ type
         constructor Create;
         destructor  Destroy; override;
         procedure AddPartStream(Value     : TStream;
-                                AStartPos : Integer;
-                                AEndPos   : Integer);
-        function InitRangeStream(SourceStream  : TStream;
-                                 RangeList     : THttpRangeList;
-                                 ContentString : String): Boolean;
+                                AStartPos : THttpRangeInt;
+                                AEndPos   : THttpRangeInt);
+        function InitRangeStream(SourceStream    : TStream;
+                                 RangeList       : THttpRangeList;
+                                 ContentString   : String;
+                                 var SyntaxError : Boolean): Boolean;
         function Read(var Buffer; Count: Longint): Longint; override;
         function Write(const Buffer; Count: Longint): Longint; override;
 {$IFDEF STREAM64}
@@ -515,6 +523,7 @@ type
         procedure ProcessGet; virtual;
         procedure ProcessHead; virtual;
         procedure ProcessPost; virtual;
+        procedure Answer416; virtual;
         procedure Answer404; virtual;
         procedure Answer403; virtual;
         procedure Answer401; virtual;
@@ -1399,7 +1408,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function Min(A, B : Integer) : Integer;
+function Min(A, B : THttpRangeInt) : THttpRangeInt;
 begin
     if A < B then
         Result := A
@@ -2581,6 +2590,22 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.Answer416;
+var
+    Body : String;
+begin
+    Body := '<HTML><HEAD><TITLE>416 Requested range not satisfiable</TITLE></HEAD>' +
+            '<BODY><H1>416 Requested range not satisfiable</H1><P></BODY></HTML>' + #13#10;
+            SendHeader(FVersion + ' 416 Requested range not satisfiable' + #13#10 +
+            'Content-Type: text/html' + #13#10 +
+            'Content-Length: ' + IntToStr(Length(Body)) + #13#10 +
+            #13#10);
+    { Do not use AnswerString method because we don't want to use ranges }
+    SendStr(Body);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpConnection.Answer404;
 var
     Body : String;
@@ -3123,8 +3148,8 @@ begin
                   'Content-Type: ' + AnswerContentType + #13#10 +
                   'Content-Length: ' + IntToStr(DocSize) + #13#10 +
                   'Accept-Ranges: bytes' + #13#10
-    else if ProtoNumber = 416 then
-        Result := Version + ' 416 Request range not satisfiable' + #13#10
+    {else if ProtoNumber = 416 then
+        Result := Version + ' 416 Request range not satisfiable' + #13#10}
     else if ProtoNumber = 206 then begin
         if RangeList.Count = 1 then begin
             Result := Version + ' 206 Partial Content' + #13#10 +
@@ -3156,6 +3181,7 @@ var
     ProtoNumber     : Integer;
     CompleteDocSize : THttpRangeInt;
     ErrorSend       : Boolean;
+    SyntaxError     : Boolean;
 begin
     ErrorSend          := FALSE;
     ProtoNumber        := 200;
@@ -3169,28 +3195,38 @@ begin
     {ANDREAS Create the virtual 'byte-range-doc-stream', if we are ask for ranges}
     if RequestRangeValues.Valid then begin
         { NewDocStream will now be the owner of FDocStream -> don't free FDocStream }
-        NewDocStream := RequestRangeValues.CreateRangeStream(
-                        FDocStream, FAnswerContentType, CompleteDocSize);
+        NewDocStream := RequestRangeValues.CreateRangeStream(FDocStream,
+                             FAnswerContentType, CompleteDocSize, SyntaxError);
         if Assigned(NewDocStream) then begin
             FDocStream := NewDocStream;
             FDocStream.Position := 0;
             ProtoNumber := 206;
     end
         else begin
-            { Error in Range-definition }
-            ProtoNumber := 416;
-            ErrorSend   := True;
+            if SyntaxError then
+            { Ignore the content range header and send entire document in case }
+            { of syntactically invalid byte-range-set                          }
+                FDocStream.Position := 0
+            else begin
+            { Answer 416 Request range not satisfiable                      }
+                FDocStream.Free;
+                FDocStream := nil;
+                Answer416;
+                Exit;
+            end;
         end;
     end;
-        FDocSize := FDocStream.Size;
+
+    FDocSize := FDocStream.Size;
 
     FDataSent := 0;       { will be incremented after each send part of data }
-        { Seek to end of document because HEAD will not send actual document }
-        if SendType = httpSendHead then
-            FDocStream.Seek(0, soFromEnd);
-        OnDataSent := ConnectionDataSent;
-        { Create Header }
+    { Seek to end of document because HEAD will not send actual document }
+    if SendType = httpSendHead then
+        FDocStream.Seek(0, soFromEnd);
 
+    OnDataSent := ConnectionDataSent;
+
+    { Create Header }
     {ANDREAS Create Header for the several protocols}
     Header := CreateHttpHeader(FVersion, ProtoNumber, FAnswerContentType, RequestRangeValues, FDocSize, CompleteDocSize);
         if FLastModified <> 0 then
@@ -3205,9 +3241,9 @@ begin
         Header := Header + 'Connection: close' + #13#10;
     {Bjornar}
 
-        Header := Header + #13#10;
+    Header := Header + #13#10;
 
-        SendHeader(Header);
+    SendHeader(Header);
     if not ErrorSend then begin
         if FDocSize <= 0 then
             Send(nil, 0);
@@ -3481,8 +3517,8 @@ end;
 { When end of stream is reached, closed communication.                      }
 procedure THttpConnection.ConnectionDataSent(Sender : TObject; Error : WORD);
 var
-    Count  : Integer;
-    ToSend : Integer;
+    Count  : THttpRangeInt;
+    ToSend : THttpRangeInt;
 begin
     if not Assigned(FDocStream) then
         Exit; { End of file has been reached }
@@ -4773,12 +4809,13 @@ end;
 function THttpRangeList.CreateRangeStream(
     SourceStream    : TStream;
     ContentString   : String;
-    CompleteDocSize : THttpRangeInt): TStream;
+    CompleteDocSize : THttpRangeInt;
+    var SyntaxError : Boolean): TStream;
 var
     NewStream: THttpRangeStream;
 begin
     NewStream := THttpRangeStream.Create;
-    if NewStream.InitRangeStream(SourceStream, Self, ContentString) then
+    if NewStream.InitRangeStream(SourceStream, Self, ContentString, SyntaxError) then
         Result := NewStream
     else begin
         Result := nil;
@@ -4820,7 +4857,11 @@ begin
         { Numeric Testing }
         if FromStr <> '' then begin
             try
+            {$IFDEF STREAM64}
+                StrToInt64(FromStr);
+            {$ELSE}
                 StrToInt(FromStr);
+            {$ENDIF}
             except
                 FromStr := '';
                 ToStr   := '';
@@ -4829,7 +4870,11 @@ begin
         end;
         if ToStr <> '' then begin
             try
+            {$IFDEF STREAM64}
+                StrToInt64(ToStr);
+            {$ELSE}
                 StrToInt(ToStr);
+            {$ENDIF}
             except
                 FromStr := '';
                 ToStr   := '';
@@ -4884,11 +4929,19 @@ begin
                 if FromStr = '' then
                     NewRange.RangeFrom := -1
                 else
+                {$IFDEF STREAM64}
+                    NewRange.RangeFrom := StrToInt64(FromStr);
+                {$ELSE}
                     NewRange.RangeFrom := StrToInt(FromStr);
+                {$ENDIF}
                 if ToStr = '' then
                     NewRange.RangeTo := -1
                 else
+                {$IFDEF STREAM64}
+                    NewRange.RangeTo := StrToInt64(ToStr);
+                {$ELSE}
                     NewRange.RangeTo := StrToInt(ToStr);
+                {$ENDIF}
                 Add(NewRange);
             end;
         end;
@@ -4955,8 +5008,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpRangeStream.AddPartStream(
     Value     : TStream;
-    AStartPos : Integer;
-    AEndPos   : Integer);
+    AStartPos : THttpRangeInt;
+    AEndPos   : THttpRangeInt);
 var
     Part : THttpPartStream;
 begin
@@ -5005,9 +5058,10 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function THttpRangeStream.InitRangeStream(
-    SourceStream  : TStream;
-    RangeList     : THttpRangeList;
-    ContentString : String): boolean;
+    SourceStream    : TStream;
+    RangeList       : THttpRangeList;
+    ContentString   : String;
+    var SyntaxError : Boolean): boolean;
 var
     FromVal         : THttpRangeInt;
     ToVal           : THttpRangeInt;
@@ -5017,6 +5071,7 @@ var
 begin
     FSourceStream := SourceStream;
     Result        := False;
+    SyntaxError   := False;
     if RangeList.Count > 0 then begin
         CompleteDocSize := SourceStream.Size;
         ClearPartStreams;
@@ -5035,23 +5090,45 @@ begin
             end;
             FromVal := RangeList.Items[I].RangeFrom;
             ToVal   := RangeList.Items[I].RangeTo;
+
+            { The first-byte-pos value in a byte-range-spec gives the          }
+            { byte-offset of the first byte in a range. The last-byte-pos      }
+            { value gives the byte-offset of the last byte in the range; that  }
+            { is, the byte positions specified are inclusive. Byte offsets     }
+            { start at zero.                                                   }
+            { If the last-byte-pos value is present, it MUST be greater than   }
+            { or equal to the first-byte-pos in that byte-range-spec, or the   }
+            { byte- range-spec is syntactically invalid. The recipient of a    }
+            { byte-range- set that includes one or more syntactically invalid  }
+            { byte-range-spec values MUST ignore the header field that includes}
+            { that byte-range- set.                                            }
+            { If the last-byte-pos value is absent, or if the value is greater }
+            { than or equal to the current length of the entity-body,          }
+            { last-byte-pos is taken to be equal to one less than the current  }
+            { length of the entity- body in bytes.                             }
+
             if (FromVal < 0) and (ToVal > 0) then begin
                 { Need the last number of bytes }
                 FromVal := SourceStream.Size - ToVal;
                 ToVal   := SourceStream.Size;
             end
             else begin
-                if ToVal < 0 then
+                if (ToVal < 0) or (ToVal >= SourceStream.Size) then
                     ToVal := SourceStream.Size
                 else
                     ToVal := ToVal + 1;
             end;
+            { If the byte-range-set is unsatisfiable, the server SHOULD return }
+            { a response with a status of 416 (Requested range not satisfiable)}
+            { In case of invalid syntax we'll ignore the range request.        }
+            SyntaxError := (FromVal < ToVal) and (FromVal < SourceStream.Size);
+
             if (FromVal > SourceStream.Size) or (FromVal < 0) or
                (ToVal > SourceStream.Size)   or (ToVal <= FromVal) then begin
-                { wrong Range -> Send the whole Document }
+                { wrong Range -> we'll check for SyntaxError later in SendDocument }
                 ClearPartStreams;
                 FSourceStream := nil;
-                exit;
+                Exit;
             end;
             AddPartStream(SourceStream, FromVal, ToVal);
         end;
@@ -5071,30 +5148,30 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function THttpRangeStream.Read(var Buffer; Count: Longint): Longint;
 var
-    DataRead  : THttpRangeInt;
+    DataRead  : Integer;
     Index     : Integer;
     ActSize   : Integer;
     ActOffset : THttpRangeInt;
-    SizeRead  : THttpRangeInt;
+    SizeRead  : Integer;
     Rec       : THttpPartStream;
 begin
     Rec := nil;  { Just to remove a compiler warning }
     if (FPosition >= 0) and (Count >= 0) then begin
-        Result := FSize - FPosition;
-        if Result > 0 then begin
-            Index := 0;
+        //Result := FSize - FPosition;
+        //if Result > 0 then begin
+        if (FSize - FPosition) > 0 then begin
+            Index    := 0;
             DataRead := 0;
             while DataRead < Count do begin
                 while TRUE do begin
                     if Index >= PartStreamsCount then begin
                         { Error }
                         Result := 0;
-                        exit;
+                        Exit;
                     end;
                     Rec := PartStreams[Index];
-                    if Rec.Offset +
-                       Rec.Size > FPosition then
-                        break;
+                    if (Rec.Offset + Rec.Size) > FPosition then
+                        Break;
                     Inc(Index);
                 end;
 

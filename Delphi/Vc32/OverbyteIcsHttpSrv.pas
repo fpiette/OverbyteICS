@@ -9,11 +9,11 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      6.04
+Version:      6.05
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2008 by François PIETTE
+Legal issues: Copyright (C) 1999-2009 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -204,6 +204,10 @@ Oct 28, 2008 V6.04 A.Garrels - Replaced symbol UseInt64ForHttpRange by STREAM64.
              Fixed responses and  an infinite loop when a byte-range-set was
              unsatisfiable. Added a fix for content ranges with files > 2GB as
              suggested by Lars Gehre <lars@dvbviewer.com>.
+Jan 03, 2009 V6.05 A.Garrels fixed a infinite loop with digest authentication
+             when user credential was wrong, caused by improper handling of a
+             stale nonce. Improved nonce generation and added a new property
+             AuthDigestNonceLifeTimeMin.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -271,8 +275,8 @@ uses
     OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 604;
-    CopyRight : String = ' THttpServer (c) 1999-2008 F. Piette V6.04 ';
+    THttpServerVersion = 605;
+    CopyRight : String = ' THttpServer (c) 1999-2009 F. Piette V6.05 ';
     //WM_HTTP_DONE       = WM_USER + 40;
     HA_MD5             = 0;
     HA_MD5_SESS        = 1;
@@ -417,7 +421,13 @@ type
         property PartStreams[NIndex : Integer] : THttpPartStream
                                                    read  GetPartStreams;
     end;
-
+{$IFNDEF NO_AUTHENTICATION_SUPPORT}
+    TAuthDigestNonceRec = record
+        DT    : TDateTime;
+        Hash  : TMd5Digest;
+    end;
+    PAuthDigestNonceRec = ^TAuthDigestNonceRec;
+{$ENDIF}
     { THttpConnection is used to handle client connections }
 {$IFDEF USE_SSL}
     TBaseHttpConnection = class(TSslWSocketClient);
@@ -431,29 +441,33 @@ type
     {$IFDEF USE_NTLM_AUTH}
         FAuthNtlmSession           : TNtlmAuthSession;
     {$ENDIF}
-        FAuthInit                  : Boolean;                        { V1.6 }
-        FAuthUserName              : String;
-        FAuthPassword              : String;
-        FAuthDigestRealm           : String;   { Received from client }
-        FAuthDigestUri             : String;
-        FAuthDigestNonce           : String;
-        FAuthDigestQop             : String;
-        FAuthDigestNc              : String;
-        FAuthDigestCnonce          : String;
-        FAuthDigestResponse        : String;
-        FAuthDigestOpaque          : String;
-        FAuthDigestServerNonce     : String;
-        FAuthDigestServerOpaque    : String;
-        FAuthDigestAlg             : String;
-        FAuthDigestStale           : Boolean;
-        FAuthType                  : TAuthenticationType;
-        FAuthTypes                 : TAuthenticationTypes;
-        FAuthenticated             : Boolean;
-        FAuthDigestBody            : String;
+        FAuthInit                     : Boolean;                        { V1.6 }
+        FAuthUserName                 : String;
+        FAuthPassword                 : String;
+        FAuthDigestRealm              : String;   { Received from client }
+        FAuthDigestUri                : String;
+        FAuthDigestNonce              : String;
+        FAuthDigestQop                : String;
+        FAuthDigestNc                 : String;
+        FAuthDigestCnonce             : String;
+        FAuthDigestResponse           : String;
+        FAuthDigestOpaque             : String;
+        FAuthDigestServerNonce        : String;
+        FAuthDigestServerOpaque       : String;
+        FAuthDigestAlg                : String;
+        FAuthDigestStale              : Boolean;
+        FAuthType                     : TAuthenticationType;
+        FAuthTypes                    : TAuthenticationTypes;
+        FAuthenticated                : Boolean;
+        FAuthDigestBody               : String;
+        FAuthDigestNonceLifeTimeMin   : Cardinal;
+        FAuthDigestNonceTimeStamp     : TDateTime;
+        FAuthDigestOneTimeFlag        : Boolean;
         function  AuthGetMethod: TAuthenticationType;
         procedure AuthCheckAuthenticated; virtual;
         function  AuthDigestCheckPassword(const Password: string): Boolean;
         function  AuthDigestGetParams: Boolean;
+        function  AuthDigestGenNonceHash(RequestTime: TDateTime; Opaque: String): TMD5Digest;
         function  AuthBasicGetParams: Boolean;
         function  AuthBasicCheckPassword(const Password: string): Boolean;
 {$IFDEF USE_NTLM_AUTH}
@@ -720,6 +734,9 @@ type
                                                     write FAuthDigestUri;
         property AuthRealm         : String         read  FAuthRealm
                                                     write FAuthRealm;
+        property AuthDigestNonceLifeTimeMin  : Cardinal
+                                                    read  FAuthDigestNonceLifeTimeMin
+                                                    write FAuthDigestNonceLifeTimeMin;
 {$IFDEF USE_NTLM_AUTH}
         property AuthNtlmSession   : TNtlmAuthSession
                                                     read  FAuthNtlmSession;
@@ -756,12 +773,13 @@ type
         FOnFilterDirEntry   : THttpFilterDirEntry;
         FListenBacklog      : Integer; {Bjørnar}
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
-        //FAuthType                : TAuthenticationType;
-        FAuthTypes               : TAuthenticationTypes;
-        FAuthRealm               : String;
-        FAuthDigestMethod        : TAuthDigestMethod;
-        FOnAuthGetPassword       : TAuthGetPasswordEvent;
-        FOnAuthResult            : TAuthResultEvent;
+        FAuthTypes                  : TAuthenticationTypes;
+        FAuthRealm                  : String;
+        FAuthDigestServerSecret     : TULargeInteger;
+        FAuthDigestNonceLifeTimeMin : Cardinal;
+        FAuthDigestMethod           : TAuthDigestMethod;
+        FOnAuthGetPassword          : TAuthGetPasswordEvent;
+        FOnAuthResult               : TAuthResultEvent;
 {$IFDEF USE_NTLM_AUTH}
         FOnAuthNtlmBeforeValidate: TAuthNtlmBeforeValidate;
 {$ENDIF}
@@ -773,6 +791,7 @@ type
         procedure DebugLog(LogOption: TLogOption; const Msg : string); virtual; { V1.38 }
         function  CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { V1.38 }
 {$ENDIF}
+        function  CreateServerSecret: TULargeInteger; virtual;
         procedure Notification(AComponent: TComponent; operation: TOperation); override;
         procedure CreateSocket; virtual;
         procedure WSocketServerClientConnect(Sender : TObject;
@@ -932,9 +951,9 @@ type
                                                  read  FOnAuthNtlmBeforeValidate
                                                  write FOnAuthNtlmBeforeValidate;
 {$ENDIF}
-        {property AuthType          : TAuthenticationType
-                                                 read  FAuthType
-                                                 write FAuthType; }
+        property AuthDigestNonceLifeTimeMin  : Cardinal
+                                                 read  FAuthDigestNonceLifeTimeMin
+                                                 write FAuthDigestNonceLifeTimeMin default 1;
         property AuthTypes         : TAuthenticationTypes
                                                  read  FAuthTypes
                                                  write FAuthTypes;
@@ -1035,7 +1054,7 @@ type
     TSslHttpServer = class(THttpServer)
     protected
         FOnSslHandshakeDone            : TSslHandshakeDoneEvent;
-        FOnSslVerifyPeer : TSslVerifyPeerEvent;
+        FOnSslVerifyPeer               : TSslVerifyPeerEvent;
         FOnSslSetSessionIDContext      : TSslSetSessionIDContext;
         FOnSslSvrNewSession            : TSslSvrNewSession;
         FOnSslSvrGetSession            : TSslSvrGetSession;
@@ -1230,9 +1249,10 @@ begin
     FLingerTimeout := 0;
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
     FAuthRealm     := 'ics';
-    //FAuthType      := atNone;
+    FAuthDigestNonceLifeTimeMin   := 1;
     FAuthTypes     := []; 
 {$ENDIF}
+    Randomize;
 end;
 
 
@@ -1269,6 +1289,15 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function THttpServer.CreateServerSecret: TULargeInteger;
+begin
+    { This is weak, however better than nothing }
+    Result.LowPart  := Random(MaxInt);
+    Result.HighPart := Random(MaxInt);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Start the server. That is make FWSocketServer listening to the port.      }
 procedure THttpServer.Start;
 const
@@ -1298,6 +1327,9 @@ begin
         'Content-type: text/plain' + #13#10 +
         'Content-length: ' + IntToStr(Length(BusyText)) + #13#10#13#10 +
         BusyText;
+{$IFNDEF NO_AUTHENTICATION_SUPPORT}
+    FAuthDigestServerSecret           := CreateServerSecret;
+{$ENDIF}
     FWSocketServer.Listen;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loProtSpecInfo) then                           { V1.38 }
@@ -1902,6 +1934,7 @@ var
     SessKey      : THashHex;
     MyResponse   : THashHex;
     HEntity      : THashHex;
+    NonceLifeTime: Cardinal;
 begin
     if Password = '' then begin
         Result := FALSE;
@@ -1915,6 +1948,25 @@ begin
                            FAuthDigestCnonce, FAuthDigestQop, FMethod,
                            FAuthDigestUri, HEntity, MyResponse);
     Result := (StrComp(@FAuthDigestResponse[1], @MyResponse[0]) = 0);
+    
+    if Result then begin
+        { Check whether we have to force a new nonce in which case we set    }
+        { FAuthDigestStale to TRUE which avoids popping up a login dialog at }
+        { the client side. }
+        if FAuthDigestOneTimeFlag then
+            NonceLifeTime := 2
+            { Grant the user two minutes to be able to enter login manually  }
+            { if FAuthDigestNonceLifeTimeMin equals zero = one-timer nonce. }
+        else
+            NonceLifeTime := FAuthDigestNonceLifeTimeMin;
+
+        if (((FAuthDigestNonceTimeStamp * 1440) + NonceLifeTime) / 1440) < Now then
+        begin
+            { The nonce is stale, respond a 401 }
+            FAuthDigestStale := TRUE;
+            Result := FALSE;
+        end;
+     end;
 end;
 
 
@@ -1974,17 +2026,28 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function THttpConnection.AuthDigestGenNonceHash(RequestTime: TDateTime; Opaque: String): TMD5Digest;
+var
+    NonceCtx : TMD5Context;
+begin
+    MD5Init(NonceCtx);
+    MD5UpdateBuffer(NonceCtx, @FServer.FAuthDigestServerSecret,
+                    SizeOf(FServer.FAuthDigestServerSecret));
+    MD5UpdateBuffer(NonceCtx, AnsiString(FAuthDigestRealm));
+    MD5UpdateBuffer(NonceCtx, @RequestTime, SizeOf(RequestTime));
+    MD5UpdateBuffer(NonceCtx, AnsiString(Opaque));
+    MD5Final(Result, NonceCtx);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function THttpConnection.AuthDigestGetParams: Boolean;
 var
     { alg,UserName, Realm, qop, nonce, nc,uri,method, cnonce, opaque, response: String; }
-    Pos1, Pos2       : integer;
-    LastTime, t1, t2 : TDateTime;
+    Pos1, Pos2       : Integer;
+    Buf              : AnsiString;
 begin
     Result           := FALSE;
-    FAuthDigestStale := FALSE;
-    { Must begin with 'digest ' }
-    {if LowerCase(Copy(FRequestAuth, 1, 7)) <> 'digest ' then
-        Exit; }
 
     Pos1 := PosEx('username="', FRequestAuth, 1);
     if Pos1 = 0 then
@@ -2027,8 +2090,6 @@ begin
         { whatever it is }
     end;
 
-    FAuthDigestStale := TRUE;
-
     Pos1 := PosEx('algorithm="', FRequestAuth, 1);
     if Pos1 = 0 then begin
         Pos1 := PosEx('algorithm=', FRequestAuth, 1);
@@ -2070,16 +2131,13 @@ begin
     Pos2                := PosEx('"', FRequestAuth, Pos1);
     FAuthDigestResponse := Copy(FRequestAuth, Pos1, Pos2 - Pos1);
 
-    t1 := EncodeTime(0, 1, 0, 0);
-    t2 := Now;
-    try
-        LastTime := StrToDateTime(Trim(Base64Decode(FAuthDigestNonce)));
-    except
+    Buf := Base64Decode(AnsiString(FAuthDigestNonce));
+    if Length(Buf) <> SizeOf(TAuthDigestNonceRec) then
         Exit;
-    end;
 
-    if (LastTime + t1) > t2 then
-        Result := TRUE;
+    FAuthDigestNonceTimeStamp := PAuthDigestNonceRec(Pointer(Buf))^.DT;
+
+    Result := TRUE;
 end;
 
 
@@ -2088,11 +2146,11 @@ end;
 procedure THttpConnection.AuthCheckAuthenticated;
 var
     PasswdBuf : String;
-    //AuthType  : TAuthenticationType;
 begin
-    //FAuthType  := FServer.FAuthType;
-    FAuthTypes := FServer.AuthTypes;
-    FAuthRealm := FServer.FAuthRealm;
+    FAuthTypes                    := FServer.AuthTypes;
+    FAuthRealm                    := FServer.FAuthRealm;
+    FAuthDigestNonceLifeTimeMin   := FServer.FAuthDigestNonceLifeTimeMin;
+
     TriggerAuthGetType;
     if (FAuthTypes = []) or (FAuthTypes = [atNone]) then begin
         FAuthenticated := TRUE;
@@ -2123,8 +2181,13 @@ begin
             PasswdBuf := #0;
             TriggerAuthGetPassword(PasswdBuf);
             FAuthenticated := AuthDigestCheckPassword(PasswdBuf);
+            { Even if the login was correct FAuthenticated may be FALSE here. }
+            { This happens when the nonce is stale and a new nonce is forced. }
+            { Note that this is a fix and change, previous versions did not   }
+            { enter this IF-Block when the nonce was stale.                   }
             TriggerAuthResult(FAuthenticated);
         end;
+        FAuthDigestOneTimeFlag := FALSE;
     end
 {$IFDEF USE_NTLM_AUTH}
     else if AuthType = atNtlm then begin
@@ -2230,9 +2293,10 @@ begin
         FAuthPassword          := '';
         FAuthUserName          := '';
         FAuthTypes             := FServer.FAuthTypes;
-        //FAuthType              := FServer.FAuthType;
         FAuthRealm             := FServer.FAuthRealm;
         FAuthDigestServerNonce := '';
+        FAuthDigestStale       := FALSE;
+        FAuthDigestNonceLifeTimeMin  := FServer.FAuthDigestNonceLifeTimeMin;
 {$ENDIF}
         FRequestRangeValues.Clear;        {ANDREAS}
         FRequestHeader.Clear;
@@ -2648,8 +2712,9 @@ var
     Header     : String;
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
     I          : Integer;
-    Tmp        : array [0..2] of char;
+    iCh        : Integer;
     AuthString : String;
+    Nonce      : TAuthDigestNonceRec;
 {$ENDIF}
 begin
     Body := '<HTML><HEAD><TITLE>401 Access Denied</TITLE></HEAD>' +
@@ -2672,18 +2737,32 @@ begin
     if (atDigest in FAuthTypes) then begin
         FAuthDigestServerNonce  := '';
         FAuthDigestServerOpaque := '';
-        Randomize;
-        FAuthDigestServerNonce := Base64Encode(DateTimeToStr(Now));
-        for I := 0 to 33 do begin
+        //Randomize; MUST be called only once! Thus moved to the constructor. 
+        //FAuthDigestServerNonce := Base64Encode(_DateTimeToStr(_Now)); IMO weak AG  
+        FAuthDigestOneTimeFlag  := FAuthDigestNonceLifeTimeMin = 0;
+        { This is the original implementation by FastStream with slightly     }
+        { improved speed and security, RFC2617 however recommends to include  }
+        { the ETAG header as well. IMO this stuff should be reviewed if we    }
+        { worry about security. AG                                            }
+
+        { Generate the opaque, we need it for the nonce hash                  }
+        SetLength(FAuthDigestServerOpaque, 34);
+        for I := 1 to Length(FAuthDigestServerOpaque) do begin
             while TRUE do begin
-                tmp[0] := Char(Random(255));
-                if ((tmp[0] >= 'a') and (tmp[0] <= 'z') or
-                    (tmp[0] >= 'A') and (tmp[0] <= 'Z') or
-                    (tmp[0] >= '0') and (tmp[0] <= '9')) then
-                    break;
+                iCh := Random(122);
+                case iCh of
+                    48..57, 65..90, 97..122 :
+                        begin
+                            FAuthDigestServerOpaque[I] := Char(iCh);
+                            Break;
+                        end;
+                end
             end;
-            FAuthDigestServerOpaque := FAuthDigestServerOpaque + PChar(@tmp[0]);
         end;
+
+        Nonce.DT    := Now;
+        Nonce.Hash  := AuthDigestGenNonceHash(Nonce.DT, FAuthDigestServerOpaque);
+        FAuthDigestServerNonce := String(Base64Encode(PAnsiChar(@Nonce), SizeOf(Nonce)));
 
         case FServer.FAuthDigestMethod of
         daAuth:    AuthString := 'auth';
@@ -3201,7 +3280,7 @@ begin
             FDocStream := NewDocStream;
             FDocStream.Position := 0;
             ProtoNumber := 206;
-    end
+        end
         else begin
             if SyntaxError then
             { Ignore the content range header and send entire document in case }

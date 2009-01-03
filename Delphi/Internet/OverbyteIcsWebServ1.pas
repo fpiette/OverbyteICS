@@ -16,11 +16,11 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      1.12
+Version:      1.14
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2007 by François PIETTE
+Legal issues: Copyright (C) 1999-2009 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -82,6 +82,9 @@ Oct 29, 2006 V1.12 Made authentication demo pages better.
                    Added compiler switches and DELPHI7_UP check.
                    Added D2006 memory leak detection
 Nov 05, 2006 V1.13 Removed IsDirectory function which wasn't used
+Jan 03, 2009 V1.14 A. Garrels added some lines to force client browser's login
+                   dialog when the nonce is stale with digest authentication.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsWebServ1;
@@ -109,8 +112,8 @@ uses
   OverbyteIcsHttpSrv;
 
 const
-  WebServVersion     = 113;
-  CopyRight : String = 'WebServ (c) 1999-2007 F. Piette V1.13 ';
+  WebServVersion     = 114;
+  CopyRight : String = 'WebServ (c) 1999-2009 F. Piette V1.14 ';
   NO_CACHE           = 'Pragma: no-cache' + #13#10 + 'Expires: -1' + #13#10;
   WM_CLIENT_COUNT    = WM_USER + WH_MAX_MSG + 1;
 
@@ -1381,15 +1384,26 @@ var
 const
     SuccessStr : array [Boolean] of String = ('failed', 'OK');
 begin
-    { It's easyer to do the cast one time. Could use with clause... }
+    { It's easier to do the cast one time. Could use with clause...         }
     ClientCnx := TMyHttpConnection(Client);
+
+    { If we always want to pop up client browser's login dialog with digest }
+    { authentication when the nonce is stale we may set FAuthDigestStale    }
+    { back to FALSE.  Note: Do not set this value to TRUE.                  }
+    { A nonce is considered stale after AuthDigestNonceLifeTimeMin expired. }
+    { Uncomment next three lines to see what changes.                       }
+    {if (not Success) and (ClientCnx.AuthTypes = [atDigest]) and
+       ClientCnx.FAuthDigestStale then
+        ClientCnx.FAuthDigestStale := FALSE;}
+
     Display('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
             ClientCnx.GetPeerAddr + '] authentication ' +
             SuccessStr[Success] + ' for ' +
             ClientCnx.Path);
+            
     if (not Success) and (ClientCnx.AuthTypes = [atNtlm]) and
        (ClientCnx.AuthNtlmSession <> nil) then
-        Display(ClientCnx.AuthNtlmSession.AuthErrorDesc);  // just debugging!
+        Display(ClientCnx.AuthNtlmSession.AuthErrorDesc);  // just for debugging!
 end;
 
 

@@ -4,11 +4,11 @@
 Author:       François PIETTE
 Object:       Mime support routines (RFC2045).
 Creation:     May 03, 2003  (Extracted from SmtpProt unit)
-Version:      6.04
+Version:      6.05
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 2003-2009 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -57,7 +57,8 @@ Aug 29, 2007  V6.03 A. Garrels added functions DoFileEncQuotedPrintable and
 Mar 10, 2008  V6.04 Francois Piette made some changes to prepare code
                     for Unicode.
                     Call StrPas with appropriate typecast
-                    
+Jan 03, 2009 V6.05  A. Garrels added a PAnsiChar overload to Base64Encode().
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMimeUtils;
@@ -108,8 +109,8 @@ type
 {$ENDIF}
 
 const
-    TMimeUtilsVersion = 603;
-    CopyRight : String = ' MimeUtils (c) 1997-2007 F. Piette V6.03 ';
+    TMimeUtilsVersion = 605;
+    CopyRight : String = ' MimeUtils (c) 2003-2009 F. Piette V6.05 ';
 
 {$IFDEF CLR}
     SpecialsRFC822 : TSysCharSet = [Ord('('), Ord(')'), Ord('<'), Ord('>'), Ord('@'), Ord(','), Ord(';'), Ord(':'),
@@ -137,6 +138,9 @@ function  SplitQuotedPrintableString(const S : String) : String;
 function  FilenameToContentType(FileName : String) : String;
 { Base 64 encoding }
 function  Base64Encode(const Input : String) : String; overload;
+{$IFNDEF CLR}
+function  Base64Encode(const Input : PAnsiChar; Len: Integer) : AnsiString; overload;
+{$ENDIF}
 { Similar to Base64Encode, returns just a coded line                      }
 function Base64EncodeEx(const Input : String;
                         MaxCol      : Integer;
@@ -701,7 +705,44 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF CLR}
+function Base64Encode(const Input : PAnsiChar; Len: Integer) : AnsiString;
+var
+    Count : Integer;
+begin
+    Result := '';
+    Count  := 0;
+    while Count < Len do begin
+        Result := Result + Base64Out[(Byte(Input[Count]) and $FC) shr 2];
+        if (Count + 1) < Len then begin
+            Result := Result + Base64Out[((Byte(Input[Count]) and $03) shl 4) +
+                                         ((Byte(Input[Count + 1]) and $F0) shr 4)];
+            if (Count + 2) < Len then begin
+                Result := Result + Base64Out[((Byte(Input[Count + 1]) and $0F) shl 2) +
+                                             ((Byte(Input[Count + 2]) and $C0) shr 6)];
+                Result := Result + Base64Out[(Byte(Input[Count + 2]) and $3F)];
+            end
+            else begin
+                Result := Result + Base64Out[(Byte(Input[Count + 1]) and $0F) shl 2];
+                Result := Result + '=';
+            end
+        end
+        else begin
+            Result := Result + Base64Out[(Byte(Input[Count]) and $03) shl 4];
+            Result := Result + '==';
+        end;
+        Count := Count + 3;
+    end;
+end;
+{$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function Base64Encode(const Input : String) : String;
+{$IFNDEF CLR}
+begin
+    Result := Base64Encode(PAnsiChar(Input), Length(Input));
+end;
+{$ELSE}
 var
     Count : Integer;
     Len   : Integer;
@@ -731,7 +772,7 @@ begin
         Count := Count + 3;
     end;
 end;
-
+{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF CLR}

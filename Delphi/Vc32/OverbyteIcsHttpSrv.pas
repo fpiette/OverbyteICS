@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      6.05
+Version:      6.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -208,6 +208,8 @@ Jan 03, 2009 V6.05 A.Garrels fixed a infinite loop with digest authentication
              when user credential was wrong, caused by improper handling of a
              stale nonce. Improved nonce generation and added a new property
              AuthDigestNonceLifeTimeMin.
+Jan 12, 2009 V6.06 A. Garrels fixed a bug with NTLM authentication in func.
+             Answer401.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -275,8 +277,8 @@ uses
     OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 605;
-    CopyRight : String = ' THttpServer (c) 1999-2009 F. Piette V6.05 ';
+    THttpServerVersion = 606;
+    CopyRight : String = ' THttpServer (c) 1999-2009 F. Piette V6.06 ';
     //WM_HTTP_DONE       = WM_USER + 40;
     HA_MD5             = 0;
     HA_MD5_SESS        = 1;
@@ -2726,7 +2728,8 @@ begin
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
 {$IFDEF USE_NTLM_AUTH}
     if (atNtlm in FAuthTypes) then begin
-        if Assigned(FAuthNtlmSession) then
+        if Assigned(FAuthNtlmSession) and
+            (FAuthNtlmSession.State = lsInAuth) then
             Header := Header +  Trim('WWW-Authenticate: NTLM ' +
              FAuthNtlmSession.NtlmMessage) + #13#10
         else

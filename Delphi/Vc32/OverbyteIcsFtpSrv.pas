@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      6.05
+Version:      6.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -305,6 +305,16 @@ Nov 22, 2008 V6.05 Arno fixed the FEAT response, rfc2389 says that each feature
              line in the feature-listing begins with a single space. But in the
              ICS FTP server a feature line in the listing began with two spaces
              which prevented some clients from seeing the features.
+Feb 20, 2009 V6.06 Angus added MaxAttempts property to limit failed login attempts
+             (default 12) and delays the failed password answer by about five seconds
+             after a third of the failed attempts have been exceeded.
+             This feature should be combined with an IP black list to
+             stop new connections for failed logins (one hacker tried 250,000
+             passwords over 36 hours on one of my FTP servers)
+
+
+
+
 
 
 Angus pending -
@@ -386,8 +396,8 @@ uses
     OverbyteIcsMD5;
 
 const
-    FtpServerVersion         = 605;
-    CopyRight : String       = ' TFtpServer (c) 1998-2008 F. Piette V6.05 ';
+    FtpServerVersion         = 606;
+    CopyRight : String       = ' TFtpServer (c) 1998-2009 F. Piette V6.06 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
 
 type
@@ -556,6 +566,7 @@ type
         FZlibMinSpace           : Integer;      { angus V1.54 }
         FAlloExtraSpace         : Integer;      { angus V1.54 }
         FZlibMaxSize            : Int64;        { angus V1.55 }
+        FMaxAttempts            : Integer;      { angus V6.06 }
         FMsg_WM_FTPSRV_CLOSE_REQUEST  : UINT;
         FMsg_WM_FTPSRV_CLIENT_CLOSED  : UINT;
         FMsg_WM_FTPSRV_ABORT_TRANSFER : UINT;
@@ -1063,6 +1074,8 @@ type
                                                       write FZlibMinSpace;   { angus V1.54 }
         property  ZlibMaxSize            : Int64      read  FZlibMaxSize
                                                       write FZlibMaxSize ;   { angus V1.55 }
+        property  MaxAttempts            : Integer    read  FMaxAttempts
+                                                      write FMaxAttempts ;   { angus V6.06 }
         property  OnStart                : TNotifyEvent
                                                       read  FOnStart
                                                       write FOnStart;
@@ -1447,6 +1460,7 @@ const
     msgAlloOK         = '200 ALLO OK, %d bytes available';           { angus V1.54 }
     msgAlloFail       = '501 Invalid size parameter';                { angus V1.54 }
     msgAlloFull       = '501 Insufficient disk space, only %d bytes available';  { angus V1.54 }
+    msgNotAllowed     = '421 Connection not allowed.';               { angus V6.06 }
 
 {$IFDEF USE_SSL}
     msgAuthOk         = '234 Using authentication type %s';
@@ -1728,7 +1742,7 @@ begin
     FEventTimer.Interval := 5000;     { angus V1.56 only used for timeouts, slow }
     SrvFileModeRead     := fmOpenRead + fmShareDenyNone;         { angus V1.57 }
     SrvFileModeWrite    := fmOpenReadWrite or fmShareDenyWrite;  { angus V1.57 }
-
+    FMaxAttempts        := 12 ;                    { angus V6.06 }
 { !!!!!!!!!!! NGB: Added next five lines }
     FPasvIpAddr         := '';
     FPasvPortRangeStart := 0;
@@ -2853,6 +2867,7 @@ procedure TFtpServer.CommandPASS(
 var
     Authenticated : Boolean;
     UserPassword : String ;
+    Secs: Integer ;
 begin
     if Client.FtpState <> ftpcWaitingPassword then
         Answer := msgNoUser
@@ -2880,8 +2895,21 @@ begin
             Answer           := Format(msgLogged, [Client.UserName])
         end
         else begin
-            Client.FtpState  := ftpcWaitingUserCode;
-            Answer           := msgLoginFailed;
+            {angus V6.06 - count failed login attempts, after third MaxAttempts
+              delay answer to slow down extra attempts, finally close client
+              once MaxAttempts reached (done in EventTimer event) }
+            inc (Client.FailedAttempts) ;
+            if Client.FailedAttempts > (FMaxAttempts div 3) then begin
+                Secs := (Client.FailedAttempts * 2);
+                if (Secs > FTimeoutSecsLogin) then Secs := FTimeoutSecsLogin;
+                Client.DelayAnswerTick := IcsGetTrgSecs (Secs);
+                Client.FtpState        := ftpcFailedAuth;
+                Client.AnswerDelayed   := true;
+            end
+            else begin
+                Client.FtpState  := ftpcWaitingUserCode;
+                Answer           := msgLoginFailed;
+            end;
         end;
     end;
 end;
@@ -6103,12 +6131,29 @@ begin
     FEventTimer.Enabled := false;
     try
         if not Assigned(FClientList) then exit;
-        if (FTimeoutSecsLogin <= 0) and (FTimeoutSecsIdle <= 0) and
-                                     (FTimeoutSecsXfer <= 0) then exit;  { no timeouts }
+    {    if (FTimeoutSecsLogin <= 0) and (FTimeoutSecsIdle <= 0) and   angus V6.06 gone
+                                     (FTimeoutSecsXfer <= 0) then exit;   no timeouts }
         if FClientList.Count = 0 then exit;                              { no clients }
         CurTicks := IcsGetTickCountX; { V1.56 AG }
         for I := 0 to Pred (FClientList.Count) do begin
             Client := TFtpCtrlSocket(FClientList.Items[I]);
+          { V6.06 angus - failed authentication, send delayed answer to slow to
+              failed login attempts, closing connection after MaxAttempts }
+            if Client.FtpState = ftpcFailedAuth then begin
+                if IcsTestTrgTick (Client.DelayAnswerTick) then begin
+                    Client.DelayAnswerTick := TriggerDisabled;
+                    Client.FtpState := ftpcWaitingUserCode;
+                    if Client.FailedAttempts >= FMaxAttempts then begin
+                        SendAnswer(Client, msgNotAllowed);
+                     { close control channel }
+                        Client.Close;
+                    end
+                    else begin
+                        SendAnswer(Client, msgLoginFailed);
+                    end;
+                    continue ; // skip testing timeouts
+                end;
+            end ;
          { different length timeouts depending on what's happening }
             Timeout := 0;
             case Client.FtpState of
@@ -6126,7 +6171,7 @@ begin
                     else begin
                       { close data channel }
                         if Client.DataSocket.State = wsConnected then begin
-                            Client.TransferError    := 'ABORT on Timeout';
+                            Client.TransferError := 'ABORT on Timeout';
                             Client.AbortingTransfer := TRUE;
                             Client.DataSocket.Close;
                         end;

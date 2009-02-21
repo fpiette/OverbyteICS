@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  TFtpCtrlSocket component. It handle the client connection for
               the TFtpServer component.
 Creation:     April 21, 1998
-Version:      6.04
+Version:      6.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -84,6 +84,8 @@ Jan 08, 2008 V1.57 added FileModeRead and FileModeWrite as public so share locki
                can be changed, use FileModeRead for MD5SUM (not locked)
 Jul 10, 2008 V6.03 bumped version to match OverbyteFtpCli
 Jul 13, 2008 V6.04 Made ReadCount a public property
+Feb 20, 2009 V6.06 Angus added FailedAttempts to limit failed login attempts
+                   Increased DefaultRcvSize to 16384 from 2048 for performance
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -142,15 +144,15 @@ uses
     OverbyteIcsWinsock, OverbyteIcsWSocket, OverbyteIcsWSockBuf;
 
 const
-    FtpCtrlSocketVersion = 604;
-    CopyRight : String   = ' TFtpCtrlSocket  (c) 1998-2008 F. Piette V6.04 ';
-    DefaultRcvSize       = 2048;
+    FtpCtrlSocketVersion = 606;
+    CopyRight : String   = ' TFtpCtrlSocket  (c) 1998-2009 F. Piette V6.06 ';
+    DefaultRcvSize       = 16384;    { angus V6.06 }
     UtcDateMaskPacked    = 'yyyymmddhhnnss';         { angus V1.38 }
 
 type
     EFtpCtrlSocketException = class(Exception);
     TFtpCtrlState = (ftpcInvalid, ftpcWaitingUserCode, ftpcWaitingPassword,
-                     ftpcReady, ftpcWaitingAnswer);
+                     ftpcReady, ftpcWaitingAnswer, ftpcFailedAuth);  { angus V6.06 }
 
     { TFtpCmdType is now defined as a byte and enumerated items as constants, }
     { so that new values can be added by sub-components who add new commands  }
@@ -347,6 +349,8 @@ type
         SessIdInfo        : String;      { angus V1.54 session identificaton information for application use }
         FileModeRead      : Word;        { angus V1.57 }
         FileModeWrite     : Word;        { angus V1.57 }
+        FailedAttempts    : Integer;     { angus V6.06 }
+        DelayAnswerTick   : Longword;   { angus V6.06 tick when delayed answer should be sent }
 {$IFDEF USE_SSL}
         ProtP             : Boolean;
         AuthFlag          : Boolean;
@@ -525,6 +529,8 @@ begin
     ReqDurMilliSecs  := 0;    { angus V1.54 how long last request took, in ticks }
     TotGetBytes      := 0;    { angus V1.54 how many bytes GET during session, data and control }
     TotPutBytes      := 0;    { angus V1.54 how many bytes PUT during session, data and control }
+    FailedAttempts   := 0;    { angus V6.06 count failed login attempts }
+    DelayAnswerTick  := TriggerDisabled;  { angus V6.06 when to send a delayed failed login answer }
 end;
 
 

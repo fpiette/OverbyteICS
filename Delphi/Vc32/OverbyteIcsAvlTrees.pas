@@ -28,6 +28,7 @@ Apr  08, 2006  So far tested with Delphi 5, 7, 2006.
 Apr  09, 2006  Function Insert updated.
 Apr  09, 2006  New field Expires added.
 June 05, 2006  Exchanged default TDateTime value 0 by MinDT.
+Mar  15, 2009  Fixed a memory leak with secondary duplicated index.
 
 /////////////////////////////////////////////////////////////////////////////}
 
@@ -91,6 +92,8 @@ type
         procedure   DoListNode(Node: TAvlTreeNode; var Cancel: Boolean); override;
         function    Compare(Node1, Node2: TAvlTreeNode): Integer; override;
         procedure   CopyNode(Source, Destination: TAvlTreeNode);  override;
+    public
+        function    Remove(Node: TAvlTreeNode): Boolean; override;
     end;
 
     TCacheListEvent = procedure(Sender: TObject; const Key: String; TimeStamp: TDateTime; Data: Pointer; Len: Integer; Expires: TDateTime; var Cancel: Boolean) of object;
@@ -640,8 +643,6 @@ begin
         if UpdateTime then
         begin
             //Update TimeStamp (delete and new)
-            if Assigned(ResNode.FIdxRef.FDups) then
-                ResNode.FIdxRef.FDups.Remove(ResNode.FIdxRef);
             FSecIdxTree.Remove(ResNode.FIdxRef);
             NewIdx := TCacheIdxNode.Create(ResNode, TimeStamp, Expires);
             ResIdx := TCacheIdxNode(FSecIdxTree.SearchAndInsert(NewIdx, Found));
@@ -685,40 +686,10 @@ end;
 /////////////////////////////////////////////////////////////////////////////
 procedure TCacheTree.DoBeforeDelete(Node: TAvlTreeNode);
 var
-    H, OK : Boolean;
     IdxNode : TCacheIdxNode;
 begin
     IdxNode := TCacheNode(Node).FIdxRef;
-    if Assigned(IdxNode.FDups) then
-    begin
-        if (IdxNode.FDups.FFirst.FNext = nil) then
-        begin
-            IdxNode.FDups.Remove(IdxNode);
-            FSecIdxTree.DeleteNode(IdxNode, FSecIdxTree.FRoot, H, OK);
-        end
-        else begin
-            { Don't delete first Node, it's in the index tree, instead }
-            { we copy data from a dup and delete the dup.              }
-            if IdxNode = IdxNode.FDups.FFirst then
-            begin
-                IdxNode.FTimeStamp        := IdxNode.FNext.FTimeStamp;
-                IdxNode.FExpires          := IdxNode.FNext.FExpires;
-                IdxNode.FCacheRef         := IdxNode.FNext.FCacheRef;
-                IdxNode.FCacheRef.FIdxRef := IdxNode;
-
-                IdxNode := IdxNode.FNext;
-                IdxNode.FDups.Remove(IdxNode);
-                IdxNode.Free;
-            end
-            else begin
-                IdxNode.FDups.Remove(IdxNode);
-                IdxNode.Free;
-            end;
-        end;
-    end
-    else
-        FSecIdxTree.DeleteNode(IdxNode, FSecIdxTree.FRoot, H, OK);
-
+    FSecIdxTree.Remove(IdxNode);
     TriggerFreeData(TCacheNode(Node).FData, TCacheNode(Node).FLen);
 
     inherited DoBeforeDelete(Node);
@@ -877,7 +848,8 @@ end;
 /////////////////////////////////////////////////////////////////////////////
 { TCacheIdxNode }
 
-constructor TCacheIdxNode.Create(ACacheRef: TCacheNode; ATimeStamp: TDateTime = MinDT; AExpires: TDateTime = MinDT);
+constructor TCacheIdxNode.Create(ACacheRef: TCacheNode;
+  ATimeStamp: TDateTime = MinDT; AExpires: TDateTime = MinDT);
 begin
     inherited Create;
     FNext     := nil;
@@ -1001,6 +973,41 @@ begin
     InternalClear(FRoot);
     FRoot  := nil;
     FCount := 0;
+end;
+
+
+/////////////////////////////////////////////////////////////////////////////
+function TSecIdxTree.Remove(Node: TAvlTreeNode): Boolean;
+var
+    SecIdx : TCacheIdxNode;
+begin
+    Result := FALSE;
+    if Node = nil then Exit;
+    SecIdx := TCacheIdxNode(Node);
+    if SecIdx.FDups <> nil then
+    begin
+        if SecIdx.FDups.FFirst.FNext = nil then
+        begin
+            SecIdx.FDups.Remove(SecIdx);
+            Result := inherited Remove(SecIdx);
+        end
+        else begin
+            { We have multiple duplicates and this is the first one. }
+            if SecIdx = SecIdx.FDups.FFirst then
+            begin
+                SecIdx.FTimeStamp        := SecIdx.FNext.FTimeStamp;
+                SecIdx.FExpires          := SecIdx.FNext.FExpires;
+                SecIdx.FCacheRef         := SecIdx.FNext.FCacheRef;
+                SecIdx.FCacheRef.FIdxRef := SecIdx;
+                SecIdx := SecIdx.FNext;
+            end;
+            SecIdx.FDups.Remove(SecIdx);
+            SecIdx.Free;
+            Result := TRUE;
+        end;
+    end
+    else
+        Result := inherited Remove(SecIdx);
 end;
 
 

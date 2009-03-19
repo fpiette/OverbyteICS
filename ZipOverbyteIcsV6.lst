@@ -414,6 +414,13 @@ Delphi\SslInternet\OverbyteIcsSslMailSnd.dof
 Delphi\SslInternet\OverbyteIcsSslMailSnd1.dfm
 Delphi\SslInternet\OverbyteIcsSslMailSnd1.pas
 
+Delphi\SslInternet\OverbyteIcsSslMailRcv.dpr
+Delphi\SslInternet\OverbyteIcsSslMailRcv.res
+Delphi\SslInternet\OverbyteIcsSslMailRcv1.dfm
+Delphi\SslInternet\OverbyteIcsSslMailRcv1.pas
+Delphi\SslInternet\OverbyteIcsSslMailRcv2.dfm
+Delphi\SslInternet\OverbyteIcsSslMailRcv2.pas
+
 Delphi\SslInternet\OverbyteIcsSslNewsRdr.bdsproj
 Delphi\SslInternet\OverbyteIcsSslNewsRdr.dproj
 Delphi\SslInternet\OverbyteIcsSslNewsRdr.dpr

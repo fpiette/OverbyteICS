@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      1.01
+Version:      1.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -56,7 +56,9 @@ Aug 19, 2008 A.Garrels checked against OpenSSL v0.9.8h and added that version
              as maximum version.
 Aug 19, 2008 A.Garrels checked against OpenSSL v0.9.8i and added that version
              as maximum version.
-
+Apr 10, 2009 A.Garrels checked against OpenSSL v0.9.8k and made it the maximum
+             supported version.
+             
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
 {$T-}                                 { Untyped pointers                    }
@@ -77,8 +79,8 @@ uses
     Windows, SysUtils, OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 100;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2007 F. Piette V1.00 ';
+    IcsLIBEAYVersion   = 102;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2009 F. Piette V1.02 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -585,14 +587,15 @@ const
     OSSL_VER_0908E = $0090805f;
     OSSL_VER_0908H = $0090808f;
     OSSL_VER_0908I = $0090809f;
+    OSSL_VER_0908K = $009080bf;
     // Or should we also create an dynamic array of Longword we would add only
     // tested/wanted versions?
 {$IFDEF BEFORE_OSSL_098E}
     MIN_OSSL_VER   = OSSL_VER_0907G;
-    MAX_OSSL_VER   = OSSL_VER_0908I;
+    MAX_OSSL_VER   = OSSL_VER_0908K;
 {$ELSE}
     MIN_OSSL_VER   = OSSL_VER_0908E;
-    MAX_OSSL_VER   = OSSL_VER_0908I;
+    MAX_OSSL_VER   = OSSL_VER_0908K;
 {$ENDIF}
 
 implementation

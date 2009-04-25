@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      6.00.7
+Version:      6.00.8
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -11,7 +11,7 @@ Credit:       This component was based on a freeware from by Andreas
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2008 by François PIETTE
+Legal issues: Copyright (C) 1997-2009 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -391,6 +391,8 @@ Jun 25, 2008 V6.00.5 A. Garrels SSL code merged.
 Sep 28, 2008 V6.00.7 Maurizio Lotauro fixed a bug with premature received
              401/407 responses while data was still being sent with POST and PUT
              requests.
+Apr 25, 2009 V6.00.8 Steve Endicott fixed a relocation bug with HTTPS.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -459,7 +461,7 @@ uses
 
 const
     HttpCliVersion       = 600;
-    CopyRight : String   = ' THttpCli (c) 1997-2008 F. Piette V6.00.7 ';
+    CopyRight : String   = ' THttpCli (c) 1997-2009 F. Piette V6.00.8 ';
     DefaultProxyPort     = '80';
 {$IFDEF DELPHI1}
     { Delphi 1 has a 255 characters string limitation }
@@ -2854,6 +2856,7 @@ begin
                 end
                 { We are not using a proxy }
                 else begin
+                    ParseURL(FURL, proto, user, pass, Host, port, Path); { V6.00.8 }
                     if Data[1] = '/' then begin
                         { Absolute location }
                         FPath     := Data;

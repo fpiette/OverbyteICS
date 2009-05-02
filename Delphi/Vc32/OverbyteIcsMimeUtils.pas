@@ -4,7 +4,7 @@
 Author:       François PIETTE
 Object:       Mime support routines (RFC2045).
 Creation:     May 03, 2003  (Extracted from SmtpProt unit)
-Version:      6.05
+Version:      6.06
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -58,7 +58,8 @@ Mar 10, 2008  V6.04 Francois Piette made some changes to prepare code
                     for Unicode.
                     Call StrPas with appropriate typecast
 Jan 03, 2009 V6.05  A. Garrels added a PAnsiChar overload to Base64Encode().
-
+May 02, 2009 V6.06  A. Garrels fixed a bug in IcsWrapTextEx that could break
+                    multi-byte characters (back port from V7).
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMimeUtils;
@@ -109,8 +110,8 @@ type
 {$ENDIF}
 
 const
-    TMimeUtilsVersion = 605;
-    CopyRight : String = ' MimeUtils (c) 2003-2009 F. Piette V6.05 ';
+    TMimeUtilsVersion = 606;
+    CopyRight : String = ' MimeUtils (c) 2003-2009 F. Piette V6.06 ';
 
 {$IFDEF CLR}
     SpecialsRFC822 : TSysCharSet = [Ord('('), Ord(')'), Ord('<'), Ord('>'), Ord('@'), Ord(','), Ord(';'), Ord(':'),
@@ -1006,6 +1007,7 @@ var
     BreakLen, BreakPos : Integer;
     QuoteChar, CurChar : Char;
     ExistingBreak      : Boolean;
+    L                  : Integer;
 begin
     Col           := 1;
     LinePos       := cPos;
@@ -1017,11 +1019,13 @@ begin
     Result        := '';
     while cPos <= LineLen do begin
         CurChar := Line[cPos];
-        if IsCharInSysCharSet(TSetType(CurChar), LeadBytes) then begin
-            Inc(cPos);
-            Inc(Col);
-        end
-        else begin
+        if CurChar in LeadBytes then begin
+            L := CharLength(Line, cPos) -1;
+            Inc(cPos, L);
+            Inc(Col, L);
+            CurChar := Line[cPos];
+        end;
+        //else begin
             if CurChar = BreakStr[1] then begin
                 if QuoteChar = #0 then begin
                     ExistingBreak := StrLComp(PChar(BreakStr),
@@ -1054,7 +1058,7 @@ begin
                     (BreakPos = 0) then begin
                 BreakPos := cPos;
             end;
-        end;
+        //end;
         Inc(cPos);
         Inc(Col);
 

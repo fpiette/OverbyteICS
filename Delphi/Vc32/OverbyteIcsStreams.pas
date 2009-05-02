@@ -3,11 +3,11 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Oct 25, 2005
 Description:  Fast streams for ICS tested on D5 and D7.
-Version:      6.06
+Version:      6.08a
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2005-2008 by François PIETTE
+Legal issues: Copyright (C) 2005-2009 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -58,6 +58,10 @@ Jan 22, 2008 V6.06 Angus allow for read file shrinking with fmShareDenyNone
 Mar 24, 2008 V6.07 Francois Piette made some changes to prepare code
                    for Unicode:
                    TTextStream use AnsiString.
+Apr 17, 2009 V6.08a Arno fixed a bug in TBufferedFileStream that could corrupt
+             data on writes after seeks. Size and Position now behave exactly
+             as TFileStream, this is a fix as well a *Breaking Change*.
+             Fixed some 'false' ERangeErrors when range checking was turned on.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -98,7 +102,7 @@ resourcestring
 
 const
     DEFAULT_BUFSIZE = 4096;
-    MIN_BUFSIZE     = 512;
+    MIN_BUFSIZE     = 128; { V6.08a }
     MAX_BUFSIZE     = 1024 * 64;
 
 type
@@ -212,6 +216,10 @@ type
 
 implementation
 
+{$IFOPT R+}                                                        { V6.08a }
+  {$DEFINE SETRANGECHECKSBACK} { We'll turn off range checking temporarily }
+{$ENDIF}
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function Min(IntOne, IntTwo: BigInt): BigInt;
 begin
@@ -232,8 +240,7 @@ begin
     if FBufSize > MAX_BUFSIZE then
         FBufSize := MAX_BUFSIZE
     else
-    if (FBufSize mod MIN_BUFSIZE) <> 0 then
-        FBufSize := DEFAULT_BUFSIZE;
+        FBufSize := (BufSize div MIN_BUFSIZE) * MIN_BUFSIZE; { V6.08a }
     GetMem(FBuf, FBufSize);
     FFileSize   := GetFileSize;
     FBufCount   := 0;
@@ -382,6 +389,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$R-}
 function TBufferedFileStream.Read(var Buffer; Count: Longint): Longint;
 var
     Remaining   : Longint;
@@ -415,6 +423,9 @@ begin
         end;
     end;
 end;
+{$IFDEF SETRANGECHECKSBACK}  { V6.08a }
+  {$R+}
+{$ENDIF}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -429,7 +440,7 @@ begin
     Remaining := Count;
     Result := Remaining;
     if (Remaining > 0) then begin
-        if (FBufCount = 0) and ((FFileOffset + FBufPos) <= FFileSize) then
+        if (FBufCount = 0) and ((FFileOffset {+ FBufPos} ) <= FFileSize) then { V6.08a }
             ReadFromFile;
         Copied := Min(Remaining, FBufSize - FBufPos);
         Move(PChar(Buffer), FBuf[FBufPos], Copied);
@@ -452,7 +463,11 @@ begin
             Inc(DestPos, Copied);
             Copied := Min(Remaining, FBufSize - FBufPos);
             if Copied <= 0 then break;  { V6.06 angus, nothing more to read, break loop }
+            {$R-}
             Move(TByteArray(Buffer)[DestPos], FBuf[0], Copied);
+          {$IFDEF SETRANGECHECKSBACK}  { V6.08a }
+            {$R+}
+          {$ENDIF}
             FDirty := True;
             Inc(FBufPos, Copied);
             if (FBufCount < FBufPos) then begin
@@ -478,24 +493,28 @@ begin
 {$ELSE}
     Result := 0;
     if FHandle < 0 then Exit;
-    if (Offset = 0) and (Origin = soFromCurrent) then begin
+    
+    {if (Offset = 0) and (Origin = soFromCurrent) then begin // V6.08a
         Result := FFileOffset + FBufPos;
         Exit;
-    end;
+    end;}
 
     case Origin of
         soFromBeginning : NewPos := Offset;
         soFromCurrent   : NewPos := (FFileOffset + FBufPos) + Offset;
         soFromEnd       : NewPos := FFileSize + Offset;
       else
-        raise Exception.Create('Invalid seek origin');
+        NewPos := -1;//raise Exception.Create('Invalid seek origin'); { V6.08a }
     end;
 
-    if (NewPos < 0) then
-        NewPos := 0
-    else
-    if (NewPos > FFileSize) then
-        FFileSize := FileSeek(FHandle, NewPos - FFileSize, soFromEnd);
+    if (NewPos < 0) then begin
+        //NewPos := 0; { V6.08a }
+        Result := -1;  { V6.08a }
+        Exit;
+    end;
+    {else
+    if (NewPos > FFileSize) then  // FileSeek now called in SetSize() V6.08a
+        FFileSize := FileSeek(FHandle, NewPos - FFileSize, soFromEnd);}
 
     NewOffset := (NewPos div FBufSize) * FBufSize;
 
@@ -521,23 +540,26 @@ begin
     Result := 0;
     if FHandle < 0 then Exit;
 
-    if (Offset = 0) and (Origin = soCurrent) then begin
+    {if (Offset = 0) and (Origin = soCurrent) then begin
         Result := FFileOffset + FBufPos;
         Exit;
-    end;
+    end;}
 
     case Origin of
         soBeginning : NewPos := Offset;
         soCurrent   : NewPos := (FFileOffset + FBufPos) + Offset;
         soEnd       : NewPos := FFileSize + Offset;
     else
-        raise Exception.Create('Invalid seek origin');
+        NewPos := -1;//raise Exception.Create('Invalid seek origin'); { V6.08a }
     end;
 
-    if (NewPos < 0) then
-        NewPos := 0
-    else if (NewPos > FFileSize) then
-        FFileSize := FileSeek(FHandle, NewPos - FFileSize, soFromEnd);
+    if (NewPos < 0) then begin
+        //NewPos := 0; { V6.08a }
+        Result := -1;  { V6.08a }
+        Exit;
+    end;
+    {else if (NewPos > FFileSize) then // FileSeek now called in SetSize() V6.08a
+        FFileSize := FileSeek(FHandle, NewPos - FFileSize, soFromEnd);}
 
     NewFileOffset := (NewPos div FBufSize) * FBufSize;
 
@@ -555,16 +577,22 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TBufferedFileStream.SetSize(NewSize: Integer);
+{$IFNDEF COMPILER6_UP}
+var
+    NSize : Integer;                                                { V6.08a }
+{$ENDIF}
 begin
 {$IFDEF COMPILER6_UP}
     SetSize(Int64(NewSize));
 {$ELSE}
     if FHandle < 0 then Exit;
     Seek(NewSize, soFromBeginning);
-    if NewSize < FFileSize then
-        FFileSize := FileSeek(FHandle, NewSize, soFromBeginning);
+    // if NewSize < FFileSize then                                  { V6.08a }
+    NSize := FileSeek(FHandle, NewSize, soFromBeginning);           { V6.08a }
     if not SetEndOfFile(FHandle) then
         RaiseLastWin32Error;
+    if NSize >= 0 then                                              { V6.08a }
+        FFileSize := NSize;                                         { V6.08a }
 {$ENDIF}
 end;
 
@@ -572,18 +600,22 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF COMPILER6_UP}
 procedure TBufferedFileStream.SetSize(const NewSize: Int64);
+var
+    NSize : Int64;                                        { V6.08a }
 begin
     if FHandle < 0 then Exit;
     Seek(NewSize, {sofromBeginning} soBeginning);   {TG 08/28/2006} { V1.03 }
-    if NewSize < FFileSize then
-        FFileSize := FileSeek(FHandle, NewSize, soFromBeginning);
-{$IFDEF MSWINDOWS}
+    //if NewSize < FFileSize then                         { V6.08a }
+    NSize := FileSeek(FHandle, NewSize, soFromBeginning); { V6.08a }
+//{$IFDEF MSWINDOWS}                                      { V6.08a }
     if not SetEndOfFile(FHandle) then
         RaiseLastOSError;
-{$ELSE}
+    if NSize >= 0 then                                    { V6.08a }
+        FFileSize := NSize;                               { V6.08a }
+(*{$ELSE}                                                 { V6.08a }
     if ftruncate(FHandle, Position) = -1 then
         raise EStreamError(sStreamSetSize);
-{$ENDIF}
+{$ENDIF} *)
 end;
 {$ENDIF}
 
@@ -649,6 +681,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$R-} { V6.08a }
 function TMultiPartFileReader.Read(var Buffer; Count: Integer): Longint;
 var
     NewCount : Integer;
@@ -684,7 +717,9 @@ begin
         Result := 0;
     FCurrentPos := Result;
 end;
-
+{$IFDEF SETRANGECHECKSBACK}  { V6.08a }
+{$R+}
+{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TMultiPartFileReader.Write(const Buffer; Count: Integer): Longint;

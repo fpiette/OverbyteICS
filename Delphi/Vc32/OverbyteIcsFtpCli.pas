@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V6.05
+Version:      V6.06
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -774,7 +774,7 @@ Jun 28, 2008 v6.03 **Breaking Change** enum item "sslTypeImplizit" renamed to
 Nov 18, 2008 V6.04 Arno - Protection level on the data channel was not set
              properly. Set it only in case of PROT command succeeded.
 Apr 6, 2009  V6.05 Angus check response for XMD5 properly (220 or 250 and no file name)
-
+May 11, 2009 V6.06 Arno removed a compiler warning if USE_MODEZ was not defined.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpCli;
@@ -847,8 +847,8 @@ uses
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 605;
-  CopyRight : String = ' TFtpCli (c) 1996-2009 F. Piette V6.05 ';
+  FtpCliVersion      = 606;
+  CopyRight : String = ' TFtpCli (c) 1996-2009 F. Piette V6.06 ';
   FtpClientId : String = 'ICS FTP Client V6.05 ';   { V2.113 sent with CLNT command  }
 
 const
@@ -1993,8 +1993,10 @@ end;
 {* *                                                                     * *}
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TCustomFtpCli.Create(AOwner: TComponent);
+{$IFDEF USE_MODEZ}
 var
     Buffer: array [0..1023] of Char ;
+{$ENDIF}    
 begin
     inherited Create(AOwner);
     AllocateHWnd;
@@ -2031,7 +2033,7 @@ begin
 {$IFDEF UseBandwidthControl}
     FBandwidthLimit     := 10000;  // Bytes per second
     FBandwidthSampling  := 1000;   // mS sampling interval
-{$ENDIF} 
+{$ENDIF}
 {$IFNDEF NO_DEBUG_LOG}
     __DataSocket := FDataSocket;
 {$ENDIF}

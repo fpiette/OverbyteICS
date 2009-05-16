@@ -338,6 +338,12 @@ Delphi\vc32\OverbyteIcsSslThrdLock.pas
 Delphi\vc32\OverbyteIcsSslThrdLock.dcr
 Delphi\vc32\OverbyteIcsSslDefs.inc
 
+Delphi\vc32\OverbyteIcsHttpAppServer.pas
+Delphi\vc32\OverbyteIcsHttpAppServer.dcr
+Delphi\vc32\OverbyteIcsTimeList.pas
+Delphi\vc32\OverbyteIcsTimeList.dcr
+Delphi\vc32\OverbyteIcsWebSession.pas
+
 Delphi\SslInternet\SslCerts\IcsSslBuildCerts.bat
 Delphi\SslInternet\SslCerts\openssl.conf
 

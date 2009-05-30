@@ -4,7 +4,7 @@
 Author:       François PIETTE
 Object:       Mime support routines (RFC2045).
 Creation:     May 03, 2003  (Extracted from SmtpProt unit)
-Version:      6.06
+Version:      6.07
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -60,6 +60,8 @@ Mar 10, 2008  V6.04 Francois Piette made some changes to prepare code
 Jan 03, 2009 V6.05  A. Garrels added a PAnsiChar overload to Base64Encode().
 May 02, 2009 V6.06  A. Garrels fixed a bug in IcsWrapTextEx that could break
                     multi-byte characters (back port from V7).
+May 30, 2009 V6.07  A. Garrels fixed a bug in IcsWrapTextEx that could truncate
+                    a line.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMimeUtils;
@@ -111,7 +113,7 @@ type
 
 const
     TMimeUtilsVersion = 606;
-    CopyRight : String = ' MimeUtils (c) 2003-2009 F. Piette V6.06 ';
+    CopyRight : String = ' MimeUtils (c) 2003-2009 F. Piette V6.07 ';
 
 {$IFDEF CLR}
     SpecialsRFC822 : TSysCharSet = [Ord('('), Ord(')'), Ord('<'), Ord('>'), Ord('@'), Ord(','), Ord(';'), Ord(':'),
@@ -1071,7 +1073,7 @@ begin
                 Result := Copy(Line, LinePos, BreakPos - LinePos + 1);
             if (not IsCharInSysCharSet(TSetType(CurChar), QuoteChars)) or
                (ExistingBreak) then begin
-                if cPos <= LineLen then begin
+                if (cPos <= LineLen) and (BreakPos + 1 = cPos) then begin
                     if StrLComp(PChar(@Line[cPos]), #13#10, 2) = 0 then begin
                         if not ExistingBreak then begin
                             { Break due to one of the breaking chars found and CRLF follows }

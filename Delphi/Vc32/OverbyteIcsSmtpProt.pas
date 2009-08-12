@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      6.13
+Version:      6.14
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -309,6 +309,7 @@ Jul 13, 2008 V6.11  F. Piette revised socket names used for debugging purpose
 Jul 14, 2008 V6.12  A. Garrels added property HtmlCharset to THtmlSmtpCli.
 Oct 01, 2008 V6.13  A. Garrels fixed a ERangeError and took escaped quotation
                     marks into account in RcptNameAdd().
+Aug 12, 2009 V6.14  Bjørnar Nielsen found a bug with conditional define NO_ADV_MT.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -354,8 +355,8 @@ uses
     OverbyteIcsMimeUtils;
 
 const
-  SmtpCliVersion     = 613;
-  CopyRight : String = ' SMTP component (c) 1997-2008 Francois Piette V6.13 ';
+  SmtpCliVersion     = 614;
+  CopyRight : String = ' SMTP component (c) 1997-2008 Francois Piette V6.14 ';
   smtpProtocolError  = 20600; {AG}
 
 {$IFDEF VER80}
@@ -1284,7 +1285,11 @@ begin
     AllocateHWnd;
     {FWSocket                := TWSocket.Create(nil);}                {AG/SSL}
     CreateSocket;                                                     {AG/SSL}
+{$IFDEF NO_ADV_MT}
+    FWSocket.Name            := ClassName + '_Socket' + IntToStr(WSocketGCount);
+{$ELSE}
     FWSocket.Name            := ClassName + '_Socket' + IntToStr(SafeWSocketGCount);
+{$ENDIF}
     FWSocket.OnSessionClosed := WSocketSessionClosed;
     FState                   := smtpReady;
     FRcptName                := TStringList.Create;

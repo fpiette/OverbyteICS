@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      6.06
+Version:      6.07
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -210,7 +210,7 @@ Jan 03, 2009 V6.05 A.Garrels fixed a infinite loop with digest authentication
              AuthDigestNonceLifeTimeMin.
 Jan 12, 2009 V6.06 A. Garrels fixed a bug with NTLM authentication in func.
              Answer401.
-
+Aug 12, 2009 V6.07 Bjørnar Nielsen found a bug with conditional define NO_ADV_MT.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -277,8 +277,8 @@ uses
     OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 606;
-    CopyRight : String = ' THttpServer (c) 1999-2009 F. Piette V6.06 ';
+    THttpServerVersion = 607;
+    CopyRight : String = ' THttpServer (c) 1999-2009 F. Piette V6.07 ';
     //WM_HTTP_DONE       = WM_USER + 40;
     HA_MD5             = 0;
     HA_MD5_SESS        = 1;
@@ -1237,7 +1237,11 @@ constructor THttpServer.Create(AOwner: TComponent);
 begin
     inherited Create(AOwner);
     CreateSocket;
-    FWSocketServer.Name := ClassName + '_SrvSocket' + IntToStr(SafeWSocketGCount);
+{$IFDEF NO_ADV_MT}
+    FWSocketServer.Name := ClassName + '_SrvSocket' + _IntToStr(WSocketGCount);
+{$ELSE}
+    FWSocketServer.Name := ClassName + '_SrvSocket' + _IntToStr(SafeWSocketGCount);
+{$ENDIF}
     FClientClass   := THttpConnection;
     FOptions       := [];
     FAddr          := '0.0.0.0';

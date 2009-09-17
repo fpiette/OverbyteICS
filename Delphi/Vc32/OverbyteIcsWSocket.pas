@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      6.13
+Version:      6.14
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -600,6 +600,8 @@ Jul 04, 2008 V6.11 Rev.58 SSL - Still lacked a few changes I made last year.
 Jul 13, 2008 V6.12 Added SafeWSocketGCount
 Oct 22, 2008 V6.13 A. Garrels removed the const modifier from parameter Data
              in function SendTo to fix a bug in C++ Builder.
+Sep 17, 2009 V6.14 Arno fixed bug in TX509Base.GetSha1Hash.
+
 
 About multithreading and event-driven:
     TWSocket is a pure asynchronous component. It is non-blocking and
@@ -694,8 +696,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 613;
-  CopyRight    : String     = ' TWSocket (c) 1996-2008 Francois Piette V6.13 ';
+  WSocketVersion            = 614;
+  CopyRight    : String     = ' TWSocket (c) 1996-2008 Francois Piette V6.14 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -11836,10 +11838,9 @@ var
     Len : Integer;
 begin
     if Assigned(FX509) then begin
-        Len := 20;
-        SetLength(Result, Len);
-        f_X509_digest(FX509, f_EVP_sha1, PChar(Result), @Len);
-        SetLength(Result, StrLen(@Result[1]));
+        SetLength(Result, 20);
+        if f_X509_digest(FX509, f_EVP_sha1, PChar(Result), @Len) = 0 then
+            Result := '';    
     end
     else
         Result := '';

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      6.14
+Version:      6.15
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -601,6 +601,9 @@ Jul 13, 2008 V6.12 Added SafeWSocketGCount
 Oct 22, 2008 V6.13 A. Garrels removed the const modifier from parameter Data
              in function SendTo to fix a bug in C++ Builder.
 Sep 17, 2009 V6.14 Arno fixed bug in TX509Base.GetSha1Hash.
+Nov 01, 2009 V6.15 Arno fixed a memory overwrite bug in
+             TCustomSocksWSocket.DoRecv().
+
 
 
 About multithreading and event-driven:
@@ -696,8 +699,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 614;
-  CopyRight    : String     = ' TWSocket (c) 1996-2008 Francois Piette V6.14 ';
+  WSocketVersion            = 615;
+  CopyRight    : String     = ' TWSocket (c) 1996-2008 Francois Piette V6.15 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -8880,7 +8883,7 @@ begin
             Buffer[I] := FRcvBuf[FSocksRcvdPtr + I];
         {$ENDIF}
         {$IFDEF WIN32}
-        Move(FRcvBuf[FSocksRcvdPtr], Buffer, FSocksRcvdCnt);
+        Move(FRcvBuf[FSocksRcvdPtr], Buffer^, FSocksRcvdCnt);
         {$ENDIF}
         Result        := FSocksRcvdCnt;
         FSocksRcvdCnt := 0;
@@ -8892,7 +8895,7 @@ begin
         Buffer[I] := FRcvBuf[FSocksRcvdPtr + I];
     {$ENDIF}
     {$IFDEF WIN32}
-    Move(FRcvBuf[FSocksRcvdPtr], Buffer, BufferSize);
+    Move(FRcvBuf[FSocksRcvdPtr], Buffer^, BufferSize);
     {$ENDIF}
     Result        := BufferSize;
     FSocksRcvdPtr := FSocksRcvdPtr + BufferSize;

@@ -1238,9 +1238,9 @@ begin
     inherited Create(AOwner);
     CreateSocket;
 {$IFDEF NO_ADV_MT}
-    FWSocketServer.Name := ClassName + '_SrvSocket' + _IntToStr(WSocketGCount);
+    FWSocketServer.Name := ClassName + '_SrvSocket' + IntToStr(WSocketGCount);
 {$ELSE}
-    FWSocketServer.Name := ClassName + '_SrvSocket' + _IntToStr(SafeWSocketGCount);
+    FWSocketServer.Name := ClassName + '_SrvSocket' + IntToStr(SafeWSocketGCount);
 {$ENDIF}
     FClientClass   := THttpConnection;
     FOptions       := [];

@@ -1,5 +1,8 @@
 program OverbyteIcsFtpTst;
 
+{$R '..\Vc32\OverbyteIcsXpManifest.res' '..\Vc32\OverbyteIcsXpManifest.rc'}
+{$R '..\Vc32\OverbyteIcsCommonVersion.res' '..\Vc32\OverbyteIcsCommonVersion.rc'}
+
 uses
   Forms,
   OverbyteIcsFtpTst1 in 'OverbyteIcsFtpTst1.pas' {FtpReceiveForm},

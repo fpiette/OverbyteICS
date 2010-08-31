@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      6.06
+Version:      7.12
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2008 by François PIETTE
+Legal issues: Copyright (C) 1998-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -216,7 +216,7 @@ June 11, 2007 V1.53 MDTM command failed with a directory name.
              file time stamp (because MFMD command already returned millisecs)
              Note: sysutils FileAge functions used only supports round seconds
              Angus Robertson, Passive IP 0.0.0.0 now raises exception.
-Dec 04, 2007 V1.54 added more FEAT extensions, by Angus Robertson, angus@magsys.co.uk
+04 Dec 2007 V1.54 added more FEAT extensions, by Angus Robertson, angus@magsys.co.uk
                Note: some FEATs only reported if new events are created
              added support for One Time Passwords (aka S/Key), otp-md5, otp-md4 and otp-sha1,
                see RFC2289, uses new events OnOtpMethodEvent and OnOtpGetPasswordEvent
@@ -295,25 +295,100 @@ Dec 04, 2007 V1.54 added more FEAT extensions, by Angus Robertson, angus@magsys.
 03 Mar 2008 V1.57 added SrvFileModeRead and SrvFileModeWrite as public so share locking
                can be changed, use SrvFileModeRead for MD5SUM (not locked)
             ensure file stream closed if session terminates unexpectedly
+Apr 15, 2008 V1.58 A. Garrels, Unicode changes. Changed type of RcvBuf to
+             PAnsiChar, corrected line indents.
+Apr 25, 2008 V1.59 Removed checks for faVolumeID.
+May 01, 2008 V1.60 A.Garrels added new functions DataStreamWriteString and
+             DataStreamReadString.
 Mar 24, 2008 V6.01 Bumped version number to 6.01
              Francois Piette made some changes to prepare code for Unicode.
 Jun 25, 2008 V6.02 A. Garrels SSL code merged.
+Apr 14, 2008 V6.03 A. Garrels, some Unicode related changes, basic features
+             do work now. Receive buffer type-change from PChar to PAnsiChar.
+             Check the various DataAvailableEvents. Fixed a bug in function
+             GetInteger().
+Apr 22, 2008 Some more Unicode related changes.
+May 01, 2008 V6.04 A. Garrels - call new function DataStreamWriteString in
+             TFtpServer.BuildDirectory.
+May 12, 2008 v6.05 A. Garrels changed call of GetTempPath in constructor.
+             Some type changes from String to AnsiString of published properties.
+             Added Setters and Getters for those properties since current
+             compiler is not able to handle AnsiString properties correctly.
 Jul 11, 2008 V6.03 Angus fixed 'Unicode' bug introduced in V6.01 that stopped PORT command working
+             (Just the change log from v6 added here and minor cosmetic changes
+              to keep both verions in sync, this issue was already fixed in v7)
 Jul 13, 2008 V6.04 Revised socket names used for debugging purpose
                    Added ListenBackLog property
-Nov 22, 2008 V6.05 Arno fixed the FEAT response, rfc2389 says that each feature
+Jul 13, 2008 V6.04 Made Client ReadCount a public property
+Aug 04, 2008 V6.07 A. Garrels - CommandAUTH TLS sent Unicode response.
+             Removed some getter and setters, they are no longer needed.
+Aug 11, 2008 V6.08 A. Garrels - Type AnsiString rolled back to String.
+Sep 21, 2008 V6.11 Arno removed some old compiler switches (CBuilder compat.)
+Nov 6, 2008  V7.00 Angus component now uses TSocketServer to accept connections
+             Client code from OverbyteFtpSrvC now in this unit
+             Removed conditional code for obsolete compilers, D7 minimum
+             Added more public client variables for account information
+             Increased DefaultRcvSize to 16384 from 2048 for performance
+             Fixed exception with threaded MD5Sum progress
+             Client.Id is now allocated by TSocketServer
+Nov 8, 2008  V7.01 Angus added new commands HOST, REIN, LANG and OPTS UTF8 ON/OFF
+               (HOST is supported by Microsoft IIS/7 in Windows 2008)
+               HOST domain allows multiple domains on the same IP address (like HTTP)
+               REINialise reverts the control channel to just connected with no logon
+             Added UTF8 and CodePage support, defaults to ANSI mode for compatibility
+             Added ftpsEnableUtf8 and ftpsDefaultUtf8On to Options but
+                ftpsDefaultUtf8On should generally not be set, otherwise the client
+                is expected to be using UTF8 (FileZilla Server default to on!)
+             Note UTF8 only supports full Unicode with D2009, otherwise an ANSI CodePage
+             Added new commands XCMLSD and XDMLSD same as SITE CMLSD and DMLSD
+Nov 14, 2008 V7.02 Arno fixed a few thread issues. And reworked UTF-8 support.
+             Angus ensure BuildDirectory adds errors to directory stream in UTF-8
+             default options for ftpsCwdCheck and ftpsCdupHome
+Nov 21, 2008 V7.03 Angus fixed TriggerSendAnswer/AnswerToClient did not allow answer
+                to be changed, raw protocol no longer available as public
+Nov 21, 2008 V7.04 Arno completed V7.03, it did not compile in D2009,
+             allow C++ Builder.
+Nov 22, 2008 V7.05 Arno fixed the FEAT response, rfc2389 says that each feature
              line in the feature-listing begins with a single space. But in the
              ICS FTP server a feature line in the listing began with two spaces
              which prevented some clients from seeing the features.
-Feb 20, 2009 V6.06 Angus added MaxAttempts property to limit failed login attempts
+Mar 17, 2009 V7.06 Angus added MaxAttempts property to limit failed login attempts
              (default 12) and delays the failed password answer by about five seconds
              after a third of the failed attempts have been exceeded.
              This feature should be combined with an IP black list to
              stop new connections for failed logins (one hacker tried 250,000
              passwords over 36 hours on one of my FTP servers)
-
-
-
+Apr 16, 2009 V7.07 Angus MD5 and CRC use buffered stream
+             Clean-up MD5 on the fly
+             Assume STREAM64, USE_BUFFERED_STREAM, USE_MODEZ
+May 17, 2009 V7.08 Angus renamed FileMD5ThreadOnProgress to UpdateThreadProgress since
+                used for various functions other than md5 and made public
+             UpdateTheadProgress called by Client.BuildDirList so session does not timeout
+                 indexing large directories and can be aborted
+             Rename Client.BuildDirectory to BuildDirList to avoid confusion with
+                Server.BuildDirectory, made virtual, removed Path no longer used and
+                return total files listed, and log number of files listed
+             Added OnAddVirtFiles event called from BuildDirList which allows extra virtual
+                directories or files to be added to directory listings
+             Fixed bug in Server.BuildDirectory that meant BuildFilePath was bypassed for a
+                blank directory argument which prevented virtual directories working
+             Fixed bugs in CommandChangeDir and CommandALLO that meant virtual directories not
+                supported because BuildFilePath was not called when checking directory
+             IsPathAllowed now calls BuildFilePath event which may validate if a virtual
+                directory is allowed by returning non-blank
+             FormatResponsePath also calls BuildFilePath to convert translated virtual
+                path back to original path in home directory, so it can be removed
+             TriggerLang now calls correct event handler
+June 04, 2009 V7.09 Angus called TriggerMd5Calculated when changing file date/time
+             default for TimeoutSecsXfer reduced from 900 to 60 secs and only aborts
+                 data channel not control channel, it must be shorter than TimeoutSecsIdle
+             SessIdInfo add client numeric id to identify separate sessions from same IP
+Sept 03, 2009 V7.10 Arno exchanged TThread.Resume by TThread.Start for D2010 and later
+Dec  15, 2009 V7.11 Arno added type TFtpSrvCommandTable to make C++Builder happy.
+June 10, 2010 V7.12 Angus added bandwidth throttling using TCustomThrottledWSocket
+              Set BandwidthLimit property to maximum bytes server wide, for specific
+                clients set CBandwidthLimit in a client connect event
+              (requires EXPERIMENTAL_THROTTLE to be enabled in OverbyteIcsDefs.inc)
 
 
 
@@ -324,25 +399,33 @@ bandwidth restrictions
 test app - cache zlib files and CRCs and lock updates
 
 
-
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpSrv;
 
 {$B-}           { Enable partial boolean evaluation   }
 {$T-}           { Untyped pointers                    }
 {$X+}           { Enable extended syntax              }
+{$H+}           { Use long strings                    }
+{$J+}           { Allow typed constant to be modified }
 {$I OverbyteIcsDefs.inc}
-{$DEFINE USE_BUFFERED_STREAM} { V1.54 }
-{$DEFINE USE_MODEZ}           { V1.54 }
-{$IFDEF DELPHI6_UP}
-    {$WARN SYMBOL_PLATFORM   OFF}
-    {$WARN SYMBOL_LIBRARY    OFF}
-    {$WARN SYMBOL_DEPRECATED OFF}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
 {$ENDIF}
-{$IFNDEF VER80}   { Not for Delphi 1                    }
-    {$H+}         { Use long strings                    }
-    {$J+}         { Allow typed constant to be modified }
+{$IFDEF COMPILER12_UP}
+    { These are usefull for debugging !}
+    {$WARN IMPLICIT_STRING_CAST       OFF}
+    {$WARN IMPLICIT_STRING_CAST_LOSS  ON}
+    {$WARN EXPLICIT_STRING_CAST       OFF}
+    {$WARN EXPLICIT_STRING_CAST_LOSS  OFF}
 {$ENDIF}
+{$IFNDEF COMPILER7_UP}
+    Bomb('This component requires Delphi 7 or later');
+{$ENDIF}
+{$WARN SYMBOL_PLATFORM   OFF}
+{$WARN SYMBOL_LIBRARY    OFF}
+{$WARN SYMBOL_DEPRECATED OFF}
 {$IFDEF BCB3_UP}
     {$ObjExportAll On}
 {$ENDIF}
@@ -373,10 +456,7 @@ uses
     Winsock,
 {$ENDIF}
 {$ENDIF}
-{$IFDEF USE_BUFFERED_STREAM}    { angus V1.54 }
     OverbyteIcsStreams,
-{$ENDIF}
-{$IFDEF USE_MODEZ}              { angus V1.54 }
     {$I OverbyteIcsZlib.inc}
     OverbyteIcsZlibHigh,
     {$IFDEF USE_ZLIB_OBJ}
@@ -384,23 +464,97 @@ uses
     {$ELSE}
         OverbyteIcsZLibDll,     {interface to access zLib1.dll}
     {$ENDIF}
-{$ENDIF}
+    OverbyteIcsTypes,
+    OverbyteIcsUtils,
     OverbyteIcsWndControl,
     OverbyteIcsWinsock,
     OverbyteIcsWinsock2, { AG V1.51 }
     OverbyteIcsWSocket,
-    OverbyteIcsFtpSrvC,
+    OverbyteIcsWSocketS, { angus V7.00 }
     OverbyteIcsFtpSrvT,
     OverbyteIcsOneTimePw,  { angus V1.54 }
     OverbyteIcsCRC,        { angus V1.54 }
-    OverbyteIcsMD5;
+    OverbyteIcsMD5,
+    OverbyteIcsWSockBuf,   { AG V6.02 }
+    OverbyteIcsLibrary;    { AG V6.04 }
+
 
 const
-    FtpServerVersion         = 606;
-    CopyRight : String       = ' TFtpServer (c) 1998-2009 F. Piette V6.06 ';
+    FtpServerVersion         = 712;
+    CopyRight : String       = ' TFtpServer (c) 1998-2010 F. Piette V7.12 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
+    DefaultRcvSize           = 16384;    { V7.00 used for both xmit and recv, was 2048, too small }
+
+    { Angus Nov 2007 - previously the values in this table did not match the
+      command table, which is why dimensioning was incorrect, now corrected  }
+const
+    ftpcPORT      = 0;
+    ftpcSTOR      = 1;
+    ftpcRETR      = 2;
+    ftpcCWD       = 3;
+    ftpcXPWD      = 4;
+    ftpcPWD       = 5;
+    ftpcUSER      = 6;
+    ftpcPASS      = 7;
+    ftpcLIST      = 8;
+    ftpcNLST      = 9;
+    ftpcTYPE      = 10;
+    ftpcSYST      = 11;
+    ftpcQUIT      = 12;
+    ftpcDELE      = 13;
+    ftpcSIZE      = 14;
+    ftpcREST      = 15;
+    ftpcRNFR      = 16;
+    ftpcRNTO      = 17;
+    ftpcMKD       = 18;
+    ftpcRMD       = 19;
+    ftpcABOR      = 20;
+    ftpcPASV      = 21;
+    ftpcNOOP      = 22;
+    ftpcCDUP      = 23;
+    ftpcAPPE      = 24;
+    ftpcSTRU      = 25;   {jsp - Added APPE and STRU types }
+    ftpcXMKD      = 26;
+    ftpcXRMD      = 27;
+    ftpcMDTM      = 28;   {bkc - Added MDTM type           }
+    ftpcMODE      = 29;
+    ftpcOVER      = 31;
+    ftpcSTOU      = 32;   {ep  - Added STOU type           }
+    ftpcFEAT      = 33;   {SSV - Added FEAT type           }
+    ftpcMLST      = 34;   {angus Added MLST type           }
+    ftpcMLSD      = 35;   {angus Added MLSD type           }
+    ftpcMFMT      = 36;   {angus Added MFMT type           }
+    ftpcMD5       = 37;   {angus Added MD5 type            }
+    ftpcXCRC      = 38;   {angus Added XCRC type           }
+    ftpcXMD5      = 39;   {angus Added XMD5 type           }
+    ftpcALLO      = 40;   {angus Added ALLO type           }
+    ftpcCLNT      = 41;   {angus Added CLNT type           }
+    ftpcOPTS      = 42;   {angus Added OPTS type           }
+    ftpcSitePaswd = 43;   {angus Added SITE PASWD type     }
+    ftpcSiteExec  = 44;   {angus Added SITE EXEC type      }
+    ftpcSiteIndex = 45;   {angus Added SITE INDEX type     }
+    ftpcSiteZone  = 46;   {angus Added SITE ZONE type      }
+    ftpcSiteMsg   = 47;   {angus Added SITE MSG type       }
+    ftpcSiteCmlsd = 48;   {angus Added SITE CMLSD type     }
+    ftpcSiteDmlsd = 49;   {angus Added SITE DMLSD type     }
+    ftpcCOMB      = 50;   {angus Added COMB                }
+    ftpcXCMLSD    = 51;   {angus Added XCMLSD type         }
+    ftpcXDMLSD    = 52;   {angus Added XDMLSD type         }
+    ftpcHOST      = 53;   {angus Added HOST type           }
+    ftpcREIN      = 54;   {angus Added REIN type           }
+    ftpcLANG      = 55;   {angus Added LANG type           }
+{$IFNDEF USE_SSL}
+    ftpcLast      = 55;   {angus used to dimension FCmdTable}
+{$ELSE}
+    ftpcAUTH      = 56;
+    ftpcCCC       = 57;
+    ftpcPBSZ      = 58;   {V1.45}
+    ftpcPROT      = 59;
+    ftpcLast      = 59;
+{$ENDIF}
 
 type
+ { published server options }
     TFtpsOption      = (ftpsCwdCheck, ftpsCdupHome,      { angus V1.38 }
                         ftpsCalcMD5OnTheFly,             { AG V1.50 }
                         ftpsCalcCRCOnTheFly,             { angus V1.54 }
@@ -411,27 +565,266 @@ type
                         ftpsSiteXmlsd,                   { angus V1.54 }
                         ftpsThreadRecurDirs,             { angus V1.54 }
                         ftpsThreadAllDirs,               { angus V1.54 }
-                        ftpsModeZNoResume                { angus V1.55 }
+                        ftpsModeZNoResume,               { angus V1.55 }
+                        ftpsEnableUtf8,                  { angus V7.01 support Utf8 }
+                        ftpsDefaultUtf8On,               { angus V7.01 default Utf8 off is normal for ANSI compatibility }
+                        ftpsAutoDetectCodePage           { AG V7.02 actually detects UTF-8 only! }
+                                                         { requires ftpsEnableUtf8 and sets ftpEnableUtf8   }
+                                                         { once a valid UTF-8 buffer has been received from }
+                                                         { a client.                                        }
                          );
     TFtpsOptions     = set of TFtpsOption;               { angus V1.38 }
 
+ { client options }
+    TFtpOption    = (ftpcUNC,                { angus V1.39 }
+                     ftpCwdCheck,
+                     ftpCdupHome,
+                     ftpHidePhysicalPath,    { AG V1.52 }
+                     ftpModeZCompress,       { angus V1.54 }
+                     ftpUtf8On,              { angus V7.01 this is changed by the OPTS UTF8 ON/OFF command }
+                     ftpAutoDetectCodePage   { AG V7.02 actually detects UTF-8 only! }
+                                             { requires ftpsEnableUtf8 and sets ftpEnableUtf8   }
+                                             { once a valid UTF-8 buffer has been received from }
+                                             { a client.                                        }
+                     );      { angus V1.54 }
+    TFtpOptions   = set of TFtpOption;
+
     PBoolean = ^Boolean;
     FtpServerException  = class(Exception);
-{ Various Delphi and C++Builder version handle string parameter passed as var }
-{ differently. To get application code compatible across all versions, we     }
-{ need to define our own string type. We use the larger we can with the given }
-{ compiler version. btw: the 255 limit is not a problem because it applies to }
-{ the command lines sent to the server and 255 should be enough except if     }
-{ you use incredibly long file names.                                         }
-{$IFDEF DELPHI3_UP}
     TFtpString = type String;
-{$ELSE}
-    TFtpString = String[255];
+
+{$IFDEF USE_SSL}
+    TCurFtpSslType  = (curftpSslNone,   curftpAuthSsl,      curftpAuthTls,
+                       curftpAuthTlsP,  curftpAuthTlsC ,    curftpImplicitSsl);
 {$ENDIF}
-{$IFDEF VER80}
-    WPARAM = WORD;
-    LPARAM = DWORD;
+
+    TFtpTransMode   = (ftpTransModeStream, ftpTransModeZDeflate) ;  { angus V1.54 }
+    TZStreamState   = (ftpZStateNone, ftpZStateSaveDecom, ftpZStateSaveComp{,
+                     ftpZStateImmDecon, ftpZStateImmComp});         { angus V1.54 }
+    TListType        = (ListTypeName,
+                        ListTypeUnix, ListTypeFacts);    { angus V1.54 same as Server }
+
+type
+    EFtpCtrlSocketException = class(Exception);
+    TFtpCtrlState = (ftpcInvalid, ftpcWaitingUserCode, ftpcWaitingPassword,
+                     ftpcReady, ftpcWaitingAnswer, ftpcFailedAuth);  { angus V7.06 }
+
+    { TFtpCmdType is now defined as a byte and enumerated items as constants, }
+    { so that new values can be added by sub-components who add new commands  }
+    TFtpCmdType   = Byte;
+
+type
+    TDisplayEvent = procedure (Sender : TObject; Msg : String) of object;
+    TCommandEvent = procedure (Sender : TObject; CmdBuf : PAnsiChar; CmdLen : Integer) of object; { AG 7.02 Convert the buffer in TriggerCommand}
+
+    TFtpCtrlSocket = class; //Forward
+
+    TClientProcessingThread = class(TThread)  { AG V1.46}
+    public
+        Client    : TFtpCtrlSocket;
+        Keyword   : String;
+        Params    : String;
+        InData    : String;
+        OutData   : String;
+        ClientID  : Integer;
+        StartTick : LongWord;      { angus V1.54 }
+        Sender    : TObject;       { angus V1.54 }
+    protected                                  { AG 7.02 }
+        procedure TriggerEnterSecurityContext; { AG 7.02 }
+        procedure TriggerLeaveSecurityContext; { AG 7.02 }
+        procedure Execute; override;
+    end;
+
+    TFtpServer     = class; //Forward          { AG 7.02 }
+
+    TFtpCtrlSocket = class(TWSocketClient)   { angus V7.00 }
+    protected
+        FDataSocket        : TWSocket;
+        FRcvBuf            : PAnsiChar;
+        FRcvCnt            : Integer;
+        FRcvSize           : Integer;   { used for both smit and revc }
+        FBusy              : Boolean;
+        FConnectedSince    : TDateTime;
+        FLastCommand       : TDateTime;
+        FCommandCount      : LongInt;
+        FBanner            : String;
+        FUserName          : String;
+        FPassWord          : String;
+        FCloseRequest      : Boolean;
+        FHomeDir           : String;
+        FDirectory         : String;
+        FFtpState          : TFtpCtrlState;
+        FAbortingTransfer  : Boolean;
+        FUserData          : LongInt;        { Reserved for component user }
+        FPeerAddr          : String;
+        FPeerSAddr         : TSockAddr;      { AG V1.47 }
+        FHost              : String;         { angus V7.01 }
+        FLang              : String;         { angus V7.01 }
+        FOnDisplay         : TDisplayEvent;
+        FOnCommand         : TCommandEvent;
+        FOptions           : TFtpOptions;    { AG 7.02 }
+        FCodePage          : LongWord;       { AG 7.02 }
+        FCurrentCodePage   : LongWord;       { AG 7.02 }
+        procedure TriggerSessionConnected(Error : Word); override;
+        function  TriggerDataAvailable(Error : Word) : boolean; override;
+        procedure TriggerCommand(CmdBuf : PAnsiChar; CmdLen : Integer); virtual; { AG 7.02 }
+        procedure SetRcvSize(newValue : Integer);
+        procedure SetHomeDir(const newValue: String);   { AG V1.52}
+        procedure SetOptions(const Opts : TFtpOptions); { AG 7.02 }
+        procedure SetCodePage(const Value: LongWord);   { AG 7.02 }
+        procedure SetCurrentCodePage(const Value: LongWord); { AG 7.02 }
+    public
+        FtpServer         : TFtpServer; { AG V7.02 }
+        BinaryMode        : Boolean;
+        DataAddr          : String;
+        DataPort          : String;
+        FileName          : String;
+        FilePath          : String;
+        DataSessionActive : Boolean;
+        DataStream        : TStream;
+        HasOpenedFile     : Boolean;
+        TransferError     : String;
+        DataSent          : Boolean;
+        CurCmdType        : TFtpCmdType;
+        MD5Digest         : TMD5Digest;  { AG V1.46}
+        MD5Context        : TMD5Context; { AG V1.46}
+        MD5OnTheFlyFlag   : Boolean;     { AG V1.46}
+        ProcessingThread  : TClientProcessingThread; { AG V1.46}
+        AnswerDelayed     : Boolean;     { AG V1.46}
+        ByteCount         : Int64;       { upload or download bytes for current data session }
+        RestartPos        : Int64;
+        HashStartPos      : Int64;       { angus V1.54 start for MD5/CRC }
+        HashEndPos        : Int64;       { angus V1.54 start for MD5/CRC }
+        FromFileName      : String;
+        ToFileName        : String;
+        PassiveMode       : Boolean;
+        PassiveStart      : Boolean;
+        PassiveConnected  : Boolean;
+        OtpMethod         : TOtpMethod;  { angus V1.54 One Time Password authentication method }
+        OtpSequence       : Integer;     { angus V1.54 One Time Password current sequence }
+        OtpSeed           : String;      { angus V1.54 One Time Password current seed }
+        LastTick          : Longword;    { angus V1.54 last tick for time out checking }
+        ClntStr           : String;      { angus V1.54 from clnt command }
+        DirListPath       : String;      { angus V1.54 last parsed directory listing path }
+        DirListSubDir     : Boolean;     { angus V1.54 did we list subdirs }
+        DirListHidden     : Boolean;     { angus V1.54 did we list hidden files }
+        DirListType       : TListType;   { angus V1.54 how we list files }
+        CurrTransMode     : TFtpTransMode; {angus V1.54 current zlib transfer mode }
+        ZStreamState      : TZStreamState; { angus V1.54 current Zlib stream state }
+        ZReqLevel         : Integer;     { angus V1.54 requested Zlib compression level 1 to 9 }
+        ZCurLevel         : Integer;     { angus V1.54 current Zlib compression level 0 to 9 }
+   {    ZStreamRec        : TZStreamRec;   angus V1.54 Zlib stream control record for immediate mode }
+        ZCompFileName     : String;      { angus V1.54 zlib file name of compressed file }
+        ZFileStream       : TStream;     { angus V1.54 Zlib compressed file stream  }
+        ZCompInfo         : String;      { angus V1.54 zlib compress information to return with 251 OK }
+        ZCompFileDelete   : Boolean;     { angus V1.54 zlib delete compressed file when closing it }
+        SessStartTick     : Longword;    { angus V1.54 tick when client session started, for duration check }
+        ReqStartTick      : Longword;    { angus V1.54 tick when last request started, for duration check }
+        XferStartTick     : Longword;    { angus V1.54 tick when last xfer started, for performance check }
+        ReqDurMilliSecs   : Integer;     { angus V1.54 how long last request took, in ticks }
+        TotGetBytes       : Int64;       { angus V1.54 how many bytes GET during session, data and control }
+        TotPutBytes       : Int64;       { angus V1.54 how many bytes PUT during session, data and control }
+        SessIdInfo        : String;      { angus V1.54 session identificaton information for application use }
+        FileModeRead      : Word;        { angus V1.57 file access fmOpenxx and fmSharexx flags for read  }
+        FileModeWrite     : Word;        { angus V1.57 file access fmOpenxx and fmSharexx flags for write }
+        AccountIniName    : String;      { angus V7.00 client account information, INI file }
+        AccountPassword   : String;      { angus V7.00 client account expected password }
+        AccountReadOnly   : Boolean;     { angus V7.00 client account read only file access, no uploads  }
+        FailedAttempts    : Integer;     { angus V7.06 }
+        DelayAnswerTick   : Longword;    { angus V7.06 tick when delayed answer should be sent }
+{$IFDEF EXPERIMENTAL_THROTTLE}
+        CBandwidthLimit    : LongWord;   { angus V7.12 Bytes per second, null = disabled }
+        CBandwidthSampling : LongWord;   { angus V7.12 Msec sampling interval }
 {$ENDIF}
+{$IFDEF USE_SSL}
+        ProtP             : Boolean;
+        AuthFlag          : Boolean;
+        CccFlag           : Boolean;
+        CurFtpSslType     : TCurFtpSslType;
+{$ENDIF}
+        constructor Create(AOwner: TComponent); override;
+        destructor  Destroy; override;
+        procedure   SendAnswer(const Answer : RawByteString);         { angus V7.01 }{ AG V7.02 }
+        procedure   SetDirectory(newValue : String); virtual;   
+        procedure   SetAbortingTransfer(newValue : Boolean);
+        procedure   BuildDirList(var TotalFiles: integer); virtual; {angus V7.08 was BuildDirectory, made virtual }
+        procedure   TriggerSessionClosed(Error : Word); override;
+{$IFDEF USE_SSL}
+        function    SslSendPlain(Data : TWSocketData; Len : Integer) : Integer;
+{$ENDIF}
+        procedure   DataStreamWriteString(const Str: AnsiString);  overload; { AG 7.02 }
+        procedure   DataStreamWriteString(const Str: AnsiString; DstCodePage: LongWord);  overload; { AG 7.02 }
+    {$IFDEF COMPILER12_UP}
+        procedure   DataStreamWriteString(const Str: UnicodeString; DstCodePage: LongWord); overload;
+        procedure   DataStreamWriteString(const Str: UnicodeString); overload;
+    {$ENDIF}
+        procedure   DataStreamReadString(var Str: AnsiString; Len: TFtpBigInt); overload;
+        procedure   DataStreamReadString(var Str: AnsiString; Len: TFtpBigInt; SrcCodePage: LongWord); overload;    { AG 7.02 }
+    {$IFDEF COMPILER12_UP}
+        procedure   DataStreamReadString(var Str: UnicodeString; Len: TFtpBigInt; SrcCodePage: LongWord); overload; { AG 7.02 }
+        procedure   DataStreamReadString(var Str: UnicodeString; Len: TFtpBigInt); overload;
+    {$ENDIF}
+        property    DataSocket     : TWSocket    read  FDataSocket;
+        property    CodePage       : LongWord    read  FCodePage        { AG 7.02 }
+                                                 write SetCodePage; 
+        property    CurrentCodePage: LongWord    read  FCurrentCodePage { AG 7.02 }
+                                                 write SetCurrentCodePage;
+        property    ConnectedSince : TDateTime   read  FConnectedSince;
+        property    LastCommand    : TDateTime   read  FLastCommand;
+        property    CommandCount   : LongInt     read  FCommandCount;
+        property    RcvBuf         : PAnsiChar   read  FRcvBuf;
+        property    RcvdCount;
+        property    CloseRequest   : Boolean     read  FCloseRequest
+                                                 write FCloseRequest;
+        property    Directory      : String      read  FDirectory
+                                                 write SetDirectory;
+        property    HomeDir        : String      read  FHomeDir
+                                                 write SetHomeDir;  { AG V1.52}
+        property    AbortingTransfer : Boolean   read  FAbortingTransfer
+                                                 write SetAbortingTransfer;
+        property    ID             : LongInt     read  FCliId       { angus V7.00 }
+                                                 write FCliId;
+        property    Options        : TFtpOptions read  FOptions
+                                                 write SetOptions;
+        property    PeerSAddr      : TSockAddr   read  FPeerSAddr;  { AG V1.47 }
+        property    ReadCount      : Int64       read  FReadCount;
+
+    published
+        property    FtpState       : TFtpCtrlState
+                                                 read  FFtpState
+                                                 write FFtpState;
+        property    Banner         : String      read  FBanner
+                                                 write FBanner;
+        property    RcvSize        : Integer     read  FRcvSize
+                                                 write SetRcvSize;
+        property    Busy           : Boolean     read  FBusy
+                                                 write FBusy;
+        property    UserName       : String      read  FUserName
+                                                 write FUserName;
+        property    PassWord       : String      read  FPassWord
+                                                 write FPassWord;
+        property    UserData       : LongInt     read  FUserData
+                                                 write FUserData;
+        property    Host           : String      read  FHost
+                                                 write FHost;
+        property    Lang           : String      read  FHost
+                                                 write FHost;
+        property    OnDisplay      : TDisplayEvent
+                                                 read  FOnDisplay
+                                                 write FOnDisplay;
+        property    OnCommand      : TCommandEvent
+                                                 read  FOnCommand
+                                                 write FOnCommand;
+        property    OnSessionClosed;
+        property    OnDataSent;
+        property    HSocket;
+        property    AllSent;
+        property    State;
+{$IFNDEF NO_DEBUG_LOG}
+        property    IcsLogger;
+{$ENDIF}
+    end;
+
     TFtpCtrlSocketClass = class of TFtpCtrlSocket;
     TFtpSrvAuthenticateEvent  =  procedure (Sender   : TObject;
                                             Client   : TFtpCtrlSocket;
@@ -494,7 +887,7 @@ type
     TFtpSrvDataAvailableEvent = procedure (Sender : TObject;
                                            Client : TFtpCtrlSocket;
                                            Data   : TWSocket;
-                                           Buf    : PChar;
+                                           Buf    : PAnsiChar;  { AG V6.02 }
                                            Len    : LongInt;
                                            AError : Word) of object;
     TFtpSrvRetrDataSentEvent  = procedure (Sender : TObject;
@@ -515,6 +908,8 @@ type
                                     KeyWord : String;
                                     Proc    : TFtpSrvCommandProc;
                                 end;
+    TFtpSrvCommandTable = array of TFtpSrvCommandTableItem; { AG V7.11 }
+
     TFtpSecurityContextEvent  = procedure (Sender : TObject;     { AG V1.52 }
                                            Client : TFtpCtrlSocket) of object;
     TFtpSrvGeneralEvent = procedure (Sender        : TObject;      { angus V1.54 }
@@ -533,6 +928,23 @@ type
     TFtpSrvDisplayEvent = procedure (Sender        : TObject;      { angus V1.54 }
                                      Client        : TFtpCtrlSocket;
                                      Msg           : TFtpString) of object;
+    TFtpSrvHostEvent =  procedure (Sender      : TObject;                { angus V7.01 }
+                                   Client      : TFtpCtrlSocket;
+                                   Host        : TFtpString;
+                                   var Allowed : Boolean) of object;
+    TFtpSrvReinEvent =  procedure (Sender      : TObject;                { angus V7.01 }
+                                   Client      : TFtpCtrlSocket;
+                                   var Allowed : Boolean) of object;
+    TFtpSrvLangEvent =  procedure (Sender      : TObject;                { angus V7.01 }
+                                   Client      : TFtpCtrlSocket;
+                                   Lang        : TFtpString;
+                                   var Allowed : Boolean) of object;
+    TFtpSrvAddVirtFilesEvent = procedure (Sender          : TObject;             { angus V7.08 }
+                                          Client          : TFtpCtrlSocket;
+                                          var LocFiles    : TIcsFileRecs;
+                                          var LocFileList : TList;
+                                          var TotalFiles  : Integer;
+                                          ProgressCallback: TMD5Progress) of object;
 
     TFtpServer = class(TIcsWndControl)
     protected
@@ -540,12 +952,10 @@ type
         FPort                   : String;
         FListenBackLog          : Integer;
         FBanner                 : String;
-        FServSocket             : TWSocket;
+        FSocketServer           : TWSocketServer ;    { new  angus V7.00 }
         FClientClass            : TFtpCtrlSocketClass;
-        FClientList             : TList;
-        FClientNum              : LongInt;
         FMaxClients             : LongInt;
-        FCmdTable               : array of TFtpSrvCommandTableItem;  { AG V1.51 }
+        FCmdTable               : TFtpSrvCommandTable; { AG V7.11 }
         FLastCmd                : Integer;
         FUserData               : LongInt;      { Reserved for component user }
         FPasvPortRangeStart     : Integer;
@@ -566,9 +976,14 @@ type
         FZlibMinSpace           : Integer;      { angus V1.54 }
         FAlloExtraSpace         : Integer;      { angus V1.54 }
         FZlibMaxSize            : Int64;        { angus V1.55 }
-        FMaxAttempts            : Integer;      { angus V6.06 }
+        FCodePage               : LongWord;     { angus V7.01 for UTF8 support }
+        FLanguage               : String;       { angus V7.01 for UTF8 support }
+        FMaxAttempts            : Integer;      { angus V7.06 }
+{$IFDEF EXPERIMENTAL_THROTTLE}
+        FBandwidthLimit         : LongWord;     { angus V7.12 Bytes per second, null = disabled }
+        FBandwidthSampling      : LongWord;     { angus V7.12 Msec sampling interval }
+{$ENDIF}
         FMsg_WM_FTPSRV_CLOSE_REQUEST  : UINT;
-        FMsg_WM_FTPSRV_CLIENT_CLOSED  : UINT;
         FMsg_WM_FTPSRV_ABORT_TRANSFER : UINT;
         FMsg_WM_FTPSRV_CLOSE_DATA     : UINT;
         FMsg_WM_FTPSRV_START_SEND     : UINT;
@@ -621,6 +1036,11 @@ type
         FOnUpCompressFile       : TFtpSrvCompressFileEvent;  { angus V1.54 }
         FOnUpCompressedFile     : TFtpSrvCompressedFileEvent; { angus V1.54 }
         FOnDisplay              : TFtpSrvDisplayEvent;       { angus V1.54 }
+        FOnHost                 : TFtpSrvHostEvent;          { angus V7.01 }
+        FOnRein                 : TFtpSrvReinEvent;          { angus V7.01 }
+        FOnLang                 : TFtpSrvLangEvent;          { angus V7.01 }
+        FSystemCodePage         : LongWord;                  { AG 7.02 }
+        FOnAddVirtFiles         : TFtpSrvAddVirtFilesEvent;  { angus V7.08 }
 {$IFNDEF NO_DEBUG_LOG}
         function  GetIcsLogger: TIcsLogger;                                      { V1.46 }
         procedure SetIcsLogger(const Value: TIcsLogger);                         { V1.46 }
@@ -629,11 +1049,9 @@ type
 {$ENDIF}
         procedure ClientProcessingThreadTerminate(Sender : TObject); { AG V1.50 }
         procedure Notification(AComponent: TComponent; operation: TOperation); override;
-        procedure ServSocketSessionAvailable(Sender : TObject; AError  : Word);
         procedure ServSocketStateChange(Sender : TObject; OldState, NewState : TSocketState);
-        procedure ClientSessionClosed(Sender : TObject; AError  : Word);
         procedure ClientDataSent(Sender : TObject; AError  : Word); virtual; { V1.47 }
-        procedure ClientCommand(Sender : TObject; CmdBuf : PChar; CmdLen : Integer);
+        procedure ClientCommand(Sender : TObject; CmdBuf : PAnsiChar; CmdLen : Integer); { AG 7.02 }
         procedure ClientPassiveSessionAvailable(Sender : TObject; AError  : Word); virtual; {AG SSL}
         procedure ClientStorSessionConnected(Sender : TObject; AError  : Word);
         procedure ClientStorSessionClosed(Sender : TObject; AError  : Word);
@@ -649,8 +1067,13 @@ type
         procedure PreparePassiveRetrDataSocket(Client : TFtpCtrlSocket);
         function  IsPathAllowed(Client : TFtpCtrlSocket; const Path : String;
                                 ExcludeBackslash : Boolean = FALSE): Boolean; { V1.52 AG}
-        procedure BuildDirectory(Client : TFtpCtrlSocket; var Path : TFtpString); { angus V1.54 }
+        function  FormatResponsePath(Client: TFtpCtrlSocket; const InPath : TFtpString): TFtpString; { AG V1.52 angus V7.08 }
+        procedure BuildDirectory(Client : TFtpCtrlSocket; var Path : TFtpString); { angus V1.54, V7.08 }
         procedure EventTimerOnTimer(Sender : TObject);                            { angus V1.54 }
+        procedure ServerClientConnect(Sender: TObject;
+                                Client: TWSocketClient; Error: Word);    { angus V7.00 }
+        procedure ServerClientDisconnect(Sender: TObject;
+                                Client: TWSocketClient; Error: Word);    { angus V7.00 }
 
         procedure TriggerServerStart; virtual;
         procedure TriggerServerStop; virtual;
@@ -719,7 +1142,7 @@ type
                                      var Allowed   : Boolean); virtual;
         procedure TriggerStorDataAvailable(Client : TFtpCtrlSocket;
                                        Data   : TWSocket;
-                                       Buf    : PChar;
+                                       Buf    : PAnsiChar;  { AG V6.02 }
                                        Len    : LongInt;
                                        AError : Word); virtual;
         procedure TriggerRetrDataSent(Client : TFtpCtrlSocket;
@@ -776,9 +1199,21 @@ type
         procedure TriggerUpCompressFile (Client    : TFtpCtrlSocket;            { angus V1.54 }
                                          var Done  : Boolean); virtual;
         procedure TriggerUpCompressedFile (Client  : TFtpCtrlSocket); virtual;  { angus V1.54 }
-        procedure TriggerDisplay      (Client      : TFtpCtrlSocket;
-                                       Msg         : TFtpString); virtual;  { angus V1.54 }
-
+        procedure TriggerDisplay       (Client      : TFtpCtrlSocket;
+                                       Msg         : TFtpString); virtual;      { angus V1.54 }
+        procedure TriggerHost          (Client        : TFtpCtrlSocket;
+                                        Host          : TFtpString;
+                                        var Allowed   : Boolean); virtual;      { angus V7.01 }
+        procedure TriggerRein          (Client        : TFtpCtrlSocket;
+                                        var Allowed   : Boolean); virtual;      { angus V7.01 }
+        procedure TriggerLang          (Client        : TFtpCtrlSocket;
+                                        Lang          : TFtpString;
+                                        var Allowed   : Boolean); virtual;      { angus V7.01 }
+        procedure TriggerAddVirtFiles  (Client          : TFtpCtrlSocket;
+                                        var LocFiles    : TIcsFileRecs;
+                                        var LocFileList : TList;
+                                        var TotalFiles  : Integer;
+                                        ProgressCallback: TMD5Progress); virtual; { angus V7.08 }
         function BuildFilePath(Client      : TFtpCtrlSocket;
                                Directory   : String;
                                FileName    : String) : String; virtual;
@@ -792,10 +1227,10 @@ type
         procedure SetActive(newValue : Boolean);
         procedure SetPasvPortRangeSize(const NewValue: Integer);
         procedure SetPasvPortRangeStart(const NewValue: Integer);
+        procedure SetClientClass(const NewValue: TFtpCtrlSocketClass);     { angus V7.00 }
         procedure AddCommand(const Keyword : String;
                              const Proc : TFtpSrvCommandProc); virtual;
         procedure WMFtpSrvCloseRequest(var msg: TMessage); virtual;
-        procedure WMFtpSrvClientClosed(var msg: TMessage); virtual;
         procedure WMFtpSrvAbortTransfer(var msg: TMessage); virtual;
         procedure WMFtpSrvCloseData(var msg: TMessage); virtual;
         procedure WMFtpSrvStartSend(var msg: TMessage); virtual;
@@ -997,10 +1432,30 @@ type
                               var Keyword : TFtpString;
                               var Params  : TFtpString;
                               var Answer  : TFtpString); virtual;
+        procedure CommandXCmlsd (Client : TFtpCtrlSocket;     { angus V7.01 }
+                              var Keyword : TFtpString;
+                              var Params  : TFtpString;
+                              var Answer  : TFtpString); virtual;
+        procedure CommandXDmlsd (Client : TFtpCtrlSocket;     { angus V7.01 }
+                              var Keyword : TFtpString;
+                              var Params  : TFtpString;
+                              var Answer  : TFtpString); virtual;
+        procedure CommandHost (Client : TFtpCtrlSocket;       { angus V7.01 }
+                              var Keyword : TFtpString;
+                              var Params  : TFtpString;
+                              var Answer  : TFtpString); virtual;
+        procedure CommandRein (Client : TFtpCtrlSocket;       { angus V7.01 }
+                              var Keyword : TFtpString;
+                              var Params  : TFtpString;
+                              var Answer  : TFtpString); virtual;
+        procedure CommandLang (Client : TFtpCtrlSocket;       { angus V7.01 }
+                              var Keyword : TFtpString;
+                              var Params  : TFtpString;
+                              var Answer  : TFtpString); virtual;
 
     public
-        SrvFileModeRead     : Word;   { angus V1.57 }
-        SrvFileModeWrite    : Word;   { angus V1.57 }
+        SrvFileModeRead   : Word;   { angus V1.57 }
+        SrvFileModeWrite  : Word;   { angus V1.57 }
         constructor Create(AOwner: TComponent); override;
         destructor  Destroy; override;
         procedure   Start;
@@ -1016,13 +1471,13 @@ type
         function    IsClient(SomeThing : TObject) : Boolean;
         function    OpenFileStream(const FileName: string; Mode: Word): TStream;    { angus V1.54 }
         procedure   CloseFileStreams(Client : TFtpCtrlSocket);                      { angus V1.54 }
-        property  ServSocket    : TWSocket            read  FServSocket;
+        property  ServSocket    : TWSocketServer      read  FSocketServer;		    { angus V7.00 }
         property  ClientCount   : Integer             read  GetClientCount;
         property  Active        : Boolean             read  GetActive
                                                       write SetActive;
         property  ClientClass            : TFtpCtrlSocketClass
                                                       read  FClientClass
-                                                      write FClientClass;
+                                                      write SetClientClass;           { angus V7.00 }
         { Client[] give direct access to anyone of our clients }
         property  Client[nIndex : Integer] : TFtpCtrlSocket
                                                       read  GetClient;
@@ -1030,7 +1485,7 @@ type
                                                       write FZlibWorkDir;
     published
 {$IFNDEF NO_DEBUG_LOG}
-        property IcsLogger              : TIcsLogger  read  GetIcsLogger  { V1.46 }
+        property IcsLogger               : TIcsLogger  read  GetIcsLogger  { V1.46 }
                                                       write SetIcsLogger;
 {$ENDIF}
         property  Addr                   : String     read  FAddr
@@ -1068,14 +1523,24 @@ type
                                                       write FZlibMaxLevel;   { angus V1.54 }
         property  ZlibNoCompExt          : String     read  FZlibNoCompExt
                                                       write FZlibNoCompExt;  { angus V1.54 }
-        property  AlloExtraSpace         : Integer    read  FAlloExtraSpace
+        property  AlloExtraSpace         : Integer    read FAlloExtraSpace
                                                       write FAlloExtraSpace; { angus V1.54 }
-        property  ZlibMinSpace           : Integer    read  FZlibMinSpace
+        property  ZlibMinSpace           : Integer    read FZlibMinSpace
                                                       write FZlibMinSpace;   { angus V1.54 }
         property  ZlibMaxSize            : Int64      read  FZlibMaxSize
                                                       write FZlibMaxSize ;   { angus V1.55 }
+        property  CodePage               : LongWord   read  FCodePage
+                                                      write FCodePage;       { angus V7.01 }
+        property  Language               : String     read  FLanguage
+                                                      write FLanguage;       { angus V7.01 }
         property  MaxAttempts            : Integer    read  FMaxAttempts
-                                                      write FMaxAttempts ;   { angus V6.06 }
+                                                      write FMaxAttempts ;   { angus V7.06 }
+{$IFDEF EXPERIMENTAL_THROTTLE}
+        property  BandwidthLimit         : LongWord   read  FBandwidthLimit
+                                                      write FBandwidthLimit;     { angus V7.12 }
+        property  BandwidthSampling      : LongWord   read  FBandwidthSampling
+                                                      write FBandwidthSampling;  { angus V7.12 }
+{$ENDIF}
         property  OnStart                : TNotifyEvent
                                                       read  FOnStart
                                                       write FOnStart;
@@ -1220,6 +1685,19 @@ type
         property  OnDisplay              : TFtpSrvDisplayEvent               { angus V1.54 }
                                                       read  FOnDisplay
                                                       write FOnDisplay;
+        property  OnHost                 : TFtpSrvHostEvent                  { angus V7.01 }
+                                                      read  FOnHost
+                                                      write FOnHost;
+        property  OnRein                 : TFtpSrvReinEvent                  { angus V7.01 }
+                                                      read  FOnRein
+                                                      write FOnRein;
+        property  OnLang                 : TFtpSrvLangEvent                  { angus V7.01 }
+                                                      read  FOnLang
+                                                      write FOnLang;
+        property  OnAddVirtFiles         : TFtpSrvAddVirtFilesEvent          { angus V7.08 }
+                                                      read  FOnAddVirtFiles
+                                                      write FOnAddVirtFiles;
+
     end;
 
 { You must define USE_SSL so that SSL code is included in the component.   }
@@ -1332,12 +1810,19 @@ Description:  A component adding TLS/SSL support to TFtpServer.
 {$ENDIF} // USE_SSL
 
 function GetZlibCacheFileName(const S : String) : String;  { angus V1.54 }
-
-procedure Register;
+function  IsUNC(S : String) : Boolean;
+procedure PatchIE5(var S : String);
+function FormatFactsDirEntry(F : TSearchRec; const FileName: string) : String;  { angus 1.54  }
+function FormatUnixDirEntry(F : TSearchRec; const FileName: String) : String;   { V7.08 }
+procedure UpdateThreadOnProgress(Obj: TObject; Count: Int64; var Cancel: Boolean);          { V7.08 }
 
 implementation
 
+var
+    ThisYear, ThisMonth, ThisDay : Word;
+
 const
+    DefaultBanner     = '220-ICS FTP Server ready';
     msgSyntaxParam    = '501 Syntax error in parameter.';        { V1.52 AG }
     msgSyntaxParamFmt = '501 Syntax error in parameter: %s.';    { V1.52 AG }
     msgDftBanner      = '220 ICS FTP Server ready.';
@@ -1455,12 +1940,21 @@ const
     msgSiteFailed     = '550 SITE command failed.';                  { angus V1.54 }
     msgIndexFollows   = '200-Index %s';                              { angus V1.54 }
     msgIndexDone      = '200 END Index';                             { angus V1.54 }
-    msgOtpsOK         = '200 %s Ok';                                 { angus V1.54 }
-    msgOptsFailed     = '501 %s is invalid';                         { angus V1.54 }
-    msgAlloOK         = '200 ALLO OK, %d bytes available';           { angus V1.54 }
-    msgAlloFail       = '501 Invalid size parameter';                { angus V1.54 }
-    msgAlloFull       = '501 Insufficient disk space, only %d bytes available';  { angus V1.54 }
-    msgNotAllowed     = '421 Connection not allowed.';               { angus V6.06 }
+    msgOtpsOK         = '200 %s Ok.';                                { angus V1.54 }
+    msgOptsFailed     = '501 %s is invalid.';                        { angus V1.54 }
+    msgAlloOK         = '200 ALLO OK, %d bytes available.';          { angus V1.54 }
+    msgAlloFail       = '501 Invalid size parameter.';               { angus V1.54 }
+    msgAlloFull       = '501 Insufficient disk space, only %d bytes available.';  { angus V1.54 }
+    msgHostOK         = '220 HOST Ok, FTP Server ready.';            { angus V7.01 }
+    msgHostUnavail    = '421 HOST unavailable.';                     { angus V7.01 }
+    msgHostSyntax     = msgSyntaxParam;  { 501 }                     { angus V7.01 }
+    msgHostTooLate    = '503 HOST no longer allowed.';               { angus V7.01 }
+    msgHostUnknown    = '504 HOST unknown or not allowed.';          { angus V7.01 }
+    msgReinOK         = '220 Reinitialise Ok, FTP Server ready.';    { angus V7.01 }
+    msgReinUnavail    = '421 Reinitialise unavailable.';             { angus V7.01 }
+    msgLangOK         = '200 %s Ok.';                                { angus V7.01 }
+    msgLangUnknown    = '504 %s unknown.' ;                          { angus V7.01 }
+    msgNotAllowed     = '421 Connection not allowed.';               { angus V7.06 }
 
 {$IFDEF USE_SSL}
     msgAuthOk         = '234 Using authentication type %s';
@@ -1470,7 +1964,7 @@ const
     //msgAuthYetSetErr  = '534 Auth type already set to %s';
     msgAuthInitError  = '431 Could not initialize %s connection';
     msgAuthNoSupport  = '504 Auth type ''%s'' not supported';
-                        
+
     msgErrInSslOnly   = '533 %s requires a secure connection';
     msgProtOk         = '200 Protection level set to %s';
     msgProtNoSupport  = '504 Protection level ''%s'' not supported';
@@ -1479,94 +1973,6 @@ const
     msgPbszOk         = '200 PBSZ set to 0';
     msgCccOk          = '200 CCC OK Continue using plaintext commands';
 {$ENDIF}
-
-{ 1.54 moved to FtpSrvT
-function SlashesToBackSlashes(const S : String) : String; forward;
-function BackSlashesToSlashes(const S : String) : String; forward;  }
-{ function BuildFilePath(const Directory : String; serge le 5/10/2002
-                         FileName        : String) : String; forward; }
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure Register;
-begin
-    RegisterComponents('FPiette',
-                      [TFtpServer
-                  {$IFDEF USE_SSL}
-                      , TSslFtpServer
-                  {$ENDIF} 
-                      ]);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF VER80}
-procedure SetLength(var S: String; NewLength: Integer);
-begin
-    S[0] := chr(NewLength);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TrimRight(Str : String) : String;
-var
-    i : Integer;
-begin
-    i := Length(Str);
-    while (i > 0) and (Str[i] = ' ') do
-        i := i - 1;
-    Result := Copy(Str, 1, i);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TrimLeft(Str : String) : String;
-var
-    i : Integer;
-begin
-    if Str[1] <> ' ' then
-        Result := Str
-    else begin
-        i := 1;
-        while (i <= Length(Str)) and (Str[i] = ' ') do
-            i := i + 1;
-        Result := Copy(Str, i, Length(Str) - i + 1);
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function Trim(Str : String) : String;
-begin
-    Result := TrimLeft(TrimRight(Str));
-end;
-{$ENDIF}
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function GetFileSize(const FileName : String) : TFtpBigInt;           { V1.49 }
-var
-    SR : TSearchRec;
-{$IFDEF STREAM64}   { V1.49 }
-    TempSize: TULargeInteger ;  // 64-bit integer record
-{$ENDIF}
-begin
-{$IFNDEF VER80}{$WARNINGS OFF}{$ENDIF}
-    if FindFirst(FileName, faReadOnly or faHidden or
-                 faSysFile or faArchive, SR) = 0 then begin
-{$IFDEF STREAM64}         { V1.49 }
-        TempSize.LowPart  := SR.FindData.nFileSizeLow;
-        TempSize.HighPart := SR.FindData.nFileSizeHigh;
-        Result := TempSize.QuadPart;
-{$ELSE}
-        Result := SR.Size;
-{$ENDIF}
-        FindClose(SR);     { V1.49 }
-    end
-    else
-        Result := -1;
-{$IFNDEF VER80}{$WARNINGS ON}{$ENDIF}
-end;
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function DirExists(const Dir : String) : Boolean;                 { V1.52 AG}
@@ -1598,7 +2004,7 @@ begin
     Extension := Trim(Extension);
     Dir := Dir + Prefix + FormatDateTime('yymdh', Now);
     I   := 0;
-    Err := ERROR_FILE_EXISTS; 
+    Err := ERROR_FILE_EXISTS;
     while (Err = ERROR_FILE_EXISTS) and (I < MaxInt) do begin
         FileName := Dir + IntToStr(I) + Extension;
         if Length(FileName) > MAX_PATH then
@@ -1629,44 +2035,22 @@ begin
     end;
     Ticks := IntToStr(IcsGetTickCountX);  { now make it unique by adding some ms }
     I := Length(Ticks);
-    if I < 6 then Ticks := '123' + Ticks; { if windows running short }
+    if I < 6 then Ticks := '123' + Ticks; { if windows running short }  
     Result := Result + '_' + Copy (Ticks, I-6, 6) + '.zlib';
-end;
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function FormatResponsePath(                                       { AG V1.52 }
-    Client       : TFtpCtrlSocket;
-    const InPath : TFtpString): String;
-const
-    Slash = '/';
-var
-    Home : String;
-begin
-    Result := InPath;
-    if (ftpHidePhysicalPath in Client.Options) and
-       (ftpCdUpHome in Client.Options) then begin
-        Home := ExcludeTrailingPathDelimiter(Client.HomeDir);
-        if Pos(LowerCase(Home), LowerCase(InPath)) = 1 then
-            Result := Copy(InPath, Length(Home) + 1, Length(InPath));
-    end;
-    while (Length(Result) > 0) and (Result[Length(Result)] = '\') do
-        SetLength(Result, Length(Result) - 1);
-    if (Length(Result) = 0) then
-        Result := Slash
-    else begin
-        Result := BackSlashesToSlashes(Result);
-        if Result[Length(Result)] = ':' then
-            Result := Result + Slash;
-        if Result[1] <> Slash then
-            Result := Slash + Result;
-    end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function IsSpace(Ch : Char) : Boolean;
 begin
-    Result := (Ch = ' ') or (Ch = #9);
+    Result := (Ch = ' ') or (Ch = Char($09));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IsDigit(Ch : Char) : Boolean; { V6.03 }
+begin
+    Result := (Ch >= '0') and (Ch <= '9');
 end;
 
 
@@ -1678,11 +2062,6 @@ begin
               ((Ch >= '0') and (Ch <= '9'));
 end;
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IsDigit(Ch : Char) : Boolean;   { V6.03 }
-begin
-    Result := (Ch >= '0') and (Ch <= '9');
-end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function atosi(const value : String) : Integer;  { angus V1.38 signed integer, added "const", AG }
@@ -1695,7 +2074,7 @@ begin
         i := i + 1;
     j := i;
     while (i <= Length(Value)) and ((Value[i] = '+') or (Value[i] = '-')) do
-        i := i + 1;
+       i := i + 1;
     while (i <= Length(Value)) and (Value[i] >= '0') and (Value[i] <= '9')do begin
         Result := Result * 10 + ord(Value[i]) - ord('0');
         i := i + 1;
@@ -1706,32 +2085,40 @@ begin
     end;
 end;
 
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TFtpServer.Create(AOwner: TComponent);
 var
-    Buffer: array [0..1023] of Char ;
+    Len : Cardinal;
 begin
     inherited Create(AOwner);
-    //FWindowHandle       := ftpsrvAllocateHWnd(WndProc);
     AllocateHWnd;
-    FServSocket         := TWSocket.Create(Self);
-    FServSocket.Name    := ClassName + '_SrvSocket' + IntToStr(SafeWSocketGCount); 
-    FClientList         := TList.Create;
+ { angus V7.00 WSocketServer instead of WSocket }
+    FClientClass          := TFtpCtrlSocket;
+    FSocketServer         := TWSocketServer.Create(Self);
+    FSocketServer.Name    := 'WSocketServer';
+    FSocketServer.ClientClass         := FClientClass;
+    FSocketServer.OnClientConnect     := ServerClientConnect;
+    FSocketServer.OnClientDisconnect  := ServerClientDisconnect;
+//    FSocketServer.OnBgException       := SocketBgException ;
+{$IFNDEF NO_DEBUG_LOG}
+    FSocketServer.IcsLogger           := GetIcsLogger ;
+{$ENDIF}
+
     FPort               := 'ftp';
     FAddr               := '0.0.0.0';
     FBanner             := msgDftBanner;
-    FClientClass        := TFtpCtrlSocket;
     FListenBackLog      := 5;
-    FOptions            := [ftpsThreadRecurDirs, ftpsSiteXmlsd] ;   { angus V1.54 }
+    FOptions            := [ftpsThreadRecurDirs, ftpsSiteXmlsd, ftpsCwdCheck, ftpsCdupHome] ;   { angus V7.02 }
     FMd5UseThreadFileSize   := 0;  { AG V1.50 }
     FTimeoutSecsLogin   := 60;      { angus V1.54 }
     FTimeoutSecsIdle    := 300;     { angus V1.54 }
-    FTimeoutSecsXfer    := 900;     { angus V1.54 }
+    FTimeoutSecsXfer    := 60;      { angus V1.54, V7.09 reduced from 900 to 60 secs }
     FZlibMinLevel       := 1;       { angus V1.54 }
     FZlibMaxLevel       := 9;       { angus V1.54 }
     FZlibNoCompExt      := '.zip;.rar;.7z;.cab;.lzh;.gz;.avi;.wmv;.mpg;.mp3;.jpg;.png;'; { angus V1.54 }
-    SetString (FZlibWorkDir, Buffer, GetTempPath (Sizeof (Buffer) - 1, Buffer)) ;        { angus V1.54 }
+    SetLength(FZlibWorkDir, 1024);
+    Len := GetTempPath(Length(FZlibWorkDir) - 1, PChar(FZlibWorkDir));{ AG V6.04 }
+    SetLength(FZlibWorkDir, Len);                                     { AG V6.04 }
     FZlibWorkDir        := IncludeTrailingPathDelimiter (FZlibWorkDir) + 'icsftpsrv\' ;  { angus V1.54 }
     FZlibMinSpace       := 50000000;               { angus V1.54 50 Mbyte }
     FZlibMaxSize        := 500000000;              { angus V1.55 - 500 meg }
@@ -1742,8 +2129,15 @@ begin
     FEventTimer.Interval := 5000;     { angus V1.56 only used for timeouts, slow }
     SrvFileModeRead     := fmOpenRead + fmShareDenyNone;         { angus V1.57 }
     SrvFileModeWrite    := fmOpenReadWrite or fmShareDenyWrite;  { angus V1.57 }
-    FMaxAttempts        := 12 ;                    { angus V6.06 }
-{ !!!!!!!!!!! NGB: Added next five lines }
+    FCodePage           := CP_ACP;  { angus V7.01 }
+    FLanguage           := 'EN*';   { angus V7.01 we only support ENglish }
+    FSystemCodePage     := GetAcp;  { AG 7.02 }
+    FMaxAttempts        := 12 ;     { angus V7.06 }
+{$IFDEF EXPERIMENTAL_THROTTLE}
+    FBandwidthLimit     := 0;       { angus V7.12 no bandwidth limit, yet, bytes per second }
+    FBandwidthSampling  := 1000;    { angus V7.12 Msec sampling interval, less is not possible }
+{$ENDIF}
+ { !!!!!!!!!!! NGB: Added next five lines }
     FPasvIpAddr         := '';
     FPasvPortRangeStart := 0;
     FPasvPortRangeSize  := 0;
@@ -1801,7 +2195,12 @@ begin
     AddCommand('SITE MSG', CommandSiteMsg);      { angus V1.54 }
     AddCommand('SITE CMLSD', CommandSiteCmlsd);  { angus V1.54 }
     AddCommand('SITE DMLSD', CommandSiteDmlsd);  { angus V1.54 }
-    AddCommand('COMB', CommandCOMB);  { angus V1.54 }
+    AddCommand('COMB', CommandCOMB);      { angus V1.54 }
+    AddCommand('XCMLSD', CommandXCMLSD);  { angus V7.01 }
+    AddCommand('XDMLSD', CommandXDMLSD);  { angus V7.01 }
+    AddCommand('HOST', CommandHOST);      { angus V7.01 }
+    AddCommand('REIN', CommandREIN);      { angus V7.01 }
+    AddCommand('LANG', CommandLANG);      { angus V7.01 }
 end;
 
 
@@ -1812,13 +2211,9 @@ begin
         FEventTimer.Destroy;
         FEventTimer := nil;
     end;
-    if Assigned(FServSocket) then begin
-        FServSocket.Destroy;
-        FServSocket := nil;
-    end;
-    if Assigned(FClientList) then begin
-        FClientList.Destroy;
-        FClientList := nil;
+    if Assigned(FSocketServer) then begin      { angus V7.00 }
+        FSocketServer.Destroy;
+        FSocketServer := nil;
     end;
     if Assigned(FPasvPortTable) then begin
         FreeMem(FPasvPortTable, FPasvPortTableSize);
@@ -1842,7 +2237,6 @@ procedure TFtpServer.AllocateMsgHandlers;
 begin
     inherited AllocateMsgHandlers;
     FMsg_WM_FTPSRV_CLOSE_REQUEST  := FWndHandler.AllocateMsgHandler(Self);
-    FMsg_WM_FTPSRV_CLIENT_CLOSED  := FWndHandler.AllocateMsgHandler(Self);
     FMsg_WM_FTPSRV_ABORT_TRANSFER := FWndHandler.AllocateMsgHandler(Self);
     FMsg_WM_FTPSRV_CLOSE_DATA     := FWndHandler.AllocateMsgHandler(Self);
     FMsg_WM_FTPSRV_START_SEND     := FWndHandler.AllocateMsgHandler(Self);
@@ -1854,7 +2248,6 @@ procedure TFtpServer.FreeMsgHandlers;
 begin
     if Assigned(FWndHandler) then begin
         FWndHandler.UnregisterMessage(FMsg_WM_FTPSRV_CLOSE_REQUEST);
-        FWndHandler.UnregisterMessage(FMsg_WM_FTPSRV_CLIENT_CLOSED);
         FWndHandler.UnregisterMessage(FMsg_WM_FTPSRV_ABORT_TRANSFER);
         FWndHandler.UnregisterMessage(FMsg_WM_FTPSRV_CLOSE_DATA);
         FWndHandler.UnregisterMessage(FMsg_WM_FTPSRV_START_SEND);
@@ -1868,10 +2261,8 @@ procedure TFtpServer.WndProc(var MsgRec: TMessage);
 begin
     try
         with MsgRec do begin
-            if      Msg = FMsg_WM_FTPSRV_CLOSE_REQUEST  then
+            if  Msg = FMsg_WM_FTPSRV_CLOSE_REQUEST  then
                 WMFtpSrvCloseRequest(MsgRec)
-            else if Msg = FMsg_WM_FTPSRV_CLIENT_CLOSED then
-                WMFtpSrvClientClosed(MsgRec)
             else if Msg = FMsg_WM_FTPSRV_ABORT_TRANSFER then
                 WMFtpSrvAbortTransfer(MsgRec)
             else if Msg = FMsg_WM_FTPSRV_CLOSE_DATA then
@@ -1892,18 +2283,16 @@ end;
 procedure TFtpServer.WMFtpSrvCloseRequest(var msg: TMessage);
 var
     Client : TFtpCtrlSocket;
-    I      : Integer;
 begin
     Client := TFtpCtrlSocket(msg.LParam);
-    I := FClientList.IndexOf(Client);
-    if I >= 0 then begin
+    if FSocketServer.IsClient(Client) then begin      { angus V7.00 }
         { Check if client.ID is still the same as when message where posted }
-        if WPARAM(TFtpCtrlSocket(FClientList.Items[I]).ID) = Msg.WParam then begin
+        if WPARAM(Client.ID) = Msg.WParam then begin
             if Client.AllSent then
                 Client.Close
             else
                 Client.CloseRequest := TRUE;
-        end;
+        end;                
     end;
 end;
 
@@ -1913,8 +2302,8 @@ procedure TFtpServer.Notification(AComponent: TComponent; operation: TOperation)
 begin
     inherited Notification(AComponent, operation);
     if operation = opRemove then begin
-        if AComponent = FServSocket then
-            FServSocket := nil;
+        if AComponent = FSocketServer then         { angus V7.00 }
+            FSocketServer := nil;
     end;
 end;
 
@@ -1922,17 +2311,12 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TFtpServer.OpenFileStream (const FileName: string; Mode: Word): TStream;   { V1.54 }
 begin
-{$IFDEF USE_BUFFERED_STREAM}
     Result := TBufferedFileStream.Create(FileName, Mode, MAX_BUFSIZE);
-{$ELSE}
-    Result := TFileStream.Create(FileName, Mode);
-{$ENDIF}
 end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServer.CloseFileStreams(Client : TFtpCtrlSocket);    { V1.54 }
 begin
-{$IFDEF USE_MODEZ}   { V1.54 }
   { delete temporary ZLIB file if not from cache }
     try
         if Assigned (Client.ZFileStream) then Client.ZFileStream.Destroy;
@@ -1948,7 +2332,6 @@ begin
     except
     end;
     Client.ZStreamState := ftpZStateNone;
-{$ENDIF}
     if Client.HasOpenedFile then begin
         if Assigned(Client.DataStream) then Client.DataStream.Destroy;
         Client.DataStream    := nil;
@@ -1972,19 +2355,18 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServer.Start;
 begin
-{$IFNDEF USE_MODEZ}              { angus V1.54 }
-    FOptions := FOptions - ftpsModeZCompress;
-{$ENDIF}
-    if FServSocket.State = wsListening then
+    if FSocketServer.State = wsListening then                { angus V7.00 }
         Exit;             { Server is already running }
-    FServSocket.Port               := Port;
-    FServSocket.Proto              := 'tcp';
-    FServSocket.Addr               := FAddr;
-    FServSocket.ListenBacklog      := FListenBackLog;
-    FServSocket.OnSessionAvailable := ServSocketSessionAvailable;
-    FServSocket.OnChangeState      := ServSocketStateChange;
-    FServSocket.ComponentOptions   := [wsoNoReceiveLoop];
-    FServSocket.Listen;
+    FSocketServer.Port              := Port;
+    FSocketServer.Proto             := 'tcp';
+    FSocketServer.Addr              := FAddr;
+    FSocketServer.ListenBacklog     := FListenBackLog;
+    FSocketServer.MaxClients        := FMaxClients;
+    FSocketServer.Banner            := FBanner;
+    FSocketServer.BannerTooBusy     := msgTooMuchClients;
+    FSocketServer.OnChangeState     := ServSocketStateChange;
+    FSocketServer.ComponentOptions  := [wsoNoReceiveLoop];
+    FSocketServer.Listen;
     FEventTimer.Enabled := true;                  { angus V1.54 }
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loProtSpecInfo) then                            { V1.46 }
@@ -1997,8 +2379,8 @@ end;
 procedure TFtpServer.Stop;
 begin
     FEventTimer.Enabled := false;                  { angus V1.54 }
-    FServSocket.Close;
-{$IFNDEF NO_DEBUG_LOG}                                                 
+    FSocketServer.Close;                           { angus V7.00 } 
+{$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loProtSpecInfo) then                            { V1.46 }
         DebugLog(loProtSpecInfo, Name + ' stopped');                   { V1.46 }
 {$ENDIF}
@@ -2007,41 +2389,24 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServer.DisconnectAll;
-var
-    Client : TFtpCtrlSocket;
-    Msg    : TMessage;
 begin
-    while FClientList.Count > 0 do begin
-        Client := TFtpCtrlSocket(FClientList.Items[0]);
-        FillChar(Msg, SizeOf(Msg), 0);
-        Msg.LParam := Integer(Client);
-        Msg.WParam := Client.ID;
-        WMFtpSrvClientClosed(Msg);
-    end;
+    FSocketServer.DisconnectAll;      { angus V7.00 }
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServer.Disconnect(Client : TFtpCtrlSocket);
-var
-    I   : Integer;
-    Msg : TMessage;
 begin
-    I := FClientList.IndexOf(Client);
-    if I < 0 then
+    if NOT FSocketServer.IsClient(Client) then
         raise FtpServerException.Create('Disconnect: Not one of our clients');
-
-    FillChar(Msg, SizeOf(Msg), 0);
-    Msg.LParam := Integer(Client);
-    Msg.WParam := Client.ID;
-    WMFtpSrvClientClosed(Msg);
+    FSocketServer.Disconnect(Client);       { angus V7.00 }
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TFtpServer.GetActive : Boolean;
 begin
-    Result := (FServSocket.State = wsListening);
+    Result := (FSocketServer.State = wsListening);    { angus V7.00 }
 end;
 
 
@@ -2054,6 +2419,14 @@ begin
         Stop;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServer.SetClientClass(const NewValue: TFtpCtrlSocketClass);    { angus V7.00 }
+begin
+    if NewValue <> FSocketServer.ClientClass then begin
+        FClientClass := NewValue;
+        FSocketServer.ClientClass := NewValue;
+    end;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServer.ServSocketStateChange(Sender : TObject; OldState, NewState : TSocketState);
@@ -2068,83 +2441,91 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TFtpServer.ServSocketSessionAvailable(Sender : TObject; AError  : Word);
+procedure TFtpServer.ServerClientConnect(Sender: TObject;
+                                Client: TWSocketClient; Error: Word);    { angus V7.00 }
 var
-    Client : TFtpCtrlSocket;
+    MyClient: TFtpCtrlSocket;   { renamed to avoid conflict with TWSocketClient angus V7.00 }
 begin
-    if AError <> 0 then
+    if Error <> 0 then
         raise FtpServerException.Create('Session Available Error - ' +
-                                        GetWinsockErr(AError));
-    if FClientNum >= $7FFFFF then FClientNum := 0;  { angus V1.54 prevent overflow }
-    Inc(FClientNum);
-    Client                 := FClientClass.Create(Self);
-    FClientList.Add(Client);
-    Client.Name                 := Name + '_ClientWSocket' + IntToStr(FClientNum);
-    Client.DataSocket.Name      := Name + '_DataWSocket'   + IntToStr(FClientNum);
-    Client.ID              := FClientNum;
-    Client.Banner          := FBanner;
-    Client.HSocket         := ServSocket.Accept;
-    Client.OnCommand       := ClientCommand;
-    Client.OnSessionClosed := ClientSessionClosed;
-    Client.OnDataSent      := ClientDataSent;
+                                                    GetWinsockErr(Error));
+    MyClient := Client as TFtpCtrlSocket;
+    MyClient.DataSocket.Name := Name + '_DataWSocket' + IntToStr(MyClient.ID);
+    MyClient.OnCommand       := ClientCommand;
+    MyClient.OnDataSent      := ClientDataSent;
+    MyClient.FtpServer       := Self; {AG V7.02 }
 {$IFNDEF NO_DEBUG_LOG}
-    Client.IcsLogger       := IcsLogger;                     { V1.46 }
-    Client.DataSocket.IcsLogger := IcsLogger;                    //<= 01/01/06 AG
+    MyClient.IcsLogger       := IcsLogger;                     { V1.46 }
+    MyClient.DataSocket.IcsLogger := IcsLogger;                    //<= 01/01/06 AG
 {$ENDIF}
 {$IFDEF USE_SSL}
     if Self is TSslFtpServer then begin     {  V1.48 }
         if ftpImplicitSsl in TSslFtpserver(Self).FFtpSslTypes then   { V1.47 }
-            Client.CurFtpSslType := curftpImplicitSsl;               { V1.47 }
+            MyClient.CurFtpSslType := curftpImplicitSsl;               { V1.47 }
     end;
 {$ENDIF}
     if ftpsCdupHome in FOptions then
-        Client.Options := Client.Options + [ftpCdupHome];   { angus V1.39 }
+        MyClient.Options := MyClient.Options + [ftpCdupHome];   { angus V1.39 }
     if ftpsCwdCheck in FOptions then
-        Client.Options := Client.Options + [ftpCwdCheck];   { angus V1.39 }
-    if ftpsHidePhysicalPath in FOptions then                
-        Client.Options := Client.Options + [ftpHidePhysicalPath]; { AG V1.52 }
-{$IFDEF USE_MODEZ}              { angus V1.54 }
+        MyClient.Options := MyClient.Options + [ftpCwdCheck];   { angus V1.39 }
+    if ftpsHidePhysicalPath in FOptions then
+        MyClient.Options := MyClient.Options + [ftpHidePhysicalPath]; { AG V1.52 }
     if ftpsModeZCompress in FOptions then
-        Client.Options := Client.Options + [ftpModeZCompress];
-{$ENDIF}
+        MyClient.Options := MyClient.Options + [ftpModeZCompress];
+    MyClient.CodePage        := FCodePage;           { AG V7.02 }
+    MyClient.CurrentCodePage := FCodePage;           { AG V7.02 }
+    if (ftpsEnableUtf8 in FOptions) and (ftpsDefaultUtf8On in FOptions) then
+        MyClient.Options := MyClient.Options + [ftpUtf8On]     { angus V7.01 }
+    else if (ftpsEnableUtf8 in FOptions) and (ftpsAutoDetectCodepage in FOptions) then
+        MyClient.FOptions := MyClient.Options + [ftpAutoDetectCodepage]; { AG V7.02 }
 
 {$IFNDEF NO_DEBUG_LOG}                                       { V1.46 }
     if CheckLogOptions(loProtSpecDump) then
-        DebugLog(loProtSpecDump,  IntToHex(Integer(Client), 8) +
-                 ' Client Connect Error - ' + GetWinsockErr(AError) + ' ' +
-                  IntToStr(Client.HSocket));
+        DebugLog(loProtSpecDump,  IntToHex(INT_PTR(MyClient), SizeOf(Pointer) * 2) +
+                 ' Client Connect Error - ' + GetWinsockErr(Error) + ' ' +
+                  IntToStr(MyClient.HSocket));
 {$ENDIF}
-    Client.SessIdInfo      := Client.GetPeerAddr;  { angus V1.54 may be changed during event }
-    Client.CurrTransMode   := FtpTransModeStream ; { angus V1.54 current zlib transfer mode }
-    Client.ZReqLevel       := FZlibMinLevel;       { angus V1.54 initial compression level, minimum }
-    Client.FileModeRead    := SrvFileModeRead;     { angus V1.57 }
-    Client.FileModeWrite   := SrvFileModeWrite;    { angus V1.57 }
-    TriggerClientConnect(Client, AError);
-    { The event handler may have destroyed the client ! }
-    if FClientList.IndexOf(Client) < 0 then
-        Exit;
-    { The event handler may have closed the connection }
-    if Client.State <> wsConnected then
-        Exit;
-    { Ok, the client is still there, process with the connection }
-    if (FMaxClients > 0) and (FMaxClients < ClientCount) then begin
-        { Sorry, toomuch clients }
-        Client.Banner := msgTooMuchClients;
-        Client.StartConnection;
-        Client.Close;
-    end
-    else
-        Client.StartConnection;
+    { angus V1.54 may be changed during event, V7.09 add client numeric id to identify separate sessions from same IP }
+    MyClient.SessIdInfo      := Client.GetPeerAddr + ' [' + IntToStr (Client.CliId) + ']' ;
+    MyClient.CurrTransMode   := FtpTransModeStream ; { angus V1.54 current zlib transfer mode }
+    MyClient.ZReqLevel       := FZlibMinLevel;       { angus V1.54 initial compression level, minimum }
+    MyClient.FConnectedSince := Now;
+    MyClient.FLastCommand    := 0;
+    MyClient.FCommandCount   := 0;
+    MyClient.FFtpState       := ftpcWaitingUserCode;
+    MyClient.FileModeRead    := SrvFileModeRead;     { angus V1.57 }
+    MyClient.FileModeWrite   := SrvFileModeWrite;    { angus V1.57 }
+{$IFDEF EXPERIMENTAL_THROTTLE}
+    MyClient.CBandwidthLimit    := fBandwidthLimit;     { angus V7.12 may be changed in event for different limit }
+    MyClient.CBandwidthSampling := fBandwidthSampling;  { angus V7.12 }
+{$ENDIF}
+    TriggerClientConnect(MyClient, Error);
+{$IFDEF EXPERIMENTAL_THROTTLE}
+    MyClient.BandwidthLimit     := MyClient.CBandwidthLimit;     { angus V7.12 slow down control connection }
+    MyClient.BandwidthSampling  := MyClient.CBandwidthSampling;  { angus V7.12 }
+{$ENDIF}
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServer.SendAnswer(Client : TFtpCtrlSocket; Answer : TFtpString);
+var
+    RawAnswer: RawByteString;
 begin
     try
-        Client.ReqDurMilliSecs := IcsElapsedMsecs (Client.ReqStartTick);
-        TriggerSendAnswer(Client, Answer);
-        Client.SendAnswer(Answer);
+        { Angus 7.03 fixed trigger needed before UTF8 conversion }
+         Client.ReqDurMilliSecs := IcsElapsedMsecs (Client.ReqStartTick);
+         TriggerSendAnswer(Client, Answer);
+    { AG 7.02 }
+    {$IFDEF COMPILER12_UP}
+        RawAnswer := UnicodeToAnsi(Answer, Client.CurrentCodePage);
+    {$ELSE}
+        if Client.CurrentCodePage = CP_UTF8 then
+            RawAnswer := StringToUtf8(Answer)
+        else
+            RawAnswer := Answer;
+    {$ENDIF}
+        Client.SendAnswer(RawAnswer);
     except
         { Just ignore any exception here }
     end;
@@ -2154,7 +2535,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServer.ClientCommand(
     Sender : TObject;
-    CmdBuf : PChar;
+    CmdBuf : PAnsiChar;
     CmdLen : Integer);
 const
     TELNET_IAC       = #255;
@@ -2166,6 +2547,7 @@ var
     Params  : TFtpString;
     KeyWord : TFtpString;
     I       : Integer;
+    RawParams: RawByteString;
 begin
     Client := Sender as TFtpCtrlSocket;
     Answer := '';
@@ -2174,20 +2556,36 @@ begin
     try
         Client.ReqStartTick := IcsGetTickCountX;    { angus V1.54 tick when request started }
         Client.ReqDurMilliSecs := 0;                { angus V1.54 how long last request took, in ticks }
-        Params := '';
+        RawParams := '';
         I      := 0;
         while I < CmdLen do begin
             if CmdBuf[I] <> TELNET_IAC then begin
-                Params := Params + CmdBuf[I];
+                RawParams := RawParams + CmdBuf[I];
                 Inc(I);
             end
             else begin
                 Inc(I);
                 if CmdBuf[I] = TELNET_IAC then
-                    Params := Params + CmdBuf[I];
+                    RawParams := RawParams + CmdBuf[I];
                 Inc(I);
             end;
         end;
+        { AG V7.02 - Optionally detect UTF-8. Set option ftpUtf8ON which }
+        { in turn sets CurrentCodePage to CP_UTF8 if UTF-8 is detected.  }
+        if (Client.CurrentCodePage <> CP_UTF8) and
+           (ftpAutoDetectCodepage in Client.Options) and
+           (CharsetDetect(RawParams) = cdrUtf8) then
+            Client.Options := Client.Options + [ftpUtf8ON];  { AG V7.02  }
+      {$IFDEF COMPILER12_UP}
+        { Convert buffer data to UnicodeString AG V7.02 }
+        Params := AnsiToUnicode(RawParams, Client.CurrentCodePage);
+      {$ELSE}
+        { Convert buffer data to AnsiString ( potential data loss! ) AG V7.02 }
+        if (Client.CurrentCodePage = CP_UTF8) then
+            Params := Utf8ToStringA(RawParams)
+        else
+            Params := RawParams;
+      {$ENDIF}
 
         { Extract keyword, ignoring leading spaces and tabs }
         I := 1; { angus V1.54 moved argument parsing code to FtpSrvT to avoid duplication }
@@ -2253,59 +2651,37 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TFtpServer.ClientSessionClosed(Sender : TObject; AError  : Word);
+procedure TFtpServer.ServerClientDisconnect(Sender: TObject;
+                                Client: TWSocketClient; Error: Word); { angus V7.00 }
 var
-    Client  : TFtpCtrlSocket;
+    MyClient: TFtpCtrlSocket;
 begin
-    Client := Sender as TFtpCtrlSocket;
-    PostMessage(Handle, FMsg_WM_FTPSRV_CLIENT_CLOSED,
-                WPARAM(Client.ID), LPARAM(Client));
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TFtpServer.WMFtpSrvClientClosed(var msg: TMessage);
-var
-    Client    : TFtpCtrlSocket;
-    I         : Integer;
-    SesClosed : TSessionClosed;
-begin
-    Client := TFtpCtrlSocket(Msg.LParam);
-    { Check if client still in our client list }
-    I := FClientList.IndexOf(Client);
-    if I >= 0 then begin
-        { Check if client.ID is still the same as when message where posted }
-        if WPARAM(TFtpCtrlSocket(FClientList.Items[I]).ID) = Msg.WParam then begin
-            try
-                SesClosed := Client.DataSocket.OnSessionClosed;
-                if Client.DataSessionActive and Assigned(SesClosed) then
-                    Client.DataSocket.OnSessionClosed(Client.DataSocket, WSAENOTCONN);
-                CloseFileStreams(Client);      { angus V1.57 }
-                if Client.PassiveMode then // FLD 17.1.06
-                    FreeCurrentPasvPort(Client);
-                FClientList.Remove(Client);
-                TriggerClientDisconnect(Client, 0);
-            finally
-                Client.Destroy;
-            end;
+    try
+        MyClient := Client as TFtpCtrlSocket;
+      { close data channel if still open }
+        if MyClient.DataSocket.State = wsConnected then begin
+            MyClient.TransferError    := 'ABORT on Disconnect';
+            MyClient.AbortingTransfer := TRUE;
+            MyClient.DataSocket.Close;
         end;
+        CloseFileStreams(MyClient);      { angus V1.57 }
+        TriggerClientDisconnect(MyClient, Error);
+    except
+        { Just ignore any exception here }
     end;
 end;
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServer.WMFtpSrvAbortTransfer(var msg: TMessage);
 var
     Client : TFtpCtrlSocket;
     Data   : TWSocket;
-    I      : Integer;
 begin
     Client := TFtpCtrlSocket(Msg.LParam);
     { Check if client still in our client list }
-    I := FClientList.IndexOf(Client);
-    if I >= 0 then begin
+    if FSocketServer.IsClient(Client) then begin
         { Check if client.ID is still the same as when message where posted }
-        if WPARAM(TFtpCtrlSocket(FClientList.Items[I]).ID) = Msg.WParam then begin
+        if WPARAM(Client.ID) = Msg.WParam then begin
             Data := Client.DataSocket;
             { make sure to free PasvPort even on aborted connections ! }
             if Assigned(Data) then begin
@@ -2326,17 +2702,15 @@ procedure TFtpServer.WMFtpSrvCloseData(var msg: TMessage);
 var
     Client : TFtpCtrlSocket;
     Data   : TWSocket;
-    I      : Integer;
 { !!!!!!!!!!! NGB: next line changed }
     {PortNumber : String;}
 { !!!!!!!!!!! NGB: previous line changed }
 begin
     Client := TFtpCtrlSocket(Msg.LParam);
     { Check if client still in our client list }
-    I := FClientList.IndexOf(Client);
-    if I >= 0 then begin
+    if FSocketServer.IsClient(Client) then begin
         { Check if client.ID is still the same as when message where posted }
-        if WPARAM(TFtpCtrlSocket(FClientList.Items[I]).ID) = Msg.WParam then begin
+        if WPARAM(Client.ID) = Msg.WParam then begin
             Data := Client.DataSocket;
 { !!!!!!!!!!! NGB: Free Up Current Port - next 5 lines changed }
             if Assigned(Data) then begin
@@ -2345,6 +2719,7 @@ begin
                 Data.ShutDown(1);    {  Wilfried 24/02/04 }
             end;
 { !!!!!!!!!!! NGB: previous 5 lines changed }
+            CloseFileStreams(Client);      { angus V1.57 }
         end;
     end;
 end;
@@ -2353,15 +2728,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TFtpServer.GetClient(nIndex : Integer) : TFtpCtrlSocket;
 begin
-    if not Assigned(FClientList) then begin
-        Result := nil;
-        Exit;
-    end;
-    if (nIndex < 0) or (nIndex >= FClientList.Count) then begin
-        Result := nil;
-        Exit;
-    end;
-    Result := TFtpCtrlSocket(FClientList.Items[nIndex]);
+    Result := FSocketServer.Client [nIndex] as TFtpCtrlSocket;
 end;
 
 
@@ -2369,20 +2736,14 @@ end;
 { Check  if a given object is one of our clients }
 function TFtpServer.IsClient(SomeThing : TObject) : Boolean;
 begin
-    if not Assigned(FClientList) then
-        Result := FALSE
-    else
-        Result := (FClientList.IndexOf(Pointer(SomeThing)) >= 0);
+    Result := FSocketServer.IsClient(Something);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TFtpServer.GetClientCount : Integer;
 begin
-    if Assigned(FClientList) then
-        Result := FClientList.Count
-    else
-        Result := 0;
+    Result := FSocketServer.ClientCount;
 end;
 
 
@@ -2632,7 +2993,7 @@ end;
 procedure TFtpServer.TriggerStorDataAvailable(
     Client : TFtpCtrlSocket;
     Data   : TWSocket;
-    Buf    : PChar;
+    Buf    : PAnsiChar; { AG V6.02 }
     Len    : LongInt;
     AError : Word);
 begin
@@ -2832,6 +3193,47 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServer.TriggerHost(
+    Client        : TFtpCtrlSocket;
+    Host          : TFtpString;
+    var Allowed   : Boolean);      { angus V7.01 }
+begin
+    if Assigned(FOnHost) then
+        FOnHost(Self, Client, Host, Allowed);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServer.TriggerRein(
+    Client        : TFtpCtrlSocket;
+    var Allowed   : Boolean);      { angus V7.01 }
+begin
+    if Assigned(FOnRein) then
+        FOnRein(Self, Client, Allowed);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServer.TriggerLang(
+    Client        : TFtpCtrlSocket;
+    Lang          : TFtpString;
+    var Allowed   : Boolean);      { angus V7.01 }
+begin
+    if Assigned(FOnLang) then
+        FOnLang(Self, Client, Lang, Allowed);     { angus V7.08 }
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServer.TriggerAddVirtFiles(     { angus V7.08 }
+    Client          : TFtpCtrlSocket;
+    var LocFiles    : TIcsFileRecs;
+    var LocFileList : TList;
+    var TotalFiles  : Integer;
+    ProgressCallback: TMD5Progress);
+begin
+    if Assigned(FOnAddVirtFiles) then
+        FOnAddVirtFiles(Self, Client, LocFiles, LocFileList, TotalFiles, ProgressCallback);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServer.CommandUSER(
     Client      : TFtpCtrlSocket;
     var Keyword : TFtpString;
@@ -2895,7 +3297,7 @@ begin
             Answer           := Format(msgLogged, [Client.UserName])
         end
         else begin
-            {angus V6.06 - count failed login attempts, after third MaxAttempts
+            {angus V7.06 - count failed login attempts, after third MaxAttempts
               delay answer to slow down extra attempts, finally close client
               once MaxAttempts reached (done in EventTimer event) }
             inc (Client.FailedAttempts) ;
@@ -2947,34 +3349,6 @@ begin
     CommandChangeDir(Client, Keyword, Params, Answer);
 end;
 
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-(*
-function SlashesToBackSlashes(const S : String) : String;
-var
-    I : Integer;
-begin
-    Result := S;
-    for I := 1 to Length(Result) do begin
-        if Result [I] = '/' then
-            Result[I] := '\';
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function BackSlashesToSlashes(const S : String) : String;
-var
-    I : Integer;
-begin
-    Result := S;
-    for I := 1 to Length(Result) do begin
-        if Result [I] = '\' then
-            Result[I] := '/';
-    end;
-end;
-  *)
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServer.CommandChangeDir(
     Client      : TFtpCtrlSocket;
@@ -2990,24 +3364,13 @@ begin
     try
         Params := SlashesToBackSlashes(Params);
         Client.Directory := Trim(Params);
-        //Allowed          := TRUE;
         Allowed := IsPathAllowed(Client, Client.Directory);  { V1.52 AG }
-        (*
-        { angus V1.38  ensure not changing below root directory }  { V1.52 AG }
-        if ftpCdupHome in Client.Options then begin    { angus V1.39 }
-            if Pos(LowerCase(Client.HomeDir), LowerCase(Client.Directory)) <> 1 then begin
-                Answer := Format(msgCWDFailed, ['No permission']);
-                Client.Directory := OldDir;
-                Exit;
-            end;
-        end;
-        *)
         { should this event be before the ftpsCdupHome test??? }
         TriggerChangeDirectory(Client, Client.Directory, Allowed);
         if Allowed then begin
             TriggerEnterSecurityContext(Client);             { V1.52 AG }
             try
-                DExists := DirExists(Client.Directory);
+                DExists := DirExists(BuildFilePath(Client, Client.Directory, '')); { angus V7.08 support virtual path }
             finally
                 TriggerLeaveSecurityContext(Client);         { V1.52 AG }
             end;
@@ -3132,7 +3495,7 @@ begin
         Client.DataAddr   := Client.DataAddr + '.' + IntToStr(GetInteger(I, Params));
         N := GetInteger(I, Params);
         N := (N shl 8) + GetInteger(I, Params);
-        Client.DataPort := IntToStr(N);
+        Client.DataPort := IcsIntToStrA(N);
         Answer := msgPortSuccess;
     except
         Answer := msgPortFailed;
@@ -3163,7 +3526,6 @@ begin
             Client.CurCmdType       := ftpcSTOR;
             Client.FileName         := SlashesToBackSlashes(Params);
             Client.HasOpenedFile    := FALSE;
-            //Allowed                 := TRUE;  { AG V1.52 }
             FilePath                := BuildFilePath(Client, Client.Directory, Client.FileName);
             Allowed := IsPathAllowed(Client, FilePath); { AG V1.52 }
             TriggerValidatePut(Client, FilePath, Allowed);
@@ -3220,6 +3582,10 @@ begin
         Client.DataSocket.LocalPort           := 'ftp-data'; {20}
 {$ENDIF}
         Client.DataSocket.ComponentOptions    := [wsoNoReceiveLoop];
+{$IFDEF EXPERIMENTAL_THROTTLE}
+        Client.DataSocket.BandwidthLimit      := Client.CBandwidthLimit;     { angus V7.12 }
+        Client.DataSocket.BandwidthSampling   := Client.CBandwidthSampling;  { angus V7.12 }
+{$ENDIF}
         Client.DataSocket.Connect;
     end;
 end;
@@ -3249,10 +3615,10 @@ begin
     Data                     := TWSocket(Sender);
     Client                   := TFtpCtrlSocket(Data.Owner);
     Client.DataSessionActive := TRUE;
-    Client.ByteCount         := 0;
-    Client.XferStartTick     := IcsGetTickCountX; { angus V1.54 tick when last xfer started, for performance check }
-    Client.LastTick          := IcsGetTickCountX;      { angus V1.54 last tick for time out checking }
-    Client.ZStreamState      := ftpZStateNone;
+    Client.ByteCount := 0;
+    Client.XferStartTick := IcsGetTickCountX; { angus V1.54 tick when last xfer started, for performance check }
+    Client.LastTick := IcsGetTickCountX;      { angus V1.54 last tick for time out checking }
+    Client.ZStreamState := ftpZStateNone;
 
     if Client.AbortingTransfer then
         Exit; // primary command (e.g. STOR) failed - don't trigger StorSessionConnected
@@ -3266,7 +3632,6 @@ var
     Client      : TFtpCtrlSocket;
     Data        : TWSocket;
     Md5Sum      : String;  { AG V1.50 }
-    I           : Integer; { AG V1.50 }
     Duration    : Integer;
     S           : String;
     BytesSec    : Int64;
@@ -3342,7 +3707,6 @@ begin
         exit;
     end;
 
-{$IFDEF USE_MODEZ}   { V1.54 }
     if (Client.ZStreamState = ftpZStateSaveDecom) and
          (Client.ZFileStream.Size > 0) and Assigned(Client.DataStream) and
                      (NOT Client.AbortingTransfer) and (AError = 0) then begin
@@ -3356,33 +3720,28 @@ begin
             Client.ProcessingThread.Keyword := 'DECOMPRESS';
             Client.ProcessingThread.OnTerminate := ClientProcessingThreadTerminate;
             Client.ProcessingThread.FreeOnTerminate := TRUE;
+        {$IFDEF COMPILER14_UP}
+            Client.ProcessingThread.Start;
+        {$ELSE}
             Client.ProcessingThread.Resume;
+        {$ENDIF}
             Client.AnswerDelayed := TRUE;
             exit;
         except
             on E:Exception do begin
                 Answer := Format(msgStouError, ['Failed to start decompress - ' + E.Message]);
+            end;
+        end;
     end;
-end;
-    end;
-{$ENDIF}
 
     { If we had opened a data stream ourself, then close it }
     CloseFileStreams(Client);      { angus V1.54 }
- {   if Client.HasOpenedFile then begin
-        if Assigned(Client.DataStream) then
-            Client.DataStream.Destroy;
-        Client.DataStream    := nil;
-        Client.HasOpenedFile := FALSE;
-    end;   }
 
     TriggerStorSessionClosed(Client, Data, AError);
 
     if Client.MD5OnTheFlyFlag then begin { AG V1.50 }
         MD5Final(Client.MD5Digest, Client.MD5Context);
-        Md5Sum := '';
-        for I := 0 to 15 do
-            Md5Sum := Md5Sum + IntToHex(Byte(Client.MD5Digest[I]), 2);
+        Md5Sum := MD5DigestToHex(Client.MD5Digest);   { V7.07 }
         TriggerMd5Calculated(Client, Client.FilePath, UpperCase(Md5Sum));
     end;
     SendAnswer(Client, Answer);  { angus V1.54 }
@@ -3396,7 +3755,6 @@ var
     Client : TFtpCtrlSocket;
     Data   : TWSocket;
     NewPos : TFtpBigInt;
-    I      : Integer; { AG V1.50 }
 begin
     Data   := TWSocket(Sender);
     Client := TFtpCtrlSocket(Data.Owner);
@@ -3415,18 +3773,16 @@ begin
         { We need to open a datastream if not already done and a FilePath }
         { exists (the component user can have nullified the FilePath      }
         if (not Client.HasOpenedFile) and
-           (Length(Client.FilePath) > 0) and
-           (not Assigned(Client.DataStream)) then begin
+                     (Length(Client.FilePath) > 0) and
+                           (not Assigned(Client.DataStream)) then begin
             { Store the file size temporarily }
-            NewPos := GetFileSize(Client.FilePath); { V1.49 }
+            NewPos := IcsGetFileSize(Client.FilePath); { V1.49 }
             { Use different file modes for APPE vs STOR }
             if (Client.CurCmdType = ftpcAPPE) and (NewPos > -1) then begin
                 TriggerEnterSecurityContext(Client);  { AG V1.52 }
                 try
-                  {  Client.DataStream := TFileStream.Create(Client.FilePath,
-                                            fmOpenReadWrite or fmShareDenyWrite);  }
                     Client.DataStream := OpenFileStream(Client.FilePath,
-                                                Client.FileModeWrite); { angus V1.57 }
+                                                    Client.FileModeWrite); { angus V1.57 }
                 finally
                     TriggerLeaveSecurityContext(Client); { AG V1.52 }
                 end;
@@ -3437,10 +3793,8 @@ begin
             else if (Client.RestartPos > 0) and (NewPos > -1) then begin // check file exists!
                 TriggerEnterSecurityContext(Client); { AG V1.52 }
                 try
-                 {   Client.DataStream := TFileStream.Create(Client.FilePath,
-                                            fmOpenWrite or fmShareDenyWrite);   }
                     Client.DataStream := OpenFileStream(Client.FilePath,
-                                                 Client.FileModeWrite); { angus V1.57 }
+                                                    Client.FileModeWrite); { angus V1.57 }
                 finally
                     TriggerLeaveSecurityContext(Client); { AG V1.52 }
                 end;
@@ -3451,7 +3805,6 @@ begin
             else begin
                 TriggerEnterSecurityContext(Client); { AG V1.52 }
                 try
-                  {  Client.DataStream := TFileStream.Create(Client.FilePath, fmCreate);    }
                     Client.DataStream := OpenFileStream(Client.FilePath, fmCreate);  { angus V1.54 }
                 finally
                     TriggerLeaveSecurityContext(Client); { AG V1.52 }
@@ -3463,8 +3816,7 @@ begin
                 if (Client.CurrTransMode = ftpTransModeZDeflate) then
                                              Client.MD5OnTheFlyFlag := false; { angus 1.54 }
                 if Client.MD5OnTheFlyFlag then begin
-                    for I := 0 to 15 do
-                        Byte(Client.MD5Digest[I]) := I + 1;
+                    MD5DigestInit(Client.MD5Digest); { V7.07 }
                     MD5Init(Client.MD5Context);
                     Client.HashStartPos := 0;   { angus 1.54 }
                     Client.HashEndPos := 0;
@@ -3476,8 +3828,7 @@ begin
             if Client.RestartPos <= NewPos then begin
                 TriggerEnterSecurityContext(Client); { AG V1.52 }
                 try
-                    NewPos := Client.DataStream.Seek(Client.RestartPos,
-                    {$IFDEF STREAM64} soBeginning {$ELSE} sofromBeginning {$ENDIF});  { V1.49 }
+                    NewPos := Client.DataStream.Seek(Client.RestartPos, soBeginning);  { V1.49 }
                 finally
                     TriggerLeaveSecurityContext(Client); { AG V1.52 }
                 end;
@@ -3498,7 +3849,6 @@ begin
             Client.TotPutBytes := Client.TotPutBytes + Len;    { angus V1.54 }
             TriggerEnterSecurityContext(Client);{ AG V1.52 }
             try
-{$IFDEF USE_MODEZ}     { angus V1.54 }
                 if (Client.CurrTransMode = ftpTransModeZDeflate) and
                          (Client.ZStreamState = ftpZStateNone) then begin
                  { save compressed data into temp file, decompress on close  }
@@ -3512,8 +3862,7 @@ begin
                 if Client.ZStreamState = ftpZStateSaveDecom then
                     Client.ZFileStream.WriteBuffer(Client.RcvBuf^, Len)
                 else
-{$ENDIF}
-                Client.DataStream.WriteBuffer(Client.RcvBuf^, Len);
+                    Client.DataStream.WriteBuffer(Client.RcvBuf^, Len);
             finally
                 TriggerLeaveSecurityContext(Client); { AG V1.52 }
             end;
@@ -3549,9 +3898,16 @@ function TFtpServer.IsPathAllowed(                                 { AG V1.52 }
     Client           : TFtpCtrlSocket;
     const Path       : String;
     ExcludeBackslash : Boolean) : Boolean;
+var
+    NewFileName  : String;    { angus V7.08 }
 begin
     if (ftpCdUpHome in Client.Options) then begin
-       if ExcludeBackslash then
+    { angus V7.08 check if a virtual directory is being used, assume allowed if non-blank }
+        NewFileName := '';
+        TriggerBuildFilePath(Client, Path, '?', NewFileName);   { ? used as flag for reverse translation }
+        if NewFileName <> '' then
+            Result := TRUE  { end V7.08 change }
+        else if ExcludeBackslash then
           Result := (Pos(LowerCase(ExcludeTrailingPathDelimiter(Client.HomeDir)),
                          LowerCase(Path)) = 1)
        else
@@ -3561,6 +3917,39 @@ begin
         Result := TRUE;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TFtpServer.FormatResponsePath(                                       { AG V1.52 angus V7.08 }
+    Client       : TFtpCtrlSocket;
+    const InPath : TFtpString): TFtpString;
+const
+    Slash = '/';
+var
+    Home : String;
+    NewPath : String ;     { angus V7.08 }
+begin
+    Result := InPath;
+    if (ftpHidePhysicalPath in Client.Options) and
+       (ftpCdUpHome in Client.Options) then begin
+    { angus V7.08 check if a translated virtual directory is being used, returns original virtual path }
+        NewPath := '';
+        TriggerBuildFilePath(Client, InPath, '?', NewPath);  { ? used as flag for reverse translation }
+        if NewPath = '' then NewPath := InPath ;         { no virtual dir, use original path }
+		Home := ExcludeTrailingPathDelimiter(Client.HomeDir);
+        if Pos(LowerCase(Home), LowerCase(InPath)) = 1 then
+            Result := Copy(InPath, Length(Home) + 1, Length(InPath));
+    end;
+    while (Length(Result) > 0) and (Result[Length(Result)] = '\') do
+        SetLength(Result, Length(Result) - 1);
+    if (Length(Result) = 0) then
+        Result := Slash
+    else begin
+        Result := BackSlashesToSlashes(Result);
+        if Result[Length(Result)] = ':' then
+            Result := Result + Slash;
+        if Result[1] <> Slash then
+            Result := Slash + Result;
+    end;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { serge le 5/10/2002 }
@@ -3643,7 +4032,6 @@ begin
             Client.HasOpenedFile := FALSE;
             Client.ZStreamState  := ftpZStateNone;
             Client.FileName      := SlashesToBackSlashes(Params);
-            //Allowed              := TRUE;
             FilePath             := BuildFilePath(Client, Client.Directory, Client.FileName);
             Allowed := IsPathAllowed(Client, FilePath); { AG V1.52 }
             TriggerValidateGet(Client, FilePath, Allowed);
@@ -3706,12 +4094,9 @@ begin
                                      [FormatResponsePath(Client, Client.FilePath)]);
                     Exit;
                 end;
-              {  Client.DataStream := TFileStream.Create(Client.FilePath,
-                                                 fmOpenRead + fmShareDenyNone);  }
                 Client.DataStream := OpenFileStream(Client.FilePath,
-                                                Client.FileModeRead); { angus V1.57 }
-                NewPos := Client.DataStream.Seek(Client.RestartPos,
-                {$IFDEF STREAM64} soBeginning {$ELSE} sofromBeginning {$ENDIF});
+                                                       Client.FileModeRead); { angus V1.57 }
+                NewPos := Client.DataStream.Seek(Client.RestartPos, soBeginning);
             finally
                 TriggerLeaveSecurityContext(Client);
             end;
@@ -3728,7 +4113,7 @@ begin
         end;
         Client.LastTick := IcsGetTickCountX;  { angus V1.54 last tick for time out checking }
 
-{$IFDEF USE_MODEZ}     { angus V1.54 see if compressing the file with zlib }
+     { angus V1.54 see if compressing the file with zlib }
         if (Client.CurrTransMode = ftpTransModeZDeflate) then begin
             Client.ZStreamState := ftpZStateSaveComp;
             Client.ZCurLevel := Client.ZReqLevel;
@@ -3773,22 +4158,25 @@ begin
                     CloseFileStreams(Client);
                     Exit;
                 end;
-                TriggerEnterSecurityContext(Client);
+            { pending - need to allow for another client still compressing this file }
                 try
-                    if Client.FilePath <> '' then begin
-                        if FileExists(Client.ZCompFileName) then begin
+                    TriggerEnterSecurityContext(Client);{ AG 7.02 }
+                    try
+                        if Client.FilePath <> '' then begin
+                            if FileExists(Client.ZCompFileName) then
                                                  DeleteFile (Client.ZCompFileName);
-                        end;
-                        Client.ZFileStream := OpenFileStream(Client.ZCompFileName, fmCreate);
-                    end
-                    else
-                        Client.ZFileStream := TMemoryStream.Create;
+                            Client.ZFileStream := OpenFileStream(Client.ZCompFileName, fmCreate);
+                        end
+                        else
+                            Client.ZFileStream := TMemoryStream.Create;
+                    finally
+                        TriggerLeaveSecurityContext(Client);{ AG 7.02 }
+                    end;
                 except
                     Answer := Format(msgRetrFailed, ['Failed to create compress file']);
                     CloseFileStreams(Client);
-                    TriggerLeaveSecurityContext(Client);
                     Exit;
-                end ;
+                end;
                 TriggerDisplay(Client, 'Using thread to compress upload file: ' +
                          Client.ZCompFileName + ', Level ' + IntToStr (Client.ZCurLevel));
                 Client.ProcessingThread := TClientProcessingThread.Create(TRUE);
@@ -3797,15 +4185,18 @@ begin
                 Client.ProcessingThread.Keyword := 'COMPRESS';
                 Client.ProcessingThread.OnTerminate := ClientProcessingThreadTerminate;
                 Client.ProcessingThread.FreeOnTerminate := TRUE;
+            {$IFDEF COMPILER14_UP}
+                Client.ProcessingThread.Start;
+            {$ELSE}
                 Client.ProcessingThread.Resume;
+            {$ENDIF}
                 { Since answer is sent later when the thread returns we need }
                 { to set this flag!                                          }
                 Client.AnswerDelayed := TRUE;
                 exit;
             end;
         end;
-{$ENDIF}
-        PostMessage(Handle, FMsg_WM_FTPSRV_START_SEND, 0, LongInt(Client));
+        PostMessage(Handle, FMsg_WM_FTPSRV_START_SEND, 0, LPARAM(Client));
     except
         on E: Exception do begin
             Answer := Format(msgRetrFailed, [E.Message]);
@@ -3845,7 +4236,8 @@ begin
         Client.DataSocket.OnDataAvailable     := ClientStorDataAvailable;
         Client.DataSocket.OnDataSent          := nil;
     end
-    else if Client.CurCmdType in [ftpcRETR, ftpcLIST, ftpcNLST, ftpcMLSD, ftpcSiteDMLSD] then begin  { angus V1.41, V1.54 }
+    else if Client.CurCmdType in [ftpcRETR, ftpcLIST, ftpcNLST, ftpcMLSD,
+                                   ftpcSiteDMLSD, ftpcXDMLSD] then begin  { angus V1.41, V1.54, V7.01 }
         Client.DataSocket.OnSessionConnected  := ClientRetrSessionConnected;
         Client.DataSocket.OnSessionClosed     := ClientRetrSessionClosed;
         Client.DataSocket.OnDataAvailable     := nil;
@@ -3859,6 +4251,10 @@ begin
     end;
     Client.DataSocket.LingerOnOff             := wsLingerOff;
     Client.DataSocket.LingerTimeout           := 0;
+{$IFDEF EXPERIMENTAL_THROTTLE}
+    Client.DataSocket.BandwidthLimit          := Client.CBandwidthLimit;     { angus V7.12 }
+    Client.DataSocket.BandwidthSampling       := Client.CBandwidthSampling;  { angus V7.12 }
+{$ENDIF}
     Client.DataSocket.HSocket                 := HSocket;
     Client.PassiveConnected                   := TRUE;
     if Client.PassiveStart then
@@ -3891,6 +4287,10 @@ begin
         Client.DataSocket.LocalPort           := 'ftp-data'; {20}
 {$ENDIF}
         Client.DataSocket.ComponentOptions    := [wsoNoReceiveLoop];
+{$IFDEF EXPERIMENTAL_THROTTLE}
+        Client.DataSocket.BandwidthLimit      := Client.CBandwidthLimit;     { angus V7.12 }
+        Client.DataSocket.BandwidthSampling   := Client.CBandwidthSampling;  { angus V7.12 }
+{$ENDIF}
         Client.DataSocket.Connect;
     end;
 end;
@@ -3916,7 +4316,6 @@ procedure TFtpServer.ClientRetrSessionConnected(Sender : TObject; AError  : Word
 var
     Client      : TFtpCtrlSocket;
     Data        : TWSocket;
-{    NewPos      : TFtpBigInt;   }
 begin
     Data                     := TWSocket(Sender);
     Client                   := TFtpCtrlSocket(Data.Owner);
@@ -3933,42 +4332,6 @@ begin
             raise FtpServerException.Create('Client data socket connection Error - ' +
                GetWinsockErr(AError) + ' - ' + Client.DataAddr + ':' + Client.DataPort); { V1.48 report port in proper decimal }
         end;
-        { We need to open a datastream if not already done and a FilePath }
-        { exists the component user can have nullified the FilePath or    }
-        { created his own data stream (virtual file feature)              }
-    (*    if (not Client.HasOpenedFile) and
-           (Length(Client.FilePath) > 0) and
-           (not Assigned(Client.DataStream)) then begin
-            TriggerEnterSecurityContext(Client); { AG V1.52 }
-            try
-                if not FileExists(Client.FilePath) then begin
-                    { Avoid unnecessary exception here }
-                    Client.AbortingTransfer := TRUE;
-                    Client.TransferError    := 'File not found: "' +    { AG V1.52 }
-                               FormatResponsePath(Client, Client.FilePath) + '"';
-                    PostMessage(Handle, FMsg_WM_FTPSRV_ABORT_TRANSFER,
-                            WPARAM(Client.ID), LPARAM(Client));
-                    Exit;
-                end;
-              {  Client.DataStream := TFileStream.Create(Client.FilePath,
-                                                 fmOpenRead + fmShareDenyNone);  }
-                Client.DataStream := OpenFileStream(Client.FilePath,
-                                                 fmOpenRead + fmShareDenyNone);  { angus 1.54 }
-                NewPos := Client.DataStream.Seek(Client.RestartPos,
-                {$IFDEF STREAM64} soBeginning {$ELSE} sofromBeginning {$ENDIF});  { V1.49 }
-            finally
-                TriggerLeaveSecurityContext(Client); { AG V1.52 }
-            end;
-            if NewPos <> Client.RestartPos then begin
-                Client.TransferError    := 'Unable to set resume position in local file';
-                Client.AbortingTransfer := TRUE;
-                PostMessage(Handle, FMsg_WM_FTPSRV_ABORT_TRANSFER,
-                            WPARAM(Client.ID), LPARAM(Client));
-                Exit;
-            end;
-            Client.HasOpenedFile := TRUE;
-        end;     *)
-
     except
         on E: Exception do begin
             Client.AbortingTransfer := TRUE;
@@ -4012,13 +4375,6 @@ begin
 
     { If we had opened a data stream ourself, then close it }
     CloseFileStreams(Client);      { angus V1.54 }
-{    if Client.HasOpenedFile then begin
-        if Assigned(Client.DataStream) then begin
-            Client.DataStream.Destroy;
-        end;
-        Client.DataStream    := nil;
-        Client.HasOpenedFile := FALSE;
-    end;  }
 
 { angus V1.54 report performance }
     if Assigned(FOnDisplay) then begin
@@ -4063,21 +4419,20 @@ var
 begin
     try
         Count := 0;
-            TriggerEnterSecurityContext(Client);           { AG V1.52 }
-            try
-{$IFDEF USE_MODEZ}         { angus V1.54 }
+        TriggerEnterSecurityContext(Client);           { AG V1.52 }
+        try
+     { angus V1.54 }
             if Client.ZStreamState = ftpZStateSaveComp then begin
                 if Assigned(Client.ZFileStream) then
                     Count := Client.ZFileStream.Read(Client.RcvBuf^, Client.RcvSize);
             end
             else begin
-{$ENDIF}
                 if Assigned(Client.DataStream) then
-                Count := Client.DataStream.Read(Client.RcvBuf^, Client.RcvSize);
+                    Count := Client.DataStream.Read(Client.RcvBuf^, Client.RcvSize);
             end;
-            finally
-                TriggerLeaveSecurityContext(Client);       { AG V1.52 }
-            end;
+        finally
+            TriggerLeaveSecurityContext(Client);       { AG V1.52 }
+        end;
         Client.LastTick := IcsGetTickCountX;  { angus V1.54 last tick for time out checking }
 
         if Count > 0 then begin
@@ -4184,6 +4539,7 @@ var
 begin
     try
         CloseFileStreams(Client);      { angus V1.54 }
+        Client.AbortingTransfer := FALSE;  { V7.08 }
 
         try
 { angus 1.54  parse optional file and directory parameters, ie
@@ -4201,7 +4557,7 @@ begin
     "/program files/*.zip" -R
 
         NOTE1: we currently support all parameters for DIR, LIST, NLST, MLSD, SITE INDEX,
-              SITE CMLSD, SITE DMLSD which is not really RFC compliant, but useful
+              SITE CMLSD, XCMLSD, SITE DMLSD, XDMLSD which is not really RFC compliant, but useful
         NOTE2: we don't yet support multiple arguments, ie only -R or -AL, not both
         NOTE3: -R or -SUBDIRS recursive listings have a file name with path and leading /, ie
                /download/ALLDEPOTS/all/30=page-022864.zip  }
@@ -4244,19 +4600,18 @@ begin
             end;
 
          { angus V1.54 see if returning listing on control socket instead of data socket }
-            if Client.CurCmdType in [ftpcSiteIndex, ftpcSiteCmlsd] then begin
-                SetLength (Answer, Client.DataStream.Size) ;
-                Client.DataStream.Read (Answer [1], Client.DataStream.Size) ;
+            if Client.CurCmdType in [ftpcSiteIndex, ftpcSiteCmlsd, ftpcXCMLSD] then begin   { angus 7.01 }
+                Client.DataStreamReadString(String(Answer), Client.DataStream.Size, Client.CurrentCodePage); { AG 7.02 }
                 if Client.CurCmdType = ftpcSiteIndex then
                      Answer := Format (msgIndexFollows, [Params]) +
                                                      #13#10 + Answer + msgIndexDone;
-                if Client.CurCmdType = ftpcSiteCmlsd then
+                if Client.CurCmdType in [ftpcSiteCmlsd, ftpcXCMLSD] then    { angus 7.01 }
                      Answer := msgMlstFollows + #13#10 + Answer + msgMlstFollowDone;
                 CloseFileStreams(Client);
             end
             else
             begin
-            Answer          := msgDirOpen;
+                Answer := msgDirOpen;
                 DoStartSendData(Client, Answer);  { angus V1.54 added Answer }
             end;
         except
@@ -4267,7 +4622,7 @@ begin
     finally
         { check for success 150..159 in passive mode }
         if (Client.HasOpenedFile) and (Client.PassiveMode) and
-                                            (Copy(Answer, 1, 2) <> '15') then begin
+                     (NOT Client.AnswerDelayed) and (Copy(Answer, 1, 2) <> '15') then begin  { V7.08 }
             { flag for ClientRetrSessionClosed that the error-message was already sent! }
             Client.TransferError    := '';
             Client.AbortingTransfer := TRUE;
@@ -4319,7 +4674,9 @@ procedure TFtpServer.BuildDirectory(
 var
     Buf        : String;
     Allowed    : Boolean;
+    TotalFiles : integer;  { V7.08 }
 begin
+    DecodeDate(Now, ThisYear, ThisMonth, ThisDay);  { V7.08 moved from BuildDirList }
 
  {  angus 1.54 hidden argument now parsed in CommandDirectory2,
                params is now only path or file name }
@@ -4327,30 +4684,19 @@ begin
  { angus 1.54 remove leading / to keep BuildFilePath happy, probably not backward compatible!! }
     if (Length (Path) >= 1) and (Path [1] = '\') then Path := Copy (Path, 2, 999);
     if Path = '' then
-        Client.DirListPath := Client.Directory + '*.*'
+{        Client.DirListPath := Client.Directory + '*.*'   V7.08 }
+        Client.DirListPath := BuildFilePath(Client, Client.Directory, '*.*')  { angus V7.08 must not skip buildpath }
     else begin
         if Path[Length(Path)] = '\' then Path := Path + '*.*';
         Client.DirListPath := BuildFilePath(Client, Client.Directory, Path);
     end;
-
-(*    if Path[Length(Path)] = '\' then begin
-        Path := Path + '*.*';
-        Allowed := IsPathAllowed(Client, Path);                 { AG V1.52 }
-    end
-    else
-        { single file or single directory }
-        { This check is not 100% secure. Since we check against the home   }
-        { directory path w/o a trailing backslash. It's anyway better than }
-        { nothing.                                                         }
-        Allowed := IsPathAllowed(Client, Path, TRUE);           { AG V1.52 }   *)
 
     Allowed := IsPathAllowed(Client, Client.DirListPath);                 { AG V1.52 }
     if not Allowed then { AG V1.52 }
     begin
         Buf := FormatResponsePath(Client, Client.DirListPath) +
                                                  ' Permission denied' + #13#10;
-        if Length (Path) >= 1 then
-                 Client.DataStream.Write(Path[1], Length(Path));   { angus 1.54 }
+        Client.DataStreamWriteString(Buf, Client.CurrentCodePage); { angus 7.02 }
         Exit; //***
     end;
 
@@ -4358,7 +4704,6 @@ begin
     if (((ftpsThreadRecurDirs in Options) and (Client.DirListSubDir)) OR
                (ftpsThreadAllDirs in Options)) and
                         (Client.ProcessingThread = nil) then begin
-    TriggerEnterSecurityContext(Client);                  { AG V1.52 }
         TriggerDisplay(Client, 'Using thread to list directory');
         Client.ProcessingThread := TClientProcessingThread.Create(TRUE);
         Client.ProcessingThread.Client := Client;
@@ -4366,23 +4711,36 @@ begin
         Client.ProcessingThread.Keyword := 'DIRECTORY';
         Client.ProcessingThread.OnTerminate := ClientProcessingThreadTerminate;
         Client.ProcessingThread.FreeOnTerminate := TRUE;
+    {$IFDEF COMPILER14_UP}
+        Client.ProcessingThread.Start;
+    {$ELSE}
         Client.ProcessingThread.Resume;
+    {$ENDIF}
         { Since answer is sent later when the thread returns we need }
         { to set this flag!                                          }
         Client.AnswerDelayed := TRUE;
         exit;
-        end;
+    end;
     TriggerEnterSecurityContext(Client);                  { AG V1.52 }
     try
      { angus 1.54 moved all listing code to FtpSrvC }
-        Client.BuildDirectory(Path);
+        Client.BuildDirList(TotalFiles);         { V7.08 }
+        if TotalFiles = -1 then
+            TriggerDisplay(Client, 'Completed directory listing for: ' +
+                                                    Client.DirListPath + ' failed')
+        else
+            TriggerDisplay(Client, 'Completed directory listing for: ' +
+                        Client.DirListPath + ', Total Files: ' + IntToStr (TotalFiles));
     finally
         TriggerLeaveSecurityContext(Client);              { AG V1.52 }
     end;
 
     if Client.DataStream.Size = 0 then begin
-        Buf := FormatResponsePath(Client, Client.DirListPath) + ' not found' + #13#10; { AG V1.52 }
-        Client.DataStream.Write(Buf[1], Length(Buf));
+        if TotalFiles = -1 then
+            Buf := 'Listing failed' + #13#10  { V7.08 }
+        else
+            Buf := FormatResponsePath(Client, Client.DirListPath) + ' not found' + #13#10; { AG V1.52 }
+        Client.DataStreamWriteString(Buf, Client.CurrentCodePage);  { AG V6.03 }{ AG 7.02 }
     end;
 end;
 
@@ -4429,7 +4787,6 @@ begin
 
     Client.CurCmdType := ftpcDELE;
     FileName          := BuildFilePath(Client, Client.Directory, Params);
-    //Allowed           := TRUE;
     Allowed := IsPathAllowed(Client, FileName); { AG V1.52 }
     TriggerValidateDele(Client, FileName, Allowed);
     if not Allowed then begin
@@ -4479,7 +4836,6 @@ begin
     end;
 
     Client.CurCmdType := ftpcSIZE;
-    //Allowed           := TRUE;  { AG V1.52 }
     FilePath          := BuildFilePath(Client, Client.Directory, Params);
     Allowed := IsPathAllowed(Client, FilePath); { AG V1.52 }
     TriggerValidateSize(Client, FilePath, Allowed);
@@ -4494,7 +4850,7 @@ begin
         try
             TriggerEnterSecurityContext(Client);               { V1.52 AG }
             try
-                Size := GetFileSize(FilePath);
+                Size := IcsGetFileSize(FilePath);
                 if Size >= 0 then
                     Answer := Format(msgSizeOk, [Size])
                 else
@@ -4525,11 +4881,7 @@ begin
 
     Client.CurCmdType := ftpcREST;
     try
-{$IFDEF STREAM64}                { V1.43 }
         Client.RestartPos := atoi64(Params);
-{$ELSE}
-        Client.RestartPos := atoi(Params);
-{$ENDIF}
         if Client.RestartPos < 0 then begin        { 20020916 }
             Answer            := msgRestZero;
             Client.RestartPos := 0;
@@ -4538,8 +4890,8 @@ begin
             if (ftpsModeZNoResume in Options) and
                     (Client.CurrTransMode = ftpTransModeZDeflate) then   { angus V1.55 }
                 Answer := msgRestNotModeZ
-        else
-            Answer := Format(msgRestOk, [Client.RestartPos]);
+            else
+                Answer := Format(msgRestOk, [Client.RestartPos]);
         end;
     except
         on E:Exception do begin
@@ -4568,7 +4920,6 @@ begin
 
     Client.CurCmdType := ftpcRNFR;
     FileName          := BuildFilePath(Client, Client.Directory, Params);
-    //Allowed           := TRUE; { AG V1.52 }
     Allowed := IsPathAllowed(Client, FileName); { AG V1.52 }
     TriggerValidateRnFr(Client, FileName, Allowed);
     if not Allowed then begin
@@ -4610,7 +4961,6 @@ begin
 
     Client.CurCmdType := ftpcRNTO;
     FileName          := BuildFilePath(Client, Client.Directory, Params);
-    //Allowed           := TRUE;  { AG V1.52 }
     Allowed := IsPathAllowed(Client, FileName); { AG V1.52 }
     TriggerValidateRnTo(Client, FileName, Allowed);
     if not Allowed then begin
@@ -4673,11 +5023,10 @@ begin
         Answer := msgNotLogged;
         Exit;
     end;
-    
+
     try
         Client.CurCmdType := ftpcMKD;
         Dir               := BuildFilePath(Client, Client.Directory, Params);
-        //Allowed           := TRUE;  { AG V1.52 }
         Allowed := IsPathAllowed(Client, Dir); { AG V1.52 }
         TriggerMakeDirectory(Client, Dir, Allowed);
         if not Allowed then
@@ -4730,7 +5079,6 @@ begin
             Client.CurCmdType       := ftpcAPPE;
             Client.FileName         := SlashesToBackSlashes(Params);
             Client.HasOpenedFile    := FALSE;
-            //Allowed           := TRUE;  { AG V1.52 }
             FilePath                := BuildFilePath(Client, Client.Directory, Client.FileName);
             Allowed := IsPathAllowed(Client, FilePath); { AG V1.52 }
             TriggerValidatePut(Client, FilePath, Allowed);
@@ -4740,7 +5088,7 @@ begin
             end;
             Client.FilePath := FilePath;
             PrepareStorDataSocket(Client);
-            Client.RestartPos := GetFileSize(Client.FilePath);
+            Client.RestartPos := IcsGetFileSize(Client.FilePath);
             if Client.RestartPos < 0 then
                 Client.RestartPos := 0;
             Answer := Format(msgAppeReady, [Params,Client.RestartPos]);
@@ -4793,7 +5141,6 @@ begin
 
     Client.CurCmdType := ftpcRMD;
     Dir               := BuildFilePath(Client, Client.Directory, Params);
-    //Allowed           := TRUE;  { AG V1.52 }
     Allowed := IsPathAllowed(Client, Dir); { AG V1.52 }
     TriggerValidateRmd(Client, Dir, Allowed);
     if not Allowed then begin
@@ -4847,20 +5194,19 @@ var
     TablePtr : PBoolean;
 begin
     if (FPasvPortRangeSize = 0) or (FPasvPortRangeStart = 0) then
-        Result := '0'
+        Result := AnsiChar('0')
     else begin
-        Result := '0';
+        Result := AnsiChar('0');
         I := 0;
   { angus V1.56 - allocate sequential ports within range instead of same low ports }
         if FPasvNextNr >= FPasvPortRangeSize then FPasvNextNr := 0;      { angus V1.56 }
         while TRUE do begin
-            TablePtr := PBoolean(PChar(FPasvPortTable) + (SizeOf(Boolean) * FPasvNextNr));
+            TablePtr := IncPtr(FPasvPortTable, SizeOf(Boolean) * FPasvNextNr); { AG V6.02 }
             if TablePtr^ = FALSE then begin
                 TablePtr^ := TRUE;
-             //   NewPort   := FPasvPortRangeStart + I;
                 NewPort   := FPasvPortRangeStart + FPasvNextNr;          { angus V1.56 }
                 Inc(FPasvNextNr);                                        { angus V1.56 }
-                Result    := IntToStr(NewPort);
+                Result    := _IntToStr(NewPort);
                 break;
             end;
             Inc(FPasvNextNr);                                            { angus V1.56 }
@@ -4868,7 +5214,6 @@ begin
             Inc(I);
             if I >= FPasvPortRangeSize then
                 break;  { no free ports in range - angus V1.56 }
-            // Never used ! Inc(TablePtr);
         end;
     end;
 end;
@@ -4878,20 +5223,30 @@ end;
 procedure TFtpServer.FreeCurrentPasvPort(AClient : TFtpCtrlSocket);
 var
     CurrentPort : Integer;
+{$IFNDEF COMPILER12_UP}
     ErrorCode   : Integer;
+{$ENDIF}    
 begin
     if (FPasvPortRangeSize = 0) or (FPasvPortRangeStart = 0) then
-        Exit;          
+        Exit;
     { FLD changed following lines, because                                   }
     { FreeCurrentPasvPort might be called when the socket is already closed! }
     if AClient.DataSocket.State = wsClosed then
+{$IFNDEF COMPILER12_UP}
         Val(AClient.DataSocket.Port, CurrentPort, ErrorCode)
+{$ELSE}
+        CurrentPort := atoi(AClient.DataSocket.Port)
+{$ENDIF}
     else
+{$IFNDEF COMPILER12_UP}
         Val(AClient.DataSocket.GetXPort, CurrentPort, ErrorCode);
+{$ELSE}        
+        CurrentPort := atoi(AClient.DataSocket.GetXPort);
+{$ENDIF}
     if (CurrentPort >= FPasvPortRangeStart) and
        (CurrentPort <= (FPasvPortRangeStart + FPasvPortRangeSize)) then begin
-        PBoolean(PChar(FPasvPortTable) +
-                 SizeOf(Boolean) * (CurrentPort - FPasvPortRangeStart))^ := FALSE;
+        PBoolean(IncPtr(FPasvPortTable,                        { AG V6.02 }
+                 SizeOf(Boolean) * (CurrentPort - FPasvPortRangeStart)))^ := FALSE;
     end;
     AClient.PassiveMode := FALSE;  // FLD 29.12.05
 end;
@@ -4952,8 +5307,6 @@ begin
         Client.DataSocket.OnDataAvailable    := nil;
         Client.DataSocket.ComponentOptions   := [wsoNoReceiveLoop];
         Client.DataSocket.Listen;
-{        if Client.DataSocket.Listen <> 0 then
-            raise Exception.Create('Listen failed'); 18/11/98 }
 
         { Get the port assigned by winsock }
         saddrlen := SizeOf(saddr);
@@ -4986,7 +5339,7 @@ begin
                            HiByte(DataPort),
                            LoByte(DataPort)])
             else begin
-                PASVAddr.S_addr := WSocket_inet_addr(APasvIp);
+                PASVAddr.S_addr := WSocket_inet_addr(AnsiString(APasvIp));
                 if (PASVAddr.S_addr = u_long(INADDR_NONE)) or
                             (PASVAddr.S_addr = 0) then { angus v1.53 0.0.0.0 not allowed }
                         raise Exception.Create('Invalid PASV IP Address')
@@ -5120,6 +5473,8 @@ begin
                 TriggerLeaveSecurityContext(Client);          { V1.52 AG }
             end;
             if SuccFlag then begin
+              { Cached Md5Sum should be updated with a new time and date } { angus V7.09 }
+                TriggerMd5Calculated(Client, FileName, '');
                 if Client.CurCmdType = ftpcMFMT then    { angus V1.39 }
                     Answer := msgMfmtChangeOK
                 else
@@ -5171,7 +5526,7 @@ begin
     Params := Uppercase (Params);
     if (Params <> 'S') then begin
         Answer := Format (msgModeNotS, [Params]);
-{$IFDEF USE_MODEZ}              { angus V1.54 }
+   { angus V1.54 }
         if (ftpModeZCompress in Client.Options) and (Params = 'Z') then begin
        { check sufficient space on work volume for compressed files }
             try
@@ -5194,7 +5549,6 @@ begin
                 Answer := Format (msgModeOK, [Params]);
             end;
         end;
-{$ENDIF}
         Exit;
     end;
     Client.CurrTransMode := FtpTransModeStream;
@@ -5248,7 +5602,6 @@ begin
         try
             Client.CurCmdType       := ftpcSTOU;
             Client.HasOpenedFile    := FALSE;
-            //Allowed                 := TRUE;  { V1.52 AG }
             UniqueName              := '';//SlashesToBackSlashes(Params); { V1.52 AG }
 
             { Fire the GetUniqueFileName event to get the file name  }
@@ -5320,6 +5673,7 @@ begin
     try
         Client.CurCmdType := ftpcFEAT;
         Answer := msgFeatFollows + #13#10 +
+                  ' HOST'+ #13#10 +             { angus V7.01 }
                   ' SIZE'+ #13#10 +
                   ' REST STREAM'+ #13#10 +      { angus V1.39 (been supported for years) }
                   ' MDTM'+ #13#10 +
@@ -5335,13 +5689,19 @@ begin
         if Assigned (FOnSiteExec) then Answer := Answer + ';EXEC';       { angus V1.54 }
         if Assigned (FOnSitePaswd) then Answer := Answer + ';PSWD';      { angus V1.54 }
         if ftpsSiteXmlsd in FOptions then
-                                      Answer := Answer + ';CMLSD;DMLSD'; { angus V1.54 }
+                        Answer := Answer + ';CMLSD;DMLSD'; { angus V1.54 }
         Answer := Answer + #13#10;
-        if Assigned (FOnCombine) then Answer := Answer + ' COMB'+ #13#10; { angus V1.54 }
-    {$IFDEF USE_MODEZ}              { angus V1.54 }
+        if Assigned (FOnCombine) then
+               Answer := Answer + ' COMB'+ #13#10; { angus V1.54 }
         if ftpModeZCompress in Client.Options then
-                                      Answer := Answer + ' MODE Z'+ #13#10;
-    {$ENDIF}
+               Answer := Answer + ' MODE Z'+ #13#10;
+        if ftpsSiteXmlsd in FOptions then
+               Answer := Answer + ' XCMLSD' + #13#10 +
+                                  ' XDMLSD' + #13#10;        { angus V7.01 }
+        if ftpsEnableUtf8 in FOptions then
+               Answer := Answer + ' UTF8' + #13#10 +
+                                  ' LANG ' + FLanguage + #13#10 +
+                                  ' OPTS MODE;UTF8;' + #13#10; { angus V7.01 }
     {$IFDEF USE_SSL}
         if Self is TSslFtpServer then begin     {  V1.48 }
         if TSslFtpserver(Self).FFtpSslTypes <> [] then begin             { V1.47 }
@@ -5390,7 +5750,7 @@ begin
     { If we reduce the range, we must be sure to not affect any port in use }
     if NewValue < OldValue then begin
         { Check if any port is used before changing }
-        TablePtr := PBoolean(PChar(FPasvPortTable) + SizeOf(Boolean) * NewValue);
+        TablePtr := IncPtr(FPasvPortTable, SizeOf(Boolean) * NewValue); { AG V6.02 }
         I        := NewValue;
         while I < OldValue do begin
             if TablePtr^ then
@@ -5400,18 +5760,13 @@ begin
             Inc(TablePtr);
         end;
     end;
-
-{$IFDEF VER80}
-    FPasvPortTable := ReallocMem(FPasvPortTable, FPasvPortTableSize, NewValue);
-{$ELSE}
     ReallocMem(FPasvPortTable, NewValue);
-{$ENDIF}
     FPasvPortTableSize := NewValue;
     FPasvPortRangeSize := NewValue;
     if OldValue >= NewValue then
         Exit;
 
-    TablePtr := PBoolean(PChar(FPasvPortTable) + SizeOf(Boolean) * OldValue);
+    TablePtr := IncPtr(FPasvPortTable, SizeOf(Boolean) * OldValue); { AG V6.02 }
     while OldValue < NewValue do begin
         TablePtr^ := FALSE;
         Inc(TablePtr);
@@ -5504,7 +5859,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *} { angus V1.54 }
 procedure FileMD5OnProgress(
     Obj: TObject;
-    Count: {$IFDEF STREAM64} Int64 {$ELSE} Integer {$ENDIF};
+    Count: Int64;
     var Cancel: Boolean);
 begin
     Cancel := (Obj as TFtpCtrlSocket).AbortingTransfer;
@@ -5528,7 +5883,6 @@ begin
         Answer := msgNotLogged;
         Exit;
     end;
-    // Allowed := TRUE; { AG V1.52 }
     Md5Sum  := '';
     Client.HashStartPos := 0;
     Client.HashEndPos := 0;
@@ -5546,7 +5900,7 @@ begin
             end ;
         end
         else begin
-        Client.CurCmdType := ftpcMD5;
+            Client.CurCmdType := ftpcMD5;
             FileName := Params;
         end;
         FileName := BuildFilePath(Client, Client.Directory, FileName);
@@ -5560,7 +5914,7 @@ begin
              Exit;
         end;
         if Md5Sum = '' then begin
-            FileSize := GetFileSize(FileName); { AG V1.50 }
+            FileSize := IcsGetFileSize(FileName); { AG V1.50 }
             if FileSize = -1 then begin { AG V1.50 }
                 TriggerMd5Calculated(Client, FileName, Md5Sum); { AG V1.50 }
                 Answer := Format(msgMd5NotFound, [Params]);
@@ -5569,10 +5923,10 @@ begin
             { Calculate a 32-byte MD5 sum. If file size is small we may use }
             { a blocking function.                                 AG V1.50 }
             if (FMd5UseThreadFileSize = 0) or
-               (FileSize < FMd5UseThreadFileSize) then begin
-                Md5Sum := FileMD5(FileName, Client, FileMD5OnProgress,
-                   Client.HashStartPos, Client.HashEndPos, Client.FileModeRead); { angus V1.57 }
-                TriggerMd5Calculated(Client, FileName, UpperCase(Md5Sum));   
+                               (FileSize < FMd5UseThreadFileSize) then begin
+                Md5Sum := FtpFileMD5(FileName, Client, FileMD5OnProgress,
+                        Client.HashStartPos, Client.HashEndPos, Client.FileModeRead); { angus V1.57 V7.07 }
+                TriggerMd5Calculated(Client, FileName, UpperCase(Md5Sum));
             end
             else begin
                 { Use a thread to calculate MD5 checksum which otherwise }
@@ -5591,13 +5945,17 @@ begin
                 Client.ProcessingThread.Keyword := Keyword;
                 Client.ProcessingThread.OnTerminate := ClientProcessingThreadTerminate;
                 Client.ProcessingThread.FreeOnTerminate := TRUE;
+            {$IFDEF COMPILER14_UP}
+                Client.ProcessingThread.Start;
+            {$ELSE}
                 Client.ProcessingThread.Resume;
+            {$ENDIF}
                 { Since answer is sent later when the thread returns we need }
                 { to set this flag!                                          }
                 Client.AnswerDelayed := TRUE;
                 exit;                                                { angus V1.54 }
             end;
-            end;
+        end;
         Client.LastTick := IcsGetTickCountX;                         { angus V1.54 }
         if Md5Sum = '' then                                          { angus V1.54 }
              Answer := Format(msgMd5Failed, [Params])
@@ -5655,7 +6013,7 @@ begin
              Exit;
         end;
         if Crc32b = '' then begin
-            FileSize := GetFileSize(FileName);
+            FileSize := IcsGetFileSize(FileName);
             if FileSize = -1 then begin
                 TriggerCrcCalculated(Client, FileName, Crc32b);
                 Answer := Format(msgMd5NotFound, [Params]);
@@ -5665,10 +6023,10 @@ begin
             { a blocking function.                                          }
             if (FMd5UseThreadFileSize = 0) or
                                    (FileSize < FMd5UseThreadFileSize) then begin
-                Crc32b := FileCRC32B(FileName, Client, FileMD5OnProgress,
-                      Client.HashStartPos, Client.HashEndPos, Client.FileModeRead); { angus V1.57 }
+                Crc32b := FtpFileCRC32B(FileName, Client, FileMD5OnProgress,
+                        Client.HashStartPos, Client.HashEndPos, Client.FileModeRead); { angus V1.57 V7.07 }
                 TriggerCrcCalculated(Client, FileName, UpperCase(Crc32b));
-        end
+            end
             else begin
                 { Use a thread to calculate CRC checksum which otherwise }
                 { would block the server.                        }
@@ -5684,7 +6042,11 @@ begin
                 Client.ProcessingThread.Keyword := Keyword;
                 Client.ProcessingThread.OnTerminate := ClientProcessingThreadTerminate;
                 Client.ProcessingThread.FreeOnTerminate := TRUE;
+            {$IFDEF COMPILER14_UP}
+                Client.ProcessingThread.Start;
+            {$ELSE}
                 Client.ProcessingThread.Resume;
+            {$ENDIF}
                 { Since answer is sent later when the thread returns we need }
                 { to set this flag!                                          }
                 Client.AnswerDelayed := TRUE;
@@ -5725,7 +6087,7 @@ begin
   { otherwise check for free space on drive with working directory }
     try
         Size := atoi64(Params);
-        FreeSpace := GetFreeSpacePath (Client.Directory);
+        FreeSpace := GetFreeSpacePath (BuildFilePath(Client, Client.Directory, '')); { angus V7.08 support virtual path }
         if FreeSpace < 0 then
            Answer := Format(msgAlloOk, [0])   { failed, but pretend Ok for backward compatibility }
         else if (Size = 0) then
@@ -5778,17 +6140,33 @@ begin
     Params := Uppercase (Params);
     Offset := 1;
     Arg := ScanGetNextArg (Params, Offset);
-    if Arg <> 'MODE' then exit;
-    Arg := ScanGetNextArg (Params, Offset);
-    if Arg <> 'Z' then exit;
-    Arg := ScanGetNextArg (Params, Offset);
-    if Arg <> 'LEVEL' then exit;
-    Arg := ScanGetNextArg (Params, Offset);
-    if Arg = '' then exit;
-    Offset := atoi (Arg);
-    if (Offset >= FZlibMinLevel) and (Offset <= FZlibMaxLevel) then begin
-        Client.ZReqLevel := Offset;
-        Answer := Format(msgOtpsOK, ['MODE Z LEVEL set to ' + Arg]);
+    if Arg = 'MODE' then begin
+        Arg := ScanGetNextArg (Params, Offset);
+        if Arg <> 'Z' then exit;
+        Arg := ScanGetNextArg (Params, Offset);
+        if Arg <> 'LEVEL' then exit;
+        Arg := ScanGetNextArg (Params, Offset);
+        if Arg = '' then exit;
+        Offset := atoi (Arg);
+        if (Offset >= FZlibMinLevel) and (Offset <= FZlibMaxLevel) then begin
+            Client.ZReqLevel := Offset;
+            Answer := Format(msgOtpsOK, ['MODE Z LEVEL set to ' + Arg]);
+        end;
+    end
+    else if ((Arg = 'UTF8') or (Arg = 'UTF-8')) then begin       { angus V7.01 }
+        if NOT (ftpsEnableUtf8 in FOptions) then begin
+            Answer := Format(msgOptsFailed, ['UTF8 not supported']);
+            exit;
+        end ;
+        Arg := ScanGetNextArg (Params, Offset);
+        if Arg = 'ON' then begin
+            Client.Options := Client.Options + [ftpUtf8On];
+            Answer := Format(msgOtpsOK, ['UTF8 ON']);
+        end
+        else if Arg = 'OFF' then begin
+            Client.Options := Client.Options - [ftpUtf8On];
+            Answer := Format(msgOtpsOK, ['UTF8 OFF']);
+        end;
     end;
 end;
 
@@ -5922,6 +6300,123 @@ begin
     TriggerCombine (Client, Params, Answer);
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServer.CommandXCmlsd (  { angus V7.01 }
+      Client      : TFtpCtrlSocket;
+      var Keyword : TFtpString;
+      var Params  : TFtpString;
+      var Answer  : TFtpString);
+begin
+    if Client.FtpState <> ftpcReady then begin
+        Answer := msgNotLogged;
+        Exit;
+    end;
+    Client.CurCmdType := ftpcXCMLSD;
+    CommandDirectory2(Client, KeyWord, Params, Answer, ListTypeFacts);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServer.CommandXDmlsd (  { angus V7.01 }
+      Client      : TFtpCtrlSocket;
+      var Keyword : TFtpString;
+      var Params  : TFtpString;
+      var Answer  : TFtpString);
+begin
+    if Client.FtpState <> ftpcReady then begin
+        Answer := msgNotLogged;
+        Exit;
+    end;
+    Client.CurCmdType := ftpcXDMLSD;
+    CommandDirectory2(Client, KeyWord, Params, Answer, ListTypeFacts);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServer.CommandHost (  { angus V7.01 }
+      Client      : TFtpCtrlSocket;
+      var Keyword : TFtpString;
+      var Params  : TFtpString;
+      var Answer  : TFtpString);
+var
+    Allowed: boolean;
+begin
+    if Client.FtpState <> ftpcWaitingUserCode then begin  // host is only allowed before logon
+        Answer := msgHostTooLate;
+        Exit;
+    end;
+{ expecting HOST ftp.domain.com or HOST [123.123.123.123]   }
+    Params := Trim (LowerCase (Params));
+    Format(msgHostSyntax, [Params]);
+    if Length (Params) <= 2 then exit; // host is only allowed before logon
+    if Params [1] = '[' then begin
+        if Params [Length (Params)] <> ']' then exit ;
+    end;
+    Client.CurCmdType := ftpcHost;
+    Allowed := false;
+    TriggerHost(Client, Params, Allowed);
+    if not Allowed then begin
+        Answer := msgHostUnknown;   { could be msgHostUnavail }
+        Exit;
+    end;
+    Client.Host := Params;
+    Answer := msgHostOK;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServer.CommandRein (  { angus V7.01 }
+      Client      : TFtpCtrlSocket;
+      var Keyword : TFtpString;
+      var Params  : TFtpString;
+      var Answer  : TFtpString);
+var
+    Allowed: boolean;
+begin
+    Client.CurCmdType := ftpcRein;
+    Allowed := false;
+    TriggerRein(Client, Allowed);
+    if not Allowed then begin
+        Answer := msgReinUnavail;
+        Exit;
+    end;
+
+{ reinialise session, as if not yet logged on }
+    Client.FtpState := ftpcWaitingUserCode;
+// angus pending, more stuff from ServerClientConnect
+    Client.Host := '';
+    Client.Lang := '' ;
+    if (ftpsEnableUtf8 in FOptions) and (ftpsDefaultUtf8On in FOptions) then
+        Client.Options := Client.Options + [ftpUtf8On]
+    else
+        Client.Options := Client.Options - [ftpUtf8On];
+    Answer := msgReinOK;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServer.CommandLang (  { angus V7.01 }
+      Client      : TFtpCtrlSocket;
+      var Keyword : TFtpString;
+      var Params  : TFtpString;
+      var Answer  : TFtpString);
+var
+    Allowed: boolean;
+begin
+    if Client.FtpState <> ftpcReady then begin
+        Answer := msgNotLogged;
+        Exit;
+    end;
+    Params := Trim (UpperCase (Params));
+    Client.CurCmdType := ftpcLang;
+    Allowed := (Pos (Params, FLanguage) > 0) OR (Length (Params) = 0);
+    TriggerLang(Client, Params, Allowed);
+    if not Allowed then begin
+        Answer := Format(msgLangUnknown, [Params]);
+        Exit;
+    end;
+    if Length (Params) = 0 then Params := FLanguage;
+    Client.Lang := Params;
+    Answer := Format(msgLangOK, [Params]);
+end;
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF NOFORMS}
 { This function is a callback function. It means that it is called by       }
@@ -5960,14 +6455,14 @@ end;
 {$IFNDEF NO_DEBUG_LOG}
 function TFTPServer.GetIcsLogger: TIcsLogger;                         { V1.46 }
 begin
-    Result := FServSocket.IcsLogger;
+    Result := FSocketServer.IcsLogger;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFTPServer.SetIcsLogger(const Value: TIcsLogger);           { V1.46 }
 begin
-    FServSocket.IcsLogger := Value;
+    FSocketServer.IcsLogger := Value;
 end;
 
 
@@ -5990,10 +6485,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServer.ClientProcessingThreadTerminate(Sender: TObject); { AG V1.50 }
 var
-    Answer  : TFtpString;
-    AThread : TClientProcessingThread;
-    Params  : TFtpString;
-    Data    : TWSocket;
+    Answer    : TFtpString;
+    AThread   : TClientProcessingThread;
+    Params    : TFtpString;
+    Data      : TWSocket;
 begin
     AThread := TClientProcessingThread(Sender);
     if IsClient(AThread.Client) and
@@ -6009,7 +6504,7 @@ begin
             else begin
                 if (AThread.Keyword = 'XMD5') then                            { angus V1.54 }
                     Answer := Format(msgCrcOk, [Uppercase (AThread.OutData)])
-            else
+                else
                     Answer := Format(msgMd5Ok, [AThread.Params,
                                                 Uppercase (AThread.OutData)]);
             end;
@@ -6034,20 +6529,18 @@ begin
                                             (DirListType <> ListTypeName));
                     DataStream.Seek(0, 0);
                     FilePath := '';
-                    TriggerLeaveSecurityContext(AThread.Client);         { AG V1.52 }
                     if AThread.OutData <> AThread.Keyword then
                     begin
                         Answer := Format(msgDirFailed, ['Thread Processing Error']);
                         CloseFileStreams(AThread.Client);      { angus V1.54 }
                     end
                  { see if returning listing on control socket instead of data socket }
-                    else if CurCmdType in [ftpcSiteIndex, ftpcSiteCmlsd] then begin
-                        SetLength(Answer, DataStream.Size) ;
-                        DataStream.Read(Answer [1], DataStream.Size) ;
+                    else if CurCmdType in [ftpcSiteIndex, ftpcSiteCmlsd, ftpcXCMLSD] then begin   { angus 7.01 }
+                        DataStreamReadString(String(Answer), DataStream.Size, CurrentCodePage); { AG 7.02 }
                         if CurCmdType = ftpcSiteIndex then
                              Answer := Format (msgIndexFollows, [Params]) +
-                                                             #13#10 + Answer + msgIndexDone;
-                        if CurCmdType = ftpcSiteCmlsd then
+                                                             #13#10 + Answer + msgIndexDone
+                        else if CurCmdType in [ftpcSiteCmlsd, ftpcXCMLSD] then   { angus 7.01 }
                              Answer := msgMlstFollows + #13#10 + Answer + msgMlstFollowDone;
                         CloseFileStreams(AThread.Client);      { angus V1.54 }
                     end
@@ -6076,9 +6569,8 @@ begin
                 end;
             end;
         end
-{$IFDEF USE_MODEZ}              { angus V1.54 }
+     { angus V1.54 }
         else if (AThread.Keyword = 'COMPRESS') then begin
-            TriggerLeaveSecurityContext(AThread.Client);
              if AThread.OutData = '' then begin
                 TriggerDisplay(AThread.Client, AThread.Client.FilePath + ' took ' +
                          IntToStr(IcsElapsedMsecs(AThread.StartTick)) + 'ms,' +
@@ -6088,7 +6580,7 @@ begin
                 Answer := AThread.InData;
                 AThread.Client.AnswerDelayed := FALSE;
                 PostMessage(Handle, FMsg_WM_FTPSRV_START_SEND, 0,
-                                                     LongInt(AThread.Client));
+                                                     LPARAM(AThread.Client));
             end
             else begin  { compress failed }
                 CloseFileStreams(AThread.Client);
@@ -6110,7 +6602,6 @@ begin
                 Answer := AThread.OutData;
             end;
         end
-{$ENDIF}
         else
             Answer := Format('500 Executing command %s failed', [AThread.Keyword]);
         AThread.Client.AnswerDelayed := FALSE;  { angus V1.54 }
@@ -6130,14 +6621,13 @@ var
 begin
     FEventTimer.Enabled := false;
     try
-        if not Assigned(FClientList) then exit;
-    {    if (FTimeoutSecsLogin <= 0) and (FTimeoutSecsIdle <= 0) and   angus V6.06 gone
-                                     (FTimeoutSecsXfer <= 0) then exit;   no timeouts }
-        if FClientList.Count = 0 then exit;                              { no clients }
-        CurTicks := IcsGetTickCountX; { V1.56 AG }
-        for I := 0 to Pred (FClientList.Count) do begin
-            Client := TFtpCtrlSocket(FClientList.Items[I]);
-          { V6.06 angus - failed authentication, send delayed answer to slow to
+        if FSocketServer.ClientCount = 0 then exit;                              { no clients }
+        CurTicks := IcsGetTickCountX; {  V1.56 AG }
+        for I := 0 to Pred (FSocketServer.ClientCount) do begin
+            Client := FSocketServer.Client[I] as TFtpCtrlSocket;
+            if Client.FSessionClosedFlag then Continue;  { Client will close soon AG }
+
+          { V7.06 angus - failed authentication, send delayed answer to slow to
               failed login attempts, closing connection after MaxAttempts }
             if Client.FtpState = ftpcFailedAuth then begin
                 if IcsTestTrgTick (Client.DelayAnswerTick) then begin
@@ -6154,13 +6644,16 @@ begin
                     continue ; // skip testing timeouts
                 end;
             end ;
+
          { different length timeouts depending on what's happening }
             Timeout := 0;
             case Client.FtpState of
                 ftpcWaitingUserCode, ftpcWaitingPassword: Timeout := FTimeoutSecsLogin;
                 ftpcReady, ftpcWaitingAnswer: Timeout := FTimeoutSecsIdle;
             end;
-            if Client.DataSocket.State = wsConnected then Timeout := FTimeoutSecsXfer;
+            if Client.DataSocket.State = wsConnected then begin
+                if FTimeoutSecsXfer < FTimeoutSecsIdle then Timeout := FTimeoutSecsXfer;  { V7.09 xfer timeout must be shorted than idle }
+            end;
             if Timeout > 0 then begin
                 Duration :=  IcsDiffTicks(Client.LastTick, CurTicks) div TicksPerSecond; { V1.56 AG}
                 if Duration >= Timeout then begin   { seconds }
@@ -6171,13 +6664,15 @@ begin
                     else begin
                       { close data channel }
                         if Client.DataSocket.State = wsConnected then begin
-                            Client.TransferError := 'ABORT on Timeout';
+                            Client.TransferError    := 'ABORT on Timeout';
                             Client.AbortingTransfer := TRUE;
                             Client.DataSocket.Close;
+                        end
+                        else begin  { V7.09 xfer timeout only close data channel }
+                            SendAnswer(Client, WideFormat(msgTimeout, [Duration]));
+                          { close control channel }
+                            Client.Close;
                         end;
-                        SendAnswer(Client, Format(msgTimeout, [Duration]));
-                      { close control channel }
-                        Client.Close;
                     end;
                 end;
             end;
@@ -6186,6 +6681,834 @@ begin
         FEventTimer.Enabled := true;
     end ;
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TFtpCtrlSocket.Create(AOwner: TComponent);
+begin
+    inherited Create(AOwner);
+    FDataSocket      := TWSocket.Create(Self);
+{$IFDEF USE_SSL}
+    ProtP            := FALSE;
+    AuthFlag         := FALSE;
+    CccFlag          := FALSE;
+    CurFtpSslType    := curftpSslNone;
+{$ENDIF}
+    FDataSocket.Name := 'DataWSocket';
+    FBanner          := DefaultBanner;
+    FFtpState        := ftpcInvalid;
+    FHomeDir         := 'C:\TEMP\';  { Must include a trailing backslash !!}
+    FDirectory       := FHomeDir;    { Must include a trailing backslash !!}
+    SetRcvSize(DefaultRcvSize);
+    OtpMethod        := OtpKeyNone;  { angus V1.54 One Time Password authentication method }
+    OtpSequence      := -1;          { angus V1.54 One Time Password current sequence }
+    OtpSeed          := '';          { angus V1.54 One Time Password current seed }
+    LastTick         := IcsGetTickCountX;  { angus V1.54 last tick for time out checking }
+    SessStartTick    := IcsGetTickCountX;     { angus V1.54 tick when client session started, for duration check }
+    ReqStartTick     := 0;    { angus V1.54 tick when last request started, for duration check }
+    ReqDurMilliSecs  := 0;    { angus V1.54 how long last request took, in ticks }
+    TotGetBytes      := 0;    { angus V1.54 how many bytes GET during session, data and control }
+    TotPutBytes      := 0;    { angus V1.54 how many bytes PUT during session, data and control }
+    FailedAttempts   := 0;    { angus V7.06 count failed login attempts }
+    DelayAnswerTick  := TriggerDisabled;  { angus V7.06 when to send a delayed failed login answer }
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TFtpCtrlSocket.Destroy;
+begin
+    FRcvCnt := 0;      { Clear received data }
+    SetRcvSize(0);     { Free the buffer     }
+    if Assigned(ProcessingThread) then begin { AG V7.02 }
+        ProcessingThread.OnTerminate := nil; { AG V7.02 }
+        FreeAndNil(ProcessingThread);        { AG V7.02 }
+    end;                                     { AG V7.02 }
+    if Assigned(FDataSocket) then begin
+        FDataSocket.Destroy;
+        FDataSocket := nil;
+    end;
+    inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.SetRcvSize(newValue : Integer);
+begin
+    if FRcvCnt <> 0 then
+        raise EFtpCtrlSocketException.Create('Data in buffer, can''t change size');
+
+    if FRcvSize < 0 then
+        FRcvSize := 0;
+
+    if FRcvSize = newValue then
+        Exit; { No change, nothing to do }
+
+    { Free previously allocated buffer }
+    if FRcvBuf <> nil then begin
+        FreeMem(FRcvBuf, FRcvSize);
+        FRcvBuf := nil;
+    end;
+
+    { Allocate new buffer }
+    FRcvSize := newValue;
+
+    { If size is nul, then do not allocated the buffer }
+    if newValue > 0 then
+        GetMem(FRcvBuf, FRcvSize);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.SetCodePage(const Value: LongWord);{ AG 7.02 }
+begin
+    if Value = FtpServer.FSystemCodePage then
+        FCodePage := CP_ACP
+    else
+        FCodePage := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.SetCurrentCodePage(const Value: LongWord);{ AG 7.02 }
+begin
+    if Value = FtpServer.FSystemCodePage then
+        FCurrentCodePage := CP_ACP
+    else
+    {$IFDEF COMPILER12_UP}
+        FCurrentCodePage := Value;
+    {$ELSE}
+        if Value = CP_UTF8 then
+            FCurrentCodePage := Value
+        else
+            FCurrentCodePage := CP_ACP;
+    {$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.SetOptions(const Opts : TFtpOptions);{ AG 7.02 }
+begin
+    FOptions := Opts;
+    if ftpUtf8On in FOptions then
+        CurrentCodePage := CP_UTF8
+    else
+        CurrentCodePage := FCodePage;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.TriggerSessionClosed(Error: Word);
+begin
+    if Assigned(ProcessingThread) then
+        ProcessingThread.Terminate;
+    inherited TriggerSessionClosed(Error);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.TriggerSessionConnected(Error : Word);
+begin
+    FPeerAddr := inherited GetPeerAddr;
+    inherited TriggerSessionConnected(Error);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.TriggerCommand(CmdBuf : PAnsiChar; CmdLen : Integer);{ AG 7.02 }
+begin
+    if Assigned(FOnCommand) then
+        FOnCommand(Self as TFtpCtrlSocket, CmdBuf, CmdLen);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TFtpCtrlSocket.TriggerDataAvailable(Error : Word) : Boolean;
+var
+    Len  : Integer;
+    I    : Integer;
+begin
+    Result := TRUE;                                { We read data }
+
+    Len := Receive(@FRcvBuf[FRcvCnt], FRcvSize - FRcvCnt - 1);
+    if Len <= 0 then
+        Exit;
+
+    FRcvCnt := FRcvCnt + Len;
+    FRcvBuf[FRcvCnt] := #0;
+    LastTick := IcsGetTickCountX;  { angus V1.54 last tick for time out checking }
+    TotPutBytes := TotPutBytes + Len;    { angus V1.54 }
+
+    while TRUE do begin
+        I := 0;
+        while (I < FRcvCnt) and (FRcvBuf[I] <> #10) do
+            Inc(I);
+        if I >= FRcvCnt then begin
+            { Check line overflow. }
+            if FRcvCnt >= (FRcvSize - 1) then begin
+                StrPCopy(FRcvBuf, 'OVER' + #13#10);
+                FRcvCnt := StrLen(FRcvBuf);
+                I       := FRcvCnt - 1;
+            end
+            else
+                Exit;
+        end;
+        FRcvBuf[I]   := #0;
+        FLastCommand := Now;
+        Inc(FCommandCount);
+        if (I > 1) and (FRcvBuf[I - 1] = #13) then begin
+            FRcvBuf[I - 1] := #0;
+            TriggerCommand(FRcvBuf, I - 1);{ AG 7.02 }
+            FRcvBuf[I - 1] := #13;
+        end
+        else
+            TriggerCommand(FRcvBuf, I);{ AG 7.02 }
+
+        FRcvBuf[I] := #10;
+        if I >= (FRcvCnt - 1) then begin
+            FRcvCnt    := 0;
+            FRcvBuf[0] := #0;
+            break;
+        end;
+        Move(FRcvBuf[I + 1], FRcvBuf^, FRcvCnt - I);
+        FRcvCnt := FRcvCnt - I - 1;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.SendAnswer(const Answer : RawByteString);    { angus V7.01  }{ AG 7.02 }
+begin
+    SendStr(Answer + #13#10);
+    LastTick := IcsGetTickCountX;  { angus V1.54 last tick for time out checking }
+    TotGetBytes := TotGetBytes + Length (Answer) + 2;    { angus V1.54 }
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF COMPILER12_UP}
+procedure TFtpCtrlSocket.DataStreamWriteString(
+    const Str: UnicodeString;
+    DstCodePage: LongWord);{ AG 7.02 }
+begin
+    StreamWriteString(DataStream, Str, DstCodePage);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.DataStreamWriteString(const Str: UnicodeString);
+begin
+    StreamWriteString(DataStream, Str, CP_ACP);
+end;
+{$ENDIF}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.DataStreamWriteString(const Str: AnsiString);
+begin
+    DataStream.Write(Pointer(Str)^, Length(Str));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.DataStreamWriteString(                     { AG 7.02 }
+  const Str: AnsiString; DstCodePage: LongWord);
+var
+    S : AnsiString;
+begin
+    if DstCodePage = CP_ACP then
+        DataStream.Write(Pointer(Str)^, Length(Str))
+    else begin
+        S := ConvertCodePage(Str, CP_ACP, DstCodePage);
+        DataStream.Write(Pointer(S)^, Length(S));
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.DataStreamReadString(var Str: AnsiString;
+  Len: TFtpBigInt);
+var
+    ReadLen: Cardinal;
+begin
+    SetLength(Str, Len);
+    ReadLen := DataStream.Read(Pointer(Str)^, Len);
+    if ReadLen < Len then
+        SetLength(Str, ReadLen);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Potential data loss if SrcCodePage <> CP_ACP!                       AG 7.02 }
+procedure TFtpCtrlSocket.DataStreamReadString(
+  var Str: AnsiString; Len: TFtpBigInt; SrcCodePage: LongWord);
+var
+    BytesRead : Cardinal;
+    Buf       : PAnsiChar;
+    BufW      : PWideChar;
+    L1, L2    : Integer;
+begin
+    SetLength(Str, 0);
+    if Len < 0 then Exit;
+    if (SrcCodePage = CP_ACP) then
+    begin
+        SetLength(Str, Len);
+        BytesRead := DataStream.Read(Pointer(Str)^, Len);
+        if BytesRead < Len then
+            SetLength(Str, BytesRead);
+    end
+    else begin
+        GetMem(Buf, Len);
+        try
+            BytesRead := DataStream.Read(Buf^, Len);
+            L1 := MultiByteToWideChar(SrcCodePage, 0, Buf, BytesRead, nil, 0);
+            GetMem(BufW, L1 * SizeOf(WideChar));
+            try
+                MultiByteToWideChar(SrcCodePage, 0, Buf, BytesRead, BufW, L1);
+                L2 := WideCharToMultibyte(CP_ACP, 0, BufW, L1, nil, 0, nil, nil);
+                if L2 <> Len then
+                    ReallocMem(Buf, L2);
+                L1 := WideCharToMultibyte(CP_ACP, 0, BufW, L1, Buf, L2, nil, nil);
+                SetLength(Str, L1);
+                Move(Buf[0], Pointer(Str)^, L1);
+            finally
+                ReallocMem(BufW, 0);
+            end;
+        finally
+            ReallocMem(Buf, 0);
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF COMPILER12_UP}
+procedure TFtpCtrlSocket.DataStreamReadString(var Str: UnicodeString;
+  Len: TFtpBigInt; SrcCodePage: LongWord); { AG 7.02 }
+var
+    SBuf : array [0..2047] of AnsiChar;
+    HBuf : PAnsiChar;
+    eLen : Cardinal;
+begin
+    if SrcCodePage <> 1200 {CP_UTF16} then begin
+        if Len <= SizeOf(SBuf) then begin
+            eLen := DataStream.Read(SBuf[0], Len);
+            Len := MultiByteToWideChar(SrcCodePage, 0, @SBuf, eLen, nil, 0);
+            SetLength(Str, Len);
+            MultiByteToWideChar(SrcCodePage, 0, @SBuf, eLen, Pointer(Str), Len);
+        end
+        else begin
+            GetMem(HBuf, Len);
+            try
+                eLen := DataStream.Read(HBuf^, Len);
+                Len := MultiByteToWideChar(SrcCodePage, 0, HBuf, eLen, nil, 0);
+                SetLength(Str, Len);
+                MultiByteToWideChar(SrcCodePage, 0, HBuf, eLen, Pointer(Str), Len);
+            finally
+                FreeMem(HBuf);
+            end;
+        end;
+    end
+    else begin
+        SetLength(Str, Len);
+        eLen := DataStream.Read(Pointer(Str)^, Len * SizeOf(WideChar));
+        if (eLen div SizeOf(WideChar)) < Len then
+            SetLength(Str, (eLen div SizeOf(WideChar)));
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.DataStreamReadString(var Str: UnicodeString;
+  Len: TFtpBigInt);
+begin
+    DataStreamReadString(Str, Len, CP_ACP);
+end;
+{$ENDIF}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IsUNC(S : String) : Boolean;
+begin
+    Result := (Length(S) >= 2) and (S[2] = '\') and (S[1] = '\');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure PatchIE5(var S : String);
+begin
+    { \c:\Temp\ -> c:\Temp\ IE5 like this invalid syntax !}
+    if (Length(S) >= 3) and (S[3] = ':') and (S[1] = '\') then
+        Delete(S, 1, 1);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.SetDirectory(newValue : String);
+var
+    newDrive : String;
+    newPath  : String;
+    I        : Integer;
+begin
+    if FDirectory = newValue then
+        Exit;
+    PatchIE5(newValue);
+    newDrive := ExtractFileDrive(newValue);
+    if IsUNC(newDrive) then begin
+        if not (ftpcUNC in Options) then
+            raise Exception.Create('Cannot accept UNC path');
+        FDirectory := newValue;
+        { Always terminate with a backslash }
+        if (Length(FDirectory) > 0) and (FDirectory[Length(FDirectory)] <> '\') then
+            FDirectory := FDirectory + '\';
+        Exit;
+    end;
+    if Length(newDrive) = 0 then begin        { AG V1.52 }
+        if (ftpCdUpHome in Options) then begin
+            if (Length(newValue) > 0) and (newValue[1] = '\') then begin
+                { absolute path, HomeDir }
+                newDrive := ExtractFileDrive(FHomeDir);
+                newPath  := Copy(FHomeDir, Length(newDrive) + 1, Length(FHomeDir)) +
+                                 Copy(newValue, 2, Length(newValue))
+            end
+            else begin
+                newDrive := ExtractFileDrive(FDirectory);
+                newPath  := newValue;
+            end;
+        end
+        else begin
+          newDrive := ExtractFileDrive(FDirectory);
+          newPath  := newValue;
+        end;
+    end
+    else
+        newPath := Copy(newValue, 3, Length(newValue));
+
+
+    if Pos(':', newPath) <> 0 then
+        raise Exception.Create('Invalid directory name syntax');
+
+    if newPath = '..' then begin
+        if IsUNC(FDirectory) then begin
+            I := Length(FDirectory) - 1;
+            while (I > 0) and (FDirectory[I] <> '\') do
+                Dec(I);
+            if I > Length(newDrive) then
+                SetLength(FDirectory, I);
+            Exit;
+        end
+        else begin
+            newPath := Copy(FDirectory, 3, Length(FDirectory));
+            I := Length(newPath) - 1;
+            while (I > 0) and (newPath[I] <> '\') do
+                Dec(I);
+            SetLength(newPath, I);
+        end;
+    end;
+
+    if (Length(newPath) > 0) and (newPath[1] <> '\') then begin
+        { Relative path }
+        if IsUNC(FDirectory) then begin
+            FDirectory := FDirectory + newPath;
+            { Always terminate with a backslash }
+            if (Length(FDirectory) > 0) and (FDirectory[Length(FDirectory)] <> '\') then
+                FDirectory := FDirectory + '\';
+            Exit;
+        end
+        else begin
+            if UpperCase(newDrive[1]) <> UpperCase(FDirectory[1]) then
+                raise Exception.Create('Cannot accept path not relative to current directory');
+            if Pos('.\', newPath) <> 0 then
+                raise Exception.Create('Cannot accept relative path using dot notation');
+            if newPath = '.' then
+                newPath := Copy(FDirectory, 3, Length(FDirectory))
+            else
+                newPath := Copy(FDirectory, 3, Length(FDirectory)) + newPath;
+        end;
+    end
+    else begin
+        if Pos('.\', newPath) <> 0 then
+            raise Exception.Create('Cannot accept relative path using dot notation');
+    end;
+
+    if Length(newPath) = 0 then begin
+        if UpperCase(newDrive[1]) <> UpperCase(FDirectory[1]) then
+            newPath := '\'
+        else
+            newPath := Copy(FDirectory, 3, Length(FDirectory));
+    end;
+
+    { Always terminate with a backslash }
+    if (Length(newPath) > 0) and (newPath[Length(newPath)] <> '\') then
+        newPath := newPath + '\';
+
+    FDirectory := newDrive + newPath;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.SetHomeDir(const newValue: String);
+begin
+    if FHomeDir = newValue then
+        Exit;
+    if (Length(newValue) > 0) and (newValue[Length(newValue)] <> '\') then
+        FHomeDir := newValue + '\'
+    else
+        FHomeDir := newValue;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.SetAbortingTransfer(newValue : Boolean);
+begin
+    FAbortingTransfer := newValue;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *} { AG V1.46}
+procedure UpdateThreadOnProgress(
+    Obj: TObject;
+    Count: Int64;
+    var Cancel: Boolean);
+begin
+    if (Obj is TClientProcessingThread) then   { V7.08 }
+    begin
+        Cancel := (Obj as TClientProcessingThread).Terminated;
+        (Obj as TClientProcessingThread).Client.LastTick := IcsGetTickCountX;
+    end
+    else if (Obj is TFtpCtrlSocket) then       { V7.08 } 
+    begin
+        Cancel := (Obj as TFtpCtrlSocket).AbortingTransfer;
+        (Obj as TFtpCtrlSocket).LastTick := IcsGetTickCountX;
+    end
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function FormatUnixDirEntry(F : TSearchRec; const FileName: string) : String;
+var
+    Attr             : String;
+    Ext              : String;
+    Day, Month, Year : Integer;
+    Hour, Min        : Integer;
+    SizeStr          : String;
+    TimeStr          : String;
+const
+    StrMonth : array [1..12] of String =
+        ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec');
+begin
+{$WARNINGS OFF}
+    { Owner - Group - Others }
+    Attr := '-rw-rw-rw-';
+    if (F.Attr and faDirectory) <> 0 then
+        Attr[1] := 'd';
+
+    if (F.Attr and faReadOnly) <> 0 then begin
+        Attr[3] := '-';
+        Attr[6] := '-';
+        Attr[9] := '-';
+    end;
+{$WARNINGS ON}
+
+    Ext := UpperCase(ExtractFileExt(FileName));
+    if (Ext = '.EXE') or (Ext = '.COM') or (Ext = '.BAT') then begin
+        Attr[4]  := 'x';
+        Attr[7]  := 'x';
+        Attr[10] := 'x';
+    end;
+
+    Day   := (HIWORD(F.Time) and $1F);
+    Month := ((HIWORD(F.Time) shr 5) and $0F);
+    Year  := ((HIWORD(F.Time) shr 9) and $3F) + 1980;
+    Min   := ((F.Time shr 5) and $3F);
+    Hour  := ((F.Time shr 11) and $1F);
+
+    if F.FindData.nFileSizeHigh = 0 then
+        SizeStr := IntToStr(F.FindData.nFileSizeLow)
+    else
+        SizeStr := IntToStr(F.FindData.nFileSizeLow +
+                           (Int64(F.FindData.nFileSizeHigh) shl 32));
+    if Year = ThisYear then
+        TimeStr := Format('%2.2d:%2.2d', [Hour, Min])
+    else
+        TimeStr := Format('%5d', [Year]);
+
+    Result := Attr + '   1 ftp      ftp  ' +
+              Format('%11s %s %2.2d %5s ',
+                     [SizeStr, StrMonth[Month], Day, TimeStr]) +
+              FileName + #13#10;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function FileTimeToStr(const FileTime: TFileTime): String;     { angus V1.38 }
+const
+  FileTimeBase = -109205.0;   { days between years 1601 and 1900 }
+  FileTimeStep: Extended = 24.0 * 60.0 * 60.0 * 1000.0 * 1000.0 * 10.0; { 100 nsec per Day }
+var
+    F64    : Comp absolute FileTime;
+    TempDT : TDateTime;
+begin
+    TempDT := F64 / FileTimeStep;
+    TempDT := TempDT + FileTimeBase;
+    Result := FormatDateTime (UtcDateMaskPacked, TempDT);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{FTP MLSD command, same format for MSLT for a single file
+much nice than LIST since it has a proper date with year, and seconds, and is much easier to parse
+size=0;type=cdir;perm=fdelcmp;create=20020616151738;modify=20031002125810; .
+size=0;type=pdir;perm=fdelcmp;create=20020616151738;modify=20031002125810; ..
+size=17199;type=file;perm=fdrwa;create=20030616152030;modify=20031001190100; 00master.zip
+size=182928;type=file;perm=fdrwa;create=20030922195127;modify=20030922190600; 12=page-004394.zip
+size=134503;type=file;perm=fdrwa;create=20030923181732;modify=20030923170800; 12=page-004399.zip
+size=225460;type=file;perm=fdrwa;create=20030923193147;modify=20030923185600; 12=page-004400.zip
+size=205011;type=file;perm=fdrwa;create=20030923120836;modify=20030922225700; 12=page-004405.zip
+size=191721;type=file;perm=fdrwa;create=20030905141821;modify=20030904181100; 20=page-004320.zip
+size=183977;type=file;perm=fdrwa;create=20030905142247;modify=20030904181100; 20=page-004321.zip
+size=0;type=dir;perm=fdelcmp;create=20030219123018;modify=20030305153855; errors
+size=0;type=dir;perm=fdelcmp;create=20021217151845;modify=20030903193625; new software
+size=0;type=dir;perm=fdelcmp;create=20020805160304;modify=20031002133003; sql logs
+size=70806;type=file;perm=fdrwa;create=20030718113340;modify=20031001185600; vehinfiles.zip
+size=0;type=dir;perm=fdelcmp;create=20020801100314;modify=20031004124403; zip logs  }
+
+function FormatFactsDirEntry(F : TSearchRec; const FileName: string) : String;  { angus V1.38, 1.54 added FileName }
+var
+    SizeStr : String;
+begin
+{$WARNINGS OFF}
+    (*  faVolumeID not used in Win32
+    if ((F.Attr and faVolumeID) <> 0)  then begin
+        { Ignore volume ID entries }
+        Result := '';
+        Exit;
+    end;
+    *)
+    if F.FindData.nFileSizeHigh = 0 then
+        SizeStr := IntToStr(F.FindData.nFileSizeLow)
+    else
+        SizeStr := IntToStr(F.FindData.nFileSizeLow +
+                           (Int64(F.FindData.nFileSizeHigh) shl 32));
+
+    { PERMissions is advisory only, max 10 characters - not properly set here }
+    { a - APPE allowed for a file                                             }
+    { c - files may be created in this directory                              }
+    { d - may be deleted                                                      }
+    { e - directory entry allowed                                             }
+    { f - may be renamed                                                      }
+    { l - directory may be listed                                             }
+    { m - new directories may be made                                         }
+    { p - file may be deleted from the directory                              }
+    { r - RETR allowed for a file                                             }
+    { w - STOR allowed for a file                                             }
+    if (F.Attr and faDirectory) <> 0 then begin
+        if FileName = '.' then
+            result := 'size=0;type=cdir;perm=fdelcmp;'
+        else if FileName = '..' then
+            result := 'size=0;type=pdir;perm=fdelcmp;'
+        else
+            result := 'size=0;type=dir;perm=fdelcmp;'
+    end
+    else begin
+        result := 'size=' + SizeStr + ';type=file;perm=';
+        if (F.Attr and faReadOnly) <> 0 then
+            result := result + 'rw;'
+        else
+            result := result + 'fdrwa;';
+    end;
+    result := result +
+        'create=' + FileTimeToStr (F.FindData.ftCreationTime) +
+        ';modify=' + FileTimeToStr (F.FindData.ftLastWriteTime) +
+        '; ' + FileName;    { note space before filename is delimiter }
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.BuildDirList(var TotalFiles: integer);  { angus V7.08 was BuildDirectory, removed Path, added TotalFiles }
+var
+    Buf        : String;
+    LocFiles   : TIcsFileRecs;  { angus 1.54 dynamic array of File Records }
+    LocFileList: TList;         { angus 1.54 sorted pointers to File Records }
+    I          : Integer;
+    TotFiles   : Integer;
+    FileRecX   : PTIcsFileRec;
+begin
+    TotalFiles := 0 ;  { V7.08 }
+{    DecodeDate(Now, ThisYear, ThisMonth, ThisDay);   V7.08 moved to BuildDirectory so this procedure can be overriden }
+
+ { angus 1.54 build sorted recursive directory }
+    SetLength (LocFiles, 250);   { initial expected number of files }
+    LocFileList := TList.Create;
+    try
+     { fill LocFiles dynamic array with SearchRecs, sorted by LocFileList }
+        TotFiles := IcsGetDirList (DirListPath, DirListSubDir,
+                     DirListHidden, LocFiles, LocFileList, Self, UpdateThreadOnProgress) ;  { V7.08 }
+     { V7.08 allow extra virtual files to be added to the dynamic File Records array }
+        if TotFiles <> -1 then
+            FtpServer.TriggerAddVirtFiles(Self, LocFiles, LocFileList, TotFiles, UpdateThreadOnProgress) ;
+        if TotFiles > 0 then begin
+          { need a descendent of TMemoryStream with SetCapacity }
+          {  TMemoryStream (Stream).SetCapacity (TotFiles * 128);  }
+            for I := 0 to Pred (TotFiles) do begin
+                if LocFileList [I] = Nil then continue ;
+                FileRecX := LocFileList [I] ;   { get file record pointer }
+                if DirListSubDir then   { add path before file name }
+                    Buf := BackSlashesToSlashes(FileRecX^.FrSubDirs) +
+                                                 FileRecX^.FrSearchRec.Name
+                else
+                    Buf := FileRecX^.FrSearchRec.Name;
+
+            { build single line according to listing style }
+                if DirListType = ListTypeUnix then
+                    Buf := FormatUnixDirEntry(FileRecX^.FrSearchRec, Buf)
+                else if DirListType = ListTypeFacts then
+                    Buf := FormatFactsDirEntry(FileRecX^.FrSearchRec, Buf) + #13#10
+                else
+                    Buf := Buf + #13#10;
+                if Length(Buf) > 0 then begin
+                    if CurCmdType = ftpcSiteIndex then Buf := '200-' + Buf;
+                    if CurCmdType in [ftpcSiteCmlsd, ftpcXCMLSD] then
+                                                       Buf := '250-' + Buf;    { angus 7.01 }
+                    DataStreamWriteString(Buf, CurrentCodePage);
+                    inc (TotalFiles) ;   { V7.08 }
+                end;
+            end;
+        end
+        else
+            TotalFiles := TotFiles;   { V7.08 -1 is an error }
+    finally
+        SetLength (LocFiles, 0);
+        LocFileList.Free;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF USE_SSL}
+function TFtpCtrlSocket.SslSendPlain(Data : TWSocketData; Len : Integer) : Integer;
+begin
+    Result := RealSend(Data, Len);
+end;
+{$ENDIF}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Get the function pointer which cannot be niled by another thread. AG V7.02  }
+procedure TClientProcessingThread.TriggerEnterSecurityContext;
+var
+    f_EnterSecurityContext : TFtpSecurityContextEvent;
+begin
+    f_EnterSecurityContext := Client.FtpServer.FOnEnterSecurityContext;
+    if Assigned(f_EnterSecurityContext) then
+        f_EnterSecurityContext(Client.FtpServer, Client);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Get the function pointer which cannot be niled by another thread. AG V7.02  }
+procedure TClientProcessingThread.TriggerLeaveSecurityContext;
+var
+    f_LeaveSecurityContext : TFtpSecurityContextEvent;
+begin
+    f_LeaveSecurityContext := Client.FtpServer.FOnLeaveSecurityContext;
+    if Assigned(f_LeaveSecurityContext) then
+        f_LeaveSecurityContext(Client.FtpServer, Client);
+
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Any lengthy task executed here must stop when Terminated is detected.       }
+procedure TClientProcessingThread.Execute;                        { AG V1.46}
+var
+    NewSize: Int64;
+    TotalFiles: integer;  { V7.08 }
+    Buf: TFtpString;      { V7.08 }
+begin
+    ClientID := Client.ID;
+    try
+        with Client.ProcessingThread do begin
+            StartTick := IcsGetTickCountX;
+            if (Keyword = 'MD5') or (Keyword = 'XMD5')  then    { angus V1.54 }
+                OutData := FtpFileMD5(InData, Self, UpdateThreadOnProgress,  { AG V7.02, angus V7.08  }
+                   Client.HashStartPos, Client.HashEndPos, Client.FileModeRead) { angus V1.57 }
+            else if (Keyword = 'XCRC') then                                   { angus V1.54 }
+                OutData := FtpFileCRC32B(InData, Self, UpdateThreadOnProgress, { AG V7.02 }
+                   Client.HashStartPos, Client.HashEndPos, Client.FileModeRead) { angus V1.57, V7.08 }
+            else if (Keyword = 'DIRECTORY') then begin                  { angus V1.54 }
+                OutData := Keyword;
+                TriggerEnterSecurityContext;      { AG V7.02 }
+                try
+                    Client.BuildDirList(TotalFiles);         { V7.08 }
+                    if TotalFiles = -1 then
+                        Client.FtpServer.TriggerDisplay(Client, 'Completed directory listing for: ' +
+                                                           Client.DirListPath + ' failed')
+                    else
+                        Client.FtpServer.TriggerDisplay(Client, 'Completed directory listing for: ' +
+                                              Client.DirListPath + ', Total Files: ' + IntToStr (TotalFiles));
+                    Client.DataStream.Seek(0, 0);
+                finally
+                    TriggerLeaveSecurityContext;  { AG V7.02 }
+                end;
+               if Client.DataStream.Size = 0 then begin   { V7.08 }
+                    if TotalFiles = -1 then
+                        Buf := 'Listing failed' + #13#10
+                    else
+                        Buf := Client.FtpServer.FormatResponsePath(Client, Client.DirListPath) + ' not found' + #13#10;
+                    Client.DataStreamWriteString(Buf, Client.CurrentCodePage);
+                end;
+            end
+     { angus V1.54 }
+            else if (Keyword = 'COMPRESS') then begin { angus V1.54 }
+                with Client do begin
+                    try
+                     { angus V1.55 data stream may be set to restart position, but check sensible }
+                        NewSize := DataStream.Size - DataStream.Position;
+                        if NewSize < 0 then begin
+                            OutData := 'Failed to compress file - Invalid restart position or';
+                            ZCompFileDelete := True;
+                            Exit;
+                        end;
+                        ZlibCompressStreamEx(DataStream, ZFileStream, ZCurLevel,
+                                         zsZLib, false, Self, UpdateThreadOnProgress); { angus V1.55, V7.08 }
+                        ZFileStream.Position := 0 ;
+                        ZCompInfo := ' compressed size ' + IntToKbyte(ZFileStream.Size) +
+                            'bytes, uncompressed size ' + IntToKbyte(NewSize) + 'bytes' ;
+                     { close data file now, not needed any more }
+                        DataStream.Destroy;
+                        DataStream := Nil;
+                        OutData := ''; { OK }
+                    except
+                        on E:Exception do begin
+                            OutData := 'Failed to compress file - ' + E.Message;
+                            ZCompFileDelete := True;
+                        end;
+                    end;
+                end;
+            end
+            else if (Keyword = 'DECOMPRESS') then begin { angus V1.54 }
+                with Client do begin
+                    try
+                        ZFileStream.Position := 0;
+                        NewSize := DataStream.Size ;
+                        ZlibDecompressStreamEx(ZFileStream, DataStream,
+                                                 Self, UpdateThreadOnProgress) ;   { angus V1.55, V7.08 }
+                        NewSize := DataStream.Size - NewSize ;
+                        ZCompInfo := ' compressed size ' + IntToKbyte(Client.ZFileStream.Size) +
+                             'bytes, uncompressed size ' + IntToKbyte(NewSize) + 'bytes' ;
+                        OutData := ''; { OK }
+                    except
+                        on E:Exception do begin
+                            OutData := 'Failed to decompress file - ' + E.Message;
+                        end;
+                    end;
+                end;
+            end
+            else
+                OutData := '';
+        end;
+    except
+        OutData := '';
+    end;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { You must define USE_SSL so that SSL code is included in the component.    }
@@ -6203,7 +7526,7 @@ begin
            (ftpAuthTlsC in Value)) then begin
             FFtpSslTypes := [];
             raise Exception.Create('Option ftpImplicitSsl cannot be combined ' +
-                                   'with explizit SSL types.');
+                                   'with explicit SSL types.');
          end
          else
             FFtpSslTypes := Value;
@@ -6217,33 +7540,6 @@ var
     Client : TFtpCtrlSocket;
 begin
     Client := Sender as TFtpCtrlSocket;
-    (*
-    if Client.AuthFlag then begin
-        Client.AuthFlag := FALSE;
-        try
-            if AError = 0 then
-                Client.AcceptSslHandshake
-            else begin
-                Client.CurFtpSslType            := curftpSslNone;
-                Client.SslEnable                := FALSE;
-                Client.OnSslVerifyPeer          := nil;
-                Client.OnSslHandshakeDone       := nil;
-                Client.OnSslSvrNewSession       := nil;
-                Client.OnSslSvrGetSession       := nil;
-                Client.OnSslSetSessionIDContext := nil;
-            end;
-        except
-            Client.CurFtpSslType            := curftpSslNone;
-            Client.SslEnable                := FALSE;
-            Client.OnSslVerifyPeer          := nil;
-            Client.OnSslHandshakeDone       := nil;
-            Client.OnSslSvrNewSession       := nil;
-            Client.OnSslSvrGetSession       := nil;
-            Client.OnSslSetSessionIDContext := nil;
-            Client.Close;
-        end;
-    end
-    else *)
     if Client.CccFlag then begin
         if AError = 0 then begin
             Client.SslBiShutDownAsync;
@@ -6323,7 +7619,7 @@ begin
     try
         Client.SslEnable                := True;
         Client.SslMode                  := sslModeServer;
-        Client.SslContext               := FServSocket.SslContext;
+        Client.SslContext               := FSocketServer.SslContext;    { angus V7.00 }
         Client.OnSslVerifyPeer          := TransferSslVerifyPeer;
         Client.OnSslHandshakeDone       := TransferSslHandshakeDone;
         Client.OnSslSvrNewSession       := TransferSslSvrNewSession;
@@ -6335,7 +7631,7 @@ begin
             PlainAnswer := Format(msgAuthOk, [Params]) ;
             TriggerSendAnswer(Client, PlainAnswer);
             PlainAnswer := PlainAnswer + #13#10;
-            Client.SslSendPlain(@PlainAnswer[1], Length(PlainAnswer));
+            Client.SslSendPlain(Pointer(AnsiString(PlainAnswer)), Length(PlainAnswer)); // includes only ASCII chars
             Client.CurFtpSslType  := TmpCurFtpSslType;
         end  { AUTH in SSL mode, negotiates a new SSL session }
         else
@@ -6449,14 +7745,14 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TSslFtpServer.GetSslContext: TSslContext;
 begin
-    Result := FServSocket.SslContext
+    Result := FSocketServer.SslContext;    { angus V7.00 }
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslFtpServer.SetSslContext(Value: TSslContext);
 begin
-    FServSocket.SslContext := Value
+    FSocketServer.SslContext :=  Value;    { angus V7.00 }
 end;
 
 
@@ -6537,7 +7833,7 @@ procedure TSslFtpServer.TriggerClientConnect(
     AError  : Word);
 begin
     inherited TriggerClientConnect(Client, AError);
-    if FClientList.IndexOf(Client) < 0 then
+    if NOT FSocketServer.IsClient(Client) then       { angus V7.00 }
         Exit;
     { The event handler may have closed the connection }
     if Client.State <> wsConnected then
@@ -6546,7 +7842,7 @@ begin
     if Client.SslEnable then begin
         Client.CurFtpSslType            := curftpImplicitSsl;
         Client.SslMode                  := sslModeServer;
-        Client.SslContext               := FServSocket.SslContext;
+        Client.SslContext               := FSocketServer.SslContext;    { angus V7.00 }
         Client.OnSslVerifyPeer          := TransferSslVerifyPeer;
         Client.OnSslHandshakeDone       := TransferSslHandshakeDone;
         Client.OnSslSvrNewSession       := TransferSslSvrNewSession;
@@ -6709,7 +8005,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$ENDIF} // USE_SSL
+{$ENDIF} // USE_SSL{$ENDIF}
 
 end.
 

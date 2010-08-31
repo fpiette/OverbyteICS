@@ -2,12 +2,12 @@
 
 Author:       François PIETTE
 Creation:     Aug 08, 2004 (extracted from various ICS components)
-Version:      6.00
+Version:      6.04
 Description:  This unit contain support routines for URL handling.
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -38,6 +38,14 @@ Legal issues: Copyright (C) 1997-2007 by François PIETTE
 
 History:
 Mar 26, 2006 V6.00 New version 6 started
+Sep 28, 2008 V6.01 A. Garrels modified UrlEncode() and UrlDecode() to support
+             UTF-8 encoding. Moved IsDigit, IsXDigit, XDigit, htoi2 and htoin
+             to OverbyteIcsUtils.
+Apr 17, 2009 V6.02 A. Garrels added argument CodePage to functions
+             UrlEncode() and UrlDecode.
+Dec 19, 2009 V6.03 A. Garrels added UrlEncodeToA().
+Aug 07, 2010 V6.04 Bjørnar Nielsen suggested to add an overloaded UrlDecode()
+                   that takes a RawByteString URL.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -68,27 +76,29 @@ uses
 {$ELSE}
     WinTypes, WinProcs,
 {$ENDIF}
-    SysUtils;
+    {SysUtils,} OverbyteIcsUtils, OverbyteIcsLibrary;
 
 const
-    IcsUrlVersion        = 600;
-    CopyRight : String   = ' TIcsURL (c) 1997-2007 F. Piette V6.00 ';
+    IcsUrlVersion        = 604;
+    CopyRight : String   = ' TIcsURL (c) 1997-2010 F. Piette V6.04 ';
 
 { Syntax of an URL: protocol://[user[:password]@]server[:port]/path }
 procedure ParseURL(const URL : String;
                    var Proto, User, Pass, Host, Port, Path : String);
 function  Posn(const s, t : String; count : Integer) : Integer;
-function  UrlEncode(S : String) : String;
-function  UrlDecode(S : String) : String;
-function  IsDigit(Ch : Char) : Boolean;
-function  IsXDigit(Ch : char) : Boolean;
-function  XDigit(Ch : char) : Integer;
-{$IFDEF CLR}
-function  htoi2(Ch1, Ch2: Char) : Integer;
-{$ELSE}
-function  htoin(value : PChar; len : Integer) : Integer;
-function  htoi2(value : PChar) : Integer;
+function  UrlEncode(const S : String; DstCodePage: LongWord = CP_UTF8) : String;
+function  UrlDecode(const S     : String;
+                    SrcCodePage : LongWord = CP_ACP;
+                    DetectUtf8  : Boolean = TRUE) : String;
+{$IFDEF COMPILER12_UP}
+                    overload;
+function  UrlDecode(const S     : RawByteString;
+                    SrcCodePage : LongWord = CP_ACP;
+                    DetectUtf8  : Boolean = TRUE) : UnicodeString; overload;
 {$ENDIF}
+function UrlEncodeToA(const S   : String;
+                    DstCodePage : LongWord = CP_UTF8): AnsiString;
+
 
 implementation
 
@@ -210,7 +220,7 @@ begin
     p := pos('://', url);
     q := p;
     if p <> 0 then begin
-        S := LowerCase(Copy(url, 1, p - 1));
+        S := _LowerCase(Copy(url, 1, p - 1));
         for i := 1 to Length(S) do begin
             if not (AnsiChar(S[i]) in UriProtocolSchemeAllowedChars) then begin
                 q := i;
@@ -233,7 +243,7 @@ begin
                 Exit;
             end;
         end
-        else if LowerCase(Copy(url, 1, 5)) = 'http:' then begin
+        else if _LowerCase(Copy(url, 1, 5)) = 'http:' then begin
             proto := 'http';
             p     := 6;
             if (Length(url) > 6) and (url[7] <> '/') then begin
@@ -242,13 +252,13 @@ begin
                 Exit;
             end;
         end
-        else if LowerCase(Copy(url, 1, 7)) = 'mailto:' then begin
+        else if _LowerCase(Copy(url, 1, 7)) = 'mailto:' then begin
             proto := 'mailto';
             p := pos(':', url);
         end;
     end
     else begin
-        proto := LowerCase(Copy(url, 1, p - 1));
+        proto := _LowerCase(Copy(url, 1, p - 1));
         inc(p, 2);
     end;
     s := Copy(url, p + 1, Length(url));
@@ -294,21 +304,54 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function UrlEncode(S : String) : String;
+function UrlEncodeToA(const S : String; DstCodePage: LongWord = CP_UTF8) : AnsiString;
 var
-    I : Integer;
+    I, J   : Integer;
+    AStr   : AnsiString;
+    RStr   : AnsiString;
+    HexStr : String[2];
 begin
-    Result := '';
-    for I := 1 to Length(S) do begin
-        if AnsiChar(S[I]) in ['0'..'9', 'A'..'Z', 'a'..'z'] then
-            Result := Result + S[I]
+{$IFDEF COMPILER12_UP}
+    AStr := UnicodeToAnsi(S, DstCodePage);
+{$ELSE}
+    if DstCodePage = CP_UTF8 then
+        AStr := StringToUtf8(S)
+    else
+        AStr := S;
+{$ENDIF}
+    SetLength(RStr, Length(AStr) * 3);
+    J := 0;
+    for I := 1 to Length(AStr) do begin
+        case AStr[I] of
+            '0'..'9', 'A'..'Z', 'a'..'z' :
+                begin
+                    Inc(J);
+                    RStr[J] := AStr[I];
+                end
         else
-            Result := Result + '%' + IntToHex(Ord(S[I]), 2);
+            Inc(J);
+            RStr[J] := '%';
+            HexStr  := IcsIntToHexA(Ord(AStr[I]), 2);
+            Inc(J);
+            RStr[J] := HexStr[1];
+            Inc(J);
+            RStr[J] := HexStr[2];
+        end;
     end;
+    SetLength(RStr, J);
+    Result := RStr;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function UrlEncode(const S : String; DstCodePage: LongWord = CP_UTF8) : String;
+begin
+    Result := String(UrlEncodeToA(S, DstCodePage));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
 function UrlDecode(S : String) : String;
 var
     I  : Integer;
@@ -332,64 +375,78 @@ begin
         Inc(I);
     end;
 end;
-
-
+*)
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IsDigit(Ch : Char) : Boolean;
-begin
-    Result := (AnsiChar(Ch) in ['0'..'9']);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IsXDigit(Ch : char) : Boolean;
-begin
-    Result := (AnsiChar(Ch) in ['0'..'9']) or
-              (AnsiChar(Ch) in ['a'..'f']) or
-              (AnsiChar(ch) in ['A'..'F']);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function XDigit(Ch : char) : Integer;
-begin
-    if AnsiChar(Ch) in ['0'..'9'] then
-        Result := ord(Ch) - ord('0')
-    else
-        Result := (ord(Ch) and 15) + 9;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
-function htoin(value : PChar; len : Integer) : Integer;
+function UrlDecode(const S : String; SrcCodePage: LongWord = CP_ACP;
+  DetectUtf8: Boolean = TRUE) : String;
 var
-    i : Integer;
+    I, J, L : Integer;
+    U8Str   : AnsiString;
+    Ch      : AnsiChar;
 begin
-    Result := 0;
-    i      := 0;
-    while (i < len) and (Value[i] = ' ') do
-        i := i + 1;
-    while (i < len) and (isxDigit(Value[i])) do begin
-        Result := Result * 16 + xdigit(Value[i]);
-        i := i + 1;
+    L := Length(S);
+    SetLength(U8Str, L);
+    I := 1;
+    J := 0;
+    while (I <= L) and (S[I] <> '&') do begin
+        Ch := AnsiChar(S[I]);
+        if Ch = '%' then begin
+            Ch := AnsiChar(htoi2(PChar(@S[I + 1])));
+            Inc(I, 2);
+        end
+        else if Ch = '+' then
+            Ch := ' ';
+        Inc(J);
+        U8Str[J] := Ch;
+        Inc(I);
     end;
-end;
+    SetLength(U8Str, J);
+    if (SrcCodePage = CP_UTF8) or (DetectUtf8 and IsUtf8Valid(U8Str)) then
+{$IFDEF COMPILER12_UP}
+        Result := Utf8ToStringW(U8Str)
+    else
+        Result := AnsiToUnicode(U8Str, SrcCodePage);
+{$ELSE}
+        Result := Utf8ToStringA(U8Str)
+    else
+        Result := U8Str;
 {$ENDIF}
+end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF CLR}
-function htoi2(Ch1, Ch2: Char) : Integer;
+{$IFDEF COMPILER12_UP}
+function UrlDecode(const S: RawByteString; SrcCodePage: LongWord = CP_ACP;
+  DetectUtf8: Boolean = TRUE): UnicodeString;
+var
+    I, J, L : Integer;
+    U8Str   : AnsiString;
+    Ch      : AnsiChar;
 begin
-    Result := (xdigit(Ch1) shl 4) + xdigit(ch2);
-end;
-{$ELSE}
-function htoi2(value : PChar) : Integer;
-begin
-    Result := htoin(value, 2);
+    L := Length(S);
+    SetLength(U8Str, L);
+    I := 1;
+    J := 0;
+    while (I <= L) and (S[I] <> '&') do begin
+        Ch := AnsiChar(S[I]);
+        if Ch = '%' then begin
+            Ch := AnsiChar(htoi2(PAnsiChar(@S[I + 1])));
+            Inc(I, 2);
+        end
+        else if Ch = '+' then
+            Ch := ' ';
+        Inc(J);
+        U8Str[J] := Ch;
+        Inc(I);
+    end;
+    SetLength(U8Str, J);
+    if (SrcCodePage = CP_UTF8) or (DetectUtf8 and IsUtf8Valid(U8Str)) then
+        Result := Utf8ToStringW(U8Str)
+    else
+        Result := AnsiToUnicode(U8Str, SrcCodePage);
 end;
 {$ENDIF}
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 

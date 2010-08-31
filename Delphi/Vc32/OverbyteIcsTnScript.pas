@@ -3,10 +3,10 @@
 Author:       François PIETTE
 Description:  TTnScript component add scripting capabilities to TTnEmulVT
 Creation:     February 24th, 1998
-Version:      6.00
+Version:      6.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org See website for details.
-Legal issues: Copyright (C) 1998-2007 by François PIETTE
+Legal issues: Copyright (C) 1998-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -103,6 +103,8 @@ Jul 30, 2005  V1.05 Fixed two more bugs related to the previous one:
               - only one event per packet was checked
               See "{FP 30/07/2004" for changes
 Mar 26, 2006  V6.00 New version 6 started
+Feb 01, 2010  V6.01 Fixed Ansi/Unicode issue in ProcessInputData.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsTnScript;
@@ -111,6 +113,11 @@ unit OverbyteIcsTnScript;
 {$T-}             { Untyped pointers                    }
 {$X+}             { Enable extended syntax              }
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
@@ -138,7 +145,7 @@ uses
 
 const
     TnScriptVersion    = 6.00;
-    CopyRight : String = ' TTnScript (c) 1998-2007 F. Piette V6.00 ';
+    CopyRight : String = ' TTnScript (c) 1998-2010 F. Piette V6.00 ';
 
 type
     TnScriptException = class(Exception);
@@ -171,7 +178,7 @@ type
         procedure TriggerDataAvailable(Buffer : Pointer; Len: Integer); override;
         function  FindEventString(S : String; Flags : TEventFlags) : Integer; virtual;
         procedure ScanEvents; virtual;
-        procedure ProcessInputData(Buffer: PChar; Len: Integer); virtual;
+        procedure ProcessInputData(Buffer: PAnsiChar; Len: Integer); virtual;
         procedure TriggerDisplay(Msg : String); virtual;
         procedure TriggerStringMatch(ID : Integer); virtual;
         procedure NextOne(var N : Integer); virtual;
@@ -196,8 +203,6 @@ type
 
     end;
 
-procedure Register;
-
 implementation
 
 {$IFDEF DUMP}
@@ -211,12 +216,6 @@ const
                                           'CAN', 'EM',  'SUB', 'ESC',
                                           'FS',  'GS',  'RS',  'US');
 {$ENDIF}
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure Register;
-begin
-    RegisterComponents('FPiette', [TTnScript]);
-end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -583,7 +582,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TTnScript.ProcessInputData(Buffer: PChar; Len: Integer);
+procedure TTnScript.ProcessInputData(Buffer: PAnsiChar; Len: Integer);
 const
     Recurse : Integer = 0;
 var
@@ -619,7 +618,7 @@ begin
     { stored data (remember, we don't ever receive more than 1/2 buffer size }
     J := 0;
     while J < Len do begin
-        FInputBuffer[I] := Buffer[J];
+        FInputBuffer[I] := Char(Buffer[J]);
         Inc(J);
         NextOne(I);
         if FInputBufferCount = FInputBufferSize then
@@ -638,7 +637,7 @@ end;
 procedure TTnScript.TriggerDataAvailable(Buffer : Pointer; Len: Integer);
 begin
     if FEventList.Count > 0 then
-        ProcessInputData(PChar(Buffer), Len);
+        ProcessInputData(PAnsiChar(Buffer), Len);
 
     inherited TriggerDataAvailable(Buffer, Len);
 end;

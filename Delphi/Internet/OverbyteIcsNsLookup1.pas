@@ -4,11 +4,11 @@ Program:      NsLookup
 Description:  Demo for DnsQuery ICS component.
 Author:       François Piette
 Creation:     January 29, 1999
-Version:      6.00
+Version:      6.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2007 by François PIETTE
+Legal issues: Copyright (C) 1999-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -38,6 +38,10 @@ Feb 27, 1999 V1.01 Added PTR lookup (reverse DNS lookup)
 Mar 07, 1999 V1.02 Adapted for Delphi 1
 May 29, 2005 V1.03 Added TCP/UDP protocol selection. Added version infos.
 Mar 26, 2006 V6.00 New version 6 started
+Jul 19, 2008 V6.00 F.Piette made some changes for Unicode
+Dec 22, 2008 V6.01 F.Piette added a few explicit casts to avoid warning when
+                   compiling with D2009.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsNsLookup1;
@@ -45,13 +49,13 @@ unit OverbyteIcsNsLookup1;
 interface
 
 uses
-  WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, IniFiles, StdCtrls, ExtCtrls, Buttons,
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
+  Dialogs, OverbyteIcsIniFiles, StdCtrls, ExtCtrls, Buttons,
   OverbyteIcsWinSock, OverbyteIcsWSocket, OverbyteIcsDnsQuery;
 
 const
-  NsLookVersion      = 600;
-  CopyRight : String = ' NsLookup (c) 1999-2007 F. Piette V6.00 ';
+  NsLookVersion      = 601;
+  CopyRight : String = ' NsLookup (c) 1999-2010 F. Piette V6.01 ';
 
 type
   TNsLookupForm = class(TForm)
@@ -105,20 +109,19 @@ const
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNsLookupForm.FormCreate(Sender: TObject);
 begin
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
+    FIniFileName := GetIcsIniFileName;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNsLookupForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
 
-        IniFile       := TIniFile.Create(FIniFileName);
+        IniFile       := TIcsIniFile.Create(FIniFileName);
         Width         := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         Height        := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
         Top           := IniFile.ReadInteger(SectionWindow, KeyTop,
@@ -129,7 +132,7 @@ begin
         DnsEdit.Text  := IniFile.ReadString(SectionData, KeyDns,  '193.121.171.135');
         DisplayMemo.Clear;
         Display(Trim(CopyRight));
-        IniFile.Destroy;
+        IniFile.Free;
     end;
 end;
 
@@ -137,16 +140,17 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNsLookupForm.FormClose(Sender: TObject; var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionWindow, KeyTop,         Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,        Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,       Width);
     IniFile.WriteInteger(SectionWindow, KeyHeight,      Height);
     IniFile.WriteString(SectionData, KeyName, NameEdit.Text);
     IniFile.WriteString(SectionData, KeyDns,  DnsEdit.Text);
-    IniFile.Destroy;
+    IniFile.UpdateFile;
+    IniFile.Free;
 end;
 
 
@@ -162,7 +166,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNsLookupForm.DumpDnsResponse;
 var
-    P      : PChar;
+    P      : PAnsiChar;
     I      : Integer;
     Len    : Integer;
     Buf    : String;
@@ -174,7 +178,7 @@ begin
     I   := 0;
     while I < Len do begin
         if P^ in [' '..'~'] then
-            Buf := Buf + P^
+            Buf := Buf + Char(P^)
         else
             Buf := Buf + '<' + IntToStr(Ord(P^)) + '>';
         Inc(I);
@@ -210,13 +214,13 @@ begin
     Display('NSCount            : ' + IntToStr(DnsQuery1.ResponseNSCount));
     Display('ARCount            : ' + IntToStr(DnsQuery1.ResponseARCount));
     Display('ResponseLen        : ' + IntToStr(DnsQuery1.ResponseLen));
-    Display('QuestionName       : ' + DnsQuery1.QuestionName);
+    Display('QuestionName       : ' + String(DnsQuery1.QuestionName));
     Display('QuestionType       : ' + IntToStr(DnsQuery1.QuestionType));
     Display('QuestionClass      : ' + IntToStr(DnsQuery1.QuestionClass));
 
     for I := 0 to DnsQuery1.ResponseANCount - 1 do begin
         Display('Answer #' + IntToStr(I + 1));
-        Display('  AnswerName       : ' + DnsQuery1.AnswerName[I]);
+        Display('  AnswerName       : ' + String(DnsQuery1.AnswerName[I]));
         Display('  AnswerType       : ' + IntToStr(DnsQuery1.AnswerType[I]));
         Display('  AnswerClass      : ' + IntToStr(DnsQuery1.AnswerClass[I]));
         Display('  AnswerTTL        : ' + IntToStr(DnsQuery1.AnswerTTL[I]));
@@ -226,15 +230,17 @@ begin
             DnsQueryMX:
                 begin
                     Display('  MXPreference     : ' + IntToStr(DnsQuery1.MXPreference[nIndex]));
-                    Display('  MXExchange       : ' + DnsQuery1.MXExchange[nIndex]);
+                    Display('  MXExchange       : ' + String(DnsQuery1.MXExchange[nIndex]));
                 end;
             DnsQueryA:
                 begin
-                    Display('  Address          : ' + WSocket_inet_ntoa(DnsQuery1.Address[nIndex]));
+                    Display('  Address          : ' +
+                            String(WSocket_inet_ntoa(DnsQuery1.Address[nIndex])));
                 end;
             DnsQueryPTR:
                 begin
-                    Display('  Hostname         : ' + DnsQuery1.Hostname[nIndex]);
+                    Display('  Hostname         : ' +
+                            String(DnsQuery1.Hostname[nIndex]));
                 end;
             end;
         end;
@@ -259,7 +265,7 @@ begin
     else
         DnsQuery1.Proto := 'tcp';
     DnsQuery1.Addr := DnsEdit.Text;
-    FRequestID     := DnsQuery1.MXLookup(NameEdit.Text);
+    FRequestID     := DnsQuery1.MXLookup(AnsiString(NameEdit.Text));
     Display('Request ID         : ' + IntToStr(FRequestID));
 end;
 
@@ -272,7 +278,7 @@ begin
     else
         DnsQuery1.Proto := 'tcp';
     DnsQuery1.Addr := DnsEdit.Text;
-    FRequestID     := DnsQuery1.ALookup(NameEdit.Text);
+    FRequestID     := DnsQuery1.ALookup(AnsiString(NameEdit.Text));
     Display('Request ID         : ' + IntToStr(FRequestID));
 end;
 
@@ -285,7 +291,7 @@ begin
     else
         DnsQuery1.Proto := 'tcp';
     DnsQuery1.Addr := DnsEdit.Text;
-    FRequestID     := DnsQuery1.PTRLookup(NameEdit.Text);
+    FRequestID     := DnsQuery1.PTRLookup(AnsiString(NameEdit.Text));
     Display('Request ID         : ' + IntToStr(FRequestID));
 end;
 

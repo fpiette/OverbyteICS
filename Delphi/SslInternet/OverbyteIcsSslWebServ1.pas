@@ -8,11 +8,11 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      1.06
+Version:      1.08
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2007 by François PIETTE
+Legal issues: Copyright (C) 1999-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -56,25 +56,45 @@ Nov 19, 2005 V1.06 Make this sample support both HTTPS (SSL) and HTTP on two
 Dec 14, 2005 V1.07 A. Garrels fixed the call to get a session ID string,
                    added a simple SSL renegotiation request (doesn't work
                    with IE 6 so far!?).
+Aug 04, 2005 V1.08 A. Garrels made a few changes to prepare code for Unicode.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
-{$I+}
-
+{$I OverbyteIcsDefs.inc}
+{$IFNDEF DELPHI7_UP}
+    Bomb('This sample requires Delphi 7 or later');
+{$ENDIF}
 {$IFNDEF USE_SSL}
     Bomb('Add USE_SSL in the define section in project options');
 {$ENDIF}
+{$B-}                 { Enable partial boolean evaluation   }
+{$T-}                 { Untyped pointers                    }
+{$X+}                 { Enable extended syntax              }
+{$I+}                 { Turn IO exceptions to on            }
+{$H+}                 { Use long strings                    }
+{$J+}                 { Allow typed constant to be modified }
+{$IFDEF COMPILER12_UP}
+    { These are usefull for debugging !}
+    {$WARN IMPLICIT_STRING_CAST       OFF}
+    {$WARN IMPLICIT_STRING_CAST_LOSS  OFF}
+    {$WARN EXPLICIT_STRING_CAST       OFF}
+    {$WARN EXPLICIT_STRING_CAST_LOSS  OFF}
+{$ENDIF}
+{$WARN SYMBOL_PLATFORM   OFF}
+{$WARN SYMBOL_LIBRARY    OFF}
+{$WARN SYMBOL_DEPRECATED OFF}
+
 
 interface
 
 uses
-  WinTypes, WinProcs, Messages, SysUtils, Classes, Controls, Forms,
-  IniFiles, StdCtrls, ExtCtrls, WinSock, OverbyteIcsWSocket,
+  Windows, Messages, SysUtils, Classes, Controls, Forms,
+  OverbyteIcsIniFiles, StdCtrls, ExtCtrls, WinSock, OverbyteIcsWSocket,
   OverbyteIcsWSocketS, OverbyteIcsHttpSrv, OverbyteIcsLIBEAY,
-  OverbyteIcsSslSessionCache, OverbyteIcsLogger;
+  OverbyteIcsSslSessionCache, OverbyteIcsLogger, OverbyteIcsWndControl;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2006 F. Piette V1.07 ';
+  CopyRight : String         = 'WebServ (c) 1999-2010 F. Piette V1.07 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -84,7 +104,8 @@ type
   { his own private data.                                                   }
   TMyHttpConnection = class(THttpConnection)
   protected
-    FPostedDataBuffer : PChar;     { Will hold dynamically allocated buffer }
+    FPostedRawData    : PAnsiChar; { Will hold dynamically allocated buffer }
+    FPostedDataBuffer : PChar;     { Contains either Unicode or Ansi data   } 
     FPostedDataSize   : Integer;   { Databuffer size                        }
     FDataLen          : Integer;   { Keep track of received byte count.     }
     LastHandshake     : Longword;
@@ -131,8 +152,6 @@ type
     StartHttpButton: TButton;
     PortHttpEdit: TEdit;
     Label12: TLabel;
-    Label13: TLabel;
-    Label14: TLabel;
     Label15: TLabel;
     ClientHttpCountLabel: TLabel;
     RenegotiationIntervalEdit: TEdit;
@@ -248,55 +267,16 @@ const
     KeyRenegInterval   = 'RenegotiationInterval';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF VER80}
-function TrimRight(Str : String) : String;
-var
-    i : Integer;
-begin
-    i := Length(Str);
-    while (i > 0) and (Str[i] = ' ') do
-        i := i - 1;
-    Result := Copy(Str, 1, i);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TrimLeft(Str : String) : String;
-var
-    i : Integer;
-begin
-    if Str[1] <> ' ' then
-        Result := Str
-    else begin
-        i := 1;
-        while (i <= Length(Str)) and (Str[i] = ' ') do
-            i := i + 1;
-        Result := Copy(Str, i, Length(Str) - i + 1);
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function Trim(Str : String) : String;
-begin
-    Result := TrimLeft(TrimRight(Str));
-end;
-{$ENDIF}
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslWebServForm.FormCreate(Sender: TObject);
 begin
-{$IFDEF DELPHI10}
+{$IFDEF DELPHI10_UP}
     // BDS2006 has built-in memory leak detection and display
     ReportMemoryLeaksOnShutdown := (DebugHook <> 0);
 {$ENDIF}
     //IsConsole := AllocConsole;
     { Create IniFileName based on EXE file name; }
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
-    FLogFileName := Application.ExeName;
-    FLogFileName := Copy(FLogFileName, 1, Length(FLogFileName) - 3) + '.log';
+    FIniFileName := GetIcsIniFileName;
+    FLogFileName := ChangeFileExt(FIniFileName, '.log');
 end;
 
 
@@ -310,14 +290,14 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslWebServForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
     wsi     : TWSADATA;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
 
         { Restore persistent data from INI file }
-        IniFile      := TIniFile.Create(FIniFileName);
+        IniFile      := TIcsIniFile.Create(FIniFileName);
         Width        := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         Height       := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
         Top          := IniFile.ReadInteger(SectionWindow, KeyTop,
@@ -325,7 +305,7 @@ begin
         Left         := IniFile.ReadInteger(SectionWindow, KeyLeft,
                                             (Screen.Width  - Width)  div 2);
         DocDirEdit.Text     := IniFile.ReadString(SectionData, KeyDocDir,
-                                                  'c:\WwwRoot');
+                                                  '..\Internet\WebServData\WwwRoot');
         DefaultDocEdit.Text := IniFile.ReadString(SectionData, KeyDefaultDoc,
                                                   'index.html');
         PortHttpsEdit.Text  := IniFile.ReadString(SectionData, KeyPortHttps,
@@ -336,7 +316,7 @@ begin
                 Boolean(IniFile.ReadInteger(SectionData, KeyDisplayHeader, 0));
         WriteLogFileCheckBox.Checked :=
                 Boolean(IniFile.ReadInteger(SectionData, KeyLogToFile, 0));
-       DisplaySslInfoCheckBox.Checked :=
+        DisplaySslInfoCheckBox.Checked :=
                 Boolean(IniFile.ReadInteger(SectionData, KeyDisplaySslInfo, 0));
         CertFileEdit.Text    := IniFile.ReadString(SectionData, KeyCertFile,
                                                    '01cert.pem');
@@ -355,7 +335,7 @@ begin
                                                                   0));
         FRenegotiationInterval := IniFile.ReadInteger(SectionData,
                                                       KeyRenegInterval, 0);
-        IniFile.Destroy;
+        IniFile.Free;
 
         RenegotiationIntervalEdit.Text := IntToStr(FRenegotiationInterval);
         
@@ -379,8 +359,8 @@ begin
         Display('        Version ' +
                 Format('%d.%d', [WinsockInfo.wHighVersion shr 8,
                                  WinsockInfo.wHighVersion and 15]));
-        Display('        ' + StrPas(@wsi.szDescription));
-        Display('        ' + StrPas(@wsi.szSystemStatus));
+        Display('        ' + StrPas(wsi.szDescription));
+        Display('        ' + StrPas(wsi.szSystemStatus));
 {$IFNDEF VER100}
         { A bug in Delphi 3 makes lpVendorInfo invalid }
         if wsi.lpVendorInfo <> nil then
@@ -396,10 +376,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslWebServForm.FormClose(Sender: TObject; var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
     { Save persistent data to INI file }
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionWindow, KeyTop,         Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,        Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,       Width);
@@ -422,7 +402,8 @@ begin
     IniFile.WriteString(SectionData,    KeyAcceptableHosts, AcceptableHostsEdit.Text);
     IniFile.WriteInteger(SectionData,   KeyVerifyPeer,  Ord(VerifyPeerCheckBox.Checked));
     IniFile.WriteInteger(SectionData,   KeyRenegInterval, FRenegotiationInterval);
-    IniFile.Destroy;
+    IniFile.UpdateFile;
+    IniFile.Free;
     CloseLogFile;
 end;
 
@@ -440,9 +421,7 @@ begin
     finally
         DisplayMemo.Lines.EndUpdate;
         { Makes last line visible }
-        {$IFNDEF VER80}
         SendMessage(DisplayMemo.Handle, EM_SCROLLCARET, 0, 0);
-        {$ENDIF}
     end;
     if FLogFileOpened then begin
         try
@@ -674,7 +653,7 @@ var
 begin
     Location := (Client as THttpConnection).Params;
     if Location = '' then
-        Location := '/time.htm';
+        Location := '/time.html';
 
     { Let HTTP server component know we will send data to client }
     Flags  := hgWillSendMySelf;
@@ -696,8 +675,10 @@ begin
               'Content-Length: ' +
               IntToStr(Length(Body)) + #13#10 +
               #13#10;
-    Stream.Write(Header[1], Length(Header));
-    Stream.Write(Body[1],   Length(Body));
+    //Stream.Write(Header[1], Length(Header));
+    StreamWriteStrA(Stream, Header);
+    //Stream.Write(Body[1],   Length(Body));
+    StreamWriteStrA(Stream, Body);
     { We need to seek to start of stream ! }
     Stream.Seek(0, 0);
     { We ask server component to send the stream for us. }
@@ -762,8 +743,10 @@ begin
               'Content-Length: ' +
               IntToStr(Length(Body)) + #13#10 +
               #13#10;
-    Stream.Write(Header[1], Length(Header));
-    Stream.Write(Body[1],   Length(Body));
+    //Stream.Write(Header[1], Length(Header));
+    StreamWriteStrA(Stream, Header);
+    //Stream.Write(Body[1],   Length(Body));
+    StreamWriteStrA(Stream, Body);
     { We need to seek to start of stream ! }
     Stream.Seek(0, 0);
     { We ask server component to send the stream for us. }
@@ -826,18 +809,7 @@ begin
         { We need a buffer to hold posted data. We allocate as much as the }
         { size of posted data plus one byte for terminating nul char.      }
         { We should check for ContentLength = 0 and handle that case...    }
-{$IFDEF VER80}
-        if Remote.FPostedDataSize = 0 then begin
-            Remote.FPostedDataSize := Remote.RequestContentLength + 1;
-            GetMem(Remote.FPostedDataBuffer, Remote.FPostedDataSize);
-        end
-        else begin
-            ReallocMem(Remote.FPostedDataBuffer, Remote.FPostedDataSize, Remote.RequestContentLength + 1);
-            Remote.FPostedDataSize := Remote.RequestContentLength + 1;
-        end;
-{$ELSE}
-        ReallocMem(Remote.FPostedDataBuffer, Remote.RequestContentLength + 1);
-{$ENDIF}
+        ReallocMem(Remote.FPostedRawData, Remote.RequestContentLength + 1);
         { Clear received length }
         Remote.FDataLen := 0;
     end
@@ -860,7 +832,7 @@ procedure TSslWebServForm.SslHttpServer1PostedData(
 var
     Len     : Integer;
     Remains : Integer;
-    Junk    : array [0..255] of char;
+    Junk    : array [0..255] of AnsiChar;
     Remote  : TMyHttpConnection;
 begin
     { It's easyer to do the cast one time. Could use with clause... }
@@ -878,7 +850,7 @@ begin
     { Receive as much data as we need to receive. But warning: we may       }
     { receive much less data. Data will be split into several packets we    }
     { have to assemble in our buffer.                                       }
-    Len := Remote.Receive(Remote.FPostedDataBuffer + Remote.FDataLen, Remains);
+    Len := Remote.Receive(Remote.FPostedRawData + Remote.FDataLen, Remains);
     { Sometimes, winsock doesn't wants to givve any data... }
     if Len <= 0 then
         Exit;
@@ -888,10 +860,15 @@ begin
     { Add a nul terminating byte (handy to handle data as a string) }
     Remote.FPostedDataBuffer[Remote.FDataLen] := #0;
     { Display receive data so far }
-    Display('Data: ''' + StrPas(Remote.FPostedDataBuffer) + '''');
+    Display('Data: ''' + StrPas(Remote.FPostedRawData) + '''');
 
     { When we received the whole thing, we can process it }
     if Remote.FDataLen = Remote.RequestContentLength then begin
+{$IFDEF COMPILER12_UP}
+        Remote.FPostedDataBuffer := Pointer(UnicodeString(Remote.FPostedRawData)); // Cast to Unicode
+{$ELSE}
+        Remote.FPostedDataBuffer := Remote.FPostedRawData;
+{$ENDIF}
         { First we must tell the component that we've got all the data }
         Remote.PostedDataReceived;
         { Then we check if the request is one we handle }
@@ -934,7 +911,7 @@ begin
     else
         Stream := TFileStream.Create(FileName, fmCreate);
     Stream.Seek(0, soFromEnd);
-    Stream.Write(Buf[1], Length(Buf));
+    StreamWriteStrA(Stream, Buf);
     Stream.Destroy;
 
     { Now create output stream to send back to remote client }
@@ -953,8 +930,10 @@ begin
               'Content-Length: ' +
               IntToStr(Length(Body)) + #13#10 +
               #13#10;
-    Stream.Write(Header[1], Length(Header));
-    Stream.Write(Body[1],   Length(Body));
+    //Stream.Write(Header[1], Length(Header));
+    StreamWriteStrA(Stream, Header);
+    //Stream.Write(Body[1],   Length(Body));
+    StreamWriteStrA(Stream, Body);
     Stream.Seek(0, 0);
     { Ask HTTP server component to send data stream for us }
     Client.DocStream := Stream;
@@ -992,6 +971,11 @@ begin
     if Assigned(FPostedDataBuffer) then begin
         FreeMem(FPostedDataBuffer, FPostedDataSize);
         FPostedDataBuffer := nil;
+        FPostedDataSize   := 0;
+    end;
+    if Assigned(FPostedRawData) then begin
+        FreeMem(FPostedRawData);
+        FPostedRawData := nil;
         FPostedDataSize   := 0;
     end;
     inherited Destroy;
@@ -1082,8 +1066,14 @@ procedure TSslWebServForm.SslHttpServer1SslSvrGetSession(
 var
     LookupKey : string;
 begin
+{$IFDEF UNICODE}
+    { We need to get binary data into a UnicodeString, allocate enough space. }
+    { Not nice, however works in this case.                                   }
+    SetLength(LookupKey, (IDLen div 2) + (IdLen mod 2));
+{$ELSE}
     SetLength(LookupKey, IDLen);
-    StrLCopy(PChar(LookupKey), PChar(SessId), IDLen);
+{$ENDIF}
+    Move(SessId^, Pointer(LookupKey)^, IDLen);
     SslSession  := SslAvlSessionCache1.GetSvrSession(LookupKey +
                                                      Ssl_Session_ID_Context,
                                                      IncRefCount);
@@ -1100,8 +1090,14 @@ procedure TSslWebServForm.SslHttpServer1SslSvrNewSession(
 var
     LookupKey : string;
 begin
+{$IFDEF UNICODE}
+    { We need to get binary data into a UnicodeString, allocate enough space. }
+    { Not nice, however works in this case.                                   }
+    SetLength(LookupKey, (IDLen div 2) + (IdLen mod 2));
+{$ELSE}
     SetLength(LookupKey, IDLen);
-    StrLCopy(PChar(LookupKey), PChar(SessId), IDLen);
+{$ENDIF}
+    Move(SessId^, Pointer(LookupKey)^, IDLen);
     SslAvlSessionCache1.CacheSvrSession(SslSession,
                                         LookupKey + Ssl_Session_ID_Context,
                                         AddToInternalCache);

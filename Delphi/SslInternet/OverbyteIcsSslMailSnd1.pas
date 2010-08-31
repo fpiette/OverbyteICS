@@ -4,11 +4,11 @@
 Author:       François PIETTE
 Object:       How to use TSslSmtpCli component
 Creation:     09 october 1997
-Version:      2.07
+Version:      2.09
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2003 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -42,6 +42,11 @@ Legal issues: Copyright (C) 1997-2003 by François PIETTE
 Updates:
 Aug 20, 2003 SSL support added by Arno Garrels <arno.garrels@gmx.de>.
 Dec 29, 2007 A. Garrels reworked SSL, simplified verification code.
+Jul 23, 2008 A. Garrels changed code in OnGetDate event handler to prepare
+             code for Unicode
+Aug 03, 2008 A. Garrels changed code in OnGetDate event handler to prepare
+             code for Unicode again.
+May 17, 2009 A.Garrels added correct casts to PAnsiChar in SslSmtpClientHeaderLine.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslMailSnd1;
@@ -59,16 +64,16 @@ unit OverbyteIcsSslMailSnd1;
 interface
 
 uses
-  WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls, IniFiles,
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, ExtCtrls, OverbyteIcsIniFiles,
   OverbyteIcsWndControl,
   OverbyteIcsWSocket,
   OverbyteIcsLogger,
   OverbyteIcsSmtpProt;
 
 const
-  SslSmtpTestVersion    = 1.00;
-  CopyRight : String    = ' SslMailSnd (c) 1997-2006 F. Piette V1.00 ';
+  SslSmtpTestVersion    = 2.09;
+  CopyRight : String    = ' SslMailSnd (c) 1997-2010 F. Piette V2.09 ';
   WM_SSL_RECONNECT      = WM_USER + 1;
 
 type
@@ -215,18 +220,15 @@ const
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure SaveStringsToIniFile(
-    const IniFileName : String;
+    IniFile           : TIcsIniFile;
     const IniSection  : String;
     const IniKey      : String;
     Strings           : TStrings);
 var
-    IniFile : TIniFile;
     nItem   : Integer;
 begin
-    if (IniFileName = '') or (IniSection = '') or (IniKey = '') or
-       (not Assigned(Strings)) then
+    if (IniSection = '') or (IniKey = '') or (not Assigned(Strings)) then
         Exit;
-    IniFile := TIniFile.Create(IniFileName);
     IniFile.EraseSection(IniSection);
     if Strings.Count <= 0 then
         IniFile.WriteString(IniSection, IniKey + 'EmptyFlag', 'Empty')
@@ -235,43 +237,35 @@ begin
             IniFile.WriteString(IniSection,
                                 IniKey + IntToStr(nItem),
                                 Strings.Strings[nItem]);
-    IniFile.Free;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Return FALSE if non existant in IniFile                                   }
 function LoadStringsFromIniFile(
-    const IniFileName : String;
+    IniFile           : TIcsIniFile;
     const IniSection  : String;
     const IniKey      : String;
     Strings           : TStrings) : Boolean;
 var
-    IniFile : TIniFile;
     nItem   : Integer;
     I       : Integer;
     Buf     : String;
 begin
     Result := TRUE;
-    if (IniFileName = '') or (IniSection = '') or (IniKey = '') or
-       (not Assigned(Strings)) then
+    if (IniSection = '') or (IniKey = '') or  (not Assigned(Strings)) then
         Exit;
     Strings.Clear;
-    IniFile := TIniFile.Create(IniFileName);
-    try
-        if IniFile.ReadString(IniSection, IniKey + 'EmptyFlag', '') <> '' then
-             Exit;
-        IniFile.ReadSectionValues(IniSection, Strings);
-    finally
-        IniFile.Free;
-    end;
+    if IniFile.ReadString(IniSection, IniKey + 'EmptyFlag', '') <> '' then
+        Exit;
+    IniFile.ReadSectionValues(IniSection, Strings);
     nItem := Strings.Count - 1;
     while nItem >= 0 do begin
         Buf := Strings.Strings[nItem];
         if CompareText(IniKey, Copy(Buf, 1, Length(IniKey))) <> 0 then
             Strings.Delete(nItem)
         else begin
-            if not (Buf[Length(IniKey) + 1] in ['0'..'9']) then
+            if not (Word(Buf[Length(IniKey) + 1]) in [Ord('0')..Ord('9')]) then
                 Strings.Delete(nItem)
             else begin
                 I := Pos('=', Buf);
@@ -309,26 +303,25 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslSmtpTestForm.FormCreate(Sender: TObject);
 begin
-{$IFDEF DELPHI10}
+{$IFDEF DELPHI10_UP}
     // BDS2006 has built-in memory leak detection and display
     ReportMemoryLeaksOnShutdown := (DebugHook <> 0);
 {$ENDIF}
     //IsConsole := AllocConsole;
     Application.OnException := ExceptionHandler;
     DisplayMemo.Clear;
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
+    FIniFileName := GetIcsIniFileName;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslSmtpTestForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
-        IniFile := TIniFile.Create(FIniFileName);
+        IniFile := TIcsIniFile.Create(FIniFileName);
         HostEdit.Text    := IniFile.ReadString(SectionData, KeyHost,
                                                'localhost');
         PortEdit.Text    := IniFile.ReadString(SectionData, KeyPort,
@@ -364,10 +357,10 @@ begin
                                                'TrustedCaStore');
         PriorityComboBox.ItemIndex := IniFile.ReadInteger(SectionData, KeyPriority, 2);
 
-        if not LoadStringsFromIniFile(FIniFileName, SectionFileAttach,
+        if not LoadStringsFromIniFile(IniFile, SectionFileAttach,
                                       KeyFileAttach, FileAttachMemo.Lines) then
         FileAttachMemo.Text := 'ics_logo.gif' + #13#10 + 'fp_small.gif';
-        if not LoadStringsFromIniFile(FIniFileName, SectionMsgMemo,
+        if not LoadStringsFromIniFile(IniFile, SectionMsgMemo,
                                       KeyMsgMemo, MsgMemo.Lines) then
             MsgMemo.Text :=
             'This is the first line' + #13#10 +
@@ -391,9 +384,9 @@ end;
 procedure TSslSmtpTestForm.FormClose(Sender: TObject;
   var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteString(SectionData, KeyHost,             HostEdit.Text);
     IniFile.WriteString(SectionData, KeyPort,             PortEdit.Text);
     IniFile.WriteString(SectionData, KeyFrom,             FromEdit.Text);
@@ -413,14 +406,15 @@ begin
     IniFile.WriteString(SectionData, KeySslCaFile,        CAFileEdit.Text);
     IniFile.WriteString(SectionData, KeySslCaPath,        CAPathEdit.Text);
     IniFile.WriteInteger(SectionData, KeyPriority,        PriorityComboBox.ItemIndex);
-    SaveStringsToIniFile(FIniFileName, SectionFileAttach,
+    SaveStringsToIniFile(IniFile, SectionFileAttach,
                          KeyFileAttach, FileAttachMemo.Lines);
-    SaveStringsToIniFile(FIniFileName, SectionMsgMemo,
+    SaveStringsToIniFile(IniFile, SectionMsgMemo,
                          KeyMsgMemo, MsgMemo.Lines);
     IniFile.WriteInteger(SectionWindow, KeyTop,    Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,   Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,  Width);
     IniFile.WriteInteger(SectionWindow, KeyHeight, Height);
+    IniFile.UpdateFile;
     IniFile.Free;
 end;
 
@@ -490,19 +484,12 @@ procedure TSslSmtpTestForm.SslSmtpClientGetData(
     MsgLine : Pointer;
     MaxLen  : Integer;
     var More: Boolean);
-var
-    Len : Integer;
 begin
     if LineNum > MsgMemo.Lines.count then
         More := FALSE
-    else begin
-        Len := Length(MsgMemo.Lines[LineNum - 1]);
+    else
         { Truncate the line if too long (should wrap to next line) }
-        if Len >= MaxLen then
-            StrPCopy(MsgLine, Copy(MsgMemo.Lines[LineNum - 1], 1, MaxLen - 1))
-        else
-            StrPCopy(MsgLine, MsgMemo.Lines[LineNum - 1]);
-    end;
+        StrPLCopy(PAnsiChar(MsgLine), AnsiString(MsgMemo.Lines[LineNum - 1]), MaxLen - 1);
 end;
 
 
@@ -512,12 +499,14 @@ procedure TSslSmtpTestForm.SslSmtpClientHeaderLine(
     Msg    : Pointer;
     Size   : Integer);
 begin
-    { This demonstrate how to add a line to the message header              }
+    { This demonstrates how to add a line to the message header              }
     { Just detect one of the header lines and add text at the end of this   }
     { line. Use #13#10 to form a new line                                   }
     { Here we check for the From: header line and add a Comments: line      }
-    if StrLIComp(Msg, 'From:', 5) = 0 then
-        StrCat(Msg, #13#10 + 'Comments: This is a test');
+    { Cast properly in order to call the right overload in D2009            }
+    if (StrLen(PAnsiChar(Msg)) > 0) and
+       (StrLIComp(PAnsiChar(Msg), PAnsiChar('From:'), 5) = 0) then
+        StrCat(PAnsiChar(Msg), PAnsiChar(#13#10'Comments: This is a test'));
 end;
 
 

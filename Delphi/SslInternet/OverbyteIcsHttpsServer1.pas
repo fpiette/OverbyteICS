@@ -8,7 +8,7 @@ Version:      1.00.7
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2006 by François PIETTE
+Legal issues: Copyright (C) 2003-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -68,7 +68,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  StdCtrls, ExtCtrls, IniFiles, OverbyteIcsWinsock, OverbyteIcsWSocket,
+  StdCtrls, ExtCtrls, OverbyteIcsIniFiles, OverbyteIcsWinsock, OverbyteIcsWSocket,
   OverbyteIcsSSLEAY, OverbyteIcsLIBEAY, OverbyteIcsWndControl;
 
 const
@@ -327,8 +327,8 @@ end;
 procedure THttpsSrvForm.FormCreate(Sender: TObject);
 begin
     BigConsole(80, 100);
-    FIniFileName := LowerCase(ChangeFileExt(Application.ExeName, '.ini'));
-    LogFileName  := LowerCase(ChangeFileExt(Application.ExeName, '.log'));
+    FIniFileName := GetIcsIniFileName;
+    LogFileName  := ChangeFileExt(FIniFileName, '.log');
     LogText('!', 'Start ' + ProgName +
             ' V' + ProgVersion + ' ' + ProgDate + ', ' + ProgCopyright);
     LogClose;
@@ -375,12 +375,12 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpsSrvForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
 
-        IniFile      := TIniFile.Create(FIniFileName);
+        IniFile      := TIcsIniFile.Create(FIniFileName);
         Width        := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         Height       := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
         Top          := IniFile.ReadInteger(SectionWindow, KeyTop,
@@ -406,7 +406,7 @@ begin
         VerifyPeerCheckBox.Checked := Boolean(IniFile.ReadInteger(SectionData,
                                                                   KeyVerifyPeer,
                                                                   0));
-        IniFile.Destroy;
+        IniFile.Free;
         DisplayMemo.Clear;
         Display(Trim(CopyRight));
         Display('Using ' + Trim(OverbyteIcsWSocket.CopyRight));
@@ -419,9 +419,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpsSrvForm.FormClose(Sender: TObject; var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionWindow, KeyTop,         Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,        Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,       Width);
@@ -435,7 +435,8 @@ begin
     IniFile.WriteString(SectionData,    KeyCAPath,      CAPathEdit.Text);
     IniFile.WriteString(SectionData,    KeyAcceptableHosts, AcceptableHostsEdit.Text);
     IniFile.WriteInteger(SectionData,   KeyVerifyPeer,  Ord(VerifyPeerCheckBox.Checked));
-    IniFile.Destroy;
+    IniFile.UpdateFile;
+    IniFile.Free;
 end;
 
 

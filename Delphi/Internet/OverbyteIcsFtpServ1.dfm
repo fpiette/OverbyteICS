@@ -1,9 +1,9 @@
 object FtpServerForm: TFtpServerForm
   Left = 205
   Top = 121
-  Width = 384
-  Height = 302
   Caption = 'FtpServerSForm'
+  ClientHeight = 256
+  ClientWidth = 376
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -87,15 +87,15 @@ object FtpServerForm: TFtpServerForm
       Height = 13
       Caption = 'Root Directory'
     end
-    object Label2: TLabel
-      Left = 245
-      Top = 10
-      Width = 111
-      Height = 16
-      Caption = 'No Login Checks!!!'
+    object Label13: TLabel
+      Left = 242
+      Top = 12
+      Width = 56
+      Height = 13
+      Caption = 'Max KBytes'
       Font.Charset = DEFAULT_CHARSET
-      Font.Color = clRed
-      Font.Height = -13
+      Font.Color = clWindowText
+      Font.Height = -11
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
@@ -116,16 +116,31 @@ object FtpServerForm: TFtpServerForm
       TabOrder = 1
       Text = 'c:\temp'
     end
+    object MaxKB: TEdit
+      Left = 304
+      Top = 8
+      Width = 57
+      Height = 21
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 2
+      Text = 'MaxKB'
+    end
   end
   object FtpServer1: TFtpServer
     Addr = '0.0.0.0'
     Port = 'ftp'
+    ListenBackLog = 5
     Banner = '220 ICS FTP Server ready'
     UserData = 0
     MaxClients = 0
     PasvPortRangeStart = 21001
     PasvPortRangeSize = 99
-    Options = [ftpsCwdCheck, ftpsCalcMD5OnTheFly, ftpsModeZCompress, ftpsSiteXmlsd, ftpsThreadRecurDirs]
+    Options = [ftpsCwdCheck, ftpsCalcMD5OnTheFly, ftpsModeZCompress, ftpsSiteXmlsd, ftpsThreadRecurDirs, ftpsEnableUtf8, ftpsAutoDetectCodePage]
     MD5UseThreadFileSize = 1000000
     TimeoutSecsLogin = 60
     TimeoutSecsIdle = 300
@@ -136,6 +151,9 @@ object FtpServerForm: TFtpServerForm
     AlloExtraSpace = 1000000
     ZlibMinSpace = 50000000
     ZlibMaxSize = 500000000
+    CodePage = 0
+    Language = 'EN*'
+    MaxAttempts = 12
     OnStart = FtpServer1Start
     OnStop = FtpServer1Stop
     OnAuthenticate = FtpServer1Authenticate
@@ -146,6 +164,7 @@ object FtpServerForm: TFtpServerForm
     OnClientCommand = FtpServer1ClientCommand
     OnAnswerToClient = FtpServer1AnswerToClient
     OnChangeDirectory = FtpServer1ChangeDirectory
+    OnMakeDirectory = FtpServer1MakeDirectory
     OnBuildDirectory = FtpServer1BuildDirectory
     OnAlterDirectory = FtpServer1AlterDirectory
     OnStorSessionConnected = FtpServer1StorSessionConnected
@@ -153,7 +172,11 @@ object FtpServerForm: TFtpServerForm
     OnStorSessionClosed = FtpServer1StorSessionClosed
     OnRetrSessionClosed = FtpServer1RetrSessionClosed
     OnRetrDataSent = FtpServer1RetrDataSent
+    OnValidatePut = FtpServer1ValidatePut
+    OnValidateDele = FtpServer1ValidateDele
+    OnValidateRnFr = FtpServer1ValidateRnFr
     OnGetProcessing = FtpServer1GetProcessing
+    OnValidateMfmt = FtpServer1ValidateMfmt
     OnCalculateMd5 = FtpServer1CalculateMd5
     OnMd5Calculated = FtpServer1Md5Calculated
     OnCalculateCrc = FtpServer1CalculateCrc
@@ -168,12 +191,14 @@ object FtpServerForm: TFtpServerForm
     OnUpCompressFile = FtpServer1UpCompressFile
     OnUpCompressedFile = FtpServer1UpCompressedFile
     OnDisplay = FtpServer1Display
+    OnHost = FtpServer1Host
+    OnRein = FtpServer1Rein
     Left = 43
     Top = 103
   end
   object MainMenu1: TMainMenu
-    Left = 81
-    Top = 102
+    Left = 116
+    Top = 99
     object File1: TMenuItem
       Caption = '&File'
       object MnuStartServer: TMenuItem
@@ -208,6 +233,10 @@ object FtpServerForm: TFtpServerForm
       object Cleardisplay1: TMenuItem
         Caption = '&Clear display'
         OnClick = Cleardisplay1Click
+      end
+      object DisplayDirectories1: TMenuItem
+        Caption = 'Display &Directories'
+        OnClick = DisplayDirectories1Click
       end
     end
     object About1: TMenuItem

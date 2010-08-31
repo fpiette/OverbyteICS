@@ -1,11 +1,11 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <BorlandProject>
 	<PersonalityInfo>
 		<Option>
 			<Option Name="Personality">Delphi.Personality</Option>
 			<Option Name="ProjectType">VCLApplication</Option>
 			<Option Name="Version">1.0</Option>
-			<Option Name="GUID">{1C50CDE7-59E3-425C-9DC6-74BC0406B0E5}</Option>
+			<Option Name="GUID">{7A34D391-4F8E-4D07-9604-917E883816A4}</Option>
 		</Option>
 	</PersonalityInfo>
 	<Delphi.Personality>
@@ -123,7 +123,7 @@
 			<Directories Name="UnitOutputDir"></Directories>
 			<Directories Name="PackageDLLOutputDir"></Directories>
 			<Directories Name="PackageDCPOutputDir"></Directories>
-			<Directories Name="SearchPath"></Directories>
+			<Directories Name="SearchPath">..\Vc32</Directories>
 			<Directories Name="Packages">VCLX30;VCL30;VCLDB30;VCLDBX30;INETDB30;INET30;VCLSMP30;QRPT30;TEEUI30;TEEDB30;TEE30;DSS30;IBEVNT30;ics;MidWare;vcl;rtl</Directories>
 			<Directories Name="Conditionals">USE_SSL;DEBUG_OUTPUT</Directories>
 			<Directories Name="DebugSourceDirs"></Directories>
@@ -151,7 +151,7 @@
 			<VersionInfo Name="MinorVer">0</VersionInfo>
 			<VersionInfo Name="Release">0</VersionInfo>
 			<VersionInfo Name="Build">0</VersionInfo>
-			<VersionInfo Name="Debug">True</VersionInfo>
+			<VersionInfo Name="Debug">False</VersionInfo>
 			<VersionInfo Name="PreRelease">False</VersionInfo>
 			<VersionInfo Name="Special">False</VersionInfo>
 			<VersionInfo Name="Private">False</VersionInfo>

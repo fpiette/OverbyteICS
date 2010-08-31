@@ -7,9 +7,9 @@ Object:       Delphi component which implement the TCP/IP telnet protocol
 Author:       François PIETTE
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Creation:     April, 1996
-Version:      6.00
+Version:      7.00
 Support:      Use the mailing list twsocket@elists.org See website for details.
-Legal issues: Copyright (C) 1996-2007 by François PIETTE
+Legal issues: Copyright (C) 1996-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -57,6 +57,8 @@ May 31, 2004 V2.10 Used ICSDEFS.INC, removed unused units.
 Jan 13, 2005 V2.11 Replaced symbol "Debug" by "DEBUG_OUTPUT"
 Mar 11, 2006 V2.12 Arno Garrels made it NOFORMS compatible
 Mar 26, 2006 V6.00 New version 6 started from V5
+Aug 15, 2008 V7.00 Delphi 2009 (Unicode) support. The communication is not
+             unicode, but the component support unicode strings.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -66,6 +68,11 @@ unit OverbyteIcsTnCnx;
 {$T-}           { Untyped pointers                    }
 {$X+}           { Enable extended syntax              }
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
@@ -92,8 +99,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWinsock;
 
 const
-  TnCnxVersion       = 600;
-  CopyRight : String = ' TTnCnx (c) 1996-2007 F. Piette V6.00 ';
+  TnCnxVersion       = 700;
+  CopyRight : String = ' TTnCnx (c) 1996-2010 F. Piette V7.00 ';
 
   { Telnet command characters                                             }
   TNCH_EOR        = #239;     { $EF End Of Record (preceded by IAC)       }
@@ -155,7 +162,7 @@ type
     FLocalEcho          : Boolean;
     Spga                : Boolean;
     FTType              : Boolean;
-    FBuffer             : array [0..2048] of char;
+    FBuffer             : array [0..2048] of AnsiChar;
     FBufferCnt          : Integer;
     FOnSessionConnected : TTnSessionConnected;
     FOnSessionClosed    : TTnSessionClosed;
@@ -169,25 +176,25 @@ type
     procedure SocketSessionClosed(Sender: TObject; Error : word);
     procedure SocketDataAvailable(Sender: TObject; Error : word);
     procedure Display(Str : String);
-    procedure AddChar(Ch : Char);
-    procedure ReceiveChar(Ch : Char);
-    procedure Answer(chAns : Char; chOption : Char);
+    procedure AddChar(Ch : AnsiChar);
+    procedure ReceiveChar(Ch : AnsiChar);
+    procedure Answer(chAns : AnsiChar; chOption : AnsiChar);
     procedure NegociateSubOption(strSubOption : String);
-    procedure NegociateOption(chAction : Char; chOption : Char);
+    procedure NegociateOption(chAction : AnsiChar; chOption : AnsiChar);
     procedure FlushBuffer;
     function  GetState : TSocketState;
   public
     Socket      : TWSocket;
     constructor Create(AOwner: TComponent); override;
     destructor  Destroy; override;
-    function    Send(Data : Pointer; Len : Integer) : integer;
+    function    Send(Data : PChar; Len : Integer) : integer;
     function    SendStr(Data : String) : integer;
     procedure   Connect;
     function    IsConnected : Boolean;
-    procedure   WillOption(chOption : Char);
-    procedure   WontOption(chOption : Char);
-    procedure   DontOption(chOption : Char);
-    procedure   DoOption(chOption : Char);
+    procedure   WillOption(chOption : AnsiChar);
+    procedure   WontOption(chOption : AnsiChar);
+    procedure   DontOption(chOption : AnsiChar);
+    procedure   DoOption(chOption : AnsiChar);
     procedure   Notification(AComponent: TComponent; Operation: TOperation); override;
     procedure   Close;
     procedure   Pause;
@@ -222,18 +229,10 @@ type
                                                       write FOnLocalEcho;
   end;
 
-procedure Register;
-
 implementation
 
 {-$DEFINE DEBUG_OUTPUT}    { Add or remove minus sign before dollar sign to }
                            { generate code for debug message output         }
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure Register;
-begin
-  RegisterComponents('FPiette', [TTnCnx]);
-end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -384,7 +383,7 @@ end;
 procedure TTnCnx.SocketDataAvailable(Sender: TObject; Error : word);
 var
     Len, I : Integer;
-    Buffer : array [1..2048] of char;
+    Buffer : array [1..2048] of AnsiChar;
     Socket : TWSocket;
 begin
     Socket := Sender as TWSocket;
@@ -408,10 +407,41 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function  TTnCnx.Send(Data : Pointer; Len : Integer) : integer;
+function  TTnCnx.Send(
+    Data : PChar;               // This will send Ansi!
+    Len  : Integer) : integer;
+{$IFDEF COMPILER12_UP}
+var
+    I, L : Integer;
+    SBuf : array[0..1460 - 1] of AnsiChar;
+{$ENDIF}
 begin
     if Assigned(Socket) then
+{$IFDEF COMPILER12_UP}
+    begin
+        L := Len;
+        Result := 0;
+        while L > SizeOf(SBuf) do begin
+            for I := 0 to SizeOf(SBuf) - 1 do begin
+                SBuf[I] := AnsiChar(Data[I]);
+                Inc(Result);
+            end;
+            Socket.PutDataInSendBuffer(@SBuf, SizeOf(SBuf));
+            Dec(L, SizeOf(SBuf));
+        end;
+        if L > 0 then begin
+            for I := 0 to L - 1 do begin
+                SBuf[I] := AnsiChar(Data[I]);
+                Inc(Result);
+            end;
+            Socket.PutDataInSendBuffer(@SBuf, L);
+        end;
+        if Result > 0 then
+            Socket.Send(nil, 0);
+    end
+{$ELSE}
         Result := Socket.Send(Data, Len)
+{$ENDIF}
     else
         Result := -1;
 end;
@@ -425,7 +455,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TTnCnx.Answer(chAns : Char; chOption : Char);
+procedure TTnCnx.Answer(chAns : AnsiChar; chOption : AnsiChar);
 var
     Buf   : String[3];
 begin
@@ -436,28 +466,28 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TTnCnx.WillOption(chOption : Char);
+procedure TTnCnx.WillOption(chOption : AnsiChar);
 begin
     Answer(TNCH_WILL, chOption);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TTnCnx.WontOption(chOption : Char);
+procedure TTnCnx.WontOption(chOption : AnsiChar);
 begin
     Answer(TNCH_WONT, chOption);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TTnCnx.DontOption(chOption : Char);
+procedure TTnCnx.DontOption(chOption : AnsiChar);
 begin
     Answer(TNCH_DONT, chOption);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TTnCnx.DoOption(chOption : Char);
+procedure TTnCnx.DoOption(chOption : AnsiChar);
 begin
     Answer(TNCH_DO, chOption);
 end;
@@ -480,7 +510,8 @@ begin
                 if Assigned(FOnTermType) then
                     FOnTermType(Self);
                 Buf := TNCH_IAC + TNCH_SB + TN_TERMTYPE + TN_TTYPE_IS + FTermType + TNCH_IAC + TNCH_SE;
-                Socket.Send(@Buf[1], Length(Buf));
+                //Socket.Send(@Buf[1], Length(Buf));
+                Self.SendStr(Buf);
             end;
         end;
     else
@@ -490,7 +521,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TTnCnx.NegociateOption(chAction : Char; chOption : Char);
+procedure TTnCnx.NegociateOption(chAction : AnsiChar; chOption : AnsiChar);
 var
     Buf : String;
 begin
@@ -545,7 +576,7 @@ begin
                 if Assigned(FOnSendLoc) then
                     FOnSendLoc(Self);
                 Buf := TNCH_IAC + TNCH_SB + TN_SEND_LOC + FLocation + TNCH_IAC + TNCH_SE;
-                Socket.Send(@Buf[1], Length(Buf));
+                {Socket.}Send(@Buf[1], Length(Buf));
             end;
         end;
     TN_EOR:
@@ -569,7 +600,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TTnCnx.FlushBuffer;
 var
-    Buffer : PChar;
+    Buffer : PAnsiChar;
     Count  : Integer;
 begin
     try
@@ -605,7 +636,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TTnCnx.AddChar(Ch : Char);
+procedure TTnCnx.AddChar(Ch : AnsiChar);
 begin
     FBuffer[FBufferCnt] := Ch;
     Inc(FBufferCnt);
@@ -615,12 +646,12 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TTnCnx.ReceiveChar(Ch : Char);
+procedure TTnCnx.ReceiveChar(Ch : AnsiChar);
 const
-    bIAC         : Boolean = FALSE;
-    chVerb       : Char    = #0;
-    strSubOption : String  = '';
-    bSubNegoc    : Boolean = FALSE;
+    bIAC         : Boolean  = FALSE;
+    chVerb       : AnsiChar = #0;
+    strSubOption : String   = '';
+    bSubNegoc    : Boolean  = FALSE;
 begin
     if chVerb <> #0 then begin
         NegociateOption(chVerb, Ch);
@@ -636,7 +667,7 @@ begin
             strSubOption := '';
         end
         else
-            strSubOption := strSubOption + Ch;
+            strSubOption := strSubOption + Char(Ch);
         Exit;
     end;
 
@@ -660,12 +691,12 @@ begin
             end;
         TNCH_SB:
             begin
-{                DebugString('Subnegociation' + #13 + #10); }
+{               DebugString('Subnegociation' + #13 + #10); }
                 bSubNegoc := TRUE;
                 bIAC      := FALSE;
             end;
         else
-            DebugString('Unknown ' + IntToHex(ord(Ch), 2) + ' ''' + Ch + '''' + #13 + #10);
+            DebugString('Unknown ' + IntToHex(ord(Ch), 2) + ' ''' + Char(Ch) + '''' + #13 + #10);
             bIAC := FALSE;
         end;
 

@@ -1,11 +1,11 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <BorlandProject>
 	<PersonalityInfo>
 		<Option>
 			<Option Name="Personality" Type="String">Delphi.Personality</Option>
 			<Option Name="ProjectType" Type="String"></Option>
 			<Option Name="Version" Type="String">1.0</Option>
-			<Option Name="GUID" Type="String">{B8283AE6-C3FB-468C-AA0C-9992CE15B744}</Option>
+			<Option Name="GUID" Type="String">{644A3ED7-32CB-4062-A28F-8CC830F5E1BD}</Option>
 		</Option>
 	</PersonalityInfo>
 	<Delphi.Personality>
@@ -123,7 +123,7 @@
 			<Directories Name="UnitOutputDir" Type="String"></Directories>
 			<Directories Name="PackageDLLOutputDir" Type="String"></Directories>
 			<Directories Name="PackageDCPOutputDir" Type="String"></Directories>
-			<Directories Name="SearchPath" Type="String"></Directories>
+			<Directories Name="SearchPath" Type="String">..\Vc32</Directories>
 			<Directories Name="Packages" Type="String">rtl;vcl;IcsDel90</Directories>
 			<Directories Name="Conditionals" Type="String">NOFORMS</Directories>
 			<Directories Name="DebugSourceDirs" Type="String"></Directories>

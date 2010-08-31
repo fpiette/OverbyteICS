@@ -2,14 +2,14 @@
 
 Author:       François PIETTE
 Creation:     Aug 1997
-Version:      2.33
+Version:      7.07
 Object:       Demo for TFtpClient object (RFC 959 implementation)
               It is a graphical FTP client program
               Compatible with Delphi 1, 2, 3, 4 and 5
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -73,7 +73,18 @@ Oct 29, 2006  V2.32 Reworked the button click event handler to show exactly
               in ExecuteCmd but then no one has a clear vision about which
               property is used by each method.
 06 Jan 2008   V2.33 Angus added about 20 new buttons and edits for new client commands
-
+15 May 2008   V2.34 Arno added OverByteIcsUtils.pas to the uses clause.
+Nov 10, 2008  V7.00 Arno added OverbyteIcsIniFiles for Unicode settings
+Nov 13, 2008  V7.01 Angus added UTF-8 and code page support.
+              Added ConnectHost, Host and Rein (re-initialise connection)
+              Added LANG button and edit, OPTS edit with drop down with UTF8 opts
+              SiteCmlsd now uses XCmlsd, SiteDmlsd uses XDmlsd
+Nov 16, 2008  V7.02 Arno added option ftpAutoDetectCodePage which actually
+              detects UTF-8 only (it's not reliable). Modified code page related
+              code, and the demo now sets property CodePage to CP_UTF8 after
+              command Opts "UTF8 ON" succeeded.
+Apr 16, 2009  V7.07 Angus assume STREAM64, USE_ONPROGRESS64_ONLY, removed OnProgress
+              Removed local GetFileSize using IcsGetFileSize instead
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpTst1;
@@ -92,18 +103,17 @@ interface
 
 uses
   Windows, SysUtils, Messages, Classes, Graphics, Controls,
-  Forms, Dialogs, StdCtrls, IniFiles, ExtCtrls, WinSock,
-  OverByteIcsFtpCli,  OverbyteIcsFtpSrvT, 
+  Forms, Dialogs, StdCtrls, OverbyteIcsIniFiles, ExtCtrls, WinSock,
+  OverByteIcsUtils, OverByteIcsFtpCli,  OverbyteIcsFtpSrvT,
   OverByteIcsWSocket, OverbyteIcsWndControl;
 
 const
-  FTPTstVersion      = 233;
-  CopyRight : String = ' FtpTst (c) 1997-2008 F. Piette V2.33 ';
+  FTPTstVersion      = 707;
+  CopyRight : String = ' FtpTst (c) 1997-2010 F. Piette V7.07 ';
 
 type
   TSyncCmd   = function : Boolean  of object;
   TAsyncCmd  = procedure of object;
-  TFtpBigInt = {$IFDEF STREAM64} Int64 {$ELSE} Longint {$ENDIF};
 
   TFtpReceiveForm = class(TForm)
     DisplayMemo: TMemo;
@@ -189,9 +199,9 @@ type
     ClntAsyncButton: TButton;
     MlsdAsyncButton: TButton;
     MlstAsyncButton: TButton;
-    SiteCmlsdAsyncButton: TButton;
+    XCmlsdAsyncButton: TButton;
     FeatAsyncButton: TButton;
-    SiteDmlsdAsyncButton: TButton;
+    XDmlsdAsyncButton: TButton;
     Md5AsyncButton: TButton;
     MdtmAsyncButton: TButton;
     XcrcAsyncButton: TButton;
@@ -212,15 +222,21 @@ type
     ModeSAsyncButton: TButton;
     Label13: TLabel;
     MaxKB: TEdit;
+    CodePageEdit: TEdit;
+    Label14: TLabel;
+    ConnectHostAsyncButton: TButton;
+    HostAsyncButton: TButton;
+    ReinAsyncButton: TButton;
+    LangAsyncButton: TButton;
+    Label15: TLabel;
+    Lanugage: TEdit;
+    Label16: TLabel;
+    OptsEdit: TComboBox;
     procedure ExitButtonClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure DisplayHandler(Sender: TObject; var Msg : String);
-    procedure FtpClient1Progress(Sender: TObject; Count: Longint;
-      var Abort: Boolean);
-{$IFDEF STREAM64}
     procedure FtpClient1Progress64(Sender: TObject; Count: Int64;
       var Abort: Boolean);
-{$ENDIF}
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure OpenAsyncButtonClick(Sender: TObject);
@@ -278,14 +294,14 @@ type
     procedure MlsdAsyncButtonClick(Sender: TObject);
     procedure MlstAsyncButtonClick(Sender: TObject);
     procedure SiteExecAsyncButtonClick(Sender: TObject);
-    procedure SiteCmlsdAsyncButtonClick(Sender: TObject);
+    procedure XCmlsdAsyncButtonClick(Sender: TObject);
     procedure FeatAsyncButtonClick(Sender: TObject);
     procedure MdtmAsyncButtonClick(Sender: TObject);
     procedure Md5AsyncButtonClick(Sender: TObject);
     procedure XcrcAsyncButtonClick(Sender: TObject);
     procedure MfmtAsyncButtonClick(Sender: TObject);
     procedure SiteIndexAsyncButtonClick(Sender: TObject);
-    procedure SiteDmlsdAsyncButtonClick(Sender: TObject);
+    procedure XDmlsdAsyncButtonClick(Sender: TObject);
     procedure SitePaswdAsyncButtonClick(Sender: TObject);
     procedure SiteMsgAsyncButtonClick(Sender: TObject);
     procedure SiteZoneAsyncButtonClick(Sender: TObject);
@@ -295,10 +311,15 @@ type
     procedure OptsAsyncButtonClick(Sender: TObject);
     procedure ModeZAsyncButtonClick(Sender: TObject);
     procedure ModeSAsyncButtonClick(Sender: TObject);
+    procedure CodePageEditChange(Sender: TObject);
+    procedure ConnectHostAsyncButtonClick(Sender: TObject);
+    procedure HostAsyncButtonClick(Sender: TObject);
+    procedure ReinAsyncButtonClick(Sender: TObject);
+    procedure LangAsyncButtonClick(Sender: TObject);
   private
     FIniFileName   : String;
     FInitialized   : Boolean;
-    FLastProgress  : DWORD;
+    FLastProgress  : Int64;
     FProgressCount : TFtpBigInt;
     FRunning       : Boolean;
     procedure DisplayFile(FileName : String);
@@ -347,8 +368,6 @@ const
     KeyPosEnd     = 'PosEnd';
     KeyMaxKB      = 'MaxKB';
 
-function GetFileSize(const FileName: string): TFtpBigInt; forward;
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { To debug event driven programs, it is often handy to just use writeln to  }
@@ -384,20 +403,19 @@ begin
     DisplayMemo.Clear;
     InfoLabel.Caption  := '';
     StateLabel.Caption := '';
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
+    FIniFileName := GetIcsIniFileName;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpReceiveForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
     Data    : TWSAData;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
-        IniFile := TIniFile.Create(FIniFileName);
+        IniFile := TIcsIniFile.Create(FIniFileName);
         HostNameEdit.Text  := IniFile.ReadString(SectionData, KeyHostName,
                                                  'ftp.simtel.net');
         PortEdit.Text      := IniFile.ReadString(SectionData, KeyPort,
@@ -420,6 +438,7 @@ begin
                                                  '0');
         PosEndEdit.Text    := IniFile.ReadString(SectionData, KeyPosEnd,
                                                  '0');
+        CodePageEdit.Text  := '0';
         DataPortRangeStartEdit.Text :=
                               IniFile.ReadString(SectionData, KeyPortStart,
                                                  '0');
@@ -445,8 +464,8 @@ begin
         Display('Winsock version ' +
                 IntToStr(LOBYTE(Data.wHighVersion)) + '.' +
                 IntToStr(HIBYTE(Data.wHighVersion)));
-        Display(StrPas(Data.szDescription));
-        Display(StrPas(Data.szSystemStatus));
+        Display(String(StrPas(Data.szDescription)));
+        Display(String(StrPas(Data.szSystemStatus)));
     end;
 end;
 
@@ -456,9 +475,9 @@ procedure TFtpReceiveForm.FormClose(
     Sender     : TObject;
     var Action : TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteString(SectionData, KeyHostName,  HostNameEdit.Text);
     IniFile.WriteString(SectionData, KeyPort,      PortEdit.Text);
     IniFile.WriteString(SectionData, KeyUserName,  UserNameEdit.Text);
@@ -477,11 +496,12 @@ begin
     IniFile.WriteInteger(SectionData, KeySync    , Ord(SyncCheckBox.Checked   ));
     IniFile.WriteInteger(SectionData, KeyNoResume, Ord(NoAutoResumeAtCheckBox.Checked));
     IniFile.WriteInteger(SectionData, KeyBinary,   Ord(BinaryCheckBox.Checked));
-    IniFile.WriteString(SectionData, KeyMaxKB,     MaxKB.Text);
+    IniFile.WriteString(SectionData,  KeyMaxKB,    MaxKB.Text);
     IniFile.WriteInteger(SectionWindow, KeyTop,    Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,   Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,  Width);
     IniFile.WriteInteger(SectionWindow, KeyHeight, Height);
+    IniFile.UpdateFile;
     IniFile.Free;
 end;
 
@@ -493,9 +513,19 @@ var
 begin
     DisplayMemo.Lines.BeginUpdate;
     try
-        if DisplayMemo.Lines.Count > 2000 then begin
-            for I := 1 to 200 do
-                DisplayMemo.Lines.Delete(0);
+        if DisplayMemo.Lines.Count > 200 then begin
+            { This is much faster than deleting line by line of the memo }
+            { however still slow enough to throttle ICS speed!           }
+            with TStringList.Create do
+            try
+                BeginUpdate;
+                Assign(DisplayMemo.Lines);
+                for I := 1 to 50 do
+                    Delete(0);
+                DisplayMemo.Lines.Text := Text;
+            finally
+                Free;
+            end;
         end;
         DisplayMemo.Lines.Add(Msg);
     finally
@@ -518,25 +548,7 @@ begin
     Close;
 end;
 
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TFtpReceiveForm.FtpClient1Progress(
-    Sender    : TObject;
-    Count     : Longint;
-    var Abort : Boolean);
-begin
-    FProgressCount := Count;
-    { Be sure to update screen only once every second }
-    if FLastProgress < GetTickCount then begin
-        FLastProgress := GetTickCount + 1000;
-        InfoLabel.Caption := IntToStr(FProgressCount);
-        InfoLabel.Repaint;
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF STREAM64}
 procedure TFtpReceiveForm.FtpClient1Progress64(
     Sender    : TObject;
     Count     : Int64;
@@ -550,17 +562,38 @@ begin
         InfoLabel.Repaint;
     end;
 end;
-{$ENDIF}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpReceiveForm.DisplayFile(FileName : String);
+var
+    Strm : TFileStream;
+    S : AnsiString;
+    ACodePage: LongWord;
 begin
     { When display on the fly, no file is generated }
     if DisplayCheckBox.Checked then
         exit;
     try
-        DirectoryForm.DirListBox.Items.LoadFromFile(FileName);
+        Strm := TFileStream.Create(FileName, fmOpenRead);
+        try
+            SetLength(S, Strm.Size);
+            Strm.Read(S[1], Length(S));
+            { Auto-detect UTF-8 if Option is set }
+            if (FtpClient1.CodePage <> CP_UTF8) and
+               (ftpAutoDetectCodePage in FtpClient1.Options) and
+               (CharsetDetect(S) = cdrUtf8) then
+                ACodePage := CP_UTF8
+            else
+                ACodePage := FtpClient1.CodePage;
+            {$IFDEF UNICODE}
+                DirectoryForm.DirListBox.Items.Text := AnsiToUnicode(S, ACodePage);
+            {$ELSE}
+                DirectoryForm.DirListBox.Items.Text := ConvertCodepage(S, ACodePage, CP_ACP)
+            {$ENDIF}
+        finally
+            Strm.Free;
+        end;
     except
         DirectoryForm.DirListBox.Clear;
     end;
@@ -588,9 +621,18 @@ begin
 
     if ErrCode = 0 then begin
         case RqType of
+        ftpOptsAsync : if (FtpClient1.NewOpts = 'UTF8 ON') and
+                          (FtpClient1.StatusCode = 200) then
+                          CodePageEdit.Text := IntToStr(CP_UTF8)
+                       else if (FtpClient1.NewOpts = 'UTF8 OFF') and
+                          (FtpClient1.StatusCode = 200) then
+                          CodePageEdit.Text := IntToStr(CP_ACP);
+        { ftpFeatAsync : if ftpFeatUtf8 in FtpClient1.SupportedExtensions then
+                            CodePageEdit.Text := IntToStr(CP_UTF8); }
         ftpDirAsync, ftpDirectoryAsync,
         ftpLsAsync,  ftpListAsync,
         ftpMlsdAsync, ftpSiteCmlsdAsync,
+        ftpXCmlsdAsync, ftpXDmlsdAsync,
         ftpSiteDmlsdAsync, ftpSiteIndexAsync : DisplayFile(TEMP_FILE_NAME);
 
         ftpSizeAsync                    : Display(
@@ -602,7 +644,7 @@ begin
                                              'Directory is "' +
                                              FtpClient1.DirResult + '"');
         ftpGetAsync  : InfoLabel.Caption := InfoLabel.Caption + ' [' +
-                       IntToStr(GetFileSize(FtpClient1.LocalFileName)) + ']';
+                       IntToStr(IcsGetFileSize(FtpClient1.LocalFileName)) + ']';
         end;
     end;
 end;
@@ -657,13 +699,6 @@ begin
     end
     else
         FtpClient1.Options := FtpClient1.Options - [ftpBandwidthControl];
-{$IFDEF STREAM64}
-    FtpClient1.OnProgress64       := FtpClient1Progress64;
-    FtpClient1.OnProgress         := nil;
-    { Note: In order to publish property OnProgress64 instead of the old }
-    { 32-bit OnProgress event go to FtpCli.pas, uncomment                }
-    { USE_ONPROGRESS64_ONLY and rebuild the ICS package.                 }
-{$ENDIF}
     if SyncCheckBox.Checked then begin
         if SyncCmd then
             Display('Command Success')
@@ -734,6 +769,15 @@ begin
     ExecuteCmd(FtpClient1.Connect, FtpClient1.ConnectAsync);
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpReceiveForm.ConnectHostAsyncButtonClick(Sender: TObject);
+begin
+    // Connect require HostName and Port which are set in ExecuteCmd
+    // Connect is 4 commands in sequence: Open, Host, User and Pass.
+    FtpClient1.UserName        := UserNameEdit.Text;
+    FtpClient1.Password        := PasswordEdit.Text;
+    ExecuteCmd(FtpClient1.ConnectHost, FtpClient1.ConnectHostAsync);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpReceiveForm.GetAsyncButtonClick(Sender: TObject);
@@ -745,6 +789,12 @@ begin
     ExecuteCmd(FtpClient1.Get, FtpClient1.GetAsync);
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpReceiveForm.HostAsyncButtonClick(Sender: TObject);
+begin
+  // uses HostName parameter, may be sent before logon  
+    ExecuteCmd(FtpClient1.Host, FtpClient1.HostAsync);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpReceiveForm.ReceiveAsyncButtonClick(Sender: TObject);
@@ -827,6 +877,14 @@ begin
     FtpClient1.LocalFileName   := TEMP_FILE_NAME;
     FtpClient1.Passive         := PassiveCheckBox.Checked;
     ExecuteCmd(FtpClient1.List, FtpClient1.ListAsync);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpReceiveForm.LangAsyncButtonClick(Sender: TObject);
+begin
+    FtpClient1.Language := Lanugage.Text;
+    ExecuteCmd(FtpClient1.System, FtpClient1.LangAsync);
 end;
 
 
@@ -1239,30 +1297,11 @@ begin
     end;
 end;
 
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function GetFileSize(const FileName : String) : TFtpBigInt;
-var
-    SR : TSearchRec;
-{$IFDEF STREAM64}
-    TempSize: TULargeInteger ;  // 64-bit integer record
-{$ENDIF}
+procedure TFtpReceiveForm.ReinAsyncButtonClick(Sender: TObject);
 begin
-    if FindFirst(FileName, faReadOnly or faHidden or
-                 faSysFile or faArchive, SR) = 0 then begin
-{$IFDEF STREAM64}
-        TempSize.LowPart  := SR.FindData.nFileSizeLow;
-        TempSize.HighPart := SR.FindData.nFileSizeHigh;
-        Result := TempSize.QuadPart;
-{$ELSE}
-        Result := SR.Size;
-{$ENDIF}
-        Sysutils.FindClose(SR);
-    end
-    else
-        Result := -1;
+    ExecuteCmd(FtpClient1.Rein, FtpClient1.ReinAsync);
 end;
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TFtpReceiveForm.SendFile : Boolean;
@@ -1296,7 +1335,7 @@ begin
             raise Exception.Create('FtpClient1.Put failed: ' + FtpClient1.LastResponse);
         if not FtpClient1.Size then
             raise Exception.Create('FtpClient1.Size failed: ' + FtpClient1.ErrorMessage);
-        LocalSize := GetFileSize(FtpClient1.LocalFileName);
+        LocalSize := IcsGetFileSize(FtpClient1.LocalFileName);
         Result    := (FtpClient1.SizeResult = LocalSize);
         if not Result then
             Display('Incorrect file size on server (S=' +
@@ -1465,22 +1504,22 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TFtpReceiveForm.SiteCmlsdAsyncButtonClick(Sender: TObject);
+procedure TFtpReceiveForm.XCmlsdAsyncButtonClick(Sender: TObject);
 begin
-    if NOT (ftpFeatSiteCmlsd in FtpClient1.SupportedExtensions) then begin
+    if NOT (ftpFeatXCmlsd in FtpClient1.SupportedExtensions) then begin
         Display('Feature Not Available or FEAT Command Not Sent Yet');
         exit;
     end;
     DeleteFile(TEMP_FILE_NAME);
     FtpClient1.HostFileName    := HostFileEdit.Text;
     FtpClient1.LocalFileName   := TEMP_FILE_NAME;
-    ExecuteCmd(FtpClient1.SiteCmlsd, FtpClient1.SiteCmlsdAsync);
+    ExecuteCmd(FtpClient1.XCmlsd, FtpClient1.XCmlsdAsync);
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TFtpReceiveForm.SiteDmlsdAsyncButtonClick(Sender: TObject);
+procedure TFtpReceiveForm.XDmlsdAsyncButtonClick(Sender: TObject);
 begin
-    if NOT (ftpFeatSiteDmlsd in FtpClient1.SupportedExtensions) then begin
+    if NOT (ftpFeatXDmlsd in FtpClient1.SupportedExtensions) then begin
         Display('Feature Not Available or FEAT Command Not Sent Yet');
         exit;
     end;
@@ -1488,7 +1527,7 @@ begin
     FtpClient1.HostFileName    := HostFileEdit.Text;
     FtpClient1.LocalFileName   := TEMP_FILE_NAME;
     FtpClient1.Passive         := PassiveCheckBox.Checked;
-    ExecuteCmd(FtpClient1.SiteDmlsd, FtpClient1.SiteDmlsdAsync);
+    ExecuteCmd(FtpClient1.XDmlsd, FtpClient1.XDmlsdAsync);
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1557,7 +1596,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpReceiveForm.OptsAsyncButtonClick(Sender: TObject);
 begin
-    FtpClient1.NewOpts    := HostFileEdit.Text;
+    FtpClient1.NewOpts    := OptsEdit.Text;
     ExecuteCmd(FtpClient1.Opts, FtpClient1.OptsAsync);
 end;
 
@@ -1583,5 +1622,13 @@ begin
     ExecuteCmd(FtpClient1.ModeZ, FtpClient1.ModeZAsync);
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpReceiveForm.CodePageEditChange(Sender: TObject);
+begin
+    FtpClient1.CodePage := StrToIntDef(CodePageEdit.Text, 0);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 end.
 

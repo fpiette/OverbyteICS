@@ -7,7 +7,7 @@ Version:      1.02
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2002-2009 by François PIETTE
+Legal issues: Copyright (C) 2002-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -50,6 +50,12 @@ unit OverbyteIcsTimeList;
 {$X+}           { Enable extended syntax              }
 {$H+}           { Use long strings                    }
 {$J+}           { Allow typed constant to be modified }
+{$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 
 interface
 
@@ -107,16 +113,7 @@ type
     property OnDelete : TTimeListDeleteEvent read  FOnDelete write FOnDelete;
   end;
 
-procedure Register;
-
 implementation
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure Register;
-begin
-    RegisterComponents('FPiette', [TTimeList]);
-end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

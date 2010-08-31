@@ -17,20 +17,6 @@ object SslWebServForm: TSslWebServForm
   OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
-  object Label13: TLabel
-    Left = 320
-    Top = 98
-    Width = 79
-    Height = 13
-    Caption = ' Clients (HTTPS)'
-  end
-  object Label14: TLabel
-    Left = 404
-    Top = 98
-    Width = 105
-    Height = 13
-    Caption = 'ClientHttpsCountLabel'
-  end
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
@@ -366,6 +352,10 @@ object SslWebServForm: TSslWebServForm
     LingerOnOff = wsLingerNoSet
     LingerTimeout = 0
     Options = []
+    KeepAliveTimeSec = 10
+    MaxRequestsKeepAlive = 100
+    SizeCompressMin = 5000
+    SizeCompressMax = 5000000
     OnServerStarted = SslHttpServer1ServerStarted
     OnServerStopped = SslHttpServer1ServerStopped
     OnClientConnect = SslHttpServer1ClientConnect
@@ -413,6 +403,10 @@ object SslWebServForm: TSslWebServForm
     LingerOnOff = wsLingerNoSet
     LingerTimeout = 0
     Options = []
+    KeepAliveTimeSec = 10
+    MaxRequestsKeepAlive = 100
+    SizeCompressMin = 5000
+    SizeCompressMax = 5000000
     OnServerStarted = HttpServer2ServerStarted
     OnServerStopped = HttpServer2ServerStopped
     OnClientConnect = HttpServer2ClientConnect
@@ -426,7 +420,10 @@ object SslWebServForm: TSslWebServForm
     Top = 242
   end
   object IcsLogger1: TIcsLogger
+    TimeStampFormatString = 'hh:nn:ss:zzz'
+    TimeStampSeparator = ' '
     LogFileOption = lfoOverwrite
+    LogFileEncoding = lfeUtf8
     LogFileName = 'Debug_Out_SslWebServ.txt'
     LogOptions = []
     Left = 122

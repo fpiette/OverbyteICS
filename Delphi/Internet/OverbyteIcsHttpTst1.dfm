@@ -142,7 +142,6 @@ object HttpTestForm: THttpTestForm
       Width = 85
       Height = 21
       Style = csDropDownList
-      ItemHeight = 13
       TabOrder = 5
       Items.Strings = (
         'HTTP/1.0'
@@ -300,6 +299,7 @@ object HttpTestForm: THttpTestForm
     BandwidthSampling = 1000
     Options = []
     IcsLogger = IcsLogger1
+    Timeout = 30
     OnHeaderData = HttpCli1HeaderData
     OnCommand = HttpCli1Command
     OnDocBegin = HttpCli1DocBegin
@@ -313,7 +313,10 @@ object HttpTestForm: THttpTestForm
     Top = 136
   end
   object IcsLogger1: TIcsLogger
+    TimeStampFormatString = 'hh:nn:ss:zzz'
+    TimeStampSeparator = ' '
     LogFileOption = lfoAppend
+    LogFileEncoding = lfeUtf8
     LogOptions = [loDestOutDebug, loProtSpecErr, loProtSpecInfo]
     Left = 136
     Top = 136

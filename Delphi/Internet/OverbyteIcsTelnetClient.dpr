@@ -1,5 +1,7 @@
 program OverbyteIcsTelnetClient;
 
+{$R '..\Vc32\OverbyteIcsCommonVersion.res' '..\Vc32\OverbyteIcsCommonVersion.rc'}
+
 uses
   Forms,
   OverbyteIcsTelnetClient1 in 'OverbyteIcsTelnetClient1.pas' {TelnetForm};

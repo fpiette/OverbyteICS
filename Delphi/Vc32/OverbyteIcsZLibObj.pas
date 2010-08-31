@@ -2,6 +2,8 @@
   file   : IcsZLibObj.pas
   date   : 6 Dec 2005
   ICS version: Angus Robertson
+  Updates
+  Aug 05, 2008 F. Piette added some casts for unicode support
 
   Subject
   -------
@@ -29,6 +31,9 @@
   the program to avoid needing an external DLL, in IcsZLibObj
   Renamed the units for use with ICS from http://www.overbyte.be
   This OBJ files are from zlibpas by Gabriel Corneanu (gabrielcorneanu(AT)yahoo.com)
+  02 May 2008 by A.Garrels <arno.garrels@gmx.de>
+              Prepared code for Unicode, changed most types from String
+              and PChar to AnsiString and PAnsiChar.
 
   This software is provided 'as-is', without any express or implied warranty.
   In no event will the author be held liable for any damages arising from the use of this software.
@@ -41,19 +46,25 @@ unit OverbyteIcsZLibObj;
 
 interface
 
-uses
-    Windows;
-
 {$A-}             {no 32 bits alignment for records     }
 {$B-}             { Enable partial boolean evaluation   }
 {$T-}             { Untyped pointers                    }
 {$X+}             { Enable extended syntax              }
 {$I OverbyteIcsZlib.inc}
+{$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
     {$WARN SYMBOL_DEPRECATED OFF}
 {$ENDIF}
+
+uses
+    Windows;
 
 {xlb constants and variables}
 const
@@ -64,7 +75,7 @@ const
 var
    zlibDllLoaded     : boolean;
    zlibProblemAlert  : boolean;
-   zlibProblemString : string;
+   zlibProblemString : AnsiString;
    zlibRaiseError    : boolean;
    ZLibWinapi        : boolean;
 
@@ -144,7 +155,7 @@ type
       avail_out   : longint;           // remaining free space at next_out
       total_out   : longint;           // total nb of bytes output so far
 
-      msg         : pChar;             // last error message, NULL if no error
+      msg         : PAnsiChar;         // last error message, NULL if no error
       state       : pinternal_state;   // not visible by applications
 
       zalloc      : alloc_func;        // used to allocate the internal state
@@ -167,10 +178,10 @@ type
       inbuf       : pointer;           // input buffer
       outbuf      : pointer;           // output buffer
       crc         : longword;          // crc32 of uncompressed data
-      msg         : pChar;             // error message
-      path        : pChar;             // path name for debugging only
+      msg         : PAnsiChar;         // error message
+      path        : PAnsiChar;         // path name for debugging only
       transparent : longint;           // 1 if input file is not a .gz file
-      mode        : char;              // 'w' or 'r'
+      mode        : AnsiChar;              // 'w' or 'r'
       start       : longint;           // start of compressed data in file (header skipped)
       into        : longint;           // bytes into deflate or inflate
       outof       : longint;           // bytes out of deflate or inflate
@@ -195,9 +206,9 @@ type
     extra      : PByte;     //* pointer to extra field or Z_NULL if none */
     extra_len  : Cardinal;  //* extra field length (valid if extra != Z_NULL) */
     extra_max  : Cardinal;  //* space at extra (only when reading header) */
-    name       : PChar;     //* pointer to zero-terminated file name or Z_NULL */
+    name       : PAnsiChar;     //* pointer to zero-terminated file name or Z_NULL */
     name_max   : Cardinal;  //* space at name (only when reading header) */
-    comment    : PChar;     //* pointer to zero-terminated comment or Z_NULL */
+    comment    : PAnsiChar;     //* pointer to zero-terminated comment or Z_NULL */
     comm_max   : Cardinal;  //* space at comment (only when reading header) */
     hcrc       : integer;   //* true if there was or will be a header crc */
     done       : integer;   //* true when done reading gzip header (not used when writing a gzip file) */
@@ -210,11 +221,11 @@ type
 
 
 {zLib functions}
-function zlibVersionDll                : string;
+function zlibVersionDll                : AnsiString;
 function zlibCompileFlags              : longword;
 
 (* basic functions *)
-function zlibVersion: PChar;
+function zlibVersion: PAnsiChar;
 function deflateInit(var strm: z_stream; level: Integer): Integer;
 function deflate(var strm: z_stream; flush: Integer): Integer;
 function deflateEnd(var strm: z_stream): Integer;
@@ -225,7 +236,7 @@ function inflateEnd(var strm: z_stream): Integer;
 (* advanced functions *)
 function deflateInit2(var strm: z_stream; level, method, windowBits,
                       memLevel, strategy: Integer): Integer;
-function deflateSetDictionary(var strm: z_stream; const dictionary: PChar;
+function deflateSetDictionary(var strm: z_stream; const dictionary: PAnsiChar;
                               dictLength: Integer): Integer;
 function deflateCopy(var dest, source: z_stream): Integer;
 function deflateReset(var strm: z_stream): Integer;
@@ -233,13 +244,13 @@ function deflateParams(var strm: z_stream; level, strategy: Integer): Integer;
 function deflateBound(var strm: z_stream; sourceLen: LongInt): LongInt;
 function deflatePrime(var strm: z_stream; bits, value: Integer): Integer;
 function inflateInit2(var strm: z_stream; windowBits: Integer): Integer;
-function inflateSetDictionary(var strm: z_stream; const dictionary: PChar;
+function inflateSetDictionary(var strm: z_stream; const dictionary: PAnsiChar;
                               dictLength: Integer): Integer;
 function inflateSync(var strm: z_stream): Integer;
 function inflateCopy(var dest, source: z_stream): Integer;
 function inflateReset(var strm: z_stream): Integer;
 function inflateBackInit(var strm: z_stream;
-                         windowBits: Integer; window: PChar): Integer;
+                         windowBits: Integer; window: PAnsiChar): Integer;
 function inflateBack(var strm: z_stream; in_fn: in_func; in_desc: Pointer;
                      out_fn: out_func; out_desc: Pointer): Integer;
 function inflateBackEnd(var strm: z_stream): Integer;
@@ -248,32 +259,32 @@ function deflateInitEx(var strm: z_stream; level: Integer; streamtype: TZStreamT
 function inflateInitEx(var strm: z_stream; streamtype: TZStreamType = zsZLib): Integer;
 
 (* utility functions *)
-function compress(dest: PChar; var destLen: LongInt;
-                  const source: PChar; sourceLen: LongInt): Integer;
-function compress2(dest: PChar; var destLen: LongInt;
-                  const source: PChar; sourceLen: LongInt;
+function compress(dest: PAnsiChar; var destLen: LongInt;
+                  const source: PAnsiChar; sourceLen: LongInt): Integer;
+function compress2(dest: PAnsiChar; var destLen: LongInt;
+                  const source: PAnsiChar; sourceLen: LongInt;
                   level: Integer): Integer;
 function compressBound(sourceLen: LongInt): LongInt;
-function uncompress(dest: PChar; var destLen: LongInt;
-                    const source: PChar; sourceLen: LongInt): Integer;
+function uncompress(dest: PAnsiChar; var destLen: LongInt;
+                    const source: PAnsiChar; sourceLen: LongInt): Integer;
 
 (* checksum functions *)
-function adler32(adler: LongInt; const buf: PChar; len: Integer): LongInt;
-function crc32(crc: LongInt; const buf: PChar; len: Integer): LongInt;
+function adler32(adler: LongInt; const buf: PAnsiChar; len: Integer): LongInt;
+function crc32(crc: LongInt; const buf: PAnsiChar; len: Integer): LongInt;
 
 (* various hacks, don't look :) *)
 function deflateInit_(var strm: z_stream; level: Integer;
-                      const version: PChar; stream_size: Integer): Integer;
-function inflateInit_(var strm: z_stream; const version: PChar;
+                      const version: PAnsiChar; stream_size: Integer): Integer;
+function inflateInit_(var strm: z_stream; const version: PAnsiChar;
                       stream_size: Integer): Integer;
 function deflateInit2_(var strm: z_stream;
                        level, method, windowBits, memLevel, strategy: Integer;
-                       const version: PChar; stream_size: Integer): Integer;
+                       const version: PAnsiChar; stream_size: Integer): Integer;
 function inflateInit2_(var strm: z_stream; windowBits: Integer;
-                       const version: PChar; stream_size: Integer): Integer;
+                       const version: PAnsiChar; stream_size: Integer): Integer;
 function inflateBackInit_(var strm: z_stream;
-                          windowBits: Integer; window: PChar;
-                          const version: PChar; stream_size: Integer): Integer;
+                          windowBits: Integer; window: PAnsiChar;
+                          const version: PAnsiChar; stream_size: Integer): Integer;
 
 function deflateSetHeader(var strm: z_stream; var head: gz_header): integer;
 function inflateGetHeader(var strm: z_stream; var head: gz_header): integer;
@@ -285,7 +296,7 @@ procedure zlibFreeMem(AppData, Block: Pointer); cdecl;
 {added functions}
 function  ZLibCheck                    (Code : longint) : longint;
 procedure ZLibError;
-function  ZLibFlagsString              (ZLibFlag : tZLibFlag) : string;
+function  ZLibFlagsString              (ZLibFlag : tZLibFlag) : AnsiString;
 procedure ZLibSetDeflateStateItem      (strm : TZStreamRec; Index : integer; Value : integer);
 function  ZLibGetDeflateStateItem      (strm : TZStreamRec; Index : integer) : integer;
 
@@ -303,7 +314,7 @@ uses SysUtils;
 const
    {return code messages}
 
-   ZLibErrMsg  : array[-6..2] of pChar = (
+   ZLibErrMsg  : array[-6..2] of PAnsiChar = (
      'incompatible version', // Z_VERSION_ERROR  (-6)
      'buffer error',         // Z_BUF_ERROR      (-5)
      'insufficient memory',  // Z_MEM_ERROR      (-4)
@@ -387,12 +398,13 @@ begin
                   Z_DLL_NOT_FOUND               : zlibProblemString := 'Dll not found';
                   Z_UNKNOWN_COMPRESSION_VERSION : zlibProblemString := 'Unknown compression stream version';
                   Z_CHECK_PROBLEM               : zlibProblemString := 'Check problem';
-                                           else   zlibProblemString := 'Error n°' + inttostr(-Code);
+                                           else   zlibProblemString := 'Error n°' + AnsiString(IntToStr(-Code));
                end;
           end else
                zlibProblemString := ZLibErrMsg[Code];
 
-          if zlibRaiseError then raise EZLibCheckError.Create(zlibProblemString);
+          if zlibRaiseError then
+              raise EZLibCheckError.Create(String(zlibProblemString));
      end;
 end;
 {==============================================================================}
@@ -408,17 +420,17 @@ begin
 end;
 {==============================================================================}
 
-function zlibVersionDll : string;
+function zlibVersionDll : AnsiString;
 begin
     Result := zlibVersion ;
 end;
 
 {==============================================================================}
 
-function ZLibFlagsString(ZLibFlag : tZLibFlag) : string;
+function ZLibFlagsString(ZLibFlag : tZLibFlag) : AnsiString;
 var  Flags : longword;
 
-     function FlagSize(L : longword) : string;
+     function FlagSize(L : longword) : AnsiString;
      var  N : longword;
      begin
           N := (Flags shr L) and $0003;
@@ -550,7 +562,7 @@ begin
 end;
 
 function inflateBackInit(var strm: z_stream;
-                         windowBits: Integer; window: PChar): Integer;
+                         windowBits: Integer; window: PAnsiChar): Integer;
 begin
   Result := inflateBackInit_(strm, windowBits, window,
                              ZLIB_VERSION, sizeof(z_stream));
@@ -588,6 +600,7 @@ begin
 end;
 
 {==============================================================================}
+{ EZLibCheckError }
 
 initialization
 // If the compiler doesn't find the obj files

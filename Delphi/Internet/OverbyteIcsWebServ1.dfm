@@ -1,9 +1,9 @@
 object WebServForm: TWebServForm
-  Left = 130
-  Top = 386
+  Left = 253
+  Top = 158
   Caption = 'ICS WebServer Demo - http://www.overbyte.be'
-  ClientHeight = 281
-  ClientWidth = 501
+  ClientHeight = 335
+  ClientWidth = 523
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -20,19 +20,20 @@ object WebServForm: TWebServForm
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
-    Width = 501
-    Height = 105
+    Width = 523
+    Height = 125
     Align = alTop
     TabOrder = 0
+    ExplicitWidth = 515
     object Label1: TLabel
-      Left = 36
+      Left = 40
       Top = 8
       Width = 33
       Height = 13
       Caption = 'DocDir'
     end
     object Label2: TLabel
-      Left = 16
+      Left = 19
       Top = 32
       Width = 54
       Height = 13
@@ -46,32 +47,46 @@ object WebServForm: TWebServForm
       Caption = 'Port'
     end
     object ClientCountLabel: TLabel
-      Left = 348
-      Top = 87
+      Left = 294
+      Top = 34
       Width = 80
       Height = 13
       Caption = 'ClientCountLabel'
     end
     object Label5: TLabel
-      Left = 312
-      Top = 87
-      Width = 31
+      Left = 258
+      Top = 34
+      Width = 34
       Height = 13
-      Caption = 'Clients'
+      Caption = 'Clients:'
     end
     object Label4: TLabel
-      Left = 16
-      Top = 83
+      Left = 23
+      Top = 81
       Width = 50
       Height = 13
       Caption = 'Redir URL'
     end
     object Label6: TLabel
-      Left = 14
-      Top = 55
+      Left = 16
+      Top = 57
       Width = 57
       Height = 13
       Caption = 'TemplateDir'
+    end
+    object Label7: TLabel
+      Left = 357
+      Top = 77
+      Width = 90
+      Height = 13
+      Caption = 'KeepAliveTimeSec'
+    end
+    object Label8: TLabel
+      Left = 334
+      Top = 101
+      Width = 113
+      Height = 13
+      Caption = 'MaxRequestsKeepAlive'
     end
     object DocDirEdit: TEdit
       Left = 80
@@ -83,7 +98,7 @@ object WebServForm: TWebServForm
     end
     object DefaultDocEdit: TEdit
       Left = 80
-      Top = 28
+      Top = 29
       Width = 165
       Height = 21
       TabOrder = 1
@@ -126,7 +141,7 @@ object WebServForm: TWebServForm
     end
     object DisplayHeaderCheckBox: TCheckBox
       Left = 389
-      Top = 68
+      Top = 57
       Width = 97
       Height = 17
       Alignment = taLeftJustify
@@ -135,7 +150,7 @@ object WebServForm: TWebServForm
     end
     object WriteLogFileCheckBox: TCheckBox
       Left = 389
-      Top = 45
+      Top = 40
       Width = 97
       Height = 17
       Alignment = taLeftJustify
@@ -145,7 +160,7 @@ object WebServForm: TWebServForm
     end
     object DirListCheckBox: TCheckBox
       Left = 401
-      Top = 25
+      Top = 23
       Width = 85
       Height = 17
       Alignment = taLeftJustify
@@ -174,18 +189,42 @@ object WebServForm: TWebServForm
     end
     object TemplateDirEdit: TEdit
       Left = 80
-      Top = 52
+      Top = 54
       Width = 165
       Height = 21
       TabOrder = 11
       Text = 'TemplateDirEdit'
     end
+    object KeepAliveTimeSecEdit: TEdit
+      Left = 453
+      Top = 74
+      Width = 33
+      Height = 21
+      Hint = 'Idle timeout in seconds upon persistent connections (Keep-Alive)'
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 12
+      Text = 'KeepAliveTimeSecEdit'
+    end
+    object MaxRequestsKeepAliveEdit: TEdit
+      Left = 453
+      Top = 98
+      Width = 33
+      Height = 21
+      Hint = 
+        'Maximum number of requests during live time of persistent connec' +
+        'tions (Keep-Alive)'
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 13
+      Text = 'MaxRequestsKeepAliveEdit'
+    end
   end
   object DisplayMemo: TMemo
     Left = 0
-    Top = 105
-    Width = 501
-    Height = 176
+    Top = 125
+    Width = 523
+    Height = 210
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -210,6 +249,10 @@ object WebServForm: TWebServForm
     LingerOnOff = wsLingerNoSet
     LingerTimeout = 1
     Options = []
+    KeepAliveTimeSec = 10
+    MaxRequestsKeepAlive = 100
+    SizeCompressMin = 5000
+    SizeCompressMax = 5000000
     OnServerStarted = HttpServer1ServerStarted
     OnServerStopped = HttpServer1ServerStopped
     OnClientConnect = HttpServer1ClientConnect
@@ -224,7 +267,7 @@ object WebServForm: TWebServForm
     OnAuthNtlmBeforeValidate = HttpServer1AuthNtlmBeforeValidate
     AuthTypes = []
     AuthRealm = 'ics'
-    Left = 32
-    Top = 131
+    Left = 18
+    Top = 179
   end
 end

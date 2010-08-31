@@ -1,0 +1,250 @@
+#------------------------------------------------------------------------------
+VERSION = BWS.01
+#------------------------------------------------------------------------------
+!ifndef ROOT
+ROOT = $(MAKEDIR)\..
+!endif
+#------------------------------------------------------------------------------
+MAKE = $(ROOT)\bin\make.exe -$(MAKEFLAGS) -f$**
+DCC = $(ROOT)\bin\dcc32.exe $**
+BRCC = $(ROOT)\bin\brcc32.exe $**
+#------------------------------------------------------------------------------
+PROJECTS = OverbyteIcsD7Run.bpl OverbyteIcsD7Design.bpl OverbyteIcsConFtp.exe \
+  OverbyteIcsFtpTst.exe OverbyteIcsHttpTst.exe OverbyteIcsTcpSrv.exe \
+  OverbyteIcsWebServ.exe OverbyteIcsFtpServ.exe OverbyteIcsMailSnd.exe \
+  OverbyteIcsMailRcv.exe OverbyteIcsHttpPost.exe OverbyteIcsNewsReader.exe \
+  OverbyteIcsTelnetClient.exe OverbyteIcsPingTst.exe OverbyteIcsNsLookup.exe \
+  OverbyteIcsHttpMultipartDownload.exe OverbyteIcsFtpMultipartDownload.exe \
+  OverbyteIcsMailHtml.exe OverbyteIcsDnsLook.exe OverbyteIcsDnsResolver.exe \
+  OverbyteIcsConHttp.exe OverbyteIcsHttpAsy.exe OverbyteIcsHttpAsp.exe \
+  OverbyteIcsCliDemo.exe OverbyteIcsBinCliDemo.exe OverbyteIcsMimeDemo.exe \
+  OverbyteIcsWebAppServer.exe OverbyteIcsConSmtp.exe OverbyteIcsBasFtp.exe \
+  OverbyteIcsBasNntp.exe OverbyteIcsClient5.exe OverbyteIcsClient7.exe \
+  OverbyteIcsConCli1.exe OverbyteIcsConCli2.exe OverbyteIcsConPing.exe \
+  OverbyteIcsConPop3.exe OverbyteIcsConSrv1.exe OverbyteIcsConUdpLstn.exe \
+  OverbyteIcsDll1.dll OverbyteIcsDll2.dll OverbyteIcsDllTst.exe \
+  OverbyteIcsDynCli.exe OverbyteIcsFinger.exe OverbyteIcsFtpAsy.exe \
+  OverbyteIcsFtpMulti.exe OverbyteIcsFtpThrd.exe OverbyteIcsHttpChk.exe \
+  OverbyteIcsHttpDmo.exe OverbyteIcsHttpGet.exe OverbyteIcsHttpPg.exe \
+  OverbyteIcsHttpThrd.exe OverbyteIcsIsapi.dll OverbyteIcsMailSndAsync.exe \
+  OverbyteIcsMD5File.exe OverbyteIcsMtSrv.exe OverbyteIcsRecv.exe \
+  OverbyteIcsSender.exe OverbyteIcsServer5.exe OverbyteIcsSocksTst.exe \
+  OverbyteIcsSrvDemo.exe OverbyteIcsSrvTcp.exe OverbyteIcsSvcTcp.exe \
+  OverbyteIcsThrdSrv.exe OverbyteIcsThrdSrvV2.exe OverbyteIcsThrdSrvV3.exe \
+  OverbyteIcsTnDemo.exe OverbyteIcsTnSrv.exe OverbyteIcsTWSChat.exe \
+  OverbyteIcsUdpLstn.exe OverbyteIcsUdpSend.exe
+#------------------------------------------------------------------------------
+default: $(PROJECTS)
+#------------------------------------------------------------------------------
+
+OverbyteIcsD7Run.bpl: ..\Vc32\OverbyteIcsD7Run.dpk
+  $(DCC)
+
+OverbyteIcsD7Design.bpl: ..\Vc32\OverbyteIcsD7Design.dpk
+  $(DCC)
+
+OverbyteIcsHttpTst.exe: OverbyteIcsHttpTst.dpr
+  $(DCC)
+
+OverbyteIcsTcpSrv.exe: OverbyteIcsTcpSrv.dpr
+  $(DCC)
+
+OverbyteIcsWebServ.exe: OverbyteIcsWebServ.dpr
+  $(DCC)
+
+OverbyteIcsFtpTst.exe: OverbyteIcsFtpTst.dpr
+  $(DCC)
+
+OverbyteIcsConFtp.exe: OverbyteIcsConFtp.dpr
+  $(DCC)
+
+OverbyteIcsFtpServ.exe: OverbyteIcsFtpServ.dpr
+  $(DCC)
+
+OverbyteIcsMailSnd.exe: OverbyteIcsMailSnd.dpr
+  $(DCC)
+
+OverbyteIcsMailRcv.exe: OverbyteIcsMailRcv.dpr
+  $(DCC)
+
+OverbyteIcsHttpPost.exe: OverbyteIcsHttpPost.dpr
+  $(DCC)
+
+OverbyteIcsNewsReader.exe: OverbyteIcsNewsReader.dpr
+  $(DCC)
+
+OverbyteIcsTelnetClient.exe: OverbyteIcsTelnetClient.dpr
+  $(DCC)
+
+OverbyteIcsPingTst.exe: OverbyteIcsPingTst.dpr
+  $(DCC)
+
+OverbyteIcsNsLookup.exe: OverbyteIcsNsLookup.dpr
+  $(DCC)
+
+OverbyteIcsHttpMultipartDownload.exe: OverbyteIcsHttpMultipartDownload.dpr
+  $(DCC)
+
+OverbyteIcsFtpMultipartDownload.exe: OverbyteIcsFtpMultipartDownload.dpr
+  $(DCC)
+
+OverbyteIcsMailHtml.exe: OverbyteIcsMailHtml.dpr
+  $(DCC)
+
+OverbyteIcsDnsLook.exe: OverbyteIcsDnsLook.dpr
+  $(DCC)
+
+OverbyteIcsDnsResolver.exe: OverbyteIcsDnsResolver.dpr
+  $(DCC)
+
+OverbyteIcsConHttp.exe: OverbyteIcsConHttp.dpr
+  $(DCC)
+
+OverbyteIcsHttpAsy.exe: OverbyteIcsHttpAsy.dpr
+  $(DCC)
+
+OverbyteIcsHttpAsp.exe: OverbyteIcsHttpAsp.dpr
+  $(DCC)
+
+OverbyteIcsCliDemo.exe: OverbyteIcsCliDemo.dpr
+  $(DCC)
+
+OverbyteIcsBinCliDemo.exe: OverbyteIcsBinCliDemo.dpr
+  $(DCC)
+
+OverbyteIcsMimeDemo.exe: OverbyteIcsMimeDemo.dpr
+  $(DCC)
+
+OverbyteIcsWebAppServer.exe: OverbyteIcsWebAppServer.dpr
+  $(DCC)
+
+OverbyteIcsConSmtp.exe: OverbyteIcsConSmtp.dpr
+  $(DCC)
+
+OverbyteIcsBasFtp.exe: OverbyteIcsBasFtp.dpr
+  $(DCC)
+
+OverbyteIcsBasNntp.exe: OverbyteIcsBasNntp.dpr
+  $(DCC)
+
+OverbyteIcsClient5.exe: OverbyteIcsClient5.dpr
+  $(DCC)
+
+OverbyteIcsClient7.exe: OverbyteIcsClient7.dpr
+  $(DCC)
+
+OverbyteIcsConCli1.exe: OverbyteIcsConCli1.dpr
+  $(DCC)
+
+OverbyteIcsConCli2.exe: OverbyteIcsConCli2.dpr
+  $(DCC)
+
+OverbyteIcsConPing.exe: OverbyteIcsConPing.dpr
+  $(DCC)
+
+OverbyteIcsConPop3.exe: OverbyteIcsConPop3.dpr
+  $(DCC)
+
+OverbyteIcsConSrv1.exe: OverbyteIcsConSrv1.dpr
+  $(DCC)
+
+OverbyteIcsConUdpLstn.exe: OverbyteIcsConUdpLstn.dpr
+  $(DCC)
+
+OverbyteIcsDll1.dll: OverbyteIcsDll1.dpr
+  $(DCC)
+
+OverbyteIcsDll2.dll: OverbyteIcsDll2.dpr
+  $(DCC)
+
+OverbyteIcsDllTst.exe: OverbyteIcsDllTst.dpr
+  $(DCC)
+
+OverbyteIcsDynCli.exe: OverbyteIcsDynCli.dpr
+  $(DCC)
+
+OverbyteIcsFinger.exe: OverbyteIcsFinger.dpr
+  $(DCC)
+
+OverbyteIcsFtpAsy.exe: OverbyteIcsFtpAsy.dpr
+  $(DCC)
+
+OverbyteIcsFtpMulti.exe: OverbyteIcsFtpMulti.dpr
+  $(DCC)
+
+OverbyteIcsFtpThrd.exe: OverbyteIcsFtpThrd.dpr
+  $(DCC)
+
+OverbyteIcsHttpChk.exe: OverbyteIcsHttpChk.dpr
+  $(DCC)
+
+OverbyteIcsHttpDmo.exe: OverbyteIcsHttpDmo.dpr
+  $(DCC)
+
+OverbyteIcsHttpGet.exe: OverbyteIcsHttpGet.dpr
+  $(DCC)
+
+OverbyteIcsHttpPg.exe: OverbyteIcsHttpPg.dpr
+  $(DCC)
+
+OverbyteIcsHttpThrd.exe: OverbyteIcsHttpThrd.dpr
+  $(DCC)
+
+OverbyteIcsIsapi.dll: OverbyteIcsIsapi.dpr
+  $(DCC)
+
+OverbyteIcsMailSndAsync.exe: OverbyteIcsMailSndAsync.dpr
+  $(DCC)
+
+OverbyteIcsMD5File.exe: OverbyteIcsMD5File.dpr
+  $(DCC)
+
+OverbyteIcsMtSrv.exe: OverbyteIcsMtSrv.dpr
+  $(DCC)
+
+OverbyteIcsRecv.exe: OverbyteIcsRecv.dpr
+  $(DCC)
+
+OverbyteIcsSender.exe: OverbyteIcsSender.dpr
+  $(DCC)
+
+OverbyteIcsServer5.exe: OverbyteIcsServer5.dpr
+  $(DCC)
+
+OverbyteIcsSocksTst.exe: OverbyteIcsSocksTst.dpr
+  $(DCC)
+
+OverbyteIcsSrvDemo.exe: OverbyteIcsSrvDemo.dpr
+  $(DCC)
+
+OverbyteIcsSrvTcp.exe: OverbyteIcsSrvTcp.dpr
+  $(DCC)
+
+OverbyteIcsSvcTcp.exe: OverbyteIcsSvcTcp.dpr
+  $(DCC)
+
+OverbyteIcsThrdSrv.exe: OverbyteIcsThrdSrv.dpr
+  $(DCC)
+
+OverbyteIcsThrdSrvV2.exe: OverbyteIcsThrdSrvV2.dpr
+  $(DCC)
+
+OverbyteIcsThrdSrvV3.exe: OverbyteIcsThrdSrvV3.dpr
+  $(DCC)
+
+OverbyteIcsTnDemo.exe: OverbyteIcsTnDemo.dpr
+  $(DCC)
+
+OverbyteIcsTnSrv.exe: OverbyteIcsTnSrv.dpr
+  $(DCC)
+
+OverbyteIcsTWSChat.exe: OverbyteIcsTWSChat.dpr
+  $(DCC)
+
+OverbyteIcsUdpLstn.exe: OverbyteIcsUdpLstn.dpr
+  $(DCC)
+
+OverbyteIcsUdpSend.exe: OverbyteIcsUdpSend.dpr
+  $(DCC)
+
+

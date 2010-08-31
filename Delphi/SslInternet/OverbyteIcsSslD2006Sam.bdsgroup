@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<PersonalityInfo>
+		<Option>
+			<Option Name="Personality">Default.Personality</Option>
+			<Option Name="ProjectType"></Option>
+			<Option Name="Version">1.0</Option>
+			<Option Name="GUID">{B3BB68AF-6A0C-469B-9D54-7137A2E5A26C}</Option>
+		</Option>
+	</PersonalityInfo>
+	<Default.Personality>  <Projects>
+      <Projects Name="OverbyteIcsD2006Run.bpl">..\Vc32\OverbyteIcsD2006Run.bdsproj</Projects>
+      <Projects Name="OverbyteIcsD2006Design.bpl">..\Vc32\OverbyteIcsD2006Design.bdsproj</Projects>
+      <Projects Name="OverbyteIcsHttpsTst.exe">OverbyteIcsHttpsTst.bdsproj</Projects>
+      <Projects Name="OverbyteIcsSslWebServ.exe">OverbyteIcsSslWebServ.bdsproj</Projects>
+      <Projects Name="OverbyteIcsSslFtpTst.exe">OverbyteIcsSslFtpTst.bdsproj</Projects>
+      <Projects Name="OverbyteIcsSslFtpServ.exe">OverbyteIcsSslFtpServ.bdsproj</Projects>
+      <Projects Name="OverbyteIcsSslMailSnd.exe">OverbyteIcsSslMailSnd.bdsproj</Projects>
+	  <Projects Name="OverbyteIcsSslMailRcv.exe">OverbyteIcsSslMailRcv.bdsproj</Projects>
+      <Projects Name="OverbyteIcsSslNewsRdr.exe">OverbyteIcsSslNewsRdr.bdsproj</Projects>
+      <Projects Name="OverbyteIcsSimpleSslCli.exe">OverbyteIcsSimpleSslCli.bdsproj</Projects>
+      <Projects Name="OverbyteIcsSimpleSslServer.exe">OverbyteIcsSimpleSslServer.bdsproj</Projects>
+      <Projects Name="Targets">OverbyteIcsD2006Run.bpl OverbyteIcsD2006Design.bpl OverbyteIcsHttpsTst.exe OverbyteIcsSslWebServ.exe OverbyteIcsSslFtpTst.exe OverbyteIcsSslFtpServ.exe OverbyteIcsSslMailSnd.exe OverbyteIcsSslMailRcv.exe OverbyteIcsSslNewsRdr.exe OverbyteIcsSimpleSslCli.exe OverbyteIcsSimpleSslServer.exe</Projects>
+    </Projects>
+    <Dependencies/>
+  </Default.Personality>  <StarTeamAssociation></StarTeamAssociation>
+  <StarTeamNonRelativeFiles></StarTeamNonRelativeFiles>
+</BorlandProject>

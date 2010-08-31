@@ -1,9 +1,9 @@
 object HttpAsyForm: THttpAsyForm
   Left = 145
   Top = 240
-  Width = 632
-  Height = 338
   Caption = 'Http Async Demo - http://www.overbyte.be'
+  ClientHeight = 304
+  ClientWidth = 624
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -104,7 +104,6 @@ object HttpAsyForm: THttpAsyForm
       Width = 85
       Height = 21
       Style = csDropDownList
-      ItemHeight = 13
       TabOrder = 5
       Items.Strings = (
         'HTTP/1.0'
@@ -192,6 +191,7 @@ object HttpAsyForm: THttpAsyForm
     BandwidthLimit = 10000
     BandwidthSampling = 1000
     Options = []
+    Timeout = 30
     OnHeaderData = HttpCli1HeaderData
     OnDocData = HttpCli1DocData
     OnRequestDone = HttpCli1RequestDone

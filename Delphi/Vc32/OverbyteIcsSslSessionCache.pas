@@ -7,11 +7,11 @@ Description:  A very fast external SSL-session-cache component.
               Uses OpenSSL (http://www.openssl.org).
               Uses freeware TSslWSocket component  from ICS
               (Internet Component Suite).
-Version:      1.02
+Version:      1.04
 EMail:        <arno.garrels@gmx.de>
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2006-2008 by Arno Garrels, Berlin, Germany,
+Legal issues: Copyright (C) 2006-2010 by Arno Garrels, Berlin, Germany,
               <arno.garrels@gmx.de>
 
               This software is freeware and provided 'as-is', without any
@@ -42,11 +42,20 @@ Legal issues: Copyright (C) 2006-2008 by Arno Garrels, Berlin, Germany,
 
 History:
 06/28/2007 v1.01 A. Garrels fixed a bug with multiple instances.
-Oct 23, 08 V1.01 Line indentations corrected.
+Jul 03, 2008 V1.02 A. Garrels made a few changes to prepare code for Unicode.
+Mar 20, 2009 v1.03 A. Garrels exchanged 4 * PChar by PAnsiChar (was no bug!)
+Sep 03, 2009 V1.04 Arno exchanged TThread.Resume by TThread.Start for D2010 and later
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslSessionCache;
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
+{$IFDEF USE_SSL}
 {$IFNDEF COMPILER5_UP}
     Bomb('This unit require Delphi 5  or C++ Builder 5 or higher!');
 {$ENDIF}
@@ -62,9 +71,10 @@ unit OverbyteIcsSslSessionCache;
 {$IFDEF BCB3_UP}
     {$ObjExportAll On}
 {$ENDIF}
-
+{$ENDIF}
 interface
 
+{$IFDEF USE_SSL}
 uses
     Windows, Messages, SysUtils, Classes,
 {$IFDEF Compiler6_UP}
@@ -217,24 +227,18 @@ type
         property    OnCacheFull;
     end;
 
-    procedure Register;
-
 const
     SslCacheMagic : TSslCacheMagic = '#ICS_SESSION_CACHE_XYZ';
 
-    
+{$ENDIF} //USE_SSL
+
 implementation
+
+{$IFDEF USE_SSL}
 
 resourcestring
     rsInvalidCacheFile          = 'Invalid Cache File';
     rsInvalidStreamVersion      = 'Invalid Stream Version';
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure Register;
-begin
-    RegisterComponents('FPiette', [TSslAvlSessionCache]);
-end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -314,7 +318,7 @@ begin
     begin
         dwRes := WaitForMultipleObjects(2,
                                        @fhArray,
-                                       False,
+                                           False,
                                        Interval);
         // Flush - delete expired entries
         if (dwRes = WAIT_TIMEOUT) then
@@ -330,7 +334,7 @@ begin
         else if ((dwRes - WAIT_ABANDONED_0) = 0) or
                          ((dwRes - WAIT_ABANDONED_0) = 1) then
             Break //***
-        else
+                else
             RaiseLastOSError;
     end; // True-loop
 end;
@@ -358,9 +362,12 @@ begin
                                    + SysErrorMessage(GetLastError));
         FWorkerThread := TSslCacheWorkerThread.Create(True);
         FWorkerThread.FSessionCache := Self;
-        FWorkerThread.FreeOnTerminate := False;
         FThreadID := FWorkerThread.ThreadID;
+    {$IFDEF COMPILER14_UP}
+        FWorkerThread.Start;
+    {$ELSE}
         FWorkerThread.Resume;
+    {$ENDIF}
         Sleep(0);
     end;
 
@@ -374,15 +381,13 @@ end;
 destructor TSslAvlSessionCache.Destroy;
 begin
     if (FStopEv <> 0) then
-    begin
         SetEvent(FStopEv);
+
+    FreeAndNil(FWorkerThread);
+
+    if (FStopEv <> 0) then begin
         CloseHandle(FStopEv);
         FStopEv := 0;
-    end;
-    if Assigned(FWorkerThread) then begin
-        FWorkerThread.WaitFor;
-        FWorkerThread.Free;
-        FWorkerThread := nil;
     end;
     if (FSetFlushEv <> 0) then begin
         CloseHandle(FSetFlushEv);
@@ -412,7 +417,7 @@ begin
         else if FFlushInterval < 1000 then
             FFlushInterval := 1000;
         if (csDesigning in ComponentState) then
-            Exit;
+            Exit;    
         if FSetFlushEv <> 0 then
             SetEvent(FSetFlushEv);
     finally
@@ -454,7 +459,7 @@ end;
 function TSslAvlSessionCache.CacheSession(const SslSession: Pointer;
   const Key: String): Boolean;
 var
-    Buf     : PChar;
+    Buf     : PAnsiChar;
     Len     : Integer;
     t1,t2   : TDateTime;
     Data    : Pointer;
@@ -470,7 +475,7 @@ begin
         while (FCacheTree.Count >= FMaxCacheSize) and (FCacheTree.Count > 0) do
             FCacheTree.Remove(FCacheTree.Oldest);
         GetMem(Data, Len);
-        Buf := PChar(Data);
+        Buf := PAnsiChar(Data);
         Len := f_i2d_SSL_SESSION(SslSession, @Buf); // sets internal Time = now (UTC)
         if Len > 0 then
         begin
@@ -504,7 +509,7 @@ end;
 function TSslAvlSessionCache.GetSession(const Key: String): Pointer;
 var
     Node   : TCacheNode;
-    Buf    : PChar;
+    Buf    : PAnsiChar;
     t1, t2 : TDateTime;
 begin
     Result := nil;
@@ -519,7 +524,7 @@ begin
             FCacheTree.Remove(Node);
             Exit;
         end;
-        Buf := PChar(Node.Data);
+        Buf := PAnsiChar(Node.Data);
         Result := f_d2i_SSL_SESSION(nil, @Buf, Node.Len);
         if Result <> nil then
         begin
@@ -671,9 +676,9 @@ begin
             FStreamVersion := Version;
         while AStream.Position < AStream.Size do
         begin
-            AStream.Read(n, SizeOf(Integer));
+            AStream.Read(n, SizeOf(Integer));  { Number of chars }
             SetLength(Key, n);
-            AStream.Read(PChar(Key)^, n);
+            AStream.Read(Pointer(Key)^, n * SizeOf(Char));
             AStream.Read(Time, SizeOf(TDateTime));
             AStream.Read(Expires, SizeOf(TDateTime));
             AStream.Read(Len, SizeOf(Integer));
@@ -711,8 +716,8 @@ var
     n : Integer;
 begin
     n := Length(Key);
-    FStream.Write(n, SizeOf(Integer));
-    FStream.Write(PChar(Key)^, n);
+    FStream.Write(n, SizeOf(Integer)); { Number of chars }
+    FStream.Write(Pointer(Key)^, n * SizeOf(Char));
     FStream.Write(TimeStamp, SizeOf(TDateTime));
     FStream.Write(Expires, SizeOf(TDateTime));
     FStream.Write(Len, SizeOf(Integer));
@@ -767,5 +772,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF}//USE_SSL
 end.
 

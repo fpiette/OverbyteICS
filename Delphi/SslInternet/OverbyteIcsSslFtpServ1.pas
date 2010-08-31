@@ -8,11 +8,11 @@ Description:  This is a demo program showing how to use the TFtpServer
               In production program, you should add code to implement
               security issues.
 Creation:     April 21, 1998
-Version:      1.08
+Version:      1.14
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2008 by François PIETTE
+Legal issues: Copyright (C) 1998-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -59,6 +59,28 @@ Feb 26, 2002  V1.05 Add DisconectAll in main menu
 Jun 07, 2002  V1.06 Added a processing thread (not for Delphi 1) for Get
 Oct 21, 2005  V1.07 Arno Garrels added SSL features.
 Jun 04, 2008  V1.08 Arno Garrels adjusted WorkerThreadTerminated().                 
+Aug 04, 2008  V1.09 A. Garrels made a few changes to prepare code for Unicode.
+Nov 6, 2008   V1.12 Angus, support server V7.00 which does not use OverbyteIcsFtpSrvC
+                    Added ftpaccounts-default.ini file with user accounts setting defaults for each user
+                    Home directory, etc, now set from user account instead of common to all users
+                    ReadOnly account supported
+                   (next release will have a different file for each HOST supported)
+                    Note: random account names are no longer allowed for this demo
+Nov 8, 2008, V1.13 Angus, support HOST and REIN(ialise) commands
+Nov 13, 2008, V1.14 Angus, ensure servers have ftpsCwdCheck set
+
+
+
+Sample entry from ftpaccounts-default.ini
+
+[ics]
+Password=ics
+ForceSsl=false
+HomeDir=c:\temp
+OtpMethod=none
+ForceHomeDir=true
+HidePhysicalPath=true
+ReadOnly=false
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -70,15 +92,15 @@ unit OverbyteIcsSslFtpServ1;
 interface
 
 uses
-  WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, IniFiles, OverbyteIcsFtpSrv, OverbyteIcsFtpSrvC, OverbyteIcsWSocket,
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
+  Dialogs, OverbyteIcsIniFiles, OverbyteIcsFtpSrv, {OverbyteIcsFtpSrvC,} OverbyteIcsWSocket,
   StdCtrls, ExtCtrls, Menus,
   OverbyteIcsWinsock, OverbyteIcsLibeay, OverbyteIcsLogger,
-  OverbyteIcsWndControl;
+  OverbyteIcsWndControl, OverbyteIcsLibrary, OverbyteIcsOneTimePw;
 
 const
-  FtpServVersion      = 108;
-  CopyRight : String  = ' SslFtpServer (c) 1998-2008 F. Piette V1.08 ';
+  FtpServVersion      = 114;
+  CopyRight : String  = ' SslFtpServ (c) 1998-2010 F. Piette V1.14 ';
   WM_APPSTARTUP       = WM_USER + 1;
 
 type
@@ -194,6 +216,20 @@ type
       PeerCert: TX509Base; var Disconnect: Boolean);
     procedure OpenSslVer1Click(Sender: TObject);
     procedure RenegotiationIntervalEditChange(Sender: TObject);
+    procedure SslFtpServer1OtpGetPassword(Sender: TObject; Client: TFtpCtrlSocket; UserName: TFtpString;
+      var UserPassword: string);
+    procedure SslFtpServer1OtpMethod(Sender: TObject; Client: TFtpCtrlSocket; UserName: TFtpString;
+      var OtpMethod: TOtpMethod);
+    procedure SslFtpServer1ValidateDele(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+      var Allowed: Boolean);
+    procedure SslFtpServer1ValidatePut(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+      var Allowed: Boolean);
+    procedure SslFtpServer1ValidateRnFr(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+      var Allowed: Boolean);
+    procedure SslFtpServer1MakeDirectory(Sender: TObject; Client: TFtpCtrlSocket; Directory: TFtpString;
+      var Allowed: Boolean);
+    procedure SslFtpServer1Host(Sender: TObject; Client: TFtpCtrlSocket; Host: TFtpString; var Allowed: Boolean);
+    procedure SslFtpServer1Rein(Sender: TObject; Client: TFtpCtrlSocket; var Allowed: Boolean);
   private
     FInitialized              : Boolean;
     FIniFileName              : String;
@@ -203,6 +239,9 @@ type
     FXWidth                   : Integer;
     FXHeight                  : Integer;
     FSslRenegotiationInterval : Longword;
+    FOtpSequence              : integer;
+    FOtpSeed                  : String;
+    FIniRoot                  : String;
     procedure CheckRenegotiation(Client: TMyClient; IsData: Boolean);
     procedure WMAppStartup(var msg: TMessage); message WM_APPSTARTUP;
     procedure LoadConfig;
@@ -246,9 +285,20 @@ const
     KeyRenegInterval    = 'RenegotiationInterval';
     KeyDisplaySslInfo   = 'DisplaySslInfo';
 
+
+
     STATUS_GREEN        = 0;
     STATUS_YELLOW       = 1;
     STATUS_RED          = 2;
+
+   { account INI file layout }
+    KeyPassword             = 'Password';
+    KeyHomeDir              = 'HomeDir';
+    KeyOtpMethod            = 'OtpMethod';
+    KeyForceHomeDir         = 'ForceHomeDir';
+    KeyHidePhysicalPath     = 'HidePhysicalPath';
+    KeyReadOnly             = 'ReadOnly';
+    KeyForceSsl             = 'ForceSsl';
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -297,7 +347,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslFtpServerForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
     Minim   : Integer;
 begin
     if not FInitialized then begin
@@ -309,7 +359,7 @@ begin
         // BDS2006 has built-in memory leak detection and display
         ReportMemoryLeaksOnShutdown := (DebugHook <> 0);
 {$ENDIF}
-        IniFile  := TIniFile.Create(FIniFileName);
+        IniFile  := TIcsIniFile.Create(FIniFileName);
         FXTop    := IniFile.ReadInteger(SectionWindow, KeyTop,    Top);
         FXLeft   := IniFile.ReadInteger(SectionWindow, KeyLeft,   Left);
         FXWidth  := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
@@ -348,13 +398,13 @@ end;
 procedure TSslFtpServerForm.FormClose(Sender: TObject;
   var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
     Minim   : Integer;
 begin
     try
         StopServer;
         Minim   := ord(StartMinimizedCheckBox.Checked);
-        IniFile := TIniFile.Create(FIniFileName);
+        IniFile := TIcsIniFile.Create(FIniFileName);
         IniFile.WriteInteger(SectionWindow, KeyTop,    Top);
         IniFile.WriteInteger(SectionWindow, KeyLeft,   Left);
         IniFile.WriteInteger(SectionWindow, KeyWidth,  Width);
@@ -371,6 +421,7 @@ begin
         IniFile.WriteInteger(SectionData,   KeyDisplaySslInfo,
                                             Ord(DisplaySslInfoCheckBox.Checked));
         IniFile.WriteInteger(SectionData,   KeyRenegInterval, FSslRenegotiationInterval);
+        IniFile.UpdateFile;
         IniFile.Free;
     except
         { Ignore any exception when we are closing }
@@ -381,9 +432,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslFtpServerForm.LoadConfig;
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     FPort   := IniFile.ReadString(SectionData,    KeyPort,   'ftp');
     CertFileEdit.Text    := IniFile.ReadString(SectionData, KeyCertFile,
                                                '01cert.pem');
@@ -413,9 +464,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslFtpServerForm.SaveConfig;
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteString(SectionData, KeyPort, FPort);
     IniFile.WriteString(SectionData,    KeyCertFile,    CertFileEdit.Text);
     IniFile.WriteString(SectionData,    KeyPrivKeyFile, PrivKeyFileEdit.Text);
@@ -425,6 +476,7 @@ begin
     IniFile.WriteInteger(SectionData,   KeyVerifyPeer,  Ord(VerifyPeerCheckBox.Checked));
     IniFile.WriteString(SectionData,    KeySslConnPort, SslTypeConnPortEdit.Text);
     IniFile.WriteInteger(SectionData,   KeyRenegInterval, FSslRenegotiationInterval);
+    IniFile.UpdateFile;
     IniFile.Free;
 end;
 
@@ -491,8 +543,8 @@ end;
 procedure TSslFtpServerForm.FormCreate(Sender: TObject);
 begin
     { Build Ini file name }
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
+    FIniFileName := GetIcsIniFileName;
+    FIniRoot := LowerCase(ExtractFilePath(Application.ExeName));
     { Create the Log object }
     Log := TLogMsg.Create(Self);
 
@@ -526,12 +578,12 @@ begin
     InfoMemo.Lines.Add('        Version ' +
             Format('%d.%d', [WinsockInfo.wHighVersion shr 8,
                              WinsockInfo.wHighVersion and 15]));
-    InfoMemo.Lines.Add('        ' + StrPas(@wsi.szDescription));
-    InfoMemo.Lines.Add('        ' + StrPas(@wsi.szSystemStatus));
+    InfoMemo.Lines.Add('        ' + String(_StrPas(wsi.szDescription)));
+    InfoMemo.Lines.Add('        ' + String(_StrPas(wsi.szSystemStatus)));
 {$IFNDEF VER100}
     { A bug in Delphi 3 makes lpVendorInfo invalid }
     if wsi.lpVendorInfo <> nil then
-        InfoMemo.Lines.Add('        ' + StrPas(wsi.lpVendorInfo));
+        InfoMemo.Lines.Add('        ' + String(StrPas(wsi.lpVendorInfo)));
 {$ENDIF}
     { Set SSL properties, internal session caching enabled }
     SslContext1.SslVersionMethod            := sslV23_SERVER;
@@ -637,6 +689,10 @@ begin
     //Client.ComponentOptions := [wsoTcpNoDelay];
 //--------
     InfoMemo.Lines.Add('! ' + Client.GetPeerAddr + ' connected');
+  { get INI file for default accounts, may be changed if HOST command used }
+    Client.AccountIniName := SslFtpServerForm.FIniRoot + 'ftpaccounts-default.ini';
+    Client.AccountReadOnly := true;
+    Client.AccountPassword := '';
     UpdateClientCount;
 end;
 
@@ -684,6 +740,26 @@ begin
                            IntToStr(Error));
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServerForm.SslFtpServer1ValidateDele(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+  var Allowed: Boolean);
+begin
+    Allowed := NOT Client.AccountReadOnly;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServerForm.SslFtpServer1ValidatePut(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+  var Allowed: Boolean);
+begin
+    Allowed := NOT Client.AccountReadOnly;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServerForm.SslFtpServer1ValidateRnFr(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+  var Allowed: Boolean);
+begin
+    Allowed := NOT Client.AccountReadOnly;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslFtpServerForm.SslFtpServer1StorSessionClosed(Sender: TObject;
@@ -696,6 +772,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
 procedure TSslFtpServerForm.SslFtpServer1RetrDataSent(Sender: TObject;
   Client: TFtpCtrlSocket; Data: TWSocket; Error: Word);
 begin
@@ -850,18 +927,39 @@ procedure TSslFtpServerForm.SslFtpServer1Authenticate(Sender: TObject;
   Client: TFtpCtrlSocket; UserName, Password: TFtpString;
   var Authenticated: Boolean);
 begin
-    { You should place here the code needed to authenticate the user. }
-    { For example a text file with all permitted username/password.   }
-    { If the user can't be authenticated, just set Authenticated to   }
-    { false before returning.                                         }
-    { It is also the right place to setup Client.HomeDir              }
-    { If you need to store info about the client for later processing }
-    { you can use Client.UserData to store a pointer to an object or  }
-    { a record with the needed info.                                  }
-    InfoMemo.Lines.Add('! ' + Client.GetPeerAddr +
-                       ' User ''' + UserName + ''' is authenticated');
-    if Password = 'bad' then
-        Authenticated := FALSE;
+  { One Time Passwords - keep sequence and seed for next login attempt }
+    if Client.OtpMethod > OtpKeyNone then begin
+        if not Authenticated then exit;
+        InfoMemo.Lines.Add('! ' + Client.SessIdInfo +
+                                    ' is One Time Password authenticated');
+        FOtpSequence := Client.OtpSequence;
+        FOtpSeed := Client.OtpSeed;
+    end
+    else begin
+
+        { You should place here the code needed to authenticate the user. }
+        { For example a text file with all permitted username/password.   }
+        { If the user can't be authenticated, just set Authenticated to   }
+        { false before returning.                                         }
+        { It is also the right place to setup Client.HomeDir              }
+        { If you need to store info about the client for later processing }
+        { you can use Client.UserData to store a pointer to an object or  }
+        { a record with the needed info.                                  }
+
+        { 1.12 authentication taken from INI file in OtpMethodEvent }
+        if ((Client.UserName = UserName) and (Password <> '')) and
+             ((Client.AccountPassword = Password) or (Client.AccountPassword = '*')) then { * anonymous logon }
+            InfoMemo.Lines.Add('! ' + Client.SessIdInfo + ' is authenticated')
+        else begin
+            InfoMemo.Lines.Add('! ' + Client.SessIdInfo + ' failed authentication');
+            Authenticated := FALSE;
+        end;
+        if Password = 'bad' then
+            Authenticated := FALSE;
+    end;
+    if NOT Authenticated then exit;
+    InfoMemo.Lines.Add('! ' + Client.SessIdInfo + ' Home Directory: ' + Client.HomeDir);
+
 end;
 
 
@@ -964,6 +1062,86 @@ begin
     end;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServerForm.SslFtpServer1Host(Sender: TObject; Client: TFtpCtrlSocket; Host: TFtpString;
+  var Allowed: Boolean);
+var
+    fname: string ;
+begin
+{ HOST might be ftp.domain.com or [123.123.123.123]   }
+    fname := SslFtpServerForm.FIniRoot + 'ftpaccounts-' + Lowercase (Host) + '.ini';
+    if NOT FileExists (fname) then begin
+        InfoMemo.Lines.Add('! Could not find Accounts File: ' + fname);
+        Allowed := false;
+        exit;
+    end;
+    Client.AccountIniName := fname;
+    Allowed := true;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServerForm.SslFtpServer1Rein(Sender: TObject; Client: TFtpCtrlSocket; var Allowed: Boolean);
+begin
+    Allowed := true;
+    InfoMemo.Lines.Add('! Reinitialise client accepted');
+    Client.SessIdInfo := Client.GetPeerAddr + '=(Not Logged On)';
+    InfoMemo.Lines.Add('! ' + Client.SessIdInfo + ' connected');
+    Client.AccountIniName := SslFtpServerForm.FIniRoot + 'ftpaccounts-default.ini';
+    Client.AccountReadOnly := true;
+    Client.AccountPassword := '';
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServerForm.SslFtpServer1MakeDirectory(Sender: TObject; Client: TFtpCtrlSocket; Directory: TFtpString;
+  var Allowed: Boolean);
+begin
+    Allowed := NOT Client.AccountReadOnly;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServerForm.SslFtpServer1OtpGetPassword(Sender: TObject; Client: TFtpCtrlSocket; UserName: TFtpString;
+  var UserPassword: string);
+begin
+    UserPassword := Client.AccountPassword;   // expected password will used to create OTP
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServerForm.SslFtpServer1OtpMethod(Sender: TObject; Client: TFtpCtrlSocket; UserName: TFtpString;
+  var OtpMethod: TOtpMethod);
+var
+    IniFile : TIcsIniFile;
+    S: string;
+begin
+    { look up user account to find One Time Password method, root directory, etc, blank password means no account}
+    if NOT FileExists (Client.AccountIniName) then begin
+        InfoMemo.Lines.Add('! Could not find Accounts File: ' + Client.AccountIniName);
+        exit;
+    end;
+    InfoMemo.Lines.Add('! Opening Accounts File: ' + Client.AccountIniName);
+    IniFile := TIcsIniFile.Create(Client.AccountIniName);
+    Client.AccountPassword := IniFile.ReadString(UserName, KeyPassword, '');  // keep password to check later
+    S := IniFile.ReadString(UserName, KeyOtpMethod, 'none');
+    Client.AccountReadOnly := (IniFile.ReadString(UserName, KeyReadOnly, 'true') = 'true');
+    Client.HomeDir := IniFile.ReadString(UserName, KeyHomeDir, 'c:\temp');
+    Client.Directory := Client.HomeDir;
+    if (IniFile.ReadString(UserName, KeyForceHomeDir, 'true') = 'true') then
+                                   Client.Options := Client.Options + [ftpCdUpHome];
+    if (IniFile.ReadString(UserName, KeyHidePhysicalPath, 'true') = 'true') then
+                           Client.Options := Client.Options + [ftpHidePhysicalPath];
+    if (IniFile.ReadString(UserName,  KeyForceSsl, 'false') = 'true') then begin
+        if NOT Client.SslEnable then Client.AccountPassword := '';  // if SSL not enabled fail password
+    end;
+    IniFile.Free;
+
+    { sequence and seed }
+    OtpMethod := OtpGetMethod (S);
+    Client.OtpSequence := FOtpSequence;
+    Client.OtpSeed := FOtpSeed;
+
+  { this could be user account information, SQL id or something }
+    Client.SessIdInfo := Client.GetPeerAddr + '=' + UserName;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslFtpServerForm.WorkerThreadTerminated(Sender : TObject);

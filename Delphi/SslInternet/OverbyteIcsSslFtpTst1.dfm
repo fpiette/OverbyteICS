@@ -1,9 +1,9 @@
 object FtpReceiveForm: TFtpReceiveForm
   Left = 227
   Top = 114
-  Width = 643
-  Height = 625
   Caption = 'FTP - http://www.overbyte.be'
+  ClientHeight = 598
+  ClientWidth = 635
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -20,8 +20,8 @@ object FtpReceiveForm: TFtpReceiveForm
   object DisplayMemo: TMemo
     Left = 0
     Top = 425
-    Width = 627
-    Height = 164
+    Width = 635
+    Height = 173
     Hint = 'This area show the activity with the host'
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
@@ -40,7 +40,7 @@ object FtpReceiveForm: TFtpReceiveForm
   object Panel1: TPanel
     Left = 0
     Top = 149
-    Width = 627
+    Width = 635
     Height = 276
     Align = alTop
     Font.Charset = DEFAULT_CHARSET
@@ -77,8 +77,8 @@ object FtpReceiveForm: TFtpReceiveForm
       ParentFont = False
     end
     object Label7: TLabel
-      Left = 504
-      Top = 128
+      Left = 506
+      Top = 140
       Width = 51
       Height = 13
       Caption = 'Resume at'
@@ -511,7 +511,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 24
+      TabOrder = 25
       OnClick = RenAsyncButtonClick
     end
     object RenameAsyncButton: TButton
@@ -526,7 +526,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 25
+      TabOrder = 26
       OnClick = RenameAsyncButtonClick
     end
     object DeleAsyncButton: TButton
@@ -541,7 +541,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 26
+      TabOrder = 27
       OnClick = DeleAsyncButtonClick
     end
     object DeleteAsyncButton: TButton
@@ -556,7 +556,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 27
+      TabOrder = 28
       OnClick = DeleteAsyncButtonClick
     end
     object PwdAsyncButton: TButton
@@ -571,7 +571,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 28
+      TabOrder = 29
       OnClick = PwdAsyncButtonClick
     end
     object QuoteAsyncButton: TButton
@@ -586,7 +586,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 29
+      TabOrder = 30
       OnClick = QuoteAsyncButtonClick
     end
     object DoQuoteAsyncButton: TButton
@@ -601,7 +601,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 30
+      TabOrder = 31
       OnClick = DoQuoteAsyncButtonClick
     end
     object PutAsyncButton: TButton
@@ -616,7 +616,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 31
+      TabOrder = 32
       OnClick = PutAsyncButtonClick
     end
     object TransmitAsyncButton: TButton
@@ -631,7 +631,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 32
+      TabOrder = 33
       OnClick = TransmitAsyncButtonClick
     end
     object TypeSetAsyncButton: TButton
@@ -646,7 +646,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 33
+      TabOrder = 34
       OnClick = TypeSetAsyncButtonClick
     end
     object RestGetAsyncButton: TButton
@@ -661,7 +661,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 34
+      TabOrder = 35
       OnClick = RestGetAsyncButtonClick
     end
     object RestartGetAsyncButton: TButton
@@ -676,7 +676,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 35
+      TabOrder = 36
       OnClick = RestartGetAsyncButtonClick
     end
     object CDupAsyncButton: TButton
@@ -691,7 +691,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 36
+      TabOrder = 37
       OnClick = CDupAsyncButtonClick
     end
     object ClearButton: TButton
@@ -706,7 +706,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 37
+      TabOrder = 38
       OnClick = ClearButtonClick
     end
     object AppendFileAsyncButton: TButton
@@ -721,7 +721,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 38
+      TabOrder = 39
       OnClick = AppendFileAsyncButtonClick
     end
     object AppendAsyncButton: TButton
@@ -736,7 +736,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 39
+      TabOrder = 40
       OnClick = AppendAsyncButtonClick
     end
     object Button1: TButton
@@ -751,7 +751,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 40
+      TabOrder = 41
       OnClick = Button1Click
     end
     object RestPutAsyncButton: TButton
@@ -766,7 +766,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 41
+      TabOrder = 42
       OnClick = RestPutAsyncButtonClick
     end
     object RestartPutAsyncButton: TButton
@@ -781,12 +781,12 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 42
+      TabOrder = 43
       OnClick = RestartPutAsyncButtonClick
     end
     object ResumeAtEdit: TEdit
-      Left = 560
-      Top = 124
+      Left = 562
+      Top = 136
       Width = 57
       Height = 21
       Font.Charset = DEFAULT_CHARSET
@@ -795,7 +795,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 43
+      TabOrder = 44
       Text = 'ResumeAtEdit'
     end
     object TransmitUsingStreamButton: TButton
@@ -810,7 +810,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 44
+      TabOrder = 45
       OnClick = TransmitUsingStreamButtonClick
     end
     object ReceiveUsingStreamButton: TButton
@@ -825,7 +825,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 45
+      TabOrder = 46
       OnClick = ReceiveUsingStreamButtonClick
     end
     object StressPutButton: TButton
@@ -840,7 +840,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 46
+      TabOrder = 24
       OnClick = StressPutButtonClick
     end
     object AbortXferAsyncButton: TButton
@@ -849,7 +849,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Width = 81
       Height = 17
       Caption = 'AbortXfer'
-      TabOrder = 47
+      TabOrder = 48
       OnClick = AbortXferAsyncButtonClick
     end
     object AuthButton: TButton
@@ -858,7 +858,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Width = 81
       Height = 17
       Caption = 'Auth TLS/SSL'
-      TabOrder = 48
+      TabOrder = 49
       OnClick = AuthButtonClick
     end
     object AcctAsyncButton: TButton
@@ -873,7 +873,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
-      TabOrder = 49
+      TabOrder = 50
       OnClick = AcctAsyncButtonClick
     end
     object CertFileEdit: TEdit
@@ -884,7 +884,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Hint = 'Enter the certificate file name. PEM file format.'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 51
+      TabOrder = 52
       Text = 'CertFileEdit'
     end
     object CAFileEdit: TEdit
@@ -895,7 +895,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Hint = 'Enter the CA certificate file name.  PEM file format.'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 55
+      TabOrder = 56
       Text = 'CAFileEdit'
     end
     object CAPathEdit: TEdit
@@ -906,7 +906,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Hint = 'Enter CA certicate directory (can be empty).'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 56
+      TabOrder = 57
       Text = 'CAPathEdit'
     end
     object PrivKeyFileEdit: TEdit
@@ -920,7 +920,7 @@ object FtpReceiveForm: TFtpReceiveForm
         'mat.'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 52
+      TabOrder = 53
       Text = 'PrivKeyFileEdit'
     end
     object PassPhraseEdit: TEdit
@@ -931,7 +931,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Hint = 'Enter pass phrase protecting private key file.'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 53
+      TabOrder = 54
       Text = 'PassPhraseEdit'
     end
     object VerifyPeerCheckBox: TCheckBox
@@ -941,14 +941,14 @@ object FtpReceiveForm: TFtpReceiveForm
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Verify Peer'
-      TabOrder = 58
+      TabOrder = 59
     end
     object AcceptableHostsEdit: TEdit
       Left = 76
       Top = 248
       Width = 165
       Height = 21
-      TabOrder = 54
+      TabOrder = 55
       Text = 'AcceptableHostsEdit'
     end
     object ProtButton: TButton
@@ -986,7 +986,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Top = 176
       Width = 57
       Height = 21
-      TabOrder = 60
+      TabOrder = 61
       Text = 'PbszSizeEdit'
     end
     object ProtLevelEdit: TEdit
@@ -994,7 +994,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Top = 200
       Width = 57
       Height = 21
-      TabOrder = 61
+      TabOrder = 62
       Text = 'ProtLevelEdit'
     end
     object FeatButton: TButton
@@ -1003,7 +1003,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Width = 81
       Height = 17
       Caption = 'Feat'
-      TabOrder = 50
+      TabOrder = 51
       OnClick = FeatButtonClick
     end
     object SessCacheCheckBox: TCheckBox
@@ -1013,7 +1013,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Height = 17
       Alignment = taLeftJustify
       Caption = 'SSL Session Caching'
-      TabOrder = 59
+      TabOrder = 60
     end
     object SslTypeComboBox: TComboBox
       Left = 320
@@ -1021,8 +1021,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Width = 165
       Height = 21
       Style = csDropDownList
-      ItemHeight = 13
-      TabOrder = 57
+      TabOrder = 58
       Items.Strings = (
         'sslTypeNone'
         'sslTypeAuthTls'
@@ -1034,7 +1033,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Top = 224
       Width = 57
       Height = 21
-      TabOrder = 62
+      TabOrder = 63
       Text = 'SslPortEdit'
     end
     object SslRenegotiateButton: TButton
@@ -1043,7 +1042,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Width = 163
       Height = 17
       Caption = 'SSL Renegotiate CtrlSocket'
-      TabOrder = 64
+      TabOrder = 65
       OnClick = SslRenegotiateButtonClick
     end
     object CccButton: TButton
@@ -1052,14 +1051,38 @@ object FtpReceiveForm: TFtpReceiveForm
       Width = 81
       Height = 17
       Caption = 'Ccc'
-      TabOrder = 63
+      TabOrder = 64
       OnClick = CccButtonClick
+    end
+    object ClearTraceButton: TButton
+      Left = 512
+      Top = 114
+      Width = 105
+      Height = 17
+      Caption = 'Clear Trace'
+      TabOrder = 47
+      OnClick = ClearTraceButtonClick
+    end
+    object OptsAsyncButton: TButton
+      Left = 90
+      Top = 150
+      Width = 81
+      Height = 17
+      Caption = 'Opts'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 66
+      OnClick = OptsAsyncButtonClick
     end
   end
   object Panel2: TPanel
     Left = 0
     Top = 0
-    Width = 627
+    Width = 635
     Height = 149
     Align = alTop
     Font.Charset = DEFAULT_CHARSET
@@ -1168,6 +1191,13 @@ object FtpReceiveForm: TFtpReceiveForm
       Height = 13
       Caption = 'Account'
     end
+    object Label23: TLabel
+      Left = 462
+      Top = 74
+      Width = 25
+      Height = 13
+      Caption = 'Opts:'
+    end
     object HostNameEdit: TEdit
       Left = 72
       Top = 8
@@ -1237,7 +1267,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Text = 'PassWordEdit'
     end
     object DisplayCheckBox: TCheckBox
-      Left = 482
+      Left = 492
       Top = 8
       Width = 117
       Height = 17
@@ -1271,9 +1301,9 @@ object FtpReceiveForm: TFtpReceiveForm
       Text = 'LocalFileEdit'
     end
     object BinaryCheckBox: TCheckBox
-      Left = 482
-      Top = 68
-      Width = 107
+      Left = 406
+      Top = 10
+      Width = 81
       Height = 17
       Hint = 'Select to use binary mode transfert'
       Caption = 'Binary Mode'
@@ -1321,7 +1351,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Text = 'PortEdit'
     end
     object SyncCheckBox: TCheckBox
-      Left = 482
+      Left = 492
       Top = 38
       Width = 117
       Height = 17
@@ -1335,7 +1365,7 @@ object FtpReceiveForm: TFtpReceiveForm
       TabOrder = 10
     end
     object PassiveCheckBox: TCheckBox
-      Left = 482
+      Left = 492
       Top = 23
       Width = 117
       Height = 17
@@ -1349,7 +1379,7 @@ object FtpReceiveForm: TFtpReceiveForm
       TabOrder = 11
     end
     object NoAutoResumeAtCheckBox: TCheckBox
-      Left = 482
+      Left = 492
       Top = 53
       Width = 117
       Height = 17
@@ -1395,20 +1425,23 @@ object FtpReceiveForm: TFtpReceiveForm
       TabOrder = 4
       Text = 'AccountEdit'
     end
-    object ClearTraceButton: TButton
-      Left = 484
-      Top = 92
-      Width = 89
+    object OptsEdit: TComboBox
+      Left = 491
+      Top = 71
+      Width = 126
       Height = 21
-      Caption = 'Clear Trace'
       TabOrder = 15
-      OnClick = ClearTraceButtonClick
+      Text = 'UTF8 ON'
+      Items.Strings = (
+        'UTF8 ON'
+        'UTF8 OFF')
     end
   end
   object FtpClient1: TSslFtpClient
     Timeout = 15
     MultiThreaded = False
     Port = 'ftp'
+    CodePage = 0
     DataPortRangeStart = 0
     DataPortRangeEnd = 0
     LocalAddr = '0.0.0.0'
@@ -1417,8 +1450,9 @@ object FtpReceiveForm: TFtpReceiveForm
     ShareMode = ftpShareExclusive
     Options = [ftpAcceptLF]
     ConnectionType = ftpDirect
+    Language = 'EN'
     OnDisplayFile = FtpClient1DisplayFile
-    OnProgress = FtpClient1Progress
+    OnProgress64 = FtpClient1Progress64
     OnSessionConnected = FtpClient1SessionConnected
     OnSessionClosed = FtpClient1SessionClosed
     OnRequestDone = FtpClient1RequestDone
@@ -1454,7 +1488,10 @@ object FtpReceiveForm: TFtpReceiveForm
     Top = 440
   end
   object IcsLogger1: TIcsLogger
+    TimeStampFormatString = 'hh:nn:ss:zzz'
+    TimeStampSeparator = ' '
     LogFileOption = lfoOverwrite
+    LogFileEncoding = lfeUtf8
     LogFileName = 'Debug_SslFtpTst.txt'
     LogOptions = []
     Left = 152

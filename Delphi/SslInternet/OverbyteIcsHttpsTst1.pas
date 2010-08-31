@@ -10,7 +10,7 @@ Version:      1.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2008 by François PIETTE
+Legal issues: Copyright (C) 2003-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -79,7 +79,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  IniFiles, StdCtrls, ExtCtrls, OverbyteIcsHttpProt, OverbyteIcsWSocket,
+  OverbyteIcsIniFiles, StdCtrls, ExtCtrls, OverbyteIcsHttpProt, OverbyteIcsWSocket,
   OverbyteIcsLIBEAY, OverbyteIcsSsLeay, OverbyteIcsSslSessionCache,
   OverbyteIcsLogger,
 {$IFDEF USE_MODEZ}              { V2.102 }
@@ -92,7 +92,7 @@ const
      HttpsTstVersion     = 106;
      HttpsTstDate        = 'Dec 21, 2005';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2008 Francois Piette V1.06.0 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2010 Francois Piette V1.06.0 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -275,8 +275,7 @@ begin
     // BDS2006 has built-in memory leak detection and display
     ReportMemoryLeaksOnShutdown := (DebugHook <> 0);
 {$ENDIF}
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
+    FIniFileName := GetIcsIniFileName;
     FTrustedList := TStringList.Create;
     FClientCerts := nil;
     SslHttpCli1.CtrlSocket.OnBgException := BackgroundException;
@@ -295,12 +294,12 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpsTstForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
 
-        IniFile      := TIniFile.Create(FIniFileName);
+        IniFile      := TIcsIniFile.Create(FIniFileName);
         try
             Width        := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
             Height       := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
@@ -358,7 +357,7 @@ begin
                                                               KeyDebugFile,
                                                               False);
         finally                                                      
-            IniFile.Destroy;
+            IniFile.Free;
         end;
         DisplayMemo.Clear;
     end;
@@ -368,9 +367,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpsTstForm.FormClose(Sender: TObject; var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionWindow, KeyTop,         Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,        Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,       Width);
@@ -395,7 +394,8 @@ begin
     IniFile.WriteBool(SectionData,      KeyDebugEvent,  DebugEventCheckBox.Checked);
     IniFile.WriteBool(SectionData,      KeyDebugOutput, DebugOutputCheckBox.Checked);
     IniFile.WriteBool(SectionData,      KeyDebugFile,   DebugFileCheckBox.Checked);
-    IniFile.Destroy;
+    IniFile.UpdateFile;
+    IniFile.Free;
 end;
 
 
@@ -823,7 +823,7 @@ begin
        not HttpCli.SslContext.SslVerifyPeer then
         Exit; // nothing to do, go ahead
 
-    Hash := PeerCert.Sha1Hash;
+    Hash := String(PeerCert.Sha1Hash);
     { Is current host already in the list of temporarily accepted hosts ? }
     if HttpCli.SslAcceptableHosts.IndexOf(HttpCli.Hostname + Hash) > -1 then
         Exit; // previously accepted, go ahead

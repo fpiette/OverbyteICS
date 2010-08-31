@@ -36,8 +36,13 @@
   delphi@magsys.co.uk, http://www.magsys.co.uk/delphi/
   Renamed the units for use with ICS from http://www.overbyte.be
   11 June 2006 by Angus Robertson, Magenta Systems
-  added missing functions needed to support streaming 
-
+  added missing functions needed to support streaming
+  02 May 2008 by A.Garrels <arno.garrels@gmx.de>
+              Prepared code for Unicode, changed most types from String
+              and PChar to AnsiString and PAnsiChar.
+              Added missing function ZLibFlagsString.
+              Compiles, however untested so far!
+  24 Dec 2008 Two explicit string casts added.
 
   My own work was to wrap access to dll functions in zlib.dll
   So, no copyright for this code, but don't copyright it !
@@ -92,7 +97,7 @@ var
    zlibDllLoaded     : boolean;
    zlibDllStartAt    : double;
    zlibProblemAlert  : boolean;
-   zlibProblemString : string;
+   zlibProblemString : AnsiString;
    zlibRaiseError    : boolean;
    ZLibWinapi        : boolean;
 
@@ -172,7 +177,7 @@ type
       avail_out   : longint;           // remaining free space at next_out
       total_out   : longint;           // total nb of bytes output so far
 
-      msg         : pChar;             // last error message, NULL if no error
+      msg         : pAnsiChar;             // last error message, NULL if no error
       state       : pinternal_state;   // not visible by applications
 
       zalloc      : alloc_func;        // used to allocate the internal state
@@ -195,10 +200,10 @@ type
       inbuf       : pointer;           // input buffer
       outbuf      : pointer;           // output buffer
       crc         : longword;          // crc32 of uncompressed data
-      msg         : pChar;             // error message
-      path        : pChar;             // path name for debugging only
+      msg         : pAnsiChar;             // error message
+      path        : pAnsiChar;             // path name for debugging only
       transparent : longint;           // 1 if input file is not a .gz file
-      mode        : char;              // 'w' or 'r'
+      mode        : AnsiChar;              // 'w' or 'r'
       start       : longint;           // start of compressed data in file (header skipped)
       into        : longint;           // bytes into deflate or inflate
       outof       : longint;           // bytes out of deflate or inflate
@@ -223,9 +228,9 @@ type
     extra      : PByte;     //* pointer to extra field or Z_NULL if none */
     extra_len  : Cardinal;  //* extra field length (valid if extra != Z_NULL) */
     extra_max  : Cardinal;  //* space at extra (only when reading header) */
-    name       : PChar;     //* pointer to zero-terminated file name or Z_NULL */
+    name       : PAnsiChar;     //* pointer to zero-terminated file name or Z_NULL */
     name_max   : Cardinal;  //* space at name (only when reading header) */
-    comment    : PChar;     //* pointer to zero-terminated comment or Z_NULL */
+    comment    : PAnsiChar;     //* pointer to zero-terminated comment or Z_NULL */
     comm_max   : Cardinal;  //* space at comment (only when reading header) */
     hcrc       : integer;   //* true if there was or will be a header crc */
     done       : integer;   //* true when done reading gzip header (not used when writing a gzip file) */
@@ -348,29 +353,29 @@ type
 *)
 
 {zLib functions}
-function zlibVersionDll                : string;
+function zlibVersionDll                : AnsiString;
 function zlibCompileFlags              : longword;
 function crc32                         (crc : longword; const buf : pByte; len : longword): longword;
 
 function deflateInit                   (var strm : TZStreamRec; level : longint): longint;
-function deflateInit_                  (var strm : TZStreamRec; level : longint; version : string; stream_size : longint): longint;
+function deflateInit_                  (var strm : TZStreamRec; level : longint; version : AnsiString; stream_size : longint): longint;
 function deflateInit2                  (var strm : TZStreamRec; level, method, windowBits, memLevel, strategy : longint) : longint;
-function deflateInit2_                 (var strm : TZStreamRec; level, method, windowBits, memLevel, strategy : longint; version : string; stream_size : longint): longint;
+function deflateInit2_                 (var strm : TZStreamRec; level, method, windowBits, memLevel, strategy : longint; version : AnsiString; stream_size : longint): longint;
 function deflateParams                 (var strm : TZStreamRec; level, strategy: longint): longint;
 function deflateBound                  (var strm : TZStreamRec; sourceLen : longword): longword;
 function deflate                       (var strm : TZStreamRec; flush : longint) : longint;
 function deflateEnd                    (var strm : TZStreamRec) : longint;
 
 function inflateInit                   (var strm : TZStreamRec) : longint;
-function inflateInit_                  (var strm : TZStreamRec; version : string; stream_size : longint) : longint;
+function inflateInit_                  (var strm : TZStreamRec; version : AnsiString; stream_size : longint) : longint;
 function inflateInit2                  (var strm : TZStreamRec; windowBits : longint): longint;
-function inflateInit2_                 (var strm : TZStreamRec; windowBits : longint; version : string; stream_size : longint) : longint;
+function inflateInit2_                 (var strm : TZStreamRec; windowBits : longint; version : AnsiString; stream_size : longint) : longint;
 function inflate                       (var strm : TZStreamRec; flush : longint) : longint;
 function inflateEnd                    (var strm : TZStreamRec) : longint;
 function inflateReset                  (var strm : TZStreamRec) : longint;
 
 {gzip functions}
-function gzOpen                        (path : string; mode : string) : tGzFile;
+function gzOpen                        (path : AnsiString; mode : AnsiString) : tGzFile;
 function gzSetParams                   (gzFile : tGzFile; level, strategy : longint) : longint;
 function gzRead                        (gzFile : tGzFile; out buf; len : longword): longint;
 function gzWrite                       (gzFile : tGzFile; const buf; len : longword): longint;
@@ -379,20 +384,20 @@ function gzClose                       (gzFile : tGzFile) : longint;
 {added functions}
 function  ZLibCheck                    (Code : longint) : longint;
 procedure ZLibError;
-function  ZLibFlagsString              (ZLibFlag : tZLibFlag) : string;
+function  ZLibFlagsAnsiString              (ZLibFlag : tZLibFlag) : AnsiString;
 procedure ZLibSetDeflateStateItem      (strm : TZStreamRec; Index : integer; Value : integer);
 function  ZLibGetDeflateStateItem      (strm : TZStreamRec; Index : integer) : integer;
 
 {dll functions}
-procedure ZLibLoadDll                  (AZLibDllName : string);
+procedure ZLibLoadDll                  (AZLibDllName : String);
 procedure ZLibUnLoadDll;
 
 { angus - added more functions }
 function inflateBackInit(var strm: z_stream;
-                         windowBits: Integer; window: PChar): Integer;
+                         windowBits: Integer; window: PAnsiChar): Integer;
 function inflateBackInit_(var strm: z_stream;
-                          windowBits: Integer; window: PChar;
-                          const version: PChar; stream_size: Integer): Integer;
+                          windowBits: Integer; window: PAnsiChar;
+                          const version: PAnsiChar; stream_size: Integer): Integer;
 function inflateBack(var strm: z_stream; in_fn: in_func; in_desc: Pointer;
                      out_fn: out_func; out_desc: Pointer): Integer;
 function inflateBackEnd(var strm: z_stream): Integer;
@@ -417,7 +422,7 @@ uses SysUtils;
 const
    {return code messages}
 
-   ZLibErrMsg  : array[-6..2] of pChar = (
+   ZLibErrMsg  : array[-6..2] of pAnsiChar = (
      'incompatible version', // Z_VERSION_ERROR  (-6)
      'buffer error',         // Z_BUF_ERROR      (-5)
      'insufficient memory',  // Z_MEM_ERROR      (-4)
@@ -435,19 +440,19 @@ type
    EZLibCheckError = class(Exception);
 
 var
-   zlibVersionDll_stdcall   : function         : pChar; stdcall;        {for both stdcall and cdecl because no argument}
+   zlibVersionDll_stdcall   : function         : pAnsiChar; stdcall;        {for both stdcall and cdecl because no argument}
    zlibCompileFlags_stdcall : function         : longword; stdcall;
 
    {stdcall}
    crc32_stdcall            : function         (crc : longword; const buf : pByte; len : longword): longword; stdcall;
 
-   deflateInit_stdcall      : function         (var strm : TZStreamRec; level : longint; version : PChar; stream_size : longint) : longint; stdcall;
-   deflateInit2_stdcall     : function         (var strm : TZStreamRec; level, method, windowBits, memLevel, strategy : longint; const version : PChar; stream_size : longint): longint; stdcall;
+   deflateInit_stdcall      : function         (var strm : TZStreamRec; level : longint; version : PAnsiChar; stream_size : longint) : longint; stdcall;
+   deflateInit2_stdcall     : function         (var strm : TZStreamRec; level, method, windowBits, memLevel, strategy : longint; const version : PAnsiChar; stream_size : longint): longint; stdcall;
    deflate_stdcall          : function         (var strm : TZStreamRec; flush : longint) : longint; stdcall;
    deflateEnd_stdcall       : function         (var strm : TZStreamRec) : longint; stdcall;
 
-   inflateInit_stdcall      : function         (var strm : TZStreamRec; version : PChar; stream_size : longint) : longint; stdcall;
-   inflateInit2_stdcall     : function         (var strm : TZStreamRec; windowBits : longint; const version : PChar; stream_size : longint) : longint; stdcall;
+   inflateInit_stdcall      : function         (var strm : TZStreamRec; version : PAnsiChar; stream_size : longint) : longint; stdcall;
+   inflateInit2_stdcall     : function         (var strm : TZStreamRec; windowBits : longint; const version : PAnsiChar; stream_size : longint) : longint; stdcall;
    inflate_stdcall          : function         (var strm : TZStreamRec; flush : longint) : longint; stdcall;
    inflateEnd_stdcall       : function         (var strm : TZStreamRec) : longint; stdcall;
 
@@ -456,15 +461,15 @@ var
    deflateBound_stdcall     : function         (var strm : TZStreamRec; sourceLen : longword): longword;stdcall;
 
    {gzip functions}
-   gzOpen_stdcall           : function         (const path : pChar; const mode : pChar) : tGzFile; stdcall;
+   gzOpen_stdcall           : function         (const path : pAnsiChar; const mode : pAnsiChar) : tGzFile; stdcall;
    gzSetParams_stdcall      : function         (gzFile : tGzFile; level, strategy : longint) : longint; stdcall;
    gzRead_stdcall           : function         (gzFile : tGzFile; out buf; len : longword): longint; stdcall;
    gzWrite_stdcall          : function         (gzFile : tGzFile; const buf; len : longword): longint; stdcall;
    gzClose_stdcall          : function         (gzFile : tGzFile) : longint; stdcall;
 
    { angus - added more functions }
-   inflateBackInit__stdcall : function        (var strm: z_stream;  windowBits: Integer; window: PChar;
-                                                      const version: PChar; stream_size: Integer): Integer; stdcall;
+   inflateBackInit__stdcall : function        (var strm: z_stream;  windowBits: Integer; window: PAnsiChar;
+                                                      const version: PAnsiChar; stream_size: Integer): Integer; stdcall;
    inflateBack_stdcall      : function        (var strm: z_stream; in_fn: in_func; in_desc: Pointer;
                                                  out_fn: out_func; out_desc: Pointer): Integer; stdcall;
    inflateBackEnd_stdcall   : function        (var strm: z_stream): Integer; stdcall;
@@ -475,13 +480,13 @@ var
    {cdecl}
    crc32_cdecl              : function         (crc : longword; const buf : pByte; len : longword): longword; cdecl;
 
-   deflateInit_cdecl        : function         (var strm : TZStreamRec; level : longint; version : PChar; stream_size : longint) : longint; cdecl;
-   deflateInit2_cdecl       : function         (var strm : TZStreamRec; level, method, windowBits, memLevel, strategy : longint; const version : PChar; stream_size : longint): longint; cdecl;
+   deflateInit_cdecl        : function         (var strm : TZStreamRec; level : longint; version : PAnsiChar; stream_size : longint) : longint; cdecl;
+   deflateInit2_cdecl       : function         (var strm : TZStreamRec; level, method, windowBits, memLevel, strategy : longint; const version : PAnsiChar; stream_size : longint): longint; cdecl;
    deflate_cdecl            : function         (var strm : TZStreamRec; flush : longint) : longint; cdecl;
    deflateEnd_cdecl         : function         (var strm : TZStreamRec) : longint; cdecl;
 
-   inflateInit_cdecl        : function         (var strm : TZStreamRec; version : PChar; stream_size : longint) : longint; cdecl;
-   inflateInit2_cdecl       : function         (var strm : TZStreamRec; windowBits : longint; const version : PChar; stream_size : longint) : longint; cdecl;
+   inflateInit_cdecl        : function         (var strm : TZStreamRec; version : PAnsiChar; stream_size : longint) : longint; cdecl;
+   inflateInit2_cdecl       : function         (var strm : TZStreamRec; windowBits : longint; const version : PAnsiChar; stream_size : longint) : longint; cdecl;
    inflate_cdecl            : function         (var strm : TZStreamRec; flush : longint) : longint; cdecl;
    inflateEnd_cdecl         : function         (var strm : TZStreamRec) : longint; cdecl;
 
@@ -490,15 +495,15 @@ var
    deflateBound_cdecl       : function         (var strm : TZStreamRec; sourceLen : longword): longword;cdecl;
 
    {gzip functions}
-   gzOpen_cdecl             : function         (const path : pChar; const mode : pChar) : tGzFile; cdecl;
+   gzOpen_cdecl             : function         (const path : pAnsiChar; const mode : pAnsiChar) : tGzFile; cdecl;
    gzSetParams_cdecl        : function         (gzFile : tGzFile; level, strategy : longint) : longint; cdecl;
    gzRead_cdecl             : function         (gzFile : tGzFile; out buf; len : longword): longint; cdecl;
    gzWrite_cdecl            : function         (gzFile : tGzFile; const buf; len : longword): longint; cdecl;
    gzClose_cdecl            : function         (gzFile : tGzFile) : longint; cdecl;
 
    { angus - added more functions }
-   inflateBackInit__cdecl   : function        (var strm: z_stream;  windowBits: Integer; window: PChar;
-                                                 const version: PChar; stream_size: Integer): Integer; cdecl;
+   inflateBackInit__cdecl   : function        (var strm: z_stream;  windowBits: Integer; window: PAnsiChar;
+                                                 const version: PAnsiChar; stream_size: Integer): Integer; cdecl;
    inflateBack_cdecl        : function        (var strm: z_stream; in_fn: in_func; in_desc: Pointer;
                                                  out_fn: out_func; out_desc: Pointer): Integer; cdecl;
    inflateBackEnd_cdecl     : function        (var strm: z_stream): Integer; cdecl;
@@ -516,6 +521,45 @@ var
 *)
 
 {==============================================================================}
+function ZLibFlagsString(ZLibFlag : tZLibFlag) : AnsiString;
+var  Flags : longword;
+
+     function FlagSize(L : longword) : AnsiString;
+     var  N : longword;
+     begin
+          N := (Flags shr L) and $0003;
+          case N of
+             0 : Result := '16';            {uInt}
+             1 : Result := '32';            {uLong}
+             2 : Result := '64';            {voidpf}
+             3 : Result := '0';             {z_off_t}
+          end;
+     end;
+
+     function FlagBit(L : longword) : boolean;
+     begin
+          Result := (((Flags shr L) and $0001) = 1);
+     end;
+begin
+     Result := '';
+     Flags := zlibCompileFlags;
+     case  ZLibFlag of
+        zfuInt               : Result := 'uInt : ' + FlagSize(0);
+        zfuLong              : Result := 'uLong : ' + FlagSize(2);
+        zfvoidpf             : Result := 'voidpf : ' + FlagSize(4);
+        zfz_off_t            : Result := 'z_off_t : ' + FlagSize(6);
+        zfdebug              : if FlagBit(8)  then Result := 'debug';
+        zfasm                : if FlagBit(9)  then Result := 'asm' else Result := 'noasm';
+        zfwinapi             : if FlagBit(10) then Result := 'stdcall' else Result := 'cdecl';
+        zfbuildfixed         : if FlagBit(12) then Result := 'buildfixed';
+        zfdynamic_crc_table  : if FlagBit(13) then Result := 'dynamic_crc_table';
+        zfno_gzcompress      : if FlagBit(16) then Result := 'no_gzcompress';
+        zfno_gzip            : if FlagBit(17) then Result := 'no_gzip';
+        zfpkzip_bug          : if FlagBit(20) then Result := 'pkzip_bug';
+        zffastest            : if FlagBit(21) then Result := 'fastest';
+     end;
+end;
+{==============================================================================}
 
 function ZLibCheck(Code : longint) : longint;
 begin
@@ -529,12 +573,12 @@ begin
                   Z_DLL_NOT_FOUND               : zlibProblemString := 'Dll not found';
                   Z_UNKNOWN_COMPRESSION_VERSION : zlibProblemString := 'Unknwon compression stream version';
                   Z_CHECK_PROBLEM               : zlibProblemString := 'Check problem';
-                                           else   zlibProblemString := 'Error n°' + inttostr(-Code);
+                                           else   zlibProblemString := 'Error n°' + AnsiString(inttostr(-Code));
                end;
           end else
                zlibProblemString := ZLibErrMsg[Code];
 
-          if zlibRaiseError then raise EZLibCheckError.Create(zlibProblemString);
+          if zlibRaiseError then raise EZLibCheckError.Create(string(zlibProblemString));
      end;
 end;
 {==============================================================================}
@@ -550,7 +594,7 @@ begin
 end;
 {==============================================================================}
 
-function zlibVersionDll : string;
+function zlibVersionDll : AnsiString;
 begin
      if Assigned(@zlibVersionDll_stdcall) then Result := zlibVersionDll_stdcall else Result := '';
 end;
@@ -571,17 +615,17 @@ begin
 end;
 {——————————————————————————————————————————————————————————————————————————————}
 
-function deflateInit_(var strm : TZStreamRec; level : longint; version : string; stream_size : longint): longint;
+function deflateInit_(var strm : TZStreamRec; level : longint; version : AnsiString; stream_size : longint): longint;
 begin
-     if ZLibWinapi then Result := deflateInit_stdcall(strm, level, pChar(version), stream_size)
-                   else Result := deflateInit_cdecl  (strm, level, pChar(version), stream_size);
+     if ZLibWinapi then Result := deflateInit_stdcall(strm, level, pAnsiChar(version), stream_size)
+                   else Result := deflateInit_cdecl  (strm, level, pAnsiChar(version), stream_size);
 end;
 {——————————————————————————————————————————————————————————————————————————————}
 
-function deflateInit2_(var strm : TZStreamRec; level, method, windowBits, memLevel, strategy : longint; version : string; stream_size : longint): longint;
+function deflateInit2_(var strm : TZStreamRec; level, method, windowBits, memLevel, strategy : longint; version : AnsiString; stream_size : longint): longint;
 begin
-     if ZLibWinapi then Result := deflateInit2_stdcall(strm, level, method, windowBits, memLevel, strategy, pChar(version), stream_size)
-                   else Result := deflateInit2_cdecl  (strm, level, method, windowBits, memLevel, strategy, pChar(version), stream_size);
+     if ZLibWinapi then Result := deflateInit2_stdcall(strm, level, method, windowBits, memLevel, strategy, pAnsiChar(version), stream_size)
+                   else Result := deflateInit2_cdecl  (strm, level, method, windowBits, memLevel, strategy, pAnsiChar(version), stream_size);
 end;
 {——————————————————————————————————————————————————————————————————————————————}
 
@@ -599,17 +643,17 @@ begin
 end;
 {——————————————————————————————————————————————————————————————————————————————}
 
-function inflateInit_(var strm : TZStreamRec; version : string; stream_size : longint): longint;
+function inflateInit_(var strm : TZStreamRec; version : AnsiString; stream_size : longint): longint;
 begin
-     if ZLibWinapi then Result := inflateInit_stdcall(strm, pChar(version), stream_size)
-                   else Result := inflateInit_cdecl  (strm, pChar(version), stream_size);
+     if ZLibWinapi then Result := inflateInit_stdcall(strm, pAnsiChar(version), stream_size)
+                   else Result := inflateInit_cdecl  (strm, pAnsiChar(version), stream_size);
 end;
 {——————————————————————————————————————————————————————————————————————————————}
 
-function inflateInit2_(var strm : TZStreamRec; windowBits : longint; version : string; stream_size : longint): longint;
+function inflateInit2_(var strm : TZStreamRec; windowBits : longint; version : AnsiString; stream_size : longint): longint;
 begin
-     if ZLibWinapi then Result := inflateInit2_stdcall(strm, windowBits, pChar(version), stream_size)
-                   else Result := inflateInit2_cdecl  (strm, windowBits, pChar(version), stream_size);
+     if ZLibWinapi then Result := inflateInit2_stdcall(strm, windowBits, pAnsiChar(version), stream_size)
+                   else Result := inflateInit2_cdecl  (strm, windowBits, pAnsiChar(version), stream_size);
 end;
 {——————————————————————————————————————————————————————————————————————————————}
 
@@ -676,10 +720,10 @@ begin
 end;
 {==============================================================================}
 
-function gzOpen (path : string; mode : string) : tGzFile;
+function gzOpen (path : AnsiString; mode : AnsiString) : tGzFile;
 begin
-     if ZLibWinapi then Result := gzOpen_stdcall(pChar(path), pChar(mode))
-                   else Result := gzOpen_cdecl(pChar(path), pChar(mode));
+     if ZLibWinapi then Result := gzOpen_stdcall(pAnsiChar(path), pAnsiChar(mode))
+                   else Result := gzOpen_cdecl(pAnsiChar(path), pAnsiChar(mode));
 end;
 {——————————————————————————————————————————————————————————————————————————————}
 
@@ -713,14 +757,14 @@ end;
 
 { angus - added more functions }
 function inflateBackInit(var strm: z_stream;
-                         windowBits: Integer; window: PChar): Integer;
+                         windowBits: Integer; window: PAnsiChar): Integer;
 begin
     Result := inflateBackInit_(strm, windowBits, window,
                                  ZLIB_VERSION, sizeof(z_stream));
 end;
 {——————————————————————————————————————————————————————————————————————————————}
-function inflateBackInit_(var strm: z_stream; windowBits: Integer; window: PChar;
-                          const version: PChar; stream_size: Integer): Integer;
+function inflateBackInit_(var strm: z_stream; windowBits: Integer; window: PAnsiChar;
+                          const version: PAnsiChar; stream_size: Integer): Integer;
 begin
      if ZLibWinapi then Result := inflateBackInit__stdcall(strm, windowBits, window, version, stream_size)
                    else Result := inflateBackInit__cdecl(strm, windowBits, window, version, stream_size);
@@ -770,10 +814,10 @@ begin
 end;
 
 {==============================================================================}
-function ZLibFlagsString(ZLibFlag : tZLibFlag) : string;
+function ZLibFlagsAnsiString(ZLibFlag : tZLibFlag) : AnsiString;
 var  Flags : longword;
 
-     function FlagSize(L : longword) : string;
+     function FlagSize(L : longword) : AnsiString;
      var  N : longword;
      begin
           N := (Flags shr L) and $0003;
@@ -825,7 +869,7 @@ type pDeflateState = ^tDeflateState;
      MaxChainLen 116 GoodMatch 132 NiceMatch 136 *)
 
 procedure ZLibDeflateStateInit;
-var  V : string;
+var  V : AnsiString;
 begin
      Z_DS_MaxItems    := 0;
      Z_DS_MaxChainLen := 0;
@@ -847,7 +891,7 @@ end;
 
 procedure ZLibSetDeflateStateItem(strm : TZStreamRec; Index : integer; Value : integer);
 var  PtrDS : pDeflateState;
-     V : string;
+     V : AnsiString;
 begin
      if ZLibDllLoaded then V := zlibVersionDll else exit;
      if (Z_DS_MaxItems > 0) and (V = '1.1.4') or (copy(V,1,3) = '1.2') then
@@ -860,7 +904,7 @@ end;
 
 function ZLibGetDeflateStateItem(strm : TZStreamRec; Index : integer) : integer;
 var  PtrDS : pDeflateState;
-     V : string;
+     V : AnsiString;
 begin
      Result := 0;
      if ZLibDllLoaded then V := zlibVersionDll else exit;
@@ -875,7 +919,7 @@ end;
 {==============================================================================}
 
 type
-    TBuffer = array[0..511] of char;
+    TBuffer = array[0..511] of Char;
 
 var ZLibDLLHandle : HModule;
 

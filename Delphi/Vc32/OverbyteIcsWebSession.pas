@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:  Classes to handle session for THttpAppSrv and MidWare.
 Creation:     Dec 20, 2003
-Version:      1.00
+Version:      1.01
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list midware@elists.org or twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2009 by François PIETTE
+Legal issues: Copyright (C) 1998-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -36,6 +36,9 @@ Legal issues: Copyright (C) 1998-2009 by François PIETTE
                  distribution and must be added to the product documentation.
 
 Updates:
+Apr 19, 2010 V1.01 Angus, stop MaxAge (SessionTimeout) being restored with saved
+                      session data since it can never then be changed
+                   Added SessionDataCount so client can use it, only set by AssignName
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
@@ -47,6 +50,11 @@ unit OverbyteIcsWebSession;
 {$H+}           { Use long strings                    }
 {$J+}           { Allow typed constant to be modified }
 {$I OVERBYTEICSDEFS.INC}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
@@ -56,16 +64,22 @@ unit OverbyteIcsWebSession;
 interface
 
 uses
-    Windows, Messages, SysUtils, Classes, SyncObjs, OverbyteIcsTimeList;
+    Windows, Messages, SysUtils, Classes, SyncObjs,
+    OverbyteIcsTimeList,
+    OverbyteIcsUtils;
 
 type
     TWebSessions = class;
 
     TWebSessionData = class(TComponent)
+    private
+        FSessionDataCount: integer;  // V1.01 Angus 17 Apr 2010 keep counter so client can use it
     public
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy; override;
         procedure   AssignName; virtual;
+    published
+        property SessionDataCount: integer read FSessionDataCount write FSessionDataCount;
     end;
 
     PWebSession = ^TWebSession;
@@ -183,10 +197,10 @@ var
 
 implementation
 
-const
-    GSessionID : Integer = 0;
-    GSessionDataCount : Integer = 0;
-    GSignature                  = 'WebSessions V1.00' + #13#10#26;
+var
+    GSessionID        : Integer    = 0;
+    GSessionDataCount : Integer    = 0;
+    GSignature        : AnsiString = 'WebSessions V1.01' + #13#10#26;
 threadvar
     LockCount  : Integer;
 
@@ -652,10 +666,12 @@ begin
             Exit;
         end;
         Item := FTimeList.IndexOf(Value);
-        if Item < 0 then
-            Result := nil
-        else if FTimeList.RemoveItemIfAged(Item) then
-            Result := nil
+        if Item < 0 then begin
+            Result := nil;
+        end
+        else if FTimeList.RemoveItemIfAged(Item) then begin
+            Result := nil;
+        end
         else begin
             Result := TWebSession(FTimeList.Items[Item].Data);
             Result.Refresh;
@@ -702,8 +718,9 @@ begin
         if not Assigned(FTimeList) then
             Exit;
         TheSession := FindSession(Value);
-        if not Assigned(TheSession) then
+        if not Assigned(TheSession) then begin
             Exit;
+        end;
 //WriteLn('DeleteSession. RefCount = ', TheSession.RefCount);
         // Delete will call TimeListDeleteHandler which will free the session
         FTimeList.Delete(Value);
@@ -853,6 +870,8 @@ begin
             SessionRef^.FTimeRec := FTimeList.AddWithData(SessionID, SessionRef^, nil);
             SessionRef^.IncRefCount;
 //WriteLn('ValidateSession. RefCount = ', SessionRef^.RefCount);
+        end
+        else begin
         end;
     finally
         Unlock;
@@ -940,7 +959,7 @@ procedure TWebSessions.SaveToStream(Dest : TStream);
 begin
     Lock;
     try
-        Dest.Write(GSignature, Length(GSignature));
+        Dest.Write(GSignature[1], Length(GSignature));
         Dest.WriteComponent(Self);
     finally
         Unlock;
@@ -1022,10 +1041,11 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TWebSessions.LoadFromStream(Src: TStream);
 var
-    Buf              : String;
+    Buf              : AnsiString;
     I, J             : Integer;
     CName            : String;
     OldDeleteSession : TDeleteSessionEvent;
+    OldMaxAge        : Integer;
 begin
     if Src.Size = 0 then
         Exit;
@@ -1041,6 +1061,7 @@ begin
     // when we are in the load process (the file is opened).
     OldDeleteSession := OnDeleteSession;
     OnDeleteSession  := nil;
+    OldMaxAge := MaxAge ; // V1.01 Angus 17 Apr 2010 keep MaxAge since it about to read from file
     try
         // Delete all existing data
         Clear;
@@ -1051,17 +1072,23 @@ begin
     finally
         OnDeleteSession := OldDeleteSession;
     end;
+    MaxAge := OldMaxAge ; // V1.01 Angus 17 Apr 2010 restore MaxAge
 
     // Update the global counters according to what was loaded
     for I := Count - 1 downto 0 do begin
         if Sessions[I].Session > GSessionID then
             GSessionID := Sessions[I].Session;
         if Assigned(Sessions[I].SessionData) then begin
-            CName := Sessions[I].SessionData.Name;
-            J := Length(CName);
-            while (J > 0) and (CName[J] in ['0'..'9']) do
-                Dec(J);
-            J := StrToInt(Copy(CName, J + 1, 10));
+            if  Sessions[I].SessionData.SessionDataCount > 0 then // V1.01 Angus 17 Apr 2010 might be available as integer
+                J :=  Sessions[I].SessionData.SessionDataCount
+            else begin
+                CName := Sessions[I].SessionData.Name;
+                J := Length(CName);
+//              while (J > 0) and (CName[J] in ['0'..'9']) do
+                while (J > 0) and IsCharInSysCharSet(CName[J], ['0'..'9']) do
+                    Dec(J);
+                J := StrToInt(Copy(CName, J + 1, 10));
+            end;
             if J > GSessionDataCount then
                 GSessionDataCount := J;
         end;
@@ -1079,13 +1106,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TWebSessionData.Create(AOwner : TComponent);
 begin
-//if Assigned(AOwner) then
-//    WriteLn('TWebSessionData.Create Self=$' + IntToHex(Integer(Self), 8) + ' Owner=' + AOwner.ClassName)
-//else
-//    WriteLn('TWebSessionData.Create Self=$' + IntToHex(Integer(Self), 8) + ' Owner=nil');
     inherited Create(AOwner);
     InterlockedIncrement(GSessionDataCount);
-// outputdebugstring(PChar('TWebSessionData.Create ' + IntToStr(GSessionDataCount)));
 // Name has to be set by the caller. For example calling AssignName method
 //    Name := CompName(ClassName, GSessionDataCount);
 end;
@@ -1094,10 +1116,6 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor TWebSessionData.Destroy;
 begin
-//if Assigned(Owner) then
-//    WriteLn('TWebSessionData.Destroy Self=$' + IntToHex(Integer(Self), 8) + ' Owner=' + Owner.ClassName)
-//else
-//    WriteLn('TWebSessionData.Destroy Self=$' + IntToHex(Integer(Self), 8) + ' Owner=nil');
     inherited Destroy;
 end;
 
@@ -1106,6 +1124,7 @@ end;
 procedure TWebSessionData.AssignName;
 begin
     Name := CompName(ClassName, GSessionDataCount);
+    SessionDataCount := GSessionDataCount;  // V1.01 Angus 17 Apr 2010 keep counter
 end;
 
 

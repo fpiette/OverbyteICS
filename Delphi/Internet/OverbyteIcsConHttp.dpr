@@ -10,7 +10,7 @@ Version:      6.00
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2002-2008 by François PIETTE
+Legal issues: Copyright (C) 2002-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -42,13 +42,16 @@ Legal issues: Copyright (C) 2002-2008 by François PIETTE
 Updates:
 Jul 12, 2008 V6.00 A. Garrels - Bumped version number to 6.00 and slightly 
              modified to work with ICS v6.
+Jul 19, 2008 V6.00 F. Piette made small changes for Unicode
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 program OverbyteIcsConHttp;
 
+{$R '..\Vc32\OverbyteIcsCommonVersion.res' '..\Vc32\OverbyteIcsCommonVersion.rc'}
+
 {$I OVERBYTEICSDEFS.INC}
 {$IFDEF VER80}
-    Bomb('Sorry, Delphi 1 does not support console mode programs');
+Bomb('Sorry, Delphi 1 does not support console mode programs');
 {$ENDIF}
 {$APPTYPE CONSOLE}
 {$IFNDEF NOFORMS}
@@ -64,7 +67,7 @@ uses
 
 const
   ConHttpVersion = 600;
-  CopyRight      = ' ConHttp (c) 2002-2008 by Francois PIETTE. V6.00';
+  CopyRight      = ' ConHttp (c) 2002-2010 by Francois PIETTE. V6.00';
 
 type
     { We use TConApplication class (actually a component) to encapsulate all }

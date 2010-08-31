@@ -2,7 +2,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  Server-side NTLM, validation of user credentials using Windows SSPI.
 Creation:     Sep 04, 2006
-Version:      1.01
+Version:      1.03
 Legal issues: Copyright (C) 2005 by Arno Garrels, Berlin, Germany,
               contact: <arno.garrels@gmx.de>
 
@@ -38,17 +38,29 @@ Sep 11, 2006 V1.01 A. Garrels added func ValidateUserCredentials() which allows
              ImpersonateContext as well as RevertContext. ImpersonateContext
              will make the calling thread run in the security context of the
              authenticated user.
+Apr 25, 2008 V1.02 A. Garrels, some changes to prepare code for Unicode.
+Apr 30, 2008 V1.03 A. Garrels moved the call to LoadSecPackage from
+             initialization section to TNtlmAuthSession's constructor.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsNtlmSsp;
-
-{$I OverbyteIcsDefs.inc}
 {$B-}                                 { Enable partial Boolean evaluation   }
 {$T-}                                 { Untyped Pointers                    }
 {$X+}                                 { Enable extended syntax              }
 {$H+}                                 { Use long Strings                    }
+{$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
+{$IFDEF COMPILER12_UP}
+    {$WARN IMPLICIT_STRING_CAST       OFF}
+    {$WARN IMPLICIT_STRING_CAST_LOSS  ON}
+    {$WARN EXPLICIT_STRING_CAST       OFF}
+    {$WARN EXPLICIT_STRING_CAST_LOSS  OFF}
+{$ENDIF}
 
-{#$DEFINE UNICODE}
 {#$DEFINE DEBUG_EXCEPTIONS}
 
 interface
@@ -62,7 +74,7 @@ const
     WC_NO_BEST_FIT_CHARS = $00000400; // do not use best fit chars
 
 type
-    UCS2String = String;
+    UCS2String = AnsiString;
     PNTLM_Message3  = ^TNTLM_Message3;
     PNTLM_Message1  = ^TNTLM_Message1;
     TNtlmState  = (lsNone, lsInAuth, lsDoneOK, lsDoneErr);
@@ -82,9 +94,9 @@ type
         FAuthError         : Integer;
         FOnBeforeValidate  : TNtlmSessionBeforeValidate;
    protected
-        procedure   NtlmMsg3GetAttributes(const NtlmMsg3: String);
-        function    NtlmMsgGetType(const NtlmMsg: String): Integer;
-        function    NtlmAccept(const InBuffer: String): String;
+        procedure   NtlmMsg3GetAttributes(const NtlmMsg3: AnsiString);
+        function    NtlmMsgGetType(const NtlmMsg: AnsiString): Integer;
+        function    NtlmAccept(const InBuffer: AnsiString): AnsiString;
         function    NtlmErrorDesc(ErrCode: Integer): String;
    public
         constructor Create;
@@ -122,13 +134,15 @@ var
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Get rid of some ntdll.DbgBreakPoints M$ forgot to remove from their DLLs  }
-{ popping up the CPU window. Author: Matze, no e-mail available.            }
+{ popping up the CPU window. Written by Francois Piette, published 2002 in  }
+{ HowToDoThings website, based on code written by Pete Morris.              }
+{ Tiny change by myself - to be very correct ;-)                            }
 procedure PatchINT3;
 var
-    NOP: Byte;
-    NTDLL: THandle;
-    BytesWritten: DWORD;
-    Address: Pointer;
+    NOP          : Byte;
+    NTDLL        : THandle;
+    BytesWritten : DWORD;
+    Address      : Pointer;
 begin
     if Win32Platform <> VER_PLATFORM_WIN32_NT then Exit;
     NTDLL := GetModuleHandle('NTDLL.DLL');
@@ -136,7 +150,7 @@ begin
     Address := GetProcAddress(NTDLL, 'DbgBreakPoint');
     if Address = nil then Exit;
     try
-        if Char(Address^) <> #$CC then Exit;
+        if Byte(Address^) <> $CC then Exit;
         NOP := $90;
         if WriteProcessMemory(GetCurrentProcess, Address, @NOP, 1, BytesWritten) and
           (BytesWritten = 1) then
@@ -157,7 +171,7 @@ type
 var
     pInit   : INIT_SECURITY_ENTRYPOINT_FN;
     pkgInfo : PSecPkgInfo;
-    SS      : TSecurityStatus;
+    sStatus : TSecurityStatus;
 begin
     EnterCriticalSection(SecPackageLock);
     try
@@ -176,14 +190,13 @@ begin
 
             PSFT := pInit;
 {$IFNDEF UNICODE}
-            SS := PSFT^.QuerySecurityPackageInfoA(NTLMSP_NAME_A, pkgInfo);
+            sStatus := PSFT^.QuerySecurityPackageInfoA(NTLMSP_NAME_A, pkgInfo);
 {$ELSE}
-            SS := PSFT^.QuerySecurityPackageInfoW(PWideChar(NTLMSP_NAME),
-                                                  pkgInfo);
+            sStatus := PSFT^.QuerySecurityPackageInfoW(NTLMSP_NAME,  pkgInfo);
 {$ENDIF}
-            if SS < 0 then
+            if sStatus < 0 then
                 raise Exception.CreateFmt('Couldn''t find package info for ' +
-                                          'NTLM, error 0x%x', [SS]);
+                                          'NTLM, error 0x%x', [sStatus]);
 
             cbMaxMessage := pkgInfo^.cbMaxToken;
 
@@ -218,6 +231,7 @@ end;
 constructor TNtlmAuthSession.Create;
 begin
     inherited Create;
+    LoadSecPackage;
     FPSFT := PSFT;
     CleanUpLogonSession;
 end;
@@ -269,63 +283,23 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{function StringToUCS2(const S: String): UCS2String;
+function UCS2ToString(const S: UCS2String): AnsiString;
+var
+    Len : Integer;
 begin
-    if Length(S) = 0 then
-        Result := ''
-    else begin
-        SetLength(Result, Length(S) * 2);
-        if MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, @S[1], Length(S),
-                               @Result[1], Length(Result)) = 0 then
-            RaiseLastOsError;
-    end;
-end;}
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function UCS2ToString(const S: UCS2String): String;
-begin
-    if Length(S) < 2 then
-        Result := ''
-    else begin
-        SetLength(Result, Length(S));
-        if WideCharToMultiByte(CP_ACP, 0, @S[1], Length(S),
-                               @Result[1], Length(Result),
-                               nil, nil) = 0 then
-            RaiseLastOsError
-        else
-            SetLength(Result, StrLen(PChar(Result)));
-    end;
+    Result := '';
+    Len := Length(S);
+    if Len < 2 then
+        Exit;
+    Len := WideCharToMultiByte(CP_ACP, 0,
+                               Pointer(S), Len div SizeOf(WideChar),
+                               nil, 0,//Pointer(Result), Length(Result),
+                               nil, nil);
+    SetLength(Result, Len);
+    WideCharToMultiByte(CP_ACP, 0,
+                        Pointer(S), Len div SizeOf(WideChar),
+                        Pointer(Result), Len, nil, nil);
 end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{function UCS2ToWideString(const S: UCS2String): WideString;
-begin
-    if Length(S) < 2 then
-        Result := ''
-    else begin
-        SetLength(Result, Length(S) div 2);
-        Move(S[1], Result[1], Length(S));
-    end;
-end;}
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{function WideStringToString(const WS: WideString): String;
-begin
-    if Length(WS) = 0 then
-        Result := ''
-    else begin
-        SetLength(Result, Length(WS));
-        if WideCharToMultiByte(CP_ACP, 0,
-                               //WC_COMPOSITECHECK or WC_DISCARDNS or
-                               //WC_SEPCHARS or WC_DEFAULTCHAR,
-                               @Ws[1], Length(WS), @Result[1], Length(Result),
-                               nil, nil) = 0 then
-            RaiseLastOsError;
-    end;
-end;}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -368,33 +342,70 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TNtlmAuthSession.NtlmMsg3GetAttributes(const NtlmMsg3: String);
+procedure TNtlmAuthSession.NtlmMsg3GetAttributes(const NtlmMsg3: AnsiString);
 var
     PMsg : PNTLM_Message3;
+    Len, Offs : Integer;
 begin
     if Length(NtlmMsg3) < SizeOf(TNTLM_Message3) then
         Exit;
     PMsg := @NtlmMsg3[1];
-    if PMsg^.User.Length <= 256 * 2 then begin // ? Max. length Win logon names = 104
-        FUsername := Copy(NtlmMsg3, PMsg^.User.Offset + 1, PMsg^.User.Length);
-        if Pmsg^.Flags and Flags_Negotiate_Unicode <> 0 then
-            FUsername := UCS2ToString(FUsername);
+
+    { Extract user name }
+    Len  := PMsg^.User.Length;
+    Offs := PMsg^.User.Offset;
+    if (Len > 0) and (Len <= 256 * 2) and  // ? Max. length Win logon names = 104
+       (Offs + 1 + Len <= Length(NtlmMsg3)) then begin
+        if Pmsg^.Flags and Flags_Negotiate_Unicode <> 0 then begin
+        {$IFDEF UNICODE}
+            SetLength(FUsername, Len div 2);
+            Move(NtlmMsg3[Offs + 1], FUsername[1], Len);
+        {$ELSE}
+            FUsername := UCS2ToString(Copy(NtlmMsg3, Offs + 1, Len));
+        {$ENDIF}
+        end
+        else
+            FUsername := Copy(NtlmMsg3, Offs + 1, Len);
     end;
-    if PMsg^.Host.Length <= 256 * 2 then begin// Max. host name length ?
-        FHost := Copy(NtlmMsg3, PMsg^.Host.Offset + 1, PMsg^.Host.Length);
-        if Pmsg^.Flags and Flags_Negotiate_Unicode <> 0 then
-            FHost := UCS2ToString(FHost);
+
+    { Extract host }
+    Len  := PMsg^.Host.Length;
+    Offs := PMsg^.Host.Offset;
+    if (Len > 0) and (Len <= 256 * 2) and  // Max. host name length ?
+       (Offs + 1 + Len <= Length(NtlmMsg3)) then begin
+        if Pmsg^.Flags and Flags_Negotiate_Unicode <> 0 then begin
+        {$IFDEF UNICODE}
+            SetLength(FHost, Len div 2);
+            Move(NtlmMsg3[Offs + 1], FHost[1], Len);
+        {$ELSE}
+            FHost := UCS2ToString(Copy(NtlmMsg3, Offs + 1, Len));
+        {$ENDIF}
+        end
+        else
+            FHost := Copy(NtlmMsg3, Offs + 1, Len);
     end;
-    if PMsg^.Domain.Length <= 256 * 2 then begin // Max. domain name length ?
-        FDomain := Copy(NtlmMsg3, PMsg^.Domain.Offset + 1, PMsg^.Domain.Length);
-        if Pmsg^.Flags and Flags_Negotiate_Unicode <> 0 then
-            FDomain := UCS2ToString(FDomain);
+
+    { Extract Domain }
+    Len  := PMsg^.Domain.Length;
+    Offs := PMsg^.Domain.Offset;
+    if (Len > 0) and (Len <= 256 * 2) and  // Max. domain name length ?
+       (Offs + 1 + Len <= Length(NtlmMsg3)) then begin
+        if Pmsg^.Flags and Flags_Negotiate_Unicode <> 0 then begin
+        {$IFDEF UNICODE}
+            SetLength(FDomain, Len div 2);
+            Move(NtlmMsg3[Offs + 1], FDomain[1], Len);
+        {$ELSE}
+            FDomain := UCS2ToString(Copy(NtlmMsg3, Offs + 1, Len));
+        {$ENDIF}
+        end
+        else
+            FDomain := Copy(NtlmMsg3, Offs + 1, Len);
     end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TNtlmAuthSession.NtlmMsgGetType(const NtlmMsg: String): Integer;
+function TNtlmAuthSession.NtlmMsgGetType(const NtlmMsg: AnsiString): Integer;
 var
     PMsg : PNTLM_Message1;
 begin
@@ -414,13 +425,13 @@ begin
         CleanupLogonSession;
         Exit;
     end;
-    FNtlmMessage := NtlmAccept(InBuffer);
+    FNtlmMessage := String(NtlmAccept(Base64Decode(AnsiString(InBuffer))));
     Result       := FState = lsDoneOk;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TNtlmAuthSession.NtlmAccept(const InBuffer: String): String;
+function TNtlmAuthSession.NtlmAccept(const InBuffer: AnsiString): AnsiString;
 var
     Sec                 : TSecurityStatus;
     Lifetime            : LARGE_INTEGER;
@@ -430,13 +441,12 @@ var
     OutSecBuff          : TSecBuffer;
     ContextAttr         : Cardinal;
     pHCtx               : PCtxtHandle;
-    InBufDec            : String;
     Allow               : Boolean;
     MsgType             : Integer;
 begin
     try
-        InBufDec := Base64Decode(InBuffer);
-        if Length(InBufDec) = 0 then begin
+        //InBufDec := Base64Decode(InBuffer);
+        if Length(InBuffer) = 0 then begin
             FAuthError := Integer(SEC_E_INVALID_TOKEN);
             {$IFDEF DEBUG_EXCEPTIONS}
                 raise Exception.Create('InBuffer empty');
@@ -445,14 +455,14 @@ begin
                 Exit;
             {$ENDIF}
         end;
-        MsgType := NtlmMsgGetType(InBufDec);
+        MsgType := NtlmMsgGetType(InBuffer);
         if not ((MsgType = 3) and (FState = lsInAuth)) then
             CleanupLogonSession;
 
         if FState = lsNone then begin
 {$IFNDEF UNICODE}
             Sec := FPSFT^.AcquireCredentialsHandleA(nil,
-                                                   PChar(NTLMSP_NAME_A),
+                                                   NTLMSP_NAME_A,
                                                    SECPKG_CRED_INBOUND,
                                                    nil,
                                                    nil,
@@ -462,7 +472,7 @@ begin
                                                    Lifetime);
 {$ELSE}
             Sec := FPSFT^.AcquireCredentialsHandleW(nil,
-                                                   PWideChar(NTLMSP_NAME),
+                                                   NTLMSP_NAME,
                                                    SECPKG_CRED_INBOUND,
                                                    nil,
                                                    nil,
@@ -498,16 +508,16 @@ begin
         InBuffDesc.cBuffers  := 1;
         InBuffDesc.pBuffers  := @InSecBuff;
 
-        InSecBuff.cbBuffer   := Length(InBufDec);
+        InSecBuff.cbBuffer   := Length(InBuffer);
         InSecBuff.BufferType := SECBUFFER_TOKEN;
-        InSecBuff.pvBuffer   := @InBufDec[1];
+        InSecBuff.pvBuffer   := @InBuffer[1];
 
         if FState = lsNone then
             pHCtx := nil
         else begin
             pHCtx := @FHCtx;
             { We received NTLMMsg3 }
-            NtlmMsg3GetAttributes(InBufDec);
+            NtlmMsg3GetAttributes(InBuffer);
             Allow := TRUE;
             if Assigned(FOnBeforeValidate) then
                 FOnBeforeValidate(Self, Allow);
@@ -637,7 +647,7 @@ end;
 initialization
     InitializeCriticalSection(SecPackageLock);
     SecPackageHandle := 0;
-    LoadSecPackage;
+    //LoadSecPackage;
     if DebugHook <> 0 then
         PatchINT3;
 

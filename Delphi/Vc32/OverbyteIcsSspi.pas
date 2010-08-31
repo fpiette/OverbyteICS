@@ -34,18 +34,23 @@ Sep 04, 2006 V1.01 Reworked by A.Garrels in order to support BCB as well as
              Unicode. Development of this version has been sponsored by Fastream
              Technologies (www.fastream.com) and donated to ICS, thanks.
              **If you compile with BCB personality define SECURITY_WIN32
-             in the project options**.
+             in the project options**
+Apr 25, 2008 V1.0.2 A.Garrels some changes to prepare code for Unicode; 
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSspi;
 
-{$I OverbyteIcsDefs.inc}
 {$B-}                                 { Enable partial Boolean evaluation   }
 {$T-}                                 { Untyped Pointers                    }
 {$X+}                                 { Enable extended syntax              }
 {$H+}                                 { Use long Strings                    }
-
-{#$DEFINE UNICODE}
+{$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 
 interface
 
@@ -58,9 +63,9 @@ uses
 { security.h }
 const
   {$EXTERNALSYM NTLMSP_NAME_A}
-  NTLMSP_NAME_A  = 'NTLM';
+  NTLMSP_NAME_A  : PChar     = 'NTLM';
   {$EXTERNALSYM NTLMSP_NAME}
-  NTLMSP_NAME    = WideString('NTLM'); 
+  NTLMSP_NAME    : PWideChar = 'NTLM';
 
   { Some from Winerror.h }
   {$EXTERNALSYM SEC_I_CONTINUE_NEEDED}
@@ -209,11 +214,11 @@ type
 
   {$EXTERNALSYM _SEC_WINNT_AUTH_IDENTITY_A}
   _SEC_WINNT_AUTH_IDENTITY_A = record
-    User            : PChar;
+    User            : PAnsiChar;
     UserLength      : Cardinal;
-    Domain          : PChar;
+    Domain          : PAnsiChar;
     DomainLength    : Cardinal;
-    Password        : PChar;
+    Password        : PAnsiChar;
     PasswordLength  : Cardinal;
     Flags           : Cardinal;
   end;
@@ -312,8 +317,8 @@ type
     wVersion        : Word;        // Version of driver
     wRPCID          : Word;        // ID for RPC Runtime
     cbMaxToken      : Cardinal;    // Size of authentication token (max)
-    Name            : PChar;       // Text name
-    Comment         : PChar;       // Comment
+    Name            : PAnsiChar;   // Text name
+    Comment         : PAnsiChar;   // Comment
   end;
   {$EXTERNALSYM SecPkgInfoA}
   SecPkgInfoA = _SecPkgInfoA;
@@ -327,8 +332,8 @@ type
     wVersion        : Word;        // Version of driver
     wRPCID          : Word;        // ID for RPC Runtime
     cbMaxToken      : Cardinal;    // Size of authentication token (max)
-    Name            : PWChar;      // Text name
-    Comment         : PWChar;      // Comment
+    Name            : PWideChar;   // Text name
+    Comment         : PWideChar;   // Comment
   end;
   {$EXTERNALSYM SecPkgInfoW}
   SecPkgInfoW = _SecPkgInfoW;
@@ -358,7 +363,7 @@ type
   {$EXTERNALSYM ENUMERATE_SECURITY_PACKAGES_FN_W}
   ENUMERATE_SECURITY_PACKAGES_FN_W  = function(var cPackages: Cardinal; var PackageInfo: PSecPkgInfoW): SECURITY_STATUS; stdcall;
   {$EXTERNALSYM QUERY_SECURITY_PACKAGE_INFO_FN_A}
-  QUERY_SECURITY_PACKAGE_INFO_FN_A  = function(packageName: PChar; var info: PSecPkgInfo): SECURITY_STATUS; stdcall;
+  QUERY_SECURITY_PACKAGE_INFO_FN_A  = function(packageName: PAnsiChar; var info: PSecPkgInfo): SECURITY_STATUS; stdcall;
   {$EXTERNALSYM QUERY_SECURITY_PACKAGE_INFO_FN_W}
   QUERY_SECURITY_PACKAGE_INFO_FN_W  = function(packageName: PWideChar; var info: PSecPkgInfo): SECURITY_STATUS; stdcall;
   {$EXTERNALSYM QUERY_CREDENTIALS_ATTRIBUTES_FN_A}
@@ -370,13 +375,13 @@ type
   {$EXTERNALSYM SEC_GET_KEY_FN}
   SEC_GET_KEY_FN                    = procedure(Arg, Principal: Pointer; KeyVer: Cardinal; var Key: Pointer; var status: SECURITY_STATUS); stdcall;
   {$EXTERNALSYM ACQUIRE_CREDENTIALS_HANDLE_FN_A}
-  ACQUIRE_CREDENTIALS_HANDLE_FN_A   = function(pszPrincipal: PChar; pszPackage: PChar; fCredentialUse: Cardinal; pvLogonID: Pointer; pAuthData: Pointer; pGetKeyFn: SEC_GET_KEY_FN; pvGetKeyArgument: Pointer; var phCredential: CredHandle; var ptsExpiry : LARGE_INTEGER): SECURITY_STATUS; stdcall;
+  ACQUIRE_CREDENTIALS_HANDLE_FN_A   = function(pszPrincipal: PAnsiChar; pszPackage: PAnsiChar; fCredentialUse: Cardinal; pvLogonID: Pointer; pAuthData: Pointer; pGetKeyFn: SEC_GET_KEY_FN; pvGetKeyArgument: Pointer; var phCredential: CredHandle; var ptsExpiry : LARGE_INTEGER): SECURITY_STATUS; stdcall;
   {$EXTERNALSYM ACQUIRE_CREDENTIALS_HANDLE_FN_W}
   ACQUIRE_CREDENTIALS_HANDLE_FN_W   = function(pszPrincipal: PWideChar; pszPackage: PWideChar; fCredentialUse: Cardinal; pvLogonID: Pointer; pAuthData: Pointer; pGetKeyFn: SEC_GET_KEY_FN; pvGetKeyArgument: Pointer; var phCredential: CredHandle; var ptsExpiry : LARGE_INTEGER): SECURITY_STATUS; stdcall;
   {$EXTERNALSYM FREE_CREDENTIALS_HANDLE_FN}
   FREE_CREDENTIALS_HANDLE_FN        = function(credHandle: PCredHandle): SECURITY_STATUS; stdcall;
   {$EXTERNALSYM INITIALIZE_SECURITY_CONTEXT_FN_A}
-  INITIALIZE_SECURITY_CONTEXT_FN_A  = function(phCredential: PCredHandle; phContent: PCtxtHandle; pszTargetName: PChar; fContextReq, Reserved1, TargetDataRe : Cardinal; pInput: PSecBufferDesc; Reserved2: Cardinal; phNewContext: PCtxtHandle; pOutput: PSecBufferDesc; var pfContextAttr: Cardinal; var ptsExpiry : LARGE_INTEGER): SECURITY_STATUS; stdcall;
+  INITIALIZE_SECURITY_CONTEXT_FN_A  = function(phCredential: PCredHandle; phContent: PCtxtHandle; pszTargetName: PAnsiChar; fContextReq, Reserved1, TargetDataRe : Cardinal; pInput: PSecBufferDesc; Reserved2: Cardinal; phNewContext: PCtxtHandle; pOutput: PSecBufferDesc; var pfContextAttr: Cardinal; var ptsExpiry : LARGE_INTEGER): SECURITY_STATUS; stdcall;
   {$EXTERNALSYM INITIALIZE_SECURITY_CONTEXT_FN_W}
   INITIALIZE_SECURITY_CONTEXT_FN_W  = function(phCredential: PCredHandle; phContent: PCtxtHandle; pszTargetName: PWideChar; fContextReq, Reserved1, TargetDataRep: Cardinal; pInput: PSecBufferDesc; Reserved2: Cardinal; phNewContext: PCtxtHandle; pOutput: PSecBufferDesc; var pfContextAttr: Cardinal; var ptsExpiry : LARGE_INTEGER) : SECURITY_STATUS; stdcall;
   {$EXTERNALSYM ACCEPT_SECURITY_CONTEXT_FN}
@@ -403,11 +408,11 @@ type
   {$EXTERNALSYM FREE_CONTEXT_BUFFER_FN}
   FREE_CONTEXT_BUFFER_FN           = function(contextBuffer: Pointer): SECURITY_STATUS; stdcall;
   {$EXTERNALSYM IMPORT_SECURITY_CONTEXT_FN_A}
-  IMPORT_SECURITY_CONTEXT_FN_A     = function(pszPackage: PChar; pPackedContext: PSecBuffer; Token: Pointer; phContext: PCtxtHandle): SECURITY_STATUS; stdcall;
+  IMPORT_SECURITY_CONTEXT_FN_A     = function(pszPackage: PAnsiChar; pPackedContext: PSecBuffer; Token: Pointer; phContext: PCtxtHandle): SECURITY_STATUS; stdcall;
   {$EXTERNALSYM IMPORT_SECURITY_CONTEXT_FN_W}
   IMPORT_SECURITY_CONTEXT_FN_W     = function(pszPackage: PWideChar; pPackedContext: PSecBuffer; Token: Pointer; phContext: PCtxtHandle): SECURITY_STATUS; stdcall;
   {$EXTERNALSYM ADD_CREDENTIALS_FN_A}
-  ADD_CREDENTIALS_FN_A             = function(hCredentials: PCredHandle; pszPrincipal, pszPackage: PChar; fCredentialUse: Cardinal; pAuthData: Pointer; pGetKeyFn: SEC_GET_KEY_FN; pvGetKeyArgument: Pointer; var ptsExpiry: LARGE_INTEGER): SECURITY_STATUS; stdcall;
+  ADD_CREDENTIALS_FN_A             = function(hCredentials: PCredHandle; pszPrincipal, pszPackage: PAnsiChar; fCredentialUse: Cardinal; pAuthData: Pointer; pGetKeyFn: SEC_GET_KEY_FN; pvGetKeyArgument: Pointer; var ptsExpiry: LARGE_INTEGER): SECURITY_STATUS; stdcall;
   {$EXTERNALSYM ADD_CREDENTIALS_FN_W}
   ADD_CREDENTIALS_FN_W             = function(hCredentials: PCredHandle; pszPrincipal, pszPackage : PWideChar; fCredentialUse: Cardinal; pAuthData: Pointer; pGetKeyFn: SEC_GET_KEY_FN; pvGetKeyArgument: Pointer; var ptsExpiry: LARGE_INTEGER): SECURITY_STATUS; stdcall;
   {$EXTERNALSYM QUERY_SECURITY_CONTEXT_TOKEN_FN}
@@ -517,7 +522,7 @@ type
 
   {$EXTERNALSYM _SecPkgContext_NamesA}
   _SecPkgContext_NamesA = record
-    sUserName: PChar;
+    sUserName: PAnsiChar;
   end;
   {$EXTERNALSYM SecPkgContext_NamesA}
   SecPkgContext_NamesA = _SecPkgContext_NamesA;
@@ -556,7 +561,7 @@ type
 
    {$EXTERNALSYM _SecPkgContext_AuthorityA}
   _SecPkgContext_AuthorityA = record
-    sAuthorityName: PChar;
+    sAuthorityName: PAnsiChar;
   end;
   {$EXTERNALSYM SecPkgContext_AuthorityA}
   SecPkgContext_AuthorityA = _SecPkgContext_AuthorityA;

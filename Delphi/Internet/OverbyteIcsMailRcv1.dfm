@@ -1,8 +1,8 @@
 object POP3ExcercizerForm: TPOP3ExcercizerForm
-  Left = 44
-  Top = 643
-  Caption = 'POP3 Excercizer'
-  ClientHeight = 341
+  Left = 42
+  Top = 43
+  Caption = 'POP3 Excercizer - http://www.overbyte.be'
+  ClientHeight = 348
   ClientWidth = 518
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -20,7 +20,7 @@ object POP3ExcercizerForm: TPOP3ExcercizerForm
     Left = 0
     Top = 233
     Width = 518
-    Height = 108
+    Height = 115
     Hint = 'This area show the activity with the host'
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
@@ -35,8 +35,6 @@ object POP3ExcercizerForm: TPOP3ExcercizerForm
     ScrollBars = ssBoth
     ShowHint = True
     TabOrder = 1
-    ExplicitWidth = 526
-    ExplicitHeight = 110
   end
   object Panel1: TPanel
     Left = 0
@@ -45,7 +43,6 @@ object POP3ExcercizerForm: TPOP3ExcercizerForm
     Height = 233
     Align = alTop
     TabOrder = 0
-    ExplicitWidth = 526
     object InfoLabel: TLabel
       Left = 32
       Top = 156
@@ -391,13 +388,13 @@ object POP3ExcercizerForm: TPOP3ExcercizerForm
       Width = 97
       Height = 21
       Style = csDropDownList
-      ItemHeight = 13
       TabOrder = 29
       Items.Strings = (
         'None'
         'Login'
         'CramMD5'
-        'CarmSHA1')
+        'CramSHA1'
+        'NTLM')
     end
     object AuthButton: TButton
       Left = 200

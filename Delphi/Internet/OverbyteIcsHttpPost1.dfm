@@ -1,9 +1,9 @@
 object HttpPostForm: THttpPostForm
-  Left = 161
-  Top = 486
+  Left = 250
+  Top = 147
   Caption = 'Http Post - http://www.orverbyte.be'
-  ClientHeight = 213
-  ClientWidth = 371
+  ClientHeight = 300
+  ClientWidth = 372
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -19,11 +19,10 @@ object HttpPostForm: THttpPostForm
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
-    Width = 371
-    Height = 113
+    Width = 372
+    Height = 169
     Align = alTop
     TabOrder = 0
-    ExplicitWidth = 379
     object Label1: TLabel
       Left = 12
       Top = 12
@@ -58,6 +57,26 @@ object HttpPostForm: THttpPostForm
       Font.Style = [fsBold]
       ParentFont = False
     end
+    object Label5: TLabel
+      Left = 24
+      Top = 123
+      Width = 38
+      Height = 13
+      Caption = 'FilePath'
+    end
+    object Shape1: TShape
+      Left = 12
+      Top = 112
+      Width = 349
+      Height = 2
+    end
+    object Label6: TLabel
+      Left = 4
+      Top = 147
+      Width = 59
+      Height = 13
+      Caption = 'Upload URL'
+    end
     object FirstNameEdit: TEdit
       Left = 72
       Top = 8
@@ -83,20 +102,45 @@ object HttpPostForm: THttpPostForm
       Text = 'ActionURLEdit'
     end
     object PostButton: TButton
-      Left = 72
-      Top = 84
+      Left = 69
+      Top = 86
       Width = 75
       Height = 21
       Caption = '&Post'
       TabOrder = 3
       OnClick = PostButtonClick
     end
+    object FileNameEdit: TEdit
+      Left = 69
+      Top = 120
+      Width = 212
+      Height = 21
+      TabOrder = 4
+      Text = 'FileNameEdit'
+    end
+    object UploadButton: TButton
+      Left = 287
+      Top = 142
+      Width = 75
+      Height = 21
+      Caption = '&Upload'
+      TabOrder = 5
+      OnClick = UploadButtonClick
+    end
+    object UploadURLEdit: TEdit
+      Left = 69
+      Top = 144
+      Width = 212
+      Height = 21
+      TabOrder = 6
+      Text = 'UploadURLEdit'
+    end
   end
   object DisplayMemo: TMemo
     Left = 0
-    Top = 113
-    Width = 371
-    Height = 100
+    Top = 169
+    Width = 372
+    Height = 131
     Align = alClient
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
@@ -108,8 +152,6 @@ object HttpPostForm: THttpPostForm
     ParentFont = False
     ScrollBars = ssBoth
     TabOrder = 1
-    ExplicitWidth = 379
-    ExplicitHeight = 102
   end
   object HttpCli1: THttpCli
     LocalAddr = '0.0.0.0'
@@ -127,10 +169,11 @@ object HttpPostForm: THttpPostForm
     BandwidthLimit = 10000
     BandwidthSampling = 1000
     Options = []
+    Timeout = 30
     OnRequestDone = HttpCli1RequestDone
     SocksLevel = '5'
     SocksAuthentication = socksNoAuthentication
-    Left = 80
-    Top = 140
+    Left = 88
+    Top = 204
   end
 end

@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     Jan 01, 2004
-Version:      6.00
+Version:      6.01
 Description:  This is an implementation of the NTLM authentification
               messages used within HTTP protocol (client side).
               NTLM protocol documentation can be found at:
@@ -15,7 +15,7 @@ Credit:       This code is based on a work by Diego Ariel Degese
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2007 by François PIETTE
+Legal issues: Copyright (C) 2004-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -45,27 +45,43 @@ Legal issues: Copyright (C) 2004-2007 by François PIETTE
                  address, EMail address and any comment you like to say.
 Updates:
 Mar 26, 2006 V6.00 New version 6 started
-
+Apr 25, 2008 V6.01 A. Garrels - Fixed function Unicode. NtlmGetMessage3() got a
+                   new parameter ACodepage : LongWord that defaults to the
+                   currently active codepage. Some changes to prepare code for
+                   Unicode.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsNtlmMsgs;
 
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$R-}
 {$Q-}
+{$IFDEF COMPILER12_UP}
+    {$WARN IMPLICIT_STRING_CAST       OFF}
+    {$WARN IMPLICIT_STRING_CAST_LOSS  OFF}
+    {$WARN EXPLICIT_STRING_CAST       OFF}
+    {$WARN EXPLICIT_STRING_CAST_LOSS  OFF}
+{$ENDIF}
+{#$DEFINE SUPPORT_WIN95}
+
 interface
 
 uses
-    SysUtils,
+    Windows, SysUtils,
 {$IFDEF CLR}
     System.Text,
 {$ENDIF}
     OverbyteIcsDES, OverbyteIcsMD4, OverbyteIcsMimeUtils;
 
 const
-    IcsNtlmMsgsVersion     = 600;
-    CopyRight : String     = ' IcsNtlmMsgs (c) 2004-2007 F. Piette V6.00 ';
+    IcsNtlmMsgsVersion     = 601;
+    CopyRight : String     = ' IcsNtlmMsgs (c) 2004-2010 F. Piette V6.01 ';
 
 const
     Flags_Negotiate_Unicode               = $00000001;
@@ -169,14 +185,17 @@ type
 
 function NtlmGetMessage1(const AHost, ADomain: String): String;
 function NtlmGetMessage2(const AServerReply: String): TNTLM_Msg2_Info;
-function NtlmGetMessage3(const ADomain, AHost, AUser, APassword: String; AChallenge: TArrayOf8Bytes): String;
+function NtlmGetMessage3(const ADomain, AHost, AUser, APassword: String;
+    AChallenge: TArrayOf8Bytes; ACodePage: LongWord = CP_ACP): String;
 
 implementation
 
-
+{$IFNDEF COMPILER12_UP}
+{$IFDEF SUPPORT_WIN95}
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Convert an text to a unicode text stored }
-function Unicode(const AData: String): String;
+{ Convert a text to a unicode text stored, this works reliable only with    }
+{ 7 bit ASCII characters and mostly with windows codepage 1252 as well.     }
+function UnicodeBuggy(const AData: AnsiString): AnsiString;
 var
     I, J : Integer;
 begin
@@ -192,9 +211,95 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Convert a text to an unicode text stored.  A.Garrels                      }
+{ Min.: Windows 95, Windows NT 4.0, Windows CE 4.0. Internet Explorer 5.5.  }
+function INetMultiByteToUnicode(const Src: AnsiString; ACodePage: LongWord) : AnsiString;
+var
+    hLib   : THandle;
+    Mode   : Cardinal;
+    SrcLen : Integer;
+    DstLen : Integer;
+    f_ConvertINetMultiByteToUnicode : function(var Mode           : Cardinal;
+                                               dwSrcEncoding      : Cardinal; // Codepage
+                                               lpSrcStr           : PAnsiChar;
+                                               var MultiCharCount : Integer;
+                                               lpDstStr           : PWideChar;
+                                               var WideCharCount  : Integer
+                                               ): HRESULT; stdcall;
+begin
+    Result := '';
+    SrcLen := Length(Src);
+    Mode   := 0;
+    DstLen := SrcLen * (SizeOf(WideChar) + 1);  // allocate space enough
+    while DstLen mod SizeOf(WideChar) > 0 do
+        Inc(DstLen);
+    SetLength(Result, DstLen);
+    DstLen := DstLen div SizeOf(WideChar);
+
+    hLib := LoadLibraryA('mlang.dll');
+    if hlib = 0 then
+        Result := UnicodeBuggy(Src)
+    else
+    try
+        @f_ConvertINetMultiByteToUnicode := GetProcAddress(hLib,
+                                              'ConvertINetMultiByteToUnicode');
+        if @f_ConvertINetMultiByteToUnicode <> nil then begin
+            if ACodePage = CP_ACP then // CP_ACP doesn't work here !
+                ACodePage := GetACP;
+            if f_ConvertINetMultiByteToUnicode(Mode, ACodePage,
+                                               Pointer(Src), SrcLen,
+                                               Pointer(Result), DstLen) = S_OK then
+                SetLength(Result, DstLen * SizeOf(WideChar))
+            else
+                Result := ''; //finally call our buggy version
+        end
+        else
+            Result := UnicodeBuggy(Src);
+    finally
+        if hLib > 0 then
+            FreeLibrary(hLib);
+    end;
+end;
+{$ENDIF} // SUPPORT_WIN95
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Convert a text to an unicode text stored.  A.Garrels                      }
+{ http://msdn2.microsoft.com/en-us/library/ms776413(VS.85).aspx             }
+{ "Windows 95/98/Me: A version of MultiByteToWideChar is included in these  }
+{ operating systems, but a more extensive version of the function is        }
+{ supported by the Microsoft Layer for Unicode."                            }
+function Unicode(const AData: AnsiString; ACodePage: LongWord): AnsiString;
+var
+    Len : Integer;
+begin
+    Len := Length(AData);
+    if Len = 0 then begin
+        Result := '';
+        Exit;
+    end;
+{$IFDEF SUPPORT_WIN95}
+    if Win32Platform = VER_PLATFORM_WIN32_WINDOWS then begin
+        Result := INetMultiByteToUnicode(AData, ACodePage);
+        Exit;
+    end;
+{$ELSE}
+    Len := MultiByteToWideChar(ACodePage, 0, Pointer(AData),
+                               Len, nil, 0);
+    if Len > 0 then begin
+        SetLength(Result, Len * SizeOf(WideChar));
+        MultiByteToWideChar(ACodePage, 0, Pointer(AData), Length(AData),
+                            Pointer(Result), Len);
+    end
+    else
+        Result := '';
+{$ENDIF}
+end;
+{$ENDIF} //NDEF COMPILER12_UP
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function DesEcbEncrypt(
-    const AKey  : String;                  // Must be exactly 8 characters
-    const AData : TArrayOf8Bytes): String;
+    const AKey  : AnsiString;                // Must be exactly 8 characters
+    const AData : TArrayOf8Bytes): AnsiString;
 var
     i, j, t, bit : Integer;
     XKey         : TArrayOf8Bytes;
@@ -235,20 +340,20 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function NtlmGetLMHash(
-    const APassword : String;
-    const ANonce    : TArrayOf8Bytes): String;
+    const APassword : AnsiString;
+    const ANonce    : TArrayOf8Bytes): AnsiString;
 const
     Magic: TArrayOf8Bytes = ($4B, $47, $53, $21, $40, $23, $24, $25);
 var
     I        : Integer;
-    Pass     : String;
-    PassHash : String;
+    Pass     : AnsiString;
+    PassHash : AnsiString;
 begin
     Pass := Copy(UpperCase(APassword), 1, 14);
     for I := Length(APassword) to 14 do
         Pass := Pass + #0;
 
-    PassHash := DesEcbEncrypt(Copy(Pass, 1, 7),  Magic) +
+    PassHash := DesEcbEncrypt(Copy(Pass, 1, 7), Magic) +
                 DesEcbEncrypt(Copy(Pass, 8, 7), Magic) +
                 #0#0#0#0#0;
 
@@ -260,12 +365,12 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function NtlmGetNTHash(
-    const APassword : String;
-    const ANonce    : TArrayOf8Bytes): String;
+    const UPassword : AnsiString;
+    const ANonce    : TArrayOf8Bytes): AnsiString;
 var
-    PassHash: String;
+    PassHash: AnsiString;
 begin
-    PassHash := MD4String(Unicode(APassword)) + #0#0#0#0#0;
+    PassHash := MD4String(UPassword) + #0#0#0#0#0;
     Result   := DesEcbEncrypt(Copy(PassHash,  1, 7), ANonce) +
                 DesEcbEncrypt(Copy(PassHash,  8, 7), ANonce) +
                 DesEcbEncrypt(Copy(PassHash, 15, 7), ANonce);
@@ -276,12 +381,12 @@ end;
 function NtlmGetMessage1(const AHost, ADomain: String): String;
 var
     Msg         : TNTLM_Message1;
-    Host        : String;
-    Domain      : String;
+    Host        : AnsiString;  // Ansi even if unicode is supported by the client
+    Domain      : AnsiString;  // Ansi even if unicode is supported by the client
 {$IFDEF CLR}
     SB          : StringBuilder;
 {$ELSE}
-    MessageAux  : String;
+    MessageAux  : AnsiString;
 {$ENDIF}
 begin
     Host   := UpperCase(AHost);
@@ -301,7 +406,7 @@ begin
 {$ELSE}
     FillChar(Msg, SizeOf(Msg), #0);
     // signature
-    Move('NTLMSSP' + #0, Msg.Protocol, 8);
+    Move(PAnsiChar('NTLMSSP' + #0)^, Msg.Protocol, 8);
 {$ENDIF}
 
     // message type (negotiate)
@@ -419,7 +524,7 @@ var
     InfoLength  : Word;
     InfoStr     : WideString;
     I           : Integer;
-    NTLMReply   : String;
+    NTLMReply   : AnsiString;
 begin
     if Length(AServerReply) > 0 then begin
         // we have a response
@@ -467,21 +572,45 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function NtlmGetMessage3(const ADomain, AHost, AUser,
-  APassword: String; AChallenge: TArrayOf8Bytes): String;
+  APassword: String; AChallenge: TArrayOf8Bytes; ACodePage: LongWord): String;
 var
     Msg        : TNTLM_Message3;
-    MessageAux : String;
+    MessageAux : AnsiString;
     LM_Resp    : String[30];
     NT_Resp    : String[30];
-    UDomain    : String;
-    UHost      : String;
-    UUser      : String;
+    UDomain    : AnsiString;
+    UHost      : AnsiString;
+    UUser      : AnsiString;
+    UPassword  : AnsiString;
 begin
-    UDomain    := Unicode(ADomain);
-    UHost      := Unicode(AHost);
-    UUser      := Unicode(AUser);
+{$IFNDEF COMPILER12_UP}
+    UDomain    := Unicode(ADomain, ACodePage);
+    UHost      := Unicode(AHost, ACodePage);
+    UUser      := Unicode(AUser, ACodePage);
+    UPassword  := Unicode(APassword, ACodePage);
+{$ELSE}
+    if Length(ADomain) > 0 then begin
+        SetLength(UDomain, Length(ADomain) * SizeOf(Char));
+        Move(Pointer(ADomain)^, UDomain[1], Length(UDomain));
+    end;
+    //UDomain    := ADomain;
+    if Length(AHost) > 0 then begin
+        SetLength(UHost, Length(AHost) * SizeOf(Char));
+        Move(Pointer(AHost)^, UHost[1], Length(UHost));
+    end;
+    //UHost      := AHost;
+    if Length(AUser) > 0 then begin
+        SetLength(UUser, Length(AUser) * SizeOf(Char));
+        Move(Pointer(AUser)^, UUser[1], Length(UUser));
+    end;
+    //UUser      := AUser;
+    if Length(APassword) > 0 then begin
+        SetLength(UPassword, Length(APassword) * SizeOf(Char));
+        Move(Pointer(APassword)^, UPassword[1], Length(UPassword));
+    end;
+{$ENDIF}
     FillChar(Msg, SizeOf(Msg), #0);
-    Move('NTLMSSP' + #0, Msg.Protocol, 8);
+    Move(PAnsiChar('NTLMSSP' + #0)^, Msg.Protocol, 8);
     Msg.MsgType := 3;
 
     // prepare domain
@@ -521,7 +650,7 @@ begin
                  Flags_Negotiate_NTLM2_Key};
 
     LM_Resp := NtlmGetLMHash(APassword, AChallenge);
-    NT_Resp := NtlmGetNTHash(APassword, AChallenge);
+    NT_Resp := NtlmGetNTHash(UPassword, AChallenge);
 
     SetLength(MessageAux, SizeOf(Msg));
     Move(Msg, MessageAux[1], SizeOf(Msg));

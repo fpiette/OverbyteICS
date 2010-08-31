@@ -1,5 +1,8 @@
 program OverbyteIcsSslMailRcv;
 
+{$R '..\Vc32\OverbyteIcsXpManifest.res' '..\Vc32\OverbyteIcsXpManifest.rc'}
+{$R '..\Vc32\OverbyteIcsCommonVersion.res' '..\Vc32\OverbyteIcsCommonVersion.rc'}
+
 uses
   Forms,
   OverbyteIcsSslMailRcv1 in 'OverbyteIcsSslMailRcv1.pas' {POP3ExcercizerForm},

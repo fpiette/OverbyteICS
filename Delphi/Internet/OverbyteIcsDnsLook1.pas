@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  Demonstrate how to use TWSocket to asynchroneously resolve a
               host name to an IP address.
 Creation:     October 29, 1997
-Version:      1.05
+Version:      1.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2008 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -43,6 +43,9 @@ Oct 31, 1997 V1.02 Added a cancel button
 jan 31, 1998 V1.03 Added a scroll bar. Display addresses count
 Aug 03, 1998 V1.04 Added reverse DNS lookup
 Mar 13, 1999 V1.05 Added a button to get local ip list
+Dec 21, 2008 V1.06 F.Piette added a string cast in FormCreate to avoid a
+             warning when compiling with Delphi 2009.
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsDnsLook1;
@@ -55,7 +58,8 @@ uses
   OverbyteIcsWSocket;
 
 const
-  DNSLookVersion = 105;
+  DNSLookVersion = 106;
+  CopyRight : String = ' DnsLook (c) 1997-2010 F. Piette V1.06 ';
 
 type
   TDnsLookupForm = class(TForm)
@@ -89,7 +93,7 @@ begin
     IPLabel.Caption      := '';
     LookupButton.Enabled := TRUE;
     CancelButton.Enabled := FALSE;
-    HostEdit.Text        := LocalHostName;
+    HostEdit.Text        := String(LocalHostName);
     IPListMemo.Clear;
 end;
 

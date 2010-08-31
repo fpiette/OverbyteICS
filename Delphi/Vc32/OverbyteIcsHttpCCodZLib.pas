@@ -47,7 +47,7 @@ end;
 
 class function THttpCCodzlib.GetActive: Boolean;
 begin
-    Result := ZlibGetDllLoaded and (Pos('1.2', ZlibGetVersionDll) = 1);
+    Result := ZlibGetDllLoaded and (Pos('1.2', String(ZlibGetVersionDll)) = 1);
 end;
 
 class function THttpCCodzlib.GetCoding: String;
@@ -92,6 +92,7 @@ begin
         BackObj.InStream  := FStream;
         BackObj.OutStream := Nil ;        // not used
         BackObj.MainObj := Self;
+        BackObj.ProgressCallback :=  nil;
     //use our own function for reading
         strm.avail_in := Strm_in_func (BackObj, PByte(strm.next_in));
         strm.next_out := @BackObj.Window;  // buffer

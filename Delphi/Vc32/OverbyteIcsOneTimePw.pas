@@ -3,12 +3,12 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  One Time Password support functions, see RFC2289/1938 (aka S/KEY)
 Creation:     12 November 2007
-Updated:      16 November 2007
-Version:      1.00
+Updated:      06 August 2008
+Version:      1.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -39,7 +39,9 @@ Legal issues: Copyright (C) 1997-2007 by François PIETTE
 
 Updates:
 16 Nov 2007 - 1.00 baseline Angus
-
+12 May 2008 - 1.01 Uses OverbyteIcsUtils.pas for atoi
+06 Aug 2008 - 1.02 Changed two strings to AnsiStrings so it works under Delphi 2009
+5 Nov 2008  - 1.03 added OtpGetMethod, OtpKeyNames public
 
 
 
@@ -122,16 +124,24 @@ details so the same OTP is not generated during the next login.
 unit OverbyteIcsOneTimePw;
 
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 
 interface
 
 uses
     SysUtils, Classes,
-    OverbyteIcsMD5, OverbyteIcsMD4, OverbyteIcsSha1, OverbyteIcsFtpSrvT;
+    OverbyteIcsMD5, OverbyteIcsMD4, OverbyteIcsSha1, OverbyteIcsFtpSrvT,
+    OverbyteIcsUtils;
 
 const
-    OneTimePwVersion = 100;
-    CopyRight : String = ' OneTimePw (c) 1997-2007 F. Piette V1.00 ';
+    OneTimePwVersion = 103;
+    CopyRight : String = ' OneTimePw (c) 1997-2010 F. Piette V1.03 ';
+    OtpKeyNames: array [0..3] of string =
+                ('none', 'otp-md5', 'otp-md4', 'otp-sha1') ;
 
 type
   { 64-bit result of OTP hash }
@@ -166,14 +176,12 @@ function OtpCreateChallenge (OtpMethod: TOtpMethod; var OtpSequence: integer;
                                                     var OtpSeed: string): string;
 function OtpTestPassword (const OtpRespKey, OtpPassword: string;
     OtpMethod: TOtpMethod; var OtpSequence: integer; const OtpSeed: string): boolean;
-
+function OtpGetMethod (const S: string): TOtpMethod;
 
 implementation
 
 const
     InitialSequence = 999;
-    OtpKeyNames: array [0..3] of string =
-                ('none', 'otp-md5', 'otp-md4', 'otp-sha1') ;
 
 { six words list taken from RCF2289 document - each word represents 11-bits of a 64-bit number }
 
@@ -587,7 +595,7 @@ end;
 function GetSha1Half (Buffer: Pointer; BufSize: Integer): TOtp64bit;
 var
     I: integer;
-    Digest: string;
+    Digest: AnsiString;   { V1.02 }
 begin
     Digest := SHA1ofBuf (Buffer, BufSize);
     if Length (Digest) <> 20 then exit;  { sanity check }
@@ -607,10 +615,10 @@ function GenerateKey64 (OtpMethod: TOtpMethod; const OptSeed: string;
                 const OtpPassword: string; const OtpSequence: Integer): TOtp64bit;
 var
     I: integer;
-    HashText: string;
+    HashText: AnsiString;     { V1.02 }
 begin
   { hash seed and password (max 63) into 64-bits }
-    HashText := LowerCase (OptSeed) + OtpPassword;
+    HashText := AnsiString (LowerCase (OptSeed) + OtpPassword);   { V1.02 }
     case OtpMethod of
         OtpKeyMd5: result := GetMD5Half (@HashText [1], Length (HashText));
         OtpKeyMd4: result := GetMD4Half (@HashText [1], Length (HashText));
@@ -629,6 +637,23 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function OtpGetMethod (const S: string): TOtpMethod;
+var
+    Method: TOtpMethod;
+begin
+  { find hash method from string }
+    for Method := Low (TOtpMethod) to High (TOtpMethod) do
+    begin
+        if Pos (OtpKeyNames [Ord (Method)], S) = 1 then
+        begin
+            result := Method;
+            exit;
+        end ;
+    end;
+    result := OtpKeyNone;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function OtpParseChallenge (const OtpChallenge: string; var OtpMethod: TOtpMethod;
                             var OtpSequence: integer; var OtpSeed: string): boolean;
 var
@@ -642,7 +667,7 @@ begin
     OtpSequence := 0;
     OtpSeed := '';
 
-  { find hash method }
+  { find hash method from challenge }
     for Method := Low (TOtpMethod) to High (TOtpMethod) do
     begin
         J := Pos (OtpKeyNames [Ord (Method)], OtpChallenge);

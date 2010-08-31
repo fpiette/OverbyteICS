@@ -49,6 +49,11 @@ unit OverbyteIcsMultipartHttpDownloader;
 {$T-}                  { Untyped pointers                    }
 {$X+}                  { Enable extended syntax              }
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
@@ -213,8 +218,6 @@ type
                                                    write FOnShowStats;
     end;
 
-procedure Register;
-
 implementation
 
 const
@@ -222,12 +225,6 @@ const
     KeyPart      = 'Part';
     KeyUrl       = 'Url';
     KeyPartCount = 'PartCount';
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure Register;
-begin
-    RegisterComponents('FPiette', [TMultipartHttpDownloader]);
-end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

@@ -14,7 +14,7 @@ Version:      6.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -58,6 +58,7 @@ Mar 26, 2006 V6.00 Started new version 6
 Mar 24, 2008 V6.01 Francois Piette made some changes to prepare code
                    for Unicode.
                    Use of AnsiString.
+Aug 12, 2008 V7.00 Reverted from AnsiString to String for properties.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -69,6 +70,11 @@ interface
 {$T-}           { Untyped pointers                    }
 {$X+}           { Enable extended syntax              }
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
@@ -96,7 +102,7 @@ uses
 
 const
   IcmpVersion = 6.01;
-  CopyRight : String   = ' TICMP (c) 1997-2008 F. Piette V6.01 ';
+  CopyRight : String   = ' TICMP (c) 1997-2010 F. Piette V6.01 ';
   IcmpDLL     = 'icmp.dll';
 
   // IP status codes returned to transports and user IOCTLs.
@@ -238,9 +244,9 @@ type
     IcmpSendEcho :    TIcmpSendEcho;
     hICMP :           THandle;                    // Handle for the ICMP Calls
     FReply :          TIcmpEchoReply;             // ICMP Echo reply buffer
-    FAddress :        AnsiString;                 // Address given
-    FHostName :       AnsiString;                 // Dotted IP of host (output)
-    FHostIP :         AnsiString;                 // Name of host      (Output)
+    FAddress :        String;                     // Address given
+    FHostName :       String;                     // Dotted IP of host (output)
+    FHostIP :         String;                     // Name of host      (Output)
     FIPAddress :      TIPAddr;                    // Address of host to contact
     FSize :           Integer;                    // Packet size (default to 56)
     FTimeOut :        Integer;                    // Timeout (default to 4000mS)
@@ -256,10 +262,10 @@ type
     constructor Create; virtual;
     destructor  Destroy; override;
     function    Ping : Integer;
-    procedure   SetAddress(Value : AnsiString);
+    procedure   SetAddress(Value : String);
     function    GetErrorString : String;
 
-    property Address       : AnsiString     read  FAddress   write SetAddress;
+    property Address       : String         read  FAddress   write SetAddress;
     property Size          : Integer        read  FSize      write FSize;
     property Timeout       : Integer        read  FTimeout   write FTimeout;
     property Reply         : TIcmpEchoReply read  FReply;
@@ -267,8 +273,8 @@ type
     Property Flags         : Integer        read  FFlags     write FFlags;
     property ErrorCode     : DWORD          read  FLastError;
     property ErrorString   : String         read  GetErrorString;
-    property HostName      : AnsiString     read  FHostName;
-    property HostIP        : AnsiString     read  FHostIP;
+    property HostName      : String         read  FHostName;
+    property HostIP        : String         read  FHostIP;
     property ICMPDLLHandle : HModule        read  hICMPdll;
     property OnDisplay     : TICMPDisplay   read  FOnDisplay write FOnDisplay;
     property OnEchoRequest : TNotifyEvent   read  FOnEchoRequest
@@ -343,13 +349,13 @@ var
     Phe : PHostEnt;             // HostEntry buffer for name lookup
 begin
     // Convert host address to IP address
-    FIPAddress := inet_addr(PAnsiChar(FAddress));
+    FIPAddress := inet_addr(PAnsiChar(AnsiString(FAddress)));
     if FIPAddress <> LongInt(INADDR_NONE) then
         // Was a numeric dotted address let it in this format
         FHostName := FAddress
     else begin
         // Not a numeric dotted address, try to resolve by name
-        Phe := GetHostByName(PAnsiChar(FAddress));
+        Phe := GetHostByName(PAnsiChar(AnsiString(FAddress)));
         if Phe = nil then begin
             FLastError := GetLastError;
             if Assigned(FOnDisplay) then
@@ -358,16 +364,16 @@ begin
         end;
 
         FIPAddress := longint(plongint(Phe^.h_addr_list^)^);
-        FHostName  := Phe^.h_name;
+        FHostName  := String(Phe^.h_name);
     end;
 
-    FHostIP       := StrPas(inet_ntoa(TInAddr(FIPAddress)));
+    FHostIP       := String(AnsiString(inet_ntoa(TInAddr(FIPAddress))));
     FAddrResolved := TRUE;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TICMP.SetAddress(Value : AnsiString);
+procedure TICMP.SetAddress(Value : String);
 begin
     // Only change if needed (could take a long time)
     if FAddress = Value then

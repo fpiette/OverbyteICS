@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      6.16
+Version:      7.42
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2008 by François PIETTE
+Legal issues: Copyright (C) 1996-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -595,18 +595,178 @@ Mar 10, 2008 V6.09 Francois Piette & Arno Garrels made some changes to
                    WSocket_gethostname conversion from String to AnsiString
                    WSocketGetProc and WSocket2GetProc use AnsiString
                    GetAliasList simplified and use AnsiString
-Jun 29, 2008 V6.10 Local variable FHandle removed from TCustomWSocket.
+Apr 25, 2008 V6.10 A. Garrels, added some getters/setters to store and use some
+             string-property-values as AnsiString internally.
+             This reduced number of string casts with potential data loss to 17.
+             These ansi-values are used to call winsock API that doesn't provide
+             W functions. Modified depending code including some type changes
+             from PChar to PAnsiChar. Made some casts Unicode => Ansi with
+             potential data loss *explicit* casts (conditionally compiled) some
+             unicode strings with only 7 bit ASCII characters are casted using
+             new function UnicodeToAscii() in new unit OverbyteIcsUtils which
+             should be fast and reliable and doesn't produce compiler warnings.
+             Added new warning symbols.
+Apr 30, 2008 V6.11 A. Garrels - Function names adjusted according to changes in
+             OverbyteIcsLibrary.pas.
+May 11, 2008 V6.12 USchuster removed local atoi implementation (atoi is now in
+             OverbyteIcsUtils.pas)
+May 15, 2008 V6.13 AGarrels type change of some published String properties
+             to AnsiString, this is an attempt to avoid too many implicit
+             string casts, only a few higher level components have been adjusted
+             accordingly so far.
+Jun 30, 2008 A.Garrels made some changes to prepare SSL code for Unicode.
 Jul 04, 2008 V6.11 Rev.58 SSL - Still lacked a few changes I made last year.
 Jul 13, 2008 V6.12 Added SafeWSocketGCount
-Oct 22, 2008 V6.13 A. Garrels removed the const modifier from parameter Data
+Aug 03, 2008 V6.16 A. Garrels removed packed from record TExtension.
+Jul 07, 2008 V6.17 Still a small fix from December 2007 missing in SSL code.
+Aug 11, 2008 V6.18 A. Garrels - Type AnsiString rolled back to String.
+             Two bugs fixed in SSL code introduced with Unicode change.
+             Socks was not fully prepared for Unicode.
+Sep 19, 2008 V6.19 A. Garrels changed some AnsiString types to RawByteString.
+Sep 21, 2008 V6.20 A. Garrels removed BoolToStr(), available since D7
+Oct 22, 2008 V7.21 A. Garrels removed the const modifier from parameter Data
              in function SendTo to fix a bug in C++ Builder.
-Sep 17, 2009 V6.14 Arno fixed bug in TX509Base.GetSha1Hash.
-Nov 01, 2009 V6.15 Arno fixed a memory overwrite bug in
-             TCustomSocksWSocket.DoRecv().
-Nov 07, 2009 V6.16 OpenSSL V0.9.8L disables session renegotiation due to
+Nov 03, 2008 V7.22 Added property Counter, a class reference to TWSocketCounter
+             which provides some useful automatic counters. By default property
+             Counter is unassigned and has to be enabled by a call to
+             CreateCounter.
+Apr 24, 2009 V7.23 A. Garrels added *experimental* OpenSSL engine support which
+             is not compiled in by default. You have to uncomment conditional
+             define OPENSSL_NO_ENGINE in OverbyteIcsSslDefs.inc and rebuild your
+             packages to get it included. With engine support included a new
+             published property AutoEnableBuiltinEngines of TSslContext has to
+             be set to TRUE in order to enable OpenSSL's built-in hardware
+             accelerators support, that's all.
+
+             ******************************************************************
+             * Due to the lack of hardware this feature is completely untested*
+             ******************************************************************
+
+             Any feedback and fixes are welcome, please contact the ICS mailing
+             list. The OpenSSL engine documentation can be found here:
+             http://openssl.org/docs/crypto/engine.html
+
+             Additionally a new component TSslEngine is installed on the palette.
+             Its purpose is to control (dynamic) engines.
+
+             Typically control commands of an OpenSC dynamic pkcs11 engine
+             (SmartCard) are :
+
+             Cmds.Add('SO_PATH=d:\opensc\bin\engine_pkcs11.dll');
+             Cmds.Add('ID=pkcs11');
+             Cmds.Add('LIST_ADD=1');
+             Cmds.Add('LOAD=');
+             Cmds.Add('MODULE_PATH=d:\opensc\bin\opensc-pkcs11.dll');
+             Cmds.Add('INIT='); <= Special ICS-control command to initialize the engine  
+
+             Sample test code (Dod couldn't get it working :(
+
+             It assumes that the X509 certificate has been exported from
+             the SmartCard to PEM file that is available in property
+             SslCertFile. It's also assumed that SslEngine1 is created
+             dynamically at run-time in this sample.
+             We are in new event TSslContext.OnBeforeInit:
+
+             if not Assigned(SslEngine1) then
+             begin
+                SslEngine1 := TSslEngine.Create(Self);
+                try
+                  SslEngine1.NameID := 'dynamic';
+
+                  // The SmartCard holds the private key.
+                  // Next two lines advise SslContext to load the key
+                  // from the engine instead from PEM file.
+                  TSslContext(Sender).CtxEngine := SslEngine1;
+                  SslEngine1.CtxCapabilities := [eccLoadPrivKey];
+
+                  // The PIN code is expected in property SslPassPhrase
+                  TSslContext(Sender).SslPassPhrase := 'ics';
+
+                  // Tell the engine which key to use.
+                  SslEngine1.KeyID := KeyIdEdit.Text;
+
+                  // At first open the engine
+                  if not SslEngine1.Open then
+                      raise Exception.Create(FEngine.LastErrorMsg);
+
+                  // Now send our vendor specific control commands
+                  for I := 0 to Cmds.Count -1 do
+                  begin
+                    if not SslEngine1.Control(Cmds.Names[I],
+                                              Cmds.ValueFromIndex[I]) then
+                        raise Exception.Create(SslEngine1.LastErrorMsg);
+                  end;
+
+                  Display('Engine set up and loaded successfully');
+                except
+                    FreeAndNil(SslEngine1);
+                    raise;
+                end;
+             end;
+
+Jun 12, 2009 V7.24 Angus added WriteCount property, how many bytes sent since
+                     connection opened
+                   Only reset ReadCount when connection opened, not closed
+Jul 16, 2009 V7.25 Arno fixed and changed SetCounterClass()
+Jul 19, 2009 V7.26 Arno - SSL code ignored FPaused flag, the change is in
+                   TCustomSslWSocket.TriggerEvent.
+Sep 04, 2009 V7.27 Set option TCP_NODELAY in Dup as well as provide a public
+                   method to set this option, similar as suggested by
+                   Samuel Soldat.
+Sep 08, 2009 V7.28 Arno - Minor Unicode bugfix in TX509Base.GetExtension().
+Sep 09, 2009 V7.29 Arno - Added new public methods TX509Base.WriteToBio() and
+                   TX509Base.ReadFromBio(). Method SafeToPemFile got an arg.
+                   that adds human readable certificate text to the output.
+                   InitializeSsl inlined. Removed a Delphi 1 conditional.
+Sep 17, 2009 V7.30 Anton Sviridov optimized setting of SSL options.
+Sep 17, 2009 V7.31 Arno fixed a Unicode bug in TX509Base.GetExtension and
+                   a general bug in TX509Base.GetSha1Hash (AnsiString as
+                   digest buffer should really be avoided)
+Sep 18, 2009 V7.32 Arno changed visibility of TX509Base.WriteToBio() and
+                   TX509Base.ReadFromBio() to protected.
+Nov 01, 2009 V7.33 Arno fixed a memory overwrite bug in
+                   TCustomSocksWSocket.DoRecv().
+Nov 07, 2009 V7.34 OpenSSL V0.9.8L disables session renegotiation due to
                    TLS renegotiation vulnerability.
+Dec 20, 2009 V7.35 Arno added support for SSL Server Name Indication (SNI).
+                   SNI has to be turned on in OverbyteIcsSslDefs.inc, see define
+                   "OPENSSL_NO_TLSEXT". Exchanged symbol "NO_ADV_MT" in the
+                   SSL source by "NO_SSL_MT" (This and SNI was sponsored by
+                   Fastream Technologies).
+                   SNI Howto: In SSL server mode assign event OnSslServerName,
+                   it triggers whenever a client sent a server name in the TLS
+                   client helo. From the event handler read public property
+                   SslServerName, lookup and pass a matching, valid and
+                   initialized SslContext instance associated with the server name.
+                   In SSL client mode, if property SslServerName was not empty
+                   this server name is sent to the server in the TLS client helo.
+                   Currently IE 7 and FireFox >= V2 support SNI, note that both
+                   browers don't send both "localhost" and IP addresses as
+                   server names, this is specified in RFC.
+Dec 24, 2009 V7.36 SSL SNI - Do not switch context if not initialized.
+Dec 26, 2009 V7.37 Arno fixed TCustomSyncWSocket.ReadLine for Unicode. It
+                   now takes an AnsiString buffer. Since this method is highly
+                   deprecated it's also marked as "deprecated". Do not use it
+                   in new applications.
+May 08, 2010 V7.38 Arno Garrels added support for OpenSSL 0.9.8n. Read comments
+                   in OverbyteIcsLIBEAY.pas for details.
+May 16, 2010 V7.39 Arno Garrels reenabled check for nil in WMAsyncGetHostByName.
+Jun 10, 2010 V7.40 Arno Garrels added experimental timeout and throttle feature
+                   to TWSocket. Currently both features have to be enabled
+                   explicitly with conditional defines EXPERIMENTAL_TIMEOUT
+                   and/or EXPERIMENTAL_THROTTLE (see OverbyteIcsDefs.inc )
+Aug 02, 2010 V7.41 Arno removed an option to send plain UTF-16 strings with
+                   SendStr() and SendLine() by passing 1200 (CP_UTF16) in the
+                   codepage parameter. Changed SendLine() to return correct
+                   number of bytes written.
+Aug 08, 2010 V7.42 FPiette prevented socket close in TCustomWSocket.Destroy when
+                   socket state is wsInvalidState (this happend when an
+                   exception is raise early in the constructor).
 
 
+}
+
+{
 About multithreading and event-driven:
     TWSocket is a pure asynchronous component. It is non-blocking and
     event-driven. It means that when you request an operation such as connect,
@@ -653,23 +813,32 @@ unit OverbyteIcsWSocket;
 {$B-}           { Enable partial boolean evaluation   }
 {$T-}           { Untyped pointers                    }
 {$X+}           { Enable extended syntax              }
+{$H+}           { Use long strings                    }
+{$J+}           { Allow typed constant to be modified }
+{$ALIGN 8}
 {$I OverbyteIcsDefs.inc}
+{$IFDEF USE_SSL}
+    {$I OverbyteIcsSslDefs.inc}
+{$ENDIF}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
+{$IFDEF COMPILER12_UP}
+    { These are usefull for debugging !}
+    {$WARN IMPLICIT_STRING_CAST       ON}
+    {$WARN IMPLICIT_STRING_CAST_LOSS  ON}
+    {$WARN EXPLICIT_STRING_CAST       OFF}
+    {$WARN EXPLICIT_STRING_CAST_LOSS  OFF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
     {$WARN SYMBOL_DEPRECATED OFF}
 {$ENDIF}
-{$IFDEF COMPILER2_UP}{ Not for Delphi 1                    }
-    {$H+}            { Use long strings                    }
-    {$J+}            { Allow typed constant to be modified }
-{$ENDIF}
 {$IFDEF BCB3_UP}
     {$ObjExportAll On}
-{$ENDIF}
-
-{ If NO_ADV_MT is defined, then there is less multithread code compiled.    }
-{$IFDEF DELPHI1}
-    {$DEFINE NO_ADV_MT}
 {$ENDIF}
 
 {$IFDEF WIN32}
@@ -695,13 +864,17 @@ uses
 {$IFNDEF NO_DEBUG_LOG}
   OverbyteIcsLogger,
 {$ENDIF}
+{$IFDEF EXPERIMENTAL_TIMER}
+  OverbyteIcsThreadTimer,
+{$ENDIF}
+  OverbyteIcsUtils,
   OverbyteIcsTypes,      OverbyteIcsLibrary,
   OverbyteIcsWndControl, OverbyteIcsWSockBuf,
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 616;
-  CopyRight    : String     = ' TWSocket (c) 1996-2008 Francois Piette V6.16 ';
+  WSocketVersion            = 741;
+  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.41 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -779,6 +952,23 @@ type
 
 type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
 
+  TWSocketCounter = class(TObject)
+  private
+    FConnectDT    : TDateTime;
+    FConnectTick  : Cardinal;
+    FLastRecvTick : Cardinal;
+    FLastSendTick : Cardinal;
+    function  GetLastAliveTick : Cardinal;
+  public
+    procedure SetConnected; virtual;
+    property  ConnectTick   : Cardinal  read FConnectTick  write FConnectTick;
+    property  ConnectDT     : TDateTime read FConnectDT    write FConnectDT;
+    property  LastAliveTick : Cardinal  read GetLastAliveTick;
+    property  LastRecvTick  : Cardinal  read FLastRecvTick write FLastRecvTick;
+    property  LastSendTick  : Cardinal  read FLastSendTick write FLastSendTick;
+  end;
+  TWSocketCounterClass = class of TWSocketCounter;
+
   TCustomWSocket = class(TIcsWndControl)
   private
     FDnsResult          : String;
@@ -791,11 +981,11 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     FName               : String;
   {$ENDIF}
   {$IFDEF WIN32}
-    FDnsLookupBuffer    : array [0..MAXGETHOSTSTRUCT] of char;
+    FDnsLookupBuffer    : array [0..MAXGETHOSTSTRUCT] of AnsiChar;
   {$ENDIF}
     FDnsLookupCheckMsg  : Boolean;
     FDnsLookupTempMsg   : TMessage;
-    //FHandle             : HWND;
+    // FHandle             : HWND;
   {$IFDEF CLR}
     FDnsLookupGCH       : GCHandle;
     FDnsLookupIntPtr    : IntPtr;
@@ -803,6 +993,8 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
   {$IFDEF VER80}
     FTrumpetCompability : Boolean;
   {$ENDIF}
+    FCounter            : TWSocketCounter;
+    FCounterClass       : TWsocketCounterClass;
   protected
     FHSocket            : TSocket;
     FASocket            : TSocket;               { Accepted socket }
@@ -840,8 +1032,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     ReadLineCount       : Integer;
     bAllSent            : Boolean;
     FReadCount          : Int64;   { V5.26 }
-
-
+    FWriteCount         : Int64;   { V7.24 }
 
     FPaused             : Boolean;
     FCloseInvoked       : Boolean;
@@ -889,7 +1080,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     procedure   SetIcsLogger(const Value : TIcsLogger); virtual;                { V5.21 }
     procedure   DebugLog(LogOption : TLogOption; const Msg : String); virtual;  { V5.21 }
     function    CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { V5.21 }
-{$ENDIF}    
+{$ENDIF}
     procedure   WndProc(var MsgRec: TMessage); override;
     function    MsgHandlersCount: Integer; override;
     procedure   AllocateMsgHandlers; override;
@@ -914,20 +1105,22 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     procedure   SetSendFlags(newValue : TSocketSendFlags);
     function    GetSendFlags : TSocketSendFlags;
     procedure   SetAddr(InAddr : String);
-    function    GetAddr : String;
+    procedure   SetCounterClass(const Value: TWSocketCounterClass);
     procedure   SetRemotePort(sPort : String); virtual;
     function    GetRemotePort : String;
     procedure   SetLocalAddr(sLocalAddr : String);
-    procedure   SetLocalPort(sLocalPort : String);
+    procedure   SetLocalPort(const sLocalPort : String);
     procedure   SetProto(sProto : String); virtual;
-    function    GetProto : String;
     function    GetRcvdCount : LongInt; virtual;
     procedure   SetBufSize(Value : Integer); virtual;
     function    GetBufSize: Integer; virtual;
     procedure   SetSocketRcvBufSize(BufSize : Integer); virtual;
     procedure   SetSocketSndBufSize(BufSize : Integer); virtual;
     procedure   BindSocket; virtual;
-    procedure   SendText(Str : String);
+    procedure   SendText(const Str : RawByteString); {$IFDEF COMPILER12_UP} overload;
+    procedure   SendText(const Str : UnicodeString); overload;
+    procedure   SendText(const Str : UnicodeString; ACodePage : LongWord); overload;
+    {$ENDIF}
     function    RealSend(var Data : TWSocketData; Len : Integer) : Integer; virtual;
 //  procedure   RaiseExceptionFmt(const Fmt : String; args : array of const); virtual;
     procedure   RaiseException(const Msg : String); virtual;
@@ -985,6 +1178,11 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
 //    function    Receive(Buffer : TBytes; BufferSize: Integer) : Integer;  overload; virtual;
 //{$ENDIF}
     function    ReceiveStr : String; virtual;
+    function    ReceiveStrA : AnsiString; virtual;
+{$IFDEF COMPILER12_UP}
+    function    ReceiveStrW(ACodePage: LongWord) : UnicodeString; overload; virtual;
+    function    ReceiveStrW : UnicodeString; overload; virtual;
+{$ENDIF}
     function    ReceiveFrom(Buffer      : TWSocketData;
                             BufferSize  : Integer;
                             var From    : TSockAddr;
@@ -996,11 +1194,12 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
                        DestLen    : Integer;
                        {$IFDEF CLR} const {$ENDIF} Data : TWSocketData;
                        Len        : Integer) : Integer; virtual;
-    function    SendStr(const Str : AnsiString) : Integer; {$IFDEF COMPILER12_UP} overload; {$ENDIF} virtual;
+    function    SendStr(const Str : RawByteString) : Integer; {$IFDEF COMPILER12_UP} overload; {$ENDIF} virtual;
 {$IFDEF COMPILER12_UP}
+    function    SendStr(const Str : UnicodeString; ACodePage: LongWord) : Integer; overload; virtual;
     function    SendStr(const Str : UnicodeString) : Integer; overload; virtual;
 {$ENDIF}
-    procedure   DnsLookup(const AHostName : AnsiString); virtual;
+    procedure   DnsLookup(const AHostName : String); virtual;
     procedure   ReverseDnsLookup(const HostAddr: String); virtual;
     procedure   ReverseDnsLookupSync(const HostAddr: String); virtual;  {AG 03/03/06}
     procedure   CancelDnsLookup; virtual;
@@ -1015,27 +1214,31 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     function    GetSockName(var saddr : TSockAddrIn; var saddrlen : Integer) : Integer; virtual;
     procedure   SetLingerOption;
     procedure   SetKeepAliveOption;
+    function    SetTcpNoDelayOption: Boolean; { V7.27 }
     procedure   Dup(NewHSocket : TSocket); virtual;
     procedure   Shutdown(How : Integer); virtual;
     procedure   Pause; virtual;
     procedure   Resume; virtual;
     procedure   PutDataInSendBuffer(Data : TWSocketData; Len : Integer); virtual;
-    procedure   PutStringInSendBuffer(const Str : AnsiString); {$IFDEF COMPILER12_UP} overload; {$ENDIF}
+    function    PutStringInSendBuffer(const Str : RawByteString): Integer; {$IFDEF COMPILER12_UP} overload; {$ENDIF}
 {$IFDEF COMPILER12_UP}
-    procedure   PutStringInSendBuffer(const Str : UnicodeString); overload;     
-{$ENDIF}    
+    function    PutStringInSendBuffer(const Str : UnicodeString; ACodePage: LongWord): Integer; overload;
+    function    PutStringInSendBuffer(const Str : UnicodeString): Integer; overload;
+{$ENDIF}
     procedure   DeleteBufferedData;
 {$IFDEF COMPILER2_UP}
     procedure   ThreadAttach; override;
     procedure   ThreadDetach; override;
 {$ENDIF}
+    procedure   CreateCounter; virtual;
+    procedure   DestroyCounter;
 {$IFDEF NOFORMS}
     property    Terminated         : Boolean        read  FTerminated
                                                     write FTerminated;
     property    OnMessagePump      : TNotifyEvent   read  FOnMessagePump
                                                     write FOnMessagePump;
 {$ENDIF}
-    property BufferedByteCount: LongInt             read FBufferedByteCount;  { V5.20 }
+    property    BufferedByteCount  : LongInt        read FBufferedByteCount;  { V5.20 }
   protected
   {$IFDEF CLR}
     property Name : String                          read  FName
@@ -1049,8 +1252,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     property FWindowHandle : HWND                   read  FHandle;
     property HSocket : TSocket                      read  FHSocket
                                                     write Dup;
-
-    property Addr : String                          read  GetAddr
+    property Addr : String                          read  FAddrStr
                                                     write SetAddr;
     property Port : String                          read  GetRemotePort
                                                     write SetRemotePort;
@@ -1058,7 +1260,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
                                                     write SetLocalPort;
     property LocalAddr : String                     read  FLocalAddr
                                                     write SetLocalAddr;
-    property Proto : String                         read  GetProto
+    property Proto : String                         read  FProtoStr
                                                     write SetProto;
     property MultiThreaded   : Boolean              read  FMultiThreaded
                                                     write FMultiThreaded;
@@ -1076,7 +1278,8 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     property DnsResultList : TStrings               read  FDnsResultList;
     property State : TSocketState                   read  FState;
     property AllSent   : Boolean                    read  bAllSent;
-    property ReadCount : Int64   { V5.26 }          read  FReadCount;
+    property ReadCount : Int64                      read  FReadCount;    { V5.26 }
+    property WriteCount : Int64                     read  FWriteCount;   { V7.24 }
     property RcvdCount : LongInt                    read  GetRcvdCount;
     property LastError : Integer                    read  FLastError
                                                     write FLastError;  { V5.20 }
@@ -1139,6 +1342,9 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
 {$ENDIF}
     property OnDebugDisplay : TDebugDisplay         read  FOnDebugDisplay
                                                     write FOnDebugDisplay;
+    property Counter      : TWSocketCounter         read  FCounter;
+    property CounterClass : TWsocketCounterClass    read  FCounterClass
+                                                    write SetCounterClass;
   end;
 
   TSocksState          = (socksData, socksNegociateMethods, socksAuthenticate, socksConnect);
@@ -1158,9 +1364,9 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
       FSocksUsercode       : String;
       FSocksPassword       : String;
       FSocksAuthentication : TSocksAuthentication;
-      FSocksAuthNumber     : char;
-      FBoundAddr           : String;
-      FBoundPort           : String;
+      FSocksAuthNumber     : AnsiChar;
+      FBoundAddr           : AnsiString;
+      FBoundPort           : AnsiString;
   {$IFDEF CLR}
       FRcvBuf              : TBytes;
   {$ENDIF}
@@ -1178,7 +1384,9 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
       procedure   TriggerSocksConnected(Error : Word); virtual;
       procedure   TriggerSessionClosed(Error : Word); override;
       function    TriggerDataAvailable(Error : Word) : Boolean; override;
+      function    GetSocksPort: String;
       procedure   SetSocksPort(sPort : String); virtual;
+      function    GetSocksServer: String;
       procedure   SetSocksServer(sServer : String); virtual;
       procedure   TriggerSocksError(Error : Integer; Msg : String); virtual;
       procedure   TriggerSocksAuthState(AuthState : TSocksAuthState);
@@ -1195,7 +1403,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
       procedure   Connect; override;
       procedure   Listen; override;
   protected
-      property SocksServer   : String               read  FSocksServer
+      property SocksServer   : String               read  GetSocksServer
                                                     write SetSocksServer;
       property SocksLevel    : String               read  FSocksLevel
                                                     write SetSocksLevel;
@@ -1338,7 +1546,7 @@ Nov 08, 2007 A. Garrels added property PublicKey to TX509Base.
 const
      SslWSocketVersion            = 100;
      SslWSocketDate               = 'Jan 18, 2006';
-     SslWSocketCopyRight : String = ' TSslWSocket (c) 2003-2006 Francois Piette V1.00.5e ';
+     SslWSocketCopyRight : String = ' TSslWSocket (c) 2003-2010 Francois Piette V1.00.5e ';
 
 const
      
@@ -1347,7 +1555,7 @@ const
      SSL_BUFFER_SIZE                  = 4096;
      msgSslCtxNotInit                 = 'SSL context not initialized';
 
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
 var
      LockPwdCB          : TRtlCriticalSection;
      LockVerifyCB       : TRtlCriticalSection;
@@ -1356,6 +1564,9 @@ var
      LockNewSessCB      : TRtlCriticalSection;
      LockGetSessCB      : TRtlCriticalSection;
      LockClientCertCB   : TRtlCriticalSection;
+   {$IFNDEF OPENSSL_NO_TLSEXT}
+     LockServerNameCB   : TRtlCriticalSection;
+   {$ENDIF}
 {$ENDIF}
      procedure UnloadSsl;
      procedure LoadSsl;
@@ -1363,10 +1574,11 @@ var
 type
 //    TSslDebugLevel = (ssldbgNone, ssldbgError, ssldbgInfo, ssldbgDump); angus
 
+    EOpenSslError = class(Exception);
     TSslBaseComponent = class(TComponent)
     protected
         FSslInitialized : Boolean;
-        FLastSslError : Integer;
+        FLastSslError   : Integer;
 
     {$IFNDEF NO_DEBUG_LOG}                                             { V5.21 }
         FIcsLogger  : TIcsLogger;
@@ -1380,7 +1592,7 @@ type
         procedure   RaiseLastOpenSslError(EClass          : ExceptClass;
                                           Dump            : Boolean = FALSE;
                                           const CustomMsg : String  = ''); virtual;
-        procedure   InitializeSsl;
+        procedure   InitializeSsl; {$IFDEF USE_INLINE} inline; {$ENDIF}
         procedure   FinalizeSsl;
     public
         constructor Create(AOwner: TComponent); override;
@@ -1424,13 +1636,14 @@ const                                                             {AG 02/06/06}
 {$ENDIF}
 type
     EX509Exception = class(Exception);
-    TExtension = packed record
+
+    TExtension = record
         Critical  : Boolean;
         ShortName : String;
         Value     : String; // may be also one or multiple Name=value pairs,
     end;                    // separated by a CRLF
-
     PExtension = ^TExtension;
+
     TBioOpenMethode = (bomRead, bomWrite);
     TX509Base = class(TSslBaseComponent)
     private
@@ -1438,7 +1651,7 @@ type
         FPrivateKey         : Pointer;
     protected
         FVerifyResult       : Integer;  // current verify result
-        FSha1Hash           : String;
+        FSha1Hash           : AnsiString;
         FVerifyDepth        : Integer;
         FCustomVerifyResult : Integer;
         FFirstVerifyResult  : Integer;                      {05/21/2007 AG}
@@ -1460,9 +1673,13 @@ type
         function    GetHasExpired: Boolean;                    {AG 02/06/06}
         procedure   AssignDefaults; virtual;
         function    UnknownExtDataToStr(Ext: PX509_Extension) : String;
-        function    GetSha1Hash: String;
+        function    GetSha1Hash: AnsiString;
         function    OpenFileBio(const FileName  : String;
                                 Methode         : TBioOpenMethode): PBIO;
+        procedure   ReadFromBio(ABio: PBIO; IncludePrivateKey: Boolean = FALSE;
+                                const Password: String = ''); virtual;
+        procedure   WriteToBio(ABio: PBIO; IncludePrivateKey: Boolean = FALSE;
+                               AddRawText: Boolean = FALSE); virtual;
     public
         constructor Create(AOwner: TComponent; X509: Pointer = nil); reintroduce;
         destructor  Destroy; override;
@@ -1473,7 +1690,8 @@ type
                                     IncludePrivateKey: Boolean = False;
                                     const Password: String = '');
         procedure   SaveToPemFile(const FileName: String;
-                                  IncludePrivateKey: Boolean = False);
+                                  IncludePrivateKey: Boolean = FALSE;
+                                  AddRawText: Boolean = FALSE);
         procedure   PrivateKeyLoadFromPemFile(const FileName: String;
                                               const Password: String = '');
         procedure   PrivateKeySaveToPemFile(const FileName: String);
@@ -1499,7 +1717,7 @@ type
         property    SubjectAltName      : TExtension    read  GetSubjectAltName;
         property    ExtensionCount      : Integer       read  GetExtensionCount;
         property    Extensions[index: Integer] : TExtension read GetExtension;
-        property    Sha1Hash            : String        read  FSha1Hash;
+        property    Sha1Hash            : AnsiString    read  FSha1Hash;
         property    ValidNotBefore      : TDateTime     read  GetValidNotBefore; {AG 02/06/06}
         property    ValidNotAfter       : TDateTime     read  GetValidNotAfter;  {AG 02/06/06}
         property    HasExpired          : Boolean       read  GetHasexpired;     {AG 02/06/06}
@@ -1529,7 +1747,7 @@ type
         function    Add(X509 : PX509 = nil) : TX509Base;
         procedure   Delete(const Index: Integer);
         function    IndexOf(const X509Base : TX509Base): Integer;
-        function    GetByHash(const Sha1Hash : String): TX509Base;
+        function    GetByHash(const Sha1Hash : AnsiString): TX509Base;
         property    Count                       : Integer       read  GetCount;
         property    Items[index: Integer]       : TX509Base     read  GetX509Base
                                                                 write SetX509Base; default;
@@ -1580,8 +1798,10 @@ type
                    sslOpt_PKCS1_CHECK_1,
                    sslOpt_PKCS1_CHECK_2,
                    sslOpt_NETSCAPE_CA_DN_BUG,
+                   //sslOP_NO_TICKET,
                    sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, // 12/09/05
-                   sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG);
+                   sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG,
+                   sslOpt_ALLOW_UNSAFE_LEGACY_RENEGOTIATION);  // Since OSSL 0.9.8n
     TSslOptions = set of TSslOption;
 
     TSslSessCacheMode = (//sslSESS_CACHE_OFF,
@@ -1606,9 +1826,39 @@ type
                      ssl_X509_TRUST_OCSP_SIGN,
                      ssl_X509_TRUST_OCSP_REQUEST); }
 
+{$IFNDEF OPENSSL_NO_ENGINE}
+    ESslEngineError = class(Exception);
+    TSslEngineState = (esClosed, esOpen, esInit);
+    TSslEngineCtxCapabilities = set of (eccLoadPrivKey, eccLoadPubKey{, eccLoadClientCert});
+    TSslEngine = class(TSslBaseComponent)
+    private
+        FEngine           : PEngine;
+        FNameID           : String;
+        FState            : TSslEngineState;
+        FCtxCapabilities  : TSslEngineCtxCapabilities;
+        FLastErrorMsg     : String;
+        FKeyID            : String;
+        procedure SetNameID(const Value: String);
+    public
+        destructor Destroy; override;
+        function  Open: Boolean;
+        function  Control(const Cmd, Arg: String): Boolean;
+        procedure Close;
+        function  Init: Boolean;
+        property  E : PEngine read FEngine;
+        property  State : TSslEngineState read FState;
+        property  LastErrorMsg : String read FLastErrorMsg write FLastErrorMsg;
+    published
+        property  KeyID : String read FKeyID write FKeyID;
+        property  NameID : String read FNameID write SetNameID;
+        property  CtxCapabilities : TSslEngineCtxCapabilities read FCtxCapabilities write FCtxCapabilities;
+    end;
+{$ENDIF}
+
     ESslContextException = class(Exception);
 
     TInfoExtractMode = (emCert, {emKey,} emCRL);
+    // TSslCertKeyFormat = (ckfPem {$IFNDEF OPENSSL_NO_ENGINE}, ckfEngine {$ENDIF}); {ckfPkcs12,}
     TSslContext = class(TSslBaseComponent)
     protected
         FSslCtx                     : PSSL_CTX;
@@ -1634,7 +1884,13 @@ type
         FSslVerifyPeerModes         : TSslVerifyPeerModes;
         FSslVerifyPeerModesValue    : Integer;
         //FSslX509Trust               : TSslX509Trust;
-{$IFNDEF NO_ADV_MT}
+        FOnBeforeInit               : TNotifyEvent;
+        //FSslKeyFormat             : TSslCertKeyFormat;
+    {$IFNDEF OPENSSL_NO_ENGINE}
+        FAutoEnableBuiltinEngines   : Boolean;
+        FCtxEngine                  : TSslEngine;
+    {$ENDIF}
+{$IFNDEF NO_SSL_MT}
         FLock                       : TRtlCriticalSection;
         procedure Lock;
         procedure Unlock;
@@ -1665,9 +1921,13 @@ type
         procedure LoadVerifyLocations(const CAFile, CAPath: String);
         procedure LoadCertFromChainFile(const FileName : String);
         procedure LoadPKeyFromFile(const FileName : String);
-        //procedure DebugLogInfo(const Msg: string);        { V5.21 } 
+        //procedure DebugLogInfo(const Msg: string);        { V5.21 }
         //procedure SetSslX509Trust(const Value: TSslX509Trust);
-        function  GetIsCtxInitialized : Boolean; 
+        function  GetIsCtxInitialized : Boolean;
+    {$IFNDEF OPENSSL_NO_ENGINE}
+        procedure Notification(AComponent: TComponent; Operation: TOperation); override;
+        procedure SetCtxEngine(const Value: TSslEngine);
+    {$ENDIF}
     public
         constructor Create(AOwner: TComponent); override;
         destructor  Destroy; override;
@@ -1676,6 +1936,10 @@ type
         function    TrustCert(Cert : TX509Base): Boolean;
         procedure   LoadCrlFromFile(const Filename: String);
         procedure   LoadCrlFromPath(const Path: String);
+    {$IFNDEF OPENSSL_NO_ENGINE}
+        procedure   LoadPKeyFromEngine(CtxEngine: TSslEngine);
+        //function    SetupEngine(Engine: String; Commands: TStrings): PENGINE;
+    {$ENDIF}
         procedure   AddClientCAFromFile(const FileName: String);
         procedure   SetClientCAListFromFile(const FileName: String);
         property    IsCtxInitialized : Boolean read GetIsCtxInitialized;
@@ -1710,13 +1974,13 @@ type
         property  SslSessionCacheModes : TSslSessCacheModes
                                                     read  GetSslSessCacheModes
                                                     write SetSslSessCacheModes;
-        property  SslCipherList     : String            read  FSslCipherList
-                                                        write SetSslCipherList;
+        property  SslCipherList     : String        read  FSslCipherList
+                                                    write SetSslCipherList;
         property  SslVersionMethod  : TSslVersionMethod
-                                                        read  FSslVersionMethod
-                                                        write SetSslVersionMethod;
-        property  SslSessionTimeout : Longword          read  FSslSessionTimeout
-                                                        write SetSslSessionTimeout;
+                                                    read  FSslVersionMethod
+                                                    write SetSslVersionMethod;
+        property  SslSessionTimeout : Longword      read  FSslSessionTimeout
+                                                    write SetSslSessionTimeout;
         property  SslSessionCacheSize : Integer
                                                     read  FSslSessionCacheSize
                                                     write SetSslSessionCacheSize;
@@ -1726,8 +1990,18 @@ type
         {property  SslX509Trust      : TSslX509Trust         read  FSslX509Trust
                                                             write SetSslX509Trust;}
         property  OnRemoveSession   : TSslContextRemoveSession
-                                                        read  FOnRemoveSession
-                                                        write FOnRemoveSession;
+                                                    read  FOnRemoveSession
+                                                    write FOnRemoveSession;
+        property  OnBeforeInit  : TNotifyEvent      read  FOnBeforeInit
+                                                    write FOnBeforeInit;
+        {property  SslKeyFormat : TSslCertKeyFormat
+                                                     read  FSslKeyFormat
+                                                     write FSslKeyFormat;}
+    {$IFNDEF OPENSSL_NO_ENGINE}
+        property  AutoEnableBuiltinEngines : Boolean read  FAutoEnableBuiltinEngines
+                                                     write FAutoEnableBuiltinEngines;
+        property  CtxEngine : TSslEngine read FCtxEngine write SetCtxEngine;                                             
+    {$ENDIF}
     end;
 
     {TSslState = (sslNone,
@@ -1791,6 +2065,19 @@ type
   TSslShutDownComplete      = procedure(Sender          : TObject;
                                         Bidirectional   : Boolean;
                                         ErrCode         : Integer) of object;
+{$IFNDEF OPENSSL_NO_TLSEXT}
+  TTlsExtError = (teeOk, teeAlertWarning, teeAlertFatal, teeNoAck);
+{
+  SSL_TLSEXT_ERR_OK                           = 0;
+  SSL_TLSEXT_ERR_ALERT_WARNING                = 1;
+  SSL_TLSEXT_ERR_ALERT_FATAL                  = 2;
+  SSL_TLSEXT_ERR_NOACK                        = 3;
+}
+  TSslServerNameEvent       = procedure(Sender               : TObject;                                        
+                                        var Ctx              : TSslContext;
+                                        var ErrCode          : TTlsExtError) of object;
+{$ENDIF}
+
   TCustomSslWSocket = class(TCustomSocksWSocket)
   protected
         FSslContext                 : TSslContext;
@@ -1799,6 +2086,9 @@ type
         FOnSslCliGetSession         : TSslCliGetSession;
         FOnSslCliNewSession         : TSslCliNewSession;
         FOnSslSetSessionIDContext   : TSslSetSessionIDContext;
+    {$IFNDEF OPENSSL_NO_TLSEXT}
+        FOnSslServerName            : TSslServerNameEvent;
+    {$ENDIF}
         FOnSslCliCertRequest        : TSslCliCertRequest;
         FX509Class                  : TX509Class;
         FSslCertChain               : TX509List;
@@ -1842,6 +2132,7 @@ type
         FSslCipher                  : String;
         FSslTotalBits               : Integer;
         FSslSecretBits              : Integer;
+        FSslSupportsSecureRenegotiation : Boolean;
         FMsg_WM_TRIGGER_DATASENT    : UINT;
         FMsg_WM_SSL_ASYNCSELECT     : UINT;
         FMsg_WM_RESET_SSL           : UINT;
@@ -1850,6 +2141,9 @@ type
         FOnSslVerifyPeer            : TSslVerifyPeerEvent;
         FOnSslHandshakeDone         : TSslHandshakeDoneEvent;
         FHandShakeCount             : Integer;
+    {$IFNDEF OPENSSL_NO_TLSEXT}
+        FSslServerName              : String;
+    {$ENDIF}
         //procedure   SetSslEnable(const Value: Boolean); virtual;
         procedure   RaiseLastOpenSslError(EClass          : ExceptClass;
                                           Dump            : Boolean = FALSE;
@@ -1923,6 +2217,10 @@ type
         property    LastSslError       : Integer          read FLastSslError;
         property    ExplizitSsl        : Boolean          read  FExplizitSsl
                                                           write FExplizitSsl;
+    {$IFNDEF OPENSSL_NO_TLSEXT}
+        property    SslServerName      : String           read  FSslServerName
+                                                          write FSslServerName;
+    {$ENDIF}
         property  OnSslShutDownComplete : TSslShutDownComplete
                                                read   FOnSslShutDownComplete
                                                write  FOnSslShutDownComplete;
@@ -1957,6 +2255,11 @@ type
         property  OnSslSetSessionIDContext : TSslSetSessionIDContext
                                                           read  FOnSslSetSessionIDContext
                                                           write FOnSslSetSessionIDContext;
+    {$IFNDEF OPENSSL_NO_TLSEXT}
+        property  OnSslServerName    : TSslServerNameEvent
+                                                          read  FOnSslServerName
+                                                          write FOnSslServerName;
+    {$ENDIF}
         property  SslAcceptableHosts : TStrings           read  FSslAcceptableHosts
                                                           write SetSslAcceptableHosts;
         property  SslMode            : TSslMode           read  FSslMode
@@ -2018,7 +2321,7 @@ type
       {$IFDEF CLR}
       FLocalBuf            : TBytes;
       {$ENDIF}
-      FLineEnd             : AnsiString;  
+      FLineEnd             : AnsiString;
       FLineMode            : Boolean;
       FLineLength          : Integer;    { When a line is available  }
       FLineLimit           : LongInt;    { Max line length we accept }
@@ -2045,7 +2348,11 @@ type
   public
       constructor Create{$IFDEF VCL}(AOwner : TComponent){$ENDIF}; override;
       destructor  Destroy; override;
-      function    SendLine(const Str : String) : Integer; virtual;
+      function    SendLine(const Str : RawByteString) : Integer; {$IFDEF COMPILER12_UP} overload; {$ENDIF} virtual;
+{$IFDEF COMPILER12_UP}
+      function    SendLine(const Str : UnicodeString; ACodePage: LongWord) : Integer; overload; virtual;
+      function    SendLine(const Str : UnicodeString) : Integer; overload; virtual;
+{$ENDIF}
       property    LineLength : Integer      read  FLineLength;
       property    RcvdPtr    : TWSocketData read  FRcvdPtr;
       property    RcvdCnt    : LongInt      read  FRcvdCnt;
@@ -2054,7 +2361,7 @@ type
                                             write SetLineMode;
       property LineLimit : LongInt          read  FLineLimit
                                             write FLineLimit;
-      property LineEnd  : AnsiString        read  FLineEnd       
+      property LineEnd  : AnsiString        read  FLineEnd
                                             write FLineEnd;
       property LineEcho : Boolean           read  FLineEcho
                                             write FLineEcho;
@@ -2073,20 +2380,120 @@ type
       FLinePointer : TBytes;
 {$ENDIF}
 {$IFDEF WIN32}
-      FLinePointer : ^String;
+      FLinePointer : ^AnsiString;
 {$ENDIF}
       function    Synchronize(Proc         : TWSocketSyncNextProc;
                               var DoneFlag : Boolean) : Integer; virtual;
       function    WaitUntilReady(var DoneFlag : Boolean) : Integer; virtual;
       procedure   InternalDataAvailable(Sender: TObject; Error: Word);
   public
-      procedure   ReadLine(Timeout : Integer; var Buffer : String);
+      procedure   ReadLine(Timeout : Integer; var Buffer : AnsiString); deprecated
+          {$IFDEF COMPILER12_UP}'Do not use in new applications'{$ENDIF};
   end;
+
+{$IFDEF EXPERIMENTAL_TIMER}
+  TIcsTimerHandle = Pointer;
+  TIcsTimerItem = record
+     Interval : LongWord;
+     LastTick : LongWord;
+     Event    : TNotifyEvent;
+  end;
+  PIcsTimerItem = ^TIcsTimerItem;
+
+  TCustomTimerWSocket = class(TCustomSyncWSocket)
+  private
+      FTimer              : TIcsThreadTimer;
+      FTimerList          : TList;
+      FNextMinInterval    : LongWord;
+      FOldTimerEnabled    : Boolean;
+      procedure HandleBaseTimer(Sender: TObject);
+  protected
+      function   RegisterTimer: TIcsTimerHandle;
+      procedure  UnregisterTimer(HTimer: TIcsTimerHandle);
+      function   SetTimer(HTimer: TIcsTimerHandle; Interval: LongWord;
+                          OnTimer: TNotifyEvent): Boolean;
+  public
+      destructor Destroy; override;
+      procedure  ThreadAttach; override;
+      procedure  ThreadDetach; override;
+  end;
+{$ENDIF}
+
+{$IFDEF EXPERIMENTAL_TIMEOUT}
+  TTimeoutReason = (torConnect, torIdle);
+  TTimeoutEvent = procedure (Sender: TObject; Reason: TTimeoutReason) of object;
+  TCustomTimeoutWSocket = class(TCustomTimerWSocket)
+  private
+      FConnectTimeout         : LongWord;
+      FIdleTimeout            : LongWord;
+      FTimeoutSampleInterval  : LongWord;
+      FOnTimeout              : TTimeoutEvent;
+      FToTimer                : TIcsTimerHandle;
+      FConnectStartTick       : LongWord;
+      procedure SetTimeout(Value: LongWord);
+      procedure HandleTimeoutTimer(Sender: TObject);
+  protected
+      procedure TriggerTimeout(Reason: TTimeoutReason); virtual;
+      procedure TriggerSessionConnectedSpecial(Error: Word); override;
+      procedure TriggerSessionClosed(Error: Word); override;
+      procedure DupConnected; override;
+  public
+      constructor Create(AOwner: TComponent); override;
+      procedure Connect; override;
+  //published
+      property TimeoutSampleInterval: LongWord     read  FTimeoutSampleInterval
+                                                   write FTimeoutSampleInterval;
+      property ConnectTimeout: LongWord            read  FConnectTimeout
+                                                   write FConnectTimeout;
+      property IdleTimeout: LongWord read FIdleTimeout write FIdleTimeout;
+      property OnTimeout: TTimeoutEvent read FOnTimeout write FOnTimeout;
+  end;
+{$ENDIF}
+
+{$IFDEF EXPERIMENTAL_THROTTLE}
+  {$IFDEF EXPERIMENTAL_TIMEOUT}
+  TCustomThrottledWSocket = class(TCustomTimeoutWSocket)
+  {$ELSE}
+  TCustomThrottledWSocket = class(TCustomTimerWSocket)
+  {$ENDIF}
+  private
+      FBandwidthLimit       : LongWord;  // Bytes per second, null = disabled
+      FBandwidthSampling    : LongWord;  // Msec sampling interval
+      FBandwidthCount       : LongWord;  // Byte counter
+      FBandwidthMaxCount    : LongWord;  // Bytes during sampling period
+      FBandwidthTimer       : TIcsTimerHandle;//TIcsThreadTimer;
+      FBandwidthPaused      : Boolean;
+      FBandwidthEnabled     : Boolean;
+      procedure HandleThrottleTimer(Sender: TObject);
+      procedure SetBandwidthControl;
+  protected
+      procedure DupConnected; override;
+      function  RealSend(var Data: TWSocketData; Len : Integer) : Integer; override;
+      procedure TriggerSessionConnectedSpecial(Error: Word); override;
+      procedure TriggerSessionClosed(Error: Word); override;
+  public
+      constructor Create(AOwner: TComponent); override;
+      function Receive(Buffer: TWSocketData; BufferSize: Integer) : Integer; override;
+  //published
+      property BandwidthLimit       : LongWord     read  FBandwidthLimit
+                                                   write FBandwidthLimit;
+      property BandwidthSampling    : LongWord     read  FBandwidthSampling
+                                                   write FBandwidthSampling;
+  end;
+{$ENDIF}
 
 {$IFDEF CLR}
 //  [DesignTimeVisibleAttribute(TRUE)]
 {$ENDIF}
+{$IFDEF EXPERIMENTAL_THROTTLE}
+  TWSocket = class(TCustomThrottledWSocket)
+{$ELSE}
+  {$IFDEF EXPERIMENTAL_TIMEOUT}
+  TWSocket = class(TCustomTimeoutWSocket)
+  {$ELSE}
   TWSocket = class(TCustomSyncWSocket)
+  {$ENDIF}
+{$ENDIF}
   public
     property PortNum;
     property Handle;
@@ -2107,6 +2514,7 @@ type
     property SocketRcvBufSize;     {AG 03/10/07}
     property SocketSndBufSize;     {AG 03/10/07}
     property OnDebugDisplay;
+    property Counter;
   published
     property Addr;
     property Port;
@@ -2170,6 +2578,10 @@ type
       property  X509Class;
       //property  SslEstablished;
       property  SslState;
+{$IFNDEF OPENSSL_NO_TLSEXT}
+      property  SslServerName;
+      property  OnSslServerName;
+{$ENDIF}
   published
 {$IFNDEF NO_DEBUG_LOG}
       property IcsLogger;                      { V5.21 }
@@ -2202,19 +2614,19 @@ function  WSocketGetHostByAddr(const Addr : String) : IntPtr;
 function  WSocketGetHostByName(const Name : String) : IntPtr;
 {$ENDIF}
 {$IFDEF WIN32}
-function  WSocketGetHostByAddr(Addr : String) : PHostEnt;
-function  WSocketGetHostByName(Name : String) : PHostEnt;
+function  WSocketGetHostByAddr(Addr : AnsiString) : PHostEnt;
+function  WSocketGetHostByName(Name : AnsiString) : PHostEnt;
 {$ENDIF}
-function  LocalHostName : String;
+function  LocalHostName : AnsiString;
 function  LocalIPList : TStrings;
-function  WSocketResolveIp(IpAddr : String) : String;
-function  WSocketResolveHost(InAddr : String) : TInAddr;
-function  WSocketResolvePort(Port : String; Proto : String) : Word;
-function  WSocketResolveProto(sProto : String) : Integer;
+function  WSocketResolveIp(IpAddr : AnsiString) : AnsiString;
+function  WSocketResolveHost(InAddr : AnsiString) : TInAddr;
+function  WSocketResolvePort(Port : AnsiString; Proto : AnsiString) : Word;
+function  WSocketResolveProto(sProto : AnsiString) : Integer;
 procedure WSocketForceLoadWinsock;
 procedure WSocketCancelForceLoadWinsock;
 procedure WSocketUnloadWinsock;
-function  WSocketIsDottedIP(const S : String) : Boolean;
+function  WSocketIsDottedIP(const S : AnsiString) : Boolean;
 { function  WSocketLoadWinsock : Boolean; 14/02/99 }
 
 {$IFDEF DELPHI1}
@@ -2297,26 +2709,26 @@ type
                                        name, buf: PAnsiChar;
                                        buflen: Integer): THandle; stdcall;
     TWSAAsyncGetHostByAddr = function (HWindow: HWND;
-                                       wMsg: u_int; addr: PChar;
+                                       wMsg: u_int; addr: PAnsiChar;
                                        len, Struct: Integer;
-                                       buf: PChar;
+                                       buf: PAnsiChar;
                                        buflen: Integer): THandle; stdcall;
     TWSAAsyncSelect        = function (s: TSocket;
                                        HWindow: HWND;
                                        wMsg: u_int;
                                        lEvent: Longint): Integer; stdcall;
-    TGetServByName         = function (name, proto: PChar): PServEnt; stdcall;
-    TGetProtoByName        = function (name: PChar): PProtoEnt; stdcall;
-    TGetHostByName         = function (name: PChar): PHostEnt; stdcall;
+    TGetServByName         = function (name, proto: PAnsiChar): PServEnt; stdcall;
+    TGetProtoByName        = function (name: PAnsiChar): PProtoEnt; stdcall;
+    TGetHostByName         = function (name: PAnsiChar): PHostEnt; stdcall;
     TGetHostByAddr         = function (addr: Pointer; len, Struct: Integer): PHostEnt; stdcall;
-    TGetHostName           = function (name: PChar; len: Integer): Integer; stdcall;
+    TGetHostName           = function (name: PAnsiChar; len: Integer): Integer; stdcall;
     TOpenSocket            = function (af, Struct, protocol: Integer): TSocket; stdcall;
     TShutdown              = function (s: TSocket; how: Integer): Integer; stdcall;
     TSetSockOpt            = function (s: TSocket; level, optname: Integer;
-                                       optval: PChar;
+                                       optval: PAnsiChar;
                                        optlen: Integer): Integer; stdcall;
     TGetSockOpt            = function (s: TSocket; level, optname: Integer;
-                                       optval: PChar;
+                                       optval: PAnsiChar;
                                        var optlen: Integer): Integer; stdcall;
     TSendTo                = function (s: TSocket; var Buf;
                                        len, flags: Integer;
@@ -2437,9 +2849,9 @@ function WSocket_WSAAsyncGetHostByName(HWindow: HWND; wMsg: u_int;
                                       name, buf: PAnsiChar;
                                       buflen: Integer): THandle;
 function WSocket_WSAAsyncGetHostByAddr(HWindow: HWND;
-                                      wMsg: u_int; addr: PChar;
+                                      wMsg: u_int; addr: PAnsiChar;
                                       len, Struct: Integer;
-                                      buf: PChar;
+                                      buf: PAnsiChar;
                                       buflen: Integer): THandle;
 {$ENDIF}
 function WSocket_WSAAsyncSelect(s: TSocket; HWindow: HWND; wMsg: u_int; lEvent: Longint): Integer;
@@ -2456,12 +2868,12 @@ function  WSocket_gethostbyname(const name: String): IntPtr;
 function  WSocket_gethostbyaddr(var addr: u_long; len, Struct: Integer): IntPtr;
 {$ENDIF}
 {$IFDEF WIN32}
-function WSocket_getservbyname(name, proto: PChar): PServEnt;
-function WSocket_getprotobyname(name: PChar): PProtoEnt;
-function WSocket_gethostbyname(name: PChar): PHostEnt;
+function WSocket_getservbyname(name, proto: PAnsiChar): PServEnt;
+function WSocket_getprotobyname(name: PAnsiChar): PProtoEnt;
+function WSocket_gethostbyname(name: PAnsiChar): PHostEnt;
 function WSocket_gethostbyaddr(addr: Pointer; len, Struct: Integer): PHostEnt;
 {$ENDIF}
-function WSocket_gethostname(out name: String): Integer;
+function WSocket_gethostname(out name: AnsiString): Integer;
 function WSocket_socket(af, Struct, protocol: Integer): TSocket;
 function WSocket_shutdown(s: TSocket; how: Integer): Integer;
 {$IFDEF CLR}
@@ -2479,11 +2891,11 @@ function  WSocket_getsockopt(s: TSocket; level, optname: Integer;
                              var optlen: Integer): Integer; overload;
 {$ENDIF}
 {$IFDEF WIN32}
-function WSocket_setsockopt(s: TSocket; level, optname: Integer; optval: PChar;
+function WSocket_setsockopt(s: TSocket; level, optname: Integer; optval: PAnsiChar;
                             optlen: Integer): Integer; overload;
 function WSocket_setsockopt(s: TSocket; level, optname: Integer; var optval: TLinger;
                             optlen: Integer): Integer; overload;
-function WSocket_getsockopt(s: TSocket; level, optname: Integer; optval: PChar;
+function WSocket_getsockopt(s: TSocket; level, optname: Integer; optval: PAnsiChar;
                             var optlen: Integer): Integer;
 {$ENDIF}
 function WSocket_sendto(s: TSocket; var Buf : TWSocketData; len, flags: Integer;
@@ -2503,8 +2915,8 @@ function WSocket_WSAIoctl(s                 : TSocket; IoControlCode : DWORD;
                           CompletionRoutine : FARPROC): Integer;
 {$ENDIF}
 {$ENDIF}
-function WSocket_inet_ntoa(inaddr: TInAddr): String;
-function WSocket_inet_addr(const cp: AnsiString): u_long;  
+function WSocket_inet_ntoa(inaddr: TInAddr): AnsiString;
+function WSocket_inet_addr(const cp: AnsiString): u_long;
 function WSocket_htons(hostshort: u_short): u_short;
 function WSocket_htonl(hostlong: u_long): u_long;
 function WSocket_getsockname(s: TSocket; var name: TSockAddr;
@@ -2566,22 +2978,6 @@ const
     SIO_INDEX_ADD_MCAST  = IOC_IN or IOC_VENDOR or 10;
     SIO_INDEX_DEL_MCAST  = IOC_IN or IOC_VENDOR or 11;
 
-{$IFDEF DELPHI1}
-{ Delphi 1 doesn't like missing register procedure in a unit }
-procedure Register;
-{$ENDIF}
-{$IFDEF VER90}
-{ Delphi 2 doesn't like missing register procedure in a unit }
-procedure Register;
-{$ENDIF}
-{$IFDEF VER93}
-{ BCB 1 doesn't like missing register procedure in a unit }
-procedure Register;
-{$ENDIF}
-
-{$IFDEF CLR}
-//procedure Register;
-{$ENDIF}
 {$IFNDEF NO_DEBUG_LOG}
 var
     __DataSocket : TCustomWSocket;
@@ -2653,55 +3049,8 @@ begin
 end;
 {$ENDIF}
 
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF DELPHI1}
-{ Delphi 1 doesn't like missing register procedure in a unit so we provide  }
-{ an empty procedure                                                        }
-procedure Register;
-begin
-end;
-{$ENDIF}
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF VER90}
-{ Delphi 2 doesn't like missing register procedure in a unit so we provide  }
-{ an empty procedure                                                        }
-procedure Register;
-begin
-end;
-{$ENDIF}
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF VER93}
-{ BCB 1 doesn't like missing register procedure in a unit so we provide     }
-{ an empty procedure                                                        }
-procedure Register;
-begin
-end;
-{$ENDIF}
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function atoi(const Value : String) : Integer;
-var
-    i : Integer;
-begin
-    Result := 0;
-    i := 1;
-    while (i <= Length(Value)) and (Value[i] = ' ') do
-        i := i + 1;
-    while (i <= Length(Value)) and (Value[i] >= '0') and (Value[i] <= '9')do begin
-        Result := Result * 10 + ord(Value[i]) - ord('0');
-        i := i + 1;
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IsDigit(Ch : Char) : Boolean;
+function IsDigit(Ch : AnsiChar) : Boolean;
 begin
     Result := (ch >= '0') and (ch <= '9');
 end;
@@ -2710,7 +3059,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Check for a valid numeric dotted IP address such as 192.161.65.25         }
 { Accept leading and trailing spaces.                                       }
-function WSocketIsDottedIP(const S : String) : Boolean;
+function WSocketIsDottedIP(const S : AnsiString) : Boolean;
 var
     I          : Integer;
     DotCount   : Integer;
@@ -2877,9 +3226,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function WSocket_Synchronized_WSAAsyncGetHostByAddr(
     HWindow: HWND;
-    wMsg: u_int; addr: PChar;
+    wMsg: u_int; addr: PAnsiChar;
     len, Struct: Integer;
-    buf: PChar;
+    buf: PAnsiChar;
     buflen: Integer): THandle;
 begin
     if @FWSAAsyncGetHostByAddr = nil then
@@ -2902,7 +3251,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_Synchronized_getservbyname(name, proto: PChar): PServEnt;
+function WSocket_Synchronized_getservbyname(name, proto: PAnsiChar): PServEnt;
 begin
     if @Fgetservbyname = nil then
         @Fgetservbyname := WSocketGetProc('getservbyname');
@@ -2911,16 +3260,16 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_Synchronized_getprotobyname(const Name: String): PProtoEnt;
+function WSocket_Synchronized_getprotobyname(const Name: AnsiString): PProtoEnt;
 begin
     if @Fgetprotobyname = nil then
         @Fgetprotobyname := WSocketGetProc('getprotobyname');
-    Result := Fgetprotobyname(PChar(Name));
+    Result := Fgetprotobyname(PAnsiChar(Name));
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_Synchronized_gethostbyname(name: PChar): PHostEnt;
+function WSocket_Synchronized_gethostbyname(name: PAnsiChar): PHostEnt;
 begin
     if @Fgethostbyname = nil then
         @Fgethostbyname := WSocketGetProc('gethostbyname');
@@ -2938,7 +3287,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_Synchronized_gethostname(name: PChar; len: Integer): Integer;
+function WSocket_Synchronized_gethostname(name: PAnsiChar; len: Integer): Integer;
 begin
     if @Fgethostname = nil then
         @Fgethostname := WSocketGetProc('gethostname');
@@ -2965,7 +3314,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_Synchronized_setsockopt(s: TSocket; level, optname: Integer; optval: PChar;
+function WSocket_Synchronized_setsockopt(s: TSocket; level, optname: Integer; optval: PAnsiChar;
                             optlen: Integer): Integer; overload;
 begin
     if @FSetSockOpt = nil then
@@ -3017,7 +3366,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function WSocket_Synchronized_getsockopt(
     s: TSocket; level, optname: Integer;
-    optval: PChar; var optlen: Integer): Integer;
+    optval: PAnsiChar; var optlen: Integer): Integer;
 begin
     if @FGetSockOpt = nil then
         @FGetSockOpt := WSocketGetProc('getsockopt');
@@ -3251,7 +3600,7 @@ procedure WSocketForceLoadWinsock;
 begin
 {$IFDEF WIN32}
 {$IFDEF COMPILER2_UP}
-    EnterCriticalSection(GWSockCritSect);
+    _EnterCriticalSection(GWSockCritSect);
     try
 {$ENDIF}
         if not WSocketGForced then begin
@@ -3261,7 +3610,7 @@ begin
         end;
 {$IFDEF COMPILER2_UP}
     finally
-        LeaveCriticalSection(GWSockCritSect);
+        _LeaveCriticalSection(GWSockCritSect);
     end;
 {$ENDIF}
 {$ENDIF}
@@ -3274,7 +3623,7 @@ procedure WSocketCancelForceLoadWinsock;
 begin
 {$IFDEF WIN32}
 {$IFDEF COMPILER2_UP}
-    EnterCriticalSection(GWSockCritSect);
+    _EnterCriticalSection(GWSockCritSect);
     try
 {$ENDIF}
         if WSocketGForced then begin
@@ -3285,7 +3634,7 @@ begin
         end;
 {$IFDEF COMPILER2_UP}
     finally
-        LeaveCriticalSection(GWSockCritSect);
+        _LeaveCriticalSection(GWSockCritSect);
     end;
 {$ENDIF}
 {$ENDIF}
@@ -3303,19 +3652,19 @@ begin
     end;
 {$ENDIF}
 {$IFDEF COMPILER2_UP}
-    EnterCriticalSection(GWSockCritSect);
+    _EnterCriticalSection(GWSockCritSect);
     try
 {$ENDIF}
         if (FDllHandle <> 0) and (WSocketGCount = 0) then begin
             WSocket_Synchronized_WSACleanup;
 {$IFDEF COMPILER2_UP}
             if FDll2Handle <> 0 then begin
-                FreeLibrary(FDll2Handle);
+                _FreeLibrary(FDll2Handle);
                 FDll2Handle        := 0;
                 FWSAIoctl          := nil;
             end;
 {$ENDIF}
-            FreeLibrary(FDllHandle);
+            _FreeLibrary(FDllHandle);
             FDllHandle             := 0;
             FWSAStartup            := nil;
             FWSACleanup            := nil;
@@ -3359,7 +3708,7 @@ begin
         WSocketGForced := FALSE;
 {$IFDEF COMPILER2_UP}
     finally
-        LeaveCriticalSection(GWSockCritSect);
+        _LeaveCriticalSection(GWSockCritSect);
     end;
 {$ENDIF}
 {$ENDIF}
@@ -3369,59 +3718,16 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF WIN32}
 function WSocketGetProc(const ProcName : AnsiString) : Pointer;
-{$IFDEF DELPHI1}
-var
-    Error     : THandle;
-    Buf       : String;
-    LastError : LongInt;
-begin
-    if FDllHandle = 0 then begin
-       { Delphi 1 strings are not nul terminated }
-        Buf := winsocket + #0;
-        FDllHandle := LoadLibrary(@Buf[1]);
-        if FDllHandle < HINSTANCE_ERROR then begin
-            Error      := FDllHandle;
-            FDllHandle := 0;
-        {    raise ESocketException.Create('Unable to load ' + winsocket +
-                                          ' Error #' + IntToStr(Error));  }
-            raise ESocketException.Create('Unable to load ' + winsocket +
-                                     ' - ' + GetWindowsErr (Error)); { V5.26 }
-        end;
-{$IFDEF DELPHI1}
-        { Delphi 1 support only Winsock 1.01 }
-        LastError := WSocket_WSAStartup($101, GInitData);
-{$ELSE}
-        LastError := WSocket_WSAStartup(MAKEWORD(GReqVerLow, GReqVerHigh) { $202 $101}, GInitData);
-{$ENDIF}
-        if LastError <> 0 then begin
-          {  raise ESocketException.CreateFmt('%s: WSAStartup error #%d',
-                                             [winsocket, LastError]);  }
-            raise ESocketException.Create('Winsock startup error ' + winsocket +
-                                  ' - ' + GetWindowsErr (LastError)); { V5.26 }
-        end;
-    end;
-    if Length(ProcName) = 0 then
-        Result := nil
-    else begin
-        { Delphi 1 strings are not nul terminated }
-        Buf := ProcName + #0;
-        Result := GetProcAddress(FDllHandle, @Buf[1]);
-        if Result = nil then
-            raise ESocketException.Create('Procedure ' + ProcName +
-               ' not found in ' + winsocket + ' - ' + GetWindowsErr (GetLastError)); { V5.26 }
-    end;
-end;
-{$ELSE}
 var
     LastError : LongInt;
 begin
     { Prevents compiler warning "Return value might be undefined"  }
     Result := nil;
 
-    EnterCriticalSection(GWSockCritSect);
+    _EnterCriticalSection(GWSockCritSect);
     try
         if FDllHandle = 0 then begin
-            FDllHandle := LoadLibrary(@winsocket[1]);
+            FDllHandle := _LoadLibrary(@winsocket[1]);
             if FDllHandle = 0 then
              {   raise ESocketException.Create('Unable to load ' + winsocket +
                                               ' Error #' + IntToStr(GetLastError));}
@@ -3438,33 +3744,31 @@ begin
         if Length(ProcName) = 0 then
             Result := nil
         else begin
-            Result := GetProcAddress(FDllHandle, @ProcName[1]);
+            Result := _GetProcAddress(FDllHandle, @ProcName[1]);
             if Result = nil then
-                raise ESocketException.Create('Procedure ' + ProcName +
+                raise ESocketException.Create('Procedure ' + String(ProcName) +
                                               ' not found in ' + winsocket +
                                    ' - ' + GetWindowsErr (GetLastError)); { V5.26 }
         end;
     finally
-        LeaveCriticalSection(GWSockCritSect);
+        _LeaveCriticalSection(GWSockCritSect);
     end;
 end;
-{$ENDIF}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF COMPILER2_UP}
 function WSocket2GetProc(const ProcName : AnsiString) : Pointer;
 begin
     { Prevents compiler warning "Return value might be undefined"  }
     Result := nil;
 
-    EnterCriticalSection(GWSockCritSect);
+    _EnterCriticalSection(GWSockCritSect);
     try
         if FDll2Handle = 0 then begin
             { Be sure to have main winsock.dll loaded }
             if FDllHandle = 0 then
                 WSocketGetProc('');
-            FDll2Handle := LoadLibrary(@winsocket2[1]);
+            FDll2Handle := _LoadLibrary(@winsocket2[1]);
             if FDll2Handle = 0 then
               {  raise ESocketException.Create('Unable to load ' + winsocket2 +
                                               ' Error #' + IntToStr(GetLastError));  }
@@ -3474,17 +3778,16 @@ begin
         if Length(ProcName) = 0 then
             Result := nil
         else begin
-            Result := GetProcAddress(FDll2Handle, @ProcName[1]);
+            Result := _GetProcAddress(FDll2Handle, @ProcName[1]);
             if Result = nil then
-                raise ESocketException.Create('Procedure ' + ProcName +
+                raise ESocketException.Create('Procedure ' + String(ProcName) +
                                               ' not found in ' + winsocket2 +
                                 ' - ' + GetWindowsErr (GetLastError)); { V5.26 }
         end;
     finally
-        LeaveCriticalSection(GWSockCritSect);
+        _LeaveCriticalSection(GWSockCritSect);
     end;
 end;
-{$ENDIF}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -3492,20 +3795,16 @@ function WinsockInfo : TWSADATA;
 begin
 {    LoadWinsock(winsocket); 14/02/99 }
     { Load winsock and initialize it as needed }
-{$IFDEF COMPILER2_UP}
-    EnterCriticalSection(GWSockCritSect);
+    _EnterCriticalSection(GWSockCritSect);
     try
-{$ENDIF}
         WSocketGetProc('');
         Result := GInitData;
         { If no socket created, then unload winsock immediately }
         if WSocketGCount <= 0 then
             WSocketUnloadWinsock;
-{$IFDEF COMPILER2_UP}
     finally
-        LeaveCriticalSection(GWSockCritSect);
+        _LeaveCriticalSection(GWSockCritSect);
     end;
-{$ENDIF}
 end;
 {$ENDIF}
 
@@ -3995,27 +4294,27 @@ end;
 {$IFNDEF NO_ADV_MT}
 procedure SafeIncrementCount;
 begin
-    EnterCriticalSection(GWSockCritSect);
+    _EnterCriticalSection(GWSockCritSect);
     Inc(WSocketGCount);
-    LeaveCriticalSection(GWSockCritSect);
+    _LeaveCriticalSection(GWSockCritSect);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure SafeDecrementCount;
 begin
-    EnterCriticalSection(GWSockCritSect);
+    _EnterCriticalSection(GWSockCritSect);
     Dec(WSocketGCount);
-    LeaveCriticalSection(GWSockCritSect);
+    _LeaveCriticalSection(GWSockCritSect);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function SafeWSocketGCount : Integer;
 begin
-    EnterCriticalSection(GWSockCritSect);
+    _EnterCriticalSection(GWSockCritSect);
     Result := WSocketGCount;
-    LeaveCriticalSection(GWSockCritSect);
+    _LeaveCriticalSection(GWSockCritSect);
 end;
 {$ENDIF}
 
@@ -4156,9 +4455,9 @@ end;
 {$IFDEF WIN32}
 function WSocket_WSAAsyncGetHostByAddr(
     HWindow: HWND;
-    wMsg: u_int; addr: PChar;
+    wMsg: u_int; addr: PAnsiChar;
     len, Struct: Integer;
-    buf: PChar;
+    buf: PAnsiChar;
     buflen: Integer): THandle;
 begin
 {$IFNDEF NO_ADV_MT}
@@ -4244,7 +4543,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$ENDIF}
 {$IFDEF WIN32}
-function WSocket_getservbyname(name, proto: PChar): PServEnt;
+function WSocket_getservbyname(name, proto: PAnsiChar): PServEnt;
 begin
 {$IFNDEF NO_ADV_MT}
     SafeIncrementCount;
@@ -4260,7 +4559,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_getprotobyname(name: PChar): PProtoEnt;
+function WSocket_getprotobyname(name: PAnsiChar): PProtoEnt;
 begin
 {$IFNDEF NO_ADV_MT}
     SafeIncrementCount;
@@ -4276,7 +4575,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_gethostbyname(name: PChar): PHostEnt;
+function WSocket_gethostbyname(name: PAnsiChar): PHostEnt;
 begin
 {$IFNDEF NO_ADV_MT}
     SafeIncrementCount;
@@ -4308,17 +4607,17 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_gethostname(out name: String): Integer;
+function WSocket_gethostname(out name: AnsiString): Integer;
 begin
 {$IFNDEF NO_ADV_MT}
     SafeIncrementCount;
     try
 {$ENDIF}
         SetLength(Name, 256);
-        Result := WSocket_Synchronized_gethostname(PChar(name), 256);
+        Result := WSocket_Synchronized_gethostname(PAnsiChar(name), 256);
         if Result >= 0 then
             // Unicode will convert on the fly
-            SetLength(Name, StrLen(PAnsiChar(AnsiString(Name)))) // Unicode change
+            SetLength(Name, _StrLen(PAnsiChar(Name))) // Unicode change
         else
             SetLength(Name, 0);
 {$IFNDEF NO_ADV_MT}
@@ -4414,7 +4713,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF WIN32}
-function WSocket_setsockopt(s: TSocket; level, optname: Integer; optval: PChar;
+function WSocket_setsockopt(s: TSocket; level, optname: Integer; optval: PAnsiChar;
                             optlen: Integer): Integer;
 begin
 {$IFNDEF NO_ADV_MT}
@@ -4494,7 +4793,7 @@ end;
 {$IFDEF WIN32}
 function WSocket_getsockopt(
     s: TSocket; level, optname: Integer;
-    optval: PChar; var optlen: Integer): Integer;
+    optval: PAnsiChar; var optlen: Integer): Integer;
 begin
 {$IFNDEF NO_ADV_MT}
     SafeIncrementCount;
@@ -4649,7 +4948,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF WIN32}
-function WSocket_inet_ntoa(inaddr: TInAddr): String;   
+function WSocket_inet_ntoa(inaddr: TInAddr): AnsiString;
 var
     Temp : PAnsiChar;
 begin
@@ -4882,6 +5181,50 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TWSocketCounter.GetLastAliveTick : Cardinal;
+(*
+begin
+    if FLastRecvTick > FLastSendTick then
+        if FLastRecvTick > FConnectTick then
+            Result := FLastRecvTick
+        else
+            Result := FConnectTick
+    else
+        if FLastSendTick > FConnectTick then
+            Result := FLastSendTick
+        else
+            Result := FConnectTick;
+*)
+asm
+    mov ecx, [eax].FLastRecvTick
+    mov edx, [eax].FLastSendTick
+    mov eax, [eax].FConnectTick
+    cmp eax, edx
+    jb  @below
+    mov edx, ecx
+    jmp @more
+@below:
+    mov eax, ecx
+@more:
+    cmp eax, edx
+    jb  @done
+    ret
+@done:
+    mov eax, edx
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TWSocketCounter.SetConnected;
+begin
+    FLastRecvTick := 0;
+    FLastSendTick := 0;
+    FConnectTick  := _GetTickCount;
+    FConnectDT    := _Now;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF WIN32}
 procedure TCustomWSocket.Notification(AComponent: TComponent; operation: TOperation);
 begin
@@ -4926,7 +5269,7 @@ begin
     FState              := wsClosed;
     bAllSent            := TRUE;
     FPaused             := FALSE;
-    FReadCount          := 0;
+{   FReadCount          := 0;  V7.24 only reset when connection opened, not closed }
     FCloseInvoked       := FALSE;
     FFlushTimeout       := 60;
 end;
@@ -5057,7 +5400,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomWSocket.ThreadDetach;
 begin
-    if (GetCurrentThreadID = DWORD(FThreadID)) and (FHSocket <> INVALID_SOCKET) then
+    if (_GetCurrentThreadID = DWORD(FThreadID)) and (FHSocket <> INVALID_SOCKET) then
         WSocket_Synchronized_WSAASyncSelect(FHSocket, Handle, 0, 0);
     inherited ThreadDetach;
 end;
@@ -5080,16 +5423,17 @@ begin
     FMultiCastAddrStr   := '';
     FAddrStr            := '';
     FPortStr            := '';
+    FCounterClass       := TWSocketCounter;
     AssignDefaultValue;
 
 {$IFDEF COMPILER2_UP}
-    EnterCriticalSection(GWSockCritSect);
+    _EnterCriticalSection(GWSockCritSect);
     try
 {$ENDIF}
         Inc(WSocketGCount);
 {$IFDEF COMPILER2_UP}
     finally
-        LeaveCriticalSection(GWSockCritSect);
+        _LeaveCriticalSection(GWSockCritSect);
     end;
 {$ENDIF}
 end;
@@ -5104,23 +5448,27 @@ begin
         { Ignore any exception here }
     end;
 
-    if FState <> wsClosed then       { Close the socket if not yet closed }
-        Close;
+    if FState <> wsInvalidState then begin              { FPiette V7.42 }
+        { wsInvalidState happend when an exception is raised early in the constructor }
+        { Close the socket if not yet closed }
+        if FState <> wsClosed then
+            Close;
 
 {$IFDEF COMPILER2_UP}
-    EnterCriticalSection(GWSockCritSect);
-    try
+        _EnterCriticalSection(GWSockCritSect);
+        try
 {$ENDIF}
-        Dec(WSocketGCount);
-        if WSocketGCount <= 0 then begin
-            WSocketUnloadWinsock;
-{           WSocketGCount := 0;  // it is set to 0 in WSocketUnloadWinsock }
-        end;
+            Dec(WSocketGCount);
+            if WSocketGCount <= 0 then begin
+                WSocketUnloadWinsock;
+    {           WSocketGCount := 0;  // it is set to 0 in WSocketUnloadWinsock }
+            end;
 {$IFDEF COMPILER2_UP}
-    finally
-        LeaveCriticalSection(GWSockCritSect);
-    end;
+        finally
+            _LeaveCriticalSection(GWSockCritSect);
+        end;
 {$ENDIF}
+    end;
 
     if Assigned(FBufHandler) then begin
         FBufHandler.Free;
@@ -5131,7 +5479,50 @@ begin
         FDnsResultList := nil;
     end;
 
+    if Assigned(FCounter) then begin
+        FCounter.Free;
+        FCounter := nil;
+    end;
+
     inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomWSocket.CreateCounter;
+begin
+    if Assigned(FCounter) then
+        _FreeAndNil(FCounter);
+    FCounter := FCounterClass.Create;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomWSocket.DestroyCounter;
+begin
+    _FreeAndNil(FCounter);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomWSocket.SetCounterClass(const Value: TWSocketCounterClass);
+var
+    NewCounter : TWSocketCounter;
+begin
+    if Value = nil then
+        raise ESocketException.Create('Property CounterClass may not be nil!');
+    if Value <> FCounterClass then begin
+        FCounterClass := Value;
+        if Assigned(FCounter) then begin
+            NewCounter              := FCounterClass.Create;
+            NewCounter.ConnectDT    := FCounter.ConnectDT;
+            NewCounter.ConnectTick  := FCounter.ConnectTick;
+            NewCounter.LastRecvTick := FCounter.LastRecvTick;
+            NewCounter.LastSendTick := FCounter.LastSendTick;
+            FCounter.Free;
+            FCounter := NewCounter;
+        end;
+    end;
 end;
 
 
@@ -5210,7 +5601,7 @@ begin
                                   FSocketSndBufSize, optlen);
 {$ELSE}
     iStatus := WSocket_getsockopt(FHSocket, SOL_SOCKET, SO_SNDBUF,
-                                  PChar(@FSocketSndBufSize), optlen);
+                                  PAnsiChar(@FSocketSndBufSize), optlen);
 {$ENDIF}
 
     if iStatus <> 0 then begin
@@ -5225,7 +5616,7 @@ begin
                                   FSocketRcvBufSize, optlen);
 {$ELSE}
     iStatus := WSocket_getsockopt(FHSocket, SOL_SOCKET, SO_RCVBUF,
-                                  PChar(@FSocketRcvBufSize), optlen);
+                                  PAnsiChar(@FSocketRcvBufSize), optlen);
 {$ENDIF}
 
     if iStatus <> 0 then begin
@@ -5233,6 +5624,9 @@ begin
         Exit;
     end;
 
+    if HasOption(FComponentOptions, wsoTcpNoDelay) and { V7.27 }
+                (not SetTcpNoDelayOption) then
+        Exit;
     SetLingerOption;
     SetKeepAliveOption;  // AG { 05/23/07)
 
@@ -5252,6 +5646,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomWSocket.DupConnected;
 begin
+    if Assigned(FCounter) then
+        FCounter.SetConnected;
+    FReadCount  := 0;  { 7.24 }
+    FWriteCount := 0;  { 7.24 }
     ChangeState(wsConnected);
 end;
 
@@ -5320,6 +5718,8 @@ begin
 {   FRcvdFlag := (Result > 0);}
     { If we received the requested size, we may need to receive more }
     FRcvdFlag := (Result >= BufferSize);
+    if Assigned(FCounter) and (Result > 0) then
+        FCounter.FLastRecvTick := _GetTickCount;
 end;
 
 
@@ -5340,17 +5740,25 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Receive as much data as possible into a string                            }
-{ You should avoid this function and use Receive. Using string will be      }
-{ much slower because data will be copied several times.                    }
-{ ReceiveStr will *NOT* wait for a line to be received. It just read        }
-{ already received characters and return them as a string.                  }
-function TCustomWSocket.ReceiveStr : String;
+{$IFDEF COMPILER12_UP}
+function TCustomWSocket.ReceiveStrW(ACodePage : LongWord) : UnicodeString;
+begin
+    Result :=  AnsiToUniCode(ReceiveStrA, ACodePage);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomWSocket.ReceiveStrW : UnicodeString;
+begin
+    Result := ReceiveStrW(CP_ACP);
+end;
+{$ENDIF}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomWSocket.ReceiveStrA : AnsiString;
 var
     lCount : LongInt;
-{$IFDEF COMPILER12_UP}
-    TempS : AnsiString;
-{$ENDIF}
 begin
     lCount := GetRcvdCount;
 
@@ -5361,12 +5769,6 @@ begin
 
     if lCount = 0 then        { GetRcvdCount say nothing, will try anyway }
         LCount := 255;        { some reasonable arbitrary value           }
-
-{$IFDEF DELPHI1}
-    { Delphi 1 strings are limited }
-    if lCount > High(Result) then
-        lCount := High(Result);
-{$ENDIF}
 
 {$IFDEF CLR}
     if Length(FRecvStrBuf) < 1460 then
@@ -5386,16 +5788,6 @@ begin
     end;
 {$ENDIF}
 {$IFDEF WIN32}
-{$IFDEF COMPILER12_UP}
-    SetLength(TempS, lCount);
-    lCount := Receive(@TempS[1], lCount);
-    if lCount > 0 then begin
-        SetLength(TempS, lCount);
-        Result := String(TempS);
-    end
-    else
-        SetLength(Result, 0);
-{$ELSE}
     SetLength(Result, lCount);
     lCount := Receive(@Result[1], lCount);
     if lCount > 0 then
@@ -5403,6 +5795,21 @@ begin
     else
         SetLength(Result, 0);
 {$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Receive as much data as possible into a string                            }
+{ You should avoid this function and use Receive. Using string will be      }
+{ much slower because data will be copied several times.                    }
+{ ReceiveStr will *NOT* wait for a line to be received. It just read        }
+{ already received characters and return them as a string.                  }
+function TCustomWSocket.ReceiveStr : String;
+begin
+{$IFDEF COMPILER12_UP}
+    Result := ReceiveStrW;
+{$ELSE}
+    Result := ReceiveStrA;
 {$ENDIF}
 end;
 
@@ -5475,10 +5882,11 @@ begin
     Result := WSocket_Synchronized_SendTo(FHSocket, Data, Len, FSendFlags,
                                           TSockAddr(Dest), DestLen);
     if Result > 0 then begin
+        FWriteCount := FWriteCount + Result;  { 7.24 }
         TriggerSendData(Result);
         { Post FD_WRITE message to have OnDataSent event triggered }
         if bAllSent and (FType = SOCK_DGRAM) then
-            PostMessage(Handle,
+            _PostMessage(Handle,
                         FMsg_WM_ASYNCSELECT,
                         FHSocket,
                         MakeLong(FD_WRITE, 0));
@@ -5496,8 +5904,12 @@ begin
                                               TSockAddr(sin), SizeOf(sin))
     else
         Result := WSocket_Synchronized_Send(FHSocket, Data, Len, FSendFlags);
-    if Result > 0 then
+    if Result > 0 then begin
+        FWriteCount := FWriteCount + Result;  { 7.24 }
+        if Assigned(FCounter) then
+            FCounter.FLastSendTick := _GetTickCount;
         TriggerSendData(Result);
+    end;
 end;
 
 
@@ -5564,7 +5976,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomWSocket.PutStringInSendBuffer(const Str : AnsiString); 
+function TCustomWSocket.PutStringInSendBuffer(const Str : RawByteString): Integer;
 {$IFDEF CLR}
 var
     Data : TBytes;
@@ -5577,19 +5989,28 @@ begin
 {$ENDIF}
 {$IFDEF WIN32}
 begin
-    if Str <> '' then
-        PutDataInSendBuffer(@Str[1], Length(Str));
+    Result := Length(Str);
+    if Result > 0 then
+        PutDataInSendBuffer(Pointer(Str), Result);
 {$ENDIF}
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF COMPILER12_UP}                                              
-procedure TCustomWSocket.PutStringInSendBuffer(const Str : UnicodeString);
+function TCustomWSocket.PutStringInSendBuffer(const Str : UnicodeString; ACodePage : LongWord): Integer;
 begin
-    PutStringInSendBuffer(AnsiString(Str));
+    Result := PutStringInSendBuffer(UnicodeToAnsi(Str, ACodePage));  // Explicit cast
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomWSocket.PutStringInSendBuffer(const Str : UnicodeString): Integer;
+begin
+    Result := PutStringInSendBuffer(AnsiString(Str));  // Explicit cast
 end;
 {$ENDIF}
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomWSocket.PutDataInSendBuffer(
@@ -5644,7 +6065,7 @@ begin
         { corresponding window to process the message. The message will be }
         { seen and routed by Delphi a litle later, when we will be out of  }
         { the send function.                                               }
-        PostMessage(Handle,
+        _PostMessage(Handle,
                     FMsg_WM_ASYNCSELECT,
                     FHSocket,
                     MakeLong(FD_WRITE, 0));
@@ -5672,38 +6093,60 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Return -1 if error, else return number of ansi-converted elements written }
+{ Return -1 if error, else return number of bytes written }
 {$IFDEF COMPILER12_UP}
+function TCustomWSocket.SendStr(const Str : UnicodeString; ACodePage : LongWord) : Integer;
+begin
+    Result := SendStr(UnicodeToAnsi(Str, ACodePage));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Converts UnicodeString to AnsiString using System.DefaultSystemCodePage   }
 function TCustomWSocket.SendStr(const Str : UnicodeString) : Integer;
 begin
-    Result := SendStr(AnsiString(Str))
+    Result := SendStr(AnsiString(Str)); // RTL convert
 end;
 {$ENDIF}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Return -1 if error, else return number of byte written                    }
-function TCustomWSocket.SendStr(const Str : AnsiString) : Integer;
+function TCustomWSocket.SendStr(const Str : RawByteString) : Integer;
 begin
-    if Length(Str) > 0 then
+    Result := Length(Str);
+    if Result > 0 then
         Result := Send({$IFDEF CLR}
                        System.Text.Encoding.Default.GetBytes(Str),
                        {$ENDIF}
                        {$IFDEF WIN32}
                        PAnsiChar(Str),
                        {$ENDIF}
-                       Length(Str))
-    else
-        Result := 0;
+                       Result);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomWSocket.SendText(Str : String);
+procedure TCustomWSocket.SendText(const Str : RawByteString);
 begin
     SendStr(Str);
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF COMPILER12_UP}
+procedure TCustomWSocket.SendText(const Str : UnicodeString);
+begin
+    SendStr(AnsiString(Str));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomWSocket.SendText(const Str : UnicodeString; ACodePage : LongWord);
+begin
+    SendStr(Str, ACodePage);
+end;
+{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function HasOption(
@@ -5732,7 +6175,8 @@ begin
 {$IFDEF WIN32}
     Result := [];
     for I := Low(Opts) to High(Opts) do
-        Result := Result + [Opts[I]];
+        //Result := Result + [Opts[I]];  { Anton Sviridov }
+        Include(Result, Opts[I]);
 {$ENDIF}
 end;
 
@@ -5759,7 +6203,7 @@ var
     bMore        : Boolean;
     lCount       : {$IFDEF FPC} LongWord; {$ELSE} u_long; {$ENDIF}
 {$IFDEF WIN32}
-    TrashCanBuf  : array [0..1023] of char;
+    TrashCanBuf  : array [0..1023] of AnsiChar;  { AG 1/12/08 }
 {$ENDIF}
     TrashCan     : TWSocketData;
     TrashCanSize : Integer;
@@ -6006,7 +6450,7 @@ begin
 
     I := 0;
     while pptr^[I] <> nil do begin
-        ToList.Add(WSocket_inet_ntoa(pptr^[I]^));
+        ToList.Add(String(WSocket_inet_ntoa(pptr^[I]^)));
         Inc(I);
     end;
 end;
@@ -6024,7 +6468,7 @@ begin
     pptr := PaPAnsiChar(Phe^.h_aliases);
     I    := 0;
     while pptr^[I] <> nil do begin
-        ToList.Add(pptr^[I]);
+        ToList.Add(String(pptr^[I]));
         Inc(I);
     end;
 end;
@@ -6049,7 +6493,7 @@ begin
         FDnsLookupCheckMsg := TRUE;
         Exit;
     end
-    else if msg.wParam <> LongInt(FDnsLookupHandle) then
+    else if msg.wParam <> WPARAM(FDnsLookupHandle) then
         Exit;
 
     FDnsLookupHandle := 0;
@@ -6087,7 +6531,7 @@ var
 {$ENDIF}
     ErrCode : Word;
 begin
-    if msg.wParam <> LongInt(FDnsLookupHandle) then
+    if msg.wParam <> WPARAM(FDnsLookupHandle) then
         Exit;
     FDnsLookupHandle := 0;
     ErrCode          := HiWord(Msg.LParam);
@@ -6100,8 +6544,9 @@ begin
 {$IFDEF WIN32}
         Phe := PHostent(@FDnsLookupBuffer);
         if phe <> nil then begin
-            SetLength(FDnsResult, StrLen(Phe^.h_name));
-            StrCopy(@FDnsResult[1], Phe^.h_name);
+            //SetLength(FDnsResult, _StrLen(Phe^.h_name));
+            //_StrCopy(PAnsiChar(FDnsResult), Phe^.h_name);
+            FDnsResult := String(_StrPas(Phe^.h_name));
 {$ENDIF}
             FDnsResultList.Clear;
             FDnsResultList.Add(FDnsResult);
@@ -6128,7 +6573,8 @@ begin
         Exit;
     end;
 
-    FProtoStr := Trim(sProto);
+    FProtoStr := _Trim(sProto);
+
     if Length(FProtoStr) = 0 then begin
         FProtoAssigned := FALSE;
         Exit;
@@ -6136,13 +6582,6 @@ begin
 
     FProtoResolved := FALSE;
     FProtoAssigned := TRUE;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TCustomWSocket.GetProto : String;
-begin
-    Result := FProtoStr;
 end;
 
 
@@ -6157,7 +6596,8 @@ begin
         Exit;
     end;
 
-    FPortStr := Trim(sPort);
+    FPortStr := _Trim(sPort);
+
     if Length(FPortStr) = 0 then begin
         FPortAssigned := FALSE;
         Exit;
@@ -6169,6 +6609,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
 function TCustomWSocket.GetRemotePort : String;
 begin
     Result := FPortStr;
@@ -6176,7 +6617,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomWSocket.SetLocalPort(sLocalPort : String);
+procedure TCustomWSocket.SetLocalPort(const sLocalPort : String);
 begin
     if FState <> wsClosed then begin
         RaiseException('Cannot change LocalPort if not closed');
@@ -6226,7 +6667,7 @@ begin
         saddrlen := sizeof(saddr);
         if WSocket_Synchronized_GetSockName(FHSocket, TSockAddr(saddr), saddrlen) = 0 then begin
             port     := WSocket_Synchronized_ntohs(saddr.sin_port);
-            Result   := IntToStr(port);
+            Result   := _IntToStr(port);
         end;
     end;
 end;
@@ -6242,7 +6683,7 @@ begin
     if FState in [wsConnected, wsBound, wsListening] then begin
         saddrlen := sizeof(saddr);
         if WSocket_Synchronized_GetSockName(FHSocket, TSockAddr(saddr), saddrlen) = 0 then
-            Result := {StrPas}(WSocket_Synchronized_inet_ntoa(saddr.sin_addr));
+            Result := String(WSocket_Synchronized_inet_ntoa(saddr.sin_addr));
      end;
 end;
 
@@ -6258,7 +6699,8 @@ begin
         Exit;
     end;
 
-    FAddrStr := Trim(InAddr);
+    FAddrStr := _Trim(InAddr);
+
     if Length(FAddrStr) = 0 then begin
         FAddrAssigned := FALSE;
         Exit;
@@ -6270,7 +6712,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_Synchronized_ResolveHost(InAddr : String) : TInAddr;
+function WSocket_Synchronized_ResolveHost(InAddr : AnsiString) : TInAddr;
 var
 {$IFDEF CLR}
     Phe       : IntPtr;
@@ -6285,7 +6727,7 @@ var
 begin
     if InAddr = '' then
       {  raise ESocketException.Create('WSocketResolveHost: ''' + InAddr + ''' Invalid Hostname.'); }
-        raise ESocketException.Create('Winsock Resolve Host: ''' + InAddr + ''' Invalid Hostname.');   { V5.26 }
+        raise ESocketException.Create('Winsock Resolve Host: ''' + String(InAddr) + ''' Invalid Hostname.');   { V5.26 }
 
 
     if WSocketIsDottedIP(InAddr) then begin
@@ -6305,7 +6747,7 @@ begin
                 Exit;
             end;
        {     raise ESocketException.Create('WSocketResolveHost: ''' + InAddr + ''' Invalid IP address.');  }
-            raise ESocketException.Create('Winsock Resolve Host: ''' + InAddr +
+            raise ESocketException.Create('Winsock Resolve Host: ''' + String(InAddr) +
                                          ''' Invalid IP address.');   { V5.26 }
         end;
         Result.s_addr := IPAddr;
@@ -6327,11 +6769,11 @@ begin
 {$ENDIF}
 {$IFDEF WIN32}
     { Address is a hostname }
-    Phe := WSocket_Synchronized_GetHostByName(PChar(InAddr));
+    Phe := WSocket_Synchronized_GetHostByName(PAnsiChar(InAddr));
     if Phe = nil then
         raise ESocketException.Create(
                  'Winsock Resolve Host: Cannot convert host address ''' +
-                 InAddr + ''' - ' +
+                 String(InAddr) + ''' - ' +
                  GetWinsockErr(WSocket_Synchronized_WSAGetLastError));
     Result.s_addr := PInAddr(Phe^.h_addr_list^)^.s_addr;
 {$ENDIF}
@@ -6339,7 +6781,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocketResolveHost(InAddr : String) : TInAddr;
+function WSocketResolveHost(InAddr : AnsiString) : TInAddr;
 begin
 {$IFNDEF NO_ADV_MT}
     SafeIncrementCount;
@@ -6356,7 +6798,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Convert port name or number to number in host order (ftp -> 21)           }
-function WSocket_Synchronized_ResolvePort(Port : String; Proto : String) : WORD;
+function WSocket_Synchronized_ResolvePort(Port : AnsiString; Proto : AnsiString) : WORD;
 {$IFDEF CLR}
 var
     Pse       : IntPtr;
@@ -6400,11 +6842,11 @@ begin
     if IsDigit(Port[1]) then
         Result := atoi(Port)
     else begin
-        Pse := WSocket_Synchronized_GetServByName(PChar(Port), PChar(Proto));
+        Pse := WSocket_Synchronized_GetServByName(PAnsiChar(Port), PAnsiChar(Proto));
         if Pse = nil then
             raise ESocketException.Create(
                       'Winsock Resolve Port: Cannot convert port ''' +
-                      Port + ''' - ' +
+                      String(Port) + ''' - ' +
                       GetWinsockErr(WSocket_Synchronized_WSAGetLastError)); { V5.26 }
         Result := WSocket_Synchronized_ntohs(Pse^.s_port);
     end;
@@ -6414,7 +6856,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Convert port name or number to number in host order (ftp -> 21)           }
-function WSocketResolvePort(Port : String; Proto : String) : Word;
+function WSocketResolvePort(Port : AnsiString; Proto : AnsiString) : Word;
 begin
 {$IFNDEF NO_ADV_MT}
     SafeIncrementCount;
@@ -6430,7 +6872,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_Synchronized_ResolveProto(sProto : String) : Integer;
+function WSocket_Synchronized_ResolveProto(sProto : AnsiString) : Integer;
 var
 {$IFDEF CLR}
     Ppe        : IntPtr;
@@ -6447,7 +6889,7 @@ begin
     if IsDigit(sProto[1]) then
         Result := atoi(sProto)
     else begin
-        sProto := LowerCase(Trim(sProto));
+        sProto := _LowerCase(_Trim(sProto));
         if sProto = 'tcp' then
             Result := IPPROTO_TCP
         else if sProto = 'udp' then
@@ -6470,7 +6912,7 @@ begin
             if Ppe = nil then
                 raise ESocketException.Create(
                           'Winsock Resolve Proto: Cannot convert protocol ''' +
-                          sProto + ''' - ' +
+                          String(sProto) + ''' - ' +
                           GetWinsockErr(WSocket_Synchronized_WSAGetLastError));    { V5.26 }
             Result := ppe^.p_proto;
 {$ENDIF}
@@ -6479,7 +6921,7 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocketResolveProto(sProto : String) : Integer;
+function WSocketResolveProto(sProto : AnsiString) : Integer;
 begin
 {$IFNDEF NO_ADV_MT}
     SafeIncrementCount;
@@ -6491,13 +6933,6 @@ begin
         SafeDecrementCount;
     end;
 {$ENDIF}
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TCustomWSocket.GetAddr : String;
-begin
-    Result := FAddrStr;
 end;
 
 
@@ -6524,7 +6959,7 @@ begin
     if FState = wsConnected then begin
         saddrlen := sizeof(saddr);
         if WSocket_Synchronized_GetPeerName(FHSocket, TSockAddr(saddr), saddrlen) = 0 then
-            Result := WSocket_Synchronized_inet_ntoa(saddr.sin_addr)
+            Result := String(WSocket_Synchronized_inet_ntoa(saddr.sin_addr))
         else begin
             SocketError('GetPeerName');
             Exit;
@@ -6549,7 +6984,7 @@ begin
     if FState = wsConnected then begin
         saddrlen := sizeof(saddr);
         if WSocket_Synchronized_GetPeerName(FHSocket, TSockAddr(saddr), saddrlen) = 0 then
-            Result := IntToStr(WSocket_Synchronized_ntohs(saddr.sin_port))
+            Result := _IntToStr(WSocket_Synchronized_ntohs(saddr.sin_port))
         else begin
             SocketError('GetPeerPort');
             Exit;
@@ -6594,7 +7029,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomWSocket.DnsLookup(const AHostName : AnsiString);
+procedure TCustomWSocket.DnsLookup(const AHostName : String);
 var
     IPAddr   : TInAddr;
     HostName : AnsiString;
@@ -6618,12 +7053,12 @@ begin
     { Delphi 1 do not automatically add a terminating nul char }
     HostName := AHostName + #0;
 {$ELSE}
-    HostName := AHostName;
+    HostName := AnsiString(AHostName);
 {$ENDIF}
     if WSocketIsDottedIP(Hostname) then begin   { 28/09/2002 }
         IPAddr.S_addr := WSocket_Synchronized_inet_addr(HostName);
         if IPAddr.S_addr <> u_long(INADDR_NONE) then begin
-            FDnsResult := WSocket_Synchronized_inet_ntoa(IPAddr);
+            FDnsResult := String(WSocket_Synchronized_inet_ntoa(IPAddr));
             FDnsResultList.Add(FDnsResult);     { 28/09/2002 }{ 12/02/2003 }
             TriggerDnsLookupDone(0);
             Exit;
@@ -6664,7 +7099,7 @@ begin
                               @FDnsLookupBuffer,
                               SizeOf(FDnsLookupBuffer));
     if FDnsLookupHandle = 0 then begin
-        RaiseException(HostName + ': can''t start DNS lookup - ' +
+        RaiseException(String(HostName) + ': can''t start DNS lookup - ' +
                        GetWinsockErr(WSocket_Synchronized_WSAGetLastError));  { V5.26 }
         Exit;
     end;
@@ -6693,7 +7128,7 @@ begin
     FDnsResult := '';
     FDnsResultList.Clear;
 
-    lAddr := WSocket_Synchronized_inet_addr(HostAddr);
+    lAddr := WSocket_Synchronized_inet_addr(AnsiString(HostAddr));
 
     if FWindowHandle = 0 then
         RaiseException('Reverse DNS Lookup: Window not assigned');  { V5.26 }
@@ -6718,7 +7153,7 @@ begin
     FDnsLookupHandle := WSocket_Synchronized_WSAAsyncGetHostByAddr(
                             FWindowHandle,
                             FMsg_WM_ASYNCGETHOSTBYADDR,
-                            PChar(@lAddr), 4, PF_INET,
+                            PAnsiChar(@lAddr), 4, PF_INET,
                             @FDnsLookupBuffer,
                             SizeOf(FDnsLookupBuffer));
     if FDnsLookupHandle = 0 then
@@ -6765,7 +7200,7 @@ end;
 {$IFDEF WIN32}
 procedure TCustomWSocket.ReverseDnsLookupSync(const HostAddr: String); {AG 03/03/06}
 var
-    szAddr : array [0..256] of Char;
+    szAddr : array [0..256] of AnsiChar;
     lAddr  : u_long;
     Phe    : Phostent;
 begin
@@ -6781,15 +7216,17 @@ begin
     FDnsResult := '';
     FDnsResultList.Clear;
 
-    StrPCopy(szAddr, HostAddr); { Length already checked above }
+    _StrPCopy(szAddr, AnsiString(HostAddr)); { Length already checked above }
+
     lAddr := WSocket_Synchronized_inet_addr(szAddr);
 
-    Phe := WSocket_Synchronized_gethostbyaddr(PChar(@lAddr), 4, AF_INET);
+    Phe := WSocket_Synchronized_gethostbyaddr(PAnsiChar(@lAddr), 4, AF_INET);
     if Phe = nil then
         TriggerDnsLookupDone(WSocket_Synchronized_WSAGetLastError)
     else begin
-        SetLength(FDnsResult, StrLen(Phe^.h_name));
-        StrCopy(@FDnsResult[1], Phe^.h_name);
+        //SetLength(FDnsResult, _StrLen(Phe^.h_name));
+        //_StrCopy(@FDnsResult[1], Phe^.h_name);
+        FDnsResult := String(_StrPas(Phe^.h_name));
         FDnsResultList.Add(FDnsResult);
         GetAliasList(Phe, FDnsResultList);
         TriggerDnsLookupDone(0);
@@ -6817,7 +7254,7 @@ begin
     SockNamelen                   := SizeOf(LocalSockName);
     LocalSockName.sin_family      := AF_INET;
     LocalSockName.sin_port        := WSocket_Synchronized_htons(FLocalPortNum);
-    LocalSockName.sin_addr.s_addr := WSocket_Synchronized_ResolveHost(FLocalAddr).s_addr;
+    LocalSockName.sin_addr.s_addr := WSocket_Synchronized_ResolveHost(AnsiString(FLocalAddr)).s_addr;
 
     if WSocket_Synchronized_bind(HSocket, LocalSockName, SockNamelen) <> 0 then begin
         RaiseException('Bind socket failed - ' +
@@ -6831,7 +7268,7 @@ begin
         Exit;
     end;
     FLocalPortNum := WSocket_Synchronized_ntohs(SockName.sin_port);
-    FLocalPortStr := IntToStr(FLocalPortNum);
+    FLocalPortStr := _IntToStr(FLocalPortNum);
 end;
 
 
@@ -6857,6 +7294,7 @@ var
 begin
     if FKeepAliveOnOff = wsKeepAliveOff then
         Exit;
+    Assert(FHSocket <> INVALID_SOCKET); { V7.27 }
     if FKeepAliveOnOff = wsKeepAliveOnSystem then begin
         OptVal := 1;
         Status := WSocket_Synchronized_setsockopt(FHSocket, SOL_SOCKET,
@@ -6915,6 +7353,24 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomWSocket.SetTcpNoDelayOption: Boolean; { V7.27 }
+var
+    optval  : Integer;
+begin
+    Assert(FHSocket <> INVALID_SOCKET);
+    if HasOption(FComponentOptions, wsoTcpNoDelay) then
+        optval := -1 { true }
+    else
+        optval := 0; { false }
+    Result := WSocket_Synchronized_setsockopt(FHSocket, IPPROTO_TCP,
+                                              TCP_NODELAY,
+                                              optval, SizeOf(optval)) = 0;
+    if not Result then
+        SocketError('setsockopt(IPPROTO_TCP, TCP_NODELAY)');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomWSocket.Connect;
 var
     iStatus : Integer;
@@ -6945,7 +7401,7 @@ begin
     try
         if not FProtoResolved then begin
             { The next line will trigger an exception in case of failure }
-            FProto := WSocket_Synchronized_ResolveProto(FProtoStr);
+            FProto := WSocket_Synchronized_ResolveProto(AnsiString(FProtoStr));
             case FProto of
             IPPROTO_UDP: FType := SOCK_DGRAM;
             IPPROTO_TCP: FType := SOCK_STREAM;
@@ -6958,20 +7414,20 @@ begin
 
         if not FPortResolved then begin
             { The next line will trigger an exception in case of failure }
-            FPortNum      := WSocket_Synchronized_ResolvePort(FPortStr, GetProto);
+            FPortNum      := WSocket_Synchronized_ResolvePort(AnsiString(FPortStr), AnsiString(FProtoStr));
             sin.sin_port  := WSocket_Synchronized_htons(FPortNum);
             FPortResolved := TRUE;
         end;
 
         if not FLocalPortResolved then begin
             { The next line will trigger an exception in case of failure }
-            FLocalPortNum      := WSocket_Synchronized_ResolvePort(FLocalPortStr, GetProto);
+            FLocalPortNum      := WSocket_Synchronized_ResolvePort(AnsiString(FLocalPortStr), AnsiString(FProtoStr));
             FLocalPortResolved := TRUE;
         end;
 
         if not FAddrResolved then begin
             { The next line will trigger an exception in case of failure }
-            sin.sin_addr.s_addr := WSocket_Synchronized_ResolveHost(FAddrStr).s_addr;
+            sin.sin_addr.s_addr := WSocket_Synchronized_ResolveHost(AnsiString(FAddrStr)).s_addr;
             FAddrResolved := TRUE;
         end;
     except
@@ -6999,7 +7455,7 @@ begin
                                   FSocketSndBufSize, optlen);
 {$ELSE}
     iStatus := WSocket_getsockopt(FHSocket, SOL_SOCKET, SO_SNDBUF,
-                                  PChar(@FSocketSndBufSize), optlen);
+                                  PAnsiChar(@FSocketSndBufSize), optlen);
 {$ENDIF}
     if iStatus <> 0 then begin
         SocketError('getsockopt(SO_SNDBUF)');
@@ -7013,7 +7469,7 @@ begin
                                   FSocketRcvBufSize, optlen);
 {$ELSE}
     iStatus := WSocket_getsockopt(FHSocket, SOL_SOCKET, SO_RCVBUF,
-                                  PChar(@FSocketRcvBufSize), optlen);
+                                  PAnsiChar(@FSocketRcvBufSize), optlen);
 {$ENDIF}
     if iStatus <> 0 then begin
         SocketError('getsockopt(SO_RCVBUF)');
@@ -7045,7 +7501,7 @@ begin
                 end;
             end;
             if FLocalAddr <> '0.0.0.0' then begin                      { RK }
-                laddr.s_addr := WSocket_Synchronized_ResolveHost(FLocalAddr).s_addr;
+                laddr.s_addr := WSocket_Synchronized_ResolveHost(AnsiString(FLocalAddr)).s_addr;
                 iStatus      := WSocket_Synchronized_SetSockOpt(FHSocket, IPPROTO_IP,
                                                                 IP_MULTICAST_IF,
                                                                 laddr,
@@ -7078,16 +7534,9 @@ begin
             Exit;
         end;
 
-        if HasOption(FComponentOptions, wsoTcpNoDelay) then begin
-            optval := -1; { true, 0=false }
-            iStatus := WSocket_Synchronized_setsockopt(FHsocket, IPPROTO_TCP,
-                                                       TCP_NODELAY, optval, SizeOf(optval));
-            if iStatus <> 0 then begin
-                SocketError('setsockopt(IPPROTO_TCP, TCP_NODELAY)');
-                Exit;
-            end;
-        end;
-
+        if HasOption(FComponentOptions, wsoTcpNoDelay) and { V7.27 }
+                    (not SetTcpNoDelayOption) then
+            Exit;
         SetLingerOption;
         SetKeepAliveOption;
 
@@ -7095,8 +7544,8 @@ begin
             BindSocket;
     end;
 
-    FSelectEvent := FD_READ   or FD_WRITE or FD_CLOSE or
-                    FD_ACCEPT or FD_CONNECT;
+    FSelectEvent := FD_READ or FD_WRITE or FD_CLOSE or
+                    {FD_ACCEPT or} FD_CONNECT;  { FD_ACCEPT not needed } {AG 29.03.08}
     iStatus       := WSocket_Synchronized_WSAASyncSelect(FHSocket, Handle,
                                                          FMsg_WM_ASYNCSELECT,
                                                          FSelectEvent);
@@ -7114,7 +7563,7 @@ begin
        if CheckLogOptions(loWsockInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
             DebugLog(loWsockInfo, 'TWSocket will connect to ' +
                   WSocket_Synchronized_inet_ntoa(sin.sin_addr) + ':' +
-                  IntToStr(WSocket_Synchronized_ntohs(sin.sin_port)));
+                  _IntToStr(WSocket_Synchronized_ntohs(sin.sin_port)));
 {$ENDIF}
         iStatus := WSocket_Synchronized_connect(FHSocket, TSockAddr(sin), sizeof(sin));
         if iStatus = 0 then
@@ -7166,12 +7615,12 @@ begin
     try
         if not FProtoResolved then begin
             { The next line will trigger an exception in case of failure }
-            if CompareText(Copy(FProtoStr, 1, 4), 'raw_') = 0 then begin
+            if _CompareText(Copy(FProtoStr, 1, 4), 'raw_') = 0 then begin
                 FType  := SOCK_RAW;
-                FProto := WSocket_Synchronized_ResolveProto(Copy(FProtoStr, 5, 10));
+                FProto := WSocket_Synchronized_ResolveProto(AnsiString(Copy(FProtoStr, 5, 10)));
             end
             else begin
-                FProto := WSocket_Synchronized_ResolveProto(FProtoStr);
+                FProto := WSocket_Synchronized_ResolveProto(AnsiString(FProtoStr));
                 if FProto = IPPROTO_UDP then
                     FType := SOCK_DGRAM
                 else
@@ -7182,14 +7631,14 @@ begin
 
         if not FPortResolved then begin
             { The next line will trigger an exception in case of failure }
-            FPortNum      := WSocket_Synchronized_ResolvePort(FPortStr, GetProto);
+            FPortNum      := WSocket_Synchronized_ResolvePort(AnsiString(FPortStr), AnsiString(FProtoStr));
             sin.sin_port  := WSocket_Synchronized_htons(FPortNum);
             FPortResolved := TRUE;
         end;
 
         if not FAddrResolved then begin
             { The next line will trigger an exception in case of failure }
-            sin.sin_addr.s_addr := WSocket_Synchronized_ResolveHost(FAddrStr).s_addr;
+            sin.sin_addr.s_addr := WSocket_Synchronized_ResolveHost(AnsiString(FAddrStr)).s_addr;
             FAddrResolved       := TRUE;
         end;
     except
@@ -7267,9 +7716,9 @@ begin
                  { mreq.imr_multiaddr.s_addr := WSocket_inet_addr('225.0.0.37');}
                  { mreq.imr_multiaddr.s_addr := sin.sin_addr.s_addr;}
                  { mreq.imr_multiaddr.s_addr := WSocket_inet_addr(FAddrStr);}
-                 mreq.imr_multiaddr.s_addr := WSocket_Synchronized_inet_addr(FMultiCastAddrStr);
+                 mreq.imr_multiaddr.s_addr := WSocket_Synchronized_inet_addr(AnsiString(FMultiCastAddrStr));
                  { mreq.imr_interface.s_addr := htonl(INADDR_ANY);} { RK}
-                 mreq.imr_interface.s_addr := WSocket_Synchronized_ResolveHost(FAddrStr).s_addr;
+                 mreq.imr_interface.s_addr := WSocket_Synchronized_ResolveHost(AnsiString(FAddrStr)).s_addr;
                  iStatus := WSocket_Synchronized_SetSockOpt(FHSocket, IPPROTO_IP,
                                                             IP_ADD_MEMBERSHIP,
                                                             mreq, SizeOf(mreq));
@@ -7376,8 +7825,8 @@ procedure TCustomWSocket.Shutdown(How : Integer);
 begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loWsockInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-      DebugLog(loWsockInfo, {$IFNDEF CLR}IntToHex(Integer(Self), 8) + ' ' +{$ENDIF}
-                      'TCustomWSocket.Shutdown ' + IntToStr(How) + ' ' +IntToStr(FHSocket));
+      DebugLog(loWsockInfo, {$IFNDEF CLR}_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) + ' ' +{$ENDIF}
+               'TCustomWSocket.Shutdown ' + _IntToStr(How) + ' ' + _IntToStr(FHSocket));
 {$ENDIF}
     if FHSocket <> INVALID_SOCKET then
         WSocket_Synchronized_shutdown(FHSocket, How);
@@ -7430,7 +7879,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomWSocket.CloseDelayed;
 begin
-    PostMessage(Handle, FMsg_WM_CLOSE_DELAYED, 0, 0);
+    _PostMessage(Handle, FMsg_WM_CLOSE_DELAYED, 0, 0);
 end;
 
 
@@ -7581,23 +8030,23 @@ begin
 end;
 {$ENDIF}
 {$IFDEF WIN32}
-function WSocketGetHostByAddr(Addr : String) : PHostEnt;
+function WSocketGetHostByAddr(Addr : AnsiString) : PHostEnt;
 var
-    szAddr : array[0..256] of char;
+    szAddr : array[0..256] of AnsiChar;
     lAddr  : u_long;
 begin
     if (Length(Addr) = 0) or (Length(Addr) >= SizeOf(szAddr)) then
         raise ESocketException.Create('Winsock Get Host Addr: Invalid address.');   { V5.26 }
 
-    StrPCopy(szAddr, Addr); { Length already checked above }
+    _StrPCopy(szAddr, Addr); { Length already checked above }
     lAddr  := WSocket_inet_addr(szAddr);
-    Result := WSocket_gethostbyaddr(PChar(@lAddr), 4, PF_INET);
+    Result := WSocket_gethostbyaddr(PAnsiChar(@lAddr), 4, PF_INET);
 end;
 {$ENDIF}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocketResolveIp(IpAddr : String) : String;
+function WSocketResolveIp(IpAddr : AnsiString) : AnsiString;
 {$IFDEF CLR}
 var
     HostEntry    : THostEnt;
@@ -7621,8 +8070,8 @@ begin
     if Phe = nil then
         Result := ''
     else begin
-        SetLength(Result, StrLen(Phe^.h_name));
-        StrCopy(@Result[1], Phe^.h_name);
+        SetLength(Result, _StrLen(Phe^.h_name));
+        _StrCopy(@Result[1], Phe^.h_name);
     end;
 end;
 {$ENDIF}
@@ -7639,14 +8088,14 @@ begin
 end;
 {$ENDIF}
 {$IFDEF WIN32}
-function WSocketGetHostByName(Name : String) : PHostEnt;
+function WSocketGetHostByName(Name : AnsiString) : PHostEnt;
 var
-    szName : array[0..256] of char;
+    szName : array[0..256] of AnsiChar;
 begin
     if (Length(Name) = 0) or (Length(Name) >= SizeOf(szName)) then
         raise ESocketException.Create('Winsock Get Host Name: Invalid Hostname.');   { V5.26 }
 
-    StrPCopy(szName, Name);
+    _StrPCopy(szName, Name);
     Result := WSocket_gethostbyname(szName);
 end;
 {$ENDIF}
@@ -7685,7 +8134,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function LocalHostName : String;
+function LocalHostName : AnsiString;
 begin
     if WSocket_gethostname(Result) <> 0 then
         raise ESocketException.Create('Winsock Get Host Name failed');
@@ -7769,6 +8218,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomWSocket.TriggerSessionConnectedSpecial(Error : Word);
 begin
+    if Assigned(FCounter) and (FType = SOCK_STREAM) and (Error = 0) then
+        FCounter.SetConnected;
     TriggerSessionConnected(Error);
 end;
 
@@ -7776,6 +8227,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomWSocket.TriggerSessionConnected(Error : Word);
 begin
+    FReadCount  := 0;  { 7.24 }
+    FWriteCount := 0;  { 7.24 }
     if Assigned(FOnSessionConnected) then
         FOnSessionConnected(Self, Error);
 end;
@@ -7825,8 +8278,11 @@ procedure TCustomWSocket.TriggerDataSent(Error : Word);
 begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loWsockDump) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loWsockDump, {$IFNDEF CLR}IntToHex(Integer(Self), 8) + ' ' +{$ENDIF}
-                      'TriggerDataSent ' + IntToStr(FHSocket));
+        DebugLog(loWsockDump,
+                {$IFNDEF CLR}
+                _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) + ' ' +
+                {$ENDIF}
+                'TriggerDataSent ' + _IntToStr(FHSocket));
 {$ENDIF}
     if Assigned(FOnDataSent) then
         FOnDataSent(Self, Error);
@@ -7866,7 +8322,7 @@ begin
     Error := WSocket_Synchronized_WSAGetLastError;
 {    Line  := 'Error '+ IntToStr(Error) + ' in function ' + sockfunc +
              #13#10 + WSocketErrorDesc(Error);  }
-    Line  := WSocketErrorDesc(Error) + ' (#' + IntToStr(Error) +
+    Line  := WSocketErrorDesc(Error) + ' (#' + _IntToStr(Error) +
                                          ' in ' + sockfunc + ')' ;   { V5.26 }
 
     if (Error = WSAECONNRESET) or
@@ -7920,7 +8376,7 @@ begin
                                   BufSize, optlen);
 {$ELSE}
     iStatus := WSocket_setsockopt(FHSocket, SOL_SOCKET, SO_RCVBUF,
-                                  PChar(@BufSize), optlen);
+                                  PAnsiChar(@BufSize), optlen);
 {$ENDIF}
     if iStatus = 0 then
         FSocketSndBufSize := BufSize
@@ -7941,7 +8397,7 @@ begin
                                   BufSize, optlen);
 {$ELSE}
     iStatus := WSocket_setsockopt(FHSocket, SOL_SOCKET, SO_SNDBUF,
-                                  PChar(@BufSize), optlen);
+                                  PAnsiChar(@BufSize), optlen);
 {$ENDIF}
     if iStatus = 0 then
         FSocketSndBufSize := BufSize
@@ -8064,14 +8520,14 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function GetWinsockErr(ErrCode: Integer): String ;    { V5.26 }
 begin
-    Result := WSocketErrorDesc(ErrCode) + ' (#' + IntToStr(ErrCode) + ')' ;
+    Result := WSocketErrorDesc(ErrCode) + ' (#' + _IntToStr(ErrCode) + ')' ;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function GetWindowsErr(ErrCode: Integer): String ;    { V5.26 }
 begin
-    Result := SysErrorMessage(ErrCode) + ' (#' + IntToStr(ErrCode) + ')' ;
+    Result := _SysErrorMessage(ErrCode) + ' (#' + _IntToStr(ErrCode) + ')' ;
 end;
 
 
@@ -8120,7 +8576,14 @@ begin
         RaiseException('Invalid socks level. Must be 4, 4A or 5.');
         Exit;
     end;
-    FSocksLevel := UpperCase(newValue);
+    FSocksLevel := _UpperCase(newValue);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSocksWSocket.GetSocksPort: String;
+begin
+    Result := FSocksPort;
 end;
 
 
@@ -8131,12 +8594,21 @@ begin
         RaiseException('Can''t change socks port if not closed');
         Exit;
     end;
-    FSocksPort := Trim(sPort);
+
+    FSocksPort := _Trim(sPort);
+
     if Length(FSocksPort) = 0 then begin
         FSocksPortAssigned := FALSE;
         Exit;
     end;
     FSocksPortAssigned := TRUE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSocksWSocket.GetSocksServer: String;
+begin
+    Result := FSocksServer;
 end;
 
 
@@ -8147,7 +8619,9 @@ begin
         RaiseException('Can''t change socks server if not closed');
         Exit;
     end;
-    FSocksServer := Trim(sServer);
+
+    FSocksServer := _Trim(sServer);
+
     if Length(FSocksServer) = 0 then begin
         FSocksServerAssigned := FALSE;
         Exit;
@@ -8179,7 +8653,7 @@ begin
         Exit;
     end;
 
-    if (LowerCase(FProtoStr) <> 'tcp') and (Trim(FProtoStr) <> '6') then begin
+    if (_LowerCase(FProtoStr) <> 'tcp') and (_Trim(FProtoStr) <> '6') then begin
         RaiseException('TCP is the only protocol supported thru socks server'); { V5.26 }
         Exit;
     end;
@@ -8187,17 +8661,17 @@ begin
     try
         if not FPortResolved then begin
             { The next line will trigger an exception in case of failure }
-            sin.sin_port  := WSocket_Synchronized_htons(WSocket_Synchronized_ResolvePort(FSocksPort, FProtoStr));
+            sin.sin_port  := WSocket_Synchronized_htons(WSocket_Synchronized_ResolvePort(AnsiString(FSocksPort), AnsiString(FProtoStr)));
             FPortResolved := TRUE;
         end;
 
         if not FAddrResolved then begin
             { The next line will trigger an exception in case of failure }
-            sin.sin_addr.s_addr := WSocket_Synchronized_ResolveHost(FSocksServer).s_addr;
+            sin.sin_addr.s_addr := WSocket_Synchronized_ResolveHost(AnsiString(FSocksServer)).s_addr;
             FAddrResolved       := TRUE;
         end;
         { The next line will trigger an exception in case of failure }
-        FPortNum := WSocket_Synchronized_ResolvePort(FPortStr, FProtoStr);
+        FPortNum := WSocket_Synchronized_ResolvePort(AnsiString(FPortStr), AnsiString(FProtoStr));
     except
         on E:Exception do begin
             RaiseException('Connect: ' + E.Message);  { V5.26 }
@@ -8229,7 +8703,7 @@ end;}
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomSocksWSocket.TriggerSessionConnectedSpecial(Error : Word);
 var
-    Buf : {$IFDEF CLR}TBytes;{$ELSE}array [0..2] of char;{$ENDIF}
+    Buf : {$IFDEF CLR}TBytes;{$ELSE}array [0..2] of AnsiChar;{$ENDIF}
 begin
     if FSocksState = socksNegociateMethods then begin
         {ChangeState(wsSocksConnected);}
@@ -8299,6 +8773,15 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Rfc1929  Username/Password Autentication protocol.
+The UNAME field contains the username as known to the source operating system.
+The PLEN field contains the length of the PASSWD field that follows.
+The PASSWD field contains the password association with the given UNAME.
+
+Rfc1929 does not mention anything about character sets allowed so currently
+the Win32 code below converts the user name and password to ANSI using the
+default system code page.                                                   }
+
 procedure TCustomSocksWSocket.SocksDoAuthenticate;
 {$IFDEF CLR}
 var
@@ -8332,19 +8815,23 @@ end;
 {$ENDIF}
 {$IFDEF WIN32}
 var
-    Buf     : array [0..127] of char;
+    Buf     : array [0..127] of AnsiChar;
     I       : Integer;
+    TempS   : AnsiString;
 begin
     FSocksState := socksAuthenticate;
     TriggerSocksAuthState(socksAuthStart);
     Buf[0] := #$01; {06/03/99}           { Socks version }
     I      := 1;
-    Buf[I] := chr(Length(FSocksUsercode));
-    Move(FSocksUsercode[1], Buf[I + 1], Length(FSocksUsercode));
-    I := I + 1 + Length(FSocksUsercode);
-    Buf[I] := chr(Length(FSocksPassword));
-    Move(FSocksPassword[1], Buf[I + 1], Length(FSocksPassword));
-    I := I + 1 + Length(FSocksPassword);
+    TempS  := AnsiString(FSocksUsercode);
+    Buf[I] := AnsiChar(Length(TempS));
+    Move(TempS[1], Buf[I + 1], Length(TempS));
+    I := I + 1 + Length(TempS);
+
+    TempS  := AnsiString(FSocksPassword);
+    Buf[I] := AnsiChar(Length(TempS));
+    Move(TempS[1], Buf[I + 1], Length(TempS));
+    I := I + 1 + Length(TempS);
     try
 {TriggerDisplay('Send = ''' + BufToStr(Buf, I) + '''');}
         Send(@Buf, I);
@@ -8453,7 +8940,7 @@ end;
 type
     pu_long = ^u_long;
 var
-    Buf     : array [0..127] of char;
+    Buf     : array [0..127] of AnsiChar;
     I       : Integer;
     ErrCode : Integer;
 begin
@@ -8470,7 +8957,7 @@ begin
         else begin
             { With original SOCKS4, we have to supply the dest address  }
             try
-                pu_long(@Buf[4])^ := WSocket_Synchronized_ResolveHost(FAddrStr).s_addr;
+                pu_long(@Buf[4])^ := WSocket_Synchronized_ResolveHost(AnsiString(FAddrStr)).s_addr;
             except
                 on E:Exception do begin
                      ErrCode := socksHostResolutionFailed;
@@ -8491,7 +8978,7 @@ begin
         Inc(I);
         if FSocksLevel = '4A' then begin
             { We have to supply the destination host name                 }
-            Move(FAddrStr[1], Buf[I], Length(FAddrStr));
+            Move(AnsiString(FAddrStr)[1], Buf[I], Length(FAddrStr));  // No length change expected (ASCII)
             I := I + Length(FAddrStr);
             Buf[I] := #0;  { Alon Gingold }
             Inc(I);        { Alon Gingold }
@@ -8504,9 +8991,9 @@ begin
         Buf[1] := #$01;            { Connect command }
         Buf[2] := #$00;            { Reserved, must be $00 }
         Buf[3] := #$03;            { Address type is domain name }
-        Buf[4] := chr(Length(FAddrStr));
+        Buf[4] := AnsiChar((Length(FAddrStr)));
         { Should check buffer overflow }
-        Move(FAddrStr[1], Buf[5], Length(FAddrStr));
+        Move(AnsiString(FAddrStr)[1], Buf[5], Length(FAddrStr)); // No length change expected (ASCII)
         I := 5 + Length(FAddrStr);
         PWord(@Buf[I])^ := WSocket_Synchronized_htons(FPortNum);
         I := I + 2;
@@ -8668,7 +9155,7 @@ begin
                 socksAuthenticationFailed :
                     ErrMsg := 'authentification failed';
                 else
-                    ErrMsg := 'unassigned error #' + IntToStr(Ord(FRcvBuf[1]));
+                    ErrMsg := 'unassigned error #' + _IntToStr(Ord(FRcvBuf[1]));
                 end;
                 DataAvailableError(ErrCode, ErrMsg);
                 Exit;
@@ -8736,7 +9223,7 @@ begin
                     socksUnknownAddressType :
                         ErrMsg := 'address type not supported';
                     else
-                        ErrMsg := 'unassigned error #' + IntToStr(Ord(FRcvBuf[1]));
+                        ErrMsg := 'unassigned error #' + _IntToStr(Ord(FRcvBuf[1]));
                     end;
                     DataAvailableError(ErrCode, ErrMsg);
                     Exit;
@@ -8784,7 +9271,7 @@ begin
                 Exit;
             end;
 
-            FBoundPort  := IntToStr(WSocket_Synchronized_ntohs(
+            FBoundPort  := IcsIntToStrA(WSocket_Synchronized_ntohs(
                                         FRcvBuf[I] or (FRcvBuf[I + 1] shl 8)));
             I           := I + 2;
             FSocksState := socksData;
@@ -8885,7 +9372,7 @@ begin
             Buffer[I] := FRcvBuf[FSocksRcvdPtr + I];
         {$ENDIF}
         {$IFDEF WIN32}
-        Move(FRcvBuf[FSocksRcvdPtr], Buffer^, FSocksRcvdCnt);
+        Move(FRcvBuf[FSocksRcvdPtr], Buffer^, FSocksRcvdCnt); { V7.33 }
         {$ENDIF}
         Result        := FSocksRcvdCnt;
         FSocksRcvdCnt := 0;
@@ -8897,7 +9384,7 @@ begin
         Buffer[I] := FRcvBuf[FSocksRcvdPtr + I];
     {$ENDIF}
     {$IFDEF WIN32}
-    Move(FRcvBuf[FSocksRcvdPtr], Buffer^, BufferSize);
+    Move(FRcvBuf[FSocksRcvdPtr], Buffer^, BufferSize); { V7.33 }
     {$ENDIF}
     Result        := BufferSize;
     FSocksRcvdPtr := FSocksRcvdPtr + BufferSize;
@@ -8921,6 +9408,7 @@ begin
     inherited Create{$IFDEF VCL}(AOwner){$ENDIF};
     FLineEnd   := #13#10;
     FLineMode  := FALSE;
+    FLineEdit  := FALSE;  { AG 2/12/07}
     FLineLimit := 65536;  { Arbitrary line limit }
 end;
 
@@ -8990,19 +9478,56 @@ begin
         Exit;
     FLineMode := newValue;
     if (FRcvdCnt > 0) or (FLineLength > 0) then
-        PostMessage(Handle, FMsg_WM_TRIGGER_DATA_AVAILABLE, 0, 0);
+        _PostMessage(Handle, FMsg_WM_TRIGGER_DATA_AVAILABLE, 0, 0);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Return -1 if error, else return number of byte written                    }
-function TCustomLineWSocket.SendLine(const Str : String) : Integer;
+{$IFDEF COMPILER12_UP}
+{ Returns -1 on error only if event OnError is assigned, otherwise an       }
+{ ESocketException may be raised. Returns the number of bytes written on    }
+{ success. LineEnd is treated as a raw sequence of bytes, hence it's not    }
+{ converted but sent as is.                                                 }
+function TCustomLineWSocket.SendLine(
+    const Str : UnicodeString;
+    ACodePage : LongWord) : Integer;
 begin
-    Result := Length(Str);
+    Result := PutStringInSendBuffer(Str, ACodePage);
     if Result > 0 then begin
-        PutStringInSendBuffer(Str);
-        SendStr(LineEnd);
-        Inc(Result, Length(LineEnd));
+        if SendStr(LineEnd) > -1 then
+            Inc(Result, Length(LineEnd))
+        else
+            Result := -1;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomLineWSocket.SendLine(const Str : UnicodeString) : Integer;
+begin
+    Result := PutStringInSendBuffer(Str);
+    if Result > 0 then begin
+        if SendStr(LineEnd) > -1 then
+            Inc(Result, Length(LineEnd))
+        else
+            Result := -1;
+    end;
+end;
+{$ENDIF}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Returns -1 on error only if event OnError is assigned, otherwise an       }
+{ ESocketException may be raised. Returns the number of bytes written on    }
+{ success.                                                                  }
+function TCustomLineWSocket.SendLine(const Str : RawByteString) : Integer;
+begin
+    Result := PutStringInSendBuffer(Str);
+    if Result > 0 then begin
+        if SendStr(LineEnd) > -1 then
+            Inc(Result, Length(LineEnd))
+        else
+            Result := -1;
     end;
 end;
 
@@ -9205,7 +9730,7 @@ end;
 {$ENDIF}
 {$IFDEF WIN32}
 var
-    Buf     : PChar;
+    Buf     : PAnsiChar;
     BufSize : LongInt;
     I       : LongInt;
     J       : LongInt;
@@ -9223,7 +9748,7 @@ begin
         NewCnt := FRcvdCnt;
         { Loop to process all received char }
         while I < (FRcvdCnt + Len) do begin
-            if PChar(FRcvdPtr)[I] = #8 then begin   { BACKSPACE character }
+            if PAnsiChar(FRcvdPtr)[I] = #8 then begin   { BACKSPACE character }
                 if FLineEcho and (J > 0) then
                     SendStr(BackString);
                 if not Edited then begin
@@ -9243,7 +9768,7 @@ begin
                 end;
                 Inc(I);
             end
-            else if PChar(FRcvdPtr)[I] = #9 then begin  { TAB character }
+            else if PAnsiChar(FRcvdPtr)[I] = #9 then begin  { TAB character }
                 if not Edited then begin
                     { Not edited yet, so we allocate a buffer to store }
                     { edited data and we remember we edited data.      }
@@ -9264,7 +9789,7 @@ begin
             end
             else begin
                 if FLineEcho then
-                    Send(@PChar(FRcvdPtr)[I], 1);
+                    Send(@PAnsiChar(FRcvdPtr)[I], 1);
                 if Edited then begin
                     if J >= BufSize then begin
                         { Need to allocate more buffer space }
@@ -9276,7 +9801,7 @@ begin
                         {$ENDIF}
                         BufSize := NewSize;
                     end;
-                    Buf[J] := PChar(FRcvdPtr)[I];
+                    Buf[J] := PAnsiChar(FRcvdPtr)[I];
                 end;
                 Inc(I);
                 Inc(J);
@@ -9295,7 +9820,7 @@ begin
             end;
             { Move edited data back to original buffer }
             Move(Buf^, FRcvdPtr^, J);
-            PChar(FRcvdPtr)[J] := #0;
+            PAnsiChar(FRcvdPtr)[J] := #0;
             FRcvdCnt := NewCnt;
             Len      := J - FRcvdCnt;
         end;
@@ -9505,8 +10030,9 @@ begin
         Found := FALSE;
         I := SearchFrom;
         while I < (FRcvdCnt - Length(FLineEnd) + 1) do begin
-            if PAnsiChar(FRcvdPtr)[I] = FLineEnd[1] then begin     
-                Found := (StrLComp(@(PAnsiChar(FRcvdPtr)[I]), @FLineEnd[1], Length(FLineEnd)) = 0);
+            if PAnsiChar(FRcvdPtr)[I] = AnsiChar(FLineEnd[1]) then begin     
+                Found := _StrLComp(PAnsiChar(@(PAnsiChar(FRcvdPtr)[I])),
+                                  PAnsiChar(FLineEnd), Length(FLineEnd)) = 0;
                 if Found then
                     break;    { Found the end of line marker }
             end;
@@ -9540,7 +10066,7 @@ begin
         if FLineLength > 0 then begin
             { Line mode was turned off in the middle of a line read. }
             { We preserve unread line and other received data.       }
-            Move(PAnsiChar(FRcvdPtr)[I], PChar(FRcvdPtr)[FLineLength],  
+            Move(PAnsiChar(FRcvdPtr)[I], PAnsiChar(FRcvdPtr)[FLineLength],
                  FRcvdCnt - I);
             FRcvdCnt := FRcvdCnt - I + FLineLength;
         end
@@ -9624,14 +10150,14 @@ end;
 function TCustomSyncWSocket.WaitUntilReady(var DoneFlag : Boolean) : Integer;
 begin
     Result := 0;           { Suppose success }
-    FTimeStop := Integer(GetTickCount) + FTimeout;
+    FTimeStop := Integer(_GetTickCount) + FTimeout;
     while TRUE do begin
         if DoneFlag then begin
             Result := 0;
             break;
         end;
 
-        if ((FTimeout > 0) and (Integer(GetTickCount) > FTimeStop)) or
+        if ((FTimeout > 0) and (Integer(_GetTickCount) > FTimeStop)) or
 {$IFDEF WIN32}
 {$IFNDEF NOFORMS}
            Application.Terminated or
@@ -9645,7 +10171,7 @@ begin
         MessagePump;
 {$IFDEF COMPILER2_UP}
         { Do not use 100% CPU, but slow down transfert on high speed LAN }
-        Sleep(0);
+        _Sleep(0);
 {$ENDIF}
     end;
 end;
@@ -9670,7 +10196,7 @@ end;
 { Instead, use pure event-driven design using OnDataAvailable event.        }
 procedure TCustomSyncWSocket.ReadLine(
     Timeout    : Integer;  { seconds if positive, milli-seconds if negative }
-    var Buffer : String);
+    var Buffer : AnsiString);
 var
     OldDataAvailable : TDataAvailable;
     OldLineMode      : Boolean;
@@ -9738,12 +10264,360 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF EXPERIMENTAL_TIMER}
+
+{ TCustomTimerWSocket }
+
+destructor TCustomTimerWSocket.Destroy;
+var
+    I : Integer;
+begin
+    _FreeAndNil(FTimer);
+    if Assigned(FTimerList) then begin
+        for I := 0 to FTimerList.Count -1 do
+            FreeMem(FTimerList[I]);
+        _FreeAndNil(FTimerList);
+    end;
+    inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomTimerWSocket.RegisterTimer: TIcsTimerHandle;
+begin
+    if not Assigned(FTimerList) then
+        FTimerList := TList.Create;
+    GetMem(Result, SizeOf(TIcsTimerItem));
+    FillChar(Result^, SizeOf(TIcsTimerItem), 0);
+    FTimerList.Add(Result);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimerWSocket.UnregisterTimer(HTimer: TIcsTimerHandle);
+var
+    I : Integer;
+begin
+    if Assigned(FTimerList) and Assigned(HTimer) then
+    begin
+        I := FTimerList.IndexOf(HTimer);
+        if I >= 0 then begin
+            FreeMem(FTimerList[I]);
+            FTimerList.Delete(I);
+            if (FTimerList.Count = 0) and Assigned(FTimer) then begin
+                FTimer.Enabled   := FALSE;
+                FTimer.Interval  := 5000;
+                FNextMinInterval := FTimer.Interval;
+            end;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomTimerWSocket.SetTimer(HTimer: TIcsTimerHandle;
+  Interval: LongWord; OnTimer: TNotifyEvent): Boolean;
+begin
+    if Assigned(FTimerList) and (FTimerList.IndexOf(HTimer) >= 0) then begin
+        PIcsTimerItem(HTimer)^.Interval := Interval;
+        PIcsTimerItem(HTimer)^.Event    := OnTimer;
+        if Interval > 0 then begin
+            PIcsTimerItem(HTimer)^.LastTick := _GetTickCount;
+            if not Assigned(FTimer) then begin
+                FTimer := TIcsThreadTimer.Create(Self);
+                FTimer.Enabled := FALSE;
+                FTimer.Interval := 5000;
+                FTimer.OnTimer := HandleBaseTimer;
+            end;
+            if Interval < FTimer.Interval then begin
+                FNextMinInterval := FTimer.Interval;
+                FTimer.Interval := Interval;
+            end;
+            if not FTimer.Enabled then
+                FTimer.Enabled := TRUE;
+        end
+        else if Assigned(FTimer) and (FTimer.Interval < FNextMinInterval) then
+            FTimer.Interval := FNextMinInterval;
+        Result := TRUE;
+    end
+    else
+        Result := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimerWSocket.ThreadAttach;
+begin
+    inherited ThreadAttach;
+    if Assigned(FTimer) then
+        FTimer.Enabled := FOldTimerEnabled;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimerWSocket.ThreadDetach;
+begin
+    if Assigned(FTimer) then begin
+        FOldTimerEnabled := FTimer.Enabled;
+        if FOldTimerEnabled then
+            FTimer.Enabled := FALSE;
+    end
+    else
+        FOldTimerEnabled := FALSE;
+    inherited ThreadDetach;     
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimerWSocket.HandleBaseTimer(Sender: TObject);
+var
+    I  : Integer;
+    T1 : LongWord;
+    Item : PIcsTimerItem;
+begin
+    T1 := _GetTickCount;
+    for I := 0 to FTimerList.Count -1 do begin
+        Item := PIcsTimerItem(FTimerList[I]);
+        if (Item^.Interval > 0) and Assigned(Item^.Event) and
+           (IcsCalcTickDiff(Item^.LastTick, T1) >= Item^.Interval) then begin
+           Item^.LastTick := T1;
+           Item^.Event(Self);
+        end;
+    end;
+end;
+{$ENDIF}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF EXPERIMENTAL_TIMEOUT}
+
+{ TCustomTimeoutWSocket }
+
+constructor TCustomTimeoutWSocket.Create(AOwner: TComponent);
+begin
+    inherited;
+    FTimeoutSampleInterval := 5000;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimeoutWSocket.HandleTimeoutTimer(Sender: TObject);
+begin
+    if FState <> wsConnected then begin
+        if IcsCalcTickDiff(FConnectStartTick,
+                           _GetTickCount) > FConnectTimeout then begin
+            SetTimeout(0);
+            TriggerTimeout(torConnect);
+        end;
+    end
+    else begin
+        if IcsCalcTickDiff(FCounter.GetLastAliveTick,
+                           _GetTickCount) > FIdleTimeout then begin
+            SetTimeout(0);
+            TriggerTimeout(torIdle);
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimeoutWSocket.Connect;
+begin
+    if FConnectTimeout > 0 then begin
+        SetTimeout(FConnectTimeout);
+        FConnectStartTick := _GetTickCount;
+    end    
+    else if FIdleTimeout > 0 then
+        SetTimeout(FIdleTimeout);
+    inherited Connect;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimeoutWSocket.SetTimeout(Value: LongWord);
+begin
+    if Value = 0 then begin
+        if Assigned(FToTimer) then begin
+            UnregisterTimer(FToTimer);
+            FToTimer := nil;
+        end;
+    end
+    else begin
+        if not Assigned(FToTimer) then
+            FToTimer := RegisterTimer;
+        if not Assigned(FCounter) then
+            CreateCounter;
+        SetTimer(FToTimer, FTimeoutSampleInterval, HandleTimeoutTimer);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimeoutWSocket.DupConnected;
+begin
+    SetTimeout(FIdleTimeout);
+    inherited DupConnected;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimeoutWSocket.TriggerSessionClosed(Error: Word);
+begin
+    SetTimeout(0);
+    inherited TriggerSessionClosed(Error);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimeoutWSocket.TriggerSessionConnectedSpecial(
+  Error: Word);
+begin
+    if Error = 0 then
+        SetTimeout(FIdleTimeout)
+    else
+        SetTimeout(0);
+    inherited TriggerSessionConnectedSpecial(Error);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimeoutWSocket.TriggerTimeout(Reason: TTimeoutReason);
+begin
+    if Assigned(FOnTimeout) then
+        FOnTimeout(Self, Reason);
+end;
+{$ENDIF}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF EXPERIMENTAL_THROTTLE}
+
+{ TCustomThrottledWSocket }
+
+constructor TCustomThrottledWSocket.Create(AOwner: TComponent);
+begin
+    inherited Create(AOwner);
+    FBandwidthSampling := 1000; { Msec sampling interval, less is not possible }
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomThrottledWSocket.DupConnected;
+begin
+    inherited DupConnected;
+    SetBandwidthControl;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomThrottledWSocket.SetBandwidthControl;
+var
+    I : Int64;
+begin
+    FBandwidthCount := 0;
+    if FBandwidthLimit > 0 then
+    begin
+        if not Assigned(FBandwidthTimer) then
+            FBandwidthTimer := RegisterTimer;
+        SetTimer(FBandwidthTimer, FBandwidthSampling, HandleThrottleTimer);
+        // Number of bytes we allow during a sampling period, max integer max.
+        I := Int64(FBandwidthLimit) * FBandwidthSampling div 1000;
+        if I < MaxInt then
+            FBandwidthMaxCount := I
+        else
+            FBandwidthMaxCount := MaxInt;
+        FBandwidthPaused   := FALSE;
+        Include(FComponentOptions, wsoNoReceiveLoop);
+        FBandwidthEnabled := TRUE
+    end
+    else begin
+        if Assigned(FBandwidthTimer) then begin
+            UnregisterTimer(FBandwidthTimer);
+            FBandwidthTimer := nil;
+        end;
+        FBandwidthEnabled := FALSE;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomThrottledWSocket.RealSend(var Data: TWSocketData;
+  Len: Integer): Integer;
+begin
+    Result := inherited RealSend(Data, Len);
+
+    if FBandwidthEnabled and (Result > 0) then begin
+        Inc(FBandwidthCount, Result);
+        if (FBandwidthCount > FBandwidthMaxCount) and
+           (not FBandwidthPaused) then begin
+            FBandwidthPaused := TRUE;
+            Pause;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomThrottledWSocket.Receive(Buffer: TWSocketData;
+  BufferSize: Integer): Integer;
+begin
+    Result := inherited Receive(Buffer, BufferSize);
+    
+    if FBandwidthEnabled and (Result > 0) then begin
+        Inc(FBandwidthCount, Result);
+        if (FBandwidthCount > FBandwidthMaxCount) and
+            (not FBandwidthPaused) then begin
+            FBandwidthPaused := TRUE;
+            Pause;
+        end;    
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomThrottledWSocket.HandleThrottleTimer(Sender: TObject);
+begin
+    if FBandwidthPaused then begin
+        FBandwidthPaused := FALSE;
+        Dec(FBandwidthCount, FBandwidthMaxCount);
+        Resume;
+    end
+    else
+        FBandwidthCount := 0;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomThrottledWSocket.TriggerSessionClosed(Error: Word);
+begin
+    if Assigned(FBandwidthTimer) then
+    begin
+        UnregisterTimer(FBandwidthTimer);
+        FBandwidthTimer := nil;
+    end;
+    inherited TriggerSessionClosed(Error);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomThrottledWSocket.TriggerSessionConnectedSpecial(Error: Word);
+begin
+    inherited TriggerSessionConnectedSpecial(Error);
+    if Error = 0 then
+        SetBandwidthControl;
+end;
+{$ENDIF}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { You must define USE_SSL so that SSL code is included in the component.    }
 { Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
+
 var
     //GSslInitialized     : Integer = 0;
-    SslRefCount         : Integer = 0;
+    SslRefCount               : Integer = 0;
+    GSslRegisterAllCompleted  : Boolean = FALSE;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 (* procedure OutputDebugString(const Msg : String);  angus
@@ -9777,14 +10651,14 @@ var
     I, J : Integer;
 {$ENDIF}
 begin
-    EnterCriticalSection(SslCritSect);
+    _EnterCriticalSection(SslCritSect);
     try
         if SslRefCount = 0 then begin
             // Load LIBEAY DLL
             // Must be loaded before SSlEAY for the versioncheck to work!
             if not OverbyteIcsLIBEAY.Load then begin
             {$IFDEF LOADSSL_ERROR_FILE}
-                AssignFile(F, ExtractFilePath(ParamStr(0)) + 'FailedIcsLIBEAY.txt');
+                AssignFile(F, _ExtractFilePath(ParamStr(0)) + 'FailedIcsLIBEAY.txt');
                 Rewrite(F);
                 S := OverbyteIcsLIBEAY.WhichFailedToLoad;
                 I := 1;
@@ -9798,15 +10672,15 @@ begin
                 CloseFile(F);
             {$ENDIF}
                 if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
-                    FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
+                    _FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
                     OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
                 end;
-                raise Exception.Create('Unable to load LIBEAY DLL. Can''t find ' + S);
+                raise EIcsLibeayException.Create('Unable to load LIBEAY DLL. Can''t find ' + S);
             end;
             // Load SSlEAY DLL
             if not OverbyteIcsSSLEAY.Load then begin
             {$IFDEF LOADSSL_ERROR_FILE}
-                AssignFile(F, ExtractFilePath(ParamStr(0)) + 'FailedIcsSSLEAY.txt');
+                AssignFile(F, _ExtractFilePath(ParamStr(0)) + 'FailedIcsSSLEAY.txt');
                 Rewrite(F);
                 S := OverbyteIcsSSLEAY.WhichFailedToLoad;
                 I := 1;
@@ -9818,53 +10692,74 @@ begin
                     WriteLn(F, Copy(S, J, I - J));
                 end;
                 CloseFile(F);
-            {$ENDIF}    
+            {$ENDIF}
                 if OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle <> 0 then begin
-                    FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
+                    _FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
                     OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle := 0;
                 end;
                 if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
-                    FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
+                    _FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
                     OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
                 end;
-                raise Exception.Create('Unable to load SSLEAY DLL. Can''t find ' + S);
+                raise EIcsSsleayException.Create('Unable to load SSLEAY DLL. Can''t find ' + S);
             end;
 
             // Global system initialization
             if f_SSL_library_init <> 1 then begin
                 if OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle <> 0 then begin
-                    FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
+                    _FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
                     OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle := 0;
                 end;
                 if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
-                    FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
+                    _FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
                     OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
                 end;
             end;
             f_SSL_load_error_strings;
-            Tick := GetTickCount;           // probably weak
+            Tick := _GetTickCount;           // probably weak
             f_RAND_seed(@Tick, SizeOf(Tick));
+        {$IFNDEF OPENSSL_NO_ENGINE}
+            //* Load all bundled ENGINEs into memory and make them visible */
+            f_ENGINE_load_builtin_engines;
+        {$ENDIF}
         end; // SslRefCount = 0
         Inc(SslRefCount);
     finally
-        LeaveCriticalSection(SslCritSect);
+        _LeaveCriticalSection(SslCritSect);
     end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Reminder:
+  /* thread-local cleanup */
+  ERR_remove_state(0);
+
+  /* thread-safe cleanup */
+  ENGINE_cleanup();
+  CONF_modules_unload(1);
+
+  /* global application exit cleanup (after all SSL activity is shutdown) */
+  ERR_free_strings();
+  EVP_cleanup();
+  CRYPTO_cleanup_all_ex_data();
+}
 procedure UnloadSsl;
 begin
-    EnterCriticalSection(SslCritSect);
+    _EnterCriticalSection(SslCritSect);
     try
         if SslRefCount > 0 then        {AG 12/30/07}
             Dec(SslRefCount);
         if SslRefCount = 0 then begin  {AG 12/30/07}
+
             //* thread-local cleanup */
             f_ERR_remove_state(0);
 
             //* thread-safe cleanup */
             f_CONF_modules_unload(1);
+        {$IFNDEF OPENSSL_NO_ENGINE}
+            f_ENGINE_cleanup;
+        {$ENDIF}
 
             //* global application exit cleanup (after all SSL activity is shutdown) */
             f_ERR_free_strings;
@@ -9872,16 +10767,16 @@ begin
             f_CRYPTO_cleanup_all_ex_data;
 
             if OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle <> 0 then begin
-                FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
+                _FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
                 OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle := 0;
             end;
             if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
-                FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
+                _FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
                 OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
             end;
         end;
     finally
-        LeaveCriticalSection(SslCritSect);
+        _LeaveCriticalSection(SslCritSect);
     end;
 end;
 
@@ -9905,55 +10800,55 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function print_errors: String;
+function print_errors: AnsiString;
 var
     Flags    : Integer;
     Line     : Integer;
-    Data     : PChar;
-    FileName : PChar;
+    Data     : PAnsiChar;
+    FileName : PAnsiChar;
     ErrCode  : Cardinal;
 begin
     result := '' ;
     ErrCode := f_ERR_get_error_line_data(@FileName, @Line, @Data, @Flags);
     while ErrCode <> 0 do begin
-        if result <> '' then result := result + #13#10;
-        result := result + 'error code: ' + IntToStr(ErrCode) +
-                          ' in ' + FileName + ' line ' + IntToStr(line);
+        if Result <> '' then Result := Result + #13#10;
+        Result := Result + 'error code: ' + IcsIntToStrA(ErrCode) +
+                          ' in ' + FileName + ' line ' + IcsIntToStrA(line);
         if (Data <> nil) and ((Flags and ERR_TXT_STRING) <> 0) then
-                result := result + #13#10 + 'error data: ' + StrPas(Data);
+                Result := Result + #13#10 + 'error data: ' + _StrPas(Data);
         ErrCode := f_ERR_get_error_line_data(@FileName, @Line, @Data, @Flags);
     end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function print_error: String;
+function print_error: AnsiString;
 var
     ErrCode : Integer;
 begin
     ErrCode := f_ERR_peek_error;
     SetLength(result, 255);
-    f_ERR_error_string_n(ErrCode, PChar(Result), Length(Result));
-    SetLength(Result, StrLen(PChar(Result)));
+    f_ERR_error_string_n(ErrCode, PAnsiChar(Result), Length(Result));
+    SetLength(Result, _StrLen(PAnsiChar(Result)));
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function LastOpenSslErrMsg(Dump: Boolean): String;
+function LastOpenSslErrMsg(Dump: Boolean): AnsiString;
 var
-    ErrMsg  : String;
+    ErrMsg  : AnsiString;
     ErrCode : Integer;
 begin
     ErrCode := f_ERR_get_error;
     SetLength(Result, 120);
-    f_ERR_error_string_n(ErrCode, PChar(Result), Length(Result));
-    SetLength(Result, StrLen(PChar(Result)));
+    f_ERR_error_string_n(ErrCode, PAnsiChar(Result), Length(Result));
+    SetLength(Result, _StrLen(PAnsiChar(Result)));
     if Dump then begin
         ErrCode := f_ERR_get_error;
         while ErrCode <> 0 do begin
             SetLength(ErrMsg, 120);
-            f_ERR_error_string_n(ErrCode, PChar(ErrMsg), Length(ErrMsg));
-            SetLength(ErrMsg, StrLen(PChar(ErrMsg)));
+            f_ERR_error_string_n(ErrCode, PAnsiChar(ErrMsg), Length(ErrMsg));
+            SetLength(ErrMsg, _StrLen(PAnsiChar(ErrMsg)));
             Result := Result + #13#10 + ErrMsg;
             ErrCode := f_ERR_get_error;
         end;
@@ -9970,9 +10865,9 @@ begin
     FLastSslError := f_ERR_peek_error;
     if Length(CustomMsg) > 0 then
         raise EClass.Create(#13#10 + CustomMsg + #13#10 +
-                            LastOpenSslErrMsg(Dump) + #13#10)
+                            String(LastOpenSslErrMsg(Dump)) + #13#10)
     else
-        raise EClass.Create(#13#10 + LastOpenSslErrMsg(Dump) + #13#10);
+        raise EClass.Create(#13#10 + String(LastOpenSslErrMsg(Dump)) + #13#10);
 end;
 
 
@@ -10001,6 +10896,7 @@ begin
     UnloadSsl;
     FSslInitialized := FALSE;
 end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslBaseComponent.InitializeSsl;
@@ -10068,8 +10964,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor TX509List.Destroy;
 begin
-    if Assigned(FList) then
-        FreeAndNil(FList);
+    _FreeAndNil(FList);
     inherited Destroy;
 end;
 
@@ -10089,7 +10984,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509List.GetByHash(const Sha1Hash: String): TX509Base;
+function TX509List.GetByHash(const Sha1Hash: AnsiString): TX509Base;
 var
     I : Integer;
 begin
@@ -10097,7 +10992,7 @@ begin
         if not Assigned(FList[I]) then
             Continue;
         Result := TX509Base(FList[I]);
-        if CompareStr(Result.Sha1Hash, Sha1Hash) = 0 then
+        if _CompareStr(Result.Sha1Hash, Sha1Hash) = 0 then
             Exit;
     end;
     Result := nil;
@@ -10149,13 +11044,13 @@ end;
 function TX509List.GetByPX509(const X509: PX509): TX509Base;
 var
     Len  : Integer;
-    Hash : String;
+    Hash : AnsiString;
 begin
     if Assigned(X509) then begin
         Len := 20;
         SetLength(Hash, Len);
-        f_X509_digest(X509, f_EVP_sha1, PChar(Hash), @Len);
-        SetLength(Hash, StrLen(@Hash[1]));
+        f_X509_digest(X509, f_EVP_sha1, PAnsiChar(Hash), @Len);
+        SetLength(Hash, _StrLen(PAnsiChar(Hash)));
         Result := GetByHash(Hash);
     end
     else
@@ -10164,11 +11059,180 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ TSslEngine }
+
+{$IFNDEF OPENSSL_NO_ENGINE}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslEngine.Close;
+begin
+    try
+        case FState of
+            esInit : f_ENGINE_finish(FEngine); // release the functional reference
+            esOpen : f_ENGINE_free(FEngine); // release the structural reference
+            else
+                Exit;
+        end;
+        FEngine := nil;
+        FState  := esClosed;
+    except
+        FEngine := nil;
+        FState  := esClosed;
+        raise;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslEngine.Control(const Cmd, Arg: String): Boolean;
+var
+    PArg : PAnsiChar;
+    Msg  : String;
+begin
+    if FState = esClosed then
+        raise ESslEngineError.Create('Cannot control a closed engine');
+        
+    if _CompareStr(Cmd, 'INIT') = 0 then // special ICS control command 
+    begin
+        Result := Init;
+        Exit;
+    end;
+
+    if Arg = '' then
+    begin
+        PArg := nil;
+        Msg  := _Format('Executing engine control command %s', [Cmd]);
+    end
+    else begin
+        PArg := PAnsiChar(AnsiString(Arg));
+        Msg :=  _Format('Executing engine control command %s:%s', [Cmd, Arg]);
+    end;
+
+    if f_ENGINE_ctrl_cmd_string(FEngine, PAnsiChar(AnsiString(Cmd)), PArg, 0) = 0 then
+    begin
+        FLastSslError := f_ERR_peek_last_error;
+        FLastErrorMsg := Msg  + ' ' + String(LastOpenSslErrMsg(TRUE));
+        Result        := FALSE;
+    end
+    else begin
+        FLastSslError := 0;
+        FLastErrorMsg := Msg;
+        Result        := TRUE;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TSslEngine.Destroy;
+begin
+    Close;
+    inherited;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslEngine.Init: Boolean;
+begin
+    if FState = esClosed then
+        raise ESslEngineError.Create('Cannot initialize a closed engine');
+    FLastErrorMsg := 'Engine ' + FNameID + 'initialized';
+    FLastSslError := 0;
+    Result        := TRUE;
+    if FState = esInit then
+        Exit;
+    if f_ENGINE_init(FEngine) = 0 then
+    begin
+        FLastSslError := f_ERR_peek_last_error;
+        FLastErrorMsg := 'ENGINE_init'#13#10 + String(LastOpenSslErrMsg(TRUE));
+        Result        := FALSE;
+    end
+    else begin
+        { This should always succeed if 'FEngine' was initialised OK }
+        f_ENGINE_set_default(FEngine, ENGINE_METHOD_ALL);
+        FState := esInit;
+        f_ENGINE_free(FEngine); // release the structural reference
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslEngine.Open: Boolean;
+begin
+    InitializeSsl;
+    {if _CompareStr(FNameID, 'auto') = 0 then
+    begin
+        f_ENGINE_register_all_complete;
+        FLastErrorMsg := 'Auto engine support enabled';
+        Result := TRUE;
+        Exit;
+    end;}
+
+    Close; // close the previous one (if assigned) 
+    FEngine := f_ENGINE_by_id(PAnsiChar(AnsiString(FNameID)));
+
+    if FEngine = nil then
+    begin
+        FLastSslError := f_ERR_peek_last_error;
+        FLastErrorMsg := String(LastOpenSslErrMsg(TRUE));
+        Result        := FALSE;
+    end
+    else begin
+        FState := esOpen;
+        Result := TRUE;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslEngine.SetNameID(const Value: String);
+begin
+    Close;
+    FNameID := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF OPENSSL_NO_ENGINE}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+const
+    SslIntOptions: array[TSslOption] of Integer =                   { V7.30 }
+           (SSL_OP_CIPHER_SERVER_PREFERENCE,
+            SSL_OP_MICROSOFT_SESS_ID_BUG,
+            SSL_OP_NETSCAPE_CHALLENGE_BUG,
+            SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG,
+            SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG,
+            SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER,
+            SSL_OP_MSIE_SSLV2_RSA_PADDING,
+            SSL_OP_SSLEAY_080_CLIENT_DH_BUG,
+            SSL_OP_TLS_D5_BUG,
+            SSL_OP_TLS_BLOCK_PADDING_BUG,
+            SSL_OP_TLS_ROLLBACK_BUG,
+            SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS,
+            SSL_OP_SINGLE_DH_USE,
+            SSL_OP_EPHEMERAL_RSA,
+            SSL_OP_NO_SSLv2,
+            SSL_OP_NO_SSLv3,
+            SSL_OP_NO_TLSv1,
+            SSL_OP_PKCS1_CHECK_1,
+            SSL_OP_PKCS1_CHECK_2,
+            SSL_OP_NETSCAPE_CA_DN_BUG,
+            SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION,
+            SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG,
+            SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION); // Since OSSL 0.9.8n
+
+  SslIntSessCacheModes: array[TSslSessCacheMode] of Integer =     { V7.30 }
+            (SSL_SESS_CACHE_CLIENT,
+             SSL_SESS_CACHE_SERVER,
+             SSL_SESS_CACHE_NO_AUTO_CLEAR,
+             SSL_SESS_CACHE_NO_INTERNAL_LOOKUP,
+             SSL_SESS_CACHE_NO_INTERNAL_STORE);
+
 constructor TSslContext.Create(AOwner: TComponent);
 begin
     inherited Create(AOwner);
-{$IFNDEF NO_ADV_MT}
-    InitializeCriticalSection(FLock);
+{$IFNDEF NO_SSL_MT}
+    _InitializeCriticalSection(FLock);
 {$ENDIF}
     FSslCtx := nil;
     SetSslVerifyPeerModes([SslVerifyMode_PEER]);
@@ -10184,8 +11248,8 @@ end;
 destructor TSslContext.Destroy;
 begin
     DeInitContext;
-{$IFNDEF NO_ADV_MT}
-    DeleteCriticalSection(FLock);
+{$IFNDEF NO_SSL_MT}
+    _DeleteCriticalSection(FLock);
 {$ENDIF}
     inherited Destroy;
 end;
@@ -10249,7 +11313,7 @@ function TSslContext.TrustCert(Cert: TX509Base): Boolean;
 var
     St : PX509_STORE;
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
@@ -10266,12 +11330,12 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
         if (not Result) and
             CheckLogOptions(loSslErr) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loSslErr, LastOpenSslErrMsg(TRUE));
+            DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
 {$ELSE}
         if (not Result) then
             f_ERR_clear_error;
 {$ENDIF}
-{$IFNDEF NO_ADV_MT}    
+{$IFNDEF NO_SSL_MT}    
     finally
         Unlock;
     end;
@@ -10281,31 +11345,57 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function PasswordCallBack(
-    Buf      : PChar;
+    Buf      : PAnsiChar;
     Num      : Integer;
     RWFlag   : Integer;
     UserData : Pointer) : Integer; cdecl;
 var
     Obj : TSslContext;
+    SslPassPhraseA : AnsiString;
 begin
-{$IFNDEF NO_ADV_MT}
-    EnterCriticalSection(LockPwdCB);
+{$IFNDEF NO_SSL_MT}
+    _EnterCriticalSection(LockPwdCB);
     try
 {$ENDIF}
         Obj := TSslContext(UserData);
-        if (num < (Length(Obj.SslPassPhrase) + 1)) or
+        if (Num < (Length(Obj.SslPassPhrase) + 1)) or
            (Length(Obj.SslPassPhrase) = 0) then
             Result := 0
         else begin
-            Move(Obj.SslPassPhrase[1], Buf^, Length(Obj.SslPassPhrase) + 1);
-            Result := Length(Obj.SslPassPhrase);
+            SslPassPhraseA := AnsiString(Obj.SslPassPhrase);
+            Move(Pointer(SslPassPhraseA)^, Buf^, Length(SslPassPhraseA) + 1);
+            Result := Length(SslPassPhraseA);
         end;
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     finally
-        LeaveCriticalSection(LockPwdCB)
+        _LeaveCriticalSection(LockPwdCB);
     end;
 {$ENDIF}
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF OPENSSL_NO_ENGINE}
+function PinCallback(ui: PUI; uis: PUI_STRING): Integer; cdecl;
+var
+    Obj : TSslContext;
+begin
+{$IFNDEF NO_SSL_MT}
+    _EnterCriticalSection(LockPwdCB);
+    try
+{$ENDIF}
+        Obj := TSslContext(f_Ics_UI_get_app_data(ui));
+        f_UI_set_result(ui, uis, PAnsiChar(AnsiString(Obj.FSslPassPhrase)));
+        Result := 1;
+
+{$IFNDEF NO_SSL_MT}
+    finally
+        _LeaveCriticalSection(LockPwdCB);
+    end;
+{$ENDIF}
+end;
+{$ENDIF}
+
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -10318,15 +11408,15 @@ var
     Cert    : PX509;
     CurCert : TX509Base;
 begin
-{$IFNDEF NO_ADV_MT}
-    EnterCriticalSection(LockVerifyCB);
+{$IFNDEF NO_SSL_MT}
+    _EnterCriticalSection(LockVerifyCB);
     try
 {$ENDIF}
         // Retrieve the pointer to the SSL of the current connection
         MySsl := f_X509_STORE_CTX_get_ex_data(
                                 StoreCtx, f_SSL_get_ex_data_X509_STORE_CTX_idx);
         // Retrieve the object reference we stored at index 0
-        Obj   := TCustomSslWSocket(f_SSL_get_ex_data(MySsl, 0));
+        Obj := TCustomSslWSocket(f_SSL_get_ex_data(MySsl, 0));
         if Assigned(Obj) then begin
             Obj.Pause;
             Obj.FSsl_In_CB := TRUE;
@@ -10349,7 +11439,7 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
                 if Obj.CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
                     Obj.DebugLog(loSslInfo,'VCB> VerifyPeer: Subject = '  + CurCert.SubjectOneLine);
-                    Obj.DebugLog(loSslInfo,'VCB> VerifyPeer: Serial  = $' + IntToHex(CurCert.SerialNum, 8));
+                    Obj.DebugLog(loSslInfo,'VCB> VerifyPeer: Serial  = $' + _IntToHex(CurCert.SerialNum, 8));
                     Obj.DebugLog(loSslInfo,'VCB> VerifyPeer: Error   = '  + CurCert.VerifyErrMsg);
                 end;
 {$ENDIF}
@@ -10362,13 +11452,13 @@ begin
                 Obj.Resume;
                 Obj.FSsl_In_CB := FALSE;
                 if Obj.FHSocket = INVALID_SOCKET then
-                    PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
+                    _PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
             end;
         end;
         Result := Ok;
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     finally
-        LeaveCriticalSection(LockVerifyCB);
+        _LeaveCriticalSection(LockVerifyCB);
     end;
 {$ENDIF}
 end;
@@ -10385,8 +11475,8 @@ begin
    { Also: It is invoked whenever a SSL_SESSION is destroyed.  It is called }
    { just before the session object is destroyed because it is invalid or   }
    { has expired.                                                           }
-{$IFNDEF NO_ADV_MT}
-    EnterCriticalSection(LockRemSessCB);
+{$IFNDEF NO_SSL_MT}
+    _EnterCriticalSection(LockRemSessCB);
     try
 {$ENDIF}                                                             
         Obj := TSslContext(f_SSL_CTX_get_ex_data(Ctx, 0));
@@ -10398,9 +11488,9 @@ begin
             if Assigned(Obj.FOnRemoveSession) then
                 Obj.FOnRemoveSession(Obj, Sess);
         end;
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     finally
-        LeaveCriticalSection(LockRemSessCB);
+        _LeaveCriticalSection(LockRemSessCB);
     end;
 {$ENDIF}
 end;
@@ -10411,12 +11501,12 @@ function Ics_EVP_PKEY_dup(PKey: PEVP_PKEY): PEVP_PKEY;
 begin
     Result := nil;
     if PKey <> nil then begin
-        EnterCriticalSection(SslCritSect);
+        _EnterCriticalSection(SslCritSect);
         try
             Inc(PKey^.references);
             Result := PKey;
         finally
-            LeaveCriticalSection(SslCritSect);
+            _LeaveCriticalSection(SslCritSect);
         end;
     end;
 end;
@@ -10456,8 +11546,8 @@ begin
     { -1 and SSL_want_x509_lookup(ssl) returns TRUE.  Remember that            }
     { application data can be attached to an SSL structure via the             }
 
-{$IFNDEF NO_ADV_MT}
-    EnterCriticalSection(LockClientCertCB);
+{$IFNDEF NO_SSL_MT}
+    _EnterCriticalSection(LockClientCertCB);
     try
 {$ENDIF}
         Result := 0;
@@ -10490,29 +11580,29 @@ begin
                 Obj.Resume;
                 Obj.FSsl_In_CB := FALSE;
                 if Obj.FHSocket = INVALID_SOCKET then
-                    PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
+                    _PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
             end;
         end;
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     finally
-        LeaveCriticalSection(LockClientCertCB)
+        _LeaveCriticalSection(LockClientCertCB)
     end;
 {$ENDIF}
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
 procedure TSslContext.Lock;
 begin
-    EnterCriticalSection(FLock)
+    _EnterCriticalSection(FLock)
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.Unlock;
 begin
-    LeaveCriticalSection(FLock)
+    _LeaveCriticalSection(FLock)
 end;
 
 {$ENDIF}
@@ -10532,8 +11622,8 @@ begin
    { Also: If this function returns 0,  the session object will not be     }
    { cached. A nonzero return allows the session to be cached              }
    
-{$IFNDEF NO_ADV_MT}
-    EnterCriticalSection(LockNewSessCB);
+{$IFNDEF NO_SSL_MT}
+    _EnterCriticalSection(LockNewSessCB);
     try
 {$ENDIF}
         Result := 0;
@@ -10558,11 +11648,11 @@ begin
         finally
             Obj.FSsl_In_CB := FALSE;
             if Obj.FHSocket = INVALID_SOCKET then
-                PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
+                _PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
         end;
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     finally
-        LeaveCriticalSection(LockNewSessCB);
+        _LeaveCriticalSection(LockNewSessCB);
     end;
 {$ENDIF}    
 end;
@@ -10587,8 +11677,8 @@ begin
     { nonzero if the object's reference count should be incremented;      }
     { otherwise, zero is returned                                         }
 
-{$IFNDEF NO_ADV_MT}
-    EnterCriticalSection(LockGetSessCB);
+{$IFNDEF NO_SSL_MT}
+    _EnterCriticalSection(LockGetSessCB);
     try
 {$ENDIF}
         Result := nil;
@@ -10613,11 +11703,11 @@ begin
         finally
             Obj.FSsl_In_CB := FALSE;
             if Obj.FHSocket = INVALID_SOCKET then
-                PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
+                _PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
         end;
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     finally
-        LeaveCriticalSection(LockGetSessCB);
+        _LeaveCriticalSection(LockGetSessCB);
     end;
 {$ENDIF}
 end;
@@ -10630,13 +11720,13 @@ function TSslContext.OpenFileBio(
 begin
     if Filename = '' then
         raise ESslContextException.Create('File name not specified');
-    if (Methode = bomRead) and (not FileExists(Filename)) then
+    if (Methode = bomRead) and (not _FileExists(Filename)) then
         raise ESslContextException.Create('File not found "' +
                                           Filename + '"');
     if Methode = bomRead then
-        Result := f_BIO_new_file(PChar(Filename), PChar('r+'))
+        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('r+'))
     else
-        Result := f_BIO_new_file(PChar(Filename), PChar('w+'));
+        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('w+'));
     if Result = nil then
         RaiseLastOpenSslError(ESslContextException, FALSE,
                               'Error on opening file "' + Filename + '"');
@@ -10681,7 +11771,7 @@ begin
                 case Mode of
                 emCert :
                     if CertInfo^.x509 <> nil then
-                        f_sk_insert(Result, PChar(f_X509_dup(CertInfo^.x509)),
+                        f_sk_insert(Result, PAnsiChar(f_X509_dup(CertInfo^.x509)),
                                                   f_sk_num(Result) + 1);
                 { A Dup-function for X509_PKEY is still missing in OpenSsl arrg!
                 emKey :
@@ -10690,7 +11780,7 @@ begin
                                                   f_sk_num(Result) + 1);}
                 emCrl :
                     if CertInfo^.crl <> nil then
-                        f_sk_insert(Result, PChar(f_X509_CRL_dup(CertInfo^.crl)),
+                        f_sk_insert(Result, PAnsiChar(f_X509_CRL_dup(CertInfo^.crl)),
                                                   f_sk_num(Result) + 1);
                 end; //case
                 f_X509_INFO_free(CertInfo);
@@ -10715,13 +11805,13 @@ var
     St       : PX509_STORE;
     CrlStack : PStack;
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
         if not Assigned(FSslCtx) then
             raise ESslContextException.Create(msgSslCtxNotInit);
-        if (Filename <> '') and (not FileExists(Filename)) then
+        if (Filename <> '') and (not _FileExists(Filename)) then
             raise ESslContextException.Create('CRL file not found "' +
                                               Filename + '"');
         if Filename <> '' then begin
@@ -10744,7 +11834,7 @@ begin
                             if f_X509_STORE_add_crl(St, Crl) = 0 then
 {$IFNDEF NO_DEBUG_LOG}
                                 if CheckLogOptions(loSslErr) then  { V5.21 }
-                                    DebugLog(loSslErr, LastOpenSslErrMsg(True));
+                                    DebugLog(loSslErr, String(LastOpenSslErrMsg(True)));
 {$ELSE}
                                 f_ERR_clear_error;
 {$ENDIF};
@@ -10756,7 +11846,7 @@ begin
                 f_sk_pop_free(CrlStack, @f_X509_CRL_free);
             end;
         end;
-{$IFNDEF NO_ADV_MT}        
+{$IFNDEF NO_SSL_MT}        
     finally
         Unlock;
     end;
@@ -10774,20 +11864,20 @@ var
 begin
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
-    if (Path <> '') and (not DirectoryExists(Path)) then
+    if (Path <> '') and (not _DirectoryExists(Path)) then
         raise ESslContextException.Create('CRL directory not found "' +
                                           Path + '"');
     if Path <> '' then begin
-        S := IncludeTrailingPathDelimiter(Path);
-        Found := FindFirst(S + '*.*', faAnyFile - faDirectory, SRec) = 0;
+        S := _IncludeTrailingPathDelimiter(Path);
+        Found := _FindFirst(S + '*.*', faAnyFile - faDirectory, SRec) = 0;
         if Found then
             try
                 while Found do begin
                     LoadCrlFromFile(S + SRec.Name);
-                    Found := FindNext(SRec) = 0;
+                    Found := _FindNext(SRec) = 0;
                 end;
             finally
-                FindClose(SRec);
+                _FindClose(SRec);
             end;
     end;
 end;
@@ -10796,8 +11886,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.LoadVerifyLocations(const CAFile, CAPath: String);
 var
-    PCAPath : PChar;
-    PCAFile : PChar;
+    PCAPath : PAnsiChar;
+    PCAFile : PAnsiChar;
 begin
     // Load the CAs we trust
     //
@@ -10819,16 +11909,17 @@ begin
 
     if FSslCtx = nil then
         raise ESslContextException.Create(msgSslCtxNotInit);
-    if (CAFile <> '') and (not FileExists(CAFile)) then
+    if (CAFile <> '') and (not _FileExists(CAFile)) then
         raise ESslContextException.Create('File not found "' + CAFile + '"');
-    if (Length(CAPath) > 0) and (not DirectoryExists(CAPath)) then
+    if (Length(CAPath) > 0) and (not _DirectoryExists(CAPath)) then
         raise ESslContextException.Create('Directory not found "' + CAPath + '"');
-    if Length(CAPath) > 0 then
-        PCAPath := PChar(CAPath)
+
+    if CAPath <> '' then
+        PCAPath := PAnsiChar(AnsiString(CAPath))
     else
         PCAPath := nil;
-    if Length(CAFile) > 0 then
-        PCAFile := PChar(CAFile)
+    if CAFile <> '' then
+        PCAFile := PAnsiChar(AnsiString(CAFile))
     else
         PCAFile := nil;
     if ((PCAFile <> nil) or (PCAPath <> nil)) and
@@ -10851,14 +11942,14 @@ procedure TSslContext.LoadCertFromChainFile(const FileName: String);
 begin
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
-    if (FileName <> '') and (not FileExists(FileName)) then
+    if (FileName <> '') and (not _FileExists(FileName)) then
         raise ESslContextException.Create('File not found "' + FileName + '"');
     if (FileName <> '') and
        (f_SSL_CTX_use_certificate_chain_file(FSslCtx,
-                                             PChar(FileName)) = 0) then begin
+                                             PAnsiChar(AnsiString(FileName))) = 0) then begin
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslErr) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loSslErr, LastOpenSslErrMsg(TRUE));
+            DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
 {$ELSE}
         f_ERR_clear_error;
 {$ENDIF}
@@ -10874,14 +11965,14 @@ procedure TSslContext.LoadPKeyFromFile(const FileName: String);
 begin
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
-    if (FileName <> '') and (not FileExists(FileName)) then
+    if (FileName <> '') and (not _FileExists(FileName)) then
         raise ESslContextException.Create('File not found "' + FileName + '"');
     if (FileName <> '') and
-       (f_SSL_CTX_use_PrivateKey_file(FSslCtx, PChar(FileName),
+       (f_SSL_CTX_use_PrivateKey_file(FSslCtx, PAnsiChar(AnsiString(FileName)),
                                       SSL_FILETYPE_PEM) = 0) then begin
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loSslInfo, LastOpenSslErrMsg(TRUE));
+            DebugLog(loSslInfo, String(LastOpenSslErrMsg(TRUE)));
 {$ELSE}
         f_ERR_clear_error;
 {$ENDIF}
@@ -10890,6 +11981,60 @@ begin
                               'file "' + FileName + '"');
     end;
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF OPENSSL_NO_ENGINE}
+procedure TSslContext.Notification(
+    AComponent : TComponent;
+    Operation  : TOperation);
+begin
+    inherited Notification(AComponent, Operation);
+    if Operation = opRemove then begin
+        if AComponent = FCtxEngine then
+            FCtxEngine := nil;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetCtxEngine(const Value: TSslEngine);
+begin
+    FCtxEngine := Value;
+    if Value <> nil then
+        Value.FreeNotification(Self);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.LoadPKeyFromEngine(CtxEngine: TSslEngine);
+var
+    PKey : PEVP_PKEY;
+    Uim  : PUI_METHOD;
+begin
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (CtxEngine = nil) or (CtxEngine.KeyID = '') then
+        raise ESslContextException.Create('Engine and KeyID may not be empty');
+
+    if CtxEngine.State <> esInit then
+        if not CtxEngine.Init then
+            raise ESslContextException.Create(CtxEngine.LastErrorMsg);
+        Uim := f_UI_create_method(PAnsiChar('ICS WIN32 UI'));
+        f_UI_method_set_reader(Uim, PinCallback);
+        PKey := f_ENGINE_load_private_key(CtxEngine.E,
+                                          PAnsiChar(AnsiString(CtxEngine.KeyID)),
+                                          Uim, Pointer(Self));
+
+        if PKey = nil then
+            RaiseLastOpenSslError(ESslContextException, TRUE,
+                              'Can''t load private key from Engine');
+
+        if f_SSL_CTX_use_PrivateKey(FSslCtx, PKey) = 0 then
+            RaiseLastOpenSslError(ESslContextException, TRUE,
+                                  'Can''t use private key');
+end;
+{$ENDIF OPENSSL_NO_ENGINE}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -10902,7 +12047,7 @@ var
 begin
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
-    if (Filename <> '') and (not FileExists(Filename)) then
+    if (Filename <> '') and (not _FileExists(Filename)) then
         raise ESslContextException.Create('Certificate file not found "' +
                                           Filename + '"');
     if Filename <> '' then begin
@@ -10930,11 +12075,11 @@ var
 begin
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
-    if (Filename <> '') and (not FileExists(Filename)) then
+    if (Filename <> '') and (not _FileExists(Filename)) then
         raise ESslContextException.Create('Certificate file not found "' +
                                           Filename + '"');
     if Filename <> '' then begin
-        Sk := f_SSL_load_client_CA_file(PChar(FileName));
+        Sk := f_SSL_load_client_CA_file(PAnsiChar(AnsiString(FileName)));
         if not Assigned(Sk) then
             raise ESslContextException.Create('Error on reading certificate ' +
                                               'file "' + Filename + '"');
@@ -10949,10 +12094,19 @@ var
     SslSessCacheModes : TSslSessCacheModes;
 begin
     InitializeSsl; //loads libs
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
+    {$IFNDEF OPENSSL_NO_ENGINE}
+        if (not GSslRegisterAllCompleted) and FAutoEnableBuiltinEngines then
+        begin
+            // Register all of them for every algorithm they collectively implement /
+            f_ENGINE_register_all_complete;
+            GSslRegisterAllCompleted := TRUE;
+        end;
+    {$ENDIF}
+
         if not Assigned(FSslCtx) then begin
             // Create new context
             FSslCtx := InitializeCtx;
@@ -10961,12 +12115,25 @@ begin
         end;
 
         try
-            // Set the password callback and our custom user data
-            f_SSL_CTX_set_default_passwd_cb(FSslCtx, PasswordCallBack);
-            f_SSL_CTX_set_default_passwd_cb_userdata(FSslCtx, Self);
+            if Assigned(FOnBeforeInit) then
+                FOnBeforeInit(Self);
 
             // Load our key and certificate
-            LoadPKeyFromFile(FSslPrivKeyFile);
+        {$IFNDEF OPENSSL_NO_ENGINE}
+            if (FCtxEngine <> nil) and
+               (eccLoadPrivKey in FCtxEngine.CtxCapabilities) then
+                LoadPKeyFromEngine(FCtxEngine)
+            else begin
+        {$ENDIF}
+                // Set the password callback and our custom user data
+                f_SSL_CTX_set_default_passwd_cb(FSslCtx, PasswordCallBack);
+                f_SSL_CTX_set_default_passwd_cb_userdata(FSslCtx, Self);
+
+                LoadPKeyFromFile(FSslPrivKeyFile);
+        {$IFNDEF OPENSSL_NO_ENGINE}
+            end;
+        {$ENDIF}
+
             LoadCertFromChainFile(FSslCertFile);
 
             // See notes in the procedure
@@ -10991,7 +12158,7 @@ begin
 
             if FSslCipherList <> '' then begin
                 if f_SSL_CTX_set_cipher_list(FSslCtx,
-                                             PChar(FSslCipherList)) = 0 then
+                                             PAnsiChar(AnsiString(FSslCipherList))) = 0 then
                     RaiseLastOpenSslError(ESslContextException, TRUE,
                                           'Error loading cipher list');
             end
@@ -11006,7 +12173,7 @@ begin
 
             if not (sslSESS_CACHE_NO_INTERNAL_STORE in SslSessCacheModes) then begin
                 { Exdata needed in RemoveCallback only }
-                if f_SSL_CTX_set_ex_data(FSslCtx, 0, PChar(Self)) = 0 then
+                if f_SSL_CTX_set_ex_data(FSslCtx, 0, PAnsiChar(Self)) = 0 then
                     RaiseLastOpenSslError(ESslContextException, TRUE,
                                           'SSL_CTX_set_ex_data failed');
                 f_SSL_CTX_sess_set_remove_cb(FSslCtx, RemoveSessionCallback);
@@ -11035,18 +12202,18 @@ begin
             end;
             raise
         end;
-{$IFNDEF NO_ADV_MT}        
+{$IFNDEF NO_SSL_MT}        
     finally
         Unlock
     end;
-{$ENDIF}    
+{$ENDIF}
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.DeInitContext;
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
@@ -11065,7 +12232,7 @@ begin
             f_SSL_CTX_free(FSslCtx);
             FSslCtx := nil;
         end;
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock;
     end;
@@ -11077,16 +12244,16 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslCAFile(const Value: String);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
-        if CompareStr(FSslCAFile, Value) = 0 then
+        if _CompareStr(FSslCAFile, Value) = 0 then
             Exit;
         FSslCAFile := Value;
         if Assigned(FSslCtx) then
             LoadVerifyLocations(FSslCAFile, FSslCAPath);
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock
     end;
@@ -11097,16 +12264,16 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslCAPath(const Value: String);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
-        if CompareStr(FSslCAPath, Value) = 0 then
+        if _CompareStr(FSslCAPath, Value) = 0 then
             Exit;
         FSslCAPath := Value;
         if Assigned(FSslCtx) then
             LoadVerifyLocations(FSslCAFile, FSslCAPath);
-{$IFNDEF NO_ADV_MT}        
+{$IFNDEF NO_SSL_MT}        
     finally
         Unlock
     end;
@@ -11117,16 +12284,16 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslCertFile(const Value: String);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
-        if CompareStr(Value, FSslCertFile) = 0 then
+        if _CompareStr(Value, FSslCertFile) = 0 then
             Exit;
         FSslCertFile := Value;
         if Assigned(FSslCtx) then
             LoadCertFromChainFile(FSslCertFile);
-{$IFNDEF NO_ADV_MT}        
+{$IFNDEF NO_SSL_MT}        
     finally
         Unlock
     end;
@@ -11137,12 +12304,12 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslCRLFile(const Value: String);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
         FSslCRLFile := Value
-{$IFNDEF NO_ADV_MT}        
+{$IFNDEF NO_SSL_MT}        
     finally
         Unlock
     end;
@@ -11153,12 +12320,12 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslCRLPath(const Value: String);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
         FSslCRLPath := Value
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock
     end;
@@ -11169,12 +12336,12 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslPassPhrase(const Value: String);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
         FSslPassPhrase := Value
-{$IFNDEF NO_ADV_MT}        
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock
     end;
@@ -11185,16 +12352,16 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslPrivKeyFile(const Value: String);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
-        if (CompareStr(Value, FSslPrivKeyFile) = 0) then
+        if (_CompareStr(Value, FSslPrivKeyFile) = 0) then
             Exit;
         FSslPrivKeyFile := Value;
         if Assigned(FSslCtx) then
             LoadPKeyFromFile(FSslPrivKeyFile);
-{$IFNDEF NO_ADV_MT}        
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock
     end;
@@ -11205,12 +12372,12 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslSessionCacheSize(Value: Longint);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
         FSslSessionCacheSize := Value
-{$IFNDEF NO_ADV_MT}        
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock
     end;
@@ -11221,12 +12388,12 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslSessionTimeout(Value: Longword);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
         FSslSessionTimeout := Value
-{$IFNDEF NO_ADV_MT}        
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock
     end;
@@ -11237,12 +12404,12 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslVersionMethod(Value: TSslVersionMethod);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
         FSslVersionMethod := Value
-{$IFNDEF NO_ADV_MT}        
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock
     end;
@@ -11251,58 +12418,19 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TSslContext.GetSslOptions: TSslOptions;
+function TSslContext.GetSslOptions: TSslOptions; { V7.30 }
+var 
+    Opt: TSslOption;
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
         Result := [];
-        if (FSslOptionsValue and SSL_OP_CIPHER_SERVER_PREFERENCE) <> 0 then
-            Result := Result + [sslOpt_CIPHER_SERVER_PREFERENCE];
-        if (FSslOptionsValue and SSL_OP_MICROSOFT_SESS_ID_BUG) <> 0 then
-            Result := Result + [sslOpt_MICROSOFT_SESS_ID_BUG];
-        if (FSslOptionsValue and SSL_OP_NETSCAPE_CHALLENGE_BUG) <> 0 then
-            Result := Result + [sslOpt_NETSCAPE_CHALLENGE_BUG];
-        if (FSslOptionsValue and SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG) <> 0 then
-            Result := Result + [sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG];
-        if (FSslOptionsValue and SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG) <> 0 then
-            Result := Result + [sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG];
-        if (FSslOptionsValue and SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER) <> 0 then
-            Result := Result + [sslOpt_MICROSOFT_BIG_SSLV3_BUFFER];
-        if (FSslOptionsValue and SSL_OP_MSIE_SSLV2_RSA_PADDING) <> 0 then
-            Result := Result + [sslOpt_MSIE_SSLV2_RSA_PADDING];
-        if (FSslOptionsValue and SSL_OP_SSLEAY_080_CLIENT_DH_BUG) <> 0 then
-            Result := Result + [sslOpt_SSLEAY_080_CLIENT_DH_BUG];
-        if (FSslOptionsValue and SSL_OP_TLS_D5_BUG) <> 0 then
-            Result := Result + [sslOpt_TLS_D5_BUG];
-        if (FSslOptionsValue and SSL_OP_TLS_BLOCK_PADDING_BUG) <> 0 then
-            Result := Result + [sslOpt_TLS_BLOCK_PADDING_BUG];
-        if (FSslOptionsValue and SSL_OP_TLS_ROLLBACK_BUG) <> 0 then
-            Result := Result + [sslOpt_TLS_ROLLBACK_BUG];
-        if (FSslOptionsValue and SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) <> 0 then
-            Result := Result + [sslOpt_DONT_INSERT_EMPTY_FRAGMENTS];
-        if (FSslOptionsValue and SSL_OP_SINGLE_DH_USE) <> 0 then
-            Result := Result + [sslOpt_SINGLE_DH_USE];
-        if (FSslOptionsValue and SSL_OP_EPHEMERAL_RSA) <> 0 then
-            Result := Result + [sslOpt_EPHEMERAL_RSA];
-        if (FSslOptionsValue and SSL_OP_NO_SSLv2) <> 0 then
-            Result := Result + [sslOpt_NO_SSLv2];
-        if (FSslOptionsValue and SSL_OP_NO_SSLv3) <> 0 then
-            Result := Result + [sslOpt_NO_SSLv3];
-        if (FSslOptionsValue and SSL_OP_NO_TLSv1) <> 0 then
-            Result := Result + [sslOpt_NO_TLSv1];
-        if (FSslOptionsValue and SSL_OP_PKCS1_CHECK_1) <> 0 then
-            Result := Result + [sslOpt_PKCS1_CHECK_1];
-        if (FSslOptionsValue and SSL_OP_PKCS1_CHECK_2) <> 0 then
-            Result := Result + [sslOpt_PKCS1_CHECK_2];
-        if (FSslOptionsValue and SSL_OP_NETSCAPE_CA_DN_BUG) <> 0 then
-            Result := Result + [sslOpt_NETSCAPE_CA_DN_BUG];
-        if (FSslOptionsValue and SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION) <> 0 then
-            Result := Result + [sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION];
-        if (FSslOptionsValue and SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG) <> 0 then
-            Result := Result + [sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG];
-{$IFNDEF NO_ADV_MT}            
+        for Opt := Low(TSslOption) to High(TSslOption) do
+            if (FSslOptionsValue and SslIntOptions[Opt]) <> 0 then
+                Include(Result, Opt);
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock
     end;
@@ -11311,58 +12439,19 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslContext.SetSslOptions(Value: TSslOptions);
+procedure TSslContext.SetSslOptions(Value: TSslOptions); { V7.30 }
+var 
+    Opt: TSslOption;
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
         FSslOptionsValue := 0;
-        if sslOpt_CIPHER_SERVER_PREFERENCE in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_CIPHER_SERVER_PREFERENCE;
-        if sslOpt_MICROSOFT_SESS_ID_BUG in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_MICROSOFT_SESS_ID_BUG;
-        if sslOpt_NETSCAPE_CHALLENGE_BUG in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_NETSCAPE_CHALLENGE_BUG;
-        if sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG;
-        if sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG;
-        if sslOpt_MICROSOFT_BIG_SSLV3_BUFFER in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER;
-        if sslOpt_MSIE_SSLV2_RSA_PADDING in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_MSIE_SSLV2_RSA_PADDING;
-        if sslOpt_SSLEAY_080_CLIENT_DH_BUG in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_SSLEAY_080_CLIENT_DH_BUG;
-        if sslOpt_TLS_D5_BUG in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_TLS_D5_BUG;
-        if sslOpt_TLS_BLOCK_PADDING_BUG in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_TLS_BLOCK_PADDING_BUG;
-        if sslOpt_TLS_ROLLBACK_BUG in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_TLS_ROLLBACK_BUG;
-        if sslOpt_DONT_INSERT_EMPTY_FRAGMENTS in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS;
-        if sslOpt_SINGLE_DH_USE in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_SINGLE_DH_USE;
-        if sslOpt_EPHEMERAL_RSA in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_EPHEMERAL_RSA;
-        if sslOpt_NO_SSLv2 in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_NO_SSLv2;
-        if sslOpt_NO_SSLv3 in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_NO_SSLv3;
-        if sslOpt_NO_TLSv1 in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_NO_TLSv1;
-        if sslOpt_PKCS1_CHECK_1 in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_PKCS1_CHECK_1;
-        if sslOpt_PKCS1_CHECK_2 in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_PKCS1_CHECK_2;
-        if sslOpt_NETSCAPE_CA_DN_BUG in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_NETSCAPE_CA_DN_BUG;
-        if sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION in Value then
-            FSslOptionsValue := FSslOptionsValue + SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
-        if sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG in Value then
-            FSslOptionsValue := FSslOptionsValue + LongInt(SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG);
-{$IFNDEF NO_ADV_MT}            
+        for Opt := Low(TSslOption) to High(TSslOption) do
+            if Opt in Value then
+                FSslOptionsValue := FSslOptionsValue or SslIntOptions[Opt];
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock;
     end;
@@ -11371,62 +12460,41 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslContext.SetSslSessCacheModes(Value: TSslSessCacheModes);
+procedure TSslContext.SetSslSessCacheModes(Value: TSslSessCacheModes); { V7.30 }
+var 
+    SessMode: TSslSessCacheMode;
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
         FSslSessCacheModeValue := SSL_SESS_CACHE_OFF;
-        {if sslCm_SSL_SESS_CACHE_OFF in Value then
-            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_OFF;}
-        if sslSESS_CACHE_CLIENT in Value then
-            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_CLIENT;
-        if sslSESS_CACHE_SERVER in Value then
-            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_SERVER;
-        {if sslSESS_CACHE_BOTH in Value then
-            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_BOTH;}
-        if sslSESS_CACHE_NO_AUTO_CLEAR in Value then
-            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_NO_AUTO_CLEAR;
-        if sslSESS_CACHE_NO_INTERNAL_LOOKUP in Value then
-            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_NO_INTERNAL_LOOKUP;
-        if sslSESS_CACHE_NO_INTERNAL_STORE in Value then
-            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_NO_INTERNAL_STORE;
-        {if sslSESS_CACHE_NO_INTERNAL in Value then
-            FSslSessCacheModeValue := FSslSessCacheModeValue or SSL_SESS_CACHE_NO_INTERNAL;}
-{$IFNDEF NO_ADV_MT}            
+        for SessMode := Low(TSslSessCacheMode) to High(TSslSessCacheMode) do
+            if SessMode in Value then
+                FSslSessCacheModeValue := FSslSessCacheModeValue or SslIntSessCacheModes[SessMode];
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock;
     end;
-{$ENDIF}    
+{$ENDIF}
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TSslContext.GetSslSessCacheModes: TSslSessCacheModes;
+function TSslContext.GetSslSessCacheModes: TSslSessCacheModes; { V7.30 }
+var 
+    SessMode: TSslSessCacheMode;
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
         Result := [];
-        {if (FSslSessCacheModeValue and SSL_SESS_CACHE_OFF) <> 0 then
-            Result := [sslSESS_CACHE_OFF];}
-        if (FSslSessCacheModeValue and SSL_SESS_CACHE_CLIENT) <> 0 then
-            Result := Result + [sslSESS_CACHE_CLIENT];
-        if (FSslSessCacheModeValue and SSL_SESS_CACHE_SERVER) <> 0 then
-            Result := Result + [sslSESS_CACHE_SERVER];
-        {if (FSslSessCacheModeValue and SSL_SESS_CACHE_BOTH) <> 0 then
-            Result := Result + [sslSESS_CACHE_BOTH];}
-        if (FSslSessCacheModeValue and SSL_SESS_CACHE_NO_AUTO_CLEAR) <> 0 then
-            Result := Result + [sslSESS_CACHE_NO_AUTO_CLEAR];
-        if (FSslSessCacheModeValue and SSL_SESS_CACHE_NO_INTERNAL_LOOKUP) <> 0 then
-            Result := Result + [sslSESS_CACHE_NO_INTERNAL_LOOKUP];
-        if (FSslSessCacheModeValue and SSL_SESS_CACHE_NO_INTERNAL_STORE) <> 0 then
-            Result := Result + [sslSESS_CACHE_NO_INTERNAL_STORE];
-        {if (FSslSessCacheModeValue and SSL_SESS_CACHE_NO_INTERNAL) <> 0 then
-            Result := Result + [sslSESS_CACHE_NO_INTERNAL]; }
-{$IFNDEF NO_ADV_MT}            
+        for SessMode := Low(TSslSessCacheMode) to High(TSslSessCacheMode) do
+            if FSslSessCacheModeValue and SslIntSessCacheModes[SessMode] <> 0 then
+                Include(Result, SessMode);
+
+{$IFNDEF NO_SSL_MT}            
     finally
         Unlock;
     end;
@@ -11437,7 +12505,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslCipherList(const Value: String);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
@@ -11445,7 +12513,7 @@ begin
             Exit;   // No change, do nothing
         // Now should check the syntax. Will do later :-)
         FSslCipherList := Value;
-{$IFNDEF NO_ADV_MT}        
+{$IFNDEF NO_SSL_MT}        
     finally
         Unlock
     end;
@@ -11457,7 +12525,7 @@ end;
 procedure TSslContext.SetSslVerifyPeerModes(
     const Value: TSslVerifyPeerModes);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
@@ -11492,7 +12560,7 @@ begin
             f_SSL_CTX_set_verify(FSslCtx, 0, nil);
             f_SSL_CTX_set_verify_depth(FSslCtx, 0);
         end;
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock;
     end;
@@ -11503,7 +12571,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslVerifyPeer(const Value: Boolean);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
@@ -11511,7 +12579,7 @@ begin
             FSslVerifyPeer := Value;
             SetSslVerifyPeerModes(FSslVerifyPeerModes);
         end;
-{$IFNDEF NO_ADV_MT}        
+{$IFNDEF NO_SSL_MT}        
     finally
         Unlock;
     end;
@@ -11523,7 +12591,7 @@ end;
 procedure TSslContext.SetSslDefaultSessionIDContext(
     Value: TSslSessionIdContext);
 begin
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
@@ -11541,7 +12609,7 @@ begin
                     f_SSL_CTX_set_session_id_context(FSslCtx, nil, 0);
             end;
         end;
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock
     end;
@@ -11775,7 +12843,7 @@ var
     Count   : Integer;
     I       : Integer;
     Len     : Integer;
-    ExtStr  : PChar;
+    ExtStr  : PAnsiChar;
     B       : PBIO;
     Nid     : Integer;
 begin
@@ -11790,7 +12858,7 @@ begin
             Nid := f_OBJ_obj2nid(f_X509_EXTENSION_get_object(Ext));
             if Nid <> NID_undef then begin
                 ExtStr := f_OBJ_nid2sn(Nid);
-                if StrLIComp(ExtStr, PChar(ShortName), 255) = 0 then begin
+                if _StrLIComp(ExtStr, PAnsiChar(AnsiString(ShortName)), 255) = 0 then begin
                     Result := I;
                     Exit;
                 end;
@@ -11806,7 +12874,7 @@ begin
                             GetMem(ExtStr, Len);
                             try
                                 f_Bio_read(B, ExtStr, Len);
-                                if StrLIComp(ExtStr, PChar(ShortName), 255) = 0 then begin
+                                if _StrLIComp(ExtStr, PAnsiChar(AnsiString(ShortName)), 255) = 0 then begin
                                     Result := I;
                                     Exit;
                                 end;
@@ -11826,15 +12894,19 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.GetIssuerOneLine: String;
+var
+    Str : AnsiString;
 begin
     Result := '';
     if not Assigned(FX509) then
         Exit;
-    SetLength(Result, 512);
-    Result := f_X509_NAME_oneline(f_X509_get_issuer_name(FX509),
-                                  PChar(Result),
-                                  Length(Result));
-    SetLength(Result, StrLen(PChar(Result)));
+
+    SetLength(Str, 512);
+    Str := f_X509_NAME_oneline(f_X509_get_issuer_name(FX509),
+                               PAnsiChar(Str),
+                               Length(Str));
+    SetLength(Str, _StrLen(PAnsiChar(Str)));
+    Result := String(Str);
 end;
 
 
@@ -11849,13 +12921,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.GetSha1Hash: String;
+function TX509Base.GetSha1Hash: AnsiString; { V7.31 }
 var
     Len : Integer;
 begin
     if Assigned(FX509) then begin
         SetLength(Result, 20);
-        if f_X509_digest(FX509, f_EVP_sha1, PChar(Result), @Len) = 0 then
+        if f_X509_digest(FX509, f_EVP_sha1, PAnsiChar(Result), @Len) = 0 then
             Result := '';    
     end
     else
@@ -11895,14 +12967,15 @@ var
     ExtCount : Integer;
     J        : Integer;
     Ext      : PX509_EXTENSION;
-    Value    : PChar;
+    Value    : PAnsiChar;
     Meth     : PX509V3_EXT_METHOD;
-    Data     : PChar;
+    Data     : PAnsiChar;
     Val      : PSTACK;
     NVal     : PCONF_VALUE;
     ext_str  : Pointer;
     B        : PBIO;
     Nid      : Integer;
+    ABuf     : AnsiString;
 begin
     Result.Critical  := FALSE;
     Result.ShortName := '';
@@ -11923,7 +12996,7 @@ begin
     Result.Critical := f_X509_EXTENSION_get_critical(Ext) > 0;
     Nid := f_OBJ_obj2nid(f_X509_EXTENSION_get_object(Ext));
     if Nid <> NID_undef then
-        Result.ShortName := StrPas(f_OBJ_nid2sn(Nid))
+        Result.ShortName := String(_StrPas(f_OBJ_nid2sn(Nid)))
     else begin // custom extension
         //B := nil;
         B := f_BIO_new(f_BIO_s_mem);
@@ -11931,10 +13004,11 @@ begin
             try
                 f_i2a_ASN1_OBJECT(B, f_X509_EXTENSION_get_object(Ext));
                 J := f_BIO_ctrl(B, BIO_CTRL_PENDING, 0, nil);
-                SetLength(Result.ShortName, J);
+                SetLength(ABuf, J);
                 if J > 0 then begin
-                    f_Bio_read(B, PChar(Result.ShortName), J);
-                    SetLength(Result.ShortName, StrLen(PChar(Result.ShortName)));
+                    f_Bio_read(B, PAnsiChar(ABuf), J);
+                    SetLength(ABuf, _StrLen(PAnsiChar(ABuf)));
+                    Result.ShortName := String(ABuf);
                 end;
             finally
                 f_bio_free(B);
@@ -11965,7 +13039,7 @@ begin
         if Assigned(Meth^.i2s) then begin
             Value := Meth^.i2s(Meth, ext_str);
             if Assigned(Value) then
-                Result.Value := StrPas(Value);
+                Result.Value := String(_StrPas(Value));
         end
         else if Assigned(Meth^.i2v) then begin
             Val := Meth^.i2v(Meth, ext_str, nil);
@@ -11976,10 +13050,10 @@ begin
                 NVal := PCONF_VALUE(f_sk_value(Val, J));
                 if Length(Result.Value) > 0 then
                     Result.Value := Result.Value + #13#10;
-                Result.Value := Result.Value + StrPas(NVal^.name);
-                if (StrPas(NVal^.value) <> '') and (StrPas(NVal^.name) <> '') then
+                Result.Value := Result.Value + String(_StrPas(NVal^.name));
+                if (_StrPas(NVal^.value) <> '') and (_StrPas(NVal^.name) <> '') then
                     Result.Value := Result.Value + '=';
-                Result.Value := Result.Value + StrPas(NVal^.value);
+                Result.Value := Result.Value + String(_StrPas(NVal^.value));
                 Inc(J);
             end;
         end
@@ -11990,15 +13064,16 @@ begin
                 try
                     Meth.i2r(Meth, ext_str, B, 0);
                     J := f_BIO_ctrl(B, BIO_CTRL_PENDING, 0, nil);
-                    SetLength(Result.Value, J);
+                    SetLength(ABuf, J);                          { V7.31 }
                     if J > 0 then begin
-                        f_Bio_read(B, PChar(Result.Value), J);
-                        SetLength(Result.Value, StrLen(PChar(Result.Value)));
+                        f_Bio_read(B, PAnsiChar(ABuf), J);
+                        SetLength(ABuf, _StrLen(PAnsiChar(ABuf)));
+                        Result.Value := String(ABuf);
                         { This method separates multiple values by LF } // should I remove this stuff?
                         while (Length(Result.Value) > 0) and
                               (Result.Value[Length(Result.Value)] = #10) do
                             SetLength(Result.Value, Length(Result.Value) -1);
-                        Result.Value := StringReplace(Result.Value, #10, #13#10, [rfReplaceAll]);
+                        Result.Value := _StringReplace(Result.Value, #10, #13#10, [rfReplaceAll]);
                     end;
                 finally
                     f_bio_free(B);
@@ -12063,7 +13138,7 @@ begin
         until
             LastPos = -1;
 
-        while (Length(Result) > 0) and (Result[Length(Result)] in [#13, #10]) do
+        while (Length(Result) > 0) and (Word(Result[Length(Result)]) in [Ord(#13), Ord(#10)]) do
             SetLength(Result, Length(Result) - 1);
     end;
 end;
@@ -12071,15 +13146,18 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.GetSubjectOneLine: String;
+var
+    Str : AnsiString;
 begin
     Result := '';
     if not Assigned(FX509) then
         Exit;
-    SetLength(Result, 512);
-    Result := f_X509_NAME_oneline(f_X509_get_subject_name(FX509),
-                                  PChar(Result),
-                                  Length(Result));
-    SetLength(Result, StrLen(PChar(Result)));
+    SetLength(Str, 512);
+    Str := f_X509_NAME_oneline(f_X509_get_subject_name(FX509),
+                               PAnsiChar(Str),
+                               Length(Str));
+    SetLength(Str, _StrLen(PAnsiChar(Str)));
+    Result := String(Str);
 end;
 
 
@@ -12087,7 +13165,7 @@ end;
 function TX509Base.GetVerifyErrorMsg: String;
 begin
     if Assigned(FX509) then
-        Result := StrPas(f_X509_verify_cert_error_string(FVerifyResult))
+        Result := String(_StrPas(f_X509_verify_cert_error_string(FVerifyResult)))
     else
         Result := '';
 end;
@@ -12097,7 +13175,7 @@ end;
 function TX509Base.GetFirstVerifyErrorMsg: String;            {05/21/2007 AG}
 begin
     if Assigned(FX509) then
-        Result := StrPas(f_X509_verify_cert_error_string(FFirstVerifyResult))
+        Result := String(_StrPas(f_X509_verify_cert_error_string(FFirstVerifyResult)))
     else
         Result := '';
 end;
@@ -12132,7 +13210,7 @@ function TX509Base.GetHasExpired: Boolean;                      {AG 02/06/06}
     var
         TZInfo: TTimeZoneInformation;
     begin
-        case GetTimeZoneInformation(TZInfo) of
+        case _GetTimeZoneInformation(TZInfo) of
             TIME_ZONE_ID_DAYLIGHT:
                 Result := (TZInfo.Bias + TZInfo.DaylightBias) / MinsPerDay;
             TIME_ZONE_ID_STANDARD:
@@ -12155,7 +13233,7 @@ function TX509Base.GetHasExpired: Boolean;                      {AG 02/06/06}
 var
     CurUT  : TDateTime;
 begin
-    CurUT  :=  Now + GetCurrentBias;
+    CurUT  :=  _Now + GetCurrentBias;
     Result := (CompDateTime(CurUT, ValidNotAfter)  = 1) or
                    (CompDateTime(CurUT, ValidNotBefore) = -1);
 end;
@@ -12202,8 +13280,8 @@ begin
         if Length(Ext.ShortName) > 0 then begin
             Li.Text := Ext.Value;
             for I := 0 to Li.Count -1 do begin
-                if (Pos('IP',  UpperCase(Li.Names[I])) = 1) or
-                   (Pos('DNS', UpperCase(Li.Names[I])) = 1) then begin
+                if (Pos('IP',  _UpperCase(Li.Names[I])) = 1) or
+                   (Pos('DNS', _UpperCase(Li.Names[I])) = 1) then begin
                     Mask := TMask.Create(Li.Values[Li.Names[I]]);
                     try
                         Result := Mask.Matches(HostOrIP);
@@ -12227,13 +13305,13 @@ function TX509Base.OpenFileBio(
 begin
     if (Filename = '') then
         raise EX509Exception.Create('File name not specified');
-    if (Methode = bomRead) and (not FileExists(Filename)) then
+    if (Methode = bomRead) and (not _FileExists(Filename)) then
         raise EX509Exception.Create('File not found "' +
                                           Filename + '"');
     if Methode = bomRead then
-        Result := f_BIO_new_file(PChar(Filename), PChar('r+'))
+        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('r+'))
     else
-        Result := f_BIO_new_file(PChar(Filename), PChar('w+'));
+        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('w+'));
 
     if (Result = nil) then
         RaiseLastOpenSslError(EX509Exception, TRUE,
@@ -12251,7 +13329,7 @@ begin
     InitializeSsl;
     FileBio := OpenFileBio(FileName, bomRead);
     try
-        PKey := f_PEM_read_bio_PrivateKey(FileBio, nil, nil, PChar(Password));
+        PKey := f_PEM_read_bio_PrivateKey(FileBio, nil, nil, PAnsiChar(AnsiString(Password)));
         if not Assigned(PKey) then
             RaiseLastOpenSslError(EX509Exception, TRUE,
                                   'Error reading private key file "' +
@@ -12297,43 +13375,11 @@ procedure TX509Base.LoadFromPemFile(const FileName: String;
     IncludePrivateKey: Boolean = FALSE; const Password: String = '');
 var
     FileBio : PBIO;
-    X       : PX509;
-    PKey    : PEVP_PKEY;
 begin
     InitializeSsl;
-    FileBio   := OpenFileBio(FileName, bomRead);
+    FileBio := OpenFileBio(FileName, bomRead);
     try
-        X := f_PEM_read_bio_X509(FileBio, nil, nil, PChar(Password));
-        if not Assigned(X) then
-            RaiseLastOpenSslError(EX509Exception, TRUE,
-                                  'Error reading certificate file "' +
-                                  Filename + '"');
-        try
-            if (not IncludePrivateKey) and Assigned(FPrivateKey) then
-                if f_X509_check_private_key(X, FPrivateKey) < 1 then
-                    raise EX509Exception.Create('Certificate and private key ' +
-                                                'do not match');
-            if IncludePrivateKey then begin
-                f_BIO_ctrl(FileBio, BIO_CTRL_RESET, 0, nil);
-                PKey := f_PEM_read_bio_PrivateKey(FileBio, nil, nil, PChar(Password));
-                if not Assigned(PKey) then
-                    RaiseLastOpenSslError(EX509Exception, TRUE,
-                                          'Error reading private key file "' +
-                                           Filename + '"');
-                try
-                    if f_X509_check_private_key(X, PKey) < 1 then
-                        raise EX509Exception.Create('Certificate and private key ' +
-                                                    'do not match');
-                     X509       := X;
-                     PrivateKey := PKey;
-                finally
-                    f_EVP_PKEY_free(PKey);
-                end;
-            end else
-                X509 := X;
-        finally
-            f_X509_free(X);
-        end;
+        ReadFromBio(FileBio, IncludePrivateKey, Password);
     finally
         f_bio_free(FileBio);
     end;
@@ -12341,30 +13387,89 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ todo: Actually the private key is written unprotected }
+{ todo: Currently private key is written unprotected }
 procedure TX509Base.SaveToPemFile(const FileName: String;
-    IncludePrivateKey: Boolean = FALSE);
+    IncludePrivateKey: Boolean = FALSE; AddRawText: Boolean = FALSE);
 var
     FileBio : PBIO;
 begin
     InitializeSsl;
-    if not Assigned(FX509) then
-        raise EX509Exception.Create('X509 not assigned');
-    if IncludePrivateKey and (not Assigned(FPrivateKey)) then
-        raise EX509Exception.Create('Private key not assigned');
     FileBio := OpenFileBio(FileName, bomWrite);
     try
-        if IncludePrivateKey and
-           (f_PEM_write_bio_PrivateKey(FileBio, FPrivateKey, nil, nil, 0,
-                                       nil, nil) = 0) then
-            RaiseLastOpenSslError(EX509Exception, TRUE,
-                                  'Error writing private key to file');
-        if f_PEM_write_bio_X509(FileBio, FX509) = 0 then
-            RaiseLastOpenSslError(EX509Exception, TRUE,
-                                  'Error writing certificate to file');
+        WriteToBio(FileBio, IncludePrivateKey, AddRawText);
     finally
         f_bio_free(FileBio);
     end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.ReadFromBio(ABio: PBIO; IncludePrivateKey: Boolean = FALSE;
+  const Password: String = '');
+var
+    X     : PX509;
+    PKey  : PEVP_PKEY;
+begin
+    InitializeSsl;
+    if not Assigned(ABio) then
+        raise EX509Exception.Create('BIO not assigned');
+    X := f_PEM_read_bio_X509(ABio, nil, nil, PAnsiChar(AnsiString(Password)));
+    if not Assigned(X) then
+        RaiseLastOpenSslError(EX509Exception, TRUE,
+                              'Error reading certificate from BIO');
+    try
+        if (not IncludePrivateKey) and Assigned(FPrivateKey) then
+            if f_X509_check_private_key(X, FPrivateKey) < 1 then
+                raise EX509Exception.Create('Certificate and private key ' +
+                                            'do not match');
+        if IncludePrivateKey then begin
+            f_BIO_ctrl(ABio, BIO_CTRL_RESET, 0, nil);
+            PKey := f_PEM_read_bio_PrivateKey(ABio, nil, nil,
+                                              PAnsiChar(AnsiString(Password)));
+            if not Assigned(PKey) then
+                RaiseLastOpenSslError(EX509Exception, TRUE,
+                                      'Error reading private key from BIO');
+            try
+                if f_X509_check_private_key(X, PKey) < 1 then
+                    raise EX509Exception.Create('Certificate and private key ' +
+                                                'do not match');
+                 X509       := X;
+                 PrivateKey := PKey;
+            finally
+                f_EVP_PKEY_free(PKey);
+            end;
+        end else
+            X509 := X;
+    finally
+        f_X509_free(X);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ todo: Currently private key is written unprotected }
+procedure TX509Base.WriteToBio(ABio: PBIO;
+  IncludePrivateKey: Boolean = FALSE; AddRawText: Boolean = FALSE);
+begin
+    InitializeSsl;
+    if not Assigned(ABio) then
+        raise EX509Exception.Create('BIO not assigned');
+    if not Assigned(FX509) then
+        raise EX509Exception.Create('X509 not assigned');
+    if IncludePrivateKey and not Assigned(FPrivateKey) then
+        raise EX509Exception.Create('Private key not assigned');
+    if AddRawText and
+       (f_X509_print(ABio, FX509) = 0) then
+        RaiseLastOpenSslError(EX509Exception, TRUE,
+                              'Error writing raw text to BIO');
+    if IncludePrivateKey and
+       (f_PEM_write_bio_PrivateKey(ABio, FPrivateKey, nil, nil, 0,
+                                   nil, nil) = 0) then
+        RaiseLastOpenSslError(EX509Exception, TRUE,
+                              'Error writing private key to BIO');
+    if f_PEM_write_bio_X509(ABio, FX509) = 0 then
+        RaiseLastOpenSslError(EX509Exception, TRUE,
+                              'Error writing certificate to BIO');
 end;
 
 
@@ -12373,6 +13478,7 @@ function TX509Base.GetRawText: String;                        {05/21/2007 AG}
 var
     Bio  : PBIO;
     Len  : Integer;
+    AStr : AnsiString;
 begin
     Result := '';
     if FX509 = nil then Exit;
@@ -12381,10 +13487,11 @@ begin
     try
         f_X509_print(Bio, FX509);
         Len := f_BIO_ctrl(Bio, BIO_CTRL_PENDING, 0, nil);
-        SetLength(Result, Len);
+        SetLength(AStr, Len);
         if Len > 0 then begin
-            f_Bio_read(Bio, PChar(Result), Len);
-            SetLength(Result, StrLen(PChar(Result)));
+            f_Bio_read(Bio, PAnsiChar(AStr), Len);
+            SetLength(AStr, _StrLen(PAnsiChar(AStr)));
+            Result := String(AStr);
         end;
     finally
         f_bio_free(Bio);
@@ -12415,9 +13522,9 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
     Inc(TraceCount);
-        DebugLog(loSslInfo, Format('%s BIO_ctrl_pending(%s) = %d   [%d]',
-                       [IntToHex(Integer(Self), 8), GetMyBioName(b),
-                        Result, TraceCount]));
+        DebugLog(loSslInfo, _Format('%s BIO_ctrl_pending(%s) = %d   [%d]',
+                 [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                 GetMyBioName(b), Result, TraceCount]));
     end;
 {$ENDIF}
 end;
@@ -12431,23 +13538,15 @@ begin
     P      := PChar(Buf);
     Result := '';
     while Len > 0 do begin
-        if P^ in [#32..#126] then
+        if Word(P^) in [Ord(#32)..Ord(#126)] then
             Result := Result + P^
         else
-            Result := Result + '$' + IntToHex(Ord(P^), 2) + ' ';
+            Result := Result + '$' + _IntToHex(Ord(P^), 2) + ' ';
         Inc(P);
         Dec(Len);
     end;
 end;
 
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFNDEF DELPHI6_UP}
-function BoolToStr(B: Boolean; UseBoolStrs: Boolean = FALSE): String;
-begin
-    Result := IntToStr(Ord(B))
-end;
-{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomSslWSocket.my_BIO_read(B: PBIO; Buf: Pointer; Len: Integer): Integer;
@@ -12461,17 +13560,16 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
     Inc(TraceCount);
-        DebugLog(loSslInfo, Format('%s BIO_read(%s, 0x%x, %d) = %d   [%d]',
-                       [IntToHex(Integer(Self), 8), GetMyBioName(b),
-                       Integer(Buf), Len, Result,
-                              TraceCount]));
+        DebugLog(loSslInfo, _Format('%s BIO_read(%s, 0x%x, %d) = %d   [%d]',
+                       [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                       GetMyBioName(b), INT_PTR(Buf), Len, Result, TraceCount]));
     end
     else if CheckLogOptions(loSslDump) then begin
         Inc(TraceCount);
-        DebugLog(loSslDump, Format('%s BIO_read(%s, 0x%x, %d) = %d   [%d] Data:%s',
-                       [IntToHex(Integer(Self), 8), GetMyBioName(b),
-                       Integer(Buf), Len, Result,
-                              TraceCount, DataToString(Buf, Result)]));
+        DebugLog(loSslDump, _Format('%s BIO_read(%s, 0x%x, %d) = %d   [%d] Data:%s',
+                       [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                       GetMyBioName(b), INT_PTR(Buf), Len, Result,
+                       TraceCount, DataToString(Buf, Result)]));
     end;
 {$ENDIF}
 end;
@@ -12492,7 +13590,7 @@ begin
     end;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        LArgName := IntToStr(LArg);
+        LArgName := _IntToStr(LArg);
         case (cmd) of
         BIO_CTRL_FLUSH:         CmdName := 'BIO_CTRL_FLUSH';
         BIO_CTRL_PENDING:       CmdName := 'BIO_CTRL_PENDING';
@@ -12505,7 +13603,7 @@ begin
                 end;
             end;
         else
-            CmdName := IntToStr(Cmd);
+            CmdName := _IntToStr(Cmd);
         end;
     end;
 {$ENDIF}
@@ -12513,10 +13611,10 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
     Inc(TraceCount);
-        DebugLog(loSslInfo, Format('%s BIO_ctrl(%s, %s, %s, 0x%x) = %d   [%d]',
-                             [IntToHex(Integer(Self), 8), GetMyBioName(bp),
-                              CmdName, LArgName, Integer(PArg), Result,
-                              TraceCount]));
+        DebugLog(loSslInfo, _Format('%s BIO_ctrl(%s, %s, %s, 0x%x) = %d   [%d]',
+                             [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                             GetMyBioName(bp), CmdName, LArgName, INT_PTR(PArg),
+                             Result, TraceCount]));
     end;
 {$ENDIF}
 end;
@@ -12534,9 +13632,10 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin  { V5.21 }
     Inc(TraceCount);
-        DebugLog(loSslInfo, Format('%s BIO_ctrl_get_write_guarantee(%s) = %d   [%d]',
-                       [IntToHex(Integer(Self), 8), GetMyBioName(b),
-                        Result, TraceCount]));
+        DebugLog(loSslInfo,
+                 _Format('%s BIO_ctrl_get_write_guarantee(%s) = %d   [%d]',
+                 [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2), GetMyBioName(b),
+                 Result, TraceCount]));
     end;
 {$ENDIF}
 end;
@@ -12555,9 +13654,9 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin  { V5.21 }
         Inc(TraceCount);
-        DebugLog(loSslInfo, Format('%s BIO_ctrl_get_read_request(%s) = %d   [%d]',
-                                   [IntToHex(Integer(Self), 8), GetMyBioName(b),
-                                   Result, TraceCount]));
+        DebugLog(loSslInfo, _Format('%s BIO_ctrl_get_read_request(%s) = %d   [%d]',
+                                   [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                                   GetMyBioName(b), Result, TraceCount]));
     end;
 {$ENDIF}    
 end;
@@ -12575,15 +13674,17 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin  { V5.21 }
         Inc(TraceCount);
-        DebugLog(loSslInfo, Format('%s BIO_write(%s, 0x%x, %d) = %d   [%d]',
-                                   [IntToHex(Integer(Self), 8), GetMyBioName(b),
-                                   Integer(Buf),  Len, Result, TraceCount]));
+        DebugLog(loSslInfo, _Format('%s BIO_write(%s, 0x%x, %d) = %d   [%d]',
+                                   [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                                   GetMyBioName(b),
+                                   INT_PTR(Buf),  Len, Result, TraceCount]));
     end
     else if CheckLogOptions(loSslDump) then begin
         Inc(TraceCount);
-        DebugLog(loSslDump, Format('%s BIO_write(%s, 0x%x, %d) = %d   [%d] Data:%s',
-                                   [IntToHex(Integer(Self), 8), GetMyBioName(b),
-                                   Integer(Buf), Len, Result,
+        DebugLog(loSslDump, _Format('%s BIO_write(%s, 0x%x, %d) = %d   [%d] Data:%s',
+                                   [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                                   GetMyBioName(b),
+                                   INT_PTR(Buf), Len, Result,
                                    TraceCount, DataToString(Buf, Result)]));
     end;
 {$ENDIF}
@@ -12599,8 +13700,8 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslErr) then begin
         Inc(TraceCount);
-        DebugLog(loSslErr, Format('%s  %d  [%d] %s',
-                                  [IntToHex(Integer(Self), 8),
+        DebugLog(loSslErr, _Format('%s  %d  [%d] %s',
+                                  [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
                                    FHSocket, TraceCount,
                                    LastOpenSslErrMsg(TRUE)]));
     end
@@ -12620,9 +13721,9 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin  { V5.21 }
         Inc(TraceCount);
-        DebugLog(loSslInfo, Format('%s Winsock recv( %d, 0x%x, %d, %d) = %d   [%d]',
-                                   [IntToHex(Integer(Self), 8), s, Integer(Buf),
-                                   Len, Flags, Result, TraceCount]));
+        DebugLog(loSslInfo, _Format('%s Winsock recv( %d, 0x%x, %d, %d) = %d   [%d]',
+                                   [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                                   s, INT_PTR(Buf), Len, Flags, Result, TraceCount]));
     end;
 {$ENDIF}
 end;
@@ -12635,9 +13736,10 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin  { V5.21 }
         Inc(TraceCount);
-        DebugLog(loSslInfo, Format('%s my_RealSend (0x%x, %d, %d) = %d   [%d]',
-                                   [IntToHex(Integer(Self), 8), FHSocket,
-                                   Integer(Buf), Len, Result, TraceCount]));
+        DebugLog(loSslInfo, _Format('%s my_RealSend (0x%x, %d, %d) = %d   [%d]',
+                                   [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                                   FHSocket,
+                                   INT_PTR(Buf), Len, Result, TraceCount]));
     end;
 {$ENDIF}
 end;
@@ -12654,9 +13756,9 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin  { V5.21 }
         Inc(TraceCount);
-        DebugLog(loSslInfo, Format('%s BIO_should_retry(%s) = %d   [%d]',
-                       [IntToHex(Integer(Self), 8), GetMyBioName(b),
-                       Ord(Result), TraceCount]))
+        DebugLog(loSslInfo, _Format('%s BIO_should_retry(%s) = %d   [%d]',
+                               [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                               GetMyBioName(b), Ord(Result), TraceCount]))
     end;
 {$ENDIF}
 end;
@@ -12665,12 +13767,12 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TCustomSslWSocket.Create(AOwner: TComponent);
 begin
-    inherited Create(AOwner);
     FSslEnable              := FALSE;
     FSslContext             := nil;
     FSslAcceptableHosts     := TStringList.Create;
     FSslCertChain           := TX509List.Create(Self);
     FX509Class              := TX509Base;
+    {
     FSsl                    := nil;
     FSslbio                 := nil;
     FIBIO                   := nil;
@@ -12680,16 +13782,16 @@ begin
     FNetworkError           := 0;
     FSslIntShutDown         := 0;
     FSslVerifyResult        := 0;
-
+    }
     FMayTriggerFD_Read      := TRUE;
     FMayTriggerFD_Write     := TRUE;
     FMayTriggerDoRecv       := TRUE;
     FMayTriggerSslTryToSend := TRUE;
-    FCloseCalled            := FALSE;
+    //FCloseCalled            := FALSE;
     //FCloseReceived          := FALSE;
     
     //FMayInternalSslShut     := TRUE;
-    //inherited Create(AOwner);
+    inherited Create(AOwner);
     FSslBufList := TIcsBufferHandler.Create(nil);
     FSslBufList.BufSize := SSL_BUFFER_SIZE;  // 4096              {AG 10/10/07}
 { IFDEF DEBUG_OUTPUT}
@@ -12702,12 +13804,10 @@ end;
 destructor TCustomSslWSocket.Destroy;
 begin
     inherited Destroy;
-    if Assigned(FSslAcceptableHosts) then
-        FreeAndNil(FSslAcceptableHosts);
+    _FreeAndNil(FSslAcceptableHosts);
     DeleteBufferedSslData;
-    FreeAndNil(FSslBufList);
-    if Assigned(FSslCertChain) then
-        FreeAndNil(FSslCertChain);
+    _FreeAndNil(FSslBufList);
+    _FreeAndNil(FSslCertChain);
     FinalizeSSL;
 end;
 
@@ -12745,8 +13845,8 @@ procedure TCustomSslWSocket.Do_FD_ACCEPT(var Msg: TMessage);
 begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                      ' Do_FD_ACCEPT ' + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                      ' Do_FD_ACCEPT ' + _IntToStr(FHSocket));
 {$ENDIF}
     inherited Do_FD_ACCEPT(msg);  
 end;
@@ -12768,9 +13868,9 @@ begin
     end;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                 ' Socket data pending: ' + IntToStr(Count) + ' Err: ' +
-                 IntToStr(FLastError) + ' ' + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                 ' Socket data pending: ' + _IntToStr(Count) + ' Err: ' +
+                 _IntToStr(FLastError) + ' ' + _IntToStr(FHSocket));
 {$ENDIF}
 end;
 
@@ -12787,9 +13887,9 @@ begin
     end;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                       ' TCustomSslWSocket.Do_FD_CLOSE error #' +
-                      IntToStr(msg.LParamHi) + ' ' + IntToStr(FHSocket));
+                      _IntToStr(msg.LParamHi) + ' ' + _IntToStr(FHSocket));
 {$ENDIF}
     if (FState = wsConnecting) or (FHSocket = INVALID_SOCKET) then
         Exit;
@@ -12800,8 +13900,8 @@ begin
         FCloseCalled := TRUE;
 {$IFNDEF NO_DEBUG_LOG}        
         if CheckLogOptions(loSslInfo) then
-            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                     ' *CloseCalled ' + IntToStr(FHSocket));
+            DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                     ' *CloseCalled ' + _IntToStr(FHSocket));
 {$ENDIF}
     end;
     if FNetworkError = 0 then begin
@@ -12840,12 +13940,11 @@ begin
 
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                 ' FCloseInvoked=' + IntToStr(Ord(FCloseInvoked)) + ' ' +
-                 IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                 ' FCloseInvoked=' + _IntToStr(Ord(FCloseInvoked)) + ' ' +
+                 _IntToStr(FHSocket));
 {$ENDIF}
-
-    if (FHSocket <> INVALID_SOCKET) and (not FCloseInvoked) and  {AG 12/30/07}
+    if (FHSocket <> INVALID_SOCKET) and (not FCloseInvoked) and {AG 12/30/07}
        (not (csDestroying in ComponentState)) then begin   // AG 03/03/06
         FCloseInvoked := TRUE;
         TriggerSessionClosed(msg.LParamHi);
@@ -12880,15 +13979,16 @@ var
 {$ENDIF}
 begin
     Result := FALSE;
-    if not FSslEnable then Exit;
-    { Returns TRUE if a message was posted successfully }
+    if (not FSslEnable) or FPaused then { AG V7.26 FPause condition added }
+        Exit;
+    { Returns TRUE if a message was posted successfully and the socket isn't paused }
     if not (Event in FPendingSslEvents) then begin
         case Event of
-            sslFdRead  :  Result := PostMessage(Handle, FMsg_WM_SSL_ASYNCSELECT,
+            sslFdRead  :  Result := _PostMessage(Handle, FMsg_WM_SSL_ASYNCSELECT,
                                           FHSocket, MakeLong(FD_READ, ErrCode));
-            sslFdWrite :  Result := PostMessage(Handle, FMsg_WM_SSL_ASYNCSELECT,
+            sslFdWrite :  Result := _PostMessage(Handle, FMsg_WM_SSL_ASYNCSELECT,
                                          FHSocket, MakeLong(FD_WRITE, ErrCode));
-            sslFdClose :  Result := PostMessage(Handle, FMsg_WM_SSL_ASYNCSELECT,
+            sslFdClose :  Result := _PostMessage(Handle, FMsg_WM_SSL_ASYNCSELECT,
                                          FHSocket, MakeLong(FD_CLOSE, ErrCode));
         end;
         if Result then
@@ -12903,8 +14003,8 @@ begin
             else
                 S := 'Unknown';
         end;
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                 ' TriggerEvent ' + S + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                 ' TriggerEvent ' + S + _IntToStr(FHSocket));
     end;
 {$ENDIF}
 end;
@@ -12953,7 +14053,7 @@ end;
 procedure TCustomSslWSocket.Do_FD_READ(var Msg: TMessage);
 var
     Len        : Integer; // How much to receive
-    Buffer     : array [0..(SSL_BUFFER_SIZE * 2) -1] of Char;
+    Buffer     : array [0..(SSL_BUFFER_SIZE * 2) -1] of AnsiChar;
     NumRead    : Integer;
     nError     : Integer;
     Res        : Integer;
@@ -12966,8 +14066,8 @@ begin
 
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                      ' TCustomSslWSocket.Do_FD_READ ' + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                      ' TCustomSslWSocket.Do_FD_READ ' + _IntToStr(FHSocket));
 {$ENDIF}
 
     if (FNetworkError > 0) then
@@ -12977,8 +14077,8 @@ begin
        (my_BIO_ctrl_pending(FSslbio) > 0) then begin
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-               ' TriggerDataAvailable (Do_FD_READ_1) ' + IntToStr(FHSocket));
+            DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+               ' TriggerDataAvailable (Do_FD_READ_1) ' + _IntToStr(FHSocket));
 {$ENDIF}
         TriggerDataAvailable(0);
         Exit;
@@ -13031,8 +14131,9 @@ begin
                     end;
 {$IFNDEF NO_DEBUG_LOG}
                     if CheckLogOptions(loSslInfo) then  { V5.21 }
-                        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                                 ' NetworkError #' + IntToStr(FNetworkError));
+                        DebugLog(loSslInfo,
+                                _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                                 ' NetworkError #' + _IntToStr(FNetworkError));
 {$ENDIF}
                     Exit;
                 end
@@ -13062,7 +14163,7 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslInfo) then  { V5.21 }
                DebugLog(loSslInfo, 'SslBio write operation pending: ' +
-                                        IntToStr(FSslBioWritePendingBytes));
+                                        _IntToStr(FSslBioWritePendingBytes));
 {$ENDIF}
         end;
     end else
@@ -13080,20 +14181,21 @@ begin
             TriggerEvent(sslFdClose, 0);
 {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslErr) then  { V5.21 }
-                DebugLog(loSslErr, IntToHex(Integer(Self), 8) +
-                         ' NetworkError #' + IntToStr(FNetworkError));
+                DebugLog(loSslErr, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                         ' NetworkError #' + _IntToStr(FNetworkError));
 {$ENDIF}
             Exit;
         end;
     end;
 
-    if (f_SSL_state(FSsl) = SSL_ST_OK) {(FSslState >= sslEstablished)} and (FSslBioWritePendingBytes < 0) and // <= 12/08/05
+    if (f_SSL_state(FSsl) = SSL_ST_OK) {(FSslState >= sslEstablished)} and
+       (FSslBioWritePendingBytes < 0) and // <= 12/08/05
        (my_BIO_ctrl_pending(FSslbio) > 0) then begin
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+            DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                      ' TriggerDataAvailable (Do_FD_READ_2) ' +
-                     IntToStr(FHSocket));
+                     _IntToStr(FHSocket));
 {$ENDIF}
         TriggerDataAvailable(0);
     end;
@@ -13113,7 +14215,7 @@ end;
 procedure TCustomSslWSocket.Do_FD_WRITE(var Msg: TMessage);
 var
     Len        : Integer;    // How much to send
-    Buffer     : array [0..16383] of Char;
+    Buffer     : array [0..16383] of AnsiChar;
     NumRead    : Integer;
     NumSent    : Integer;
     Err        : Longword;
@@ -13124,8 +14226,8 @@ begin
     end;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                      ' TCustomSslWSocket.Do_FD_WRITE ' + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                      ' TCustomSslWSocket.Do_FD_WRITE ' + _IntToStr(FHSocket));
 {$ENDIF}
     if (FNetworkError > 0) then
         Exit;
@@ -13138,14 +14240,16 @@ begin
     if (FHSocket = INVALID_SOCKET) then begin
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +  ' INVALID_SOCKET');
+            DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                                          ' INVALID_SOCKET');
 {$ENDIF}
         Exit;
     end
     else if not bAllSent then begin
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) + ' * Not bAllSent ' + IntToStr(FHSocket));
+            DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                               ' * Not bAllSent ' + _IntToStr(FHSocket));
 {$ENDIF}
         FMayTriggerFD_Write := TRUE;
         { AG 01/10/07 - Outcommented next line in order to avoid too many  }
@@ -13176,12 +14280,13 @@ begin
                    (Err <> WSAENOTCONN) then begin
                     FNetworkError := Err;
                     FLastError    := Err; //XX
-                    TriggerEvent(sslFdClose, 0);
+                    TriggerEvent(sslFdClose, 0);    
 {$IFNDEF NO_DEBUG_LOG}
                     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-                        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                        DebugLog(loSslInfo,
+                            _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                             ' Winsock Error ' + WSocketErrorDesc(FNetworkError) +
-                            ' ' + IntToStr(FHSocket));
+                            ' ' + _IntToStr(FHSocket));
 {$ENDIF}
                     Exit;
                 end
@@ -13242,8 +14347,8 @@ begin
     end;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                      ' TCustomSslWSocket.DoRecv ' + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                      ' TCustomSslWSocket.DoRecv ' + _IntToStr(FHSocket));
 {$ENDIF}
     if FNetworkError > 0 then begin
         if (my_BIO_ctrl_pending(FSslbio) > 0) and
@@ -13328,8 +14433,8 @@ begin
             end;
 {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-                DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                                 ' NetworkError #' + IntToStr(FNetworkError));
+                DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                                 ' NetworkError #' + _IntToStr(FNetworkError));
 {$ENDIF}
             Exit;
         end
@@ -13396,8 +14501,8 @@ begin
         FSslBiShutDownFlag := FALSE;
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then
-            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                     ' *CloseCalled ' + IntToStr(FHSocket));
+            DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                     ' *CloseCalled ' + _IntToStr(FHSocket));
 {$ENDIF}
     end;
 
@@ -13420,9 +14525,9 @@ begin
     end;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                 ' TCustomSslWSocket.ShutDown ' + IntToStr(How) + ' ' +
-                 IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                 ' TCustomSslWSocket.ShutDown ' + _IntToStr(How) + ' ' +
+                 _IntToStr(FHSocket));
 {$ENDIF}
     FShutDownHow       := How;
     FSslBiShutDownFlag := FALSE;
@@ -13499,9 +14604,9 @@ begin
     finally
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then
-            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                     ' SslShutdownCompleted *'+ IntToStr(Ord(Result)) + '* ' +
-                     IntToStr(FHSocket));
+            DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                     ' SslShutdownCompleted *'+ _IntToStr(Ord(Result)) + '* ' +
+                     _IntToStr(FHSocket));
 {$ENDIF}
     end;
 end;
@@ -13525,8 +14630,8 @@ begin
     end;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                 ' SslInternalShutdown ' + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                 ' SslInternalShutdown ' + _IntToStr(FHSocket));
 {$ENDIF}
 
     if FSslIntShutDown = 0 then
@@ -13592,8 +14697,9 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then
         DebugLog(loSslInfo,
-                 Format('%s TriggerSslShutDownComplete(%d) %d',
-                        [IntToHex(Integer(Self), 8), ErrCode, FHSocket]));
+                 _Format('%s TriggerSslShutDownComplete(%d) %d',
+                        [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                        ErrCode, FHSocket]));
 {$ENDIF}
     if Assigned(FOnSslShutdownComplete) then
         FOnSslShutdownComplete(Self, FSslBiShutDownFlag, ErrCode);
@@ -13697,9 +14803,9 @@ procedure TCustomSslWSocket.Dup(NewHSocket: Integer);
 begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                       ' Dup accepting accepted socket = ' +
-                      IntToStr(NewHSocket));
+                      _IntToStr(NewHSocket));
 {$ENDIF}
     inherited Dup(NewHSocket);
     ChangeState(wsConnected);
@@ -13724,6 +14830,31 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IsSslRenegotiationDisallowed(Obj: TCustomSslWSocket): Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF}
+begin
+    Result :=
+     { In OSSL v0.9.8L and v0.9.8m renegotiation support was disabled   }
+     { due to renegotiation vulnerability of the SSL protocol.          }
+     ICS_SSL_NO_RENEGOTIATION or // v0.9.8L and v0.9.8m
+     (
+        (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_0908N) and
+        (
+          { In v0.9.8n renegotiation support was re-enabled and RFC5746 }
+          { implemented but require the extension as needed.            }
+          { It's also possible to enable unsafe legacy renegotiation    }
+          { explicitly by setting option                                }
+          { sslOpt_ALLOW_UNSAFE_LEGACY_RENEGOTIATION                    }
+
+          { The SSL-connection doesn't support secure renegotiations.   }
+          (not Obj.FSslSupportsSecureRenegotiation) and
+          { Unsafe legacy renegotiation is not set.                     }
+          (f_SSL_get_options(Obj.FSsl) and SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION = 0)
+        )
+     );
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure InfoCallBack(const ssl: PSSL; Where: Integer; Ret: Integer); cdecl;
 var
 {$IFNDEF NO_DEBUG_LOG}
@@ -13733,8 +14864,8 @@ var
 {$ENDIF}
     Obj : TCustomSslWSocket;
 begin
-{$IFNDEF NO_ADV_MT}
-    EnterCriticalSection(LockInfoCB);
+{$IFNDEF NO_SSL_MT}
+    _EnterCriticalSection(LockInfoCB);
     try
 {$ENDIF}
         // TSslDebugLevel = (ssldbgNone, ssldbgError, ssldbgInfo, ssldbgDump);
@@ -13757,7 +14888,7 @@ begin
                 if ((Where and SSL_CB_LOOP) <> 0) then begin
                     if Obj.CheckLogOptions(loSslInfo) then
                         Obj.DebugLog(loSslInfo, 'ICB> ' + Str +
-                                        f_SSL_state_string_long(ssl));
+                                        String(f_SSL_state_string_long(ssl)));
                 end
                 else if ((Where and SSL_CB_ALERT) <> 0) and
                         Obj.CheckLogOptions(loSslInfo) then begin
@@ -13767,21 +14898,21 @@ begin
                         Str := 'write ';
 
                     Obj.DebugLog(loSslInfo, 'ICB> ' + 'SSL3 alert ' + Str +
-                                 f_SSL_alert_type_string_long(ret) + ' ' +
-                                 f_SSL_alert_desc_string_long(ret));
+                                 String(f_SSL_alert_type_string_long(ret)) + ' ' +
+                                 String(f_SSL_alert_desc_string_long(ret)));
                 end
                 else if (Where and SSL_CB_EXIT) <> 0 then begin
                     if Ret = 0 then begin
                         if Obj.CheckLogOptions(loSslInfo) then
                             Obj.DebugLog(loSslInfo,'ICB> ' + Str + 'failed in ' +
-                                            f_SSL_state_string_long(ssl));
+                                            String(f_SSL_state_string_long(ssl)));
                     end
                     else if Ret < 0 then begin
                         Err := f_ssl_get_error(ssl, Ret);
                         if ((Err <> SSL_ERROR_WANT_READ) or
                             (Err <> SSL_ERROR_WANT_WRITE)) then
                                 Obj.DebugLog(loSslInfo, 'ICB> ' + Str + 'error in ' +
-                              f_SSL_state_string_long(ssl));
+                              String(f_SSL_state_string_long(ssl)));
                     end;
                 end;
             end;
@@ -13789,7 +14920,9 @@ begin
             if (Where and SSL_CB_HANDSHAKE_START) <> 0 then begin
                 Obj.FInHandshake   := TRUE;
                 Inc(Obj.FHandShakeCount);
-                if ICS_SSL_NO_RENEGOTIATION and (Obj.FHandShakeCount > 1) then
+                if (Obj.FHandShakeCount > 1) and
+                    IsSslRenegotiationDisallowed(Obj) then
+                //if ICS_SSL_NO_RENEGOTIATION and (Obj.FHandShakeCount > 1) then
                     Obj.CloseDelayed;
                 if Obj.FHandShakeCount > 1 then
                     Obj.FSslInRenegotiation := TRUE;
@@ -13810,21 +14943,131 @@ begin
                     Err := f_SSL_get_verify_result(Ssl);
                     if Obj.CheckLogOptions(loSslInfo) or (Err <> X509_V_OK) then
                        Obj.DebugLog(loSslInfo, 'ICB> SSL_CB_HANDSHAKE_DONE ' +
-                                       'Error: ' + IntToStr(Err));
+                                       'Error: ' + _IntToStr(Err));
                 end;
 {$ENDIF}
             end
         finally
             Obj.FSsl_In_CB := FALSE;
             if Obj.FHSocket = INVALID_SOCKET then
-                PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
+                _PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
         end;
-{$IFNDEF NO_ADV_MT}
+{$IFNDEF NO_SSL_MT}
     finally
-        LeaveCriticalSection(LockInfoCB);
+        _LeaveCriticalSection(LockInfoCB);
     end;
 {$ENDIF}
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF OPENSSL_NO_TLSEXT}
+function ServerNameCallback(SSL: PSSL; var ad: Integer; arg: Pointer): Longint; cdecl;
+var
+    Ws : TCustomSslWSocket;
+    PServerName : PAnsiChar; // Pointer to UTF-8 string
+    Ctx : TSslContext;
+    Err : TTlsExtError;
+begin
+{$IFNDEF NO_SSL_MT}
+    _EnterCriticalSection(LockServerNameCB);
+    try
+{$ENDIF}
+    PServerName := f_SSL_get_servername(SSL, TLSEXT_NAMETYPE_host_name);
+    if Assigned(PServerName) then
+    begin
+        Ws := TCustomSslWSocket(f_SSL_get_ex_data(SSL, 0));
+        if Assigned(Ws) and Assigned(Ws.FOnSslServerName) then
+        begin
+            Ws.FSsl_In_CB := TRUE;
+            try
+                Ws.FSslServerName := String(UTF8String(PServerName));
+                Ctx := nil;
+                Err := teeAlertWarning; //SSL_TLSEXT_ERR_ALERT_WARNING
+                Ws.FOnSslServerName(Ws, Ctx, Err);
+                { Do not switch context if not initialized }
+                if Assigned(Ctx) and Assigned(Ctx.FSslCtx) then
+                begin
+                    if Ws.SslContext <> Ctx then
+                    begin
+                        Ws.SslContext := Ctx;
+                        f_SSL_set_SSL_CTX(SSL, Ctx.FSslCtx);
+                        f_SSL_set_options(SSL, f_SSL_CTX_get_options(ctx.FSslCtx));
+                        f_SSL_CTX_set_tlsext_servername_callback(Ctx.FSslCtx,
+                                                         @ServerNameCallBack);
+                    {$IFNDEF NO_DEBUG_LOG}
+                        if Ws.CheckLogOptions(loSslInfo) then
+                            Ws.DebugLog(loSslInfo,
+                                    'SNICB> Switching context server_name "'
+                                    + Ws.FSslServerName + '"');
+                    {$ENDIF}
+                    end;
+                    Result := SSL_TLSEXT_ERR_OK;
+                end
+                else
+                    Result := Ord(Err);
+            finally
+                Ws.FSsl_In_CB := FALSE;
+                if Ws.FHSocket = INVALID_SOCKET then
+                    _PostMessage(Ws.FWindowHandle, Ws.FMsg_WM_RESET_SSL, 0, 0);
+            end;
+        end
+        else
+            Result := SSL_TLSEXT_ERR_OK;// SSL_TLSEXT_ERR_NOACK;
+    end
+    else
+        Result := SSL_TLSEXT_ERR_OK;
+{$IFNDEF NO_SSL_MT}
+    finally
+        _LeaveCriticalSection(LockServerNameCB);
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF NEVER}
+procedure TlsExtension_cb(SSL: PSSL; client_server: Integer; type_: Integer;
+  data: PAnsiChar; len: Integer; arg: Pointer); cdecl;
+var
+    ExtName : String;
+    CS : String;
+    Ws : TCustomSslWSocket;
+begin
+    Ws := TCustomSslWSocket(f_SSL_get_ex_data(Ssl, 0));
+    case type_ of
+      TLSEXT_TYPE_server_name :
+          ExtName := 'server name';
+      TLSEXT_TYPE_max_fragment_length :
+          ExtName := 'max fragment length';
+      TLSEXT_TYPE_client_certificate_url :
+          ExtName := 'client certificate URL';
+      TLSEXT_TYPE_trusted_ca_keys :
+          ExtName := 'trusted CA keys';
+      TLSEXT_TYPE_truncated_hmac :
+          ExtName := 'truncated HMAC';
+      TLSEXT_TYPE_status_request :
+          ExtName := 'status request';
+      TLSEXT_TYPE_elliptic_curves :
+          ExtName := 'elliptic curves';
+      TLSEXT_TYPE_ec_point_formats :
+          ExtName := 'EC point formats';
+      TLSEXT_TYPE_session_ticket :
+          ExtName := 'server ticket';
+    else
+        ExtName := 'unknown';
+    end;
+    if client_server = 0 then
+        CS := 'client'
+    else
+        CS := 'server';
+    if Ws.CheckLogOptions(loSslInfo) then
+         Ws.DebugLog(loSslInfo, _Format('TLSExtCB> TLS %s extension "%s" (id=%d), len=%d',
+                                        [CS, ExtName, Type_, len]));
+end;
+{$ENDIF}
+
+{$ENDIF OPENSSL_NO_TLSEXT}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -13869,24 +15112,26 @@ var
     TmpInt  : Integer;
     Ver     : Integer;
     Pen     : Integer;
+    NoReneg : Boolean;
 begin
     Result := FALSE;
     if FSslEnable and Assigned(FSsl) then begin
-        TmpInt := f_SSL_state(FSsl);
-        Ver    := f_SSL_version(FSsl);
-        Pen    := f_SSL_renegotiate_pending(FSsl);
-        if ICS_SSL_NO_RENEGOTIATION or
+        TmpInt  := f_SSL_state(FSsl);
+        Ver     := f_SSL_version(FSsl);
+        Pen     := f_SSL_renegotiate_pending(FSsl);
+        NoReneg := IsSslRenegotiationDisallowed(Self);
+        if NoReneg or
             not ((TmpInt = SSL_ST_OK) and
                  (Ver >= SSL3_VERSION) and
                  (Pen = 0)) then begin
 {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslErr) then begin
                 DebugLog(loSslErr,
-                         Format('%s ! Cannot start re-negotiation  State ' +
+                         _Format('%s ! Cannot start re-negotiation  State ' +
                                 '%d Version (0x%x) RenegotiatePending %d ' +
-                                'NO_RENEGOTIATION %d %d',
-                                [IntToHex(Integer(Self), 8),
-                                TmpInt, Ver, Pen, Ord(ICS_SSL_NO_RENEGOTIATION),
+                                'NO_RENEGOTIATION %d HSocket %d',
+                                [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                                TmpInt, Ver, Pen, Ord(NoReneg),
                                 FHSocket]));
             end;
 {$ENDIF}
@@ -13896,7 +15141,7 @@ begin
             HandleSslError;
 {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslErr) then begin  { V5.21 }
-                DebugLog(loSslErr, IntToHex(Integer(Self), 8) +
+                DebugLog(loSslErr, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                          ' ! SSL_renegotiate() failed');
             end
 {$ENDIF}
@@ -13909,7 +15154,8 @@ begin
                     HandleSslError;
 {$IFNDEF NO_DEBUG_LOG}
                     if CheckLogOptions(loSslErr) then
-                        DebugLog(loSslErr, IntToHex(Integer(Self), 8) +
+                        DebugLog(loSslErr,
+                                 _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                                  ' ! Re-negotiation failed');
 {$ENDIF}
                     FNetworkError := WSAECONNABORTED;
@@ -13920,8 +15166,8 @@ begin
             end;
 {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslInfo) then  { V5.21 }
-                DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                         ' ! Re-negotiation started ' +  IntToStr(FHSocket));
+                DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                         ' ! Re-negotiation started ' +  _IntToStr(FHSocket));
 {$ENDIF}
             Result := TRUE;
             if FMayTriggerFD_Write then begin          //<= 02/01/06 AG
@@ -13938,15 +15184,15 @@ procedure TCustomSslWSocket.StartSslHandshake;
 begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                      ' StartSslHandshake ' + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                      ' StartSslHandshake ' + _IntToStr(FHSocket));
 {$ENDIF}
     if not FSslEnable then
         Exit;
     if not Assigned(FSslContext) then
-        raise Exception.Create('SSL requires a context object');
+        raise ESslContextException.Create('SSL requires a context object');
     if Assigned(FSsl) then
-        ResetSsl;    
+        ResetSsl;
     FSslState := sslHandshakeInit;
     FSslMode  := sslModeClient;
     try
@@ -13958,8 +15204,8 @@ begin
             FSslState := sslNone;
 {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslInfo) then  { V5.21 }
-                DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                          ' Fatal error SSL handshake ' + IntToStr(FHSocket) +
+                DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                          ' Fatal error SSL handshake ' + _IntToStr(FHSocket) +
                           ' ' + E.Classname + ' ' + E.Message);
 {$ENDIF}
             //TriggerSslHandshakeDone(2); ?
@@ -13974,13 +15220,13 @@ procedure TCustomSslWSocket.AcceptSslHandshake;
 begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                      ' AcceptSslHandshake ' + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                      ' AcceptSslHandshake ' + _IntToStr(FHSocket));
 {$ENDIF}
     if not FSslEnable then
         Exit;
     if not Assigned(FSslContext) then
-        raise Exception.Create('SSL requires a context object');
+        raise ESslContextException.Create('SSL requires a context object');
     if Assigned(FSsl) then
         ResetSsl;
     FSslState      := sslHandshakeInit;
@@ -13994,8 +15240,8 @@ begin
             FSslState  := sslNone; 
 {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-                DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                          ' Fatal error SSL handshake ' + IntToStr(FHSocket) +
+                DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                          ' Fatal error SSL handshake ' + _IntToStr(FHSocket) +
                           ' ' + E.Classname + ': ' + E.Message);
 {$ENDIF}
             //TriggerSslHandshakeDone(2); ?
@@ -14010,7 +15256,7 @@ procedure TCustomSslWSocket.DupConnected;
 begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                       ' DupConnected');
 {$ENDIF}
 end;
@@ -14042,8 +15288,8 @@ begin
     end;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                      ' SslInternalClose ' + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                      ' SslInternalClose ' + _IntToStr(FHSocket));
 {$ENDIF}
     if FHSocket = INVALID_SOCKET then begin
         if FState <> wsClosed then begin
@@ -14076,7 +15322,7 @@ begin
     inherited Listen;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                       ' Listening');
 {$ENDIF}                      
 end;
@@ -14106,14 +15352,15 @@ var
     SessionIDContext  : TSslSessionIdContext; // for session caching in ssl server mode
     SslCachedSession  : Pointer;
     FreeSession       : Boolean;
+    SIdCtxLen         : Integer;
 begin
     if not FSslEnable then
         Exit;
     //Inc(FCount); // Test
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                      ' InitSSLConnection ' + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                      ' InitSSLConnection ' + _IntToStr(FHSocket));
 {$ENDIF}
     FSslCertChain.Clear;
     //FTriggerCount            := 0; //Test
@@ -14132,7 +15379,7 @@ begin
     FMayTriggerSslTryToSend  := TRUE;  // <= 01/06/2006 AG
     InitializeSsl;
     try
-        EnterCriticalSection(SslCritSect);
+        _EnterCriticalSection(SslCritSect);
         try
             {if Assigned(FSsl) then
                 ResetSsl; // resets FSslState to sslModeNone
@@ -14142,17 +15389,18 @@ begin
             if not Assigned(FSsl) then
                 RaiseLastOpenSslError(Exception, TRUE,
                                       'Error on creating the Ssl object');
-
             //Create BIOs
-            FSslBio := f_BIO_new(f_BIO_f_ssl());
+            FSslBio := f_BIO_new(f_BIO_f_ssl);
             f_BIO_new_bio_pair(@FIBio, SSL_BUFFER_SIZE, @FNBio, SSL_BUFFER_SIZE);
             if (FSslBio = nil) or (FNBio = nil) or (FIBio = nil) then
                 RaiseLastOpenSslError(Exception, TRUE,
                                       'Creating BIOs failed');
 
-            Options := f_SSL_ctrl(FSsl, SSL_CTRL_OPTIONS, 0, nil);
-            Options := Options or SSL_OP_ALL;
-            f_SSL_ctrl(FSsl, SSL_CTRL_OPTIONS, Options, nil);
+            Options := f_SSL_get_options(FSsl);
+            { Currently no Tickets! Otherwise handshake fatal }
+            { errors or session resumption won't work.        }
+            Options := Options or SSL_OP_ALL or SSL_OP_NO_TICKET;
+            f_SSL_set_options(FSsl, Options);
 
             if f_SSL_set_ex_data(FSsl, 0, Self) <> 1 then
                 RaiseLastOpenSslError(Exception, TRUE,
@@ -14167,8 +15415,8 @@ begin
                 if (FSslContext.SslCertFile = '') and
                    Assigned(FOnSslCliCertRequest) and
                    (not Assigned(f_SSL_CTX_get_client_cert_cb(
-                          FSslContext.FSslCtx))) then
-                    f_SSL_CTX_set_client_cert_cb(FSslContext.FSslCtx,
+                          pSSLContext{FSslContext.FSslCtx}))) then
+                    f_SSL_CTX_set_client_cert_cb(pSSLContext{FSslContext.FSslCtx},
                                                  ClientCertCallBack);
                 // Get a cached session from the application
                 SslCachedSession := nil;
@@ -14177,12 +15425,14 @@ begin
                     FOnSslCliGetSession(Self, SslCachedSession, FreeSession);
                 if Assigned(SslCachedSession) and
                    (f_SSL_set_session(FSsl, SslCachedSession) = 1) then begin  // 01/14/06 AG
-{$IFNDEF NO_DEBUG_LOG}
+                {$IFNDEF NO_DEBUG_LOG}
                     if CheckLogOptions(loSslInfo) then  { V5.21 }
-                        DebugLog(loSslInfo,IntToHex(Integer(Self), 8) +
+                        DebugLog(loSslInfo,
+                                 _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                                  ' Reuse session [' +
-                                 IntToHex(Integer(SslCachedSession), 8) +']');
-{$ENDIF}
+                                 _IntToHex(INT_PTR(SslCachedSession),
+                                 SizeOf(SslCachedSession) * 2) +']');
+                {$ENDIF}
                     if FreeSession then
                         f_SSL_SESSION_Free(SslCachedSession);
                     SslCachedSession := nil;
@@ -14190,35 +15440,65 @@ begin
                 else
                     f_SSL_set_session(FSsl, nil);
 
+            {$IFNDEF OPENSSL_NO_TLSEXT}
+                { FSslServerName is the servername to be sent in client helo. }
+                { If not empty, enables SNI in SSL client mode.               }
+                if (FSslServerName <> '') and
+                    (f_SSL_set_tlsext_host_name(FSsl, FSslServerName) = 0) then
+                        RaiseLastOpenSslError(EOpenSslError, TRUE,
+                             'Unable to set TLS servername extension');
+            {$ENDIF}
+            
                 f_SSL_set_connect_state(FSsl);
             end
             else begin // Server mode
                 if Assigned(FOnSslSetSessionIDContext) then begin
                     SessionIDContext := '';
                     FOnSslSetSessionIDContext(Self, SessionIDContext);
-                    if Length(SessionIDContext) > 0 then begin
-                        if Length(SessionIDContext) > SSL_MAX_SSL_SESSION_ID_LENGTH then
-                            SetLength(SessionIDContext, SSL_MAX_SSL_SESSION_ID_LENGTH);
+                    { This is so bad. We should consider a breaking change }
+                    { and use AnsiString, same for session keys :(         }
+                    SIdCtxLen := Length(SessionIDContext) * SizeOf(Char);
+                    if SIdCtxLen > 0 then begin
+                        if SIdCtxLen > SSL_MAX_SSL_SESSION_ID_LENGTH then
+                        { Should trigger an exception rather than silently }
+                        { truncate the data..                              }
+                            SIdCtxLen := SSL_MAX_SSL_SESSION_ID_LENGTH;
+                        { So with Unicode there are only 16 items left.    }
                         if f_ssl_set_session_id_context(FSsl,
-                               @SessionIDContext[1],
-                               Length(SessionIDContext)) = 0 then begin
-{$IFNDEF NO_DEBUG_LOG}
+                             @SessionIDContext[1], SIdCtxLen) = 0 then begin
+                    {$IFNDEF NO_DEBUG_LOG}
                             if CheckLogOptions(loSslErr) then { V5.21 }
-                                DebugLog(loSslErr, IntToHex(Integer(Self), 8) +
+                                DebugLog(loSslErr,
+                                _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                                     ' ssl_set_session_id_context failed' +
-                                    IntToStr(FHSocket));
-
+                                    _IntToStr(FHSocket));
                         end
                         else begin
                             if CheckLogOptions(loSslInfo) then
-                                DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
+                                DebugLog(loSslInfo,
+                                _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                                 ' SessionIDContext: ' + SessionIDContext + ' ' +
-                                IntToStr(FHSocket));
-{$ENDIF}
+                                _IntToStr(FHSocket));
+                    {$ENDIF}
                         end;
                     end;
-                end; {else
-                    f_SSL_set_session(FSsl, nil)};
+                end;
+
+            {$IFNDEF OPENSSL_NO_TLSEXT}
+                { FSslServerName receives the servername from client helo if }
+                { FOnSslServerName was assigned in SSL server mode.          }
+                FSslServerName := '';
+                if Assigned(FOnSslServerName) and
+                   (f_SSL_CTX_set_tlsext_servername_callback(pSSLContext,
+                                            @ServerNameCallBack) = 0) then
+                    RaiseLastOpenSslError(EOpenSslError, TRUE,
+                            'Unable to initialize servername callback for SNI');
+                {$IFDEF NEVER}
+                    if CheckLogOptions(loSslInfo) then
+                        f_SSL_set_tlsext_debug_callback(FSsl, @TlsExtension_CB);
+                {$ENDIF}
+            {$ENDIF}
+
                 f_SSL_set_accept_state(FSsl);
             end;
 
@@ -14243,7 +15523,7 @@ begin
             FLastError := -1;
             FSslState  := sslHandshakeStarted;
         finally
-            LeaveCriticalSection(SslCritSect);
+            _LeaveCriticalSection(SslCritSect);
         end;
     except
         SslCachedSession := nil;                                 // 01/14/06 AG
@@ -14286,15 +15566,16 @@ begin
     if CheckLogOptions(loSslInfo) then begin  { V5.21 }
         Inc(TraceCount);
         DebugLog(loSslInfo,
-                 Format('%s PutDataInSslBuffer %s len %d  [%d] ',
-                       [IntToHex(Integer(Self), 8), IntToStr(FHSocket),
-                        Len, TraceCount]));
+                 _Format('%s PutDataInSslBuffer %s len %d  [%d] ',
+                       [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                       _IntToStr(FHSocket), Len, TraceCount]));
     end
     else if CheckLogOptions(loSslDump) then begin  { V5.21 }
         Inc(TraceCount);
         DebugLog(loSslDump,
-                 Format('%s PutDataInSslBuffer %s [%d] Data:%s',
-                        [IntToHex(Integer(Self), 8), IntToStr(FHSocket),
+                 _Format('%s PutDataInSslBuffer %s [%d] Data:%s',
+                        [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                        _IntToStr(FHSocket),
                         TraceCount, DataToString(Data, Len)]));
     end;
 {$ENDIF}
@@ -14314,7 +15595,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomSslWSocket.ResetSslDelayed;
 begin
-    PostMessage(FWindowHandle, FMsg_WM_RESET_SSL, 0, 0);
+    _PostMessage(FWindowHandle, FMsg_WM_RESET_SSL, 0, 0);
 end;
 
 
@@ -14325,8 +15606,8 @@ begin
         Exit;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) and Assigned(FSsl) then  { V5.21 }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                 ' ResetSslSession ' + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                 ' ResetSslSession ' + _IntToStr(FHSocket));
 {$ENDIF}
     DeleteBufferedSslData;
     FSslVersion              := 'Unknown';
@@ -14342,6 +15623,7 @@ begin
     FNetworkError            := 0;
     FSslState                := sslNone;
     FHandShakeCount          := 0;
+    FSslSupportsSecureRenegotiation := FALSE;
 
     if Assigned(FSsl) then // Avoids sending a shutdown notify on freeing the SSL
         f_SSL_set_shutdown(FSsl, SSL_SENT_SHUTDOWN);
@@ -14374,9 +15656,9 @@ begin
     FLastSslError := f_ERR_peek_error;
     if Length(CustomMsg) > 0 then
         raise EClass.Create(#13#10 + CustomMsg + #13#10 +
-                            LastOpenSslErrMsg(Dump) + #13#10)
+                            String(LastOpenSslErrMsg(Dump)) + #13#10)
     else
-        raise EClass.Create(#13#10 + LastOpenSslErrMsg(Dump) + #13#10);
+        raise EClass.Create(#13#10 + String(LastOpenSslErrMsg(Dump)) + #13#10);
 end;
 
 
@@ -14542,16 +15824,16 @@ begin
     if (not FSslEnable) or (FSocksState <> socksData) then begin
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                      ' TryToSend ' + IntToStr(FHSocket));
+            DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                      ' TryToSend ' + _IntToStr(FHSocket));
 {$ENDIF}
         inherited TryToSend;
         Exit;
     end;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, IntToHex(Integer(Self), 8) +
-                      ' SslTryToSend ' + IntToStr(FHSocket));
+        DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                      ' SslTryToSend ' + _IntToStr(FHSocket));
 {$ENDIF}
     FSslBufList.Lock;
     try
@@ -14675,7 +15957,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomSslWSocket.SslBiShutDownAsync;
 begin
-    PostMessage(FWindowHandle, FMsg_WM_BI_SSL_SHUTDOWN, 0, 0);
+    _PostMessage(FWindowHandle, FMsg_WM_BI_SSL_SHUTDOWN, 0, 0);
 end;
 
 
@@ -14696,11 +15978,11 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin { V5.21 }
         if __DataSocket = Self then
-            DebugLog(loSslInfo, 'SslAsyncSelect DataSocket ' + IntToStr(msg.wParam) +
-                     ', ' +  IntToStr(msg.LParamLo) + WinsockMsgToString(Msg))
+            DebugLog(loSslInfo, 'SslAsyncSelect DataSocket ' + _IntToStr(msg.wParam) +
+                     ', ' +  _IntToStr(msg.LParamLo) + WinsockMsgToString(Msg))
         else
-            DebugLog(loSslInfo, 'SslAsyncSelect ' + IntToStr(msg.wParam) + ', ' +
-                      IntToStr(msg.LParamLo) + WinsockMsgToString(Msg));
+            DebugLog(loSslInfo, 'SslAsyncSelect ' + _IntToStr(msg.wParam) + ', ' +
+                      _IntToStr(msg.LParamLo) + WinsockMsgToString(Msg));
     end;
 {$ENDIF}
     if (msg.wParam <> FHSocket) then
@@ -14774,22 +16056,22 @@ begin
     State := f_SSL_state(FSsl);
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        Str := IntToHex(Integer(Self), 8) +  ' TriggerEvents ' +
-           IntToStr(FHSocket) + ' SslState: ';
-    if State and SSL_ST_INIT <> 0  then
-        Str := Str + 'SSL_ST_INIT '
-    else if State = SSL_ST_OK then
-        Str := Str + 'SSL_ST_OK '
-    else
-        Str := Str + IntToHex(State, 8);
+        Str := _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+               ' TriggerEvents ' + _IntToStr(FHSocket) + ' SslState: ';
+        if State and SSL_ST_INIT <> 0  then
+            Str := Str + 'SSL_ST_INIT '
+        else if State = SSL_ST_OK then
+            Str := Str + 'SSL_ST_OK '
+        else
+            Str := Str + _IntToHex(State, 8);
 
         DebugLog(loSslInfo, Str +
-              ' // MayFD_Read='      + BoolToStr(FMayTriggerFD_Read, FALSE) +
-              ' MayDoRecv='       + BoolToStr(FMayTriggerDoRecv, FALSE)  +
-              ' MayFD_Write='     + BoolToStr(FMayTriggerFD_Write, FALSE) +
-              ' MaySslTryToSend=' + BoolToStr(FMayTriggerSslTryToSend, FALSE) +
-              ' bSslAllSent='     + BoolToStr(bSslAllSent, FALSE) +
-              ' bAllSent='        + BoolToStr(bAllSent, FALSE));
+              ' // MayFD_Read='      + _BoolToStr(FMayTriggerFD_Read, FALSE) +
+              ' MayDoRecv='       + _BoolToStr(FMayTriggerDoRecv, FALSE)  +
+              ' MayFD_Write='     + _BoolToStr(FMayTriggerFD_Write, FALSE) +
+              ' MaySslTryToSend=' + _BoolToStr(FMayTriggerSslTryToSend, FALSE) +
+              ' bSslAllSent='     + _BoolToStr(bSslAllSent, FALSE) +
+              ' bAllSent='        + _BoolToStr(bAllSent, FALSE));
     end;
 {$ENDIF}
 
@@ -14886,13 +16168,13 @@ begin
     while TRUE do begin
         I := Pos(';', Buf);
         if I > 0 then begin
-            Host := Trim(Copy(Buf, 1, I - 1));
+            Host := _Trim(Copy(Buf, 1, I - 1));
             if Host > '' then
                 FSslAcceptableHosts.Add(Host);
             Delete(Buf, 1, I);
         end
         else begin
-            Host := Trim(Buf);
+            Host := _Trim(Buf);
             if Host > '' then
                 FSslAcceptableHosts.Add(Host);
             break;
@@ -14917,11 +16199,12 @@ begin
         IncRefCount := FALSE;
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loSslInfo, IntToHex(Integer(Self), 8) + ' CliNewSession [' +
-                          IntToHex(Integer(CurrentSession), 8) + '] ' +
-                              'Reused: ' + BoolToStr(SslSessionReused, TRUE));
+            DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                     ' CliNewSession [' +
+                     _IntToHex(INT_PTR(CurrentSession), SizeOf(CurrentSession) * 2) + '] ' +
+                     'Reused: ' + _BoolToStr(SslSessionReused, TRUE));
 {$ENDIF}
-        EnterCriticalSection(SslCritSect);
+        _EnterCriticalSection(SslCritSect);
         try
             FOnSslCliNewSession(Self, CurrentSession,
                                 SslSessionReused,
@@ -14929,7 +16212,7 @@ begin
             if IncRefCount and (CurrentSession <> nil) then
                 f_SSL_get1_Session(FSsl);
         finally
-            LeaveCriticalSection(SslCritSect);
+            _LeaveCriticalSection(SslCritSect);
         end;
     end;
 end;
@@ -14954,11 +16237,12 @@ begin
     FreePeerCert            := FALSE;
     FSslCertChain.X509Class := FX509Class;
     if (ErrCode = 0) and Assigned(FSsl) then begin
-        FSslVersion       := f_SSL_get_version(FSsl);
+        FSslSupportsSecureRenegotiation := f_SSL_get_secure_renegotiation_support(FSsl) = 1;
+        FSslVersion       := String(f_SSL_get_version(FSsl));
         FSslVersNum       := f_SSL_version(FSsl);
         Cipher            := f_SSL_get_current_cipher(FSsl);
         if Assigned(Cipher) then begin
-            FSslCipher     := f_SSL_CIPHER_get_name(Cipher);
+            FSslCipher     := String(f_SSL_CIPHER_get_name(Cipher));
             FSslSecretBits := f_SSL_CIPHER_get_bits(Cipher, @FSslTotalBits);
         end;
         if FSslContext.FSslVerifyPeer and (not SslSessionReused) then begin
@@ -14980,12 +16264,12 @@ begin
     end; //ErrCode = 0
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, Format('%s SslHandshakeDone(%d) %d. Secure connection ' +
+        DebugLog(loSslInfo, _Format('%s SslHandshakeDone(%d) %d. Secure connection ' +
                              'with %s, cipher %s, %d secret bits (%d total), ' +
                              'session reused=%s',
-                             [IntToHex(Integer(Self), 8), ErrCode, FHSocket,
-                             SslVersion, SslCipher, SslSecretBits,
-                             SslTotalBits, BoolToStr(SslSessionReused, TRUE)]));
+                             [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                             ErrCode, FHSocket, SslVersion, SslCipher, SslSecretBits,
+                             SslTotalBits, _BoolToStr(SslSessionReused, TRUE)]));
 {$ENDIF}
     { No peer certificate in the chain, let's create a dummy }
     if not Assigned(PeerCert) then begin
@@ -15003,7 +16287,7 @@ begin
             TriggerSslCliNewSession;
     finally
         if FreePeerCert then
-            FreeAndNil(PeerCert);
+            _FreeAndNil(PeerCert);
     end;
 end;
 
@@ -15015,15 +16299,16 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then begin { V5.21 }
             Inc(TraceCount);
-            DebugLog(loSslDump, Format('%s PutDataInSendBuffer %s  len %d [%d]',
-                             [IntToHex(Integer(Self), 8), IntToStr(FHSocket),
-                             Len, TraceCount]));
+            DebugLog(loSslDump, _Format('%s PutDataInSendBuffer %s  len %d [%d]',
+                             [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                             _IntToStr(FHSocket), Len, TraceCount]));
         end
         else if CheckLogOptions(loSslDump) then begin { V5.21 }
             Inc(TraceCount);
-            DebugLog(loSslDump, Format('%s PutDataInSendBuffer %s [%d] Data:%s',
-                             [IntToHex(Integer(Self), 8), IntToStr(FHSocket),
-                             TraceCount, DataToString(Data, Len)]));
+            DebugLog(loSslDump, _Format('%s PutDataInSendBuffer %s [%d] Data:%s',
+                             [_IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
+                             _IntToStr(FHSocket), TraceCount,
+                             DataToString(Data, Len)]));
         end;
 {$ENDIF}
         inherited PutDataInSendBuffer(Data, Len);
@@ -15086,18 +16371,21 @@ begin
 {$ELSE}
 initialization
     IPList         := TStringList.Create;
-    InitializeCriticalSection(GClassCritSect);
-    InitializeCriticalSection(GWSockCritSect);
+    _InitializeCriticalSection(GClassCritSect);
+    _InitializeCriticalSection(GWSockCritSect);
 {$IFDEF USE_SSL}
-    InitializeCriticalSection(SslCritSect);
-    {$IFNDEF NO_ADV_MT}
-        InitializeCriticalSection(LockPwdCB);
-        InitializeCriticalSection(LockVerifyCB);
-        InitializeCriticalSection(LockInfoCB);
-        InitializeCriticalSection(LockRemSessCB);
-        InitializeCriticalSection(LockNewSessCB);
-        InitializeCriticalSection(LockGetSessCB);
-        InitializeCriticalSection(LockClientCertCB);
+    _InitializeCriticalSection(SslCritSect);
+    {$IFNDEF NO_SSL_MT}
+        _InitializeCriticalSection(LockPwdCB);
+        _InitializeCriticalSection(LockVerifyCB);
+        _InitializeCriticalSection(LockInfoCB);
+        _InitializeCriticalSection(LockRemSessCB);
+        _InitializeCriticalSection(LockNewSessCB);
+        _InitializeCriticalSection(LockGetSessCB);
+        _InitializeCriticalSection(LockClientCertCB);
+      {$IFNDEF OPENSSL_NO_TLSEXT}
+        _InitializeCriticalSection(LockServerNameCB);
+      {$ENDIF}
     {$ENDIF}
 {$ENDIF}
 
@@ -15107,21 +16395,24 @@ finalization
         IPList := nil;
     end;
     if WSocketGCount <= 0 then begin    { FP 15/09/03 }
-        DeleteCriticalSection(GClassCritSect);
+        _DeleteCriticalSection(GClassCritSect);
         WSocketUnloadWinsock;
-        DeleteCriticalSection(GWSockCritSect);
+        _DeleteCriticalSection(GWSockCritSect);
     end;
 {$IFDEF USE_SSL}
-    {$IFNDEF NO_ADV_MT}
-        DeleteCriticalSection(LockPwdCB);
-        DeleteCriticalSection(LockVerifyCB);
-        DeleteCriticalSection(LockInfoCB);
-        DeleteCriticalSection(LockRemSessCB);
-        DeleteCriticalSection(LockNewSessCB);
-        DeleteCriticalSection(LockGetSessCB);
-        DeleteCriticalSection(LockClientCertCB);
+    {$IFNDEF NO_SSL_MT}
+        _DeleteCriticalSection(LockPwdCB);
+        _DeleteCriticalSection(LockVerifyCB);
+        _DeleteCriticalSection(LockInfoCB);
+        _DeleteCriticalSection(LockRemSessCB);
+        _DeleteCriticalSection(LockNewSessCB);
+        _DeleteCriticalSection(LockGetSessCB);
+        _DeleteCriticalSection(LockClientCertCB);
+      {$IFNDEF OPENSSL_NO_TLSEXT}
+        _DeleteCriticalSection(LockServerNameCB);
+      {$ENDIF}
     {$ENDIF}
-    DeleteCriticalSection(SslCritSect);
+    _DeleteCriticalSection(SslCritSect);
 {$ENDIF}
 
 {$ENDIF}

@@ -1,14 +1,20 @@
 {*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+###############################################################################
+                      B R E A K I N G   C H A N G E S
+                            from V6.06 to V6.07
+If you update from V6.06 or earlier versions please read the notes for V6.07
+below (search for "V6.07").
+###############################################################################
 
 Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      6.04
+Version:      6.07
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2008 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -130,25 +136,69 @@ Mar 24, 2008  V6.03 Francois Piette made some changes to prepare code
                     for Unicode.
 Jun 28, 2008  V6.04 **Breaking Change** enum items "pop3TlsImplicite", "pop3TlsExplicite"
               renamed to "pop3TlsImplicit", "pop3TlsExplicit"
+Dec 21, 2008  V6.05 F.Piette added two string cast in WSocketDataAvailable to
+              avoid warning with Delphi 2009.
+Oct 08, 2009  V6.06 Faust added NTLM support (untested by the team).
+Jul 04, 2010  V6.07 Arno - A better Unicode port of TPop3Cli.
+              Unfortunately this is a breaking change which was required to fix
+              a performance issue with Unicode. Version V6.06 of this unit is
+              still available as OverbyteIcsPop3Old.pas, however you should
+              use this unit which performs much better with Unicode but it may
+              break some existing code. The required changes in your code depend
+              very much on the compiler version. With legacy Ansi compiler no or
+              just a few changes are required.
 
-              
+              The following public properties return an AnsiString result
+              instead of string in previous version:
+                  property LastResponse
+                  property MsgUidl
+                  property HeaderKeyword
+                  property HeaderData
+                  property HeaderFrom
+                  property HeaderTo
+                  property HeaderSubject
+                  property HeaderReplyTo
+                  property HeaderInReplyTo
+                  property HeaderMessageId
+                  property HeaderDate
+                  property HeaderReturnPath
+                  property HeaderCc
+
+              Signature of event OnResponse changed to:
+              procedure(Sender: TObject; const Msg : AnsiString);
+              and Signature of event OnDisplay changed to:
+              procedure(Sender: TObject; const Msg : String);
+              so your event handler must be changed accordingly.
+
+              If you derived your own components some more changes are required
+              since some protected methods and fields use AnsiString instead of
+              string as well, so make sure the signatures of overriden methods
+              are changed accordingly. Do not disable string cast warnings and
+              resolve all implicit string cast warnings in a Unicode enabled
+              application. Useful in order to avoid too many string casts is to
+              include AnsiStrings.pas in the uses clause as well as
+              OverbyteIcsLibrary.pas (i.e. for IcsIntToStrA()) .
+
+
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPop3Prot;
 
 interface
-
+{$H+}           { Use long strings                    }
+{$J+}           { Allow typed constant to be modified }
 {$B-}           { Enable partial boolean evaluation   }
 {$T-}           { Untyped pointers                    }
 {$X+}           { Enable extended syntax              }
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
     {$WARN SYMBOL_DEPRECATED OFF}
-{$ENDIF}
-{$IFNDEF VER80}   { Not for Delphi 1                    }
-    {$H+}         { Use long strings                    }
-    {$J+}         { Allow typed constant to be modified }
 {$ENDIF}
 {$IFDEF BCB3_UP}
     {$ObjExportAll On}
@@ -164,26 +214,30 @@ uses
 {$IFNDEF NOFORMS}
     Forms,
 {$ENDIF}
-    SysUtils, Classes, OverbyteIcsMimeUtils,
-    OverbyteIcsWSocket, OverbyteIcsWndControl,OverbyteIcsWinSock,
-{$IFDEF DELPHI5_UP}
-    OverbyteIcsSha1,          { SHA1 code require Delphi 5 and up  }
+    SysUtils, Classes,
+{$IFDEF COMPILER12_UP}
+    AnsiStrings, // For Trim and LowerCase
 {$ENDIF}
-    OverbyteIcsMD5;
+    OverbyteIcsMimeUtils, OverbyteIcsUtils,
+    OverbyteIcsWSocket, OverbyteIcsWndControl,OverbyteIcsWinSock,
+    OverbyteIcsSha1,
+    OverbyteIcsLibrary,
+    OverbyteIcsMD5,
+    OverbyteIcsNtlmMsgs;      {V6.06}
+
+{ This resolves a name conflict with Win API GetUserName() defined in MS headers }
+(*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameA$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)
+(*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameW$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)	
 
 const
-    Pop3CliVersion     = 604;
-    CopyRight : String = ' POP3 component (c) 1997-2008 F. Piette V6.04 ';
-{$IFDEF VER80}
-    { Delphi 1 has a 255 characters string limitation }
-    POP3_RCV_BUF_SIZE = 255;
-{$ELSE}
-    POP3_RCV_BUF_SIZE = 4096;
-{$ENDIF}
+    Pop3CliVersion     = 607;
+    CopyRight : String = ' POP3 component (c) 1997-2010 F. Piette V6.07 ';
+    POP3_RCV_BUF_SIZE  = 4096;
 
 type
     Pop3Exception = class(Exception);
-    TPop3Display  = procedure(Sender: TObject; Msg : String) of object;
+    TPop3Display  = procedure(Sender: TObject; const Msg : String) of object;
+    TPop3Response = procedure(Sender: TObject; const Msg : AnsiString) of object;
     TPop3ProtocolState  = (pop3Disconnected,  pop3WaitingUser,
                            pop3WaitingPass,   pop3Transaction);
     TPop3State    = (pop3Ready,         pop3DnsLookup,       pop3Connecting,
@@ -206,7 +260,7 @@ type
                  {$ENDIF}
                      );
     TPop3AuthType = (popAuthNone,    popAuthLogin,
-                     popAuthCramMD5, popAuthCramSHA1); {HLX}
+                     popAuthCramMD5, popAuthCramSHA1, popAuthNTLM); {V6.06}
 
     TPop3FctSet   = set of TPop3Fct;
     TPop3NextProc = procedure of object;
@@ -235,41 +289,41 @@ type
         FHighLevelResult    : Integer;
         FHighLevelFlag      : Boolean;
         FNextRequest        : TPop3NextProc;
-        FLastResponseSave   : String;
+        FLastResponseSave   : AnsiString;
         FStatusCodeSave     : Integer;
         FRestartFlag        : Boolean;
         FDoneAsync          : TPop3NextProc;
         FMultiLineLine      : TNotifyEvent;
         FMultiLineEnd       : TNotifyEvent;
         FMultiLineProcess   : TNotifyEvent;
-        FHost               : String;
+        FHost               : String;        
         FLocalAddr          : String; {bb}
         FPort               : String;
-        FUserName           : String;
-        FPassWord           : String;
+        FUserName           : AnsiString;
+        FPassWord           : AnsiString;
         FAuthType           : TPop3AuthType;{HLX}
-        FLastResponse       : String;
+        FLastResponse       : AnsiString;
         FErrorMessage       : String;
-        FTimeStamp          : String;
+        FTimeStamp          : AnsiString;
         FMsgCount           : Integer;
         FMsgSize            : Integer;
         FMsgNum             : Integer;
-        FMsgUidl            : String;
+        FMsgUidl            : AnsiString;
         FMsgLines           : Integer;
         FTag                : LongInt;
         // FWaitingOnQuit      : Boolean; Bad code, see TriggerRequestDone
         FHeaderPart         : Boolean;
-        FHeaderKeyword      : String;
-        FHeaderData         : String;
-        FHeaderFrom         : String;
-        FHeaderTo           : String;
-        FHeaderSubject      : String;
-        FHeaderReplyTo      : String;
-        FHeaderInReplyTo    : String;
-        FHeaderMessageId    : String;
-        FHeaderDate         : String;
-        FHeaderReturnPath   : String;
-        FHeaderCc           : String;
+        FHeaderKeyword      : AnsiString;
+        FHeaderData         : AnsiString;
+        FHeaderFrom         : AnsiString;
+        FHeaderTo           : AnsiString;
+        FHeaderSubject      : AnsiString;
+        FHeaderReplyTo      : AnsiString;
+        FHeaderInReplyTo    : AnsiString;
+        FHeaderMessageId    : AnsiString;
+        FHeaderDate         : AnsiString;
+        FHeaderReturnPath   : AnsiString;
+        FHeaderCc           : AnsiString;
         FMsg_WM_POP3_REQUEST_DONE : UINT;
 
         FOnDisplay          : TPop3Display;
@@ -284,18 +338,22 @@ type
         FOnUidlLine         : TNotifyEvent;
         FOnStateChange      : TNotifyEvent;
         FOnRequestDone      : TPop3RequestDone;
-        FOnResponse         : TPop3Display;
+        FOnResponse         : TPop3Response;
         FOnSessionConnected : TSessionConnected;
         FOnSessionClosed    : TSessionClosed;
         FOnHeaderEnd        : TNotifyEvent;
+        function  GetPassWord: String;
+        function  GetUserName: String;
+        procedure SetPassWord(const Value: String);
+        procedure SetUserName(const Value: String);
     protected
         procedure   ExecAsync(RqType      : TPop3Request;
-                              Cmd         : String;
+                              const Cmd   : AnsiString;
                               NextState   : TPop3ProtocolState;
                               DoneAsync   : TPop3NextProc);
         procedure   NextExecAsync;
-        procedure   StartTransaction(OpCode      : String;
-                                     Params      : String;
+        procedure   StartTransaction(OpCode      : AnsiString;
+                                     Params      : AnsiString;
                                      RqType      : TPop3Request;
                                      NextState   : TPop3ProtocolState;
                                      DoneTrans   : TPop3NextProc);
@@ -323,30 +381,30 @@ type
         procedure   WSocketDataAvailable(Sender: TObject; Error: Word);
         procedure   WSocketSessionClosed(Sender : TObject; Error : WORD);
         procedure   DisplayLastResponse;
-        procedure   TriggerDisplay(Msg : String);
+        procedure   TriggerDisplay(const Msg : String);
         procedure   TriggerSessionConnected(Error : Word); virtual;
         procedure   TriggerSessionClosed(Error : Word); virtual;
-        procedure   TriggerResponse(Msg : String); virtual;
+        procedure   TriggerResponse(const Msg : AnsiString); virtual;
         procedure   TriggerStateChange; virtual;
         procedure   TriggerRequestDone(Error: Word); virtual;
         function    OkResponse : Boolean;
         procedure   StateChange(NewState : TPop3State);
         procedure   Notification(AComponent: TComponent; Operation: TOperation); override;
         procedure   SetErrorMessage;
-        procedure   Display(Msg : String);
-        procedure   SendCommand(Cmd : String);
+        procedure   Display(const Msg : String);
+        procedure   SendCommand(const Cmd : AnsiString);
         function    ExtractNumbers(var N1 : Integer; var N2 : Integer) : Boolean;
-        function    ExtractUidl(var N1 : Integer; var N2 : String) : Boolean;
+        function    ExtractUidl(var N1 : Integer; var N2 : AnsiString) : Boolean;
         procedure   ProcessUidl(Sender : TObject);
         procedure   ProcessList(Sender : TObject);
         procedure   CheckReady;
         procedure   DoHighLevelAsync; virtual;
         procedure   AuthLoginNext;
         procedure   AuthLoginPass;
-{$IFDEF DELPHI5_UP}
         procedure   AuthCramSha1;
-{$ENDIF}
         procedure   AuthCramMd5;
+        procedure   AuthNextNtlm;        {V6.06}
+        procedure   AuthNextNtlmNext;    {V6.06}
     public
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy; override;
@@ -379,14 +437,14 @@ type
                                                      write FLocalAddr;  {bb}
         property Port          : String              read  FPort
                                                      write FPort;
-        property UserName      : String              read  FUserName
-                                                     write FUserName;
-        property PassWord      : String              read  FPassWord
-                                                     write FPassWord;
+        property UserName      : String              read  GetUserName
+                                                     write SetUserName;
+        property PassWord      : String              read  GetPassWord
+                                                     write SetPassWord;
         property AuthType      : TPop3AuthType       read  FAuthType
                                                      write FAuthType; {HLX}
         property ErrorMessage  : String              read  FErrorMessage;
-        property LastResponse  : String              read  FLastResponse;
+        property LastResponse  : AnsiString          read  FLastResponse;
         property State         : TPop3State          read  FState;
         property Connected     : Boolean             read  FConnected;
         property ProtocolState : TPop3ProtocolState  read  FProtocolState;
@@ -404,19 +462,19 @@ type
           method. It is also updated by the Last method }
         property MsgNum : Integer                    read  FMsgNum
                                                      write FMsgNum;
-        property MsgUidl : String                    read  FMsgUidl;
+        property MsgUidl : AnsiString                read  FMsgUidl;
         {:The following properties are decoded by RETR command }
-        property HeaderKeyword      : String         read  FHeaderKeyword;
-        property HeaderData         : String         read  FHeaderData;
-        property HeaderFrom         : String         read  FHeaderFrom;
-        property HeaderTo           : String         read  FHeaderTo;
-        property HeaderSubject      : String         read  FHeaderSubject;
-        property HeaderReplyTo      : String         read  FHeaderReplyTo;
-        property HeaderInReplyTo    : String         read  FHeaderInReplyTo;
-        property HeaderMessageId    : String         read  FHeaderMessageId;
-        property HeaderDate         : String         read  FHeaderDate;
-        property HeaderReturnPath   : String         read  FHeaderReturnPath;
-        property HeaderCc           : String         read  FHeaderCc;
+        property HeaderKeyword      : AnsiString     read  FHeaderKeyword;
+        property HeaderData         : AnsiString     read  FHeaderData;
+        property HeaderFrom         : AnsiString     read  FHeaderFrom;
+        property HeaderTo           : AnsiString     read  FHeaderTo;
+        property HeaderSubject      : AnsiString     read  FHeaderSubject;
+        property HeaderReplyTo      : AnsiString     read  FHeaderReplyTo;
+        property HeaderInReplyTo    : AnsiString     read  FHeaderInReplyTo;
+        property HeaderMessageId    : AnsiString     read  FHeaderMessageId;
+        property HeaderDate         : AnsiString     read  FHeaderDate;
+        property HeaderReturnPath   : AnsiString     read  FHeaderReturnPath;
+        property HeaderCc           : AnsiString     read  FHeaderCc;
         {:General purpose property, not used by component }
         property Tag : LongInt                       read  FTag
                                                      write FTag;
@@ -446,7 +504,7 @@ type
                                                      write FOnStateChange;
         property OnRequestDone : TPop3RequestDone    read  FOnRequestDone
                                                      write FOnRequestDone;
-        property OnResponse: TPop3Display            read  FOnResponse
+        property OnResponse: TPop3Response           read  FOnResponse
                                                      write FOnResponse;
         property OnSessionConnected : TSessionConnected
                                                      read  FOnSessionConnected
@@ -503,7 +561,7 @@ type
         FMultiThreaded : Boolean;
         function WaitUntilReady : Boolean; virtual;
         function Synchronize(Proc : TPop3NextProc) : Boolean;
-        procedure TriggerResponse(Msg : String); override;   { Angus }
+        procedure TriggerResponse(const Msg : AnsiString); override;   { Angus }
     public
         constructor Create(AOwner : TComponent); override;
         function    ConnectSync  : Boolean; virtual;
@@ -619,81 +677,50 @@ Updates:
     end;
 {$ENDIF} // USE_SSL
 
-procedure Register;
-
 implementation
 
 const
-    HexDigits : array [0..15] of char = ('0','1','2','3','4','5','6','7','8',
+    HexDigits : array [0..15] of AnsiChar = ('0','1','2','3','4','5','6','7','8',
                                          '9','a','b','c','d','e','f');
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF VER80}
-procedure SetLength(var S: string; NewLength: Integer);
-begin
-    S[0] := chr(NewLength);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function RTrim(Str : String) : String;
-var
-    i : Integer;
-begin
-    i := Length(Str);
-    while (i > 0) and (Str[i] = ' ') do
-        i := i - 1;
-    Result := Copy(Str, 1, i);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function LTrim(Str : String) : String;
+function CharPos(const Ch: AnsiChar; const S: AnsiString): Integer;
 var
     I : Integer;
 begin
-    if Str[1] <> ' ' then             { Petite optimisation: pas d'espace   }
-        Result := Str
-    else begin
-        I := 1;
-        while (i <= Length(Str)) and (Str[I] = ' ') do
-            I := I + 1;
-        Result := Copy(Str, I, Length(Str) - I + 1);
+    for I := 1 to Length(S) do begin
+        if S[I] = Ch then begin
+            Result := I;
+            Exit;
+        end;
     end;
+    Result := 0;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function Trim(Str : String) : String;
-begin
-    Result := LTrim(Rtrim(Str));
-end;
-{$ENDIF}
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IsDigit(Ch : Char) : Boolean;
+function IsDigit(Ch : AnsiChar) : Boolean;
 begin
     Result := (Ch >= '0') and (Ch <= '9');
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IsSpace(Ch : Char) : Boolean;
+function IsSpace(Ch : AnsiChar) : Boolean;
 begin
     Result := (Ch = ' ') or (Ch = #9);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IsSpaceOrCRLF(Ch : Char) : Boolean;
+function IsSpaceOrCRLF(Ch : AnsiChar) : Boolean;
 begin
     Result := (Ch = ' ') or (Ch = #9) or (Ch = #10) or (Ch = #13);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function stpblk(PValue : PChar) : PChar;
+function stpblk(PValue : PAnsiChar) : PAnsiChar;
 begin
     Result := PValue;
     while IsSpaceOrCRLF(Result^) do
@@ -702,7 +729,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function atoi(PValue : PChar) : Integer;
+function atoi(PValue : PAnsiChar) : Integer;
 begin
     Result := 0;
     PValue := stpblk(PValue);
@@ -870,8 +897,8 @@ end;
 procedure TCustomPop3Cli.WSocketDnsLookupDone(Sender: TObject; Error: Word);
 begin
     if Error <> 0 then begin
-        FLastResponse  := '-ERR ' + WSocketErrorDesc(Error) +
-                          ' (Winsock error #' + IntToStr(Error) + ')';
+        FLastResponse  := '-ERR ' + AnsiString(WSocketErrorDesc(Error)) +
+                          ' (Winsock error #' + IcsIntToStrA(Error) + ')';
         FStatusCode    := 500;
         FRequestResult := Error;      { V2.02 }
         SetErrorMessage;
@@ -889,7 +916,7 @@ begin
             FWSocket.Connect;
         except
             on E:Exception do begin
-                FLastResponse  := '-ERR ' + E.ClassName + ': ' + E.Message;
+                FLastResponse  := AnsiString('-ERR ' + E.ClassName + ': ' + E.Message);
                 FStatusCode    := 500;
                 FRequestResult := FStatusCode;
                 SetErrorMessage;
@@ -906,8 +933,8 @@ begin
     { Do not trigger the client SessionConnected from here. We must wait }
     { to have received the server banner.                                }
     if Error <> 0 then begin
-        FLastResponse  := '-ERR ' + WSocketErrorDesc(Error) +
-                          ' (Winsock error #' + IntToStr(Error) + ')';
+        FLastResponse  := '-ERR ' + AnsiString(WSocketErrorDesc(Error)) +
+                          ' (Winsock error #' + IcsIntToStrA(Error) + ')';
         FStatusCode    := 500;
         FConnected     := FALSE;
         FRequestResult := Error;      { V2.02 }
@@ -986,10 +1013,6 @@ begin
             FDumpBuf := '|' + #13#10;
             FDumpStream.WriteBuffer(FDumpBuf[1], Length(FDumpBuf));
     {$ENDIF}
-    {$IFDEF VER80}
-            { Add a nul byte at the end of string for Delphi 1 }
-            FLastResponse[Length(FLastResponse) + 1] := #0;
-    {$ENDIF}
             FReceiveLen := FReceiveLen - I - 1;
             if FReceiveLen > 0 then
                 Move(FReceiveBuffer[I + 1], FReceiveBuffer[0], FReceiveLen + 1);
@@ -1002,8 +1025,8 @@ begin
                     FWSocket.Close;
                     Exit;
                 end;
-                I := Pos('<', FLastResponse);
-                J := Pos('>', Copy(FLastResponse, I, Length(FLastREsponse)));
+                I := CharPos('<', FLastResponse);
+                J := CharPos('>', Copy(FLastResponse, I, Length(FLastREsponse)));
                 if (I > 0) and (J > 0) then
                     FTimeStamp := Copy(FLastResponse, I, J);
 
@@ -1033,7 +1056,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomPop3Cli.TriggerResponse(Msg : String);
+procedure TCustomPop3Cli.TriggerResponse(const Msg : AnsiString);
 begin
     if Assigned(FOnResponse) then
         FOnResponse(Self, Msg);
@@ -1093,7 +1116,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomPop3Cli.TriggerDisplay(Msg : String);
+procedure TCustomPop3Cli.TriggerDisplay(const Msg : String);
 begin
     if Assigned(FOnDisplay) then
         FOnDisplay(Self, Msg);
@@ -1288,18 +1311,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TCustomPop3Cli.ExtractUidl(var N1 : Integer; var N2 : String) : Boolean;
+function TCustomPop3Cli.ExtractUidl(var N1 : Integer; var N2 : AnsiString) : Boolean;
 var
-    p : PChar;
+    p : PAnsiChar;
 begin
     Result := FALSE;
     N1     := 0;
     N2     := '';
-
-{$IFDEF VER80}
-    { Delphi 1 do not automatically nul terminate strings }
-    FLastResponse := FLastResponse + #0;
-{$ENDIF}
 
     { Search for first digit in response }
     p := @FLastResponse[1];
@@ -1332,14 +1350,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomPop3Cli.ExtractNumbers(var N1 : Integer; var N2 : Integer) : Boolean;
 var
-    p : PChar;
+    p : PAnsiChar;
 begin
     Result := FALSE;
-
-{$IFDEF VER80}
-    { Delphi 1 do not automatically nul terminate strings }
-    FLastResponse := FLastResponse + #0;
-{$ENDIF}
 
     { Search for first digit in response }
     p := @FLastResponse[1];
@@ -1375,9 +1388,9 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomPop3Cli.SendCommand(Cmd : String);
+procedure TCustomPop3Cli.SendCommand(const Cmd : AnsiString);
 begin
-    Display('> ' + Cmd);
+    Display('> ' + String(Cmd));
     { Application.ProcessMessages;        //FP Should it be removed ?! }
     FWSocket.SendStr(Cmd + #13 + #10);
 end;
@@ -1395,7 +1408,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomPop3Cli.Display(Msg : String);
+procedure TCustomPop3Cli.Display(const Msg : String);
 begin
     if Assigned(FOnDisplay) then
         FOnDisplay(Self, Msg);
@@ -1413,7 +1426,21 @@ end;
 procedure TCustomPop3Cli.SetErrorMessage;
 begin
     if FErrorMessage = '' then
-        FErrorMessage := FLastResponse;
+        FErrorMessage := String(FLastResponse);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomPop3Cli.SetPassWord(const Value: String);
+begin
+    FPassword := AnsiString(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomPop3Cli.SetUserName(const Value: String);
+begin
+    FUserName := AnsiString(Value);
 end;
 
 
@@ -1438,14 +1465,14 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomPop3Cli.DisplayLastResponse;
 begin
-     TriggerDisplay('< ' + FLastResponse);
+     TriggerDisplay('< ' + String(FLastResponse));
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomPop3Cli.ExecAsync(
     RqType      : TPop3Request;
-    Cmd         : String;             { Command to execute                     }
+    const Cmd   : AnsiString;         { Command to execute                     }
     NextState   : TPop3ProtocolState; { Next protocol state in case of success }
     DoneAsync   : TPop3NextProc);     { What to do when done                   }
 begin
@@ -1515,11 +1542,10 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF DELPHI5_UP}
 procedure TCustomPop3Cli.AuthCramSha1; {HLX}
 var
-    Challenge  : String;
-    Response   : String;
+    Challenge  : AnsiString;
+    Response   : AnsiString;
     Digest     : SHA1Digest;
     count      : Integer;
 begin
@@ -1538,21 +1564,20 @@ begin
     HMAC_SHA1(Challenge[1], Length(Challenge),
               FPassword[1], Length(FPassword), Digest);
     Response := FUsername + ' ';
-    for Count := 0 to SHA1HashSize-1 do begin
+    for Count := 0 to SHA1HashSize - 1 do begin
         Response := Response + HexDigits[((Byte(Digest[Count]) and $F0) shr 4)];
         Response := Response + HexDigits[(Byte(Digest[Count]) and $0F)];
     end;
     FState := pop3InternalReady;
     ExecAsync(pop3Pass, Base64Encode(Response), pop3Transaction, nil);
 end;
-{$ENDIF}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomPop3Cli.AuthCramMd5; {HLX}
 var
-    Challenge  : String;
-    Response   : String;
+    Challenge  : AnsiString;
+    Response   : AnsiString;
     MD5Digest  : TMD5Digest;
     MD5Context : TMD5Context;
     Count      : Integer;
@@ -1598,12 +1623,53 @@ begin
     Response := FUsername;
     Response := Response + ' ';
     for Count := 0 to 15 do begin
-        Response := Response + HexDigits[((Byte(MD5Digest[Count]) and $F0) shr 4)];
-        Response := Response + HexDigits[(Byte(MD5Digest[Count]) and $0F)];
+        Response := Response + HexDigits[((MD5Digest[Count] and $F0) shr 4)];
+        Response := Response + HexDigits[(MD5Digest[Count] and $0F)];
     end;
 
     FState := pop3InternalReady;
     ExecAsync(pop3Pass, Base64encode(Response), pop3Transaction, nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomPop3Cli.AuthNextNtlm; {V6.06}
+begin
+    if FRequestResult <> 0 then begin
+        TriggerRequestDone(FRequestResult);
+        Exit;
+    end;
+
+    FState := pop3InternalReady;
+    ExecAsync(pop3Auth, AnsiString(NtlmGetMessage1('', '')), pop3Transaction, AuthNextNtlmNext);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomPop3Cli.AuthNextNtlmNext; {V6.06}
+var
+    NtlmMsg2Info : TNTLM_Msg2_Info;
+    NtlmMsg3     : String;
+begin
+    if FRequestResult <> 0 then begin
+        TriggerRequestDone(FRequestResult);
+        Exit;
+    end;
+
+    if (Length(FLastResponse) < 3) then begin
+        FLastResponse := '-ERR Malformed NtlmMsg2: ' + FLastResponse;
+        SetErrorMessage;
+        TriggerRequestDone(500);
+        Exit;
+    end;
+
+    NtlmMsg2Info := NtlmGetMessage2(String(Copy(FLastResponse, 3, Length(FLastResponse) - 2)));
+    NtlmMsg3 := NtlmGetMessage3('',
+                                '',  // the Host param seems to be ignored
+                                Username, Password,
+                                NtlmMsg2Info.Challenge);
+    FState := pop3InternalReady;
+    ExecAsync(pop3Auth, AnsiString(NtlmMsg3), pop3Transaction, nil);
 end;
 
 
@@ -1619,15 +1685,12 @@ begin
     case FAuthType of
     popAuthLogin    : ExecAsync(pop3Auth, 'AUTH LOGIN',
                                 pop3WaitingUser, AuthLoginNext);
-    popAuthCramSHA1 :
-{$IFDEF DELPHI5_UP}
-                      ExecAsync(pop3Auth, 'AUTH CRAM-SHA1',
+    popAuthCramSHA1 : ExecAsync(pop3Auth, 'AUTH CRAM-SHA1',
                                 pop3WaitingUser, AuthCramSha1);
-{$ELSE}
-                      raise Exception.Create('SHA1 require Delphi 5 or later');
-{$ENDIF}
     popAuthCramMD5  : ExecAsync(pop3Auth, 'AUTH CRAM-MD5',
                                 pop3WaitingUser, AuthCramMD5);
+    popAuthNTLM     : ExecAsync(pop3Auth, 'AUTH NTLM',
+                                pop3WaitingUser, AuthNextNtlm);    {V6.06}
     else
         User;
     end;
@@ -1776,7 +1839,7 @@ begin
         StartTransaction('LIST', '', pop3List, pop3Transaction, ListAllDone)
     else
         { Single message LIST command }
-        StartTransaction('LIST', IntToStr(FMsgNum), pop3List,
+        StartTransaction('LIST', IcsIntToStrA(FMsgNum), pop3List,
                          pop3Transaction, ListSingleDone);
 end;
 
@@ -1790,7 +1853,7 @@ begin
         StartTransaction('UIDL', '', pop3Uidl, pop3Transaction, UidlAllDone)
     else
         { Single message UIDL command }
-        StartTransaction('UIDL', IntToStr(FMsgNum), pop3Uidl,
+        StartTransaction('UIDL', IcsIntToStrA(FMsgNum), pop3Uidl,
                          pop3Transaction, UidlSingleDone);
 end;
 
@@ -1829,7 +1892,7 @@ end;
 procedure TCustomPop3Cli.Retr;
 begin
     FFctPrv := pop3FctRetr;
-    StartTransaction('RETR',   IntToStr(FMsgNum),
+    StartTransaction('RETR',   IcsIntToStrA(FMsgNum),
                      pop3Retr, pop3Transaction, RetrDone);
 end;
 
@@ -1840,7 +1903,7 @@ begin
     if FMsgLines < 0 then
         raise Pop3Exception.Create('Invalid MsgLines for TOP command');
     FFctPrv := pop3FctTop;
-    StartTransaction('TOP', IntToStr(FMsgNum) + ' ' + IntToStr(FMsgLines),
+    StartTransaction('TOP', IcsIntToStrA(FMsgNum) + ' ' + IcsIntToStrA(FMsgLines),
                      pop3Top, pop3Transaction, RetrDone);
 end;
 
@@ -1856,7 +1919,7 @@ end;
 procedure TCustomPop3Cli.Dele;
 begin
     FFctPrv := pop3FctDele;
-    StartTransaction('DELE', IntToStr(FMsgNum),
+    StartTransaction('DELE', IcsIntToStrA(FMsgNum),
                      pop3Dele, pop3Transaction, nil);
 end;
 
@@ -1902,16 +1965,16 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomPop3Cli.StartTransaction(
-    OpCode      : String;
-    Params      : String;
+    OpCode      : AnsiString;
+    Params      : AnsiString;
     RqType      : TPop3Request;
     NextState   : TPop3ProtocolState;  { Next protocol state in case of success}
     DoneTrans   : TPop3NextProc);      { What to do when done                  }
 var
-    Cmd : String;
+    Cmd : AnsiString;
 begin
     if FProtocolState <> pop3Transaction then begin
-        FErrorMessage := '-ERR ' + OpCode + ' command invalid now';
+        FErrorMessage := '-ERR ' + String(OpCode) + ' command invalid now';
         Display(FErrorMessage);
         raise Pop3Exception.Create(FErrorMessage);
     end;
@@ -2018,7 +2081,7 @@ begin
                 FHeaderCc := FHeaderCc + FHeaderData;
         end
         else begin
-            I := Pos(':', FLastResponse);
+            I := CharPos(':', FLastResponse);
             if I > 0 then begin
                 FHeaderKeyword := LowerCase(Trim(Copy(FLastResponse, 1, I - 1)));
                 { Remove space commonly found at start of header data }
@@ -2062,6 +2125,20 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomPop3Cli.GetPassWord: String;
+begin
+    Result := String(FPassword);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomPop3Cli.GetUserName: String;
+begin
+    Result := String(FUserName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomPop3Cli.IsServerAPOP: boolean;
 begin
     Result := (FTimeStamp <> '');
@@ -2076,7 +2153,7 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSyncPop3Cli.TriggerResponse(Msg : String);  { angus }
+procedure TSyncPop3Cli.TriggerResponse(const Msg : AnsiString);  { angus }
 begin
     inherited TriggerResponse(Msg);
     { Evaluate the timeout period again }
@@ -2108,21 +2185,17 @@ begin
             Result        := FALSE; { Command failed }
             break;
         end;
-{$IFNDEF VER80}
         { Do not use 100% CPU }
         DummyHandle := INVALID_HANDLE_VALUE;                                           //FP
         MsgWaitForMultipleObjects(0, DummyHandle, FALSE, 1000,
                                   QS_ALLINPUT + QS_ALLEVENTS +
                                   QS_KEY + QS_MOUSE);
-{$ENDIF}
 {$IFDEF NOFORMS}
         FWSocket.ProcessMessages;
 {$ELSE}
-{$IFNDEF VER80}
         if FMultiThreaded then
             FWSocket.ProcessMessages
         else
-{$ENDIF}
             Application.ProcessMessages;
 {$ENDIF}
     end;
@@ -2257,17 +2330,6 @@ end;
 function TSyncPop3Cli.NoopSync : Boolean;
 begin
     Result := Synchronize(Noop);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure Register;
-begin
-    RegisterComponents('FPiette', [TPop3Cli,
-                                {$IFDEF USE_SSL}
-                                   TSslPop3Cli,
-                                {$ENDIF}   
-                                   TSyncPop3Cli]);
 end;
 
 
@@ -2426,7 +2488,7 @@ begin
                                   '%d secret bits (%d total)',
                                   [SslVersion, SslCipher, SslSecretBits,
                                    SslTotalBits])
-                           ); 
+                           );
         if FSslType = pop3TlsImplicit then
             StateChange(pop3WaitingBanner)
         else begin
@@ -2512,7 +2574,7 @@ begin
             on E: Exception do begin
                 FWSocket.SslEnable := FALSE;
                 FErrorMessage  := '-ERR SslHandshake ' + E.Classname + ' ' +
-                                  E.Message; 
+                                  E.Message;
                 FStatusCode    := 500;
                 FRequestResult := FStatusCode;
                 { Temporarily disable RequestDone }
@@ -2671,5 +2733,6 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$ENDIF} // USE_SSL
+
 end.
 

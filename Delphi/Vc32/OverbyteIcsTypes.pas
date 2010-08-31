@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:
 Creation:     April 2004
-Version:      1.00
+Version:      1.04
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2007 by François PIETTE
+Legal issues: Copyright (C) 2004-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -37,12 +37,18 @@ Legal issues: Copyright (C) 2004-2007 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
-
+Apr 10, 2009 Arno changed TBytes to an alias of SysUtils.TBytes in D2007 and
+             better. Added alias EAbort.
+Dec 03, 2009 Arno added some of the polymorphic integer types from
+             Windows.pas/BaseTsd.h.
+May 07, 2010 Arno added a few declarations.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsTypes;
 
 interface
+
+{$I OverbyteIcsDefs.inc}
 
 uses
 {$IFDEF CLR}
@@ -51,17 +57,21 @@ uses
   System.Runtime.InteropServices;
 {$ENDIF}
 {$IFDEF WIN32}
-  Windows, Messages, Classes, SysUtils;
+  Windows, Messages,
 {$ENDIF}
+ Classes, SysUtils;
 
 const
-  OverbyteIcsTypesVersion = 100;
-  CopyRight : String      = ' OverbyteIcsTypes (c) 2004-2007 F. Piette V1.00 ';
+  OverbyteIcsTypesVersion = 103;
+  CopyRight : String      = ' OverbyteIcsTypes (c) 2004-2010 F. Piette V1.03 ';
 
 type
-{$IFDEF WIN32}
-  TBytes = array of Byte;
+{$IFDEF COMPILER11_UP} // D2007 and better
+  TBytes                    = SysUtils.TBytes;
+{$ELSE} // D7 - D2006
+  TBytes                    = array of Byte;
 {$ENDIF}
+
 {$IFDEF CLR}
   Exception           = Borland.Delphi.System.Exception;
   THandle             = Integer;
@@ -144,13 +154,60 @@ type
     lpszClass      : IntPtr;
     dwExStyle      : DWORD;
   end;
+{$ENDIF}
 
+{$IFDEF POSIX}
+    INT_PTR                   = NativeInt;
+{$ENDIF}
 
-{$ELSE}
+{$IFDEF WIN32}
+
+  {$EXTERNALSYM size_t}
+  size_t                    = LongWord;
+  Psize_t                   = ^size_t;
+
+  {$IFDEF COMPILER14_UP} // D2010 and better
+      {$EXTERNALSYM HANDLE_PTR}
+      HANDLE_PTR                = Windows.HANDLE_PTR;
+  {$ELSE} // D7 - D2009
+      {$EXTERNALSYM HANDLE_PTR}
+      HANDLE_PTR                = type LongWord;
+  {$ENDIF}
+
+  {$IFDEF COMPILER11_UP} // D2007 and better
+      {$EXTERNALSYM INT_PTR}
+      INT_PTR                   = Windows.INT_PTR;
+      {$EXTERNALSYM LONG_PTR}
+      LONG_PTR                  = Windows.LONG_PTR;
+      {$EXTERNALSYM UINT_PTR}
+      UINT_PTR                  = Windows.UINT_PTR;
+      {$EXTERNALSYM ULONG_PTR}
+      ULONG_PTR                 = Windows.ULONG_PTR;
+      {$EXTERNALSYM DWORD_PTR}
+      DWORD_PTR                 = Windows.DWORD_PTR;
+  {$ELSE} // D7 - D2006
+      // From BaseTsd.h
+      {$EXTERNALSYM INT_PTR}
+      INT_PTR                   = Integer;
+      {$EXTERNALSYM LONG_PTR}
+      LONG_PTR                  = Longint;
+      {$EXTERNALSYM UINT_PTR}
+      UINT_PTR                  = Cardinal;
+      {$EXTERNALSYM ULONG_PTR}
+      ULONG_PTR                 = LongWord;
+      {$EXTERNALSYM DWORD_PTR}
+      DWORD_PTR                 = ULONG_PTR;
+  {$ENDIF}
+
+  {$EXTERNALSYM PINT_PTR}
+  PINT_PTR                  = ^INT_PTR;
+
   {$EXTERNALSYM Exception}
   Exception                 = SysUtils.Exception;
   {$EXTERNALSYM ExceptClass}
   ExceptClass               = SysUtils.ExceptClass;
+  {$EXTERNALSYM EAbort}
+  EAbort                    = SysUtils.EAbort;
   {$EXTERNALSYM TSearchRec}
   TSearchRec                = SysUtils.TSearchRec;
   {$EXTERNALSYM TReplaceFlags}
@@ -159,6 +216,8 @@ type
   TMessage                  = Messages.TMessage;
   {$EXTERNALSYM TComponent}
   TComponent                = Classes.TComponent;
+  {$EXTERNALSYM TPersistent}
+  TPersistent               = Classes.TPersistent;
   {$EXTERNALSYM TNotifyEvent}
   TNotifyEvent              = Classes.TNotifyEvent;
   {$EXTERNALSYM TList}
@@ -196,7 +255,7 @@ type
   {$EXTERNALSYM LRESULT}
   LRESULT                   = Windows.LRESULT;
   {$EXTERNALSYM short}
-  Short                     = Windows.Short; 
+  Short                     = Windows.Short;
 {$ENDIF}
 
   LOWORD = Word;

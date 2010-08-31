@@ -21,7 +21,7 @@ Credit:       This unit is based on code written by David Barton
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2007 by François PIETTE
+Legal issues: Copyright (C) 2004-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -52,12 +52,18 @@ Legal issues: Copyright (C) 2004-2007 by François PIETTE
 
 History:
 July 2007    V1.01 changes for .net compatibility
+Apr 12, 2008 *Temporary, non-breaking Unicode changes* AG.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMD4;
 
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 
 interface
 
@@ -70,7 +76,7 @@ uses
 
 const
     IcsMD4Version          = 101;
-    CopyRight : String     = ' IcsMD4 (c) 2004-2008 F. Piette V1.01 ';
+    CopyRight : String     = ' IcsMD4 (c) 2004-2010 F. Piette V1.01 ';
 
 type
 {$IFDEF DELPHI3}
@@ -87,7 +93,7 @@ type
     HashBuffer   : array [0..63] of Byte;
   end;
 
-function  MD4String(const Value : String) : String;
+function  MD4String(const Value : AnsiString) : AnsiString;
 procedure MD4Init(var MD4Context : TMD4Context);
 procedure MD4Burn(var MD4Context : TMD4Context);
 {$IFDEF CLR}
@@ -95,7 +101,7 @@ procedure MD4Update(var MD4Context : TMD4Context; const Buffer : TBytes; Size: L
 {$ELSE}
 procedure MD4Update(var MD4Context : TMD4Context; const Buffer; Size: LongWord);
 {$ENDIF}
-procedure MD4UpdateStr(var MD4Context : TMD4Context; const Str: String);
+procedure MD4UpdateStr(var MD4Context : TMD4Context; const Str: AnsiString);
 procedure MD4Compress(var MD4Context : TMD4Context);
 procedure MD4Final(var MD4Context : TMD4Context; var Digest : TMD4Digest);
 
@@ -336,7 +342,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure MD4UpdateStr(var MD4Context : TMD4Context; const Str: String);
+procedure MD4UpdateStr(var MD4Context : TMD4Context; const Str: AnsiString);
 {$IFDEF CLR}
 var
     B : TBytes;
@@ -350,7 +356,7 @@ begin
 {$ELSE}
 begin
     if Str = '' then
-        MD4Update(MD4Context, PChar(0)^, 0)
+        MD4Update(MD4Context, PByte(0)^, 0)
     else
         MD4Update(MD4Context, Str[1], Length(Str));
 {$ENDIF}
@@ -358,7 +364,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function MD4String(const Value : String) : String;
+function MD4String(const Value : AnsiString) : AnsiString;
 var
     MD4Context : TMD4Context;
 {$IFDEF CLR}

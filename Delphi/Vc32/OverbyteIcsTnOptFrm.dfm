@@ -1,9 +1,10 @@
 object OptForm: TOptForm
   Left = 370
   Top = 179
-  Width = 289
-  Height = 379
+  BorderStyle = bsSingle
   Caption = 'Options'
+  ClientHeight = 363
+  ClientWidth = 278
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

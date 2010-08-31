@@ -207,7 +207,7 @@ object HttpTestForm: THttpTestForm
     BandwidthLimit = 10000
     BandwidthSampling = 1000
     Options = []
-    OnCommand = HttpCli1Command
+    Timeout = 30
     OnDocBegin = HttpCli1DocBegin
     OnDocEnd = HttpCli1DocEnd
     OnRequestDone = HttpCli1RequestDone

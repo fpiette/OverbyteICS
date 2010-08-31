@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Creation:     Mar 13, 2003
 Description:
-Version:      0.99 ALPHA CODE
+Version:      6.00 ALPHA CODE
 EMail:        francois.piette@overbyte.be    francois.piette@rtfm.be
               http://www.overbyte.be
 Support:      Unsupported code.
@@ -37,6 +37,8 @@ Legal issues: Copyright (C) 2003 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
+Jul 19, 2008 V6.00 F. Piette made small changes for Unicode, bumped version
+                   number to 6.00
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -46,7 +48,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  IniFiles, StdCtrls, ExtCtrls, OverbyteIcsWndControl,
+  OverbyteIcsIniFiles, StdCtrls, ExtCtrls, OverbyteIcsWndControl,
   OverbyteIcsMultipartFtpDownloader, OverbyteIcsMultiProgressBar,
   OverbyteIcsFtpCli;
 
@@ -141,20 +143,19 @@ const
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TMultipartFtpDownloadForm.FormCreate(Sender: TObject);
 begin
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
+    FIniFileName := GetIcsIniFileName;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TMultipartFtpDownloadForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
 
-        IniFile      := TIniFile.Create(FIniFileName);
+        IniFile      := TIcsIniFile.Create(FIniFileName);
         Width        := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         Height       := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
         Top          := IniFile.ReadInteger(SectionWindow, KeyTop,
@@ -190,7 +191,7 @@ begin
                                                     KeyPassive, TRUE);
         BinaryCheckBox.Checked  := IniFile.ReadBool(SectionData,
                                                     KeyBinary, TRUE);
-        IniFile.Destroy;
+        IniFile.Free;
         DisplayMemo.Clear;
     end;
 end;
@@ -199,9 +200,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TMultipartFtpDownloadForm.FormClose(Sender: TObject; var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionWindow, KeyTop,         Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,        Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,       Width);
@@ -217,7 +218,8 @@ begin
     IniFile.WriteString(SectionData, KeyAssumedSize, AssumedSizeEdit.Text);
     IniFile.WriteBool(SectionData, KeyPassive, PassiveCheckBox.Checked);
     IniFile.WriteBool(SectionData, KeyBinary,  BinaryCheckBox.Checked);
-    IniFile.Destroy;
+    IniFile.UpdateFile;
+    IniFile.Free;
 end;
 
 
@@ -251,11 +253,11 @@ begin
     I      := 0;
     while I < Length(S) do begin
         Inc(I);
-        if (I = 1) and (S[I] in ['+', '-']) then begin
+        if (I = 1) and ((S[I] = '+') or (S[I] = '-')) then begin
             Neg := (S[I] = '-');
             continue;
         end;
-        if S[I] in ['0'..'9'] then
+        if (S[I] >= '0') and (S[I] <= '9') then
             Result := Result * 10 + Ord(S[I]) - Ord('0')
         else begin
             Result := DefVal;

@@ -1,9 +1,9 @@
 object HttpsSrvForm: THttpsSrvForm
   Left = 258
   Top = 172
-  Width = 495
-  Height = 395
   Caption = 'HTTPS Server - http://www.overbyte.be'
+  ClientHeight = 361
+  ClientWidth = 487
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -20,10 +20,11 @@ object HttpsSrvForm: THttpsSrvForm
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
-    Width = 479
+    Width = 487
     Height = 157
     Align = alTop
     TabOrder = 0
+    ExplicitWidth = 479
     object Label3: TLabel
       Left = 27
       Top = 11
@@ -197,8 +198,8 @@ object HttpsSrvForm: THttpsSrvForm
   object DisplayMemo: TMemo
     Left = 0
     Top = 157
-    Width = 479
-    Height = 202
+    Width = 487
+    Height = 204
     Align = alClient
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText

@@ -1,6 +1,6 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <ProjectGuid>{5415da62-9372-4fca-bfbd-90e5b66ce7de}</ProjectGuid>
+    <ProjectGuid>{4F9AFEDD-F156-48E0-BFAF-8D3811A009DA}</ProjectGuid>
     <MainSource>OverbyteIcsPemTool.dpr</MainSource>
     <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -36,11 +36,17 @@
       <Excluded_Packages Name="$(BDS)\bin\dclofficexp100.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
     </Excluded_Packages><Source><Source Name="MainSource">OverbyteIcsPemTool.dpr</Source></Source></Delphi.Personality></BorlandProject></BorlandProject>
   </ProjectExtensions>
-  <Import Project="$(MSBuildBinPath)\Borland.Delphi.Targets" />
+  <Import Project="$(MSBuildBinPath)\Borland.Delphi.Targets"/>
   <ItemGroup>
     <DelphiCompile Include="OverbyteIcsPemTool.dpr">
       <MainSource>MainSource</MainSource>
     </DelphiCompile>
+    <RcCompile Include="..\Vc32\OverbyteIcsCommonVersion.rc">
+      <Form>..\Vc32\OverbyteIcsCommonVersion.res</Form>
+    </RcCompile>
+    <RcCompile Include="..\Vc32\OverbyteIcsXpManifest.rc">
+      <Form>..\Vc32\OverbyteIcsXpManifest.res</Form>
+    </RcCompile>
     <DCCReference Include="OverbyteIcsPemTool1.pas">
       <Form>frmPemTool1</Form>
     </DCCReference>

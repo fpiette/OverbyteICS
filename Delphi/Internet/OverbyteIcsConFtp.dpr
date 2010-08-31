@@ -10,7 +10,7 @@ Version:      1.00
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2001-2006 by François PIETTE
+Legal issues: Copyright (C) 2001-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -40,12 +40,16 @@ Legal issues: Copyright (C) 2001-2006 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 Updates:
+Jul 19, 2008 F.Piette made some changes for Unicode
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 program OverbyteIcsConFtp;
 
+{$R '..\Vc32\OverbyteIcsCommonVersion.res' '..\Vc32\OverbyteIcsCommonVersion.rc'}
+
 {$IFDEF VER80}
-    Bomb('Sorry, Delphi 1 does not support console mode programs');
+Bomb('Sorry, Delphi 1 does not support console mode programs');
 {$ENDIF}
 {$APPTYPE CONSOLE}
 {$IFNDEF NOFORMS}
@@ -60,7 +64,7 @@ uses
 
 const
     ConFtpVersion  = 100;
-    CopyRight      = ' ConFtp (c) 2001-2006 by Francois PIETTE. V1.00';
+    CopyRight      = ' ConFtp (c) 2001-2010 by Francois PIETTE. V1.00';
 
 type
     { We use TConApplication class (actually a component) to encapsulate all }
@@ -118,7 +122,7 @@ begin
     FFtpCli.OnRequestDone := FtpRequestDone;
 
     { Delete existing file }
-    DeleteFile(FFtpCli.LocalFileName);
+    _DeleteFile(FFtpCli.LocalFileName);
 
     { Start FTP transfert by connecting to the server }
     WriteLn('Connecting to ', FFtpCli.HostName, '/', FFtpCli.Port);
@@ -153,7 +157,7 @@ begin
 
     { Check status }
     if ErrorCode <> 0 then begin
-        WriteLn('Failed, error #' + IntToStr(ErrorCode));
+        WriteLn('Failed, error #' + _IntToStr(ErrorCode));
         FFtpCli.Abort;
         EndFlag := TRUE;
     end
@@ -190,7 +194,7 @@ begin
             end;
         else
             begin
-                WriteLn('Unknown FtpRequest ' + IntToStr(Ord(RqType)));
+                WriteLn('Unknown FtpRequest ' + _IntToStr(Ord(RqType)));
                 EndFlag := TRUE;
             end;
         end;
@@ -206,7 +210,7 @@ begin
         WriteLn('Hit ENTER key to return quit program...');
         ReadLn;
         { Break message loop we called from the execute method }
-        PostMessage(FFtpCli.ControlSocket.Handle, WM_QUIT, 0, 0);
+        _PostMessage(FFtpCli.ControlSocket.Handle, WM_QUIT, 0, 0);
     end;
 end;
 

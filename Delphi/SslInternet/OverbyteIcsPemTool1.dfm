@@ -1,11 +1,11 @@
 object frmPemTool1: TfrmPemTool1
-  Left = 274
-  Top = 192
-  ClientHeight = 318
-  ClientWidth = 527
+  Left = 212
+  Top = 124
+  ClientHeight = 394
+  ClientWidth = 533
   Color = clBtnFace
-  Constraints.MinHeight = 372
-  Constraints.MinWidth = 535
+  Constraints.MinHeight = 379
+  Constraints.MinWidth = 527
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
@@ -20,12 +20,12 @@ object frmPemTool1: TfrmPemTool1
   OnCreate = FormCreate
   OnShow = FormShow
   DesignSize = (
-    527
-    318)
+    533
+    394)
   PixelsPerInch = 96
   TextHeight = 14
   object btnShowCert: TButton
-    Left = 448
+    Left = 454
     Top = 24
     Width = 75
     Height = 21
@@ -37,20 +37,24 @@ object frmPemTool1: TfrmPemTool1
   object PageControl1: TPageControl
     Left = 2
     Top = 2
-    Width = 435
-    Height = 316
+    Width = 450
+    Height = 364
     ActivePage = TabCertLv
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
     OnChange = PageControl1Change
     object TabCertLv: TTabSheet
       Caption = 'Certificates'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
-        427
-        287)
+        442
+        335)
       object Label4: TLabel
         Left = 4
-        Top = 266
+        Top = 314
         Width = 47
         Height = 14
         Anchors = [akLeft, akBottom]
@@ -59,8 +63,8 @@ object frmPemTool1: TfrmPemTool1
       object LvCerts: TListView
         Left = 4
         Top = 6
-        Width = 419
-        Height = 250
+        Width = 434
+        Height = 298
         Anchors = [akLeft, akTop, akRight, akBottom]
         Columns = <
           item
@@ -92,8 +96,8 @@ object frmPemTool1: TfrmPemTool1
         OnDblClick = LvCertsDblClick
       end
       object btnRefresh: TButton
-        Left = 352
-        Top = 263
+        Left = 367
+        Top = 311
         Width = 71
         Height = 21
         Anchors = [akRight, akBottom]
@@ -103,8 +107,8 @@ object frmPemTool1: TfrmPemTool1
       end
       object CurrentCertDirEdit: TEdit
         Left = 54
-        Top = 262
-        Width = 129
+        Top = 310
+        Width = 144
         Height = 22
         Anchors = [akLeft, akRight, akBottom]
         TabOrder = 1
@@ -112,8 +116,8 @@ object frmPemTool1: TfrmPemTool1
         OnChange = CurrentCertDirEditChange
       end
       object btnDeleteCert: TButton
-        Left = 272
-        Top = 263
+        Left = 287
+        Top = 311
         Width = 75
         Height = 21
         Anchors = [akRight, akBottom]
@@ -122,8 +126,8 @@ object frmPemTool1: TfrmPemTool1
         OnClick = btnDeleteCertClick
       end
       object btnCopyCert: TButton
-        Left = 192
-        Top = 263
+        Left = 207
+        Top = 311
         Width = 75
         Height = 21
         Anchors = [akRight, akBottom]
@@ -140,12 +144,12 @@ object frmPemTool1: TfrmPemTool1
       ExplicitWidth = 0
       ExplicitHeight = 0
       DesignSize = (
-        427
-        287)
+        442
+        335)
       object Bevel2: TBevel
         Left = 4
-        Top = 236
-        Width = 419
+        Top = 264
+        Width = 434
         Height = 64
         Anchors = [akLeft, akTop, akRight]
         Shape = bsFrame
@@ -153,8 +157,8 @@ object frmPemTool1: TfrmPemTool1
       object Bevel1: TBevel
         Left = 4
         Top = 6
-        Width = 419
-        Height = 225
+        Width = 434
+        Height = 247
         Anchors = [akLeft, akTop, akRight]
         Shape = bsFrame
       end
@@ -197,8 +201,8 @@ object frmPemTool1: TfrmPemTool1
         ParentFont = False
       end
       object Label6: TLabel
-        Left = 18
-        Top = 240
+        Left = 16
+        Top = 270
         Width = 26
         Height = 14
         Caption = 'Misc'
@@ -216,7 +220,6 @@ object frmPemTool1: TfrmPemTool1
         Height = 22
         Hint = 'Select a Windows store type'
         Style = csDropDownList
-        ItemHeight = 14
         TabOrder = 0
         Items.Strings = (
           'Certificate Authorities'
@@ -235,7 +238,7 @@ object frmPemTool1: TfrmPemTool1
       end
       object CheckBoxWarnDestNotEmpty: TCheckBox
         Left = 106
-        Top = 138
+        Top = 146
         Width = 243
         Height = 17
         Caption = 'Warn me if destination folder is not empty'
@@ -245,7 +248,7 @@ object frmPemTool1: TfrmPemTool1
       end
       object CheckBoxOverwriteExisting: TCheckBox
         Left = 106
-        Top = 156
+        Top = 164
         Width = 243
         Height = 17
         Hint = 
@@ -257,7 +260,7 @@ object frmPemTool1: TfrmPemTool1
       end
       object CheckBoxEmptyDestDir: TCheckBox
         Left = 106
-        Top = 174
+        Top = 182
         Width = 243
         Height = 17
         Hint = 'Warning! - deletes any file in destination folder '
@@ -265,34 +268,51 @@ object frmPemTool1: TfrmPemTool1
         TabOrder = 4
       end
       object btnImport: TButton
-        Left = 106
-        Top = 198
+        Left = 104
+        Top = 222
         Width = 229
         Height = 21
         Caption = 'Start import from Windows'
-        TabOrder = 5
+        TabOrder = 6
         OnClick = btnImportClick
       end
       object btnImportPemFile: TButton
         Left = 102
-        Top = 258
+        Top = 284
         Width = 231
         Height = 21
         Caption = 'Import/Hash a PEM Cert File to Destination Dir.'
-        TabOrder = 6
+        TabOrder = 7
         OnClick = btnImportPemFileClick
+      end
+      object CheckBoxWriteToBundle: TCheckBox
+        Left = 106
+        Top = 200
+        Width = 145
+        Height = 17
+        Caption = 'Create a CA bundle file'
+        TabOrder = 5
       end
     end
   end
   object About: TButton
-    Left = 448
-    Top = 291
+    Left = 454
+    Top = 345
     Width = 75
     Height = 21
     Anchors = [akRight, akBottom]
     Caption = '&About'
     TabOrder = 2
     OnClick = AboutClick
+  end
+  object ProgressBar1: TProgressBar
+    Left = 454
+    Top = 4
+    Width = 73
+    Height = 16
+    Anchors = [akTop, akRight]
+    TabOrder = 3
+    Visible = False
   end
   object pmLv: TPopupMenu
     Left = 74
@@ -461,8 +481,9 @@ object frmPemTool1: TfrmPemTool1
   end
   object OpenDlg: TOpenDialog
     Filter = 'All Files *.*|*.*|PEM Files *.pem|*.pem'
-    Left = 40
-    Top = 240
+    Options = [ofHideReadOnly, ofNoChangeDir, ofEnableSizing]
+    Left = 48
+    Top = 232
   end
   object MainMenu1: TMainMenu
     Left = 254
@@ -477,12 +498,44 @@ object frmPemTool1: TfrmPemTool1
     object MMExtras: TMenuItem
       Caption = '&Extras'
       object MMExtrasCreateSelfSignedCert: TMenuItem
-        Caption = 'Create a &self-signed certificate..'
+        Caption = 'Create a self-signed certificate..'
         OnClick = MMExtrasCreateSelfSignedCertClick
       end
       object MMExtrasCreateCertRequest: TMenuItem
-        Caption = 'Create a certificate &request..'
+        Caption = 'Create a certificate request..'
         OnClick = MMExtrasCreateCertRequestClick
+      end
+      object N3: TMenuItem
+        Caption = '-'
+      end
+      object MMExtrasEncryptStringRSA: TMenuItem
+        Caption = 'RSA encrypt/decrypt..'
+        OnClick = MMExtrasEncryptStringRSAClick
+      end
+      object N4: TMenuItem
+        Caption = '-'
+      end
+      object MMExtrasEncryptStringBlowfish: TMenuItem
+        Caption = 'Blowfish encrypt/decrypt string'
+        OnClick = MMExtrasEncryptStringBlowfishClick
+      end
+      object N5: TMenuItem
+        Caption = '-'
+      end
+      object MMExtrasEncryptStreamBlowfish: TMenuItem
+        Caption = 'Blowfish encrypt/decrypt stream'
+        OnClick = MMExtrasEncryptStreamBlowfishClick
+      end
+      object N6: TMenuItem
+        Caption = '-'
+      end
+      object MMExtrasEncryptFileBlowfish: TMenuItem
+        Caption = 'Blowfish encrypt file..'
+        OnClick = MMExtrasEncryptFileBlowfishClick
+      end
+      object MMExtrasDecryptFileBlowfish: TMenuItem
+        Caption = 'Blowfish decrypt file..'
+        OnClick = MMExtrasDecryptFileBlowfishClick
       end
     end
   end

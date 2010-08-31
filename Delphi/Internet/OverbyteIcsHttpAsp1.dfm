@@ -1,9 +1,9 @@
 object HttpTestForm: THttpTestForm
   Left = 193
   Top = 246
-  Width = 372
-  Height = 326
   Caption = 'HttpAsp - http://www.overbyte.be'
+  ClientHeight = 292
+  ClientWidth = 364
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -89,6 +89,7 @@ object HttpTestForm: THttpTestForm
     BandwidthLimit = 10000
     BandwidthSampling = 1000
     Options = []
+    Timeout = 30
     SocksLevel = '5'
     SocksAuthentication = socksNoAuthentication
     Left = 16

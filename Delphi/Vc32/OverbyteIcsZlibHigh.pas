@@ -2,7 +2,7 @@
 
 Author:       Angus Robertson, Magenta Systems Ltd
 Creation:     15 December 2005
-Version:      6.01
+Version:      6.03
 Description:  High level functions for ZLIB compression and decompression
 Credit:       Based on work by Gabriel Corneanu <gabrielcorneanu(AT)yahoo.com>
               Derived from original sources by Bob Dellaca and Cosmin Truta.
@@ -10,7 +10,7 @@ Credit:       Based on work by Gabriel Corneanu <gabrielcorneanu(AT)yahoo.com>
 EMail:        francois.piette@overbyte.be      http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2007 by François PIETTE
+Legal issues: Copyright (C) 2004-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -47,6 +47,9 @@ Mar 26, 2006 V6.00 F. Piette started new version 6
                   added ZlibDecompressStreamEx with callback functions
                   added ZlibErrMess to report zlib error messages as literals
                   added TZlibProgress callback
+May 02, 2008 V6.02 A.Garrels prepared code for Unicode, type-changes from String
+                   and PChar to AnsiString and PAnsiChar.
+Aug 05, 2008 V6.03 F. Piette reverted ZlibErrMess to from AnsiString to String.
 
 pending: compress callback not correct total count
 
@@ -60,13 +63,17 @@ interface
 {$Q-}
 {$I OverbyteIcsDefs.inc}
 {$I OverbyteIcsZlib.inc}
-
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 uses
     SysUtils, Classes,
 {$IFDEF USE_ZLIB_OBJ}
     OverbyteIcsZLibObj;             {interface to access ZLIB C OBJ files}
 {$ELSE}
-    IcsZLibDll;                     {interface to access zLib1.dll}
+    OverbyteIcsZLibDll;             {interface to access zLib1.dll} { AG V6.02 }
 {$ENDIF}
 
 
@@ -81,10 +88,10 @@ type
   TZBack = record
     InStream  : TStream;
     OutStream : TStream;
-    InMem     : PChar; //direct memory access
+    InMem     : PAnsiChar; //direct memory access
     InMemSize : integer;
-    ReadBuf   : array[word] of char;
-    Window    : array[0..WindowSize] of char;
+    ReadBuf   : array[word] of AnsiChar;
+    Window    : array[0..WindowSize] of AnsiChar;
     MainObj   : TObject; // Angus
     ProgressCallback : TZlibProg; { V6.01 }
     Count     : Int64;  { V6.01 }
@@ -105,7 +112,7 @@ const
      Z_NO_COMPRESSION, Z_BEST_SPEED, 2, 3, 4, 5, 6, 7, 8, Z_BEST_COMPRESSION) ;
 
 function ZlibGetDllLoaded: boolean ;
-function ZlibGetVersionDll: string ;
+function ZlibGetVersionDll: AnsiString ;
 function ZlibCCheck(code: Integer): Integer;
 function ZlibDCheck(code: Integer): Integer;
 procedure ZlibDecompressStream(InStream, OutStream: TStream);
@@ -133,7 +140,7 @@ begin
 end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function ZlibGetVersionDll: string ;
+function ZlibGetVersionDll: AnsiString ;
 begin
     result := zlibVersionDll ;
 end ;
@@ -152,7 +159,7 @@ begin
         Z_BUF_ERROR     : Result := 'Buffer error';
         Z_VERSION_ERROR : Result := 'Version error';
     else
-        Result := 'Unknown error ' + IntToStr (code);
+        Result := 'Unknown error ' + IntToStr(code);
     end;
 end;
 
@@ -161,7 +168,7 @@ function ZlibCCheck(code: Integer): Integer;
 begin
   Result := code;
   if code < 0 then
-    raise ECompressionError.Create(ZlibErrMess (code));  //!! angus added code
+    raise ECompressionError.Create(ZlibErrMess(code));  //!! angus added code
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -169,7 +176,7 @@ function ZlibDCheck(code: Integer): Integer;
 begin
   Result := code;
   if code < 0 then
-    raise EDecompressionError.Create(ZlibErrMess (code));  //!! angus added code
+    raise EDecompressionError.Create(ZlibErrMess(code));  //!! angus added code
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -205,7 +212,7 @@ end;
 function ZlibCheckInitInflateStream (var strm: TZStreamRec;
                                     gzheader: gz_headerp): TZStreamType;
 var
-  InitBuf: PChar;
+  InitBuf: PAnsiChar;
   InitIn : integer;
 
   function TryStreamType(AStreamType: TZStreamType): boolean;
@@ -350,7 +357,7 @@ const
   BufSize = 65536;
 var
   strm   : z_stream;
-  InBuf, OutBuf : PChar;
+  InBuf, OutBuf : PAnsiChar;
   UseInBuf, UseOutBuf : boolean;
   LastOutCount : integer;
   Finished : boolean;

@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:  Demonstration for Client program using TWSocket.
 Creation:     8 december 1997
-Version:      6.06
+Version:      1.07
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -46,6 +46,8 @@ Jul 30, 2006 V1.06 Added checkboxes to allow adding CRLF or not and to allow
                    embedded binary chars. To enter a binary char in the edit
                    box, simply enter a $ followed by thow digit hex ascii code.
                    To enter a $ sign, enter $24.
+Dec 20, 2008 V1.07 Replace StrPas by a string cast. Removed an implicit
+                   conversion to string by an explicit to avoid a warning.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -54,15 +56,14 @@ unit OverbyteIcsCliDemo1;
 interface
 
 uses
-  WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, IniFiles, ExtCtrls,
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, OverbyteIcsIniFiles, ExtCtrls,
   { Don't forget to add your vc32 directory to Delphi library path }
   OverbyteIcsWSocket, OverbyteIcsWndControl;
 
 const
-  CliDemoVersion     = 606;
-  CopyRight : String = ' CliDemo (c) 1997-2008 F. Piette V6.06 ';
-  IniFileName        = 'OverbyteIcsCliDemo.ini';
+  CliDemoVersion     = 107;
+  CopyRight : String = ' CliDemo (c) 1997-2010 F. Piette V1.07 ';
 
 type
   TClientForm = class(TForm)
@@ -90,6 +91,7 @@ type
   private
     Buffer       : array [0..1023] of AnsiChar;
     Initialized  : Boolean;
+    IniFileName  : String;
     procedure Display(Msg : String);
     procedure ProcessCommand(Cmd : String);
     procedure SendData;
@@ -172,7 +174,7 @@ begin
     { First remove EndOfLine marker                                         }
     if (Length(Cmd) >= Length(CliSocket.LineEnd)) and
        (Copy(Cmd, Length(Cmd) - Length(CliSocket.LineEnd) + 1,
-             Length(CliSocket.LineEnd)) = CliSocket.LineEnd) then
+             Length(CliSocket.LineEnd)) = String(CliSocket.LineEnd)) then
         Cmd := Copy(Cmd, 1, Length(Cmd) - Length(CliSocket.LineEnd));
     { Then display in memo                                                  }
     Display(Cmd);
@@ -190,7 +192,7 @@ begin
         Exit;
 
     Buffer[Len]       := #0;              { Nul terminate  }
-    ProcessCommand(StrPas(Buffer));       { Pass as string }
+    ProcessCommand(String(Buffer));       { Pass as string }
 end;
 
 
@@ -223,9 +225,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TClientForm.FormClose(Sender: TObject; var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(IniFileName);
+    IniFile := TIcsIniFile.Create(IniFileName);
     IniFile.WriteInteger('Window', 'Top',    Top);
     IniFile.WriteInteger('Window', 'Left',   Left);
     IniFile.WriteInteger('Window', 'Width',  Width);
@@ -233,6 +235,7 @@ begin
     IniFile.WriteString('Data', 'Server',  ServerEdit.Text);
     IniFile.WriteString('Data', 'Port',    PortEdit.Text);
     IniFile.WriteString('Data', 'Command', SendEdit.Text);
+    IniFile.UpdateFile;
     IniFile.Free;
 end;
 
@@ -240,12 +243,13 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TClientForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
     if Initialized then
         Exit;
-    Initialized := TRUE;
-    IniFile         := TIniFile.Create(IniFileName);
+    Initialized     := TRUE;
+    IniFileName     := GetIcsIniFileName;
+    IniFile         := TIcsIniFile.Create(IniFileName);
     
     Top             := IniFile.ReadInteger('Window', 'Top',    Top);
     Left            := IniFile.ReadInteger('Window', 'Left',   Left);

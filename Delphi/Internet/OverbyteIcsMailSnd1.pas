@@ -4,11 +4,11 @@
 Author:       François PIETTE
 Object:       How to use TSmtpCli component
 Creation:     09 october 1997
-Version:      6.02
+Version:      6.08
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -63,7 +63,16 @@ Oct 29, 2006  V6.01 Fixed memory leak in PrepareEMail
               Added compiler switches and DELPHI7_UP check.
               Added D2006 memory leak detection
 Nov 05, 2006  V6.02 Fixed typo error in AuthComboBox. Added NTLM.
-
+Apr 25, 2008  V6.03 A.Garrels made some changes to prepare the code for Unicode.
+              Added button "Send To File" and assigned event OnAttachContentTypeEh.  
+Jul 23, 2008  V6.04 A. Garrels changed code in OnGetDate event handler to prepare
+              code for Unicode.
+Aug 03, 2008  V6.05 A. Garrels changed code in OnGetDate event handler to prepare
+              code for Unicode again
+Jan 17, 2009  V6.06 A. Garrels added a progress bar and RFC-1870 SIZE extension.
+May 10, 2009  V6.07 A. Garrels added charset and code page properties which
+              makes it easy to play with and test the new features.
+May 17, 2009  V6.08 A.Garrels added correct casts to PAnsiChar in SmtpClientHeaderLine.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMailSnd1;
@@ -86,36 +95,23 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Controls, StdCtrls, ExtCtrls, Forms,
-  IniFiles, OverbyteIcsWndControl, OverbyteIcsSmtpProt;
+  Dialogs, ComCtrls, Contnrs,
+  OverbyteIcsCharsetComboBox,
+  OverbyteIcsIniFiles,
+  OverbyteIcsCharsetUtils,
+  OverbyteIcsWndControl,
+  OverbyteIcsSmtpProt;
 
 const
-    SmtpTestVersion    = 6.02;
-    CopyRight : String = ' MailSnd (c) 1997-2007 F. Piette V6.02 ';
+    SmtpTestVersion    = 6.08;
+    CopyRight : String = ' MailSnd (c) 1997-2010 F. Piette V6.08 ';
 
 type
   TSmtpTestForm = class(TForm)
     MsgMemo: TMemo;
     DisplayMemo: TMemo;
     ToolsPanel: TPanel;
-    Label1: TLabel;
-    Label2: TLabel;
-    Label3: TLabel;
-    Subject: TLabel;
-    Label4: TLabel;
     Label5: TLabel;
-    Label8: TLabel;
-    Label9: TLabel;
-    Label10: TLabel;
-    Label11: TLabel;
-    Label12: TLabel;
-    Label13: TLabel;
-    Label14: TLabel;
-    HostEdit: TEdit;
-    FromEdit: TEdit;
-    ToEdit: TEdit;
-    SubjectEdit: TEdit;
-    SignOnEdit: TEdit;
-    PortEdit: TEdit;
     ClearDisplayButton: TButton;
     ConnectButton: TButton;
     HeloButton: TButton;
@@ -126,22 +122,64 @@ type
     QuitButton: TButton;
     MailButton: TButton;
     OpenButton: TButton;
-    UsernameEdit: TEdit;
-    PasswordEdit: TEdit;
-    AuthComboBox: TComboBox;
     EhloButton: TButton;
     AuthButton: TButton;
-    CcEdit: TEdit;
-    BccEdit: TEdit;
     AllInOneButton: TButton;
-    PriorityComboBox: TComboBox;
-    ConfirmCheckBox: TCheckBox;
     AttachPanel: TPanel;
     Label6: TLabel;
     FileAttachMemo: TMemo;
     InfoPanel: TPanel;
     Label7: TLabel;
     SmtpClient: TSmtpCli;
+    SendToFileButton: TButton;
+    MsgSizeButton: TButton;
+    ProgressBar1: TProgressBar;
+    ProgressCheckBox: TCheckBox;
+    MailFromSIZEButton: TButton;
+    SettingsPageControl: TPageControl;
+    BasicSettingsTabSheet: TTabSheet;
+    Label1: TLabel;
+    HostEdit: TEdit;
+    Label4: TLabel;
+    PortEdit: TEdit;
+    Label2: TLabel;
+    FromEdit: TEdit;
+    ToEdit: TEdit;
+    Label3: TLabel;
+    Label12: TLabel;
+    CcEdit: TEdit;
+    Label13: TLabel;
+    BccEdit: TEdit;
+    Subject: TLabel;
+    SubjectEdit: TEdit;
+    Label8: TLabel;
+    SignOnEdit: TEdit;
+    Label9: TLabel;
+    UsernameEdit: TEdit;
+    Label10: TLabel;
+    PasswordEdit: TEdit;
+    Label11: TLabel;
+    AuthComboBox: TComboBox;
+    Label14: TLabel;
+    PriorityComboBox: TComboBox;
+    ConfirmCheckBox: TCheckBox;
+    CharsetSettingsTabSheet: TTabSheet;
+    UseMailMessageCheckBox: TCheckBox;
+    CharSetPanel: TPanel;
+    Label15: TLabel;
+    CharsetTestButton: TButton;
+    ConvertToCharsetCheckBox: TCheckBox;
+    Allow8BitCheckBox: TCheckBox;
+    DefEnc: TLabel;
+    DefEncodingComboBox: TComboBox;
+    FoldHeadersCheckBox: TCheckBox;
+    WrapTextCheckBox: TCheckBox;
+    Label16: TLabel;
+    WrapAtEdit: TEdit;
+    Label17: TLabel;
+    CharsetInfoLabel1: TLabel;
+    ToggleCsViewButton: TButton;
+    IcsCharsetComboBox1: TIcsCharsetComboBox;
     procedure FormCreate(Sender: TObject);
     procedure ClearDisplayButtonClick(Sender: TObject);
     procedure ConnectButtonClick(Sender: TObject);
@@ -165,12 +203,26 @@ type
       MsgLine: Pointer; MaxLen: Integer; var More: Boolean);
     procedure SmtpClientHeaderLine(Sender: TObject; Msg: Pointer;
       Size: Integer);
+    procedure SendToFileButtonClick(Sender: TObject);
+    procedure SmtpClientAttachContentTypeEh(Sender: TObject;
+      FileNumber: Integer; var FileName, ContentType: string;
+      var AttEncoding: TSmtpEncoding);
+    procedure MsgSizeButtonClick(Sender: TObject);
+    procedure SmtpClientMessageDataSent(Sender: TObject; Size: Integer);
+    procedure MailFromSIZEButtonClick(Sender: TObject);
+    procedure CharsetTestButtonClick(Sender: TObject);
+    procedure ToggleCsViewButtonClick(Sender: TObject);
+    procedure IcsCharsetComboBox1Change(Sender: TObject);
   private
     FIniFileName  : String;
     FInitialized  : Boolean;
     FAllInOneFlag : Boolean;
+    FByteCount    : Integer;
+    FCounter      : Integer;
     procedure Display(const Msg : String);
     procedure ExceptionHandler(Sender: TObject; E: Exception);
+    procedure SmtpClientBeforeOutStreamFree(Sender: TObject);
+    procedure PrepareProgressBar;
   end;
 
 var
@@ -203,21 +255,27 @@ const
     KeyFileAttach     = 'File';
     SectionMsgMemo    = 'Message';
     KeyMsgMemo        = 'Msg';
+    KeyProgress       = 'Progress';
+    KeyConvertToCharset = 'ConvertToCharset';
+    KeyUseOnGetData   = 'UseOnGetData';
+    KeyAllow8Bit      = 'Allow8bit';
+    KeyFoldHeaders    = 'FoldHeaders';
+    KeyWrapText       = 'WrapText';
+    KeyWrapAt         = 'WrapAt';
+    KeyCharSet        = 'Charset';
+    KeyDefTransEnc    = 'DefaultTransferEncoding';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure SaveStringsToIniFile(
-    const IniFileName : String;
+    IniFile           : TIcsIniFile;
     const IniSection  : String;
     const IniKey      : String;
     Strings           : TStrings);
-var
-    IniFile : TIniFile;
+var 
     nItem   : Integer;
 begin
-    if (IniFileName = '') or (IniSection = '') or (IniKey = '') or
-       (not Assigned(Strings)) then
+    if (IniSection = '') or (IniKey = '') or (not Assigned(Strings)) then
         Exit;
-    IniFile := TIniFile.Create(IniFileName);
     IniFile.EraseSection(IniSection);
     if Strings.Count <= 0 then
         IniFile.WriteString(IniSection, IniKey + 'EmptyFlag', 'Empty')
@@ -226,43 +284,37 @@ begin
             IniFile.WriteString(IniSection,
                                 IniKey + IntToStr(nItem),
                                 Strings.Strings[nItem]);
-    IniFile.Free;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Return FALSE if non existant in IniFile                                   }
 function LoadStringsFromIniFile(
-    const IniFileName : String;
+    IniFile           : TIcsIniFile;
     const IniSection  : String;
     const IniKey      : String;
     Strings           : TStrings) : Boolean;
 var
-    IniFile : TIniFile;
     nItem   : Integer;
     I       : Integer;
     Buf     : String;
 begin
     Result := TRUE;
-    if (IniFileName = '') or (IniSection = '') or (IniKey = '') or
-       (not Assigned(Strings)) then
+    if (IniSection = '') or (IniKey = '') or (not Assigned(Strings)) then
         Exit;
     Strings.Clear;
-    IniFile := TIniFile.Create(IniFileName);
-    try
-        if IniFile.ReadString(IniSection, IniKey + 'EmptyFlag', '') <> '' then
-             Exit;
-        IniFile.ReadSectionValues(IniSection, Strings);
-    finally
-        IniFile.Free;
-    end;
+    if IniFile.ReadString(IniSection, IniKey + 'EmptyFlag', '') <> '' then
+        Exit;
+    IniFile.ReadSectionValues(IniSection, Strings);
     nItem := Strings.Count - 1;
     while nItem >= 0 do begin
         Buf := Strings.Strings[nItem];
         if CompareText(IniKey, Copy(Buf, 1, Length(IniKey))) <> 0 then
             Strings.Delete(nItem)
         else begin
-            if not (Buf[Length(IniKey) + 1] in ['0'..'9']) then
+            if (Ord(Buf[Length(IniKey) + 1]) < Ord('0')) or
+               (Ord(Buf[Length(IniKey) + 1]) > Ord('9')) then
+            //if not (Buf[Length(IniKey) + 1] in ['0'..'9']) then
                 Strings.Delete(nItem)
             else begin
                 I := Pos('=', Buf);
@@ -298,13 +350,46 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSmtpTestForm.PrepareProgressBar;
+var
+    OldOnRequestDone : TSmtpRequestDone;
+begin
+    SmtpClient.MessageSize := 0;
+    if ProgressCheckBox.Checked then begin
+        OldOnRequestDone := SmtpClient.OnRequestDone;
+        { Let's turn off OnRequestDone temporarily               }
+        SmtpClient.OnRequestDone := nil;
+        try
+            { Precompute message size, this might take a while,  }
+            { base64 attachment size however is just computed.   }
+            { Message size is written to property MessageSize.   }
+            { CalcMsgSizeSync is a synchronous (blocking) method }
+            { Do not expect 100% exact values returned by this   }
+            { function, though they are pretty exact.            }
+            SmtpClient.CalcMsgSizeSync;
+        finally
+            SmtpClient.OnRequestDone := OldOnRequestDone;
+        end;
+        ProgressBar1.Max := SmtpClient.MessageSize;
+        FByteCount       := 0;
+        FCounter         := 0;
+        ProgressBar1.Min := 0;
+        SmtpClient.OnMessageDataSent := SmtpClientMessageDataSent;
+    end
+    else
+        SmtpClient.OnMessageDataSent := nil;
+    ProgressBar1.Position := 0;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSmtpTestForm.FormCreate(Sender: TObject);
 begin
     Application.OnException := ExceptionHandler;
     DisplayMemo.Clear;
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
-{$IFDEF DELPHI10}
+    FIniFileName := GetIcsIniFileName;
+    IcsCharsetComboBox1.IncludeList := IcsCharsetComboBox1.IncludeList + [UTF_7];
+{$IFDEF DELPHI10_UP}
     // BDS2006 has built-in memory leak detection and display
     ReportMemoryLeaksOnShutdown := (DebugHook <> 0);
 {$ENDIF}
@@ -314,11 +399,14 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSmtpTestForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile    : TIcsIniFile;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
-        IniFile := TIniFile.Create(FIniFileName);
+        Application.HintHidePause := MaxInt;
+        SettingsPageControl.ActivePageIndex := 0;
+        CharsetInfoLabel1.Caption := '';
+        IniFile := TIcsIniFile.Create(FIniFileName);
         HostEdit.Text    := IniFile.ReadString(SectionData, KeyHost,
                                                'localhost');
         PortEdit.Text    := IniFile.ReadString(SectionData, KeyPort,
@@ -335,18 +423,33 @@ begin
                                                'This is the message subject');
         SignOnEdit.Text  := IniFile.ReadString(SectionData, KeySignOn,
                                                'your name');
-        UsernameEdit.Text :=  IniFile.ReadString(SectionData, KeyUser,
+        UsernameEdit.Text := IniFile.ReadString(SectionData, KeyUser,
                                                'account name');
-        PasswordEdit.Text      :=  IniFile.ReadString(SectionData, KeyPass,
+        PasswordEdit.Text := IniFile.ReadString(SectionData, KeyPass,
                                                'account password');
         AuthComboBox.ItemIndex     := IniFile.ReadInteger(SectionData, KeyAuth, 0);
         PriorityComboBox.ItemIndex := IniFile.ReadInteger(SectionData, KeyPriority, 2);
         ConfirmCheckBox.Checked    := Boolean(IniFile.ReadInteger(SectionData, KeyConfirm, 0));
-
-        if not LoadStringsFromIniFile(FIniFileName, SectionFileAttach,
+        ProgressCheckBox.Checked   := IniFile.ReadBool(SectionData, KeyProgress, False);
+        ConvertToCharsetCheckBox.Checked := IniFile.ReadBool(SectionData, KeyConvertToCharset, False);
+        {$IFDEF UNICODE}
+            { In Delphi 2009 we have to convert from UTF-16 always, property }
+            { ConvertToCharset is ignored in 2009 and better.                }
+            ConvertToCharsetCheckBox.Visible := FALSE;
+        {$ENDIF}
+        UseMailMessageCheckBox.Checked := IniFile.ReadBool(SectionData, KeyUseOnGetData, False);
+        Allow8BitCheckBox.Checked := IniFile.ReadBool(SectionData, KeyAllow8bit, True);
+        FoldHeadersCheckBox.Checked := IniFile.ReadBool(SectionData, KeyFoldHeaders, False);
+        WrapTextCheckBox.Checked := IniFile.ReadBool(SectionData, KeyWrapText, False);
+        WrapAtEdit.Text := IniFile.ReadString(SectionData, KeyWrapAt, '76');
+        IcsCharsetComboBox1.Charset := IniFile.ReadString(SectionData, KeyCharset, SmtpClient.CharSet);
+        DefEncodingComboBox.ItemIndex := IniFile.ReadInteger(SectionData, KeyDefTransEnc, 0);
+        if not LoadStringsFromIniFile(IniFile, SectionFileAttach,
                                       KeyFileAttach, FileAttachMemo.Lines) then
-        FileAttachMemo.Text := 'ics_logo.gif' + #13#10 + 'fp_small.gif';
-        if not LoadStringsFromIniFile(FIniFileName, SectionMsgMemo,
+            FileAttachMemo.Text := ExtractFilePath(ParamStr(0)) +
+                                   'ics_logo.gif' + #13#10 +
+                                    ExtractFilePath(ParamStr(0)) + 'fp_small.gif';
+        if not LoadStringsFromIniFile(IniFile, SectionMsgMemo,
                                       KeyMsgMemo, MsgMemo.Lines) then
             MsgMemo.Text :=
             'This is the first line' + #13#10 +
@@ -360,7 +463,6 @@ begin
         Left   := IniFile.ReadInteger(SectionWindow, KeyLeft,   (Screen.Width - Width) div 2);
         Width  := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         Height := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
-
         IniFile.Free;
     end;
 end;
@@ -370,9 +472,9 @@ end;
 procedure TSmtpTestForm.FormClose(Sender: TObject;
   var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteString(SectionData, KeyHost,      HostEdit.Text);
     IniFile.WriteString(SectionData, KeyPort,      PortEdit.Text);
     IniFile.WriteString(SectionData, KeyFrom,      FromEdit.Text);
@@ -386,53 +488,43 @@ begin
     IniFile.WriteInteger(SectionData, KeyAuth,     AuthComboBox.ItemIndex);
     IniFile.WriteInteger(SectionData, KeyPriority, PriorityComboBox.ItemIndex);
     IniFile.WriteInteger(SectionData, KeyConfirm,  Ord(ConfirmCheckBox.Checked));
-    SaveStringsToIniFile(FIniFileName, SectionFileAttach,
+    IniFile.WriteBool(SectionData,    KeyProgress, ProgressCheckBox.Checked);
+    IniFile.WriteBool(SectionData, KeyConvertToCharset, ConvertToCharsetCheckBox.Checked);
+    IniFile.WriteBool(SectionData, KeyUseOnGetData, UseMailMessageCheckBox.Checked);
+    IniFile.WriteBool(SectionData, KeyAllow8bit, Allow8BitCheckBox.Checked);
+    IniFile.WriteBool(SectionData, KeyFoldHeaders, FoldHeadersCheckBox.Checked);
+    IniFile.WriteBool(SectionData, KeyWrapText, WrapTextCheckBox.Checked);
+    IniFile.WriteString(SectionData, KeyWrapAt, WrapAtEdit.Text);
+    IniFile.WriteString(SectionData, KeyCharset, IcsCharsetComboBox1.CharSet);
+    IniFile.WriteInteger(SectionData, KeyDefTransEnc, DefEncodingComboBox.ItemIndex);
+    SaveStringsToIniFile(IniFile, SectionFileAttach,
                          KeyFileAttach, FileAttachMemo.Lines);
-    SaveStringsToIniFile(FIniFileName, SectionMsgMemo,
+    SaveStringsToIniFile(IniFile, SectionMsgMemo,
                          KeyMsgMemo, MsgMemo.Lines);
     IniFile.WriteInteger(SectionWindow, KeyTop,    Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,   Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,  Width);
     IniFile.WriteInteger(SectionWindow, KeyHeight, Height);
+    IniFile.UpdateFile;
     IniFile.Free;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF VER80}
-function TrimRight(Str : String) : String;
-var
-    i : Integer;
+procedure TSmtpTestForm.SmtpClientAttachContentTypeEh(Sender: TObject;
+  FileNumber: Integer; var FileName, ContentType: string;
+  var AttEncoding: TSmtpEncoding);
 begin
-    i := Length(Str);
-    while (i > 0) and (Str[i] = ' ') do
-        i := i - 1;
-    Result := Copy(Str, 1, i);
+    AttEncoding := smtpEncodeBase64;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TrimLeft(Str : String) : String;
-var
-    i : Integer;
+procedure TSmtpTestForm.SmtpClientBeforeOutStreamFree(Sender: TObject);
 begin
-    if Str[1] <> ' ' then
-        Result := Str
-    else begin
-        i := 1;
-        while (i <= Length(Str)) and (Str[i] = ' ') do
-            i := i + 1;
-        Result := Copy(Str, i, Length(Str) - i + 1);
-    end;
+    TSmtpCli(Sender).SendMode := smtpToSocket;
+    TSmtpCli(Sender).OnBeforeOutStreamFree := nil;
 end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function Trim(Str : String) : String;
-begin
-    Result := TrimLeft(TrimRight(Str));
-end;
-{$ENDIF}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -449,19 +541,12 @@ procedure TSmtpTestForm.SmtpClientGetData(
     MsgLine : Pointer;
     MaxLen  : Integer;
     var More: Boolean);
-var
-    Len : Integer;
 begin
     if LineNum > MsgMemo.Lines.count then
         More := FALSE
-    else begin
-        Len := Length(MsgMemo.Lines[LineNum - 1]);
+    else
         { Truncate the line if too long (should wrap to next line) }
-        if Len >= MaxLen then
-            StrPCopy(MsgLine, Copy(MsgMemo.Lines[LineNum - 1], 1, MaxLen - 1))
-        else
-            StrPCopy(MsgLine, MsgMemo.Lines[LineNum - 1]);
-    end;
+        StrPLCopy(PAnsiChar(MsgLine), AnsiString(MsgMemo.Lines[LineNum - 1]), MaxLen - 1);
 end;
 
 
@@ -471,12 +556,28 @@ procedure TSmtpTestForm.SmtpClientHeaderLine(
     Msg    : Pointer;
     Size   : Integer);
 begin
-    { This demonstrate how to add a line to the message header              }
+    { This demonstrates how to add a line to the message header             }
     { Just detect one of the header lines and add text at the end of this   }
-    { line. Use #13#10 to form a new line                                   }
-    { Here we check for the From: header line and add a Comments: line      }
-    if StrLIComp(Msg, 'From:', 5) = 0 then
-        StrCat(Msg, #13#10 + 'Comments: This is a test');
+    { line. Use #13#10 to form a new line.                                  }
+    { Here we check for the X-Mailer: header line and add a Comments: line  }
+    { Cast properly in order to call the right overload in D2009. Note that }
+    { long header lines can be folded, inserting into folded lines leads    }
+    { to a brocken header.                                                  }
+    if (StrLen(PAnsiChar(Msg)) > 0) and
+       (StrLIComp(PAnsiChar(Msg), PAnsiChar('X-Mailer:'), 9) = 0) then
+        StrCat(PAnsiChar(Msg), PAnsiChar(#13#10'Comments: This is a test'));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSmtpTestForm.SmtpClientMessageDataSent(
+    Sender  : TObject;
+    Size    : Integer);
+begin
+    Inc(FByteCount, Size);
+    Inc(FCounter);
+    if FCounter mod 200 = 0 then
+        ProgressBar1.Position := FByteCount;
 end;
 
 
@@ -498,10 +599,10 @@ end;
 { Connect to the mail server }
 procedure TSmtpTestForm.ConnectButtonClick(Sender: TObject);
 begin
+    ProgressBar1.Position  := 0;
     FAllInOneFlag          := FALSE;
     SmtpClient.Host        := HostEdit.Text;
     SmtpClient.Port        := PortEdit.Text;
-    SmtpClient.HdrPriority := TSmtpPriority(PriorityComboBox.ItemIndex);
     SmtpClient.Connect;
 end;
 
@@ -537,11 +638,57 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSmtpTestForm.SendToFileButtonClick(Sender: TObject);
+begin
+    { Assign property MailMessage and unassign OnGetData if you need }
+    { automatic encoding and line wrapping                           }
+    if UseMailMessageCheckBox.Checked then begin
+        SmtpClient.MailMessage        := MsgMemo.Lines;
+        SmtpClient.OnGetData          := nil;
+        SmtpClient.WrapMsgMaxLineLen  := StrToIntDef(WrapAtEdit.Text, 76);
+        SmtpClient.WrapMessageText    := WrapTextCheckBox.Checked;
+    end
+    else begin
+        SmtpClient.OnGetData   := SmtpClientGetData;
+        SmtpClient.MailMessage.Clear;
+    end;
+    FAllInOneFlag                 := FALSE;
+    SmtpClient.CharSet            := IcsCharsetComboBox1.Charset;
+    SmtpClient.ConvertToCharset   := ConvertToCharsetCheckBox.Checked;
+    SmtpClient.DefaultEncoding    := TSmtpDefaultEncoding(DefEncodingComboBox.ItemIndex);
+    SmtpClient.Allow8bitChars     := Allow8BitCheckBox.Checked;
+    SmtpClient.FoldHeaders        := FoldHeadersCheckBox.Checked;
+    SmtpClient.RcptName.Clear;
+    SmtpClient.RcptNameAdd(ToEdit.Text, CcEdit.Text, BccEdit.Text);
+    SmtpClient.HdrFrom            := FromEdit.Text;
+    SmtpClient.HdrTo              := ToEdit.Text;
+    SmtpClient.HdrCc              := CcEdit.Text;
+    SmtpClient.HdrSubject         := SubjectEdit.Text;
+    SmtpClient.HdrPriority        := TSmtpPriority(PriorityComboBox.ItemIndex);
+    SmtpClient.EmailFiles         := FileAttachMemo.Lines;
+    SmtpClient.ConfirmReceipt     := ConfirmCheckBox.Checked;
+    PrepareProgressBar;
+    with TOpenDialog.Create(nil) do
+    try
+        if Execute and (Filename <> '') then begin
+            SmtpClient.OnBeforeOutStreamFree := SmtpClientBeforeOutStreamFree;
+            Update;
+            SmtpClient.SendMode := smtpToStream;
+            SmtpClient.SendToFile(Filename); // It's async!
+        end;
+    finally
+        Free;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { If smtpAuthNone is seleted then Open combines methods Connect and Helo.   }
 {  If any other authentication type is selected then Open combines methods  }
 {  Connect, Ehlo and Auth.                                                  }
 procedure TSmtpTestForm.OpenButtonClick(Sender: TObject);
 begin
+    ProgressBar1.Position      := 0;
     FAllInOneFlag              := FALSE;
     SmtpClient.Host            := HostEdit.Text;
     SmtpClient.Port            := PortEdit.Text;
@@ -549,7 +696,6 @@ begin
     SmtpClient.Username        := UsernameEdit.Text;
     SmtpClient.Password        := PasswordEdit.Text;
     SmtpClient.AuthType        := TSmtpAuthType(AuthComboBox.ItemIndex);
-    SmtpClient.HdrPriority     := TSmtpPriority(PriorityComboBox.ItemIndex);
     SmtpClient.Open;
 end;
 
@@ -563,6 +709,18 @@ begin
     SmtpClient.MailFrom;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSmtpTestForm.MailFromSIZEButtonClick(Sender: TObject);
+begin
+    FAllInOneFlag              := FALSE;
+    Assert(SmtpClient.SizeSupported,
+          'Either the server doesn''t support the SIZE extension or ' +
+          'EHLO was not issued first');
+    Assert(SmtpClient.MessageSize > 0, 'Hit button CalcMsgSize first');
+    SmtpClient.FromName        := FromEdit.Text;
+    SmtpClient.MailFromSIZE;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Send recipients }
@@ -579,15 +737,34 @@ end;
 { Send text and attached files to mail server }
 procedure TSmtpTestForm.DataButtonClick(Sender: TObject);
 begin
-    FAllInOneFlag              := FALSE;
+    { Assign property MailMessage and unassign OnGetData if you need }
+    { automatic encoding and line wrapping                           }
+    if UseMailMessageCheckBox.Checked then begin
+        SmtpClient.MailMessage        := MsgMemo.Lines;
+        SmtpClient.OnGetData          := nil;
+        SmtpClient.WrapMsgMaxLineLen  := StrToIntDef(WrapAtEdit.Text, 76);
+        SmtpClient.WrapMessageText    := WrapTextCheckBox.Checked;
+    end
+    else begin
+        SmtpClient.OnGetData   := SmtpClientGetData;
+        SmtpClient.MailMessage.Clear;
+    end;
+    FAllInOneFlag                 := FALSE;
+    SmtpClient.CharSet            := IcsCharsetComboBox1.Charset;
+    SmtpClient.ConvertToCharset   := ConvertToCharsetCheckBox.Checked;
+    SmtpClient.DefaultEncoding    := TSmtpDefaultEncoding(DefEncodingComboBox.ItemIndex);
+    SmtpClient.Allow8bitChars     := Allow8BitCheckBox.Checked;
+    SmtpClient.FoldHeaders        := FoldHeadersCheckBox.Checked;
     SmtpClient.RcptName.Clear;
     SmtpClient.RcptNameAdd(ToEdit.Text, CcEdit.Text, BccEdit.text);
-    SmtpClient.HdrFrom         := FromEdit.Text;
-    SmtpClient.HdrTo           := ToEdit.Text;
-    SmtpClient.HdrCc           := CcEdit.Text;
-    SmtpClient.HdrSubject      := SubjectEdit.Text;
-    SmtpClient.EmailFiles      := FileAttachMemo.Lines;
-    SmtpClient.ConfirmReceipt  := ConfirmCheckBox.Checked;
+    SmtpClient.HdrFrom            := FromEdit.Text;
+    SmtpClient.HdrTo              := ToEdit.Text;
+    SmtpClient.HdrCc              := CcEdit.Text;
+    SmtpClient.HdrSubject         := SubjectEdit.Text;
+    SmtpClient.HdrPriority        := TSmtpPriority(PriorityComboBox.ItemIndex);
+    SmtpClient.EmailFiles         := FileAttachMemo.Lines;
+    SmtpClient.ConfirmReceipt     := ConfirmCheckBox.Checked;
+    PrepareProgressBar;
     SmtpClient.Data;
 end;
 
@@ -596,18 +773,36 @@ end;
 { MailFrom, RcptTo and Data methods combined }
 procedure TSmtpTestForm.MailButtonClick(Sender: TObject);
 begin
-    FAllInOneFlag              := FALSE;
+    { Assign property MailMessage and unassign OnGetData if you need }
+    { automatic encoding and line wrapping                           }
+    if UseMailMessageCheckBox.Checked then begin
+        SmtpClient.MailMessage        := MsgMemo.Lines;
+        SmtpClient.OnGetData          := nil;
+        SmtpClient.WrapMsgMaxLineLen  := StrToIntDef(WrapAtEdit.Text, 76);
+        SmtpClient.WrapMessageText    := WrapTextCheckBox.Checked;
+    end
+    else begin
+        SmtpClient.OnGetData   := SmtpClientGetData;
+        SmtpClient.MailMessage.Clear;
+    end;
+    FAllInOneFlag                 := FALSE;
+    SmtpClient.CharSet            := IcsCharsetComboBox1.Charset;
+    SmtpClient.ConvertToCharset   := ConvertToCharsetCheckBox.Checked;
+    SmtpClient.DefaultEncoding    := TSmtpDefaultEncoding(DefEncodingComboBox.ItemIndex);
+    SmtpClient.Allow8bitChars     := Allow8BitCheckBox.Checked;
+    SmtpClient.FoldHeaders        := FoldHeadersCheckBox.Checked;
     SmtpClient.RcptName.Clear;
     SmtpClient.RcptNameAdd(ToEdit.Text, CcEdit.Text, BccEdit.text);
-    SmtpClient.HdrFrom         := FromEdit.Text;
-    SmtpClient.HdrTo           := ToEdit.Text;
-    SmtpClient.HdrCc           := CcEdit.Text;
-    SmtpClient.HdrSubject      := SubjectEdit.Text;
-    SmtpClient.SignOn          := SignOnEdit.Text;
-    SmtpClient.FromName        := FromEdit.Text;
-    SmtpClient.EmailFiles      := FileAttachMemo.Lines;
-    SmtpClient.Host            := HostEdit.Text;
-    SmtpClient.Port            := PortEdit.Text;
+    SmtpClient.HdrFrom            := FromEdit.Text;
+    SmtpClient.HdrTo              := ToEdit.Text;
+    SmtpClient.HdrCc              := CcEdit.Text;
+    SmtpClient.HdrSubject         := SubjectEdit.Text;
+    SmtpClient.HdrPriority        := TSmtpPriority(PriorityComboBox.ItemIndex);
+    SmtpClient.SignOn             := SignOnEdit.Text;
+    SmtpClient.FromName           := FromEdit.Text;
+    SmtpClient.EmailFiles         := FileAttachMemo.Lines;
+    SmtpClient.ConfirmReceipt     := ConfirmCheckBox.Checked;
+    PrepareProgressBar;
     SmtpClient.Mail;
 end;
 
@@ -615,7 +810,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSmtpTestForm.QuitButtonClick(Sender: TObject);
 begin
-    FAllInOneFlag              := FALSE;
+    FAllInOneFlag         := FALSE;
     SmtpClient.Quit;
 end;
 
@@ -641,6 +836,13 @@ begin
     else
         Display('RequestDone Rq=' + IntToStr(Ord(RqType)) +
                             ' Error='+ IntToStr(Error));
+
+    { Just set the progress bar to 100%                 }
+    if ProgressCheckBox.Checked then begin
+        if (RqType in [smtpData, smtpMail, smtpToFile]) and (Error = 0) then
+            ProgressBar1.Position := ProgressBar1.Max;
+    end;
+
     { Check if the user has asked for "All-In-One" demo }
     if not FAllInOneFlag then
         Exit;             { No, nothing more to do here }
@@ -651,6 +853,7 @@ begin
         Display('Error, stoped All-In-One demo');
         Exit;
     end;
+
     case RqType of
     smtpConnect:  begin
                       if SmtpClient.AuthType = smtpAuthNone then
@@ -681,24 +884,42 @@ begin
 
     FAllInOneFlag          := TRUE;
 
-    { Initialize all SMTP component properties from our GUI }
-    SmtpClient.Host           := HostEdit.Text;
-    SmtpClient.Port           := PortEdit.Text;
-    SmtpClient.SignOn         := SignOnEdit.Text;
-    SmtpClient.FromName       := FromEdit.Text;
-    SmtpClient.HdrFrom        := FromEdit.Text;
-    SmtpClient.HdrTo          := ToEdit.Text;
-    SmtpClient.HdrCc          := CcEdit.Text;
-    SmtpClient.HdrSubject     := SubjectEdit.Text; { + #13#10#9 + ' Testing continuation line !'};
-    SmtpClient.EmailFiles     := FileAttachMemo.Lines;
-    SmtpClient.AuthType       := TSmtpAuthType(AuthComboBox.ItemIndex);
-    SmtpClient.Username       := UsernameEdit.Text;
-    SmtpClient.Password       := PasswordEdit.Text;
-    SmtpClient.HdrPriority    := TSmtpPriority(PriorityComboBox.ItemIndex);
-    SmtpClient.ConfirmReceipt := ConfirmCheckBox.Checked;
+    { Initialize all SMTP component properties from our GUI          }
+    { Assign property MailMessage and unassign OnGetData if you need }
+    { automatic encoding and line wrapping                           }
+    if UseMailMessageCheckBox.Checked then begin
+        SmtpClient.MailMessage        := MsgMemo.Lines;
+        SmtpClient.OnGetData          := nil;
+        SmtpClient.WrapMsgMaxLineLen  := StrToIntDef(WrapAtEdit.Text, 76);
+        SmtpClient.WrapMessageText    := WrapTextCheckBox.Checked;
+    end
+    else begin
+        SmtpClient.OnGetData   := SmtpClientGetData;
+        SmtpClient.MailMessage.Clear;
+    end;
+    SmtpClient.CharSet            := IcsCharsetComboBox1.Charset;
+    SmtpClient.ConvertToCharset   := ConvertToCharsetCheckBox.Checked;
+    SmtpClient.DefaultEncoding    := TSmtpDefaultEncoding(DefEncodingComboBox.ItemIndex);
+    SmtpClient.Allow8bitChars     := Allow8BitCheckBox.Checked;
+    SmtpClient.FoldHeaders        := FoldHeadersCheckBox.Checked;
+    SmtpClient.Host               := HostEdit.Text;
+    SmtpClient.Port               := PortEdit.Text;
+    SmtpClient.SignOn             := SignOnEdit.Text;
+    SmtpClient.FromName           := FromEdit.Text;
+    SmtpClient.HdrFrom            := FromEdit.Text;
+    SmtpClient.HdrTo              := ToEdit.Text;
+    SmtpClient.HdrCc              := CcEdit.Text;
+    SmtpClient.HdrSubject         := SubjectEdit.Text; { + #13#10#9 + ' Testing continuation line !'};
+    SmtpClient.EmailFiles         := FileAttachMemo.Lines;
+    SmtpClient.AuthType           := TSmtpAuthType(AuthComboBox.ItemIndex);
+    SmtpClient.Username           := UsernameEdit.Text;
+    SmtpClient.Password           := PasswordEdit.Text;
+    SmtpClient.HdrPriority        := TSmtpPriority(PriorityComboBox.ItemIndex);
+    SmtpClient.ConfirmReceipt     := ConfirmCheckBox.Checked;
     { Recipient list is computed from To, Cc and Bcc fields }
     SmtpClient.RcptName.Clear;
     SmtpClient.RcptNameAdd(ToEdit.Text, CcEdit.Text, BccEdit.text);
+    PrepareProgressBar;
     Display('Connecting to SMTP server...');
     { Start first operation to do to send an email          }
     { Next operations are started from OnRequestDone event  }
@@ -707,5 +928,70 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSmtpTestForm.MsgSizeButtonClick(Sender: TObject);
+begin
+    { Assign property MailMessage and unassign OnGetData if you need }
+    { automatic encoding and line wrapping                           }
+    if UseMailMessageCheckBox.Checked then begin
+        SmtpClient.MailMessage        := MsgMemo.Lines;
+        SmtpClient.OnGetData          := nil;
+        SmtpClient.WrapMsgMaxLineLen  := StrToIntDef(WrapAtEdit.Text, 76);
+    end
+    else begin
+        SmtpClient.OnGetData   := SmtpClientGetData;
+        SmtpClient.MailMessage.Clear;
+    end;
+    FAllInOneFlag                 := FALSE;
+    SmtpClient.CharSet            := IcsCharsetComboBox1.Charset;
+    SmtpClient.ConvertToCharset   := ConvertToCharsetCheckBox.Checked;
+    SmtpClient.DefaultEncoding    := TSmtpDefaultEncoding(DefEncodingComboBox.ItemIndex);
+    SmtpClient.Allow8bitChars     := Allow8BitCheckBox.Checked;
+    SmtpClient.FoldHeaders        := FoldHeadersCheckBox.Checked;
+    SmtpClient.RcptName.Clear;
+    SmtpClient.RcptNameAdd(ToEdit.Text, CcEdit.Text, BccEdit.Text);
+    SmtpClient.HdrFrom            := FromEdit.Text;
+    SmtpClient.HdrTo              := ToEdit.Text;
+    SmtpClient.HdrCc              := CcEdit.Text;
+    SmtpClient.HdrSubject         := SubjectEdit.Text;
+    SmtpClient.HdrPriority        := TSmtpPriority(PriorityComboBox.ItemIndex);
+    SmtpClient.EmailFiles         := FileAttachMemo.Lines;
+    SmtpClient.ConfirmReceipt     := ConfirmCheckBox.Checked;
+    SmtpClient.CalcMsgSize;
+end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSmtpTestForm.CharsetTestButtonClick(Sender: TObject);
+var
+    OldCharset : String;
+begin
+    { Assigning a non-supported charset to property CharSet would  }
+    { raise an ESmtpException and the default system charset is    }
+    { assigned. Assigning an empty string however sets the default }
+    { system charset silently.                                     }
+    OldCharSet := SmtpClient.CharSet;
+    if IcsCharsetComboBox1.Charset = '' then
+        raise Exception.Create('Enter a MIME charset name');
+    SmtpClient.CharSet := IcsCharsetComboBox1.CharSet; // Sets property CodePage as well
+    CharsetInfoLabel1.Caption := '"' + SmtpClient.CharSet + '" supported. ' +
+                              'Code page ID = ' + IntToStr(SmtpClient.CodePage);
+    SmtpClient.CharSet := OldCharSet;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSmtpTestForm.ToggleCsViewButtonClick(Sender: TObject);
+begin
+    IcsCharsetComboBox1.UserFriendly := not IcsCharsetComboBox1.UserFriendly;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSmtpTestForm.IcsCharsetComboBox1Change(Sender: TObject);
+begin
+    CharsetInfoLabel1.Caption := '"' + IcsCharsetComboBox1.CharSet + '"';
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 end.

@@ -5,11 +5,11 @@ Object:       Delphi application which is a basic telnet program demonstrating
               WSocket, TnCnx, TnEmulVT, EmulVT components.
 Author:       François PIETTE
 Creation:     July 22, 1997
-Version:      6.00
+Version:      7.00
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -44,6 +44,9 @@ Dec 10, 1998  V2.05 Added IniFile to save config
 Mar 26, 2006  V2.06 Set local echo at the right places: after connect and
               after setting the options.
 Mar 26, 2006  V6.00 Started from ICS-V5
+Aug 15, 2008  V7.00 Delphi 2009 (Unicode) support. The terminal is not
+              unicode, but the component support unicode strings.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsTelnetClient1;
@@ -51,8 +54,8 @@ unit OverbyteIcsTelnetClient1;
 interface
 
 uses
-  WinTypes, WinProcs, Messages, SysUtils, Classes, Controls, Forms,
-  StdCtrls, IniFiles,
+  Windows, Messages, SysUtils, Classes, Controls, Forms,
+  StdCtrls, OverbyteIcsIniFiles,
   OverbyteIcsWSocket, OverbyteIcsWinsock,
   OverbyteIcsEmulVT,  OverbyteIcsTnEmulVT;
 
@@ -109,8 +112,7 @@ const
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TTelnetForm.FormCreate(Sender: TObject);
 begin
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
+    FIniFileName := GetIcsIniFileName;
     StatusLabel.Caption := 'Not connected';
     TnEmulVT1.RestoreOptions;
 end;
@@ -120,11 +122,11 @@ end;
 procedure TTelnetForm.FormShow(Sender: TObject);
 var
     WinsockData : TWSADATA;
-    IniFile     : TIniFile;
+    IniFile     : TIcsIniFile;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
-        IniFile := TIniFile.Create(FIniFileName);
+        IniFile := TIcsIniFile.Create(FIniFileName);
         HostNameEdit.Text  := IniFile.ReadString(SectionData, KeyHostName,
                                                  'localhost');
         PortEdit.Text      := IniFile.ReadString(SectionData, KeyPort,
@@ -140,7 +142,7 @@ begin
         { Set auto-wrap mode. Here is the place to do other settings. }
         TnEmulVT1.WriteStr(#27'[?7h');
         WinsockData := WinsockInfo;
-        StatusLabel.Caption := StrPas(WinsockData.szDescription);
+        StatusLabel.Caption := String(StrPas(WinsockData.szDescription));
     end;
 end;
 
@@ -148,15 +150,16 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TTelnetForm.FormClose(Sender: TObject; var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteString(SectionData, KeyHostName,  HostNameEdit.Text);
     IniFile.WriteString(SectionData, KeyPort,      PortEdit.Text);
     IniFile.WriteInteger(SectionWindow, KeyTop,    Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,   Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,  Width);
     IniFile.WriteInteger(SectionWindow, KeyHeight, Height);
+    IniFile.UpdateFile;
     IniFile.Free;
 end;
 

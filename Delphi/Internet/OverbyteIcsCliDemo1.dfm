@@ -1,9 +1,9 @@
 object ClientForm: TClientForm
   Left = 139
   Top = 650
-  Width = 460
-  Height = 281
   Caption = 'Client'
+  ClientHeight = 247
+  ClientWidth = 452
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

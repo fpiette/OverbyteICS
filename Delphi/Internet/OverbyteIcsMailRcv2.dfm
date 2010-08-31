@@ -1,9 +1,9 @@
 object MessageForm: TMessageForm
   Left = 81
   Top = 115
-  Width = 457
-  Height = 381
   Caption = 'Message'
+  ClientHeight = 347
+  ClientWidth = 449
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

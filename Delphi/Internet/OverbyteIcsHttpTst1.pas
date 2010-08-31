@@ -7,7 +7,7 @@ Description:  Sample program to demonstrate some of the THttpCli features.
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -77,8 +77,8 @@ unit OverbyteIcsHttpTst1;
 interface
 
 uses
-  WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  StdCtrls, ExtCtrls, IniFiles, OverbyteIcsUrl,
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
+  StdCtrls, ExtCtrls, OverbyteIcsIniFiles, OverbyteIcsUrl,
  {$IFDEF CLR}
   System.ComponentModel,
  {$ENDIF}
@@ -88,7 +88,7 @@ uses
 
 const
   HttpTstVersion         = 108;
-  CopyRight : String     = 'HttpTst (c) 1997-2007 Francois Piette  V1.08 ';
+  CopyRight : String     = 'HttpTst (c) 1997-2010 Francois Piette  V1.08 ';
 
 type
   THttpTestForm = class(TForm)
@@ -145,8 +145,9 @@ type
     procedure ClearButtonClick(Sender: TObject);
     procedure PutButtonClick(Sender: TObject);
   private
-    Initialized : Boolean;
-    DocFileName : String;
+    Initialized  : Boolean;
+    DocFileName  : String;
+    FIniFileName : String;
     procedure SetButtonState(State : Boolean);
     procedure Display(const Msg : String);
     procedure PostOrPut(Request: THttpRequest);
@@ -160,7 +161,6 @@ implementation
 {$R *.DFM}
 
 const
-    IniFileName     = 'httptest';
     SectionWindow   = 'WindowMain';
     KeyTop          = 'Top';
     KeyLeft         = 'Left';
@@ -184,7 +184,7 @@ const
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpTestForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
     wsi     : TWSADATA;
 begin
     if not Initialized then begin
@@ -195,7 +195,8 @@ begin
         ReportMemoryLeaksOnShutdown := (DebugHook <> 0);
         {$ENDIF}
         {$ENDIF}
-        IniFile      := TIniFile.Create(IniFileName);
+        FIniFileName := GetIcsIniFileName;
+        IniFile      := TIcsIniFile.Create(FIniFileName);
         Width        := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         Height       := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
         Top          := IniFile.ReadInteger(SectionWindow, KeyTop,
@@ -251,9 +252,9 @@ end;
 procedure THttpTestForm.FormClose(Sender: TObject;
   var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(IniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionWindow, KeyTop,       Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,      Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,     Width);
@@ -272,6 +273,7 @@ begin
     IniFile.WriteString(SectionData, KeyNTLMUsercode, HttpCli1.NTLMUsercode);
     IniFile.WriteString(SectionData, KeyNTLMPassword, HttpCli1.NTLMPassword);
 {$ENDIF}
+    IniFile.UpdateFile;
     IniFile.Free;
 end;
 
@@ -449,7 +451,7 @@ procedure THttpTestForm.PostOrPut(Request: THttpRequest);
 var
     DataOut : TMemoryStream;
     DataIn  : TFileStream;
-    Buf     : String;
+    Buf     : AnsiString;
     I       : Integer;
 begin
     DisplayMemo.Clear;
@@ -458,7 +460,7 @@ begin
 
     try
         DataOut := TMemoryStream.Create;
-        Buf     := DataEdit.Text;
+        Buf     := AnsiString(DataEdit.Text);
         if Length(Buf) > 0 then      { Check if some data to post }
             DataOut.Write(Buf[1], Length(Buf));
         DataOut.Seek(0, soBeginning);

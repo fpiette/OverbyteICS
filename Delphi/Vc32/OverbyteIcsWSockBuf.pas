@@ -14,7 +14,7 @@ Version:      6.01 (Initial version was 6.01 to match TWSocket version)
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2007 by François PIETTE
+Legal issues: Copyright (C) 1996-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -70,6 +70,11 @@ unit OverbyteIcsWSockBuf;
 {$T-}           { Untyped pointers                    }
 {$X+}           { Enable extended syntax              }
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
@@ -98,7 +103,7 @@ uses
 
 const
   WSockBufVersion    = 601;
-  CopyRight : String = ' TWSockBuf (c) 1996-2007 Francois Piette V6.01 ';
+  CopyRight : String = ' TWSockBuf (c) 1996-2010 Francois Piette V6.01 ';
 
 type
 {$IFDEF CLR}

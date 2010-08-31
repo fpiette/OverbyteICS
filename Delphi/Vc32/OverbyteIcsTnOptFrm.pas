@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:  User interface for TnEmulVT component options
 Creation:     May, 1996
-Version:      6.02
+Version:      7.00
 Author:       François PIETTE
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org See website for details.
-Legal issues: Copyright (C) 1996-2007 by François PIETTE
+Legal issues: Copyright (C) 1996-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -41,9 +41,8 @@ Mar 18, 1999  V1.01 Removed FormPos dependency
 Mar 26, 2006  V6.00 started from previous version
 Mar 24, 2008  V6.01 Francois Piette made some changes to prepare code
               for Unicode.
-Septt 4, 2008  V6.02 Angus increased form height to remove scroll bar and
-               changed font from System to MS Sans Serif, don't size form height
-
+May 11, 2008  V6.02 USchuster removed local atoi implementation (atoi is now in OverbyteIcsUtils.pas) 
+Sept 4, 2008  V7.00 Angus don't save form size since it's fixed, font now Sans Serif
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsTnOptFrm;
@@ -76,11 +75,11 @@ uses
     WinTypes, WinProcs,
 {$ENDIF}
     SysUtils, Classes, Graphics, Controls,
-    Dialogs, Forms, StdCtrls, IniFiles, Buttons;
+    Dialogs, Forms, StdCtrls, IniFiles, Buttons, OverbyteIcsUtils;
 
 const
-  TnOptFrmVersion      = 602;
-  CopyRight : String = ' TnOptFrm (c) 1996-2008 F. Piette V6.02 ';
+  TnOptFrmVersion      = 700;
+  CopyRight : String = ' TnOptFrm (c) 1996-2010 F. Piette V7.00 ';
 
 type
   TOptForm = class(TForm)
@@ -198,23 +197,6 @@ const
     KeyLeft            = 'Left';
     KeyWidth           = 'Width';
     KeyHeight          = 'Height';
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function atoi(value : string) : Integer;
-var
-    i : Integer;
-begin
-    Result := 0;
-    i := 1;
-    while (i <= Length(Value)) and (Value[i] = ' ') do
-        i := i + 1;
-    while (i <= Length(Value)) and
-          (Value[i] >= '0') and (Value[i] <= '9') do begin
-        Result := Result * 10 + ord(Value[i]) - ord('0');
-        i := i + 1;
-    end;
-end;
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TOptForm.SetFKeys(Value : Integer);
@@ -472,10 +454,10 @@ begin
         FInitialized := TRUE;
 
         IniFile      := TIniFile.Create(FIniFileName);
-   {     Width        := IniFile.ReadInteger(SectionName, KeyName + KeyWidth,
+    {    Width        := IniFile.ReadInteger(SectionName, KeyName + KeyWidth,
                                             Width);
         Height       := IniFile.ReadInteger(SectionName, KeyName + KeyHeight,
-                                            Height);                        }
+                                            Height);  }
         Top          := IniFile.ReadInteger(SectionName, KeyName + KeyTop,
                                             (Screen.Height - Height) div 2);
         Left         := IniFile.ReadInteger(SectionName, KeyName + KeyLeft,

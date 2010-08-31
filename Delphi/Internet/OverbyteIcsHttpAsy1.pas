@@ -12,7 +12,7 @@ Description:  This program shows how to use the THttpCli component to execute
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2008 by François PIETTE
+Legal issues: Copyright (C) 1998-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -56,13 +56,13 @@ unit OverbyteIcsHttpAsy1;
 interface
 
 uses
-  WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls, OverbyteIcsHttpProt, IniFiles,
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, ExtCtrls, OverbyteIcsHttpProt, OverbyteIcsIniFiles,
   OverbyteIcsWndControl;
 
 const
   HttpAsyVersion         = 600;
-  CopyRight : String     = 'OverbyteIcsHttpTst (c) 1998-2008 Francois Piette  V6.00 ';
+  CopyRight : String     = 'OverbyteIcsHttpTst (c) 1998-2010 Francois Piette  V6.00 ';
 
 type
   THttpAsyForm = class(TForm)
@@ -141,8 +141,7 @@ procedure THttpAsyForm.FormCreate(Sender: TObject);
 begin
     DisplayMemo.Clear;
     FCurrentItem := -1;
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
+    FIniFileName := GetIcsIniFileName;
     FHttpCliList := TList.Create;
 end;
 
@@ -150,14 +149,14 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpAsyForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
     Count   : Integer;
     I       : Integer;
     URL     : String;
 begin
     if not FInitialized then begin
         FInitialized           := TRUE;
-        IniFile                := TIniFile.Create(FIniFileName);
+        IniFile                := TIcsIniFile.Create(FIniFileName);
         URLEdit.Text           := IniFile.ReadString(SectionData, KeyURL, '');
         HeaderCheckBox.Checked := (IniFile.ReadInteger(SectionData, KeyHeader, 0) <> 0);
         DataCheckBox.Checked   := (IniFile.ReadInteger(SectionData, KeyData,   0) <> 0);
@@ -182,11 +181,11 @@ end;
 procedure THttpAsyForm.FormClose(Sender: TObject;
   var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
     I       : Integer;
     Count   : Integer;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteString(SectionData, KeyURL,  URLEdit.Text);
     IniFile.WriteInteger(SectionData, KeyHeader, Ord(HeaderCheckBox.Checked));
     IniFile.WriteInteger(SectionData, KeyData,   Ord(DataCheckBox.Checked));
@@ -201,7 +200,8 @@ begin
     IniFile.WriteInteger(SectionWindow, KeyLeft,   Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,  Width);
     IniFile.WriteInteger(SectionWindow, KeyHeight, Height);
-    IniFile.Destroy;
+    IniFile.UpdateFile;
+    IniFile.Free;
 end;
 
 

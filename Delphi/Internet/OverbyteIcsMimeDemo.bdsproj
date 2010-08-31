@@ -1,11 +1,11 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <BorlandProject>
   <PersonalityInfo>
     <Option>
       <Option Name="Personality">Delphi.Personality</Option>
       <Option Name="ProjectType">VCLApplication</Option>
       <Option Name="Version">1.0</Option>
-      <Option Name="GUID">{948C689B-879A-4BEC-A02F-FA9FBAB420A9}</Option>
+      <Option Name="GUID">{A43C6D9A-44DD-4652-9860-36806B454650}</Option>
     </Option>
   </PersonalityInfo>
   <Delphi.Personality>
@@ -123,7 +123,7 @@
       <Directories Name="UnitOutputDir"></Directories>
       <Directories Name="PackageDLLOutputDir"></Directories>
       <Directories Name="PackageDCPOutputDir"></Directories>
-      <Directories Name="SearchPath"></Directories>
+      <Directories Name="SearchPath">..\Vc32</Directories>
       <Directories Name="Packages"></Directories>
       <Directories Name="Conditionals"></Directories>
       <Directories Name="DebugSourceDirs"></Directories>

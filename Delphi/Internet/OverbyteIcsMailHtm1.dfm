@@ -1,9 +1,9 @@
 object HtmlMailForm: THtmlMailForm
-  Left = 315
+  Left = 338
   Top = 228
-  Width = 641
-  Height = 478
   Caption = 'Html Mail - ICS - http://www.overbyte.be'
+  ClientHeight = 444
+  ClientWidth = 661
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -19,7 +19,7 @@ object HtmlMailForm: THtmlMailForm
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
-    Width = 633
+    Width = 661
     Height = 117
     Align = alTop
     TabOrder = 0
@@ -78,6 +78,20 @@ object HtmlMailForm: THtmlMailForm
       Width = 21
       Height = 13
       Caption = 'Sign'
+    end
+    object Label5: TLabel
+      Left = 364
+      Top = 12
+      Width = 48
+      Height = 13
+      Caption = 'Username'
+    end
+    object Label6: TLabel
+      Left = 366
+      Top = 36
+      Width = 46
+      Height = 13
+      Caption = 'Password'
     end
     object HostEdit: TEdit
       Left = 80
@@ -166,7 +180,7 @@ object HtmlMailForm: THtmlMailForm
       Text = 'SignOnEdit'
     end
     object SendButton: TButton
-      Left = 364
+      Left = 572
       Top = 8
       Width = 75
       Height = 21
@@ -180,7 +194,7 @@ object HtmlMailForm: THtmlMailForm
       OnClick = SendButtonClick
     end
     object AbortButton: TButton
-      Left = 364
+      Left = 572
       Top = 32
       Width = 75
       Height = 21
@@ -189,7 +203,7 @@ object HtmlMailForm: THtmlMailForm
       OnClick = AbortButtonClick
     end
     object PlainTextCheckBox: TCheckBox
-      Left = 364
+      Left = 572
       Top = 60
       Width = 77
       Height = 17
@@ -197,18 +211,34 @@ object HtmlMailForm: THtmlMailForm
       TabOrder = 10
     end
     object ConfirmCheckBox: TCheckBox
-      Left = 364
+      Left = 572
       Top = 80
       Width = 63
       Height = 17
       Caption = 'Confirm'
       TabOrder = 11
     end
+    object UsernameEdit: TEdit
+      Left = 418
+      Top = 8
+      Width = 121
+      Height = 21
+      TabOrder = 12
+      Text = 'UsernameEdit'
+    end
+    object PasswordEdit: TEdit
+      Left = 418
+      Top = 32
+      Width = 121
+      Height = 21
+      TabOrder = 13
+      Text = 'PasswordEdit'
+    end
   end
   object DisplayMemo: TMemo
     Left = 0
     Top = 346
-    Width = 633
+    Width = 661
     Height = 98
     Align = alBottom
     Font.Charset = DEFAULT_CHARSET
@@ -227,14 +257,14 @@ object HtmlMailForm: THtmlMailForm
   object Panel1: TPanel
     Left = 0
     Top = 117
-    Width = 250
+    Width = 323
     Height = 229
     Align = alLeft
     TabOrder = 2
     object PlainTextMemo: TMemo
       Left = 1
       Top = 1
-      Width = 248
+      Width = 321
       Height = 85
       Hint = 'Enter the plain text message text here.'
       Align = alClient
@@ -254,14 +284,14 @@ object HtmlMailForm: THtmlMailForm
     object Panel2: TPanel
       Left = 1
       Top = 86
-      Width = 248
+      Width = 321
       Height = 142
       Align = alBottom
       TabOrder = 1
       object ImageFilesMemo: TMemo
         Left = 1
         Top = 1
-        Width = 246
+        Width = 319
         Height = 72
         Hint = 'Enter the list of image files here, one per line.'
         Align = alTop
@@ -281,7 +311,7 @@ object HtmlMailForm: THtmlMailForm
       object AttachedFilesMemo: TMemo
         Left = 1
         Top = 73
-        Width = 246
+        Width = 319
         Height = 68
         Hint = 'Enter the list of attached files files here, one per line.'
         Align = alClient
@@ -301,9 +331,9 @@ object HtmlMailForm: THtmlMailForm
     end
   end
   object HtmlTextMemo: TMemo
-    Left = 250
+    Left = 323
     Top = 117
-    Width = 383
+    Width = 338
     Height = 229
     Hint = 
       'Enter the HTML text for the message. Special tags <#IMAGEn> will' +
@@ -331,7 +361,9 @@ object HtmlMailForm: THtmlMailForm
     AuthType = smtpAuthNone
     ConfirmReceipt = False
     HdrPriority = smtpPriorityNone
-    CharSet = 'iso-8859-1'
+    CharSet = 'windows-1252'
+    ConvertToCharset = True
+    WrapMsgMaxLineLen = 76
     SendMode = smtpToSocket
     DefaultEncoding = smtpEnc7bit
     Allow8bitChars = True
@@ -342,7 +374,10 @@ object HtmlMailForm: THtmlMailForm
     OnDisplay = HtmlSmtpClientDisplay
     OnRequestDone = HtmlSmtpClientRequestDone
     OnSessionClosed = HtmlSmtpClientSessionClosed
-    Left = 320
+    XMailer = 'ICS SMTP Component V%VER%'
+    HtmlCharSet = 'windows-1252'
+    HtmlConvertToCharset = True
+    Left = 362
     Top = 152
   end
 end

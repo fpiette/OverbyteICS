@@ -4,11 +4,11 @@ Author:       François PIETTE
 Creation:     Jan 24, 2003
 Description:  A basic SSL server using TSslWSocket.
               Make use of OpenSSL (http://www.openssl.org)
-Version:      1.00.1
+Version:      1.00.2
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2006 by François PIETTE
+Legal issues: Copyright (C) 2003-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -40,6 +40,8 @@ Legal issues: Copyright (C) 2003-2006 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
+Jan 29, 2009 V1.00.2 Arno removed a D2009 warning.
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -67,13 +69,13 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  IniFiles, StdCtrls, ExtCtrls, OverbyteIcsWSocket, OverbyteIcsWSocketS,
-  OverbyteIcsSSLEAY, OverbyteIcsLIBEAY, OverbyteIcsWndControl;
+  OverbyteIcsIniFiles, StdCtrls, ExtCtrls, OverbyteIcsWSocket, OverbyteIcsWSocketS,
+  OverbyteIcsSSLEAY, OverbyteIcsLIBEAY, OverbyteIcsWndControl, OverbyteIcsUtils;
 
 const
   SimpleSslServer1Version            = 100;
   SimpleSslServer1Date               = 'Feb 02, 2003';
-  SimpleSslServer1CopyRight : String = ' SimpleSslServer1 (c) 2003 Francois Piette V1.00.1 ';
+  SimpleSslServer1CopyRight : String = ' SimpleSslServer1 (c) 2003-2010 Francois Piette V1.00.2 ';
   
   WM_SSL_NOT_TRUSTED = WM_USER + 1;
 
@@ -193,7 +195,7 @@ end;
 procedure TSimpleSslServerForm.FormCreate(Sender: TObject);
 begin
     BigConsole(80, 100);
-    FIniFileName := LowerCase(ChangeFileExt(Application.ExeName, '.ini'));
+    FIniFileName := GetIcsIniFileName;
     FTrustedList := TStringList.Create;
 end;
 
@@ -209,12 +211,12 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSimpleSslServerForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
 
-        IniFile      := TIniFile.Create(FIniFileName);
+        IniFile      := TIcsIniFile.Create(FIniFileName);
         Width        := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         Height       := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
         Top          := IniFile.ReadInteger(SectionWindow, KeyTop,
@@ -238,7 +240,7 @@ begin
         VerifyPeerCheckBox.Checked := Boolean(IniFile.ReadInteger(SectionData,
                                                                   KeyVerifyPeer,
                                                                   0));
-        IniFile.Destroy;
+        IniFile.Free;
         DisplayMemo.Clear;
     end;
 end;
@@ -249,9 +251,9 @@ procedure TSimpleSslServerForm.FormClose(
     Sender     : TObject;
     var Action : TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionWindow, KeyTop,         Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,        Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,       Width);
@@ -264,7 +266,8 @@ begin
     IniFile.WriteString(SectionData,    KeyCAPath,      CAPathEdit.Text);
     IniFile.WriteString(SectionData,    KeyAcceptableHosts, AcceptableHostsEdit.Text);
     IniFile.WriteInteger(SectionData,   KeyVerifyPeer,  Ord(VerifyPeerCheckBox.Checked));
-    IniFile.Destroy;
+    IniFile.UpdateFile;
+    IniFile.Free;
 end;
 
 
@@ -351,7 +354,7 @@ begin
         RcvdLine := ReceiveStr;
         { Remove trailing CR/LF }
         while (Length(RcvdLine) > 0) and
-              (RcvdLine[Length(RcvdLine)] in [#13, #10]) do
+              IsCharInSysCharSet(RcvdLine[Length(RcvdLine)], [#13, #10]) do
             RcvdLine := Copy(RcvdLine, 1, Length(RcvdLine) - 1);
         Display('Received from ' + GetPeerAddr + ': ''' + RcvdLine + '''');
         ProcessData(Sender as TTcpSrvClient);

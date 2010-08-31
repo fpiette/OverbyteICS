@@ -8,7 +8,7 @@ Version:      6.00
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -56,13 +56,13 @@ unit OverbyteIcsNewsReader1;
 interface
 
 uses
-  WinTypes, WinProcs, Messages, SysUtils, Classes, Controls, Forms,
-  StdCtrls, ExtCtrls, IniFiles,
-  OverbyteIcsWndControl, OverbyteIcsNntpCli;
+  Windows, Messages, SysUtils, Classes, Controls, Forms,
+  StdCtrls, ExtCtrls, OverbyteIcsIniFiles,
+  OverbyteIcsWndControl, OverbyteIcsNntpCli, OverbyteIcsStreams;
 
 const
   NewsRdrVersion     = 100;
-  CopyRight : String = ' NewsRdr (c) 1997-2007 F. Piette V1.00 ';
+  CopyRight : String = ' NewsRdr (c) 1997-2010 F. Piette V1.00 ';
 
 type
   TNNTPForm = class(TForm)
@@ -156,7 +156,6 @@ type
     FDataStream   : TStream;
     function  GetStream : TStream;
     procedure Display(Msg : String);
-    procedure LineToStream(Buf : String);
   end;
 
 var
@@ -190,54 +189,16 @@ const
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF VER80}
-function TrimRight(Str : String) : String;
-var
-    i : Integer;
-begin
-    i := Length(Str);
-    while (i > 0) and (Str[i] = ' ') do
-        i := i - 1;
-    Result := Copy(Str, 1, i);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TrimLeft(Str : String) : String;
-var
-    I : Integer;
-begin
-    if Str[1] <> ' ' then
-        Result := Str
-    else begin
-        I := 1;
-        while (I <= Length(Str)) and (Str[I] = ' ') do
-            I := I + 1;
-        Result := Copy(Str, I, Length(Str) - I + 1);
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function Trim(Str : String) : String;
-begin
-    Result := TrimLeft(TrimRight(Str));
-end;
-{$ENDIF}
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNNTPForm.FormCreate(Sender: TObject);
 begin
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
+    FIniFileName := GetIcsIniFileName;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNNTPForm.FormShow(Sender: TObject);
 var
-    IniFile  : TIniFile;
+    IniFile  : TIcsIniFile;
     EMail    : String;
     UserName : String;
 {$IFNDEF VER80}
@@ -266,7 +227,7 @@ begin
     Reg.Free;
 {$ENDIF}
 
-    IniFile             := TIniFile.Create(FIniFileName);
+    IniFile             := TIcsIniFile.Create(FIniFileName);
     Top                 := IniFile.ReadInteger(SectionWindow, KeyTop,    Top);
     Left                := IniFile.ReadInteger(SectionWindow, KeyLeft,   Left);
     Width               := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
@@ -290,9 +251,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNNTPForm.FormClose(Sender: TObject; var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteString(SectionData,    KeyServer,     ServerEdit.Text);
     IniFile.WriteString(SectionData,    KeyGroup,      GroupEdit.Text);
     IniFile.WriteString(SectionData,    KeyArticleNum, ArticleNumEdit.Text);
@@ -305,6 +266,7 @@ begin
     IniFile.WriteInteger(SectionWindow, KeyLeft,       Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,      Width);
     IniFile.WriteInteger(SectionWindow, KeyHeight,     Height);
+    IniFile.UpdateFile;
     IniFile.Free;
 end;
 
@@ -328,7 +290,7 @@ begin
         Display('Posting permited')
     else
         Display('Posting not permited');
-    Display(NntpCli1.LastResponse);
+    Display(String(NntpCli1.LastResponse));
 end;
 
 
@@ -350,7 +312,7 @@ procedure TNNTPForm.NntpCli1RequestDone(
     Error: Word);
 begin
     Display('Request done. LastResponse = ' +
-                          NntpCli1.LastResponse);
+                          String(NntpCli1.LastResponse));
 
     if Error = 0 then
         Display('No error')
@@ -392,10 +354,10 @@ begin
             Display('ArticleNumber    = ' +
                                   IntToStr(NntpCli1.ArticleNumber));
             Display('ArticleID        = ' +
-                                  '<' + NntpCli1.ArticleID + '>');
+                                  '<' + String(NntpCli1.ArticleID) + '>');
             if Error = 0 then begin
                 ArticleNumEdit.Text := IntToStr(NntpCli1.ArticleNumber);
-                ArticleIDEdit.Text  := NntpCli1.ArticleID;
+                ArticleIDEdit.Text  := String(NntpCli1.ArticleID);
             end;
         end;
     else
@@ -415,7 +377,7 @@ end;
 { don't know what to do with it. It should normally not occur !             }
 procedure TNNTPForm.NntpCli1DataAvailable(Sender: TObject; Error: Word);
 begin
-    Display('Data: ' + NntpCli1.LastResponse);
+    Display('Data: ' + String(NntpCli1.LastResponse));
 end;
 
 
@@ -436,12 +398,12 @@ end;
 { It's also the place to intercept header lines.                            }
 procedure TNNTPForm.NntpCli1MessageLine(Sender: TObject);
 var
-    NewsGroupName   : String;
+    NewsGroupName   : AnsiString;
     LastArticle     : Integer;
     FirstArticle    : Integer;
-    PostingFlag     : Char;
+    PostingFlag     : AnsiChar;
 begin
-    Display('Line: ' + NntpCli1.LastResponse);
+    Display('Line: ' + String(NntpCli1.LastResponse));
     ParseListLine(NntpCli1.LastResponse,
                   NewsGroupName,
                   LastArticle,
@@ -522,7 +484,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNNTPForm.GroupButtonClick(Sender: TObject);
 begin
-    NntpCli1.Group(GroupEdit.Text);
+    NntpCli1.Group(AnsiString(GroupEdit.Text));
 end;
 
 
@@ -543,7 +505,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNNTPForm.ArticleByIDButtonClick(Sender: TObject);
 begin
-    NntpCli1.ArticleByID(ArticleIDEdit.Text, GetStream);
+    NntpCli1.ArticleByID(AnsiString(ArticleIDEdit.Text), GetStream);
 end;
 
 
@@ -557,7 +519,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNNTPForm.HeadByIDButtonClick(Sender: TObject);
 begin
-    NntpCli1.HeadByID(ArticleIDEdit.Text, GetStream);
+    NntpCli1.HeadByID(AnsiString(ArticleIDEdit.Text), GetStream);
 end;
 
 
@@ -571,7 +533,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNNTPForm.BodyByIDButtonClick(Sender: TObject);
 begin
-    NntpCli1.BodyByID(ArticleIDEdit.Text, GetStream);
+    NntpCli1.BodyByID(AnsiString(ArticleIDEdit.Text), GetStream);
 end;
 
 
@@ -585,7 +547,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNNTPForm.StatByIDButtonClick(Sender: TObject);
 begin
-    NntpCli1.StatByID(ArticleIDEdit.Text);
+    NntpCli1.StatByID(AnsiString(ArticleIDEdit.Text));
 end;
 
 
@@ -616,7 +578,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNNTPForm.NewNewsButtonClick(Sender: TObject);
 begin
-    NntpCli1.NewNews(Now - 1, FALSE, GroupEdit.Text, '', GetStream);
+    NntpCli1.NewNews(Now - 1, FALSE, AnsiString(GroupEdit.Text), '', GetStream);
 end;
 
 
@@ -628,20 +590,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TNntpForm.LineToStream(Buf : String);
-begin
-    Display('Line: ' + Buf);
-    Buf := Buf + #13#10;
-    FDataStream.WriteBuffer(Buf[1], Length(Buf));
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Posting a message require to build the message, including his header.     }
 { Here we use a TMemoryStream to create a message on the fly. Normally we   }
 { should use a TFileStream to get the message from a file where it has      }
 { been written by some user interface.                                      }
 procedure TNNTPForm.PostButtonClick(Sender: TObject);
+var
+    Writer : TIcsStreamWriter;
 begin
     { Delete the stream if not already done }
     if Assigned(FDataStream) then begin
@@ -651,39 +606,41 @@ begin
 
     { Create a new stream in memory }
     FDataStream := TMemoryStream.Create;
-
+    { In this sample we write ansi data with current code page to the stream. }
+    { We could also use a different code page in the constructor.             }
+    Writer := TIcsStreamWriter.Create(FDataStream, FALSE, FALSE, CP_ACP);
     { Write the message header }
-    LineToStream('From: ' + UserEdit.Text);
-    LineToStream('Newsgroups: ' + GroupEdit.Text);
-    LineToStream('Subject: Internet Components Suite (ICS)');
-    LineToStream('Organization: None');
-    LineToStream('X-Newsreader: NNTP component ' +
-                 '(http://www.overbyte.be)');
+    Writer.WriteLine('From: ' + UserEdit.Text);
+    Writer.WriteLine('Newsgroups: ' + GroupEdit.Text);
+    Writer.WriteLine('Subject: Internet Components Suite (ICS)');
+    Writer.WriteLine('Organization: None');
+    Writer.WriteLine('X-Newsreader: NNTP component ' +
+                     '(http://www.overbyte.be)');
 
     { End of header is a blank line }
-    LineToStream('');
+    Writer.WriteLine('');
 
     { Write the message body }
-    LineToStream('');
-    LineToStream('The Internet Component Suite is a set of native');
-    LineToStream('components for Borland Delphi (all versions,');
-    LineToStream('including 16 bits) and Borland C++ Builder. The');
-    LineToStream('major TCP/IP protocols are supported for building');
-    LineToStream('client/server, intranet or Internet applications.');
-    LineToStream('');
-    LineToStream('TCP, UDP, TELNET, FTP, SMTP, POP3, PING, FINGER, HTTP,');
-    LineToStream('NNTP and more. Each component has samples writen');
-    LineToStream('in Delphi and in C++ Builder. Several client/server');
-    LineToStream('applications, including an event-driven and a');
-    LineToStream('multi-threaded server, a complete FTP client and');
-    LineToStream('TELNET client with ansi emulation are provided.');
-    LineToStream('Full source code provided for everything.');
-    LineToStream('');
-    LineToStream('The Internet Component Suite is freeware, royalty');
-    LineToStream('free and support is done using a mailing list.');
-    LineToStream('Visit our website and download now from');
-    LineToStream('http://www.overbyte.be');
-
+    Writer.WriteLine('');
+    Writer.WriteLine('The Internet Component Suite is a set of native');
+    Writer.WriteLine('components for Borland Delphi (all versions,');
+    Writer.WriteLine('including 16 bits) and Borland C++ Builder. The');
+    Writer.WriteLine('major TCP/IP protocols are supported for building');
+    Writer.WriteLine('client/server, intranet or Internet applications.');
+    Writer.WriteLine('');
+    Writer.WriteLine('TCP, UDP, TELNET, FTP, SMTP, POP3, PING, FINGER, HTTP,');
+    Writer.WriteLine('NNTP and more. Each component has samples written');
+    Writer.WriteLine('in Delphi and in C++ Builder. Several client/server');
+    Writer.WriteLine('applications, including an event-driven and a');
+    Writer.WriteLine('multi-threaded server, a complete FTP client and');
+    Writer.WriteLine('TELNET client with ansi emulation are provided.');
+    Writer.WriteLine('Full source code provided for everything.');
+    Writer.WriteLine('');
+    Writer.WriteLine('The Internet Component Suite is freeware, royalty');
+    Writer.WriteLine('free and support is done using a mailing list.');
+    Writer.WriteLine('Visit our website and download now from');
+    Writer.WriteLine('http://www.overbyte.be');
+    Writer.Free;
     { Set stream pointer to beginning of stream because TNntpCli will post }
     { from the current position                                            }
     FDataStream.Seek(0, soFromBeginning	);
@@ -698,7 +655,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNNTPForm.XOverButtonClick(Sender: TObject);
 begin
-    NntpCli1.XOver(ArticleNumEdit.Text, GetStream);
+    NntpCli1.XOver(AnsiString(ArticleNumEdit.Text), GetStream);
 end;
 
 
@@ -735,7 +692,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNNTPForm.XHdrButtonClick(Sender: TObject);
 begin
-    NntpCli1.XHdr(GetStream, 'subject', ArticleNumEdit.Text);
+    NntpCli1.XHdr(GetStream, 'subject', AnsiString(ArticleNumEdit.Text));
 end;
 
 
@@ -756,7 +713,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNNTPForm.NntpCli1XHdrLine(Sender: TObject);
 begin
-    Display('XHdr: ' + NntpCli1.LastResponse);
+    Display('XHdr: ' + String(NntpCli1.LastResponse));
 end;
 
 

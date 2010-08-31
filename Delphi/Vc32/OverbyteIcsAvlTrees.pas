@@ -28,13 +28,26 @@ Apr  08, 2006  So far tested with Delphi 5, 7, 2006.
 Apr  09, 2006  Function Insert updated.
 Apr  09, 2006  New field Expires added.
 June 05, 2006  Exchanged default TDateTime value 0 by MinDT.
+Aug  13, 2008  TCacheTree uses own CompareStr(UnicodeString) and
+               AnsiCompareText() rather than CompareText(), if no
+               case-sensitive key searches shall be performed.
 Mar  15, 2009  Fixed a memory leak with secondary duplicated index.
+Mar  16, 2009  CompareStr ignored the first char (Unicode only), uses
+               Windows.pas to avoid a compiler warning.
 
 /////////////////////////////////////////////////////////////////////////////}
 
 interface
 
+{$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
+
 uses
+    Windows,
     SysUtils,
     Classes;
 
@@ -577,6 +590,35 @@ end;
 /////////////////////////////////////////////////////////////////////////////
 { TCacheTree }
 
+{$IFDEF UNICODE}
+function CompareStr(const S1, S2: UnicodeString): Integer;
+var
+    L1, L2, I : Integer;
+    MinLen    : Integer;
+    P1, P2    : PWideChar;
+begin
+    L1 := Length(S1);
+    L2 := Length(S2);
+    if L1 > L2 then
+        MinLen := L2
+    else
+        MinLen := L1;
+    P1 := Pointer(S1);
+    P2 := Pointer(S2);
+    for I := 0 to MinLen do
+    begin
+        if (P1[I] <> P2[I]) then
+        begin
+            Result := Ord(P1[I]) - Ord(P2[I]);
+            Exit;
+        end;
+    end;
+    Result := L1 - L2;
+end;
+{$ENDIF}
+
+
+/////////////////////////////////////////////////////////////////////////////
 constructor TCacheTree.Create(CaseSensitive: Boolean = True);
 begin
     inherited Create;
@@ -721,7 +763,7 @@ begin
     if FCaseSensitive then
         Result := CompareStr(TCacheNode(Node1).FKey, TCacheNode(Node2).FKey)
     else
-        Result := CompareText(TCacheNode(Node1).FKey, TCacheNode(Node2).FKey);
+        Result := AnsiCompareText(TCacheNode(Node1).FKey, TCacheNode(Node2).FKey);
 
 end;
 

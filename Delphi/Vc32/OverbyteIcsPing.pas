@@ -11,7 +11,7 @@ Creation:     January 6, 1997
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -60,7 +60,9 @@ Nov 10, 2002 V1.12 Changed argument name from Error to Status in OnEchoReply
 Jan 29, 2004 V1.13 Added ICMPDLLHandle property and made Ping method virtual.
 May 31, 2004 V1.14 Used ICSDEFS.INC
 Mar 26, 2006 V6.00 New version 6 started.
-
+Jul 19, 2008 V6.00 F. Piette made some changes for Unicode. Address, HostName
+                      and DnsResult properties made as an AnsiString.
+                      
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPing;
@@ -69,6 +71,11 @@ unit OverbyteIcsPing;
 {$T-}           { Untyped pointers                    }
 {$X+}           { Enable extended syntax              }
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
@@ -104,7 +111,7 @@ uses
 
 const
   PingVersion           = 600;
-  CopyRight : String    = ' TPing (c) 1997-2007 F. Piette V6.00 ';
+  CopyRight : String    = ' TPing (c) 1997-2010 F. Piette V6.00 ';
 
 type
   TDnsLookupDone = procedure (Sender: TObject; Error: Word) of object;
@@ -189,16 +196,7 @@ type
                                              write FOnDnsLookupDone;
   end;
 
-procedure Register;
-
 implementation
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure Register;
-begin
-    RegisterComponents('FPiette', [TPing]);
-end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -288,7 +286,8 @@ begin
     { if successfull, the ask windows to store the object reference         }
     { into the reserved byte (see RegisterClass)                            }
     if (Result <> 0) and Assigned(Obj) then
-        SetWindowLong(Result, 0, Integer(Obj));
+        SetWindowLong(Result, 0, Longint(Obj));
+    // Guess this will change to SetWindowLongPtr() in Win64    
 end;
 
 
@@ -374,14 +373,14 @@ var
     IPAddr  : TInAddr;
     Error   : Word;
 begin
-    if msg.wParam <> LongInt(FDnsLookupHandle) then
+    if msg.wParam <> WPARAM(FDnsLookupHandle) then
         Exit;
     FDnsLookupHandle := 0;
     Error := Msg.LParamHi;
     if Error = 0 then begin
         Phe        := PHostent(@FDnsLookupBuffer);
         IPAddr     := PInAddr(Phe^.h_addr_list^)^;
-        FDnsResult := StrPas(inet_ntoa(IPAddr));
+        FDnsResult := String(AnsiString(inet_ntoa(IPAddr)));
     end;
     if Assigned(FOnDnsLookupDone) then
         FOnDnsLookupDone(Self, Error);
@@ -463,17 +462,18 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TPing.DnsLookup(HostName : String);
 var
-    IPAddr  : TInAddr;
+    IPAddr    : TInAddr;
+    XHostName : AnsiString;
 begin
     { Cancel any pending lookup }
     if FDnsLookupHandle <> 0 then
         WSACancelAsyncRequest(FDnsLookupHandle);
 
     FDnsResult := '';
-
-    IPAddr.S_addr := Inet_addr(@HostName[1]);
+    XHostName  := AnsiString(HostName);
+    IPAddr.S_addr := Inet_addr(@XHostName[1]);
     if IPAddr.S_addr <> u_long(INADDR_NONE) then begin
-        FDnsResult := StrPas(inet_ntoa(IPAddr));
+        FDnsResult := String(AnsiString((inet_ntoa(IPAddr))));
         if Assigned(FOnDnsLookupDone) then
             FOnDnsLookupDone(Self, 0);
         Exit;
@@ -481,7 +481,7 @@ begin
 
     FDnsLookupHandle := WSAAsyncGetHostByName(FHandle,
                                               FMsg_WM_ASYNCGETHOSTBYNAME,
-                                              @HostName[1],
+                                              @XHostName[1],
                                               @FDnsLookupBuffer,
                                               SizeOf(FDnsLookupBuffer));
     if FDnsLookupHandle = 0 then

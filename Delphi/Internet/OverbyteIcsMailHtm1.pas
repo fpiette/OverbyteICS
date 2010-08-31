@@ -8,7 +8,7 @@ Version:      6.03
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2007 by François PIETTE
+Legal issues: Copyright (C) 2003-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -43,6 +43,8 @@ Jul 18, 2004 V1.01 Revised for new property EmailImages (previous version
                    files.
 Mar 13, 2005 V1.02 Added confirm checkbox and related code.
 Aug 30, 2007 V6.03 ICS V6 compatible.
+Jul 19, 2008 V6.03 F.Piette made some changes for Unicode
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMailHtm1;
@@ -50,8 +52,8 @@ unit OverbyteIcsMailHtm1;
 interface
 
 uses
-  WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  IniFiles, StdCtrls, ExtCtrls, OverbyteIcsSmtpProt, OverbyteIcsMimeUtils,
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  OverbyteIcsIniFiles, StdCtrls, ExtCtrls, OverbyteIcsSmtpProt, OverbyteIcsMimeUtils,
   OverbyteIcsWndControl;
 
 type
@@ -85,6 +87,10 @@ type
     ImageFilesMemo: TMemo;
     AttachedFilesMemo: TMemo;
     ConfirmCheckBox: TCheckBox;
+    UsernameEdit: TEdit;
+    Label5: TLabel;
+    PasswordEdit: TEdit;
+    Label6: TLabel;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -134,22 +140,21 @@ const
     KeyImageFiles         = 'ImageFiles';
     SectionAttachedFiles  = 'AttachedFiles';
     KeyAttachedFiles      = 'AttachedFiles';
+    KeyPassword           = 'Password';
+    KeyUsername           = 'Username';
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure SaveStringsToIniFile(
-    const IniFileName : String;
+    IniFile           : TIcsIniFile;
     const IniSection  : String;
     const IniKey      : String;
     Strings           : TStrings);
 var
-    IniFile : TIniFile;
     nItem   : Integer;
 begin
-    if (IniFileName = '') or (IniSection = '') or (IniKey = '') or
-       (not Assigned(Strings)) then
+    if (IniSection = '') or (IniKey = '') or (not Assigned(Strings)) then
         Exit;
-    IniFile := TIniFile.Create(IniFileName);
     IniFile.EraseSection(IniSection);
     if Strings.Count <= 0 then
         IniFile.WriteString(IniSection, IniKey + 'EmptyFlag', 'Empty')
@@ -158,48 +163,51 @@ begin
             IniFile.WriteString(IniSection,
                                 IniKey + IntToStr(nItem),
                                 Strings.Strings[nItem]);
-    IniFile.Free;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Return FALSE if non existant in IniFile                                   }
 function LoadStringsFromIniFile(
-    const IniFileName : String;
+    IniFile           : TIcsIniFile;
     const IniSection  : String;
     const IniKey      : String;
     Strings           : TStrings) : Boolean;
 var
-    IniFile : TIniFile;
     nItem   : Integer;
     I       : Integer;
     Buf     : String;
 begin
     Result := TRUE;
-    if (IniFileName = '') or (IniSection = '') or (IniKey = '') or
-       (not Assigned(Strings)) then
+    if (IniSection = '') or (IniKey = '') or (not Assigned(Strings)) then
         Exit;
     Strings.Clear;
-    IniFile := TIniFile.Create(IniFileName);
-    try
-        if IniFile.ReadString(IniSection, IniKey + 'EmptyFlag', '') <> '' then
-             Exit;
-        IniFile.ReadSectionValues(IniSection, Strings);
-    finally
-        IniFile.Free;
-    end;
+    if IniFile.ReadString(IniSection, IniKey + 'EmptyFlag', '') <> '' then
+         Exit;
+    IniFile.ReadSectionValues(IniSection, Strings);
     nItem := Strings.Count - 1;
     while nItem >= 0 do begin
         Buf := Strings.Strings[nItem];
         if CompareText(IniKey, Copy(Buf, 1, Length(IniKey))) <> 0 then
             Strings.Delete(nItem)
         else begin
+            case Buf[Length(IniKey) + 1] of
+            '0'..'9':
+                begin
+                    I := Pos('=', Buf);
+                    Strings.Strings[nItem] := Copy(Buf, I + 1, Length(Buf));
+                end;
+            else
+                Strings.Delete(nItem)
+            end;
+(*
             if not (Buf[Length(IniKey) + 1] in ['0'..'9']) then
                 Strings.Delete(nItem)
             else begin
                 I := Pos('=', Buf);
                 Strings.Strings[nItem] := Copy(Buf, I + 1, Length(Buf));
             end;
+*)
         end;
         Dec(nItem);
     end;
@@ -210,21 +218,20 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THtmlMailForm.FormCreate(Sender: TObject);
 begin
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
+    FIniFileName := GetIcsIniFileName;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THtmlMailForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
         DisplayMemo.Clear;
 
-        IniFile      := TIniFile.Create(FIniFileName);
+        IniFile      := TIcsIniFile.Create(FIniFileName);
         Width        := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         Height       := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
         Top          := IniFile.ReadInteger(SectionWindow, KeyTop,
@@ -251,15 +258,18 @@ begin
                                                'your_name');
         ConfirmCheckBox.Checked  := Boolean(IniFile.ReadInteger(SectionData,
                                             KeyConfirm, 0));
-        if not LoadStringsFromIniFile(IniFileName, SectionImageFiles,
+        UsernameEdit.Text := IniFile.ReadString(SectionData, KeyUsername, '');
+        PasswordEdit.Text := IniFile.ReadString(SectionData, KeyPassword, '');
+
+        if not LoadStringsFromIniFile(IniFile, SectionImageFiles,
                                       KeyImageFiles, ImageFilesMemo.Lines) then
             ImageFilesMemo.Text := 'ics_logo.gif' + #13#10 + 'fp_small.gif';
 
-        if not LoadStringsFromIniFile(IniFileName, SectionAttachedFiles,
+        if not LoadStringsFromIniFile(IniFile, SectionAttachedFiles,
                                       KeyAttachedFiles, AttachedFilesMemo.Lines) then
             AttachedFilesMemo.Text := 'OverbyteIcsMailHtml.dpr';
 
-        if not LoadStringsFromIniFile(IniFileName, SectionPlainText,
+        if not LoadStringsFromIniFile(IniFile, SectionPlainText,
                                       KeyPlainText, PlainTextMemo.Lines) then
             PlainTextMemo.Text :=
             'This is a HTML mail message sent using ICS.' + #13#10 +
@@ -287,7 +297,7 @@ begin
             '<<IMAGE2>>' + #13#10 +
             '--' + #13#10 +
             'mailto:francois.piette@overbyte.be' + #13#10;
-        if not LoadStringsFromIniFile(IniFileName, SectionHtmlText,
+        if not LoadStringsFromIniFile(IniFile, SectionHtmlText,
                                       KeyHtmlText, HtmlTextMemo.Lines) then
             HtmlTextMemo.Text := '<HTML><BODY>' + #13#10 +
             'This is a HTML mail message sent using <B>ICS</B>.<BR>' + #13#10 +
@@ -326,7 +336,7 @@ begin
             '</BODY>' + #13#10 +
             '</HTML>' + #13#10;
 
-        IniFile.Destroy;
+        IniFile.Free;
     end;
 end;
 
@@ -334,9 +344,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THtmlMailForm.FormClose(Sender: TObject; var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionWindow, KeyTop,         Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,        Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,       Width);
@@ -350,15 +360,18 @@ begin
     IniFile.WriteString(SectionData,    KeySubject,   SubjectEdit.Text);
     IniFile.WriteString(SectionData,    KeySignOn,    SignOnEdit.Text);
     IniFile.WriteInteger(SectionData,   KeyConfirm,  Ord(ConfirmCheckBox.Checked));
-    SaveStringsToIniFile(IniFileName, SectionImageFiles,
+    IniFile.WriteString(SectionData,    KeyUsername, UsernameEdit.Text);
+    IniFile.WriteString(SectionData,    KeyPassword, PasswordEdit.Text);
+    SaveStringsToIniFile(IniFile, SectionImageFiles,
                          KeyImageFiles, ImageFilesMemo.Lines);
-    SaveStringsToIniFile(IniFileName, SectionAttachedFiles,
+    SaveStringsToIniFile(IniFile, SectionAttachedFiles,
                          KeyAttachedFiles, AttachedFilesMemo.Lines);
-    SaveStringsToIniFile(IniFileName, SectionPlainText,
+    SaveStringsToIniFile(IniFile, SectionPlainText,
                          KeyPlainText, PlainTextMemo.Lines);
-    SaveStringsToIniFile(IniFileName, SectionHtmlText,
+    SaveStringsToIniFile(IniFile, SectionHtmlText,
                          KeyHtmlText, HtmlTextMemo.Lines);
-    IniFile.Destroy;
+    IniFile.UpdateFile;
+    IniFile.Free;
 end;
 
 
@@ -416,7 +429,12 @@ begin
         HtmlSmtpClient.HdrTo           := ToEdit.Text;
         HtmlSmtpClient.HdrCc           := CcEdit.Text;
         HtmlSmtpClient.HdrSubject      := SubjectEdit.Text;
-        HtmlSmtpClient.AuthType        := smtpAuthNone;
+        HtmlSmtpClient.Username        := UsernameEdit.Text;
+        HtmlSmtpClient.Password        := PasswordEdit.Text;
+        if (HtmlSmtpClient.Username <> '') and (HtmlSmtpClient.Password <> '') then
+            HtmlSmtpClient.AuthType        := smtpAuthAutoSelect
+        else
+            HtmlSmtpClient.AuthType        := smtpAuthNone;
         HtmlSmtpClient.ConfirmReceipt  := ConfirmCheckbox.Checked;
         { Recipient list is computed from To, Cc and Bcc fields }
         HtmlSmtpClient.RcptName.Clear;

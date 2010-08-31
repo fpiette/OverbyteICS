@@ -2,11 +2,11 @@
 #ifndef OverbyteIcsHttpTst1H
 #define OverbyteIcsHttpTst1H
 //---------------------------------------------------------------------------
-#include <vcl\Classes.hpp>
-#include <vcl\Controls.hpp>
-#include <vcl\StdCtrls.hpp>
-#include <vcl\Forms.hpp>
-#include <vcl\ExtCtrls.hpp>
+#include <Classes.hpp>
+#include <Controls.hpp>
+#include <StdCtrls.hpp>
+#include <Forms.hpp>
+#include <ExtCtrls.hpp>
 #include "OverbyteIcsHttpProt.hpp"
 #include "OverbyteIcsWndControl.hpp"
 //---------------------------------------------------------------------------
@@ -44,7 +44,6 @@ __published:	// IDE-managed Components
 	void __fastcall HttpCli1RequestDone(TObject *Sender, THttpRequest RqType,
 	WORD Error);
 	void __fastcall AbortButtonClick(TObject *Sender);
-        void __fastcall HttpCli1Command(TObject *Sender, AnsiString &S);
 private:	// User declarations
     BOOL Initialized;
     AnsiString FIniFileName;

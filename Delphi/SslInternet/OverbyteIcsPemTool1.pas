@@ -9,11 +9,11 @@ Description:  A small utility to export SSL certificate from IE certificate
               Make use of OpenSSL (http://www.openssl.org)
               Make use of the Jedi CryptoAPI2
               (http://delphi-jedi.org/Jedi:APILIBRARY:172871)(CryptoAPI2.zip).
-Version:      1.00
+Version:      1.11
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2008 by François PIETTE
+Legal issues: Copyright (C) 2003-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -52,6 +52,14 @@ Sep 04, 2003 V1.03 Added LVCert sort on column header click, and a simple
              and beautyfied source.
 Sep 11, 2003 V1.04 Test version for new IcsOpenSsl.DLL.
 Aug 07, 2007 V1.05 ICS-SSL V6 compatibility
+Jun 30, 2008 V1.06 A.Garrels made some changes to prepare SSL code for Unicode.
+Jun 30, 2008 V1.07 Some RSA and Blowfish crypto functions.
+Jul 14, 2008 V1.08 Paul <paul.blommaerts@telenet.be> added an option to import
+             Windows certificates to a single file (CA bundle).
+Jul 15, 2008 V1.09 Made one change to prepare SSL code for Unicode.
+Jan 29, 2009 V1.10 Removed some string cast warnings.
+Dec 20, 2009 V1.11 Memory leak fixed.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPemtool1;
@@ -71,18 +79,18 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Controls, Forms, Dialogs,
-  StdCtrls, IniFiles, ComCtrls, Menus, ImgList, ExtCtrls, CommCtrl,
+  StdCtrls, OverbyteIcsIniFiles, ComCtrls, Menus, ImgList, ExtCtrls, CommCtrl,
   { Uses Jedi CryptoAPI2, see 'Description' above }
   Wcrypt2,
   { Uses ICS SSL code, see 'Description' above }
   OverbyteIcsWSocket, OverbyteIcsSsleay, OverbyteIcsLibeay,
-  OverbyteIcsLibeayEx, OverbyteIcsSslX509Utils;
+  OverbyteIcsLibeayEx, OverbyteIcsSslX509Utils, OverByteIcsMimeUtils;
 
 const
-     PemToolVersion     = 105;
-     PemToolDate        = 'Aug 07, 2007';
+     PemToolVersion     = 111;
+     PemToolDate        = 'January 29, 2009';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2007 Arno Garrels V1.05 ';
+     CopyRight : String = '(c) 2003-2010 by François PIETTE V1.11 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -144,6 +152,17 @@ type
     MMExtras: TMenuItem;
     MMExtrasCreateSelfSignedCert: TMenuItem;
     MMExtrasCreateCertRequest: TMenuItem;
+    MMExtrasEncryptStringRSA: TMenuItem;
+    N3: TMenuItem;
+    N4: TMenuItem;
+    MMExtrasEncryptStringBlowfish: TMenuItem;
+    MMExtrasEncryptStreamBlowfish: TMenuItem;
+    ProgressBar1: TProgressBar;
+    MMExtrasEncryptFileBlowfish: TMenuItem;
+    N5: TMenuItem;
+    N6: TMenuItem;
+    MMExtrasDecryptFileBlowfish: TMenuItem;
+    CheckBoxWriteToBundle: TCheckBox;
     procedure btnImportClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -167,6 +186,12 @@ type
     procedure MMFileExitClick(Sender: TObject);
     procedure MMExtrasCreateSelfSignedCertClick(Sender: TObject);
     procedure MMExtrasCreateCertRequestClick(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure MMExtrasEncryptStringRSAClick(Sender: TObject);
+    procedure MMExtrasEncryptStringBlowfishClick(Sender: TObject);
+    procedure MMExtrasEncryptStreamBlowfishClick(Sender: TObject);
+    procedure MMExtrasEncryptFileBlowfishClick(Sender: TObject);
+    procedure MMExtrasDecryptFileBlowfishClick(Sender: TObject);
   protected
     procedure WMAppStartup(var Msg: TMessage); message WM_APPSTARTUP;  
   private
@@ -183,7 +208,7 @@ type
 
   function  FindPemFileName(const FileName: String): String;
   function  DirectoryExists(const Name: string): Boolean;
-  function  isDirEmpty(const Path: String): Boolean;
+  function  IsDirEmpty(const Path: String): Boolean;
   function  PathAddBackSlash(const Path: String): String;
   procedure EmptyDirectory(Path: String);
   
@@ -246,7 +271,8 @@ begin
         until
             LastPos = -1;
 
-        while (Length(Result) > 0) and (Result[Length(Result)] in [#13, #10]) do
+        while (Length(Result) > 0) and
+                      (Word(Result[Length(Result)]) in [Ord(#13), Ord(#10)]) do
             SetLength(Result, Length(Result) - 1);
     end;
 end;
@@ -302,21 +328,28 @@ procedure TfrmPemTool1.FormCreate(Sender: TObject);
 begin
     Application.OnException := AppOnException;
     FProgDir     := ExtractFilePath(ParamStr(0));
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
-    FIniFileName := PathAddBackSlash(FProgDir) + FIniFileName;
+    FIniFileName := GetIcsIniFileName;
     ComboBoxStoreType.ItemIndex := 0;
+    //Avoid dynamical loading and unloading the SSL DLLs plenty of times
+    OverbyteIcsWSocket.LoadSsl;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.FormDestroy(Sender: TObject);
+begin
+    OverbyteIcsWSocket.UnLoadSsl;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
-        IniFile      := TIniFile.Create(FIniFileName);
+        IniFile      := TIcsIniFile.Create(FIniFileName);
         Width        := IniFile.ReadInteger(SectionMainWindow, KeyWidth,  Width);
         Height       := IniFile.ReadInteger(SectionMainWindow, KeyHeight, Height);
         Top          := IniFile.ReadInteger(SectionMainWindow, KeyTop,
@@ -338,7 +371,7 @@ begin
         CheckBoxEmptyDestDir.Checked      := IniFile.ReadBool(SectionData,
                                                               KeyEmptyDestDir,
                                                               FALSE);
-        IniFile.Destroy;
+        IniFile.Free;
         PostMessage(Handle, WM_APPSTARTUP, 0, 0);
     end;
 end;
@@ -349,6 +382,7 @@ procedure TfrmPemTool1.WMAppStartup(var Msg: TMessage);
 begin
     frmPemTool1.Caption := CaptionMain + Trim(CurrentCertDirEdit.Text);
     PageControl1.ActivePageIndex := 0;
+    LvCerts.Perform(CM_RECREATEWND, 0, 0); // fix column buttons not displayed
     FillListView;
 end;
 
@@ -356,9 +390,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.FormClose(Sender: TObject; var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionMainWindow, KeyTop,               Top);
     IniFile.WriteInteger(SectionMainWindow, KeyLeft,              Left);
     IniFile.WriteInteger(SectionMainWindow, KeyWidth,             Width);
@@ -368,6 +402,8 @@ begin
     IniFile.WriteBool(SectionData,          KeyWarnDestNotEmpty,  CheckBoxWarnDestNotEmpty.Checked);
     IniFile.WriteBool(SectionData,          KeyOverwriteExisting, CheckBoxOverwriteExisting.Checked);
     IniFile.WriteBool(SectionData,          KeyEmptyDestDir,      CheckBoxEmptyDestDir.Checked);
+    IniFile.UpdateFile;
+    IniFile.Free;
 end;
 
 
@@ -441,7 +477,7 @@ begin
         if S = '' then
             S := X.IssuerOName;
         ListItem.SubItems.Add(S);
-        ListItem.SubItems.Add(DateTimeToStr(X.GetValidNotAfter));
+        ListItem.SubItems.Add(DateToStr(X.GetValidNotAfter));
         ListItem.SubItems.Add(ExtractFileName(FileName));
     end;
 end;
@@ -740,12 +776,17 @@ var
      pwszSystemName  : LPCWSTR;
      X               : TX509Base;
      Subject_Hash    : Cardinal;
+     BundleBio       : PBIO;          // added
      FileName        : String;
      Path            : String;
+     BundleFilename  : String;        // added
+     BundlePath      : String;        // added
      Count           : Integer;
+     xTmp            : PX509;
 begin
     Count := 0;
     pCertContext := nil;
+    BundleBio    := nil;
     Path  := Trim(DestDirEdit.Text);
 
     if (Path = '') or (not DirectoryExists(Path)) then begin
@@ -798,15 +839,28 @@ begin
         Exit;
     end;
 
+    if CheckBoxWriteToBundle.Checked then begin
+         BundlePath:= IncludeTrailingPathDelimiter(Path) + 'Bundled certs';
+         ForceDirectories(BundlePath);
+         BundlePath:= IncludeTrailingPathDelimiter(BundlePath);
+         case ComboBoxStoreType.ItemIndex of
+             0 : BundleFilename := BundlePath + 'CaCertsBundle.pem';
+             1 : BundleFilename := BundlePath + 'RootCaCertsBundle.pem';
+             2 : BundleFilename := BundlePath + 'MyCertsBundle.pem';
+         end;
+         BundleBio := f_BIO_new_file(Pointer(AnsiString(BundleFilename)), PAnsiChar('w+'));
+     end;
+
     { Enum all the certs in the store and store them in PEM format }
     pCertContext := CertEnumCertificatesInStore(hSystemStore, pCertContext);
     LoadSsl; // Need to load the libraries here since it may be required for the call of f_d2i_X509()
     X := TX509Base.Create(nil);
     try
         while pCertContext <> nil do begin
-            X.X509 := f_d2i_X509(nil, @pCertContext.pbCertEncoded,
-                             pCertContext.cbCertEncoded);
-            if Assigned(X.X509) then begin
+            xTmp := f_d2i_X509(nil, @pCertContext.pbCertEncoded, pCertContext.cbCertEncoded);
+            if Assigned(xTmp) then begin
+                X.X509 := xTmp;
+                f_X509_free(xTmp);
                 Subject_Hash := f_X509_subject_name_hash(X.X509);
                 FileName := PathAddBackSlash(Path) + IntToHex(Subject_Hash, 8) + '.0';
                 if not CheckBoxOverwriteExisting.Checked then
@@ -814,11 +868,16 @@ begin
                         FileName := FindPemFileName(FileName);
                 X.SaveToPemFile(FileName);
                 Inc(Count);
+                // save to bundle also
+                if (Assigned(BundleBio)) and (CheckBoxWriteToBundle.Checked) then
+                    f_PEM_write_bio_X509(BundleBio, X.X509);
             end;
             pCertContext := CertEnumCertificatesInStore(hSystemStore, pCertContext);
         end;
         ShowMessage(IntToStr(Count) + ' Certificates exported.');
     finally
+        if Assigned(BundleBio) then
+            f_BIO_free(BundleBio);
         X.Free;
         UnloadSsl;
         if pCertContext <> nil then
@@ -904,7 +963,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function isDirEmpty(const Path: String): Boolean;
+function IsDirEmpty(const Path: String): Boolean;
 var
     SRec : TSearchRec;
 begin
@@ -954,7 +1013,7 @@ end;
 procedure TfrmPemTool1.MMExtrasCreateSelfSignedCertClick(Sender: TObject);
 begin
     frmPemTool3.ToDo := tdCreateSelfSignedCert;
-    frmPemTool3.Showmodal; 
+    frmPemTool3.Showmodal;
 end;
 
 
@@ -963,6 +1022,245 @@ procedure TfrmPemTool1.MMExtrasCreateCertRequestClick(Sender: TObject);
 begin
     frmPemTool3.ToDo := tdCreateCertRequest;
     frmPemTool3.Showmodal;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.MMExtrasEncryptStringRSAClick(Sender: TObject);
+var
+    Cert        : TX509Base;
+    PemFileName : String;
+    OldTitle    : String;
+    Password    : String;
+    S           : String;
+begin
+    S := 'This the plain text This the plain text This the plain text';
+    if not InputQuery(Application.Title, 'Enter a string to encrypt:', S) then
+        Exit; //***
+    OldTitle := OpenDlg.Title;
+    OpenDlg.Title := 'Select a PEM file containing both private and public key!';
+    try
+        OpenDlg.InitialDir := ExtractFileDir(Application.ExeName);
+        if FileExists(OpenDlg.InitialDir + '\client.pem') then
+            OpenDlg.FileName := 'client.pem';
+        if OpenDlg.Execute then begin
+            Password := 'password';
+            if not InputQuery(Application.Title, 'Private key password:', Password) then
+                Exit;
+            PemFileName := OpenDlg.FileName;
+        end
+        else
+            Exit; //***
+    finally
+        OpenDlg.Title := OldTitle;
+    end;
+    { We encrypt using the public key. }
+    { Could also load a PEM file containing both private and public key. }
+    Cert := TX509Base.Create(nil);
+    try
+        { Load a certificate (public key) from PEM file, private key must not exist }
+        Cert.LoadFromPemFile(PemFileName);
+        { Encrypted string is Base64 encoded }
+        S := String(StrEncRsa(Cert.PublicKey, AnsiString(S), TRUE));
+        ShowMessage('RSA encryted and Base64 encoded:'#13#10 + S);
+    finally
+        Cert.Free;
+    end;
+    { Decrypt using the private key. }
+    Cert := TX509Base.Create(nil);
+    try
+        { Load a private key from PEM file }
+        Cert.PrivateKeyLoadFromPemFile(PemFileName, Password);
+        { Decrypt the Base64 encoded string }
+        S := String(StrDecRsa(Cert.PrivateKey, AnsiString(S), TRUE));
+        ShowMessage('Back to plain text again:'#13#10 + S);
+    finally
+        Cert.Free;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.MMExtrasEncryptStringBlowfishClick(Sender: TObject);
+var
+    IV : TIVector;
+    S  : AnsiString;
+begin
+    if not LibeayExLoaded then
+        LoadLibeayEx;
+    S := 'This the plain text This the plain text This the plain text';
+    f_RAND_bytes(@IV, SizeOf(IV));
+    S := StrEncBF(S, 'password', @IV, cklDefault, TRUE);
+    ShowMessage(String(S));
+    S := StrDecBF(S, 'password', @IV, cklDefault, TRUE);
+    ShowMessage(String(S));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.MMExtrasEncryptStreamBlowfishClick(Sender: TObject);
+var
+    S : AnsiString;
+    Src, Dest : TStream;
+    EncCtx, DecCtx : TCiphContext;
+begin
+    //SetLength(S, 2099);
+    //FillChar(S[1], 2099, 'x');
+    { Write NULLs, required!! }
+    FillChar(EncCtx, SizeOf(EncCtx), #0);
+    FillChar(DecCtx, SizeOf(DecCtx), #0);
+    { We use one context for encryption and another one for decryption,    }
+    { IV will be calculated from the password, key size default = 128-bits }
+    CiphInitialize(EncCtx, 'password', nil, nil, {ctBfEcb ctBfOfb} ctBfCbc, cklDefault, True);
+    CiphInitialize(DecCtx, 'password', nil, nil, {ctBfEcb ctBfOfb} ctBfCbc, cklDefault, False);
+    try
+        S := 'This the plain text This the plain text This the plain text';
+        Src  := TMemoryStream.Create;
+        Dest := TMemoryStream.Create;
+        try
+            { Populate the source stream }
+            Src.WriteBuffer(S[1], Length(S));
+            { Encrytion takes place here }
+            StreamEncrypt(Src, Dest, 1024, EncCtx, False);
+            { Just to display cipher text }
+            SetLength(S, Dest.Size);
+            Dest.Position := 0;
+            Dest.Read(S[1], Length(S));
+            ShowMessage(String(Base64Encode(S)));
+            { Decrytion takes place here }
+            StreamDecrypt(Dest, Src, 1024, DecCtx, False);
+            { Just to display decrypted plain result }
+            SetLength(S, Src.Size);
+            Src.Position := 0;
+            Src.Read(S[1], Length(S));
+            ShowMessage(String(S));
+        finally
+            Src.Free;
+            Dest.Free;
+        end;
+    finally
+        CiphFinalize(EncCtx);
+        CiphFinalize(DecCtx);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure Progress(Obj: TObject; Count: Int64; var Cancel: Boolean);
+begin
+    TProgressBar(Obj).Position := Count;
+    Application.ProcessMessages;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.MMExtrasEncryptFileBlowfishClick(Sender: TObject);
+var
+    Src, Dest   : TStream;
+    EncCtx      : TCiphContext;
+    OldTitle    : String;
+    SrcFileName : String;
+    DestFileName: String;
+    Password    : String;
+    OldFilter   : String;
+begin
+    OldFilter := OpenDlg.Filter;
+    OldTitle := OpenDlg.Title;
+    OpenDlg.Filter := 'All Files *.*|*.*';
+    OpenDlg.Title := 'Select a file to encrypt!';
+    try
+        OpenDlg.InitialDir := ExtractFileDir(Application.ExeName);
+        if OpenDlg.Execute then begin
+            SrcFileName := OpenDlg.FileName;
+            DestFileName := ChangeFileExt(SrcFileName, '_ENC' + ExtractFileExt(SrcFileName));
+            if MessageDlg('Save encrypted file as "' + DestFileName + '" ?',
+                          mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
+                Exit; //***
+        end
+        else
+            Exit; //***
+        Password := 'password';
+        if not InputQuery(Application.Title, 'Password:', Password) then
+            Exit; //***
+    finally
+        OpenDlg.Filter := OldFilter;
+        OpenDlg.Title := OldTitle;
+    end;
+    FillChar(EncCtx, SizeOf(EncCtx), #0);
+    
+    CiphInitialize(EncCtx, AnsiString(Password), nil, nil, ctBfCbc, cklDefault, True);
+    try
+        Src  := TFileStream.Create(SrcFileName, fmOpenRead or fmShareDenyWrite);
+        Dest := TFileStream.Create(DestFileName, fmCreate);
+        try
+            ProgressBar1.Max := Src.Size;
+            ProgressBar1.Position := 0;
+            ProgressBar1.Visible := TRUE;
+            StreamEncrypt(Src, Dest, 1024 * 4, EncCtx, False, ProgressBar1, Progress);
+            ShowMessage('File encrypted');
+        finally
+            Src.Free;
+            Dest.Free;
+        end;
+    finally
+        CiphFinalize(EncCtx);
+        ProgressBar1.Visible := False;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.MMExtrasDecryptFileBlowfishClick(Sender: TObject);
+var
+    Src, Dest : TStream;
+    DecCtx : TCiphContext;
+    OldTitle    : String;
+    SrcFileName : String;
+    DestFileName: String;
+    Password    : String;
+    OldFilter   : String;
+begin
+    OldFilter := OpenDlg.Filter;
+    OldTitle := OpenDlg.Title;
+    OpenDlg.Filter := 'All Files *.*|*.*';
+    OpenDlg.Title := 'Select a file to decrypt!';
+    try
+        OpenDlg.InitialDir := ExtractFileDir(Application.ExeName);
+        if OpenDlg.Execute then begin
+            SrcFileName := OpenDlg.FileName;
+            DestFileName := ChangeFileExt(SrcFileName, '_DEC' + ExtractFileExt(SrcFileName));
+            if MessageDlg('Save decrypted file as "' + DestFileName + '" ?',
+                          mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
+                Exit; //***
+        end
+        else
+            Exit; //***
+        Password := 'password';
+        if not InputQuery(Application.Title, 'Password:', Password) then
+            Exit; //***
+    finally
+        OpenDlg.Filter := OldFilter;
+        OpenDlg.Title := OldTitle;
+    end;
+    FillChar(DecCtx, SizeOf(DecCtx), #0);
+    CiphInitialize(DecCtx, AnsiString(Password), nil, nil, ctBfCbc, cklDefault, False);
+    try
+        Src  := TFileStream.Create(SrcFileName, fmOpenRead or fmShareDenyWrite);
+        Dest := TFileStream.Create(DestFileName, fmCreate);
+        try
+            ProgressBar1.Max := Src.Size;
+            ProgressBar1.Position := 0;
+            ProgressBar1.Visible := TRUE;
+            StreamDecrypt(Src, Dest, 1024 * 4, DecCtx, False, ProgressBar1, Progress);
+            ShowMessage('File decrypted');
+        finally
+            Src.Free;
+            Dest.Free;
+        end;
+    finally
+        CiphFinalize(DecCtx);
+        ProgressBar1.Visible := FALSE;
+    end;
 end;
 
 

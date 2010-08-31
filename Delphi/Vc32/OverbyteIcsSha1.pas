@@ -44,6 +44,11 @@ unit OverbyteIcsSha1; // "US Secure Hash Algorithm 1 (SHA1)" (RFC3174)
 
 interface
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$R-}
 {$Q-}
 
@@ -52,7 +57,7 @@ uses
 
 const
    IcsSHA1Version     = 200;
-   CopyRight : String = ' IcsSHA1 (c) 2004-2007 F. Piette V2.00 ';
+   CopyRight : String = ' IcsSHA1 (c) 2004-2010 F. Piette V2.00 ';
 
 const
    shaSuccess      = 0;

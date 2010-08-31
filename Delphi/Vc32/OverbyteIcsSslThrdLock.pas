@@ -3,11 +3,11 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Nov 01, 2005
 Description:  Implementation of OpenSsl thread locking (Windows);
-Version:      1.01
+Version:      1.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2005-2008 by François PIETTE
+Legal issues: Copyright (C) 2005-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -52,6 +52,9 @@ How to use:  TSslStaticLock and TSslDynamicLock implement the locking callbacks
 History:
 March 03, 2006 Version 1.01, new property Enabled, OpenSSL is now loaded
           when Enabled is set to TRUE.
+Jun 30, 2008 A.Garrels made some changes to prepare SSL code for Unicode.
+May 05, 2010 V1.02 A.Garrels changed synchronisation to use TRTLCriticalSection
+             instead of Mutex, removed useless contructor, should be POSIX-ready.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -63,20 +66,30 @@ unit OverbyteIcsSslThrdLock;
 {$T-}              { Untyped pointers                    }
 {$X+}              { Enable extended syntax              }
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
     {$WARN SYMBOL_DEPRECATED OFF}
 {$ENDIF}
-{$IFNDEF USE_SSL}
-    Bomb('Define USE_SSL in OverbyteIcsDefs.inc');
-{$ENDIF}
+
 {#$DEFINE NO_DYNLOCK}
 
 interface
 
+{$IFDEF USE_SSL}
+
 uses
+{$IFDEF MSWINDOWS}
     Windows,
+{$ENDIF}
+{$IFDEF POSIX}
+    PosixGlue, PosixSysTypes,
+{$ENDIF}
     Classes,
     SysUtils,
     OverbyteIcsLIBEAY,
@@ -84,17 +97,15 @@ uses
 
 type
     ESslLockException = class(Exception);
-    TMutexBuf  = array of THandle;
+    TMutexBuf  = array of TRTLCriticalSection;
     TSslStaticLock = class(TComponent)
     protected
         FSslInitialized : Boolean;
         FEnabled    : Boolean;
         procedure   InitializeSsl; virtual;
         procedure   FinalizeSsl; virtual;
-        procedure   MutexSetup(var Mutex : THandle);
         procedure   SetEnabled(const Value: Boolean); virtual;
     public
-        constructor Create(AOwner: TComponent); override;
         destructor  Destroy; override;
     published
         property    Enabled : Boolean read FEnabled write SetEnabled;
@@ -106,35 +117,17 @@ type
         procedure SetEnabled(const Value: Boolean); override;
     end;
 {$ENDIF}
-    procedure Register;
+{$ENDIF} // USE_SSL
 
 implementation
+
+{$IFDEF USE_SSL}
 
 var
    MutexBuf : TMutexBuf;
 
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-
-procedure Register;
-begin
-    RegisterComponents('FPiette', [TSslStaticLock
-                                  {$IFNDEF NO_DYNLOCK}
-                                  , TSslDynamicLock
-                                  {$ENDIF}]);
-end;
-
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-constructor TSslStaticLock.Create(AOwner: TComponent);
-begin
-    inherited Create(AOwner);
-    FSslInitialized := FALSE;
-    FEnabled        := FALSE;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor TSslStaticLock.Destroy;
 begin
     if Enabled then
@@ -165,48 +158,36 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslStaticLock.MutexSetup(var Mutex : THandle);
+procedure MutexSetup(var Mutex : TRTLCriticalSection); {$IFDEF USE_INLINE} inline; {$ENDIF}
 begin
-    Mutex := CreateMutex(nil, False, nil);
-    if Mutex = 0 then
-        raise ESslLockException.Create('MutexSetup ' +
-                                       SysErrorMessage(GetLastError));
+    InitializeCriticalSection(Mutex);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure MutexCleanup(var Mutex : THandle);
+procedure MutexCleanup(var Mutex : TRTLCriticalSection); {$IFDEF USE_INLINE} inline; {$ENDIF}
 begin
-    if Mutex <> 0 then
-    try
-        CloseHandle(Mutex);
-    except
-    end;    
-    Mutex := 0;
+    DeleteCriticalSection(Mutex);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure MutexLock(Mutex : THandle);
+procedure MutexLock(Mutex: TRTLCriticalSection); {$IFDEF USE_INLINE} inline; {$ENDIF}
 begin
-    if WaitForSingleObject(Mutex, Infinite) = WAIT_FAILED then
-        raise ESslLockException.Create('MutexLock ' +
-                                       SysErrorMessage(GetLastError));
+    EnterCriticalSection(Mutex);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure MutexUnlock(Mutex : THandle);
+procedure MutexUnlock(Mutex : TRTLCriticalSection); {$IFDEF USE_INLINE} inline; {$ENDIF}
 begin
-    if not ReleaseMutex(Mutex) then
-        raise ESslLockException.Create('MutexUnlock ' +
-                                       SysErrorMessage(GetLastError));
+    LeaveCriticalSection(Mutex);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure StatLockCallback(Mode : Integer; N : Integer;
-    const _File : PChar; Line : Integer); cdecl;
+    const _File : PAnsiChar; Line : Integer); cdecl;
 begin
     if Mode and Crypto_Lock <> 0 then
         MutexLock(MutexBuf[n])
@@ -236,11 +217,11 @@ begin
         begin
             SetLength(MutexBuf, f_CRYPTO_num_locks);
             try
-                for I := 0 to f_CRYPTO_num_locks -1 do
+                for I := Low(MutexBuf) to High(MutexBuf) do
                     MutexSetup(MutexBuf[I]);
             except
                 on E : Exception do begin
-                    for I := 0 to f_CRYPTO_num_locks -1 do
+                    for I := Low(MutexBuf) to High(MutexBuf) do
                         MutexCleanup(MutexBuf[I]);
                     SetLength(MutexBuf, 0);
                     raise;
@@ -250,9 +231,11 @@ begin
             f_CRYPTO_set_locking_callback(StatLockCallback);
         end
         else begin
-            f_CRYPTO_set_locking_callback(nil);
-            f_CRYPTO_set_id_callback(nil);
-            for I := 0 to f_CRYPTO_num_locks -1 do
+            if FSslInitialized then begin
+                f_CRYPTO_set_locking_callback(nil);
+                f_CRYPTO_set_id_callback(nil);
+            end;
+            for I := Low(MutexBuf) to High(MutexBuf) do
                 MutexCleanup(MutexBuf[I]);
             SetLength(MutexBuf, 0);
         end;
@@ -263,35 +246,29 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF NO_DYNLOCK}
-function DynCreateCallBack(const _file : PChar;
+function DynCreateCallBack(const _file : PAnsiChar;
                            Line: Integer): PCRYPTO_dynlock_value; cdecl;
 begin
     New(Result);
-    Result^.Mutex := CreateMutex(nil, False, nil);
-    if Result^.Mutex = 0 then
-    begin
-        Dispose(Result);
-        Result := nil;
-    end;    
+    MutexSetup(Result^.Mutex);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure DynDestroyCallBack(L : PCRYPTO_dynlock_value; _File : PChar;
+procedure DynDestroyCallBack(L : PCRYPTO_dynlock_value; _File : PAnsiChar;
     Line: Integer); cdecl;
 begin
     if Assigned(L) then
     begin
         MutexCleanUp(L^.Mutex);
         Dispose(L);
-        //L := nil;
     end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure DynLockCallback(Mode : Integer; L : PCRYPTO_dynlock_value;
-    _File : PChar; Line: Integer); cdecl;
+    _File : PAnsiChar; Line: Integer); cdecl;
 begin
     if Assigned(L) then
     begin
@@ -314,20 +291,25 @@ begin
         Exit;
     if not (csDesigning in ComponentState) then begin
         if Value then begin
+            InitializeSsl;
             f_CRYPTO_set_dynlock_create_callback(DynCreateCallBack);
             f_CRYPTO_set_dynlock_lock_callback(DynLockCallback);
             f_CRYPTO_set_dynlock_destroy_callback(DynDestroyCallBack);
         end
         else begin
-            f_CRYPTO_set_dynlock_create_callback(nil);
-            f_CRYPTO_set_dynlock_lock_callback(nil);
-            f_CRYPTO_set_dynlock_destroy_callback(nil);
+            if FSslInitialized then begin
+                f_CRYPTO_set_dynlock_create_callback(nil);
+                f_CRYPTO_set_dynlock_lock_callback(nil);
+                f_CRYPTO_set_dynlock_destroy_callback(nil);
+            end;
         end;
 
     end;
     FEnabled := Value;
 end;
-
 {$ENDIF}
+
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF} // USE_SSL
 end.

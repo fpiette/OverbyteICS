@@ -8,11 +8,11 @@ Description:  This is a demo program showing how to use the TFtpServer
               In production program, you should add code to implement
               security issues.
 Creation:     April 21, 1998
-Version:      1.07
+Version:      1.16
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2007 by François PIETTE
+Legal issues: Copyright (C) 1998-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -71,6 +71,31 @@ May 22, 2007  V1.09 A.Garrels added demo-code that logs on a user
               TCacheData has CRC32B, ZFileName and more admin information
                (not quite finished yet)
               set PasvPortRangeStart/End
+Apr 14, 2008 V1.11 A. Garrels, a few Unicode related changes.
+Nov 6, 2008, V1.12 Angus, support server V7.00 which does not use OverbyteIcsFtpSrvC
+             Added ftpaccounts-default.ini file with user accounts setting defaults for each user
+             Home directory, etc, now set from user account instead of common to all users
+             ReadOnly account supported
+             Note: random account names are no longer allowed for this demo
+Nov 8, 2008, V1.13 Angus, support HOST and REIN(ialise) commands
+             HOST ftp.ics.org would open account file ftpaccounts-ftp.ics.org.ini
+             Added menu items for Display UTF8 and Display Directories
+             If the account password is 'windows', authenticate against Windows
+Nov 13, 2008 V1.14 Arno adjusted UTF-8/code page support.
+Nov 21, 2008 V1.15 Angus removed raw display
+Jun 10, 2010 V1.16 Angus added MaxKB bandwidth limit
+
+
+Sample entry from ftpaccounts-default.ini
+
+[ics]
+Password=ics
+ForceSsl=false
+HomeDir=c:\temp
+OtpMethod=none
+ForceHomeDir=true
+HidePhysicalPath=true
+ReadOnly=false
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -93,15 +118,16 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  IniFiles, StdCtrls, ExtCtrls, Menus,
-  OverbyteIcsFtpSrvC,    OverbyteIcsFtpSrvT,
+  OverbyteIcsIniFiles, StdCtrls, ExtCtrls, Menus,
+ { OverbyteIcsFtpSrvC, }   OverbyteIcsFtpSrvT,
   OverbyteIcsWSocket,    OverbyteIcsWinsock,
   OverbyteIcsWndControl, OverbyteIcsFtpSrv,
-  OverbyteIcsAvlTrees,   OverbyteIcsOneTimePw;
+  OverbyteIcsAvlTrees,   OverbyteIcsOneTimePw,
+  OverbyteIcsUtils;
 
 const
-  FtpServVersion      = 110;
-  CopyRight : String  = ' FtpServer (c) 1998-2008 F. Piette V1.10 ';
+  FtpServVersion      = 116;
+  CopyRight : String  = ' FtpServ (c) 1998-2010 F. Piette V1.16 ';
   WM_APPSTARTUP       = WM_USER + 1;
 
 type
@@ -113,7 +139,7 @@ type
   TCacheData = packed record
     MD5Sum    : String;
     CRC32B    : String;
-    ZFileName : string;
+    ZFileName : String;
     CFileUDT  : TDateTime;
     CFSize    : Int64;
     CReadCount: Integer;
@@ -126,8 +152,8 @@ type
   { We use our own client class to hold our thread }
   TMyClient  = class(TFtpCtrlSocket)
   private
-      FWorkerThread : TGetProcessingThread;
-      FAccessToken : THandle;
+      FWorkerThread   : TGetProcessingThread;
+      FAccessToken    : THandle;
   public
       constructor Create(AOwner: TComponent);override;
       destructor Destroy; override;
@@ -169,7 +195,9 @@ type
     Authenticateotpsha1: TMenuItem;
     Label1: TLabel;
     RootDirectory: TEdit;
-    Label2: TLabel;
+    DisplayDirectories1: TMenuItem;
+    Label13: TLabel;
+    MaxKB: TEdit;
     procedure FormCreate(Sender: TObject);
     procedure FtpServer1ClientConnect(Sender: TObject;
       Client: TFtpCtrlSocket; Error: Word);
@@ -249,6 +277,19 @@ type
       Client: TFtpCtrlSocket; var Done: Boolean);
     procedure FtpServer1Timeout(Sender: TObject; Client: TFtpCtrlSocket;
       Duration: Integer; var Abort: Boolean);
+    procedure FtpServer1ValidatePut(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+      var Allowed: Boolean);
+    procedure FtpServer1ValidateRnFr(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+      var Allowed: Boolean);
+    procedure FtpServer1ValidateDele(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+      var Allowed: Boolean);
+    procedure FtpServer1MakeDirectory(Sender: TObject; Client: TFtpCtrlSocket; Directory: TFtpString;
+      var Allowed: Boolean);
+    procedure FtpServer1ValidateMfmt(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+      var Allowed: Boolean);
+    procedure FtpServer1Rein(Sender: TObject; Client: TFtpCtrlSocket; var Allowed: Boolean);
+    procedure FtpServer1Host(Sender: TObject; Client: TFtpCtrlSocket; Host: TFtpString; var Allowed: Boolean);
+    procedure DisplayDirectories1Click(Sender: TObject);
   private
     FInitialized      : Boolean;
     FIniFileName      : String;
@@ -257,10 +298,11 @@ type
     FXLeft            : Integer;
     FXWidth           : Integer;
     FXHeight          : Integer;
-    FMD5Cache            : TCacheTree;
+    FMD5Cache         : TCacheTree;
     FOtpMethod        : TOtpMethod;
     FOtpSequence      : integer;
-    FOtpSeed          : string;
+    FOtpSeed          : String;
+    FIniRoot          : String;
     procedure CacheFreeData(Sender: TObject; Data: Pointer; Len: Integer);
     procedure WMAppStartup(var msg: TMessage); message WM_APPSTARTUP;
     procedure LoadConfig;
@@ -298,7 +340,7 @@ end;
 const
     MainTitle         = 'FTP Server - http://www.overbyte.be';
 
-    { Ini file layout }
+    { server Ini file layout }
     SectionData       = 'Data';
     KeyPort           = 'Port';
     KeyRoot           = 'Root';
@@ -314,6 +356,16 @@ const
     STATUS_YELLOW     = 1;
     STATUS_RED        = 2;
 
+    { account INI file layout }
+    KeyPassword             = 'Password';
+    KeyHomeDir              = 'HomeDir';
+    KeyOtpMethod            = 'OtpMethod';
+    KeyForceHomeDir         = 'ForceHomeDir';
+    KeyHidePhysicalPath     = 'HidePhysicalPath';
+    KeyReadOnly             = 'ReadOnly';
+    KeyForceSsl             = 'ForceSsl';
+    KeyMaxKB                = 'MaxKB';
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TLogMsg.Text(Prefix : Char; Msg : String);
@@ -324,7 +376,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServerForm.FormShow(Sender: TObject);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
     Minim   : Integer;
 begin
     if not FInitialized then begin
@@ -332,13 +384,14 @@ begin
         Caption             := 'Starting ' + MainTitle;
         Left := -Width;
 
-        IniFile  := TIniFile.Create(FIniFileName);
+        IniFile  := TIcsIniFile.Create(FIniFileName);
         FXTop    := IniFile.ReadInteger(SectionWindow, KeyTop,    Top);
         FXLeft   := IniFile.ReadInteger(SectionWindow, KeyLeft,   Left);
         FXWidth  := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         FXHeight := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
         Minim    := IniFile.ReadInteger(SectionWindow, KeyMinim,  0);
         RootDirectory.Text := IniFile.ReadString(SectionData, KeyRoot, 'c:\temp');
+        MaxKB.Text := IniFile.ReadString(SectionData, KeyMaxKB, '0');
 
         IniFile.Free;
 
@@ -374,13 +427,13 @@ end;
 procedure TFtpServerForm.FormClose(Sender: TObject;
   var Action: TCloseAction);
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
     Minim   : Integer;
 begin
     try
         StopServer;
         Minim   := ord(StartMinimizedCheckBox.Checked);
-        IniFile := TIniFile.Create(FIniFileName);
+        IniFile := TIcsIniFile.Create(FIniFileName);
         IniFile.WriteInteger(SectionWindow, KeyTop,    Top);
         IniFile.WriteInteger(SectionWindow, KeyLeft,   Left);
         IniFile.WriteInteger(SectionWindow, KeyWidth,  Width);
@@ -388,6 +441,8 @@ begin
         IniFile.WriteInteger(SectionWindow, KeyMinim,  Minim);
         IniFile.WriteString(SectionData,    KeyPort,   FPort);
         IniFile.WriteString(SectionData,    KeyRoot,   RootDirectory.Text);
+        IniFile.WriteString(SectionData,    KeyMaxKB,  MaxKB.Text);
+        IniFile.UpdateFile;
         IniFile.Free;
     except
         { Ignore any exception when we are closing }
@@ -399,9 +454,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServerForm.LoadConfig;
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     FPort   := IniFile.ReadString(SectionData,    KeyPort,   'ftp');
     IniFile.Free;
 end;
@@ -410,10 +465,11 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServerForm.SaveConfig;
 var
-    IniFile : TIniFile;
+    IniFile : TIcsIniFile;
 begin
-    IniFile := TIniFile.Create(FIniFileName);
+    IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteString(SectionData, KeyPort, FPort);
+    IniFile.UpdateFile;
     IniFile.Free;
 end;
 
@@ -480,8 +536,8 @@ end;
 procedure TFtpServerForm.FormCreate(Sender: TObject);
 begin
     { Build Ini file name }
-    FIniFileName := LowerCase(ExtractFileName(Application.ExeName));
-    FIniFileName := Copy(FIniFileName, 1, Length(FIniFileName) - 3) + 'ini';
+    FIniFileName := GetIcsIniFileName;
+    FIniRoot := LowerCase(ExtractFilePath(Application.ExeName));
     { Create the Log object }
     Log                  := TLogMsg.Create(Self);
     FMD5Cache            := TCacheTree.Create(FALSE);
@@ -503,6 +559,9 @@ end;
 procedure TFtpServerForm.StartServer;
 var
     wsi     : TWSADATA;
+{$IFDEF EXPERIMENTAL_THROTTLE}
+    bandwidth: integer;
+{$ENDIF}
 begin
     GreenImage.Visible := FALSE;
     RedImage.Visible   := TRUE;
@@ -516,14 +575,14 @@ begin
     InfoMemo.Lines.Add('   ' + OverbyteIcsFtpSrv.CopyRight);
     InfoMemo.Lines.Add('    Winsock:');
     InfoMemo.Lines.Add('        Version ' +
-            Format('%d.%d', [WinsockInfo.wHighVersion shr 8,
-                             WinsockInfo.wHighVersion and 15]));
-    InfoMemo.Lines.Add('        ' + StrPas(@wsi.szDescription));
-    InfoMemo.Lines.Add('        ' + StrPas(@wsi.szSystemStatus));
+            Format('%d.%d', [wsi.wHighVersion shr 8,
+                             wsi.wHighVersion and 15]));
+    InfoMemo.Lines.Add('        ' + String(wsi.szDescription));
+    InfoMemo.Lines.Add('        ' + String(wsi.szSystemStatus));
 {$IFNDEF VER100}
     { A bug in Delphi 3 makes lpVendorInfo invalid }
     if wsi.lpVendorInfo <> nil then
-        InfoMemo.Lines.Add('        ' + StrPas(wsi.lpVendorInfo));
+        InfoMemo.Lines.Add('        ' + String(wsi.lpVendorInfo));
 {$ENDIF}
     { If not running 16 bits, we use our own client class }
     FtpServer1.ClientClass := TMyClient;
@@ -531,7 +590,14 @@ begin
     FtpServer1.Banner := '220-Welcome to my Server' + #13#10 +
                          '220-' + #13#10 +
                          '220 ICS FTP Server ready.';
-    FtpServer1.Port   := FPort;   
+{$IFDEF EXPERIMENTAL_THROTTLE}
+    bandwidth := StrToInt(MaxKB.Text);
+    if bandwidth > 0 then
+        FtpServer1.BandwidthLimit := bandwidth * 1024  { limit server bandwidth }
+    else
+        FtpServer1.BandwidthLimit := 0;
+{$ENDIF}
+    FtpServer1.Port   := FPort;
     FtpServer1.Start;
 end;
 
@@ -597,9 +663,41 @@ begin
     end;
     Client.SessIdInfo := Client.GetPeerAddr + '=(Not Logged On)';
     InfoMemo.Lines.Add('! ' + Client.SessIdInfo + ' connected');
+  { get INI file for default accounts, may be changed if HOST command used }
+    Client.AccountIniName := FtpServerForm.FIniRoot + 'ftpaccounts-default.ini';
+    Client.AccountReadOnly := true;
+    Client.AccountPassword := '';
     UpdateClientCount;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServerForm.FtpServer1Host(Sender: TObject; Client: TFtpCtrlSocket; Host: TFtpString;
+  var Allowed: Boolean);
+var
+    fname: string ;
+begin
+{ HOST might be ftp.domain.com or [123.123.123.123]   }
+    fname := FtpServerForm.FIniRoot + 'ftpaccounts-' + Lowercase (Host) + '.ini';
+    if NOT FileExists (fname) then begin
+        InfoMemo.Lines.Add('! Could not find Accounts File: ' + fname);
+        Allowed := false;
+        exit;
+    end;
+    Client.AccountIniName := fname;
+    Allowed := true;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServerForm.FtpServer1Rein(Sender: TObject; Client: TFtpCtrlSocket; var Allowed: Boolean);
+begin
+    Allowed := true;
+    InfoMemo.Lines.Add('! Reinitialise client accepted');
+    Client.SessIdInfo := Client.GetPeerAddr + '=(Not Logged On)';
+    InfoMemo.Lines.Add('! ' + Client.SessIdInfo + ' connected');
+    Client.AccountIniName := FtpServerForm.FIniRoot + 'ftpaccounts-default.ini';
+    Client.AccountReadOnly := true;
+    Client.AccountPassword := '';
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServerForm.FtpServer1ClientDisconnect(Sender: TObject;
@@ -608,8 +706,11 @@ begin
     InfoMemo.Lines.Add('! ' + Client.SessIdInfo + ' disconnected after ' +
              IntToStr (IcsElapsedSecs (Client.SessStartTick)) +
               ' secs, total recv ' + IntToKbyte (Client.TotPutBytes) +
-                      ', total xmit ' + IntToKbyte (Client.TotGetBytes) ) ;
-    UpdateClientCount;
+                      ', total xmit ' + IntToKbyte (Client.TotGetBytes) ) ;					  
+    if FtpServer1.ClientCount -1 = 0 then
+        ClientCountLabel.Caption := 'No user'
+    else
+        ClientCountLabel.Caption := IntToStr(FtpServer1.ClientCount - 1) + ' users';
 end;
 
 
@@ -681,7 +782,7 @@ procedure TFtpServerForm.FtpServer1RetrSessionConnected(Sender: TObject;
     Data   : TWSocket;
     Error  : Word);
 var
-    Buf : String;
+    Buf : AnsiString;
 begin
     if Error <> 0 then
         InfoMemo.Lines.Add('! ' + Client.SessIdInfo +
@@ -696,7 +797,7 @@ begin
         Client.DataStream := TMemoryStream.Create;
         Buf := 'This is a file created on the fly by the FTP server' + #13#10 +
                'It could result of a query to a database or anything else.' + #13#10 +
-               'The request was: ''' + Client.FilePath + '''' + #13#10;
+               'The request was: ''' + AnsiString(Client.FilePath) + '''' + #13#10;
         Client.DataStream.Write(Buf[1], Length(Buf));
         Client.DataStream.Seek(0, 0);
     end;
@@ -736,7 +837,7 @@ procedure TFtpServerForm.FtpServer1BuildDirectory(
     var Directory : TFtpString;
     Detailed      : Boolean);
 var
-    Buf : String;
+    Buf : AnsiString;
 begin
     if UpperCase(Client.Directory) <> 'C:\VIRTUAL\' then
         Exit;
@@ -771,17 +872,21 @@ procedure TFtpServerForm.FtpServer1AlterDirectory(
 var
     Buf : String;
 begin
-  { angus - show physical file path we listed, and the result }
-    InfoMemo.Lines.Add('! ' + Client.SessIdInfo +
-                                ' Directory Listing Path: ' + Client.DirListPath) ;
-    if Assigned (Client.DataStream) then begin
-        Client.DataStream.Seek(0, 0);
-        SetLength (Buf, Client.DataStream.Size) ;
-        Client.DataStream.Read (Buf [1], Client.DataStream.Size) ;
-        Client.DataStream.Seek(0, 0);
-        InfoMemo.Lines.Add(Buf);
+  { Arno - show physical file path we listed, and the result - the stream   }
+  { might be already encoded with a different ANSI code page inluding UTF-8.}
+  { Pass property Client.CurrentCodePage or the system code page to         }
+  { function Client.DataStreamReadString() to display a decoded string.     }
+    if DisplayDirectories1.Checked then begin
+        InfoMemo.Lines.Add('! ' + Client.SessIdInfo +
+                           ' Directory Listing Path: ' + Client.DirListPath) ;
+        if Assigned (Client.DataStream) then begin
+            Client.DataStream.Seek(0, 0);
+            Client.DataStreamReadString(Buf, Client.DataStream.Size,
+                                                    Client.CurrentCodePage);
+            Client.DataStream.Seek(0, 0);
+            InfoMemo.Lines.Add(Buf);
+        end;
     end;
-
     if UpperCase(Client.Directory) <> 'C:\' then
         Exit;
     { Add our 'virtual' directory to the list }
@@ -789,7 +894,7 @@ begin
         { We need to format directory lines according to the Unix standard }
         Buf :=
         'drwxrwxrwx   1 ftp      ftp            0 Apr 30 19:00 VIRTUAL' + #13#10;
-        Client.DataStream.Write(Buf[1], Length(Buf));
+        Client.DataStreamWriteString(Buf, Client.CurrentCodePage);
     end;
 end;
 
@@ -798,8 +903,7 @@ end;
 procedure TFtpServerForm.FtpServer1ClientCommand(Sender: TObject;
   Client: TFtpCtrlSocket; var Keyword, Params, Answer: TFtpString);
 begin
-    InfoMemo.Lines.Add('< ' + Client.SessIdInfo + ' ' +
-                       Keyword + ' ' + Params);
+    InfoMemo.Lines.Add('< ' + Client.SessIdInfo + ' ' + Keyword + ' ' + Params);
 end;
 
 
@@ -810,7 +914,7 @@ procedure TFtpServerForm.FtpServer1AnswerToClient(
     var Answer : TFtpString);
 begin
     InfoMemo.Lines.Add('> ' + Client.SessIdInfo + ' [' +
-                            IntToStr (Client.ReqDurMilliSecs) + 'ms] ' + Answer);
+                  IntToStr (Client.ReqDurMilliSecs) + 'ms] ' + Answer);
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -819,9 +923,32 @@ procedure TFtpServerForm.FtpServer1OtpMethodEvent(
     Client: TFtpCtrlSocket;
     UserName: TFtpString;
     var OtpMethod: TOtpMethod);
+var
+    IniFile : TIcsIniFile;
+    S: string;
 begin
-    { One Time Passwords - should look up user account to find method, sequence and seed }
-    OtpMethod := FOtpMethod;
+    { look up user account to find One Time Password method, root directory, etc, blank password means no account}
+    if NOT FileExists (Client.AccountIniName) then begin
+        InfoMemo.Lines.Add('! Could not find Accounts File: ' + Client.AccountIniName);
+        exit;
+    end;
+    InfoMemo.Lines.Add('! Opening Accounts File: ' + Client.AccountIniName);
+    IniFile := TIcsIniFile.Create(Client.AccountIniName);
+    Client.AccountPassword := IniFile.ReadString(UserName, KeyPassword, '');  // keep password to check later
+    S := IniFile.ReadString(UserName, KeyOtpMethod, 'none');
+    Client.AccountReadOnly := (IniFile.ReadString(UserName, KeyReadOnly, 'true') = 'true');
+    Client.HomeDir := IniFile.ReadString(UserName, KeyHomeDir, RootDirectory.Text);
+    Client.Directory := Client.HomeDir;
+    if (IniFile.ReadString(UserName, KeyForceHomeDir, 'true') = 'true') then
+                                   Client.Options := Client.Options + [ftpCdUpHome];
+    if (IniFile.ReadString(UserName, KeyHidePhysicalPath, 'true') = 'true') then
+                           Client.Options := Client.Options + [ftpHidePhysicalPath];
+    if (IniFile.ReadString(UserName,  KeyForceSsl, 'false') = 'true') then
+                                       Client.AccountPassword := '';  // SSL not supported so fail password
+    IniFile.Free;
+
+    { sequence and seed }
+    OtpMethod := OtpGetMethod (S);
     Client.OtpSequence := FOtpSequence;
     Client.OtpSeed := FOtpSeed;
 
@@ -836,8 +963,7 @@ procedure TFtpServerForm.FtpServer1OtpGetPasswordEvent(
     UserName: TFtpString;
     var UserPassword: String);
 begin
-    { One Time Passwords - should look up user account to find password }
-    UserPassword := '1234567890';
+    UserPassword := Client.AccountPassword;   // expected password will used to create OTP
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -846,17 +972,20 @@ procedure TFtpServerForm.FtpServer1Authenticate(
     Client             : TFtpCtrlSocket;
     UserName, Password : TFtpString;
     var Authenticated  : Boolean);
+var
+    MyClient : TMyClient;
 begin
+    MyClient := Client as TMyClient;
 
   { One Time Passwords - keep sequence and seed for next login attempt }
-    if FOtpMethod > OtpKeyNone then begin
+    if Client.OtpMethod > OtpKeyNone then begin
         if not Authenticated then exit;
         InfoMemo.Lines.Add('! ' + Client.SessIdInfo +
                                     ' is One Time Password authenticated');
         FOtpSequence := Client.OtpSequence;
         FOtpSeed := Client.OtpSeed;
     end
-    else begin
+    else if (Client.AccountPassword <> 'windows') then begin
 
         { You should place here the code needed to authenticate the user. }
         { For example a text file with all permitted username/password.   }
@@ -867,45 +996,52 @@ begin
         { you can use Client.UserData to store a pointer to an object or  }
         { a record with the needed info.                                  }
 
-        InfoMemo.Lines.Add('! ' + Client.SessIdInfo + ' is authenticated');
+        { 1.12 authentication taken from INI file in OtpMethodEvent }
+        if ((Client.UserName = UserName) and (Password <> '')) and
+             ((Client.AccountPassword = Password) or (Client.AccountPassword = '*')) then { * anonymous logon }
+            InfoMemo.Lines.Add('! ' + Client.SessIdInfo + ' is authenticated')
+        else begin
+            InfoMemo.Lines.Add('! ' + Client.SessIdInfo + ' failed authentication');
+            Authenticated := FALSE;
+        end;
         if Password = 'bad' then
             Authenticated := FALSE;
+    end
+    else begin
+
+        { If the client is already logged in log her off }
+        if MyClient.FAccessToken <> 0 then begin
+            CloseHandle(MyClient.FAccessToken); //logoff
+            MyClient.FAccessToken := 0;
+        end;
+
+        { We call LogonUser API (see the PSDK) to get an access token }
+        { that we can use to impersonate the user, see event handlers }
+        { OnEnterSecurityContext and OnLeaveSecurityContext.          }
+
+        Authenticated := LogonUser(PChar(UserName),
+                                   nil,
+                                   PChar(Password),
+                                   LOGON32_LOGON_NETWORK,
+                                   LOGON32_PROVIDER_DEFAULT,
+                                   MyClient.FAccessToken);
+
+        if Authenticated then
+            InfoMemo.Lines.Add('! ' + Client.SessIdInfo +
+                               ' User ''' + UserName +
+                               ''' is authenticated and logged on locally to Windows')
+        else
+            InfoMemo.Lines.Add('! ' + Client.SessIdInfo +
+                               ' User ''' + UserName + ''' not authenticated to Windows');
+
     end;
+    if NOT Authenticated then exit;
 
-    { Set the home and current directory }
-    Client.HomeDir   := RootDirectory.Text;
-    Client.Directory := Client.HomeDir;
-    InfoMemo.Lines.Add('! ' + Client.SessIdInfo +
-                                    ' Home Directory: ' + Client.HomeDir);
+    { Set the home and current directory - now done in OtpMethodEvent }
+//    Client.HomeDir   := RootDirectory.Text;
+//    Client.Directory := Client.HomeDir;
+    InfoMemo.Lines.Add('! ' + Client.SessIdInfo + ' Home Directory: ' + Client.HomeDir);
 
-    { Uncomment block below to log on users to Windows }
-    (*
-
-    { If the client is already logged in log her off }
-    if Client.FAccessToken <> 0 then begin
-        CloseHandle(Client.FAccessToken); //logoff
-        Client.FAccessToken := 0;
-    end;
-
-    { We call LogonUser API (see the PSDK) to get an access token }
-    { that we can use to impersonate the user, see event handlers }
-    { OnEnterSecurityContext and OnLeaveSecurityContext.          }
-
-    Authenticated := LogonUser(PChar(UserName),
-                               nil,
-                               PChar(Password),
-                               LOGON32_LOGON_NETWORK,
-                               LOGON32_PROVIDER_DEFAULT,
-                               Client.FAccessToken);
-
-    if Authenticated then
-        InfoMemo.Lines.Add('! ' + Client.SessIdInfo +
-                           ' User ''' + UserName +
-                           ''' is authenticated and logged on locally')
-    else
-        InfoMemo.Lines.Add('! ' + Client.SessIdInfo +
-                           ' User ''' + UserName + ''' not authenticated');
-    *)
 end;
 
 
@@ -974,12 +1110,14 @@ begin
     begin
         FtpServer1.Options := FtpServer1.Options + [ftpsCdUpHome];
         for I := 0 to FtpServer1.ClientCount -1 do
-            FtpServer1.Client[I].Options := FtpServer1.Client[I].Options + [ftpCdUpHome];
+            FtpServer1.Client[I].Options := FtpServer1.Client[I].Options +
+                                            [ftpCdUpHome];
     end
     else begin
         FtpServer1.Options := FtpServer1.Options - [ftpsCdUpHome];
         for I := 0 to FtpServer1.ClientCount -1 do
-            FtpServer1.Client[I].Options := FtpServer1.Client[I].Options - [ftpCdUpHome];
+            FtpServer1.Client[I].Options := FtpServer1.Client[I].Options -
+                                            [ftpCdUpHome];
     end;
 end;
 
@@ -993,12 +1131,14 @@ begin
     begin
         FtpServer1.Options := FtpServer1.Options + [ftpsHidePhysicalPath];
         for I := 0 to FtpServer1.ClientCount -1 do
-            FtpServer1.Client[I].Options := FtpServer1.Client[I].Options + [ftpHidePhysicalPath];
+            FtpServer1.Client[I].Options := FtpServer1.Client[I].Options +
+                                            [ftpHidePhysicalPath];
     end
     else begin
         FtpServer1.Options := FtpServer1.Options - [ftpsHidePhysicalPath];
         for I := 0 to FtpServer1.ClientCount -1 do
-            FtpServer1.Client[I].Options := FtpServer1.Client[I].Options - [ftpHidePhysicalPath];
+            FtpServer1.Client[I].Options := FtpServer1.Client[I].Options -
+                                            [ftpHidePhysicalPath];
     end;
 end;
 
@@ -1027,6 +1167,11 @@ begin
     FtpServer1.DisconnectAll;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServerForm.DisplayDirectories1Click(Sender: TObject);
+begin
+    DisplayDirectories1.Checked := NOT DisplayDirectories1.Checked;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServerForm.FtpServer1GetProcessing(
@@ -1054,6 +1199,7 @@ begin
         DelayedSend := TRUE;
     end;
 end;
+
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1105,7 +1251,7 @@ begin
        { only return cache md5sum if getting it for entire file }
         if (Client.HashEndPos = 0) or (Client.HashEndPos = FSize) then begin
             Md5Sum := PCacheData(Node.Data)^.MD5Sum;
-            inc (PCacheData(Node.Data)^.CReadCount);  { so we know how useful was }
+            inc (PCacheData(Node.Data)^.CReadCount); { so we know how useful was }
             PCacheData(Node.Data)^.CLastTick := IcsGetTickCountX;
             InfoMemo.Lines.Add('Read MD5sum from cache: ' + Md5Sum);
         end;
@@ -1139,7 +1285,8 @@ begin
             PData^.CLastTick := IcsGetTickCountX;
             FMD5Cache.Insert(FilePath, PData, SizeOf(TCachedata));
             FMD5Cache.Remove(Node);
-            InfoMemo.Lines.Add('Renamed cache for ' + Client.FromFileName + ' to ' + FilePath);
+            InfoMemo.Lines.Add('Renamed cache for ' + Client.FromFileName +
+                               ' to ' + FilePath);
         end;
         exit;
     end;
@@ -1147,7 +1294,8 @@ begin
     if GetUAgeSizeFile (FilePath, FileUDT, FSize) then begin
         if Md5Sum <> '' then begin
           { only update cache md5sum if got it for entire file }
-            if (Client.HashEndPos <> 0) AND (Client.HashEndPos <> FSize) then exit;
+            if (Client.HashEndPos <> 0) AND (Client.HashEndPos <> FSize) then
+                exit;
             Node := FMD5Cache.FindKey(Client.FromFileName);
             if (Node <> nil) then begin
                 PCacheData(Node.Data)^.MD5Sum := Md5Sum;
@@ -1160,12 +1308,13 @@ begin
                     PCacheData(Node.Data)^.CRC32B := '' ;
                     if PCacheData(Node.Data)^.ZFileName <> '' then begin
                         InfoMemo.Lines.Add('Deleted Old cached compressed file ' +
-                                                    PCacheData(Node.Data)^.ZFileName);
+                                           PCacheData(Node.Data)^.ZFileName);
                         DeleteFile (PCacheData(Node.Data)^.ZFileName);
                     end;
                     PCacheData(Node.Data)^.ZFileName := '';
                 end;
-                InfoMemo.Lines.Add('Old cached MD5sum updated for file ' + FilePath + '=' + Md5Sum);
+                InfoMemo.Lines.Add('Old cached MD5sum updated for file ' +
+                                   FilePath + '=' + Md5Sum);
             end
             else begin
             New(PData);
@@ -1176,7 +1325,8 @@ begin
                 PData^.CLastTick := IcsGetTickCountX;
             FMD5Cache.Insert(FilePath, PData, SizeOf(TCachedata));
             end;
-            InfoMemo.Lines.Add('Cached MD5sum for new file ' + FilePath + '=' + Md5Sum);
+            InfoMemo.Lines.Add('Cached MD5sum for new file ' +
+                               FilePath + '=' + Md5Sum);
         end
         else
             FMD5Cache.RemoveKey(FilePath);
@@ -1227,7 +1377,7 @@ procedure TFtpServerForm.FtpServer1CalculateCrc(Sender: TObject;
   Client: TFtpCtrlSocket; var FilePath, Md5Sum: TFtpString;
   var Allowed: Boolean);
 begin
- { read from CRC cache or let server do it }
+    { read from CRC cache or let server do it }
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1272,7 +1422,8 @@ begin
     Offset := 1 ;
     OldPw := ScanGetNextArg (Params, Offset);
     NewPw := ScanGetNextArg (Params, Offset);
-    InfoMemo.Lines.Add('Client want to change password from: ' + OldPw + ' to ' + NewPw);
+    InfoMemo.Lines.Add('Client want to change password from: ' +
+                       OldPw + ' to ' + NewPw);
     Answer := '501 Can not change password';
 end;
 
@@ -1280,8 +1431,44 @@ end;
 procedure TFtpServerForm.FtpServer1ValidateAllo(Sender: TObject;
   Client: TFtpCtrlSocket; var Params, Answer: TFtpString);
 begin
-    { this event can be used to check if account has sufficient space for upload and
-      format the correct answers, otherwise the command checks space on the Client volume  }
+    { this event can be used to check if account has sufficient space for }
+    { upload and format the correct answers, otherwise the command checks }
+    { space on the Client volume  }
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServerForm.FtpServer1ValidateDele(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+  var Allowed: Boolean);
+begin
+    Allowed := NOT Client.AccountReadOnly;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServerForm.FtpServer1ValidateMfmt(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+  var Allowed: Boolean);
+begin
+    Allowed := NOT Client.AccountReadOnly;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServerForm.FtpServer1ValidatePut(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+  var Allowed: Boolean);
+begin
+    Allowed := NOT Client.AccountReadOnly;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServerForm.FtpServer1ValidateRnFr(Sender: TObject; Client: TFtpCtrlSocket; var FilePath: TFtpString;
+  var Allowed: Boolean);
+begin
+    Allowed := NOT Client.AccountReadOnly;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServerForm.FtpServer1MakeDirectory(Sender: TObject; Client: TFtpCtrlSocket; Directory: TFtpString;
+  var Allowed: Boolean);
+begin
+    Allowed := NOT Client.AccountReadOnly;
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1300,10 +1487,11 @@ begin
     if NOT FileExists (Client.ZCompFileName) then Exit;
     try
        Client.ZFileStream := FtpServer1.OpenFileStream(Client.ZCompFileName,
-                                                         fmOpenRead + fmShareDenyNone);
+                                                  fmOpenRead + fmShareDenyNone);
        Client.ZCompFileDelete := False ;
        Done := True ;
-       InfoMemo.Lines.Add('Opened cached compressed file: ' + Client.ZCompFileName);
+       InfoMemo.Lines.Add('Opened cached compressed file: ' +
+                          Client.ZCompFileName);
     except
        InfoMemo.Lines.Add('Failed to open file: ' + Client.ZCompFileName);
     end;
@@ -1322,7 +1510,8 @@ procedure TFtpServerForm.FtpServer1Timeout(Sender: TObject;
   Client: TFtpCtrlSocket; Duration: Integer; var Abort: Boolean);
 begin
     InfoMemo.Lines.Add('! ' + Client.SessIdInfo +
-         ' client being timed out after ' + IntToStr (Duration) + ' secs inactivity');
+                       ' client being timed out after ' + IntToStr (Duration) +
+                       ' secs inactivity');
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

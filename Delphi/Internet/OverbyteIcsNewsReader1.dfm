@@ -1,6 +1,6 @@
 object NNTPForm: TNNTPForm
-  Left = 168
-  Top = 734
+  Left = 190
+  Top = 126
   Caption = 'NNTP - http://www.overbyte.be'
   ClientHeight = 332
   ClientWidth = 580
@@ -23,7 +23,6 @@ object NNTPForm: TNNTPForm
     Height = 185
     Align = alTop
     TabOrder = 0
-    ExplicitWidth = 588
     object Label1: TLabel
       Left = 8
       Top = 12
@@ -478,8 +477,6 @@ object NNTPForm: TNNTPForm
     ParentFont = False
     ScrollBars = ssBoth
     TabOrder = 1
-    ExplicitWidth = 588
-    ExplicitHeight = 149
   end
   object NntpCli1: TNntpCli
     Port = 'nntp'

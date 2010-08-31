@@ -39,8 +39,14 @@ Legal issues: Copyright (C) 2006 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
+
+Apr 12, 2008 *Temporary, non-breaking Unicode changes* AG.
+Aug 05, 2008 F. Piette added a cast to avoid warning for AnsiString to
+             String implicit convertion
 Sep 21, 2008 Arno - Removed $EXTERNALSYM from some winsock2 symbols
              (CBuilder compat.)
+Jun 07, 2010 Arno fixed a late Unicode bug in WSocket2GetInterfaceList()	
+		 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsWinsock2;
@@ -49,10 +55,22 @@ unit OverbyteIcsWinsock2;
 {$T-}           { Untyped pointers                    }
 {$X+}           { Enable extended syntax              }
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
     {$WARN SYMBOL_DEPRECATED OFF}
+{$ENDIF}
+{$IFDEF COMPILER12_UP}
+    { These are usefull for debugging !}
+    {$WARN IMPLICIT_STRING_CAST       OFF}
+    {$WARN IMPLICIT_STRING_CAST_LOSS  ON}
+    {$WARN EXPLICIT_STRING_CAST       OFF}
+    {$WARN EXPLICIT_STRING_CAST_LOSS  OFF}
 {$ENDIF}
 {$IFDEF COMPILER2_UP}{ Not for Delphi 1                 }
     {$H+}         { Use long strings                    }
@@ -84,7 +102,7 @@ uses
   OverbyteIcsLibrary,
   OverbyteIcsTypes,
   OverbyteIcsWinsock,
-  OverbyteIcsWSocket;
+  OverbyteIcsWSocket; 
 
 const
     WSocket2Version             = 100;
@@ -178,7 +196,7 @@ type
     procedure WSocket2GetInterfaceList(InterfaceList : TInterfaceList); overload;
     procedure WSocket2GetInterfaceList(StrList : TStrings); overload;
     function  WSocket2IsAddrInSubNet(saddr : TInAddr) : Boolean; overload;
-    function  WSocket2IsAddrInSubNet(IpAddr : String) : Boolean; overload;
+    function  WSocket2IsAddrInSubNet(IpAddr : AnsiString) : Boolean; overload;
 
 implementation
 
@@ -276,8 +294,8 @@ procedure WSocket2GetInterfaceList(InterfaceList : TInterfaceList);
 var
     NumInterfaces   : Integer;
     BytesReturned   : Cardinal;
-    PBuf            : PChar;
-    P               : PChar;
+    PBuf            : PAnsiChar;
+    P               : PAnsiChar;
     I               : Integer;
     Err             : Integer;
     BufSize         : Cardinal;
@@ -353,8 +371,8 @@ begin
     try
         WSocket2GetInterfaceList(iList);
         for I := 0 to IList.Count -1 do
-            StrList.Add(WSocket_inet_ntoa(
-                     IList[I]^.iiAddress.AddressIn.sin_addr));
+            StrList.Add(String(WSocket_inet_ntoa(
+                     IList[I]^.iiAddress.AddressIn.sin_addr)));
     finally
         iList.Free;
     end;
@@ -390,13 +408,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function  WSocket2IsAddrInSubNet(IpAddr : String) : Boolean;
+function  WSocket2IsAddrInSubNet(IpAddr : AnsiString) : Boolean;
 var
     saddr : TInAddr;
 begin
     if Length(IpAddr) = 0 then
         raise ESocketException.Create('Invalid address');
-    saddr.S_addr := WSocket_inet_addr(PChar(IpAddr));
+    saddr.S_addr := WSocket_inet_addr(PAnsiChar(IpAddr));
     Result := WSocket2IsAddrInSubNet(saddr);
 end;
 

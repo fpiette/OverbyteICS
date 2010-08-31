@@ -3,12 +3,12 @@
 Author:       Angus Robertson, based on HashLib! from http://www.cobans.net/
 Description:  Calculates CRC32 abnd CRC32B
 Creation:     10 July 2006
-Updated:      08 January 2008
-Version:      1.04
+Updated:      14 April 2009
+Version:      7.00
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2007 by François PIETTE
+Legal issues: Copyright (C) 1997-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -41,13 +41,19 @@ Updates:
 10 July 2006 - baseline
 Sep 3, 2006  V1.01 Angus - fix to allow files larger than 2 gigs
 Oct 31, 2006 V1.02 Angus - added a progress callback to FileCRC().
-27 Nov 2007  V1.03 Angus added FileCRC32B for partial file, removed duplicate code
-08 Jan 2008  V1.04 Angus optional file mode to stop file being share locked
+27 Nov 2007  V1.03 Angus - added FileCRC32B for partial file, removed duplicate code
+08 Jan 2008  V1.04 Angus - optional file mode to stop file being share locked
+14 Apr 2009  V7.00 Angus - added StreamCRC32B, always STREAM64
 
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsCRC;
 
 {$I OverbyteIcsDefs.inc}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$DEFINE USE_ASM} //Remove this line to use pascal instead of assembler
 
 interface
@@ -56,12 +62,12 @@ uses
     SysUtils, Classes;
 
 const
-    CRCVersion         = 104;
-    CopyRight : String = ' CRC32 (c) 1997-2008 F. Piette V1.04 ';
+    CRCVersion         = 700;
+    CopyRight : String = ' CRC32 (c) 1997-2010 F. Piette V7.00 ';
     DefaultMode =  fmOpenRead or fmShareDenyWrite;   { V1.04 }
 
 type
-    TCRCProgress = procedure(Obj: TObject; Count: {$IFDEF STREAM64} Int64 {$ELSE} Integer {$ENDIF}; var Cancel: Boolean);  { V1.02 }
+    TCRCProgress = procedure(Obj: TObject; Count: Int64; var Cancel: Boolean);  { V1.02, V7.00 }
 
 {$Q-}
 {$R-}
@@ -76,6 +82,8 @@ function StrCRC32(Buffer : String): string;
 function FileCRC32(const Filename: String; Mode: Word = DefaultMode) : String; overload;   { V1.04 }
 function FileCRC32(const Filename: String; Obj: TObject;
         ProgressCallback: TCRCProgress; Mode: Word = DefaultMode) : String; overload;      { V1.04 }
+function StreamCRC32(Stream: TStream; Obj: TObject;
+        ProgressCallback: TCRCProgress; Mode: Word = DefaultMode) : String;               { V7.00 }
 
 function GetCRC32B(Buffer: Pointer; BufSize: Integer): string;
 function StrCRC32B(Buffer : String): string;
@@ -84,6 +92,9 @@ function FileCRC32B(const Filename: String; Obj: TObject; ProgressCallback:
         TCRCProgress; Mode: Word = DefaultMode) : String; overload;                        { V1.04 }
 function FileCRC32B(const Filename: String; Obj: TObject; ProgressCallback:
         TCRCProgress; StartPos, EndPos : Int64; Mode: Word = DefaultMode) : String; overload; { V1.04 }
+
+function StreamCRC32B(Stream: TStream; Obj: TObject; ProgressCallback : TCRCProgress;
+                                                        StartPos, EndPos: Int64): String; { V7.00 }
 
 implementation
 
@@ -394,200 +405,160 @@ begin
     Result := GetCRC32B(@Buffer[1], Length(Buffer));
 end;
 
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function FileCRC32(const Filename: String; Mode: Word = DefaultMode) : String;
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * }  { V7.00 }
+function StreamCRC32(Stream: TStream; Obj: TObject;
+        ProgressCallback: TCRCProgress; Mode: Word = DefaultMode) : String;
 const
-{$IFDEF VER80}
-    ChunkSize { Cardinal} = 1024 * 31;
-{$ELSE}
     ChunkSize { Cardinal} = 102400;
-{$ENDIF}
 var
     J          : Integer;
     Num        : Integer;
     Rest       : Integer;
     crc        : LongWord ;
     Buf        : ^Byte;
-    Stream     : TFileStream;
+    Cancel     : Boolean;
 begin
     Result := '';
 
-    { Open file }
-    Stream := TFileStream.Create(Filename, Mode);    { V1.04 }
+    { Allocate buffer to read file }
+    GetMem(Buf, ChunkSize);
     try
-        { Allocate buffer to read file }
-        GetMem(Buf, ChunkSize);
-        try
-            { Initialize CRC }
-            CRC32Init(crc);
+        { Initialize CRC }
+        CRC32Init(crc);
 
-            { Calculate number of full chunks that will fit into the buffer }
-            Num  := Stream.Size div ChunkSize;
-            { Calculate remaining bytes }
-            Rest := Stream.Size mod ChunkSize;
+        { Calculate number of full chunks that will fit into the buffer }
+        Num  := Stream.Size div ChunkSize;
+        { Calculate remaining bytes }
+        Rest := Stream.Size mod ChunkSize;
 
-            { Set the stream to the beginning of the file }
-            Stream.Position := 0;
+        { Set the stream to the beginning of the file }
+        Stream.Position := 0;
 
-            { Process full chunks }
-            for J := 0 to Num-1 do begin
-                Stream.Read(buf^, ChunkSize);
-                CRC32Update(crc, buf, ChunkSize);
+        { Process full chunks }
+        Cancel := FALSE;
+        for J := 0 to Num-1 do begin
+            Stream.Read(buf^, ChunkSize);
+            CRC32Update(crc, buf, ChunkSize);
+            if Assigned(ProgressCallback) then begin
+                ProgressCallback(Obj, Stream.Position, Cancel);
+                if Cancel then
+                    Exit;
             end;
-
-            { Process remaining bytes }
-            if Rest > 0 then begin
-                Stream.Read(buf^, Rest);
-                CRC32Update(crc, buf, Rest);
-            end;
-
-        finally
-            FreeMem(Buf, ChunkSize);
         end;
 
-        { get CRC in hex }
-        Result := CRC32Final(crc);
+        { Process remaining bytes }
+        if Rest > 0 then begin
+            Stream.Read(buf^, Rest);
+            CRC32Update(crc, buf, Rest);
+        end;
+
     finally
-        { Free the file }
-        Stream.Free;
+        FreeMem(Buf, ChunkSize);
     end;
+
+    { get CRC in hex }
+    Result := CRC32Final(crc);
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}  { V1.02 }
 function FileCRC32(const Filename: String; Obj: TObject; ProgressCallback:
                                 TCRCProgress; Mode: Word = DefaultMode) : String;
-const
-{$IFDEF VER80}
-    ChunkSize { Cardinal} = 1024 * 31;
-{$ELSE}
-    ChunkSize { Cardinal} = 102400;
-{$ENDIF}
 var
-    J          : Integer;
-    Num        : Integer;
-    Rest       : Integer;
-    crc        : LongWord ;
-    Buf        : ^Byte;
     Stream     : TFileStream;
-    Cancel     : Boolean;
 begin
     Result := '';
 
     { Open file }
     Stream := TFileStream.Create(Filename, Mode);           { V1.04 }
     try
-        { Allocate buffer to read file }
-        GetMem(Buf, ChunkSize);
-        try
-            { Initialize CRC }
-            CRC32Init(crc);
-
-            { Calculate number of full chunks that will fit into the buffer }
-            Num  := Stream.Size div ChunkSize;
-            { Calculate remaining bytes }
-            Rest := Stream.Size mod ChunkSize;
-
-            { Set the stream to the beginning of the file }
-            Stream.Position := 0;
-
-            { Process full chunks }
-            Cancel := FALSE;
-            for J := 0 to Num-1 do begin
-                Stream.Read(buf^, ChunkSize);
-                CRC32Update(crc, buf, ChunkSize);
-                if Assigned(ProgressCallback) then begin
-                    ProgressCallback(Obj, Stream.Position, Cancel);
-                    if Cancel then
-                        Exit;
-                end;
-            end;
-
-            { Process remaining bytes }
-            if Rest > 0 then begin
-                Stream.Read(buf^, Rest);
-                CRC32Update(crc, buf, Rest);
-            end;
-
-        finally
-            FreeMem(Buf, ChunkSize);
-        end;
-
         { get CRC in hex }
-        Result := CRC32Final(crc);
+        Result := StreamCRC32(Stream, Obj, ProgressCallback, Mode);  { V7.00 }
     finally
         { Free the file }
         Stream.Free;
     end;
 end;
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}  { V1.02 }
-function FileCRC32B(const Filename: String; Obj: TObject; ProgressCallback:
-         TCRCProgress; StartPos, EndPos : Int64; Mode: Word = DefaultMode) : String;  { V1.03 }
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function FileCRC32(const Filename: String; Mode: Word = DefaultMode) : String;
+begin
+    Result := FileCRC32(Filename, Nil, Nil, Mode); { V7.00 }
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}  { V7.00 }
+function StreamCRC32B(Stream: TStream; Obj: TObject; ProgressCallback : TCRCProgress;
+                                                StartPos, EndPos: Int64): String;
 const
-{$IFDEF VER80}
-    ChunkSize { Cardinal} = 1024 * 31;
-{$ELSE}
     ChunkSize { Cardinal} = 102400;
-{$ENDIF}
 var
     J          : Integer;
     Num        : Integer;
     Rest       : Integer;
     crc        : LongWord ;
     Buf        : ^Byte;
-    Stream     : TFileStream;
     Cancel     : Boolean;
     FSize      : Int64;
+begin
+    Result := '';
+    { Allocate buffer to read file }
+    GetMem(Buf, ChunkSize);
+    try
+        { Initialize CRC }
+        CRC32Init(crc);
+
+        { V1.03 calculate how much of the file we are processing }
+        FSize := Stream.Size;
+        if (StartPos >= FSize) then StartPos := 0;
+        if (EndPos > FSize) or (EndPos = 0) then EndPos := FSize;
+
+        { Calculate number of full chunks that will fit into the buffer }
+        Num  := EndPos div ChunkSize;
+        { Calculate remaining bytes }
+        Rest := EndPos mod ChunkSize;
+
+        { Set the stream to the beginning of the file }
+        Stream.Position := StartPos;
+
+        { Process full chunks }
+        Cancel := FALSE;
+        for J := 0 to Num-1 do begin
+            Stream.Read(buf^, ChunkSize);
+            CRC32BUpdate(crc, buf, ChunkSize);
+            if Assigned(ProgressCallback) then begin
+                ProgressCallback(Obj, Stream.Position, Cancel);
+                if Cancel then
+                    Exit;
+            end;
+        end;
+
+        { Process remaining bytes }
+        if Rest > 0 then begin
+            Stream.Read(buf^, Rest);
+            CRC32BUpdate(crc, buf, Rest);
+        end;
+
+    finally
+        FreeMem(Buf, ChunkSize);
+    end;
+
+    { get CRC in hex }
+    Result := CRC32Final(crc);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}  { V1.02 }
+function FileCRC32B(const Filename: String; Obj: TObject; ProgressCallback:
+         TCRCProgress; StartPos, EndPos : Int64; Mode: Word = DefaultMode) : String;  { V1.03 }
+var
+    Stream     : TFileStream;
 begin
     Result := '';
 
     { Open file }
     Stream := TFileStream.Create(Filename, Mode);       { V1.04 }
     try
-        { Allocate buffer to read file }
-        GetMem(Buf, ChunkSize);
-        try
-            { Initialize CRC }
-            CRC32Init(crc);
-
-            { V1.03 calculate how much of the file we are processing }
-            FSize := Stream.Size;
-            if (StartPos >= FSize) then StartPos := 0;
-            if (EndPos > FSize) or (EndPos = 0) then EndPos := FSize;
-
-            { Calculate number of full chunks that will fit into the buffer }
-            Num  := EndPos div ChunkSize;
-            { Calculate remaining bytes }
-            Rest := EndPos mod ChunkSize;
-
-            { Set the stream to the beginning of the file }
-            Stream.Position := StartPos;
-
-            { Process full chunks }
-            Cancel := FALSE;
-            for J := 0 to Num-1 do begin
-                Stream.Read(buf^, ChunkSize);
-                CRC32BUpdate(crc, buf, ChunkSize);
-                if Assigned(ProgressCallback) then begin
-                    ProgressCallback(Obj, Stream.Position, Cancel);
-                    if Cancel then
-                        Exit;
-                end;
-            end;
-
-            { Process remaining bytes }
-            if Rest > 0 then begin
-                Stream.Read(buf^, Rest);
-                CRC32BUpdate(crc, buf, Rest);
-            end;
-
-        finally
-            FreeMem(Buf, ChunkSize);
-        end;
-
         { get CRC in hex }
-        Result := CRC32Final(crc);
+        Result := StreamCRC32B(Stream, Obj, ProgressCallback, StartPos, EndPos); { V7.00 }
     finally
         { Free the file }
         Stream.Free;

@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      1.02
+Version:      7.07
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2009 by François PIETTE
+Legal issues: Copyright (C) 2003-2010 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -61,7 +61,20 @@ link your instance to the session by calling THttpAppSrv.CreateSession
 
 History:
 16/09/2006 V1.01 Added THttpAppSrvConnection.BeforeGetHandler
-11/04/2009 V1.02 Added runtime readonly property THttpAppSrv.WSessions
+11/04/2009 V1.02 Added runtime readonly property THttpAppsrv.WSessions
+                 Added overloaded CheckSession.
+Jun 12, 2009 V7.03 don't ignore event Flags in TriggerGetDocument otherwise
+                    authentication fails
+Jul 14, 2009 V7.04 F. Piette added THttpAppSrvConnection.OnDestroying and
+                   related processing.
+Sept 1, 2009 V7.05 Angus added TriggerHeadDocument, can not ignore HEAD
+                     command for virtual pages else 404 returned
+                   Added OnVirtualException event to report exceptions
+                     creating virtual pages
+Feb 05, 2010 V7.06 F. Piette added overloaded AnswerPage to get template from
+                   resource.
+Feb 08, 2010 V7.07 F. Piette fixed a bug introduced in 7.06 with ResType
+                   (Need to be PChar instead of PAnsiChar).
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
@@ -73,6 +86,11 @@ unit OverbyteIcsHttpAppServer;
 {$H+}           { Use long strings                    }
 {$J+}           { Allow typed constant to be modified }
 {$I OVERBYTEICSDEFS.INC}
+{$IFDEF COMPILER14_UP}
+  {$IFDEF NO_EXTENDED_RTTI}
+    {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
+  {$ENDIF}
+{$ENDIF}
 {$IFDEF DELPHI6_UP}
     {$WARN SYMBOL_PLATFORM   OFF}
     {$WARN SYMBOL_LIBRARY    OFF}
@@ -82,20 +100,28 @@ unit OverbyteIcsHttpAppServer;
 interface
 
 uses
-    Windows, SysUtils,
+    Windows, SysUtils, Messages,
 {$IFDEF DELPHI7_UP}
     StrUtils,
 {$ENDIF}
-    Classes, ExtCtrls, OverbyteIcsHttpSrv, OverbyteIcsWebSession, OverbyteIcsWSocket;
+    Classes, ExtCtrls,
+    OverbyteIcsHttpSrv, OverbyteIcsWebSession, OverbyteIcsWSocket,
+    OverbyteIcsUtils;
 
 type
-    TMyHttpHandler   = procedure (var Flags: THttpGetFlag) of object;
+    TVirtualExceptionEvent = procedure (Sender : TObject;
+                                  E          : Exception;
+                                  Method     : THttpMethod;
+                                  const Path : string) of object;  { V7.05 }
+    TMyHttpHandler        = procedure (var Flags: THttpGetFlag) of object;
+    TUrlHandler           = class;
     THttpAppSrvConnection = class(THttpConnection)
     protected
+        FOnDestroying  : TNotifyEvent;
         function GetHostName: String;
     public
-        PostedData     : PChar;   // Will hold dynamically allocated buffer
-        PostedDataLen  : Integer; // Keep track of received byte count.
+        PostedData     : PAnsiChar; // Will hold dynamically allocated buffer
+        PostedDataLen  : Integer;   // Keep track of received byte count.
         WSessions      : TWebSessions;
         WSession       : TWebSession;
         WSessionID     : String;
@@ -106,12 +132,26 @@ type
                                  SessionData  : TWebSessionData) : String;
         function   CancelSession : String;
         function   CheckSession(var Flags                : THttpGetFlag;
-                                const NegativeAnswerHtml : String) : Boolean;
+                                const NegativeAnswerHtml : String) : Boolean; overload;
+        function   CheckSession(var   Flags              : THttpGetFlag;
+                                const Status             : String;
+                                const Header             : String;
+                                const NegativeAnswerHtml : String;
+                                UserData                 : TObject;
+                                Tags                     : array of const) : Boolean; overload;
         function   ValidateSession: Boolean;
         procedure  BeforeGetHandler(Proc   : TMyHttpHandler;
                                     var OK : Boolean); virtual;
+        procedure  BeforeObjGetHandler(SObj   : TUrlHandler;
+                                       var OK : Boolean); virtual;
+        procedure  BeforePostHandler(Proc   : TMyHttpHandler;
+                                     var OK : Boolean); virtual;
+        procedure  BeforeObjPostHandler(SObj   : TUrlHandler;
+                                        var OK : Boolean); virtual;
         procedure  NoGetHandler(var OK : Boolean); virtual;
         property HostName : String read GetHostName;
+        property OnDestroying  : TNotifyEvent read  FOnDestroying
+                                              write FOnDestroying;
     end;
 
     THttpAllowedFlag = (afBeginBy, afExactMatch, afDirList);
@@ -129,10 +169,78 @@ type
         property Elem[NItem: Integer] : THttpAllowedElement read GetElem;
     end;
 
+    TUrlHandler = class(TComponent)
+    protected
+        FClient          : THttpAppSrvConnection;
+        FFlags           : THttpGetFlag;
+        FMsg_WM_FINISH   : UINT;
+        FWndHandle       : HWND;
+        FMethod          : THttpMethod;
+        function  GetWSession: TWebSession;
+        function  GetDocStream: TStream;
+        procedure setDocStream(const Value: TStream);
+        function  GetOnGetRowData: THttpGetRowDataEvent;
+        procedure SetOnGetRowData(const Value: THttpGetRowDataEvent);
+        procedure ClientDestroying(Sender : TObject); virtual;
+    public
+        procedure Execute; virtual;
+        procedure Finish; virtual;
+        function  CreateSession(const Params : String;
+                                Expiration   : TDateTime;
+                                SessionData  : TWebSessionData) : String;
+        function  ValidateSession: Boolean;
+        procedure DeleteSession;
+        function  CheckSession(const NegativeAnswerHtml : String) : Boolean; overload;
+        function  CheckSession(const Status             : String;
+                               const Header             : String;
+                               const NegativeAnswerHtml : String;
+                               UserData                 : TObject;
+                               Tags                     : array of const) : Boolean; overload;
+        // Answer a page from a template file
+        procedure AnswerPage(
+            const Status   : String;   // if empty, default to '200 OK'
+            const Header   : String;   // Do not use Content-Length nor Content-Type
+            const HtmlFile : String;
+            UserData       : TObject;
+            Tags           : array of const); overload;
+        // Answer a page from a template resource
+        procedure AnswerPage(
+            const Status   : String;    // if empty, default to '200 OK'
+            const Header   : String;    // Do not use Content-Length nor Content-Type
+            const ResName  : String;    // Resource name
+            const ResType  : PChar;     // Resource type
+            UserData       : TObject;
+            Tags           : array of const); overload;
+        procedure AnswerStream(const Status   : String;
+                               const ContType : String;
+                               const Header   : String);
+        procedure AnswerString(const Status   : String;
+                               const ContType : String;
+                               const Header   : String;
+                               const Body     : String); virtual;
+        function  GetParams: String;
+        procedure SetParams(const Value: String);
+        property Client : THttpAppSrvConnection     read  FClient;
+        property Flags  : THttpGetFlag              read  FFlags
+                                                    write FFlags;
+        property Params         : String            read  GetParams
+                                                    write SetParams;
+        property WSession : TWebSession             read  GetWSession;
+        property DocStream                 : TStream
+                                                     read  GetDocStream
+                                                     write setDocStream;
+        property  OnGetRowData   : THttpGetRowDataEvent
+                                                    read  GetOnGetRowData
+                                                    write SetOnGetRowData;
+    end;
+
+    THttpHandlerClass = class of TUrlHandler;
+
     THttpDispatchElement = class
-        Path  : String;
-        FLags : THttpGetFlag;
-        Proc  : Pointer;
+        Path      : String;
+        FLags     : THttpGetFlag;
+        Proc      : Pointer;
+        SObjClass : THttpHandlerClass;
     end;
 
     THttpHandlerList = class(TStringList)
@@ -143,17 +251,39 @@ type
         property Disp[NItem: Integer] : THttpDispatchElement read GetDisp;
     end;
 
+    ArrayOfTVarRec = array of TVarRec;
+
+    TArrayOfConstBuilder = class(TObject)
+    protected
+        FArray : ArrayOfTVarRec;
+    public
+        destructor Destroy; override;
+        procedure Add(const Value : String); overload;
+        procedure Add(const Value : Integer); overload;
+        procedure Add(const Value1, Value2 : String); overload;
+        procedure Add(const Value1 : String; const Value2 : Integer); overload;
+        property Value : ArrayOfTVarRec read FArray;
+    end;
+
     TDeleteSessionEvent = procedure (Sender : TObject;
                                      Session : TWebSession) of object;
 
     THttpAppSrv = class(THttpServer)
     protected
-        FGetHandler     : THttpHandlerList;
-        FPostHandler    : THttpHandlerList;
-        FGetAllowedPath : THttpAllowedPath;
-        FWSessions      : TWebSessions;
+        FGetHandler      : THttpHandlerList;
+        FPostHandler     : THttpHandlerList;
+        FGetAllowedPath  : THttpAllowedPath;
+        FWSessions       : TWebSessions;
         FSessionTimer    : TTimer;
+        FMsg_WM_FINISH   : UINT;
+        FHasAllocateHWnd : Boolean;
         FOnDeleteSession : TDeleteSessionEvent;
+        FOnVirtualExceptionEvent : TVirtualExceptionEvent;      { V7.05 }
+        procedure AllocateMsgHandlers; override;
+        procedure FreeMsgHandlers; override;
+        function  MsgHandlersCount: Integer; override;
+        procedure WndProc(var MsgRec: TMessage); override;
+        procedure WMFinish(var msg: TMessage);
         function GetDispatchVirtualDocument(ClientCnx: THttpAppSrvConnection;
                                             var Flags: THttpGetFlag): Boolean;
         function GetDispatchNormalDocument(ClientCnx: THttpConnection;
@@ -165,6 +295,9 @@ type
                                       var Flags : THttpGetFlag); override;
         procedure TriggerGetDocument(Sender    : TObject;
                                      var Flags : THttpGetFlag); override;
+        procedure TriggerHeadDocument(       { V7.05 can not ignore HEAD command }
+                                     Sender     : TObject;
+                                     var Flags  : THttpGetFlag); override;
         procedure TriggerPostedData(Sender: TObject; ErrCode: WORD); override;
         procedure TriggerClientConnect(Client : TObject; ErrCode : WORD); override;
         function  GetSessions(nIndex: Integer): TWebSession;
@@ -173,7 +306,6 @@ type
         procedure SetSessionTimeout(const Value: Integer);
         procedure DeleteSessionHandler(Sender: TObject; Session: TWebSession);
         procedure SessionTimerHandler(Sender: TObject);
-        property  WSessions : TWebSessions read FWSessions;
     public
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy; override;
@@ -185,21 +317,33 @@ type
         procedure   AddGetHandler(const Path : String;
                                   Proc       : Pointer;
                                   FLags      : THttpGetFlag = hgWillSendMySelf);
+                                  overload;
+        procedure   AddGetHandler(const Path : String;
+                                  SObjClass  : THttpHandlerClass;
+                                  FLags      : THttpGetFlag = hgWillSendMySelf);
+                                  overload;
         procedure   AddGetAllowedPath(const Path : String;
                                       Flags      : THttpAllowedFlag);
         procedure   AddPostHandler(const Path : String;
                                    Proc       : Pointer;
                                    FLags      : THttpGetFlag = hgWillSendMySelf);
+                                   overload;
+        procedure   AddPostHandler(const Path : String;
+                                   SObjClass  : THttpHandlerClass;
+                                   FLags      : THttpGetFlag = hgWillSendMySelf);
+                                   overload;
         property SessionsCount              : Integer     read GetSessionsCount;
         property Sessions[nIndex : Integer] : TWebSession read GetSessions;
+        property WSessions : TWebSessions read FWSessions;
     published
         property SessionTimeout  : Integer                read  GetSessionTimeout
                                                           write SetSessionTimeout;
         property OnDeleteSession : TDeleteSessionEvent    read  FOnDeleteSession
                                                           write FOnDeleteSession;
+        property OnVirtualException : TVirtualExceptionEvent read  FOnVirtualExceptionEvent
+                                                             write FOnVirtualExceptionEvent;      { V7.05 }
     end;
 
-procedure Register;
 function ReverseTextFileToHtmlToString(
     const LogViewURL : String;
     const TextFont   : String;
@@ -232,22 +376,21 @@ implementation
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure Register;
-begin
-    RegisterComponents('FPiette', [THttpAppSrv]);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor THttpAppSrv.Create(AOwner: TComponent);
 begin
     inherited Create(AOwner);
-    FGetHandler     := THttpHandlerList.Create;
-    FGetAllowedPath := THttpAllowedPath.Create;
-    FPostHandler    := THttpHandlerList.Create;
-    FWSessions      := TWebSessions.Create(nil);
+    // At time of writing, the ancestor class do not call AllocateHWnd, so
+    // we must do it. Just chech Window Handle to avoid allocating twice...
+    if FHandle = 0 then begin
+        FHasAllocateHWnd := TRUE;
+        AllocateHWnd;
+    end;
+    FGetHandler                := THttpHandlerList.Create;
+    FGetAllowedPath            := THttpAllowedPath.Create;
+    FPostHandler               := THttpHandlerList.Create;
+    FWSessions                 := TWebSessions.Create(nil);
     FWSessions.OnDeleteSession := DeleteSessionHandler;
-    FClientClass    := THttpAppSrvConnection;
+    FClientClass               := THttpAppSrvConnection;
     FSessionTimer              := TTimer.Create(nil);
     FSessionTimer.Enabled      := FALSE;
     FSessionTimer.OnTimer      := SessionTimerHandler;
@@ -263,6 +406,67 @@ begin
     FreeAndNil(FPostHandler);
     FreeAndNil(FWSessions);
     inherited;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function THttpAppSrv.MsgHandlersCount : Integer;
+begin
+    Result := 1 + inherited MsgHandlersCount;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpAppSrv.AllocateMsgHandlers;
+begin
+    inherited AllocateMsgHandlers;
+    FMsg_WM_FINISH := FWndHandler.AllocateMsgHandler(Self);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpAppSrv.FreeMsgHandlers;
+begin
+    if Assigned(FWndHandler) then
+        FWndHandler.UnregisterMessage(FMsg_WM_FINISH);
+    inherited FreeMsgHandlers;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpAppSrv.WndProc(var MsgRec: TMessage);
+begin
+    with MsgRec do begin
+        { We *MUST* handle all exception to avoid application shutdown }
+        if Msg = FMsg_WM_FINISH then begin
+            try
+                WMFinish(MsgRec)
+            except
+                on E:Exception do
+                    HandleBackGroundException(E);
+            end;
+        end
+        else
+            inherited WndProc(MsgRec);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpAppSrv.WMFinish(var Msg: TMessage);
+var
+    SObj : TUrlHandler;
+    I    : Integer;
+begin
+    SObj := TUrlHandler(Msg.LParam);
+    if Assigned(SObj) then begin
+        for I := 0 to ComponentCount - 1 do begin
+            if SObj = Components[I] then begin
+                SObj.Free;
+                Exit;
+            end;
+        end;
+    end;
 end;
 
 
@@ -295,17 +499,77 @@ begin
     Index := FGetHandler.IndexOf(UpperCase(Path));
     if Index >= 0 then begin
         // Already exists, update
-        Disp       := THttpDispatchElement(FGetHandler.Objects[Index]);
-        Disp.FLags := Flags;
-        Disp.Proc  := Proc;
+        Disp           := THttpDispatchElement(FGetHandler.Objects[Index]);
+        Disp.FLags     := Flags;
+        Disp.Proc      := Proc;
+        Disp.SObjClass := nil;
     end
     else begin
         // Add a new entry
-        Disp       := THttpDispatchElement.Create;
-        Disp.Path  := Path;
-        Disp.FLags := Flags;
-        Disp.Proc  := Proc;
+        Disp           := THttpDispatchElement.Create;
+        Disp.Path      := Path;
+        Disp.FLags     := Flags;
+        Disp.Proc      := Proc;
+        Disp.SObjClass := nil;
         FGetHandler.AddObject(UpperCase(Path), Disp);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpAppSrv.AddGetHandler(
+    const Path : String;
+    SObjClass  : THttpHandlerClass;
+    FLags      : THttpGetFlag = hgWillSendMySelf);
+var
+    Disp  : THttpDispatchElement;
+    Index : Integer;
+begin
+    Index := FGetHandler.IndexOf(UpperCase(Path));
+    if Index >= 0 then begin
+        // Already exists, update
+        Disp           := THttpDispatchElement(FGetHandler.Objects[Index]);
+        Disp.FLags     := Flags;
+        Disp.Proc      := nil;
+        Disp.SObjClass := SObjClass;
+    end
+    else begin
+        // Add a new entry
+        Disp           := THttpDispatchElement.Create;
+        Disp.Path      := Path;
+        Disp.FLags     := Flags;
+        Disp.Proc      := nil;
+        Disp.SObjClass := SObjClass;
+        FGetHandler.AddObject(UpperCase(Path), Disp);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpAppSrv.AddPostHandler(
+    const Path : String;
+    SObjClass  : THttpHandlerClass;
+    FLags      : THttpGetFlag);
+var
+    Disp  : THttpDispatchElement;
+    Index : Integer;
+begin
+    Index := FPostHandler.IndexOf(UpperCase(Path));
+    if Index >= 0 then begin
+        // Already exists, update
+        Disp           := THttpDispatchElement(FPostHandler.Objects[Index]);
+        Disp.FLags     := Flags;
+        Disp.Proc      := nil;
+        Disp.SObjClass := SObjClass;
+    end
+    else begin
+        // Add a new entry
+        Disp           := THttpDispatchElement.Create;
+        Disp.Path      := Path;
+        Disp.FLags     := Flags;
+        Disp.Proc      := nil;
+        Disp.SObjClass := SObjClass;
+        FPostHandler.AddObject(UpperCase(Path), Disp);
     end;
 end;
 
@@ -322,16 +586,18 @@ begin
     Index := FPostHandler.IndexOf(UpperCase(Path));
     if Index >= 0 then begin
         // Already exists, update
-        Disp       := THttpDispatchElement(FPostHandler.Objects[Index]);
-        Disp.FLags := Flags;
-        Disp.Proc  := Proc;
+        Disp           := THttpDispatchElement(FPostHandler.Objects[Index]);
+        Disp.FLags     := Flags;
+        Disp.Proc      := Proc;
+        Disp.SObjClass := nil;
     end
     else begin
         // Add a new entry
-        Disp       := THttpDispatchElement.Create;
-        Disp.Path  := Path;
-        Disp.FLags := Flags;
-        Disp.Proc  := Proc;
+        Disp           := THttpDispatchElement.Create;
+        Disp.Path      := Path;
+        Disp.FLags     := Flags;
+        Disp.Proc      := Proc;
+        Disp.SObjClass := nil;
         FPostHandler.AddObject(UpperCase(Path), Disp);
     end;
 end;
@@ -363,6 +629,9 @@ function THttpAppSrv.PostDispatchVirtualDocument(
     ExecFlag  : Boolean): Boolean;
 var
     Proc     : TMethod;
+    OK       : Boolean;
+    Disp     : THttpDispatchElement;
+    SObj     : TUrlHandler;
     I, J     : Integer;
     PathBuf  : String;
     Status   : Boolean;
@@ -380,18 +649,50 @@ begin
         if Status then begin
             Result    := TRUE;
             if ExecFlag then begin
-                Flags     := FPostHandler.Disp[I].FLags;
-                Proc.Code := FPostHandler.Disp[I].Proc;
-                Proc.Data := ClientCnx;
-                if Proc.Code <> nil then
-                    TMyHttpHandler(Proc)(Flags);
+                Disp      := FPostHandler.Disp[I];
+                Flags     := Disp.FLags;
+                OK        := TRUE;
+                if Disp.Proc <> nil then begin
+                    Proc.Code := Disp.Proc;
+                    Proc.Data := ClientCnx;
+                    ClientCnx.BeforePostHandler(TMyHttpHandler(Proc), OK);
+                    if OK and (Proc.Code <> nil) then
+                        TMyHttpHandler(Proc)(Flags);
+                end
+                else if Disp.SObjClass <> nil then begin
+                    SObj := Disp.SObjClass.Create(Self);
+                    try
+                        SObj.FClient           := ClientCnx;
+                        SObj.FFlags            := Disp.FLags;
+                        SObj.FMsg_WM_FINISH    := FMsg_WM_FINISH;
+                        SObj.FWndHandle        := FHandle;
+                        SObj.FMethod           := httpMethodPost;
+                        ClientCnx.OnDestroying := SObj.ClientDestroying;
+                        ClientCnx.BeforeObjPostHandler(SObj, OK);
+                        if OK then begin
+                            SObj.Execute;
+                            Flags := SObj.FFlags;
+                        end
+                        else begin
+                            Flags := SObj.FFlags;
+                            FreeAndNil(SObj);
+                        end;
+                    except
+                        on E:Exception do
+                        begin
+                            FreeAndNil(SObj);
+                            if Assigned (FOnVirtualExceptionEvent) then  { V7.05 }
+                                FOnVirtualExceptionEvent (Self, E, httpMethodPost, ClientCnx.Path);
+                        end;
+                    end;
+                end;
             end
             else begin
                 ReallocMem(ClientCnx.PostedData,
                            ClientCnx.RequestContentLength + 1);
                 ClientCnx.PostedDataLen  := 0;
-                ClientCnx.FLineMode := FALSE;
-                Flags     := hgAcceptData;
+                ClientCnx.FLineMode      := FALSE;
+                Flags                    := hgAcceptData;
             end;
             Exit;
         end;
@@ -411,6 +712,8 @@ var
     Status  : Boolean;
     Proc    : TMethod;
     OK      : Boolean;
+    Disp    : THttpDispatchElement;
+    SObj    : TUrlHandler;
 begin
     for I := 0 to FGetHandler.Count - 1 do begin
         PathBuf := FGetHandler.Strings[I];
@@ -424,15 +727,42 @@ begin
 
         if Status then begin
             Result    := TRUE;
-            Flags     := FGetHandler.Disp[I].FLags;
-            Proc.Code := FGetHandler.Disp[I].Proc;
-            Proc.Data := ClientCnx;
-//WriteLn('Start ' + ClientCnx.Path);
-            OK := TRUE;
-            ClientCnx.BeforeGetHandler(TMyHttpHandler(Proc), OK);
-            if OK and (Proc.Code <> nil) then
-                TMyHttpHandler(Proc)(Flags);
-//WriteLn('Done  ' + ClientCnx.Path);
+            Disp      := FGetHandler.Disp[I];
+            Flags     := Disp.FLags;
+            OK        := TRUE;
+            if Disp.Proc <> nil then begin
+                Proc.Code := Disp.Proc;
+                Proc.Data := ClientCnx;
+                ClientCnx.BeforeGetHandler(TMyHttpHandler(Proc), OK);
+                if OK and (Proc.Code <> nil) then
+                    TMyHttpHandler(Proc)(FLags);
+            end
+            else if Disp.SObjClass <> nil then begin
+                SObj := Disp.SobjClass.Create(Self);
+                try
+                    SObj.FClient        := ClientCnx;
+                    SObj.FFlags         := Disp.FLags;
+                    SObj.FMsg_WM_FINISH := FMsg_WM_FINISH;
+                    SObj.FWndHandle     := FHandle;
+                    SObj.FMethod        := httpMethodGet;
+                    ClientCnx.BeforeObjGetHandler(SObj, OK);
+                    if OK then begin
+                        SObj.Execute;
+                        Flags := SObj.FFlags;
+                    end
+                    else begin
+                        Flags := SObj.FFlags;
+                        FreeAndNil(SObj);
+                    end;
+                except
+                    on E:Exception do
+                    begin
+                        FreeAndNil(SObj);
+                        if Assigned (FOnVirtualExceptionEvent) then  { V7.05 }
+                            FOnVirtualExceptionEvent (Self, E, httpMethodGet, ClientCnx.Path);
+                    end;
+                end;
+            end;
             Exit;
         end;
     end;
@@ -487,8 +817,11 @@ procedure THttpAppSrv.TriggerGetDocument(
      Sender     : TObject;
      var Flags  : THttpGetFlag);
 begin
-OutputDebugString(PChar('HTTP_GET  ' + (Sender as THttpAppSrvConnection).Path));
+//OutputDebugString(PChar('HTTP_GET  ' + (Sender as THttpAppSrvConnection).Path));
     inherited TriggerGetDocument(Sender, Flags);
+    if Flags in [hgWillSendMySelf, hg404, hg403, hg401, hgAcceptData,   { V7.03 don't ignore Flags }
+                                                        hgSendDirList] then
+        Exit ;
 
     // Handle all virtual documents. Returns TRUE if document handled.
     if GetDispatchVirtualDocument(Sender as THttpAppSrvConnection, Flags) then
@@ -504,11 +837,34 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpAppSrv.TriggerHeadDocument(       { V7.05 can not ignore HEAD command }
+     Sender     : TObject;
+     var Flags  : THttpGetFlag);
+begin
+//OutputDebugString(PChar('HTTP_HEAD  ' + (Sender as THttpAppSrvConnection).Path));
+    inherited TriggerHeadDocument(Sender, Flags);
+    if Flags in [hgWillSendMySelf, hg404, hg403, hg401, hgAcceptData,
+                                                        hgSendDirList] then
+        Exit ;
+
+    // Handle all virtual documents. Returns TRUE if document handled.
+    if GetDispatchVirtualDocument(Sender as THttpAppSrvConnection, Flags) then
+        Exit;
+
+    // Handle all normal (static) documents. Returns TRUE if document handled.
+    if GetDispatchNormalDocument(Sender as THttpConnection, Flags) then
+        Exit;
+
+    // Reject anything else
+    Flags := hg404;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpAppSrv.TriggerPostDocument(
     Sender    : TObject;
     var Flags : THttpGetFlag);
 begin
-OutputDebugString(PChar('HTTP_POST ' + (Sender as THttpAppSrvConnection).Path));
+//OutputDebugString(PChar('HTTP_POST ' + (Sender as THttpAppSrvConnection).Path));
     inherited TriggerPostDocument(Sender, Flags);
 
     // Handle all virtual documents. Returns TRUE if document handled.
@@ -642,6 +998,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor THttpAppSrvConnection.Destroy;
 begin
+    if Assigned(FOnDestroying) then
+        FOnDestroying(Self);
+    
     if Assigned(PostedData) then begin
         FreeMem(PostedData);
         PostedData := nil;
@@ -717,6 +1076,25 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// Same as ValidateSession except it will send a reply when session is
+// invalid. Usually the reply is a page telling telling the user to logon.
+// CheckSession is normally called in the very beginning of processing for
+// all pages that must be protected by a valid session.
+function THttpAppSrvConnection.CheckSession(
+    var   Flags              : THttpGetFlag;
+    const Status             : String;   { if empty, default to '200 OK'              }
+    const Header             : String;   { Do not use Content-Length nor Content-Type }
+    const NegativeAnswerHtml : String;
+    UserData                 : TObject;
+    Tags                     : array of const) : Boolean;
+begin
+    Result := ValidateSession;
+    if (not Result) and (NegativeAnswerHtml <> '') then
+        AnswerPage(Flags, Status, Header, NegativeAnswerHtml, UserData, Tags);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpAppSrv.TriggerClientConnect(Client: TObject; ErrCode: WORD);
 begin
    (Client as THttpAppSrvConnection).WSessions := FWSessions;
@@ -728,7 +1106,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function THttpAppSrvConnection.GetHostName: String;
 begin
-    Result := WSocketResolveIp(PeerAddr);
+    Result := AnsiToUnicode(WSocketResolveIp(AnsiString(PeerAddr)));
 end;
 
 
@@ -871,7 +1249,7 @@ var
     PosNext     : Integer;
     PosPrev     : Integer;
     FileHdl     : THANDLE;
-    OpenBuf     : _OFSTRUCT;
+//  OpenBuf     : _OFSTRUCT;
     MapHdl      : THandle;
     MapAddr     : PChar;
     FSize       : Integer;
@@ -890,7 +1268,8 @@ begin
         PageSize    := 25;
     end;
 
-    FileHdl := OpenFile(PChar(FileName), OpenBuf, OF_READ);
+//  FileHdl := OpenFile(PChar(FileName), OpenBuf, OF_READ);
+    FileHdl := IcsFileCreateW(FileName, OPEN_EXISTING);
     if FileHdl = HFILE_ERROR then begin
         Line := 'Unable to open file';
         Stream.Write(Line[1], Length(Line));
@@ -1038,17 +1417,295 @@ procedure THttpAppSrvConnection.BeforeGetHandler(
     Proc   : TMyHttpHandler;
     var OK : Boolean);
 begin
-     // Nothing to do here, just to allow ovveriden method
+     // Nothing to do here, just to allow overriden method
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpAppSrvConnection.BeforeObjGetHandler(
+    SObj   : TUrlHandler;
+    var OK : Boolean);
+begin
+     // Nothing to do here, just to allow overriden method
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpAppSrvConnection.BeforePostHandler(
+    Proc   : TMyHttpHandler;
+    var OK : Boolean);
+begin
+     // Nothing to do here, just to allow overriden method
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpAppSrvConnection.BeforeObjPostHandler(
+    SObj   : TUrlHandler;
+    var OK : Boolean);
+begin
+     // Nothing to do here, just to allow overriden method
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpAppSrvConnection.NoGetHandler(var OK : Boolean);
 begin
-     // Nothing to do here, just to allow ovveriden method
+     // Nothing to do here, just to allow overriden method
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TUrlHandler.Execute;
+begin
+     // Nothing to do here, just to allow overriden method
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TUrlHandler.Finish;
+begin
+    // We need to destroy the server object, but we can't do it safely from
+    // one of his methods. Delaying the detroy until all queued events are
+    // processed is better. This is why we use an intermediate message.
+    if (FWndHandle <> 0) and (FMsg_WM_FINISH > 0) then
+        PostMessage(FWndHandle, FMsg_WM_FINISH, 0, LPARAM(Self));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TUrlHandler.ClientDestroying(Sender : TObject);
+begin
+    if FClient = Sender then
+        FClient := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TUrlHandler.GetDocStream: TStream;
+begin
+    if Assigned(Client) then
+        Result := Client.DocStream
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TUrlHandler.GetOnGetRowData: THttpGetRowDataEvent;
+begin
+    if Assigned(Client) then
+        Result := Client.OnGetRowData
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TUrlHandler.SetOnGetRowData(const Value: THttpGetRowDataEvent);
+begin
+    if Assigned(Client) then
+        Client.OnGetRowData := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TUrlHandler.SetDocStream(const Value: TStream);
+begin
+    if Assigned(Client) then
+        Client.DocStream := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TUrlHandler.GetWSession: TWebSession;
+begin
+    if Assigned(Client) then
+        Result := Client.WSession
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TUrlHandler.GetParams: String;
+begin
+    if Assigned(Client) then
+        Result := Client.Params
+    else
+        Result := '';
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TUrlHandler.SetParams(const Value: String);
+begin
+    if Assigned(Client) then
+        Client.Params := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TUrlHandler.AnswerPage(
+    const Status, Header, HtmlFile: String;
+    UserData: TObject; Tags: array of const);
+begin
+    if Assigned(Client) then
+        Client.AnswerPage(FFlags, Status, Header, HtmlFile, UserData, Tags);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TUrlHandler.AnswerPage(
+    const Status   : String;    // if empty, default to '200 OK'
+    const Header   : String;    // Do not use Content-Length nor Content-Type
+    const ResName  : String;    // Resource name
+    const ResType  : PChar;     // Resource type
+    UserData       : TObject;
+    Tags           : array of const);
+begin
+    if Assigned(Client) then
+        Client.AnswerPage(FFlags, Status, Header,
+                          ResName, ResType, UserData, Tags);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TUrlHandler.AnswerStream(const Status, ContType, Header: String);
+begin
+    if Assigned(Client) then
+        Client.AnswerStream(FFlags, Status, ContType, Header);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TUrlHandler.AnswerString(
+    const Status, ContType, Header, Body: String);
+begin
+    if Assigned(Client) then
+        Client.AnswerString(FFlags, Status, ContType, Header, Body);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TUrlHandler.CheckSession(const NegativeAnswerHtml: String): Boolean;
+begin
+    if Assigned(Client) then
+        Result := Client.CheckSession(FFlags, NegativeAnswerHtml)
+    else
+        Result := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TUrlHandler.CheckSession(
+    const Status, Header, NegativeAnswerHtml: String;
+    UserData: TObject; Tags: array of const): Boolean;
+begin
+    if Assigned(Client) then
+        Result := Client.CheckSession(FFlags, Status, Header,
+                                      NegativeAnswerHtml, UserData, Tags)
+    else
+        Result := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TUrlHandler.CreateSession(
+    const Params: String; Expiration: TDateTime;
+    SessionData: TWebSessionData): String;
+begin
+    if Assigned(Client) then
+        Result := Client.CreateSession(Params, Expiration, SessionData)
+    else
+        Result := NO_CACHE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TUrlHandler.DeleteSession;
+begin
+    if Assigned(Client) then
+        Client.WSessions.DeleteSession(Client.WSessionID);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TUrlHandler.ValidateSession: Boolean;
+begin
+    if Assigned(Client) then
+        Result := Client.ValidateSession
+    else
+        Result := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+{ TArrayOfConstBuilder }
+
+procedure TArrayOfConstBuilder.Add(const Value: String);
+var
+    L : Integer;
+    P : PChar;
+begin
+    GetMem(P, SizeOf(Char) * (Length(Value) + 1));
+    StrCopy(P, PChar(Value));
+
+    L := Length(FArray);
+    SetLength(FArray, L + 1);
+{$IF SizeOf(Char) = 2}
+    FArray[L].VType          := vtUnicodeString;
+    FArray[L].VUnicodeString := P;
+{$ELSE}
+    FArray[L].VType          := vtPChar;
+    FArray[L].VPChar         := P;
+{$IFEND}
+end;
+
+procedure TArrayOfConstBuilder.Add(const Value: Integer);
+begin
+    Add(IntToStr(Value));
+end;
+
+procedure TArrayOfConstBuilder.Add(const Value1, Value2: String);
+begin
+    Add(Value1);
+    Add(Value2);
+end;
+
+procedure TArrayOfConstBuilder.Add(const Value1: String; const Value2: Integer);
+begin
+    Add(Value1);
+    Add(Value2);
+end;
+
+destructor TArrayOfConstBuilder.Destroy;
+var
+    I : Integer;
+    P : PChar;
+begin
+    for I := 0 to Length(FArray) - 1 do begin
+{$IF SizeOf(Char) = 2}
+        if FArray[I].VType = vtUnicodeString then begin
+            P := FArray[I].VUnicodeString;
+            if Assigned(P) then begin
+                FreeMem(P);
+                FArray[I].VUnicodeString := nil;
+            end;
+        end;
+{$ELSE}
+        if FArray[I].VType = vtPChar then begin
+            P := FArray[I].VPChar;
+            if Assigned(P) then begin
+                FreeMem(P);
+                FArray[I].VPChar := nil;
+            end;
+        end;
+{$IFEND}
+    end;
+
+    inherited Destroy;
+end;
 
 end.

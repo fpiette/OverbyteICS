@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      7.30
+Version:      7.31
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -379,6 +379,11 @@ Jul 31, 2009 V7.28  Arno enlarged send buffer size to 2048 byte see const
 Aug 12, 2009 V7.29  Bjørnar Nielsen found a bug with conditional define NO_ADV_MT.
 Apr 26, 2010 V7.30  Arno fixed some errors with MIME inline encoding, added
                     support for UTF-7 and other stateful and MBCS. 
+Sep 03, 2010 V7.31  Arno - New property THtmlSmtpCli.HtmlImageCidSuffix which
+                    specifies a custom string to be appended to the default
+                    Content-ID "IMAGE<number>". Some webmailer did not like
+                    our default cid. Thanks to Fabrice Vendé for providing a
+                    fix.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -444,8 +449,8 @@ uses
     OverbyteIcsMimeUtils;
 
 const
-  SmtpCliVersion     = 730;
-  CopyRight : String = ' SMTP component (c) 1997-2010 Francois Piette V7.30 ';
+  SmtpCliVersion     = 731;
+  CopyRight : String = ' SMTP component (c) 1997-2010 Francois Piette V7.31 ';
   smtpProtocolError  = 20600; {AG}
   SMTP_RCV_BUF_SIZE  = 4096;
   
@@ -1204,6 +1209,9 @@ type
         FHtmlCodePage           : LongWord;
         FHtmlConvertToCharset   : Boolean;
         FHtmlIsMultiByteCP      : Boolean;
+        { Image Content-ID suffix. Default ID, IMAGE<number> might not work }
+        { properly with Orange Webmail.                                     }
+        FHtmlImageCidSuffix     : String;
         FLineOffset             : Integer;
         FImageNumber            : Integer;
         FsContentType           : String;
@@ -1249,6 +1257,8 @@ type
         property HtmlConvertToCharset : Boolean
                                               read  FHtmlConvertToCharset
                                               write SetHtmlConvertToCharSet;
+        property HtmlImageCidSuffix : String  read  FHtmlImageCidSuffix
+                                              write FHtmlImageCidSuffix;
     end;
 
 { Function to convert a TDateTime to an RFC822 timestamp string }
@@ -4812,7 +4822,8 @@ begin
             5:  begin
                     if FImageNumber <= FEmailImages.Count then
                         StrPCopy(PAnsiChar(MsgLine), 'Content-ID: <IMAGE' +
-                                 IcsIntToStrA(FImageNumber) + '>')
+                                 IcsIntToStrA(FImageNumber) +
+                                 AnsiString(FHtmlImageCidSuffix) + '>')
                     else
                         { This line is just a place holder to avoid }
                         StrPCopy(PAnsiChar(MsgLine), 'X-File-ID: <FILE' +

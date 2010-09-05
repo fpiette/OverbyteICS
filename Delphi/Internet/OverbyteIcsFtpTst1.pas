@@ -578,7 +578,7 @@ begin
         Strm := TFileStream.Create(FileName, fmOpenRead);
         try
             SetLength(S, Strm.Size);
-            Strm.Read(S[1], Length(S));
+            Strm.Read(PAnsiChar(S)^, Length(S));
             { Auto-detect UTF-8 if Option is set }
             if (FtpClient1.CodePage <> CP_UTF8) and
                (ftpAutoDetectCodePage in FtpClient1.Options) and

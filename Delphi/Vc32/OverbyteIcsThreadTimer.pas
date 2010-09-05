@@ -195,6 +195,9 @@ var
     wRes     : Longword;
     CurTimer : TIcsThreadTimer;
 begin
+{$IFDEF Debug}
+    IcsNameThreadForDebugging('TIcsClockThread');
+{$ENDIF}
     try
         while not Terminated do begin
             wRes := WaitForSingleObject(FWakeUpEvent,

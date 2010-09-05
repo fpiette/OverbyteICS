@@ -559,7 +559,7 @@ end;
 procedure TFtpServerForm.StartServer;
 var
     wsi     : TWSADATA;
-{$IFDEF EXPERIMENTAL_THROTTLE}
+{$IFDEF BUILTIN_THROTTLE}
     bandwidth: integer;
 {$ENDIF}
 begin
@@ -590,7 +590,7 @@ begin
     FtpServer1.Banner := '220-Welcome to my Server' + #13#10 +
                          '220-' + #13#10 +
                          '220 ICS FTP Server ready.';
-{$IFDEF EXPERIMENTAL_THROTTLE}
+{$IFDEF BUILTIN_THROTTLE}
     bandwidth := StrToInt(MaxKB.Text);
     if bandwidth > 0 then
         FtpServer1.BandwidthLimit := bandwidth * 1024  { limit server bandwidth }

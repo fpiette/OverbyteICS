@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.43
+Version:      7.44
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -768,6 +768,11 @@ Sep 05, 2010 V7.43 Arno fixed a bug in the experimental throttle and timeout
                    EXPERIMENTAL_TIMEOUT to BUILTIN_THROTTLE and BUILTIN_TIMEOUT.
                    It's now possible to either enable them in OverbyteIcsDefs.inc
                    or define them in project options.
+Sep 08, 2010 V7.44 Arno reworked the experimental timeout and throttle code.
+                   Method names of TCustomTimeoutWSocket **changed**, they all
+                   got prefix "Timeout". Removed the crappy TCustomTimerWSocket
+                   class, both throttle and timeout use their own TIcsThreadTimer
+                   instance now.
 }
 
 {
@@ -849,10 +854,6 @@ unit OverbyteIcsWSocket;
     {$DEFINE VCL}
 {$ENDIF}
 
-{$IF DEFINED(BUILTIN_THROTTLE) or DEFINED(BUILTIN_TIMEOUT)}
-    {$DEFINE BUILTIN_TIMER}
-{$IFEND}
-
 interface
 
 uses
@@ -872,17 +873,17 @@ uses
 {$IFNDEF NO_DEBUG_LOG}
   OverbyteIcsLogger,
 {$ENDIF}
-{$IFDEF BUILTIN_TIMER}
+{$IF DEFINED(BUILTIN_THROTTLE) or DEFINED(BUILTIN_TIMEOUT)}
   OverbyteIcsThreadTimer,
-{$ENDIF}
+{$IFEND}
   OverbyteIcsUtils,
   OverbyteIcsTypes,      OverbyteIcsLibrary,
   OverbyteIcsWndControl, OverbyteIcsWSockBuf,
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 743;
-  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.43 ';
+  WSocketVersion            = 744;
+  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.44 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -2399,50 +2400,22 @@ type
           {$IFDEF COMPILER12_UP}'Do not use in new applications'{$ENDIF};
   end;
 
-{$IFDEF BUILTIN_TIMER}
-  TIcsTimerEvent = procedure (Sender: TObject; ATickCount: LongWord) of object;
-  TIcsTimerHandle = Pointer;
-  TIcsTimerItem = record
-     Interval : LongWord;
-     LastTick : LongWord;
-     Event    : TIcsTimerEvent;
-  end;
-  PIcsTimerItem = ^TIcsTimerItem;
-
-  TCustomTimerWSocket = class(TCustomSyncWSocket)
-  private
-      FTimer              : TIcsThreadTimer;
-      FTimerList          : TList;
-      FNextMinInterval    : LongWord;
-      FOldTimerEnabled    : Boolean;
-      procedure HandleBaseTimer(Sender: TObject);
-  protected
-      function   RegisterTimer: TIcsTimerHandle;
-      procedure  UnregisterTimer(HTimer: TIcsTimerHandle);
-      function   SetTimer(HTimer: TIcsTimerHandle; Interval: LongWord;
-                          OnTimer: TIcsTimerEvent): Boolean;
-  public
-      destructor Destroy; override;
-      procedure  ThreadAttach; override;
-      procedure  ThreadDetach; override;
-  end;
-{$ENDIF}
-
 {$IFDEF BUILTIN_TIMEOUT}
   TTimeoutReason = (torConnect, torIdle);
   TTimeoutEvent = procedure (Sender: TObject; Reason: TTimeoutReason) of object;
-  TCustomTimeoutWSocket = class(TCustomTimerWSocket)
+  TCustomTimeoutWSocket = class(TCustomSyncWSocket)
   private
-      FConnectTimeout         : LongWord;
-      FIdleTimeout            : LongWord;
-      FTimeoutSampleInterval  : LongWord;
+      FTimeoutConnect         : LongWord;
+      FTimeoutIdle            : LongWord;
+      FTimeoutSampling        : LongWord;
       FOnTimeout              : TTimeoutEvent;
-      FToTimer                : TIcsTimerHandle;
-      FConnectStartTick       : LongWord;
-      procedure StartSampling;
-      procedure HandleTimeoutTimer(Sender: TObject; ATickCount: LongWord);
-      procedure StopSampling;
-      procedure FreeAndNilTimer;
+      FTimeoutTimer           : TIcsThreadTimer;
+      FTimeoutConnectStartTick: LongWord;
+      FTimeoutOldTimerEnabled : Boolean;
+      FTimeoutKeepThreadAlive : Boolean;
+      procedure TimeoutHandleTimer(Sender: TObject);
+      procedure SetTimeoutSampling(const Value: LongWord);
+      procedure SetTimeoutKeepThreadAlive(const Value: Boolean);
   protected
       procedure TriggerTimeout(Reason: TTimeoutReason); virtual;
       procedure TriggerSessionConnectedSpecial(Error: Word); override;
@@ -2451,12 +2424,19 @@ type
   public
       constructor Create(AOwner: TComponent); override;
       procedure Connect; override;
+      procedure TimeoutStartSampling;
+      procedure TimeoutStopSampling;
+      procedure ThreadAttach; override;
+      procedure ThreadDetach; override;
+      property  TimeoutKeepThreadAlive: Boolean    read  FTimeoutKeepThreadAlive
+                                                   write SetTimeoutKeepThreadAlive
+                                                   default TRUE;
   //published
-      property TimeoutSampleInterval: LongWord     read  FTimeoutSampleInterval
-                                                   write FTimeoutSampleInterval;
-      property ConnectTimeout: LongWord            read  FConnectTimeout
-                                                   write FConnectTimeout;
-      property IdleTimeout: LongWord read FIdleTimeout write FIdleTimeout;
+      property TimeoutSampling: LongWord           read  FTimeoutSampling
+                                                   write SetTimeoutSampling;
+      property TimeoutConnect: LongWord            read  FTimeoutConnect
+                                                   write FTimeoutConnect;
+      property TimeoutIdle: LongWord read FTimeoutIdle write FTimeoutIdle;
       property OnTimeout: TTimeoutEvent read FOnTimeout write FOnTimeout;
   end;
 {$ENDIF}
@@ -2465,18 +2445,22 @@ type
   {$IFDEF BUILTIN_TIMEOUT}
   TCustomThrottledWSocket = class(TCustomTimeoutWSocket)
   {$ELSE}
-  TCustomThrottledWSocket = class(TCustomTimerWSocket)
+  TCustomThrottledWSocket = class(TCustomSyncWSocket)
   {$ENDIF}
   private
-      FBandwidthLimit       : LongWord;  // Bytes per second, null = disabled
-      FBandwidthSampling    : LongWord;  // Msec sampling interval
-      FBandwidthCount       : LongWord;  // Byte counter
-      FBandwidthMaxCount    : LongWord;  // Bytes during sampling period
-      FBandwidthTimer       : TIcsTimerHandle;//TIcsThreadTimer;
-      FBandwidthPaused      : Boolean;
-      FBandwidthEnabled     : Boolean;
-      procedure HandleThrottleTimer(Sender: TObject; ATickCount: LongWord);
+      FBandwidthLimit           : LongWord;  // Bytes per second, null = disabled
+      FBandwidthSampling        : LongWord;  // Msec sampling interval
+      FBandwidthCount           : LongWord;  // Byte counter
+      FBandwidthMaxCount        : LongWord;  // Bytes during sampling period
+      FBandwidthTimer           : TIcsThreadTimer;
+      FBandwidthPaused          : Boolean;
+      FBandwidthEnabled         : Boolean;
+      FBandwithOldTimerEnabled  : Boolean;
+      FBandwidthKeepThreadAlive : Boolean;
+      procedure BandwidthHandleTimer(Sender: TObject);
       procedure SetBandwidthControl;
+      procedure SetBandwidthSampling(const Value: LongWord);
+      procedure SetBandwidthKeepThreadAlive(const Value: Boolean);
   protected
       procedure DupConnected; override;
       function  RealSend(var Data: TWSocketData; Len : Integer) : Integer; override;
@@ -2484,12 +2468,17 @@ type
       procedure TriggerSessionClosed(Error: Word); override;
   public
       constructor Create(AOwner: TComponent); override;
-      function Receive(Buffer: TWSocketData; BufferSize: Integer) : Integer; override;
+      function  Receive(Buffer: TWSocketData; BufferSize: Integer) : Integer; override;
+      procedure ThreadAttach; override;
+      procedure ThreadDetach; override;
+      property  TimeoutKeepThreadAlive: Boolean    read  FBandwidthKeepThreadAlive
+                                                   write SetBandwidthKeepThreadAlive
+                                                   default TRUE;
   //published
       property BandwidthLimit       : LongWord     read  FBandwidthLimit
                                                    write FBandwidthLimit;
       property BandwidthSampling    : LongWord     read  FBandwidthSampling
-                                                   write FBandwidthSampling;
+                                                   write SetBandwidthSampling;
   end;
 {$ENDIF}
 
@@ -10275,225 +10264,140 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF BUILTIN_TIMER}
-
-{ TCustomTimerWSocket }
-
-destructor TCustomTimerWSocket.Destroy;
-var
-    I : Integer;
-begin
-    _FreeAndNil(FTimer);
-    if Assigned(FTimerList) then begin
-        for I := 0 to FTimerList.Count -1 do
-            if FTimerList[I] <> nil then
-                FreeMem(FTimerList[I]);
-        _FreeAndNil(FTimerList);
-    end;
-    inherited Destroy;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TCustomTimerWSocket.RegisterTimer: TIcsTimerHandle;
-begin
-    if not Assigned(FTimerList) then
-        FTimerList := TList.Create;
-    GetMem(Result, SizeOf(TIcsTimerItem));
-    FillChar(Result^, SizeOf(TIcsTimerItem), 0);
-    FTimerList.Add(Result);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomTimerWSocket.UnregisterTimer(HTimer: TIcsTimerHandle);
-var
-    I : Integer;
-begin
-    if Assigned(FTimerList) and Assigned(HTimer) then
-    begin
-        I := FTimerList.IndexOf(HTimer);
-        if I >= 0 then begin
-            FreeMem(FTimerList[I]);
-            FTimerList.Delete(I);
-            if (FTimerList.Count = 0) and Assigned(FTimer) then begin
-                FTimer.Enabled   := FALSE;
-                FTimer.Interval  := 5000;
-                FNextMinInterval := FTimer.Interval;
-            end;
-        end;
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TCustomTimerWSocket.SetTimer(HTimer: TIcsTimerHandle;
-  Interval: LongWord; OnTimer: TIcsTimerEvent): Boolean;
-begin
-    if Assigned(FTimerList) and (FTimerList.IndexOf(HTimer) >= 0) then begin
-        PIcsTimerItem(HTimer)^.Interval := Interval;
-        PIcsTimerItem(HTimer)^.Event    := OnTimer;
-        if Interval > 0 then begin
-            PIcsTimerItem(HTimer)^.LastTick := _GetTickCount;
-            if not Assigned(FTimer) then begin
-                FTimer := TIcsThreadTimer.Create(Self);
-                FTimer.Enabled := FALSE;
-                FTimer.Interval := 5000;
-                FTimer.OnTimer := HandleBaseTimer;
-            end;
-            if Interval < FTimer.Interval then begin
-                FNextMinInterval := FTimer.Interval;
-                FTimer.Interval := Interval;
-            end;
-            if not FTimer.Enabled then
-                FTimer.Enabled := TRUE;
-        end
-        else if Assigned(FTimer) and (FTimer.Interval < FNextMinInterval) then
-            FTimer.Interval := FNextMinInterval;
-        Result := TRUE;
-    end
-    else
-        Result := FALSE;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomTimerWSocket.ThreadAttach;
-begin
-    inherited ThreadAttach;
-    if Assigned(FTimer) then
-        FTimer.Enabled := FOldTimerEnabled;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomTimerWSocket.ThreadDetach;
-begin
-    if Assigned(FTimer) then begin
-        FOldTimerEnabled := FTimer.Enabled;
-        if FOldTimerEnabled then
-            FTimer.Enabled := FALSE;
-    end
-    else
-        FOldTimerEnabled := FALSE;
-    inherited ThreadDetach;     
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomTimerWSocket.HandleBaseTimer(Sender: TObject);
-var
-    I  : Integer;
-    T1 : LongWord;
-    Item : PIcsTimerItem;
-begin
-    T1 := _GetTickCount;
-    for I := 0 to FTimerList.Count -1 do begin
-        Item := PIcsTimerItem(FTimerList[I]);
-        if (Item^.Interval > 0) and Assigned(Item^.Event) and
-           (IcsCalcTickDiff(Item^.LastTick, T1) >= Item^.Interval) then begin
-           Item^.LastTick := T1;
-           Item^.Event(Self, T1);
-        end;
-    end;
-end;
-{$ENDIF}
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF BUILTIN_TIMEOUT}
 
 { TCustomTimeoutWSocket }
 
+const
+    MIN_TIMEOUT_SAMPLING_INTERVAL = 1000;
+
 constructor TCustomTimeoutWSocket.Create(AOwner: TComponent);
 begin
     inherited;
-    FTimeoutSampleInterval := 5000;
+    FTimeoutKeepThreadAlive := TRUE;
+    FTimeoutSampling := 5000;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomTimeoutWSocket.HandleTimeoutTimer(
-    Sender: TObject;
-    ATickCount : LongWord);
+procedure TCustomTimeoutWSocket.TimeoutHandleTimer(
+    Sender: TObject);
 begin
-    if FState = wsConnected then begin
-        if IcsCalcTickDiff(FCounter.GetLastAliveTick,
-                           ATickCount) > FIdleTimeout then begin
-            StopSampling;
-            TriggerTimeout(torIdle);
-        end;
-    end
-    else if FState in [wsConnecting, wsSocksConnected] then begin
-        if IcsCalcTickDiff(FConnectStartTick,
-                           ATickCount) > FConnectTimeout then begin
-            StopSampling;
+    if (FTimeoutConnect > 0) and (FState <> wsConnected) then begin
+        if IcsCalcTickDiff(FTimeoutConnectStartTick,
+                           _GetTickCount) > FTimeoutConnect then begin
+            TimeoutStopSampling;
             TriggerTimeout(torConnect);
         end;
     end
+    else if (FTimeoutIdle > 0) then begin
+        if IcsCalcTickDiff(FCounter.GetLastAliveTick,
+                           _GetTickCount) > FTimeoutIdle then begin
+            TimeoutStopSampling;
+            TriggerTimeout(torIdle);
+        end;
+    end
     else
-        StopSampling;;
+        TimeoutStopSampling;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomTimeoutWSocket.Connect;
 begin
-    if FConnectTimeout > 0 then begin
-        StartSampling;
-        FConnectStartTick := _GetTickCount;
+    if FTimeoutConnect > 0 then begin
+        TimeoutStartSampling;
+        FTimeoutConnectStartTick := _GetTickCount;
     end
-    else if FIdleTimeout > 0 then
-        StartSampling;
+    else if FTimeoutIdle > 0 then
+        TimeoutStartSampling;
     inherited Connect;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomTimeoutWSocket.StartSampling;
+procedure TCustomTimeoutWSocket.SetTimeoutKeepThreadAlive(const Value: Boolean);
 begin
-    if not Assigned(FToTimer) then
-        FToTimer := RegisterTimer;
-    if not Assigned(FCounter) then
-        CreateCounter;
-    if PIcsTimerItem(FToTimer)^.Interval = 0 then
-        SetTimer(FToTimer, FTimeoutSampleInterval, HandleTimeoutTimer);
+    FTimeoutKeepThreadAlive := Value;
+    if FTimeoutTimer <> nil then
+        FTimeoutTimer.KeepThreadAlive := FTimeoutKeepThreadAlive;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomTimeoutWSocket.StopSampling;
+procedure TCustomTimeoutWSocket.SetTimeoutSampling(const Value: LongWord);
 begin
-    if Assigned(FToTimer) then
-        SetTimer(FToTimer, 0, nil);
+    if (Value > 0) and (Value < MIN_TIMEOUT_SAMPLING_INTERVAL) then
+       FTimeoutSampling := MIN_TIMEOUT_SAMPLING_INTERVAL
+    else
+       FTimeoutSampling := Value;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomTimeoutWSocket.FreeAndNilTimer;
+procedure TCustomTimeoutWSocket.TimeoutStartSampling;
 begin
-    if Assigned(FToTimer) then begin
-        UnregisterTimer(FToTimer);
-        FToTimer := nil;
+    if not Assigned(FTimeoutTimer) then begin
+        FTimeoutTimer := TIcsThreadTimer.Create(Self);
+        FTimeoutTimer.KeepThreadAlive := FTimeoutKeepThreadAlive;
+        FTimeoutTimer.OnTimer := TimeoutHandleTimer;
     end;
+    if not Assigned(FCounter) then
+        CreateCounter
+    else
+        FCounter.LastSendTick := _GetTickCount; // Init
+    if FTimeoutTimer.Interval <> FTimeoutSampling then
+        FTimeoutTimer.Interval := FTimeoutSampling;
+    if not FTimeoutTimer.Enabled then
+        FTimeoutTimer.Enabled := TRUE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimeoutWSocket.TimeoutStopSampling;
+begin
+    if Assigned(FTimeoutTimer) then
+        FTimeoutTimer.Enabled := FALSE;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomTimeoutWSocket.DupConnected;
 begin
-    if FIdleTimeout > 0 then
-        StartSampling
+    if FTimeoutIdle > 0 then
+        TimeoutStartSampling
     else
-        FreeAndNilTimer;
+        TimeoutStopSampling;
     inherited DupConnected;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimeoutWSocket.ThreadAttach;
+begin
+    inherited ThreadAttach;
+    if Assigned(FTimeoutTimer) then
+        FTimeoutTimer.Enabled := FTimeoutOldTimerEnabled;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomTimeoutWSocket.ThreadDetach;
+begin
+    if Assigned(FTimeoutTimer) and
+      (_GetCurrentThreadID = DWORD(FThreadID)) then begin
+        FTimeoutOldTimerEnabled := FTimeoutTimer.Enabled;
+        if FTimeoutOldTimerEnabled then
+            FTimeoutTimer.Enabled := FALSE;
+    end;
+    inherited ThreadDetach;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomTimeoutWSocket.TriggerSessionClosed(Error: Word);
 begin
-    FreeAndNilTimer;
+    TimeoutStopSampling;
     inherited TriggerSessionClosed(Error);
 end;
 
@@ -10502,10 +10406,10 @@ end;
 procedure TCustomTimeoutWSocket.TriggerSessionConnectedSpecial(
   Error: Word);
 begin
-    if (Error = 0) and (FIdleTimeout > 0) then
-        StartSampling
+    if (Error = 0) and (FTimeoutIdle > 0) then
+        TimeoutStartSampling
     else
-        FreeAndNilTimer;
+        TimeoutStopSampling;
     inherited TriggerSessionConnectedSpecial(Error);
 end;
 
@@ -10527,7 +10431,30 @@ end;
 constructor TCustomThrottledWSocket.Create(AOwner: TComponent);
 begin
     inherited Create(AOwner);
-    FBandwidthSampling := 1000; { Msec sampling interval, less is not possible }
+    FBandwidthKeepThreadAlive := TRUE;
+    FBandwidthSampling := 1000; { Msec sampling interval }
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomThrottledWSocket.ThreadAttach;
+begin
+    inherited ThreadAttach;
+    if Assigned(FBandwidthTimer) then
+        FBandwidthTimer.Enabled := FBandwithOldTimerEnabled;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomThrottledWSocket.ThreadDetach;
+begin
+    if Assigned(FBandwidthTimer) and
+      (_GetCurrentThreadID = DWORD(FThreadID)) then begin
+        FBandwithOldTimerEnabled := FBandwidthTimer.Enabled;
+        if FBandwithOldTimerEnabled then
+            FBandwidthTimer.Enabled := FALSE;
+    end;
+    inherited ThreadDetach;
 end;
 
 
@@ -10547,26 +10474,49 @@ begin
     FBandwidthCount := 0;
     if FBandwidthLimit > 0 then
     begin
-        if not Assigned(FBandwidthTimer) then
-            FBandwidthTimer := RegisterTimer;
-        SetTimer(FBandwidthTimer, FBandwidthSampling, HandleThrottleTimer);
+        if not Assigned(FBandwidthTimer) then begin
+            FBandwidthTimer := TIcsThreadTimer.Create(Self);
+            FBandwidthTimer.KeepThreadAlive := FBandwidthKeepThreadAlive;
+            FBandwidthTimer.OnTimer := BandwidthHandleTimer;
+        end;
+        FBandwidthTimer.Interval := FBandwidthSampling;
+        if not FBandwidthTimer.Enabled then
+            FBandwidthTimer.Enabled := TRUE;
         // Number of bytes we allow during a sampling period, max integer max.
         I := Int64(FBandwidthLimit) * FBandwidthSampling div 1000;
         if I < MaxInt then
             FBandwidthMaxCount := I
         else
             FBandwidthMaxCount := MaxInt;
-        FBandwidthPaused   := FALSE;
+        FBandwidthPaused := FALSE;
         Include(FComponentOptions, wsoNoReceiveLoop);
         FBandwidthEnabled := TRUE
     end
     else begin
-        if Assigned(FBandwidthTimer) then begin
-            UnregisterTimer(FBandwidthTimer);
-            FBandwidthTimer := nil;
-        end;
+        if Assigned(FBandwidthTimer) then
+            FBandwidthTimer.Enabled := FALSE;
         FBandwidthEnabled := FALSE;
     end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomThrottledWSocket.SetBandwidthKeepThreadAlive(
+  const Value: Boolean);
+begin
+    FBandwidthKeepThreadAlive := Value;
+    if FBandwidthTimer <> nil then
+        FBandwidthTimer.KeepThreadAlive := FBandwidthKeepThreadAlive;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomThrottledWSocket.SetBandwidthSampling(const Value: LongWord);
+begin
+    if Value < 500 then
+        FBandwidthSampling := 500
+    else
+        FBandwidthSampling := Value;
 end;
 
 
@@ -10605,9 +10555,8 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomThrottledWSocket.HandleThrottleTimer(
-    Sender: TObject;
-    ATickCount: LongWord);
+procedure TCustomThrottledWSocket.BandwidthHandleTimer(
+    Sender: TObject);
 begin
     if FBandwidthPaused then begin
         FBandwidthPaused := FALSE;
@@ -10625,10 +10574,7 @@ end;
 procedure TCustomThrottledWSocket.TriggerSessionClosed(Error: Word);
 begin
     if Assigned(FBandwidthTimer) then
-    begin
-        UnregisterTimer(FBandwidthTimer);
-        FBandwidthTimer := nil;
-    end;
+        FBandwidthTimer.Enabled := FALSE;
     inherited TriggerSessionClosed(Error);
 end;
 

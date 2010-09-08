@@ -7,7 +7,7 @@ Description:  TIcsThreadTimer implements a custom timer class. In doesn't
               It uses resources (handles) very sparingly so 10K timers
               are virtually possible, see OverbyteIcsThreadTimerDemo.
 Creation:     Jul 24, 2009
-Version:      1.00
+Version:      1.01
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -41,7 +41,13 @@ Legal issues: Copyright (C) 2009 by François PIETTE
                  street address, EMail address and any comment you like to say.
 
 History:
-
+07 Sept, 2010 V1.01 Added boolean property TIcsThreadTimer.KeepThreadAlive.
+                    If it's set prevents the underlying, shared thread object from
+                    being freed when its reference count becomes 0. This fixes
+                    a serious performance leak when just a single TIcsThreadTimer
+                    instance was used which was enabled/unabled or its interval
+                    or event handler were changed frequently. Best performance
+                    is achieved by setting this property to TRUE.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsThreadTimer;
@@ -75,9 +81,11 @@ type
   private
     FClock       : TIcsClock;
     FWakeUpEvent : THandle;
+    FInterval    : LongWord;
   protected
     procedure Execute; override;
   public
+    procedure SetInterval(const Value: LongWord);
     constructor Create(AClock: TIcsClock);
     destructor Destroy; override;
   end;
@@ -88,10 +96,14 @@ type
     FQueuedTicks : Cardinal;
     FClock       : TIcsClock;
     FCurHandle   : HWND;
+    function GetKeepThreadAlive: Boolean;
+    procedure SetKeepThreadAlive(const Value: Boolean);
   protected
     procedure UpdateTimer; override;
     procedure WMTimer(var msg: TMessage); override;
   public
+    property KeepThreadAlive: Boolean           read  GetKeepThreadAlive
+                                                write SetKeepThreadAlive;
     constructor Create(AOwner: TIcsWndControl);
     destructor Destroy; override;
   end;
@@ -100,10 +112,11 @@ type
 
   TIcsClock = class(TObject)
   private
-    FThread       : TIcsClockThread;
-    FClockPool    : TIcsClockPool;
-    FTimerList    : TThreadList;
-    FCritSecClock : TRtlCriticalSection;
+    FThread       	 : TIcsClockThread;
+    FClockPool    	 : TIcsClockPool;
+    FTimerList    	 : TThreadList;
+    FCritSecClock 	 : TRtlCriticalSection;
+    FKeepThreadAlive : Boolean;
   public
     constructor Create(AOwner: TIcsClockPool);
     destructor  Destroy; override;
@@ -164,6 +177,7 @@ constructor TIcsClockThread.Create(AClock: TIcsClock);
 begin
     inherited Create(FALSE);
     FClock := AClock;
+    FInterval := FClock.FClockPool.FMinTimerRes;
     FWakeUpEvent := CreateEvent(nil, False, False, nil);
     if FWakeUpEvent = 0 then
         raise EIcsTimerException.Create(SysErrorMessage(GetLastError));
@@ -200,8 +214,7 @@ begin
 {$ENDIF}
     try
         while not Terminated do begin
-            wRes := WaitForSingleObject(FWakeUpEvent,
-                                        FClock.FClockPool.FMinTimerRes);
+            wRes := WaitForSingleObject(FWakeUpEvent, FInterval);
             case wRes of
 
             WAIT_TIMEOUT :
@@ -237,7 +250,8 @@ begin
 
             WAIT_FAILED   : raise EIcsTimerException.Create(
                                   SysErrorMessage(GetLastError));
-
+            WAIT_OBJECT_0 : if Terminated then
+                               Break;
                                       
             end;
         end;
@@ -248,6 +262,15 @@ begin
     end;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsClockThread.SetInterval(const Value: LongWord);
+begin
+    if Value < FClock.FClockPool.FMinTimerRes then
+        FInterval := FClock.FClockPool.FMinTimerRes
+    else
+        FInterval := Value;
+    SetEvent(FWakeUpEvent);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
@@ -290,8 +313,15 @@ begin
         finally
             FTimerList.UnlockList;
         end;
+       { if Flag then
+            FreeAndNil(FThread); }
         if Flag then
-            FreeAndNil(FThread);
+        begin
+            if FKeepThreadAlive and (FThread <> nil) then
+                FThread.SetInterval(INFINITE)
+            else
+                FreeAndNil(FThread);
+        end;
     finally
         LeaveCriticalSection(FCritSecClock);
     end;
@@ -319,6 +349,8 @@ begin
             TimerObj.FMsgQueued   := FALSE;
             TimerObj.FCurHandle   := TimerObj.FIcsWndControl.Handle;
             L.Add(TimerObj);
+            if FThread.FInterval = INFINITE then
+                FThread.SetInterval(FClockPool.FMinTimerRes);
         finally
             FTimerList.UnlockList;
         end;
@@ -392,8 +424,10 @@ var
 begin
     EnterCriticalSection(GCritSecClockPool);
     try
-        for I := 0 to FClockList.Count -1 do
-            TObject(FClockList[I]).Free;
+        for I := 0 to FClockList.Count -1 do begin
+            FreeAndNil(PIcsClockRec(FClockList[I])^.Clock);
+            Dispose(PIcsClockRec(FClockList[I]));
+        end;
         FreeAndNil(FClockList);
     finally
         LeaveCriticalSection(GCritSecClockPool);
@@ -432,7 +466,12 @@ begin
     for I := 0 to FClockList.Count -1 do begin
         P := PIcsClockRec(FClockList[I]);
         if P^.Clock = AClock then begin
-            Dec(P^.RefCount);
+            if P^.Clock.FKeepThreadAlive then begin
+                if (P^.RefCount > 1) then
+                    Dec(P^.RefCount);
+            end
+            else
+                Dec(P^.RefCount);
             if P^.RefCount = 0 then begin
                 FreeAndNil(P^.Clock);
                 Dispose(P);
@@ -468,6 +507,20 @@ begin
 
     TIcsClockPool.Release(FClock);
     FClock := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsThreadTimer.GetKeepThreadAlive: Boolean;
+begin
+    Result := FClock.FKeepThreadAlive;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsThreadTimer.SetKeepThreadAlive(const Value: Boolean);
+begin
+    FClock.FKeepThreadAlive := Value;
 end;
 
 

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.44
+Version:      7.45
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -773,6 +773,8 @@ Sep 08, 2010 V7.44 Arno reworked the experimental timeout and throttle code.
                    got prefix "Timeout". Removed the crappy TCustomTimerWSocket
                    class, both throttle and timeout use their own TIcsThreadTimer
                    instance now.
+Sep 08, 2010 V7.45 Fixed a typo in experimental throttle code.
+
 }
 
 {
@@ -882,8 +884,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 744;
-  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.44 ';
+  WSocketVersion            = 745;
+  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.45 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -2455,7 +2457,7 @@ type
       FBandwidthTimer           : TIcsThreadTimer;
       FBandwidthPaused          : Boolean;
       FBandwidthEnabled         : Boolean;
-      FBandwithOldTimerEnabled  : Boolean;
+      FBandwidthOldTimerEnabled : Boolean;
       FBandwidthKeepThreadAlive : Boolean;
       procedure BandwidthHandleTimer(Sender: TObject);
       procedure SetBandwidthControl;
@@ -10441,7 +10443,7 @@ procedure TCustomThrottledWSocket.ThreadAttach;
 begin
     inherited ThreadAttach;
     if Assigned(FBandwidthTimer) then
-        FBandwidthTimer.Enabled := FBandwithOldTimerEnabled;
+        FBandwidthTimer.Enabled := FBandwidthOldTimerEnabled;
 end;
 
 
@@ -10450,8 +10452,8 @@ procedure TCustomThrottledWSocket.ThreadDetach;
 begin
     if Assigned(FBandwidthTimer) and
       (_GetCurrentThreadID = DWORD(FThreadID)) then begin
-        FBandwithOldTimerEnabled := FBandwidthTimer.Enabled;
-        if FBandwithOldTimerEnabled then
+        FBandwidthOldTimerEnabled := FBandwidthTimer.Enabled;
+        if FBandwidthOldTimerEnabled then
             FBandwidthTimer.Enabled := FALSE;
     end;
     inherited ThreadDetach;

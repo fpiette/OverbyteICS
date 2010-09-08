@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.09
+Version:      V7.10
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -994,6 +994,9 @@ Jan 4, 2010  V7.08 added TriggerResponse virtual and CreateSocket virtual
 			 Thanks to "Anton Sviridov" <ant_s@rambler.ru>
 Jun 9, 2010  V7.09 Angus - ConnectAsync and ConnectHostAsync methods no longer trigger FEAT command
              Added ConnectFeatAsync and ConnectFeatHostAsync methods which do trigger FEAT command
+Sep 8, 2010  V7.10 Arno - If conditional BUILTIN_THROTTLE is defined the
+             bandwidth control uses TWSocket's built-in throttle code rather
+             than TFtpClient's.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpCli;
@@ -1017,7 +1020,11 @@ unit OverbyteIcsFtpCli;
 {$WARN SYMBOL_PLATFORM   OFF}
 {$WARN SYMBOL_LIBRARY    OFF}
 {$WARN SYMBOL_DEPRECATED OFF}
-{$DEFINE UseBandwidthControl}   { V2.106 }
+{$IFNDEF BUILTIN_THROTTLE}
+    {$DEFINE UseBandwidthControl}   { V2.106 }
+{$ELSE}
+    {$UNDEF UseBandwidthControl}
+{$ENDIF}
 {$H+}         { Use long strings                    }
 {$J+}         { Allow typed constant to be modified }
 {$IFDEF BCB3_UP}
@@ -1061,9 +1068,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 709;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.09 ';
-  FtpClientId : String = 'ICS FTP Client V7.09 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 710;
+  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.10 ';
+  FtpClientId : String = 'ICS FTP Client V7.10 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -1279,9 +1286,11 @@ type
     FOnZlibProgress     : TZlibProgress; { V2.113 call back event during ZLIB processing }
     FZCompFileName      : String;        { V2.113 zlib file name of compressed file }
     FZlibWorkDir        : String;        { V2.113 zlib work directory }
-{$IFDEF UseBandwidthControl}              { V2.106 }
+{$IF DEFINED(UseBandwidthControl) or DEFINED(BUILTIN_THROTTLE)}
     FBandwidthLimit     : Integer;  // Bytes per second
     FBandwidthSampling  : Integer;  // mS sampling interval
+{$IFEND}
+{$IFDEF UseBandwidthControl}
     FBandwidthCount     : Int64;    // Byte counter
     FBandwidthMaxCount  : Int64;    // Bytes during sampling period
     FBandwidthTimer     : TIcsTimer;
@@ -1508,12 +1517,12 @@ type
                                                          write FPosEnd;         { V2.113 end pos for MD5/CRC }
     property    DurationMsecs     : Integer              read  FDurationMsecs;  { V2.113 last transfer duration in milliseconds for FByteCount }
     property    StartTick         : Integer              read  FStartTime;      { V2.113 when last transfer started, in case it failed }
-{$IFDEF UseBandwidthControl}
+{$IF DEFINED(UseBandwidthControl) or DEFINED(BUILTIN_THROTTLE)}
     property BandwidthLimit       : Integer              read  FBandwidthLimit    { V2.106 }
                                                          write FBandwidthLimit;
     property BandwidthSampling    : Integer              read  FBandwidthSampling { V2.106 }
                                                          write FBandwidthSampling;
-{$ENDIF}
+{$IFEND}
     property TransferMode         : TFtpTransMode        read  FTransferMode    { V2.102 }
                                                          write FTransferMode;
     property NewOpts              : string               read  FNewOpts         { V2.102 }
@@ -1738,10 +1747,10 @@ type
 {$IFNDEF NO_DEBUG_LOG}
     property IcsLogger;                                             { 2.104 }
 {$ENDIF}
-{$IFDEF UseBandwidthControl}
+{$IF DEFINED(UseBandwidthControl) or DEFINED(BUILTIN_THROTTLE)}
     property BandwidthLimit;                                       { V2.106 }
     property BandwidthSampling;                                    { V2.106 }
-{$ENDIF}
+{$IFEND}
   end;
 
 { You must define USE_SSL so that SSL code is included in the component.   }
@@ -2151,10 +2160,10 @@ begin
     Len := GetTempPath(Length(FZlibWorkDir) - 1, PChar(FZlibWorkDir));{ AG V6.03 }
     SetLength(FZlibWorkDir, Len);                                 { AG V6.03 }
     FZlibWorkDir := IncludeTrailingPathDelimiter (FZlibWorkDir);  { V2.113 }
-{$IFDEF UseBandwidthControl}
+{$IF DEFINED(UseBandwidthControl) or DEFINED(BUILTIN_THROTTLE)}
     FBandwidthLimit     := 10000;  // Bytes per second
     FBandwidthSampling  := 1000;   // mS sampling interval
-{$ENDIF} 
+{$IFEND}
 {$IFNDEF NO_DEBUG_LOG}
     __DataSocket := FDataSocket;
 {$ENDIF}
@@ -2176,7 +2185,7 @@ begin
         FBandwidthTimer.Free;
         FBandwidthTimer := nil;
     end;
-{$ENDIF}    
+{$ENDIF}
     inherited Destroy;
 end;
 
@@ -4806,6 +4815,14 @@ begin
     FDataSocket.LingerOnOff        := wsLingerOff;
     FDataSocket.LingerTimeout      := 0;
     FDataSocket.ComponentOptions   := [wsoNoReceiveLoop];   { 26/10/02 } { 2.109 }
+{$IFDEF BUILTIN_THROTTLE}
+    if ftpBandwidthControl in FOptions then begin
+        FDataSocket.BandwidthLimit     := FBandwidthLimit;
+        FDataSocket.BandwidthSampling  := FBandwidthSampling;
+    end
+    else
+        FDataSocket.BandwidthLimit := 0;
+{$ENDIF}
 { angus V7.00 always set proxy and SOCKS options before opening socket  }
     FDataSocket.SocksAuthentication := socksNoAuthentication;
     case FConnectionType of
@@ -5100,6 +5117,14 @@ begin
     FDataSocket.LingerOnOff        := wsLingerOff;
     FDataSocket.LingerTimeout      := 0;
     FDataSocket.ComponentOptions   := [wsoNoReceiveLoop];   { 26/10/02 }
+{$IFDEF BUILTIN_THROTTLE}
+    if ftpBandwidthControl in FOptions then begin
+        FDataSocket.BandwidthLimit     := FBandwidthLimit;
+        FDataSocket.BandwidthSampling  := FBandwidthSampling;
+    end
+    else
+        FDataSocket.BandwidthLimit := 0;
+{$ENDIF}
 { angus V7.00 always set proxy and SOCKS options before opening socket  }
     FDataSocket.SocksAuthentication := socksNoAuthentication;
     case FConnectionType of
@@ -5389,6 +5414,14 @@ begin
     FDataSocket.OnSessionAvailable := nil;
     FDataSocket.OnSessionClosed    := nil;
     FDataSocket.OnDataAvailable    := nil;
+{$IFDEF BUILTIN_THROTTLE}
+    if ftpBandwidthControl in FOptions then begin
+        FDataSocket.BandwidthLimit     := FBandwidthLimit;
+        FDataSocket.BandwidthSampling  := FBandwidthSampling;
+    end
+    else
+        FDataSocket.BandwidthLimit := 0;
+{$ENDIF}
 
     if FPassive then
         DataPort := 0    { Not needed, makes compiler happy }

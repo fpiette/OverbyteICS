@@ -8,14 +8,14 @@
   Subject
   -------
   A Borland Delphi unit to interface zlib.dll functions
-  see also in zLib package (zlib 1.2.3) \contrib\delphi\
+  see also in zLib package (zlib 1.2.5) \contrib\delphi\
 
   Acknowledgements
   ----------------
   Thanks to Jean-loup Gailly and Mark Adler for zLib library
          and Gilles Vollant for zlibwapi.dll
 
-  zLib library version 1.2.3
+  zLib library version 1.2.5
   Copyright (C) 1995-2005 Jean-loup Gailly and Mark Adler
   Informations at http://www.zlib.net (or http://www.zlib.org)
 
@@ -35,14 +35,21 @@
   27 Nov 2005 by Angus Robertson, Magenta Systems
   delphi@magsys.co.uk, http://www.magsys.co.uk/delphi/
   Renamed the units for use with ICS from http://www.overbyte.be
+
   11 June 2006 by Angus Robertson, Magenta Systems
   added missing functions needed to support streaming
+
   02 May 2008 by A.Garrels <arno.garrels@gmx.de>
               Prepared code for Unicode, changed most types from String
               and PChar to AnsiString and PAnsiChar.
               Added missing function ZLibFlagsString.
               Compiles, however untested so far!
+
   24 Dec 2008 Two explicit string casts added.
+
+  Sep 10, 2010 Angus and Arno updated ZLIB to 1.2.5
+               Always use zlib1.dll if found in precedence to zlib.dll which is not 1.2.5
+
 
   My own work was to wrap access to dll functions in zlib.dll
   So, no copyright for this code, but don't copyright it !
@@ -73,17 +80,10 @@ uses
     Windows;
 
 {$I OverbyteIcsZlib.inc}
-const  
-
-{$IfDef Def_ZLib1Dll}
-   ZLibDllName    = 'ZLIB1.DLL';       // for official dll version 1.2.3 with cdecl
+const
+   ZLibDllName    = 'ZLIB1.DLL';       // for official dll version 1.2.5 with cdecl
    ZLibDllNameBis = 'ZLIBXLB.DLL';
-   ZLibDllNameTer = 'ZLIB.DLL';
-{$Else}
-   ZLibDllName    = 'ZLIBXLB.DLL';     // for unofficial dll version 1.2.2 with stdcall and assembler (http://www.winimage.com/zLibDll/unzip.html)
-   ZLibDllNameBis = 'ZLIB.DLL';        // ZLIBXLB is the same as ZLIBWAPI
-   ZLibDllNameTer = 'ZLIB1.DLL';
-{$Endif}
+   ZLibDllNameTer = 'ZLIB.DLL';        // unofficial dll but maybe faster, with stdcall
 
 {xlb constants and variables}
 const
@@ -103,7 +103,7 @@ var
 
 {zLib constants}
 const
-   ZLIB_VERSION    = '1.2.3';
+   ZLIB_VERSION    = '1.2.5';
 
    { Allowed flush values; see deflate() below for details }
    Z_NO_FLUSH      = 0;

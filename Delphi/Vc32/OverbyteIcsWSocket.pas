@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.45
+Version:      7.46
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -774,6 +774,9 @@ Sep 08, 2010 V7.44 Arno reworked the experimental timeout and throttle code.
                    class, both throttle and timeout use their own TIcsThreadTimer
                    instance now.
 Sep 08, 2010 V7.45 Fixed a typo in experimental throttle code.
+Sep 11, 2010 V7.46 Arno added two more SSL debug log entries and a call to
+                   RaiseLastOpenSslError in TCustomSslWSocket.InitSSLConnection.
+                   Added function OpenSslErrMsg.
 
 }
 
@@ -884,8 +887,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 745;
-  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.45 ';
+  WSocketVersion            = 746;
+  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.46 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -2946,6 +2949,10 @@ function WSocket_accept(s: TSocket; addr: PSockAddr; addrlen: PInteger): TSocket
 
 {$IFNDEF NO_ADV_MT}
 function SafeWSocketGCount : Integer;
+{$ENDIF}
+
+{$IFDEF USE_SSL}
+function OpenSslErrMsg(const AErrCode: LongWord): String;
 {$ENDIF}
 
 const
@@ -10816,6 +10823,18 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function OpenSslErrMsg(const AErrCode: LongWord): String;
+var
+    Buf : AnsiString;
+begin
+    SetLength(Buf, 127);
+    f_ERR_error_string_n(AErrCode, PAnsiChar(Buf), Length(Buf));
+    SetLength(Buf, _StrLen(PAnsiChar(Buf)));
+    Result := String(Buf);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function LastOpenSslErrMsg(Dump: Boolean): AnsiString;
 var
     ErrMsg  : AnsiString;
@@ -12080,6 +12099,10 @@ begin
     Lock;
     try
 {$ENDIF}
+    {$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then
+         DebugLog(loSslInfo, 'InitCtx> OpenSSL version: ' + OpenSslVersion);
+    {$ENDIF}
     {$IFNDEF OPENSSL_NO_ENGINE}
         if (not GSslRegisterAllCompleted) and FAutoEnableBuiltinEngines then
         begin
@@ -14903,9 +14926,18 @@ begin
                 Obj.FInHandshake   := TRUE;
                 Inc(Obj.FHandShakeCount);
                 if (Obj.FHandShakeCount > 1) and
-                    IsSslRenegotiationDisallowed(Obj) then
+                    IsSslRenegotiationDisallowed(Obj) then begin
                 //if ICS_SSL_NO_RENEGOTIATION and (Obj.FHandShakeCount > 1) then
                     Obj.CloseDelayed;
+                   { todo: We need to handle this much better }
+                {$IFNDEF NO_DEBUG_LOG}
+                    if Obj.CheckLogOptions(loSslErr) or
+                       Obj.CheckLogOptions(loSslInfo) then
+                        Obj.DebugLog(loSslInfo, 'ICB> Renegotiaton not supported ' +
+                                                'or not allowed. Connection ' +
+                                                'closed delayed');
+                {$ENDIF}
+                end;
                 if Obj.FHandShakeCount > 1 then
                     Obj.FSslInRenegotiation := TRUE;
 {$IFNDEF NO_DEBUG_LOG}
@@ -15494,7 +15526,10 @@ begin
             Options := my_BIO_read(FSslbio, Pointer(1), 0); // reuse of int var Options!
             if Options < 0 then begin
                 if not my_BIO_should_retry(FSslbio) then
-                    HandleSslError;
+                    //HandleSslError;
+                    { Usually happens with an invalid context option set }
+                    RaiseLastOpenSslError(EOpenSslError, TRUE,
+                                          'InitSSLConnection:');
             end;
             //Initialize SSL negotiation
             if (FState = wsConnected) then begin

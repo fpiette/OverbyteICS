@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.28
+Version:      7.29
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -267,7 +267,7 @@ Jun 12, 2009 V7.19 Angus made AuthBasicCheckPassword virtual
              Added OnAfterAnswer triggered after the answer is sent from
                 ConnectionDataSent so time taken to send reply can be logged
              Ensure ConnectionDataSent is always called even for non-stream replies
-Jun 15, 2009 V7.20 pdfe@sapo.pt and Angus added content encoding using zlib
+Jun 15, 2009 V7.20 RTT and Angus added content encoding using zlib
                compression if Options hoContentEncoding set, and content
                type is text/* and content size is between SizeCompressMin and
                SizeCompressMax. New event HttpContentEncode called so application
@@ -294,6 +294,12 @@ Feb 08, 2010 V7.26 F. Piette fixed a bug introduced in 7.25 with ResType
 Aug 07, 2010 V7.27 Bjørnar Nielsen suggested to add an overloaded UrlDecode()
                    that takes a RawByteString URL.
 Aug 08, 2010 V7.28 F. Piette: Published OnBgException from underlaying socket.
+Sep 10, 2010 V7.29 RTT: Added OnUnknownRequestMethod event, triggered when
+                   an unimplemented request method is being processed. Added
+                   CustomHeaders variable to the SendDocument procedure, to
+                   enable the possibility to send a custom header item(s) with
+                   the document. Added PersistentHeader property to define
+                   Header items that should be included in any response header.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -378,8 +384,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 728;
-    CopyRight : String = ' THttpServer (c) 1999-2010 F. Piette V7.28 ';
+    THttpServerVersion = 729;
+    CopyRight : String = ' THttpServer (c) 1999-2010 F. Piette V7.29 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
 
@@ -433,6 +439,11 @@ type
                                     var Handled: Boolean) of object;
     THttpContEncodedEvent= procedure (Sender    : TObject;                 { V7.20 }
                                       Client    : TObject) of object;
+    THttpUnknownRequestMethodEvent= procedure (Sender : TObject;   { V7.29 }
+                                               Client : TObject;
+                                               var Handled : Boolean) of object;
+    TUnknownRequestMethodEvent= procedure (Sender : TObject;       { V7.29 }
+                                           var Handled : Boolean) of object;
 
     THttpConnectionState = (hcRequest, hcHeader, hcPostedData);
     THttpOption          = (hoAllowDirList, hoAllowOutsideRoot, hoContentEncoding);   { V7.20 }
@@ -633,6 +644,7 @@ type
         FOnAfterAnswer         : TNotifyEvent;   { V7.19 }
         FOnContentEncode       : TContentEncodeEvent;  { V7.20 }
         FOnContEncoded         : TNotifyEvent;         { V7.20 }
+        FOnUnknownRequestMethod: TUnknownRequestMethodEvent; { V2.29 }
         procedure SetSndBlkSize(const Value: Integer);
         procedure ConnectionDataAvailable(Sender: TObject; Error : Word); virtual;
         procedure ConnectionDataSent(Sender : TObject; Error : WORD); virtual;
@@ -659,6 +671,7 @@ type
         procedure TriggerContentEncode (out ContentEncoding: string;
                                         var Handled: Boolean); virtual;  { V7.20 }
         procedure TriggerContEncoded; virtual;    { V7.20 }
+        procedure TriggerUnknownRequestMethod(var Handled : Boolean); virtual; { V7.29 }
         function  CheckContentEncoding(const ContType : String): Boolean; virtual; { V7.21 are we allowed to compress content }
         function  DoContentEncoding: String; virtual; { V7.21 compress content returning Content-Encoding header }
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
@@ -681,7 +694,8 @@ type
         constructor Create(AOwner: TComponent); override;
         destructor  Destroy; override;
         procedure   SendStream; virtual;
-        procedure   SendDocument(SendType : THttpSendType); virtual;
+        procedure   SendDocument(SendType : THttpSendType); overload; virtual;
+        procedure   SendDocument(SendType : THttpSendType; const CustomHeaders: String); overload; virtual; { V7.29 }
         procedure   SendHeader(Header : String); virtual;
         procedure   PostedDataReceived; virtual;
         procedure   PrepareGraceFullShutDown; virtual;
@@ -871,6 +885,10 @@ type
         { Triggered after answer stream is compressed, so the stream may be cached V7.20 }
         property OnContEncoded : TNotifyEvent       read FOnContEncoded
                                                     write FOnContEncoded;
+        { Triggered when about to process an unimplemented request method V2.29 }
+        property OnUnknownRequestMethod   : TUnknownRequestMethodEvent
+                                                    read  FOnUnknownRequestMethod
+                                                    write FOnUnknownRequestMethod;
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
         { AuthType contains the actual authentication method selected by client }
         property AuthType          : TAuthenticationType
@@ -935,8 +953,10 @@ type
         FOnAfterAnswer            : THttpAfterAnswerEvent;   { V7.19 }
         FOnHttpContentEncode      : THttpContentEncodeEvent;  { V7.20 }
         FOnHttpContEncoded        : THttpContEncodedEvent;    { V7.20 }
-        FSizeCompressMin          : integer;  { V7.20 }
-        FSizeCompressMax          : integer;  { V7.20 }
+        FOnHttpUnknownReqMethod   : THttpUnknownRequestMethodEvent; { V7.29 }
+        FSizeCompressMin          : Integer;  { V7.20 }
+        FSizeCompressMax          : Integer;  { V7.20 }
+        FPersistentHeader         : String;   { V7.29 }
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
         FAuthTypes                : TAuthenticationTypes;
         FAuthRealm                : String;
@@ -998,6 +1018,7 @@ type
                                        out ContentEncoding: string;
                                        var Handled: Boolean);
         procedure TriggerContEncoded(Client : TObject);   { V7.20 }
+        procedure TriggerUnknownRequestMethod(Client : TObject; var Handled : Boolean); { V7.29 }
         procedure SetPortValue(const newValue : String);
         procedure SetAddr(const newValue : String);
         procedure SetDocDir(const Value: String);
@@ -1070,6 +1091,9 @@ type
                                                  write FSizeCompressMin;
         property SizeCompressMax : integer       read  FSizeCompressMax
                                                  write FSizeCompressMax;
+        {Header items to always included in any response header} { V7.29 }
+        property PersistentHeader:string         read  FPersistentHeader
+                                                 write FPersistentHeader;
         { OnServerStrated is triggered when server has started listening }
         property OnServerStarted    : TNotifyEvent
                                                  read  FOnServerStarted
@@ -1137,6 +1161,9 @@ type
         property OnHttpContEncoded : THttpContEncodedEvent      { V7.20 }
                                                  read FOnHttpContEncoded
                                                  write FOnHttpContEncoded;
+        property OnUnknownRequestMethod : THttpUnknownRequestMethodEvent { V2.29 }
+                                                 read FOnHttpUnknownReqMethod
+                                                 write FOnHttpUnknownReqMethod;
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
         property OnAuthGetPassword  : TAuthGetPasswordEvent
                                                  read  FOnAuthGetPassword
@@ -1813,6 +1840,7 @@ begin
     THttpConnection(Client).OnAfterAnswer     := TriggerAfterAnswer;   { V7.19 }
     THttpConnection(Client).OnContentEncode   := TriggerContentEncode; { V7.20 }
     THttpConnection(Client).OnContEncoded     := TriggerContEncoded;   { V7.20 }
+    THttpConnection(Client).OnUnknownRequestMethod  := TriggerUnknownRequestMethod; { V2.29 }
     TriggerClientConnect(Client, Error);
 end;
 
@@ -1970,6 +1998,16 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpServer.TriggerUnknownRequestMethod(
+    Client      : TObject;
+    var Handled : Boolean);                                         { V7.29 }
+begin
+    if Assigned(FOnHttpUnknownReqMethod) then
+        FOnHttpUnknownReqMethod(Self, Client, Handled);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpServer.HeartBeatOnTimer(Sender: TObject);
 var
     CurTicks : Cardinal;
@@ -2031,6 +2069,7 @@ begin
     LineEdit              := FALSE;
     LineEnd               := AnsiChar(#10);
     FRequestHeader        := TStringList.Create;
+    FRequestHeader.NameValueSeparator := ':'; { V7.29 }
     FState                := hcRequest;
     OnDataAvailable       := ConnectionDataAvailable;
     FRequestRangeValues   := THttpRangeList.Create; {ANDREAS}
@@ -2662,6 +2701,8 @@ begin
         PutStringInSendBuffer(Header);
     if ContEncoderHdr <> '' then
         PutStringInSendBuffer (ContEncoderHdr);  { V7.21 }
+    if FServer.PersistentHeader <> '' then
+        PutStringInSendBuffer (FServer.PersistentHeader);  { V7.29 }
     PutStringInSendBuffer(#13#10);
     SendStream;
 end;
@@ -3037,6 +3078,7 @@ end;
 procedure THttpConnection.ProcessRequest;
 var
     Status : Integer;
+    Handled : Boolean;
 begin
     if FKeepAlive and (FKeepAliveTimeSec > 0) then
         FKeepAlive := FMaxRequestsKeepAlive > 0;
@@ -3079,9 +3121,13 @@ begin
     else if FMethod = 'HEAD' then
         ProcessHead
     else begin
-        if FKeepAlive = FALSE then {Bjornar}
-            PrepareGraceFullShutDown;
-        Answer501;   { 07/03/2005 was Answer404 }
+        TriggerUnknownRequestMethod(Handled); { V7.29 }
+        if not Handled then
+        begin
+            if FKeepAlive = FALSE then {Bjornar}
+               PrepareGraceFullShutDown;
+            Answer501;   { 07/03/2005 was Answer404 }
+        end;
     end;
     TriggerBeforeAnswer;  { V7.19 }
 end;
@@ -3150,6 +3196,15 @@ procedure THttpConnection.TriggerContentEncode
 begin
     if Assigned(FOnContentEncode) then
         FOnContentEncode(Self, ContentEncoding, Handled);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.TriggerUnknownRequestMethod(var Handled : Boolean); { V2.29 }
+begin
+    Handled := FALSE;
+    if Assigned(FOnUnknownRequestMethod) then
+        FOnUnknownRequestMethod(Self, Handled);
 end;
 
 
@@ -3492,6 +3547,15 @@ end;
 { SendDocument will send FDocument file to remote client, build header and  }
 { sending data (if required)                                                }
 procedure THttpConnection.SendDocument(SendType : THttpSendType);
+begin
+   SendDocument(SendType, '');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.SendDocument(
+    SendType            : THttpSendType;
+    const CustomHeaders : String);
 var
     Header  : String;
     NewDocStream    : TStream;
@@ -3561,6 +3625,8 @@ begin
         Header := Header +  'Last-Modified: ' + RFC1123_Date(FLastModified) + ' GMT' + #13#10;
     if ContEncoderHdr <> '' then
         Header := Header + ContEncoderHdr;  { V7.20 }
+    if CustomHeaders <> '' then
+        Header := Header + CustomHeaders;   { V7.29 }
     Header := Header + GetKeepAliveHdrLines + #13#10;
 
     SendHeader(Header);
@@ -3580,6 +3646,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpConnection.SendHeader(Header : String);
 begin
+    if FServer.PersistentHeader <> '' then  { v7.29 }
+         Insert(FServer.PersistentHeader, Header, Length(Header) - 1);{ v7.29 }
     PutStringInSendBuffer(Header);
 end;
 
@@ -3824,6 +3892,7 @@ begin
               'Content-Type: text/html' + #13#10 +
               'Content-Length: ' + _IntToStr(Length(Body)) + #13#10 +
               'Pragma: no-cache' + #13#10 +
+              FServer.PersistentHeader + { V7.29 }
               #13#10;
     FAnswerStatus := 200;   { V7.19 }
     PutStringInSendBuffer(Header);

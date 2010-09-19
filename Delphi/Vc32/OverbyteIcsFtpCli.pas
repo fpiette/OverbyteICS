@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.10
+Version:      V7.11
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -997,6 +997,14 @@ Jun 9, 2010  V7.09 Angus - ConnectAsync and ConnectHostAsync methods no longer t
 Sep 8, 2010  V7.10 Arno - If conditional BUILTIN_THROTTLE is defined the
              bandwidth control uses TWSocket's built-in throttle code rather
              than TFtpClient's.
+Sep 19, 2010 V7.11 Arno - Do not call DataSocketPutDataSent twice! This fixes
+             a bug that showed up with experimental built-in throttle but could
+             also trigger without as well. For instance, if file size is smaller
+             or equal send buffer size a second call to DataSocketPutDataSent
+             turns on the shutdown timeout (loop) even though data is not yet
+             sent. DataSocketPutDataSent MUST only be called once to init
+             the send loop.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpCli;
@@ -1068,9 +1076,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 710;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.10 ';
-  FtpClientId : String = 'ICS FTP Client V7.10 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 711;
+  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.11 ';
+  FtpClientId : String = 'ICS FTP Client V7.11 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -1256,6 +1264,7 @@ type
     FStorAnswerRcvd     : Boolean;
     FPutSessionOpened   : Boolean;
     FStreamFlag         : Boolean;
+    FDataSocketSentFlag : Boolean;
     FSupportedExtensions : TFtpExtensions; { V2.94  which features server supports }
     FMLSTFacts          : String;     { V2.90  specific new list stuff supported   }
     FRemFileDT          : TDateTime;  { V2.90  date/time for MdtmAsync and MdtmYYYYAsync and MfmtAsync }
@@ -4397,7 +4406,8 @@ begin
     FDurationMsecs := 0;  { V2.113 }
 
     { Send first data block }
-    DataSocketPutDataSent(FDataSocket, 0);
+    if not FDataSocketSentFlag then
+        DataSocketPutDataSent(FDataSocket, 0);
 end;
 
 
@@ -4437,6 +4447,9 @@ begin
     if FEofFlag or (not FStorAnswerRcvd) or (not FPutSessionOpened) then begin
         Exit;
     end;
+
+    if not FDataSocketSentFlag then
+        FDataSocketSentFlag := TRUE;
 
     try
         if FZStreamState = ftpZStateSaveComp then
@@ -5117,6 +5130,7 @@ begin
     FDataSocket.LingerOnOff        := wsLingerOff;
     FDataSocket.LingerTimeout      := 0;
     FDataSocket.ComponentOptions   := [wsoNoReceiveLoop];   { 26/10/02 }
+    FDataSocketSentFlag            := FALSE;
 {$IFDEF BUILTIN_THROTTLE}
     if ftpBandwidthControl in FOptions then begin
         FDataSocket.BandwidthLimit     := FBandwidthLimit;
@@ -5414,6 +5428,7 @@ begin
     FDataSocket.OnSessionAvailable := nil;
     FDataSocket.OnSessionClosed    := nil;
     FDataSocket.OnDataAvailable    := nil;
+    FDataSocketSentFlag            := FALSE;
 {$IFDEF BUILTIN_THROTTLE}
     if ftpBandwidthControl in FOptions then begin
         FDataSocket.BandwidthLimit     := FBandwidthLimit;

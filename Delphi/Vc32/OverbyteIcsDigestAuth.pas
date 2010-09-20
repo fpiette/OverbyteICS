@@ -5,7 +5,7 @@ Author:       Arno Garrels <arno.garrels@gmx.de>
               Fastream Technologies (www.fastream.com) coders SubZero
               (G. I. Ates) and PeterS (Peter Nikolow), Luke (Boris Evstatiev)
 Creation:     January 7, 2009
-Version:      1.00
+Version:      1.01
 Description:  HTTP Digest Access Authentication, RFC 2617.
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -40,6 +40,8 @@ Legal issues: Copyright (C) 2009 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 Updates:
+Sep 20, 2010 V1.01 Uses OverbyteIcsMD5.MD5DigestToLowerHexA.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsDigestAuth;
@@ -184,29 +186,6 @@ const
     AUTH_DIGEST_DELIM : AnsiChar = ':';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function MD5DigestToHex(const Digest: TMD5Digest): THashHex;
-var
-    I   : Integer;
-    Ch  : AnsiChar;
-begin
-    SetLength(Result, 32);
-    for I := 0 to 15 do
-    begin
-        Ch := AnsiChar((Digest[I] shr 4) and $f);
-        if Ord(Ch) <= 9 then
-            Result[I * 2 + 1] := AnsiChar(Ord(Ch) + Ord('0'))
-        else
-            Result[I * 2 + 1] := AnsiChar(Ord(Ch) + Ord('a') - 10);
-        Ch := AnsiChar(Digest[I] and $f);
-        if Ord(Ch) <= 9 then
-            Result[I * 2 + 2] := AnsiChar(Ord(Ch) + Ord('0'))
-        else
-            Result[I * 2 + 2] := AnsiChar(Ord(Ch) + Ord('a') - 10);
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure AuthDigestGetBodyHash(const EntityBody: AnsiString;
   var EntityHash: THashHex);
 var
@@ -216,7 +195,7 @@ begin
     MD5Init(Md5Ctx);
     MD5Update(Md5Ctx, Pointer(EntityBody)^, Length(EntityBody));
     MD5Final(HA1, Md5Ctx);
-    EntityHash := MD5DigestToHex(HA1);
+    EntityHash := MD5DigestToLowerHexA(HA1);  { V1.01 }
 end;
 
 
@@ -266,7 +245,7 @@ begin
         MD5UpdateBuffer(Md5Ctx, HEntity);
     end;
     MD5Final(HA2, Md5Ctx);
-    HA2Hex := MD5DigestToHex(HA2);
+    HA2Hex := MD5DigestToLowerHexA(HA2);  { V1.01 }
 
     { calculate response }
     MD5Init(Md5Ctx);
@@ -284,7 +263,7 @@ begin
     end;
     MD5UpdateBuffer(Md5Ctx, HA2Hex);
     MD5Final(RespHash, Md5Ctx);
-    Response := MD5DigestToHex(RespHash);
+    Response := MD5DigestToLowerHexA(RespHash);  { V1.01 }
 end;
 
 
@@ -320,7 +299,7 @@ begin
         MD5Final(HA1, Md5Ctx);
     end;
 
-    SessionKey := MD5DigestToHex(HA1);
+    SessionKey := MD5DigestToLowerHexA(HA1);  { V1.01 }
 end;
 
 

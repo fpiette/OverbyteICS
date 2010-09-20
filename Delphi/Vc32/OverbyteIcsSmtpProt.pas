@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      7.31
+Version:      7.32
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -384,6 +384,7 @@ Sep 03, 2010 V7.31  Arno - New property THtmlSmtpCli.HtmlImageCidSuffix which
                     Content-ID "IMAGE<number>". Some webmailer did not like
                     our default cid. Thanks to Fabrice Vendé for providing a
                     fix.
+Sep 20, 2010 V7.32  Arno moved HMAC-MD5 code to OverbyteIcsMD5.pas.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -449,8 +450,8 @@ uses
     OverbyteIcsMimeUtils;
 
 const
-  SmtpCliVersion     = 731;
-  CopyRight : String = ' SMTP component (c) 1997-2010 Francois Piette V7.31 ';
+  SmtpCliVersion     = 732;
+  CopyRight : String = ' SMTP component (c) 1997-2010 Francois Piette V7.32 ';
   smtpProtocolError  = 20600; {AG}
   SMTP_RCV_BUF_SIZE  = 4096;
   
@@ -2439,12 +2440,8 @@ procedure TCustomSmtpClient.AuthNextCramMD5;
 var
     Challenge  : AnsiString;
     Response   : String;
-    HexDigits  : AnsiString;
-    MD5Digest  : TMD5Digest;
-    MD5Context : TMD5Context;
-    Count      : Integer;
-    IPAD       : array[0..63] of Byte;
-    OPAD       : array[0..63] of Byte;
+    Digest     : TMD5Digest;  { V7.32 }
+    Pwd        : AnsiString;  { V7.32 }
 begin
     if FRequestResult <> 0 then begin
         if (FAuthType = smtpAuthAutoSelect) then begin
@@ -2468,44 +2465,17 @@ begin
     {   334 PDEyMzc5MTU3NTAtNjMwNTcxMzRAZm9vLmJhci5jb20+                  }
     { If it does not, then exit.                                          }
     if Length(FLastResponse) < 5 then begin
-        FLastResponse := '500 Malformed MD5 Challege: ' + FLastResponse;
+        FLastResponse := '500 Malformed MD5 Challenge: ' + FLastResponse;
         SetErrorMessage;
         TriggerRequestDone(500);
         Exit;
     end;
     Challenge := AnsiString(Copy(FLastResponse, 5, Length(FLastResponse) - 4));
     Challenge := Base64Decode(Challenge);
-
-    { See RFC2104 }
-    for Count := 0 to 63 do begin
-        if ((Count+1) <= Length(FPassword)) then begin
-            IPAD[Count] := Byte(FPassword[Count+1]) xor $36;
-            OPAD[Count] := Byte(FPassword[Count+1]) xor $5C;
-        end
-        else begin
-            IPAD[Count] := 0 xor $36;
-            OPAD[Count] := 0 xor $5C;
-        end;
-    end;
-
-    MD5Init(MD5Context);
-    MD5Update(MD5Context, IPAD, 64);
-    MD5UpdateBuffer(MD5Context, @Challenge[1], Length(Challenge));
-    MD5Final(MD5Digest, MD5Context);
-
-    MD5Init(MD5Context);
-    MD5Update(MD5Context, OPAD, 64);
-    MD5Update(MD5Context, MD5Digest, 16);
-    MD5Final(MD5Digest, MD5Context);
-
-    HexDigits := '0123456789abcdef';
-    Response := FUsername;
-    Response := Response + ' ';
-    for Count := 0 to 15 do begin
-        Response := Response + Char(HexDigits[((Byte(MD5Digest[Count]) and $F0) shr 4)+1]);
-        Response := Response + Char(HexDigits[(Byte(MD5Digest[Count]) and $0F)+1]);
-    end;
-
+    Pwd := AnsiString(FPassword);  { V7.32 }
+    HMAC_MD5(PAnsiChar(Challenge)^, Length(Challenge), PAnsiChar(Pwd)^,
+             Length(Pwd), Digest);  { V7.32 }
+    Response := FUserName + ' ' + MD5DigestToLowerHex(Digest);  { V7.32 }
     FState := smtpInternalReady;
     ExecAsync(smtpAuth, Base64Encode(Response), [235], nil);
 end;
@@ -2513,14 +2483,11 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomSmtpClient.AuthNextCramSHA1; {HLX}
-const
-    HexDigits : array[0..15] of Char = ('0','1','2','3','4','5','6','7',
-                                        '8', '9','a','b','c','d','e','f');
 var
     Challenge  : AnsiString;
     Response   : String;
     Digest     : SHA1Digest;
-    Count      : Integer;
+    Pwd        : AnsiString;  { V7.32 }
 begin
     if FRequestResult <> 0 then begin                                   {<= AG}
         if (FAuthType = smtpAuthAutoSelect) then begin
@@ -2544,20 +2511,17 @@ begin
         Exit;
     end;}
     if (Length(FLastResponse) < 5) then begin
-	      FLastResponse := '500 Malformed SHA1 Challege: ' + FLastResponse;
+	      FLastResponse := '500 Malformed SHA1 Challenge: ' + FLastResponse;
 	      SetErrorMessage;
 	      TriggerRequestDone(500);
 	      Exit;
     end;
     Challenge := AnsiString(Copy(FLastResponse, 5, Length(FLastResponse) - 4));
     Challenge := Base64Decode(Challenge);
-    HMAC_SHA1(Challenge[1], Length(Challenge), FPassword[1],
-              Length(FPassword), Digest);
-    Response := FUsername + ' ';
-    for Count := 0 to SHA1HashSize - 1 do begin
-        Response := Response + HexDigits[((Byte(Digest[Count]) and $F0) shr 4)];
-        Response := Response + HexDigits[(Byte(Digest[Count]) and $0F)];
-    end;
+    Pwd := AnsiString(FPassword);  { V7.32 }
+    HMAC_SHA1(PAnsiChar(Challenge)^, Length(Challenge), PAnsiChar(Pwd)^,
+              Length(Pwd), Digest);  { V7.32 }
+    Response := FUsername + ' ' + SHA1DigestToLowerHex(Digest);  { V7.32 }
     FState := smtpInternalReady;
     ExecAsync(smtpAuth, Base64Encode(Response), [235], nil);
 end;

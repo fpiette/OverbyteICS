@@ -10,7 +10,7 @@ Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      6.07
+Version:      6.08
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -178,6 +178,11 @@ Jul 04, 2010  V6.07 Arno - A better Unicode port of TPop3Cli.
               application. Useful in order to avoid too many string casts is to
               include AnsiStrings.pas in the uses clause as well as
               OverbyteIcsLibrary.pas (i.e. for IcsIntToStrA()) .
+Sep 20, 2010 V6.08 Arno - Moved HMAC-MD5 code to OverbyteIcsMD5.pas.
+             Ensure that var LastResponse is cleared before Connect.
+             Added a public read/write property LastError (as requested by Zvone),
+             it's more or less the last ErrCode as passed to event OnRequestDone
+             and reset on before each request.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -230,8 +235,8 @@ uses
 (*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameW$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)	
 
 const
-    Pop3CliVersion     = 607;
-    CopyRight : String = ' POP3 component (c) 1997-2010 F. Piette V6.07 ';
+    Pop3CliVersion     = 608;
+    CopyRight : String = ' POP3 component (c) 1997-2010 F. Piette V6.08 ';
     POP3_RCV_BUF_SIZE  = 4096;
 
 type
@@ -304,6 +309,7 @@ type
         FAuthType           : TPop3AuthType;{HLX}
         FLastResponse       : AnsiString;
         FErrorMessage       : String;
+        FLastError          : Integer;   { V6.08 }
         FTimeStamp          : AnsiString;
         FMsgCount           : Integer;
         FMsgSize            : Integer;
@@ -445,6 +451,8 @@ type
                                                      write FAuthType; {HLX}
         property ErrorMessage  : String              read  FErrorMessage;
         property LastResponse  : AnsiString          read  FLastResponse;
+        property LastError     : Integer             read  FLastError  { V6.08 }
+                                                     write FLastError;
         property State         : TPop3State          read  FState;
         property Connected     : Boolean             read  FConnected;
         property ProtocolState : TPop3ProtocolState  read  FProtocolState;
@@ -678,10 +686,6 @@ Updates:
 {$ENDIF} // USE_SSL
 
 implementation
-
-const
-    HexDigits : array [0..15] of AnsiChar = ('0','1','2','3','4','5','6','7','8',
-                                         '9','a','b','c','d','e','f');
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function CharPos(const Ch: AnsiChar; const S: AnsiString): Integer;
@@ -1103,6 +1107,7 @@ begin
         end
         else begin
             StateChange(pop3Ready);
+            FLastError := Error;  { V6.08 }
             { Restore the lastresponse saved before quit command }
             if FHighLevelFlag and (FStatusCodeSave >= 0) then begin
                  FLastResponse := FLastResponseSave;
@@ -1147,6 +1152,7 @@ begin
         {$IFDEF TRACE} TriggerDisplay('! Abort detected'); {$ENDIF}
         FFctSet := [];
         FHighLevelResult := 426;
+        FLastError       := FHighLevelResult;  { V6.08 }
         FErrorMessage    := '426 Operation aborted.';
     end;
 
@@ -1285,6 +1291,7 @@ begin
     FStatusCodeSave   := -1;
     FRequestType      := RqType;
     FRequestResult    := 0;
+    FLastError        := 0;  { V6.08 }
     FFctSet           := Fcts;
     FFctPrv           := pop3FctNone;
     FHighLevelResult  := 0;
@@ -1481,8 +1488,10 @@ begin
     if not FConnected then
         raise Pop3Exception.Create('POP3 component not connected');
 
-    if not FHighLevelFlag then
+    if not FHighLevelFlag then begin
         FRequestType := RqType;
+        FLastError   := 0;  { V6.08 }
+    end;
 
     FRequestDoneFlag   := FALSE;
     FNext              := NextExecAsync;
@@ -1506,6 +1515,7 @@ begin
     end;
 
     FRequestResult := 0;
+    FLastError     := 0;  { V6.08 }
     FProtocolState := FNextProtocolState;
 
     if Assigned(FDoneAsync) then
@@ -1547,7 +1557,6 @@ var
     Challenge  : AnsiString;
     Response   : AnsiString;
     Digest     : SHA1Digest;
-    count      : Integer;
 begin
     if FRequestResult <> 0 then begin
         TriggerRequestDone(FRequestResult);
@@ -1561,13 +1570,9 @@ begin
     end;
     Challenge := Copy(FLastResponse, 3, Length(FLastResponse) - 2);
     Challenge := Base64Decode(Challenge);
-    HMAC_SHA1(Challenge[1], Length(Challenge),
-              FPassword[1], Length(FPassword), Digest);
-    Response := FUsername + ' ';
-    for Count := 0 to SHA1HashSize - 1 do begin
-        Response := Response + HexDigits[((Byte(Digest[Count]) and $F0) shr 4)];
-        Response := Response + HexDigits[(Byte(Digest[Count]) and $0F)];
-    end;
+    HMAC_SHA1(PAnsiChar(Challenge)^, Length(Challenge),
+              PAnsiChar(FPassword)^, Length(FPassword), Digest);  { V6.08 }
+    Response := FUsername + ' ' + SHA1DigestToLowerHexA(Digest);  { V6.08 }
     FState := pop3InternalReady;
     ExecAsync(pop3Pass, Base64Encode(Response), pop3Transaction, nil);
 end;
@@ -1578,11 +1583,7 @@ procedure TCustomPop3Cli.AuthCramMd5; {HLX}
 var
     Challenge  : AnsiString;
     Response   : AnsiString;
-    MD5Digest  : TMD5Digest;
-    MD5Context : TMD5Context;
-    Count      : Integer;
-    IPAD       : array [0..63] of Byte;
-    OPAD       : array [0..63] of Byte;
+    Digest     : TMD5Digest;  { V6.08 }
 begin
     if FRequestResult <> 0 then begin
         TriggerRequestDone(FRequestResult);
@@ -1598,37 +1599,11 @@ begin
 
     Challenge := Copy(FLastResponse, 3, Length(FLastResponse) - 2);
     Challenge := Base64Decode(Challenge);
-
-    {See RFC2104 }
-    for Count := 0 to 63 do begin
-        if (Count + 1) <= Length(FPassword) then begin
-            IPAD[Count] := Byte(FPassword[Count+1]) xor $36;
-            OPAD[Count] := Byte(FPassword[Count+1]) xor $5C;
-        end
-        else begin
-            IPAD[Count] := 0 xor $36;
-            OPAD[Count] := 0 xor $5C;
-        end;
-    end;
-
-    MD5Init(MD5Context);
-    MD5Update(MD5Context, IPAD, 64);
-    MD5UpdateBuffer(MD5Context, @Challenge[1], Length(Challenge));
-    MD5Final(MD5Digest, MD5Context);
-    MD5Init(MD5Context);
-    MD5Update(MD5Context, OPAD, 64);
-    MD5Update(MD5Context, MD5Digest, 16);
-    MD5Final(MD5Digest, MD5Context);
-
-    Response := FUsername;
-    Response := Response + ' ';
-    for Count := 0 to 15 do begin
-        Response := Response + HexDigits[((MD5Digest[Count] and $F0) shr 4)];
-        Response := Response + HexDigits[(MD5Digest[Count] and $0F)];
-    end;
-
+    HMAC_MD5(PAnsiChar(Challenge)^, Length(Challenge), PAnsiChar(FPassword)^,
+                       Length(FPassword), Digest);  { V6.08 }
+    Response := FUsername + ' ' + MD5DigestToLowerHexA(Digest);  { V6.08 }
     FState := pop3InternalReady;
-    ExecAsync(pop3Pass, Base64encode(Response), pop3Transaction, nil);
+    ExecAsync(pop3Pass, Base64Encode(Response), pop3Transaction, nil);
 end;
 
 
@@ -1725,6 +1700,9 @@ begin
     FReceiveLen       := 0;
     FRequestResult    := 0;
     FTimeStamp        := '';
+    FLastResponse     := '';  { V6.08 }
+    FLastResponseSave := '';  { V6.08 }
+    FLastError        := 0;   { V6.08 }
     ClearErrorMessage;
     FWSocket.OnDataSent      := nil;
     FWSocket.OnDnsLookupDone := WSocketDnsLookupDone;
@@ -2182,6 +2160,7 @@ begin
             inherited Abort;
             FErrorMessage := '426 Timeout';
             FStatusCode   := 426;
+            FLastError    := FStatusCode;  { V6.08 }
             Result        := FALSE; { Command failed }
             break;
         end;
@@ -2597,6 +2576,7 @@ begin
         {$IFDEF TRACE} TriggerDisplay('! Abort detected'); {$ENDIF}
         FFctSet := [];
         FHighLevelResult := 426;
+        FLastError       := FHighLevelResult;  { V6.08 }
         FErrorMessage    := '426 Operation aborted.';
     end;
 

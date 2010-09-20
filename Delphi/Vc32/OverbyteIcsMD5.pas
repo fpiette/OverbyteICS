@@ -5,7 +5,7 @@ Author:       François PIETTE. Based on work given by Louis S. Berman from
 Description:  MD5 is an implementation of the MD5 Message-Digest Algorithm
               as described in RFC-1321
 Creation:     October 11, 1997
-Version:      7.00
+Version:      7.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -67,6 +67,8 @@ Apr 10, 2009 V6.11 Arno added an explicit AnsiString cast to remove compiler
 Apr 18, 2009 V6.12 Arno fixed a bug in procedure MD5UpdateBuffer.
              Only Unicode compilers were effected.
 Apr 22, 2009 V7.00 Angus assume STREAM64
+Sep 20, 2010 V7.01 Added HMAC_MD5 routine from OverbyteIcsSmtpProt.pas
+             and MD5DigestToHex functions.
 
 
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -89,8 +91,8 @@ uses
     OverbyteIcsTypes;   // For TBytes
 
 const
-    MD5Version         = 700;
-    CopyRight : String = ' MD5 Message-Digest (c) 1997-2010 F. Piette V7.00 ';
+    MD5Version         = 701;
+    CopyRight : String = ' MD5 Message-Digest (c) 1997-2010 F. Piette V7.01 ';
     DefaultMode =  fmOpenRead or fmShareDenyWrite;
 
 {$Q-}
@@ -182,7 +184,14 @@ procedure StreamMD5Context(Stream: TStream; Obj: TObject; ProgressCallback :
                  TMD5Progress; StartPos, EndPos: Int64; var MD5Context: TMD5Context); { V6.09 }
 function StreamMD5(Stream: TStream; Obj: TObject; ProgressCallback : TMD5Progress;
                                                 StartPos, EndPos: Int64): AnsiString; { V6.09 }
-function MD5DigestToHex (const MD5Digest: TMD5Digest): AnsiString;  { V6.09 }
+{$IFNDEF SAFE}
+function MD5DigestToHex (const MD5Digest: TMD5Digest): AnsiString;  { V6.09 }   { V7.01 }
+function MD5DigestToLowerHexA(const MD5Digest: TMD5Digest): AnsiString;   { V7.01 }
+function MD5DigestToLowerHex(const MD5Digest: TMD5Digest): String;   { V7.01 }
+procedure HMAC_MD5(const Buffer; BufferSize: Integer; const Key; KeySize: Integer;   { V7.01 }
+                   out Digest: TMD5Digest);
+{$ENDIF}
+
 procedure MD5DigestInit (var MD5Digest: TMD5Digest);                { V6.09 }
 
 implementation
@@ -560,17 +569,96 @@ begin
 {$ENDIF}
 end;
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}  { V6.09 }
-function MD5DigestToHex (const MD5Digest: TMD5Digest): AnsiString;
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF SAFE}
+function MD5DigestToHex (const MD5Digest: TMD5Digest): AnsiString;   { V7.01 }
+const
+    HexTable : array[0..15] of AnsiChar =
+    ('0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F');
 var
-    I: integer;
+    I : Integer;
+    P : PAnsiChar;
 begin
-    Result := '';
-    for I := 0 to 15 do
-        Result := Result + AnsiString(IntToHex(MD5Digest[I], 2));
+    SetLength(Result, SizeOf(TMD5Digest) * 2);
+    P := PAnsiChar(Result);
+    for I := Low(MD5Digest) to High(MD5Digest) do begin
+        P[I * 2]     := HexTable[(MD5Digest[I] shr 4) and 15];
+        P[I * 2 + 1] := HexTable[MD5Digest[I] and 15];
+    end;
 end;
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}  { V6.09 }
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function MD5DigestToLowerHexA(const MD5Digest: TMD5Digest): AnsiString;   { V7.01 }
+const
+    HexTable : array[0..15] of AnsiChar =
+    ('0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f');
+var
+    I : Integer;
+    P : PAnsiChar;
+begin
+    SetLength(Result, SizeOf(TMD5Digest) * 2);
+    P := PAnsiChar(Result);
+    for I := Low(MD5Digest) to High(MD5Digest) do begin
+        P[I * 2]     := HexTable[(MD5Digest[I] and $F0) shr 4];
+        P[I * 2 + 1] := HexTable[MD5Digest[I] and $0F];
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function MD5DigestToLowerHex(const MD5Digest: TMD5Digest): String;   { V7.01 }
+const
+    HexTable : array[0..15] of Char =
+    ('0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f');
+var
+    I : Integer;
+    P : PChar;
+begin
+    SetLength(Result, SizeOf(TMD5Digest) * 2);
+    P := PChar(Result);
+    for I := Low(MD5Digest) to High(MD5Digest) do begin
+        P[I * 2]     := HexTable[(MD5Digest[I] and $F0) shr 4];
+        P[I * 2 + 1] := HexTable[MD5Digest[I] and $0F];
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure HMAC_MD5(const Buffer; BufferSize: Integer; const Key; KeySize: Integer;   { V7.01 }
+    out Digest: TMD5Digest);  {See RFC2104 }
+var
+    Context : TMD5Context;
+    IPAD    : array [0..63] of Byte;
+    OPAD    : array [0..63] of Byte;
+    I       : Integer;
+    PKey    : PByte;
+begin
+    PKey := @Key;
+    for I := Low(IPAD) to High(IPAD) do begin
+        if (I + 1) <= KeySize then begin
+            IPAD[I] := PKey^ xor $36;
+            OPAD[I] := PKey^ xor $5C;
+            Inc(PKey);
+        end
+        else begin
+            IPAD[I] := 0 xor $36;
+            OPAD[I] := 0 xor $5C;
+        end;
+    end;
+
+    MD5Init(Context);
+    MD5Update(Context, IPAD, 64);
+    MD5UpdateBuffer(Context, @Buffer, BufferSize);
+    MD5Final(Digest, Context);
+    MD5Init(Context);
+    MD5Update(Context, OPAD, 64);
+    MD5Update(Context, Digest, 16);
+    MD5Final(Digest, Context);
+end;
+{$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure MD5DigestInit (var MD5Digest: TMD5Digest);
 var
     I: integer;

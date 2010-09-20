@@ -30,6 +30,7 @@ May 08, 2007 Added a few casts to uint32_t to constants.
 Jul 30, 2007 V2.00 Updated for .NET
 Mar 24, 2008 V2.01 Made some changes to prepare code for Unicode
                    Use only AnsiString
+Sep 20, 2010 V2.02 Arno added SHA1DigestToHex functions.
 
 ------------------------------------------------------------------------------}
 
@@ -56,8 +57,8 @@ uses
    SysUtils, Classes;
 
 const
-   IcsSHA1Version     = 200;
-   CopyRight : String = ' IcsSHA1 (c) 2004-2010 F. Piette V2.00 ';
+   IcsSHA1Version     = 202;
+   CopyRight : String = ' IcsSHA1 (c) 2004-2010 F. Piette V2.02 ';
 
 const
    shaSuccess      = 0;
@@ -72,6 +73,10 @@ type
    Bomb('This code requires Delphi 7 or later'};
    {$ENDIF}
    {$ENDIF}
+{$IFNDEF UNICODE}
+    UnicodeString = WideString;  { V2.02 }
+    RawByteString = AnsiString;  { V2.02 }
+{$ENDIF}
    uint32_t      = LongWord; //Cardinal; // [Should be] unsigned 32 bit integer
    uint8_t       = Byte;     // unsigned 8 bit integer (i.e., unsigned char)
    int_least16_t = LongInt;  // integer of >= 16 bits
@@ -111,6 +116,10 @@ function SHA1ofStream( const strm: TStream        ): SHA1DigestString;
 function SHA1toHex( const digest: SHA1DigestString ): String;
 
 {$IFNDEF CLR}
+function SHA1DigestToLowerHex(const Digest: SHA1Digest): String;          { V2.02 }
+function SHA1DigestToLowerHexA(const Digest: SHA1Digest): RawByteString;  { V2.02 }
+function SHA1DigestToLowerHexW(const Digest: SHA1Digest): UnicodeString;  { V2.02 }
+
 procedure HMAC_SHA1( const Data;
                      DataLen      : Integer;
                      const Key;
@@ -443,6 +452,61 @@ begin
    for i:=1 to length(digest) do Result := Result + inttohex( ord( digest[i] ), 2 );
    Result := LowerCase( Result );
 end;
+
+{$IFNDEF CLR}
+function SHA1DigestToLowerHex(const Digest: SHA1Digest): String;  { V2.02 }
+const
+    HexTable : array[0..15] of Char =
+    ('0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f');
+var
+    I : Integer;
+    P : PChar;
+begin
+    SetLength(Result, 2 * SizeOf(Digest));
+    P := PChar(Result);
+    for I := Low(Digest) to High(Digest) do
+    begin
+        P[I * 2]     := HexTable[(Ord(Digest[I]) and $F0) shr 4];
+        P[I * 2 + 1] := HexTable[Ord(Digest[I]) and $0F];
+    end;
+end;
+
+
+function SHA1DigestToLowerHexA(const Digest: SHA1Digest): RawByteString;  { V2.02 }
+const
+    HexTable : array[0..15] of AnsiChar =
+    ('0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f');
+var
+    I : Integer;
+    P : PAnsiChar;
+begin
+    SetLength(Result, 2 * SizeOf(Digest));
+    P := PAnsiChar(Result);
+    for I := Low(Digest) to High(Digest) do
+    begin
+        P[I * 2]     := HexTable[(Ord(Digest[I]) and $F0) shr 4];
+        P[I * 2 + 1] := HexTable[Ord(Digest[I]) and $0F];
+    end;
+end;
+
+
+function SHA1DigestToLowerHexW(const Digest: SHA1Digest): UnicodeString;  { V2.02 }
+const
+    HexTable : array[0..15] of WideChar =
+    ('0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f');
+var
+    I : Integer;
+    P : PWideChar;
+begin
+    SetLength(Result, 2 * SizeOf(Digest));
+    P := PWideChar(Result);
+    for I := Low(Digest) to High(Digest) do
+    begin
+        P[I * 2]     := HexTable[(Ord(Digest[I]) and $F0) shr 4];
+        P[I * 2 + 1] := HexTable[Ord(Digest[I]) and $0F];
+    end;
+end;
+{$ENDIF}
 
 // ----------------------------------------------------------------------------
 

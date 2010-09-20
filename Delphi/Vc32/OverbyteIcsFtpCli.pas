@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.11
+Version:      V7.12
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1004,6 +1004,10 @@ Sep 19, 2010 V7.11 Arno - Do not call DataSocketPutDataSent twice! This fixes
              turns on the shutdown timeout (loop) even though data is not yet
              sent. DataSocketPutDataSent MUST only be called once to init
              the send loop.
+Sep 20, 2010 V7.12 Angus - ensure FMultiThreaded in TIcsWndControl is set correctly and
+               not locally here
+
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1076,9 +1080,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 711;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.11 ';
-  FtpClientId : String = 'ICS FTP Client V7.11 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 712;
+  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.12 ';
+  FtpClientId : String = 'ICS FTP Client V7.12 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -1264,7 +1268,7 @@ type
     FStorAnswerRcvd     : Boolean;
     FPutSessionOpened   : Boolean;
     FStreamFlag         : Boolean;
-    FDataSocketSentFlag : Boolean;
+    FDataSocketSentFlag : Boolean;    { V7.11 }      
     FSupportedExtensions : TFtpExtensions; { V2.94  which features server supports }
     FMLSTFacts          : String;     { V2.90  specific new list stuff supported   }
     FRemFileDT          : TDateTime;  { V2.90  date/time for MdtmAsync and MdtmYYYYAsync and MfmtAsync }
@@ -1624,9 +1628,9 @@ type
   protected
     FTimeout       : Integer;                 { Given in seconds }
     FTimeStop      : LongInt;                 { Milli-seconds    }
-    FMultiThreaded : Boolean;
+{   FMultiThreaded : Boolean;         V7.12 must use versions in TIcsWndControl
     FTerminated    : Boolean;
-    FOnMessagePump : TNotifyEvent;
+    FOnMessagePump : TNotifyEvent;   }
     function    Progress : Boolean; override;
     function    Synchronize(Proc : TFtpNextProc) : Boolean; virtual;
     function    WaitUntilReady : Boolean; virtual;
@@ -4406,7 +4410,7 @@ begin
     FDurationMsecs := 0;  { V2.113 }
 
     { Send first data block }
-    if not FDataSocketSentFlag then
+    if not FDataSocketSentFlag then     { V7.11 }    
         DataSocketPutDataSent(FDataSocket, 0);
 end;
 
@@ -4448,7 +4452,7 @@ begin
         Exit;
     end;
 
-    if not FDataSocketSentFlag then
+    if not FDataSocketSentFlag then    { V7.11 }    
         FDataSocketSentFlag := TRUE;
 
     try
@@ -5130,7 +5134,7 @@ begin
     FDataSocket.LingerOnOff        := wsLingerOff;
     FDataSocket.LingerTimeout      := 0;
     FDataSocket.ComponentOptions   := [wsoNoReceiveLoop];   { 26/10/02 }
-    FDataSocketSentFlag            := FALSE;
+    FDataSocketSentFlag            := FALSE;          { V7.11 }    
 {$IFDEF BUILTIN_THROTTLE}
     if ftpBandwidthControl in FOptions then begin
         FDataSocket.BandwidthLimit     := FBandwidthLimit;
@@ -5428,7 +5432,7 @@ begin
     FDataSocket.OnSessionAvailable := nil;
     FDataSocket.OnSessionClosed    := nil;
     FDataSocket.OnDataAvailable    := nil;
-    FDataSocketSentFlag            := FALSE;
+    FDataSocketSentFlag            := FALSE;     { V7.11 }
 {$IFDEF BUILTIN_THROTTLE}
     if ftpBandwidthControl in FOptions then begin
         FDataSocket.BandwidthLimit     := FBandwidthLimit;

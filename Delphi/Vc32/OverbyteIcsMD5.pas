@@ -5,7 +5,7 @@ Author:       François PIETTE. Based on work given by Louis S. Berman from
 Description:  MD5 is an implementation of the MD5 Message-Digest Algorithm
               as described in RFC-1321
 Creation:     October 11, 1997
-Version:      7.01
+Version:      7.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -67,9 +67,11 @@ Apr 10, 2009 V6.11 Arno added an explicit AnsiString cast to remove compiler
 Apr 18, 2009 V6.12 Arno fixed a bug in procedure MD5UpdateBuffer.
              Only Unicode compilers were effected.
 Apr 22, 2009 V7.00 Angus assume STREAM64
-Sep 20, 2010 V7.01 Added HMAC_MD5 routine from OverbyteIcsSmtpProt.pas
+Sep 20, 2010 V7.01 Arno added HMAC_MD5 routine from OverbyteIcsSmtpProt.pas
              and MD5DigestToHex functions.
-
+Sep 21, 2010 V7.02 Arno - Changed parameters of MD5SameDigest() to reference
+             types rather than value types. Changed MD5DigestToLowerHexA to
+             return RawByteString.
 
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMD5;
@@ -91,8 +93,8 @@ uses
     OverbyteIcsTypes;   // For TBytes
 
 const
-    MD5Version         = 701;
-    CopyRight : String = ' MD5 Message-Digest (c) 1997-2010 F. Piette V7.01 ';
+    MD5Version         = 702;
+    CopyRight : String = ' MD5 Message-Digest (c) 1997-2010 F. Piette V7.02 ';
     DefaultMode =  fmOpenRead or fmShareDenyWrite;
 
 {$Q-}
@@ -178,15 +180,19 @@ function FileMD5(const Filename: String; Obj: TObject; ProgressCallback : TMD5Pr
 function FileListMD5(FileList: TStringList; Obj: TObject;
     ProgressCallback : TMD5Progress; Mode: Word = DefaultMode) : AnsiString;    { V6.06 }
 
-function MD5SameDigest(D1, D2: TMD5Digest): Boolean;
+function MD5SameDigest(const D1, D2: TMD5Digest): Boolean; { V7.02 }
 
 procedure StreamMD5Context(Stream: TStream; Obj: TObject; ProgressCallback :
                  TMD5Progress; StartPos, EndPos: Int64; var MD5Context: TMD5Context); { V6.09 }
 function StreamMD5(Stream: TStream; Obj: TObject; ProgressCallback : TMD5Progress;
                                                 StartPos, EndPos: Int64): AnsiString; { V6.09 }
 {$IFNDEF SAFE}
+{$IFNDEF UNICODE}
+type
+    RawByteString = AnsiString;
+{$ENDIF}
 function MD5DigestToHex (const MD5Digest: TMD5Digest): AnsiString;  { V6.09 }   { V7.01 }
-function MD5DigestToLowerHexA(const MD5Digest: TMD5Digest): AnsiString;   { V7.01 }
+function MD5DigestToLowerHexA(const MD5Digest: TMD5Digest): RawByteString; { V7.01 } { V7.02 }
 function MD5DigestToLowerHex(const MD5Digest: TMD5Digest): String;   { V7.01 }
 procedure HMAC_MD5(const Buffer; BufferSize: Integer; const Key; KeySize: Integer;   { V7.01 }
                    out Digest: TMD5Digest);
@@ -571,7 +577,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF SAFE}
-function MD5DigestToHex (const MD5Digest: TMD5Digest): AnsiString;   { V7.01 }
+function MD5DigestToHex (const MD5Digest: TMD5Digest): AnsiString;  { V7.01 }
 const
     HexTable : array[0..15] of AnsiChar =
     ('0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F');
@@ -589,8 +595,8 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function MD5DigestToLowerHexA(const MD5Digest: TMD5Digest): AnsiString;   { V7.01 }
-const
+function MD5DigestToLowerHexA(const MD5Digest: TMD5Digest): RawByteString;
+const                                                  { V7.01 } { V7.02 }
     HexTable : array[0..15] of AnsiChar =
     ('0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f');
 var
@@ -997,12 +1003,12 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function MD5SameDigest(D1, D2: TMD5Digest): Boolean;
+function MD5SameDigest(const D1, D2: TMD5Digest): Boolean; { V7.02 }
 var
     I : Integer;
 begin
     Result := FALSE;
-    for I := 0 to Length(D1) -1 do
+    for I := Low(D1) to High(D1) do      { V7.02 }
         if D1[I] <> D2[I] then
             Exit;
     Result := TRUE;

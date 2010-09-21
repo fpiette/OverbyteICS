@@ -770,9 +770,13 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
   {$DEFINE BCB1_UP}
 {$ENDIF}
 
-{$IF NOT DEFINED(COMPILER7_UP) or DEFINED(CLR)}
-  Sorry, Delphi 7 or C++ Builder 2006 Win32 or better is required.
-{$IFEND}
+{$IFDEF CONDITIONALEXPRESSIONS}
+  {$IF NOT DEFINED(COMPILER7_UP) or DEFINED(CLR)}
+    Sorry, Delphi 7 or C++ Builder 2006 Win32 or better is required.
+  {$IFEND}
+{$ELSE}
+    Sorry, Delphi 7 or C++ Builder 2006 Win32 or better is required.
+{$ENDIF}
 
 { TStream class support 64 bit seek }
 {$IFNDEF FPC}             { Not for FPC !              }

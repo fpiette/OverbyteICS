@@ -809,11 +809,13 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
     {$DEFINE USE_INLINE}
 {$ENDIF}
 
-{$IF DEFINED(DELPHI12) or DEFINED(DELPHI14)}
-  { Since Fulcrum always OFF and ignored }
-  {$STRINGCHECKS OFF}
-  { No string checks in pure Delphi code }
-{$IFEND}
+{$IFDEF CONDITIONALEXPRESSIONS}
+  {$IF DEFINED(DELPHI12) or DEFINED(DELPHI14)}
+    { Since Fulcrum always OFF and ignored }
+    {$STRINGCHECKS OFF}
+    { No string checks in pure Delphi code }
+  {$IFEND}
+{$ENDIF}
 
 { ICS SSL code doesn't work with FPC }
 {$IFDEF FPC}

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.46
+Version:      7.47
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -777,7 +777,10 @@ Sep 08, 2010 V7.45 Fixed a typo in experimental throttle code.
 Sep 11, 2010 V7.46 Arno added two more SSL debug log entries and a call to
                    RaiseLastOpenSslError in TCustomSslWSocket.InitSSLConnection.
                    Added function OpenSslErrMsg.
-
+Sep 23, 2010 V7.47 Arno fixed a bug in the experimental throttle code and made
+                   it more accurate. Thanks to Angus for testing and reporting.
+                   Method Resume with SSL enabled did not always work.
+                   
 }
 
 {
@@ -887,8 +890,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 746;
-  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.46 ';
+  WSocketVersion            = 747;
+  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.47 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -2216,6 +2219,7 @@ type
         procedure   Close; override;
         procedure   Dup(NewHSocket: Integer); override;
         procedure   ThreadAttach; override;
+        procedure   Resume; override;
         //procedure DoSslShutdown;
         procedure   ResetSslDelayed;
         procedure   SslBiShutDownAsync;
@@ -10499,12 +10503,28 @@ begin
             FBandwidthMaxCount := MaxInt;
         FBandwidthPaused := FALSE;
         Include(FComponentOptions, wsoNoReceiveLoop);
-        FBandwidthEnabled := TRUE
+        FBandwidthEnabled := TRUE;
+    {$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loWsockInfo) then
+            DebugLog(loWsockInfo,
+                     _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                     ' Bandwidth ON ' + _IntToStr(FHSocket));
+    {$ENDIF}
     end
     else begin
-        if Assigned(FBandwidthTimer) then
-            FBandwidthTimer.Enabled := FALSE;
-        FBandwidthEnabled := FALSE;
+        if Assigned(FBandwidthTimer) then begin
+            if FBandwidthTimer.Enabled then
+                FBandwidthTimer.Enabled := FALSE;
+            if FBandwidthEnabled then begin
+                FBandwidthEnabled := FALSE;
+            {$IFNDEF NO_DEBUG_LOG}
+                if CheckLogOptions(loWsockInfo) then
+                    DebugLog(loWsockInfo,
+                            _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                            ' Bandwidth OFF ' + _IntToStr(FHSocket));
+            {$ENDIF}
+            end;
+        end;
     end;
 end;
 
@@ -10533,15 +10553,30 @@ end;
 function TCustomThrottledWSocket.RealSend(var Data: TWSocketData;
   Len: Integer): Integer;
 begin
-    Result := inherited RealSend(Data, Len);
+    if not FBandwidthEnabled then
+        Result := inherited RealSend(Data, Len)
+    else begin
+        { Try to adjust amount of data actually passed to winsock }
+        if (Len > 0) and (FBandwidthCount < FBandwidthMaxCount) and
+           (FBandwidthCount + LongWord(Len) > FBandwidthMaxCount) then
+            Len := (FBandwidthMaxCount - FBandwidthCount) + 1;
 
-    if FBandwidthEnabled and (Result > 0) then begin
-        Inc(FBandwidthCount, Result);
-        if (FBandwidthCount > FBandwidthMaxCount) and
-           (not FBandwidthPaused) then begin
-            FBandwidthPaused := TRUE;
-            Pause;
-        end;
+        Result := inherited RealSend(Data, Len);
+
+        if (Result > 0) then begin
+            Inc(FBandwidthCount, Result);
+            if (FBandwidthCount > FBandwidthMaxCount) and
+               (not FBandwidthPaused) then begin
+                FBandwidthPaused := TRUE;
+                Pause;
+           {$IFNDEF NO_DEBUG_LOG}
+                if CheckLogOptions(loWsockInfo) then
+                    DebugLog(loWsockInfo,
+                            _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                            ' Bandwidth Paused on send ' + _IntToStr(FHSocket));
+           {$ENDIF}
+           end;
+       end;
     end;
 end;
 
@@ -10550,15 +10585,32 @@ end;
 function TCustomThrottledWSocket.Receive(Buffer: TWSocketData;
   BufferSize: Integer): Integer;
 begin
-    Result := inherited Receive(Buffer, BufferSize);
+    { The Receive throttle does not work if FD_CLOSE message has been received }
+    { yet since handler Do_FD_CLOSE removes option wsoNoReceiveLoop.           }
+    if (not FBandwidthEnabled) or not (wsoNoReceiveLoop in ComponentOptions) then
+        Result := inherited Receive(Buffer, BufferSize)
+    else begin
+        { Try to adjust amount of data to be received from winsock }
+        if (BufferSize > 0) and (FBandwidthCount < FBandwidthMaxCount) and
+           (FBandwidthCount + LongWord(BufferSize) > FBandwidthMaxCount) then
+            BufferSize := (FBandwidthMaxCount - FBandwidthCount) + 1;
+
+        Result := inherited Receive(Buffer, BufferSize);
     
-    if FBandwidthEnabled and (Result > 0) then begin
-        Inc(FBandwidthCount, Result);
-        if (FBandwidthCount > FBandwidthMaxCount) and
-            (not FBandwidthPaused) then begin
-            FBandwidthPaused := TRUE;
-            Pause;
-        end;    
+        if (Result > 0) then begin
+            Inc(FBandwidthCount, Result);
+            if (FBandwidthCount > FBandwidthMaxCount) and
+               (not FBandwidthPaused) then begin
+                FBandwidthPaused := TRUE;
+                Pause;
+            {$IFNDEF NO_DEBUG_LOG}
+                if CheckLogOptions(loWsockInfo) then
+                    DebugLog(loWsockInfo,
+                             _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                             ' Bandwidth Paused on receive ' + _IntToStr(FHSocket));
+            {$ENDIF}
+            end;
+        end;
     end;
 end;
 
@@ -10572,7 +10624,15 @@ begin
         Dec(FBandwidthCount, FBandwidthMaxCount);
         if FBandwidthCount > FBandwidthMaxCount then
             FBandwidthCount := FBandwidthMaxCount;
-        Resume;
+        if (FHSocket <> INVALID_SOCKET) then begin
+        {$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loWsockInfo) then
+                DebugLog(loWsockInfo,
+                         _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                         ' Bandwidth Resume ' + _IntToStr(FHSocket));
+        {$ENDIF}
+            Resume;
+        end;
     end
     else
         FBandwidthCount := 0;
@@ -10582,8 +10642,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomThrottledWSocket.TriggerSessionClosed(Error: Word);
 begin
-    if Assigned(FBandwidthTimer) then
+    if Assigned(FBandwidthTimer) then begin
         FBandwidthTimer.Enabled := FALSE;
+        FBandwidthEnabled       := FALSE;
+    end;
     inherited TriggerSessionClosed(Error);
 end;
 
@@ -10591,9 +10653,15 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomThrottledWSocket.TriggerSessionConnectedSpecial(Error: Word);
 begin
-    inherited TriggerSessionConnectedSpecial(Error);
-    if Error = 0 then
+    { Turn on the throttle early, inherited TriggerSessionConnectedSpecial }
+    { might already process the first data chunk.                          }
+    if (Error = 0) then
         SetBandwidthControl;
+    inherited TriggerSessionConnectedSpecial(Error);
+    if (Error <> 0) and Assigned(FBandwidthTimer) then begin
+        FBandwidthTimer.Enabled := FALSE;
+        FBandwidthEnabled       := FALSE;
+    end;
 end;
 {$ENDIF}
 
@@ -15613,6 +15681,14 @@ end;
 procedure TCustomSslWSocket.ResetSslDelayed;
 begin
     _PostMessage(FWindowHandle, FMsg_WM_RESET_SSL, 0, 0);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.Resume;
+begin
+    inherited;
+    TriggerEvents;
 end;
 
 

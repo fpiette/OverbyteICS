@@ -208,6 +208,8 @@ type
     ClearTraceButton: TButton;
     Label23: TLabel;
     OptsAsyncButton: TButton;
+    MaxKbEdit: TEdit;
+    Label22: TLabel;
     procedure ExitButtonClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure DisplayHandler(Sender: TObject; var Msg : String);
@@ -348,6 +350,7 @@ const
     KeySessCache       = 'SessCache';
     KeySslType         = 'SslType';
     KeySslPort         = 'SslPort';
+    KeyMaxKB           = 'MaxKB';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF VER80 }
@@ -444,6 +447,7 @@ begin
         SyncCheckBox.Checked           := Boolean(IniFile.ReadInteger(SectionData, KeySync    , 0));
         NoAutoResumeAtCheckBox.Checked := Boolean(IniFile.ReadInteger(SectionData, KeyNoResume, 0));
         BinaryCheckBox.Checked         := Boolean(IniFile.ReadInteger(SectionData, KeyBinary,   0));
+        MaxKbEdit.Text                 := IniFile.ReadString(SectionData, KeyMaxKB, '0');
 
         Width  := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         Height := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
@@ -510,6 +514,7 @@ begin
     IniFile.WriteInteger(SectionData, KeySync    , Ord(SyncCheckBox.Checked   ));
     IniFile.WriteInteger(SectionData, KeyNoResume, Ord(NoAutoResumeAtCheckBox.Checked));
     IniFile.WriteInteger(SectionData, KeyBinary,   Ord(BinaryCheckBox.Checked));
+    IniFile.WriteString(SectionData,  KeyMaxKB,    MaxKbEdit.Text);
     IniFile.WriteInteger(SectionData,   KeyVerifyPeer,  Ord(VerifyPeerCheckBox.Checked));
     IniFile.WriteString(SectionData,    KeyCertFile,    CertFileEdit.Text);
     IniFile.WriteString(SectionData,    KeyPrivKeyFile, PrivKeyFileEdit.Text);
@@ -709,6 +714,8 @@ end;
 { command depending on the SyncCheckBox state.                              }
 { All date from UI is copied to FTP component properties.                   }
 procedure TFtpReceiveForm.ExecuteCmd(SyncCmd : TSyncCmd; ASyncCmd : TAsyncCmd);
+var
+    Bandwidth : Integer;
 begin
     Display('Executing Requested Command');
     { Initialize progress stuff }
@@ -758,6 +765,13 @@ begin
         if FtpClient1.SslType = sslTypeImplicit then
             FtpClient1.Port := SslPortEdit.Text;
     end;
+    Bandwidth := StrToIntDef(MaxKbEdit.Text, 0);
+    if Bandwidth > 0 then begin
+        FtpClient1.BandwidthLimit := Bandwidth * 1024;
+        FtpClient1.Options := FtpClient1.Options + [ftpBandwidthControl];
+    end
+    else
+        FtpClient1.Options := FtpClient1.Options - [ftpBandwidthControl];
 
     if SyncCheckBox.Checked then begin
         if SyncCmd then

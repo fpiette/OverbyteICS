@@ -1,9 +1,9 @@
 object FtpReceiveForm: TFtpReceiveForm
   Left = 436
   Top = 103
+  Width = 634
+  Height = 587
   Caption = 'FTP - http://www.overbyte.be'
-  ClientHeight = 553
-  ClientWidth = 621
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -18,9 +18,9 @@ object FtpReceiveForm: TFtpReceiveForm
   TextHeight = 16
   object DisplayMemo: TMemo
     Left = 0
-    Top = 376
-    Width = 621
-    Height = 177
+    Top = 377
+    Width = 626
+    Height = 176
     Hint = 'This area show the activity with the host'
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
@@ -39,8 +39,8 @@ object FtpReceiveForm: TFtpReceiveForm
   object Panel1: TPanel
     Left = 0
     Top = 149
-    Width = 621
-    Height = 227
+    Width = 626
+    Height = 228
     Align = alTop
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -77,7 +77,7 @@ object FtpReceiveForm: TFtpReceiveForm
     end
     object Label7: TLabel
       Left = 504
-      Top = 128
+      Top = 122
       Width = 51
       Height = 13
       Caption = 'Resume at'
@@ -90,7 +90,7 @@ object FtpReceiveForm: TFtpReceiveForm
     end
     object Label11: TLabel
       Left = 504
-      Top = 148
+      Top = 142
       Width = 43
       Height = 13
       Caption = 'Start Pos'
@@ -103,7 +103,7 @@ object FtpReceiveForm: TFtpReceiveForm
     end
     object Label12: TLabel
       Left = 504
-      Top = 168
+      Top = 162
       Width = 40
       Height = 13
       Caption = 'End Pos'
@@ -116,7 +116,7 @@ object FtpReceiveForm: TFtpReceiveForm
     end
     object Label13: TLabel
       Left = 504
-      Top = 188
+      Top = 182
       Width = 56
       Height = 13
       Caption = 'Max KBytes'
@@ -129,7 +129,7 @@ object FtpReceiveForm: TFtpReceiveForm
     end
     object Label15: TLabel
       Left = 505
-      Top = 204
+      Top = 202
       Width = 48
       Height = 13
       Caption = 'Language'
@@ -760,7 +760,7 @@ object FtpReceiveForm: TFtpReceiveForm
     end
     object ResumeAtEdit: TEdit
       Left = 560
-      Top = 124
+      Top = 118
       Width = 57
       Height = 21
       Font.Charset = DEFAULT_CHARSET
@@ -1106,7 +1106,7 @@ object FtpReceiveForm: TFtpReceiveForm
     end
     object PosStartEdit: TEdit
       Left = 560
-      Top = 144
+      Top = 138
       Width = 57
       Height = 21
       Font.Charset = DEFAULT_CHARSET
@@ -1120,7 +1120,7 @@ object FtpReceiveForm: TFtpReceiveForm
     end
     object PosEndEdit: TEdit
       Left = 560
-      Top = 164
+      Top = 158
       Width = 57
       Height = 21
       Font.Charset = DEFAULT_CHARSET
@@ -1194,7 +1194,7 @@ object FtpReceiveForm: TFtpReceiveForm
     end
     object MaxKB: TEdit
       Left = 560
-      Top = 184
+      Top = 178
       Width = 57
       Height = 21
       Font.Charset = DEFAULT_CHARSET
@@ -1267,7 +1267,7 @@ object FtpReceiveForm: TFtpReceiveForm
       OnClick = LangAsyncButtonClick
     end
     object Lanugage: TEdit
-      Left = 559
+      Left = 560
       Top = 200
       Width = 57
       Height = 21
@@ -1284,7 +1284,7 @@ object FtpReceiveForm: TFtpReceiveForm
   object Panel2: TPanel
     Left = 0
     Top = 0
-    Width = 621
+    Width = 626
     Height = 149
     Align = alTop
     Font.Charset = DEFAULT_CHARSET
@@ -1657,6 +1657,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Top = 73
       Width = 126
       Height = 21
+      ItemHeight = 13
       TabOrder = 16
       Text = 'UTF8 ON'
       Items.Strings = (

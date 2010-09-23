@@ -1,9 +1,9 @@
 object FtpReceiveForm: TFtpReceiveForm
   Left = 227
   Top = 114
+  Width = 643
+  Height = 632
   Caption = 'FTP - http://www.overbyte.be'
-  ClientHeight = 598
-  ClientWidth = 635
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -165,6 +165,13 @@ object FtpReceiveForm: TFtpReceiveForm
       Width = 42
       Height = 13
       Caption = 'SSL Port'
+    end
+    object Label22: TLabel
+      Left = 498
+      Top = 251
+      Width = 56
+      Height = 13
+      Caption = 'Max KBytes'
     end
     object ExitButton: TButton
       Left = 512
@@ -1021,6 +1028,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Width = 165
       Height = 21
       Style = csDropDownList
+      ItemHeight = 13
       TabOrder = 58
       Items.Strings = (
         'sslTypeNone'
@@ -1077,6 +1085,14 @@ object FtpReceiveForm: TFtpReceiveForm
       ParentFont = False
       TabOrder = 66
       OnClick = OptsAsyncButtonClick
+    end
+    object MaxKbEdit: TEdit
+      Left = 560
+      Top = 247
+      Width = 57
+      Height = 21
+      TabOrder = 67
+      Text = 'MaxKbEdit'
     end
   end
   object Panel2: TPanel
@@ -1430,6 +1446,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Top = 71
       Width = 126
       Height = 21
+      ItemHeight = 13
       TabOrder = 15
       Text = 'UTF8 ON'
       Items.Strings = (
@@ -1491,7 +1508,6 @@ object FtpReceiveForm: TFtpReceiveForm
     TimeStampFormatString = 'hh:nn:ss:zzz'
     TimeStampSeparator = ' '
     LogFileOption = lfoOverwrite
-    LogFileEncoding = lfeUtf8
     LogFileName = 'Debug_SslFtpTst.txt'
     LogOptions = []
     Left = 152

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  Version defines for ICS (Internet Component Suite)
 Creation:     2003
-Version:      1.10
+Version:      1.11
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -49,7 +49,7 @@ Oct 05, 2008 V1.09 USE_LINE for COMPILER10_UP, removed UNICODE check for .NET.
 Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
                    If the compiler version is not detected define latest
                    supported compiler version.
-
+Sep 24, 2010 V1.10 Arno removed BCB7/C++BuilderX.
 
   SYMBOL           Compiler version
   ===============  ======================================
@@ -87,13 +87,11 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
   BCB4             C++ Builder 4
   BCB5             C++ Builder 5
   BCB6             C++ Builder 6
-  BCB7             C++ Builder 7  (C++ BuilderX ?)
   BCB1_UP          C++ Builder 1  or higher
   BCB3_UP          C++ Builder 3  or higher
   BCB4_UP          C++ Builder 4  or higher
   BCB5_UP          C++ Builder 5  or higher
   BCB6_UP          C++ Builder 6  or higher
-  BCB7_UP          C++ Builder 7  or higher
   BCB10_UP         C++ Builder 2006 or higher
   BCB11_UP         C++ Builder 2007 or higher
   BCB12_UP         C++ Builder 2009 or higher
@@ -122,7 +120,7 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
   COMPILER4_UP     Delphi 4  or C++ Builder 4 or higher
   COMPILER5_UP     Delphi 5  or C++ Builder 5 or higher
   COMPILER6_UP     Delphi 6  or C++ Builder 6 or higher
-  COMPILER7_UP     Delphi 7  (or C++ Builder X ?) or higher
+  COMPILER7_UP     Delphi 7  or higher
   COMPILER8_UP     Delphi 8  or higher
   COMPILER9_UP     Delphi 9  or higher
   COMPILER10_UP    Delphi or C++ Builder 2006 or higher
@@ -270,12 +268,8 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
 {$IFDEF VER150}
   {$UNDEF VER_UNKNOWN}
   {$DEFINE COMPILER7}
-  {$IFDEF BCB}
-    {$DEFINE BCB7}
-  {$ELSE}
-    {$DEFINE DELPHI7}
-    {$DEFINE DELPHI}
-  {$ENDIF}
+  {$DEFINE DELPHI7}
+  {$DEFINE DELPHI}
 {$ENDIF}
 
 {$IFDEF VER140}
@@ -676,7 +670,6 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
   {$DEFINE BCB12_UP}
   {$DEFINE BCB11_UP}
   {$DEFINE BCB10_UP}
-  {$DEFINE BCB7_UP}
   {$DEFINE BCB6_UP}
   {$DEFINE BCB5_UP}
   {$DEFINE BCB4_UP}
@@ -690,7 +683,6 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
   {$DEFINE BCB12_UP}
   {$DEFINE BCB11_UP}
   {$DEFINE BCB10_UP}
-  {$DEFINE BCB7_UP}
   {$DEFINE BCB6_UP}
   {$DEFINE BCB5_UP}
   {$DEFINE BCB4_UP}
@@ -702,7 +694,6 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
   {$DEFINE BCB12_UP}
   {$DEFINE BCB11_UP}
   {$DEFINE BCB10_UP}
-  {$DEFINE BCB7_UP}
   {$DEFINE BCB6_UP}
   {$DEFINE BCB5_UP}
   {$DEFINE BCB4_UP}
@@ -713,7 +704,6 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
 {$IFDEF BCB11}
   {$DEFINE BCB11_UP}
   {$DEFINE BCB10_UP}
-  {$DEFINE BCB7_UP}
   {$DEFINE BCB6_UP}
   {$DEFINE BCB5_UP}
   {$DEFINE BCB4_UP}
@@ -723,16 +713,6 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
 
 {$IFDEF BCB10}
   {$DEFINE BCB10_UP}
-  {$DEFINE BCB7_UP}
-  {$DEFINE BCB6_UP}
-  {$DEFINE BCB5_UP}
-  {$DEFINE BCB4_UP}
-  {$DEFINE BCB3_UP}
-  {$DEFINE BCB1_UP}
-{$ENDIF}
-
-{$IFDEF BCB7}
-  {$DEFINE BCB7_UP}
   {$DEFINE BCB6_UP}
   {$DEFINE BCB5_UP}
   {$DEFINE BCB4_UP}

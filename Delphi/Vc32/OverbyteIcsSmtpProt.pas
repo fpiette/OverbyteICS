@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      7.32
+Version:      7.33
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -385,7 +385,7 @@ Sep 03, 2010 V7.31  Arno - New property THtmlSmtpCli.HtmlImageCidSuffix which
                     our default cid. Thanks to Fabrice Vendé for providing a
                     fix.
 Sep 20, 2010 V7.32  Arno moved HMAC-MD5 code to OverbyteIcsMD5.pas.
-
+Oct 09, 2010 V7.33  Arno added TSyncSmtpCli.SentToFileSync.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSmtpProt;
@@ -450,8 +450,8 @@ uses
     OverbyteIcsMimeUtils;
 
 const
-  SmtpCliVersion     = 732;
-  CopyRight : String = ' SMTP component (c) 1997-2010 Francois Piette V7.32 ';
+  SmtpCliVersion     = 733;
+  CopyRight : String = ' SMTP component (c) 1997-2010 Francois Piette V7.33 ';
   smtpProtocolError  = 20600; {AG}
   SMTP_RCV_BUF_SIZE  = 4096;
   
@@ -1087,6 +1087,7 @@ type
         function    AbortSync    : Boolean; virtual;
         function    OpenSync     : Boolean; virtual;
         function    MailSync     : Boolean; virtual;
+        function    SendToFileSync(const FileName : String): Boolean; virtual;
     published
         property Timeout : Integer       read  FTimeout
                                          write FTimeout;
@@ -3666,8 +3667,7 @@ begin
         raise Exception.Create('SendToFile requires SendMode smtpToStream');
     if Length(FileName) = 0 then
         raise Exception.Create('File name not specified');
-    if Assigned(FOutStream) then
-        FOutStream.Free;
+    FreeAndNil(FOutStream);
 {$IFDEF USE_BUFFERED_STREAM}
     FOutStream := TBufferedFileStream.Create(FileName, fmCreate, MAX_BUFSIZE);
 {$ELSE}
@@ -4324,6 +4324,49 @@ end;
 function TSyncSmtpCli.AbortSync : Boolean;
 begin
     Result := Synchronize(Abort);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSyncSmtpCli.SendToFileSync(
+    const FileName : String): Boolean;
+const
+    Msg = 'SendToFile';
+var
+    OldSendMode: TSmtpSendMode;
+begin
+    if FState <> smtpReady then
+        raise SmtpException.Create('SMTP component not ready');
+    if Length(FileName) = 0 then
+        raise SmtpException.Create('File name not specified');
+    FreeAndNil(FOutStream);
+{$IFDEF USE_BUFFERED_STREAM}
+    FOutStream := TBufferedFileStream.Create(FileName, fmCreate, MAX_BUFSIZE);
+{$ELSE}
+    FOutStream := TFileStream.Create(FileName, fmCreate);
+{$ENDIF}
+    try
+        OldSendMode := FSendMode;
+        try
+            FSendMode := smtpToStream;
+            FRequestType := smtpToFile;
+            FOkResponses[0] := 200;
+            FOkResponses[1] := 0;
+            FRequestDoneFlag := FALSE;
+            FLastResponse  := '';
+            FStatusCode    := 0;
+            FRequestResult := 0;
+            FMsgSizeFlag   := FALSE;
+            StateChange(smtpInternalBusy);
+            TriggerCommand(Msg);
+            TriggerDisplay('> ' + Msg);
+            Result := Synchronize(Data);
+        finally
+            FSendMode := OldSendMode;
+        end;
+    finally
+        FreeAndNil(FOutStream);
+    end;
 end;
 
 

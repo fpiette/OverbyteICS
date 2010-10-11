@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.12
+Version:      V7.13
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1006,7 +1006,7 @@ Sep 19, 2010 V7.11 Arno - Do not call DataSocketPutDataSent twice! This fixes
              the send loop.
 Sep 20, 2010 V7.12 Angus - ensure FMultiThreaded in TIcsWndControl is set correctly and
                not locally here
-
+Oct 10, 2010 V7.13  Arno - MessagePump changes/fixes.
 
 
 
@@ -1080,9 +1080,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 712;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.12 ';
-  FtpClientId : String = 'ICS FTP Client V7.12 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 713;
+  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.13 ';
+  FtpClientId : String = 'ICS FTP Client V7.13 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -1319,6 +1319,9 @@ type
     procedure DebugLog(LogOption: TLogOption; const Msg : string); virtual; { 2.104 }
     function  CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { 2.104 }
 {$ENDIF}
+    procedure   SetMultiThreaded(const Value : Boolean); override;
+    procedure   SetTerminated(const Value: Boolean); override;
+    procedure   SetOnMessagePump(const Value: TNotifyEvent); override;
     procedure   SetErrorMessage;
     procedure   LocalStreamWrite(const Buffer; Count : Integer); virtual;
     procedure   LocalStreamWriteString(Str: PAnsiChar; Count: Integer); {$IFDEF COMPILER12_UP} overload;
@@ -1628,9 +1631,6 @@ type
   protected
     FTimeout       : Integer;                 { Given in seconds }
     FTimeStop      : LongInt;                 { Milli-seconds    }
-{   FMultiThreaded : Boolean;         V7.12 must use versions in TIcsWndControl
-    FTerminated    : Boolean;
-    FOnMessagePump : TNotifyEvent;   }
     function    Progress : Boolean; override;
     function    Synchronize(Proc : TFtpNextProc) : Boolean; virtual;
     function    WaitUntilReady : Boolean; virtual;
@@ -1712,15 +1712,9 @@ type
     function    XDmlsd     : Boolean;    { V7.01   extended MLSD using data channel }
     function    ConnectFeat : Boolean;   { V7.09   same as connect but sends Feat  }
     function    ConnectFeatHost : Boolean;   { V7.09   same as connect but sends Feat and Host  }
-{$IFDEF NOFORMS}
-    property    Terminated         : Boolean        read  FTerminated
-                                                    write FTerminated;
-{$ENDIF}
-    property    OnMessagePump      : TNotifyEvent   read  FOnMessagePump
-                                                    write FOnMessagePump;
   published
     property Timeout       : Integer read FTimeout       write FTimeout;
-    property MultiThreaded : Boolean read FMultiThreaded write FMultiThreaded;
+    property MultiThreaded;
     property HostName;
     property Port;
     property CodePage;
@@ -2193,6 +2187,8 @@ end;
 destructor TCustomFtpCli.Destroy;
 begin
     DestroyLocalStream;
+    FreeAndNil(FDataSocket);
+    FreeAndNil(FControlSocket);
 {$IFDEF UseBandwidthControl}
     if Assigned(FBandwidthTimer) then begin
         FBandwidthTimer.Free;
@@ -2309,7 +2305,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomFtpCli.CreateSocket: TWSocket;   { V7.08 }
 begin
-  Result := TWSocket.Create(Self);
+  Result := TWSocket.Create(nil);
 end;
 
 
@@ -2540,6 +2536,39 @@ begin
         TriggerDisplay('< DEBUG !');
 
     TriggerDisplay('< ' + FLastResponse);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomFtpCli.SetMultiThreaded(const Value : Boolean);
+begin
+    if Assigned(FDataSocket) then
+        FDataSocket.MultiThreaded := Value;
+    if Assigned(FControlSocket) then
+        FControlSocket.MultiThreaded := Value;
+    inherited SetMultiThreaded(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomFtpCli.SetTerminated(const Value: Boolean);
+begin
+    if Assigned(FDataSocket) then
+        FDataSocket.Terminated := Value;
+    if Assigned(FControlSocket) then
+        FControlSocket.Terminated := Value;
+    inherited SetTerminated(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomFtpCli.SetOnMessagePump(const Value: TNotifyEvent);
+begin
+    if Assigned(FDataSocket) then
+        FDataSocket.OnMessagePump := Value;
+    if Assigned(FControlSocket) then
+        FControlSocket.OnMessagePump := Value;
+    inherited SetOnMessagePump(Value);
 end;
 
 
@@ -6506,6 +6535,7 @@ var
 begin
     Result    := TRUE;           { Assume success }
     FTimeStop := LongInt(GetTickCount) + LongInt(FTimeout) * 1000;
+    DummyHandle := INVALID_HANDLE_VALUE;
     while TRUE do begin
         if FState in [ftpReady, ftpInternalReady] then begin
             { Back to ready state, the command is finished }
@@ -6513,20 +6543,7 @@ begin
             break;
         end;
 
-        {$IFNDEF VER80}
-        { Do not use 100% CPU }
-        if ftpWaitUsingSleep in FOptions then
-            Sleep(0)
-        else begin
-            DummyHandle := INVALID_HANDLE_VALUE;
-            MsgWaitForMultipleObjects(0, {PChar(0)^}DummyHandle, FALSE, 1000,
-                                      QS_ALLINPUT {or QS_ALLPOSTMESSAGE});
-        end;
-
-        MessagePump;
-        if {$IFNDEF NOFORMS} Application.Terminated or
-           {$ELSE}           Terminated or
-           {$ENDIF}
+        if Terminated or
            ((FTimeout > 0) and (LongInt(GetTickCount) > FTimeStop)) then begin
             { Timeout occured }
             AbortAsync;
@@ -6535,7 +6552,13 @@ begin
             Result        := FALSE; { Command failed }
             break;
         end;
-        {$ENDIF}
+
+        { Do not use 100% CPU }
+        if ftpWaitUsingSleep in FOptions then
+            Sleep(0)
+        else
+            MsgWaitForMultipleObjects(0, DummyHandle, FALSE, 1000, QS_ALLINPUT);
+        MessagePump;
     end;
 end;
 

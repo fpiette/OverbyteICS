@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.08
+Version:      7.09
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -427,6 +427,7 @@ Feb 25, 2010 V7.07 Fix by Bjørnar Nielsen: TSslHttpCli didn't work when used
              is established. Usually proxies use 200 OK and an error text when
              something is wrong. In that case Content-Length is not 0.
 May 24, 2010 V7.08 Angus ensure Ready when relocations exceed maximum to avoid timeout
+Oct 10, 2010 V7.09 Arno - MessagePump changes/fixes.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -504,8 +505,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 708;
-    CopyRight : String   = ' THttpCli (c) 1997-2010 F. Piette V7.08 ';
+    HttpCliVersion       = 709;
+    CopyRight : String   = ' THttpCli (c) 1997-2010 F. Piette V7.09 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -591,7 +592,6 @@ type
         FMsg_WM_HTTP_LOGIN        : UINT;
         FCtrlSocket           : TWSocket;
         //FWindowHandle         : HWND;
-        FMultiThreaded        : Boolean;
         FState                : THttpState;
         FLocalAddr            : String;
         FHostName             : String;
@@ -805,7 +805,9 @@ type
         procedure LocationSessionClosed(Sender: TObject; ErrCode: Word); virtual;
         procedure DoRequestAsync(Rq : THttpRequest); virtual;
         procedure DoRequestSync(Rq : THttpRequest); virtual;
-        procedure SetMultiThreaded(newValue : Boolean); virtual;
+        procedure SetMultiThreaded(const Value : Boolean); override;
+        procedure SetTerminated(const Value: Boolean); override;
+        procedure SetOnMessagePump(const Value: TNotifyEvent); override;
         procedure StateChange(NewState : THttpState); virtual;
         procedure TriggerStateChange; virtual;
         procedure TriggerCookie(const Data : String;
@@ -953,8 +955,7 @@ type
         property ContentRangeEnd  : String           read  FContentRangeEnd    {JMR!! Added this line!!!}
                                                      write FContentRangeEnd;   {JMR!! Added this line!!!}
         property AcceptRanges     : String           read  FAcceptRanges;
-        property MultiThreaded    : Boolean          read  FMultiThreaded
-                                                     write SetMultiThreaded;
+        property MultiThreaded;
         property RequestVer       : String           read  FRequestVer
                                                      write SetRequestVer;
         property FollowRelocation : Boolean          read  FFollowRelocation   {TED}
@@ -1362,7 +1363,7 @@ end;
 destructor THttpCli.Destroy;
 begin
     FDoAuthor.Free;
-    FCtrlSocket.Free;
+    FreeAndNil(FCtrlSocket);
     FRcvdHeader.Free;
     FReqStream.Free;
     SetLength(FReceiveBuffer, 0);   {AG 03/18/07}
@@ -1381,7 +1382,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpCli.CreateSocket;
 begin
-    FCtrlSocket := TWSocket.Create(Self);
+    FCtrlSocket := TWSocket.Create(nil);
 end;
 
 
@@ -1439,10 +1440,29 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THttpCli.SetMultiThreaded(newValue : Boolean);
+procedure THttpCli.SetMultiThreaded(const Value : Boolean);
 begin
-    FMultiThreaded            := newValue;
-    FCtrlSocket.MultiThreaded := newValue;
+    if Assigned(FCtrlSocket) then
+        FCtrlSocket.MultiThreaded := Value;
+    inherited SetMultiThreaded(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpCli.SetTerminated(const Value: Boolean);
+begin
+    if Assigned(FCtrlSocket) then
+        FCtrlSocket.Terminated := Value;
+    inherited SetTerminated(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpCli.SetOnMessagePump(const Value: TNotifyEvent);
+begin
+    if Assigned(FCtrlSocket) then
+        FCtrlSocket.OnMessagePump := Value;
+    inherited SetOnMessagePump(Value);
 end;
 
 
@@ -3368,15 +3388,14 @@ begin
     DoRequestAsync(Rq);
     if not Assigned(FCtrlSocket.Counter) then
         FCtrlSocket.CreateCounter;
-    FCtrlSocket.Counter.SetConnected; // Reset counter
+    FCtrlSocket.Counter.LastSendTick := GetTickCount; // Reset counter
     DummyHandle := INVALID_HANDLE_VALUE;
     TimeOutMsec := FTimeOut * 1000;
     while FState <> httpReady do begin
         if MsgWaitForMultipleObjects(0, DummyHandle, FALSE, 1000,
                                      QS_ALLINPUT) = WAIT_OBJECT_0 then
-            FCtrlSocket.MessagePump;
-        if (FState <> httpReady) and (
-           {$IFNDEF NOFORMS} Application.Terminated or {$ENDIF} FTerminated or
+            MessagePump;
+        if (FState <> httpReady) and (Terminated or
            (IcsCalcTickDiff(FCtrlSocket.Counter.LastAliveTick,
                             GetTickCount) >= TimeOutMsec)) then begin
             bFlag := (FState = httpDnsLookup);
@@ -3389,8 +3408,7 @@ begin
                 { Ignore any exception }
             end;
             FStatusCode := 404;
-            if {$IFNDEF NOFORMS} Application.Terminated or {$ENDIF}
-               FTerminated then begin
+            if Terminated then begin
                 FReasonPhrase     := 'Request aborted';
                 FRequestDoneError := httperrAborted;
             end
@@ -4874,7 +4892,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpCli.CreateSocket;
 begin
-    FCtrlSocket           := TSslWSocket.Create(Self);
+    FCtrlSocket           := TSslWSocket.Create(nil);
     FCtrlSocket.SslEnable := TRUE;
 end;
 

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.47
+Version:      7.48
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -780,6 +780,7 @@ Sep 11, 2010 V7.46 Arno added two more SSL debug log entries and a call to
 Sep 23, 2010 V7.47 Arno fixed a bug in the experimental throttle code and made
                    it more accurate. Thanks to Angus for testing and reporting.
                    Method Resume with SSL enabled did not always work.
+Oct 10, 2010 V7.48 Arno - MessagePump changes/fixes.
                    
 }
 
@@ -890,8 +891,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 747;
-  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.47 ';
+  WSocketVersion            = 748;
+  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.48 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1055,7 +1056,6 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     FCloseInvoked       : Boolean;
     FBufferedByteCount  : LongInt;   { V5.20 how man xmit bytes unsent        }
     FFlushTimeout       : Integer;   { This property is not used anymore      }
-    FMultiThreaded      : Boolean;
     FDnsLookupHandle    : THandle;
     { More info about multicast can be found at:                              }
     {    http://ntrg.cs.tcd.ie/undergrad/4ba2/multicast/antony/               }
@@ -1088,7 +1088,6 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     FOnError            : TNotifyEvent;
     FOnBgException      : TBgExceptionEvent;
     FOnDebugDisplay     : TDebugDisplay;       { 18/06/05 }
-    FOnMessagePump      : TNotifyEvent;
     //FThreadId           : THandle;
     FSocketSndBufSize   : Integer;  { Winsock internal socket send buffer size }
     FSocketRcvBufSize   : Integer;  { Winsock internal socket Recv buffer size }
@@ -1249,12 +1248,6 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
 {$ENDIF}
     procedure   CreateCounter; virtual;
     procedure   DestroyCounter;
-{$IFDEF NOFORMS}
-    property    Terminated         : Boolean        read  FTerminated
-                                                    write FTerminated;
-    property    OnMessagePump      : TNotifyEvent   read  FOnMessagePump
-                                                    write FOnMessagePump;
-{$ENDIF}
     property    BufferedByteCount  : LongInt        read FBufferedByteCount;  { V5.20 }
   protected
   {$IFDEF CLR}
@@ -1279,8 +1272,6 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
                                                     write SetLocalAddr;
     property Proto : String                         read  FProtoStr
                                                     write SetProto;
-    property MultiThreaded   : Boolean              read  FMultiThreaded
-                                                    write FMultiThreaded;
     property MultiCast       : Boolean              read  FMultiCast
                                                     write FMultiCast;
     property MultiCastAddrStr: String               read  FMultiCastAddrStr
@@ -10171,12 +10162,7 @@ begin
         end;
 
         if ((FTimeout > 0) and (Integer(_GetTickCount) > FTimeStop)) or
-{$IFDEF WIN32}
-{$IFNDEF NOFORMS}
-           Application.Terminated or
-{$ENDIF}
-{$ENDIF}
-           FTerminated then begin
+           Terminated then begin
             { Application is terminated or timeout occured }
             Result := WSA_WSOCKET_TIMEOUT;
             break;

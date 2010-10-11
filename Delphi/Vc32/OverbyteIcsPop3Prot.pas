@@ -10,7 +10,7 @@ Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      6.08
+Version:      6.09
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -183,6 +183,7 @@ Sep 20, 2010 V6.08 Arno - Moved HMAC-MD5 code to OverbyteIcsMD5.pas.
              Added a public read/write property LastError (as requested by Zvone),
              it's more or less the last ErrCode as passed to event OnRequestDone
              and reset on before each request.
+Oct 10, 2010 V6.09 Arno - MessagePump changes/fixes.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -235,8 +236,8 @@ uses
 (*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameW$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)	
 
 const
-    Pop3CliVersion     = 608;
-    CopyRight : String = ' POP3 component (c) 1997-2010 F. Piette V6.08 ';
+    Pop3CliVersion     = 609;
+    CopyRight : String = ' POP3 component (c) 1997-2010 F. Piette V6.09 ';
     POP3_RCV_BUF_SIZE  = 4096;
 
 type
@@ -411,6 +412,9 @@ type
         procedure   AuthCramMd5;
         procedure   AuthNextNtlm;        {V6.06}
         procedure   AuthNextNtlmNext;    {V6.06}
+        procedure   SetMultiThreaded(const Value : Boolean); override;
+        procedure   SetTerminated(const Value: Boolean); override;
+        procedure   SetOnMessagePump(const Value: TNotifyEvent); override;
     public
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy; override;
@@ -566,7 +570,6 @@ type
     protected
         FTimeout       : Integer;                 { Given in seconds }
         FTimeStop      : LongInt;                 { Milli-seconds    }
-        FMultiThreaded : Boolean;
         function WaitUntilReady : Boolean; virtual;
         function Synchronize(Proc : TPop3NextProc) : Boolean;
         procedure TriggerResponse(const Msg : AnsiString); override;   { Angus }
@@ -592,8 +595,7 @@ type
     published
         property Timeout : Integer       read  FTimeout
                                          write FTimeout;
-        property MultiThreaded : Boolean read  FMultiThreaded
-                                         write FMultiThreaded;
+        property MultiThreaded;
     end;
 
 { You must define USE_SSL so that SSL code is included in the component.    }
@@ -1942,6 +1944,33 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomPop3Cli.SetMultiThreaded(const Value : Boolean);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.MultiThreaded := Value;
+    inherited SetMultiThreaded(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomPop3Cli.SetTerminated(const Value: Boolean);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.Terminated := Value;
+    inherited SetTerminated(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomPop3Cli.SetOnMessagePump(const Value: TNotifyEvent);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.OnMessagePump := Value;
+    inherited SetOnMessagePump(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomPop3Cli.StartTransaction(
     OpCode      : AnsiString;
     Params      : AnsiString;
@@ -2147,6 +2176,7 @@ var
 begin
     Result := TRUE;           { Suppose success }
     FTimeStop := Integer(GetTickCount) + FTimeout * 1000;
+    DummyHandle := INVALID_HANDLE_VALUE;
     while TRUE do begin
         if FState = pop3Ready then begin
             { Back to ready state, the command is finiched }
@@ -2154,7 +2184,7 @@ begin
             break;
         end;
 
-        if  {$IFNDEF NOFORMS}Application.Terminated or{$ENDIF}
+        if Terminated or
             ((FTimeout > 0) and (Integer(GetTickCount) > FTimeStop)) then begin
             { Application is terminated or timeout occured }
             inherited Abort;
@@ -2164,19 +2194,10 @@ begin
             Result        := FALSE; { Command failed }
             break;
         end;
+
         { Do not use 100% CPU }
-        DummyHandle := INVALID_HANDLE_VALUE;                                           //FP
-        MsgWaitForMultipleObjects(0, DummyHandle, FALSE, 1000,
-                                  QS_ALLINPUT + QS_ALLEVENTS +
-                                  QS_KEY + QS_MOUSE);
-{$IFDEF NOFORMS}
-        FWSocket.ProcessMessages;
-{$ELSE}
-        if FMultiThreaded then
-            FWSocket.ProcessMessages
-        else
-            Application.ProcessMessages;
-{$ENDIF}
+        MsgWaitForMultipleObjects(0, DummyHandle, FALSE, 1000, QS_ALLINPUT);
+        MessagePump;
     end;
 end;
 

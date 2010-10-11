@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Creation:     Octobre 2002
 Description:  Composant non-visuel avec un handle de fenêtre.
-Version:      1.11
+Version:      1.12
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -82,6 +82,7 @@ Historique:
                  Resolved an Error Insight false positive in TIcsWndhandler.WndProc.
                  An assertion error is now raised if MsgHandlersCount exceeded
                  the maximum number of message IDs per WndHandler.
+10/10/2010 V1.12 Arno - MessagePump changes/fixes.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsWndControl;
@@ -115,8 +116,8 @@ uses
   OverbyteIcsTypes, OverbyteIcsLibrary;
 
 const
-  TIcsWndControlVersion  = 111;
-  CopyRight : String     = ' TIcsWndControl (c) 2002-2010 F. Piette V1.11 ';
+  TIcsWndControlVersion  = 112;
+  CopyRight : String     = ' TIcsWndControl (c) 2002-2010 F. Piette V1.12 ';
 
   IcsWndControlWindowClassName = 'IcsWndControlWindowClass';
 
@@ -192,6 +193,10 @@ type
     FMsgRelease    : UINT;
     FOnBgException : TIcsBgExceptionEvent;
     FOnMessagePump : TNotifyEvent;
+    procedure   SetMultiThreaded(const Value: Boolean); virtual;
+    function    GetTerminated: Boolean; virtual;
+    procedure   SetTerminated(const Value: Boolean); virtual;
+    procedure   SetOnMessagePump(const Value: TNotifyEvent); virtual;
     procedure   WndProc(var MsgRec: TMessage); virtual;
     procedure   HandleBackGroundException(E : Exception); virtual;
     procedure   TriggerBgException(E            : Exception;
@@ -214,12 +219,13 @@ type
     function    ProcessMessage : Boolean; virtual;
     procedure   ProcessMessages; virtual;
     procedure   MessagePump; virtual;
-{$IFDEF NOFORMS}
-    property Terminated         : Boolean             read  FTerminated
-                                                      write FTerminated;
-    property OnMessagePump      : TNotifyEvent        read  FOnMessagePump
-                                                      write FOnMessagePump;
-{$ENDIF}
+    function    PostQuitMessage: Boolean;
+    property MultiThreaded   : Boolean                read  FMultiThreaded
+                                                      write SetMultiThreaded;
+    property Terminated      : Boolean                read  GetTerminated
+                                                      write SetTerminated;
+    property OnMessagePump   : TNotifyEvent           read  FOnMessagePump
+                                                      write SetOnMessagePump;
     property Handle          : HWND                   read  GetHandle;  // R/O
     property WndHandler      : TIcsWndHandler         read  FWndHandler
                                                       write FWndHandler;
@@ -597,7 +603,15 @@ begin
         TranslateMessage(MsgRec);
         DispatchMessage(MsgRec)
     end;
-    FTerminated := TRUE;
+    SetTerminated(TRUE);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Call this method to break the message loop, will set Terminated to TRUE   }
+function TIcsWndControl.PostQuitMessage: Boolean;
+begin
+    Result := PostMessage(Handle, WM_QUIT, 0, 0);
 end;
 
 
@@ -605,6 +619,7 @@ end;
 { This function is very similar to TApplication.ProcessMessage              }
 { You can also use it if your application has no TApplication object (Forms }
 { unit not referenced at all).                                              }
+
 function TIcsWndControl.ProcessMessage : Boolean;
 var
     Msg : TMsg;
@@ -613,7 +628,7 @@ begin
     if PeekMessage(Msg, 0, 0, 0, PM_REMOVE) then begin
         Result := TRUE;
         if Msg.Message = WM_QUIT then
-            FTerminated := TRUE
+            SetTerminated(TRUE)
         else begin
             TranslateMessage(Msg);
             DispatchMessage(Msg);
@@ -644,17 +659,17 @@ begin
         Self.ProcessMessages;
 {$ENDIF}
 {$IFDEF WIN32}
+    if Assigned(FOnMessagePump) then
+        FOnMessagePump(Self)
 {$IFDEF NOFORMS}
     { The Forms unit (TApplication object) has not been included.           }
     { We used either an external message pump or our internal message pump. }
     { External message pump has to set Terminated property to TRUE when the }
     { application is terminated.                                            }
-    if Assigned(FOnMessagePump) then
-        FOnMessagePump(Self)
     else
         Self.ProcessMessages;
 {$ELSE}
-    if FMultiThreaded then
+    else if FMultiThreaded then
         Self.ProcessMessages
     else
         Application.ProcessMessages;
@@ -707,6 +722,17 @@ begin
     if FHandle = 0 then
         AllocateHWnd;
     Result := FHandle;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsWndControl.GetTerminated: Boolean;
+begin
+{$IFDEF NOFORMS}
+    Result := FTerminated;
+{$ELSE}
+    Result := FTerminated or Application.Terminated;
+{$ENDIF}
 end;
 
 
@@ -776,6 +802,27 @@ end;
 procedure TIcsWndControl.Release;
 begin
     PostMessage(Handle, FMsgRelease, 0, 0);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsWndControl.SetMultiThreaded(const Value: Boolean);
+begin
+    FMultiThreaded := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsWndControl.SetOnMessagePump(const Value: TNotifyEvent);
+begin
+    FOnMessagePump := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsWndControl.SetTerminated(const Value: Boolean);
+begin
+    FTerminated := Value;
 end;
 
 

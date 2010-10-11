@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      7.33
+Version:      7.34
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -386,6 +386,7 @@ Sep 03, 2010 V7.31  Arno - New property THtmlSmtpCli.HtmlImageCidSuffix which
                     fix.
 Sep 20, 2010 V7.32  Arno moved HMAC-MD5 code to OverbyteIcsMD5.pas.
 Oct 09, 2010 V7.33  Arno added TSyncSmtpCli.SentToFileSync.
+Oct 10, 2010 V7.34  Arno - MessagePump changes/fixes.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSmtpProt;
@@ -450,8 +451,8 @@ uses
     OverbyteIcsMimeUtils;
 
 const
-  SmtpCliVersion     = 733;
-  CopyRight : String = ' SMTP component (c) 1997-2010 Francois Piette V7.33 ';
+  SmtpCliVersion     = 734;
+  CopyRight : String = ' SMTP component (c) 1997-2010 Francois Piette V7.34 ';
   smtpProtocolError  = 20600; {AG}
   SMTP_RCV_BUF_SIZE  = 4096;
   
@@ -800,6 +801,9 @@ type
         procedure   WndProc(var MsgRec: TMessage); override;
         procedure   HandleBackGroundException(E: Exception); override;
         procedure   WMSmtpRequestDone(var msg: TMessage); virtual;
+        procedure   SetMultiThreaded(const Value : Boolean); override;
+        procedure   SetTerminated(const Value: Boolean); override;
+        procedure   SetOnMessagePump(const Value: TNotifyEvent); override;
     public
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy;                     override;
@@ -1065,7 +1069,6 @@ type
     protected
         FTimeout       : Integer;                 { Given in seconds }
         FTimeStop      : LongInt;                 { Milli-seconds    }
-        FMultiThreaded : Boolean;
         function WaitUntilReady : Boolean; virtual;
         function Synchronize(Proc : TSmtpNextProc) : Boolean;
         procedure TriggerGetData(LineNum  : Integer;
@@ -1091,8 +1094,7 @@ type
     published
         property Timeout : Integer       read  FTimeout
                                          write FTimeout;
-        property MultiThreaded : Boolean read  FMultiThreaded
-                                         write FMultiThreaded;
+        property MultiThreaded;
     end;
 
 { You must define USE_SSL so that SSL code is included in the component.    }
@@ -1637,6 +1639,33 @@ begin
     FWSocket := TWSocket.Create(nil);
 end;
 {End AG/SSL}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSmtpClient.SetMultiThreaded(const Value : Boolean);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.MultiThreaded := Value;
+    inherited SetMultiThreaded(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSmtpClient.SetTerminated(const Value: Boolean);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.Terminated := Value;
+    inherited SetTerminated(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSmtpClient.SetOnMessagePump(const Value: TNotifyEvent);
+begin
+    if Assigned(FWSocket) then
+        FWSocket.OnMessagePump := Value;
+    inherited SetOnMessagePump(Value);
+end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -4157,14 +4186,7 @@ begin
         begin
             if MsgWaitForMultipleObjects(0, Dummy, False, 250, QS_ALLINPUT) = WAIT_FAILED then
                 raise SmtpException.Create('Wait failed in CalcMsgSizeSync');
-            if FMultiThreaded then
-                FWSocket.ProcessMessages
-            else
-            {$IFNDEF NOFORMS}
-                Application.ProcessMessages;
-            {$ELSE}
-                FWSocket.ProcessMessages;
-            {$ENDIF}
+            MessagePump;
         end;
     except
         FMsgSizeFlag  := FALSE;
@@ -4191,6 +4213,7 @@ var
 begin
     Result    := TRUE;           { Assume success }
     FTimeStop := Integer(GetTickCount) + FTimeout * 1000;
+    DummyHandle := INVALID_HANDLE_VALUE;
     while TRUE do begin
         if FState = smtpReady then begin
             { Back to ready state, the command is finiched }
@@ -4198,7 +4221,7 @@ begin
             break;
         end;
 
-        if  {$IFNDEF NOFORMS} Application.Terminated or {$ENDIF}
+        if Terminated or
             ((FTimeout > 0) and (Integer(GetTickCount) > FTimeStop)) then begin
             { Application is terminated or timeout occured }
             inherited Abort;
@@ -4209,17 +4232,9 @@ begin
         end;
 
         { Do not use 100% CPU }
-        DummyHandle := INVALID_HANDLE_VALUE;                                           //FP
         MsgWaitForMultipleObjects(0, DummyHandle, FALSE, 1000, QS_ALLINPUT);           //FP
 
-        if FMultiThreaded then
-            FWSocket.ProcessMessages
-        else
-{$IFNDEF NOFORMS}
-            Application.ProcessMessages;
-{$ELSE}
-            FWSocket.ProcessMessages;
-{$ENDIF}
+        MessagePump;
     end;
 end;
 

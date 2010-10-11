@@ -6,7 +6,7 @@ Object:       This demo shows how to use THttpCli component within a console
               mode application. It Connect to www.borland.com and display
               received (default) document on screen.
 Creation:     Apr 20, 2002
-Version:      6.00
+Version:      6.01
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -43,6 +43,8 @@ Updates:
 Jul 12, 2008 V6.00 A. Garrels - Bumped version number to 6.00 and slightly 
              modified to work with ICS v6.
 Jul 19, 2008 V6.00 F. Piette made small changes for Unicode
+Oct 11, 2010 V6.01 A. Garrels fixed a Unicode bug.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 program OverbyteIcsConHttp;
@@ -66,8 +68,8 @@ uses
   OverbyteIcsHttpProt;
 
 const
-  ConHttpVersion = 600;
-  CopyRight      = ' ConHttp (c) 2002-2010 by Francois PIETTE. V6.00';
+  ConHttpVersion = 601;
+  CopyRight      = ' ConHttp (c) 2002-2010 by Francois PIETTE. V6.01';
 
 type
     { We use TConApplication class (actually a component) to encapsulate all }
@@ -124,7 +126,7 @@ begin
     { THttpCli control socket.                                                }
     { MessageLoop will exit only when WM_QUIT message is posted. We do that   }
     { form the OnRequestDone event handler when the component has finished.   }
-    FHttpCli.CtrlSocket.MessageLoop;
+    FHttpCli.MessageLoop;
     WriteLn('Going back to the OS');
 end;
 
@@ -136,10 +138,10 @@ procedure TConApplication.HttpDocData(
     Buffer : Pointer;
     Len    : Integer);
 begin
-    while Len > 0 do begin             { While we have bytes...   }
-        Write(PChar(Buffer)^);         { Write to standard output }
-        Buffer := PChar(Buffer) + 1;   { Skip to next byte        }
-        Len    := Len - 1;             { Count down the byte      }
+    while Len > 0 do begin                 { While we have bytes...   }
+        Write(PAnsiChar(Buffer)^);         { Write to standard output }
+        Buffer := PAnsiChar(Buffer) + 1;   { Skip to next byte        }
+        Len    := Len - 1;                 { Count down the byte      }
     end;
 end;
 
@@ -160,7 +162,7 @@ begin
     WriteLn('Hit ENTER key to return quit program...');
     ReadLn;
     { Break message loop we called from the execute method }
-    PostMessage(FHttpCli.CtrlSocket.Handle, WM_QUIT, 0, 0);
+    FHttpCli.PostQuitMessage;
 end;
 
 

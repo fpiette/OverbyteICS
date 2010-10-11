@@ -266,68 +266,6 @@ const
     KeyDefTransEnc    = 'DefaultTransferEncoding';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure SaveStringsToIniFile(
-    IniFile           : TIcsIniFile;
-    const IniSection  : String;
-    const IniKey      : String;
-    Strings           : TStrings);
-var 
-    nItem   : Integer;
-begin
-    if (IniSection = '') or (IniKey = '') or (not Assigned(Strings)) then
-        Exit;
-    IniFile.EraseSection(IniSection);
-    if Strings.Count <= 0 then
-        IniFile.WriteString(IniSection, IniKey + 'EmptyFlag', 'Empty')
-    else
-        for nItem := 0 to Strings.Count - 1 do
-            IniFile.WriteString(IniSection,
-                                IniKey + IntToStr(nItem),
-                                Strings.Strings[nItem]);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Return FALSE if non existant in IniFile                                   }
-function LoadStringsFromIniFile(
-    IniFile           : TIcsIniFile;
-    const IniSection  : String;
-    const IniKey      : String;
-    Strings           : TStrings) : Boolean;
-var
-    nItem   : Integer;
-    I       : Integer;
-    Buf     : String;
-begin
-    Result := TRUE;
-    if (IniSection = '') or (IniKey = '') or (not Assigned(Strings)) then
-        Exit;
-    Strings.Clear;
-    if IniFile.ReadString(IniSection, IniKey + 'EmptyFlag', '') <> '' then
-        Exit;
-    IniFile.ReadSectionValues(IniSection, Strings);
-    nItem := Strings.Count - 1;
-    while nItem >= 0 do begin
-        Buf := Strings.Strings[nItem];
-        if CompareText(IniKey, Copy(Buf, 1, Length(IniKey))) <> 0 then
-            Strings.Delete(nItem)
-        else begin
-            if (Ord(Buf[Length(IniKey) + 1]) < Ord('0')) or
-               (Ord(Buf[Length(IniKey) + 1]) > Ord('9')) then
-            //if not (Buf[Length(IniKey) + 1] in ['0'..'9']) then
-                Strings.Delete(nItem)
-            else begin
-                I := Pos('=', Buf);
-                Strings.Strings[nItem] := Copy(Buf, I + 1, Length(Buf));
-            end;
-        end;
-        Dec(nItem);
-    end;
-    Result := (Strings.Count <> 0);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Display a message in display memo box, making sure we don't overflow it.  }
 procedure TSmtpTestForm.Display(const Msg : String);
 begin
@@ -444,13 +382,13 @@ begin
         WrapAtEdit.Text := IniFile.ReadString(SectionData, KeyWrapAt, '76');
         IcsCharsetComboBox1.Charset := IniFile.ReadString(SectionData, KeyCharset, SmtpClient.CharSet);
         DefEncodingComboBox.ItemIndex := IniFile.ReadInteger(SectionData, KeyDefTransEnc, 0);
-        if not LoadStringsFromIniFile(IniFile, SectionFileAttach,
-                                      KeyFileAttach, FileAttachMemo.Lines) then
+        if not IniFile.ReadStrings(SectionFileAttach,
+                                   KeyFileAttach, FileAttachMemo.Lines) then
             FileAttachMemo.Text := ExtractFilePath(ParamStr(0)) +
                                    'ics_logo.gif' + #13#10 +
                                     ExtractFilePath(ParamStr(0)) + 'fp_small.gif';
-        if not LoadStringsFromIniFile(IniFile, SectionMsgMemo,
-                                      KeyMsgMemo, MsgMemo.Lines) then
+        if not IniFile.ReadStrings(SectionMsgMemo,
+                                   KeyMsgMemo, MsgMemo.Lines) then
             MsgMemo.Text :=
             'This is the first line' + #13#10 +
             'Then the second one' + #13#10 +
@@ -497,10 +435,8 @@ begin
     IniFile.WriteString(SectionData, KeyWrapAt, WrapAtEdit.Text);
     IniFile.WriteString(SectionData, KeyCharset, IcsCharsetComboBox1.CharSet);
     IniFile.WriteInteger(SectionData, KeyDefTransEnc, DefEncodingComboBox.ItemIndex);
-    SaveStringsToIniFile(IniFile, SectionFileAttach,
-                         KeyFileAttach, FileAttachMemo.Lines);
-    SaveStringsToIniFile(IniFile, SectionMsgMemo,
-                         KeyMsgMemo, MsgMemo.Lines);
+    IniFile.WriteStrings(SectionFileAttach, KeyFileAttach, FileAttachMemo.Lines);
+    IniFile.WriteStrings(SectionMsgMemo, KeyMsgMemo, MsgMemo.Lines);
     IniFile.WriteInteger(SectionWindow, KeyTop,    Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,   Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,  Width);

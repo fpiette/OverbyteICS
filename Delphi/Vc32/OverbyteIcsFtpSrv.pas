@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      7.13
+Version:      7.14
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -392,6 +392,7 @@ June 10, 2010 V7.12 Angus added bandwidth throttling using TCustomThrottledWSock
               enabled OverbyteIcsDefs.inc)
 Sep 05, 2010 V7.13 Arno renamed conditional defines EXPERIMENTAL_THROTTLE and
              EXPERIMENTAL_TIMEOUT to BUILTIN_THROTTLE and BUILTIN_TIMEOUT.
+Oct 12, 2010 V7.14 Arno published OnBgException from underlaying server socket.
 
 
 Angus pending -
@@ -482,8 +483,8 @@ uses
 
 
 const
-    FtpServerVersion         = 713;
-    CopyRight : String       = ' TFtpServer (c) 1998-2010 F. Piette V7.13 ';
+    FtpServerVersion         = 714;
+    CopyRight : String       = ' TFtpServer (c) 1998-2010 F. Piette V7.14 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
     DefaultRcvSize           = 16384;    { V7.00 used for both xmit and recv, was 2048, too small }
 
@@ -1043,6 +1044,8 @@ type
         FOnLang                 : TFtpSrvLangEvent;          { angus V7.01 }
         FSystemCodePage         : LongWord;                  { AG 7.02 }
         FOnAddVirtFiles         : TFtpSrvAddVirtFilesEvent;  { angus V7.08 }
+        procedure SocketServerBgException(Sender: TObject; E: Exception;
+            var CanClose: Boolean);
 {$IFNDEF NO_DEBUG_LOG}
         function  GetIcsLogger: TIcsLogger;                                      { V1.46 }
         procedure SetIcsLogger(const Value: TIcsLogger);                         { V1.46 }
@@ -1699,7 +1702,7 @@ type
         property  OnAddVirtFiles         : TFtpSrvAddVirtFilesEvent          { angus V7.08 }
                                                       read  FOnAddVirtFiles
                                                       write FOnAddVirtFiles;
-
+        property  OnBgException;
     end;
 
 { You must define USE_SSL so that SSL code is included in the component.   }
@@ -2101,7 +2104,7 @@ begin
     FSocketServer.ClientClass         := FClientClass;
     FSocketServer.OnClientConnect     := ServerClientConnect;
     FSocketServer.OnClientDisconnect  := ServerClientDisconnect;
-//    FSocketServer.OnBgException       := SocketBgException ;
+    FSocketServer.OnBgException       := SocketServerBgException;
 {$IFNDEF NO_DEBUG_LOG}
     FSocketServer.IcsLogger           := GetIcsLogger ;
 {$ENDIF}
@@ -6467,6 +6470,16 @@ begin
     FSocketServer.IcsLogger := Value;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServer.SocketServerBgException(
+    Sender       : TObject;
+    E            : Exception;
+    var CanClose : Boolean);
+begin
+    if Assigned(OnBgException) then
+        OnBgException(Self, E, CanClose);
+end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

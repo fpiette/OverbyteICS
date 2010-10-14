@@ -6472,17 +6472,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TFtpServer.SocketServerBgException(
-    Sender       : TObject;
-    E            : Exception;
-    var CanClose : Boolean);
-begin
-    if Assigned(OnBgException) then
-        OnBgException(Self, E, CanClose);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TFTPServer.CheckLogOptions(const LogOption: TLogOption): Boolean; { V1.46 }
 begin
     Result := Assigned(IcsLogger) and (LogOption in IcsLogger.LogOptions);
@@ -6496,6 +6485,17 @@ begin
         IcsLogger.DoDebugLog(Self, LogOption, Msg);
 end;
 {$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpServer.SocketServerBgException(
+    Sender       : TObject;
+    E            : Exception;
+    var CanClose : Boolean);
+begin
+    if Assigned(OnBgException) then
+        OnBgException(Self, E, CanClose);
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServer.ClientProcessingThreadTerminate(Sender: TObject); { AG V1.50 }

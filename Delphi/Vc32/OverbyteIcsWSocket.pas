@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.48
+Version:      7.49
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -781,6 +781,8 @@ Sep 23, 2010 V7.47 Arno fixed a bug in the experimental throttle code and made
                    it more accurate. Thanks to Angus for testing and reporting.
                    Method Resume with SSL enabled did not always work.
 Oct 10, 2010 V7.48 Arno - MessagePump changes/fixes.
+Oct 14, 2010 V7.49 Arno - Abort TCustomLineWSocket as soon as possible.
+
                    
 }
 
@@ -891,8 +893,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 748;
-  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.48 ';
+  WSocketVersion            = 749;
+  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.49 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -2342,6 +2344,7 @@ type
       FTimeout             : LongInt;    { Given in milliseconds }
       FTimeStop            : LongInt;    { Milliseconds          }
       FOnLineLimitExceeded : TLineLimitEvent;
+      procedure   InternalAbort(ErrCode : Word); override; { V7.49 }
       procedure   WndProc(var MsgRec: TMessage); override;
       procedure   WMTriggerDataAvailable(var msg: TMessage);
       function    TriggerDataAvailable(ErrCode : Word) : Boolean; override;
@@ -10089,6 +10092,15 @@ begin
     end;
 end;
 {$ENDIF}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomLineWSocket.InternalAbort(ErrCode : Word);   { V7.49 }
+begin
+    { Abort as soon as possible, see TriggerSessionClosed below.      }
+    FLineClearData := TRUE; { Skip subsequent calls to DataAvailable. }
+    inherited InternalAbort(ErrCode);
+end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

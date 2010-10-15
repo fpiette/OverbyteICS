@@ -319,7 +319,7 @@ begin
                        '  exit' + #13#10 +
                        '  who' + #13#10 +
                        '  time' + #13#10 +
-                       //'  exception' + #13#10 +
+                       '  exception' + #13#10 +
                        '  binary [size]' + #13#10)
     else if CompareText(Copy(Client.RcvdLine, 1, 6), 'binary') = 0 then
     begin
@@ -369,9 +369,9 @@ begin
                            DateTimeToStr(AClient.ConnectTime) + #13#10);
         end;
     end
-//  else if CompareText(Client.RcvdLine, 'exception') = 0 then
+    else if CompareText(Client.RcvdLine, 'exception') = 0 then
         { This will trigger a background exception for client }
-//      PostMessage(Client.Handle, Client.FMsg_WM_TRIGGER_EXCEPTION, 0, 0)
+        PostMessage(Client.Handle, Client.FMsg_WM_TRIGGER_EXCEPTION, 0, 0)
     else
         if Client.State = wsConnected then
             Client.SendStr('Unknown command: ''' + Client.RcvdLine + '''' + #13#10);

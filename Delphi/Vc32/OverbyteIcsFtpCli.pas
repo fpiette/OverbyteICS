@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.13
+Version:      V7.14
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1006,7 +1006,9 @@ Sep 19, 2010 V7.11 Arno - Do not call DataSocketPutDataSent twice! This fixes
              the send loop.
 Sep 20, 2010 V7.12 Angus - ensure FMultiThreaded in TIcsWndControl is set correctly and
                not locally here
-Oct 10, 2010 V7.13  Arno - MessagePump changes/fixes.
+Oct 10, 2010 V7.13 Arno - MessagePump changes/fixes.
+Oct 15, 2010 V7.14 Arno - Fake AUTHTLS request/response if renegotiation is
+             not available and the SSL is already established.
 
 
 
@@ -1080,9 +1082,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 713;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.13 ';
-  FtpClientId : String = 'ICS FTP Client V7.13 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 714;
+  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.14 ';
+  FtpClientId : String = 'ICS FTP Client V7.14 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -2886,7 +2888,10 @@ begin
            (f_SSL_state(FControlSocket.Ssl) = SSL_ST_OK) then begin
             if (f_SSL_version(FControlSocket.Ssl) >= SSL3_VERSION) then begin
                 if not FControlSocket.SslStartRenegotiation then
-                    raise FtpException.Create('! SslStartRenegotiation failed');
+                begin
+                    HandleError('! SslStartRenegotiation failed');  { V7.14 }
+                    Exit;
+                end;
                 TSslFtpClient(Self).FRenegInitFlag := TRUE;
                 TriggerDisplay('! Re-negotiate SSL');
                 Exit;
@@ -6613,6 +6618,34 @@ procedure TSslFtpClient.AuthAsync;
 var
     S : String;
 begin    
+    { Some SSL versions and some OpenSSL versions do not support renegotiation }
+    { In such a case we fake an OK response if the SSL is already established. }
+    if FConnected and Assigned(FControlSocket.Ssl) and                 { V7.14 }
+       (f_SSL_state(FControlSocket.Ssl) = SSL_ST_OK) then
+    begin
+        if (f_SSL_version(FControlSocket.Ssl) < SSL3_VERSION) or
+           IsSslRenegotiationDisallowed(FControlSocket) then
+        begin
+            if not CheckReady then
+                Exit;
+            if not FHighLevelFlag then
+                FRequestType := ftpAuthAsync;
+            FFctPrv := ftpFctAuth;
+            FOkResponses[0]     := 234;
+            FOkResponses[1]     := 0;
+            FStatusCode         := 234;
+            FLastMultiResponse  := '';
+            FLastResponse       := '234 OK Secure connection already established';
+            FRequestDoneFlag    := FALSE;
+            FNext               := NextExecAsync;
+            FDoneAsync          := nil;
+            FErrormessage       := '';
+            StateChange(ftpWaitingResponse);
+            TriggerRequestDone(0);
+            Exit;
+        end;
+    end;
+
     if FSslType = sslTypeAuthSsl then
         S := 'AUTH SSL'
     else

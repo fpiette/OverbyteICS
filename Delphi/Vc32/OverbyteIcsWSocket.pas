@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.49
+Version:      7.50
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -782,6 +782,7 @@ Sep 23, 2010 V7.47 Arno fixed a bug in the experimental throttle code and made
                    Method Resume with SSL enabled did not always work.
 Oct 10, 2010 V7.48 Arno - MessagePump changes/fixes.
 Oct 14, 2010 V7.49 Arno - Abort TCustomLineWSocket as soon as possible.
+Oct 15, 2010 V7.50 Arno - Made function IsSslRenegotiationDisallowed available.
 
                    
 }
@@ -893,8 +894,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 749;
-  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.49 ';
+  WSocketVersion            = 750;
+  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.50 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -2951,6 +2952,8 @@ function SafeWSocketGCount : Integer;
 
 {$IFDEF USE_SSL}
 function OpenSslErrMsg(const AErrCode: LongWord): String;
+function IsSslRenegotiationDisallowed(Obj: TCustomSslWSocket): Boolean;
+    {$IFDEF USE_INLINE} inline; {$ENDIF}
 {$ENDIF}
 
 const
@@ -14901,8 +14904,9 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IsSslRenegotiationDisallowed(Obj: TCustomSslWSocket): Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF}
+function IsSslRenegotiationDisallowed(Obj: TCustomSslWSocket): Boolean;
 begin
+    Assert((Obj <> nil) and (Obj.FSsl <> nil));
     Result :=
      { In OSSL v0.9.8L and v0.9.8m renegotiation support was disabled   }
      { due to renegotiation vulnerability of the SSL protocol.          }

@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Oct 25, 2005
 Description:  Fast streams for ICS tested on D5 and D7.
-Version:      6.14
+Version:      6.15
 Legal issues: Copyright (C) 2005-2010 by Arno Garrels, Berlin, Germany,
               contact: <arno.garrels@gmx.de>
               
@@ -75,7 +75,7 @@ May 07, 2009 V6.13 TIcsStreamWriter did not convert from ANSI to UTF-7.
              line length restrictions exist, so setting property MaxLineLength
              to >= 1024 should work around this issue.
 Dec 05, 2009 V6.14 Use IcsSwap16Buf() and global code page ID constants.
-
+Oct 20, 2010 V6.15 Fixed a bug in TIcsStreamReader.InternalReadLn.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsStreams;
@@ -280,7 +280,10 @@ type
         function    InternalReadLn: Boolean;
         function    InternalReadLnWLe: Boolean;
         function    InternalReadLnWBe: Boolean;
-        procedure   EnsureReadBuffer(Size: Integer); {$IFDEF USE_INLINE} inline;{$ENDIF}
+        procedure   EnsureReadBufferW(Size: Integer; var P: PWideChar);
+                         {$IFDEF USE_INLINE} inline;{$ENDIF}
+        procedure   EnsureReadBufferA(Size: Integer; var P: PAnsiChar);
+                         {$IFDEF USE_INLINE} inline;{$ENDIF}
         procedure   SetMaxLineLength(const Value: Integer);
         procedure   SetCodePage(const Value : LongWord);
     protected
@@ -1661,7 +1664,7 @@ var
 begin
     Flag := FALSE;
     Idx := -1;
-    P := PAnsiChar(FReadBuffer);
+    P := PAnsiChar(@FReadBuffer[0]);
     while Read(Ch, SizeOf(AnsiChar)) = SizeOf(AnsiChar) do begin
         Inc(Idx);
         if (Idx >= FMaxLineLength) then begin
@@ -1673,7 +1676,7 @@ begin
                 Exit;
             end;
         end;
-        EnsureReadBuffer(Idx + 1);
+        EnsureReadBufferA(Idx + 1, P);
         case Ch of
             #10 :
                 begin
@@ -1721,7 +1724,7 @@ var
 begin
     Flag := FALSE;
     Idx := -1;
-    P := PWideChar(FReadBuffer);
+    P := PWideChar(@FReadBuffer[0]);
     while Read(Ch, SizeOf(WideChar)) = SizeOf(WideChar) do
     begin
         Inc(Idx);
@@ -1730,7 +1733,7 @@ begin
             Result := TRUE;
             Exit;
         end;
-        EnsureReadBuffer((Idx + 1) * 2);
+        EnsureReadBufferW((Idx + 1) * 2, P);
         case Ch of
             #10 :
                 begin
@@ -1779,7 +1782,7 @@ var
 begin
     Flag := FALSE;
     Idx := -1;
-    P := PWideChar(FReadBuffer);
+    P := PWideChar(@FReadBuffer[0]);
     while Read(Wrd, SizeOf(Word)) = SizeOf(Word) do begin
         Inc(Idx);
         Ch := WideChar((Wrd shr 8) or (Wrd shl 8));
@@ -1788,7 +1791,7 @@ begin
             Result := TRUE;
             Exit;
         end;
-        EnsureReadBuffer((Idx + 1) * 2);
+        EnsureReadBufferW((Idx + 1) * 2, P);
         case Ch of
             #10 :
                 begin
@@ -1933,12 +1936,25 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TIcsStreamReader.EnsureReadBuffer(Size: Integer);
+procedure TIcsStreamReader.EnsureReadBufferW(Size: Integer; var P: PWideChar);
 begin
     if Size > FReadBufSize then begin
         while Size > FReadBufSize do
             Inc(FReadBufSize, DefaultBufferSize);
         SetLength(FReadBuffer, FReadBufSize);
+        P := @FReadBuffer[0];
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsStreamReader.EnsureReadBufferA(Size: Integer; var P: PAnsiChar);
+begin
+    if Size > FReadBufSize then begin
+        while Size > FReadBufSize do
+            Inc(FReadBufSize, DefaultBufferSize);
+        SetLength(FReadBuffer, FReadBufSize);
+        P := @FReadBuffer[0];
     end;
 end;
 

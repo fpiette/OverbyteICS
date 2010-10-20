@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Oct 25, 2005
 Description:  Fast streams for ICS tested on D5 and D7.
-Version:      6.15
+Version:      6.16
 Legal issues: Copyright (C) 2005-2010 by Arno Garrels, Berlin, Germany,
               contact: <arno.garrels@gmx.de>
               
@@ -76,6 +76,7 @@ May 07, 2009 V6.13 TIcsStreamWriter did not convert from ANSI to UTF-7.
              to >= 1024 should work around this issue.
 Dec 05, 2009 V6.14 Use IcsSwap16Buf() and global code page ID constants.
 Oct 20, 2010 V6.15 Fixed a bug in TIcsStreamReader.InternalReadLn.
+Oct 20, 2010 V6.16 Fixed a bug in TIcsStreamReader.ReadLn.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsStreams;
@@ -1836,16 +1837,16 @@ begin
         CP_UTF16 :
             begin
                 Result := InternalReadLnWLe;
-                S := PWideChar(FReadBuffer);
+                S := PWideChar(@FReadBuffer[0]);
             end;
         CP_UTF16Be :
             begin
                 Result := InternalReadLnWBe;
-                S := PWideChar(FReadBuffer);
+                S := PWideChar(@FReadBuffer[0]);
             end;
         else
             Result := InternalReadLn;
-            S := AnsiToUnicode(PAnsiChar(FReadBuffer), FCodePage);
+            S := AnsiToUnicode(PAnsiChar(@FReadBuffer[0]), FCodePage);
     end;
 end;
 
@@ -1857,16 +1858,16 @@ begin
         CP_UTF16 :
             begin
                 Result := InternalReadLnWLe;
-                S := UnicodeToAnsi(PWideChar(FReadBuffer), CP_ACP, TRUE);
+                S := UnicodeToAnsi(PWideChar(@FReadBuffer[0]), CP_ACP, TRUE);
             end;
         CP_UTF16Be :
             begin
                 Result := InternalReadLnWBe;
-                S := UnicodeToAnsi(PWideChar(FReadBuffer), CP_ACP, TRUE);
+                S := UnicodeToAnsi(PWideChar(@FReadBuffer[0]), CP_ACP, TRUE);
             end;
         else
             Result := InternalReadLn;
-            S := RawByteString(PAnsiChar(FReadBuffer));
+            S := RawByteString(PAnsiChar(@FReadBuffer[0]));
         {$IFDEF COMPILER12_UP}
             if (S <> '') and (FCodePage <> CP_ACP) then
                 PWord(INT_PTR(S) - 12)^ := FCodePage;
@@ -1887,7 +1888,7 @@ begin
                 Read(Buf[0], Length(Buf) - 2);
                 Buf[Length(Buf) - 1] := 0;
                 Buf[Length(Buf) - 2] := 0;
-                S := UnicodeToAnsi(PWideChar(Buf), CP_ACP, TRUE);
+                S := UnicodeToAnsi(PWideChar(@Buf[0]), CP_ACP, TRUE);
             end;
         CP_UTF16Be :
             begin
@@ -1896,7 +1897,7 @@ begin
                 Buf[Length(Buf) - 1] := 0;
                 Buf[Length(Buf) - 2] := 0;
                 IcsSwap16Buf(@Buf[0], @Buf[0], (Length(Buf) - 2) div 2);
-                S := UnicodeToAnsi(PWideChar(Buf), CP_ACP, TRUE);
+                S := UnicodeToAnsi(PWideChar(@Buf[0]), CP_ACP, TRUE);
             end;
         else
             SetLength(S, Size - Position);
@@ -1930,7 +1931,7 @@ begin
             SetLength(Buf, (Size - Position) + 1);
             Read(Buf[0], Length(Buf) - 1);
             Buf[Length(Buf) - 1] := 0;
-            S := AnsiToUnicode(PAnsiChar(Buf), FCodePage);
+            S := AnsiToUnicode(PAnsiChar(@Buf[0]), FCodePage);
     end;
 end;
 

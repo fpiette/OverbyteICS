@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  Version defines for ICS (Internet Component Suite)
 Creation:     2003
-Version:      1.11
+Version:      1.12
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -49,7 +49,8 @@ Oct 05, 2008 V1.09 USE_LINE for COMPILER10_UP, removed UNICODE check for .NET.
 Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
                    If the compiler version is not detected define latest
                    supported compiler version.
-Sep 24, 2010 V1.10 Arno removed BCB7/C++BuilderX.
+Sep 24, 2010 V1.11 Arno removed BCB7/C++BuilderX.
+Oct 23, 2010 V1.12 PasDoc compatible. 
 
   SYMBOL           Compiler version
   ===============  ======================================
@@ -750,11 +751,15 @@ Sep 24, 2010 V1.10 Arno removed BCB7/C++BuilderX.
   {$DEFINE BCB1_UP}
 {$ENDIF}
 
-{$IFDEF CONDITIONALEXPRESSIONS}
-  {$IF NOT DEFINED(COMPILER7_UP) or DEFINED(CLR)}
-    Sorry, Delphi 7 or C++ Builder 2006 Win32 or better is required.
-  {$IFEND}
+{$IFDEF CLR}
+  {$DEFINE BOMB}
 {$ELSE}
+  {$IFNDEF COMPILER7_UP}
+    {$DEFINE BOMB}
+  {$ENDIF}
+{$ENDIF}
+
+{$IFDEF BOMB}
     Sorry, Delphi 7 or C++ Builder 2006 Win32 or better is required.
 {$ENDIF}
 
@@ -786,15 +791,18 @@ Sep 24, 2010 V1.10 Arno removed BCB7/C++BuilderX.
 {$ENDIF}
 
 {$IFDEF COMPILER10_UP}
-    {$DEFINE USE_INLINE}
+  {$DEFINE USE_INLINE}
 {$ENDIF}
 
-{$IFDEF CONDITIONALEXPRESSIONS}
-  {$IF DEFINED(DELPHI12) or DEFINED(DELPHI14)}
-    { Since Fulcrum always OFF and ignored }
-    {$STRINGCHECKS OFF}
-    { No string checks in pure Delphi code }
-  {$IFEND}
+{$IFDEF DELPHI12}
+  { Since Fulcrum always OFF and ignored }
+  {$STRINGCHECKS OFF}
+  { No string checks in pure Delphi code }
+{$ENDIF}
+{$IFDEF DELPHI14}
+  { Since Fulcrum always OFF and ignored }
+  {$STRINGCHECKS OFF}
+  { No string checks in pure Delphi code }
 {$ENDIF}
 
 { ICS SSL code doesn't work with FPC }

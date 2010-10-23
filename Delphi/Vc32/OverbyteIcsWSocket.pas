@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.50
+Version:      7.51
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -783,7 +783,8 @@ Sep 23, 2010 V7.47 Arno fixed a bug in the experimental throttle code and made
 Oct 10, 2010 V7.48 Arno - MessagePump changes/fixes.
 Oct 14, 2010 V7.49 Arno - Abort TCustomLineWSocket as soon as possible.
 Oct 15, 2010 V7.50 Arno - Made function IsSslRenegotiationDisallowed available.
-
+Oct 16, 2010 V7.51 Arno removed dummy ancestor TBaseParentWSocket, it was not 
+                   required to make D7's structure view happy.
                    
 }
 
@@ -894,8 +895,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 750;
-  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.50 ';
+  WSocketVersion            = 751;
+  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.51 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -2312,20 +2313,11 @@ type
                                
 { You must define USE_SSL so that SSL code is included in the component.    }
 { Either in OverbyteIcsDefs.inc or in the project/package options.          }
-
-{$IFDEF USE_SSL}              // Makes the IDE happy
-  TBaseParentWSocket = TCustomSslWSocket;
-{$ELSE}
-  TBaseParentWSocket = TCustomSocksWSocket;
-{$ENDIF}
-(*
 {$IFDEF USE_SSL}
   TCustomLineWSocket = class (TCustomSslWSocket)
 {$ELSE}
   TCustomLineWSocket = class (TCustomSocksWSocket)
 {$ENDIF}
-*)
-  TCustomLineWSocket = class (TBaseParentWSocket)
   protected
       FRcvdPtr             : TWSocketData;
       FRcvBufSize          : LongInt;

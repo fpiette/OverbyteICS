@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     March 2007
-Version:      0.99 ALPHA CODE
+Version:      0.99b ALPHA CODE
 Description:  TMultipartHttpDownloader is a component to download files using
               simultaneous connections to speedup download. The demo make
               also use of the TMultiProgressBar (included in ICS) which is
@@ -40,6 +40,8 @@ Legal issues: Copyright (C) 2007 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 Updates:
+Oct 30, 2010 0.99b In DownloadDocData, fixed call to Seek so that the int64
+             overloaded version is used.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -635,7 +637,7 @@ begin
         Exit;
     HttpCli            := Sender as TMyHttpCli;
     FFilestream.Seek(HttpCli.FStartOffset + HttpCli.FDataCount,
-                     soFromBeginning);
+                     soBeginning); // Warning: Using soFromBeginning make sthe compiler pick the 32 bit overload !
     FFilestream.WriteBuffer(Data^, Len);
     HttpCli.FDataCount := HttpCli.FDataCount + Len;
     FTotalCount        := FTotalCount + Len;

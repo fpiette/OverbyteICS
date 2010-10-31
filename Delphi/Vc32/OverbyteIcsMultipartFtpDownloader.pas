@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 6, 2007
-Version:      0.99b ALPHA CODE
+Version:      0.99c ALPHA CODE
 Description:  TMultipartFtpDownloader is a component to download files using
               simultaneous connections to speedup download. The demo make
               also use of the TMultiProgressBar (included in ICS) which is
@@ -43,6 +43,9 @@ Updates:
 Sep 10, 2007 Added timeout to Size operation
 Oct 30, 2010 0.99b In DownloadDocData, fixed call to Seek so that the int64
              overloaded version is used.
+Oct 31, 2010 0.99c In DownloadDocData, restart the timeout timer.
+             Renamed protected TMultipartFtpDownloader.FHttp member to
+             FMyFtp (Breaking change. Not an issue since we are in alpha phase).
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -96,7 +99,7 @@ type
 
     TMultipartFtpDownloader = class(TIcsWndControl)
     protected
-        FHttp                  : array of TMyFtpCli;
+        FMyFtp                 : array of TMyFtpCli;
         FPassive               : Boolean;
         FBinary                : Boolean;
         FPartCount             : Integer;
@@ -242,9 +245,9 @@ destructor TMultipartFtpDownloader.Destroy;
 var
     I : Integer;
 begin
-    for I := 0 to Length(FHttp) - 1 do
-        FreeAndNil(FHttp[I]);
-    SetLength(FHttp, 0);
+    for I := 0 to Length(FMyFtp) - 1 do
+        FreeAndNil(FMyFtp[I]);
+    SetLength(FMyFtp, 0);
     inherited Destroy;
 end;
 
@@ -288,20 +291,20 @@ begin
     FElapsedTime   := 0;
     TriggerShowStats;
 
-    for I := 0 to Length(FHttp) - 1 do
-        FreeAndNil(FHttp[I]);
+    for I := 0 to Length(FMyFtp) - 1 do
+        FreeAndNil(FMyFtp[I]);
 
     // First we need to get the size of the file
-    SetLength(FHttp, 1);
-    FHttp[0]                  := TMyFtpCli.Create(Self);
-    FHttp[0].FIndex           := 0;
-    FHttp[0].HostName         := FServer;
-    FHttp[0].Port             := FPort;
-    FHttp[0].Username         := FUser;
-    FHttp[0].Password         := FPass;
-    FHttp[0].HostDirName      := FDir;
-    FHttp[0].HostFileName     := FFileName;
-    FHttp[0].OnDisplay        := DisplayHandler;
+    SetLength(FMyFtp, 1);
+    FMyFtp[0]                  := TMyFtpCli.Create(Self);
+    FMyFtp[0].FIndex           := 0;
+    FMyFtp[0].HostName         := FServer;
+    FMyFtp[0].Port             := FPort;
+    FMyFtp[0].Username         := FUser;
+    FMyFtp[0].Password         := FPass;
+    FMyFtp[0].HostDirName      := FDir;
+    FMyFtp[0].HostFileName     := FFileName;
+    FMyFtp[0].OnDisplay        := DisplayHandler;
 
     // We don't need to get a size if we have an assumed size
     if FAssumedSize > 0 then begin
@@ -310,9 +313,9 @@ begin
         Exit;
     end;
 
-    FHttp[0].OnRequestDone    := SizeASyncRequestDone;
-    FHttp[0].OnSessionClosed  := SizeSessionClosed;
-    FHttp[0].OpenAsync;
+    FMyFtp[0].OnRequestDone    := SizeASyncRequestDone;
+    FMyFtp[0].OnSessionClosed  := SizeSessionClosed;
+    FMyFtp[0].OpenAsync;
     Display('SizeASync');
     TimeoutTimer.OnTimer  := SizeTimeoutTimerTimer;
     TimeoutTimer.Interval := FTimeoutValue;
@@ -485,17 +488,17 @@ begin
     // Do not destroy current component before having allocated the new
     // it still has to purge events from the queue. Chances are that the
     // new components handle those events !
-    OldFtp                 := FHttp[0];
+    OldFtp                 := FMyFtp[0];
     OldFtp.OnRequestDone   := nil;
     OldFtp.OnSessionClosed := nil;
     OldFtp.OnDisplay       := nil;
 
     Chunk  := FContentLength div FPartCount;
     Offset := 0;
-    SetLength(FHttp, FPartCount);
+    SetLength(FMyFtp, FPartCount);
     for I := 0 to FPartCount - 1 do begin
-        FHttp[I]                := TMyFtpCli.Create(Self);
-        MyFtp                   := FHttp[I];
+        FMyFtp[I]                := TMyFtpCli.Create(Self);
+        MyFtp                   := FMyFtp[I];
         MyFtp.FStartOffset      := Offset;
         if I < (FPartCount - 1) then
             MyFtp.FEndOffset    := Offset + Chunk
@@ -524,8 +527,8 @@ begin
         MyFtp.Options           := [ftpNoAutoResumeAt];
         //ListBox1.Items.Add('0');
     end;
-    for I := 0 to Length(FHttp) - 1 do
-        FHttp[I].OpenASync;
+    for I := 0 to Length(FMyFtp) - 1 do
+        FMyFtp[I].OpenASync;
     Timer1.Enabled := TRUE;
     // Now it is safe to destroy the old component (the one used for Size)
     OldFtp.Free;
@@ -545,9 +548,9 @@ var
     IniFile       : TIniFile;
     //Dls           : TDownloadState;
 begin
-    for I := 0 to Length(FHttp) - 1 do
-        FreeAndNil(FHttp[I]);
-    SetLength(FHttp, 0);
+    for I := 0 to Length(FMyFtp) - 1 do
+        FreeAndNil(FMyFtp[I]);
+    SetLength(FMyFtp, 0);
 
     FTotalCount    := 0;
     FContentLength := 0;
@@ -565,7 +568,7 @@ begin
         FServer        := IniFile.ReadString('GLOBAL', 'Server', '');
         FPort          := IniFile.ReadString('GLOBAL', 'Port', '');
         FPartCount     := IniFile.ReadInteger('GLOBAL', 'PartCount', 1);
-        SetLength(FHttp, FPartCount);
+        SetLength(FMyFtp, FPartCount);
         if FPartCount > 0 then begin
             SectionNames := TStringList.Create;
             try
@@ -574,8 +577,8 @@ begin
                     if Copy(SectionNames[I], 1, 5) <> 'PART_' then
                         Continue;
                     Cnt                     := StrToInt(Copy(SectionNames[I], 6, 8));
-                    FHttp[Cnt]              := TMyFtpCli.Create(Self);
-                    MyFtp                  := FHttp[Cnt];
+                    FMyFtp[Cnt]              := TMyFtpCli.Create(Self);
+                    MyFtp                  := FMyFtp[Cnt];
                     MyFtp.FIndex           := Cnt;
                     MyFtp.FStartOffset     := StrToInt64Def(IniFile.ReadString(SectionNames[I], 'StartOffset', Default), 0);
                     MyFtp.FEndOffset       := StrToInt64Def(IniFile.ReadString(SectionNames[I], 'EndOffset',   Default), 0);
@@ -624,14 +627,14 @@ begin
         IniFile.WriteString('GLOBAL',  'Server', FServer);
         IniFile.WriteString('GLOBAL',  'Port',   FPort);
         IniFile.WriteString('GLOBAL',  'ContentLength', IntToStr(FContentLength));
-        IniFile.WriteInteger('GLOBAL', 'PartCount', Length(FHttp));
-        for I := 0 to Length(FHttp) - 1 do begin
-            IniFile.WriteString('PART_' + IntToStr(I), 'StartOffset', IntToStr(FHttp[I].FStartOffset));
-            IniFile.WriteString('PART_' + IntToStr(I), 'EndOffset', IntToStr(FHttp[I].FEndOffset));
-            IniFile.WriteString('PART_' + IntToStr(I), 'DataCount', IntToStr(FHttp[I].FDataCount));
-            IniFile.WriteString('PART_' + IntToStr(I), 'Server', FHttp[I].HostName);
-            IniFile.WriteString('PART_' + IntToStr(I), 'Port',   FHttp[I].Port);
-            FHttp[I].FDone := (FHttp[I].FDataCount >= (FHttp[I].FEndOffset - FHttp[I].FStartOffset));
+        IniFile.WriteInteger('GLOBAL', 'PartCount', Length(FMyFtp));
+        for I := 0 to Length(FMyFtp) - 1 do begin
+            IniFile.WriteString('PART_' + IntToStr(I), 'StartOffset', IntToStr(FMyFtp[I].FStartOffset));
+            IniFile.WriteString('PART_' + IntToStr(I), 'EndOffset', IntToStr(FMyFtp[I].FEndOffset));
+            IniFile.WriteString('PART_' + IntToStr(I), 'DataCount', IntToStr(FMyFtp[I].FDataCount));
+            IniFile.WriteString('PART_' + IntToStr(I), 'Server', FMyFtp[I].HostName);
+            IniFile.WriteString('PART_' + IntToStr(I), 'Port',   FMyFtp[I].Port);
+            FMyFtp[I].FDone := (FMyFtp[I].FDataCount >= (FMyFtp[I].FEndOffset - FMyFtp[I].FStartOffset));
         end;
     finally
         FreeAndNil(IniFile);
@@ -779,8 +782,8 @@ var
     I    : Integer;
 begin
     Done := TRUE;
-    for I := 0 to Length(FHttp) - 1 do
-        Done := Done and (FHttp[I].FDone);
+    for I := 0 to Length(FMyFtp) - 1 do
+        Done := Done and (FMyFtp[I].FDone);
     if Done then begin
         Timer1.Enabled := FALSE;
         Timer1.OnTimer(nil);
@@ -804,6 +807,8 @@ begin
         Exit;
     if FPauseFlag then
         Exit;
+    TimeoutTimer.Enabled  := FALSE;  // Stop timeout timer...
+    TimeoutTimer.Enabled  := TRUE;   // and restart timeout timer
     FtpCli            := Sender as TMyFtpCli;
     FFileStream.Seek(FtpCli.FStartOffset + FtpCli.FDataCount,
                      soBeginning); // Warning: Using soFromBeginning make sthe compiler pick the 32 bit overload !
@@ -897,8 +902,8 @@ var
     Tick    : Cardinal;
 begin
     Done := TRUE;
-    for I := 0 to Length(FHttp) - 1 do begin
-        FtpCli := FHttp[I];
+    for I := 0 to Length(FMyFtp) - 1 do begin
+        FtpCli := FMyFtp[I];
         Done    := Done and (FtpCli.FDone);
     end;
 
@@ -945,8 +950,8 @@ var
     I       : Integer;
 begin
     FAbortFlag := TRUE;
-    for I := 0 to Length(FHttp) - 1 do begin
-        FtpCli := FHttp[I];
+    for I := 0 to Length(FMyFtp) - 1 do begin
+        FtpCli := FMyFtp[I];
         FtpCli.Abort;
     end;
 end;
@@ -962,8 +967,8 @@ begin
         raise Exception.Create('TMultipartHttpDownloader.Pause: ' +
                                'No file name specified');
     FPauseFlag := TRUE;
-    for I := 0 to Length(FHttp) - 1 do begin
-        FtpCli := FHttp[I];
+    for I := 0 to Length(FMyFtp) - 1 do begin
+        FtpCli := FMyFtp[I];
         FtpCli.Abort;
     end;
 end;
@@ -982,8 +987,8 @@ begin
     FAbortFlag     := FALSE;
     FPauseFlag     := FALSE;
     LoadStatus;
-    for I := 0 to Length(FHttp) - 1 do begin
-        FtpCli                   := FHttp[I];
+    for I := 0 to Length(FMyFtp) - 1 do begin
+        FtpCli                   := FMyFtp[I];
         FtpCli.HostName          := FServer;
         FtpCli.Port              := FPort;
         FtpCli.Username          := FUser;
@@ -1007,9 +1012,9 @@ begin
                                   FtpCli.FStartOffset + FtpCli.FDataCount);
     end;
     // Start all download which is not done yet
-    for I := 0 to Length(FHttp) - 1 do begin
-        if not FHttp[I].FDone then
-            FHttp[I].OpenASync;
+    for I := 0 to Length(FMyFtp) - 1 do begin
+        if not FMyFtp[I].FDone then
+            FMyFtp[I].OpenASync;
     end;
     Timer1.Enabled := TRUE;
     CheckDone(0, 'OK');

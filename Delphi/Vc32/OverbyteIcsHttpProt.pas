@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.09
+Version:      7.10
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -428,7 +428,7 @@ Feb 25, 2010 V7.07 Fix by Bjørnar Nielsen: TSslHttpCli didn't work when used
              something is wrong. In that case Content-Length is not 0.
 May 24, 2010 V7.08 Angus ensure Ready when relocations exceed maximum to avoid timeout
 Oct 10, 2010 V7.09 Arno - MessagePump changes/fixes.
-
+Nov 05, 2010 V7.10 Arno fixed ERangeErrors after Abort.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -505,8 +505,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 709;
-    CopyRight : String   = ' THttpCli (c) 1997-2010 F. Piette V7.09 ';
+    HttpCliVersion       = 710;
+    CopyRight : String   = ' THttpCli (c) 1997-2010 F. Piette V7.10 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -1971,6 +1971,11 @@ var
     bFlag : Boolean;
     Msg   : TMessage;
 begin
+    FLocationFlag := FALSE;  { Do not follow relocations V7.10 }
+    { The following two lines prevent OnRequestDone from trigger twice V7.10 }
+    FRcvdCount    := 0;      { Clear the receive buffer V7.10 }
+    FReceiveLen   := 0;      { Clear the receive buffer V7.10 }
+
     if FState = httpReady then begin
         FState := httpAborting;
         if FCtrlSocket.State <> wsClosed then
@@ -2050,6 +2055,7 @@ begin
     FCtrlSocket.SocksUsercode       := FSocksUsercode;
     FCtrlSocket.SocksPassword       := FSocksPassword;
     FCtrlSocket.SocksAuthentication := FSocksAuthentication;
+    FReceiveLen                     := 0; { Clear the receive buffer V7.10 }
 end;
 
 
@@ -3135,6 +3141,7 @@ begin
     FDocName          := '';
     FStatusCode       := 0;
     FRcvdCount        := 0;
+    FReceiveLen       := 0;   { V7.10 }
     FSentCount        := 0;
     FHeaderLineCount  := 0;
     FBodyLineCount    := 0;

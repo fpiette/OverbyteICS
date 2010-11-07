@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.29
+Version:      7.30
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -300,7 +300,11 @@ Sep 10, 2010 V7.29 RTT: Added OnUnknownRequestMethod event, triggered when
                    enable the possibility to send a custom header item(s) with
                    the document. Added PersistentHeader property to define
                    Header items that should be included in any response header.
-
+Nov 06, 2010 V7.30 A. Garrels - Fixed posted data handling in case of posted
+                   data is not accepted. Without this fix both posted data 
+                   and a valid new request could be received on the same line.
+                   This also fixes NTLM authentication with POST requests.
+                   RequestContentLength field type change to Int64.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -381,11 +385,12 @@ uses
 {$IFNDEF NO_DIGEST_AUTH}
     OverbyteIcsDigestAuth,
 {$ENDIF}
+    OverbyteIcsWSockBuf,
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 729;
-    CopyRight : String = ' THttpServer (c) 1999-2010 F. Piette V7.29 ';
+    THttpServerVersion = 730;
+    CopyRight : String = ' THttpServer (c) 1999-2010 F. Piette V7.30 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
 
@@ -397,7 +402,7 @@ type
     TStringIndex         = class;
 
     THttpGetFlag         = (hgSendDoc, hgSendStream, hgWillSendMySelf,
-                            hg404, hg403, hg401, hgAcceptData,
+                            hg404, hg403, hg401, hg400, hgAcceptData,
                             hgSendDirList);
     THttpSendType        = (httpSendHead, httpSendDoc);
     THttpMethod          = (httpMethodGet, httpMethodPost, httpMethodHead);
@@ -538,6 +543,7 @@ type
         property PartStreams[NIndex : Integer] : THttpPartStream
                                                    read  GetPartStreams;
     end;
+
     { THttpConnection is used to handle client connections }
 {$IFDEF USE_SSL}
     TBaseHttpConnection = class(TSslWSocketClient);
@@ -575,6 +581,8 @@ type
         FAuthType                     : TAuthenticationType;
         FAuthTypes                    : TAuthenticationTypes;
         FAuthenticated                : Boolean;
+        FPostRcvBuf                   : array [0..1023] of Byte; { V7.30 }
+        FPostCounter                  : Int64;                   { V7.30 }
         function  AuthGetMethod: TAuthenticationType;
         procedure AuthCheckAuthenticated; virtual;
     {$IFNDEF NO_DIGEST_AUTH}
@@ -604,7 +612,8 @@ type
         FSndBlkSize            : Integer;       {AG 03/10/07}
         FLastModified          : TDateTime;
         FAnswerContentType     : String;
-        FRequestContentLength  : Integer;
+        FRequestContentLength  : Int64;         { V7.30 }
+        FRequestHasContentLength : Boolean;     { V7.30 }
         FRequestContentType    : String;
         FRequestAccept         : String;
         FRequestReferer        : String;
@@ -657,6 +666,7 @@ type
         procedure Answer404; virtual;
         procedure Answer403; virtual;
         procedure Answer401; virtual;
+        procedure Answer400; virtual;   { V7.30 }
         procedure Answer501; virtual;
         procedure WndProc(var MsgRec: TMessage); override;
         procedure WMHttpDone(var msg: TMessage); virtual;
@@ -699,6 +709,7 @@ type
         procedure   SendHeader(Header : String); virtual;
         procedure   PostedDataReceived; virtual;
         procedure   PrepareGraceFullShutDown; virtual;
+        function    Receive(Buffer : TWSocketData; BufferSize: Integer) : Integer; override; { V7.30 }
         function    GetKeepAliveHdrLines: String;
         { AnswerPage will take a HTML template and replace all tags in this
           template with data provided in the Tags argument.
@@ -796,7 +807,7 @@ type
         property KeepAlive             : Boolean     read  FKeepAlive  {Bjornar}
                                                      write FKeepAlive; {Bjornar}
         { All RequestXXX are header fields from request header }
-        property RequestContentLength  : Integer     read  FRequestContentLength;
+        property RequestContentLength  : Int64       read  FRequestContentLength;{ V7.30 }
         property RequestContentType    : String      read  FRequestContentType;
         property RequestAccept         : String      read  FRequestAccept;
         property RequestReferer        : String      read  FRequestReferer;
@@ -2408,8 +2419,10 @@ begin
         if FAcceptPostedData and Assigned(FOnPostedData) then
             FOnPostedData(Self, Error)
         else
-            { No one is willing data, received it and throw it away }
-            FRcvdLine := ReceiveStr;
+            { Nobody wants data, we receive it and throw it away.   }
+            { We call our overridden method Receive which will care }
+            { about correct length and switch back to line mode.    }
+            Receive(@FPostRcvBuf, SizeOf(FPostRcvBuf));     { V7.30 }
         Exit;
     end;
     { We use line mode. We will receive complete lines }
@@ -2465,12 +2478,13 @@ begin
         ParseRequest;
         { Next lines will be header lines }
         FState := hcHeader;
+        FRequestHasContentLength := FALSE;
         Exit;
     end;
     { We can comes here only in hcHeader state }
     if FRcvdLine = '' then begin
         { Last header line is an empty line. Then we enter data state }
-        if FRequestContentLength <> 0 then    { Only if we have data  }
+        if FRequestContentLength > 0 then     { Only if we have data  } { V7.30 }
              FState := hcPostedData
         { With a GET method, we _never_ have any document        10/02/2004 }
         else if FMethod <> 'POST' then                            {10/02/2004 Bjornar}
@@ -2491,10 +2505,11 @@ begin
             if _StrLIComp(@FRcvdLine[1], 'content-type:', 13) = 0 then
                 FRequestContentType := Copy(FRcvdLine, I, Length(FRcvdLine))
             else if _StrLIComp(@FRcvdLine[1], 'content-length:', 15) = 0 then begin            {Bjornar}
+                FRequestHasContentLength := TRUE; { V7.30 }
                 try                                                                           {Bjornar}
                     FRequestContentLength := _StrToInt(Copy(FRcvdLine, I, Length(FRcvdLine))); {Bjornar}
                 except                                                                        {Bjornar}
-                    FRequestContentLength := 0;                                               {Bjornar}
+                    FRequestContentLength := -1;  { V7.30 }                                            {Bjornar}
                 end;
             end                                                                               {Bjornar}
             else if _StrLIComp(@FRcvdLine[1], 'Accept:', 7) = 0 then
@@ -2884,6 +2899,26 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.Answer400;
+var
+    Body : String;
+begin
+    Body := '<HTML><HEAD><TITLE>400 Bad Request</TITLE></HEAD>' +
+            '<BODY><H1>400 Bad Request</H1>The request could ' +
+            'not be understood by the server due to malformed '+
+            'syntax.<P></BODY></HTML>' + #13#10;
+            SendHeader(FVersion + ' 400 Bad Request' + #13#10 +
+            'Content-Type: text/html' + #13#10 +
+            'Content-Length: ' + _IntToStr(Length(Body)) + #13#10 +
+            GetKeepAliveHdrLines +
+            #13#10);
+    FAnswerStatus := 400;
+    { Do not use AnswerString method because we don't want to use ranges }
+    SendStr(Body);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function THttpConnection.GetKeepAliveHdrLines: String;
 begin
     if (FHttpVerNum = 11) then
@@ -3134,6 +3169,25 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function THttpConnection.Receive(Buffer: TWSocketData;              { V7.30 }
+  BufferSize: Integer): Integer;
+begin
+    if FState = hcPostedData then begin
+        Result := inherited Receive(Buffer, Min(FPostCounter, BufferSize));
+        if Result > 0 then
+           Dec(FPostCounter, Result);
+        if FPostCounter <= 0 then begin
+           LineMode        := TRUE;
+           FState          := hcRequest;
+           FPostCounter    := 0;
+        end;
+    end
+    else
+        Result := inherited Receive(Buffer, BufferSize);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpConnection.TriggerGetDocument(var Flags : THttpGetFlag);
 begin
     if Assigned(FOnGetDocument) then
@@ -3221,6 +3275,35 @@ procedure THttpConnection.ProcessPost;
 var
     Flags : THttpGetFlag;
 begin
+    { POST and no content-length received, we treat this as "bad request"     }
+    { and don't pass it to the component user.                                }
+    if (not FRequestHasContentLength) or (FRequestContentLength < 0) then begin
+        { HTTP/1.0
+          A valid Content-Length is required on all HTTP/1.0 POST requests.
+          An HTTP/1.0 server should respond with a 400 (bad request) message
+          if it cannot determine the length of the request message's content.
+
+          HTTP/1.1
+          The presence of a message-body in a request is signaled by the
+          inclusion of a Content-Length or Transfer-Encoding header field in
+          the request's message-headers.
+          For compatibility with HTTP/1.0 applications, HTTP/1.1 requests
+          containing a message-body MUST include a valid Content-Length header
+          field unless the server is known to be HTTP/1.1 compliant. If a
+          request contains a message-body and a Content-Length is not given,
+          the server SHOULD respond with 400 (bad request) if it cannot
+          determine the length of the message, or with 411 (length required)
+          if it wishes to insist on receiving a valid Content-Length.
+
+          Currently we act as a HTTP/1.0 server. }
+
+        FKeepAlive := FALSE;
+        Answer400;
+        { We close the connection non-gracefully otherwise we might receive
+          data we cannot handle properly. }
+        CloseDelayed;
+    end;
+
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
     if not FAuthenticated then
         Flags := hg401
@@ -3232,7 +3315,24 @@ begin
         Flags := hg404;
     FAcceptPostedData := FALSE;
     TriggerPostDocument(Flags);
+
+    if (not FAcceptPostedData) and (FRequestContentLength > 0) then begin { V7.30 }
+    { The component user doesn't handle posted data.               }
+    { Turn LineMode off if RequestContentLength > 0, we'll turn it }
+    { back on again in our overridden method Receive.              }
+        LineMode     := FALSE;
+        FPostCounter := FRequestContentLength;
+    end
+    else
+        FPostCounter := 0;
+
     case Flags of
+    hg400:
+        begin
+            FKeepAlive := FALSE;
+            Answer400;
+            CloseDelayed;
+        end;                                                              {/V7.30 }
     hg401:
         begin
             if FKeepAlive = FALSE then {Bjornar}
@@ -3351,6 +3451,12 @@ begin
 
     TriggerGetDocument(Flags);
     case Flags of
+    hg400:                             { V7.30 }
+        begin
+            if FKeepAlive = FALSE then
+                PrepareGraceFullShutDown;
+            Answer400;
+        end;
     hg401:
         begin
             if FKeepAlive = FALSE then {Bjornar}

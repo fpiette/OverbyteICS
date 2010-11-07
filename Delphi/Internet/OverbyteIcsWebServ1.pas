@@ -1205,7 +1205,13 @@ procedure TWebServForm.HttpServer1PostDocument(
 var
     ClientCnx  : TMyHttpConnection;
 begin
-    { It's easyer to do the cast one time. Could use with clause... }
+    if Flags = hg401 then
+    { Not authenticated (yet), we might be still in an authentication       }
+    { session with ClientCnx.RequestContentLength = 0 which was valid,      }
+    { i.e. NTLM uses a challenge/response method, anyway just exit.         }
+        Exit;
+
+    { It's easier to do the cast one time. Could use with clause... }
     ClientCnx := TMyHttpConnection(Client);
 
     { Count request and display a message }
@@ -1217,12 +1223,12 @@ begin
 
     if (ClientCnx.RequestContentLength > MAX_UPLOAD_SIZE) or
        (ClientCnx.RequestContentLength <= 0) then begin
-        Display('Upload size exceeded limit (' +
-                IntToStr(MAX_UPLOAD_SIZE) + ')');
+        if (ClientCnx.RequestContentLength > MAX_UPLOAD_SIZE) then
+            Display('Upload size exceeded limit (' +
+                    IntToStr(MAX_UPLOAD_SIZE) + ')');
         Flags := hg403;
         Exit;
     end;
-
 
     { Check for request past. We accept data for '/cgi-bin/FormHandler'    }
     { and any name starting by /cgi-bin/FileUpload/' (End of URL will be   }
@@ -1276,6 +1282,7 @@ begin
             Junk[Len] := #0;
         Exit;
     end;
+
     { Receive as much data as we need to receive. But warning: we may       }
     { receive much less data. Data will be split into several packets we    }
     { have to assemble in our buffer.                                       }

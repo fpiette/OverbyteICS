@@ -3296,12 +3296,12 @@ begin
           if it wishes to insist on receiving a valid Content-Length.
 
           Currently we act as a HTTP/1.0 server. }
-
         FKeepAlive := FALSE;
         Answer400;
         { We close the connection non-gracefully otherwise we might receive
           data we cannot handle properly. }
         CloseDelayed;
+        Exit;
     end;
 
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}

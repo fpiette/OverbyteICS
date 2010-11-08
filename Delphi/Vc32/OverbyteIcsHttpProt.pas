@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.10
+Version:      7.11
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -429,6 +429,8 @@ Feb 25, 2010 V7.07 Fix by Bjørnar Nielsen: TSslHttpCli didn't work when used
 May 24, 2010 V7.08 Angus ensure Ready when relocations exceed maximum to avoid timeout
 Oct 10, 2010 V7.09 Arno - MessagePump changes/fixes.
 Nov 05, 2010 V7.10 Arno fixed ERangeErrors after Abort.
+Nov 08, 2010 V7.11 Arno improved final exception handling, more details
+             in OverbyteIcsWndControl.pas (V1.14 comments).
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -505,8 +507,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 710;
-    CopyRight : String   = ' THttpCli (c) 1997-2010 F. Piette V7.10 ';
+    HttpCliVersion       = 711;
+    CopyRight : String   = ' THttpCli (c) 1997-2010 F. Piette V7.11 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -743,6 +745,7 @@ type
         FOnBeforeHeaderSend   : TBeforeHeaderSendEvent;     { Wilfried 9 sep 02}
         FCloseReq             : Boolean;                    { SAE 01/06/04 }
         FTimeout              : UINT;  { V7.04 }            { Sync Timeout Seconds }
+        procedure AbortComponent; override; { V7.11 }
         procedure AllocateMsgHandlers; override;
         procedure FreeMsgHandlers; override;
         function  MsgHandlersCount: Integer; override;
@@ -808,6 +811,7 @@ type
         procedure SetMultiThreaded(const Value : Boolean); override;
         procedure SetTerminated(const Value: Boolean); override;
         procedure SetOnMessagePump(const Value: TNotifyEvent); override;
+        procedure SetOnBgException(const Value: TIcsBgExceptionEvent); override; { V7.11 }
         procedure StateChange(NewState : THttpState); virtual;
         procedure TriggerStateChange; virtual;
         procedure TriggerCookie(const Data : String;
@@ -1064,6 +1068,7 @@ type
         property OnBeforeAuth        : THttpBeforeAuthEvent
                                                      read  FOnBeforeAuth
                                                      write FOnBeforeAuth;
+        property OnBgException;                                             { V7.11 }
     end;
 
 { You must define USE_SSL so that SSL code is included in the component.   }
@@ -1341,6 +1346,7 @@ begin
     GetOptions;
 {$ENDIF}
     CreateSocket;
+    FCtrlSocket.ExceptAbortProc    := AbortComponent; { V7.11 }
     FCtrlSocket.OnSessionClosed    := SocketSessionClosed;
     FCtrlSocket.OnDataAvailable    := SocketDataAvailable;
     FCtrlSocket.OnSessionConnected := SocketSessionConnected;
@@ -1389,15 +1395,20 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpCli.WndProc(var MsgRec: TMessage);
 begin
-     with MsgRec do begin
-         if Msg = FMsg_WM_HTTP_REQUEST_DONE then
-             WMHttpRequestDone(MsgRec)
-         else if Msg = FMsg_WM_HTTP_SET_READY then
-             WMHttpSetReady(MsgRec)
-         else if Msg = FMsg_WM_HTTP_LOGIN     then
-             WMHttpLogin(MsgRec)
-         else
-             inherited WndProc(MsgRec);
+    try { V7.11 }
+        with MsgRec do begin
+            if Msg = FMsg_WM_HTTP_REQUEST_DONE then
+                WMHttpRequestDone(MsgRec)
+            else if Msg = FMsg_WM_HTTP_SET_READY then
+                WMHttpSetReady(MsgRec)
+            else if Msg = FMsg_WM_HTTP_LOGIN     then
+                WMHttpLogin(MsgRec)
+            else
+                inherited WndProc(MsgRec);
+        end;
+    except { V7.11 }
+        on E: Exception do
+            HandleBackGroundException(E);
     end;
 end;
 
@@ -1454,6 +1465,15 @@ begin
     if Assigned(FCtrlSocket) then
         FCtrlSocket.Terminated := Value;
     inherited SetTerminated(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpCli.SetOnBgException(const Value: TIcsBgExceptionEvent); { V7.11 }
+begin
+    if Assigned(FCtrlSocket) then
+        FCtrlSocket.OnBgException := Value;
+    inherited SetOnBgException(Value);
 end;
 
 
@@ -1936,7 +1956,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpCli.WMHttpRequestDone(var msg: TMessage);
 begin
-{$IFNDEF NO_DEBUG_LOG}                                                 
+{$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loProtSpecInfo) then  { V1.91 } { replaces $IFDEF DEBUG_OUTPUT  }
             DebugLog(loProtSpecInfo, 'RequestDone');
 {$ENDIF}
@@ -2009,6 +2029,17 @@ begin
     else
         FCtrlSocket.Close;
     StateChange(httpReady);  { 13/02/99 }
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpCli.AbortComponent; { V7.11 }
+begin
+    try
+        Abort;
+    except
+    end;
+    inherited;
 end;
 
 

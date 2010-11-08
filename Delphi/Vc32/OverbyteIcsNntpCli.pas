@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TNntpCli is a client for the NNTP protocol (RFC-977)
 Creation:     December 19, 1997
-Version:      6.03
+Version:      6.04
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -100,7 +100,8 @@ Mar 24, 2008  V6.01 Francois Piette made some changes to prepare code
 Dec 21, 2008  V6.02 F.Piette added a string cast in PostBlock to avoid
               a warning when compiling with D2009.
 Dec 17, 2009  V6.03 Arno changed most string types of TNntpCli to AnsiString.
-
+Nov 08, 2010  V6.04 Arno improved final exception handling, more details
+              in OverbyteIcsWndControl.pas (V1.14 comments).
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsNntpCli;
@@ -294,7 +295,7 @@ type
         procedure FreeMsgHandlers; override;
         function  MsgHandlersCount: Integer; override;
         procedure WndProc(var MsgRec: TMessage); override;
-        procedure HandleBackGroundException(E: Exception); override;
+        procedure AbortComponent; override;  { V6.04 }
         procedure WMNntpRequestDone(var msg: TMessage); virtual;
         procedure WSocketDnsLookupDone(Sender: TObject; ErrCode: Word);
         procedure WSocketSessionConnected(Sender: TObject; ErrCode: Word);
@@ -331,6 +332,7 @@ type
                                                         write FRcvdCount;
         procedure TriggerSessionConnected(ErrCode: Word); virtual;
         procedure TriggerMessageLine; virtual;
+        procedure SetOnBgException(const Value: TIcsBgExceptionEvent); override; { V6.04 }
     published
         property CtrlSocket : TWSocket                  read  FWSocket;
         property State      : TNntpState                read  FState;
@@ -385,6 +387,7 @@ type
         { Event intended for progress bar update (receive) }
         property OnRcvdData    : TNotifyEvent           read  FOnRcvdData
                                                         write FOnRcvdData;
+        property OnBgException;                         { V6.04 }
     end;
 
     THtmlNntpCli = class(TNntpCli)
@@ -595,6 +598,7 @@ begin
 {$ENDIF}
     FPort                       := 'nntp';
     CreateSocket;
+    FWSocket.ExceptAbortProc    := AbortComponent; { V6.04 }
     FWSocket.LineMode           := TRUE;
     FWSocket.LineEnd            := #13#10;
     FWSocket.LineLimit          := FLineLimit;
@@ -636,6 +640,15 @@ begin
         FLineLimit         := NewValue;
         FWSocket.LineLimit := FLineLimit;
     end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TNntpCli.SetOnBgException(const Value: TIcsBgExceptionEvent); { V6.04 }
+begin
+    if Assigned(FWSocket) then
+        FWSocket.OnBgException := Value;
+    inherited SetOnBgException(Value);
 end;
 
 
@@ -682,27 +695,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ All exceptions *MUST* be handled. If an exception is not handled, the     }
-{ application will be shut down !                                           }
-procedure TNntpCli.HandleBackGroundException(E: Exception);
-var
-    CanAbort : Boolean;
+procedure TNntpCli.AbortComponent; { V6.04 }
 begin
-    CanAbort := TRUE;
-    { First call the error event handler, if any }
-    if Assigned(FOnBgException) then begin
-        try
-            FOnBgException(Self, E, CanAbort);
-        except
-        end;
+    try
+        Abort;
+    except
     end;
-    { Then abort the component }
-    if CanAbort then begin
-        try
-            Abort;
-        except
-        end;
-    end;
+    inherited;
 end;
 
 

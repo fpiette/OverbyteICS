@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.51
+Version:      7.52
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -785,6 +785,8 @@ Oct 14, 2010 V7.49 Arno - Abort TCustomLineWSocket as soon as possible.
 Oct 15, 2010 V7.50 Arno - Made function IsSslRenegotiationDisallowed available.
 Oct 16, 2010 V7.51 Arno removed dummy ancestor TBaseParentWSocket, it was not 
                    required to make D7's structure view happy.
+Nov 08, 2010 V7.35 Arno improved final exception handling, more details
+                   in OverbyteIcsWndControl.pas (V1.14 comments).
                    
 }
 
@@ -915,10 +917,7 @@ type
 
   TWndMethod         = procedure(var Message: TMessage) of object;
   ESocketException   = class(Exception);
-  TBgExceptionEvent  = procedure (Sender : TObject;
-                                  E : Exception;
-                                  var CanClose : Boolean) of object;
-
+  TBgExceptionEvent  = TIcsBgExceptionEvent; { V7.35 }
   TSocketState       = (wsInvalidState,
                         wsOpened,     wsBound,
                         wsConnecting, wsSocksConnected, wsConnected,
@@ -1090,7 +1089,6 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     { FOnLineTooLong      : TNotifyEvent; }
     FOnDnsLookupDone    : TDnsLookupDone;
     FOnError            : TNotifyEvent;
-    FOnBgException      : TBgExceptionEvent;
     FOnDebugDisplay     : TDebugDisplay;       { 18/06/05 }
     //FThreadId           : THandle;
     FSocketSndBufSize   : Integer;  { Winsock internal socket send buffer size }
@@ -1101,6 +1099,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     procedure   DebugLog(LogOption : TLogOption; const Msg : String); virtual;  { V5.21 }
     function    CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { V5.21 }
 {$ENDIF}
+    procedure   AbortComponent; override; { V7.35 }
     procedure   WndProc(var MsgRec: TMessage); override;
     function    MsgHandlersCount: Integer; override;
     procedure   AllocateMsgHandlers; override;
@@ -1144,7 +1143,6 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     function    RealSend(var Data : TWSocketData; Len : Integer) : Integer; virtual;
 //  procedure   RaiseExceptionFmt(const Fmt : String; args : array of const); virtual;
     procedure   RaiseException(const Msg : String); virtual;
-    procedure   HandleBackGroundException(E: Exception); override;
     function    GetReqVerLow: BYTE;
     procedure   SetReqVerLow(const Value: BYTE);
     function    GetReqVerHigh: BYTE;
@@ -1329,8 +1327,6 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
                                                     write FOnDnsLookupDone;
     property OnError            : TNotifyEvent      read  FOnError
                                                     write FOnError;
-    property OnBgException      : TBgExceptionEvent read  FOnBgException
-                                                    write FOnBgException;
     { FlushTimeout property is not used anymore }
     property FlushTimeout : Integer                 read  FFlushTimeOut
                                                     write FFlushTimeout;
@@ -5278,27 +5274,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ All exceptions *MUST* be handled. If an exception is not handled, the     }
-{ application will be shut down !                                           }
-procedure TCustomWSocket.HandleBackGroundException(E: Exception);
-var
-    CanAbort : Boolean;
+procedure TCustomWSocket.AbortComponent; { V7.35 }
 begin
-    CanAbort := TRUE;
-    { First call the error event handler, if any }
-    if Assigned(FOnBgException) then begin
-        try
-            FOnBgException(Self, E, CanAbort);
-        except
-        end;
+    try
+        Abort;
+    except
     end;
-    { Then abort the socket }
-    if CanAbort then begin
-        try
-            Abort;
-        except
-        end;
-    end;
+    inherited;
 end;
 
 

@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 6, 2007
-Version:      0.99c ALPHA CODE
+Version:      0.99d ALPHA CODE
 Description:  TMultipartFtpDownloader is a component to download files using
               simultaneous connections to speedup download. The demo make
               also use of the TMultiProgressBar (included in ICS) which is
@@ -46,7 +46,8 @@ Oct 30, 2010 0.99b In DownloadDocData, fixed call to Seek so that the int64
 Oct 31, 2010 0.99c In DownloadDocData, restart the timeout timer.
              Renamed protected TMultipartFtpDownloader.FHttp member to
              FMyFtp (Breaking change. Not an issue since we are in alpha phase).
-
+Nov 08, 2010 0.99d Arno improved final exception handling, more details
+             in OverbyteIcsWndControl.pas (V1.14 comments).
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMultipartFtpDownloader;
@@ -133,6 +134,7 @@ type
         FMsg_WM_PART_DONE      : UINT;
         Timer1                 : TIcsTimer;
         TimeoutTimer           : TIcsTimer;
+        procedure AbortComponent; override; { 0.99d }
         procedure AllocateMsgHandlers; override;
         procedure FreeMsgHandlers; override;
         function  MsgHandlersCount: Integer; override;
@@ -220,6 +222,7 @@ type
         property OnShowStats           : TNotifyEvent
                                                    read  FOnShowStats
                                                    write FOnShowStats;
+        property OnBgException;                                       { 0.99d }
     end;
 
 implementation
@@ -305,7 +308,8 @@ begin
     FMyFtp[0].HostDirName      := FDir;
     FMyFtp[0].HostFileName     := FFileName;
     FMyFtp[0].OnDisplay        := DisplayHandler;
-
+    FMyFtp[0].OnBgException    := OnBgException;  { 0.99d }
+    FMyFtp[0].ExceptAbortProc  := AbortComponent; { 0.99d }
     // We don't need to get a size if we have an assumed size
     if FAssumedSize > 0 then begin
         FContentLength := FAssumedSize;
@@ -443,6 +447,17 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TMultipartFtpDownloader.AbortComponent; { 0.99d }
+begin
+    try
+        Abort;
+    except
+    end;
+    inherited;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TMultipartFtpDownloader.AllocateMsgHandlers;
 begin
     inherited AllocateMsgHandlers;
@@ -465,13 +480,18 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TMultipartFtpDownloader.WndProc(var MsgRec: TMessage);
 begin
-     with MsgRec do begin
-         if Msg = FMsg_WM_START_MULTI then
-             WMStartMulti(MsgRec)
-         else if Msg = FMsg_WM_PART_DONE then
-             WMPartDone(MsgRec)
-         else
-             inherited WndProc(MsgRec);
+    try { 0.99d }
+        with MsgRec do begin
+            if Msg = FMsg_WM_START_MULTI then
+                WMStartMulti(MsgRec)
+            else if Msg = FMsg_WM_PART_DONE then
+                WMPartDone(MsgRec)
+            else
+                inherited WndProc(MsgRec);
+        end;
+    except { 0.99d }
+        on E: Exception do
+            HandleBackGroundException(E);
     end;
 end;
 
@@ -522,6 +542,8 @@ begin
         MyFtp.OnRequestDone     := DownloadRequestDone;
         MyFtp.OnDocData         := DownloadDocData;
         MyFtp.OnDisplay         := DisplayHandler;
+        MyFtp.OnBgException     := OnBgException;  { 0.99d }
+        MyFtp.ExceptAbortProc   := AbortComponent; { 0.99d }
         MyFtp.FDataCount        := 0;
         MyFtp.FDone             := FALSE;
         MyFtp.Options           := [ftpNoAutoResumeAt];

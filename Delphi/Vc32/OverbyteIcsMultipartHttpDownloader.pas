@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     March 2007
-Version:      0.99b ALPHA CODE
+Version:      0.99c ALPHA CODE
 Description:  TMultipartHttpDownloader is a component to download files using
               simultaneous connections to speedup download. The demo make
               also use of the TMultiProgressBar (included in ICS) which is
@@ -42,7 +42,8 @@ Legal issues: Copyright (C) 2007 by François PIETTE
 Updates:
 Oct 30, 2010 0.99b In DownloadDocData, fixed call to Seek so that the int64
              overloaded version is used.
-
+Nov 08, 2010 0.99c Arno improved final exception handling, more details
+             in OverbyteIcsWndControl.pas (V1.14 comments).
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMultipartHttpDownloader;
@@ -138,6 +139,7 @@ type
         FOnShowStats           : TNotifyEvent;
         FMsg_WM_START_MULTI    : UINT;
         Timer1                 : TIcsTimer;
+        procedure AbortComponent; override; { 0.99c }
         procedure AllocateMsgHandlers; override;
         procedure FreeMsgHandlers; override;
         function  MsgHandlersCount: Integer; override;
@@ -179,6 +181,7 @@ type
         property  ElapsedTime           : TDateTime   read FElapsedTime;
         property  PercentDone           : Double      read FPercentDone;
     published
+        property OnBgException;                                   { 0.99c }
         property URL           : String            read  FURL
                                                    write FURL;
         property Username      : String            read  FUsername
@@ -294,6 +297,8 @@ begin
     FHttp[0].SocksLevel       := FSocksLevel;
     FHttp[0].OnRequestDone    := GetASyncRequestDone;
     FHttp[0].OnHeaderEnd      := GetAsyncHeaderEnd;
+    FHttp[0].OnBgException    := OnBgException;  { 0.99c }
+    FHttp[0].ExceptAbortProc  := AbortComponent; { 0.99c }
     FHttp[0].ServerAuth       := FServerAuth;
     FHttp[0].GetASync;
     Display('GetASync');
@@ -394,11 +399,16 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TMultipartHttpDownloader.WndProc(var MsgRec: TMessage);
 begin
-     with MsgRec do begin
-         if Msg = FMsg_WM_START_MULTI then
-             WMStartMulti(MsgRec)
-         else
-             inherited WndProc(MsgRec);
+    try { 0.99c }
+        with MsgRec do begin
+            if Msg = FMsg_WM_START_MULTI then
+                WMStartMulti(MsgRec)
+            else
+                inherited WndProc(MsgRec);
+        end;
+    except { 0.99c }
+        on E: Exception do
+            HandleBackGroundException(E);
     end;
 end;
 
@@ -446,6 +456,8 @@ begin
         MyHttp.OnLocationChange  := LocationChange;
         MyHttp.OnRequestDone     := DownloadRequestDone;
         MyHttp.OnDocData         := DownloadDocData;
+        MyHttp.OnBgException     := OnBgException;  { 0.99c }
+        MyHttp.ExceptAbortProc   := AbortComponent; { 0.99c }
         MyHttp.ServerAuth        := FServerAuth;
         MyHttp.FDataCount        := 0;
         MyHttp.FDone             := FALSE;
@@ -820,5 +832,15 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TMultipartHttpDownloader.AbortComponent; { 0.99c }
+begin
+    try
+        Abort;
+    except
+    end;
+    inherited;
+end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 end.

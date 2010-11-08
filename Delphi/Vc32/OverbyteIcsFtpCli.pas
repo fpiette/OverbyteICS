@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.14
+Version:      V7.15
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1009,7 +1009,8 @@ Sep 20, 2010 V7.12 Angus - ensure FMultiThreaded in TIcsWndControl is set correc
 Oct 10, 2010 V7.13 Arno - MessagePump changes/fixes.
 Oct 15, 2010 V7.14 Arno - Fake AUTHTLS request/response if renegotiation is
              not available and the SSL is already established.
-
+Nov 08, 2010 V7.15 Arno improved final exception handling, more details
+             in OverbyteIcsWndControl.pas (V1.14 comments).
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1082,9 +1083,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 714;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.14 ';
-  FtpClientId : String = 'ICS FTP Client V7.14 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 715;
+  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.15 ';
+  FtpClientId : String = 'ICS FTP Client V7.15 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -1237,7 +1238,6 @@ type
     FOnStateChange      : TNotifyEvent;
     FOnRequestDone      : TFtpRequestDone;
     FOnReadyToTransmit  : TFtpReadyToTransmit;
-    FOnBgException      : TBgExceptionEvent;
     FLocalStream        : TStream;
     FRequestType        : TFtpRequest;
     FRequestDoneFlag    : Boolean;
@@ -1321,7 +1321,9 @@ type
     procedure DebugLog(LogOption: TLogOption; const Msg : string); virtual; { 2.104 }
     function  CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { 2.104 }
 {$ENDIF}
+    procedure   AbortComponent; override; { V7.15 }
     procedure   SetMultiThreaded(const Value : Boolean); override;
+    procedure   SetOnBgException(const Value: TIcsBgExceptionEvent); override; { V7.15 }
     procedure   SetTerminated(const Value: Boolean); override;
     procedure   SetOnMessagePump(const Value: TNotifyEvent); override;
     procedure   SetErrorMessage;
@@ -1390,7 +1392,6 @@ type
     procedure   FreeMsgHandlers; override;
     function    MsgHandlersCount: Integer; override;
     procedure   WndProc(var MsgRec: TMessage); override;
-    procedure   HandleBackGroundException(E: Exception); override;
     procedure   WMFtpRequestDone(var msg: TMessage); virtual;
     procedure   WMFtpSendData(var msg: TMessage); virtual;
     procedure   WMFtpCloseDown(var msg: TMessage); virtual;
@@ -1625,8 +1626,7 @@ type
                                                          write FOnStateChange;
     property OnReadyToTransmit    : TFtpReadyToTransmit  read  FOnReadyToTransmit
                                                          write FOnReadyToTransmit;
-    property OnBgException        : TBgExceptionEvent    read  FOnBgException
-                                                         write FOnBgException;
+    property OnBgException;   { V7.15 }
   end;
 
   TFtpClient = class(TCustomFtpCli)
@@ -2159,11 +2159,13 @@ begin
     FKeepAliveSecs      := 0; {V2.107 for control socket only }
     FClientIdStr        := ftpClientId; {V2.113 string sent for CLNT command }
     FControlSocket      := CreateSocket;   { V7.08 was  TWSocket.Create(Self); }
+    FControlSocket.ExceptAbortProc    := AbortComponent; { V7.15 }
     FControlSocket.OnSessionConnected := ControlSocketSessionConnected;
     FControlSocket.OnDataAvailable    := ControlSocketDataAvailable;
     FControlSocket.OnSessionClosed    := ControlSocketSessionClosed;
     FControlSocket.OnDnsLookupDone    := ControlSocketDnsLookupDone;
     FDataSocket         := CreateSocket;    { V7.08 was  TWSocket.Create(Self); }
+    FDataSocket.ExceptAbortProc       := AbortComponent; { V7.15 }
     FStreamFlag         := FALSE;
     SetLength(FZlibWorkDir, 1024);
     Len := GetTempPath(Length(FZlibWorkDir) - 1, PChar(FZlibWorkDir));{ AG V6.03 }
@@ -2252,27 +2254,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ All exceptions *MUST* be handled. If an exception is not handled, the     }
-{ application will be shut down !                                           }
-procedure TCustomFtpCli.HandleBackGroundException(E: Exception);
-var
-    CanAbort : Boolean;
+procedure TCustomFtpCli.AbortComponent; { V7.15 }
 begin
-    CanAbort := TRUE;
-    { First call the error event handler, if any }
-    if Assigned(FOnBgException) then begin
-        try
-            FOnBgException(Self, E, CanAbort);
-        except
-        end;
+    try
+        AbortAsync;
+    except
     end;
-    { Then abort the component }
-    if CanAbort then begin
-        try
-            AbortAsync;  { 06/12/2004: Abort replaced by AbortAsync }
-        except
-        end;
-    end;
+    inherited;
 end;
 
 
@@ -2560,6 +2548,17 @@ begin
     if Assigned(FControlSocket) then
         FControlSocket.Terminated := Value;
     inherited SetTerminated(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomFtpCli.SetOnBgException(const Value: TIcsBgExceptionEvent); { V7.15 }
+begin
+    if Assigned(FDataSocket) then
+        FDataSocket.OnBgException := Value;
+    if Assigned(FControlSocket) then
+        FControlSocket.OnBgException := Value;
+    inherited SetOnBgException(Value);
 end;
 
 

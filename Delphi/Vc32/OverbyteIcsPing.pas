@@ -6,7 +6,7 @@ Description:  This unit encapsulate the ICMP.DLL into a VCL of type TPing.
               Works only in 32 bits mode (no Delphi 1) under NT or 95.
               If you wants to build a console mode program, use the TICMP
               object. You'll have a much smaller program.
-Version:      6.00
+Version:      6.01
 Creation:     January 6, 1997
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -62,7 +62,8 @@ May 31, 2004 V1.14 Used ICSDEFS.INC
 Mar 26, 2006 V6.00 New version 6 started.
 Jul 19, 2008 V6.00 F. Piette made some changes for Unicode. Address, HostName
                       and DnsResult properties made as an AnsiString.
-                      
+Nov 08, 2010 V6.01 Arno improved final exception handling, more details
+             in OverbyteIcsWndControl.pas (V1.14 comments).                      
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPing;
@@ -110,8 +111,8 @@ uses
     Winsock;
 
 const
-  PingVersion           = 600;
-  CopyRight : String    = ' TPing (c) 1997-2010 F. Piette V6.00 ';
+  PingVersion           = 601;
+  CopyRight : String    = ' TPing (c) 1997-2010 F. Piette V6.01 ';
 
 type
   TDnsLookupDone = procedure (Sender: TObject; Error: Word) of object;
@@ -129,11 +130,11 @@ type
     FOnEchoReply      : TPingReply;
     FOnDisplay        : TPingDisplay;
     FMsg_WM_ASYNCGETHOSTBYNAME : UINT;
+    procedure   AbortComponent; override; { V6.01 }
     procedure   AllocateMsgHandlers; override;
     procedure   FreeMsgHandlers; override;
     function    MsgHandlersCount: Integer; override;
     procedure   WndProc(var MsgRec: TMessage); override;
-    procedure   HandleBackGroundException(E: Exception); override;
     procedure   WMAsyncGetHostByName(var msg: TMessage); virtual;
     procedure   SetAddress(Value : String);
     function    GetAddress : String;
@@ -194,6 +195,7 @@ type
     property    OnDnsLookupDone : TDnsLookupDone
                                              read  FOnDnsLookupDone
                                              write FOnDnsLookupDone;
+    property    OnBgException;               { V6.01 }
   end;
 
 implementation
@@ -307,6 +309,18 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TPing.AbortComponent; { V6.01 }
+begin
+    try
+        CancelDnsLookup;
+        { .. more ? }
+    except
+    end;
+    inherited;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TPing.AllocateMsgHandlers;
 begin
     inherited AllocateMsgHandlers;
@@ -342,31 +356,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ All exceptions *MUST* be handled. If an exception is not handled, the     }
-{ application will be shut down !                                           }
-procedure TPing.HandleBackGroundException(E: Exception);
-var
-    CanAbort : Boolean;
-begin
-    CanAbort := TRUE;
-    { First call the error event handler, if any }
-    if Assigned(FOnBgException) then begin
-        try
-            FOnBgException(Self, E, CanAbort);
-        except
-        end;
-    end;
-    { Then abort the component }
-    if CanAbort then begin
-        try
-            AbortComponent;  { 06/12/2004: Abort replaced by AbortAsync }
-        except
-        end;
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TPing.WMAsyncGetHostByName(var msg: TMessage);
 var
     Phe     : Phostent;

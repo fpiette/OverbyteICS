@@ -598,7 +598,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TNtlmAuthSession.AuthErrorDesc: String;
 begin
-    Result := NtlmErrorDesc(FAuthError) + 'Error: 0x' + IntToHex(FAuthError, 8);
+    Result := NtlmErrorDesc(FAuthError) + ' Error: 0x' + IntToHex(FAuthError, 8);
 end;
 
 

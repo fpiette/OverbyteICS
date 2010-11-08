@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.30
+Version:      7.31
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -305,6 +305,8 @@ Nov 06, 2010 V7.30 A. Garrels - Fixed posted data handling in case of posted
                    and a valid new request could be received on the same line.
                    This also fixes NTLM authentication with POST requests.
                    RequestContentLength field type change to Int64.
+Nov 08, 2010 V7.31 Arno improved final exception handling, more details
+                   in OverbyteIcsWndControl.pas (V1.14 comments).
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -389,8 +391,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 730;
-    CopyRight : String = ' THttpServer (c) 1999-2010 F. Piette V7.30 ';
+    THttpServerVersion = 731;
+    CopyRight : String = ' THttpServer (c) 1999-2010 F. Piette V7.31 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
 
@@ -1004,8 +1006,7 @@ type
                                              Error  : Word);
         procedure WSocketServerChangeState(Sender : TObject;
                                            OldState, NewState : TSocketState);
-        procedure WSocketServerBgException(Sender: TObject; E: Exception;
-                                           var CanClose: Boolean);
+        procedure SetOnBgException(const Value: TIcsBgExceptionEvent); override; { V7.31 }
         procedure TriggerServerStarted; virtual;
         procedure TriggerServerStopped; virtual;
         procedure TriggerClientConnect(Client : TObject; Error  : Word); virtual;
@@ -1623,7 +1624,6 @@ begin
     FWSocketServer.OnClientDisconnect := WSocketServerClientDisconnect;
     FWSocketServer.OnSessionClosed    := WSocketServerSessionClosed;
     FWSocketServer.OnChangeState      := WSocketServerChangeState;
-    FWSocketServer.OnBgException      := WSocketServerBgException;  { F.Piette V7.27 }
     FWSocketServer.Banner             := '';
     FWSocketServer.Proto              := 'tcp';
     FWSocketServer.Port               := FPort;
@@ -1792,13 +1792,11 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THttpServer.WSocketServerBgException(    { F.Piette V7.27 }
-    Sender       : TObject;
-    E            : Exception;
-    var CanClose : Boolean);
+procedure THttpServer.SetOnBgException(const Value: TIcsBgExceptionEvent); { V7.31 }
 begin
-    if Assigned(FOnBgException) then
-        FOnBgException(Self, E, CanClose);
+    if Assigned(FWSocketServer) then
+        FWSocketServer.OnBgException := Value;
+    inherited;
 end;
 
 

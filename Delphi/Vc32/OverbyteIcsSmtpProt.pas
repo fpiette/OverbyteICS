@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      7.34
+Version:      7.35
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -387,6 +387,8 @@ Sep 03, 2010 V7.31  Arno - New property THtmlSmtpCli.HtmlImageCidSuffix which
 Sep 20, 2010 V7.32  Arno moved HMAC-MD5 code to OverbyteIcsMD5.pas.
 Oct 09, 2010 V7.33  Arno added TSyncSmtpCli.SentToFileSync.
 Oct 10, 2010 V7.34  Arno - MessagePump changes/fixes.
+Nov 08, 2010 V7.35  Arno improved final exception handling, more details
+                    in OverbyteIcsWndControl.pas (V1.14 comments).
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSmtpProt;
@@ -451,8 +453,8 @@ uses
     OverbyteIcsMimeUtils;
 
 const
-  SmtpCliVersion     = 734;
-  CopyRight : String = ' SMTP component (c) 1997-2010 Francois Piette V7.34 ';
+  SmtpCliVersion     = 735;
+  CopyRight : String = ' SMTP component (c) 1997-2010 Francois Piette V7.35 ';
   smtpProtocolError  = 20600; {AG}
   SMTP_RCV_BUF_SIZE  = 4096;
   
@@ -799,11 +801,12 @@ type
         procedure   FreeMsgHandlers; override;
         function    MsgHandlersCount: Integer; override;
         procedure   WndProc(var MsgRec: TMessage); override;
-        procedure   HandleBackGroundException(E: Exception); override;
         procedure   WMSmtpRequestDone(var msg: TMessage); virtual;
         procedure   SetMultiThreaded(const Value : Boolean); override;
         procedure   SetTerminated(const Value: Boolean); override;
         procedure   SetOnMessagePump(const Value: TNotifyEvent); override;
+        procedure   AbortComponent; override; { V7.35 }
+        procedure   SetOnBgException(const Value: TIcsBgExceptionEvent); override; { V7.35 }
     public
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy;                     override;
@@ -1041,6 +1044,7 @@ type
         property OnSessionConnected;
         property OnSessionClosed;
         property OnMessageDataSent;      {AG}
+        property OnBgException;          { V7.35 }
         property XMailer;
         property EmailFiles : TStrings               read  FEmailFiles
                                                      write SetEmailFiles;
@@ -1660,6 +1664,15 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSmtpClient.SetOnBgException(const Value: TIcsBgExceptionEvent);
+begin                                                               { V7.35 }
+    if Assigned(FWSocket) then
+        FWSocket.OnBgException := Value;
+    inherited SetOnBgException(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomSmtpClient.SetOnMessagePump(const Value: TNotifyEvent);
 begin
     if Assigned(FWSocket) then
@@ -1763,6 +1776,7 @@ begin
 {$ELSE}
     FWSocket.Name            := ClassName + '_Socket' + IntToStr(SafeWSocketGCount);
 {$ENDIF}
+    FWSocket.ExceptAbortProc := AbortComponent; { V7.35 }
     FWSocket.OnSessionClosed := WSocketSessionClosed;
     FState                   := smtpReady;
     FRcptName                := TStringList.Create;
@@ -1865,27 +1879,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ All exceptions *MUST* be handled. If an exception is not handled, the     }
-{ application will be shut down !                                           }
-procedure TCustomSmtpClient.HandleBackGroundException(E: Exception);
-var
-    CanAbort : Boolean;
+procedure TCustomSmtpClient.AbortComponent; { V7.35 }
 begin
-    CanAbort := TRUE;
-    { First call the error event handler, if any }
-    if Assigned(FOnBgException) then begin
-        try
-            FOnBgException(Self, E, CanAbort);
-        except
-        end;
+    try
+        Abort;
+    except
     end;
-    { Then abort the component }
-    if CanAbort then begin
-        try
-            Abort;
-        except
-        end;
-    end;
+    inherited;
 end;
 
 

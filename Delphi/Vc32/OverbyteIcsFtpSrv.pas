@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      7.14
+Version:      7.15
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -393,7 +393,8 @@ June 10, 2010 V7.12 Angus added bandwidth throttling using TCustomThrottledWSock
 Sep 05, 2010 V7.13 Arno renamed conditional defines EXPERIMENTAL_THROTTLE and
              EXPERIMENTAL_TIMEOUT to BUILTIN_THROTTLE and BUILTIN_TIMEOUT.
 Oct 12, 2010 V7.14 Arno published OnBgException from underlaying server socket.
-
+Nov 08, 2010 V7.15 Arno improved final exception handling, more details
+             in OverbyteIcsWndControl.pas (V1.14 comments).
 
 Angus pending -
 CRC on the fly
@@ -483,8 +484,8 @@ uses
 
 
 const
-    FtpServerVersion         = 714;
-    CopyRight : String       = ' TFtpServer (c) 1998-2010 F. Piette V7.14 ';
+    FtpServerVersion         = 715;
+    CopyRight : String       = ' TFtpServer (c) 1998-2010 F. Piette V7.15 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
     DefaultRcvSize           = 16384;    { V7.00 used for both xmit and recv, was 2048, too small }
 
@@ -676,6 +677,7 @@ type
         procedure SetOptions(const Opts : TFtpOptions); { AG 7.02 }
         procedure SetCodePage(const Value: LongWord);   { AG 7.02 }
         procedure SetCurrentCodePage(const Value: LongWord); { AG 7.02 }
+        procedure SetOnBgException(const Value: TIcsBgExceptionEvent); override; { V7.15 }
     public
         FtpServer         : TFtpServer; { AG V7.02 }
         BinaryMode        : Boolean;
@@ -1044,8 +1046,7 @@ type
         FOnLang                 : TFtpSrvLangEvent;          { angus V7.01 }
         FSystemCodePage         : LongWord;                  { AG 7.02 }
         FOnAddVirtFiles         : TFtpSrvAddVirtFilesEvent;  { angus V7.08 }
-        procedure SocketServerBgException(Sender: TObject; E: Exception;
-            var CanClose: Boolean);
+        procedure SetOnBgException(const Value: TIcsBgExceptionEvent); override; { V7.15 }
 {$IFNDEF NO_DEBUG_LOG}
         function  GetIcsLogger: TIcsLogger;                                      { V1.46 }
         procedure SetIcsLogger(const Value: TIcsLogger);                         { V1.46 }
@@ -2104,7 +2105,6 @@ begin
     FSocketServer.ClientClass         := FClientClass;
     FSocketServer.OnClientConnect     := ServerClientConnect;
     FSocketServer.OnClientDisconnect  := ServerClientDisconnect;
-    FSocketServer.OnBgException       := SocketServerBgException;
 {$IFNDEF NO_DEBUG_LOG}
     FSocketServer.IcsLogger           := GetIcsLogger ;
 {$ENDIF}
@@ -6487,13 +6487,11 @@ end;
 {$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TFtpServer.SocketServerBgException(
-    Sender       : TObject;
-    E            : Exception;
-    var CanClose : Boolean);
+procedure TFtpServer.SetOnBgException(const Value: TIcsBgExceptionEvent); { V7.15 }
 begin
-    if Assigned(OnBgException) then
-        OnBgException(Self, E, CanClose);
+    if Assigned(FSocketServer) then
+        FSocketServer.OnBgException := Value;
+    inherited;
 end;
 
 
@@ -6797,6 +6795,15 @@ begin
         else
             FCurrentCodePage := CP_ACP;
     {$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpCtrlSocket.SetOnBgException(const Value: TIcsBgExceptionEvent); { V7.15 }
+begin
+    if Assigned(FDataSocket) then
+        FDataSocket.OnBgException := Value;
+    inherited;
 end;
 
 

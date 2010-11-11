@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.15
+Version:      V7.16
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1011,7 +1011,9 @@ Oct 15, 2010 V7.14 Arno - Fake AUTHTLS request/response if renegotiation is
              not available and the SSL is already established.
 Nov 08, 2010 V7.15 Arno improved final exception handling, more details
              in OverbyteIcsWndControl.pas (V1.14 comments).
-
+Nov 11, 2010 V7.16 Arno re-enabled component notification for FDataSocket and
+             FControlSocket that was disabled accidentally in V7.13 rev. #610 in
+             method CreateSocket by creating the instances with a nil owner.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpCli;
@@ -1083,9 +1085,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 715;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.15 ';
-  FtpClientId : String = 'ICS FTP Client V7.15 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 716;
+  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.16 ';
+  FtpClientId : String = 'ICS FTP Client V7.16 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -2191,8 +2193,8 @@ end;
 destructor TCustomFtpCli.Destroy;
 begin
     DestroyLocalStream;
-    FreeAndNil(FDataSocket);
-    FreeAndNil(FControlSocket);
+    FDataSocket.Free;
+    FControlSocket.Free;
 {$IFDEF UseBandwidthControl}
     if Assigned(FBandwidthTimer) then begin
         FBandwidthTimer.Free;
@@ -2295,7 +2297,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomFtpCli.CreateSocket: TWSocket;   { V7.08 }
 begin
-  Result := TWSocket.Create(nil);
+  Result := TWSocket.Create(Self);
 end;
 
 

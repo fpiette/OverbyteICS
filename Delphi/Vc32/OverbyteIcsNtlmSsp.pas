@@ -2,7 +2,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  Server-side NTLM, validation of user credentials using Windows SSPI.
 Creation:     Sep 04, 2006
-Version:      1.03
+Version:      1.04
 Legal issues: Copyright (C) 2005 by Arno Garrels, Berlin, Germany,
               contact: <arno.garrels@gmx.de>
 
@@ -41,6 +41,8 @@ Sep 11, 2006 V1.01 A. Garrels added func ValidateUserCredentials() which allows
 Apr 25, 2008 V1.02 A. Garrels, some changes to prepare code for Unicode.
 Apr 30, 2008 V1.03 A. Garrels moved the call to LoadSecPackage from
              initialization section to TNtlmAuthSession's constructor.
+Nov 15, 2010 V1.0.4 Fix in function UCS2ToString that is used by ANSI compilers.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsNtlmSsp;
@@ -285,20 +287,22 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function UCS2ToString(const S: UCS2String): AnsiString;
 var
-    Len : Integer;
+    Len   : Integer;
+    WcCnt : Integer;
 begin
     Result := '';
-    Len := Length(S);
-    if Len < 2 then
-        Exit;
-    Len := WideCharToMultiByte(CP_ACP, 0,
-                               Pointer(S), Len div SizeOf(WideChar),
-                               nil, 0,//Pointer(Result), Length(Result),
-                               nil, nil);
-    SetLength(Result, Len);
-    WideCharToMultiByte(CP_ACP, 0,
-                        Pointer(S), Len div SizeOf(WideChar),
-                        Pointer(Result), Len, nil, nil);
+    if S <> '' then
+    begin
+      WcCnt := Length(S) div SizeOf(WideChar);
+      if WcCnt > 0 then
+      begin
+          Len := WideCharToMultiByte(CP_ACP, 0, Pointer(S), WcCnt, nil, 0,
+                                     nil, nil);
+          SetLength(Result, Len);
+          WideCharToMultiByte(CP_ACP, 0, Pointer(S), WcCnt, Pointer(Result), Len,
+                              nil, nil);
+      end;
+    end;
 end;
 
 

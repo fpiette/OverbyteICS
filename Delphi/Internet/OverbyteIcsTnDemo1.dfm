@@ -103,7 +103,7 @@ object TnDemoForm: TTnDemoForm
       Width = 137
       Height = 21
       TabOrder = 4
-      Text = 'DataEdit'
+      Text = 'help'
     end
     object SendButton: TButton
       Left = 192

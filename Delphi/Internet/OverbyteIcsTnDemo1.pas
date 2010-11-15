@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  How to use TnCnx (Telnet protocol) with a TMemo
 Creation:     December 11, 1997
-Version:      1.01
+Version:      1.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -35,6 +35,8 @@ Legal issues: Copyright (C) 1997-2010 by François PIETTE
 Updates:
 Oct 23, 2002 V1.01 Changed Buffer arg in OnDataAvailable to untyped var instead
                    of PChar. More portable.
+Nov 15, 2010 V1.02 Updated TnCnxDataAvailable so that it support nul char
+                   in the input stream. Added const in MemoAddLines arg.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsTnDemo1;
@@ -83,7 +85,7 @@ implementation
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {* Display a message in the memo field, breaking with CR                   *}
-procedure MemoAddLines(Memo : TMemo; Msg : String);
+procedure MemoAddLines(Memo : TMemo; const Msg : String);
 const
     CR = #13;
     LF = #10;
@@ -166,14 +168,20 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TTnDemoForm.TnCnxDataAvailable(
     Sender: TTnCnx; Buffer : Pointer; Len: Integer);
+var
+    Data : AnsiString;
 begin
-    MemoAddLines(DisplayMemo, String(StrPas(PAnsiChar(Buffer))));
+    if Len <= 0 then
+        Exit;
+    SetLength(Data, Len);
+    Move(Buffer^, Data[1], Len);
+    MemoAddLines(DisplayMemo, String(Data));
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TTnDemoForm.DisplayMemoKeyDown(Sender: TObject; var Key: Word;
-  Shift: TShiftState);
+    Shift: TShiftState);
 begin
     Key := 0;
 end;

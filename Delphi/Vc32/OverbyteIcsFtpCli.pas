@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.16
+Version:      V7.17
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1014,6 +1014,8 @@ Nov 08, 2010 V7.15 Arno improved final exception handling, more details
 Nov 11, 2010 V7.16 Arno re-enabled component notification for FDataSocket and
              FControlSocket that was disabled accidentally in V7.13 rev. #610 in
              method CreateSocket by creating the instances with a nil owner.
+Nov 17, 2010 V7.17 Arno published property ProxyPort.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpCli;
@@ -1085,9 +1087,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 716;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.16 ';
-  FtpClientId : String = 'ICS FTP Client V7.16 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 717;
+  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.17 ';
+  FtpClientId : String = 'ICS FTP Client V7.17 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -1737,6 +1739,7 @@ type
     property Options;
     property ConnectionType;
     property ProxyServer;
+    property ProxyPort;   { V7.17 }
     property SocksPassword;
     property SocksPort;
     property SocksServer;

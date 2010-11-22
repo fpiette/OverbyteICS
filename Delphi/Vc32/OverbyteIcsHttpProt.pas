@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.11
+Version:      7.12
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -431,6 +431,7 @@ Oct 10, 2010 V7.09 Arno - MessagePump changes/fixes.
 Nov 05, 2010 V7.10 Arno fixed ERangeErrors after Abort.
 Nov 08, 2010 V7.11 Arno improved final exception handling, more details
              in OverbyteIcsWndControl.pas (V1.14 comments).
+Nov 22, 2010 V7.12 Arno made CheckDelaySetReady virtual.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -507,8 +508,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 711;
-    CopyRight : String   = ' THttpCli (c) 1997-2010 F. Piette V7.11 ';
+    HttpCliVersion       = 712;
+    CopyRight : String   = ' THttpCli (c) 1997-2010 F. Piette V7.12 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -749,7 +750,7 @@ type
         procedure AllocateMsgHandlers; override;
         procedure FreeMsgHandlers; override;
         function  MsgHandlersCount: Integer; override;
-        procedure CheckDelaySetReady;                       { 09/26/08 ML }
+        procedure CheckDelaySetReady; virtual;              { 09/26/08 ML }
 {$IFNDEF NO_DEBUG_LOG}
         function  GetIcsLogger: TIcsLogger;                 { V1.91 }
         procedure SetIcsLogger(const Value: TIcsLogger);    { V1.91 }

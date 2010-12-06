@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.52
+Version:      7.53
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -785,8 +785,10 @@ Oct 14, 2010 V7.49 Arno - Abort TCustomLineWSocket as soon as possible.
 Oct 15, 2010 V7.50 Arno - Made function IsSslRenegotiationDisallowed available.
 Oct 16, 2010 V7.51 Arno removed dummy ancestor TBaseParentWSocket, it was not 
                    required to make D7's structure view happy.
-Nov 08, 2010 V7.35 Arno improved final exception handling, more details
+Nov 08, 2010 V7.52 Arno improved final exception handling, more details
                    in OverbyteIcsWndControl.pas (V1.14 comments).
+Dec 06, 2010 V7.53 Arno added thread-safe TSslContext.FreeNotification and
+                   TSslContext.RemoveFreeNotification.
                    
 }
 
@@ -897,8 +899,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 751;
-  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.51 ';
+  WSocketVersion            = 753;
+  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.53 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1949,6 +1951,8 @@ type
         //function    SetupEngine(Engine: String; Commands: TStrings): PENGINE;
     {$ENDIF}
         procedure   AddClientCAFromFile(const FileName: String);
+        procedure   FreeNotification(AComponent: TComponent);
+        procedure   RemoveFreeNotification(AComponent: TComponent);
         procedure   SetClientCAListFromFile(const FileName: String);
         property    IsCtxInitialized : Boolean read GetIsCtxInitialized;
     published
@@ -5467,7 +5471,10 @@ begin
         FCounter.Free;
         FCounter := nil;
     end;
-
+{$IFNDEF NO_DEBUG_LOG}
+    { Removes TIcsLogger's free notification in a thread-safe way }
+    SetIcsLogger(nil);
+{$ENDIF}
     inherited Destroy;
 end;
 
@@ -8342,9 +8349,13 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *} { V5.21 }
 procedure TCustomWSocket.SetIcsLogger(const Value: TIcsLogger);
 begin
-    FIcsLogger := Value;
-    if Value <> nil then
-        Value.FreeNotification(Self);
+    if Value <> FIcsLogger then begin
+      if FIcsLogger <> nil then
+          FIcsLogger.RemoveFreeNotification(Self);
+      if Value <> nil then
+          Value.FreeNotification(Self);
+      FIcsLogger := Value;
+    end;
 end;
 {$ENDIF}
 
@@ -11299,8 +11310,41 @@ begin
 end;
 
 
-(*
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.FreeNotification(AComponent: TComponent);
+begin
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        inherited FreeNotification(AComponent);
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock;
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.RemoveFreeNotification(AComponent: TComponent);
+begin
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        inherited RemoveFreeNotification(AComponent);
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock;
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
 procedure TSslContext.TriggerDebugLog (LogOption: TLogOption;   { V5.21 }
                                                  const Msg, Data: String);
 var
@@ -13851,6 +13895,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor TCustomSslWSocket.Destroy;
 begin
+    { Removes TSslContext's free notification in a thread-safe way }
+    SetSslContext(nil);
     inherited Destroy;
     _FreeAndNil(FSslAcceptableHosts);
     DeleteBufferedSslData;
@@ -14840,9 +14886,13 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomSslWSocket.SetSslContext(const Value: TSslContext);
 begin
-    FSslContext := Value;
-    if Value <> nil then
-        Value.FreeNotification(Self);
+    if Value <> FSslContext then begin
+      if FSslContext <> nil then
+          FSslContext.RemoveFreeNotification(Self);
+      if Value <> nil then
+          Value.FreeNotification(Self);
+      FSslContext := Value;
+    end;
 end;
 
 
@@ -16489,5 +16539,4 @@ finalization
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
 end.
-
 

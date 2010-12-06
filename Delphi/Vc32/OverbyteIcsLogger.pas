@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  Logger class donated to ICS.
 Creation:     December 2005
-Version:      6.04
+Version:      6.05
 EMail:        francois.piette@overbyte.be      http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -48,6 +48,7 @@ Jul 03, 2008 V6.02 A. Garrels made some changes to prepare code for Unicode.
 May 08, 2009 V6.03 Added properties TimeStampFormatString and TimeStampSeparator
                    similar as suggested by Anton Sviridov.
 Dec 20, 2009 V6.04 Exchanged symbol "NO_ADV_MT" by "NO_LOGGER_MT".
+Dec 06, 2010 V6.05 Thread-safe FreeNotification and RemoveFreeNotification.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsLogger;
@@ -98,8 +99,8 @@ uses
 {$ENDIF}
 
 const
-    TIcsLoggerVersion   = 604;
-    CopyRight : String  = ' IcsLogger (c) 2005-2010 by François PIETTE V6.04 ';
+    TIcsLoggerVersion   = 605;
+    CopyRight : String  = ' IcsLogger (c) 2005-2010 by François PIETTE V6.05 ';
 
 type
     ELoggerException = class(Exception);
@@ -162,6 +163,8 @@ type
         procedure   DoDebugLog (Sender    : TObject;
                                 LogOption : TLogOption;
                                 const Msg : String);
+        procedure   FreeNotification(AComponent: TComponent);
+        procedure   RemoveFreeNotification(AComponent: TComponent);
     {$IFNDEF VCL}
         procedure FreeNotification(Obj : TObject);
     {$ENDIF}
@@ -218,6 +221,38 @@ begin
     DeleteCriticalSection(FLock);
 {$ENDIF}
     inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsLogger.FreeNotification(AComponent: TComponent);
+begin
+{$IFNDEF NO_LOGGER_MT}
+    Lock;
+    try
+{$ENDIF}
+        inherited FreeNotification(AComponent);
+{$IFNDEF NO_LOGGER_MT}
+    finally
+        Unlock;
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsLogger.RemoveFreeNotification(AComponent: TComponent);
+begin
+{$IFNDEF NO_LOGGER_MT}
+    Lock;
+    try
+{$ENDIF}
+        inherited RemoveFreeNotification(AComponent);
+{$IFNDEF NO_LOGGER_MT}
+    finally
+        Unlock;
+    end;
+{$ENDIF}
 end;
 
 

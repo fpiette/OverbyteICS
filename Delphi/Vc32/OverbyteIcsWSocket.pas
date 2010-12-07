@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.53
+Version:      7.54
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -789,7 +789,9 @@ Nov 08, 2010 V7.52 Arno improved final exception handling, more details
                    in OverbyteIcsWndControl.pas (V1.14 comments).
 Dec 06, 2010 V7.53 Arno added thread-safe TSslContext.FreeNotification and
                    TSslContext.RemoveFreeNotification.
-                   
+Dec 07, 2010 V7.54 Arno - TSslBaseComponent, thread-safe removal of IcsLogger's
+                   free notification.
+
 }
 
 {
@@ -899,8 +901,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 753;
-  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.53 ';
+  WSocketVersion            = 754;
+  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.54 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -8350,11 +8352,11 @@ end;
 procedure TCustomWSocket.SetIcsLogger(const Value: TIcsLogger);
 begin
     if Value <> FIcsLogger then begin
-      if FIcsLogger <> nil then
-          FIcsLogger.RemoveFreeNotification(Self);
-      if Value <> nil then
-          Value.FreeNotification(Self);
-      FIcsLogger := Value;
+        if FIcsLogger <> nil then
+            FIcsLogger.RemoveFreeNotification(Self);
+        if Value <> nil then
+            Value.FreeNotification(Self);
+        FIcsLogger := Value;
     end;
 end;
 {$ENDIF}
@@ -10939,6 +10941,10 @@ end;
 destructor TSslBaseComponent.Destroy;
 begin
     FinalizeSsl;
+{$IFNDEF NO_DEBUG_LOG}
+    { Removes IcsLogger's free notification in a thread-safe way }
+    SetIcsLogger(nil);
+{$ENDIF}
     inherited Destroy;
 end;
 
@@ -10999,9 +11005,13 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslBaseComponent.SetIcsLogger(const Value: TIcsLogger);
 begin
-    FIcsLogger := Value;
-    if Value <> nil then
-        Value.FreeNotification(Self);
+    if Value <> FIcsLogger then begin
+        if FIcsLogger <> nil then
+            FIcsLogger.RemoveFreeNotification(Self);
+        if Value <> nil then
+            Value.FreeNotification(Self);
+        FIcsLogger := Value;
+    end;
 end;
 {$ENDIF}
 
@@ -14887,11 +14897,11 @@ end;
 procedure TCustomSslWSocket.SetSslContext(const Value: TSslContext);
 begin
     if Value <> FSslContext then begin
-      if FSslContext <> nil then
-          FSslContext.RemoveFreeNotification(Self);
-      if Value <> nil then
-          Value.FreeNotification(Self);
-      FSslContext := Value;
+        if FSslContext <> nil then
+            FSslContext.RemoveFreeNotification(Self);
+        if Value <> nil then
+            Value.FreeNotification(Self);
+        FSslContext := Value;
     end;
 end;
 

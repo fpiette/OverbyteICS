@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     Jan 01, 2004
-Version:      6.01
+Version:      6.02
 Description:  This is an implementation of the NTLM authentification
               messages used within HTTP protocol (client side).
               NTLM protocol documentation can be found at:
@@ -49,6 +49,8 @@ Apr 25, 2008 V6.01 A. Garrels - Fixed function Unicode. NtlmGetMessage3() got a
                    new parameter ACodepage : LongWord that defaults to the
                    currently active codepage. Some changes to prepare code for
                    Unicode.
+Dec 13, 2010 V6.02 A. Garrels - Fixed wrong offset of target domain in
+                   NtlmGetMessage1(). Added procedure NtlmParseUserCode.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -80,8 +82,8 @@ uses
     OverbyteIcsDES, OverbyteIcsMD4, OverbyteIcsMimeUtils;
 
 const
-    IcsNtlmMsgsVersion     = 601;
-    CopyRight : String     = ' IcsNtlmMsgs (c) 2004-2010 F. Piette V6.01 ';
+    IcsNtlmMsgsVersion     = 602;
+    CopyRight : String     = ' IcsNtlmMsgs (c) 2004-2010 F. Piette V6.02 ';
 
 const
     Flags_Negotiate_Unicode               = $00000001;
@@ -187,9 +189,42 @@ function NtlmGetMessage1(const AHost, ADomain: String): String;
 function NtlmGetMessage2(const AServerReply: String): TNTLM_Msg2_Info;
 function NtlmGetMessage3(const ADomain, AHost, AUser, APassword: String;
     AChallenge: TArrayOf8Bytes; ACodePage: LongWord = CP_ACP): String;
+procedure NtlmParseUserCode(const AUserCode : String; out Domain : String;
+    out UserName : String);
 
 implementation
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure NtlmParseUserCode(                                        { V6.02 }
+    const AUserCode : String;
+    out Domain      : String;
+    out UserName    : String);
+var
+    I : Integer;
+begin
+  { Name Variations
+    DOMAIN\user, domain.com\user, user@DOMAIN user@domain.com }
+
+    I := Pos('\', AUserCode);
+    if I > 0 then begin
+        Domain   := Copy(AUserCode, 1, I - 1);
+        UserName := Copy(AUserCode, I + 1, MaxInt);
+    end
+    else begin
+        I := Pos('@', AUserCode);
+        if I > 0 then begin
+            Domain   := Copy(AUserCode, I + 1, MaxInt);
+            UserName := Copy(AUserCode, 1, I - 1);
+        end
+        else begin
+            Domain   := '';
+            UserName := AUserCode;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF COMPILER12_UP}
 {$IFDEF SUPPORT_WIN95}
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -443,7 +478,12 @@ begin
     Msg.Domain.Space  := Msg.Domain.Length;
 
     if Msg.Domain.Length > 0 then
-         Msg.Domain.Offset := Msg.Host.Offset + Msg.Domain.Length
+    begin
+        if Msg.Host.Offset > 0 then                                { V6.02 AG }
+            Msg.Domain.Offset := Msg.Host.Offset + Msg.Host.Length { V6.02 AG }
+        else                                                       { V6.02 AG }
+            Msg.Domain.Offset := $20;                              { V6.02 AG }
+    end
     else
          Msg.Domain.Offset := 0;
 

@@ -223,13 +223,10 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function RemoveEndOfLine(const Line : String) : String;
-const
-    EOL : String = EndOfLine;
 begin
-
     if (Length(Line) >= Length(EndOfLine)) and
-       (StrLComp(PChar(Line[1 + Length(Line) - Length(EndOfLine)]),
-                 PChar(EOL[1]),
+       (StrLComp(PChar(@Line[1 + Length(Line) - Length(EndOfLine)]),
+                 PChar(EndOfLine),
                  Length(EndOfLine)) = 0) then
         Result := Copy(Line, 1, Length(Line) - Length(EndOfLine))
     else

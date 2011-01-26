@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.31
+Version:      7.32
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -307,6 +307,9 @@ Nov 06, 2010 V7.30 A. Garrels - Fixed posted data handling in case of posted
                    RequestContentLength field type change to Int64.
 Nov 08, 2010 V7.31 Arno improved final exception handling, more details
                    in OverbyteIcsWndControl.pas (V1.14 comments).
+Jan 25, 2011 V7.32 FPiette fixed HtmlPageProducerToString for an unicode issue.
+                   Thanks to Busai Péter for his help.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -391,8 +394,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 731;
-    CopyRight : String = ' THttpServer (c) 1999-2010 F. Piette V7.31 ';
+    THttpServerVersion = 732;
+    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.32 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
 
@@ -2728,13 +2731,23 @@ function THttpConnection.HtmlPageProducerToString(
     Tags           : array of const) : String;
 var
     Stream : TMemoryStream;
+const
+    NulByte : Byte = 0;
 begin
     Stream := TMemoryStream.Create;
     try
         HtmlPageProducerToStream(HtmlFile, UserData, Tags, Stream);
+{$IFDEf COMPILER12_UP}
+        // For unicode char compiler (D2009 and up)
+        // Add a nul byte at the end of string
+        Stream.Write(NulByte, 1);
+        Result := String(PAnsiChar(Stream.Memory));
+{$ELSE}
+        // For ansi char compiler
         SetLength(Result, Stream.Size);
         Stream.Seek(0, 0);
         Stream.Read(Result[1], Stream.Size);
+{$ENDIF}
     finally
         Stream.Free;
     end;

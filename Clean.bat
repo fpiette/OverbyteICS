@@ -7,7 +7,11 @@ goto end
 :clean
 echo Hit return to clean temporary files, of CTRL+C to abort...
 pause
+if exist *.bak del *.bak
+
 if exist Install\*.local del Install\*.local
+if exist Install\*.~* del Install\*.~*
+
 if exist delphi\vc32\Debug_Build\*.* del delphi\vc32\Debug_Build\*.*
 if exist delphi\vc32\OverbyteIcs*.hpp del delphi\vc32\OverbyteIcs*.hpp
 if exist delphi\vc32\OverbyteIcs*.dcu del delphi\vc32\OverbyteIcs*.dcu

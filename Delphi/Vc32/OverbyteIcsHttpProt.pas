@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.12
+Version:      7.13
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -421,9 +421,9 @@ Dec 02, 2009 V7.05 Bjornar found a HTTPS POST bug with proxy basic
 Feb 15, 2010 V7.06 Yuri Semenov fixed a bug with content coding and chunked
              transfer encoding.
 Feb 25, 2010 V7.07 Fix by Bjørnar Nielsen: TSslHttpCli didn't work when used
-             against Websense-Content_Gateway (http://www.websense.com) and 
+             against Websense-Content_Gateway (http://www.websense.com) and
              some others. The problem was that this (and some other proxies too)
-             answer 200 OK to notify client that connection to remote server 
+             answer 200 OK to notify client that connection to remote server
              is established. Usually proxies use 200 OK and an error text when
              something is wrong. In that case Content-Length is not 0.
 May 24, 2010 V7.08 Angus ensure Ready when relocations exceed maximum to avoid timeout
@@ -432,6 +432,9 @@ Nov 05, 2010 V7.10 Arno fixed ERangeErrors after Abort.
 Nov 08, 2010 V7.11 Arno improved final exception handling, more details
              in OverbyteIcsWndControl.pas (V1.14 comments).
 Nov 22, 2010 V7.12 Arno made CheckDelaySetReady virtual.
+Feb 4,  2010 V7.13 Angus - if conditional BUILTIN_THROTTLE is defined the
+             bandwidth control uses TWSocket's built-in throttle code rather
+             than THttpCli's.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -463,7 +466,11 @@ interface
 {$IFNDEF NO_ADVANCED_HTTP_CLIENT_FEATURES}
     {$DEFINE UseNTLMAuthentication}
     {$DEFINE UseDigestAuthentication}
-    {$DEFINE UseBandwidthControl}
+    {$IFNDEF BUILTIN_THROTTLE}   { V7.13 }
+        {$DEFINE UseBandwidthControl}
+    {$ELSE}
+        {$UNDEF UseBandwidthControl}
+    {$ENDIF}
     {$DEFINE UseContentCoding}
 {$ENDIF}
 {$IFDEF CLR}
@@ -508,8 +515,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 712;
-    CopyRight : String   = ' THttpCli (c) 1997-2010 F. Piette V7.12 ';
+    HttpCliVersion       = 713;
+    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.13 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -705,9 +712,11 @@ type
         //FProxyAuth            : String;
         FServerAuth           : THttpAuthType;
         FProxyAuth            : THttpAuthType;
-{$IFDEF UseBandwidthControl}
+{$IF DEFINED(UseBandwidthControl) or DEFINED(BUILTIN_THROTTLE)}
         FBandwidthLimit       : Integer;  // Bytes per second
         FBandwidthSampling    : Integer;  // mS sampling interval
+{$IFEND}
+{$IFDEF UseBandwidthControl}
         FBandwidthCount       : Int64;    // Byte counter
         FBandwidthMaxCount    : Int64;    // Bytes during sampling period
         FBandwidthTimer       : TIcsTimer;
@@ -978,12 +987,12 @@ type
                                                      write FServerAuth;
         property ProxyAuth        : THttpAuthType    read  FProxyAuth
                                                      write FProxyAuth;
-{$IFDEF UseBandwidthControl}
+{$IF DEFINED(UseBandwidthControl) or DEFINED(BUILTIN_THROTTLE)}
         property BandwidthLimit       : Integer      read  FBandwidthLimit
                                                      write FBandwidthLimit;
         property BandwidthSampling    : Integer      read  FBandwidthSampling
                                                      write FBandwidthSampling;
-{$ENDIF}
+{$IFEND}
 {$IFDEF UseContentCoding}
         property Options          : THttpCliOptions  read  GetOptions
                                                      write SetOptions;
@@ -1356,10 +1365,10 @@ begin
     FCtrlSocket.OnSocksError       := DoSocksError;
     FCtrlSocket.OnSocksConnected   := DoSocksConnected;
     FCtrlSocket.OnError            := SocketErrorTransfer;
-{$IFDEF UseBandwidthControl}
+{$IF DEFINED(UseBandwidthControl) or DEFINED(BUILTIN_THROTTLE)}
     FBandwidthLimit                := 10000;  { Bytes per second     }
     FBandwidthSampling             := 1000;   { mS sampling interval }
-{$ENDIF}
+{$IFEND}
     FLocationChangeMaxCount        := 5;  {  V1.90 }
     FLocationChangeCurCount        := 0;  {  V1.90 }
     FTimeOut                       := 30;
@@ -2088,6 +2097,14 @@ begin
     FCtrlSocket.SocksPassword       := FSocksPassword;
     FCtrlSocket.SocksAuthentication := FSocksAuthentication;
     FReceiveLen                     := 0; { Clear the receive buffer V7.10 }
+{$IFDEF BUILTIN_THROTTLE}
+    if httpoBandwidthControl in FOptions then begin
+        FCtrlSocket.BandwidthLimit     := FBandwidthLimit;
+        FCtrlSocket.BandwidthSampling  := FBandwidthSampling;
+    end
+    else
+        FCtrlSocket.BandwidthLimit := 0;
+{$ENDIF}
 end;
 
 

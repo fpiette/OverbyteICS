@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Creation:     Jan 15, 2005
 Description:
-Version:      7.02
+Version:      7.03
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Unsupported code.
 Legal issues: Copyright (C) 2005-2010 by François PIETTE
@@ -39,17 +39,24 @@ History:
 Oct 03, 2009 V7.01 F.Piette added file upload demo. Fixed Unicode issue with
                    answer display.
 Dec 19, 2009 V7.02 Arno fixed URL encoding.
+Feb 4,  2011 V7.03 Angus added bandwidth throttling using TCustomThrottledWSocket
+                    Demo shows file upload duration and speed
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpPost1;
+
+{$I OverbyteIcsDefs.inc}
+{$IFNDEF DELPHI7_UP}
+    Bomb('This sample requires Delphi 7 or later');
+{$ENDIF}
 
 interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   OverbyteIcsIniFiles, StdCtrls, ExtCtrls, OverbyteIcsUrl, OverbyteIcsWndControl,
-  OverbyteIcsHttpProt;
+  OverbyteIcsHttpProt, OverByteIcsFtpSrvT;
 
 type
   THttpPostForm = class(TForm)
@@ -70,6 +77,8 @@ type
     Shape1: TShape;
     Label6: TLabel;
     UploadURLEdit: TEdit;
+    Label10: TLabel;
+    BandwidthLimitEdit: TEdit;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -87,6 +96,7 @@ type
 
 var
   HttpPostForm: THttpPostForm;
+  StartTime: Longword;
 
 implementation
 
@@ -104,7 +114,7 @@ const
     KeyActionURL       = 'ActionURL';
     KeyUploadURL       = 'UploadURL';
     KeyFilePath        = 'UploadFilePath';
-
+    KeyBandwidthLimit  = 'BandwidthLimit';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpPostForm.FormCreate(Sender: TObject);
@@ -135,9 +145,10 @@ begin
         ActionURLEdit.Text := IniFile.ReadString(SectionData, KeyActionURL,
                                   'http://localhost/cgi-bin/FormHandler');
         UploadURLEdit.Text := IniFile.ReadString(SectionData, KeyUploadURL,
-                                  'http://localhost/cgi-bin/FileUpload');
+                                  'http://localhost/cgi-bin/FileUpload\unit1.pas');
         FileNameEdit.Text := IniFile.ReadString(SectionData, KeyFilePath,
                                   'c:\temp\unit1.pas');
+        BandwidthLimitEdit.Text := IniFile.ReadString(SectionData, KeyBandwidthLimit, '1000000');
         IniFile.Free;
         DisplayMemo.Clear;
     end;
@@ -159,6 +170,7 @@ begin
     IniFile.WriteString(SectionData, KeyActionURL, ActionURLEdit.Text);
     IniFile.WriteString(SectionData, KeyUploadURL, UploadURLEdit.Text);
     IniFile.WriteString(SectionData, KeyFilePath,  FileNameEdit.Text);
+    IniFile.WriteString(SectionData, KeyBandwidthLimit,  BandwidthLimitEdit.Text);
     IniFile.UpdateFile;
     IniFile.Free;
 end;
@@ -195,6 +207,7 @@ begin
     HttpCli1.RcvdStream      := TMemoryStream.Create;
     HttpCli1.URL             := Trim(ActionURLEdit.Text);
     HttpCli1.ContentTypePost := 'application/x-www-form-urlencoded';
+    StartTime := 0;
     HttpCli1.PostAsync;
 end;
 
@@ -209,6 +222,12 @@ begin
     HttpCli1.RcvdStream      := TMemoryStream.Create;
     HttpCli1.URL             := Trim(UploadURLEdit.Text);
     HttpCli1.ContentTypePost := 'application/binary';
+{$IFDEF BUILTIN_THROTTLE}
+    HttpCli1.BandwidthLimit := StrToIntDef(BandwidthLimitEdit.Text, 1000000);
+    if HttpCli1.BandwidthLimit > 0 then
+        HttpCli1.Options := HttpCli1.Options + [httpoBandwidthControl];
+{$ENDIF}
+    StartTime := GetTickCount;
     HttpCli1.PostAsync;
 end;
 
@@ -231,7 +250,10 @@ procedure THttpPostForm.HttpCli1RequestDone(
     ErrCode : Word);
 var
     Data : AnsiString;  // WebServ demo send AnsiString replies
+    Duration, BytesSec, ByteCount: integer;
+    Temp: string;
 begin
+    ByteCount := HttpCli1.SendStream.Size;
     HttpCli1.SendStream.Free;
     HttpCli1.SendStream := nil;
 
@@ -253,6 +275,20 @@ begin
     SetLength(Data, HttpCli1.RcvdStream.Size);
     HttpCli1.RcvdStream.Read(Data[1], Length(Data));
     Display(String(Data));
+    if StartTime <> 0 then begin
+        Duration := GetTickCount - StartTime;
+        Temp := 'Received ' + IntToStr(ByteCount) + ' bytes, ';
+        if Duration < 5000 then
+            Temp := Temp + IntToStr(Duration) + ' milliseconds'
+        else
+            Temp := Temp + IntToStr(Duration div 1000) + ' seconds';
+        if ByteCount > 32767 then
+            BytesSec := 1000 * (ByteCount div Duration)
+        else
+            BytesSec := (1000 * ByteCount) div Duration;
+        Temp := Temp + ' (' + IntToKByte(BytesSec) + 'bytes/sec)';
+        Display(temp);
+    end;
 end;
 
 

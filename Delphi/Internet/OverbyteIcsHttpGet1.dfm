@@ -2,7 +2,7 @@ object HttpGetForm: THttpGetForm
   Left = 128
   Top = 123
   Caption = 'Http Get - http://www.orverbyte.be'
-  ClientHeight = 155
+  ClientHeight = 194
   ClientWidth = 339
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -52,11 +52,19 @@ object HttpGetForm: THttpGetForm
     Caption = 'FileName'
   end
   object InfoLabel: TLabel
-    Left = 56
-    Top = 104
+    Left = 5
+    Top = 128
     Width = 44
     Height = 13
     Caption = 'InfoLabel'
+  end
+  object Label10: TLabel
+    Left = 5
+    Top = 107
+    Width = 153
+    Height = 13
+    Caption = 'Maximum Bandwidth (bytes/sec)'
+    WordWrap = True
   end
   object URLEdit: TEdit
     Left = 56
@@ -91,8 +99,8 @@ object HttpGetForm: THttpGetForm
     Text = 'FileNameEdit'
   end
   object GetButton: TButton
-    Left = 112
-    Top = 128
+    Left = 111
+    Top = 154
     Width = 75
     Height = 25
     Caption = '&Get'
@@ -101,8 +109,8 @@ object HttpGetForm: THttpGetForm
     OnClick = GetButtonClick
   end
   object AbortButton: TButton
-    Left = 200
-    Top = 128
+    Left = 197
+    Top = 155
     Width = 75
     Height = 25
     Cancel = True
@@ -110,6 +118,14 @@ object HttpGetForm: THttpGetForm
     Enabled = False
     TabOrder = 5
     OnClick = AbortButtonClick
+  end
+  object BandwidthLimitEdit: TEdit
+    Left = 170
+    Top = 104
+    Width = 65
+    Height = 21
+    TabOrder = 6
+    Text = 'BandwidthLimitEdit'
   end
   object HttpCli1: THttpCli
     LocalAddr = '0.0.0.0'
@@ -133,6 +149,6 @@ object HttpGetForm: THttpGetForm
     SocksLevel = '5'
     SocksAuthentication = socksNoAuthentication
     Left = 16
-    Top = 104
+    Top = 148
   end
 end

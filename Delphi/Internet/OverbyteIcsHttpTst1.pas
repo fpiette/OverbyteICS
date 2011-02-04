@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      1.08
+Version:      7.00
 Description:  Sample program to demonstrate some of the THttpCli features.
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -56,6 +56,7 @@ May 01, 2003  V1.06 Display Header checkbox added
 May 09, 2003  V1.07 Implemented PUT
 Jan 10, 2004  V1.08 Added code for HTTP 1.1 (Started months ago but forgot
               to add it in the history).
+Feb 4,  2011  V7.00 Angus added bandwidth throttling using TCustomThrottledWSocket
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpTst1;
@@ -83,12 +84,12 @@ uses
   System.ComponentModel,
  {$ENDIF}
   OverbyteIcsWinsock,  OverbyteIcsWSocket,
-  OverbyteIcsHttpProt, OverbyteIcsWndControl, 
+  OverbyteIcsHttpProt, OverbyteIcsWndControl,
   OverbyteIcsLogger;
 
 const
-  HttpTstVersion         = 108;
-  CopyRight : String     = 'HttpTst (c) 1997-2010 Francois Piette  V1.08 ';
+  HttpTstVersion         = 700;
+  CopyRight : String     = 'HttpTst (c) 1997-2011 Francois Piette  V7.00 ';
 
 type
   THttpTestForm = class(TForm)
@@ -124,6 +125,8 @@ type
     Label10: TLabel;
     PostContentTypeEdit: TEdit;
     IcsLogger1: TIcsLogger;
+    BandwidthLimitEdit: TEdit;
+    Label11: TLabel;
     procedure GetButtonClick(Sender: TObject);
     procedure HttpCli1Command(Sender: TObject; var S: String);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -144,6 +147,7 @@ type
     procedure CloseButtonClick(Sender: TObject);
     procedure ClearButtonClick(Sender: TObject);
     procedure PutButtonClick(Sender: TObject);
+    procedure Label10Click(Sender: TObject);
   private
     Initialized  : Boolean;
     DocFileName  : String;
@@ -179,7 +183,7 @@ const
     KeyNTLMDomain   = 'NTLMDomain';
     KeyNTLMUsercode = 'NTLMUsercode';
     KeyNTLMPassword = 'NTLMPassword';
-
+    KeyBandwidthLimit = 'BandwidthLimit';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpTestForm.FormShow(Sender: TObject);
@@ -211,6 +215,7 @@ begin
         PostContentTypeEdit.Text := IniFile.ReadString(SectionData, KeyPostType, 'text/plain');
         HttpVersionComboBox.ItemIndex := IniFile.ReadInteger(SectionData, KeyHttpVer, 0);
         DisplayHeaderCheckBox.Checked := Boolean(IniFile.ReadInteger(SectionData, KeyDisplayHdr, 0));
+        BandwidthLimitEdit.Text := IniFile.ReadString(SectionData, KeyBandwidthLimit, '1000000');
 {$IFDEF UseNTLMAuthentication}
         HttpCli1.NTLMHost       := IniFile.ReadString(SectionData, KeyNTLMHost,     'PC');
         HttpCli1.NTLMDomain     := IniFile.ReadString(SectionData, KeyNTLMDomain,   'WORKGROUP');
@@ -267,6 +272,7 @@ begin
     IniFile.WriteInteger(SectionData,   KeyHttpVer,   HttpVersionComboBox.ItemIndex);
     IniFile.WriteString(SectionData,    KeyPostType,  PostContentTypeEdit.Text);
     IniFile.WriteInteger(SectionData,   KeyDisplayHdr, Ord(DisplayHeaderCheckBox.Checked));
+    IniFile.WriteString(SectionData,    KeyBandwidthLimit,  BandwidthLimitEdit.Text);
 {$IFDEF UseNTLMAuthentication}
     IniFile.WriteString(SectionData, KeyNTLMHost,     HttpCli1.NTLMHost);
     IniFile.WriteString(SectionData, KeyNTLMDomain,   HttpCli1.NTLMDomain);
@@ -316,6 +322,11 @@ begin
         HttpCli1.Connection := 'Keep-Alive';
         HttpCli1.RequestVer := '1.' + IntToStr(HttpVersionComboBox.ItemIndex);
         HttpCli1.RcvdStream := nil;
+{$IFDEF BUILTIN_THROTTLE}
+        HttpCli1.BandwidthLimit := StrToIntDef(BandwidthLimitEdit.Text, 1000000);
+        if HttpCli1.BandwidthLimit > 0 then
+             HttpCli1.Options := HttpCli1.Options + [httpoBandwidthControl];
+{$ENDIF}
         if DateTimeEdit.Text <> '' then
             HttpCli1.ModifiedSince := StrToDateTime(DateTimeEdit.Text)
         else
@@ -365,6 +376,11 @@ begin
         HttpCli1.Connection     := 'Keep-Alive';
         HttpCli1.RequestVer     := '1.' + IntToStr(HttpVersionComboBox.ItemIndex);
         HttpCli1.RcvdStream := nil;
+{$IFDEF BUILTIN_THROTTLE}
+        HttpCli1.BandwidthLimit := StrToIntDef(BandwidthLimitEdit.Text, 1000000);
+        if HttpCli1.BandwidthLimit > 0 then
+             HttpCli1.Options := HttpCli1.Options + [httpoBandwidthControl];
+{$ENDIF}
         if DateTimeEdit.Text <> '' then
             HttpCli1.ModifiedSince := StrToDateTime(DateTimeEdit.Text)
         else
@@ -475,6 +491,11 @@ begin
         HttpCli1.RequestVer      := '1.' +
                                     IntToStr(HttpVersionComboBox.ItemIndex);
 
+{$IFDEF BUILTIN_THROTTLE}
+        HttpCli1.BandwidthLimit := StrToIntDef(BandwidthLimitEdit.Text, 1000000);
+        if HttpCli1.BandwidthLimit > 0 then
+             HttpCli1.Options := HttpCli1.Options + [httpoBandwidthControl];
+{$ENDIF}
         if HttpCli1.Proxy <> '' then
             Display('Using proxy ''' + HttpCli1.Proxy + ':' +
                                   HttpCli1.ProxyPort + '''')
@@ -600,6 +621,11 @@ begin
                 IntToStr(HttpCli1.StatusCode));
 end;
 
+
+procedure THttpTestForm.Label10Click(Sender: TObject);
+begin
+
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpTestForm.AbortButtonClick(Sender: TObject);

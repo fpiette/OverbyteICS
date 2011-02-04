@@ -2,7 +2,7 @@ object HttpPostForm: THttpPostForm
   Left = 250
   Top = 147
   Caption = 'Http Post - http://www.orverbyte.be'
-  ClientHeight = 300
+  ClientHeight = 352
   ClientWidth = 372
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -20,7 +20,7 @@ object HttpPostForm: THttpPostForm
     Left = 0
     Top = 0
     Width = 372
-    Height = 169
+    Height = 201
     Align = alTop
     TabOrder = 0
     object Label1: TLabel
@@ -77,6 +77,14 @@ object HttpPostForm: THttpPostForm
       Height = 13
       Caption = 'Upload URL'
     end
+    object Label10: TLabel
+      Left = 6
+      Top = 174
+      Width = 172
+      Height = 16
+      Caption = 'Maximum Bandwidth (bytes/sec)'
+      WordWrap = True
+    end
     object FirstNameEdit: TEdit
       Left = 72
       Top = 8
@@ -111,16 +119,16 @@ object HttpPostForm: THttpPostForm
       OnClick = PostButtonClick
     end
     object FileNameEdit: TEdit
-      Left = 69
-      Top = 120
-      Width = 212
+      Left = 70
+      Top = 121
+      Width = 290
       Height = 21
       TabOrder = 4
       Text = 'FileNameEdit'
     end
     object UploadButton: TButton
-      Left = 287
-      Top = 142
+      Left = 259
+      Top = 170
       Width = 75
       Height = 21
       Caption = '&Upload'
@@ -130,17 +138,25 @@ object HttpPostForm: THttpPostForm
     object UploadURLEdit: TEdit
       Left = 69
       Top = 144
-      Width = 212
+      Width = 294
       Height = 21
       TabOrder = 6
       Text = 'UploadURLEdit'
     end
+    object BandwidthLimitEdit: TEdit
+      Left = 171
+      Top = 170
+      Width = 65
+      Height = 21
+      TabOrder = 7
+      Text = 'BandwidthLimitEdit'
+    end
   end
   object DisplayMemo: TMemo
     Left = 0
-    Top = 169
+    Top = 201
     Width = 372
-    Height = 131
+    Height = 151
     Align = alClient
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
@@ -152,6 +168,8 @@ object HttpPostForm: THttpPostForm
     ParentFont = False
     ScrollBars = ssBoth
     TabOrder = 1
+    ExplicitTop = 194
+    ExplicitHeight = 158
   end
   object HttpCli1: THttpCli
     LocalAddr = '0.0.0.0'

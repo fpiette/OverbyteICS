@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     January 17, 1998
-Version:      1.00
+Version:      7.00
 Description:  This sample program show how to get a document from a webserver
               and store it to a file. Also display some progress info.
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
@@ -34,15 +34,23 @@ Legal issues: Copyright (C) 1997-2010 by François PIETTE
                  distribution.
 
 Updates:
+Feb 4,  2011  V7.00 Angus added bandwidth throttling using TCustomThrottledWSocket
+                    Demo shows file download duration and speed
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpGet1;
+
+{$I OverbyteIcsDefs.inc}
+{$IFNDEF DELPHI7_UP}
+    Bomb('This sample requires Delphi 7 or later');
+{$ENDIF}
 
 interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, OverbyteIcsHttpProt, StdCtrls, OverbyteIcsIniFiles, OverbyteIcsWndControl;
+  Dialogs, OverbyteIcsHttpProt, StdCtrls, OverbyteIcsIniFiles,
+  OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 type
   THttpGetForm = class(TForm)
@@ -59,6 +67,8 @@ type
     AbortButton: TButton;
     InfoLabel: TLabel;
     HttpCli1: THttpCli;
+    Label10: TLabel;
+    BandwidthLimitEdit: TEdit;
     procedure GetButtonClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -92,6 +102,7 @@ const
     KeyLeft       = 'Left';
     KeyWidth      = 'Width';
     KeyHeight     = 'Height';
+    KeyBandwidthLimit = 'BandwidthLimit';
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -123,6 +134,7 @@ begin
             Left   := IniFile.ReadInteger(SectionWindow, KeyLeft,   Left);
             Width  := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
             Height := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
+            BandwidthLimitEdit.Text := IniFile.ReadString(SectionData, KeyBandwidthLimit, '1000000');
         finally
             IniFile.Free;
         end;
@@ -146,28 +158,50 @@ begin
         IniFile.WriteInteger(SectionWindow, KeyLeft,   Left);
         IniFile.WriteInteger(SectionWindow, KeyWidth,  Width);
         IniFile.WriteInteger(SectionWindow, KeyHeight, Height);
+        IniFile.WriteString(SectionData, KeyBandwidthLimit,  BandwidthLimitEdit.Text);
         IniFile.UpdateFile;
     finally
         IniFile.Free;
-    end;    
+    end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpGetForm.GetButtonClick(Sender: TObject);
+var
+    StartTime: Longword;
+    Duration, BytesSec, ByteCount: integer;
+    Temp: string;
 begin
     HttpCli1.URL        := URLEdit.Text;
     HttpCli1.Proxy      := ProxyHostEdit.Text;
     HttpCli1.ProxyPort  := ProxyPortEdit.Text;
     HttpCli1.RcvdStream := TFileStream.Create(FileNameEdit.Text, fmCreate);
+{$IFDEF BUILTIN_THROTTLE}
+    HttpCli1.BandwidthLimit := StrToIntDef(BandwidthLimitEdit.Text, 1000000);
+    if HttpCli1.BandwidthLimit > 0 then
+        HttpCli1.Options := HttpCli1.Options + [httpoBandwidthControl];
+{$ENDIF}
     GetButton.Enabled   := FALSE;
     AbortButton.Enabled := TRUE;
     InfoLabel.Caption   := 'Loading';
     try
         try
+            StartTime := GetTickCount;
             HttpCli1.Get;
-            InfoLabel.Caption := 'Received ' +
-                                 IntToStr(HttpCli1.RcvdStream.Size) + ' bytes';
+            Duration := GetTickCount - StartTime;
+            ByteCount := HttpCli1.RcvdStream.Size;
+            Temp := 'Received ' + IntToStr(ByteCount) + ' bytes, ';
+            if Duration < 5000 then
+                Temp := Temp + IntToStr(Duration) + ' milliseconds'
+            else
+                Temp := Temp + IntToStr(Duration div 1000) + ' seconds';
+            if ByteCount > 32767 then
+                BytesSec := 1000 * (ByteCount div Duration)
+            else
+                BytesSec := (1000 * ByteCount) div Duration;
+            Temp := Temp + ' (' + IntToKByte(BytesSec) + 'bytes/sec)';
+            InfoLabel.Caption := Temp
         except
             on E: EHttpException do begin
                 InfoLabel.Caption := 'Failed : ' +

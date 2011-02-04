@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.54
+Version:      7.55
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -791,6 +791,7 @@ Dec 06, 2010 V7.53 Arno added thread-safe TSslContext.FreeNotification and
                    TSslContext.RemoveFreeNotification.
 Dec 07, 2010 V7.54 Arno - TSslBaseComponent, thread-safe removal of IcsLogger's
                    free notification.
+Feb 04, 2011 V7.55 Angus - allow BandwidthLimit to be changed during connection
 
 }
 
@@ -901,8 +902,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 754;
-  CopyRight    : String     = ' TWSocket (c) 1996-2010 Francois Piette V7.54 ';
+  WSocketVersion            = 755;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.55 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -2457,6 +2458,7 @@ type
       FBandwidthKeepThreadAlive : Boolean;
       procedure BandwidthHandleTimer(Sender: TObject);
       procedure SetBandwidthControl;
+      procedure SetBandwidthLimit(const Value: LongWord);   { V7.55 }
       procedure SetBandwidthSampling(const Value: LongWord);
       procedure SetBandwidthKeepThreadAlive(const Value: Boolean);
   protected
@@ -2474,7 +2476,7 @@ type
                                                    default TRUE;
   //published
       property BandwidthLimit       : LongWord     read  FBandwidthLimit
-                                                   write FBandwidthLimit;
+                                                   write SetBandwidthLimit;
       property BandwidthSampling    : LongWord     read  FBandwidthSampling
                                                    write SetBandwidthSampling;
   end;
@@ -10528,12 +10530,24 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomThrottledWSocket.SetBandwidthLimit(const Value: LongWord);   { V7.55 }
+begin
+    if Value <> FBandwidthLimit then begin
+        FBandwidthLimit := Value;
+        if Assigned(FBandwidthTimer) then SetBandwidthControl;  { only if done this already, to change it }
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomThrottledWSocket.SetBandwidthSampling(const Value: LongWord);
 begin
-    if Value < 500 then
-        FBandwidthSampling := 500
-    else
-        FBandwidthSampling := Value;
+    if FBandwidthSampling <> Value then begin   { V7.55 }
+        if Value < 500 then
+            FBandwidthSampling := 500
+        else
+            FBandwidthSampling := Value;
+        if Assigned(FBandwidthTimer) then SetBandwidthControl;  { only if done this already, to change it }
+    end;
 end;
 
 

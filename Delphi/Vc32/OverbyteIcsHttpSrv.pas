@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.33
+Version:      7.34
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -301,7 +301,7 @@ Sep 10, 2010 V7.29 RTT: Added OnUnknownRequestMethod event, triggered when
                    the document. Added PersistentHeader property to define
                    Header items that should be included in any response header.
 Nov 06, 2010 V7.30 A. Garrels - Fixed posted data handling in case of posted
-                   data is not accepted. Without this fix both posted data 
+                   data is not accepted. Without this fix both posted data
                    and a valid new request could be received on the same line.
                    This also fixes NTLM authentication with POST requests.
                    RequestContentLength field type change to Int64.
@@ -313,6 +313,11 @@ Jan 27, 2011 V7.33 Arno fixed a Unicode issue in VarRecToString, found by Péter
                    Busai. Methods THttpConnection.AnswerPage,
                    THttpConnection.HtmlPageProducerXy and helper functions take
                    optional code page parameter (D2009+ only).
+Feb 4,  2011 V7.34 Angus added bandwidth throttling using TCustomThrottledWSocket
+                   Set BandwidthLimit property to maximum bytes server wide, for
+                   specific clients set BandwidthLimit in a client connect event
+                   (requires BUILTIN_THROTTLE to be defined in project options or
+                   enabled OverbyteIcsDefs.inc)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -397,8 +402,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 733;
-    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.33 ';
+    THttpServerVersion = 734;
+    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.34 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
 
@@ -1000,6 +1005,10 @@ type
         FSizeCompressMin          : Integer;  { V7.20 }
         FSizeCompressMax          : Integer;  { V7.20 }
         FPersistentHeader         : String;   { V7.29 }
+{$IFDEF BUILTIN_THROTTLE}
+        FBandwidthLimit           : LongWord;   { angus V7.34 Bytes per second, null = disabled }
+        FBandwidthSampling        : LongWord;   { angus V7.34 Msec sampling interval }
+{$ENDIF}
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
         FAuthTypes                : TAuthenticationTypes;
         FAuthRealm                : String;
@@ -1136,6 +1145,14 @@ type
         {Header items to always included in any response header} { V7.29 }
         property PersistentHeader:string         read  FPersistentHeader
                                                  write FPersistentHeader;
+{$IFDEF BUILTIN_THROTTLE}
+        { BandwidthLimit slows down speeds, bytes per second, null = disabled }
+        property BandwidthLimit : LongWord       read  FBandwidthLimit
+                                                 write FBandwidthLimit;     { angus V7.34 }
+       { BandwidthSampling interval in msec }
+        property BandwidthSampling : LongWord    read  FBandwidthSampling
+                                                 write FBandwidthSampling;  { angus V7.34 }
+{$ENDIF}
         { OnServerStrated is triggered when server has started listening }
         property OnServerStarted    : TNotifyEvent
                                                  read  FOnServerStarted
@@ -1630,6 +1647,10 @@ begin
     FHeartBeat.Enabled    := TRUE;
     SizeCompressMin       := CompressMinSize;  { V7.20 only compress responses within a size range }
     SizeCompressMax       := CompressMaxSize;
+{$IFDEF BUILTIN_THROTTLE}
+    FBandwidthLimit       := 0;       { angus V7.34 no bandwidth limit, yet, bytes per second }
+    FBandwidthSampling    := 1000;    { angus V7.34 Msec sampling interval, less is not possible }
+{$ENDIF}
 end;
 
 
@@ -1704,6 +1725,10 @@ begin
         'Content-type: text/plain' + #13#10 +
         'Content-length: ' + _IntToStr(Length(BusyText)) + #13#10#13#10 +
         BusyText;
+{$IFDEF BUILTIN_THROTTLE}
+    FWSocketServer.BandwidthLimit     := FBandwidthLimit;     { angus V7.34 slow down control connection }
+    FWSocketServer.BandwidthSampling  := FBandwidthSampling;  { angus V7.34 }
+{$ENDIF}
 {$IFNDEF NO_DIGEST_AUTH}
     FAuthDigestServerSecret           := CreateServerSecret;
 {$ENDIF}

@@ -16,7 +16,7 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      7.20
+Version:      7.21
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -96,7 +96,8 @@ Nov 05, 2008 V7.17 A. Garrels made the POST demo UTF-8 aware.
 Jan 03, 2009 V7.18 A. Garrels added some lines to force client browser's login
                    dialog when the nonce is stale with digest authentication.
 Oct 03, 2009 V7.19 F. Piette added file upload demo (REST & HTML Form)
-Jun 18, 2010 V7.20 Arno fixed a bug in CreateVirtualDocument_ViewFormUpload.                   
+Jun 18, 2010 V7.20 Arno fixed a bug in CreateVirtualDocument_ViewFormUpload.
+Feb 4,  2011 V7.21 Angus added bandwidth throttling using TCustomThrottledWSocket
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -132,13 +133,13 @@ uses
   OverbyteIcsHttpSrv, OverbyteIcsUtils, OverbyteIcsFormDataDecoder;
 
 const
-  WebServVersion     = 720;
-  CopyRight : String = 'WebServ (c) 1999-2010 F. Piette V7.20 ';
+  WebServVersion     = 721;
+  CopyRight : String = 'WebServ (c) 1999-2011 F. Piette V7.21 ';
   NO_CACHE           = 'Pragma: no-cache' + #13#10 + 'Expires: -1' + #13#10;
   WM_CLIENT_COUNT    = WM_USER + 1;
   FILE_UPLOAD_URL    = '/cgi-bin/FileUpload/';
   UPLOAD_DIR         = 'upload\';
-  MAX_UPLOAD_SIZE    = 1024 * 1024; // Accept max 1MB file
+  MAX_UPLOAD_SIZE    = 1024 * 1024 * 60; // Accept max 60MB file
 
 
 type
@@ -187,6 +188,8 @@ type
     Label7: TLabel;
     Label8: TLabel;
     MaxRequestsKeepAliveEdit: TEdit;
+    Label9: TLabel;
+    BandwidthLimitEdit: TEdit;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -315,6 +318,7 @@ const
     KeyRedirUrl        = 'RedirURL';
     KeyMaxRequests     = 'MaxRequestsKeepAlive';
     KeyKeepAliveSec    = 'KeepAliveTimeSec';
+    KeyBandwidthLimit  = 'BandwidthLimit';
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -392,6 +396,8 @@ begin
                                      KeyKeepAliveSec, '10');
         MaxRequestsKeepAliveEdit.Text := IniFile.ReadString(SectionData,
                                          KeyMaxRequests, '100');
+        BandwidthLimitEdit.Text := IniFile.ReadString(SectionData,
+                                         KeyBandwidthLimit, '1000000');
         DirListCheckBox.Checked :=
                 Boolean(IniFile.ReadInteger(SectionData, KeyDirList, 1));
         OutsideRootCheckBox.Checked :=
@@ -469,7 +475,9 @@ begin
                                         StrToIntDef(KeepAliveTimeSecEdit.Text, 10));
     IniFile.WriteInteger(SectionData,   KeyMaxRequests,
                                         StrToIntDef(MaxRequestsKeepAliveEdit.Text, 100));
-    
+    IniFile.WriteInteger(SectionData,   KeyBandwidthLimit,
+                                        StrToIntDef(BandwidthLimitEdit.Text, 1000000));
+
     IniFile.UpdateFile;
     IniFile.Free;
     CloseLogFile;
@@ -552,6 +560,9 @@ begin
     HttpServer1.Port                 := Trim(PortEdit.Text);
     HttpServer1.KeepAliveTimeSec     := StrToIntDef(KeepAliveTimeSecEdit.Text, 10);
     HttpServer1.MaxRequestsKeepAlive := StrToIntDef(MaxRequestsKeepAliveEdit.Text, 100);
+{$IFDEF BUILTIN_THROTTLE}
+    HttpServer1.BandwidthLimit       :=  StrToIntDef(BandwidthLimitEdit.Text, 1000000);
+{$ENDIF}
     HttpServer1.ClientClass          := TMyHttpConnection;
     try
         HttpServer1.Start;
@@ -606,7 +617,6 @@ begin
     StartButton.Enabled               := FALSE;
     StopButton.Enabled                := TRUE;
     Display('Server is waiting for connections on port ' + HttpServer1.Port);
-
     DemoUrl := 'http://' + LowerCase(LocalHostName);
     if (HttpServer1.Port <> '80') and (HttpServer1.Port <> 'http') then
         DemoUrl := DemoUrl + ':' + HttpServer1.Port;

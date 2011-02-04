@@ -24,7 +24,6 @@ object WebServForm: TWebServForm
     Height = 125
     Align = alTop
     TabOrder = 0
-    ExplicitWidth = 515
     object Label1: TLabel
       Left = 40
       Top = 8
@@ -87,6 +86,13 @@ object WebServForm: TWebServForm
       Width = 113
       Height = 13
       Caption = 'MaxRequestsKeepAlive'
+    end
+    object Label9: TLabel
+      Left = 9
+      Top = 101
+      Width = 153
+      Height = 13
+      Caption = 'Maximum Bandwidth (bytes/sec)'
     end
     object DocDirEdit: TEdit
       Left = 80
@@ -218,6 +224,17 @@ object WebServForm: TWebServForm
       ShowHint = True
       TabOrder = 13
       Text = 'MaxRequestsKeepAliveEdit'
+    end
+    object BandwidthLimitEdit: TEdit
+      Left = 168
+      Top = 97
+      Width = 71
+      Height = 21
+      Hint = 'Bytes Per Second'
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 14
+      Text = 'BandwidthLimitEdit'
     end
   end
   object DisplayMemo: TMemo

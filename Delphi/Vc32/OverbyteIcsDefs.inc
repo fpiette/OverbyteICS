@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  Version defines for ICS (Internet Component Suite)
 Creation:     2003
-Version:      1.12
+Version:      1.13
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -50,7 +50,9 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
                    If the compiler version is not detected define latest
                    supported compiler version.
 Sep 24, 2010 V1.11 Arno removed BCB7/C++BuilderX.
-Oct 23, 2010 V1.12 PasDoc compatible. 
+Oct 23, 2010 V1.12 PasDoc compatible.
+Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default 
+
 
   SYMBOL           Compiler version
   ===============  ======================================
@@ -154,8 +156,8 @@ Oct 23, 2010 V1.12 PasDoc compatible.
 
 { Next symbols include experimental features. Experimental features          }
 { may change or being removed entirely in later versions!                    }
-{.$DEFINE BUILTIN_TIMEOUT}
-{.$DEFINE BUILTIN_THROTTLE}
+{$DEFINE BUILTIN_TIMEOUT}
+{$DEFINE BUILTIN_THROTTLE}
 
 
 { Do not change anything below this line !                                   }

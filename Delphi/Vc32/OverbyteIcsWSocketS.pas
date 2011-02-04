@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      7.01
+Version:      7.02
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -86,6 +86,13 @@ Nov 6,  2008 V7.00 Angus added CliId property used to ensure correct client free
 Aug 8,  2010 V7.01 FPiette enhanced TriggerSessionAvailable so catch exception
                    in client class constructor and ClientCreate, and close the
                    remote socket in that case.
+Feb 4,  2011 V7.02 Angus added bandwidth throttling using TCustomThrottledWSocket.
+                   Client sockets inherit server settings for BandwidthLimit and
+                   BandwidthSampling, but these can be changed ideally in
+                   OnClientCreate event, but also in OnClientConnect but note a
+                   timer may have been started by then so better to default to
+                   BandwidthLimit=0 and set it, than to disable it.
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -149,8 +156,8 @@ uses
     OverbyteIcsWSocket, OverbyteIcsWinsock;
 
 const
-    WSocketServerVersion     = 700;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2010 F. Piette V7.00 ';
+    WSocketServerVersion     = 702;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2011 F. Piette V7.02 ';
     DefaultBanner            = 'Welcome to OverByte ICS TcpSrv';
 
 type
@@ -482,6 +489,10 @@ begin
 {$IFDEF CLR}
         FClientList.Add(Client);
         Client.HandleGc := GcHandle.Alloc(Client);
+{$ENDIF}
+{$IFDEF BUILTIN_THROTTLE}
+        Client.BandwidthLimit    := Self.BandwidthLimit;     { angus V7.02 may be changed in event for different limit }
+        Client.BandwidthSampling := Self.BandwidthSampling;  { angus V7.02 }
 {$ENDIF}
         TriggerClientCreate(Client);
     except                                               { FPiette V7.01 }

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      7.15
+Version:      7.16
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -395,6 +395,7 @@ Sep 05, 2010 V7.13 Arno renamed conditional defines EXPERIMENTAL_THROTTLE and
 Oct 12, 2010 V7.14 Arno published OnBgException from underlaying server socket.
 Nov 08, 2010 V7.15 Arno improved final exception handling, more details
              in OverbyteIcsWndControl.pas (V1.14 comments).
+Feb 7,  2010 V7.16 Angus ensure control channel is correctly BandwidthLimited
 
 Angus pending -
 CRC on the fly
@@ -484,8 +485,8 @@ uses
 
 
 const
-    FtpServerVersion         = 715;
-    CopyRight : String       = ' TFtpServer (c) 1998-2010 F. Piette V7.15 ';
+    FtpServerVersion         = 716;
+    CopyRight : String       = ' TFtpServer (c) 1998-2011 F. Piette V7.16 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
     DefaultRcvSize           = 16384;    { V7.00 used for both xmit and recv, was 2048, too small }
 
@@ -2371,6 +2372,8 @@ begin
     FSocketServer.BannerTooBusy     := msgTooMuchClients;
     FSocketServer.OnChangeState     := ServSocketStateChange;
     FSocketServer.ComponentOptions  := [wsoNoReceiveLoop];
+    FSocketServer.BandwidthLimit    := fBandwidthLimit;     { angus V7.16 in client connect }
+    FSocketServer.BandwidthSampling := fBandwidthSampling;  { angus V7.16 }
     FSocketServer.Listen;
     FEventTimer.Enabled := true;                  { angus V1.54 }
 {$IFNDEF NO_DEBUG_LOG}

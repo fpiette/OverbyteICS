@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.55
+Version:      7.56
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2010 by François PIETTE
+Legal issues: Copyright (C) 1996-2011 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -792,7 +792,17 @@ Dec 06, 2010 V7.53 Arno added thread-safe TSslContext.FreeNotification and
 Dec 07, 2010 V7.54 Arno - TSslBaseComponent, thread-safe removal of IcsLogger's
                    free notification.
 Feb 04, 2011 V7.55 Angus - allow BandwidthLimit to be changed during connection
-
+Feb 09, 2011 V7.56 Arno added HTTP V1.1 transparent proxy support including
+                   Basic and NTLM authentication implemented as
+                   TCustomHttpTunnelWSocket. This feature is still in beta
+                   state, mainly because I only tested against WinGate proxy
+                   server. My goal was to make it as fast as possible, there
+                   are no or just very few protected methods available to
+                   override so far. Best performance is achieved with one of the
+                   authentication types "htatNone", "htatBasic" or "htatNtlm".
+                   With "htatDetect" the last successful authentication type is
+                   cached until the proxy server name changes or the TWSocket
+                   object is freed.
 }
 
 {
@@ -897,13 +907,14 @@ uses
   OverbyteIcsThreadTimer,
 {$IFEND}
   OverbyteIcsUtils,
+  OverbyteIcsMimeUtils,  OverbyteIcsNtlmMsgs,
   OverbyteIcsTypes,      OverbyteIcsLibrary,
   OverbyteIcsWndControl, OverbyteIcsWSockBuf,
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 755;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.55 ';
+  WSocketVersion            = 756;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.56 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1360,13 +1371,105 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
                                                     write SetCounterClass;
   end;
 
+  THttpTunnelAuthType = (htatDetect, htatNone, htatBasic, htatNtlm);
+  THttpTunnelServerAuthTypes = set of (htsatBasic, htsatNtlm, htsatDigest);
+  THttpTunnelState = (htsData, htsConnecting, htsConnected,
+                     htsWaitResp1, htsWaitResp2);
+  THttpTunnelErrorEvent = procedure(Sender               : TObject;
+                                   ErrCode               : Word;
+                                   TunnelServerAuthTypes : THttpTunnelServerAuthTypes;
+                                   const Msg             : String) of object;
+  THttpTunnelChunkState  = (htcsGetSize,     htcsGetExt, htcsGetData,
+                            htcsGetBoundary, htcsDone);
+  TCustomHttpTunnelWSocket = class(TCustomWSocket)
+  private
+      FHttpTunnelAuthChallenge   : AnsiString;
+      FHttpTunnelAuthType        : THttpTunnelAuthType;
+      FHttpTunnelBuf             : TBytes;
+      FHttpTunnelBufSize         : Integer;
+      FHttpTunnelChunked         : Boolean;
+      FHttpTunnelChunkRcvd       : Integer;
+      FHttpTunnelChunkSize       : Integer;
+      FHttpTunnelChunkState      : THttpTunnelChunkState;
+      FHttpTunnelContentLength   : Integer;
+      FHttpTunnelCurAuthType     : THttpTunnelAuthType;
+      FHttpTunnelLastResponse    : AnsiString; // Also hijacked for internal error messages
+      FHttpTunnelPassword        : String;
+      FHttpTunnelPort            : AnsiString;
+      FHttpTunnelPortAssigned    : Boolean;
+      FHttpTunnelRcvdCnt         : Integer;
+      FHttpTunnelRcvdIdx         : Integer;
+      FHttpTunnelServer          : AnsiString;
+      FHttpTunnelServerAssigned  : Boolean;
+      FHttpTunnelServerAuthTypes : THttpTunnelServerAuthTypes;
+      FHttpTunnelState           : THttpTunnelState;
+      FHttpTunnelStatusCode      : Word;
+      FHttpTunnelUsercode        : String;
+      FHttpTunnelWaitingBody     : Boolean;
+      FOnHttpTunnelConnected     : TSessionConnected;
+      FOnHttpTunnelError         : THttpTunnelErrorEvent;
+
+      function  GetHttpTunnelServer: String;
+      function  GetHttpTunnelPort: String;
+      procedure HttpTunnelClear;
+      function  HttpTunnelGetNtlmMessage3: String;
+      function  HttpTunnelProcessHdrLine(Data: PAnsiChar; Cnt: Integer): Boolean;
+      procedure HttpTunnelSendAuthBasic;
+      procedure HttpTunnelSendAuthNtlm_1;
+      procedure HttpTunnelSendAuthNtlm_3;
+      procedure HttpTunnelSendPlainConnect;
+      function  HttpTunnelTriggerResultOrContinue: Boolean;
+      procedure SetHttpTunnelBufferSize(BufSize: Integer);
+      procedure SetHttpTunnelServer(const Value: String);
+      procedure SetHttpTunnelPort(const Value: String);
+      procedure TriggerHttpTunnelConnected(ErrCode : Word);
+      procedure TriggerHttpTunnelError(ErrCode: Word);
+  protected
+      procedure AssignDefaultValue; override;
+      function  DoRecv(var Buffer : TWSocketData;
+                       BufferSize : Integer;
+                       Flags      : Integer) : Integer; override;
+      function  GetRcvdCount : LongInt; override;
+      function  TriggerDataAvailable(ErrCode : Word) : Boolean; override;
+      procedure TriggerSessionConnectedSpecial(ErrCode: Word); override;
+
+      property  HttpTunnelAuthType   : THttpTunnelAuthType
+                                                    read  FHttpTunnelAuthType
+                                                    write FHttpTunnelAuthType
+                                                    default htatDetect;
+      property  HttpTunnelBufferSize : Integer      read  FHttpTunnelBufSize
+                                                    write SetHttpTunnelBufferSize;
+      property  HttpTunnelPassword   : String       read  FHttpTunnelPassword
+                                                    write FHttpTunnelPassword;
+      property  HttpTunnelPort       : String       read  GetHttpTunnelPort
+                                                    write SetHttpTunnelPort;
+      property  HttpTunnelServer     : String       read  GetHttpTunnelServer
+                                                    write SetHttpTunnelServer;
+      property  HttpTunnelUsercode   : String       read  FHttpTunnelUsercode
+                                                    write FHttpTunnelUsercode;
+
+      property  HttpTunnelCurrentAuthType : THttpTunnelAuthType
+                                                    read FHttpTunnelCurAuthType;
+
+      property  OnHttpTunnelError  : THttpTunnelErrorEvent
+                                                    read  FOnHttpTunnelError
+                                                    write FOnHttpTunnelError;
+      property  OnHttpTunnelConnected : TSessionConnected
+                                                    read  FOnHttpTunnelConnected
+                                                    write FOnHttpTunnelConnected;
+  public
+      constructor Create(AOwner: TComponent); override;
+      procedure Connect; override;
+      procedure Listen; override;
+  end;
+
   TSocksState          = (socksData, socksNegociateMethods, socksAuthenticate, socksConnect);
   TSocksAuthentication = (socksNoAuthentication, socksAuthenticateUsercode);
   TSocksAuthState      = (socksAuthStart, socksAuthSuccess, socksAuthFailure, socksAuthNotRequired);
   TSocksAuthStateEvent = procedure(Sender : TObject; AuthState : TSocksAuthState) of object;
   TSocksErrorEvent     = procedure(Sender : TObject; Error : Integer; Msg : String) of Object;
 
-  TCustomSocksWSocket = class(TCustomWSocket)
+  TCustomSocksWSocket = class(TCustomHttpTunnelWSocket)
   protected
       FSocksState          : TSocksState;
       FSocksServer         : String;
@@ -2380,6 +2483,8 @@ type
                                             write FOnLineLimitExceeded;
   end;
 
+
+
   { DEPRECATED: DO NOT USE Synchronize, WaitUntilReady, ReadLine procedure }
   { for a new application.                                                 }
   TCustomSyncWSocket = class(TCustomLineWSocket)
@@ -2515,6 +2620,8 @@ type
     property SocketSndBufSize;     {AG 03/10/07}
     property OnDebugDisplay;
     property Counter;
+    property HttpTunnelCurrentAuthType;
+    property HttpTunnelBufferSize;
   published
     property Addr;
     property Port;
@@ -2544,6 +2651,15 @@ type
     property ListenBacklog;
     property ReqVerLow;
     property ReqVerHigh;
+
+    property HttpTunnelAuthType;
+    property HttpTunnelPassword;
+    property HttpTunnelPort;
+    property HttpTunnelServer;
+    property HttpTunnelUsercode;
+    property OnHttpTunnelError;
+    property OnHttpTunnelConnected;
+
     property OnDataAvailable;
     property OnDataSent;
     property OnSendData;
@@ -3014,6 +3130,8 @@ const
     socksAuthenticationFailed = 20015;
     socksRejectedOrFailed     = 20016;
     socksHostResolutionFailed = 20017;
+
+    ICS_HTTP_TUNNEL_INVALID_STATUS = 21001;
 
 {$IFDEF DELPHI1}
     IP_DEFAULT_MULTICAST_TTL  = 1;
@@ -8620,12 +8738,14 @@ begin
     end;
 
     FSocksServer := _Trim(sServer);
+    FSocksServerAssigned := Length(FSocksServer) > 0;
 
-    if Length(FSocksServer) = 0 then begin
+    if FHttpTunnelServerAssigned and FSocksServerAssigned then
+    begin
+        FSocksServer         := '';
         FSocksServerAssigned := FALSE;
-        Exit;
+        raise Exception.Create('Can''t use Socks when HTTP proxy is used as well');
     end;
-    FSocksServerAssigned := TRUE;
 end;
 
 
@@ -9853,7 +9973,8 @@ var
     Found      : Boolean;
 begin
 {  if (not FLineMode) or (Length(FLineEnd) = 0) then begin }
-    if (not FLineMode) or (Length(FLineEnd) = 0) or (FSocksState <> socksData)
+    if (not FLineMode) or (Length(FLineEnd) = 0) or
+       (FSocksState <> socksData) or (FHttpTunnelState <> htsData)
     {**ALON** added check so, if data is received while still handshaking }
     { with the socks server, we ask the TCustomSocksWSocket to handle it  }
     then begin
@@ -9970,7 +10091,8 @@ var
     Found      : Boolean;
 begin
 {  if (not FLineMode) or (Length(FLineEnd) = 0) then begin }
-    if (not FLineMode) or (Length(FLineEnd) = 0) or (FSocksState <> socksData)
+    if (not FLineMode) or (Length(FLineEnd) = 0) or
+       (FSocksState <> socksData) or (FHttpTunnelState <> htsData)
     {**ALON** added check so, if data is received while still handshaking }
     { with the socks server, we ask the TCustomSocksWSocket to handle it  }
     then begin
@@ -13999,6 +14121,7 @@ var
     SslStOk : Boolean;
 begin
     if (not FSslEnable) or (FSocksState <> socksData) or
+       (FHttpTunnelState <> htsData) or
        (not Assigned(FSsl)) then begin
         inherited Do_FD_CLOSE(msg);
         Exit;
@@ -14177,7 +14300,8 @@ var
     Res        : Integer;
     PBuf       : TWSocketData;
 begin
-    if (not FSslEnable) or (FSocksState <> socksData) then begin
+    if (not FSslEnable) or (FSocksState <> socksData) or
+       (FHttpTunnelState <> htsData) then begin
         inherited Do_FD_READ(msg);
         Exit;
     end;
@@ -14338,7 +14462,8 @@ var
     NumSent    : Integer;
     Err        : Longword;
 begin
-    if (not FSslEnable) or (FSocksState <> socksData) then begin
+    if (not FSslEnable) or (FSocksState <> socksData) or
+       (FHttpTunnelState <> htsData) then begin
         inherited Do_FD_WRITE(msg);
         Exit;
     end;
@@ -14459,7 +14584,8 @@ function TCustomSslWSocket.DoRecv(
 var
     Numread : Integer;
 begin
-    if (not FSslEnable) or (FSocksState <> socksData) then begin
+    if (not FSslEnable) or (FSocksState <> socksData) or
+       (FHttpTunnelState <> htsData) then begin
         Result := inherited DoRecv(Buffer, BufferSize, Flags);
         Exit;
     end;
@@ -14580,7 +14706,8 @@ begin
         Exit;
     end;
 
-    if (not FSslEnable) or (FSocksState <> socksData) then 
+    if (not FSslEnable) or (FSocksState <> socksData) or
+       (FHttpTunnelState <> htsData) then
         Result := inherited GetRcvdCount
     else
         Result := my_BIO_ctrl_pending(FSslbio);
@@ -15964,7 +16091,8 @@ var
     Count     : Integer;
     Data      : TWSocketData;
 begin
-    if (not FSslEnable) or (FSocksState <> socksData) then begin
+    if (not FSslEnable) or (FSocksState <> socksData) or
+       (FHttpTunnelState <> htsData) then begin
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
             DebugLog(loSslInfo, _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
@@ -16438,7 +16566,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomSslWSocket.PutDataInSendBuffer(Data : TWSocketData; Len : Integer);
 begin
-    if (not FSslEnable) or (FSocksState <> socksData) then begin
+    if (not FSslEnable) or (FSocksState <> socksData) or
+       (FHttpTunnelState <> htsData) then begin
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then begin { V5.21 }
             Inc(TraceCount);
@@ -16500,6 +16629,626 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$ENDIF} // USE_SSL
 
+{ TCustomHttpTunnelWSocket }
+
+const
+  sHttpProxyConnect         = 'CONNECT';
+  sHttpProxyKeepAlive       = 'Proxy-Connection: Keep-Alive';
+  sHttpProxyAuthorization   = 'Proxy-Authorization: ';
+  sCrlLf                    = #13#10;
+  sCrlLfCrlLf               = sCrlLf + sCrlLf;
+  sHttpProto                = 'HTTP/1.1';
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.AssignDefaultValue;
+begin
+    inherited AssignDefaultValue;
+    FHttpTunnelState         := htsData;
+    FHttpTunnelRcvdCnt       := 0;
+    FHttpTunnelRcvdIdx       := 0;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.Connect;
+begin
+    if not FHttpTunnelServerAssigned then
+        inherited Connect
+
+    else if (_LowerCase(FProtoStr) <> 'tcp') and (_Trim(FProtoStr) <> '6') then
+        RaiseException('TCP is the only protocol supported by HTTP proxies')
+    else begin
+        try
+            if not FPortResolved then begin
+                { The next line will trigger an exception in case of failure }
+                sin.sin_port  := WSocket_Synchronized_htons(
+                    WSocket_Synchronized_ResolvePort(FHttpTunnelPort,
+                                                     AnsiString(FProtoStr)));
+                FPortResolved := TRUE;
+            end;
+
+            if not FAddrResolved then begin
+                { The next line will trigger an exception in case of failure }
+                sin.sin_addr.s_addr := WSocket_Synchronized_ResolveHost(
+                                                       FHttpTunnelServer).s_addr;
+                FAddrResolved       := TRUE;
+            end;
+            { The next line will trigger an exception in case of failure }
+            FPortNum := WSocket_Synchronized_ResolvePort(AnsiString(FPortStr),
+                                                         AnsiString(FProtoStr));
+        except
+            on E: Exception do begin
+                RaiseException('Connect: ' + E.Message);
+                Exit;
+            end;
+        end;
+        FHttpTunnelRcvdCnt         := 0;
+        FHttpTunnelRcvdIdx         := 0;
+        FHttpTunnelServerAuthTypes := [];
+        FHttpTunnelStatusCode      := ICS_HTTP_TUNNEL_INVALID_STATUS;
+        if Length(FHttpTunnelBuf) <> FHttpTunnelBufSize then
+            SetLength(FHttpTunnelBuf, FHttpTunnelBufSize);
+        FHttpTunnelState := htsConnecting;
+        inherited Connect;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TCustomHttpTunnelWSocket.Create(AOwner: TComponent);
+begin
+    inherited Create(AOwner);
+    FHttpTunnelBufSize  := 1024;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomHttpTunnelWSocket.GetRcvdCount : LongInt;
+begin
+    if FHttpTunnelRcvdCnt <= 0 then
+        Result := inherited GetRcvdCount
+    else
+        Result := FHttpTunnelRcvdCnt;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomHttpTunnelWSocket.DoRecv(var Buffer: TWSocketData; BufferSize,
+  Flags: Integer): Integer;
+begin
+    if (FHttpTunnelRcvdCnt > 0) and (FHttpTunnelState = htsData) then
+    begin
+        { We still have previously received data in our internal buffer }
+        if FHttpTunnelRcvdCnt <= BufferSize then begin
+            { User buffer is greater than received data, copy all and clear }
+            Move(FHttpTunnelBuf[FHttpTunnelRcvdIdx], Buffer^, FHttpTunnelRcvdCnt);
+            Result            := FHttpTunnelRcvdCnt;
+            FHttpTunnelRcvdCnt := 0;
+            FHttpTunnelRcvdIdx := 0;
+        end
+        else begin
+            { User buffer is smaller, copy as much as possible }
+            Move(FHttpTunnelBuf[FHttpTunnelRcvdIdx], Buffer^, BufferSize);
+            Result            := BufferSize;
+            FHttpTunnelRcvdIdx := FHttpTunnelRcvdIdx + BufferSize;
+            FHttpTunnelRcvdCnt := FHttpTunnelRcvdCnt - BufferSize;
+        end;
+    end
+    else
+        Result := inherited DoRecv(Buffer, BufferSize, Flags)
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomHttpTunnelWSocket.GetHttpTunnelServer: String;
+begin
+    Result := String(FHttpTunnelServer);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomHttpTunnelWSocket.GetHttpTunnelPort: String;
+begin
+    Result := String(FHttpTunnelPort);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomHttpTunnelWSocket.HttpTunnelGetNtlmMessage3: String;
+var
+    Hostname : String;
+    NtLmInfo : TNTLM_Msg2_Info;
+begin
+    { get local hostname }
+    try
+        Hostname := String(LocalHostName);
+    except
+        Hostname := '';
+    end;
+    NtLmInfo := NtlmGetMessage2(String(FHttpTunnelAuthChallenge));
+    { hostname is the local hostname }
+    Result := NtlmGetMessage3('',
+                              Hostname,
+                              HttpTunnelUsercode,
+                              FHttpTunnelPassword,
+                              NtLmInfo.Challenge);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.HttpTunnelClear;
+begin
+    FHttpTunnelStatusCode    := ICS_HTTP_TUNNEL_INVALID_STATUS;
+    FHttpTunnelContentLength := 0;
+    FHttpTunnelRcvdCnt       := 0;
+    FHttpTunnelRcvdIdx       := 0;
+    FHttpTunnelWaitingBody   := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.HttpTunnelSendAuthBasic;
+var
+    LAuthHdr : String;
+begin
+    HttpTunnelClear;
+    FHttpTunnelCurAuthType := htatBasic;
+    FHttpTunnelState       := htsWaitResp1;
+    LAuthHdr := sCrlLf + sHttpProxyAuthorization + 'Basic ' +
+                Base64Encode(FHttpTunnelUsercode + ':' +
+                FHttpTunnelPassword);
+    SendStr(sHttpProxyConnect + ' ' + FAddrStr + ':' + _IntToStr(FPortNum) +
+            ' ' + sHttpProto + LAuthHdr + sCrlLfCrlLf);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.HttpTunnelSendAuthNtlm_1;
+var
+    LAuthHdr : String;
+begin
+    HttpTunnelClear;
+    FHttpTunnelCurAuthType := htatNtlm;
+    FHttpTunnelState       := htsWaitResp1;
+    LAuthHdr := sCrlLf + sHttpProxyAuthorization + 'NTLM ' +
+                NtlmGetMessage1('', '');
+    SendStr(sHttpProxyConnect + ' ' + FAddrStr + ':' + _IntToStr(FPortNum) +
+            ' ' + sHttpProto + LAuthHdr + sCrlLfCrlLf);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.HttpTunnelSendAuthNtlm_3;
+var
+    LAuthHdr : String;
+begin
+    HttpTunnelClear;
+    FHttpTunnelState := htsWaitResp2;
+    LAuthHdr := sCrlLf + sHttpProxyAuthorization + 'NTLM ' +
+                HttpTunnelGetNtlmMessage3;
+    SendStr(sHttpProxyConnect + ' ' + FAddrStr + ':' + _IntToStr(FPortNum) +
+            ' ' + sHttpProto + LAuthHdr + sCrlLfCrlLf);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.HttpTunnelSendPlainConnect;
+begin
+    HttpTunnelClear;
+    FHttpTunnelState := htsWaitResp1;
+    SendStr(sHttpProxyConnect + ' ' + FAddrStr + ':' + _IntToStr(FPortNum) +
+            ' ' + sHttpProto + sCrlLfCrlLf);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomHttpTunnelWSocket.HttpTunnelTriggerResultOrContinue: Boolean;
+begin
+    Result := TRUE;
+    if FHttpTunnelStatusCode = 200 then begin
+        FHttpTunnelState := htsData;
+        TriggerSessionConnected(0);
+    end
+    else if FHttpTunnelCurAuthType in [htatNone, htatBasic] then begin
+        TriggerHttpTunnelError(FHttpTunnelStatusCode);
+        Result := FALSE;
+    end
+    else if FHttpTunnelCurAuthType = htatNtlm then begin
+        { NTLM }
+        if (FHttpTunnelStatusCode = 407) and
+           (FHttpTunnelState = htsWaitResp1) then
+            HttpTunnelSendAuthNtlm_3
+        else begin
+            TriggerHttpTunnelError(FHttpTunnelStatusCode);
+            Result := FALSE;
+        end;
+    end
+    else if FHttpTunnelCurAuthType = htatDetect then begin
+        { Detect AuthType supported by the proxy }
+        if htsatBasic in FHttpTunnelServerAuthTypes then
+            HttpTunnelSendAuthBasic
+        else if htsatNtlm in FHttpTunnelServerAuthTypes then
+            HttpTunnelSendAuthNtlm_1
+        else begin
+            TriggerHttpTunnelError(FHttpTunnelStatusCode);
+            Result := FALSE;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomHttpTunnelWSocket.HttpTunnelProcessHdrLine(
+    Data  : PAnsiChar;
+    Cnt   : Integer): Boolean;
+var
+    I : Integer;
+    LStatusCode : Integer;
+{$IFNDEF NO_DEBUG_LOG}
+    LHdrLine : AnsiString;
+{$ENDIF}
+begin
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loWsockDump) then begin
+        if Cnt > 0 then begin
+            SetLength(LHdrLine, Cnt);
+            Move(Data^, Pointer(LHdrLine)^, Cnt);
+        end;
+        DebugLog(loWsockDump, String(LHdrLine));
+    end;
+{$ENDIF}
+
+    Result := TRUE;
+    if Cnt = 0 then begin
+        { Empty line, end of header }
+        FHttpTunnelWaitingBody := (FHttpTunnelContentLength > 0) or FHttpTunnelChunked;
+        if not FHttpTunnelWaitingBody then
+            Result := HttpTunnelTriggerResultOrContinue
+        else if FHttpTunnelChunked then begin
+            FHttpTunnelChunkSize  := 0;
+            FHttpTunnelChunkRcvd  := 0;
+            FHttpTunnelChunkState := htcsGetSize;
+        end;
+    end
+    else if FHttpTunnelStatusCode = ICS_HTTP_TUNNEL_INVALID_STATUS then
+    begin
+        { HTTP/1.x <status code> }
+        if (Cnt >= 12) and (_StrLIComp(Data, PAnsiChar('HTTP/1.'), 7) = 0) then begin
+            FHttpTunnelChunked := FALSE;
+            if Data[7] = '0' then
+                FHttpTunnelLastResponse := 'Proxy server doesn''t support HTTP v1.1'
+            else begin
+                SetLength(FHttpTunnelLastResponse, Cnt);
+                    Move(Data^, Pointer(FHttpTunnelLastResponse)^, Cnt);
+                LStatusCode := 0;
+                I           := 8;
+                while (I < Cnt) and (Data[I] = #$20) do Inc(I);
+                while (I < Cnt) and (Data[I] in ['0'..'9']) do begin
+                    LStatusCode := LStatusCode * 10 + Byte(Data[I]) - Byte('0');
+                    Inc(I);
+                end;
+                if LStatusCode > 0 then
+                    FHttpTunnelStatusCode := LStatusCode;
+            end;
+        end;
+        if FHttpTunnelStatusCode = ICS_HTTP_TUNNEL_INVALID_STATUS then begin
+            TriggerHttpTunnelError(FHttpTunnelStatusCode);
+            Result := FALSE;
+        end;
+    end
+    else if (Cnt > 18) and (_StrLIComp(Data, 'Transfer-Encoding:', 18) = 0) then begin
+        I := 18;
+        while (I < Cnt) and (Data[I] = #$20) do Inc(I);
+        Inc(Data, I);
+        FHttpTunnelChunked := (Cnt >= I + 7) and
+                              (_StrLIComp(Data, PAnsiChar('chunked'), 7) = 0);
+    end
+    else if (Cnt > 15) and (_StrLIComp(Data, 'Content-Length:', 15) = 0) then begin
+        I := 15;
+        while (I < Cnt) and (Data[I] = #$20) do Inc(I);
+        while (I < Cnt) and (Data[I] in ['0'..'9']) do begin
+            FHttpTunnelContentLength := FHttpTunnelContentLength * 10 +
+                                        Byte(Data[I]) - Byte('0');
+            Inc(I);
+        end;
+    end
+    else if (FHttpTunnelStatusCode = 407) then begin
+        { Auth required.
+          Get the NTLM challenge and collect FHttpTunnelServerAuthTypes. }
+        if (Cnt >= 24) and (_StrLIComp(Data,
+                            PAnsiChar('Proxy-Authenticate:'), 19) = 0) then begin
+            I := 19;
+            while (I < Cnt) and (Data[I] = #$20) do Inc(I);
+            Inc(Data, I);
+            if (Cnt >= I + 6) and (_StrLIComp(Data, PAnsiChar('Digest'), 6) = 0) then
+                Include(FHttpTunnelServerAuthTypes, htsatDigest)
+            else if (Cnt >= I + 5) and (_StrLIComp(Data, PAnsiChar('Basic'), 5) = 0) then
+                Include(FHttpTunnelServerAuthTypes, htsatBasic)
+            else if (Cnt >= I + 4) and (_StrLIComp(Data, PAnsiChar('NTLM'), 4) = 0) then begin
+                if (FHttpTunnelState = htsWaitResp1) and (Cnt > 100) then begin
+                    { NTLM challenge }
+                    Inc(I, 5);
+                    Inc(Data, 5);
+                    while (I < Cnt) and (Data^ = #$20) do begin
+                        Inc(I);
+                        Inc(Data);
+                    end;
+                    SetLength(FHttpTunnelAuthChallenge, Cnt - I);
+                    Move(Data^, Pointer(FHttpTunnelAuthChallenge)^, Cnt - I);
+                end
+                else
+                    Include(FHttpTunnelServerAuthTypes, htsatNtlm);
+            end;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.Listen;
+begin
+    if not FHttpTunnelServerAssigned then
+        inherited Listen
+    else
+        RaiseException('Listening is not supported thru HTTP proxy servers');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.SetHttpTunnelBufferSize(BufSize: Integer);
+begin
+    FHttpTunnelBufSize := BufSize;
+    if FHttpTunnelBufSize < 0 then
+        FHttpTunnelBufSize := 0;
+    SetLength(FHttpTunnelBuf, FHttpTunnelBufSize);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.SetHttpTunnelPort(const Value: String);
+begin
+    if State <> wsClosed then
+        RaiseException('Can''t change HTTP proxy port if not closed')
+    else begin
+        FHttpTunnelPort := AnsiString(_Trim(Value));
+        FHttpTunnelPortAssigned := FHttpTunnelPort <> '';
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.SetHttpTunnelServer(const Value: String);
+var
+    NewValue : AnsiString;
+begin
+    if State <> wsClosed then
+        RaiseException('Can''t change HTTP proxy if not closed')
+    else begin
+        NewValue := AnsiString(_Trim(Value));
+        if NewValue <> FHttpTunnelServer then begin
+            FHttpTunnelCurAuthType := htatDetect;
+            FHttpTunnelServer      := NewValue;
+        end;
+        FHttpTunnelServerAssigned := FHttpTunnelServer <> '';
+        if FHttpTunnelServerAssigned and
+           TCustomSocksWSocket(Self).FSocksServerAssigned then begin
+            FHttpTunnelServer   := '';
+            FHttpTunnelServerAssigned := FALSE;
+            raise Exception.Create('Can''t use HTTP proxy when Socks is used as well');
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomHttpTunnelWSocket.TriggerDataAvailable(ErrCode: Word): Boolean;
+var
+    I       : Integer;
+    LRcvd   : Integer;
+    LBufIdx : Integer;
+begin
+    if FHttpTunnelState = htsData then
+        Result := inherited TriggerDataAvailable(ErrCode)
+    else if FHttpTunnelState in [htsWaitResp1, htsWaitResp2] then begin
+        if ErrCode <> 0 then begin
+            FHttpTunnelLastResponse := 'THttpProxyWSocket - DataAvailable error';
+            TriggerHttpTunnelError(ErrCode);
+            Result := FALSE;
+            Exit;
+        end;
+
+        Result := TRUE;
+        
+        LRcvd := Receive(@FHttpTunnelBuf[FHttpTunnelRcvdCnt],
+                         FHttpTunnelBufSize - FHttpTunnelRcvdCnt);
+        if LRcvd <= 0 then
+            Exit;
+
+        Inc(FHttpTunnelRcvdCnt, LRcvd);
+        I := 0;
+        LBufIdx := 0;
+        while I < FHttpTunnelRcvdCnt do begin
+            { Parse header lines, omit CRLF }
+            if FHttpTunnelWaitingBody then
+                Break;
+            if (FHttpTunnelBuf[I] = $0D) and ((I + 1 < FHttpTunnelRcvdCnt) and
+              (FHttpTunnelBuf[I + 1] = $0A)) then begin
+                if not HttpTunnelProcessHdrLine(@FHttpTunnelBuf[LBufIdx], I - LBufIdx) then
+                    Exit;
+                LBufIdx := I + 2;
+                Inc(I);
+            end;
+            Inc(I);
+        end;
+
+        if not FHttpTunnelWaitingBody then begin
+            { Still in header }
+            if (LBufIdx > 0) then begin
+                Dec(FHttpTunnelRcvdCnt, LBufIdx);
+                if FHttpTunnelRcvdCnt > 0 then
+                    Move(FHttpTunnelBuf[LBufIdx], FHttpTunnelBuf[0],
+                         FHttpTunnelRcvdCnt);
+            end;
+        end
+        else begin { Skip body data }
+            if FHttpTunnelChunked then begin
+                { Skip body data with chunked transfer encoding }
+                while (LBufIdx < FHttpTunnelRcvdCnt) and
+                      (FHttpTunnelChunkState <> htcsDone) do begin
+                    if FHttpTunnelChunkState = htcsGetSize then begin
+                        while (LBufIdx < FHttpTunnelRcvdCnt) do begin
+                            if not IsXDigit(AnsiChar(FHttpTunnelBuf[LBufIdx])) then begin
+                                FHttpTunnelChunkState := htcsGetExt;
+                                break;
+                            end;
+                            FHttpTunnelChunkSize := FHttpTunnelChunkSize * 16 +
+                                     XDigit(AnsiChar(FHttpTunnelBuf[LBufIdx]));
+                            Inc(LBufIdx);
+                        end;
+                    end;
+
+                    if FHttpTunnelChunkState = htcsGetExt then begin
+                        while (LBufIdx < FHttpTunnelRcvdCnt) do begin
+                            if FHttpTunnelBuf[LBufIdx] = $0A then begin
+                                if FHttpTunnelChunkSize > 0 then
+                                    FHttpTunnelChunkState := htcsGetData
+                                else
+                                    FHttpTunnelChunkState := htcsGetBoundary;
+                                Inc(LBufIdx);
+                                Break;
+                            end;
+                            Inc(LBufIdx);
+                        end;
+                    end;
+
+                    if FHttpTunnelChunkState = htcsGetData then begin
+                        I := FHttpTunnelRcvdCnt - LBufIdx; // Remaining
+                        if FHttpTunnelChunkRcvd + I < FHttpTunnelChunkSize then begin
+                            Inc(LBufIdx, I);
+                            Inc(FHttpTunnelChunkRcvd, I);
+                        end
+                        else if FHttpTunnelChunkRcvd + I >= FHttpTunnelChunkSize then begin
+                            Inc(LBufIdx, FHttpTunnelChunkSize - FHttpTunnelChunkRcvd);
+                            FHttpTunnelChunkSize  := 0;
+                            FHttpTunnelChunkRcvd  := 0;
+                            FHttpTunnelChunkState := htcsGetSize;
+                        end;
+                    end;
+
+                    if FHttpTunnelChunkState = htcsGetBoundary then begin
+                        while (LBufIdx < FHttpTunnelRcvdCnt) do begin
+                            if FHttpTunnelBuf[LBufIdx] = $0A then begin
+                                Inc(LBufIdx);
+                                FHttpTunnelChunkState := htcsDone;
+                                Break;
+                            end;
+                            Inc(LBufIdx);
+                        end;
+                    end;
+
+                    if FHttpTunnelChunkState = htcsDone then begin
+                        HttpTunnelTriggerResultOrContinue;
+                        FHttpTunnelChunked := FALSE;
+                    end;
+                end;
+
+                if LBufIdx > 0 then begin
+                    Dec(FHttpTunnelRcvdCnt, LBufIdx);
+                    if FHttpTunnelRcvdCnt > 0 then
+                        Move(FHttpTunnelBuf[LBufIdx], FHttpTunnelBuf[0],
+                             FHttpTunnelRcvdCnt);
+                end;
+            end
+            else begin
+               { Skip body data with Content-Length header }
+                I := FHttpTunnelRcvdCnt - LBufIdx; // Remaining
+                if FHttpTunnelContentLength >= I then begin
+                    FHttpTunnelRcvdCnt := 0;
+                    Dec(FHttpTunnelContentLength, I);
+                end
+                else begin
+                    Inc(LBufIdx, FHttpTunnelContentLength);
+                    Dec(FHttpTunnelRcvdCnt, LBufIdx);
+                    FHttpTunnelContentLength := 0;
+                    if FHttpTunnelRcvdCnt > 0 then
+                        Move(FHttpTunnelBuf[LBufIdx], FHttpTunnelBuf[0],
+                             FHttpTunnelRcvdCnt);
+                end;
+                if FHttpTunnelContentLength = 0 then
+                    HttpTunnelTriggerResultOrContinue;
+            end;
+        end;
+        if FHttpTunnelRcvdCnt = FHttpTunnelBufSize then begin
+          { No CRLF found in entire buffer (default size 1024 bytes) }
+            FHttpTunnelLastResponse := 'Received header line too long. ' +
+                                       'Increase HttpTunnelBufferSize.';
+            TriggerHttpTunnelError(ICS_HTTP_TUNNEL_INVALID_STATUS);
+        end;
+    end
+    else begin
+        Result := FALSE; // Should never happen
+        FHttpTunnelLastResponse := 'THttpProxyWSocket - Fatal: Invalid state ' +
+                                  'in TriggerDataAvailable';
+        TriggerHttpTunnelError(FHttpTunnelStatusCode);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.TriggerHttpTunnelConnected(ErrCode: Word);
+begin
+    if Assigned(FOnHttpTunnelConnected) then
+        FOnHttpTunnelConnected(Self, ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.TriggerHttpTunnelError(ErrCode: Word);
+begin
+    if Assigned(FOnHttpTunnelError) then
+        FOnHttpTunnelError(Self, ErrCode, FHttpTunnelServerAuthTypes,
+                           String(FHttpTunnelLastResponse));
+    FHttpTunnelState := htsData;
+    if FHttpTunnelCurAuthType <> FHttpTunnelAuthType then
+        FHttpTunnelCurAuthType := FHttpTunnelAuthType;
+    TriggerSessionConnected(ErrCode);
+    InternalClose(TRUE, ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.TriggerSessionConnectedSpecial(
+  ErrCode: Word);
+begin
+    if FHttpTunnelState = htsConnecting then begin
+        if ErrCode = 0 then
+            FHttpTunnelState := htsConnected;
+        TriggerHttpTunnelConnected(ErrCode);
+        if ErrCode <> 0 then
+            inherited TriggerSessionConnectedSpecial(ErrCode)
+        else begin
+            if (FHttpTunnelUsercode <> '') then begin
+                if (FHttpTunnelAuthType <> htatDetect) and
+                   (FHttpTunnelCurAuthType <> FHttpTunnelAuthType) then
+                    FHttpTunnelCurAuthType := FHttpTunnelAuthType;
+            end
+            else begin
+                FHttpTunnelCurAuthType := htatNone;
+            end;
+            case FHttpTunnelCurAuthType of
+                htatDetect,
+                htatNone     : HttpTunnelSendPlainConnect;
+                htatBasic    : HttpTunnelSendAuthBasic;
+                htatNtlm     : HttpTunnelSendAuthNtlm_1;
+            end;
+        end;
+    end
+    else
+        inherited TriggerSessionConnectedSpecial(ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF DELPHI1}
 begin
     IPList := TStringList.Create;

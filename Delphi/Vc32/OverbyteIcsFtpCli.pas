@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.17
+Version:      V7.18
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1015,6 +1015,8 @@ Nov 11, 2010 V7.16 Arno re-enabled component notification for FDataSocket and
              FControlSocket that was disabled accidentally in V7.13 rev. #610 in
              method CreateSocket by creating the instances with a nil owner.
 Nov 17, 2010 V7.17 Arno published property ProxyPort.
+Feb 09, 2011 V7.18 Arno added HTTP v1.1 proxy-support and some conditional
+             defines to be able to build with smaller internal buffers.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1087,14 +1089,30 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 717;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.17 ';
-  FtpClientId : String = 'ICS FTP Client V7.17 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 718;
+  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.18 ';
+  FtpClientId : String = 'ICS FTP Client V7.18 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
-  FTP_SND_BUF_SIZE = 32768;  { angus V7.00 increased from 1460 }
-  FTP_RCV_BUF_SIZE = 32768;  { angus V7.00 increased from 4096 }
+
+{$IFDEF FTPCLI_BUFFER_OLD}
+  FTP_SND_BUF_SIZE = 1460;  { arno V7.18 }
+  FTP_RCV_BUF_SIZE = 4096;  { arno V7.18 }
+{$ELSE}
+  {$IFDEF FTPCLI_BUFFER_SMALL}
+    FTP_SND_BUF_SIZE = 8192;  { arno V7.18 }
+    FTP_RCV_BUF_SIZE = 8192;  { arno V7.18 }
+  {$ELSE}
+    {$IFDEF FTPCLI_BUFFER_MEDIUM}
+      FTP_SND_BUF_SIZE = 16384;  { arno V7.18 }
+      FTP_RCV_BUF_SIZE = 16384;  { arno V7.18 }
+    {$ELSE}
+      FTP_SND_BUF_SIZE = 32768;  { angus V7.00 increased from 1460 }
+      FTP_RCV_BUF_SIZE = 32768;  { angus V7.00 increased from 4096 }
+    {$ENDIF}
+  {$ENDIF}
+{$ENDIF}
 
 type
   { sslTypeAuthTls, sslTypeAuthSsl are known as explicit SSL }
@@ -1171,7 +1189,7 @@ type
                      ftpShareDenyWrite, ftpShareDenyRead,
                      ftpShareDenyNone);
   TFtpDisplayFileMode = (ftpLineByLine, ftpBinary);
-  TFtpConnectionType  = (ftpDirect, ftpProxy, ftpSocks4, ftpSocks4A, ftpSocks5);
+  TFtpConnectionType  = (ftpDirect, ftpProxy, ftpSocks4, ftpSocks4A, ftpSocks5, ftpHttpProxy);
   TFtpDisplay     = procedure(Sender    : TObject;
                               var Msg   : String) of object;
   TFtpProgress64  = procedure(Sender    : TObject;
@@ -1297,6 +1315,13 @@ type
     FSocksPort          : String;        { V7.00 }
     FSocksServer        : String;        { V7.00 }
     FSocksUserCode      : String;        { V7.00 }
+
+    FHttpTunnelAuthType : THttpTunnelAuthType;
+    FHttpTunnelPassword : String;        { V7.18 }
+    FHttpTunnelPort     : String;        { V7.18 }
+    FHttpTunnelServer   : String;        { V7.18 }
+    FHttpTunnelUserCode : String;        { V7.18 }
+
     FLanguage           : String;        { V7.01 language argment for LANG command }
     FLangSupport        : String;        { V7.01 list of languages server supports }
     FZStreamState       : TZStreamState; { V2.102 current Zlib stream state }
@@ -1591,6 +1616,19 @@ type
                                                          write FProxyServer;
     property ProxyPort            : String               read  FProxyPort
                                                          write FProxyPort;
+    property HttpTunnelAuthType   : THttpTunnelAuthType
+                                                         read  FHttpTunnelAuthType  { V7.18 }
+                                                         write FHttpTunnelAuthType
+                                                         default htatDetect;
+    property HttpTunnelPassword   : String               read  FHttpTunnelPassword  { V7.18 }
+                                                         write FHttpTunnelPassword;
+    property HttpTunnelPort       : String               read  FHttpTunnelPort      { V7.18 }
+                                                         write FHttpTunnelPort;
+    property HttpTunnelServer     : String               read  FHttpTunnelServer    { V7.18 }
+                                                         write FHttpTunnelServer;
+    property HttpTunnelUserCode   : String               read  FHttpTunnelUserCode  { V7.18 }
+                                                         write FHttpTunnelUserCode;
+
     property SocksPassword        : String               read  FSocksPassword
                                                          write FSocksPassword;      { V7.00 }
     property SocksPort            : String               read  FSocksPort
@@ -1744,6 +1782,11 @@ type
     property SocksPort;
     property SocksServer;
     property SocksUserCode;
+    property HttpTunnelAuthType;
+    property HttpTunnelPassword;
+    property HttpTunnelPort;
+    property HttpTunnelServer;
+    property HttpTunnelUserCode;
     property Account;
     property Language;
     property OnDisplay;
@@ -2715,6 +2758,15 @@ begin
         ftpSocks4:  FControlSocket.SocksLevel := '4';
         ftpSocks4A: FControlSocket.SocksLevel := '4A';
         ftpSocks5:  FControlSocket.SocksLevel := '5';
+        ftpHttpProxy : { V7.18 }
+            begin
+                FPassive := TRUE;
+                FControlSocket.HttpTunnelAuthType := HttpTunnelAuthType;
+                FControlSocket.HttpTunnelServer   := FHttpTunnelServer;
+                FControlSocket.HttpTunnelPort     := FHttpTunnelPort;
+                FControlSocket.HttpTunnelUsercode := FHttpTunnelUserCode;
+                FControlSocket.HttpTunnelPassword := FHttpTunnelPassword;
+            end;
     end;
     if FConnectionType in [ftpSocks4, ftpSocks4A, ftpSocks5] then begin
         FPassive := TRUE;
@@ -2726,7 +2778,7 @@ begin
     end;
     StateChange(ftpDnsLookup);
     case FConnectionType of
-        ftpDirect, ftpSocks4, ftpSocks4A, ftpSocks5:
+        ftpDirect, ftpSocks4, ftpSocks4A, ftpSocks5, ftpHttpProxy: { V7.18 }
               FControlSocket.DnsLookup(FHostName);
         ftpProxy:
               FControlSocket.DnsLookup(FProxyServer);
@@ -4891,6 +4943,13 @@ begin
         FDataSocket.SocksPort            := FSocksPort;
         FDataSocket.SocksUsercode        := FSocksUsercode;
         FDataSocket.SocksPassword        := FSocksPassword;
+    end
+    else if FConnectionType = ftpHttpProxy then begin { V7.18 }
+        FDataSocket.HttpTunnelAuthType := FControlSocket.HttpTunnelAuthType;
+        FDataSocket.HttpTunnelServer   := FHttpTunnelServer;
+        FDataSocket.HttpTunnelPort     := FHttpTunnelPort;
+        FDataSocket.HttpTunnelUsercode := FHttpTunnelUserCode;
+        FDataSocket.HttpTunnelPassword := FHttpTunnelPassword;
     end;
 end;
 
@@ -5194,6 +5253,13 @@ begin
         FDataSocket.SocksPort            := FSocksPort;
         FDataSocket.SocksUsercode        := FSocksUsercode;
         FDataSocket.SocksPassword        := FSocksPassword;
+    end
+    else if FConnectionType = ftpHttpProxy then begin { V7.18 }
+        FDataSocket.HttpTunnelAuthType := FControlSocket.HttpTunnelAuthType;
+        FDataSocket.HttpTunnelServer   := FHttpTunnelServer;
+        FDataSocket.HttpTunnelPort     := FHttpTunnelPort;
+        FDataSocket.HttpTunnelUsercode := FHttpTunnelUserCode;
+        FDataSocket.HttpTunnelPassword := FHttpTunnelPassword;
     end;
 end;
 
@@ -5614,7 +5680,10 @@ begin
     { Do not trigger the client SessionConnected from here. We must wait }
     { to have received the server banner.                                }
     if ErrCode <> 0 then begin
-        FLastResponse  := '500 Connect error - ' + GetWinsockErr(ErrCode) ;
+        if (ErrCode > ICS_HTTP_TUNNEL_BASEERR) and (FConnectionType = ftpHttpProxy) then { V7.18 }
+            FLastResponse  := '500 Connect error - ' + FControlSocket.HttpTunnelLastResponse
+        else
+            FLastResponse  := '500 Connect error - ' + GetWinsockErr(ErrCode) ;
         FStatusCode    := 500;
         FRequestResult := FStatusCode;  { Heedong Lim, 05/14/1999 }
         SetErrorMessage; { Heedong Lim, 05/14/1999 }

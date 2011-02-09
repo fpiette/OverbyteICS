@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.56
+Version:      7.57
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -803,6 +803,10 @@ Feb 09, 2011 V7.56 Arno added HTTP V1.1 transparent proxy support including
                    With "htatDetect" the last successful authentication type is
                    cached until the proxy server name changes or the TWSocket
                    object is freed.
+Feb 09, 2011 V7.57 Arno added public property HttpTunnelLastResponse to
+                   TCustomHttpTunnelWSocket. HTTP status codes are no longer
+                   triggered as is but added to a base of global const
+                   "ICS_HTTP_TUNNEL_BASEERR".
 }
 
 {
@@ -913,8 +917,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 756;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.56 ';
+  WSocketVersion            = 757;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.57 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1409,6 +1413,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
       FOnHttpTunnelConnected     : TSessionConnected;
       FOnHttpTunnelError         : THttpTunnelErrorEvent;
 
+      function  GetHttpTunnelLastResponse: String;
       function  GetHttpTunnelServer: String;
       function  GetHttpTunnelPort: String;
       procedure HttpTunnelClear;
@@ -1439,6 +1444,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
                                                     default htatDetect;
       property  HttpTunnelBufferSize : Integer      read  FHttpTunnelBufSize
                                                     write SetHttpTunnelBufferSize;
+      property  HttpTunnelLastResponse : String     read  GetHttpTunnelLastResponse;
       property  HttpTunnelPassword   : String       read  FHttpTunnelPassword
                                                     write FHttpTunnelPassword;
       property  HttpTunnelPort       : String       read  GetHttpTunnelPort
@@ -2622,6 +2628,7 @@ type
     property Counter;
     property HttpTunnelCurrentAuthType;
     property HttpTunnelBufferSize;
+    property HttpTunnelLastResponse;
   published
     property Addr;
     property Port;
@@ -3105,6 +3112,11 @@ var
     __DataSocket : TCustomWSocket;
 {$ENDIF}
 
+const
+    ICS_HTTP_TUNNEL_BASEERR       = 21000;
+    ICS_HTTP_TUNNEL_PROTERR       = ICS_HTTP_TUNNEL_BASEERR + 1;
+    // ICS_HTTP_TUNNEL_BASEERR + HTTP status code //
+
 implementation
 
 { R 'OverbyteIcsWSocket.TWSocket.bmp'}
@@ -3130,8 +3142,6 @@ const
     socksAuthenticationFailed = 20015;
     socksRejectedOrFailed     = 20016;
     socksHostResolutionFailed = 20017;
-
-    ICS_HTTP_TUNNEL_INVALID_STATUS = 21001;
 
 {$IFDEF DELPHI1}
     IP_DEFAULT_MULTICAST_TTL  = 1;
@@ -16685,7 +16695,8 @@ begin
         FHttpTunnelRcvdCnt         := 0;
         FHttpTunnelRcvdIdx         := 0;
         FHttpTunnelServerAuthTypes := [];
-        FHttpTunnelStatusCode      := ICS_HTTP_TUNNEL_INVALID_STATUS;
+        FHttpTunnelLastResponse    := '';
+        FHttpTunnelStatusCode      := ICS_HTTP_TUNNEL_PROTERR;
         if Length(FHttpTunnelBuf) <> FHttpTunnelBufSize then
             SetLength(FHttpTunnelBuf, FHttpTunnelBufSize);
         FHttpTunnelState := htsConnecting;
@@ -16740,6 +16751,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomHttpTunnelWSocket.GetHttpTunnelLastResponse: String;
+begin
+    Result := String(FHttpTunnelLastResponse);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomHttpTunnelWSocket.GetHttpTunnelServer: String;
 begin
     Result := String(FHttpTunnelServer);
@@ -16778,7 +16796,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomHttpTunnelWSocket.HttpTunnelClear;
 begin
-    FHttpTunnelStatusCode    := ICS_HTTP_TUNNEL_INVALID_STATUS;
+    FHttpTunnelStatusCode    := ICS_HTTP_TUNNEL_PROTERR;
     FHttpTunnelContentLength := 0;
     FHttpTunnelRcvdCnt       := 0;
     FHttpTunnelRcvdIdx       := 0;
@@ -16910,7 +16928,7 @@ begin
             FHttpTunnelChunkState := htcsGetSize;
         end;
     end
-    else if FHttpTunnelStatusCode = ICS_HTTP_TUNNEL_INVALID_STATUS then
+    else if FHttpTunnelStatusCode = ICS_HTTP_TUNNEL_PROTERR then
     begin
         { HTTP/1.x <status code> }
         if (Cnt >= 12) and (_StrLIComp(Data, PAnsiChar('HTTP/1.'), 7) = 0) then begin
@@ -16931,7 +16949,7 @@ begin
                     FHttpTunnelStatusCode := LStatusCode;
             end;
         end;
-        if FHttpTunnelStatusCode = ICS_HTTP_TUNNEL_INVALID_STATUS then begin
+        if FHttpTunnelStatusCode = ICS_HTTP_TUNNEL_PROTERR then begin
             TriggerHttpTunnelError(FHttpTunnelStatusCode);
             Result := FALSE;
         end;
@@ -17182,7 +17200,7 @@ begin
           { No CRLF found in entire buffer (default size 1024 bytes) }
             FHttpTunnelLastResponse := 'Received header line too long. ' +
                                        'Increase HttpTunnelBufferSize.';
-            TriggerHttpTunnelError(ICS_HTTP_TUNNEL_INVALID_STATUS);
+            TriggerHttpTunnelError(ICS_HTTP_TUNNEL_PROTERR);
         end;
     end
     else begin
@@ -17205,6 +17223,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomHttpTunnelWSocket.TriggerHttpTunnelError(ErrCode: Word);
 begin
+    if ErrCode < 1000 then // HTTP status code
+        ErrCode := ICS_HTTP_TUNNEL_BASEERR + ErrCode;
     if Assigned(FOnHttpTunnelError) then
         FOnHttpTunnelError(Self, ErrCode, FHttpTunnelServerAuthTypes,
                            String(FHttpTunnelLastResponse));

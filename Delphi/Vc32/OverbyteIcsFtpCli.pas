@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.18
+Version:      V7.19
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1017,6 +1017,10 @@ Nov 11, 2010 V7.16 Arno re-enabled component notification for FDataSocket and
 Nov 17, 2010 V7.17 Arno published property ProxyPort.
 Feb 09, 2011 V7.18 Arno added HTTP v1.1 proxy-support and some conditional
              defines to be able to build with smaller internal buffers.
+Feb 13, 2011 V7.19 Arno fixed a bug in TCustomFtpCli.ControlSocketSessionClosed
+             that caused RequestDone being triggered with error code null if
+             the server unexpectedly closed the connection without sending any
+             response. Error messages from proxy servers are now available.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1089,9 +1093,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 718;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.18 ';
-  FtpClientId : String = 'ICS FTP Client V7.18 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 719;
+  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.19 ';
+  FtpClientId : String = 'ICS FTP Client V7.19 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -1433,6 +1437,9 @@ type
     function    OpenFileStream (const FileName: string; Mode: Word): TStream;  { V2.113 }
     procedure   CreateLocalFileStream;         { V2.113 }
     function    CreateSocket: TWSocket; virtual;   { V7.08 }
+    procedure   HandleHttpTunnelError(Sender: TObject; ErrCode: Word;
+        TunnelServerAuthTypes: THttpTunnelServerAuthTypes; const Msg: String);
+    procedure   HandleSocksError(Sender: TObject; ErrCode: Integer; Msg: String);
   public
     constructor Create(AOwner: TComponent); override;
     destructor  Destroy; override;
@@ -2766,6 +2773,7 @@ begin
                 FControlSocket.HttpTunnelPort     := FHttpTunnelPort;
                 FControlSocket.HttpTunnelUsercode := FHttpTunnelUserCode;
                 FControlSocket.HttpTunnelPassword := FHttpTunnelPassword;
+                FControlSocket.OnHttpTunnelError  := HandleHttpTunnelError;
             end;
     end;
     if FConnectionType in [ftpSocks4, ftpSocks4A, ftpSocks5] then begin
@@ -2775,6 +2783,7 @@ begin
         FControlSocket.SocksPort            := FSocksPort;
         FControlSocket.SocksUsercode        := FSocksUsercode;
         FControlSocket.SocksPassword        := FSocksPassword;
+        FControlSocket.OnSocksError         := HandleSocksError;
     end;
     StateChange(ftpDnsLookup);
     case FConnectionType of
@@ -3491,7 +3500,7 @@ begin
     if Assigned(FControlSocket.OnSslShutDownComplete) then
         TSslFtpClient(Self).ControlSocketSslShutDownComplete(FControlSocket,
         TRUE, 426);
-{$ENDIF}                  
+{$ENDIF}
     DestroyLocalStream;
     FResumeAt := 0;        { V2.111 clear starting position }
 
@@ -4247,7 +4256,7 @@ begin
 
     if ErrCode <> 0 then begin
         FLastResponse := 'Unable to establish data connection - ' +
-                         GetWinsockErr(ErrCode);
+                         WSocketGetErrorMsgFromErrorCode(ErrCode);
         FStatusCode   := 550;
         SetErrorMessage;
         FDataSocket.Close;
@@ -4297,7 +4306,7 @@ begin
 
     if ErrCode <> 0 then begin
         FLastResponse := 'Unable to establish data connection - ' +
-                         GetWinsockErr(ErrCode);
+                         WSocketGetErrorMsgFromErrorCode(ErrCode);
         FStatusCode   := 550;
         SetErrorMessage;
         FDataSocket.Close;
@@ -5675,15 +5684,38 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomFtpCli.HandleHttpTunnelError(
+    Sender                : TObject;
+    ErrCode               : Word;
+    TunnelServerAuthTypes : THttpTunnelServerAuthTypes;
+    const Msg             : String);
+begin
+    FLastResponse := Msg;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomFtpCli.HandleSocksError(
+    Sender  : TObject;
+    ErrCode : Integer;
+    Msg     : String);
+begin
+    FLastResponse := Msg;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomFtpCli.ControlSocketSessionConnected(Sender: TObject; ErrCode: Word);
 begin
     { Do not trigger the client SessionConnected from here. We must wait }
     { to have received the server banner.                                }
     if ErrCode <> 0 then begin
-        if (ErrCode > ICS_HTTP_TUNNEL_BASEERR) and (FConnectionType = ftpHttpProxy) then { V7.18 }
-            FLastResponse  := '500 Connect error - ' + FControlSocket.HttpTunnelLastResponse
+        if (ErrCode >= WSABASEERR) and (ErrCode < ICS_SOCKS_BASEERR) then
+            FLastResponse  := '500 Connect error - ' + GetWinsockErr(ErrCode)
+        else if (ErrCode >= ICS_SOCKS_BASEERR) then
+            FLastResponse  := '500 Connect error - ' + FLastResponse
         else
-            FLastResponse  := '500 Connect error - ' + GetWinsockErr(ErrCode) ;
+            FLastResponse  := '500 Connect Unknown Error';
         FStatusCode    := 500;
         FRequestResult := FStatusCode;  { Heedong Lim, 05/14/1999 }
         SetErrorMessage; { Heedong Lim, 05/14/1999 }
@@ -5937,7 +5969,10 @@ end;
 procedure TCustomFtpCli.ControlSocketSessionClosed(
     Sender  : TObject;
     ErrCode : Word);
+var
+    LClosedState : TFtpState;
 begin
+    LClosedState := FState;
     if FConnected then begin
         FConnected := FALSE;
         if FState <> ftpAbort then
@@ -5947,12 +5982,13 @@ begin
     end;
     if FState <> ftpAbort then
         StateChange(ftpInternalReady);
-    if not (FRequestType in [ftpRqAbort]) then begin
-        if ErrCode <> 0 then begin
+    if FRequestType <> ftpRqAbort then begin
+        if (ErrCode <> 0) or ((FRequestType <> ftpQuitAsync) and
+           (LClosedState in [ftpWaitingBanner, ftpWaitingResponse])) then begin
             FLastResponse  := '500 Control connection closed - ' +
-                              GetWinsockErr(ErrCode) ;
+                               WSocketGetErrorMsgFromErrorCode(ErrCode);
             FStatusCode    := 500;
-            FRequestResult :=  FStatusCode;    { 06 apr 2002 }
+            FRequestResult := FStatusCode;    { 06 apr 2002 }
             SetErrorMessage;
         end;
         TriggerRequestDone(FRequestResult);

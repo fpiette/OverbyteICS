@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.57
+Version:      7.58
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -807,6 +807,15 @@ Feb 09, 2011 V7.57 Arno added public property HttpTunnelLastResponse to
                    TCustomHttpTunnelWSocket. HTTP status codes are no longer
                    triggered as is but added to a base of global const
                    "ICS_HTTP_TUNNEL_BASEERR".
+Feb 13, 2011 V7.58 Arno - HTTP tunnel accepts LF as end-of-line marker.
+                   In both SOCKS and HTTP tunnel trigger an error from
+                   SessionClosed if the proxy drops the connection unexpectedly.
+                   New functions to get error messages from error codes.
+                   WSocketHttpTunnelErrorDesc, WSocketSocksErrorDesc
+                   WSocketProxyErrorDesc, WSocketErrorMsgFromErrorCode
+                   WSocketGetErrorMsgFromErrorCode. The latter two are general
+                   purpose functions that currently try to translate winsock and
+                   proxy error codes to string.
 }
 
 {
@@ -917,8 +926,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 757;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.57 ';
+  WSocketVersion            = 758;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.58 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1436,6 +1445,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
                        Flags      : Integer) : Integer; override;
       function  GetRcvdCount : LongInt; override;
       function  TriggerDataAvailable(ErrCode : Word) : Boolean; override;
+      procedure TriggerSessionClosed(ErrCode : Word); override;
       procedure TriggerSessionConnectedSpecial(ErrCode: Word); override;
 
       property  HttpTunnelAuthType   : THttpTunnelAuthType
@@ -2730,6 +2740,11 @@ function  RemoveOption(OptSet : TWSocketOptions; Opt : TWSocketOption) : TWSocke
 function  AddOptions(Opts: array of TWSocketOption): TWSocketOptions;
 function  WinsockInfo : TWSADATA;
 function  WSocketErrorDesc(ErrCode: Integer) : String;
+function  WSocketProxyErrorDesc(ErrCode : Integer) : String;
+function  WSocketHttpTunnelErrorDesc(ErrCode : Integer) : String;
+function  WSocketSocksErrorDesc(ErrCode : Integer) : String;
+function  WSocketErrorMsgFromErrorCode(ErrCode : Integer) : String;
+function  WSocketGetErrorMsgFromErrorCode(ErrCode : Integer) : String;
 function  GetWinsockErr(ErrCode: Integer) : String;
 function  GetWindowsErr(ErrCode: Integer): String;
 {$IFDEF CLR}
@@ -3113,9 +3128,13 @@ var
 {$ENDIF}
 
 const
-    ICS_HTTP_TUNNEL_BASEERR       = 21000;
-    ICS_HTTP_TUNNEL_PROTERR       = ICS_HTTP_TUNNEL_BASEERR + 1;
-    // ICS_HTTP_TUNNEL_BASEERR + HTTP status code //
+    ICS_SOCKS_BASEERR                   = 20000;
+    ICS_SOCKS_MAXERR                    = ICS_SOCKS_BASEERR + 17;
+    ICS_HTTP_TUNNEL_MAXSTAT             = 599; // Max. HTTP status code
+    ICS_HTTP_TUNNEL_BASEERR             = 21000;
+    ICS_HTTP_TUNNEL_MAXERR              = ICS_HTTP_TUNNEL_BASEERR + ICS_HTTP_TUNNEL_MAXSTAT;
+    ICS_HTTP_TUNNEL_PROTERR             = ICS_HTTP_TUNNEL_BASEERR;
+    ICS_HTTP_TUNNEL_GENERR              = ICS_HTTP_TUNNEL_BASEERR + 1;
 
 implementation
 
@@ -3124,24 +3143,24 @@ implementation
 const
     FDllHandle     : THandle  = 0;
     FDll2Handle    : THandle  = 0;
-    socksNoError              = 20000;
-    socksProtocolError        = 20001;
-    socksVersionError         = 20002;
-    socksAuthMethodError      = 20003;
-    socksGeneralFailure       = 20004;
-    socksConnectionNotAllowed = 20005;
-    socksNetworkUnreachable   = 20006;
-    socksHostUnreachable      = 20007;
-    socksConnectionRefused    = 20008;
-    socksTtlExpired           = 20009;
-    socksUnknownCommand       = 20010;
-    socksUnknownAddressType   = 20011;
-    socksUnassignedError      = 20012;
-    socksInternalError        = 20013;
-    socksDataReceiveError     = 20014;
-    socksAuthenticationFailed = 20015;
-    socksRejectedOrFailed     = 20016;
-    socksHostResolutionFailed = 20017;
+    socksNoError              = ICS_SOCKS_BASEERR;
+    socksProtocolError        = ICS_SOCKS_BASEERR + 1;
+    socksVersionError         = ICS_SOCKS_BASEERR + 2;
+    socksAuthMethodError      = ICS_SOCKS_BASEERR + 3;
+    socksGeneralFailure       = ICS_SOCKS_BASEERR + 4;
+    socksConnectionNotAllowed = ICS_SOCKS_BASEERR + 5;
+    socksNetworkUnreachable   = ICS_SOCKS_BASEERR + 6;
+    socksHostUnreachable      = ICS_SOCKS_BASEERR + 7;
+    socksConnectionRefused    = ICS_SOCKS_BASEERR + 8;
+    socksTtlExpired           = ICS_SOCKS_BASEERR + 9;
+    socksUnknownCommand       = ICS_SOCKS_BASEERR + 10;
+    socksUnknownAddressType   = ICS_SOCKS_BASEERR + 11;
+    socksUnassignedError      = ICS_SOCKS_BASEERR + 12;
+    socksInternalError        = ICS_SOCKS_BASEERR + 13;
+    socksDataReceiveError     = ICS_SOCKS_BASEERR + 14;
+    socksAuthenticationFailed = ICS_SOCKS_BASEERR + 15;
+    socksRejectedOrFailed     = ICS_SOCKS_BASEERR + 16;
+    socksHostResolutionFailed = ICS_SOCKS_BASEERR + 17;
 
 {$IFDEF DELPHI1}
     IP_DEFAULT_MULTICAST_TTL  = 1;
@@ -8534,6 +8553,178 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function WSocketSocksErrorDesc(ErrCode : Integer) : String;
+begin
+    case ErrCode of
+        socksNoError              : Result := 'No Error';
+        socksProtocolError        : Result := 'Protocol Error';
+        socksVersionError         : Result := 'Version Error';
+        socksAuthMethodError      : Result := 'Authentication Method Error';
+        socksGeneralFailure       : Result := 'General Failure';
+        socksConnectionNotAllowed : Result := 'Connection Not Allowed';
+        socksNetworkUnreachable   : Result := 'Network Unreachable';
+        socksHostUnreachable      : Result := 'Host Unreachable';
+        socksConnectionRefused    : Result := 'Connection Refused';
+        socksTtlExpired           : Result := 'TTL Expired';
+        socksUnknownCommand       : Result := 'Unknown Command';
+        socksUnknownAddressType   : Result := 'Unknown Address Type';
+        socksUnassignedError      : Result := 'Unassigned Error';
+        socksInternalError        : Result := 'Internal Error';
+        socksDataReceiveError     : Result := 'Data Receive Error';
+        socksAuthenticationFailed : Result := 'Authentication Failed';
+        socksRejectedOrFailed     : Result := 'Rejected Or Failed';
+        socksHostResolutionFailed : Result := 'Host Resolution Failed';
+        else
+            Result := 'Not a SOCKS error';
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function WSocketHttpStatusCodeDesc(HttpStatusCode : Integer) : String;
+const
+    sHttpStatusCode = 'HTTP status code';
+begin
+    { Rather lengthy, I know, anyway RAM is cheap today. }
+    if (HttpStatusCode >= 100) and (HttpStatusCode < 600) then
+    begin
+        case HttpStatusCode of
+            100       : Result := 'Continue';
+            101       : Result := 'Switching Protocols';
+            102       : Result := 'Processing';
+
+            200       : Result := 'OK';
+            201       : Result := 'Created';
+            202       : Result := 'Accepted';
+            203       : Result := 'Non-Authoritative Information';
+            204       : Result := 'No Content';
+            205       : Result := 'Reset Content';
+            206       : Result := 'Partial Content';
+            207       : Result := 'Multi-Status (WebDAV)';
+
+            300       : Result := 'Multiple Choices';
+            301       : Result := 'Moved Permanently';
+            302       : Result := 'Found';
+            303       : Result := 'See Other';
+            304       : Result := 'Not Modified';
+            305       : Result := 'Use Proxy';
+            306       : Result := 'Switch Proxy';
+            307       : Result := 'Temporary Redirect';
+
+            400       : Result := 'Bad Request';
+            401       : Result := 'Unauthorized';
+            402       : Result := 'Payment Required';
+            403       : Result := 'Forbidden';
+            404       : Result := 'Not Found';
+            405       : Result := 'Method Not Allowed';
+            406       : Result := 'Not Acceptable';
+            407       : Result := 'Proxy Authentication Required';
+            408       : Result := 'Request Timeout';
+            409       : Result := 'Conflict';
+            410       : Result := 'Gone';
+            411       : Result := 'Length Required';
+            412       : Result := 'Precondition Failed';
+            413       : Result := 'Request Entity Too Large';
+            414       : Result := 'Request-URI Too Long';
+            415       : Result := 'Unsupported Media Type';
+            416       : Result := 'Requested Range Not Satisfiable';
+            417       : Result := 'Expectation Failed';
+            418       : Result := 'I''m a teapot';
+            422       : Result := 'Unprocessable Entity (WebDAV)';
+            423       : Result := 'Locked (WebDAV)';
+            424       : Result := 'Failed Dependency (WebDAV)';
+            425       : Result := 'Unordered Collection';
+            444       : Result := 'No Response';
+            426       : Result := 'Upgrade Required';
+            449       : Result := 'Retry With';
+            450       : Result := 'Blocked by Windows Parental Controls';
+            499       : Result := 'Client Closed Request';
+
+            500       : Result := 'Internal Server Error';
+            501       : Result := 'Not Implemented';
+            502       : Result := 'Bad Gateway';
+            503       : Result := 'Service Unavailable';
+            504       : Result := 'Gateway Timeout';
+            505       : Result := 'HTTP Version Not Supported';
+            506       : Result := 'Variant Also Negotiates';
+            507       : Result := 'Insufficient Storage (WebDAV)';
+            509       : Result := 'Bandwidth Limit Exceeded';
+            510       : Result := 'Not Extended';
+            else
+                Result := sHttpStatusCode + ' ' + _IntToStr(HttpStatusCode);
+        end;
+    end
+    else
+        Result := 'Not a ' + sHttpStatusCode;
+
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function WSocketHttpTunnelErrorDesc(ErrCode : Integer) : String;
+const
+    sNotAHttpTunnelError = 'Not a HTTP tunnel error';
+var
+    LErr : Integer;
+begin
+    if (ErrCode >= ICS_HTTP_TUNNEL_BASEERR) and
+       (ErrCode <= ICS_HTTP_TUNNEL_MAXERR) then
+    begin
+        LErr := ErrCode - ICS_HTTP_TUNNEL_BASEERR;
+        if (LErr >= 100) and (LErr < 600) then
+        begin
+            if LErr = 200 then
+                Result := 'No Error'
+            else
+                Result := WSocketHttpStatusCodeDesc(LErr);
+        end
+        else begin
+            case ErrCode of
+                ICS_HTTP_TUNNEL_PROTERR :
+                    Result := 'Protocol Error';
+                ICS_HTTP_TUNNEL_GENERR  :
+                    Result := 'General Failure';
+                else
+                    Result := sNotAHttpTunnelError;
+            end;
+        end;
+    end
+    else
+        Result := sNotAHttpTunnelError;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function WSocketProxyErrorDesc(ErrCode : Integer) : String;
+begin
+    if (ErrCode >= ICS_HTTP_TUNNEL_BASEERR) and (ErrCode <= ICS_HTTP_TUNNEL_MAXERR) then
+        Result := 'HTTP Proxy ' + WSocketHttpTunnelErrorDesc(ErrCode)
+    else if (ErrCode >= ICS_SOCKS_BASEERR) and ((ErrCode <= ICS_SOCKS_MAXERR)) then
+        Result := 'SOCKS ' + WSocketSocksErrorDesc(ErrCode)
+    else
+        Result := 'Not a proxy error';
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function WSocketErrorMsgFromErrorCode(ErrCode: Integer) : String;
+begin
+    if ((ErrCode >= ICS_SOCKS_BASEERR) and (ErrCode <= ICS_SOCKS_MAXERR)) or
+       ((ErrCode >= ICS_HTTP_TUNNEL_BASEERR) and (ErrCode <= ICS_HTTP_TUNNEL_MAXERR)) then
+        Result := WSocketProxyErrorDesc(ErrCode)
+    else
+        Result := WSocketErrorDesc(ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function WSocketGetErrorMsgFromErrorCode(ErrCode : Integer) : String;
+begin
+    Result := WSocketErrorMsgFromErrorCode(ErrCode) + ' (#' + _IntToStr(ErrCode) + ')';
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function WSocketErrorDesc(ErrCode : Integer) : String;
 begin
     case ErrCode of
@@ -8873,6 +9064,9 @@ procedure TCustomSocksWSocket.TriggerSessionClosed(Error : Word);
 begin
     if FSocksState = socksAuthenticate then
         TriggerSocksAuthState(socksAuthFailure);
+    if FSocksState <> socksData then
+        DataAvailableError(socksGeneralFailure,
+                           WSocketErrorMsgFromErrorCode(socksGeneralFailure));
     inherited TriggerSessionClosed(Error);
 end;
 
@@ -16645,8 +16839,8 @@ const
   sHttpProxyConnect         = 'CONNECT';
   sHttpProxyKeepAlive       = 'Proxy-Connection: Keep-Alive';
   sHttpProxyAuthorization   = 'Proxy-Authorization: ';
-  sCrlLf                    = #13#10;
-  sCrlLfCrlLf               = sCrlLf + sCrlLf;
+  sCrLf                     = #13#10;
+  sCrLfCrLf                 = sCrLf + sCrLf;
   sHttpProto                = 'HTTP/1.1';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -16801,6 +16995,7 @@ begin
     FHttpTunnelRcvdCnt       := 0;
     FHttpTunnelRcvdIdx       := 0;
     FHttpTunnelWaitingBody   := FALSE;
+    FHttpTunnelLastResponse  := '';
 end;
 
 
@@ -16812,11 +17007,11 @@ begin
     HttpTunnelClear;
     FHttpTunnelCurAuthType := htatBasic;
     FHttpTunnelState       := htsWaitResp1;
-    LAuthHdr := sCrlLf + sHttpProxyAuthorization + 'Basic ' +
+    LAuthHdr := sCrLf + sHttpProxyAuthorization + 'Basic ' +
                 Base64Encode(FHttpTunnelUsercode + ':' +
                 FHttpTunnelPassword);
     SendStr(sHttpProxyConnect + ' ' + FAddrStr + ':' + _IntToStr(FPortNum) +
-            ' ' + sHttpProto + LAuthHdr + sCrlLfCrlLf);
+            ' ' + sHttpProto + LAuthHdr + sCrLfCrLf);
 end;
 
 
@@ -16828,10 +17023,10 @@ begin
     HttpTunnelClear;
     FHttpTunnelCurAuthType := htatNtlm;
     FHttpTunnelState       := htsWaitResp1;
-    LAuthHdr := sCrlLf + sHttpProxyAuthorization + 'NTLM ' +
+    LAuthHdr := sCrLf + sHttpProxyAuthorization + 'NTLM ' +
                 NtlmGetMessage1('', '');
     SendStr(sHttpProxyConnect + ' ' + FAddrStr + ':' + _IntToStr(FPortNum) +
-            ' ' + sHttpProto + LAuthHdr + sCrlLfCrlLf);
+            ' ' + sHttpProto + LAuthHdr + sCrLfCrLf);
 end;
 
 
@@ -16842,10 +17037,10 @@ var
 begin
     HttpTunnelClear;
     FHttpTunnelState := htsWaitResp2;
-    LAuthHdr := sCrlLf + sHttpProxyAuthorization + 'NTLM ' +
+    LAuthHdr := sCrLf + sHttpProxyAuthorization + 'NTLM ' +
                 HttpTunnelGetNtlmMessage3;
     SendStr(sHttpProxyConnect + ' ' + FAddrStr + ':' + _IntToStr(FPortNum) +
-            ' ' + sHttpProto + LAuthHdr + sCrlLfCrlLf);
+            ' ' + sHttpProto + LAuthHdr + sCrLfCrLf);
 end;
 
 
@@ -16855,7 +17050,7 @@ begin
     HttpTunnelClear;
     FHttpTunnelState := htsWaitResp1;
     SendStr(sHttpProxyConnect + ' ' + FAddrStr + ':' + _IntToStr(FPortNum) +
-            ' ' + sHttpProto + sCrlLfCrlLf);
+            ' ' + sHttpProto + sCrLfCrLf);
 end;
 
 
@@ -17089,12 +17284,22 @@ begin
             { Parse header lines, omit CRLF }
             if FHttpTunnelWaitingBody then
                 Break;
-            if (FHttpTunnelBuf[I] = $0D) and ((I + 1 < FHttpTunnelRcvdCnt) and
-              (FHttpTunnelBuf[I + 1] = $0A)) then begin
-                if not HttpTunnelProcessHdrLine(@FHttpTunnelBuf[LBufIdx], I - LBufIdx) then
-                    Exit;
-                LBufIdx := I + 2;
-                Inc(I);
+            if (FHttpTunnelBuf[I] = $0A) then
+            begin
+                { Some proxies use just a LF as the end-of-line marker }
+                { which violates the HTTP specs.                       }
+                if (I > 0) and (FHttpTunnelBuf[I - 1] = $0D) then
+                begin
+                    if not HttpTunnelProcessHdrLine(@FHttpTunnelBuf[LBufIdx],
+                                                   (I - 1) - LBufIdx) then
+                        Exit;
+                end
+                else begin
+                    if not HttpTunnelProcessHdrLine(@FHttpTunnelBuf[LBufIdx],
+                                                    I - LBufIdx) then
+                        Exit;
+                end;
+                LBufIdx := I + 1;
             end;
             Inc(I);
         end;
@@ -17213,6 +17418,18 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.TriggerSessionClosed(ErrCode: Word);
+begin
+    if FHttpTunnelState <> htsData then begin
+        FHttpTunnelLastResponse :=
+          WSocketErrorMsgFromErrorCode(ICS_HTTP_TUNNEL_GENERR);
+        TriggerHttpTunnelError(ICS_HTTP_TUNNEL_GENERR);
+    end;
+    inherited TriggerSessionClosed(ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomHttpTunnelWSocket.TriggerHttpTunnelConnected(ErrCode: Word);
 begin
     if Assigned(FOnHttpTunnelConnected) then
@@ -17223,7 +17440,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomHttpTunnelWSocket.TriggerHttpTunnelError(ErrCode: Word);
 begin
-    if ErrCode < 1000 then // HTTP status code
+    if ErrCode < ICS_HTTP_TUNNEL_MAXSTAT then
         ErrCode := ICS_HTTP_TUNNEL_BASEERR + ErrCode;
     if Assigned(FOnHttpTunnelError) then
         FOnHttpTunnelError(Self, ErrCode, FHttpTunnelServerAuthTypes,

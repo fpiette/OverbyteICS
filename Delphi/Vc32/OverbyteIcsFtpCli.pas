@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.19
+Version:      V7.20
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1021,6 +1021,9 @@ Feb 13, 2011 V7.19 Arno fixed a bug in TCustomFtpCli.ControlSocketSessionClosed
              that caused RequestDone being triggered with error code null if
              the server unexpectedly closed the connection without sending any
              response. Error messages from proxy servers are now available.
+Feb 14, 2011 V7.20 Arno - Clear HTTP tunnel server name from data and ctrl
+             socket properly as well as properties LastResponse, ErrorMessage
+             and StatusCode in method OpenAsync.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1093,9 +1096,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 719;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.19 ';
-  FtpClientId : String = 'ICS FTP Client V7.19 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 720;
+  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.20 ';
+  FtpClientId : String = 'ICS FTP Client V7.20 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -2757,6 +2760,9 @@ begin
     FMLSTFacts           := '';   { V2.90 supported MLST facts }
     FSupportedExtensions := [];   { V2.94 supported extensions }
     FLangSupport         := '';   { V7.01 supported languages }
+    FLastResponse        := '';
+    FErrorMessage        := '';
+    FStatusCode          := 0;
 
 { angus V7.00 always set proxy and SOCKS options before opening socket  }
     FControlSocket.SocksAuthentication := socksNoAuthentication;
@@ -2784,6 +2790,11 @@ begin
         FControlSocket.SocksUsercode        := FSocksUsercode;
         FControlSocket.SocksPassword        := FSocksPassword;
         FControlSocket.OnSocksError         := HandleSocksError;
+    end
+    else if FConnectionType <> ftpHttpProxy then begin
+        { Disable connection thru HTTP proxy! }
+        FControlSocket.HttpTunnelServer := '';
+        FDataSocket.HttpTunnelServer    := '';
     end;
     StateChange(ftpDnsLookup);
     case FConnectionType of

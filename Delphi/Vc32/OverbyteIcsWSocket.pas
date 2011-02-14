@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.58
+Version:      7.59
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -816,6 +816,9 @@ Feb 13, 2011 V7.58 Arno - HTTP tunnel accepts LF as end-of-line marker.
                    WSocketGetErrorMsgFromErrorCode. The latter two are general
                    purpose functions that currently try to translate winsock and
                    proxy error codes to string.
+Feb 14, 2011 V7.59 Arno - SessionConnected triggered twice when a connection to
+                   proxy could not be established, introduced in V7.58.
+                   Added function WSocketIsProxyErrorCode(): Boolean.
 }
 
 {
@@ -926,8 +929,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 758;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.58 ';
+  WSocketVersion            = 759;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.59 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -2741,6 +2744,7 @@ function  AddOptions(Opts: array of TWSocketOption): TWSocketOptions;
 function  WinsockInfo : TWSADATA;
 function  WSocketErrorDesc(ErrCode: Integer) : String;
 function  WSocketProxyErrorDesc(ErrCode : Integer) : String;
+function  WSocketIsProxyErrorCode(ErrCode: Integer): Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function  WSocketHttpTunnelErrorDesc(ErrCode : Integer) : String;
 function  WSocketSocksErrorDesc(ErrCode : Integer) : String;
 function  WSocketErrorMsgFromErrorCode(ErrCode : Integer) : String;
@@ -8707,13 +8711,22 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function WSocketIsProxyErrorCode(ErrCode: Integer): Boolean;
+begin
+    Result := ((ErrCode >= ICS_SOCKS_BASEERR) and
+               (ErrCode <= ICS_SOCKS_MAXERR)) or
+              ((ErrCode >= ICS_HTTP_TUNNEL_BASEERR) and
+               (ErrCode <= ICS_HTTP_TUNNEL_MAXERR));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function WSocketErrorMsgFromErrorCode(ErrCode: Integer) : String;
 begin
-    if ((ErrCode >= ICS_SOCKS_BASEERR) and (ErrCode <= ICS_SOCKS_MAXERR)) or
-       ((ErrCode >= ICS_HTTP_TUNNEL_BASEERR) and (ErrCode <= ICS_HTTP_TUNNEL_MAXERR)) then
+    if WSocketIsProxyErrorCode(ErrCode) then
         Result := WSocketProxyErrorDesc(ErrCode)
     else
-        Result := WSocketErrorDesc(ErrCode);
+        Result := 'Winsock ' + WSocketErrorDesc(ErrCode);
 end;
 
 
@@ -9029,6 +9042,7 @@ begin
         {ChangeState(wsSocksConnected);}
         TriggerSocksConnected(Error);
         if Error <> 0 then begin
+            FSocksState := socksData;
             inherited TriggerSessionConnectedSpecial(Error);
             Exit;
         end;
@@ -17461,8 +17475,10 @@ begin
         if ErrCode = 0 then
             FHttpTunnelState := htsConnected;
         TriggerHttpTunnelConnected(ErrCode);
-        if ErrCode <> 0 then
-            inherited TriggerSessionConnectedSpecial(ErrCode)
+        if ErrCode <> 0 then begin
+            FHttpTunnelState := htsData;
+            inherited TriggerSessionConnectedSpecial(ErrCode);
+        end
         else begin
             if (FHttpTunnelUsercode <> '') then begin
                 if (FHttpTunnelAuthType <> htatDetect) and

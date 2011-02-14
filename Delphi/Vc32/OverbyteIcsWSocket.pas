@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.59
+Version:      7.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -819,6 +819,8 @@ Feb 13, 2011 V7.58 Arno - HTTP tunnel accepts LF as end-of-line marker.
 Feb 14, 2011 V7.59 Arno - SessionConnected triggered twice when a connection to
                    proxy could not be established, introduced in V7.58.
                    Added function WSocketIsProxyErrorCode(): Boolean.
+Feb 14, 2011 V7.60 Arno - SOCKS4/SOCKS4A Unicode bug fixed in
+                   TCustomSocksWSocket.SocksDoConnect.
 }
 
 {
@@ -929,8 +931,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 759;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.59 ';
+  WSocketVersion            = 760;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.60 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -9280,6 +9282,9 @@ var
     Buf     : array [0..127] of AnsiChar;
     I       : Integer;
     ErrCode : Integer;
+{$IFDEF COMPILER12_UP}
+    S : AnsiString;
+{$ENDIF}
 begin
     FSocksState := socksConnect;
     if FSocksLevel[1] = '4' then begin
@@ -9308,8 +9313,16 @@ begin
         if Length(FSocksUsercode) > 0 then begin
             { I'm not sure it has to be like that ! Should I also use the }
             { password or not ?                                           }
+        {$IFDEF COMPILER12_UP}
+            S := AnsiString(FSocksUsercode);
+            if Length(S) > 0 then begin
+                Move(Pointer(S)^, Buf[I], Length(S));
+                I := I + Length(S);
+            end;
+        {$ELSE}
             Move(FSocksUsercode[1], Buf[I], Length(FSocksUsercode));
             I := I + Length(FSocksUsercode);
+        {$ENDIF}
         end;
         Buf[I] := #0;
         Inc(I);

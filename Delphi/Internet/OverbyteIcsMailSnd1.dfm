@@ -1,9 +1,9 @@
 object SmtpTestForm: TSmtpTestForm
   Left = 197
   Top = 144
+  Width = 635
+  Height = 525
   Caption = 'SmtpTestForm - http://www.overbyte.be'
-  ClientHeight = 491
-  ClientWidth = 610
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -20,7 +20,7 @@ object SmtpTestForm: TSmtpTestForm
   object MsgMemo: TMemo
     Left = 0
     Top = 235
-    Width = 610
+    Width = 627
     Height = 120
     Hint = 'Enter the message text in this memo'
     Align = alTop
@@ -40,7 +40,7 @@ object SmtpTestForm: TSmtpTestForm
   object DisplayMemo: TMemo
     Left = 0
     Top = 441
-    Width = 610
+    Width = 627
     Height = 50
     Hint = 'This memo shows info messages'
     Align = alClient
@@ -61,12 +61,12 @@ object SmtpTestForm: TSmtpTestForm
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
-    Width = 610
+    Width = 627
     Height = 235
     Align = alTop
     TabOrder = 2
     DesignSize = (
-      610
+      627
       235)
     object Label5: TLabel
       Left = 12
@@ -269,14 +269,10 @@ object SmtpTestForm: TSmtpTestForm
       Top = 4
       Width = 385
       Height = 211
-      ActivePage = CharsetSettingsTabSheet
+      ActivePage = BasicSettingsTabSheet
       TabOrder = 16
       object BasicSettingsTabSheet: TTabSheet
         Caption = 'Basic Settings'
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         object Label1: TLabel
           Left = 25
           Top = 11
@@ -469,6 +465,7 @@ object SmtpTestForm: TSmtpTestForm
           Width = 121
           Height = 21
           Style = csDropDownList
+          ItemHeight = 13
           TabOrder = 10
           Items.Strings = (
             'None'
@@ -485,6 +482,7 @@ object SmtpTestForm: TSmtpTestForm
           Width = 121
           Height = 21
           Style = csDropDownList
+          ItemHeight = 13
           TabOrder = 11
           Items.Strings = (
             'Not specified'
@@ -510,10 +508,6 @@ object SmtpTestForm: TSmtpTestForm
       object CharsetSettingsTabSheet: TTabSheet
         Caption = 'Charset && MIME Settings'
         ImageIndex = 1
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         object UseMailMessageCheckBox: TCheckBox
           Left = 19
           Top = 6
@@ -609,6 +603,7 @@ object SmtpTestForm: TSmtpTestForm
               'to 7bit or 8bit'#13#10'and Allow8BitChars is disabled. If set to QP or' +
               ' Base64 this encoding is enforced.'
             Style = csDropDownList
+            ItemHeight = 13
             TabOrder = 5
             Items.Strings = (
               'smtpEnc7bit'
@@ -665,9 +660,107 @@ object SmtpTestForm: TSmtpTestForm
               'e for example, '#13#10'"latin1" and press button Test Charset '
             CharSet = 'utf-7'
             DropDownCount = 32
+            ItemHeight = 13
             TabOrder = 0
             OnChange = IcsCharsetComboBox1Change
           end
+        end
+      end
+      object ProxyTabsheet: TTabSheet
+        Caption = 'Transparent Proxy'
+        ImageIndex = 2
+        object Label18: TLabel
+          Left = 35
+          Top = 73
+          Width = 56
+          Height = 13
+          Caption = 'Proxy host:'
+        end
+        object Label19: TLabel
+          Left = 36
+          Top = 99
+          Width = 55
+          Height = 13
+          Caption = 'Proxy port:'
+        end
+        object Label20: TLabel
+          Left = 35
+          Top = 125
+          Width = 56
+          Height = 13
+          Caption = 'Proxy user:'
+        end
+        object Label21: TLabel
+          Left = 10
+          Top = 153
+          Width = 81
+          Height = 13
+          Caption = 'Proxy password:'
+        end
+        object Label22: TLabel
+          Left = 34
+          Top = 16
+          Width = 57
+          Height = 13
+          Caption = 'Proxy type:'
+        end
+        object Label23: TLabel
+          Left = 2
+          Top = 43
+          Width = 89
+          Height = 13
+          Caption = 'HTTP proxy auth.:'
+        end
+        object ProxyHostEdit: TEdit
+          Left = 97
+          Top = 70
+          Width = 145
+          Height = 21
+          TabOrder = 2
+          Text = 'ProxyHostEdit'
+        end
+        object ProxyPortEdit: TEdit
+          Left = 97
+          Top = 97
+          Width = 56
+          Height = 21
+          TabOrder = 3
+          Text = 'ProxyPortEdit'
+        end
+        object ProxyPasswordEdit: TEdit
+          Left = 97
+          Top = 151
+          Width = 145
+          Height = 21
+          TabOrder = 5
+          Text = 'ProxyPasswordEdit'
+        end
+        object ProxyUserEdit: TEdit
+          Left = 97
+          Top = 124
+          Width = 145
+          Height = 21
+          TabOrder = 4
+          Text = 'ProxyUserEdit'
+        end
+        object ProxyTypeComboBox: TComboBox
+          Left = 97
+          Top = 13
+          Width = 145
+          Height = 21
+          ItemHeight = 13
+          TabOrder = 0
+          Text = 'ProxyTypeComboBox'
+          OnCloseUp = ProxyTypeComboBoxCloseUp
+        end
+        object ProxyHttpAuthTypeComboBox: TComboBox
+          Left = 97
+          Top = 40
+          Width = 145
+          Height = 21
+          ItemHeight = 13
+          TabOrder = 1
+          Text = 'ProxyHttpAuthTypeComboBox'
         end
       end
     end
@@ -675,7 +768,7 @@ object SmtpTestForm: TSmtpTestForm
   object AttachPanel: TPanel
     Left = 0
     Top = 355
-    Width = 610
+    Width = 627
     Height = 17
     Align = alTop
     TabOrder = 3
@@ -690,7 +783,7 @@ object SmtpTestForm: TSmtpTestForm
   object FileAttachMemo: TMemo
     Left = 0
     Top = 372
-    Width = 610
+    Width = 627
     Height = 49
     Hint = 'Enter the attached file path, one per line'
     Align = alTop
@@ -711,12 +804,12 @@ object SmtpTestForm: TSmtpTestForm
   object InfoPanel: TPanel
     Left = 0
     Top = 421
-    Width = 610
+    Width = 627
     Height = 20
     Align = alTop
     TabOrder = 5
     DesignSize = (
-      610
+      627
       20)
     object Label7: TLabel
       Left = 16
@@ -769,6 +862,12 @@ object SmtpTestForm: TSmtpTestForm
     OnHeaderLine = SmtpClientHeaderLine
     OnRequestDone = SmtpClientRequestDone
     XMailer = 'ICS SMTP Component V%VER%'
+    ProxyType = smtpHttpProxy
+    ProxyServer = '192.168.178.10'
+    ProxyPort = '80'
+    ProxyUserCode = 'willi'
+    ProxyPassword = 'test'
+    ProxyHttpAuthType = htatDetect
     OnAttachContentTypeEh = SmtpClientAttachContentTypeEh
     Left = 32
     Top = 258

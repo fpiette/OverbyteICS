@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.60
+Version:      7.61
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -821,6 +821,12 @@ Feb 14, 2011 V7.59 Arno - SessionConnected triggered twice when a connection to
                    Added function WSocketIsProxyErrorCode(): Boolean.
 Feb 14, 2011 V7.60 Arno - SOCKS4/SOCKS4A Unicode bug fixed in
                    TCustomSocksWSocket.SocksDoConnect.
+Feb 15, 2011 V7.61 Arno - Workaround a false version number (5) in WinGate's
+                   SOCKS5 authentication response when user credentials are
+                   wrong (reports an authentication error now rather than a
+                   SOCKS version error). WSocketProxyErrorDesc and
+                   WSocketGetErrorMsgFromErrorCode added a hyphen as separator
+                   to the message. Removed a string cast warning.
 }
 
 {
@@ -931,8 +937,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 760;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.60 ';
+  WSocketVersion            = 761;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.61 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -8704,9 +8710,9 @@ end;
 function WSocketProxyErrorDesc(ErrCode : Integer) : String;
 begin
     if (ErrCode >= ICS_HTTP_TUNNEL_BASEERR) and (ErrCode <= ICS_HTTP_TUNNEL_MAXERR) then
-        Result := 'HTTP Proxy ' + WSocketHttpTunnelErrorDesc(ErrCode)
+        Result := 'HTTP Proxy - ' + WSocketHttpTunnelErrorDesc(ErrCode)
     else if (ErrCode >= ICS_SOCKS_BASEERR) and ((ErrCode <= ICS_SOCKS_MAXERR)) then
-        Result := 'SOCKS ' + WSocketSocksErrorDesc(ErrCode)
+        Result := 'SOCKS - ' + WSocketSocksErrorDesc(ErrCode)
     else
         Result := 'Not a proxy error';
 end;
@@ -8728,7 +8734,7 @@ begin
     if WSocketIsProxyErrorCode(ErrCode) then
         Result := WSocketProxyErrorDesc(ErrCode)
     else
-        Result := 'Winsock ' + WSocketErrorDesc(ErrCode);
+        Result := 'Winsock - ' + WSocketErrorDesc(ErrCode);
 end;
 
 
@@ -9655,16 +9661,23 @@ begin
         if Len < 0 then
             Exit;
         FRcvCnt := FRcvCnt + Len;
+        { We expect 2 bytes }
+        if FRcvCnt < 2 then  {AG 15/02/11}
+            Exit;            {AG 15/02/11}
         {$ENDIF}
 {TriggerDisplay('socksAuthenticate FrcvBuf = ''' + BufToStr(FRcvBuf, FRcvCnt) + '''');}
-        if FRcvCnt >= 1 then begin
-            { First byte is version, we expect version 5 }
+        //if FRcvCnt >= 1 then begin
+            { First byte is version of the subnegotiation proto (rfc1929), }
+            { we expect version 1. However i.e. WinGate returns socks      }
+            { version 5 here if user credentials are wrong, so don't       }
+            { trigger a version error but socksAuthenticationFailed. AG 15/02/11 }
             if FRcvBuf[0] <> $01 then begin { 06/03/99 }
 {                TriggerSocksAuthState(socksAuthFailure); Burlakov 12/11/99 }
-                DataAvailableError(socksVersionError, 'socks version error');
+{                DataAvailableError(socksVersionError, 'socks version error'); AG 15/02/11 }
+                DataAvailableError(socksAuthenticationFailed, 'socks authentication failed'); {AG 15/02/11}
                 Exit;
             end;
-        end;
+        //end;
         if FRcvCnt = 2 then begin
             { Second byte is status }
             if FRcvBuf[1] <> $00 then begin
@@ -17449,7 +17462,7 @@ procedure TCustomHttpTunnelWSocket.TriggerSessionClosed(ErrCode: Word);
 begin
     if FHttpTunnelState <> htsData then begin
         FHttpTunnelLastResponse :=
-          WSocketErrorMsgFromErrorCode(ICS_HTTP_TUNNEL_GENERR);
+          AnsiString(WSocketErrorMsgFromErrorCode(ICS_HTTP_TUNNEL_GENERR));
         TriggerHttpTunnelError(ICS_HTTP_TUNNEL_GENERR);
     end;
     inherited TriggerSessionClosed(ErrCode);

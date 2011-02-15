@@ -1,8 +1,8 @@
 object FtpReceiveForm: TFtpReceiveForm
-  Left = 436
-  Top = 103
+  Left = 227
+  Top = 183
   Width = 634
-  Height = 587
+  Height = 596
   Caption = 'FTP - http://www.overbyte.be'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -18,9 +18,9 @@ object FtpReceiveForm: TFtpReceiveForm
   TextHeight = 16
   object DisplayMemo: TMemo
     Left = 0
-    Top = 377
+    Top = 401
     Width = 626
-    Height = 176
+    Height = 161
     Hint = 'This area show the activity with the host'
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
@@ -34,11 +34,11 @@ object FtpReceiveForm: TFtpReceiveForm
     ParentShowHint = False
     ScrollBars = ssBoth
     ShowHint = True
-    TabOrder = 2
+    TabOrder = 1
   end
   object Panel1: TPanel
     Left = 0
-    Top = 149
+    Top = 173
     Width = 626
     Height = 228
     Align = alTop
@@ -48,7 +48,7 @@ object FtpReceiveForm: TFtpReceiveForm
     Font.Name = 'MS Sans Serif'
     Font.Style = []
     ParentFont = False
-    TabOrder = 1
+    TabOrder = 0
     object InfoLabel: TLabel
       Left = 512
       Top = 6
@@ -1281,11 +1281,12 @@ object FtpReceiveForm: TFtpReceiveForm
       Text = 'EN'
     end
   end
-  object Panel2: TPanel
+  object SettingsPageControl: TPageControl
     Left = 0
     Top = 0
     Width = 626
-    Height = 149
+    Height = 173
+    ActivePage = ConnectionTypeTabSheet
     Align = alTop
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -1293,379 +1294,503 @@ object FtpReceiveForm: TFtpReceiveForm
     Font.Name = 'MS Sans Serif'
     Font.Style = []
     ParentFont = False
-    TabOrder = 0
-    object Label1: TLabel
-      Left = 11
-      Top = 12
-      Width = 50
-      Height = 13
-      Caption = 'HostName'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
+    TabOrder = 2
+    object MainSettingsTabSheet: TTabSheet
+      Caption = 'Main'
+      object Panel2: TPanel
+        Left = 0
+        Top = 0
+        Width = 618
+        Height = 145
+        Align = alClient
+        BevelOuter = bvNone
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = []
+        ParentFont = False
+        TabOrder = 0
+        object Label1: TLabel
+          Left = 11
+          Top = 12
+          Width = 50
+          Height = 13
+          Caption = 'HostName'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label3: TLabel
+          Left = 20
+          Top = 95
+          Width = 41
+          Height = 13
+          Caption = 'Host File'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label4: TLabel
+          Left = 11
+          Top = 39
+          Width = 50
+          Height = 13
+          Caption = 'UserName'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label5: TLabel
+          Left = 220
+          Top = 39
+          Width = 49
+          Height = 13
+          Caption = 'PassWord'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label2: TLabel
+          Left = 16
+          Top = 123
+          Width = 45
+          Height = 13
+          Caption = 'Local File'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label6: TLabel
+          Left = 252
+          Top = 12
+          Width = 19
+          Height = 13
+          Caption = 'Port'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+        end
+        object Label8: TLabel
+          Left = 7
+          Top = 63
+          Width = 54
+          Height = 13
+          Caption = 'Port Range'
+        end
+        object Label9: TLabel
+          Left = 137
+          Top = 63
+          Width = 9
+          Height = 13
+          Caption = 'to'
+        end
+        object Label10: TLabel
+          Left = 232
+          Top = 64
+          Width = 40
+          Height = 13
+          Caption = 'Account'
+        end
+        object Label14: TLabel
+          Left = 485
+          Top = 100
+          Width = 53
+          Height = 13
+          Caption = 'CodePage:'
+        end
+        object Label16: TLabel
+          Left = 460
+          Top = 76
+          Width = 25
+          Height = 13
+          Caption = 'Opts:'
+        end
+        object HostNameEdit: TEdit
+          Left = 72
+          Top = 8
+          Width = 137
+          Height = 21
+          Hint = 'Host where the file is located'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          ParentShowHint = False
+          ShowHint = True
+          TabOrder = 0
+          Text = 'HostNameEdit'
+        end
+        object HostFileEdit: TEdit
+          Left = 212
+          Top = 92
+          Width = 261
+          Height = 21
+          Hint = 'Enter the host file name or directory name for Mkdir and Rmdir'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          ParentShowHint = False
+          ShowHint = True
+          TabOrder = 6
+          Text = 'HostFileEdit'
+        end
+        object UserNameEdit: TEdit
+          Left = 72
+          Top = 36
+          Width = 137
+          Height = 21
+          Hint = 'User name used to log on the host'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          ParentShowHint = False
+          ShowHint = True
+          TabOrder = 2
+          Text = 'UserNameEdit'
+        end
+        object PassWordEdit: TEdit
+          Left = 276
+          Top = 36
+          Width = 137
+          Height = 21
+          Hint = 'Password used to validate user access'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          ParentShowHint = False
+          ShowHint = True
+          TabOrder = 3
+          Text = 'PassWordEdit'
+        end
+        object DisplayCheckBox: TCheckBox
+          Left = 491
+          Top = 4
+          Width = 117
+          Height = 17
+          Hint = 'Enable data display during file transfert'
+          Caption = 'Display Data'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          ParentShowHint = False
+          ShowHint = True
+          TabOrder = 10
+        end
+        object LocalFileEdit: TEdit
+          Left = 72
+          Top = 119
+          Width = 545
+          Height = 21
+          Hint = 'Enter local file name and path or new file name for rename'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          ParentShowHint = False
+          ShowHint = True
+          TabOrder = 8
+          Text = 'LocalFileEdit'
+        end
+        object BinaryCheckBox: TCheckBox
+          Left = 376
+          Top = 12
+          Width = 93
+          Height = 17
+          Hint = 'Select to use binary mode transfert'
+          Caption = 'Binary Mode'
+          Checked = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          ParentShowHint = False
+          ShowHint = True
+          State = cbChecked
+          TabOrder = 9
+        end
+        object HostDirEdit: TEdit
+          Left = 72
+          Top = 92
+          Width = 137
+          Height = 21
+          Hint = 'Enter the host directory where the file is located'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          ParentShowHint = False
+          ShowHint = True
+          TabOrder = 5
+          Text = 'HostDirEdit'
+        end
+        object PortEdit: TEdit
+          Left = 276
+          Top = 8
+          Width = 85
+          Height = 21
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 1
+          Text = 'PortEdit'
+        end
+        object SyncCheckBox: TCheckBox
+          Left = 491
+          Top = 34
+          Width = 117
+          Height = 17
+          Caption = 'Synchronous'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 11
+        end
+        object PassiveCheckBox: TCheckBox
+          Left = 491
+          Top = 19
+          Width = 117
+          Height = 17
+          Caption = 'Passive Mode'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 12
+        end
+        object NoAutoResumeAtCheckBox: TCheckBox
+          Left = 491
+          Top = 49
+          Width = 117
+          Height = 17
+          Caption = 'NoAutoResumeAt'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          TabOrder = 13
+        end
+        object DataPortRangeStartEdit: TEdit
+          Left = 72
+          Top = 60
+          Width = 57
+          Height = 21
+          TabOrder = 14
+          Text = 'DataPortRangeStartEdit'
+        end
+        object DataPortRangeEndEdit: TEdit
+          Left = 156
+          Top = 60
+          Width = 53
+          Height = 21
+          TabOrder = 15
+          Text = 'DataPortRangeEndEdit'
+        end
+        object AccountEdit: TEdit
+          Left = 276
+          Top = 60
+          Width = 137
+          Height = 21
+          Hint = 'Account used to validate user access'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          ParentShowHint = False
+          ShowHint = True
+          TabOrder = 4
+          Text = 'AccountEdit'
+        end
+        object CodePageEdit: TEdit
+          Left = 560
+          Top = 95
+          Width = 57
+          Height = 21
+          Hint = '0 = System default code page, 65001 = UTF-8'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'MS Sans Serif'
+          Font.Style = []
+          ParentFont = False
+          ParentShowHint = False
+          ShowHint = True
+          TabOrder = 7
+          Text = 'CodePageEdit'
+          OnChange = CodePageEditChange
+        end
+        object OptsEdit: TComboBox
+          Left = 491
+          Top = 73
+          Width = 126
+          Height = 21
+          ItemHeight = 13
+          TabOrder = 16
+          Text = 'UTF8 ON'
+          Items.Strings = (
+            'UTF8 ON'
+            'UTF8 OFF'
+            'MODE Z LEVEL 8'
+            'MODE Z LEVEL 4'
+            'MODE Z LEVEL 2')
+        end
+      end
     end
-    object Label3: TLabel
-      Left = 21
-      Top = 95
-      Width = 41
-      Height = 13
-      Caption = 'Host File'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-    end
-    object Label4: TLabel
-      Left = 10
-      Top = 39
-      Width = 50
-      Height = 13
-      Caption = 'UserName'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-    end
-    object Label5: TLabel
-      Left = 220
-      Top = 39
-      Width = 49
-      Height = 13
-      Caption = 'PassWord'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-    end
-    object Label2: TLabel
-      Left = 16
-      Top = 123
-      Width = 45
-      Height = 13
-      Caption = 'Local File'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-    end
-    object Label6: TLabel
-      Left = 252
-      Top = 12
-      Width = 19
-      Height = 13
-      Caption = 'Port'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-    end
-    object Label8: TLabel
-      Left = 4
-      Top = 63
-      Width = 54
-      Height = 13
-      Caption = 'Port Range'
-    end
-    object Label9: TLabel
-      Left = 137
-      Top = 63
-      Width = 9
-      Height = 13
-      Caption = 'to'
-    end
-    object Label10: TLabel
-      Left = 232
-      Top = 64
-      Width = 40
-      Height = 13
-      Caption = 'Account'
-    end
-    object Label14: TLabel
-      Left = 501
-      Top = 100
-      Width = 53
-      Height = 13
-      Caption = 'CodePage:'
-    end
-    object Label16: TLabel
-      Left = 460
-      Top = 76
-      Width = 25
-      Height = 13
-      Caption = 'Opts:'
-    end
-    object HostNameEdit: TEdit
-      Left = 72
-      Top = 8
-      Width = 137
-      Height = 21
-      Hint = 'Host where the file is located'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 0
-      Text = 'HostNameEdit'
-    end
-    object HostFileEdit: TEdit
-      Left = 212
-      Top = 92
-      Width = 261
-      Height = 21
-      Hint = 'Enter the host file name or directory name for Mkdir and Rmdir'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 6
-      Text = 'HostFileEdit'
-    end
-    object UserNameEdit: TEdit
-      Left = 72
-      Top = 36
-      Width = 137
-      Height = 21
-      Hint = 'User name used to log on the host'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 2
-      Text = 'UserNameEdit'
-    end
-    object PassWordEdit: TEdit
-      Left = 276
-      Top = 36
-      Width = 137
-      Height = 21
-      Hint = 'Password used to validate user access'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 3
-      Text = 'PassWordEdit'
-    end
-    object DisplayCheckBox: TCheckBox
-      Left = 491
-      Top = 4
-      Width = 117
-      Height = 17
-      Hint = 'Enable data display during file transfert'
-      Caption = 'Display Data'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 10
-    end
-    object LocalFileEdit: TEdit
-      Left = 72
-      Top = 119
-      Width = 545
-      Height = 21
-      Hint = 'Enter local file name and path or new file name for rename'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 8
-      Text = 'LocalFileEdit'
-    end
-    object BinaryCheckBox: TCheckBox
-      Left = 376
-      Top = 12
-      Width = 93
-      Height = 17
-      Hint = 'Select to use binary mode transfert'
-      Caption = 'Binary Mode'
-      Checked = True
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      ParentShowHint = False
-      ShowHint = True
-      State = cbChecked
-      TabOrder = 9
-    end
-    object HostDirEdit: TEdit
-      Left = 72
-      Top = 92
-      Width = 137
-      Height = 21
-      Hint = 'Enter the host directory where the file is located'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 5
-      Text = 'HostDirEdit'
-    end
-    object PortEdit: TEdit
-      Left = 276
-      Top = 8
-      Width = 85
-      Height = 21
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      TabOrder = 1
-      Text = 'PortEdit'
-    end
-    object SyncCheckBox: TCheckBox
-      Left = 491
-      Top = 34
-      Width = 117
-      Height = 17
-      Caption = 'Synchronous'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      TabOrder = 11
-    end
-    object PassiveCheckBox: TCheckBox
-      Left = 491
-      Top = 19
-      Width = 117
-      Height = 17
-      Caption = 'Passive Mode'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      TabOrder = 12
-    end
-    object NoAutoResumeAtCheckBox: TCheckBox
-      Left = 491
-      Top = 49
-      Width = 117
-      Height = 17
-      Caption = 'NoAutoResumeAt'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      TabOrder = 13
-    end
-    object DataPortRangeStartEdit: TEdit
-      Left = 72
-      Top = 60
-      Width = 57
-      Height = 21
-      TabOrder = 14
-      Text = 'DataPortRangeStartEdit'
-    end
-    object DataPortRangeEndEdit: TEdit
-      Left = 156
-      Top = 60
-      Width = 53
-      Height = 21
-      TabOrder = 15
-      Text = 'DataPortRangeEndEdit'
-    end
-    object AccountEdit: TEdit
-      Left = 276
-      Top = 60
-      Width = 137
-      Height = 21
-      Hint = 'Account used to validate user access'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 4
-      Text = 'AccountEdit'
-    end
-    object CodePageEdit: TEdit
-      Left = 560
-      Top = 95
-      Width = 57
-      Height = 21
-      Hint = '0 = System default code page, 65001 = UTF-8'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = []
-      ParentFont = False
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 7
-      Text = 'CodePageEdit'
-      OnChange = CodePageEditChange
-    end
-    object OptsEdit: TComboBox
-      Left = 491
-      Top = 73
-      Width = 126
-      Height = 21
-      ItemHeight = 13
-      TabOrder = 16
-      Text = 'UTF8 ON'
-      Items.Strings = (
-        'UTF8 ON'
-        'UTF8 OFF'
-        'MODE Z LEVEL 8'
-        'MODE Z LEVEL 4'
-        'MODE Z LEVEL 2')
+    object ConnectionTypeTabSheet: TTabSheet
+      Caption = 'Connection Type'
+      ImageIndex = 1
+      object Label22: TLabel
+        Left = 39
+        Top = 10
+        Width = 24
+        Height = 13
+        Caption = 'Type'
+      end
+      object Label23: TLabel
+        Left = 225
+        Top = 11
+        Width = 84
+        Height = 13
+        Caption = 'HTTP proxy auth.'
+      end
+      object Label18: TLabel
+        Left = 14
+        Top = 37
+        Width = 49
+        Height = 13
+        Caption = 'Proxy host'
+      end
+      object Label19: TLabel
+        Left = 16
+        Top = 63
+        Width = 47
+        Height = 13
+        Caption = 'Proxy port'
+      end
+      object Label20: TLabel
+        Left = 260
+        Top = 37
+        Width = 49
+        Height = 13
+        Caption = 'Proxy user'
+      end
+      object Label21: TLabel
+        Left = 235
+        Top = 64
+        Width = 74
+        Height = 13
+        Caption = 'Proxy password'
+      end
+      object Label17: TLabel
+        Left = 16
+        Top = 92
+        Width = 567
+        Height = 13
+        Caption = 
+          'Note: TFtpClient uses passive mode internally with proxy connect' +
+          'ions, Mode settings are ignored with proxy connections.'
+      end
+      object ProxyTypeComboBox: TComboBox
+        Left = 71
+        Top = 7
+        Width = 145
+        Height = 21
+        ItemHeight = 13
+        TabOrder = 0
+        Text = 'ProxyTypeComboBox'
+        OnCloseUp = ProxyTypeComboBoxCloseUp
+      end
+      object ProxyHttpAuthTypeComboBox: TComboBox
+        Left = 317
+        Top = 8
+        Width = 145
+        Height = 21
+        ItemHeight = 13
+        TabOrder = 1
+        Text = 'ProxyHttpAuthTypeComboBox'
+      end
+      object ProxyHostEdit: TEdit
+        Left = 71
+        Top = 34
+        Width = 145
+        Height = 21
+        TabOrder = 2
+        Text = 'ProxyHostEdit'
+      end
+      object ProxyPortEdit: TEdit
+        Left = 71
+        Top = 61
+        Width = 56
+        Height = 21
+        TabOrder = 3
+        Text = 'ProxyPortEdit'
+      end
+      object ProxyUserEdit: TEdit
+        Left = 317
+        Top = 34
+        Width = 145
+        Height = 21
+        TabOrder = 4
+        Text = 'ProxyUserEdit'
+      end
+      object ProxyPasswordEdit: TEdit
+        Left = 317
+        Top = 60
+        Width = 145
+        Height = 21
+        TabOrder = 5
+        Text = 'ProxyPasswordEdit'
+      end
     end
   end
   object FtpClient1: TFtpClient
@@ -1681,6 +1806,7 @@ object FtpReceiveForm: TFtpReceiveForm
     ShareMode = ftpShareExclusive
     Options = [ftpAcceptLF]
     ConnectionType = ftpDirect
+    ProxyPort = 'ftp'
     Language = 'EN'
     OnDisplayFile = FtpClient1DisplayFile
     OnProgress64 = FtpClient1Progress64
@@ -1690,7 +1816,7 @@ object FtpReceiveForm: TFtpReceiveForm
     OnStateChange = FtpClient1StateChange
     BandwidthLimit = 10000
     BandwidthSampling = 1000
-    Left = 40
-    Top = 398
+    Left = 38
+    Top = 446
   end
 end

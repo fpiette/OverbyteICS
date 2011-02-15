@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     Aug 1997
-Version:      7.07
+Version:      7.08
 Object:       Demo for TFtpClient object (RFC 959 implementation)
               It is a graphical FTP client program
               Compatible with Delphi 1, 2, 3, 4 and 5
@@ -85,6 +85,7 @@ Nov 16, 2008  V7.02 Arno added option ftpAutoDetectCodePage which actually
               command Opts "UTF8 ON" succeeded.
 Apr 16, 2009  V7.07 Angus assume STREAM64, USE_ONPROGRESS64_ONLY, removed OnProgress
               Removed local GetFileSize using IcsGetFileSize instead
+Feb 15, 2011  V7.08 Arno added proxy demo.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpTst1;
@@ -105,11 +106,11 @@ uses
   Windows, SysUtils, Messages, Classes, Graphics, Controls,
   Forms, Dialogs, StdCtrls, OverbyteIcsIniFiles, ExtCtrls, WinSock,
   OverByteIcsUtils, OverByteIcsFtpCli,  OverbyteIcsFtpSrvT,
-  OverByteIcsWSocket, OverbyteIcsWndControl;
+  OverByteIcsWSocket, OverbyteIcsWndControl, ComCtrls;
 
 const
-  FTPTstVersion      = 707;
-  CopyRight : String = ' FtpTst (c) 1997-2010 F. Piette V7.07 ';
+  FTPTstVersion      = 708;
+  CopyRight : String = ' FtpTst (c) 1997-2011 F. Piette V7.08 ';
 
 type
   TSyncCmd   = function : Boolean  of object;
@@ -154,47 +155,22 @@ type
     RestGetAsyncButton: TButton;
     RestartGetAsyncButton: TButton;
     CDupAsyncButton: TButton;
-    Panel2: TPanel;
-    Label1: TLabel;
-    Label3: TLabel;
-    Label4: TLabel;
-    Label5: TLabel;
-    Label2: TLabel;
-    Label6: TLabel;
-    HostNameEdit: TEdit;
-    HostFileEdit: TEdit;
-    UserNameEdit: TEdit;
-    PassWordEdit: TEdit;
-    DisplayCheckBox: TCheckBox;
-    LocalFileEdit: TEdit;
-    BinaryCheckBox: TCheckBox;
-    HostDirEdit: TEdit;
-    PortEdit: TEdit;
     InfoLabel: TLabel;
     StateLabel: TLabel;
     ClearButton: TButton;
-    SyncCheckBox: TCheckBox;
     AppendFileAsyncButton: TButton;
     AppendAsyncButton: TButton;
-    PassiveCheckBox: TCheckBox;
     Button1: TButton;
     RestPutAsyncButton: TButton;
     RestartPutAsyncButton: TButton;
     ResumeAtEdit: TEdit;
     Label7: TLabel;
-    NoAutoResumeAtCheckBox: TCheckBox;
     TransmitUsingStreamButton: TButton;
     ReceiveUsingStreamButton: TButton;
     StressPutButton: TButton;
     AbortXferAsyncButton: TButton;
-    Label8: TLabel;
-    DataPortRangeStartEdit: TEdit;
-    DataPortRangeEndEdit: TEdit;
-    Label9: TLabel;
     AuthSslButton: TButton;
     AcctAsyncButton: TButton;
-    Label10: TLabel;
-    AccountEdit: TEdit;
     SiteExecAsyncButton: TButton;
     ClntAsyncButton: TButton;
     MlsdAsyncButton: TButton;
@@ -222,16 +198,57 @@ type
     ModeSAsyncButton: TButton;
     Label13: TLabel;
     MaxKB: TEdit;
-    CodePageEdit: TEdit;
-    Label14: TLabel;
     ConnectHostAsyncButton: TButton;
     HostAsyncButton: TButton;
     ReinAsyncButton: TButton;
     LangAsyncButton: TButton;
     Label15: TLabel;
     Lanugage: TEdit;
+    SettingsPageControl: TPageControl;
+    MainSettingsTabSheet: TTabSheet;
+    Panel2: TPanel;
+    Label1: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label2: TLabel;
+    Label6: TLabel;
+    Label8: TLabel;
+    Label9: TLabel;
+    Label10: TLabel;
+    Label14: TLabel;
     Label16: TLabel;
+    HostNameEdit: TEdit;
+    HostFileEdit: TEdit;
+    UserNameEdit: TEdit;
+    PassWordEdit: TEdit;
+    DisplayCheckBox: TCheckBox;
+    LocalFileEdit: TEdit;
+    BinaryCheckBox: TCheckBox;
+    HostDirEdit: TEdit;
+    PortEdit: TEdit;
+    SyncCheckBox: TCheckBox;
+    PassiveCheckBox: TCheckBox;
+    NoAutoResumeAtCheckBox: TCheckBox;
+    DataPortRangeStartEdit: TEdit;
+    DataPortRangeEndEdit: TEdit;
+    AccountEdit: TEdit;
+    CodePageEdit: TEdit;
     OptsEdit: TComboBox;
+    ConnectionTypeTabSheet: TTabSheet;
+    Label22: TLabel;
+    ProxyTypeComboBox: TComboBox;
+    Label23: TLabel;
+    ProxyHttpAuthTypeComboBox: TComboBox;
+    Label18: TLabel;
+    ProxyHostEdit: TEdit;
+    Label19: TLabel;
+    ProxyPortEdit: TEdit;
+    Label20: TLabel;
+    ProxyUserEdit: TEdit;
+    Label21: TLabel;
+    ProxyPasswordEdit: TEdit;
+    Label17: TLabel;
     procedure ExitButtonClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure DisplayHandler(Sender: TObject; var Msg : String);
@@ -316,6 +333,7 @@ type
     procedure HostAsyncButtonClick(Sender: TObject);
     procedure ReinAsyncButtonClick(Sender: TObject);
     procedure LangAsyncButtonClick(Sender: TObject);
+    procedure ProxyTypeComboBoxCloseUp(Sender: TObject);
   private
     FIniFileName   : String;
     FInitialized   : Boolean;
@@ -337,36 +355,42 @@ var
 implementation
 
 uses
-    OverByteIcsFtpTst2;
+    TypInfo, OverByteIcsFtpTst2;
 
 {$R *.DFM}
 const
-    SectionData   = 'Data';
-    KeyHostName   = 'HostName';
-    KeyUserName   = 'UserName';
-    KeyPassWord   = 'PassWord';
-    KeyAccount    = 'Account';
-    KeyHostDir    = 'HostDir';
-    KeyPort       = 'Port';
-    KeyHostFile   = 'HostFile';
-    KeyLocalFile  = 'LocalFile';
-    KeyResumeAt   = 'ResumeAt';
-    KeyPortStart  = 'DataPortRangeStart';
-    KeyPortEnd    = 'DataPortRangeEnd';
-    KeyPassive    = 'PassiveMode';
-    KeyAuthSSL    = 'AuthSSLEnabled';
-    KeyDisplay    = 'DisplayData';
-    KeySync       = 'SyncMode';
-    KeyNoResume   = 'NoAutoResumeAt';
-    KeyBinary     = 'BinaryMode';
-    SectionWindow = 'Window';
-    KeyTop        = 'Top';
-    KeyLeft       = 'Left';
-    KeyWidth      = 'Width';
-    KeyHeight     = 'Height';
-    KeyPosStart   = 'PosStart';
-    KeyPosEnd     = 'PosEnd';
-    KeyMaxKB      = 'MaxKB';
+    SectionData       = 'Data';
+    KeyHostName       = 'HostName';
+    KeyUserName       = 'UserName';
+    KeyPassWord       = 'PassWord';
+    KeyAccount        = 'Account';
+    KeyHostDir        = 'HostDir';
+    KeyPort           = 'Port';
+    KeyHostFile       = 'HostFile';
+    KeyLocalFile      = 'LocalFile';
+    KeyResumeAt       = 'ResumeAt';
+    KeyPortStart      = 'DataPortRangeStart';
+    KeyPortEnd        = 'DataPortRangeEnd';
+    KeyPassive        = 'PassiveMode';
+    KeyAuthSSL        = 'AuthSSLEnabled';
+    KeyDisplay        = 'DisplayData';
+    KeySync           = 'SyncMode';
+    KeyNoResume       = 'NoAutoResumeAt';
+    KeyBinary         = 'BinaryMode';
+    SectionWindow     = 'Window';
+    KeyTop            = 'Top';
+    KeyLeft           = 'Left';
+    KeyWidth          = 'Width';
+    KeyHeight         = 'Height';
+    KeyPosStart       = 'PosStart';
+    KeyPosEnd         = 'PosEnd';
+    KeyMaxKB          = 'MaxKB';
+    KeyProxyHost      = 'ProxyHost';
+    KeyProxyPort      = 'ProxyPort';
+    KeyProxyType      = 'ProxyType';
+    KeyProxyHttpAuth  = 'ProxyHttpAuth';
+    KeyProxyUser      = 'ProxyUser';
+    KeyProxyPassword  = 'ProxyPassword';
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -412,9 +436,25 @@ procedure TFtpReceiveForm.FormShow(Sender: TObject);
 var
     IniFile : TIcsIniFile;
     Data    : TWSAData;
+    Ct      : TFtpConnectionType;
+    Htat    : THttpTunnelAuthType;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
+        SettingsPageControl.ActivePageIndex := 0;
+        
+        { Fill some combo boxes }
+        ProxyTypeComboBox.Items.Clear;
+        ProxyTypeComboBox.Style := csDropDownList;
+        for Ct := Low(TFtpConnectionType) to high(TFtpConnectionType) do
+            ProxyTypeComboBox.Items.Add(GetEnumName(Typeinfo(TFtpConnectionType), Ord(Ct)));
+        ProxyTypeComboBox.ItemIndex := 0;
+        ProxyHttpAuthTypeComboBox.Items.Clear;
+        ProxyHttpAuthTypeComboBox.Style := csDropDownList;
+        for Htat := Low(THttpTunnelAuthType) to high(THttpTunnelAuthType) do
+            ProxyHttpAuthTypeComboBox.Items.Add(GetEnumName(Typeinfo(THttpTunnelAuthType), Ord(Htat)));
+        ProxyHttpAuthTypeComboBox.ItemIndex := 0;
+
         IniFile := TIcsIniFile.Create(FIniFileName);
         HostNameEdit.Text  := IniFile.ReadString(SectionData, KeyHostName,
                                                  'ftp.simtel.net');
@@ -451,6 +491,14 @@ begin
         NoAutoResumeAtCheckBox.Checked := Boolean(IniFile.ReadInteger(SectionData, KeyNoResume, 0));
         BinaryCheckBox.Checked         := Boolean(IniFile.ReadInteger(SectionData, KeyBinary,   0));
         MaxKB.Text                     := IniFile.ReadString(SectionData, KeyMaxKB, '0');
+
+        ProxyTypeComboBox.ItemIndex := IniFile.ReadInteger(SectionData, KeyProxyType, 0);
+        ProxyHttpAuthTypeComboBox.ItemIndex := IniFile.ReadInteger(SectionData, KeyProxyHttpAuth, 0);
+        ProxyHostEdit.Text := IniFile.ReadString(SectionData, KeyProxyHost, '192.168.1.1');
+        ProxyPortEdit.Text := IniFile.ReadString(SectionData, KeyProxyPort, '8080');
+        ProxyUserEdit.Text := IniFile.ReadString(SectionData, KeyProxyUser, 'ics');
+        ProxyPasswordEdit.Text := IniFile.ReadString(SectionData, KeyProxyPassword, 'ics');
+        ProxyTypeComboBoxCloseUp(ProxyTypeComboBox);
 
         Width  := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         Height := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
@@ -497,6 +545,12 @@ begin
     IniFile.WriteInteger(SectionData, KeyNoResume, Ord(NoAutoResumeAtCheckBox.Checked));
     IniFile.WriteInteger(SectionData, KeyBinary,   Ord(BinaryCheckBox.Checked));
     IniFile.WriteString(SectionData,  KeyMaxKB,    MaxKB.Text);
+    IniFile.WriteInteger(SectionData, KeyProxyType, ProxyTypeComboBox.ItemIndex);
+    IniFile.WriteInteger(SectionData, KeyProxyHttpAuth, ProxyHttpAuthTypeComboBox.ItemIndex);
+    IniFile.WriteString(SectionData, KeyProxyHost, ProxyHostEdit.Text);
+    IniFile.WriteString(SectionData, KeyProxyPort, ProxyPortEdit.Text);
+    IniFile.WriteString(SectionData, KeyProxyUser, ProxyUserEdit.Text);
+    IniFile.WriteString(SectionData, KeyProxyPassword, ProxyPasswordEdit.Text);
     IniFile.WriteInteger(SectionWindow, KeyTop,    Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,   Left);
     IniFile.WriteInteger(SectionWindow, KeyWidth,  Width);
@@ -688,6 +742,27 @@ begin
     FLastProgress  := 0;
     FProgressCount := 0;
 
+    if not FtpClient1.Connected then begin
+    { With proxy connections proxy properties have to be set }
+    { before a connection attempt.                           }
+        FtpClient1.ConnectionType     := TFtpConnectionType(ProxyTypeComboBox.ItemIndex);
+
+        FtpClient1.ProxyServer        := ProxyHostEdit.Text;
+        FtpClient1.ProxyPort          := ProxyPortEdit.Text;
+
+        FtpClient1.SocksServer        := ProxyHostEdit.Text;
+        FtpClient1.SocksPort          := ProxyPortEdit.Text;
+        FtpClient1.SocksUserCode      := ProxyUserEdit.Text;
+        FtpClient1.SocksPassword      := ProxyPasswordEdit.Text;
+
+        FtpClient1.HttpTunnelServer   := ProxyHostEdit.Text;
+        FtpClient1.HttpTunnelPort     := ProxyPortEdit.Text;
+        FtpClient1.HttpTunnelUserCode := ProxyUserEdit.Text;
+        FtpClient1.HttpTunnelPassword := ProxyPasswordEdit.Text;
+        FtpClient1.HttpTunnelAuthType := THttpTunnelAuthType(ProxyHttpAuthTypeComboBox.ItemIndex);
+        { End of proxy settings }
+    end;
+
     FtpClient1.HostName           := HostNameEdit.Text;
     FtpClient1.Port               := PortEdit.Text;
     FtpClient1.DisplayFileFlag    := DisplayCheckBox.Checked;
@@ -714,7 +789,7 @@ end;
 procedure TFtpReceiveForm.OpenAsyncButtonClick(Sender: TObject);
 begin
     // Open doesn't require any parameter except HostName and Port
-    // which are set in ExecuteCmd
+    // which are set in ExecuteCmd.
     ExecuteCmd(FtpClient1.Open, FtpClient1.OpenAsync);
 end;
 
@@ -1626,6 +1701,22 @@ end;
 procedure TFtpReceiveForm.CodePageEditChange(Sender: TObject);
 begin
     FtpClient1.CodePage := StrToIntDef(CodePageEdit.Text, 0);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpReceiveForm.ProxyTypeComboBoxCloseUp(Sender: TObject);
+var
+    Enable : Boolean;
+begin
+    Enable := (TComboBox(Sender).ItemIndex >= 0) and
+              (TFtpConnectionType(TComboBox(Sender).ItemIndex) <> ftpDirect);
+    ProxyHttpAuthTypeComboBox.Enabled := Enable and
+              (TFtpConnectionType(TComboBox(Sender).ItemIndex) = ftpHttpProxy);;
+    ProxyHostEdit.Enabled       := Enable;
+    ProxyPortEdit.Enabled       := Enable;
+    ProxyUserEdit.Enabled       := Enable;
+    ProxyPasswordEdit.Enabled   := Enable;
 end;
 
 

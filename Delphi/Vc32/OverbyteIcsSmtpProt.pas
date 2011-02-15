@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      7.35
+Version:      7.36
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -389,6 +389,7 @@ Oct 09, 2010 V7.33  Arno added TSyncSmtpCli.SentToFileSync.
 Oct 10, 2010 V7.34  Arno - MessagePump changes/fixes.
 Nov 08, 2010 V7.35  Arno improved final exception handling, more details
                     in OverbyteIcsWndControl.pas (V1.14 comments).
+Feb 15, 2011 V7.36  Arno added proxy-support (SOCKS and HTTP) from TWSocket.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSmtpProt;
@@ -453,8 +454,8 @@ uses
     OverbyteIcsMimeUtils;
 
 const
-  SmtpCliVersion     = 735;
-  CopyRight : String = ' SMTP component (c) 1997-2010 Francois Piette V7.35 ';
+  SmtpCliVersion     = 736;
+  CopyRight : String = ' SMTP component (c) 1997-2011 Francois Piette V7.36 ';
   smtpProtocolError  = 20600; {AG}
   SMTP_RCV_BUF_SIZE  = 4096;
   
@@ -559,6 +560,9 @@ type
                         ,smtpFctStartTls
                      {$ENDIF}
                         ,smtpFctCalcMsgSize ,smtpFctMailFromSIZE);
+    TSmtpProxyType
+                     = (smtpNoProxy,         smtpSocks4,        smtpSocks4A,
+                        smtpSocks5,          smtpHttpProxy);
 {End AG/SSL}
     TSmtpFctSet      = set of TSmtpFct;
     TSmtpContentType = (smtpHtml,            smtpPlainText);
@@ -743,6 +747,15 @@ type
         FOldSendMode         : TSmtpSendMode;
         FOldOnDisplay        : TSmtpDisplay;
         FXMailer             : String;
+        FProxyType           : TSmtpProxyType;
+        FProxyServer         : String;
+        FProxyPort           : String;
+        FProxyUserCode       : String;
+        FProxyPassword       : String;
+        FProxyHttpAuthType   : THttpTunnelAuthType;
+        procedure   HandleHttpTunnelError(Sender: TObject; ErrCode: Word;
+            TunnelServerAuthTypes: THttpTunnelServerAuthTypes; const Msg: String);
+        procedure   HandleSocksError(Sender: TObject; ErrCode: Integer; Msg: String);
         function    GetXMailerValue: String;
         procedure   SetCharset(const Value: String);           {AG}
         procedure   SetConvertToCharset(const Value: Boolean); {AG}
@@ -950,6 +963,19 @@ type
                                                      write SetWrapMsgMaxLineLen;
         property XMailer : String                    read  FXMailer
                                                      write FXMailer;
+        property ProxyType         : TSmtpProxyType  read  FProxyType
+                                                     write FProxyType;
+        property ProxyServer       : String          read  FProxyServer
+                                                     write FProxyServer;
+        property ProxyPort         : String          read  FProxyPort
+                                                     write FProxyPort;
+        property ProxyUserCode     : String          read  FProxyUserCode
+                                                     write FProxyUserCode;
+        property ProxyPassword     : String          read  FProxyPassword
+                                                     write FProxyPassword;
+        property ProxyHttpAuthType : THttpTunnelAuthType
+                                                     read  FProxyHttpAuthType
+                                                     write FProxyHttpAuthType;
     end;
 
     { Descending component adding MIME (file attach) support }
@@ -1046,6 +1072,13 @@ type
         property OnMessageDataSent;      {AG}
         property OnBgException;          { V7.35 }
         property XMailer;
+        property ProxyType;
+        property ProxyServer;
+        property ProxyPort;
+        property ProxyUserCode;
+        property ProxyPassword;
+        property ProxyHttpAuthType;
+
         property EmailFiles : TStrings               read  FEmailFiles
                                                      write SetEmailFiles;
         property OnAttachContentType : TSmtpAttachmentContentType
@@ -1285,6 +1318,7 @@ function GenerateMessageID : String;                                  {AG}
 //function FixHostName(const S: String): String;                      {AG}
 { utility                                                                }
 function SmtpRqTypeToStr(RqType: TSmtpRequest): ShortString;          {AG}
+function SmtpCliErrorMsgFromErrorCode(ErrCode: Word): String;
 
 { List of separators accepted between email addresses }
 const
@@ -1324,7 +1358,16 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function SmtpCliErrorMsgFromErrorCode(ErrCode: Word): String;
+begin
+    if ErrCode = smtpProtocolError then
+        Result := 'SMTP Protocol Error'
+    else
+        Result := WSocketErrorMsgFromErrorCode(ErrCode);
+end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$I+}   { Activate I/O check (EInOutError exception generated) }
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1830,6 +1873,27 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSmtpClient.HandleHttpTunnelError(
+    Sender                : TObject;
+    ErrCode               : Word;
+    TunnelServerAuthTypes : THttpTunnelServerAuthTypes;
+    const Msg             : String);
+begin
+    FLastResponse := Msg;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSmtpClient.HandleSocksError(
+    Sender  : TObject;
+    ErrCode : Integer;
+    Msg     : String);
+begin
+    FLastResponse := Msg;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomSmtpClient.MsgHandlersCount : Integer;
 begin
     Result := 3 + inherited MsgHandlersCount;
@@ -2109,8 +2173,14 @@ begin
     { Do not trigger the client SessionConnected from here. We must wait }
     { to have received the server banner.                                }
     if ErrorCode <> 0 then begin
-        FLastResponse := '500 ' + WSocketErrorDesc(ErrorCode) +
-                         ' (Winsock error #' + IntToStr(ErrorCode) + ')';
+        if WSocketIsProxyErrorCode(ErrorCode) then
+            { We stored proxy error message in LastResponse }
+            FLastResponse := '500 Connect error - ' + FLastResponse +
+                             ' (#' + IntToStr(ErrorCode) + ')'
+        else 
+            FLastResponse := '500 Connect error - ' +
+                             SmtpCliErrorMsgFromErrorCode(ErrorCode) +
+                             ' (#' + IntToStr(ErrorCode) + ')';
         FStatusCode   := 500;
         FConnected    := FALSE;
 { --Jake Traynham, 06/12/01  Bug - Need to set FRequestResult so High    }
@@ -3227,6 +3297,37 @@ begin
     FESmtpSupported   := FALSE;
     FErrorMessage     := '';
     FLastResponse     := '';
+
+    if FProxyType <> smtpHttpProxy  then
+    { Disable connection thru HTTP proxy. It's not done in   }
+    { in the component because the last successful AuthType  }
+    { is cached to avoid slow detection. Changing property   }
+    { HttpTunnelServer clears the cache.                     }
+        FWSocket.HttpTunnelServer  := '';
+
+    FWSocket.SocksAuthentication := socksNoAuthentication;
+    case FProxyType of
+        smtpSocks4:  FWSocket.SocksLevel := '4';
+        smtpSocks4A: FWSocket.SocksLevel := '4A';
+        smtpSocks5:  FWSocket.SocksLevel := '5';
+    end;
+    if FProxyType in [smtpSocks4, smtpSocks4A, smtpSocks5] then begin
+        FWSocket.SocksAuthentication  := socksAuthenticateUsercode;
+        FWSocket.SocksServer          := FProxyServer;
+        FWSocket.SocksPort            := FProxyPort;
+        FWSocket.SocksUsercode        := FProxyUsercode;
+        FWSocket.SocksPassword        := FProxyPassword;
+        FWSocket.OnSocksError         := HandleSocksError;
+    end
+    else if FProxyType = smtpHttpProxy then begin { V7.18 }
+        FWSocket.HttpTunnelAuthType := FProxyHttpAuthType;
+        FWSocket.HttpTunnelServer   := FProxyServer;
+        FWSocket.HttpTunnelPort     := FProxyPort;
+        FWSocket.HttpTunnelUsercode := FProxyUsercode;
+        FWSocket.HttpTunnelPassword := FProxyPassword;
+        FWSocket.OnHttpTunnelError  := HandleHttpTunnelError;
+    end;
+
     StateChange(smtpDnsLookup);
     FWSocket.OnDataSent      := nil;
     FWSocket.OnDnsLookupDone := WSocketDnsLookupDone;

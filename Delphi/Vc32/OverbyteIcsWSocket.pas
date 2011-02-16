@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.61
+Version:      7.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -827,6 +827,14 @@ Feb 15, 2011 V7.61 Arno - Workaround a false version number (5) in WinGate's
                    SOCKS version error). WSocketProxyErrorDesc and
                    WSocketGetErrorMsgFromErrorCode added a hyphen as separator
                    to the message. Removed a string cast warning.
+Feb 16, 2011 V7.61 Arno fixed a memory overwrite bug in TCustomHttpTunnelWSocket
+                   DataAvailable. Improved keep-alive handling and removed the
+                   hard check for correct HTTP version. It still supports
+                   HTTP/1.1 only, however is now partly compatible with 3Proxy.
+                   It has been tested successfully with WinGate, Sambar,
+                   Fastream IQ Proxy Server and 3Proxy. Note that detection of
+                   authentication type works only with persistent connections,
+                   with 3Proxy you have to explicitly set the authentication type.
 }
 
 {
@@ -1405,6 +1413,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
                                    const Msg             : String) of object;
   THttpTunnelChunkState  = (htcsGetSize,     htcsGetExt, htcsGetData,
                             htcsGetBoundary, htcsDone);
+  THttpTunnelProto       = (htp11, htp10);
   TCustomHttpTunnelWSocket = class(TCustomWSocket)
   private
       FHttpTunnelAuthChallenge   : AnsiString;
@@ -1417,10 +1426,12 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
       FHttpTunnelChunkState      : THttpTunnelChunkState;
       FHttpTunnelContentLength   : Integer;
       FHttpTunnelCurAuthType     : THttpTunnelAuthType;
+      FHttpTunnelKeepsAlive      : Boolean;
       FHttpTunnelLastResponse    : AnsiString; // Also hijacked for internal error messages
       FHttpTunnelPassword        : String;
       FHttpTunnelPort            : AnsiString;
       FHttpTunnelPortAssigned    : Boolean;
+      FHttpTunnelProto           : THttpTunnelProto;
       FHttpTunnelRcvdCnt         : Integer;
       FHttpTunnelRcvdIdx         : Integer;
       FHttpTunnelServer          : AnsiString;
@@ -17031,7 +17042,9 @@ end;
 procedure TCustomHttpTunnelWSocket.HttpTunnelClear;
 begin
     FHttpTunnelStatusCode    := ICS_HTTP_TUNNEL_PROTERR;
+    FHttpTunnelKeepsAlive    := TRUE;
     FHttpTunnelContentLength := 0;
+    FHttpTunnelProto         := htp11;
     FHttpTunnelRcvdCnt       := 0;
     FHttpTunnelRcvdIdx       := 0;
     FHttpTunnelWaitingBody   := FALSE;
@@ -17106,10 +17119,14 @@ begin
         TriggerHttpTunnelError(FHttpTunnelStatusCode);
         Result := FALSE;
     end
+    else if (FHttpTunnelStatusCode <> 407) or (not FHttpTunnelKeepsAlive) then begin
+        { For NTLM a persistent connection is required }
+        TriggerHttpTunnelError(FHttpTunnelStatusCode);
+        Result := FALSE;
+    end
     else if FHttpTunnelCurAuthType = htatNtlm then begin
         { NTLM }
-        if (FHttpTunnelStatusCode = 407) and
-           (FHttpTunnelState = htsWaitResp1) then
+        if FHttpTunnelState = htsWaitResp1 then
             HttpTunnelSendAuthNtlm_3
         else begin
             TriggerHttpTunnelError(FHttpTunnelStatusCode);
@@ -17169,32 +17186,41 @@ begin
         if (Cnt >= 12) and (_StrLIComp(Data, PAnsiChar('HTTP/1.'), 7) = 0) then begin
             FHttpTunnelChunked := FALSE;
             if Data[7] = '0' then
-                FHttpTunnelLastResponse := 'Proxy server doesn''t support HTTP v1.1'
-            else begin
-                SetLength(FHttpTunnelLastResponse, Cnt);
-                    Move(Data^, Pointer(FHttpTunnelLastResponse)^, Cnt);
-                LStatusCode := 0;
-                I           := 8;
-                while (I < Cnt) and (Data[I] = #$20) do Inc(I);
-                while (I < Cnt) and (Data[I] in ['0'..'9']) do begin
-                    LStatusCode := LStatusCode * 10 + Byte(Data[I]) - Byte('0');
-                    Inc(I);
-                end;
-                if LStatusCode > 0 then
-                    FHttpTunnelStatusCode := LStatusCode;
+                FHttpTunnelProto := htp10;
+            FHttpTunnelKeepsAlive := (FHttpTunnelProto = htp11);
+            SetLength(FHttpTunnelLastResponse, Cnt);
+                Move(Data^, Pointer(FHttpTunnelLastResponse)^, Cnt);
+
+            LStatusCode := 0;
+            I           := 8;
+            while (I < Cnt) and (Data[I] = #$20) do Inc(I);
+            while (I < Cnt) and (Data[I] in ['0'..'9']) do begin
+                LStatusCode := LStatusCode * 10 + Byte(Data[I]) - Byte('0');
+                Inc(I);
             end;
+            if LStatusCode >= 100 then
+                FHttpTunnelStatusCode := LStatusCode;
         end;
         if FHttpTunnelStatusCode = ICS_HTTP_TUNNEL_PROTERR then begin
             TriggerHttpTunnelError(FHttpTunnelStatusCode);
             Result := FALSE;
         end;
     end
-    else if (Cnt > 18) and (_StrLIComp(Data, 'Transfer-Encoding:', 18) = 0) then begin
+    else if (Cnt > 25) and (_StrLIComp(Data, 'Transfer-Encoding:', 18) = 0) then begin
         I := 18;
         while (I < Cnt) and (Data[I] = #$20) do Inc(I);
         Inc(Data, I);
         FHttpTunnelChunked := (Cnt >= I + 7) and
                               (_StrLIComp(Data, PAnsiChar('chunked'), 7) = 0);
+    end
+    else if (Cnt > 22) and (_StrLIComp(Data, 'Proxy-Connection:', 17) = 0) then begin
+        I := 17;
+        while (I < Cnt) and (Data[I] = #$20) do Inc(I);
+        Inc(Data, I);
+        if (Cnt >= I + 10) and (_StrLIComp(Data, PAnsiChar('keep-alive'), 10) = 0) then
+            FHttpTunnelKeepsAlive := TRUE
+        else if (Cnt >= I + 5) and (_StrLIComp(Data, PAnsiChar('close'), 5) = 0) then
+            FHttpTunnelKeepsAlive := FALSE;
     end
     else if (Cnt > 15) and (_StrLIComp(Data, 'Content-Length:', 15) = 0) then begin
         I := 15;
@@ -17322,7 +17348,7 @@ begin
         LBufIdx := 0;
         while I < FHttpTunnelRcvdCnt do begin
             { Parse header lines, omit CRLF }
-            if FHttpTunnelWaitingBody then
+            if FHttpTunnelWaitingBody or (FHttpTunnelState = htsData) then
                 Break;
             if (FHttpTunnelBuf[I] = $0A) then
             begin
@@ -17345,8 +17371,8 @@ begin
         end;
 
         if not FHttpTunnelWaitingBody then begin
-            { Still in header }
-            if (LBufIdx > 0) then begin
+            { Still in header or request sent or application data follows }
+            if (LBufIdx > 0) and (FHttpTunnelRcvdCnt >= LBufIdx) then begin
                 Dec(FHttpTunnelRcvdCnt, LBufIdx);
                 if FHttpTunnelRcvdCnt > 0 then
                     Move(FHttpTunnelBuf[LBufIdx], FHttpTunnelBuf[0],

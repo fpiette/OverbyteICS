@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.34
+Version:      7.35
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -318,6 +318,9 @@ Feb 4,  2011 V7.34 Angus added bandwidth throttling using TCustomThrottledWSocke
                    specific clients set BandwidthLimit in a client connect event
                    (requires BUILTIN_THROTTLE to be defined in project options or
                    enabled OverbyteIcsDefs.inc)
+Feb 17, 2011 V7.35 FPiette fixed ExtractURLEncodedValue which returned a nul
+                   byte when last character was a '%'. Now return a '%'.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -402,8 +405,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 734;
-    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.34 ';
+    THttpServerVersion = 735;
+    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.35 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
 
@@ -4254,7 +4257,8 @@ begin
             while (P^ <> #0) and (P^ <> '&') do begin
                 Ch := AnsiChar(Ord(P^)); // should contain nothing but < ord 128
                 if Ch = '%' then begin
-                    Ch := AnsiChar(htoi2(P + 1));
+                    if P[1] <> #0 then    // V1.35 Added test
+                        Ch := AnsiChar(htoi2(P + 1));
                     Inc(P, 2);
                 end
                 else if Ch = '+' then

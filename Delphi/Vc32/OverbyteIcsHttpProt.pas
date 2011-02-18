@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.13
+Version:      7.14
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -11,8 +11,8 @@ Credit:       This component was based on a freeware from by Andreas
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -432,9 +432,15 @@ Nov 05, 2010 V7.10 Arno fixed ERangeErrors after Abort.
 Nov 08, 2010 V7.11 Arno improved final exception handling, more details
              in OverbyteIcsWndControl.pas (V1.14 comments).
 Nov 22, 2010 V7.12 Arno made CheckDelaySetReady virtual.
-Feb 4,  2010 V7.13 Angus - if conditional BUILTIN_THROTTLE is defined the
+Feb 4,  2011 V7.13 Angus - if conditional BUILTIN_THROTTLE is defined the
              bandwidth control uses TWSocket's built-in throttle code rather
              than THttpCli's.
+Feb 18, 2011 V7.14 Arno - Proxy authentication with relocations (hopefully) fixed.
+             SSL not tested yet. If it still doesn't work it's probably a buggy
+             proxy server i.e. 3Proxy. Parse NTLM user codes into domain and
+             username parts and pass them to NtlmGetMessage3 in method
+             GetNTLMMessage3.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -515,8 +521,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 713;
-    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.13 ';
+    HttpCliVersion       = 714;
+    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.14 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -755,6 +761,7 @@ type
         FOnBeforeHeaderSend   : TBeforeHeaderSendEvent;     { Wilfried 9 sep 02}
         FCloseReq             : Boolean;                    { SAE 01/06/04 }
         FTimeout              : UINT;  { V7.04 }            { Sync Timeout Seconds }
+        FWMLoginQueued        : Boolean;
         procedure AbortComponent; override; { V7.11 }
         procedure AllocateMsgHandlers; override;
         procedure FreeMsgHandlers; override;
@@ -800,6 +807,8 @@ type
         procedure StartAuthDigest; virtual;
         procedure StartProxyAuthDigest; virtual;
 {$ENDIF}
+        procedure ClearAuthStates; {$IFDEF USE_INLINE} inline; {$ENDIF}
+        procedure LoginDelayed; {$IFDEF USE_INLINE} inline; {$ENDIF}
         function GetBasicAuthorizationHeader(
             const HttpMethod: String; ProxyAuth: Boolean): String;
         procedure CleanupRcvdStream;
@@ -1411,8 +1420,10 @@ begin
                 WMHttpRequestDone(MsgRec)
             else if Msg = FMsg_WM_HTTP_SET_READY then
                 WMHttpSetReady(MsgRec)
-            else if Msg = FMsg_WM_HTTP_LOGIN     then
-                WMHttpLogin(MsgRec)
+            else if Msg = FMsg_WM_HTTP_LOGIN then begin
+                FWMLoginQueued := FALSE;
+                WMHttpLogin(MsgRec);
+            end
             else
                 inherited WndProc(MsgRec);
         end;
@@ -1580,8 +1591,8 @@ begin
                     FDocName          := SaveDoc;
                 end;
             end
-            else
-            TriggerRequestDone;
+            else if not FLocationFlag then
+                TriggerRequestDone;
         end;
     end;
 end;
@@ -1806,7 +1817,7 @@ begin
 {$IFNDEF NO_DEBUG_LOG}                                                  { V1.91 }
     //THttpNTLMState   = (ntlmNone, ntlmMsg1, ntlmMsg2, ntlmMsg3, ntlmDone);
     if CheckLogOptions(loProtSpecDump) then begin
-        DebugLog(loProtSpecDump, Format('PrepareNTLMAuth end, FStatusCode = %d ' +
+        DebugLog(loProtSpecDump, Format('PrepareNTLMAuth begin, FStatusCode = %d ' +
                                         'FProxyAuthNTLMState=%d FAuthNTLMState=%d',
                                         [FStatusCode, Ord(FProxyAuthNTLMState),
                                         Ord(FAuthNTLMState)]));
@@ -3493,6 +3504,30 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpCli.ClearAuthStates;
+begin
+{$IFDEF UseNTLMAuthentication}
+    FAuthNTLMState        := ntlmNone;
+    FProxyAuthNTLMState   := ntlmNone;
+{$ENDIF}
+{$IFDEF UseDigestAuthentication}
+    FAuthDigestState      := digestNone;
+    FProxyAuthDigestState := digestNone;
+{$ENDIF}
+    FAuthBasicState       := BasicNone;
+    FProxyAuthBasicState  := BasicNone;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpCli.LoginDelayed;
+begin
+    if not FWMLoginQueued then
+        FWMLoginQueued := PostMessage(Handle, FMsg_WM_HTTP_LOGIN, 0, 0);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpCli.LocationSessionClosed(Sender: TObject; ErrCode: Word);
 var
     Proto, User, Pass, Host, Port, Path : String;
@@ -3500,6 +3535,13 @@ var
     I                                   : Integer;
     AllowMoreRelocations                : Boolean;
 begin
+    if FWMLoginQueued then begin
+    { StartRelocation already initiated the new Login. }
+    { This close is unexpected.                        }
+    { Reset all AuthStates and exit.                   }
+        ClearAuthStates;
+        Exit;
+    end;
     { Remove any bookmark from the URL }
     I := Pos('#', FLocation);
     if I > 0 then
@@ -3555,7 +3597,7 @@ begin
     CleanupRcvdStream; {11/11/04}
     CleanupSendStream;
     { Restart at login procedure }
-    PostMessage(Handle, FMsg_WM_HTTP_LOGIN, 0, 0);
+    LoginDelayed;
 end;
 
 
@@ -3935,7 +3977,7 @@ begin
         { Must clear what we already received }
         CleanupRcvdStream; {11/11/04}
         CleanupSendStream;
-        PostMessage(Handle, FMsg_WM_HTTP_LOGIN, 0, 0);
+        LoginDelayed;
     end
     else begin
         FCtrlSocket.OnSessionClosed := LocationSessionClosed;
@@ -4014,7 +4056,7 @@ begin
            (FResponseVer = '') then                            // <== 12/29/05 AG
             FCurrConnection := 'Keep-alive';
 
-        PostMessage(Handle, FMsg_WM_HTTP_LOGIN, 0, 0);
+        LoginDelayed;
     end
     else if FAuthNTLMState = ntlmMsg1 then begin
         I := FDoAuthor.Count - 1;
@@ -4027,7 +4069,7 @@ begin
             Exit;
         FNTLMMsg2Info     := NtlmGetMessage2(Copy(FDoAuthor.Strings[I], 6, 1000));
         FAuthNTLMState    := ntlmMsg3;
-        PostMessage(Handle, FMsg_WM_HTTP_LOGIN, 0, 0);
+        LoginDelayed;
     end
     else if FAuthNTLMState = ntlmMsg3 then begin
         FDoAuthor.Clear;
@@ -4067,7 +4109,7 @@ begin
            (FResponseVer = '') then                            // <== 12/29/05 AG
             FCurrProxyConnection := 'Keep-alive';
 
-        PostMessage(Handle, FMsg_WM_HTTP_LOGIN, 0, 0);
+        LoginDelayed;
     end
     else if FProxyAuthNTLMState = ntlmMsg1 then begin
         I := FDoAuthor.Count - 1;
@@ -4080,7 +4122,7 @@ begin
             Exit;
         FProxyNTLMMsg2Info  := NtlmGetMessage2(Copy(FDoAuthor.Strings[I], 6, 1000));
         FProxyAuthNTLMState := ntlmMsg3;
-        PostMessage(Handle, FMsg_WM_HTTP_LOGIN, 0, 0);
+        LoginDelayed;
     end
     else if FProxyAuthNTLMState = ntlmMsg3 then begin
         FDoAuthor.Clear;
@@ -4111,7 +4153,7 @@ begin
 {$IFDEF UseDigestAuthentication}
         FAuthDigestState  := digestNone;
 {$ENDIF}
-        PostMessage(Handle, FMsg_WM_HTTP_LOGIN, 0, 0);
+        LoginDelayed;
     end
     else if FAuthBasicState = basicMsg1 then begin
         FDoAuthor.Clear;
@@ -4141,7 +4183,7 @@ begin
 {$IFDEF UseDigestAuthentication}
         FProxyAuthDigestState := digestNone;
 {$ENDIF}
-        PostMessage(Handle, FMsg_WM_HTTP_LOGIN, 0, 0);
+        LoginDelayed;
     end
     else if FProxyAuthBasicState = basicMsg1 then begin
         FDoAuthor.Clear;
@@ -4312,7 +4354,7 @@ begin
         FAuthNTLMState    := ntlmNone; { Other authentication must be cleared }
     {$ENDIF}
         FAuthBasicState   := basicNone;
-        PostMessage(Handle, FMsg_WM_HTTP_LOGIN, 0, 0);
+        LoginDelayed;
     end
     else if FAuthDigestState = digestMsg1 then begin
         FDoAuthor.Clear;
@@ -4340,7 +4382,7 @@ begin
         FProxyAuthNTLMState  := ntlmNone; { Other authentication must be cleared }
     {$ENDIF}
         FProxyAuthBasicState := basicNone;
-        PostMessage(Handle, FMsg_WM_HTTP_LOGIN, 0, 0);
+        LoginDelayed;
     end
     else if FProxyAuthBasicState = basicMsg1 then begin
         FDoAuthor.Clear;
@@ -4791,6 +4833,7 @@ function THttpCli.GetNTLMMessage3(const HttpMethod: String;
   const ForProxy: Boolean): String;
 var
     Hostname : String;
+    LDomain, LUser: String;
 begin
     { get local hostname }
     try
@@ -4799,23 +4842,24 @@ begin
         Hostname := '';
     end;
 
-    { domain is not used             }
     { hostname is the local hostname }
-    if ForProxy then
+    if ForProxy then begin
+        NtlmParseUserCode(FProxyUsername, LDomain, LUser, FALSE);
         Result := 'Proxy-Authorization: NTLM ' +
-                  NtlmGetMessage3('',
+                  NtlmGetMessage3(LDomain,
                                   Hostname,
-                                  FProxyUsername,
+                                  LUser,
                                   FProxyPassword,
-                                  FProxyNTLMMsg2Info.Challenge)
-
-    else
+                                  FProxyNTLMMsg2Info.Challenge);
+    end
+    else begin
+        NtlmParseUserCode(FCurrUsername, LDomain, LUser, FALSE);
         Result := 'Authorization: NTLM ' +
-                  NtlmGetMessage3('',
+                  NtlmGetMessage3(LDomain,
                                   Hostname,
-{                                 FNTLMUsercode, FNTLMPassword, }
-                                  FCurrUsername, FCurrPassword,
+                                  LUser, FCurrPassword,
                                   FNTLMMsg2Info.Challenge);
+    end;
 end;
 {$ENDIF}
 

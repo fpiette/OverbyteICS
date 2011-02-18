@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     Jan 01, 2004
-Version:      6.02
+Version:      6.03
 Description:  This is an implementation of the NTLM authentification
               messages used within HTTP protocol (client side).
               NTLM protocol documentation can be found at:
@@ -15,8 +15,8 @@ Credit:       This code is based on a work by Diego Ariel Degese
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2004-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -51,7 +51,8 @@ Apr 25, 2008 V6.01 A. Garrels - Fixed function Unicode. NtlmGetMessage3() got a
                    Unicode.
 Dec 13, 2010 V6.02 A. Garrels - Fixed wrong offset of target domain in
                    NtlmGetMessage1(). Added procedure NtlmParseUserCode.
-
+Feb 18, 2011 V6.03 procedure NtlmParseUserCode takes an NTLM version argument.
+ 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsNtlmMsgs;
@@ -82,8 +83,8 @@ uses
     OverbyteIcsDES, OverbyteIcsMD4, OverbyteIcsMimeUtils;
 
 const
-    IcsNtlmMsgsVersion     = 602;
-    CopyRight : String     = ' IcsNtlmMsgs (c) 2004-2010 F. Piette V6.02 ';
+    IcsNtlmMsgsVersion     = 603;
+    CopyRight : String     = ' IcsNtlmMsgs (c) 2004-2011 F. Piette V6.03 ';
 
 const
     Flags_Negotiate_Unicode               = $00000001;
@@ -190,7 +191,8 @@ function NtlmGetMessage2(const AServerReply: String): TNTLM_Msg2_Info;
 function NtlmGetMessage3(const ADomain, AHost, AUser, APassword: String;
     AChallenge: TArrayOf8Bytes; ACodePage: LongWord = CP_ACP): String;
 procedure NtlmParseUserCode(const AUserCode : String; out Domain : String;
-    out UserName : String);
+    out UserName : String; const NtlmV2: Boolean = FALSE);
+
 
 implementation
 
@@ -198,12 +200,14 @@ implementation
 procedure NtlmParseUserCode(                                        { V6.02 }
     const AUserCode : String;
     out Domain      : String;
-    out UserName    : String);
+    out UserName    : String;
+    const NtlmV2    : Boolean = FALSE);
 var
     I : Integer;
 begin
   { Name Variations
-    DOMAIN\user, domain.com\user, user@DOMAIN user@domain.com }
+    DOMAIN\user, domain.com\user, user@DOMAIN user@domain.com
+    http://davenport.sourceforge.net/ntlm.html#nameVariations }
 
     I := Pos('\', AUserCode);
     if I > 0 then begin
@@ -211,10 +215,17 @@ begin
         UserName := Copy(AUserCode, I + 1, MaxInt);
     end
     else begin
-        I := Pos('@', AUserCode);
-        if I > 0 then begin
-            Domain   := Copy(AUserCode, I + 1, MaxInt);
-            UserName := Copy(AUserCode, 1, I - 1);
+        if NtlmV2 then
+        begin
+            I := Pos('@', AUserCode);
+            if I > 0 then begin
+                Domain   := Copy(AUserCode, I + 1, MaxInt);
+                UserName := Copy(AUserCode, 1, I - 1);
+            end
+            else begin
+                Domain   := '';
+                UserName := AUserCode;
+            end;
         end
         else begin
             Domain   := '';

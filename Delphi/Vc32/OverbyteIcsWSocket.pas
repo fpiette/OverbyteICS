@@ -3,12 +3,12 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.62
+Version:      7.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
 Legal issues: Copyright (C) 1996-2011 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -827,7 +827,7 @@ Feb 15, 2011 V7.61 Arno - Workaround a false version number (5) in WinGate's
                    SOCKS version error). WSocketProxyErrorDesc and
                    WSocketGetErrorMsgFromErrorCode added a hyphen as separator
                    to the message. Removed a string cast warning.
-Feb 16, 2011 V7.61 Arno fixed a memory overwrite bug in TCustomHttpTunnelWSocket
+Feb 16, 2011 V7.62 Arno fixed a memory overwrite bug in TCustomHttpTunnelWSocket
                    DataAvailable. Improved keep-alive handling and removed the
                    hard check for correct HTTP version. It still supports
                    HTTP/1.1 only, however is now partly compatible with 3Proxy.
@@ -835,6 +835,10 @@ Feb 16, 2011 V7.61 Arno fixed a memory overwrite bug in TCustomHttpTunnelWSocket
                    Fastream IQ Proxy Server and 3Proxy. Note that detection of
                    authentication type works only with persistent connections,
                    with 3Proxy you have to explicitly set the authentication type.
+Feb 20, 2011 V7.63 Arno added digest authentication to TCustomHttpTunnelWSocket.
+                   Define "NO_HTTP_TUNNEL_AUTHDIGEST" to exclude it from a build,
+                   so far it's tested with ICS-based IQ Proxy Server only. Some
+                   new property setters.
 }
 
 {
@@ -940,13 +944,16 @@ uses
 {$IFEND}
   OverbyteIcsUtils,
   OverbyteIcsMimeUtils,  OverbyteIcsNtlmMsgs,
+{$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+  OverbyteIcsDigestAuth,
+{$ENDIF}
   OverbyteIcsTypes,      OverbyteIcsLibrary,
   OverbyteIcsWndControl, OverbyteIcsWSockBuf,
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 761;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.61 ';
+  WSocketVersion            = 763;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.63 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1403,7 +1410,12 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
                                                     write SetCounterClass;
   end;
 
-  THttpTunnelAuthType = (htatDetect, htatNone, htatBasic, htatNtlm);
+  THttpTunnelAuthType = (htatDetect, htatNone, htatBasic,
+                    {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+                         htatDigest,
+                    {$ENDIF}
+                         htatNtlm
+                         );
   THttpTunnelServerAuthTypes = set of (htsatBasic, htsatNtlm, htsatDigest);
   THttpTunnelState = (htsData, htsConnecting, htsConnected,
                      htsWaitResp1, htsWaitResp2);
@@ -1416,33 +1428,39 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
   THttpTunnelProto       = (htp11, htp10);
   TCustomHttpTunnelWSocket = class(TCustomWSocket)
   private
-      FHttpTunnelAuthChallenge   : AnsiString;
-      FHttpTunnelAuthType        : THttpTunnelAuthType;
-      FHttpTunnelBuf             : TBytes;
-      FHttpTunnelBufSize         : Integer;
-      FHttpTunnelChunked         : Boolean;
-      FHttpTunnelChunkRcvd       : Integer;
-      FHttpTunnelChunkSize       : Integer;
-      FHttpTunnelChunkState      : THttpTunnelChunkState;
-      FHttpTunnelContentLength   : Integer;
-      FHttpTunnelCurAuthType     : THttpTunnelAuthType;
-      FHttpTunnelKeepsAlive      : Boolean;
-      FHttpTunnelLastResponse    : AnsiString; // Also hijacked for internal error messages
-      FHttpTunnelPassword        : String;
-      FHttpTunnelPort            : AnsiString;
-      FHttpTunnelPortAssigned    : Boolean;
-      FHttpTunnelProto           : THttpTunnelProto;
-      FHttpTunnelRcvdCnt         : Integer;
-      FHttpTunnelRcvdIdx         : Integer;
-      FHttpTunnelServer          : AnsiString;
-      FHttpTunnelServerAssigned  : Boolean;
-      FHttpTunnelServerAuthTypes : THttpTunnelServerAuthTypes;
-      FHttpTunnelState           : THttpTunnelState;
-      FHttpTunnelStatusCode      : Word;
-      FHttpTunnelUsercode        : String;
-      FHttpTunnelWaitingBody     : Boolean;
-      FOnHttpTunnelConnected     : TSessionConnected;
-      FOnHttpTunnelError         : THttpTunnelErrorEvent;
+      FHttpTunnelAuthChallenge    : AnsiString;
+  {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+      FHttpTunnelAuthDigestCached : Boolean;
+      FHttpTunnelAuthDigestValid  : Boolean;
+      FHttpTunnelAuthDigestHash   : THashHex;
+      FHttpTunnelAuthDigestInfo   : TAuthDigestResponseInfo;
+  {$ENDIF}
+      FHttpTunnelAuthType         : THttpTunnelAuthType;
+      FHttpTunnelBuf              : TBytes;
+      FHttpTunnelBufSize          : Integer;
+      FHttpTunnelChunked          : Boolean;
+      FHttpTunnelChunkRcvd        : Integer;
+      FHttpTunnelChunkSize        : Integer;
+      FHttpTunnelChunkState       : THttpTunnelChunkState;
+      FHttpTunnelContentLength    : Integer;
+      FHttpTunnelCurAuthType      : THttpTunnelAuthType;
+      FHttpTunnelKeepsAlive       : Boolean;
+      FHttpTunnelLastResponse     : AnsiString; // Also hijacked for internal error messages
+      FHttpTunnelPassword         : String;
+      FHttpTunnelPort             : AnsiString;
+      FHttpTunnelPortAssigned     : Boolean;
+      FHttpTunnelProto            : THttpTunnelProto;
+      FHttpTunnelRcvdCnt          : Integer;
+      FHttpTunnelRcvdIdx          : Integer;
+      FHttpTunnelServer           : AnsiString;
+      FHttpTunnelServerAssigned   : Boolean;
+      FHttpTunnelServerAuthTypes  : THttpTunnelServerAuthTypes;
+      FHttpTunnelState            : THttpTunnelState;
+      FHttpTunnelStatusCode       : Word;
+      FHttpTunnelUsercode         : String;
+      FHttpTunnelWaitingBody      : Boolean;
+      FOnHttpTunnelConnected      : TSessionConnected;
+      FOnHttpTunnelError          : THttpTunnelErrorEvent;
 
       function  GetHttpTunnelLastResponse: String;
       function  GetHttpTunnelServer: String;
@@ -1451,13 +1469,19 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
       function  HttpTunnelGetNtlmMessage3: String;
       function  HttpTunnelProcessHdrLine(Data: PAnsiChar; Cnt: Integer): Boolean;
       procedure HttpTunnelSendAuthBasic;
+  {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+      procedure HttpTunnelSendAuthDigest;
+  {$ENDIF}
       procedure HttpTunnelSendAuthNtlm_1;
       procedure HttpTunnelSendAuthNtlm_3;
       procedure HttpTunnelSendPlainConnect;
       function  HttpTunnelTriggerResultOrContinue: Boolean;
+      procedure SetHttpTunnelAuthType(const Value: THttpTunnelAuthType);
       procedure SetHttpTunnelBufferSize(BufSize: Integer);
       procedure SetHttpTunnelServer(const Value: String);
+      procedure SetHttpTunnelPassword(const Value: String);
       procedure SetHttpTunnelPort(const Value: String);
+      procedure SetHttpTunnelUsercode(const Value: String);
       procedure TriggerHttpTunnelConnected(ErrCode : Word);
       procedure TriggerHttpTunnelError(ErrCode: Word);
   protected
@@ -1472,19 +1496,19 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
 
       property  HttpTunnelAuthType   : THttpTunnelAuthType
                                                     read  FHttpTunnelAuthType
-                                                    write FHttpTunnelAuthType
+                                                    write SetHttpTunnelAuthType
                                                     default htatDetect;
       property  HttpTunnelBufferSize : Integer      read  FHttpTunnelBufSize
                                                     write SetHttpTunnelBufferSize;
       property  HttpTunnelLastResponse : String     read  GetHttpTunnelLastResponse;
       property  HttpTunnelPassword   : String       read  FHttpTunnelPassword
-                                                    write FHttpTunnelPassword;
+                                                    write SetHttpTunnelPassword;
       property  HttpTunnelPort       : String       read  GetHttpTunnelPort
                                                     write SetHttpTunnelPort;
       property  HttpTunnelServer     : String       read  GetHttpTunnelServer
                                                     write SetHttpTunnelServer;
       property  HttpTunnelUsercode   : String       read  FHttpTunnelUsercode
-                                                    write FHttpTunnelUsercode;
+                                                    write SetHttpTunnelUsercode;
 
       property  HttpTunnelCurrentAuthType : THttpTunnelAuthType
                                                     read FHttpTunnelCurAuthType;
@@ -17041,14 +17065,17 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomHttpTunnelWSocket.HttpTunnelClear;
 begin
-    FHttpTunnelStatusCode    := ICS_HTTP_TUNNEL_PROTERR;
-    FHttpTunnelKeepsAlive    := TRUE;
-    FHttpTunnelContentLength := 0;
-    FHttpTunnelProto         := htp11;
-    FHttpTunnelRcvdCnt       := 0;
-    FHttpTunnelRcvdIdx       := 0;
-    FHttpTunnelWaitingBody   := FALSE;
-    FHttpTunnelLastResponse  := '';
+    FHttpTunnelStatusCode       := ICS_HTTP_TUNNEL_PROTERR;
+    FHttpTunnelKeepsAlive       := TRUE;
+    FHttpTunnelContentLength    := 0;
+    FHttpTunnelProto            := htp11;
+    FHttpTunnelRcvdCnt          := 0;
+    FHttpTunnelRcvdIdx          := 0;
+    FHttpTunnelWaitingBody      := FALSE;
+    FHttpTunnelLastResponse     := '';
+{$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+    FHttpTunnelAuthDigestCached := FALSE;
+{$ENDIF}
 end;
 
 
@@ -17066,6 +17093,29 @@ begin
     SendStr(sHttpProxyConnect + ' ' + FAddrStr + ':' + _IntToStr(FPortNum) +
             ' ' + sHttpProto + LAuthHdr + sCrLfCrLf);
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+procedure TCustomHttpTunnelWSocket.HttpTunnelSendAuthDigest;
+var
+    LAuthHdr, Uri : String;
+begin
+    HttpTunnelClear;
+    FHttpTunnelCurAuthType := htatDigest;
+    FHttpTunnelState       := htsWaitResp2;
+    Inc(FHttpTunnelAuthDigestInfo.Nc);
+    LAuthHdr := sCrLf + sHttpProxyAuthorization + 'Digest ' +
+                AuthDigestGenerateRequest(FHttpTunnelUsercode,
+                                          FHttpTunnelPassword,
+                                          sHttpProxyConnect,
+                                          Uri,
+                                          FHttpTunnelAuthDigestHash,
+                                          FHttpTunnelAuthDigestInfo);
+    SendStr(sHttpProxyConnect + ' ' + FAddrStr + ':' + _IntToStr(FPortNum) +
+            ' ' + sHttpProto + LAuthHdr + sCrLfCrLf);
+end;
+{$ENDIF}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -17113,20 +17163,39 @@ begin
     Result := TRUE;
     if FHttpTunnelStatusCode = 200 then begin
         FHttpTunnelState := htsData;
+    {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+        FHttpTunnelAuthDigestCached := (FHttpTunnelCurAuthType = htatDigest);
+    {$ENDIF}
         TriggerSessionConnected(0);
     end
     else if FHttpTunnelCurAuthType in [htatNone, htatBasic] then begin
         TriggerHttpTunnelError(FHttpTunnelStatusCode);
         Result := FALSE;
     end
-    else if (FHttpTunnelStatusCode <> 407) or (not FHttpTunnelKeepsAlive) then begin
+    else if (FHttpTunnelStatusCode <> 407) or
+       ((FHttpTunnelCurAuthType = htatNtlm) and
+        (not FHttpTunnelKeepsAlive)) then begin
         { For NTLM a persistent connection is required }
         TriggerHttpTunnelError(FHttpTunnelStatusCode);
         Result := FALSE;
     end
+{$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+    else if FHttpTunnelCurAuthType = htatDigest then begin
+        { Digest }
+        if (htsatDigest in FHttpTunnelServerAuthTypes) and
+            FHttpTunnelAuthDigestValid and
+           (FHttpTunnelState = htsWaitResp1) then
+            HttpTunnelSendAuthDigest
+        else begin
+            TriggerHttpTunnelError(FHttpTunnelStatusCode);
+            Result := FALSE;
+        end;
+    end
+{$ENDIF}
     else if FHttpTunnelCurAuthType = htatNtlm then begin
         { NTLM }
-        if FHttpTunnelState = htsWaitResp1 then
+        if (htsatNtlm in FHttpTunnelServerAuthTypes) and
+           (FHttpTunnelState = htsWaitResp1) then
             HttpTunnelSendAuthNtlm_3
         else begin
             TriggerHttpTunnelError(FHttpTunnelStatusCode);
@@ -17137,6 +17206,11 @@ begin
         { Detect AuthType supported by the proxy }
         if htsatBasic in FHttpTunnelServerAuthTypes then
             HttpTunnelSendAuthBasic
+    {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+        else if (htsatDigest in FHttpTunnelServerAuthTypes) and
+                FHttpTunnelAuthDigestValid then
+            HttpTunnelSendAuthDigest
+    {$ENDIF}
         else if htsatNtlm in FHttpTunnelServerAuthTypes then
             HttpTunnelSendAuthNtlm_1
         else begin
@@ -17154,17 +17228,15 @@ function TCustomHttpTunnelWSocket.HttpTunnelProcessHdrLine(
 var
     I : Integer;
     LStatusCode : Integer;
-{$IFNDEF NO_DEBUG_LOG}
-    LHdrLine : AnsiString;
-{$ENDIF}
+    LStr : AnsiString;
 begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loWsockDump) then begin
         if Cnt > 0 then begin
-            SetLength(LHdrLine, Cnt);
-            Move(Data^, Pointer(LHdrLine)^, Cnt);
+            SetLength(LStr, Cnt);
+            Move(Data^, Pointer(LStr)^, Cnt);
         end;
-        DebugLog(loWsockDump, String(LHdrLine));
+        DebugLog(loWsockDump, String(LStr));
     end;
 {$ENDIF}
 
@@ -17239,24 +17311,40 @@ begin
             I := 19;
             while (I < Cnt) and (Data[I] = #$20) do Inc(I);
             Inc(Data, I);
-            if (Cnt >= I + 6) and (_StrLIComp(Data, PAnsiChar('Digest'), 6) = 0) then
-                Include(FHttpTunnelServerAuthTypes, htsatDigest)
+            if (Cnt >= I + 20) and (_StrLIComp(Data, PAnsiChar('Digest'), 6) = 0) then begin
+            { Digest challenge }
+            {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+                Inc(I, 6);
+                Inc(Data, 6);
+                while (I < Cnt) and (Data^ = #$20) do begin
+                    Inc(I);
+                    Inc(Data);
+                end;
+                SetLength(LStr, Cnt - I);
+                Move(Data^, Pointer(LStr)^, Cnt - I);
+                AuthDigestParseChallenge(String(LStr), FHttpTunnelAuthDigestInfo);
+                FHttpTunnelAuthDigestValid :=
+                      AuthDigestValidateResponse(FHttpTunnelAuthDigestInfo);
+            {$ENDIF}
+                Include(FHttpTunnelServerAuthTypes, htsatDigest);
+            end
             else if (Cnt >= I + 5) and (_StrLIComp(Data, PAnsiChar('Basic'), 5) = 0) then
                 Include(FHttpTunnelServerAuthTypes, htsatBasic)
             else if (Cnt >= I + 4) and (_StrLIComp(Data, PAnsiChar('NTLM'), 4) = 0) then begin
-                if (FHttpTunnelState = htsWaitResp1) and (Cnt > 100) then begin
-                    { NTLM challenge }
-                    Inc(I, 5);
-                    Inc(Data, 5);
-                    while (I < Cnt) and (Data^ = #$20) do begin
-                        Inc(I);
-                        Inc(Data);
+                if (FHttpTunnelState = htsWaitResp1) then begin
+                    if (Cnt > 100) then begin
+                        { NTLM challenge }
+                        Inc(I, 5);
+                        Inc(Data, 5);
+                        while (I < Cnt) and (Data^ = #$20) do begin
+                            Inc(I);
+                            Inc(Data);
+                        end;
+                        SetLength(FHttpTunnelAuthChallenge, Cnt - I);
+                        Move(Data^, Pointer(FHttpTunnelAuthChallenge)^, Cnt - I);
                     end;
-                    SetLength(FHttpTunnelAuthChallenge, Cnt - I);
-                    Move(Data^, Pointer(FHttpTunnelAuthChallenge)^, Cnt - I);
-                end
-                else
                     Include(FHttpTunnelServerAuthTypes, htsatNtlm);
+                end;
             end;
         end;
     end;
@@ -17274,6 +17362,26 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.SetHttpTunnelAuthType(
+  const Value: THttpTunnelAuthType);
+begin
+    if State <> wsClosed then
+        RaiseException('Can''t change HTTP proxy authentication if not closed')
+    else begin
+        if FHttpTunnelAuthType <> Value then
+        begin
+            FHttpTunnelAuthType    := Value;
+            FHttpTunnelCurAuthType := Value;
+        {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+            FHttpTunnelAuthDigestCached := FALSE;
+            FHttpTunnelAuthDigestValid  := FALSE;
+        {$ENDIF}
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomHttpTunnelWSocket.SetHttpTunnelBufferSize(BufSize: Integer);
 begin
     FHttpTunnelBufSize := BufSize;
@@ -17284,12 +17392,40 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.SetHttpTunnelPassword(const Value: String);
+begin
+    if State <> wsClosed then
+        RaiseException('Can''t change HTTP proxy password if not closed')
+    else begin
+        if FHttpTunnelPassword <> Value then begin
+            FHttpTunnelCurAuthType := FHttpTunnelAuthType;
+            FHttpTunnelPassword := Value;
+        {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+            FHttpTunnelAuthDigestCached := FALSE;
+            FHttpTunnelAuthDigestValid  := FALSE;
+        {$ENDIF}
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomHttpTunnelWSocket.SetHttpTunnelPort(const Value: String);
+var
+    NewValue : AnsiString;
 begin
     if State <> wsClosed then
         RaiseException('Can''t change HTTP proxy port if not closed')
     else begin
-        FHttpTunnelPort := AnsiString(_Trim(Value));
+        NewValue := AnsiString(_Trim(Value));
+        if NewValue <> FHttpTunnelPort then begin
+            FHttpTunnelCurAuthType      := FHttpTunnelAuthType;
+        {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+            FHttpTunnelAuthDigestCached := FALSE;
+            FHttpTunnelAuthDigestValid  := FALSE;
+        {$ENDIF}    
+        end;
+        FHttpTunnelPort := NewValue;
         FHttpTunnelPortAssigned := FHttpTunnelPort <> '';
     end;
 end;
@@ -17305,8 +17441,12 @@ begin
     else begin
         NewValue := AnsiString(_Trim(Value));
         if NewValue <> FHttpTunnelServer then begin
-            FHttpTunnelCurAuthType := htatDetect;
-            FHttpTunnelServer      := NewValue;
+            FHttpTunnelCurAuthType      := FHttpTunnelAuthType;
+            FHttpTunnelServer           := NewValue;
+        {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+            FHttpTunnelAuthDigestCached := FALSE;
+            FHttpTunnelAuthDigestValid  := FALSE;
+        {$ENDIF}
         end;
         FHttpTunnelServerAssigned := FHttpTunnelServer <> '';
         if FHttpTunnelServerAssigned and
@@ -17314,6 +17454,24 @@ begin
             FHttpTunnelServer   := '';
             FHttpTunnelServerAssigned := FALSE;
             raise Exception.Create('Can''t use HTTP proxy when Socks is used as well');
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.SetHttpTunnelUsercode(const Value: String);
+begin
+    if State <> wsClosed then
+        RaiseException('Can''t change HTTP proxy usercode if not closed')
+    else begin
+        if FHttpTunnelUsercode <> Value then begin
+            FHttpTunnelCurAuthType := FHttpTunnelAuthType;
+            FHttpTunnelUsercode := Value;
+        {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+            FHttpTunnelAuthDigestCached := FALSE;
+            FHttpTunnelAuthDigestValid  := FALSE;
+        {$ENDIF}
         end;
     end;
 end;
@@ -17544,6 +17702,12 @@ begin
                 htatDetect,
                 htatNone     : HttpTunnelSendPlainConnect;
                 htatBasic    : HttpTunnelSendAuthBasic;
+            {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+                htatDigest   : if FHttpTunnelAuthDigestCached then
+                                  HttpTunnelSendAuthDigest
+                               else
+                                  HttpTunnelSendPlainConnect;
+            {$ENDIF}
                 htatNtlm     : HttpTunnelSendAuthNtlm_1;
             end;
         end;

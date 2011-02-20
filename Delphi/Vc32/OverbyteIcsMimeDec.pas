@@ -831,7 +831,7 @@ begin
             Inc(DecodedIndex);
             DecodedBuf[DecodedIndex] := #10;
             SetLength(DecodedBuf, DecodedIndex);
-            ProcessDecodedLine(@DecodedBuf[1], DecodedIndex);
+            ProcessDecodedLine(Pointer(DecodedBuf), DecodedIndex);  // V7.21 Angus
             break;
         end;
         if Ch = '=' then begin
@@ -841,9 +841,8 @@ begin
             if Ch = #0 then begin
 {*** Changed 20030806 ***}
                 { process without #13#10 adding }
-                if DecodedIndex <= 1 then break ; // V7.21 Angus, prevent range error for malformed blank lines
                 SetLength(DecodedBuf, DecodedIndex-1);
-                ProcessDecodedLine(@DecodedBuf[1], DecodedIndex-1);
+                ProcessDecodedLine(Pointer(DecodedBuf), DecodedIndex-1); // V7.21 Angus, prevent range error for malformed blank lines
                 break;
 {***         ***}
             end;

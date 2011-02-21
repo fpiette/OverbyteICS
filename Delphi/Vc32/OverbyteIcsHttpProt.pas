@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.14
+Version:      7.15
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -440,7 +440,14 @@ Feb 18, 2011 V7.14 Arno - Proxy authentication with relocations (hopefully) fixe
              proxy server i.e. 3Proxy. Parse NTLM user codes into domain and
              username parts and pass them to NtlmGetMessage3 in method
              GetNTLMMessage3.
-
+Feb 19, 2011 V7.15 Arno - Proxy authentication with relocations still did not
+             work properly :( It's not perfect but works better now:
+             Reset only NTLM AuthState in LocationSessionClosed and do not call
+             SetReady while FLocationFlag is set, also call StartRelocation in
+             GetHeaderLineNext if there's no body and the connection is not
+             expected to close, also the relocation counter was incremented
+             twice per relocation when the connection closed.
+             Fix in Digest authentication.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -521,8 +528,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 714;
-    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.14 ';
+    HttpCliVersion       = 715;
+    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.15 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -807,7 +814,6 @@ type
         procedure StartAuthDigest; virtual;
         procedure StartProxyAuthDigest; virtual;
 {$ENDIF}
-        procedure ClearAuthStates; {$IFDEF USE_INLINE} inline; {$ENDIF}
         procedure LoginDelayed; {$IFDEF USE_INLINE} inline; {$ENDIF}
         function GetBasicAuthorizationHeader(
             const HttpMethod: String; ProxyAuth: Boolean): String;
@@ -1420,10 +1426,8 @@ begin
                 WMHttpRequestDone(MsgRec)
             else if Msg = FMsg_WM_HTTP_SET_READY then
                 WMHttpSetReady(MsgRec)
-            else if Msg = FMsg_WM_HTTP_LOGIN then begin
-                FWMLoginQueued := FALSE;
-                WMHttpLogin(MsgRec);
-            end
+            else if Msg = FMsg_WM_HTTP_LOGIN then
+                WMHttpLogin(MsgRec)
             else
                 inherited WndProc(MsgRec);
         end;
@@ -1549,10 +1553,10 @@ begin
         {$ENDIF}
     {$ENDIF}
                 if FStatusCode = 401 then begin
-                    { If the connection will be closed then check if we must
-                      repeat a proxy authentication, otherwise we must clear
-                      it }
-                    if FCloseReq then begin
+                    { If the connection will be closed or is already closed
+                      then check if we must repeat a proxy authentication,
+                      otherwise we must clear it }
+                    if FCloseReq or (FCtrlSocket.State = wsClosed) then begin
                     {$IFDEF UseNTLMAuthentication}
                         if FProxyAuthNTLMState = ntlmDone then
                             FProxyAuthNTLMState := ntlmMsg1
@@ -1591,7 +1595,7 @@ begin
                     FDocName          := SaveDoc;
                 end;
             end
-            else if not FLocationFlag then
+            else
                 TriggerRequestDone;
         end;
     end;
@@ -2071,6 +2075,10 @@ begin
     if CheckLogOptions(loProtSpecInfo) then  { V1.91 } { replaces $IFDEF DEBUG_OUTPUT  }
             DebugLog(loProtSpecInfo, 'Login ' + FHostName);
 {$ENDIF}
+    FWMLoginQueued := FALSE;
+    FStatusCode    := 0;
+    FLocationFlag  := False;
+     
     FCtrlSocket.OnSessionClosed := SocketSessionClosed;
 
     if FCtrlSocket.State = wsConnected then begin
@@ -2430,6 +2438,17 @@ begin
         if FModifiedSince <> 0 then
             Headers.Add('If-Modified-Since: ' +
                         RFC1123_Date(FModifiedSince) + ' GMT');
+
+        if not FProxyConnected then begin
+            { We did not call SetReady while in relocation, adjust }
+            { ProxyAuthNtlmState if we got disconnected from proxy }
+          {$IFDEF UseNTLMAuthentication}
+            if FProxyAuthNtlmState = ntlmDone then
+                FProxyAuthNtlmState := ntlmMsg1;
+          {$ENDIF}
+        end;
+        
+
 {$IFDEF UseNTLMAuthentication}
         if (FProxyAuthNTLMState <> ntlmMsg1) then begin
             if (FAuthNTLMState = ntlmMsg1) then
@@ -2726,7 +2745,7 @@ begin
                 { [rawbite 31.08.2004 Connection controll] }
                 (FCloseReq) then     { SAE 01/06/04 }
                 FCtrlSocket.CloseDelayed
-            else
+            else if not FLocationFlag then
                 CheckDelaySetReady;  { 09/26/08 ML }
         end;
     end;
@@ -2903,6 +2922,8 @@ begin
                 FNext := nil;                                     //AG 05/27/08
                 SetReady;                                         //AG 05/27/08
             end                                                   //AG 05/27/08
+            else if FLocationFlag then
+                StartRelocation
             else
                 CheckDelaySetReady;  { 09/26/08 ML }
             Exit;
@@ -3375,7 +3396,7 @@ begin
 {$ENDIF}
 {$IFDEF UseDigestAuthentication}
             if FProxyAuth = httpAuthDigest then
-                FProxyAuthDigestState := digestMsg1
+                FProxyAuthDigestState := digestDone
             else
 {$ENDIF}
             if FProxyAuth = httpAuthBasic then
@@ -3396,8 +3417,8 @@ begin
 {$ENDIF}
 {$IFDEF UseDigestAuthentication}
         if FServerAuth = httpAuthDigest then
-            FAuthDigestState := digestMsg1
-        else    
+            FAuthDigestState := digestDone
+        else
 {$ENDIF}
         if FServerAuth = httpAuthBasic then
             FAuthBasicState := basicMsg1;
@@ -3504,22 +3525,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THttpCli.ClearAuthStates;
-begin
-{$IFDEF UseNTLMAuthentication}
-    FAuthNTLMState        := ntlmNone;
-    FProxyAuthNTLMState   := ntlmNone;
-{$ENDIF}
-{$IFDEF UseDigestAuthentication}
-    FAuthDigestState      := digestNone;
-    FProxyAuthDigestState := digestNone;
-{$ENDIF}
-    FAuthBasicState       := BasicNone;
-    FProxyAuthBasicState  := BasicNone;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpCli.LoginDelayed;
 begin
     if not FWMLoginQueued then
@@ -3535,19 +3540,37 @@ var
     I                                   : Integer;
     AllowMoreRelocations                : Boolean;
 begin
-    if FWMLoginQueued then begin
-    { StartRelocation already initiated the new Login. }
-    { This close is unexpected.                        }
-    { Reset all AuthStates and exit.                   }
-        ClearAuthStates;
-        Exit;
-    end;
-    { Remove any bookmark from the URL }
+  { Remove any bookmark from the URL }
     I := Pos('#', FLocation);
     if I > 0 then
         RealLocation := Copy(FLocation, 1, I - 1)
     else
         RealLocation := FLocation;
+
+  {$IFDEF UseNTLMAuthentication}
+    if FProxyAuthNtlmState <> ntlmNone then
+        { Connection thru proxy with NTLM. Reset the AuthState. }
+        FProxyAuthNtlmState := ntlmMsg1; //ntlmDone;
+  {$ENDIF}
+
+    if FWMLoginQueued then begin
+    { StartRelocation already queued a new Login }
+        FConnected      := FALSE;
+        FProxyConnected := FALSE;
+        FLocationFlag   := FALSE;
+        { Clear header from previous operation }
+        FRcvdHeader.Clear;
+        { Clear status variables from previous operation }
+        FHeaderLineCount  := 0;
+        FBodyLineCount    := 0;
+        FContentLength    := -1;
+        FContentType      := '';
+        FTransferEncoding := ''; { 28/12/2003 }
+    {$IFDEF UseContentCoding}
+        FContentEncoding  := '';
+    {$ENDIF}
+        Exit; //***
+    end;
 
     { Parse the URL }
     ParseURL(RealLocation, Proto, User, Pass, Host, Port, Path);
@@ -3585,7 +3608,7 @@ begin
     FBodyLineCount    := 0;
     FContentLength    := -1;
     FContentType      := '';
-    FStatusCode       := 0;
+    //FStatusCode       := 0; // Moved to Login
     FTransferEncoding := ''; { 28/12/2003 }
 {$IFDEF UseContentCoding}
     FContentEncoding  := '';
@@ -3943,24 +3966,25 @@ begin
     FHeaderLineCount  := 0;
     FBodyLineCount    := 0;
 
-{  V1.90 25 Nov 2005 - restrict number of relocations to avoid continuous loops }
-    inc (FLocationChangeCurCount) ;
-    if FLocationChangeCurCount > FLocationChangeMaxCount then begin
-        AllowMoreRelocations := false;
-        if Assigned (FOnLocationChangeExceeded) then
-            FOnLocationChangeExceeded(Self, FLocationChangeCurCount,
-                                                     AllowMoreRelocations) ;
-        if not AllowMoreRelocations then begin
-            SetReady;
-            exit;
-        end ;
-    end ;
     if {(FResponseVer     = '1.1') and}
         { [rawbite 31.08.2004 Connection controll] }
        (FCurrentHost     = FHostName) and
        (FCurrentPort     = FPort) and
        (FCurrentProtocol = FProtocol) and
        (not FCloseReq) then begin      { SAE 01/06/04 }
+
+        Inc (FLocationChangeCurCount) ;
+        if FLocationChangeCurCount > FLocationChangeMaxCount then begin
+            AllowMoreRelocations := false;
+            if Assigned (FOnLocationChangeExceeded) then
+                FOnLocationChangeExceeded(Self, FLocationChangeCurCount,
+                                                         AllowMoreRelocations) ;
+            if not AllowMoreRelocations then begin
+                SetReady;
+                exit;
+            end ;
+        end;
+
         { No need to disconnect }
         { Trigger the location changed event  27/04/2003 }
         if Assigned(FOnLocationChange) then
@@ -4384,7 +4408,7 @@ begin
         FProxyAuthBasicState := basicNone;
         LoginDelayed;
     end
-    else if FProxyAuthBasicState = basicMsg1 then begin
+    else if FProxyAuthDigestState = digestMsg1 then begin
         FDoAuthor.Clear;
         FProxyAuthDigestState := digestNone;
         { We come here when Digest has failed }

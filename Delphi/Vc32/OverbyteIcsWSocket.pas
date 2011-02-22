@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.63
+Version:      7.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -839,6 +839,10 @@ Feb 20, 2011 V7.63 Arno added digest authentication to TCustomHttpTunnelWSocket.
                    Define "NO_HTTP_TUNNEL_AUTHDIGEST" to exclude it from a build,
                    so far it's tested with ICS-based IQ Proxy Server only. Some
                    new property setters.
+Feb 21, 2011 V7.64 Arno - New ComponentOption "wsoNoHttp10Tunnel" treats HTTP/1.0
+                   responses as errors. If "wsoNoHttp10Tunnel" is not set send
+                   "Keep-Alive" header with NTLM message #1 in order to make
+                   HTTP/1.0 proxies happy (MS Proxy Server 2.0 tested).
 }
 
 {
@@ -952,8 +956,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 763;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.63 ';
+  WSocketVersion            = 764;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.64 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1013,7 +1017,10 @@ type
   TWSocketOption       = TWSocketOptions;
 {$ENDIF}
 {$IFDEF WIN32}
-  TWSocketOption       = (wsoNoReceiveLoop, wsoTcpNoDelay, wsoSIO_RCVALL);
+  TWSocketOption       = (wsoNoReceiveLoop, wsoTcpNoDelay, wsoSIO_RCVALL,
+                         { The HTTP tunnel supports HTTP/1.1. If next option }
+                         { is set HTTP/1.0 responses are treated as errors.  }
+                          wsoNoHttp10Tunnel);
   TWSocketOptions      = set of TWSocketOption;
 {$ENDIF}
 {$IFDEF DELPHI4_UP}
@@ -3182,6 +3189,7 @@ const
     ICS_HTTP_TUNNEL_MAXERR              = ICS_HTTP_TUNNEL_BASEERR + ICS_HTTP_TUNNEL_MAXSTAT;
     ICS_HTTP_TUNNEL_PROTERR             = ICS_HTTP_TUNNEL_BASEERR;
     ICS_HTTP_TUNNEL_GENERR              = ICS_HTTP_TUNNEL_BASEERR + 1;
+    ICS_HTTP_TUNNEL_VERSIONERR          = ICS_HTTP_TUNNEL_GENERR  + 1;
 
 implementation
 
@@ -8708,6 +8716,9 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+const
+  sHttpVersionError = 'Proxy server must support HTTP/1.1';
+
 function WSocketHttpTunnelErrorDesc(ErrCode : Integer) : String;
 const
     sNotAHttpTunnelError = 'Not a HTTP tunnel error';
@@ -8731,6 +8742,8 @@ begin
                     Result := 'Protocol Error';
                 ICS_HTTP_TUNNEL_GENERR  :
                     Result := 'General Failure';
+                ICS_HTTP_TUNNEL_VERSIONERR :
+                    Result := sHttpVersionError;
                 else
                     Result := sNotAHttpTunnelError;
             end;
@@ -17128,6 +17141,9 @@ begin
     FHttpTunnelState       := htsWaitResp1;
     LAuthHdr := sCrLf + sHttpProxyAuthorization + 'NTLM ' +
                 NtlmGetMessage1('', '');
+    if not (wsoNoHttp10Tunnel in FComponentOptions) then
+        { Make some HTTP/1.0 proxies happy, i.e MSP 2.0 }
+        LAuthHdr := LAuthHdr + sCrLf + sHttpProxyKeepAlive;
     SendStr(sHttpProxyConnect + ' ' + FAddrStr + ':' + _IntToStr(FPortNum) +
             ' ' + sHttpProto + LAuthHdr + sCrLfCrLf);
 end;
@@ -17173,9 +17189,7 @@ begin
         Result := FALSE;
     end
     else if (FHttpTunnelStatusCode <> 407) or
-       ((FHttpTunnelCurAuthType = htatNtlm) and
-        (not FHttpTunnelKeepsAlive)) then begin
-        { For NTLM a persistent connection is required }
+        (not FHttpTunnelKeepsAlive) then begin
         TriggerHttpTunnelError(FHttpTunnelStatusCode);
         Result := FALSE;
     end
@@ -17257,8 +17271,15 @@ begin
         { HTTP/1.x <status code> }
         if (Cnt >= 12) and (_StrLIComp(Data, PAnsiChar('HTTP/1.'), 7) = 0) then begin
             FHttpTunnelChunked := FALSE;
-            if Data[7] = '0' then
+            if Data[7] = '0' then begin
                 FHttpTunnelProto := htp10;
+                if wsoNoHttp10Tunnel in FComponentOptions then begin
+                    FHttpTunnelLastResponse := sHttpVersionError;
+                    TriggerHttpTunnelError(ICS_HTTP_TUNNEL_VERSIONERR);
+                    Result := FALSE;
+                    Exit; //***
+                end;
+            end;
             FHttpTunnelKeepsAlive := (FHttpTunnelProto = htp11);
             SetLength(FHttpTunnelLastResponse, Cnt);
                 Move(Data^, Pointer(FHttpTunnelLastResponse)^, Cnt);

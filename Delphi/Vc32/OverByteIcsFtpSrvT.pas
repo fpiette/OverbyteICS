@@ -4,12 +4,12 @@ Author:       François PIETTE
 Description:  Time functions.
 Creation:     Nov 24, 1999 from Bruce Christensen <bkc51831234@hotmail.com>
               code used with his permission. Thanks.
-Version:      7.08
+Version:      7.09
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
 Legal issues: Copyright (C) 1999-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              Rue de Grady 24, 4053 Embourg, Belgium. 
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -68,6 +68,8 @@ May 17, 2009 V7.08 Angus assume STREAM64
                    Added progress callback for IcsBuildDirList/IcsGetDirList so session does
                       not timeout indexing large directories
                    Made IcsBuildDirList and IcsCompareDirNext public
+Feb 22, 2011 V7.09 Angus IcsGetDirList always keeps directories for FTP recursive
+                      subdirectory listings
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -110,8 +112,8 @@ uses
     OverbyteIcsStreams;    { angus V7.7 }
 
 const
-    FtpSrvT_Unit       = 708;
-    CopyRight : String = ' FtpSrvT  (c) 1999-2010 F. Piette V7.08 ';
+    FtpSrvT_Unit       = 709;
+    CopyRight : String = ' FtpSrvT  (c) 1999-2011 F. Piette V7.09 ';
 
   { V1.16 Tick and Trigger constants }
   TicksPerDay      : longword =  24 * 60 * 60 * 1000 ;
@@ -692,7 +694,7 @@ begin
                                      SubDirs, Hidden, succ(Level), InitDLen, TotFiles,
                                                         LocFiles, Obj, ProgressCallback) then  { V7.08 } 
                         exit;
-                    savename := FALSE;
+                  { savename := FALSE;  V7.09 always keep directories }
                 end;
 
              { add file to dynamic array, allocating more memory if needed }

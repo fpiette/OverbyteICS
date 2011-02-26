@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.64
+Version:      7.65
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -843,6 +843,23 @@ Feb 21, 2011 V7.64 Arno - New ComponentOption "wsoNoHttp10Tunnel" treats HTTP/1.
                    responses as errors. If "wsoNoHttp10Tunnel" is not set send
                    "Keep-Alive" header with NTLM message #1 in order to make
                    HTTP/1.0 proxies happy (MS Proxy Server 2.0 tested).
+Feb 26, 2011 V7.65 Arno - TCustomHttpTunnel strongly improved.
+                 - Bugfix: Ensure that internally buffered application data
+                   is read by the upper layer by posting a fake FD_READ message
+                   if required.
+                 - Better support of HTTP/1.0 proxies.
+                 - Performs an internal reconnect when the connection has to
+                   be closed after a 407 status code and the server provides a
+                   supported authentication method, as a result htatDetect
+                   works with non-persistent connections as well.
+                 - Tested with Squid 2.7.STABLE8 for Windows successfully.
+                 - Tested with CSM proxy 4.2 successfully after adding a
+                   workaround (requires at least two header lines being sent).
+                 - ISA Server 2006 tested successfully except with digest auth.
+                   I wasn't able to get digest authentication working neither IE
+                   nor Firefox got authenticated. Interesting is that ISA uses
+                   digest algorithm "MD5-sess" that I enabled in
+                   OverbyteIceDigestAuth.pas now, untested!
 }
 
 {
@@ -956,8 +973,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 764;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.64 ';
+  WSocketVersion            = 765;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.65 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1425,7 +1442,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
                          );
   THttpTunnelServerAuthTypes = set of (htsatBasic, htsatNtlm, htsatDigest);
   THttpTunnelState = (htsData, htsConnecting, htsConnected,
-                     htsWaitResp1, htsWaitResp2);
+                      htsWaitResp0, htsWaitResp1, htsWaitResp2);
   THttpTunnelErrorEvent = procedure(Sender               : TObject;
                                    ErrCode               : Word;
                                    TunnelServerAuthTypes : THttpTunnelServerAuthTypes;
@@ -1433,6 +1450,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
   THttpTunnelChunkState  = (htcsGetSize,     htcsGetExt, htcsGetData,
                             htcsGetBoundary, htcsDone);
   THttpTunnelProto       = (htp11, htp10);
+  THttpTunnelReconnectRequest = (htrrNone, htrrBasic, htrrDigest, htrrNtlm1);
   TCustomHttpTunnelWSocket = class(TCustomWSocket)
   private
       FHttpTunnelAuthChallenge    : AnsiString;
@@ -1453,6 +1471,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
       FHttpTunnelCurAuthType      : THttpTunnelAuthType;
       FHttpTunnelKeepsAlive       : Boolean;
       FHttpTunnelLastResponse     : AnsiString; // Also hijacked for internal error messages
+      FHttpTunnelReconnectRequest : THttpTunnelReconnectRequest;
       FHttpTunnelPassword         : String;
       FHttpTunnelPort             : AnsiString;
       FHttpTunnelPortAssigned     : Boolean;
@@ -1466,6 +1485,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
       FHttpTunnelStatusCode       : Word;
       FHttpTunnelUsercode         : String;
       FHttpTunnelWaitingBody      : Boolean;
+      FMsg_WM_TUNNEL_RECONNECT    : UINT;
       FOnHttpTunnelConnected      : TSessionConnected;
       FOnHttpTunnelError          : THttpTunnelErrorEvent;
 
@@ -1492,14 +1512,20 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
       procedure TriggerHttpTunnelConnected(ErrCode : Word);
       procedure TriggerHttpTunnelError(ErrCode: Word);
   protected
+      procedure AllocateMsgHandlers; override;
       procedure AssignDefaultValue; override;
       function  DoRecv(var Buffer : TWSocketData;
                        BufferSize : Integer;
                        Flags      : Integer) : Integer; override;
+      procedure FreeMsgHandlers; override;
       function  GetRcvdCount : LongInt; override;
+      function  MsgHandlersCount : Integer; override;
+      procedure RaiseException(const Msg : String); override;
       function  TriggerDataAvailable(ErrCode : Word) : Boolean; override;
       procedure TriggerSessionClosed(ErrCode : Word); override;
       procedure TriggerSessionConnectedSpecial(ErrCode: Word); override;
+      procedure WndProc(var MsgRec: TMessage); override;
+      procedure WMHttpTunnelReconnect(var MsgRec: TMessage);
 
       property  HttpTunnelAuthType   : THttpTunnelAuthType
                                                     read  FHttpTunnelAuthType
@@ -16932,9 +16958,27 @@ const
   sHttpProto                = 'HTTP/1.1';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.AllocateMsgHandlers;
+begin
+    inherited AllocateMsgHandlers;
+    FMsg_WM_TUNNEL_RECONNECT := FWndHandler.AllocateMsgHandler(Self);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomHttpTunnelWSocket.AssignDefaultValue;
 begin
-    inherited AssignDefaultValue;
+    if FHttpTunnelReconnectRequest = htrrNone then
+        inherited AssignDefaultValue
+    else begin
+        { We will reconnect so do not clear all }
+        FHSocket            := INVALID_SOCKET;
+        FSelectEvent        := 0;
+        FState              := wsClosed;
+        bAllSent            := TRUE;
+        FPaused             := FALSE;
+        FCloseInvoked       := FALSE;
+    end;
     FHttpTunnelState         := htsData;
     FHttpTunnelRcvdCnt       := 0;
     FHttpTunnelRcvdIdx       := 0;
@@ -16996,6 +17040,15 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.FreeMsgHandlers;
+begin
+    if Assigned(FWndHandler) then
+        FWndHandler.UnregisterMessage(FMsg_WM_TUNNEL_RECONNECT);
+    inherited FreeMsgHandlers;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomHttpTunnelWSocket.GetRcvdCount : LongInt;
 begin
     if FHttpTunnelRcvdCnt <= 0 then
@@ -17013,18 +17066,23 @@ begin
     begin
         { We still have previously received data in our internal buffer }
         if FHttpTunnelRcvdCnt <= BufferSize then begin
-            { User buffer is greater than received data, copy all and clear }
+            { User buffer is greater or equal buffered data, copy all and clear }
             Move(FHttpTunnelBuf[FHttpTunnelRcvdIdx], Buffer^, FHttpTunnelRcvdCnt);
-            Result            := FHttpTunnelRcvdCnt;
+            Result             := FHttpTunnelRcvdCnt;
             FHttpTunnelRcvdCnt := 0;
             FHttpTunnelRcvdIdx := 0;
         end
         else begin
             { User buffer is smaller, copy as much as possible }
             Move(FHttpTunnelBuf[FHttpTunnelRcvdIdx], Buffer^, BufferSize);
-            Result            := BufferSize;
+            Result             := BufferSize;
             FHttpTunnelRcvdIdx := FHttpTunnelRcvdIdx + BufferSize;
             FHttpTunnelRcvdCnt := FHttpTunnelRcvdCnt - BufferSize;
+            { We've still buffered data, we MUST ensure it's read!   }
+            { Otherwise the application might wait for it infinitely }
+            if (FState = wsConnected) then
+                _PostMessage(Handle, FMsg_WM_ASYNCSELECT,
+                             WPARAM(FHSocket), LPARAM(FD_READ));
         end;
     end
     else
@@ -17057,7 +17115,8 @@ end;
 function TCustomHttpTunnelWSocket.HttpTunnelGetNtlmMessage3: String;
 var
     Hostname : String;
-    NtLmInfo : TNTLM_Msg2_Info;
+    NtlmInfo : TNTLM_Msg2_Info;
+    LDomain, LUser: String;
 begin
     { get local hostname }
     try
@@ -17065,19 +17124,28 @@ begin
     except
         Hostname := '';
     end;
-    NtLmInfo := NtlmGetMessage2(String(FHttpTunnelAuthChallenge));
+    NtlmInfo := NtlmGetMessage2(String(FHttpTunnelAuthChallenge));
+    NtlmParseUserCode(HttpTunnelUsercode, LDomain, LUser, FALSE);
+    { With Squid proxy LDomain may not be empty (at the time of writing), }
+    { a user code of <DOMAIN>\<UserName> works with Squid. Fix below      }
+    { works with Squid, however I'm not 100% sure whether to include it   }
+    { by default.                                                         }
+    if (LDomain = '') or (Pos('@', LUser) = 0) then
+        LDomain := NtlmInfo.Domain;
+
     { hostname is the local hostname }
-    Result := NtlmGetMessage3('',
+    Result := NtlmGetMessage3(LDomain,
                               Hostname,
-                              HttpTunnelUsercode,
+                              LUser,
                               FHttpTunnelPassword,
-                              NtLmInfo.Challenge);
+                              NtlmInfo.Challenge);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomHttpTunnelWSocket.HttpTunnelClear;
 begin
+    { Only called before request }
     FHttpTunnelStatusCode       := ICS_HTTP_TUNNEL_PROTERR;
     FHttpTunnelKeepsAlive       := TRUE;
     FHttpTunnelContentLength    := 0;
@@ -17086,6 +17154,7 @@ begin
     FHttpTunnelRcvdIdx          := 0;
     FHttpTunnelWaitingBody      := FALSE;
     FHttpTunnelLastResponse     := '';
+    FHttpTunnelReconnectRequest := htrrNone;
 {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
     FHttpTunnelAuthDigestCached := FALSE;
 {$ENDIF}
@@ -17118,6 +17187,7 @@ begin
     FHttpTunnelCurAuthType := htatDigest;
     FHttpTunnelState       := htsWaitResp2;
     Inc(FHttpTunnelAuthDigestInfo.Nc);
+    Uri := '/';  // Required for Squid!
     LAuthHdr := sCrLf + sHttpProxyAuthorization + 'Digest ' +
                 AuthDigestGenerateRequest(FHttpTunnelUsercode,
                                           FHttpTunnelPassword,
@@ -17167,9 +17237,11 @@ end;
 procedure TCustomHttpTunnelWSocket.HttpTunnelSendPlainConnect;
 begin
     HttpTunnelClear;
-    FHttpTunnelState := htsWaitResp1;
+    FHttpTunnelState := htsWaitResp0;
+    { We send the Keep-Alive header only since there are proxies i.e. the      }
+    { CSM 4.2 that require at least two header lines in order to send a reply. }
     SendStr(sHttpProxyConnect + ' ' + FAddrStr + ':' + _IntToStr(FPortNum) +
-            ' ' + sHttpProto + sCrLfCrLf);
+            ' ' + sHttpProto + sCrLf + sHttpProxyKeepAlive + sCrLfCrLf);
 end;
 
 
@@ -17188,9 +17260,44 @@ begin
         TriggerHttpTunnelError(FHttpTunnelStatusCode);
         Result := FALSE;
     end
-    else if (FHttpTunnelStatusCode <> 407) or
-        (not FHttpTunnelKeepsAlive) then begin
+    else if (FHttpTunnelStatusCode <> 407) then begin
         TriggerHttpTunnelError(FHttpTunnelStatusCode);
+        Result := FALSE;
+    end
+    { ------------- 407 starts here ------------------ }
+    else if not FHttpTunnelKeepsAlive then begin
+        { Connection has to be closed, happens with both HTTP 1.0 and 1.1 }
+        { check if we have to reconnect asynchronously.                   }
+        if (FHttpTunnelState = htsWaitResp0) then begin
+            { It's a response to our plain CONNECT request }
+            if FHttpTunnelCurAuthType = htatDetect then begin
+                if htsatBasic in FHttpTunnelServerAuthTypes then
+                    FHttpTunnelReconnectRequest := htrrBasic
+            {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+                else if (htsatDigest in FHttpTunnelServerAuthTypes) and
+                    FHttpTunnelAuthDigestValid then
+                  FHttpTunnelReconnectRequest := htrrDigest
+            {$ENDIF}
+                else if htsatNtlm in FHttpTunnelServerAuthTypes then
+                    FHttpTunnelReconnectRequest := htrrNtlm1;
+            end
+        {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+            else if FHttpTunnelCurAuthType = htatDigest then begin
+                if (htsatDigest in FHttpTunnelServerAuthTypes) and
+                    FHttpTunnelAuthDigestValid then
+                    FHttpTunnelReconnectRequest := htrrDigest;
+            end
+        {$ENDIF};
+        end;
+        if FHttpTunnelReconnectRequest = htrrNone then
+            TriggerHttpTunnelError(FHttpTunnelStatusCode)
+        else begin
+            { Close the connection and start a new one asynchronously in }
+            { in TriggerSessionClosed.                                   }
+            FHttpTunnelState := htsData;
+            FHttpTunnelStatusCode := ICS_HTTP_TUNNEL_PROTERR;
+            InternalClose(TRUE, 0);
+        end;
         Result := FALSE;
     end
 {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
@@ -17198,7 +17305,7 @@ begin
         { Digest }
         if (htsatDigest in FHttpTunnelServerAuthTypes) and
             FHttpTunnelAuthDigestValid and
-           (FHttpTunnelState = htsWaitResp1) then
+           (FHttpTunnelState in [htsWaitResp0, htsWaitResp1]) then
             HttpTunnelSendAuthDigest
         else begin
             TriggerHttpTunnelError(FHttpTunnelStatusCode);
@@ -17365,7 +17472,9 @@ begin
                         Move(Data^, Pointer(FHttpTunnelAuthChallenge)^, Cnt - I);
                     end;
                     Include(FHttpTunnelServerAuthTypes, htsatNtlm);
-                end;
+                end
+                else if (FHttpTunnelState = htsWaitResp0) then
+                    Include(FHttpTunnelServerAuthTypes, htsatNtlm);
             end;
         end;
     end;
@@ -17379,6 +17488,21 @@ begin
         inherited Listen
     else
         RaiseException('Listening is not supported thru HTTP proxy servers');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomHttpTunnelWSocket.MsgHandlersCount : Integer;
+begin
+    Result := 1 + inherited MsgHandlersCount;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.RaiseException(const Msg : String);
+begin
+    HttpTunnelClear;
+    inherited RaiseException(Msg);
 end;
 
 
@@ -17507,9 +17631,9 @@ var
 begin
     if FHttpTunnelState = htsData then
         Result := inherited TriggerDataAvailable(ErrCode)
-    else if FHttpTunnelState in [htsWaitResp1, htsWaitResp2] then begin
+    else if FHttpTunnelState in [htsWaitResp0, htsWaitResp1, htsWaitResp2] then begin
         if ErrCode <> 0 then begin
-            FHttpTunnelLastResponse := 'THttpProxyWSocket - DataAvailable error';
+            FHttpTunnelLastResponse := 'THttpTunnelWSocket - DataAvailable error';
             TriggerHttpTunnelError(ErrCode);
             Result := FALSE;
             Exit;
@@ -17553,9 +17677,15 @@ begin
             { Still in header or request sent or application data follows }
             if (LBufIdx > 0) and (FHttpTunnelRcvdCnt >= LBufIdx) then begin
                 Dec(FHttpTunnelRcvdCnt, LBufIdx);
-                if FHttpTunnelRcvdCnt > 0 then
+                if FHttpTunnelRcvdCnt > 0 then begin
                     Move(FHttpTunnelBuf[LBufIdx], FHttpTunnelBuf[0],
                          FHttpTunnelRcvdCnt);
+                    { We've buffered data, we MUST ensure it's read!         }
+                    { Otherwise the application might wait for it infinitely }
+                    if (FHttpTunnelState = htsData) and (FState = wsConnected) then
+                        _PostMessage(Handle, FMsg_WM_ASYNCSELECT, WPARAM(FHSocket),
+                                     LPARAM(FD_READ));
+                end;
             end;
         end
         else begin { Skip body data }
@@ -17622,9 +17752,16 @@ begin
 
                 if LBufIdx > 0 then begin
                     Dec(FHttpTunnelRcvdCnt, LBufIdx);
-                    if FHttpTunnelRcvdCnt > 0 then
+                    if FHttpTunnelRcvdCnt > 0 then begin
                         Move(FHttpTunnelBuf[LBufIdx], FHttpTunnelBuf[0],
                              FHttpTunnelRcvdCnt);
+                        { We've buffered data, we MUST ensure it is read!        }
+                        { Otherwise the application might wait for it infinitely }
+                        if (FHttpTunnelChunkState = htcsDone) and
+                           (FState = wsConnected) then
+                            _PostMessage(Handle, FMsg_WM_ASYNCSELECT,
+                                         WPARAM(FHSocket), LPARAM(FD_READ));
+                    end;
                 end;
             end
             else begin
@@ -17638,12 +17775,19 @@ begin
                     Inc(LBufIdx, FHttpTunnelContentLength);
                     Dec(FHttpTunnelRcvdCnt, LBufIdx);
                     FHttpTunnelContentLength := 0;
-                    if FHttpTunnelRcvdCnt > 0 then
+                    if FHttpTunnelRcvdCnt > 0 then begin
                         Move(FHttpTunnelBuf[LBufIdx], FHttpTunnelBuf[0],
                              FHttpTunnelRcvdCnt);
+                    end;
                 end;
-                if FHttpTunnelContentLength = 0 then
+                if FHttpTunnelContentLength = 0 then begin
                     HttpTunnelTriggerResultOrContinue;
+                    { We've buffered data, we MUST ensure it is read!        }
+                    { Otherwise the application might wait for it infinitely }
+                    if (FHttpTunnelRcvdCnt > 0) and (FState = wsConnected) then
+                        _PostMessage(Handle, FMsg_WM_ASYNCSELECT,
+                                     WPARAM(FHSocket), LPARAM(FD_READ));
+                end;
             end;
         end;
         if FHttpTunnelRcvdCnt = FHttpTunnelBufSize then begin
@@ -17655,7 +17799,7 @@ begin
     end
     else begin
         Result := FALSE; // Should never happen
-        FHttpTunnelLastResponse := 'THttpProxyWSocket - Fatal: Invalid state ' +
+        FHttpTunnelLastResponse := 'THttpTunnelWSocket - Fatal: Invalid state ' +
                                   'in TriggerDataAvailable';
         TriggerHttpTunnelError(FHttpTunnelStatusCode);
     end;
@@ -17669,8 +17813,13 @@ begin
         FHttpTunnelLastResponse :=
           AnsiString(WSocketErrorMsgFromErrorCode(ICS_HTTP_TUNNEL_GENERR));
         TriggerHttpTunnelError(ICS_HTTP_TUNNEL_GENERR);
-    end;
-    inherited TriggerSessionClosed(ErrCode);
+    end
+    else if FHttpTunnelReconnectRequest <> htrrNone then
+        { Start ansynchronous reconnect by posting a custom message. }
+        { This message is processed in method WMHttpTunnelReconnect. }
+        _PostMessage(Handle, FMsg_WM_TUNNEL_RECONNECT, 0, 0)
+    else
+        inherited TriggerSessionClosed(ErrCode);
 end;
 
 
@@ -17690,7 +17839,8 @@ begin
     if Assigned(FOnHttpTunnelError) then
         FOnHttpTunnelError(Self, ErrCode, FHttpTunnelServerAuthTypes,
                            String(FHttpTunnelLastResponse));
-    FHttpTunnelState := htsData;
+    FHttpTunnelState            := htsData;
+    FHttpTunnelReconnectRequest := htrrNone;
     if FHttpTunnelCurAuthType <> FHttpTunnelAuthType then
         FHttpTunnelCurAuthType := FHttpTunnelAuthType;
     TriggerSessionConnected(ErrCode);
@@ -17707,34 +17857,78 @@ begin
             FHttpTunnelState := htsConnected;
         TriggerHttpTunnelConnected(ErrCode);
         if ErrCode <> 0 then begin
-            FHttpTunnelState := htsData;
+            FHttpTunnelState            := htsData;
+            FHttpTunnelReconnectRequest := htrrNone;
             inherited TriggerSessionConnectedSpecial(ErrCode);
         end
         else begin
-            if (FHttpTunnelUsercode <> '') then begin
-                if (FHttpTunnelAuthType <> htatDetect) and
-                   (FHttpTunnelCurAuthType <> FHttpTunnelAuthType) then
-                    FHttpTunnelCurAuthType := FHttpTunnelAuthType;
+            if FHttpTunnelReconnectRequest <> htrrNone then begin
+                { This block is only executed after the component performed   }
+                { a silent reconnect in the background after status code 407, }
+                { FHttpTunnelReconnectRequest is reset in the send-functions. }
+                case FHttpTunnelReconnectRequest of
+                    htrrBasic  : HttpTunnelSendAuthBasic;
+                {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+                    htrrDigest : HttpTunnelSendAuthDigest;
+                {$ENDIF}
+                    htrrNtlm1  : HttpTunnelSendAuthNtlm_1;
+                end;
             end
             else begin
-                FHttpTunnelCurAuthType := htatNone;
+                if (FHttpTunnelUsercode <> '') then begin
+                    if (FHttpTunnelAuthType <> htatDetect) and
+                       (FHttpTunnelCurAuthType <> FHttpTunnelAuthType) then
+                        FHttpTunnelCurAuthType := FHttpTunnelAuthType;
+                end
+                else begin
+                    FHttpTunnelCurAuthType := htatNone;
+                end;
+                case FHttpTunnelCurAuthType of
+                    htatDetect,
+                    htatNone     : HttpTunnelSendPlainConnect;
+                    htatBasic    : HttpTunnelSendAuthBasic;
+                {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
+                    htatDigest   : if FHttpTunnelAuthDigestCached then
+                                        HttpTunnelSendAuthDigest
+                                   else
+                                        HttpTunnelSendPlainConnect;
+                {$ENDIF}
+                    htatNtlm     : HttpTunnelSendAuthNtlm_1;
+                end;
             end;
-            case FHttpTunnelCurAuthType of
-                htatDetect,
-                htatNone     : HttpTunnelSendPlainConnect;
-                htatBasic    : HttpTunnelSendAuthBasic;
-            {$IFNDEF NO_HTTP_TUNNEL_AUTHDIGEST}
-                htatDigest   : if FHttpTunnelAuthDigestCached then
-                                  HttpTunnelSendAuthDigest
-                               else
-                                  HttpTunnelSendPlainConnect;
-            {$ENDIF}
-                htatNtlm     : HttpTunnelSendAuthNtlm_1;
-            end;
+            
         end;
     end
     else
         inherited TriggerSessionConnectedSpecial(ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.WMHttpTunnelReconnect(var MsgRec: TMessage);
+begin
+    if FHttpTunnelReconnectRequest <> htrrNone then
+        Connect
+    else begin // May not happen
+        FHttpTunnelLastResponse := 'THttpTunnelWSocket - Fatal: Internal error ' +
+                                   'in WMHttpTunnelReconnect';
+        TriggerHttpTunnelError(FHttpTunnelStatusCode);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.WndProc(var MsgRec: TMessage);
+begin
+    if MsgRec.Msg = FMsg_WM_TUNNEL_RECONNECT then
+    try
+        WMHttpTunnelReconnect(MsgRec)
+    except
+        on E: Exception do
+            HandleBackGroundException(E);
+    end
+    else
+        inherited WndProc(MsgRec);
 end;
 
 

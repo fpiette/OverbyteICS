@@ -5,13 +5,13 @@ Author:       Arno Garrels <arno.garrels@gmx.de>
               Fastream Technologies (www.fastream.com) coders SubZero
               (G. I. Ates) and PeterS (Peter Nikolow), Luke (Boris Evstatiev)
 Creation:     January 7, 2009
-Version:      1.01
+Version:      1.02
 Description:  HTTP Digest Access Authentication, RFC 2617.
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2009 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2009-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -41,6 +41,8 @@ Legal issues: Copyright (C) 2009 by François PIETTE
 
 Updates:
 Sep 20, 2010 V1.01 Uses OverbyteIcsMD5.MD5DigestToLowerHexA.
+Feb 26, 2011 V1.02 Some small changes in generating the digest request string,
+                   enabled algorithm "MD5-sess" which is untested so far.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -288,7 +290,7 @@ begin
     MD5UpdateBuffer(Md5Ctx, Password);
     MD5Final(HA1, Md5Ctx);
 
-    if _CompareText(Algorithm, 'md5-sess') = 0 then
+    if _CompareText(Algorithm, 'MD5-sess') = 0 then
     begin
         MD5Init(Md5Ctx);
         MD5UpdateBuffer(Md5Ctx, HA1);
@@ -298,7 +300,7 @@ begin
         MD5UpdateBuffer(Md5Ctx, CNonce);
         MD5Final(HA1, Md5Ctx);
     end;
-
+   
     SessionKey := MD5DigestToLowerHexA(HA1);  { V1.01 }
 end;
 
@@ -543,7 +545,7 @@ begin
     if Pos1 = 0 then begin
         Pos1 := PosEx('algorithm=', ALine, 1);
         if Pos1 = 0 then
-            Info.Algorithm := ''
+            Info.Algorithm := 'MD5'
         else begin
             Inc(Pos1, Length('algorithm='));
             Pos2 := PosEx(',', ALine, Pos1);
@@ -578,9 +580,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function AuthDigestValidateResponse(var Info: TAuthDigestResponseInfo): Boolean;
 begin
-    if Length(Info.Algorithm) = 0 then
-        Info.Algorithm := 'MD5';
-    Result := (Length(Info.Realm) > 0) and (Info.Algorithm = 'MD5') and
+    {if (Length(Info.Algorithm) = 0) then
+        Info.Algorithm := 'MD5'; }
+    Result := (Length(Info.Realm) > 0) and
+              ((Info.Algorithm = 'MD5') or (Info.Algorithm = 'MD5-sess')) and
               { auth-int is currently not supported }
               ((Length(Info.qop) = 0) or (Info.qop = 'auth'));
 end;
@@ -617,17 +620,22 @@ begin
                            AnsiString(Uri),
                            EntityHash, // used only with auth-int!
                            Response);
-    Result := 'username="'    + UserName     + '"' +
-              ', realm="'     + Realm        + '"' +
-              ', nonce="'     + Nonce        + '"' +
-              ', uri="'       + Uri          + '"' +
-              ', response="'  + String(Response)  + '"' +
-              ', opaque="'    + Opaque       + '"';
+    Result := 'username="'   + UserName     + '"' +
+              ',realm="'     + Realm        + '"' +
+              ',nonce="'     + Nonce        + '"' +
+              ',uri="'       + Uri          + '"' +
+              ',response="'  + String(Response)  + '"';
+    if Opaque <> '' then
+        Result := Result +
+              ',opaque="'    + Opaque       + '"';
+    if Algorithm = 'MD5-sess' then
+        Result := Result +
+             ',algorithm='   + Algorithm;
     if Length(Qop) > 0 then
         Result := Result +
-              ', qop='        + Qop                +
-              ', nc='         + NcHex                   +
-              ', cnonce="'    + CNonce            + '"' ;
+              ',qop='        + Qop          +
+              ',nc='         + NcHex                   +
+              ',cnonce="'    + CNonce       + '"' ;
 end;
 
 
@@ -662,17 +670,22 @@ begin
                            AnsiString(Uri),
                            EntityHash, // used only with auth-int!
                            Response);
-    Result := 'username="'    + UserName          + '"' +
-              ', realm="'     + Info.Realm        + '"' +
-              ', nonce="'     + Info.Nonce        + '"' +
-              ', uri="'       + Uri               + '"' +
-              ', response="'  + String(Response)  + '"' +
-              ', opaque="'    + Info.Opaque       + '"';
+    Result := 'username="'   + UserName          + '"' +
+              ',realm="'     + Info.Realm        + '"' +
+              ',nonce="'     + Info.Nonce        + '"' +
+              ',uri="'       + Uri               + '"' +
+              ',response="'  + String(Response)  + '"';
+    if Info.Opaque <> '' then
+        Result := Result +
+              ',opaque="'    + Info.Opaque       + '"';
+    if Info.Algorithm = 'MD5-sess' then
+        Result := Result +
+             ',algorithm='   + Info.Algorithm;
     if Length(Info.Qop) > 0 then
-    Result := Result +
-              ', qop='        + Info.Qop                +
-              ', nc='         + NcHex                   +
-              ', cnonce="'    + CNonce            + '"' ;
+        Result := Result +
+              ',qop='        + Info.Qop                +
+              ',nc='         + NcHex                   +
+              ',cnonce="'    + CNonce            + '"' ;
 end;
 
 
@@ -710,10 +723,10 @@ begin
         daBoth:    Qop := 'auth,auth-int';
     end;
 
-    Result := 'realm="'    + Realm          + '"' +
-              ', qop="'    + Qop            + '"' +
-              ', nonce="'  + Nonce          + '"' +
-              ', opaque="' + Opaque         + '"';
+    Result := 'realm="'   + Realm          + '"' +
+              ',qop="'    + Qop            + '"' +
+              ',nonce="'  + Nonce          + '"' +
+              ',opaque="' + Opaque         + '"';
     if Stale then
         Result := Result + ', stale="true"';
     if Length(Domain) > 0 then

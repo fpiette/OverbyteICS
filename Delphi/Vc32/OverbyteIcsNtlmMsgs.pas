@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     Jan 01, 2004
-Version:      6.03
+Version:      6.04
 Description:  This is an implementation of the NTLM authentification
               messages used within HTTP protocol (client side).
               NTLM protocol documentation can be found at:
@@ -52,6 +52,11 @@ Apr 25, 2008 V6.01 A. Garrels - Fixed function Unicode. NtlmGetMessage3() got a
 Dec 13, 2010 V6.02 A. Garrels - Fixed wrong offset of target domain in
                    NtlmGetMessage1(). Added procedure NtlmParseUserCode.
 Feb 18, 2011 V6.03 procedure NtlmParseUserCode takes an NTLM version argument.
+Feb 26, 2011 V6.04 Function NtlmGetMessage2 returned garbage WideStrings with
+                   ANSI compilers, those strings were not used in ICS so far.
+                   Changed string-types of TNTLM_Msg2_Info in 2009+ from
+                   WideString to UnicodeString with small chance that breaks
+                   some user code.
  
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -83,8 +88,8 @@ uses
     OverbyteIcsDES, OverbyteIcsMD4, OverbyteIcsMimeUtils;
 
 const
-    IcsNtlmMsgsVersion     = 603;
-    CopyRight : String     = ' IcsNtlmMsgs (c) 2004-2011 F. Piette V6.03 ';
+    IcsNtlmMsgsVersion     = 604;
+    CopyRight : String     = ' IcsNtlmMsgs (c) 2004-2011 F. Piette V6.04 ';
 
 const
     Flags_Negotiate_Unicode               = $00000001;
@@ -164,12 +169,16 @@ type
 {$ENDIF}
     end;
 
+{$IFNDEF COMPILER12_UP}
+    UnicodeString = WideString;
+{$ENDIF}
+
     // interesting information from message 2
     TNTLM_Msg2_Info = record
         SrvRespOk     : boolean;                // server response was ok ?
-        Target        : WideString;
-        Domain        : WideString;
-        Server        : WideString;
+        Target        : UnicodeString;
+        Domain        : UnicodeString;
+        Server        : UnicodeString;
         Challenge     : TArrayOf8Bytes;
     end;
 
@@ -573,40 +582,70 @@ var
     MsgInfo     : TNTLM_Msg2_Info;
     InfoType    : Word;
     InfoLength  : Word;
-    InfoStr     : WideString;
+    InfoStr     : UnicodeString;
     I           : Integer;
     NTLMReply   : AnsiString;
+    ReplyLen    : Integer;
 begin
     if Length(AServerReply) > 0 then begin
         // we have a response
         NTLMReply  := Base64Decode(AServerReply);
+        ReplyLen := Length(NTLMReply);
+        if ReplyLen < SizeOf(Msg) then
+        begin
+            Result.SrvRespOk := FALSE;
+            Exit;
+        end;
         MsgInfo.SrvRespOk := TRUE;
         Move(NTLMReply[1], Msg, SizeOf(Msg));
         // extract target
-        MsgInfo.Target := Copy(NTLMReply, Msg.TargetName.Offset + 1,
-                               Msg.TargetName.Length);
+        {MsgInfo.Target := Copy(NTLMReply, Msg.TargetName.Offset + 1,
+                               Msg.TargetName.Length);} // Works in D2009+ only
+        if (Msg.TargetName.Length mod SizeOf(WideChar) <> 0) or
+           (Msg.TargetName.Length >= ReplyLen) then
+        begin
+            Result.SrvRespOk := FALSE;
+            Exit;
+        end;
+        SetLength(MsgInfo.Target, Msg.TargetName.Length div SizeOf(WideChar));
+        Move(NTLMReply[Msg.TargetName.Offset + 1], Pointer(MsgInfo.Target)^,
+             Msg.TargetName.Length);
+
         // extract challenge
         Move(Msg.Challenge, MsgInfo.Challenge, SizeOf(Msg.Challenge));
         // let's extract the other information
         I := Msg.TargetInfo.Offset + 1;
         // loop through target information blocks
-        while I < Length(NTLMReply) do begin
+        while I < ReplyLen do begin
             // extract type
             Move(NTLMReply[I], InfoType, SizeOf(InfoType));
             I := I + SizeOf(InfoType);
+            if I >= ReplyLen then begin
+                MsgInfo.SrvRespOk := FALSE;
+                Break;
+            end;
             // extract length
             Move(NTLMReply[I], InfoLength, SizeOf(InfoLength));
             I := I + SizeOf(InfoLength);
             // terminator block ?
-            if (InfoType = 0) and (InfoLength = 0) then
+            if (I + InfoLength >= ReplyLen) or
+               ((InfoType = 0) and (InfoLength = 0)) then
                 break
             else begin
                 // extract information
-                InfoStr := Copy(NTLMReply, I, InfoLength);
+                //InfoStr := Copy(NTLMReply, I, InfoLength); // Works in D2009+ only!
+                if InfoLength mod SizeOf(WideChar) <> 0 then begin
+                    MsgInfo.SrvRespOk := FALSE;
+                    Break; // Invalid Unicode
+                end;
+                SetLength(InfoStr, InfoLength div SizeOf(WideChar));
+                Move(NTLMReply[I], Pointer(InfoStr)^, InfoLength);
                 if InfoType = TIB_Type_Server then
                     MsgInfo.Server := InfoStr
                 else if InfoType = TIB_Type_Domain then
                     MsgInfo.Domain := InfoStr;
+                { ToDo: There may be multiple blocks/domains, we only store }
+                { the last one here.                                        }
                 // jump to next block
                 I := I + InfoLength;
             end;

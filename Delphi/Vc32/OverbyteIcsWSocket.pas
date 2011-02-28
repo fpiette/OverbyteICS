@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.66
+Version:      7.67
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -863,6 +863,10 @@ Feb 26, 2011 V7.65 Arno - TCustomHttpTunnelWSocket strongly improved.
 Feb 28, 2011 V7.66 Arno - TCustomHttpTunnelWSocket bugfix, do not explicitly
                    close the connection in HttpTunnelTriggerResultOrContinue
                    when FD_CLOSE notification from winsock has been received yet.
+Feb 28, 2011 V7.67 Arno - TCustomHttpTunnelWSocket HttpTunnelGetNtlmMessage3,
+                   send challenge domain name only if user code doesn't
+                   include one.
+
 }
 
 {
@@ -976,8 +980,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 766;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.66 ';
+  WSocketVersion            = 767;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.67 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -17144,7 +17148,7 @@ begin
     { a user code of <DOMAIN>\<UserName> works with Squid. Fix below      }
     { works with Squid, however I'm not 100% sure whether to include it   }
     { by default.                                                         }
-    if (LDomain = '') or (Pos('@', LUser) = 0) then
+    if (LDomain = '') and (Pos('@', LUser) = 0) then
         LDomain := NtlmInfo.Domain;
 
     { hostname is the local hostname }

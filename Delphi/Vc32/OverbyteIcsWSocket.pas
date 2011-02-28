@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.65
+Version:      7.66
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -843,7 +843,7 @@ Feb 21, 2011 V7.64 Arno - New ComponentOption "wsoNoHttp10Tunnel" treats HTTP/1.
                    responses as errors. If "wsoNoHttp10Tunnel" is not set send
                    "Keep-Alive" header with NTLM message #1 in order to make
                    HTTP/1.0 proxies happy (MS Proxy Server 2.0 tested).
-Feb 26, 2011 V7.65 Arno - TCustomHttpTunnel strongly improved.
+Feb 26, 2011 V7.65 Arno - TCustomHttpTunnelWSocket strongly improved.
                  - Bugfix: Ensure that internally buffered application data
                    is read by the upper layer by posting a fake FD_READ message
                    if required.
@@ -859,7 +859,10 @@ Feb 26, 2011 V7.65 Arno - TCustomHttpTunnel strongly improved.
                    I wasn't able to get digest authentication working neither IE
                    nor Firefox got authenticated. Interesting is that ISA uses
                    digest algorithm "MD5-sess" that I enabled in
-                   OverbyteIceDigestAuth.pas now, untested!
+                   OverbyteIcsDigestAuth.pas now, untested!
+Feb 28, 2011 V7.66 Arno - TCustomHttpTunnelWSocket bugfix, do not explicitly
+                   close the connection in HttpTunnelTriggerResultOrContinue
+                   when FD_CLOSE notification from winsock has been received yet.
 }
 
 {
@@ -973,8 +976,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 765;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.65 ';
+  WSocketVersion            = 766;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.66 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1467,6 +1470,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
       FHttpTunnelChunkRcvd        : Integer;
       FHttpTunnelChunkSize        : Integer;
       FHttpTunnelChunkState       : THttpTunnelChunkState;
+      FHttpTunnelCloseNotified    : Boolean;
       FHttpTunnelContentLength    : Integer;
       FHttpTunnelCurAuthType      : THttpTunnelAuthType;
       FHttpTunnelKeepsAlive       : Boolean;
@@ -1514,6 +1518,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
   protected
       procedure AllocateMsgHandlers; override;
       procedure AssignDefaultValue; override;
+      procedure Do_FD_CLOSE(var msg: TMessage); override;
       function  DoRecv(var Buffer : TWSocketData;
                        BufferSize : Integer;
                        Flags      : Integer) : Integer; override;
@@ -17018,6 +17023,7 @@ begin
                 Exit;
             end;
         end;
+        FHttpTunnelCloseNotified   := FALSE;
         FHttpTunnelRcvdCnt         := 0;
         FHttpTunnelRcvdIdx         := 0;
         FHttpTunnelServerAuthTypes := [];
@@ -17055,6 +17061,14 @@ begin
         Result := inherited GetRcvdCount
     else
         Result := FHttpTunnelRcvdCnt;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomHttpTunnelWSocket.Do_FD_CLOSE(var msg: TMessage);
+begin
+    FHttpTunnelCloseNotified := TRUE;
+    inherited Do_FD_CLOSE(msg);
 end;
 
 
@@ -17296,7 +17310,8 @@ begin
             { in TriggerSessionClosed.                                   }
             FHttpTunnelState := htsData;
             FHttpTunnelStatusCode := ICS_HTTP_TUNNEL_PROTERR;
-            InternalClose(TRUE, 0);
+            if not FHttpTunnelCloseNotified then
+                inherited InternalClose(TRUE, 0);
         end;
         Result := FALSE;
     end

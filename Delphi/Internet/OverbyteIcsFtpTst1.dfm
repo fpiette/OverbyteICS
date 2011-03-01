@@ -1286,7 +1286,7 @@ object FtpReceiveForm: TFtpReceiveForm
     Top = 0
     Width = 626
     Height = 173
-    ActivePage = ConnectionTypeTabSheet
+    ActivePage = MainSettingsTabSheet
     Align = alTop
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -1734,18 +1734,27 @@ object FtpReceiveForm: TFtpReceiveForm
       object Label17: TLabel
         Left = 16
         Top = 92
-        Width = 567
+        Width = 431
         Height = 13
         Caption = 
-          'Note: TFtpClient uses passive mode internally with proxy connect' +
-          'ions, Mode settings are ignored with proxy connections.'
+          'Note: Property Passive is set (overwritten) when HTTP or SOCKS p' +
+          'roxy connection is used.'
+      end
+      object Label24: TLabel
+        Left = 16
+        Top = 106
+        Width = 459
+        Height = 13
+        Caption = 
+          'The ftpProxy connection-type supports type USER@HOST FTP-proxies' +
+          ', active or passive mode. '
       end
       object ProxyTypeComboBox: TComboBox
         Left = 71
         Top = 7
         Width = 145
         Height = 21
-        ItemHeight = 13
+        ItemHeight = 0
         TabOrder = 0
         Text = 'ProxyTypeComboBox'
         OnCloseUp = ProxyTypeComboBoxCloseUp
@@ -1755,9 +1764,10 @@ object FtpReceiveForm: TFtpReceiveForm
         Top = 8
         Width = 145
         Height = 21
-        ItemHeight = 13
+        ItemHeight = 0
         TabOrder = 1
         Text = 'ProxyHttpAuthTypeComboBox'
+        OnCloseUp = ProxyHttpAuthTypeComboBoxCloseUp
       end
       object ProxyHostEdit: TEdit
         Left = 71

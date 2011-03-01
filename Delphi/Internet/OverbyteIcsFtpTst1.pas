@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     Aug 1997
-Version:      7.08
+Version:      7.09
 Object:       Demo for TFtpClient object (RFC 959 implementation)
               It is a graphical FTP client program
               Compatible with Delphi 1, 2, 3, 4 and 5
@@ -86,6 +86,8 @@ Nov 16, 2008  V7.02 Arno added option ftpAutoDetectCodePage which actually
 Apr 16, 2009  V7.07 Angus assume STREAM64, USE_ONPROGRESS64_ONLY, removed OnProgress
               Removed local GetFileSize using IcsGetFileSize instead
 Feb 15, 2011  V7.08 Arno added proxy demo.
+Mar 01, 2011  V7.09 Arno enable/disable the proxy-controls depending on proxy
+              setting.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpTst1;
@@ -249,6 +251,7 @@ type
     Label21: TLabel;
     ProxyPasswordEdit: TEdit;
     Label17: TLabel;
+    Label24: TLabel;
     procedure ExitButtonClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure DisplayHandler(Sender: TObject; var Msg : String);
@@ -334,6 +337,7 @@ type
     procedure ReinAsyncButtonClick(Sender: TObject);
     procedure LangAsyncButtonClick(Sender: TObject);
     procedure ProxyTypeComboBoxCloseUp(Sender: TObject);
+    procedure ProxyHttpAuthTypeComboBoxCloseUp(Sender: TObject);
   private
     FIniFileName   : String;
     FInitialized   : Boolean;
@@ -1697,6 +1701,7 @@ begin
     ExecuteCmd(FtpClient1.ModeZ, FtpClient1.ModeZAsync);
 end;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpReceiveForm.CodePageEditChange(Sender: TObject);
 begin
@@ -1709,14 +1714,35 @@ procedure TFtpReceiveForm.ProxyTypeComboBoxCloseUp(Sender: TObject);
 var
     Enable : Boolean;
 begin
-    Enable := (TComboBox(Sender).ItemIndex >= 0) and
-              (TFtpConnectionType(TComboBox(Sender).ItemIndex) <> ftpDirect);
-    ProxyHttpAuthTypeComboBox.Enabled := Enable and
-              (TFtpConnectionType(TComboBox(Sender).ItemIndex) = ftpHttpProxy);;
-    ProxyHostEdit.Enabled       := Enable;
-    ProxyPortEdit.Enabled       := Enable;
-    ProxyUserEdit.Enabled       := Enable;
-    ProxyPasswordEdit.Enabled   := Enable;
+    { Just to visualize the properties required depending on proxy setting }
+    Assert(TComboBox(Sender).ItemIndex >= 0);
+    ProxyHttpAuthTypeComboBox.Enabled :=
+              (TFtpConnectionType(TComboBox(Sender).ItemIndex) = ftpHttpProxy);
+    ProxyHostEdit.Enabled :=
+        (TFtpConnectionType(TComboBox(Sender).ItemIndex) <> ftpDirect);
+    ProxyPortEdit.Enabled := ProxyHostEdit.Enabled;
+    ProxyUserEdit.Enabled := ProxyHostEdit.Enabled and
+      (TFtpConnectionType(TComboBox(Sender).ItemIndex) <> ftpProxy) and not
+      (ProxyHttpAuthTypeComboBox.Enabled and
+       (THttpTunnelAuthType(ProxyHttpAuthTypeComboBox.ItemIndex) = htatNone));
+    ProxyPasswordEdit.Enabled := ProxyUserEdit.Enabled and not
+     (TFtpConnectionType(TComboBox(Sender).ItemIndex) in [ftpSocks4, ftpSocks4A]);
+    PassiveCheckBox.Enabled :=
+        (TFtpConnectionType(TComboBox(Sender).ItemIndex) in [ftpDirect,ftpProxy]);
+    if ProxyHttpAuthTypeComboBox.Enabled then
+        ProxyHttpAuthTypeComboBoxCloseUp(ProxyHttpAuthTypeComboBox);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpReceiveForm.ProxyHttpAuthTypeComboBoxCloseUp(
+  Sender: TObject);
+begin
+    { Just to visualize the properties required depending on proxy setting }
+    Assert(TComboBox(Sender).ItemIndex >= 0);
+    ProxyUserEdit.Enabled :=
+        (THttpTunnelAuthType(TCombobox(Sender).ItemIndex) <> htatNone);
+    ProxyPasswordEdit.Enabled := ProxyUserEdit.Enabled;
 end;
 
 

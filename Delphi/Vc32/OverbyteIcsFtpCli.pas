@@ -2,14 +2,14 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.21
+Version:      V7.22
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1996-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -1026,7 +1026,10 @@ Feb 14, 2011 V7.20 Arno - Clear HTTP tunnel server name from data and ctrl
              and StatusCode in method OpenAsync.
 Feb 15, 2011 V7.21 Arno - HTTP tunnel server name now cleared correctly.
              Use function WSocketIsProxyErrorCode from OverbyteIcsWSocket.pas.
-
+Mar 01, 2011 V7.22 Arno - **Warning, possibly a breaking change**. The component
+             does no longer enforce passive mode with native FTP-proxy
+             connections, it's an option now.
+             
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpCli;
@@ -1098,9 +1101,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 721;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.21 ';
-  FtpClientId : String = 'ICS FTP Client V7.21 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 722;
+  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.22 ';
+  FtpClientId : String = 'ICS FTP Client V7.22 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -2779,7 +2782,7 @@ begin
     end;
 
     case FConnectionType of
-        ftpProxy:   FPassive := TRUE;
+       // ftpProxy:   FPassive := TRUE;     { V7.22 } 
         ftpSocks4:  FControlSocket.SocksLevel := '4';
         ftpSocks4A: FControlSocket.SocksLevel := '4A';
         ftpSocks5:  FControlSocket.SocksLevel := '5';
@@ -4930,11 +4933,13 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomFtpCli.SetPassive(NewValue: Boolean);
 begin
-    { Passive state must not be changed if Proxy or Socks connection        }
-    { type is selected                                                      }
+    { Passive mode must not be changed if HTTP-proxy or Socks connection    }
+    { type is selected. Most native FTP-proxies support both active and     }
+    { passive mode.                                                         }
     case FConnectionType of
-        ftpDirect: FPassive := NewValue;
-        ftpProxy, ftpSocks4, ftpSocks4A, ftpSocks5: FPassive := TRUE;
+        ftpDirect, ftpProxy     : FPassive := NewValue;             { V7.22 }
+        ftpSocks4, ftpSocks4A, 
+        ftpSocks5, ftpHttpProxy : FPassive := TRUE;                 { V7.22 }
     end;
 end;
 

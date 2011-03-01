@@ -748,7 +748,7 @@ object SmtpTestForm: TSmtpTestForm
           Top = 13
           Width = 145
           Height = 21
-          ItemHeight = 13
+          ItemHeight = 0
           TabOrder = 0
           Text = 'ProxyTypeComboBox'
           OnCloseUp = ProxyTypeComboBoxCloseUp
@@ -758,9 +758,10 @@ object SmtpTestForm: TSmtpTestForm
           Top = 40
           Width = 145
           Height = 21
-          ItemHeight = 13
+          ItemHeight = 0
           TabOrder = 1
           Text = 'ProxyHttpAuthTypeComboBox'
+          OnCloseUp = ProxyHttpAuthTypeComboBoxCloseUp
         end
       end
     end
@@ -862,11 +863,7 @@ object SmtpTestForm: TSmtpTestForm
     OnHeaderLine = SmtpClientHeaderLine
     OnRequestDone = SmtpClientRequestDone
     XMailer = 'ICS SMTP Component V%VER%'
-    ProxyType = smtpHttpProxy
-    ProxyServer = '192.168.178.10'
-    ProxyPort = '80'
-    ProxyUserCode = 'willi'
-    ProxyPassword = 'test'
+    ProxyType = smtpNoProxy
     ProxyHttpAuthType = htatDetect
     OnAttachContentTypeEh = SmtpClientAttachContentTypeEh
     Left = 32

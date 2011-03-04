@@ -1711,8 +1711,6 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpReceiveForm.ProxyTypeComboBoxCloseUp(Sender: TObject);
-var
-    Enable : Boolean;
 begin
     { Just to visualize the properties required depending on proxy setting }
     Assert(TComboBox(Sender).ItemIndex >= 0);

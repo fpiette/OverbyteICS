@@ -4,12 +4,12 @@
 Author:       François PIETTE
 Object:       Mime support routines (RFC2045).
 Creation:     May 03, 2003  (Extracted from SmtpProt unit)
-Version:      7.22
+Version:      7.23
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2003-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -103,7 +103,11 @@ Apr 26, 2010 V7.21  Arno added EncodeMbcsInline() that handles UTF-7 and some
                     other stateful and MBCS. Fixed a bug with folding and MIME
                     inline encoding.
 Jun 10, 2010 V7.22  A. Buzanakov fixed DecodeQuotedPrintable return value.
-
+Mar 05, 2011 V7.23  Arno - If DoFileEncBase64 finishes with a full line, remove
+                    last CRLF! TSmtpCli will add one later. That avoids two empty
+                    lines after and between MIME parts and always generates the
+                    same message size as calculated with TSmtpCli.CalcMsgSize.
+                    
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMimeUtils;
@@ -157,8 +161,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-    TMimeUtilsVersion = 721;
-    CopyRight : String = ' MimeUtils (c) 2003-2010 F. Piette V7.21 ';
+    TMimeUtilsVersion = 723;
+    CopyRight : String = ' MimeUtils (c) 2003-2011 F. Piette V7.23 ';
 
     SmtpDefaultLineLength = 76; // without CRLF
     SMTP_SND_BUF_SIZE     = 2048;
@@ -834,8 +838,14 @@ begin
     LineLength := 0;
     while TRUE do begin
         ByteCount := Stream.Read(DataIn, 3);
-        if ByteCount = 0 then                            {<=MHU}
+        if ByteCount = 0 then begin                      {<=MHU}
+           if (Count >= 2) and (LineLength = 0) then
+              { If completed with a full line, remove last CRLF !  }
+              { SmtpCli will add one later. Avoids two empty lines }
+              { after the MIME part.                         V7.23 }
+                  Dec(Count, 2);
            Break;                                        {<=MHU}
+        end;
         DataOut[Count]     := (DataIn[0] and $FC) shr 2;
         DataOut[Count + 1] := (DataIn[0] and $03) shl 4;
         if ByteCount > 1 then begin

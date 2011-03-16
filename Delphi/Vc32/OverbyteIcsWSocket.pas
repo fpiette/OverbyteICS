@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.67
+Version:      7.68
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -866,6 +866,7 @@ Feb 28, 2011 V7.66 Arno - TCustomHttpTunnelWSocket bugfix, do not explicitly
 Feb 28, 2011 V7.67 Arno - TCustomHttpTunnelWSocket HttpTunnelGetNtlmMessage3,
                    send challenge domain name only if user code doesn't
                    include one.
+Mar 16, 2011 V7.68 Anton S. added two debug messages.
 
 }
 
@@ -980,8 +981,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 767;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.67 ';
+  WSocketVersion            = 768;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.68 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -7680,6 +7681,15 @@ begin
         Exit;
     end;
 
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loWsockInfo) then
+        DebugLog(loWsockInfo,
+            {$IFNDEF CLR}
+                _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) + ' ' +
+            {$ENDIF}
+                'Socket handle created ' + _IntToStr(FHSocket));
+{$ENDIF}
+
     { Get winsock send buffer size }
     optlen  := SizeOf(FSocketSndBufSize);
 {$IFDEF CLR}
@@ -8032,6 +8042,16 @@ begin
     end
     else
         Result := FASocket;
+
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loWsockInfo) then
+        DebugLog(loWsockInfo,
+            {$IFNDEF CLR}
+                _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) + ' ' +
+            {$ENDIF}
+                'Socket accepted ' + _IntToStr(FASocket));
+{$ENDIF}
+
 end;
 
 

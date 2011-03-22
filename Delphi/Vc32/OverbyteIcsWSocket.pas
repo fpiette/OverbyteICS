@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.68
+Version:      7.69
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -867,6 +867,9 @@ Feb 28, 2011 V7.67 Arno - TCustomHttpTunnelWSocket HttpTunnelGetNtlmMessage3,
                    send challenge domain name only if user code doesn't
                    include one.
 Mar 16, 2011 V7.68 Anton S. added two debug messages.
+Mar 21, 2011 V7.69 Method Abort no longer triggers an exception nor event OnError
+                   if a call to winsock API WSACancelAsyncRequest in method
+                   CancelDnsLookup failed for some reason.
 
 }
 
@@ -981,8 +984,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 768;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.68 ';
+  WSocketVersion            = 769;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.69 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1205,6 +1208,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     procedure   AssignDefaultValue; virtual;
     procedure   InternalClose(bShut : Boolean; Error : Word); virtual;
     procedure   InternalAbort(ErrCode : Word); virtual;
+    procedure   InternalCancelDnsLookup(IgnoreErrors: Boolean);
 {$IFDEF WIN32}
     procedure   Notification(AComponent: TComponent; operation: TOperation); override;
 {$ENDIF}
@@ -5673,7 +5677,7 @@ end;
 destructor TCustomWSocket.Destroy;
 begin
     try
-        CancelDnsLookup;             { Cancel any pending dns lookup      }
+        InternalCancelDnsLookup(TRUE); { Cancel any pending dns lookup      }
     except
         { Ignore any exception here }
     end;
@@ -7243,11 +7247,12 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomWSocket.CancelDnsLookup;
+procedure TCustomWSocket.InternalCancelDnsLookup(IgnoreErrors: Boolean);
 begin
     if FDnsLookupHandle = 0 then
         Exit;
-    if WSocket_Synchronized_WSACancelAsyncRequest(FDnsLookupHandle) <> 0 then begin
+    if (WSocket_Synchronized_WSACancelAsyncRequest(FDnsLookupHandle) <> 0) and
+       (not IgnoreErrors) then begin
         FDnsLookupHandle := 0;
         SocketError('WSACancelAsyncRequest');
         Exit;
@@ -7258,6 +7263,13 @@ begin
     if not (csDestroying in ComponentState) then
 {$ENDIF}
         TriggerDnsLookupDone(WSAEINTR);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomWSocket.CancelDnsLookup;
+begin
+    InternalCancelDnsLookup(FALSE);
 end;
 
 
@@ -8110,7 +8122,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomWSocket.InternalAbort(ErrCode : Word);
 begin
-    CancelDnsLookup;
+    InternalCancelDnsLookup(TRUE);
     DeleteBufferedData;
     { Be sure to close as fast as possible (abortive close) }
     if (State = wsConnected) and (FProto = IPPROTO_TCP) then begin
@@ -15873,7 +15885,7 @@ procedure TCustomSSLWSocket.InternalAbort(ErrCode : Word);
 begin
     FSslEnable := FALSE;
     ResetSsl;
-    CancelDnsLookup;
+    InternalCancelDnsLookup(TRUE);
     DeleteBufferedData;
     { Be sure to close as fast as possible (abortive close) }
     if (State = wsConnected) and (FProto = IPPROTO_TCP) then begin

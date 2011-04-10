@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.69
+Version:      7.70
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -870,6 +870,15 @@ Mar 16, 2011 V7.68 Anton S. added two debug messages.
 Mar 21, 2011 V7.69 Method Abort no longer triggers an exception nor event OnError
                    if a call to winsock API WSACancelAsyncRequest in method
                    CancelDnsLookup failed for some reason.
+Apr 10, 2011 V7.70 Arno added property SslVerifyFlags to the TSslContext.
+                   This enables the component user to include CRLs added
+                   thru SslCRLFile and SslCRLPath in the certificate verification
+                   process. However enabling CRL-checks needs some additional
+                   action in the OnSslVerifyPeer event since OpenSSL will the
+                   trigger any error related to CRLs. If there's, for instance,
+                   no CRL available or it has expired etc.. You find the possible
+                   error codes in OverbyteIcsLibeay.pas search i.e. for
+                   X509_V_ERR_UNABLE_TO_GET_CRL.
 
 }
 
@@ -984,8 +993,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 769;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.69 ';
+  WSocketVersion            = 770;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.70 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -2003,6 +2012,16 @@ type
                           SslVerifyMode_CLIENT_ONCE);
     TSslVerifyPeerModes = set of TSslVerifyPeerMode;
 
+    TSslVerifyFlag  = (
+                      sslX509_V_FLAG_CB_ISSUER_CHECK,
+                      sslX509_V_FLAG_USE_CHECK_TIME,
+                      sslX509_V_FLAG_CRL_CHECK,
+                      sslX509_V_FLAG_CRL_CHECK_ALL,
+                      sslX509_V_FLAG_IGNORE_CRITICAL,
+                      sslX509_V_FLAG_X509_STRICT,
+                      sslX509_V_FLAG_ALLOW_PROXY_CERTS);
+    TSslVerifyFlags = set of TSslVerifyFlag;
+
     TSslOption  = (sslOpt_CIPHER_SERVER_PREFERENCE,
                    sslOpt_MICROSOFT_SESS_ID_BUG,
                    sslOpt_NETSCAPE_CHALLENGE_BUG,
@@ -2099,6 +2118,7 @@ type
         //FSslIntermCAPath            : String;
         FSslVerifyPeer              : Boolean;
         FSslVerifyDepth             : Integer;
+        FSslVerifyFlags             : Integer;
         FSslOptionsValue            : Longint;
         FSslCipherList              : String;
         FSslSessCacheModeValue      : Longint;
@@ -2149,6 +2169,8 @@ type
         //procedure DebugLogInfo(const Msg: string);        { V5.21 }
         //procedure SetSslX509Trust(const Value: TSslX509Trust);
         function  GetIsCtxInitialized : Boolean;
+        function  GetSslVerifyFlags: TSslVerifyFlags;
+        procedure SetSslVerifyFlags(const Value: TSslVerifyFlags);
     {$IFNDEF OPENSSL_NO_ENGINE}
         procedure Notification(AComponent: TComponent; Operation: TOperation); override;
         procedure SetCtxEngine(const Value: TSslEngine);
@@ -2193,6 +2215,8 @@ type
                                                         write SetSslVerifyPeer;
         property  SslVerifyDepth    : Integer           read  FSslVerifyDepth
                                                         write FSslVerifyDepth;
+        property  SslVerifyFlags    : TSslVerifyFlags   read  GetSslVerifyFlags
+                                                        write SetSslVerifyFlags;
         property  SslOptions        : TSslOptions       read  GetSslOptions
                                                         write SetSslOptions;
         property  SslVerifyPeerModes : TSslVerifyPeerModes
@@ -11788,6 +11812,19 @@ const
              SSL_SESS_CACHE_NO_INTERNAL_LOOKUP,
              SSL_SESS_CACHE_NO_INTERNAL_STORE);
 
+
+  SslIntVerifyFlags: array[TSslVerifyFlag] of Integer =
+           (X509_V_FLAG_CB_ISSUER_CHECK,
+            X509_V_FLAG_USE_CHECK_TIME,
+            X509_V_FLAG_CRL_CHECK,
+            X509_V_FLAG_CRL_CHECK_ALL,
+            X509_V_FLAG_IGNORE_CRITICAL,
+            X509_V_FLAG_X509_STRICT,
+            X509_V_FLAG_ALLOW_PROXY_CERTS);
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
 constructor TSslContext.Create(AOwner: TComponent);
 begin
     inherited Create(AOwner);
@@ -12740,6 +12777,9 @@ begin
             LoadCRLFromPath(FSslCRLPath);
             //f_SSL_CTX_ctrl(FSslCtx, SSL_CTRL_MODE, SSL_MODE_ENABLE_PARTIAL_WRITE, nil); // Test
 
+            f_X509_STORE_set_flags(f_SSL_CTX_get_cert_store(FSslCtx),
+                                   FSslVerifyFlags);
+
             //raise Exception.Create('Test');
 
             // Now the verify stuff
@@ -13091,11 +13131,54 @@ begin
             if FSslSessCacheModeValue and SslIntSessCacheModes[SessMode] <> 0 then
                 Include(Result, SessMode);
 
-{$IFNDEF NO_SSL_MT}            
+{$IFNDEF NO_SSL_MT}
     finally
         Unlock;
     end;
-{$ENDIF}    
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslContext.GetSslVerifyFlags: TSslVerifyFlags;
+var
+    VFlag: TSslVerifyFlag;
+begin
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        Result := [];
+        for VFlag := Low(TSslVerifyFlag) to High(TSslVerifyFlag) do
+            if (FSslVerifyFlags and SslIntVerifyFlags[VFlag]) <> 0 then
+                Include(Result, VFlag);
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock;
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslVerifyFlags(
+  const Value: TSslVerifyFlags);
+var
+    VFlag: TSslVerifyFlag;
+begin
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslVerifyFlags := 0;
+        for VFlag := Low(TSslVerifyFlag) to High(TSslVerifyFlag) do
+            if VFlag in Value then
+               FSslVerifyFlags := FSslVerifyFlags or SslIntVerifyFlags[VFlag];
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock;
+    end;
+{$ENDIF}
 end;
 
 

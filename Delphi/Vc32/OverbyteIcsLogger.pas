@@ -3,12 +3,12 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  Logger class donated to ICS.
 Creation:     December 2005
-Version:      6.05
+Version:      6.06
 EMail:        francois.piette@overbyte.be      http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2005-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2005-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -49,6 +49,7 @@ May 08, 2009 V6.03 Added properties TimeStampFormatString and TimeStampSeparator
                    similar as suggested by Anton Sviridov.
 Dec 20, 2009 V6.04 Exchanged symbol "NO_ADV_MT" by "NO_LOGGER_MT".
 Dec 06, 2010 V6.05 Thread-safe FreeNotification and RemoveFreeNotification.
+Apr 15, 2011 V6.06 Arno prepared for 64-bit.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsLogger;
@@ -77,10 +78,6 @@ unit OverbyteIcsLogger;
 
 {#$DEFINE NO_LOGGER_MT}
 
-{$IFDEF WIN32}
-    {$DEFINE VCL}
-{$ENDIF}
-
 interface
 
 uses
@@ -94,13 +91,13 @@ uses
   System.ComponentModel,
   System.IO;
 {$ENDIF}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
     Windows, SysUtils, Classes;
 {$ENDIF}
 
 const
-    TIcsLoggerVersion   = 605;
-    CopyRight : String  = ' IcsLogger (c) 2005-2010 by François PIETTE V6.05 ';
+    TIcsLoggerVersion   = 606;
+    CopyRight : String  = ' IcsLogger (c) 2005-2011 by François PIETTE V6.06 ';
 
 type
     ELoggerException = class(Exception);
@@ -190,7 +187,7 @@ type
 {$IFDEF CLR}
   TOutputDebugStringType = type String;
 {$ENDIF}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
   TOutputDebugStringType = PChar;
 {$ENDIF}
 

@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.22
+Version:      V7.23
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1029,6 +1029,7 @@ Feb 15, 2011 V7.21 Arno - HTTP tunnel server name now cleared correctly.
 Mar 01, 2011 V7.22 Arno - **Warning, possibly a breaking change**. The component
              does no longer enforce passive mode with native FTP-proxy
              connections, it's an option now.
+Apr 15, 2011 V7.23 Arno prepared for 64-bit.
              
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1101,9 +1102,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 722;
-  CopyRight : String = ' TFtpCli (c) 1996-2010 F. Piette V7.22 ';
-  FtpClientId : String = 'ICS FTP Client V7.22 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 723;
+  CopyRight : String = ' TFtpCli (c) 1996-2011 F. Piette V7.23 ';
+  FtpClientId : String = 'ICS FTP Client V7.23 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -1942,12 +1943,14 @@ implementation
 
 uses WinSock;
 
+{$B-}  { Do not evaluate boolean expressions more than necessary }
+
+(*
 {$IFNDEF WIN32}
 const
     HFILE_ERROR = $FFFF;
 {$ENDIF}
 
-{$B-}  { Do not evaluate boolean expressions more than necessary }
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF WIN32}
@@ -1956,6 +1959,7 @@ begin
     Str[0] := chr(Len);
 end;
 {$ENDIF}
+*)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function LookupFTPReq (const RqType: TFtpRequest): String;    { V2.113 angus }

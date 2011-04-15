@@ -40,7 +40,7 @@
 
   Sep 10, 2010 Angus and Arno updated ZLIB to 1.2.5, subdirectory now lowercase
 
-
+  Apr 15, 2011 Arno prepared for 64-bit.
 
   This software is provided 'as-is', without any express or implied warranty.
   In no event will the author be held liable for any damages arising from the use of this software.
@@ -339,23 +339,41 @@ type
    EZLibCheckError = class(Exception);
 
 // currently not importing gzio, minigzip, gzclose, gzread, gzwrite
-
-{$L zobj125/adler32.obj}
-{$L zobj125/compress.obj}
-{$L zobj125/crc32.obj}
-{$L zobj125/deflate.obj}
-{ L zobj125/gzclose.obj}
-{ L zobj125/gzread.obj}
-{ L zobj125/gzio.obj}
-{ L zobj125/gzwrite.obj}
-{$L zobj125/infback.obj}
-{$L zobj125/inffast.obj}
-{$L zobj125/inflate.obj}
-{$L zobj125/inftrees.obj}
-{ L zobj125/minigzip.obj}
-{$L zobj125/trees.obj}
-{$L zobj125/uncompr.obj}
-{$L zobj125/zutil.obj}
+{$IFDEF WIN64}
+    {$L zobj125/win64/adler32.obj}
+    {$L zobj125/win64/compress.obj}
+    {$L zobj125/win64/crc32.obj}
+    {$L zobj125/win64/deflate.obj}
+    { L zobj125/win64/gzclose.obj}
+    { L zobj125/win64/gzread.obj}
+    { L zobj125/win64/gzio.obj}
+    { L zobj125/win64/gzwrite.obj}
+    {$L zobj125/win64/infback.obj}
+    {$L zobj125/win64/inffast.obj}
+    {$L zobj125/win64/inflate.obj}
+    {$L zobj125/win64/inftrees.obj}
+    { L zobj125/win64/minigzip.obj}
+    {$L zobj125/win64/trees.obj}
+    {$L zobj125/win64/uncompr.obj}
+    {$L zobj125/win64/zutil.obj}
+{$ELSE}
+    {$L zobj125/adler32.obj}
+    {$L zobj125/compress.obj}
+    {$L zobj125/crc32.obj}
+    {$L zobj125/deflate.obj}
+    { L zobj125/gzclose.obj}
+    { L zobj125/gzread.obj}
+    { L zobj125/gzio.obj}
+    { L zobj125/gzwrite.obj}
+    {$L zobj125/infback.obj}
+    {$L zobj125/inffast.obj}
+    {$L zobj125/inflate.obj}
+    {$L zobj125/inftrees.obj}
+    { L zobj125/minigzip.obj}
+    {$L zobj125/trees.obj}
+    {$L zobj125/uncompr.obj}
+    {$L zobj125/zutil.obj}
+{$ENDIF}
 
 function adler32; external;
 function compress; external;
@@ -579,6 +597,28 @@ begin
   Result := inflateBackInit_(strm, windowBits, window,
                              ZLIB_VERSION, sizeof(z_stream));
 end;
+
+{$IFDEF WIN64}
+function malloc(Size: Integer): Pointer;
+begin
+  GetMem(Result, Size);
+end;
+
+procedure free(Block: Pointer);
+begin
+  FreeMem(Block);
+end;
+
+procedure memset(P: Pointer; B: Byte; count: Integer);
+begin
+  FillChar(P^, count, B);
+end;
+
+procedure memcpy(dest, source: Pointer; count: Integer);
+begin
+  Move(source^, dest^, count);
+end;
+{$ENDIF}
 
 function _malloc(Size: Integer): Pointer; cdecl;
 begin

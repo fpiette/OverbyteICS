@@ -3,12 +3,12 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      7.37
+Version:      7.38
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2002-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2002-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -108,7 +108,8 @@ Apr 26, 2010 V7.34 Arno removed some Windows dependencies. Charset conversion
 		    defining conditional "USE_ICONV".  			 
 May 07, 2010 V7.35 Arno added IcsIsSBCSCodepage.			 
 Aug 21, 2010 V7.36 Arno fixed a bug in the UTF-8 constructor of TIcsFileStreamW.
-Sep 05, 2010 V.37 Arno added procedure IcsNameThreadForDebugging
+Sep 05, 2010 V7.37 Arno added procedure IcsNameThreadForDebugging
+Apr 15, 2011 V7.38 Arno prepared for 64-bit.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -141,6 +142,9 @@ interface
 {$ENDIF}
 {$IFDEF BCB3_UP}
     {$ObjExportAll On}
+{$ENDIF}
+{$IFDEF CPUX64}
+  {$DEFINE PUREPASCAL}
 {$ENDIF}
 
 uses

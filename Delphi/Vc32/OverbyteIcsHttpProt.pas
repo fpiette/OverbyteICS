@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.15
+Version:      7.16
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -448,6 +448,7 @@ Feb 19, 2011 V7.15 Arno - Proxy authentication with relocations still did not
              expected to close, also the relocation counter was incremented
              twice per relocation when the connection closed.
              Fix in Digest authentication.
+Apr 15, 2011 V7.16 Arno prepared for 64-bit.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -528,8 +529,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 715;
-    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.15 ';
+    HttpCliVersion       = 716;
+    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.16 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -1183,7 +1184,7 @@ function EncodeStr(Encoding : THttpEncoding; const Value : String) : String;
 {$ENDIF}
 function RFC1123_Date(aDate : TDateTime) : String;
 function RFC1123_StrToDate(aDate : String) : TDateTime;
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 function EncodeLine(
     Encoding : THttpEncoding;
     SrcData  : PAnsiChar;
@@ -1200,7 +1201,7 @@ function EncodeStr(
 implementation
 
 const
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
     bin2uue  : AnsiString = '`!"#$%&''()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_';
     bin2b64  : AnsiString = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
     uue2bin  : AnsiString = ' !"#$%&''()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_ ';
@@ -4657,7 +4658,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 function EncodeLine(
     Encoding : THttpEncoding;
     SrcData  : PAnsiChar;

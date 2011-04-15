@@ -10,12 +10,12 @@ Description:  TIcsBufferHandler is a class which encapsulate a data fifo to
               to hold more data, it is taken from the free list, if any, or
               a new one is created.
 Creation:     June 11, 2006 (Built from basic version created in april 1996)
-Version:      6.01 (Initial version was 6.01 to match TWSocket version)
+Version:      6.02 (Initial version was 6.01 to match TWSocket version)
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1996-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -61,6 +61,7 @@ Mar 25, 2006  V6.00c Fixed TBuffer.Write to correctly use the offset. Thanks
               to Frans van Daalen <ics@hedaal.nl> for providing a test case.
 June 11, 2006 V6.01 New version with TIcsBufferHandler. Take all of the
               buffer handling out of TWSocket.
+Apr 15, 2011  V6.02 Arno prepared for 64-bit.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -94,22 +95,23 @@ uses
 {$IFDEF CLR}
   System.ComponentModel,
   System.IO,
-  Windows, SysUtils, Classes,
+  Windows, Classes,
+{$ELSE}
+  Contnrs,   
 {$ENDIF}
-{$IFDEF WIN32}
-  Windows, SysUtils, Contnrs,
+{$IFDEF MSWINDOWS}
+  Windows,
 {$ENDIF}
-  OverbyteIcsTypes, OverbyteIcsLibrary;
+  SysUtils, OverbyteIcsTypes, OverbyteIcsLibrary;
 
 const
-  WSockBufVersion    = 601;
-  CopyRight : String = ' TWSockBuf (c) 1996-2010 Francois Piette V6.01 ';
+  WSockBufVersion    = 602;
+  CopyRight : String = ' TWSockBuf (c) 1996-2011 Francois Piette V6.02 ';
 
 type
 {$IFDEF CLR}
   TWSocketData = TBytes;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
   TWSocketData = type Pointer;
 {$ENDIF}
 
@@ -177,6 +179,7 @@ type
   end;
   
 function IncPtr(P : Pointer; N : Integer = 1): Pointer;
+  {$IFDEF USE_INLINE} inline; {$ENDIF}
  
 implementation
 
@@ -184,7 +187,7 @@ implementation
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function IncPtr(P : Pointer; N : Integer = 1): Pointer;
 begin
-    Result := {$IFDEF COMPILER12_UP} PByte {$ELSE} PChar {$ENDIF} (P) + N;
+    Result := PAnsiChar(P) + N;
 end;
 
 
@@ -203,7 +206,7 @@ end;
 destructor TIcsBuffer.Destroy;
 begin
     // OutputDebugString('TIcsBuffer.Destroy');
-{$IFDEF WIN32}
+{$IFNDEF CLR}
     if Assigned(Buf) then
         FreeMem(Buf, FBufSize);
 {$ENDIF}
@@ -213,7 +216,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TIcsBuffer.SetBufSize(newSize : Integer);
-{$IFDEF WIN32}
+{$IFNDEF CLR}
 var
     newBuf : TWSocketData;
 {$ENDIF}
@@ -227,8 +230,7 @@ begin
 {$IFDEF CLR}
     FBufSize := newSize;
     SetLength(Buf, FBufSize);
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     if WrCount = RdCount then begin
         // Buffer is empty
         if Assigned(Buf) then
@@ -283,8 +285,7 @@ begin
 {$IFDEF CLR}
         for I := 0 to Copied - 1 do
             Buf[WrCount + I] := Data[Offset + I];
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
         Move(IncPtr(Data, Offset)^, IncPtr(Buf, WrCount)^, Copied);
 {$ENDIF}
         WrCount := WrCount + Copied;
@@ -313,8 +314,7 @@ begin
 {$IFDEF CLR}
         for I := 0 to Copied - 1 do
             Data[I] := Buf[RdCount + I];
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
         Move(IncPtr(Buf, RdCount)^, Data^, Copied);
 {$ENDIF}
         RdCount := RdCount + Copied;
@@ -348,8 +348,7 @@ begin
         SetLength(Result, Len);
         for I := 0 to Len - 1 do
             Result[I] := Buf[I];
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
         Result := IncPtr(Buf, RdCount);
 {$ENDIF}
     end;
@@ -357,7 +356,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
+{$IFNDEF CLR}
 function TIcsBuffer.Peek(out Data: TWSocketData): Integer;
 var
     Remaining : Integer;
@@ -438,7 +437,7 @@ begin
     FInUseList := TIcsBufferLinkedList.Create;
     FFreeList  := TIcsBufferLinkedList.Create;
     FBufSize   := 1460;
-    InitializeCriticalSection(FCritSect);            
+    InitializeCriticalSection(FCritSect);
 end;
 
 

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.70
+Version:      7.71
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -879,6 +879,7 @@ Apr 10, 2011 V7.70 Arno added property SslVerifyFlags to the TSslContext.
                    no CRL available or it has expired etc.. You find the possible
                    error codes in OverbyteIcsLibeay.pas search i.e. for
                    X509_V_ERR_UNABLE_TO_GET_CRL.
+Apr 15, 2011 V7.71 Arno prepared for 64-bit.
 
 }
 
@@ -956,9 +957,8 @@ unit OverbyteIcsWSocket;
 {$IFDEF BCB3_UP}
     {$ObjExportAll On}
 {$ENDIF}
-
-{$IFDEF WIN32}
-    {$DEFINE VCL}
+{$IFDEF CPUX64}
+  {$DEFINE PUREPASCAL}
 {$ENDIF}
 
 interface
@@ -993,8 +993,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 770;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.70 ';
+  WSocketVersion            = 771;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.71 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1002,11 +1002,11 @@ const
   SD_SEND                   = 1;  { Use this one for graceful close }
   SD_BOTH                   = 2;
 {$ENDIF}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
   winsocket  = 'wsock32.dll';      { 32 bits TCP/IP system DLL }
   winsocket2 = 'ws2_32.dll';       { 32 bits TCP/IP system DLL version 2}
-{$ELSE}
-  winsocket = 'winsock.dll';      { 16 bits TCP/IP system DLL }
+{.$ELSE}
+  //winsocket = 'winsock.dll';      { 16 bits TCP/IP system DLL }
 {$ENDIF}
 
 type
@@ -1023,15 +1023,12 @@ type
   TSocketLingerOnOff = (wsLingerOff, wsLingerOn, wsLingerNoSet);
   TSocketKeepAliveOnOff = (wsKeepAliveOff, wsKeepAliveOnCustom,
                            wsKeepAliveOnSystem);
-{$IFDEF CLR}
-  TSockAddr          = OverbyteIcsWinSock.TSockAddr;  
-{$ENDIF}
-{$IFDEF WIN32}
-  TSockAddr          = OverbyteIcsWinsock.TSockAddr;
-    ip_mreq = record
-        imr_multiaddr : in_addr;
-        imr_interface : in_addr;
-    end;
+  TSockAddr          = OverbyteIcsWinSock.TSockAddr;
+{$IFNDEF CLR}
+  ip_mreq = record
+      imr_multiaddr : in_addr;
+      imr_interface : in_addr;
+  end;
 {$ENDIF}
 
   TDataAvailable     = procedure (Sender: TObject; ErrCode: Word) of object;
@@ -1052,8 +1049,7 @@ type
                           wsoTcpNoDelay    = 2,
                           wsoSIO_RCVALL    = 4);
   TWSocketOption       = TWSocketOptions;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
   TWSocketOption       = (wsoNoReceiveLoop, wsoTcpNoDelay, wsoSIO_RCVALL,
                          { The HTTP tunnel supports HTTP/1.1. If next option }
                          { is set HTTP/1.0 responses are treated as errors.  }
@@ -1099,8 +1095,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
   {$IFDEF CLR}
     FDnsLookupBuffer    : TBytes;
     FName               : String;
-  {$ENDIF}
-  {$IFDEF WIN32}
+  {$ELSE}
     FDnsLookupBuffer    : array [0..MAXGETHOSTSTRUCT] of AnsiChar;
   {$ENDIF}
     FDnsLookupCheckMsg  : Boolean;
@@ -1218,7 +1213,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     procedure   InternalClose(bShut : Boolean; Error : Word); virtual;
     procedure   InternalAbort(ErrCode : Word); virtual;
     procedure   InternalCancelDnsLookup(IgnoreErrors: Boolean);
-{$IFDEF WIN32}
+{$IFNDEF CLR}
     procedure   Notification(AComponent: TComponent; operation: TOperation); override;
 {$ENDIF}
     procedure   SetSendFlags(newValue : TSocketSendFlags);
@@ -1277,8 +1272,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     sin         : TSockAddrIn;
 {$IFDEF CLR}
     constructor Create{$IFDEF VCL}(AOwner : TComponent){$ENDIF}; override;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     constructor Create(AOwner: TComponent); override;
 {$ENDIF}
     destructor  Destroy; override;
@@ -1603,8 +1597,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
       FBoundPort           : AnsiString;
   {$IFDEF CLR}
       FRcvBuf              : TBytes;
-  {$ENDIF}
-  {$IFDEF WIN32}
+  {$ELSE}
       FRcvBuf              : array [0..127] of Byte;
   {$ENDIF}
       FRcvCnt              : Integer;
@@ -2451,7 +2444,7 @@ type
         procedure   Listen; override;
         function    Accept : TSocket; override;
         procedure   Close; override;
-        procedure   Dup(NewHSocket: Integer); override;
+        procedure   Dup(NewHSocket: TSocket); override;
         procedure   ThreadAttach; override;
         procedure   Resume; override;
         //procedure DoSslShutdown;
@@ -2624,8 +2617,7 @@ type
   protected
 {$IFDEF CLR}
       FLinePointer : TBytes;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
       FLinePointer : ^AnsiString;
 {$ENDIF}
       function    Synchronize(Proc         : TWSocketSyncNextProc;
@@ -2868,8 +2860,7 @@ function  GetWindowsErr(ErrCode: Integer): String;
 {$IFDEF CLR}
 function  WSocketGetHostByAddr(const Addr : String) : IntPtr;
 function  WSocketGetHostByName(const Name : String) : IntPtr;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 function  WSocketGetHostByAddr(Addr : AnsiString) : PHostEnt;
 function  WSocketGetHostByName(Name : AnsiString) : PHostEnt;
 {$ENDIF}
@@ -2952,7 +2943,7 @@ type
     TAccept                = function (s: TSocket; var addr: TSockAddr;
                                        var addrlen: Integer): TSocket;
 {$ELSE}
-{$IFDEF WIN32}   // DotNET doesn't support dynamic winsock loading
+{$IFDEF MSWINDOWS}   // DotNET doesn't support dynamic winsock loading
 type
     TWSAStartup            = function (wVersionRequired: word;
                                        var WSData: TWSAData): Integer; stdcall;
@@ -3037,7 +3028,7 @@ type
 {$ENDIF}
 {$ENDIF}
 
-{$IFDEF WIN32}  // DotNET doesn't support dynamic winsock loading
+{$IFDEF MSWINDOWS}  // DotNET doesn't support dynamic winsock loading
 var
    FWSAStartup            : TWSAStartup;
    FWSACleanup            : TWSACleanup;
@@ -3082,7 +3073,7 @@ function WSocketGetProc(const ProcName : AnsiString) : Pointer;
 {$IFDEF COMPILER2_UP}
 function WSocket2GetProc(const ProcName : AnsiString) : Pointer;
 {$ENDIF}
-{$ENDIF}
+{$ENDIF MSWINDOWS}
 
 function WSocket_WSAStartup(wVersionRequired: word;
                            var WSData: TWSAData): Integer;
@@ -3100,7 +3091,7 @@ function  WSocket_WSAAsyncGetHostByAddr(HWindow: HWND;
                                         buf: IntPtr;
                                         buflen: Integer): THandle;
 {$ENDIF}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 function WSocket_WSAAsyncGetHostByName(HWindow: HWND; wMsg: u_int;
                                       name, buf: PAnsiChar;
                                       buflen: Integer): THandle;
@@ -3122,8 +3113,7 @@ function  WSocket_getservbyname(const name, proto: String): IntPtr;
 function  WSocket_getprotobyname(const name: String): IntPtr;
 function  WSocket_gethostbyname(const name: String): IntPtr;
 function  WSocket_gethostbyaddr(var addr: u_long; len, Struct: Integer): IntPtr;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 function WSocket_getservbyname(name, proto: PAnsiChar): PServEnt;
 function WSocket_getprotobyname(name: PAnsiChar): PProtoEnt;
 function WSocket_gethostbyname(name: PAnsiChar): PHostEnt;
@@ -3145,8 +3135,7 @@ function  WSocket_getsockopt(s: TSocket; level, optname: Integer;
 function  WSocket_getsockopt(s: TSocket; level, optname: Integer;
                              var optval: TLinger;
                              var optlen: Integer): Integer; overload;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 function WSocket_setsockopt(s: TSocket; level, optname: Integer; optval: PAnsiChar;
                             optlen: Integer): Integer; overload;
 function WSocket_setsockopt(s: TSocket; level, optname: Integer; var optval: TLinger;
@@ -3163,7 +3152,7 @@ function WSocket_ntohl(netlong: u_long): u_long;
 function WSocket_listen(s: TSocket; backlog: Integer): Integer;
 function WSocket_ioctlsocket(s: TSocket; cmd: DWORD; var arg: u_long): Integer;
 {$IFNDEF VER80}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 function WSocket_WSAIoctl(s                 : TSocket; IoControlCode : DWORD;
                           InBuffer          : Pointer; InBufferSize  : DWORD;
                           OutBuffer         : Pointer; OutBufferSize : DWORD;
@@ -3191,8 +3180,7 @@ function WSocket_accept(s: TSocket; var addr: TSockAddr; var addrlen: Integer): 
 {$ELSE}
 {$IFDEF CLR}
 function WSocket_accept(s: TSocket; var addr: TSockAddr; var addrlen: Integer): TSocket;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 function WSocket_accept(s: TSocket; addr: PSockAddr; addrlen: PInteger): TSocket;
 {$ENDIF}
 {$ENDIF}
@@ -3436,7 +3424,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 function WSocket_Synchronized_WSAStartup(
     wVersionRequired: word;
     var WSData: TWSAData): Integer;
@@ -3870,7 +3858,7 @@ end;
 { that winsock will not be unloaded when the last TWSocket is destroyed.    }
 procedure WSocketForceLoadWinsock;
 begin
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 {$IFDEF COMPILER2_UP}
     _EnterCriticalSection(GWSockCritSect);
     try
@@ -3893,7 +3881,7 @@ end;
 { Cancel the operation done with WSocketForceLoadWinsock.                   }
 procedure WSocketCancelForceLoadWinsock;
 begin
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 {$IFDEF COMPILER2_UP}
     _EnterCriticalSection(GWSockCritSect);
     try
@@ -3916,7 +3904,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure WSocketUnloadWinsock;
 begin
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 {$IFDEF NEVER}   { 14/02/99 }
     if DllStarted then begin
         DllStarted := FALSE;
@@ -3988,7 +3976,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 function WSocketGetProc(const ProcName : AnsiString) : Pointer;
 var
     LastError : LongInt;
@@ -4702,7 +4690,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 function WSocket_WSAAsyncGetHostByName(
     HWindow: HWND; wMsg: u_int;
     name, buf: PAnsiChar;
@@ -4724,7 +4712,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 function WSocket_WSAAsyncGetHostByAddr(
     HWindow: HWND;
     wMsg: u_int; addr: PAnsiChar;
@@ -4813,8 +4801,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 function WSocket_getservbyname(name, proto: PAnsiChar): PServEnt;
 begin
 {$IFNDEF NO_ADV_MT}
@@ -4984,42 +4971,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
-function WSocket_setsockopt(s: TSocket; level, optname: Integer; optval: PAnsiChar;
-                            optlen: Integer): Integer;
-begin
-{$IFNDEF NO_ADV_MT}
-    SafeIncrementCount;
-    try
-{$ENDIF}
-        Result := WSocket_Synchronized_setsockopt(s, level, optname, optval, optlen);
-{$IFNDEF NO_ADV_MT}
-    finally
-        SafeDecrementCount;
-    end;
-{$ENDIF}
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_setsockopt(s: TSocket; level, optname: Integer; var optval: TLinger;
-                            optlen: Integer): Integer;
-begin
-{$IFNDEF NO_ADV_MT}
-    SafeIncrementCount;
-    try
-{$ENDIF}
-        Result := WSocket_Synchronized_setsockopt(s, level, optname, optval, optlen);
-{$IFNDEF NO_ADV_MT}
-    finally
-        SafeDecrementCount;
-    end;
-{$ENDIF}
-end;
-{$ENDIF}
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF CLR}
 function WSocket_getsockopt(
     s: TSocket; level, optname: Integer;
@@ -5058,11 +5009,44 @@ begin
     Result := OverByteIcsWinsock.getsockopt_tlinger(
                   s, level, optname, optval, optlen);
 end;
-{$ENDIF}
+{$ELSE}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
+function WSocket_setsockopt(s: TSocket; level, optname: Integer; optval: PAnsiChar;
+                            optlen: Integer): Integer;
+begin
+{$IFNDEF NO_ADV_MT}
+    SafeIncrementCount;
+    try
+{$ENDIF}
+        Result := WSocket_Synchronized_setsockopt(s, level, optname, optval, optlen);
+{$IFNDEF NO_ADV_MT}
+    finally
+        SafeDecrementCount;
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function WSocket_setsockopt(s: TSocket; level, optname: Integer; var optval: TLinger;
+                            optlen: Integer): Integer;
+begin
+{$IFNDEF NO_ADV_MT}
+    SafeIncrementCount;
+    try
+{$ENDIF}
+        Result := WSocket_Synchronized_setsockopt(s, level, optname, optval, optlen);
+{$IFNDEF NO_ADV_MT}
+    finally
+        SafeDecrementCount;
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function WSocket_getsockopt(
     s: TSocket; level, optname: Integer;
     optval: PAnsiChar; var optlen: Integer): Integer;
@@ -5183,7 +5167,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 {$IFDEF COMPILER2_UP}
 function WSocket_WSAIoctl(
     s                 : TSocket; IoControlCode : DWORD;
@@ -5219,7 +5203,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 function WSocket_inet_ntoa(inaddr: TInAddr): AnsiString;
 var
     Temp : PAnsiChar;
@@ -5454,7 +5438,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TWSocketCounter.GetLastAliveTick : Cardinal;
-(*
+{$IFDEF PUREPASCAL}
 begin
     if FLastRecvTick > FLastSendTick then
         if FLastRecvTick > FConnectTick then
@@ -5466,7 +5450,7 @@ begin
             Result := FLastSendTick
         else
             Result := FConnectTick;
-*)
+{$ELSE}
 asm
     mov ecx, [eax].FLastRecvTick
     mov edx, [eax].FLastSendTick
@@ -5483,6 +5467,7 @@ asm
     ret
 @done:
     mov eax, edx
+{$ENDIF}
 end;
 
 
@@ -5497,7 +5482,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 procedure TCustomWSocket.Notification(AComponent: TComponent; operation: TOperation);
 begin
     inherited Notification(AComponent, operation);
@@ -5938,7 +5923,7 @@ begin
 {$IFDEF CLR}
     if DesignMode then begin
 {$ENDIF}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
     if csDesigning in ComponentState then begin
 {$ENDIF}
         Result := -1;
@@ -6048,7 +6033,7 @@ begin
 //        end;
     end;
 {$ENDIF}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
     SetLength(Result, lCount);
     lCount := Receive(@Result[1], lCount);
     if lCount > 0 then
@@ -6248,7 +6233,7 @@ begin
         Data[I - 1] := Ord(Str[I]);
     PutDataInSendBuffer(Data, Length(Str));
 {$ENDIF}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 begin
     Result := Length(Str);
     if Result > 0 then
@@ -6346,7 +6331,7 @@ begin
     SetLength(Buf, 0);
 end;
 {$ENDIF}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 begin
     Result := Send(@DataByte, 1);
 end;
@@ -6379,8 +6364,7 @@ begin
     if Result > 0 then
         Result := Send({$IFDEF CLR}
                        System.Text.Encoding.Default.GetBytes(Str),
-                       {$ENDIF}
-                       {$IFDEF WIN32}
+                       {$ELSE}
                        PAnsiChar(Str),
                        {$ENDIF}
                        Result);
@@ -6416,8 +6400,7 @@ function HasOption(
 begin
 {$IFDEF CLR}
     Result := (Ord(OptSet) and Ord(Opt)) <> 0;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     Result := Opt in OptSet;
 {$ENDIF}
 end;
@@ -6432,8 +6415,7 @@ begin
     Result := wsoNone;
     for I := Low(Opts) to High(Opts) do
         Result := TWSocketOptions(Integer(Result) + Integer(Opts[I]));
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     Result := [];
     for I := Low(Opts) to High(Opts) do
         //Result := Result + [Opts[I]];  { Anton Sviridov }
@@ -6449,8 +6431,7 @@ function  RemoveOption(
 begin
 {$IFDEF CLR}
     Result := TWSocketOptions(Ord(OptSet) and (not Ord(Opt)));
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     Result := OptSet - [Opt];
 {$ENDIF}
 end;
@@ -6463,7 +6444,7 @@ procedure TCustomWSocket.ASyncReceive(
 var
     bMore        : Boolean;
     lCount       : {$IFDEF FPC} LongWord; {$ELSE} u_long; {$ENDIF}
-{$IFDEF WIN32}
+{$IFNDEF CLR}
     TrashCanBuf  : array [0..1023] of AnsiChar;  { AG 1/12/08 }
 {$ENDIF}
     TrashCan     : TWSocketData;
@@ -6476,14 +6457,13 @@ begin
         try
             if not TriggerDataAvailable(Error) then begin
                 { Nothing wants to receive, we will receive and throw away  23/07/98 }
-                {$IFDEF CLR}
+            {$IFDEF CLR}
                 TrashCanSize := 1024;
                 SetLength(TrashCan, TrashCanSize);
-                {$ENDIF}
-                {$IFDEF WIN32}
+            {$ELSE}
                 TrashCanSize := SizeOf(TrashCan);
                 TrashCan     := @TrashCanBuf;
-                {$ENDIF}
+            {$ENDIF}
                 if DoRecv(TrashCan, TrashCanSize, 0) = SOCKET_ERROR then begin
                     FLastError := WSocket_Synchronized_WSAGetLastError;
                     if FLastError = WSAEWOULDBLOCK then begin
@@ -6697,8 +6677,7 @@ begin
         Inc(I);
     end;
 end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 procedure GetIPList(phe  : PHostEnt; ToList : TStrings);
 type
     TaPInAddr = array [0..255] of PInAddr;
@@ -6742,8 +6721,7 @@ var
     ErrCode : Word;
 {$IFDEF CLR}
     HostEntry : THostEnt;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     Phe     : Phostent;
 {$ENDIF}
 begin
@@ -6767,8 +6745,7 @@ begin
             FDnsResult := FDnsResultList.Strings[0];
     end;
     FDnsLookupGCH.Free;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     if ErrCode = 0 then begin
         Phe := PHostent(@FDnsLookupBuffer);
         if phe <> nil then begin
@@ -6786,8 +6763,7 @@ procedure TCustomWSocket.WMAsyncGetHostByAddr(var msg: TMessage);
 var
 {$IFDEF CLR}
     HostEntry : THostEnt;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     Phe     : Phostent;
 {$ENDIF}
     ErrCode : Word;
@@ -6801,8 +6777,7 @@ begin
         if FDnsLookupIntPtr <> IntPtr.Zero then begin
             HostEntry  := THostEnt(Marshal.PtrToStructure(FDnsLookupIntPtr, TypeOf(THostEnt)));
             FDnsResult := Marshal.PtrToStringAnsi(HostEntry.h_name);
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
         Phe := PHostent(@FDnsLookupBuffer);
         if phe <> nil then begin
             //SetLength(FDnsResult, _StrLen(Phe^.h_name));
@@ -6813,8 +6788,7 @@ begin
             FDnsResultList.Add(FDnsResult);
 {$IFDEF CLR}
             GetAliasList(HostEntry, FDnsResultList);
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
             GetAliasList(Phe, FDnsResultList);  {AG 03/03/06}
 {$ENDIF}
         end;
@@ -6980,8 +6954,7 @@ var
     HostEntry : THostEnt;
     AddrList  : IntPtr;
     AddrItem  : IntPtr;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     Phe     : Phostent;
 {$ENDIF}
     IPAddr  : u_long;
@@ -7027,8 +7000,7 @@ begin
     AddrList      := Marshal.ReadIntPtr(HostEntry.h_addr_list);
     AddrItem      := Marshal.ReadIntPtr(HostEntry.h_addr_list);
     Result.s_addr := Marshal.ReadInt32(AddrItem);
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     { Address is a hostname }
     Phe := WSocket_Synchronized_GetHostByName(PAnsiChar(InAddr));
     if Phe = nil then
@@ -7088,8 +7060,7 @@ begin
         Result    := OverByteIcsWinsock.ntohs(ServEntry.s_port);
     end;
 end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 var
     Pse      : Pservent;
 begin
@@ -7138,8 +7109,7 @@ var
 {$IFDEF CLR}
     Ppe        : IntPtr;
     ProtoEntry : TProtoEnt;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     Ppe     : Pprotoent;
 {$ENDIF}
 begin
@@ -7167,8 +7137,7 @@ begin
                       GetWinsockErr(OverByteIcsWinsock.WSAGetLastError)); { V5.26 }
         ProtoEntry := TProtoEnt(Marshal.PtrToStructure(Ppe, TypeOf(TProtoEnt)));
         Result     := ProtoEntry.p_proto;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
             ppe := WSocket_Synchronized_getprotobyname(sProto);
             if Ppe = nil then
                 raise ESocketException.Create(
@@ -7283,7 +7252,7 @@ begin
     end;
     FDnsLookupHandle := 0;
 
-{$IFDEF WIN32}
+{$IFNDEF CLR}
     if not (csDestroying in ComponentState) then
 {$ENDIF}
         TriggerDnsLookupDone(WSAEINTR);
@@ -7359,8 +7328,7 @@ begin
                        GetWinsockErr(WSocket_WSAGetLastError));   { V5.26 }
         Exit;
     end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     FDnsLookupHandle   := WSocket_Synchronized_WSAAsyncGetHostByName(
                               FWindowHandle,
                               FMsg_WM_ASYNCGETHOSTBYNAME,
@@ -7417,8 +7385,7 @@ begin
         RaiseException(HostAddr + ': can''t start DNS lookup - ' +
                        GetWinsockErr(WSocket_WSAGetLastError));   { V5.26 }
     end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
     FDnsLookupHandle := WSocket_Synchronized_WSAAsyncGetHostByAddr(
                             FWindowHandle,
                             FMsg_WM_ASYNCGETHOSTBYADDR,
@@ -7465,8 +7432,7 @@ begin
         TriggerDnsLookupDone(0);
     end;
 end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 procedure TCustomWSocket.ReverseDnsLookupSync(const HostAddr: String); {AG 03/03/06}
 var
     szAddr : array [0..256] of AnsiChar;
@@ -7515,8 +7481,7 @@ var
 begin
     for I := Low(LocalSockName.sin_zero) to High(LocalSockName.sin_zero) do
         LocalSockName.sin_zero[0] := #0;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 begin
     FillChar(LocalSockName, Sizeof(LocalSockName), 0);
 {$ENDIF}
@@ -7547,8 +7512,7 @@ procedure TCustomWSocket.SetKeepAliveOption;
 begin
     // Not implemented !
 end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 procedure TCustomWSocket.SetKeepAliveOption;
 var
     OptVal        : Integer;
@@ -7866,7 +7830,7 @@ var
     iStatus        : Integer;
     optval         : Integer;
     mreq           : ip_mreq;
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
     dwBufferInLen  : DWORD;
     dwBufferOutLen : DWORD;
     dwDummy        : DWORD;
@@ -7963,7 +7927,7 @@ begin
     end;
 
     case FType of
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 {$IFDEF COMPILER2_UP}
     SOCK_RAW :
         begin
@@ -8253,7 +8217,7 @@ begin
     end;
 
     ChangeState(wsClosed);
-    if {$IFDEF WIN32}(not (csDestroying in ComponentState)) and {$ENDIF}
+    if {$IFNDEF CLR}(not (csDestroying in ComponentState)) and {$ENDIF}
        (not FCloseInvoked) {and Assigned(FOnSessionClosed)} then begin
         FCloseInvoked := TRUE;
         TriggerSessionClosed(Error);
@@ -8273,7 +8237,7 @@ var
     lCount    : {$IFDEF FPC} LongWord; {$ELSE} u_long; {$ENDIF}
     Status    : Integer;
     DataBuf   : TWSocketData;
-{$IFDEF WIN32}
+{$IFNDEF CLR}
     Ch        : Char;
 {$ENDIF}
 begin
@@ -8287,8 +8251,7 @@ begin
 
 {$IFDEF CLR}
         SetLength(DataBuf, 1);
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
         DataBuf := @Ch;
 {$ENDIF}
         Status := DoRecv(DataBuf, 1, 0);
@@ -8316,8 +8279,7 @@ begin
     LookupIntPtr := WSocket_gethostbyaddr(lAddr, 4, PF_INET);
     Result       := LookupIntPtr;
 end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 function WSocketGetHostByAddr(Addr : AnsiString) : PHostEnt;
 var
     szAddr : array[0..256] of AnsiChar;
@@ -8349,8 +8311,7 @@ begin
         Result    := Marshal.PtrToStringAnsi(HostEntry.h_name);
     end;
 end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 var
     Phe : PHostEnt;
 begin
@@ -8374,8 +8335,7 @@ begin
 
     Result := WSocket_gethostbyname(Name);
 end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 function WSocketGetHostByName(Name : AnsiString) : PHostEnt;
 var
     szName : array[0..256] of AnsiChar;
@@ -8406,8 +8366,7 @@ begin
         GetIpList(HostEntry, IPList);
     end;
 end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 var
     phe  : PHostEnt;
 begin
@@ -9296,8 +9255,7 @@ begin
     except
     end;
 end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 var
     Buf     : array [0..127] of AnsiChar;
     I       : Integer;
@@ -9419,8 +9377,7 @@ begin
     except
     end;
 end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 type
     pu_long = ^u_long;
 var
@@ -9562,8 +9519,7 @@ begin
             FRcvBuf[FRcvCnt] := Buf[I];
             Inc(FRcvCnt);
         end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
         Len := Receive(@FRcvBuf[FRcvCnt], Sizeof(FRcvBuf) - FRcvCnt - 1);
         if Len < 0 then
             Exit;
@@ -9619,8 +9575,7 @@ begin
                 FRcvBuf[FRcvCnt] := Buf[I];
                 Inc(FRcvCnt);
             end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
             Len := Receive(@FRcvBuf[FRcvCnt], 8 - FRcvCnt);
             if Len < 0 then
                 Exit;
@@ -9672,8 +9627,7 @@ begin
                 FRcvBuf[FRcvCnt] := Buf[I];
                 Inc(FRcvCnt);
             end;
-            {$ENDIF}
-            {$IFDEF WIN32}
+            {$ELSE}
             Len := Receive(@FRcvBuf[FRcvCnt], Sizeof(FRcvBuf) - FRcvCnt - 1);
             if Len < 0 then
                 Exit;
@@ -9754,8 +9708,7 @@ begin
                 {$IFDEF CLR}
                 for J := 1 to Ord(FRcvBuf[4]) do
                     FBoundAddr[J] := Char(FRcvBuf[4 + J]);
-                {$ENDIF}
-                {$IFDEF WIN32}
+                {$ELSE}
                 Move(FRcvBuf[5], FBoundAddr[1], Length(FBoundAddr)); { david.brock }
                 {$ENDIF}
                 I := 4 + Ord(FRcvBuf[4]) + 1;
@@ -9794,8 +9747,7 @@ begin
             FRcvBuf[FRcvCnt] := Buf[I];
             Inc(FRcvCnt);
         end;
-        {$ENDIF}
-        {$IFDEF WIN32}
+        {$ELSE}
         Len := Receive(@FRcvBuf[FRcvCnt], Sizeof(FRcvBuf) - FRcvCnt - 1);
         if Len < 0 then
             Exit;
@@ -9872,8 +9824,7 @@ begin
         {$IFDEF CLR}
         for I := 0 to FSocksRcvdCnt - 1 do
             Buffer[I] := FRcvBuf[FSocksRcvdPtr + I];
-        {$ENDIF}
-        {$IFDEF WIN32}
+        {$ELSE}
         Move(FRcvBuf[FSocksRcvdPtr], Buffer^, FSocksRcvdCnt); { V7.33 }
         {$ENDIF}
         Result        := FSocksRcvdCnt;
@@ -9884,8 +9835,7 @@ begin
     {$IFDEF CLR}
     for I := 0 to BufferSize - 1 do
         Buffer[I] := FRcvBuf[FSocksRcvdPtr + I];
-    {$ENDIF}
-    {$IFDEF WIN32}
+    {$ELSE}
     Move(FRcvBuf[FSocksRcvdPtr], Buffer^, BufferSize); { V7.33 }
     {$ENDIF}
     Result        := BufferSize;
@@ -9921,8 +9871,7 @@ begin
     if FRcvdPtr <> nil then begin
         {$IFDEF CLR}
         SetLength(FRcvdPtr, 0);
-        {$ENDIF}
-        {$IFDEF WIN32}
+        {$ELSE}
         FreeMem(FRcvdPtr, FRcvBufSize);
         FRcvdPtr     := nil;
         {$ENDIF}
@@ -10062,8 +10011,7 @@ begin
             System.Buffer.BlockCopy(FRcvdPtr, 0, Buffer, 0, FLineLength);
             //for I := 0 to FLineLength - 1 do
             //    Buffer[I] := FRcvdPtr[I];
-            {$ENDIF}
-            {$IFDEF WIN32}
+            {$ELSE}
             Move(FRcvdPtr^, Buffer^, FLineLength);
             {$ENDIF}
             Result      := FLineLength;
@@ -10077,8 +10025,7 @@ begin
         { Move the end of line to beginning of buffer to be read the next time }
         for I := 0 to FLineLength - BufferSize - 1 do
             FRcvdPtr[I] := FRcvdPtr[BufferSize + I];
-        {$ENDIF}
-        {$IFDEF WIN32}
+        {$ELSE}
         Move(FRcvdPtr^, Buffer^, BufferSize);
         { Move the end of line to beginning of buffer to be read the next time }
         Move(PAnsiChar(FRcvdPtr)[BufferSize], FRcvdPtr^, FLineLength - BufferSize);
@@ -10100,8 +10047,7 @@ begin
         {$IFDEF CLR}
         for I := 0 to FRcvdCnt - 1 do
             Buffer[I] := FRcvdPtr[I];
-        {$ENDIF}
-        {$IFDEF WIN32}
+        {$ELSE}
         Move(FRcvdPtr^, Buffer^, FRcvdCnt);
         {$ENDIF}
         Result   := FRcvdCnt;
@@ -10115,8 +10061,7 @@ begin
     { Then move remaining data to front of buffer  16/10/99 }
     for I := 0 to FRcvdCnt - BufferSize do
         FRcvdPtr[I] := FRcvdPtr[BufferSize + I];
-    {$ENDIF}
-    {$IFDEF WIN32}
+    {$ELSE}
     { User buffer is smaller, copy as much as possible }
     Move(FRcvdPtr^, Buffer^, BufferSize);
     { Then move remaining data to front og buffer  16/10/99 }
@@ -10229,8 +10174,7 @@ begin
             SetLength(Buf, BufSize);
     end;
 end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 var
     Buf     : PAnsiChar;
     BufSize : LongInt;
@@ -10463,8 +10407,7 @@ begin
             inherited TriggerDataAvailable(0);                 { 26/01/04 }
     end;
 end;
-{$ENDIF}
-{$IFDEF WIN32}
+{$ELSE}
 var
     Cnt        : Integer;
     Len        : Integer;
@@ -10612,8 +10555,7 @@ begin
         end;
         {$IFDEF CLR}
         SetLength(FRcvdPtr, FRcvBufSize);
-        {$ENDIF}
-        {$IFDEF WIN32}
+        {$ELSE}
         FreeMem(FRcvdPtr, FRcvBufSize);
         FRcvdPtr    := nil;
         {$ENDIF}
@@ -10647,8 +10589,7 @@ begin
     if Len <= 0 then
         Len := 0;
     SetLength(FLinePointer, Len);
-    {$ENDIF}
-    {$IFDEF WIN32}
+    {$ELSE}
     SetLength(FLinePointer^, FLineLength);
     Len := Receive(@FLinePointer^[1], FLineLength);
     if Len <= 0 then
@@ -10729,7 +10670,7 @@ begin
         FTimeOut      := -Timeout;
 
     FLineReceivedFlag := FALSE;
-    {$IFDEF WIN32}
+    {$IFNDEF CLR}
     FLinePointer      := @Buffer;
     {$ENDIF}
     { Save existing OnDataAvailable handler and install our own }
@@ -10748,8 +10689,7 @@ begin
                  {$IFDEF CLR}
                  for I := 0 to FRcvdCnt - 1 do
                      Buffer[I + 1] := Char(FRcvdPtr[I]);
-                 {$ENDIF}
-                 {$IFDEF WIN32}
+                 {$ELSE}
                  Move(FRcvdPtr^, Buffer[1], FRcvdCnt);
                  {$ENDIF}
                  FRcvdCnt := 0;
@@ -14741,6 +14681,7 @@ var
     nError     : Integer;
     Res        : Integer;
     PBuf       : TWSocketData;
+    Dummy      : Byte;
 begin
     if (not FSslEnable) or (FSocksState <> socksData) or
        (FHttpTunnelState <> htsData) then begin
@@ -14794,7 +14735,7 @@ begin
         // Look if input data was valid.
         // We may not call BIO_read if a write operation is pending !!
         if (FSslBioWritePendingBytes < 0) then begin
-            Res := my_BIO_read(FSslBio, Pointer(1), 0);
+            Res := my_BIO_read(FSslBio, @Dummy, 0); //Pointer(1)
             if Res < 0 then begin
                 if not my_BIO_should_retry(FSslBio) then begin
                     HandleSslError;
@@ -15490,7 +15431,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomSslWSocket.Dup(NewHSocket: Integer); 
+procedure TCustomSslWSocket.Dup(NewHSocket: TSocket);
 begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
@@ -16054,6 +15995,7 @@ var
     SslCachedSession  : Pointer;
     FreeSession       : Boolean;
     SIdCtxLen         : Integer;
+    Dummy             : Byte;
 begin
     if not FSslEnable then
         Exit;
@@ -16210,7 +16152,7 @@ begin
 
             my_BIO_ctrl(FSslBio, BIO_C_SET_SSL, BIO_NOCLOSE, FSsl);
 
-            Options := my_BIO_read(FSslbio, Pointer(1), 0); // reuse of int var Options!
+            Options := my_BIO_read(FSslbio, @Dummy, 0); // reuse of int var Options!
             if Options < 0 then begin
                 if not my_BIO_should_retry(FSslbio) then
                     //HandleSslError;

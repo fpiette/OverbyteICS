@@ -4,12 +4,12 @@ Author:       Angus Robertson, based on HashLib! from http://www.cobans.net/
 Description:  Calculates CRC32 abnd CRC32B
 Creation:     10 July 2006
 Updated:      14 April 2009
-Version:      7.00
+Version:      7.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -44,6 +44,7 @@ Oct 31, 2006 V1.02 Angus - added a progress callback to FileCRC().
 27 Nov 2007  V1.03 Angus - added FileCRC32B for partial file, removed duplicate code
 08 Jan 2008  V1.04 Angus - optional file mode to stop file being share locked
 14 Apr 2009  V7.00 Angus - added StreamCRC32B, always STREAM64
+15 Apr 2011  V7.01 Arno  - prepared for 64-bit
 
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsCRC;
@@ -54,7 +55,9 @@ unit OverbyteIcsCRC;
     {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
   {$ENDIF}
 {$ENDIF}
-{$DEFINE USE_ASM} //Remove this line to use pascal instead of assembler
+{$IFDEF CPUX86}
+  {$DEFINE USE_ASM} //Remove this line to use pascal instead of assembler
+{$ENDIF}
 
 interface
 
@@ -62,8 +65,8 @@ uses
     SysUtils, Classes;
 
 const
-    CRCVersion         = 700;
-    CopyRight : String = ' CRC32 (c) 1997-2010 F. Piette V7.00 ';
+    CRCVersion         = 701;
+    CopyRight : String = ' CRC32 (c) 1997-2011 F. Piette V7.01 ';
     DefaultMode =  fmOpenRead or fmShareDenyWrite;   { V1.04 }
 
 type

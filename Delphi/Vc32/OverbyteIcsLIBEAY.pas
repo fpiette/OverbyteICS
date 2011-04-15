@@ -4,12 +4,12 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      1.10
+Version:      1.11
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2003-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -79,6 +79,7 @@ May 08, 2010 Arno Garrels added support for OpenSSL 0.9.8n.
              extension as needed. It's also possible to enable unsafe legacy
              renegotiation explicitly by setting new option
              sslOpt_ALLOW_UNSAFE_LEGACY_RENEGOTIATION of TSslContext.
+Apr 15, 2011 Arno prepared for 64-bit.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -107,9 +108,9 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    OverbyteIcsTypes, // size_t
     Windows,
 {$ENDIF}
+    OverbyteIcsTypes, // size_t
 {$IFDEF POSIX}
     PosixSysTypes,
 {$ENDIF}
@@ -117,8 +118,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 110;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2010 F. Piette V1.10 ';
+    IcsLIBEAYVersion   = 111;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.11 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -679,7 +680,7 @@ const
     f_ERR_peek_last_error :                    function : Cardinal; cdecl = nil;
     f_ERR_get_error :                          function: Cardinal; cdecl = nil;
     f_ERR_error_string :                       function(Err: Cardinal; Buf: PAnsiChar): PAnsiChar; cdecl = nil;
-    f_ERR_error_string_n :                     procedure(Err: Cardinal; Buf: PAnsiChar; Len: Cardinal); cdecl = nil;
+    f_ERR_error_string_n :                     procedure(Err: Cardinal; Buf: PAnsiChar; Len: size_t); cdecl = nil;
     f_ERR_clear_error :                        procedure; cdecl = nil; //empties the current thread's error queue
     f_ERR_remove_state :                       procedure(ThreadID: Longword); cdecl = nil;
     f_ERR_free_strings :                       procedure; cdecl = nil; //"Brutal" (thread-unsafe) Application-global cleanup functions
@@ -690,12 +691,12 @@ const
     f_BIO_new_fd :                             function(Fd: Integer; CloseFlag: Integer): PBIO; cdecl = nil;
     f_BIO_new_file :                           function(FileName: PAnsiChar; Mode: PAnsiChar): PBIO; cdecl = nil;
     f_BIO_new_mem_buf :                        function(Buf : Pointer; Len : Integer): PBIO; cdecl = nil;
-    f_BIO_new_bio_pair :                       function(Bio1: PPBIO; WriteBuf1: Integer; Bio2: PPBIO; WriteBuf2: Integer): Integer; cdecl = nil;
+    f_BIO_new_bio_pair :                       function(Bio1: PPBIO; WriteBuf1: size_t; Bio2: PPBIO; WriteBuf2: size_t): Integer; cdecl = nil;
 
     f_BIO_ctrl :                               function(bp: PBIO; Cmd: Integer; LArg: LongInt; PArg: Pointer): LongInt; cdecl = nil;
-    f_BIO_ctrl_pending :                       function(b: PBIO): Integer; cdecl = nil;
-    f_BIO_ctrl_get_write_guarantee :           function(b: PBIO): Integer; cdecl = nil;
-    f_BIO_ctrl_get_read_request :              function(b: PBIO): Integer; cdecl = nil;
+    f_BIO_ctrl_pending :                       function(b: PBIO): size_t; cdecl = nil;
+    f_BIO_ctrl_get_write_guarantee :           function(b: PBIO): size_t; cdecl = nil;
+    f_BIO_ctrl_get_read_request :              function(b: PBIO): size_t; cdecl = nil;
 
     f_BIO_s_mem :                              function : PBIO_METHOD; cdecl = nil;
     f_BIO_get_retry_BIO :                      function(B: PBIO; Reason : PInteger): PBIO; cdecl = nil;
@@ -775,7 +776,7 @@ const
     f_X509_get_serialNumber :                  function(Cert: PX509): PASN1_INTEGER; cdecl = nil;
     f_X509_NAME_oneline :                      function(CertName: PX509_NAME; Buf: PAnsiChar; BufSize: Integer): PAnsiChar; cdecl = nil;
     f_X509_NAME_get_text_by_NID :              function(CertName: PX509_NAME; Nid: Integer; Buf : PAnsiChar; Len : Integer): Integer; cdecl = nil;
-    f_X509_NAME_get_index_by_NID:              function(CertName: PX509_NAME; Nid: Integer; LastPost: Integer): Integer; cdecl = nil; //AG
+    f_X509_NAME_get_index_by_NID:              function(CertName: PX509_NAME; Nid: Integer; LastPos: Integer): Integer; cdecl = nil; //AG
 
     f_X509_NAME_free :                         procedure(AName: PX509_NAME); cdecl = nil;//AG;
     f_X509_NAME_cmp :                          function(const a: PX509_NAME; const b: PX509_NAME): Integer; cdecl = nil;//AG;
@@ -2351,7 +2352,7 @@ var
     PCInfo : PX509_CINF;
 begin
     if Assigned(X) then begin
-        PCInfo := Pointer(PDWord(X)^);
+        PCInfo := Pointer(PINT_PTR(X)^);
         Result := PCInfo^.Validity^.notBefore;
     end
     else
@@ -2365,7 +2366,7 @@ var
     PCInfo : PX509_CINF;
 begin
     if Assigned(X) then begin
-        PCInfo := Pointer(PDWord(X)^);
+        PCInfo := Pointer(PINT_PTR(X)^);
         Result := PCInfo^.Validity^.notAfter;
     end
     else
@@ -2500,10 +2501,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function BIO_get_flags(b: PBIO): Integer;
 begin
-    // This is a hack : BIO structure has bnot been defined. But I know
-    // flags member is the 6th 32 bit field in the structure (index is 5)
+    // This is a hack : BIO structure has not been defined. But I know
+    // flags member is the 6th field in the structure (index is 5)
     // This could change when OpenSSL is updated. Check "struct bio_st".
-    Result := PInteger(PAnsiChar(b) + 5 * SizeOf(Integer))^;
+    Result := PInteger(PAnsiChar(b) + 3 * SizeOf(Pointer) + 2 * SizeOf(Integer))^;
 end;
 
 

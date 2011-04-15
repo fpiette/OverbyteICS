@@ -162,6 +162,8 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 
 { Do not change anything below this line !                                   }
 {----------------------------------------------------------------------------}
+{$DEFINE VER_UNKNOWN}
+
 {$IFDEF FPC}
   {$MODE Delphi}                           { delphi mode            }
   {$H+}                                    { Use long strings       }
@@ -762,7 +764,7 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 {$ENDIF}
 
 {$IFDEF BOMB}
-    Sorry, Delphi 7 or C++ Builder 2006 Win32 or better is required.
+  {$MESSAGE FATAL 'At least Delphi 7 or C++ Builder 2006 for Win32 is required to compile ICSv7.'}
 {$ENDIF}
 
 { TStream class support 64 bit seek }
@@ -788,7 +790,7 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
   {$WARN UNSAFE_CAST OFF}
 {$ENDIF}
 
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
   {$DEFINE VCL}
 {$ENDIF}
 

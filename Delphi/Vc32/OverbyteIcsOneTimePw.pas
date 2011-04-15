@@ -4,12 +4,12 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  One Time Password support functions, see RFC2289/1938 (aka S/KEY)
 Creation:     12 November 2007
 Updated:      06 August 2008
-Version:      1.03
+Version:      1.04
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -42,7 +42,7 @@ Updates:
 12 May 2008 - 1.01 Uses OverbyteIcsUtils.pas for atoi
 06 Aug 2008 - 1.02 Changed two strings to AnsiStrings so it works under Delphi 2009
 5 Nov 2008  - 1.03 added OtpGetMethod, OtpKeyNames public
-
+15 Apr 2011 - 1.04 Arno prepared for 64-bit, use functions from OverbyteIcsUtils.
 
 
 Background:
@@ -138,8 +138,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    OneTimePwVersion = 103;
-    CopyRight : String = ' OneTimePw (c) 1997-2010 F. Piette V1.03 ';
+    OneTimePwVersion = 104;
+    CopyRight : String = ' OneTimePw (c) 1997-2011 F. Piette V1.04 ';
     OtpKeyNames: array [0..3] of string =
                 ('none', 'otp-md5', 'otp-md4', 'otp-sha1') ;
 
@@ -495,6 +495,7 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
 function RevEndian64(X: Int64): Int64;
 begin
     result :=          (X and $00000000000000FF) shl 56;
@@ -506,7 +507,7 @@ begin
     result := result + (X and $00FF000000000000) shr 40;
     result := result + (X and $FF00000000000000) shr 56;
 end;
-
+*)
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function KeyToHex(OtpKey: TOtp64bit): string;
 var
@@ -530,7 +531,8 @@ var
 
 begin
  { convert 8 bytes to int64 }
-    Key64 := RevEndian64 (TInt64Rec (OtpKey).Quad) ;
+    //Key64 := RevEndian64 (TInt64Rec (OtpKey).Quad) ;
+    IcsSwap64Buf(@TInt64Rec(OtpKey).Quad, @Key64, 1);
  { get 11-bits five times and get five words from dictionary }
     for I := 0 to 4 do
         Result := Result + SixWordsList [GetBits (I * 11, 11)] + ' ' ;
@@ -575,6 +577,7 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
 procedure SwapIntBuf(Source, Dest: Pointer; Count: Integer);
 asm
        TEST   ECX,ECX
@@ -590,6 +593,7 @@ asm
        POP    EBX
 @Exit:
 end;
+*)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function GetSha1Half (Buffer: Pointer; BufSize: Integer): TOtp64bit;
@@ -607,7 +611,8 @@ begin
         Result [I] := Result [I] XOR Ord (Digest [I + 17]);
 
   { change endian order }
-    SwapIntBuf(@Result[0], @Result[0], 2);
+    //SwapIntBuf(@Result[0], @Result[0], 2);
+    IcsSwap32Buf(@Result[0], @Result[0], 2);
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

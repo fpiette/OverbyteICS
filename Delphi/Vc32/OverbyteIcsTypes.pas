@@ -3,12 +3,12 @@
 Author:       François PIETTE
 Description:
 Creation:     April 2004
-Version:      1.04
+Version:      1.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2004-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -42,6 +42,7 @@ Apr 10, 2009 Arno changed TBytes to an alias of SysUtils.TBytes in D2007 and
 Dec 03, 2009 Arno added some of the polymorphic integer types from
              Windows.pas/BaseTsd.h.
 May 07, 2010 Arno added a few declarations.
+Apr 15, 2011 Arno prepared for 64-bit.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsTypes;
@@ -56,14 +57,14 @@ uses
   System.Threading,
   System.Runtime.InteropServices;
 {$ENDIF}
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
   Windows, Messages,
 {$ENDIF}
  Classes, SysUtils;
 
 const
-  OverbyteIcsTypesVersion = 103;
-  CopyRight : String      = ' OverbyteIcsTypes (c) 2004-2010 F. Piette V1.03 ';
+  OverbyteIcsTypesVersion = 106;
+  CopyRight : String      = ' OverbyteIcsTypes (c) 2004-2011 F. Piette V1.06 ';
 
 type
 {$IFDEF COMPILER11_UP} // D2007 and better
@@ -160,11 +161,15 @@ type
     INT_PTR                   = NativeInt;
 {$ENDIF}
 
-{$IFDEF WIN32}
+{$EXTERNALSYM size_t}
+{$IFDEF CPUX64}
+    size_t                    = UInt64;
+{$ELSE}
+    size_t                    = LongWord;
+{$ENDIF}
+    Psize_t                   = ^size_t;
 
-  {$EXTERNALSYM size_t}
-  size_t                    = LongWord;
-  Psize_t                   = ^size_t;
+{$IFDEF MSWINDOWS}
 
   {$IFDEF COMPILER14_UP} // D2010 and better
       {$EXTERNALSYM HANDLE_PTR}

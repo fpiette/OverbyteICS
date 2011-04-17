@@ -114,7 +114,7 @@ begin
   ]);
 {$ENDIF}
 
-  RegisterPropertyEditor(TypeInfo(string), TWSocket, 'LineEnd',
+  RegisterPropertyEditor(TypeInfo(AnsiString), TWSocket, 'LineEnd',
     TWSocketLineEndProperty);
 {$ENDIF}
 end;

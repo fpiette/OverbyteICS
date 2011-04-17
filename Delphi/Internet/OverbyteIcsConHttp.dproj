@@ -9,7 +9,7 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Version>7.0</Version>
-    <DCC_Alignment>1</DCC_Alignment>
+    <DCC_Alignment>8</DCC_Alignment>
     <DCC_DebugInformation>False</DCC_DebugInformation>
     <DCC_LocalDebugSymbols>False</DCC_LocalDebugSymbols>
     <DCC_Optimize>False</DCC_Optimize>
@@ -21,7 +21,7 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <Version>7.0</Version>
-    <DCC_Alignment>1</DCC_Alignment>
+    <DCC_Alignment>8</DCC_Alignment>
     <DCC_Optimize>False</DCC_Optimize>
     <DCC_StackSize>4096,1048576</DCC_StackSize>
     <DCC_Define>NOFORMS;DEBUG</DCC_Define>

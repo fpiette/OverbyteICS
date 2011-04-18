@@ -99,8 +99,8 @@ const
 type
     TWSocketLineEndProperty = class(TStringProperty)
     public
-        function  GetLineEnd(const Value: String): String;
-        function  SetLineEnd(const Value: String): String;
+        function  GetLineEnd(const Value: AnsiString): AnsiString;
+        function  SetLineEnd(const Value: AnsiString): AnsiString;
         function  GetValue: String; override;
         procedure SetValue(const Value: String); override;
     end;
@@ -112,10 +112,10 @@ implementation
 {                         LineEnd Property Editor                           }
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF WIN32}
-function TWSocketLineEndProperty.SetLineEnd(const Value: String): String;
+function TWSocketLineEndProperty.SetLineEnd(const Value: AnsiString): AnsiString;
 var
     Offset : Integer;
-    C      : Char;
+    C      : AnsiChar;
 begin
     if Pos('#', Value) = 0 then
         raise Exception.Create('Invalid value');
@@ -130,7 +130,7 @@ begin
         C := #0;
         while (Offset <= Length(Value)) and
               ((Value[Offset] >= '0') and (Value[Offset] <= '9')) do begin
-            C := Char(Ord(C) * 10 + Ord(Value[Offset]) - Ord('0'));
+            C := AnsiChar(Ord(C) * 10 + Ord(Value[Offset]) - Ord('0'));
             Inc(Offset);
         end;
 
@@ -140,7 +140,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TWSocketLineEndProperty.GetLineEnd(const Value: String): String;
+function TWSocketLineEndProperty.GetLineEnd(const Value: AnsiString): AnsiString;
 var
     N: integer;
 begin
@@ -153,14 +153,14 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TWSocketLineEndProperty.GetValue: String;
 begin
-    Result := GetLineEnd(inherited GetValue);
+    Result := String(GetLineEnd(AnsiString(inherited GetValue)));
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TWSocketLineEndProperty.SetValue(const Value: String);
 begin
-    inherited SetValue(SetLineEnd(Value));
+    inherited SetValue(String(SetLineEnd(AnsiString(Value))));
 end;
 
 

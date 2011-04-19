@@ -55,7 +55,7 @@ unit OverbyteIcsCRC;
     {$RTTI EXPLICIT METHODS([]) FIELDS([]) PROPERTIES([])}
   {$ENDIF}
 {$ENDIF}
-{$IFDEF CPUX86}
+{$IFNDEF CPUX64}
   {$DEFINE USE_ASM} //Remove this line to use pascal instead of assembler
 {$ENDIF}
 

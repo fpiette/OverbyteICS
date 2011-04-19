@@ -1113,9 +1113,6 @@ Description:  A component adding SSL support to THttpCli.
               warnings.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF VER80}
-    Bomb('This unit require a 32 bit compiler !');
-{$ENDIF}
 {$B-}                                 { Enable partial boolean evaluation   }
 {$T-}                                 { Untyped pointers                    }
 {$X+}                                 { Enable extended syntax              }
@@ -1184,7 +1181,7 @@ function EncodeStr(Encoding : THttpEncoding; const Value : String) : String;
 {$ENDIF}
 function RFC1123_Date(aDate : TDateTime) : String;
 function RFC1123_StrToDate(aDate : String) : TDateTime;
-{$IFDEF MSWINDOWS}
+{$IFNDEF CLR}
 function EncodeLine(
     Encoding : THttpEncoding;
     SrcData  : PAnsiChar;
@@ -4658,7 +4655,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF MSWINDOWS}
+{$IFNDEF CLR}
 function EncodeLine(
     Encoding : THttpEncoding;
     SrcData  : PAnsiChar;

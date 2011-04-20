@@ -4,12 +4,12 @@ Author:       François PIETTE
 Description:  Registration unit for TWSocket. If you build a runtime
               package, you shouldn't include this unit.
 Creation:     Feb 24, 2002
-Version:      6.02
+Version:      6.03
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2002-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2002-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be> 
 
               This software is provided 'as-is', without any express or
@@ -46,6 +46,9 @@ Jan 19, 2003 V5.00 First pre-release for ICS-SSL. New major version number.
 May 31, 2004 V5.01 Used ICSDEFS.INC the same way as in other units
 Mar 24, 2008 V6.02 Francois Piette made some changes to prepare code
                    for Unicode.
+Apr 20, 2011 V6.03 Arno - LineEnd property converts to and from ANSI,
+                   removed 2 implicit string cast warnings and some old
+                   compiler directives. 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverByteIcsWSocketE;
@@ -53,16 +56,14 @@ unit OverByteIcsWSocketE;
 {$B-}           { Enable partial boolean evaluation   }
 {$T-}           { Untyped pointers                    }
 {$X+}           { Enable extended syntax              }
+{$H+}           { Use long strings                    }
+{$J+}           { Allow typed constant to be modified }
 {$I OverbyteIcsDefs.inc}
-{$IFDEF DELPHI6_UP}
-    {$WARN SYMBOL_PLATFORM   OFF}
-    {$WARN SYMBOL_LIBRARY    OFF}
-    {$WARN SYMBOL_DEPRECATED OFF}
-{$ENDIF}
-{$IFNDEF VER80}   { Not for Delphi 1                    }
-    {$H+}         { Use long strings                    }
-    {$J+}         { Allow typed constant to be modified }
-{$ENDIF}
+
+{$WARN SYMBOL_PLATFORM   OFF}
+{$WARN SYMBOL_LIBRARY    OFF}
+{$WARN SYMBOL_DEPRECATED OFF}
+
 {$IFDEF BCB3_UP}
     {$ObjExportAll On}
 {$ENDIF}
@@ -80,20 +81,20 @@ uses
     WinTypes, WinProcs,
 {$ENDIF}
     SysUtils, Classes,
-{$IFDEF COMPILER6_UP}
-  { Delphi 6/7: Add $(DELPHI)\Source\ToolsAPI to your library path }
-  { and add designide.dcp to ICS package.                          }
-  { BCB6 6: Add $(BCB)\Source\ToolsAPI to your library path        }
-  { and add designide.bpi to ICS package.                          }
-  DesignIntf, DesignEditors;
-{$ELSE}
-  DsgnIntf;
-{$ENDIF}
+{$IFDEF COMPILER12_UP}
+    AnsiStrings,
+{$ENDIF}  
+{ Delphi 6/7: Add $(DELPHI)\Source\ToolsAPI to your library path }
+{ and add designide.dcp to ICS package.                          }
+{ BCB6 6: Add $(BCB)\Source\ToolsAPI to your library path        }
+{ and add designide.bpi to ICS package.                          }
+  DesignIntf, DesignEditors,
+  OverbyteIcsLibrary;
 {$ENDIF}
 
 const
-    WSocketEVersion          = 602;
-    CopyRight : String       = ' WSocketE (c) 2002-2010 F. Piette V6.02 ';
+    WSocketEVersion          = 603;
+    CopyRight : String       = ' WSocketE (c) 2002-2011 F. Piette V6.03 ';
 
 {$IFDEF WIN32}
 type
@@ -117,7 +118,11 @@ var
     Offset : Integer;
     C      : AnsiChar;
 begin
+{$IFDEF COMPILER12_UP}
+    if AnsiPos(AnsiString('#'), Value) = 0 then
+{$ELSE}
     if Pos('#', Value) = 0 then
+{$ENDIF}
         raise Exception.Create('Invalid value');
 
     Offset := 1;
@@ -146,7 +151,7 @@ var
 begin
     Result := '';
     for N := 1 to Length(Value) do
-        Result := Result + '#' + IntToStr(Ord(Value[N]));
+        Result := Result + '#' + IcsIntToStrA(Ord(Value[N]));
 end;
 
 

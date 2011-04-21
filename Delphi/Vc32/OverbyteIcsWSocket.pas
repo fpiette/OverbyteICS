@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.71
+Version:      7.72
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -880,6 +880,8 @@ Apr 10, 2011 V7.70 Arno added property SslVerifyFlags to the TSslContext.
                    error codes in OverbyteIcsLibeay.pas search i.e. for
                    X509_V_ERR_UNABLE_TO_GET_CRL.
 Apr 15, 2011 V7.71 Arno prepared for 64-bit.
+Apr 21, 2011 V7.72 Éric Fleming Bonilha found a bug in SetSocketRcvBufSize.
+
 
 }
 
@@ -993,8 +995,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 771;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.71 ';
+  WSocketVersion            = 772;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.72 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -8630,7 +8632,7 @@ begin
                                   PAnsiChar(@BufSize), optlen);
 {$ENDIF}
     if iStatus = 0 then
-        FSocketSndBufSize := BufSize
+        FSocketRcvBufSize := BufSize
     else
         SocketError('setsockopt(SO_RCVBUF)');
 end;

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      1.11
+Version:      1.12
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -80,6 +80,7 @@ May 08, 2010 Arno Garrels added support for OpenSSL 0.9.8n.
              renegotiation explicitly by setting new option
              sslOpt_ALLOW_UNSAFE_LEGACY_RENEGOTIATION of TSslContext.
 Apr 15, 2011 Arno prepared for 64-bit.
+Apr 23, 2011 Arno added support for OpenSSL 0.9.8r and 1.0.0d.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -118,8 +119,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 111;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.11 ';
+    IcsLIBEAYVersion   = 112;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.12 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -1284,18 +1285,24 @@ const
     OSSL_VER_0908K = $009080bf;
     OSSL_VER_0908L = $009080cf;
     OSSL_VER_0908N = $009080ef;
-    // Or should we also create an dynamic array of Longword we would add only
-    // tested/wanted versions?
+    OSSL_VER_0908R = $0090812f;
+    OSSL_VER_1000  = $10000000; // Untested, did not build with MinGW
+    OSSL_VER_1000D = $1000004f; // Might be still buggy, had to incl. one workaround so far, see TSslContext.InitContext
+    { Basically versions listed above are tested if not otherwise commented.  }
+    { Versions between are assumed to work, however they are untested.        }
+    { OpenSSL libraries for ICS are available for download here:              }
+    { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
+
 {$IFDEF BEFORE_OSSL_098E}
     MIN_OSSL_VER   = OSSL_VER_0907G;
-    MAX_OSSL_VER   = OSSL_VER_0908N; //OSSL_VER_0908L;
+    MAX_OSSL_VER   = OSSL_VER_1000D;
 {$ELSE}
     {$IFNDEF OPENSSL_NO_TLSEXT}
         MIN_OSSL_VER = OSSL_VER_0908F;
     {$ELSE}
         MIN_OSSL_VER = OSSL_VER_0908E;
     {$ENDIF}
-    MAX_OSSL_VER   = OSSL_VER_0908N;//OSSL_VER_0908L;
+    MAX_OSSL_VER   = OSSL_VER_1000D;
 {$ENDIF}
 
 {$ENDIF} // USE_SSL

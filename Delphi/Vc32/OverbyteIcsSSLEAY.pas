@@ -4,12 +4,12 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      1.05
+Version:      1.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2003-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -60,6 +60,7 @@ Dec 20, 2009 A.Garrels added plenty of stuff. Some is not yet used some is, like
              Server Name Indication (SNI).
 May 08, 2010 A. Garrels added two declarations required to support
              Open SSL 0.9.8n.
+Apr 23, 2011 A. Garrels added C-macro f_SSL_clear_options.
              
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -92,8 +93,8 @@ uses
     Windows, SysUtils, OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 105;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2010 F. Piette V1.05 ';
+    IcsSSLEAYVersion   = 106;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2011 F. Piette V1.06 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -695,7 +696,8 @@ const
     SSL_CTRL_SET_SESS_CACHE_MODE                = 44;
     SSL_CTRL_GET_SESS_CACHE_MODE                = 45;
 
-    SSL_CTRL_GET_RI_SUPPORT                     = 76; { 0.9.8n }    
+    SSL_CTRL_GET_RI_SUPPORT                     = 76; { 0.9.8n }
+    SSL_CTRL_CLEAR_OPTIONS                      = 77; { 0.9.8n }
 
     SSL_OP_MICROSOFT_SESS_ID_BUG                = $00000001;
     SSL_OP_NETSCAPE_CHALLENGE_BUG               = $00000002;
@@ -716,7 +718,9 @@ const
     SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS          = $00000800;
     //SSL_OP_ALL: various bug workarounds that should be rather harmless.
     //This used to be 0x000FFFFFL before 0.9.7.
+    // 0.9.8h, 0.9.8n, 0.9.8e, 0.9.7g $00000FFF
     SSL_OP_ALL                                  = $00000FFF;
+    //SSL_OP_ALL                                  = $80000FFF; 1.0.0d
 
     //* DTLS options */ since 0.9.8
     SSL_OP_NO_QUERY_MTU                         = $00001000;
@@ -728,7 +732,8 @@ const
 
     // As server, disallow session resumption on renegotiation
     SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION  = $00010000;
-
+    // Don't use compression even if supported
+    SSL_OP_NO_COMPRESSION                          = $00020000; // 1.0.0x
     // Permit unsafe legacy renegotiation { 0.9.8n }
     // which can be set with SSL_CTX_set_options(). This is really
     // not recommended unless you know what you are doing.
@@ -754,6 +759,11 @@ const
     SSL_OP_NETSCAPE_CA_DN_BUG                   = $20000000;
     //SSL_OP_NON_EXPORT_FIRST                     = $40000000;
     SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG      = $40000000;
+    // Make server add server-hello extension from early version of
+    // cryptopro draft, when GOST ciphersuite is negotiated.
+    // Required for interoperability with CryptoPro CSP 3.x
+    SSL_OP_CRYPTOPRO_TLSEXT_BUG                 = $80000000; // 1.0.0x
+
 
     SSL_MODE_ENABLE_PARTIAL_WRITE               = $00000001;
 
@@ -970,6 +980,7 @@ function  f_SSL_CTX_set_options(C: PSSL_CTX; Op: LongInt): LongInt; {$IFDEF USE_
 function  f_SSL_CTX_get_options(C: PSSL_CTX): LongInt; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function  f_SSL_get_options(S: PSSL): LongInt; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function  f_SSL_set_options(S: PSSL; Op: LongInt): LongInt; {$IFDEF USE_INLINE} inline; {$ENDIF}
+function  f_SSL_clear_options(S: PSSL; Op: LongInt): LongInt; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function  f_SSL_want_read(S: PSSL) : Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function  f_SSL_want_write(S: PSSL) : Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function  f_SSL_want_nothing(S: PSSL) : Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF}
@@ -1501,6 +1512,13 @@ end;
 function f_SSL_set_options(S: PSSL; Op: LongInt): LongInt;
 begin
     Result := f_SSL_ctrl(S, SSL_CTRL_OPTIONS, Op, nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function f_SSL_clear_options(S: PSSL; Op: LongInt): LongInt;
+begin
+    Result := f_SSL_ctrl(S, SSL_CTRL_CLEAR_OPTIONS, Op, nil);
 end;
 
 

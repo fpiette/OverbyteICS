@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.72
+Version:      7.73
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -881,7 +881,7 @@ Apr 10, 2011 V7.70 Arno added property SslVerifyFlags to the TSslContext.
                    X509_V_ERR_UNABLE_TO_GET_CRL.
 Apr 15, 2011 V7.71 Arno prepared for 64-bit.
 Apr 21, 2011 V7.72 Éric Fleming Bonilha found a bug in SetSocketRcvBufSize.
-
+Apr 23, 2011 V7.73 Arno added support for OpenSSL 0.9.8r and 1.0.0d.
 
 }
 
@@ -995,8 +995,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 772;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.72 ';
+  WSocketVersion            = 773;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.73 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -12664,6 +12664,7 @@ end;
 procedure TSslContext.InitContext;
 var
     SslSessCacheModes : TSslSessCacheModes;
+    LOpts: LongWord;
 begin
     InitializeSsl; //loads libs
 {$IFNDEF NO_SSL_MT}
@@ -12730,10 +12731,22 @@ begin
                 if f_SSL_CTX_set_trust(FSslCtx, Integer(FSslX509Trust)) = 0 then
                     raise Exception.Create('Error setting trust'); }
 
-            if FSslOptionsValue <> 0 then
-            { adds the options set via bitmask in options to ssl. }
-            { Options already set before are not cleared! }
-                f_SSL_CTX_set_options(FSslCtx, FSslOptionsValue);
+            { No tickets yet                                       }
+            LOpts := FSslOptionsValue or SSL_OP_NO_TICKET;
+
+            if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1000 then begin
+                { This is a workaround a possible bug in OSSL 1.0.0(d)
+                  check if future versions fix it.
+                  SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER causes
+                  error:1408F044:SSL routines:SSL3_GET_RECORD:internal error
+                  on session resumption in InitSslConnection. }
+                if LOpts and SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER =
+                  SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER then
+                    LOpts := LOpts and not SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER;
+            end;
+            { Adds the options set via bitmask to Ctx.    }
+            { Options already set before are not cleared? }
+            f_SSL_CTX_set_options(FSslCtx, LOpts);
 
             if FSslCipherList <> '' then begin
                 if f_SSL_CTX_set_cipher_list(FSslCtx,
@@ -15634,6 +15647,10 @@ begin
                 begin
                     if Ws.SslContext <> Ctx then
                     begin
+                        { Clear the options inherited from current Ctx.    }
+                        { Not sure whether it is required, shouldn't hurt. }
+                        f_SSL_clear_options(SSL,
+                                 f_SSL_CTX_get_options(Ws.SslContext.FSslCtx));
                         Ws.SslContext := Ctx;
                         f_SSL_set_SSL_CTX(SSL, Ctx.FSslCtx);
                         f_SSL_set_options(SSL, f_SSL_CTX_get_options(ctx.FSslCtx));
@@ -16022,15 +16039,12 @@ begin
     FMayTriggerFD_Write      := TRUE;  // <= 01/06/2006 AG
     FMayTriggerDoRecv        := TRUE;  // <= 01/06/2006 AG
     FMayTriggerSslTryToSend  := TRUE;  // <= 01/06/2006 AG
-    InitializeSsl;
+    InitializeSsl; // Load libraries
     try
         _EnterCriticalSection(SslCritSect);
         try
-            {if Assigned(FSsl) then
-                ResetSsl; // resets FSslState to sslModeNone
-            FSslState := sslHandshakeInit;}
             //Create new SSL Object
-            FSsl := f_SSL_new(pSSLContext);
+            FSsl := f_SSL_new(pSSLContext); // FSsl inherits all options
             if not Assigned(FSsl) then
                 RaiseLastOpenSslError(Exception, TRUE,
                                       'Error on creating the Ssl object');
@@ -16041,11 +16055,16 @@ begin
                 RaiseLastOpenSslError(Exception, TRUE,
                                       'Creating BIOs failed');
 
+            (*
+            Since FSsl inherits all options this was not required,
+            also adding SSL_OP_ALL overwrote user defined options.
+            Just set the right ctx-options in TSslContext.InitContext.
             Options := f_SSL_get_options(FSsl);
             { Currently no Tickets! Otherwise handshake fatal }
             { errors or session resumption won't work.        }
             Options := Options or SSL_OP_ALL or SSL_OP_NO_TICKET;
             f_SSL_set_options(FSsl, Options);
+            *)
 
             if f_SSL_set_ex_data(FSsl, 0, Self) <> 1 then
                 RaiseLastOpenSslError(Exception, TRUE,

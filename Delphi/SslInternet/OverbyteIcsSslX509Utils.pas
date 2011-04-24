@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Aug 26, 2007
 Description:
-Version:      1.04
+Version:      1.05
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -47,7 +47,8 @@ Jan 29, 2009 V1.03 A.Garrels added overloads which take UnicodeStrings to
              characters beyond the ASCII range.
 Apr 24, 2011 V1.04 Record TEVP_PKEY_st changed in OpenSSL 1.0.0 and had to be 
              declared as dummy. Use new functions from OverbyteIcsLibeay to
-             make this unit compatible with OpenSSL 1.0.0+. 
+             make this unit compatible with OpenSSL 1.0.0+.
+Apr 24, 2011 V1.05 Include OverbyteIcsTypes.pas to make inlining work.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -57,7 +58,9 @@ interface
 
 uses
     Windows, SysUtils, Classes, OverbyteIcsSSLEAY, OverbyteIcsLibeay,
-    OverbyteIcsLibeayEx, OverByteIcsMD5, OverbyteIcsMimeUtils, OverbyteIcsUtils;
+    OverbyteIcsLibeayEx, OverByteIcsMD5,
+    OverbyteIcsTypes,
+    OverbyteIcsMimeUtils, OverbyteIcsUtils;
 
 procedure CreateCertRequest(const RequestFileName, KeyFileName, Country,
   State, Locality, Organization, OUnit, CName, Email: AnsiString;

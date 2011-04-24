@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.73
+Version:      7.74
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -882,6 +882,7 @@ Apr 10, 2011 V7.70 Arno added property SslVerifyFlags to the TSslContext.
 Apr 15, 2011 V7.71 Arno prepared for 64-bit.
 Apr 21, 2011 V7.72 Éric Fleming Bonilha found a bug in SetSocketRcvBufSize.
 Apr 23, 2011 V7.73 Arno added support for OpenSSL 0.9.8r and 1.0.0d.
+Apr 24, 2011 V7.74 Arno fixed compatibility with OpenSSL 1.0.0d.
 
 }
 
@@ -995,8 +996,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 773;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.73 ';
+  WSocketVersion            = 774;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.74 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -12075,7 +12076,7 @@ begin
     if PKey <> nil then begin
         _EnterCriticalSection(SslCritSect);
         try
-            Inc(PKey^.references);
+            Ics_Ssl_EVP_PKEY_IncRefCnt(PKey);
             Result := PKey;
         finally
             _LeaveCriticalSection(SslCritSect);

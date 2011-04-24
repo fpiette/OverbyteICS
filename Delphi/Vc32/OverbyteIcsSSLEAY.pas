@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      1.06
+Version:      1.07
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -61,6 +61,9 @@ Dec 20, 2009 A.Garrels added plenty of stuff. Some is not yet used some is, like
 May 08, 2010 A. Garrels added two declarations required to support
              Open SSL 0.9.8n.
 Apr 23, 2011 A. Garrels added C-macro f_SSL_clear_options.
+Apr 24, 2011 Arno - Record TEVP_PKEY_st changed in 1.0.0 and had to 
+             be declared as dummy. See helper functions Ics_Ssl_EVP_PKEY_xxx
+             in OverbyteIcsLibeay.pas.
              
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -93,8 +96,8 @@ uses
     Windows, SysUtils, OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 106;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2011 F. Piette V1.06 ';
+    IcsSSLEAYVersion   = 107;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2011 F. Piette V1.07 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -232,11 +235,18 @@ type
     end;
     PEC_KEY = ^TEC_KEY_st;
 
-    // 0.9.7g, 0.9.8a, 0.9.8e
+    { We may no longer define it since changed in 1.0.0+               }
+    { See helper functions Ics_Ssl_EVP_PKEYxxx in OverbyteIcsLibeay32  }
     TEVP_PKEY_st = packed record
+        Dummy : array [0..0] of Byte;
+    (*
         type_       : Longint;
         save_type   : Longint;
         references  : Longint;
+    {OSSL_100 two fields added}
+        ameth       : Pointer; //PEVP_PKEY_ASN1_METHOD;
+        engine      : Pointer; //PENGINE;
+    {/OSSL_100}
         case Integer of
         0 : (ptr  : PAnsiChar);
         1 : (rsa  : PRSA); // RSA
@@ -246,6 +256,7 @@ type
         { more not needed ...
         int save_parameters;
         STACK_OF(X509_ATTRIBUTE) *attributes; /* [ 0 ] */ }
+    *)
     end;
     PEVP_PKEY = ^TEVP_PKEY_st;
     PPEVP_PKEY = ^PEVP_PKEY;
@@ -271,7 +282,7 @@ type
     end;
     PX509_PURPOSE = ^TX509_PURPOSE_st;
 
-    // 0.9.7g, 0.9.8a, 0.9.8e
+    // 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d
     TASN1_STRING_st = packed record
         length : Integer;
         type_  : Integer;
@@ -300,6 +311,7 @@ type
     PASN1_VALUE  = ^TASN1_VALUE_st;
     PPASN1_VALUE = ^PASN1_VALUE;
 
+    // 0.9.7g, 0.9.8a 0.9.8e, 1.0.0d
     TEVP_CIPHER_INFO_st = packed record      { 03/02/07 AG }
         cipher : PEVP_CIPHER;
         iv     : array [0..EVP_MAX_IV_LENGTH - 1] of AnsiChar;
@@ -307,6 +319,7 @@ type
     EVP_CIPHER_INFO  = TEVP_CIPHER_INFO_st;
     PEVP_CIPHER_INFO = ^EVP_CIPHER_INFO;
 
+    // 0.9.7g, 0.9.8a 0.9.8e, 1.0.0d
     TPrivate_key_st = packed record            //AG
         //Dummy : array [0..0] of Byte;
         version     : Integer;
@@ -330,6 +343,7 @@ type
     end;
     PX509_REQ = ^TX509_REQ_st;
 
+    // 0.9.7g, 0.9.8a 0.9.8e, 1.0.0d
     TX509_CRL_INFO_st = packed record
         version     : PASN1_INTEGER;
         sig_alg     : PX509_ALGOR;
@@ -349,6 +363,7 @@ type
         sig_alg   : PX509_ALGOR;
         signature : PASN1_BIT_STRING;
         references: Integer;
+        {more..}
     end;
     PX509_CRL = ^TX509_CRL_st;
     PPX509_CRL = ^PX509_CRL;
@@ -357,7 +372,7 @@ type
     PX509  = ^TX509_st;
     PPX509 = ^PX509;
     
-    // 0.9.7g, 0.9.8a 0.9.8e
+    // 0.9.7g, 0.9.8a 0.9.8e, 1.0.0d
     TX509_INFO_st = packed record
         x509        : PX509;
         crl         : PX509_CRL;
@@ -381,12 +396,14 @@ type
     PX509_EXTENSION = ^TX509_EXTENSION;
     *)
 
+    // 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d
     TX509_VAL_st = packed record                    {AG 02/06/06}
         notBefore : PASN1_TIME;
         notAfter  : PASN1_TIME;
     end;
     PX509_VAL = ^TX509_VAL_st;
 
+    // 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d
     TX509_PUBKEY_st = packed record                 //AG
         algor       : PX509_ALGOR;
         public_key  : PASN1_BIT_STRING;
@@ -394,7 +411,7 @@ type
     end;
     PX509_PUBKEY = ^TX509_PUBKEY_st;
 
-    { Certinfo }  // 0.9.7g, 0.9.8a, 0.9.8e         {AG 02/06/06}
+    { Certinfo }  // 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d         {AG 02/06/06}
     TX509_CINF_st = packed record
         version         : PASN1_INTEGER;            // [ 0 ] default of v1
         serialNumber    : PASN1_INTEGER;
@@ -409,7 +426,7 @@ type
     end;
     PX509_CINF = ^TX509_CINF_st;
 
-    // 0.9.7g, 0.9.8a, 0.9.8e             {11/07/05 AG}
+    // 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d             {11/07/05 AG}
     ASN1_BOOLEAN = {$IFNDEF NoTypeEnforce}type{$ENDIF} Longint;
     TX509_EXTENSION_st = packed record
         object_       : PASN1_OBJECT;
@@ -418,6 +435,7 @@ type
     end;
     PX509_EXTENSION = ^TX509_EXTENSION_st;
 
+    // 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d
     TX509_st = packed record
         cert_info   : PX509_CINF;
         sig_alg     : PX509_ALGOR;
@@ -450,7 +468,7 @@ type
 
     { Caution! Structures may change in future versions 0.96g-0.98 beta OK} {AG}
     { However needed for S/MIME PKCS#7 parsing }
-
+    // 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d
     TPKCS7_SIGNER_INFO_st = packed record
         version             : PASN1_INTEGER;                // version 1
         issuer_and_serial   : PPKCS7_ISSUER_AND_SERIAL;
@@ -465,6 +483,7 @@ type
     //PKCS7_SIGNER_INFO = ^TPKCS7_SIGNER_INFO_st; // **Name conflict with wincrypt.h**
     PKCS7_SIGNER_INFO_OSSL = ^TPKCS7_SIGNER_INFO_st;
 
+    // 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d
     TPKCS7_ENVELOPED_st = packed record
         version       : PASN1_INTEGER;
         recipientinfo : PSTACK_OF_PKCS7_SIGNER_INFO;
@@ -472,8 +491,9 @@ type
     end;
     PPKCS7_ENVELOPE = ^TPKCS7_ENVELOPED_st;
 
-    PPKCS7  = ^TPKCS7_st;                           
+    PPKCS7  = ^TPKCS7_st;
 
+    // 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d
     TPKCS7_SIGNED_st = packed record
         version     : PASN1_INTEGER;
         md_algs     : PSTACK_OF_X509_ALGOR;
@@ -484,6 +504,7 @@ type
     end;
     PPKCS7_SIGNED = ^TPKCS7_SIGNED_st;
 
+    // 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d
     PKCS7_signedandenveloped = packed record
         version         : PASN1_INTEGER;
         md_algs         : PSTACK_OF_X509_ALGOR;
@@ -495,7 +516,7 @@ type
     end;
     PPKCS7_SIGN_ENVELOPE = ^PKCS7_signedandenveloped;
     
-
+    // 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d
     TPKCS7_st = packed record                         //AG
       { The following is non NULL if it contains ASN1 encoding of this structure }
         asn1        : PAnsiChar;
@@ -566,8 +587,8 @@ type
     PX509V3_EXT_I2R    = function(X509V3_EXT_METHOD: Pointer; Ext: Pointer; Output: PBIO; Indent: Integer): Integer; cdecl;
     PX509V3_EXT_R2I    = function(X509V3_EXT_METHOD: Pointer; Ctx: PV3_EXT_CTX; S: PAnsiChar): Pointer; cdecl;
 
-    // V3 extension structure
-    TX509V3_EXT_METHOD = packed record
+    // V3 extension structure 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d
+    TX509V3_EXT_METHOD = packed record // struct v3_ext_method
         ext_nid   : Integer;
         ext_flags : Integer;
 

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      1.12
+Version:      1.13
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -81,6 +81,8 @@ May 08, 2010 Arno Garrels added support for OpenSSL 0.9.8n.
              sslOpt_ALLOW_UNSAFE_LEGACY_RENEGOTIATION of TSslContext.
 Apr 15, 2011 Arno prepared for 64-bit.
 Apr 23, 2011 Arno added support for OpenSSL 0.9.8r and 1.0.0d.
+Apr 24, 2011 Arno added some helper rountines since record TEVP_PKEY_st
+             changed in 1.0.0 and had to be declared as dummy.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -119,8 +121,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 112;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.12 ';
+    IcsLIBEAYVersion   = 113;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.13 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -1239,6 +1241,10 @@ function f_Ics_UI_get_app_data(r: PUI): Pointer; {$IFDEF USE_INLINE} inline; {$E
 function f_Ics_X509_LOOKUP_load_file(Ctx: PX509_LOOKUP; FileName: PAnsiChar; Type_: Longword): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function f_Ics_X509_LOOKUP_add_dir(Ctx: PX509_LOOKUP; DirName: PAnsiChar; Type_: Longword): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function f_Ics_X509_get_signature_algorithm(X509: PX509): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
+
+procedure Ics_Ssl_EVP_PKEY_IncRefCnt(K: PEVP_PKEY; Increment: Integer = 1); {$IFDEF USE_INLINE} inline; {$ENDIF}
+function  Ics_Ssl_EVP_PKEY_GetKey(K: PEVP_PKEY): Pointer; {$IFDEF USE_INLINE} inline; {$ENDIF}
+function  Ics_Ssl_EVP_PKEY_GetType(K: PEVP_PKEY): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
 
 { 0.9.8n }
 function f_SSL_get_secure_renegotiation_support(S: PSSL): Longint; {$IFDEF USE_INLINE} inline; {$ENDIF}
@@ -2685,6 +2691,37 @@ begin
         Result := f_SSL_ctrl(S, SSL_CTRL_GET_RI_SUPPORT, 0, nil)
     else
         Result := 0;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure Ics_Ssl_EVP_PKEY_IncRefCnt(K: PEVP_PKEY; Increment: Integer = 1);
+begin
+    { This is a hack and might change with new OSSL version, search }
+    { for "struct EVP_PKEY_st"                                      }
+    Inc(PInteger(PAnsiChar(K) + 2 * SizeOf(Longint))^, Increment);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function Ics_Ssl_EVP_PKEY_GetKey(K: PEVP_PKEY): Pointer;
+begin
+    { This is a hack and might change with new OSSL version, search }
+    { for "struct EVP_PKEY_st"                                      }
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1000 then
+        Result := Pointer(PSize_t(PAnsiChar(K) + (3 * SizeOf(Longint)) +
+                                                 (2 * SizeOf(Pointer)))^)
+    else
+        Result := Pointer(PSize_t(PAnsiChar(K) + 3 * SizeOf(Longint))^);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function Ics_Ssl_EVP_PKEY_GetType(K: PEVP_PKEY): Integer;
+begin
+    { This is a hack and might change with new OSSL version, search }
+    { for "struct EVP_PKEY_st"                                      }
+    Result := PInteger(K)^;
 end;
 
 

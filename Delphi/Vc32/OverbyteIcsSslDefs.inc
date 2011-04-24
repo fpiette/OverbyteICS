@@ -6,7 +6,7 @@
 { using our own 'hacks' to emulate some C-macros not exported by OpenSSL       }
 { in previous versions. Leave it commented if you want to support OpenSSL      }
 { v0.9.8e and better without using our 'hacks' but newly exported functions,   }
-{ default.                                                                     }
+{ default. Ignored in 64-bit and if OPENSSL_NO_TLSEXT is not defined.          }
 {.$DEFINE BEFORE_OSSL_098E}
 
 { Comment next define in order to include Server Name Indication (SNI).        }
@@ -41,6 +41,11 @@
 
 { Do not modify below this line                                                }
 { -----------------------------------------------------------------------------}
+{$IFDEF CPUX64}
+  {$IFDEF BEFORE_OSSL_098E}
+    {$UNDEFINE BEFORE_OSSL_098E}
+  {$ENDIF}
+{$ENDIF}
 {$IFNDEF OPENSSL_NO_TLSEXT}
     {$IFDEF BEFORE_OSSL_098E}
         {$UNDEFINE BEFORE_OSSL_098E}

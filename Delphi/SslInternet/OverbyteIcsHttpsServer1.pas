@@ -45,7 +45,9 @@ History:
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { DEFINE DEBUG_OUTPUT}
 unit OverbyteIcsHttpsServer1;
-
+{$IFDEF UNICODE}
+  {$MESSAGE WARN 'This demo is not yet converted to Unicode and doesn''t work in D2009+. See OverbyteIcsSslWebServ demo for a working example'}
+{$ENDIF}
 { You must define USE_SSL in the project options so that SSL code is        }
 { included in the socket component.                                         }
 { To be able to compile the component, you must have the SSL related files  }

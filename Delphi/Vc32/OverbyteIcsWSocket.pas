@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.74
+Version:      7.75
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -883,6 +883,10 @@ Apr 15, 2011 V7.71 Arno prepared for 64-bit.
 Apr 21, 2011 V7.72 Éric Fleming Bonilha found a bug in SetSocketRcvBufSize.
 Apr 23, 2011 V7.73 Arno added support for OpenSSL 0.9.8r and 1.0.0d.
 Apr 24, 2011 V7.74 Arno fixed compatibility with OpenSSL 1.0.0d.
+Apr 26, 2011 V7.75 Anton S. found that TrashCanSize was not set correctly in
+                   non .NET environments, only important if OnDataAvailable
+                   is not assigned with non-listening sockets, which should
+                   never be the case.
 
 }
 
@@ -996,8 +1000,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 774;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.74 ';
+  WSocketVersion            = 775;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.75 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -6464,7 +6468,7 @@ begin
                 TrashCanSize := 1024;
                 SetLength(TrashCan, TrashCanSize);
             {$ELSE}
-                TrashCanSize := SizeOf(TrashCan);
+                TrashCanSize := SizeOf(TrashCanBuf); { V7.75 }
                 TrashCan     := @TrashCanBuf;
             {$ENDIF}
                 if DoRecv(TrashCan, TrashCanSize, 0) = SOCKET_ERROR then begin

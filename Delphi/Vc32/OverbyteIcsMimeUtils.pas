@@ -4,7 +4,7 @@
 Author:       François PIETTE
 Object:       Mime support routines (RFC2045).
 Creation:     May 03, 2003  (Extracted from SmtpProt unit)
-Version:      7.23
+Version:      7.24
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -107,7 +107,7 @@ Mar 05, 2011 V7.23  Arno - If DoFileEncBase64 finishes with a full line, remove
                     last CRLF! TSmtpCli will add one later. That avoids two empty
                     lines after and between MIME parts and always generates the
                     same message size as calculated with TSmtpCli.CalcMsgSize.
-                    
+May 06,2011 V7.24   Arno - Small change to prepare for 64-bit.                    
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMimeUtils;
@@ -161,8 +161,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-    TMimeUtilsVersion = 723;
-    CopyRight : String = ' MimeUtils (c) 2003-2011 F. Piette V7.23 ';
+    TMimeUtilsVersion = 724;
+    CopyRight : String = ' MimeUtils (c) 2003-2011 F. Piette V7.24 ';
 
     SmtpDefaultLineLength = 76; // without CRLF
     SMTP_SND_BUF_SIZE     = 2048;
@@ -273,7 +273,7 @@ function UnFoldHdrLine(const S : String): String;
 function NeedsEncoding(const S : AnsiString) : Boolean; {$IFDEF COMPILER12_UP} overload;           {AG}
 function NeedsEncoding(const S : UnicodeString) : Boolean; overload;        {AG}
 {$ENDIF}
-{$IFDEF WIN32}
+{$IFNDEF CLR}
 function NeedsEncodingPChar(S : PChar) : Boolean;                           {FP}
 {$ENDIF}
 { MIME In-Line-Encoding plus Folding, see comments in function source     } {AG}
@@ -1635,7 +1635,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF WIN32}
+{$IFNDEF CLR}
 function NeedsEncodingPChar(S : PChar) : Boolean;
 begin
     while S^ <> #0 do begin

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:
 Creation:     April 2004
-Version:      1.06
+Version:      1.07
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -43,6 +43,7 @@ Dec 03, 2009 Arno added some of the polymorphic integer types from
              Windows.pas/BaseTsd.h.
 May 07, 2010 Arno added a few declarations.
 Apr 15, 2011 Arno prepared for 64-bit.
+May 06, 2011 Arno added TThreadID 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsTypes;
@@ -63,8 +64,8 @@ uses
  Classes, SysUtils;
 
 const
-  OverbyteIcsTypesVersion = 106;
-  CopyRight : String      = ' OverbyteIcsTypes (c) 2004-2011 F. Piette V1.06 ';
+  OverbyteIcsTypesVersion = 107;
+  CopyRight : String      = ' OverbyteIcsTypes (c) 2004-2011 F. Piette V1.07 ';
 
 type
 {$IFDEF COMPILER11_UP} // D2007 and better
@@ -168,6 +169,10 @@ type
     size_t                    = LongWord;
 {$ENDIF}
     Psize_t                   = ^size_t;
+
+{$IFNDEF COMPILER15_UP}
+    TThreadID                 = LongWord;
+{$ENDIF}
 
 {$IFDEF MSWINDOWS}
 

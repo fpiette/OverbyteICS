@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Creation:     Octobre 2002
 Description:  Composant non-visuel avec un handle de fenêtre.
-Version:      1.15
+Version:      1.16
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -96,6 +96,7 @@ Historique:
                  the exception, with "fehNone" (default) unhandled exceptions
                  are thrown away silently.
 15/04/2011 V1.15 Arno prepared for 64-bit.
+06/05/2011 V1.16 Arno - Make use of type TThreadID.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -137,8 +138,8 @@ uses
   OverbyteIcsTypes, OverbyteIcsLibrary;
 
 const
-  TIcsWndControlVersion  = 115;
-  CopyRight : String     = ' TIcsWndControl (c) 2002-2011 F. Piette V1.15 ';
+  TIcsWndControlVersion  = 116;
+  CopyRight : String     = ' TIcsWndControl (c) 2002-2011 F. Piette V1.16 ';
 
   IcsWndControlWindowClassName = 'IcsWndControlWindowClass';
 
@@ -214,7 +215,7 @@ type
 {$ENDIF}
   protected
     FHandle        : HWND;
-    FThreadId      : DWORD;
+    FThreadId      : TThreadID;
     FTerminated    : Boolean;
     FMultiThreaded : Boolean;
     FWndHandler    : TIcsWndHandler;
@@ -259,7 +260,7 @@ type
     property Handle          : HWND                   read  GetHandle;  // R/O
     property WndHandler      : TIcsWndHandler         read  FWndHandler
                                                       write FWndHandler;
-    property ThreadID        : DWORD                  read  FThreadID;
+    property ThreadID        : TThreadID              read  FThreadID;
     property OnBgException   : TIcsBgExceptionEvent   read  FOnBgException
                                                       write SetOnBgException; { V1.14 }
     property ExceptAbortProc : TIcsExceptAbortProc    read  FExceptAbortProc  { V1.14 }
@@ -303,7 +304,7 @@ type
 
   TIcsWndHandlerList = class(TList)
   protected
-    ThreadID : THandle;
+    ThreadID : TThreadID;
   end;
 
   TWhMaxMsgIDs = 50..1000;
@@ -316,7 +317,7 @@ type
     constructor Create;
     destructor  Destroy; override;
     function    GetWndHandler(HandlerCount : UINT;
-                              ThreadID     : THandle): TIcsWndHandler;
+                              ThreadID     : TThreadID): TIcsWndHandler;
     procedure   FreeWndHandler(var WndHandler : TIcsWndHandler);
     procedure   Lock;
     procedure   UnLock;
@@ -1326,7 +1327,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TIcsWndHandlerPool.GetWndHandler(
     HandlerCount : UINT;
-    ThreadID     : THandle) : TIcsWndHandler;
+    ThreadID     : TThreadID) : TIcsWndHandler;
 var
     I : Integer;
     L : TIcsWndHandlerList;

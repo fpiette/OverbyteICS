@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      7.38
+Version:      7.39
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -110,6 +110,7 @@ May 07, 2010 V7.35 Arno added IcsIsSBCSCodepage.
 Aug 21, 2010 V7.36 Arno fixed a bug in the UTF-8 constructor of TIcsFileStreamW.
 Sep 05, 2010 V7.37 Arno added procedure IcsNameThreadForDebugging
 Apr 15, 2011 V7.38 Arno prepared for 64-bit.
+May 06, 2011 V7.39 Arno moved TThreadID to OverbyteIcsTypes.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -162,7 +163,7 @@ uses
     SysUtils,
     RtlConsts,
     SysConst,
-    OverbyteIcsTypes; // for TBytes
+    OverbyteIcsTypes; // for TBytes and TThreadID
 
 type
 {$IFNDEF COMPILER12_UP}
@@ -178,7 +179,6 @@ type
 
 {$IFNDEF COMPILER15_UP}
     PLongBool     =  ^LongBool;
-    TThreadID     = LongWord;
 {$ENDIF}
     TIcsDbcsLeadBytes = TSysCharset;
     
@@ -2765,7 +2765,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure IcsNameThreadForDebugging(AThreadName: AnsiString; AThreadID: TThreadID);
-{$IF CompilerVersion < 21}
+{$IFNDEF COMPILER14_UP}
 type
     TThreadNameInfo = record
         FType: LongWord;     // must be 0x1000
@@ -2791,7 +2791,7 @@ begin
 {$ELSE}
 begin
     TThread.NameThreadForDebugging(AThreadName, AThreadID);
-{$IFEND}
+{$ENDIF}
 end;
 
 

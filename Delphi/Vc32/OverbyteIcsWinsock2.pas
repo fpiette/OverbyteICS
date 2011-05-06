@@ -47,6 +47,7 @@ Sep 21, 2008 Arno - Removed $EXTERNALSYM from some winsock2 symbols
              (CBuilder compat.)
 Jun 07, 2010 Arno fixed a late Unicode bug in WSocket2GetInterfaceList()
 Apr 10, 2011 Another Unicode bug in record sockaddr.
+May 06, 2011 Prepared for 64-bit.
 		 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -94,7 +95,7 @@ uses
   System.Runtime.InteropServices,
   //Borland.VCL.Classes,
 {$ENDIF}
-{$IFDEF WIN32}
+{$IFNDEF CLR}
   SysUtils,
 {$IFDEF BCB}
   Windows, Winsock,

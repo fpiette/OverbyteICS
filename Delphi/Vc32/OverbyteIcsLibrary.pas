@@ -283,7 +283,9 @@ const
   {$EXTERNALSYM MinDateTime}
   MinDateTime      : TDateTime = -657434.0;
   {$EXTERNALSYM MaxDateTime}
+{$HINTS OFF}
   MaxDateTime      : TDateTime = 2958465.99999;
+{$HINTS ON}
   {$EXTERNALSYM opRemove}
   opRemove         = Classes.opRemove;
   {$EXTERNALSYM csDesigning}

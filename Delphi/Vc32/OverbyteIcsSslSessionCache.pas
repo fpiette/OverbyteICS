@@ -7,7 +7,7 @@ Description:  A very fast external SSL-session-cache component.
               Uses OpenSSL (http://www.openssl.org).
               Uses freeware TSslWSocket component  from ICS
               (Internet Component Suite).
-Version:      1.04
+Version:      1.05
 EMail:        <arno.garrels@gmx.de>
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -45,7 +45,7 @@ History:
 Jul 03, 2008 V1.02 A. Garrels made a few changes to prepare code for Unicode.
 Mar 20, 2009 v1.03 A. Garrels exchanged 4 * PChar by PAnsiChar (was no bug!)
 Sep 03, 2009 V1.04 Arno exchanged TThread.Resume by TThread.Start for D2010 and later
-
+May 06, 2011 V1.05 Small change to prepare for 64-bit.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslSessionCache;
@@ -83,6 +83,9 @@ uses
 {$ENDIF}
 {$IFNDEF NO_DEBUG_LOG}
     OverbyteIcsLogger,
+{$ENDIF}
+{$IFNDEF COMPILER15_UP}
+    OverbyteIcsTypes,
 {$ENDIF}
     OverbyteIcsSSLEAY, OverbyteIcsLIBEAY, OverbyteIcsWSocket, OverbyteIcsAvlTrees;
 
@@ -158,7 +161,7 @@ type
     TSslAvlSessionCache = class(TSslBaseSessionCache)
     private
         FCacheTree      : TCacheTree;
-        FThreadID       : THandle;
+        FThreadID       : TThreadID;
         FWorkerThread   : TSslCacheWorkerThread;
         FStreamVersion  : Integer;
         FStream         : TStream;

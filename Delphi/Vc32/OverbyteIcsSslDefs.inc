@@ -33,10 +33,9 @@
 { shall be displayed.                                                          }
 {.$DEFINE OPENSSL_USE_RESOURCE_STRINGS}
 
-{ Comment next define to include experimental Engine support.                  }
+{ Comment next define to include experimental Engine code.                     }
 { http://openssl.org/docs/crypto/engine.html                                   }
-{ Unless someone tested it successfully with hardware accelerators the default }
-{ should be "OPENSSL_NO_ENGINE"                                                }
+{ The default should be "OPENSSL_NO_ENGINE" it's currently very experimental   }
 {$DEFINE OPENSSL_NO_ENGINE}
 
 { Do not modify below this line                                                }

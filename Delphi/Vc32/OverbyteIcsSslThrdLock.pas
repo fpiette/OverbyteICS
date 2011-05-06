@@ -3,12 +3,12 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Nov 01, 2005
 Description:  Implementation of OpenSsl thread locking (Windows);
-Version:      1.02
+Version:      1.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2005-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2005-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -55,7 +55,7 @@ March 03, 2006 Version 1.01, new property Enabled, OpenSSL is now loaded
 Jun 30, 2008 A.Garrels made some changes to prepare SSL code for Unicode.
 May 05, 2010 V1.02 A.Garrels changed synchronisation to use TRTLCriticalSection
              instead of Mutex, removed useless contructor, should be POSIX-ready.
-
+May 06, 2011 V1.03 Arno - Make use of new CRYPTO_THREADID_set_callback.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslThrdLock;
@@ -93,6 +93,7 @@ uses
     Classes,
     SysUtils,
     OverbyteIcsLIBEAY,
+    OverbyteIcsSSLEAY,
     OverbyteIcsWSocket;
 
 type
@@ -197,11 +198,20 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF MSWINDOWS}
 function IDCallback : Longword; cdecl;
 begin
     Result := GetCurrentThreadID;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ELSE}
+procedure ThreadIdCallback(ID : PCRYPTO_THREADID); cdecl;
+begin
+    f_CRYPTO_THREADID_set_pointer(ID, Pointer(GetCurrentThreadID));  //? To check
+end;
+{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslStaticLock.SetEnabled(const Value: Boolean);
@@ -227,7 +237,16 @@ begin
                     raise;
                 end;
             end;
+        {$IFDEF MSWINDOWS}
             f_CRYPTO_set_id_callback(IDCallback);
+        {$ELSE}
+            if Assigned(f_CRYPTO_THREADID_set_callback) then // v1.0.0+
+            begin
+                Assert(Assigned(f_CRYPTO_THREADID_set_pointer));
+                f_CRYPTO_THREADID_set_callback(ThreadIdCallback);
+            end
+            else
+        {$ENDIF}
             f_CRYPTO_set_locking_callback(StatLockCallback);
         end
         else begin

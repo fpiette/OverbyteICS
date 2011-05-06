@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      1.13
+Version:      1.14
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -83,6 +83,7 @@ Apr 15, 2011 Arno prepared for 64-bit.
 Apr 23, 2011 Arno added support for OpenSSL 0.9.8r and 1.0.0d.
 Apr 24, 2011 Arno added some helper rountines since record TEVP_PKEY_st
              changed in 1.0.0 and had to be declared as dummy.
+May 03, 2011 Arno added some function declarations.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -121,14 +122,15 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 113;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.13 ';
+    IcsLIBEAYVersion   = 114;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.14 ';
 
 type
     EIcsLibeayException = class(Exception);
 
     TStatLockLockCallback = procedure(Mode : Integer; N : Integer; const _File : PAnsiChar; Line : Integer); cdecl;
     TStatLockIDCallback   = function : Longword; cdecl;
+    TCryptoThreadIDCallback = procedure (ID : PCRYPTO_THREADID) cdecl;
 
     TCRYPTO_dynlock_value_st = record
         Mutex : TRTLCriticalSection;
@@ -646,11 +648,6 @@ const
 
 {$IFNDEF OPENSSL_NO_ENGINE}
 type
-    TEngine_st = record
-        Dummy : array [0..0] of Byte;
-    end;
-    PENGINE = ^TEngine_st;
-
     TUi_method_st = record
         Dummy : array [0..0] of Byte;
     end;
@@ -727,6 +724,12 @@ const
     f_CRYPTO_add_lock :                        procedure(IntPtr: PInteger; amount: Integer; type_: Integer; const file_ : PAnsiChar; line: Integer); cdecl = nil;
     f_CRYPTO_num_locks :                       function: Integer; cdecl = nil;
     f_CRYPTO_set_id_callback :                 procedure(CB : TStatLockIDCallback); cdecl = nil;
+    { Next three functions are v1.0.0+ only. ** Check for nil at runtime ** }
+    f_CRYPTO_THREADID_set_callback :           function(CB : TCryptoThreadIDCallback) : Integer; cdecl = nil;
+    // Only use CRYPTO_THREADID_set_[numeric|pointer]() within callbacks
+    f_CRYPTO_THREADID_set_numeric :            procedure(id : PCRYPTO_THREADID; val: LongWord); cdecl = nil;
+    f_CRYPTO_THREADID_set_pointer :            procedure(id : PCRYPTO_THREADID; ptr: Pointer); cdecl = nil;
+
     f_CRYPTO_set_locking_callback :            procedure(CB : TStatLockLockCallback); cdecl = nil;
     f_CRYPTO_set_dynlock_create_callback :     procedure(CB : TDynLockCreateCallBack); cdecl = nil;
     f_CRYPTO_set_dynlock_lock_callback :       procedure(CB : TDynLockLockCallBack); cdecl = nil;
@@ -801,6 +804,7 @@ const
     f_X509_check_private_key :                 function(Cert: PX509; PKey: PEVP_PKEY): Integer; cdecl = nil; //AG
 
     f_EVP_sha1 :                               function: PEVP_MD; cdecl = nil;//AG
+    f_EVP_sha256 :                             function: PEVP_MD; cdecl = nil;//AG
     f_EVP_md5 :                                function: PEVP_MD; cdecl = nil;//AG
     f_EVP_PKEY_free :                          procedure(PKey: PEVP_PKEY); cdecl = nil;//AG
     f_EVP_PKEY_new :                           function: PEVP_PKEY; cdecl = nil;//AG
@@ -926,6 +930,8 @@ const
     STACK_OF(X509) **pother,
     UI_METHOD *ui_method, void *callback_data);
     }
+    f_ENGINE_load_ssl_client_cert :            function(e: PENGINE; SSL: PSSL; ca_dn: PSTACK_OF_X509_NAME; pcert: PPX509; ppkey: PPEVP_PKEY;
+                                               pother: PSTACK_OF_X509; ui_method: PUI_METHOD; callback_data: Pointer): Integer; cdecl = nil;
     // ui.h //
     f_UI_new :                                 function: PUI; cdecl = nil; //AG;
     f_UI_new_method :                          function(const method: PUI_METHOD): PUI; cdecl = nil; //AG;
@@ -1010,6 +1016,11 @@ const
     FN_CRYPTO_num_locks                       = 'CRYPTO_num_locks';
     FN_CRYPTO_set_locking_callback            = 'CRYPTO_set_locking_callback';
     FN_CRYPTO_set_id_callback                 = 'CRYPTO_set_id_callback';
+
+    FN_CRYPTO_THREADID_set_callback           = 'CRYPTO_THREADID_set_callback';
+    FN_CRYPTO_THREADID_set_numeric            = 'CRYPTO_THREADID_set_numeric';
+    FN_CRYPTO_THREADID_set_pointer            = 'CRYPTO_THREADID_set_pointer';
+
     FN_CRYPTO_set_dynlock_create_callback     = 'CRYPTO_set_dynlock_create_callback';
     FN_CRYPTO_set_dynlock_lock_callback       = 'CRYPTO_set_dynlock_lock_callback';
     FN_CRYPTO_set_dynlock_destroy_callback    = 'CRYPTO_set_dynlock_destroy_callback';
@@ -1083,6 +1094,7 @@ const
     FN_X509_check_private_key                 = 'X509_check_private_key'; //AG
 
     FN_EVP_sha1                               = 'EVP_sha1'; //AG
+    FN_EVP_sha256                             = 'EVP_sha256';//AG
     FN_EVP_md5                                = 'EVP_md5'; //AG
     FN_EVP_PKEY_new                           = 'EVP_PKEY_new'; //AG
     FN_EVP_PKEY_free                          = 'EVP_PKEY_free'; //AG
@@ -1197,6 +1209,7 @@ const
     FN_ENGINE_free                            = 'ENGINE_free'; //AG
     FN_ENGINE_load_private_key                = 'ENGINE_load_private_key'; //AG
     FN_ENGINE_load_public_key                 = 'ENGINE_load_public_key'; //AG
+    FN_ENGINE_load_ssl_client_cert            = 'ENGINE_load_ssl_client_cert';//AG
     FN_UI_new                                 = 'UI_new'; //AG
     FN_UI_new_method                          = 'UI_new_method'; //AG
     FN_UI_free                                = 'UI_free'; //AG
@@ -1375,7 +1388,14 @@ begin
     ICS_SSL_NO_RENEGOTIATION   :=
             (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_0908L) and
             (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_0908N);
-
+{$IFNDEF OPENSSL_NO_ENGINE}
+    if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_0908I then begin
+        FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
+        OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0;
+        raise EIcsLibeayException.Create('Experimental engine code requires ' +
+                                         'at least OpenSSL v0.9.8i');
+    end;
+{$ENDIF}
     { Version Check }
 {$IFNDEF NO_OSSL_VERSION_CHECK}
     if (ICS_OPENSSL_VERSION_NUMBER < MIN_OSSL_VER) or
@@ -1456,6 +1476,11 @@ begin
     f_CRYPTO_num_locks                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_num_locks);
     f_CRYPTO_set_locking_callback            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_locking_callback);
     f_CRYPTO_set_id_callback                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_id_callback);
+
+    f_CRYPTO_THREADID_set_callback           := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_THREADID_set_callback);
+    f_CRYPTO_THREADID_set_numeric            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_THREADID_set_numeric);
+    f_CRYPTO_THREADID_set_pointer            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_THREADID_set_pointer);
+
     f_CRYPTO_set_dynlock_create_callback     := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_dynlock_create_callback);
     f_CRYPTO_set_dynlock_lock_callback       := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_dynlock_lock_callback);
     f_CRYPTO_set_dynlock_destroy_callback    := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_dynlock_destroy_callback);
@@ -1527,6 +1552,7 @@ begin
     f_X509_check_private_key                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_check_private_key); //AG
 
     f_EVP_sha1                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_sha1); //AG
+    f_EVP_sha256                             := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_sha256); //AG
     f_EVP_md5                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_md5); //AG
     f_EVP_PKEY_new                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_new); //AG
     f_EVP_PKEY_free                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_free); //AG
@@ -1640,6 +1666,7 @@ begin
     f_ENGINE_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_free); //AG
     f_ENGINE_load_private_key                := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_load_private_key); //AG
     f_ENGINE_load_public_key                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_load_public_key); //AG
+    f_ENGINE_load_ssl_client_cert            := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_load_ssl_client_cert); //AG
     f_UI_new                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_new); //AG
     f_UI_new_method                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_new_method); //AG
     f_UI_free                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_free); //AG
@@ -1704,6 +1731,9 @@ begin
                    (@f_CRYPTO_num_locks                       = nil) or
                    (@f_CRYPTO_set_locking_callback            = nil) or
                    (@f_CRYPTO_set_id_callback                 = nil) or
+                   //(@f_CRYPTO_THREADID_set_callback           = nil) or  // check for nil at runtime
+                   //(@f_CRYPTO_THREADID_set_numeric            = nil) or  // check for nil at runtime
+                   //(@f_CRYPTO_THREADID_set_pointer            = nil) or  // check for nil at runtime
                    (@f_CRYPTO_set_dynlock_create_callback     = nil) or
                    (@f_CRYPTO_set_dynlock_lock_callback       = nil) or
                    (@f_CRYPTO_set_dynlock_destroy_callback    = nil) or
@@ -1775,6 +1805,7 @@ begin
                    (@f_X509_check_private_key                 = nil) or //AG
 
                    (@f_EVP_sha1                               = nil) or //AG
+                   (@f_EVP_sha256                             = nil) or //AG
                    (@f_EVP_md5                                = nil) or //AG
                    (@f_EVP_PKEY_free                          = nil) or //AG
                    (@f_EVP_PKEY_new                           = nil) or //AG
@@ -1889,6 +1920,7 @@ begin
                    (@f_ENGINE_free                            = nil) or
                    (@f_ENGINE_load_private_key                = nil) or
                    (@f_ENGINE_load_public_key                 = nil) or
+                   (@f_ENGINE_load_ssl_client_cert            = nil) or
                    (@f_UI_new                                 = nil) or
                    (@f_UI_new_method                          = nil) or
                    (@f_UI_free                                = nil) or
@@ -1968,6 +2000,9 @@ begin
     if @f_CRYPTO_num_locks                       = nil then Result := Result + SP + FN_CRYPTO_num_locks;
     if @f_CRYPTO_set_locking_callback            = nil then Result := Result + SP + FN_CRYPTO_set_locking_callback;
     if @f_CRYPTO_set_id_callback                 = nil then Result := Result + SP + FN_CRYPTO_set_id_callback;
+    //if @f_CRYPTO_THREADID_set_callback           = nil then Result := Result + SP + FN_CRYPTO_THREADID_set_callback; // check for nil at runtime
+    //if @f_CRYPTO_THREADID_set_numeric            = nil then Result := Result + SP + FN_CRYPTO_THREADID_set_numeric;  // check for nil at runtime
+    //if @f_CRYPTO_THREADID_set_pointer            = nil then Result := Result + SP + FN_CRYPTO_THREADID_set_pointer;  // check for nil at runtime
     if @f_CRYPTO_set_dynlock_create_callback     = nil then Result := Result + SP + FN_CRYPTO_set_dynlock_create_callback;
     if @f_CRYPTO_set_dynlock_lock_callback       = nil then Result := Result + SP + FN_CRYPTO_set_dynlock_lock_callback;
     if @f_CRYPTO_set_dynlock_destroy_callback    = nil then Result := Result + SP + FN_CRYPTO_set_dynlock_destroy_callback;
@@ -2039,6 +2074,7 @@ begin
     if @f_X509_check_private_key                 = nil then Result := Result + SP + FN_X509_check_private_key; //AG
 
     if @f_EVP_sha1                               = nil then Result := Result + SP + FN_EVP_sha1; //AG
+    if @f_EVP_sha256                             = nil then Result := Result + SP + FN_EVP_sha256; //AG
     if @f_EVP_md5                                = nil then Result := Result + SP + FN_EVP_md5; //AG
     if @f_EVP_PKEY_free                          = nil then Result := Result + SP + FN_EVP_PKEY_free; //AG
     if @f_EVP_PKEY_new                           = nil then Result := Result + SP + FN_EVP_PKEY_new; //AG
@@ -2151,6 +2187,7 @@ begin
     if @f_ENGINE_free                            = nil then Result := Result + SP + FN_ENGINE_free;//AG
     if @f_ENGINE_load_private_key                = nil then Result := Result + SP + FN_ENGINE_load_private_key;//AG
     if @f_ENGINE_load_public_key                 = nil then Result := Result + SP + FN_ENGINE_load_public_key;//AG
+    if @f_ENGINE_load_ssl_client_cert            = nil then Result := Result + SP + FN_ENGINE_load_ssl_client_cert;//AG
     if @f_UI_new                                 = nil then Result := Result + SP + FN_UI_new;//AG
     if @f_UI_new_method                          = nil then Result := Result + SP + FN_UI_new_method;//AG
     if @f_UI_free                                = nil then Result := Result + SP + FN_UI_free;//AG

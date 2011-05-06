@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      1.07
+Version:      1.08
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -64,7 +64,7 @@ Apr 23, 2011 A. Garrels added C-macro f_SSL_clear_options.
 Apr 24, 2011 Arno - Record TEVP_PKEY_st changed in 1.0.0 and had to 
              be declared as dummy. See helper functions Ics_Ssl_EVP_PKEY_xxx
              in OverbyteIcsLibeay.pas.
-             
+May 03, 2011 Arno added some function declarations.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -96,8 +96,8 @@ uses
     Windows, SysUtils, OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 107;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2011 F. Piette V1.07 ';
+    IcsSSLEAYVersion   = 108;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2011 F. Piette V1.08 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -113,6 +113,20 @@ type
     // directly. They all must be used thru pointers only. If you really need
     // to use those structure, you must replace Dummy member with the actual
     // members defined in the OpenSSL header !
+    TCRYPTO_THREADID_st = packed record
+        Dummy : array [0..0] of Byte;
+	      //ptr : Pointer;
+	      //val : LongWord;
+    end;
+    PCRYPTO_THREADID = ^TCRYPTO_THREADID_st;
+
+{$IFNDEF OPENSSL_NO_ENGINE}
+    TEngine_st = record
+        Dummy : array [0..0] of Byte;
+    end;
+    PENGINE = ^TEngine_st;
+{$ENDIF}
+
     TSSL_st = packed record
         Dummy : array [0..0] of Byte;
     end;
@@ -969,8 +983,15 @@ const
     f_SSL_CTX_sess_get_new_cb:                 function (CTX: PSSL_CTX): TNew_session_cb; cdecl = nil; //AG
     f_SSL_SESSION_get_id:                      function (const Ses: PSSL_SESSION; var Len: LongInt): PAnsiChar; cdecl = nil; //AG
 {$ENDIF}
+    { The next four functions are only useful for TLS/SSL servers. }
     f_SSL_CTX_add_client_CA :                  function(C: PSSL_CTX; CaCert: PX509): Integer; cdecl = nil; //AG
+    f_SSL_add_client_CA :                      function(ssl: PSSL; CaCert: PX509): Integer; cdecl = nil; //AG
     f_SSL_CTX_set_client_CA_list :             procedure(C: PSSL_CTX; List: PSTACK_OF_X509_NAME); cdecl = nil; //AG
+    f_SSL_set_client_CA_list :                 procedure(s: PSSL; List: PSTACK_OF_X509_NAME); cdecl = nil; //AG
+
+{$IFNDEF OPENSSL_NO_ENGINE}
+    f_SSL_CTX_set_client_cert_engine :         function(Ctx: PSSL_CTX; e: PENGINE): Integer; cdecl = nil; //AG
+{$ENDIF}
     f_SSL_load_client_CA_file :                function(const FileName: PAnsiChar): PSTACK_OF_X509_NAME; cdecl = nil; //AG
 
     f_SSL_get_ex_data_X509_STORE_CTX_idx:      function: Integer; cdecl = nil;
@@ -983,6 +1004,7 @@ const
     f_SSL_get_wfd:                             function(S: PSSL): Integer; cdecl = nil; // B.S.
 
     f_SSL_get_SSL_CTX:                         function(const S: PSSL): PSSL_CTX; cdecl = nil;
+    f_SSL_get_client_CA_list :                 function(const S: PSSL): PSTACK_OF_X509_NAME; cdecl = nil;
 {$IFNDEF OPENSSL_NO_TLSEXT}
     f_SSL_set_SSL_CTX:                         function(S: PSSL; ctx: PSSL_CTX): PSSL_CTX; cdecl = nil;
     f_SSL_get_servername:                      function(const S: PSSL; const type_: Integer): PAnsiChar; cdecl = nil;
@@ -1236,7 +1258,12 @@ begin
     f_SSL_SESSION_get_id                     := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_SESSION_get_id'); //AG
 {$ENDIF}
     f_SSL_CTX_add_client_CA                  := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_add_client_CA'); //AG
+    f_SSL_add_client_CA                      := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_add_client_CA'); //AG
     f_SSL_CTX_set_client_CA_list             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_client_CA_list'); //AG
+    f_SSL_set_client_CA_list                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_client_CA_list'); //AG
+{$IFNDEF OPENSSL_NO_ENGINE}
+    f_SSL_CTX_set_client_cert_engine         := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_client_cert_engine'); //AG
+{$ENDIF}    
     f_SSL_load_client_CA_file                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_load_client_CA_file'); //AG
 
     f_SSL_get_ex_data_X509_STORE_CTX_idx     := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_ex_data_X509_STORE_CTX_idx');
@@ -1249,6 +1276,7 @@ begin
     f_SSL_get_wfd                            := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_wfd'); // B.S.
 
     f_SSL_get_SSL_CTX                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_SSL_CTX'); //AG
+    f_SSL_get_client_CA_list                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_client_CA_list'); //AG
 {$IFNDEF OPENSSL_NO_TLSEXT}
     f_SSL_set_SSL_CTX                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_SSL_CTX'); //AG
     f_SSL_get_servername                     := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_servername'); //AG
@@ -1357,7 +1385,12 @@ begin
                    (@f_SSL_SESSION_get_id                     = nil) or
               {$ENDIF}
                    (@f_SSL_CTX_add_client_CA                  = nil) or
+                   (@f_SSL_add_client_CA                      = nil) or
                    (@f_SSL_CTX_set_client_CA_list             = nil) or
+                   (@f_SSL_set_client_CA_list                 = nil) or
+              {$IFNDEF OPENSSL_NO_ENGINE}
+                   (@f_SSL_CTX_set_client_cert_engine         = nil) or
+              {$ENDIF}     
                    (@f_SSL_load_client_CA_file                = nil) or
 
                    (@f_SSL_get_ex_data_X509_STORE_CTX_idx     = nil) or
@@ -1369,8 +1402,9 @@ begin
                    (@f_SSL_get_rfd                            = nil) or
                    (@f_SSL_get_wfd                            = nil) or
                    (@f_SSL_CTX_use_PrivateKey                 = nil) or
+                   (@f_SSL_get_SSL_CTX                        = nil) or
 
-                   (@f_SSL_get_SSL_CTX                        = nil)
+                   (@f_SSL_get_client_CA_list                 = nil)
               {$IFNDEF OPENSSL_NO_TLSEXT}
                                                                      or
 
@@ -1489,7 +1523,12 @@ begin
     if @f_SSL_SESSION_get_id                     = nil then Result := Result + ' SSL_SESSION_get_id';
 {$ENDIF}
     if @f_SSL_CTX_add_client_CA                  = nil then Result := Result + ' SSL_CTX_add_client_CA';
+    if @f_SSL_add_client_CA                      = nil then Result := Result + ' SSL_add_client_CA';
     if @f_SSL_CTX_set_client_CA_list             = nil then Result := Result + ' SSL_CTX_set_client_CA_list';
+    if @f_SSL_set_client_CA_list                 = nil then Result := Result + ' SSL_set_client_CA_list';
+{$IFNDEF OPENSSL_NO_ENGINE}
+    if @f_SSL_CTX_set_client_cert_engine         = nil then Result := Result + ' SSL_CTX_set_client_cert_engine';
+{$ENDIF}
     if @f_SSL_load_client_CA_file                = nil then Result := Result + ' SSL_load_client_CA_file';
 
     if @f_SSL_get_ex_data_X509_STORE_CTX_idx     = nil then Result := Result + ' SSL_get_ex_data_X509_STORE_CTX_idx';
@@ -1502,6 +1541,7 @@ begin
     if @f_SSL_get_wfd                            = nil then Result := Result + ' SSL_get_wfd';
 
     if @f_SSL_get_SSL_CTX                        = nil then Result := Result + ' SSL_get_SSL_CTX';
+    if @f_SSL_get_client_CA_list                 = nil then Result := Result + ' SSL_get_client_CA_list';
 {$IFNDEF OPENSSL_NO_TLSEXT}
     if @f_SSL_set_SSL_CTX                        = nil then Result := Result + ' SSL_set_SSL_CTX';
     if @f_SSL_get_servername                     = nil then Result := Result + ' SSL_get_servername';

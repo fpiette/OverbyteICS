@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.75
+Version:      7.76
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -887,6 +887,9 @@ Apr 26, 2011 V7.75 Anton S. found that TrashCanSize was not set correctly in
                    non .NET environments, only important if OnDataAvailable
                    is not assigned with non-listening sockets, which should
                    never be the case.
+May 03, 2011 V7.76 Arno improved error messages on loading OpenSSL libs.
+                   Added method Insert to TX509List. Removed a few useless
+                   type casts.
 
 }
 
@@ -1000,8 +1003,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 775;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.75 ';
+  WSocketVersion            = 776;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.76 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1979,6 +1982,7 @@ type
         destructor  Destroy; override;
         procedure   Clear;
         function    Add(X509 : PX509 = nil) : TX509Base;
+        function    Insert(Index: Integer; X509: PX509 = nil): TX509Base;
         procedure   Delete(const Index: Integer);
         function    IndexOf(const X509Base : TX509Base): Integer;
         function    GetByHash(const Sha1Hash : AnsiString): TX509Base;
@@ -5650,7 +5654,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomWSocket.ThreadDetach;
 begin
-    if (_GetCurrentThreadID = DWORD(FThreadID)) and (FHSocket <> INVALID_SOCKET) then
+    if (_GetCurrentThreadID = FThreadID) and (FHSocket <> INVALID_SOCKET) then
         WSocket_Synchronized_WSAASyncSelect(FHSocket, Handle, 0, 0);
     inherited ThreadDetach;
 end;
@@ -10840,7 +10844,7 @@ end;
 procedure TCustomTimeoutWSocket.ThreadDetach;
 begin
     if Assigned(FTimeoutTimer) and
-      (_GetCurrentThreadID = DWORD(FThreadID)) then begin
+      (_GetCurrentThreadID = FThreadID) then begin
         FTimeoutOldTimerEnabled := FTimeoutTimer.Enabled;
         if FTimeoutOldTimerEnabled then
             FTimeoutTimer.Enabled := FALSE;
@@ -10904,7 +10908,7 @@ end;
 procedure TCustomThrottledWSocket.ThreadDetach;
 begin
     if Assigned(FBandwidthTimer) and
-      (_GetCurrentThreadID = DWORD(FThreadID)) then begin
+      (_GetCurrentThreadID = FThreadID) then begin
         FBandwidthOldTimerEnabled := FBandwidthTimer.Enabled;
         if FBandwidthOldTimerEnabled then
             FBandwidthTimer.Enabled := FALSE;
@@ -11154,6 +11158,8 @@ end; *)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure LoadSsl;
+const
+    LenErrMsg = 512;
 var
     Tick : Cardinal;
     S    : String;
@@ -11168,10 +11174,10 @@ begin
             // Load LIBEAY DLL
             // Must be loaded before SSlEAY for the versioncheck to work!
             if not OverbyteIcsLIBEAY.Load then begin
+                S := OverbyteIcsLIBEAY.WhichFailedToLoad;
             {$IFDEF LOADSSL_ERROR_FILE}
                 AssignFile(F, _ExtractFilePath(ParamStr(0)) + 'FailedIcsLIBEAY.txt');
                 Rewrite(F);
-                S := OverbyteIcsLIBEAY.WhichFailedToLoad;
                 I := 1;
                 while I < Length(S) do begin
                     J := I;
@@ -11186,14 +11192,19 @@ begin
                     _FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
                     OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
                 end;
+                if Length(S) > LenErrMsg then begin
+                    SetLength(S, LenErrMsg);
+                    S[Length(S) - 1] := '.';
+                    S[Length(S)]     := '.';
+                end;
                 raise EIcsLibeayException.Create('Unable to load LIBEAY DLL. Can''t find ' + S);
             end;
             // Load SSlEAY DLL
             if not OverbyteIcsSSLEAY.Load then begin
+                S := OverbyteIcsSSLEAY.WhichFailedToLoad;
             {$IFDEF LOADSSL_ERROR_FILE}
                 AssignFile(F, _ExtractFilePath(ParamStr(0)) + 'FailedIcsSSLEAY.txt');
                 Rewrite(F);
-                S := OverbyteIcsSSLEAY.WhichFailedToLoad;
                 I := 1;
                 while I < Length(S) do begin
                     J := I;
@@ -11211,6 +11222,11 @@ begin
                 if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
                     _FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
                     OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
+                end;
+                if Length(S) > LenErrMsg then begin
+                    SetLength(S, LenErrMsg);
+                    S[Length(S) - 1] := '.';
+                    S[Length(S)]     := '.';
                 end;
                 raise EIcsSsleayException.Create('Unable to load SSLEAY DLL. Can''t find ' + S);
             end;
@@ -11568,6 +11584,19 @@ function TX509List.Add(X509: PX509 = nil): TX509Base;
 begin
     Result := FX509Class.Create(FOwner, X509);
     FList.Add(Result);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.Insert(Index: Integer; X509: PX509 = nil): TX509Base;
+begin
+    Result := FX509Class.Create(FOwner, X509);
+    try
+        FList.Insert(Index, Result);
+    except
+        Result.Free;
+        raise;
+    end;
 end;
 
 
@@ -12515,6 +12544,11 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ The PEM file specified may contain just a single certificate or a         }
+{ certificate chain. A chain must start with the server or client           }
+{ certificate followed by intermediate CA certificates until the root       }
+{ certificate (optional). This entire chain is sent to the peer for         }
+{ verification.                                                             }
 procedure TSslContext.LoadCertFromChainFile(const FileName: String);
 begin
     if not Assigned(FSslCtx) then

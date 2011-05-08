@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.76
+Version:      7.77
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -890,6 +890,8 @@ Apr 26, 2011 V7.75 Anton S. found that TrashCanSize was not set correctly in
 May 03, 2011 V7.76 Arno improved error messages on loading OpenSSL libs.
                    Added method Insert to TX509List. Removed a few useless
                    type casts.
+May 08, 2011 v7.77 Arno added TX509List.SortChain and use of new function
+                   f_ERR_remove_thread_state(nil) with OpenSSL v1.0.0+
 
 }
 
@@ -1003,8 +1005,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 776;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.76 ';
+  WSocketVersion            = 777;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.77 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1964,6 +1966,7 @@ type
 
     TCustomSslWSocket = class; //forward
 
+    TX509ListSort = (xsrtIssuerFirst, xsrtIssuedFirst);
     TX509List  = class(TObject)
     { Written by Arno Garrels, for ICS    }
     { Contact: email arno.garrels@gmx.de  }
@@ -1986,6 +1989,7 @@ type
         procedure   Delete(const Index: Integer);
         function    IndexOf(const X509Base : TX509Base): Integer;
         function    GetByHash(const Sha1Hash : AnsiString): TX509Base;
+        procedure   SortChain(ASortOrder: TX509ListSort);
         property    Count                       : Integer       read  GetCount;
         property    Items[index: Integer]       : TX509Base     read  GetX509Base
                                                                 write SetX509Base; default;
@@ -11260,7 +11264,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Reminder:
   /* thread-local cleanup */
-  ERR_remove_state(0);
+  ERR_remove_state(0);  // deprecated
+  ERR_remove_thread_state(nil) // v1.0.0+ ** check for nil **
 
   /* thread-safe cleanup */
   ENGINE_cleanup();
@@ -11280,7 +11285,10 @@ begin
         if SslRefCount = 0 then begin  {AG 12/30/07}
 
             //* thread-local cleanup */
-            f_ERR_remove_state(0);
+            if @f_ERR_remove_thread_state <> nil then
+                f_ERR_remove_thread_state(nil) // OSSL v1.0.0+
+            else
+                f_ERR_remove_state(0); // deprecated
 
             //* thread-safe cleanup */
             f_CONF_modules_unload(1);
@@ -11615,6 +11623,50 @@ begin
     end
     else
         Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509List.SortChain(ASortOrder: TX509ListSort);
+var
+    I      : Integer;
+    Cur    : Integer;
+    x1, x2 : PX509;
+begin
+    Cur := 0;
+    while Cur < FList.Count do begin
+        x1 := TX509Base(FList[Cur]).X509;
+        for I := 0 to FList.Count - 1 do begin
+            x2 := TX509Base(FList[I]).X509;
+            if f_X509_check_issued(x1, x2) = 0 then begin
+                if ASortOrder = xsrtIssuerFirst then begin
+                    if Cur + 1 <> I then
+                        FList.Move(Cur, I);
+                end
+                else if Cur - 1 <> I then
+                    FList.Move(I, Cur);
+                Break;
+            end
+            else if f_X509_check_issued(x2, x1) = 0 then begin
+                if ASortOrder = xsrtIssuedFirst then begin
+                    if Cur + 1 <> I then
+                        FList.Move(Cur, I);
+                end
+                else if Cur - 1 <> I then
+                    FList.Move(I, Cur);
+                Break;
+            end;
+            if I = FList.Count - 1 then begin
+                { Current is neither issuer nor issued by a cert in chain }
+                { This should not happen in a valid certificate chain.    }
+                if ASortOrder = xsrtIssuedFirst then
+                    FList.Move(Cur, 0)
+                else
+                    FList.Move(Cur, FList.Count - 1);
+            end;
+        end;
+        Inc(Cur);
+    end;
 end;
 
 

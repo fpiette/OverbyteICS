@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      1.14
+Version:      1.15
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -84,7 +84,7 @@ Apr 23, 2011 Arno added support for OpenSSL 0.9.8r and 1.0.0d.
 Apr 24, 2011 Arno added some helper rountines since record TEVP_PKEY_st
              changed in 1.0.0 and had to be declared as dummy.
 May 03, 2011 Arno added some function declarations.
-
+May 08, 2011 Arno added function f_ERR_remove_thread_state new in v1.0.0+.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -122,8 +122,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 114;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.14 ';
+    IcsLIBEAYVersion   = 115;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.15 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -682,7 +682,13 @@ const
     f_ERR_error_string :                       function(Err: Cardinal; Buf: PAnsiChar): PAnsiChar; cdecl = nil;
     f_ERR_error_string_n :                     procedure(Err: Cardinal; Buf: PAnsiChar; Len: size_t); cdecl = nil;
     f_ERR_clear_error :                        procedure; cdecl = nil; //empties the current thread's error queue
+    { Note that ERR_remove_state() is now deprecated, because it is tied
+     to the assumption that thread IDs are numeric.  ERR_remove_state(0)
+     to free the current thread's error state should be replaced by
+     ERR_remove_thread_state(nil). }
     f_ERR_remove_state :                       procedure(ThreadID: Longword); cdecl = nil;
+    { Next is v1.0.0+ ** check for nil ** }
+    f_ERR_remove_thread_state :                procedure(tid: PCRYPTO_THREADID); cdecl = nil;
     f_ERR_free_strings :                       procedure; cdecl = nil; //"Brutal" (thread-unsafe) Application-global cleanup functions
     f_RAND_seed :                              procedure(Buf: Pointer; Num: Integer); cdecl = nil;
 
@@ -973,6 +979,7 @@ const
     FN_ERR_error_string_n                     = 'ERR_error_string_n';
     FN_ERR_clear_error                        = 'ERR_clear_error';
     FN_ERR_remove_state                       = 'ERR_remove_state';
+    FN_ERR_remove_thread_state                = 'ERR_remove_thread_state';
     FN_ERR_free_strings                       = 'ERR_free_strings';
 
     FN_RAND_seed                              = 'RAND_seed';
@@ -1434,6 +1441,7 @@ begin
     f_ERR_error_string_n                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_error_string_n);
     f_ERR_clear_error                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_clear_error);
     f_ERR_remove_state                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_remove_state);
+    f_ERR_remove_thread_state                := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_remove_thread_state);
     f_ERR_free_strings                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_free_strings);
     f_RAND_seed                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_RAND_seed);
 
@@ -1689,6 +1697,7 @@ begin
                    (@f_ERR_error_string_n                     = nil) or
                    (@f_ERR_clear_error                        = nil) or
                    (@f_ERR_remove_state                       = nil) or
+                   //(@f_ERR_remove_thread_state                = nil) or v1.0.0+ check for nil
                    (@f_ERR_free_strings                       = nil) or
                    (@f_RAND_seed                              = nil) or
 
@@ -1957,6 +1966,7 @@ begin
     if @f_ERR_error_string_n                     = nil then Result := Result + SP + FN_ERR_error_string_n;
     if @f_ERR_clear_error                        = nil then Result := Result + SP + FN_ERR_clear_error;
     if @f_ERR_remove_state                       = nil then Result := Result + SP + FN_ERR_remove_state;
+    //if @f_ERR_remove_thread_state                = nil then Result := Result + SP + FN_ERR_remove_thread_state; v1.0.0+ check for nil
     if @f_ERR_free_strings                       = nil then Result := Result + SP + FN_ERR_free_strings;
 
     if @f_RAND_seed                              = nil then Result := Result + SP + FN_RAND_seed;

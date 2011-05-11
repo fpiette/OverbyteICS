@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.77
+Version:      7.78
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -892,6 +892,14 @@ May 03, 2011 V7.76 Arno improved error messages on loading OpenSSL libs.
                    type casts.
 May 08, 2011 v7.77 Arno added TX509List.SortChain and use of new function
                    f_ERR_remove_thread_state(nil) with OpenSSL v1.0.0+
+May 11, 2011 v7.78 Arno made the SSL peer certificate available as property
+                   TSslWSocket.SslPeerCert. The SslPeerCert is instantiated
+                   lazily once and usable after a SSL handshake including
+                   the SSL session was reused from cache until the next SSL
+                   connection is initialized. It is usable when SslPeerCert.X508
+                   is non-nil. In previous versions the PeerCert passed to
+                   OnSslHandshakeDone could be just a reference to one of the
+                   certs in the SslCertChain which was eval.
 
 }
 
@@ -1005,8 +1013,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 777;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.77 ';
+  WSocketVersion            = 778;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.78 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1980,6 +1988,7 @@ type
         function    GetX509Base(Index: Integer): TX509Base;
         procedure   SetX509Base(Index: Integer; Value: TX509Base);
         function    GetByPX509(const X509: PX509) : TX509Base;
+        procedure   SetX509Class(const Value: TX509Class);
     public
         constructor Create(AOwner: TComponent); reintroduce;
         destructor  Destroy; override;
@@ -1994,7 +2003,7 @@ type
         property    Items[index: Integer]       : TX509Base     read  GetX509Base
                                                                 write SetX509Base; default;
         property    X509Class                   : TX509Class    read  FX509Class
-                                                                write FX509Class;
+                                                                write SetX509Class;
         property    LastVerifyResult            : Integer       read  FLastVerifyResult;
     end;
 
@@ -2351,6 +2360,7 @@ type
         FOnSslCliCertRequest        : TSslCliCertRequest;
         FX509Class                  : TX509Class;
         FSslCertChain               : TX509List;
+        FSslPeerCert                : TX509Base;
         FSslMode                    : TSslMode;
         //FTriggerCount               : Integer; //Test
         FSslBufList                 : TIcsBufferHandler;
@@ -2451,6 +2461,7 @@ type
         function  MsgHandlersCount : Integer; override;
         procedure AllocateMsgHandlers; override;
         procedure FreeMsgHandlers; override;
+        function  GetSslPeerCert : TX509Base;
         property  X509Class : TX509Class read FX509Class write FX509Class;
     public
         constructor Create(AOwner : TComponent); override;
@@ -2528,6 +2539,7 @@ type
         property  SslCipher     : String                  read  FSslCipher;
         property  SslTotalBits  : Integer                 read  FSslTotalBits;
         property  SslSecretBits : Integer                 read  FSslSecretBits;
+        property  SslPeerCert   : TX509Base               read  GetSslPeerCert;
   private
       function my_WSocket_recv(s: TSocket;
                                var Buf: TWSocketData; len, flags: Integer): Integer;
@@ -11588,6 +11600,18 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509List.SetX509Class(const Value: TX509Class);
+begin
+    if Value <> FX509Class then begin
+        if GetCount > 0 then
+            raise EX509Exception.Create(
+                    'The X509 class can only be set when the list is empty');
+        FX509Class := Value;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509List.Add(X509: PX509 = nil): TX509Base;
 begin
     Result := FX509Class.Create(FOwner, X509);
@@ -12084,7 +12108,8 @@ begin
                 CurCert := Obj.SslCertChain.GetByPX509(Cert);
                 { Add it to our list }
                 if not Assigned(CurCert) then begin
-                    Obj.SslCertChain.X509Class := Obj.X509Class;
+                    //SslCertChain.X509Class was set in InitSslConnection
+                    //Obj.SslCertChain.X509Class := Obj.X509Class;
                     CurCert := Obj.SslCertChain.Add(Cert);
                     CurCert.VerifyResult := f_X509_STORE_CTX_get_error(StoreCtx);
                     CurCert.FFirstVerifyResult := CurCert.VerifyResult;
@@ -14529,6 +14554,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor TCustomSslWSocket.Destroy;
 begin
+    _FreeAndNil(FSslPeerCert);
     { Removes TSslContext's free notification in a thread-safe way }
     SetSslContext(nil);
     inherited Destroy;
@@ -15200,6 +15226,15 @@ begin
         Result := inherited GetRcvdCount
     else
         Result := my_BIO_ctrl_pending(FSslbio);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslWSocket.GetSslPeerCert: TX509Base;
+begin
+    if not Assigned(FSslPeerCert) then
+        FSslPeerCert := FX509Class.Create(nil);
+    Result := FSslPeerCert;
 end;
 
 
@@ -16116,6 +16151,12 @@ begin
                       ' InitSSLConnection ' + _IntToStr(FHSocket));
 {$ENDIF}
     FSslCertChain.Clear;
+    FSslCertChain.X509Class := FX509Class;
+    FSslCertChain.FLastVerifyResult := 0;
+    if not Assigned(FSslPeerCert) then
+        FSslPeerCert := FX509Class.Create(nil);
+    FSslPeerCert.AssignDefaults;
+    FSslPeerCert.FreeAndNilX509;
     //FTriggerCount            := 0; //Test
     FShutDownHow             := 1;
     FSslIntShutDown          := 0;
@@ -16810,7 +16851,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-
 procedure TCustomSslWSocket.TriggerEvents;
 var
     State   : Integer;
@@ -16989,46 +17029,34 @@ end;
 procedure TCustomSslWSocket.TriggerSslHandshakeDone(ErrCode : Word);
 var
     Cipher       : Pointer;
-    Cert         : PX509;
-    PeerCert     : TX509Base;
+    PeerX        : PX509;
     Disconnect   : Boolean;
-    FreePeerCert : Boolean;
+    RefCert      : TX509Base;
 begin
+    PeerX := nil;
     if (FHSocket = INVALID_SOCKET) then
         ErrCode := 1;
     if (ErrCode = 0) and Assigned(FSsl) then
         FSslState := sslEstablished
     else
         FSslState := sslHandshakeFailed;
-    PeerCert                := nil;
-    FreePeerCert            := FALSE;
-    FSslCertChain.X509Class := FX509Class;
-    if (ErrCode = 0) and Assigned(FSsl) then begin
-        FSslSupportsSecureRenegotiation := f_SSL_get_secure_renegotiation_support(FSsl) = 1;
-        FSslVersion       := String(f_SSL_get_version(FSsl));
-        FSslVersNum       := f_SSL_version(FSsl);
-        Cipher            := f_SSL_get_current_cipher(FSsl);
+
+    if FSslState = sslEstablished then begin
+        FSslSupportsSecureRenegotiation :=
+            f_SSL_get_secure_renegotiation_support(FSsl) = 1;
+        FSslVersion := String(f_SSL_get_version(FSsl));
+        FSslVersNum := f_SSL_version(FSsl);
+        Cipher      := f_SSL_get_current_cipher(FSsl);
         if Assigned(Cipher) then begin
             FSslCipher     := String(f_SSL_CIPHER_get_name(Cipher));
             FSslSecretBits := f_SSL_CIPHER_get_bits(Cipher, @FSslTotalBits);
         end;
-        if FSslContext.FSslVerifyPeer and (not SslSessionReused) then begin
-            Cert := f_SSL_get_peer_certificate(FSsl); // increments reference count
-            try
-                PeerCert := FSslCertChain.GetByPX509(Cert);
-                { No peer certificate in the chain, let's create a dummy }
-                if not Assigned(PeerCert) then begin  {05/21/2007 AG}
-                    PeerCert := TX509Base.Create(nil);
-                    PeerCert.X509 := Cert; // most likely nil
-                    FreePeerCert := TRUE;
-                    PeerCert.FVerifyResult := f_SSL_get_verify_result(FSsl);
-                end; {05/21/2007 AG}
-            finally
-                if Assigned(Cert) then
-                    f_X509_free(Cert); // so always free it
-            end;
-        end;
-    end; //ErrCode = 0
+        if FSslContext.SslVerifyPeer then
+        { Get the peer cert from OSSL. Note that servers always send their }
+        { certificates, clients on server request only. This gets the peer }
+        { cert also when a session was reused.                             }
+            PeerX := f_SSL_get_peer_certificate(FSsl);
+    end; // FSslState = sslEstablished
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
         DebugLog(loSslInfo, _Format('%s SslHandshakeDone(%d) %d. Secure connection ' +
@@ -17038,24 +17066,36 @@ begin
                              ErrCode, FHSocket, SslVersion, SslCipher, SslSecretBits,
                              SslTotalBits, _BoolToStr(SslSessionReused, TRUE)]));
 {$ENDIF}
-    { No peer certificate in the chain, let's create a dummy }
-    if not Assigned(PeerCert) then begin
-        PeerCert := TX509Base.Create(nil);
-        FreePeerCert := TRUE;
+    FSslPeerCert.X509 := PeerX;
+    if Assigned(PeerX) then begin
+        { Do we have the peer cert in our chain?                          }
+        RefCert := FSslCertChain.GetByPX509(PeerX);
+        f_X509_free(PeerX);
+        { If we have a chain with the peer certificate (new session)      }
+        { assign collected verify results.                                }
+        if RefCert <> nil then
+        begin
+            FSslPeerCert.VerifyResult      := RefCert.VerifyResult;
+            FSslPeerCert.FirstVerifyResult := RefCert.FirstVerifyResult;
+        end
+        { We don't have a chain with peer certificate (reused session )   }
+        { get the session verify result from OSSL and assign it. This     }
+        { verify result is the original one which is i.e. not changed if  }
+        { we set "Ok := 1;" in OnSslVerifyPeer event.                     }
+        else begin
+            FSslPeerCert.VerifyResult := f_SSL_get_verify_result(FSsl);
+            //FSslPeerCert.FirstVerifyResult := FPeerCert.VerifyResult; ?
+        end;
     end;
-    try
-        Disconnect := FALSE;
-        if Assigned(FOnSslHandshakeDone) then
-            FOnSslHandshakeDone(Self, ErrCode, PeerCert, Disconnect);
-        if Disconnect and (ErrCode = 0) then
-            Close{Delayed?}
-        else if (ErrCode = 0) then
-            // Publish the new session so that the application can cache it.
-            TriggerSslCliNewSession;
-    finally
-        if FreePeerCert then
-            _FreeAndNil(PeerCert);
-    end;
+
+    Disconnect := FALSE;
+    if Assigned(FOnSslHandshakeDone) then
+        FOnSslHandshakeDone(Self, ErrCode, FSslPeerCert, Disconnect);
+    if Disconnect and (ErrCode = 0) then
+        Close{Delayed?}
+    else if ErrCode = 0 then
+        // Publish the new session so that the application can cache it.
+        TriggerSslCliNewSession;
 end;
 
 

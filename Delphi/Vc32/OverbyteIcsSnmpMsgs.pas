@@ -135,6 +135,51 @@ const
   ENotWritable          = 17;
   EInconsistentName     = 18;
 
+  SnmpErrorStrings : array [ENoError..EInconsistentName] of String = (
+    // EnoError
+    'No error occurred',
+    // ETooBig
+    'The size of the Response-PDU would be too large to transport',
+    // ENoSuchName
+    'The name of a requested object was not found',
+    // EBadValue
+    'A value in the request didn''t match the structure that the ' +
+    'recipient of the request had for the object',
+    // EReadOnly
+    'An attempt was made to set a variable that has an Access value ' +
+    'indicating that it is read-only',
+    // EGenErr
+    'An error occurred other than one indicated by a more specific error code',
+    // ENoAccess
+    'Access was denied to the object for security reasons',
+    // EWrongType
+    'The object type in a variable binding is incorrect for the object',
+    // EWrongLength
+    'A variable binding specifies a length incorrect for the object',
+    // EWrongEncoding
+    'A variable binding specifies an encoding incorrect for the object',
+    // EWrongValue
+    'The value given in a variable binding is not possible for the object',
+    // ENoCreation
+    'A specified variable does not exist and cannot be created',
+    // EInconsistentValue
+    'A variable binding specifies a value that could be held by the ' +
+    'variable but cannot be assigned to it at this time',
+    // EResourceUnavailable
+    'An attempt to set a variable required a resource that is not available',
+    // ECommitFailed
+    'An attempt to set a particular variable failed',
+    // EUndoFailed
+    'An attempt to set a particular variable as part of a group of ' +
+    'variables failed, and the attempt to then undo the setting of ' +
+    'other variables was not successful',
+    // EAuthorizationError
+    'A problem occurred in authorization',
+    // ENotWritable
+    'The variable cannot be written or created',
+    // EInconsistentName
+    'The name in a variable binding specifies a variable that does not exist');
+
 type
 
   {:@abstract(Possible values for SNMPv3 flags.)
@@ -328,146 +373,7 @@ type
     property OldTrapTimeTicks: Integer read FOldTrapTimeTicks write FOldTrapTimeTicks;
   end;
 
-{$ifdef never}
-  {:@abstract(Parent class of application protocol implementations.)
-   By this class is defined common properties.}
-  TSynaClient = Class(TObject)
-  protected
-    FTargetHost: string;
-    FTargetPort: string;
-    FIPInterface: string;
-    FTimeout: integer;
-    FUserName: string;
-    FPassword: string;
-  public
-//    constructor Create;
-  published
-    {:Specify terget server IP (or symbolic name). Default is 'localhost'.}
-    property TargetHost: string read FTargetHost Write FTargetHost;
-
-    {:Specify terget server port (or symbolic name).}
-    property TargetPort: string read FTargetPort Write FTargetPort;
-
-    {:Defined local socket address. (outgoing IP address). By default is used
-     '0.0.0.0' as wildcard for default IP.}
-    property IPInterface: string read FIPInterface Write FIPInterface;
-
-    {:Specify default timeout for socket operations.}
-    property Timeout: integer read FTimeout Write FTimeout;
-
-    {:If protocol need user authorization, then fill here username.}
-    property UserName: string read FUserName Write FUserName;
-
-    {:If protocol need user authorization, then fill here password.}
-    property Password: string read FPassword Write FPassword;
-  end;
-
-  {:@abstract(Implementation of SNMP protocol.)
-
-   Note: Are you missing properties for specify server address and port? Look to
-   parent @link(TSynaClient) too!}
-  TSNMPSend = class(TSynaClient)
-  protected
-//    FSock: TUDPBlockSocket;
-    FBuffer: AnsiString;
-    FHostIP: AnsiString;
-    FQuery: TSNMPRec;
-    FReply: TSNMPRec;
-    function InternalSendSnmp(const Value: TSNMPRec): Boolean;
-    function InternalRecvSnmp(const Value: TSNMPRec): Boolean;
-    function InternalSendRequest(const QValue, RValue: TSNMPRec): Boolean;
-    function GetV3EngineID: AnsiString;
-    function GetV3Sync: TV3Sync;
-  public
-    constructor Create;
-    destructor Destroy; override;
-
-    {:Connects to a Host and send there query. If in timeout SNMP server send
-     back query, result is @true. If is used SNMPv3, then it synchronize self
-     with SNMPv3 agent first. (It is needed for SNMPv3 auhorization!)}
-    function SendRequest: Boolean;
-
-    {:Send SNMP packet only, but not waits for reply. Good for sending traps.}
-    function SendTrap: Boolean;
-
-    {:Receive SNMP packet only. Good for receiving traps.}
-    function RecvTrap: Boolean;
-
-    {:Mapped to @link(SendRequest) internally. This function is only for
-     backward compatibility.}
-    function DoIt: Boolean;
-  published
-    {:contains raw binary form of SNMP packet. Good for debugging.}
-    property Buffer: AnsiString read FBuffer write FBuffer;
-
-    {:After SNMP operation hold IP address of remote side.}
-    property HostIP: AnsiString read FHostIP;
-
-    {:Data object contains SNMP query.}
-    property Query: TSNMPRec read FQuery;
-
-    {:Data object contains SNMP reply.}
-    property Reply: TSNMPRec read FReply;
-
-    {:Socket object used for TCP/IP operation. Good for seting OnStatus hook, etc.}
-//    property Sock: TUDPBlockSocket read FSock;
-  end;
-
-
-{:A very useful function and example of its use would be found in the TSNMPSend
- object. It implements basic GET method of the SNMP protocol. The MIB value is
- located in the "OID" variable, and is sent to the requested "SNMPHost" with
- the proper "Community" access identifier. Upon a successful retrieval, "Value"
- will contain the information requested. If the SNMP operation is successful,
- the result returns @true.}
-function SNMPGet(const OID, Community, SNMPHost: AnsiString; var Value: AnsiString): Boolean;
-
-{:This is useful function and example of use TSNMPSend object. It implements
- the basic SET method of the SNMP protocol. If the SNMP operation is successful,
- the result is @true. "Value" is value of MIB Oid for "SNMPHost" with "Community"
- access identifier. You must specify "ValueType" too.}
-function SNMPSet(const OID, Community, SNMPHost, Value: AnsiString; ValueType: Integer): Boolean;
-
-{:A very useful function and example of its use would be found in the TSNMPSend
- object. It implements basic GETNEXT method of the SNMP protocol. The MIB value
- is located in the "OID" variable, and is sent to the requested "SNMPHost" with
- the proper "Community" access identifier. Upon a successful retrieval, "Value"
- will contain the information requested. If the SNMP operation is successful,
- the result returns @true.}
-function SNMPGetNext(var OID: AnsiString; const Community, SNMPHost: AnsiString; var Value: AnsiString): Boolean;
-
-{:A very useful function and example of its use would be found in the TSNMPSend
- object. It implements basic read of SNMP MIB tables. As BaseOID you must
- specify basic MIB OID of requested table (base IOD is OID without row and
- column specificator!)
- Table is readed into stringlist, where each string is comma delimited string.
-
- Warning: this function is not have best performance. For better performance
- you must write your own function. best performace you can get by knowledge
- of structuture of table and by more then one MIB on one query. }
-function SNMPGetTable(const BaseOID, Community, SNMPHost: AnsiString; const Value: TStrings): Boolean;
-
-{:A very useful function and example of its use would be found in the TSNMPSend
- object. It implements basic read of SNMP MIB table element. As BaseOID you must
- specify basic MIB OID of requested table (base IOD is OID without row and
- column specificator!)
- As next you must specify identificator of row and column for specify of needed
- field of table.}
-function SNMPGetTableElement(const BaseOID, RowID, ColID, Community, SNMPHost: AnsiString; var Value: AnsiString): Boolean;
-
-{:A very useful function and example of its use would be found in the TSNMPSend
- object. It implements a TRAPv1 to send with all data in the parameters.}
-function SendTrap(const Dest, Source, Enterprise, Community: AnsiString;
-  Generic, Specific, Seconds: Integer; const MIBName, MIBValue: AnsiString;
-  MIBtype: Integer): Integer;
-
-{:A very useful function and example of its use would be found in the TSNMPSend
- object. It receives a TRAPv1 and returns all the data that comes with it.}
-function RecvTrap(var Dest, Source, Enterprise, Community: AnsiString;
-  var Generic, Specific, Seconds: Integer; const MIBName,
-  MIBValue: TStringList): Integer;
-{$endif}
-
+function SnmpErrorToString(ErrCode : Integer) : String;
 
 implementation
 
@@ -1018,6 +924,7 @@ begin
   FPrivKey := '';
 end;
 
+{==============================================================================}
 procedure TSNMPRec.MIBAdd(const MIB, Value: AnsiString; ValueType: Integer);
 var
   SNMPMib: TSNMPMib;
@@ -1029,6 +936,7 @@ begin
   FSNMPMibList.Add(SNMPMib);
 end;
 
+{==============================================================================}
 procedure TSNMPRec.MIBDelete(Index: Integer);
 begin
   if (Index >= 0) and (Index < MIBCount) then
@@ -1038,11 +946,13 @@ begin
   end;
 end;
 
+{==============================================================================}
 function TSNMPRec.MIBCount: integer;
 begin
   Result := FSNMPMibList.Count;
 end;
 
+{==============================================================================}
 function TSNMPRec.MIBByIndex(Index: Integer): TSNMPMib;
 begin
   Result := nil;
@@ -1050,6 +960,7 @@ begin
     Result := TSNMPMib(FSNMPMibList[Index]);
 end;
 
+{==============================================================================}
 function TSNMPRec.MIBGet(const MIB: AnsiString): AnsiString;
 var
   i: Integer;
@@ -1064,216 +975,6 @@ begin
     end;
   end;
 end;
-
-{==============================================================================}
-{$ifdef never}
-constructor TSNMPSend.Create;
-begin
-  inherited Create;
-  FQuery := TSNMPRec.Create;
-  FReply := TSNMPRec.Create;
-  FQuery.Clear;
-  FReply.Clear;
- // FSock := TUDPBlockSocket.Create;
-  FTimeout := 5000;
-  FTargetPort := cSnmpProtocol;
-  FHostIP := '';
-end;
-
-destructor TSNMPSend.Destroy;
-begin
- // FSock.Free;
-  FReply.Free;
-  FQuery.Free;
-  inherited Destroy;
-end;
-
-function TSNMPSend.InternalSendSnmp(const Value: TSNMPRec): Boolean;
-begin
-  FBuffer := Value.EncodeBuf;
-//  FSock.SendString(FBuffer);
-//  Result := FSock.LastError = 0;
-end;
-
-function TSNMPSend.InternalRecvSnmp(const Value: TSNMPRec): Boolean;
-begin
-  Result := False;
-  FReply.Clear;
-//  FHostIP := cAnyHost;
-//  FBuffer := FSock.RecvPacket(FTimeout);
-//  if FSock.LastError = 0 then
-//  begin
-//    FHostIP := FSock.GetRemoteSinIP;
-//    Result := Value.DecodeBuf(FBuffer);
-//  end;
-end;
-
-function TSNMPSend.InternalSendRequest(const QValue, RValue: TSNMPRec): Boolean;
-begin
-  Result := False;
-//  FSock.Bind(FIPInterface, cAnyPort);
-//  FSock.Connect(FTargetHost, FTargetPort);
-  if InternalSendSnmp(QValue) then
-    Result := InternalRecvSnmp(RValue);
-end;
-
-function TSNMPSend.SendRequest: Boolean;
-var
-  sync: TV3Sync;
-begin
-  Result := False;
-  if FQuery.FVersion = 3 then
-  begin
-    sync := GetV3Sync;
-    FQuery.AuthEngineBoots := Sync.EngineBoots;
-    FQuery.AuthEngineTime := Sync.EngineTime;
-    FQuery.AuthEngineTimeStamp := Sync.EngineStamp;
-    FQuery.AuthEngineID := Sync.EngineID;
-  end;
-//  FSock.Bind(FIPInterface, cAnyPort);
-//  FSock.Connect(FTargetHost, FTargetPort);
-  if InternalSendSnmp(FQuery) then
-    Result := InternalRecvSnmp(FReply);
-end;
-
-function TSNMPSend.SendTrap: Boolean;
-begin
-//  FSock.Bind(FIPInterface, cAnyPort);
-//  FSock.Connect(FTargetHost, FTargetPort);
-  Result := InternalSendSnmp(FQuery);
-end;
-
-function TSNMPSend.RecvTrap: Boolean;
-begin
-//  FSock.Bind(FIPInterface, FTargetPort);
-  Result := InternalRecvSnmp(FReply);
-end;
-
-function TSNMPSend.DoIt: Boolean;
-begin
-  Result := SendRequest;
-end;
-
-function TSNMPSend.GetV3EngineID: AnsiString;
-var
-  DisQuery: TSNMPRec;
-begin
-  Result := '';
-  DisQuery := TSNMPRec.Create;
-  try
-    DisQuery.Version := 3;
-    DisQuery.UserName := '';
-    DisQuery.FlagReportable := True;
-    DisQuery.PDUType := PDUGetRequest;
-    if InternalSendRequest(DisQuery, FReply) then
-      Result := FReply.FAuthEngineID;
-  finally
-    DisQuery.Free;
-  end;
-end;
-
-function TSNMPSend.GetV3Sync: TV3Sync;
-var
-  SyncQuery: TSNMPRec;
-begin
-  Result.EngineID := GetV3EngineID;
-  Result.EngineBoots := FReply.AuthEngineBoots;
-  Result.EngineTime := FReply.AuthEngineTime;
-  Result.EngineStamp := FReply.AuthEngineTimeStamp;
-  if Result.EngineTime = 0 then
-  begin
-    //still not have sync...
-    SyncQuery := TSNMPRec.Create;
-    try
-      SyncQuery.Version := 3;
-      SyncQuery.UserName := FQuery.UserName;
-      SyncQuery.Password := FQuery.Password;
-      SyncQuery.FlagReportable := True;
-      SyncQuery.Flags := FQuery.Flags;
-      SyncQuery.PDUType := PDUGetRequest;
-      SyncQuery.AuthEngineID := FReply.FAuthEngineID;
-      if InternalSendRequest(SyncQuery, FReply) then
-      begin
-        Result.EngineBoots := FReply.AuthEngineBoots;
-        Result.EngineTime := FReply.AuthEngineTime;
-        Result.EngineStamp := FReply.AuthEngineTimeStamp;
-      end;
-    finally
-      SyncQuery.Free;
-    end;
-  end;
-end;
-
-{==============================================================================}
-
-function SNMPGet(const OID, Community, SNMPHost: AnsiString; var Value: AnsiString): Boolean;
-var
-  SNMPSend: TSNMPSend;
-begin
-  SNMPSend := TSNMPSend.Create;
-  try
-    SNMPSend.Query.Clear;
-    SNMPSend.Query.Community := Community;
-    SNMPSend.Query.PDUType := PDUGetRequest;
-    SNMPSend.Query.MIBAdd(OID, '', ASN1_NULL);
-    SNMPSend.TargetHost := SNMPHost;
-    Result := SNMPSend.SendRequest;
-    Value := '';
-    if Result then
-      Value := SNMPSend.Reply.MIBGet(OID);
-  finally
-    SNMPSend.Free;
-  end;
-end;
-
-function SNMPSet(const OID, Community, SNMPHost, Value: AnsiString; ValueType: Integer): Boolean;
-var
-  SNMPSend: TSNMPSend;
-begin
-  SNMPSend := TSNMPSend.Create;
-  try
-    SNMPSend.Query.Clear;
-    SNMPSend.Query.Community := Community;
-    SNMPSend.Query.PDUType := PDUSetRequest;
-    SNMPSend.Query.MIBAdd(OID, Value, ValueType);
-    SNMPSend.TargetHost := SNMPHost;
-    Result := SNMPSend.Sendrequest = True;
-  finally
-    SNMPSend.Free;
-  end;
-end;
-
-function InternalGetNext(const SNMPSend: TSNMPSend; var OID: AnsiString;
-  const Community: AnsiString; var Value: AnsiString): Boolean;
-begin
-  SNMPSend.Query.Clear;
-  SNMPSend.Query.ID := SNMPSend.Query.ID + 1;
-  SNMPSend.Query.Community := Community;
-  SNMPSend.Query.PDUType := PDUGetNextRequest;
-  SNMPSend.Query.MIBAdd(OID, '', ASN1_NULL);
-  Result := SNMPSend.Sendrequest;
-  Value := '';
-  if Result then
-    if SNMPSend.Reply.SNMPMibList.Count > 0 then
-    begin
-      OID := TSNMPMib(SNMPSend.Reply.SNMPMibList[0]).OID;
-      Value := TSNMPMib(SNMPSend.Reply.SNMPMibList[0]).Value;
-    end;
-end;
-
-function SNMPGetNext(var OID: AnsiString; const Community, SNMPHost: AnsiString; var Value: AnsiString): Boolean;
-var
-  SNMPSend: TSNMPSend;
-begin
-  SNMPSend := TSNMPSend.Create;
-  try
-    SNMPSend.TargetHost := SNMPHost;
-    Result := InternalGetNext(SNMPSend, OID, Community, Value);
-  finally
-    SNMPSend.Free;
-  end;
-end;
-{$endif}
 
 {==============================================================================}
 // Extracted from synautil
@@ -1306,6 +1007,17 @@ begin
   for n := 1 to Length(Value) do
     Result := Result + IntToHex(Byte(Value[n]), 2);
   Result := LowerCase(Result);
+end;
+
+{==============================================================================}
+function SnmpErrorToString(ErrCode : Integer) : String;
+begin
+    if (ErrCode >= Low(SnmpErrorStrings)) or
+       (ErrCode <= High(SnmpErrorStrings)) then
+        Result := SnmpErrorStrings[Errcode]
+    else
+        Result := 'SNMP error #' + IntToStr(ErrCode);
+
 end;
 
 {==============================================================================}

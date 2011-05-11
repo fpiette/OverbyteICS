@@ -13,7 +13,7 @@ PROJECTS = OverbyteIcsD7Run.bpl OverbyteIcsD7Design.bpl \
   OverbyteIcsSslWebServ.exe OverbyteIcsSslFtpServ.exe OverbyteIcsSslFtpTst.exe \
   OverbyteIcsSslMailSnd.exe OverbyteIcsSslNewsRdr.exe OverbyteIcsSimpleSslCli.exe \
   OverbyteIcsHttpsServer.exe OverbyteIcsPemTool.exe OverbyteIcsSslMailRcv.exe \
-  OverbyteIcsHttpsTst.exe
+  OverbyteIcsHttpsTst.exe OverbyteIcsMsVerify.exe
 #------------------------------------------------------------------------------
 default: $(PROJECTS)
 #------------------------------------------------------------------------------
@@ -52,6 +52,9 @@ OverbyteIcsSslMailRcv.exe: OverbyteIcsSslMailRcv.dpr
   $(DCC)
 
 OverbyteIcsHttpsTst.exe: OverbyteIcsHttpsTst.dpr
+  $(DCC)
+
+OverbyteIcsMsVerify.exe: OverbyteIcsMsVerify.dpr
   $(DCC)
 
 

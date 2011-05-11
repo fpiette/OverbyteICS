@@ -6,9 +6,8 @@ Description:  A small utility to export SSL certificate from IE certificate
               store to a directory using OpenSSL PEM file format.
               Make use of the ICS Delphi encapsulation for SSLEAY32.DLL &
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
-              Make use of OpenSSL (http://www.openssl.org)
-              Make use of the Jedi CryptoAPI2
-              (http://delphi-jedi.org/Jedi:APILIBRARY:172871)(CryptoAPI2.zip).
+              Makes use of OpenSSL (http://www.openssl.org)
+              Makes use of the Jedi JwaWincrypt.pas (MPL).
 Version:      1.11
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
@@ -80,9 +79,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Controls, Forms, Dialogs,
   StdCtrls, OverbyteIcsIniFiles, ComCtrls, Menus, ImgList, ExtCtrls, CommCtrl,
-  { Uses Jedi CryptoAPI2, see 'Description' above }
-  Wcrypt2,
-  { Uses ICS SSL code, see 'Description' above }
+  WinCrypt,
   OverbyteIcsWSocket, OverbyteIcsSsleay, OverbyteIcsLibeay,
   OverbyteIcsLibeayEx, OverbyteIcsSslX509Utils, OverByteIcsMimeUtils;
 

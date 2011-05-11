@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{B588C382-FF7E-4D0B-9182-441A0470F483}</ProjectGuid>
   </PropertyGroup>
@@ -7,6 +7,7 @@
     <Projects Include="..\Vc32\OverbyteIcsD2007Design.dproj"/>
     <Projects Include="..\Vc32\OverbyteIcsD2007Run.dproj"/>
     <Projects Include="OverbyteIcsHttpsTst.dproj"/>
+    <Projects Include="OverbyteIcsMsVerify.dproj"/>
     <Projects Include="OverbyteIcsPemTool.dproj"/>
     <Projects Include="OverbyteIcsSimpleSslCli.dproj"/>
     <Projects Include="OverbyteIcsSimpleSslServer.dproj"/>
@@ -131,14 +132,23 @@
   <Target Name="OverbyteIcsSslMailRcv:Make">
     <MSBuild Projects="OverbyteIcsSslMailRcv.dproj" Targets="Make"/>
   </Target>
+  <Target Name="OverbyteIcsMsVerify">
+    <MSBuild Projects="OverbyteIcsMsVerify.dproj" Targets=""/>
+  </Target>
+  <Target Name="OverbyteIcsMsVerify:Clean">
+    <MSBuild Projects="OverbyteIcsMsVerify.dproj" Targets="Clean"/>
+  </Target>
+  <Target Name="OverbyteIcsMsVerify:Make">
+    <MSBuild Projects="OverbyteIcsMsVerify.dproj" Targets="Make"/>
+  </Target>
   <Target Name="Build">
-    <CallTarget Targets="OverbyteIcsD2007Run;OverbyteIcsD2007Design;OverbyteIcsHttpsTst;OverbyteIcsSslWebServ;OverbyteIcsSslFtpTst;OverbyteIcsSslFtpServ;OverbyteIcsSslMailSnd;OverbyteIcsSslNewsRdr;OverbyteIcsSimpleSslCli;OverbyteIcsSimpleSslServer;OverbyteIcsPemTool;OverbyteIcsSslMailRcv"/>
+    <CallTarget Targets="OverbyteIcsD2007Run;OverbyteIcsD2007Design;OverbyteIcsHttpsTst;OverbyteIcsSslWebServ;OverbyteIcsSslFtpTst;OverbyteIcsSslFtpServ;OverbyteIcsSslMailSnd;OverbyteIcsSslNewsRdr;OverbyteIcsSimpleSslCli;OverbyteIcsSimpleSslServer;OverbyteIcsPemTool;OverbyteIcsSslMailRcv;OverbyteIcsMsVerify"/>
   </Target>
   <Target Name="Clean">
-    <CallTarget Targets="OverbyteIcsD2007Run:Clean;OverbyteIcsD2007Design:Clean;OverbyteIcsHttpsTst:Clean;OverbyteIcsSslWebServ:Clean;OverbyteIcsSslFtpTst:Clean;OverbyteIcsSslFtpServ:Clean;OverbyteIcsSslMailSnd:Clean;OverbyteIcsSslNewsRdr:Clean;OverbyteIcsSimpleSslCli:Clean;OverbyteIcsSimpleSslServer:Clean;OverbyteIcsPemTool:Clean;OverbyteIcsSslMailRcv:Clean"/>
+    <CallTarget Targets="OverbyteIcsD2007Run:Clean;OverbyteIcsD2007Design:Clean;OverbyteIcsHttpsTst:Clean;OverbyteIcsSslWebServ:Clean;OverbyteIcsSslFtpTst:Clean;OverbyteIcsSslFtpServ:Clean;OverbyteIcsSslMailSnd:Clean;OverbyteIcsSslNewsRdr:Clean;OverbyteIcsSimpleSslCli:Clean;OverbyteIcsSimpleSslServer:Clean;OverbyteIcsPemTool:Clean;OverbyteIcsSslMailRcv:Clean;OverbyteIcsMsVerify:Clean"/>
   </Target>
   <Target Name="Make">
-    <CallTarget Targets="OverbyteIcsD2007Run:Make;OverbyteIcsD2007Design:Make;OverbyteIcsHttpsTst:Make;OverbyteIcsSslWebServ:Make;OverbyteIcsSslFtpTst:Make;OverbyteIcsSslFtpServ:Make;OverbyteIcsSslMailSnd:Make;OverbyteIcsSslNewsRdr:Make;OverbyteIcsSimpleSslCli:Make;OverbyteIcsSimpleSslServer:Make;OverbyteIcsPemTool:Make;OverbyteIcsSslMailRcv:Make"/>
+    <CallTarget Targets="OverbyteIcsD2007Run:Make;OverbyteIcsD2007Design:Make;OverbyteIcsHttpsTst:Make;OverbyteIcsSslWebServ:Make;OverbyteIcsSslFtpTst:Make;OverbyteIcsSslFtpServ:Make;OverbyteIcsSslMailSnd:Make;OverbyteIcsSslNewsRdr:Make;OverbyteIcsSimpleSslCli:Make;OverbyteIcsSimpleSslServer:Make;OverbyteIcsPemTool:Make;OverbyteIcsSslMailRcv:Make;OverbyteIcsMsVerify:Make"/>
   </Target>
   <Import Condition="Exists('$(MSBuildBinPath)\Borland.Group.Targets')" Project="$(MSBuildBinPath)\Borland.Group.Targets"/>
 </Project>

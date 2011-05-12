@@ -116,80 +116,12 @@ const
   CRYPT_E_REVOKED     = $80092010;
   CRYPT_E_EXISTS      = $80092005;
   { http://technet.microsoft.com/en-us/library/bb457027.aspx }
-  WinDlgStoreTypeStrings : array [TWinDlgStoreType] of string =
+  {WinDlgStoreTypeStrings : array [TWinDlgStoreType] of string =
   ('Root', 'CA', 'My', 'Trust', 'TrustedPublisher', 'TrustedPeople',
-   'Addressbook', 'AuthRoot', 'REQUEST', 'Disallowed');
+   'Addressbook', 'AuthRoot', 'REQUEST', 'Disallowed'); }
+   
   sCryptoApiError   = 'CryptoAPI Error. Code: %d.'+#13#10+'%s';
   sUnKnownCryptoApi = 'A call to a CryptoAPI function failed';
-
-const
-  { These are from Win7 SDK Wincrypt.h, missing in JwaWincrypt }
-
-// By default, the dwUrlRetrievalTimeout in pChainPara is the timeout used
-// for each revocation URL wire retrieval. When the following flag is set,
-// dwUrlRetrievalTimeout is the accumulative timeout across all
-// revocation URL wire retrievals.
-  {$EXTERNALSYM CERT_CHAIN_REVOCATION_ACCUMULATIVE_TIMEOUT}
-  CERT_CHAIN_REVOCATION_ACCUMULATIVE_TIMEOUT        = $08000000;
-
-
-// Revocation checking for an independent OCSP signer certificate.
-//
-// The above revocation flags indicate if just the signer certificate or all
-// the certificates in the chain, excluding the root should be checked
-// for revocation. If the signer certificate contains the
-// szOID_PKIX_OCSP_NOCHECK extension, then, revocation checking is skipped
-// for the leaf signer certificate. Both OCSP and CRL checking are allowed.
-// However, recursive, independent OCSP signer certs are disabled.
-  {$EXTERNALSYM CERT_CHAIN_REVOCATION_CHECK_OCSP_CERT}
-  CERT_CHAIN_REVOCATION_CHECK_OCSP_CERT             = $04000000;
-
-
-// First pass determines highest quality based upon:
-//  - Chain signature valid (higest quality bit of this set)
-//  - Complete chain
-//  - Trusted root          (lowestest quality bit of this set)
-// By default, second pass only considers paths >= highest first pass quality
-  {$EXTERNALSYM CERT_CHAIN_DISABLE_PASS1_QUALITY_FILTERING}
-  CERT_CHAIN_DISABLE_PASS1_QUALITY_FILTERING        = $00000040;
-
-  {$EXTERNALSYM CERT_CHAIN_RETURN_LOWER_QUALITY_CONTEXTS}
-  CERT_CHAIN_RETURN_LOWER_QUALITY_CONTEXTS          = $00000080;
-
-  {$EXTERNALSYM CERT_CHAIN_DISABLE_AUTH_ROOT_AUTO_UPDATE}
-  CERT_CHAIN_DISABLE_AUTH_ROOT_AUTO_UPDATE          = $00000100;
-
-
-// When this flag is set, pTime will be used as the timestamp time.
-// pTime will be used to determine if the end certificate was valid at this
-// time. Revocation checking will be relative to pTime.
-// In addition, current time will also be used
-// to determine if the certificate is still time valid. All remaining
-// CA and root certificates will be checked using current time and not pTime.
-//
-// This flag was added 4/5/01 in WXP.
-  {$EXTERNALSYM CERT_CHAIN_TIMESTAMP_TIME}
-  CERT_CHAIN_TIMESTAMP_TIME                         = $00000200;
-
-
-// When this flag is set, "My" certificates having a private key or end
-// entity certificates in the "TrustedPeople" store are trusted without
-// doing any chain building. Neither the CERT_TRUST_IS_PARTIAL_CHAIN or
-// CERT_TRUST_IS_UNTRUSTED_ROOT dwErrorStatus bits will be set for
-// such certificates.
-//
-// This flag was added 6/9/03 in LH.
-  {$EXTERNALSYM CERT_CHAIN_ENABLE_PEER_TRUST}
-  CERT_CHAIN_ENABLE_PEER_TRUST                      = $00000400;
-
-// When this flag is set, "My" certificates aren't considered for
-// PEER_TRUST.
-//
-// This flag was added 11/12/04 in LH.
-//
-// On 8-05-05 changed to never consider "My" certificates for PEER_TRUST.
-  {$EXTERNALSYM CERT_CHAIN_DISABLE_MY_PEER_TRUST}
-  CERT_CHAIN_DISABLE_MY_PEER_TRUST                  = $00000800;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

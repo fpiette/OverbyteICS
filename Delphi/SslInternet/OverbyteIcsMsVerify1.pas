@@ -106,7 +106,7 @@ type
     FIniFile     : TIcsIniFile;
     FMsCertChainEngine: TMsCertChainEngine;
     procedure Display(const Msg: String);
-    procedure ShowHideSslButton(AShow, ASafe: Boolean; const ACaption: String);
+    procedure ShowHideCertButton(AShow, ASafe: Boolean; const ACaption: String);
   protected
     procedure WmReconnect(var Msg: TMessage); message WM_RECONNECT;
   public
@@ -135,6 +135,9 @@ const
     KeyRevocation      = 'CheckRevocation';
     KeyUrlTimeout      = 'UrlRetrievalTime';
 
+    { See http://www.openssl.org/docs/apps/ciphers.html }
+    sCiphersHighNoSSLv2 = 'TLSv1+HIGH:!aNULL:!eNULL:!3DES:!CAMELLIA@STRENGTH';
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TMsVerifyForm.FormCreate(Sender: TObject);
 begin
@@ -147,10 +150,14 @@ begin
     FIniFile := TIcsIniFile.Create(OverbyteIcsIniFiles.GetIcsIniFileName);
     ToolsPanel.DoubleBuffered   := True;
     ToolsPanel.ParentBackground := False;
+    HostEdit.DoubleBuffered     := True;
+    DisplayMemo.DoubleBuffered  := True;
     DisconnectButton.Enabled    := False;
     ShowCertButton.Width        := 0;
     HostEdit.OnChange           := nil;
     SslContext1.SslVerifyPeer   := True;
+    SslContext1.SslOptions      := [sslOpt_NO_SSLv2];
+    SslContext1.SslCipherList   := sCiphersHighNoSSLv2;
 end;
 
 
@@ -242,14 +249,14 @@ end;
 procedure TMsVerifyForm.HostEditChange(Sender: TObject);
 begin
     if ShowCertButton.Width > 0 then begin
-        ShowHideSslButton(False, False, '');
+        ShowHideCertButton(False, False, '');
         DisconnectButtonClick(nil);
     end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TMsVerifyForm.ShowHideSslButton(AShow, ASafe: Boolean;
+procedure TMsVerifyForm.ShowHideCertButton(AShow, ASafe: Boolean;
   const ACaption: String);
 begin
     if AShow then begin
@@ -262,11 +269,11 @@ begin
         if ASafe then
         begin
             HostEdit.Color := Rgb($66, $99, $FF);
-            ShowCertButton.Hint := 'Secure connection to ' + ACaption;
+            ShowCertButton.Hint := 'Secure: ' + ACaption;
         end
         else begin
             HostEdit.Color := Rgb($FF, $00, $66);
-            ShowCertButton.Hint := 'User accepted connection to ' + ACaption;
+            ShowCertButton.Hint := 'User trusted: ' + ACaption;
         end;
     end
     else begin
@@ -335,10 +342,7 @@ begin
                                             SslWSocket1.Addr +
                                             SslWSocket1.Port,
                                             IncRefCount);
-        Display('! New SSL session');
-    end
-    else
-        Display('! SSL Session reused');
+    end;
 end;
 
 
@@ -366,7 +370,6 @@ var
     CertChain         : TX509List;
     Safe              : Boolean;
     I                 : Integer;
-    S                 : String;
 begin
     if (ErrCode <> 0) or (PeerCert.X509 = nil) then
         Exit; // Nothing to check
@@ -403,8 +406,11 @@ begin
                                       ChainVerifyResult, True);
 
         Safe := (ChainVerifyResult = 0) or
-              { We ignore the case if a revocation status is unknown.       }
-              ((ChainVerifyResult and CERT_TRUST_REVOCATION_STATUS_UNKNOWN) <> 0);
+                { We ignore the case if a revocation status is unknown.      }
+                (ChainVerifyResult = CERT_TRUST_REVOCATION_STATUS_UNKNOWN) or
+                (ChainVerifyResult = CERT_TRUST_IS_OFFLINE_REVOCATION) or
+                (ChainVerifyResult = CERT_TRUST_REVOCATION_STATUS_UNKNOWN or
+                                     CERT_TRUST_IS_OFFLINE_REVOCATION);
 
         { The MsChainVerifyErrorToStr function works on chain error codes     }
         Display(Format('Chain verify result $%.8x %s'#13#10,
@@ -426,7 +432,7 @@ begin
         { with a non-nil param ACertChain and param AUpdateChain = TRUE.      }
         for I := 0 to CertChain.Count -1 do
         begin
-          { FMsCertChainEngine writes the Microsoft error codes to the        }
+          { TMsCertChainEngine writes the Microsoft error codes to the        }
           { TX509Base.CustomVerifyResult property. Ignore any other result.   }
           { MsCertVerifyErrorToStr() works on certificate error codes.        }
           Display(IntToStr(I + 1) + ')');
@@ -438,7 +444,7 @@ begin
         Safe := not UserTrusted;
 
     if not Safe then begin
-        ShowHideSslButton(True, Safe, HostEdit.Text);
+        ShowHideCertButton(True, Safe, HostEdit.Text);
 
         if not UserTrusted then begin
           SslWSocket1.Abort;
@@ -451,21 +457,26 @@ begin
           end;
         end
         else
-            Display('User trusted connection');
+            Display('User trusted connection:');
     end
     else begin
-        S := PeerCert.SubjectCName;
-        if S = '' then
-           S  := PeerCert.SubjectAltName.Value;
-        ShowHideSslButton(True, Safe, S);
+        ShowHideCertButton(True, Safe, HostEdit.Text);
+        Display('Secure connection:');
     end;
+
+    if SslWSocket1.State = wsConnected then
+    Display(Format('IP %s:%s, %s, cipher %s, %d secret bits ' +
+                    '(%d total), session reused %d', [SslWSocket1.GetPeerAddr,
+                    SslWSocket1.GetPeerPort, SslWSocket1.SslVersion,
+                    SslWSocket1.SslCipher, SslWSocket1.SslSecretBits,
+                    SslWSocket1.SslTotalBits, Ord(SslWSocket1.SslSessionReused)]));
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TMsVerifyForm.ConnectButtonClick(Sender: TObject);
 begin
-    ShowHideSslButton(False, False, '');
+    ShowHideCertButton(False, False, '');
     Display('');
     Display('Connecting to ' + HostEdit.Text + ' port #' + PortEdit.Text);
     SslWSocket1.Addr               := HostEdit.Text;

@@ -1,9 +1,9 @@
 object SslWebServForm: TSslWebServForm
   Left = 287
   Top = 154
+  Width = 558
+  Height = 381
   Caption = 'ICS SSL WebServer Demo - http://www.overbyte.be'
-  ClientHeight = 347
-  ClientWidth = 550
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -423,7 +423,6 @@ object SslWebServForm: TSslWebServForm
     TimeStampFormatString = 'hh:nn:ss:zzz'
     TimeStampSeparator = ' '
     LogFileOption = lfoOverwrite
-    LogFileEncoding = lfeUtf8
     LogFileName = 'Debug_Out_SslWebServ.txt'
     LogOptions = []
     Left = 122

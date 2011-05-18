@@ -1,8 +1,8 @@
 object frmPemTool1: TfrmPemTool1
   Left = 212
   Top = 124
-  ClientHeight = 394
-  ClientWidth = 533
+  Width = 541
+  Height = 448
   Color = clBtnFace
   Constraints.MinHeight = 379
   Constraints.MinWidth = 527
@@ -45,10 +45,6 @@ object frmPemTool1: TfrmPemTool1
     OnChange = PageControl1Change
     object TabCertLv: TTabSheet
       Caption = 'Certificates'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         442
         335)
@@ -139,10 +135,6 @@ object frmPemTool1: TfrmPemTool1
     object TabImport: TTabSheet
       Caption = 'Import Certificates'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         442
         335)
@@ -220,6 +212,7 @@ object frmPemTool1: TfrmPemTool1
         Height = 22
         Hint = 'Select a Windows store type'
         Style = csDropDownList
+        ItemHeight = 14
         TabOrder = 0
         Items.Strings = (
           'Certificate Authorities'

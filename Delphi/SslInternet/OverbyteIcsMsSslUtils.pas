@@ -461,7 +461,7 @@ begin
       begin
         { We store all certificates except the end certificate if they are }
         { not in the system store temporarily.                             }
-        if (ACert.Sha1Hash = ACertChain[I].Sha1Hash) then
+        if ACert.SameHash(ACertChain[I]) then
           Continue;
         pMsCertCtx := X509ToMsCert(ACertChain[I].X509);
         if pMsCertCtx = nil then

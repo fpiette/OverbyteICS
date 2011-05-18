@@ -823,7 +823,7 @@ begin
        not HttpCli.SslContext.SslVerifyPeer then
         Exit; // nothing to do, go ahead
 
-    Hash := String(PeerCert.Sha1Hash);
+    Hash := PeerCert.Sha1Hex;
     { Is current host already in the list of temporarily accepted hosts ? }
     if HttpCli.SslAcceptableHosts.IndexOf(HttpCli.Hostname + Hash) > -1 then
         Exit; // previously accepted, go ahead

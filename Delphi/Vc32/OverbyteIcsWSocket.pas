@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.78
+Version:      7.79
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -900,7 +900,12 @@ May 11, 2011 v7.78 Arno made the SSL peer certificate available as property
                    is non-nil. In previous versions the PeerCert passed to
                    OnSslHandshakeDone could be just a reference to one of the
                    certs in the SslCertChain which was eval.
-
+May 17, 2011 v7.79 Arno added Sha1Hex, Sha1Digest, IssuedBy, IssuerOf and
+                   SelfSigned to TX509Base. Deprecated Sha1Hash since it was
+                   buggy storing binary in strings. Return values of Sha1Hex
+                   and Sha1Digest are cached. Reworked TX509List and added new
+                   methods.
+                   
 }
 
 {
@@ -1013,8 +1018,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 778;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.78 ';
+  WSocketVersion            = 779;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.79 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -1891,18 +1896,23 @@ type
     end;                    // separated by a CRLF
     PExtension = ^TExtension;
 
+    THashBytes20 = array of Byte;
+
     TBioOpenMethode = (bomRead, bomWrite);
     TX509Base = class(TSslBaseComponent)
     private
         FX509               : Pointer;
         FPrivateKey         : Pointer;
+        FSha1Digest         : THashBytes20;
+        FSha1Hex            : String;
     protected
         FVerifyResult       : Integer;  // current verify result
-        FSha1Hash           : AnsiString;
+        //FSha1Hash           : AnsiString; // Deprecated
         FVerifyDepth        : Integer;
         FCustomVerifyResult : Integer;
         FFirstVerifyResult  : Integer;                      {05/21/2007 AG}
         procedure   FreeAndNilX509;
+        procedure   FreeAndNilPrivateKey;
         procedure   SetX509(X509: Pointer);
         procedure   SetPrivateKey(PKey: Pointer);
         function    GetPublicKey: Pointer;
@@ -1918,9 +1928,13 @@ type
         function    GetValidNotBefore: TDateTime;              {AG 02/06/06}
         function    GetValidNotAfter: TDateTime;               {AG 02/06/06}
         function    GetHasExpired: Boolean;                    {AG 02/06/06}
+        function    GetSelfSigned: Boolean;
         procedure   AssignDefaults; virtual;
         function    UnknownExtDataToStr(Ext: PX509_Extension) : String;
-        function    GetSha1Hash: AnsiString;
+        function    GetSha1Hash: AnsiString; deprecated
+          {$IFDEF COMPILER12_UP}'Use GetSha1Digest or GetSha1Hex'{$ENDIF};
+        function    GetSha1Digest: THashBytes20;
+        function    GetSha1Hex: String;
         function    OpenFileBio(const FileName  : String;
                                 Methode         : TBioOpenMethode): PBIO;
         procedure   ReadFromBio(ABio: PBIO; IncludePrivateKey: Boolean = FALSE;
@@ -1942,6 +1956,9 @@ type
         procedure   PrivateKeyLoadFromPemFile(const FileName: String;
                                               const Password: String = '');
         procedure   PrivateKeySaveToPemFile(const FileName: String);
+        function    IssuedBy(ACert: TX509Base): Boolean;
+        function    IssuerOf(ACert: TX509Base): Boolean;
+        function    SameHash(const ACert: TX509Base): Boolean;
         property    IssuerOneLine       : String        read  GetIssuerOneLine;
         property    SubjectOneLine      : String        read  GetSubjectOneLine;
         property    SerialNum           : Integer       read  GetSerialNum;
@@ -1964,10 +1981,14 @@ type
         property    SubjectAltName      : TExtension    read  GetSubjectAltName;
         property    ExtensionCount      : Integer       read  GetExtensionCount;
         property    Extensions[index: Integer] : TExtension read GetExtension;
-        property    Sha1Hash            : AnsiString    read  FSha1Hash;
+        function    Sha1Hash            : AnsiString;   deprecated
+          {$IFDEF COMPILER12_UP}'Use Sha1Digest or Sha1Hex'{$ENDIF};
+        property    Sha1Digest          : THashBytes20  read  GetSha1Digest;
+        property    Sha1Hex             : String        read  GetSha1Hex;
         property    ValidNotBefore      : TDateTime     read  GetValidNotBefore; {AG 02/06/06}
         property    ValidNotAfter       : TDateTime     read  GetValidNotAfter;  {AG 02/06/06}
         property    HasExpired          : Boolean       read  GetHasexpired;     {AG 02/06/06}
+        property    SelfSigned          : Boolean       read  GetSelfSigned;
     end;
 
     TX509Class = class of TX509Base;
@@ -1976,8 +1997,6 @@ type
 
     TX509ListSort = (xsrtIssuerFirst, xsrtIssuedFirst);
     TX509List  = class(TObject)
-    { Written by Arno Garrels, for ICS    }
-    { Contact: email arno.garrels@gmx.de  }
     private
         FList               : TComponentList;
         FX509Class          : TX509Class;
@@ -1987,17 +2006,28 @@ type
         function    GetCount: Integer;
         function    GetX509Base(Index: Integer): TX509Base;
         procedure   SetX509Base(Index: Integer; Value: TX509Base);
-        function    GetByPX509(const X509: PX509) : TX509Base;
+        function    GetByPX509(const X509: PX509) : TX509Base; deprecated
+                    {$IFDEF COMPILER12_UP}'Use method Find'{$ENDIF};
         procedure   SetX509Class(const Value: TX509Class);
+        function    GetOwnsObjects: Boolean;
+        procedure   SetOwnsObjects(const Value: Boolean);
     public
-        constructor Create(AOwner: TComponent); reintroduce;
+        constructor Create(AOwner: TComponent; AOwnsObjects: Boolean = TRUE); reintroduce;
         destructor  Destroy; override;
         procedure   Clear;
         function    Add(X509 : PX509 = nil) : TX509Base;
+        function    AddItem(AItem: TX509Base): Integer;
         function    Insert(Index: Integer; X509: PX509 = nil): TX509Base;
+        procedure   InsertItem(Index: Integer; AItem: TX509Base);
         procedure   Delete(const Index: Integer);
         function    IndexOf(const X509Base : TX509Base): Integer;
-        function    GetByHash(const Sha1Hash : AnsiString): TX509Base;
+        function    GetByHash(const Sha1Hash : AnsiString): TX509Base; deprecated
+                    {$IFDEF COMPILER12_UP}'Use method Find'{$ENDIF};
+        function    Find(const ASha1Digest: THashBytes20): TX509Base; overload;
+        function    Find(const ASha1Hex: String): TX509Base; overload;
+        function    Find(const AX509: PX509): TX509Base; overload;
+        function    Remove(Item: TX509Base): Integer;
+        function    Extract(Item: TX509Base): TX509Base;
         procedure   SortChain(ASortOrder: TX509ListSort);
         property    Count                       : Integer       read  GetCount;
         property    Items[index: Integer]       : TX509Base     read  GetX509Base
@@ -2005,6 +2035,8 @@ type
         property    X509Class                   : TX509Class    read  FX509Class
                                                                 write SetX509Class;
         property    LastVerifyResult            : Integer       read  FLastVerifyResult;
+        property    OwnsObjects                 : Boolean       read  GetOwnsObjects
+                                                                write SetOwnsObjects;
     end;
 
     TSslContextRemoveSession = procedure(Sender: TObject;
@@ -11518,20 +11550,19 @@ end;
 {$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-constructor TX509List.Create(AOwner: TComponent);
+constructor TX509List.Create(AOwner: TComponent; AOwnsObjects: Boolean = TRUE);
 begin
     inherited Create;
     FOwner            := AOwner;
     FX509Class        := TX509Base;
-    FList             := TComponentList.Create;
-    FList.OwnsObjects := TRUE;
+    FList             := TComponentList.Create(AOwnsObjects);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor TX509List.Destroy;
 begin
-    _FreeAndNil(FList);
+    FList.Free;
     inherited Destroy;
 end;
 
@@ -11551,18 +11582,114 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509List.GetByHash(const Sha1Hash: AnsiString): TX509Base;
-var
-    I : Integer;
+function TX509List.Remove(Item: TX509Base): Integer;
 begin
-    for I := 0 to FList.Count -1 do begin
-        if not Assigned(FList[I]) then
-            Continue;
-        Result := TX509Base(FList[I]);
-        if _CompareStr(Result.Sha1Hash, Sha1Hash) = 0 then
-            Exit;
+    Result := FList.Remove(Item);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.Extract(Item: TX509Base): TX509Base;
+begin
+    Result := TX509Base(FList.Extract(Item));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.GetByHash(const Sha1Hash: AnsiString): TX509Base;
+{ * Deprecated use Find * }
+var
+    I, J : Integer;
+    P1, P2 : PInteger;
+begin
+    if Length(Sha1Hash) = 20 then begin
+        for I := 0 to FList.Count -1 do begin
+            Result := TX509Base(FList[I]);
+            if Assigned(Result) and Assigned(Result.X509) then begin
+                P1 := @Result.Sha1Digest[0];
+                P2 := Pointer(Sha1Hash);
+                for J := 1 to 4 do begin
+                    if (P1^ <> P2^) then
+                        Break;
+                    Inc(P1);
+                    Inc(P2);
+                end;
+                if P1^ = P2^ then
+                    Exit;
+            end;
+        end;
     end;
     Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.Find(const ASha1Digest: THashBytes20): TX509Base;
+var
+    I, J : Integer;
+    P1, P2 : PInteger;
+begin
+    if Length(ASha1Digest) = 20 then begin
+        for I := 0 to FList.Count -1 do begin
+            Result := TX509Base(FList[I]);
+            if Assigned(Result) and Assigned(Result.X509) then begin
+                P1 := @Result.Sha1Digest[0];
+                P2 := @ASha1Digest[0];
+                for J := 1 to 4 do begin
+                    if (P1^ <> P2^) then
+                        Break;
+                    Inc(P1);
+                    Inc(P2);
+                end;
+                if P1^ = P2^ then
+                    Exit;
+            end;
+        end;
+    end;
+    Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.Find(const ASha1Hex: String): TX509Base;
+var
+    Digest: THashBytes20;
+    I, J: Integer;
+begin
+    Result := nil;
+    if Length(ASha1Hex) <> 40 then
+        Exit;
+    SetLength(Digest, 20);
+    J := 0;
+    for I := 1 to 39 do begin
+        if Odd(I) then begin
+            if (not IsXDigit(ASha1Hex[I])) or
+               (not IsXDigit(ASha1Hex[I + 1])) then
+                Exit;
+            Digest[J] := XDigit2(PChar(@ASha1Hex[I]));
+            Inc(J);
+        end;
+    end;
+    Result := Find(Digest);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.Find(const AX509: PX509): TX509Base;
+var
+    Len  : Integer;
+    Digest : THashBytes20;
+begin
+    if Assigned(AX509) then begin
+        Len := 20;
+        SetLength(Digest, Len);
+        if f_X509_digest(AX509, f_EVP_sha1, @Digest[0], @Len) <> 0 then
+            Result := Find(Digest)
+        else
+            Result := nil;
+    end
+    else
+        Result := nil;
 end;
 
 
@@ -11589,12 +11716,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TX509List.SetX509Base(Index: Integer; Value: TX509Base);
-var
-    X : TX509Base;
 begin
-    X := TX509Base(FList[Index]);
-    if Assigned(X) then
-        X.Free;
+    Assert(Value is FX509Class);
     FList[Index] := Value;
 end;
 
@@ -11603,11 +11726,24 @@ end;
 procedure TX509List.SetX509Class(const Value: TX509Class);
 begin
     if Value <> FX509Class then begin
-        if GetCount > 0 then
-            raise EX509Exception.Create(
-                    'The X509 class can only be set when the list is empty');
+        Assert(GetCount = 0,
+               'The X509 class should only be set when the list is empty');
         FX509Class := Value;
     end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.GetOwnsObjects: Boolean;
+begin
+    Result := FList.OwnsObjects;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509List.SetOwnsObjects(const Value: Boolean);
+begin
+    FList.OwnsObjects := Value;
 end;
 
 
@@ -11616,6 +11752,14 @@ function TX509List.Add(X509: PX509 = nil): TX509Base;
 begin
     Result := FX509Class.Create(FOwner, X509);
     FList.Add(Result);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.AddItem(AItem: TX509Base): Integer;
+begin
+    Assert(AItem is FX509Class);
+    Result := FList.Add(AItem);
 end;
 
 
@@ -11633,20 +11777,18 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509List.GetByPX509(const X509: PX509): TX509Base;
-var
-    Len  : Integer;
-    Hash : AnsiString;
+procedure TX509List.InsertItem(Index: Integer; AItem: TX509Base);
 begin
-    if Assigned(X509) then begin
-        Len := 20;
-        SetLength(Hash, Len);
-        f_X509_digest(X509, f_EVP_sha1, PAnsiChar(Hash), @Len);
-        SetLength(Hash, _StrLen(PAnsiChar(Hash)));
-        Result := GetByHash(Hash);
-    end
-    else
-        Result := nil;
+    Assert(AItem is FX509Class);
+    FList.Insert(Index, AItem);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509List.GetByPX509(const X509: PX509): TX509Base;
+{ * Deprecated use Find * }
+begin
+    Result := Find(X509);
 end;
 
 
@@ -12105,7 +12247,7 @@ begin
             try
                 Cert := f_X509_STORE_CTX_get_current_cert(StoreCtx);
                 { Lookup this cert in our custom list (chain) }
-                CurCert := Obj.SslCertChain.GetByPX509(Cert);
+                CurCert := Obj.SslCertChain.Find(Cert);
                 { Add it to our list }
                 if not Assigned(CurCert) then begin
                     //SslCertChain.X509Class was set in InitSslConnection
@@ -12184,13 +12326,8 @@ function Ics_EVP_PKEY_dup(PKey: PEVP_PKEY): PEVP_PKEY;
 begin
     Result := nil;
     if PKey <> nil then begin
-        _EnterCriticalSection(SslCritSect);
-        try
-            Ics_Ssl_EVP_PKEY_IncRefCnt(PKey);
-            Result := PKey;
-        finally
-            _LeaveCriticalSection(SslCritSect);
-        end;
+        Ics_Ssl_EVP_PKEY_IncRefCnt(PKey);
+        Result := PKey;
     end;
 end;
 
@@ -13514,7 +13651,6 @@ begin
     if Assigned(X509) then begin
         InitializeSsl;
         FX509     := f_X509_dup(X509);
-        FSha1Hash := GetSha1Hash;
     end;
 end;
 
@@ -13523,10 +13659,7 @@ end;
 destructor TX509Base.Destroy;
 begin
     FreeAndNilX509;
-    if Assigned(FPrivateKey) then begin
-        f_EVP_PKEY_free(FPrivateKey);
-        FPrivateKey := nil;
-    end;
+    FreeAndNilPrivateKey;
     inherited Destroy;
 end;
 
@@ -13537,6 +13670,19 @@ begin
     if Assigned(FX509) then begin
         f_X509_free(FX509);
         FX509 := nil;
+        //FSha1Hash := '';
+        FSha1Hex  := '';
+        FSha1Digest  := nil;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.FreeAndNilPrivateKey;
+begin
+    if Assigned(FPrivateKey) then begin
+        f_EVP_PKEY_free(FPrivateKey);
+        FPrivateKey := nil;
     end;
 end;
 
@@ -13549,7 +13695,6 @@ begin
     AssignDefaults;
     if Assigned(X509) then begin
         FX509     := f_X509_dup(X509);
-        FSha1Hash := GetSha1Hash;
     end;
 end;
 
@@ -13673,16 +13818,48 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.GetSha1Hash: AnsiString; { V7.31 }
-var
-    Len : Integer;
+{ * Deprecated and slow, use GetSha1Digest or GetSha1Hex * }
 begin
     if Assigned(FX509) then begin
         SetLength(Result, 20);
-        if f_X509_digest(FX509, f_EVP_sha1, PAnsiChar(Result), @Len) = 0 then
-            Result := '';    
+        Move(Sha1Digest[0], Pointer(Result)^, 20);
     end
     else
         Result := '';
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.Sha1Hash: AnsiString;
+{ * Deprecated and slow, use Sha1Digest or Sha1Hex * }
+begin
+    Result := GetSha1Hash;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetSha1Digest: THashBytes20;
+var
+    Len : Integer;
+begin
+    if Assigned(FX509) and (FSha1Digest = nil) then begin
+        SetLength(FSha1Digest, 20);
+        if f_X509_digest(FX509, f_EVP_sha1, @FSha1Digest[0], @Len) = 0 then
+        begin
+            FSha1Digest := nil;
+            RaiseLastOpenSslError(EX509Exception, TRUE);
+        end;
+    end;
+    Result := FSha1Digest;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetSha1Hex: String;
+begin
+    if FSha1Hex = '' then
+        FSha1Hex := IcsBufferToHex(Sha1Digest[0], 20);
+    Result := FSha1Hex;
 end;
 
 
@@ -13994,7 +14171,9 @@ end;
 procedure TX509Base.AssignDefaults;
 begin
     FVerifyDepth        := 0;
-    FSha1Hash           := '';
+    //FSha1Hash           := '';
+    FSha1Hex            := '';
+    FSha1Digest         := nil;
     FVerifyResult       := X509_V_ERR_APPLICATION_VERIFICATION;
     FCustomVerifyResult := X509_V_ERR_APPLICATION_VERIFICATION;
     FFirstVerifyResult  := X509_V_ERR_APPLICATION_VERIFICATION;
@@ -14251,6 +14430,62 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetSelfSigned: Boolean;
+begin
+    if Assigned(FX509) then
+        Result := f_X509_check_issued(FX509, FX509) = 0
+    else
+        Result := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.IssuedBy(ACert: TX509Base): Boolean;
+begin
+    if Assigned(ACert) and Assigned(ACert.X509) and Assigned(FX509) then
+        Result := f_X509_check_issued(ACert.X509, FX509) = 0
+    else
+        Result := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.IssuerOf(ACert: TX509Base): Boolean;
+begin
+    if Assigned(ACert) and Assigned(ACert.X509) and Assigned(FX509) then
+        Result := f_X509_check_issued(FX509, ACert.X509) = 0
+    else
+        Result := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.SameHash(const ACert: TX509Base): Boolean;
+var
+    I : Integer;
+    P1, P2 : PInteger;
+begin
+    if (FX509 <> nil) and (ACert <> nil) and (ACert.X509 <> nil) then begin
+        P1 := @ACert.Sha1Digest[0];
+        P2 := @Sha1Digest[0];
+        for I := 1 to 4 do begin
+            if (P1^ <> P2^) then
+                Break;
+            Inc(P1);
+            Inc(P2);
+        end;
+        if P1^ = P2^ then
+            Result := TRUE
+        else
+            Result := FALSE
+    end
+    else
+        Result := FALSE;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
 {$IFNDEF NO_DEBUG_LOG}
 function TCustomSslWSocket.GetMyBioName(B: PBIO) : String;
 begin
@@ -14521,7 +14756,7 @@ begin
     FSslEnable              := FALSE;
     FSslContext             := nil;
     FSslAcceptableHosts     := TStringList.Create;
-    FSslCertChain           := TX509List.Create(Self);
+    FSslCertChain           := TX509List.Create(nil);
     FX509Class              := TX509Base;
     {
     FSsl                    := nil;
@@ -17069,14 +17304,17 @@ begin
     FSslPeerCert.X509 := PeerX;
     if Assigned(PeerX) then begin
         { Do we have the peer cert in our chain?                          }
-        RefCert := FSslCertChain.GetByPX509(PeerX);
+        RefCert := FSslCertChain.Find(PeerX);
         f_X509_free(PeerX);
         { If we have a chain with the peer certificate (new session)      }
-        { assign collected verify results.                                }
+        { copy some values.                                               }
         if RefCert <> nil then
         begin
-            FSslPeerCert.VerifyResult      := RefCert.VerifyResult;
-            FSslPeerCert.FirstVerifyResult := RefCert.FirstVerifyResult;
+            FSslPeerCert.FSha1Digest        := RefCert.FSha1Digest;
+            FSslPeerCert.FSha1Hex           := RefCert.FSha1Hex;
+            FSslPeerCert.VerifyResult       := RefCert.VerifyResult;
+            FSslPeerCert.CustomVerifyResult := RefCert.CustomVerifyResult;
+            FSslPeerCert.FirstVerifyResult  := RefCert.FirstVerifyResult;
         end
         { We don't have a chain with peer certificate (reused session )   }
         { get the session verify result from OSSL and assign it. This     }
@@ -17084,7 +17322,7 @@ begin
         { we set "Ok := 1;" in OnSslVerifyPeer event.                     }
         else begin
             FSslPeerCert.VerifyResult := f_SSL_get_verify_result(FSsl);
-            //FSslPeerCert.FirstVerifyResult := FPeerCert.VerifyResult; ?
+            //FSslPeerCert.FirstVerifyResult := FSslPeerCert.VerifyResult; ?
         end;
     end;
 

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      1.15
+Version:      1.16
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -85,6 +85,8 @@ Apr 24, 2011 Arno added some helper rountines since record TEVP_PKEY_st
              changed in 1.0.0 and had to be declared as dummy.
 May 03, 2011 Arno added some function declarations.
 May 08, 2011 Arno added function f_ERR_remove_thread_state new in v1.0.0+.
+May 17, 2011 Arno made one hack thread-safe and got rid of another hack with
+             OSSL v1.0.0+.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -122,8 +124,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 115;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.15 ';
+    IcsLIBEAYVersion   = 116;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.16 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -403,9 +405,60 @@ resourcestring
   sX509_V_ERR_NO_EXPLICIT_POLICY                  = 'no explicit policy';
   sX509_V_ERR_UNNESTED_RESOURCE                   = 'RFC 3779 resource not subset of parent''s resources';
   sX509_V_ERR_NUMBER                              = 'Error number ';
-  
+
 const
 {$ENDIF}
+
+  { Lock IDs for use with CRYPTO_lock() }
+  CRYPTO_LOCK_ERR                     = 1;
+  CRYPTO_LOCK_EX_DATA                 = 2;
+  CRYPTO_LOCK_X509                    = 3;
+  CRYPTO_LOCK_X509_INFO               = 4;
+  CRYPTO_LOCK_X509_PKEY               = 5;
+  CRYPTO_LOCK_X509_CRL                = 6;
+  CRYPTO_LOCK_X509_REQ                = 7;
+  CRYPTO_LOCK_DSA                     = 8;
+  CRYPTO_LOCK_RSA                     = 9;
+  CRYPTO_LOCK_EVP_PKEY                = 10;
+  CRYPTO_LOCK_X509_STORE              = 11;
+  CRYPTO_LOCK_SSL_CTX                 = 12;
+  CRYPTO_LOCK_SSL_CERT                = 13;
+  CRYPTO_LOCK_SSL_SESSION             = 14;
+  CRYPTO_LOCK_SSL_SESS_CERT           = 15;
+  CRYPTO_LOCK_SSL                     = 16;
+  CRYPTO_LOCK_SSL_METHOD              = 17;
+  CRYPTO_LOCK_RAND                    = 18;
+  CRYPTO_LOCK_RAND2                   = 19;
+  CRYPTO_LOCK_MALLOC                  = 20;
+  CRYPTO_LOCK_BIO                     = 21;
+  CRYPTO_LOCK_GETHOSTBYNAME           = 22;
+  CRYPTO_LOCK_GETSERVBYNAME           = 23;
+  CRYPTO_LOCK_READDIR                 = 24;
+  CRYPTO_LOCK_RSA_BLINDING            = 25;
+  CRYPTO_LOCK_DH                      = 26;
+  CRYPTO_LOCK_MALLOC2                 = 27;
+  CRYPTO_LOCK_DSO                     = 28;
+  CRYPTO_LOCK_DYNLOCK                 = 29;
+  CRYPTO_LOCK_ENGINE                  = 30;
+  CRYPTO_LOCK_UI                      = 31;
+  CRYPTO_LOCK_ECDSA                   = 32;
+  CRYPTO_LOCK_EC                      = 33;
+  CRYPTO_LOCK_ECDH                    = 34;
+  CRYPTO_LOCK_BN                      = 35;
+  CRYPTO_LOCK_EC_PRE_COMP             = 36;
+  CRYPTO_LOCK_STORE                   = 37;
+  CRYPTO_LOCK_COMP                    = 38;
+  CRYPTO_LOCK_FIPS                    = 39;
+  CRYPTO_LOCK_FIPS2                   = 40;
+  CRYPTO_NUM_LOCKS                    = 41;
+
+  { mode param of CRYPTO_lock()                                              }
+  { These values are pairwise exclusive, with undefined behaviour if misused }
+  {(for example, CRYPTO_READ and CRYPTO_WRITE should not be used together):  }
+  CRYPTO_LOCK                         = 1;
+  CRYPTO_UNLOCK                       = 2;
+  CRYPTO_READ                         = 4;
+  CRYPTO_WRITE                        = 8;
 
     // Certificate verify flags
 
@@ -636,12 +689,6 @@ const
     BIO_CB_RETURN   = $80;
 
 //const
-    CRYPTO_LOCK     = 1;
-    CRYPTO_UNLOCK   = 2;
-    CRYPTO_READ     = 4;
-    CRYPTO_WRITE    = 8;
-
-//const
     X509V3_EXT_DYNAMIC      = $1;
     X509V3_EXT_CTX_DEP      = $2;
     X509V3_EXT_MULTILINE    = $4;
@@ -727,6 +774,7 @@ const
     f_i2d_PKCS12_bio :                         function(B: PBIO; p12: PPKCS12): Integer; cdecl = nil;
     f_d2i_PKCS7_bio:                           function(B: PBIO; p7: PPKCS7): PPKCS7; cdecl = nil; //AG
 
+    f_CRYPTO_lock :                            procedure(mode, n: Longint; file_: PAnsiChar; line: Longint); cdecl = nil; //AG
     f_CRYPTO_add_lock :                        procedure(IntPtr: PInteger; amount: Integer; type_: Integer; const file_ : PAnsiChar; line: Integer); cdecl = nil;
     f_CRYPTO_num_locks :                       function: Integer; cdecl = nil;
     f_CRYPTO_set_id_callback :                 procedure(CB : TStatLockIDCallback); cdecl = nil;
@@ -813,6 +861,8 @@ const
     f_EVP_sha256 :                             function: PEVP_MD; cdecl = nil;//AG
     f_EVP_md5 :                                function: PEVP_MD; cdecl = nil;//AG
     f_EVP_PKEY_free :                          procedure(PKey: PEVP_PKEY); cdecl = nil;//AG
+    { Next is v1.0.0+ ** check for nil ** }
+    f_EVP_PKEY_get0 :                          function(PKey: PEVP_PKEY): Pointer; cdecl = nil;//AG
     f_EVP_PKEY_new :                           function: PEVP_PKEY; cdecl = nil;//AG
     f_EVP_PKEY_assign :                        function(PKey: PEVP_PKEY; Type_: Integer; Key: PAnsiChar): Integer; cdecl = nil;//AG
     f_EVP_PKEY_size :                          function(Pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
@@ -1019,6 +1069,7 @@ const
     FN_i2d_PKCS12_bio                         = 'i2d_PKCS12_bio';
     FN_d2i_PKCS7_bio                          = 'd2i_PKCS7_bio';
 
+    FN_CRYPTO_lock                            = 'CRYPTO_lock';
     FN_CRYPTO_add_lock                        = 'CRYPTO_add_lock';
     FN_CRYPTO_num_locks                       = 'CRYPTO_num_locks';
     FN_CRYPTO_set_locking_callback            = 'CRYPTO_set_locking_callback';
@@ -1105,6 +1156,7 @@ const
     FN_EVP_md5                                = 'EVP_md5'; //AG
     FN_EVP_PKEY_new                           = 'EVP_PKEY_new'; //AG
     FN_EVP_PKEY_free                          = 'EVP_PKEY_free'; //AG
+    FN_EVP_PKEY_get0                          = 'EVP_PKEY_get0'; // AG
     FN_EVP_PKEY_assign                        = 'EVP_PKEY_assign'; //AG
     FN_EVP_PKEY_size                          = 'EVP_PKEY_size'; //AG
     FN_EVP_PKEY_bits                          = 'EVP_PKEY_bits'; //AG
@@ -1480,6 +1532,7 @@ begin
     f_i2d_PKCS12_bio                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_PKCS12_bio);
     f_d2i_PKCS7_bio                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_PKCS7_bio);
 
+    f_CRYPTO_lock                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_lock);
     f_CRYPTO_add_lock                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_add_lock);
     f_CRYPTO_num_locks                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_num_locks);
     f_CRYPTO_set_locking_callback            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_locking_callback);
@@ -1564,6 +1617,8 @@ begin
     f_EVP_md5                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_md5); //AG
     f_EVP_PKEY_new                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_new); //AG
     f_EVP_PKEY_free                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_free); //AG
+    { Next is v1.0.0+ ** check for nil ** }
+    f_EVP_PKEY_get0                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_get0); //AG
     f_EVP_PKEY_assign                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_assign); //AG
     f_EVP_PKEY_size                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_size); //AG
     f_EVP_PKEY_bits                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_bits); //AG
@@ -1736,6 +1791,7 @@ begin
                    (@f_i2d_PKCS12_bio                         = nil) or
                    (@f_d2i_PKCS7_bio                          = nil) or
 
+                   (@f_CRYPTO_lock                            = nil) or
                    (@f_CRYPTO_add_lock                        = nil) or
                    (@f_CRYPTO_num_locks                       = nil) or
                    (@f_CRYPTO_set_locking_callback            = nil) or
@@ -1817,6 +1873,8 @@ begin
                    (@f_EVP_sha256                             = nil) or //AG
                    (@f_EVP_md5                                = nil) or //AG
                    (@f_EVP_PKEY_free                          = nil) or //AG
+                   { Next is v1.0.0+ ** check for nil ** }
+                   //(@f_EVP_PKEY_get0                          = nil) or //AG 
                    (@f_EVP_PKEY_new                           = nil) or //AG
                    (@f_EVP_PKEY_assign                        = nil) or //AG
                    (@f_EVP_PKEY_size                          = nil) or //AG
@@ -2006,6 +2064,7 @@ begin
     if @f_i2d_PKCS12_bio                         = nil then Result := Result + SP + FN_i2d_PKCS12_bio;
     if @f_d2i_PKCS7_bio                          = nil then Result := Result + SP + FN_d2i_PKCS7_bio;
 
+    if @f_CRYPTO_lock                            = nil then Result := Result + SP + FN_CRYPTO_lock;
     if @f_CRYPTO_add_lock                        = nil then Result := Result + SP + FN_CRYPTO_add_lock;
     if @f_CRYPTO_num_locks                       = nil then Result := Result + SP + FN_CRYPTO_num_locks;
     if @f_CRYPTO_set_locking_callback            = nil then Result := Result + SP + FN_CRYPTO_set_locking_callback;
@@ -2087,6 +2146,8 @@ begin
     if @f_EVP_sha256                             = nil then Result := Result + SP + FN_EVP_sha256; //AG
     if @f_EVP_md5                                = nil then Result := Result + SP + FN_EVP_md5; //AG
     if @f_EVP_PKEY_free                          = nil then Result := Result + SP + FN_EVP_PKEY_free; //AG
+    { Next is v1.0.0+ ** check for nil ** }
+    //if @f_EVP_PKEY_get0                          = nil then Result := Result + SP + FN_EVP_PKEY_get0; //AG
     if @f_EVP_PKEY_new                           = nil then Result := Result + SP + FN_EVP_PKEY_new; //AG
     if @f_EVP_PKEY_assign                        = nil then Result := Result + SP + FN_EVP_PKEY_assign; //AG
     if @f_EVP_PKEY_size                          = nil then Result := Result + SP + FN_EVP_PKEY_size; //AG
@@ -2744,21 +2805,29 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure Ics_Ssl_EVP_PKEY_IncRefCnt(K: PEVP_PKEY; Increment: Integer = 1);
 begin
-    { This is a hack and might change with new OSSL version, search }
-    { for "struct EVP_PKEY_st"                                      }
-    Inc(PInteger(PAnsiChar(K) + 2 * SizeOf(Longint))^, Increment);
+    { This is thread-safe only with a TSslStaticLock or TSslDynamicLock.    }
+    { From the OpenSSL sources I know that lock-ID CRYPTO_LOCK_EVP_PKEY is  }
+    { used by OpenSSL to protect EVP_PKEY_st.references field.              }
+    f_Crypto_lock(CRYPTO_LOCK, CRYPTO_LOCK_EVP_PKEY,
+                  PAnsiChar('Ics_Ssl_EVP_PKEY_IncRefCnt'), 0);
+    try
+        { This is a hack and might change with new OSSL version, search for }
+        { "struct EVP_PKEY_st" field "references".                                  }
+        Inc(PInteger(PAnsiChar(K) + 2 * SizeOf(Longint))^, Increment);
+    finally
+        f_Crypto_lock(CRYPTO_UNLOCK, CRYPTO_LOCK_EVP_PKEY,
+                      PAnsiChar('Ics_Ssl_EVP_PKEY_IncRefCnt'), 0);
+    end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function Ics_Ssl_EVP_PKEY_GetKey(K: PEVP_PKEY): Pointer;
 begin
-    { This is a hack and might change with new OSSL version, search }
-    { for "struct EVP_PKEY_st"                                      }
-    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1000 then
-        Result := Pointer(PSize_t(PAnsiChar(K) + (3 * SizeOf(Longint)) +
-                                                 (2 * SizeOf(Pointer)))^)
+    if @f_EVP_PKEY_get0 <> nil then // v1.0.0+
+        Result := f_EVP_PKEY_get0(K)
     else
+        { This is a hack }
         Result := Pointer(PSize_t(PAnsiChar(K) + 3 * SizeOf(Longint))^);
 end;
 

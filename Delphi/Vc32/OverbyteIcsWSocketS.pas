@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      7.03
+Version:      7.04
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -93,6 +93,7 @@ Feb 4,  2011 V7.02 Angus added bandwidth throttling using TCustomThrottledWSocke
                    timer may have been started by then so better to default to
                    BandwidthLimit=0 and set it, than to disable it.
 Apr 15, 2011 V7.03 Arno prepared for 64-bit.
+May 13, 2011 V7.04 Anton S. found a small issue with CliId.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -156,8 +157,8 @@ uses
     OverbyteIcsWSocket, OverbyteIcsWinsock;
 
 const
-    WSocketServerVersion     = 703;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2011 F. Piette V7.03 ';
+    WSocketServerVersion     = 704;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2011 F. Piette V7.04 ';
     DefaultBanner            = 'Welcome to OverByte ICS TcpSrv';
 
 type
@@ -478,7 +479,7 @@ begin
     if Error <> 0 then
         Exit;
 
-    if FClientNum >= $7FFFFF then
+    if Cardinal(FClientNum) >= Cardinal(MaxInt) then    { V7.04 }
         FClientNum := 0;                                { angus V7.00 }
     Inc(FClientNum);
     Client := nil;

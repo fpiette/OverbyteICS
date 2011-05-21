@@ -4,12 +4,12 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      7.16
+Version:      7.17
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1998-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -396,6 +396,7 @@ Oct 12, 2010 V7.14 Arno published OnBgException from underlaying server socket.
 Nov 08, 2010 V7.15 Arno improved final exception handling, more details
              in OverbyteIcsWndControl.pas (V1.14 comments).
 Feb 7,  2010 V7.16 Angus ensure control channel is correctly BandwidthLimited
+May 21, 2011 V7.17 Arno ensure CommandAUTH resets the SSL prot-level correctly.
 
 Angus pending -
 CRC on the fly
@@ -485,8 +486,8 @@ uses
 
 
 const
-    FtpServerVersion         = 716;
-    CopyRight : String       = ' TFtpServer (c) 1998-2011 F. Piette V7.16 ';
+    FtpServerVersion         = 717;
+    CopyRight : String       = ' TFtpServer (c) 1998-2011 F. Piette V7.17 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
     DefaultRcvSize           = 16384;    { V7.00 used for both xmit and recv, was 2048, too small }
 
@@ -7670,10 +7671,15 @@ begin
         else
             Answer := Format(msgAuthDenied, ['SSL/TLS']);
         Client.FtpState  := ftpcWaitingUserCode;     // Need to force re-login
-        if Client.CurFtpSslType <> curftpAuthTlsP then
-            Client.ProtP     := FALSE               // Need to reset prot-level as well
-        else
-            Client.ProtP     := TRUE;
+
+        { V7.17 }
+        if Client.CurFtpSslType = curftpAuthTlsP then // Need to reset prot-level as well
+            Client.ProtP := TRUE
+        else if Client.CurFtpSslType = curftpAuthTlsC then
+            Client.ProtP := FALSE;
+        { else as is }
+        { / V7.17 }
+
     except
         Client.CurFtpSslType            := curftpSslNone;
         Client.SslEnable                := False;

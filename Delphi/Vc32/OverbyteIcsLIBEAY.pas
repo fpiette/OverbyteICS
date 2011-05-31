@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      1.16
+Version:      1.17
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -87,6 +87,7 @@ May 03, 2011 Arno added some function declarations.
 May 08, 2011 Arno added function f_ERR_remove_thread_state new in v1.0.0+.
 May 17, 2011 Arno made one hack thread-safe and got rid of another hack with
              OSSL v1.0.0+.
+May 31, 2011 Arno changed the 64-bit hack in Ics_Ssl_EVP_PKEY_GetKey.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -124,8 +125,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 116;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.16 ';
+    IcsLIBEAYVersion   = 117;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2011 F. Piette V1.17 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -2812,7 +2813,7 @@ begin
                   PAnsiChar('Ics_Ssl_EVP_PKEY_IncRefCnt'), 0);
     try
         { This is a hack and might change with new OSSL version, search for }
-        { "struct EVP_PKEY_st" field "references".                                  }
+        { "struct EVP_PKEY_st" field "references".                          }
         Inc(PInteger(PAnsiChar(K) + 2 * SizeOf(Longint))^, Increment);
     finally
         f_Crypto_lock(CRYPTO_UNLOCK, CRYPTO_LOCK_EVP_PKEY,
@@ -2827,8 +2828,12 @@ begin
     if @f_EVP_PKEY_get0 <> nil then // v1.0.0+
         Result := f_EVP_PKEY_get0(K)
     else
-        { This is a hack }
+        { * This is a hack * }
+    {$IFDEF CPUX64} // Alignment of OSSL records is 8 bytes!
+        Result := Pointer(PSize_t(PAnsiChar(K) + 4 * SizeOf(Longint))^);
+    {$ELSE}
         Result := Pointer(PSize_t(PAnsiChar(K) + 3 * SizeOf(Longint))^);
+    {$ENDIF}
 end;
 
 

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.79
+Version:      7.80
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -905,7 +905,9 @@ May 17, 2011 v7.79 Arno added Sha1Hex, Sha1Digest, IssuedBy, IssuerOf and
                    buggy storing binary in strings. Return values of Sha1Hex
                    and Sha1Digest are cached. Reworked TX509List and added new
                    methods.
-                   
+Jun 08, 2011 v7.80 Arno added x64 assembler routines, untested so far.
+
+
 }
 
 {
@@ -983,7 +985,7 @@ unit OverbyteIcsWSocket;
     {$ObjExportAll On}
 {$ENDIF}
 {$IFDEF CPUX64}
-  {$DEFINE PUREPASCAL}
+  {.$DEFINE PUREPASCAL}
 {$ENDIF}
 
 interface
@@ -1018,8 +1020,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 779;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.79 ';
+  WSocketVersion            = 780;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.80 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -5511,6 +5513,23 @@ begin
             Result := FConnectTick;
 {$ELSE}
 asm
+{$IFDEF CPUX64}
+    MOV EDX, [RCX].FLastSendTick
+    MOV EAX, [RCX].FConnectTick
+    MOV ECX, [RCX].FLastRecvTick
+    CMP EAX, EDX
+    JB  @below
+    MOV EDX, ECX
+    JMP @more
+@below:
+    MOV EAX, ECX
+@more:
+    CMP EAX, EDX
+    JB  @done
+    RET
+@done:
+    MOV EAX, EDX
+{$ELSE}
     mov ecx, [eax].FLastRecvTick
     mov edx, [eax].FLastSendTick
     mov eax, [eax].FConnectTick
@@ -5526,6 +5545,7 @@ asm
     ret
 @done:
     mov eax, edx
+{$ENDIF}
 {$ENDIF}
 end;
 

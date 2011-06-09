@@ -9,7 +9,7 @@ MAKE = $(ROOT)\bin\make.exe -$(MAKEFLAGS) -f$**
 DCC = $(ROOT)\bin\dcc32.exe $**
 BRCC = $(ROOT)\bin\brcc32.exe $**
 #------------------------------------------------------------------------------
-PROJECTS =  OverByteIcsWndControlTest.exe OverbyteIcsSHA1Test.exe\
+PROJECTS =  OverByteIcsWndControlTest.exe OverbyteIcsSHA1Test.exe \
   OverbyteIcsMD4Test.exe OverbyteIcsMD5Test.exe OverbyteIcsTimerDemo.exe \
   OverbyteIcsOneTimePassword.exe OverbyteIcsCacheTest.exe OverbyteIcsBufStrmTst.exe \
   OverbyteIcsThreadTimerDemo.exe

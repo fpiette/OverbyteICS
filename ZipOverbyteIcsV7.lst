@@ -825,91 +825,74 @@ cpp\Internet\CBXe\OverbyteIcsWebServ.cbproj
 cpp\Internet\CBXe\OverbyteIcsWebServ.cpp
 cpp\Internet\CBXe\OverbyteIcsWebServ.res
 
+Delphi\Internet\Dcu\dir.txt
 Delphi\Internet\fp_small.gif
 Delphi\Internet\ics_logo.gif
 
-Delphi\Internet\OverbyteIcsCliDemo.bdsproj
-Delphi\Internet\OverbyteIcsCliDemo.dproj
+Delphi\Internet\OverbyteIcsDemo.bpg
+
+Delphi\Internet\OverbyteIcsCliDemo.dof
 Delphi\Internet\OverbyteIcsCliDemo.dpr
 Delphi\Internet\OverbyteIcsCliDemo.res
 Delphi\Internet\OverbyteIcsCliDemo1.pas
 Delphi\Internet\OverbyteIcsCliDemo1.dfm
 
-Delphi\Internet\OverbyteIcsBinCliDemo.bdsproj
-Delphi\Internet\OverbyteIcsBinCliDemo.dproj
+Delphi\Internet\OverbyteIcsBinCliDemo.dof
 Delphi\Internet\OverbyteIcsBinCliDemo.dpr
 Delphi\Internet\OverbyteIcsBinCliDemo.res
 Delphi\Internet\OverbyteIcsBinCliDemo1.pas
 Delphi\Internet\OverbyteIcsBinCliDemo1.dfm
 
-Delphi\Internet\OverbyteIcsConFtp.bdsproj
 Delphi\Internet\OverbyteIcsConFtp.dpr
-Delphi\Internet\OverbyteIcsConFtp.dproj
 Delphi\Internet\OverbyteIcsConFtp.dof
 
-Delphi\Internet\OverbyteIcsD7Sam.bpg
-Delphi\Internet\OverbyteIcsD2006Sam.bdsgroup
-Delphi\Internet\OverbyteIcsD2007Sam.groupproj
-Delphi\Internet\OverbyteIcsD2009Sam.groupproj
-Delphi\Internet\OverbyteIcsD2010Sam.groupproj
-Delphi\Internet\OverbyteIcsDXeSam.groupproj
-
-Delphi\Internet\OverbyteIcsConHttp.bdsproj
-Delphi\Internet\OverbyteIcsConHttp.dproj
 Delphi\Internet\OverbyteIcsConHttp.dpr
 Delphi\Internet\OverbyteIcsConHttp.dof
 
-Delphi\Internet\OverbyteIcsHttpAsy.bdsproj
-Delphi\Internet\OverbyteIcsHttpAsy.dproj
+Delphi\Internet\OverbyteIcsHttpAsy.dof
 Delphi\Internet\OverbyteIcsHttpAsy.dpr
 Delphi\Internet\OverbyteIcsHttpAsy.res
 Delphi\Internet\OverbyteIcsHttpAsy1.pas
 Delphi\Internet\OverbyteIcsHttpAsy1.dfm
 
-Delphi\Internet\OverbyteIcsHttpAsp.bdsproj
-Delphi\Internet\OverbyteIcsHttpAsp.dproj
+Delphi\Internet\OverbyteIcsHttpAsp.dof
 Delphi\Internet\OverbyteIcsHttpAsp.dpr
 Delphi\Internet\OverbyteIcsHttpAsp.res
 Delphi\Internet\OverbyteIcsHttpAsp1.pas
 Delphi\Internet\OverbyteIcsHttpAsp1.dfm
 
-Delphi\Internet\OverbyteIcsDnsLook.bdsproj
-Delphi\Internet\OverbyteIcsDnsLook.dproj
+Delphi\Internet\OverbyteIcsDnsLook.dof
 Delphi\Internet\OverbyteIcsDnsLook.dpr
 Delphi\Internet\OverbyteIcsDnsLook.res
 Delphi\Internet\OverbyteIcsDnsLook1.pas
 Delphi\Internet\OverbyteIcsDnsLook1.dfm
 
-Delphi\Internet\OverbyteIcsDnsResolver.bdsproj
-Delphi\Internet\OverbyteIcsDnsResolver.dproj
+Delphi\Internet\OverbyteIcsDnsResolver.dof
 Delphi\Internet\OverbyteIcsDnsResolver.dpr
 Delphi\Internet\OverbyteIcsDnsResolver.res
 Delphi\Internet\OverbyteIcsDnsResolver1.pas
 Delphi\Internet\OverbyteIcsDnsResolver1.dfm
 
-Delphi\Internet\OverbyteIcsHttpMultipartDownload.bdsproj
+Delphi\Internet\OverbyteIcsHttpMultipartDownload.dof
 Delphi\Internet\OverbyteIcsHttpMultipartDownload.dpr
-Delphi\Internet\OverbyteIcsHttpMultipartDownload.dproj
 Delphi\Internet\OverbyteIcsHttpMultipartDownload.res
 Delphi\Internet\OverbyteIcsHttpMultipartDownload1.dfm
 Delphi\Internet\OverbyteIcsHttpMultipartDownload1.pas
 
-Delphi\Internet\OverbyteIcsFtpMultipartDownload.bdsproj
+Delphi\Internet\OverbyteIcsFtpMultipartDownload.dof
 Delphi\Internet\OverbyteIcsFtpMultipartDownload.dpr
-Delphi\Internet\OverbyteIcsFtpMultipartDownload.dproj
 Delphi\Internet\OverbyteIcsFtpMultipartDownload.res
 Delphi\Internet\OverbyteIcsFtpMultipartDownload1.dfm
 Delphi\Internet\OverbyteIcsFtpMultipartDownload1.pas
 
-Delphi\Internet\OverbyteIcsFtpServ.bdsproj
+Delphi\Internet\OverbyteIcsFtpServ.dof
 Delphi\Internet\OverbyteIcsFtpServ.dpr
-Delphi\Internet\OverbyteIcsFtpServ.dproj
 Delphi\Internet\OverbyteIcsFtpServ.res
 Delphi\Internet\OverbyteIcsFtpServ1.dfm
 Delphi\Internet\OverbyteIcsFtpServ1.pas
-Delphi\Internet\OverbyteIcsFtpTst.bdsproj
+
+Delphi\Internet\OverbyteIcsFtpTst.dof
 Delphi\Internet\OverbyteIcsFtpTst.dpr
-Delphi\Internet\OverbyteIcsFtpTst.dproj
 Delphi\Internet\OverbyteIcsFtpTst.res
 Delphi\Internet\OverbyteIcsFtpTst1.dfm
 Delphi\Internet\OverbyteIcsFtpTst1.pas
@@ -918,52 +901,52 @@ Delphi\Internet\OverbyteIcsFtpTst2.pas
 Delphi\Internet\ftpaccounts-default.ini
 Delphi\Internet\ftpaccounts-[127.0.0.1].ini
 
-Delphi\Internet\OverbyteIcsHttpPost.bdsproj
+Delphi\Internet\OverbyteIcsHttpPost.dof
 Delphi\Internet\OverbyteIcsHttpPost.dpr
-Delphi\Internet\OverbyteIcsHttpPost.dproj
 Delphi\Internet\OverbyteIcsHttpPost.res
 Delphi\Internet\OverbyteIcsHttpPost1.dfm
 Delphi\Internet\OverbyteIcsHttpPost1.pas
-Delphi\Internet\OverbyteIcsHttpTst.bdsproj
+
+Delphi\Internet\OverbyteIcsHttpTst.dof
 Delphi\Internet\OverbyteIcsHttpTst.dpr
-Delphi\Internet\OverbyteIcsHttpTst.dproj
 Delphi\Internet\OverbyteIcsHttpTst.res
 Delphi\Internet\OverbyteIcsHttpTst1.dfm
 Delphi\Internet\OverbyteIcsHttpTst1.pas
-Delphi\Internet\OverbyteIcsMailRcv.bdsproj
+
+Delphi\Internet\OverbyteIcsMailRcv.dof
 Delphi\Internet\OverbyteIcsMailRcv.dpr
-Delphi\Internet\OverbyteIcsMailRcv.dproj
 Delphi\Internet\OverbyteIcsMailRcv.res
 Delphi\Internet\OverbyteIcsMailRcv1.dfm
 Delphi\Internet\OverbyteIcsMailRcv1.pas
 Delphi\Internet\OverbyteIcsMailRcv2.dfm
 Delphi\Internet\OverbyteIcsMailRcv2.pas
-Delphi\Internet\OverbyteIcsMailHtml.dproj
+
+Delphi\Internet\OverbyteIcsMailHtml.dof
 Delphi\Internet\OverbyteIcsMailHtml.dpr
 Delphi\Internet\OverbyteIcsMailHtml.res
 Delphi\Internet\OverbyteIcsMailHtm1.dfm
 Delphi\Internet\OverbyteIcsMailHtm1.pas
-Delphi\Internet\OverbyteIcsMailSnd.bdsproj
+
+Delphi\Internet\OverbyteIcsMailSnd.dof
 Delphi\Internet\OverbyteIcsMailSnd.dpr
-Delphi\Internet\OverbyteIcsMailSnd.dproj
 Delphi\Internet\OverbyteIcsMailSnd.res
 Delphi\Internet\OverbyteIcsMailSnd1.dfm
 Delphi\Internet\OverbyteIcsMailSnd1.pas
 
-Delphi\Internet\OverbyteIcsSysLogClientDemo.dproj
+Delphi\Internet\OverbyteIcsSysLogClientDemo.dof
 Delphi\Internet\OverbyteIcsSysLogClientDemo.dpr
 Delphi\Internet\OverbyteIcsSysLogClientDemo.res
 Delphi\Internet\OverbyteIcsSysLogClientDemo1.pas
 Delphi\Internet\OverbyteIcsSysLogClientDemo1.dfm
-Delphi\Internet\OverbyteIcsSysLogServerDemo.dproj
+
+Delphi\Internet\OverbyteIcsSysLogServerDemo.dof
 Delphi\Internet\OverbyteIcsSysLogServerDemo.dpr
 Delphi\Internet\OverbyteIcsSysLogServerDemo.res
 Delphi\Internet\OverbyteIcsSysLogServerDemo1.pas
 Delphi\Internet\OverbyteIcsSysLogServerDemo1.dfm
 
-Delphi\Internet\OverbyteIcsMimeDemo.bdsproj
+Delphi\Internet\OverbyteIcsMimeDemo.dof
 Delphi\Internet\OverbyteIcsMimeDemo.dpr
-Delphi\Internet\OverbyteIcsMimeDemo.dproj
 Delphi\Internet\OverbyteIcsMimeDemo.res
 Delphi\Internet\OverbyteIcsMimeDemo1.dfm
 Delphi\Internet\OverbyteIcsMimeDemo1.pas
@@ -973,44 +956,38 @@ Delphi\Internet\mime-demo3.txt
 Delphi\Internet\mime-demo4.txt
 Delphi\Internet\mime-demo5.txt
 
-Delphi\Internet\OverbyteIcsNewsReader.bdsproj
+Delphi\Internet\OverbyteIcsNewsReader.dof
 Delphi\Internet\OverbyteIcsNewsReader.dpr
-Delphi\Internet\OverbyteIcsNewsReader.dproj
 Delphi\Internet\OverbyteIcsNewsReader.res
 Delphi\Internet\OverbyteIcsNewsReader1.dfm
 Delphi\Internet\OverbyteIcsNewsReader1.pas
 
-Delphi\Internet\OverbyteIcsNsLookup.bdsproj
+Delphi\Internet\OverbyteIcsNsLookup.dof
 Delphi\Internet\OverbyteIcsNsLookup.dpr
-Delphi\Internet\OverbyteIcsNsLookup.dproj
 Delphi\Internet\OverbyteIcsNsLookup.res
 Delphi\Internet\OverbyteIcsNsLookup1.dfm
 Delphi\Internet\OverbyteIcsNsLookup1.pas
 
-Delphi\Internet\OverbyteIcsPingTst.bdsproj
+Delphi\Internet\OverbyteIcsPingTst.dof
 Delphi\Internet\OverbyteIcsPingTst.dpr
-Delphi\Internet\OverbyteIcsPingTst.dproj
 Delphi\Internet\OverbyteIcsPingTst.res
 Delphi\Internet\OverbyteIcsPingTst1.dfm
 Delphi\Internet\OverbyteIcsPingTst1.pas
 
-Delphi\Internet\OverbyteIcsTcpSrv.bdsproj
+Delphi\Internet\OverbyteIcsTcpSrv.dof
 Delphi\Internet\OverbyteIcsTcpSrv.dpr
-Delphi\Internet\OverbyteIcsTcpSrv.dproj
 Delphi\Internet\OverbyteIcsTcpSrv.res
 Delphi\Internet\OverbyteIcsTcpSrv1.dfm
 Delphi\Internet\OverbyteIcsTcpSrv1.pas
 
-Delphi\Internet\OverbyteIcsTelnetClient.bdsproj
+Delphi\Internet\OverbyteIcsTelnetClient.dof
 Delphi\Internet\OverbyteIcsTelnetClient.dpr
-Delphi\Internet\OverbyteIcsTelnetClient.dproj
 Delphi\Internet\OverbyteIcsTelnetClient.res
 Delphi\Internet\OverbyteIcsTelnetClient1.dfm
 Delphi\Internet\OverbyteIcsTelnetClient1.pas
 
-Delphi\Internet\OverbyteIcsWebServ.bdsproj
+Delphi\Internet\OverbyteIcsWebServ.dof
 Delphi\Internet\OverbyteIcsWebServ.dpr
-Delphi\Internet\OverbyteIcsWebServ.dproj
 Delphi\Internet\OverbyteIcsWebServ.res
 Delphi\Internet\OverbyteIcsWebServ1.dfm
 Delphi\Internet\OverbyteIcsWebServ1.pas
@@ -1025,10 +1002,9 @@ Delphi\Internet\WebServData\Template\FormData.html
 Delphi\Internet\WebServData\Template\FormData1.html
 Delphi\Internet\WebServData\Template\TemplateDemo.html
 
+Delphi\Internet\OverbyteIcsWebAppServer.dof
 Delphi\Internet\OverbyteIcsWebAppServer.dpr
 Delphi\Internet\OverbyteIcsWebAppServer.res
-Delphi\Internet\OverbyteIcsWebAppServer.dproj
-Delphi\Internet\OverbyteIcsWebAppServer.bdsproj
 Delphi\Internet\OverbyteIcsWebAppServerMain.pas
 Delphi\Internet\OverbyteIcsWebAppServerMain.dfm
 Delphi\Internet\OverbyteIcsWebAppServerLogin.pas
@@ -1058,191 +1034,120 @@ Delphi\Internet\WebAppServerData\wwwRoot\Js\md5.js
 
 Delphi\Internet\OverbyteIcsConSmtp.dpr
 Delphi\Internet\OverbyteIcsConSmtp.dof
-Delphi\Internet\OverbyteIcsConSmtp.dproj
-Delphi\Internet\OverbyteIcsConSmtp.bdsproj
 
+Delphi\Internet\OverbyteIcsBasFtp.dof
 Delphi\Internet\OverbyteIcsBasFtp.dpr
 Delphi\Internet\OverbyteIcsBasFtp.res
-Delphi\Internet\OverbyteIcsBasFtp.dof
-Delphi\Internet\OverbyteIcsBasFtp.cfg
-Delphi\Internet\OverbyteIcsBasFtp.bdsproj
-Delphi\Internet\OverbyteIcsBasFtp.dproj
 Delphi\Internet\OverbyteIcsBasFtp1.dfm
 Delphi\Internet\OverbyteIcsBasFtp1.pas
 
+Delphi\Internet\OverbyteIcsBasNntp.dof
 Delphi\Internet\OverbyteIcsBasNntp.dpr
 Delphi\Internet\OverbyteIcsBasNntp.res
-Delphi\Internet\OverbyteIcsBasNntp.dof
-Delphi\Internet\OverbyteIcsBasNntp.cfg
-Delphi\Internet\OverbyteIcsBasNntp.bdsproj
-Delphi\Internet\OverbyteIcsBasNntp.dproj
 Delphi\Internet\OverbyteIcsBasNntp1.pas
 Delphi\Internet\OverbyteIcsBasNntp1.dfm
 
+Delphi\Internet\OverbyteIcsClient5.dof
 Delphi\Internet\OverbyteIcsClient5.dpr
 Delphi\Internet\OverbyteIcsClient5.res
-Delphi\Internet\OverbyteIcsClient5.dof
-Delphi\Internet\OverbyteIcsClient5.cfg
-Delphi\Internet\OverbyteIcsClient5.bdsproj
-Delphi\Internet\OverbyteIcsClient5.dproj
 Delphi\Internet\OverbyteIcsCli5.pas
 Delphi\Internet\OverbyteIcsCli5.dfm
 
+Delphi\Internet\OverbyteIcsClient7.dof
 Delphi\Internet\OverbyteIcsClient7.dpr
 Delphi\Internet\OverbyteIcsClient7.res
-Delphi\Internet\OverbyteIcsClient7.dof
-Delphi\Internet\OverbyteIcsClient7.cfg
-Delphi\Internet\OverbyteIcsClient7.bdsproj
-Delphi\Internet\OverbyteIcsClient7.dproj
 Delphi\Internet\OverbyteIcsCli7.pas
 Delphi\Internet\OverbyteIcsCli7.dfm
 
 Delphi\Internet\OverbyteIcsConCli1.dpr
 Delphi\Internet\OverbyteIcsConCli1.dof
-Delphi\Internet\OverbyteIcsConCli1.cfg
-Delphi\Internet\OverbyteIcsConCli1.bdsproj
-Delphi\Internet\OverbyteIcsConCli1.dproj
 
 Delphi\Internet\OverbyteIcsConCli2.dpr
 Delphi\Internet\OverbyteIcsConCli2.dof
-Delphi\Internet\OverbyteIcsConCli2.cfg
-Delphi\Internet\OverbyteIcsConCli2.bdsproj
-Delphi\Internet\OverbyteIcsConCli2.dproj
 
 Delphi\Internet\OverbyteIcsConPing.dpr
 Delphi\Internet\OverbyteIcsConPing.dof
-Delphi\Internet\OverbyteIcsConPing.cfg
-Delphi\Internet\OverbyteIcsConPing.bdsproj
-Delphi\Internet\OverbyteIcsConPing.dproj
 
 Delphi\Internet\OverbyteIcsConPop3.dpr
 Delphi\Internet\OverbyteIcsConPop3.dof
-Delphi\Internet\OverbyteIcsConPop3.cfg
-Delphi\Internet\OverbyteIcsConPop3.bdsproj
-Delphi\Internet\OverbyteIcsConPop3.dproj
 
 Delphi\Internet\OverbyteIcsConSrv1.dpr
 Delphi\Internet\OverbyteIcsConSrv1.dof
-Delphi\Internet\OverbyteIcsConSrv1.cfg
-Delphi\Internet\OverbyteIcsConSrv1.bdsproj
-Delphi\Internet\OverbyteIcsConSrv1.dproj
 Delphi\Internet\OverbyteIcsConSrv1C.pas
 Delphi\Internet\OverbyteIcsConSrv1S.pas
 
 Delphi\Internet\OverbyteIcsConUdpLstn.dpr
 Delphi\Internet\OverbyteIcsConUdpLstn.dof
-Delphi\Internet\OverbyteIcsConUdpLstn.cfg
-Delphi\Internet\OverbyteIcsConUdpLstn.bdsproj
-Delphi\Internet\OverbyteIcsConUdpLstn.dproj
 
 Delphi\Internet\OverbyteIcsDll1.dpr
-Delphi\Internet\OverbyteIcsDll1.cfg
 Delphi\Internet\OverbyteIcsDll1.dof
-Delphi\Internet\OverbyteIcsDll1.bdsproj
-Delphi\Internet\OverbyteIcsDll1.dproj
 
 Delphi\Internet\OverbyteIcsDll2.dpr
-Delphi\Internet\OverbyteIcsDll2.cfg
 Delphi\Internet\OverbyteIcsDll2.dof
-Delphi\Internet\OverbyteIcsDll2.bdsproj
-Delphi\Internet\OverbyteIcsDll2.dproj
 
 Delphi\Internet\OverbyteIcsDllTst.dpr
 Delphi\Internet\OverbyteIcsDllTst.res
 Delphi\Internet\OverbyteIcsDllTst.dof
-Delphi\Internet\OverbyteIcsDllTst.cfg
-Delphi\Internet\OverbyteIcsDllTst.bdsproj
-Delphi\Internet\OverbyteIcsDllTst.dproj
 Delphi\Internet\OverbyteIcsDllTst1.pas
 Delphi\Internet\OverbyteIcsDllTst1.dfm
 
 Delphi\Internet\OverbyteIcsDynCli.dpr
 Delphi\Internet\OverbyteIcsDynCli.res
 Delphi\Internet\OverbyteIcsDynCli.dof
-Delphi\Internet\OverbyteIcsDynCli.cfg
-Delphi\Internet\OverbyteIcsDynCli.bdsproj
-Delphi\Internet\OverbyteIcsDynCli.dproj
 Delphi\Internet\OverbyteIcsDynCli1.pas
 Delphi\Internet\OverbyteIcsDynCli1.dfm
 
 Delphi\Internet\OverbyteIcsFinger.dpr
 Delphi\Internet\OverbyteIcsFinger.res
 Delphi\Internet\OverbyteIcsFinger.dof
-Delphi\Internet\OverbyteIcsFinger.cfg
-Delphi\Internet\OverbyteIcsFinger.bdsproj
-Delphi\Internet\OverbyteIcsFinger.dproj
 Delphi\Internet\OverbyteIcsFinger1.pas
 Delphi\Internet\OverbyteIcsFinger1.dfm
 
 Delphi\Internet\OverbyteIcsFtpAsy.dpr
 Delphi\Internet\OverbyteIcsFtpAsy.res
 Delphi\Internet\OverbyteIcsFtpAsy.dof
-Delphi\Internet\OverbyteIcsFtpAsy.cfg
-Delphi\Internet\OverbyteIcsFtpAsy.bdsproj
-Delphi\Internet\OverbyteIcsFtpAsy.dproj
 Delphi\Internet\OverbyteIcsFtpAsy1.pas
 Delphi\Internet\OverbyteIcsFtpAsy1.dfm
 
 Delphi\Internet\OverbyteIcsFtpMulti.dpr
 Delphi\Internet\OverbyteIcsFtpMulti.res
 Delphi\Internet\OverbyteIcsFtpMulti.dof
-Delphi\Internet\OverbyteIcsFtpMulti.cfg
-Delphi\Internet\OverbyteIcsFtpMulti.bdsproj
-Delphi\Internet\OverbyteIcsFtpMulti.dproj
 Delphi\Internet\OverbyteIcsFtpMulti1.pas
 Delphi\Internet\OverbyteIcsFtpMulti1.dfm
 
 Delphi\Internet\OverbyteIcsFtpThrd.dpr
 Delphi\Internet\OverbyteIcsFtpThrd.res
 Delphi\Internet\OverbyteIcsFtpThrd.dof
-Delphi\Internet\OverbyteIcsFtpThrd.cfg
-Delphi\Internet\OverbyteIcsFtpThrd.bdsproj
-Delphi\Internet\OverbyteIcsFtpThrd.dproj
 Delphi\Internet\OverbyteIcsFtpThrd1.pas
 Delphi\Internet\OverbyteIcsFtpThrd1.dfm
 
 Delphi\Internet\OverbyteIcsHttpChk.dpr
 Delphi\Internet\OverbyteIcsHttpChk.res
 Delphi\Internet\OverbyteIcsHttpChk.dof
-Delphi\Internet\OverbyteIcsHttpChk.cfg
-Delphi\Internet\OverbyteIcsHttpChk.bdsproj
-Delphi\Internet\OverbyteIcsHttpChk.dproj
 Delphi\Internet\OverbyteIcsHttpChk1.pas
 Delphi\Internet\OverbyteIcsHttpChk1.dfm
 
 Delphi\Internet\OverbyteIcsHttpDmo.dpr
 Delphi\Internet\OverbyteIcsHttpDmo.res
 Delphi\Internet\OverbyteIcsHttpDmo.dof
-Delphi\Internet\OverbyteIcsHttpDmo.cfg
-Delphi\Internet\OverbyteIcsHttpDmo.bdsproj
-Delphi\Internet\OverbyteIcsHttpDmo.dproj
 Delphi\Internet\OverbyteIcsHttpDmo1.pas
 Delphi\Internet\OverbyteIcsHttpDmo1.dfm
 
 Delphi\Internet\OverbyteIcsHttpGet.dpr
 Delphi\Internet\OverbyteIcsHttpGet.res
 Delphi\Internet\OverbyteIcsHttpGet.dof
-Delphi\Internet\OverbyteIcsHttpGet.cfg
-Delphi\Internet\OverbyteIcsHttpGet.bdsproj
-Delphi\Internet\OverbyteIcsHttpGet.dproj
 Delphi\Internet\OverbyteIcsHttpGet1.pas
 Delphi\Internet\OverbyteIcsHttpGet1.dfm
 
 Delphi\Internet\OverbyteIcsHttpPg.dpr
 Delphi\Internet\OverbyteIcsHttpPg.res
 Delphi\Internet\OverbyteIcsHttpPg.dof
-Delphi\Internet\OverbyteIcsHttpPg.cfg
-Delphi\Internet\OverbyteIcsHttpPg.bdsproj
-Delphi\Internet\OverbyteIcsHttpPg.dproj
 Delphi\Internet\OverbyteIcsHttpPg1.pas
 Delphi\Internet\OverbyteIcsHttpPg1.dfm
 
 Delphi\Internet\OverbyteIcsHttpThrd.dpr
 Delphi\Internet\OverbyteIcsHttpThrd.res
 Delphi\Internet\OverbyteIcsHttpThrd.dof
-Delphi\Internet\OverbyteIcsHttpThrd.cfg
-Delphi\Internet\OverbyteIcsHttpThrd.bdsproj
-Delphi\Internet\OverbyteIcsHttpThrd.dproj
 Delphi\Internet\OverbyteIcsHttpThr1.pas
 Delphi\Internet\OverbyteIcsHttpThr1.dfm
 Delphi\Internet\OverbyteIcsHttpThr2.pas
@@ -1250,33 +1155,21 @@ Delphi\Internet\OverbyteIcsHttpThr2.pas
 Delphi\Internet\OverbyteIcsIsapi.dpr
 Delphi\Internet\OverbyteIcsIsapi.res
 Delphi\Internet\OverbyteIcsIsapi.dof
-Delphi\Internet\OverbyteIcsIsapi.cfg
-Delphi\Internet\OverbyteIcsIsapi.bdsproj
-Delphi\Internet\OverbyteIcsIsapi.dproj
 Delphi\Internet\OverbyteIcsIsapi1.pas
 Delphi\Internet\OverbyteIcsIsapi1.dfm
 
 Delphi\Internet\OverbyteIcsMailSndAsync.dpr
 Delphi\Internet\OverbyteIcsMailSndAsync.res
 Delphi\Internet\OverbyteIcsMailSndAsync.dof
-Delphi\Internet\OverbyteIcsMailSndAsync.cfg
-Delphi\Internet\OverbyteIcsMailSndAsync.bdsproj
-Delphi\Internet\OverbyteIcsMailSndAsync.dproj
 Delphi\Internet\OverbyteIcsMailSndAsync1.pas
 Delphi\Internet\OverbyteIcsMailSndAsync1.dfm
 
 Delphi\Internet\OverbyteIcsMD5File.dpr
 Delphi\Internet\OverbyteIcsMD5File.dof
-Delphi\Internet\OverbyteIcsMD5File.cfg
-Delphi\Internet\OverbyteIcsMD5File.bdsproj
-Delphi\Internet\OverbyteIcsMD5File.dproj
 
 Delphi\Internet\OverbyteIcsMtSrv.dpr
 Delphi\Internet\OverbyteIcsMtSrv.res
 Delphi\Internet\OverbyteIcsMtSrv.dof
-Delphi\Internet\OverbyteIcsMtSrv.cfg
-Delphi\Internet\OverbyteIcsMtSrv.bdsproj
-Delphi\Internet\OverbyteIcsMtSrv.dproj
 Delphi\Internet\OverbyteIcsMtSrv1.pas
 Delphi\Internet\OverbyteIcsMtSrv1.dfm
 Delphi\Internet\OverbyteIcsMtSrv2.pas
@@ -1284,45 +1177,30 @@ Delphi\Internet\OverbyteIcsMtSrv2.pas
 Delphi\Internet\OverbyteIcsRecv.dpr
 Delphi\Internet\OverbyteIcsRecv.res
 Delphi\Internet\OverbyteIcsRecv.dof
-Delphi\Internet\OverbyteIcsRecv.cfg
-Delphi\Internet\OverbyteIcsRecv.bdsproj
-Delphi\Internet\OverbyteIcsRecv.dproj
 Delphi\Internet\OverbyteIcsRecv1.pas
 Delphi\Internet\OverbyteIcsRecv1.dfm
 
 Delphi\Internet\OverbyteIcsServer5.dpr
 Delphi\Internet\OverbyteIcsServer5.res
 Delphi\Internet\OverbyteIcsServer5.dof
-Delphi\Internet\OverbyteIcsServer5.cfg
-Delphi\Internet\OverbyteIcsServer5.bdsproj
-Delphi\Internet\OverbyteIcsServer5.dproj
 Delphi\Internet\OverbyteIcsSrv5.pas
 Delphi\Internet\OverbyteIcsSrv5.dfm
 
 Delphi\Internet\OverbyteIcsSender.dpr
 Delphi\Internet\OverbyteIcsSender.res
 Delphi\Internet\OverbyteIcsSender.dof
-Delphi\Internet\OverbyteIcsSender.cfg
-Delphi\Internet\OverbyteIcsSender.bdsproj
-Delphi\Internet\OverbyteIcsSender.dproj
 Delphi\Internet\OverbyteIcsSender1.pas
 Delphi\Internet\OverbyteIcsSender1.dfm
 
 Delphi\Internet\OverbyteIcsSocksTst.dpr
 Delphi\Internet\OverbyteIcsSocksTst.res
 Delphi\Internet\OverbyteIcsSocksTst.dof
-Delphi\Internet\OverbyteIcsSocksTst.cfg
-Delphi\Internet\OverbyteIcsSocksTst.bdsproj
-Delphi\Internet\OverbyteIcsSocksTst.dproj
 Delphi\Internet\OverbyteIcsSocksTst1.pas
 Delphi\Internet\OverbyteIcsSocksTst1.dfm
 
 Delphi\Internet\OverbyteIcsSrvDemo.dpr
 Delphi\Internet\OverbyteIcsSrvDemo.res
 Delphi\Internet\OverbyteIcsSrvDemo.dof
-Delphi\Internet\OverbyteIcsSrvDemo.cfg
-Delphi\Internet\OverbyteIcsSrvDemo.bdsproj
-Delphi\Internet\OverbyteIcsSrvDemo.dproj
 Delphi\Internet\OverbyteIcsSrvDemo1.pas
 Delphi\Internet\OverbyteIcsSrvDemo1.dfm
 Delphi\Internet\OverbyteIcsSrvDemo2.pas
@@ -1333,9 +1211,6 @@ Delphi\Internet\clients.MDX
 Delphi\Internet\OverbyteIcsSrvTcp.dpr
 Delphi\Internet\OverbyteIcsSrvTcp.res
 Delphi\Internet\OverbyteIcsSrvTcp.dof
-Delphi\Internet\OverbyteIcsSrvTcp.cfg
-Delphi\Internet\OverbyteIcsSrvTcp.bdsproj
-Delphi\Internet\OverbyteIcsSrvTcp.dproj
 Delphi\Internet\OverbyteIcsSrvTcp1.pas
 Delphi\Internet\OverbyteIcsSrvTcp1.dfm
 Delphi\Internet\OverbyteIcsTcpCmd.pas
@@ -1343,54 +1218,36 @@ Delphi\Internet\OverbyteIcsTcpCmd.pas
 Delphi\Internet\OverbyteIcsSvcTcp.dpr
 Delphi\Internet\OverbyteIcsSvcTcp.res
 Delphi\Internet\OverbyteIcsSvcTcp.dof
-Delphi\Internet\OverbyteIcsSvcTcp.cfg
-Delphi\Internet\OverbyteIcsSvcTcp.bdsproj
-Delphi\Internet\OverbyteIcsSvcTcp.dproj
 Delphi\Internet\OverbyteIcsSvcTcp1.pas
 Delphi\Internet\OverbyteIcsSvcTcp1.dfm
 
 Delphi\Internet\OverbyteIcsThrdSrv.dpr
 Delphi\Internet\OverbyteIcsThrdSrv.res
 Delphi\Internet\OverbyteIcsThrdSrv.dof
-Delphi\Internet\OverbyteIcsThrdSrv.cfg
-Delphi\Internet\OverbyteIcsThrdSrv.bdsproj
-Delphi\Internet\OverbyteIcsThrdSrv.dproj
 Delphi\Internet\OverbyteIcsThrdSrv1.pas
 Delphi\Internet\OverbyteIcsThrdSrv1.dfm
 
 Delphi\Internet\OverbyteIcsThrdSrvV2.dpr
 Delphi\Internet\OverbyteIcsThrdSrvV2.res
 Delphi\Internet\OverbyteIcsThrdSrvV2.dof
-Delphi\Internet\OverbyteIcsThrdSrvV2.cfg
-Delphi\Internet\OverbyteIcsThrdSrvV2.bdsproj
-Delphi\Internet\OverbyteIcsThrdSrvV2.dproj
 Delphi\Internet\OverbyteIcsThrdSrvV2_1.pas
 Delphi\Internet\OverbyteIcsThrdSrvV2_1.dfm
 
 Delphi\Internet\OverbyteIcsThrdSrvV3.dpr
 Delphi\Internet\OverbyteIcsThrdSrvV3.res
 Delphi\Internet\OverbyteIcsThrdSrvV3.dof
-Delphi\Internet\OverbyteIcsThrdSrvV3.cfg
-Delphi\Internet\OverbyteIcsThrdSrvV3.bdsproj
-Delphi\Internet\OverbyteIcsThrdSrvV3.dproj
 Delphi\Internet\OverbyteIcsThrdSrvV3_1.pas
 Delphi\Internet\OverbyteIcsThrdSrvV3_1.dfm
 
 Delphi\Internet\OverbyteIcsTnDemo.dpr
 Delphi\Internet\OverbyteIcsTnDemo.res
 Delphi\Internet\OverbyteIcsTnDemo.dof
-Delphi\Internet\OverbyteIcsTnDemo.cfg
-Delphi\Internet\OverbyteIcsTnDemo.bdsproj
-Delphi\Internet\OverbyteIcsTnDemo.dproj
 Delphi\Internet\OverbyteIcsTnDemo1.pas
 Delphi\Internet\OverbyteIcsTnDemo1.dfm
 
 Delphi\Internet\OverbyteIcsTnSrv.dpr
 Delphi\Internet\OverbyteIcsTnSrv.res
 Delphi\Internet\OverbyteIcsTnSrv.dof
-Delphi\Internet\OverbyteIcsTnSrv.cfg
-Delphi\Internet\OverbyteIcsTnSrv.bdsproj
-Delphi\Internet\OverbyteIcsTnSrv.dproj
 Delphi\Internet\OverbyteIcsTnSrv1.pas
 Delphi\Internet\OverbyteIcsTnSrv1.dfm
 Delphi\Internet\OverbyteIcsTnSrv2.pas
@@ -1399,52 +1256,45 @@ Delphi\Internet\OverbyteIcsTnSrv2.dfm
 Delphi\Internet\OverbyteIcsTWSChat.dpr
 Delphi\Internet\OverbyteIcsTWSChat.res
 Delphi\Internet\OverbyteIcsTWSChat.dof
-Delphi\Internet\OverbyteIcsTWSChat.cfg
-Delphi\Internet\OverbyteIcsTWSChat.bdsproj
-Delphi\Internet\OverbyteIcsTWSChat.dproj
 Delphi\Internet\OverbyteIcsTWSChat1.pas
 Delphi\Internet\OverbyteIcsTWSChat1.dfm
 
 Delphi\Internet\OverbyteIcsUdpLstn.dpr
 Delphi\Internet\OverbyteIcsUdpLstn.res
 Delphi\Internet\OverbyteIcsUdpLstn.dof
-Delphi\Internet\OverbyteIcsUdpLstn.cfg
-Delphi\Internet\OverbyteIcsUdpLstn.bdsproj
-Delphi\Internet\OverbyteIcsUdpLstn.dproj
 Delphi\Internet\OverbyteIcsUdpLstn1.pas
 Delphi\Internet\OverbyteIcsUdpLstn1.dfm
 
 Delphi\Internet\OverbyteIcsUdpSend.dpr
 Delphi\Internet\OverbyteIcsUdpSend.res
 Delphi\Internet\OverbyteIcsUdpSend.dof
-Delphi\Internet\OverbyteIcsUdpSend.cfg
-Delphi\Internet\OverbyteIcsUdpSend.bdsproj
-Delphi\Internet\OverbyteIcsUdpSend.dproj
 Delphi\Internet\OverbyteIcsUdpSend1.pas
 Delphi\Internet\OverbyteIcsUdpSend1.dfm
 
+Delphi\Internet\OverbyteIcsDemoTemplate.dof
 Delphi\Internet\OverbyteIcsDemoTemplate.dpr
 Delphi\Internet\OverbyteIcsDemoTemplate1.pas
 Delphi\Internet\OverbyteIcsDemoTemplate1.dfm
 
 Delphi\Internet\OverbyteIcsRestDemo.dpr
-Delphi\Internet\OverbyteIcsRestDemo.dproj
+Delphi\Internet\OverbyteIcsRestDemo.dof
 Delphi\Internet\OverbyteIcsRestDemo.res
 Delphi\Internet\OverbyteIcsRestDemo1.dfm
 Delphi\Internet\OverbyteIcsRestDemo1.pas
 
 Delphi\Internet\OverbyteIcsRestJsonClientDemo.dpr
-Delphi\Internet\OverbyteIcsRestJsonClientDemo.dproj
+Delphi\Internet\OverbyteIcsRestJsonClientDemo.dof
 Delphi\Internet\OverbyteIcsRestJsonClientDemo.res
 Delphi\Internet\OverbyteIcsRestJsonClientDemo1.pas
 Delphi\Internet\OverbyteIcsRestJsonClientDemo1.dfm
 
 Delphi\Internet\OverbyteIcsSnmpCliTst.dpr
-Delphi\Internet\OverbyteIcsSnmpCliTst.dproj
+Delphi\Internet\OverbyteIcsSnmpCliTst.dof
 Delphi\Internet\OverbyteIcsSnmpCliTst.res
 Delphi\Internet\OverbyteIcsSnmpCliTst1.dfm
 Delphi\Internet\OverbyteIcsSnmpCliTst1.pas
 
+Delphi\SslInternet\Dcu\dir.txt
 Delphi\SslInternet\SslCerts\IcsSslBuildCerts.bat
 Delphi\SslInternet\SslCerts\openssl.conf
 
@@ -1457,15 +1307,8 @@ Delphi\SslInternet\01cert.pem
 Delphi\SslInternet\TrustedCABundle.pem
 Delphi\SslInternet\TrustedCaStore\6F6359FC.0
 
-Delphi\SslInternet\OverbyteIcsSslD7Sam.bpg
-Delphi\SslInternet\OverbyteIcsSslD2006Sam.bdsgroup
-Delphi\SslInternet\OverbyteIcsSslD2007Sam.groupproj
-Delphi\SslInternet\OverbyteIcsSslD2009Sam.groupproj
-Delphi\SslInternet\OverbyteIcsSslD2010Sam.groupproj
-Delphi\SslInternet\OverbyteIcsSslDXeSam.groupproj
+Delphi\SslInternet\OverbyteIcsSslDemo.bpg
 
-Delphi\SslInternet\OverbyteIcsHttpsTst.bdsproj
-Delphi\SslInternet\OverbyteIcsHttpsTst.dproj
 Delphi\SslInternet\OverbyteIcsHttpsTst.dpr
 Delphi\SslInternet\OverbyteIcsHttpsTst.dof
 Delphi\SslInternet\OverbyteIcsHttpsTst.res
@@ -1474,32 +1317,24 @@ Delphi\SslInternet\OverbyteIcsHttpsTst1.pas
 Delphi\SslInternet\OverbyteIcsCliCertDlg.dfm
 Delphi\SslInternet\OverbyteIcsCliCertDlg.pas
 
-Delphi\SslInternet\OverbyteIcsHttpsServer.bdsproj
-Delphi\SslInternet\OverbyteIcsHttpsServer.dproj
 Delphi\SslInternet\OverbyteIcsHttpsServer.dpr
 Delphi\SslInternet\OverbyteIcsHttpsServer.dof
 Delphi\SslInternet\OverbyteIcsHttpsServer.res
 Delphi\SslInternet\OverbyteIcsHttpsServer1.dfm
 Delphi\SslInternet\OverbyteIcsHttpsServer1.pas
 
-Delphi\SslInternet\OverbyteIcsSslWebServ.bdsproj
-Delphi\SslInternet\OverbyteIcsSslWebServ.dproj
 Delphi\SslInternet\OverbyteIcsSslWebServ.dpr
 Delphi\SslInternet\OverbyteIcsSslWebServ.dof
 Delphi\SslInternet\OverbyteIcsSslWebServ.res
 Delphi\SslInternet\OverbyteIcsSslWebServ1.dfm
 Delphi\SslInternet\OverbyteIcsSslWebServ1.pas
 
-Delphi\SslInternet\OverbyteIcsSimpleSslCli.bdsproj
-Delphi\SslInternet\OverbyteIcsSimpleSslCli.dproj
 Delphi\SslInternet\OverbyteIcsSimpleSslCli.dpr
 Delphi\SslInternet\OverbyteIcsSimpleSslCli.dof
 Delphi\SslInternet\OverbyteIcsSimpleSslCli.res
 Delphi\SslInternet\OverbyteIcsSimpleSslCli1.dfm
 Delphi\SslInternet\OverbyteIcsSimpleSslCli1.pas
 
-Delphi\SslInternet\OverbyteIcsSslFtpTst.bdsproj
-Delphi\SslInternet\OverbyteIcsSslFtpTst.dproj
 Delphi\SslInternet\OverbyteIcsSslFtpTst.dpr
 Delphi\SslInternet\OverbyteIcsSslFtpTst.dof
 Delphi\SslInternet\OverbyteIcsSslFtpTst.res
@@ -1508,8 +1343,6 @@ Delphi\SslInternet\OverbyteIcsSslFtpTst1.pas
 Delphi\SslInternet\OverbyteIcsSslFtpTst2.dfm
 Delphi\SslInternet\OverbyteIcsSslFtpTst2.pas
 
-Delphi\SslInternet\OverbyteIcsSslFtpServ.bdsproj
-Delphi\SslInternet\OverbyteIcsSslFtpServ.dproj
 Delphi\SslInternet\OverbyteIcsSslFtpServ.dpr
 Delphi\SslInternet\OverbyteIcsSslFtpServ.dof
 Delphi\SslInternet\OverbyteIcsSslFtpServ1.dfm
@@ -1518,8 +1351,6 @@ Delphi\SslInternet\OverbyteIcsSslFtpServ.res
 Delphi\SslInternet\ftpaccounts-default.ini
 Delphi\SslInternet\ftpaccounts-[127.0.0.1].ini
 
-Delphi\SslInternet\OverbyteIcsSslMailSnd.bdsproj
-Delphi\SslInternet\OverbyteIcsSslMailSnd.dproj
 Delphi\SslInternet\OverbyteIcsSslMailSnd.dpr
 Delphi\SslInternet\OverbyteIcsSslMailSnd.dof
 Delphi\SslInternet\OverbyteIcsSslMailSnd.res
@@ -1527,8 +1358,6 @@ Delphi\SslInternet\OverbyteIcsSslMailSnd1.dfm
 Delphi\SslInternet\OverbyteIcsSslMailSnd1.pas
 
 Delphi\SslInternet\OverbyteIcsSslMailRcv.dpr
-Delphi\SslInternet\OverbyteIcsSslMailRcv.bdsproj
-Delphi\SslInternet\OverbyteIcsSslMailRcv.dproj
 Delphi\SslInternet\OverbyteIcsSslMailRcv.dof
 Delphi\SslInternet\OverbyteIcsSslMailRcv.res
 Delphi\SslInternet\OverbyteIcsSslMailRcv1.dfm
@@ -1536,23 +1365,18 @@ Delphi\SslInternet\OverbyteIcsSslMailRcv1.pas
 Delphi\SslInternet\OverbyteIcsSslMailRcv2.dfm
 Delphi\SslInternet\OverbyteIcsSslMailRcv2.pas
 
-Delphi\SslInternet\OverbyteIcsSslNewsRdr.bdsproj
-Delphi\SslInternet\OverbyteIcsSslNewsRdr.dproj
 Delphi\SslInternet\OverbyteIcsSslNewsRdr.dpr
 Delphi\SslInternet\OverbyteIcsSslNewsRdr.dof
 Delphi\SslInternet\OverbyteIcsSslNewsRdr.res
 Delphi\SslInternet\OverbyteIcsSslNewsRdr1.dfm
 Delphi\SslInternet\OverbyteIcsSslNewsRdr1.pas
 
-Delphi\SslInternet\OverbyteIcsSimpleSslServer.bdsproj
-Delphi\SslInternet\OverbyteIcsSimpleSslServer.dproj
 Delphi\SslInternet\OverbyteIcsSimpleSslServer.dpr
 Delphi\SslInternet\OverbyteIcsSimpleSslServer.dof
 Delphi\SslInternet\OverbyteIcsSimpleSslServer.res
 Delphi\SslInternet\OverbyteIcsSimpleSslServer1.dfm
 Delphi\SslInternet\OverbyteIcsSimpleSslServer1.pas
 
-Delphi\SslInternet\OverbyteIcsPemTool.dproj
 Delphi\SslInternet\OverbyteIcsPemTool.dpr
 Delphi\SslInternet\OverbyteIcsPemTool.dof
 Delphi\SslInternet\OverbyteIcsPemTool.res
@@ -1565,7 +1389,6 @@ Delphi\SslInternet\OverbyteIcsPemTool3.dfm
 
 Delphi\SslInternet\OverbyteIcsSslX509Utils.pas
 
-Delphi\SslInternet\OverbyteIcsSslSniSrv.dproj
 Delphi\SslInternet\OverbyteIcsSslSniSrv.dpr
 Delphi\SslInternet\OverbyteIcsSslSniSrv.dof
 Delphi\SslInternet\OverbyteIcsSslSniSrv.res
@@ -1577,80 +1400,66 @@ Delphi\SslInternet\JwaWinCrypt.pas
 Delphi\SslInternet\CryptUiApi.pas
 Delphi\SslInternet\OverbyteIcsMsSslUtils.pas
 
-Delphi\SslInternet\OverbyteIcsMsVerify.dproj
 Delphi\SslInternet\OverbyteIcsMsVerify.dpr
 Delphi\SslInternet\OverbyteIcsMsVerify.dof
 Delphi\SslInternet\OverbyteIcsMsVerify.res
 Delphi\SslInternet\OverbyteIcsMsVerify1.dfm
 Delphi\SslInternet\OverbyteIcsMsVerify1.pas
 
-Delphi\MiscDemos\OverbyteIcsD7MiscDemos.bpg
-Delphi\MiscDemos\OverbyteIcsD2006MiscDemos.bdsgroup
-Delphi\MiscDemos\OverbyteIcsD2007MiscDemos.groupproj
-Delphi\MiscDemos\OverbyteIcsD2009MiscDemos.groupproj
-Delphi\MiscDemos\OverbyteIcsD2010MiscDemos.groupproj
-Delphi\MiscDemos\OverbyteIcsDXeMiscDemos.groupproj
+Delphi\MiscDemos\Dcu\dir.txt
+Delphi\MiscDemos\OverbyteIcsMiscDemos.bpg
 
-Delphi\MiscDemos\OverbyteIcsCacheTest.bdsproj
 Delphi\MiscDemos\OverbyteIcsCacheTest.dpr
-Delphi\MiscDemos\OverbyteIcsCacheTest.dproj
 Delphi\MiscDemos\OverbyteIcsCacheTest.dof
 Delphi\MiscDemos\OverbyteIcsCacheTest1.pas
 Delphi\MiscDemos\OverbyteIcsCacheTest1.dfm
 Delphi\MiscDemos\OverbyteIcsCacheTest.res
 Delphi\MiscDemos\Dictionary.txt
 
-Delphi\MiscDemos\OverbyteIcsMD4Test.bdsproj
+Delphi\MiscDemos\OverbyteIcsMD4Test.dof
 Delphi\MiscDemos\OverbyteIcsMD4Test.dpr
-Delphi\MiscDemos\OverbyteIcsMD4Test.dproj
 
-Delphi\MiscDemos\OverbyteIcsMD5Test.bdsproj
+Delphi\MiscDemos\OverbyteIcsMD5Test.dof
 Delphi\MiscDemos\OverbyteIcsMD5Test.dpr
-Delphi\MiscDemos\OverbyteIcsMD5Test.dproj
 Delphi\MiscDemos\OverbyteIcsMD5Test.res
 Delphi\MiscDemos\OverbyteIcsMD5Test1.dfm
 Delphi\MiscDemos\OverbyteIcsMD5Test1.pas
 
-Delphi\MiscDemos\OverbyteIcsSHA1Test.bdsproj
+Delphi\MiscDemos\OverbyteIcsSHA1Test.dof
 Delphi\MiscDemos\OverbyteIcsSHA1Test.dpr
 Delphi\MiscDemos\OverbyteIcsSHA1Test.res
-Delphi\MiscDemos\OverbyteIcsSHA1Test.dproj
 Delphi\MiscDemos\OverbyteIcsSHA1Test1.dfm
 Delphi\MiscDemos\OverbyteIcsSHA1Test1.pas
 
-Delphi\MiscDemos\OverbyteIcsOneTimePassword.bdsproj
+Delphi\MiscDemos\OverbyteIcsOneTimePassword.dof
 Delphi\MiscDemos\OverbyteIcsOneTimePassword.dpr
 Delphi\MiscDemos\OverbyteIcsOneTimePassword.res
-Delphi\MiscDemos\OverbyteIcsOneTimePassword.dproj
 Delphi\MiscDemos\OverbyteIcsOneTimePassword1.pas
 Delphi\MiscDemos\OverbyteIcsOneTimePassword1.dfm
 
-Delphi\MiscDemos\OverbyteIcsTimerDemo.bdsproj
+Delphi\MiscDemos\OverbyteIcsTimerDemo.dof
 Delphi\MiscDemos\OverbyteIcsTimerDemo.dpr
 Delphi\MiscDemos\OverbyteIcsTimerDemo.res
-Delphi\MiscDemos\OverbyteIcsTimerDemo.dproj
 Delphi\MiscDemos\OverbyteIcsTimerDemo1.dfm
 Delphi\MiscDemos\OverbyteIcsTimerDemo1.pas
 
-Delphi\MiscDemos\OverbyteIcsWndControlTest.bdsproj
+Delphi\MiscDemos\OverbyteIcsWndControlTest.dof
 Delphi\MiscDemos\OverbyteIcsWndControlTest.dpr
-Delphi\MiscDemos\OverbyteIcsWndControlTest.dproj
 Delphi\MiscDemos\OverbyteIcsWndControlTest.res
 Delphi\MiscDemos\OverbyteIcsWndControlTest1.dfm
 Delphi\MiscDemos\OverbyteIcsWndControlTest1.pas
 
+Delphi\MiscDemos\OverbyteIcsRtlTest.dof
 Delphi\MiscDemos\OverbyteIcsRtlTest.dpr
 
-Delphi\MiscDemos\OverbyteIcsBufStrmTst.bdsproj
+Delphi\MiscDemos\OverbyteIcsBufStrmTst.dof
 Delphi\MiscDemos\OverbyteIcsBufStrmTst.dpr
-Delphi\MiscDemos\OverbyteIcsBufStrmTst.dproj
 Delphi\MiscDemos\OverbyteIcsBufStrmTst.res
 Delphi\MiscDemos\OverbyteIcsBufStrmTst1.dfm
 Delphi\MiscDemos\OverbyteIcsBufStrmTst1.pas
 
-Delphi\MiscDemos\OverbyteIcsThreadTimerDemo.bdsproj
+Delphi\MiscDemos\OverbyteIcsThreadTimerDemo.dof
 Delphi\MiscDemos\OverbyteIcsThreadTimerDemo.dpr
-Delphi\MiscDemos\OverbyteIcsThreadTimerDemo.dproj
 Delphi\MiscDemos\OverbyteIcsThreadTimerDemo.res
 Delphi\MiscDemos\OverbyteIcsThreadTimerDemo1.pas
 Delphi\MiscDemos\OverbyteIcsThreadTimerDemo1.dfm

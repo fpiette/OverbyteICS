@@ -41,6 +41,15 @@ History:
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslSniSrv1;
 
+{$I OverbyteIcsSslDefs.inc}
+
+{$IFNDEF USE_SSL}
+    {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
+{$ENDIF}
+{$IFDEF OPENSSL_NO_TLSEXT}
+    {$MESSAGE FATAL 'Undefine symbol "OPENSSL_NO_TLSEXT" in OverbyteIcsSslDefs.inc'};
+{$ENDIF}
+
 interface
 
 uses
@@ -77,13 +86,6 @@ var
 implementation
 
 {$R *.dfm}
-
-{$IFNDEF USE_SSL}
-    'BOMB: Define conditional define "USE_SSL" in the project options';
-{$ENDIF}
-{$IFDEF OPENSSL_NO_TLSEXT}
-    'BOMB: Undefine symbol "OPENSSL_NO_TLSEXT" in OverbyteIcsSslDefs.inc';
-{$ENDIF}
 
 const
   RFC1123_StrWeekDay : String = 'MonTueWedThuFriSatSun';

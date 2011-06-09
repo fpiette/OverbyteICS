@@ -5,7 +5,7 @@ echo.
 echo Not an ICS repository
 goto end
 :clean
-echo Hit return to clean temporary files, of CTRL+C to abort...
+echo Hit return to clean temporary and all D2006+ project files, of CTRL+C to abort...
 pause
 if exist *.bak del *.bak
 
@@ -23,6 +23,13 @@ if exist delphi\vc32\OverbyteIcs*.cbproj.local del delphi\vc32\OverbyteIcs*.cbpr
 if exist delphi\vc32\OverbyteIcs*.bdsproj.local del delphi\vc32\OverbyteIcs*.bdsproj.local
 if exist delphi\vc32\OverbyteIcs*.identcache del delphi\vc32\OverbyteIcs*.identcache
 
+if exist delphi\internet\OverbyteIcs*.ddp del delphi\internet\OverbyteIcs*.ddp
+if exist delphi\internet\OverbyteIcs*.dproj del delphi\internet\OverbyteIcs*.dproj
+if exist delphi\internet\OverbyteIcs*.bdsproj del delphi\internet\OverbyteIcs*.bdsproj
+if exist delphi\internet\OverbyteIcs*.bdsgroup del delphi\internet\OverbyteIcs*.bdsgroup
+if exist delphi\internet\OverbyteIcs*.groupproj del delphi\internet\OverbyteIcs*.groupproj
+if exist delphi\internet\dcu\OverbyteIcs*.dcu del delphi\internet\dcu\OverbyteIcs*.dcu
+if exist delphi\internet\OverbyteIcs*.cfg del delphi\internet\OverbyteIcs*.cfg
 if exist delphi\internet\OverbyteIcs*.dcu del delphi\internet\OverbyteIcs*.dcu
 if exist delphi\internet\OverbyteIcs*.~*  del delphi\internet\OverbyteIcs*.~*
 if exist delphi\internet\OverbyteIcs*.bak del delphi\internet\OverbyteIcs*.bak
@@ -33,6 +40,13 @@ if exist delphi\internet\OverbyteIcs*.bdsproj.local del delphi\internet\Overbyte
 if exist delphi\internet\OverbyteIcs*.bdsgroup.local del delphi\internet\OverbyteIcs*.bdsgroup.local
 if exist delphi\internet\OverbyteIcs*.identcache del delphi\internet\OverbyteIcs*.identcache
 
+if exist delphi\sslinternet\OverbyteIcs*.ddp del delphi\sslinternet\OverbyteIcs*.ddp
+if exist delphi\sslinternet\OverbyteIcs*.dproj del delphi\sslinternet\OverbyteIcs*.dproj
+if exist delphi\sslinternet\OverbyteIcs*.bdsproj del delphi\sslinternet\OverbyteIcs*.bdsproj
+if exist delphi\sslinternet\OverbyteIcs*.bdsgroup del delphi\sslinternet\OverbyteIcs*.bdsgroup
+if exist delphi\sslinternet\OverbyteIcs*.groupproj del delphi\sslinternet\OverbyteIcs*.groupproj
+if exist delphi\sslinternet\dcu\OverbyteIcs*.dcu del delphi\sslinternet\dcu\OverbyteIcs*.dcu
+if exist delphi\sslinternet\OverbyteIcs*.cfg del delphi\sslinternet\OverbyteIcs*.cfg
 if exist delphi\sslinternet\OverbyteIcs*.dcu del delphi\sslinternet\OverbyteIcs*.dcu
 if exist delphi\sslinternet\OverbyteIcs*.~*  del delphi\sslinternet\OverbyteIcs*.~*
 if exist delphi\sslinternet\OverbyteIcs*.bak del delphi\sslinternet\OverbyteIcs*.bak
@@ -43,6 +57,13 @@ if exist delphi\sslinternet\OverbyteIcs*.bdsproj.local del delphi\sslinternet\Ov
 if exist delphi\sslinternet\OverbyteIcs*.bdsgroup.local del delphi\sslinternet\OverbyteIcs*.bdsgroup.local
 if exist delphi\sslinternet\OverbyteIcs*.identcache del delphi\sslinternet\OverbyteIcs*.identcache
 
+if exist delphi\miscdemos\OverbyteIcs*.ddp del delphi\miscdemos\OverbyteIcs*.ddp
+if exist delphi\miscdemos\OverbyteIcs*.dproj del delphi\miscdemos\OverbyteIcs*.dproj
+if exist delphi\miscdemos\OverbyteIcs*.bdsproj del delphi\miscdemos\OverbyteIcs*.bdsproj
+if exist delphi\miscdemos\OverbyteIcs*.bdsgroup del delphi\miscdemos\OverbyteIcs*.bdsgroup
+if exist delphi\miscdemos\OverbyteIcs*.groupproj del delphi\miscdemos\OverbyteIcs*.groupproj
+if exist delphi\miscdemos\dcu\OverbyteIcs*.dcu del delphi\miscdemos\dcu\OverbyteIcs*.dcu
+if exist delphi\miscdemos\OverbyteIcs*.cfg del delphi\miscdemos\OverbyteIcs*.cfg
 if exist delphi\miscdemos\OverbyteIcs*.dcu del delphi\miscdemos\OverbyteIcs*.dcu
 if exist delphi\miscdemos\OverbyteIcs*.~*  del delphi\miscdemos\OverbyteIcs*.~*
 if exist delphi\miscdemos\OverbyteIcs*.bak del delphi\miscdemos\OverbyteIcs*.bak

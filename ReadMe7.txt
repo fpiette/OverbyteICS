@@ -213,32 +213,23 @@ Library Path). If not, add it manually. It is not mandatory to add vc32 to the g
 Delphi path, but it will be much easier for you because otherwise you'll have to
 add it to each project.
 
-Once the package is installed, you may open the sample projects. There is a
-project group called OverByteIcsD2009Sam.groupproj (or 2006, 2007, 2010 or XE) 
-which has all sample programs. Open it with file/open project (Ctrl-F11), browse to
-the Internet directory, select and open OverByteIcsD2009Sam.groupproj. You will get
+DELPHI 7: Add VC32 directory path to your library path (Tools menu / Environment 
+Options / Library / Library Path. Add VC32 path at the end of the existing path).
+
+Once the package is installed, you may open the sample projects. There is a single
+project group called OverByteIcsDemo.bpg for all versions (7, 2006, 2007, 2009, 2010
+and XE) which has all sample programs. Open it with file/open project (Ctrl-F11),
+browse to the Internet directory, select and open OverByteIcsDemo.bpg. You might get
 some dialog box telling you that resource files are missing (they have not been 
 included in the zip file to save space) and are recreated by Delphi. It is OK. 
 Any other error message is a problem you should fix. After all resource files have 
 been recreated, you should see in the project manager a group of projects called 
-OverByteIcsD2009Sam. In this group, you'll find all sample programs.
+OverByteIcsDemo. In this group, you'll find all sample programs.
 
 To compile all samples at once, do Project / Build all projects. This will 
 take some time to compile all sample programs. Delphi may run out of
 memory if you don't have enough RAM installed in your computer. 
 If this happended, just build the projects one by one.
-
-
-DELPHI 7: Add VC32 directory path to your library path (Tools menu / Environment 
-Options / Library / Library Path. Add VC32 path at the end of the existing path).
-
-Once the package is installed, you may open the sample projects. There is a
-project group called OverbyteDel7Sam.bpg which has all sample programs. Open it
-with file/open, browse to the Internet directory, select and open OverbyteDel7Sam.bpg.
-Then Project/Build all projects. You'll get all sample programs compiled.
-It is likely that for each project, Delphi complains about a missing .res
-file. This is not a problem, Delphi will recreate it as needed. They have not
-been included to save space in the zip file.
 
 Note 1: Delphi may run out of memory if you ask to compile all projects at 
 once. If you have not enough RAM, then compile each project individually.

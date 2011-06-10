@@ -6,12 +6,12 @@ Description:  A simple HTTPS client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      1.06
+Version:      1.07
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2003-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -56,24 +56,22 @@ Jul 18, 2008  V1.06 A. Garrels fixed an AV in SslHttpCli1SslCliCertRequest
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;
 
-{$IFDEF VER80}
-    Bomb('This unit require a 32 bit compiler !');
-{$ENDIF}
 {$IFNDEF USE_SSL}
-    Bomb('Add USE_SSL in the define section in project options');
+  {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
 {$ENDIF}
+{$IF CompilerVersion < 15}
+  {$MESSAGE FATAL 'This demo requires at least Delphi 7 or better'};
+{$IFEND}
+
 {$B-}                                 { Enable partial boolean evaluation   }
 {$T-}                                 { Untyped pointers                    }
 {$X+}                                 { Enable extended syntax              }
 {$H+}                                 { Use long strings                    }
 {$J+}                                 { Allow typed constant to be modified }
-{$I OverbyteIcsDefs.inc}
-{$IFDEF DELPHI6_UP}
-    {$WARN SYMBOL_PLATFORM   OFF}
-    {$WARN SYMBOL_LIBRARY    OFF}
-    {$WARN SYMBOL_DEPRECATED OFF}
-    {$DEFINE USE_MODEZ}
-{$ENDIF}
+{$WARN SYMBOL_PLATFORM   OFF}
+{$WARN SYMBOL_LIBRARY    OFF}
+{$WARN SYMBOL_DEPRECATED OFF}
+{$DEFINE USE_MODEZ}
 
 interface
 
@@ -89,10 +87,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 106;
+     HttpsTstVersion     = 107;
      HttpsTstDate        = 'Dec 21, 2005';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2010 Francois Piette V1.06.0 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2011 Francois Piette V1.07.0 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -271,10 +269,10 @@ begin
 {$IFDEF DEBUG_OUTPUT}
     BigConsole(80, 100);
 {$ENDIF}
-{$IFDEF COMPILER10_UP}
+{$IF CompilerVersion > 17}
     // BDS2006 has built-in memory leak detection and display
     ReportMemoryLeaksOnShutdown := (DebugHook <> 0);
-{$ENDIF}
+{$IFEND}
     FIniFileName := GetIcsIniFileName;
     FTrustedList := TStringList.Create;
     FClientCerts := nil;

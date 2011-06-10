@@ -13,7 +13,7 @@ PROJECTS = OverbyteIcsHttpsTst.exe OverbyteIcsSslWebServ.exe \
   OverbyteIcsSslFtpTst.exe OverbyteIcsSslFtpServ.exe \
   OverbyteIcsSslMailSnd.exe OverbyteIcsSslMailRcv.exe OverbyteIcsSslNewsRdr.exe \
   OverbyteIcsSimpleSslCli.exe OverbyteIcsSimpleSslServer.exe \
-  OverbyteIcsPemTool.exe OverbyteIcsSslSniSrv.exe OverbyteIcsMsVerify.exe
+  OverbyteIcsPemTool.exe OverbyteIcsMsVerify.exe OverbyteIcsSslSniSrv.exe
 #------------------------------------------------------------------------------
 default: $(PROJECTS)
 #------------------------------------------------------------------------------
@@ -48,10 +48,8 @@ OverbyteIcsSimpleSslServer.exe: OverbyteIcsSimpleSslServer.dpr
 OverbyteIcsPemTool.exe: OverbyteIcsPemTool.dpr
   $(DCC)
 
-OverbyteIcsSslSniSrv.exe: OverbyteIcsSslSniSrv.dpr
-  $(DCC)
-
 OverbyteIcsMsVerify.exe: OverbyteIcsMsVerify.dpr
   $(DCC)
 
-
+OverbyteIcsSslSniSrv.exe: OverbyteIcsSslSniSrv.dpr
+  $(DCC)

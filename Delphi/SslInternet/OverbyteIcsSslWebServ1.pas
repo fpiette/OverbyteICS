@@ -8,12 +8,12 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      1.08
+Version:      1.09
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1999-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -60,26 +60,27 @@ Aug 04, 2005 V1.08 A. Garrels made a few changes to prepare code for Unicode.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
-{$I OverbyteIcsDefs.inc}
-{$IFNDEF DELPHI7_UP}
-    Bomb('This sample requires Delphi 7 or later');
-{$ENDIF}
+
 {$IFNDEF USE_SSL}
-    Bomb('Add USE_SSL in the define section in project options');
+  {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
 {$ENDIF}
+{$IF CompilerVersion < 15}
+  {$MESSAGE FATAL 'This demo requires at least Delphi 7 or better'};
+{$IFEND}
+
 {$B-}                 { Enable partial boolean evaluation   }
 {$T-}                 { Untyped pointers                    }
 {$X+}                 { Enable extended syntax              }
 {$I+}                 { Turn IO exceptions to on            }
 {$H+}                 { Use long strings                    }
 {$J+}                 { Allow typed constant to be modified }
-{$IFDEF COMPILER12_UP}
+{$IF CompilerVersion > 19}
     { These are usefull for debugging !}
     {$WARN IMPLICIT_STRING_CAST       OFF}
     {$WARN IMPLICIT_STRING_CAST_LOSS  OFF}
     {$WARN EXPLICIT_STRING_CAST       OFF}
     {$WARN EXPLICIT_STRING_CAST_LOSS  OFF}
-{$ENDIF}
+{$IFEND}
 {$WARN SYMBOL_PLATFORM   OFF}
 {$WARN SYMBOL_LIBRARY    OFF}
 {$WARN SYMBOL_DEPRECATED OFF}
@@ -94,7 +95,7 @@ uses
   OverbyteIcsSslSessionCache, OverbyteIcsLogger, OverbyteIcsWndControl;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2010 F. Piette V1.07 ';
+  CopyRight : String         = 'WebServ (c) 1999-2011 F. Piette V1.08 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -864,11 +865,11 @@ begin
 
     { When we received the whole thing, we can process it }
     if Remote.FDataLen = Remote.RequestContentLength then begin
-{$IFDEF COMPILER12_UP}
+{$IF CompilerVersion > 19}
         Remote.FPostedDataBuffer := Pointer(UnicodeString(Remote.FPostedRawData)); // Cast to Unicode
 {$ELSE}
         Remote.FPostedDataBuffer := Remote.FPostedRawData;
-{$ENDIF}
+{$IFEND}
         { First we must tell the component that we've got all the data }
         Remote.PostedDataReceived;
         { Then we check if the request is one we handle }

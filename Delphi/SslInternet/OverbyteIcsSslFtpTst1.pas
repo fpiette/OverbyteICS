@@ -2,15 +2,15 @@
 
 Author:       François PIETTE
 Creation:     Aug 1997
-Version:      7.07
+Version:      7.08
 Object:       Demo for TFtpClient object (RFC 959 implementation)
               It is a graphical FTP client program
               Compatible with Delphi 1, 2, 3, 4 and 5
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -74,9 +74,14 @@ Apr 16, 2009  V7.07 Angus assume STREAM64, USE_ONPROGRESS64_ONLY, removed OnProg
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslFtpTst1;
+
 {$IFNDEF USE_SSL}
-    Bomb('Add USE_SSL in the define section in project options');
+  {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
 {$ENDIF}
+{$IF CompilerVersion < 15}
+  {$MESSAGE FATAL 'This demo requires at least Delphi 7 or better'};
+{$IFEND}
+
 interface
 
 uses
@@ -86,8 +91,8 @@ uses
   OverbyteIcsWndControl, OverbyteIcsFtpCli, OverbyteIcsFtpSrvT, OverByteIcsUtils;
 
 const
-  FTPTstVersion      = 707;
-  CopyRight : String = ' SslFtpTst (c) 1997-2010 F. Piette V7.07 ';
+  FTPTstVersion      = 708;
+  CopyRight : String = ' SslFtpTst (c) 1997-2011 F. Piette V7.08 ';
   WM_SSL_NOT_TRUSTED = WM_USER + 1;
   WM_TMP_SOMETHING   = WM_USER + 2;
 type

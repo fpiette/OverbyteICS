@@ -451,7 +451,7 @@ begin
 
         f_sk_pop_free(Exts, @f_X509_EXTENSION_free);
 
-        if f_X509_REQ_sign(Req, PK, f_EVP_sha1) <= 0 then
+        if f_X509_REQ_sign(Req, PK, f_EVP_sha256) <= 0 then
             raise Exception.Create('Failed to sign request');
 
         FileBio := f_BIO_new_file(PAnsiChar(AnsiString(KeyFileName)), PAnsiChar('w+'));
@@ -595,7 +595,7 @@ begin
         *)
 
         { Sign it }
-        if f_X509_sign(X, PK, f_EVP_sha1) <= 0 then
+        if f_X509_sign(X, PK, f_EVP_sha256) <= 0 then
             raise Exception.Create('Failed to sign certificate');
 
         { We write private key as well as certificate to the same file }

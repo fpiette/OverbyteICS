@@ -50,7 +50,12 @@ unit OverbyteIcsMsVerify1;
 
 interface
 
-  {$WARN SYMBOL_PLATFORM OFF}
+{$IFNDEF USE_SSL}
+  {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
+{$ENDIF}
+{$IF CompilerVersion < 15}
+  {$MESSAGE FATAL 'This demo requires at least Delphi 7 or better'};
+{$IFEND}
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,

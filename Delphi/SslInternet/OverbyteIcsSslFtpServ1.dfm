@@ -400,7 +400,6 @@ object SslFtpServerForm: TSslFtpServerForm
     TimeStampFormatString = 'hh:nn:ss:zzz'
     TimeStampSeparator = ' '
     LogFileOption = lfoOverwrite
-    LogFileEncoding = lfeUtf8
     LogFileName = 'DEBUG_SSLFtpSrv.txt'
     LogOptions = []
     Left = 140

@@ -1,8 +1,12 @@
 unit OverbyteIcsSimpleSslCli1;
+
 {$IFNDEF USE_SSL}
-    Bomb('Add USE_SSL in the define section in project options');
+  {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
 {$ENDIF}
-{$I OverbyteIcsDefs.inc}
+{$IF CompilerVersion < 15}
+  {$MESSAGE FATAL 'This demo requires at least Delphi 7 or better'};
+{$IFEND}
+
 interface
 
 uses

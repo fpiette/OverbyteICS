@@ -4,12 +4,12 @@
 Author:       François PIETTE
 Object:       How to use TSslSmtpCli component
 Creation:     09 october 1997
-Version:      2.09
+Version:      2.10
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -50,12 +50,13 @@ May 17, 2009 A.Garrels added correct casts to PAnsiChar in SslSmtpClientHeaderLi
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslMailSnd1;
-{$IFDEF VER80}
-    Bomb('This unit require a 32 bit compiler !');
-{$ENDIF}
+
 {$IFNDEF USE_SSL}
-    Bomb('You need to define USE_SSL in the project-options');
+  {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
 {$ENDIF}
+{$IF CompilerVersion < 15}
+  {$MESSAGE FATAL 'This demo requires at least Delphi 7 or better'};
+{$IFEND}
 
 {$B-}           { Enable partial boolean evaluation   }
 {$T-}           { Untyped pointers                    }
@@ -72,8 +73,8 @@ uses
   OverbyteIcsSmtpProt;
 
 const
-  SslSmtpTestVersion    = 2.09;
-  CopyRight : String    = ' SslMailSnd (c) 1997-2010 F. Piette V2.09 ';
+  SslSmtpTestVersion    = 2.10;
+  CopyRight : String    = ' SslMailSnd (c) 1997-2010 F. Piette V2.10 ';
   WM_SSL_RECONNECT      = WM_USER + 1;
 
 type

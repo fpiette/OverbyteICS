@@ -8,12 +8,12 @@ Description:  This is a demo program showing how to use the TFtpServer
               In production program, you should add code to implement
               security issues.
 Creation:     April 21, 1998
-Version:      1.14
+Version:      1.15
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1998-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -85,9 +85,13 @@ ReadOnly=false
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslFtpServ1;
+
 {$IFNDEF USE_SSL}
-    Bomb('You need to define USE_SSL in the project options');
+  {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
 {$ENDIF}
+{$IF CompilerVersion < 15}
+  {$MESSAGE FATAL 'This demo requires at least Delphi 7 or better'};
+{$IFEND}
 
 interface
 
@@ -99,8 +103,8 @@ uses
   OverbyteIcsWndControl, OverbyteIcsLibrary, OverbyteIcsOneTimePw;
 
 const
-  FtpServVersion      = 114;
-  CopyRight : String  = ' SslFtpServ (c) 1998-2010 F. Piette V1.14 ';
+  FtpServVersion      = 115;
+  CopyRight : String  = ' SslFtpServ (c) 1998-2011 F. Piette V1.15 ';
   WM_APPSTARTUP       = WM_USER + 1;
 
 type

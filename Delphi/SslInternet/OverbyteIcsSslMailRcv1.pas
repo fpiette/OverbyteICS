@@ -3,12 +3,12 @@
 Author:       François PIETTE
 Object:       Show how to use TPop3Cli (POP3 protocol, RFC-1225)
 Creation:     03 october 1997
-Version:      6.01
+Version:      6.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -55,6 +55,13 @@ Jul 04, 2010  V6.01 Updated to support new TPop3Cli V6.07.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslMailRcv1;
 
+{$IFNDEF USE_SSL}
+  {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
+{$ENDIF}
+{$IF CompilerVersion < 15}
+  {$MESSAGE FATAL 'This demo requires at least Delphi 7 or better'};
+{$IFEND}
+
 interface
 
 uses
@@ -68,8 +75,8 @@ uses
   OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    MailRcvVersion = 600;
-    CopyRight : String = ' MailRcv demo (c) 1997-2010 F. Piette V6.00a ';
+    MailRcvVersion = 602;
+    CopyRight : String = ' MailRcv demo (c) 1997-2010 F. Piette V6.02 ';
 
 type
   TPOP3ExcercizerForm = class(TForm)

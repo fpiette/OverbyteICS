@@ -4,12 +4,12 @@ Author:       François PIETTE
 Description:  This sample program show how to use TNntpCli to write a news
               enabled application.
 Creation:     December 24, 1997
-Version:      1.00
+Version:      1.01
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -53,9 +53,14 @@ Jan 11, 2004 V1.00 Jumped to version 1.00.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslNewsRdr1;
+
 {$IFNDEF USE_SSL}
-    Bomb('Add USE_SSL in the define section in project options');
+  {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
 {$ENDIF}
+{$IF CompilerVersion < 15}
+  {$MESSAGE FATAL 'This demo requires at least Delphi 7 or better'};
+{$IFEND}
+
 interface
 
 uses
@@ -64,8 +69,8 @@ uses
   OverbyteIcsWSocket, OverbyteIcsWndControl;
 
 const
-  NewsRdrVersion     = 100;
-  CopyRight : String = ' NewsRdr (c) 1997-2010 F. Piette V1.00 ';
+  NewsRdrVersion     = 101;
+  CopyRight : String = ' NewsRdr (c) 1997-2010 F. Piette V1.01 ';
 
 type
   TNNTPForm = class(TForm)

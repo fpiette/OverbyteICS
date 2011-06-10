@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿	<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 		<PropertyGroup>
 			<ProjectGuid>{FB3BF23C-5265-400E-92D9-9372620EB8B9}</ProjectGuid>
 			<MainSource>OverbyteIcsD2010Design.dpk</MainSource>
@@ -23,7 +23,7 @@
 			<DCC_Define>USE_SSL;$(DCC_Define)</DCC_Define>
 			<DCC_Description>Overbyte ICS Design-Time Package Delphi 2010</DCC_Description>
 			<DesignOnlyPackage>true</DesignOnlyPackage>
-			<DCC_DependencyCheckOutputName>C:\Users\Public\Documents\RAD Studio\7.0\Bpl\OverbyteIcsD2010Design.bpl</DCC_DependencyCheckOutputName>
+			<DCC_DependencyCheckOutputName>C:\Dokumente und Einstellungen\All Users\Dokumente\RAD Studio\7.0\Bpl\OverbyteIcsD2010Design.bpl</DCC_DependencyCheckOutputName>
 			<GenPackage>true</GenPackage>
 			<GenDll>true</GenDll>
 			<DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
@@ -49,6 +49,7 @@
 			<DCCReference Include="OverbyteIcsD2010Run.dcp"/>
 			<DCCReference Include="OverbyteIcsReg.pas"/>
 			<DCCReference Include="OverByteIcsWSocketE.pas"/>
+			<DCCReference Include="OverbyteIcsDprUpdFix.pas"/>
 			<BuildConfiguration Include="Base">
 				<Key>Base</Key>
 			</BuildConfiguration>

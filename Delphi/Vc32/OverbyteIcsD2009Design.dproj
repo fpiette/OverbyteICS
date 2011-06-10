@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿	<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 		<PropertyGroup>
 			<ProjectGuid>{0FF9B63A-8B97-4BC9-A5A3-10202B134426}</ProjectGuid>
 			<MainSource>OverbyteIcsD2009Design.dpk</MainSource>
@@ -23,7 +23,7 @@
 			<DCC_Define>USE_SSL;$(DCC_Define)</DCC_Define>
 			<DCC_Description>Overbyte ICS Design-Time Package Delphi 2009</DCC_Description>
 			<DesignOnlyPackage>true</DesignOnlyPackage>
-			<DCC_DependencyCheckOutputName></DCC_DependencyCheckOutputName>
+			<DCC_DependencyCheckOutputName>C:\Dokumente und Einstellungen\All Users\Dokumente\RAD Studio\6.0\Bpl\OverbyteIcsD2009Design.bpl</DCC_DependencyCheckOutputName>
 			<GenPackage>true</GenPackage>
 			<GenDll>true</GenDll>
 			<DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
@@ -49,6 +49,7 @@
 			<DCCReference Include="OverbyteIcsD2009Run.dcp"/>
 			<DCCReference Include="OverbyteIcsReg.pas"/>
 			<DCCReference Include="OverByteIcsWSocketE.pas"/>
+			<DCCReference Include="OverbyteIcsDprUpdFix.pas"/>
 			<BuildConfiguration Include="Base">
 				<Key>Base</Key>
 			</BuildConfiguration>
@@ -102,6 +103,11 @@
 						<VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys>
 						<VersionInfoKeys Name="Comments"/>
 					</VersionInfoKeys>
+					<Excluded_Packages>
+						<Excluded_Packages Name="$(BDS)\Bin\dclIndyCore120.bpl">Indy 10 Core Design Time</Excluded_Packages>
+						<Excluded_Packages Name="$(BDS)\Bin\dclIndyProtocols120.bpl">Indy 10 Protocols Design Time</Excluded_Packages>
+						<Excluded_Packages Name="$(BDS)\bin\dclwebsnap120.bpl">CodeGear WebSnap Components</Excluded_Packages>
+					</Excluded_Packages>
 				</Delphi.Personality>
 			</BorlandProject>
 			<ProjectFileVersion>12</ProjectFileVersion>

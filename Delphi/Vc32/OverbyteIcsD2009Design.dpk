@@ -34,6 +34,7 @@ requires
 
 contains
   OverbyteIcsReg in 'OverbyteIcsReg.pas',
-  OverByteIcsWSocketE in 'OverByteIcsWSocketE.pas';
+  OverByteIcsWSocketE in 'OverByteIcsWSocketE.pas',
+  OverbyteIcsDprUpdFix in 'OverbyteIcsDprUpdFix.pas';
 
 end.

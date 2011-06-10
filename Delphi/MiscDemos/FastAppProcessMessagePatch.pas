@@ -49,6 +49,7 @@ interface
 implementation
 
 {$IFDEF CONDITIONALEXPRESSIONS}
+{$IFDEF WIN32}
 {$IF CompilerVersion >= 18.50} // 2007 and later
 
 { Uncomment next line to include checks for UNICODE windows (VCL default) }
@@ -455,5 +456,6 @@ finalization
 {$IFEND}
 
 {$IFEND}
+{$ENDIF}
 {$ENDIF}
 end.

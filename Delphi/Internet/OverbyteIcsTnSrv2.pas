@@ -116,7 +116,7 @@ uses
     OverbyteIcsUtils;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFNDEF WIN32}
+{$IFNDEF MSWINDOWS}
 procedure SetLength(var Str : String; Len : Integer);
 begin
     Str[0] := chr(Len);
@@ -422,7 +422,7 @@ begin
     end;
 
     { Ordinary character, put in buffer in some place left }
-{$IFNDEF WIN32}
+{$IFNDEF MSWINDOWS}
     if Length(FCommand) = High(FCommand) then
         Ch := #7
     else

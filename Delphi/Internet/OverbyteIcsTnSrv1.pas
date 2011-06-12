@@ -127,7 +127,7 @@ begin
     Cnt := Cnt + 1;
     Buf := IntToHex(Cnt, 4) + ' ' + #0;
     OutputDebugString(PChar(Buf));
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
     OutputDebugString(PChar(Msg));
 {$ELSE}
     if Length(Msg) < High(Msg) then

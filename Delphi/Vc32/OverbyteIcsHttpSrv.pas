@@ -357,7 +357,7 @@ unit OverbyteIcsHttpSrv;
     {$UNDEF USE_NTLM_AUTH}
     {$DEFINE NO_DIGEST_AUTH}
 {$ENDIF}
-{$IFNDEF WIN32}
+{$IFNDEF MSWINDOWS}
     {$IFDEF USE_NTLM_AUTH}
         {$UNDEF USE_NTLM_AUTH}  {SSPI is Windows only}
     {$ENDIF}

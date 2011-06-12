@@ -457,7 +457,7 @@ uses
     OverByteIcsSSLEAY,
 {$ENDIF}
     SysUtils, Classes,
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
 {$IFDEF BCB}
     Winsock,
 {$ENDIF}

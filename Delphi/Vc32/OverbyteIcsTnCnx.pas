@@ -249,7 +249,7 @@ begin
     Buf := IntToHex(Cnt, 4) + ' ' + #0;
     WinProcs.OutputDebugString(@Buf[1]);
 
-{$IFNDEF WIN32}
+{$IFNDEF MSWINDOWS}
     if Length(Msg) < High(Msg) then
         Msg[Length(Msg) + 1] := #0;
 {$ENDIF}

@@ -320,6 +320,8 @@ Feb 4,  2011 V7.34 Angus added bandwidth throttling using TCustomThrottledWSocke
                    enabled OverbyteIcsDefs.inc)
 Feb 17, 2011 V7.35 FPiette fixed ExtractURLEncodedValue which returned a nul
                    byte when last character was a '%'. Now return a '%'.
+Jun 15, 2011 V7.36 Arno removed the check for empty password string in
+                   THttpConnection.AuthDigestCheckPassword.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -405,8 +407,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 735;
-    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.35 ';
+    THttpServerVersion = 736;
+    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.36 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
 
@@ -2277,10 +2279,6 @@ var
     HEntity      : THashHex;
     NonceLifeTime: Cardinal;
 begin
-    if Password = '' then begin
-        Result := FALSE;
-        Exit;
-    end;
     AuthDigestCalcHA1(FAuthDigestAlg, AnsiString(FAuthUserName),
                       AnsiString(FAuthDigestRealm), AnsiString(Password),
                       AnsiString(FAuthDigestNonce), AnsiString(FAuthDigestCnonce),

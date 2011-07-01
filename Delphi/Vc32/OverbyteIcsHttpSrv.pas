@@ -9,12 +9,12 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.35
+Version:      7.38
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1999-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -323,6 +323,7 @@ Feb 17, 2011 V7.35 FPiette fixed ExtractURLEncodedValue which returned a nul
 Jun 15, 2011 V7.36 Arno removed the check for empty password string in
                    THttpConnection.AuthDigestCheckPassword.
 
+Jul 01, 2011 V7.38 Lars Gehre found that HEAD could cause an infinite loop.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -407,8 +408,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 736;
-    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.36 ';
+    THttpServerVersion = 738;
+    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.38 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
 
@@ -3863,9 +3864,11 @@ begin
     OnDataSent := ConnectionDataSent;
     ContEncoderHdr := '';  { V7.20 }
 
-    { Seek to end of document because HEAD will not send actual document }
-    if SendType = httpSendHead then
-        FDocStream.Seek(0, soFromEnd)
+    { Free and nil the stream because HEAD will not send current document }
+    if SendType = httpSendHead then begin
+        FDocStream.Free;              { V7.38 }
+        FDocStream := nil;            { V7.38 }
+    end
     else begin
         { V7.21 are we allowed to compress content }
         if CheckContentEncoding(FAnswerContentType) then begin
@@ -3876,7 +3879,8 @@ begin
 
     { Create Header }
     {ANDREAS Create Header for the several protocols}
-    Header := CreateHttpHeader(FVersion, ProtoNumber, FAnswerContentType, RequestRangeValues, FDocSize, CompleteDocSize);
+    Header := CreateHttpHeader(FVersion, ProtoNumber, FAnswerContentType,
+                               RequestRangeValues, FDocSize, CompleteDocSize);
     FAnswerStatus := ProtoNumber;   { V7.19 }
     if FLastModified <> 0 then
         Header := Header +  'Last-Modified: ' + RFC1123_Date(FLastModified) + ' GMT' + #13#10;
@@ -3885,6 +3889,10 @@ begin
     if CustomHeaders <> '' then
         Header := Header + CustomHeaders;   { V7.29 }
     Header := Header + GetKeepAliveHdrLines + #13#10;
+
+    { A HEAD response does not send content }
+    if SendType = httpSendHead then { V7.38 }
+        FDocSize := 0;              { V7.38 }
 
     SendHeader(Header);
     if not ErrorSend then begin

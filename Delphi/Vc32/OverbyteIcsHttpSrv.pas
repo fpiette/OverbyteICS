@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.38
+Version:      7.39
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -324,6 +324,8 @@ Jun 15, 2011 V7.36 Arno removed the check for empty password string in
                    THttpConnection.AuthDigestCheckPassword.
 
 Jul 01, 2011 V7.38 Lars Gehre found that HEAD could cause an infinite loop.
+Jul 09, 2011 V7.39 Lars Gehre fixed an issue with conditional define
+                   "NO_AUTHENTICATION_SUPPORT".
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -408,8 +410,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 738;
-    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.38 ';
+    THttpServerVersion = 739;
+    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.39 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
 
@@ -571,10 +573,12 @@ type
 {$ENDIF}
     THttpConnection = class(TBaseHttpConnection)
     protected
-        FHttpVerNum                : Integer;                         { V1.6 }
+        FHttpVerNum                   : Integer;                 { V1.6 }
+        FPostRcvBuf                   : array [0..1023] of Byte; { V7.30 }{V7.39}
+        FPostCounter                  : Int64;                   { V7.30 }{V7.39}
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
     {$IFDEF USE_NTLM_AUTH}
-        FAuthNtlmSession           : TNtlmAuthSession;
+        FAuthNtlmSession              : TNtlmAuthSession;
     {$ENDIF}
         FAuthInit                     : Boolean;                        { V1.6 }
         FAuthUserName                 : String;
@@ -600,8 +604,6 @@ type
         FAuthType                     : TAuthenticationType;
         FAuthTypes                    : TAuthenticationTypes;
         FAuthenticated                : Boolean;
-        FPostRcvBuf                   : array [0..1023] of Byte; { V7.30 }
-        FPostCounter                  : Int64;                   { V7.30 }
         function  AuthGetMethod: TAuthenticationType;
         procedure AuthCheckAuthenticated; virtual;
     {$IFNDEF NO_DIGEST_AUTH}

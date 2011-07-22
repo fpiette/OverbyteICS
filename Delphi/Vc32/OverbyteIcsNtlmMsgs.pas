@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     Jan 01, 2004
-Version:      6.04
+Version:      6.05
 Description:  This is an implementation of the NTLM authentification
               messages used within HTTP protocol (client side).
               NTLM protocol documentation can be found at:
@@ -57,7 +57,7 @@ Feb 26, 2011 V6.04 Function NtlmGetMessage2 returned garbage WideStrings with
                    Changed string-types of TNTLM_Msg2_Info in 2009+ from
                    WideString to UnicodeString with small chance that breaks
                    some user code.
- 
+Jul 22, 2011 V6.05 Arno - OEM NTLM changes.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsNtlmMsgs;
@@ -85,11 +85,15 @@ uses
 {$IFDEF CLR}
     System.Text,
 {$ENDIF}
-    OverbyteIcsDES, OverbyteIcsMD4, OverbyteIcsMimeUtils;
+    OverbyteIcsDES, OverbyteIcsMD4,
+{$IFDEF COMPILER12_UP}
+    OverbyteIcsUtils,
+{$ENDIF}
+    OverbyteIcsMimeUtils;
 
 const
-    IcsNtlmMsgsVersion     = 604;
-    CopyRight : String     = ' IcsNtlmMsgs (c) 2004-2011 F. Piette V6.04 ';
+    IcsNtlmMsgsVersion     = 605;
+    CopyRight : String     = ' IcsNtlmMsgs (c) 2004-2011 F. Piette V6.05 ';
 
 const
     Flags_Negotiate_Unicode               = $00000001;
@@ -180,6 +184,7 @@ type
         Domain        : UnicodeString;
         Server        : UnicodeString;
         Challenge     : TArrayOf8Bytes;
+        Unicode       : Boolean;
     end;
 
     // third message
@@ -198,7 +203,9 @@ type
 function NtlmGetMessage1(const AHost, ADomain: String): String;
 function NtlmGetMessage2(const AServerReply: String): TNTLM_Msg2_Info;
 function NtlmGetMessage3(const ADomain, AHost, AUser, APassword: String;
-    AChallenge: TArrayOf8Bytes; ACodePage: LongWord = CP_ACP): String;
+    { Param ASrcCodePage is only used with  ANSI compilers }
+    AChallenge: TArrayOf8Bytes; ASrcCodePage: LongWord = CP_ACP;
+    UnicodeFlag: Boolean = True): String;
 procedure NtlmParseUserCode(const AUserCode : String; out Domain : String;
     out UserName : String; const NtlmV2: Boolean = FALSE);
 
@@ -323,7 +330,7 @@ end;
 { "Windows 95/98/Me: A version of MultiByteToWideChar is included in these  }
 { operating systems, but a more extensive version of the function is        }
 { supported by the Microsoft Layer for Unicode."                            }
-function Unicode(const AData: AnsiString; ACodePage: LongWord): AnsiString;
+function ToUnicode(const AData: AnsiString; ACodePage: LongWord): AnsiString;
 var
     Len : Integer;
 begin
@@ -586,6 +593,7 @@ var
     I           : Integer;
     NTLMReply   : AnsiString;
     ReplyLen    : Integer;
+    BufA        : AnsiString;
 begin
     if Length(AServerReply) > 0 then begin
         // we have a response
@@ -599,18 +607,28 @@ begin
         MsgInfo.SrvRespOk := TRUE;
         Move(NTLMReply[1], Msg, SizeOf(Msg));
         // extract target
+        MsgInfo.Unicode := (Msg.Flags and Flags_Negotiate_Unicode) <> 0;
         {MsgInfo.Target := Copy(NTLMReply, Msg.TargetName.Offset + 1,
                                Msg.TargetName.Length);} // Works in D2009+ only
-        if (Msg.TargetName.Length mod SizeOf(WideChar) <> 0) or
+        if (MsgInfo.Unicode and
+            (Msg.TargetName.Length mod SizeOf(WideChar) <> 0)) or
            (Msg.TargetName.Length >= ReplyLen) then
         begin
             Result.SrvRespOk := FALSE;
             Exit;
         end;
-        SetLength(MsgInfo.Target, Msg.TargetName.Length div SizeOf(WideChar));
-        Move(NTLMReply[Msg.TargetName.Offset + 1], Pointer(MsgInfo.Target)^,
-             Msg.TargetName.Length);
 
+        if MsgInfo.Unicode then begin
+            SetLength(MsgInfo.Target, Msg.TargetName.Length div SizeOf(WideChar));
+            Move(NTLMReply[Msg.TargetName.Offset + 1], Pointer(MsgInfo.Target)^,
+                Msg.TargetName.Length);
+        end
+        else begin
+            SetLength(BufA, Msg.TargetName.Length);
+            Move(NTLMReply[Msg.TargetName.Offset + 1], Pointer(BufA)^,
+                Msg.TargetName.Length);
+            MsgInfo.Target := UnicodeString(BufA);
+        end;
         // extract challenge
         Move(Msg.Challenge, MsgInfo.Challenge, SizeOf(Msg.Challenge));
         // let's extract the other information
@@ -634,16 +652,28 @@ begin
             else begin
                 // extract information
                 //InfoStr := Copy(NTLMReply, I, InfoLength); // Works in D2009+ only!
-                if InfoLength mod SizeOf(WideChar) <> 0 then begin
+
+                if MsgInfo.Unicode and
+                   (InfoLength mod SizeOf(WideChar) <> 0) then begin
                     MsgInfo.SrvRespOk := FALSE;
                     Break; // Invalid Unicode
                 end;
-                SetLength(InfoStr, InfoLength div SizeOf(WideChar));
-                Move(NTLMReply[I], Pointer(InfoStr)^, InfoLength);
-                if InfoType = TIB_Type_Server then
-                    MsgInfo.Server := InfoStr
-                else if InfoType = TIB_Type_Domain then
-                    MsgInfo.Domain := InfoStr;
+                if MsgInfo.Unicode then begin
+                    SetLength(InfoStr, InfoLength div SizeOf(WideChar));
+                    Move(NTLMReply[I], Pointer(InfoStr)^, InfoLength);
+                    if InfoType = TIB_Type_Server then
+                        MsgInfo.Server := InfoStr
+                    else if InfoType = TIB_Type_Domain then
+                        MsgInfo.Domain := InfoStr;
+                end    
+                else begin
+                    SetLength(BufA, InfoLength);
+                    Move(NTLMReply[I], Pointer(BufA)^, InfoLength);
+                    if InfoType = TIB_Type_Server then
+                        MsgInfo.Server := UnicodeString(BufA)
+                    else if InfoType = TIB_Type_Domain then
+                        MsgInfo.Domain := UnicodeString(BufA);
+                end;
                 { ToDo: There may be multiple blocks/domains, we only store }
                 { the last one here.                                        }
                 // jump to next block
@@ -661,8 +691,20 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF COMPILER12_UP}
+function AnsiToOemStr(const S: AnsiString): AnsiString;
+begin
+    Result := S;
+    if (S <> '') then
+        CharToOemA(PAnsiChar(S), PAnsiChar(Result));
+end;
+{$ENDIF}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function NtlmGetMessage3(const ADomain, AHost, AUser,
-  APassword: String; AChallenge: TArrayOf8Bytes; ACodePage: LongWord): String;
+  APassword: String; AChallenge: TArrayOf8Bytes; ASrcCodePage: LongWord = CP_ACP;
+  UnicodeFlag: Boolean = True): String;
 var
     Msg        : TNTLM_Message3;
     MessageAux : AnsiString;
@@ -674,29 +716,48 @@ var
     UPassword  : AnsiString;
 begin
 {$IFNDEF COMPILER12_UP}
-    UDomain    := Unicode(ADomain, ACodePage);
-    UHost      := Unicode(AHost, ACodePage);
-    UUser      := Unicode(AUser, ACodePage);
-    UPassword  := Unicode(APassword, ACodePage);
+   // string is AnsiString
+   if UnicodeFlag then begin
+        UDomain    := ToUnicode(ADomain, ASrcCodePage);
+        UHost      := ToUnicode(AHost, ASrcCodePage);
+        UUser      := ToUnicode(AUser, ASrcCodePage);
+        UPassword  := ToUnicode(APassword, ASrcCodePage);
+    end
+    else begin
+        UDomain    := ADomain; // Assume ASCII
+        UHost      := AHost;   // Assume ASCII
+        UUser      := AnsiToOemStr(AUser);
+        UPassword  := AnsiToOemStr(APassword);
+    end;
 {$ELSE}
-    if Length(ADomain) > 0 then begin
-        SetLength(UDomain, Length(ADomain) * SizeOf(Char));
-        Move(Pointer(ADomain)^, UDomain[1], Length(UDomain));
-    end;
-    //UDomain    := ADomain;
-    if Length(AHost) > 0 then begin
-        SetLength(UHost, Length(AHost) * SizeOf(Char));
-        Move(Pointer(AHost)^, UHost[1], Length(UHost));
-    end;
-    //UHost      := AHost;
-    if Length(AUser) > 0 then begin
-        SetLength(UUser, Length(AUser) * SizeOf(Char));
-        Move(Pointer(AUser)^, UUser[1], Length(UUser));
-    end;
-    //UUser      := AUser;
-    if Length(APassword) > 0 then begin
-        SetLength(UPassword, Length(APassword) * SizeOf(Char));
-        Move(Pointer(APassword)^, UPassword[1], Length(UPassword));
+    // string is UnicodeString
+    if UnicodeFlag then begin
+        if Length(ADomain) > 0 then begin
+            SetLength(UDomain, Length(ADomain) * SizeOf(Char));
+            Move(Pointer(ADomain)^, UDomain[1], Length(UDomain));
+        end;
+        //UDomain    := ADomain;
+        if Length(AHost) > 0 then begin
+            SetLength(UHost, Length(AHost) * SizeOf(Char));
+            Move(Pointer(AHost)^, UHost[1], Length(UHost));
+        end;
+        //UHost      := AHost;
+        if Length(AUser) > 0 then begin
+            SetLength(UUser, Length(AUser) * SizeOf(Char));
+            Move(Pointer(AUser)^, UUser[1], Length(UUser));
+        end;
+        //UUser      := AUser;
+        if Length(APassword) > 0 then begin
+            SetLength(UPassword, Length(APassword) * SizeOf(Char));
+            Move(Pointer(APassword)^, UPassword[1], Length(UPassword));
+        end;
+    end
+    else begin
+        { OEM string }
+        UDomain    := AnsiString(ADomain);// Assume ASCII
+        UHost      := AnsiString(AHost);  // Assume ASCII
+        UUser      := UnicodeToAnsi(AUser, CP_OEMCP);
+        UPassword  := UnicodeToAnsi(APassword, CP_OEMCP);
     end;
 {$ENDIF}
     FillChar(Msg, SizeOf(Msg), #0);
@@ -733,7 +794,12 @@ begin
     Msg.SessionKey.Offset := 0;
 
     // prepare flags
-    Msg.Flags := Flags_Negotiate_Unicode or
+    if UnicodeFlag then
+        Msg.Flags := Flags_Negotiate_Unicode
+    else
+        Msg.Flags := Flags_Negotiate_OEM;
+
+    Msg.Flags := Msg.Flags or
                  Flags_Request_Target or
                  Flags_Negotiate_NTLM or
                  Flags_Negotiate_Allways_Sign {or

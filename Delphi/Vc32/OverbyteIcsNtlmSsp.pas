@@ -2,7 +2,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  Server-side NTLM, validation of user credentials using Windows SSPI.
 Creation:     Sep 04, 2006
-Version:      1.04
+Version:      1.06
 Legal issues: Copyright (C) 2005 by Arno Garrels, Berlin, Germany,
               contact: <arno.garrels@gmx.de>
 
@@ -42,7 +42,7 @@ Apr 25, 2008 V1.02 A. Garrels, some changes to prepare code for Unicode.
 Apr 30, 2008 V1.03 A. Garrels moved the call to LoadSecPackage from
              initialization section to TNtlmAuthSession's constructor.
 Nov 15, 2010 V1.0.4 Fix in function UCS2ToString that is used by ANSI compilers.
-
+Jul 22, 2011 V1.06 Arno - OEM NTLM changes.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsNtlmSsp;
@@ -259,7 +259,9 @@ begin
         NtlmMsg2Info := NtlmGetMessage2(FNtlmMessage);
         Result := ProcessNtlmMsg(NtlmGetMessage3(ADomain, '', AUser,
                                                  APassword,
-                                                 NtlmMsg2Info.Challenge));
+                                                 NtlmMsg2Info.Challenge,
+                                                 CP_ACP,
+                                                 NtlmMsg2Info.Unicode));
         if CleanUpSession then
             CleanUpLogonSession;
     end;

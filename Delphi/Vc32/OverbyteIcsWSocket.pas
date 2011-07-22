@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.80
+Version:      7.83
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -910,6 +910,7 @@ May 21, 2011 V7.81 Arno - Make sure receipt of a SSL shutdown notification
                    closes the connection if no bidirectional SSL shutdown is
                    wanted. There are servers in the wild expecting a SSL
                    shutdown confirmation before they close the connection.
+Jul 22, 2011 V7.83 Arno - OEM NTLM changes.
 
 }
 
@@ -1023,8 +1024,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 780;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.80 ';
+  WSocketVersion            = 783;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.83 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -17657,7 +17658,9 @@ begin
                               Hostname,
                               LUser,
                               FHttpTunnelPassword,
-                              NtlmInfo.Challenge);
+                              NtlmInfo.Challenge,
+                              CP_ACP,
+                              NtlmInfo.Unicode);
 end;
 
 

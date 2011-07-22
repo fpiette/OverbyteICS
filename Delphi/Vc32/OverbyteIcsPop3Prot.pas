@@ -10,7 +10,7 @@ Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      6.10
+Version:      6.12
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -186,6 +186,7 @@ Sep 20, 2010 V6.08 Arno - Moved HMAC-MD5 code to OverbyteIcsMD5.pas.
 Oct 10, 2010 V6.09 Arno - MessagePump changes/fixes.
 Nov 08, 2010 V6.10 Arno improved final exception handling, more details
              in OverbyteIcsWndControl.pas (V1.14 comments).
+Jul 22, 2011 V6.12 Arno - OEM NTLM changes.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPop3Prot;
@@ -237,8 +238,8 @@ uses
 (*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameW$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)	
 
 const
-    Pop3CliVersion     = 610;
-    CopyRight : String = ' POP3 component (c) 1997-2010 F. Piette V6.10 ';
+    Pop3CliVersion     = 612;
+    CopyRight : String = ' POP3 component (c) 1997-2010 F. Piette V6.12 ';
     POP3_RCV_BUF_SIZE  = 4096;
 
 type
@@ -1634,7 +1635,9 @@ begin
     NtlmMsg3 := NtlmGetMessage3('',
                                 '',  // the Host param seems to be ignored
                                 Username, Password,
-                                NtlmMsg2Info.Challenge);
+                                NtlmMsg2Info.Challenge,
+                                CP_ACP,
+                                NtlmMsg2Info.Unicode);
     FState := pop3InternalReady;
     ExecAsync(pop3Auth, AnsiString(NtlmMsg3), pop3Transaction, nil);
 end;

@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.16
+Version:      7.17
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -449,6 +449,7 @@ Feb 19, 2011 V7.15 Arno - Proxy authentication with relocations still did not
              twice per relocation when the connection closed.
              Fix in Digest authentication.
 Apr 15, 2011 V7.16 Arno prepared for 64-bit.
+Jul 22, 2011 V7.17 Arno - OEM NTLM changes.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -529,8 +530,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 716;
-    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.16 ';
+    HttpCliVersion       = 717;
+    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.17 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -4872,7 +4873,9 @@ begin
                                   Hostname,
                                   LUser,
                                   FProxyPassword,
-                                  FProxyNTLMMsg2Info.Challenge);
+                                  FProxyNTLMMsg2Info.Challenge,
+                                  CP_ACP,
+                                  FProxyNTLMMsg2Info.Unicode);
     end
     else begin
         NtlmParseUserCode(FCurrUsername, LDomain, LUser, FALSE);
@@ -4880,7 +4883,9 @@ begin
                   NtlmGetMessage3(LDomain,
                                   Hostname,
                                   LUser, FCurrPassword,
-                                  FNTLMMsg2Info.Challenge);
+                                  FNTLMMsg2Info.Challenge,
+                                  CP_ACP,
+                                  FNTLMMsg2Info.Unicode);
     end;
 end;
 {$ENDIF}

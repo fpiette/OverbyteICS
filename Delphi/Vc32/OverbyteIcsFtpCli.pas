@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.24
+Version:      V7.26
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1033,7 +1033,12 @@ Apr 15, 2011 V7.23 Arno prepared for 64-bit.
 May 21, 2011 V7.24 Arno - Call CloseDelayed rather than Close in
              TCustomFtpCli.DoneQuitAsync in order to avoid error #10053 in
              OnSessionClosed event with SSL.
-             
+Jul 24, 2011 V7.26 Arno added published property DataSocketSndBufSize
+             and public property DataSocketRcvBufSize. Increase DataSocketSndBufSize
+             in order to make uploads faster. Both values default to value 8192
+             which is the default winsock size. Removed useless call to
+             WSocket_getsockopt in TCustomFtpCli.DataSocketPutSessionAvailable.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpCli;
@@ -1105,9 +1110,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 724;
-  CopyRight : String = ' TFtpCli (c) 1996-2011 F. Piette V7.24 ';
-  FtpClientId : String = 'ICS FTP Client V7.24 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 726;
+  CopyRight : String = ' TFtpCli (c) 1996-2011 F. Piette V7.26 ';
+  FtpClientId : String = 'ICS FTP Client V7.26 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -1234,6 +1239,8 @@ type
     FDataPortRangeStart : DWORD;  {JT}
     FDataPortRangeEnd   : DWORD;  {JT}
     FLastDataPort       : DWORD;  {JT}
+    FDSocketSndBufSize  : Integer;{AG V7.26}
+    FDSocketRcvBufSize  : Integer;{AG V7.26}
     FLocalAddr          : String; {bb}
     FUserName           : String;
     FPassWord           : String;
@@ -1452,6 +1459,8 @@ type
     procedure   HandleHttpTunnelError(Sender: TObject; ErrCode: Word;
         TunnelServerAuthTypes: THttpTunnelServerAuthTypes; const Msg: String);
     procedure   HandleSocksError(Sender: TObject; ErrCode: Integer; Msg: String);
+    procedure   SetDSocketSndBufSize(const Value: Integer);{AG V7.26}
+    procedure   SetDSocketRcvBufSize(const Value: Integer);{AG V7.26}
   public
     constructor Create(AOwner: TComponent); override;
     destructor  Destroy; override;
@@ -1663,6 +1672,10 @@ type
     property Language             : String               read  FLanguage
                                                          write FLanguage;           { V7.01 }
     property LangSupport          : String               read  FLangSupport;        { V7.01 }
+    property DataSocketSndBufSize : Integer              read  FDSocketSndBufSize   {AG V7.26}
+                                                         write SetDSocketSndBufSize default 8192;
+    property DataSocketRcvBufSize : Integer              read  FDSocketRcvBufSize   {AG V7.26}
+                                                         write SetDSocketRcvBufSize default 8192;
     property OnDisplay            : TFtpDisplay          read  FOnDisplay
                                                          write FOnDisplay;
     property OnDisplayFile        : TFtpDisplay          read  FOnDisplayFile
@@ -1808,6 +1821,7 @@ type
     property HttpTunnelUserCode;
     property Account;
     property Language;
+    property DataSocketSndBufSize;                               {AG V7.26}
     property OnDisplay;
     property OnDisplayFile;
     property OnCommand;
@@ -2254,6 +2268,8 @@ begin
     FSystemCodePage := GetACP; { AG V7.02 }
     FCodePage := CP_ACP;
     FLanguage := 'EN';    { V7.01 or EN-uk, FR, etc, only for messages }
+    FDSocketSndBufSize := 8192;  {AG V7.26}
+    FDSocketRcvBufSize := 8192;  {AG V7.26}
 end;
 
 
@@ -2352,6 +2368,26 @@ begin
         else if AComponent = FDataSocket then
             FDataSocket := nil;
     end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomFtpCli.SetDSocketSndBufSize(const Value: Integer);{AG V7.26}
+begin
+    if Value < 1024 then
+        FDSocketSndBufSize := 1024
+    else
+        FDSocketSndBufSize := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomFtpCli.SetDSocketRcvBufSize(const Value: Integer);{AG V7.26}
+begin
+    if Value < 1024 then
+        FDSocketRcvBufSize := 1024
+    else
+        FDSocketRcvBufSize := Value;
 end;
 
 
@@ -4294,6 +4330,8 @@ begin
         TriggerRequestDone(FRequestResult);
     end
     else begin
+        if FDataSocket.SocketRcvBufSize <> FDSocketRcvBufSize then {AG V7.26}
+            FDataSocket.SocketRcvBufSize := FDSocketRcvBufSize;    {AG V7.26}
 {$IFDEF UseBandwidthControl}
         FBandwidthCount := 0; // Reset byte counter
         if ftpBandwidthControl in FOptions then begin
@@ -4344,6 +4382,8 @@ begin
         TriggerRequestDone(FRequestResult);
         Exit;
     end;
+    if FDataSocket.SocketSndBufSize <> FDSocketSndBufSize then {AG V7.26}
+        FDataSocket.SocketSndBufSize := FDSocketSndBufSize;    {AG V7.26}
 {$IFDEF UseBandwidthControl}
     FBandwidthCount := 0; // Reset byte counter
     if ftpBandwidthControl in FOptions then begin
@@ -4405,6 +4445,8 @@ begin
     FDataSocket.OnDataAvailable  := DataSocketGetDataAvailable;
     FDataSocket.OnDataSent       := nil;
     FDataSocket.HSocket          := aSocket;
+    if FDataSocket.SocketRcvBufSize <> FDSocketRcvBufSize then {AG V7.26}
+        FDataSocket.SocketRcvBufSize := FDSocketRcvBufSize;    {AG V7.26}
     FDataSocket.ComponentOptions := [wsoNoReceiveLoop];   { 26/10/02 } { 2.109 }
 {$IFDEF UseBandwidthControl}
     FBandwidthCount := 0; // Reset byte counter
@@ -4458,8 +4500,6 @@ procedure TCustomFtpCli.DataSocketPutSessionAvailable(
     ErrCode : word);
 var
     aSocket : TSocket;
-    SndBufSize : Integer;
-    OptLen     : Integer;
 begin
 {$IFNDEF NO_DEBUG_LOG}                                             { 2.105 }
     if CheckLogOptions(loProtSpecInfo) then
@@ -4491,15 +4531,9 @@ begin
     FDataSocket.OnDataSent       := DataSocketPutDataSent;
 {   FDataSocket.OnDisplay        := FOnDisplay; } { Debugging only }
     FDataSocket.HSocket          := aSocket;
+    if FDataSocket.SocketSndBufSize <> FDSocketSndBufSize then {AG V7.26}
+        FDataSocket.SocketSndBufSize := FDSocketSndBufSize;    {AG V7.26}
     FDataSocket.ComponentOptions := [wsoNoReceiveLoop];   { 26/10/02 }
-
-    OptLen := SizeOf(SndBufSize);
-    if WSocket_getsockopt(FDataSocket.HSocket, SOL_SOCKET,
-                          SO_SNDBUF,
-                          @SndBufSize, OptLen) = SOCKET_ERROR then begin
-        HandleError('winsock.getsockopt(SO_SNDBUF) failed');
-        Exit;
-    end;
 
     { Be sure to gracefully close the socket }
     FDataSocket.LingerOnOff   := wsLingerOff;

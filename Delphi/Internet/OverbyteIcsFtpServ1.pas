@@ -8,12 +8,12 @@ Description:  This is a demo program showing how to use the TFtpServer
               In production program, you should add code to implement
               security issues.
 Creation:     April 21, 1998
-Version:      1.16
+Version:      1.17
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
 Legal issues: Copyright (C) 1998-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -84,6 +84,9 @@ Nov 8, 2008, V1.13 Angus, support HOST and REIN(ialise) commands
 Nov 13, 2008 V1.14 Arno adjusted UTF-8/code page support.
 Nov 21, 2008 V1.15 Angus removed raw display
 Jun 10, 2010 V1.16 Angus added MaxKB bandwidth limit
+Aug 8, 2011  V1.17 Angus constant FtpBuffSize = 32768 to increase FTP internal and data socket buffer sizes
+
+
 
 
 Sample entry from ftpaccounts-default.ini
@@ -126,9 +129,10 @@ uses
   OverbyteIcsUtils;
 
 const
-  FtpServVersion      = 116;
-  CopyRight : String  = ' FtpServ (c) 1998-2010 F. Piette V1.16 ';
+  FtpServVersion      = 117;
+  CopyRight : String  = ' FtpServ (c) 1998-2011 F. Piette V1.17 ';
   WM_APPSTARTUP       = WM_USER + 1;
+  FtpBuffSize         = 32768;  // V1.17
 
 type
   TLogMsg = class(TComponent)
@@ -326,6 +330,9 @@ implementation
 constructor TMyClient.Create(AOwner: TComponent);
 begin
     inherited Create(AOwner);
+    RcvSize := FtpBuffSize ;     // V1.17 increase FTP local xmit/receive buffer size
+    RcvBufSize := FtpBuffSize ;  // V1.17 increase data socket receive buffer size
+    SndBufSize := FtpBuffSize ;  // V1.17 increase data socket send buffer size
 end;
 
 destructor TMyClient.Destroy;

@@ -154,6 +154,8 @@ object FtpServerForm: TFtpServerForm
     CodePage = 0
     Language = 'EN*'
     MaxAttempts = 12
+    BandwidthLimit = 0
+    BandwidthSampling = 1000
     OnStart = FtpServer1Start
     OnStop = FtpServer1Stop
     OnAuthenticate = FtpServer1Authenticate

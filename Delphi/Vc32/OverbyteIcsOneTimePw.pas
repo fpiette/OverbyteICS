@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  One Time Password support functions, see RFC2289/1938 (aka S/KEY)
 Creation:     12 November 2007
 Updated:      06 August 2008
-Version:      1.04
+Version:      1.05
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -43,6 +43,8 @@ Updates:
 06 Aug 2008 - 1.02 Changed two strings to AnsiStrings so it works under Delphi 2009
 5 Nov 2008  - 1.03 added OtpGetMethod, OtpKeyNames public
 15 Apr 2011 - 1.04 Arno prepared for 64-bit, use functions from OverbyteIcsUtils.
+14 Aug 2011 - 1.05 Arno fixed a bug that showed up since Delphi XE only and made
+              two small optimizations.
 
 
 Background:
@@ -453,11 +455,13 @@ var
     I: Integer ;
     Maplen, Seedlen: integer ;
 begin
-    result := '' ;
+    //result := '' ;
     Seedlen := Random (12) + 4 ;  { seed length 4 to 16 }
     Maplen := Length (CharMap) - 1 ;
+    SetLength(Result, SeedLen);
     for I := 1 to Seedlen do
-        result := result + CharMap [Random (Maplen) + 1] ;
+        //result := result + CharMap [Random (Maplen) + 1] ;
+        Result[I] := CharMap [Random (Maplen) + 1];
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -485,13 +489,24 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function OtpLowNoSpace (const AString: string): string;
 var
-    I: integer;
+    I, J: integer;
 begin
-    result := '';
+    {result := '';
     for I := 1 to Length(AString) do begin
         if (AString[I] <> ' ') and (AString[I] <> #9) then
             result := result + LowerCase (AString [I]);
+    end;}
+    SetLength(Result, Length(AString));
+    J := 0;
+    for I := 1 to Length(AString) do begin
+        if (AString[I] <> ' ') and (AString[I] <> #9) then
+        begin
+            Inc(J);
+            Result[J] := AString[I];
+        end;
     end;
+    SetLength(Result, J);
+    Result := LowerCase(Result);
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -509,13 +524,14 @@ begin
 end;
 *)
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function KeyToHex(OtpKey: TOtp64bit): string;
-var
-    I: integer ;
+function KeyToHex(OtpKey: TOtp64bit): string; {$IFDEF USE_INLINE} inline; {$ENDIF}
+{var
+    I: integer ;}
 begin
-    result := '';
+    {result := '';
     for I := 0 to 7 do
-        result := result + IntToHex(OtpKey [I], 2);
+        result := result + IntToHex(OtpKey [I], 2);}
+    Result := IcsBufferToHex(OtpKey[0], SizeOf(OtpKey));
 end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -532,13 +548,14 @@ var
 begin
  { convert 8 bytes to int64 }
     //Key64 := RevEndian64 (TInt64Rec (OtpKey).Quad) ;
-    IcsSwap64Buf(@TInt64Rec(OtpKey).Quad, @Key64, 1);
+    //IcsSwap64Buf(@TInt64Rec(OtpKey).Quad, @Key64, 1);
+    Key64 := IcsSwap64(TInt64Rec(OtpKey).Quad); // New and faster
  { get 11-bits five times and get five words from dictionary }
     for I := 0 to 4 do
         Result := Result + SixWordsList [GetBits (I * 11, 11)] + ' ' ;
     parity := 0;
   { sixth word includes two parity bits }
-    for I := 0 to 32 do inc (parity, GetBits (I * 2, 2));
+    for I := 0 to 31 do inc (parity, GetBits (I * 2, 2));
     parity := parity and 3;
     result := result + SixWordsList [GetBits (55, 11) + parity];
 end;
@@ -776,4 +793,3 @@ initialization
 finalization
 
 end.
-

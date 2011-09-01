@@ -23,8 +23,14 @@ if exist delphi\vc32\OverbyteIcs*.cbproj.local del delphi\vc32\OverbyteIcs*.cbpr
 if exist delphi\vc32\OverbyteIcs*.bdsproj.local del delphi\vc32\OverbyteIcs*.bdsproj.local
 if exist delphi\vc32\OverbyteIcs*.identcache del delphi\vc32\OverbyteIcs*.identcache
 
+if exist delphi\internet\OverbyteIcs*.rsm del delphi\internet\OverbyteIcs*.rsm
+if exist delphi\internet\OverbyteIcs*_Icon.ico del delphi\internet\OverbyteIcs*_Icon.ico
+if exist delphi\internet\OverbyteIcs*.exe del delphi\internet\OverbyteIcs*.exe
+if exist delphi\internet\OverbyteIcs*.dll del delphi\internet\OverbyteIcs*.dll
 if exist delphi\internet\OverbyteIcs*.ddp del delphi\internet\OverbyteIcs*.ddp
+if exist delphi\internet\Dcu\*.dcu del delphi\internet\Dcu\*.dcu
 if exist delphi\internet\OverbyteIcs*.dproj del delphi\internet\OverbyteIcs*.dproj
+if exist delphi\internet\OverbyteIcs*.dproj.2007 del delphi\internet\OverbyteIcs*.dproj.2007
 if exist delphi\internet\OverbyteIcs*.bdsproj del delphi\internet\OverbyteIcs*.bdsproj
 if exist delphi\internet\OverbyteIcs*.bdsgroup del delphi\internet\OverbyteIcs*.bdsgroup
 if exist delphi\internet\OverbyteIcs*.groupproj del delphi\internet\OverbyteIcs*.groupproj
@@ -40,8 +46,13 @@ if exist delphi\internet\OverbyteIcs*.bdsproj.local del delphi\internet\Overbyte
 if exist delphi\internet\OverbyteIcs*.bdsgroup.local del delphi\internet\OverbyteIcs*.bdsgroup.local
 if exist delphi\internet\OverbyteIcs*.identcache del delphi\internet\OverbyteIcs*.identcache
 
+if exist delphi\sslinternet\OverbyteIcs*.rsm del delphi\sslinternet\OverbyteIcs*.rsm
+if exist delphi\sslinternet\OverbyteIcs*_Icon.ico del delphi\sslinternet\OverbyteIcs*_Icon.ico
+if exist delphi\sslinternet\OverbyteIcs*.exe del delphi\sslinternet\OverbyteIcs*.exe
 if exist delphi\sslinternet\OverbyteIcs*.ddp del delphi\sslinternet\OverbyteIcs*.ddp
+if exist delphi\sslinternet\Dcu\*.dcu del delphi\sslinternet\Dcu\*.dcu
 if exist delphi\sslinternet\OverbyteIcs*.dproj del delphi\sslinternet\OverbyteIcs*.dproj
+if exist delphi\sslinternet\OverbyteIcs*.dproj.2007 del delphi\sslinternet\OverbyteIcs*.dproj.2007
 if exist delphi\sslinternet\OverbyteIcs*.bdsproj del delphi\sslinternet\OverbyteIcs*.bdsproj
 if exist delphi\sslinternet\OverbyteIcs*.bdsgroup del delphi\sslinternet\OverbyteIcs*.bdsgroup
 if exist delphi\sslinternet\OverbyteIcs*.groupproj del delphi\sslinternet\OverbyteIcs*.groupproj
@@ -57,8 +68,13 @@ if exist delphi\sslinternet\OverbyteIcs*.bdsproj.local del delphi\sslinternet\Ov
 if exist delphi\sslinternet\OverbyteIcs*.bdsgroup.local del delphi\sslinternet\OverbyteIcs*.bdsgroup.local
 if exist delphi\sslinternet\OverbyteIcs*.identcache del delphi\sslinternet\OverbyteIcs*.identcache
 
+if exist delphi\miscdemos\OverbyteIcs*.rsm del delphi\miscdemos\OverbyteIcs*.rsm
+if exist delphi\miscdemos\OverbyteIcs*_Icon.icon del delphi\miscdemos\OverbyteIcs*_Icon.icon
+if exist delphi\miscdemos\OverbyteIcs*.exe del delphi\miscdemos\OverbyteIcs*.exe
 if exist delphi\miscdemos\OverbyteIcs*.ddp del delphi\miscdemos\OverbyteIcs*.ddp
+if exist delphi\miscdemos\Dcu\*.dcu del delphi\miscdemos\Dcu\*.dcu
 if exist delphi\miscdemos\OverbyteIcs*.dproj del delphi\miscdemos\OverbyteIcs*.dproj
+if exist delphi\miscdemos\OverbyteIcs*.dproj.2007 del delphi\miscdemos\OverbyteIcs*.dproj.2007
 if exist delphi\miscdemos\OverbyteIcs*.bdsproj del delphi\miscdemos\OverbyteIcs*.bdsproj
 if exist delphi\miscdemos\OverbyteIcs*.bdsgroup del delphi\miscdemos\OverbyteIcs*.bdsgroup
 if exist delphi\miscdemos\OverbyteIcs*.groupproj del delphi\miscdemos\OverbyteIcs*.groupproj

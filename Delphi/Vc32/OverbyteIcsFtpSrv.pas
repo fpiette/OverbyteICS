@@ -397,6 +397,7 @@ Nov 08, 2010 V7.15 Arno improved final exception handling, more details
              in OverbyteIcsWndControl.pas (V1.14 comments).
 Feb 7,  2010 V7.16 Angus ensure control channel is correctly BandwidthLimited
 May 21, 2011 V7.17 Arno ensure CommandAUTH resets the SSL prot-level correctly.
+Jul 18, 2011 V7.18 Arno added Unicode normalization.
 Aug 8,  2011 V7.19 Angus added client SndBufSize and RcvBufSize to set data socket
              buffers sizes for better performance, set to 32K to double speeds
 
@@ -2600,13 +2601,17 @@ begin
       {$IFDEF COMPILER12_UP}
         { Convert buffer data to UnicodeString AG V7.02 }
         Params := AnsiToUnicode(RawParams, Client.CurrentCodePage);
+      {$IFNDEF NO_UNICODE_NORMALIZATION}                               { AG V7.18 }
+        if Client.CurrentCodePage = CP_UTF8 then                       { AG V7.18 }
+            Params := IcsNormalizeString(Params, icsNormalizationC);   { AG V7.18 }
+      {$ENDIF NO_UNICODE_NORMALIZATION}                                { AG V7.18 }
       {$ELSE}
         { Convert buffer data to AnsiString ( potential data loss! ) AG V7.02 }
         if (Client.CurrentCodePage = CP_UTF8) then
             Params := Utf8ToStringA(RawParams)
         else
             Params := RawParams;
-      {$ENDIF}
+      {$ENDIF COMPILER12_UP}
 
         { Extract keyword, ignoring leading spaces and tabs }
         I := 1; { angus V1.54 moved argument parsing code to FtpSrvT to avoid duplication }

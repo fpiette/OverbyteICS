@@ -70,6 +70,7 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
   DELPHI12         Delphi 2009
   DELPHI14         Delphi 2010
   DELPHI15         Delphi XE
+  DELPHI16         Delphi XE2
   DELPHI1_UP       Delphi 1  or higher
   DELPHI2_UP       Delphi 2  or higher
   DELPHI3_UP       Delphi 3  or higher
@@ -84,6 +85,7 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
   DELPHI12_UP      Delphi 12 or higher  (Delphi 2009 - Tiburon)
   DELPHI14_UP      Delphi 14 or higher  (Delphi 2010 - Weaver)
   DELPHI15_UP      Delphi 15 or higher  (Delphi XE   - Fulcrum)
+  DELPHI16_UP      Delphi 16 or higher  (Delphi XE2   - Pulsar)
 
   BCB1             C++ Builder 1
   BCB3             C++ Builder 3
@@ -100,6 +102,7 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
   BCB12_UP         C++ Builder 2009 or higher
   BCB14_UP         C++ Builder 2010 or higher
   BCB15_UP         C++ Builder XE   or higher
+  BCB16_UP         C++ Builder XE2  or higher
 
   COMPILER1        Delphi 1
   COMPILER2        Delphi 2  or C++ Builder 1
@@ -116,6 +119,7 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
   COMPILER12       Delphi or C++ Builder 2009
   COMPILER14       Delphi or C++ Builder 2010
   COMPILER15       Delphi or C++ Builder XE
+  COMPILER16       Delphi or C++ Builder XE2
   COMPILER1_UP     Delphi 1  or higher
   COMPILER2_UP     Delphi 2  or C++ Builder 1 or higher
   COMPILER3_UP     Delphi 3  or higher
@@ -131,6 +135,7 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
   COMPILER12_UP    Delphi or C++ Builder 2009 or higher (Tiburon)
   COMPILER14_UP    Delphi or C++ Builder 2010 or higher (Weaver)
   COMPILER15_UP    Delphi or C++ Builder XE   or higher (Fulcrum)
+  COMPILER16_UP    Delphi or C++ Builder XE2  or higher (Pulsar)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * }
 
@@ -194,6 +199,17 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 {$ENDIF}
 
 {$DEFINE VER_UNKNOWN}
+
+{$IFDEF VER230}
+  {$UNDEF VER_UNKNOWN}
+  {$DEFINE COMPILER16}
+  {$IFDEF BCB}
+    {$DEFINE BCB16}
+  {$ELSE}
+    {$DEFINE DELPHI16}
+    {$DEFINE DELPHI}
+  {$ENDIF}
+{$ENDIF}
 
 {$IFDEF VER220}
   {$UNDEF VER_UNKNOWN}
@@ -357,6 +373,24 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
   {$ENDIF}
 {$ENDIF}
 
+{$IFDEF DELPHI16}
+  {$DEFINE DELPHI16_UP}
+  {$DEFINE DELPHI15_UP}
+  {$DEFINE DELPHI14_UP}
+  {$DEFINE DELPHI12_UP}
+  {$DEFINE DELPHI11_UP}
+  {$DEFINE DELPHI10_UP}
+  {$DEFINE DELPHI9_UP}
+  {$DEFINE DELPHI8_UP}
+  {$DEFINE DELPHI7_UP}
+  {$DEFINE DELPHI6_UP}
+  {$DEFINE DELPHI5_UP}
+  {$DEFINE DELPHI4_UP}
+  {$DEFINE DELPHI3_UP}
+  {$DEFINE DELPHI2_UP}
+  {$DEFINE DELPHI1_UP}
+{$ENDIF}
+
 {$IFDEF DELPHI15}
   {$DEFINE DELPHI15_UP}
   {$DEFINE DELPHI14_UP}
@@ -502,6 +536,25 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 
 {$IFDEF DELPHI1}
   {$DEFINE DELPHI1_UP}
+{$ENDIF}
+
+{$IFDEF COMPILER16}
+  {$DEFINE COMPILER16_UP}
+  {$DEFINE COMPILER15_UP}
+  {$DEFINE COMPILER14_UP}
+  {$DEFINE COMPILER12_UP}
+  {$DEFINE COMPILER11_UP}
+  {$DEFINE COMPILER10_UP}
+  {$DEFINE COMPILER9_UP}
+  {$DEFINE COMPILER8_UP}
+  {$DEFINE COMPILER7_UP}
+  {$DEFINE COMPILER6_UP}
+  {$DEFINE COMPILER5_UP}
+  {$DEFINE COMPILER4_UP}
+  {$DEFINE COMPILER35_UP}
+  {$DEFINE COMPILER3_UP}
+  {$DEFINE COMPILER2_UP}
+  {$DEFINE COMPILER1_UP}
 {$ENDIF}
 
 {$IFDEF COMPILER15}
@@ -667,6 +720,20 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 
 {$IFDEF COMPILER1}
   {$DEFINE COMPILER1_UP}
+{$ENDIF}
+
+{$IFDEF BCB16}
+  {$DEFINE BCB16_UP}
+  {$DEFINE BCB15_UP}
+  {$DEFINE BCB14_UP}
+  {$DEFINE BCB12_UP}
+  {$DEFINE BCB11_UP}
+  {$DEFINE BCB10_UP}
+  {$DEFINE BCB6_UP}
+  {$DEFINE BCB5_UP}
+  {$DEFINE BCB4_UP}
+  {$DEFINE BCB3_UP}
+  {$DEFINE BCB1_UP}
 {$ENDIF}
 
 {$IFDEF BCB15}

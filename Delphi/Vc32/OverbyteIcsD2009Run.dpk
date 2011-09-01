@@ -120,6 +120,7 @@ contains
   OverbyteIcsWSocketTS in 'OverbyteIcsWSocketTS.pas',
   OverbyteIcsMLang in 'OverbyteIcsMLang.pas',
   OverbyteIcsCsc in 'OverbyteIcsCsc.pas',
-  OverbyteIcsIconv in 'OverbyteIcsIconv.pas';
+  OverbyteIcsIconv in 'OverbyteIcsIconv.pas',
+  OverbyteIcsWinnls in 'OverbyteIcsWinnls.pas';
 
 end.

@@ -211,7 +211,8 @@ type
 
   {$EXTERNALSYM PINT_PTR}
   PINT_PTR                  = ^INT_PTR;
-
+  {$EXTERNALSYM PUINT_PTR}
+  PUINT_PTR                 = ^UINT_PTR;
   {$EXTERNALSYM Exception}
   Exception                 = SysUtils.Exception;
   {$EXTERNALSYM ExceptClass}

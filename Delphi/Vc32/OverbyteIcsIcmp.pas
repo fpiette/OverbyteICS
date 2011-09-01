@@ -10,12 +10,12 @@ Description:  This unit encapsulate the ICMP.DLL into an object of type TICMP.
               to change properties or event handler. This is much simpler to
               use for a GUI program.
 Creation:     January 6, 1997
-Version:      6.01
+Version:      7.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
 Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -59,6 +59,7 @@ Mar 24, 2008 V6.01 Francois Piette made some changes to prepare code
                    for Unicode.
                    Use of AnsiString.
 Aug 12, 2008 V7.00 Reverted from AnsiString to String for properties.
+Jul 25, 2011 V7.01 Added directive "EXTERNALSYM"
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -101,55 +102,91 @@ uses
     SysUtils, Classes, WinSock;
 
 const
-  IcmpVersion = 6.01;
-  CopyRight : String   = ' TICMP (c) 1997-2010 F. Piette V6.01 ';
+  IcmpVersion = 7.01;
+  CopyRight : String   = ' TICMP (c) 1997-2010 F. Piette V7.01 ';
   IcmpDLL     = 'icmp.dll';
 
   // IP status codes returned to transports and user IOCTLs.
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_SUCCESS} {$ENDIF}
   IP_SUCCESS                  = 0;
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_STATUS_BASE} {$ENDIF}
   IP_STATUS_BASE              = 11000;
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_BUF_TOO_SMALL} {$ENDIF}
   IP_BUF_TOO_SMALL            = (IP_STATUS_BASE + 1);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_DEST_NET_UNREACHABLE} {$ENDIF}
   IP_DEST_NET_UNREACHABLE     = (IP_STATUS_BASE + 2);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_DEST_HOST_UNREACHABLE} {$ENDIF}
   IP_DEST_HOST_UNREACHABLE    = (IP_STATUS_BASE + 3);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_DEST_PROT_UNREACHABLE} {$ENDIF}
   IP_DEST_PROT_UNREACHABLE    = (IP_STATUS_BASE + 4);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_DEST_PORT_UNREACHABLE} {$ENDIF}
   IP_DEST_PORT_UNREACHABLE    = (IP_STATUS_BASE + 5);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_NO_RESOURCES} {$ENDIF}
   IP_NO_RESOURCES             = (IP_STATUS_BASE + 6);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_BAD_OPTION} {$ENDIF}
   IP_BAD_OPTION               = (IP_STATUS_BASE + 7);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_HW_ERROR} {$ENDIF}
   IP_HW_ERROR                 = (IP_STATUS_BASE + 8);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_PACKET_TOO_BIG} {$ENDIF}
   IP_PACKET_TOO_BIG           = (IP_STATUS_BASE + 9);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_REQ_TIMED_OUT} {$ENDIF}
   IP_REQ_TIMED_OUT            = (IP_STATUS_BASE + 10);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_BAD_REQ} {$ENDIF}
   IP_BAD_REQ                  = (IP_STATUS_BASE + 11);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_BAD_ROUTE} {$ENDIF}
   IP_BAD_ROUTE                = (IP_STATUS_BASE + 12);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_TTL_EXPIRED_TRANSIT} {$ENDIF}
   IP_TTL_EXPIRED_TRANSIT      = (IP_STATUS_BASE + 13);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_TTL_EXPIRED_REASSEM} {$ENDIF}
   IP_TTL_EXPIRED_REASSEM      = (IP_STATUS_BASE + 14);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_PARAM_PROBLEM} {$ENDIF}
   IP_PARAM_PROBLEM            = (IP_STATUS_BASE + 15);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_SOURCE_QUENCH} {$ENDIF}
   IP_SOURCE_QUENCH            = (IP_STATUS_BASE + 16);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_OPTION_TOO_BIG} {$ENDIF}
   IP_OPTION_TOO_BIG           = (IP_STATUS_BASE + 17);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_BAD_DESTINATION} {$ENDIF}
   IP_BAD_DESTINATION          = (IP_STATUS_BASE + 18);
 
   // status codes passed up on status indications.
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_ADDR_DELETED} {$ENDIF}
   IP_ADDR_DELETED             = (IP_STATUS_BASE + 19);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_SPEC_MTU_CHANGE} {$ENDIF}
   IP_SPEC_MTU_CHANGE          = (IP_STATUS_BASE + 20);
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_MTU_CHANGE} {$ENDIF}
   IP_MTU_CHANGE               = (IP_STATUS_BASE + 21);
 
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_GENERAL_FAILURE} {$ENDIF}
   IP_GENERAL_FAILURE          = (IP_STATUS_BASE + 50);
 
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM MAX_IP_STATUS} {$ENDIF}
   MAX_IP_STATUS               = IP_GENERAL_FAILURE;
 
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_PENDING} {$ENDIF}
   IP_PENDING                  = (IP_STATUS_BASE + 255);
 
   // IP header flags
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_FLAG_DF} {$ENDIF}
   IP_FLAG_DF                  = $02;         // Don't fragment this packet.
 
   // IP Option Types
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_OPT_EOL} {$ENDIF}
   IP_OPT_EOL                  = $00;         // End of list option
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_OPT_NOP} {$ENDIF}
   IP_OPT_NOP                  = $01;         // No operation
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_OPT_SECURITY} {$ENDIF}
   IP_OPT_SECURITY             = $82;         // Security option.
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_OPT_LSRR} {$ENDIF}
   IP_OPT_LSRR                 = $83;         // Loose source route.
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_OPT_SSRR} {$ENDIF}
   IP_OPT_SSRR                 = $89;         // Strict source route.
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_OPT_RR} {$ENDIF}
   IP_OPT_RR                   = $07;         // Record route.
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_OPT_TS} {$ENDIF}
   IP_OPT_TS                   = $44;         // Timestamp.
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM IP_OPT_SID} {$ENDIF}
   IP_OPT_SID                  = $88;         // Stream ID (obsolete)
+  {$IFDEF COMPILER16_UP} {$EXTERNALSYM MAX_OPT_SIZE} {$ENDIF}
   MAX_OPT_SIZE                = $40;
 
 type

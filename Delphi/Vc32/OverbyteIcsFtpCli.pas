@@ -1033,6 +1033,7 @@ Apr 15, 2011 V7.23 Arno prepared for 64-bit.
 May 21, 2011 V7.24 Arno - Call CloseDelayed rather than Close in
              TCustomFtpCli.DoneQuitAsync in order to avoid error #10053 in
              OnSessionClosed event with SSL.
+Jun 18, 2011 V7.25 aguser removed one compiler hint.
 Jul 24, 2011 V7.26 Arno added published property DataSocketSndBufSize
              and public property DataSocketRcvBufSize. Increase DataSocketSndBufSize
              in order to make uploads faster. Both values default to value 8192
@@ -6715,7 +6716,9 @@ function TFtpClient.WaitUntilReady : Boolean;
 var
     DummyHandle     : THandle;
 begin
-    Result    := TRUE;           { Assume success }
+{$IFNDEF WIN64}                  { V7.25 }
+    Result    := TRUE;           { Make dcc32 happy }
+{$ENDIF}
     FTimeStop := LongInt(GetTickCount) + LongInt(FTimeout) * 1000;
     DummyHandle := INVALID_HANDLE_VALUE;
     while TRUE do begin

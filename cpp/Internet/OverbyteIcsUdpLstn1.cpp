@@ -156,7 +156,7 @@ void __fastcall TMainForm::WSocketDataAvailable(TObject *Sender, WORD Error)
 {
     char        Buffer[1024];
     int         Len;
-    TSockAddrIn Src;
+    Winsock::TSockAddrIn Src;
     int         SrcLen;
 
     SrcLen = sizeof(Src);

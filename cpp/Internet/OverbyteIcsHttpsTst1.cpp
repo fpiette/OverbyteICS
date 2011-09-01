@@ -66,7 +66,7 @@ __fastcall THttpTestForm::THttpTestForm(TComponent* Owner)
     : TForm(Owner)
 {
     // Build Ini file name
-    FIniFileName = LowerCase(ExtractFileName(Forms::Application->ExeName));
+    FIniFileName = LowerCase(ChangeFileExt(Forms::Application->ExeName, ".ini"));
     FIniFileName = FIniFileName.SubString(1, FIniFileName.Length() - 3) + "ini";
 }
 //---------------------------------------------------------------------------
@@ -447,11 +447,11 @@ void __fastcall THttpTestForm::SslHttpCli1SslHandshakeDone(TObject *Sender,
      int          I;
      AnsiString   IP;
      AnsiString   Hash;
-     TSslHttpCli* HttpCli;
+	 TSslHttpCli* HttpCli;
 
     Display("Handshake done, error #" + IntToStr(ErrCode));
-    HttpCli   = (TSslHttpCli*)Sender;
-    CertChain = HttpCli->CtrlSocket->SslCertChain;
+	HttpCli = (TSslHttpCli*)Sender;
+	CertChain = HttpCli->CtrlSocket->SslCertChain;
     Display("! " + IntToStr(CertChain->Count) +
             " Certificate(s) in the verify chain.");
 
@@ -463,7 +463,7 @@ void __fastcall THttpTestForm::SslHttpCli1SslHandshakeDone(TObject *Sender,
         return;
 
     IP   = HttpCli->CtrlSocket->GetPeerAddr();
-    Hash = PeerCert->Sha1Hash;
+    Hash = PeerCert->Sha1Hex;
 
     if (HttpCli->SslAcceptableHosts->IndexOf(IP + Hash) > -1)
         return;
@@ -530,7 +530,7 @@ void __fastcall THttpTestForm::SslHttpCli1SslCliCertRequest(TObject *Sender,
     if (FClientCerts == NULL) {
         // Create a pool of client certs
         ClientCertDlg->CertListBox->Clear();
-        FClientCerts = new TX509List(this);
+        FClientCerts = new TX509List(this, true);
         try {
             X = FClientCerts->Add();
             X->LoadFromPemFile("01cert.pem");

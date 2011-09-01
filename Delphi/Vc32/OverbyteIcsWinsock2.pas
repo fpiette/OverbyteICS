@@ -129,7 +129,7 @@ type
         sa_data     : array [0..13] of u_char;  // up to 14 bytes of direct address
     end;
 
-    //{$EXTERNALSYM in6_addr}
+    {$IFDEF COMPILER16_UP} {$EXTERNALSYM in6_addr} {$ENDIF}
     in6_addr = record
     case Integer of
         0: (Byte     : array [0..15] of u_char);

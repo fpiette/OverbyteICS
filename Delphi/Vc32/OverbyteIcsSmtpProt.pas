@@ -390,6 +390,7 @@ Oct 10, 2010 V7.34  Arno - MessagePump changes/fixes.
 Nov 08, 2010 V7.35  Arno improved final exception handling, more details
                     in OverbyteIcsWndControl.pas (V1.14 comments).
 Feb 15, 2011 V7.36  Arno added proxy-support (SOCKS and HTTP) from TWSocket.
+Jun 18, 2011 V7.37  aguser removed one compiler hint.
 Jul 22, 2011 V7.38  Arno - OEM NTLM changes.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -4315,7 +4316,9 @@ function TSyncSmtpCli.WaitUntilReady : Boolean;
 var
     DummyHandle     : THandle;
 begin
-    Result    := TRUE;           { Assume success }
+{$IFNDEF WIN64}                  { V7.37 }
+    Result    := TRUE;           { Make dcc32 happy }
+{$ENDIF}
     FTimeStop := Integer(GetTickCount) + FTimeout * 1000;
     DummyHandle := INVALID_HANDLE_VALUE;
     while TRUE do begin

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:
 Creation:     April 2004
-Version:      1.17
+Version:      1.18
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -76,7 +76,7 @@ May 15, 2009 V1.16 Arno added some EXTERNALSYM directives to make C++Builder
                    happy (Ambiguity between '_fastcall Application()' and
                    'Forms::Application')
 Apr 15, 2011 V1.17 Arno prepared for 64-bit.
-
+Aug 26, 2011 V1.18 Arno added 64-bit overloaded versions of _IntToHex.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsLibrary;
@@ -333,7 +333,11 @@ function  _IntToStr(const N : Cardinal) : String; overload;
 function IcsIntToStrA(N : Integer): AnsiString;
 function IcsIntToHexA(N : Integer; Digits: Byte) : AnsiString;
 {#$EXTERNALSYM IntToHex}
-function  _IntToHex(Value: Integer; Digits: Integer): String;
+function  _IntToHex(Value: Integer; Digits: Integer): String; overload;
+function  _IntToHex(Value: Int64; Digits: Integer): String; overload;
+{$IFDEF COMPILER16_UP}
+function  _IntToHex(Value: UInt64; Digits: Integer): String; overload;
+{$ENDIF}
 {#$EXTERNALSYM StrToInt}
 function  _StrToInt(const S: String): Integer;
 function  _StrToInt64(const S: String): Int64;
@@ -1475,6 +1479,18 @@ function _IntToHex(Value: Integer; Digits: Integer): String;
 begin
     Result := SysUtils.IntToHex(Value, Digits);
 end;
+
+function _IntToHex(Value: Int64; Digits: Integer): String;
+begin
+    Result := SysUtils.IntToHex(Value, Digits);
+end;
+
+{$IFDEF COMPILER16_UP}
+function _IntToHex(Value: UInt64; Digits: Integer): String;
+begin
+    Result := SysUtils.IntToHex(Value, Digits);
+end;
+{$ENDIF}
 
 function _FloatToStr(Value: Extended): String;
 begin

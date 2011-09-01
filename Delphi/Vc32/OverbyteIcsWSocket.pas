@@ -906,7 +906,9 @@ May 17, 2011 v7.79 Arno added Sha1Hex, Sha1Digest, IssuedBy, IssuerOf and
                    and Sha1Digest are cached. Reworked TX509List and added new
                    methods.
 Jun 08, 2011 v7.80 Arno added x64 assembler routines, untested so far.
-May 21, 2011 V7.81 Arno - Make sure receipt of a SSL shutdown notification
+Jun 18, 2011 v7.81 aguser removed some compiler hints.
+
+May 21, 2011 V7.82 Arno - Make sure receipt of a SSL shutdown notification
                    closes the connection if no bidirectional SSL shutdown is
                    wanted. There are servers in the wild expecting a SSL
                    shutdown confirmation before they close the connection.
@@ -6679,7 +6681,7 @@ const
 begin
 {TriggerDisplay('AsyncSelect ' + IntToStr(msg.wParam) + ', ' + IntToStr(msg.LParamLo));}
     { Verify that the socket handle is ours handle }
-    if msg.wParam <> FHSocket then
+    if msg.wParam <> WPARAM(FHSocket) then
         Exit;
 
     if FPaused then
@@ -10690,11 +10692,12 @@ function TCustomSyncWSocket.WaitUntilReady(var DoneFlag : Boolean) : Integer;
 begin
     Result := 0;           { Suppose success }
     FTimeStop := Integer(_GetTickCount) + FTimeout;
-    while TRUE do begin
+    while not DoneFlag do begin
+    {while TRUE do begin                     V7.81
         if DoneFlag then begin
             Result := 0;
             break;
-        end;
+        end;}
 
         if ((FTimeout > 0) and (Integer(_GetTickCount) > FTimeStop)) or
            Terminated then begin
@@ -14071,7 +14074,9 @@ var
     LastPos : Integer;
 begin
     Result := '';
-    Entry  := nil;
+{$IFNDEF WIN64}    { V7.81 }
+    Entry  := nil; { Make dcc32 happy }
+{$ENDIF}
     if not Assigned(FX509) then
         Exit;
     Subj := f_X509_get_subject_name(FX509);
@@ -17083,7 +17088,7 @@ begin
                       _IntToStr(msg.LParamLo) + WinsockMsgToString(Msg));
     end;
 {$ENDIF}
-    if (msg.wParam <> FHSocket) then
+    if (msg.wParam <> WPARAM(FHSocket)) then
         Exit;
     {  ?
     if FPaused then

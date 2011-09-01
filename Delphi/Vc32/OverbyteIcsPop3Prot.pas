@@ -14,8 +14,8 @@ Version:      6.12
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -186,6 +186,7 @@ Sep 20, 2010 V6.08 Arno - Moved HMAC-MD5 code to OverbyteIcsMD5.pas.
 Oct 10, 2010 V6.09 Arno - MessagePump changes/fixes.
 Nov 08, 2010 V6.10 Arno improved final exception handling, more details
              in OverbyteIcsWndControl.pas (V1.14 comments).
+Jun 18, 2011 V6.11 aguser removed one compiler hint.
 Jul 22, 2011 V6.12 Arno - OEM NTLM changes.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2176,7 +2177,9 @@ function TSyncPop3Cli.WaitUntilReady : Boolean;
 var
     DummyHandle     : THandle;
 begin
-    Result := TRUE;           { Suppose success }
+{$IFNDEF WIN64}               { V6.11 }
+    Result := TRUE;           { Make dcc32 happy }
+{$ENDIF}
     FTimeStop := Integer(GetTickCount) + FTimeout * 1000;
     DummyHandle := INVALID_HANDLE_VALUE;
     while TRUE do begin

@@ -3,7 +3,7 @@ Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  Server-side NTLM, validation of user credentials using Windows SSPI.
 Creation:     Sep 04, 2006
 Version:      1.06
-Legal issues: Copyright (C) 2005 by Arno Garrels, Berlin, Germany,
+Legal issues: Copyright (C) 2005-2011 by Arno Garrels, Berlin, Germany,
               contact: <arno.garrels@gmx.de>
 
               This software is provided 'as-is', without any express or
@@ -42,6 +42,8 @@ Apr 25, 2008 V1.02 A. Garrels, some changes to prepare code for Unicode.
 Apr 30, 2008 V1.03 A. Garrels moved the call to LoadSecPackage from
              initialization section to TNtlmAuthSession's constructor.
 Nov 15, 2010 V1.0.4 Fix in function UCS2ToString that is used by ANSI compilers.
+Jun 16, 2011 V1.05 PatchINT3 function adjusted since signature of
+             Windows.WriteProcessMemory has changed.
 Jul 22, 2011 V1.06 Arno - OEM NTLM changes.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -143,7 +145,11 @@ procedure PatchINT3;
 var
     NOP          : Byte;
     NTDLL        : THandle;
+{$IFDEF COMPILER16_UP}
+    BytesWritten : NativeUint;
+{$ELSE}
     BytesWritten : DWORD;
+{$ENDIF}
     Address      : Pointer;
 begin
     if Win32Platform <> VER_PLATFORM_WIN32_NT then Exit;

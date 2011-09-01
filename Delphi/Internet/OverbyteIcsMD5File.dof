@@ -11,3 +11,7 @@ UnitOutputDir=.\dcu
 SearchPath=..\Vc32
 Conditionals=
 UsePackages=0
+[IcsCustom]
+FrameworkType=VCL
+Win64Supported=1
+Win64Enabled=1

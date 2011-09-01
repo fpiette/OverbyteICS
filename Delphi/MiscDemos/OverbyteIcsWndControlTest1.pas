@@ -398,7 +398,11 @@ begin
     FThread1                 := TIcsThread.Create(TRUE);
     FThread1.OnDisplay       := ThreadDisplay;
     FThread1.FreeOnTerminate := TRUE;
+{$IF CompilerVersion >= 21}
+    FThread1.Start;
+{$ELSE}
     FThread1.Resume;
+{$IFEND}
 end;
 
 procedure TAppBaseForm.StopThread1ButtonClick(Sender: TObject);

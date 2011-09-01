@@ -48,17 +48,29 @@ unit OverbyteIcsDprUpdFix;
 {.$DEFINE DEBUGLOG}
 {$I OverbyteIcsDefs.inc}
 
+{$IFDEF COMPILER12_UP}
+  {$IFNDEF COMPILER15_UP}
+    {$DEFINE DPRFIX2009}
+  {$ENDIF}
+  {$IFDEF COMPILER16_UP}
+    {$DEFINE DPRFIXXE2}
+  {$ENDIF}
+{$ENDIF}
+
 interface
 
 uses
-    SysUtils, Classes, Forms, IniFiles, TypInfo, ToolsApi;
+    SysUtils, Classes, Forms, IniFiles, TypInfo,
+{$IFDEF DPRFIXXE2}
+    PlatformAPI,
+    CommonOptionStrs,
+{$ENDIF}
+    ToolsApi;
 
 type
     TIdeNotifier = class(TNotifierObject, IOTAIDENotifier)
     private
-        FIni : TIniFile;
         FLastDpr : string;
-        FPossibleUpd: Boolean;
     protected
         procedure AfterCompile(Succeeded: Boolean);
         procedure BeforeCompile(const Project: IOTAProject; var Cancel: Boolean);
@@ -73,13 +85,18 @@ implementation
 uses
     DCCStrs;
 
+const
+    sDofSectDir     = 'Directories';
+    sDofSectCustom  = 'IcsCustom';
+
 var
     IDENotifierIndex : Integer = -1;
+    GMessageService: IOTAMessageServices = nil;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure DebugLog(const Msg: string);
 begin
-    (BorlandIDEServices as IOTAMessageServices).AddTitleMessage(Msg);
+    GMessageService.AddTitleMessage(Msg);
 end;
 
 
@@ -88,18 +105,16 @@ procedure Register;
 var
     Services : IOTAServices;
 begin
-{$IFDEF COMPILER12_UP}
-{$IFNDEF COMPILER15_UP}
+{$IF DEFINED(DPRFIX2009) or DEFINED(DPRFIXXE2)}
     Services := BorlandIDEServices as IOTAServices;
-    if (Services <> nil) and (IDENotifierIndex = -1) then
-    begin
+    GMessageService := (BorlandIDEServices as IOTAMessageServices);
+    if (IDENotifierIndex = -1) then begin
         IDENotifierIndex := Services.AddNotifier(TIdeNotifier.Create);
     {$IFDEF DEBUGLOG}
         DebugLog('OverbyteIcsDprUpdFix Installed NotifierIndex: #' + IntToStr(IDENotifierIndex));
     {$ENDIF}
     end;
-{$ENDIF}
-{$ENDIF}
+{$IFEND}
 end;
 
 
@@ -138,20 +153,27 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TIdeNotifier.FileNotification(NotifyCode: TOTAFileNotification;
   const FileName: string; var Cancel: Boolean);
-const
-    sDofSectDir = 'Directories';
 var
     Project               : IOTAProject;
     OptionsConfigurations : IOTAProjectOptionsConfigurations;
     BaseConfig            : IOTABuildConfiguration;
+    DebugConfig           : IOTABuildConfiguration;
     IniValues             : TStringList;
     Values                : TStringList;
+    Ini                   : TIniFile;
+    I                     : Integer;
+{$IFDEF DPRFIX2009}
     RS                    : array of string;
     S1                    : string;
     S2                    : string;
+{$ENDIF}
     Dirty                 : Boolean;
-    I                     : Integer;
     DofFile               : string;
+{$IFDEF DPRFIXXE2}
+    RS                    : array of string;
+    ProjectPlatforms      : IOTAProjectPlatforms;
+    bFlag                 : Boolean;
+{$ENDIF}
 begin
     try
     {$IFDEF DEBUGLOG}
@@ -160,129 +182,249 @@ begin
     {$ENDIF}
         case NotifyCode of
             ofnFileOpening :
+                if ExtractFileExt(FileName) = '.dpr' then
                 begin
-                    if (not FPossibleUpd) and (ExtractFileExt(FileName) = '.dpr') then
-                    begin
-                        FLastDpr := ChangeFileExt(FileName, '.dproj');
-                        if FileExists(FLastDpr) then
-                        begin
-                            FLastDpr     := '';
-                            FPossibleUpd := False;
-                        end
-                        else
-                            FPossibleUpd := True;
-                    end;
+                    FLastDpr := ChangeFileExt(FileName, '.dproj');
+                    if FileExists(FLastDpr) then
+                        FLastDpr     := '';
                 end;
 
             ofnFileOpened :
+                if FLastDpr = FileName then
                 begin
-                    if FPossibleUpd and (FLastDpr = FileName) then
-                    begin
-                        FLastDpr      := '';
-                        FPossibleUpd  := False;
-                        DofFile       := ChangeFileExt(FileName, '.dof');
-                        Dirty         := False;
-                        Values        := nil;
-                        IniValues     := nil;
-                        FIni          := nil;
-                        if FileExists(DofFile) and IsProjectFile(FileName, Project) and
-                          Supports(Project.ProjectOptions,
-                                   IOTAProjectOptionsConfigurations,
-                                   OptionsConfigurations) then
-                        try
-                            BaseConfig  := OptionsConfigurations.BaseConfiguration;
-                            if BaseConfig = nil then // Should never happen
-                                Exit;
-                            FIni := TIniFile.Create(DofFile);
-                            IniValues := TStringList.Create;
-                            IniValues.Delimiter := ';';
-                            IniValues.StrictDelimiter := True;
-                            Values := TStringList.Create;
+                    FLastDpr      := '';
+                    DofFile       := ChangeFileExt(FileName, '.dof');
+                    Dirty         := False;
+                    Values        := nil;
+                    IniValues     := nil;
+                    Ini           := nil;
+                    if FileExists(DofFile) and IsProjectFile(FileName, Project) and
+                      Supports(Project.ProjectOptions,
+                               IOTAProjectOptionsConfigurations,
+                               OptionsConfigurations) then
+                    try
+                        BaseConfig := OptionsConfigurations.BaseConfiguration;
+                        if BaseConfig = nil then // Should never happen on UPD from .dpr
+                            Exit;
+                    {$IFDEF DPRFIX2009} // And D2010
+                        Ini := TIniFile.Create(DofFile);
+                        IniValues := TStringList.Create;
+                        IniValues.Delimiter := ';';
+                        IniValues.StrictDelimiter := True;
+                        Values := TStringList.Create;
 
-                            //-----------------------------------
-                            IniValues.DelimitedText := FIni.ReadString(sDofSectDir, 'SearchPath', '');
+                        //-----------------------------------
+                        IniValues.DelimitedText := Ini.ReadString(sDofSectDir, 'SearchPath', '');
+                        if IniValues.Count > 0 then
+                        begin
+                            BaseConfig.GetValues(sUnitSearchPath, Values, False);
+                            for I := IniValues.Count - 1 downto 0 do
+                            begin
+                                if Values.IndexOf(Trim(IniValues[I])) >= 0 then
+                                    IniValues.Delete(I);
+                            end;
                             if IniValues.Count > 0 then
                             begin
-                                BaseConfig.GetValues(sUnitSearchPath, Values, False);
-                                for I := IniValues.Count - 1 downto 0 do
-                                begin
-                                    if Values.IndexOf(Trim(IniValues[I])) > 0 then
-                                        IniValues.Delete(I);
-                                end;
-                                if IniValues.Count > 0 then
-                                begin
-                                    SetLength(RS, IniValues.Count);
-                                    for I := 0 to IniValues.Count - 1 do
-                                        RS[I] := Trim(IniValues[I]);
-                                    BaseConfig.InsertValues(sUnitSearchPath, RS);
-                                    Dirty := True;
-                                    (BorlandIDEServices as IOTAMessageServices).AddWideTitleMessage(
-                                      'ICS UpdateFix from .dof: Base SearchPath');
-                                end;
+                                SetLength(RS, IniValues.Count);
+                                for I := 0 to IniValues.Count - 1 do
+                                    RS[I] := Trim(IniValues[I]);
+                                BaseConfig.InsertValues(sUnitSearchPath, RS);
+                                Dirty := True;
+                                DebugLog('ICS UpdateFix from .dof: Base SearchPath');
                             end;
-
-                            //-----------------------------------
-                            IniValues.DelimitedText := FIni.ReadString(sDofSectDir, 'Conditionals', '');
-                            if IniValues.Count > 0 then
-                            begin
-                                Values.Clear;
-                                BaseConfig.GetValues(sDefine, Values, False);
-                                for I := IniValues.Count - 1 downto 0 do
-                                begin
-                                    if Values.IndexOf(Trim(IniValues[I])) > 0 then
-                                        IniValues.Delete(I);
-                                end;
-                                if IniValues.Count > 0 then
-                                begin
-                                    SetLength(RS, IniValues.Count);
-                                    for I := 0 to IniValues.Count - 1 do
-                                        RS[I] := Trim(IniValues[I]);
-                                    BaseConfig.InsertValues(sDefine, RS);
-                                    Dirty := True;
-                                    (BorlandIDEServices as IOTAMessageServices).AddWideTitleMessage(
-                                      'ICS UpdateFix from .dof: Base Conditionals');
-                                end;
-                            end;
-
-                            //-----------------------------------
-                            S2 := Trim(FIni.ReadString(sDofSectDir, 'OutputDir', ''));
-                            if S2 <> '' then
-                            begin
-                                S1 := BaseConfig.GetValue(sExeOutput, False);
-                                if S1 <> S2 then
-                                begin
-                                    BaseConfig.Value[sExeOutput] := S2;
-                                    Dirty := True;
-                                    (BorlandIDEServices as IOTAMessageServices).AddWideTitleMessage(
-                                      'ICS UpdateFix from .dof: Base OutputDir');
-                                end;
-                            end;
-
-                            //-----------------------------------
-                            S2 := Trim(FIni.ReadString(sDofSectDir, 'UnitOutputDir', ''));
-                            if S2 <> '' then
-                            begin
-                                S1 := BaseConfig.GetValue(sDcuOutput, False);
-                                if S1 <> S2 then
-                                begin
-                                    BaseConfig.Value[sDcuOutput] := S2;
-                                    Dirty := True;
-                                    (BorlandIDEServices as IOTAMessageServices).AddWideTitleMessage(
-                                      'ICS UpdateFix from .dof: Base UnitOutputDir');
-                                end;
-                            end;
-
-                            //-----------------------------------
-                            if Dirty then
-                                Project.Save(False, True);
-
-                        finally
-                            FIni.Free;
-                            Values.Free;
-                            IniValues.Free;
                         end;
+
+                        //-----------------------------------
+                        IniValues.DelimitedText := Ini.ReadString(sDofSectDir, 'Conditionals', '');
+                        if IniValues.Count > 0 then
+                        begin
+                            Values.Clear;
+                            BaseConfig.GetValues(sDefine, Values, False);
+                            for I := IniValues.Count - 1 downto 0 do
+                            begin
+                                if Values.IndexOf(Trim(IniValues[I])) >= 0 then
+                                    IniValues.Delete(I);
+                            end;
+                            if IniValues.Count > 0 then
+                            begin
+                                SetLength(RS, IniValues.Count);
+                                for I := 0 to IniValues.Count - 1 do
+                                    RS[I] := Trim(IniValues[I]);
+                                BaseConfig.InsertValues(sDefine, RS);
+                                Dirty := True;
+                                DebugLog('ICS UpdateFix from .dof: Base Conditionals');
+                            end;
+                        end;
+
+                        //-----------------------------------
+                        S2 := Trim(Ini.ReadString(sDofSectDir, 'OutputDir', ''));
+                        if S2 <> '' then
+                        begin
+                            S1 := BaseConfig.GetValue(sExeOutput, False);
+                            if S1 <> S2 then
+                            begin
+                                BaseConfig.Value[sExeOutput] := S2;
+                                Dirty := True;
+                                DebugLog('ICS UpdateFix from .dof: Base OutputDir');
+                            end;
+                        end;
+
+                        //-----------------------------------
+                        S2 := Trim(Ini.ReadString(sDofSectDir, 'UnitOutputDir', ''));
+                        if S2 <> '' then
+                        begin
+                            S1 := BaseConfig.GetValue(sDcuOutput, False);
+                            if S1 <> S2 then
+                            begin
+                                BaseConfig.Value[sDcuOutput] := S2;
+                                Dirty := True;
+                                DebugLog('ICS UpdateFix from .dof: Base UnitOutputDir');
+                            end;
+                        end;
+
+                        //-----------------------------------
+                    {$ENDIF}
+                    {$IFDEF DPRFIXXE2}
+                        { Read values from our custom ini-section added to .dof files }
+                        { This is just the bare minimum to update the ICS samples     }
+                        { from .dpr / .dof with the platforms and framework type we   }
+                        { want reliable.                                              }
+                        if not Assigned(Ini) then
+                            Ini := TIniFile.Create(DofFile);
+
+                        if Supports(Project, IOTAProjectPlatforms, ProjectPlatforms) and
+                            Ini.SectionExists(sDofSectCustom) then // It's an ICS demo .dpr
+                        begin
+                            if (UpperCase(Trim(Ini.ReadString(sDofSectCustom, 'FrameworkType', ''))) = sFrameworkTypeVCL) and
+                               (Project.FrameworkType <> sFrameworkTypeVCL) then
+                            begin
+                                Project.ProjectOptions.Values['FrameworkType'] := sFrameworkTypeVCL;
+                                Dirty := True;
+                            end;
+                            bFlag := Ini.ReadBool(sDofSectCustom, 'Win32Supported', TRUE);
+                            if ProjectPlatforms.Supported[cWin32Platform] <> bFlag then
+                            begin
+                                ProjectPlatforms.Supported[cWin32Platform] := bFlag;
+                                Dirty := True;
+                            end;
+                            bFlag := Ini.ReadBool(sDofSectCustom, 'Win32Enabled', TRUE);
+                            if ProjectPlatforms.Enabled[cWin32Platform] <> bFlag then
+                            begin
+                                if bFlag and not ProjectPlatforms.Supported[cWin32Platform] then
+                                    ProjectPlatforms.Supported[cWin32Platform] := TRUE;
+                                ProjectPlatforms.Enabled[cWin32Platform] := bFlag;
+                                Dirty := True;
+                            end;
+                            bFlag := Ini.ReadBool(sDofSectCustom, 'Win64Supported', TRUE);
+                            if ProjectPlatforms.Supported[cWin64Platform] <> bFlag then
+                            begin
+                                ProjectPlatforms.Supported[cWin64Platform]   := bFlag;
+                                Dirty := True;
+                            end;
+                            bFlag := Ini.ReadBool(sDofSectCustom, 'Win64Enabled', FALSE);
+                            if ProjectPlatforms.Enabled[cWin64Platform] <> bFlag then
+                            begin
+                                if bFlag and not ProjectPlatforms.Supported[cWin64Platform] then
+                                    ProjectPlatforms.Supported[cWin64Platform] := TRUE;
+                                ProjectPlatforms.Enabled[cWin64Platform] := bFlag;
+                                if bFlag then
+                                begin
+                                    { Enable remote debug symbols for Win64 }
+                                    for I := 0 to OptionsConfigurations.ConfigurationCount -1 do
+                                    begin
+                                        if OptionsConfigurations.Configurations[I].Name = 'Debug' then
+                                        begin
+                                            DebugConfig :=
+                                              OptionsConfigurations.Configurations[I].PlatformConfiguration[cWin64Platform];
+                                            if Assigned(DebugConfig) then
+                                                DebugConfig.Value[sRemoteDebug] := 'true';
+                                            Break;
+                                        end;
+                                    end;
+                                end;
+                                Dirty := True;
+                            end;
+                            bFlag := Ini.ReadBool(sDofSectCustom, 'OSX32Supported', FALSE);
+                            if ProjectPlatforms.Supported[cOSX32Platform] <> bFlag then
+                            begin
+                                ProjectPlatforms.Supported[cOSX32Platform] := bFlag;
+                                Dirty := True;
+                            end;
+                            bFlag := Ini.ReadBool(sDofSectCustom, 'OSX32Enabled', FALSE);
+                            if ProjectPlatforms.Enabled[cOSX32Platform] <> bFlag then
+                            begin
+                                if bFlag and not ProjectPlatforms.Supported[cOSX32Platform] then
+                                    ProjectPlatforms.Supported[cOSX32Platform] := TRUE;
+                                ProjectPlatforms.Enabled[cOSX32Platform] := bFlag;
+                                Dirty := True;
+                            end;
+                            if Dirty then
+                                DebugLog('ICS project updated from custom .dof section');
+                        end;
+
+                        { No internal manifest in 32-bit }
+                        for I := 0 to OptionsConfigurations.ConfigurationCount -1 do
+                        begin
+                            DebugConfig :=
+                              OptionsConfigurations.Configurations[I].PlatformConfiguration[cWin32Platform];
+                            if Assigned(DebugConfig) then
+                            begin
+                                if LowerCase(DebugConfig.Value[sManifest_File]) <> 'none' then
+                                begin
+                                    DebugConfig.Value[sManifest_File] := 'None';
+                                    Dirty := True;
+                                end;
+                            end;
+                        end;
+
+                        { No version info in 32-bit }
+                        DebugConfig := BaseConfig.PlatformConfiguration[cWin32Platform];
+                        if Assigned(DebugConfig) then
+                        begin
+                            if LowerCase(DebugConfig.Value[sVerInfo_IncludeVerInfo]) <> 'false' then
+                            begin
+                                DebugConfig.Value[sVerInfo_IncludeVerInfo] := 'false';
+                                Dirty := True;
+                            end;
+                        end;
+
+                        { Fix namespace prefixes }
+
+                        if not Assigned(IniValues) then
+                          IniValues := TStringList.Create;
+                        IniValues.Delimiter := ';';
+                        IniValues.StrictDelimiter := True;
+                        if not Assigned(Values) then
+                          Values := TStringList.Create;
+
+                        { Check if Winapi is set in Base config, if not add it }
+                        IniValues.DelimitedText := 'Winapi';
+                        BaseConfig.GetValues(sNamespace, Values, False);
+                        for I := IniValues.Count - 1 downto 0 do
+                        begin
+                            if Values.IndexOf(IniValues[I]) >= 0 then
+                                IniValues.Delete(I);
+                        end;
+
+                        if IniValues.Count > 0 then
+                        begin
+                            SetLength(RS, IniValues.Count);
+                            for I := 0 to IniValues.Count - 1 do
+                                RS[I] := IniValues[I];
+                            BaseConfig.InsertValues(sNamespace, RS);
+                            Dirty := True;
+                        end;
+
+                    {$ENDIF}
+                        if Dirty then
+                            Project.Save(False, True);
+                    finally
+                        Ini.Free;
+                        Values.Free;
+                        IniValues.Free;
                     end;
                 end;
+
         end;
     except
         FLastDpr := '';

@@ -41,6 +41,7 @@
   Sep 10, 2010 Angus and Arno updated ZLIB to 1.2.5, subdirectory now lowercase
 
   Apr 15, 2011 Arno prepared for 64-bit.
+  Aug 13, 2011 Arno fixed record allignment.
 
   This software is provided 'as-is', without any express or implied warranty.
   In no event will the author be held liable for any damages arising from the use of this software.
@@ -53,7 +54,7 @@ unit OverbyteIcsZLibObj;
 
 interface
 
-{$A-}             {no 32 bits alignment for records     }
+{$ALIGN ON}
 {$B-}             { Enable partial boolean evaluation   }
 {$T-}             { Untyped pointers                    }
 {$X+}             { Enable extended syntax              }
@@ -205,7 +206,7 @@ type
   for more details on the meanings of these fields.
 *)
   gz_headerp = ^gz_header;
-  gz_header = packed record
+  gz_header = record
     text       : integer;   //* true if compressed data believed to be text */
     time       : Cardinal;  //* modification time */
     xflags     : integer;   //* extra flags (not used when writing a gzip file) */

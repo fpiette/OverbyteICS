@@ -9,5 +9,9 @@ UnsafeCast=0
 OutputDir=
 UnitOutputDir=.\dcu
 SearchPath=..\Vc32
-Conditionals=
+Conditionals=NOFORMS
 UsePackages=0
+[IcsCustom]
+FrameworkType=VCL
+Win64Supported=1
+Win64Enabled=1

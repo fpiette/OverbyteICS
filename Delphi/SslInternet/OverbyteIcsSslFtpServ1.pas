@@ -1059,7 +1059,11 @@ begin
         MyClient.FWorkerThread.Client          := MyClient;
         MyClient.FWorkerThread.FreeOnTerminate := TRUE;
         MyClient.FWorkerThread.OnTerminate     := WorkerThreadTerminated;
+    {$IF CompilerVersion >= 21} //D2010 TThread.Resume / Suspend deprecated
+        MyClient.FWorkerThread.Start;
+    {$ELSE}
         MyClient.FWorkerThread.Resume;
+    {$IFEND}
         { Ask server component to not start sending immediately           }
         { We will ask to start sending from WorkerThreadTerminated event  }
         DelayedSend := TRUE;

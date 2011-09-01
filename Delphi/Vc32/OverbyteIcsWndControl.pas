@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Creation:     Octobre 2002
 Description:  Composant non-visuel avec un handle de fenêtre.
-Version:      1.16
+Version:      1.17
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -97,7 +97,7 @@ Historique:
                  are thrown away silently.
 15/04/2011 V1.15 Arno prepared for 64-bit.
 06/05/2011 V1.16 Arno - Make use of type TThreadID.
-
+16/08/2011 V1.17 Arno TIcsTimer prepared for x64.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsWndControl;
@@ -138,8 +138,8 @@ uses
   OverbyteIcsTypes, OverbyteIcsLibrary;
 
 const
-  TIcsWndControlVersion  = 116;
-  CopyRight : String     = ' TIcsWndControl (c) 2002-2011 F. Piette V1.16 ';
+  TIcsWndControlVersion  = 117;
+  CopyRight : String     = ' TIcsWndControl (c) 2002-2011 F. Piette V1.17 ';
 
   IcsWndControlWindowClassName = 'IcsWndControlWindowClass';
 
@@ -1210,7 +1210,11 @@ begin
                     Obj := TObject(WParam);
                 {$ENDIF}
                     if (not IsBadReadPtr(Obj, GUIDOffSet + SizeOf(INT_PTR))) and
+                    {$IFDEF COMPILER16_UP} { WPARAM changed to unsigned }
+                       (PUINT_PTR(WParam + Windows.WPARAM(GUIDOffSet))^ = WParam) and
+                    {$ELSE}
                        (PINT_PTR(WParam + GUIDOffSet)^ = WParam) and
+                    {$ENDIF}
                        (Obj is TIcsTimer) then
                         TIcsTimer(Obj).WmTimer(MsgRec);
                 end
@@ -1222,7 +1226,7 @@ begin
                     Obj := TObject(WParam);
                 {$ENDIF}
                     if (not IsBadReadPtr(Obj, GUIDOffSet + SizeOf(INT_PTR))) and
-                       (PINT_PTR(WParam + GUIDOffSet)^ = LParam) and
+                       (PINT_PTR(WParam + Windows.WPARAM(GUIDOffSet))^ = LParam) and
                        (Obj is TIcsThreadTimer) then
                        { Actually the overridden method       }
                        { TIcsThreadTimer.WMTimer is called!   }
@@ -1522,10 +1526,10 @@ begin
     end;
 {$ELSE}
 begin
-    KillTimer(FIcsWndControl.Handle, Cardinal(Self));
+    KillTimer(FIcsWndControl.Handle, UINT_PTR(Self));
     if (FInterval <> 0) and FEnabled and Assigned(FOnTimer) then
         if SetTimer(FIcsWndControl.Handle,
-                    Cardinal(Self), FInterval, nil) = 0 then begin
+                    UINT_PTR(Self), FInterval, nil) = 0 then begin
             FEnabled := FALSE;
             raise EIcsTimerException.Create('No more timers');
         end
@@ -1545,3 +1549,4 @@ finalization
     GUnitFinalized := True; { V1.09 }
 
 end.
+

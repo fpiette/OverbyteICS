@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿	<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 		<PropertyGroup>
 			<ProjectGuid>{5688E602-527D-4757-AF39-4703194FE6DD}</ProjectGuid>
 			<MainSource>OverbyteIcsD2009Run.dpk</MainSource>
@@ -23,6 +23,7 @@
 			<Base>true</Base>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
+			<DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
 			<DCC_Define>USE_SSL;$(DCC_Define)</DCC_Define>
 			<RuntimeOnlyPackage>true</RuntimeOnlyPackage>
 			<DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
@@ -151,6 +152,7 @@
 			<DCCReference Include="OverbyteIcsMLang.pas"/>
 			<DCCReference Include="OverbyteIcsCsc.pas"/>
 			<DCCReference Include="OverbyteIcsIconv.pas"/>
+			<DCCReference Include="OverbyteIcsWinnls.pas"/>
 			<DCCReference Include="OverbyteIcsHttpSrv.dcr"/>
 			<DCCReference Include="OverbyteIcsFtpSrv.dcr"/>
 			<DCCReference Include="OverbyteIcsNntpCli.dcr"/>

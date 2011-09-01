@@ -247,7 +247,9 @@ var
     LastPos : Integer;
 begin
     Result := '';
-    Entry  := nil;
+{$IFNDEF WIN64}
+    Entry  := nil; { Make dcc32 happy }
+{$ENDIF}
     if not Assigned(X509) then
         Exit;
     if IsSubject then

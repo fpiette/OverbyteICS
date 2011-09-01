@@ -322,7 +322,7 @@ Feb 17, 2011 V7.35 FPiette fixed ExtractURLEncodedValue which returned a nul
                    byte when last character was a '%'. Now return a '%'.
 Jun 15, 2011 V7.36 Arno removed the check for empty password string in
                    THttpConnection.AuthDigestCheckPassword.
-
+Jun 18, 2011 V7.37 aguser removed one compiler hint.
 Jul 01, 2011 V7.38 Lars Gehre found that HEAD could cause an infinite loop.
 Jul 09, 2011 V7.39 Lars Gehre fixed an issue with conditional define
                    "NO_AUTHENTICATION_SUPPORT".
@@ -5967,7 +5967,9 @@ var
     SizeRead  : Integer;
     Rec       : THttpPartStream;
 begin
+{$IFNDEF WIN64}  { V7.37 }
     Rec := nil;  { Just to remove a compiler warning }
+{$ENDIF}
     if (FPosition >= 0) and (Count >= 0) then begin
         //Result := FSize - FPosition;
         //if Result > 0 then begin

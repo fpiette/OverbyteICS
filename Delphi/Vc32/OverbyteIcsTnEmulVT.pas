@@ -5,12 +5,12 @@ Description:  Delphi component combining both TnCnx and EmulVT components.
               Hence it does ANSI emulation using TCP/IP telnet protocol.
 Author:       François PIETTE
 Creation:     May, 1996
-Version:      7.00
+Version:      7.01
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
 Legal issues: Copyright (C) 1996-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be> 
 
               This software is provided 'as-is', without any express or
@@ -77,6 +77,7 @@ Mar 24, 2008 V6.01 Francois Piette made some changes to prepare code
              for Unicode.
 Aug 15, 2008 V7.00 Delphi 2009 (Unicode) support. The terminal is not
              unicode, but the component support unicode strings.
+Jul 17, 2011 V7.01 Arno fixed some bugs with non-Windows-1252 code pages.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -119,8 +120,8 @@ uses
     OverbyteIcsTnOptFrm, OverbyteIcsWSocket;
 
 const
-  TnEmultVTVersion   = 700;
-  CopyRight : String = ' TTnEmulVT (c) 1996-2010 F. Piette V7.00 ';
+  TnEmultVTVersion   = 701;
+  CopyRight : String = ' TTnEmulVT (c) 1996-2011 F. Piette V7.01 ';
 
 type
   TTnEmulVTDataAvailable = procedure (Sender  : TObject;
@@ -341,9 +342,9 @@ procedure TTnEmulVT.RequestLocalEcho(newValue : Boolean);
 begin
     if Assigned(FTnCnx) then begin
         if newValue then
-            FTnCnx.DontOption(TN_ECHO)
+            FTnCnx.DontOption(AnsiChar(TN_ECHO))
         else
-            FTnCnx.DoOption(TN_ECHO);
+            FTnCnx.DoOption(AnsiChar(TN_ECHO));
     end;
 end;
 

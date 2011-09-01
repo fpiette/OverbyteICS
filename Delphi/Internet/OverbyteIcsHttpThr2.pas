@@ -2,14 +2,14 @@
 
 Author:       François PIETTE (From a work done by Ed Hochman <ed@mbhsys.com>)
 Creation:     Jan 13, 1998
-Version:      1.00
+Version:      1.02
 Description:  HttpThrd is a demo program showing how to use THttpCli component
               in a multi-threaded program.
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -34,6 +34,9 @@ Legal issues: Copyright (C) 1997-2010 by François PIETTE
                  distribution.
 
 Updates:
+Jun 19 2011 V1.01 Arno - Make use of an event object rather than
+                  TThread.Suspend/Resume, both are deprecated since D2010.
+Jun 20 2011 V1.02 Arno reworked it, was needed.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpThr2;
@@ -45,93 +48,151 @@ uses
   OverbyteIcsHttpProt;
 
 type
-  {$M+}       { Needed for Published to take effect }
+  TThreadState = (tsInvalid, tsReady, tsBusy);
   THTTPThread = class(TThread)
   private
-    FProgress : String;
-    procedure UpdateStatus;
-    procedure ShowProgress;
-    procedure Progress(Msg : String);
-    procedure DocBegin(Sender : TObject);
-    procedure DocData(Sender : TObject; Buffer : Pointer; Len : Integer);
-    procedure DocEnd(Sender : TObject);
-  published
-    procedure Setup(i: Integer);
-    procedure Execute; override;
-  public
+    FEvent        : THandle;
+    FState        : TThreadState;
     FURL          : String;
     FProxy        : String;
     FThreadNumber : Integer;
     FHttpCli      : THTTPCli;
-    Success       : Boolean;
+    FSuccess      : Boolean;
+    FDataStream   : TMemoryStream;
+    FLogList      : TStringList;
+    FCritSect     : TRTLCriticalSection;
+    procedure Progress(const Msg : String);
+    procedure DocBegin(Sender : TObject);
+    procedure DocData(Sender : TObject; Buffer : Pointer; Len : Integer);
+    procedure DocEnd(Sender : TObject);
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AThreadNumber: Integer);
+    destructor Destroy; override;
+    procedure Wakeup;
+    function LockLogList: TStringList;
+    procedure UnlockLogList;
+    property State: TThreadState read FState write FState;
+
+    { None thread-safe properties, they have to be accessed only in State tsReady }
+    property URL: String read FURL write FURL;
+    property Proxy: String read FProxy write FProxy;
+    property ThreadNumber: Integer read FThreadNumber write FThreadNumber;
+    property Success: Boolean read FSuccess;
+    property DataStream: TMemoryStream read FDataStream;
   end;
 
 implementation
 
 uses
-    OverbyteIcsHttpThr1;
+    OverbyteIcsHttpThr1,
+    OverbyteIcsUtils;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THTTPThread.Setup(i: Integer);
+constructor THTTPThread.Create(AThreadNumber: Integer);
 begin
-    FThreadNumber := i;
+    inherited Create(TRUE);
+    InitializeCriticalSection(FCritSect);
+    FDataStream   := TMemoryStream.Create;
+    FLogList      := TStringList.Create;
+    FThreadNumber := AThreadNumber;
+    FEvent        := CreateEvent(nil, False, False, nil);
+    if FEvent = 0 then
+        RaiseLastOSError;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THTTPThread.UpdateStatus;
+destructor THTTPThread.Destroy;
 begin
-    HttpThreadForm.ProcessResults(FThreadNumber, Success);
+    if FEvent <> 0 then begin
+        Terminate;
+        SetEvent(FEvent); { Wake it up otherwise inherited Destroy won't return }
+    end;
+    inherited Destroy;
+    { The thread is down and THttpCli instance is released now }
+    FDataStream.Free;
+    FLogList.Free;
+    DeleteCriticalSection(FCritSect);
+    if FEvent <> 0 then
+        CloseHandle(FEvent);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THTTPThread.ShowProgress;
+procedure THTTPThread.Wakeup;
 begin
-    HttpThreadForm.ProgressListBox.Items.Add(FProgress);
+    SetEvent(FEvent);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THTTPThread.Progress(Msg : String);
+function THTTPThread.LockLogList;
 begin
-    FProgress := Msg;
-    SynChronize(ShowProgress);
+    EnterCriticalSection(FCritSect);
+    Result := FLogList;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THTTPThread.UnlockLogList;
+begin
+    LeaveCriticalSection(FCritSect);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THTTPThread.Progress(const Msg : String);
+begin
+    EnterCriticalSection(FCritSect);
+    try
+        FLogList.Add(Msg);
+        if FLogList.Count = 1 then
+            PostMessage(HttpThreadForm.Handle, WM_LOG, WParam(Self), 0);
+    finally
+        LeaveCriticalSection(FCritSect);
+    end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THTTPThread.Execute;
 begin
-    FHttpCli               := THTTPCli.Create(Nil);
-    FHttpCli.MultiThreaded := TRUE;
-    FHttpCli.RcvdStream    := TMemoryStream.Create;
-    FHttpCli.OnDocBegin    := DocBegin;
-    FHttpCli.OnDocEnd      := DocEnd;
-    FHttpCli.OnDocData     := DocData;
-    while not Terminated do begin
-        Progress(IntToStr(FThreadNumber) + ' Start get');
-        with FHttpCli do begin
-            URL   := FURL;
-            Proxy := FProxy;
-            (RcvdStream as TMemoryStream).Clear;
-            try
-                Get;   // Get page from internet
-                Success := TRUE;
-            except
-                Success := FALSE;
+    OverbyteIcsUtils.IcsNameThreadForDebugging(AnsiString(ClassName + ' ' +
+                                               IntToStr(FThreadNumber)));
+    FHttpCli := THTTPCli.Create(Nil);
+    try
+        FHttpCli.MultiThreaded := TRUE;
+        FHttpCli.RcvdStream    := FDataStream;
+        FHttpCli.OnDocBegin    := DocBegin;
+        FHttpCli.OnDocEnd      := DocEnd;
+        FHttpCli.OnDocData     := DocData;
+        while not Terminated do begin
+            WaitForSingleObject(FEvent, INFINITE);
+            if Terminated then
+                Break;
+            Progress(IntToStr(FThreadNumber) + ' Start get');
+            FDataStream.Clear;
+            with FHttpCli do begin
+                URL   := FURL;
+                Proxy := FProxy;
+                try
+                    Get;   // Get page from internet
+                    FSuccess := TRUE;
+                except
+                    FSuccess := FALSE;
+                end;
             end;
+
+            if not Terminated then
+                PostMessage(HttpThreadForm.Handle, WM_THREAD_RESULT,
+                            WParam(Self), Ord(Success));
         end;
-
-        if not Terminated then
-            Synchronize(UpdateStatus);
+    finally
+        FHttpCli.Free;
     end;
-
-    if FHttpCli.RcvdStream <> nil then
-         FHttpCli.RcvdStream.Free;
-
-    FHttpCli.Free;
 end;
 
 

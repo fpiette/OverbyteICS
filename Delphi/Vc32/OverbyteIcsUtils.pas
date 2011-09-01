@@ -112,6 +112,8 @@ Sep 05, 2010 V7.37 Arno added procedure IcsNameThreadForDebugging
 Apr 15, 2011 V7.38 Arno prepared for 64-bit.
 May 06, 2011 V7.39 Arno moved TThreadID to OverbyteIcsTypes.
 Jun 08, 2011 v7.40 Arno added x64 assembler routines, untested so far.
+Jun 14, 2011 v7.41 aguser added Unicode Normalization as IcsNormalizeString()
+             see http://www.unicode.org/reports/tr15/tr15-33.html.
 Aug 14, 2011 v7.42 Arno fixed IcsSwap64 BASM 32-bit (not yet used in ICS)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -152,13 +154,17 @@ interface
 uses
 {$IFDEF MSWINDOWS}
     Windows,
+    OverbyteIcsWinnls,
   {$IFDEF USE_ICONV}
     OverbyteIcsIconv,
   {$ENDIF}
 {$ENDIF}
 {$IFDEF POSIX}
-    PosixSysTypes, PosixIconv, PosixErrno,
-    PosixUnistd, PosixStdio,
+    Posix.SysTypes, Posix.Iconv, Posix.Errno,
+    Posix.Unistd, Posix.Stdio,
+{$ENDIF}
+{$IFDEF MACOS}
+    Macapi.CoreFoundation,
 {$ENDIF}
     Classes,
     SysUtils,
@@ -234,6 +240,13 @@ const
 type
     EIcsStringConvertError = class(Exception);
     TCharsetDetectResult = (cdrAscii, cdrUtf8, cdrUnknown);
+
+    TIcsNormForm = (
+      icsNormalizationOther,
+      icsNormalizationC,
+      icsNormalizationD,
+      icsNormalizationKC = 5,
+      icsNormalizationKD);
 
 {$IFDEF COMPILER12_UP}
     TIcsSearchRecW = SysUtils.TSearchRec;
@@ -396,6 +409,7 @@ const
     function  IcsSwap64(Value: Int64): Int64;
     procedure IcsSwap64Buf(Src, Dst: PInt64; QuadWordCount: Integer);
     procedure IcsNameThreadForDebugging(AThreadName: AnsiString; AThreadID: TThreadID = TThreadID(-1));
+    function  IcsNormalizeString(const S: UnicodeString; NormForm: TIcsNormForm): UnicodeString;
 { Wide library }
     function IcsFileCreateW(const FileName: UnicodeString): Integer; overload;
     function IcsFileCreateW(const Utf8FileName: UTF8String): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
@@ -1369,7 +1383,7 @@ end;
 function UsAsciiToUnicode(const Str: RawByteString; FailCh: AnsiChar): UnicodeString;
 var
     I  : Integer;
-    P  : PByte;
+    P  : PSmallInt;
 begin
     SetLength(Result, Length(Str));
     P := Pointer(Result);
@@ -1378,8 +1392,6 @@ begin
             P^ := Byte(FailCh)
         else
             P^ := Byte(Str[I]);
-        Inc(P);
-        P^ := 0;
         Inc(P);
     end;
 end;
@@ -2937,6 +2949,107 @@ begin
 {$ELSE}
 begin
     TThread.NameThreadForDebugging(AThreadName, AThreadID);
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsNormalizeString(const S: UnicodeString;
+  NormForm: TIcsNormForm): UnicodeString;
+{$IFDEF MSWINDOWS}
+var
+    Cnt   : Integer;
+    Flags : DWORD;
+begin
+    Result := '';
+    if S = '' then
+        Exit;
+    if (Win32Platform = VER_PLATFORM_WIN32_NT) and (Win32MajorVersion < 6) then
+    begin
+        { Available since D7 in Windows.pas }
+        case NormForm of
+            icsNormalizationD  : Flags := MAP_COMPOSITE;
+            icsNormalizationC  : Flags := MAP_PRECOMPOSED;
+            icsNormalizationKD : Flags := MAP_FOLDCZONE;
+            icsNormalizationKC : Flags := MAP_FOLDCZONE or MAP_COMPOSITE;
+            else
+              Result := S;
+              Exit;
+        end;
+        Cnt := FoldStringW(Flags, PWideChar(S), Length(S), nil, 0);
+        if Cnt > 0 then
+        begin
+            SetLength(Result, Cnt);
+            Cnt := FoldStringW(Flags, PWideChar(S), Length(S),
+                               PWideChar(Result), Cnt);
+            SetLength(Result, Cnt);
+        end;
+    end
+    else begin
+        { Vista+, not yet available in Windows.pas }
+        if IsNormalizedString(TNormForm(NormForm), PWideChar(S), Length(S)) then
+            Result := S
+        else begin
+            Cnt := NormalizeString(TNormForm(NormForm), PWideChar(S),
+                                   Length(S), nil, 0);
+            if Cnt > 0 then
+            begin
+                SetLength(Result, Cnt);
+                Cnt := NormalizeString(TNormForm(NormForm), PWideChar(S),
+                                       Length(S), PWideChar(Result), Cnt);
+                SetLength(Result, Cnt);
+            end;
+        end;
+    end;
+{$ELSE MSWINDOWS}
+
+{$IFDEF MACOS}
+    function CFStringToStr(StringRef: CFStringRef): string;
+    var
+        Range: CFRange;
+    begin
+        if StringRef = nil then Exit('');
+        Range := CFRangeMake(0, CFStringGetLength(StringRef));
+        if Range.Length > 0 then
+        begin
+            SetLength(Result, Range.Length);
+            CFStringGetCharacters(StringRef, Range, @Result[1]);
+        end
+        else
+            Result := EmptyStr;
+    end;
+
+var
+    MutableStringRef        : CFMutableStringRef;
+    kCFStringNormalization  : Integer;
+begin
+    Result := '';
+    if S = '' then
+        Exit;
+    case NormForm of
+        icsNormalizationD  :
+            kCFStringNormalization := kCFStringNormalizationFormD;
+        icsNormalizationC  :
+            kCFStringNormalization := kCFStringNormalizationFormC;
+        icsNormalizationKD :
+            kCFStringNormalization := kCFStringNormalizationFormKD;
+        icsNormalizationKC :
+            kCFStringNormalization := kCFStringNormalizationFormKC;
+      else
+          Result := S;
+          Exit;
+    end;
+    MutableStringRef := CFStringCreateMutable(kCFAllocatorDefault, 0);
+    try
+        CFStringAppendCharacters(MutableStringRef, PWideChar(S), Length(S));
+        CFStringNormalize(MutableStringRef, kCFStringNormalization);
+        Result := CFStringToStr(CFStringRef(MutableStringRef));
+    finally
+        CFRelease(MutableStringRef);
+    end;
+{$ELSE MACOS}
+    raise Exception.Create('Not implemented');
+{$ENDIF}
 {$ENDIF}
 end;
 

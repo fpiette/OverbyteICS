@@ -146,7 +146,7 @@ void __fastcall TServerForm::SrvSocketSessionAvailable(TObject *Sender,
     WORD Error)
 {
     int         NewHSocket;
-    TSockAddrIn PeerName;
+    Winsock::TSockAddrIn PeerName;
     TClient     *Client;
     AnsiString  Buffer;
 

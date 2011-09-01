@@ -1,9 +1,9 @@
-ICS - Internet Component Suite - V7 - Delphi 7 to RAD Studio XE
-===============================================================
+ICS - Internet Component Suite - V7 - Delphi 7 to RAD Studio XE2
+================================================================
 (Aka FPIETTE's Components)
 
 
-Revised: Aug 16, 2010
+Revised: Aug 11, 2011
 http://www.overbyte.be
 
 Table of content:
@@ -26,7 +26,7 @@ Table of content:
 
 Legal issues: 
 -------------
-              Copyright (C) 1997-2010 by François PIETTE 
+              Copyright (C) 1997-2011 by François PIETTE 
               Rue de Grady 24, 4053 Embourg, Belgium
               <francois.piette@overbyte.be>
 
@@ -104,7 +104,10 @@ Installation:
 -------------
 
 ICS-V7 has been designed for Delphi 2009 and up, and BCB 2009 and up, but 
-is fully compatible with Delphi 7, 2006 and 2007.  
+is fully compatible with Delphi 7, 2006 and 2007. 
+
+With Delphi XE2 and later, VCL 64-bit Windows targets are supported for Delphi only.  
+Currently FireMonkey is not supported by ICS. 
 
 The zip file has subdirectories in it. You must use the WinZip "Use folder 
 names" option to restore this directory tree or you will have problems 
@@ -122,6 +125,7 @@ This is the subdirectory layout:
 .\cpp\internet\cb2009         C++Builder 2009 projects
 .\cpp\internet\cb2010         C++Builder 2010 projects
 .\cpp\internet\cbXE           C++Builder XE projects
+.\cpp\internet\cbXE2          C++Builder XE2 projects
 .\delphi\vc32                 Delphi (7 and up) and C++Builder (2006 and up) components
 .\Install                     Component packages project groups for all versions
 
@@ -159,11 +163,13 @@ Delphi 2007      :  D2007Install.groupproj
 Delphi 2009      :  D2009Install.groupproj
 Delphi 2010      :  D2010Install.groupproj
 Delphi XE        :  DXeInstall.groupproj
+Delphi XE2       :  DXe2Install.groupproj
 C++ Builder 2006 :  CB2006Install.bdsgroup
 C++ Builder 2007 :  CB2007Install.groupproj
 C++ Builder 2009 :  CB2009Install.groupproj
 C++ Builder 2010 :  CB2010Install.groupproj
 C++ Builder XE   :  CBXeInstall.groupproj
+C++ Builder XE2  :  CBXe2Install.groupproj
 
 1 - Do a File/Open Project, navigate to the Install directory, select the correct
 file and open it. The project manager view should now display two package 
@@ -190,35 +196,44 @@ Delphi 2007      :  OverbyteIcsD2007Run.dproj, OverbyteIcsD2007Design.dproj
 Delphi 2009      :  OverbyteIcsD2009Run.dproj, OverbyteIcsD2009Design.dproj
 Delphi 2010      :  OverbyteIcsD2010Run.dproj, OverbyteIcsD2010Design.dproj
 Delphi XE        :  OverbyteIcsDXeRun.dproj, OverbyteIcsDXeDesign.dproj
+Delphi XE2       :  OverbyteIcsDXe2Run.dproj, OverbyteIcsDXe2Design.dproj
 C++ Builder 2006 :  OverbyteIcsCB2006Run.bdsproj, OverbyteIcsCB2006Design.bdsproj
 C++ Builder 2007 :  OverbyteIcsCB2007Run.cbproj, OverbyteIcsCB2007Design.cbproj 
 C++ Builder 2009 :  OverbyteIcsCB2009Run.cbproj, OverbyteIcsCB2009Design.cbproj
 C++ Builder 2010 :  OverbyteIcsCB2010Run.cbproj, OverbyteIcsCB2010Design.cbproj
 C++ Builder XE   :  OverbyteIcsCBXeRun.cbproj, OverbyteIcsCBXeDesign.cbproj
+C++ Builder XE2  :  OverbyteIcsCBXe2Run.cbproj, OverbyteIcsCBXe2Design.cbproj
 
 1 - Open and Build the run-time package project (do not install!).
 2 - Open and Install the design-time package project.
 (Do a File/Open Project, browse to the VC32 directory. Select the correct file
 and open it. Then in the project manager view, right-click on the package, 
 then click on either the Build or Install button.)
+3 - For Delphi XE2, a 64-bit run-time package can be built by changing the 
+package target platform to 64-bit Windows. This has the same name as the 32-bit
+package, so a different package output directory needs to be specified in 
+Tools / Options / Delphi Options for 64-bit Windows. 
 
 After a few seconds, you should have a dialog box telling you the package has
 been installed with a bunch of new components registered in the Tool Palette
 under "Overbyte ICS" and "Overbyte ICS SSL". Then do a "Save All" and a "Close All".
 
-DELPHI 2006/WIN32, 2007/WIN32, 2009/WIN32, 2010/WIN32 and XE/WIN32:
+DELPHI 2006/WIN32, 2007/WIN32, 2009/WIN32, 2010/WIN32, XE/WIN32:
 Having installed the package, verify that the VC32 directory has been added to
 the Win32 Library Path (Tools / Options / Delphi Options / Library - Win32 / 
 Library Path). If not, add it manually. It is not mandatory to add vc32 to the global
 Delphi path, but it will be much easier for you because otherwise you'll have to
 add it to each project.
 
+DELPHI XE2/WIN32 and XE2/WIN64: Similar to above, but the Library path is specified 
+separately for 32-bit and 64-bit Windows Platforms.  
+
 DELPHI 7: Add VC32 directory path to your library path (Tools menu / Environment 
 Options / Library / Library Path. Add VC32 path at the end of the existing path).
 
 Once the package is installed, you may open the sample projects. There is a single
-project group called OverByteIcsDemo.bpg for all versions (7, 2006, 2007, 2009, 2010
-and XE) which has all sample programs. Open it with file/open project (Ctrl-F11),
+project group called OverByteIcsDemo.bpg for all versions (7, 2006, 2007, 2009, 2010,
+XE and XE2) which has all sample programs. Open it with file/open project (Ctrl-F11),
 browse to the Internet directory, select and open OverByteIcsDemo.bpg. You might get
 some dialog box telling you that resource files are missing (they have not been 
 included in the zip file to save space) and are recreated by Delphi. It is OK. 
@@ -246,7 +261,7 @@ Once the components are all installed, you may open the sample projects
 each one after the other and compile them. For each project, do file/open
 and select the dpr file in the internet directory. Then Project/Build All.
 
-CBUILDER 2006, 2007, 2009, 2010, XE:
+CBUILDER 2006, 2007, 2009, 2010, XE, XE2:
 Follow the installation procedure described for Delphi 2006. Just change
 the project group and package name: replace "del" by "bcb" in their names.
 You can't have Delphi 2006 and CBuilder 2006 packages installed at the 

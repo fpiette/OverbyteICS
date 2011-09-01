@@ -113,6 +113,7 @@ const
 procedure TTelnetForm.FormCreate(Sender: TObject);
 begin
     FIniFileName := GetIcsIniFileName;
+    TnEmulVT1.IniFilename := FIniFileName;
     StatusLabel.Caption := 'Not connected';
     TnEmulVT1.RestoreOptions;
 end;

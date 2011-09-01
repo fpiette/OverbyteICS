@@ -35,7 +35,7 @@ private:	// User declarations
     AnsiString   FIniFileName;
     AnsiString   FSectionName;
     AnsiString   FKeyName;
-    TInAddr      FServerAddr;
+    Winsock::TInAddr      FServerAddr;
 public:		// User declarations
     __fastcall TMainForm(TComponent* Owner);
 };

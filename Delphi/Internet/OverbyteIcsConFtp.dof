@@ -11,3 +11,6 @@ UnitOutputDir=.\dcu
 SearchPath=..\Vc32
 Conditionals=NOFORMS
 UsePackages=0
+[IcsCustom]
+Win64Supported=1
+Win64Enabled=1

@@ -5,7 +5,7 @@ Description:  Delphi component which does Ansi terminal emulation
               Not every escape sequence is implemented, but a large subset.
 Author:       François PIETTE
 Creation:     May, 1996
-Version:      7.03
+Version:      7.04
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -92,6 +92,7 @@ Oct 03, 2008 V7.01 A. Garrels moved IsCharInSysCharSet, xdigit and xdigit2
                    to OverbyteIcsUtils.pas.
 Mar 03, 2011 V7.02 F.Piette fixed TScreen.Eol 
 May 06, 2011 V7.03 Small change to prepare for 64-bit.
+Jul 17, 2011 V7.04 Arno fixed some bugs with non-Windows-1252 code pages.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsEmulVT;
@@ -134,8 +135,8 @@ uses
     OverbyteIcsUtils;
 
 const
-  EmulVTVersion      = 703;
-  CopyRight : String = ' TEmulVT (c) 1996-2011 F. Piette V7.03 ';
+  EmulVTVersion      = 704;
+  CopyRight : String = ' TEmulVT (c) 1996-2011 F. Piette V7.04 ';
   MAX_ROW            = 50;
   MAX_COL            = 160;
   NumPaletteEntries  = 16;
@@ -148,7 +149,7 @@ type
   TScreenOptions  = set of TScreenOption;
   TXlatTable      = array [0..255] of AnsiChar;
   PXlatTable      = ^TXlatTable;
-  TFuncKeyValue   = String{$IFNDEF COMPILER12_UP}[50]{$ENDIF};
+  TFuncKeyValue   = String;
   PFuncKeyValue   = ^TFuncKeyValue;
   TFuncKey        = record
                         ScanCode : Char;
@@ -293,9 +294,9 @@ type
     property    Lines[I : Integer] : TLine read GetLines write SetLines;
   end;
 
-  { TCustomEmulVT is an visual component wich does the actual display }
-  { of a TScreen object wich is the virtual screen                    }
-  { No property is published. See TEmulVT class                       }
+  { TCustomEmulVT is an visual component which does the actual display }
+  { of a TScreen object which is the virtual screen                    }
+  { No property is published. See TEmulVT class                        }
   TCustomEmulVT = class(TCustomControl)
   private
     FCharPos         : array [0..MAX_COL + 1] of integer;
@@ -518,7 +519,212 @@ const
   F_INTENSE = $08;
   B_BLINK   = $80;
 
+{$IFDEF UNICODE}
   { Function keys (SCO Console) }
+  FKeys1 : TFuncKeysTable = (
+      (ScanCode: #$0048; Shift: []; Ext: TRUE ; Value: #$001B + '[A'),   { UP    }
+      (ScanCode: #$0050; Shift: []; Ext: TRUE ; Value: #$001B + '[B'),   { DOWN  }
+      (ScanCode: #$004D; Shift: []; Ext: TRUE ; Value: #$001B + '[C'),   { RIGHT }
+      (ScanCode: #$004B; Shift: []; Ext: TRUE ; Value: #$001B + '[D'),   { LEFT  }
+      (ScanCode: #$0049; Shift: []; Ext: TRUE ; Value: #$001B + '[I'),   { PREV  }
+      (ScanCode: #$0051; Shift: []; Ext: TRUE ; Value: #$001B + '[G'),   { NEXT  }
+      (ScanCode: #$0047; Shift: []; Ext: TRUE ; Value: #$001B + '[H'),   { HOME  }
+      (ScanCode: #$004F; Shift: []; Ext: TRUE ; Value: #$001B + '[F'),   { END   }
+      (ScanCode: #$0052; Shift: []; Ext: TRUE ; Value: #$001B + '[L'),   { INS   }
+      (ScanCode: #$000F; Shift: []; Ext: FALSE; Value: #$001B + '[Z'),   { RTAB  }
+      (ScanCode: #$0053; Shift: []; Ext: TRUE ; Value: #$007F       ),   { DEL   }
+      (ScanCode: #$003B; Shift: []; Ext: FALSE; Value: #$001B + '[M'),   { F1    }
+      (ScanCode: #$003C; Shift: []; Ext: FALSE; Value: #$001B + '[N'),
+      (ScanCode: #$003D; Shift: []; Ext: FALSE; Value: #$001B + '[O'),
+      (ScanCode: #$003E; Shift: []; Ext: FALSE; Value: #$001B + '[P'),
+      (ScanCode: #$003F; Shift: []; Ext: FALSE; Value: #$001B + '[Q'),
+      (ScanCode: #$0040; Shift: []; Ext: FALSE; Value: #$001B + '[R'),
+      (ScanCode: #$0041; Shift: []; Ext: FALSE; Value: #$001B + '[S'),
+      (ScanCode: #$0042; Shift: []; Ext: FALSE; Value: #$001B + '[T'),
+      (ScanCode: #$0043; Shift: []; Ext: FALSE; Value: #$001B + '[U'),
+      (ScanCode: #$0044; Shift: []; Ext: FALSE; Value: #$001B + '[V'),   { F10   }
+      (ScanCode: #$0085; Shift: []; Ext: FALSE; Value: #$001B + '[W'),   { F11   }
+      (ScanCode: #$0086; Shift: []; Ext: FALSE; Value: #$001B + '[X'),   { F12   }
+      (ScanCode: #$003B; Shift: [ssShift]; Ext: FALSE; Value: #$001B + '[V'),{ SF1 should be 'Y' }
+      (ScanCode: #$003C; Shift: [ssShift]; Ext: FALSE; Value: #$001B + '[Z'),
+      (ScanCode: #$003D; Shift: [ssShift]; Ext: FALSE; Value: #$001B + '[a'),
+      (ScanCode: #$003E; Shift: [ssShift]; Ext: FALSE; Value: #$001B + '[b'),
+      (ScanCode: #$003F; Shift: [ssShift]; Ext: FALSE; Value: #$001B + '[c'),
+      (ScanCode: #$0040; Shift: [ssShift]; Ext: FALSE; Value: #$001B + '[d'),
+      (ScanCode: #$0041; Shift: [ssShift]; Ext: FALSE; Value: #$001B + '[e'),
+      (ScanCode: #$0042; Shift: [ssShift]; Ext: FALSE; Value: #$001B + '[f'),
+      (ScanCode: #$0043; Shift: [ssShift]; Ext: FALSE; Value: #$001B + '[g'),
+      (ScanCode: #$0044; Shift: [ssShift]; Ext: FALSE; Value: #$001B + '[h'),
+      (ScanCode: #$0085; Shift: [ssShift]; Ext: FALSE; Value: #$001B + '[i'),
+      (ScanCode: #$0086; Shift: [ssShift]; Ext: FALSE; Value: #$001B + '[j'),{ SF10 }
+      (ScanCode: #$003B; Shift: [ssCtrl]; Ext: FALSE; Value: #$001B + '[k'), { CF1  }
+      (ScanCode: #$003C; Shift: [ssCtrl]; Ext: FALSE; Value: #$001B + '[l'),
+      (ScanCode: #$003D; Shift: [ssCtrl]; Ext: FALSE; Value: #$001B + '[m'),
+      (ScanCode: #$003E; Shift: [ssCtrl]; Ext: FALSE; Value: #$001B + '[n'),
+      (ScanCode: #$003F; Shift: [ssCtrl]; Ext: FALSE; Value: #$001B + '[o'),
+      (ScanCode: #$0040; Shift: [ssCtrl]; Ext: FALSE; Value: #$001B + '[p'),
+      (ScanCode: #$0041; Shift: [ssCtrl]; Ext: FALSE; Value: #$001B + '[q'),
+      (ScanCode: #$0042; Shift: [ssCtrl]; Ext: FALSE; Value: #$001B + '[r'),
+      (ScanCode: #$0043; Shift: [ssCtrl]; Ext: FALSE; Value: #$001B + '[s'),
+      (ScanCode: #$0044; Shift: [ssCtrl]; Ext: FALSE; Value: #$001B + '[t'),
+      (ScanCode: #$0085; Shift: [ssCtrl]; Ext: FALSE; Value: #$001B + '[u'),
+      (ScanCode: #$0086; Shift: [ssCtrl]; Ext: FALSE; Value: #$001B + '[v'),   { CF12 }
+      (ScanCode: #$001C; Shift: []; Ext: FALSE; Value: #13#10           ),   { Enter key }
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         )
+      );
+
+{ Alternate function keys (ordinary VT keys) }
+  FKeys2 : TFuncKeysTable = (
+      (ScanCode: #$0048; Shift: []; Ext: TRUE ; Value: #$001B + '[A'),   { UP      }
+      (ScanCode: #$0050; Shift: []; Ext: TRUE ; Value: #$001B + '[B'),   { DOWN    }
+      (ScanCode: #$004D; Shift: []; Ext: TRUE ; Value: #$001B + '[C'),   { RIGHT   }
+      (ScanCode: #$004B; Shift: []; Ext: TRUE ; Value: #$001B + '[D'),   { LEFT    }
+      (ScanCode: #$0049; Shift: []; Ext: TRUE ; Value: #$001B + '[5~'),  { PREV    }
+      (ScanCode: #$0051; Shift: []; Ext: TRUE ; Value: #$001B + '[6~'),  { NEXT    }
+      (ScanCode: #$0052; Shift: []; Ext: TRUE ; Value: #$001B + '[2~'),  { INSERT  }
+      (ScanCode: #$0053; Shift: []; Ext: TRUE ; Value: #$007F       ),   { DELETE  }
+      (ScanCode: #$003B; Shift: []; Ext: FALSE; Value: #$001B + 'OP'),   { F1->PF1 }
+      (ScanCode: #$003C; Shift: []; Ext: FALSE; Value: #$001B + 'OQ'),   { F2->PF2 }
+      (ScanCode: #$003D; Shift: []; Ext: FALSE; Value: #$001B + 'OR'),   { F3->PF3 }
+      (ScanCode: #$003E; Shift: []; Ext: FALSE; Value: #$001B + 'OS'),   { F4->PF4 }
+      (ScanCode: #$0057; Shift: []; Ext: FALSE; Value: #$001B + '[28~'), { F11->Aide }
+      (ScanCode: #$0058; Shift: []; Ext: FALSE; Value: #$001B + '[29~'), { F12->Executer }
+      (ScanCode: #$001C; Shift: []; Ext: FALSE; Value: #13#10           ),   { Enter key }
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         )
+      );
+
+{ A-Series Telnet function keys (ordinary VT100 keys + specials) }
+  FKeys3 : TFuncKeysTable = (
+      (ScanCode: #$0048; Shift: []; Ext: TRUE ; Value: #$001B + '[A'),   { UP      }
+      (ScanCode: #$0050; Shift: []; Ext: TRUE ; Value: #$001B + '[B'),   { DOWN    }
+      (ScanCode: #$004D; Shift: []; Ext: TRUE ; Value: #$001B + '[C'),   { RIGHT   }
+      (ScanCode: #$004B; Shift: []; Ext: TRUE ; Value: #$001B + '[D'),   { LEFT    }
+      (ScanCode: #$0049; Shift: []; Ext: TRUE ; Value: #$001B + '-'),    { PREV    }
+      (ScanCode: #$0051; Shift: []; Ext: TRUE ; Value: #$001B + '+'),    { NEXT    }
+      (ScanCode: #$0047; Shift: []; Ext: TRUE ; Value: #$001B + 'H'),    { HOME    }
+      (ScanCode: #$0047; Shift: [ssCtrl]; Ext: TRUE ; Value: #$001B + 'C'),{ HOME  }
+      (ScanCode: #$004F; Shift: []; Ext: TRUE ; Value: #$001B + 'R'),    { END     }
+      (ScanCode: #$0052; Shift: []; Ext: TRUE ; Value: #$001B + 'I'),    { INSERT  }
+      (ScanCode: #$0053; Shift: []; Ext: TRUE ; Value: #$007F       ),   { DELETE  }
+      (ScanCode: #$003B; Shift: []; Ext: FALSE; Value: #$001B + 'OP'),   { F1->PF1 }
+      (ScanCode: #$003C; Shift: []; Ext: FALSE; Value: #$001B + 'OQ'),   { F2->PF2 }
+      (ScanCode: #$003D; Shift: []; Ext: FALSE; Value: #$001B + 'OR'),   { F3->PF3 }
+      (ScanCode: #$003E; Shift: []; Ext: FALSE; Value: #$001B + 'OS'),   { F4->PF4 }
+      (ScanCode: #$0043; Shift: []; Ext: FALSE; Value: #$001B + 'OP'),   { F9      }
+      (ScanCode: #$0044; Shift: []; Ext: FALSE; Value: ''),            { F10     }
+      (ScanCode: #$0057; Shift: []; Ext: FALSE; Value: #$001B + 'OQ'),   { F11     }
+      (ScanCode: #$0058; Shift: []; Ext: FALSE; Value: #$001B + 'OS'),   { F12     }
+      (ScanCode: #$000F; Shift: []; Ext: FALSE; Value: #$001B + 'Z'),    { RTAB    }
+      (ScanCode: #$0040; Shift: []; Ext: FALSE; Value: #$001B + 'K'),    { F6      }
+      (ScanCode: #$0053; Shift: [ssCtrl]; Ext: TRUE ; Value: #$001B + 'D'), { CDEL }
+      (ScanCode: #$0052; Shift: [ssCtrl]; Ext: TRUE ; Value: #$001B + 'L'), { CINS }
+      (ScanCode: #$001C; Shift: []; Ext: FALSE; Value: #13#10           ),   { Enter key }
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         ),
+      (ScanCode: #$0000; Shift: []; Ext: FALSE; Value: ''         )
+      );
+{$ELSE UNICODE}
+ { Function keys (SCO Console) }
   FKeys1 : TFuncKeysTable = (
       (ScanCode: #$48; Shift: []; Ext: TRUE ; Value: #$1B + '[A'),   { UP    }
       (ScanCode: #$50; Shift: []; Ext: TRUE ; Value: #$1B + '[B'),   { DOWN  }
@@ -721,7 +927,7 @@ const
       (ScanCode: #$00; Shift: []; Ext: FALSE; Value: ''         ),
       (ScanCode: #$00; Shift: []; Ext: FALSE; Value: ''         )
       );
-
+{$ENDIF}
   { Ethernet to screen }
   ibm_iso8859_1_G0 : TXlatTable = (
       #$00, #$01, #$02, #$03, #$04, #$05, #$06, #$07,   { 00 - 07 }
@@ -3057,9 +3263,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomEmulVT.AppMessageHandler(var Msg: TMsg; var Handled: Boolean);
 const
-    v1 : String = 'aeiou';
-    v2 : String = 'âêîôû';
-    v3 : String = 'äëïöü';
+    { Unicode and iso-8859-1 etc. }
+    v1 : array[1..5] of Byte = ($61, $65, $69, $6F, $75); //'aeiou';
+    v2 : array[1..5] of Byte = ($E2, $EA, $EE, $F4, $FB); //'âêîôû';
+    v3 : array[1..5] of Byte = ($E4, $EB, $EF, $F6, $FC); //'äëïöü';
     SpyFlag : Boolean = FALSE;
 var
     Shift     : TShiftState;
@@ -3167,8 +3374,8 @@ begin
                     Key := chr(Word(Key) or $20);
                 if (FFlagCirconflexe) then begin
                     for I := Length(v1) downto 1 do begin
-                        if Key = v1[I] then begin
-                            Key := v2[I];
+                        if Key = Char(v1[I]) then begin
+                            Key := Char(v2[I]);
                             Break;
                         end;
                     end;
@@ -3176,8 +3383,8 @@ begin
                 end;
                 if (FFlagTrema) then begin
                     for I := Length(v1) downto 1 do begin
-                        if Key = v1[I] then begin
-                            Key := v3[I];
+                        if Key = Char(v1[I]) then begin
+                            Key := Char(v3[I]);
                             Break;
                         end;
                     end;
@@ -3205,7 +3412,7 @@ begin
         raise Exception.Create('TCustomEmulVT.KeyPress detected a non-ansi char');
 {$ENDIF}
     if not FScreen.FNoXlat then
-        Key := Char(FScreen.FXlatOutputTable^[Ord(AnsiChar(Key))]);
+        Key := Char(FScreen.FXlatOutputTable^[Byte(Key)]);
 
     inherited KeyPress(Key);
     if FLocalEcho then begin
@@ -3466,128 +3673,128 @@ begin
     Y1 := rc^.Top;
     Y3 := rc^.Bottom;
     Y2 := (Y1 + Y3) div 2;
-    case Ch of
-    #$C4: begin       { Horizontal single line }
+    case Ord(Byte(Ch)) of
+    $C4: begin       { Horizontal single line }
               Canvas.MoveTo(X1, Y2);
               Canvas.LineTo(X3, Y2);
           end;
-    #$B3: begin       { Vertical single line }
+    $B3: begin       { Vertical single line }
               Canvas.MoveTo(X2, Y1);
               Canvas.LineTo(X2, Y3);
           end;
-    #$DA: begin       { Upper Left Single Corner }
+    $DA: begin       { Upper Left Single Corner }
               Canvas.MoveTo(X3, Y2);
               Canvas.LineTo(X2, Y2);
               Canvas.LineTo(X2, Y3);
           end;
-    #$C0: begin       { Bottom Left Single Corner }
+    $C0: begin       { Bottom Left Single Corner }
               Canvas.MoveTo(X2, Y1);
               Canvas.LineTo(X2, Y2);
               Canvas.LineTo(X3, Y2);
           end;
-    #$C1: begin       { Reverse T }
+    $C1: begin       { Reverse T }
               Canvas.MoveTo(X2, Y1);
               Canvas.LineTo(X2, Y2);
               Canvas.MoveTo(X1, Y2);
               Canvas.LineTo(X3, Y2);
           end;
-    #$C2: begin       { T }
+    $C2: begin       { T }
               Canvas.MoveTo(X2, Y3);
               Canvas.LineTo(X2, Y2);
               Canvas.MoveTo(X1, Y2);
               Canvas.LineTo(X3, Y2);
           end;
-    #$C3: begin       { Left T }
+    $C3: begin       { Left T }
               Canvas.MoveTo(X2, Y1);
               Canvas.LineTo(X2, Y3);
               Canvas.MoveTo(X2, Y2);
               Canvas.LineTo(X3, Y2);
           end;
-    #$B4: begin       { Right T }
+    $B4: begin       { Right T }
               Canvas.MoveTo(X2,     Y1);
               Canvas.LineTo(X2,     Y3);
               Canvas.MoveTo(X2,     Y2);
               Canvas.LineTo(X1 - 1, Y2);
           end;
-    #$BF: begin       { Top Right Single Corner }
+    $BF: begin       { Top Right Single Corner }
               Canvas.MoveTo(X1, Y2);
               Canvas.LineTo(X2, Y2);
               Canvas.LineTo(X2, Y3);
           end;
-    #$D9: begin       { Bottom Right Single Corner }
+    $D9: begin       { Bottom Right Single Corner }
               Canvas.MoveTo(X1, Y2);
               Canvas.LineTo(X2, Y2);
               Canvas.LineTo(X2, Y1 - 1);
           end;
-    #$D6: begin       { Upper Left Single/Double Corner }
+    $D6: begin       { Upper Left Single/Double Corner }
               Canvas.MoveTo(X3, Y2);
               Canvas.LineTo(X2 - 1, Y2);
               Canvas.LineTo(X2 - 1, Y3);
               Canvas.MoveTo(X2 + 1, Y2);
               Canvas.LineTo(X2 + 1, Y3);
           end;
-    #$D3: begin       { Bottom Left Single/Double Corner }
+    $D3: begin       { Bottom Left Single/Double Corner }
               Canvas.MoveTo(X2 - 1, Y1);
               Canvas.LineTo(X2 - 1, Y2);
               Canvas.LineTo(X3, Y2);
               Canvas.MoveTo(X2 + 1, Y1);
               Canvas.LineTo(X2 + 1, Y2);
           end;
-    #$B7: begin       { Top Right Single/Double Corner }
+    $B7: begin       { Top Right Single/Double Corner }
               Canvas.MoveTo(X1, Y2);
               Canvas.LineTo(X2 + 1, Y2);
               Canvas.LineTo(X2 + 1, Y3);
               Canvas.MoveTo(X2 - 1, Y2);
               Canvas.LineTo(X2 - 1, Y3);
           end;
-    #$BD: begin       { Bottom Right Single/Double Corner }
+    $BD: begin       { Bottom Right Single/Double Corner }
               Canvas.MoveTo(X2 + 1, Y1);
               Canvas.LineTo(X2 + 1, Y2);
               Canvas.LineTo(X1 - 1, Y2);
               Canvas.MoveTo(X2 - 1, Y1);
               Canvas.LineTo(X2 - 1, Y2);
           end;
-    #$D5: begin       { Upper Left Double/Single Corner }
+    $D5: begin       { Upper Left Double/Single Corner }
               Canvas.MoveTo(X3, Y2 - 1);
               Canvas.LineTo(X2, Y2 - 1);
               Canvas.LineTo(X2, Y3);
               Canvas.MoveTo(X3, Y2 + 1);
               Canvas.LineTo(X2, Y2 + 1);
           end;
-    #$D4: begin       { Bottom Left Double/Single Corner }
+    $D4: begin       { Bottom Left Double/Single Corner }
               Canvas.MoveTo(X2, Y1);
               Canvas.LineTo(X2, Y2 + 1);
               Canvas.LineTo(X3, Y2 + 1);
               Canvas.MoveTo(X2, Y2 - 1);
               Canvas.LineTo(X3, Y2 - 1);
           end;
-    #$B8: begin       { Top Right Double/Single Corner }
+    $B8: begin       { Top Right Double/Single Corner }
               Canvas.MoveTo(X1, Y2 - 1);
               Canvas.LineTo(X2, Y2 - 1);
               Canvas.LineTo(X2, Y3);
               Canvas.MoveTo(X1, Y2 + 1);
               Canvas.LineTo(X2, Y2 + 1);
           end;
-    #$BE: begin       { Bottom Right Double/Single Corner }
+    $BE: begin       { Bottom Right Double/Single Corner }
               Canvas.MoveTo(X2,     Y1);
               Canvas.LineTo(X2,     Y2 + 1);
               Canvas.LineTo(X1 - 1, Y2 + 1);
               Canvas.MoveTo(X1,     Y2 - 1);
               Canvas.LineTo(X2,     Y2 - 1);
           end;
-    #$CD: begin       { Horizontal Double line }
+    $CD: begin       { Horizontal Double line }
               Canvas.MoveTo(X1, Y2 + 1);
               Canvas.LineTo(X3, Y2 + 1);
               Canvas.MoveTo(X1, Y2 - 1);
               Canvas.LineTo(X3, Y2 - 1);
           end;
-    #$BA: begin       { Vertical Double line }
+    $BA: begin       { Vertical Double line }
               Canvas.MoveTo(X2 + 1, Y1);
               Canvas.LineTo(X2 + 1, Y3);
               Canvas.MoveTo(X2 - 1, Y1);
               Canvas.LineTo(X2 - 1, Y3);
           end;
-    #$D1: begin       { T Top Horizontal Double line }
+    $D1: begin       { T Top Horizontal Double line }
               Canvas.MoveTo(X1, Y2 + 1);
               Canvas.LineTo(X3, Y2 + 1);
               Canvas.MoveTo(X1, Y2 - 1);
@@ -3595,7 +3802,7 @@ begin
               Canvas.MoveTo(X2, Y2 + 1);
               Canvas.LineTo(X2, Y3);
           end;
-    #$CF: begin       { T Bottom Horizontal Double line }
+    $CF: begin       { T Bottom Horizontal Double line }
               Canvas.MoveTo(X1, Y2 + 1);
               Canvas.LineTo(X3, Y2 + 1);
               Canvas.MoveTo(X1, Y2 - 1);
@@ -3603,7 +3810,7 @@ begin
               Canvas.MoveTo(X2, Y2 - 1);
               Canvas.LineTo(X2, Y1);
           end;
-    #$C6: begin       { T Left Horizontal Double line }
+    $C6: begin       { T Left Horizontal Double line }
               Canvas.MoveTo(X2, Y2 + 1);
               Canvas.LineTo(X3, Y2 + 1);
               Canvas.MoveTo(X2, Y2 - 1);
@@ -3611,7 +3818,7 @@ begin
               Canvas.MoveTo(X2, Y1);
               Canvas.LineTo(X2, Y3);
           end;
-    #$B5: begin       { T Right Horizontal Double line }
+    $B5: begin       { T Right Horizontal Double line }
               Canvas.MoveTo(X1, Y2 + 1);
               Canvas.LineTo(X2, Y2 + 1);
               Canvas.MoveTo(X1, Y2 - 1);
@@ -3619,7 +3826,7 @@ begin
               Canvas.MoveTo(X2, Y1);
               Canvas.LineTo(X2, Y3);
           end;
-    #$C9: begin       { Upper Left Double Corner }
+    $C9: begin       { Upper Left Double Corner }
               Canvas.MoveTo(X3,     Y2 - 1);
               Canvas.LineTo(X2 - 1, Y2 - 1);
               Canvas.LineTo(X2 - 1, Y3);
@@ -3627,7 +3834,7 @@ begin
               Canvas.LineTo(X2 + 1, Y2 + 1);
               Canvas.LineTo(X2 + 1, Y3);
           end;
-    #$C8: begin       { Bottom Left Double Corner }
+    $C8: begin       { Bottom Left Double Corner }
               Canvas.MoveTo(X2 - 1, Y1);
               Canvas.LineTo(X2 - 1, Y2 + 1);
               Canvas.LineTo(X3,     Y2 + 1);
@@ -3635,7 +3842,7 @@ begin
               Canvas.LineTo(X2 + 1, Y2 - 1);
               Canvas.LineTo(X3,     Y2 - 1);
           end;
-    #$BB: begin       { Top Right Double Corner }
+    $BB: begin       { Top Right Double Corner }
               Canvas.MoveTo(X1,     Y2 - 1);
               Canvas.LineTo(X2 + 1, Y2 - 1);
               Canvas.LineTo(X2 + 1, Y3);
@@ -3643,7 +3850,7 @@ begin
               Canvas.LineTo(X2 - 1, Y2 + 1);
               Canvas.LineTo(X2 - 1, Y3);
           end;
-    #$BC: begin       { Bottom Right Double Corner }
+    $BC: begin       { Bottom Right Double Corner }
               Canvas.MoveTo(X2 - 1, Y1);
               Canvas.LineTo(X2 - 1, Y2 - 1);
               Canvas.LineTo(X1 - 1, Y2 - 1);
@@ -3651,7 +3858,7 @@ begin
               Canvas.LineTo(X2 + 1, Y2 + 1);
               Canvas.LineTo(X1 - 1, Y2 + 1);
           end;
-    #$CC: begin       { Double left T }
+    $CC: begin       { Double left T }
               Canvas.MoveTo(X2 - 1, Y1);
               Canvas.LineTo(X2 - 1, Y3);
               Canvas.MoveTo(X2 + 1, Y1);
@@ -3661,7 +3868,7 @@ begin
               Canvas.LineTo(X2 + 1, Y2 + 1);
               Canvas.LineTo(X2 + 1, Y3);
           end;
-    #$B9: begin       { Double Right T }
+    $B9: begin       { Double Right T }
               Canvas.MoveTo(X2 + 1, Y1);
               Canvas.LineTo(X2 + 1, Y3);
               Canvas.MoveTo(X2 - 1, Y1);
@@ -3671,7 +3878,7 @@ begin
               Canvas.LineTo(X2 - 1, Y2 + 1);
               Canvas.LineTo(X2 - 1, Y3);
           end;
-    #$C7: begin       { Double T Single Left }
+    $C7: begin       { Double T Single Left }
               Canvas.MoveTo(X2 + 1, Y1);
               Canvas.LineTo(X2 + 1, Y3);
               Canvas.MoveTo(X2 - 1, Y1);
@@ -3679,7 +3886,7 @@ begin
               Canvas.MoveTo(X2 + 1, Y2);
               Canvas.LineTo(X3,     Y2);
           end;
-    #$B6: begin       { Double T Single Right }
+    $B6: begin       { Double T Single Right }
               Canvas.MoveTo(X2 + 1, Y1);
               Canvas.LineTo(X2 + 1, Y3);
               Canvas.MoveTo(X2 - 1, Y1);
@@ -3687,7 +3894,7 @@ begin
               Canvas.MoveTo(X2 - 1, Y2);
               Canvas.LineTo(X1 - 1, Y2);
           end;
-    #$D2: begin       { Single T Double Top }
+    $D2: begin       { Single T Double Top }
               Canvas.MoveTo(X1, Y2);
               Canvas.LineTo(X3, Y2);
               Canvas.MoveTo(X2 - 1, Y2);
@@ -3695,7 +3902,7 @@ begin
               Canvas.MoveTo(X2 + 1, Y2);
               Canvas.LineTo(X2 + 1, Y3);
           end;
-    #$D0: begin       { Single T Double Bottom }
+    $D0: begin       { Single T Double Bottom }
               Canvas.MoveTo(X1, Y2);
               Canvas.LineTo(X3, Y2);
               Canvas.MoveTo(X2 - 1, Y2);
@@ -3703,28 +3910,28 @@ begin
               Canvas.MoveTo(X2 + 1, Y2);
               Canvas.LineTo(X2 + 1, Y1);
           end;
-    #$DB: begin       { Full Block }
+    $DB: begin       { Full Block }
               Canvas.Rectangle(X1, Y1, X3, Y3);
           end;
-    #$DC: begin       { Half Bottom Block }
+    $DC: begin       { Half Bottom Block }
               Canvas.Rectangle(X1, Y2, X3, Y3);
           end;
-    #$DD: begin       { Half Left Block }
+    $DD: begin       { Half Left Block }
               Canvas.Rectangle(X1, Y1, X2, Y3);
           end;
-    #$DE: begin       { Half Right Block }
+    $DE: begin       { Half Right Block }
               Canvas.Rectangle(X2, Y1, X3, Y3);
           end;
-    #$DF: begin       { Half Top Block }
+    $DF: begin       { Half Top Block }
               Canvas.Rectangle(X1, Y1, X2, Y2);
           end;
-    #$C5: begin       { Single Cross }
+    $C5: begin       { Single Cross }
               Canvas.MoveTo(X1, Y2);
               Canvas.LineTo(X3, Y2);
               Canvas.MoveTo(X2, Y1);
               Canvas.LineTo(X2, Y3);
           end;
-    #$CE: begin       { Double Cross }
+    $CE: begin       { Double Cross }
               Canvas.MoveTo(X1,     Y2 - 1);
               Canvas.LineTo(X2 - 1, Y2 - 1);
               Canvas.LineTo(X2 - 1, Y1);
@@ -3738,7 +3945,7 @@ begin
               Canvas.LineTo(X2 + 1, Y2 + 1);
               Canvas.LineTo(X3,     Y2 + 1);
           end;
-    #$D8: begin      { Cross Double Horizontal Single vertical }
+    $D8: begin      { Cross Double Horizontal Single vertical }
               Canvas.MoveTo(X1, Y2 + 1);
               Canvas.LineTo(X3, Y2 + 1);
               Canvas.MoveTo(X1, Y2 - 1);
@@ -3746,7 +3953,7 @@ begin
               Canvas.MoveTo(X2, Y1);
               Canvas.LineTo(X2, Y3);
           end;
-    #$D7: begin      { Cross Single Horizontal Double Vertical }
+    $D7: begin      { Cross Single Horizontal Double Vertical }
               Canvas.MoveTo(X2 + 1, Y1);
               Canvas.LineTo(X2 + 1, Y3);
               Canvas.MoveTo(X2 - 1, Y1);
@@ -3754,7 +3961,7 @@ begin
               Canvas.MoveTo(X1,     Y2);
               Canvas.LineTo(X3,     Y2);
           end;
-    #$CA: begin      { Double T bottom }
+    $CA: begin      { Double T bottom }
               Canvas.MoveTo(X1,     Y2 - 1);
               Canvas.LineTo(X2 - 1, Y2 - 1);
               Canvas.LineTo(X2 - 1, Y1);
@@ -3764,7 +3971,7 @@ begin
               Canvas.MoveTo(X1,     Y2 + 1);
               Canvas.LineTo(X3,     Y2 + 1);
           end;
-    #$CB: begin      { Double T  }
+    $CB: begin      { Double T  }
               Canvas.MoveTo(X1,     Y2 + 1);
               Canvas.LineTo(X2 - 1, Y2 + 1);
               Canvas.LineTo(X2 - 1, Y3);
@@ -3774,7 +3981,7 @@ begin
               Canvas.MoveTo(X1,     Y2 - 1);
               Canvas.LineTo(X3,     Y2 - 1);
           end;
-    #$B0: begin
+    $B0: begin
               Co := Canvas.Pen.Color;
               for Y := Y1 to Y3 do begin
                   X := X1 + (Y mod 3);
@@ -3784,7 +3991,7 @@ begin
                   end;
               end;
           end;
-    #$B1: begin
+    $B1: begin
               Co := Canvas.Pen.Color;
               for Y := Y1 to Y3 do begin
                   X := X1 + (Y and 1);
@@ -3794,7 +4001,7 @@ begin
                   end;
               end;
           end;
-    #$B2: begin
+    $B2: begin
               Co := Canvas.Pen.Color;
               for Y := Y1 to Y3 do begin
                   X := X1 + (Y mod 3);
@@ -3890,17 +4097,17 @@ begin
 {$IFEND}
         if FGraphicDraw and
            (FScreen.FXlatOutputTable = @ibm_iso8859_1_G0) and
-           (Ch >= #$B0) and (Ch <= #$DF) and
-           IsCharInSysCharSet(Ch,
-                  [#$B3, #$C4, #$DA, #$C0, #$C1, #$C2, #$C3, #$B4, #$BF, #$D9,
-                   #$DB, #$DC, #$DD, #$DE, #$DF,
-                   #$BA, #$CD, #$C9, #$C8, #$BB, #$BC,
-                   #$CC, #$B9, #$C7, #$B6, #$D2, #$D0,
-                   #$D5, #$D4, #$B8, #$BE,
-                   #$C6, #$D1, #$B5, #$CF,
-                   #$D6, #$B7, #$D3, #$BD,
-                   #$C5, #$CE, #$D8, #$D7, #$CA, #$CB,
-                   #$B0, #$B1, #$B2]) then
+           (Byte(Ch) >= $B0) and (Byte(Ch) <= $DF) and
+           (Byte(Ch) in
+                  [$B3, $C4, $DA, $C0, $C1, $C2, $C3, $B4, $BF, $D9,
+                   $DB, $DC, $DD, $DE, $DF,
+                   $BA, $CD, $C9, $C8, $BB, $BC,
+                   $CC, $B9, $C7, $B6, $D2, $D0,
+                   $D5, $D4, $B8, $BE,
+                   $C6, $D1, $B5, $CF,
+                   $D6, $B7, $D3, $BD,
+                   $C5, $CE, $D8, $D7, $CA, $CB,
+                   $B0, $B1, $B2]) then
             PaintGraphicChar(DC, X, Y, @rc, Ch)
         else
             ExtTextOut(DC, X, Y, ETO_OPAQUE or ETO_CLIPPED, @rc, @Ch, 1, nil);

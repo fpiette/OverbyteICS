@@ -1,10 +1,10 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿	<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 		<PropertyGroup>
 			<ProjectGuid>{388D1B12-E80F-454B-B007-BC6A254FDD35}</ProjectGuid>
 			<ProjectType>CppPackage</ProjectType>
 			<MainSource>OverbyteIcsCBXeRun.cpp</MainSource>
 			<Config Condition="'$(Config)'==''">Debug</Config>
-			<ProjectVersion>12.1</ProjectVersion>
+			<ProjectVersion>12.2</ProjectVersion>
 			<Base>True</Base>
 			<Platform>Win32</Platform>
 			<AppType>Library</AppType>
@@ -24,6 +24,7 @@
 			<Base>true</Base>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
+			<DCC_UnitAlias>WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;$(DCC_UnitAlias)</DCC_UnitAlias>
 			<_TCHARMapping>wchar_t</_TCHARMapping>
 			<BCC_UserSuppliedOptions>-CX256</BCC_UserSuppliedOptions>
 			<LinkPackageStatics>rtl.lib;vcl.lib</LinkPackageStatics>
@@ -386,6 +387,9 @@
 			<DelphiCompile Include="OverbyteIcsWebSession.pas">
 				<BuildOrder>81</BuildOrder>
 			</DelphiCompile>
+			<DelphiCompile Include="OverbyteIcsWinnls.pas">
+				<BuildOrder>92</BuildOrder>
+			</DelphiCompile>
 			<DelphiCompile Include="OverbyteIcsWinsock.pas">
 				<BuildOrder>8</BuildOrder>
 				<BuildOrder>55</BuildOrder>
@@ -451,6 +455,7 @@
 			</BuildConfiguration>
 		</ItemGroup>
 		<Import Condition="Exists('$(BDS)\Bin\CodeGear.Cpp.Targets')" Project="$(BDS)\Bin\CodeGear.Cpp.Targets"/>
+		<Import Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\8.0\UserTools.proj')" Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\8.0\UserTools.proj"/>
 		<ProjectExtensions>
 			<Borland.Personality>CPlusPlusBuilder.Personality.12</Borland.Personality>
 			<Borland.ProjectType>CppPackage</Borland.ProjectType>

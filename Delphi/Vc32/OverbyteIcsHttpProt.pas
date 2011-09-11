@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.17
+Version:      7.18
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -450,6 +450,8 @@ Feb 19, 2011 V7.15 Arno - Proxy authentication with relocations still did not
              Fix in Digest authentication.
 Apr 15, 2011 V7.16 Arno prepared for 64-bit.
 Jul 22, 2011 V7.17 Arno - OEM NTLM changes.
+Sep 11, 2011 V7.18 Arno fixed a bug in chunked decoding, sponsored by Fastream
+             (www.fastream.com).
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -530,8 +532,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 717;
-    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.17 ';
+    HttpCliVersion       = 718;
+    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.18 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -2603,7 +2605,10 @@ begin
                 while N > 0 do begin
 //                  if P^ = #10 then begin
                     if Ord(FReceiveBuffer[P]) = 10 then begin // FP 09/09/06
-                        FChunkState := httpChunkGetData;
+                        if FChunkLength = 0 then              // AG V7.18
+                            FChunkState := httpChunkDone      // AG V7.18
+                        else                                  // AG V7.18
+                            FChunkState := httpChunkGetData;
                         Inc(P);
                         Dec(N);
                         break;

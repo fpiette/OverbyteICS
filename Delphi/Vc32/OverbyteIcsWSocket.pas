@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.83
+Version:      7.84
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -913,6 +913,8 @@ May 21, 2011 V7.82 Arno - Make sure receipt of a SSL shutdown notification
                    wanted. There are servers in the wild expecting a SSL
                    shutdown confirmation before they close the connection.
 Jul 22, 2011 V7.83 Arno - OEM NTLM changes.
+Sep 26, 2011 V7.84 Angus - Set SocketSndBufSize and SocketRcvBufSize for
+                   Listen sockets, note only worth increasing sizes for UDP
 
 }
 
@@ -1026,8 +1028,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 783;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.83 ';
+  WSocketVersion            = 784;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.84 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -7916,6 +7918,7 @@ procedure TCustomWSocket.Listen;
 var
     iStatus        : Integer;
     optval         : Integer;
+    optlen         : Integer;
     mreq           : ip_mreq;
 {$IFDEF MSWINDOWS}
     dwBufferInLen  : DWORD;
@@ -8073,6 +8076,36 @@ begin
         end;
     else
         SocketError('Listen: unexpected protocol.');
+        Exit;
+    end;
+
+    { Get winsock send buffer size - V7.84 }
+    optlen  := SizeOf(FSocketSndBufSize);
+{$IFDEF CLR}
+    iStatus := WSocket_getsockopt(FHSocket, SOL_SOCKET, SO_SNDBUF,
+                                  FSocketSndBufSize, optlen);
+{$ELSE}
+    iStatus := WSocket_getsockopt(FHSocket, SOL_SOCKET, SO_SNDBUF,
+                                  PAnsiChar(@FSocketSndBufSize), optlen);
+{$ENDIF}
+
+    if iStatus <> 0 then begin
+        SocketError('getsockopt(SO_SNDBUF)');
+        Exit;
+    end;
+
+    { Get winsock receive buffer size }
+    optlen  := SizeOf(FSocketRcvBufSize);
+{$IFDEF CLR}
+    iStatus := WSocket_getsockopt(FHSocket, SOL_SOCKET, SO_RCVBUF,
+                                  FSocketRcvBufSize, optlen);
+{$ELSE}
+    iStatus := WSocket_getsockopt(FHSocket, SOL_SOCKET, SO_RCVBUF,
+                                  PAnsiChar(@FSocketRcvBufSize), optlen);
+{$ENDIF}
+
+    if iStatus <> 0 then begin
+        SocketError('getsockopt(SO_RCVBUF)');
         Exit;
     end;
 

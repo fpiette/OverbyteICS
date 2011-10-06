@@ -2,7 +2,7 @@ object HttpTestForm: THttpTestForm
   Left = 61
   Top = 411
   Caption = 'Http Test - http://www.overbyte.be'
-  ClientHeight = 521
+  ClientHeight = 533
   ClientWidth = 624
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object HttpTestForm: THttpTestForm
     Left = 0
     Top = 0
     Width = 624
-    Height = 113
+    Height = 121
     Align = alTop
     TabOrder = 0
     OnResize = Panel1Resize
@@ -90,7 +90,7 @@ object HttpTestForm: THttpTestForm
       Left = 341
       Top = 80
       Width = 97
-      Height = 27
+      Height = 26
       Caption = 'Maximum Bandwidth (bytes/sec)'
       WordWrap = True
       OnClick = Label10Click
@@ -152,7 +152,7 @@ object HttpTestForm: THttpTestForm
       Height = 21
       Style = csDropDownList
       ItemHeight = 13
-      TabOrder = 5
+      TabOrder = 6
       Items.Strings = (
         'HTTP/1.0'
         'HTTP/1.1')
@@ -161,9 +161,10 @@ object HttpTestForm: THttpTestForm
       Left = 512
       Top = 1
       Width = 111
-      Height = 111
+      Height = 119
       Align = alRight
-      TabOrder = 6
+      TabOrder = 10
+      ExplicitHeight = 111
       object GetButton: TButton
         Left = 4
         Top = 8
@@ -260,13 +261,23 @@ object HttpTestForm: THttpTestForm
       Top = 82
       Width = 65
       Height = 21
+      AutoSize = False
       TabOrder = 9
       Text = 'BandwidthLimitEdit'
+    end
+    object ContentEncodingCheckBox: TCheckBox
+      Left = 8
+      Top = 100
+      Width = 131
+      Height = 17
+      Alignment = taLeftJustify
+      Caption = 'Content Encoding Gzip'
+      TabOrder = 5
     end
   end
   object DisplayMemo: TMemo
     Left = 0
-    Top = 113
+    Top = 121
     Width = 624
     Height = 148
     Align = alTop
@@ -280,12 +291,13 @@ object HttpTestForm: THttpTestForm
     ParentFont = False
     ScrollBars = ssBoth
     TabOrder = 1
+    ExplicitTop = 113
   end
   object DocumentMemo: TMemo
     Left = 0
-    Top = 261
+    Top = 269
     Width = 624
-    Height = 260
+    Height = 264
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -297,6 +309,8 @@ object HttpTestForm: THttpTestForm
     ParentFont = False
     ScrollBars = ssBoth
     TabOrder = 2
+    ExplicitTop = 261
+    ExplicitHeight = 260
   end
   object HttpCli1: THttpCli
     URL = 'http://www.rtfm.be'

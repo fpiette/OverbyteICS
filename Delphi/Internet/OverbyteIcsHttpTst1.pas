@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.00
+Version:      7.01
 Description:  Sample program to demonstrate some of the THttpCli features.
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -57,6 +57,8 @@ May 09, 2003  V1.07 Implemented PUT
 Jan 10, 2004  V1.08 Added code for HTTP 1.1 (Started months ago but forgot
               to add it in the history).
 Feb 4,  2011  V7.00 Angus added bandwidth throttling using TCustomThrottledWSocket
+Oct 6,  2011  V7.01 Angus added content encoding checkbox
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpTst1;
@@ -84,12 +86,12 @@ uses
   System.ComponentModel,
  {$ENDIF}
   OverbyteIcsWinsock,  OverbyteIcsWSocket,
-  OverbyteIcsHttpProt, OverbyteIcsWndControl,
-  OverbyteIcsLogger;
+  OverbyteIcsHttpProt, OverbyteIcsHttpCCodZLib,
+  OverbyteIcsWndControl, OverbyteIcsLogger;
 
 const
-  HttpTstVersion         = 700;
-  CopyRight : String     = 'HttpTst (c) 1997-2011 Francois Piette  V7.00 ';
+  HttpTstVersion         = 701;
+  CopyRight : String     = 'HttpTst (c) 1997-2011 Francois Piette  V7.01 ';
 
 type
   THttpTestForm = class(TForm)
@@ -127,6 +129,7 @@ type
     IcsLogger1: TIcsLogger;
     BandwidthLimitEdit: TEdit;
     Label11: TLabel;
+    ContentEncodingCheckBox: TCheckBox;
     procedure GetButtonClick(Sender: TObject);
     procedure HttpCli1Command(Sender: TObject; var S: String);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -184,6 +187,7 @@ const
     KeyNTLMUsercode = 'NTLMUsercode';
     KeyNTLMPassword = 'NTLMPassword';
     KeyBandwidthLimit = 'BandwidthLimit';
+    KeyContentEncoding = 'ContentEncoding' ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpTestForm.FormShow(Sender: TObject);
@@ -216,6 +220,7 @@ begin
         HttpVersionComboBox.ItemIndex := IniFile.ReadInteger(SectionData, KeyHttpVer, 0);
         DisplayHeaderCheckBox.Checked := Boolean(IniFile.ReadInteger(SectionData, KeyDisplayHdr, 0));
         BandwidthLimitEdit.Text := IniFile.ReadString(SectionData, KeyBandwidthLimit, '1000000');
+        ContentEncodingCheckBox.Checked := Boolean(IniFile.ReadInteger(SectionData, KeyContentEncoding, 0));
 {$IFDEF UseNTLMAuthentication}
         HttpCli1.NTLMHost       := IniFile.ReadString(SectionData, KeyNTLMHost,     'PC');
         HttpCli1.NTLMDomain     := IniFile.ReadString(SectionData, KeyNTLMDomain,   'WORKGROUP');
@@ -273,6 +278,7 @@ begin
     IniFile.WriteString(SectionData,    KeyPostType,  PostContentTypeEdit.Text);
     IniFile.WriteInteger(SectionData,   KeyDisplayHdr, Ord(DisplayHeaderCheckBox.Checked));
     IniFile.WriteString(SectionData,    KeyBandwidthLimit,  BandwidthLimitEdit.Text);
+    IniFile.WriteInteger(SectionData,   KeyContentEncoding, Ord(ContentEncodingCheckBox.Checked));
 {$IFDEF UseNTLMAuthentication}
     IniFile.WriteString(SectionData, KeyNTLMHost,     HttpCli1.NTLMHost);
     IniFile.WriteString(SectionData, KeyNTLMDomain,   HttpCli1.NTLMDomain);
@@ -327,6 +333,10 @@ begin
         if HttpCli1.BandwidthLimit > 0 then
              HttpCli1.Options := HttpCli1.Options + [httpoBandwidthControl];
 {$ENDIF}
+        if ContentEncodingCheckBox.Checked then
+             HttpCli1.Options := HttpCli1.Options + [httpoEnableContentCoding]
+        else
+             HttpCli1.Options := HttpCli1.Options - [httpoEnableContentCoding];
         if DateTimeEdit.Text <> '' then
             HttpCli1.ModifiedSince := StrToDateTime(DateTimeEdit.Text)
         else
@@ -381,6 +391,10 @@ begin
         if HttpCli1.BandwidthLimit > 0 then
              HttpCli1.Options := HttpCli1.Options + [httpoBandwidthControl];
 {$ENDIF}
+        if ContentEncodingCheckBox.Checked then
+             HttpCli1.Options := HttpCli1.Options + [httpoEnableContentCoding]
+        else
+             HttpCli1.Options := HttpCli1.Options - [httpoEnableContentCoding];
         if DateTimeEdit.Text <> '' then
             HttpCli1.ModifiedSince := StrToDateTime(DateTimeEdit.Text)
         else
@@ -404,7 +418,7 @@ begin
 
         Display('StatusCode = ' + IntToStr(HttpCli1.StatusCode));
 
-        if DisplayHeaderCheckBox.Checked then 
+        if DisplayHeaderCheckBox.Checked then
             for I := 0 to HttpCli1.RcvdHeader.Count - 1 do
                 Display('hdr>' + HttpCli1.RcvdHeader.Strings[I]);
 
@@ -496,6 +510,10 @@ begin
         if HttpCli1.BandwidthLimit > 0 then
              HttpCli1.Options := HttpCli1.Options + [httpoBandwidthControl];
 {$ENDIF}
+        if ContentEncodingCheckBox.Checked then
+             HttpCli1.Options := HttpCli1.Options + [httpoEnableContentCoding]
+        else
+             HttpCli1.Options := HttpCli1.Options - [httpoEnableContentCoding];
         if HttpCli1.Proxy <> '' then
             Display('Using proxy ''' + HttpCli1.Proxy + ':' +
                                   HttpCli1.ProxyPort + '''')

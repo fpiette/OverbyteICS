@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.18
+Version:      7.19
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -452,6 +452,9 @@ Apr 15, 2011 V7.16 Arno prepared for 64-bit.
 Jul 22, 2011 V7.17 Arno - OEM NTLM changes.
 Sep 11, 2011 V7.18 Arno fixed a bug in chunked decoding, sponsored by Fastream
              (www.fastream.com).
+Oct 6, 2011  V7.19 ensure content decompression triggered at end of document,
+             failed if Content-Length missing, thanks to Yuri Semenov for the fix
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -532,8 +535,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 718;
-    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.18 ';
+    HttpCliVersion       = 719;
+    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.19 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -1668,7 +1671,19 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpCli.TriggerDocEnd;
 begin
-{$IFNDEF NO_DEBUG_LOG}
+{$IFDEF UseContentCoding} {V7.19}
+            FContentCodingHnd.Complete;
+        {$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loProtSpecInfo) then begin
+                if Assigned(FRcvdStream) and (FContentEncoding <> '') then begin
+                    DebugLog(loProtSpecInfo, FContentEncoding +
+                             ' content uncompressed from ' +
+                             IntToStr(FContentLength) + ' bytes to ' +
+                             IntToStr(FRcvdStream.Size) + ' bytes');
+                end;
+            end;
+        {$ENDIF}
+{$ENDIF}{$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loProtSpecInfo) then  { V1.91 } { replaces $IFDEF DEBUG_OUTPUT  }
         DebugLog(loProtSpecInfo, 'DocEnd');
 {$ENDIF}
@@ -2677,16 +2692,16 @@ begin
             then FBandwidthTimer.Enabled := FALSE;
 {$ENDIF}
 {$IFDEF UseContentCoding} {V7.06}
-            FContentCodingHnd.Complete;
+ {           FContentCodingHnd.Complete;  V7.19 moved to TriggerDocEnd }
         {$IFNDEF NO_DEBUG_LOG}
-            if CheckLogOptions(loProtSpecInfo) then begin
+ {           if CheckLogOptions(loProtSpecInfo) then begin
                 if Assigned(FRcvdStream) and (FContentEncoding <> '') then begin
                     DebugLog(loProtSpecInfo, FContentEncoding +
                              ' content uncompressed from ' +
                              IntToStr(FContentLength) + ' bytes to ' +
                              IntToStr(FRcvdStream.Size) + ' bytes');
                 end;
-            end;
+            end;   }
         {$ENDIF}
 {$ENDIF}
             TriggerDocEnd;
@@ -2732,15 +2747,15 @@ begin
                 FBandwidthTimer.Enabled := FALSE;
 {$ENDIF}
 {$IFDEF UseContentCoding}
-            FContentCodingHnd.Complete;
+ {           FContentCodingHnd.Complete;  V7.19 moved to TriggerDocEnd }
         {$IFNDEF NO_DEBUG_LOG}
-            if CheckLogOptions(loProtSpecInfo) then begin
+ {           if CheckLogOptions(loProtSpecInfo) then begin
                 if Assigned(FRcvdStream) and (FContentEncoding <> '') then begin
                     DebugLog(loProtSpecInfo, FContentEncoding + ' content uncompressed from ' +
                       IntToStr(FContentLength) + ' bytes to ' +
                                IntToStr(FRcvdStream.Size) + ' bytes');
                 end;
-            end;
+            end;  }
         {$ENDIF}
 {$ENDIF}
             TriggerDocEnd;

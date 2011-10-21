@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.40
+Version:      7.41
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -330,7 +330,8 @@ Oct 18, 2011 V7.40 Angus GET performance improvements, use TBufferedFileStream,
                    SndBlkSize default is 8192 and dynamically increased to new
                    property MaxBlkSize if stream is larger than SndBlkSize.
                    SocketSndBufSize also increased to SndBlkSize.
-
+Oct 21, 2011 V7.41 Angus added OnHttpMimeContentType to allow custom ContentTypes
+                   to be supported for unusual file extensions
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -417,8 +418,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 740;
-    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.40 ';
+    THttpServerVersion = 741;
+    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.41 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -478,6 +479,13 @@ type
                                                var Handled : Boolean) of object;
     TUnknownRequestMethodEvent= procedure (Sender : TObject;       { V7.29 }
                                            var Handled : Boolean) of object;
+    THttpMimeContentTypeEvent= procedure (Sender    : TObject;     { V7.41 }
+                                          Client    : TObject;
+                                          FileName: string;
+                                          var ContentType: string) of object;
+    TMimeContentTypeEvent= procedure (Sender    : TObject;         { V7.41 }
+                                      FileName: string;
+                                      var ContentType: string) of object;
 
     THttpConnectionState = (hcRequest, hcHeader, hcPostedData);
     THttpOption          = (hoAllowDirList, hoAllowOutsideRoot, hoContentEncoding);   { V7.20 }
@@ -683,6 +691,7 @@ type
         FOnContentEncode       : TContentEncodeEvent;  { V7.20 }
         FOnContEncoded         : TNotifyEvent;         { V7.20 }
         FOnUnknownRequestMethod: TUnknownRequestMethodEvent; { V2.29 }
+        FOnMimeContentType     : TMimeContentTypeEvent;  { V7.41 }
         procedure SetSndBlkSize(const Value: Integer);
         procedure ConnectionDataAvailable(Sender: TObject; Error : Word); virtual;
         procedure ConnectionDataSent(Sender : TObject; Error : WORD); virtual;
@@ -711,6 +720,7 @@ type
                                         var Handled: Boolean); virtual;  { V7.20 }
         procedure TriggerContEncoded; virtual;    { V7.20 }
         procedure TriggerUnknownRequestMethod(var Handled : Boolean); virtual; { V7.29 }
+        procedure TriggerMimeContentType(FileName: string; var ContentType: string); virtual; { V7.41 }
         function  CheckContentEncoding(const ContType : String): Boolean; virtual; { V7.21 are we allowed to compress content }
         function  DoContentEncoding: String; virtual; { V7.21 compress content returning Content-Encoding header }
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
@@ -953,6 +963,10 @@ type
         property OnUnknownRequestMethod   : TUnknownRequestMethodEvent
                                                     read  FOnUnknownRequestMethod
                                                     write FOnUnknownRequestMethod;
+        { Triggered from SendDocument to allow MIME content type to be changed    V7.41 }
+        property OnMimeContentType  : TMimeContentTypeEvent
+                                                    read FOnMimeContentType
+                                                    write FOnMimeContentType;
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
         { AuthType contains the actual authentication method selected by client }
         property AuthType          : TAuthenticationType
@@ -1022,6 +1036,7 @@ type
         FSizeCompressMax          : Integer;  { V7.20 }
         FPersistentHeader         : String;   { V7.29 }
         FMaxBlkSize               : Integer;  { V7.40 }
+        FOnHttpMimeContentType    : THttpMimeContentTypeEvent;  { V7.41 }
 {$IFDEF BUILTIN_THROTTLE}
         FBandwidthLimit           : LongWord;   { angus V7.34 Bytes per second, null = disabled }
         FBandwidthSampling        : LongWord;   { angus V7.34 Msec sampling interval }
@@ -1087,6 +1102,7 @@ type
                                        var Handled: Boolean);
         procedure TriggerContEncoded(Client : TObject);   { V7.20 }
         procedure TriggerUnknownRequestMethod(Client : TObject; var Handled : Boolean); { V7.29 }
+        procedure TriggerMimeContentType(Client : TObject; FileName: string; var ContentType: string); virtual; { V7.41 }
         procedure SetPortValue(const newValue : String);
         procedure SetAddr(const newValue : String);
         procedure SetDocDir(const Value: String);
@@ -1243,6 +1259,9 @@ type
         property OnUnknownRequestMethod : THttpUnknownRequestMethodEvent { V2.29 }
                                                  read FOnHttpUnknownReqMethod
                                                  write FOnHttpUnknownReqMethod;
+        property OnHttpMimeContentType : THttpMimeContentTypeEvent         { V7.41 }
+                                                 read FOnHttpMimeContentType
+                                                 write FOnHttpMimeContentType;
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
         property OnAuthGetPassword  : TAuthGetPasswordEvent
                                                  read  FOnAuthGetPassword
@@ -1965,6 +1984,7 @@ begin
     THttpConnection(Client).OnContentEncode   := TriggerContentEncode; { V7.20 }
     THttpConnection(Client).OnContEncoded     := TriggerContEncoded;   { V7.20 }
     THttpConnection(Client).OnUnknownRequestMethod  := TriggerUnknownRequestMethod; { V2.29 }
+    THttpConnection(Client).OnMimeContentType := TriggerMimeContentType; { V7.41 }
     TriggerClientConnect(Client, Error);
 end;
 
@@ -2130,6 +2150,15 @@ begin
         FOnHttpUnknownReqMethod(Self, Client, Handled);
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpServer.TriggerMimeContentType
+    (Client : TObject;
+     FileName: string;
+     var ContentType: string);                                     { V7.41 }
+begin
+    if Assigned(FOnHttpMimeContentType) then
+        FOnHttpMimeContentType(Self, Client, FileName, ContentType);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpServer.HeartBeatOnTimer(Sender: TObject);
@@ -3428,6 +3457,12 @@ begin
         FOnUnknownRequestMethod(Self, Handled);
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.TriggerMimeContentType(FileName: string; var ContentType: string); { V7.41 }
+begin
+    if Assigned(FOnMimeContentType) then
+        FOnMimeContentType(Self, FileName, ContentType);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpConnection.TriggerContEncoded;  { V7.20 }
@@ -3843,6 +3878,7 @@ begin
     ProtoNumber        := 200;
     FLastModified      := FileDate(FDocument);
     FAnswerContentType := DocumentToContentType(FDocument);
+    TriggerMimeContentType(FDocument, FAnswerContentType);  { V7.41 allow content type to be changed }
 
     FDocStream.Free;
     FDocStream := TBufferedFileStream.Create(FDocument, fmOpenRead + fmShareDenyWrite, MAX_BUFSIZE); { V7.40 faster }

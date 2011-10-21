@@ -16,7 +16,7 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      7.21
+Version:      7.22
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -98,6 +98,10 @@ Jan 03, 2009 V7.18 A. Garrels added some lines to force client browser's login
 Oct 03, 2009 V7.19 F. Piette added file upload demo (REST & HTML Form)
 Jun 18, 2010 V7.20 Arno fixed a bug in CreateVirtualDocument_ViewFormUpload.
 Feb 4,  2011 V7.21 Angus added bandwidth throttling using TCustomThrottledWSocket
+Oct 21, 2011 V7.22 Angus added delayed.html response page using a timer, can be used
+                   for long polling server push or to slow down hacker responses.
+                   Use onHttpMimeContentType event to report document file name
+                   and content type which can also be changed if incorrect. 
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -133,8 +137,8 @@ uses
   OverbyteIcsHttpSrv, OverbyteIcsUtils, OverbyteIcsFormDataDecoder;
 
 const
-  WebServVersion     = 721;
-  CopyRight : String = 'WebServ (c) 1999-2011 F. Piette V7.21 ';
+  WebServVersion     = 722;
+  CopyRight : String = 'WebServ (c) 1999-2011 F. Piette V7.22 ';
   NO_CACHE           = 'Pragma: no-cache' + #13#10 + 'Expires: -1' + #13#10;
   WM_CLIENT_COUNT    = WM_USER + 1;
   FILE_UPLOAD_URL    = '/cgi-bin/FileUpload/';
@@ -155,8 +159,10 @@ type
     FDataLen          : Integer;   { Keep track of received byte count.     }
     FDataFile         : TextFile;  { Used for datafile display              }
     FFileIsUtf8       : Boolean;
+    FRespTimer        : TTimer;    { V7.22 send a delayed response }
   public
     destructor  Destroy; override;
+    procedure TimerRespTimer(Sender: TObject);
   end;
 
   { This is the main form for our application. Any data here is global for  }
@@ -220,6 +226,7 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure HttpServer1AuthNtlmBeforeValidate(Sender, Client: TObject;
       var Allow: Boolean);
+    procedure HttpServer1HttpMimeContentType(Sender, Client: TObject; FileName: string; var ContentType: string);
   private
     FIniFileName   : String;
     FInitialized   : Boolean;
@@ -717,7 +724,43 @@ begin
     else if CompareText(ClientCnx.Path, '/formupload.html') = 0 then
         CreateVirtualDocument_ViewFormupload{CreateVirtualDocument_formupload_htm}(Sender, ClientCnx, Flags)
     else if CompareText(ClientCnx.Path, '/template.html') = 0 then
-        CreateVirtualDocument_template(Sender, ClientCnx, Flags);
+        CreateVirtualDocument_template(Sender, ClientCnx, Flags)
+    { V7.22 Trap '/delayed.html' path to send a page once a timer expires. }
+    else if CompareText(ClientCnx.Path, '/delayed.html') = 0 then
+    begin
+        ClientCnx.FRespTimer := TTimer.Create (self) ;
+        ClientCnx.FRespTimer.OnTimer := ClientCnx.TimerRespTimer ;
+        ClientCnx.FRespTimer.Interval := 10000 ;     // 10 second delay
+        ClientCnx.FRespTimer.Enabled := true ;
+        Flags := hgWillSendMySelf;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V7.22 This procedure is use to generate /delayed.html document when a timer expires }
+procedure TMyHttpConnection.TimerRespTimer(Sender: TObject);
+var
+    Flags: THttpGetFlag;
+begin
+    if NOT Assigned (FRespTimer) then exit ;
+    FRespTimer.Enabled := false ;
+    Flags := hgWillSendMySelf;
+    AnswerString(Flags,
+        '',                            { Default Status '200 OK'            }
+        '',                            { Default Content-Type: text/html    }
+        'Pragma: no-cache' + #13#10 +  { No client caching please           }
+        'Expires: -1'      + #13#10,   { I said: no caching !               }
+        '<HTML>' +
+          '<HEAD>' +
+            '<TITLE>ICS WebServer Demo</TITLE>' +
+          '</HEAD>' + #13#10 +
+          '<BODY>' +
+            '<H2>This page was deliberately returned slowly</H2>' + #13#10 +
+            '<H2>Time at server side:</H2>' + #13#10 +
+            '<P>' + DateTimeToStr(Now) +'</P>' + #13#10 +
+            '<A HREF="/demo.html">Demo menu</A>' + #13#10 +
+          '</BODY>' +
+        '</HTML>');
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -741,6 +784,20 @@ begin
             ': ' + ClientCnx.Version + ' HEAD ' + ClientCnx.Path);
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ This event handler is triggered when HTTP server component is about to    }
+{ send a document file, allowing the MIME content type to be changed        }
+
+procedure TWebServForm.HttpServer1HttpMimeContentType(Sender, Client: TObject; FileName: string;
+  var ContentType: string);
+var
+    ClientCnx  : TMyHttpConnection;
+begin
+    ClientCnx := TMyHttpConnection(Client);
+    Display('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
+            ClientCnx.GetPeerAddr + '] ' +
+            ': Document: ' + FileName + ', Content-Type: ' + ContentType);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { This event handler is triggered when HTTP server component receive a GET  }
@@ -779,6 +836,7 @@ begin
             '<A HREF="/upload">View uploaded files</A><BR>' +
             '<A HREF="/redir.html">Redirection</A><BR>' +
             '<A HREF="/myip.html">Show client IP</A><BR>' +
+            '<A HREF="/delayed.html">Delayed Slow Response</A><BR>' +   { V7.22 }
             '<A HREF="/DemoBasicAuth.html">Password protected page</A> ' +
                      '(Basic method, usercode=test, password=basic)<BR>' +
             '<A HREF="/DemoDigestAuth.html">Password protected page</A> ' +
@@ -1627,6 +1685,7 @@ begin
         FPostedRawData  := nil;
         FPostedDataSize := 0;
     end;
+    FreeAndNil (FRespTimer);  { V7.21 }
     inherited Destroy;
 end;
 

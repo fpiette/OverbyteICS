@@ -270,6 +270,9 @@ object WebServForm: TWebServForm
     MaxRequestsKeepAlive = 100
     SizeCompressMin = 5000
     SizeCompressMax = 5000000
+    MaxBlkSize = 8192
+    BandwidthLimit = 0
+    BandwidthSampling = 1000
     OnServerStarted = HttpServer1ServerStarted
     OnServerStopped = HttpServer1ServerStopped
     OnClientConnect = HttpServer1ClientConnect
@@ -278,6 +281,7 @@ object WebServForm: TWebServForm
     OnHeadDocument = HttpServer1HeadDocument
     OnPostDocument = HttpServer1PostDocument
     OnPostedData = HttpServer1PostedData
+    OnHttpMimeContentType = HttpServer1HttpMimeContentType
     OnAuthGetPassword = HttpServer1AuthGetPassword
     OnAuthResult = HttpServer1AuthResult
     OnAuthGetType = HttpServer1AuthGetType

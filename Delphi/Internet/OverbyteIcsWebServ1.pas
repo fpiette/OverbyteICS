@@ -98,7 +98,7 @@ Jan 03, 2009 V7.18 A. Garrels added some lines to force client browser's login
 Oct 03, 2009 V7.19 F. Piette added file upload demo (REST & HTML Form)
 Jun 18, 2010 V7.20 Arno fixed a bug in CreateVirtualDocument_ViewFormUpload.
 Feb 4,  2011 V7.21 Angus added bandwidth throttling using TCustomThrottledWSocket
-Oct 21, 2011 V7.22 Angus added delayed.html response page using a timer, can be used
+Oct 22, 2011 V7.22 Angus added delayed.html response page using a timer, can be used
                    for long polling server push or to slow down hacker responses.
                    Use onHttpMimeContentType event to report document file name
                    and content type which can also be changed if incorrect. 
@@ -226,7 +226,8 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure HttpServer1AuthNtlmBeforeValidate(Sender, Client: TObject;
       var Allow: Boolean);
-    procedure HttpServer1HttpMimeContentType(Sender, Client: TObject; FileName: string; var ContentType: string);
+    procedure HttpServer1HttpMimeContentType(Sender, Client: TObject;
+      const FileName: string; var ContentType: string);
   private
     FIniFileName   : String;
     FInitialized   : Boolean;
@@ -788,8 +789,8 @@ end;
 { This event handler is triggered when HTTP server component is about to    }
 { send a document file, allowing the MIME content type to be changed        }
 
-procedure TWebServForm.HttpServer1HttpMimeContentType(Sender, Client: TObject; FileName: string;
-  var ContentType: string);
+procedure TWebServForm.HttpServer1HttpMimeContentType(Sender, Client: TObject;
+  const FileName: string; var ContentType: string);
 var
     ClientCnx  : TMyHttpConnection;
 begin

@@ -330,7 +330,7 @@ Oct 18, 2011 V7.40 Angus GET performance improvements, use TBufferedFileStream,
                    SndBlkSize default is 8192 and dynamically increased to new
                    property MaxBlkSize if stream is larger than SndBlkSize.
                    SocketSndBufSize also increased to SndBlkSize.
-Oct 21, 2011 V7.41 Angus added OnHttpMimeContentType to allow custom ContentTypes
+Oct 22, 2011 V7.41 Angus added OnHttpMimeContentType to allow custom ContentTypes
                    to be supported for unusual file extensions
 
 
@@ -481,10 +481,10 @@ type
                                            var Handled : Boolean) of object;
     THttpMimeContentTypeEvent= procedure (Sender    : TObject;     { V7.41 }
                                           Client    : TObject;
-                                          FileName: string;
+                                          const FileName: string;
                                           var ContentType: string) of object;
     TMimeContentTypeEvent= procedure (Sender    : TObject;         { V7.41 }
-                                      FileName: string;
+                                      const FileName: string;
                                       var ContentType: string) of object;
 
     THttpConnectionState = (hcRequest, hcHeader, hcPostedData);
@@ -720,7 +720,7 @@ type
                                         var Handled: Boolean); virtual;  { V7.20 }
         procedure TriggerContEncoded; virtual;    { V7.20 }
         procedure TriggerUnknownRequestMethod(var Handled : Boolean); virtual; { V7.29 }
-        procedure TriggerMimeContentType(FileName: string; var ContentType: string); virtual; { V7.41 }
+        procedure TriggerMimeContentType(const FileName: string; var ContentType: string); virtual; { V7.41 }
         function  CheckContentEncoding(const ContType : String): Boolean; virtual; { V7.21 are we allowed to compress content }
         function  DoContentEncoding: String; virtual; { V7.21 compress content returning Content-Encoding header }
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
@@ -1102,7 +1102,7 @@ type
                                        var Handled: Boolean);
         procedure TriggerContEncoded(Client : TObject);   { V7.20 }
         procedure TriggerUnknownRequestMethod(Client : TObject; var Handled : Boolean); { V7.29 }
-        procedure TriggerMimeContentType(Client : TObject; FileName: string; var ContentType: string); virtual; { V7.41 }
+        procedure TriggerMimeContentType(Client : TObject; const FileName: string; var ContentType: string); virtual; { V7.41 }
         procedure SetPortValue(const newValue : String);
         procedure SetAddr(const newValue : String);
         procedure SetDocDir(const Value: String);
@@ -1480,7 +1480,7 @@ function UrlDecode(const Url   : RawByteString;
 {$ENDIF}
 function FileDate(FileName : String) : TDateTime;
 function RFC1123_Date(aDate : TDateTime) : String;
-function DocumentToContentType(FileName : String) : String;
+function DocumentToContentType(const FileName : String) : String;
 function TextToHtmlText(const Src : String) : String;
 function TranslateChar(const Str: String; FromChar, ToChar: Char): String;
 function UnixPathToDosPath(const Path: String): String;
@@ -2153,7 +2153,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpServer.TriggerMimeContentType
     (Client : TObject;
-     FileName: string;
+     const FileName: string;
      var ContentType: string);                                     { V7.41 }
 begin
     if Assigned(FOnHttpMimeContentType) then
@@ -3458,7 +3458,7 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THttpConnection.TriggerMimeContentType(FileName: string; var ContentType: string); { V7.41 }
+procedure THttpConnection.TriggerMimeContentType(const FileName: string; var ContentType: string); { V7.41 }
 begin
     if Assigned(FOnMimeContentType) then
         FOnMimeContentType(Self, FileName, ContentType);
@@ -3715,7 +3715,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function DocumentToContentType(FileName : String) : String;
+function DocumentToContentType(const FileName : String) : String;
 var
     Ext : String;
 begin

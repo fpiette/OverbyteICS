@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.26
+Version:      V7.27
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1039,6 +1039,8 @@ Jul 24, 2011 V7.26 Arno added published property DataSocketSndBufSize
              in order to make uploads faster. Both values default to value 8192
              which is the default winsock size. Removed useless call to
              WSocket_getsockopt in TCustomFtpCli.DataSocketPutSessionAvailable.
+Oct 24, 2011 V7.27 Arno - Set state ftpInternalReady in DoneQuitAsync.
+             Check for component connected in PortAsync.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1111,9 +1113,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 726;
-  CopyRight : String = ' TFtpCli (c) 1996-2011 F. Piette V7.26 ';
-  FtpClientId : String = 'ICS FTP Client V7.26 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 727;
+  CopyRight : String = ' TFtpCli (c) 1996-2011 F. Piette V7.27 ';
+  FtpClientId : String = 'ICS FTP Client V7.27 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -3106,6 +3108,7 @@ procedure TCustomFtpCli.DoneQuitAsync;
 begin
    { It's IMO debatable whether or not the client has to call Close at all }
    { since the server must close the connection after QUIT.                }
+   StateChange(ftpInternalReady); { V7.27 }
    FControlSocket.CloseDelayed;  { V7.24 }
 end;
 
@@ -5605,6 +5608,10 @@ var
     IPAddr       : TInAddr;
     StartDataPort: DWORD;
 begin
+    if not FConnected then begin
+        HandleError('FTP component not connected');
+        Exit;
+    end;
     { Makes the data socket listening for data connection }
     FDataSocket.Proto              := 'tcp';
     FDataSocket.Addr               := '0.0.0.0';  { INADDR_ANY }

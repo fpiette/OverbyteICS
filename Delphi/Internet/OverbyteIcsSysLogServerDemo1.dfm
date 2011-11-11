@@ -1,9 +1,9 @@
 object SysLogServerForm: TSysLogServerForm
   Left = 70
   Top = 187
-  Width = 379
-  Height = 247
   Caption = 'SysLogServer - http://www.overbyte.be'
+  ClientHeight = 220
+  ClientWidth = 371
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -32,12 +32,21 @@ object SysLogServerForm: TSysLogServerForm
       TabOrder = 0
       OnClick = StartButtonClick
     end
+    object StopButton: TButton
+      Left = 104
+      Top = 11
+      Width = 75
+      Height = 21
+      Caption = 'Stop'
+      TabOrder = 1
+      OnClick = StopButtonClick
+    end
   end
   object DisplayMemo: TMemo
     Left = 0
     Top = 41
     Width = 371
-    Height = 172
+    Height = 179
     Align = alClient
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText

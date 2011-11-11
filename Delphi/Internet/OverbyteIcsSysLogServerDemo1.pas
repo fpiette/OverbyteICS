@@ -53,16 +53,19 @@ type
     ToolsPanel: TPanel;
     DisplayMemo: TMemo;
     StartButton: TButton;
+    StopButton: TButton;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
     procedure StartButtonClick(Sender: TObject);
     procedure SysLogServer1DataAvailable(Sender: TObject; const SrcIP, SrcPort,
       RawMessage: AnsiString);
+    procedure StopButtonClick(Sender: TObject);
   private
     FIniFileName : String;
     FInitialized : Boolean;
     FSysLogServer: TSysLogServer;
+    procedure SetButtons(Listening:Boolean);
   public
     procedure Display(Msg : String);
     property IniFileName : String read FIniFileName write FIniFileName;
@@ -89,6 +92,7 @@ begin
     FSysLogServer := TSysLogServer.Create(Self);
     FIniFileName := OverbyteIcsIniFiles.GetIcsIniFileName;
     DisplayMemo.Clear;
+    FSysLogServer.OnDataAvailable := SysLogServer1DataAvailable;
 end;
 
 
@@ -150,13 +154,26 @@ begin
     end;
 end;
 
+procedure TSysLogServerForm.SetButtons(Listening:Boolean);
+begin
+  StartButton.Enabled := not Listening;
+  StopButton.Enabled  := Listening;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSysLogServerForm.StartButtonClick(Sender: TObject);
 begin
     FSysLogServer.Listen;
+    SetButtons(TRUE);
 end;
 
+
+procedure TSysLogServerForm.StopButtonClick(Sender: TObject);
+begin
+    FSysLogServer.Close;
+    SetButtons(FALSE);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSysLogServerForm.SysLogServer1DataAvailable(

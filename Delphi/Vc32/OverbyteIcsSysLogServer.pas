@@ -198,7 +198,7 @@ begin
            ((RawMessage[Index] >= 'A') and (RawMessage[Index] <= 'Z')) or
            ((RawMessage[Index] >= 'a') and (RawMessage[Index] <= 'z')) or
            ((RawMessage[Index] >= '0') and (RawMessage[Index] <= '9')) or
-            (RawMessage[Index]  = '.') or
+            (RawMessage[Index]  = '.') or (RawMessage[Index]  = '-') or
             (RawMessage[Index]  = '_')
           ) do
         Inc(Index);
@@ -455,6 +455,15 @@ begin
         SMSec := '0';
     end;
 
+    SMsec := '0' + DecimalSeparator + SMSec;
+    DecodedMessage.Year     := StrToInt(SYear);
+    DecodedMessage.Month    := StrToInt(SMonth);
+    DecodedMessage.Day      := StrToInt(SDay);
+    DecodedMessage.Hour     := StrToInt(SHour);
+    DecodedMessage.Minute   := StrToInt(SMinute);
+    DecodedMessage.Second   := StrToInt(SSecond);
+    DecodedMessage.MilliSec := Trunc(1000 * StrToFloat(SMsec));
+
     case Delim of
     'Z', ' ' : DecodedMessage.TZBias := 0;
     '+', '-' :
@@ -486,14 +495,6 @@ begin
               String(RawMessage) + '"');
     end;
 
-    SMsec := '0' + DecimalSeparator + SMSec;
-    DecodedMessage.Year     := StrToInt(SYear);
-    DecodedMessage.Month    := StrToInt(SMonth);
-    DecodedMessage.Day      := StrToInt(SDay);
-    DecodedMessage.Hour     := StrToInt(SHour);
-    DecodedMessage.Minute   := StrToInt(SMinute);
-    DecodedMessage.Second   := StrToInt(SSecond);
-    DecodedMessage.MilliSec := Trunc(1000 * StrToFloat(SMsec));
     DecodedMessage.TimeString := String(Copy(RawMessage, Index1, Index - Index1));
 
     if (Index > Length(RawMessage)) or

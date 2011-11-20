@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.20
+Version:      7.21
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -460,6 +460,8 @@ Oct 09, 2011 V7.20 Arno - Clear FResponseVer after relocations when the connecti
              Made a change in GetHeaderLineNext to fix a bug with 401 and 407
              responses when no content-length header was present (body was parsed
              as header, thanks to Fastream for reporting). 
+Nov 20, 2011 V7.21 Jean DELAGOUTTE - Do not clear FContentRangeBegin and
+             FContentRangeEnd with method CONNECT.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -540,8 +542,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 720;
-    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.20 ';
+    HttpCliVersion       = 721;
+    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.21 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -2520,8 +2522,11 @@ begin
             Headers.Add('Cookie: ' + FCookie);
         if (FContentRangeBegin <> '') or (FContentRangeEnd <> '') then begin            {JMR!! Added this line!!!}
             Headers.Add('Range: bytes=' + FContentRangeBegin + '-' + FContentRangeEnd); {JMR!! Added this line!!!}
-            FContentRangeBegin := '';                                                   {JMR!! Added this line!!!}
-            FContentRangeEnd   := '';                                                   {JMR!! Added this line!!!}
+            if (Method <> 'CONNECT') then { V7.21 }
+            begin
+                FContentRangeBegin := '';                                               {JMR!! Added this line!!!}
+                FContentRangeEnd   := '';                                               {JMR!! Added this line!!!}
+            end;
         end;                                                                            {JMR!! Added this line!!!}
         FAcceptRanges := '';
 

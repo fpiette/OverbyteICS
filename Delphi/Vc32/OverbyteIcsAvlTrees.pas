@@ -12,7 +12,7 @@ Description:  Implements a fast cache-like data storage based on two
               65536 requires at most 16 compares.
               Uses an AVL-Tree as it is described in the book
               "Algorithms & Data Structures", Prof. Niklaus Wirth.
-Version:      1.05
+Version:      1.06
 EMail:        Arno Garrels <arno.garrels@gmx.de>
 Support:      Don't expect any support, however please report bugs/fixes.
 Credits:      Many thanks to Benjamin Stadin <stadin@gmx.de>, without
@@ -35,6 +35,7 @@ Mar  15, 2009  Fixed a memory leak with secondary duplicated index.
 Mar  16, 2009  CompareStr ignored the first char (Unicode only), uses
                Windows.pas to avoid a compiler warning.
 Jun  18, 2011  Removed Windows from uses clause.
+Dez  06, 2011  Made TCacheNode Data and Len writable.
 
 /////////////////////////////////////////////////////////////////////////////}
 
@@ -153,8 +154,8 @@ type
         constructor Create(Key: String; Data: Pointer; Len: Integer);
         destructor  Destroy; override;
         property    Key: String read FKey;
-        property    Data: Pointer read FData;
-        property    Len: Integer read FLen;
+        property    Data: Pointer read FData write FData;
+        property    Len: Integer read FLen write FLen;
         property    IdxRef: TCacheIdxNode read FIdxRef;
     end;
 

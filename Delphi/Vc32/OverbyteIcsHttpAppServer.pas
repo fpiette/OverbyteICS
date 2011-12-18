@@ -4,12 +4,12 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      7.08
+Version:      7.09
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2003-2011 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -77,6 +77,10 @@ Feb 08, 2010 V7.07 F. Piette fixed a bug introduced in 7.06 with ResType
                    (Need to be PChar instead of PAnsiChar).
 Jan 27, 2010 V7.08 Arno - TUrlHandler.AnswerPage and TUrlHandler.AnswerString
                    take optional code page parameter (D2009+ only).
+Dec 18, 2011 V7.09 F. Piette fixed THttpAppSrv.GetDispatchVirtualDocument so
+                   that OnDestroying is correct initialized. This prevent
+                   crashing when defered answer is used and client is gone at
+                   the time the answer is sent.
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
 unit OverbyteIcsHttpAppServer;
@@ -760,6 +764,7 @@ begin
                     SObj.FMsg_WM_FINISH := FMsg_WM_FINISH;
                     SObj.FWndHandle     := FHandle;
                     SObj.FMethod        := httpMethodGet;
+                    ClientCnx.OnDestroying := SObj.ClientDestroying;
                     ClientCnx.BeforeObjGetHandler(SObj, OK);
                     if OK then begin
                         SObj.Execute;

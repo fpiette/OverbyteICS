@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.84
+Version:      7.85
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -915,6 +915,9 @@ May 21, 2011 V7.82 Arno - Make sure receipt of a SSL shutdown notification
 Jul 22, 2011 V7.83 Arno - OEM NTLM changes.
 Sep 26, 2011 V7.84 Angus - Set SocketSndBufSize and SocketRcvBufSize for
                    Listen sockets, note only worth increasing sizes for UDP
+Dec 22, 2011 V7.85 Arno new method TCustomSslWSocket.SslRenegotiationCount in
+                   order to be able to detect SSL/TLS renegotiation DOS attacks
+                   [CVE-2011-1473].
 
 }
 
@@ -1028,8 +1031,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 784;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.84 ';
+  WSocketVersion            = 785;
+  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.85 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -2523,6 +2526,7 @@ type
         function    SslStartRenegotiation : Boolean;
         function    SslRenegotiatePending : Boolean;
         function    SslSessionReused : Boolean;
+        function    SslRenegotiationCount : Integer; { V7.85 }
         procedure   Shutdown(How : Integer); override;
         procedure   PutDataInSendBuffer(Data : TWSocketData; Len : Integer); override;
         procedure   StartSslHandshake;
@@ -16210,6 +16214,18 @@ function TCustomSslWSocket.SslRenegotiatePending : Boolean;
 begin
     Result := FSslEnable and Assigned(FSsl) and
               (f_SSL_renegotiate_pending(FSsl) = 1);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ In server mode check SslRenegotiationCount in OnSslHandShakeDone in order }
+{ to detect SSL/TLS renegotiation DOS attacks [CVE-2011-1473]  V7.85        }
+function TCustomSslWSocket.SslRenegotiationCount : Integer;
+begin
+    if FHandShakeCount > 0 then
+        Result := FHandShakeCount -1
+    else
+        Result := 0;
 end;
 
 

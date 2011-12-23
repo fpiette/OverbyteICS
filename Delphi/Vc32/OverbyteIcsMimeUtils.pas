@@ -4,7 +4,7 @@
 Author:       François PIETTE
 Object:       Mime support routines (RFC2045).
 Creation:     May 03, 2003  (Extracted from SmtpProt unit)
-Version:      7.24
+Version:      7.25
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -107,7 +107,12 @@ Mar 05, 2011 V7.23  Arno - If DoFileEncBase64 finishes with a full line, remove
                     last CRLF! TSmtpCli will add one later. That avoids two empty
                     lines after and between MIME parts and always generates the
                     same message size as calculated with TSmtpCli.CalcMsgSize.
-May 06,2011 V7.24   Arno - Small change to prepare for 64-bit.                    
+May 06, 2011 V7.24  Arno - Small change to prepare for 64-bit.
+Dec 23, 2011 V7.25  Angus - added MIME Content Type class and functions:
+                      TMimeTypesList - a list built from the registry or mime.types
+                          file, with methods to get ContentType or file extension
+                      ContentTypeGetExtn - get one file extension and class for ContentType
+                      ContentTypeFromExtn - get one ContentType from file extension
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMimeUtils;
@@ -155,17 +160,23 @@ uses
     SysUtils, // For the LeadChar and Exception
     Classes,
     Math,
+    Windows,   { V7.25 }
+{$IFDEF MSWINDOWS}
+    Registry,  { V7.25 }
+{$ENDIF}
+    IniFiles,  { V7.25 }
     OverbyteIcsUtils,
     OverbyteIcsLibrary,
     OverbyteIcsCsc,
     OverbyteIcsCharsetUtils;
 
 const
-    TMimeUtilsVersion = 724;
-    CopyRight : String = ' MimeUtils (c) 2003-2011 F. Piette V7.24 ';
+    TMimeUtilsVersion = 725;
+    CopyRight : String = ' MimeUtils (c) 2003-2011 F. Piette V7.25 ';
 
     SmtpDefaultLineLength = 76; // without CRLF
     SMTP_SND_BUF_SIZE     = 2048;
+    RegContentType = 'MIME\Database\Content Type';   {V7.25}
 
     { Explicit type cast to Ansi works in .NET as well }
     SpecialsRFC822 : TSysCharSet = [AnsiChar('('), AnsiChar(')'), AnsiChar('<'),
@@ -369,6 +380,45 @@ function EncodeMbcsInline(CodePage        : LongWord;
                           Len             : Integer;
                           DoFold          : Boolean;
                           MaxLen          : Integer): AnsiString; overload;
+
+{ V7.25 Angus - MIME Content Type functions - Windows only }
+{$IFDEF MSWINDOWS}
+function ContentTypeGetExtn(const Content: string; var CLSID: String): string;
+function ContentTypeFromExtn(const Extension: string): string;
+{$ENDIF}
+
+type
+{TMimeTypesList}
+{V7.25 Angus - MIME Content Type list - Windows and Linux/OSX }
+TMimeTypesList = class(TObject)
+private
+    FContentList: THashedStringList;
+    FExtensionList: THashedStringList;
+public
+    MimeTypesFile: string;
+    LoadOnDemand: boolean;
+    constructor Create (AutoLoad: boolean = true);
+    destructor Destroy; override;
+    procedure LoadFromOS;
+    procedure Clear;
+    function CountExtn: integer;
+    function CountContent: integer;
+    procedure LoadDefaults;
+{$IFDEF MSWINDOWS}
+    function LoadWinReg: boolean;
+{$ENDIF}
+    function LoadMimeFile (const AFileName: string): boolean;
+    function LoadFromResource (const AResName: string): boolean;
+    function LoadFromFile (const AFileName: string): boolean;
+    function SaveToFile (const AFileName: string): boolean;
+    function AddContentType (const AExtn, AContent: string): boolean;
+    procedure AddContentTypes (AList: TStrings);
+    procedure GetContentTypes (AList: TStrings);
+    function TypeFromExtn(const AExtn: string): string;
+    function TypeFromFile(const AFileName: string): string;
+    function TypeGetExtn(const AContent: string): string;
+end;
+
 
 implementation
 
@@ -2356,6 +2406,469 @@ begin
     end;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF MSWINDOWS}
+{ V7.25 Get registered file extension and class ID for MIME ContentType }
+function ContentTypeGetExtn(Const Content: String; var CLSID: String): string;
+begin
+    result := '';
+    CLSID := '';
+    if _LowerCase(Content) = 'application/octet-stream' then exit;
+    with TRegistry.Create do
+    try
+        RootKey := HKEY_CLASSES_ROOT;
+        if NOT OpenKeyReadOnly(RegContentType + '\' + _LowerCase(Content)) then exit;
+        result := _LowerCase (ReadString('Extension'));
+        CLSID := ReadString('CLSID');
+    finally
+        Free
+    end
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+{ V7.25 Get registered MIME Content Type from file extension }
+function ContentTypeFromExtn(Const Extension: String): string;
+begin
+    result := '';
+    if Pos ('.', Extension) <> 1 then exit;
+    with TRegistry.Create do
+    try
+        RootKey := HKEY_CLASSES_ROOT;
+        if NOT OpenKeyReadOnly('\' + _LowerCase (Extension)) then exit;
+        result := _LowerCase (ReadString('Content Type'));
+        if result = '' then result := 'application/octet-stream';
+    finally
+        Free
+    end
+end;
+{$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TMimeTypesList.Create (AutoLoad: boolean = true);
+begin
+    inherited Create;
+    FContentList := THashedStringList.Create;
+    FExtensionList := THashedStringList.Create;  // there are often multiple file extensions for each content type
+    MimeTypesFile := '/etc/mime.types';          // Linux locations can vary!!!
+    LoadOnDemand := false;
+    if NOT AutoLoad then
+        LoadDefaults
+    else
+        LoadFromOS;
+end ;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TMimeTypesList.Destroy;
+begin
+    FreeAndNil (FContentList);
+    FreeAndNil (FExtensionList);
+    inherited Destroy;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TMimeTypesList.LoadFromOS;
+begin
+{$IFDEF MSWINDOWS}
+    LoadWinReg;
+{$ENDIF}
+{$IFDEF LINUX}
+    LoadMimeFile (MimeTypesFile);
+{$ENDIF}
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TMimeTypesList.Clear;
+begin
+    FContentList.Clear;
+    FExtensionList.Clear;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TMimeTypesList.CountExtn: integer;
+begin
+    result := FExtensionList.Count;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TMimeTypesList.CountContent: integer;
+begin
+    result := FContentList.Count;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TMimeTypesList.LoadDefaults;
+begin
+    Clear;
+    AddContentType ('.htm', 'text/html');
+    AddContentType ('.html', 'text/html');
+    AddContentType ('.gif', 'image/gif');
+    AddContentType ('.bmp', 'image/bmp');
+    AddContentType ('.jpg', 'image/jpeg');
+    AddContentType ('.jpeg', 'image/jpeg');
+    AddContentType ('.tif', 'image/tiff');
+    AddContentType ('.tiff', 'image/tiff');
+    AddContentType ('.txt', 'text/plain');
+    AddContentType ('.css', 'text/css');
+    AddContentType ('.wav', 'audio/x-wav');
+    AddContentType ('.ico', 'image/x-icon');
+    AddContentType ('.wml', 'text/vnd.wap.wml');
+    AddContentType ('.wbmp', 'image/vnd.wap.wbmp');
+    AddContentType ('.wmlc', 'application/vnd.wap.wmlc');
+    AddContentType ('.wmlscript', 'text/vnd.wap.wmlscript');
+    AddContentType ('.wmlscriptc', 'application/vnd.wap.wmlscriptc');
+    AddContentType ('.pdf', 'application/pdf');
+    AddContentType ('.png', 'image/png');
+    AddContentType ('.xml', 'application/xml');   // 'application/xml' (Apache) or 'text/xml' (Windows)
+    AddContentType ('.xhtml', 'application/xhtml+xml');
+    AddContentType ('.zip', 'application/zip');           // or 'application/binary'
+    AddContentType ('.exe', 'application/x-msdownload');  // or 'application/binary'
+    AddContentType ('.msi', 'application/x-msdownload');  // or 'application/binary'
+    AddContentType ('.bin', 'application/octet-stream');  // or 'application/binary'
+    AddContentType ('.iso', 'application/octet-stream');  // or 'application/binary'
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ get content types from the Windows registry }
+{ for Windows 7/2008, it will load about 370 file extensions for 240 content types }
+
+{$IFDEF MSWINDOWS}
+function TMimeTypesList.LoadWinReg: boolean;
+
+    function GetKeyValue(const SubKey, ValName: String; out Value: string): Boolean;
+    var
+        ValType: DWORD;
+        KeyHandle: HKEY;
+        Buf: Pointer;
+        BufSize: Cardinal;
+    begin
+        Result := False;
+        if RegOpenKeyEx(HKEY_CLASSES_ROOT, PChar(SubKey), 0, KEY_READ, KeyHandle) = ERROR_SUCCESS then
+        begin
+            if RegQueryValueEx(KeyHandle, PChar(ValName), nil, @ValType, nil, @BufSize) = ERROR_SUCCESS then
+            begin
+                GetMem(Buf, BufSize);
+                if RegQueryValueEx(KeyHandle, PChar(ValName), nil, @ValType, Buf, @BufSize) = ERROR_SUCCESS then
+                begin
+                    if ValType = REG_SZ then
+                    begin
+                        Value := PChar(Buf);
+                        Result := True;
+                    end;
+                end;
+                FreeMem(Buf);
+            end;
+            RegCloseKey(KeyHandle);
+        end;
+    end;
+
+var
+    I: Integer;
+    iRes: Integer;
+    S, S2: String;
+    KeyHandle: HKEY;
+    Buf: PChar;
+    BufSize: Cardinal;
+begin
+    Clear;
+    LoadOnDemand := false;
+
+// read registered MIME Content Type classes for default extensions
+    Result := RegOpenKeyEx(HKEY_CLASSES_ROOT, RegContentType, 0, KEY_READ, KeyHandle) = ERROR_SUCCESS;
+    if Result then
+    begin
+        BufSize := 1024;
+        GetMem(Buf, BufSize);
+        I := 0;
+        iRes := ERROR_SUCCESS;
+        while iRes = ERROR_SUCCESS do
+        begin
+            BufSize := 1024;
+            iRes := RegEnumKeyEx(KeyHandle, I, Buf, BufSize, nil, nil, nil, nil);
+            if iRes = ERROR_SUCCESS then
+            begin
+                S := Buf;
+                inc(I);
+                if GetKeyValue(RegContentType + '\' + S, 'Extension', S2) then AddContentType(S2, S);
+            end;
+        end;
+        FreeMem(Buf);
+        RegCloseKey(KeyHandle);
+    end;
+
+// read registered extensions for extra extensions
+    Result := RegOpenKeyEx(HKEY_CLASSES_ROOT, '', 0, KEY_READ, KeyHandle) = ERROR_SUCCESS;
+    if Result then
+    begin
+        BufSize := 1024;
+        GetMem(Buf, BufSize);
+        I := 0;
+        iRes := ERROR_SUCCESS;
+        while iRes = ERROR_SUCCESS do
+        begin
+            BufSize := 1024;
+            iRes := RegEnumKeyEx(KeyHandle, I, Buf, BufSize, nil, nil, nil, nil);
+            if iRes = ERROR_SUCCESS then
+            begin
+                S := Buf;
+                inc(I);
+                if (S <> '') and (S[1] = '.') then
+                begin
+                    if GetKeyValue(S, 'Content Type', S2) then AddContentType(S, S2);
+                end
+                else
+                begin
+                    if (S <> '') and (S[1] > '.') then Break; // end of file extension classes, ignore rest
+                end;
+            end;
+        end;
+        FreeMem(Buf);
+        RegCloseKey(KeyHandle);
+    end;
+end;
+{$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ this is the mime.types file distributed with Apache, the Linux web server
+ it will load about 880 file extensions for 680 content types with latest file
+ which has content type followed by tabs or space, then one or more extensions:
+text/html					html htm
+# text/javascript  }
+
+function TMimeTypesList.LoadMimeFile (const AFileName: string): boolean;
+var
+    Lines: TStringList;
+    I, C1, X1, X2: integer;
+    S: string;
+
+    function ScanArg (start: integer): integer;
+    begin
+        result := start ;
+        if result >= Length (S) then exit;
+        while NOT IsSpace (S [result]) do
+        begin
+            inc (result);
+            if result > Length (S) then break;
+        end;
+    end;
+
+begin
+    result := false ;
+    Clear;
+    LoadOnDemand := false;
+    if NOT FileExists (AFileName) then exit ;
+    try
+        Lines := TStringList.Create;
+        try
+            Lines.LoadFromFile (AFileName);
+            for I := 0 to Lines.Count - 1 do
+            begin
+                S := Lines [I] ;
+                if Pos ('#', S) > 0 then continue;  // skip comment lines
+                C1 := ScanArg (1) ;  // find end of content type
+                X1 := C1 + 1 ;
+                while X1 < Length (S) do  // multiple extensions per content type
+                begin
+                    while IsSpace (S [X1]) do
+                    begin
+                        inc (X1);
+                        if X1 > Length (S) then break ;
+                    end;
+                    X2 := ScanArg (X1) ;
+                    if X2 > X1 then AddContentType ('.' + Copy (S, X1, X2 - X1), Copy (S, 1, C1 - 1)) ;
+                    X1 := X2 + 1 ;
+                end;
+            end ;
+            Result := True;
+        except
+        end;
+    finally
+       FreeAndNil (Lines);
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ a list in key/value format, ie: .htm=text/html  }
+
+function TMimeTypesList.LoadFromResource (const AResName: string): boolean;
+var
+    Rs : TResourceStream;
+    Lines : TStringList;
+begin
+    try
+        Rs := TResourceStream.Create (hInstance, AResName, RT_RCDATA);
+        try
+            Lines := TStringList.Create;
+            try
+                Lines.LoadFromStream (Rs);
+                AddContentTypes (Lines);
+                Result := True;
+            finally
+                FreeAndNil (Lines);
+            end;
+        finally
+            FreeAndNil (Rs);
+        end;
+    except
+        Result := False;
+        FreeAndNil (Rs);
+        FreeAndNil (Lines);
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ a list in key/value format, ie: .htm=text/html  }
+
+function TMimeTypesList.LoadFromFile (const AFileName: string): boolean;
+var
+    Lines: TStringList;
+begin
+    result := false ;
+    if NOT FileExists (AFileName) then exit ;
+    try
+        Lines := TStringList.Create;
+        try
+            Lines.LoadFromFile (AFileName);
+            AddContentTypes (Lines);
+            Result := True;
+        except
+        end;
+    finally
+       FreeAndNil (Lines);
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ a list in key/value format, ie: .htm=text/html  }
+
+function TMimeTypesList.SaveToFile (const AFileName: string): boolean;
+var
+    Lines: TStringList;
+begin
+    result := false ;
+    if FileExists (AFileName) then exit ;
+    try
+        Lines := TStringList.Create;
+        try
+            GetContentTypes (Lines) ;
+            Lines.SaveToFile (AFileName);
+            Result := True;
+        except
+        end;
+    finally
+       FreeAndNil (Lines);
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ extension needs leading dot, ignores duplicate contents but updates
+  duplicate extensions with new content }
+
+function TMimeTypesList.AddContentType (const AExtn, AContent: string): boolean;
+var
+    IX, IC: integer;
+    SX, SC: string;
+begin
+    result := false;
+    SX := _LowerCase (AExtn);
+    SC := _LowerCase (AContent);
+    if Pos ('.', SX) <> 1 then exit;    // simple validation
+    if Pos ('/', SC) = 0 then exit;
+    IX := FExtensionList.IndexOf (SX);  // check if already in list
+    IC := FContentList.IndexOf (SC);
+    if IC < 0 then
+    begin
+        IC := FContentList.AddObject(SC, TObject (IX)); // add content type with pointer to extension
+        result := true;
+    end ;
+    if IX < 0 then
+    begin
+        IX := FExtensionList.AddObject(SX, TObject (IC));   // add extension with pointer back to content type
+        if Integer (FContentList.Objects [IC]) < 0 then
+                        FContentList.Objects [IC] := TObject (IX); // update pointer to extension, if blank
+        result := true;
+    end
+    else
+    begin
+        if Integer (FExtensionList.Objects [IX]) <> IC then  // update pointer to content if wrong
+        begin
+            FExtensionList.Objects [IX] := TObject (IC);
+            result := true;
+        end;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ a list in key/value format, ie: .htm=text/html  }
+
+procedure TMimeTypesList.AddContentTypes (AList: TStrings);
+var
+    I, J: integer ;
+begin
+    if NOT Assigned (AList) then exit;
+    Clear;
+    for I := 0 to AList.Count - 1 do
+    begin
+        J := Pos ('=', AList [I]) ;
+        if J > 1 then AddContentType (Copy (AList [I], 1, J-1), Copy (AList [I], J+1, 99)) ;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ a list in key/value format, ie: .htm=text/html  }
+
+procedure TMimeTypesList.GetContentTypes (AList: TStrings);
+var
+    I: integer;
+begin
+    if NOT Assigned (AList) then exit;
+    AList.Clear;
+    if FExtensionList.Count = 0 then exit;
+    AList.Capacity := FExtensionList.Count;
+    for I := 0 to FExtensionList.Count - 1 do
+        AList.Add (FExtensionList [I] + '=' + FContentList [Integer (FExtensionList.Objects [I])]) ;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TMimeTypesList.TypeFromExtn(const AExtn: string): string;
+var
+    IX, IC: integer;
+begin
+    IC := -1;
+    IX := FExtensionList.IndexOf (_LowerCase (AExtn));
+    if (IX < 0) and LoadOnDemand then  // not found extension, see if looking harder
+    begin
+        LoadFromOS;
+        IX := FExtensionList.IndexOf (_LowerCase (AExtn));
+    end;
+    if IX >= 0 then IC := Integer (FExtensionList.Objects [IX]);
+    if IC >= 0 then
+        result := FContentList [IC]
+    else
+        result := 'application/octet-stream';  // or  'application/binary'
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TMimeTypesList.TypeFromFile(const AFileName: string): string;
+begin
+    result := TypeFromExtn(_ExtractFileExt(AFileName));
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TMimeTypesList.TypeGetExtn(const AContent: string): string;
+var
+    IC: integer;
+begin
+    result := '';
+    IC := FContentList.IndexOf (_LowerCase (AContent));
+    if (IC < 0) and LoadOnDemand then  // not found content, see if looking harder
+    begin
+        LoadFromOS;
+        IC := FContentList.IndexOf (_LowerCase (AContent));
+    end;
+    if IC < 0 then exit;
+    result := FExtensionList [Integer (FContentList.Objects [IC])] ;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 

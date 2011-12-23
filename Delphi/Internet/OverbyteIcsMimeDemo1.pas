@@ -7,7 +7,7 @@ Object:       This program is a demo for TMimeDecode component.
               decode messages received with a POP3 component.
               MIME is described in RFC-1521. headers are described if RFC-822.
 Creation:     March 08, 1998
-Version:      7.21
+Version:      7.22
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -62,6 +62,8 @@ Dec 22, 2008  V7.20 Arno - Added workaround for error "incompatible parameter li
               in D2009. Added explicit string conversion in
               MimeDecode1InlineDecodeBegin to remove warning.
 Oct 9, 2009   V7.21 Angus - more content headers shown
+Dec 23, 2011  V7.22 Angus - test TMimeTypesList class
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -117,6 +119,11 @@ type
     DecodeFileExButton: TButton;
     MimeDecodeEx1: TMimeDecodeEx;
     IgnoreBlankParts: TCheckBox;
+    doCreateMimeList: TButton;
+    doMimefromReg: TButton;
+    doMimeFromTypes: TButton;
+    doMimeTestExtn: TButton;
+    doMimeTestContent: TButton;
     procedure DecodeButtonClick(Sender: TObject);
     procedure MimeDecode1PartBegin(Sender: TObject);
     procedure MimeDecode1PartEnd(Sender: TObject);
@@ -151,6 +158,11 @@ type
     procedure DecOneHeaderButtonClick(Sender: TObject);
     procedure EncodeOneHdrButtonClick(Sender: TObject);
     procedure DecodeFileExButtonClick(Sender: TObject);
+    procedure doCreateMimeListClick(Sender: TObject);
+    procedure doMimefromRegClick(Sender: TObject);
+    procedure doMimeFromTypesClick(Sender: TObject);
+    procedure doMimeTestExtnClick(Sender: TObject);
+    procedure doMimeTestContentClick(Sender: TObject);
   private
     Memo1          : TCurrentMemo;
     FInitialized   : Boolean;
@@ -161,10 +173,12 @@ type
     FFileName      : String;
     procedure Display(Msg: UnicodeString);
     procedure DisplayBuffer;
+    procedure ListMimeTypes;
   end;
 
 var
   MimeDecodeForm: TMimeDecodeForm;
+  MimeTypesList: TMimeTypesList;
 
 implementation
 
@@ -228,6 +242,7 @@ begin
     IniFile.WriteString(SectionData,    KeyText,   TextEdit.Text);
     IniFile.UpdateFile;
     IniFile.Free;
+    FreeAndNil (MimeTypesList) ;
 end;
 
 
@@ -610,6 +625,122 @@ begin
     Memo1.Clear;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TMimeDecodeForm.ListMimeTypes;
+var
+    TempList: TStringList;
+begin
+    if NOT Assigned (MimeTypesList) then exit;
+    Display ('Total Mime Extensions: ' + IntToStr (MimeTypesList.CountExtn) +
+                     ', Total Content Types: ' + IntToStr (MimeTypesList.CountContent));
+    TempList := TStringList.Create;
+    try
+        MimeTypesList.GetContentTypes (TempList);
+        TempList.Sort;
+        Display (TempList.Text);
+    finally
+        TempList.Destroy;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+procedure TMimeDecodeForm.doCreateMimeListClick(Sender: TObject);
+begin
+    FreeAndNil (MimeTypesList) ;
+    MimeTypesList := TMimeTypesList.Create (false);
+    MimeTypesList.LoadOnDemand := true;  // load from registry or file if not in defaults
+    MimeTypesList.MimeTypesFile := '/etc/mime.types';  // path and name for mime.types file
+    Display ('Mime Types List Loaded from Defaults');
+    ListMimeTypes;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TMimeDecodeForm.doMimefromRegClick(Sender: TObject);
+var
+    tickstart: longword;
+begin
+    if NOT Assigned (MimeTypesList) then MimeTypesList := TMimeTypesList.Create (false);
+    tickstart := GetTickCount;
+    if NOT MimeTypesList.LoadWinReg then
+        Display ('Failed to Load Mime Types from Windows Registry')
+    else
+    begin
+        Display ('Mime Types List Loaded from Windows Registry, , took ' +
+                                                IntToStr (GetTickCount - tickstart) + 'ms');
+        MimeTypesList.AddContentType ('.zip', 'application/octet-stream');   // correct a Windows type we don't like
+        ListMimeTypes;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TMimeDecodeForm.doMimeFromTypesClick(Sender: TObject);
+var
+    tickstart: longword;
+begin
+    if NOT Assigned (MimeTypesList) then MimeTypesList := TMimeTypesList.Create (false);
+    tickstart := GetTickCount;
+    MimeTypesList.MimeTypesFile := 'mime.types';
+    if NOT MimeTypesList.LoadMimeFile (MimeTypesList.MimeTypesFile) then
+        Display ('Failed to Load Mime Types from File: ' + MimeTypesList.MimeTypesFile)
+    else
+    begin
+        Display ('Mime Types List Loaded from  File: ' + MimeTypesList.MimeTypesFile +
+                            ', took ' + IntToStr (GetTickCount - tickstart) + 'ms');
+        ListMimeTypes;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TMimeDecodeForm.doMimeTestContentClick(Sender: TObject);
+
+    procedure DoTest (const Content: string);
+    var
+        S: string;
+    begin
+        S := MimeTypesList.TypeGetExtn(Content);
+        Display (Content + ' Look-up: ' + S);
+    end;
+
+begin
+    DoTest ('text/html');
+    DoTest ('image/jpeg');
+    DoTest ('application/pdf');
+    DoTest ('application/zip');
+    DoTest ('application/x-msdownload');
+    DoTest ('application/postscript');
+    DoTest ('application/octet-stream');
+    DoTest ('application/binary');
+    Display ('');
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TMimeDecodeForm.doMimeTestExtnClick(Sender: TObject);
+const
+    tests = 500000;
+
+    procedure DoTest (const Extn: string);
+    var
+        I: integer;
+        tickstart: longword;
+        S: string;
+    begin
+        tickstart := GetTickCount;
+        for I := 1 to tests do S := MimeTypesList.TypeFromExtn (Extn);
+        Display (IntToStr (tests) + ' ' + Extn + ' Look-ups: ' + S +
+                                 ', took ' + IntToStr (GetTickCount - tickstart) + 'ms');
+    end;
+
+begin
+    DoTest ('.htm');
+    DoTest ('.zip');
+    DoTest ('.rtf');
+    DoTest ('.jpeg');
+    DoTest ('.iso');
+    DoTest ('.eps');
+    DoTest ('.xyz');
+    Display ('');
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 

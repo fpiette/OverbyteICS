@@ -5,12 +5,12 @@ Author:       Arno Garrels <arno.garrels@gmx.de>
               Fastream Technologies (www.fastream.com) coders SubZero
               (G. I. Ates) and PeterS (Peter Nikolow), Luke (Boris Evstatiev)
 Creation:     January 7, 2009
-Version:      1.02
+Version:      1.03
 Description:  HTTP Digest Access Authentication, RFC 2617.
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2009-2011 by François PIETTE
+Legal issues: Copyright (C) 2009-2012 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -43,6 +43,9 @@ Updates:
 Sep 20, 2010 V1.01 Uses OverbyteIcsMD5.MD5DigestToLowerHexA.
 Feb 26, 2011 V1.02 Some small changes in generating the digest request string,
                    enabled algorithm "MD5-sess" which is untested so far.
+Jan 09, 2012 V1.03 Fixed backward compatibility with RFC 2069.
+                   Handle more than one qop and algorithm in server challenge.
+                   Faster checks for empty strings.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -71,9 +74,14 @@ uses
     OverbyteIcsLibrary, OverbyteIcsTypes;
 
 type
+  {$IFNDEF COMPILER12_UP}
+    RawByteString           = AnsiString;
+  {$ENDIF}
     EIcsAuthenticationError = class(Exception);
     THashHex                = type AnsiString;
     TIcsNonceString         = type AnsiString;
+    TIcsAuthDigestAlgorithm = (adalgMD5, adalgMD5sess);
+    TIcsAuthDigestQop       = (adqopAuth, adqopAuthInt);
 
     TAuthDigestNonceRec = record
         DT    : TDateTime;
@@ -102,7 +110,7 @@ type
         // from server //
         Realm       : String; // from Challenge, the protection space
         Qop         : String; // from Challenge, either auth or auth-int or not specified
-        Algorithm   : String; // from Challenge or const 'MD5'
+        Algorithm   : String; // from Challenge, optional defaults to 'MD5'
         Nonce       : String; // from Challenge, MUST
         Opaque      : String; // from Challenge, MUST
         Domain      : String; // from Challenge, optional space separated list of URIs
@@ -110,7 +118,7 @@ type
     end;
 
 
-procedure AuthDigestGetBodyHash(const EntityBody: AnsiString;
+procedure AuthDigestGetBodyHash(const EntityBody: RawByteString;
   var EntityHash: THashHex);
 
 function AuthDigestGenerateRequest(
@@ -127,7 +135,9 @@ function AuthDigestGenerateChallenge(
     DigestMethod: TAuthDigestMethod; Secret: TULargeInteger; const Realm,
     Domain : String; Stale: Boolean; var Nonce, Opaque: String): String;
 
-function AuthDigestValidateResponse(var Info: TAuthDigestResponseInfo): Boolean;
+function AuthDigestValidateResponse(var Info: TAuthDigestResponseInfo;
+    APreferredAlgo: TIcsAuthDigestAlgorithm = adalgMD5;
+    APreferredQop: TIcsAuthDigestQop = adqopAuth): Boolean;
 
 
 procedure AuthDigestParseChallenge(
@@ -188,7 +198,7 @@ const
     AUTH_DIGEST_DELIM : AnsiChar = ':';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure AuthDigestGetBodyHash(const EntityBody: AnsiString;
+procedure AuthDigestGetBodyHash(const EntityBody: RawByteString;
   var EntityHash: THashHex);
 var
     Md5Ctx : TMD5Context;
@@ -242,10 +252,11 @@ begin
     MD5UpdateBuffer(Md5Ctx, AUTH_DIGEST_DELIM);
     MD5UpdateBuffer(Md5Ctx, DigestUri);
 
-    if _CompareText(String(Qop), 'auth-int') = 0 then begin
+    if Qop = 'auth-int' then begin
         MD5UpdateBuffer(Md5Ctx, AUTH_DIGEST_DELIM);
         MD5UpdateBuffer(Md5Ctx, HEntity);
     end;
+
     MD5Final(HA2, Md5Ctx);
     HA2Hex := MD5DigestToLowerHexA(HA2);  { V1.01 }
 
@@ -254,15 +265,15 @@ begin
     MD5UpdateBuffer(Md5Ctx, HA1);
     MD5UpdateBuffer(Md5Ctx, AUTH_DIGEST_DELIM);
     MD5UpdateBuffer(Md5Ctx, Nonce);
-    if Length(Qop) > 0 then begin // (if auth-int or auth) rfc2617 3.2.2.1 Request-Digest
+    if Qop <> '' then begin // (if auth or auth-int) rfc2617 3.2.2.1 Request-Digest
         MD5UpdateBuffer(Md5Ctx, AUTH_DIGEST_DELIM);
         MD5UpdateBuffer(Md5Ctx, NonceCount);
         MD5UpdateBuffer(Md5Ctx, AUTH_DIGEST_DELIM);
         MD5UpdateBuffer(Md5Ctx, CNonce);
         MD5UpdateBuffer(Md5Ctx, AUTH_DIGEST_DELIM);
         MD5UpdateBuffer(Md5Ctx, Qop);
-        MD5UpdateBuffer(Md5Ctx, AUTH_DIGEST_DELIM);
     end;
+    MD5UpdateBuffer(Md5Ctx, AUTH_DIGEST_DELIM);
     MD5UpdateBuffer(Md5Ctx, HA2Hex);
     MD5Final(RespHash, Md5Ctx);
     Response := MD5DigestToLowerHexA(RespHash);  { V1.01 }
@@ -290,7 +301,7 @@ begin
     MD5UpdateBuffer(Md5Ctx, Password);
     MD5Final(HA1, Md5Ctx);
 
-    if _CompareText(Algorithm, 'MD5-sess') = 0 then
+    if Algorithm = 'MD5-sess' then
     begin
         MD5Init(Md5Ctx);
         MD5UpdateBuffer(Md5Ctx, HA1);
@@ -415,7 +426,7 @@ begin
         Pos2 := PosEx('"', ALine, Pos1);
         CNonce := Copy(ALine, Pos1, Pos2 - Pos1);
     end
-    else if Length(Qop) > 0 then
+    else if Qop <> '' then
         Exit;
 
   {nonce-count
@@ -429,7 +440,7 @@ begin
         Pos2 := PosEx(',', ALine, Pos1);
         Nc := Copy(ALine, Pos1, Pos2 - Pos1);
     end
-    else if Length(Qop) > 0 then
+    else if Qop <> '' then
         Exit;
 
     Pos1 := PosEx('algorithm="', ALine, 1);
@@ -483,7 +494,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure AuthDigestParseChallenge(
     const ALine   : String;
-    var   Info      : TAuthDigestResponseInfo);
+    var   Info    : TAuthDigestResponseInfo);
 var
     Pos1, Pos2 : Integer;
 begin
@@ -494,7 +505,7 @@ begin
                  opaque="5ccc069c403ebaf9f0171e9517f40e41" }
 
     Info.Nc         := 0; // initialize to zero;
-    
+
     Pos1 := PosEx('realm="', ALine, 1);
     if Pos1 > 0 then begin
         Inc(Pos1, Length('realm="'));
@@ -545,7 +556,7 @@ begin
     if Pos1 = 0 then begin
         Pos1 := PosEx('algorithm=', ALine, 1);
         if Pos1 = 0 then
-            Info.Algorithm := 'MD5'
+            Info.Algorithm := ''
         else begin
             Inc(Pos1, Length('algorithm='));
             Pos2 := PosEx(',', ALine, Pos1);
@@ -572,20 +583,56 @@ begin
     else begin
         Inc(Pos1, Length('qop="'));
         Pos2 := PosEx('"', ALine, Pos1);
-        Info.Qop  := Copy(ALine, Pos1, Pos2 - Pos1);
+        Info.Qop := Copy(ALine, Pos1, Pos2 - Pos1);
     end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function AuthDigestValidateResponse(var Info: TAuthDigestResponseInfo): Boolean;
+{ Don't change the defaults for now in production, only adalgMD5 and        }
+{ adqopAuth are known working params so far.                                }
+function AuthDigestValidateResponse(
+    var Info        : TAuthDigestResponseInfo;
+    APreferredAlgo  : TIcsAuthDigestAlgorithm = adalgMD5;
+    APreferredQop   : TIcsAuthDigestQop = adqopAuth): Boolean;
+const
+    sAlgs : array [TIcsAuthDigestAlgorithm] of String = ('MD5', 'MD5-sess');
+    sQops : array [TIcsAuthDigestQop] of String = ('auth', 'auth-int');
+var
+    LPos: Integer;
+    LStr: String;
 begin
-    {if (Length(Info.Algorithm) = 0) then
-        Info.Algorithm := 'MD5'; }
-    Result := (Length(Info.Realm) > 0) and
-              ((Info.Algorithm = 'MD5') or (Info.Algorithm = 'MD5-sess')) and
-              { auth-int is currently not supported }
-              ((Length(Info.qop) = 0) or (Info.qop = 'auth'));
+    { Check for more than one algorithm, we have to pick one }
+    LPos := Pos(',', Info.Algorithm);
+    if LPos > 0 then begin
+       { Assume two possible values, "MD5" and "MD5-sess" }
+        LStr := Copy(Info.Algorithm, 1, LPos - 1);
+        if LStr = sAlgs[APreferredAlgo] then
+            Info.Algorithm := LStr
+        else if Copy(Info.Algorithm, LPos + 1, MaxInt) = sAlgs[APreferredAlgo] then
+            Info.Algorithm := sAlgs[APreferredAlgo]
+        else
+            Info.Algorithm := LStr; // Pick first, it should be "MD5"
+    end;
+
+    { Check for more than one Qop, we have to pick one }
+    LPos := Pos(',', Info.Qop);
+    if LPos > 0 then begin
+       { Assume two possible values, "auth" and "auth-int" }
+        LStr := Copy(Info.Qop, 1, LPos - 1);
+        if LStr = sQops[APreferredQop] then
+            Info.Qop := LStr
+        else if Copy(Info.Qop, LPos + 1, MaxInt) = sQops[APreferredQop] then
+            Info.Qop := sQops[APreferredQop]
+        else
+            Info.Qop := LStr; // Pick first, it should be "auth"
+    end;
+
+    Result := (Info.Realm <> '') and
+              ((Info.Algorithm = '') or (Info.Algorithm = sAlgs[adalgMD5]) or
+               (Info.Algorithm = sAlgs[adalgMD5sess])) and
+              { "auth-int" is currently not supported, "MD5-sess" is untested }
+              ((Info.qop = '') or (Info.qop = sQops[adqopAuth]));
 end;
 
 
@@ -599,15 +646,16 @@ var
     Response  : THashHex;
     NcHex     : String;
 begin
-    if Length(Qop) > 0 then begin
+    if Qop <> '' then begin
         NcHex  := _IntToHex(Nc, 8);
         Cnonce := _IntToHex(Random(MaxInt), 8);
-    end else
+    end
+    else
         CNonce := '';
     AuthDigestCalcHA1(Algorithm,
                       AnsiString(UserName),
                       AnsiString(Realm),
-                      AnsiString(Password),
+                      AnsiString(Password), // UTF-8 cast ?
                       AnsiString(Nonce),
                       AnsiString(CNonce),
                       HA1);
@@ -631,11 +679,11 @@ begin
     if Algorithm = 'MD5-sess' then
         Result := Result +
              ',algorithm='   + Algorithm;
-    if Length(Qop) > 0 then
+    if Qop <> '' then
         Result := Result +
               ',qop='        + Qop          +
-              ',nc='         + NcHex                   +
-              ',cnonce="'    + CNonce       + '"' ;
+              ',nc='         + NcHex        +
+              ',cnonce="'    + CNonce       + '"';
 end;
 
 
@@ -650,14 +698,14 @@ var
     NcHex     : String;
     CNonce    : String;
 begin
-    if Length(Info.qop) > 0 then begin
+    if Info.qop <> '' then begin
         NcHex  := _IntToHex(Info.Nc, 8);
         CNonce := _IntToHex(Random(MaxInt), 8);
     end;
     AuthDigestCalcHA1(Info.Algorithm,
                       AnsiString(UserName),
                       AnsiString(Info.Realm),
-                      AnsiString(Password),
+                      AnsiString(Password),   // UTF-8 cast ?
                       AnsiString(Info.Nonce),
                       AnsiString(CNonce),
                       HA1);
@@ -681,10 +729,10 @@ begin
     if Info.Algorithm = 'MD5-sess' then
         Result := Result +
              ',algorithm='   + Info.Algorithm;
-    if Length(Info.Qop) > 0 then
+    if Info.Qop <> '' then
         Result := Result +
-              ',qop='        + Info.Qop                +
-              ',nc='         + NcHex                   +
+              ',qop='        + Info.Qop          +
+              ',nc='         + NcHex             +
               ',cnonce="'    + CNonce            + '"' ;
 end;
 
@@ -729,7 +777,7 @@ begin
               ',opaque="' + Opaque         + '"';
     if Stale then
         Result := Result + ', stale="true"';
-    if Length(Domain) > 0 then
+    if Domain <> '' then
         Result := Result + ', domain="' + Domain + '"';
 end;
 

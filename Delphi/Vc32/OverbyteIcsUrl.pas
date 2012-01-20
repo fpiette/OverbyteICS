@@ -2,13 +2,13 @@
 
 Author:       François PIETTE
 Creation:     Aug 08, 2004 (extracted from various ICS components)
-Version:      6.04
+Version:      6.05
 Description:  This unit contain support routines for URL handling.
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
 Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -46,6 +46,7 @@ Apr 17, 2009 V6.02 A. Garrels added argument CodePage to functions
 Dec 19, 2009 V6.03 A. Garrels added UrlEncodeToA().
 Aug 07, 2010 V6.04 Bjørnar Nielsen suggested to add an overloaded UrlDecode()
                    that takes a RawByteString URL.
+Jan 20, 2012 V6.05 RTT changed ParseUrl() to support URLs starting with "//".
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -79,8 +80,8 @@ uses
     {SysUtils,} OverbyteIcsUtils, OverbyteIcsLibrary;
 
 const
-    IcsUrlVersion        = 604;
-    CopyRight : String   = ' TIcsURL (c) 1997-2010 F. Piette V6.04 ';
+    IcsUrlVersion        = 605;
+    CopyRight : String   = ' TIcsURL (c) 1997-2012 F. Piette V6.05 ';
 
 { Syntax of an URL: protocol://[user[:password]@]server[:port]/path }
 procedure ParseURL(const URL : String;
@@ -236,11 +237,19 @@ begin
         if (url[1] = '/') then begin
             { Relative path without protocol specified }
             proto := 'http';
-            p     := 1;
-            if (Length(url) > 1) and (url[2] <> '/') then begin
-                { Relative path }
-                Path := Copy(url, 1, Length(url));
-                Exit;
+            //p     := 1;     { V6.05 }
+            if (Length(url) > 1) then begin
+                if (url[2] <> '/') then begin
+                    { Relative path }
+                    Path := Copy(url, 1, Length(url));
+                    Exit;
+                end
+                else
+                    p := 2;   { V6.05 }
+            end
+            else begin        { V6.05 }
+                Path := '/';  { V6.05 }
+                Exit;         { V6.05 }
             end;
         end
         else if _LowerCase(Copy(url, 1, 5)) = 'http:' then begin

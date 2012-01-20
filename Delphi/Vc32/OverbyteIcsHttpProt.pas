@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.21
+Version:      7.22
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -11,7 +11,7 @@ Credit:       This component was based on a freeware from by Andreas
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2011 by François PIETTE
+Legal issues: Copyright (C) 1997-2012 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -462,6 +462,8 @@ Oct 09, 2011 V7.20 Arno - Clear FResponseVer after relocations when the connecti
              as header, thanks to Fastream for reporting). 
 Nov 20, 2011 V7.21 Jean DELAGOUTTE - Do not clear FContentRangeBegin and
              FContentRangeEnd with method CONNECT.
+Jan 20, 2012 V7.22 RTT changed GetHeaderLineNext to support relocation URLs
+             starting with "//".
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -542,8 +544,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 721;
-    CopyRight : String   = ' THttpCli (c) 1997-2011 F. Piette V7.21 ';
+    HttpCliVersion       = 722;
+    CopyRight : String   = ' THttpCli (c) 1997-2012 F. Piette V7.22 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -3041,6 +3043,8 @@ begin
               Inc(nSep);
         Data  := Copy(FLastResponse, nSep, Length(FLastResponse));
         if Field = 'location' then begin { Change the URL ! }
+            if Copy(Data, 1, 2) = '//' then         { V7.22 }
+                Data := FProtocol + ':' + Data;     { V7.22 }
             if FRequestType = httpPUT then begin
                  { Location just tell us where the document has been stored }
                  FLocation := Data;

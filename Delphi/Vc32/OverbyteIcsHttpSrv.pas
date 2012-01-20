@@ -9,11 +9,11 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.41
+Version:      7.42
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2011 by François PIETTE
+Legal issues: Copyright (C) 1999-2012 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -332,7 +332,7 @@ Oct 18, 2011 V7.40 Angus GET performance improvements, use TBufferedFileStream,
                    SocketSndBufSize also increased to SndBlkSize.
 Oct 22, 2011 V7.41 Angus added OnHttpMimeContentType to allow custom ContentTypes
                    to be supported for unusual file extensions
-
+Jan 20, 2012 V7.42 RTT - Apply fix of V1.05 to GetCookieValue().
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -418,8 +418,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 741;
-    CopyRight : String = ' THttpServer (c) 1999-2011 F. Piette V7.41 ';
+    THttpServerVersion = 742;
+    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.42 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -4428,6 +4428,7 @@ function GetCookieValue(
     : Boolean;                     { Found or not found that's the question }
 var
     NameLen : Integer;
+    FoundLen : Integer; { V7.42 }
     Ch      : Char;
     P, Q    : PChar;
 begin
@@ -4445,9 +4446,11 @@ begin
         Q := P;
         while (P^ <> #0) and (P^ <> '=') do
             Inc(P);
+        FoundLen := P - Q; { V7.42 }
         if P^ = '=' then
             Inc(P);
-        if _StrLIComp(Q, @Name[1], NameLen) = 0 then begin
+        if (_StrLIComp(Q, @Name[1], NameLen) = 0) and
+           (NameLen = FoundLen) then begin  { V7.42 }
             while (P^ <> #0) and (P^ <> ';') do begin
                 Ch := P^;
                 if Ch = '%' then begin

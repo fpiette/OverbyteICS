@@ -2,13 +2,13 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.27
+Version:      V7.28
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2011 by François PIETTE
+Legal issues: Copyright (C) 1996-2012 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -1041,6 +1041,9 @@ Jul 24, 2011 V7.26 Arno added published property DataSocketSndBufSize
              WSocket_getsockopt in TCustomFtpCli.DataSocketPutSessionAvailable.
 Oct 24, 2011 V7.27 Arno - Set state ftpInternalReady in DoneQuitAsync.
              Check for component connected in PortAsync.
+Jan 20, 2012 V7.28 Arno - If the control connection closes with error code
+             after QUIT response has been received OK we may safely ignore this
+             error.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1113,9 +1116,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 727;
-  CopyRight : String = ' TFtpCli (c) 1996-2011 F. Piette V7.27 ';
-  FtpClientId : String = 'ICS FTP Client V7.27 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 728;
+  CopyRight : String = ' TFtpCli (c) 1996-2012 F. Piette V7.28 ';
+  FtpClientId : String = 'ICS FTP Client V7.28 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -6048,6 +6051,14 @@ procedure TCustomFtpCli.ControlSocketSessionClosed(
 var
     LClosedState : TFtpState;
 begin
+    { Sometimes ErrCode equals ECONNRESET after QUIT response has been received
+      OK when server and client are on the same host. Seen on MacOS and was
+      reported in TWSocket list for Windows as well. In such a case we may
+      safely ignore an error here.                                             }
+    if (ErrCode <> 0) and (FState = ftpInternalReady) and              { V7.28 }
+       ((FRequestType = ftpQuitAsync) or (FFctPrv = ftpFctQuit)) then
+        ErrCode := 0;
+
     LClosedState := FState;
     if FConnected then begin
         FConnected := FALSE;

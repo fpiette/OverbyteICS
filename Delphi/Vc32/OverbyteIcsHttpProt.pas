@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.22
+Version:      7.23
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -464,6 +464,12 @@ Nov 20, 2011 V7.21 Jean DELAGOUTTE - Do not clear FContentRangeBegin and
              FContentRangeEnd with method CONNECT.
 Jan 20, 2012 V7.22 RTT changed GetHeaderLineNext to support relocation URLs
              starting with "//".
+Jan 23, 2012 V7.23 Arno added httperrNoStatusCode, passed to OnRequestDone and
+             raised in sync mode if connection closed prematurely. Always raise
+             EHttpException with the internal httperror code rather than the
+             HTTP status code if FRequestDoneError is set, this changed
+             EHttpException's ErrorCode property value of abort and timeout
+             exceptions.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -544,27 +550,34 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 722;
-    CopyRight : String   = ' THttpCli (c) 1997-2012 F. Piette V7.22 ';
+    HttpCliVersion       = 723;
+    CopyRight : String   = ' THttpCli (c) 1997-2012 F. Piette V7.23 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
     { EHttpException error code }
+    httperrBase                     = {$IFDEF MSWINDOWS} 1 {$ELSE} 1001 {$ENDIF}; { V7.23 }
     httperrNoError                  = 0;
-    httperrBusy                     = 1;
-    httperrNoData                   = 2;
-    httperrAborted                  = 3;
-    httperrOverflow                 = 4;
-    httperrVersion                  = 5;
-    httperrInvalidAuthState         = 6;
-    httperrSslHandShake             = 7;
-    httperrCustomTimeOut            = 8;  { V7.04 }
+    httperrBusy                     = httperrBase;
+    httperrNoData                   = httperrBusy + 1;
+    httperrAborted                  = httperrNoData + 1;
+    httperrOverflow                 = httperrAborted + 1;
+    httperrVersion                  = httperrOverflow + 1;
+    httperrInvalidAuthState         = httperrVersion + 1;
+    httperrSslHandShake             = httperrInvalidAuthState + 1;
+    httperrCustomTimeOut            = httperrSslHandShake + 1;
+    httperrNoStatusCode             = httperrCustomTimeOut + 1;
+    { Change next as well if new EHttpException error codes are added }
+    httperrMax                      = httperrNoStatusCode;
 
 type
     THttpBigInt = Int64;
 
     EHttpException = class(Exception)
-        ErrorCode : Word;
+    private
+        FErrorCode: Word;
+    public
+        property ErrorCode : Word read FErrorCode write FErrorCode;
         constructor Create(const Msg : String; ErrCode : Word);
     end;
 
@@ -1248,7 +1261,7 @@ end;
 constructor EHttpException.Create(const Msg : String; ErrCode : Word);
 begin
     inherited Create(Msg);
-    ErrorCode := ErrCode;
+    FErrorCode := ErrCode;
 end;
 
 
@@ -2052,7 +2065,7 @@ begin
             FCtrlSocket.Abort;
         FStatusCode       := 200;
         FReasonPhrase     := 'OK';
-        FRequestDoneError := 0;
+        FRequestDoneError := httperrNoError;
         FState            := httpReady;
         TriggerStateChange;
         WMHttpRequestDone(Msg);   { Synchronous operation ! }
@@ -3253,7 +3266,7 @@ end;
 procedure THttpCli.InternalClear;
 begin
     FRcvdHeader.Clear;
-    FRequestDoneError := 0;
+    FRequestDoneError := httperrNoError;
     FDocName          := '';
     FStatusCode       := 0;
     FRcvdCount        := 0;
@@ -3304,10 +3317,14 @@ begin
         FStatusCode   := 200;
         FReasonPhrase := 'OK';
         StateChange(httpClosing);
-        if FCtrlSocket.State = wsClosed then
-            SetReady
+        if FCtrlSocket.State = wsClosed then begin
+            FLocationFlag := False;    { 7.23 }
+            FRequestType := Rq;        { 7.23 }
+            InternalClear;             { 7.23 }
+            SetReady;
+        end
         else
-           FCtrlSocket.CloseDelayed;
+            FCtrlSocket.CloseDelayed;
         Exit;
     end;
 
@@ -3554,7 +3571,9 @@ begin
             is no more triggered for status 401 and 407.
 *}
     {* if FStatusCode > 401 then    Dec 14, 2004 *}
-    if (FStatusCode >= 400) and (FStatusCode <> 401) and (FStatusCode <> 407) then
+    if FRequestDoneError <> httperrNoError then                       { V7.23 }
+        raise EHttpException.Create(FReasonPhrase, FRequestDoneError) { V7.23 }
+    else if (FStatusCode >= 400) and (FStatusCode <> 401) and (FStatusCode <> 407) then
         raise EHttpException.Create(FReasonPhrase, FStatusCode);
 end;
 
@@ -3703,8 +3722,14 @@ begin
         LocationSessionClosed(Self, 0)
     else begin
         TriggerSessionClosed;
-        if FState <> httpReady then
+        if FState <> httpReady then begin
+            if (FRequestDoneError = httperrNoError) and (FStatusCode = 0) then  { V7.23 }
+            begin
+                FRequestDoneError := httperrNoStatusCode;
+                FReasonPhrase     := 'HTTP no status code (connection closed prematurely)';
+            end;
             SetReady;
+        end;
     end;
 {$ELSE}
     TriggerSessionClosed;

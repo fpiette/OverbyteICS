@@ -18,12 +18,12 @@ Description:  This is a demo showing how to use a THttpCli component in a DLL.
               the document pointed by the URL is not found.
               To debug the DLL, enter DllTst1.exe as a host application into
               the run parameters.
-Version:      1.00
+Version:      1.01
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2004-2012 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -52,6 +52,7 @@ Legal issues: Copyright (C) 2004-2010 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
+Jan 29, 2012 V1.01 Arno fixed it.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -70,8 +71,8 @@ uses
   OverbyteIcsWSocket;
 
 const
-  IcsDll2Version            = 100;
-  CopyRight    : String     = ' IcsDll2 (c) 2004 Francois Piette V1.00 ';
+  IcsDll2Version            = 101;
+  CopyRight    : String     = ' IcsDll2 (c) 2012 Francois Piette V1.01 ';
 
 // If you use strings or other dynamically allocated data between the DLL and
 // the main program, then you _must_ use ShareMem unit as explained in Delphi
@@ -96,14 +97,13 @@ type
     FErrorCode      : PInteger;
     FBuffer         : PAnsiChar;
     FBufSize        : PInteger;
+    FReady          : Boolean;
     procedure HttpCliRequestDone(Sender: TObject; RqType: THttpRequest;
                                  ErrCode: Word);
   protected
     procedure Execute; override;
   public
     constructor Create;
-    destructor  Destroy; override;
-
     property HttpCli       : THttpCli  read FHttpCli      write FHttpCli;
     property Url           : PAnsiChar read FUrl          write FUrl;
     property Buffer        : PAnsiChar read FBuffer       write FBuffer;
@@ -117,20 +117,8 @@ type
 { the client thread before it actually start working.                       }
 constructor TClientThread.Create;
 begin
-    FreeOnTerminate := TRUE;
     inherited Create(TRUE);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Destroy the thread. Destroy the HttpCli if needed.                  }
-destructor TClientThread.Destroy;
-begin
-    if Assigned(FHttpCli) then begin
-         FHttpCli.Free;
-         FHttpCli := nil;
-    end;
-    inherited Destroy;
+    FreeOnTerminate := False;
 end;
 
 
@@ -139,20 +127,25 @@ end;
 { is event driven. So everythong to do is done inside an event handler.     }
 procedure TClientThread.Execute;
 begin
+    FReady := True;
     try
         { Create the HTTP component. It is important to create it inside the  }
         { Execute method because it *must* be created by the thread.          }
         { Otherwise the messages sent by winsock would be processed in the    }
         { main thread context, effectively disabling multi-threading.         }
         FHttpCli                    := THttpCli.Create(nil);
-        FHttpCli.Url                := String(StrPas(FUrl));
-        FHttpCli.OnRequestDone      := HttpCliRequestDone;
-        FHttpCli.RcvdStream         := TMemoryStream.Create;
-        FHttpCli.GetAsync;
+        try
+            FHttpCli.Url                := String(StrPas(FUrl));
+            FHttpCli.OnRequestDone      := HttpCliRequestDone;
+            FHttpCli.RcvdStream         := TMemoryStream.Create;
+            FHttpCli.GetAsync;
 
-        { Message loop to handle all messages                               }
-        { The loop is exited when WM_QUIT message is received               }
-        FHttpCli.CtrlSocket.MessageLoop;
+            { Message loop to handle all messages                               }
+            { The loop is exited when WM_QUIT message is received               }
+            FHttpCli.CtrlSocket.MessageLoop;
+        finally
+            FHttpCli.Free;
+        end;
     except
         on E:Exception do begin
             FErrorCode^ := -3;
@@ -225,6 +218,7 @@ var
 begin
     try
         Result := -1;
+        WSocketForceLoadWinsock;
         // Create a new thread. It is created in sleeping state
         WorkerThread           := TClientThread.Create;
         // Then pass all parameters
@@ -239,7 +233,9 @@ begin
         WorkerThread.Resume;
     {$ifend}
         // And wait until it finishes
-        WaitForSingleObject(WorkerThread.Handle, INFINITE);
+        while not WorkerThread.FReady do
+            Sleep(10);
+        WorkerThread.Free;
     except
         on E:Exception do begin
             Result := -2;
@@ -263,6 +259,5 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 begin
 //  MessageBox(0, PChar('DLL Init ' + IntToStr(WSocketGCount)), 'DLL', MB_OK);
-    WSocketForceLoadWinsock;
     DLLProc := @DLLHandler;
 end.

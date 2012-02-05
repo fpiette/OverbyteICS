@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.42
+Version:      7.43
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -333,6 +333,9 @@ Oct 18, 2011 V7.40 Angus GET performance improvements, use TBufferedFileStream,
 Oct 22, 2011 V7.41 Angus added OnHttpMimeContentType to allow custom ContentTypes
                    to be supported for unusual file extensions
 Jan 20, 2012 V7.42 RTT - Apply fix of V1.05 to GetCookieValue().
+Feb 04, 2012 V7.43 Tobias Rapp added method AnswerStreamAcceptRange which is
+                   similar to AnswerStream however doesn't ignore requested
+                   content range. Use this method only for OK responses.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -418,8 +421,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 742;
-    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.42 ';
+    THttpServerVersion = 743;
+    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.43 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -807,6 +810,11 @@ type
                                  const Status   : String;
                                  const ContType : String;
                                  const Header   : String); virtual;
+        procedure   AnswerStreamAcceptRange(
+                                 var Flags      : THttpGetFlag;
+                                 const ContType : String;
+                                 const Header   : String;
+                                 LastModified   : TDateTime = 0); virtual;  { V7.43 }
         procedure   AnswerString(var   Flags    : THttpGetFlag;
                                  const Status   : String;
                                  const ContType : String;
@@ -2862,6 +2870,133 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ANDREAS Byte-range-separator (use the same as IIS) }
+const
+    ByteRangeSeparator = '[lka9uw3et5vxybtp87ghq23dpu7djv84nhls9p]';
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ANDREAS Helperfunction to create the HTTP-Header }
+function CreateHttpHeader(
+    Version           : String;
+    ProtoNumber       : Integer;
+    AnswerContentType : String;
+    RangeList         : THttpRangeList;
+    DocSize           : THttpRangeInt;
+    CompleteDocSize   : THttpRangeInt): String;
+begin
+    if ProtoNumber = 200 then
+        Result := Version + ' 200 OK' + #13#10 +
+                  'Content-Type: ' + AnswerContentType + #13#10 +
+                  'Content-Length: ' + _IntToStr(DocSize) + #13#10 +
+                  'Accept-Ranges: bytes' + #13#10
+    {else if ProtoNumber = 416 then
+        Result := Version + ' 416 Request range not satisfiable' + #13#10}
+    else if ProtoNumber = 206 then begin
+        if RangeList.Count = 1 then begin
+            Result := Version + ' 206 Partial Content' + #13#10 +
+                      'Content-Type: ' + AnswerContentType + #13#10 +
+                      'Content-Length: ' + _IntToStr(DocSize) + #13#10 +
+                      'Content-Range: bytes ' +
+                      RangeList.Items[0].GetContentRangeString(CompleteDocSize) +
+                      #13#10;
+        end
+        else begin
+            Result := Version + ' 206 Partial Content' + #13#10 +
+                      'Content-Type: multipart/byteranges; boundary=' +
+                      ByteRangeSeparator + #13#10 +
+                      'Content-Length: ' + _IntToStr(DocSize) + #13#10;
+        end;
+    end
+    else
+        raise Exception.Create('Unexpected ProtoNumber in CreateHttpHeader');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Only use this method for OK responses                                     }
+procedure THttpConnection.AnswerStreamAcceptRange(                  { V7.43 }
+    var   Flags     : THttpGetFlag;
+    const ContType  : String;      { if emtpy, defaults to text/html        }
+    const Header    : String;      { do not use Content-Length, Content-Range, Last-Modified }
+    LastModified    : TDateTime = 0); { zero => no Last-Modified header     }
+var
+    NewDocStream    : TStream;
+    ProtoNumber     : Integer;
+    CompleteDocSize : THttpRangeInt;
+    SyntaxError     : Boolean;
+    ContEncoderHdr  : String;
+    ContStatusHdr   : String;
+begin
+    Flags := hgWillSendMySelf;
+    ProtoNumber := 200;
+    ContEncoderHdr := '';
+    if ContType <> '' then
+        FAnswerContentType := ContType
+    else
+        FAnswerContentType := 'text/html';
+    FLastModified := LastModified;
+
+    CompleteDocSize := FDocStream.Size;
+    {ANDREAS Create the virtual 'byte-range-doc-stream', if we are ask for ranges}
+    if RequestRangeValues.Valid then begin
+        { NewDocStream will now be the owner of FDocStream -> don't free FDocStream }
+        NewDocStream := RequestRangeValues.CreateRangeStream(FDocStream,
+                             FAnswerContentType, CompleteDocSize, SyntaxError);
+        if Assigned(NewDocStream) then begin
+            FDocStream := NewDocStream;
+            FDocStream.Position := 0;
+            ProtoNumber := 206;
+        end
+        else begin
+            if SyntaxError then
+            { Ignore the content range header and send entire document in case }
+            { of syntactically invalid byte-range-set                          }
+                FDocStream.Position := 0
+            else begin
+            { Answer 416 Request range not satisfiable                      }
+                FDocStream.Free;
+                FDocStream := nil;
+                if not FKeepAlive then
+                    PrepareGraceFullShutDown;
+                Answer416;
+                Exit;
+            end;
+        end;
+    end;
+
+    FDataSent := 0;       { will be incremented after each send part of data }
+    FDocSize := FDocStream.Size;
+    OnDataSent := ConnectionDataSent;
+
+    { V7.21 are we allowed to compress content }
+    if CheckContentEncoding(FAnswerContentType) then begin
+        ContEncoderHdr := DoContentEncoding;   { V7.21 do it, returning new header }
+        FDocSize := FDocStream.Size;           { stream is now smaller, we hope }
+    end;
+
+    { Create Header }
+    {ANDREAS Create Header for the several protocols}
+    ContStatusHdr := CreateHttpHeader(FVersion, ProtoNumber, FAnswerContentType,
+                               RequestRangeValues, FDocSize, CompleteDocSize);
+    PutStringInSendBuffer(ContStatusHdr);
+    FAnswerStatus := ProtoNumber;   { V7.19 }
+
+    if FLastModified <> 0 then
+        PutStringInSendBuffer ('Last-Modified: ' + RFC1123_Date(FLastModified) + ' GMT' + #13#10);
+    if ContEncoderHdr <> '' then
+        PutStringInSendBuffer (ContEncoderHdr);  { V7.21 }
+    if Header <> '' then
+        PutStringInSendBuffer(Header);
+    if FServer.PersistentHeader <> '' then
+        PutStringInSendBuffer (FServer.PersistentHeader);  { V7.29 }
+    PutStringInSendBuffer(GetKeepAliveHdrLines);
+    PutStringInSendBuffer(#13#10);
+    SendStream;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function THttpConnection.HtmlPageProducerToString(
     const HtmlFile : String;
     UserData       : TObject;
@@ -3069,7 +3204,6 @@ begin
             GetKeepAliveHdrLines +
             #13#10);
      FAnswerStatus := 416;  { V7.19 }
-    { Do not use AnswerString method because we don't want to use ranges }
     SendStr(Body);
 end;
 
@@ -3089,7 +3223,6 @@ begin
             GetKeepAliveHdrLines +
             #13#10);
     FAnswerStatus := 404;   { V7.19 }
-    { Do not use AnswerString method because we don't want to use ranges }
     SendStr(Body);
 end;
 
@@ -3109,7 +3242,6 @@ begin
             GetKeepAliveHdrLines +
             #13#10);
     FAnswerStatus := 400;
-    { Do not use AnswerString method because we don't want to use ranges }
     SendStr(Body);
 end;
 
@@ -3149,7 +3281,6 @@ begin
             GetKeepAliveHdrLines +
             #13#10);
     FAnswerStatus := 403;   { V7.19 }
-    { Do not use AnswerString method because we don't want to use ranges }
     SendStr(Body);
 end;
 
@@ -3281,7 +3412,6 @@ begin
     end;
     *)
     Header := Header + #13#10; // Mark the end of header
-    { Do not use AnswerString method because we don't want to use ranges }
     SendHeader(Header);
     SendStr(Body);
 end;
@@ -3299,7 +3429,6 @@ begin
                GetKeepAliveHdrLines + 
                #13#10);
     FAnswerStatus := 501;   { V7.19 }
-    { Do not use AnswerString method because we don't want to use ranges }
     SendStr(Body);
 end;
 
@@ -3805,50 +3934,6 @@ begin
     finally
         _FindClose(SearchRec);
     end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ANDREAS Byte-range-separator (use the same as IIS) }
-const
-    ByteRangeSeparator = '[lka9uw3et5vxybtp87ghq23dpu7djv84nhls9p]';
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ANDREAS Helperfunction to create the HTTP-Header }
-function CreateHttpHeader(
-    Version           : String;
-    ProtoNumber       : Integer;
-    AnswerContentType : String;
-    RangeList         : THttpRangeList;
-    DocSize           : THttpRangeInt;
-    CompleteDocSize   : THttpRangeInt): String;
-begin
-    if ProtoNumber = 200 then
-        Result := Version + ' 200 OK' + #13#10 +
-                  'Content-Type: ' + AnswerContentType + #13#10 +
-                  'Content-Length: ' + _IntToStr(DocSize) + #13#10 +
-                  'Accept-Ranges: bytes' + #13#10
-    {else if ProtoNumber = 416 then
-        Result := Version + ' 416 Request range not satisfiable' + #13#10}
-    else if ProtoNumber = 206 then begin
-        if RangeList.Count = 1 then begin
-            Result := Version + ' 206 Partial Content' + #13#10 +
-                      'Content-Type: ' + AnswerContentType + #13#10 +
-                      'Content-Length: ' + _IntToStr(DocSize) + #13#10 +
-                      'Content-Range: bytes ' +
-                      RangeList.Items[0].GetContentRangeString(CompleteDocSize) +
-                      #13#10;
-        end
-        else begin
-            Result := Version + ' 206 Partial Content' + #13#10 +
-                      'Content-Type: multipart/byteranges; boundary=' +
-                      ByteRangeSeparator + #13#10 +
-                      'Content-Length: ' + _IntToStr(DocSize) + #13#10;
-        end;
-    end
-    else
-        raise Exception.Create('Unexpected ProtoNumber in CreateHttpHeader');
 end;
 
 

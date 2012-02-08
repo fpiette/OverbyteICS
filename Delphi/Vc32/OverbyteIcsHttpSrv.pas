@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.43
+Version:      7.45
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -336,6 +336,14 @@ Jan 20, 2012 V7.42 RTT - Apply fix of V1.05 to GetCookieValue().
 Feb 04, 2012 V7.43 Tobias Rapp added method AnswerStreamAcceptRange which is
                    similar to AnswerStream however doesn't ignore requested
                    content range. Use this method only for OK responses.
+Feb 07, 2012 V7.44 Arno - The HEAD method *MUST NOT* return a message-body in
+                   the response. Do not skip compression on HEAD requests, we
+                   need to send the correct size. Method SendDocument
+                   simplified and added two overloads. AnswerStreamAcceptRange
+                   got an overload too.
+Feb 08, 2012 V7.45 Arno - If we receive an unknown method/request we have to
+                   close the connection, otherwise we may receive junk data we
+                   cannot handle properly.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -421,8 +429,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 743;
-    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.43 ';
+    THttpServerVersion = 745;
+    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.45 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -593,6 +601,7 @@ type
     THttpConnection = class(TBaseHttpConnection)
     protected
         FHttpVerNum                   : Integer;                 { V1.6 }
+        FSendType                     : THttpSendType;           { V7.44 }
         FPostRcvBuf                   : array [0..1023] of Byte; { V7.30 }{V7.39}
         FPostCounter                  : Int64;                   { V7.30 }{V7.39}
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
@@ -746,6 +755,8 @@ type
         constructor Create(AOwner: TComponent); override;
         destructor  Destroy; override;
         procedure   SendStream; virtual;
+        procedure   SendDocument; overload; virtual;  { V7.44 }
+        procedure   SendDocument(const CustomHeaders: String); overload; virtual; { V7.44 }
         procedure   SendDocument(SendType : THttpSendType); overload; virtual;
         procedure   SendDocument(SendType : THttpSendType; const CustomHeaders: String); overload; virtual; { V7.29 }
         procedure   SendHeader(Header : String); virtual;
@@ -813,8 +824,12 @@ type
         procedure   AnswerStreamAcceptRange(
                                  var Flags      : THttpGetFlag;
                                  const ContType : String;
+                                 LastModified   : TDateTime = 0); overload; virtual;  { V7.44 }
+        procedure   AnswerStreamAcceptRange(
+                                 var Flags      : THttpGetFlag;
+                                 const ContType : String;
                                  const Header   : String;
-                                 LastModified   : TDateTime = 0); virtual;  { V7.43 }
+                                 LastModified   : TDateTime = 0); overload; virtual;  { V7.43 }
         procedure   AnswerString(var   Flags    : THttpGetFlag;
                                  const Status   : String;
                                  const ContType : String;
@@ -2622,6 +2637,10 @@ begin
         OnDataSent             := ConnectionDataSent;  { V7.19 always need an event after header is sent }
         { The line we just received is HTTP command, parse it  }
         ParseRequest;
+        if FMethod = 'HEAD' then        { V7.44 }
+            FSendType := httpSendHead   { V7.44 }
+        else                            { V7.44 }
+            FSendType := httpSendDoc;   { V7.44 }
         { Next lines will be header lines }
         FState := hcHeader;
         FRequestHasContentLength := FALSE;
@@ -2865,7 +2884,13 @@ begin
     if FServer.PersistentHeader <> '' then
         PutStringInSendBuffer (FServer.PersistentHeader);  { V7.29 }
     PutStringInSendBuffer(#13#10);
-    SendStream;
+    if FSendType = httpSendHead then begin   { V7.44 }
+        FDataSent := 0;                      { V7.44 }
+        FDocSize  := 0;                      { V7.44 }
+        Send(nil, 0);                        { V7.44 }
+    end
+    else
+        SendStream;
 end;
 
 
@@ -2910,6 +2935,17 @@ begin
     end
     else
         raise Exception.Create('Unexpected ProtoNumber in CreateHttpHeader');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Only use this method for OK responses                                     }
+procedure THttpConnection.AnswerStreamAcceptRange(                  { V7.44 }
+    var   Flags     : THttpGetFlag;
+    const ContType  : String;      { if emtpy, defaults to text/html        }
+    LastModified    : TDateTime = 0); { zero => no Last-Modified header     }
+begin
+    AnswerStreamAcceptRange(Flags, ContType, '', LastModified);
 end;
 
 
@@ -2992,7 +3028,12 @@ begin
         PutStringInSendBuffer (FServer.PersistentHeader);  { V7.29 }
     PutStringInSendBuffer(GetKeepAliveHdrLines);
     PutStringInSendBuffer(#13#10);
-    SendStream;
+    if FSendType = httpSendHead then begin   { V7.44 }
+        FDocSize := 0;                       { V7.44 }
+        Send(nil, 0);                        { V7.44 }
+    end
+    else
+        SendStream;
 end;
 
 
@@ -3198,13 +3239,16 @@ var
 begin
     Body := '<HTML><HEAD><TITLE>416 Requested range not satisfiable</TITLE></HEAD>' +
             '<BODY><H1>416 Requested range not satisfiable</H1><P></BODY></HTML>' + #13#10;
-            SendHeader(FVersion + ' 416 Requested range not satisfiable' + #13#10 +
-            'Content-Type: text/html' + #13#10 +
-            'Content-Length: ' + _IntToStr(Length(Body)) + #13#10 +
-            GetKeepAliveHdrLines +
-            #13#10);
-     FAnswerStatus := 416;  { V7.19 }
-    SendStr(Body);
+    SendHeader(FVersion + ' 416 Requested range not satisfiable' + #13#10 +
+               'Content-Type: text/html' + #13#10 +
+               'Content-Length: ' + _IntToStr(Length(Body)) + #13#10 +
+               GetKeepAliveHdrLines +
+               #13#10);
+    FAnswerStatus := 416;  { V7.19 }
+    if FSendType = httpSendHead then  { V7.44 }
+        Send(nil, 0)                  { V7.44 }
+    else                              { V7.44 }
+        SendStr(Body);
 end;
 
 
@@ -3217,13 +3261,16 @@ begin
             '<BODY><H1>404 Not Found</H1>The requested URL ' +
             TextToHtmlText(FPath) +
             ' was not found on this server.<P></BODY></HTML>' + #13#10;
-            SendHeader(FVersion + ' 404 Not Found' + #13#10 +
-            'Content-Type: text/html' + #13#10 +
-            'Content-Length: ' + _IntToStr(Length(Body)) + #13#10 +
-            GetKeepAliveHdrLines +
-            #13#10);
+    SendHeader(FVersion + ' 404 Not Found' + #13#10 +
+               'Content-Type: text/html' + #13#10 +
+               'Content-Length: ' + _IntToStr(Length(Body)) + #13#10 +
+               GetKeepAliveHdrLines +
+               #13#10);
     FAnswerStatus := 404;   { V7.19 }
-    SendStr(Body);
+    if FSendType = httpSendHead then  { V7.44 }
+        Send(nil, 0)                  { V7.44 }
+    else                              { V7.44 }
+        SendStr(Body);
 end;
 
 
@@ -3236,13 +3283,16 @@ begin
             '<BODY><H1>400 Bad Request</H1>The request could ' +
             'not be understood by the server due to malformed '+
             'syntax.<P></BODY></HTML>' + #13#10;
-            SendHeader(FVersion + ' 400 Bad Request' + #13#10 +
-            'Content-Type: text/html' + #13#10 +
-            'Content-Length: ' + _IntToStr(Length(Body)) + #13#10 +
-            GetKeepAliveHdrLines +
-            #13#10);
+    SendHeader(FVersion + ' 400 Bad Request' + #13#10 +
+               'Content-Type: text/html' + #13#10 +
+               'Content-Length: ' + _IntToStr(Length(Body)) + #13#10 +
+               GetKeepAliveHdrLines +
+               #13#10);
     FAnswerStatus := 400;
-    SendStr(Body);
+    if FSendType = httpSendHead then  { V7.44 }
+        Send(nil, 0)                  { V7.44 }
+    else                              { V7.44 }
+        SendStr(Body);
 end;
 
 
@@ -3275,13 +3325,16 @@ begin
             '<BODY><H1>403 Forbidden</H1>The requested URL ' +
             TextToHtmlText(FPath) +
             ' is Forbidden on this server.<P></BODY></HTML>' + #13#10;
-            SendHeader(FVersion + ' 403 Forbidden' + #13#10 +
-            'Content-Type: text/html' + #13#10 +
-            'Content-Length: ' + _IntToStr(Length(Body)) + #13#10 +
-            GetKeepAliveHdrLines +
-            #13#10);
+    SendHeader(FVersion + ' 403 Forbidden' + #13#10 +
+               'Content-Type: text/html' + #13#10 +
+               'Content-Length: ' + _IntToStr(Length(Body)) + #13#10 +
+               GetKeepAliveHdrLines +
+               #13#10);
     FAnswerStatus := 403;   { V7.19 }
-    SendStr(Body);
+    if FSendType = httpSendHead then  { V7.44 }
+        Send(nil, 0)                  { V7.44 }
+    else                              { V7.44 }
+        SendStr(Body);
 end;
 
 
@@ -3413,7 +3466,10 @@ begin
     *)
     Header := Header + #13#10; // Mark the end of header
     SendHeader(Header);
-    SendStr(Body);
+    if FSendType = httpSendHead then  { V7.44 }
+        Send(nil, 0)                  { V7.44 }
+    else                              { V7.44 }
+        SendStr(Body);
 end;
 
 
@@ -3429,7 +3485,10 @@ begin
                GetKeepAliveHdrLines + 
                #13#10);
     FAnswerStatus := 501;   { V7.19 }
-    SendStr(Body);
+    if FSendType = httpSendHead then  { V7.44 }
+        Send(nil, 0)                  { V7.44 }
+    else                              { V7.44 }
+        SendStr(Body);
 end;
 
 
@@ -3484,9 +3543,12 @@ begin
         TriggerUnknownRequestMethod(Handled); { V7.29 }
         if not Handled then
         begin
-            if FKeepAlive = FALSE then {Bjornar}
-               PrepareGraceFullShutDown;
+            { If we receive an unknown method/request we have to   }
+            { close the connection, otherwise we may receive junk  }
+            { data we cannot handle properly.                V7.45 }
+            FKeepAlive := False;    { V7.45 }
             Answer501;   { 07/03/2005 was Answer404 }
+            CloseDelayed;           { V7.45 }
         end;
     end;
     TriggerBeforeAnswer;  { V7.19 }
@@ -3942,7 +4004,8 @@ end;
 { sending data (if required)                                                }
 procedure THttpConnection.SendDocument(SendType : THttpSendType);
 begin
-   SendDocument(SendType, '');
+   FSendType := SendType; // overwrites the default value for this request
+   SendDocument('');
 end;
 
 
@@ -3950,16 +4013,29 @@ end;
 procedure THttpConnection.SendDocument(
     SendType            : THttpSendType;
     const CustomHeaders : String);
+begin
+    FSendType := SendType; // overwrites the default value for this request
+    SendDocument(CustomHeaders);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.SendDocument;
+begin
+    SendDocument('');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.SendDocument(const CustomHeaders : String);
 var
     Header  : String;
     NewDocStream    : TStream;
     ProtoNumber     : Integer;
     CompleteDocSize : THttpRangeInt;
-    ErrorSend       : Boolean;
     SyntaxError     : Boolean;
     ContEncoderHdr  : String ;      { V7.20 }
 begin
-    ErrorSend          := FALSE;
     ProtoNumber        := 200;
     FLastModified      := FileDate(FDocument);
     FAnswerContentType := DocumentToContentType(FDocument);
@@ -4001,17 +4077,12 @@ begin
     OnDataSent := ConnectionDataSent;
     ContEncoderHdr := '';  { V7.20 }
 
-    { Free and nil the stream because HEAD will not send current document }
-    if SendType = httpSendHead then begin
-        FDocStream.Free;              { V7.38 }
-        FDocStream := nil;            { V7.38 }
-    end
-    else begin
-        { V7.21 are we allowed to compress content }
-        if CheckContentEncoding(FAnswerContentType) then begin
-            ContEncoderHdr := DoContentEncoding;   { V7.21 do it, returning new header }
-            FDocSize := FDocStream.Size;           { stream is now smaller, we hope }
-        end;
+    { V7.44  Do not skip compression on HEAD requests, we need the correct size }
+
+    { V7.21 are we allowed to compress content }
+    if CheckContentEncoding(FAnswerContentType) then begin
+        ContEncoderHdr := DoContentEncoding;   { V7.21 do it, returning new header }
+        FDocSize := FDocStream.Size;           { stream is now smaller, we hope }
     end;
 
     { Create Header }
@@ -4026,22 +4097,13 @@ begin
     if CustomHeaders <> '' then
         Header := Header + CustomHeaders;   { V7.29 }
     Header := Header + GetKeepAliveHdrLines + #13#10;
-
-    { A HEAD response does not send content }
-    if SendType = httpSendHead then { V7.38 }
-        FDocSize := 0;              { V7.38 }
-
     SendHeader(Header);
-    if not ErrorSend then begin
-        if FDocSize <= 0 then
-            Send(nil, 0);
-        if SendType = httpSendDoc then
-            SendStream
-        else
-            Send(nil, 0); { Added 15/04/02 }
+    if FSendType = httpSendHead then begin   { V7.44 }
+        FDocSize := 0;                       { V7.44 }
+        Send(nil, 0);                        { V7.44 }
     end
     else
-        Send(nil, 0);
+        SendStream;
 end;
 
 
@@ -4072,17 +4134,19 @@ BufSize := 8192; { Only for testing }
     FDataSent  := 0;
     OnDataSent := ConnectionDataSent;
 
-{ V7.40 speed up larger files by increasing buffer sizes }
-    if (FDocSize > FSndBlkSize) and (FServer.MaxBlkSize > FSndBlkSize) then begin
-        if (FDocSize >= FServer.MaxBlkSize) then
-            SetSndBlkSize (FServer.MaxBlkSize)
-        else
-            SetSndBlkSize (FDocSize);  { don't need a max buffer }
+    if FDocSize > 0 then begin  { 7.44 }
+        { V7.40 speed up larger files by increasing buffer sizes }
+        if (FDocSize > FSndBlkSize) and (FServer.MaxBlkSize > FSndBlkSize) then begin
+            if (FDocSize >= FServer.MaxBlkSize) then
+                SetSndBlkSize (FServer.MaxBlkSize)
+            else
+                SetSndBlkSize (FDocSize);  { don't need a max buffer }
+        end;
+        if SocketSndBufSize < FSndBlkSize then
+            SocketSndBufSize := FSndBlkSize; { socket TCP buffer }
+        if not Assigned(FDocBuf) then
+            GetMem(FDocBuf, FSndBlkSize);
     end;
-    if SocketSndBufSize < FSndBlkSize then
-        SocketSndBufSize := FSndBlkSize; { socket TCP buffer }
-    if not Assigned(FDocBuf) then
-        GetMem(FDocBuf, FSndBlkSize);
 
 { event is called repeatedly until stream is all sent }
     ConnectionDataSent(Self, 0);

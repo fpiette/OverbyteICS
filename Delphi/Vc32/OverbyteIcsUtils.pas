@@ -3,11 +3,11 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      7.42
+Version:      7.43
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2002-2011 by François PIETTE
+Legal issues: Copyright (C) 2002-2012 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -105,8 +105,8 @@ Mar 06, 2010 V7.33 Arno fixed IcsGetWideCharCount, MultiByteToWideChar() does
              IsUtf8LeadByte() and IcsUtf8Size().
 Apr 26, 2010 V7.34 Arno removed some Windows dependencies. Charset conversion
              functions optionally may use GNU iconv library (LGPL) by explicitly
-		    defining conditional "USE_ICONV".  			 
-May 07, 2010 V7.35 Arno added IcsIsSBCSCodepage.			 
+             defining conditional "USE_ICONV".
+May 07, 2010 V7.35 Arno added IcsIsSBCSCodepage.
 Aug 21, 2010 V7.36 Arno fixed a bug in the UTF-8 constructor of TIcsFileStreamW.
 Sep 05, 2010 V7.37 Arno added procedure IcsNameThreadForDebugging
 Apr 15, 2011 V7.38 Arno prepared for 64-bit.
@@ -115,6 +115,9 @@ Jun 08, 2011 v7.40 Arno added x64 assembler routines, untested so far.
 Jun 14, 2011 v7.41 aguser added Unicode Normalization as IcsNormalizeString()
              see http://www.unicode.org/reports/tr15/tr15-33.html.
 Aug 14, 2011 v7.42 Arno fixed IcsSwap64 BASM 32-bit (not yet used in ICS)
+Feb 08, 2012 v7.43 Arno - The IcsFileCreateW and IcsFileOpenW functions return a
+             THandle in XE2+ now. Same as SysUtils.FileCreate and SysUtils.FileOpen
+             in XE2+.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -411,12 +414,12 @@ const
     procedure IcsNameThreadForDebugging(AThreadName: AnsiString; AThreadID: TThreadID = TThreadID(-1));
     function  IcsNormalizeString(const S: UnicodeString; NormForm: TIcsNormForm): UnicodeString;
 { Wide library }
-    function IcsFileCreateW(const FileName: UnicodeString): Integer; overload;
-    function IcsFileCreateW(const Utf8FileName: UTF8String): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
-    function IcsFileCreateW(const FileName: UnicodeString; Rights: LongWord): Integer; overload;
-    function IcsFileCreateW(const Utf8FileName: UTF8String; Rights: LongWord): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
-    function IcsFileOpenW(const FileName: UnicodeString; Mode: LongWord): Integer; overload;
-    function IcsFileOpenW(const Utf8FileName: UTF8String; Mode: LongWord): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
+    function IcsFileCreateW(const FileName: UnicodeString): {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF}; overload;
+    function IcsFileCreateW(const Utf8FileName: UTF8String): {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF}; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
+    function IcsFileCreateW(const FileName: UnicodeString; Rights: LongWord): {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF}; overload;
+    function IcsFileCreateW(const Utf8FileName: UTF8String; Rights: LongWord): {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF}; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
+    function IcsFileOpenW(const FileName: UnicodeString; Mode: LongWord): {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF}; overload;
+    function IcsFileOpenW(const Utf8FileName: UTF8String; Mode: LongWord): {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF}; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
     function IcsStrScanW(const Str: PWideChar; Ch: WideChar): PWideChar;
     function IcsExtractFilePathW(const FileName: UnicodeString): UnicodeString;
     function IcsExtractFileDirW(const FileName: UnicodeString): UnicodeString;
@@ -3677,7 +3680,8 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsFileCreateW(const FileName: UnicodeString): Integer;
+function IcsFileCreateW(const FileName: UnicodeString):
+  {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF};
 begin
 {$IFDEF COMPILER12_UP}
     Result := SysUtils.FileCreate(FileName);
@@ -3690,7 +3694,8 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsFileCreateW(const Utf8FileName: UTF8String): Integer;
+function IcsFileCreateW(const Utf8FileName: UTF8String):
+  {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF};
 begin
 {$IFDEF COMPILER12_UP}
     Result := SysUtils.FileCreate(Utf8FileName);
@@ -3701,7 +3706,8 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsFileCreateW(const FileName: UnicodeString; Rights: LongWord): Integer;
+function IcsFileCreateW(const FileName: UnicodeString; Rights: LongWord):
+  {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF};
 begin
 {$IFDEF COMPILER12_UP}
     Result := SysUtils.FileCreate(FileName, Rights);
@@ -3712,7 +3718,8 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsFileCreateW(const Utf8FileName: UTF8String; Rights: LongWord): Integer;
+function IcsFileCreateW(const Utf8FileName: UTF8String; Rights: LongWord):
+  {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF};
 begin
 {$IFDEF COMPILER12_UP}
     Result := SysUtils.FileCreate(Utf8FileName, Rights);
@@ -3723,7 +3730,8 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsFileOpenW(const FileName: UnicodeString; Mode: LongWord): Integer;
+function IcsFileOpenW(const FileName: UnicodeString; Mode: LongWord):
+  {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF};
 {$IFDEF COMPILER12_UP}
 begin
     Result := SysUtils.FileOpen(FileName, Mode);
@@ -3753,7 +3761,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
-function IcsFileOpenW(const Utf8FileName: UTF8String; Mode: LongWord): Integer;
+function IcsFileOpenW(const Utf8FileName: UTF8String; Mode: LongWord):
+  {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF};
 begin
 {$IFDEF COMPILER12_UP}
     Result := SysUtils.FileOpen(Utf8FileName, Mode);

@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.23
+Version:      7.24
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -470,6 +470,7 @@ Jan 23, 2012 V7.23 Arno added httperrNoStatusCode, passed to OnRequestDone and
              HTTP status code if FRequestDoneError is set, this changed
              EHttpException's ErrorCode property value of abort and timeout
              exceptions.
+Feb 15, 2012 V7.24 Tobias Rapp added methods Del and DelAsync (HTTP method DELETE).
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -550,8 +551,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 723;
-    CopyRight : String   = ' THttpCli (c) 1997-2012 F. Piette V7.23 ';
+    HttpCliVersion       = 724;
+    CopyRight : String   = ' THttpCli (c) 1997-2012 F. Piette V7.24 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -585,7 +586,7 @@ type
 
     THttpEncoding    = (encUUEncode, encBase64, encMime);
     THttpRequest     = (httpABORT, httpGET, httpPOST, httpPUT,
-                        httpHEAD,  httpCLOSE);
+                        httpHEAD, httpDELETE, httpCLOSE);
     THttpState       = (httpReady,         httpNotConnected, httpConnected,
                         httpDnsLookup,     httpDnsLookupDone,
                         httpWaitingHeader, httpWaitingBody,  httpBodyReceived,
@@ -923,12 +924,14 @@ type
         procedure   Post;       { Synchronous blocking Post        }
         procedure   Put;        { Synchronous blocking Put         }
         procedure   Head;       { Synchronous blocking Head        }
+        procedure   Del;        { Synchronous blocking Delete      }
         procedure   Close;      { Synchronous blocking Close       }
         procedure   Abort;      { Synchrounous blocking Abort      }
         procedure   GetASync;   { Asynchronous, non-blocking Get   }
         procedure   PostASync;  { Asynchronous, non-blocking Post  }
         procedure   PutASync;   { Asynchronous, non-blocking Put   }
         procedure   HeadASync;  { Asynchronous, non-blocking Head  }
+        procedure   DelASync;   { Asynchronous, non-blocking Delete}
         procedure   CloseAsync; { Asynchronous, non-blocking Close }
         procedure   ThreadAttach; override;
         procedure   ThreadDetach; override;
@@ -2332,6 +2335,10 @@ begin
                     FDelaySetReady := FALSE;     { 09/26/08 ML }
                     SocketDataSent(FCtrlSocket, 0);
                 {$ENDIF}
+                end;
+            httpDELETE:
+                begin
+                    SendRequest('DELETE', FRequestVer);
                 end;
             httpHEAD:
                 begin
@@ -4548,6 +4555,10 @@ begin
                 SocketDataSent(FCtrlSocket, 0);
 {$ENDIF}
             end;
+        httpDELETE:
+            begin
+                SendRequest('DELETE', FRequestVer);
+            end;
         httpHEAD:
             begin
                 SendRequest('HEAD', FRequestVer);
@@ -4621,6 +4632,15 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ This will start the Delete process and wait until terminated (blocking)   }
+procedure THttpCli.Del;
+begin
+    FLocationChangeCurCount := 0 ;
+    DoRequestSync(httpDELETE);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { This will start the Post process and wait until terminated (blocking)     }
 procedure THttpCli.Post;
 begin
@@ -4661,6 +4681,15 @@ procedure THttpCli.HeadAsync;
 begin
     FLocationChangeCurCount := 0 ;  {  V1.90 }
     DoRequestASync(httpHEAD);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ This will start the delete process and returns immediately (non blocking) }
+procedure THttpCli.DelAsync;
+begin
+    FLocationChangeCurCount := 0 ; 
+    DoRequestASync(httpDELETE);
 end;
 
 

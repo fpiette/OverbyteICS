@@ -133,6 +133,7 @@ Delphi\Vc32\OverbyteIcsLogger.pas
 Delphi\Vc32\OverbyteIcsMD4.pas
 Delphi\Vc32\OverbyteIcsMD5.pas
 Delphi\Vc32\OverbyteIcsMimeUtils.pas
+Delphi\Vc32\OverbyteIcsMimeUtils.dcr
 Delphi\Vc32\OverbyteIcsMimeDec.pas
 Delphi\Vc32\OverbyteIcsMimeDec.dcr
 Delphi\Vc32\OverbyteIcsNntpCli.dcr

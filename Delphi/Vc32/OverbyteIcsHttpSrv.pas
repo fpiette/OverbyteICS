@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.45
+Version:      7.46
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -344,6 +344,10 @@ Feb 07, 2012 V7.44 Arno - The HEAD method *MUST NOT* return a message-body in
 Feb 08, 2012 V7.45 Arno - If we receive an unknown method/request we have to
                    close the connection, otherwise we may receive junk data we
                    cannot handle properly.
+Feb 15, 2012 V7.46 Angus - attach TMimeTypesList component to provide more MIME
+                   content types read from registry, a file or strings, the
+                   existing DocumentToContentType function is used as a default
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -429,8 +433,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 745;
-    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.45 ';
+    THttpServerVersion = 746;
+    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.46 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -1060,6 +1064,7 @@ type
         FPersistentHeader         : String;   { V7.29 }
         FMaxBlkSize               : Integer;  { V7.40 }
         FOnHttpMimeContentType    : THttpMimeContentTypeEvent;  { V7.41 }
+        FMimeTypesList            : TMimeTypesList;             { V7.46 }
 {$IFDEF BUILTIN_THROTTLE}
         FBandwidthLimit           : LongWord;   { angus V7.34 Bytes per second, null = disabled }
         FBandwidthSampling        : LongWord;   { angus V7.34 Msec sampling interval }
@@ -1204,6 +1209,9 @@ type
         { maximum buffer block size to read/sent for large files }
         property MaxBlkSize : Integer            read FMaxBlkSize   { V7.40 }
                                                  write FMaxBlkSize ;
+        { class providing MIME Content Types for documents }
+        property MimeTypesList : TMimeTypesList  read FMimeTypesList  { V7.46 }
+                                                 write FMimeTypesList;
 {$IFDEF BUILTIN_THROTTLE}
         { BandwidthLimit slows down speeds, bytes per second, null = disabled }
         property BandwidthLimit : LongWord       read  FBandwidthLimit
@@ -4038,7 +4046,10 @@ var
 begin
     ProtoNumber        := 200;
     FLastModified      := FileDate(FDocument);
-    FAnswerContentType := DocumentToContentType(FDocument);
+    if Assigned (FServer.MimeTypesList) then
+        FAnswerContentType := FServer.MimeTypesList.TypeFromFile(FDocument)  { V7.46 }
+    else
+        FAnswerContentType := DocumentToContentType(FDocument);
     TriggerMimeContentType(FDocument, FAnswerContentType);  { V7.41 allow content type to be changed }
 
     FDocStream.Free;

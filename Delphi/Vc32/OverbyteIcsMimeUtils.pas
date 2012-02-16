@@ -108,7 +108,7 @@ Mar 05, 2011 V7.23  Arno - If DoFileEncBase64 finishes with a full line, remove
                     lines after and between MIME parts and always generates the
                     same message size as calculated with TSmtpCli.CalcMsgSize.
 May 06, 2011 V7.24  Arno - Small change to prepare for 64-bit.
-Dec 23, 2011 V7.25  Angus - added MIME Content Type class and functions:
+Feb 15, 2012 V7.25  Angus - added MIME Content Type component and functions:
                       TMimeTypesList - a list built from the registry or mime.types
                           file, with methods to get ContentType or file extension
                       ContentTypeGetExtn - get one file extension and class for ContentType
@@ -172,7 +172,7 @@ uses
 
 const
     TMimeUtilsVersion = 725;
-    CopyRight : String = ' MimeUtils (c) 2003-2011 F. Piette V7.25 ';
+    CopyRight : String = ' MimeUtils (c) 2003-2012 F. Piette V7.25 ';
 
     SmtpDefaultLineLength = 76; // without CRLF
     SMTP_SND_BUF_SIZE     = 2048;
@@ -390,33 +390,83 @@ function ContentTypeFromExtn(const Extension: string): string;
 type
 {TMimeTypesList}
 {V7.25 Angus - MIME Content Type list - Windows and Linux/OSX }
-TMimeTypesList = class(TObject)
+
+{ MIME type source, from DefaultTypes list, OS (registry or MIME file), MIME file, key=name file. program resource }
+    TMimeTypeSrc = (MTypeList, MTypeOS, MTypeMimeFile, MTypeKeyFile, MTypeRes) ;
+
+TMimeTypesList = class(TComponent)
 private
     FContentList: THashedStringList;
     FExtensionList: THashedStringList;
+    FDefaultTypes: TStringList;
+    FUnknownType: string;
+    FMimeTypesFile: string;
+    FLoadOSonDemand: boolean;
+    FLoaded: boolean;
+    FMimeTypeSrc: TMimeTypeSrc;
+    procedure SetDefaultTypes (Value: TStringList);
 public
-    MimeTypesFile: string;
-    LoadOnDemand: boolean;
-    constructor Create (AutoLoad: boolean = true);
+    constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure LoadFromOS;
+{ load MIME type list according to MimeTypeSrc }
+    function LoadTypeList: boolean;
+{ clear MIME type list.  Note all the LoadXX methods call Clear first }
     procedure Clear;
+{ count of number of MIME file extensions }
     function CountExtn: integer;
+{ count of number of MIME content types }
     function CountContent: integer;
-    procedure LoadDefaults;
+{ add a single file extension with leading dot and MIME content type.
+  This method ignores duplicate contents but updates duplicate extensions
+  with new content This method may be used to correct any erroneous
+  MIME types read from the OS }
+    function AddContentType (const AExtn, AContent: string): boolean;
 {$IFDEF MSWINDOWS}
+{ load MIME type list from Windows classes registry }
     function LoadWinReg: boolean;
 {$ENDIF}
+{ load MIME type list from OS, on Windows classes registry or OSX a MIME file }
+    function LoadFromOS: boolean;
+{ load MIME type list from DefaultTypes string list }
+    function LoadFromList: boolean;
+{ load MIME type list from an Apache format MIME file (usually called mime.types)
+  with format  text/html					html htm }
     function LoadMimeFile (const AFileName: string): boolean;
+{ load MIME type list from a program resource in key=value format }
     function LoadFromResource (const AResName: string): boolean;
+{ load MIME type list from a file in key=value format }
     function LoadFromFile (const AFileName: string): boolean;
+{ save MIME type list to a file in key=value format }
     function SaveToFile (const AFileName: string): boolean;
-    function AddContentType (const AExtn, AContent: string): boolean;
+{ load MIME type list from a string list in key=value format, ie: .htm=text/html  }
+    procedure LoadContentTypes (AList: TStrings);
+{ add MIME type list from a string list in key=value format, ie: .htm=text/html
+  This method ignores duplicate contents but updates duplicate extensions
+  with new content This method may be used to correct any erroneous
+  MIME types read from the OS }
     procedure AddContentTypes (AList: TStrings);
+{ get MIME type list to a string list in key=value format }
     procedure GetContentTypes (AList: TStrings);
+{ get the MIME content type for a file extension with leading dot }
     function TypeFromExtn(const AExtn: string): string;
+{ get the MIME content type for a complete file name }
     function TypeFromFile(const AFileName: string): string;
+{ get the file extension with leading dot for a MIME content type, only the
+  first if there are multiple extensions }
     function TypeGetExtn(const AContent: string): string;
+published
+{ Specify if MIME types should be loaded from the OS if an extension is found
+  which was not in the DefaultTypes string list.  Note the complete list is replaced }
+    property LoadOSonDemand: boolean    read FLoadOSonDemand  write FLoadOSonDemand;
+{ Specify the name to use for LoadTypeList for MimeTypeSrc of MTypeMimeFile, MTypeKeyFile or MTypeRes }
+    property MimeTypesFile: string      read FMimeTypesFile   write FMimeTypesFile;
+{ A list of default MIME types, in key=value format, ie: .htm=text/html  }
+    property DefaultTypes: TStringList  read FDefaultTypes    write SetDefaultTypes;
+{ Source of the MIME type list, MTypeList, MTypeOS, MTypeMimeFile, MTypeKeyFile }
+    property MimeTypeSrc: TMimeTypeSrc  read FMimeTypeSrc     write FMimeTypeSrc;
+{ MIME type used if file extension is not found, defaults to application/octet-stream
+  but could also be application/binary }
+    property UnknownType: string        read FUnknownType     write FUnknownType;
 end;
 
 
@@ -2445,36 +2495,52 @@ end;
 {$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-constructor TMimeTypesList.Create (AutoLoad: boolean = true);
+constructor TMimeTypesList.Create(AOwner: TComponent);
 begin
-    inherited Create;
+    inherited Create(AOwner);
     FContentList := THashedStringList.Create;
     FExtensionList := THashedStringList.Create;  // there are often multiple file extensions for each content type
-    MimeTypesFile := '/etc/mime.types';          // Linux locations can vary!!!
-    LoadOnDemand := false;
-    if NOT AutoLoad then
-        LoadDefaults
-    else
-        LoadFromOS;
+    FDefaultTypes := TStringList.Create;
+    FMimeTypesFile := '/etc/mime.types';          // Linux locations can vary!!!
+    FUnknownType := 'application/octet-stream';  // or  'application/binary'
+    FLoadOSonDemand := true;
+    FLoaded := false;
+    FMimeTypeSrc := MTypeList ;
+    FDefaultTypes.Add ('.htm=text/html');
+    FDefaultTypes.Add ('.html=text/html');
+    FDefaultTypes.Add ('.gif=image/gif');
+    FDefaultTypes.Add ('.bmp=image/bmp');
+    FDefaultTypes.Add ('.jpg=image/jpeg');
+    FDefaultTypes.Add ('.jpeg=image/jpeg');
+    FDefaultTypes.Add ('.tif=image/tiff');
+    FDefaultTypes.Add ('.tiff=image/tiff');
+    FDefaultTypes.Add ('.txt=text/plain');
+    FDefaultTypes.Add ('.css=text/css');
+    FDefaultTypes.Add ('.wav=audio/x-wav');
+    FDefaultTypes.Add ('.ico=image/x-icon');
+    FDefaultTypes.Add ('.wml=text/vnd.wap.wml');
+    FDefaultTypes.Add ('.wbmp=image/vnd.wap.wbmp');
+    FDefaultTypes.Add ('.wmlc=application/vnd.wap.wmlc');
+    FDefaultTypes.Add ('.wmlscript=text/vnd.wap.wmlscript');
+    FDefaultTypes.Add ('.wmlscriptc=application/vnd.wap.wmlscriptc');
+    FDefaultTypes.Add ('.pdf=application/pdf');
+    FDefaultTypes.Add ('.png=image/png');
+    FDefaultTypes.Add ('.xml=application/xml');   // 'application/xml' (Apache) or 'text/xml' (Windows)
+    FDefaultTypes.Add ('.xhtml=application/xhtml+xml');
+    FDefaultTypes.Add ('.zip=application/zip');           // or 'application/binary'
+    FDefaultTypes.Add ('.exe=application/x-msdownload');  // or 'application/binary'
+    FDefaultTypes.Add ('.msi=application/x-msdownload');  // or 'application/binary'
+    FDefaultTypes.Add ('.bin=application/octet-stream');  // or 'application/binary'
+    FDefaultTypes.Add ('.iso=application/octet-stream');  // or 'application/binary'
 end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor TMimeTypesList.Destroy;
 begin
-    FreeAndNil (FContentList);
-    FreeAndNil (FExtensionList);
+    FContentList.Free;
+    FExtensionList.Free;
+    FDefaultTypes.Free;
     inherited Destroy;
-end;
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TMimeTypesList.LoadFromOS;
-begin
-{$IFDEF MSWINDOWS}
-    LoadWinReg;
-{$ENDIF}
-{$IFDEF LINUX}
-    LoadMimeFile (MimeTypesFile);
-{$ENDIF}
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2482,6 +2548,7 @@ procedure TMimeTypesList.Clear;
 begin
     FContentList.Clear;
     FExtensionList.Clear;
+    FLoaded := false;
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2497,10 +2564,16 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TMimeTypesList.LoadDefaults;
+function TMimeTypesList.LoadFromList: boolean;
 begin
+    result := false;
+    if FDefaultTypes.Count  =  0 then exit;
     Clear;
-    AddContentType ('.htm', 'text/html');
+    FLoaded := true;
+    AddContentTypes (FDefaultTypes);
+    result := true;
+
+{    AddContentType ('.htm', 'text/html');
     AddContentType ('.html', 'text/html');
     AddContentType ('.gif', 'image/gif');
     AddContentType ('.bmp', 'image/bmp');
@@ -2525,7 +2598,7 @@ begin
     AddContentType ('.exe', 'application/x-msdownload');  // or 'application/binary'
     AddContentType ('.msi', 'application/x-msdownload');  // or 'application/binary'
     AddContentType ('.bin', 'application/octet-stream');  // or 'application/binary'
-    AddContentType ('.iso', 'application/octet-stream');  // or 'application/binary'
+    AddContentType ('.iso', 'application/octet-stream');  // or 'application/binary'  }
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2571,7 +2644,8 @@ var
     BufSize: Cardinal;
 begin
     Clear;
-    LoadOnDemand := false;
+    FLoaded := true;
+    FLoadOSonDemand := false;
 
 // read registered MIME Content Type classes for default extensions
     Result := RegOpenKeyEx(HKEY_CLASSES_ROOT, RegContentType, 0, KEY_READ, KeyHandle) = ERROR_SUCCESS;
@@ -2655,7 +2729,8 @@ var
 begin
     result := false ;
     Clear;
-    LoadOnDemand := false;
+    FLoaded := true;
+    FLoadOSonDemand := false;
     if NOT FileExists (AFileName) then exit ;
     try
         Lines := TStringList.Create;
@@ -2701,7 +2776,7 @@ begin
             Lines := TStringList.Create;
             try
                 Lines.LoadFromStream (Rs);
-                AddContentTypes (Lines);
+                LoadContentTypes (Lines);
                 Result := True;
             finally
                 FreeAndNil (Lines);
@@ -2729,7 +2804,7 @@ begin
         Lines := TStringList.Create;
         try
             Lines.LoadFromFile (AFileName);
-            AddContentTypes (Lines);
+            LoadContentTypes (Lines);
             Result := True;
         except
         end;
@@ -2799,19 +2874,30 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ a list in key/value format, ie: .htm=text/html  }
+{ a list in key/value format without clearing old list, ie: .htm=text/html  }
 
 procedure TMimeTypesList.AddContentTypes (AList: TStrings);
 var
     I, J: integer ;
 begin
     if NOT Assigned (AList) then exit;
-    Clear;
+    if AList.Count = 0 then exit;
     for I := 0 to AList.Count - 1 do
     begin
         J := Pos ('=', AList [I]) ;
         if J > 1 then AddContentType (Copy (AList [I], 1, J-1), Copy (AList [I], J+1, 99)) ;
     end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ a list in key/value format, ie: .htm=text/html  }
+
+procedure TMimeTypesList.LoadContentTypes (AList: TStrings);
+begin
+    if NOT Assigned (AList) then exit;
+    Clear;
+    FLoaded := true;
+    AddContentTypes (AList);
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2830,13 +2916,15 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ a file extension with leading dot }
 function TMimeTypesList.TypeFromExtn(const AExtn: string): string;
 var
     IX, IC: integer;
 begin
+    if NOT FLoaded then LoadTypeList;
     IC := -1;
     IX := FExtensionList.IndexOf (_LowerCase (AExtn));
-    if (IX < 0) and LoadOnDemand then  // not found extension, see if looking harder
+    if (IX < 0) and FLoadOSonDemand then  // not found extension, see if looking harder
     begin
         LoadFromOS;
         IX := FExtensionList.IndexOf (_LowerCase (AExtn));
@@ -2845,10 +2933,11 @@ begin
     if IC >= 0 then
         result := FContentList [IC]
     else
-        result := 'application/octet-stream';  // or  'application/binary'
+        result := FUnknownType;   //  'application/octet-stream' or 'application/binary'
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ a complete file name }
 function TMimeTypesList.TypeFromFile(const AFileName: string): string;
 begin
     result := TypeFromExtn(_ExtractFileExt(AFileName));
@@ -2860,14 +2949,50 @@ var
     IC: integer;
 begin
     result := '';
+    if NOT FLoaded then LoadTypeList;
     IC := FContentList.IndexOf (_LowerCase (AContent));
-    if (IC < 0) and LoadOnDemand then  // not found content, see if looking harder
+    if (IC < 0) and LoadOSonDemand then  // not found content, see if looking harder
     begin
         LoadFromOS;
         IC := FContentList.IndexOf (_LowerCase (AContent));
     end;
     if IC < 0 then exit;
     result := FExtensionList [Integer (FContentList.Objects [IC])] ;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TMimeTypesList.SetDefaultTypes (Value: TStringList);
+begin
+    if Value.Text <> FDefaultTypes.Text then
+    begin
+        FDefaultTypes.Assign(Value);
+        FLoaded := false;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TMimeTypesList.LoadFromOS: boolean;
+begin
+{$IFDEF MSWINDOWS}
+    result := LoadWinReg;
+{$ENDIF}
+{$IFDEF LINUX}
+    result := LoadMimeFile(FMimeTypesFile);
+{$ENDIF}
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TMimeTypesList.LoadTypeList: boolean;
+begin
+    case FMimeTypeSrc of
+        MTypeList: result := LoadFromList;
+        MTypeOS: result := LoadFromOS;
+        MTypeMimeFile: result := LoadMimeFile(FMimeTypesFile);
+        MTypeKeyFile: result := LoadFromFile(FMimeTypesFile);
+        MTypeRes: result := LoadFromResource(FMimeTypesFile);
+    else
+        result := false;
+    end
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

@@ -140,7 +140,7 @@ object MimeDecodeForm: TMimeDecodeForm
       Top = 68
       Width = 93
       Height = 25
-      Caption = 'Create Mime List'
+      Caption = 'Mime from List'
       TabOrder = 11
       OnClick = doCreateMimeListClick
     end
@@ -202,5 +202,40 @@ object MimeDecodeForm: TMimeDecodeForm
     SkipBlankParts = False
     Left = 107
     Top = 123
+  end
+  object MimeTypesList1: TMimeTypesList
+    LoadOSonDemand = True
+    MimeTypesFile = '/etc/mime.types'
+    DefaultTypes.Strings = (
+      '.htm=text/html'
+      '.html=text/html'
+      '.gif=image/gif'
+      '.bmp=image/bmp'
+      '.jpg=image/jpeg'
+      '.jpeg=image/jpeg'
+      '.tif=image/tiff'
+      '.tiff=image/tiff'
+      '.txt=text/plain'
+      '.css=text/css'
+      '.wav=audio/x-wav'
+      '.ico=image/x-icon'
+      '.wml=text/vnd.wap.wml'
+      '.wbmp=image/vnd.wap.wbmp'
+      '.wmlc=application/vnd.wap.wmlc'
+      '.wmlscript=text/vnd.wap.wmlscript'
+      '.wmlscriptc=application/vnd.wap.wmlscriptc'
+      '.pdf=application/pdf'
+      '.png=image/png'
+      '.xml=application/xml'
+      '.xhtml=application/xhtml+xml'
+      '.zip=application/zip'
+      '.exe=application/x-msdownload'
+      '.msi=application/x-msdownload'
+      '.bin=application/octet-stream'
+      '.iso=application/octet-stream')
+    MimeTypeSrc = MTypeList
+    UnknownType = 'application/octet-stream'
+    Left = 155
+    Top = 125
   end
 end

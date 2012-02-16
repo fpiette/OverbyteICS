@@ -62,7 +62,7 @@ Dec 22, 2008  V7.20 Arno - Added workaround for error "incompatible parameter li
               in D2009. Added explicit string conversion in
               MimeDecode1InlineDecodeBegin to remove warning.
 Oct 9, 2009   V7.21 Angus - more content headers shown
-Dec 23, 2011  V7.22 Angus - test TMimeTypesList class
+Feb 14, 2012  V7.22 Angus - test TMimeTypesList1 component
 
 
 
@@ -93,8 +93,8 @@ uses
   OverbyteIcsUtils, OverbyteIcsCharsetUtils;
 
 const
-  MimeDemoVersion    = 721;
-  CopyRight : String = ' MimeDemo (c) 1998-2010 F. Piette V7.21 ';
+  MimeDemoVersion    = 722;
+  CopyRight : String = ' MimeDemo (c) 1998-2012 F. Piette V7.22 ';
 
 type
 {$IFDEF USE_TNT}
@@ -124,6 +124,7 @@ type
     doMimeFromTypes: TButton;
     doMimeTestExtn: TButton;
     doMimeTestContent: TButton;
+    MimeTypesList1: TMimeTypesList;
     procedure DecodeButtonClick(Sender: TObject);
     procedure MimeDecode1PartBegin(Sender: TObject);
     procedure MimeDecode1PartEnd(Sender: TObject);
@@ -178,7 +179,6 @@ type
 
 var
   MimeDecodeForm: TMimeDecodeForm;
-  MimeTypesList: TMimeTypesList;
 
 implementation
 
@@ -242,7 +242,6 @@ begin
     IniFile.WriteString(SectionData,    KeyText,   TextEdit.Text);
     IniFile.UpdateFile;
     IniFile.Free;
-    FreeAndNil (MimeTypesList) ;
 end;
 
 
@@ -630,12 +629,11 @@ procedure TMimeDecodeForm.ListMimeTypes;
 var
     TempList: TStringList;
 begin
-    if NOT Assigned (MimeTypesList) then exit;
-    Display ('Total Mime Extensions: ' + IntToStr (MimeTypesList.CountExtn) +
-                     ', Total Content Types: ' + IntToStr (MimeTypesList.CountContent));
+    Display ('Total Mime Extensions: ' + IntToStr (MimeTypesList1.CountExtn) +
+                     ', Total Content Types: ' + IntToStr (MimeTypesList1.CountContent));
     TempList := TStringList.Create;
     try
-        MimeTypesList.GetContentTypes (TempList);
+        MimeTypesList1.GetContentTypes (TempList);
         TempList.Sort;
         Display (TempList.Text);
     finally
@@ -647,10 +645,8 @@ end;
 
 procedure TMimeDecodeForm.doCreateMimeListClick(Sender: TObject);
 begin
-    FreeAndNil (MimeTypesList) ;
-    MimeTypesList := TMimeTypesList.Create (false);
-    MimeTypesList.LoadOnDemand := true;  // load from registry or file if not in defaults
-    MimeTypesList.MimeTypesFile := '/etc/mime.types';  // path and name for mime.types file
+    MimeTypesList1.MimeTypeSrc := MTypeList;
+    MimeTypesList1.LoadTypeList;
     Display ('Mime Types List Loaded from Defaults');
     ListMimeTypes;
 end;
@@ -660,15 +656,15 @@ procedure TMimeDecodeForm.doMimefromRegClick(Sender: TObject);
 var
     tickstart: longword;
 begin
-    if NOT Assigned (MimeTypesList) then MimeTypesList := TMimeTypesList.Create (false);
     tickstart := GetTickCount;
-    if NOT MimeTypesList.LoadWinReg then
+    MimeTypesList1.MimeTypeSrc := MTypeOS;
+    if NOT MimeTypesList1.LoadTypeList then
         Display ('Failed to Load Mime Types from Windows Registry')
     else
     begin
-        Display ('Mime Types List Loaded from Windows Registry, , took ' +
+        Display ('Mime Types List Loaded from Windows Registry, took ' +
                                                 IntToStr (GetTickCount - tickstart) + 'ms');
-        MimeTypesList.AddContentType ('.zip', 'application/octet-stream');   // correct a Windows type we don't like
+        MimeTypesList1.AddContentType ('.zip', 'application/octet-stream');   // correct a Windows type we don't like
         ListMimeTypes;
     end;
 end;
@@ -678,14 +674,14 @@ procedure TMimeDecodeForm.doMimeFromTypesClick(Sender: TObject);
 var
     tickstart: longword;
 begin
-    if NOT Assigned (MimeTypesList) then MimeTypesList := TMimeTypesList.Create (false);
     tickstart := GetTickCount;
-    MimeTypesList.MimeTypesFile := 'mime.types';
-    if NOT MimeTypesList.LoadMimeFile (MimeTypesList.MimeTypesFile) then
-        Display ('Failed to Load Mime Types from File: ' + MimeTypesList.MimeTypesFile)
+    MimeTypesList1.MimeTypesFile := 'mime.types';
+    MimeTypesList1.MimeTypeSrc := MTypeMimeFile;
+    if NOT MimeTypesList1.LoadTypeList then
+        Display ('Failed to Load Mime Types from File: ' + MimeTypesList1.MimeTypesFile)
     else
     begin
-        Display ('Mime Types List Loaded from  File: ' + MimeTypesList.MimeTypesFile +
+        Display ('Mime Types List Loaded from  File: ' + MimeTypesList1.MimeTypesFile +
                             ', took ' + IntToStr (GetTickCount - tickstart) + 'ms');
         ListMimeTypes;
     end;
@@ -698,7 +694,7 @@ procedure TMimeDecodeForm.doMimeTestContentClick(Sender: TObject);
     var
         S: string;
     begin
-        S := MimeTypesList.TypeGetExtn(Content);
+        S := MimeTypesList1.TypeGetExtn(Content);
         Display (Content + ' Look-up: ' + S);
     end;
 
@@ -726,7 +722,7 @@ const
         S: string;
     begin
         tickstart := GetTickCount;
-        for I := 1 to tests do S := MimeTypesList.TypeFromExtn (Extn);
+        for I := 1 to tests do S := MimeTypesList1.TypeFromExtn (Extn);
         Display (IntToStr (tests) + ' ' + Extn + ' Look-ups: ' + S +
                                  ', took ' + IntToStr (GetTickCount - tickstart) + 'ms');
     end;
@@ -738,7 +734,7 @@ begin
     DoTest ('.jpeg');
     DoTest ('.iso');
     DoTest ('.eps');
-    DoTest ('.xyz');
+    DoTest ('.xxx');
     Display ('');
 end;
 

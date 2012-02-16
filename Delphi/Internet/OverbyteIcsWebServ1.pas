@@ -16,7 +16,7 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      7.22
+Version:      7.23
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -101,7 +101,9 @@ Feb 4,  2011 V7.21 Angus added bandwidth throttling using TCustomThrottledWSocke
 Oct 22, 2011 V7.22 Angus added delayed.html response page using a timer, can be used
                    for long polling server push or to slow down hacker responses.
                    Use onHttpMimeContentType event to report document file name
-                   and content type which can also be changed if incorrect. 
+                   and content type which can also be changed if incorrect.
+Feb 15, 2012 V7.23 Angus - using TMimeTypesList component to provide more MIME
+                   content types read from registry, a file or strings
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -134,11 +136,11 @@ uses
   Windows, Messages, SysUtils, Classes, Controls, Forms,
   OverbyteIcsIniFiles, StdCtrls, ExtCtrls, StrUtils,
   OverbyteIcsWinSock,  OverbyteIcsWSocket, OverbyteIcsWndControl,
-  OverbyteIcsHttpSrv, OverbyteIcsUtils, OverbyteIcsFormDataDecoder;
+  OverbyteIcsHttpSrv, OverbyteIcsUtils, OverbyteIcsFormDataDecoder, OverbyteIcsMimeUtils;
 
 const
-  WebServVersion     = 722;
-  CopyRight : String = 'WebServ (c) 1999-2011 F. Piette V7.22 ';
+  WebServVersion     = 723;
+  CopyRight : String = 'WebServ (c) 1999-2012 F. Piette V7.23 ';
   NO_CACHE           = 'Pragma: no-cache' + #13#10 + 'Expires: -1' + #13#10;
   WM_CLIENT_COUNT    = WM_USER + 1;
   FILE_UPLOAD_URL    = '/cgi-bin/FileUpload/';
@@ -196,6 +198,7 @@ type
     MaxRequestsKeepAliveEdit: TEdit;
     Label9: TLabel;
     BandwidthLimitEdit: TEdit;
+    MimeTypesList1: TMimeTypesList;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);

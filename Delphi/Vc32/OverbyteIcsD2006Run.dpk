@@ -28,6 +28,7 @@ package OverbyteIcsD2006Run;
 {$R 'OverbyteIcsTimeList.dcr'}
 {$R 'OverbyteIcsCharsetComboBox.dcr'}
 {$R 'OverbyteIcsWSocketTS.dcr'}
+{$R 'OverbyteIcsMimeUtils.dcr'}
 {$ALIGN 8}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}

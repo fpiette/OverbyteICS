@@ -1,5 +1,7 @@
 unit OverbyteIcsReg;
 
+{ Feb 15, 2012 Angus - added OverbyteIcsMimeUtils }
+
 {$I OverbyteIcsDefs.inc}
 {$IFDEF USE_SSL}
     {$I OverbyteIcsSslDefs.inc}
@@ -13,6 +15,7 @@ uses
     OverbyteIcsDnsQuery,
     OverbyteIcsEmulVT,
     OverbyteIcsMimeDec,
+    OverbyteIcsMimeUtils,
     OverbyteIcsMultiProgressBar,
     OverbyteIcsTnCnx, OverbyteIcsTnEmulVT, OverbyteIcsTnScript,
     OverbyteIcsFtpCli, OverbyteIcsFtpSrv, OverbyteIcsMultipartFtpDownloader,
@@ -69,6 +72,7 @@ begin
       TWSocket, TWSocketServer,
       TDnsQuery, TEmulVT, TFingerCli, TPing,
       TMimeDecode, TMimeDecodeEx, TMimeDecodeW,
+      TMimeTypesList,
       TMultiProgressBar,
       TTimeList,
       THttpAppSrv,
@@ -97,6 +101,7 @@ begin
     GroupDescendentsWith(TMimeDecode, TControl);
     GroupDescendentsWith(TMimeDecodeEx, TControl);
     GroupDescendentsWith(TMimeDecodeW, TControl);
+    GroupDescendentsWith(TMimeTypesList, TControl);
     GroupDescendentsWith(TTimeList, TControl);
     GroupDescendentsWith(THttpAppSrv, TControl);
     GroupDescendentsWith(TTnCnx, TControl);
@@ -170,7 +175,7 @@ begin
 
     RegisterPropertyEditor(TypeInfo(AnsiString), TWSocket, 'LineEnd',
       TWSocketLineEndProperty);
-    
+
 {$IFDEF COMPILER10_UP}
     ForceDemandLoadState(dlDisable); // Required to show our product icon on splash screen
 {$ENDIF}

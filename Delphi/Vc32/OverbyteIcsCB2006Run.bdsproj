@@ -245,6 +245,7 @@
         <FILE FILENAME="OverbyteIcsUrl.pas" CONTAINERID="PascalCompiler" LOCALCOMMAND="" UNITNAME="OverbyteIcsUrl" FORMNAME="" DESIGNCLASS=""/>
         <FILE FILENAME="OverbyteIcsNtlmMsgs.pas" CONTAINERID="PascalCompiler" LOCALCOMMAND="" UNITNAME="OverbyteIcsNtlmMsgs" FORMNAME="" DESIGNCLASS=""/>
         <FILE FILENAME="OverbyteIcsMimeUtils.pas" CONTAINERID="PascalCompiler" LOCALCOMMAND="" UNITNAME="OverbyteIcsMimeUtils" FORMNAME="" DESIGNCLASS=""/>
+        <FILE FILENAME="OverbyteIcsMimeUtils.dcr" CONTAINERID="DcrTool" LOCALCOMMAND="" UNITNAME="" FORMNAME="" DESIGNCLASS=""/>
         <FILE FILENAME="OverbyteIcsHttpSrv.pas" CONTAINERID="PascalCompiler" LOCALCOMMAND="" UNITNAME="OverbyteIcsHttpSrv" FORMNAME="" DESIGNCLASS=""/>
         <FILE FILENAME="OverbyteIcsHttpSrv.dcr" CONTAINERID="DcrTool" LOCALCOMMAND="" UNITNAME="" FORMNAME="" DESIGNCLASS=""/>
         <FILE FILENAME="OverbyteIcsIcmp.pas" CONTAINERID="PascalCompiler" LOCALCOMMAND="" UNITNAME="OverbyteIcsIcmp" FORMNAME="" DESIGNCLASS=""/>

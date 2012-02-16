@@ -228,9 +228,11 @@
 				<BuildOrder>68</BuildOrder>
 				<BuildOrder>35</BuildOrder>
 			</DelphiCompile>
+			<ResFiles Include="OverbyteIcsMimeUtils.dcr">
+				<BuildOrder>93</BuildOrder>
+			</ResFiles>
 			<DelphiCompile Include="OverbyteIcsMimeUtils.pas">
-				<BuildOrder>68</BuildOrder>
-				<BuildOrder>35</BuildOrder>
+				<BuildOrder>92</BuildOrder>
 			</DelphiCompile>
 			<DelphiCompile Include="OverbyteIcsMLang.pas">
 				<BuildOrder>89</BuildOrder>

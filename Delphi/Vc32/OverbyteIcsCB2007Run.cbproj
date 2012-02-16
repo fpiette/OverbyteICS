@@ -19,19 +19,19 @@
     <CfgParent>Base</CfgParent>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Base)'!=''">
-    <BCC_OptimizeForSpeed>true</BCC_OptimizeForSpeed>
     <OutputExt>bpl</OutputExt>
-    <DCC_CBuilderOutput>JPHNE</DCC_CBuilderOutput>
+    <BCC_OptimizeForSpeed>true</BCC_OptimizeForSpeed>
     <Defines>NO_STRICT;USE_SSL</Defines>
+    <DCC_CBuilderOutput>JPHNE</DCC_CBuilderOutput>
     <DynamicRTL>true</DynamicRTL>
     <ILINK_GenerateLibFile>true</ILINK_GenerateLibFile>
-    <ILINK_GenerateImportLibrary>true</ILINK_GenerateImportLibrary>
     <DCC_Define>USE_SSL</DCC_Define>
+    <ILINK_GenerateImportLibrary>true</ILINK_GenerateImportLibrary>
+    <ILINK_ObjectSearchPath></ILINK_ObjectSearchPath>
     <UsePackages>true</UsePackages>
-    <ILINK_ObjectSearchPath>\\192.168.1.102\e\FPiette\CogswellIcs\Delphi\Vc32</ILINK_ObjectSearchPath>
     <ProjectType>CppPackage</ProjectType>
-    <ILINK_Description>OverByte ICS Run-Time Package C++ Builder 2007</ILINK_Description>
     <BCC_wpar>false</BCC_wpar>
+    <ILINK_Description>OverByte ICS Run-Time Package C++ Builder 2007</ILINK_Description>
     <IncludePath>$(BDS)\include;$(BDS)\include\dinkumware;$(BDS)\include\vcl</IncludePath>
     <ILINK_LibraryPath>$(BDS)\lib;$(BDS)\lib\obj;$(BDS)\lib\psdk</ILINK_LibraryPath>
     <Multithreaded>true</Multithreaded>
@@ -39,25 +39,24 @@
     <ILINK_OSVersion>5.0</ILINK_OSVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Cfg_1)'!=''">
-    <BCC_OptimizeForSpeed>false</BCC_OptimizeForSpeed>
     <DCC_Optimize>false</DCC_Optimize>
-    <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
+    <BCC_OptimizeForSpeed>false</BCC_OptimizeForSpeed>
     <Defines>_DEBUG;$(Defines)</Defines>
+    <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
     <ILINK_FullDebugInfo>true</ILINK_FullDebugInfo>
     <DCC_UNIT_PLATFORM>false</DCC_UNIT_PLATFORM>
     <BCC_InlineFunctionExpansion>false</BCC_InlineFunctionExpansion>
     <ILINK_DisableIncrementalLinking>true</ILINK_DisableIncrementalLinking>
-    <BCC_UseRegisterVariables>None</BCC_UseRegisterVariables>
     <DCC_SYMBOL_PLATFORM>false</DCC_SYMBOL_PLATFORM>
+    <BCC_UseRegisterVariables>None</BCC_UseRegisterVariables>
     <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
     <BCC_DebugLineNumbers>true</BCC_DebugLineNumbers>
     <IntermediateOutputDir>Debug</IntermediateOutputDir>
     <DCC_SYMBOL_DEPRECATED>false</DCC_SYMBOL_DEPRECATED>
     <TASM_DisplaySourceLines>true</TASM_DisplaySourceLines>
     <BCC_StackFrames>true</BCC_StackFrames>
-    <BCC_DisableOptimizations>true</BCC_DisableOptimizations>
     <ILINK_LibraryPath>$(BDS)\lib\debug;$(ILINK_LibraryPath)</ILINK_LibraryPath>
-    <BCC_Defines>NO_ADVANCED_HTTP_CLIENT_FEATURES;$(BCC_Defines)</BCC_Defines>
+    <BCC_DisableOptimizations>true</BCC_DisableOptimizations>
     <TASM_Debugging>Full</TASM_Debugging>
     <BCC_SourceDebuggingOn>true</BCC_SourceDebuggingOn>
     <DCC_SymbolReferenceInfo>2</DCC_SymbolReferenceInfo>
@@ -75,7 +74,21 @@
     <Borland.Personality>CPlusPlusBuilder.Personality</Borland.Personality>
     <Borland.ProjectType>CppPackage</Borland.ProjectType>
     <BorlandProject>
-<BorlandProject><CPlusPlusBuilder.Personality><Source><Source Name="MainSource">OverbyteIcsCB2007Run.cpp</Source></Source><VersionInfo><VersionInfo Name="IncludeVerInfo">True</VersionInfo><VersionInfo Name="AutoIncBuild">False</VersionInfo><VersionInfo Name="MajorVer">1</VersionInfo><VersionInfo Name="MinorVer">0</VersionInfo><VersionInfo Name="Release">0</VersionInfo><VersionInfo Name="Build">0</VersionInfo><VersionInfo Name="Debug">False</VersionInfo><VersionInfo Name="PreRelease">False</VersionInfo><VersionInfo Name="Special">False</VersionInfo><VersionInfo Name="Private">False</VersionInfo><VersionInfo Name="DLL">False</VersionInfo><VersionInfo Name="Locale">1033</VersionInfo><VersionInfo Name="CodePage">1252</VersionInfo></VersionInfo><VersionInfoKeys><VersionInfoKeys Name="CompanyName"></VersionInfoKeys><VersionInfoKeys Name="FileDescription"></VersionInfoKeys><VersionInfoKeys Name="FileVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="InternalName"></VersionInfoKeys><VersionInfoKeys Name="LegalCopyright"></VersionInfoKeys><VersionInfoKeys Name="LegalTrademarks"></VersionInfoKeys><VersionInfoKeys Name="OriginalFilename"></VersionInfoKeys><VersionInfoKeys Name="ProductName"></VersionInfoKeys><VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="Comments"></VersionInfoKeys></VersionInfoKeys><HistoryLists_hlIncludePath><HistoryLists_hlIncludePath Name="Count">1</HistoryLists_hlIncludePath><HistoryLists_hlIncludePath Name="Item0">$(BDS)\include;$(BDS)\include\dinkumware;$(BDS)\include\vcl</HistoryLists_hlIncludePath></HistoryLists_hlIncludePath><HistoryLists_hlILINK_LibraryPath><HistoryLists_hlILINK_LibraryPath Name="Count">1</HistoryLists_hlILINK_LibraryPath><HistoryLists_hlILINK_LibraryPath Name="Item0">$(BDS)\lib\debug;$(BDS)\lib;$(BDS)\lib\obj;$(BDS)\lib\psdk</HistoryLists_hlILINK_LibraryPath><HistoryLists_hlILINK_LibraryPath Name="Item1">$(BDS)\lib;$(BDS)\lib\obj;$(BDS)\lib\psdk</HistoryLists_hlILINK_LibraryPath></HistoryLists_hlILINK_LibraryPath><HistoryLists_hlDefines><HistoryLists_hlDefines Name="Count">1</HistoryLists_hlDefines><HistoryLists_hlDefines Name="Item0">_DEBUG;NO_STRICT;USE_SSL</HistoryLists_hlDefines><HistoryLists_hlDefines Name="Item1">NO_STRICT</HistoryLists_hlDefines></HistoryLists_hlDefines><Debugging><Debugging Name="DebugSourceDirs"></Debugging></Debugging><Parameters><Parameters Name="RunParams"></Parameters><Parameters Name="Launcher"></Parameters><Parameters Name="UseLauncher">False</Parameters><Parameters Name="DebugCWD"></Parameters><Parameters Name="HostApplication"></Parameters><Parameters Name="RemoteHost"></Parameters><Parameters Name="RemotePath"></Parameters><Parameters Name="RemoteParams"></Parameters><Parameters Name="RemoteLauncher"></Parameters><Parameters Name="UseRemoteLauncher">False</Parameters><Parameters Name="RemoteCWD"></Parameters><Parameters Name="RemoteDebug">False</Parameters><Parameters Name="Debug Symbols Search Path"></Parameters><Parameters Name="LoadAllSymbols">True</Parameters><Parameters Name="LoadUnspecifiedSymbols">False</Parameters></Parameters><Linker><Linker Name="LibPrefix"></Linker><Linker Name="LibSuffix"></Linker><Linker Name="LibVersion"></Linker></Linker><ProjectProperties><ProjectProperties Name="AutoShowDeps">False</ProjectProperties><ProjectProperties Name="ManagePaths">True</ProjectProperties><ProjectProperties Name="VerifyPackages">True</ProjectProperties></ProjectProperties><Excluded_Packages>
+<BorlandProject><CPlusPlusBuilder.Personality><Source><Source Name="MainSource">OverbyteIcsCB2007Run.cpp</Source></Source><VersionInfo><VersionInfo Name="IncludeVerInfo">True</VersionInfo><VersionInfo Name="AutoIncBuild">False</VersionInfo><VersionInfo Name="MajorVer">1</VersionInfo><VersionInfo Name="MinorVer">0</VersionInfo><VersionInfo Name="Release">0</VersionInfo><VersionInfo Name="Build">0</VersionInfo><VersionInfo Name="Debug">False</VersionInfo><VersionInfo Name="PreRelease">False</VersionInfo><VersionInfo Name="Special">False</VersionInfo><VersionInfo Name="Private">False</VersionInfo><VersionInfo Name="DLL">False</VersionInfo><VersionInfo Name="Locale">1033</VersionInfo><VersionInfo Name="CodePage">1252</VersionInfo></VersionInfo><VersionInfoKeys><VersionInfoKeys Name="CompanyName"></VersionInfoKeys><VersionInfoKeys Name="FileDescription"></VersionInfoKeys><VersionInfoKeys Name="FileVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="InternalName"></VersionInfoKeys><VersionInfoKeys Name="LegalCopyright"></VersionInfoKeys><VersionInfoKeys Name="LegalTrademarks"></VersionInfoKeys><VersionInfoKeys Name="OriginalFilename"></VersionInfoKeys><VersionInfoKeys Name="ProductName"></VersionInfoKeys><VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="Comments"></VersionInfoKeys></VersionInfoKeys><HistoryLists_hlIncludePath><HistoryLists_hlIncludePath Name="Count">1</HistoryLists_hlIncludePath><HistoryLists_hlIncludePath Name="Item0">$(BDS)\include;$(BDS)\include\dinkumware;$(BDS)\include\vcl</HistoryLists_hlIncludePath></HistoryLists_hlIncludePath><HistoryLists_hlILINK_LibraryPath><HistoryLists_hlILINK_LibraryPath Name="Count">1</HistoryLists_hlILINK_LibraryPath><HistoryLists_hlILINK_LibraryPath Name="Item0">$(BDS)\lib\release;$(BDS)\lib;$(BDS)\lib\obj;$(BDS)\lib\psdk</HistoryLists_hlILINK_LibraryPath><HistoryLists_hlILINK_LibraryPath Name="Item1">$(BDS)\lib;$(BDS)\lib\obj;$(BDS)\lib\psdk</HistoryLists_hlILINK_LibraryPath></HistoryLists_hlILINK_LibraryPath><HistoryLists_hlDefines><HistoryLists_hlDefines Name="Count">1</HistoryLists_hlDefines><HistoryLists_hlDefines Name="Item0">NDEBUG;NO_STRICT;USE_SSL</HistoryLists_hlDefines><HistoryLists_hlDefines Name="Item1">NO_STRICT</HistoryLists_hlDefines></HistoryLists_hlDefines><Debugging><Debugging Name="DebugSourceDirs"></Debugging></Debugging><Parameters><Parameters Name="RunParams"></Parameters><Parameters Name="Launcher"></Parameters><Parameters Name="UseLauncher">False</Parameters><Parameters Name="DebugCWD"></Parameters><Parameters Name="HostApplication"></Parameters><Parameters Name="RemoteHost"></Parameters><Parameters Name="RemotePath"></Parameters><Parameters Name="RemoteParams"></Parameters><Parameters Name="RemoteLauncher"></Parameters><Parameters Name="UseRemoteLauncher">False</Parameters><Parameters Name="RemoteCWD"></Parameters><Parameters Name="RemoteDebug">False</Parameters><Parameters Name="Debug Symbols Search Path"></Parameters><Parameters Name="LoadAllSymbols">True</Parameters><Parameters Name="LoadUnspecifiedSymbols">False</Parameters></Parameters><Linker><Linker Name="LibPrefix"></Linker><Linker Name="LibSuffix"></Linker><Linker Name="LibVersion"></Linker></Linker><ProjectProperties><ProjectProperties Name="AutoShowDeps">False</ProjectProperties><ProjectProperties Name="ManagePaths">True</ProjectProperties><ProjectProperties Name="VerifyPackages">True</ProjectProperties></ProjectProperties><Excluded_Packages>
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
       <Excluded_Packages Name="$(BDS)\bin\dcltee7100.bpl">TeeChart Components</Excluded_Packages>
       <Excluded_Packages Name="$(BDS)\bin\dclIntraweb_90_100.bpl">VCL for the Web 9.0 Design Package for CodeGear RAD Studio</Excluded_Packages>
       <Excluded_Packages Name="$(BDS)\bin\dclwebsnap100.bpl">CodeGear WebSnap Components</Excluded_Packages>
@@ -83,7 +96,7 @@
       <Excluded_Packages Name="$(BDS)\bin\bcbofficexp100.bpl">CodeGear C++Builder Office XP Servers Package</Excluded_Packages>
       <Excluded_Packages Name="$(BDS)\bin\dcloffice2k100.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
       <Excluded_Packages Name="$(BDS)\bin\dclofficexp100.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
-    </Excluded_Packages><HistoryLists_hlBCC_MaxIdentifierLength><HistoryLists_hlBCC_MaxIdentifierLength Name="Count">1</HistoryLists_hlBCC_MaxIdentifierLength><HistoryLists_hlBCC_MaxIdentifierLength Name="Item0">250</HistoryLists_hlBCC_MaxIdentifierLength></HistoryLists_hlBCC_MaxIdentifierLength><HistoryLists_hlDCC_CodePage><HistoryLists_hlDCC_CodePage Name="Count">1</HistoryLists_hlDCC_CodePage><HistoryLists_hlDCC_CodePage Name="Item0">0</HistoryLists_hlDCC_CodePage></HistoryLists_hlDCC_CodePage><HistoryLists_hlILINK_MaxErrors><HistoryLists_hlILINK_MaxErrors Name="Count">1</HistoryLists_hlILINK_MaxErrors><HistoryLists_hlILINK_MaxErrors Name="Item0">0</HistoryLists_hlILINK_MaxErrors></HistoryLists_hlILINK_MaxErrors><HistoryLists_hlILINK_FileAlignment><HistoryLists_hlILINK_FileAlignment Name="Count">1</HistoryLists_hlILINK_FileAlignment><HistoryLists_hlILINK_FileAlignment Name="Item0">0x200</HistoryLists_hlILINK_FileAlignment></HistoryLists_hlILINK_FileAlignment><HistoryLists_hlILINK_ObjectAlignment><HistoryLists_hlILINK_ObjectAlignment Name="Count">1</HistoryLists_hlILINK_ObjectAlignment><HistoryLists_hlILINK_ObjectAlignment Name="Item0">4096</HistoryLists_hlILINK_ObjectAlignment></HistoryLists_hlILINK_ObjectAlignment><HistoryLists_hlILINK_BaseAddress><HistoryLists_hlILINK_BaseAddress Name="Count">1</HistoryLists_hlILINK_BaseAddress><HistoryLists_hlILINK_BaseAddress Name="Item0">0x00400000</HistoryLists_hlILINK_BaseAddress></HistoryLists_hlILINK_BaseAddress><HistoryLists_hlILINK_HeapCommitSize><HistoryLists_hlILINK_HeapCommitSize Name="Count">1</HistoryLists_hlILINK_HeapCommitSize><HistoryLists_hlILINK_HeapCommitSize Name="Item0">0x00001000</HistoryLists_hlILINK_HeapCommitSize></HistoryLists_hlILINK_HeapCommitSize><HistoryLists_hlILINK_HeapReserveSize><HistoryLists_hlILINK_HeapReserveSize Name="Count">1</HistoryLists_hlILINK_HeapReserveSize><HistoryLists_hlILINK_HeapReserveSize Name="Item0">0x00100000</HistoryLists_hlILINK_HeapReserveSize></HistoryLists_hlILINK_HeapReserveSize><HistoryLists_hlILINK_StackCommitSize><HistoryLists_hlILINK_StackCommitSize Name="Count">1</HistoryLists_hlILINK_StackCommitSize><HistoryLists_hlILINK_StackCommitSize Name="Item0">0x00002000</HistoryLists_hlILINK_StackCommitSize></HistoryLists_hlILINK_StackCommitSize><HistoryLists_hlILINK_StackReserveSize><HistoryLists_hlILINK_StackReserveSize Name="Count">1</HistoryLists_hlILINK_StackReserveSize><HistoryLists_hlILINK_StackReserveSize Name="Item0">0x00100000</HistoryLists_hlILINK_StackReserveSize></HistoryLists_hlILINK_StackReserveSize><HistoryLists_hlDCC_Define><HistoryLists_hlDCC_Define Name="Count">1</HistoryLists_hlDCC_Define><HistoryLists_hlDCC_Define Name="Item0">DEBUG;USE_SSL</HistoryLists_hlDCC_Define></HistoryLists_hlDCC_Define><HistoryLists_hlIntermediateOutputDir><HistoryLists_hlIntermediateOutputDir Name="Count">1</HistoryLists_hlIntermediateOutputDir><HistoryLists_hlIntermediateOutputDir Name="Item0">Debug</HistoryLists_hlIntermediateOutputDir></HistoryLists_hlIntermediateOutputDir></CPlusPlusBuilder.Personality></BorlandProject></BorlandProject>
+    </Excluded_Packages><HistoryLists_hlBCC_MaxIdentifierLength><HistoryLists_hlBCC_MaxIdentifierLength Name="Count">1</HistoryLists_hlBCC_MaxIdentifierLength><HistoryLists_hlBCC_MaxIdentifierLength Name="Item0">250</HistoryLists_hlBCC_MaxIdentifierLength></HistoryLists_hlBCC_MaxIdentifierLength><HistoryLists_hlDCC_CodePage><HistoryLists_hlDCC_CodePage Name="Count">1</HistoryLists_hlDCC_CodePage><HistoryLists_hlDCC_CodePage Name="Item0">0</HistoryLists_hlDCC_CodePage></HistoryLists_hlDCC_CodePage><HistoryLists_hlILINK_MaxErrors><HistoryLists_hlILINK_MaxErrors Name="Count">1</HistoryLists_hlILINK_MaxErrors><HistoryLists_hlILINK_MaxErrors Name="Item0">0</HistoryLists_hlILINK_MaxErrors></HistoryLists_hlILINK_MaxErrors><HistoryLists_hlILINK_FileAlignment><HistoryLists_hlILINK_FileAlignment Name="Count">1</HistoryLists_hlILINK_FileAlignment><HistoryLists_hlILINK_FileAlignment Name="Item0">0x200</HistoryLists_hlILINK_FileAlignment></HistoryLists_hlILINK_FileAlignment><HistoryLists_hlILINK_ObjectAlignment><HistoryLists_hlILINK_ObjectAlignment Name="Count">1</HistoryLists_hlILINK_ObjectAlignment><HistoryLists_hlILINK_ObjectAlignment Name="Item0">4096</HistoryLists_hlILINK_ObjectAlignment></HistoryLists_hlILINK_ObjectAlignment><HistoryLists_hlILINK_BaseAddress><HistoryLists_hlILINK_BaseAddress Name="Count">1</HistoryLists_hlILINK_BaseAddress><HistoryLists_hlILINK_BaseAddress Name="Item0">0x00400000</HistoryLists_hlILINK_BaseAddress></HistoryLists_hlILINK_BaseAddress><HistoryLists_hlILINK_HeapCommitSize><HistoryLists_hlILINK_HeapCommitSize Name="Count">1</HistoryLists_hlILINK_HeapCommitSize><HistoryLists_hlILINK_HeapCommitSize Name="Item0">0x00001000</HistoryLists_hlILINK_HeapCommitSize></HistoryLists_hlILINK_HeapCommitSize><HistoryLists_hlILINK_HeapReserveSize><HistoryLists_hlILINK_HeapReserveSize Name="Count">1</HistoryLists_hlILINK_HeapReserveSize><HistoryLists_hlILINK_HeapReserveSize Name="Item0">0x00100000</HistoryLists_hlILINK_HeapReserveSize></HistoryLists_hlILINK_HeapReserveSize><HistoryLists_hlILINK_StackCommitSize><HistoryLists_hlILINK_StackCommitSize Name="Count">1</HistoryLists_hlILINK_StackCommitSize><HistoryLists_hlILINK_StackCommitSize Name="Item0">0x00002000</HistoryLists_hlILINK_StackCommitSize></HistoryLists_hlILINK_StackCommitSize><HistoryLists_hlILINK_StackReserveSize><HistoryLists_hlILINK_StackReserveSize Name="Count">1</HistoryLists_hlILINK_StackReserveSize><HistoryLists_hlILINK_StackReserveSize Name="Item0">0x00100000</HistoryLists_hlILINK_StackReserveSize></HistoryLists_hlILINK_StackReserveSize><HistoryLists_hlDCC_Define><HistoryLists_hlDCC_Define Name="Count">1</HistoryLists_hlDCC_Define><HistoryLists_hlDCC_Define Name="Item0">USE_SSL</HistoryLists_hlDCC_Define></HistoryLists_hlDCC_Define><HistoryLists_hlIntermediateOutputDir><HistoryLists_hlIntermediateOutputDir Name="Count">1</HistoryLists_hlIntermediateOutputDir><HistoryLists_hlIntermediateOutputDir Name="Item0">Release</HistoryLists_hlIntermediateOutputDir></HistoryLists_hlIntermediateOutputDir></CPlusPlusBuilder.Personality></BorlandProject></BorlandProject>
   </ProjectExtensions>
   <Import Project="$(MSBuildBinPath)\Borland.Cpp.Targets" />
   <ItemGroup>
@@ -169,118 +182,121 @@
       <BuildOrder>39</BuildOrder>
     </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsMimeUtils.pas">
-      <BuildOrder>40</BuildOrder>
-    </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsMLang.pas">
       <BuildOrder>41</BuildOrder>
     </DelphiCompile>
+    <DelphiCompile Include="OverbyteIcsMLang.pas">
+      <BuildOrder>42</BuildOrder>
+    </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsMultipartFtpDownloader.pas">
-      <BuildOrder>43</BuildOrder>
+      <BuildOrder>44</BuildOrder>
     </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsMultipartHttpDownloader.pas">
-      <BuildOrder>45</BuildOrder>
+      <BuildOrder>46</BuildOrder>
     </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsMultiProgressBar.pas">
-      <BuildOrder>47</BuildOrder>
+      <BuildOrder>48</BuildOrder>
     </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsNntpCli.pas">
-      <BuildOrder>49</BuildOrder>
-    </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsNtlmMsgs.pas">
       <BuildOrder>50</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsNtlmSsp.pas">
+    <DelphiCompile Include="OverbyteIcsNtlmMsgs.pas">
       <BuildOrder>51</BuildOrder>
     </DelphiCompile>
+    <DelphiCompile Include="OverbyteIcsNtlmSsp.pas">
+      <BuildOrder>52</BuildOrder>
+    </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsPing.pas">
-      <BuildOrder>53</BuildOrder>
+      <BuildOrder>54</BuildOrder>
     </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsPop3Prot.pas">
-      <BuildOrder>55</BuildOrder>
-    </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsSha1.pas">
       <BuildOrder>56</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsSmtpProt.pas">
-      <BuildOrder>58</BuildOrder>
+    <DelphiCompile Include="OverbyteIcsSha1.pas">
+      <BuildOrder>57</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsSSLEAY.pas">
+    <DelphiCompile Include="OverbyteIcsSmtpProt.pas">
       <BuildOrder>59</BuildOrder>
     </DelphiCompile>
+    <DelphiCompile Include="OverbyteIcsSSLEAY.pas">
+      <BuildOrder>60</BuildOrder>
+    </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsSslSessionCache.pas">
-      <BuildOrder>61</BuildOrder>
+      <BuildOrder>62</BuildOrder>
     </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsSslThrdLock.pas">
-      <BuildOrder>63</BuildOrder>
-    </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsStreams.pas">
       <BuildOrder>64</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsThreadTimer.pas">
+    <DelphiCompile Include="OverbyteIcsStreams.pas">
       <BuildOrder>65</BuildOrder>
     </DelphiCompile>
+    <DelphiCompile Include="OverbyteIcsThreadTimer.pas">
+      <BuildOrder>66</BuildOrder>
+    </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsTimeList.pas">
-      <BuildOrder>67</BuildOrder>
+      <BuildOrder>68</BuildOrder>
     </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsTnCnx.pas">
-      <BuildOrder>69</BuildOrder>
+      <BuildOrder>70</BuildOrder>
     </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsTnEmulVT.pas">
-      <BuildOrder>71</BuildOrder>
-    </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsTnOptFrm.pas">
       <BuildOrder>72</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsTnScript.pas">
-      <BuildOrder>74</BuildOrder>
+    <DelphiCompile Include="OverbyteIcsTnOptFrm.pas">
+      <BuildOrder>73</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsTypes.pas">
+    <DelphiCompile Include="OverbyteIcsTnScript.pas">
       <BuildOrder>75</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsUrl.pas">
+    <DelphiCompile Include="OverbyteIcsTypes.pas">
       <BuildOrder>76</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsUtils.pas">
+    <DelphiCompile Include="OverbyteIcsUrl.pas">
       <BuildOrder>77</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsWebSession.pas">
+    <DelphiCompile Include="OverbyteIcsUtils.pas">
       <BuildOrder>78</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsWinnls.pas">
+    <DelphiCompile Include="OverbyteIcsWebSession.pas">
       <BuildOrder>79</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsWinsock.pas">
+    <DelphiCompile Include="OverbyteIcsWinnls.pas">
       <BuildOrder>80</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsWinsock2.pas">
+    <DelphiCompile Include="OverbyteIcsWinsock.pas">
       <BuildOrder>81</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsWndControl.pas">
+    <DelphiCompile Include="OverbyteIcsWinsock2.pas">
       <BuildOrder>82</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsWSockBuf.pas">
+    <DelphiCompile Include="OverbyteIcsWndControl.pas">
       <BuildOrder>83</BuildOrder>
     </DelphiCompile>
+    <DelphiCompile Include="OverbyteIcsWSockBuf.pas">
+      <BuildOrder>84</BuildOrder>
+    </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsWSocket.pas">
-      <BuildOrder>85</BuildOrder>
+      <BuildOrder>86</BuildOrder>
     </DelphiCompile>
     <DelphiCompile Include="OverbyteIcsWSocketS.pas">
-      <BuildOrder>87</BuildOrder>
-    </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsZLibDll.pas">
       <BuildOrder>88</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsZlibHigh.pas">
+    <DelphiCompile Include="OverbyteIcsZLibDll.pas">
       <BuildOrder>89</BuildOrder>
     </DelphiCompile>
-    <DelphiCompile Include="OverbyteIcsZLibObj.pas">
+    <DelphiCompile Include="OverbyteIcsZlibHigh.pas">
       <BuildOrder>90</BuildOrder>
+    </DelphiCompile>
+    <DelphiCompile Include="OverbyteIcsZLibObj.pas">
+      <BuildOrder>91</BuildOrder>
     </DelphiCompile>
     <CppCompile Include="OverbyteIcsCB2007Run.cpp">
       <BuildOrder>3</BuildOrder>
     </CppCompile>
     <ResFiles Include="OverbyteIcsCB2007Run.res">
       <BuildOrder>4</BuildOrder>
+    </ResFiles>
+    <ResFiles Include="OverbyteIcsMimeUtils.dcr">
+      <BuildOrder>40</BuildOrder>
     </ResFiles>
     <None Include="OverbyteIcsCharsetComboBox.dcr">
       <BuildOrder>5</BuildOrder>
@@ -316,49 +332,49 @@
       <BuildOrder>38</BuildOrder>
     </None>
     <None Include="OverbyteIcsMultipartFtpDownloader.dcr">
-      <BuildOrder>42</BuildOrder>
+      <BuildOrder>43</BuildOrder>
     </None>
     <None Include="OverbyteIcsMultipartHttpDownloader.dcr">
-      <BuildOrder>44</BuildOrder>
+      <BuildOrder>45</BuildOrder>
     </None>
     <None Include="OverbyteIcsMultiProgressBar.dcr">
-      <BuildOrder>46</BuildOrder>
+      <BuildOrder>47</BuildOrder>
     </None>
     <None Include="OverbyteIcsNntpCli.dcr">
-      <BuildOrder>48</BuildOrder>
+      <BuildOrder>49</BuildOrder>
     </None>
     <None Include="OverbyteIcsPing.dcr">
-      <BuildOrder>52</BuildOrder>
+      <BuildOrder>53</BuildOrder>
     </None>
     <None Include="OverbyteIcsPop3Prot.dcr">
-      <BuildOrder>54</BuildOrder>
+      <BuildOrder>55</BuildOrder>
     </None>
     <None Include="OverbyteIcsSmtpProt.dcr">
-      <BuildOrder>57</BuildOrder>
+      <BuildOrder>58</BuildOrder>
     </None>
     <None Include="OverbyteIcsSslSessionCache.dcr">
-      <BuildOrder>60</BuildOrder>
+      <BuildOrder>61</BuildOrder>
     </None>
     <None Include="OverbyteIcsSslThrdLock.dcr">
-      <BuildOrder>62</BuildOrder>
+      <BuildOrder>63</BuildOrder>
     </None>
     <None Include="OverbyteIcsTimeList.dcr">
-      <BuildOrder>66</BuildOrder>
+      <BuildOrder>67</BuildOrder>
     </None>
     <None Include="OverbyteIcsTnCnx.dcr">
-      <BuildOrder>68</BuildOrder>
+      <BuildOrder>69</BuildOrder>
     </None>
     <None Include="OverbyteIcsTnEmulVT.dcr">
-      <BuildOrder>70</BuildOrder>
+      <BuildOrder>71</BuildOrder>
     </None>
     <None Include="OverbyteIcsTnScript.dcr">
-      <BuildOrder>73</BuildOrder>
+      <BuildOrder>74</BuildOrder>
     </None>
     <None Include="OverbyteIcsWSocket.dcr">
-      <BuildOrder>84</BuildOrder>
+      <BuildOrder>85</BuildOrder>
     </None>
     <None Include="OverbyteIcsWSocketS.dcr">
-      <BuildOrder>86</BuildOrder>
+      <BuildOrder>87</BuildOrder>
     </None>
     <BuildConfiguration Include="Debug">
       <Key>Cfg_1</Key>

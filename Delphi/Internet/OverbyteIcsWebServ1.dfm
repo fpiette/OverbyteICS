@@ -1,9 +1,9 @@
 object WebServForm: TWebServForm
   Left = 253
   Top = 158
+  Width = 510
+  Height = 369
   Caption = 'ICS WebServer Demo - http://www.overbyte.be'
-  ClientHeight = 335
-  ClientWidth = 523
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -20,8 +20,8 @@ object WebServForm: TWebServForm
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
-    Width = 523
-    Height = 125
+    Width = 502
+    Height = 129
     Align = alTop
     TabOrder = 0
     object Label1: TLabel
@@ -75,21 +75,22 @@ object WebServForm: TWebServForm
     end
     object Label7: TLabel
       Left = 357
-      Top = 77
+      Top = 83
       Width = 90
       Height = 13
       Caption = 'KeepAliveTimeSec'
     end
     object Label8: TLabel
-      Left = 334
-      Top = 101
-      Width = 113
+      Left = 328
+      Top = 105
+      Width = 119
       Height = 13
+      Alignment = taRightJustify
       Caption = 'MaxRequestsKeepAlive'
     end
     object Label9: TLabel
-      Left = 9
-      Top = 101
+      Left = 15
+      Top = 105
       Width = 153
       Height = 13
       Caption = 'Maximum Bandwidth (bytes/sec)'
@@ -203,7 +204,7 @@ object WebServForm: TWebServForm
     end
     object KeepAliveTimeSecEdit: TEdit
       Left = 453
-      Top = 74
+      Top = 79
       Width = 33
       Height = 21
       Hint = 'Idle timeout in seconds upon persistent connections (Keep-Alive)'
@@ -214,7 +215,7 @@ object WebServForm: TWebServForm
     end
     object MaxRequestsKeepAliveEdit: TEdit
       Left = 453
-      Top = 98
+      Top = 103
       Width = 33
       Height = 21
       Hint = 
@@ -226,8 +227,8 @@ object WebServForm: TWebServForm
       Text = 'MaxRequestsKeepAliveEdit'
     end
     object BandwidthLimitEdit: TEdit
-      Left = 168
-      Top = 97
+      Left = 174
+      Top = 103
       Width = 71
       Height = 21
       Hint = 'Bytes Per Second'
@@ -239,9 +240,9 @@ object WebServForm: TWebServForm
   end
   object DisplayMemo: TMemo
     Left = 0
-    Top = 125
-    Width = 523
-    Height = 210
+    Top = 129
+    Width = 502
+    Height = 206
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText

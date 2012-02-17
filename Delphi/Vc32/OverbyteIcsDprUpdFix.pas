@@ -398,7 +398,7 @@ begin
                           Values := TStringList.Create;
 
                         { Check if Winapi is set in Base config, if not add it }
-                        IniValues.DelimitedText := 'Winapi';
+                        IniValues.DelimitedText := 'Winapi;System.Win';
                         BaseConfig.GetValues(sNamespace, Values, False);
                         for I := IniValues.Count - 1 downto 0 do
                         begin

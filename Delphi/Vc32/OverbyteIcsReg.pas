@@ -1,4 +1,9 @@
 unit OverbyteIcsReg;
+{$DEFINE ICS_COMMON}
+{$DEFINE VCL}
+{$IFDEF FMX}
+  {$UNDEF FMX}
+{$ENDIF}
 
 { Feb 15, 2012 Angus - added OverbyteIcsMimeUtils }
 
@@ -7,49 +12,63 @@ unit OverbyteIcsReg;
     {$I OverbyteIcsSslDefs.inc}
 {$ENDIF}
 
+{$IFDEF VCL}
+  {$DEFINE VCL_OR_FMX}
+{$ELSE}
+  {$IFDEF FMX}
+    {$DEFINE VCL_OR_FMX}
+  {$ENDIF}
+{$ENDIF}
+
 interface
 
 uses
-    SysUtils, Classes, Controls,
+  {$IFDEF VCL}
+    Controls,
+    OverbyteIcsWndControl,
     OverbyteIcsWSocket,
     OverbyteIcsDnsQuery,
-    OverbyteIcsEmulVT,
-    OverbyteIcsMimeDec,
-    OverbyteIcsMimeUtils,
-    OverbyteIcsMultiProgressBar,
-    OverbyteIcsTnCnx, OverbyteIcsTnEmulVT, OverbyteIcsTnScript,
-    OverbyteIcsFtpCli, OverbyteIcsFtpSrv, OverbyteIcsMultipartFtpDownloader,
-    OverbyteIcsHttpProt, OverbyteIcsHttpSrv, OverbyteIcsMultipartHttpDownloader,
+    OverbyteIcsFtpCli,
+    OverbyteIcsFtpSrv,
+    OverbyteIcsMultipartFtpDownloader,
+    OverbyteIcsHttpProt,
+    OverbyteIcsHttpSrv,
+    OverbyteIcsMultipartHttpDownloader,
     OverbyteIcsHttpAppServer,
-    OverbyteIcsTimeList,
     OverbyteIcsCharsetComboBox,
     OverbyteIcsPop3Prot,
     OverbyteIcsSmtpProt,
     OverbyteIcsNntpCli,
     OverbyteIcsFingCli,
-  {$IFNDEF BCB}
-    OverbyteIcsWSocketTS,
+    OverbyteIcsPing,
+    {$IFDEF USE_SSL}
+      OverbyteIcsSslSessionCache,
+      OverbyteIcsSslThrdLock,
+    {$ENDIF}
+    OverbyteIcsWSocketE,
+    OverbyteIcsWSocketS,
+
+    // VCL only
+    OverbyteIcsMultiProgressBar,
+    OverbyteIcsEmulVT, OverbyteIcsTnCnx, OverbyteIcsTnEmulVT, OverbyteIcsTnScript,
+    {$IFNDEF BCB}
+      OverbyteIcsWSocketTS,
+    {$ENDIF}
+  {$ENDIF VCL}
+  {$IFDEF ICS_COMMON}
+    OverbyteIcsMimeDec,
+    OverbyteIcsMimeUtils,
+    OverbyteIcsTimeList,
+    OverbyteIcsLogger,
   {$ENDIF}
-    OverbyteIcsPing
-  {$IFDEF USE_SSL}
-    , OverbyteIcsSslSessionCache
-    , OverbyteIcsSslThrdLock
-  {$ENDIF}
-  {$IFDEF VCL}
-    , OverbyteIcsLogger
-  {$ENDIF}
-  {$IFDEF WIN32}
-    , OverbyteIcsWSocketE
-    , OverbyteIcsWSocketS
-  {$ENDIF}
-    ;
+    SysUtils, Classes;
 
 procedure Register;
 
 implementation
 
 uses
-{$IFDEF WIN32}
+{$IFDEF MSWINDOWS}
   {$IFDEF COMPILER10_UP}
     Windows,
     ToolsApi,
@@ -64,69 +83,61 @@ uses
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure Register;
 begin
-{$IFDEF COMPILER16_UP}
-    StartClassGroup(TControl);
-    ActivateClassGroup(TControl);
-{$ENDIF}
-    RegisterComponents('Overbyte ICS', [
-      TWSocket, TWSocketServer,
-      TDnsQuery, TEmulVT, TFingerCli, TPing,
-      TMimeDecode, TMimeDecodeEx, TMimeDecodeW,
-      TMimeTypesList,
-      TMultiProgressBar,
-      TTimeList,
-      THttpAppSrv,
-      TTnCnx, TTnEmulVT, TTnScript,
-      TFtpClient, TFtpServer, TMultipartFtpDownloader,
-      THttpCli, THttpServer, TMultipartHttpDownloader,
-      TPop3Cli, TSyncPop3Cli,
-      TSmtpCli, TSyncSmtpCli, THtmlSmtpCli,
-      TNntpCli, THtmlNntpCli,
-  {$IFNDEF BCB}
-      TWSocketThrdServer,
-  {$ENDIF}
-      TIcsCharsetComboBox
-  {$IFDEF VCL}
-      ,TIcsLogger
-  {$ENDIF}
-    ]);
 
 {$IFDEF COMPILER16_UP}
-    { For now disable everything for non VCL }
-    GroupDescendentsWith(TWSocket, TControl);
-    GroupDescendentsWith(TWSocketServer, TControl);
+  {$IFDEF VCL}
+    GroupDescendentsWith(TIcsWndControl, TControl);
     GroupDescendentsWith(TDnsQuery, TControl);
     GroupDescendentsWith(TFingerCli, TControl);
-    GroupDescendentsWith(TPing, TControl);
+    GroupDescendentsWith(THttpAppSrv, TControl);
+    GroupDescendentsWith(TFtpClient, TControl);
+    GroupDescendentsWith(TPop3Cli, TControl);
+    GroupDescendentsWith(TSmtpCli, TControl);
     GroupDescendentsWith(TMimeDecode, TControl);
     GroupDescendentsWith(TMimeDecodeEx, TControl);
-    GroupDescendentsWith(TMimeDecodeW, TControl);
     GroupDescendentsWith(TMimeTypesList, TControl);
     GroupDescendentsWith(TTimeList, TControl);
-    GroupDescendentsWith(THttpAppSrv, TControl);
-    GroupDescendentsWith(TTnCnx, TControl);
-    GroupDescendentsWith(TFtpClient, TControl);
-    GroupDescendentsWith(TFtpServer, TControl);
-    GroupDescendentsWith(TMultipartFtpDownloader, TControl);
-    GroupDescendentsWith(THttpCli, TControl);
-    GroupDescendentsWith(THttpServer, TControl);
-    GroupDescendentsWith(TMultipartHttpDownloader, TControl);
-    GroupDescendentsWith(TPop3Cli, TControl);
-    GroupDescendentsWith(TSyncPop3Cli, TControl);
-    GroupDescendentsWith(TSmtpCli, TControl);
-    GroupDescendentsWith(TSyncSmtpCli, TControl);
-    GroupDescendentsWith(THtmlSmtpCli, TControl);
-    GroupDescendentsWith(TNntpCli, TControl);
-    GroupDescendentsWith(THtmlNntpCli, TControl);
-  {$IFNDEF BCB}
-    GroupDescendentsWith(TWSocketThrdServer, TControl);
-  {$ENDIF}
-  {$IFDEF VCL}
     GroupDescendentsWith(TIcsLogger, TControl);
-  {$ENDIF}
+  {$ENDIF VCL}
+{$ENDIF COMPILER16_UP}
+
+{$IFDEF VCL_OR_FMX}
+    RegisterComponents('Overbyte ICS', [
+      TWSocket, TWSocketServer,
+      THttpCli, THttpServer, THttpAppSrv, TMultipartHttpDownloader,
+      TFtpClient, TFtpServer, TMultipartFtpDownloader,
+      TSmtpCli, TSyncSmtpCli, THtmlSmtpCli,
+      TPop3Cli, TSyncPop3Cli,
+      TNntpCli, THtmlNntpCli,
+      TDnsQuery, TFingerCli, TPing,
+      TIcsCharsetComboBox
+    ]);
+{$ENDIF}
+{$IFDEF VCL}
+    RegisterComponents('Overbyte ICS', [
+      { Not yet ported to FMX }
+      TEmulVT, TTnCnx, TTnEmulVT, TTnScript,
+      {$IFNDEF BCB}
+        TWSocketThrdServer,
+      {$ENDIF}
+      TMultiProgressBar
+    ]);
+{$ENDIF VCL}
+{$IFDEF ICS_COMMON}
+    RegisterComponents('Overbyte ICS', [
+      { Components neither depending on the FMX nor on the VCL package }
+      TMimeDecode, TMimeDecodeEx, TMimeDecodeW, TMimeTypesList, TTimeList, TIcsLogger
+    ]);
 {$ENDIF}
 
 {$IFDEF USE_SSL}
+  {$IFDEF COMPILER16_UP}
+  {$IFDEF VCL}
+    GroupDescendentsWith(TSslBaseComponent, TControl);
+    GroupDescendentsWith(TSslStaticLock, TControl);
+  {$ENDIF VCL}
+  {$ENDIF COMPILER16_UP}
+  {$IFDEF VCL_OR_FMX}
     RegisterComponents('Overbyte ICS SSL', [
       TSslWSocket, TSslWSocketServer,
       TSslContext,
@@ -136,55 +147,40 @@ begin
       TSslSmtpCli,
       TSslNntpCli,
       TSslAvlSessionCache,
-  {$IFNDEF BCB}
-      TSslWSocketThrdServer,
-  {$ENDIF}
-      TSslStaticLock
+    {$IFDEF VCL}
+      {$IFNDEF BCB}
+        TSslWSocketThrdServer,
+      {$ENDIF}
+    {$ENDIF VCL}
     {$IFNDEF NO_DYNLOCK}
-      ,TSslDynamicLock
+      TSslDynamicLock,
     {$ENDIF}
     {$IFNDEF OPENSSL_NO_ENGINE}
-      ,TSslEngine
+      TSslEngine,
     {$ENDIF}
+      TSslStaticLock
     ]);
-  {$IFDEF COMPILER16_UP}
-    { For now disable everything for non VCL }
-    GroupDescendentsWith(TSslWSocket, TControl);
-    GroupDescendentsWith(TSslWSocketServer, TControl);
-    GroupDescendentsWith(TSslContext, TControl);
-    GroupDescendentsWith(TSslFtpClient, TControl);
-    GroupDescendentsWith(TSslFtpServer, TControl);
-    GroupDescendentsWith(TSslHttpCli, TControl);
-    GroupDescendentsWith(TSslHttpServer, TControl);
-    GroupDescendentsWith(TSslPop3Cli, TControl);
-    GroupDescendentsWith(TSslSmtpCli, TControl);
-    GroupDescendentsWith(TSslNntpCli, TControl);
-    GroupDescendentsWith(TSslAvlSessionCache, TControl);
-  {$IFNDEF BCB}
-    GroupDescendentsWith(TSslWSocketThrdServer, TControl);
-  {$ENDIF}
-    GroupDescendentsWith(TSslStaticLock, TControl);
-  {$IFNDEF NO_DYNLOCK}
-    GroupDescendentsWith(TSslDynamicLock, TControl);
-  {$ENDIF}
-  {$IFNDEF OPENSSL_NO_ENGINE}
-    GroupDescendentsWith(TSslEngine, TControl);
-  {$ENDIF}
-  {$ENDIF}
-{$ENDIF}
-
+  {$ENDIF VCL_OR_FMX}
+{$ENDIF USE_SSL}
+//{$IFNDEF ICS_COMMON}
     RegisterPropertyEditor(TypeInfo(AnsiString), TWSocket, 'LineEnd',
       TWSocketLineEndProperty);
+//{$ENDIF}
 
 {$IFDEF COMPILER10_UP}
-    ForceDemandLoadState(dlDisable); // Required to show our product icon on splash screen
+  {$IFNDEF COMPILER16_UP}
+    {$IFDEF ICS_COMMON}
+      ForceDemandLoadState(dlDisable); // Required to show our product icon on splash screen
+    {$ENDIF}
+  {$ENDIF}
 {$ENDIF}
+
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-
 {$IFDEF COMPILER10_UP}
+{$IFDEF VCL}
 {$R OverbyteIcsProductIcon.res}
 const
 {$IFDEF COMPILER14_UP}
@@ -254,7 +250,7 @@ initialization
 
 finalization
     UnregisterAboutBox;
+{$ENDIF VCL}
 {$ENDIF COMPILER10_UP}
-
 end.
 

@@ -157,7 +157,6 @@ var
     Project               : IOTAProject;
     OptionsConfigurations : IOTAProjectOptionsConfigurations;
     BaseConfig            : IOTABuildConfiguration;
-    DebugConfig           : IOTABuildConfiguration;
     IniValues             : TStringList;
     Values                : TStringList;
     Ini                   : TIniFile;
@@ -172,6 +171,7 @@ var
 {$IFDEF DPRFIXXE2}
     RS                    : array of string;
     ProjectPlatforms      : IOTAProjectPlatforms;
+    DebugConfig           : IOTABuildConfiguration;
     bFlag                 : Boolean;
 {$ENDIF}
 begin

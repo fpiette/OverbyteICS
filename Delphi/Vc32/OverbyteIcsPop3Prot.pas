@@ -10,7 +10,7 @@ Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      6.12
+Version:      6.13
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -188,6 +188,8 @@ Nov 08, 2010 V6.10 Arno improved final exception handling, more details
              in OverbyteIcsWndControl.pas (V1.14 comments).
 Jun 18, 2011 V6.11 aguser removed one compiler hint.
 Jul 22, 2011 V6.12 Arno - OEM NTLM changes.
+Feb 17, 2012 V6.13 Arno added NTLMv2 and NTLMv2 session security (basics),
+             read comment "HowTo NTLMv2" in OverbyteIcsNtlmMsgs.pas.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPop3Prot;
@@ -239,8 +241,8 @@ uses
 (*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameW$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)	
 
 const
-    Pop3CliVersion     = 612;
-    CopyRight : String = ' POP3 component (c) 1997-2010 F. Piette V6.12 ';
+    Pop3CliVersion     = 613;
+    CopyRight : String = ' POP3 component (c) 1997-2010 F. Piette V6.13 ';
     POP3_RCV_BUF_SIZE  = 4096;
 
 type
@@ -335,6 +337,7 @@ type
         FHeaderReturnPath   : AnsiString;
         FHeaderCc           : AnsiString;
         FMsg_WM_POP3_REQUEST_DONE : UINT;
+        FLmCompatLevel      : LongWord;  { V6.13 }
 
         FOnDisplay          : TPop3Display;
         FOnMessageBegin     : TNotifyEvent;
@@ -457,6 +460,8 @@ type
                                                      write SetPassWord;
         property AuthType      : TPop3AuthType       read  FAuthType
                                                      write FAuthType; {HLX}
+        property LmCompatLevel : LongWord            read  FLmCompatLevel   { V6.13 }
+                                                     write FLmCompatLevel;  { V6.13 }
         property ErrorMessage  : String              read  FErrorMessage;
         property LastResponse  : AnsiString          read  FLastResponse;
         property LastError     : Integer             read  FLastError  { V6.08 }
@@ -1610,7 +1615,8 @@ begin
     end;
 
     FState := pop3InternalReady;
-    ExecAsync(pop3Auth, AnsiString(NtlmGetMessage1('', '')), pop3Transaction, AuthNextNtlmNext);
+    ExecAsync(pop3Auth, AnsiString(NtlmGetMessage1('', '', FLmCompatLevel)),
+              pop3Transaction, AuthNextNtlmNext); { V6.13 }
 end;
 
 
@@ -1636,9 +1642,9 @@ begin
     NtlmMsg3 := NtlmGetMessage3('',
                                 '',  // the Host param seems to be ignored
                                 Username, Password,
-                                NtlmMsg2Info.Challenge,
+                                NtlmMsg2Info,     { V6.13 }
                                 CP_ACP,
-                                NtlmMsg2Info.Unicode);
+                                FLmCompatLevel);  { V6.13 }
     FState := pop3InternalReady;
     ExecAsync(pop3Auth, AnsiString(NtlmMsg3), pop3Transaction, nil);
 end;

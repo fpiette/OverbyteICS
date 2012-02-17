@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.24
+Version:      7.25
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -471,6 +471,8 @@ Jan 23, 2012 V7.23 Arno added httperrNoStatusCode, passed to OnRequestDone and
              EHttpException's ErrorCode property value of abort and timeout
              exceptions.
 Feb 15, 2012 V7.24 Tobias Rapp added methods Del and DelAsync (HTTP method DELETE).
+Feb 17, 2012 V7.25 Arno added NTLMv2 and NTLMv2 session security (basics),
+             read comment "HowTo NTLMv2" in OverbyteIcsNtlmMsgs.pas.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -551,8 +553,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 724;
-    CopyRight : String   = ' THttpCli (c) 1997-2012 F. Piette V7.24 ';
+    HttpCliVersion       = 725;
+    CopyRight : String   = ' THttpCli (c) 1997-2012 F. Piette V7.25 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -739,6 +741,7 @@ type
         FProxyNTLMMsg2Info    : TNTLM_Msg2_Info;
         FAuthNTLMState        : THttpNTLMState;
         FProxyAuthNTLMState   : THttpNTLMState;
+        FLmCompatLevel        : LongWord;  { V7.25 }
 {$ENDIF}
 {$IFDEF UseDigestAuthentication}
         FAuthDigestState      : THttpDigestState;
@@ -962,6 +965,10 @@ type
         property RcvdHeader           : TStrings     read  FRcvdHeader;
         property Hostname             : String       read  FHostname;
         property Protocol             : String       read  FProtocol;
+{$IFDEF UseNTLMAuthentication}
+        property LmCompatLevel        : LongWord     read  FLmCompatLevel  { V7.25 }
+                                                     write FLmCompatLevel; { V7.25 }
+{$ENDIF}
 {$IFDEF UseDigestAuthentication}
         property AuthDigestInfo       : TAuthDigestInfo
                                                      read  FAuthDigestInfo
@@ -4937,9 +4944,11 @@ begin
     { it is very common not to send domain and workstation strings on }
     { the first message                                               }
     if ForProxy then
-        Result := 'Proxy-Authorization: NTLM ' + NtlmGetMessage1('', '')
+        Result := 'Proxy-Authorization: NTLM ' +
+                  NtlmGetMessage1('', '', FLmCompatLevel)  { V7.25 }
     else
-        Result := 'Authorization: NTLM ' + NtlmGetMessage1('', '');
+        Result := 'Authorization: NTLM ' +
+                  NtlmGetMessage1('', '', FLmCompatLevel); { V7.25 }
 end;
 
 
@@ -4965,9 +4974,9 @@ begin
                                   Hostname,
                                   LUser,
                                   FProxyPassword,
-                                  FProxyNTLMMsg2Info.Challenge,
+                                  FProxyNTLMMsg2Info, { V7.25 }
                                   CP_ACP,
-                                  FProxyNTLMMsg2Info.Unicode);
+                                  FLmCompatLevel);    { V7.25 }
     end
     else begin
         NtlmParseUserCode(FCurrUsername, LDomain, LUser, FALSE);
@@ -4975,9 +4984,9 @@ begin
                   NtlmGetMessage3(LDomain,
                                   Hostname,
                                   LUser, FCurrPassword,
-                                  FNTLMMsg2Info.Challenge,
+                                  FNTLMMsg2Info,   { V7.25 }
                                   CP_ACP,
-                                  FNTLMMsg2Info.Unicode);
+                                  FLmCompatLevel); { V7.25 }
     end;
 end;
 {$ENDIF}

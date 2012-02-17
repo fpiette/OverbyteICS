@@ -2,7 +2,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  Server-side NTLM, validation of user credentials using Windows SSPI.
 Creation:     Sep 04, 2006
-Version:      1.06
+Version:      1.07
 Legal issues: Copyright (C) 2005-2011 by Arno Garrels, Berlin, Germany,
               contact: <arno.garrels@gmx.de>
 
@@ -45,6 +45,9 @@ Nov 15, 2010 V1.0.4 Fix in function UCS2ToString that is used by ANSI compilers.
 Jun 16, 2011 V1.05 PatchINT3 function adjusted since signature of
              Windows.WriteProcessMemory has changed.
 Jul 22, 2011 V1.06 Arno - OEM NTLM changes.
+Feb 17, 2012 V1.07 Arno added NTLMv2 and NTLMv2 session security (basics),
+             to method ValidateUserCredintials read comment "HowTo NTLMv2" in
+             OverbyteIcsNtlmMsgs.pas.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsNtlmSsp;
@@ -96,6 +99,7 @@ type
         FHost              : String;
         FNtlmMessage       : String;
         FAuthError         : Integer;
+        FLmCompatLevel     : LongWord;  { V1.07 }
         FOnBeforeValidate  : TNtlmSessionBeforeValidate;
    protected
         procedure   NtlmMsg3GetAttributes(const NtlmMsg3: AnsiString);
@@ -121,6 +125,7 @@ type
         property    HCread : TCredHandle read FHCred;
         property    HCtx  : TSecHandle  read  FHCtx;
         property    State : TNtlmState read FState;
+        property    LmCompatLevel : LongWord read FLmCompatLevel write FLmCompatLevel; { V1.07 }
         property    OnBeforeValidate: TNtlmSessionBeforeValidate read FOnBeforeValidate write FOnBeforeValidate;
     end;
 
@@ -260,14 +265,14 @@ function TNtlmAuthSession.ValidateUserCredentials(
 var
     NtlmMsg2Info : TNTLM_Msg2_Info;
 begin
-    Result := ProcessNtlmMsg(NtlmGetMessage1('', ADomain));
+    Result := ProcessNtlmMsg(NtlmGetMessage1('', ADomain, FLmCompatLevel)); { V1.07 }
     if not (FState in [lsDoneOk, lsDoneErr]) then begin
         NtlmMsg2Info := NtlmGetMessage2(FNtlmMessage);
-        Result := ProcessNtlmMsg(NtlmGetMessage3(ADomain, '', AUser,
-                                                 APassword,
-                                                 NtlmMsg2Info.Challenge,
+        Result := ProcessNtlmMsg(NtlmGetMessage3(ADomain, '',
+                                                 AUser, APassword,
+                                                 NtlmMsg2Info,     { V1.07 }
                                                  CP_ACP,
-                                                 NtlmMsg2Info.Unicode));
+                                                 FLmCompatLevel)); { V1.07 }
         if CleanUpSession then
             CleanUpLogonSession;
     end;

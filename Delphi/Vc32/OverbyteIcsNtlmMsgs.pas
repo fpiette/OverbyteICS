@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     Jan 01, 2004
-Version:      6.05
+Version:      6.06
 Description:  This is an implementation of the NTLM authentification
               messages used within HTTP protocol (client side).
               NTLM protocol documentation can be found at:
@@ -58,6 +58,58 @@ Feb 26, 2011 V6.04 Function NtlmGetMessage2 returned garbage WideStrings with
                    WideString to UnicodeString with small chance that breaks
                    some user code.
 Jul 22, 2011 V6.05 Arno - OEM NTLM changes.
+Feb 17, 2012 V6.06 Arno added NTLMv2 and NTLMv2 session security (basics).
+
+
+HowTo NTLMv2:
+-------------
+There's a new argument LmCompatLevel that has to be passed to NtlmGetMessage1/3.
+Components using NTLM got a new property LmCompatLevel: LongWord that defaults to
+zero.
+
+This value can be read from the registry:
+HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\LSA\LMCompatibilityLevel
+
+And also be changed with gpedit.msc:
+Computer Configuration/ Windows Settings/
+Security Settings/Local Policies/Security Options/LAN Manager authentication level
+
+LAN Manager authentication level ( by Microsoft, Server 2008 R2 )
+
+This security setting determines which challenge/response authentication protocol
+is used for network logons. This choice affects the level of authentication
+protocol used by clients, the level of session security negotiated, and the level
+of authentication accepted by servers as follows:
+
+Level 0
+Send LM & NTLM responses: Clients use LM and NTLM authentication and never use
+NTLMv2 session security; domain controllers accept LM, NTLM, and NTLMv2
+authentication.
+
+Level 1
+Send LM & NTLM - use NTLMv2 session security if negotiated: Clients use LM and
+NTLM authentication and use NTLMv2 session security if the server supports it;
+domain controllers accept LM, NTLM, and NTLMv2 authentication.
+
+Level 2
+Send NTLM response only: Clients use NTLM authentication only and use NTLMv2
+session security if the server supports it; domain controllers accept LM, NTLM,
+and NTLMv2 authentication.
+
+Level 3
+Send NTLMv2 response only: Clients use NTLMv2 authentication only and use NTLMv2
+session security if the server supports it; domain controllers accept LM, NTLM,
+and NTLMv2 authentication.
+
+Level4
+Send NTLMv2 response only\refuse LM: Clients use NTLMv2 authentication only and
+use NTLMv2 session security if the server supports it; domain controllers refuse
+LM (accept only NTLM and NTLMv2 authentication).
+
+Level 5
+Send NTLMv2 response only\refuse LM & NTLM: Clients use NTLMv2 authentication
+only and use NTLMv2 session security if the server supports it; domain
+controllers refuse LM and NTLM (accept only NTLMv2 authentication).
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsNtlmMsgs;
@@ -81,14 +133,22 @@ unit OverbyteIcsNtlmMsgs;
 interface
 
 uses
-    Windows, SysUtils,
+{$IFDEF MSWINDOWS}
+    Windows,
+{$ENDIF}
+{$IFDEF POSIX}
+    Posix.Time,
+    Ics.Posix.Wintypes,
+{$ENDIF}
+    SysUtils,
 {$IFDEF CLR}
     System.Text,
 {$ENDIF}
-    OverbyteIcsDES, OverbyteIcsMD4,
+    OverbyteIcsDES, OverbyteIcsMD4, OverbyteIcsMD5,
 {$IFDEF COMPILER12_UP}
     OverbyteIcsUtils,
 {$ENDIF}
+    OverbyteIcsTypes,
     OverbyteIcsMimeUtils;
 
 const
@@ -99,12 +159,12 @@ const
     Flags_Negotiate_Unicode               = $00000001;
     Flags_Negotiate_OEM                   = $00000002;
     Flags_Request_Target                  = $00000004;
-    Flags_Negotiate_8                     = $00000008;  // unknown
+    Flags_Negotiate_8                     = $00000008;  // r10 (1 bit): This bit is unused and MUST be zero
     Flags_Negotiate_Sign                  = $00000010;
     Flags_Negotiate_Seal                  = $00000020;
     Flags_Negotiate_Datagram_Style        = $00000040;
     Flags_Negotiate_LAN_Manager_Key       = $00000080;
-    Flags_Negotiate_Netware               = $00000100;
+    Flags_Negotiate_100                   = $00000100;  //r9 (1 bit): This bit is unused and MUST be zero.
     Flags_Negotiate_NTLM                  = $00000200;
     Flags_Negotiate_400                   = $00000400;  // unknown
     Flags_Negotiate_800                   = $00000800;  // unknown
@@ -115,13 +175,13 @@ const
     Flags_Target_Type_Domain              = $00010000;
     Flags_Target_Type_Server              = $00020000;
     Flags_Target_Type_Share               = $00040000;
-    Flags_Negotiate_NTLM2_Key             = $00080000;
+    Flags_Negotiate_NTLM2_Key             = $00080000; //NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY
     Flags_Request_Init_Response           = $00100000;
     Flags_Request_Accept_Response         = $00200000;
     Flags_Request_Non_NT_Session_Key      = $00400000;
     Flags_Negotiate_Target_Info           = $00800000;
     Flags_Negotiate_1000000               = $01000000;  // unknown
-    Flags_Negotiate_2000000               = $02000000;  // unknown
+    Flags_Negotiate_Version               = $02000000;
     Flags_Negotiate_4000000               = $04000000;  // unknown
     Flags_Negotiate_8000000               = $08000000;  // unknown
     Flags_Negotiate_10000000              = $10000000;  // unknown
@@ -137,20 +197,22 @@ const
     TIB_Type_ask_microsoft_or_god         = 5;
 
 type
+    TNTLM_OSVersion = array[0..7] of Byte;
     // security buffer
-    TNTLM_SecBuff   = record
+    TNTLM_SecBuff   = packed record
         Length        : Word;
         Space         : Word;
         Offset        : Cardinal;
     end;
 
     // first message
-    TNTLM_Message1  = record
+    TNTLM_Message1  = packed record
         Protocol      : TArrayOf8Bytes;
         MsgType       : Cardinal;
         Flags         : Cardinal;
         Domain        : TNTLM_SecBuff;
         Host          : TNTLM_SecBuff;
+        //OSVer         : TNTLM_OSVersion;
 {$IFDEF CLR}
     public
         procedure Clear;
@@ -159,7 +221,7 @@ type
     end;
 
     // second message
-    TNTLM_Message2  = record
+    TNTLM_Message2  = packed record
         Protocol      : TArrayOf8Bytes;
         MsgType       : Cardinal;
         TargetName    : TNTLM_SecBuff;
@@ -178,17 +240,19 @@ type
 {$ENDIF}
 
     // interesting information from message 2
-    TNTLM_Msg2_Info = record
-        SrvRespOk     : boolean;                // server response was ok ?
-        Target        : UnicodeString;
-        Domain        : UnicodeString;
-        Server        : UnicodeString;
-        Challenge     : TArrayOf8Bytes;
-        Unicode       : Boolean;
+    TNTLM_Msg2_Info = record                      { V6.13 }
+        SrvRespOk       : Boolean;                // server response was ok ?
+        Unicode         : Boolean;
+        Target          : UnicodeString;
+        Domain          : UnicodeString;
+        Server          : UnicodeString;
+        Challenge       : TArrayOf8Bytes;
+        Flags           : Cardinal;
+        TargetInfoBlock : TBytes;
     end;
 
     // third message
-    TNTLM_Message3  = record
+    TNTLM_Message3  = packed record
         Protocol      : TArrayOf8Bytes;
         MsgType       : Cardinal;
         LM            : TNTLM_SecBuff;
@@ -198,19 +262,44 @@ type
         Host          : TNTLM_SecBuff;
         SessionKey    : TNTLM_SecBuff;
         Flags         : Cardinal;
+        //OSVer         : TNTLM_OSVersion;
     end;
 
-function NtlmGetMessage1(const AHost, ADomain: String): String;
+function NtlmGetMessage1(const AHost, ADomain: String; { V6.13 }
+    ALmCompatLevel: Integer = 0): String;
 function NtlmGetMessage2(const AServerReply: String): TNTLM_Msg2_Info;
 function NtlmGetMessage3(const ADomain, AHost, AUser, APassword: String;
     { Param ASrcCodePage is only used with  ANSI compilers }
     AChallenge: TArrayOf8Bytes; ASrcCodePage: LongWord = CP_ACP;
-    UnicodeFlag: Boolean = True): String;
+    UnicodeFlag: Boolean = True): String; deprecated
+  {$IFDEF COMPILER12_UP}
+    'In order to support NTLMv2 call the overloaded version and also pass a LmCompatLevel to NtlmGetMessage1()'
+  {$ENDIF}; overload; { V6.13 }
+function NtlmGetMessage3(const ADomain, AHost, AUser, APassword: String; { V6.13 }
+    const Msg2Info: TNTLM_Msg2_Info; ASrcCodePage: LongWord;
+    ALmCompatLevel: Integer): String; overload;
+
 procedure NtlmParseUserCode(const AUserCode : String; out Domain : String;
     out UserName : String; const NtlmV2: Boolean = FALSE);
 
 
 implementation
+
+{$IFDEF POSIX}
+uses
+  System.DateUtils;
+{$ENDIF}
+
+(*
+var
+  GlobalOSVer : TNTLM_OSVersion = ($05,$01,$28,$0a,$00,$00,$00,$00);
+
+structure of "0x0501280a0000000f":
+0x05	(major version 5)
+0x01	(minor version 1; Windows XP)
+0x280a	(build number 2600 in hexadecimal little-endian)
+0x00000000	(unknown/reserved)
+*)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure NtlmParseUserCode(                                        { V6.02 }
@@ -231,7 +320,7 @@ begin
         UserName := Copy(AUserCode, I + 1, MaxInt);
     end
     else begin
-        if NtlmV2 then
+        {if NtlmV2 then  V6.13
         begin
             I := Pos('@', AUserCode);
             if I > 0 then begin
@@ -243,13 +332,98 @@ begin
                 UserName := AUserCode;
             end;
         end
-        else begin
+        else begin }
             Domain   := '';
             UserName := AUserCode;
-        end;
+       // end;
     end;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function NtlmGetCurrentTimeStamp: Int64; { V6.13 }
+{$IFDEF POSIX}
+var
+    Bias: Integer;
+{$ENDIF}
+begin
+{$IFDEF MSWINDOWS}
+    Windows.GetSystemTimeAsFileTime(TFileTime(Result));
+{$ENDIF}
+{$IFDEF POSIX}
+    Bias := IcsGetLocalTimeZoneBias * SecsPerMin;
+    Result := ((DateTimeToUnix(NOW) + Bias) + 11644473600) * 10000000;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ RC4 currently unused } { V6.13 }
+{$IFDEF NEVER}
+type
+  TRC4Context = record
+    D: array[Byte] of Byte;
+    I, J: Byte;
+  end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure RC4Init(var RC4: TRC4Context; const Key: PByte; const KeyLen: Integer);
+var
+  R, S, T, K: Byte;
+  U: Integer;
+begin
+  RC4.I := 0;
+  RC4.J := 0;
+  for S := 0 to SizeOf(Byte) do
+    RC4.D[S] := S;
+  R := 0;
+  U := 0;
+  for S := 0 to SizeOf(Byte) do
+  begin
+    if U < KeyLen then
+      K := PByteArray(Key)^[U]
+    else
+      K := 0;
+    Inc(U);
+    if U >= KeyLen then U := 0;
+
+    Inc(R, RC4.D[S] + K);
+    T := RC4.D[S];
+    RC4.D[S] := RC4.D[R];
+    RC4.D[R] := T;
+  end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure RC4Encode(var RC4: TRC4Context; const Source; var Dest; Count: Integer); overload;
+var
+  S: Integer;
+  T: Byte;
+begin
+  for S := 0 to Count -1 do
+  begin
+    Inc(RC4.I);
+    T := RC4.D[RC4.I];
+    Inc(RC4.J, T);
+    RC4.D[RC4.I] := RC4.D[RC4.J];
+    RC4.D[RC4.J] := T;
+    Inc(T, RC4.D[RC4.I]);
+    TByteArray(Dest)[S] := TByteArray(Source)[S] xor RC4.D[T];
+  end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function RC4Encode(var RC4: TRC4Context; const AStr: RawByteString): RawByteString; overload;
+var
+  Len: Integer;
+begin
+  Len := Length(AStr);
+  SetLength(Result, Len);
+  RC4Encode(RC4, Pointer(AStr)^, Pointer(Result)^, Len);
+end;
+{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF COMPILER12_UP}
@@ -440,7 +614,8 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function NtlmGetMessage1(const AHost, ADomain: String): String;
+function NtlmGetMessage1(const AHost, ADomain: String;
+  ALmCompatLevel: Integer = 0): String; { V6.13 }
 var
     Msg         : TNTLM_Message1;
     Host        : AnsiString;  // Ansi even if unicode is supported by the client
@@ -479,8 +654,11 @@ begin
                  Flags_Negotiate_OEM or
                  Flags_Request_Target or
                  Flags_Negotiate_NTLM or
-                 Flags_Negotiate_Allways_Sign { or
-                 Flags_Negotiate_NTLM2_Key};
+                 Flags_Negotiate_Allways_Sign{ or
+                 Flags_Negotiate_Version};
+
+    if ALmCompatLevel = 1 then
+        Msg.Flags := Msg.Flags or Flags_Negotiate_NTLM2_Key; { V6.13 }
 
     // host and/or domain supplied ?
     // host
@@ -494,25 +672,14 @@ begin
     // host
     Msg.Host.Length := Length(Host);
     Msg.Host.Space  := Msg.Host.Length;
-
-    if Msg.Host.Length > 0 then
-        Msg.Host.Offset := $20
-    else
-        Msg.Host.Offset := 0;
+    Msg.Host.Offset := SizeOf(Msg); //$20 { V6.13 }
 
     // domain
     Msg.Domain.Length := Length(Domain);
     Msg.Domain.Space  := Msg.Domain.Length;
+    Msg.Domain.Offset := Msg.Host.Offset + Msg.Host.Length;  { V6.13 }
 
-    if Msg.Domain.Length > 0 then
-    begin
-        if Msg.Host.Offset > 0 then                                { V6.02 AG }
-            Msg.Domain.Offset := Msg.Host.Offset + Msg.Host.Length { V6.02 AG }
-        else                                                       { V6.02 AG }
-            Msg.Domain.Offset := $20;                              { V6.02 AG }
-    end
-    else
-         Msg.Domain.Offset := 0;
+    //Msg.OSVer := GlobalOSVer;
 
 {$IFDEF CLR}
     SB := StringBuilder.Create;
@@ -606,6 +773,7 @@ begin
         end;
         MsgInfo.SrvRespOk := TRUE;
         Move(NTLMReply[1], Msg, SizeOf(Msg));
+        MsgInfo.Flags     := Msg.Flags;    { V6.13 }
         // extract target
         MsgInfo.Unicode := (Msg.Flags and Flags_Negotiate_Unicode) <> 0;
         {MsgInfo.Target := Copy(NTLMReply, Msg.TargetName.Offset + 1,
@@ -633,6 +801,16 @@ begin
         Move(Msg.Challenge, MsgInfo.Challenge, SizeOf(Msg.Challenge));
         // let's extract the other information
         I := Msg.TargetInfo.Offset + 1;
+
+        // TargetInfoBlock required for NTLMv2 response { V6.13 }
+        if (Msg.TargetInfo.Space > 0) and
+            (Integer(Msg.TargetInfo.Offset + Msg.TargetInfo.Space) <= ReplyLen) then begin
+            SetLength(MsgInfo.TargetInfoBlock, Msg.TargetInfo.Space);
+            Move(NTLMReply[I], MsgInfo.TargetInfoBlock[0], Msg.TargetInfo.Space);
+        end
+        else
+            MsgInfo.TargetInfoBlock := nil;
+
         // loop through target information blocks
         while I < ReplyLen do begin
             // extract type
@@ -665,7 +843,7 @@ begin
                         MsgInfo.Server := InfoStr
                     else if InfoType = TIB_Type_Domain then
                         MsgInfo.Domain := InfoStr;
-                end    
+                end
                 else begin
                     SetLength(BufA, InfoLength);
                     Move(NTLMReply[I], Pointer(BufA)^, InfoLength);
@@ -785,7 +963,7 @@ begin
     Msg.LM.Offset     := Msg.Host.Offset + Msg.Host.Length;
 
     Msg.NTLM.Length   := $18;
-    Msg.NTLM.Space    := Msg.LM.Length;
+    Msg.NTLM.Space    := Msg.NTLM.Length;  { V6.13 }
     Msg.NTLM.Offset   := Msg.LM.Offset + Msg.LM.Length;
 
     // no session key
@@ -818,6 +996,276 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function NtlmGetMessage3(const ADomain, AHost, AUser, APassword: String; { V6.13 }
+  const Msg2Info : TNTLM_Msg2_Info;
+  ASrcCodePage   : LongWord;
+  ALmCompatLevel : Integer): String;
+var
+    Msg        : TNTLM_Message3;
+    MessageAux : AnsiString;
+    LM_Resp    : AnsiString;//String[30];
+    NT_Resp    : AnsiString;//String[30];
+    UDomain    : AnsiString;
+    UHost      : AnsiString;
+    UUser      : AnsiString;
+    UPassword  : AnsiString;
+    UUserUpper : AnsiString;
+{$IFDEF COMPILER12_UP}
+    Temp       : UnicodeString;
+{$ENDIF}
+    Buf        : AnsiString;
+    Digest     : TMD5Digest;
+    UnicodeFlag: Boolean;
+
+    procedure GetNtlm2SessionResponses(
+        out LmResp, NtlmResp: AnsiString; NtlmOnly: Boolean);
+    var
+        Nonce: array[0..3] of Word;
+        NtlmPwdHash   : AnsiString;
+        Ntlm2SesHash  : AnsiString;
+        MD5Digest     : TMD5Digest;
+        MD5Context    : TMD5Context;
+    begin
+        Nonce[0] := Random(MaxWord);
+        Nonce[1] := Random(MaxWord);
+        Nonce[2] := Random(MaxWord);
+        Nonce[3] := Random(MaxWord);
+
+        { Ntlm Response }
+        SetLength(Buf, 16);
+        Move(Msg2Info.Challenge, Pointer(Buf)^, 8);
+        Move(Nonce, Buf[9], 8);
+
+        MD5DigestInit(MD5Digest);
+        MD5Init(MD5Context);
+        MD5UpdateBuffer(MD5Context, Pointer(Buf), Length(Buf));
+        MD5Final(MD5Digest, MD5Context);
+        SetLength(Ntlm2SesHash, 8);
+        Move(MD5Digest, Pointer(Ntlm2SesHash)^, 8);
+
+        NtlmPwdHash := MD4String(UPassword);
+        SetLength(Buf, 21);
+        FillChar(Pointer(Buf)^, 21, #0);
+        Move(Pointer(NtlmPwdHash)^, Pointer(Buf)^, 16);
+        NtlmResp :=
+            DesEcbEncrypt(Copy(Buf,  1, 7), PArrayOf8Bytes(Ntlm2SesHash)^) +
+            DesEcbEncrypt(Copy(Buf,  8, 7), PArrayOf8Bytes(Ntlm2SesHash)^) +
+            DesEcbEncrypt(Copy(Buf, 15, 7), PArrayOf8Bytes(Ntlm2SesHash)^);
+        if NtlmOnly then
+            LmResp := NtlmResp
+        else begin
+            { LM Response }
+            SetLength(LmResp, 24);
+            FillChar(Pointer(LmResp)^, 24, #0);
+            Move(Nonce, Pointer(LmResp)^, 8);
+        end;
+    end;
+
+    function GetNtlmV2Hash(
+      const AUpperUserName  : AnsiString;
+      const AAuthTarget     : AnsiString): AnsiString;
+    var
+      NtlmPwdHash: AnsiString;
+    begin
+      NtlmPwdHash := MD4String(UPassword);
+      Buf := AUpperUserName + AAuthTarget;
+      HMAC_MD5(Pointer(Buf)^, Length(Buf), Pointer(NtlmPwdHash)^, Length(NtlmPwdHash), Digest);
+      SetLength(Result, SizeOf(Digest));
+      Move(Digest, Pointer(Result)^, SizeOf(Digest));
+    end;
+
+    procedure GetNtlmV2Responses(
+        out LmResp, NtlmResp: AnsiString);
+    type
+        TBlob = packed record
+          RespType    : Byte;
+          RespTypeHi  : Byte;
+          Reserved1   : Word;
+          Reserved2   : LongWord;
+          TimeStamp   : Int64;
+          ClientNonce : array[0..3] of Word;
+          Reserved3   : LongWord;
+        end;
+    var
+        Buf, NtlmV2Hash : AnsiString;
+        PBuf: PAnsiChar;
+        Blob: TBlob;
+    begin
+        { NTLMv2 Response }
+        NtlmV2Hash := GetNtlmV2Hash(UUserUpper, UDomain);
+
+        Blob.RespType       := $01;
+        Blob.RespTypeHi     := $01;
+        Blob.Reserved1      := $0000;
+        Blob.Reserved2      := $00000000;
+        Blob.TimeStamp      := NtlmGetCurrentTimeStamp;
+        Blob.ClientNonce[0] := Random(MaxWord);
+        Blob.ClientNonce[1] := Random(MaxWord);
+        Blob.ClientNonce[2] := Random(MaxWord);
+        Blob.ClientNonce[3] := Random(MaxWord);
+        Blob.Reserved3      := $00000000;
+
+        SetLength(Buf, SizeOf(Blob) + Length(Msg2Info.TargetInfoBlock) + 4);
+        FillChar(Pointer(Buf)^, Length(Buf), #0);
+        PBuf := PAnsiChar(Buf);
+        Move(Blob, PBuf^, SizeOf(Blob));
+        Inc(PBuf, SizeOf(Blob));
+        Move(Msg2Info.TargetInfoBlock[0], PBuf^, Length(Msg2Info.TargetInfoBlock));
+        {/blob}
+
+        SetLength(NtlmResp, SizeOf(Msg2Info.Challenge));
+        Move(Msg2Info.Challenge, Pointer(NtlmResp)^, SizeOf(Msg2Info.Challenge));
+        NtlmResp := NtlmResp + Buf;
+        HMAC_MD5(Pointer(NtlmResp)^, Length(NtlmResp), Pointer(NtlmV2Hash)^,
+                 Length(NtlmV2Hash), Digest);
+        SetLength(NtlmResp, SizeOf(Digest));
+        Move(Digest, Pointer(NtlmResp)^, SizeOf(Digest));
+        NtlmResp := NtlmResp + Buf;
+
+        { LMv2 Response }
+        SetLength(LmResp, 16);
+        Move(Msg2Info.Challenge, Pointer(LmResp)^, SizeOf(Msg2Info.Challenge));
+        Move(Blob.ClientNonce, LmResp[9], 8);
+        HMAC_MD5(Pointer(LmResp)^, 16, Pointer(NtlmV2Hash)^, Length(NtlmV2Hash),
+                 Digest);
+        SetLength(LmResp, 24);
+        Move(Digest, Pointer(LmResp)^, SizeOf(Digest));
+        Move(Blob.ClientNonce, LmResp[17], 8);
+    end;
+
+begin
+    UnicodeFlag := (Msg2Info.Flags and Flags_Negotiate_Unicode) <> 0;
+{$IFNDEF COMPILER12_UP}
+   // string is AnsiString
+    if UnicodeFlag then begin
+        UDomain    := ToUnicode(ADomain, ASrcCodePage);
+        UHost      := ToUnicode(AHost, ASrcCodePage);
+        UUser      := ToUnicode(AUser, ASrcCodePage);
+        UPassword  := ToUnicode(APassword, ASrcCodePage);
+    end
+    else begin
+        UDomain    := ADomain; // Assume ASCII
+        UHost      := AHost;   // Assume ASCII
+        UUser      := AnsiToOemStr(AUser);
+        UPassword  := AnsiToOemStr(APassword);
+    end;
+    UUserUpper := ToUnicode(AnsiUpperCase(AUser), ASrcCodePage);
+{$ELSE}
+    // string is UnicodeString
+    if UnicodeFlag then begin
+        if Length(ADomain) > 0 then begin
+            SetLength(UDomain, Length(ADomain) * SizeOf(Char));
+            Move(Pointer(ADomain)^, UDomain[1], Length(UDomain));
+        end;
+        //UDomain    := ADomain;
+        if Length(AHost) > 0 then begin
+            SetLength(UHost, Length(AHost) * SizeOf(Char));
+            Move(Pointer(AHost)^, UHost[1], Length(UHost));
+        end;
+        //UHost      := AHost;
+        if Length(AUser) > 0 then begin
+            SetLength(UUser, Length(AUser) * SizeOf(Char));
+            Move(Pointer(AUser)^, UUser[1], Length(UUser));
+        end;
+        //UUser      := AUser;
+        if Length(APassword) > 0 then begin
+            SetLength(UPassword, Length(APassword) * SizeOf(Char));
+            Move(Pointer(APassword)^, UPassword[1], Length(UPassword));
+        end;
+    end
+    else begin
+        { OEM string }
+        UDomain    := AnsiString(ADomain);// Assume ASCII
+        UHost      := AnsiString(AHost);  // Assume ASCII
+        UUser      := UnicodeToAnsi(AUser, CP_OEMCP);
+        UPassword  := UnicodeToAnsi(APassword, CP_OEMCP);
+    end;
+    Temp := AnsiUpperCase(AUser);
+    SetLength(UUserUpper, Length(Temp) * SizeOf(Char));
+    Move(Pointer(Temp)^, UUserUpper[1], Length(UUserUpper));
+{$ENDIF}
+    FillChar(Msg, SizeOf(Msg), #0);
+    Move(PAnsiChar('NTLMSSP' + #0)^, Msg.Protocol, 8);
+    Msg.MsgType := 3;
+
+    // prepare domain
+    Msg.Domain.Length := Length(UDomain);
+    Msg.Domain.Space  := Msg.Domain.Length;
+    Msg.Domain.Offset := SizeOf(TNTLM_Message3);
+
+    // prepare user
+    Msg.User.Length   := Length(UUser);
+    Msg.User.Space    := Msg.User.Length;
+    Msg.User.Offset   := Msg.Domain.Offset + Msg.Domain.Length;
+
+    // preapre host
+    Msg.Host.Length   := Length(UHost);
+    Msg.Host.Space    := Msg.Host.Length;
+    Msg.Host.Offset   := Msg.User.Offset + Msg.User.Length;
+
+    //Msg.OSVer         := GlobalOSVer;
+
+    // prepare flags
+    if UnicodeFlag then
+        Msg.Flags := Flags_Negotiate_Unicode
+    else
+        Msg.Flags := Flags_Negotiate_OEM;
+    Msg.Flags := Msg.Flags or
+                 Flags_Request_Target or
+                 Flags_Negotiate_NTLM or
+                 Flags_Negotiate_Allways_Sign{ or
+                 Flags_Negotiate_Version};
+
+    if (ALmCompatLevel = 0) then // backward compatible  NTLMv1
+    begin
+        LM_Resp := NtlmGetLMHash(APassword, Msg2Info.Challenge); // Convert PWD to Ansi/OEM
+        NT_Resp := NtlmGetNTHash(UPassword, Msg2Info.Challenge);
+    end
+    else if (ALmCompatLevel in [1..2]) then
+    begin
+        if (Msg2Info.Flags and Flags_Negotiate_NTLM2_Key <> 0) then
+        begin
+            Msg.Flags := Msg.Flags or Flags_Negotiate_NTLM2_Key;
+            GetNtlm2SessionResponses(LM_Resp, NT_Resp, False);
+        end
+        else begin
+            NT_Resp := NtlmGetNTHash(UPassword, Msg2Info.Challenge);
+            if (ALmCompatLevel = 2) then
+                LM_Resp := NT_Resp
+            else
+                LM_Resp := NtlmGetLMHash(APassword, Msg2Info.Challenge);
+        end;
+    end
+    else begin // Level > 2 NTLMv2 responses
+        GetNtlmV2Responses(LM_Resp, NT_Resp);
+    end;
+
+    // LM and NTLM security buffers
+    Msg.LM.Length     := Length(LM_Resp);
+    Msg.LM.Space      := Msg.LM.Length;
+    Msg.LM.Offset     := Msg.Host.Offset + Msg.Host.Length;
+
+    Msg.NTLM.Length   := Length(NT_Resp);
+    Msg.NTLM.Space    := Msg.NTLM.Length;
+    Msg.NTLM.Offset   := Msg.LM.Offset + Msg.LM.Length;
+
+    // no session key
+    Msg.SessionKey.Length := 0;
+    Msg.SessionKey.Space  := 0;
+    Msg.SessionKey.Offset := Msg.NTLM.Offset + Msg.NTLM.Length;
+
+    SetLength(MessageAux, SizeOf(Msg));
+    Move(Msg, Pointer(MessageAux)^, SizeOf(Msg));
+
+    { Concatenate final message }
+    MessageAux := MessageAux + UDomain + UUser + UHost + LM_Resp + NT_Resp;
+
+    Result := Base64Encode(MessageAux);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
 
 { TNTLM_Message2 }
 {$IFDEF CLR}

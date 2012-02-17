@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      7.38
+Version:      7.39
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -392,6 +392,8 @@ Nov 08, 2010 V7.35  Arno improved final exception handling, more details
 Feb 15, 2011 V7.36  Arno added proxy-support (SOCKS and HTTP) from TWSocket.
 Jun 18, 2011 V7.37  aguser removed one compiler hint.
 Jul 22, 2011 V7.38  Arno - OEM NTLM changes.
+Feb 17, 2012 V7.39  Arno added NTLMv2 and NTLMv2 session security (basics),
+                    read comment "HowTo NTLMv2" in OverbyteIcsNtlmMsgs.pas.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSmtpProt;
@@ -456,8 +458,8 @@ uses
     OverbyteIcsMimeUtils;
 
 const
-  SmtpCliVersion     = 738;
-  CopyRight : String = ' SMTP component (c) 1997-2011 Francois Piette V7.38 ';
+  SmtpCliVersion     = 739;
+  CopyRight : String = ' SMTP component (c) 1997-2011 Francois Piette V7.39 ';
   smtpProtocolError  = 20600; {AG}
   SMTP_RCV_BUF_SIZE  = 4096;
   
@@ -755,6 +757,7 @@ type
         FProxyUserCode       : String;
         FProxyPassword       : String;
         FProxyHttpAuthType   : THttpTunnelAuthType;
+        FLmCompatLevel       : LongWord;  { V7.39 }
         procedure   HandleHttpTunnelError(Sender: TObject; ErrCode: Word;
             TunnelServerAuthTypes: THttpTunnelServerAuthTypes; const Msg: String);
         procedure   HandleSocksError(Sender: TObject; ErrCode: Integer; Msg: String);
@@ -879,6 +882,8 @@ type
                                                      write FPassword;
         property AuthType : TSmtpAuthType            read  FAuthType
                                                      write FAuthType;
+        property LmCompatLevel : LongWord            read  FLmCompatLevel  { V7.39 }
+                                                     write FLmCompatLevel; { V7.39 }
         property AuthTypesSupported : TStrings       read  FAuthTypesSupported;
         property FromName : String                   read  FFromName
                                                      write FFromName;
@@ -2484,7 +2489,8 @@ begin
     smtpAuthCramSHA1: {HLX}
         ExecAsync(smtpAuth, 'AUTH CRAM-SHA1', [334], AuthNextCramSHA1);
     smtpAuthNtlm :                                              {AG}
-        ExecAsync(smtpAuth, 'AUTH NTLM ' + NtlmGetMessage1('', ''), [334], AuthNextNtlm);
+        ExecAsync(smtpAuth, 'AUTH NTLM ' + NtlmGetMessage1('', '', FLmCompatLevel),
+                  [334], AuthNextNtlm); { V7.39 }
     end;
 end;
 
@@ -2663,9 +2669,9 @@ begin
     NtlmMsg3 := NtlmGetMessage3('',
                                 '',  // the Host param seems to be ignored
                                 FUsername, FPassword,
-                                NtlmMsg2Info.Challenge,
+                                NtlmMsg2Info,     { V7.39 }
                                 CP_ACP,
-                                NtlmMsg2Info.Unicode);
+                                FLmCompatLevel);  { V7.39 }
     FState := smtpInternalReady;
     ExecAsync(smtpAuth, NtlmMsg3, [235], nil);
 end;

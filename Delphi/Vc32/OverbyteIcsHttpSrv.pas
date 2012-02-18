@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.46
+Version:      7.47
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -347,7 +347,7 @@ Feb 08, 2012 V7.45 Arno - If we receive an unknown method/request we have to
 Feb 15, 2012 V7.46 Angus - attach TMimeTypesList component to provide more MIME
                    content types read from registry, a file or strings, the
                    existing DocumentToContentType function is used as a default
-
+Feb 18, 2012 V7.47 Arno - Attachment of MimeTypesList corrected.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -433,8 +433,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 746;
-    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.46 ';
+    THttpServerVersion = 747;
+    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.47 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -1139,6 +1139,7 @@ type
         function  GetSrcVersion: String;
         procedure HeartBeatOnTimer(Sender: TObject); virtual;
         procedure SetKeepAliveTimeSec(const Value: Cardinal);
+        procedure SetMimeTypesList(const Value: TMimeTypesList); { V7.47 }
     public
         constructor Create(AOwner: TComponent); override;
         destructor  Destroy; override;
@@ -1210,8 +1211,8 @@ type
         property MaxBlkSize : Integer            read FMaxBlkSize   { V7.40 }
                                                  write FMaxBlkSize ;
         { class providing MIME Content Types for documents }
-        property MimeTypesList : TMimeTypesList  read FMimeTypesList  { V7.46 }
-                                                 write FMimeTypesList;
+        property MimeTypesList : TMimeTypesList  read  FMimeTypesList  { V7.46 }
+                                                 write SetMimeTypesList; { V7.47 }
 {$IFDEF BUILTIN_THROTTLE}
         { BandwidthLimit slows down speeds, bytes per second, null = disabled }
         property BandwidthLimit : LongWord       read  FBandwidthLimit
@@ -1745,7 +1746,9 @@ begin
     inherited Notification(AComponent, Operation);
     if Operation = opRemove then begin
         if AComponent = FWSocketServer then
-            FWSocketServer := nil;
+            FWSocketServer := nil
+        else if AComponent = FMimeTypesList then  { 7.47 }
+            FMimeTypesList := nil;                { 7.47 }
     end;
 end;
 
@@ -1865,6 +1868,19 @@ begin
         FDocDir := AbsolutisePath(Copy(Value, 1, Length(Value) - 1))
     else
         FDocDir := AbsolutisePath(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpServer.SetMimeTypesList(const Value: TMimeTypesList);{ V7.47 }
+begin
+    if FMimeTypesList <> Value then begin
+        if Assigned(FMimeTypesList) then
+            FMimeTypesList.RemoveFreeNotification(Self);
+        FMimeTypesList := Value;
+        if Assigned(FMimeTypesList) then
+            FMimeTypesList.FreeNotification(Self);
+    end;
 end;
 
 

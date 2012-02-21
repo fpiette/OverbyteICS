@@ -7,6 +7,7 @@
 #include <Controls.hpp>
 #include <StdCtrls.hpp>
 #include <Forms.hpp>
+#include "OverbyteIcsWndControl.hpp"
 #include "OverbyteIcsWSocket.hpp"
 //---------------------------------------------------------------------------
 class TForm1 : public TForm

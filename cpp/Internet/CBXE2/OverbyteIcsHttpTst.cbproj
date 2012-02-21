@@ -49,9 +49,9 @@
 			<ILINK_ObjectSearchPath>..\..\Internet;$(ILINK_ObjectSearchPath)</ILINK_ObjectSearchPath>
 			<ProjectType>CppVCLApplication</ProjectType>
 			<BCC_wpar>false</BCC_wpar>
-			<IncludePath>..\;..\CBXe;$(BDS)\include;$(BDS)\include\dinkumware;$(BDSINCLUDE)\windows\vcl;..\..\Internet;..\..\..\Delphi\Vc32;$(IncludePath)</IncludePath>
+			<IncludePath>..\;..\CBXe2;$(BDS)\include;$(BDS)\include\dinkumware;$(BDSINCLUDE)\windows\vcl;..\..\Internet;..\..\..\Delphi\Vc32;$(IncludePath)</IncludePath>
 			<AllPackageLibs>rtl.lib;vcl.lib</AllPackageLibs>
-			<ILINK_LibraryPath>..\;..\CBXe;$(BDS)\lib\obj;$(BDS)\lib\psdk;..\..\Internet;$(ILINK_LibraryPath)</ILINK_LibraryPath>
+			<ILINK_LibraryPath>..\;..\CBXe2;$(BDS)\lib\obj;$(BDS)\lib\psdk;..\..\Internet;$(ILINK_LibraryPath)</ILINK_LibraryPath>
 			<Multithreaded>true</Multithreaded>
 			<_TCHARMapping>wchar_t</_TCHARMapping>
 		</PropertyGroup>
@@ -145,14 +145,14 @@
 					</ProjectProperties>
 					<HistoryLists_hlIncludePath>
 						<HistoryLists_hlIncludePath Name="Count">2</HistoryLists_hlIncludePath>
-						<HistoryLists_hlIncludePath Name="Item0">$(BDS)\include;$(BDS)\include\dinkumware;$(BDSINCLUDE)\windows\vcl;..\..\Internet\CBXe;..\..\Internet</HistoryLists_hlIncludePath>
-						<HistoryLists_hlIncludePath Name="Item1">$(BDS)\include;$(BDS)\include\dinkumware;$(BDSINCLUDE)\windows\vcl;..\..\Internet\CBXe;..\..\Internet;..\..\..\Delphi\vc32</HistoryLists_hlIncludePath>
+						<HistoryLists_hlIncludePath Name="Item0">$(BDS)\include;$(BDS)\include\dinkumware;$(BDSINCLUDE)\windows\vcl;..\..\Internet\CBXe2;..\..\Internet</HistoryLists_hlIncludePath>
+						<HistoryLists_hlIncludePath Name="Item1">$(BDS)\include;$(BDS)\include\dinkumware;$(BDSINCLUDE)\windows\vcl;..\..\Internet\CBXe2;..\..\Internet;..\..\..\Delphi\vc32</HistoryLists_hlIncludePath>
 					</HistoryLists_hlIncludePath>
 					<HistoryLists_hlILINK_LibraryPath>
 						<HistoryLists_hlILINK_LibraryPath Name="Count">2</HistoryLists_hlILINK_LibraryPath>
-						<HistoryLists_hlILINK_LibraryPath Name="Item0">$(BDS)\lib;$(BDS)\lib\obj;$(BDS)\lib\psdk;..\..\Internet\CBXe;..\..\Internet</HistoryLists_hlILINK_LibraryPath>
-						<HistoryLists_hlILINK_LibraryPath Name="Item1">$(BDS)\lib\debug;..\..\..\Delphi\Vc32\Debug_Build;$(BDS)\lib;$(BDS)\lib\obj;$(BDS)\lib\psdk;..\..\Internet\CBXe;..\..\Internet</HistoryLists_hlILINK_LibraryPath>
-						<HistoryLists_hlILINK_LibraryPath Name="Item2">$(BDS)\lib;$(BDS)\lib\obj;$(BDS)\lib\psdk;..\..\Internet\CBXe;..\..\Internet</HistoryLists_hlILINK_LibraryPath>
+						<HistoryLists_hlILINK_LibraryPath Name="Item0">$(BDS)\lib;$(BDS)\lib\obj;$(BDS)\lib\psdk;..\..\Internet\CBXe2;..\..\Internet</HistoryLists_hlILINK_LibraryPath>
+						<HistoryLists_hlILINK_LibraryPath Name="Item1">$(BDS)\lib\debug;..\..\..\Delphi\Vc32\Debug_Build;$(BDS)\lib;$(BDS)\lib\obj;$(BDS)\lib\psdk;..\..\Internet\CBXe2;..\..\Internet</HistoryLists_hlILINK_LibraryPath>
+						<HistoryLists_hlILINK_LibraryPath Name="Item2">$(BDS)\lib;$(BDS)\lib\obj;$(BDS)\lib\psdk;..\..\Internet\CBXe2;..\..\Internet</HistoryLists_hlILINK_LibraryPath>
 					</HistoryLists_hlILINK_LibraryPath>
 					<HistoryLists_hlDefines>
 						<HistoryLists_hlDefines Name="Count">2</HistoryLists_hlDefines>

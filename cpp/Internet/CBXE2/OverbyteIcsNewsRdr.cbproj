@@ -56,7 +56,7 @@
 			<ProjectType>CppVCLApplication</ProjectType>
 			<PackageImports>vcl.bpi;rtl.bpi;vclx.bpi;vclactnband.bpi;dbrtl.bpi;vcldb.bpi;vcldbx.bpi;bdertl.bpi;dsnap.bpi;dsnapcon.bpi;vclib.bpi;ibxpress.bpi;adortl.bpi;dbxcds.bpi;dbexpress.bpi;DbxCommonDriver.bpi;VclSmp.bpi;vclie.bpi;webdsnap.bpi;xmlrtl.bpi;inet.bpi;inetdbbde.bpi;inetdbxpress.bpi;soaprtl.bpi;bcbie.bpi;bcbsmp.bpi;IndyProtocols.bpi;OverbyteIcsCBXe2Run.bpi;$(PackageImports)</PackageImports>
 			<BCC_wpar>false</BCC_wpar>
-			<IncludePath>..\;..\CBXe;$(BDSINCLUDE)\windows\vcl;..\..\Internet;..\..\..\Delphi\Vc32;$(IncludePath)</IncludePath>
+			<IncludePath>..\;..\CBXe2;$(BDSINCLUDE)\windows\vcl;..\..\Internet;..\..\..\Delphi\Vc32;$(IncludePath)</IncludePath>
 			<AllPackageLibs>rtl.lib;vcl.lib</AllPackageLibs>
 			<ILINK_LibraryPath>..\;..\..\Internet;$(ILINK_LibraryPath)</ILINK_LibraryPath>
 			<Multithreaded>true</Multithreaded>

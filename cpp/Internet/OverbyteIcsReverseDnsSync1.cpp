@@ -6,6 +6,8 @@
 #include "OverbyteIcsReverseDnsSync1.h"
 //---------------------------------------------------------------------------
 #pragma package(smart_init)
+#pragma link "OverbyteIcsWndControl"
+#pragma link "OverbyteIcsWSocket"
 #pragma resource "*.dfm"
 TForm1 *Form1;
 //---------------------------------------------------------------------------

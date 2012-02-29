@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.47
+Version:      7.48
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -348,6 +348,7 @@ Feb 15, 2012 V7.46 Angus - attach TMimeTypesList component to provide more MIME
                    content types read from registry, a file or strings, the
                    existing DocumentToContentType function is used as a default
 Feb 18, 2012 V7.47 Arno - Attachment of MimeTypesList corrected.
+Feb 29, 2012 V7.48 Arno - Use IcsRandomInt
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -433,8 +434,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 747;
-    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.47 ';
+    THttpServerVersion = 748;
+    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.48 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -1764,8 +1765,8 @@ end;
 function THttpServer.CreateServerSecret: TULargeInteger;
 begin
     { This is weak, however better than nothing }
-    Result.LowPart  := Random(MaxInt);
-    Result.HighPart := Random(MaxInt);
+    Result.LowPart  := IcsRandomInt(MaxInt);
+    Result.HighPart := IcsRandomInt(MaxInt);
 end;
 
 

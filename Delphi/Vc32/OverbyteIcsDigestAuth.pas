@@ -5,7 +5,7 @@ Author:       Arno Garrels <arno.garrels@gmx.de>
               Fastream Technologies (www.fastream.com) coders SubZero
               (G. I. Ates) and PeterS (Peter Nikolow), Luke (Boris Evstatiev)
 Creation:     January 7, 2009
-Version:      1.03
+Version:      1.04
 Description:  HTTP Digest Access Authentication, RFC 2617.
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -46,7 +46,7 @@ Feb 26, 2011 V1.02 Some small changes in generating the digest request string,
 Jan 09, 2012 V1.03 Fixed backward compatibility with RFC 2069.
                    Handle more than one qop and algorithm in server challenge.
                    Faster checks for empty strings.
-
+Feb 29, 2012 V1.04 Use IcsRandomInt
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsDigestAuth;
@@ -71,7 +71,7 @@ interface
 uses
     Windows,
     Classes, OverbyteIcsMD5, OverbyteIcsMimeUtils,
-    OverbyteIcsLibrary, OverbyteIcsTypes;
+    OverbyteIcsLibrary, OverbyteIcsTypes, OverbyteIcsUtils;
 
 type
   {$IFNDEF COMPILER12_UP}
@@ -648,7 +648,7 @@ var
 begin
     if Qop <> '' then begin
         NcHex  := _IntToHex(Nc, 8);
-        Cnonce := _IntToHex(Random(MaxInt), 8);
+        Cnonce := _IntToHex(IcsRandomInt(MaxInt), 8);
     end
     else
         CNonce := '';
@@ -700,7 +700,7 @@ var
 begin
     if Info.qop <> '' then begin
         NcHex  := _IntToHex(Info.Nc, 8);
-        CNonce := _IntToHex(Random(MaxInt), 8);
+        CNonce := _IntToHex(IcsRandomInt(MaxInt), 8);
     end;
     AuthDigestCalcHA1(Info.Algorithm,
                       AnsiString(UserName),
@@ -750,7 +750,7 @@ begin
     SetLength(Opaque, 34);
     for I := 1 to Length(Opaque) do begin
         while TRUE do begin
-            iCh := Random(122);
+            iCh := IcsRandomInt(123);
             case iCh of
                 48..57, 65..90, 97..122 :
                     begin
@@ -783,9 +783,5 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-initialization
-    Randomize;
-
-finalization
 
 end.

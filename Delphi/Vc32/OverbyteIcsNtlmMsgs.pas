@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     Jan 01, 2004
-Version:      6.06
+Version:      6.07
 Description:  This is an implementation of the NTLM authentification
               messages used within HTTP protocol (client side).
               NTLM protocol documentation can be found at:
@@ -59,6 +59,7 @@ Feb 26, 2011 V6.04 Function NtlmGetMessage2 returned garbage WideStrings with
                    some user code.
 Jul 22, 2011 V6.05 Arno - OEM NTLM changes.
 Feb 17, 2012 V6.06 Arno added NTLMv2 and NTLMv2 session security (basics).
+Feb 29, 2012 V6.07 Arno - Use IcsRandomInt
 
 
 HowTo NTLMv2:
@@ -145,15 +146,13 @@ uses
     System.Text,
 {$ENDIF}
     OverbyteIcsDES, OverbyteIcsMD4, OverbyteIcsMD5,
-{$IFDEF COMPILER12_UP}
     OverbyteIcsUtils,
-{$ENDIF}
     OverbyteIcsTypes,
     OverbyteIcsMimeUtils;
 
 const
-    IcsNtlmMsgsVersion     = 605;
-    CopyRight : String     = ' IcsNtlmMsgs (c) 2004-2011 F. Piette V6.05 ';
+    IcsNtlmMsgsVersion     = 607;
+    CopyRight : String     = ' IcsNtlmMsgs (c) 2004-2012 F. Piette V6.07 ';
 
 const
     Flags_Negotiate_Unicode               = $00000001;
@@ -1026,10 +1025,10 @@ var
         MD5Digest     : TMD5Digest;
         MD5Context    : TMD5Context;
     begin
-        Nonce[0] := Random(MaxWord);
-        Nonce[1] := Random(MaxWord);
-        Nonce[2] := Random(MaxWord);
-        Nonce[3] := Random(MaxWord);
+        Nonce[0] := IcsRandomInt(MaxWord);
+        Nonce[1] := IcsRandomInt(MaxWord);
+        Nonce[2] := IcsRandomInt(MaxWord);
+        Nonce[3] := IcsRandomInt(MaxWord);
 
         { Ntlm Response }
         SetLength(Buf, 16);
@@ -1099,10 +1098,10 @@ var
         Blob.Reserved1      := $0000;
         Blob.Reserved2      := $00000000;
         Blob.TimeStamp      := NtlmGetCurrentTimeStamp;
-        Blob.ClientNonce[0] := Random(MaxWord);
-        Blob.ClientNonce[1] := Random(MaxWord);
-        Blob.ClientNonce[2] := Random(MaxWord);
-        Blob.ClientNonce[3] := Random(MaxWord);
+        Blob.ClientNonce[0] := IcsRandomInt(MaxWord);
+        Blob.ClientNonce[1] := IcsRandomInt(MaxWord);
+        Blob.ClientNonce[2] := IcsRandomInt(MaxWord);
+        Blob.ClientNonce[3] := IcsRandomInt(MaxWord);
         Blob.Reserved3      := $00000000;
 
         SetLength(Buf, SizeOf(Blob) + Length(Msg2Info.TargetInfoBlock) + 4);

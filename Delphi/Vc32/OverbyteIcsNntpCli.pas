@@ -3,12 +3,12 @@
 Author:       François PIETTE
 Description:  TNntpCli is a client for the NNTP protocol (RFC-977)
 Creation:     December 19, 1997
-Version:      6.04
+Version:      6.05
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2012 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -102,6 +102,7 @@ Dec 21, 2008  V6.02 F.Piette added a string cast in PostBlock to avoid
 Dec 17, 2009  V6.03 Arno changed most string types of TNntpCli to AnsiString.
 Nov 08, 2010  V6.04 Arno improved final exception handling, more details
               in OverbyteIcsWndControl.pas (V1.14 comments).
+Feb 29, 2012 V6.05 Arno - Use IcsRandomInt
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsNntpCli;
@@ -156,8 +157,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWinSock, OverbyteIcsWSocket;
 
 const
-    NntpCliVersion     = 603;
-    CopyRight : String = ' TNntpCli (c) 1997-2010 F. Piette V6.03 ';
+    NntpCliVersion     = 605;
+    CopyRight : String = ' TNntpCli (c) 1997-2012 F. Piette V6.05 ';
 {$IFDEF VER80}
     { Delphi 1 has a 255 characters string limitation }
     NNTP_SND_BUF_SIZE = 255;
@@ -1650,7 +1651,6 @@ begin
     FHtmlCharSet   := 'iso-8859-1';
     FCharSet       := 'iso-8859-1';
     SetContentType(nntpHtml);
-    Randomize;
 end;
 
 
@@ -1773,7 +1773,7 @@ var
     RandPart : String;
 begin
     TickPart := '----=_NextPart_000_' + IntToHex(LongInt(GetTickCount), 8);
-    RandPart := IntToHex(Random(High(Integer)), 8);
+    RandPart := IntToHex(IcsRandomInt(High(Integer)), 8);
     FOutsideBoundary := TickPart + '_0.' + RandPart;
     FInsideBoundary  := TickPart + '_1.' + RandPart;
 end;

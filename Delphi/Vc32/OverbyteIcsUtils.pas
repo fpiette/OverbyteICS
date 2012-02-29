@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      7.43
+Version:      7.44
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -118,6 +118,8 @@ Aug 14, 2011 v7.42 Arno fixed IcsSwap64 BASM 32-bit (not yet used in ICS)
 Feb 08, 2012 v7.43 Arno - The IcsFileCreateW and IcsFileOpenW functions return a
              THandle in XE2+ now. Same as SysUtils.FileCreate and SysUtils.FileOpen
              in XE2+.
+Feb 29, 2012 V7.44 Arno added IcsRandomInt() and IcsCryptGenRandom(), see
+             comments at IcsRandomInt's implementation.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -173,7 +175,7 @@ uses
     SysUtils,
     RtlConsts,
     SysConst,
-    OverbyteIcsTypes; // for TBytes and TThreadID
+    OverbyteIcsMD5, OverbyteIcsTypes; // for TBytes and TThreadID
 
 type
 {$IFNDEF COMPILER12_UP}
@@ -413,6 +415,8 @@ const
     procedure IcsSwap64Buf(Src, Dst: PInt64; QuadWordCount: Integer);
     procedure IcsNameThreadForDebugging(AThreadName: AnsiString; AThreadID: TThreadID = TThreadID(-1));
     function  IcsNormalizeString(const S: UnicodeString; NormForm: TIcsNormForm): UnicodeString;
+    function IcsCryptGenRandom(var Buf; BufSize: Integer): Boolean;
+    function IcsRandomInt(const ARange: Integer): Integer;
 { Wide library }
     function IcsFileCreateW(const FileName: UnicodeString): {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF}; overload;
     function IcsFileCreateW(const Utf8FileName: UTF8String): {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF}; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
@@ -3054,6 +3058,111 @@ begin
     raise Exception.Create('Not implemented');
 {$ENDIF}
 {$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsCryptGenRandom(var Buf; BufSize: Integer): Boolean;
+{$IFDEF MSWINDOWS}
+var
+    F_Acquire  : function (var hProv: THandle; pszContainer: PWideChar;
+        pszProvider: PWideChar; dwProvType: DWORD; dwFlags: DWORD): BOOL; stdcall;
+    F_Gen      : function (hProv: THandle; dwLen: DWORD; pbBuffer: PByte): BOOL; stdcall;
+    F_Release  : function (hProv: THandle; dwFlags: ULONG_PTR): BOOL; stdcall;
+
+    hLib       : HMODULE;
+    hCryptProv : THandle;
+begin
+    Result := False;
+    hLib := LoadLibrary(advapi32);
+    if hLib <> 0 then
+    begin
+        @F_Acquire := GetProcAddress(hLib, 'CryptAcquireContextW');
+        @F_Gen     := GetProcAddress(hLib, 'CryptGenRandom');
+        @F_Release := GetProcAddress(hLib, 'CryptReleaseContext');
+        if (@F_Acquire <> nil) and (@F_Gen <> nil) and (@F_Release <> nil) then
+        begin
+            // PROV_RSA_FULL = 1; CRYPT_VERIFYCONTEXT  = DWORD($F0000000);
+            if F_Acquire(hCryptProv, nil, nil, 1, DWORD($F0000000)) then
+            begin
+                Result := F_Gen(hCryptProv, BufSize, @Buf);
+                F_Release(hCryptProv, 0);
+            end;
+        end;
+        FreeLibrary(hLib);
+    end;
+end;
+{$ENDIF MSWINDOWS}
+{$IFDEF MACOS}
+begin
+    Result := False; // ToDo
+end;
+{$ENDIF MACOS}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function RandSeed32: LongWord;
+const
+    DEFAULT_SEED32 = 2463534242;
+var
+    I   : Integer;
+    Buf : Int64;
+    Md  : TMD5Digest;
+    Ctx : TMD5Context;
+begin
+    MD5DigestInit(Md);
+    MD5Init(Ctx);
+
+{$IFDEF MSWINDOWS}
+    if QueryPerformanceCounter(Buf) then
+        MD5Update(Ctx, Buf, SizeOf(Buf))
+    else begin
+        Buf := GetTickCount;
+        MD5Update(Ctx, Buf, SizeOf(Buf));
+    end;
+{$ENDIF MSWINDOWS}
+{$IFDEF MACOS}
+    Buf := AbsoluteToNanoseconds(UpTime);
+    MD5Update(Ctx, Buf, SizeOf(Buf));
+{$ENDIF MACOS}
+    { Add eight additional cryptographically random bytes }
+    if IcsCryptGenRandom(Buf, SizeOf(Buf)) then // So far Win only
+        MD5Update(Ctx, Buf, SizeOf(Buf));
+    MD5Final(Md, Ctx);
+    for I := Low(Md) to High(Md) - SizeOf(LongWord) do
+    begin
+        Result := PLongWord(@Md[I])^;
+        if Result <> 0 then
+            Exit;
+    end;
+    Result := DEFAULT_SEED32;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+var
+    GSeed32 : LongWord = 0;
+
+{ This makes us independent from System.Random() and we do no longer screw  }
+{ up RTL's global var RandSeed by various calls to Randomize.               }
+{ The PRNG below is a XorShift RNG by George Marsaglia.                     }
+{ It uses one of his favorite choices, [a, b, c] = [13, 17, 5], and will    }
+{ pass almost all tests of randomness, except the binary rank test in       }
+{ Diehard. It is much better than System.Random() however as thread-        }
+{ unsafe as System.Random() is. See also PrngTst.dpr in MiscDemos.    AG    }
+function IcsRandomInt(const ARange: Integer): Integer;
+var
+    x : LongWord;
+begin
+    if GSeed32 = 0 then
+        x := RandSeed32  // MUST be <> 0
+    else
+        x := GSeed32;
+    x := x xor (x shl 13);
+    x := x xor (x shr 17);
+    x := x xor (x shl 5);
+    GSeed32 := x;
+    Result := (UInt64(LongWord(ARange)) * UInt64(x)) shr 32;
 end;
 
 

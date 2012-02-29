@@ -4,11 +4,11 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  One Time Password support functions, see RFC2289/1938 (aka S/KEY)
 Creation:     12 November 2007
 Updated:      06 August 2008
-Version:      1.05
+Version:      1.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2011 by François PIETTE
+Legal issues: Copyright (C) 1997-2012 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -45,6 +45,7 @@ Updates:
 15 Apr 2011 - 1.04 Arno prepared for 64-bit, use functions from OverbyteIcsUtils.
 14 Aug 2011 - 1.05 Arno fixed a bug that showed up since Delphi XE only and made
               two small optimizations.
+Feb 29, 2012  1.06 Arno - Use IcsRandomInt
 
 
 Background:
@@ -140,8 +141,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    OneTimePwVersion = 104;
-    CopyRight : String = ' OneTimePw (c) 1997-2011 F. Piette V1.04 ';
+    OneTimePwVersion = 106;
+    CopyRight : String = ' OneTimePw (c) 1997-2012 F. Piette V1.06 ';
     OtpKeyNames: array [0..3] of string =
                 ('none', 'otp-md5', 'otp-md4', 'otp-sha1') ;
 
@@ -456,12 +457,12 @@ var
     Maplen, Seedlen: integer ;
 begin
     //result := '' ;
-    Seedlen := Random (12) + 4 ;  { seed length 4 to 16 }
+    Seedlen := IcsRandomInt (12) + 4 ;  { seed length 4 to 16 }
     Maplen := Length (CharMap) - 1 ;
     SetLength(Result, SeedLen);
     for I := 1 to Seedlen do
-        //result := result + CharMap [Random (Maplen) + 1] ;
-        Result[I] := CharMap [Random (Maplen) + 1];
+        //result := result + CharMap [IcsRandomInt (Maplen) + 1] ;
+        Result[I] := CharMap [IcsRandomInt (Maplen) + 1];
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -788,8 +789,5 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-initialization
-    randomize;
-finalization
 
 end.

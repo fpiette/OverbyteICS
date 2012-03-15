@@ -5,12 +5,12 @@ Author:       François PIETTE. Based on work given by Louis S. Berman from
 Description:  MD5 is an implementation of the MD5 Message-Digest Algorithm
               as described in RFC-1321
 Creation:     October 11, 1997
-Version:      7.02
+Version:      7.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2012 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -72,6 +72,7 @@ Sep 20, 2010 V7.01 Arno added HMAC_MD5 routine from OverbyteIcsSmtpProt.pas
 Sep 21, 2010 V7.02 Arno - Changed parameters of MD5SameDigest() to reference
              types rather than value types. Changed MD5DigestToLowerHexA to
              return RawByteString.
+Mar 15, 2012 V7.03 Arno - HMAC_MD5() did not handle key sizes > 64 bytes correctly.
 
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMD5;
@@ -93,8 +94,8 @@ uses
     OverbyteIcsTypes;   // For TBytes
 
 const
-    MD5Version         = 702;
-    CopyRight : String = ' MD5 Message-Digest (c) 1997-2010 F. Piette V7.02 ';
+    MD5Version         = 703;
+    CopyRight : String = ' MD5 Message-Digest (c) 1997-2010 F. Piette V7.03 ';
     DefaultMode =  fmOpenRead or fmShareDenyWrite;
 
 {$Q-}
@@ -640,7 +641,17 @@ var
     I       : Integer;
     PKey    : PByte;
 begin
-    PKey := @Key;
+    { If key is longer than 64 bytes reset it to key = MD5(key) } { V7.03 }
+    if KeySize > 64 then begin
+        MD5Init(Context);
+        MD5Update(Context, Key, KeySize);
+        MD5Final(Digest, Context);
+        KeySize := 16;
+        PKey := @Digest[0];
+    end
+    else
+        PKey := @Key;
+
     for I := Low(IPAD) to High(IPAD) do begin
         if (I + 1) <= KeySize then begin
             IPAD[I] := PKey^ xor $36;

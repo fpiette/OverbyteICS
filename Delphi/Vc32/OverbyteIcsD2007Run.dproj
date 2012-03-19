@@ -95,6 +95,8 @@
     <DCCReference Include="OverbyteIcsMimeDec.pas" />
     <DCCReference Include="OverbyteIcsMimeUtils.dcr" />
     <DCCReference Include="OverbyteIcsMimeUtils.pas" />
+    <DCCReference Include="OverbyteIcsCookies.dcr"/>
+    <DCCReference Include="OverbyteIcsCookies.pas"/>
     <DCCReference Include="OverbyteIcsMLang.pas" />
     <DCCReference Include="OverbyteIcsMultipartFtpDownloader.dcr" />
     <DCCReference Include="OverbyteIcsMultipartFtpDownloader.dcr" />

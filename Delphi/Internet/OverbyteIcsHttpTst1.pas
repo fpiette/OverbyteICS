@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.01
+Version:      7.02
 Description:  Sample program to demonstrate some of the THttpCli features.
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -58,6 +58,7 @@ Jan 10, 2004  V1.08 Added code for HTTP 1.1 (Started months ago but forgot
               to add it in the history).
 Feb 4,  2011  V7.00 Angus added bandwidth throttling using TCustomThrottledWSocket
 Oct 6,  2011  V7.01 Angus added content encoding checkbox
+Mar 19, 2012  V7.02 Angus added persistent cookie support
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -86,12 +87,12 @@ uses
   System.ComponentModel,
  {$ENDIF}
   OverbyteIcsWinsock,  OverbyteIcsWSocket,
-  OverbyteIcsHttpProt, OverbyteIcsHttpCCodZLib,
+  OverbyteIcsHttpProt, OverbyteIcsHttpCCodZLib, OverbyteIcsCookies,
   OverbyteIcsWndControl, OverbyteIcsLogger;
 
 const
-  HttpTstVersion         = 701;
-  CopyRight : String     = 'HttpTst (c) 1997-2011 Francois Piette  V7.01 ';
+  HttpTstVersion         = 702;
+  CopyRight : String     = 'HttpTst (c) 1997-2012 Francois Piette  V7.02 ';
 
 type
   THttpTestForm = class(TForm)
@@ -130,6 +131,7 @@ type
     BandwidthLimitEdit: TEdit;
     Label11: TLabel;
     ContentEncodingCheckBox: TCheckBox;
+    IcsCookies: TIcsCookies;
     procedure GetButtonClick(Sender: TObject);
     procedure HttpCli1Command(Sender: TObject; var S: String);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -150,7 +152,7 @@ type
     procedure CloseButtonClick(Sender: TObject);
     procedure ClearButtonClick(Sender: TObject);
     procedure PutButtonClick(Sender: TObject);
-    procedure Label10Click(Sender: TObject);
+    procedure IcsCookiesNewCookie(Sender: TObject; ACookie: TCookie; var Save: Boolean);
   private
     Initialized  : Boolean;
     DocFileName  : String;
@@ -229,6 +231,11 @@ begin
 {$ENDIF}
         IniFile.Free;
         Panel2.BevelOuter := bvNone;
+
+        { 7.02 load persisent cookies, they will be saved automatically during close down to save file name }
+        IcsCookies.LoadFromFile(ChangeFileExt(FIniFileName, '.cookies'));
+        IcsCookies.AutoSave := true;
+
         { Display version info for program and used components }
         wsi := WinsockInfo;
         DisplayMemo.Clear;
@@ -348,6 +355,8 @@ begin
         else
             Display('Not using proxy');
 
+        HttpCli1.Cookie := IcsCookies.GetCookies (HttpCli1.URL);  // 7.02 send cookies
+
         try
             HttpCli1.Head;
         except
@@ -405,6 +414,8 @@ begin
                     HttpCli1.ProxyPort + '''')
         else
             Display('Not using proxy');
+
+        HttpCli1.Cookie := IcsCookies.GetCookies (HttpCli1.URL);  // 7.02 send cookies
 
         try
             HttpCli1.Get;
@@ -519,6 +530,8 @@ begin
                                   HttpCli1.ProxyPort + '''')
         else
             Display('Not using proxy');
+
+        HttpCli1.Cookie := IcsCookies.GetCookies (HttpCli1.URL);  // 7.02 send cookies
 
         try
             if Request = httpPOST then
@@ -639,12 +652,6 @@ begin
                 IntToStr(HttpCli1.StatusCode));
 end;
 
-
-procedure THttpTestForm.Label10Click(Sender: TObject);
-begin
-
-end;
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpTestForm.AbortButtonClick(Sender: TObject);
 begin
@@ -692,14 +699,32 @@ procedure THttpTestForm.HttpCli1Cookie(
     const Data : String;
     var Accept : Boolean);
 begin
-    Display('Cookie: "' + Data + '"');
+    IcsCookies.SetCookie (Data, HttpCli1.Url);   // 7.02 save cookie
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpTestForm.IcsCookiesNewCookie(Sender: TObject; ACookie: TCookie; var Save: Boolean);
+var
+    S: string;
+begin
+    with ACookie do begin
+        S := 'NewCookie: ' + CName + '=' + CValue + ', Domain=' + CDomain + ', Path=' + CPath ;
+        if CPersist then
+            S := S + ', Expires=' + DateTimeToStr (CExpireDT)
+        else
+            S := S + ', Not Persisent';
+        if CSecureOnly then S := S + ', SecureOnly';
+        if CHttpOnly then S := S + ', HttpOnly';
+        Display (S);               // 7.02 tell user what cookie we found, could also reject it
+    end;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpTestForm.HttpCli1LocationChange(Sender: TObject);
 begin
     Display('Location changed to "' + HttpCli1.Location + '"');
+ { cookies may have been sent during redirection, so update again now }
+    HttpCli1.Cookie := IcsCookies.GetCookies (HttpCli1.Location);   // 7.02 send cookies
 end;
 
 

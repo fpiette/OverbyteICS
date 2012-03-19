@@ -80,6 +80,7 @@
             <DCCReference Include="OverbyteIcsLogger.dcr"/>
             <DCCReference Include="OverbyteIcsMimeDec.dcr"/>
             <DCCReference Include="OverbyteIcsMimeUtils.dcr"/>
+            <DCCReference Include="OverbyteIcsCookies.dcr"/>
             <DCCReference Include="OverbyteIcsMultipartFtpDownloader.dcr"/>
             <DCCReference Include="OverbyteIcsMultipartHttpDownloader.dcr"/>
             <DCCReference Include="OverbyteIcsMultiProgressBar.dcr"/>
@@ -154,6 +155,7 @@
             <DCCReference Include="OverbyteIcsIconv.pas"/>
             <DCCReference Include="OverbyteIcsMLang.pas"/>
             <DCCReference Include="OverbyteIcsWinnls.pas"/>
+            <DCCReference Include="OverbyteIcsCookies.pas"/>
             <BuildConfiguration Include="Base">
                 <Key>Base</Key>
             </BuildConfiguration>

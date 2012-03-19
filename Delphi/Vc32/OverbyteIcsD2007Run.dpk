@@ -29,6 +29,7 @@ package OverbyteIcsD2007Run;
 {$R 'OverbyteIcsCharsetComboBox.dcr'}
 {$R 'OverbyteIcsWSocketTS.dcr'}
 {$R 'OverbyteIcsMimeUtils.dcr'}
+{$R 'OverbyteIcsCookies.dcr'}
 {$ALIGN 8}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
@@ -122,6 +123,7 @@ contains
   OverbyteIcsMLang in 'OverbyteIcsMLang.pas',
   OverbyteIcsCsc in 'OverbyteIcsCsc.pas',
   OverbyteIcsIconv in 'OverbyteIcsIconv.pas',
-  OverbyteIcsWinnls in 'OverbyteIcsWinnls.pas';
+  OverbyteIcsWinnls in 'OverbyteIcsWinnls.pas',
+  OverbyteIcsCookies in 'OverbyteIcsCookies.pas';
 
 end.

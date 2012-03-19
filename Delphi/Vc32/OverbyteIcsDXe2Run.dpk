@@ -29,6 +29,7 @@ package OverbyteIcsDXe2Run;
 {$R 'OverbyteIcsCharsetComboBox.dcr'}
 {$R 'OverbyteIcsWSocketTS.dcr'}
 {$R 'OverbyteIcsMimeUtils.dcr'}
+{$R 'OverbyteIcsCookies.dcr'}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
@@ -125,6 +126,7 @@ contains
   OverbyteIcsCsc in 'OverbyteIcsCsc.pas',
   OverbyteIcsIconv in 'OverbyteIcsIconv.pas',
   OverbyteIcsMLang in 'OverbyteIcsMLang.pas',
-  OverbyteIcsWinnls in 'OverbyteIcsWinnls.pas';
+  OverbyteIcsWinnls in 'OverbyteIcsWinnls.pas',
+  OverbyteIcsCookies in 'OverbyteIcsCookies.pas';
 
 end.

@@ -93,7 +93,6 @@ object HttpTestForm: THttpTestForm
       Height = 26
       Caption = 'Maximum Bandwidth (bytes/sec)'
       WordWrap = True
-      OnClick = Label10Click
     end
     object Label11: TLabel
       Left = 374
@@ -164,7 +163,6 @@ object HttpTestForm: THttpTestForm
       Height = 119
       Align = alRight
       TabOrder = 10
-      ExplicitHeight = 111
       object GetButton: TButton
         Left = 4
         Top = 8
@@ -291,7 +289,6 @@ object HttpTestForm: THttpTestForm
     ParentFont = False
     ScrollBars = ssBoth
     TabOrder = 1
-    ExplicitTop = 113
   end
   object DocumentMemo: TMemo
     Left = 0
@@ -309,8 +306,6 @@ object HttpTestForm: THttpTestForm
     ParentFont = False
     ScrollBars = ssBoth
     TabOrder = 2
-    ExplicitTop = 261
-    ExplicitHeight = 260
   end
   object HttpCli1: THttpCli
     URL = 'http://www.rtfm.be'
@@ -351,5 +346,11 @@ object HttpTestForm: THttpTestForm
     LogOptions = [loDestOutDebug, loProtSpecErr, loProtSpecInfo]
     Left = 136
     Top = 136
+  end
+  object IcsCookies: TIcsCookies
+    AutoSave = False
+    OnNewCookie = IcsCookiesNewCookie
+    Left = 225
+    Top = 135
   end
 end

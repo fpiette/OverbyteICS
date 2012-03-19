@@ -214,6 +214,8 @@ Delphi\vc32\OverbyteIcsSnmpCli.pas
 Delphi\vc32\OverbyteIcsAsn1Utils.pas
 Delphi\vc32\OverbyteIcsSnmpMsgs.pas
 Delphi\vc32\OverbyteIcsWinnls.pas
+Delphi\vc32\OverbyteIcsCookies.pas
+Delphi\vc32\OverbyteIcsCookies.dcr
 
 Delphi\vc32\zobj125\adler32.obj
 Delphi\vc32\zobj125\compress.obj

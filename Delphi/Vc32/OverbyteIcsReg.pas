@@ -6,6 +6,7 @@ unit OverbyteIcsReg;
 {$ENDIF}
 
 { Feb 15, 2012 Angus - added OverbyteIcsMimeUtils }
+{ Mar 15, 2012 Angus - added OverbyteIcsCookies }
 
 {$I OverbyteIcsDefs.inc}
 {$IFDEF USE_SSL}
@@ -60,6 +61,7 @@ uses
     OverbyteIcsMimeUtils,
     OverbyteIcsTimeList,
     OverbyteIcsLogger,
+    OverbyteIcsCookies,
   {$ENDIF}
     SysUtils, Classes;
 
@@ -98,6 +100,7 @@ begin
     GroupDescendentsWith(TMimeTypesList, TControl);
     GroupDescendentsWith(TTimeList, TControl);
     GroupDescendentsWith(TIcsLogger, TControl);
+    GroupDescendentsWith(TCookies, TControl);
   {$ENDIF VCL}
 {$ENDIF COMPILER16_UP}
 
@@ -126,7 +129,7 @@ begin
 {$IFDEF ICS_COMMON}
     RegisterComponents('Overbyte ICS', [
       { Components neither depending on the FMX nor on the VCL package }
-      TMimeDecode, TMimeDecodeEx, TMimeDecodeW, TMimeTypesList, TTimeList, TIcsLogger
+      TMimeDecode, TMimeDecodeEx, TMimeDecodeW, TMimeTypesList, TTimeList, TIcsLogger, TIcsCookies
     ]);
 {$ENDIF}
 

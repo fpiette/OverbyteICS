@@ -59,7 +59,9 @@ uses
   PreviewForm, DownLoadId, Readhtml, urlconIcs,
   OverbyteIcsWndControl, OverbyteIcsWsocket, OverbyteIcsHttpProt, OverbyteIcsCookies,
   {$if CompilerVersion >= 15}
+    {$IF CompilerVersion < 23}
     XpMan,
+    {$ifend}
   {$ifend}
   HtmlGlobals;
 

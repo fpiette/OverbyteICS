@@ -30,12 +30,15 @@ New settings to stop caching pages (initially off) and images (on)
 Fixed bug with HotSpotTargetClick not always using a full URL
 Save a few more file types as binary downloads rather than displaying them
 
+20 March 2012 - fixed bug with D2009 and  later
+
+
 
 Pending - use NoCache header to stop dynamic pages being cached
 
 
 Fixed bug in FramBrwz.pas with links not normalised
-Fixed bug in FramBrwz.pas with Referrer having application file path added to front
+Fixed bug in htmlview.pas with Referrer having application file path added to front
 
 }
 
@@ -199,6 +202,7 @@ type
     procedure GetImageRequest(Sender: TObject; const URL: WideString; var Stream: TStream);
     procedure HotSpotTargetClick(Sender: TObject; const Target, URL: WideString; var Handled: Boolean);
     procedure HotSpotTargetCovered(Sender: TObject; const Target, URL: WideString);
+{$endif}
     procedure ShowDiagWindowClick(Sender: TObject);
     procedure LogLine (S: string);
     procedure FrameBrowserScript(Sender: TObject; const Name, ContentType, Src, Script: WideString);
@@ -206,7 +210,6 @@ type
     procedure IcsCookiesNewCookie(Sender: TObject; ACookie: TCookie; var Save: Boolean);
     procedure CachePagesClick(Sender: TObject);
     procedure CacheImagesClick(Sender: TObject);
-{$endif}
   private
     { Private declarations }
     URLBase: String;

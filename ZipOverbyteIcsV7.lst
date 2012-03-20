@@ -1380,7 +1380,8 @@ Delphi\Internet\Browser\DownLoadId.dfm
 Delphi\Internet\Browser\DownLoadId.pas          
 Delphi\Internet\Browser\fbHelp32.res            
 Delphi\Internet\Browser\FBUnitIcs.dfm           
-Delphi\Internet\Browser\FBUnitIcs.pas           
+Delphi\Internet\Browser\FBUnitIcs.pas
+Delphi\Internet\Browser\FrameBrowserIcs.dof           
 Delphi\Internet\Browser\FrameBrowserIcs.dpr     
 Delphi\Internet\Browser\FrameBrowserIcs.res     
 Delphi\Internet\Browser\Gopage.dfm              

@@ -284,6 +284,23 @@ uses HTMLAbt, ProxyDlg, AuthUnit, LogWin;
   {$ifend}
 {$endif}
 
+procedure StartProcess(CommandLine: string; ShowWindow: Word);
+var
+  si: _STARTUPINFO;
+  pi: _PROCESS_INFORMATION;
+begin
+  FillChar(si, SizeOf(si), 0);
+  si.cb := SizeOf(si);
+  si.dwFlags := STARTF_USESHOWWINDOW;
+  si.wShowWindow := ShowWindow;
+  UniqueString(CommandLine);
+  if CreateProcess(nil, PChar(CommandLine), nil, nil, False, 0, nil, nil, si, pi) then
+  begin
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+  end;
+end;
+
 {----------------THTTPForm.FormCreate}
 procedure THTTPForm.FormCreate(Sender: TObject);
 var
@@ -1046,12 +1063,12 @@ if (Protocol = 'file') then
   else if Ext = 'exe' then
     begin
     Handled := True;
-    WinExec(StrPCopy(PC, S+' '+Params), sw_Show);
+    StartProcess(StrPCopy(PC, S+' '+Params), sw_Show);
     end
   else if (Ext = 'mid') or (Ext = 'avi')  then
     begin
     Handled := True;
-    WinExec(StrPCopy(PC, 'MPlayer.exe /play /close '+S), sw_Show);
+    StartProcess(StrPCopy(PC, 'MPlayer.exe /play /close '+S), sw_Show);
     end;
   {else ignore other extensions}
   end;
@@ -1242,7 +1259,7 @@ if not IsFullURL(S) then
   S := CombineURL(URLBase, S);
 
 S := ParamStr(0)+' "'+S+'"';
-WinExec(PChar(S), sw_Show);
+StartProcess(PChar(S), sw_Show);
 end;
 
 procedure THTTPForm.Find1Click(Sender: TObject);
@@ -1401,7 +1418,7 @@ procedure THTTPForm.OpenInNewWindowClick(Sender: TObject);
 var
   PC: array[0..255] of char;
 begin
-WinExec(StrPCopy(PC, ParamStr(0)+' "'+NewWindowFile+'"'), sw_Show);
+StartProcess(StrPCopy(PC, ParamStr(0)+' "'+NewWindowFile+'"'), sw_Show);
 end;
 
 procedure THTTPForm.SaveURLClick(Sender: TObject);

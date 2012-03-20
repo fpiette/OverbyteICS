@@ -6,7 +6,7 @@ unit OverbyteIcsReg;
 {$ENDIF}
 
 { Feb 15, 2012 Angus - added OverbyteIcsMimeUtils }
-{ Mar 15, 2012 Angus - added OverbyteIcsCookies }
+{ Mar 15, 2012 Angus - added OverbyteIcsCookies } // ToDo: make it available for BCB
 
 {$I OverbyteIcsDefs.inc}
 {$IFDEF USE_SSL}
@@ -61,8 +61,10 @@ uses
     OverbyteIcsMimeUtils,
     OverbyteIcsTimeList,
     OverbyteIcsLogger,
-    OverbyteIcsCookies,
-  {$ENDIF}
+    {$IFNDEF BCB}
+      OverbyteIcsCookies,
+    {$ENDIF !BCB}
+  {$ENDIF ICS_COMMON}
     SysUtils, Classes;
 
 procedure Register;
@@ -91,16 +93,14 @@ begin
     GroupDescendentsWith(TIcsWndControl, TControl);
     GroupDescendentsWith(TDnsQuery, TControl);
     GroupDescendentsWith(TFingerCli, TControl);
-    GroupDescendentsWith(THttpAppSrv, TControl);
-    GroupDescendentsWith(TFtpClient, TControl);
-    GroupDescendentsWith(TPop3Cli, TControl);
-    GroupDescendentsWith(TSmtpCli, TControl);
     GroupDescendentsWith(TMimeDecode, TControl);
     GroupDescendentsWith(TMimeDecodeEx, TControl);
     GroupDescendentsWith(TMimeTypesList, TControl);
     GroupDescendentsWith(TTimeList, TControl);
     GroupDescendentsWith(TIcsLogger, TControl);
-    GroupDescendentsWith(TCookies, TControl);
+  {$IFNDEF BCB}
+    GroupDescendentsWith(TIcsCookies, TControl);
+  {$ENDIF !BCB}
   {$ENDIF VCL}
 {$ENDIF COMPILER16_UP}
 
@@ -129,7 +129,11 @@ begin
 {$IFDEF ICS_COMMON}
     RegisterComponents('Overbyte ICS', [
       { Components neither depending on the FMX nor on the VCL package }
-      TMimeDecode, TMimeDecodeEx, TMimeDecodeW, TMimeTypesList, TTimeList, TIcsLogger, TIcsCookies
+      TMimeDecode, TMimeDecodeEx, TMimeDecodeW, TMimeTypesList, TTimeList,
+    {$IFNDEF BCB}
+      TIcsCookies,
+    {$ENDIF !BCB}
+      TIcsLogger
     ]);
 {$ENDIF}
 

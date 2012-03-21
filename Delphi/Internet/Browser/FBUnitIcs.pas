@@ -195,6 +195,8 @@ type
     procedure GetImageRequest(Sender: TObject; const URL: String; var Stream: TStream);
     procedure HotSpotTargetClick(Sender: TObject; const Target, URL: String; var Handled: Boolean);
     procedure HotSpotTargetCovered(Sender: TObject; const Target, URL: String);
+    procedure FrameBrowserScript(Sender: TObject; const Name, ContentType, Src, Script: string);
+    procedure FrameBrowserMeta(Sender: TObject; const HttpEq, Name, Content: string);
 {$else}
     procedure BlankWindowRequest(Sender: TObject; const Target, URL: WideString);
     procedure FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: Boolean;
@@ -204,11 +206,11 @@ type
     procedure GetImageRequest(Sender: TObject; const URL: WideString; var Stream: TStream);
     procedure HotSpotTargetClick(Sender: TObject; const Target, URL: WideString; var Handled: Boolean);
     procedure HotSpotTargetCovered(Sender: TObject; const Target, URL: WideString);
+    procedure FrameBrowserScript(Sender: TObject; const Name, ContentType, Src, Script: WideString);
+    procedure FrameBrowserMeta(Sender: TObject; const HttpEq, Name, Content: WideString);
 {$endif}
     procedure ShowDiagWindowClick(Sender: TObject);
     procedure LogLine (S: string);
-    procedure FrameBrowserScript(Sender: TObject; const Name, ContentType, Src, Script: WideString);
-    procedure FrameBrowserMeta(Sender: TObject; const HttpEq, Name, Content: WideString);
     procedure IcsCookiesNewCookie(Sender: TObject; ACookie: TCookie; var Save: Boolean);
     procedure CachePagesClick(Sender: TObject);
     procedure CacheImagesClick(Sender: TObject);
@@ -1637,12 +1639,12 @@ with Canvas do
 AFont.Free;
 end;
 
-procedure THTTPForm.FrameBrowserMeta(Sender: TObject; const HttpEq, Name, Content: WideString);
+procedure THTTPForm.FrameBrowserMeta(Sender: TObject; const HttpEq, Name, Content: ThtString);
 begin
 LogLine ('FrameBrowserMeta, Http=' + HttpEq + ', Name=' + Name + ', Content=' + Content);
 end;
 
-procedure THTTPForm.FrameBrowserScript(Sender: TObject; const Name, ContentType, Src, Script: WideString);
+procedure THTTPForm.FrameBrowserScript(Sender: TObject; const Name, ContentType, Src, Script: ThtString);
 begin
 LogLine ('FrameBrowserScript, Name=' + Name + ', Src=' + Src + ', Script=' + Script);
 end;

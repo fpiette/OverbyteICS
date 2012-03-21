@@ -43,7 +43,7 @@ S :='<body bgcolor="ffffeb" text="000080">'+
     '<p>Version '+Version+ 
     '</center>'+
     '</body>';
-Viewer.LoadFromBuffer(@S[1], Length(S));
+Viewer.LoadFromString(S);
 end;
 
 end.

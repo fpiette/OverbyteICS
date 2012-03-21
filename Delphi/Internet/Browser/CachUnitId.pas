@@ -41,11 +41,6 @@ type
 implementation
 
 uses
-  {$ifndef ver140}
-  {$ifndef ver150}
-  FileCtrl,
-  {$endif}
-  {$endif}
   FBUnitIcs, htmlun2, urlsubs;
 
 constructor TDiskCache.Create(const ADirectory: string);
@@ -197,17 +192,10 @@ end;
 function TDiskCache.MakeName(S: string): string;
 {S is lower case here}
 var
-  I: integer;
-  Ext: string[10];
+  Ext: string;
   GoodExt: boolean;
 begin
-Ext := '';
-for I := Length(S) downto Max(1, Length(S)-5) do
-  if S[I] = '.' then
-    begin
-    Ext := Copy(S, I, 255);
-    Break;
-    end;
+Ext := ExtractFileExt(S);
 GoodExt := (Ext <>'') and
            ((Ext = '.htm') or  (Ext = '.html') or (Ext = '.gif') or (Ext = '.jpg') or
             (Ext = '.png') or  (Ext = '.bmp') or (Ext = '.txt') or (Ext = '.jpeg') or

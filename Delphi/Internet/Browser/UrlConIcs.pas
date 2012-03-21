@@ -10,6 +10,8 @@
 {*                Written by Yves Urbain                 *}
 {*********************************************************}
 
+ { Copyright (c) 2012 by Angus Robertson delphi@magsys.co.uk }
+
 unit UrlConIcs;
 
 interface
@@ -72,7 +74,7 @@ type
     FInputStream : TMemoryStream;
     FInputStreamOwn : Boolean; { true if the class ownes the stream }
     procedure SetInputStream(Value: TMemoryStream);
-  protected 
+  protected
     FOnDocBegin       : TNotifyEvent;
     FOnDocData        : TDocDataEvent;
     FOnRequestDone    : THttpRequestDone;
@@ -358,7 +360,6 @@ FAborted := False;
 CheckInputStream;
 if NOT Assigned (HTTP) then
     HTTP := TSslHttpCli.Create(Nil);
-// HTTP.CookieManager := CookieManager;
 HTTP.SslContext := HTTPForm.SslContext ;
 HTTP.FollowRelocation := True;
 HTTP.OnLocationChange := FOnRedirect;

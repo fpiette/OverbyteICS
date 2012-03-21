@@ -1,6 +1,7 @@
 {
-Version   11
+Version   11.2
 Copyright (c) 1995-2008 by L. David Baldwin, 2008-2010 by HtmlViewer Team
+Copyright (c) 2012 by Angus Robertson delphi@magsys.co.uk
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -22,6 +23,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 Note that the source modules HTMLGIF1.PAS and DITHERUNIT.PAS
 are covered by separate copyright notices located in those modules.
 
+------------------------------------------------------------------------------------
+
+This demo requires the HtmlViewer component from:
+
+https://github.com/BerndGabriel/HtmlViewer or
+http://code.google.com/p/thtmlviewer/
+
+which must also be downloaded and installed before the demo can be built.
+
+It also needs ICS v7 dated 21st March 2012 or later from:
+
+http://wiki.overbyte.be/wiki/index.php/ICS_Download
+
+
 19 March 2012 - Angus Robertson replaced Indy with ICSv7 (based on FBUnitIndy)
 Added new diagnostic window showing all HTTP traffic and non-display HTML
 Save window sizes and positions
@@ -30,7 +45,7 @@ New settings to stop caching pages (initially off) and images (on)
 Fixed bug with HotSpotTargetClick not always using a full URL
 Save a few more file types as binary downloads rather than displaying them
 
-20 March 2012 - fixed bug with D2009 and  later
+21 March 2012 - fixed Unicode bugs with D2009 and later
 
 
 
@@ -506,6 +521,7 @@ const
   MaxRedirect = 15;
 var
   S, URL1, FName, Query1, LastUrl: string;
+  AnsiQuery: AnsiString;
   Error, TryAgain, TryRealm: boolean;
   RedirectCount: integer;
 
@@ -578,22 +594,26 @@ if (FName = '') or not FileExists(FName) then
       repeat
         TryAgain := False;
         Inc(RedirectCount);
-        LogLine ('FrameBrowser Get/Post: ' + URL1);
         if Assigned(Connection.InputStream) then
           Connection.InputStream.Clear;
         try
-          if IsGet then
-            begin       {Get}
-            if Query1 <> '' then
-              Connection.Get(URL1+'?'+Query1)
-            else
-              Connection.Get(URL1);
+          if IsGet then begin       {Get}
+            if Query1 <> '' then begin
+              LogLine ('FrameBrowser Get: ' + URL1+'?'+Query1);
+              Connection.Get(URL1+'?'+Query1);
             end
-          else      {Post}
-            begin
+            else begin
+              LogLine ('FrameBrowser Get: ' + URL1);
+              Connection.Get(URL1);
+            end;
+          end
+          else begin      {Post}
             Connection.SendStream := TMemoryStream.Create;
             try
-              Connection.SendStream.WriteBuffer(Query1[1], Length(Query1));
+              LogLine ('FrameBrowser Post: ' + URL1+', Data=' +
+                  Copy (Query1, 1, 132) + ', EncType=' + EncType);  // not too much data
+              AnsiQuery := AnsiString (Query1);
+              Connection.SendStream.WriteBuffer(AnsiQuery[1], Length(AnsiQuery));
               Connection.SendStream.Position := 0;
               if EncType = '' then
                 Connection.ContentTypePost := 'application/x-www-form-urlencoded'

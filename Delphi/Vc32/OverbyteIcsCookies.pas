@@ -66,8 +66,8 @@ unit OverbyteIcsCookies;
 interface
 
 uses
-  SysUtils, Classes, Windows, IniFiles,
-  OverbyteIcsHttpProt, OverbyteIcsUrl, OverbyteIcsUtils, OverbyteIcsTypes;
+  Windows, SysUtils, Classes, IniFiles,
+  OverbyteIcsUrl, OverbyteIcsUtils;
 
 type
     TCookie = record       // RFC6265 says save this lot (except URL)
@@ -326,7 +326,7 @@ function TIcsCookies.Get1Cookie (Idx: integer): TCookie;
 begin
     Result.CName := '';
     if Idx >= FCookieIdx.Count then exit;
-    Result := FCookies [INT_PTR (FCookieIdx [Idx])];
+    Result := FCookies [Integer (FCookieIdx.Objects [Idx])];
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

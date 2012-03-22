@@ -47,6 +47,8 @@ Save a few more file types as binary downloads rather than displaying them
 
 21 March 2012 - fixed Unicode bugs with D2009 and later
 
+22 March 2012 - added new setting to log HTML page code for diagnostics
+
 
 
 Pending - use NoCache header to stop dynamic pages being cached
@@ -54,7 +56,7 @@ Pending - use NoCache header to stop dynamic pages being cached
 
 Fixed bug in FramBrwz.pas with links not normalised
 Fixed bug in htmlview.pas with Referrer having application file path added to front
-
+Fixed bug in ReadHTML.pas handle meta without http-equiv="Content-Type" <meta charset="utf-8"> from HTML5
 }
 
 unit FBUnitIcs;
@@ -161,6 +163,7 @@ type
     IcsCookies: TIcsCookies;
     CachePages: TMenuItem;
     CacheImages: TMenuItem;
+    ShowLogHTML: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure GetButtonClick(Sender: TObject);
@@ -229,6 +232,7 @@ type
     procedure IcsCookiesNewCookie(Sender: TObject; ACookie: TCookie; var Save: Boolean);
     procedure CachePagesClick(Sender: TObject);
     procedure CacheImagesClick(Sender: TObject);
+    procedure ShowLogHTMLClick(Sender: TObject);
   private
     { Private declarations }
     URLBase: String;
@@ -404,6 +408,7 @@ try
   ShowDiagWindow.Checked := IniFile.ReadBool('HTTPForm', 'ShowDiagWindow', ShowDiagWindow.Checked);
   CachePages.Checked := IniFile.ReadBool('HTTPForm', 'CachePages', CachePages.Checked);
   CacheImages.Checked := IniFile.ReadBool('HTTPForm', 'CacheImages', CacheImages.Checked);
+  ShowLogHTML.Checked := IniFile.ReadBool('HTTPForm', 'ShowLogHTML', ShowLogHTML.Checked);
   Proxy := IniFile.ReadString('Proxy', 'ProxyHost', '');
   ProxyPort := IniFile.ReadString('Proxy', 'ProxyPort', '80');
   ProxyUser := IniFile.ReadString('Proxy', 'ProxyUsername', '');
@@ -465,6 +470,7 @@ if Monitor1 then
     IniFile.WriteBool('HTTPForm', 'ShowDiagWindow', ShowDiagWindow.Checked);
     IniFile.WriteBool('HTTPForm', 'CachePages', CachePages.Checked);
     IniFile.WriteBool('HTTPForm', 'CacheImages', CacheImages.Checked);
+    IniFile.WriteBool('HTTPForm', 'ShowLogHTML', ShowLogHTML.Checked);
     IniFile.WriteString('Proxy', 'ProxyHost', Proxy);
     IniFile.WriteString('Proxy', 'ProxyPort', ProxyPort);
     IniFile.WriteString('Proxy', 'ProxyUsername', ProxyUser);
@@ -687,6 +693,7 @@ if (FName = '') or not FileExists(FName) then
             begin
             S := E.Message;          {Delphi 1}
             AStream.Write(S[1], Length(S));
+            LogLine (S);
             end;
         finally
           Connection.Free;   {needs to be reset}
@@ -720,6 +727,12 @@ else
   LogLine ('FrameBrowserGetPostRequestEx: from Cache' + FName);
   end;
 NewURL := NewLocation;   {in case location has been changed}
+if ShowLogHTML.Checked then begin
+  AStream.Position := 0;
+  SetLength (AnsiQuery, AStream.Size);
+  AStream.ReadBuffer(AnsiQuery[1], AStream.Size);
+  LogLine (AnsiQuery);
+end;
 Stream := AStream;
 end;
 
@@ -1189,6 +1202,11 @@ procedure THTTPForm.ShowImagesClick(Sender: TObject);
 begin
 FrameBrowser.ViewImages := not FrameBrowser.ViewImages;
 ShowImages.Checked := FrameBrowser.ViewImages;
+end;
+
+procedure THTTPForm.ShowLogHTMLClick(Sender: TObject);
+begin
+ShowLogHTML.Checked := NOT ShowLogHTML.Checked;
 end;
 
 procedure THTTPForm.ReloadClick(Sender: TObject);
@@ -1661,7 +1679,7 @@ end;
 
 procedure THTTPForm.FrameBrowserMeta(Sender: TObject; const HttpEq, Name, Content: ThtString);
 begin
-LogLine ('FrameBrowserMeta, Http=' + HttpEq + ', Name=' + Name + ', Content=' + Content);
+LogLine ('FrameBrowserMeta, HttpEq=' + HttpEq + ', MetaName=' + Name + ', MetaContent=' + Content);
 end;
 
 procedure THTTPForm.FrameBrowserScript(Sender: TObject; const Name, ContentType, Src, Script: ThtString);

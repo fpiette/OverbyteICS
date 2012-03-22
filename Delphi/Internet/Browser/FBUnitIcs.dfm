@@ -126,7 +126,7 @@ object HTTPForm: THTTPForm
         MinHeight = 21
         MinWidth = 170
         Text = 'URL:'
-        Width = 390
+        Width = 380
       end
       item
         Break = False
@@ -134,7 +134,7 @@ object HTTPForm: THTTPForm
         ImageIndex = -1
         MinHeight = 37
         MinWidth = 155
-        Width = 178
+        Width = 188
       end>
     object ToolBar2: TToolBar
       Left = 9
@@ -185,7 +185,7 @@ object HTTPForm: THTTPForm
     object UrlComboBox: TComboBox
       Left = 193
       Top = 8
-      Width = 348
+      Width = 338
       Height = 21
       TabOrder = 1
       OnClick = URLComboBoxClick
@@ -194,9 +194,9 @@ object HTTPForm: THTTPForm
         'http://pc19-web/local/localindex.html')
     end
     object Panel10: TPanel
-      Left = 556
+      Left = 546
       Top = 0
-      Width = 169
+      Width = 179
       Height = 37
       Align = alTop
       BevelOuter = bvNone
@@ -232,14 +232,14 @@ object HTTPForm: THTTPForm
         end
       end
       object Panel3: TPanel
-        Left = 141
+        Left = 151
         Top = 0
         Width = 28
         Height = 37
         Align = alRight
         BevelOuter = bvNone
         TabOrder = 1
-        ExplicitLeft = 245
+        ExplicitLeft = 247
         object Animate1: TAnimate
           Left = 3
           Top = 8
@@ -252,8 +252,8 @@ object HTTPForm: THTTPForm
     end
   end
   object MainMenu1: TMainMenu
-    Left = 248
-    Top = 136
+    Left = 312
+    Top = 88
     object File1: TMenuItem
       Caption = '&File'
       OnClick = File1Click
@@ -333,6 +333,10 @@ object HTTPForm: THTTPForm
         Checked = True
         OnClick = ShowDiagWindowClick
       end
+      object ShowLogHTML: TMenuItem
+        Caption = 'Log HTML'
+        OnClick = ShowLogHTMLClick
+      end
     end
     object Help1: TMenuItem
       Caption = '&Help'
@@ -353,21 +357,21 @@ object HTTPForm: THTTPForm
       'html files|*.htm;*.html|image files|*.bmp;*.gif;*.jpg;*.jpeg;*.p' +
       'ng|text files|*.txt|all files|*.*'
     Options = [ofHideReadOnly, ofPathMustExist, ofFileMustExist]
-    Left = 304
-    Top = 120
+    Left = 296
+    Top = 152
   end
   object Timer: TTimer
     Enabled = False
     Interval = 100
     OnTimer = TimerTimer
-    Left = 384
+    Left = 368
     Top = 145
   end
   object SaveDialog: TSaveDialog
     Filter = 'All Files|*.*'
     Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofNoReadOnlyReturn]
-    Left = 136
-    Top = 128
+    Left = 144
+    Top = 160
   end
   object FindDialog: TFindDialog
     Options = [frDown, frHideWholeWord, frDisableWholeWord]
@@ -376,8 +380,8 @@ object HTTPForm: THTTPForm
     Top = 145
   end
   object PopupMenu: TPopupMenu
-    Left = 344
-    Top = 129
+    Left = 232
+    Top = 89
     object SaveImageAs: TMenuItem
       Caption = '&Save image as...'
       OnClick = SaveImageAsClick
@@ -396,8 +400,8 @@ object HTTPForm: THTTPForm
     MaxPage = -1
     Options = [poPageNums]
     ToPage = 1
-    Left = 184
-    Top = 137
+    Left = 216
+    Top = 153
   end
   object Timer1: TTimer
     Enabled = False
@@ -412,7 +416,7 @@ object HTTPForm: THTTPForm
     Left = 40
     Top = 160
     Bitmap = {
-      494C01010D004800480011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C01010D005000500011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000440000004400000001002000000000004048
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1039,7 +1043,7 @@ object HTTPForm: THTTPForm
   object IcsCookies: TIcsCookies
     AutoSave = False
     OnNewCookie = IcsCookiesNewCookie
-    Left = 90
+    Left = 122
     Top = 95
   end
 end

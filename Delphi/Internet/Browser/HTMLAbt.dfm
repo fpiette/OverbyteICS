@@ -21,8 +21,9 @@ object AboutBox: TAboutBox
     Top = 170
     Width = 77
     Height = 30
-    TabOrder = 0
     Kind = bkOK
+    NumGlyphs = 2
+    TabOrder = 0
   end
   object Panel1: TPanel
     Left = 0
@@ -49,11 +50,11 @@ object AboutBox: TAboutBox
       HistoryMaxCount = 0
       HtOptions = []
       NoSelect = True
-      PrintMarginBottom = 2
-      PrintMarginLeft = 2
-      PrintMarginRight = 2
-      PrintMarginTop = 2
-      PrintScale = 1
+      PrintMarginBottom = 2.000000000000000000
+      PrintMarginLeft = 2.000000000000000000
+      PrintMarginRight = 2.000000000000000000
+      PrintMarginTop = 2.000000000000000000
+      PrintScale = 1.000000000000000000
       ScrollBars = ssNone
       ViewImages = False
     end

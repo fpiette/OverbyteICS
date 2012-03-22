@@ -18,6 +18,9 @@ type
     procedure pClearClick(Sender: TObject);
     procedure pCopyAllClick(Sender: TObject);
     procedure pCopyClick(Sender: TObject);
+    procedure LogMemoDblClick(Sender: TObject);
+    procedure LogMemoKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
   private
     { Private declarations }
   public
@@ -61,6 +64,26 @@ begin
   finally
     IniFile.Free;
     end;
+end;
+
+procedure TLogForm.LogMemoDblClick(Sender: TObject);
+begin
+  LogMemo.Lines.Clear;
+end;
+
+procedure TLogForm.LogMemoKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+    if Key = VK_ESCAPE then Close;
+    if Key = VK_CONTROL then exit;
+    if NOT (ssCtrl in Shift) then exit;
+    if Key = Ord ('C') then LogMemo.CopyToClipboard;
+    if Key = Ord ('A') then
+    begin
+        LogMemo.SelectAll;
+        LogMemo.CopyToClipboard;
+    end;
+    if Key = Ord ('X') then LogMemo.Lines.Clear;
 end;
 
 procedure TLogForm.pClearClick(Sender: TObject);

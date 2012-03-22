@@ -25,6 +25,8 @@ object LogForm: TLogForm
     ScrollBars = ssBoth
     TabOrder = 0
     WordWrap = False
+    OnDblClick = LogMemoDblClick
+    OnKeyDown = LogMemoKeyDown
   end
   object PopupMenu: TPopupMenu
     Left = 310

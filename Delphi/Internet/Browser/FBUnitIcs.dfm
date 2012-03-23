@@ -126,7 +126,7 @@ object HTTPForm: THTTPForm
         MinHeight = 21
         MinWidth = 170
         Text = 'URL:'
-        Width = 380
+        Width = 350
       end
       item
         Break = False
@@ -134,7 +134,7 @@ object HTTPForm: THTTPForm
         ImageIndex = -1
         MinHeight = 37
         MinWidth = 155
-        Width = 188
+        Width = 218
       end>
     object ToolBar2: TToolBar
       Left = 9
@@ -185,7 +185,7 @@ object HTTPForm: THTTPForm
     object UrlComboBox: TComboBox
       Left = 193
       Top = 8
-      Width = 338
+      Width = 308
       Height = 21
       TabOrder = 1
       OnClick = URLComboBoxClick
@@ -194,9 +194,9 @@ object HTTPForm: THTTPForm
         'http://pc19-web/local/localindex.html')
     end
     object Panel10: TPanel
-      Left = 546
+      Left = 516
       Top = 0
-      Width = 179
+      Width = 209
       Height = 37
       Align = alTop
       BevelOuter = bvNone
@@ -232,14 +232,14 @@ object HTTPForm: THTTPForm
         end
       end
       object Panel3: TPanel
-        Left = 151
+        Left = 181
         Top = 0
         Width = 28
         Height = 37
         Align = alRight
         BevelOuter = bvNone
         TabOrder = 1
-        ExplicitLeft = 247
+        ExplicitLeft = 245
         object Animate1: TAnimate
           Left = 3
           Top = 8
@@ -416,7 +416,7 @@ object HTTPForm: THTTPForm
     Left = 40
     Top = 160
     Bitmap = {
-      494C01010D005000500011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C01010D005800580011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000440000004400000001002000000000004048
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

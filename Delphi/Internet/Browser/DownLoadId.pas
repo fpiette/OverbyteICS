@@ -26,7 +26,7 @@ type
     Connection: TURLConnection;
     procedure WMDoIt(var Message: TMessage); message WM_DoIt;
     procedure DocData(Sender: TObject; Buffer : Pointer; Len: Integer);
-    procedure DocBegin(Sender: TObject);
+//    procedure DocBegin(Sender: TObject);
   public
     { Public declarations }
     DownLoadURL, Filename, Proxy, ProxyPort, UserAgent: string;
@@ -98,11 +98,11 @@ begin
 Connection.Abort;
 end;
 
-procedure TDownLoadForm.DocBegin(Sender: TObject);
+{procedure TDownLoadForm.DocBegin(Sender: TObject);
 begin
 Filesize := Connection.ContentLength;
 StartTime := TimeGetTime;
-end;
+end;}
 
 end.
 

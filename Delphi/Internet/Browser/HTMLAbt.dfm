@@ -4,8 +4,8 @@ object AboutBox: TAboutBox
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'About'
-  ClientHeight = 209
-  ClientWidth = 306
+  ClientHeight = 299
+  ClientWidth = 381
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -17,19 +17,18 @@ object AboutBox: TAboutBox
   PixelsPerInch = 96
   TextHeight = 16
   object BitBtn1: TBitBtn
-    Left = 114
-    Top = 170
+    Left = 146
+    Top = 261
     Width = 77
     Height = 30
-    Kind = bkOK
-    NumGlyphs = 2
     TabOrder = 0
+    Kind = bkOK
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 306
-    Height = 161
+    Width = 381
+    Height = 249
     Align = alTop
     BevelInner = bvLowered
     BevelOuter = bvNone
@@ -38,8 +37,8 @@ object AboutBox: TAboutBox
     object Viewer: THtmlViewer
       Left = 1
       Top = 1
-      Width = 304
-      Height = 159
+      Width = 379
+      Height = 247
       Enabled = False
       TabOrder = 0
       Align = alClient

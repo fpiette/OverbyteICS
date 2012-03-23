@@ -55,7 +55,8 @@ interface
 
 uses   WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls,
        Forms, Dialogs, ShellAPI, URLSubs, htmlview,
-       OverbyteIcsWndControl, OverbyteIcsWsocket, OverbyteIcsHttpProt
+       OverbyteIcsWndControl, OverbyteIcsWsocket,
+       OverbyteIcsHttpProt, OverbyteIcsHttpCCodzlib
 {$ifdef IncludeZip}
        , VCLUnZIp, kpZipObj
 {$endif}
@@ -383,6 +384,7 @@ HTTP.Username := FUsername;
 HTTP.Password := FPassword;
 HTTP.Agent  := FUserAgent;
 HTTP.Cookie := FCookie;
+HTTP.Options := HTTP.Options + [httpoEnableContentCoding];
 FState := httpReady;
 end;
 

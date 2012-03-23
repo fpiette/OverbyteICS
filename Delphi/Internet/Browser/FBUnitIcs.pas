@@ -49,6 +49,9 @@ Save a few more file types as binary downloads rather than displaying them
 
 22 March 2012 - added new setting to log HTML page code for diagnostics
 
+23 March 2012 - added HTTP GZIP compression support
+
+
 
 
 Pending - use NoCache header to stop dynamic pages being cached
@@ -731,7 +734,7 @@ if ShowLogHTML.Checked then begin
   AStream.Position := 0;
   SetLength (AnsiQuery, AStream.Size);
   AStream.ReadBuffer(AnsiQuery[1], AStream.Size);
-  LogLine (AnsiQuery);
+  LogLine (String (AnsiQuery));
 end;
 Stream := AStream;
 end;

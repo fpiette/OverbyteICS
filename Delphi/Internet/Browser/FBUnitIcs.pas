@@ -91,6 +91,7 @@ const
   MaxHistories = 15;  {size of History list}
   wm_LoadURL = wm_User+124;
   wm_DownLoad = wm_User+125;
+  WM_HTTP_FREE = WM_USER + 126;
 
 type
   ImageRec = class(TObject)
@@ -272,6 +273,7 @@ type
     procedure HistoryClick(Sender: TObject);
     procedure WMLoadURL(var Message: TMessage); message WM_LoadURL;
     procedure WMDownLoad(var Message: TMessage); message WM_DownLoad;
+    procedure WmHttpFree(var AMsg: TMessage); message WM_HTTP_FREE;
     procedure CheckEnableControls;
     procedure ClearProcessing;
     procedure Progress(Num, Den: integer);
@@ -891,7 +893,7 @@ try
       end; *)
     end;
   HTTPList.Remove(ImHTTP);
-  ImHTTP.Free;
+  PostMessage(Handle, WM_HTTP_FREE, WPARAM(Sender), 0);
   if NumImageDone >= NumImageTot then
     CheckEnableControls;
 except
@@ -1000,6 +1002,11 @@ I := (Sender as TMenuItem).Tag;
 URLBase := GetUrlBase(FrameBrowser.History.Strings[I]); {update URLBase for new document}
 FrameBrowser.HistoryIndex := I;
 URLCombobox.Text := FrameBrowser.History [I]; // ANGUS
+end;
+
+procedure THTTPForm.WmHttpFree(var AMsg: TMessage);
+begin
+  TObject(AMsg.WParam).Free;
 end;
 
 {----------------THTTPForm.WMLoadURL}

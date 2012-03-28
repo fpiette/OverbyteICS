@@ -237,6 +237,10 @@ type
     procedure CachePagesClick(Sender: TObject);
     procedure CacheImagesClick(Sender: TObject);
     procedure ShowLogHTMLClick(Sender: TObject);
+    procedure FrameBrowserFileBrowse(Sender, Obj: TObject; var S: string);
+    procedure FrameBrowserFormSubmit(Sender: TObject; Viewer: THtmlViewer;
+      const Action, Target, EncType, Method: string; Results: TStringList;
+      var Handled: Boolean);
   private
     { Private declarations }
     URLBase: String;
@@ -515,6 +519,28 @@ finally
   end;
 end;
 
+
+procedure THTTPForm.FrameBrowserFileBrowse(Sender, Obj: TObject; var S: string);
+begin
+  with TOpenDialog.Create(nil) do
+  try
+    if Execute then
+    S := FileName;
+  finally
+    Free;
+  end;
+end;
+
+procedure THTTPForm.FrameBrowserFormSubmit(Sender: TObject; Viewer: THtmlViewer;
+  const Action, Target, EncType, Method: string; Results: TStringList;
+  var Handled: Boolean);
+var
+  S: string;
+  I: Integer;
+begin
+  //
+end;
+
 {----------------THTTPForm.FrameBrowserGetPostRequestEx}
 procedure THTTPForm.FrameBrowserGetPostRequestEx(Sender: TObject;
   IsGet: Boolean; const URL, Query, EncType, RefererX: ThtString;
@@ -549,7 +575,6 @@ var
       Connection.UserName := UName;
       Connection.Password := PWord;
       Connection.InputStream.Clear;   {delete any previous message sent}
-      Connection.BasicAuth := True;
       end;
     end;
   end;

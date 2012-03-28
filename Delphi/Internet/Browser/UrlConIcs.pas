@@ -217,7 +217,32 @@ var
 implementation
 
 uses
-  htmlun2 , FBUnitIcs;
+  htmlun2 , FBUnitIcs, Registry;
+
+var
+  GLmCompatLevel: LongWord; { AG }
+
+function GetLMCompatLevel: Integer;  { AG }
+const
+  LSA_KEY = 'System\CurrentControlSet\Control\LSA';
+  VALUE_NAME = 'LMCompatibilityLevel';
+begin
+  Result := 0;
+  try
+    with TRegistry.Create(KEY_READ) do
+    try
+      RootKey := HKEY_LOCAL_MACHINE;
+      if KeyExists(LSA_KEY) then
+      begin
+        if OpenKey(LSA_KEY, False) and ValueExists(VALUE_NAME) then
+          Result := LongWord(ReadInteger(VALUE_NAME));
+      end;
+    finally
+      Free;
+    end;
+  except
+  end;
+end;
 
 constructor TURLConnection.Create;
 begin
@@ -377,7 +402,6 @@ HTTP.OnCommand := IcsHttpCommand;
 HTTP.OnCookie := FOnCookie;
 HTTP.RequestVer := '1.1' ;
 HTTP.Connection := 'Keep-Alive' ;
-if FBasicAuth then HTTP.ServerAuth := httpAuthBasic;
 HTTP.Reference := FReferer;
 HTTP.OnStateChange := IcsStateChange;
 HTTP.Proxy := FProxy;
@@ -391,22 +415,57 @@ HTTP.Password := FPassword;
 HTTP.Agent  := FUserAgent;
 HTTP.Cookie := FCookie;
 HTTP.Options := HTTP.Options + [httpoEnableContentCoding];
+Http.LmCompatLevel := GLmCompatLevel; { AG }
 FState := httpReady;
 end;
 
 procedure THTTPConnection.GetPostFinal;
 {common finalization for Get, Post}
+var
+  I, SLen: Integer;
+  S: string;
 begin
-ReturnedContentType := HTTP.ContentType;
-FContentLength := HTTP.ContentLength;
-FResponseText := HTTP.ReasonPhrase;
-FResponseCode := HTTP.StatusCode;
-if HTTP.AuthorizationRequest.Count > 0 then  // ANGUS
-    FRealm := HTTP.AuthorizationRequest [0] ;
-// Angus - should keep header cache to stop page caching
-HTTP.Free;
-HTTP := Nil;
-FState := httpNotConnected;
+  ReturnedContentType := HTTP.ContentType;
+  FContentLength := HTTP.ContentLength;
+  FResponseText := HTTP.ReasonPhrase;
+  FResponseCode := HTTP.StatusCode;
+  if HTTP.AuthorizationRequest.Count > 0 then  { AG }
+  begin
+    { the 'realm' here is just used for user/password lookups }
+    S := HTTP.AuthorizationRequest[0];
+    if StrIComp('NTLM', PChar(S)) = 0 then
+      { there is no realm in NTLM }
+      FRealm := 'NTLM @ ' + HTTP.Hostname
+    else begin
+      if StrLIComp(PChar(S), 'BASIC REALM="', 13) = 0 then
+      begin
+        I := 14;
+        SLen := Length(S);
+        while (I <= SLen) and (S[I] <> '"') do
+          Inc(I);
+        if S[I] = '"' then
+        begin
+          FBasicAuth := True;
+          FRealm := Copy(S, 1, I) + ' @ ' + HTTP.Hostname;
+        end;
+      end
+      else begin
+        if StrLIComp(PChar(S), 'DIGEST REALM="', 14) = 0 then
+        begin
+          I := 15;
+          SLen := Length(S);
+          while (I <= SLen) and (S[I] <> '"') do
+            Inc(I);
+          if S[I] = '"' then
+            FRealm := Copy(S, 1, I) + ' @ ' + HTTP.Hostname;
+        end;
+      end;
+    end;
+  end;
+  // Angus - should keep header cache to stop page caching
+  HTTP.Free;
+  HTTP := Nil;
+  FState := httpNotConnected;
 end;
 
 {----------------THTTPConnection.Get}
@@ -740,5 +799,8 @@ begin
    end;
 end;
 {$endif}
+
+initialization
+  GLmCompatLevel := GetLMCompatLevel; { AG }
 
 end.

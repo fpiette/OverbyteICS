@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Client Cookie Handling, see RFC2109/RFC6265 (RFC2965 is obsolete)
 Creation:     19 March 2012
 Updated:      19 March 2012
-Version:      1.00
+Version:      1.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -47,7 +47,7 @@ OverbyteIcsHttpTst1.pas shows how to handle cookies, very few new lines
 
 Updates:
 19 Mar 2012 - 1.00 baseline Angus
-
+28 Mar 2012 - 1.01 Arno: StrictDelimiter doesn't exist in Delphi 7
 
 Note - needs more testing for domain and path matching
 Pending - not yet thread safe
@@ -408,6 +408,29 @@ end;
 // Set-Cookie: WebAppTelecom-CodeLook=OwnCode%3D%2526CallTariff%3D100173%2526TariffName%3D24Talk%2BEvening%2B; EXPIRES=Sun, 17 Mar 2013 00:00:00; PATH=/codelook.htm
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF COMPILER10_UP}
+procedure SetStrictDelimitedText(ALines: TStrings; const AText: string; const ADelimiter: Char);
+var
+    I, J: Integer;
+    SLen: Integer;
+begin
+    ALines.Clear;
+    SLen := Length(AText);
+    if SLen = 0 then Exit;
+    J := 1;
+    for I := 1 to SLen do
+    begin
+        if AText[I] = ADelimiter then
+        begin
+            ALines.Add(Copy(AText, J, I - J));
+            J := I + 1;
+        end
+        else if (I = SLen) and (J < I) then
+            ALines.Add(Copy(AText, J, I - J + 1));
+    end;
+end;
+{$ENDIF}
+
 { parse a cookie from SetCookie HTTP header }
 function TIcsCookies.ParseCookie (const ACookieHdr, AURL: string): TCookie;
 var
@@ -438,9 +461,13 @@ begin
         P2 := Pos('?', Path);  // first .
         if P2 > 0 then Path := Copy (Path, 1, P2 - 1);  // remove query
         Fields.Delimiter := ';';
-        Fields.StrictDelimiter := true;
         Fields.CaseSensitive := false;
+    {$IFDEF COMPILER10_UP}
+        Fields.StrictDelimiter := true;
         Fields.DelimitedText := ACookieHdr;
+    {$ELSE}
+        SetStrictDelimitedText(Fields, ACookieHdr, ';');
+    {$ENDIF}    
         if Fields.Count = 0 then exit;
         if Pos ('=', Fields [0]) = 0 then exit;
         for I := 0 to Fields.Count - 1 do

@@ -89,13 +89,13 @@ type
     FUsername         : string;
     FPassword         : string;
     FUserAgent        : string;
-    FBasicAuth: boolean;
-    FContentTypePost   : String;
-    FSendStream : TMemoryStream;
-    FOwner : TComponent;
-    FReasonPhrase : String;
-    FStatusCode  : integer;
-    FReferer: string;
+    FBasicAuth        : boolean;
+    FContentTypePost  : String;
+    FSendStream       : TStream;
+    FOwner            : TComponent;
+    FReasonPhrase     : String;
+    FStatusCode       : integer;
+    FReferer          : string;
     FRealm            : string ;           // ANGUS
     FCookie           : string;            // ANGUS
     FOnCookie         : TCookieRcvdEvent;  // ANGUS
@@ -151,7 +151,7 @@ type
                                                 write FOnCookie;   // ANGUS
     property BasicAuth: boolean read FBasicAuth write FBasicAuth;
     property ContentTypePost: String read FContentTypePost write FContentTypePost;
-    property SendStream: TMemoryStream read FSendStream write FSendStream;
+    property SendStream: TStream read FSendStream write FSendStream;
   end;
 
   THTTPConnection = class(TURLConnection)
@@ -392,6 +392,7 @@ FAborted := False;
 CheckInputStream;
 if NOT Assigned (HTTP) then
     HTTP := TSslHttpCli.Create(Nil);
+HTTP.ContentTypePost := ContentTypePost;
 HTTP.SslContext := HTTPForm.SslContext ;
 HTTP.FollowRelocation := True;
 HTTP.OnLocationChange := FOnRedirect;

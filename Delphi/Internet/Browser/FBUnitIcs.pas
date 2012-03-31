@@ -76,14 +76,15 @@ uses
   ShellAPI, Menus, StdCtrls, Buttons, ExtCtrls, Gauges, mmSystem, IniFiles, MPlayer,
   ImgList, ComCtrls, ToolWin,
   htmlun2, CachUnitId, URLSubs, htmlview, htmlsubs, FramBrwz, FramView,
-  PreviewForm, DownLoadId, Readhtml, urlconIcs,
+  PreviewForm, DownLoadId, Readhtml, OverbyteIcsHttpSrv, urlconIcs,
   OverbyteIcsWndControl, OverbyteIcsWsocket, OverbyteIcsHttpProt, OverbyteIcsCookies,
+  OverbyteIcsStreams, OverbyteIcsUtils,
   {$if CompilerVersion >= 15}
     {$IF CompilerVersion < 23}
     XpMan,
     {$ifend}
   {$ifend}
-  HtmlGlobals;
+  HtmlGlobals, OverbyteIcsMimeUtils;
 
 const
   (*UsrAgent = 'Mozilla/4.0 (compatible; ICS Library)';*)
@@ -168,6 +169,7 @@ type
     CachePages: TMenuItem;
     CacheImages: TMenuItem;
     ShowLogHTML: TMenuItem;
+    MimeTypesList1: TMimeTypesList;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure GetButtonClick(Sender: TObject);
@@ -219,6 +221,10 @@ type
     procedure HotSpotTargetCovered(Sender: TObject; const Target, URL: String);
     procedure FrameBrowserScript(Sender: TObject; const Name, ContentType, Src, Script: string);
     procedure FrameBrowserMeta(Sender: TObject; const HttpEq, Name, Content: string);
+    procedure FrameBrowserFileBrowse(Sender, Obj: TObject; var S: String);
+    procedure FrameBrowserFormSubmit(Sender: TObject; Viewer: THtmlViewer;
+      const Action, Target, EncType, Method: string; Results: TStringList;
+      var Handled: Boolean);
 {$else}
     procedure BlankWindowRequest(Sender: TObject; const Target, URL: WideString);
     procedure FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: Boolean;
@@ -230,6 +236,10 @@ type
     procedure HotSpotTargetCovered(Sender: TObject; const Target, URL: WideString);
     procedure FrameBrowserScript(Sender: TObject; const Name, ContentType, Src, Script: WideString);
     procedure FrameBrowserMeta(Sender: TObject; const HttpEq, Name, Content: WideString);
+    procedure FrameBrowserFileBrowse(Sender, Obj: TObject; var S: WideString);
+    procedure FrameBrowserFormSubmit(Sender: TObject; Viewer: THtmlViewer;
+      const Action, Target, EncType, Method: WideString; Results: TWideStringList;
+      var Handled: Boolean);
 {$endif}
     procedure ShowDiagWindowClick(Sender: TObject);
     procedure LogLine (S: string);
@@ -237,10 +247,6 @@ type
     procedure CachePagesClick(Sender: TObject);
     procedure CacheImagesClick(Sender: TObject);
     procedure ShowLogHTMLClick(Sender: TObject);
-    procedure FrameBrowserFileBrowse(Sender, Obj: TObject; var S: string);
-    procedure FrameBrowserFormSubmit(Sender: TObject; Viewer: THtmlViewer;
-      const Action, Target, EncType, Method: string; Results: TStringList;
-      var Handled: Boolean);
   private
     { Private declarations }
     URLBase: String;
@@ -270,6 +276,8 @@ type
     HintVisible: boolean;
     TitleViewer: ThtmlViewer;
     Allow: string;
+    FCurRawSubmitValues: ThtStringList;
+    FCurSubmitCodepage: LongWord;
 
     procedure EnableControls;
     procedure DisableControls;
@@ -462,6 +470,7 @@ HTTPList.Free;
 if Monitor1 then
   CloseFile(Mon);
 DiskCache.Free;
+FCurRawSubmitValues.Free;
 //CookieManager.Free;
 if Assigned(Connection) then
   begin
@@ -519,26 +528,26 @@ finally
   end;
 end;
 
-
-procedure THTTPForm.FrameBrowserFileBrowse(Sender, Obj: TObject; var S: string);
+procedure THTTPForm.FrameBrowserFileBrowse(Sender, Obj: TObject; var S: ThtString);
 begin
   with TOpenDialog.Create(nil) do
   try
+    Options := [ofHideReadOnly,ofPathMustExist,ofFileMustExist];
     if Execute then
-    S := FileName;
+      S := FileName;
   finally
     Free;
   end;
 end;
 
 procedure THTTPForm.FrameBrowserFormSubmit(Sender: TObject; Viewer: THtmlViewer;
-  const Action, Target, EncType, Method: string; Results: TStringList;
+  const Action, Target, EncType, Method: ThtString; Results: ThtStringList;
   var Handled: Boolean);
-var
-  S: string;
-  I: Integer;
 begin
-  //
+  if FCurRawSubmitValues = nil then
+    FCurRawSubmitValues := ThtStringList.Create;
+  FCurRawSubmitValues.Assign(Results);
+  FCurSubmitCodepage := Viewer.CodePage;
 end;
 
 {----------------THTTPForm.FrameBrowserGetPostRequestEx}
@@ -578,6 +587,10 @@ var
       end;
     end;
   end;
+
+var
+  Header, Footer, RandBoundary, FileName, InputName, InputValue : ThtString;
+  I: Integer;
 
 begin
 CloseHints;   {may be a hint window open}
@@ -644,22 +657,95 @@ if (FName = '') or not FileExists(FName) then
             end;
           end
           else begin      {Post}
-            Connection.SendStream := TMemoryStream.Create;
-            try
-              LogLine ('FrameBrowser Post: ' + URL1+', Data=' +
-                  Copy (Query1, 1, 132) + ', EncType=' + EncType);  // not too much data
-              AnsiQuery := AnsiString (Query1);
-              Connection.SendStream.WriteBuffer(AnsiQuery[1], Length(AnsiQuery));
-              Connection.SendStream.Position := 0;
-              if EncType = '' then
-                Connection.ContentTypePost := 'application/x-www-form-urlencoded'
+            if EncType = 'multipart/form-data' then  { AG }
+            begin
+              FileName := '';
+              RandBoundary := IntToHex(Random(MaxInt), 8);
+              Connection.ContentTypePost := EncType +
+                      '; boundary=---------------------------' + RandBoundary;
+              for I := 0 to FCurRawSubmitValues.Count -1 do
+              begin
+                if LowerCase(FCurRawSubmitValues.Names[I]) = 'file' then // no input type available :(
+                begin
+                  { It's a file upload }
+                  FileName := FCurRawSubmitValues.ValueFromIndex[I];
+                  InputValue := ExtractFileName(FileName);
+                  if not CheckUnicodeToAnsi(InputValue, FCurSubmitCodepage) then
+                    InputValue := TextToHtmlText(ExtractFileName(FileName)); // as FireFox
+
+                  Header :=
+                  '-----------------------------' + RandBoundary + CRLF +
+                  'Content-Disposition: form-data; name="file"; filename="' + InputValue + '"' + CRLF +
+                  'Content-Type: ' + MimeTypesList1.TypeFromFile(InputValue) + CRLF +
+                  CRLF;
+                end
+                else begin
+                  InputName  := FCurRawSubmitValues.Names[I];
+                  InputValue := FCurRawSubmitValues.ValueFromIndex[I];
+                  if not CheckUnicodeToAnsi(InputName, FCurSubmitCodepage) then
+                    InputName := TextToHtmlText(FCurRawSubmitValues.Names[I]);
+                  if not CheckUnicodeToAnsi(InputValue, FCurSubmitCodepage) then
+                    InputValue := TextToHtmlText(FCurRawSubmitValues.ValueFromIndex[I]);
+
+                  Footer := Footer +
+                  '-----------------------------' + RandBoundary + CRLF +
+                  'Content-Disposition: form-data; name="' + InputName + '"' + CRLF +
+                  CRLF +
+                  InputValue + CRLF;
+                end;
+              end;
+
+              if Header <> '' then
+                Footer := CRLF + Footer;
+              Footer := Footer +
+              '-----------------------------' + RandBoundary + '--' + CRLF;
+              if FileName <> '' then // if it's a file upload
+              begin
+                try
+                  Connection.SendStream := TMultiPartFileReader.Create(
+                              FileName,
+                              UnicodeToAnsi(Header, FCurSubmitCodepage, TRUE),
+                              UnicodeToAnsi(Footer, FCurSubmitCodepage, TRUE));
+                except
+                  Connection.SendStream := TMemoryStream.Create;
+                  raise;
+                end;
+              end
               else
-                Connection.ContentTypePost := EncType;
-              Connection.Post(URL1);
-            finally
-              Connection.SendStream.Free;
+                Connection.SendStream := TMemoryStream.Create;
+              try
+                LogLine ('FrameBrowser Post: ' + URL1+ ', EncType=' + EncType);
+                if FileName = '' then // No file upload, write to stream
+                begin
+                  AnsiQuery := UnicodeToAnsi(Footer, FCurSubmitCodepage);
+                  Connection.SendStream.WriteBuffer(Pointer(AnsiQuery)^, Length(AnsiQuery));
+                end;
+                Connection.SendStream.Position := 0;
+                Connection.Post(URL1);
+              finally
+                Connection.SendStream.Free;
+              end;
+            end // EncType = 'multipart/form-data'
+            else begin
+              Connection.SendStream := TMemoryStream.Create;
+              try
+                LogLine ('FrameBrowser Post: ' + URL1+', Data=' +
+                    Copy (Query1, 1, 132) + ', EncType=' + EncType);  // not too much data
+
+                AnsiQuery := AnsiString (Query1);
+                if EncType = '' then
+                  Connection.ContentTypePost := 'application/x-www-form-urlencoded'
+                else
+                  Connection.ContentTypePost := EncType;
+                Connection.SendStream.WriteBuffer(AnsiQuery[1], Length(AnsiQuery));
+                Connection.SendStream.Position := 0;
+
+                Connection.Post(URL1);
+              finally
+                Connection.SendStream.Free;
               end;
             end;
+          end;
           if Connection.StatusCode = 401 then begin
             ARealm := Connection.Realm;
             TryAgain := GetAuthorization;

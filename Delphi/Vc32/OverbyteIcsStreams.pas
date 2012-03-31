@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Oct 25, 2005
 Description:  Fast streams for ICS tested on D5 and D7.
-Version:      6.17
+Version:      6.18
 Legal issues: Copyright (C) 2005-2012 by Arno Garrels, Berlin, Germany,
               contact: <arno.garrels@gmx.de>
               
@@ -81,7 +81,7 @@ Feb 08, 2012 V6.17 Fixed a 64-bit bug and a memory leak in TBufferedFileStream.
                    TIcsBufferedStream, TIcsStreamReader and TIcsStreamWriter
                    removed some default parameter values from constructors,
                    verify that existing code calls the right overload.
-
+Mar 31, 2012 V6.18 Fixed TMultiPartStreamReader.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -174,24 +174,34 @@ type
     { with the file. For instance usefull as a HTTP-POST-stream.                 }
     TMultiPartFileReader = class(TFileStream)
     private
-        FHeader     : String;
-        FFooter     : String;
+        FHeader     : RawByteString;
+        FFooter     : RawByteString;
         FFooterLen  : Integer;
         FHeaderLen  : Integer;
         FCurrentPos : BigInt;
         FFileSize   : BigInt;
+        FTotSize    : BigInt;
+        function GetFooter: String;
+        function GetHeader: String;
     protected
         function    GetSize: Int64; override;
     public
-        constructor Create(const FileName: String; Mode: Word; const Header, Footer: String); overload;
-        constructor Create(const FileName: String; Mode: Word; Rights: Cardinal; const Header, Footer: String); overload;
+     {$IFDEF UNICODE}
+        constructor Create(const FileName: String; const Header, Footer: RawByteString) overload;
+     {$ENDIF}
+        constructor Create(const FileName: String; const Header, Footer: String
+          {$IFDEF UNICODE}; AStringCodePage: LongWord = CP_ACP {$ENDIF}); overload;
+        constructor Create(const FileName: String; Mode: Word; const Header, Footer: String
+          {$IFDEF UNICODE}; AStringCodePage: LongWord = CP_ACP {$ENDIF}); overload;
+        constructor Create(const FileName: String; Mode: Word; Rights: Cardinal; const Header, Footer: String
+          {$IFDEF UNICODE}; AStringCodePage: LongWord = CP_ACP {$ENDIF}); overload;
         procedure   SetSize(const NewSize: Int64); override;
         function    Seek(Offset: Longint; Origin: Word): Longint; override;
         function    Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
         function    Read(var Buffer; Count: Longint): Longint; override;
         function    Write(const Buffer; Count: Longint): Longint; override;
-        property    Header : String read FHeader;
-        property    Footer : String read FFooter;
+        property    Header : String read GetHeader;
+        property    Footer : String read GetFooter;
     end;
 
     TTextStreamMode = (tsmReadLn, tsmWriteLn, tsmRead, tsmWrite);
@@ -785,36 +795,98 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
 { TMultiPartFileReader }
-
-constructor TMultiPartFileReader.Create(const FileName: String; Mode: Word;
-    const Header, Footer: String);
+{$IFDEF UNICODE}
+constructor TMultiPartFileReader.Create(const FileName: String;
+  const Header, Footer: RawByteString);
 begin
-    Create(Filename, Mode, 0, Header, Footer);
+    inherited Create(FileName, fmOpenRead or fmShareDenyNone);
+    FHeader     := Header;
+    FFooter     := Footer;
+    FFooterLen  := Length(FFooter);
+    FHeaderLen  := Length(FHeader);
+    FCurrentPos := 0;
+    FFileSize   := inherited Seek(0, soEnd);
+    FTotSize    := FHeaderLen + FFileSize + FFooterLen;
+    inherited Seek(0, soBeginning);
+end;
+{$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TMultiPartFileReader.Create(const FileName: String;
+  const Header, Footer: String
+  {$IFDEF UNICODE}; AStringCodePage: LongWord = CP_ACP {$ENDIF});
+begin
+    Create(Filename, fmOpenRead or fmShareDenyWrite, Header, Footer
+    {$IFDEF UNICODE}, AStringCodePage {$ENDIF});
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TMultiPartFileReader.Create(const FileName: String; Mode: Word;
-    Rights: Cardinal; const Header, Footer: String);
+    const Header, Footer: String
+    {$IFDEF UNICODE}; AStringCodePage: LongWord = CP_ACP {$ENDIF});
+begin
+  {$IFDEF POSIX}
+    Create(Filename, Mode, FileAccessRights, Header, Footer, AStringCodePage);
+  {$ENDIF}
+  {$IFDEF MSWINDOWS}
+    Create(Filename, Mode, 0, Header, Footer
+      {$IFDEF UNICODE}, AStringCodePage {$ENDIF});
+  {$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TMultiPartFileReader.Create(const FileName: String; Mode: Word;
+    Rights: Cardinal; const Header, Footer: String
+    {$IFDEF UNICODE}; AStringCodePage: LongWord = CP_ACP {$ENDIF});
 begin
     if (Mode and fmOpenWrite <> 0) or
        (Mode and fmOpenReadWrite <> 0)  then
         raise EMultiPartFileReaderException.Create('Invalid open mode');
     inherited Create(FileName, Mode, Rights);
+  {$IFDEF UNICODE}
+    FHeader     := UnicodeToAnsi(Header, AStringCodePage, True);
+    FFooter     := UnicodeToAnsi(Footer, AStringCodePage, True);
+  {$ELSE}
     FHeader     := Header;
-    FHeaderLen  := Length(FHeader);
     FFooter     := Footer;
+  {$ENDIF}
     FFooterLen  := Length(FFooter);
+    FHeaderLen  := Length(FHeader);
     FCurrentPos := 0;
     FFileSize   := inherited Seek(0, soEnd);
+    FTotSize    := FHeaderLen + FFileSize + FFooterLen;
     inherited Seek(0, soBeginning);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TMultiPartFileReader.GetFooter: String;
+begin
+  {$IFDEF UNICODE}
+    Result := UnicodeString(FFooter);
+  {$ELSE}
+    Result := FFooter;
+  {$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TMultiPartFileReader.GetHeader: String;
+begin
+  {$IFDEF UNICODE}
+    Result := UnicodeString(FHeader);
+  {$ELSE}
+    Result := FHeader;
+  {$ENDIF}
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TMultiPartFileReader.GetSize: Int64;
 begin
-    Result := FHeaderLen + FFileSize + FFooterLen;
+    Result := FTotSize;
 end;
 
 
@@ -826,45 +898,44 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$R-} { V6.11 }
 function TMultiPartFileReader.Read(var Buffer; Count: Integer): Longint;
 var
-    NewCount : Integer;
-    Cnt      : Integer;
+    ToRead    : Integer;
+    FooterPos : Integer;
+    POutBuf   : PAnsiChar;
 begin
     Result := 0;
-    if Count <= 0 then
+    if (Count <= 0) or (FCurrentPos >= FTotSize) then
         Exit;
-    NewCount   := Count;
-    if (FCurrentPos <= FHeaderLen) then begin
-        Cnt := (FHeaderLen - FCurrentPos);
-        if Count < Cnt then
-            Cnt := Count;
-        Move(FHeader[FCurrentPos + 1], TDummyByteArray(Buffer)[0], Cnt);
-        Result := Cnt;
-        NewCount := NewCount - Result;
+    POutBuf := @Buffer;
+    if FCurrentPos < FHeaderLen then begin
+        ToRead := FHeaderLen - FCurrentPos;
+        if Count < ToRead then
+            ToRead := Count;
+        Move(FHeader[FCurrentPos + 1], POutBuf[0], ToRead);
+        Inc(Result, ToRead);
+        Inc(FCurrentPos, ToRead);
+        Dec(Count, ToRead);
     end;
-    if Result <> Count then begin
-        Cnt := inherited Read(TDummyByteArray(Buffer)[Result], NewCount);
-        Inc(Result, Cnt);
-        if Result <> Count then begin
-            if (Cnt < NewCount) then
-                Dec(NewCount, Cnt);
-            if NewCount > FFooterLen then
-                NewCount := FFooterLen;
-            if NewCount > 0 then begin
-                Move(FFooter[1], TDummyByteArray(Buffer)[Result], NewCount);
-                Inc(Result, NewCount);
-            end;
-        end;
+    if (Count > 0) and (FCurrentPos < FHeaderLen + FFileSize) then begin
+        ToRead := inherited Read(POutBuf[Result], Count);
+        Inc(Result, ToRead);
+        Inc(FCurrentPos, ToRead);
+        Dec(Count, ToRead);
     end;
-    if Result < 0 then
-        Result := 0;
-    FCurrentPos := Result;
+    if (Count > 0) and
+       (FCurrentPos >= FHeaderLen + FFileSize) and
+       (FCurrentPos < FTotSize) then begin
+        FooterPos := FCurrentPos - (FHeaderLen + FFileSize);
+        ToRead := FTotSize - FCurrentPos;
+        if ToRead > Count then
+            ToRead := Count;
+        Move(FFooter[FooterPos + 1], POutBuf[Result], ToRead);
+        Inc(Result, ToRead);
+        Inc(FCurrentPos, ToRead);
+    end;
 end;
-{$IFDEF SETRANGECHECKSBACK} { V6.11 }
-  {$R+}
-{$ENDIF}
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TMultiPartFileReader.Write(const Buffer; Count: Integer): Longint;
@@ -908,7 +979,7 @@ begin
                 end
                 else
                     inherited Seek(NewPos - FHeaderLen, soBeginning);
-            end
+        end
         else
             inherited Seek(0, soBeginning);
     end;

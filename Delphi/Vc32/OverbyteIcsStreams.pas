@@ -81,7 +81,7 @@ Feb 08, 2012 V6.17 Fixed a 64-bit bug and a memory leak in TBufferedFileStream.
                    TIcsBufferedStream, TIcsStreamReader and TIcsStreamWriter
                    removed some default parameter values from constructors,
                    verify that existing code calls the right overload.
-Mar 31, 2012 V6.18 Fixed TMultiPartStreamReader.
+Mar 31, 2012 V6.18 Fixed TMultiPartFileReader.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

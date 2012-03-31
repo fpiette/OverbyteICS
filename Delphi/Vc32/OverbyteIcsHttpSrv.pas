@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.49
+Version:      7.50
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -350,7 +350,7 @@ Feb 15, 2012 V7.46 Angus - attach TMimeTypesList component to provide more MIME
 Feb 18, 2012 V7.47 Arno - Attachment of MimeTypesList corrected.
 Feb 29, 2012 V7.48 Arno - Use IcsRandomInt
 Mar 26, 2012 V7.49 Angus - MakeCookie has optional domain parameter
-
+Mar 31, 2012 V7.50 Arno - Made TextToHtmlText work with WideString in Ansi Delphi
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -436,8 +436,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 749;
-    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.49 ';
+    THttpServerVersion = 750;
+    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.50 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -1516,7 +1516,8 @@ function UrlDecode(const Url   : RawByteString;
 function FileDate(FileName : String) : TDateTime;
 function RFC1123_Date(aDate : TDateTime) : String;
 function DocumentToContentType(const FileName : String) : String;
-function TextToHtmlText(const Src : String) : String;
+function TextToHtmlText(const Src : UnicodeString) : String; overload;
+function TextToHtmlText(const Src : RawByteString) : String; overload;
 function TranslateChar(const Str: String; FromChar, ToChar: Char): String;
 function UnixPathToDosPath(const Path: String): String;
 function DosPathToUnixPath(const Path: String): String;
@@ -4654,6 +4655,15 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TextToHtmlText(const Src: RawByteString) : String;
+begin
+    { Convert the ANSI string to Unicode, HTML entities represent           }
+    { iso-8859-1 (Latin1) and Unicode code points                           }
+    Result := TextToHtmlText(UnicodeString(Src));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Convert a string in Windows character set to HTML texte. That is replace  }
 { all character with code between 160 and 255 by special sequences.         }
 { For example, 'fête' is replaced by 'f&ecirc;te'                           }
@@ -4661,9 +4671,9 @@ end;
 { Replace multiple spaces by a single space followed by the required number }
 { of non-breaking-spaces (&nbsp;)                                           }
 { Replace TAB by a non-breaking-space.                                      }
-function TextToHtmlText(const Src : String) : String;
+function TextToHtmlText(const Src : UnicodeString) : String;
 const
-    HtmlSpecialChars : array [160..255] of String[6] = (
+    HtmlSpecialChars : array [160..255] of String = (
         'nbsp'   , { #160 no-break space = non-breaking space               }
         'iexcl'  , { #161 inverted exclamation mark                         }
         'cent'   , { #162 cent sign                                         }
@@ -4763,22 +4773,18 @@ const
 var
     I, J : Integer;
     Sub  : String;
-    Temp : UnicodeString;
 begin
     Result := '';
-    { Convert the ANSI string to Unicode with default code page in D7-D2007 !!  }
-    { HTML entities represent iso-8859-1 (Latin1) and Unicode character numbers }
-    Temp := Src;
     I := 1;
-    while I <= Length(Temp) do begin
+    while I <= Length(Src) do begin
         J   := I;
         Sub := '';
-        while (I <= Length(Temp)) and (Ord(Temp[I]) < Low(HtmlSpecialChars)) do begin
-            case Temp[I] of
+        while (I <= Length(Src)) and (Ord(Src[I]) < Low(HtmlSpecialChars)) do begin
+            case Src[I] of
             ' '  : begin
-                       if (I > 1) and (Temp[I - 1] = ' ') then begin
+                       if (I > 1) and (Src[I - 1] = ' ') then begin
                            { Replace multiple spaces by &nbsp; }
-                           while (I <= Length(Temp)) and (Temp[I] = ' ') do begin
+                           while (I <= Length(Src)) and (Src[I] = ' ') do begin
                                Sub := Sub + '&nbsp;';
                                Inc(I);
                            end;
@@ -4798,22 +4804,22 @@ begin
                 Inc(I);
             end;
             if Length(Sub) > 0 then begin
-                Result := Result + Copy(Temp, J, I - J) + Sub;
+                Result := Result + Copy(Src, J, I - J) + Sub;
                 Inc(I);
                 J      := I;
                 Sub    := '';
             end;
         end;
 
-        if I > Length(Temp) then begin
-            Result := Result + Copy(Temp, J, I - J);
+        if I > Length(Src) then begin
+            Result := Result + Copy(Src, J, I - J);
             Exit;
         end;
-        if Ord(Temp[I]) > 255 then
-            Result := Result + Copy(Temp, J, I - J) + '&#' + _IntToStr(Ord(Temp[I])) + ';'
+        if Ord(Src[I]) > 255 then
+            Result := Result + Copy(Src, J, I - J) + '&#' + IntToStr(Ord(Src[I])) + ';'
         else
-            Result := Result + Copy(Temp, J, I - J) + '&' +
-                    String(HtmlSpecialChars[Ord(Temp[I])]) + ';';
+            Result := Result + Copy(Src, J, I - J) + '&' +
+                    HtmlSpecialChars[Ord(Src[I])] + ';';
         Inc(I);
     end;
 end;

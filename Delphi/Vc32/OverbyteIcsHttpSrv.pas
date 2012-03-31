@@ -4816,7 +4816,7 @@ begin
             Exit;
         end;
         if Ord(Src[I]) > 255 then
-            Result := Result + Copy(Src, J, I - J) + '&#' + IntToStr(Ord(Src[I])) + ';'
+            Result := Result + Copy(Src, J, I - J) + '&#' + _IntToStr(Ord(Src[I])) + ';'
         else
             Result := Result + Copy(Src, J, I - J) + '&' +
                     HtmlSpecialChars[Ord(Src[I])] + ';';

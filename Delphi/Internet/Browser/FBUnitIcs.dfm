@@ -84,6 +84,7 @@ object HTTPForm: THTTPForm
     HistoryMaxCount = 0
     NoSelect = False
     OnBlankWindowRequest = BlankWindowRequest
+    OnFileBrowse = FrameBrowserFileBrowse
     OnHistoryChange = HistoryChange
     OnHotSpotTargetClick = HotSpotTargetClick
     OnHotSpotTargetCovered = HotSpotTargetCovered
@@ -104,6 +105,7 @@ object HTTPForm: THTTPForm
     TabOrder = 1
     OnMouseMove = FrameBrowserMouseMove
     OnGetPostRequestEx = FrameBrowserGetPostRequestEx
+    OnFormSubmit = FrameBrowserFormSubmit
   end
   object CoolBar1: TCoolBar
     Left = 0
@@ -1045,5 +1047,40 @@ object HTTPForm: THTTPForm
     OnNewCookie = IcsCookiesNewCookie
     Left = 122
     Top = 95
+  end
+  object MimeTypesList1: TMimeTypesList
+    LoadOSonDemand = True
+    MimeTypesFile = '/etc/apache2/mime.types'
+    DefaultTypes.Strings = (
+      '.htm=text/html'
+      '.html=text/html'
+      '.gif=image/gif'
+      '.bmp=image/bmp'
+      '.jpg=image/jpeg'
+      '.jpeg=image/jpeg'
+      '.tif=image/tiff'
+      '.tiff=image/tiff'
+      '.txt=text/plain'
+      '.css=text/css'
+      '.wav=audio/x-wav'
+      '.ico=image/x-icon'
+      '.wml=text/vnd.wap.wml'
+      '.wbmp=image/vnd.wap.wbmp'
+      '.wmlc=application/vnd.wap.wmlc'
+      '.wmlscript=text/vnd.wap.wmlscript'
+      '.wmlscriptc=application/vnd.wap.wmlscriptc'
+      '.pdf=application/pdf'
+      '.png=image/png'
+      '.xml=application/xml'
+      '.xhtml=application/xhtml+xml'
+      '.zip=application/zip'
+      '.exe=application/x-msdownload'
+      '.msi=application/x-msdownload'
+      '.bin=application/octet-stream'
+      '.iso=application/octet-stream')
+    MimeTypeSrc = MTypeList
+    UnknownType = 'application/octet-stream'
+    Left = 396
+    Top = 92
   end
 end

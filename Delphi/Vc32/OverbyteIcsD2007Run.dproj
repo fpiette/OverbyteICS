@@ -166,6 +166,7 @@
     <DCCReference Include="OverbyteIcsWSocketTS.pas" />
     <DCCReference Include="OverbyteIcsZlibHigh.pas" />
     <DCCReference Include="OverbyteIcsZLibObj.pas" />
+    <DCCReference Include="OverbyteIcsHttpCCodZLib.pas"/>
     <DCCReference Include="rtl.dcp" />
     <DCCReference Include="vcl.dcp" />
   </ItemGroup>

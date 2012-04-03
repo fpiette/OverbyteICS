@@ -160,6 +160,7 @@
             <DCCReference Include="OverbyteIcsMLang.pas"/>
             <DCCReference Include="OverbyteIcsWinnls.pas"/>
             <DCCReference Include="OverbyteIcsCookies.pas"/>
+            <DCCReference Include="OverbyteIcsHttpCCodZLib.pas"/>
             <BuildConfiguration Include="Release">
                 <Key>Cfg_Release</Key>
                 <CfgParent>Base</CfgParent>

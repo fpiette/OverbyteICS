@@ -303,6 +303,7 @@
         <FILE FILENAME="OverbyteIcsIconv.pas" CONTAINERID="PascalCompiler" LOCALCOMMAND="" UNITNAME="OverbyteIcsIconv" FORMNAME="" DESIGNCLASS=""/>
         <FILE FILENAME="OverbyteIcsCsc.pas" CONTAINERID="PascalCompiler" LOCALCOMMAND="" UNITNAME="OverbyteIcsCsc" FORMNAME="" DESIGNCLASS=""/>
         <FILE FILENAME="OverbyteIcsWinnls.pas" CONTAINERID="PascalCompiler" LOCALCOMMAND="" UNITNAME="OverbyteIcsWinnls" FORMNAME="" DESIGNCLASS=""/>
+        <FILE FILENAME="OverbyteIcsHttpCCodZLib.pas" CONTAINERID="PascalCompiler" LOCALCOMMAND="" UNITNAME="OverbyteIcsHttpCCodZLib" FORMNAME="" DESIGNCLASS=""/>
       </FILELIST>
       <IDEOPTIONS>
         <VersionInfo>

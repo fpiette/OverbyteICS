@@ -156,6 +156,7 @@
             <DCCReference Include="OverbyteIcsIconv.pas"/>
             <DCCReference Include="OverbyteIcsWinnls.pas"/>
             <DCCReference Include="OverbyteIcsCookies.pas"/>
+            <DCCReference Include="OverbyteIcsHttpCCodZLib.pas"/>
             <DCCReference Include="OverbyteIcsHttpSrv.dcr"/>
             <DCCReference Include="OverbyteIcsFtpSrv.dcr"/>
             <DCCReference Include="OverbyteIcsNntpCli.dcr"/>

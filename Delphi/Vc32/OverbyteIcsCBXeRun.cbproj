@@ -169,6 +169,9 @@
 			<DelphiCompile Include="OverbyteIcsHttpAppServer.pas">
 				<BuildOrder>82</BuildOrder>
 			</DelphiCompile>
+			<DelphiCompile Include="OverbyteIcsHttpCCodZLib.pas">
+				<BuildOrder>94</BuildOrder>
+			</DelphiCompile>
 			<DelphiCompile Include="OverbyteIcsHttpContCod.pas">
 				<BuildOrder>63</BuildOrder>
 				<BuildOrder>30</BuildOrder>

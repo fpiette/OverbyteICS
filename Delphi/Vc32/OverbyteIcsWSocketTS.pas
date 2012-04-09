@@ -5,12 +5,12 @@ Description:  Multi-threaded socket server component derived from TWSocketServer
               Based on code written by Arno Garrels, Berlin, Germany,
               contact: <arno.garrels@gmx.de>
 Creation:     November 2005
-Version:      7.00
+Version:      7.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2005-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2005-2012 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -45,6 +45,7 @@ Mar 06, 2006 A. Garrels: Fixed synchronisation in ClientAttachThread and
              locking callback. Implemented such callbacks as two components
              see unit IcsSslThrdLock and changed TSslWSocketThrdServer to
              use TSslDynamicLock.
+Apr 09, 2012 V7.02 Arno - 64-bit and message handling fix.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -442,7 +443,7 @@ begin
             raise Exception.Create('Thread terminated while waiting');
     end;
     if not PostThreadMessage(Result.ThreadID,
-                             WM_THREAD_ADD_CLIENT, Integer(Client), 0) then
+                             WM_THREAD_ADD_CLIENT, WPARAM(Client), 0) then  { V7.02 }
         raise Exception.Create('PostThreadMessage ' +
                                SysErrorMessage(GetLastError));
     H[0] := Result.FEventArray[cteiClientAttached];
@@ -485,7 +486,7 @@ begin
         H[1] := AThread.Handle;
         if not PostThreadMessage(AThread.ThreadID,
                                  WM_THREAD_REMOVE_CLIENT,
-                                 Integer(Client), 0) then
+                                 WPARAM(Client), 0) then    { V7.02 }
             raise Exception.Create('PostThreadMessage ' +
                                    SysErrorMessage(GetLastError));
         H[0] := AThread.FEventArray[cteiClientRemoved];
@@ -549,7 +550,6 @@ procedure TWsClientThread.PumpMessages(WaitForMessages: Boolean);
 var
     HasMessage : Boolean;
     Msg        : TMsg;
-    MsgRec     : TMessage;
     Client     : TWSocketThrdClient;
     WaitRes    : LongWord;
 begin
@@ -600,15 +600,13 @@ begin
                 begin
                     //FreeOnTerminate := TRUE;
                     Terminate;
-                    Exit //***
+                    Exit; //***
                 end;
             WM_THREAD_EXCEPTION_TEST :
-                raise Exception.Create('** TEST EXCEPTION ***')
+                raise Exception.Create('** TEST EXCEPTION ***');
             else
-                MsgRec.Msg    := Msg.message;
-                MsgRec.WParam := Msg.wParam;
-                MsgRec.LParam := Msg.lParam;
-                Dispatch(MsgRec);
+                TranslateMessage(Msg);  { V7.02 }
+                DispatchMessage(Msg);   { V7.02 }
             end;
         end
         else begin
@@ -645,7 +643,7 @@ begin
                     ErrMsg  := AllocMem(1024 * SizeOf(Char));
                     StrLCopy(ErrMsg, PChar(E.ClassName + ': ' + E.Message), 1023);
                     PostMessage(FServer.Handle, FServer.FMsg_WM_THREAD_EXCEPTION,
-                                LParam(Self), Integer(ErrMsg));
+                                WPARAM(Self), LPARAM(ErrMsg));  { V7.02 }
                 end;
             end;
             for I := 0 to FClients.Count - 1 do begin
@@ -676,7 +674,7 @@ begin
             FreeOnTerminate := FALSE; 
         if not Terminated then
             Terminate;
-        PostMessage(FServer.Handle, FServer.FMsg_WM_THREAD_TERMINATED, LParam(Self), 0);
+        PostMessage(FServer.Handle, FServer.FMsg_WM_THREAD_TERMINATED, WPARAM(Self), 0); { V7.02 }
         { Just to make sure the  main thread isn't waiting for this thread }
         { we signal the events }
         //SetEvent(FEventArray[cteiClientRemoved]);

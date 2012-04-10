@@ -32,7 +32,7 @@
 
   which must also be downloaded and installed before the demo can be built.
 
-  It also needs ICS v7 dated 21st March 2012 or later from:
+  It also needs ICS v7 dated 1st April 2012 or later from:
 
   http://wiki.overbyte.be/wiki/index.php/ICS_Download
 
@@ -51,10 +51,13 @@
 
   23 March 2012 - added HTTP GZIP compression support
 
+  10 April 2012 - Arno improved authentication but still need to cache URL/logins
+                  Arno fixed multipart/form-data file upload
+                  Arno reformatted all units with XE2 style formatter so clearer
 
 
-
-  Pending - use NoCache header to stop dynamic pages being cached
+  Pending - use NoCache header to stop dynamic pages being cached and expire them
+  Pending - cache visited links so we can highlight them
 
 
   Fixed bug in FramBrwz.pas with links not normalised
@@ -77,8 +80,7 @@ uses
     htmlun2, CachUnitId, URLSubs, htmlview, htmlsubs, FramBrwz, FramView,
     PreviewForm, DownLoadId, Readhtml, OverbyteIcsHttpSrv, urlconIcs,
     OverbyteIcsWndControl, OverbyteIcsWsocket, OverbyteIcsHttpProt,
-    OverbyteIcsCookies,
-    OverbyteIcsStreams, OverbyteIcsUtils,
+    OverbyteIcsCookies, OverbyteIcsStreams, OverbyteIcsUtils,
 {$IF CompilerVersion >= 15}
 {$IF CompilerVersion < 23}
     XpMan,
@@ -257,7 +259,7 @@ type
             var S : WideString);
         procedure FrameBrowserFormSubmit(Sender : TObject; Viewer : ThtmlViewer;
             const Action, Target, EncType, Method : WideString;
-            Results : TWideStringList; var Handled : Boolean);
+            Results : ThtStringList; var Handled : Boolean);
 {$ENDIF}
         procedure ShowDiagWindowClick(Sender : TObject);
         procedure LogLine(S : String);
@@ -673,8 +675,7 @@ begin
                     try
                         if IsGet then begin { Get }
                             if Query1 <> '' then begin
-                                LogLine('FrameBrowser Get: ' + URL1 + '?'
-                                    + Query1);
+                                LogLine('FrameBrowser Get: ' + URL1 + '?' + Query1);
                                 Connection.Get(URL1 + '?' + Query1);
                             end
                             else begin
@@ -699,80 +700,56 @@ begin
                                         Filename :=
                                         FCurRawSubmitValues.ValueFromIndex[I];
                                         InputValue := ExtractFileName(Filename);
-                                        if not CheckUnicodeToAnsi(InputValue,
-                                        FCurSubmitCodepage) then
-                                        InputValue :=
-                                        TextToHtmlText(ExtractFileName(Filename)
-                                        ); // as FireFox
-
+                                        if not CheckUnicodeToAnsi(InputValue, FCurSubmitCodepage) then
+                                          InputValue := TextToHtmlText(ExtractFileName(Filename)); // as FireFox
                                         Header := '-----------------------------'
-                                        + RandBoundary + CRLF +
-                                        'Content-Disposition: form-data; name="file"; filename="'
-                                        + InputValue + '"' + CRLF +
-                                        'Content-Type: ' +
-                                        MimeTypesList1.TypeFromFile(InputValue)
-                                        + CRLF + CRLF;
+                                            + RandBoundary + CRLF +
+                                            'Content-Disposition: form-data; name="file"; filename="'
+                                            + InputValue + '"' + CRLF +
+                                            'Content-Type: ' +
+                                            MimeTypesList1.TypeFromFile(InputValue)
+                                            + CRLF + CRLF;
                                     end
                                     else begin
-                                        InputName :=
-                                        FCurRawSubmitValues.Names[I];
-                                        InputValue :=
-                                        FCurRawSubmitValues.ValueFromIndex[I];
-                                        if not CheckUnicodeToAnsi(InputName,
-                                        FCurSubmitCodepage) then
-                                        InputName :=
-                                        TextToHtmlText
-                                        (FCurRawSubmitValues.Names[I]);
-                                        if not CheckUnicodeToAnsi(InputValue,
-                                        FCurSubmitCodepage) then
-                                        InputValue :=
-                                        TextToHtmlText
-                                        (FCurRawSubmitValues.ValueFromIndex[I]);
-
-                                        Footer := Footer +
-                                        '-----------------------------' +
-                                        RandBoundary + CRLF +
-                                        'Content-Disposition: form-data; name="'
-                                        + InputName + '"' + CRLF + CRLF +
-                                        InputValue + CRLF;
+                                        InputName := FCurRawSubmitValues.Names[I];
+                                        InputValue := FCurRawSubmitValues.ValueFromIndex[I];
+                                        if not CheckUnicodeToAnsi(InputName, FCurSubmitCodepage) then
+                                            InputName := TextToHtmlText (FCurRawSubmitValues.Names[I]);
+                                        if not CheckUnicodeToAnsi(InputValue, FCurSubmitCodepage) then
+                                            InputValue := TextToHtmlText (FCurRawSubmitValues.ValueFromIndex[I]);
+                                        Footer := Footer + '-----------------------------' +
+                                            RandBoundary + CRLF +
+                                            'Content-Disposition: form-data; name="'
+                                            + InputName + '"' + CRLF + CRLF +
+                                            InputValue + CRLF;
                                     end;
                                 end;
 
                                 if Header <> '' then
                                     Footer := CRLF + Footer;
-                                Footer     := Footer +
-                                    '-----------------------------' +
+                                Footer := Footer + '-----------------------------' +
                                     RandBoundary + '--' + CRLF;
                                 if Filename <> '' then // if it's a file upload
                                 begin
                                     try
-                                        Connection.SendStream :=
-                                        TMultiPartFileReader.Create(Filename,
-                                        UnicodeToAnsi(Header,
-                                        FCurSubmitCodepage, True),
-                                        UnicodeToAnsi(Footer,
-                                        FCurSubmitCodepage, True));
+                                        Connection.SendStream := TMultiPartFileReader.Create(Filename,
+                                                         UnicodeToAnsi(Header, FCurSubmitCodepage, True),
+                                                         UnicodeToAnsi(Footer, FCurSubmitCodepage, True));
                                     except
-                                        Connection.SendStream :=
-                                        TMemorystream.Create;
+                                        Connection.SendStream := TMemorystream.Create;
                                         raise;
                                     end;
                                 end
                                 else
-                                    Connection.SendStream :=
-                                        TMemorystream.Create;
+                                    Connection.SendStream := TMemorystream.Create;
                                 try
-                                    LogLine('FrameBrowser Post: ' + URL1 +
-                                        ', EncType=' + EncType);
+                                    LogLine('FrameBrowser Post: ' + URL1 + ', EncType=' + EncType);
                                     if Filename = '' then
                                     // No file upload, write to stream
                                     begin
-                                        AnsiQuery :=
-                                        UnicodeToAnsi(Footer,
-                                        FCurSubmitCodepage);
-                                        Connection.SendStream.WriteBuffer
-                                        (Pointer(AnsiQuery)^,
-                                        Length(AnsiQuery));
+                                        AnsiQuery := UnicodeToAnsi(Footer, FCurSubmitCodepage);
+                                        Connection.SendStream.WriteBuffer (Pointer(AnsiQuery)^,
+                                                                                Length(AnsiQuery));
                                     end;
                                     Connection.SendStream.Position := 0;
                                     Connection.Post(URL1);
@@ -784,20 +761,17 @@ begin
                                 Connection.SendStream := TMemorystream.Create;
                                 try
                                     LogLine('FrameBrowser Post: ' + URL1 +
-                                        ', Data=' + Copy(Query1, 1, 132) +
+                                        ', Data=' + Copy(Query1, 1, 1024) +
                                         ', EncType=' + EncType);
                                     // not too much data
 
                                     AnsiQuery := AnsiString(Query1);
                                     if EncType = '' then
-                                        Connection.ContentTypePost :=
-                                        'application/x-www-form-urlencoded'
+                                        Connection.ContentTypePost := 'application/x-www-form-urlencoded'
                                     else
                                         Connection.ContentTypePost := EncType;
-                                    Connection.SendStream.WriteBuffer
-                                        (AnsiQuery[1], Length(AnsiQuery));
+                                    Connection.SendStream.WriteBuffer (AnsiQuery[1], Length(AnsiQuery));
                                     Connection.SendStream.Position := 0;
-
                                     Connection.Post(URL1);
                                 finally
                                     Connection.SendStream.Free;
@@ -843,11 +817,9 @@ begin
                 end;
                 on E : Exception do
                     try
-                        LogLine('FrameBrowserGetPostRequestEx: Exception - ' +
-                            E.Message);
+                        LogLine('FrameBrowserGetPostRequestEx: Exception - ' + E.Message);
                         if AnAbort then
-                            raise (ESpecialException.Create
-                                ('Abort on user request'));
+                            raise (ESpecialException.Create ('Abort on user request'));
 
                         Error := True;
                         if Connection is THTTPConnection then
@@ -943,8 +915,7 @@ var
     S : String;
 begin
     with ACookie do begin
-        S := 'NewCookie: ' + CName + '=' + CValue + ', Domain=' + CDomain +
-            ', Path=' + CPath;
+        S := 'NewCookie: ' + CName + '=' + CValue + ', Domain=' + CDomain + ', Path=' + CPath;
         if CPersist then
             S := S + ', Expires=' + DateTimeToStr(CExpireDT)
         else

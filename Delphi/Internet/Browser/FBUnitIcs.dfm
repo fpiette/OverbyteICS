@@ -118,7 +118,7 @@ object HTTPForm: THTTPForm
         ImageIndex = -1
         MinHeight = 37
         MinWidth = 140
-        Width = 210
+        Width = 153
       end
       item
         Break = False
@@ -135,7 +135,7 @@ object HTTPForm: THTTPForm
         ImageIndex = -1
         MinHeight = 37
         MinWidth = 155
-        Width = 225
+        Width = 282
       end>
     object ToolBar2: TToolBar
       Left = 9
@@ -188,7 +188,7 @@ object HTTPForm: THTTPForm
       Top = 8
       Width = 244
       Height = 21
-      ItemHeight = 0
+      ItemHeight = 13
       TabOrder = 1
       OnClick = URLComboBoxClick
       OnKeyPress = URLComboBoxKeyPress
@@ -338,6 +338,10 @@ object HTTPForm: THTTPForm
         Caption = 'Log HTML'
         OnClick = ShowLogHTMLClick
       end
+      object ShowLogHTTP: TMenuItem
+        Caption = 'Log HTTP'
+        OnClick = ShowLogHTTPClick
+      end
     end
     object Help1: TMenuItem
       Caption = '&Help'
@@ -360,13 +364,6 @@ object HTTPForm: THTTPForm
     Options = [ofHideReadOnly, ofPathMustExist, ofFileMustExist]
     Left = 296
     Top = 152
-  end
-  object Timer: TTimer
-    Enabled = False
-    Interval = 100
-    OnTimer = TimerTimer
-    Left = 368
-    Top = 145
   end
   object SaveDialog: TSaveDialog
     Filter = 'All Files|*.*'
@@ -417,7 +414,7 @@ object HTTPForm: THTTPForm
     Left = 40
     Top = 160
     Bitmap = {
-      494C01010D006000600011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C01010D006400640011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000440000004400000001002000000000004048
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

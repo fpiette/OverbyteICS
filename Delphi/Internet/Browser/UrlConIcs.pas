@@ -48,13 +48,13 @@ interface
 { *      Suspect this program originally used ICS since   * }
 { *      many types, vars and events have ICS names       * }
 { *                                                       * }
-{ *                                                       * }
+{ * April 2012 - Angus simplified State                   * }
 { *                                                       * }
 { ********************************************************* }
 
 uses
     WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls,
-    Forms, Dialogs, ShellAPI, URLSubs, htmlview,
+    Forms, Dialogs, ShellAPI, TypInfo, URLSubs, htmlview,
     OverbyteIcsWndControl, OverbyteIcsWsocket,
     OverbyteIcsHttpProt, OverbyteIcsHttpCCodzlib
 {$IFDEF IncludeZip}
@@ -100,6 +100,7 @@ type
         FRealm           : String; // ANGUS
         FCookie          : String; // ANGUS
         FOnCookie        : TCookieRcvdEvent; // ANGUS
+        FSession         : integer; // ANGUS
     public
         constructor Create;
         destructor Destroy; override;
@@ -114,6 +115,7 @@ type
         function StatusCode : LongInt; virtual;
         function State : THttpState; virtual;
         procedure Abort; virtual;
+        procedure Close; virtual;  // ANGUS
         function ContentType : ThtmlFileType; virtual;
         function ContentLength : LongInt; virtual;
         class function Getconnection(const URL : String) : TURLConnection;
@@ -142,6 +144,7 @@ type
         property ContentTypePost : String read FContentTypePost
             write FContentTypePost;
         property SendStream : TStream read FSendStream write FSendStream;
+        property Session : integer read FSession write FSession;
     end;
 
     THTTPConnection = class(TURLConnection)
@@ -163,6 +166,8 @@ type
             Error : Word);
         procedure IcsHttpHeaderData(Sender : TObject);
         procedure IcsHttpCommand(Sender : TObject; var S : String);
+        procedure IcsHttpSessionConnected(Sender : TObject);
+        procedure IcsHttpSessionClosed(Sender : TObject);
     public
         constructor Create;
         destructor Destroy; override;
@@ -177,6 +182,7 @@ type
         function ContentType : ThtmlFileType; override;
         function ContentLength : LongInt; override;
         procedure Abort; override;
+        procedure Close; override;  // ANGUS
     end;
 
     TFileConnection = class(TURLConnection)
@@ -292,6 +298,10 @@ procedure TURLConnection.Abort;
 begin
 end;
 
+procedure TURLConnection.Close;
+begin
+end;
+
 procedure TURLConnection.CheckInputStream;
 begin
     if FInputStream = nil then begin
@@ -388,6 +398,8 @@ begin
     HTTP.OnDocData        := FOnDocData;
     HTTP.OnHeaderData     := IcsHttpHeaderData;
     HTTP.OnCommand        := IcsHttpCommand;
+    HTTP.OnSessionConnected := IcsHttpSessionConnected;
+    HTTP.OnSessionClosed  := IcsHttpSessionClosed;
     HTTP.OnCookie         := FOnCookie;
     HTTP.RequestVer       := '1.1';
     HTTP.Connection       := 'Keep-Alive';
@@ -405,7 +417,6 @@ begin
     HTTP.Cookie        := FCookie;
     HTTP.Options       := HTTP.Options + [httpoEnableContentCoding];
     HTTP.LmCompatLevel := GLmCompatLevel; { AG }
-    FState             := HTTPReady;
 end;
 
 procedure THTTPConnection.GetPostFinal;
@@ -449,9 +460,6 @@ begin
         end;
     end;
     // Angus - should keep header cache to stop page caching
-    HTTP.Free;
-    HTTP   := nil;
-    FState := httpNotConnected;
 end;
 
 { ----------------THTTPConnection.Get }
@@ -459,6 +467,7 @@ procedure THTTPConnection.Get(const URL : String);
 begin
     GetPostInit1;
     try
+        HTTP.OnRequestDone := Nil;
         HTTP.RcvdStream := FInputStream;
         HTTP.URL        := URL;
         HTTP.Get; // sync
@@ -473,6 +482,7 @@ begin
     GetPostInit1;
     try
         // HTTP.ContentType := ContentTypePost;
+        HTTP.OnRequestDone := Nil;
         HTTP.SendStream := SendStream;
         HTTP.RcvdStream := FInputStream;
         HTTP.URL        := URL;
@@ -490,18 +500,32 @@ begin
     HTTP.OnRequestDone := IcsRequestDone;
     HTTP.RcvdStream    := FInputStream;
     HTTP.URL           := URL;
-    FState             := HTTPReady;
     HTTP.GetAsync;
 end;
 
 procedure THTTPConnection.IcsHttpHeaderData(Sender : TObject);
 begin
-    HTTPForm.LogLine('< ' + HTTP.LastResponse);
+    if HTTPForm.ShowLogHTTP.Checked then
+        HTTPForm.LogLine('[' + IntToStr (Session) + '] < ' + HTTP.LastResponse);
 end;
 
 procedure THTTPConnection.IcsHttpCommand(Sender : TObject; var S : String);
 begin
-    HTTPForm.LogLine('> ' + S);
+    if HTTPForm.ShowLogHTTP.Checked then
+        HTTPForm.LogLine('[' + IntToStr (Session) + '] > ' + S);
+end;
+
+procedure THTTPConnection.IcsHttpSessionConnected(Sender : TObject);
+begin
+    if HTTPForm.ShowLogHTTP.Checked then
+        HTTPForm.LogLine('[' + IntToStr (Session) + '] Connected to ' +
+                                     (Sender as TSslHttpCli).Hostname);
+end;
+
+procedure THTTPConnection.IcsHttpSessionClosed(Sender : TObject);
+begin
+    if HTTPForm.ShowLogHTTP.Checked then
+        HTTPForm.LogLine('[' + IntToStr (Session) + '] Disconnected');
 end;
 
 { ----------------THTTPConnection.RequestDone }
@@ -510,15 +534,15 @@ procedure THTTPConnection.IcsRequestDone(Sender : TObject;
 var
     AHttp : TSslHttpCli;
 begin
-    if RqType <> httpGET then
+    if RqType <> httpGET then begin
+        HTTPForm.LogLine('[' + IntToStr (Session) + '] Unexpected RequestDone');
         exit;
+    end;
     AHttp               := Sender as TSslHttpCli;
     ReturnedContentType := AHttp.ContentType;
     FContentLength      := AHttp.ContentLength;
     FResponseText       := AHttp.ReasonPhrase;
     FResponseCode       := AHttp.StatusCode;
-
-    FState := httpNotConnected;
 
     if not FAborted and (FResponseCode < 300)
     then { Relocated images not handled }
@@ -532,11 +556,18 @@ end;
 procedure THTTPConnection.IcsStateChange(Sender : TObject);
 begin
     FState := (Sender as TSslHttpCli).State;
+    if HTTPForm.ShowLogHTTP.Checked then
+        HTTPForm.LogLine('[' + IntToStr (Session) + '] StateChange: ' +
+                    GetEnumName (Typeinfo (THttpState), Ord (FState)));
 end;
 
 function THTTPConnection.State : THttpState;
 begin
-    Result := FState;
+    if Assigned(HTTP) then
+        FState := HTTP.State
+    else
+        FState := httpNotConnected;
+    result := FState;
 end;
 
 function THTTPConnection.ContentType : ThtmlFileType;
@@ -589,6 +620,15 @@ begin
     FAborted := true;
     if Assigned(HTTP) then
         HTTP.Abort;
+end;
+
+{ ----------------THTTPConnection.Close }
+procedure THTTPConnection.Close;
+begin
+    if Assigned(HTTP) then begin
+        if FState = httpReady then
+            HTTP.Close;
+    end;
 end;
 
 { ----------------TFileConnection.Get }

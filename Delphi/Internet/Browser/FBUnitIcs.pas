@@ -55,6 +55,14 @@
                   Arno fixed multipart/form-data file upload
                   Arno reformatted all units with XE2 style formatter so clearer
 
+  17 April 2012 - Angus - removed unnecessary timer to insert downloaded images
+                  Now using a download image queue and a fixed number of static
+                  image download sessions (MaxImageSess=4) rather than downloading
+                  potentially dozens of images simultaneously in separate sessions.
+                  This allows http/1.1 and keep-alive to work.  Likewise, Connection
+                  used for html and css pages is no longer always closed.
+
+
 
   Pending - use NoCache header to stop dynamic pages being cached and expire them
   Pending - cache visited links so we can highlight them
@@ -81,26 +89,29 @@ uses
     PreviewForm, DownLoadId, Readhtml, OverbyteIcsHttpSrv, urlconIcs,
     OverbyteIcsWndControl, OverbyteIcsWsocket, OverbyteIcsHttpProt,
     OverbyteIcsCookies, OverbyteIcsStreams, OverbyteIcsUtils,
+    OverbyteIcsMimeUtils,
 {$IF CompilerVersion >= 15}
 {$IF CompilerVersion < 23}
     XpMan,
 {$IFEND}
 {$IFEND}
-    HtmlGlobals, OverbyteIcsMimeUtils;
+    HtmlGlobals;
 
 const
     (* UsrAgent = 'Mozilla/4.0 (compatible; ICS Library)'; *)
     UsrAgent     = 'Mozilla/4.0 (compatible; MSIE 5.0; Windows 98)';
     MaxHistories = 15; { size of History list }
+    MaxImageSess = 4;  { ANGUS how many simultaneous image downloads }
     wm_LoadURL   = wm_User + 124;
     wm_DownLoad  = wm_User + 125;
-    WM_HTTP_FREE = wm_User + 126;
+    WM_Next_Image = wm_User + 126;
+
+    ImgStateFree = 1 ; ImgStateRequest = 2 ; ImgStateWaiting = 3 ; ImgStateCancel = 4 ;
 
 type
     ImageRec = class(TObject)
         Viewer : ThtmlViewer;
-        ID, URL : String;
-        Stream : TMemorystream;
+        URL    : String;
     end;
 
     TImageHTTP = class(TComponent)
@@ -109,6 +120,7 @@ type
         ImRec      : ImageRec;
         URL        : String;
         Connection : TURLConnection;
+        ImgState   : integer;     // ANGUS
         constructor CreateIt(AOwner : TComponent; IRec : TObject);
         destructor Destroy; override;
         procedure GetAsync;
@@ -125,7 +137,6 @@ type
         Status1 : TPanel;
         Status3 : TPanel;
         Status2 : TPanel;
-        Timer : TTimer;
         Options1 : TMenuItem;
         DeleteCache1 : TMenuItem;
         N1 : TMenuItem;
@@ -172,6 +183,7 @@ type
         CacheImages : TMenuItem;
         ShowLogHTML : TMenuItem;
         MimeTypesList1 : TMimeTypesList;
+    ShowLogHTTP: TMenuItem;
         procedure FormCreate(Sender : TObject);
         procedure FormDestroy(Sender : TObject);
         procedure GetButtonClick(Sender : TObject);
@@ -180,7 +192,6 @@ type
         procedure BackButtonClick(Sender : TObject);
         procedure FwdButtonClick(Sender : TObject);
         procedure Openfile1Click(Sender : TObject);
-        procedure TimerTimer(Sender : TObject);
         procedure DeleteCacheClick(Sender : TObject);
         procedure Exit1Click(Sender : TObject);
         procedure ShowImagesClick(Sender : TObject);
@@ -268,12 +279,12 @@ type
         procedure CachePagesClick(Sender : TObject);
         procedure CacheImagesClick(Sender : TObject);
         procedure ShowLogHTMLClick(Sender : TObject);
+    procedure ShowLogHTTPClick(Sender: TObject);
     private
         { Private declarations }
         URLBase     : String;
         Histories   : array [0 .. MaxHistories - 1] of TMenuItem;
-        Pending     : TList; { a list of ImageRecs }
-        HTTPList    : TList; { a list of the Image HTTPs currently existing }
+        Pending     : TList; { a list of ImageRecs waiting for download }
         DiskCache   : TDiskCache;
         NewLocation : String;
         ARealm      : String;
@@ -298,6 +309,9 @@ type
         Allow                     : String;
         FCurRawSubmitValues       : ThtStringList;
         FCurSubmitCodepage        : LongWord;
+        FImageHTTPs               : array of TImageHTTP;  // ANGUS, base1
+        FCurHttpSess              : integer;
+        LastProtocol              : String;
 
         procedure EnableControls;
         procedure DisableControls;
@@ -306,7 +320,9 @@ type
         procedure HistoryClick(Sender : TObject);
         procedure WMLoadURL(var Message : TMessage); message wm_LoadURL;
         procedure WMDownLoad(var Message : TMessage); message wm_DownLoad;
-        procedure WmHttpFree(var AMsg : TMessage); message WM_HTTP_FREE;
+        procedure WMNextImage(var AMsg : TMessage); message WM_Next_Image;
+        procedure HttpSessionFree (session: integer);
+        procedure HttpStopSessions;
         procedure CheckEnableControls;
         procedure ClearProcessing;
         procedure Progress(Num, Den : Integer);
@@ -412,7 +428,19 @@ begin
     IcsCookies.AutoSave := True;
     AStream             := TMemorystream.Create;
     Pending             := TList.Create;
-    HTTPList            := TList.Create;
+
+ { ANGUS create several image session components, base1 }
+    SetLength (FImageHTTPs, MaxImageSess + 1);
+    for I := 1 to MaxImageSess do begin
+        FImageHTTPs [I] := TImageHTTP.CreateIt(Self, Nil);
+        with FImageHTTPs [I] do begin
+            ImgState                 := ImgStateFree;
+            Connection.Session       := I;  // body is 0
+            Connection.Owner         := FImageHTTPs [I];
+            Connection.OnCookie      := HTTPForm.HTTPSetCookie;
+            Connection.OnRequestDone := ImageRequestDone;
+        end;
+    end;
 
     FrameBrowser.HistoryMaxCount := MaxHistories;
     { defines size of history list }
@@ -452,6 +480,8 @@ begin
             CacheImages.Checked);
         ShowLogHTML.Checked := IniFile.ReadBool('HTTPForm', 'ShowLogHTML',
             ShowLogHTML.Checked);
+        ShowLogHTTP.Checked := IniFile.ReadBool('HTTPForm', 'ShowLogHTTP',
+            ShowLogHTTP.Checked);
         Proxy         := IniFile.ReadString('Proxy', 'ProxyHost', '');
         ProxyPort     := IniFile.ReadString('Proxy', 'ProxyPort', '80');
         ProxyUser     := IniFile.ReadString('Proxy', 'ProxyUsername', '');
@@ -487,20 +517,6 @@ var
     I       : Integer;
     IniFile : TIniFile;
 begin
-    AStream.Free;
-    Pending.Free;
-    for I := 0 to HTTPList.Count - 1 do
-        TImageHTTP(HTTPList.Items[I]).Free;
-    HTTPList.Free;
-    if Monitor1 then
-        CloseFile(Mon);
-    DiskCache.Free;
-    FCurRawSubmitValues.Free;
-    // CookieManager.Free;
-    if Assigned(Connection) then begin
-        Connection.Free;
-        Connection := nil;
-    end;
     if Monitor1 then begin { save only if this is the first instance }
         IniFile := TIniFile.Create(FIniFilename);
         try
@@ -513,6 +529,7 @@ begin
             IniFile.WriteBool('HTTPForm', 'CachePages', CachePages.Checked);
             IniFile.WriteBool('HTTPForm', 'CacheImages', CacheImages.Checked);
             IniFile.WriteBool('HTTPForm', 'ShowLogHTML', ShowLogHTML.Checked);
+            IniFile.WriteBool('HTTPForm', 'ShowLogHTTP', ShowLogHTTP.Checked);
             IniFile.WriteString('Proxy', 'ProxyHost', Proxy);
             IniFile.WriteString('Proxy', 'ProxyPort', ProxyPort);
             IniFile.WriteString('Proxy', 'ProxyUsername', ProxyUser);
@@ -524,6 +541,27 @@ begin
         finally
             IniFile.Free;
         end;
+    end;
+    AStream.Free;
+    Pending.Free;
+    try
+        if FCurHttpSess > 0 then
+            HttpStopSessions;
+        for I := 1 to MaxImageSess do begin
+            if Assigned (FImageHTTPs [I]) then begin
+                FImageHTTPs [I].Free;
+                FImageHTTPs [I] := Nil;
+            end;
+        end;
+    except
+    end;
+    if Monitor1 then
+        CloseFile(Mon);
+    DiskCache.Free;
+    FCurRawSubmitValues.Free;
+    if Assigned(Connection) then begin
+        Connection.Free;
+        Connection := nil;
     end;
 end;
 
@@ -618,6 +656,7 @@ var
 
 var
     Header, Footer, RandBoundary, Filename, InputName, InputValue : ThtString;
+    protocol : String;
     I : Integer;
 
 begin
@@ -649,12 +688,16 @@ begin
         DiskCache.GetCacheFilename(URL1, FName, DocType, NewLocation);
     { if in cache already, get the cache filename }
     if (FName = '') or not FileExists(FName) then begin { it's not in cache }
-        if Connection <> nil then begin
+        protocol := GetProtocol(URL1);
+        if (protocol <> LastProtocol) and (Connection <> nil) then begin  { ANGUS don't stop http/1.1 working  }
             Connection.Free;
             Connection := nil;
         end;
-        Connection := TURLConnection.GetConnection(URL1);
+        LastProtocol := protocol;  // ANGUS
+        if Connection = nil then
+            Connection := TURLConnection.GetConnection(URL1);
         if Connection <> nil then begin
+            Connection.Session       := 0;
             Connection.OnDocData     := HTTPForm.HTTPDocData1; // progress only
             Connection.Referer       := RefererX;
             LastUrl                  := URL1;
@@ -899,7 +942,7 @@ begin
     end;
     URLBase := GetUrlBase(NewLocation);
 
-    // cookies may have been sent during redirection, so update again now
+    { cookies may have been sent during redirection, so update again now   }
     (Sender as TSslHttpCli).Cookie := IcsCookies.GetCookies(NewLocation);
 end;
 
@@ -936,7 +979,6 @@ var
     S       : String;
     IR      : ImageRec;
     DocType : ThtmlFileType;
-    ImHTTP  : TImageHTTP;
     Dummy   : String;
 begin
     if Reloading or (not CacheImages.Checked) then begin
@@ -951,6 +993,7 @@ begin
         Stream := AStream; { return image immediately }
         LogLine('GetImageRequest, from Cache: ' + S);
     end
+  { see if res, file or zip protocols, get image immediately without a queue }
     else if not((GetProtocol(URL) = 'http') or (GetProtocol(URL) = 'https'))
     then begin
         if Assigned(Connection) then
@@ -973,31 +1016,117 @@ begin
         IR        := ImageRec.Create;
         IR.Viewer := Sender as ThtmlViewer;
         IR.URL    := URL;
-        IR.ID     := URL;
 
-        ImHTTP                          := TImageHTTP.CreateIt(Self, IR);
-        ImHTTP.Connection.Owner         := ImHTTP;
-        ImHTTP.Connection.OnCookie      := HTTPForm.HTTPSetCookie;
-        ImHTTP.Connection.OnRequestDone := ImageRequestDone;
-        ImHTTP.Connection.Proxy         := Proxy;
-        ImHTTP.Connection.ProxyPort     := ProxyPort;
-        ImHTTP.Connection.ProxyUser     := ProxyUser;
-        ImHTTP.Connection.ProxyPassword := ProxyPassword;
-        ImHTTP.Connection.UserAgent     := UsrAgent;
-        ImHTTP.Connection.Cookie        := IcsCookies.GetCookies(URL);
-        DisableControls;
-        try
-            ImHTTP.GetAsync;
-            { This call does not stall. When done getting the image,
-              processing will continue at ImageRequestDone }
-            HTTPList.Add(ImHTTP);
-        except
-            ImHTTP.Free;
-            Stream := nil;
-        end;
-
+    { add image to queue, then see if any spare sessions to download it }
+        Pending.Add(IR);
         Inc(NumImageTot);
         Progress(NumImageDone, NumImageTot);
+        LogLine('GetImageRequest Queued: ' + URL);
+        PostMessage(Handle, WM_Next_Image, 0, 0);
+    end;
+end;
+
+{ ----------------THTTPForm.WMNextImage }
+
+procedure THTTPForm.WMNextImage(var AMsg : TMessage);
+var
+    I, session: integer ;
+    CurImage: ImageRec;
+begin
+    if Pending.Count = 0 then begin
+        LogLine ('No more queued image downloads');
+        Progress(NumImageDone, NumImageTot);
+        exit;
+    end;
+    session := -1;
+    for I := 1 to MaxImageSess do begin
+        if FImageHTTPs [I].ImgState <= ImgStateFree then
+        begin
+            session := I;
+            break;
+        end;
+    end;
+    if session < 0 then begin { no free sessions for image downloads, will try later }
+        exit;
+    end;
+
+{ start a download for first waiting URL, remove from list  }
+    CurImage := Pending [0];
+    Pending.Delete (0);
+    with FImageHTTPs [session] do begin
+        Connection.CheckInputStream;
+        ImgState                 := ImgStateWaiting;
+        ImRec                    := CurImage;
+        URL                      := CurImage.URL;
+        Connection.Proxy         := Proxy;
+        Connection.ProxyPort     := ProxyPort;
+        Connection.ProxyUser     := ProxyUser;
+        Connection.ProxyPassword := ProxyPassword;
+        Connection.UserAgent     := UsrAgent;
+        Connection.Cookie        := IcsCookies.GetCookies(URL);
+        inc (FCurHttpSess);
+        DisableControls;
+        LogLine('[' + IntToStr (Connection.Session) + '] GetImageRequest Start: ' + URL);
+        try
+            GetAsync;
+        except
+            LogLine ('Exception starting image download: ' + URL);
+            Inc(NumImageDone);
+            ImgState := ImgStateFree;
+        end;
+    end;
+end;
+
+{ ----------------THTTPForm.HttpSessionFree }
+
+procedure THTTPForm.HttpSessionFree (session: integer);
+begin
+    try
+        if session <= 0 then exit ;
+        Progress(NumImageDone, NumImageTot);
+        if NOT Assigned (FImageHTTPs [session]) then exit;
+        if (FImageHTTPs [session].ImgState > ImgStateFree) and (FCurHttpSess > 0) then
+             dec (FCurHttpSess) ;
+        FImageHTTPs [session].ImgState := ImgStateFree;
+        FImageHTTPs [session].Connection.InputStream.Clear;
+        if Pending.Count <> 0 then
+            PostMessage(Handle, WM_Next_Image, 0, 0)   { next queued request  }
+        else begin
+            CheckEnableControls;
+        end;
+    except
+        LogLine  ('[' + IntToStr (session) + '] !! Failed to Free Image Download Session');
+        FImageHTTPs [session].ImgState := ImgStateFree;
+    end;
+end;
+
+{ ----------------THTTPForm.HttpStopSessions }
+
+procedure THTTPForm.HttpStopSessions;
+var
+    I: integer ;
+begin
+    Pending.Clear ;
+    FCurHttpSess := 0;
+    for I := 1 to MaxImageSess do
+    begin
+        if Assigned (FImageHTTPs [I]) then begin
+            if FImageHTTPs [I].ImgState > ImgStateFree then begin
+                FImageHTTPs [I].ImgState := ImgStateFree;
+                try
+                    if Assigned (FImageHTTPs [I].Connection) then begin
+                        if Assigned (FImageHTTPs [I].Connection) then begin
+                            LogLine  ('[' + IntToStr (I) + '] !! Aborting Image Download');
+                            FImageHTTPs [I].ImgState := ImgStateCancel;
+                            FImageHTTPs [I].Connection.Abort;   { sync }
+                            FImageHTTPs [I].ImgState := ImgStateFree;
+                        end;
+                    end;
+               except
+                    ;
+                end;
+            end;
+        end;
     end;
 end;
 
@@ -1007,77 +1136,65 @@ procedure THTTPForm.ImageRequestDone(Sender : TObject; RqType : THttpRequest;
     Error : Word);
 { arrive here when ImHTTP.GetAsync has completed }
 var
-    ImHTTP : TImageHTTP;
+    ImageHTTP: TImageHTTP;
+    FName : String;
 begin
+    ImageHTTP := (Sender as TImageHTTP);
     try
-        ImHTTP := (Sender as TImageHTTP);
-        if (RqType = httpGet) then begin
-            if (Error = 0) then
-            begin { Add the image record to the Pending list to be inserted in the timer
-                  loop at TimerTimer }
-                LogLine('GetImageRequest Done OK');
-                Pending.Add(ImHTTP.ImRec);
-                ImHTTP.ImRec  := nil; { so it won't get free'd below }
-                Timer.Enabled := True;
+        with ImageHTTP do begin
+            if ImgState in [ImgStateFree, ImgStateCancel] then begin
+                LogLine('[' + IntToStr (Connection.Session) + '] GetImageRequest Ignored: ' + URL);
             end
-            else begin
-            { this code will cause Error Image to appear if error occured when downloading image }
-            { Add the image record to the Pending list to be inserted in the timer loop at TimerTimer }
-                Pending.Add(ImHTTP.ImRec);
-                FreeAndNil(ImHTTP.ImRec.Stream);
-                ImHTTP.ImRec  := nil; { so it won't get free'd below }
-                Timer.Enabled := True;
-            end;
-            (* Optional code to just ignore the error
-              begin   {an error occured, forget this image}
-              Inc(NumImageDone);
-              Progress(NumImageDone, NumImageTot);
-              end; *)
+            else if (Error = 0) then begin
+                LogLine('[' + IntToStr (Connection.Session) + '] GetImageRequest Done OK: ' + URL);
+                if Assigned(Connection.InputStream) then begin { Stream can be Nil }
+                    if FrameBrowser.InsertImage(ImRec.Viewer, URL, Connection.InputStream) then begin
+                        { save image in cache file }
+                        if CacheImages.Checked then begin
+                            FName := DiskCache.AddNameToCache(URL, '', ImgType, False);
+                            if FName <> '' then
+                            try
+                                ImageHTTP.Connection.InputStream.SaveToFile(FName);
+                            except
+                            end;
+                        end;
+                    end;
+                    Connection.InputStream.Clear;
+                end
+                else
+                    LogLine('[' + IntToStr (Connection.Session) + '] GetImageRequest No Stream: ' + URL);
+            end
+            else
+                LogLine('[' + IntToStr (Connection.Session) + '] GetImageRequest Failed, Error ' +
+                                                           IntToStr (Error) + ': ' + URL);
         end;
-        HTTPList.Remove(ImHTTP);
-        PostMessage(Handle, WM_HTTP_FREE, WPARAM(Sender), 0);
-        if NumImageDone >= NumImageTot then
-            CheckEnableControls;
     except
+        LogLine('[' + IntToStr (Connection.Session) + '] GetImageRequest Exception: ' + ImageHTTP.URL);
+    end;
+    Inc(NumImageDone);
+  { free session, also checks for more downloads, if any }
+    HttpSessionFree (ImageHTTP.Connection.Session);
+end;
+
+procedure THTTPForm.CheckEnableControls;
+begin
+    if not FrameBrowser.Processing and (not Assigned(Connection) or
+                 (Connection.State in [httpReady, httpNotConnected])) and
+                         (Pending.Count = 0) and (FCurHttpSess = 0) then begin
+        EnableControls;
+        Status2.Caption := 'DONE';
     end;
 end;
 
-{ ----------------THTTPForm.TimerTimer }
-procedure THTTPForm.TimerTimer(Sender : TObject);
-{ Images cannot necessarily be inserted at the moment they become available since
-  the system may be busy with other things.  Hence they are added to a Pending
-  list and this timing loop repeatedly trys to insert them }
+procedure THTTPForm.ClearProcessing;
 var
-    FName : String;
-    Img   : ImageRec;
+    I : Integer;
 begin
-    Timer.Enabled := False;
-    if Pending.Count > 0 then begin
-        Img := ImageRec(Pending[0]);
-        if FrameBrowser.InsertImage(Img.Viewer, Img.ID, Img.Stream) then begin
-            if Assigned(Img.Stream) then { Stream can be Nil }
-            begin
-                { save image in cache file }
-                if CacheImages.Checked then begin
-                    FName := DiskCache.AddNameToCache(Img.URL, '',
-                        ImgType, False);
-                    if FName <> '' then
-                        try
-                            Img.Stream.SaveToFile(FName);
-                        except
-                        end;
-                end;
-                Img.Stream.Free;
-            end;
-            Pending.Delete(0);
-            Img.Free;
-            Inc(NumImageDone);
-            Progress(NumImageDone, NumImageTot);
-        end;
+    for I := 0 to Pending.Count - 1 do begin
+        ImageRec(Pending.Items[I]).Free;
     end;
-    if (Pending.Count > 0) or (HTTPList.Count > 0) then
-        Timer.Enabled := True; { still have images to process }
-    CheckEnableControls;
+    Pending.Clear;
+    HttpStopSessions;
 end;
 
 procedure THTTPForm.CacheImagesClick(Sender : TObject);
@@ -1145,11 +1262,6 @@ begin
     { update URLBase for new document }
     FrameBrowser.HistoryIndex := I;
     UrlComboBox.Text          := FrameBrowser.History[I]; // ANGUS
-end;
-
-procedure THTTPForm.WmHttpFree(var AMsg : TMessage);
-begin
-    TObject(AMsg.WPARAM).Free;
 end;
 
 { ----------------THTTPForm.WMLoadURL }
@@ -1262,32 +1374,6 @@ begin
     end;
 end;
 
-procedure THTTPForm.CheckEnableControls;
-begin
-    if not FrameBrowser.Processing and
-        (not Assigned(Connection) or (Connection.State in [httpReady,
-        httpNotConnected])) and (HTTPList.Count = 0) then begin
-        EnableControls;
-        Status2.Caption := 'DONE';
-    end;
-end;
-
-procedure THTTPForm.ClearProcessing;
-var
-    I : Integer;
-begin
-    for I := 0 to HTTPList.Count - 1 do { free any Image HTTPs existing }
-        with TImageHTTP(HTTPList.Items[I]) do begin
-            Free;
-        end;
-    HTTPList.Clear;
-    for I := 0 to Pending.Count - 1 do begin
-        ImageRec(Pending.Items[I]).Stream.Free;
-        ImageRec(Pending.Items[I]).Free;
-    end;
-    Pending.Clear;
-end;
-
 procedure THTTPForm.ViewerClear(Sender : TObject);
 { A ThtmlViewer is about to be cleared. Cancel any image processing destined for it }
 var
@@ -1295,16 +1381,9 @@ var
     Vw : ThtmlViewer;
 begin
     Vw    := Sender as ThtmlViewer;
-    for I := HTTPList.Count - 1 downto 0 do
-        with TImageHTTP(HTTPList.Items[I]) do
-            if ImRec.Viewer = Vw then begin
-                Free;
-                HTTPList.Delete(I);
-            end;
     for I := Pending.Count - 1 downto 0 do
         with ImageRec(Pending.Items[I]) do
             if Viewer = Vw then begin
-                Stream.Free;
                 Free;
                 Pending.Delete(I);
             end;
@@ -1352,6 +1431,11 @@ end;
 procedure THTTPForm.ShowLogHTMLClick(Sender : TObject);
 begin
     ShowLogHTML.Checked := not ShowLogHTML.Checked;
+end;
+
+procedure THTTPForm.ShowLogHTTPClick(Sender: TObject);
+begin
+    ShowLogHTTP.Checked := not ShowLogHTTP.Checked;
 end;
 
 procedure THTTPForm.ReloadClick(Sender : TObject);
@@ -1706,10 +1790,8 @@ constructor TImageHTTP.CreateIt(AOwner : TComponent; IRec : TObject);
 begin
     inherited Create(AOwner);
     ImRec                  := IRec as ImageRec;
-    ImRec.Stream           := TMemorystream.Create;
-    URL                    := ImRec.URL;
-    Connection             := TURLConnection.GetConnection(URL);
-    Connection.InputStream := ImRec.Stream;
+    Connection             := THTTPConnection.Create;
+    Connection.CheckInputStream;   // creates stream
 end;
 
 { ----------------TImageHTTP.GetAsync }
@@ -1722,7 +1804,6 @@ end;
 destructor TImageHTTP.Destroy;
 begin
     if Assigned(ImRec) then begin
-        ImRec.Stream.Free;
         ImRec.Free;
     end;
     Connection.Free;
@@ -1743,7 +1824,6 @@ begin
         BackButton.Enabled   := FrameBrowser.BackButtonEnabled;
         ReloadButton.Enabled := FrameBrowser.CurrentFile <> '';
         CheckEnableControls;
-        LogLine('Page Completed' + #13#10);
     end;
 end;
 

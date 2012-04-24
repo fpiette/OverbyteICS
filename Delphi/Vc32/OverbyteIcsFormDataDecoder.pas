@@ -237,8 +237,13 @@ function ConvertValueToUnicode(
                                    Pointer(LHtmlEntityHashs), nil) <> nil then
             {$ENDIF}
           {$ELSE}
-            if InterlockedCompareExchange(Pointer(GHtmlEntityHashs),
+            {$IFDEF COMPILER10_UP} // Possibly even COMPILER9_UP - Delphi 2005?
+                if InterlockedCompareExchange(Integer(GHtmlEntityHashs),
+                                   Integer(LHtmlEntityHashs), 0) <> 0 then
+            {$ELSE} { Delphi 7 }
+                if InterlockedCompareExchange(Pointer(GHtmlEntityHashs),
                                    Pointer(LHtmlEntityHashs), nil) <> nil then
+            {$ENDIF}
           {$ENDIF}
                 LHtmlEntityHashs.Free;
         end;

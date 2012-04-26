@@ -364,7 +364,7 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 {$ENDIF}
 
 {$IFDEF VER_UNKNOWN}   { If the compiler version is not detected define latest }
-  {$DEFINE COMPILER15} { supported compiler version.                           }
+  {$DEFINE COMPILER16} { supported compiler version.                           }
   {$IFDEF BCB}
     {$DEFINE BCB15}
   {$ELSE}

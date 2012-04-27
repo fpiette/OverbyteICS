@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      7.44
+Version:      7.45
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -120,6 +120,8 @@ Feb 08, 2012 v7.43 Arno - The IcsFileCreateW and IcsFileOpenW functions return a
              in XE2+.
 Feb 29, 2012 V7.44 Arno added IcsRandomInt() and IcsCryptGenRandom(), see
              comments at IcsRandomInt's implementation.
+Apr 27, 2012 V7.45 Arno added IcsFileUtcModified().
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -417,6 +419,7 @@ const
     function  IcsNormalizeString(const S: UnicodeString; NormForm: TIcsNormForm): UnicodeString;
     function IcsCryptGenRandom(var Buf; BufSize: Integer): Boolean;
     function IcsRandomInt(const ARange: Integer): Integer;
+    function IcsFileUtcModified(const FileName: String) : TDateTime;
 { Wide library }
     function IcsFileCreateW(const FileName: UnicodeString): {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF}; overload;
     function IcsFileCreateW(const Utf8FileName: UTF8String): {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF}; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
@@ -3163,6 +3166,29 @@ begin
     x := x xor (x shl 5);
     GSeed32 := x;
     Result := (UInt64(LongWord(ARange)) * UInt64(x)) shr 32;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsFileUtcModified(const FileName : String) : TDateTime;
+var
+    SearchRec : TSearchRec;
+    Status    : Integer;
+    LInt64    : Int64;
+const
+    FileTimeBase = -109205.0;   // days between years 1601 and 1900
+    FileTimeStep: Extended = 24.0 * 60.0 * 60.0 * 1000.0 * 1000.0 * 10.0; // 100 nsec per Day
+begin
+    Status := FindFirst(FileName, faAnyFile, SearchRec);
+    try
+        if Status <> 0 then
+            Result := 0
+        else
+            Move(SearchRec.FindData.ftLastWriteTime, LInt64, SizeOf(LInt64));
+            Result := (LInt64 / FileTimeStep) + FileTimeBase;
+    finally
+        FindClose(SearchRec);
+    end;
 end;
 
 

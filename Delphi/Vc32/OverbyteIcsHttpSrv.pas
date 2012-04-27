@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      7.50
+Version:      7.51
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -351,6 +351,7 @@ Feb 18, 2012 V7.47 Arno - Attachment of MimeTypesList corrected.
 Feb 29, 2012 V7.48 Arno - Use IcsRandomInt
 Mar 26, 2012 V7.49 Angus - MakeCookie has optional domain parameter
 Mar 31, 2012 V7.50 Arno - Made TextToHtmlText work with WideString in Ansi Delphi
+Apr 27, 2012 V7.51 Arno - Fixed FileDate().
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpSrv;
@@ -436,8 +437,8 @@ uses
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWSocketS;
 
 const
-    THttpServerVersion = 750;
-    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.50 ';
+    THttpServerVersion = 751;
+    CopyRight : String = ' THttpServer (c) 1999-2012 F. Piette V7.51 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -4012,19 +4013,8 @@ end;
 { Return document file date from document filename.                         }
 { Return 0 if file not found.                                               }
 function FileDate(FileName : String) : TDateTime;
-var
-    SearchRec : TSearchRec;
-    Status    : Integer;
 begin
-    Status := _FindFirst(FileName, faAnyFile, SearchRec);
-    try
-        if Status <> 0 then
-            Result := 0
-        else
-            Result := _FileDateToDateTime(SearchRec.Time);
-    finally
-        _FindClose(SearchRec);
-    end;
+    Result := IcsFileUtcModified(FileName);
 end;
 
 
@@ -4066,7 +4056,7 @@ var
     ContEncoderHdr  : String ;      { V7.20 }
 begin
     ProtoNumber        := 200;
-    FLastModified      := FileDate(FDocument);
+    FLastModified      := IcsFileUtcModified(FDocument);
     if Assigned (FServer.MimeTypesList) then
         FAnswerContentType := FServer.MimeTypesList.TypeFromFile(FDocument)  { V7.46 }
     else

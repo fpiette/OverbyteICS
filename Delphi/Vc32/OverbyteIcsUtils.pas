@@ -3183,9 +3183,10 @@ begin
     try
         if Status <> 0 then
             Result := 0
-        else
+        else begin
             Move(SearchRec.FindData.ftLastWriteTime, LInt64, SizeOf(LInt64));
             Result := (LInt64 / FileTimeStep) + FileTimeBase;
+        end;
     finally
         FindClose(SearchRec);
     end;

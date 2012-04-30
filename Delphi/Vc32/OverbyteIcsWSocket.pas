@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.86
+Version:      7.87
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2011 by François PIETTE
+Legal issues: Copyright (C) 1996-2012 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -920,6 +920,7 @@ Dec 22, 2011 V7.85 Arno new method TCustomSslWSocket.SslRenegotiationCount in
                    [CVE-2011-1473].
 Feb 17, 2012 V7.86 Arno added NTLMv2 and NTLMv2 session security (basics),
                    read comment "HowTo NTLMv2" in OverbyteIcsNtlmMsgs.pas.
+Apr 30, 2012 V7.87 Arno - Some SSL debug log strings adjusted.
 }
 
 {
@@ -1032,8 +1033,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 786;
-  CopyRight    : String     = ' TWSocket (c) 1996-2011 Francois Piette V7.86 ';
+  WSocketVersion            = 787;
+  CopyRight    : String     = ' TWSocket (c) 1996-2012 Francois Piette V7.87 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -15963,6 +15964,7 @@ procedure InfoCallBack(const ssl: PSSL; Where: Integer; Ret: Integer); cdecl;
 var
 {$IFNDEF NO_DEBUG_LOG}
     Str : String;
+    Pre : String;
     W   : Integer;
     Err : Integer;
 {$ENDIF}
@@ -15981,6 +15983,9 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
             if Obj.CheckLogOptions(loSslErr) or
                Obj.CheckLogOptions(loSslInfo) then begin
+
+                Pre := _IntToHex(INT_PTR(Obj), SizeOf(Pointer) * 2) + ' ICB> ';
+
                 W := Where and (not SSL_ST_MASK);
                 if (W and SSL_ST_CONNECT) <> 0 then
                     Str := 'SSL_connect: '
@@ -15991,7 +15996,7 @@ begin
 
                 if ((Where and SSL_CB_LOOP) <> 0) then begin
                     if Obj.CheckLogOptions(loSslInfo) then
-                        Obj.DebugLog(loSslInfo, 'ICB> ' + Str +
+                        Obj.DebugLog(loSslInfo, Pre + Str +
                                         String(f_SSL_state_string_long(ssl)));
                 end
                 else if ((Where and SSL_CB_ALERT) <> 0) and
@@ -16001,21 +16006,21 @@ begin
                     else
                         Str := 'write ';
 
-                    Obj.DebugLog(loSslInfo, 'ICB> ' + 'SSL3 alert ' + Str +
+                    Obj.DebugLog(loSslInfo, Pre + 'SSL3 alert ' + Str +
                                  String(f_SSL_alert_type_string_long(ret)) + ' ' +
                                  String(f_SSL_alert_desc_string_long(ret)));
                 end
                 else if (Where and SSL_CB_EXIT) <> 0 then begin
                     if Ret = 0 then begin
                         if Obj.CheckLogOptions(loSslInfo) then
-                            Obj.DebugLog(loSslInfo,'ICB> ' + Str + 'failed in ' +
+                            Obj.DebugLog(loSslInfo, Pre + Str + 'failed in ' +
                                             String(f_SSL_state_string_long(ssl)));
                     end
                     else if Ret < 0 then begin
                         Err := f_ssl_get_error(ssl, Ret);
                         if ((Err <> SSL_ERROR_WANT_READ) or
                             (Err <> SSL_ERROR_WANT_WRITE)) then
-                                Obj.DebugLog(loSslInfo, 'ICB> ' + Str + 'error in ' +
+                                Obj.DebugLog(loSslInfo, Pre + Str + 'error in ' +
                               String(f_SSL_state_string_long(ssl)));
                     end;
                 end;
@@ -16032,7 +16037,7 @@ begin
                 {$IFNDEF NO_DEBUG_LOG}
                     if Obj.CheckLogOptions(loSslErr) or
                        Obj.CheckLogOptions(loSslInfo) then
-                        Obj.DebugLog(loSslInfo, 'ICB> Renegotiaton not supported ' +
+                        Obj.DebugLog(loSslInfo, Pre + 'Renegotiaton not supported ' +
                                                 'or not allowed. Connection ' +
                                                 'closed delayed');
                 {$ENDIF}
@@ -16041,7 +16046,7 @@ begin
                     Obj.FSslInRenegotiation := TRUE;
 {$IFNDEF NO_DEBUG_LOG}
                 if Obj.CheckLogOptions(loSslInfo) then
-                    Obj.DebugLog(loSslInfo, 'ICB> SSL_CB_HANDSHAKE_START');
+                    Obj.DebugLog(loSslInfo, Pre + 'SSL_CB_HANDSHAKE_START');
 {$ENDIF}
             end
             else if (Where and SSL_CB_HANDSHAKE_DONE) > 0 then begin
@@ -16055,7 +16060,7 @@ begin
                    Obj.CheckLogOptions(loSslInfo) then begin
                     Err := f_SSL_get_verify_result(Ssl);
                     if Obj.CheckLogOptions(loSslInfo) or (Err <> X509_V_OK) then
-                       Obj.DebugLog(loSslInfo, 'ICB> SSL_CB_HANDSHAKE_DONE ' +
+                       Obj.DebugLog(loSslInfo, Pre + 'SSL_CB_HANDSHAKE_DONE ' +
                                        'Error: ' + _IntToStr(Err));
                 end;
 {$ENDIF}
@@ -17135,11 +17140,17 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin { V5.21 }
         if __DataSocket = Self then
-            DebugLog(loSslInfo, 'SslAsyncSelect DataSocket ' + _IntToStr(msg.wParam) +
-                     ', ' +  _IntToStr(msg.LParamLo) + WinsockMsgToString(Msg))
+            DebugLog(loSslInfo,
+                     _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                     ' SslAsyncSelect DataSocket ' +
+                     _IntToStr(msg.wParam) +  ', ' +
+                     _IntToStr(msg.LParamLo) + WinsockMsgToString(Msg))
         else
-            DebugLog(loSslInfo, 'SslAsyncSelect ' + _IntToStr(msg.wParam) + ', ' +
-                      _IntToStr(msg.LParamLo) + WinsockMsgToString(Msg));
+            DebugLog(loSslInfo,
+                     _IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                     ' SslAsyncSelect ' +
+                     _IntToStr(msg.wParam) + ', ' +
+                     _IntToStr(msg.LParamLo) + WinsockMsgToString(Msg));
     end;
 {$ENDIF}
     if (msg.wParam <> WPARAM(FHSocket)) then

@@ -80,7 +80,7 @@ contains
   OverbyteIcsTnCnx in 'OverbyteIcsTnCnx.pas',
   OverbyteIcsEmulVT in 'OverbyteIcsEmulVT.pas',
   OverbyteIcsTnEmulVT in 'OverbyteIcsTnEmulVT.pas',
-  OverbyteIcsTnOptFrm in 'OverbyteIcsTnOptFrm.pas',
+  OverbyteIcsTnOptFrm in 'OverbyteIcsTnOptFrm.pas' {OptForm},
   OverbyteIcsPing in 'OverbyteIcsPing.pas',
   OverbyteIcsDnsQuery in 'OverbyteIcsDnsQuery.pas',
   OverbyteIcsTnScript in 'OverbyteIcsTnScript.pas',

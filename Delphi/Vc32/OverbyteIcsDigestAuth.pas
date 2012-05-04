@@ -76,6 +76,7 @@ uses
 type
   {$IFNDEF COMPILER12_UP}
     RawByteString           = AnsiString;
+    {$EXTERNALSYM RawByteString}
   {$ENDIF}
     EIcsAuthenticationError = class(Exception);
     THashHex                = type AnsiString;

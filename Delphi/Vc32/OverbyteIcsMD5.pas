@@ -191,6 +191,7 @@ function StreamMD5(Stream: TStream; Obj: TObject; ProgressCallback : TMD5Progres
 {$IFNDEF UNICODE}
 type
     RawByteString = AnsiString;
+    {$EXTERNALSYM RawByteString}
 {$ENDIF}
 function MD5DigestToHex (const MD5Digest: TMD5Digest): AnsiString;  { V6.09 }   { V7.01 }
 function MD5DigestToLowerHexA(const MD5Digest: TMD5Digest): RawByteString; { V7.01 } { V7.02 }

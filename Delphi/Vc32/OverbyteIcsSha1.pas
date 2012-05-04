@@ -75,7 +75,9 @@ type
    {$ENDIF}
 {$IFNDEF UNICODE}
     UnicodeString = WideString;  { V2.02 }
+    {$EXTERNALSYM UnicodeString}
     RawByteString = AnsiString;  { V2.02 }
+    {$EXTERNALSYM RawByteString}
 {$ENDIF}
    uint32_t      = LongWord; //Cardinal; // [Should be] unsigned 32 bit integer
    uint8_t       = Byte;     // unsigned 8 bit integer (i.e., unsigned char)

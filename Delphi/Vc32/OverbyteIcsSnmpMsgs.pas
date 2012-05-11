@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TSnmpCli class encapsulate the SNMP client paradigm
 Creation:     March 2011
-Version:      1.00
+Version:      1.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -38,7 +38,7 @@ Legal issues: Copyright (C) 2011 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
-
+May 11, 2012 V1.01 Arno - Unit did not compile with Ansi Delphi
 
 |==============================================================================|
 | Copyright (c)1999-2007, Lukas Gebauer                                        |
@@ -90,8 +90,8 @@ uses
   OverbyteIcsAsn1Utils;
 
 const
-  SnmpMsgsVersion       = 100;
-  CopyRight    : String = ' AnmpMsgs (c) 2011 Francois Piette V1.00 ';
+  SnmpMsgsVersion       = 101;
+  CopyRight    : String = ' AnmpMsgs (c) 2011 Francois Piette V1.01 ';
 
 const
   cSnmpProtocol         = '161';
@@ -713,7 +713,7 @@ end;
 
 {==============================================================================}
 // Extracted from synaip
-function IPToID(Host: string): Ansistring; overload;
+function IPToID(Host: string): Ansistring; {$IFDEF UNICODE} overload; {$ENDIF}
 var
   s: string;
   i, x: Integer;
@@ -725,12 +725,12 @@ begin
     Result := Result + AnsiChar(Chr(i));
   end;
 end;
-
+{$IFDEF UNICODE}
 function IPToID(Host: AnsiString): Ansistring; overload;
 begin
     Result := IPToId(String(Host));
 end;
-
+{$ENDIF}
 {==============================================================================}
 
 function My_HMAC_MD5(Text, Key: AnsiString): AnsiString;
@@ -986,7 +986,11 @@ var
 begin
   Result := False;
   for n := 1 to Length(Value) do
+  {$IFDEF UNICODE}
     if CharInSet(Value[n], [#0..#8, #10..#31]) then
+  {$ELSE}
+    if Value[n] in [#0..#8, #10..#31] then
+  {$ENDIF}
       //ignore null-terminated strings
       if not ((n = Length(value)) and (Value[n] = #0)) then
       begin

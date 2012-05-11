@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  ASN1 utilities (Intended for TSnmpClient component)
 Creation:     March 2011
-Version:      1.00
+Version:      1.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -40,7 +40,7 @@ Legal issues: Copyright (C) 2011 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
-
+May 11, 2012 V1.01 Arno - Unit did not compile with Ansi Delphi
 
 |==============================================================================|
 | Copyright (c)1999-2007, Lukas Gebauer                                        |
@@ -88,8 +88,8 @@ uses
   SysUtils, Classes;
 
 const
-  ASN1UtilsVersion       = 100;
-  CopyRight    : String  = ' ASN1Utils (c) 2011 Francois Piette V1.00 ';
+  ASN1UtilsVersion       = 101;
+  CopyRight    : String  = ' ASN1Utils (c) 2011 Francois Piette V1.01 ';
 
 const
   ASN1_BOOL      = $01;
@@ -134,8 +134,11 @@ function ASNItem(var Start: Integer; const Buffer: AnsiString;
   var ValueType: Integer): AnsiString;
 
 {:Encodes an MIB OID string to binary form.}
-function MibToId(Mib: String): AnsiString; overload;
+function MibToId(Mib: String): AnsiString;
+    {$IFDEF UNICODE} overload; {$ENDIF}
+{$IFDEF UNICODE}
 function MibToId(Mib: AnsiString): AnsiString; overload;
+{$ENDIF}
 
 {:Decodes MIB OID from binary form to string form.}
 function IdToMib(const Id: AnsiString): String;
@@ -386,12 +389,14 @@ begin
 end;
 
 {==============================================================================}
-function MibToId(Mib: AnsiString): AnsiString; overload;
+{$IFDEF UNICODE}
+function MibToId(Mib: AnsiString): AnsiString;
 begin
     Result := MibToId(String(Mib));
 end;
+{$ENDIF}
 
-function MibToId(Mib: String): AnsiString; overload;
+function MibToId(Mib: String): AnsiString;
 var
   x: Integer;
 
@@ -465,7 +470,11 @@ var
 begin
   Result := False;
   for n := 1 to Length(Value) do
+  {$IFDEF UNICODE}
     if CharInSet(Value[n], [#0..#8, #10..#31]) then
+  {$ELSE}
+    if Value[n] in [#0..#8, #10..#31] then
+  {$ENDIF}
       //ignore null-terminated strings
       if not ((n = Length(value)) and (Value[n] = #0)) then
       begin

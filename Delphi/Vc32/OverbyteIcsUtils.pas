@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      7.45
+Version:      7.46
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -121,6 +121,7 @@ Feb 08, 2012 v7.43 Arno - The IcsFileCreateW and IcsFileOpenW functions return a
 Feb 29, 2012 V7.44 Arno added IcsRandomInt() and IcsCryptGenRandom(), see
              comments at IcsRandomInt's implementation.
 Apr 27, 2012 V7.45 Arno added IcsFileUtcModified().
+Jul 07, 2012 V7.46 FPiette added IcsGetCurrentThreadID().
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -300,6 +301,7 @@ const
     ICONV_UNICODE     = 'UTF-16LE';
     function IcsIconvNameFromCodePage(CodePage: LongWord): AnsiString;
 {$ENDIF}
+    function  IcsGetCurrentThreadID: TThreadID;
     function  IcsWcToMb(CodePage: LongWord; Flags: Cardinal;
                         WStr: PWideChar; WStrLen: Integer; MbStr: PAnsiChar;
                         MbStrLen: Integer; DefaultChar: PAnsiChar;
@@ -4240,4 +4242,17 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  IcsGetCurrentThreadID: TThreadID;
+begin
+  {$IFDEF MSWINDOWS}
+    Result := Windows.GetCurrentThreadID;
+  {$ENDIF}
+  {$IFDEF POSIX}
+    Result := Posix.PThread.GetCurrentThreadID;
+  {$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
 end.

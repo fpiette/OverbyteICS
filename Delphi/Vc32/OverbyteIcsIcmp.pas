@@ -10,11 +10,11 @@ Description:  This unit encapsulate the ICMP.DLL into an object of type TICMP.
               to change properties or event handler. This is much simpler to
               use for a GUI program.
 Creation:     January 6, 1997
-Version:      7.01
+Version:      7.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
+Legal issues: Copyright (C) 1997-2012 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -60,7 +60,7 @@ Mar 24, 2008 V6.01 Francois Piette made some changes to prepare code
                    Use of AnsiString.
 Aug 12, 2008 V7.00 Reverted from AnsiString to String for properties.
 Jul 25, 2011 V7.01 Added directive "EXTERNALSYM"
-
+Jul 21, 2012 V7.02 Arno fixed a Win64 bug.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsIcmp;
@@ -70,6 +70,7 @@ interface
 {$B-}           { Enable partial boolean evaluation   }
 {$T-}           { Untyped pointers                    }
 {$X+}           { Enable extended syntax              }
+{$A+}
 {$I OverbyteIcsDefs.inc}
 {$IFDEF COMPILER14_UP}
   {$IFDEF NO_EXTENDED_RTTI}
@@ -102,8 +103,8 @@ uses
     SysUtils, Classes, WinSock;
 
 const
-  IcmpVersion = 7.01;
-  CopyRight : String   = ' TICMP (c) 1997-2010 F. Piette V7.01 ';
+  IcmpVersion = 7.02;
+  CopyRight : String   = ' TICMP (c) 1997-2012 F. Piette V7.02 ';
   IcmpDLL     = 'icmp.dll';
 
   // IP status codes returned to transports and user IOCTLs.
@@ -196,7 +197,7 @@ type
   TIPStatus = LongInt;   // Status code returned from IP APIs.
 
   PIPOptionInformation = ^TIPOptionInformation;
-  TIPOptionInformation = packed record
+  TIPOptionInformation = record
      TTL:         Byte;      // Time To Live (used for traceroute)
      TOS:         Byte;      // Type Of Service (usually 0)
      Flags:       Byte;      // IP header flags (usually 0)
@@ -205,7 +206,7 @@ type
   end;
 
   PIcmpEchoReply = ^TIcmpEchoReply;
-  TIcmpEchoReply = packed record
+  TIcmpEchoReply = record
      Address:       TIPAddr;              // Replying address
      Status:        DWord;                // IP status value
      RTT:           DWord;                // Round Trip Time in milliseconds

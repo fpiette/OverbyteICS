@@ -148,6 +148,9 @@ uses
 {$IFNDEF NO_DEBUG_LOG}
     OverbyteIcsLogger,
 {$ENDIF}
+{$IFDEF Compiler17_UP}
+    System.Types,
+{$ENDIF}
 {$IFDEF MSWINDOWS}
 {$IFDEF BCB}
     Winsock,

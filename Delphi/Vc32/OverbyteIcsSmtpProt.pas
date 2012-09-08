@@ -1338,6 +1338,9 @@ implementation
 const
     CRLF = AnsiString(#13#10);
 
+var
+    GL_En_US_FormatSettings : TFormatSettings;
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function SmtpRqTypeToStr(RqType: TSmtpRequest): ShortString;
 begin
@@ -3667,7 +3670,19 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure PrepareGlobalSmtpFormatSettings;
+begin
+  {$IFDEF COMPILER16_UP}
+    GL_En_US_FormatSettings := TFormatSettings.Create(1033);
+  {$ELSE}
+    GetLocaleFormatSettings(1033, GL_En_US_FormatSettings); // deprecated
+  {$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function Rfc822DateTime(t : TDateTime) : String;
+(*
 var
     I                   : Integer;
     SaveShortDayNames   : array[1..7] of string;
@@ -3679,7 +3694,9 @@ const
         ('Jan', 'Feb', 'Mar', 'Apr',
          'May', 'Jun', 'Jul', 'Aug',
          'Sep', 'Oct', 'Nov', 'Dec');
+*)
 begin
+    (*
     if ShortDayNames[1] = MyShortDayNames[1] then
         Result := FormatDateTime('ddd, d mmm yyyy hh":"mm":"ss', t) +
                   ' ' + TimeZoneBias
@@ -3695,15 +3712,16 @@ begin
             SaveShortMonthNames[I] := ShortMonthNames[I];
             ShortMonthNames[I]     := MyShortMonthNames[I];
         end;
-
-        Result := FormatDateTime('ddd, d mmm yyyy hh":"mm":"ss', t) +
-                  ' ' + TimeZoneBias;
-
+      *)
+        Result := FormatDateTime('ddd, d mmm yyyy hh":"mm":"ss', t,
+                    GL_En_US_FormatSettings) + ' ' + TimeZoneBias;
+      (*
         for I := Low(ShortDayNames) to High(ShortDayNames) do
             ShortDayNames[I] := SaveShortDayNames[I];
         for I := Low(ShortMonthNames) to High(ShortMonthNames) do
             ShortMonthNames[I] := SaveShortMonthNames[I];
-    end;
+
+    end; *)
 end;
 
 
@@ -5640,11 +5658,8 @@ end;
 {$ENDIF} // USE_SSL
 
 
-
-
-
-
-
+initialization
+    PrepareGlobalSmtpFormatSettings;
 
 
 end.

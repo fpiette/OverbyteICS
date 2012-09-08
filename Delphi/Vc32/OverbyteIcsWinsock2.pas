@@ -226,6 +226,9 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF Compiler17_UP}
+  {$HINTS OFF} // H2443 Inline function not expanded..
+{$ENDIF}
 function TInterfaceList.Extract(IInfo: PInterfaceInfo): PInterfaceInfo;
 begin
     Result := PInterfaceInfo(inherited Extract(IInfo));
@@ -239,6 +242,15 @@ begin
 end;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TInterfaceList.Remove(IInfo: PInterfaceInfo): Integer;
+begin
+    Result := inherited Remove(IInfo);
+end;
+
+{$IFDEF Compiler17_UP}
+  {$HINTS ON}
+{$ENDIF}
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TInterfaceList.GetItem(Index: Integer): PInterfaceInfo;
 begin
@@ -274,13 +286,6 @@ begin
         if Action = lnDeleted then
             Dispose(PInterfaceInfo(Ptr));
     inherited Notify(Ptr, Action);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TInterfaceList.Remove(IInfo: PInterfaceInfo): Integer;
-begin
-    Result := inherited Remove(IInfo);
 end;
 
 

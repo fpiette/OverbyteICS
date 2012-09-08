@@ -72,6 +72,9 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes,
+{$IFDEF Compiler17_UP}
+  System.Types,
+{$ENDIF}
   OverbyteIcsWndControl;
 
 type

@@ -1,9 +1,9 @@
 object HttpsTstForm: THttpsTstForm
   Left = 244
   Top = 170
-  Width = 657
-  Height = 421
   Caption = 'HTTPS TEST'
+  ClientHeight = 382
+  ClientWidth = 641
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -19,17 +19,19 @@ object HttpsTstForm: THttpsTstForm
   TextHeight = 13
   object Splitter1: TSplitter
     Left = 0
-    Top = 295
-    Width = 649
+    Top = 290
+    Width = 641
     Height = 3
     Cursor = crVSplit
     Align = alBottom
+    ExplicitTop = 295
+    ExplicitWidth = 649
   end
   object DisplayMemo: TMemo
     Left = 0
     Top = 199
-    Width = 649
-    Height = 96
+    Width = 641
+    Height = 91
     Align = alClient
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
@@ -44,8 +46,8 @@ object HttpsTstForm: THttpsTstForm
   end
   object DocumentMemo: TMemo
     Left = 0
-    Top = 298
-    Width = 649
+    Top = 293
+    Width = 641
     Height = 89
     Align = alBottom
     Font.Charset = DEFAULT_CHARSET
@@ -62,10 +64,11 @@ object HttpsTstForm: THttpsTstForm
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
-    Width = 649
+    Width = 641
     Height = 199
     Align = alTop
     TabOrder = 2
+    ExplicitWidth = 649
     object Label1: TLabel
       Left = 40
       Top = 7
@@ -311,7 +314,6 @@ object HttpsTstForm: THttpsTstForm
       Width = 49
       Height = 21
       Style = csDropDownList
-      ItemHeight = 13
       TabOrder = 11
       Items.Strings = (
         '5'
@@ -377,7 +379,6 @@ object HttpsTstForm: THttpsTstForm
       Width = 85
       Height = 21
       Style = csDropDownList
-      ItemHeight = 13
       TabOrder = 17
       Items.Strings = (
         'HTTP/1.0'
@@ -495,6 +496,7 @@ object HttpsTstForm: THttpsTstForm
     IcsLogger = IcsLogger1
     SslVerifyPeer = False
     SslVerifyDepth = 9
+    SslVerifyFlags = []
     SslOptions = [sslOpt_MICROSOFT_SESS_ID_BUG, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG, sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG, sslOpt_MICROSOFT_BIG_SSLV3_BUFFER, sslOpt_MSIE_SSLV2_RSA_PADDING, sslOpt_SSLEAY_080_CLIENT_DH_BUG, sslOpt_TLS_D5_BUG, sslOpt_TLS_BLOCK_PADDING_BUG, sslOpt_TLS_ROLLBACK_BUG, sslOpt_NO_SSLv2, sslOpt_NETSCAPE_CA_DN_BUG, sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = [sslSESS_CACHE_CLIENT, sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE]
@@ -509,6 +511,7 @@ object HttpsTstForm: THttpsTstForm
     TimeStampFormatString = 'hh:nn:ss:zzz'
     TimeStampSeparator = ' '
     LogFileOption = lfoOverwrite
+    LogFileEncoding = lfeUtf8
     LogFileName = 'Debug_Out_HttpsTst.txt'
     LogOptions = [loDestFile, loProtSpecErr, loProtSpecInfo, loProtSpecDump]
     OnIcsLogEvent = IcsLogger1IcsLogEvent

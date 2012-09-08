@@ -3,12 +3,12 @@
 Author:       François PIETTE
 Description:  Version defines for ICS (Internet Component Suite)
 Creation:     2003
-Version:      1.13
+Version:      8.00
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2006 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1996-2012 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -52,6 +52,8 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
 Sep 24, 2010 V1.11 Arno removed BCB7/C++BuilderX.
 Oct 23, 2010 V1.12 PasDoc compatible.
 Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default 
+May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
+                   also IPv6 support, include files now in sub-directory
 
 
   SYMBOL           Compiler version
@@ -85,7 +87,8 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
   DELPHI12_UP      Delphi 12 or higher  (Delphi 2009 - Tiburon)
   DELPHI14_UP      Delphi 14 or higher  (Delphi 2010 - Weaver)
   DELPHI15_UP      Delphi 15 or higher  (Delphi XE   - Fulcrum)
-  DELPHI16_UP      Delphi 16 or higher  (Delphi XE2   - Pulsar)
+  DELPHI16_UP      Delphi 16 or higher  (Delphi XE2  - Pulsar)
+  DELPHI17_UP      Delphi 17 or higher  (Delphi XE3  - WaterDragon)
 
   BCB1             C++ Builder 1
   BCB3             C++ Builder 3
@@ -103,6 +106,7 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
   BCB14_UP         C++ Builder 2010 or higher
   BCB15_UP         C++ Builder XE   or higher
   BCB16_UP         C++ Builder XE2  or higher
+  BCB17_UP         C++ Builder XE3  or higher
 
   COMPILER1        Delphi 1
   COMPILER2        Delphi 2  or C++ Builder 1
@@ -136,6 +140,7 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
   COMPILER14_UP    Delphi or C++ Builder 2010 or higher (Weaver)
   COMPILER15_UP    Delphi or C++ Builder XE   or higher (Fulcrum)
   COMPILER16_UP    Delphi or C++ Builder XE2  or higher (Pulsar)
+  COMPILER17_UP    Delphi or C++ Builder XE3  or higher (WaterDragon)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * }
 
@@ -199,6 +204,17 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 {$ENDIF}
 
 {$DEFINE VER_UNKNOWN}
+
+{$IFDEF VER240}
+  {$UNDEF VER_UNKNOWN}
+  {$DEFINE COMPILER17}
+  {$IFDEF BCB}
+    {$DEFINE BCB17}
+  {$ELSE}
+    {$DEFINE DELPHI17}
+    {$DEFINE DELPHI}
+  {$ENDIF}
+{$ENDIF}
 
 {$IFDEF VER230}
   {$UNDEF VER_UNKNOWN}
@@ -364,13 +380,32 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 {$ENDIF}
 
 {$IFDEF VER_UNKNOWN}   { If the compiler version is not detected define latest }
-  {$DEFINE COMPILER16} { supported compiler version.                           }
+  {$DEFINE COMPILER17} { supported compiler version.                           }
   {$IFDEF BCB}
-    {$DEFINE BCB16}
+    {$DEFINE BCB17}
   {$ELSE}
-    {$DEFINE DELPHI16}
+    {$DEFINE DELPHI17}
     {$DEFINE DELPHI}
   {$ENDIF}
+{$ENDIF}
+
+{$IFDEF DELPHI17}
+  {$DEFINE DELPHI17_UP}
+  {$DEFINE DELPHI16_UP}
+  {$DEFINE DELPHI15_UP}
+  {$DEFINE DELPHI14_UP}
+  {$DEFINE DELPHI12_UP}
+  {$DEFINE DELPHI11_UP}
+  {$DEFINE DELPHI10_UP}
+  {$DEFINE DELPHI9_UP}
+  {$DEFINE DELPHI8_UP}
+  {$DEFINE DELPHI7_UP}
+  {$DEFINE DELPHI6_UP}
+  {$DEFINE DELPHI5_UP}
+  {$DEFINE DELPHI4_UP}
+  {$DEFINE DELPHI3_UP}
+  {$DEFINE DELPHI2_UP}
+  {$DEFINE DELPHI1_UP}
 {$ENDIF}
 
 {$IFDEF DELPHI16}
@@ -536,6 +571,26 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 
 {$IFDEF DELPHI1}
   {$DEFINE DELPHI1_UP}
+{$ENDIF}
+
+{$IFDEF COMPILER17}
+  {$DEFINE COMPILER17_UP}
+  {$DEFINE COMPILER16_UP}
+  {$DEFINE COMPILER15_UP}
+  {$DEFINE COMPILER14_UP}
+  {$DEFINE COMPILER12_UP}
+  {$DEFINE COMPILER11_UP}
+  {$DEFINE COMPILER10_UP}
+  {$DEFINE COMPILER9_UP}
+  {$DEFINE COMPILER8_UP}
+  {$DEFINE COMPILER7_UP}
+  {$DEFINE COMPILER6_UP}
+  {$DEFINE COMPILER5_UP}
+  {$DEFINE COMPILER4_UP}
+  {$DEFINE COMPILER35_UP}
+  {$DEFINE COMPILER3_UP}
+  {$DEFINE COMPILER2_UP}
+  {$DEFINE COMPILER1_UP}
 {$ENDIF}
 
 {$IFDEF COMPILER16}
@@ -722,6 +777,21 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
   {$DEFINE COMPILER1_UP}
 {$ENDIF}
 
+{$IFDEF BCB17}
+  {$DEFINE BCB17_UP}
+  {$DEFINE BCB16_UP}
+  {$DEFINE BCB15_UP}
+  {$DEFINE BCB14_UP}
+  {$DEFINE BCB12_UP}
+  {$DEFINE BCB11_UP}
+  {$DEFINE BCB10_UP}
+  {$DEFINE BCB6_UP}
+  {$DEFINE BCB5_UP}
+  {$DEFINE BCB4_UP}
+  {$DEFINE BCB3_UP}
+  {$DEFINE BCB1_UP}
+{$ENDIF}
+
 {$IFDEF BCB16}
   {$DEFINE BCB16_UP}
   {$DEFINE BCB15_UP}
@@ -823,6 +893,7 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 {$ENDIF}
 
 {$IFDEF CLR}
+  {$DEFINE DOTNET}
   {$DEFINE BOMB}
 {$ELSE}
   {$IFNDEF COMPILER7_UP}
@@ -860,9 +931,11 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 {$IFDEF MSWINDOWS}
   {$DEFINE VCL}
 {$ENDIF}
-
 {$IFDEF COMPILER10_UP}
-  {$DEFINE USE_INLINE}
+  {.$IFNDEF DEBUG}
+    {$DEFINE USE_INLINE}
+  {.$ENDIF}
+  {$DEFINE HAS_SEARCHREC_SIZE64}  // Not for sure might be already D2005
 {$ENDIF}
 
 {$IFDEF DELPHI12}
@@ -882,9 +955,9 @@ Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 {$ENDIF}
 
 { ICS SSL code doesn't work with .NET }
-{$IFNDEF VCL}
-  {$UNDEF USE_SSL}  
-{$ENDIF}                       
+{$IFDEF DOTNET}
+  {$UNDEF USE_SSL}
+{$ENDIF}
 
 {$IFNDEF MSWINDOWS}
   {$IFNDEF USE_ICONV}

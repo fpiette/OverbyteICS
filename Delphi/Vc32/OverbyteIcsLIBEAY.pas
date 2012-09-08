@@ -1295,7 +1295,7 @@ function BIO_should_write(b: PBIO): Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF
 function BIO_should_io_special(b: PBIO): Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function BIO_retry_type(b: PBIO): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function ASN1_ITEM_ptr(iptr: PASN1_ITEM_EXP): PASN1_ITEM; {$IFDEF USE_INLINE} inline; {$ENDIF}
-function OpenSslVersion : String; {$IFDEF USE_INLINE} inline; {$ENDIF}
+function OpenSslVersion : String;
 function OpenSslCompilerFlags : String; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function OpenSslBuiltOn : String; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function OpenSslPlatForm : String; {$IFDEF USE_INLINE} inline; {$ENDIF}

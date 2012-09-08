@@ -80,6 +80,9 @@ uses
   OverbyteIcsIniFiles, StdCtrls, ExtCtrls, OverbyteIcsHttpProt, OverbyteIcsWSocket,
   OverbyteIcsLIBEAY, OverbyteIcsSsLeay, OverbyteIcsSslSessionCache,
   OverbyteIcsLogger,
+{$IF CompilerVersion >16}
+  System.UITypes,
+{$IFEND}
 {$IFDEF USE_MODEZ}              { V2.102 }
   OverbyteIcsHttpCCodZLib,
 {$ENDIF}

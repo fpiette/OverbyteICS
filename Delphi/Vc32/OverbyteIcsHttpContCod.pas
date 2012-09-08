@@ -512,8 +512,8 @@ begin
                 if AddQuality then begin
                     QualStr := FormatFloat('0.###', ContItem.Quality);
                     { Force the point as decimal separator }
-                    if DecimalSeparator <> '.' then begin
-                        DecPos := Pos(DecimalSeparator, QualStr);
+                    if {$IFDEF COMPILER16_UP}FormatSettings.{$ENDIF}DecimalSeparator <> '.' then begin
+                        DecPos := Pos({$IFDEF COMPILER16_UP}FormatSettings.{$ENDIF}DecimalSeparator, QualStr);
                         if DecPos > 0 then
                             QualStr[DecPos] := '.';
                     end;

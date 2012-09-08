@@ -115,6 +115,9 @@ uses
 {$ELSE}
     WinTypes, WinProcs,
 {$ENDIF}
+{$IFDEF Compiler17_UP}
+    System.UITypes,
+{$ENDIF}
     SysUtils, Classes, Graphics, Controls, IniFiles, Forms,
     OverbyteIcsEmulVT,   OverbyteIcsTnCnx,
     OverbyteIcsTnOptFrm, OverbyteIcsWSocket;

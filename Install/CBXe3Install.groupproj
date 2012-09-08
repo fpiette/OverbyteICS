@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{E807D889-9D68-47D7-8759-580E67E9F049}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="..\Delphi\Vc32\OverbyteIcsCBXe3Run.cbproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Delphi\Vc32\OverbyteIcsCBXe3Design.cbproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="OverbyteIcsCBXe3Run">
+        <MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCBXe3Run.cbproj"/>
+    </Target>
+    <Target Name="OverbyteIcsCBXe3Run:Clean">
+        <MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCBXe3Run.cbproj" Targets="Clean"/>
+    </Target>
+    <Target Name="OverbyteIcsCBXe3Run:Make">
+        <MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCBXe3Run.cbproj" Targets="Make"/>
+    </Target>
+    <Target Name="OverbyteIcsCBXe3Design">
+        <MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCBXe3Design.cbproj"/>
+    </Target>
+    <Target Name="OverbyteIcsCBXe3Design:Clean">
+        <MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCBXe3Design.cbproj" Targets="Clean"/>
+    </Target>
+    <Target Name="OverbyteIcsCBXe3Design:Make">
+        <MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCBXe3Design.cbproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="OverbyteIcsCBXe3Run;OverbyteIcsCBXe3Design"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="OverbyteIcsCBXe3Run:Clean;OverbyteIcsCBXe3Design:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="OverbyteIcsCBXe3Run:Make;OverbyteIcsCBXe3Design:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

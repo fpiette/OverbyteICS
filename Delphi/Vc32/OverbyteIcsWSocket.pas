@@ -11622,6 +11622,9 @@ end;
 {$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF Compiler17_UP}
+  {$HINTS OFF}
+{$ENDIF}
 constructor TX509List.Create(AOwner: TComponent; AOwnsObjects: Boolean = TRUE);
 begin
     inherited Create;
@@ -11906,7 +11909,9 @@ begin
         Inc(Cur);
     end;
 end;
-
+{$IFDEF Compiler17_UP}
+  {$HINTS ON}
+{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { TSslEngine }

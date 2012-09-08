@@ -81,6 +81,9 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Controls, Forms, Dialogs,
   StdCtrls, OverbyteIcsIniFiles, ComCtrls, Menus, ImgList, ExtCtrls, CommCtrl,
+{$IF CompilerVersion >16}
+  System.UITypes,
+{$IFEND}
   WinCrypt,
   OverbyteIcsWSocket, OverbyteIcsSsleay, OverbyteIcsLibeay,
   OverbyteIcsLibeayEx, OverbyteIcsSslX509Utils, OverByteIcsMimeUtils;

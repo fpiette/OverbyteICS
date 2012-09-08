@@ -1,10 +1,10 @@
 object MsVerifyForm: TMsVerifyForm
   Left = 69
   Top = 0
+  Width = 530
+  Height = 385
   ActiveControl = ConnectButton
   Caption = 'Test MS Crypto API Certificate Verification'
-  ClientHeight = 346
-  ClientWidth = 514
   Color = clBtnFace
   Constraints.MinHeight = 150
   Constraints.MinWidth = 530
@@ -24,13 +24,12 @@ object MsVerifyForm: TMsVerifyForm
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
-    Width = 514
+    Width = 522
     Height = 65
     Align = alTop
     TabOrder = 0
-    ExplicitWidth = 522
     DesignSize = (
-      514
+      522
       65)
     object Label1: TLabel
       Left = 24
@@ -121,8 +120,8 @@ object MsVerifyForm: TMsVerifyForm
   object DisplayMemo: TMemo
     Left = 0
     Top = 65
-    Width = 514
-    Height = 281
+    Width = 522
+    Height = 286
     Align = alClient
     Lines.Strings = (
       'DisplayMemo')

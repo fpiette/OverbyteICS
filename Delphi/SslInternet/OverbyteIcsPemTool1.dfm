@@ -1,8 +1,8 @@
 object frmPemTool1: TfrmPemTool1
   Left = 212
   Top = 124
-  ClientHeight = 409
-  ClientWidth = 525
+  Width = 541
+  Height = 448
   Color = clBtnFace
   Constraints.MinHeight = 379
   Constraints.MinWidth = 527
@@ -20,8 +20,8 @@ object frmPemTool1: TfrmPemTool1
   OnCreate = FormCreate
   OnShow = FormShow
   DesignSize = (
-    525
-    409)
+    533
+    394)
   PixelsPerInch = 96
   TextHeight = 14
   object btnShowCert: TButton
@@ -45,10 +45,6 @@ object frmPemTool1: TfrmPemTool1
     OnChange = PageControl1Change
     object TabCertLv: TTabSheet
       Caption = 'Certificates'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         442
         335)
@@ -139,10 +135,6 @@ object frmPemTool1: TfrmPemTool1
     object TabImport: TTabSheet
       Caption = 'Import Certificates'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         442
         335)
@@ -176,14 +168,14 @@ object frmPemTool1: TfrmPemTool1
       object Label3: TLabel
         Left = 22
         Top = 94
-        Width = 81
+        Width = 82
         Height = 14
         Caption = 'Cert. Store Type:'
       end
       object Label2: TLabel
         Left = 22
         Top = 118
-        Width = 74
+        Width = 75
         Height = 14
         Caption = 'Destination Dir.:'
       end
@@ -220,6 +212,7 @@ object frmPemTool1: TfrmPemTool1
         Height = 22
         Hint = 'Select a Windows store type'
         Style = csDropDownList
+        ItemHeight = 14
         TabOrder = 0
         Items.Strings = (
           'Certificate Authorities'
@@ -340,7 +333,7 @@ object frmPemTool1: TfrmPemTool1
     Left = 40
     Top = 186
     Bitmap = {
-      494C010103000400080010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010103000400040010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

@@ -57,7 +57,7 @@ interface
 
 uses
   SysUtils, Windows, Messages, Classes, Graphics, Controls,
-{$IF CompilerVersion >16}
+{$IF CompilerVersion > 23}
   System.Types,
 {$IFEND}
   Forms, Dialogs, OverbyteIcsWSocket, WinSock, StdCtrls, OverbyteIcsTnSrv2,

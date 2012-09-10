@@ -81,7 +81,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Controls, Forms, Dialogs,
   StdCtrls, OverbyteIcsIniFiles, ComCtrls, Menus, ImgList, ExtCtrls, CommCtrl,
-{$IF CompilerVersion >16}
+{$IF CompilerVersion > 23}
   System.UITypes,
 {$IFEND}
   WinCrypt,

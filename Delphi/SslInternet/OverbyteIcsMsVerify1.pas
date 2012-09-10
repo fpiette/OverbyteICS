@@ -60,7 +60,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ExtCtrls,
-{$IF CompilerVersion >16}
+{$IF CompilerVersion > 23}
   System.UITypes,
 {$IFEND}
   WinCrypt,

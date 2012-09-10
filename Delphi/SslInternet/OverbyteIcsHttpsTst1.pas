@@ -80,7 +80,7 @@ uses
   OverbyteIcsIniFiles, StdCtrls, ExtCtrls, OverbyteIcsHttpProt, OverbyteIcsWSocket,
   OverbyteIcsLIBEAY, OverbyteIcsSsLeay, OverbyteIcsSslSessionCache,
   OverbyteIcsLogger,
-{$IF CompilerVersion >16}
+{$IF CompilerVersion > 23}
   System.UITypes,
 {$IFEND}
 {$IFDEF USE_MODEZ}              { V2.102 }

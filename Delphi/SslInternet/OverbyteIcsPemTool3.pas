@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-{$IF CompilerVersion >16}
+{$IF CompilerVersion > 23}
   System.UITypes,
 {$IFEND}
   Dialogs, StdCtrls, ExtCtrls;

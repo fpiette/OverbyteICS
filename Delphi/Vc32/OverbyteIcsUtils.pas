@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      7.46
+Version:      7.47
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -122,7 +122,7 @@ Feb 29, 2012 V7.44 Arno added IcsRandomInt() and IcsCryptGenRandom(), see
              comments at IcsRandomInt's implementation.
 Apr 27, 2012 V7.45 Arno added IcsFileUtcModified().
 Jul 07, 2012 V7.46 FPiette added IcsGetCurrentThreadID().
-
+Oct 06, 2012 v7.47 Arno simplified TIcsIntegerList.IndexOf().
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -4214,18 +4214,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TIcsIntegerList.IndexOf(Item: Integer): Integer;
-var
-    I : Integer;
 begin
-    for I := 0 to FList.Count -1 do
-    begin
-        if Integer(FList[I]) = Item then
-        begin
-            Result := I;
-            Exit;
-        end;
-    end;
-    Result := -1;
+    Result := FList.IndexOf(Pointer(Item));
 end;
 
 

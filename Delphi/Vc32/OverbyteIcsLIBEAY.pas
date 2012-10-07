@@ -1390,6 +1390,9 @@ implementation
 
 {$IFDEF USE_SSL}
 
+uses
+    OverbyteIcsUtils;
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function IcsMalloc(Size: size_t): Pointer; cdecl;
 begin

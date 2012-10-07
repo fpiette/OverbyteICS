@@ -1367,6 +1367,7 @@ const
     OSSL_VER_0908R = $0090812f;
     OSSL_VER_1000  = $10000000; // Untested, did not build with MinGW
     OSSL_VER_1000D = $1000004f; // Might be still buggy, had to incl. one workaround so far, see TSslContext.InitContext
+    OSSL_VER_1000J = $100000af; // just briefly tested
     { Basically versions listed above are tested if not otherwise commented.  }
     { Versions between are assumed to work, however they are untested.        }
     { OpenSSL libraries for ICS are available for download here:              }
@@ -1374,14 +1375,14 @@ const
 
 {$IFDEF BEFORE_OSSL_098E}
     MIN_OSSL_VER   = OSSL_VER_0907G;
-    MAX_OSSL_VER   = OSSL_VER_1000D;
+    MAX_OSSL_VER   = OSSL_VER_1000J;
 {$ELSE}
     {$IFNDEF OPENSSL_NO_TLSEXT}
         MIN_OSSL_VER = OSSL_VER_0908F;
     {$ELSE}
         MIN_OSSL_VER = OSSL_VER_0908E;
     {$ENDIF}
-    MAX_OSSL_VER   = OSSL_VER_1000D;
+    MAX_OSSL_VER   = OSSL_VER_1000J;
 {$ENDIF}
 
 {$ENDIF} // USE_SSL
@@ -1389,11 +1390,8 @@ implementation
 
 {$IFDEF USE_SSL}
 
-uses
-    OverbyteIcsUtils;
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsMalloc(Size: size_t): Pointer cdecl;
+function IcsMalloc(Size: size_t): Pointer; cdecl;
 begin
     GetMem(Result, Size);
     FillChar(Result^, Size, 0);

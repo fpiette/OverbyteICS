@@ -142,10 +142,10 @@ begin
     { Compute INI file name based on exe file name. Remove path to make it  }
     { go to windows directory.                                              }
     FIniFileName := GetIcsIniFileName;
-{$IFDEF DELPHI10_UP}
+{$IF COMPILERVERSION > 17}
     // BDS2006 has built-in memory leak detection and display
     ReportMemoryLeaksOnShutdown := (DebugHook <> 0);
-{$ENDIF}
+{$IFEND}
 end;
 
 

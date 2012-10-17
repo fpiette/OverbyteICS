@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     March 2007
-Version:      0.99c ALPHA CODE
+Version:      0.99d ALPHA CODE
 Description:  TMultipartHttpDownloader is a component to download files using
               simultaneous connections to speedup download. The demo make
               also use of the TMultiProgressBar (included in ICS) which is
@@ -10,7 +10,7 @@ Description:  TMultipartHttpDownloader is a component to download files using
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2007 by François PIETTE
+Legal issues: Copyright (C) 2012 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -44,6 +44,8 @@ Oct 30, 2010 0.99b In DownloadDocData, fixed call to Seek so that the int64
              overloaded version is used.
 Nov 08, 2010 0.99c Arno improved final exception handling, more details
              in OverbyteIcsWndControl.pas (V1.14 comments).
+Oct 17, 2012 0.99d Vladimir Kudlein fixed EDivByZero in
+                   TMultipartHttpDownloader.Timer1Timer.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMultipartHttpDownloader;
@@ -79,7 +81,7 @@ uses
 const
     MultipartHttpDownloaderVersion = 600;
     CopyRight : String             = ' TMultipartHttpDownloader ' +
-                                     '(c) 2007 F. Piette V6.00 ';
+                                     '(c) 2012 F. Piette V6.00 ';
 
 type
     TDisplayEvent             = procedure (Sender       : TObject;
@@ -702,8 +704,11 @@ begin
         //MultipartDownloadForm.ListBox1.Items[HttpCli.FIndex] := IntToStr(HttpCli.FDataCount);
     end;
 
-    Tick         := GetTickCount;
-    FCurSpeed    := 8 * (FTotalCount - FPrevCount) / (Tick - FPrevTick);
+    Tick := GetTickCount;
+    if Tick = FPrevTick then  {V0.99d}
+        FCurSpeed := 0
+    else
+        FCurSpeed := 8 * (FTotalCount - FPrevCount) / (Tick - FPrevTick);
     FElapsedTime := Now - FStartTime;
     if FContentLength = 0 then
         FPercentDone := 0

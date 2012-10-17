@@ -4,11 +4,11 @@
 Author:       François PIETTE
 Object:       Mime support routines (RFC2045).
 Creation:     May 03, 2003  (Extracted from SmtpProt unit)
-Version:      7.25
+Version:      7.26
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2011 by François PIETTE
+Legal issues: Copyright (C) 2003-2012 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -113,6 +113,7 @@ Feb 15, 2012 V7.25  Angus - added MIME Content Type component and functions:
                           file, with methods to get ContentType or file extension
                       ContentTypeGetExtn - get one file extension and class for ContentType
                       ContentTypeFromExtn - get one ContentType from file extension
+Oct 17, 2012 V7.26  Max Terentiev fixed a serious bug in StrEncodeQPEx()
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMimeUtils;
@@ -171,8 +172,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-    TMimeUtilsVersion = 725;
-    CopyRight : String = ' MimeUtils (c) 2003-2012 F. Piette V7.25 ';
+    TMimeUtilsVersion = 726;
+    CopyRight : String = ' MimeUtils (c) 2003-2012 F. Piette V7.26 ';
 
     SmtpDefaultLineLength = 76; // without CRLF
     SMTP_SND_BUF_SIZE     = 2048;
@@ -2061,7 +2062,7 @@ begin
            (Ord(Buf[cPos]) < 32)   or
            (Buf[cPos] in Specials) or
            (Buf[cPos] = '=') then begin
-            if (Buf[cPos] = ' ') and ShortSpace then begin
+            if (Buf[cPos] = ' ') and ShortSpace and (lPosRes < MaxCol) then begin   {V7.26}
                 Result[lPosRes] := '_';
                 Inc(lPosRes);
                 Inc(cPos);

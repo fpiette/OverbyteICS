@@ -44,7 +44,7 @@ Oct 30, 2010 0.99b In DownloadDocData, fixed call to Seek so that the int64
              overloaded version is used.
 Nov 08, 2010 0.99c Arno improved final exception handling, more details
              in OverbyteIcsWndControl.pas (V1.14 comments).
-Oct 17, 2012 0.99d Vladimir Kudlein fixed EDivByZero in
+Oct 17, 2012 0.99d Vladimir Kudelin fixed EDivByZero in
                    TMultipartHttpDownloader.Timer1Timer.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:
 Creation:     April 2004
-Version:      1.18
+Version:      1.19
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -77,6 +77,7 @@ May 15, 2009 V1.16 Arno added some EXTERNALSYM directives to make C++Builder
                    'Forms::Application')
 Apr 15, 2011 V1.17 Arno prepared for 64-bit.
 Aug 26, 2011 V1.18 Arno added 64-bit overloaded versions of _IntToHex.
+Nov 10, 2012 v1.19 Bugfix IcsCompareTextA IcsCompareStrA
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsLibrary;
@@ -1267,7 +1268,7 @@ begin
         MinLen := L1;
     P1 := Pointer(S1);
     P2 := Pointer(S2);
-    for I := 1 to MinLen do
+    for I := 0 to MinLen -1 do
     begin
         Ch1 := P1[I];
         Ch2 := P2[I];
@@ -1333,7 +1334,7 @@ begin
         MinLen := L1;
     P1 := Pointer(S1);
     P2 := Pointer(S2);
-    for I := 1 to MinLen do
+    for I := 0 to MinLen -1 do
     begin
         if (P1[I] <> P2[I]) then
         begin

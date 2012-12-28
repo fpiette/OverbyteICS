@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.87
+Version:      7.88
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -921,6 +921,9 @@ Dec 22, 2011 V7.85 Arno new method TCustomSslWSocket.SslRenegotiationCount in
 Feb 17, 2012 V7.86 Arno added NTLMv2 and NTLMv2 session security (basics),
                    read comment "HowTo NTLMv2" in OverbyteIcsNtlmMsgs.pas.
 Apr 30, 2012 V7.87 Arno - Some SSL debug log strings adjusted.
+Dec 28, 2012 V7.88 F.Piette - Cast FHSocket before calling _PostMessage to
+                   avoid exception when FHSocket is INVALID_SOCKET (Socket
+                   closed).
 }
 
 {
@@ -6408,12 +6411,12 @@ begin
         { The PostMessage function posts (places) a message in a window's  }
         { message queue and then returns without waiting for the           }
         { corresponding window to process the message. The message will be }
-        { seen and routed by Delphi a litle later, when we will be out of  }
+        { seen and routed by Delphi a little later, when we will be out of }
         { the send function.                                               }
         _PostMessage(Handle,
-                    FMsg_WM_ASYNCSELECT,
-                    FHSocket,
-                    MakeLong(FD_WRITE, 0));
+                     FMsg_WM_ASYNCSELECT,
+                     WParam(FHSocket),          // V7.88
+                     MakeLong(FD_WRITE, 0));
     end;
 end;
 
@@ -6692,7 +6695,7 @@ const
     TTTCount : Integer = 0;
 begin
 {TriggerDisplay('AsyncSelect ' + IntToStr(msg.wParam) + ', ' + IntToStr(msg.LParamLo));}
-    { Verify that the socket handle is ours handle }
+    { Verify that the socket handle is our handle }
     if msg.wParam <> WPARAM(FHSocket) then
         Exit;
 

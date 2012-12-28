@@ -7,7 +7,7 @@ Version:      7.88
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2012 by François PIETTE
+Legal issues: Copyright (C) 1996-2013 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -1036,8 +1036,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 787;
-  CopyRight    : String     = ' TWSocket (c) 1996-2012 Francois Piette V7.87 ';
+  WSocketVersion            = 788;
+  CopyRight    : String     = ' TWSocket (c) 1996-2013 Francois Piette V7.88 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }

@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.25
+Version:      7.26
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -473,6 +473,8 @@ Jan 23, 2012 V7.23 Arno added httperrNoStatusCode, passed to OnRequestDone and
 Feb 15, 2012 V7.24 Tobias Rapp added methods Del and DelAsync (HTTP method DELETE).
 Feb 17, 2012 V7.25 Arno added NTLMv2 and NTLMv2 session security (basics),
              read comment "HowTo NTLMv2" in OverbyteIcsNtlmMsgs.pas.
+Dec 15, 2012 V7.26 Arno fixed missing port number in both Host header and property
+             Location.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -553,8 +555,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 725;
-    CopyRight : String   = ' THttpCli (c) 1997-2012 F. Piette V7.25 ';
+    HttpCliVersion       = 726;
+    CopyRight : String   = ' THttpCli (c) 1997-2012 F. Piette V7.26 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -3138,8 +3140,13 @@ begin
                         if (Proto <> '') and (Host <> '') then begin
                             { We have a full relocation URL }
                             FTargetHost := Host;
-                            FLocation   := Proto + '://' + Host + Path;
-                            FPath       := FLocation;
+                            if Port <> '' then begin { V7.26 }
+                                FLocation := Proto + '://' + Host + ':' + Port + Path;
+                                FTargetPort := Port;
+                            end
+                            else
+                                FLocation := Proto + '://' + Host + Path;
+                            FPath := FLocation;
                         end
                         else begin
                             if Proto = '' then
@@ -3199,10 +3206,21 @@ begin
                             FTargetHost := FHostName;
                             if FPath = '' then begin
                                 FPath := '/';
-                                FLocation := Proto + '://' + FHostName;
+                                if Port <> '' then begin { V7.26 }
+                                    FLocation := Proto + '://' + FHostName + ':' + Port;
+                                    FTargetPort := Port;
+                                end
+                                else
+                                    FLocation := Proto + '://' + FHostName;
                             end
-                            else
-                                FLocation := Proto + '://' + FHostName + FPath;
+                            else begin
+                                if Port <> '' then begin { V7.26 }
+                                    FLocation := Proto + '://' + FHostName + ':' + Port + FPath;
+                                    FTargetPort := Port;
+                                end
+                                else
+                                    FLocation := Proto + '://' + FHostName + FPath
+                            end;
                         end
                         else begin
                             if Proto = '' then

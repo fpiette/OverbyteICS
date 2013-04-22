@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.26
+Version:      7.27
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -475,6 +475,8 @@ Feb 17, 2012 V7.25 Arno added NTLMv2 and NTLMv2 session security (basics),
              read comment "HowTo NTLMv2" in OverbyteIcsNtlmMsgs.pas.
 Dec 15, 2012 V7.26 Arno fixed missing port number in both Host header and property
              Location.
+Apr 22, 2013 V7.27 Arno fixed an AV in THttpCli that raised when Abort
+             was called, i.e. from OnDocData event handler and SSL enabled
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpProt;
@@ -555,8 +557,8 @@ uses
     OverbyteIcsWinSock, OverbyteIcsWndControl, OverbyteIcsWSocket;
 
 const
-    HttpCliVersion       = 726;
-    CopyRight : String   = ' THttpCli (c) 1997-2012 F. Piette V7.26 ';
+    HttpCliVersion       = 727;
+    CopyRight : String   = ' THttpCli (c) 1997-2012 F. Piette V7.27 ';
     DefaultProxyPort     = '80';
     HTTP_RCV_BUF_SIZE    = 8193;
     HTTP_SND_BUF_SIZE    = 8193;
@@ -3011,7 +3013,9 @@ begin
             FReceiveLen := FReceiveLen - FBodyDataLen;
             { Move remaining data to start of buffer. 17/01/2004 }
             if FReceiveLen > 0 then
-                MoveTBytes(FReceiveBuffer, FBodyDataLen, 0, FReceiveLen + 1);
+                MoveTBytes(FReceiveBuffer, FBodyDataLen, 0, FReceiveLen + 1)
+            else if FReceiveLen < 0 then  { V7.27 }
+                FReceiveLen := 0;         { V7.27 }
         end;
         if not Assigned(FNext) then begin
             { End of document }

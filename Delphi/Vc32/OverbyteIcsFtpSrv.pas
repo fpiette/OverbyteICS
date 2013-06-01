@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      7.19
+Version:      7.20
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2011 by François PIETTE
+Legal issues: Copyright (C) 1998-2013 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -400,7 +400,8 @@ May 21, 2011 V7.17 Arno ensure CommandAUTH resets the SSL prot-level correctly.
 Jul 18, 2011 V7.18 Arno added Unicode normalization.
 Aug 8,  2011 V7.19 Angus added client SndBufSize and RcvBufSize to set data socket
              buffers sizes for better performance, set to 32K to double speeds
-
+Jul 01, 2013 V7.20 Arno fixed an exception raised in ClientStorSessionClosed() 
+                   when an upload was aborted.
 
 
 
@@ -491,8 +492,8 @@ uses
 
 
 const
-    FtpServerVersion         = 719;
-    CopyRight : String       = ' TFtpServer (c) 1998-2011 F. Piette V7.19 ';
+    FtpServerVersion         = 720;
+    CopyRight : String       = ' TFtpServer (c) 1998-2013 F. Piette V7.20 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
     DefaultRcvSize           = 16384;    { V7.00 used for both xmit and recv, was 2048, too small }
 
@@ -2644,7 +2645,8 @@ begin
         I := 0;
         while I <= High(FCmdTable) do begin
             if FCmdTable[I].KeyWord = KeyWord then begin
-                Client.CurCmdType := I;             { angus V1.54 }
+                if I <> ftpcABOR then   { AG V7.20 }
+                    Client.CurCmdType := I;             { angus V1.54 }
                 Client.AnswerDelayed := FALSE; { AG V1.50 }
                 FCmdTable[I].Proc(Client, KeyWord, Params, Answer);
                 if not Client.AnswerDelayed then  { AG V1.50 }

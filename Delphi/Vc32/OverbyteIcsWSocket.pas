@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      7.88
+Version:      7.89
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -924,6 +924,10 @@ Apr 30, 2012 V7.87 Arno - Some SSL debug log strings adjusted.
 Dec 28, 2012 V7.88 F.Piette - Cast FHSocket before calling _PostMessage to
                    avoid exception when FHSocket is INVALID_SOCKET (Socket
                    closed).
+Jun 03, 2013 V7.89 Eric Fleming Bonilha found a serious bug with closing the
+                   socket. The problem was that winsock may continue to post
+                   notification messages after closesocket() has been called.
+
 }
 
 {
@@ -1036,8 +1040,8 @@ uses
   OverbyteIcsWinsock;
 
 const
-  WSocketVersion            = 788;
-  CopyRight    : String     = ' TWSocket (c) 1996-2013 Francois Piette V7.88 ';
+  WSocketVersion            = 789;
+  CopyRight    : String     = ' TWSocket (c) 1996-2013 Francois Piette V7.89 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
 {$IFNDEF BCB}
   { Manifest constants for Shutdown }
@@ -8330,6 +8334,9 @@ begin
 
     if FHSocket <> INVALID_SOCKET then begin
         repeat
+            { Disable winsock notification otherwise notifications may be }
+            { posted even after the call to closesocket()                 }
+            WSocket_Synchronized_WSAASyncSelect(FHSocket, Handle, 0, 0); { V7.89 }
             { Close the socket }
             iStatus := WSocket_Synchronized_closesocket(FHSocket);
             if iStatus <> 0 then begin
@@ -8343,6 +8350,10 @@ begin
                     SocketError('Disconnect (closesocket)');
                     Exit;
                 end;
+                { Next line is untested, however I think we have to reenable }
+                { socket notification here.  (AG)                            }
+                WSocket_Synchronized_WSAASyncSelect(FHSocket, Handle,        { V7.89 }
+                                        FMsg_WM_ASYNCSELECT, FSelectEvent);
                 MessagePump;
             end;
         until iStatus = 0;

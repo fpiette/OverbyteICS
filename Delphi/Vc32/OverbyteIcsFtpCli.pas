@@ -2,13 +2,13 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V7.28
+Version:      V7.30
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2012 by François PIETTE
+Legal issues: Copyright (C) 1996-2013 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -991,7 +991,7 @@ Apr 16, 2009 V7.07 Angus assume STREAM64, USE_MODEZ, USE_ONPROGRESS64_ONLY, USE_
              Remove old conditional and suppressed code, OnProgress gone (BREAKING CHANGE)
 Jan 4, 2010  V7.08 added TriggerResponse virtual and CreateSocket virtual
              ConnectAsync and ConnectHostAsync methods now trigger FEAT command
-			 Thanks to "Anton Sviridov" <ant_s@rambler.ru>
+             Thanks to "Anton Sviridov" <ant_s@rambler.ru>
 Jun 9, 2010  V7.09 Angus - ConnectAsync and ConnectHostAsync methods no longer trigger FEAT command
              Added ConnectFeatAsync and ConnectFeatHostAsync methods which do trigger FEAT command
 Sep 8, 2010  V7.10 Arno - If conditional BUILTIN_THROTTLE is defined the
@@ -1044,6 +1044,9 @@ Oct 24, 2011 V7.27 Arno - Set state ftpInternalReady in DoneQuitAsync.
 Jan 20, 2012 V7.28 Arno - If the control connection closes with error code
              after QUIT response has been received OK we may safely ignore this
              error.
+Jul 25, 2013 V7.30 - Angus - Fixed bug in WaitUntilReady that meant some sync methods 
+             with multiple commands randomly terminated prematurely allowing further 
+             commands to be sent usually resulting in not ready errors.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1116,9 +1119,9 @@ OverbyteIcsZlibHigh,     { V2.102 }
     OverbyteIcsWSocket, OverbyteIcsWndControl, OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 728;
-  CopyRight : String = ' TFtpCli (c) 1996-2012 F. Piette V7.28 ';
-  FtpClientId : String = 'ICS FTP Client V7.28 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 730;
+  CopyRight : String = ' TFtpCli (c) 1996-2013 F. Piette V7.30 ';
+  FtpClientId : String = 'ICS FTP Client V7.30 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -3977,7 +3980,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomFtpCli.PutAsync;
 begin
-	DataSocket.LastError := 0; { V2.100 }
+    DataSocket.LastError := 0; { V2.100 }
     HighLevelAsync(ftpPutAsync,
                    [ftpFctPort, ftpFctPut]);
     if DataSocket.LastError <> 0 then    { V2.100 }
@@ -6740,7 +6743,7 @@ begin
     FTimeStop := LongInt(GetTickCount) + LongInt(FTimeout) * 1000;
     DummyHandle := INVALID_HANDLE_VALUE;
     while TRUE do begin
-        if FState in [ftpReady, ftpInternalReady] then begin
+        if FState in [ftpReady{, ftpInternalReady}] then begin  { V7.30 } 
             { Back to ready state, the command is finished }
             Result := (FRequestResult = 0);
             break;

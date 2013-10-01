@@ -11,8 +11,8 @@
   <Default.Personality>
     
     <Projects>
-      <Projects Name="OverbyteIcsCB2006Run.bpl">..\Delphi\Vc32\OverbyteIcsCB2006Run.bdsproj</Projects>
-      <Projects Name="OverbyteIcsCB2006Design.bpl">..\Delphi\Vc32\OverbyteIcsCB2006Design.bdsproj</Projects>
+      <Projects Name="OverbyteIcsCB2006Run.bpl">..\Packages\OverbyteIcsCB2006Run.bdsproj</Projects>
+      <Projects Name="OverbyteIcsCB2006Design.bpl">..\Packages\OverbyteIcsCB2006Design.bdsproj</Projects>
       <Projects Name="Targets">OverbyteIcsCB2006Run.bpl OverbyteIcsCB2006Design.bpl</Projects>
     </Projects>
     <Dependencies/>

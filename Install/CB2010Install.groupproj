@@ -3,10 +3,10 @@
 			<ProjectGuid>{67AB63A4-9949-44A5-9D80-63F388F79447}</ProjectGuid>
 		</PropertyGroup>
 		<ItemGroup>
-			<Projects Include="..\Delphi\Vc32\OverbyteIcsCB2010Run.cbproj">
+			<Projects Include="..\Packages\OverbyteIcsCB2010Run.cbproj">
 				<Dependencies/>
 			</Projects>
-			<Projects Include="..\Delphi\Vc32\OverbyteIcsCB2010Design.cbproj">
+			<Projects Include="..\Packages\OverbyteIcsCB2010Design.cbproj">
 				<Dependencies/>
 			</Projects>
 		</ItemGroup>
@@ -18,22 +18,22 @@
 			</BorlandProject>
 		</ProjectExtensions>
 		<Target Name="OverbyteIcsCB2010Run">
-			<MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCB2010Run.cbproj"/>
+			<MSBuild Projects="..\Packages\OverbyteIcsCB2010Run.cbproj"/>
 		</Target>
 		<Target Name="OverbyteIcsCB2010Run:Clean">
-			<MSBuild Targets="Clean" Projects="..\Delphi\Vc32\OverbyteIcsCB2010Run.cbproj"/>
+			<MSBuild Targets="Clean" Projects="..\Packages\OverbyteIcsCB2010Run.cbproj"/>
 		</Target>
 		<Target Name="OverbyteIcsCB2010Run:Make">
-			<MSBuild Targets="Make" Projects="..\Delphi\Vc32\OverbyteIcsCB2010Run.cbproj"/>
+			<MSBuild Targets="Make" Projects="..\Packages\OverbyteIcsCB2010Run.cbproj"/>
 		</Target>
 		<Target Name="OverbyteIcsCB2010Design">
-			<MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCB2010Design.cbproj"/>
+			<MSBuild Projects="..\Packages\OverbyteIcsCB2010Design.cbproj"/>
 		</Target>
 		<Target Name="OverbyteIcsCB2010Design:Clean">
-			<MSBuild Targets="Clean" Projects="..\Delphi\Vc32\OverbyteIcsCB2010Design.cbproj"/>
+			<MSBuild Targets="Clean" Projects="..\Packages\OverbyteIcsCB2010Design.cbproj"/>
 		</Target>
 		<Target Name="OverbyteIcsCB2010Design:Make">
-			<MSBuild Targets="Make" Projects="..\Delphi\Vc32\OverbyteIcsCB2010Design.cbproj"/>
+			<MSBuild Targets="Make" Projects="..\Packages\OverbyteIcsCB2010Design.cbproj"/>
 		</Target>
 		<Target Name="Build">
 			<CallTarget Targets="OverbyteIcsCB2010Run;OverbyteIcsCB2010Design"/>

@@ -15,10 +15,10 @@ default: $(PROJECTS)
 #------------------------------------------------------------------------------
 
 
-OverbyteIcsD7Run.bpl: ..\Delphi\Vc32\OverbyteIcsD7Run.dpk
+OverbyteIcsD7Run.bpl: ..\Packages\OverbyteIcsD7Run.dpk
   $(DCC)
 
-OverbyteIcsD7Design.bpl: ..\Delphi\Vc32\OverbyteIcsD7Design.dpk
+OverbyteIcsD7Design.bpl: ..\Packages\OverbyteIcsD7Design.dpk
   $(DCC)
 
 

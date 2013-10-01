@@ -4,8 +4,8 @@
   </PropertyGroup>
   <ItemGroup/>
   <ItemGroup>
-    <Projects Include="..\Delphi\Vc32\OverbyteIcsCB2007Design.cbproj"/>
-    <Projects Include="..\Delphi\Vc32\OverbyteIcsCB2007Run.cbproj"/>
+    <Projects Include="..\Packages\OverbyteIcsCB2007Design.cbproj"/>
+    <Projects Include="..\Packages\OverbyteIcsCB2007Run.cbproj"/>
   </ItemGroup>
   <ProjectExtensions>
     <Borland.Personality>Default.Personality</Borland.Personality>
@@ -14,22 +14,22 @@
 <BorlandProject xmlns=""><Default.Personality></Default.Personality></BorlandProject></BorlandProject>
   </ProjectExtensions>
   <Target Name="OverbyteIcsCB2007Run">
-    <MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCB2007Run.cbproj" Targets=""/>
+    <MSBuild Projects="..\Packages\OverbyteIcsCB2007Run.cbproj" Targets=""/>
   </Target>
   <Target Name="OverbyteIcsCB2007Run:Clean">
-    <MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCB2007Run.cbproj" Targets="Clean"/>
+    <MSBuild Projects="..\Packages\OverbyteIcsCB2007Run.cbproj" Targets="Clean"/>
   </Target>
   <Target Name="OverbyteIcsCB2007Run:Make">
-    <MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCB2007Run.cbproj" Targets="Make"/>
+    <MSBuild Projects="..\Packages\OverbyteIcsCB2007Run.cbproj" Targets="Make"/>
   </Target>
   <Target Name="OverbyteIcsCB2007Design">
-    <MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCB2007Design.cbproj" Targets=""/>
+    <MSBuild Projects="..\Packages\OverbyteIcsCB2007Design.cbproj" Targets=""/>
   </Target>
   <Target Name="OverbyteIcsCB2007Design:Clean">
-    <MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCB2007Design.cbproj" Targets="Clean"/>
+    <MSBuild Projects="..\Packages\OverbyteIcsCB2007Design.cbproj" Targets="Clean"/>
   </Target>
   <Target Name="OverbyteIcsCB2007Design:Make">
-    <MSBuild Projects="..\Delphi\Vc32\OverbyteIcsCB2007Design.cbproj" Targets="Make"/>
+    <MSBuild Projects="..\Packages\OverbyteIcsCB2007Design.cbproj" Targets="Make"/>
   </Target>
   <Target Name="Build">
     <CallTarget Targets="OverbyteIcsCB2007Run;OverbyteIcsCB2007Design"/>

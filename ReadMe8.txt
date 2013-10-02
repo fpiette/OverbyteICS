@@ -1,9 +1,9 @@
-ICS - Internet Component Suite - V8 Beta - Delphi 7 to RAD Studio XE5
-=====================================================================
+ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio XE5
+================================================================
 (Aka FPIETTE's Components)
 
 
-Revised: September 24, 2013
+Revised: October 2, 2013
 http://www.overbyte.be/
 
 Table of content:
@@ -109,12 +109,19 @@ The latest versions of ICS can be downloaded from the ICS Wiki web site:
 
 http://wiki.overbyte.be/wiki/index.php/ICS_Download
 
-V5, V6 and V7 are stable releases that are only ever updated for major bugs, but
-not for new releases of Delphi. V8 Beta is the current beta development release
-which is held in a public Version Control repository that is zipped each night
-for easy download.  The download page above also includes the OpenSSL binaries
-needed to support SSL.  V8 Beta is used by the developers in live production
-applications.
+ICS V5 and V6 are archive releases no longer updated, last supported release was 2007.
+
+ICS V7 is a stable release that may still be updated for major bugs, but not for new
+releases of Delphi, latest it supported was XE3.
+
+ICS V8 is the current development release which is held in a public Version Control
+repository that is zipped each night for easy download.  The download page above
+also includes the OpenSSL binaries needed to support SSL. ICS V8 supports Delphi 64-bit
+and Mac OS-X projects.  Note that latest C++ Builder version supported is XE3 (lack of
+spare time, sorry).
+
+ICS V9 is in early development and is planned to support Android. There are no current
+plans for ICS for iOS.
 
 
 Version Control repository:
@@ -127,7 +134,7 @@ svn://svn.overbyte.be/ics or http://svn.overbyte.be:8443/svn/ics
 Installation:
 -------------
 
-ICS V8 Beta has been designed for Embarcadero Delphi 2009 and up, and C++ Builder
+ICS V8 has been designed for Embarcadero Delphi 2009 and up, and C++ Builder
 2009 and up, but is fully compatible with Borland Delphi 7 and CodeGear 2006 and
 2007. Embarcadero RAD Studio includes Delphi and C++ Builder.
 
@@ -135,9 +142,7 @@ http://www.embarcadero.com/
 
 With Delphi XE2 and later, VCL 64-bit Windows targets are supported for Delphi only.
 Currently FireMonkey is partly supported for Delphi only (there are still a few
-non-ported components). ICS for Mac OSX is currently experimental.  There are no
-current plans for ICS for iOS, however ICS for Android is in early development
-but a long way off beta due to lack of AnsiString.
+non-ported components). ICS for Mac OSX is currently experimental.
 
 The zip file has sub-directories in it. You must use the WinZip "Use folder names"
 option to restore this directory tree or you will have problems because the files
@@ -828,9 +833,12 @@ The components make use of LIBEAY32.DLL and SSLEAY32.DLL to handle SSL
 protocol stuff. The DLLs are dynamically loaded at runtime. It means that
 the DLLs will only be required at runtime when you first make use of a SSL
 function. Your applications will run on systems without OpenSSL DLLs as long
-as you don't call any SSL function.
+as you don't call any SSL function.  The files may be downloaded from:
 
-This version requires OpenSsl version 0.9.8r! If you need to support
+http://wiki.overbyte.be/wiki/index.php/ICS_Download
+
+This version requires OpenSsl version 0.9.8r or later! The latest versions
+bult for ICS are currently v1.0.0j and v0.9.8x. If you need to support
 older OpenSsl versions as well (not recommended) define symbol
 BEFORE_OSSL_098E in OverbyteIcsSslDefs.inc and rebuild all.
 

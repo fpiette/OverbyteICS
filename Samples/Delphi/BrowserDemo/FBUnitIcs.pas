@@ -62,7 +62,9 @@
                   This allows http/1.1 and keep-alive to work.  Likewise, Connection
                   used for html and css pages is no longer always closed.
 
-  7 Oct 2012      Angus - recognise XE3 in About, supports ICS v7 and v8 
+  7 Oct 2012      Angus - recognise XE3 in About, supports ICS v7 and v8
+
+  7  Oct 2013     Angus - simplfied Agent since Windows 98 long dead, recognise XE4 and XE5
 
 
   Pending - use NoCache header to stop dynamic pages being cached and expire them
@@ -100,7 +102,8 @@ uses
 
 const
     (* UsrAgent = 'Mozilla/4.0 (compatible; ICS Library)'; *)
-    UsrAgent     = 'Mozilla/4.0 (compatible; MSIE 5.0; Windows 98)';
+//    UsrAgent     = 'Mozilla/4.0 (compatible; MSIE 5.0; Windows 98)';
+    UsrAgent     = 'Mozilla/4.0';
     MaxHistories = 15; { size of History list }
     MaxImageSess = 4;  { ANGUS how many simultaneous image downloads }
     wm_LoadURL   = wm_User + 124;

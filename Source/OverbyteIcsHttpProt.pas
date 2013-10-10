@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.04
+Version:      8.05
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -484,6 +484,10 @@ Apr 22, 2013 V8.03 Arno fixed an AV in THttpCli that raised when Abort
              was called, i.e. from OnDocData event handler and SSL enabled.
 Jul 11, 2013 V8.04 - Angus changed default Agent to 'Mozilla/4.0' removing
                         (compatible; ICS) which upset some servers
+Oct 10, 2013 V8.05 - Arno fixed a relocation bug with URL "https://yahoo.com" by
+             removing port "443" from the Host-header, otherwise relocation
+             header returned by the server had that port appended as well even
+             though the new location was simple HTTP.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -571,8 +575,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 804;
-    CopyRight : String   = ' THttpCli (c) 1997-2013 F. Piette V8.04 ';
+    HttpCliVersion       = 805;
+    CopyRight : String   = ' THttpCli (c) 1997-2013 F. Piette V8.05 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -2424,7 +2428,7 @@ begin
         end;
         if FAgent <> '' then
             Headers.Add('User-Agent: ' + FAgent);
-        if (FTargetPort = '80') or (FTargetPort = '') then    {Maurizio}
+        if (FTargetPort = '80') or (FTargetPort = '443') or (FTargetPort = '') then { V8.05 }
             Headers.Add('Host: ' + FTargetHost)
         else
             Headers.Add('Host: ' + FTargetHost + ':' + FTargetPort);

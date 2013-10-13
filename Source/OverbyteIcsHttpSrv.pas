@@ -9,11 +9,11 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.05
+Version:      8.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2012 by François PIETTE
+Legal issues: Copyright (C) 1999-2013 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -372,7 +372,7 @@ Jul 11 2013 V8.05 Angus - Tobias Rapp found that client requests timed out after
                    So added KeepAliveTimeXferSec default to 300 seconds which is effective
                       during transfers, with KeepAliveTimeSec being used between requests.
                    Ignore blank line separating pipelined requests
-                    
+Oct 13 2013 V8.06 Arno - POST did not work, a bug introduced in V8.05.                    
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -471,8 +471,8 @@ uses
     OverbyteIcsWinsock;
 
 const
-    THttpServerVersion = 805;
-    CopyRight : String = ' THttpServer (c) 1999-2013 F. Piette V8.05 ';
+    THttpServerVersion = 806;
+    CopyRight : String = ' THttpServer (c) 1999-2013 F. Piette V8.06 ';
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -4559,10 +4559,17 @@ begin
         Exit;
     end;
     if not Assigned(FDocStream) then begin
-        TriggerAfterAnswer;                   { V7.19 we can log how much data was sent from here }
-        if FState in [hcPostedData, hcSendData] then
+        if (FState in [hcPostedData, hcSendData]) and (FPostCounter = 0) then
+        begin
+            TriggerAfterAnswer;               { V7.19 we can log how much data was sent from here }
             FState := hcRequest;              { ready for next pipelined requests } { V8.05 }
-        Exit; { no stream usually means just a header string has been sent }
+            PostMessage(Handle, FMsg_WM_HTTP_DONE, 0, 0);
+        end;
+        Exit;
+        { No stream usually means just a header string has been sent         }
+        { or an error response with body                                     }
+        { or we are currently receiving posted data (and received a FD_WRITE }
+        { message when internal send buffer was empty)                       }
     end;
 
     if FDocSize <= 0 then

@@ -178,6 +178,7 @@ f_EVP_bf_cbc              : function: PEVP_CIPHER; cdecl = nil;
 f_EVP_bf_ecb              : function: PEVP_CIPHER; cdecl = nil;
 f_EVP_bf_cfb64            : function: PEVP_CIPHER; cdecl = nil;
 f_EVP_bf_ofb              : function: PEVP_CIPHER; cdecl = nil;
+f_EVP_aes_128_cbc         : function: PEVP_CIPHER; cdecl = nil;
 
 f_EVP_CIPHER_CTX_new      : function: PEVP_CIPHER_CTX; cdecl = nil;
 f_EVP_CIPHER_CTX_free     : procedure(ctx: PEVP_CIPHER_CTX); cdecl = nil;
@@ -188,6 +189,10 @@ f_EVP_CipherUpdate        : function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var 
 f_EVP_CipherFinal_ex      : function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer): LongBool; cdecl = nil;
 f_EVP_CIPHER_CTX_cleanup  : function(ctx: PEVP_CIPHER_CTX): Integer; cdecl = nil;
 f_EVP_BytesToKey          : function(const type_: PEVP_CIPHER; const md: PEVP_MD; const salt: PAnsiChar; const data: PAnsiChar; datalen, count : Integer; key, iv: PAnsiChar): Integer; cdecl = nil;
+f_EVP_EncryptInit_ex      : function (ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; const key: PAnsiChar; const iv: PAnsiChar): LongBool; cdecl = nil;
+f_EVP_DecryptInit_ex      : function (ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; const key: PAnsiChar; const iv: PAnsiChar): LongBool; cdecl = nil;
+f_EVP_EncryptUpdate       : function (ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
+f_EVP_DecryptUpdate       : function (ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
 
 var
   LibeayExLoaded: Boolean = FALSE;
@@ -356,6 +361,9 @@ begin
     f_EVP_bf_ofb := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_bf_ofb');
     if not Assigned(f_EVP_bf_ofb) then
         raise Exception.Create(Msg + 'EVP_bf_ofb');
+    f_EVP_aes_128_cbc := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_aes_128_cbc');
+    if not Assigned(f_EVP_aes_128_cbc) then
+        raise Exception.Create(Msg + 'EVP_aes_128_cbc');
     f_EVP_CIPHER_CTX_new := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_CIPHER_CTX_new');
     if not Assigned(f_EVP_CIPHER_CTX_new) then
         raise Exception.Create(Msg + 'EVP_CIPHER_CTX_new');
@@ -383,6 +391,18 @@ begin
     f_EVP_BytesToKey := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_BytesToKey');
     if not Assigned(f_EVP_BytesToKey) then
         raise Exception.Create(Msg + 'EVP_BytesToKey'); 
+    f_EVP_EncryptInit_ex := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_EncryptInit_ex');
+    if not Assigned(f_EVP_EncryptInit_ex) then
+        raise Exception.Create(Msg + 'EVP_EncryptInit_ex');
+    f_EVP_DecryptInit_ex := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_DecryptInit_ex');
+    if not Assigned(f_EVP_DecryptInit_ex) then
+        raise Exception.Create(Msg + 'EVP_DecryptInit_ex');
+    f_EVP_EncryptUpdate := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_EncryptUpdate');
+    if not Assigned(f_EVP_EncryptUpdate) then
+        raise Exception.Create(Msg + 'EVP_EncryptUpdate');
+    f_EVP_DecryptUpdate := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_DecryptUpdate');
+    if not Assigned(f_EVP_DecryptUpdate) then
+        raise Exception.Create(Msg + 'EVP_DecryptUpdate');
 
     LibeayExLoaded := TRUE;
 

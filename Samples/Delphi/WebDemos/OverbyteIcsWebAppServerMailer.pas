@@ -8,7 +8,7 @@ Description:  This is an email form demo, designed to send a email to a hard
               entered in the form.  This demo uses a test email account at
               Magenta Systems, but the sender gets an identical copy of the
               email so you see it worked.
-Version:      1.03
+Version:      1.04
 EMail:        angus@magsys.co.uk
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -46,6 +46,7 @@ Jul 10, 2009 V1.01 Arno fixed a bug in SmtpClient.OnGetData, we may not send
                    Unicode.
 Jul 10, 2009 V1.02 Arno Removed string cast warnings.
 Sept 1, 2009 V1.03 Angus - report exceptions creating virtual pages
+Nov 16, 2013 V1.04 Removed all references to demo's main form.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -64,7 +65,7 @@ uses
   {$ELSE}
     ExtCtrls,
   {$ENDIF}
-    OverbyteIcsHttpAppServer, OverbyteIcsHttpSrv, OverbyteIcsWebSession,
+    OverbyteIcsWndControl, OverbyteIcsHttpAppServer, OverbyteIcsHttpSrv, OverbyteIcsWebSession,
     OverbyteIcsSmtpProt, OverbyteIcsUtils, OverbyteIcsWSocket,
     OverbyteIcsFtpSrvT;
 
@@ -85,6 +86,7 @@ type
         sPageUrl: string ;
         errorMsg: string ;
         CurSmtpServer: integer ;
+        procedure HandleBackgroundExceptions(Sender: TObject; E: Exception; var CanClose : Boolean);
     public
         destructor  Destroy; override;
         procedure Execute; override;
@@ -116,17 +118,6 @@ const
     DefaultEmailAccount = 'testing' ;
 
 implementation
-
-uses
-{$IFDEF FMX}
-    IcsWebAppServerMain
-{$ELSE}
-{$IFDEF USE_SSL}
-    OverbyteIcsSslWebAppServerMain
-{$ELSE}
-    OverbyteIcsWebAppServerMain
-{$ENDIF}
-{$ENDIF};
 
 function GetTempLastMod (Client: THttpAppSrvConnection; const FName: string): string ;
 var
@@ -217,7 +208,7 @@ procedure TUrlHandlerMailer.Execute;
 begin
     WSocket := TWSocket.Create (self) ;
     WSocket.OnDnsLookupDone := DoneDnsLookup ;
-    WSocket.OnBgException := WebAppSrvForm.HttpAppSrvClientBgException;
+    WSocket.OnBgException := HandleBackgroundExceptions;
     AbortTimer := TTimer.Create (self) ;
     AbortTimer.OnTimer := TimerAbortTimer ;
     AbortTimer.Interval := 5000 ;     // five second timeout for DNS
@@ -229,9 +220,16 @@ begin
         WSocket.ReverseDnsLookup (sIPAddr) ;
         AbortTimer.Enabled := true ;
     except
-        WebAppSrvForm.Display ('Exception Looking up DNS - ' + GetExceptMess (ExceptObject)) ;
+        Display ('Exception Looking up DNS - ' + GetExceptMess (ExceptObject)) ;
         DoneDnsLookup (Self, 999) ; // continue to use form
     end;
+end;
+
+procedure TUrlHandlerMailer.HandleBackgroundExceptions(Sender: TObject;
+  E: Exception; var CanClose: Boolean);
+begin
+  Display('Exception processing page - ' + E.ClassName + ': ' + E.Message);
+  CanClose := True;
 end;
 
 destructor TUrlHandlerMailer.Destroy;
@@ -273,7 +271,7 @@ begin
     end
     else
     begin
-        WebAppSrvForm.Display ('DNS Lookup Failed - ' + WSocketErrorDesc (Error)) ;
+        Display ('DNS Lookup Failed - ' + WSocketErrorDesc (Error)) ;
         sUserIPHost := sIPAddr ;
     end;
     sPageUrl := 'http://' + Client.RequestHost + Client.Path ;  // used for POST URL
@@ -294,12 +292,12 @@ begin
 	    if IsHtmlTags (sMailBody) then
         begin
             errorMsg := 'Please specify valid content' ; // spammers use HTML tags in the body
-            WebAppSrvForm.Display ('Email validation error: ' + errorMsg + ' - ' + sMailBody) ;
+            Display ('Email validation error: ' + errorMsg + ' - ' + sMailBody) ;
         end
         else if (Length (sMailBody) < 40) then
         begin
             errorMsg := 'Please specify your full message' ;
-            WebAppSrvForm.Display ('Email validation error: ' + errorMsg + ' - ' + sMailBody) ;
+            Display ('Email validation error: ' + errorMsg + ' - ' + sMailBody) ;
         end;
         ExtractURLEncodedValue (String(Client.PostedData), 'MailZFrom', sMailFrom) ;
         ExtractURLEncodedValue (String(Client.PostedData), 'MailZName', sMailName) ;
@@ -308,14 +306,14 @@ begin
         if NOT IsValidEmail (sMailFrom) then
         begin
             errorMsg := 'Please specify a valid email address' ;
-            WebAppSrvForm.Display ('Email validation error: ' + errorMsg + ' - ' + sMailFrom) ;
+            Display ('Email validation error: ' + errorMsg + ' - ' + sMailFrom) ;
         end;
      // the IP check is to stop spammers POSTing this page without having GET it first, they have to know the IP and host name
         ExtractURLEncodedValue (String(Client.PostedData), 'MailZIp', sTemp) ;
         if sUserIPHost <> sTemp then
         begin
             errorMsg := 'Please specify your message again, internal error' ;
-            WebAppSrvForm.Display ('Email validation error: ' + errorMsg + ' - IP Address ' + sTemp) ;
+            Display ('Email validation error: ' + errorMsg + ' - IP Address ' + sTemp) ;
         end;
         if Length (sMailName) < 5 then
             errorMsg := 'Please specify your full name'
@@ -330,7 +328,7 @@ begin
                 sTempFrom := '"' + sMailName + '" <' + sMailFrom + '>' ;
                 if NOT Assigned (EmailBody) then EmailBody := TStringList.Create ;
                 if NOT Assigned (SmtpClient) then SmtpClient := TSmtpCli.Create (self) ;
-                SmtpClient.OnBgException := WebAppSrvForm.HttpAppSrvClientBgException;
+                SmtpClient.OnBgException := HandleBackgroundExceptions;
                 SmtpClient.OnDisplay := SmtpClientDisplay ;
                 SmtpClient.OnGetData := SmtpClientGetData ;
                 SmtpClient.OnRequestDone := SmtpClientRequestDone ;
@@ -339,7 +337,7 @@ begin
                         'Email Sent from Web Site Response Form: ' + sPageUrl +  #13#10 ;
                 if Client.AuthUserName <> '' then
                                  EmailBody.Add ('User Account: ' + Client.AuthUserName) ;
-                WebAppSrvForm.Display ('Sending Email Form to ' + sMagEmail + ' from ' + sTempFrom) ;
+                Display ('Sending Email Form to ' + sMagEmail + ' from ' + sTempFrom) ;
                 SmtpClient.RcptName.Clear ;
                 SmtpClient.RcptName.Add (sMagEmail) ;
                 SmtpClient.RcptName.Add (sMailFrom) ;
@@ -356,7 +354,7 @@ begin
                 exit ; // wait for events to send response
             except
                 errorMsg := 'Failed to Start Sending Email Form: ' + GetExceptMess (ExceptObject) ;
-                WebAppSrvForm.Display (errorMsg) ;
+                Display (errorMsg) ;
             end;
         end ;
     end ;
@@ -391,12 +389,12 @@ begin
     AbortTimer.Enabled := false ;
     if sUserIPHost = '' then
     begin
-        WebAppSrvForm.Display ('DNS Lookup Timed Out') ;
+        Display ('DNS Lookup Timed Out') ;
         WSocket.CancelDnsLookup ;
     end
     else
     begin
-        WebAppSrvForm.Display ('SMTP Send Timed Out') ;
+        Display ('SMTP Send Timed Out') ;
         SmtpClient.Quit ;
     end ;
 end;
@@ -417,20 +415,20 @@ begin
         begin
             if ErrorCode = 0 then
             begin
-                WebAppSrvForm.Display ('Connected to SMTP Server: ' + SmtpClient.Host) ;
+                Display ('Connected to SMTP Server: ' + SmtpClient.Host) ;
                 SmtpClient.Mail ;  // headers then data
                 AbortTimer.Enabled := true ;
                 exit ;
             end ;
             errorMsg := 'Failed to Send Email Form, SMTP Server: ' + SmtpClient.Host +
                                                 ', Open Error - ' + SmtpClient.ErrorMessage ;
-            WebAppSrvForm.Display (errorMsg) ;
+            Display (errorMsg) ;
 
           // see if trying second server
             inc (CurSmtpServer) ;
             if CurSmtpServer < Length (SmtpServerList) then
             begin
-                WebAppSrvForm.Display ('Trying Alternate SMTP Server') ;
+                Display ('Trying Alternate SMTP Server') ;
                 SmtpClient.Host := SmtpServerList [CurSmtpServer] ;
                 SmtpClient.Open ;
                 AbortTimer.Enabled := true ;
@@ -447,7 +445,7 @@ begin
             SmtpClient.Quit ;
             if ErrorCode = 0 then
             begin
-                WebAppSrvForm.Display ('Sent Email Form OK') ;
+                Display ('Sent Email Form OK') ;
                 AnswerPage('', NO_CACHE, 'maildone.html', nil, []) ;
                 Finish;
                 exit ;
@@ -466,7 +464,7 @@ begin
         errorMsg := '!! Error Sending Email - ' + GetExceptMess (ExceptObject) +
                                                      ' - ' + SmtpClient.ErrorMessage ;
     end ;
-    WebAppSrvForm.Display (errorMsg) ;
+    Display (errorMsg) ;
     AnswerPage('', NO_CACHE, 'mailer.html', nil,
              ['PageLastMod', GetTempLastMod (Client, 'mailer.html'),
               'sPageUrl', sPageUrl, 'sMailTo', sMailTo, 'sMailName', sMailName,
@@ -478,7 +476,7 @@ end;
 
 procedure TUrlHandlerMailer.SmtpClientDisplay(Sender: TObject; Msg: String);
 begin
-    WebAppSrvForm.Display ('Smtp:' + Msg) ;
+    Display ('Smtp:' + Msg) ;
 end;
 
 end.

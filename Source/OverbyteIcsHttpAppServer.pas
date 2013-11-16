@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      8.03
+Version:      8.04
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2012 by François PIETTE
+Legal issues: Copyright (C) 2003-2013 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -91,9 +91,11 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
 Aug 17, 2012 V8.02 Angus added TSslHttpAppSrv
                    SslEnable specifies if SSL is used and defaults to FALSE
                    added MaxSessions to allow more than 100 web sessions
-Jun 09, 2013 V8.03 FPiette added TUrlHander destructor to clear OnDestroying
+Jun 09, 2013 V8.03 FPiette added TUrlHandler destructor to clear OnDestroying
                    event handler in client's connection
-
+Nov 16, 2013 V8.04 Arno - Added property AppServer to the THttpAppSrvConnection.
+                   Added an OnDisplay event and a public method Display to THttAppSrv.
+                   Added a method Display to TUrlHandler.
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -146,15 +148,20 @@ uses
     OverbyteIcsUtils;
 
 type
+    THttpAppSrvDisplayEvent = procedure(Sender    : TObject;
+                                        const Msg : String) of object;
+
     TVirtualExceptionEvent = procedure (Sender : TObject;
                                   E          : Exception;
                                   Method     : THttpMethod;
                                   const Path : string) of object;  { V7.05 }
     TMyHttpHandler        = procedure (var Flags: THttpGetFlag) of object;
     TUrlHandler           = class;
+    THttpAppSrv           = class;
     THttpAppSrvConnection = class(THttpConnection)
     protected
         FOnDestroying  : TNotifyEvent;
+        FAppServer     : THttpAppSrv;
         function GetHostName: String;
     public
         PostedData     : PAnsiChar; // Will hold dynamically allocated buffer
@@ -189,6 +196,8 @@ type
         property HostName : String read GetHostName;
         property OnDestroying  : TNotifyEvent read  FOnDestroying
                                               write FOnDestroying;
+        property AppServer : THttpAppSrv      read  FAppServer
+                                              write FAppServer;
     end;
 
     THttpAllowedFlag = (afBeginBy, afExactMatch, afDirList);
@@ -223,6 +232,7 @@ type
         destructor Destroy; override;
         procedure Execute; virtual;
         procedure Finish; virtual;
+        procedure Display(const AMsg: String); virtual;
         function  CreateSession(const Params : String;
                                 Expiration   : TDateTime;
                                 SessionData  : TWebSessionData) : String;
@@ -335,6 +345,7 @@ type
         FHasAllocateHWnd : Boolean;
         FOnDeleteSession : TDeleteSessionEvent;
         FOnVirtualExceptionEvent : TVirtualExceptionEvent;      { V7.05 }
+        FOnDisplay       : THttpAppSrvDisplayEvent;
         procedure AllocateMsgHandlers; override;
         procedure FreeMsgHandlers; override;
         function  MsgHandlersCount: Integer; override;
@@ -372,6 +383,7 @@ type
         procedure   SaveSessionsToFile(const FileName : String);
         procedure   LoadSessionsFromFile(const FileName : String);
         procedure   ClearSessions;
+        procedure   Display(Sender: TObject; const AMsg: String);
         procedure   AddGetHandler(const Path : String;
                                   Proc       : Pointer;
                                   FLags      : THttpGetFlag = hgWillSendMySelf);
@@ -402,6 +414,8 @@ type
                                                           write FOnDeleteSession;
         property OnVirtualException : TVirtualExceptionEvent read  FOnVirtualExceptionEvent
                                                              write FOnVirtualExceptionEvent;      { V7.05 }
+        property OnDisplay : THttpAppSrvDisplayEvent      read  FOnDisplay
+                                                          write FOnDisplay;
     end;
 
 {$IFDEF USE_SSL}
@@ -484,6 +498,14 @@ begin
     FreeAndNil(FPostHandler);
     FreeAndNil(FWSessions);
     inherited;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpAppSrv.Display(Sender: TObject; const AMsg: String);
+begin
+    if Assigned(FOnDisplay) then
+        FOnDisplay(Sender, AMsg);
 end;
 
 
@@ -1178,6 +1200,7 @@ procedure THttpAppSrv.TriggerClientConnect(Client: TObject; ErrCode: WORD);
 begin
    (Client as THttpAppSrvConnection).WSessions := FWSessions;
    (Client as THttpAppSrvConnection).WSessionCookie := 'IcsWebCookie' + Port;
+   (Client as THttpAppSrvConnection).AppServer := Self;
    inherited TriggerClientConnect(Client, ErrCode);
 end;
 
@@ -1770,6 +1793,15 @@ begin
 
     inherited  Destroy;
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TUrlHandler.Display(const AMsg: String);
+begin
+    if Assigned(FClient) and Assigned(FClient.AppServer) then
+        FClient.AppServer.Display(Self, AMsg);
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TUrlHandler.ValidateSession: Boolean;

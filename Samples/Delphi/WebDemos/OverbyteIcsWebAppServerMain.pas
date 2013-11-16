@@ -4,11 +4,11 @@ Author:       François PIETTE
 Creation:     April 11, 2009
 Description:  WebAppServer is a demo application showing the HTTP application
               server component (THttpAppSrv).
-Version:      1.05
+Version:      1.06
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2009 by François PIETTE
+Legal issues: Copyright (C) 2009-2013 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -47,6 +47,7 @@ Aug 08, 2010 V1.04 F.Piette: OnBgException is now published. Use a different
                    method for listening and client sockets.
 Jun 09, 2013 V1.05 FPiette added code for DWScript support. Contionnaly
                    compiled using "use_DWScript" symbol.
+Nov 16, 2013 V1.06 Arno added handler for new event OnDisplay.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsWebAppServerMain;
@@ -119,6 +120,7 @@ type
     procedure HttpAppSrv1BeforeProcessRequest(Sender, Client: TObject);
     procedure HttpAppSrv1VirtualException(Sender: TObject; E: Exception; Method: THttpMethod; const Path: string);
     procedure HttpAppSrv1BgException(Sender: TObject; E: Exception; var CanClose : Boolean);
+    procedure HttpAppSrv1Display(Sender: TObject; const Msg: string);
   private
     FIniFileName : String;
     FInitialized : Boolean;
@@ -320,6 +322,13 @@ var
 begin
     MySessionData := Session.SessionData as TAppSrvSessionData;
     Display('Session for user "' + MySessionData.UserCode + '" timed out');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TWebAppSrvForm.HttpAppSrv1Display(Sender: TObject; const Msg: string);
+begin
+    Display(Msg);
 end;
 
 

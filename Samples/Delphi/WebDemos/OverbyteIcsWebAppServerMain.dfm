@@ -55,6 +55,7 @@ object WebAppSrvForm: TWebAppSrvForm
     LingerTimeout = 0
     Options = []
     KeepAliveTimeSec = 10
+    KeepAliveTimeXferSec = 300
     MaxRequestsKeepAlive = 100
     SizeCompressMin = 5000
     SizeCompressMax = 5000000
@@ -74,6 +75,7 @@ object WebAppSrvForm: TWebAppSrvForm
     MaxSessions = 100
     OnDeleteSession = HttpAppSrv1DeleteSession
     OnVirtualException = HttpAppSrv1VirtualException
+    OnDisplay = HttpAppSrv1Display
     Left = 52
     Top = 88
   end

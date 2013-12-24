@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.07
+Version:      8.08
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -943,6 +943,7 @@ Jun 03, 2013 V8.05 Eric Fleming Bonilha found a serious bug with closing the
                    notification messages after closesocket() has been called.
 Aug 18, 2013 V8.06 Arno added some default property specifiers.
 Oct 22. 2013 V8.07 Angus - Added SendTo6 and ReceiveFrom6 for IPv6 UDP
+Dec 24. 2013 V8.08 Francois - fixed range check error in various PostMessages
 }
 
 {
@@ -1086,8 +1087,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 807;
-  CopyRight    : String     = ' TWSocket (c) 1996-2013 Francois Piette V8.07 ';
+  WSocketVersion            = 808;
+  CopyRight    : String     = ' TWSocket (c) 1996-2013 Francois Piette V8.08 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -6812,7 +6813,7 @@ begin
         if bAllSent and (FType = SOCK_DGRAM) then
             PostMessage(Handle,
                         FMsg_WM_ASYNCSELECT,
-                        FHSocket,
+                        WParam(FHSocket),            { V8.08 }
                         IcsMakeLong(FD_WRITE, 0));
     end;
 end;
@@ -6835,7 +6836,7 @@ begin
         if bAllSent and (FType = SOCK_DGRAM) then
             PostMessage(Handle,
                         FMsg_WM_ASYNCSELECT,
-                        FHSocket,
+                        WParam(FHSocket),            { V8.08 }
                         IcsMakeLong(FD_WRITE, 0));
     end;
 end;
@@ -7003,7 +7004,7 @@ begin
         { the send function.                                               }
         PostMessage(Handle,
                     FMsg_WM_ASYNCSELECT,
-                    FHSocket,
+                    WParam(FHSocket),            { V8.08 }
                     IcsMakeLong(FD_WRITE, 0));
     end;
 end;
@@ -15742,11 +15743,11 @@ begin
     if not (Event in FPendingSslEvents) then begin
         case Event of
             sslFdRead  :  Result := PostMessage(Handle, FMsg_WM_SSL_ASYNCSELECT,
-                                          FHSocket, IcsMakeLong(FD_READ, ErrCode));
+                                        WParam(FHSocket), IcsMakeLong(FD_READ, ErrCode));  { V8.08 }
             sslFdWrite :  Result := PostMessage(Handle, FMsg_WM_SSL_ASYNCSELECT,
-                                         FHSocket, IcsMakeLong(FD_WRITE, ErrCode));
+                                        WParam(FHSocket), IcsMakeLong(FD_WRITE, ErrCode)); { V8.08 }
             sslFdClose :  Result := PostMessage(Handle, FMsg_WM_SSL_ASYNCSELECT,
-                                         FHSocket, IcsMakeLong(FD_CLOSE, ErrCode));
+                                        WParam(FHSocket), IcsMakeLong(FD_CLOSE, ErrCode)); { V8.08 }
         end;
         if Result then
             FPendingSslEvents := FPendingSslEvents + [Event];

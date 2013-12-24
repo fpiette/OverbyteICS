@@ -3,7 +3,7 @@
 Original Author: Ian Baker, ADV Systems 2003
 Updated by:   Angus Robertson, Magenta Systems Ltd
 Creation:     20 September 2013
-Version:      8.00
+Version:      8.01
 Description:  Implements a TWSocket-based SMTP server component.
               For further details please see
               RFC-821, RFC-1869, RFC-1870, RFC-1893, RFC-1985,
@@ -137,6 +137,7 @@ Sep 24, 2013 V8.00 Angus updated for ICS V8 with IPv6
     Optionally add X-Originating-IP header
     Optionally only allow authentication after TLS negotiated
     Optionally prevent relaying even with authentication
+Dec 18, 2013 V8.01 Angus  EHLO reports AUTH even without SSL
 
 
 
@@ -221,8 +222,8 @@ uses
     OverbyteIcsTypes;
 
 const
-    SmtpCliVersion     = 800;
-    CopyRight : String = ' SMTP Server (c) 1997-2013 Francois Piette V8.00 ';
+    SmtpCliVersion     = 801;
+    CopyRight : String = ' SMTP Server (c) 1997-2013 Francois Piette V8.01 ';
 
 const
   // ESMTP commands. Please note that not all are implemented - use AddCommand() to add a handler of your own
@@ -266,7 +267,7 @@ type
                                             smtpsAuthCramMD5, smtpsAuthCramSha1);
 
  // published server options
-    TSmtpsOption      = (smtpsAddRecvHeaders, // add Return-Path: and Recieved: before other SMTP headers
+    TSmtpsOption      = (smtpsAddRecvHeaders, // add Return-Path: and Received: before other SMTP headers
                          smtpsAddEnvHeaders,  // add X-Envelope-From: and X-Envelope-To: after other SMTP headers,
                          smtpsAddReplayHdrs,  // add X-Sender: and multiple X-Receiver: before other SMTP headers
                          smtpsAddIpAddrHdr,   // add X-Originating-IP after other SMTP headers
@@ -1727,8 +1728,8 @@ begin
         if FMaxMsgSize > 0 then
             CommandList := CommandList + Format (s250c, ['SIZE '+ IntToStr (FMaxMsgSize)]) + CRLF;
       // might not want to offer AUTH SSL negotiated
-        if FTlsDone OR (NOT (smtpsAuthNoTls in FSmtpServer.FOptions)) and
-                     (smtpsAllowTls in FSmtpServer.FOptions) then
+        if FTlsDone OR (NOT ((smtpsAuthNoTls in FSmtpServer.FOptions) and
+                                 (smtpsAllowTls in FSmtpServer.FOptions))) then    { V8.01 }
             CommandList := CommandList + Format (s250c, ['AUTH PLAIN LOGIN CRAM-MD5 CRAM-SHA1'])+ CRLF;
         if (smtpsExtendedResp in FSmtpServer.FOptions) then
             CommandList := CommandList + Format (s250c, ['ENHANCEDSTATUSCODES'])+ CRLF;

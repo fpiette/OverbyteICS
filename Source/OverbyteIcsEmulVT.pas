@@ -5,11 +5,11 @@ Description:  Delphi component which does Ansi terminal emulation
               Not every escape sequence is implemented, but a large subset.
 Author:       François PIETTE
 Creation:     May, 1996
-Version:      8.00
+Version:      8.01
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2011 by François PIETTE
+Legal issues: Copyright (C) 1996-2013 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -95,6 +95,7 @@ May 06, 2011 V7.03 Small change to prepare for 64-bit.
 Jul 17, 2011 V7.04 Arno fixed some bugs with non-Windows-1252 code pages.
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
+Dec 28, 2013 V8.01 Arno fixed a bug with file IO in TCustomEmulVT.SetLog
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsEmulVT;
@@ -137,8 +138,8 @@ uses
     OverbyteIcsUtils;
 
 const
-  EmulVTVersion      = 800;
-  CopyRight : String = ' TEmulVT (c) 1996-2012 F. Piette V8.00 ';
+  EmulVTVersion      = 801;
+  CopyRight : String = ' TEmulVT (c) 1996-2013 F. Piette V8.01 ';
   MAX_ROW            = 50;
   MAX_COL            = 160;
   NumPaletteEntries  = 16;
@@ -2939,21 +2940,20 @@ procedure TCustomEmulVT.SetLog(Value : Boolean);
 begin
     if FLog = Value then
         Exit;
-
-    FLog := Value;
-
-    if FLog then begin
-{$I-}
+    if Value then begin
         AssignFile(FFileHandle, FLogFileName);   // angus V6.01
+{$I-}
         Append(FFileHandle);
+{$I+}
         if IOResult <> 0 then
             Rewrite(FFileHandle);
         Write(FFileHandle, '<Open>');
-{$I+}
+        FLog := Value;
     end
     else begin
         Write(FFileHandle, '<Close>');
         CloseFile(FFileHandle);
+        FLog := Value;
     end;
 end;
 

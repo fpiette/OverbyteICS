@@ -2,13 +2,13 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V8.03
+Version:      V8.04
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2012 by François PIETTE
+Legal issues: Copyright (C) 1996-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -1066,6 +1066,8 @@ Jul 24, 2013 V8.03 - Angus added more error reporting for not ready and more
              Fixed bug in WaitUntilReady that meant some sync methods with multiple
                commands randomly terminated prematurely allowing further commands to
                be sent usually resulting in not ready errors.
+Feb 07, 2014 V8.04 - Arno, in DoneQuitAsync call FControlSocket.Close rather than
+             CloseDelayed.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -1155,9 +1157,9 @@ uses
     OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 803;
-  CopyRight : String = ' TFtpCli (c) 1996-2013 F. Piette V8.03 ';
-  FtpClientId : String = 'ICS FTP Client V8.03 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 804;
+  CopyRight : String = ' TFtpCli (c) 1996-2014 F. Piette V8.04 ';
+  FtpClientId : String = 'ICS FTP Client V8.04 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -3194,7 +3196,7 @@ begin
    { It's IMO debatable whether or not the client has to call Close at all }
    { since the server must close the connection after QUIT.                }
    StateChange(ftpInternalReady); { V7.27 }
-   FControlSocket.CloseDelayed;  { V7.24 }
+   FControlSocket.Close; { V8.04 reverted back to pre-IPv6 }
 end;
 
 

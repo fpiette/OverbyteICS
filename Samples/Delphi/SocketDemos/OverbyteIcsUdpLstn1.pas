@@ -10,7 +10,7 @@ Object:       Demo program to show how to use TWSocket object to listen
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
+Legal issues: Copyright (C) 1997-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -52,6 +52,7 @@ Jan 11, 2004 V2.04 Beautified code. Removed FormPos dependency.
 unit OverbyteIcsUdpLstn1;
 
 {$J+}
+{$I Include\OverbyteIcsDefs.inc}
 
 interface
 
@@ -62,7 +63,7 @@ uses
 
 const
   UdpLstnVersion     = 204;
-  CopyRight : String = ' UdpLstn (c) 1997-2010 F. Piette V2.04 ';
+  CopyRight : String = ' UdpLstn (c) 1997-2014 F. Piette V2.04 ';
 
 type
   TMainForm = class(TForm)
@@ -213,7 +214,7 @@ begin
                 DataAvailableLabel.Caption := IntToStr(atoi(DataAvailableLabel.caption) + 1) +
                                           '  ' + String(WSocket_inet_ntoa(PSockAddr(@Src).sin_addr)) +
                                           ':'  + IntToStr(WSocket_ntohs(PSockAddr(@Src).sin_port)) +
-                                          '--> ' + String(StrPas(Buffer));
+                                          '--> ' + String(Buffer);
             end;
         end;
     end
@@ -227,7 +228,7 @@ begin
                 DataAvailableLabel.Caption := IntToStr(atoi(DataAvailableLabel.caption) + 1) +
                                           '  ' + WSocketIPv6ToStr(PIcsIPv6Address(@Src.sin6_addr)^) +
                                           ':'  + IntToStr(WSocket_ntohs(PSockAddr(@Src).sin_port)) +
-                                          '--> ' + String(StrPas(Buffer));
+                                          '--> ' + String(Buffer);
             end;
         end;
     end;

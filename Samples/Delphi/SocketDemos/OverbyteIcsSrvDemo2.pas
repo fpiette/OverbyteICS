@@ -7,8 +7,8 @@ Version:      1.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2014 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -40,9 +40,9 @@ Mar 07, 1999 V1.03 Adapted for Delphi 1
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSrvDemo2;
 
-interface
+{$I Include\OverbyteIcsDefs.inc}
 
-{$I OverbyteIcsDefs.inc}
+interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
@@ -66,12 +66,10 @@ type
     procedure SendButtonClick(Sender: TObject);
     procedure DisconnectButtonClick(Sender: TObject);
   private
-    { Déclarations privées }
     Initialized : Boolean;
     Buffer : array [0..1023] of AnsiChar;
     procedure ProcessCommand(Cmd : String);
   public
-    { Déclarations publiques }
     DataTable : TTable;
   end;
 
@@ -84,9 +82,6 @@ implementation
 
 uses OverbyteIcsUtils ;
 
-{$IFDEF COMPILER12_UP}
-
-{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF VER80}
@@ -208,7 +203,7 @@ begin
             '"' + DataTable.FieldByName('LOCALITE').AsString + '"' +
             #13 + #10)
     else
-        CliSocket.SendStr('Pas trouvé' + #13 + #10);
+        CliSocket.SendStr('Not found' + #13 + #10);
 end;
 
 
@@ -229,10 +224,9 @@ begin
 
     { Nul terminate the string }
     Buffer[Len] := #0;
-    { Display command in label }
-    LineLabel.Caption := String(StrPas(Buffer));
-    { Process command }
-    ProcessCommand(String(StrPas(Buffer)));
+    { Display command in label and Process command }
+    LineLabel.Caption := String(Buffer);
+    ProcessCommand(String(Buffer));
 end;
 
 

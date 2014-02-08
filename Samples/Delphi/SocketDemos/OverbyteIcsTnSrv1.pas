@@ -9,8 +9,8 @@ Description:  TnSrv implement a (very basic) Telnet server (daemon)
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1996-2014 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -52,6 +52,7 @@ Sep 26, 2000 V1.26 Replaced TEdit by TMemo for data to be sent to allow
 unit OverbyteIcsTnSrv1;
 
 {$J+}
+{$I Include\OverbyteIcsDefs.inc}
 
 interface
 
@@ -235,7 +236,7 @@ begin
     Client.Form.AcceptForm := Self;
     Client.Form.Socket.Dup(NewHSocket);
     Client.Form.Socket.GetPeerName(PeerName, Sizeof(PeerName));
-    Client.Peer := String(StrPas(inet_ntoa(PeerName.Sin_addr)));
+    Client.Peer := String(inet_ntoa(PeerName.Sin_addr));
     Display('Remote ' + Client.Peer + ' connected' + #13 + #10);
     Client.Form.Caption := Client.Peer;
     Client.Form.Show;

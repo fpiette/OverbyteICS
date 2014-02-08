@@ -9,7 +9,7 @@ Version:      8.01
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2010 by François PIETTE
+Legal issues: Copyright (C) 1996-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be> 
 
@@ -119,13 +119,16 @@ uses
 {$ELSE}
     WinTypes, WinProcs,
 {$ENDIF}
+{$IFDEF COMPILER20_UP}
+    UITypes,
+{$ENDIF}
     SysUtils, Classes, Graphics, Controls, IniFiles, Forms,
     OverbyteIcsEmulVT,   OverbyteIcsTnCnx,
     OverbyteIcsTnOptFrm, OverbyteIcsWSocket;
 
 const
   TnEmultVTVersion   = 801;
-  CopyRight : String = ' TTnEmulVT (c) 1996-2013 F. Piette V8.01 ';
+  CopyRight : String = ' TTnEmulVT (c) 1996-2014 F. Piette V8.01 ';
 
 type
   TTnEmulVTDataAvailable = procedure (Sender  : TObject;

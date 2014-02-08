@@ -141,7 +141,7 @@ type
     procedure SslWSocket1SessionAvailable(Sender: TObject; Error: Word);
     procedure FormDestroy(Sender: TObject);
     procedure ListenButtonClick(Sender: TObject);
-    procedure CloseButtonClick(Sender: TObject); 
+    procedure CloseButtonClick(Sender: TObject);
   protected
     FIniFileName : String;
     FInitialized : Boolean;

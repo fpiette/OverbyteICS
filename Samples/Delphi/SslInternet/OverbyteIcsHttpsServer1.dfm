@@ -1,6 +1,6 @@
 object HttpsSrvForm: THttpsSrvForm
-  Left = 258
-  Top = 172
+  Left = 86
+  Top = 313
   Caption = 'HTTPS Server - http://www.overbyte.be'
   ClientHeight = 361
   ClientWidth = 487
@@ -24,7 +24,6 @@ object HttpsSrvForm: THttpsSrvForm
     Height = 157
     Align = alTop
     TabOrder = 0
-    ExplicitWidth = 479
     object Label3: TLabel
       Left = 27
       Top = 11
@@ -213,32 +212,13 @@ object HttpsSrvForm: THttpsSrvForm
     TabOrder = 1
   end
   object SslWSocket1: TSslWSocket
-    LineMode = False
-    LineLimit = 65536
     LineEnd = #13#10
-    LineEcho = False
-    LineEdit = False
     Proto = 'tcp'
     LocalAddr = '0.0.0.0'
+    LocalAddr6 = '::'
     LocalPort = '0'
-    MultiThreaded = False
-    MultiCast = False
-    MultiCastIpTTL = 1
-    FlushTimeout = 60
-    SendFlags = wsSendNormal
-    LingerOnOff = wsLingerOn
-    LingerTimeout = 0
-    KeepAliveOnOff = wsKeepAliveOff
-    KeepAliveTime = 0
-    KeepAliveInterval = 0
     SocksLevel = '5'
-    SocksAuthentication = socksNoAuthentication
-    LastError = 0
-    ReuseAddr = False
     ComponentOptions = []
-    ListenBacklog = 5
-    ReqVerLow = 2
-    ReqVerHigh = 2
     OnSessionAvailable = SslWSocket1SessionAvailable
     SslContext = SslContext1
     SslEnable = True
@@ -249,6 +229,7 @@ object HttpsSrvForm: THttpsSrvForm
   object SslContext1: TSslContext
     SslVerifyPeer = False
     SslVerifyDepth = 9
+    SslVerifyFlags = []
     SslOptions = []
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = []
@@ -256,7 +237,7 @@ object HttpsSrvForm: THttpsSrvForm
     SslVersionMethod = sslV23_SERVER
     SslSessionTimeout = 0
     SslSessionCacheSize = 20480
-    Left = 94
+    Left = 130
     Top = 180
   end
 end

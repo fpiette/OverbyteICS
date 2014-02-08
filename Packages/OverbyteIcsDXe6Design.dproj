@@ -1,8 +1,8 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{64B470D0-2204-4CF1-B8F5-E2BE8764BBA8}</ProjectGuid>
-        <MainSource>OverbyteIcsDXE5Design.dpk</MainSource>
-        <ProjectVersion>15.2</ProjectVersion>
+        <MainSource>OverbyteIcsDXe6Design.dpk</MainSource>
+        <ProjectVersion>15.4</ProjectVersion>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
         <Base>True</Base>
@@ -62,7 +62,7 @@
         <VerInfo_Keys>package=com.embarcadero.$(MSBuildProjectName);label=$(MSBuildProjectName);versionCode=1;versionName=1.0.0;persistent=False;restoreAnyVersion=False;installLocation=preferExternal;largeHeap=False;theme=TitleBar</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
-        <DCC_UsePackage>OverbyteIcsDXE5Run;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>OverbyteIcsDXE5Run;OverbyteIcsDXe6Run;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
         <DCC_Description>Overbyte ICS Design-Time Package for Delphi XE2</DCC_Description>
     </PropertyGroup>
@@ -82,7 +82,7 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
         <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE5</DCC_DcuOutput>
-        <DCC_Description>Overbyte ICS Design-Time Package for Delphi XE5</DCC_Description>
+        <DCC_Description>Overbyte ICS Design-Time Package for Delphi XE6 (Confidential)</DCC_Description>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
     </PropertyGroup>
     <ItemGroup>
@@ -91,7 +91,7 @@
         </DelphiCompile>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="designide.dcp"/>
-        <DCCReference Include="OverbyteIcsDXE5Run.dcp"/>
+        <DCCReference Include="OverbyteIcsDXE6Run.dcp"/>
         <DCCReference Include="..\Source\OverbyteIcsReg.pas"/>
         <DCCReference Include="..\Source\OverByteIcsWSocketE.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsDprUpdFix.pas"/>
@@ -114,7 +114,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">OverbyteIcsDXE5Design.dpk</Source>
+                    <Source Name="MainSource">OverbyteIcsDXe6Design.dpk</Source>
                 </Source>
                 <Parameters/>
                 <VersionInfo>
@@ -148,10 +148,8 @@
                     <VersionControl Name="VersionControlID"/>
                 </VersionControl>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\bcboffice2k180.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\bcbofficexp180.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k180.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp180.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k200.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp200.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Platforms>

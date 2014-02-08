@@ -8,8 +8,8 @@ Version:      1.00
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1998-2014 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -34,10 +34,13 @@ Legal issues: Copyright (C) 1998-2010 by François PIETTE
                  distribution.
 
 History:
+Feb 08, 2014 FPiette: Removed use of StrScan
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSocksTst1;
+
+{$I Include\OverbyteIcsDefs.inc}
 
 interface
 
@@ -306,7 +309,6 @@ procedure TSocksTestForm.WSocket1DataAvailable(Sender: TObject; Error: Word);
 var
     Len : Integer;
     I   : Integer;
-    p   : PAnsiChar;
 begin
     Len := TWSocket(Sender).Receive(@FRcvBuf[FRcvCnt], Sizeof(FRcvBuf) - FRcvCnt - 1);
     if Len < 0 then
@@ -315,16 +317,19 @@ begin
     FRcvBuf[FRcvCnt] := #0;
 
     while FRcvCnt > 0 do begin
-        p := StrScan(FRcvBuf, #10);
-        if p = nil then
+        // Search for ending LF
+        I := 1;
+        while (I < FRcvCnt) and (FRcvBuf[I] <> #10) do
+            Inc(I);
+        if I >= FRcvCnt then
             Exit;
-        I := p - FRcvBuf;
-
-        FRcvBuf[I] := #0;
+        FRcvBuf[I] := #0;   // Remove LF
+        // If CR present, remove it as well
         if (I > 0) and (FRcvBuf[I - 1] = #13) then
             FRcvBuf[I - 1] := #0;
 
-        DisplayMemo.Lines.Add('Received: ''' + String(StrPas(FRcvBuf)) + '''');
+        DisplayMemo.Lines.Add('Received: ''' + String(FRcvBuf) + '''');
+
         Move(FRcvBuf[I + 1], FRcvBuf[0], FRcvCnt - I);
         FRcvCnt := FRcvCnt - I - 1;
     end;

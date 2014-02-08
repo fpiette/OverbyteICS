@@ -6,7 +6,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
-    <DCC_DependencyCheckOutputName>..\..\libmisc\OverbyteIcsD2007Design.bpl</DCC_DependencyCheckOutputName>
+    <DCC_DependencyCheckOutputName>C:\Users\Public\Documents\RAD Studio\5.0\Bpl\OverbyteIcsD2007Design.bpl</DCC_DependencyCheckOutputName>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Version>7.0</Version>
@@ -50,6 +50,42 @@
       
       
       
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
       <Excluded_Packages Name="C:\Dokumente und Einstellungen\All Users\Dokumente\RAD Studio\5.0\Bpl\SoundMixerD7.bpl">Vista Mixer Test</Excluded_Packages>
       <Excluded_Packages Name="$(BDS)\bin\dcltee7100.bpl">TeeChart Components</Excluded_Packages>
       <Excluded_Packages Name="$(BDS)\bin\dclIntraweb_90_100.bpl">VCL for the Web 9.0 Design Package for CodeGear RAD Studio</Excluded_Packages>
@@ -68,9 +104,9 @@
     </DelphiCompile>
     <DCCReference Include="..\Source\OverbyteIcsReg.pas" />
     <DCCReference Include="..\Source\OverByteIcsWSocketE.pas" />
-    <DCCReference Include="C:\Users\angus\Desktop\designide.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\OverbyteIcsD2007Run.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\rtl.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\vcl.dcp" />
+    <DCCReference Include="D:\Program Files (x86)\Codegear\RAD Studio\5.0\bin\designide.dcp" />
+    <DCCReference Include="D:\Program Files (x86)\Codegear\RAD Studio\5.0\bin\OverbyteIcsD2007Run.dcp" />
+    <DCCReference Include="D:\Program Files (x86)\Codegear\RAD Studio\5.0\bin\rtl.dcp" />
+    <DCCReference Include="D:\Program Files (x86)\Codegear\RAD Studio\5.0\bin\vcl.dcp" />
   </ItemGroup>
 </Project>

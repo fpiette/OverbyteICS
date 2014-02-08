@@ -7,8 +7,8 @@ Version:      1.02
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1996-2014 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be> 
 
               This software is provided 'as-is', without any express or
@@ -43,16 +43,19 @@ Oct 31, 2004  V1.02 Added a "Send" button. Remove "ReadLine" button.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsCli7;
 
+{$I Include\OverbyteIcsDefs.inc}
+
 interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls, OverbyteIcsIniFiles, OverbyteIcsWSocket,
+  Dialogs, StdCtrls, ExtCtrls,
+  OverbyteIcsIniFiles, OverbyteIcsWSocket,
   OverbyteIcsWndControl;
 
 const
   Client7Version        = 102;
-  CopyRight : String    = ' Client7 (c) 1996-2010 F. Piette V1.02 ';
+  CopyRight : String    = ' Client7 (c) 1996-2014 F. Piette V1.02 ';
   EndOfLine = #13#10;
 
 type
@@ -249,13 +252,14 @@ begin
     if not WSocket1.LineMode then
         { Normal mode, data is just a buffer with all caracters }
         Display('DataAvailable (' + IntToStr(Len) +' bytes): ''' +
-                String(StrPas(Buf)) + '''')
+                String(Buf) +
+                '''')
     else begin
         { Line mode, buffer contains exactly one line, terminated by the }
         { LineEnd string, unless our buffer is too small in which case   }
         { the line is truncated. We'll get the end of line on the next   }
         { call to Receive.                                               }
-        Display('Line: ''' + RemoveEndOfLine(String(StrPas(Buf))) + '''');
+        Display('Line: ''' + RemoveEndOfLine(String(Buf)) + '''');
     end;
 end;
 

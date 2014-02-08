@@ -1,11 +1,11 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{BCD0545C-3A49-4959-BB73-0741D6E1D23B}</ProjectGuid>
-        <MainSource>OverbyteIcsDXE5Run.dpk</MainSource>
+        <ProjectGuid>{4FBE10B7-7597-47D6-8CEA-9E9600499EA2}</ProjectGuid>
+        <MainSource>IcsVclDXE6Run.dpk</MainSource>
         <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
         <DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
-        <DCC_DependencyCheckOutputName>C:\Documents and Settings\All Users\Documents\RAD Studio\6.0\Bpl\OverbyteIcsD2009Run.bpl</DCC_DependencyCheckOutputName>
-        <ProjectVersion>15.2</ProjectVersion>
+        <DCC_DependencyCheckOutputName/>
+        <ProjectVersion>15.4</ProjectVersion>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Base>True</Base>
         <AppType>Package</AppType>
@@ -16,6 +16,11 @@
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
         <Base>true</Base>
     </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Android' and '$(Base)'=='true') or '$(Base_Android)'!=''">
+        <Base_Android>true</Base_Android>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
     <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Base)'=='true') or '$(Base_Win32)'!=''">
         <Base_Win32>true</Base_Win32>
         <CfgParent>Base</CfgParent>
@@ -23,11 +28,6 @@
     </PropertyGroup>
     <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Base)'=='true') or '$(Base_Win64)'!=''">
         <Base_Win64>true</Base_Win64>
-        <CfgParent>Base</CfgParent>
-        <Base>true</Base>
-    </PropertyGroup>
-    <PropertyGroup Condition="('$(Platform)'=='Android' and '$(Base)'=='true') or '$(Base_Android)'!=''">
-        <Base_Android>true</Base_Android>
         <CfgParent>Base</CfgParent>
         <Base>true</Base>
     </PropertyGroup>
@@ -69,31 +69,32 @@
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE5</DCC_DcuOutput>
+        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE6</DCC_DcuOutput>
+        <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_Define>USE_SSL;$(DCC_Define)</DCC_Define>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
-        <DCC_Description>Overbyte ICS VCL Run-Time Package for Delphi XE5</DCC_Description>
+        <DCC_Description>Overbyte ICS VCL Run-Time Package for Delphi XE6</DCC_Description>
         <DCC_RangeChecking>true</DCC_RangeChecking>
         <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
         <DCC_ImageBase>00400000</DCC_ImageBase>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Base_Android)'!=''">
+        <VerInfo_IncludeVerInfo>false</VerInfo_IncludeVerInfo>
+        <BT_BuildType>Debug</BT_BuildType>
+        <VerInfo_Keys>package=com.embarcadero.$(MSBuildProjectName);label=$(MSBuildProjectName);versionCode=1;versionName=1.0.0;persistent=False;restoreAnyVersion=False;installLocation=preferExternal;largeHeap=False;theme=TitleBar</VerInfo_Keys>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
-        <DCC_Namespace>Winapi;System.Win;$(DCC_Namespace)</DCC_Namespace>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(Base_Android)'!=''">
-        <VerInfo_IncludeVerInfo>false</VerInfo_IncludeVerInfo>
-        <BT_BuildType>Debug</BT_BuildType>
-        <VerInfo_Keys>package=com.embarcadero.$(MSBuildProjectName);label=$(MSBuildProjectName);versionCode=1;versionName=1.0.0;persistent=False;restoreAnyVersion=False;installLocation=preferExternal;largeHeap=False;theme=TitleBar</VerInfo_Keys>
+        <DCC_Namespace>Winapi;$(DCC_Namespace)</DCC_Namespace>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Release)'!=''">
         <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
@@ -107,12 +108,13 @@
         <DCC_Define>RELEASE;USE_SSL</DCC_Define>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Release_Win32)'!=''">
-        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win32\XE5\OverbyteIcsTnOptFrm.dfm
+        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win32\XE6\OverbyteIcsTnOptFrm.dfm
 $(PostBuildEvent)]]></PostBuildEvent>
+        <DCC_Description>Overbyte ICS Run-Time Package for Delphi XE2</DCC_Description>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Release_Win64)'!=''">
-        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win64\XE5\OverbyteIcsTnOptFrm.dfm
+        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win64\XE6\OverbyteIcsTnOptFrm.dfm
 $(PostBuildEvent)]]></PostBuildEvent>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Debug)'!=''">
@@ -129,14 +131,14 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCC_IncludePath>..\Vc32</DCC_IncludePath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Debug_Win32)'!=''">
-        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE5</DCC_DcuOutput>
-        <DCC_Description>Overbyte ICS VCL Run-Time Package for Delphi XE5</DCC_Description>
-        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win32\XE5\OverbyteIcsTnOptFrm.dfm
+        <DCC_Description>Overbyte ICS VCL Run-Time Package for Delphi XE6</DCC_Description>
+        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win32\XE6\OverbyteIcsTnOptFrm.dfm
 $(PostBuildEvent)]]></PostBuildEvent>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Debug_Win64)'!=''">
-        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win64\XE5\OverbyteIcsTnOptFrm.dfm
+        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE6</DCC_DcuOutput>
+        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win64\XE6\OverbyteIcsTnOptFrm.dfm
 $(PostBuildEvent)]]></PostBuildEvent>
     </PropertyGroup>
     <ItemGroup>
@@ -159,27 +161,22 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsDnsQuery.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsTnScript.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsFingCli.dcr"/>
-        <DCCReference Include="..\Source\OverbyteIcsLogger.dcr"/>
-        <DCCReference Include="..\Source\OverbyteIcsMimeDec.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsMultipartFtpDownloader.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsMultipartHttpDownloader.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsMultiProgressBar.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSslSessionCache.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSslThrdLock.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsHttpAppServer.dcr"/>
-        <DCCReference Include="..\Source\OverbyteIcsTimeList.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsCharsetComboBox.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsWSocketTS.dcr"/>
-        <DCCReference Include="..\Source\OverbyteIcsMimeUtils.dcr"/>
-        <DCCReference Include="..\Source\OverbyteIcsCookies.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSnmpCli.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSysLogClient.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSysLogServer.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.dcr"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
-        <DCCReference Include="..\Source\OverbyteIcsTypes.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsWinsock.pas"/>
+        <DCCReference Include="IcsCommonDXE6Run.dcp"/>
         <DCCReference Include="..\Source\OverbyteIcsWndControl.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsWSockBuf.pas"/>
-        <DCCReference Include="..\Source\OverByteIcsFtpSrvT.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsWSocket.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsFtpCli.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsFtpSrv.pas"/>
@@ -198,57 +195,23 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsDnsQuery.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsTnScript.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsFingCli.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsLogger.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsMD4.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsMD5.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsMimeUtils.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsSha1.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsUrl.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsZlibHigh.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsZLibObj.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsDES.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsHttpContCod.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsIcmp.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsNtlmMsgs.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsStreams.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsLIBEAY.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsSSLEAY.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsAvlTrees.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSslSessionCache.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSslThrdLock.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsHttpSrv.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsSspi.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsNtlmSsp.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSocketUtils.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsMimeDec.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsMultipartFtpDownloader.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsMultipartHttpDownloader.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsOneTimePw.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsCRC.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsUtils.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsCharsetUtils.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsMultiProgressBar.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsDigestAuth.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsHttpAppServer.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsTimeList.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsWebSession.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsCharsetComboBox.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsThreadTimer.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsWSocketTS.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsCsc.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsIconv.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsMLang.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsWinnls.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsCookies.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsHttpCCodZLib.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsAsn1Utils.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsFormDataDecoder.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsSnmpCli.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsSnmpMsgs.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsSysLogClient.pas"/>
+        <DCCReference Include="..\SOURCE\OverbyteIcsSysLogClient.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSysLogDefs.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSysLogServer.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsTicks64.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsSnmpCli.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsSnmpMsgs.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsIcmp.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_Release</Key>
@@ -297,16 +260,15 @@ $(PostBuildEvent)]]></PostBuildEvent>
                     <VersionInfoKeys Name="Comments"/>
                 </VersionInfoKeys>
                 <Source>
-                    <Source Name="MainSource">OverbyteIcsDXE5Run.dpk</Source>
+                    <Source Name="MainSource">IcsVclDXE6Run.dpk</Source>
                 </Source>
                 <VersionControl>
                     <VersionControl Name="VersionControlID"/>
                 </VersionControl>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\bcboffice2k180.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\bcbofficexp180.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k180.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp180.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="C:\Users\Public\Documents\RAD Studio\14.0\Bpl\OverbyteIcsDXe6Design.bpl">Overbyte ICS Design-Time Package for Delphi XE6 (Confidential)</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k200.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp200.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Platforms>
@@ -325,7 +287,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win32\XE5\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
+        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win32\XE6\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">
@@ -333,7 +295,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win64\XE5\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
+        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win64\XE6\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
@@ -341,7 +303,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win32\XE5\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
+        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win32\XE6\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
@@ -349,7 +311,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win64\XE5\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
+        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win64\XE6\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
 </Project>

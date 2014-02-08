@@ -8,8 +8,8 @@ Version:      1.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1998-2014 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -42,6 +42,8 @@ Mar 07, 1999  V1.03 Adapted for Delphi 1
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSender1;
+
+{$I Include\OverbyteIcsDefs.inc}
 
 interface
 
@@ -546,7 +548,7 @@ begin
         Len := Cli.Receive(Buf, Cnt);
         if Len > 0 then begin
             Buf[Cnt] := #0;
-            Display('Received: ' + String(StrPas(Buf)));
+            Display('Received: ' + String(Buf));
         end;
     finally
         FreeMem(Buf, Cnt + 1);

@@ -7,8 +7,8 @@ Version:      1.03
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2014 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -44,6 +44,8 @@ Apr 21, 2003  No version change. Just added some comments about line mode.
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsTWSChat1;
 
+{$I Include\OverbyteIcsDefs.inc}
+
 interface
 
 uses
@@ -53,7 +55,7 @@ uses
 
 const
   TWSChatVersion     = 103;
-  CopyRight : String = ' TWSChat (c) 1997-2010 Francois Piette  V1.03 ';
+  CopyRight : String = ' TWSChat (c) 1997-2014 Francois Piette  V1.03 ';
   ChatPort           = '2200';             { Any port would do the job... }
 
 type
@@ -261,7 +263,7 @@ begin
         { Replace the line feed by a nul char, truncating the line }
         RcvBuf[I] := #0;
         { Display the truncated line }
-        DisplayMemo.Lines.Add('Remote> ' + String(StrPas(RcvBuf)));
+        DisplayMemo.Lines.Add('Remote> ' + String(RcvBuf));
         { Restore the line feed }
         RcvBuf[I] := #10;
         { Was it the last line in the buffer ? }

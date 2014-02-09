@@ -48,7 +48,7 @@
         <DesignOnlyPackage>true</DesignOnlyPackage>
         <GenDll>true</GenDll>
         <VerInfo_Locale>1031</VerInfo_Locale>
-        <DCC_UsePackage>rtl;IcsCommonDXE2Run;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;IcsCommonDXE6Run;$(DCC_UsePackage)</DCC_UsePackage>
         <GenPackage>true</GenPackage>
         <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE6</DCC_DcuOutput>
         <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>

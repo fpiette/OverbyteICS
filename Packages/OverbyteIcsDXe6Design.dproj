@@ -45,11 +45,11 @@
         <DCC_UsePackage>rtl;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE5</DCC_DcuOutput>
+        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE6</DCC_DcuOutput>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_Define>VCL;USE_SSL;$(DCC_Define)</DCC_Define>
-        <DCC_Description>Overbyte ICS VCL Design-Time Package for Delphi XE5</DCC_Description>
+        <DCC_Description>Overbyte ICS VCL Design-Time Package for Delphi XE6</DCC_Description>
         <DesignOnlyPackage>true</DesignOnlyPackage>
         <GenPackage>true</GenPackage>
         <GenDll>true</GenDll>
@@ -62,9 +62,9 @@
         <VerInfo_Keys>package=com.embarcadero.$(MSBuildProjectName);label=$(MSBuildProjectName);versionCode=1;versionName=1.0.0;persistent=False;restoreAnyVersion=False;installLocation=preferExternal;largeHeap=False;theme=TitleBar</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
-        <DCC_UsePackage>OverbyteIcsDXE5Run;OverbyteIcsDXe6Run;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>OverbyteIcsDXE6Run;OverbyteIcsDXe6Run;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_Description>Overbyte ICS Design-Time Package for Delphi XE2</DCC_Description>
+        <DCC_Description>Overbyte ICS Design-Time Package for Delphi XE6</DCC_Description>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
@@ -81,7 +81,7 @@
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
-        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE5</DCC_DcuOutput>
+        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE6</DCC_DcuOutput>
         <DCC_Description>Overbyte ICS Design-Time Package for Delphi XE6 (Confidential)</DCC_Description>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
     </PropertyGroup>

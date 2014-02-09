@@ -69,7 +69,7 @@
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE5</DCC_DcuOutput>
+        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE6</DCC_DcuOutput>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
@@ -107,12 +107,12 @@
         <DCC_Define>RELEASE;USE_SSL</DCC_Define>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Release_Win32)'!=''">
-        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win32\XE5\OverbyteIcsTnOptFrm.dfm
+        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win32\XE6\OverbyteIcsTnOptFrm.dfm
 $(PostBuildEvent)]]></PostBuildEvent>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Release_Win64)'!=''">
-        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win64\XE5\OverbyteIcsTnOptFrm.dfm
+        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win64\XE6\OverbyteIcsTnOptFrm.dfm
 $(PostBuildEvent)]]></PostBuildEvent>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Debug)'!=''">
@@ -129,13 +129,13 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCC_IncludePath>..\Vc32</DCC_IncludePath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Debug_Win32)'!=''">
-        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE5</DCC_DcuOutput>
-        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win32\XE5\OverbyteIcsTnOptFrm.dfm
+        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE6</DCC_DcuOutput>
+        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win32\XE6\OverbyteIcsTnOptFrm.dfm
 $(PostBuildEvent)]]></PostBuildEvent>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Debug_Win64)'!=''">
-        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win64\XE5\OverbyteIcsTnOptFrm.dfm
+        <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win64\XE6\OverbyteIcsTnOptFrm.dfm
 $(PostBuildEvent)]]></PostBuildEvent>
     </PropertyGroup>
     <ItemGroup>
@@ -322,7 +322,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win32\XE5\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
+        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win32\XE6\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">
@@ -330,7 +330,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win64\XE5\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
+        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win64\XE6\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
@@ -338,7 +338,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win32\XE5\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
+        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win32\XE6\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
@@ -346,7 +346,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win64\XE5\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
+        <PostBuildEvent>copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win64\XE6\OverbyteIcsTnOptFrm.dfm</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
 </Project>

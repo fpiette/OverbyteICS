@@ -49,7 +49,7 @@
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_Description>Overbyte ICS FMX Design-Time Package for Delphi XE6</DCC_Description>
         <DCC_Define>USE_SSL;$(DCC_Define)</DCC_Define>
-        <DCC_UsePackage>rtl;IcsFmxRun;IcsCommonDXE2Run;IcsFmxDXE2Run;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;IcsFmxRun;IcsCommonDXE6Run;IcsFmxDXE6Run;$(DCC_UsePackage)</DCC_UsePackage>
         <DesignOnlyPackage>true</DesignOnlyPackage>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1031</VerInfo_Locale>

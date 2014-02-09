@@ -110,7 +110,7 @@
     <PropertyGroup Condition="'$(Cfg_Release_Win32)'!=''">
         <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Release\Win32\XE6\OverbyteIcsTnOptFrm.dfm
 $(PostBuildEvent)]]></PostBuildEvent>
-        <DCC_Description>Overbyte ICS Run-Time Package for Delphi XE2</DCC_Description>
+        <DCC_Description>Overbyte ICS Run-Time Package for Delphi XE6</DCC_Description>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Release_Win64)'!=''">

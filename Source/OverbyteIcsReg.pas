@@ -96,7 +96,7 @@ uses
     OverbyteIcsSysLogClient,
     OverbyteIcsSysLogServer,
     OverbyteIcsSnmpCli,
-    //OverbyteIcsSmtpSrv,
+    OverbyteIcsSmtpSrv,
     // VCL only
     OverbyteIcsMultiProgressBar,
     OverbyteIcsEmulVT, OverbyteIcsTnCnx, OverbyteIcsTnEmulVT, OverbyteIcsTnScript,
@@ -176,8 +176,8 @@ begin
       TMultiProgressBar,
       TSysLogClient,
       TSysLogServer,
-      TSnmpCli{,
-      TSmtpServer}
+      TSnmpCli,
+      TSmtpServer
     ]);
 {$ENDIF VCL}
 {$IFDEF ICS_COMMON}
@@ -213,7 +213,7 @@ begin
       {$IFNDEF BCB}
         TSslWSocketThrdServer,
       {$ENDIF}
-      //TSslSmtpServer,
+        TSslSmtpServer,
     {$ENDIF VCL}
     {$IFNDEF NO_DYNLOCK}
       TSslDynamicLock,

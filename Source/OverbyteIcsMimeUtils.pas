@@ -4,11 +4,11 @@
 Author:       François PIETTE
 Object:       Mime support routines (RFC2045).
 Creation:     May 03, 2003  (Extracted from SmtpProt unit)
-Version:      8.01
+Version:      8.02
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2011 by François PIETTE
+Legal issues: Copyright (C) 2003-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -116,6 +116,7 @@ Feb 15, 2012 V7.25  Angus - added MIME Content Type component and functions:
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 Oct 17, 2012 V8.01 Max Terentiev fixed a serious bug in StrEncodeQPEx()
+Feb 10, 2014 V8.02 Angus added builtin MIME types for js and json
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -172,8 +173,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-    TMimeUtilsVersion = 801;
-    CopyRight : String = ' MimeUtils (c) 2003-2012 F. Piette V8.01 ';
+    TMimeUtilsVersion = 802;
+    CopyRight : String = ' MimeUtils (c) 2003-2014 F. Piette V8.02 ';
 
     SmtpDefaultLineLength = 76; // without CRLF
     SMTP_SND_BUF_SIZE     = 2048;
@@ -2540,6 +2541,8 @@ begin
     FDefaultTypes.Add ('.msi=application/x-msdownload');  // or 'application/binary'
     FDefaultTypes.Add ('.bin=application/octet-stream');  // or 'application/binary'
     FDefaultTypes.Add ('.iso=application/octet-stream');  // or 'application/binary'
+    FDefaultTypes.Add ('.js=application/javascript');     // V8.02
+    FDefaultTypes.Add ('.json=application/json');         // V8.02
 end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2580,33 +2583,6 @@ begin
     FLoaded := true;
     AddContentTypes (FDefaultTypes);
     result := true;
-
-{    AddContentType ('.htm', 'text/html');
-    AddContentType ('.html', 'text/html');
-    AddContentType ('.gif', 'image/gif');
-    AddContentType ('.bmp', 'image/bmp');
-    AddContentType ('.jpg', 'image/jpeg');
-    AddContentType ('.jpeg', 'image/jpeg');
-    AddContentType ('.tif', 'image/tiff');
-    AddContentType ('.tiff', 'image/tiff');
-    AddContentType ('.txt', 'text/plain');
-    AddContentType ('.css', 'text/css');
-    AddContentType ('.wav', 'audio/x-wav');
-    AddContentType ('.ico', 'image/x-icon');
-    AddContentType ('.wml', 'text/vnd.wap.wml');
-    AddContentType ('.wbmp', 'image/vnd.wap.wbmp');
-    AddContentType ('.wmlc', 'application/vnd.wap.wmlc');
-    AddContentType ('.wmlscript', 'text/vnd.wap.wmlscript');
-    AddContentType ('.wmlscriptc', 'application/vnd.wap.wmlscriptc');
-    AddContentType ('.pdf', 'application/pdf');
-    AddContentType ('.png', 'image/png');
-    AddContentType ('.xml', 'application/xml');   // 'application/xml' (Apache) or 'text/xml' (Windows)
-    AddContentType ('.xhtml', 'application/xhtml+xml');
-    AddContentType ('.zip', 'application/zip');           // or 'application/binary'
-    AddContentType ('.exe', 'application/x-msdownload');  // or 'application/binary'
-    AddContentType ('.msi', 'application/x-msdownload');  // or 'application/binary'
-    AddContentType ('.bin', 'application/octet-stream');  // or 'application/binary'
-    AddContentType ('.iso', 'application/octet-stream');  // or 'application/binary'  }
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

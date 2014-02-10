@@ -33,6 +33,7 @@ package OverbyteIcsD2007Run;
 {$R '..\Source\OverbyteIcsSysLogClient.dcr'}
 {$R '..\Source\OverbyteIcsSysLogServer.dcr'}
 {$R '..\Source\OverbyteIcsSnmpCli.dcr'}
+{$R '..\source\OverbyteIcsSmtpSrv.dcr'}
 {$ALIGN 8}
 { ASSERTIONS ON}
 {$BOOLEVAL OFF}
@@ -137,6 +138,7 @@ contains
   OverbyteIcsSysLogServer in '..\Source\OverbyteIcsSysLogServer.pas',
   OverbyteIcsSnmpCli in '..\Source\OverbyteIcsSnmpCli.pas',
   OverbyteIcsAsn1Utils in '..\Source\OverbyteIcsAsn1Utils.pas',
-  OverbyteIcsSnmpMsgs in '..\Source\OverbyteIcsSnmpMsgs.pas';
+  OverbyteIcsSnmpMsgs in '..\Source\OverbyteIcsSnmpMsgs.pas',
+  OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas';
 
 end.

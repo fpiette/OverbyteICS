@@ -172,6 +172,9 @@ copy Source\OverbyteIcsTnOptFrm.dfm Lib\Release\Win32\D2007\OverbyteIcsTnOptFrm.
     <DCCReference Include="..\Source\OverbyteIcsSmtpProt.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsSmtpProt.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsSmtpProt.pas" />
+    <DCCReference Include="..\source\OverbyteIcsSmtpSrv.dcr" />
+    <DCCReference Include="..\source\OverbyteIcsSmtpSrv.dcr" />
+    <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.pas" />
     <DCCReference Include="..\Source\OverbyteIcsSnmpCli.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsSnmpCli.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsSnmpCli.pas" />
@@ -230,7 +233,7 @@ copy Source\OverbyteIcsTnOptFrm.dfm Lib\Release\Win32\D2007\OverbyteIcsTnOptFrm.
     <DCCReference Include="..\Source\OverbyteIcsZLibDll.pas" />
     <DCCReference Include="..\Source\OverbyteIcsZlibHigh.pas" />
     <DCCReference Include="..\Source\OverbyteIcsZLibObj.pas" />
-    <DCCReference Include="C:\Users\angus\Desktop\rtl.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\vcl.dcp" />
+    <DCCReference Include="D:\Program Files (x86)\Codegear\RAD Studio\5.0\bin\rtl.dcp" />
+    <DCCReference Include="D:\Program Files (x86)\Codegear\RAD Studio\5.0\bin\vcl.dcp" />
   </ItemGroup>
 </Project>

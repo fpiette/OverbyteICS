@@ -5,7 +5,7 @@ package IcsCommonDXE6Design;
 {$ALIGN 8}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
-{$DEBUGINFO ON}
+{$DEBUGINFO OFF}
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
@@ -25,7 +25,7 @@ package IcsCommonDXE6Design;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS Common Design-Time Package for Delphi XE6 (Confidential)'}
+{$DESCRIPTION 'Overbyte ICS Common Design-Time Package for Delphi XE6'}
 {$DESIGNONLY}
 {$IMPLICITBUILD OFF}
 

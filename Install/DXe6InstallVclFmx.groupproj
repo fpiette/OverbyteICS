@@ -1,6 +1,6 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{A7E509F9-B1B6-4903-8B20-D0CFB4D0A5A8}</ProjectGuid>
+        <ProjectGuid>{30D8AA58-0A26-4C23-AD0A-2243BA3306F8}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
         <Projects Include="..\Packages\IcsCommonDXE6Run.dproj">

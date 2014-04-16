@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.00
+Version:      8.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2011 by François PIETTE
+Legal issues: Copyright (C) 2003-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -90,6 +90,7 @@ May 17, 2011 Arno made one hack thread-safe and got rid of another hack with
 May 31, 2011 Arno changed the 64-bit hack in Ics_Ssl_EVP_PKEY_GetKey.
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
+Feb 13, 2014 V8.01 - Angus added more NID_xx literals
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -129,8 +130,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 800;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2012 F. Piette V8.00 ';
+    IcsLIBEAYVersion   = 801;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2014 F. Piette V8.01 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -274,7 +275,14 @@ const
     NID_issuer_alt_name             = 86;
     NID_basic_constraints           = 87;
     NID_certificate_policies        = 89;
+    NID_givenName                   = 99;  // Angus
+    NID_surname                     = 100; // Angus
+    NID_initials                    = 101; // Angus
+    NID_x500UniqueIdentifier        = 102; // Angus
     NID_crl_distribution_points     = 103; //AG
+    NID_serialNumber                = 105; // Angus
+    NID_title                       = 106; // Angus
+    NID_description                 = 107; // Angus
     NID_dsa                         = 116;
     NID_ext_key_usage               = 126;
     NID_X9_62_id_ecPublicKey        = 408;

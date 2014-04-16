@@ -3,12 +3,12 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Aug 26, 2007
 Description:
-Version:      1.05
+Version:      1.07
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2007-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2007-2014 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -45,11 +45,15 @@ Jan 29, 2009 V1.03 A.Garrels added overloads which take UnicodeStrings to
              CreateCertRequest() and CreateSelfSignedCert() in D2009 and better.
              Both functions now create UTF-8 certificate fields if they contain
              characters beyond the ASCII range.
-Apr 24, 2011 V1.04 Record TEVP_PKEY_st changed in OpenSSL 1.0.0 and had to be 
+Apr 24, 2011 V1.04 Record TEVP_PKEY_st changed in OpenSSL 1.0.0 and had to be
              declared as dummy. Use new functions from OverbyteIcsLibeay to
              make this unit compatible with OpenSSL 1.0.0+.
 Apr 24, 2011 V1.05 Include OverbyteIcsTypes.pas to make inlining work.
-
+Nov 12, 2013 V1.06 Angus allow private key and certificate to be saved to separate files
+Feb 14, 2014 V1.07 Angus added class TX509Ex derived from TX509Base adding
+             properties for most common certificate entries including extensions
+             Optionally add clear text comments to PEM files to easily identify
+             certifcates.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslX509Utils;
@@ -57,25 +61,80 @@ unit OverbyteIcsSslX509Utils;
 interface
 
 uses
-    Windows, SysUtils, Classes, OverbyteIcsSSLEAY, OverbyteIcsLibeay,
+    Windows,
+    SysUtils, Classes,
+    OverbyteIcsSSLEAY, OverbyteIcsLibeay,
     OverbyteIcsLibeayEx, OverByteIcsMD5,
-    OverbyteIcsTypes,
+    OverbyteIcsTypes, OverbyteIcsWSocket,
     OverbyteIcsMimeUtils, OverbyteIcsUtils;
+
+type
+  TX509Ex = class(TX509Base)
+  private
+    function GetSubjectOName : String;
+    function GetSubjectOUName : String;
+    function GetSubjectCOName: String;
+    function GetSubjectSTName: String;
+    function GetSubjectLName: String;
+    function GetSubjectEmailName: String;
+    function GetSubjectSerialName: String;
+    function GetSubAltNameDNS: String;
+    function GetSubAltNameIP: String;
+    function GetKeyUsage: String;
+    function GetExKeyUsage: String;
+    function GetBasicConstraints: String;
+    function GetAuthorityInfoAccess: String;
+    function GetIssuerOName: String;
+    function GetIssuerOUName: String;
+    function GetIssuerCName: String;
+    function GetIssuerCOName: String;
+    function GetIssuerSTName: String;
+    function GetIssuerLName: String;
+    function GetIssuerEmailName: String;
+  public
+    function GetNameEntryByNid(IsSubject: Boolean; ANid: Integer): String;
+    function GetExtensionByName(const S: String): TExtension;
+    function GetExtensionValuesByName(const ShortName, FieldName: String): String;
+    function UnwrapNames(const S: String): String;
+    property SubjectOName : String read GetSubjectOName;
+    property SubjectOUName : String read GetSubjectOUName;
+    property SubjectCOName : String read GetSubjectCOName;
+    property SubjectSTName : String read GetSubjectSTName;
+    property SubjectLName : String read GetSubjectLName;
+    property SubjectEmailName : String read GetSubjectEmailName;
+    property SubjectSerialName : String read GetSubjectSerialName;
+    property SubAltNameDNS : String read GetSubAltNameDNS;
+    property SubAltNameIP : String read GetSubAltNameIP;
+    property KeyUsage : String read GetKeyUsage;
+    property ExKeyUsage : String read GetExKeyUsage;
+    property BasicConstraints : String read GetBasicConstraints;
+    property AuthorityInfoAccess : String read GetAuthorityInfoAccess;
+    property IssuerOName : String read GetIssuerOName;
+    property IssuerOUName : String read GetIssuerOUName;
+    property IssuerCName : String read GetIssuerCName;
+    property IssuerCOName : String read GetIssuerCOName;
+    property IssuerSTName : String read GetIssuerSTName;
+    property IssuerLName : String read GetIssuerLName;
+    property IssuerEmailName : String read GetIssuerEmailName;
+  end;
+
 
 procedure CreateCertRequest(const RequestFileName, KeyFileName, Country,
   State, Locality, Organization, OUnit, CName, Email: AnsiString;
-  Bits: Integer);  overload;
+  Bits: Integer; Comment: boolean = false);  overload;
 procedure CreateSelfSignedCert(const FileName, Country, State,
   Locality, Organization, OUnit, CName, Email: AnsiString; Bits: Integer;
-  IsCA: Boolean; Days: Integer); overload;
+  IsCA: Boolean; Days: Integer;
+  const KeyFileName: AnsiString = ''; Comment: boolean = false);  overload;
 
 {$IFDEF UNICODE}
 procedure CreateCertRequest(const RequestFileName, KeyFileName, Country,
   State, Locality, Organization, OUnit, CName, Email: String;
-  Bits: Integer);  overload;
+  Bits: Integer; Comment: boolean = false); overload;
 procedure CreateSelfSignedCert(const FileName, Country, State,
   Locality, Organization, OUnit, CName, Email: String; Bits: Integer;
-  IsCA: Boolean; Days: Integer); overload;
+  IsCA: Boolean; Days: Integer;
+  const KeyFileName: String = ''; Comment: boolean = false);  overload;
 {$ENDIF UNICODE}
 
 { RSA crypto functions }
@@ -164,6 +223,233 @@ procedure StreamDecrypt(SrcStream: TStream; DestStream: TStream;
 implementation
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Returns a CRLF-separated list if multiple entries exist }
+function TX509Ex.GetNameEntryByNid(IsSubject: Boolean; ANid: Integer): String;
+var
+    Name    : PX509_NAME;
+    Entry   : PX509_NAME_ENTRY;
+    Asn1    : PASN1_STRING;
+    LastPos : Integer;
+begin
+    Result := '';
+{$IFNDEF WIN64}
+    Entry  := nil; { Make dcc32 happy }
+{$ENDIF}
+    if not Assigned(X509) then
+        Exit;
+    if IsSubject then
+        Name := f_X509_get_subject_name(X509)
+    else
+        Name := f_X509_get_issuer_name(X509);
+    if Name <> nil then begin
+        LastPos := -1;
+        repeat
+            LastPos := f_X509_NAME_get_index_by_NID(Name, ANid, LastPos);
+            if LastPos > -1 then
+                Entry := f_X509_NAME_get_entry(Name, LastPos)
+            else
+                Break;
+            if Assigned(Entry) then begin
+                Asn1 := f_X509_NAME_ENTRY_get_data(Entry);
+                if Assigned(Asn1) then
+                    Result := Result + Asn1ToString(Asn1) + #13#10;
+            end;
+        until
+            LastPos = -1;
+
+        while (Length(Result) > 0) and
+                      (Word(Result[Length(Result)]) in [Ord(#13), Ord(#10)]) do
+            SetLength(Result, Length(Result) - 1);
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetExtensionByName(const S: String): TExtension;
+var
+    I : Integer;
+begin
+    Result.Critical  := FALSE;
+    Result.ShortName := '';
+    Result.Value     := '';
+    I := ExtByName(S);
+    if I > -1 then
+        Result := GetExtension(I);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetExtensionValuesByName(const ShortName, FieldName: String): String;
+var
+    I      : Integer;
+    Ext    : TExtension;
+    Li     : TStringList;
+begin
+    Result := '';
+    if not Assigned(X509) then
+        Exit;
+    Li := TStringList.Create;
+    try
+        Ext := GetExtensionByName(ShortName);
+        if Length(Ext.ShortName) > 0 then begin
+            Li.Text := Ext.Value;
+            for I := 0 to Li.Count -1 do begin
+                if (FieldName = '') then begin
+                    if Result <> '' then Result := Result + #13#10;
+                    Result := Result + Li[I];
+                end
+                else if (Pos(FieldName, IcsUpperCase(Li.Names[I])) = 1) then begin
+                    if Result <> '' then Result := Result + #13#10;
+                    Result := Result + Copy (Li[I], Length(Li.Names[I])+2,999);
+                end;
+            end;
+        end;
+    finally
+        Li.Free;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.UnwrapNames(const S: String): String;
+begin
+    Result := StringReplace(S, #13#10, ', ', [rfReplaceAll]);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetSubjectOName: String;
+begin
+    Result := GetNameEntryByNid(TRUE, NID_organizationName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetSubjectOUName: String;
+begin
+    Result := GetNameEntryByNid(TRUE, NID_organizationalUnitName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetSubjectCOName: String;
+begin
+    Result := GetNameEntryByNid(TRUE, NID_countryName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetSubjectSTName: String;
+begin
+    Result := GetNameEntryByNid(TRUE, NID_stateOrProvinceName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetSubjectLName: String;
+begin
+    Result := GetNameEntryByNid(TRUE, NID_localityName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetSubjectEmailName: String;
+begin
+    Result := GetNameEntryByNid(TRUE, NID_pkcs9_emailAddress);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetSubjectSerialName: String;
+begin
+    Result := GetNameEntryByNid(TRUE, NID_serialNumber);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetIssuerOName: String;
+begin
+    Result := GetNameEntryByNid(FALSE, NID_organizationName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetIssuerOUName: String;
+begin
+    Result := GetNameEntryByNid(FALSE, NID_organizationalUnitName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetIssuerCName: String;
+begin
+    Result := GetNameEntryByNid(FALSE, NID_commonName);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetSubAltNameDNS: String;
+begin
+    Result := GetExtensionValuesByName('subjectAltName', 'DNS');
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetSubAltNameIP: String;
+begin
+    Result := GetExtensionValuesByName('subjectAltName', 'IP');
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetKeyUsage: String;
+begin
+    Result := GetExtensionValuesByName('keyUsage', '');
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetExKeyUsage: String;
+begin
+    Result := GetExtensionValuesByName('extendedKeyUsage', '');
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetBasicConstraints: String;
+begin
+    Result := GetExtensionValuesByName('basicConstraints', '');
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetAuthorityInfoAccess: String;
+begin
+    Result := GetExtensionValuesByName('authorityInfoAccess', '');
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetIssuerCOName: String;
+begin
+    Result := GetNameEntryByNid(TRUE, NID_countryName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetIssuerSTName: String;
+begin
+    Result := GetNameEntryByNid(TRUE, NID_stateOrProvinceName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetIssuerLName: String;
+begin
+    Result := GetNameEntryByNid(TRUE, NID_localityName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetIssuerEmailName: String;
+begin
+    Result := GetNameEntryByNid(TRUE, NID_pkcs9_emailAddress);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function LastOpenSslErrMsg(Dump: Boolean): AnsiString;
 var
     ErrMsg  : AnsiString;
@@ -223,7 +509,7 @@ begin
         Result := f_X509_NAME_add_entry_by_txt(Name, PAnsiChar(Field), SType,
                                                PAnsiChar(AStr), -1, -1, 0)
     else
-        Result := 0;                                 
+        Result := 0;
 end;
 
 
@@ -231,7 +517,8 @@ end;
 {$IFDEF UNICODE}
 procedure CreateSelfSignedCert(const FileName, Country, State,
   Locality, Organization, OUnit, CName, Email: String; Bits: Integer;
-  IsCA: Boolean; Days: Integer);
+  IsCA: Boolean; Days: Integer;
+  const KeyFileName: String = ''; Comment: boolean = false);
 var
     X         : PX509;
     PK        : PEVP_PKEY;
@@ -239,6 +526,8 @@ var
     Name      : PX509_NAME;
     FileBio   : PBIO;
     Ex        : PX509_EXTENSION;
+    Title     : AnsiString;
+    Info      : AnsiString;
 begin
     FileBio := nil;
     X       := nil;
@@ -342,10 +631,29 @@ begin
         if f_X509_sign(X, PK, f_EVP_sha1) <= 0 then
             raise Exception.Create('Failed to sign certificate');
 
-        { We write private key as well as certificate to the same file }
-        FileBio := f_BIO_new_file(PAnsiChar(AnsiString(FileName)), PAnsiChar('w+'));
-        if not Assigned(FileBio) then
-            raise Exception.Create('Failed to open output file');
+        { Angus - see if writing certificate and private key to separate files }
+        if KeyFileName <> '' then begin
+            { We write private key only }
+            FileBio := f_BIO_new_file(PAnsiChar(AnsiString(KeyFileName)), PAnsiChar('w+'));
+            if not Assigned(FileBio) then
+                raise Exception.Create('Failed to open output file - ' + KeyFileName);
+        end
+        else begin
+            { We write private key as well as certificate to the same file }
+            FileBio := f_BIO_new_file(PAnsiChar(AnsiString(FileName)), PAnsiChar('w+'));
+            if not Assigned(FileBio) then
+                raise Exception.Create('Failed to open output file - ' + FileName);
+        end;
+
+        { Angus see if writing comment }
+        if Comment then begin
+            Info := '# Subject Common Name: ' + AnsiString(CName) + #13#10 +
+                    '# Subject Organisation: ' + AnsiString(Organization) + #13#10 +
+                    '# Self Signed' + #13#10 +
+                    '# Expires: ' + AnsiString(DateToStr (Date + Days)) + #13#10;
+            Title := '# X509 SSL Private Key' + #13#10 + Info;
+            f_BIO_write(FileBio, @Title [1], Length (Title));
+        end;
 
         { Write private key }
         { Callback, old format }
@@ -353,6 +661,21 @@ begin
         { Plain, old format }
         if f_PEM_write_bio_PrivateKey(FileBio, PK, nil, nil, 0, nil, nil) = 0 then
             raise Exception.Create('Failed to write private key to BIO');
+
+        { Angus - see if closing private key file and opening another for certificate }
+        if KeyFileName <> '' then begin
+            if Assigned(FileBio) then
+                f_BIO_free(FileBio);
+            FileBio := f_BIO_new_file(PAnsiChar(AnsiString(FileName)), PAnsiChar('w+'));
+            if not Assigned(FileBio) then
+                raise Exception.Create('Failed to open output file - ' + FileName);
+        end;
+
+        { Angus see if writing comment }
+        if Comment then begin
+            Title := '# X509 SSL Certificate' + #13#10 + Info;
+            f_BIO_write(FileBio, @Title [1], Length (Title));
+        end;
 
         { Write certificate }
         if f_PEM_write_bio_X509(FileBio, X) = 0 then
@@ -372,7 +695,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure CreateCertRequest(const RequestFileName, KeyFileName, Country,
   State, Locality, Organization, OUnit, CName, Email: String;
-  Bits: Integer);
+  Bits: Integer; Comment: boolean = false);
+
 
   function Add_Ext(sk : PStack; Nid : Integer; Value : PAnsiChar): Boolean;
   var
@@ -392,6 +716,8 @@ var
     FileBio   : PBIO;
     Req       : PX509_REQ;
     Exts      : PStack;
+    Title     : AnsiString;
+    Info      : AnsiString;
 begin
     FileBio := nil;
     //Name    := nil;
@@ -457,12 +783,28 @@ begin
         FileBio := f_BIO_new_file(PAnsiChar(AnsiString(KeyFileName)), PAnsiChar('w+'));
         if not Assigned(FileBio) then
             raise Exception.Create('Failed to open output file');
+
+        { Angus see if writing comment }
+        if Comment then begin
+            Info := '# Subject Common Name: ' + AnsiString(CName) + #13#10 +
+                    '# Subject Organisation: ' + AnsiString(Organization) + #13#10;
+            Title := '# X509 SSL Private Key' + #13#10 + Info;
+            f_BIO_write(FileBio, @Title [1], Length (Title));
+        end;
+
         if f_PEM_write_bio_PrivateKey(FileBio, PK, nil, nil, 0, nil, nil) = 0 then
             raise Exception.Create('Failed to write private key to BIO');
         f_BIO_free(FileBio);
         FileBio := f_BIO_new_file(PAnsiChar(AnsiString(RequestFileName)), PAnsiChar('w+'));
         if not Assigned(FileBio) then
             raise Exception.Create('Failed to open output file');
+
+        { Angus see if writing comment }
+        if Comment then begin
+            Title := '# X509 SSL Certificate Request' + #13#10 + Info;
+            f_BIO_write(FileBio, @Title [1], Length (Title));
+        end;
+
         { Write request }
         if f_PEM_write_bio_X509_REQ(FileBio, OverByteIcsSSLEAY.PX509_REQ(Req)) = 0 then
             raise Exception.Create('Failed to write certificate to BIO');
@@ -484,7 +826,8 @@ end;
 
 procedure CreateSelfSignedCert(const FileName, Country, State,
     Locality, Organization, OUnit, CName, Email: AnsiString;
-    Bits: Integer; IsCA: Boolean; Days: Integer);
+    Bits: Integer; IsCA: Boolean; Days: Integer;
+    const KeyFileName: AnsiString = ''; Comment: boolean = false);
 var
     X         : PX509;
     PK        : PEVP_PKEY;
@@ -492,6 +835,8 @@ var
     Name      : PX509_NAME;
     FileBio   : PBIO;
     Ex        : PX509_EXTENSION;
+    Title     : String;
+    Info      : String;
 begin
     FileBio := nil;
     X       := nil;
@@ -598,10 +943,29 @@ begin
         if f_X509_sign(X, PK, f_EVP_sha256) <= 0 then
             raise Exception.Create('Failed to sign certificate');
 
+        { Angus - see if writing certificate and private key to separate files }
+        if KeyFileName <> '' then begin
+            { We write private key only }
+            FileBio := f_BIO_new_file(PAnsiChar(KeyFileName), PAnsiChar('w+'));
+            if not Assigned(FileBio) then
+                raise Exception.Create('Failed to open output file - ' + KeyFileName);
+        end
+        else begin
         { We write private key as well as certificate to the same file }
-        FileBio := f_BIO_new_file(PAnsiChar(FileName), PAnsiChar('w+'));
-        if not Assigned(FileBio) then
-            raise Exception.Create('Failed to open output file');
+            FileBio := f_BIO_new_file(PAnsiChar(FileName), PAnsiChar('w+'));
+            if not Assigned(FileBio) then
+                raise Exception.Create('Failed to open output file - ' + FileName);
+        end;
+
+        { Angus see if writing comment }
+        if Comment then begin
+            Info := '# Subject Common Name: ' + CName + #13#10 +
+                    '# Subject Organisation: ' + Organization + #13#10 +
+                    '# Self Signed' + #13#10 +
+                    '# Expires: ' + DateToStr (Date + Days) + #13#10;
+            Title := '# X509 SSL Private Key' + #13#10 + Info;
+            f_BIO_write(FileBio, @Title [1], Length (Title));
+        end;
 
         { Write private key }
         { Callback, old format }
@@ -609,6 +973,21 @@ begin
         { Plain, old format }
         if f_PEM_write_bio_PrivateKey(FileBio, PK, nil, nil, 0, nil, nil) = 0 then
             raise Exception.Create('Failed to write private key to BIO');
+
+        { Angus - see if closing private key file and opening another for certificate }
+        if KeyFileName <> '' then begin
+            if Assigned(FileBio) then
+                f_BIO_free(FileBio);
+            FileBio := f_BIO_new_file(PAnsiChar(FileName), PAnsiChar('w+'));
+            if not Assigned(FileBio) then
+                raise Exception.Create('Failed to open output file - ' + FileName);
+        end;
+
+        { Angus see if writing comment }
+        if Comment then begin
+            Title := '# X509 SSL Certificate' + #13#10 + Info;
+            f_BIO_write(FileBio, @Title [1], Length (Title));
+        end;
 
         { Write certificate }
         if f_PEM_write_bio_X509(FileBio, X) = 0 then
@@ -627,7 +1006,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure CreateCertRequest(const RequestFileName, KeyFileName, Country, State,
-  Locality, Organization, OUnit, CName, Email: AnsiString; Bits: Integer);
+  Locality, Organization, OUnit, CName, Email: AnsiString;
+  Bits: Integer; Comment: boolean = false);
 
   function Add_Ext(sk : PStack; Nid : Integer; Value : PAnsiChar): Boolean;
   var
@@ -647,6 +1027,8 @@ var
     FileBio   : PBIO;
     Req       : PX509_REQ;
     Exts      : PStack;
+    Title     : String;
+    Info      : String;
 begin
     FileBio := nil;
     //Name    := nil;
@@ -712,12 +1094,28 @@ begin
         FileBio := f_BIO_new_file(PAnsiChar(KeyFileName), PAnsiChar('w+'));
         if not Assigned(FileBio) then
             raise Exception.Create('Failed to open output file');
+
+        { Angus see if writing comment }
+        if Comment then begin
+            Info := '# Subject Common Name: ' + CName + #13#10 +
+                    '# Subject Organisation: ' + Organization + #13#10;
+            Title := '# X509 SSL Private Key' + #13#10 + Info;
+            f_BIO_write(FileBio, @Title [1], Length (Title));
+        end;
+
         if f_PEM_write_bio_PrivateKey(FileBio, PK, nil, nil, 0, nil, nil) = 0 then
             raise Exception.Create('Failed to write private key to BIO');
         f_BIO_free(FileBio);
         FileBio := f_BIO_new_file(PAnsiChar(RequestFileName), PAnsiChar('w+'));
         if not Assigned(FileBio) then
             raise Exception.Create('Failed to open output file');
+
+        { Angus see if writing comment }
+        if Comment then begin
+            Title := '# X509 SSL Certificate Request' + #13#10 + Info;
+            f_BIO_write(FileBio, @Title [1], Length (Title));
+        end;
+
         { Write request }
         if f_PEM_write_bio_X509_REQ(FileBio, OverByteIcsSSLEAY.PX509_REQ(Req)) = 0 then
             raise Exception.Create('Failed to write certificate to BIO');

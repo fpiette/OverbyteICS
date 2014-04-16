@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.08
+Version:      8.09
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2013 by François PIETTE
+Legal issues: Copyright (C) 1996-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -944,6 +944,8 @@ Jun 03, 2013 V8.05 Eric Fleming Bonilha found a serious bug with closing the
 Aug 18, 2013 V8.06 Arno added some default property specifiers.
 Oct 22. 2013 V8.07 Angus - Added SendTo6 and ReceiveFrom6 for IPv6 UDP
 Dec 24. 2013 V8.08 Francois - fixed range check error in various PostMessages
+Feb 12, 2014 V8.09 Angus - fixed TX509Base.PostConnectionCheck to check multiple
+                   DNS or IP entries
 }
 
 {
@@ -1087,8 +1089,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 808;
-  CopyRight    : String     = ' TWSocket (c) 1996-2013 Francois Piette V8.08 ';
+  WSocketVersion            = 809;
+  CopyRight    : String     = ' TWSocket (c) 1996-2014 Francois Piette V8.09 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -14971,7 +14973,8 @@ begin
             for I := 0 to Li.Count -1 do begin
                 if (Pos('IP',  IcsUpperCase(Li.Names[I])) = 1) or
                    (Pos('DNS', IcsUpperCase(Li.Names[I])) = 1) then begin
-                    Mask := TMask.Create(Li.Values[Li.Names[I]]);
+            {        Mask := TMask.Create(Li.Values[Li.Names[I]]); only checks first name, ignores alternatives  }
+                    Mask := TMask.Create(Copy(Li[I], Length(Li.Names[I])+2,999)); { V8.09 }
                     try
                         Result := Mask.Matches(HostOrIP);
                         if Result then Exit;

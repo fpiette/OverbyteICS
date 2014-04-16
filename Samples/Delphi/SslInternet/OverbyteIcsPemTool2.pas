@@ -11,6 +11,7 @@ type
     Memo1: TMemo;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure Memo1DblClick(Sender: TObject);
   private
     FInitialized : Boolean;
   public
@@ -50,6 +51,11 @@ begin
             IniFile.Free;
         end;
     end;
+end;
+
+procedure TfrmPemTool2.Memo1DblClick(Sender: TObject);
+begin
+    Close;    // Angus
 end;
 
 procedure TfrmPemTool2.FormClose(Sender: TObject; var Action: TCloseAction);

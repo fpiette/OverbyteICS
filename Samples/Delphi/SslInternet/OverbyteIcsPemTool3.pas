@@ -35,6 +35,7 @@ type
     btnClose: TButton;
     Editdays: TEdit;
     lbDays: TLabel;
+    CheckBoxComment: TCheckBox;
     procedure btnCreateClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
   private
@@ -104,7 +105,8 @@ begin
                                      EditOrganizationalUnit.Text,
                                      EditCommonName.Text, EditEMail.Text,
                                      StrToIntDef(EditBits.Text, 1024), TRUE,
-                                     StrToIntDef(EditDays.Text, 365));
+                                     StrToIntDef(EditDays.Text, 365), '',
+                                     CheckBoxComment.Checked);
         end
         else begin
             if KeyFileName = '' then Exit;
@@ -120,7 +122,8 @@ begin
                               EditState.Text, EditLocality.Text,
                               EditOrganization.Text, EditOrganizationalUnit.Text,
                               EditCommonName.Text, EditEMail.Text,
-                              StrToIntDef(EditBits.Text, 1024));
+                              StrToIntDef(EditBits.Text, 1024),
+                              CheckBoxComment.Checked);
         end;
     finally
         Dlg.Free;

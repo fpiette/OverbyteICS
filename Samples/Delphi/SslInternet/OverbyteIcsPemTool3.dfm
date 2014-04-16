@@ -3,7 +3,7 @@ object frmPemTool3: TfrmPemTool3
   Top = 226
   BorderStyle = bsDialog
   Caption = 'Create self-signed certificate'
-  ClientHeight = 397
+  ClientHeight = 418
   ClientWidth = 374
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -12,18 +12,18 @@ object frmPemTool3: TfrmPemTool3
   Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = False
-  Position = poDesktopCenter
+  Position = poScreenCenter
   OnShow = FormShow
   DesignSize = (
     374
-    397)
+    418)
   PixelsPerInch = 96
   TextHeight = 13
   object GroupBoxCertCreate: TGroupBox
     Left = 6
     Top = 4
     Width = 361
-    Height = 355
+    Height = 372
     Caption = ' Certificate Properties '
     TabOrder = 0
     object lbCountry: TLabel
@@ -84,7 +84,7 @@ object frmPemTool3: TfrmPemTool3
     end
     object lbInfo: TLabel
       Left = 68
-      Top = 316
+      Top = 331
       Width = 265
       Height = 26
       Caption = 
@@ -93,7 +93,7 @@ object frmPemTool3: TfrmPemTool3
     end
     object lbDays: TLabel
       Left = 28
-      Top = 272
+      Top = 275
       Width = 28
       Height = 13
       Caption = 'Days:'
@@ -182,25 +182,38 @@ object frmPemTool3: TfrmPemTool3
       TabOrder = 9
       Text = '365'
     end
+    object CheckBoxComment: TCheckBox
+      Left = 26
+      Top = 295
+      Width = 113
+      Height = 17
+      Alignment = taLeftJustify
+      Caption = 'Add Comments:'
+      Checked = True
+      State = cbChecked
+      TabOrder = 10
+    end
   end
   object btnCreate: TButton
     Left = 109
-    Top = 368
+    Top = 389
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
     Caption = 'Create'
     TabOrder = 1
     OnClick = btnCreateClick
+    ExplicitTop = 368
   end
   object btnClose: TButton
     Left = 193
-    Top = 368
+    Top = 389
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
     Caption = 'Close'
     ModalResult = 2
     TabOrder = 2
+    ExplicitTop = 368
   end
 end

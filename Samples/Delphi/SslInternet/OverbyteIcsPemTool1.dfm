@@ -1,8 +1,8 @@
 object frmPemTool1: TfrmPemTool1
   Left = 212
   Top = 124
-  Width = 541
-  Height = 448
+  ClientHeight = 732
+  ClientWidth = 921
   Color = clBtnFace
   Constraints.MinHeight = 379
   Constraints.MinWidth = 527
@@ -20,12 +20,12 @@ object frmPemTool1: TfrmPemTool1
   OnCreate = FormCreate
   OnShow = FormShow
   DesignSize = (
-    533
-    394)
+    921
+    732)
   PixelsPerInch = 96
   TextHeight = 14
   object btnShowCert: TButton
-    Left = 454
+    Left = 842
     Top = 24
     Width = 75
     Height = 21
@@ -37,32 +37,41 @@ object frmPemTool1: TfrmPemTool1
   object PageControl1: TPageControl
     Left = 2
     Top = 2
-    Width = 450
-    Height = 364
+    Width = 838
+    Height = 675
     ActivePage = TabCertLv
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
     OnChange = PageControl1Change
     object TabCertLv: TTabSheet
       Caption = 'Certificates'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
-        442
-        335)
+        830
+        646)
       object Label4: TLabel
         Left = 4
-        Top = 314
+        Top = 625
         Width = 47
         Height = 14
         Anchors = [akLeft, akBottom]
         Caption = 'Directory:'
+        ExplicitTop = 314
       end
       object LvCerts: TListView
         Left = 4
         Top = 6
-        Width = 434
-        Height = 298
+        Width = 822
+        Height = 609
         Anchors = [akLeft, akTop, akRight, akBottom]
         Columns = <
+          item
+            AutoSize = True
+            Caption = 'Common Name'
+          end
           item
             AutoSize = True
             Caption = 'Issued to'
@@ -73,11 +82,11 @@ object frmPemTool1: TfrmPemTool1
           end
           item
             Caption = 'Expires at'
-            Width = 65
+            Width = 70
           end
           item
             Caption = 'File Name'
-            Width = 70
+            Width = 140
           end>
         ReadOnly = True
         RowSelect = True
@@ -92,8 +101,8 @@ object frmPemTool1: TfrmPemTool1
         OnDblClick = LvCertsDblClick
       end
       object btnRefresh: TButton
-        Left = 367
-        Top = 311
+        Left = 755
+        Top = 622
         Width = 71
         Height = 21
         Anchors = [akRight, akBottom]
@@ -103,8 +112,8 @@ object frmPemTool1: TfrmPemTool1
       end
       object CurrentCertDirEdit: TEdit
         Left = 54
-        Top = 310
-        Width = 144
+        Top = 621
+        Width = 498
         Height = 22
         Anchors = [akLeft, akRight, akBottom]
         TabOrder = 1
@@ -112,8 +121,8 @@ object frmPemTool1: TfrmPemTool1
         OnChange = CurrentCertDirEditChange
       end
       object btnDeleteCert: TButton
-        Left = 287
-        Top = 311
+        Left = 675
+        Top = 622
         Width = 75
         Height = 21
         Anchors = [akRight, akBottom]
@@ -122,8 +131,8 @@ object frmPemTool1: TfrmPemTool1
         OnClick = btnDeleteCertClick
       end
       object btnCopyCert: TButton
-        Left = 207
-        Top = 311
+        Left = 595
+        Top = 621
         Width = 75
         Height = 21
         Anchors = [akRight, akBottom]
@@ -131,26 +140,53 @@ object frmPemTool1: TfrmPemTool1
         TabOrder = 2
         OnClick = btnCopyCertClick
       end
+      object SelCurrDir: TBitBtn
+        Left = 558
+        Top = 620
+        Width = 31
+        Height = 25
+        Anchors = [akRight, akBottom]
+        TabOrder = 5
+        OnClick = SelCurrDirClick
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
+      end
     end
     object TabImport: TTabSheet
       Caption = 'Import Certificates'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
-        442
-        335)
+        830
+        646)
       object Bevel2: TBevel
-        Left = 4
-        Top = 264
-        Width = 434
+        Left = 5
+        Top = 305
+        Width = 822
         Height = 64
         Anchors = [akLeft, akTop, akRight]
         Shape = bsFrame
       end
       object Bevel1: TBevel
-        Left = 4
-        Top = 6
-        Width = 434
-        Height = 247
+        Left = 5
+        Top = 3
+        Width = 822
+        Height = 283
         Anchors = [akLeft, akTop, akRight]
         Shape = bsFrame
       end
@@ -168,14 +204,14 @@ object frmPemTool1: TfrmPemTool1
       object Label3: TLabel
         Left = 22
         Top = 94
-        Width = 82
+        Width = 81
         Height = 14
         Caption = 'Cert. Store Type:'
       end
       object Label2: TLabel
         Left = 22
         Top = 118
-        Width = 75
+        Width = 74
         Height = 14
         Caption = 'Destination Dir.:'
       end
@@ -193,8 +229,8 @@ object frmPemTool1: TfrmPemTool1
         ParentFont = False
       end
       object Label6: TLabel
-        Left = 16
-        Top = 270
+        Left = 20
+        Top = 319
         Width = 26
         Height = 14
         Caption = 'Misc'
@@ -222,7 +258,7 @@ object frmPemTool1: TfrmPemTool1
       object DestDirEdit: TEdit
         Left = 106
         Top = 114
-        Width = 227
+        Width = 265
         Height = 22
         Hint = 'Existing destination directory '
         TabOrder = 1
@@ -231,7 +267,7 @@ object frmPemTool1: TfrmPemTool1
       end
       object CheckBoxWarnDestNotEmpty: TCheckBox
         Left = 106
-        Top = 146
+        Top = 145
         Width = 243
         Height = 17
         Caption = 'Warn me if destination folder is not empty'
@@ -241,7 +277,7 @@ object frmPemTool1: TfrmPemTool1
       end
       object CheckBoxOverwriteExisting: TCheckBox
         Left = 106
-        Top = 164
+        Top = 165
         Width = 243
         Height = 17
         Hint = 
@@ -253,7 +289,7 @@ object frmPemTool1: TfrmPemTool1
       end
       object CheckBoxEmptyDestDir: TCheckBox
         Left = 106
-        Top = 182
+        Top = 185
         Width = 243
         Height = 17
         Hint = 'Warning! - deletes any file in destination folder '
@@ -262,35 +298,65 @@ object frmPemTool1: TfrmPemTool1
       end
       object btnImport: TButton
         Left = 104
-        Top = 222
+        Top = 252
         Width = 229
         Height = 21
         Caption = 'Start import from Windows'
         TabOrder = 6
         OnClick = btnImportClick
       end
-      object btnImportPemFile: TButton
-        Left = 102
-        Top = 284
-        Width = 231
-        Height = 21
-        Caption = 'Import/Hash a PEM Cert File to Destination Dir.'
-        TabOrder = 7
-        OnClick = btnImportPemFileClick
-      end
       object CheckBoxWriteToBundle: TCheckBox
         Left = 106
-        Top = 200
+        Top = 205
         Width = 145
         Height = 17
         Caption = 'Create a CA bundle file'
         TabOrder = 5
       end
+      object SelImpDir: TBitBtn
+        Left = 388
+        Top = 113
+        Width = 31
+        Height = 25
+        TabOrder = 7
+        OnClick = SelImpDirClick
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
+      end
+      object btnImportPemFile: TButton
+        Left = 16
+        Top = 339
+        Width = 231
+        Height = 21
+        Caption = 'Import/Hash a PEM Cert File to Destination Dir.'
+        TabOrder = 8
+        OnClick = btnImportPemFileClick
+      end
+      object CheckBoxComment: TCheckBox
+        Left = 106
+        Top = 225
+        Width = 145
+        Height = 17
+        Caption = 'Add Comments to file'
+        TabOrder = 9
+      end
     end
   end
   object About: TButton
-    Left = 454
-    Top = 345
+    Left = 842
+    Top = 656
     Width = 75
     Height = 21
     Anchors = [akRight, akBottom]
@@ -299,7 +365,7 @@ object frmPemTool1: TfrmPemTool1
     OnClick = AboutClick
   end
   object ProgressBar1: TProgressBar
-    Left = 454
+    Left = 842
     Top = 4
     Width = 73
     Height = 16
@@ -333,7 +399,7 @@ object frmPemTool1: TfrmPemTool1
     Left = 40
     Top = 186
     Bitmap = {
-      494C010103000400040010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010103001400140010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -484,7 +550,7 @@ object frmPemTool1: TfrmPemTool1
     object MMFile: TMenuItem
       Caption = '&File'
       object MMFileExit: TMenuItem
-        Caption = '&Exist'
+        Caption = '&Exit'
         OnClick = MMFileExitClick
       end
     end
@@ -531,5 +597,11 @@ object frmPemTool1: TfrmPemTool1
         OnClick = MMExtrasDecryptFileBlowfishClick
       end
     end
+  end
+  object OpenDirDiag: TOpenDialog
+    Options = [ofHideReadOnly, ofNoValidate, ofPathMustExist, ofNoTestFileCreate, ofEnableSizing]
+    Title = 'Select Certificate Directory'
+    Left = 85
+    Top = 230
   end
 end

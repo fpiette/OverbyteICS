@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      1.12
+Version:      1.13
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -58,7 +58,13 @@ Jul 14, 2008 V1.08 Paul <paul.blommaerts@telenet.be> added an option to import
 Jul 15, 2008 V1.09 Made one change to prepare SSL code for Unicode.
 Jan 29, 2009 V1.10 Removed some string cast warnings.
 Dec 20, 2009 V1.11 Memory leak fixed.
-
+Feb 13, 2014 V1.14 Angus using TX509Ex instead of TMyX509 to read PEM entries
+             PEM display window now shows all major entries separately as well
+                as the raw certificate content.
+             ListView now always shows subject common name, and ignore errors.
+             Added directory selection buttons (but using Open Dialog for ease).
+             Optionally add clear text comments to PEM files to easily identify
+             certifcates.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPemtool1;
@@ -86,34 +92,17 @@ uses
 {$IFEND}
   WinCrypt,
   OverbyteIcsWSocket, OverbyteIcsSsleay, OverbyteIcsLibeay,
-  OverbyteIcsLibeayEx, OverbyteIcsSslX509Utils, OverByteIcsMimeUtils;
+  OverbyteIcsLibeayEx, OverbyteIcsSslX509Utils, OverByteIcsMimeUtils, Buttons;
 
 const
-     PemToolVersion     = 112;
-     PemToolDate        = 'January 29, 2009';
+     PemToolVersion     = 113;
+     PemToolDate        = 'February 14, 2014';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2011 by François PIETTE V1.12 ';
+     CopyRight : String = '(c) 2003-2014 by François PIETTE V1.13 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
 type
-
-  TMyX509 = class(TX509Base)
-  private
-    function GetNameEntryByNid(IsSubject: Boolean; ANid: Integer): String;
-    function GetSubjectOName : String;
-    function GetIssuerOName : String;
-    function GetSubjectOUName : String;
-    function GetIssuerOUName : String;
-    function GetIssuerCName : String;
-  public
-    property SubjectOName : String read GetSubjectOName;
-    property SubjectOUName : String read GetSubjectOUName;
-    property IssuerOName : String read GetIssuerOName;
-    property IssuerOUName : String read GetIssuerOUName;
-    property IssuerCName : String read GetIssuerCName;
-  end;
-
   TfrmPemTool1 = class(TForm)
     btnShowCert: TButton;
     pmLv: TPopupMenu;
@@ -145,7 +134,6 @@ type
     About: TButton;
     Bevel2: TBevel;
     Label6: TLabel;
-    btnImportPemFile: TButton;
     N1: TMenuItem;
     N2: TMenuItem;
     MainMenu1: TMainMenu;
@@ -165,6 +153,11 @@ type
     N6: TMenuItem;
     MMExtrasDecryptFileBlowfish: TMenuItem;
     CheckBoxWriteToBundle: TCheckBox;
+    OpenDirDiag: TOpenDialog;
+    SelCurrDir: TBitBtn;
+    SelImpDir: TBitBtn;
+    btnImportPemFile: TButton;
+    CheckBoxComment: TCheckBox;
     procedure btnImportClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -183,7 +176,7 @@ type
     procedure LvCertsCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
     procedure LvCertsCustomDraw(Sender: TCustomListView;
-      const ARect: TRect; var DefaultDraw: Boolean);  
+      const ARect: TRect; var DefaultDraw: Boolean);
     procedure AppOnException(Sender: TObject; E: Exception);
     procedure MMFileExitClick(Sender: TObject);
     procedure MMExtrasCreateSelfSignedCertClick(Sender: TObject);
@@ -194,6 +187,8 @@ type
     procedure MMExtrasEncryptStreamBlowfishClick(Sender: TObject);
     procedure MMExtrasEncryptFileBlowfishClick(Sender: TObject);
     procedure MMExtrasDecryptFileBlowfishClick(Sender: TObject);
+    procedure SelCurrDirClick(Sender: TObject);
+    procedure SelImpDirClick(Sender: TObject);
   protected
     procedure WMAppStartup(var Msg: TMessage); message WM_APPSTARTUP;  
   private
@@ -201,11 +196,11 @@ type
     FInitialized     : Boolean;
     FCurrentCertDir  : String;
     FLVSortFlag      : Boolean;
-    procedure AddListView(X: TMyX509; const Filename: String);
+    procedure AddListView(X: TX509Ex; const Filename: String);
     procedure FillListView;
     procedure ShowCert(const FileName: String);
   public
-    FIniFileName    : String;  
+    FIniFileName    : String;
   end;
 
   function  FindPemFileName(const FileName: String): String;
@@ -238,84 +233,8 @@ const
     KeyWarnDestNotEmpty  = 'WarnDestNotEmpty';
     KeyOverwriteExisting = 'OverwriteExistingFiles';
     KeyEmptyDestDir      = 'EmptyDestDir';
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Returns a CRLF-separated list if multiple entries exist }
-function TMyX509.GetNameEntryByNid(IsSubject: Boolean; ANid: Integer): String;
-var
-    Name    : PX509_NAME;
-    Entry   : PX509_NAME_ENTRY;
-    Asn1    : PASN1_STRING;
-    LastPos : Integer;
-begin
-    Result := '';
-{$IFNDEF WIN64}
-    Entry  := nil; { Make dcc32 happy }
-{$ENDIF}
-    if not Assigned(X509) then
-        Exit;
-    if IsSubject then
-        Name := f_X509_get_subject_name(X509)
-    else
-        Name := f_X509_get_issuer_name(X509);
-    if Name <> nil then begin
-        LastPos := -1;
-        repeat
-            LastPos := f_X509_NAME_get_index_by_NID(Name, ANid, LastPos);
-            if LastPos > -1 then
-                Entry := f_X509_NAME_get_entry(Name, LastPos)
-            else
-                Break;
-            if Assigned(Entry) then begin
-                Asn1 := f_X509_NAME_ENTRY_get_data(Entry);
-                if Assigned(Asn1) then
-                    Result := Result + Asn1ToString(Asn1) + #13#10;
-            end;
-        until
-            LastPos = -1;
-
-        while (Length(Result) > 0) and
-                      (Word(Result[Length(Result)]) in [Ord(#13), Ord(#10)]) do
-            SetLength(Result, Length(Result) - 1);
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TMyX509.GetSubjectOName: String;
-begin
-    Result := GetNameEntryByNid(TRUE, NID_organizationName);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TMyX509.GetSubjectOUName: String;
-begin
-    Result := GetNameEntryByNid(TRUE, NID_organizationalUnitName);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TMyX509.GetIssuerOName: String;
-begin
-    Result := GetNameEntryByNid(FALSE, NID_organizationName);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TMyX509.GetIssuerOUName: String;
-begin
-    Result := GetNameEntryByNid(FALSE, NID_organizationalUnitName);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TMyX509.GetIssuerCName: String;
-begin
-    Result := GetNameEntryByNid(FALSE, NID_commonName);
-end;
-
+    KeyComment           = 'Comment';
+    KeyWriteToBundle     = 'WriteToBundle';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.AppOnException(Sender: TObject; E: Exception);
@@ -375,6 +294,13 @@ begin
         CheckBoxEmptyDestDir.Checked      := IniFile.ReadBool(SectionData,
                                                               KeyEmptyDestDir,
                                                               FALSE);
+        CheckBoxComment.Checked           := IniFile.ReadBool(SectionData,
+                                                              KeyComment,
+                                                              FALSE);
+        CheckBoxWriteToBundle.Checked     := IniFile.ReadBool(SectionData,
+                                                              KeyWriteToBundle,
+                                                              FALSE);
+
         IniFile.Free;
         PostMessage(Handle, WM_APPSTARTUP, 0, 0);
     end;
@@ -406,6 +332,8 @@ begin
     IniFile.WriteBool(SectionData,          KeyWarnDestNotEmpty,  CheckBoxWarnDestNotEmpty.Checked);
     IniFile.WriteBool(SectionData,          KeyOverwriteExisting, CheckBoxOverwriteExisting.Checked);
     IniFile.WriteBool(SectionData,          KeyEmptyDestDir,      CheckBoxEmptyDestDir.Checked);
+    IniFile.WriteBool(SectionData,          KeyComment,           CheckBoxComment.Checked);       // angus
+    IniFile.WriteBool(SectionData,          KeyWriteToBundle,     CheckBoxWriteToBundle.Checked); // angus
     IniFile.UpdateFile;
     IniFile.Free;
 end;
@@ -439,19 +367,83 @@ end;}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.SelCurrDirClick(Sender: TObject);
+begin
+    OpenDirDiag.InitialDir := CurrentCertDirEdit.Text ;
+    if OpenDirDiag.Execute then
+        CurrentCertDirEdit.Text := ExtractFilePath(OpenDirDiag.FileName);
+    FillListView;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.SelImpDirClick(Sender: TObject);
+begin
+    OpenDirDiag.InitialDir := DestDirEdit.Text ;
+    if OpenDirDiag.Execute then
+        DestDirEdit.Text := ExtractFilePath(OpenDirDiag.FileName);
+    DestDirEditChange(Self);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.ShowCert(const FileName: String);
 var
-    X : TX509Base;
+    X : TX509Ex;
 begin
     if (FileName = '') or not FileExists(FileName) then
         raise Exception.Create('FileName empty or file doesn''t exist');
-    X := TX509Base.Create(nil);
+    X := TX509Ex.Create(nil);
     try
         X.LoadFromPemFile(Filename);
         frmPemTool2 := TfrmPemTool2.Create(Self);
         try
             frmPemTool2.Caption          := FileName;
-            frmPemTool2.Memo1.Lines.Text := X.GetRawText;
+         { Angus added major PEM entries separately, also serves to document how
+           to access all the different properties of the T509 component.  Note multiple
+           items may be returned, normally separated by CRLF, but unwrapped here for display.
+           Rarely does a certificate have all these entries, particuarly the personal name
+           stuff which is really for email certificates  }
+            frmPemTool2.Memo1.Lines.Clear;
+            frmPemTool2.Memo1.Lines.Add ('ISSUED TO (Subject)');
+            frmPemTool2.Memo1.Lines.Add ('Common Name (CN):' + X.UnwrapNames(X.SubjectCName));
+            frmPemTool2.Memo1.Lines.Add ('Alt Name (DNS):' + X.UnwrapNames(X.SubAltNameDNS));
+            frmPemTool2.Memo1.Lines.Add ('Alt Name (IP):' + X.UnwrapNames(X.SubAltNameIP));
+            frmPemTool2.Memo1.Lines.Add ('Organisation (O): ' + X.UnwrapNames(X.SubjectOName));
+            frmPemTool2.Memo1.Lines.Add ('Organisational Unit (OU): ' + X.UnwrapNames(X.SubjectOUName));
+            frmPemTool2.Memo1.Lines.Add ('Country (C): ' + X.SubjectCOName);
+            frmPemTool2.Memo1.Lines.Add ('State/Province(ST): ' + X.SubjectSTName);
+            frmPemTool2.Memo1.Lines.Add ('Locality (L): ' + X.SubjectLName);
+            frmPemTool2.Memo1.Lines.Add ('Serial Number: ' + X.SubjectSerialName);
+            frmPemTool2.Memo1.Lines.Add ('Title (T): ' + X.GetNameEntryByNid(TRUE, NID_title));
+            frmPemTool2.Memo1.Lines.Add ('Initials (I): ' + X.GetNameEntryByNid(TRUE, NID_initials));
+            frmPemTool2.Memo1.Lines.Add ('Given Name (G): ' + X.GetNameEntryByNid(TRUE, NID_givenName));
+            frmPemTool2.Memo1.Lines.Add ('Surname (S): ' + X.GetNameEntryByNid(TRUE, NID_surname));
+            frmPemTool2.Memo1.Lines.Add ('Description (D): ' + X.GetNameEntryByNid(TRUE, NID_description));
+            frmPemTool2.Memo1.Lines.Add ('Email (Email): ' + X.SubjectEmailName);
+            frmPemTool2.Memo1.Lines.Add ('');
+            if X.SelfSigned then
+                frmPemTool2.Memo1.Lines.Add ('SELF SIGNED')
+            else begin
+                frmPemTool2.Memo1.Lines.Add ('ISSUED BY');
+                frmPemTool2.Memo1.Lines.Add ('Common Name (CN):' + X.UnwrapNames(X.IssuerCName));
+                frmPemTool2.Memo1.Lines.Add ('Organisation (O): ' + X.UnwrapNames(X.IssuerOName));
+                frmPemTool2.Memo1.Lines.Add ('Organisational Unit (OU): ' + X.UnwrapNames(X.IssuerOUName));
+                frmPemTool2.Memo1.Lines.Add ('Country (C): ' + X.IssuerCOName);
+                frmPemTool2.Memo1.Lines.Add ('State/Province(ST): ' + X.IssuerSTName);
+                frmPemTool2.Memo1.Lines.Add ('Locality (L): ' + X.IssuerLName);
+                frmPemTool2.Memo1.Lines.Add ('Email (Email): ' + X.IssuerEmailName);
+            end;
+            frmPemTool2.Memo1.Lines.Add ('');
+            frmPemTool2.Memo1.Lines.Add ('GENERAL');
+            frmPemTool2.Memo1.Lines.Add ('Serial Number: ' + IntToStr (X.SerialNum));
+            frmPemTool2.Memo1.Lines.Add ('Issued on:' + DateToStr(X.ValidNotBefore));
+            frmPemTool2.Memo1.Lines.Add ('Expires on:' + DateToStr(X.ValidNotAfter));
+            frmPemTool2.Memo1.Lines.Add ('Key Usage: ' + X.UnwrapNames(X.KeyUsage));
+            frmPemTool2.Memo1.Lines.Add ('Extended Key Usage: ' + X.UnwrapNames(X.ExKeyUsage));
+            frmPemTool2.Memo1.Lines.Add ('Basic Constraints: ' + X.UnwrapNames(X.BasicConstraints));
+            frmPemTool2.Memo1.Lines.Add ('Authority Info Access: ' + X.UnwrapNames(X.AuthorityInfoAccess));
+            frmPemTool2.Memo1.Lines.Add ('');
+            frmPemTool2.Memo1.Lines.Text := frmPemTool2.Memo1.Lines.Text + 'Raw ' + X.GetRawText;
             frmPemTool2.ShowModal;
         finally
             frmPemTool2.free;
@@ -463,7 +455,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TfrmPemTool1.AddListView(X: TMyX509; const Filename: String);
+procedure TfrmPemTool1.AddListView(X: TX509Ex; const Filename: String);
 var
     ListItem : TListItem;
     S        : String;
@@ -472,16 +464,18 @@ begin
         ListItem          := Items.Add;
         ListItem.Caption  := X.SubjectCName;
         if ListItem.Caption = '' then
-            ListItem.Caption := X.SubjectOUName;
-        if ListItem.Caption = '' then
             ListItem.Caption := X.SubjectOName;
+        S := X.SubjectOUName;
+        if S = '' then
+            S := X.SubjectOName;
+        ListItem.SubItems.Add(S);
         S := X.IssuerCName;
         if S = '' then
             S := X.IssuerOUName;
         if S = '' then
             S := X.IssuerOName;
         ListItem.SubItems.Add(S);
-        ListItem.SubItems.Add(DateToStr(X.GetValidNotAfter));
+        ListItem.SubItems.Add(DateToStr(X.ValidNotAfter));
         ListItem.SubItems.Add(ExtractFileName(FileName));
     end;
 end;
@@ -492,9 +486,9 @@ procedure TfrmPemTool1.FillListView;
 var
     SRec    : TSearchRec;
     CertDir : String;
-    X       : TMyX509;
+    X       : TX509Ex;
 begin
-    X := TMyX509.Create(nil);
+    X := TX509Ex.Create(nil);
     try
         LvCerts.Items.BeginUpdate;
         try
@@ -505,15 +499,21 @@ begin
             CertDir := PathAddBackSlash(FCurrentCertDir);
             if FindFirst(CertDir + '*.*', faAnyFile - faDirectory, SRec) = 0 then
             try
-                X.LoadFromPemFile(CertDir + SRec.Name);
-                AddListView(X, CertDir + SRec.Name);
-                while FindNext(SRec) = 0 do begin
+                try
                     X.LoadFromPemFile(CertDir + SRec.Name);
                     AddListView(X, CertDir + SRec.Name);
+                except  // angus - ignore files that are not really certificates
+                end;
+                while FindNext(SRec) = 0 do begin
+                    try
+                        X.LoadFromPemFile(CertDir + SRec.Name);
+                        AddListView(X, CertDir + SRec.Name);
+                    except
+                    end;
                 end;
             finally
                 FindClose(SRec);
-            end;    
+            end;
         finally
             LvCerts.Items.EndUpdate;
         end;
@@ -532,7 +532,7 @@ begin
     with LvCerts do begin
         if Assigned(Selected) then begin
             ListItem := Items[Selected.Index];
-            FileName := ListItem.SubItems[2];
+            FileName := ListItem.SubItems[3];
             if FileName <> '' then
                 FileName := PathAddBackSlash(FCurrentCertDir) + FileName;
             if FileExists(FileName) then
@@ -712,7 +712,7 @@ begin
     with LvCerts do begin
         if Assigned(Selected) then begin
             ListItem := Items[Selected.Index];
-            FileName := ListItem.SubItems[2];
+            FileName := ListItem.SubItems[3];
             if FileName <> '' then
                 FileName := PathAddBackSlash(FCurrentCertDir) + FileName;
             if FileExists(FileName) then
@@ -742,7 +742,7 @@ begin
     with LvCerts do begin
         if Assigned(Selected) then begin
             ListItem := Items[Selected.Index];
-            FileName := ListItem.SubItems[2];
+            FileName := ListItem.SubItems[3];
             if FileName <> '' then
                 FileName := PathAddBackSlash(FCurrentCertDir) + FileName;
             if FileExists(FileName) then begin
@@ -778,15 +778,17 @@ var
      hSystemStore    : HCERTSTORE;
      pCertContext    : PCCERT_CONTEXT;
      pwszSystemName  : LPCWSTR;
-     X               : TX509Base;
+     X               : TX509Ex;
      Subject_Hash    : Cardinal;
      BundleBio       : PBIO;          // added
+     FileBio         : PBIO;          // Angus
      FileName        : String;
      Path            : String;
      BundleFilename  : String;        // added
      BundlePath      : String;        // added
      Count           : Integer;
      xTmp            : PX509;
+     Title           : AnsiString;   // Angus
 begin
     Count := 0;
     pCertContext := nil;
@@ -794,8 +796,9 @@ begin
     Path  := Trim(DestDirEdit.Text);
 
     if (Path = '') or (not DirectoryExists(Path)) then begin
-        ShowMessage('Invalid destination ''' + Path + '''!');
-        Exit;
+        ForceDirectories(Path); // Angus
+      //  ShowMessage('Invalid destination ''' + Path + '''!');
+      //  Exit;
     end;
 
     if CheckBoxWarnDestNotEmpty.Checked then
@@ -858,7 +861,7 @@ begin
     { Enum all the certs in the store and store them in PEM format }
     pCertContext := CertEnumCertificatesInStore(hSystemStore, pCertContext);
     LoadSsl; // Need to load the libraries here since it may be required for the call of f_d2i_X509()
-    X := TX509Base.Create(nil);
+    X := TX509Ex.Create(nil);
     try
         while pCertContext <> nil do begin
             xTmp := f_d2i_X509(nil, @pCertContext.pbCertEncoded, pCertContext.cbCertEncoded);
@@ -870,11 +873,32 @@ begin
                 if not CheckBoxOverwriteExisting.Checked then
                     if FileExists(FileName) then
                         FileName := FindPemFileName(FileName);
-                X.SaveToPemFile(FileName);
+//              X.SaveToPemFile(FileName);
+                FileBio := f_BIO_new_file(Pointer(AnsiString(Filename)), PAnsiChar('w+'));
+                if not Assigned(FileBio) then
+                    raise Exception.Create('Failed to open output file - ' + FileName);
+                 { Angus add comment before encoded certificate so we
+                   can actually identify each one easily }
+                if CheckBoxComment.Checked then begin
+                    Title := '# X509 SSL Certificate' + #13#10 +
+                             '# Subject Common Name: ' + AnsiString(X.UnwrapNames(X.SubjectCName))+ #13#10;
+                    if X.SubAltNameDNS <> '' then
+                        Title := Title + '# Subject Alt Names: ' + AnsiString(X.UnwrapNames(X.SubAltNameDNS))+ #13#10;
+                    Title := Title +
+                             '# Subject Organisation: ' + AnsiString(X.UnwrapNames(X.SubjectOName)) + #13#10 +
+                             '# Issuer Organisation: ' + AnsiString(X.UnwrapNames(X.IssuerOName)) + #13#10 +
+                             '# Expires: ' + AnsiString(DateToStr (X.ValidNotAfter))+ #13#10;
+                    f_BIO_write(FileBio, @Title [1], Length (Title));
+                end;
+                f_PEM_write_bio_X509(FileBio, X.X509);
+                f_BIO_free(FileBio);
                 Inc(Count);
-                // save to bundle also
-                if (Assigned(BundleBio)) and (CheckBoxWriteToBundle.Checked) then
+                  // save to bundle also
+                if (Assigned(BundleBio)) and CheckBoxWriteToBundle.Checked then begin
+                    if CheckBoxComment.Checked then
+                        f_BIO_write(BundleBio, @Title [1], Length (Title));
                     f_PEM_write_bio_X509(BundleBio, X.X509);
+                end;
             end;
             pCertContext := CertEnumCertificatesInStore(hSystemStore, pCertContext);
         end;

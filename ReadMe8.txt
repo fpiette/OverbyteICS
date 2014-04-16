@@ -1,9 +1,9 @@
-ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio XE5
+ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio XE6
 ================================================================
 (Aka FPIETTE's Components)
 
 
-Revised: October 2, 2013
+Revised: April 16, 2014
 http://www.overbyte.be/
 
 Table of content:
@@ -28,7 +28,7 @@ Table of content:
 
 Legal issues:
 -------------
-              Copyright (C) 1997-2013 by François PIETTE
+              Copyright (C) 1997-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium
               <francois.piette@overbyte.be>
 
@@ -167,10 +167,10 @@ This is the new V8 sub-directory layout:
     |                                 for 2007+ will be created on building the packages
   \$(Config)                          Release / Debug
       |
-	\$(Platform)                      Win32 / Win64 / OSX32
+    \$(Platform)                      Win32 / Win64 / OSX32
         |
-	  \<delphi_version>               D7..XE5 includes .dcu and .dfm files for Delphi
-	                                  and .obj and .hpp files for C++ Builder
+      \<delphi_version>               D7..XE6 includes .dcu and .dfm files for Delphi
+                                      and .obj and .hpp files for C++ Builder
 
 .\Samples                             Delphi Win32/Win64 common source for all demos
 .\Samples\delphi\BroswerDemo          Delphi Win32/Win64 Web Browser sample application (all Delphi versions)
@@ -252,6 +252,8 @@ Delphi XE4       :  DXe4Install.groupproj // VCL only, no FireMonkey components
 Delphi XE4       :  DXe4InstallVclFmx.groupproj // Both VCL and FireMonkey components
 Delphi XE5       :  DXe5Install.groupproj // VCL only, no FireMonkey components
 Delphi XE5       :  DXe5InstallVclFmx.groupproj // Both VCL and FireMonkey components
+Delphi XE6       :  DXe6Install.groupproj // VCL only, no FireMonkey components
+Delphi XE6       :  DXe6InstallVclFmx.groupproj // Both VCL and FireMonkey components
 C++ Builder 2006 :  CB2006Install.bdsgroup
 C++ Builder 2007 :  CB2007Install.groupproj
 C++ Builder 2009 :  CB2009Install.groupproj
@@ -328,6 +330,7 @@ Delphi XE2       :  OverbyteIcsDXe2Run.dproj, OverbyteIcsDXe2Design.dproj
 Delphi XE3       :  OverbyteIcsDXe3Run.dproj, OverbyteIcsDXe3Design.dproj
 Delphi XE4       :  OverbyteIcsDXe4Run.dproj, OverbyteIcsDXe4Design.dproj
 Delphi XE5       :  OverbyteIcsDXe5Run.dproj, OverbyteIcsDXe5Design.dproj
+Delphi XE6       :  OverbyteIcsDXe6Run.dproj, OverbyteIcsDXe6Design.dproj
 C++ Builder 2006 :  OverbyteIcsCB2006Run.bdsproj, OverbyteIcsCB2006Design.bdsproj
 C++ Builder 2007 :  OverbyteIcsCB2007Run.cbproj, OverbyteIcsCB2007Design.cbproj
 C++ Builder 2009 :  OverbyteIcsCB2009Run.cbproj, OverbyteIcsCB2009Design.cbproj
@@ -349,6 +352,9 @@ Delphi XE4 FMX          :  IcsFmxDXe4Run.dproj, IcsFmxDXe4Design.dproj
 Delphi XE5 FMX/VCL      :  IcsCommonDXe5Run.dproj, IcsCommonDXe5Design.dproj
 Delphi XE5 VCL          :  IcsVclDXe5Run.dproj, IcsVclDXe5Design.dproj
 Delphi XE5 FMX          :  IcsFmxDXe5Run.dproj, IcsFmxDXe5Design.dproj
+Delphi XE6 FMX/VCL      :  IcsCommonDXe6Run.dproj, IcsCommonDXe6Design.dproj
+Delphi XE6 VCL          :  IcsVclDXe6Run.dproj, IcsVclDXe6Design.dproj
+Delphi XE6 FMX          :  IcsFmxDXe6Run.dproj, IcsFmxDXe6Design.dproj
 C++ Builder XE2 FMX/VCL :  IcsCommonCBXe2Run.dproj, IcsCommonDXe2Design.dproj
 C++ Builder XE2 VCL     :  IcsVclCBXe2Run.dproj, IcsVclCBXe2Design.dproj
 C++ Builder XE2 FMX     :  IcsFmxCBXe2Run.dproj, IcsFmxCBXe2Design.dproj
@@ -383,9 +389,9 @@ If not, add it manually. It is not mandatory to add .\Lib to the global Delphi p
 but it will be much easier for you because otherwise you'll have to add it to each
 project.
 
-DELPHI XE2/WIN32, XE3/WIN32, XE4/WIN32, XE5/WIN32, XE2/WIN64, XE3/WIN64, XE4/WIN64,
-XE5/WIN64: Similar to above, but the Library path is specified separately for
-32-bit and 64-bit Windows Platforms.
+DELPHI XE2/WIN32, XE3/WIN32, XE4/WIN32, XE5/WIN32, XE6/WIN32, XE2/WIN64, XE3/WIN64,
+XE4/WIN64, XE5/WIN64, XE6/WIN64: Similar to above, but the Library path is specified
+separately for 32-bit and 64-bit Windows Platforms.
 
 DELPHI 7: Add VC32 directory path to your library path (Tools menu / Environment
 Options / Library / Library Path. Add .\Lib\Debug\Win32\D7 path at the end of the
@@ -452,9 +458,9 @@ and select the dpr file in the internet directory. Then Project/Build All.
 Projects are located in SAMPLES\CPP\INTERNET\CB2006\ (or CB2006, CBXE, etc)
 with a project group in each directory, OverbyteIcsCB2006Sam.bdsgroup,
 OverbyteIcsCBXe2Sam.groupproj, etc. It is likely that for each project,
-C++ Builder complains about a missing .res file. This is not a problem, C++ Builder will
-recreate it as needed. They have not been included to save space in the
-zip file.
+C++ Builder complains about a missing .res file. This is not a problem,
+C++ Builder will recreate it as needed. They have not been included to save
+space in the zip file.
 
 Once the components are all installed, you may open the sample projects
 each one after the other and compile them. For each project, do file/open

@@ -44,7 +44,7 @@ package IcsFmxDXE6Run;
 {$DEFINE DEBUG}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS FMX Run-Time Package for Delphi XE6 (Confidential)'}
+{$DESCRIPTION 'Overbyte ICS FMX Run-Time Package for Delphi XE6'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
 

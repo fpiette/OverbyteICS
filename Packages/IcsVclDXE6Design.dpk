@@ -26,7 +26,7 @@ package IcsVclDXE6Design;
 {$DEFINE DEBUG}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS VCL Design-Time Package for Delphi XE6 (Confidential)'}
+{$DESCRIPTION 'Overbyte ICS VCL Design-Time Package for Delphi XE6'}
 {$DESIGNONLY}
 {$IMPLICITBUILD OFF}
 

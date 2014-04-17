@@ -10,7 +10,7 @@ Description:  This unit encapsulate the ICMP.DLL into an object of type TICMP.
               to change properties or event handler. This is much simpler to
               use for a GUI program.
 Creation:     January 6, 1997
-Version:      8.04
+Version:      8.05
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -77,6 +77,7 @@ Feb 20, 2013 V8.02 Angus - icmp.dll was replaced with iphlpapi.dll from Windows 
                    Added AsyncPing which currently not does work, callback never called, no idea why
 Mai 03, 2013 V8.03 Arno included OverbyteIcsTypes.pas to make it compile with Delphi 7
 Sep 29, 2013 V8.04 Angus convert PingMsg to ANSI before sending it
+Apr 17, 2014 V8.05 Angus don't call WSACleanup unless WSAStartup called, thanks to spanfkyous@163.com
 
 
 API History
@@ -134,8 +135,8 @@ uses
 {$ENDIF FMX}
 
 const
-  IcmpVersion = 8.04;
-  CopyRight : String   = ' TICMP (c) 1997-2013 F. Piette V8.04 ';
+  IcmpVersion = 8.05;
+  CopyRight : String   = ' TICMP (c) 1997-2014 F. Piette V8.05 ';
   IcmpDLL     = 'icmp.dll';
   IphlpapiDLL = 'iphlpapi.dll';     { V8.02 }
 
@@ -536,10 +537,11 @@ begin
         IcmpCloseHandle(hICMP);
     if hICMP6 <> INVALID_HANDLE_VALUE then    { V8.02 }
         IcmpCloseHandle(hICMP6);
-    if hICMPdll <> 0 then
+    if hICMPdll <> 0 then begin
         FreeLibrary(hICMPdll);
-    hICMPdll := 0;
-    WSACleanup;
+        hICMPdll := 0;
+        WSACleanup;   { V8.05 only if initialised }
+    end;
     inherited Destroy;
 end;
 
@@ -560,10 +562,6 @@ procedure TICMP.Initialize;
 var
     WSAData: TWSAData;
 begin
-    // initialise winsock
-    if WSAStartup($0202, WSAData) <> 0 then
-        raise TICMPException.Create('Error initialising Winsock');
-
     // register the IphlpapiDLL stuff, XP and later, V8.02
     hICMPdll := LoadLibrary(IphlpapiDLL);
     if hICMPdll <> 0 then begin
@@ -594,6 +592,10 @@ begin
        (@IcmpCloseHandle = Nil) or
        (@IcmpSendEcho = Nil) then
           raise TICMPException.Create('Error loading dll functions');
+
+// initialise winsock,  V8.05 only if ICMP found
+    if WSAStartup($0202, WSAData) <> 0 then
+            raise TICMPException.Create('Error initialising Winsock');
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

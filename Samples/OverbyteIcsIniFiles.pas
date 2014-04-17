@@ -7,7 +7,7 @@ Version:      8.00
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2008-2014 by François PIETTE
+Legal issues: Copyright (C) 2008 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. 
               <francois.piette@overbyte.be>
 
@@ -96,9 +96,9 @@ type
     procedure DeleteKey(const Section, Ident: String); override;
     procedure EraseSection(const Section: String); override;
     procedure GetStrings(List: TStrings);
-    procedure ReadSection(const Section: String; {$IFDEF COMPILER20_UP}const{$ENDIF}Strings: TStrings); override;
-    procedure ReadSections({$IFDEF COMPILER20_UP}const{$ENDIF}Strings: TStrings); override;
-    procedure ReadSectionValues(const Section: String; {$IFDEF COMPILER20_UP}const{$ENDIF}Strings: TStrings); override;
+    procedure ReadSection(const Section: String; Strings: TStrings); override;
+    procedure ReadSections(Strings: TStrings); override;
+    procedure ReadSectionValues(const Section: String; Strings: TStrings); override;
     function  ReadString(const Section, Ident, Default: String): String; override;
     procedure Rename(const FileName: String; Reload: Boolean);
     procedure SetStrings(List: TStrings);
@@ -253,9 +253,8 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TIcsUtf8IniFile.ReadSection(
-    const Section: String;
-    {$IFDEF COMPILER20_UP}const{$ENDIF}Strings: TStrings);
+procedure TIcsUtf8IniFile.ReadSection(const Section: String;
+  Strings: TStrings);
 var
     I, J: Integer;
     SectionStrings: TStrings;
@@ -276,17 +275,15 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TIcsUtf8IniFile.ReadSections(
-    {$IFDEF COMPILER20_UP}const{$ENDIF}Strings: TStrings);
+procedure TIcsUtf8IniFile.ReadSections(Strings: TStrings);
 begin
     Strings.Assign(FSections);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TIcsUtf8IniFile.ReadSectionValues(
-    const Section: String;
-    {$IFDEF COMPILER20_UP}const{$ENDIF}Strings: TStrings);
+procedure TIcsUtf8IniFile.ReadSectionValues(const Section: String;
+  Strings: TStrings);
 var
     I: Integer;
 begin

@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Aug 26, 2007
 Description:
-Version:      1.07
+Version:      1.07a
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -54,6 +54,7 @@ Feb 14, 2014 V1.07 Angus added class TX509Ex derived from TX509Base adding
              properties for most common certificate entries including extensions
              Optionally add clear text comments to PEM files to easily identify
              certifcates.
+Apr 18, 2014 V1.07a Arno removed some compiler warnings.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslX509Utils;
@@ -458,13 +459,13 @@ begin
     ErrCode := f_ERR_get_error;
     SetLength(Result, 512);
     f_ERR_error_string_n(ErrCode, PAnsiChar(Result), Length(Result));
-    SetLength(Result, StrLen(PAnsiChar(Result)));
+    SetLength(Result, IcsStrLen(PAnsiChar(Result)));
     if Dump then begin
         ErrCode := f_ERR_get_error;
         while ErrCode <> 0 do begin
             SetLength(ErrMsg, 512);
             f_ERR_error_string_n(ErrCode, PAnsiChar(ErrMsg), Length(ErrMsg));
-            SetLength(ErrMsg, StrLen(PAnsiChar(ErrMsg)));
+            SetLength(ErrMsg, IcsStrLen(PAnsiChar(ErrMsg)));
             Result := Result + #13#10 + ErrMsg;
             ErrCode := f_ERR_get_error;
         end;
@@ -948,19 +949,19 @@ begin
             { We write private key only }
             FileBio := f_BIO_new_file(PAnsiChar(KeyFileName), PAnsiChar('w+'));
             if not Assigned(FileBio) then
-                raise Exception.Create('Failed to open output file - ' + KeyFileName);
+                raise Exception.Create('Failed to open output file - ' + string(KeyFileName));
         end
         else begin
         { We write private key as well as certificate to the same file }
             FileBio := f_BIO_new_file(PAnsiChar(FileName), PAnsiChar('w+'));
             if not Assigned(FileBio) then
-                raise Exception.Create('Failed to open output file - ' + FileName);
+                raise Exception.Create('Failed to open output file - ' + string(FileName));
         end;
 
         { Angus see if writing comment }
         if Comment then begin
-            Info := '# Subject Common Name: ' + CName + #13#10 +
-                    '# Subject Organisation: ' + Organization + #13#10 +
+            Info := '# Subject Common Name: ' + string(CName) + #13#10 +
+                    '# Subject Organisation: ' + string(Organization) + #13#10 +
                     '# Self Signed' + #13#10 +
                     '# Expires: ' + DateToStr (Date + Days) + #13#10;
             Title := '# X509 SSL Private Key' + #13#10 + Info;
@@ -980,7 +981,7 @@ begin
                 f_BIO_free(FileBio);
             FileBio := f_BIO_new_file(PAnsiChar(FileName), PAnsiChar('w+'));
             if not Assigned(FileBio) then
-                raise Exception.Create('Failed to open output file - ' + FileName);
+                raise Exception.Create('Failed to open output file - ' + string(FileName));
         end;
 
         { Angus see if writing comment }
@@ -1097,9 +1098,9 @@ begin
 
         { Angus see if writing comment }
         if Comment then begin
-            Info := '# Subject Common Name: ' + CName + #13#10 +
-                    '# Subject Organisation: ' + Organization + #13#10;
-            Title := '# X509 SSL Private Key' + #13#10 + Info;
+            Info := '# Subject Common Name: ' + string(CName) + #13#10 +
+                    '# Subject Organisation: ' + string(Organization) + #13#10;
+            Title := '# X509 SSL Private Key' + #13#10 + string(Info);
             f_BIO_write(FileBio, @Title [1], Length (Title));
         end;
 

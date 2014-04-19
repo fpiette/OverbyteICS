@@ -47,7 +47,7 @@ unit OverbyteIcsSslSmtpServ1;
 
 interface
 
-{$I Include\OverbyteIcsDefs.inc}
+{$I OverbyteIcsDefs.inc}
 {$B-}                 { Enable partial boolean evaluation   }
 {$T-}                 { Untyped pointers                    }
 {$X+}                 { Enable extended syntax              }

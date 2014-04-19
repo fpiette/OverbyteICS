@@ -1,9 +1,9 @@
 object HttpTestForm: THttpTestForm
-  Left = 61
-  Top = 411
+  Left = 115
+  Top = 165
   Caption = 'Http Test - http://www.overbyte.be'
-  ClientHeight = 533
-  ClientWidth = 624
+  ClientHeight = 676
+  ClientWidth = 778
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -18,9 +18,10 @@ object HttpTestForm: THttpTestForm
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 624
-    Height = 121
+    Width = 778
+    Height = 128
     Align = alTop
+    ParentBackground = False
     TabOrder = 0
     OnResize = Panel1Resize
     object Label1: TLabel
@@ -87,10 +88,10 @@ object HttpTestForm: THttpTestForm
       Caption = 'Post / Put'
     end
     object Label10: TLabel
-      Left = 341
-      Top = 80
-      Width = 97
-      Height = 26
+      Left = 351
+      Top = 83
+      Width = 101
+      Height = 28
       Caption = 'Maximum Bandwidth (bytes/sec)'
       WordWrap = True
     end
@@ -107,6 +108,7 @@ object HttpTestForm: THttpTestForm
       Width = 329
       Height = 21
       Hint = 'protocol://[user[:password]@]server[:port]/path'
+      ImeName = 'Portuguese'
       ParentShowHint = False
       ShowHint = True
       TabOrder = 0
@@ -117,6 +119,7 @@ object HttpTestForm: THttpTestForm
       Top = 56
       Width = 89
       Height = 21
+      ImeName = 'Portuguese'
       TabOrder = 2
       Text = 'ProxyHostEdit'
     end
@@ -125,6 +128,7 @@ object HttpTestForm: THttpTestForm
       Top = 56
       Width = 65
       Height = 21
+      ImeName = 'Portuguese'
       TabOrder = 3
       Text = 'ProxyPortEdit'
     end
@@ -133,6 +137,7 @@ object HttpTestForm: THttpTestForm
       Top = 32
       Width = 329
       Height = 21
+      ImeName = 'Portuguese'
       TabOrder = 1
       Text = 'DataEdit'
     end
@@ -141,6 +146,7 @@ object HttpTestForm: THttpTestForm
       Top = 78
       Width = 97
       Height = 21
+      ImeName = 'Portuguese'
       TabOrder = 4
       Text = 'DateTimeEdit'
     end
@@ -150,6 +156,7 @@ object HttpTestForm: THttpTestForm
       Width = 85
       Height = 21
       Style = csDropDownList
+      ImeName = 'Portuguese'
       ItemHeight = 13
       TabOrder = 6
       Items.Strings = (
@@ -157,11 +164,12 @@ object HttpTestForm: THttpTestForm
         'HTTP/1.1')
     end
     object Panel2: TPanel
-      Left = 512
+      Left = 666
       Top = 1
       Width = 111
-      Height = 119
+      Height = 126
       Align = alRight
+      ParentBackground = False
       TabOrder = 10
       object GetButton: TButton
         Left = 4
@@ -236,6 +244,15 @@ object HttpTestForm: THttpTestForm
         TabOrder = 6
         OnClick = ClearButtonClick
       end
+      object PatchButton: TButton
+        Left = 4
+        Top = 103
+        Width = 49
+        Height = 21
+        Caption = '&Patch'
+        TabOrder = 8
+        OnClick = PatchButtonClick
+      end
     end
     object DisplayHeaderCheckBox: TCheckBox
       Left = 238
@@ -247,19 +264,22 @@ object HttpTestForm: THttpTestForm
       TabOrder = 7
     end
     object PostContentTypeEdit: TEdit
-      Left = 444
+      Left = 458
       Top = 56
-      Width = 69
+      Width = 83
       Height = 21
+      AutoSize = False
+      ImeName = 'Portuguese'
       TabOrder = 8
       Text = 'PostContentTypeEdit'
     end
     object BandwidthLimitEdit: TEdit
-      Left = 443
-      Top = 82
-      Width = 65
+      Left = 458
+      Top = 83
+      Width = 83
       Height = 21
       AutoSize = False
+      ImeName = 'Portuguese'
       TabOrder = 9
       Text = 'BandwidthLimitEdit'
     end
@@ -275,15 +295,16 @@ object HttpTestForm: THttpTestForm
   end
   object DisplayMemo: TMemo
     Left = 0
-    Top = 121
-    Width = 624
+    Top = 128
+    Width = 778
     Height = 148
     Align = alTop
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -11
+    Font.Height = -12
     Font.Name = 'Courier New'
     Font.Style = []
+    ImeName = 'Portuguese'
     Lines.Strings = (
       'DisplayMemo')
     ParentFont = False
@@ -292,15 +313,16 @@ object HttpTestForm: THttpTestForm
   end
   object DocumentMemo: TMemo
     Left = 0
-    Top = 269
-    Width = 624
-    Height = 264
+    Top = 276
+    Width = 778
+    Height = 400
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -11
+    Font.Height = -12
     Font.Name = 'Courier New'
     Font.Style = []
+    ImeName = 'Portuguese'
     Lines.Strings = (
       'DocumentMemo')
     ParentFont = False
@@ -310,13 +332,13 @@ object HttpTestForm: THttpTestForm
   object HttpCli1: THttpCli
     URL = 'http://www.rtfm.be'
     LocalAddr = '0.0.0.0'
+    LocalAddr6 = '::'
     Proxy = 'intsrv02'
     ProxyPort = '80'
     Agent = 'Mozilla/3.0 (compatible)'
     Accept = 'image/gif, image/x-xbitmap, image/jpeg, image/pjpeg, */*'
     NoCache = False
     ContentTypePost = 'application/x-www-form-urlencoded'
-    MultiThreaded = False
     RequestVer = '1.0'
     FollowRelocation = True
     LocationChangeMaxCount = 5
@@ -336,6 +358,7 @@ object HttpTestForm: THttpTestForm
     OnCookie = HttpCli1Cookie
     SocksLevel = '5'
     SocksAuthentication = socksNoAuthentication
+    SocketFamily = sfIPv4
     Left = 16
     Top = 136
   end

@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.05
+Version:      8.06
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -488,6 +488,7 @@ Oct 10, 2013 V8.05 - Arno fixed a relocation bug with URL "https://yahoo.com" by
              removing port "443" from the Host-header, otherwise relocation
              header returned by the server had that port appended as well even
              though the new location was simple HTTP.
+Apr 19, 2014 V8.06 Angus added PATCH method, thanks to RTT <pdfe@sapo.pt>
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -575,8 +576,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 805;
-    CopyRight : String   = ' THttpCli (c) 1997-2013 F. Piette V8.05 ';
+    HttpCliVersion       = 806;
+    CopyRight : String   = ' THttpCli (c) 1997-2014 F. Piette V8.06 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -608,7 +609,7 @@ type
 
     THttpEncoding    = (encUUEncode, encBase64, encMime);
     THttpRequest     = (httpABORT, httpGET, httpPOST, httpPUT,
-                        httpHEAD, httpDELETE, httpCLOSE);
+                        httpHEAD, httpDELETE, httpCLOSE, httpPATCH);
     THttpState       = (httpReady,         httpNotConnected, httpConnected,
                         httpDnsLookup,     httpDnsLookupDone,
                         httpWaitingHeader, httpWaitingBody,  httpBodyReceived,
@@ -929,6 +930,7 @@ type
         procedure   Get;        { Synchronous blocking Get         }
         procedure   Post;       { Synchronous blocking Post        }
         procedure   Put;        { Synchronous blocking Put         }
+        procedure   Patch;      { Synchronous blocking Patch V8.06 }
         procedure   Head;       { Synchronous blocking Head        }
         procedure   Del;        { Synchronous blocking Delete      }
         procedure   Close;      { Synchronous blocking Close       }
@@ -936,6 +938,7 @@ type
         procedure   GetASync;   { Asynchronous, non-blocking Get   }
         procedure   PostASync;  { Asynchronous, non-blocking Post  }
         procedure   PutASync;   { Asynchronous, non-blocking Put   }
+        procedure   PatchAsync; { Asynchronous, non-blocking Patch V8.06 }
         procedure   HeadASync;  { Asynchronous, non-blocking Head  }
         procedure   DelASync;   { Asynchronous, non-blocking Delete}
         procedure   CloseAsync; { Asynchronous, non-blocking Close }
@@ -2327,6 +2330,24 @@ begin
                     SocketDataSent(FCtrlSocket, 0);
                 {$ENDIF}
                 end;
+            httpPATCH:  { V8.06 } 
+                begin
+                    SendRequest('PATCH', FRequestVer);
+                {$IFDEF UseNTLMAuthentication}
+                    if not ((FAuthNTLMState = ntlmMsg1) or
+                            (FProxyAuthNTLMState = ntlmMsg1)) then begin
+                        TriggerSendBegin;
+                        FAllowedToSend := TRUE;
+                        FDelaySetReady := FALSE;     
+                        SocketDataSent(FCtrlSocket, 0);
+                    end;
+                {$ELSE}
+                    TriggerSendBegin;
+                    FAllowedToSend := TRUE;
+                    FDelaySetReady := FALSE;    
+                    SocketDataSent(FCtrlSocket, 0);
+                {$ENDIF}
+                end;
             httpDELETE:
                 begin
                     SendRequest('DELETE', FRequestVer);
@@ -2420,7 +2441,7 @@ begin
             if (FContentCodingHnd.HeaderText <> '') and (FRequestType <> httpHEAD) then
                 Headers.Add('Accept-Encoding: ' + FContentCodingHnd.HeaderText);
         {$ENDIF}
-            if ((FRequestType = httpPOST) or (FRequestType = httpPUT)) and
+            if (FRequestType in [httpPOST, httpPUT, httpPATCH]) and   { V8.06 } 
                (FContentPost <> '') then
                 Headers.Add('Content-Type: ' + FContentPost);
             {if ((method = 'PUT') or (method = 'POST')) and (FContentPost <> '') then
@@ -2439,7 +2460,7 @@ begin
         if (Method = 'CONNECT') then                                   // <= 12/29/05 AG
             Headers.Add('Content-Length: 0')                           // <= 12/29/05 AG}
         else begin  { V7.05 begin }
-            if (FRequestType = httpPOST) or (FRequestType = httpPUT) then begin
+            if FRequestType in [httpPOST, httpPUT, httpPATCH] then begin   { V8.06 } 
             {$IFDEF UseNTLMAuthentication}
                 if (FAuthNTLMState = ntlmMsg1) or
                    (FProxyAuthNTLMState = ntlmMsg1) then
@@ -3006,7 +3027,7 @@ begin
         if Field = 'location' then begin { Change the URL ! }
             if Copy(Data, 1, 2) = '//' then         { V7.22 }
                 Data := FProtocol + ':' + Data;     { V7.22 }
-            if FRequestType = httpPUT then begin
+            if FRequestType in [httpPUT, httpPATCH] then begin   { V8.06 } 
                  { Location just tell us where the document has been stored }
                  FLocation := Data;
             end
@@ -3270,11 +3291,11 @@ begin
     if (Rq <> httpCLOSE) and (FState <> httpReady) then
         raise EHttpException.Create('HTTP component ' + Name + ' is busy', httperrBusy);
 
-    if ((Rq = httpPOST) or (Rq = httpPUT)) and
+    if (Rq in [httpPOST, httpPUT, httpPATCH]) and    { V8.06 } 
        (not Assigned(FSendStream)
        { or (FSendStream.Position = FSendStream.Size)}   { Removed 21/03/05 }
        ) then
-        raise EHttpException.Create('HTTP component has nothing to post or put',
+        raise EHttpException.Create('HTTP component has nothing to post, put or patch',
                                     httpErrNoData);
 
     if Rq = httpCLOSE then begin
@@ -4497,6 +4518,23 @@ begin
                 SocketDataSent(FCtrlSocket, 0);
 {$ENDIF}
             end;
+        httpPATCH:    { V8.06 } 
+            begin
+                SendRequest('PATCH', FRequestVer);
+{$IFDEF UseNTLMAuthentication}
+                if not ((FAuthNTLMState = ntlmMsg1) or (FProxyAuthNTLMState = ntlmMsg1)) then begin
+                TriggerSendBegin;
+                FAllowedToSend := TRUE;
+                FDelaySetReady := FALSE;    
+                SocketDataSent(FCtrlSocket, 0);
+            end;
+{$ELSE}
+                TriggerSendBegin;
+                FAllowedToSend := TRUE;
+                FDelaySetReady := FALSE;    
+                SocketDataSent(FCtrlSocket, 0);
+{$ENDIF}
+            end;
         httpDELETE:
             begin
                 SendRequest('DELETE', FRequestVer);
@@ -4592,6 +4630,14 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ This will start the Patch process and wait until terminated (blocking)      }
+procedure THttpCli.Patch;   { V8.06 } 
+begin
+    FLocationChangeCurCount := 0 ;  
+    DoRequestSync(httpPatch);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { This will start the Close process and wait until terminated (blocking)    }
 procedure THttpCli.Close;
 begin
@@ -4643,6 +4689,13 @@ begin
     DoRequestASync(httpPUT);
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ This will start the patch process and returns immediately (non blocking)    }
+procedure THttpCli.PatchAsync;   { V8.06 } 
+begin
+    FLocationChangeCurCount := 0 ;  
+    DoRequestASync(httpPatch);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { This will start the close process and returns immediately (non blocking)  }

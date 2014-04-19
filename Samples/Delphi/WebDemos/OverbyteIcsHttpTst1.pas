@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      7.02
+Version:      8.00
 Description:  Sample program to demonstrate some of the THttpCli features.
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -59,7 +59,7 @@ Jan 10, 2004  V1.08 Added code for HTTP 1.1 (Started months ago but forgot
 Feb 4,  2011  V7.00 Angus added bandwidth throttling using TCustomThrottledWSocket
 Oct 6,  2011  V7.01 Angus added content encoding checkbox
 Mar 19, 2012  V7.02 Angus added persistent cookie support
-
+Apr 19, 2014  V8.00 Angus added PATCH method, thanks to RTT <pdfe@sapo.pt>
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpTst1;
@@ -91,8 +91,8 @@ uses
   OverbyteIcsWndControl, OverbyteIcsLogger;
 
 const
-  HttpTstVersion         = 702;
-  CopyRight : String     = 'HttpTst (c) 1997-2012 Francois Piette  V7.02 ';
+  HttpTstVersion         = 800;
+  CopyRight : String     = 'HttpTst (c) 1997-2014 Francois Piette  V8.00 ';
 
 type
   THttpTestForm = class(TForm)
@@ -132,6 +132,7 @@ type
     Label11: TLabel;
     ContentEncodingCheckBox: TCheckBox;
     IcsCookies: TIcsCookies;
+    PatchButton: TButton;
     procedure GetButtonClick(Sender: TObject);
     procedure HttpCli1Command(Sender: TObject; var S: String);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -153,13 +154,14 @@ type
     procedure ClearButtonClick(Sender: TObject);
     procedure PutButtonClick(Sender: TObject);
     procedure IcsCookiesNewCookie(Sender: TObject; ACookie: TCookie; var Save: Boolean);
+    procedure PatchButtonClick(Sender: TObject);
   private
     Initialized  : Boolean;
     DocFileName  : String;
     FIniFileName : String;
     procedure SetButtonState(State : Boolean);
     procedure Display(const Msg : String);
-    procedure PostOrPut(Request: THttpRequest);
+    procedure PostPutOrPatch(Request: THttpRequest);
   end;
 
 var
@@ -476,19 +478,19 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpTestForm.PutButtonClick(Sender: TObject);
 begin
-    PostOrPut(httpPUT);
+    PostPutOrPatch(httpPUT);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpTestForm.PostButtonClick(Sender: TObject);
 begin
-    PostOrPut(httpPOST);
+    PostPutOrPatch(httpPOST);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THttpTestForm.PostOrPut(Request: THttpRequest);
+procedure THttpTestForm.PostPutOrPatch(Request: THttpRequest);
 var
     DataOut : TMemoryStream;
     DataIn  : TFileStream;
@@ -536,11 +538,13 @@ begin
         try
             if Request = httpPOST then
                 HttpCli1.Post
-            else
-                HttpCli1.Put;
+            else if Request = httpPUT then
+                HttpCli1.Put
+            else if Request = httpPATCH then { V8.00 } 
+                HttpCli1.Patch;
         except
             DataOut.Free;
-            Display('POST Failed !');
+            Display('Request Failed !');
             Display('StatusCode   = ' + IntToStr(HttpCli1.StatusCode));
             Display('ReasonPhrase = ' + HttpCli1.ReasonPhrase);
             Exit;
@@ -735,6 +739,11 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+procedure THttpTestForm.PatchButtonClick(Sender: TObject);
+begin
+    PostPutOrPatch(httpPATCH);
+end;
 
 end.
 

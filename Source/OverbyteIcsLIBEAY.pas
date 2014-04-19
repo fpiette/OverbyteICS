@@ -91,6 +91,7 @@ May 31, 2011 Arno changed the 64-bit hack in Ics_Ssl_EVP_PKEY_GetKey.
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 Feb 13, 2014 V8.01 - Angus added more NID_xx literals
+Apr 19, 2014 V8.02 - Arno allow load of OSSL 1.0.1g (untested so far)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -130,8 +131,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 801;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2014 F. Piette V8.01 ';
+    IcsLIBEAYVersion   = 802;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2014 F. Piette V8.02 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -1380,6 +1381,7 @@ const
     OSSL_VER_1000  = $10000000; // Untested, did not build with MinGW
     OSSL_VER_1000D = $1000004f; // Might be still buggy, had to incl. one workaround so far, see TSslContext.InitContext
     OSSL_VER_1000J = $100000af; // just briefly tested
+    OSSL_VER_1001G = $1000107F; // just briefly tested  { V8.02 }
     { Basically versions listed above are tested if not otherwise commented.  }
     { Versions between are assumed to work, however they are untested.        }
     { OpenSSL libraries for ICS are available for download here:              }
@@ -1387,14 +1389,14 @@ const
 
 {$IFDEF BEFORE_OSSL_098E}
     MIN_OSSL_VER   = OSSL_VER_0907G;
-    MAX_OSSL_VER   = OSSL_VER_1000J;
+    MAX_OSSL_VER   = OSSL_VER_1001G;  { V8.02 }
 {$ELSE}
     {$IFNDEF OPENSSL_NO_TLSEXT}
         MIN_OSSL_VER = OSSL_VER_0908F;
     {$ELSE}
         MIN_OSSL_VER = OSSL_VER_0908E;
     {$ENDIF}
-    MAX_OSSL_VER   = OSSL_VER_1000J;
+    MAX_OSSL_VER   = OSSL_VER_1001G;  { V8.02 }
 {$ENDIF}
 
 {$ENDIF} // USE_SSL

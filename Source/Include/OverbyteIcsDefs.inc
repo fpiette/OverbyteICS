@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:  Version defines for ICS (Internet Component Suite)
 Creation:     2003
-Version:      8.01
+Version:      8.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2013 by François PIETTE
+Legal issues: Copyright (C) 1996-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -56,6 +56,7 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 Apr 2013 - V8.01 - Arno XE4
 Aug 2013 - V8.02 - FPiette XE5
+Apr 2014 - V8.03 - Arno Latest supported compiler version fall back updated
 
 
   SYMBOL           Compiler version
@@ -429,11 +430,11 @@ Aug 2013 - V8.02 - FPiette XE5
 {$ENDIF}
 
 {$IFDEF VER_UNKNOWN}   { If the compiler version is not detected define latest }
-  {$DEFINE COMPILER19} { supported compiler version.                           }
+  {$DEFINE COMPILER20} { supported compiler version.                           }
   {$IFDEF BCB}
-    {$DEFINE BCB19}
+    {$DEFINE BCB20}
   {$ELSE}
-    {$DEFINE DELPHI19}
+    {$DEFINE DELPHI20}
     {$DEFINE DELPHI}
   {$ENDIF}
 {$ENDIF}

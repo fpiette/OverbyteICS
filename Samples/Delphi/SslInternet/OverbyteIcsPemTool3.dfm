@@ -203,7 +203,6 @@ object frmPemTool3: TfrmPemTool3
     Caption = 'Create'
     TabOrder = 1
     OnClick = btnCreateClick
-    ExplicitTop = 368
   end
   object btnClose: TButton
     Left = 193
@@ -214,6 +213,5 @@ object frmPemTool3: TfrmPemTool3
     Caption = 'Close'
     ModalResult = 2
     TabOrder = 2
-    ExplicitTop = 368
   end
 end

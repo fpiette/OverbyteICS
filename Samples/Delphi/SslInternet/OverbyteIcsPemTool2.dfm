@@ -1,9 +1,9 @@
 object frmPemTool2: TfrmPemTool2
   Left = 436
   Top = 237
+  Width = 513
+  Height = 339
   Caption = 'frmPemTool2'
-  ClientHeight = 305
-  ClientWidth = 505
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

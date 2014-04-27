@@ -40,7 +40,7 @@ Mar 07, 1999 V1.03 Adapted for Delphi 1
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSrvDemo2;
 
-{$I Include\OverbyteIcsDefs.inc}
+{$I OverbyteIcsDefs.inc}
 
 interface
 

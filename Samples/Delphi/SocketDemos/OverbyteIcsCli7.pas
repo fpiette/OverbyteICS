@@ -43,7 +43,7 @@ Oct 31, 2004  V1.02 Added a "Send" button. Remove "ReadLine" button.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsCli7;
 
-{$I Include\OverbyteIcsDefs.inc}
+{$I OverbyteIcsDefs.inc}
 
 interface
 

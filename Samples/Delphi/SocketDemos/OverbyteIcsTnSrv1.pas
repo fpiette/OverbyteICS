@@ -52,7 +52,7 @@ Sep 26, 2000 V1.26 Replaced TEdit by TMemo for data to be sent to allow
 unit OverbyteIcsTnSrv1;
 
 {$J+}
-{$I Include\OverbyteIcsDefs.inc}
+{$I OverbyteIcsDefs.inc}
 
 interface
 

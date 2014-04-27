@@ -40,7 +40,7 @@ Feb 08, 2014 FPiette: Removed use of StrScan
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSocksTst1;
 
-{$I Include\OverbyteIcsDefs.inc}
+{$I OverbyteIcsDefs.inc}
 
 interface
 

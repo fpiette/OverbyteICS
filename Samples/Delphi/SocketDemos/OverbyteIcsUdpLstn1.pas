@@ -52,7 +52,7 @@ Jan 11, 2004 V2.04 Beautified code. Removed FormPos dependency.
 unit OverbyteIcsUdpLstn1;
 
 {$J+}
-{$I Include\OverbyteIcsDefs.inc}
+{$I OverbyteIcsDefs.inc}
 
 interface
 

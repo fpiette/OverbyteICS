@@ -41,7 +41,7 @@ Mar 07, 1999  V1.03 Adapted for Delphi 1
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsRecv1;
 
-{$I Include\OverbyteIcsDefs.inc}
+{$I OverbyteIcsDefs.inc}
 
 interface
 

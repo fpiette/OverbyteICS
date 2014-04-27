@@ -44,7 +44,7 @@ Apr 21, 2003  No version change. Just added some comments about line mode.
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsTWSChat1;
 
-{$I Include\OverbyteIcsDefs.inc}
+{$I OverbyteIcsDefs.inc}
 
 interface
 

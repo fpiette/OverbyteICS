@@ -1,9 +1,9 @@
 object CliForm: TCliForm
   Left = 419
   Top = 200
+  Width = 373
+  Height = 230
   Caption = 'Client'
-  ClientHeight = 196
-  ClientWidth = 365
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -76,32 +76,16 @@ object CliForm: TCliForm
     end
   end
   object CliSocket: TWSocket
-    LineMode = False
-    LineLimit = 65536
     LineEnd = #13#10
-    LineEcho = False
-    LineEdit = False
     Proto = 'tcp'
     LocalAddr = '0.0.0.0'
+    LocalAddr6 = '::'
     LocalPort = '0'
-    MultiThreaded = False
-    MultiCast = False
-    MultiCastIpTTL = 1
-    FlushTimeout = 60
-    SendFlags = wsSendNormal
-    LingerOnOff = wsLingerOn
-    LingerTimeout = 0
     KeepAliveOnOff = wsKeepAliveOnSystem
     KeepAliveTime = 30000
     KeepAliveInterval = 1000
     SocksLevel = '5'
-    SocksAuthentication = socksNoAuthentication
-    LastError = 0
-    ReuseAddr = False
     ComponentOptions = []
-    ListenBacklog = 5
-    ReqVerLow = 2
-    ReqVerHigh = 2
     OnDataAvailable = CliSocketDataAvailable
     OnSessionClosed = CliSocketSessionClosed
     Left = 40

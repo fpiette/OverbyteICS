@@ -60,6 +60,7 @@ Feb 4,  2011  V7.00 Angus added bandwidth throttling using TCustomThrottledWSock
 Oct 6,  2011  V7.01 Angus added content encoding checkbox
 Mar 19, 2012  V7.02 Angus added persistent cookie support
 Apr 19, 2014  V8.00 Angus added PATCH method, thanks to RTT <pdfe@sapo.pt>
+Jun  4, 2014  V8.01 Angus show StatusCode during relocation
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpTst1;
@@ -652,7 +653,7 @@ begin
         Display('RequestDone Error = ' + IntToStr(ErrCode) + '. Status = ' +
                 IntToStr(HttpCli1.StatusCode))
     else
-        Display('RequestDone, no error. Status =' +
+        Display('RequestDone, no error. Status = ' +
                 IntToStr(HttpCli1.StatusCode));
 end;
 
@@ -726,7 +727,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpTestForm.HttpCli1LocationChange(Sender: TObject);
 begin
-    Display('Location changed to "' + HttpCli1.Location + '"');
+    Display('Status = ' + IntToStr(HttpCli1.StatusCode) +
+                        ', Location changed to "' + HttpCli1.Location + '"');
 end;
 
 

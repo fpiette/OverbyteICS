@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.06
+Version:      8.07
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -489,6 +489,9 @@ Oct 10, 2013 V8.05 - Arno fixed a relocation bug with URL "https://yahoo.com" by
              header returned by the server had that port appended as well even
              though the new location was simple HTTP.
 Apr 19, 2014 V8.06 Angus added PATCH method, thanks to RTT <pdfe@sapo.pt>
+Jun  4, 2014 V8.07 Angus fixed POST 307 and 308 now redirects with POST method, thanks to RTT <pdfe@sapo.pt>
+             Note POST redirection is poorly and confusingly documented in the RFCs,
+               a 307 POST should ideally be confirmed by the user, somehow...
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -576,8 +579,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 806;
-    CopyRight : String   = ' THttpCli (c) 1997-2014 F. Piette V8.06 ';
+    HttpCliVersion       = 807;
+    CopyRight : String   = ' THttpCli (c) 1997-2014 F. Piette V8.07 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -3620,8 +3623,11 @@ begin
     FProxyConnected := FALSE;
     FLocationFlag   := FALSE;
     { When relocation occurs doing a POST, new relocated page has to be GET }
-    if FRequestType = httpPOST then
+    {  if FRequestType = httpPOST then  }
+    { angus V8.07  unless a 307 or 308 POST which must not revert to GET }
+    if (FRequestType = httpPOST) and not ((FStatusCode = 307) or (FStatusCode = 308)) then
         FRequestType  := httpGET;
+
     { Restore normal session closed event }
     FCtrlSocket.OnSessionClosed := SocketSessionClosed;
 
@@ -4028,7 +4034,9 @@ begin
         AdjustDocName;
         { When relocation occurs doing a POST, new relocated page }
         { has to be GET.  01/05/03                                }
-        if FRequestType = httpPOST then
+        { if FRequestType = httpPOST then }
+        { angus V8.07  unless a 307 or 308 POST which must not revert to GET }
+        if (FRequestType = httpPOST) and not ((FStatusCode = 307) or (FStatusCode = 308)) then
             FRequestType  := httpGET;
         { Must clear what we already received }
         CleanupRcvdStream; {11/11/04}

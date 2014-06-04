@@ -5,7 +5,7 @@ Object:       Delphi application which is a basic telnet program demonstrating
               WSocket, TnCnx, TnEmulVT, EmulVT components.
 Author:       François PIETTE
 Creation:     July 22, 1997
-Version:      8.01
+Version:      8.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -48,6 +48,7 @@ Aug 15, 2008  V7.00 Delphi 2009 (Unicode) support. The terminal is not
               unicode, but the component support unicode strings.
 May 2012 - V8.00 - this is a Windows only demo, IPv4 only
 Apr 16, 2013  V8.01 Angus, now supports IPv6, changed font to Courier New
+Jun 4, 2014   V8.02 Angus, set autosize and white font
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsTelnetClient1;

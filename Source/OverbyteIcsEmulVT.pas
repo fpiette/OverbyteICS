@@ -5,7 +5,7 @@ Description:  Delphi component which does Ansi terminal emulation
               Not every escape sequence is implemented, but a large subset.
 Author:       François PIETTE
 Creation:     May, 1996
-Version:      8.01
+Version:      8.02
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -96,6 +96,10 @@ Jul 17, 2011 V7.04 Arno fixed some bugs with non-Windows-1252 code pages.
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 Dec 28, 2013 V8.01 Arno fixed a bug with file IO in TCustomEmulVT.SetLog
+May 28, 2014 v8.02 DrJohn fixed problem with (border) colours
+                   AutoResize property added with improved font resizing
+                   SoundOn property added
+                   GetScreenText function added
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsEmulVT;
@@ -141,8 +145,8 @@ uses
     OverbyteIcsUtils;
 
 const
-  EmulVTVersion      = 801;
-  CopyRight : String = ' TEmulVT (c) 1996-2014 F. Piette V8.01 ';
+  EmulVTVersion      = 802;
+  CopyRight : String = ' TEmulVT (c) 1996-2014 F. Piette V8.02 ';
   MAX_ROW            = 50;
   MAX_COL            = 160;
   NumPaletteEntries  = 16;
@@ -172,6 +176,20 @@ type
                                var ShiftLock : Boolean;
                                var ScanCode  : Char;
                                var Ext       : Boolean) of object;
+  TNFont = class(TFont)                                           {drjohn}
+  private
+     FPenColor  : TBackColors;
+     FBackColor : TBackColors;
+  published
+     property Color  : TBackColors  read FPenColor  write FPenColor;
+     property BackColor : TBackColors  read FBackColor write FBackColor;
+     property Charset;
+     property Height;
+     property Name;
+     property Pitch;
+     property Size;
+     property Style;
+  end;
 
 
 type
@@ -181,7 +199,11 @@ type
     // The code is written with conditional compilation so that Txt can be
     // either AnsiChar or Char. Eventually, it will be Char when the
     // component fully support unicode
+{$IFDEF UNICODE}                                                     {drjohn}
+    Txt : array [0..MAX_COL] of Char;                                {drjohn}
+{$ELSE}                                                              {drjohn}
     Txt : array [0..MAX_COL] of AnsiChar;
+{$ENDIF}                                                             {drjohn}
     Att : array [0..MAX_COL] of Byte;
     constructor Create;
     procedure   Clear(Attr : Byte);
@@ -201,6 +223,7 @@ type
     FScrollRowTop    : Integer;
     FScrollRowBottom : Integer;
     FAttribute       : Byte;
+    FDefAttribute    : Byte;                        {JMP }
     FForceHighBit    : Boolean;
     FReverseVideo    : Boolean;
     FUnderLine       : Boolean;
@@ -222,6 +245,7 @@ type
     FNoXlatInitial   : Boolean;
     FCntLiteral      : Integer;
     FCarbonMode      : Boolean;
+    FSound           : Boolean;                     {drjohn}
     FXlatInputTable  : PXlatTable;
     FXlatOutputTable : PXlatTable;
     FCharSetG0       : Char;
@@ -230,6 +254,7 @@ type
     FCharSetG3       : Char;
     FAllInvalid      : Boolean;
     FInvRect         : TRect;
+    FFont            : TNFont;                        {drjohn}
     FOnCursorVisible : TNotifyEvent;
     constructor Create;
     destructor  Destroy; override;
@@ -250,6 +275,7 @@ type
     procedure   WriteLiteralChar(Ch : Char);
     procedure   ProcessEscape(EscCmd : Char);
     procedure   SetAttr(Att : Char);
+    procedure   SetFontColors;                                  {drjohn}
     procedure   CursorRight;
     procedure   CursorLeft;
     procedure   CursorDown;
@@ -311,16 +337,17 @@ type
     FCursorVisible   : Boolean;
     FCaretShown      : Boolean;
     FCaretCreated    : Boolean;
-    FLineHeight      : Integer;
+    FLineHeight      : Single;            {drjohn}
     FLineZoom        : Single;
-    FCharWidth       : Integer;
+    FCharWidth       : Single;             {drjohn}
     FCharZoom        : Single;
+    FColCount          : integer;          {drjohn}
     FGraphicDraw     : Boolean;
     FInternalLeading : Integer;
     FBorderStyle     : TBorderStyle;
     FBorderWidth     : Integer;
     FAutoRepaint     : Boolean;
-    FFont            : TFont;
+//    FFont            : TFont;             {drjohn}
     FVScrollBar      : TScrollBar;
     FTopLine         : Integer;
     FLocalEcho       : Boolean;
@@ -341,19 +368,21 @@ type
     FPal             : HPalette;
     FPaletteEntries  : array[0..NumPaletteEntries - 1] of TPaletteEntry;
     FMarginColor     : Integer;
+    FResize          : Boolean;                 {drjohn}
     procedure   WMPaint(var Message: TWMPaint); message WM_PAINT;
     procedure   WMSetFocus(var Message: TWMSetFocus); message WM_SETFOCUS;
     procedure   WMKillFocus(var Message: TWMKillFocus); message WM_KILLFOCUS;
     procedure   WMLButtonDown(var Message: TWMLButtonDown); message WM_LBUTTONDOWN;
     procedure   WMPaletteChanged(var Message : TMessage); message WM_PALETTECHANGED;
     procedure   VScrollBarScroll(Sender: TObject; ScrollCode: TScrollCode; var ScrollPos: Integer);
+    procedure   VResize(Sender: TObject);               {drjohn}
     procedure   SetCaret;
     procedure   AdjustScrollBar;
     function    ProcessFKeys(ScanCode: Char; Shift: TShiftState; Ext: Boolean) : Boolean;
     function    FindFKeys(ScanCode: Char; Shift: TShiftState;
                           Ext: Boolean) : PFuncKeyValue;
     procedure   CursorVisibleEvent(Sender : TObject);
-    procedure   SetFont(Value : TFont);
+    procedure   SetFont(Value : TNFont);                    {drjohn}
     procedure   SetAutoLF(Value : Boolean);
     procedure   SetAutoCR(Value : Boolean);
     procedure   SetXlat(Value : Boolean);
@@ -364,7 +393,8 @@ type
     procedure   SetTopLine(Value : Integer);
     procedure   SetBackColor(Value : TBackColors);
     procedure   SetOptions(Value : TScreenOptions);
-    procedure   SetLineHeight(Value : Integer);
+    procedure   SetLineHeight(Value : Single);                {drjohn}
+    function    GetFont : TNFont;                           {drjohn}
     function    GetAutoLF : Boolean;
     function    GetAutoCR : Boolean;
     function    GetXlat : Boolean;
@@ -373,11 +403,16 @@ type
     function    GetBackRows : Integer;
     function    GetBackColor : TBackColors;
     function    GetOptions : TScreenOptions;
-    procedure SetMarginColor(const Value: Integer);
-    procedure SetLeftMargin(const Value: Integer);
-    procedure SetBottomMargin(const Value: Integer);
-    procedure SetRightMargin(const Value: Integer);
-    procedure SetTopMargin(const Value: Integer);
+    function    GetSound : boolean;                         {JMP }
+    function    GetResize : boolean;                        {drjohn}
+    procedure   SetMarginColor(const Value: Integer);
+    procedure   SetLeftMargin(const Value: Integer);
+    procedure   SetBottomMargin(const Value: Integer);
+    procedure   SetRightMargin(const Value: Integer);
+    procedure   SetTopMargin(const Value: Integer);
+    procedure   SetSound(const Value: boolean );              {drjohn}
+    procedure   SetResize(const Value: boolean );             {drjohn}
+
   protected
     FScreen          : TScreen;
     procedure   AppMessageHandler(var Msg: TMsg; var Handled: Boolean);
@@ -401,6 +436,7 @@ type
     procedure   WriteBuffer(Buffer : PAnsiChar; Len : Integer); overload;
 {$ENDIF}
     function    ReadStr : String;
+    function    GetScreenText(Buffer: PChar; BufSize: Integer): Integer;      {drjohn}
     procedure   CopyHostScreen;
     procedure   Clear;
     procedure   UpdateScreen;
@@ -410,11 +446,11 @@ type
     function    PixelToCol(X : Integer) : Integer;
     procedure   MouseToCell(X, Y: Integer; var ACol, ARow: Longint);
     procedure   SetLineZoom(newValue : Single);
-    procedure   SetCharWidth(newValue : Integer);
+    procedure   SetCharWidth(newValue : Single);                {drjohn}
     procedure   SetCharZoom(newValue : Single);
     procedure   KeyPress(var Key: Char); override;
     property    LineZoom  : Single        read FLineZoom     write SetLineZoom;
-    property    CharWidth : Integer       read FCharWidth    write SetCharWidth;
+    property    CharWidth : Single        read FCharWidth    write SetCharWidth;      {drjohn}
     property    CharZoom  : Single        read FCharZoom     write SetCharZoom;
     property    GraphicDraw : Boolean     read FGraphicDraw  write FGraphicDraw;
     property    TopLine     : Integer     read FTopLine      write SetTopLine;
@@ -433,6 +469,7 @@ type
     property OnMouseDown;
     property OnMouseUp;
     property OnClick;
+    property OnResize;              {drjohn}
     property OnKeyPress;
     property OnKeyBuffer : TKeyBufferEvent read FOnKeyBuffer write FOnKeyBuffer;
     property OnKeyDown   : TKeyDownEvent   read FOnKeyDown   write FOnKeyDown;
@@ -440,9 +477,11 @@ type
     property Align;
     property TabStop;
     property TabOrder;
+    Property AutoResize  : Boolean     read GetResize    write SetResize;               {drjohn}
+    Property SoundOn  : Boolean        read GetSound     write SetSound;                {drjohn}
     property BorderStyle: TBorderStyle read FBorderStyle write FBorderStyle;
     property AutoRepaint : Boolean     read FAutoRepaint write FAutoRepaint;
-    property Font : TFont              read FFont        write SetFont;
+    property Font : TNFont             read GetFont      write SetFont;             {drjohn}
     property LocalEcho : Boolean       read FLocalEcho   write FLocalEcho;
     property AutoLF : Boolean          read GetAutoLF    write SetAutoLF;
     property AutoCR : Boolean          read GetAutoCR    write SetAutoCR;
@@ -452,7 +491,7 @@ type
     property LogFileName : String      read FLogFileName write FLogFileName;   // angus V6.01
     property Rows : Integer            read GetRows      write SetRows;
     property Cols : Integer            read GetCols      write SetCols;
-    property LineHeight : Integer      read FLineHeight  write SetLineHeight;
+    property LineHeight : Single       read FLineHeight  write SetLineHeight;               {drjohn}
     property FKeys : Integer           read FFKeys       write FFKeys;
     property SelectRect : TRect        read FSelectRect  write FSelectRect;
     property BackRows : Integer        read GetBackRows  write SetBackRows;
@@ -471,6 +510,7 @@ type
     property OnMouseDown;
     property OnMouseUp;
     property OnClick;
+    property OnResize;              {drjohn}
     property OnKeyPress;
     property OnKeyDown;
     property OnKeyBuffer;
@@ -493,6 +533,8 @@ type
     property Options;
     property LineHeight;
     property CharWidth;
+    property SoundOn;               {drjohn}
+    property AutoReSize;            {drjohn}
     property TabStop;
     property TabOrder;
     property FKeys;
@@ -504,23 +546,23 @@ type
   end;
 
 const
-  F_BLACK   = $00;
+ { F_BLACK   = $00;              // These are never used
   F_BLUE    = $01;
   F_GREEN   = $02;
   F_CYAN    = $03;
   F_RED     = $04;
   F_MAGENTA = $05;
-  F_BROWN   = $06;
+  F_BROWN   = $06; }       {drjohn}
   F_WHITE   = $07;
 
-  B_BLACK   = $00;
+ { B_BLACK   = $00;
   B_BLUE    = $01;
   B_GREEN   = $02;
   B_CYAN    = $03;
   B_RED     = $04;
   B_MAGENTA = $05;
   B_BROWN   = $06;
-  B_WHITE   = $07;
+  B_WHITE   = $07;   }     {drjohn}
 
   F_INTENSE = $08;
   B_BLINK   = $80;
@@ -1314,7 +1356,8 @@ constructor TLine.Create;
 begin
     inherited Create;
 {$IF SizeOf(Txt[0]) <> 1}
-    FillWChar(Txt, SizeOf(Txt), ' ');
+//    FillWChar(Txt, SizeOf(Txt), ' ');                       {drjohn}
+    FillWChar(Txt, length(Txt), ' ');
 {$ELSE}
     FillChar(Txt, SizeOf(Txt), ' ');
 {$IFEND}
@@ -1326,7 +1369,8 @@ end;
 procedure TLine.Clear(Attr : Byte);
 begin
 {$IF SizeOf(Txt[0]) <> 1}
-    FillWChar(Txt, SizeOF(Txt), ' ');
+//    FillWChar(Txt, SizeOf(Txt), ' ');                       {drjohn}
+    FillWChar(Txt, length(Txt), ' ');
 {$ELSE}
     FillChar(Txt, SizeOF(Txt), ' ');
 {$IFEND}
@@ -1350,6 +1394,7 @@ begin
     FScrollRowTop    := 0;
     {FScrollRowBottom := FRowCount - 1; // WM + SE 09/08/00 }
     FAttribute       := F_WHITE;
+    FDefAttribute      := F_WHITE;              {drjohn}
     InvClear;
 end;
 
@@ -1491,7 +1536,8 @@ begin
     for Row := FScrollRowTop + 1 to FScrollRowBottom do
         Lines[Row - 1] := Lines[Row];
     Lines[FScrollRowBottom] := Temp;
-    Temp.Clear(F_WHITE {FAttribute});
+    FAttribute := FDefAttribute;                {drjohn}
+    Temp.Clear( FAttribute );                 {drjohn}
     FAllInvalid := TRUE;
 end;
 
@@ -1506,7 +1552,8 @@ begin
     for Row := FScrollRowBottom DownTo FScrollRowTop + 1 do
         Lines[Row] := Lines[Row - 1];
     Lines[FScrollRowTop] := Temp;
-    Temp.Clear(F_WHITE {FAttribute});
+    FAttribute := FDefAttribute;                {drjohn}
+    Temp.Clear( FAttribute );                 {drjohn}
     FAllInvalid := TRUE;
 end;
 
@@ -1705,6 +1752,7 @@ procedure TScreen.ClearScreen;
 var
     Row : Integer;
 begin
+   SetFontColors;               {drjohn}
     for Row := 0 to FRowCount - 1 do
         Lines[Row].Clear(FAttribute);
     FRow := 0;
@@ -1769,7 +1817,8 @@ procedure TScreen.Eol;
 begin
     with Lines[FRow] do begin
 {$IF SizeOf(Txt[0]) <> 1}  // V 7.02
-        FillWChar(@Txt[FCol], FColCount - FCol, ' ');
+//        FillWChar(@Txt[FCol], FColCount - FCol, ' ');
+        FillWChar(@Txt[FCol], (FColCount - FCol)*SizeOf(Txt[0]) , ' ');            {drjohn}
 {$ELSE}
         FillChar(Txt[FCol], FColCount - FCol, ' ');
 {$IFEND}
@@ -1806,7 +1855,7 @@ begin
     GetEscapeParam(2, Mode);
     case Mode of
     0: begin                                   { Cursor to end of screen    }
-           FAttribute := F_WHITE;
+           FAttribute := FDefAttribute;                {drjohn}
            Eop;
        end;
     1: begin                                   { Start of screen to cursor  }
@@ -1881,9 +1930,10 @@ begin
             Lines[nRow].Clear(FAttribute);
         Exit;
     end;
+    FAttribute := FDefAttribute;                {drjohn}
 
     for nRow := FRow to FRow + nLine - 1 do
-        Lines[nRow].Clear(F_WHITE {FAttribute});  { 12/11/99 }
+        Lines[nRow].Clear( FAttribute );                   {drjohn}
     for nRow := FRow to FScrollRowBottom - nLine do begin
         Temp                := Lines[nRow];
         Lines[nRow]         := Lines[nRow + nLine];
@@ -1901,7 +1951,7 @@ begin
         Exit;
 
     if Length(FEscBuffer) < 2 then begin
-        FAttribute    := F_WHITE;
+        FAttribute := FDefAttribute;                {drjohn}
         FReverseVideo := FALSE;
         Exit;
     end;
@@ -1916,7 +1966,7 @@ begin
             From := GetEscapeParam(From, n);
             case n of
             0:  begin                   { All attributes off       }
-                    FAttribute    := F_WHITE;
+                    FAttribute    := FDefAttribute;             {drjohn}
                     FReverseVideo := FALSE;
                     FUnderLine    := FALSE;
                 end;
@@ -1945,10 +1995,11 @@ begin
                     FAttribute := FAttribute and (not F_INTENSE);
                 end;
             27: begin                   { Normal characters        }
-                    FAttribute    := F_WHITE;
+                    FAttribute := FDefAttribute;                {drjohn}
                     FReverseVideo := FALSE;
                 end;
             30, 31, 32, 33, 34, 35, 36, 37:
+               { vtsBlack, vtsRed, vtsGreen, vtsYellow, vtsBlue,  vtsMagenta, vtsCyan,  vtsWhite}  {drjohn}
                 begin                   { Foreground color         }
                     FAttribute := (n mod 10) or (FAttribute and $F8);
                 end;
@@ -2113,6 +2164,8 @@ begin
     case Mode of
     1 :  { ANSI cursor keys }
          FCKeyMode := TRUE;
+    3 :  { change column width }                {drjohn}
+             FColCount := 132;
     4 :  { Smooth scroll OFF }
          { Ignore };
     7:   { Auto-wrap OFF }
@@ -2150,6 +2203,8 @@ begin
     case Mode of
     1 :  { ANSI cursor keys }
          FCKeyMode := FALSE;
+    3 :  { change column width }                {drjohn}
+             FColCount := 80;
     4 :  { Smooth scroll OFF }
          { Ignore };
     7:   { Auto-wrap OFF }
@@ -2246,7 +2301,7 @@ begin
         end;
         for nCol := FcolCount - Count - 1 to FColCount - 1 do begin
             Txt[nCol] := ' ';
-            Att[nCol] := F_WHITE;
+            Att[nCol] := FAttribute;                {drjohn}
         end;
     end;
     InvRect(Frow, FCol);
@@ -2472,7 +2527,8 @@ begin
 {$ELSE}
             if Length(FEscBuffer) >= High(FEscBuffer) then begin
 {$ENDIF}
-                MessageBeep(MB_ICONASTERISK);
+                if FSound then              {drjohn}
+                   MessageBeep(MB_ICONASTERISK);
                 FEscBuffer := '';
                 FEscFlag   := FALSE;
             end;
@@ -2491,7 +2547,8 @@ begin
 
     case Ch of
     #0:  ;
-    #7:  MessageBeep(MB_ICONASTERISK);
+    #7:  if FSound then             {drjohn}
+                  MessageBeep(MB_ICONASTERISK);
     #8:  BackSpace;
     #9:  begin
              repeat
@@ -2589,6 +2646,50 @@ begin
 {$ENDIF}
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+//     TVtColors = ( vtsBlack, vtsRed,     vtsGreen, vtsYellow,     {drjohn}
+//                   vtsBlue,  vtsMagenta, vtsCyan,  vtsWhite);
+
+procedure TScreen.SetFontColors;                {drjohn}
+var
+   Att : Byte;
+begin
+   case FFont.BackColor of
+   vtsBlack:   Att := $00;
+   vtsRed:     Att := $10;
+   vtsGreen:   Att := $20;
+   vtsYellow:  Att := $30;
+   vtsBlue:    Att := $40;
+   vtsMagenta: Att := $50;
+   vtsCyan:    Att := $60;
+   else
+                Att := $70;   // vtclWhite
+   end;
+
+   case FFont.Color of
+   vtsRed:     Att := Att + $01;
+   vtsGreen:   Att := Att + $02;
+   vtsYellow:  Att := Att + $03;
+   vtsBlue:    Att := Att + $04;
+   vtsMagenta: Att := Att + $05;
+   vtsCyan:    Att := Att + $06;
+   vtsWhite:   Att := Att + $07;
+   else
+                Att := Att;   // vtclBlack
+   end;
+
+   if fsBold in FFont.Style then
+      Att := Att or F_INTENSE;;
+
+   if fAttribute = fDefAttribute then
+   begin
+      fDefAttribute := att;
+      fAttribute := att;
+   end
+   else
+      fDefAttribute := att;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Adjusts the scrollbar properties to match the number of host and scrollback
@@ -2603,7 +2704,7 @@ begin
 {$IFDEF CHAR_ZOOM}
     VisibleLines := Trunc((Height - FTopMargin - FBottomMargin) / (LineHeight * FLineZoom));
 {$ELSE}
-    VisibleLines := (Height - FTopMargin - FBottomMargin) Div LineHeight;
+    VisibleLines := Trunc(Height - FTopMargin - FBottomMargin) / LineHeight);              {drjohn}
 {$ENDIF}
     if VisibleLines > FScreen.FRowCount then
         VisibleLines := FScreen.FRowCount;
@@ -2650,6 +2751,13 @@ begin
     if FLog then
         Write(FFileHandle, Ch);
     FScreen.WriteChar(Ch);
+
+    if FColCount <> FScreen.FColCount then             {drjohn}
+    begin
+       vResize(Self);
+       FColCount := FScreen.FColCount;
+    end;
+
     if FAutoRepaint then
         UpdateScreen;
 {    SetCaret;   }
@@ -2670,6 +2778,11 @@ begin
         if FLog then
             Write(FFileHandle, Str[I]);
         FScreen.WriteChar(Str[I]);
+    end;
+    if FColCount <> FScreen.FColCount then             {drjohn}
+    begin
+       vResize(Self);
+       FColCount := FScreen.FColCount;
     end;
     if FAutoRepaint then
         UpdateScreen;
@@ -2694,6 +2807,11 @@ begin
             Write(FFileHandle, Buffer[I]);
         FScreen.WriteChar(Buffer[I]);
     end;
+    if FColCount <> FScreen.FColCount then             {drjohn}
+    begin
+       vResize(Self);
+       FColCount := FScreen.FColCount;
+    end;
     if FAutoRepaint then
         UpdateScreen;
 end;
@@ -2716,6 +2834,11 @@ begin
         if FLog then
             Write(FFileHandle, PChar(Buffer)[I]);
         FScreen.WriteChar(Char(Buffer[I]));
+    end;
+    if FColCount <> FScreen.FColCount then             {drjohn}
+    begin
+       vResize(Self);
+       FColCount := FScreen.FColCount;
     end;
     if FAutoRepaint then
         UpdateScreen;
@@ -2824,10 +2947,10 @@ begin
 
     FScreen             := TScreen.Create;
     FVScrollBar         := TScrollBar.Create(Self);
-    FFont               := TFont.Create;
-    FFont.Name          := 'Terminal';
-    FFont.Size          := 12;
-    FFont.Style         := [];
+    FScreen.FFont       := TNFont.Create;             {drjohn}
+    Font.Name           := 'Terminal';                {drjohn}
+    Font.Size           := 12;                        {drjohn}
+    Font.Style          := [];                        {drjohn}
     FCharZoom           := 1.0;
     FLineZoom           := 1.0;
     SetupFont;
@@ -2844,6 +2967,7 @@ begin
     FAutoRepaint        := TRUE;
     FFkeys              := 1;
     FGraphicDraw        := FALSE;
+    OnResize                  := VResize;              {drjohn}
 
     FLogFileName        := 'EMULVT.LOG';   // angus V6.01
 
@@ -2991,12 +3115,36 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomEmulVT.SetSound(const Value: boolean );               {drjohn}
+begin
+   FScreen.FSound := Value;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  TCustomEmulVT.GetSound : boolean;            {drjohn}
+begin
+   result := FScreen.FSound;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomEmulVT.SetResize(const Value: boolean );              {drjohn}
+begin
+   FResize := Value;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  TCustomEmulVT.GetResize : boolean;               {drjohn}
+begin
+   result := FResize;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor TCustomEmulVT.Destroy;
 begin
     if FLog then
         Log := FALSE;
 
-    FFont.Free;
+    FScreen.FFont.Free;            {drjohn}
     FVScrollBar.Free;
     FScreen.Free;
     DeleteObject(FPal);
@@ -3114,20 +3262,21 @@ var
     hObject : THandle;
 begin
     DC      := GetDC(0);
-    hObject := SelectObject(DC, FFont.Handle);
+    hObject := SelectObject(DC, FScreen.FFont.Handle);             {drjohn}
     GetTextMetrics(DC, Metrics);
     SelectObject(DC, hOBject);
     ReleaseDC(0, DC);
 
     SetCharWidth(Metrics.tmMaxCharWidth);
     SetLineHeight(Metrics.tmHeight);
+    FScreen.SetFontColors;             {drjohn}
     FInternalLeading := Metrics.tmInternalLeading;
     Invalidate;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomEmulVT.SetCharWidth(newValue : Integer);
+procedure TCustomEmulVT.SetCharWidth(newValue : Single);               {drjohn}
 var
     nCol : Integer;
 begin
@@ -3146,7 +3295,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomEmulVT.SetLineHeight(Value : Integer);
+procedure TCustomEmulVT.SetLineHeight(Value : Single);             {drjohn}
 var
     nRow : Integer;
 begin
@@ -3165,16 +3314,22 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomEmulVT.SetFont(Value : TFont);
+procedure TCustomEmulVT.SetFont(Value : TNFont);               {drjohn}
 begin
-    FFont.Assign(Value);
+    FScreen.FFont.Assign(Value);               {drjohn}
 {$IFNDEF SINGLE_CHAR_PAINT}
     FFont.Pitch := fpFixed;
 {$ENDIF}
     SetupFont;
     SetCaret;
+    FScreen.SetFontColors;             {drjohn}
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomEmulVT.GetFont : TNFont;               {drjohn}
+begin
+   Result := FScreen.FFont;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomEmulVT.WMLButtonDown(var Message: TWMLButtonDown);
@@ -3192,6 +3347,18 @@ begin
     SetFocus;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomEmulVT.VResize(Sender: TObject);              {drjohn}
+begin
+    if AutoResize then
+    begin
+        CharWidth := ((Width - 2 *(fLeftMargin + fRightMargin) ) / FScreen.FColCount);
+        Font.Size := Trunc(CharWidth);
+        LineHeight :=  (Height - (fTopMargin + fBottomMArgin)) / FScreen.FRowCount;
+        FInternalLeading := -Trunc((LineHeight + Font.Height)/2) ;    { Font.Height is negative}
+    end;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomEmulVT.DoKeyBuffer(Buffer : PChar; Len : Integer);
@@ -3438,7 +3605,7 @@ begin
     if not FCursorVisible then
         Exit;
 
-    CreateCaret(Handle, 0, 2, FLineHeight);
+    CreateCaret(Handle, 0, 2, Trunc(FLineHeight));             {drjohn}
     FCaretCreated := TRUE;
     SetCaret;
     if not FScreen.FCursorOff then begin
@@ -3482,7 +3649,7 @@ begin
     while (Y - FTopMargin) <= FLinePos[aRow] do
         Dec(aRow);
 {$ELSE}
-    aRow := (Y - FTopMargin) div FLineHeight;
+    aRow := Trunc((Y - FTopMargin) / FLineHeight);             {drjohn}
 {$ENDIF}
     if aRow < 0 then
         aRow := 0
@@ -4201,9 +4368,11 @@ begin
             SelectPalette(DC, FPal, FALSE);
             RealizePalette(DC);
             if FMarginColor = -1 then
-                BackIndex := FScreen.FAttribute div $0F
+                { screen background is bits 4-6 (of 0-7) }
+                BackIndex := (FScreen.FDefAttribute shr 4) and $07             {drjohn}
             else
-                BackIndex := FMarginColor mod NumPaletteEntries;
+                BackIndex := FMarginColor mod (NumPaletteEntries div 2);               {drjohn}
+                                    { NumPaletteEntries includes Intense colors }
             with FPaletteEntries[BackIndex] do
                 BackBrush := CreateSolidBrush(PALETTERGB(peRed, peGreen, peBlue));
             OldBrush := SelectObject(DC, BackBrush);
@@ -4234,7 +4403,7 @@ begin
             OldPen := SelectObject(DC, GetStockObject(NULL_PEN));
             WRectangle(DC, rcPaint.left, rcPaint.Top,
                        rcPaint.Right + 1,
-                       FTopMargin + FInternalLeading + 1);
+                       FTopMargin - FInternalLeading + 1);        {drjohn}
             SelectObject(DC, OldPen);
         end;
 
@@ -4242,15 +4411,15 @@ begin
             OldPen := SelectObject(DC, GetStockObject(NULL_PEN));
             WRectangle(DC, rcPaint.left, rcPaint.Top,
                        rcPaint.Right + 1,
-                       Y + FInternalLeading + 1);
+                       Y - FInternalLeading + 1);              {drjohn}
             SelectObject(DC, OldPen);
         end;
 
-        OldFont := SelectObject(DC, FFont.Handle);
+        OldFont := SelectObject(DC, FScreen.FFont.Handle);             {drjohn}
         nRow    := nRow + FTopLine;
         while nRow < FScreen.FRowCount do begin
             rc.Top    := Y;
-            rc.Bottom := Y + FLineHeight;
+            rc.Bottom := TRunc(Y + FLineHeight);               {drjohn}
             if rc.Bottom > (DrawRct.Bottom - FBottomMargin) then begin
                 OldPen := SelectObject(DC, GetStockObject(NULL_PEN));
                 WRectangle(DC, rc.Left - 2, rc.Top, rc.Right + 1,
@@ -4336,6 +4505,86 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+{* * * * * * * * * * * * * * * * * * * * * * ** * * * * * * * * * * * * * *}
+function TCustomEmulVT.GetScreenText(Buffer: PChar; BufSize: Integer ): Integer;              {drjohn}
+var
+    StartRow : Integer;
+    StopRow  : Integer;
+    StartCol : Integer;
+    StopCol  : Integer;
+    nRow     : Integer;
+    nCol     : Integer;
+    Line     : TLine;
+    nCnt     : Integer;
+    redraw : boolean;
+begin
+    nCnt := 0;
+    if (BufSize < 1) then begin
+        if BufSize > 0 then
+            Buffer[0] := #0;
+        Result := nCnt;
+        Exit;
+    end;
+
+  StartRow := 0;
+  StopRow := 24;
+  StartCol := 0;
+  StopCol := 79;
+  redraw := FALSE;
+
+    for nRow := StartRow to StopRow do begin
+        if BufSize < 2 then
+            Break;
+        Line := FScreen.FLines^[Rows - 1 - nRow];
+        for nCol := StartCol to StopCol do
+        begin
+{$IF SizeOf(Line.Txt[0]) <> 1}
+       if Line.Txt[nCol] = AnsiChar(#0) then
+       begin
+          Buffer[0] := ' ';
+          Line.Txt[nCol] := ' ';
+          redraw := TRUE;
+       end
+       else
+          Buffer[0] := Line.Txt[nCol];
+{$ELSE}
+       if Line.Txt[nCol] = Char(#0) then
+       begin
+          Buffer[0] := ' ';
+          Line.Txt[nCol] := ' ';
+          redraw := TRUE;
+       end
+       else
+          Buffer[0] := Char(Line.Txt[nCol]);
+{$IFEND}
+            Inc(Buffer);
+            Dec(BufSize);
+            Inc(nCnt);
+            if BufSize < 2 then
+                Break;
+        end;
+        if nRow < StopRow then begin
+            if BufSize < 4 then
+                Break;
+            Buffer[0] := #13;
+            Buffer[1] := #10;
+            Inc(Buffer);
+            Inc(Buffer);
+            Dec(BufSize);
+            Dec(BufSize);
+            Inc(nCnt);
+            Inc(nCnt);
+        end;
+    end;
+
+  if redraw  then
+     RePaint;
+
+    Buffer[0] := #0;
+    Result := nCnt;
+end;
+
 
 end.
 

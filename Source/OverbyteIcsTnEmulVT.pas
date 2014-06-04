@@ -5,13 +5,13 @@ Description:  Delphi component combining both TnCnx and EmulVT components.
               Hence it does ANSI emulation using TCP/IP telnet protocol.
 Author:       François PIETTE
 Creation:     May, 1996
-Version:      8.01
+Version:      8.02
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
 Legal issues: Copyright (C) 1996-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
-              <francois.piette@overbyte.be> 
+              <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -83,6 +83,11 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
 Apr 11, 2013  V8.01 Angus added SocketFamily, LocalAddr and LocalAddr6 for IPv6
                     Added default font if host not saved yet
                     Free Options form each time it's opened
+May 28, 2014  v8.02 DrJohn fixed problem with (border) colours
+                    AutoResize property added with improved font resizing
+                    SoundOn property added
+                    GetScreenText function added
+                    Fixed bug during connect if control not visible
 
 
 
@@ -127,8 +132,8 @@ uses
     OverbyteIcsTnOptFrm, OverbyteIcsWSocket;
 
 const
-  TnEmultVTVersion   = 801;
-  CopyRight : String = ' TTnEmulVT (c) 1996-2014 F. Piette V8.01 ';
+  TnEmultVTVersion   = 802;
+  CopyRight : String = ' TTnEmulVT (c) 1996-2014 F. Piette V8.02 ';
 
 type
   TTnEmulVTDataAvailable = procedure (Sender  : TObject;
@@ -198,6 +203,7 @@ type
     function    Send(Data : Pointer; Len : Integer) : Integer;
     function    SendStr(Data : String) : Integer;
     function    GetSelTextBuf(Buffer: PChar; BufSize: Integer): Integer;
+    function    GetScreenText(Buffer: PChar; BufSize: Integer): Integer;  {drjohn}
     procedure   KeyPress(var Key: Char); override;
     property    TnConn     : TTnCnx  read FTnCnx;
   published
@@ -469,7 +475,8 @@ end;
 procedure TTnEmulVT.TnCnxSessionClosed(Sender: TTnCnx; ErrorCode: Word);
 begin
     Display(#13 + #10 + '*** Server has closed ***' + #13 + #10);
-    MessageBeep(MB_ICONASTERISK);
+    if SoundOn then                                                  {drjohn}
+      MessageBeep(MB_ICONASTERISK);
     FError := ErrorCode;
     if Assigned(FOnSessionClosed) then
         FOnSessionClosed(Self);
@@ -486,7 +493,8 @@ begin
         Display('Connection failed: ' +
                 WSocketErrorDesc(ErrorCode) +
                 #13 + #10);
-        MessageBeep(MB_ICONASTERISK);
+        if SoundOn then                                               {drjohn}
+          MessageBeep(MB_ICONASTERISK);
     end;
     FError := ErrorCode;
     if Assigned(FOnSessionConnected) then
@@ -498,13 +506,13 @@ end;
 procedure TTnEmulVT.RestoreOptions;
 var
     IniFile  : TIniFile;
-    xFont    : TFont;
+    xFont    : TNFont;                                           {drjohn}
 begin
     if Length(FHostname) <= 0 then
         Exit;
 
     IniFile  := TIniFile.Create(IniFilename);
-    xFont := TFont.Create;
+    xFont := TNFont.Create;                                      {drjohn}
     IniToFont(xFont, IniFile, HostName);
     Font := xFont;
     xFont.Free;
@@ -517,6 +525,8 @@ begin
     AutoLF      := IniFile.ReadInteger(HostName, 'AutoLF',      0) <> 0;
     LocalEcho   := IniFile.ReadInteger(HostName, 'LocalEcho',   0) <> 0;
     MonoChrome  := IniFile.ReadInteger(HostName, 'MonoChrome',  0) <> 0;
+    SoundOn     := IniFile.ReadInteger(HostName, 'SoundOn',     1) <> 0;              {drjohn}
+    AutoResize  := IniFile.ReadInteger(HostName, 'AutoResize',  1) <> 0;              {drjohn}
     UpperLock   := IniFile.ReadInteger(HostName, 'UpperLock',   0) <> 0;
     Xlat        := IniFile.ReadInteger(HostName, 'Xlat',        0) <> 0;
     GraphicDraw := IniFile.ReadInteger(HostName, 'GraphicDraw', 0) <> 0;
@@ -544,8 +554,10 @@ begin
     FTnCnx.SocketFamily := FSocketFamily; { V8.01 }
     FTnCnx.Connect;
     Display('Connecting to ''' + HostName + '''' + #13 + #10);
-    Form := GetParentForm(Self);
-    Form.ActiveControl := Self;
+    if Self.Showing then begin         {drjohn}
+        Form := GetParentForm(Self);
+        Form.ActiveControl := Self;
+    end;
 end;
 
 
@@ -634,13 +646,15 @@ begin
             CharZoom    := OptForm.CharZoom;
             IniFile     := TIniFile.Create(FIniFilename);
             FontToIni(OptForm.AFont, IniFile, FHostName);
-            IniFile.WriteInteger(FHostName, 'LineHeight',  LineHeight);
+            IniFile.WriteInteger(FHostName, 'LineHeight',  Trunc(LineHeight));            {drjohn}
             IniFile.WriteInteger(FHostName, 'Rows',        Rows);
             IniFile.WriteInteger(FHostName, 'Cols',        Cols);
             IniFile.WriteInteger(FHostName, 'AutoCR',      ord(AutoCR));
             IniFile.WriteInteger(FHostName, 'AutoLF',      ord(AutoLF));
             IniFile.WriteInteger(FHostName, 'LocalEcho',   ord(LocalEcho));
             IniFile.WriteInteger(FHostName, 'MonoChrome',  ord(MonoChrome));
+            IniFile.WriteInteger(HostName,  'SoundOn',     ord(SoundOn));                 {drjohn}
+            IniFile.WriteInteger(HostName,  'AutoResize',  ord(AutoResize));              {drjohn}
             IniFile.WriteInteger(FHostName, 'UpperLock',   ord(UpperLock));
             IniFile.WriteInteger(FHostName, 'Xlat',        ord(Xlat));
             IniFile.WriteInteger(FHostName, 'GraphicDraw', ord(GraphicDraw));
@@ -751,8 +765,8 @@ begin
             DrawFocusRectangle(Handle, FFocusRect);
         Rect.Top    := FMouseTop;
         Rect.Left   := FMouseLeft;
-        Rect.Bottom := SnapPixelToRow(Y) + LineHeight + 4;
-        Rect.Right  := SnapPixelToCol(X) + CharWidth;
+            Rect.Bottom := SnapPixelToRow(Y) + Trunc(LineHeight) + 4;             {drjohn}
+            Rect.Right  := SnapPixelToCol(X) + Trunc(CharWidth);              {drjohn}
         DrawFocusRectangle(Handle, Rect);
         FFocusRect   := Rect;
         FFocusDrawn  := TRUE;
@@ -845,6 +859,83 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * ** * * * * * * * * * * * * * *}
+function TTnEmulVT.GetScreenText(Buffer: PChar; BufSize: Integer ): Integer;              {drjohn}
+var
+    StartRow : Integer;
+    StopRow  : Integer;
+    StartCol : Integer;
+    StopCol  : Integer;
+    nRow     : Integer;
+    nCol     : Integer;
+    Line     : TLine;
+    nCnt     : Integer;
+  redraw : boolean;
+begin
+    nCnt := 0;
+    if (BufSize < 1) then begin
+        if BufSize > 0 then
+            Buffer[0] := #0;
+        Result := nCnt;
+        Exit;
+    end;
+
+  StartRow := 0;
+  StopRow := 24;
+  StartCol := 0;
+  StopCol := 79;
+  redraw := FALSE;
+
+    for nRow := StartRow to StopRow do begin
+        if BufSize < 2 then
+            Break;
+        Line := Screen.FLines^[Rows - 1 - nRow];
+        for nCol := StartCol to StopCol do
+        begin
+{$IF SizeOf(Line.Txt[0]) <> 1}
+       if Line.Txt[nCol] = AnsiChar(#0) then
+       begin
+          Buffer[0] := ' ';
+          Line.Txt[nCol] := ' ';
+          redraw := TRUE;
+       end
+       else
+          Buffer[0] := Line.Txt[nCol];
+{$ELSE}
+       if Line.Txt[nCol] = Char(#0) then
+       begin
+          Buffer[0] := ' ';
+          Line.Txt[nCol] := ' ';
+          redraw := TRUE;
+       end
+       else
+          Buffer[0] := Char(Line.Txt[nCol]);
+{$IFEND}
+            Inc(Buffer);
+            Dec(BufSize);
+            Inc(nCnt);
+            if BufSize < 2 then
+                Break;
+        end;
+        if nRow < StopRow then begin
+            if BufSize < 4 then
+                Break;
+            Buffer[0] := #13;
+            Buffer[1] := #10;
+            Inc(Buffer);
+            Inc(Buffer);
+            Dec(BufSize);
+            Dec(BufSize);
+            Inc(nCnt);
+            Inc(nCnt);
+        end;
+    end;
+
+  if redraw  then
+     RePaint;
+
+    Buffer[0] := #0;
+    Result := nCnt;
+end;
 
 
 end.

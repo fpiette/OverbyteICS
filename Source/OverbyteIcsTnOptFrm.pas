@@ -3,12 +3,12 @@
 Author:       François PIETTE
 Description:  User interface for TnEmulVT component options
 Creation:     May, 1996
-Version:      8.01
+Version:      8.02
 Author:       François PIETTE
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org See website for details.
 Legal issues: Copyright (C) 1996-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. 
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -49,6 +49,10 @@ Apr 11, 2013  V8.01 Angus changed font to Courer New 8 from System and ensure on
                       fonts allowed, since character spacing otherwise set to width of widest
                       character in a proportional spaced font and looks horrible
                     Changed form to Arial 8 which looks more modern
+May 28, 2014  v8.02 DrJohn fixed problem with (border) colours
+                    AutoResize property added with improved font resizing
+                    SoundOn property added
+                    GetScreenText function added
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsTnOptFrm;
@@ -81,11 +85,12 @@ uses
     WinTypes, WinProcs,
 {$ENDIF}
     SysUtils, Classes, Graphics, Controls,
-    Dialogs, Forms, StdCtrls, IniFiles, Buttons, OverbyteIcsUtils;
+    Dialogs, Forms, StdCtrls, IniFiles, Buttons, OverbyteIcsUtils,
+    OverbyteIcsEmulVT;                                      {drjohn}
 
 const
-  TnOptFrmVersion      = 801;
-  CopyRight : String = ' TnOptFrm (c) 1996-2013 F. Piette V8.01 ';
+  TnOptFrmVersion      = 802;
+  CopyRight : String = ' TnOptFrm (c) 1996-2013 F. Piette V8.02 ';
 
 type
   TOptForm = class(TForm)
@@ -136,7 +141,7 @@ type
     FSectionName  : String;
     FKeyName      : String;
     FHostName     : String;
-    FFont         : TFont;
+    FFont         : TNFont;                                  {drjohn}
     FOnNamesClick : TNotifyEvent;
     function  GetLocalEcho   : Boolean;
     function  GetAutoCr      : Boolean;
@@ -148,7 +153,7 @@ type
     function  GetGraphicDraw : Boolean;
     function  GetRows        : Integer;
     function  GetCols        : integer;
-    function  GetLineHeight  : Integer;
+    function  GetLineHeight  : Single;              {drjohn}
     function  GetLineZoom    : Single;
     function  GetCharZoom    : Single;
     function  GetFKeys       : Integer;
@@ -163,7 +168,7 @@ type
     procedure SetRows(Value : Integer);
     procedure SetCols(Value : Integer);
     procedure SetHostName(Value : String);
-    procedure SetLineHeight(Value : Integer);
+    procedure SetLineHeight(Value : Single);       {drjohn}
     procedure SetLineZoom(Value : Single);
     procedure SetCharZoom(Value : Single);
     procedure SetFKeys(Value : Integer);
@@ -183,8 +188,8 @@ type
     property GraphicDraw : Boolean read GetGraphicDraw write SetGraphicDraw;
     property Rows        : Integer read GetRows        write SetRows;
     property Cols        : Integer read GetCols        write SetCols;
-    property AFont       : TFont   read FFont          write FFont;
-    property LineHeight  : Integer read GetLineHeight  write SetLineHeight;
+    property AFont       : TNFont  read FFont          write FFont;           {drjohn}
+    property LineHeight  : Single  read GetLineHeight  write SetLineHeight;   {drjohn}
     property LineZoom    : Single  read GetLineZoom    write SetLineZoom;
     property CharZoom    : Single  read GetCharZoom    write SetCharZoom;
 
@@ -383,7 +388,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function  TOptForm.GetLineHeight : integer;
+function  TOptForm.GetLineHeight : single;              {drjohn}
 var
     DC      : HDC;
     Metrics : TTextMetric;
@@ -417,9 +422,9 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TOptForm.SetLineHeight(Value : Integer);
+procedure TOptForm.SetLineHeight(Value : Single);                         {drjohn}
 begin
-    LineHeightEdit.Text := IntToStr(Value);
+    LineHeightEdit.Text := IntToStr(Trunc(Value));                  {drjohn}
 end;
 
 
@@ -555,7 +560,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TOptForm.FormCreate(Sender: TObject);
 begin
-    FFont       := TFont.Create;
+    FFont       := TNFont.Create;             {drjohn}
     SectionName := 'Windows';
     KeyName     := 'Options';
 end;
@@ -566,7 +571,7 @@ procedure TOptForm.FontButtonClick(Sender: TObject);
 begin
     FontDialog1.Font := FFont;
     if FontDialog1.Execute then
-        FFont := FontDialog1.Font;
+        FFont := TNFont(FontDialog1.Font);            {drjohn}
 end;
 
 

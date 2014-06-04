@@ -265,7 +265,7 @@ object OptForm: TOptForm
   end
   object FontDialog1: TFontDialog
     Font.Charset = ANSI_CHARSET
-    Font.Color = clWindowText
+    Font.Color = clWhite
     Font.Height = -11
     Font.Name = 'Courier New'
     Font.Style = []

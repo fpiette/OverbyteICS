@@ -47,11 +47,12 @@ object TelnetForm: TTelnetForm
     BorderStyle = bsSingle
     AutoRepaint = True
     Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -11
+    Font.Color = vtsWhite
+    Font.Height = -8
     Font.Name = 'Courier New'
     Font.Pitch = fpFixed
     Font.Style = []
+    Font.BackColor = vtsBlack
     LocalEcho = False
     AutoLF = False
     AutoCR = False
@@ -64,9 +65,11 @@ object TelnetForm: TTelnetForm
     BackRows = 50
     BackColor = vtsYellow
     Options = [vtoBackColor]
-    LineHeight = 16
-    CharWidth = 12
-    TabOrder = 0
+    LineHeight = 11.880000114440920000
+    CharWidth = 6.912499904632568000
+    SoundOn = False
+    AutoReSize = True
+    TabOrder = 9
     FKeys = 1
     TopMargin = 4
     LeftMargin = 6
@@ -91,7 +94,7 @@ object TelnetForm: TTelnetForm
     Width = 75
     Height = 21
     Caption = '&Connect'
-    TabOrder = 1
+    TabOrder = 2
     OnClick = ConnectButtonClick
   end
   object HostNameEdit: TEdit
@@ -99,7 +102,7 @@ object TelnetForm: TTelnetForm
     Top = 8
     Width = 121
     Height = 21
-    TabOrder = 2
+    TabOrder = 0
     Text = 'HostNameEdit'
   end
   object PortEdit: TEdit
@@ -107,7 +110,7 @@ object TelnetForm: TTelnetForm
     Top = 40
     Width = 121
     Height = 21
-    TabOrder = 3
+    TabOrder = 1
     Text = 'PortEdit'
   end
   object DisconnectButton: TButton
@@ -117,7 +120,7 @@ object TelnetForm: TTelnetForm
     Height = 21
     Caption = '&Disconnect'
     Enabled = False
-    TabOrder = 4
+    TabOrder = 3
     OnClick = DisconnectButtonClick
   end
   object SendButton: TButton
@@ -135,7 +138,7 @@ object TelnetForm: TTelnetForm
     Width = 75
     Height = 21
     Caption = '&Options'
-    TabOrder = 6
+    TabOrder = 4
     OnClick = OptionsButtonClick
   end
   object LocalEchoCheckBox: TCheckBox
@@ -144,7 +147,7 @@ object TelnetForm: TTelnetForm
     Width = 97
     Height = 17
     Caption = 'Local Echo'
-    TabOrder = 7
+    TabOrder = 8
     OnClick = LocalEchoCheckBoxClick
   end
   object RequestLocalEchoOnButton: TButton
@@ -153,7 +156,7 @@ object TelnetForm: TTelnetForm
     Width = 121
     Height = 17
     Caption = 'RequestLocal Echo On'
-    TabOrder = 8
+    TabOrder = 6
     OnClick = RequestLocalEchoOnButtonClick
   end
   object RequestLocalEchoOffButton: TButton
@@ -162,7 +165,7 @@ object TelnetForm: TTelnetForm
     Width = 121
     Height = 17
     Caption = 'RequestLocal Echo Off'
-    TabOrder = 9
+    TabOrder = 7
     OnClick = RequestLocalEchoOffButtonClick
   end
 end

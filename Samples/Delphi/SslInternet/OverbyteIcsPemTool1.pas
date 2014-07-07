@@ -65,6 +65,8 @@ Feb 13, 2014 V1.14 Angus using TX509Ex instead of TMyX509 to read PEM entries
              Added directory selection buttons (but using Open Dialog for ease).
              Optionally add clear text comments to PEM files to easily identify
              certifcates.
+June 23, 2014 V1.15 Angus show issuer Common Name and Organisation Unit in
+                    certificate comments
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPemtool1;
@@ -95,10 +97,10 @@ uses
   OverbyteIcsLibeayEx, OverbyteIcsSslX509Utils, OverByteIcsMimeUtils, Buttons;
 
 const
-     PemToolVersion     = 113;
-     PemToolDate        = 'February 14, 2014';
+     PemToolVersion     = 115;
+     PemToolDate        = 'June 23, 2014';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2014 by François PIETTE V1.13 ';
+     CopyRight : String = '(c) 2003-2014 by François PIETTE V1.15 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -880,14 +882,22 @@ begin
                  { Angus add comment before encoded certificate so we
                    can actually identify each one easily }
                 if CheckBoxComment.Checked then begin
-                    Title := '# X509 SSL Certificate' + #13#10 +
-                             '# Subject Common Name: ' + AnsiString(X.UnwrapNames(X.SubjectCName))+ #13#10;
+                    Title := '# X509 SSL Certificate' + #13#10;
+                    if X.SubjectCName <> '' then
+                        Title := Title + '# Subject Common Name: ' + AnsiString(X.UnwrapNames(X.SubjectCName))+ #13#10;
                     if X.SubAltNameDNS <> '' then
                         Title := Title + '# Subject Alt Names: ' + AnsiString(X.UnwrapNames(X.SubAltNameDNS))+ #13#10;
-                    Title := Title +
-                             '# Subject Organisation: ' + AnsiString(X.UnwrapNames(X.SubjectOName)) + #13#10 +
-                             '# Issuer Organisation: ' + AnsiString(X.UnwrapNames(X.IssuerOName)) + #13#10 +
-                             '# Expires: ' + AnsiString(DateToStr (X.ValidNotAfter))+ #13#10;
+                    Title := Title + '# Subject Organisation: ' + AnsiString(X.UnwrapNames(X.SubjectOName)) + #13#10;
+                    if X.SubjectOUName <> '' then
+                        Title := Title + '# Subject Organisation Unit: ' + AnsiString(X.UnwrapNames(X.SubjectOUName)) + #13#10;
+                    if X.SelfSigned then
+                        Title := Title + 'Issuer: Self Signed' + #13#10
+                    else begin
+                        Title := Title +
+                             '# Issuer Common Name: ' + AnsiString(X.UnwrapNames(X.IssuerCName)) + #13#10 +
+                             '# Issuer Organisation: ' + AnsiString(X.UnwrapNames(X.IssuerOName)) + #13#10;
+                    end;
+                     Title := Title +'# Expires: ' + AnsiString(DateToStr (X.ValidNotAfter))+ #13#10;
                     f_BIO_write(FileBio, @Title [1], Length (Title));
                 end;
                 f_PEM_write_bio_X509(FileBio, X.X509);

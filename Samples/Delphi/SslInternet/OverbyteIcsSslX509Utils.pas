@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Aug 26, 2007
 Description:
-Version:      1.07a
+Version:      1.08
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -55,6 +55,7 @@ Feb 14, 2014 V1.07 Angus added class TX509Ex derived from TX509Base adding
              Optionally add clear text comments to PEM files to easily identify
              certifcates.
 Apr 18, 2014 V1.07a Arno removed some compiler warnings.
+Jul 07, 2014 V1.08 Angus improved certificate comment
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslX509Utils;
@@ -650,7 +651,7 @@ begin
         if Comment then begin
             Info := '# Subject Common Name: ' + AnsiString(CName) + #13#10 +
                     '# Subject Organisation: ' + AnsiString(Organization) + #13#10 +
-                    '# Self Signed' + #13#10 +
+                    '# Issuer: Self Signed' + #13#10 +
                     '# Expires: ' + AnsiString(DateToStr (Date + Days)) + #13#10;
             Title := '# X509 SSL Private Key' + #13#10 + Info;
             f_BIO_write(FileBio, @Title [1], Length (Title));
@@ -788,7 +789,8 @@ begin
         { Angus see if writing comment }
         if Comment then begin
             Info := '# Subject Common Name: ' + AnsiString(CName) + #13#10 +
-                    '# Subject Organisation: ' + AnsiString(Organization) + #13#10;
+                    '# Subject Organisation: ' + AnsiString(Organization) + #13#10 +
+                    '# Subject Organisation Unit: ' + AnsiString(OUnit) + #13#10;
             Title := '# X509 SSL Private Key' + #13#10 + Info;
             f_BIO_write(FileBio, @Title [1], Length (Title));
         end;
@@ -962,7 +964,8 @@ begin
         if Comment then begin
             Info := '# Subject Common Name: ' + string(CName) + #13#10 +
                     '# Subject Organisation: ' + string(Organization) + #13#10 +
-                    '# Self Signed' + #13#10 +
+                    '# Subject Organisation Unit: ' + string(OUnit) + #13#10 +
+                    '# Issuer: Self Signed' + #13#10 +
                     '# Expires: ' + DateToStr (Date + Days) + #13#10;
             Title := '# X509 SSL Private Key' + #13#10 + Info;
             f_BIO_write(FileBio, @Title [1], Length (Title));

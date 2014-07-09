@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.09
+Version:      8.10
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -946,6 +946,8 @@ Oct 22. 2013 V8.07 Angus - Added SendTo6 and ReceiveFrom6 for IPv6 UDP
 Dec 24. 2013 V8.08 Francois - fixed range check error in various PostMessages
 Feb 12, 2014 V8.09 Angus - fixed TX509Base.PostConnectionCheck to check multiple
                    DNS or IP entries
+Jul 9, 2014  V8.10 Angus - added sslCiphersXXX literals some taken from Mozilla
+                   with much higher security for servers
 }
 
 {
@@ -2122,6 +2124,35 @@ const
      sslProtocolError                 = 20100;
      SSL_BUFFER_SIZE                  = 4096;
      msgSslCtxNotInit                 = 'SSL context not initialized';
+
+  { V8.10 - TSslContext default SslCipherList
+    note a client generally wants to talk to as many servers as possible so use sCiphersNormal,
+    while a server wants to force clients to use the highest security possible, and Mozilla
+    kindly publishes it's internal recommendations for OpenSSL server configuration, see below. }
+    sslCiphersNormal = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH';
+    sslCiphersServer = 'TLSv1+HIGH:!SSLv2:RC4+MEDIUM:!aNULL:!eNULL:!3DES:!CAMELLIA@STRENGTH';
+
+  { from https://wiki.mozilla.org/Security/Server_Side_TLS
+    Backward Compatible, works with all clients back to Windows XP/IE6,  Versions: SSLv3, TLSv1, TLSv1.1, TLSv1.2
+    RSA key size: 2048, DH Parameter size: 1024, Elliptic curves: secp256r1, secp384r1, secp521r1 }
+    sslCiphersMozillaSrvBack =
+        'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:' +
+        'ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:' +
+        'kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:' +
+        'ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:' +
+        'ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:' +
+        'DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:' +
+        'AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-RSA-RC4-SHA:ECDHE-ECDSA-RC4-SHA:AES128:AES256:' +
+        'RC4-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK' ;
+  { For services that don't need backward compatibility, the parameters below provide a higher level of security
+   Versions: TLSv1.1, TLSv1.2, RSA key size: 2048, DH Parameter size: 2048, Elliptic curves: secp256r1, secp384r1, secp521r1 }
+    sslCiphersMozillaSrvHigh =
+        'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:' +
+        'ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:' +
+        'ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:' +
+        'ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:' +
+        'DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:' +
+        'DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK' ;
 
 {$IFNDEF NO_SSL_MT}
 var
@@ -12795,7 +12826,7 @@ begin
 {$ENDIF}
     FSslCtx := nil;
     SetSslVerifyPeerModes([SslVerifyMode_PEER]);
-    SetSslCipherList('ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH');
+    SetSslCipherList(sslCiphersNormal);  // V8.10 same as 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
     FSslVersionMethod    := sslV23;
     SslVerifyDepth       := 9;
     FSslSessionTimeOut   := 0; // OSSL-default

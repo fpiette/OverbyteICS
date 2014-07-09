@@ -8,11 +8,11 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      1.09
+Version:      8.00
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2011 by François PIETTE
+Legal issues: Copyright (C) 1999-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -57,6 +57,7 @@ Dec 14, 2005 V1.07 A. Garrels fixed the call to get a session ID string,
                    added a simple SSL renegotiation request (doesn't work
                    with IE 6 so far!?).
 Aug 04, 2005 V1.08 A. Garrels made a few changes to prepare code for Unicode.
+Jul 9, 2014  V8.00 Angus using better SSL cipher list for more secure comms
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
@@ -95,7 +96,7 @@ uses
   OverbyteIcsSslSessionCache, OverbyteIcsLogger, OverbyteIcsWndControl;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2011 F. Piette V1.08 ';
+  CopyRight : String         = 'WebServ (c) 1999-2014 F. Piette V8.00 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -461,6 +462,7 @@ begin
     SslContext1.SslCAFile           := CAFileEdit.Text;
     SslContext1.SslCAPath           := CAPathEdit.Text;
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
+    SslContext1.SslCipherList       := sslCiphersMozillaSrvBack;   { V8.00 much more secure }
 
     SslHttpServer1.Start;
 end;

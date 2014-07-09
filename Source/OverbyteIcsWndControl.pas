@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Creation:     Octobre 2002
 Description:  Composant non-visuel avec un handle de fenêtre.
-Version:      8.02
+Version:      8.03
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2002-2013 by François PIETTE
+Legal issues: Copyright (C) 2002-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -106,6 +106,8 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
 15/12/2012 V8.01 (Posix only) Arno reset FHandle and FThreadID to zero in
                  TIcsWndControl.DeallocateHWnd.
 Aug 18, 2013 V8.02 Arno added some default property specifiers.
+Jul 9, 2014  V8.03 Angus break MessageLoop for Terminated flag,
+                       suggested by Wolfgang Prinzjakowitsch
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -147,8 +149,8 @@ uses
   OverbyteIcsTypes;
 
 const
-  TIcsWndControlVersion  = 802;
-  CopyRight : String     = ' TIcsWndControl (c) 2002-2013 F. Piette V8.02 ';
+  TIcsWndControlVersion  = 803;
+  CopyRight : String     = ' TIcsWndControl (c) 2002-2014 F. Piette V8.03 ';
 
   IcsWndControlWindowClassName = 'IcsWndControlWindowClass';
 
@@ -614,7 +616,7 @@ var
 begin
     { If GetMessage retrieves the WM_QUIT, the return value is FALSE and    }
     { the message loop is broken.                                           }
-    while GetMessage(MsgRec, 0, 0, 0) do begin
+    while (not GetTerminated) and GetMessage(MsgRec, 0, 0, 0) do begin   {V8.03 break loop early }
         TranslateMessage(MsgRec);
         DispatchMessage(MsgRec)
     end;
@@ -731,6 +733,7 @@ begin
     //OutputDebugString('TIcsWndControl.Create VCL version');
     inherited Create(AOwner);
     //OutputDebugString(TOutputDebugStringType('Create ' + ClassName + ' ThreadID=' + IntToStr(GetCurrentThreadId)));
+    SetTerminated(FALSE);  { V8.03 should not be necessary, but lets play safe }
 end;
 
 

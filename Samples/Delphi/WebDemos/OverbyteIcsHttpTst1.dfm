@@ -3,7 +3,7 @@ object HttpTestForm: THttpTestForm
   Top = 165
   Caption = 'Http Test - http://www.overbyte.be'
   ClientHeight = 676
-  ClientWidth = 778
+  ClientWidth = 781
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -18,7 +18,7 @@ object HttpTestForm: THttpTestForm
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 778
+    Width = 781
     Height = 128
     Align = alTop
     ParentBackground = False
@@ -90,8 +90,8 @@ object HttpTestForm: THttpTestForm
     object Label10: TLabel
       Left = 351
       Top = 83
-      Width = 101
-      Height = 28
+      Width = 100
+      Height = 26
       Caption = 'Maximum Bandwidth (bytes/sec)'
       WordWrap = True
     end
@@ -164,9 +164,9 @@ object HttpTestForm: THttpTestForm
         'HTTP/1.1')
     end
     object Panel2: TPanel
-      Left = 666
+      Left = 619
       Top = 1
-      Width = 111
+      Width = 161
       Height = 126
       Align = alRight
       ParentBackground = False
@@ -245,13 +245,40 @@ object HttpTestForm: THttpTestForm
         OnClick = ClearButtonClick
       end
       object PatchButton: TButton
-        Left = 4
-        Top = 103
+        Left = 108
+        Top = 8
         Width = 49
         Height = 21
         Caption = '&Patch'
         TabOrder = 8
         OnClick = PatchButtonClick
+      end
+      object TraceButton: TButton
+        Left = 108
+        Top = 56
+        Width = 49
+        Height = 21
+        Caption = '&Trace'
+        TabOrder = 10
+        OnClick = TraceButtonClick
+      end
+      object OptionsButton: TButton
+        Left = 108
+        Top = 32
+        Width = 49
+        Height = 21
+        Caption = '&Options'
+        TabOrder = 9
+        OnClick = OptionsButtonClick
+      end
+      object DeleteButton: TButton
+        Left = 108
+        Top = 80
+        Width = 49
+        Height = 21
+        Caption = '&Delete'
+        TabOrder = 11
+        OnClick = DeleteButtonClick
       end
     end
     object DisplayHeaderCheckBox: TCheckBox
@@ -296,7 +323,7 @@ object HttpTestForm: THttpTestForm
   object DisplayMemo: TMemo
     Left = 0
     Top = 128
-    Width = 778
+    Width = 781
     Height = 148
     Align = alTop
     Font.Charset = DEFAULT_CHARSET
@@ -314,7 +341,7 @@ object HttpTestForm: THttpTestForm
   object DocumentMemo: TMemo
     Left = 0
     Top = 276
-    Width = 778
+    Width = 781
     Height = 400
     Align = alClient
     Font.Charset = DEFAULT_CHARSET

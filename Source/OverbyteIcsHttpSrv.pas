@@ -1,4 +1,4 @@
-{*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 Author:       François PIETTE
 Description:  THttpServer implement the HTTP server protocol, that is a
@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.07
+Version:      8.08
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -374,7 +374,15 @@ Jul 11 2013 V8.05 Angus - Tobias Rapp found that client requests timed out after
                    Ignore blank line separating pipelined requests
 Oct 13 2013 V8.06 Arno - POST did not work, a bug introduced in V8.05.
 Feb 10 2014 V8.07 Angus - compress application/json and javascript content
-
+Jul 17 2014 V8.08 Angus - added HTTP/1.1 methods OPTIONS, PUT, DELETE, TRACE, PATCH
+                  and CONNECT, all need to be optionally enabled
+                  OPTIONS and TRACE are handled by this component
+                  PUT and POST need to be handled similarly to POST with an upload
+                  DELETE is handled similarly to GET
+                  CONNECT is really for Proxy Servers and ignored here for now
+                  added ServerHeader property optionally sent if hoSendServerHdr
+                  added RequestMethod property for client of THttpMethod
+                  added RequestUpgrade property for client, websoocket is protocol should be changed
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -473,8 +481,9 @@ uses
     OverbyteIcsWinsock;
 
 const
-    THttpServerVersion = 807;
-    CopyRight : String = ' THttpServer (c) 1999-2014 F. Piette V8.07 ';
+    THttpServerVersion = 808;
+    CopyRight : String = ' THttpServer (c) 1999-2014 F. Piette V8.08 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.08';   { V8.08 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -488,9 +497,11 @@ type
 
     THttpGetFlag         = (hgSendDoc, hgSendStream, hgWillSendMySelf,
                             hg404, hg403, hg401, hg400, hgAcceptData,
-                            hgSendDirList);
+                            hgSendDirList, hg501);                           { V8.08 added hg501 }
     THttpSendType        = (httpSendHead, httpSendDoc);
-    THttpMethod          = (httpMethodGet, httpMethodPost, httpMethodHead);
+    THttpMethod          = (httpMethodNone, httpMethodGet, httpMethodPost, httpMethodHead,
+                           httpMethodOptions, httpMethodPut, httpMethodDelete, httpMethodTrace,
+                           httpMethodPatch, httpMethodConnect);              { V8.08 more methods }
     THttpGetEvent        = procedure (Sender    : TObject;
                                       Client    : TObject;
                                       var Flags : THttpGetFlag) of object;
@@ -543,7 +554,9 @@ type
                                       var ContentType: string) of object;
 
     THttpConnectionState = (hcRequest, hcHeader, hcPostedData, hcSendData);   { V8.01 }
-    THttpOption          = (hoAllowDirList, hoAllowOutsideRoot, hoContentEncoding);   { V7.20 }
+    THttpOption          = (hoAllowDirList, hoAllowOutsideRoot, hoContentEncoding, { V7.20 }
+                            hoAllowOptions, hoAllowPut, hoAllowDelete, hoAllowTrace,
+                            hoAllowPatch, hoAllowConnect, hoSendServerHdr);        { V8.08 allow new methods }
     THttpOptions         = set of THttpOption;
     THttpRangeInt        = Int64;
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
@@ -749,6 +762,14 @@ type
         FOnContEncoded         : TNotifyEvent;         { V7.20 }
         FOnUnknownRequestMethod: TUnknownRequestMethodEvent; { V2.29 }
         FOnMimeContentType     : TMimeContentTypeEvent;  { V7.41 }
+        FRequestMethod         : THttpMethod;          { V8.08 }
+        FRequestUpgrade        : string;               { V8.08 }
+        FOnOptionsDocument     : THttpGetConnEvent;    { V8.08 }
+        FOnPutDocument         : THttpGetConnEvent;    { V8.08 }
+        FOnDeleteDocument      : THttpGetConnEvent;    { V8.08 }
+        FOnTraceDocument       : THttpGetConnEvent;    { V8.08 }
+        FOnPatchDocument       : THttpGetConnEvent;    { V8.08 }
+        FOnConnectDocument     : THttpGetConnEvent;    { V8.08 }
         procedure SetSndBlkSize(const Value: Integer);
         procedure ConnectionDataAvailable(Sender: TObject; Error : Word); virtual;
         procedure ConnectionDataSent(Sender : TObject; Error : WORD); virtual;
@@ -757,6 +778,14 @@ type
         procedure ProcessGet; virtual;
         procedure ProcessHead; virtual;
         procedure ProcessPost; virtual;
+        procedure ProcessOptions; virtual;     { V8.08 }
+        procedure ProcessPut; virtual;         { V8.08 }
+        procedure ProcessDelete; virtual;      { V8.08 }
+        procedure ProcessTrace; virtual;       { V8.08 }
+        procedure ProcessPatch; virtual;       { V8.08 }
+        procedure ProcessConnect; virtual;     { V8.08 }
+        procedure ProcessGetHeadDel; virtual;  { V8.08 }
+        procedure ProcessPostPutPat; virtual;  { V8.08 }
         procedure Answer416; virtual;
         procedure Answer404; virtual;
         procedure Answer403; virtual;
@@ -768,6 +797,12 @@ type
         procedure TriggerGetDocument(var Flags : THttpGetFlag); virtual;
         procedure TriggerHeadDocument(var Flags : THttpGetFlag); virtual;
         procedure TriggerPostDocument(var Flags : THttpGetFlag); virtual;
+        procedure TriggerOptionsDocument(var Flags : THttpGetFlag); virtual;    { V8.08 }
+        procedure TriggerPutDocument(var Flags : THttpGetFlag); virtual;        { V8.08 }
+        procedure TriggerDeleteDocument(var Flags : THttpGetFlag); virtual;     { V8.08 }
+        procedure TriggerTraceDocument(var Flags : THttpGetFlag); virtual;      { V8.08 }
+        procedure TriggerPatchDocument(var Flags : THttpGetFlag); virtual;      { V8.08 }
+        procedure TriggerConnectDocument(var Flags : THttpGetFlag); virtual;    { V8.08 }
         procedure TriggerHttpRequestDone; virtual;
         procedure TriggerBeforeProcessRequest; virtual; {DAVID}
         procedure TriggerFilterDirEntry(DirEntry: THttpDirEntry); virtual;
@@ -955,11 +990,13 @@ type
                                                      read  FRequestRangeValues; {ANDREAS}
         property KeepAliveTimeSec      : Cardinal    read  FKeepAliveTimeSec
                                                      write FKeepAliveTimeSec;
-        property KeepAliveTimeXferSec  : Cardinal    read  FKeepAliveTimeXferSec  
-                                                     write FKeepAliveTimeXferSec;  { V8.05 } 
+        property KeepAliveTimeXferSec  : Cardinal    read  FKeepAliveTimeXferSec
+                                                     write FKeepAliveTimeXferSec;  { V8.05 }
         property MaxRequestsKeepAlive  : Integer     read  FMaxRequestsKeepAlive
                                                      write FMaxRequestsKeepAlive;
-        property AnswerStatus          : Integer     read  FAnswerStatus; { V7.19 }
+        property AnswerStatus          : Integer     read  FAnswerStatus;  { V7.19 }
+        property RequestMethod         : THttpMethod read  FRequestMethod; { V8.08 }
+        property RequestUpgrade        : string      read FRequestUpgrade; { V8.08 }
     published
         { Where all documents are stored. Default to c:\wwwroot }
         property DocDir         : String            read  FDocDir
@@ -999,6 +1036,24 @@ type
         done }
         property OnHttpRequestDone : TNotifyEvent   read  FOnHttpRequestDone
                                                     write FOnHttpRequestDone;
+        { Triggered when client sent OPTIONS request V8.08 }
+        property OnOptionsDocument : THttpGetConnEvent read  FOnOptionsDocument
+                                                       write FOnOptionsDocument;
+        { Triggered when client sent PUT request V8.08 }
+        property OnPutDocument : THttpGetConnEvent  read  FOnPutDocument
+                                                    write FOnPutDocument;
+        { Triggered when client sent DELETE request V8.08 }
+        property OnDeleteDocument : THttpGetConnEvent read  FOnDeleteDocument
+                                                      write FOnDeleteDocument;
+        { Triggered when client sent TRACE request V8.08 }
+        property OnTraceDocument : THttpGetConnEvent  read  FOnTraceDocument
+                                                      write FOnTraceDocument;
+        { Triggered when client sent PATCH request V8.08 }
+        property OnPatchDocument : THttpGetConnEvent  read  FOnPatchDocument
+                                                      write FOnPatchDocument;
+        { Triggered when client sent CONNECT request V8.08 }
+        property OnConnectDocument : THttpGetConnEvent  read  FOnConnectDocument
+                                                        write FOnConnectDocument;
 
         { Triggered before we process the HTTP-request }
         property OnBeforeProcessRequest : TNotifyEvent    {DAVID}
@@ -1110,6 +1165,13 @@ type
         FMaxBlkSize               : Integer;  { V7.40 }
         FOnHttpMimeContentType    : THttpMimeContentTypeEvent;  { V7.41 }
         FMimeTypesList            : TMimeTypesList;             { V7.46 }
+        FServerHeader             : String;           { V8.08 }
+        FOnOptionsDocument        : THttpGetEvent;    { V8.08 }
+        FOnPutDocument            : THttpGetEvent;    { V8.08 }
+        FOnDeleteDocument         : THttpGetEvent;    { V8.08 }
+        FOnTraceDocument          : THttpGetEvent;    { V8.08 }
+        FOnPatchDocument          : THttpGetEvent;    { V8.08 }
+        FOnConnectDocument        : THttpGetEvent;    { V8.08 }
 {$IFDEF BUILTIN_THROTTLE}
         FBandwidthLimit           : LongWord;   { angus V7.34 Bytes per second, null = disabled }
         FBandwidthSampling        : LongWord;   { angus V7.34 Msec sampling interval }
@@ -1163,6 +1225,18 @@ type
                                       var Flags  : THttpGetFlag); virtual;
         procedure TriggerPostDocument(Sender     : TObject;
                                       var Flags  : THttpGetFlag); virtual;
+        procedure TriggerOptionsDocument(Sender     : TObject;
+                                      var Flags  : THttpGetFlag); virtual;    { V8.08 }
+        procedure TriggerPutDocument(Sender     : TObject;
+                                      var Flags  : THttpGetFlag); virtual;    { V8.08 }
+        procedure TriggerDeleteDocument(Sender     : TObject;
+                                      var Flags  : THttpGetFlag); virtual;    { V8.08 }
+        procedure TriggerTraceDocument(Sender     : TObject;
+                                      var Flags  : THttpGetFlag); virtual;    { V8.08 }
+        procedure TriggerPatchDocument(Sender     : TObject;
+                                      var Flags  : THttpGetFlag); virtual;    { V8.08 }
+        procedure TriggerConnectDocument(Sender     : TObject;
+                                      var Flags  : THttpGetFlag); virtual;    { V8.08 }
         procedure TriggerPostedData(Sender     : TObject;
                                     Error      : WORD); virtual;
         procedure TriggerHttpRequestDone(Client : TObject); virtual;
@@ -1186,7 +1260,7 @@ type
         function  GetSrcVersion: String;
         procedure HeartBeatOnTimer(Sender: TObject); virtual;
         procedure SetKeepAliveTimeSec(const Value: Cardinal);
-        procedure SetKeepAliveTimeXferSec(const Value: Cardinal); { V8.05 } 
+        procedure SetKeepAliveTimeXferSec(const Value: Cardinal); { V8.05 }
         procedure SetMimeTypesList(const Value: TMimeTypesList); { V7.47 }
     public
         constructor Create(AOwner: TComponent); override;
@@ -1276,6 +1350,9 @@ type
         property BandwidthSampling : LongWord    read  FBandwidthSampling
                                                  write FBandwidthSampling;  { angus V7.34 }
 {$ENDIF}
+        { Server Header title }
+        property ServerHeader : String           read FServerHeader
+                                                 write FServerHeader;       { V8.08 }
         { OnServerStrated is triggered when server has started listening }
         property OnServerStarted    : TNotifyEvent
                                                  read  FOnServerStarted
@@ -1318,6 +1395,30 @@ type
         property OnPostedData       : THttpPostedDataEvent
                                                  read  FOnPostedData
                                                  write FOnPostedData;
+        { Triggered when client sent OPTIONS request V8.08 }
+        property OnOptionsDocument : THttpGetEvent
+                                                 read  FOnOptionsDocument
+                                                 write FOnOptionsDocument;
+        { Triggered when client sent PUT request V8.08 }
+        property OnPutDocument : THttpGetEvent
+                                                 read  FOnPutDocument
+                                                 write FOnPutDocument;
+        { Triggered when client sent DELETE request V8.08 }
+        property OnDeleteDocument : THttpGetEvent
+                                                 read  FOnDeleteDocument
+                                                 write FOnDeleteDocument;
+        { Triggered when client sent TRACE request V8.08 }
+        property OnTraceDocument : THttpGetEvent
+                                                 read  FOnTraceDocument
+                                                 write FOnTraceDocument;
+        { Triggered when client sent PATCH request V8.08 }
+        property OnPatchDocument : THttpGetEvent
+                                                 read  FOnPatchDocument
+                                                 write FOnPatchDocument;
+        { Triggered when client sent CONNECT request V8.08 }
+        property OnConnectDocument : THttpGetEvent
+                                                 read  FOnConnectDocument
+                                                 write FOnConnectDocument;
         property OnHttpRequestDone  : THttpRequestDoneEvent
                                                  read  FOnHttpRequestDone
                                                  write FOnHttpRequestDone;
@@ -1799,6 +1900,7 @@ begin
     FBandwidthLimit       := 0;       { angus V7.34 no bandwidth limit, yet, bytes per second }
     FBandwidthSampling    := 1000;    { angus V7.34 Msec sampling interval, less is not possible }
 {$ENDIF}
+    FServerHeader         := DefServerHeader;  { V8.08 }
 end;
 
 
@@ -2108,6 +2210,12 @@ begin
     THttpConnection(Client).OnGetDocument     := TriggerGetDocument;
     THttpConnection(Client).OnHeadDocument    := TriggerHeadDocument;
     THttpConnection(Client).OnPostDocument    := TriggerPostDocument;
+    THttpConnection(Client).OnOptionsDocument := TriggerOptionsDocument;  { V8.08 }
+    THttpConnection(Client).OnPutDocument     := TriggerPutDocument;      { V8.08 }
+    THttpConnection(Client).OnDeleteDocument  := TriggerDeleteDocument;   { V8.08 }
+    THttpConnection(Client).OnTraceDocument   := TriggerTraceDocument;    { V8.08 }
+    THttpConnection(Client).OnPatchDocument   := TriggerPatchDocument;    { V8.08 }
+    THttpConnection(Client).OnConnectDocument := TriggerConnectDocument;  { V8.08 }
     THttpConnection(Client).OnPostedData      := TriggerPostedData;
     THttpConnection(Client).OnHttpRequestDone := TriggerHttpRequestDone;
     THttpConnection(Client).OnBeforeProcessRequest := TriggerBeforeProcessRequest; {DAVID}
@@ -2208,6 +2316,60 @@ begin
         FOnPostDocument(Self, Sender, Flags);
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpServer.TriggerOptionsDocument(
+     Sender     : TObject;
+     var Flags  : THttpGetFlag);      { V8.08 }
+begin
+    if Assigned(FOnOptionsDocument) then
+        FOnOptionsDocument(Self, Sender, Flags);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpServer.TriggerPutDocument(
+     Sender     : TObject;
+     var Flags  : THttpGetFlag);     { V8.08 }
+begin
+    if Assigned(FOnPutDocument) then
+        FOnPutDocument(Self, Sender, Flags);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpServer.TriggerDeleteDocument(
+     Sender     : TObject;
+     var Flags  : THttpGetFlag);      { V8.08 }
+begin
+    if Assigned(FOnDeleteDocument) then
+        FOnDeleteDocument(Self, Sender, Flags);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpServer.TriggerTraceDocument(
+     Sender     : TObject;
+     var Flags  : THttpGetFlag);      { V8.08 }
+begin
+    if Assigned(FOnTraceDocument) then
+        FOnTraceDocument(Self, Sender, Flags);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpServer.TriggerPatchDocument(
+     Sender     : TObject;
+     var Flags  : THttpGetFlag);      { V8.08 }
+begin
+    if Assigned(FOnPatchDocument) then
+        FOnPatchDocument(Self, Sender, Flags);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpServer.TriggerConnectDocument(
+     Sender     : TObject;
+     var Flags  : THttpGetFlag);    { V8.08 }
+begin
+    if Assigned(FOnConnectDocument) then
+        FOnConnectDocument(Self, Sender, Flags);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpServer.TriggerHTTPRequestDone(
@@ -2312,8 +2474,8 @@ begin
                 Timeout := Cli.KeepAliveTimeSec
             else
                 Timeout := Cli.KeepAliveTimeXferSec;
-           if (Timeout > 0) and { V8.05 } 
-				(IcsCalcTickDiff(Cli.Counter.LastAliveTick, CurTicks) >
+           if (Timeout > 0) and { V8.05 }
+                (IcsCalcTickDiff(Cli.Counter.LastAliveTick, CurTicks) >
                                              Timeout * 1000) then
                 FWSocketServer.Disconnect(Cli);
         end;
@@ -2733,10 +2895,10 @@ begin
     end;
     if FState = hcSendData then begin  // V8.01 got more commands while sending data
         if FRcvdLine = '' then exit;   // ignore blank line
-        FState := hcRequest; 
+        FState := hcRequest;
     end;
     if FState = hcRequest then begin
-        if FRcvdLine = '' then exit;   // ignore blank line separating pipelined requests { V8.05 } 
+        if FRcvdLine = '' then exit;   // ignore blank line separating pipelined requests { V8.05 }
         { We just start a new request. Initialize all header variables }
         FRequestContentType    := '';
         FRequestContentLength  := 0;
@@ -2792,7 +2954,7 @@ begin
         if FRequestContentLength > 0 then     { Only if we have data  } { V7.30 }
              FState := hcPostedData
         { With a GET method, we _never_ have any document        10/02/2004 }
-        else if FMethod <> 'POST' then                            {10/02/2004 Bjornar}
+        else if (FMethod <> 'POST') and (FMethod <> 'PUT') and (FMethod <> 'PATCH') then    {10/02/2004 Bjornar}
             FState := hcSendData;         // V8.01 was hcRequest;
         { We will process request before receiving data because application }
         { has to setup things to be able to receive posted data             }
@@ -2856,6 +3018,9 @@ begin
                 { Init the Byte-range object }
                 RequestRangeValues.InitFromString(Trim(Copy(FRcvdLine, I,
                                                            Length(FRcvdLine))));
+            end
+            else if StrLIComp(@FRcvdLine[1], 'Upgrade:', 7) = 0 then begin   { V8.08 for websockets }
+                FRequestUpgrade := Copy(FRcvdLine, I, Length(FRcvdLine));
             end;
         except
             { Ignore any exception in parsing header line }
@@ -3023,6 +3188,8 @@ begin
                ContEncoderHdr := DoContentEncoding;      { V7.21 do it, returning new header }
         PutStringInSendBuffer('Content-Length: ' + IntToStr(FDocStream.Size) + #13#10);
     end;
+    if (hoSendServerHdr in FOptions) and (FServer.FServerHeader <> '') then
+        PutStringInSendBuffer (FServer.FServerHeader + #13#10);    { V8.08 }
     if Header <> '' then
         PutStringInSendBuffer(Header);
     if ContEncoderHdr <> '' then
@@ -3168,6 +3335,8 @@ begin
         PutStringInSendBuffer ('Last-Modified: ' + RFC1123_Date(FLastModified) + ' GMT' + #13#10);
     if ContEncoderHdr <> '' then
         PutStringInSendBuffer (ContEncoderHdr);  { V7.21 }
+    if (hoSendServerHdr in FOptions) and (FServer.FServerHeader <> '') then
+        PutStringInSendBuffer (FServer.FServerHeader + #13#10);    { V8.08 }
     if Header <> '' then
         PutStringInSendBuffer(Header);
     if FServer.PersistentHeader <> '' then
@@ -3644,6 +3813,7 @@ procedure THttpConnection.ProcessRequest;
 var
     Handled : Boolean;
 begin
+    FRequestMethod := httpMethodNone;   { V8.08 keep method as literal }
     if FKeepAlive and (FKeepAliveTimeSec > 0) then
         FKeepAlive := FMaxRequestsKeepAlive > 0;
 
@@ -3677,12 +3847,42 @@ begin
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
     AuthCheckAuthenticated;
 {$ENDIF}
-    if FMethod = 'GET' then
-        ProcessGet
-    else if FMethod = 'POST' then
-        ProcessPost
-    else if FMethod = 'HEAD' then
-        ProcessHead
+    if FMethod = 'GET' then begin
+        FRequestMethod := httpMethodGet;
+        ProcessGet;
+    end
+    else if FMethod = 'POST' then begin
+        FRequestMethod := httpMethodPost;
+        ProcessPost;
+    end
+    else if FMethod = 'HEAD' then begin
+        FRequestMethod := httpMethodHead;
+        ProcessHead;
+    end
+    else if (FMethod = 'OPTIONS') and (hoAllowOptions in FOptions) then begin   { V8.08 }
+        FRequestMethod := httpMethodOptions;
+        ProcessOptions;
+    end
+    else if (FMethod = 'PUT') and (hoAllowPut in FOptions) then begin   { V8.08 }
+        FRequestMethod := httpMethodPut;
+        ProcessPut;
+    end
+    else if (FMethod = 'DELETE') and (hoAllowDelete in FOptions) then begin   { V8.08 }
+        FRequestMethod := httpMethodDelete;
+        ProcessDelete;
+    end
+    else if (FMethod = 'TRACE') and (hoAllowTrace in FOptions) then begin   { V8.08 }
+        FRequestMethod := httpMethodTrace;
+        ProcessTrace;
+    end
+    else if (FMethod = 'PATCH') and (hoAllowPatch in FOptions) then begin   { V8.08 }
+        FRequestMethod := httpMethodPatch;
+        ProcessPatch;
+    end
+    else if (FMethod = 'CONNECT') and (hoAllowConnect in FOptions) then begin   { V8.08 }
+        FRequestMethod := httpMethodConnect;
+        ProcessConnect;
+    end
     else begin
         TriggerUnknownRequestMethod(Handled); { V7.29 }
         if not Handled then
@@ -3741,6 +3941,48 @@ begin
         FOnPostDocument(Self, Flags);
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.TriggerOptionsDocument(var Flags : THttpGetFlag);      { V8.08 }
+begin
+    if Assigned(FOnOptionsDocument) then
+        FOnOptionsDocument(Self, Flags);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.TriggerPutDocument(var Flags : THttpGetFlag);      { V8.08 }
+begin
+    if Assigned(FOnPutDocument) then
+        FOnPutDocument(Self, Flags);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.TriggerDeleteDocument(var Flags : THttpGetFlag);      { V8.08 }
+begin
+    if Assigned(FOnDeleteDocument) then
+        FOnDeleteDocument(Self, Flags);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.TriggerTraceDocument(var Flags : THttpGetFlag);      { V8.08 }
+begin
+    if Assigned(FOnTraceDocument) then
+        FOnTraceDocument(Self, Flags);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.TriggerPatchDocument(var Flags : THttpGetFlag);      { V8.08 }
+begin
+    if Assigned(FOnPatchDocument) then
+        FOnPatchDocument(Self, Flags);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.TriggerConnectDocument(var Flags : THttpGetFlag);    { V8.08 }
+begin
+    if Assigned(FOnConnectDocument) then
+        FOnConnectDocument(Self, Flags);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpConnection.TriggerHttpRequestDone;
@@ -3808,10 +4050,204 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THttpConnection.ProcessPost;
+{ handle all methods that don't send any body content }
+procedure THttpConnection.ProcessGetHeadDel; { V8.08 }
+var
+    Flags      : THttpGetFlag;
+    TempStream : TFileStream;
+    OK         : Boolean;
+begin
+{$IFNDEF NO_AUTHENTICATION_SUPPORT}
+    if not FAuthenticated then
+        Flags := hg401
+    else
+{$ENDIF}
+    if FOutsideFlag and (not (hoAllowOutsideRoot in FOptions)) then
+        Flags := hg403
+    else if (hoAllowDirList in FOptions) and IsDirectory(FDocument) and
+                               NOT (FRequestMethod = httpMethodDelete) then
+        Flags := hgSendDirList
+    else
+        Flags := hgSendDoc;
+
+   if (FRequestMethod = httpMethodHead) then begin
+        FSendType := httpSendHead;
+        TriggerHeadDocument(Flags);
+   end
+    else if (FRequestMethod = httpMethodGet) then
+        TriggerGetDocument(Flags)
+    else if (FRequestMethod = httpMethodDelete) then
+        TriggerDeleteDocument(Flags)
+    else begin
+        Answer501;
+        Exit;
+    end;
+
+    case Flags of
+    hg400:                             { V7.30 }
+        begin
+            if FKeepAlive = FALSE then
+                PrepareGraceFullShutDown;
+            Answer400;
+        end;
+    hg401:
+        begin
+            if FKeepAlive = FALSE then {Bjornar}
+                PrepareGraceFullShutDown;
+            Answer401;
+        end;
+    hg403:
+        begin
+            if FKeepAlive = FALSE then {Bjornar}
+                PrepareGraceFullShutDown;
+            Answer403;
+        end;
+    hg404:
+        begin
+            if FKeepAlive = FALSE then {Bjornar}
+                PrepareGraceFullShutDown;
+            Answer404;
+        end;
+    hgSendDoc:
+        begin
+            OK := FALSE;
+            try
+                if not FileExists(FDocument) then begin
+                    { File not found }
+                    if FKeepAlive = FALSE then {Bjornar}
+                        PrepareGraceFullShutDown;
+                    Answer404;
+                end
+                else begin
+                    { see if we have access to file, but don't read it yet }
+                    TempStream := TFileStream.Create(FDocument, fmOpenRead + fmShareDenyWrite);
+                    TempStream.Destroy;
+                    OK := TRUE;
+                end;
+            except
+                if FKeepAlive = FALSE then {Bjornar}
+                    PrepareGraceFullShutDown;
+                Answer404;
+            end;
+            if OK then
+                SendDocument(FSendType)
+        end;
+    hgSendStream:
+        SendStream;
+    hgSendDirList:
+        SendDirList(FSendType);
+    hgWillSendMySelf:
+        { Nothing to do };
+    else
+        if FKeepAlive = FALSE then {Bjornar}
+            CloseDelayed;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.ProcessPostPutPat;  { V8.08 }
 var
     Flags : THttpGetFlag;
 begin
+    { POST and no content-length received, we treat this as "bad request"     }
+    { and don't pass it to the component user.                                }
+    if (not FRequestHasContentLength) or (FRequestContentLength < 0) then begin
+        { HTTP/1.0
+          A valid Content-Length is required on all HTTP/1.0 POST requests.
+          An HTTP/1.0 server should respond with a 400 (bad request) message
+          if it cannot determine the length of the request message's content.
+
+          HTTP/1.1
+          The presence of a message-body in a request is signaled by the
+          inclusion of a Content-Length or Transfer-Encoding header field in
+          the request's message-headers.
+          For compatibility with HTTP/1.0 applications, HTTP/1.1 requests
+          containing a message-body MUST include a valid Content-Length header
+          field unless the server is known to be HTTP/1.1 compliant. If a
+          request contains a message-body and a Content-Length is not given,
+          the server SHOULD respond with 400 (bad request) if it cannot
+          determine the length of the message, or with 411 (length required)
+          if it wishes to insist on receiving a valid Content-Length.
+
+          Currently we act as a HTTP/1.0 server. }
+        FKeepAlive := FALSE;
+        Answer400;
+        { We close the connection non-gracefully otherwise we might receive
+          data we cannot handle properly. }
+        CloseDelayed;
+        Exit;
+    end;
+
+{$IFNDEF NO_AUTHENTICATION_SUPPORT}
+    if not FAuthenticated then
+        Flags := hg401
+    else
+{$ENDIF}
+    if FOutsideFlag and (not (hoAllowOutsideRoot in FOptions)) then
+        Flags := hg403
+    else
+        Flags := hg404;
+
+    FAcceptPostedData := FALSE;
+    if (FRequestMethod = httpMethodPost) then
+        TriggerPostDocument(Flags)
+    else if (FRequestMethod = httpMethodPut) then
+        TriggerPutDocument(Flags)
+    else if (FRequestMethod = httpMethodPatch) then
+        TriggerPatchDocument(Flags);
+
+    if (not FAcceptPostedData) and (FRequestContentLength > 0) then begin { V7.30 }
+    { The component user doesn't handle posted data.               }
+    { Turn LineMode off if RequestContentLength > 0, we'll turn it }
+    { back on again in our overridden method Receive.              }
+        LineMode     := FALSE;
+        FPostCounter := FRequestContentLength;
+    end
+    else
+        FPostCounter := 0;
+
+    case Flags of
+    hg400:
+        begin
+            FKeepAlive := FALSE;
+            Answer400;
+            CloseDelayed;
+        end;                                                              {/V7.30 }
+    hg401:
+        begin
+            if FKeepAlive = FALSE then {Bjornar}
+                PrepareGraceFullShutDown;
+            Answer401;
+        end;
+    hg403:
+        begin
+            if FKeepAlive = FALSE then {Bjornar}
+                PrepareGraceFullShutDown;
+            Answer403;
+        end;
+    hg404:
+        begin
+            if FKeepAlive = FALSE then {Bjornar}
+                PrepareGraceFullShutDown;
+            Answer404;
+        end;
+    hgAcceptData:
+        FAcceptPostedData := TRUE;
+    else
+        if FKeepAlive = FALSE then {Bjornar}
+            CloseDelayed;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.ProcessPost;
+{var
+    Flags : THttpGetFlag;  }
+begin
+    FRequestMethod := httpMethodPost;
+    ProcessPostPutPat;
+(* V8.08 commonise code
     { POST and no content-length received, we treat this as "bad request"     }
     { and don't pass it to the component user.                                }
     if (not FRequestHasContentLength) or (FRequestContentLength < 0) then begin
@@ -3893,7 +4329,7 @@ begin
     else
         if FKeepAlive = FALSE then {Bjornar}
             CloseDelayed;
-    end;
+    end;       *)
 end;
 
 
@@ -3910,9 +4346,12 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpConnection.ProcessHead;
-var
-    Flags : THttpGetFlag;
+{var
+    Flags : THttpGetFlag;  }
 begin
+    FRequestMethod := httpMethodHead;
+    ProcessGetHeadDel;
+(* V8.08 commonise code
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
     if not FAuthenticated then
         Flags := hg401
@@ -3951,7 +4390,7 @@ begin
             else begin
                 if FKeepAlive = FALSE then {Bjornar}
                     PrepareGraceFullShutDown;
-                Answer404;    
+                Answer404;
             end;
         end;
     hgSendStream:
@@ -3963,17 +4402,20 @@ begin
     else
         if FKeepAlive = FALSE then {Bjornar}
             CloseDelayed;
-    end;
+    end;    *)
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpConnection.ProcessGet;
-var
+{var
     Flags      : THttpGetFlag;
     TempStream : TFileStream;
-    OK         : Boolean;
+    OK         : Boolean;  }
 begin
+    FRequestMethod := httpMethodGet;
+    ProcessGetHeadDel;
+(*  V8.08 commonise code
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
     if not FAuthenticated then
         Flags := hg401
@@ -4045,9 +4487,136 @@ begin
     else
         if FKeepAlive = FALSE then {Bjornar}
             CloseDelayed;
+    end;  *)
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.ProcessOptions;      { V8.08 }
+var
+    Flags      : THttpGetFlag;
+    Header     : string;
+begin
+//    FSendType := httpSendHead;  { don't want a body }
+    Flags := hgSendDoc;
+    TriggerOptionsDocument(Flags);
+    case Flags of
+    hg400:
+        begin
+            if FKeepAlive = FALSE then
+                PrepareGraceFullShutDown;
+            Answer400;
+        end;
+    hg501:     { not implemented }
+        begin
+            Answer501;
+         //   CloseDelayed;
+        end;
+    hgSendDoc:   { note - ignore document argument and always returning server info }
+        begin
+        { Create Header }
+            Header := FVersion + ' 200 OK' + #13#10 + 'Content-Length: 0' + #13#10;
+            if FServer.FServerHeader <> '' then Header := Header + FServer.FServerHeader + #13#10;
+            Header := Header + 'Allow: HEAD, GET, POST';
+            if (hoAllowOptions in FOptions) then Header := Header + ', OPTIONS';
+            if (hoAllowPut in FOptions) then Header := Header + ', PUT';
+            if (hoAllowDelete in FOptions) then Header := Header + ', DELETE';
+            if (hoAllowTrace in FOptions) then Header := Header + ', TRACE';
+            if (hoAllowPatch in FOptions) then Header := Header + ', PATCH';
+            if (hoAllowConnect in FOptions) then Header := Header + ', CONNECT';
+            Header := Header + #13#10;
+            Header := Header + 'Date: ' + RFC1123_Date(IcsDateTimeToUTC (Now)) + ' GMT' + #13#10;
+            Header := Header + #13#10;  { blank line end of header }
+            FAnswerStatus := 200;
+            SendHeader(Header);
+            FDocSize := 0;
+            Send(nil, 0);
+        end;
+    hgWillSendMySelf:
+        { Nothing to do };
+    else
+        if FKeepAlive = FALSE then
+            CloseDelayed;
     end;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.ProcessPut;      { V8.08 }
+begin
+    FRequestMethod := httpMethodPut;
+    ProcessPostPutPat;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.ProcessDelete;      { V8.08 }
+begin
+    FRequestMethod := httpMethodDelete;
+    ProcessGetHeadDel;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.ProcessTrace;      { V8.08 }
+var
+    Flags        : THttpGetFlag;
+    Header, Body : string;
+begin
+    Flags := hgSendDoc;
+    TriggerTraceDocument(Flags);
+    case Flags of
+    hg501:     { not implemented }
+        begin
+            Answer501;
+            CloseDelayed;
+        end;
+    hgSendDoc:   { note - ignore document argument and always returning server info }
+        begin
+         { Body is all request lines, no HTML wrapper }
+            Body := FMethod + ' ' + FPath;
+            if (FParams <> '') then Body := Body + '?' + FParams;
+            Body := Body + ' ' + FVersion + #13#10 +
+             FRequestHeader.Text + #13#10;
+        { Create Header }
+            Header := FVersion + ' 200 OK' + #13#10 +
+               'Content-Type: message/http' + #13#10 +
+               'Content-Length: ' + IntToStr(Length(Body)) + #13#10 +
+               GetKeepAliveHdrLines + #13#10;
+            FAnswerStatus := 200;
+            SendHeader(Header);
+            SendStr(Body);
+        end;
+    hgWillSendMySelf:
+        { Nothing to do };
+    else
+        if FKeepAlive = FALSE then
+            CloseDelayed;
+    end;
+
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.ProcessPatch;      { V8.08 }
+begin
+    FRequestMethod := httpMethodPatch;
+    ProcessPostPutPat;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ CONNECT is normally used by proxy servers, not web servers }
+procedure THttpConnection.ProcessConnect;    { V8.08 }
+var
+    Flags      : THttpGetFlag;
+begin
+    Flags := hg501;
+    TriggerConnectDocument(Flags);
+    case Flags of
+    hg501:     { not implemented }
+        begin
+            Answer501;
+            CloseDelayed;
+        end;
+    end;
+
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function DocumentToContentType(const FileName : String) : String;
@@ -4230,6 +4799,8 @@ begin
         Header := Header +  'Last-Modified: ' + RFC1123_Date(FLastModified) + ' GMT' + #13#10;
     if ContEncoderHdr <> '' then
         Header := Header + ContEncoderHdr;  { V7.20 }
+    if (hoSendServerHdr in FOptions) and (FServer.FServerHeader <> '') then
+        Header := Header + FServer.FServerHeader + #13#10;    { V8.08 }
     if CustomHeaders <> '' then
         Header := Header + CustomHeaders;   { V7.29 }
     Header := Header + GetKeepAliveHdrLines + #13#10;
@@ -4538,8 +5109,10 @@ begin
     Header := Version +  ' 200 OK' + #13#10 +
               'Content-Type: text/html' + #13#10 +
               'Content-Length: ' + IntToStr(Length(Body)) + #13#10 +
-              'Pragma: no-cache' + #13#10 +
-              FServer.PersistentHeader + { V7.29 }
+              'Pragma: no-cache' + #13#10;
+    if (hoSendServerHdr in FOptions) and (FServer.FServerHeader <> '') then
+        Header := Header + FServer.FServerHeader + #13#10;    { V8.08 }
+    Header := Header + FServer.PersistentHeader + { V7.29 }
               #13#10;
     FAnswerStatus := 200;   { V7.19 }
     PutStringInSendBuffer(Header);

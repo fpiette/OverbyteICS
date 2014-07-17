@@ -1,9 +1,9 @@
 object WebServForm: TWebServForm
   Left = 253
   Top = 158
-  Width = 510
-  Height = 369
   Caption = 'ICS WebServer Demo - http://www.overbyte.be'
+  ClientHeight = 342
+  ClientWidth = 502
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -81,9 +81,9 @@ object WebServForm: TWebServForm
       Caption = 'KeepAliveTimeSec'
     end
     object Label8: TLabel
-      Left = 328
+      Left = 334
       Top = 105
-      Width = 119
+      Width = 113
       Height = 13
       Alignment = taRightJustify
       Caption = 'MaxRequestsKeepAlive'
@@ -242,7 +242,7 @@ object WebServForm: TWebServForm
     Left = 0
     Top = 129
     Width = 502
-    Height = 206
+    Height = 213
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -268,8 +268,9 @@ object WebServForm: TWebServForm
     DefaultDoc = 'index.html'
     LingerOnOff = wsLingerNoSet
     LingerTimeout = 1
-    Options = []
+    Options = [hoAllowOptions, hoAllowPut, hoAllowDelete, hoAllowTrace, hoAllowPatch, hoSendServerHdr]
     KeepAliveTimeSec = 10
+    KeepAliveTimeXferSec = 300
     MaxRequestsKeepAlive = 100
     SizeCompressMin = 5000
     SizeCompressMax = 5000000
@@ -277,6 +278,7 @@ object WebServForm: TWebServForm
     MimeTypesList = MimeTypesList1
     BandwidthLimit = 0
     BandwidthSampling = 1000
+    ServerHeader = 'Server: ICS-HttpServer-8.08'
     OnServerStarted = HttpServer1ServerStarted
     OnServerStopped = HttpServer1ServerStopped
     OnClientConnect = HttpServer1ClientConnect
@@ -285,6 +287,11 @@ object WebServForm: TWebServForm
     OnHeadDocument = HttpServer1HeadDocument
     OnPostDocument = HttpServer1PostDocument
     OnPostedData = HttpServer1PostedData
+    OnOptionsDocument = HttpServer1OptionsDocument
+    OnPutDocument = HttpServer1PutDocument
+    OnDeleteDocument = HttpServer1DeleteDocument
+    OnTraceDocument = HttpServer1TraceDocument
+    OnPatchDocument = HttpServer1PatchDocument
     OnHttpMimeContentType = HttpServer1HttpMimeContentType
     OnAuthGetPassword = HttpServer1AuthGetPassword
     OnAuthResult = HttpServer1AuthResult

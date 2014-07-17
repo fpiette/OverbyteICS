@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.08
+Version:      8.09
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -67,6 +67,7 @@ Methods:
                 Retrieve document or file header specified by URL, without
                 blocking. OnRequestDone event trigered when finished. Use HTTP
                 HEAD method.
+
     Get         Synchronous, blocking Get. Same as GetAsync, but blocks until
                 finished.
     Post        Synchronous, blocking Post. Same as PostAsync, but blocks until
@@ -495,6 +496,8 @@ Jun  4, 2014 V8.07 Angus fixed POST 307 and 308 now redirects with POST method,
                a 307 POST should ideally be confirmed by the user, somehow...
 Jul 14, 2014 V8.08 Angus try and match how Chrome and Firefox handle POST relocation,
                    thanks to RTT <pdfe@sapo.pt> again
+Jul 16, 2014 V8.09 Angus added new methods: OPTIONS and TRACE
+                   published RequestType for events
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -582,8 +585,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 808;
-    CopyRight : String   = ' THttpCli (c) 1997-2014 F. Piette V8.08 ';
+    HttpCliVersion       = 809;
+    CopyRight : String   = ' THttpCli (c) 1997-2014 F. Piette V8.09 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -615,7 +618,8 @@ type
 
     THttpEncoding    = (encUUEncode, encBase64, encMime);
     THttpRequest     = (httpABORT, httpGET, httpPOST, httpPUT,
-                        httpHEAD, httpDELETE, httpCLOSE, httpPATCH);
+                        httpHEAD, httpDELETE, httpCLOSE, httpPATCH,
+                        httpOPTIONS, httpTRACE);  { V8.09 }
     THttpState       = (httpReady,         httpNotConnected, httpConnected,
                         httpDnsLookup,     httpDnsLookupDone,
                         httpWaitingHeader, httpWaitingBody,  httpBodyReceived,
@@ -937,6 +941,8 @@ type
         procedure   Post;       { Synchronous blocking Post        }
         procedure   Put;        { Synchronous blocking Put         }
         procedure   Patch;      { Synchronous blocking Patch V8.06 }
+        procedure   OptionsSync;    { Synchronous blocking Options V8.09 - warning Options exists already }
+        procedure   Trace;      { Synchronous blocking Trace   V8.09 }
         procedure   Head;       { Synchronous blocking Head        }
         procedure   Del;        { Synchronous blocking Delete      }
         procedure   Close;      { Synchronous blocking Close       }
@@ -945,6 +951,8 @@ type
         procedure   PostASync;  { Asynchronous, non-blocking Post  }
         procedure   PutASync;   { Asynchronous, non-blocking Put   }
         procedure   PatchAsync; { Asynchronous, non-blocking Patch V8.06 }
+        procedure   OptionsAsync; { Asynchronous, non-blocking Options V8.09 }
+        procedure   TraceAsync;   { Asynchronous, non-blocking Trace V8.09   }
         procedure   HeadASync;  { Asynchronous, non-blocking Head  }
         procedure   DelASync;   { Asynchronous, non-blocking Delete}
         procedure   CloseAsync; { Asynchronous, non-blocking Close }
@@ -977,6 +985,7 @@ type
         property RcvdHeader           : TStrings     read  FRcvdHeader;
         property Hostname             : String       read  FHostname;
         property Protocol             : String       read  FProtocol;
+        property RequestType          : THttpRequest read  FRequestType;   { V8.09 }
 {$IFDEF UseNTLMAuthentication}
         property LmCompatLevel        : LongWord     read  FLmCompatLevel  { V7.25 }
                                                      write FLmCompatLevel; { V7.25 }
@@ -2358,6 +2367,14 @@ begin
                 begin
                     SendRequest('DELETE', FRequestVer);
                 end;
+            httpOPTIONS:
+                begin
+                    SendRequest('OPTIONS', FRequestVer);
+                end;
+            httpTRACE:
+                begin
+                    SendRequest('TRACE', FRequestVer);
+                end;
             httpHEAD:
                 begin
                     SendRequest('HEAD', FRequestVer);
@@ -3385,6 +3402,8 @@ begin
         Proto := 'http';
     if FPath = '' then
         FPath := '/';
+    if (FPath = '/*') and (Rq = httpOPTIONS) then  { V8.09 }
+        FPath := '*';
 
     AdjustDocName;
 
@@ -3495,7 +3514,9 @@ begin
     if I > 0 then
         FDocName := Copy(FDocName, 1, I - 1);
 
-    if (FDocName = '') or (FDocName[Length(FDocName)] = '/') then
+    if FRequestType = httpOptions then  { V8.09 options method may be *, user name or anything }
+        FDocName := 'options.htm'
+    else if (FDocName = '') or (FDocName[Length(FDocName)] = '/') then
         FDocName := 'document.htm'
     else begin
         if FDocName[Length(FDocName)] = '/' then
@@ -4553,6 +4574,14 @@ begin
             begin
                 SendRequest('DELETE', FRequestVer);
             end;
+        httpOPTIONS:
+            begin
+                SendRequest('OPTIONS', FRequestVer);
+            end;
+        httpTRACE:
+            begin
+                SendRequest('TRACE', FRequestVer);
+            end;
         httpHEAD:
             begin
                 SendRequest('HEAD', FRequestVer);
@@ -4645,11 +4674,30 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { This will start the Patch process and wait until terminated (blocking)      }
-procedure THttpCli.Patch;   { V8.06 } 
+procedure THttpCli.Patch;   { V8.06 }
 begin
-    FLocationChangeCurCount := 0 ;  
+    FLocationChangeCurCount := 0 ;
     DoRequestSync(httpPatch);
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ This will start the Options process and wait until terminated (blocking)      }
+procedure THttpCli.OptionsSync;     { V8.09 }
+begin
+    FLocationChangeCurCount := 0 ;
+    DoRequestSync(httpOptions);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ This will start the Trace process and wait until terminated (blocking)      }
+procedure THttpCli.Trace;     { V8.09 }
+begin
+    FLocationChangeCurCount := 0 ;
+    DoRequestSync(httpTrace);
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { This will start the Close process and wait until terminated (blocking)    }
@@ -4705,10 +4753,26 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { This will start the patch process and returns immediately (non blocking)    }
-procedure THttpCli.PatchAsync;   { V8.06 } 
+procedure THttpCli.PatchAsync;   { V8.06 }
 begin
-    FLocationChangeCurCount := 0 ;  
+    FLocationChangeCurCount := 0 ;
     DoRequestASync(httpPatch);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ This will start the options process and returns immediately (non blocking)    }
+procedure THttpCli.OptionsAsync;  { V8.09 }
+begin
+    FLocationChangeCurCount := 0 ;
+    DoRequestASync(httpOptions);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ This will start the trace process and returns immediately (non blocking)    }
+procedure THttpCli.TraceAsync;   { V8.09 }
+begin
+    FLocationChangeCurCount := 0 ;
+    DoRequestASync(httpTrace);
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

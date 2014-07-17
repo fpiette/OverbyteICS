@@ -16,12 +16,12 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      7.23
+Version:      8.00
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1999-2014 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -104,6 +104,11 @@ Oct 22, 2011 V7.22 Angus added delayed.html response page using a timer, can be 
                    and content type which can also be changed if incorrect.
 Feb 15, 2012 V7.23 Angus - using TMimeTypesList component to provide more MIME
                    content types read from registry, a file or strings
+Jul 17, 2014 V8.00 Angus - added HTTP/1.1 methods OPTIONS, PUT, DELETE, TRACE, PATCH
+                      and CONNECT, all need to be optionally enabled
+                   OPTIONS and TRACE are handled by the web server itself
+                   PUT, DELETE and PATCH are handled as events, simple response here only
+                   CONNECT is ignored since it's really for proxy servers
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -136,11 +141,12 @@ uses
   Windows, Messages, SysUtils, Classes, Controls, Forms,
   OverbyteIcsIniFiles, StdCtrls, ExtCtrls, StrUtils,
   OverbyteIcsWinSock,  OverbyteIcsWSocket, OverbyteIcsWndControl,
-  OverbyteIcsHttpSrv, OverbyteIcsUtils, OverbyteIcsFormDataDecoder, OverbyteIcsMimeUtils;
+  OverbyteIcsHttpSrv, OverbyteIcsUtils, OverbyteIcsFormDataDecoder,
+  OverbyteIcsMimeUtils;
 
 const
-  WebServVersion     = 723;
-  CopyRight : String = 'WebServ (c) 1999-2012 F. Piette V7.23 ';
+  WebServVersion     = 800;
+  CopyRight : String = 'WebServ (c) 1999-2014 F. Piette V8.00 ';
   NO_CACHE           = 'Pragma: no-cache' + #13#10 + 'Expires: -1' + #13#10;
   WM_CLIENT_COUNT    = WM_USER + 1;
   FILE_UPLOAD_URL    = '/cgi-bin/FileUpload/';
@@ -231,6 +237,11 @@ type
       var Allow: Boolean);
     procedure HttpServer1HttpMimeContentType(Sender, Client: TObject;
       const FileName: string; var ContentType: string);
+    procedure HttpServer1DeleteDocument(Sender, Client: TObject; var Flags: THttpGetFlag);
+    procedure HttpServer1PatchDocument(Sender, Client: TObject; var Flags: THttpGetFlag);
+    procedure HttpServer1PutDocument(Sender, Client: TObject; var Flags: THttpGetFlag);
+    procedure HttpServer1OptionsDocument(Sender, Client: TObject; var Flags: THttpGetFlag);
+    procedure HttpServer1TraceDocument(Sender, Client: TObject; var Flags: THttpGetFlag);
   private
     FIniFileName   : String;
     FInitialized   : Boolean;
@@ -803,6 +814,7 @@ begin
             ': Document: ' + FileName + ', Content-Type: ' + ContentType);
 end;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { This event handler is triggered when HTTP server component receive a GET  }
 { command from any client.                                                  }
@@ -836,7 +848,7 @@ begin
             '<A HREF="/template.html">Template demo</A><BR>'  +
             '<A HREF="/form.html">Data entry</A><BR>'   +
             '<A HREF="/formdata.html">Show data file</A><BR>'   +
-            '<A HREF="/formupload.html">Upload a file</A><BR>' +
+            '<A HREF="/formupload.html">Upload a file using POST</A><BR>' +
             '<A HREF="/upload">View uploaded files</A><BR>' +
             '<A HREF="/redir.html">Redirection</A><BR>' +
             '<A HREF="/myip.html">Show client IP</A><BR>' +
@@ -1270,6 +1282,7 @@ end;
 {     </FORM>                                                               }
 {   </BODY>                                                                 }
 { </HTML>                                                                   }
+
 procedure TWebServForm.HttpServer1PostDocument(
     Sender    : TObject;            { HTTP server component                 }
     Client    : TObject;            { Client connection issuing command     }
@@ -1332,6 +1345,7 @@ end;
 { is more than what ContentLength tells us !                                }
 { If ContentLength = 0, then we should receive data until connection is     }
 { closed...                                                                 }
+{ V8.0 this event is called for the POST, PUT and PATCH methods             }
 procedure TWebServForm.HttpServer1PostedData(
     Sender : TObject;               { HTTP server component                 }
     Client : TObject;               { Client posting data                   }
@@ -1341,6 +1355,7 @@ var
     Remains : Integer;
     Junk    : array [0..255] of AnsiChar;
     ClientCnx  : TMyHttpConnection;
+    Dummy  : THttpGetFlag;
 begin
     { It's easyer to do the cast one time. Could use with clause... }
     ClientCnx := TMyHttpConnection(Client);
@@ -1381,25 +1396,61 @@ begin
         { First we must tell the component that we've got all the data }
         ClientCnx.PostedDataReceived;
 
-        { Then we check if the request is one we handle }
-        if CompareText(ClientCnx.Path, '/cgi-bin/FormHandler') = 0 then begin
-            { We receive URL-Encoded data, convert to string }
-{$IFDEF COMPILER12_UP}
-            ClientCnx.FPostedDataBuffer := Pointer(UnicodeString(ClientCnx.FPostedRawData)); // Cast to Unicode
-{$ELSE}
-            ClientCnx.FPostedDataBuffer := ClientCnx.FPostedRawData;
-{$ENDIF}
-            { We are happy to handle this one }
-            ProcessPostedData_FormHandler(ClientCnx);
+        if ClientCnx.RequestMethod = httpMethodPost then begin
+
+            { Then we check if the request is one we handle }
+            if CompareText(ClientCnx.Path, '/cgi-bin/FormHandler') = 0 then begin
+                { We receive URL-Encoded data, convert to string }
+    {$IFDEF COMPILER12_UP}
+                ClientCnx.FPostedDataBuffer := Pointer(UnicodeString(ClientCnx.FPostedRawData)); // Cast to Unicode
+    {$ELSE}
+                ClientCnx.FPostedDataBuffer := ClientCnx.FPostedRawData;
+    {$ENDIF}
+                { We are happy to handle this one }
+                ProcessPostedData_FormHandler(ClientCnx);
+            end
+            else if (CompareText(Copy(ClientCnx.Path, 1, Length(FILE_UPLOAD_URL)),
+                        FILE_UPLOAD_URL) = 0) then begin
+                { We are happy to handle this one }
+                ProcessPostedData_FileUpload(ClientCnx);
+            end
+            else
+                { We don't accept any other request }
+                ClientCnx.Answer404;
         end
-        else if (CompareText(Copy(ClientCnx.Path, 1, Length(FILE_UPLOAD_URL)),
-                    FILE_UPLOAD_URL) = 0) then begin
-            { We are happy to handle this one }
-            ProcessPostedData_FileUpload(ClientCnx);
+        else if ClientCnx.RequestMethod = httpMethodPut then begin
+            ClientCnx.AnswerString(Dummy,
+                '',           { Default Status '200 OK'         }
+                '',           { Default Content-Type: text/html }
+                '',           { Default header                  }
+                '<HTML>' +
+                  '<HEAD>' +
+                    '<TITLE>ICS WebServer PUT Demo</TITLE>' +
+                  '</HEAD>' + #13#10 +
+                  '<BODY>' +
+                    '<H2>Your data has been received:</H2>' + #13#10 +
+                    '<P>Size = ' + IntToStr(ClientCnx.FDataLen) + '</P>' +
+                    '<A HREF="/demo.html">Back to demo menu</A><BR>' +
+                  '</BODY>' +
+                '</HTML>');
         end
-        else
-            { We don't accept any other request }
-            ClientCnx.Answer404;
+        else if ClientCnx.RequestMethod = httpMethodPatch then begin
+            ClientCnx.AnswerString(Dummy,
+                '',           { Default Status '200 OK'         }
+                '',           { Default Content-Type: text/html }
+                '',           { Default header                  }
+                '<HTML>' +
+                  '<HEAD>' +
+                    '<TITLE>ICS WebServer PATCH Demo</TITLE>' +
+                  '</HEAD>' + #13#10 +
+                  '<BODY>' +
+                    '<H2>Your data has been received:</H2>' + #13#10 +
+                    '<P>Size = ' + IntToStr(ClientCnx.FDataLen) + '</P>' +
+                    '<A HREF="/demo.html">Back to demo menu</A><BR>' +
+                  '</BODY>' +
+                '</HTML>');
+        end;
+
     end;
 end;
 
@@ -1667,6 +1718,147 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TWebServForm.HttpServer1DeleteDocument(
+    Sender, Client: TObject; var Flags: THttpGetFlag);
+var
+    ClientCnx  : TMyHttpConnection;
+    Dummy     : THttpGetFlag;
+begin
+    if Flags = hg401 then
+    { Not authenticated (yet), we might be still in an authentication       }
+    { session with ClientCnx.RequestContentLength = 0 which was valid,      }
+    { i.e. NTLM uses a challenge/response method, anyway just exit.         }
+        Exit;
+
+    { It's easier to do the cast one time. Could use with clause... }
+    ClientCnx := TMyHttpConnection(Client);
+
+    { Count request and display a message }
+    InterlockedIncrement(FCountRequests);
+    Display('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
+            ClientCnx.GetPeerAddr + '] ' + IntToStr(FCountRequests) +
+            ': ' + ClientCnx.Version + ' DELETE ' + ClientCnx.Path);
+    DisplayHeader(ClientCnx);
+
+    { path may specify a file name or just a name, something we want to delete    }
+
+    { tell user }
+    Flags := hgWillSendMySelf;
+    ClientCnx.AnswerString(Dummy,
+        '',           { Default Status '200 OK'         }
+        '',           { Default Content-Type: text/html }
+        '',           { Default header                  }
+        '<HTML>' +
+          '<HEAD>' +
+            '<TITLE>ICS WebServer DELETE Demo</TITLE>' +
+          '</HEAD>' + #13#10 +
+          '<BODY>' +
+            '<H2>Your DELETE request has been noted:</H2>' + #13#10 +
+            '<P>Command: ' + ClientCnx.Path + '</P>' + #13#10 +
+            '<A HREF="/demo.html">Back to demo menu</A><BR>' +
+          '</BODY>' +
+        '</HTML>');
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TWebServForm.HttpServer1PatchDocument(
+    Sender, Client: TObject; var Flags: THttpGetFlag);
+var
+    ClientCnx  : TMyHttpConnection;
+begin
+    if Flags = hg401 then
+    { Not authenticated (yet), we might be still in an authentication       }
+    { session with ClientCnx.RequestContentLength = 0 which was valid,      }
+    { i.e. NTLM uses a challenge/response method, anyway just exit.         }
+        Exit;
+
+    { It's easier to do the cast one time. Could use with clause... }
+    ClientCnx := TMyHttpConnection(Client);
+
+    { Count request and display a message }
+    InterlockedIncrement(FCountRequests);
+    Display('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
+            ClientCnx.GetPeerAddr + '] ' + IntToStr(FCountRequests) +
+            ': ' + ClientCnx.Version + ' PATCH ' + ClientCnx.Path);
+    DisplayHeader(ClientCnx);
+
+    if (ClientCnx.RequestContentLength > MAX_UPLOAD_SIZE) or
+       (ClientCnx.RequestContentLength <= 0) then begin
+        if (ClientCnx.RequestContentLength > MAX_UPLOAD_SIZE) then
+            Display('Upload size exceeded limit (' +
+                    IntToStr(MAX_UPLOAD_SIZE) + ')');
+        Flags := hg403;
+        Exit;
+    end;
+
+    { URL may specify a file name or just a name, worry about it later    }
+
+    { Tell HTTP server that we will accept posted data                 }
+    { OnPostedData event will be triggered when data comes in          }
+    Flags := hgAcceptData;
+    { We wants to receive any data type. So we turn line mode off on   }
+    { client connection.                                               }
+    ClientCnx.LineMode := FALSE;
+    { We need a buffer to hold posted data. We allocate as much as the }
+    { size of posted data plus one byte for terminating nul char.      }
+    { We should check for ContentLength = 0 and handle that case...    }
+    ReallocMem(ClientCnx.FPostedRawData,
+               ClientCnx.RequestContentLength + 1);
+    { Clear received length                                            }
+    ClientCnx.FDataLen := 0;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TWebServForm.HttpServer1PutDocument(
+    Sender, Client: TObject; var Flags: THttpGetFlag);
+var
+    ClientCnx  : TMyHttpConnection;
+begin
+    if Flags = hg401 then
+    { Not authenticated (yet), we might be still in an authentication       }
+    { session with ClientCnx.RequestContentLength = 0 which was valid,      }
+    { i.e. NTLM uses a challenge/response method, anyway just exit.         }
+        Exit;
+
+    { It's easier to do the cast one time. Could use with clause... }
+    ClientCnx := TMyHttpConnection(Client);
+
+    { Count request and display a message }
+    InterlockedIncrement(FCountRequests);
+    Display('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
+            ClientCnx.GetPeerAddr + '] ' + IntToStr(FCountRequests) +
+            ': ' + ClientCnx.Version + ' PUT ' + ClientCnx.Path);
+    DisplayHeader(ClientCnx);
+
+    if (ClientCnx.RequestContentLength > MAX_UPLOAD_SIZE) or
+       (ClientCnx.RequestContentLength <= 0) then begin
+        if (ClientCnx.RequestContentLength > MAX_UPLOAD_SIZE) then
+            Display('Upload size exceeded limit (' +
+                    IntToStr(MAX_UPLOAD_SIZE) + ')');
+        Flags := hg403;
+        Exit;
+    end;
+
+    { URL may specify a file name or just a name, worry about it later    }
+
+    { Tell HTTP server that we will accept posted data                 }
+    { OnPostedData event will be triggered when data comes in          }
+    Flags := hgAcceptData;
+    { We wants to receive any data type. So we turn line mode off on   }
+    { client connection.                                               }
+    ClientCnx.LineMode := FALSE;
+    { We need a buffer to hold posted data. We allocate as much as the }
+    { size of posted data plus one byte for terminating nul char.      }
+    { We should check for ContentLength = 0 and handle that case...    }
+    ReallocMem(ClientCnx.FPostedRawData,
+               ClientCnx.RequestContentLength + 1);
+    { Clear received length                                            }
+    ClientCnx.FDataLen := 0;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TWebServForm.DisplayHeader(ClientCnx : TMyHttpConnection);
 var
     I : Integer;
@@ -1838,6 +2030,42 @@ begin
              (ClientCnx.AuthNtlmSession.Domain <> 'SomeDomain');
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TWebServForm.HttpServer1OptionsDocument(Sender, Client: TObject; var Flags: THttpGetFlag);
+var
+    ClientCnx  : TMyHttpConnection;
+begin
+    { It's easier to do the cast one time. Could use with clause... }
+    ClientCnx := TMyHttpConnection(Client);
+
+    { Count request and display a message }
+    InterlockedIncrement(FCountRequests);
+    Display('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
+            ClientCnx.GetPeerAddr + '] ' + IntToStr(FCountRequests) +
+            ': ' + ClientCnx.Version + ' OPTIONS ' + ClientCnx.Path);
+    DisplayHeader(ClientCnx);
+    Exit;  { let web server send general response }
+
+    { path may be the resource for which OPTIONS should be checked }
+
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TWebServForm.HttpServer1TraceDocument(Sender, Client: TObject; var Flags: THttpGetFlag);
+var
+    ClientCnx  : TMyHttpConnection;
+begin
+    { It's easier to do the cast one time. Could use with clause... }
+    ClientCnx := TMyHttpConnection(Client);
+
+    { Count request and display a message }
+    InterlockedIncrement(FCountRequests);
+    Display('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
+            ClientCnx.GetPeerAddr + '] ' + IntToStr(FCountRequests) +
+            ': ' + ClientCnx.Version + ' TRACE ' + ClientCnx.Path);
+    DisplayHeader(ClientCnx);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 initialization
@@ -1848,6 +2076,6 @@ finalization
     DeleteCriticalSection(DisplayLock);
     DeleteCriticalSection(LockFileAccess);
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}    
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 end.
 

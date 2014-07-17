@@ -61,6 +61,8 @@ Oct 6,  2011  V7.01 Angus added content encoding checkbox
 Mar 19, 2012  V7.02 Angus added persistent cookie support
 Apr 19, 2014  V8.00 Angus added PATCH method, thanks to RTT <pdfe@sapo.pt>
 Jun  4, 2014  V8.01 Angus show StatusCode during relocation
+Jul 16, 2014  V8.02 Angus added DELETE, OPTIONS and TRACE
+              simplified code with GetHeadDelOptTrace
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpTst1;
@@ -92,8 +94,8 @@ uses
   OverbyteIcsWndControl, OverbyteIcsLogger;
 
 const
-  HttpTstVersion         = 800;
-  CopyRight : String     = 'HttpTst (c) 1997-2014 Francois Piette  V8.00 ';
+  HttpTstVersion         = 802;
+  CopyRight : String     = 'HttpTst (c) 1997-2014 Francois Piette  V8.02 ';
 
 type
   THttpTestForm = class(TForm)
@@ -134,6 +136,9 @@ type
     ContentEncodingCheckBox: TCheckBox;
     IcsCookies: TIcsCookies;
     PatchButton: TButton;
+    TraceButton: TButton;
+    OptionsButton: TButton;
+    DeleteButton: TButton;
     procedure GetButtonClick(Sender: TObject);
     procedure HttpCli1Command(Sender: TObject; var S: String);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -156,6 +161,9 @@ type
     procedure PutButtonClick(Sender: TObject);
     procedure IcsCookiesNewCookie(Sender: TObject; ACookie: TCookie; var Save: Boolean);
     procedure PatchButtonClick(Sender: TObject);
+    procedure OptionsButtonClick(Sender: TObject);
+    procedure TraceButtonClick(Sender: TObject);
+    procedure DeleteButtonClick(Sender: TObject);
   private
     Initialized  : Boolean;
     DocFileName  : String;
@@ -163,6 +171,7 @@ type
     procedure SetButtonState(State : Boolean);
     procedure Display(const Msg : String);
     procedure PostPutOrPatch(Request: THttpRequest);
+    procedure GetHeadDelOptTrace(Request: THttpRequest);
   end;
 
 var
@@ -302,6 +311,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Display a message in display memo box, making sure we don't overflow it.  }
+
 procedure THttpTestForm.Display(const Msg : String);
 begin
     DisplayMemo.Lines.BeginUpdate;
@@ -323,6 +333,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
 procedure THttpTestForm.HeadButtonClick(Sender: TObject);
 var
     I       : Integer;
@@ -459,6 +470,111 @@ begin
         SetButtonState(TRUE);
     end;
 end;
+*)
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+procedure THttpTestForm.HeadButtonClick(Sender: TObject);
+begin
+    GetHeadDelOptTrace(httpHEAD);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpTestForm.GetButtonClick(Sender: TObject);
+begin
+    GetHeadDelOptTrace(httpGET);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpTestForm.GetHeadDelOptTrace(Request: THttpRequest);
+var
+    I       : Integer;
+    DataIn  : TStream;
+begin
+    DisplayMemo.Clear;
+    DocumentMemo.Clear;
+    SetButtonState(FALSE);
+
+    try
+        HttpCli1.URL            := URLEdit.Text;
+        HttpCli1.Proxy          := ProxyHostEdit.Text;
+        HttpCli1.ProxyPort      := ProxyPortEdit.Text;
+        HttpCli1.AcceptLanguage := 'en, fr';
+        HttpCli1.Connection     := 'Keep-Alive';
+        HttpCli1.RequestVer     := '1.' + IntToStr(HttpVersionComboBox.ItemIndex);
+        HttpCli1.RcvdStream := nil;
+{$IFDEF BUILTIN_THROTTLE}
+        HttpCli1.BandwidthLimit := StrToIntDef(BandwidthLimitEdit.Text, 1000000);
+        if HttpCli1.BandwidthLimit > 0 then
+             HttpCli1.Options := HttpCli1.Options + [httpoBandwidthControl];
+{$ENDIF}
+        if ContentEncodingCheckBox.Checked then
+             HttpCli1.Options := HttpCli1.Options + [httpoEnableContentCoding]
+        else
+             HttpCli1.Options := HttpCli1.Options - [httpoEnableContentCoding];
+        if DateTimeEdit.Text <> '' then
+            HttpCli1.ModifiedSince := StrToDateTime(DateTimeEdit.Text)
+        else
+            HttpCli1.ModifiedSince := 0;
+
+        if HttpCli1.Proxy <> '' then
+            Display('Using proxy ''' + HttpCli1.Proxy + ':' +
+                    HttpCli1.ProxyPort + '''')
+        else
+            Display('Not using proxy');
+
+        HttpCli1.Cookie := IcsCookies.GetCookies (HttpCli1.URL);  // 7.02 send cookies
+
+        try
+            if Request = httpGET then
+                HttpCli1.Get
+            else if Request = httpHEAD then
+                HttpCli1.Head
+            else if Request = httpDELETE then
+                HttpCli1.Del
+            else if Request = httpOPTIONS then
+                HttpCli1.OptionsSync
+            else if Request = httpTRACE then
+                HttpCli1.Trace ;
+        except
+            Display('Request Failed !');
+            Display('StatusCode   = ' + IntToStr(HttpCli1.StatusCode));
+            Display('ReasonPhrase = ' + HttpCli1.ReasonPhrase);
+            HttpCli1DocEnd(nil);  { This will close the file }
+            Exit;
+        end;
+
+        Display('StatusCode = ' + IntToStr(HttpCli1.StatusCode));
+
+        if DisplayHeaderCheckBox.Checked then
+            for I := 0 to HttpCli1.RcvdHeader.Count - 1 do
+                Display('hdr>' + HttpCli1.RcvdHeader.Strings[I]);
+
+        if (Request = httpHEAD) then Exit;
+
+        if Length(DocFileName) = 0 then begin
+            DocumentMemo.Lines.Add('*** NO DOCUMENT FILE NAME ***');
+        end
+        else begin
+            DataIn := TFileStream.Create(DocFileName, fmOpenRead);
+            try
+                if Copy(HttpCli1.ContentType, 1, 5) = 'text/' then
+                    DocumentMemo.Lines.LoadFromStream(DataIn)
+                else begin
+                    DocumentMemo.Lines.Add('Content type is ' +
+                                           HttpCli1.ContentType);
+                    DocumentMemo.Lines.Add('Document stored in ''' +
+                                           DocFileName +
+                                           ''' Size=' + IntToStr(DataIn.Size));
+                end;
+            finally
+                DataIn.Free;
+            end;
+        end;
+    finally
+        SetButtonState(TRUE);
+    end;
+end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -541,7 +657,7 @@ begin
                 HttpCli1.Post
             else if Request = httpPUT then
                 HttpCli1.Put
-            else if Request = httpPATCH then { V8.00 } 
+            else if Request = httpPATCH then { V8.00 }
                 HttpCli1.Patch;
         except
             DataOut.Free;
@@ -639,6 +755,12 @@ begin
     GetButton.Enabled   := State;
     PostButton.Enabled  := State;
     HeadButton.Enabled  := State;
+    PutButton.Enabled  := State;
+    HeadButton.Enabled  := State;
+    DeleteButton.Enabled  := State;
+    OptionsButton.Enabled  := State;
+    TraceButton.Enabled  := State;
+    PatchButton.Enabled  := State;
 end;
 
 
@@ -741,10 +863,27 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-
 procedure THttpTestForm.PatchButtonClick(Sender: TObject);
 begin
     PostPutOrPatch(httpPATCH);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpTestForm.OptionsButtonClick(Sender: TObject);
+begin
+    GetHeadDelOptTrace(httpOPTIONS);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpTestForm.TraceButtonClick(Sender: TObject);
+begin
+    GetHeadDelOptTrace(httpTRACE);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpTestForm.DeleteButtonClick(Sender: TObject);
+begin
+    GetHeadDelOptTrace(httpDELETE);
 end;
 
 end.

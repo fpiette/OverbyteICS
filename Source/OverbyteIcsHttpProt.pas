@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.09
+Version:      8.10
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -498,6 +498,7 @@ Jul 14, 2014 V8.08 Angus try and match how Chrome and Firefox handle POST reloca
                    thanks to RTT <pdfe@sapo.pt> again
 Jul 16, 2014 V8.09 Angus added new methods: OPTIONS and TRACE
                    published RequestType for events
+Jul 18, 2014 V8.10 Angus applied V8.08 change to another function
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -585,8 +586,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 809;
-    CopyRight : String   = ' THttpCli (c) 1997-2014 F. Piette V8.09 ';
+    HttpCliVersion       = 810;
+    CopyRight : String   = ' THttpCli (c) 1997-2014 F. Piette V8.10 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -4063,7 +4064,10 @@ begin
         { has to be GET.  01/05/03                                }
         { if FRequestType = httpPOST then }
         { angus V8.07  unless a 307 or 308 POST which must not revert to GET }
-        if (FRequestType = httpPOST) and not ((FStatusCode = 307) or (FStatusCode = 308)) then
+        {if (FRequestType = httpPOST) and not ((FStatusCode = 307) or (FStatusCode = 308)) then }
+        { angus V8.10 - try and match how Chrome and Firefox handle POST relocation }
+        if ((FStatusCode=303) and (FRequestType <> httpHEAD)) or
+              ((FRequestType = httpPOST) and ((FStatusCode=301) or (FStatusCode=302))) then
             FRequestType  := httpGET;
         { Must clear what we already received }
         CleanupRcvdStream; {11/11/04}

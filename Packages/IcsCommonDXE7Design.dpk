@@ -1,11 +1,11 @@
-package OverbyteIcsDXe6Design;
+package IcsCommonDXE7Design;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
-{$DEBUGINFO ON}
+{$DEBUGINFO OFF}
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
@@ -24,21 +24,17 @@ package OverbyteIcsDXe6Design;
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
-{$DEFINE VCL}
-{$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS Design-Time Package for Delphi XE6'}
+{$DESCRIPTION 'Overbyte ICS Common Design-Time Package for Delphi XE7'}
 {$DESIGNONLY}
 {$IMPLICITBUILD OFF}
 
 requires
   rtl,
   designide,
-  OverbyteIcsDXE6Run;
+  IcsCommonDXE7Run;
 
 contains
-  OverbyteIcsReg,
-  OverByteIcsWSocketE,
-  OverbyteIcsDprUpdFix;
+  OverbyteIcsReg in '..\Source\OverbyteIcsReg.pas';
 
 end.

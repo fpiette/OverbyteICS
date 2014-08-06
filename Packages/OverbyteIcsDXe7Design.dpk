@@ -1,4 +1,4 @@
-package OverbyteIcsDXe6Design;
+package OverbyteIcsDXe7Design;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -27,14 +27,14 @@ package OverbyteIcsDXe6Design;
 {$DEFINE VCL}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS Design-Time Package for Delphi XE6'}
+{$DESCRIPTION 'Overbyte ICS Design-Time Package for Delphi XE7'}
 {$DESIGNONLY}
 {$IMPLICITBUILD OFF}
 
 requires
   rtl,
   designide,
-  OverbyteIcsDXE6Run;
+  OverbyteIcsDXE7Run;
 
 contains
   OverbyteIcsReg,

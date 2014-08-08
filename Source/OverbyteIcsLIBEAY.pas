@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.03
+Version:      8.04
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -93,6 +93,7 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
 Feb 13, 2014 V8.01 - Angus added more NID_xx literals
 Apr 19, 2014 V8.02 - Arno allow load of OSSL 1.0.1g (untested so far)
 Jul 07, 2014 V8.03 - Angus allow load of OSSL 1.0.1h (briefly tested)
+Aug 08, 2014 V8.04 - Angus allow load of OSSL 1.0.1i (briefly tested)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -132,8 +133,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 803;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2014 F. Piette V8.03 ';
+    IcsLIBEAYVersion   = 804;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2014 F. Piette V8.04 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -1384,6 +1385,7 @@ const
     OSSL_VER_1000J = $100000af; // just briefly tested
     OSSL_VER_1001G = $1000107F; // just briefly tested  { V8.02 }
     OSSL_VER_1001H = $1000108F; // just briefly tested  { V8.03 }
+    OSSL_VER_1001I = $1000109F; // just briefly tested  { V8.04 }
     { Basically versions listed above are tested if not otherwise commented.  }
     { Versions between are assumed to work, however they are untested.        }
     { OpenSSL libraries for ICS are available for download here:              }
@@ -1391,7 +1393,7 @@ const
 
 {$IFDEF BEFORE_OSSL_098E}
     MIN_OSSL_VER   = OSSL_VER_0907G;
-    MAX_OSSL_VER   = OSSL_VER_1001H;  { V8.03 }
+    MAX_OSSL_VER   = OSSL_VER_1001I;  { V8.04 }
 {$ELSE}
     {$IFNDEF OPENSSL_NO_TLSEXT}
         MIN_OSSL_VER = OSSL_VER_0908F;

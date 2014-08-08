@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  Version defines for ICS (Internet Component Suite)
 Creation:     2003
-Version:      8.03
+Version:      8.04
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -51,7 +51,7 @@ Sep 21, 2010 V1.10 Arno corrected VER180/VER185 and added VER190 and VER160.
                    supported compiler version.
 Sep 24, 2010 V1.11 Arno removed BCB7/C++BuilderX.
 Oct 23, 2010 V1.12 PasDoc compatible.
-Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default 
+Feb 4,  2011 V1.13 BUILTIN_TIMEOUT and BUILTIN_THROTTLE now enabled by default
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 Apr 2013 - V8.01 - Arno XE4
@@ -596,7 +596,7 @@ Aug 2014 - V8.04 - Angus XE7
 {$ENDIF}
 
 {$IFDEF DELPHI14}
-  {$DEFINE DELPHI14_UP} 
+  {$DEFINE DELPHI14_UP}
   {$DEFINE DELPHI12_UP}
   {$DEFINE DELPHI11_UP}
   {$DEFINE DELPHI10_UP}

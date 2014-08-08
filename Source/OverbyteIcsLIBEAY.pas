@@ -319,7 +319,7 @@ const
     SSLEAY_PLATFORM     = 4;
     SSLEAY_DIR          = 5; // since 0.9.7
 
-    
+
     X509_V_OK                                           = 0;
     // illegal error (for uninitialized values, to avoid X509_V_OK): 1
     X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT                = 2;
@@ -368,7 +368,7 @@ const
     X509_V_ERR_INVALID_POLICY_EXTENSION                 = 42;
     X509_V_ERR_NO_EXPLICIT_POLICY                       = 43;
     X509_V_ERR_UNNESTED_RESOURCE                        = 44;
-    
+
     // The application is not happy
     X509_V_ERR_APPLICATION_VERIFICATION                 = 50;
 
@@ -996,7 +996,7 @@ const
     //* whatever. */
     f_ENGINE_load_private_key :                function(e: PENGINE; key_id: PAnsiChar; ui_method: PUI_METHOD; callback_data: Pointer): PEVP_PKEY; cdecl = nil; //AG;
     f_ENGINE_load_public_key :                 function(e: PENGINE; const key_id: PAnsiChar; ui_method: PUI_METHOD; callback_data: Pointer): PEVP_PKEY; cdecl = nil; //AG;
-    { Since V0.98i there's also: 
+    { Since V0.98i there's also:
     int ENGINE_load_ssl_client_cert(ENGINE *e, SSL *s,
     STACK_OF(X509_NAME) *ca_dn, X509 **pcert, EVP_PKEY **ppkey,
     STACK_OF(X509) **pother,
@@ -1141,7 +1141,7 @@ const
     FN_X509_verify_cert                       = 'X509_verify_cert'; //AG
 
     FN_X509_verify_cert_error_string          = 'X509_verify_cert_error_string';
-    
+
     FN_X509_get_issuer_name                   = 'X509_get_issuer_name';
     FN_X509_get_subject_name                  = 'X509_get_subject_name';
     FN_X509_get_serialNumber                  = 'X509_get_serialNumber';
@@ -1393,15 +1393,14 @@ const
 
 {$IFDEF BEFORE_OSSL_098E}
     MIN_OSSL_VER   = OSSL_VER_0907G;
-    MAX_OSSL_VER   = OSSL_VER_1001I;  { V8.04 }
 {$ELSE}
     {$IFNDEF OPENSSL_NO_TLSEXT}
         MIN_OSSL_VER = OSSL_VER_0908F;
     {$ELSE}
         MIN_OSSL_VER = OSSL_VER_0908E;
     {$ENDIF}
-    MAX_OSSL_VER   = OSSL_VER_1001H;  { V8.03 }
 {$ENDIF}
+    MAX_OSSL_VER   = OSSL_VER_1001I;  { V8.04 }
 
 {$ENDIF} // USE_SSL
 implementation
@@ -1891,7 +1890,7 @@ begin
                    (@f_EVP_md5                                = nil) or //AG
                    (@f_EVP_PKEY_free                          = nil) or //AG
                    { Next is v1.0.0+ ** check for nil ** }
-                   //(@f_EVP_PKEY_get0                          = nil) or //AG 
+                   //(@f_EVP_PKEY_get0                          = nil) or //AG
                    (@f_EVP_PKEY_new                           = nil) or //AG
                    (@f_EVP_PKEY_assign                        = nil) or //AG
                    (@f_EVP_PKEY_size                          = nil) or //AG
@@ -1899,7 +1898,7 @@ begin
                    (@f_EVP_get_cipherbyname                   = nil) or //AG
                    (@f_EVP_des_ede3_cbc                       = nil) or //AG
                    (@f_EVP_cleanup                            = nil) or
-                   
+
                    (@f_RSA_generate_key                       = nil) or //AG
                    (@f_RSA_print                              = nil) or //AG
                    (@f_DSA_print                              = nil) or //AG
@@ -1956,7 +1955,7 @@ begin
                    (@f_X509_set_issuer_name                   = nil) or
                    (@f_X509_sign                              = nil) or
                    (@f_X509_INFO_free                         = nil) or
-                   (@f_X509_CRL_dup                           = nil) or 
+                   (@f_X509_CRL_dup                           = nil) or
                    (@f_i2d_X509                               = nil) or
                    (@f_i2d_PrivateKey                         = nil) or
                    (@f_d2i_PrivateKey                         = nil) or
@@ -2545,7 +2544,7 @@ begin
         if I < 10 then Exit;
         P   := Asn1Time.data;
         Y := 0; M := 0; D := 0; {H := 0; N := 0;} S := 0;
-        
+
         if Asn1Time^.Type_ = V_ASN1_UTCTIME then begin
             {if I < 10 then
                 Exit;}

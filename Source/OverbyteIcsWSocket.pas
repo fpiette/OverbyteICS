@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.10
+Version:      8.11
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -948,6 +948,7 @@ Feb 12, 2014 V8.09 Angus - fixed TX509Base.PostConnectionCheck to check multiple
                    DNS or IP entries
 Jul 9, 2014  V8.10 Angus - added sslCiphersXXX literals some taken from Mozilla
                    with much higher security for servers
+Aug 15, 2014 V8.11 Angus made WriteCount public in descendent components
 }
 
 {
@@ -1091,8 +1092,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 809;
-  CopyRight    : String     = ' TWSocket (c) 1996-2014 Francois Piette V8.09 ';
+  WSocketVersion            = 811;
+  CopyRight    : String     = ' TWSocket (c) 1996-2014 Francois Piette V8.11 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -3139,6 +3140,7 @@ type
     property DnsResult;
     property DnsResultList;
     property ReadCount;
+    property WriteCount;            { V8.11 }
     property RcvdCount;
     property SocketRcvBufSize;     {AG 03/10/07}
     property SocketSndBufSize;     {AG 03/10/07}

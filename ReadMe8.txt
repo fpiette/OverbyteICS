@@ -1,9 +1,9 @@
-ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio XE6
+ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio XE7
 ================================================================
 (Aka FPIETTE's Components)
 
 
-Revised: April 16, 2014
+Revised: September 3, 2014
 http://www.overbyte.be/
 
 Table of content:
@@ -169,7 +169,7 @@ This is the new V8 sub-directory layout:
       |
     \$(Platform)                      Win32 / Win64 / OSX32
         |
-      \<delphi_version>               D7..XE6 includes .dcu and .dfm files for Delphi
+      \<delphi_version>               D7..XE7 includes .dcu and .dfm files for Delphi
                                       and .obj and .hpp files for C++ Builder
 
 .\Samples                             Delphi Win32/Win64 common source for all demos
@@ -254,6 +254,8 @@ Delphi XE5       :  DXe5Install.groupproj // VCL only, no FireMonkey components
 Delphi XE5       :  DXe5InstallVclFmx.groupproj // Both VCL and FireMonkey components
 Delphi XE6       :  DXe6Install.groupproj // VCL only, no FireMonkey components
 Delphi XE6       :  DXe6InstallVclFmx.groupproj // Both VCL and FireMonkey components
+Delphi XE7       :  DXe7Install.groupproj // VCL only, no FireMonkey components
+Delphi XE7       :  DXe7InstallVclFmx.groupproj // Both VCL and FireMonkey components
 C++ Builder 2006 :  CB2006Install.bdsgroup
 C++ Builder 2007 :  CB2007Install.groupproj
 C++ Builder 2009 :  CB2009Install.groupproj
@@ -285,9 +287,9 @@ of all the ICS components, see later.
 
 FIREMONKEY CROSS PLATFORM PACKAGES:
 
-1 - For XE2 and later, DXe2Install installs VCL components only, while
-DXe2InstallVclFmx also installs FireMonkey cross platform components (three
-run time packages). In order to use this feature first uninstall the old
+1 - For XE2 and later, DXe?Install (where ? is the version) installs VCL components
+only, while DXe?InstallVclFmx also installs FireMonkey cross platform components
+(three run time packages). In order to use this feature first uninstall the old
 design-time package.
 
 2 = Build all three run-time packages for all available platforms (32-bit
@@ -331,6 +333,7 @@ Delphi XE3       :  OverbyteIcsDXe3Run.dproj, OverbyteIcsDXe3Design.dproj
 Delphi XE4       :  OverbyteIcsDXe4Run.dproj, OverbyteIcsDXe4Design.dproj
 Delphi XE5       :  OverbyteIcsDXe5Run.dproj, OverbyteIcsDXe5Design.dproj
 Delphi XE6       :  OverbyteIcsDXe6Run.dproj, OverbyteIcsDXe6Design.dproj
+Delphi XE7       :  OverbyteIcsDXe7Run.dproj, OverbyteIcsDXe7Design.dproj
 C++ Builder 2006 :  OverbyteIcsCB2006Run.bdsproj, OverbyteIcsCB2006Design.bdsproj
 C++ Builder 2007 :  OverbyteIcsCB2007Run.cbproj, OverbyteIcsCB2007Design.cbproj
 C++ Builder 2009 :  OverbyteIcsCB2009Run.cbproj, OverbyteIcsCB2009Design.cbproj
@@ -355,6 +358,9 @@ Delphi XE5 FMX          :  IcsFmxDXe5Run.dproj, IcsFmxDXe5Design.dproj
 Delphi XE6 FMX/VCL      :  IcsCommonDXe6Run.dproj, IcsCommonDXe6Design.dproj
 Delphi XE6 VCL          :  IcsVclDXe6Run.dproj, IcsVclDXe6Design.dproj
 Delphi XE6 FMX          :  IcsFmxDXe6Run.dproj, IcsFmxDXe6Design.dproj
+Delphi XE7 FMX/VCL      :  IcsCommonDXe7Run.dproj, IcsCommonDXe7Design.dproj
+Delphi XE7 VCL          :  IcsVclDXe7Run.dproj, IcsVclDXe7Design.dproj
+Delphi XE7 FMX          :  IcsFmxDXe7Run.dproj, IcsFmxDXe7Design.dproj
 C++ Builder XE2 FMX/VCL :  IcsCommonCBXe2Run.dproj, IcsCommonDXe2Design.dproj
 C++ Builder XE2 VCL     :  IcsVclCBXe2Run.dproj, IcsVclCBXe2Design.dproj
 C++ Builder XE2 FMX     :  IcsFmxCBXe2Run.dproj, IcsFmxCBXe2Design.dproj
@@ -389,9 +395,11 @@ If not, add it manually. It is not mandatory to add .\Lib to the global Delphi p
 but it will be much easier for you because otherwise you'll have to add it to each
 project.
 
-DELPHI XE2/WIN32, XE3/WIN32, XE4/WIN32, XE5/WIN32, XE6/WIN32, XE2/WIN64, XE3/WIN64,
-XE4/WIN64, XE5/WIN64, XE6/WIN64: Similar to above, but the Library path is specified
-separately for 32-bit and 64-bit Windows Platforms.
+DELPHI XE2/WIN32, XE3/WIN32, XE4/WIN32, XE5/WIN32, XE6/WIN32, XE7/WIN32, XE2/WIN64,
+XE3/WIN64, XE4/WIN64, XE5/WIN64, XE6/WIN64, XE7/WIN64:
+
+Similar to above, but the Library path is specified separately for 32-bit and 64-bit
+Windows Platforms.
 
 DELPHI 7: Add VC32 directory path to your library path (Tools menu / Environment
 Options / Library / Library Path. Add .\Lib\Debug\Win32\D7 path at the end of the
@@ -764,7 +772,6 @@ Delphi Win32/Win64 SSL-enabled sample applications
 --------------------------------------------------
 .\Samples\delphi\sslinternet\SslDemos.bpg - Project group
 > OverbyteIcsHttpsTst.dpr         Example of TSslHttpCli component (GET) - ACTIVE!!
-> OverbyteIcsMsVerify.dpr         Demo of HTTPs server, static and dynamic pages, template for HTML - ACTIVE!!
 > OverbyteIcsPemTool.dpr          ICS Pem Certificate Tool - Create and import certificates in OpenSLL PEM format
 > OverbyteIcsSimpleSslCli.dpr     Example of simple SSL client using TSslWSocket - ACTIVE!!
 > OverbyteIcsSimpleSslServer.dpr  Example of SSL server using TSslWSocket - ACTIVE!!

@@ -709,7 +709,7 @@ Delphi Win32/Win64 DNS, Ping, SNMP, Syslog sample applications
 > OverbyteIcsDnsResolver.dpr    Batch async DNS lookup event driven using DnsQuery
 > OverbyteIcsFinger.dpr         Example of TFingerCli component
 > OverbyteIcsNsLookup.dpr       Demo for the DnsQuery component
-> OverbyteIcsPingTst.dpr        Demo for the ping component
+> OverbyteIcsPingTst.dpr        Demo for the ping component, includes trace route
 > OverbyteIcsSnmpCliTst.dpr     Demo for SNMP (simple network management protocol) component
 > OverbyteIcsSysLogClientDemo.dpr Demo for SysLog client component
 > OverbyteIcsSysLogServerDemo.dpr Demo for SysLog server component

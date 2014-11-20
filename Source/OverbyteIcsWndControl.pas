@@ -132,18 +132,20 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-  Windows, Messages,
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
 {$ENDIF}
 {$IFDEF POSIX}
   Ics.Posix.WinTypes,
   Ics.Posix.Messages,
 {$ENDIF POSIX}
-  SysUtils, Classes,
+  {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
 {$IFNDEF NOFORMS}
   {$IFDEF FMX}
     FMX.Forms,
   {$ELSE}
-    Forms,
+    {$IFDEF RTL_NAMESPACES}Vcl.Forms{$ELSE}Forms{$ENDIF},
   {$ENDIF}
 {$ENDIF}
   OverbyteIcsTypes;
@@ -776,11 +778,11 @@ begin
     { These calls are all intercepted by MadExcept.                         }
     { Pass the unhandled exception to the Application handler if assigned   }
     if (IcsFinalBgExceptionHandling = fehAppHandleException) and
-       Assigned(Classes.ApplicationHandleException) then
-        Classes.ApplicationHandleException(Sender)
+       Assigned({$IFDEF RTL_NAMESPACES}System.{$ENDIF}Classes.ApplicationHandleException) then
+        {$IFDEF RTL_NAMESPACES}System.{$ENDIF}Classes.ApplicationHandleException(Sender)
     else if (IcsFinalBgExceptionHandling = fehShowException) then
         { Shows it either in the console or with Windows.MessageBox API     }
-        SysUtils.ShowException(ExceptObject, ExceptAddr);
+        {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.ShowException(ExceptObject, ExceptAddr);
 end;
 
 
@@ -996,7 +998,7 @@ begin
             IcsWndControlWindowClass.hbrBackground := 0;
             IcsWndControlWindowClass.lpszMenuName  := nil;
 
-           if Windows.RegisterClass(IcsWndControlWindowClass) = 0 then
+           if {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.RegisterClass(IcsWndControlWindowClass) = 0 then
                 raise EIcsException.Create(
                      'Unable to register TIcsWndControl hidden window class.' +
                      ' Error #' + IntToStr(GetLastError) + '.');
@@ -1059,7 +1061,7 @@ begin
             { This is necessary to do so from a DLL when the DLL is unloaded }
             { (that is when DllEntryPoint is called with dwReason equal to   }
             { DLL_PROCESS_DETACH.                                            }
-            Windows.UnregisterClass(IcsWndControlWindowClassName, HInstance);
+            {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.UnregisterClass(IcsWndControlWindowClassName, HInstance);
     finally
         LeaveCriticalSection(GWndHandlerCritSect);
     end;
@@ -1143,7 +1145,7 @@ begin
                     Obj := TObject(WParam);
                     if (not IsBadReadPtr(Obj, GUIDOffSet + SizeOf(INT_PTR))) and
                     {$IFDEF COMPILER16_UP} { WPARAM changed to unsigned }
-                       (PUINT_PTR(WParam + Windows.WPARAM(GUIDOffSet))^ = WParam) and
+                       (PUINT_PTR(WParam + {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.WPARAM(GUIDOffSet))^ = WParam) and
                     {$ELSE}
                        (PINT_PTR(WParam + GUIDOffSet)^ = WParam) and
                     {$ENDIF}
@@ -1153,7 +1155,7 @@ begin
                 else if (Msg = WM_ICS_THREAD_TIMER) then begin
                     Obj := TObject(WParam);
                     if (not IsBadReadPtr(Obj, GUIDOffSet + SizeOf(INT_PTR))) and
-                       (PINT_PTR(WParam + Windows.WPARAM(GUIDOffSet))^ = LParam) and
+                       (PINT_PTR(WParam + {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.WPARAM(GUIDOffSet))^ = LParam) and
                        (Obj is TIcsThreadTimer) then
                        { Actually the overridden method       }
                        { TIcsThreadTimer.WMTimer is called!   }

@@ -123,27 +123,27 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Windows,
-    Messages,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
 {$ENDIF}
 {$IFDEF POSIX}
     Ics.Posix.WinTypes,
     Ics.Posix.Messages,
 {$ENDIF}
-    SysUtils,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
 {$IFDEF COMPILER7_UP}
-    StrUtils,
+    {$IFDEF RTL_NAMESPACES}System.StrUtils{$ELSE}StrUtils{$ENDIF},
 {$ENDIF}
 {$IFDEF FMX}
     FMX.Types,
     Ics.Fmx.OverbyteIcsWSocket,
     Ics.Fmx.OverbyteIcsHttpSrv,
 {$ELSE}
-    ExtCtrls,
+    {$IFDEF RTL_NAMESPACES}Vcl.ExtCtrls{$ELSE}ExtCtrls{$ENDIF},
     OverbyteIcsWSocket,
     OverbyteIcsHttpSrv,
 {$ENDIF}
-    Classes,
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     OverbyteIcsWebSession,
     OverbyteIcsUtils;
 

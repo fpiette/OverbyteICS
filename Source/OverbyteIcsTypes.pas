@@ -56,9 +56,9 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-  Windows,
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
-  SysUtils;
+  {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF};
 
 const
   OverbyteIcsTypesVersion = 800;
@@ -70,7 +70,7 @@ type
     RawByteString = AnsiString;
 {$ENDIF}    
 {$IFDEF COMPILER11_UP} // D2007 and better
-  TBytes                    = SysUtils.TBytes;
+  TBytes                    = {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.TBytes;
 {$ELSE} // D7 - D2006
   TBytes                    = array of Byte;
 {$ENDIF}
@@ -90,7 +90,7 @@ type
 
   {$IFDEF COMPILER14_UP} // D2010 and better
       {$EXTERNALSYM HANDLE_PTR}
-      HANDLE_PTR                = Windows.HANDLE_PTR;
+      HANDLE_PTR                = {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.HANDLE_PTR;
   {$ELSE} // D7 - D2009
       {$EXTERNALSYM HANDLE_PTR}
       HANDLE_PTR                = type LongWord;
@@ -98,15 +98,15 @@ type
 
   {$IFDEF COMPILER11_UP} // D2007 and better
       {$EXTERNALSYM INT_PTR}
-      INT_PTR                   = Windows.INT_PTR;
+      INT_PTR                   = {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.INT_PTR;
       {$EXTERNALSYM LONG_PTR}
-      LONG_PTR                  = Windows.LONG_PTR;
+      LONG_PTR                  = {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.LONG_PTR;
       {$EXTERNALSYM UINT_PTR}
-      UINT_PTR                  = Windows.UINT_PTR;
+      UINT_PTR                  = {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.UINT_PTR;
       {$EXTERNALSYM ULONG_PTR}
-      ULONG_PTR                 = Windows.ULONG_PTR;
+      ULONG_PTR                 = {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.ULONG_PTR;
       {$EXTERNALSYM DWORD_PTR}
-      DWORD_PTR                 = Windows.DWORD_PTR;
+      DWORD_PTR                 = {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.DWORD_PTR;
   {$ELSE} // D7 - D2006
       // From BaseTsd.h
       {$EXTERNALSYM INT_PTR}

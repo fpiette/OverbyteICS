@@ -84,9 +84,12 @@ interface
 
 uses
   {$IFDEF MSWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
   {$ENDIF}
-    SysUtils, Classes, SyncObjs, OverbyteIcsUtils;
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SyncObjs{$ELSE}SyncObjs{$ENDIF},
+    OverbyteIcsUtils;
 
 const
     TIcsLoggerVersion   = 800;
@@ -179,7 +182,7 @@ begin
     System.WriteLn(AMsg);
   {$ENDIF}
   {$IFDEF MSWINDOWS}
-    Windows.OutputDebugString(PChar(AMsg));
+    {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.OutputDebugString(PChar(AMsg));
   {$ENDIF}
 end;
 

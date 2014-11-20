@@ -137,13 +137,13 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
 {$IFDEF POSIX}
     Posix.Time,
     Ics.Posix.Wintypes,
 {$ENDIF}
-    SysUtils,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
     OverbyteIcsDES, OverbyteIcsMD4, OverbyteIcsMD5,
     OverbyteIcsUtils,
     OverbyteIcsTypes,
@@ -337,7 +337,7 @@ var
 {$ENDIF}
 begin
 {$IFDEF MSWINDOWS}
-    Windows.GetSystemTimeAsFileTime(TFileTime(Result));
+    {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.GetSystemTimeAsFileTime(TFileTime(Result));
 {$ENDIF}
 {$IFDEF POSIX}
     Bias := IcsGetLocalTimeZoneBias * SecsPerMin;

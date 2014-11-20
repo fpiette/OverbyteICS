@@ -19,6 +19,8 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
 
 unit OverbyteIcsMLang;
 
+{$I Include\OverbyteIcsDefs.inc}
+
 {$WEAKPACKAGEUNIT}
 
 interface
@@ -26,7 +28,7 @@ interface
 {$IFDEF MSWINDOWS}
 
 uses
-  Windows;
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF};
 
 function ConvertINetString(
         var lpdwMode: DWORD;

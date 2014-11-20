@@ -59,7 +59,10 @@ unit OverbyteIcsSysLogServer;
 interface
 
 uses
-    Windows, SysUtils, Classes, Winsock,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Winapi.Winsock{$ELSE}Winsock{$ENDIF},
     OverbyteIcsWinSock,
     OverbyteIcsSysLogDefs,
     OverbyteIcsUtils,

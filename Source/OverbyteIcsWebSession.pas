@@ -67,7 +67,9 @@ unit OverbyteIcsWebSession;
 interface
 
 uses
-    SysUtils, Classes, SyncObjs,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SyncObjs{$ELSE}SyncObjs{$ENDIF},
     OverbyteIcsTimeList,
     OverbyteIcsUtils;
 

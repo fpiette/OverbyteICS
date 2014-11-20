@@ -51,16 +51,16 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
-    SysUtils,
-    Classes,
-    IniFiles,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
 {$IFDEF COMPILER12_UP}
-    AnsiStrings,
+    {$IFDEF RTL_NAMESPACES}System.AnsiStrings{$ELSE}AnsiStrings{$ENDIF},
 {$ENDIF}
 {$IFDEF COMPILER16_UP}
-    SyncObjs,
+    {$IFDEF RTL_NAMESPACES}System.SyncObjs{$ELSE}SyncObjs{$ENDIF},
 {$ENDIF}
     OverbyteIcsTypes, // for TBytes
     OverbyteIcsStreams,

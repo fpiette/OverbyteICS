@@ -16,12 +16,13 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsIconv;
+{$I Include\OverbyteIcsDefs.inc}
 
 interface
 {$IFDEF MSWINDOWS}
 uses
-    Windows,
-    SysUtils,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
     OverbyteIcsTypes;
 
 const

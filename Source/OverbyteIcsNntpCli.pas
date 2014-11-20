@@ -141,24 +141,25 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Messages,
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
 {$IFDEF POSIX}
     Ics.Posix.WinTypes,
     Ics.Posix.Messages,
 {$ENDIF}
-    SysUtils, Classes,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
 {$IFNDEF NOFORMS}
   {$IFDEF FMX}
     FMX.Forms,
   {$ELSE}
-    Forms,
+    {$IFDEF RTL_NAMESPACES}Vcl.Forms{$ELSE}Forms{$ENDIF},
   {$ENDIF}
 {$ENDIF}
 
 {$IFDEF COMPILER12_UP}
-    AnsiStrings,
+    {$IFDEF RTL_NAMESPACES}System.AnsiStrings{$ELSE}AnsiStrings{$ENDIF},
 {$ENDIF}
 { You must define USE_SSL so that SSL code is included in the component.    }
 { Either in OverbyteIcsDefs.inc or in the project/package options.          }

@@ -76,7 +76,8 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-  Windows, Messages,
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
 {$ELSE}
   Posix.Pthread,
   Posix.SysTypes,
@@ -84,7 +85,10 @@ uses
   Ics.Posix.WinTypes,
   Ics.Posix.Messages,
 {$ENDIF}
-  SysUtils, Classes, SyncObjs, SysConst,
+  {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.SyncObjs{$ELSE}SyncObjs{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.SysConst{$ELSE}SysConst{$ENDIF},
 {$IFDEF COMPILER17_UP}
   System.Types,
 {$ENDIF}

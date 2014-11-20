@@ -76,7 +76,7 @@ interface
 {$ENDIF}
 
 uses
-    Windows;
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF};
 
 {xlb constants and variables}
 const
@@ -326,7 +326,7 @@ implementation
 
 {$IFDEF MSWINDOWS}
 
-uses SysUtils;
+uses {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF};
 
 const
    {return code messages}

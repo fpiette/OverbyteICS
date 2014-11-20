@@ -71,7 +71,8 @@ interface
 {$ENDIF}
 
 uses
-    Classes, SysUtils;
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF};
 
 type
     EHttpContentCodingException = class(Exception);

@@ -70,11 +70,12 @@ unit OverbyteIcsMD4;
 interface
 
 uses
-  Classes,
+  {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
 {$IFDEF CLR}
   System.Text,
 {$ENDIF}
-  Sysutils{, DCPcrypt2, DCPconst};
+  {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF}
+  {, DCPcrypt2, DCPconst};
 
 const
     IcsMD4Version          = 800;

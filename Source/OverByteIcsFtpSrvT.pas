@@ -99,9 +99,10 @@ interface
 
 uses
 {$IFDEF MSWindows}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
-    Classes, SysUtils,
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
     OverbyteIcsCRC,        { angus V7.7 }
     OverbyteIcsMD5,        { angus V7.7 }
     OverbyteIcsUtils,
@@ -257,7 +258,7 @@ var
 begin
     if FindFirst(cFile, faAnyFile, SR) = 0 then begin
         Result := SR.Time;
-        SysUtils.FindClose(SR);
+        {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FindClose(SR);
     end
     else
         Result := -1;
@@ -941,7 +942,7 @@ var
 begin
    Result := FALSE ;
    FSize := -1;
-   SResult := SysUtils.FindFirst(filename, faAnyFile, SearchRec);
+   SResult := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FindFirst(filename, faAnyFile, SearchRec);
    if SResult = 0 then begin
      {$IFDEF MSWINDOWS}
         TempSize.LowPart  := SearchRec.FindData.nFileSizeLow ;
@@ -955,7 +956,7 @@ begin
       {$ENDIF}
         Result            := TRUE ;
    end;
-   SysUtils.FindClose(SearchRec);
+   {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FindClose(SearchRec);
 end;
 
 

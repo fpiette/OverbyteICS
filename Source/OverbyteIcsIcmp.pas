@@ -124,7 +124,9 @@ interface
 {$ALIGN ON}
 
 uses
-    Windows, SysUtils, Classes,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     OverbyteIcsWinsock,
     OverbyteIcsTypes,
     OverbyteIcsUtils,

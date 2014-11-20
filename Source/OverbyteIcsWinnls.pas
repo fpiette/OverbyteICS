@@ -7,6 +7,7 @@ unit OverbyteIcsWinnls;
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 }
+{$I Include\OverbyteIcsDefs.inc}
 
 {$ALIGN ON}
 {$MINENUMSIZE 4}
@@ -19,7 +20,7 @@ interface
 {$IFDEF MSWINDOWS}
 
 uses
-  Windows;
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF};
 
 type
 //#if (WINVER >= 0x0600)

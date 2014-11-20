@@ -272,7 +272,7 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
   {$IFDEF USE_ICONV}
     OverbyteIcsIconv,
   {$ENDIF}
@@ -280,7 +280,9 @@ uses
 {$IFDEF POSIX}
     Posix.SysTypes, Posix.Iconv, Posix.Errno,
 {$ENDIF}
-    SysUtils, Classes, Contnrs,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Contnrs{$ELSE}Contnrs{$ENDIF},
     OverbyteIcsUtils;
 
 const

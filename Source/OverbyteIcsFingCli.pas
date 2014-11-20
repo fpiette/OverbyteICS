@@ -78,14 +78,15 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Messages,
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
 {$IFDEF POSIX}
     Ics.Posix.WinTypes,
     Ics.Posix.Messages,
 {$ENDIF}
-    SysUtils, Classes,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsWSocket
 {$ELSE}

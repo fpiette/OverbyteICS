@@ -8,10 +8,11 @@ Oct 8, 2012  V8.01 - Angus, announce deflate is supported as well as gzip
 
 interface
 
+{$I Include\OverbyteIcsDefs.inc}
 {$I Include\OverbyteIcsZlib.inc}
 
 uses
-    Classes,
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     OverbyteIcsHttpContCod,
     OverbyteIcsZlibHigh,
 {$IFDEF USE_ZLIB_OBJ}

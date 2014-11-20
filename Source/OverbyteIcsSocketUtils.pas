@@ -73,7 +73,7 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-  Windows,
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
   OverbyteIcsWinsock,
 {$ENDIF}
 {$IFDEF POSIX}
@@ -83,7 +83,8 @@ uses
   Posix.NetinetIn,
   Posix.ArpaInet,
 {$ENDIF}
-  SysUtils, Classes;
+  {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF};
 
 type
     TIcsSockAddrGen = record

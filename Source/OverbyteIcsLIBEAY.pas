@@ -121,14 +121,14 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
     OverbyteIcsTypes, // size_t
 {$IFDEF POSIX}
     Posix.SysTypes,
     Ics.Posix.WinTypes,
 {$ENDIF}
-    SysUtils,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
     OverbyteIcsUtils,
     OverbyteIcsSSLEAY;
 

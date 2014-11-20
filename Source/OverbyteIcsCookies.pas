@@ -79,7 +79,9 @@ unit OverbyteIcsCookies;
 interface
 
 uses
-  SysUtils, Classes, IniFiles,
+  {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
   OverbyteIcsUrl, OverbyteIcsUtils;
 
 type
@@ -703,7 +705,7 @@ begin
     if FileExists (AFileName) then
     begin
         if NOT Repl then exit;
-        SysUtils.DeleteFile (AFileName);
+        {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.DeleteFile (AFileName);
     end;
     Lines := TStringList.Create;
     try

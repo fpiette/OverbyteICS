@@ -72,14 +72,16 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Messages,
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
 {$IFDEF POSIX}
     Ics.Posix.WinTypes,
     Ics.Posix.Messages,
 {$ENDIF}
-    SysUtils, Classes, OverbyteIcsWSocket, OverbyteIcsWSocketS,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    OverbyteIcsWSocket, OverbyteIcsWSocketS,
 {$IFDEF USE_SSL}
     OverbyteIcsSSLEAY, OverbyteIcsLIBEAY, OverbyteIcsSslThrdLock,
 {$ENDIF}

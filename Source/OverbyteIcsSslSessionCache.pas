@@ -81,10 +81,12 @@ interface
 
 {$IFDEF USE_SSL}
 uses
-    SysUtils, Classes, SyncObjs,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SyncObjs{$ELSE}SyncObjs{$ENDIF},
 {$IFDEF Compiler6_UP}
-    DateUtils,
-    Types,
+    {$IFDEF RTL_NAMESPACES}System.DateUtils{$ELSE}DateUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Types{$ELSE}Types{$ENDIF},
 {$ENDIF}
 {$IFNDEF NO_DEBUG_LOG}
     OverbyteIcsLogger,

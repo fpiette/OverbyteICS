@@ -171,7 +171,7 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
     OverbyteIcsWinnls,
   {$IFDEF USE_ICONV}
     OverbyteIcsIconv,
@@ -187,12 +187,15 @@ uses
     MacApi.CoreServices,
   {$ENDIF}
 {$ENDIF}
-    Classes, SysUtils, RtlConsts, SysConst,
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.RtlConsts{$ELSE}RtlConsts{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SysConst{$ELSE}SysConst{$ENDIF},
 {$IFDEF COMPILER16_UP}
     System.SyncObjs,
 {$ENDIF}
 {$IFDEF COMPILER18_UP}
-    AnsiStrings,
+    {$IFDEF RTL_NAMESPACES}System.AnsiStrings{$ELSE}AnsiStrings{$ENDIF},
 {$ENDIF}
     OverbyteIcsMD5, OverbyteIcsTypes; // for TBytes and TThreadID
 
@@ -257,7 +260,7 @@ type
       icsNormalizationKD);
 
 {$IFDEF COMPILER12_UP}
-    TIcsSearchRecW = SysUtils.TSearchRec;
+    TIcsSearchRecW = {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.TSearchRec;
 {$ELSE}
     TIcsSearchRecW = record
         Time        : Integer;
@@ -784,7 +787,7 @@ end;
 function  IcsGetCurrentThreadID: TThreadID;
 begin
   {$IFDEF MSWINDOWS}
-    Result := Windows.GetCurrentThreadID;
+    Result := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.GetCurrentThreadID;
   {$ENDIF}
   {$IFDEF POSIX}
     Result := Posix.PThread.GetCurrentThreadID;
@@ -796,7 +799,7 @@ end;
 function IcsGetTickCount: LongWord;
 {$IFDEF MSWINDOWS}
 begin
-    Result := Windows.GetTickCount;
+    Result := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.GetTickCount;
 end;
 {$ENDIF}
 {$IFDEF POSIX}
@@ -3512,7 +3515,7 @@ end;
 procedure IcsFindCloseW(var F: TIcsSearchRecW);
 begin
 {$IFDEF COMPILER12_UP}
-    SysUtils.FindClose(F);
+    {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FindClose(F);
 {$ELSE}
     if F.FindHandle <> INVALID_HANDLE_VALUE then
     begin
@@ -3551,7 +3554,7 @@ end;
 function IcsFindNextW(var F: TIcsSearchRecW): Integer;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FindNext(F);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FindNext(F);
 {$ELSE}
     if FindNextFileW(F.FindHandle, F.FindData) then
         Result := IcsFindMatchingFileW(F)
@@ -3566,7 +3569,7 @@ function IcsFindFirstW(const Path: UnicodeString; Attr: Integer;
   var  F: TIcsSearchRecW): Integer;
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.FindFirst(Path, Attr, F);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FindFirst(Path, Attr, F);
 {$ELSE}
 const
     faSpecial = faHidden or faSysFile or faDirectory;
@@ -3595,7 +3598,7 @@ end;
 function IcsCreateDirW(const Dir: UnicodeString): Boolean;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.CreateDir(Dir);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.CreateDir(Dir);
 {$ELSE}
     Result := CreateDirectoryW(PWideChar(Dir), nil);
 {$ENDIF}
@@ -3606,7 +3609,7 @@ end;
 function IcsCreateDirW(const Utf8Dir: UTF8String): Boolean; overload;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.CreateDir(Utf8Dir);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.CreateDir(Utf8Dir);
 {$ELSE}
     Result := CreateDirectoryW(PWideChar(AnsiToUnicode(Utf8Dir, CP_UTF8)), nil);
 {$ENDIF}
@@ -3617,7 +3620,7 @@ end;
 function IcsForceDirectoriesW(Dir: UnicodeString): Boolean;
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.ForceDirectories(Dir);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.ForceDirectories(Dir);
 {$ELSE}
 var
     E: EInOutError;
@@ -3641,7 +3644,7 @@ end;
 function IcsForceDirectoriesW(Utf8Dir: UTF8String): Boolean;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.ForceDirectories(Utf8Dir);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.ForceDirectories(Utf8Dir);
 {$ELSE}
     Result := IcsForceDirectoriesW(AnsiToUnicode(Utf8Dir, CP_UTF8));
 {$ENDIF}
@@ -3652,7 +3655,7 @@ end;
 function IcsDirExistsW(const FileName: PWideChar): Boolean;
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.DirectoryExists(UnicodeString(FileName));
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.DirectoryExists(UnicodeString(FileName));
 {$ELSE}
 var
     Res : DWord;
@@ -3668,7 +3671,7 @@ end;
 function IcsDirExistsW(const FileName: UnicodeString): Boolean;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.DirectoryExists(FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.DirectoryExists(FileName);
 {$ELSE}
     Result := IcsDirExistsW(PWideChar(FileName));
 {$ENDIF}
@@ -3679,7 +3682,7 @@ end;
 function IcsDirExistsW(const Utf8FileName: UTF8String): Boolean; overload;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.DirectoryExists(Utf8FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.DirectoryExists(Utf8FileName);
 {$ELSE}
     Result := IcsDirExistsW(PWideChar(AnsiToUnicode(Utf8FileName, CP_UTF8)));
 {$ENDIF}
@@ -4014,7 +4017,7 @@ end;
 {$IFDEF COMPILER12_UP}
 function IcsTrim(const Str : UnicodeString) : UnicodeString;
 begin
-    Result := SysUtils.Trim(Str);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.Trim(Str);
 end;
 {$ENDIF}
 
@@ -4065,7 +4068,7 @@ end;
 {$IFDEF COMPILER12_UP}
 function IcsLowerCase(const S: UnicodeString): UnicodeString;
 begin
-    Result := SysUtils.LowerCase(S);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.LowerCase(S);
 end;
 {$ENDIF}
 
@@ -4116,7 +4119,7 @@ end;
 {$IFDEF COMPILER12_UP}
 function IcsUpperCase(const S: UnicodeString): UnicodeString;
 begin
-    Result := SysUtils.UpperCase(S);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.UpperCase(S);
 end;
 {$ENDIF}
 
@@ -4193,7 +4196,7 @@ end;
 {$IFDEF COMPILER12_UP}
 function IcsCompareText(const S1, S2: UnicodeString): Integer;
 begin
-    Result := SysUtils.CompareText(S1, S2);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.CompareText(S1, S2);
 end;
 {$ENDIF}
 
@@ -4244,7 +4247,7 @@ end;
 {$IFDEF COMPILER12_UP}
 function IcsCompareStr(const S1, S2: UnicodeString): Integer;
 begin
-    Result := SysUtils.CompareStr(S1, S2);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.CompareStr(S1, S2);
 end;
 {$ENDIF}
 
@@ -4346,7 +4349,7 @@ end;
 function IcsExtractFilePathW(const FileName: UnicodeString): UnicodeString;
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.ExtractFilePath(FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.ExtractFilePath(FileName);
 {$ELSE}
 var
     I: Integer;
@@ -4361,7 +4364,7 @@ end;
 function IcsExtractFileDirW(const FileName: UnicodeString): UnicodeString;
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.ExtractFileDir(FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.ExtractFileDir(FileName);
 {$ELSE}
 var
     I: Integer;
@@ -4379,7 +4382,7 @@ end;
 function IcsExtractFileDriveW(const FileName: UnicodeString): UnicodeString;
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.ExtractFileDrive(FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.ExtractFileDrive(FileName);
 {$ELSE}
 var
     I, J: Integer;
@@ -4414,7 +4417,7 @@ end;
 function IcsExtractFileNameW(const FileName: UnicodeString): UnicodeString;
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.ExtractFileName(FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.ExtractFileName(FileName);
 {$ELSE}
 var
     I: Integer;
@@ -4429,7 +4432,7 @@ end;
 function IcsExtractFileExtW(const FileName: UnicodeString): UnicodeString;
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.ExtractFileExt(FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.ExtractFileExt(FileName);
 {$ELSE}
 const
     Delim : PWideChar = '.\:';
@@ -4469,7 +4472,7 @@ end;
 function IcsChangeFileExtW(const FileName, Extension: UnicodeString): UnicodeString;  // angus
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.ChangeFileExt(FileName, Extension);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.ChangeFileExt(FileName, Extension);
 {$ELSE}
 const
     Delim : PWideChar = '.\:';
@@ -4503,7 +4506,7 @@ end;
 function IcsExpandFileNameW(const FileName: UnicodeString): UnicodeString;
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.ExpandFileName(FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.ExpandFileName(FileName);
 {$ELSE}
 var
     Name: PWideChar;
@@ -4524,7 +4527,7 @@ end;
 function IcsIncludeTrailingPathDelimiterW(const S : UnicodeString): UnicodeString;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.IncludeTrailingPathDelimiter(S);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.IncludeTrailingPathDelimiter(S);
 {$ELSE}
     if (Length(S) > 0) and (S[Length(S)] <> IcsPathDelimW) then
         Result := S + IcsPathDelimW
@@ -4538,7 +4541,7 @@ end;
 function IcsExcludeTrailingPathDelimiterW(const S : UnicodeString): UnicodeString;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.ExcludeTrailingPathDelimiter(S);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.ExcludeTrailingPathDelimiter(S);
 {$ELSE}
     Result := S;
     if (Length(S) > 0) and (S[Length(S)] = IcsPathDelimW) then
@@ -4551,7 +4554,7 @@ end;
 function IcsDeleteFileW(const FileName: UnicodeString): Boolean;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.DeleteFile(FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.DeleteFile(FileName);
 {$ELSE}
     Result := Windows.DeleteFileW(PWideChar(FileName));
 {$ENDIF}
@@ -4595,7 +4598,7 @@ end;
 function IcsDeleteFileW(const Utf8FileName: UTF8String): Boolean;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.DeleteFile(Utf8FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.DeleteFile(Utf8FileName);
 {$ELSE}
     Result := Windows.DeleteFileW(PWideChar(AnsiToUnicode(Utf8FileName, CP_UTF8)));
 {$ENDIF}
@@ -4607,7 +4610,7 @@ end;
 function IcsFileGetAttrW(const FileName: UnicodeString): Integer;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FileGetAttr(FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileGetAttr(FileName);
 {$ELSE}
     Result := GetFileAttributesW(PWideChar(FileName));
 {$ENDIF}
@@ -4618,7 +4621,7 @@ end;
 function IcsFileGetAttrW(const Utf8FileName: UTF8String): Integer;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FileGetAttr(Utf8FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileGetAttr(Utf8FileName);
 {$ELSE}
     Result := GetFileAttributesW(PWideChar(AnsiToUnicode(Utf8FileName, CP_UTF8)));
 {$ENDIF}
@@ -4629,7 +4632,7 @@ end;
 function IcsFileSetAttrW(const FileName: UnicodeString; Attr: Integer): Integer;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FileSetAttr(FileName, Attr);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileSetAttr(FileName, Attr);
 {$ELSE}
     Result := 0;
     if not SetFileAttributesW(PWideChar(FileName), Attr) then
@@ -4642,7 +4645,7 @@ end;
 function IcsFileSetAttrW(const Utf8FileName: UTF8String; Attr: Integer): Integer;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FileSetAttr(Utf8FileName, Attr);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileSetAttr(Utf8FileName, Attr);
 {$ELSE}
     Result := 0;
     if not SetFileAttributesW(PWideChar(AnsiToUnicode(Utf8FileName, CP_UTF8)), Attr) then
@@ -4657,7 +4660,7 @@ function IcsFileCreateW(const FileName: UnicodeString):
   {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF};
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FileCreate(FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileCreate(FileName);
 {$ELSE}
     Result := Integer(CreateFileW(PWideChar(FileName),
                                   GENERIC_READ or GENERIC_WRITE,
@@ -4671,7 +4674,7 @@ function IcsFileCreateW(const Utf8FileName: UTF8String):
   {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF};
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FileCreate(Utf8FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileCreate(Utf8FileName);
 {$ELSE}
     Result := IcsFileCreateW(AnsiToUnicode(Utf8FileName, CP_UTF8));
 {$ENDIF}
@@ -4683,7 +4686,7 @@ function IcsFileCreateW(const FileName: UnicodeString; Rights: LongWord):
   {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF};
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FileCreate(FileName, Rights);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileCreate(FileName, Rights);
 {$ELSE}
     Result := IcsFileCreateW(FileName);
 {$ENDIF}
@@ -4695,7 +4698,7 @@ function IcsFileCreateW(const Utf8FileName: UTF8String; Rights: LongWord):
   {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF};
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FileCreate(Utf8FileName, Rights);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileCreate(Utf8FileName, Rights);
 {$ELSE}
     Result := IcsFileCreateW(AnsiToUnicode(Utf8FileName, CP_UTF8));
 {$ENDIF}
@@ -4707,7 +4710,7 @@ function IcsFileOpenW(const FileName: UnicodeString; Mode: LongWord):
   {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF};
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.FileOpen(FileName, Mode);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileOpen(FileName, Mode);
 {$ELSE}
 const
     AccessMode: array[0..2] of LongWord = (
@@ -4738,7 +4741,7 @@ function IcsFileOpenW(const Utf8FileName: UTF8String; Mode: LongWord):
   {$IFDEF COMPILER16_UP} THandle {$ELSE} Integer {$ENDIF};
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FileOpen(Utf8FileName, Mode);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileOpen(Utf8FileName, Mode);
 {$ELSE}
     Result := IcsFileOpenW(AnsiToUnicode(Utf8FileName, CP_UTF8), Mode);
 {$ENDIF}
@@ -4749,7 +4752,7 @@ end;
 function IcsRemoveDirW(const Dir: UnicodeString): Boolean;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.RemoveDir(Dir);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.RemoveDir(Dir);
 {$ELSE}
     Result := RemoveDirectoryW(PWideChar(Dir));
 {$ENDIF}
@@ -4760,7 +4763,7 @@ end;
 function IcsRemoveDirW(const Utf8Dir: UTF8String): Boolean;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.RemoveDir(Utf8Dir);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.RemoveDir(Utf8Dir);
 {$ELSE}
     Result := RemoveDirectoryW(PWideChar(AnsiToUnicode(Utf8Dir, CP_UTF8)));
 {$ENDIF}
@@ -4771,7 +4774,7 @@ end;
 function IcsRenameFileW(const OldName, NewName: UnicodeString): Boolean;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.RenameFile(OldName, NewName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.RenameFile(OldName, NewName);
 {$ELSE}
     Result := MoveFileW(PWideChar(OldName), PWideChar(NewName));
 {$ENDIF}
@@ -4782,7 +4785,7 @@ end;
 function IcsRenameFileW(const Utf8OldName, Utf8NewName: UTF8String): Boolean;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.RenameFile(Utf8OldName, Utf8NewName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.RenameFile(Utf8OldName, Utf8NewName);
 {$ELSE}
     Result := MoveFileW(PWideChar(AnsiToUnicode(Utf8OldName, CP_UTF8)),
                         PWideChar(AnsiToUnicode(Utf8NewName, CP_UTF8)));
@@ -4794,7 +4797,7 @@ end;
 function IcsFileAgeW(const FileName: UnicodeString): Integer;
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.FileAge(FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileAge(FileName);
 {$ELSE}
 var
     Handle        : THandle;
@@ -4821,7 +4824,7 @@ end;
 function IcsFileAgeW(const Utf8FileName: UTF8String): Integer;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FileAge(Utf8FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileAge(Utf8FileName);
 {$ELSE}
     Result := IcsFileAgeW(AnsiToUnicode(Utf8FileName, CP_UTF8));
 {$ENDIF}
@@ -4832,7 +4835,7 @@ end;
 function IcsFileExistsW(const FileName: UnicodeString): Boolean;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FileExists(FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileExists(FileName);
 {$ELSE}
     Result := IcsFileAgeW(FileName) <> -1;
 {$ENDIF}
@@ -4843,7 +4846,7 @@ end;
 function IcsFileExistsW(const Utf8FileName: UTF8String): Boolean;
 begin
 {$IFDEF COMPILER12_UP}
-    Result := SysUtils.FileExists(Utf8FileName);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileExists(Utf8FileName);
 {$ELSE}
     Result := IcsFileAgeW(Utf8FileName) <> -1;
 {$ENDIF}
@@ -4854,7 +4857,7 @@ end;
 function IcsAnsiLowerCaseW(const S: UnicodeString): UnicodeString;
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.AnsiLowerCase(S);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.AnsiLowerCase(S);
 {$ELSE}
 var
     Len: Integer;
@@ -4870,7 +4873,7 @@ end;
 function IcsAnsiUpperCaseW(const S: UnicodeString): UnicodeString;
 {$IFDEF COMPILER12_UP}
 begin
-    Result := SysUtils.AnsiUpperCase(S);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.AnsiUpperCase(S);
 {$ELSE}
 var
     Len: Integer;

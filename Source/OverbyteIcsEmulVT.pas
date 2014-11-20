@@ -132,16 +132,22 @@ interface
 {$DEFINE CHAR_ZOOM}
 
 uses
-    Messages,
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
 {$IFDEF USEWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ELSE}
     WinTypes, WinProcs,
 {$ENDIF}
 {$IFDEF COMPILER20_UP}
-    UITypes,
+    {$IFDEF RTL_NAMESPACES}System.UITypes{$ELSE}UITypes{$ENDIF},
 {$ENDIF}
-    SysUtils, Classes, Graphics, Controls, Forms, StdCtrls, ClipBrd,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.Graphics{$ELSE}Graphics{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.Controls{$ELSE}Controls{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.Forms{$ELSE}Forms{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.StdCtrls{$ELSE}StdCtrls{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.ClipBrd{$ELSE}ClipBrd{$ENDIF},
     OverbyteIcsUtils;
 
 const
@@ -4321,7 +4327,7 @@ end;
 function WRectangle(DC: HDC; X1, Y1, X2, Y2 : Integer) : LongBool;
 begin
 {$IFDEF USEWINDOWS}
-    Result := Windows.Rectangle(DC, X1, Y1, X2, Y2);
+    Result := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.Rectangle(DC, X1, Y1, X2, Y2);
 {$ELSE}
     Result := Winprocs.Rectangle(DC, X1, Y1, X2, Y2);
 {$ENDIF}
@@ -4379,7 +4385,7 @@ begin
         end;
 
     {$IFDEF USEWINDOWS}
-        Windows.GetClientRect(WindowHandle, DrawRct);
+        {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.GetClientRect(WindowHandle, DrawRct);
     {$ELSE}
         WinProcs.GetClientRect(WindowHandle, DrawRct);
     {$ENDIF}

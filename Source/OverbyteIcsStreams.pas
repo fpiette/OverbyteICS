@@ -113,13 +113,16 @@ interface
 
 uses
   {$IFDEF MSWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
   {$ENDIF}
   {$IFDEF POSIX}
     Posix.UniStd,
     Ics.Posix.WinTypes,
   {$ENDIF}
-    SysUtils, Classes, RTLConsts, Math,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.RTLConsts{$ELSE}RTLConsts{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Math{$ELSE}Math{$ENDIF},
     OverbyteIcsTypes, // for TBytes
     OverbyteIcsUtils;
 
@@ -1727,7 +1730,7 @@ begin
     case Value of
         CP_ACP      :
             begin
-                FLeadBytes := SysUtils.Leadbytes;
+                FLeadBytes := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.Leadbytes;
                 FCodePage  := Value;
             end;
         CP_UTF8,

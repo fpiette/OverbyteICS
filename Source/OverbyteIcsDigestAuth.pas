@@ -71,7 +71,9 @@ interface
 {$J+}             { Allow typed constant to be modified }
 
 uses
-    SysUtils, Classes, OverbyteIcsMD5, OverbyteIcsMimeUtils,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    OverbyteIcsMD5, OverbyteIcsMimeUtils,
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 type
@@ -190,7 +192,7 @@ procedure AuthDigestCalcHA1(
 implementation
 
 uses
-    StrUtils; // For PosEx(), it uses a FastCode function in newer RTLs.
+    {$IFDEF RTL_NAMESPACES}System.StrUtils{$ELSE}StrUtils{$ENDIF}; // For PosEx(), it uses a FastCode function in newer RTLs.
 
 const
     AUTH_DIGEST_DELIM : AnsiChar = ':';

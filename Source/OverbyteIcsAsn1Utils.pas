@@ -74,6 +74,7 @@ May 11, 2012 V1.01 Arno - Unit did not compile with Ansi Delphi
 |==============================================================================|
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$I Include\OverbyteIcsDefs.inc}
 {$Q-}
 {$H+}
 {$IFDEF FPC}
@@ -85,7 +86,8 @@ unit OverbyteIcsAsn1Utils;
 interface
 
 uses
-  SysUtils, Classes;
+  {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF};
 
 const
   ASN1UtilsVersion       = 101;

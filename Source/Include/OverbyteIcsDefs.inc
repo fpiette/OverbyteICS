@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  Version defines for ICS (Internet Component Suite)
 Creation:     2003
-Version:      8.04
+Version:      8.05
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -58,6 +58,8 @@ Apr 2013 - V8.01 - Arno XE4
 Aug 2013 - V8.02 - FPiette XE5
 Apr 2014 - V8.03 - Arno Latest supported compiler version fall back updated
 Aug 2014 - V8.04 - Angus XE7
+Nov 8,  2014 V8.05 Eugene Kotlyarov added namespace for all RTL units for XE2 and
+                    later, using new define RTL_NAMESPACES
 
 
   SYMBOL           Compiler version
@@ -1274,5 +1276,7 @@ Aug 2014 - V8.04 - Angus XE7
   {$ENDIF}
 {$ENDIF}
 
-
+{$IFDEF DELPHI16_UP}
+  {$DEFINE RTL_NAMESPACES}
+{$ENDIF}
 

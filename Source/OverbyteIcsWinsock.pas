@@ -49,7 +49,8 @@ interface
 
 {$IFDEF MSWINDOWS}
 uses
-  Windows, SysUtils;
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF};
   {$I Include\OverbyteIcsWinsockTypes.inc}
 {$ENDIF MSWINDOWS}
 

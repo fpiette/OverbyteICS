@@ -80,11 +80,14 @@ May 11, 2012 V1.01 Arno - Unit did not compile with Ansi Delphi
 {$H+}
 
 unit OverbyteIcsSnmpMsgs;
+{$I Include\OverbyteIcsDefs.inc}
 
 interface
 
 uses
-  Windows, Classes, SysUtils,
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
   OverbyteIcsMD5,
   OverbyteIcsSHA1,
   OverbyteIcsAsn1Utils;
@@ -486,12 +489,12 @@ function GetTick: LongWord;
 var
   tick, freq: TLargeInteger;
 begin
-  if Windows.QueryPerformanceFrequency(freq) then begin
-    Windows.QueryPerformanceCounter(tick);
+  if {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.QueryPerformanceFrequency(freq) then begin
+    {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.QueryPerformanceCounter(tick);
     Result := Trunc((tick / freq) * 1000) and High(LongWord)
   end
   else
-    Result := Windows.GetTickCount;
+    Result := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.GetTickCount;
 end;
 
 // Extracted from Synautil

@@ -98,12 +98,13 @@ interface
 
 uses
   {$IFDEF MSWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
   {$ENDIF}
   {$IFDEF POSIX}
     Posix.Errno,
   {$ENDIF}
-    SysUtils, OverbyteIcsUtils;
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    OverbyteIcsUtils;
 
 const
     IcsSSLEAYVersion   = 800;

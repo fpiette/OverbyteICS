@@ -118,7 +118,10 @@ interface
 {$IFDEF MSWINDOWS}
 
 uses
-    Windows, Messages, SysUtils, Classes,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsWndControl,
     Ics.Fmx.OverbyteIcsWSocket,

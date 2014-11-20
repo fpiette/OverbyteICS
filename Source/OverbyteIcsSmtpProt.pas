@@ -446,16 +446,17 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Windows,
-    Messages,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
     OverbyteIcsWinsock,
 {$ENDIF}
-    SysUtils, Classes,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
 {$IFNDEF NOFORMS}
   {$IFDEF FMX}
     FMX.Forms,
   {$ELSE}
-    Forms,
+    {$IFDEF RTL_NAMESPACES}Vcl.Forms{$ELSE}Forms{$ENDIF},
   {$ENDIF}
 {$ENDIF}
 {$IFDEF POSIX}

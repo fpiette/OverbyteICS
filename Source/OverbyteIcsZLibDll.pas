@@ -78,9 +78,11 @@ unit OverbyteIcsZLibDll;
 
 interface
 
+{$I Include\OverbyteIcsDefs.inc}
+
 {$IFDEF MSWINDOWS}
 uses
-    Windows;
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF};
 {$ENDIF}
 
 {$I Include\OverbyteIcsZlib.inc}
@@ -426,7 +428,7 @@ var
 {==============================================================================}
 implementation
 
-uses SysUtils;
+uses {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF};
 
 const
    {return code messages}

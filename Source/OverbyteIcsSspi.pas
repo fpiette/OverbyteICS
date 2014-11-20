@@ -59,7 +59,7 @@ interface
 {$IFDEF MSWINDOWS}
 
 uses
-  Windows;
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF};
   
 {$HPPEMIT '#include <security.h>'}
 {$HPPEMIT '#include <sspi.h>'}

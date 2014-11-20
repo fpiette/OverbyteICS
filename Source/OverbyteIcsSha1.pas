@@ -56,7 +56,9 @@ interface
 {$Q-}
 
 uses
-   SysUtils, Classes, OverbyteIcsTypes;
+   {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+   {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+   OverbyteIcsTypes;
 
 const
    IcsSHA1Version     = 800;

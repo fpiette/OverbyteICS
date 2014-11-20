@@ -93,13 +93,14 @@ unit OverbyteIcsTnCnx;
 interface
 
 uses
-    Messages,
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
 {$IFDEF USEWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ELSE}
     WinTypes, WinProcs,
 {$ENDIF}
-    SysUtils, Classes,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     OverbyteIcsTypes,
     OverbyteIcsUtils,
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWinsock;

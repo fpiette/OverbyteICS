@@ -59,7 +59,11 @@ unit OverbyteIcsSnmpCli;
 interface
 
 uses
-    Windows, Messages, SysUtils, Classes, ExtCtrls,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.ExtCtrls{$ELSE}ExtCtrls{$ENDIF},
     OverbyteIcsWndControl,
     OverbyteIcsWinsock,
     OverbyteIcsWSocket,

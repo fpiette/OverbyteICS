@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.12
+Version:      8.13
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -950,6 +950,9 @@ Jul 9, 2014  V8.10 Angus - added sslCiphersXXX literals some taken from Mozilla
                    with much higher security for servers
 Aug 15, 2014 V8.11 Angus made WriteCount public in descendent components
 Oct 20, 2014 V8.12 Angus added sslCiphersMozillaSrvInter which excludes SSLv3
+Nov 8,  2014 V8.13 Eugene Kotlyarov added namespace for all RTL units for XE2 and
+                    later, note only this unit has bumped version 
+                    
 }
 
 {
@@ -1034,9 +1037,16 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-  Windows, Messages, Types, OverbyteIcsWinsock,
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.Types{$ELSE}Types{$ENDIF},
+  OverbyteIcsWinsock,
 {$ENDIF}
-  SysUtils, Classes, Contnrs, SyncObjs, SysConst,
+  {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.Contnrs{$ELSE}Contnrs{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.SyncObjs{$ELSE}SyncObjs{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.SysConst{$ELSE}SysConst{$ENDIF},
 {$IFDEF POSIX}
   System.Generics.Collections,
   Posix.Pthread,
@@ -1062,7 +1072,8 @@ uses
 { You must define USE_SSL so that SSL code is included in the component.    }
 { Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
-  OverbyteIcsSSLEAY, OverbyteIcsLIBEAY, Masks, { Masks added AG 06/20/07 }
+  OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
+  {$IFDEF RTL_NAMESPACES}System.Masks{$ELSE}Masks{$ENDIF}, { Masks added AG 06/20/07 }
 {$ENDIF}
 {$IFNDEF NO_DEBUG_LOG}
   OverbyteIcsLogger,
@@ -1093,8 +1104,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 812;
-  CopyRight    : String     = ' TWSocket (c) 1996-2014 Francois Piette V8.12 ';
+  WSocketVersion            = 813;
+  CopyRight    : String     = ' TWSocket (c) 1996-2014 Francois Piette V8.13 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -2135,7 +2146,7 @@ const
     sslCiphersServer = 'TLSv1+HIGH:!SSLv2:RC4+MEDIUM:!aNULL:!eNULL:!3DES:!CAMELLIA@STRENGTH';
 
   { from https://wiki.mozilla.org/Security/Server_Side_TLS - Version 3.3 - 20th October 2013
-    Configuration 	Oldest compatible client
+    Configuration   Oldest compatible client
         sslCiphersMozillaSrvHigh - Firefox 27, Chrome 22, IE 11, Opera 14, Safari 7, Android 4.4, Java 8
         sslCiphersMozillaSrvInter -  Firefox 1, Chrome 1, IE 7, Opera 5, Safari 1, Windows XP IE8, Android 2.3, Java 7
         sslCiphersMozillaSrvBack - Windows XP IE6, Java 6 }

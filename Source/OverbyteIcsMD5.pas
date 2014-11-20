@@ -92,7 +92,8 @@ unit OverbyteIcsMD5;
 interface
 
 uses
-    SysUtils, Classes,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     OverbyteIcsTypes;   // For TBytes
 
 const

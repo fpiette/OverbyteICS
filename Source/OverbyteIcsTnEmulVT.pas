@@ -118,16 +118,21 @@ unit OverbyteIcsTnEmulVT;
 interface
 
 uses
-    Messages,
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
 {$IFDEF USEWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ELSE}
     WinTypes, WinProcs,
 {$ENDIF}
 {$IFDEF COMPILER20_UP}
-    UITypes,
+    {$IFDEF RTL_NAMESPACES}System.UITypes{$ELSE}UITypes{$ENDIF},
 {$ENDIF}
-    SysUtils, Classes, Graphics, Controls, IniFiles, Forms,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.Graphics{$ELSE}Graphics{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.Controls{$ELSE}Controls{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.Forms{$ELSE}Forms{$ENDIF},
     OverbyteIcsEmulVT,   OverbyteIcsTnCnx,
     OverbyteIcsTnOptFrm, OverbyteIcsWSocket;
 

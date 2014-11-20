@@ -335,17 +335,17 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
 {$IFDEF POSIX}
     Ics.Posix.WinTypes,
 {$ENDIF}
-    SysUtils,
-    Classes,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
 {$IFDEF COMPILER12_UP}
-    AnsiStrings, { for PosEx }
+    {$IFDEF RTL_NAMESPACES}System.AnsiStrings{$ELSE}AnsiStrings{$ENDIF}, { for PosEx }
 {$ELSE}
-    StrUtils,  { for PosEx }
+    {$IFDEF RTL_NAMESPACES}System.StrUtils{$ELSE}StrUtils{$ENDIF},  { for PosEx }
 {$ENDIF}
     OverbyteIcsTypes,
     OverbyteIcsUtils,

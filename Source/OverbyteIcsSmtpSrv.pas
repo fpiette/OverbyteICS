@@ -176,17 +176,21 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Windows,
-    Messages,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
     OverbyteIcsWinsock,
 {$ENDIF}
-    SysUtils, Classes, Variants,
-    StrUtils, DateUtils, Types,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Variants{$ELSE}Variants{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.StrUtils{$ELSE}StrUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.DateUtils{$ELSE}DateUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Types{$ELSE}Types{$ENDIF},
 {$IFNDEF NOFORMS}
   {$IFDEF FMX}
     FMX.Forms,
   {$ELSE}
-    Forms,
+    {$IFDEF RTL_NAMESPACES}Vcl.Forms{$ELSE}Forms{$ENDIF},
   {$ENDIF}
 {$ENDIF}
 {$IFDEF POSIX}

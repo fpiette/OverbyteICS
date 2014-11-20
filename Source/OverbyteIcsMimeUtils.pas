@@ -156,17 +156,18 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Windows,
-    Registry,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Win.Registry{$ELSE}Registry{$ENDIF},
 {$ELSE}
-    Types,
+    {$IFDEF RTL_NAMESPACES}System.Types{$ELSE}Types{$ENDIF},
 {$ENDIF}
 {$IFDEF USE_BUFFERED_STREAM}
     OverbyteIcsStreams,
 {$ENDIF}
-    SysUtils, // For the LeadChar and Exception
-    Classes, IniFiles,
-    Math,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF}, // For the LeadChar and Exception
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Math{$ELSE}Math{$ENDIF},
     OverbyteIcsTypes,
     OverbyteIcsUtils,
     OverbyteIcsCsc,

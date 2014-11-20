@@ -79,7 +79,7 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
   {$IFDEF USE_ICONV}
       OverbyteIcsIconv,
   {$ENDIF}
@@ -91,7 +91,9 @@ uses
     Posix.Base, Posix.SysTypes, Posix.Errno, Posix.Iconv,
     Ics.Posix.WinTypes,
 {$ENDIF}
-    SysUtils, Classes, Math,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Math{$ELSE}Math{$ENDIF},
     OverbyteIcsTypes,
     OverbyteIcsUtils;
 

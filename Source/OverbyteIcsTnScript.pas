@@ -139,11 +139,13 @@ interface
 
 uses
 {$IFDEF USEWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ELSE}
     WinTypes, WinProcs,
 {$ENDIF}
-    Classes, SysUtils, OverbyteIcsTnEmulVT;
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    OverbyteIcsTnEmulVT;
 
 const
     TnScriptVersion    = 8.00;

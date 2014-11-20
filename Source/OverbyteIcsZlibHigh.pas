@@ -74,7 +74,8 @@ interface
   {$ENDIF}
 {$ENDIF}
 uses
-    SysUtils, Classes,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
 {$IFDEF USE_ZLIB_OBJ}
     OverbyteIcsZLibObj;             {interface to access ZLIB C OBJ files}
 {$ELSE}

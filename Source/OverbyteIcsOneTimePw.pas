@@ -138,7 +138,8 @@ unit OverbyteIcsOneTimePw;
 interface
 
 uses
-    SysUtils, Classes,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     OverbyteIcsMD5, OverbyteIcsMD4, OverbyteIcsSha1, OverbyteIcsFtpSrvT,
     OverbyteIcsUtils;
 

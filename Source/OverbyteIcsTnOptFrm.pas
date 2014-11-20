@@ -78,14 +78,22 @@ interface
 {$ENDIF}
 
 uses
-    Messages,
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
 {$IFDEF USEWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ELSE}
     WinTypes, WinProcs,
 {$ENDIF}
-    SysUtils, Classes, Graphics, Controls,
-    Dialogs, Forms, StdCtrls, IniFiles, Buttons, OverbyteIcsUtils,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.Graphics{$ELSE}Graphics{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.Controls{$ELSE}Controls{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.Dialogs{$ELSE}Dialogs{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.Forms{$ELSE}Forms{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.StdCtrls{$ELSE}StdCtrls{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Vcl.Buttons{$ELSE}Buttons{$ENDIF},
+    OverbyteIcsUtils,
     OverbyteIcsEmulVT;                                      {drjohn}
 
 const

@@ -67,14 +67,16 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Messages,
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
 {$IFDEF POSIX}
     Ics.Posix.WinTypes,
     Ics.Posix.Messages,
 {$ENDIF}
-    SysUtils, Classes, IniFiles,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsFtpCli,
     Ics.Fmx.OverbyteIcsWndControl,

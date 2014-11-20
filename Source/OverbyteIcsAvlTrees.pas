@@ -61,14 +61,16 @@ interface
 
 uses
   {$IFDEF MSWINDOWS}
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
   {$ENDIF}
   {$IFDEF POSIX}
     Posix.Pthread,
     Posix.SysTypes,
     Ics.Posix.WinTypes,
   {$ENDIF}
-    SysUtils, Classes, SysConst,
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SysConst{$ELSE}SysConst{$ENDIF},
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const

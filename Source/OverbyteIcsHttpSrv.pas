@@ -431,15 +431,16 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-    Messages,
-    Windows,
+    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
 {$IFDEF POSIX}
     Posix.Time,
     Ics.Posix.WinTypes,
     Ics.Posix.Messages,
 {$ENDIF}
-    Classes, SysUtils,
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
 { You must define USE_SSL so that SSL code is included in the component.    }
 { Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}

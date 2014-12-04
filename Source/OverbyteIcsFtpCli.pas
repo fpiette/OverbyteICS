@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V8.04
+Version:      V8.05
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1068,6 +1068,7 @@ Jul 24, 2013 V8.03 - Angus added more error reporting for not ready and more
                be sent usually resulting in not ready errors.
 Feb 07, 2014 V8.04 - Arno, in DoneQuitAsync call FControlSocket.Close rather than
              CloseDelayed.
+Dec 02, 2014 V8.05 - Angus fixed PBSZAsync set incorrect TFtpFct
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -1158,9 +1159,9 @@ uses
     OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 804;
-  CopyRight : String = ' TFtpCli (c) 1996-2014 F. Piette V8.04 ';
-  FtpClientId : String = 'ICS FTP Client V8.04 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 805;
+  CopyRight : String = ' TFtpCli (c) 1996-2014 F. Piette V8.05 ';
+  FtpClientId : String = 'ICS FTP Client V8.05 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -7064,8 +7065,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslFtpClient.PBSZAsync;
 begin
-    FFctPrv := ftpFctProt;
-    ExecAsync(ftpProtAsync, 'PBSZ ' + IntToStr(FPBSZSize), [200], nil);
+    FFctPrv := ftpFctPbsz;    { V8.05 }
+    ExecAsync(ftpPbszAsync, 'PBSZ ' + IntToStr(FPBSZSize), [200], nil);
 end;
 
 

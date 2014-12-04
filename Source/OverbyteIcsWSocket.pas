@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.13
+Version:      8.14
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -951,8 +951,12 @@ Jul 9, 2014  V8.10 Angus - added sslCiphersXXX literals some taken from Mozilla
 Aug 15, 2014 V8.11 Angus made WriteCount public in descendent components
 Oct 20, 2014 V8.12 Angus added sslCiphersMozillaSrvInter which excludes SSLv3
 Nov 8,  2014 V8.13 Eugene Kotlyarov added namespace for all RTL units for XE2 and
-                    later, note only this unit has bumped version 
-                    
+                    later, note only this unit has bumped version
+Dec 04, 2014 V8.14 Angus made LastOpenSslErrMsg public for better error reporting (dump=true)
+                   Added SslHandshakeRespMsg with friendly error or success message
+                   Added SslHandshakeErr with SSL error code
+                   Stop SSL reporting handshaking steps as errors and report SSL errors
+                   Other various SSL error reporting improvements
 }
 
 {
@@ -1104,8 +1108,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 813;
-  CopyRight    : String     = ' TWSocket (c) 1996-2014 Francois Piette V8.13 ';
+  WSocketVersion            = 814;
+  CopyRight    : String     = ' TWSocket (c) 1996-2014 Francois Piette V8.14 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -2801,6 +2805,8 @@ type
         FSslInitialized             : Boolean;
         FInHandshake                : Boolean;
         FHandshakeDone              : Boolean;
+        FSslHandshakeErr            : Integer;       { V8.14  }
+        FSslHandshakeRespMsg        : string;        { V8.14  }
         FSslVersNum                 : Integer;        //12/09/05
         FSSLState                   : TSslState;
         FSsl_In_CB                  : Boolean;
@@ -2953,6 +2959,8 @@ type
         property  SslTotalBits  : Integer                 read  FSslTotalBits;
         property  SslSecretBits : Integer                 read  FSslSecretBits;
         property  SslPeerCert   : TX509Base               read  GetSslPeerCert;
+        property  SslHandshakeErr      : Integer          read  FSslHandshakeErr;        { V8.14  }
+        property  SslHandshakeRespMsg  : string           read  FSslHandshakeRespMsg;    { V8.14  }
   private
       function my_WSocket_recv(s: TSocket;
                                var Buf: TWSocketData; len, flags: Integer): Integer;
@@ -3446,6 +3454,7 @@ function SafeWSocketGCount : Integer;
 
 {$IFDEF USE_SSL}
 function OpenSslErrMsg(const AErrCode: LongWord): String;
+function LastOpenSslErrMsg(Dump: Boolean): AnsiString;  { V8.14 made public }
 function IsSslRenegotiationDisallowed(Obj: TCustomSslWSocket): Boolean;
     {$IFDEF USE_INLINE} inline; {$ENDIF}
 {$ENDIF}
@@ -15509,13 +15518,15 @@ begin
     FLastSslError := f_ERR_peek_error;
     if FLastSslError = 0 then
         Exit;
+    FSslHandshakeErr := FLastSslError; { V8.14 }
+    FSslHandshakeRespMsg := String(LastOpenSslErrMsg(TRUE));  { V8.14 }
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslErr) then begin
         Inc(TraceCount);
         DebugLog(loSslErr, Format('%s  %d  [%d] %s',
                                   [IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
                                    FHSocket, TraceCount,
-                                   LastOpenSslErrMsg(TRUE)]));
+                                   FSslHandshakeRespMsg]));
     end
     else
         f_ERR_clear_error;
@@ -16787,10 +16798,16 @@ begin
                     end
                     else if Ret < 0 then begin
                         Err := f_ssl_get_error(ssl, Ret);
-                        if ((Err <> SSL_ERROR_WANT_READ) or
-                            (Err <> SSL_ERROR_WANT_WRITE)) then
-                                Obj.DebugLog(loSslInfo, Pre + Str + 'error in ' +
-                              String(f_SSL_state_string_long(ssl)));
+                      {  if ((Err <> SSL_ERROR_WANT_READ) or
+                            (Err <> SSL_ERROR_WANT_WRITE)) then  }
+                        if NOT ((Err = SSL_ERROR_WANT_READ) or        { V8.14 only want real errors }
+                            (Err = SSL_ERROR_WANT_WRITE)) then begin
+                                if Err = SSL_ERROR_SSL then  { V8.14 report proper error }
+                                    Obj.HandleSslError
+                                else
+                                    Obj.DebugLog(loSslInfo, Pre + Str + 'error ' + IntToStr (Err) + { V8.14 actual error }
+                                     ' in ' + String(f_SSL_state_string_long(ssl)));
+                            end;
                     end;
                 end;
             end;
@@ -16829,8 +16846,9 @@ begin
                    Obj.CheckLogOptions(loSslInfo) then begin
                     Err := f_SSL_get_verify_result(Ssl);
                     if Obj.CheckLogOptions(loSslInfo) or (Err <> X509_V_OK) then
-                       Obj.DebugLog(loSslInfo, Pre + 'SSL_CB_HANDSHAKE_DONE ' +
-                                       'Error: ' + IntToStr(Err));
+                       Obj.DebugLog(loSslInfo, Pre + 'SSL_CB_HANDSHAKE_DONE, Error ' +
+                                    String(StrPas(f_X509_verify_cert_error_string(Err))));   { V8.14 real literal }
+                                  //   'Error: ' + IntToStr(Err));
                 end;
 {$ENDIF}
             end
@@ -17270,6 +17288,8 @@ begin
     FCloseCalled             := FALSE;
     //FCloseReceived           := FALSE;
     //FHandShakeDoneInvoked    := FALSE;
+    FSslHandshakeRespMsg     := '';  { V8.14 set with success or failure message once handshake completes }
+    FSslHandshakeErr         := 0;   { V8.14 }
     FPendingSslEvents        := [];
     FMayTriggerFD_Read       := TRUE;  // <= 01/06/2006 AG
     FMayTriggerFD_Write      := TRUE;  // <= 01/06/2006 AG
@@ -17529,6 +17549,7 @@ begin
 
     FInHandshake             := FALSE;
     FHandshakeDone           := FALSE;
+    FSslHandshakeRespMsg     := '';  { V8.14 set with success or failure message once handshake completes }
     FSslBioWritePendingBytes := -1;
     FSslInRenegotiation      := FALSE;
     FNetworkError            := 0;
@@ -18153,6 +18174,8 @@ begin
     PeerX := nil;
     if (FHSocket = INVALID_SOCKET) then
         ErrCode := 1;
+    if FSslHandshakeErr > 0 then
+        ErrCode := FSslHandshakeErr;                { V8.14 try and get actual error  }
     if (ErrCode = 0) and Assigned(FSsl) then
         FSslState := sslEstablished
     else
@@ -18173,7 +18196,18 @@ begin
         { certificates, clients on server request only. This gets the peer }
         { cert also when a session was reused.                             }
             PeerX := f_SSL_get_peer_certificate(FSsl);
-    end; // FSslState = sslEstablished
+     { V8.14 set with success or failure message once handshake completes }
+       FSslHandshakeRespMsg := Format('SSL Connected OK with %s, cipher %s, %d secret bits (%d total)',
+                                                     [SslVersion, SslCipher, SslSecretBits, SslTotalBits]);
+    end  // FSslState = sslEstablished
+    else begin
+        if (FSslHandshakeRespMsg = '') then begin  { V8.14  }
+            if (ErrCode = 1) then
+               FSslHandshakeRespMsg := 'Error invalid socket'
+            else
+               FSslHandshakeRespMsg := String(LastOpenSslErrMsg(true));
+        end;
+    end;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
         DebugLog(loSslInfo, Format('%s SslHandshakeDone(%d) %d. Secure connection ' +

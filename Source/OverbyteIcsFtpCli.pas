@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V8.05
+Version:      V8.06
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1069,6 +1069,7 @@ Jul 24, 2013 V8.03 - Angus added more error reporting for not ready and more
 Feb 07, 2014 V8.04 - Arno, in DoneQuitAsync call FControlSocket.Close rather than
              CloseDelayed.
 Dec 02, 2014 V8.05 - Angus fixed PBSZAsync set incorrect TFtpFct
+Dec 10, 2014 V8.06 - Angus added SslHandshakeRespMsg for better error handling
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -1159,9 +1160,9 @@ uses
     OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 805;
-  CopyRight : String = ' TFtpCli (c) 1996-2014 F. Piette V8.05 ';
-  FtpClientId : String = 'ICS FTP Client V8.05 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 806;
+  CopyRight : String = ' TFtpCli (c) 1996-2014 F. Piette V8.06 ';
+  FtpClientId : String = 'ICS FTP Client V8.06 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -7089,14 +7090,15 @@ procedure TSslFtpClient.TransferSslHandshakeDone(Sender: TObject;
     ErrCode: Word; PeerCert: TX509Base;  var Disconnect : Boolean);
 begin
     if (ErrCode <> 0) then begin
-        FLastResponse := '535 SSL handshake failed. Error #' + IntToStr(ErrCode);
+    {    FLastResponse := '535 SSL handshake failed. Error #' + IntToStr(ErrCode);  }
+        FLastResponse := '535 SSL handshake failed - ' + (Sender as TCustomSslWSocket).SslHandshakeRespMsg;  { V8.06 }
         DisplayLastResponse;
         FStatusCode    := 535;
         FRequestResult := FStatusCode;
         SetErrorMessage;
     end
     else
-        TriggerDisplay('! SSL handshake OK');
+        TriggerDisplay('! ' + (Sender as TCustomSslWSocket).SslHandshakeRespMsg);  { V8.06 }
 
     if Assigned(FOnSslHandshakeDone) then
         FOnSslHandshakeDone(Self, ErrCode, PeerCert, Disconnect);   // 12/14/05

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      8.04
+Version:      8.05
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -417,6 +417,7 @@ Jun 24, 2013 V8.04 Angus added new Options of ftpsCompressDirs defaults false
                    ftpsThreadRecurDirs default false due to rare thread bug
                    Skip using thread in zmode if level=Z_NO_COMPRESSION and
                       size less than one meg since really a straight stream copy
+Dec 09, 2014 V8.05 - Angus added SslHandshakeRespMsg for better error handling
 
 
 Angus pending -
@@ -532,8 +533,8 @@ uses
 
 
 const
-    FtpServerVersion         = 804;
-    CopyRight : String       = ' TFtpServer (c) 1998-2013 F. Piette V8.04 ';
+    FtpServerVersion         = 805;
+    CopyRight : String       = ' TFtpServer (c) 1998-2014 F. Piette V8.05 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
     DefaultRcvSize           = 16384;    { V7.00 used for both xmit and recv, was 2048, too small }
 
@@ -816,7 +817,7 @@ type
         constructor Create(AOwner: TComponent); override;
         destructor  Destroy; override;
         procedure   SendAnswer(const Answer : RawByteString);         { angus V7.01 }{ AG V7.02 }
-        procedure   SetDirectory(newValue : String); virtual;   
+        procedure   SetDirectory(newValue : String); virtual;
         procedure   SetAbortingTransfer(newValue : Boolean);
         procedure   BuildDirList(var TotalFiles: integer); virtual; {angus V7.08 was BuildDirectory, made virtual }
         procedure   TriggerSessionClosed(Error : Word); override;
@@ -837,7 +838,7 @@ type
     {$ENDIF}
         property    DataSocket     : TWSocket    read  FDataSocket;
         property    CodePage       : LongWord    read  FCodePage        { AG 7.02 }
-                                                 write SetCodePage; 
+                                                 write SetCodePage;
         property    CurrentCodePage: LongWord    read  FCurrentCodePage { AG 7.02 }
                                                  write SetCurrentCodePage;
         property    ConnectedSince : TDateTime   read  FConnectedSince;
@@ -1573,7 +1574,7 @@ type
                                                       read  GetClient;
         property  ZlibWorkDir            : String     read  FZlibWorkDir    { angus V1.54 }
                                                       write FZlibWorkDir;
-        property  MultiListenIndex       : Integer    read  GetMultiListenIndex;  { V8.01 } 
+        property  MultiListenIndex       : Integer    read  GetMultiListenIndex;  { V8.01 }
     published
 {$IFNDEF NO_DEBUG_LOG}
         property IcsLogger               : TIcsLogger  read  GetIcsLogger  { V1.46 }
@@ -2011,7 +2012,7 @@ const
     msgRestOk         = '350 REST supported. Ready to resume at byte offset %d.';
     msgRestZero       = '501 Required byte offset parameter bad or missing.';
     msgRestFailed     = msgSyntaxParamFmt;//'501 Syntax error in parameter: %s.'; { V1.52 AG }
-    msgRestNotModeZ   = '501 REST not supported while using Mode Z';    { angus V1.55 } 
+    msgRestNotModeZ   = '501 REST not supported while using Mode Z';    { angus V1.55 }
     msgAppeFailed     = '550 APPE failed.';
     msgAppeSuccess    = '150 Opening data connection for %s (append).';
     msgAppeDisabled   = '500 Cannot APPE.';
@@ -2182,7 +2183,7 @@ begin
     end;
     Ticks := IntToStr(IcsGetTickCountX);  { now make it unique by adding some ms }
     I := Length(Ticks);
-    if I < 6 then Ticks := '123' + Ticks; { if windows running short }  
+    if I < 6 then Ticks := '123' + Ticks; { if windows running short }
     Result := Result + '_' + Copy (Ticks, I-6, 6) + '.zlib';
 end;
 
@@ -2457,7 +2458,7 @@ begin
                 Client.Close
             else
                 Client.CloseRequest := TRUE;
-        end;                
+        end;
     end;
 end;
 
@@ -3610,7 +3611,7 @@ begin
         Answer := msgNotLogged;
         Exit;
     end;
-    
+
     Client.CurCmdType := ftpcPWD;
     Answer := Format(msgPWDSuccess,
                    [FormatResponsePath(Client, Client.Directory)]); { AG V1.52 }
@@ -5040,7 +5041,7 @@ begin
     try
         if FileExists(FileName) then begin
             if DeleteFile(FileName) then begin
-                Answer := Format(msgDeleOk, [FormatResponsePath(Client, FileName)]); 
+                Answer := Format(msgDeleOk, [FormatResponsePath(Client, FileName)]);
                 Allowed := TRUE;
             end
             else
@@ -5066,7 +5067,7 @@ procedure TFtpServer.CommandSIZE(
 var
     FilePath : TFtpString;
     Allowed  : Boolean;
-    Size     : TFtpBigInt;   
+    Size     : TFtpBigInt;
 begin
     if Client.FtpState <> ftpcReady then begin
         Answer := msgNotLogged;
@@ -5463,7 +5464,7 @@ var
     CurrentPort : Integer;
 {$IFNDEF COMPILER12_UP}
     ErrorCode   : Integer;
-{$ENDIF}    
+{$ENDIF}
 begin
     if (FPasvPortRangeSize = 0) or (FPasvPortRangeStart = 0) then
         Exit;
@@ -5478,7 +5479,7 @@ begin
     else
 {$IFNDEF COMPILER12_UP}
         Val(AClient.DataSocket.GetXPort, CurrentPort, ErrorCode);
-{$ELSE}        
+{$ELSE}
         CurrentPort := atoi(AClient.DataSocket.GetXPort);
 {$ENDIF}
     if (CurrentPort >= FPasvPortRangeStart) and
@@ -5586,7 +5587,7 @@ begin
                            IcsLoByte(DataPort)]);
             end;
         end;
-        
+
         Client.PassiveMode      := TRUE;
         Client.PassiveStart     := FALSE;
         Client.PassiveConnected := FALSE;
@@ -5939,7 +5940,7 @@ begin
         if Self is TSslFtpServer then begin     {  V1.48 }
             if Client.FtpSslTypes <> [] then begin             { V1.47 }
                 if not (ftpImplicitSsl in Client.FtpSslTypes) then begin
-                	Answer := Answer + ' AUTH ';
+                    Answer := Answer + ' AUTH ';
                 if ftpAuthTls in Client.FtpSslTypes then
                     Answer := Answer + 'TLS;';
                 if ftpAuthSsl in Client.FtpSslTypes then
@@ -6330,7 +6331,7 @@ begin
                 Answer := Format(msgAlloOk, [FreeSpace])
             else
                 Answer := Format(msgAlloFull, [FreeSpace]);
-        end;                
+        end;
     except
         on E:Exception do begin
             Answer := msgAlloFail;
@@ -6777,7 +6778,7 @@ var
     saddrlen  : Integer;
     DataPort  : Integer;
     Proto     : Integer;
-    IPAddr    : TInAddr6;    
+    IPAddr    : TInAddr6;
 begin
     if Client.FtpState <> ftpcReady then begin
         Answer := msgNotLogged;
@@ -7801,7 +7802,7 @@ begin
         Cancel := (Obj as TClientProcessingThread).Terminated;
         (Obj as TClientProcessingThread).Client.LastTick := IcsGetTickCountX;
     end
-    else if (Obj is TFtpCtrlSocket) then       { V7.08 } 
+    else if (Obj is TFtpCtrlSocket) then       { V7.08 }
     begin
         Cancel := (Obj as TFtpCtrlSocket).AbortingTransfer;
         (Obj as TFtpCtrlSocket).LastTick := IcsGetTickCountX;
@@ -8499,7 +8500,7 @@ begin
         if not (Sender is TFtpCtrlSocket) then begin
             Client := TFtpCtrlSocket((Sender as TWSocket).Owner);
             Client.AbortingTransfer := TRUE;
-            Client.TransferError    := 'SSL handshake failed';
+            Client.TransferError    := 'SSL handshake failed - ' + Client.SslHandshakeRespMsg;  { V8.05 }
             PostMessage(FHandle, FMsg_WM_FTPSRV_Close_Data,
                         WPARAM(Client.ID), LPARAM(Client));
             Disconnect := FALSE;

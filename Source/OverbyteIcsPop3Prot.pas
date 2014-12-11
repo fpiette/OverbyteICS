@@ -10,11 +10,11 @@ Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      8.01
+Version:      8.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2011 by François PIETTE
+Legal issues: Copyright (C) 1997-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -203,6 +203,7 @@ Mar 19, 2013 V8.01 Angus added OpenEx, Login, UserPass, Capa and
              Note: SocketFamily must be set to sfAny, sfIPv6 or sfAnyIPv6 to
                    allow a host name to resolve to an IPv6 address.
 Apr 25, 2013 V8.02 Angus Login now checks AuthType and calls Auth, UserPass or APOP
+Dec 10, 2014 V8.03 Angus added SslHandshakeRespMsg for better error handling
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -271,8 +272,8 @@ uses
 (*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameW$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)
 
 const
-    Pop3CliVersion     = 802;
-    CopyRight : String = ' POP3 component (c) 1997-2013 F. Piette V8.02 ';
+    Pop3CliVersion     = 803;
+    CopyRight : String = ' POP3 component (c) 1997-2014 F. Piette V8.03 ';
     POP3_RCV_BUF_SIZE  = 4096;
 
 type
@@ -2695,13 +2696,14 @@ begin
         FOnSslHandShakeDone(Sender, ErrCode, PeerCert, Disconnect);
     if (ErrCode = 0) and (not Disconnect) and
        (FWSocket.State = wsConnected) then begin
-        with (Sender as TSslWSocket) do
+        TriggerDisplay((Sender as TSslWSocket).SslHandshakeRespMsg);  { V8.03 }
+      { with (Sender as TSslWSocket) do
             TriggerDisplay(
                            Format('! Secure connection with %s, cipher %s, ' +
                                   '%d secret bits (%d total)',
                                   [SslVersion, SslCipher, SslSecretBits,
                                    SslTotalBits])
-                           );
+                           );  }
         if FSslType = pop3TlsImplicit then
             StateChange(pop3WaitingBanner)
         else begin
@@ -2716,7 +2718,9 @@ begin
             FWSocket.Abort;
             FRequestDoneFlag := FALSE;
         end;
-        FErrorMessage  := '-ERR SSL Handshake';
+//        FErrorMessage  := '-ERR SSL Handshake';
+        FErrorMessage    := 'ERR SSL handshake failed - ' + (Sender as TSslWSocket).SslHandshakeRespMsg;  { V8.03 }
+        TriggerDisplay(FErrorMessage);    { V8.03 }
         FStatusCode    := 500;
         FRequestResult := FStatusCode;
         FNextRequest   := nil;

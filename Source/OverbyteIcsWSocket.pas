@@ -1,4 +1,4 @@
-{*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
@@ -952,10 +952,12 @@ Aug 15, 2014 V8.11 Angus made WriteCount public in descendent components
 Oct 20, 2014 V8.12 Angus added sslCiphersMozillaSrvInter which excludes SSLv3
 Nov 8,  2014 V8.13 Eugene Kotlyarov added namespace for all RTL units for XE2 and
                     later, note only this unit has bumped version
-Dec 04, 2014 V8.14 Angus made LastOpenSslErrMsg public for better error reporting (dump=true)
+Dec 11, 2014 V8.14 Angus made LastOpenSslErrMsg public for better error reporting (dump=true)
                    Added SslHandshakeRespMsg with friendly error or success message
-                   Added SslHandshakeErr with SSL error code
-                   Stop SSL reporting handshaking steps as errors and report SSL errors
+                   Added SslHandshakeErr with full SSL error code (event error is reason only)
+                   Added SslCipherDesc with OpenSsl long cipher description
+                   Added SslEncryption, SslKeyExchange and SslMessAuth extracted from SslCipherDesc
+                   Stop SSL reporting handshaking steps as errors and report real SSL errors
                    Other various SSL error reporting improvements
 }
 
@@ -2818,6 +2820,10 @@ type
         FSslVerifyResult            : Integer;
         FSslVersion                 : String;
         FSslCipher                  : String;
+        FSslCipherDesc              : String;       { V8.14  }
+        FSslEncryption              : String;       { V8.14  }
+        FSslKeyExchange             : String;       { V8.14  }
+        FSslMessAuth                : String;       { V8.14  }
         FSslTotalBits               : Integer;
         FSslSecretBits              : Integer;
         FSslSupportsSecureRenegotiation : Boolean;
@@ -2961,6 +2967,10 @@ type
         property  SslPeerCert   : TX509Base               read  GetSslPeerCert;
         property  SslHandshakeErr      : Integer          read  FSslHandshakeErr;        { V8.14  }
         property  SslHandshakeRespMsg  : string           read  FSslHandshakeRespMsg;    { V8.14  }
+        property  SslCipherDesc  : String                 read  FSslCipherDesc;          { V8.14  }
+        property  SslEncryption  : String                 read  FSslEncryption;          { V8.14  }
+        property  SslKeyExchange : String                 read  FSslKeyExchange;         { V8.14  }
+        property  SslMessAuth    : String                 read  FSslMessAuth;            { V8.14  }
   private
       function my_WSocket_recv(s: TSocket;
                                var Buf: TWSocketData; len, flags: Integer): Integer;
@@ -17290,6 +17300,10 @@ begin
     //FHandShakeDoneInvoked    := FALSE;
     FSslHandshakeRespMsg     := '';  { V8.14 set with success or failure message once handshake completes }
     FSslHandshakeErr         := 0;   { V8.14 }
+    FSslCipherDesc           := '';  { V8.14  }
+    FSslEncryption           := '';  { V8.14  }
+    FSslKeyExchange          := '';  { V8.14  }
+    FSslMessAuth             := '';  { V8.14  }
     FPendingSslEvents        := [];
     FMayTriggerFD_Read       := TRUE;  // <= 01/06/2006 AG
     FMayTriggerFD_Write      := TRUE;  // <= 01/06/2006 AG
@@ -17546,10 +17560,16 @@ begin
     FSslTotalBits            := 0;
     FSslSecretBits           := 0;
     FSslVersNum              := 0;
+    FSslCipherDesc           :='';     { V8.14 }
 
     FInHandshake             := FALSE;
     FHandshakeDone           := FALSE;
     FSslHandshakeRespMsg     := '';  { V8.14 set with success or failure message once handshake completes }
+    FSslHandshakeErr         := 0;   { V8.14 }
+    FSslCipherDesc           := '';  { V8.14  }
+    FSslEncryption           := '';  { V8.14  }
+    FSslKeyExchange          := '';  { V8.14  }
+    FSslMessAuth             := '';  { V8.14  }
     FSslBioWritePendingBytes := -1;
     FSslInRenegotiation      := FALSE;
     FNetworkError            := 0;
@@ -18170,12 +18190,36 @@ var
     PeerX        : PX509;
     Disconnect   : Boolean;
     RefCert      : TX509Base;
+    Buffer       : array [0..128] of AnsiChar; { V8.14 }
+
+    function FindCiphArg (const key: string): string;
+    var
+        I: integer;
+    begin
+        I := Pos (key, FSslCipherDesc);
+        if I <= 0 then
+            Result := ''
+        else begin
+            Result := Copy (FSslCipherDesc, I + Length (key), 99);
+            I := Pos (' ', Result);
+            if I <= 0 then I := Pos (#10, Result);
+            if I > 0 then SetLength(Result, I - 1);
+        end;
+    end;
+
 begin
     PeerX := nil;
     if (FHSocket = INVALID_SOCKET) then
         ErrCode := 1;
-    if FSslHandshakeErr > 0 then
-        ErrCode := FSslHandshakeErr;                { V8.14 try and get actual error  }
+    if FSslHandshakeErr > 0 then begin
+        ErrCode := Ics_Ssl_ERR_GET_REASON(FSslHandshakeErr);  { V8.14 keep error reason only  }
+        case ErrCode of
+            SSL_R_HTTPS_PROXY_REQUEST:  FSslHandshakeRespMsg := 'Error, HTTPS proxy request, no SSL handshake';
+            SSL_R_HTTP_REQUEST:         FSslHandshakeRespMsg := 'Error, HTTP request, no SSL handshake';
+            SSL_R_WRONG_VERSION_NUMBER: FSslHandshakeRespMsg := 'Error, wrong SSL version';
+            SSL_R_UNKNOWN_PROTOCOL:     FSslHandshakeRespMsg := 'Error, unknown SSL protocol';
+        end;
+    end;
     if (ErrCode = 0) and Assigned(FSsl) then
         FSslState := sslEstablished
     else
@@ -18190,6 +18234,10 @@ begin
         if Assigned(Cipher) then begin
             FSslCipher     := String(f_SSL_CIPHER_get_name(Cipher));
             FSslSecretBits := f_SSL_CIPHER_get_bits(Cipher, @FSslTotalBits);
+            FSslCipherDesc := string(f_SSL_CIPHER_description (Cipher, Buffer, 128));     { V8.14 }
+            FSslEncryption := FindCiphArg ('Enc=');       { V8.14  }
+            FSslKeyExchange := FindCiphArg ('Kx=');       { V8.14  }
+            FSslMessAuth   := FindCiphArg ('Mac=');       { V8.14  }
         end;
         if FSslContext.SslVerifyPeer then
         { Get the peer cert from OSSL. Note that servers always send their }
@@ -18197,13 +18245,14 @@ begin
         { cert also when a session was reused.                             }
             PeerX := f_SSL_get_peer_certificate(FSsl);
      { V8.14 set with success or failure message once handshake completes }
-       FSslHandshakeRespMsg := Format('SSL Connected OK with %s, cipher %s, %d secret bits (%d total)',
-                                                     [SslVersion, SslCipher, SslSecretBits, SslTotalBits]);
+        FSslHandshakeRespMsg := Format('SSL Connected OK with %s, cipher %s, key exchange %s, ' +
+                        'encryption %s, message authentication %s',
+                          [SslVersion, SslCipher, FSslKeyExchange, FSslEncryption, FSslMessAuth]);
     end  // FSslState = sslEstablished
     else begin
         if (FSslHandshakeRespMsg = '') then begin  { V8.14  }
             if (ErrCode = 1) then
-               FSslHandshakeRespMsg := 'Error invalid socket'
+               FSslHandshakeRespMsg := 'Error, connection closed unexpectedly'
             else
                FSslHandshakeRespMsg := String(LastOpenSslErrMsg(true));
         end;

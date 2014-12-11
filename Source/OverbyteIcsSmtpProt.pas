@@ -7,11 +7,11 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      8.03
+Version:      8.04
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2013 by François PIETTE
+Legal issues: Copyright (C) 1997-2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -407,6 +407,7 @@ Mar 16, 2013 V8.02 Arno fixed EReadError with message 'Error reading
 Mar 19, 2013 V8.03 Angus added LocalAddr6 for IPv6
              Note: SocketFamily must be set to sfAny, sfIPv6 or sfAnyIPv6 to
                    allow a host name to resolve to an IPv6 address.
+Dec 10, 2014 V8.04 - Angus added SslHandshakeRespMsg for better error handling
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -491,8 +492,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-  SmtpCliVersion     = 803;
-  CopyRight : String = ' SMTP component (c) 1997-2013 Francois Piette V8.03 ';
+  SmtpCliVersion     = 804;
+  CopyRight : String = ' SMTP component (c) 1997-2014 Francois Piette V8.04 ';
   smtpProtocolError  = 20600; {AG}
   SMTP_RCV_BUF_SIZE  = 4096;
 
@@ -5460,11 +5461,12 @@ begin
     if (ErrCode = 0) and (not Disconnect) and
        (FWSocket.State = wsConnected) then
     begin
-        with (Sender as TSslWSocket) do
-            TriggerDisplay(Format('Secure connection with %s, cipher %s, ' +
+        TriggerDisplay((Sender as TSslWSocket).SslHandshakeRespMsg);  { V8.04 }
+      { with (Sender as TSslWSocket) do
+           TriggerDisplay(Format('Secure connection with %s, cipher %s, ' +
                              '%d secret bits (%d total)',
                              [SslVersion, SslCipher, SslSecretBits,
-                             SslTotalBits]));
+                             SslTotalBits]));  }
         if FSslType = smtpTlsImplicit then
             StateChange(smtpWaitingBanner)
         else
@@ -5480,7 +5482,7 @@ begin
         FStatusCode    := 500;
         FRequestResult := FStatusCode;
         //FHighLevelResult := 500;
-        FErrorMessage    := 'SSL Handshake failed';
+        FErrorMessage    := 'SSL handshake failed - ' + (Sender as TSslWSocket).SslHandshakeRespMsg;  { V8.04 }
         TriggerDisplay(FErrorMessage);
         FNextRequest := nil;
         TriggerRequestDone(FRequestResult);

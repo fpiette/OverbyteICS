@@ -8,7 +8,7 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      8.00
+Version:      8.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -58,6 +58,8 @@ Dec 14, 2005 V1.07 A. Garrels fixed the call to get a session ID string,
                    with IE 6 so far!?).
 Aug 04, 2005 V1.08 A. Garrels made a few changes to prepare code for Unicode.
 Jul 9, 2014  V8.00 Angus using better SSL cipher list for more secure comms
+Dec 9, 2014  V8.01 Angus added SslHandshakeRespMsg for better error handling
+                   Disable SSL3
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
@@ -96,7 +98,7 @@ uses
   OverbyteIcsSslSessionCache, OverbyteIcsLogger, OverbyteIcsWndControl;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2014 F. Piette V8.00 ';
+  CopyRight : String         = 'WebServ (c) 1999-2014 F. Piette V8.01 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -462,8 +464,11 @@ begin
     SslContext1.SslCAFile           := CAFileEdit.Text;
     SslContext1.SslCAPath           := CAPathEdit.Text;
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
-    SslContext1.SslCipherList       := sslCiphersMozillaSrvBack;   { V8.00 much more secure }
-
+ //   SslContext1.SslCipherList       := sslCiphersMozillaSrvBack;   { V8.00 much more secure }
+    SslContext1.SslCipherList       := sslCiphersMozillaSrvInter;   { V8.01 and better }
+    SslContext1.SslVersionMethod    := sslV23_SERVER;
+    SslContext1.SslOptions          := SslContext1.SslOptions -  { V8.01 disable SSLv3 }
+                            [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3, sslOpt_CIPHER_SERVER_PREFERENCE];
     SslHttpServer1.Start;
 end;
 
@@ -1151,18 +1156,22 @@ begin
     if ErrCode = 0 then begin
         Remote.LastHandshake := GetTickCount;
         if DisplaySslInfoCheckBox.Checked then
-            Display(Format('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
+      {     Display(Format('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
                     Remote.GetPeerAddr + '] SslHandshakeDone. Secure ' +
                     'connection with %s, cipher %s, %d secret bits ' +
                     '(%d total), SessionReused %d',
                     [Remote.SslVersion, Remote.SslCipher,
                     Remote.SslSecretBits, Remote.SslTotalBits,
-                    Ord(Remote.SslSessionReused)]));
-    end                   
+                    Ord(Remote.SslSessionReused)]));  }
+            Display('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
+                    Remote.GetPeerAddr + '] ' + Remote.SslHandshakeRespMsg +
+                    ', SessionReused ' + IntToStr (Ord(Remote.SslSessionReused)));    { V8.01 }
+    end
     else
         if DisplaySslInfoCheckBox.Checked then
             Display('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
-                       Remote.GetPeerAddr + '] SslHandshake failed.');
+                      Remote.GetPeerAddr + '] SslHandshake failed, error #' +
+                        IntToStr (ErrCode) + ' - ' + Remote.SslHandshakeRespMsg);  { V8.01 }
 end;
 
 

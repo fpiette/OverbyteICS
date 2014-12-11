@@ -4,7 +4,7 @@ Author:       François PIETTE
 Creation:     Jan 24, 2003
 Description:  A basic SSL server using TSslWSocket.
               Make use of OpenSSL (http://www.openssl.org)
-Version:      1.00.3
+Version:      8.00
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -13,7 +13,7 @@ Legal issues: Copyright (C) 2003-2011 by François PIETTE
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
-              
+
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
               for any  damages arising from the use of this software.
@@ -41,7 +41,7 @@ Legal issues: Copyright (C) 2003-2011 by François PIETTE
 
 History:
 Jan 29, 2009 V1.00.2 Arno removed a D2009 warning.
-
+Dec 10, 2014 V8.0 Angus added handshake response message
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -72,10 +72,10 @@ uses
   OverbyteIcsSSLEAY, OverbyteIcsLIBEAY, OverbyteIcsWndControl, OverbyteIcsUtils;
 
 const
-  SimpleSslServer1Version            = 100;
-  SimpleSslServer1Date               = 'Feb 02, 2003';
-  SimpleSslServer1CopyRight : String = ' SimpleSslServer1 (c) 2003-2011 Francois Piette V1.00.3 ';
-  
+  SimpleSslServer1Version            = 800;
+  SimpleSslServer1Date               = 'Dec 10, 2014';
+  SimpleSslServer1CopyRight : String = ' SimpleSslServer1 (c) 2003-2014 Francois Piette V8.00 ';
+
   WM_SSL_NOT_TRUSTED = WM_USER + 1;
 
 type
@@ -124,6 +124,8 @@ type
     procedure ClientVerifyPeer(Sender        : TObject;
                                var Ok        : Integer;
                                Cert          : TX509Base);
+    procedure SslWSocketServer1SslHandshakeDone(Sender: TObject; ErrCode: Word; PeerCert: TX509Base;
+      var Disconnect: Boolean);
   private
     FIniFileName : String;
     FInitialized : Boolean;
@@ -331,6 +333,12 @@ begin
     end;
 end;
 
+
+procedure TSimpleSslServerForm.SslWSocketServer1SslHandshakeDone(Sender: TObject; ErrCode: Word; PeerCert: TX509Base;
+  var Disconnect: Boolean);
+begin
+     Display((Sender as TTcpSrvClient).SslHandshakeRespMsg);  { V8.00 }
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSimpleSslServerForm.ClientBgException(

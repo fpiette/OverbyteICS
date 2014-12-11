@@ -311,7 +311,7 @@ object SmtpSslSrvForm: TSmtpSslSrvForm
     SslVerifyPeer = False
     SslVerifyDepth = 9
     SslVerifyFlags = []
-    SslOptions = [sslOpt_NO_SSLv2]
+    SslOptions = [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = []
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'

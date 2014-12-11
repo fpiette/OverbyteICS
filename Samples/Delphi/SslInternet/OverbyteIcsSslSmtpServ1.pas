@@ -3,7 +3,7 @@
 Original Author: Ian Baker, ADV Systems 2003
 Updated by:   Angus Robertson, Magenta Systems Ltd
 Creation:     24 September 2013
-Version:      8.01
+Version:      8.02
 Description:  How to use TSslSmtpServer
 EMail:        francois.piette@overbyte.be      http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -41,13 +41,14 @@ Legal issues: Copyright (C) 2004-2013 by François PIETTE
 Sep 24, 2013 V8.00 Angus created SSL version
 Apr 26, 2014 V8.01 Arno - Check for IsIPv6Available rather than IsIPv6ApiAvailable
                    in doStartClick.
+Dec 10, 2014 V8.02 Angus added handshake response message, better cipher list 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslSmtpServ1;
 
 interface
 
-{$I OverbyteIcsDefs.inc}
+{xI include/OverbyteIcsDefs.inc}
 {$B-}                 { Enable partial boolean evaluation   }
 {$T-}                 { Untyped pointers                    }
 {$X+}                 { Enable extended syntax              }
@@ -72,8 +73,8 @@ uses
   OverbyteIcsSmtpSrv ;
 
 const
-    SmtpSslServerTestVersion    = 8.01;
-    CopyRight : String = ' OverbyteSslSmtpServer (c) 1997-2013 F. Piette V8.01 ';
+    SmtpSslServerTestVersion    = 8.02;
+    CopyRight : String = ' OverbyteSslSmtpServer (c) 1997-2014 F. Piette V8.02 ';
 
   // INI file stuff
     SectionData       = 'Data';
@@ -264,6 +265,10 @@ begin
     SslContext1.SslCAFile           := CAFileEdit.Text;
     SslContext1.SslCAPath           := CAPathEdit.Text;
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
+    SslContext1.SslCipherList       := sslCiphersMozillaSrvInter;   { V8.02 }
+    SslContext1.SslVersionMethod    := sslV23_SERVER;
+    SslContext1.SslOptions          := SslContext1.SslOptions -  { V8.02 disable SSLv3 }
+                            [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3, sslOpt_CIPHER_SERVER_PREFERENCE];
     with SmtpServer1 do
     begin
         Addr           := LocalIPList (sfIpv4, IPPROTO_TCP) [0];
@@ -399,15 +404,12 @@ begin
     begin
         if ErrCode = 0 then
         begin
-            Log.Lines.Add (Format('%s  %8.8x  SslHandshake Done. Secure ' +
-                    'connection with %s, cipher %s, %d secret bits ' +
-                    '(%d total)',
-                    [FormatDateTime('hh:nn:ss', Time), ID, SslVersion, SslCipher,
-                    SslSecretBits, SslTotalBits]));
+            Log.Lines.Add (Format('%s  %8.8x  %s',
+                    [FormatDateTime('hh:nn:ss', Time), ID, SslHandshakeRespMsg]));  { V8.02 }
         end
         else
-            Log.Lines.Add (Format('%s  %8.8x  SslHandshake Failed, Error %x',
-                             [FormatDateTime('hh:nn:aa', Time), ID, ErrCode]));
+            Log.Lines.Add (Format('%s  %8.8x  SslHandshake Failed - %s',
+                             [FormatDateTime('hh:nn:aa', Time), ID, SslHandshakeRespMsg]));    { V8.02 }
     end;
 end;
 

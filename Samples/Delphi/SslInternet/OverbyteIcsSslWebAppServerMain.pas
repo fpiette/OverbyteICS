@@ -4,11 +4,11 @@ Author:       François PIETTE
 Creation:     April 11, 2009
 Description:  SllWebAppServer is a demo application showing the HTTP application
               server component with SSL protocol (TSslHttpAppSrv).
-Version:      1.00
+Version:      8.00
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2013 by François PIETTE
+Legal issues: Copyright (C) 2014 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -47,6 +47,8 @@ Aug 08, 2010 V1.04 F.Piette: OnBgException is now published. Use a different
                    method for listening and client sockets.
 Jun 09, 2013 V1.05 FPiette added code for DWScript support. Contionnaly
                    compiled using "use_DWScript" symbol.
+Sep 23, 2013 V1.06 Angus save SSL certificate settings
+Dec 10, 2014 V8.00 Angus added handshake response message, better ciphers
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebAppServerMain;
@@ -133,6 +135,7 @@ type
     procedure HttpAppSrv1BeforeProcessRequest(Sender, Client: TObject);
     procedure HttpAppSrv1VirtualException(Sender: TObject; E: Exception; Method: THttpMethod; const Path: string);
     procedure HttpAppSrv1BgException(Sender: TObject; E: Exception; var CanClose : Boolean);
+    procedure HttpAppSrv1SslHandshakeDone(Sender: TObject; ErrCode: Word; PeerCert: TX509Base; var Disconnect: Boolean);
   private
     FIniFileName : String;
     FInitialized : Boolean;
@@ -398,6 +401,12 @@ begin
     Display('Server is now stopped');
 end;
 
+procedure TWebAppSrvForm.HttpAppSrv1SslHandshakeDone(Sender: TObject; ErrCode: Word; PeerCert: TX509Base;
+  var Disconnect: Boolean);
+begin
+    Display((Sender as THttpAppSrvConnection).SslHandshakeRespMsg);  { V8.00 }
+end;
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TWebAppSrvForm.HttpAppSrv1VirtualException(Sender: TObject; E: Exception; Method: THttpMethod;
   const Path: string);
@@ -436,6 +445,13 @@ begin
         IniFile.WriteInteger(SectionWindow, KeyLeft,        Left);
         IniFile.WriteInteger(SectionWindow, KeyWidth,       Width);
         IniFile.WriteInteger(SectionWindow, KeyHeight,      Height);
+        IniFile.WriteString(SectionData,    KeyCertFile,    CertFileEdit.Text);
+        IniFile.WriteString(SectionData,    KeyPrivKeyFile, PrivKeyFileEdit.Text);
+        IniFile.WriteString(SectionData,    KeyPassPhrase,  PassPhraseEdit.Text);
+        IniFile.WriteString(SectionData,    KeyCAFile,      CAFileEdit.Text);
+        IniFile.WriteString(SectionData,    KeyCAPath,      CAPathEdit.Text);
+        IniFile.WriteString(SectionData,    KeyAcceptableHosts, AcceptableHostsEdit.Text);
+        IniFile.WriteInteger(SectionData,   KeyVerifyPeer,  Ord(VerifyPeerCheckBox.Checked));
         IniFile.UpdateFile;
     finally
         IniFile.Free;
@@ -654,6 +670,10 @@ begin
     SslContext1.SslCAFile           := CAFileEdit.Text;
     SslContext1.SslCAPath           := CAPathEdit.Text;
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
+    SslContext1.SslCipherList       := sslCiphersMozillaSrvInter;   { V8.00 and better }
+    SslContext1.SslVersionMethod    := sslV23_SERVER;
+    SslContext1.SslOptions          := SslContext1.SslOptions -  { V8.00 disable SSLv3 }
+                            [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3, sslOpt_CIPHER_SERVER_PREFERENCE];
     HttpAppSrv1.Start;
 end;
 

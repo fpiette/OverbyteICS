@@ -1,9 +1,9 @@
 object FtpReceiveForm: TFtpReceiveForm
   Left = 227
   Top = 114
-  Width = 643
-  Height = 632
   Caption = 'FTP - http://www.overbyte.be'
+  ClientHeight = 605
+  ClientWidth = 635
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -21,7 +21,7 @@ object FtpReceiveForm: TFtpReceiveForm
     Left = 0
     Top = 425
     Width = 635
-    Height = 173
+    Height = 180
     Hint = 'This area show the activity with the host'
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
@@ -1456,17 +1456,18 @@ object FtpReceiveForm: TFtpReceiveForm
   end
   object FtpClient1: TSslFtpClient
     Timeout = 15
-    MultiThreaded = False
     Port = 'ftp'
     CodePage = 0
     DataPortRangeStart = 0
     DataPortRangeEnd = 0
     LocalAddr = '0.0.0.0'
+    LocalAddr6 = '::'
     DisplayFileFlag = False
     Binary = True
     ShareMode = ftpShareExclusive
     Options = [ftpAcceptLF]
     ConnectionType = ftpDirect
+    ProxyPort = 'ftp'
     Language = 'EN'
     OnDisplayFile = FtpClient1DisplayFile
     OnProgress64 = FtpClient1Progress64
@@ -1477,6 +1478,7 @@ object FtpReceiveForm: TFtpReceiveForm
     IcsLogger = IcsLogger1
     BandwidthLimit = 10000
     BandwidthSampling = 1000
+    SocketFamily = sfIPv4
     SslContext = SslContext1
     SslType = sslTypeNone
     SslAcceptableHosts.Strings = (
@@ -1486,6 +1488,7 @@ object FtpReceiveForm: TFtpReceiveForm
     OnSslVerifyPeer = FtpClient1SslVerifyPeer
     OnSslCliGetSession = FtpClient1SslCliGetSession
     OnSslCliNewSession = FtpClient1SslCliNewSession
+    OnSslHandshakeDone = FtpClient1SslHandshakeDone
     OnSslCliCertRequest = FtpClient1SslCliCertRequest
     Left = 32
     Top = 440
@@ -1494,6 +1497,7 @@ object FtpReceiveForm: TFtpReceiveForm
     IcsLogger = IcsLogger1
     SslVerifyPeer = False
     SslVerifyDepth = 9
+    SslVerifyFlags = []
     SslOptions = [sslOpt_NO_SSLv2]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = []

@@ -1,9 +1,9 @@
 object SslWebServForm: TSslWebServForm
   Left = 287
   Top = 154
-  Width = 558
-  Height = 381
   Caption = 'ICS SSL WebServer Demo - http://www.overbyte.be'
+  ClientHeight = 354
+  ClientWidth = 550
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -326,7 +326,7 @@ object SslWebServForm: TSslWebServForm
     Left = 0
     Top = 179
     Width = 550
-    Height = 168
+    Height = 175
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -343,6 +343,7 @@ object SslWebServForm: TSslWebServForm
   object SslHttpServer1: TSslHttpServer
     IcsLogger = IcsLogger1
     ListenBacklog = 5
+    MultiListenSockets = <>
     Port = '80'
     Addr = '0.0.0.0'
     SocketFamily = sfIPv4
@@ -354,9 +355,14 @@ object SslWebServForm: TSslWebServForm
     LingerTimeout = 0
     Options = []
     KeepAliveTimeSec = 10
+    KeepAliveTimeXferSec = 300
     MaxRequestsKeepAlive = 100
     SizeCompressMin = 5000
     SizeCompressMax = 5000000
+    MaxBlkSize = 8192
+    BandwidthLimit = 0
+    BandwidthSampling = 1000
+    ServerHeader = 'Server: ICS-HttpServer-8.08'
     OnServerStarted = SslHttpServer1ServerStarted
     OnServerStopped = SslHttpServer1ServerStopped
     OnClientConnect = SslHttpServer1ClientConnect
@@ -368,6 +374,7 @@ object SslWebServForm: TSslWebServForm
     OnBeforeProcessRequest = SslHttpServer1BeforeProcessRequest
     AuthTypes = []
     AuthRealm = 'ics'
+    SslEnable = True
     SslContext = SslContext1
     OnSslVerifyPeer = SslHttpServer1SslVerifyPeer
     OnSslSetSessionIDContext = SslHttpServer1SslSetSessionIDContext
@@ -381,7 +388,8 @@ object SslWebServForm: TSslWebServForm
     IcsLogger = IcsLogger1
     SslVerifyPeer = False
     SslVerifyDepth = 9
-    SslOptions = [sslOpt_MICROSOFT_SESS_ID_BUG, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG, sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG, sslOpt_MICROSOFT_BIG_SSLV3_BUFFER, sslOpt_SSLEAY_080_CLIENT_DH_BUG, sslOpt_TLS_D5_BUG, sslOpt_TLS_BLOCK_PADDING_BUG, sslOpt_TLS_ROLLBACK_BUG, sslOpt_NO_SSLv2, sslOpt_NETSCAPE_CA_DN_BUG, sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG]
+    SslVerifyFlags = []
+    SslOptions = [sslOpt_MICROSOFT_SESS_ID_BUG, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG, sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG, sslOpt_MICROSOFT_BIG_SSLV3_BUFFER, sslOpt_SSLEAY_080_CLIENT_DH_BUG, sslOpt_TLS_D5_BUG, sslOpt_TLS_BLOCK_PADDING_BUG, sslOpt_TLS_ROLLBACK_BUG, sslOpt_NO_SSLv2, sslOpt_NO_SSLv3, sslOpt_NETSCAPE_CA_DN_BUG, sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = [sslSESS_CACHE_SERVER, sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE]
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
@@ -395,6 +403,7 @@ object SslWebServForm: TSslWebServForm
   object HttpServer2: THttpServer
     IcsLogger = IcsLogger1
     ListenBacklog = 5
+    MultiListenSockets = <>
     Port = '80'
     Addr = '0.0.0.0'
     SocketFamily = sfIPv4
@@ -406,9 +415,14 @@ object SslWebServForm: TSslWebServForm
     LingerTimeout = 0
     Options = []
     KeepAliveTimeSec = 10
+    KeepAliveTimeXferSec = 300
     MaxRequestsKeepAlive = 100
     SizeCompressMin = 5000
     SizeCompressMax = 5000000
+    MaxBlkSize = 8192
+    BandwidthLimit = 0
+    BandwidthSampling = 1000
+    ServerHeader = 'Server: ICS-HttpServer-8.08'
     OnServerStarted = HttpServer2ServerStarted
     OnServerStopped = HttpServer2ServerStopped
     OnClientConnect = HttpServer2ClientConnect

@@ -1,9 +1,9 @@
 object WebAppSrvForm: TWebAppSrvForm
   Left = 66
   Top = 425
-  Width = 547
-  Height = 414
   Caption = 'Overbyte ICS SSL Web Application Server Demo'
+  ClientHeight = 387
+  ClientWidth = 539
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -19,7 +19,7 @@ object WebAppSrvForm: TWebAppSrvForm
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
-    Width = 531
+    Width = 539
     Height = 173
     Align = alTop
     TabOrder = 0
@@ -133,8 +133,8 @@ object WebAppSrvForm: TWebAppSrvForm
   object DisplayMemo: TMemo
     Left = 0
     Top = 173
-    Width = 531
-    Height = 203
+    Width = 539
+    Height = 214
     Align = alClient
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
@@ -167,12 +167,14 @@ object WebAppSrvForm: TWebAppSrvForm
     LingerTimeout = 0
     Options = []
     KeepAliveTimeSec = 10
+    KeepAliveTimeXferSec = 300
     MaxRequestsKeepAlive = 100
     SizeCompressMin = 5000
     SizeCompressMax = 5000000
     MaxBlkSize = 8192
     BandwidthLimit = 0
     BandwidthSampling = 1000
+    ServerHeader = 'Server: ICS-HttpServer-8.08'
     OnServerStarted = HttpAppSrv1ServerStarted
     OnServerStopped = HttpAppSrv1ServerStopped
     OnClientConnect = HttpAppSrv1ClientConnect
@@ -188,6 +190,7 @@ object WebAppSrvForm: TWebAppSrvForm
     OnVirtualException = HttpAppSrv1VirtualException
     SslEnable = True
     SslContext = SslContext1
+    OnSslHandshakeDone = HttpAppSrv1SslHandshakeDone
     Left = 44
     Top = 228
   end

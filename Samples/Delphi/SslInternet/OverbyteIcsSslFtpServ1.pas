@@ -8,7 +8,7 @@ Description:  This is a demo program showing how to use the TFtpServer
               In production program, you should add code to implement
               security issues.
 Creation:     April 21, 1998
-Version:      1.15
+Version:      8.00
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -58,7 +58,7 @@ Jul 30, 2001  V1.04 Add Trim function for Delphi 1
 Feb 26, 2002  V1.05 Add DisconectAll in main menu
 Jun 07, 2002  V1.06 Added a processing thread (not for Delphi 1) for Get
 Oct 21, 2005  V1.07 Arno Garrels added SSL features.
-Jun 04, 2008  V1.08 Arno Garrels adjusted WorkerThreadTerminated().                 
+Jun 04, 2008  V1.08 Arno Garrels adjusted WorkerThreadTerminated().
 Aug 04, 2008  V1.09 A. Garrels made a few changes to prepare code for Unicode.
 Nov 6, 2008   V1.12 Angus, support server V7.00 which does not use OverbyteIcsFtpSrvC
                     Added ftpaccounts-default.ini file with user accounts setting defaults for each user
@@ -68,6 +68,7 @@ Nov 6, 2008   V1.12 Angus, support server V7.00 which does not use OverbyteIcsFt
                     Note: random account names are no longer allowed for this demo
 Nov 8, 2008, V1.13 Angus, support HOST and REIN(ialise) commands
 Nov 13, 2008, V1.14 Angus, ensure servers have ftpsCwdCheck set
+Dec 9, 2014   V8.00 Angus added SslHandshakeRespMsg for better error handling
 
 
 
@@ -97,14 +98,14 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, OverbyteIcsIniFiles, OverbyteIcsFtpSrv, {OverbyteIcsFtpSrvC,} OverbyteIcsWSocket,
+  Dialogs, OverbyteIcsIniFiles, OverbyteIcsFtpSrv, OverbyteIcsWSocket,
   StdCtrls, ExtCtrls, Menus,
   OverbyteIcsWinsock, OverbyteIcsLibeay, OverbyteIcsLogger,
   OverbyteIcsWndControl, OverbyteIcsOneTimePw;
 
 const
-  FtpServVersion      = 115;
-  CopyRight : String  = ' SslFtpServ (c) 1998-2011 F. Piette V1.15 ';
+  FtpServVersion      = 800;
+  CopyRight : String  = ' SslFtpServ (c) 1998-2014 F. Piette V8.00 ';
   WM_APPSTARTUP       = WM_USER + 1;
 
 type
@@ -1198,27 +1199,29 @@ begin
     if Sender is TFtpCtrlSocket then begin
          Sock := TWSocket(Sender as TFtpCtrlSocket);
         (Sender as TMyClient).LastSslHandshake := GetTickCount;
-        Str    := 'CtrlSocket';
+        Str    := 'CtrlSocket ';
         B      := (Sender as TMyClient).SslSessionReused;
     end
     else begin
-        Sock := (Sender as TWSocket); 
-        Str    := 'DataSocket';
+        Sock := (Sender as TWSocket);
+        Str    := 'DataSocket ';
         B      := Sock.SslSessionReused;
     end;
     if not DisplaySslInfoCheckBox.Checked then
         Exit;
     if ErrCode = 0 then
-        InfoMemo.Lines.Add(Format('! %s %s SslHandshakeDone. Secure ' +
+        InfoMemo.Lines.Add('! ' + Sock.GetPeerAddr + ' ' + Str + Sock.SslHandshakeRespMsg +
+                                                    ', SessionReused ' + IntToStr(Ord(B)))   { V8.00 }
+      { InfoMemo.Lines.Add(Format('! %s %s SslHandshakeDone. Secure ' +
                      'connection with %s, cipher %s, %d secret bits ' +
                      '(%d total), SessionReused %d',
                      [Sock.GetPeerAddr, Str, Sock.SslVersion,
                      Sock.SslCipher,
                      Sock.SslSecretBits, Sock.SslTotalBits,
-                     Ord(B)]))
+                     Ord(B)]))  }
     else
         InfoMemo.Lines.Add('! ' + Sock.GetPeerAddr + ' ' + Str +
-                           ' SslHandshake failed.');
+                           ' SslHandshake failed - ' + Sock.SslHandshakeRespMsg);  { V8.00 }
 end;
 
 

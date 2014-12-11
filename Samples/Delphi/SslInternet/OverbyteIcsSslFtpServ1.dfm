@@ -228,8 +228,10 @@ object SslFtpServerForm: TSslFtpServerForm
   object SslFtpServer1: TSslFtpServer
     IcsLogger = IcsLogger1
     Addr = '0.0.0.0'
+    SocketFamily = sfIPv4
     Port = 'ftp'
     ListenBackLog = 5
+    MultiListenSockets = <>
     Banner = '220 ICS FTP Server ready'
     UserData = 0
     MaxClients = 0
@@ -249,6 +251,8 @@ object SslFtpServerForm: TSslFtpServerForm
     CodePage = 0
     Language = 'EN*'
     MaxAttempts = 12
+    BandwidthLimit = 0
+    BandwidthSampling = 1000
     OnStart = SslFtpServer1Start
     OnStop = SslFtpServer1Stop
     OnAuthenticate = SslFtpServer1Authenticate
@@ -331,6 +335,7 @@ object SslFtpServerForm: TSslFtpServerForm
     IcsLogger = IcsLogger1
     SslVerifyPeer = False
     SslVerifyDepth = 9
+    SslVerifyFlags = []
     SslOptions = [sslOpt_NO_SSLv2]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = []
@@ -344,8 +349,10 @@ object SslFtpServerForm: TSslFtpServerForm
   object SslFtpServer2: TSslFtpServer
     IcsLogger = IcsLogger1
     Addr = '0.0.0.0'
+    SocketFamily = sfIPv4
     Port = 'ftp'
     ListenBackLog = 5
+    MultiListenSockets = <>
     Banner = '220 ICS FTP Server ready.'
     UserData = 0
     MaxClients = 0
@@ -365,6 +372,8 @@ object SslFtpServerForm: TSslFtpServerForm
     CodePage = 0
     Language = 'EN*'
     MaxAttempts = 12
+    BandwidthLimit = 0
+    BandwidthSampling = 1000
     OnStart = SslFtpServer1Start
     OnStop = SslFtpServer1Stop
     OnAuthenticate = SslFtpServer1Authenticate

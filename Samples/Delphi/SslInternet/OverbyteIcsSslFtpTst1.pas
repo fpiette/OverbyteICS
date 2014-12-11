@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     Aug 1997
-Version:      7.08
+Version:      8.00
 Object:       Demo for TFtpClient object (RFC 959 implementation)
               It is a graphical FTP client program
               Compatible with Delphi 1, 2, 3, 4 and 5
@@ -70,7 +70,7 @@ Nov 02, 2004  V2.29 Fixed problem displaying dir list when "Display Data"
 Dec 19, 2004  V2.30 Added Trim() and similar for Delphi 1 compatibility.
 Apr 16, 2009  V7.07 Angus assume STREAM64, USE_ONPROGRESS64_ONLY, removed OnProgress
               Removed local GetFileSize using IcsGetFileSize instead
-
+Dec 9, 2014   V8.00 Angus added SslHandshakeRespMsg for better error handling
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslFtpTst1;
@@ -91,8 +91,8 @@ uses
   OverbyteIcsWndControl, OverbyteIcsFtpCli, OverbyteIcsFtpSrvT, OverByteIcsUtils;
 
 const
-  FTPTstVersion      = 708;
-  CopyRight : String = ' SslFtpTst (c) 1997-2011 F. Piette V7.08 ';
+  FTPTstVersion      = 800;
+  CopyRight : String = ' SslFtpTst (c) 1997-2014 F. Piette V8.00 ';
   WM_SSL_NOT_TRUSTED = WM_USER + 1;
   WM_TMP_SOMETHING   = WM_USER + 2;
 type
@@ -289,6 +289,7 @@ type
     procedure CccButtonClick(Sender: TObject);
     procedure OptsAsyncButtonClick(Sender: TObject);
     procedure FtpClient1Progress64(Sender: TObject; Count: Int64; var Abort: Boolean);
+    procedure FtpClient1SslHandshakeDone(Sender: TObject; ErrCode: Word; PeerCert: TX509Base; var Disconnect: Boolean);
   private
     FIniFileName   : String;
     FInitialized   : Boolean;
@@ -751,7 +752,7 @@ begin
     SslContext1.SslCAPath         := CAPathEdit.Text;
 
     FtpClient1.ProtLevel          := ProtLevelEdit.Text;
-    FtpClient1.PBSZSize           := 0;
+    FtpClient1.PBSZSize           := 0;  { note value never actually sent }
 
     { For directory functions, we use a temporary file }
     if (@SyncCmd = @TFtpClient.Dir) or (@SyncCmd = @TFtpClient.Directory) or
@@ -1395,13 +1396,22 @@ procedure TFtpReceiveForm.FtpClient1SslCliNewSession(Sender: TObject;
     SslSession: Pointer; WasReused: Boolean; var IncRefCount: Boolean);
 begin
     if not SessCacheCheckBox.Checked then
-        Exit; 
+        Exit;
     { SslCliNewSession/SslCliGetSession allow external, client-side session }
     { caching. See demo HttpsTst how to use a real external cache.          }
     FCachedSession := SslSession;
     IncRefCount    := True;
     if WasReused then
         Display('! SSL Session reused');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TFtpReceiveForm.FtpClient1SslHandshakeDone(Sender: TObject; ErrCode: Word; PeerCert: TX509Base;
+  var Disconnect: Boolean);
+begin
+    Display('SSL handshake done, error #' + IntToStr (ErrCode) +
+             ' - ' + (Sender as TSslFtpClient).ControlSocket.SslHandshakeRespMsg);  { V8.00 }
 end;
 
 

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.05
+Version:      8.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -98,6 +98,9 @@ Aug 08, 2014 V8.04 - Angus allow load of OSSL 1.0.1i (briefly tested)
 Dec 09, 2014 V8.05 - Angus allow load of OSSL 1.0.1j (untested)
                      Added Ics_Ssl_ERR_GET_LIB, Ics_Ssl_ERR_GET_FUNC and Ics_Ssl_ERR_GET_REASON
                      Added error literals for library, function and reason
+Jan 19, 2015 V8.06 - Angus allow load of OSSL 1.0.1k (briefly tested)
+
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -137,8 +140,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 805;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2014 F. Piette V8.05 ';
+    IcsLIBEAYVersion   = 806;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2015 F. Piette V8.06 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -1928,6 +1931,7 @@ const
     OSSL_VER_1001H = $1000108F; // just briefly tested  { V8.03 }
     OSSL_VER_1001I = $1000109F; // just briefly tested  { V8.04 }
     OSSL_VER_1001J = $100010AF; // untested  { V8.05 }
+    OSSL_VER_1001K = $100010BF; // just briefly tested   { V8.06 }
     { Basically versions listed above are tested if not otherwise commented.  }
     { Versions between are assumed to work, however they are untested.        }
     { OpenSSL libraries for ICS are available for download here:              }
@@ -1942,7 +1946,7 @@ const
         MIN_OSSL_VER = OSSL_VER_0908E;
     {$ENDIF}
 {$ENDIF}
-    MAX_OSSL_VER   = OSSL_VER_1001J;  { V8.05 }
+    MAX_OSSL_VER   = OSSL_VER_1001K;  { V8.06 }
 
 {$ENDIF} // USE_SSL
 implementation

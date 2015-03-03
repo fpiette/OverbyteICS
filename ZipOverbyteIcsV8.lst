@@ -175,6 +175,26 @@ Packages\OverbyteIcsDXE7Run.dpk
 Packages\OverbyteIcsDXE7Design.dproj
 Packages\OverbyteIcsDXE7Design.dpk
 
+Packages\IcsCommonDXE8Run.dpk
+Packages\IcsCommonDXE8Run.dproj
+Packages\IcsCommonDXE8Design.dpk
+Packages\IcsCommonDXE8Design.dproj
+
+Packages\IcsFmxDXE8Run.dpk
+Packages\IcsFmxDXE8Run.dproj
+Packages\IcsFmxDXE8Design.dpk
+Packages\IcsFmxDXE8Design.dproj
+
+Packages\IcsVclDXE8Run.dpk
+Packages\IcsVclDXE8Run.dproj
+Packages\IcsVclDXE8Design.dpk
+Packages\IcsVclDXE8Design.dproj
+
+Packages\OverbyteIcsDXE8Run.dproj
+Packages\OverbyteIcsDXE8Run.dpk
+Packages\OverbyteIcsDXE8Design.dproj
+Packages\OverbyteIcsDXE8Design.dpk
+
 Packages\OverbyteIcsCB2006Run.bdsproj
 Packages\OverbyteIcsCB2006Run.cpp
 Packages\OverbyteIcsCB2006Run.res
@@ -457,6 +477,8 @@ Install\DXE6Install.groupproj
 Install\DXE6InstallVclFmx.groupproj
 Install\DXE7Install.groupproj
 Install\DXE7InstallVclFmx.groupproj
+Install\DXE8Install.groupproj
+Install\DXE8InstallVclFmx.groupproj
 
 Install\CB2006Install.bdsgroup
 Install\CB2007Install.groupproj

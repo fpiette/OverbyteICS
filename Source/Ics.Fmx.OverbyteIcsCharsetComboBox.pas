@@ -1,5 +1,7 @@
 unit Ics.Fmx.OverbyteIcsCharsetComboBox;
 
+// March 2015 - removed sorting due to XE8 making FListBox private
+
 interface
 
 {$I Include\OverbyteIcsDefs.inc}
@@ -86,9 +88,10 @@ type
 constructor TIcsCharsetComboBox.Create(AOwner: TComponent);
 begin
     inherited Create(AOwner);
-    //Sorted        := True;
-    THackListBox(FListBox).Sorted := True;
-    THackListBox(FListBox).OnMouseLeave := ListBoxMouseLeave;
+//    Sorted        := True;
+//    THackListBox(FListBox).Sorted := True;
+    OnMouseLeave := ListBoxMouseLeave;
+//   THackListBox(FListBox).OnMouseLeave := ListBoxMouseLeave;
     FUserFriendly := True;
     IncludeList  := [
     WIN_1250, WIN_1251, WIN_1252, WIN_1253, WIN_1254, WIN_1255, WIN_1256,
@@ -148,7 +151,7 @@ begin
             else
                 GetMimeCharsetList(LItems, FIncludeList, False);
 
-            THackListBox(FListbox).FItemIndex := -1;
+//            THackListBox(FListbox).FItemIndex := -1;
             for I := 0 to LItems.Count -1 do
             begin
                 Item := TListBoxItem.Create(nil);
@@ -158,7 +161,7 @@ begin
                 Item.Text   := LItems[I];
                 Item.Tag    := PLongWord(LItems.Objects[I])^;
             end;
-            THackListBox(FListBox).SortItems;
+//            THackListBox(FListBox).SortItems;
         finally
           LItems.Free;
         end;

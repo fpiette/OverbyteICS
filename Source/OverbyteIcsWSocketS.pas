@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.05
+Version:      8.06
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2013 by François PIETTE
+Legal issues: Copyright (C) 1999-2015 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -104,6 +104,7 @@ Aug 18, 2013 V8.04 Arno - It was not possible to clear both string properties
                    Banner and BannerTooBusy in OI since empty strings were not
                    stored in the .dfm.
 Aug 18, 2013 V8.05 Arno added some default property specifiers.
+Mar 10, 2015 V8.06 Angus CloseDelayed when too many clients so closes cleanly
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -170,8 +171,8 @@ uses
     OverbyteIcsUtils, OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 805;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2013 F. Piette V8.05 ';
+    WSocketServerVersion     = 806;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2015 F. Piette V8.06 ';
 
 type
     TCustomWSocketServer       = class;
@@ -476,10 +477,10 @@ Description:  A component adding SSL support to TWSocketServer.
               warnings.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-const
+{const
      SslWSocketServerVersion            = 100;
      SslWSocketServerDate               = 'Feb 02, 2003';
-     SslWSocketServerCopyRight : String = ' TSslWSocket (c) 2003 Francois Piette V1.00.3 ';
+     SslWSocketServerCopyRight : String = ' TSslWSocket (c) 2003 Francois Piette V1.00.3 ';   }
 
 type
     TSslWSocketMultiListenItem = class(TWSocketMultiListenItem)
@@ -759,7 +760,7 @@ begin
         { Sorry, toomuch clients }
         Client.Banner := FBannerTooBusy;
         Client.StartConnection;
-        Client.Close;
+        Client.CloseDelayed;  { V8.06 was Close but too quick }
     end
     else
         Client.StartConnection;

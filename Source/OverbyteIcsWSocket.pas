@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.14
+Version:      8.15
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -959,6 +959,20 @@ Dec 11, 2014 V8.14 Angus made LastOpenSslErrMsg public for better error reportin
                    Added SslEncryption, SslKeyExchange and SslMessAuth extracted from SslCipherDesc
                    Stop SSL reporting handshaking steps as errors and report real SSL errors
                    Other various SSL error reporting improvements
+Mar 16, 2015 V8.15 Angus added more SslOptions: sslOpt_NO_COMPRESSION, sslOpt_TLSEXT_PADDING,
+                     sslOpt_SAFARI_ECDHE_ECDSA_BUG, sslOpt_CISCO_ANYCONNECT, sslOpt_NO_TLSv1_1
+                     and sslOpt_NO_TLSv1_2
+                   Added more SslVersionMethods: sslTLS_V1_1, sslTLS_V1_2 and sslBestVer which
+                     is eqivalent to sslV23 and actually means any of SSLV3, TLS1, TLS1.1 or TLS1.2
+                   To disable some versions, use sslBestVer and disable specific ones using SslOptions
+                   To force only one version, set SslVersionMethod to that version
+                   Choosing a specific TLS version will fail if matching Ciphers are not available
+                   OPENSSL_NO_TLSEXT removed so SSL Server Name Identification is always supported
+                   Added SslDHParamFile to load a DH Parameters for Diiffie-Hellman DH and EDH key ciphers
+                     DH param files may have key lengths of 512,1024,2048,4096 bits and currently need
+                     to be generated using the opensll.exe utility (or use those that come with ICS)
+                   Added SslECDHMethod to select Elliptic Curves to support ECDH and EECDH key ciphers
+                   Note, only OpenSSL 1.0.1 and later are now supported since this added TLS 1.1/1.2
 }
 
 {
@@ -1110,8 +1124,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 814;
-  CopyRight    : String     = ' TWSocket (c) 1996-2014 Francois Piette V8.14 ';
+  WSocketVersion            = 815;
+  CopyRight    : String     = ' TWSocket (c) 1996-2015 Francois Piette V8.15 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -2119,6 +2133,7 @@ Jun 20, 2007 Changes by Arno Garrels: Fixed TX509Base.PostConnectionCheck to
              verification process several times which overwrites value of
              VerifyResult.
 Nov 08, 2007 A. Garrels added property PublicKey to TX509Base.
+Later SSL changes are detailed above with main changes
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF VER80}
@@ -2132,11 +2147,11 @@ Nov 08, 2007 A. Garrels added property PublicKey to TX509Base.
 {$IFDEF DEBUG_DUMP}
     {$DEFINE DEBUG_OUTPUT}
 {$ENDIF}
-const
+{const
      SslWSocketVersion            = 100;
      SslWSocketDate               = 'Jan 18, 2006';
      SslWSocketCopyRight : String = ' TSslWSocket (c) 2003-2010 Francois Piette V1.00.5e ';
-
+}
 const
 
      //SSL_POST_CONNECTION_CHECK_FAILED = 12101;
@@ -2151,7 +2166,7 @@ const
     sslCiphersNormal = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH';
     sslCiphersServer = 'TLSv1+HIGH:!SSLv2:RC4+MEDIUM:!aNULL:!eNULL:!3DES:!CAMELLIA@STRENGTH';
 
-  { from https://wiki.mozilla.org/Security/Server_Side_TLS - Version 3.3 - 20th October 2013
+{ from https://wiki.mozilla.org/Security/Server_Side_TLS - Version 3.3 - 20th October 2013
     Configuration   Oldest compatible client
         sslCiphersMozillaSrvHigh - Firefox 27, Chrome 22, IE 11, Opera 14, Safari 7, Android 4.4, Java 8
         sslCiphersMozillaSrvInter -  Firefox 1, Chrome 1, IE 7, Opera 5, Safari 1, Windows XP IE8, Android 2.3, Java 7
@@ -2201,9 +2216,7 @@ var
      LockNewSessCB      : TIcsCriticalSection;
      LockGetSessCB      : TIcsCriticalSection;
      LockClientCertCB   : TIcsCriticalSection;
-   {$IFNDEF OPENSSL_NO_TLSEXT}
      LockServerNameCB   : TIcsCriticalSection;
-   {$ENDIF}
 {$ENDIF}
      procedure UnloadSsl;
      procedure LoadSsl;
@@ -2438,7 +2451,16 @@ type
                          sslTLS_V1_SERVER,
                          sslV23,
                          sslV23_CLIENT,
-                         sslV23_SERVER);
+                         sslV23_SERVER,
+                         sslTLS_V1_1,           { V8.15 added 1.1 and 1.2  }
+                         sslTLS_V1_1_CLIENT,
+                         sslTLS_V1_1_SERVER,
+                         sslTLS_V1_2,
+                         sslTLS_V1_2_CLIENT,
+                         sslTLS_V1_2_SERVER,
+                         sslBestVer,           { V8.15 same as sslV23 but easier to understand, now default }
+                         sslBestVer_CLIENT,
+                         sslBestVer_SERVER);
 
     TSslVerifyPeerMode = (SslVerifyMode_NONE,
                           SslVerifyMode_PEER,
@@ -2460,9 +2482,9 @@ type
                    sslOpt_MICROSOFT_SESS_ID_BUG,
                    sslOpt_NETSCAPE_CHALLENGE_BUG,
                    sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG,
-                   sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG,
+                   sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG,  { V8.15 unused }
                    sslOpt_MICROSOFT_BIG_SSLV3_BUFFER,
-                   sslOpt_MSIE_SSLV2_RSA_PADDING,
+                   sslOpt_MSIE_SSLV2_RSA_PADDING,       { V8.15 unused }
                    sslOpt_SSLEAY_080_CLIENT_DH_BUG,
                    sslOpt_TLS_D5_BUG,
                    sslOpt_TLS_BLOCK_PADDING_BUG,
@@ -2473,18 +2495,24 @@ type
                    sslOpt_NO_SSLv2,
                    sslOpt_NO_SSLv3,
                    sslOpt_NO_TLSv1,
-                   sslOpt_PKCS1_CHECK_1,
-                   sslOpt_PKCS1_CHECK_2,
+                   sslOpt_PKCS1_CHECK_1,          { V8.15 unused }
+                   sslOpt_PKCS1_CHECK_2,          { V8.15 unused }
                    sslOpt_NETSCAPE_CA_DN_BUG,
-                   //sslOP_NO_TICKET,
+                   //sslOP_NO_TICKET,             { no session tickets, this is forced later }
                    sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, // 12/09/05
                    sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG,
-                   sslOpt_ALLOW_UNSAFE_LEGACY_RENEGOTIATION);  // Since OSSL 0.9.8n
-    TSslOptions = set of TSslOption;
+                   sslOpt_ALLOW_UNSAFE_LEGACY_RENEGOTIATION, // Since OSSL 0.9.8n
+                   sslOpt_NO_COMPRESSION,         { V8.15 }
+                   sslOpt_TLSEXT_PADDING,         { V8.15 }
+                   sslOpt_SAFARI_ECDHE_ECDSA_BUG, { V8.15 }
+                   sslOpt_CISCO_ANYCONNECT,       { V8.15 }
+                   sslOpt_NO_TLSv1_1,             { V8.15 }
+                   sslOpt_NO_TLSv1_2);            { V8.15 }
+   TSslOptions = set of TSslOption;
+
 
     TSslSessCacheMode = (//sslSESS_CACHE_OFF,
-                         sslSESS_CACHE_CLIENT,
-                         sslSESS_CACHE_SERVER,
+                         sslSESS_CACHE_CLIENT,                                                            sslSESS_CACHE_SERVER,
                          //sslSESS_CACHE_BOTH,
                          sslSESS_CACHE_NO_AUTO_CLEAR,
                          sslSESS_CACHE_NO_INTERNAL_LOOKUP,
@@ -2493,6 +2521,13 @@ type
     TSslSessCacheModes = set of TSslSessCacheMode;
 
     TSslSessionIdContext = String;//[SSL_MAX_SSL_SESSION_ID_LENGTH];
+
+  // V8.15 ECDH (Ellliptic Curve Diiffie-Hellman) method selection, auto is OpenSSL 1.0.2 and later
+    TSslECDHMethod = (sslECDHNone,
+                      sslECDHAuto,
+                      sslECDH_P256,
+                      sslECDH_P384,
+                      sslECDH_P521);
 
     {
     TSslX509Trust = (ssl_X509_TRUST_NOT_DEFINED, // Custom value
@@ -2548,6 +2583,7 @@ type
         FSslCAPath                  : String;
         FSslCRLFile                 : String;
         FSslCRLPath                 : String;
+        FSslDHParamFile             : String;  { V8.15 }
         //FSslIntermCAFile            : String;
         //FSslIntermCAPath            : String;
         FSslVerifyPeer              : Boolean;
@@ -2555,6 +2591,7 @@ type
         FSslVerifyFlags             : Integer;
         FSslOptionsValue            : Longint;
         FSslCipherList              : String;
+        FSslECDHMethod              : TSslECDHMethod; { V8.15 }
         FSslSessCacheModeValue      : Longint;
         FSslSessionCacheSize        : Longint;
         FSslSessionTimeout          : Longword;
@@ -2580,6 +2617,7 @@ type
         procedure SetSslPrivKeyFile(const Value : String);
         procedure SetSslCAFile(const Value : String);
         procedure SetSslCAPath(const Value : String);
+        procedure SetSslDHParamFile(const Value : String);    { V8.15 }
         procedure SetSslCRLFile(const Value : String);
         procedure SetSslCRLPath(const Value : String);
         procedure SetSslSessionCacheSize(Value : Longint);
@@ -2600,6 +2638,8 @@ type
         procedure LoadVerifyLocations(const CAFile, CAPath: String);
         procedure LoadCertFromChainFile(const FileName : String);
         procedure LoadPKeyFromFile(const FileName : String);
+        procedure LoadDHParamsFromFile(const FileName: String);   { V8.15 }
+        procedure SetSslECDHMethod(Value : TSslECDHMethod);
         //procedure DebugLogInfo(const Msg: string);        { V5.21 }
         //procedure SetSslX509Trust(const Value: TSslX509Trust);
         function  GetIsCtxInitialized : Boolean;
@@ -2641,6 +2681,8 @@ type
                                                         write SetSslCRLFile;
         property  SslCRLPath        : String            read  FSslCRLPath
                                                         write SetSslCRLPath;
+        property  SslDHParamFile    : String            read  FSslDHParamFile
+                                                        write SetSslDHParamFile; { V8.15 }
         {property  SslIntermCAFile   : String            read  FSslIntermCAFile
                                                         write FSslIntermCAFile;
         property  SslIntermCAPath    : String           read  FSslIntermCAPath
@@ -2664,6 +2706,9 @@ type
         property  SslVersionMethod  : TSslVersionMethod
                                                     read  FSslVersionMethod
                                                     write SetSslVersionMethod;
+        property  SslECDHMethod  : TSslECDHMethod  { V8.15 }
+                                                    read  FSslECDHMethod
+                                                    write SetSslECDHMethod;
         property  SslSessionTimeout : Longword      read  FSslSessionTimeout
                                                     write SetSslSessionTimeout;
         property  SslSessionCacheSize : Integer
@@ -2750,7 +2795,6 @@ type
   TSslShutDownComplete      = procedure(Sender          : TObject;
                                         Bidirectional   : Boolean;
                                         ErrCode         : Integer) of object;
-{$IFNDEF OPENSSL_NO_TLSEXT}
   TTlsExtError = (teeOk, teeAlertWarning, teeAlertFatal, teeNoAck);
 {
   SSL_TLSEXT_ERR_OK                           = 0;
@@ -2761,7 +2805,6 @@ type
   TSslServerNameEvent       = procedure(Sender               : TObject;
                                         var Ctx              : TSslContext;
                                         var ErrCode          : TTlsExtError) of object;
-{$ENDIF}
 
   TCustomSslWSocket = class(TCustomSocksWSocket)
   private
@@ -2773,9 +2816,7 @@ type
         FOnSslCliGetSession         : TSslCliGetSession;
         FOnSslCliNewSession         : TSslCliNewSession;
         FOnSslSetSessionIDContext   : TSslSetSessionIDContext;
-    {$IFNDEF OPENSSL_NO_TLSEXT}
         FOnSslServerName            : TSslServerNameEvent;
-    {$ENDIF}
         FOnSslCliCertRequest        : TSslCliCertRequest;
         FX509Class                  : TX509Class;
         FSslCertChain               : TX509List;
@@ -2835,9 +2876,7 @@ type
         FOnSslVerifyPeer            : TSslVerifyPeerEvent;
         FOnSslHandshakeDone         : TSslHandshakeDoneEvent;
         FHandShakeCount             : Integer;
-    {$IFNDEF OPENSSL_NO_TLSEXT}
         FSslServerName              : String;
-    {$ENDIF}
         //procedure   SetSslEnable(const Value: Boolean); virtual;
         procedure   RaiseLastOpenSslError(EClass          : ExceptClass;
                                           Dump            : Boolean = FALSE;
@@ -2913,10 +2952,8 @@ type
         property    LastSslError       : Integer          read FLastSslError;
         property    ExplizitSsl        : Boolean          read  FExplizitSsl
                                                           write FExplizitSsl;
-    {$IFNDEF OPENSSL_NO_TLSEXT}
         property    SslServerName      : String           read  FSslServerName
                                                           write FSslServerName;
-    {$ENDIF}
         property  OnSslShutDownComplete : TSslShutDownComplete
                                                read   FOnSslShutDownComplete
                                                write  FOnSslShutDownComplete;
@@ -2951,11 +2988,9 @@ type
         property  OnSslSetSessionIDContext : TSslSetSessionIDContext
                                                           read  FOnSslSetSessionIDContext
                                                           write FOnSslSetSessionIDContext;
-    {$IFNDEF OPENSSL_NO_TLSEXT}
         property  OnSslServerName    : TSslServerNameEvent
                                                           read  FOnSslServerName
                                                           write FOnSslServerName;
-    {$ENDIF}
         property  SslAcceptableHosts : TStrings           read  FSslAcceptableHosts
                                                           write SetSslAcceptableHosts;
         property  SslMode            : TSslMode           read  FSslMode
@@ -3275,10 +3310,8 @@ type
       property  X509Class;
       //property  SslEstablished;
       property  SslState;
-{$IFNDEF OPENSSL_NO_TLSEXT}
       property  SslServerName;
       property  OnSslServerName;
-{$ENDIF}
   published
 {$IFNDEF NO_DEBUG_LOG}
       property IcsLogger;                      { V5.21 }
@@ -12848,7 +12881,13 @@ const
             SSL_OP_NETSCAPE_CA_DN_BUG,
             SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION,
             SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG,
-            SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION); // Since OSSL 0.9.8n
+            SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION,  // Since OSSL 0.9.8n
+            SSL_OP_NO_COMPRESSION,         { V8.15 }
+            SSL_OP_TLSEXT_PADDING,         { V8.15 }
+            SSL_OP_SAFARI_ECDHE_ECDSA_BUG, { V8.15 }
+            SSL_OP_CISCO_ANYCONNECT,       { V8.15 }
+            SSL_OP_NO_TLSv1_1,             { V8.15 }
+            SSL_OP_NO_TLSv1_2);            { V8.15 }
 
   SslIntSessCacheModes: array[TSslSessCacheMode] of Integer =     { V7.30 }
             (SSL_SESS_CACHE_CLIENT,
@@ -12867,6 +12906,13 @@ const
             X509_V_FLAG_X509_STRICT,
             X509_V_FLAG_ALLOW_PROXY_CERTS);
 
+ SslECDHMethods: array [TSslECDHMethod] of integer =   { V8.15 }
+           (0,
+            0,
+            NID_X9_62_prime256v1,
+            NID_secp384r1,
+            NID_secp521r1);
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
@@ -12879,9 +12925,8 @@ begin
     FSslCtx := nil;
     SetSslVerifyPeerModes([SslVerifyMode_PEER]);
     SetSslCipherList(sslCiphersNormal);  // V8.10 same as 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
-    FSslVersionMethod    := sslV23;
-    SslVerifyDepth       := 9;
-    FSslSessionTimeOut   := 0; // OSSL-default
+    FSslVersionMethod    := sslBestVer;  // V8.15 same as sslV23 but easier to understand
+    SslVerifyDepth       := 9;       FSslSessionTimeOut   := 0; // OSSL-default
     FSslSessionCacheSize := SSL_SESSION_CACHE_MAX_SIZE_DEFAULT;
 end;
 
@@ -12967,9 +13012,15 @@ begin
     sslTLS_V1:        Meth := f_TLSv1_method;
     sslTLS_V1_CLIENT: Meth := f_TLSv1_client_method;
     sslTLS_V1_SERVER: Meth := f_TLSv1_server_method;
-    sslV23:           Meth := f_SSLv23_method;
-    sslV23_CLIENT:    Meth := f_SSLv23_client_method;
-    sslV23_SERVER:    Meth := f_SSLv23_server_method;
+    sslTLS_V1_1:          Meth := f_TLSv1_1_method;          { V8.15 added 1.1 and 1.2  }
+    sslTLS_V1_1_CLIENT:   Meth := f_TLSv1_1_client_method;
+    sslTLS_V1_1_SERVER:   Meth := f_TLSv1_1_server_method;
+    sslTLS_V1_2:          Meth := f_TLSv1_2_method;
+    sslTLS_V1_2_CLIENT:   Meth := f_TLSv1_2_client_method;
+    sslTLS_V1_2_SERVER:   Meth := f_TLSv1_2_server_method;
+    sslV23, sslBestVer:                Meth := f_SSLv23_method;
+    sslV23_CLIENT, sslBestVer_CLIENT:  Meth := f_SSLv23_client_method;
+    sslV23_SERVER, sslBestVer_SERVER:  Meth := f_SSLv23_server_method;
     else              raise ESslContextException.Create('Unknown SslVersionMethod');
     end;
     Result := f_SSL_CTX_new(Meth);
@@ -13660,6 +13711,42 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.LoadDHParamsFromFile(const FileName: String);   { V8.15 }
+var
+    FileBio : PBIO;
+    MyPDH: PDH;
+begin
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (FileName <> '') and (not FileExists(FileName)) then
+        raise ESslContextException.Create('File not found "' + FileName + '"');
+    if (FileName <> '') then begin
+        FileBio := OpenFileBio(FileName, bomRead);
+        MyPDH := nil;
+        try
+            MyPDH := f_PEM_read_bio_DHParams(FileBio, nil, nil, nil);
+            if not Assigned(MyPDH) then
+                RaiseLastOpenSslError(EX509Exception, TRUE,
+                     'Error reading DHparam file "' +  Filename + '"');
+            if (f_SSL_CTX_set_tmp_dh(FSslCtx, MyPDH) = 0) then begin
+{$IFNDEF NO_DEBUG_LOG}
+               if CheckLogOptions(loSslInfo) then
+                    DebugLog(loSslInfo, String(LastOpenSslErrMsg(TRUE)));
+{$ELSE}
+               f_ERR_clear_error;
+{$ENDIF}
+               RaiseLastOpenSslError(ESslContextException, TRUE,
+                     'Can''t load DHParam ' + 'file "' + FileName + '"');
+            end;
+        finally
+            f_bio_free(FileBio);
+            if Assigned (MyPDH) then f_DH_free(MyPDH);
+        end;
+    end;
+
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF OPENSSL_NO_ENGINE}
 procedure TSslContext.Notification(
     AComponent : TComponent;
@@ -13769,6 +13856,7 @@ procedure TSslContext.InitContext;
 var
     SslSessCacheModes : TSslSessCacheModes;
     LOpts: LongWord;
+    MyECkey: PEC_KEY;
 begin
     InitializeSsl; //loads libs
 {$IFNDEF NO_SSL_MT}
@@ -13824,6 +13912,27 @@ begin
             LoadCRLFromPath(FSslCRLPath);
             //f_SSL_CTX_ctrl(FSslCtx, SSL_CTRL_MODE, SSL_MODE_ENABLE_PARTIAL_WRITE, nil); // Test
 
+            // V8.15 Diffie-Hellman key agreement protocol.- DHparam file needed to generate DH keys
+            LoadDHParamsFromFile(FSslDHParamFile);
+
+            // V8.15 Elliptic Curve to generate Ephemeral ECDH keys
+            if FSslECDHMethod = sslECDHAuto then begin
+                if f_SSL_CTX_set_ecdh_auto(FSslCtx, 1) = 0 then
+                    RaiseLastOpenSslError(ESslContextException, TRUE,
+                                          'Error setting auto elliptic curve');
+            end
+            else if FSslECDHMethod > sslECDHNone then begin
+                MyECkey := f_EC_KEY_new_by_curve_name (SslECDHMethods[FSslECDHMethod]);
+                if NOT Assigned (MyECkey) then
+                    RaiseLastOpenSslError(ESslContextException, TRUE,
+                                          'Error getting elliptic curve key');
+                if f_SSL_CTX_set_tmp_ecdh (FSslCtx, MyECkey) = 0 then
+                    RaiseLastOpenSslError(ESslContextException, TRUE,
+                                          'Error setting elliptic curve key');
+                f_EC_KEY_free(MyECkey);
+            end;
+
+            // verify flags
             f_X509_STORE_set_flags(f_SSL_CTX_get_cert_store(FSslCtx),
                                    FSslVerifyFlags);
 
@@ -13835,10 +13944,10 @@ begin
                 if f_SSL_CTX_set_trust(FSslCtx, Integer(FSslX509Trust)) = 0 then
                     raise Exception.Create('Error setting trust'); }
 
-            { No tickets yet                                       }
+            { No s yet - angus don't want it since it stops forward secrecy ciphers }
             LOpts := FSslOptionsValue or SSL_OP_NO_TICKET;
 
-            if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1000 then begin
+        //    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1000 then begin
                 { This is a workaround a possible bug in OSSL 1.0.0(d)
                   check if future versions fix it.
                   SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER causes
@@ -13847,7 +13956,7 @@ begin
                 if LOpts and SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER =
                   SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER then
                     LOpts := LOpts and not SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER;
-            end;
+        //    end;
             { Adds the options set via bitmask to Ctx.    }
             { Options already set before are not cleared? }
             f_SSL_CTX_set_options(FSslCtx, LOpts);
@@ -13996,6 +14105,21 @@ begin
 {$ENDIF}
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslDHParamFile(const Value : String);    { V8.15 }
+begin
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslDHParamFile := Value
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock
+    end;
+{$ENDIF}
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslCRLFile(const Value: String);
@@ -14105,6 +14229,24 @@ begin
     try
 {$ENDIF}
         FSslVersionMethod := Value
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock
+    end;
+{$ENDIF}
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslECDHMethod(Value : TSslECDHMethod);    { V8.15 }
+begin
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslECDHMethod := Value;
+        if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1002) and
+                         (FSslECDHMethod = sslECDHAuto) then
+                              FSslECDHMethod := sslECDH_P256;
 {$IFNDEF NO_SSL_MT}
     finally
         Unlock
@@ -16732,7 +16874,7 @@ begin
      { due to renegotiation vulnerability of the SSL protocol.          }
      ICS_SSL_NO_RENEGOTIATION or // v0.9.8L and v0.9.8m
      (
-        (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_0908N) and
+      {  (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_0908N) and }
         (
           { In v0.9.8n renegotiation support was re-enabled and RFC5746 }
           { implemented but require the extension as needed.            }
@@ -16876,7 +17018,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFNDEF OPENSSL_NO_TLSEXT}
 function ServerNameCallback(SSL: PSSL; var ad: Integer; arg: Pointer): Longint; cdecl;
 var
     Ws : TCustomSslWSocket;
@@ -16885,7 +17026,7 @@ var
     Err : TTlsExtError;
 begin
 {$IFNDEF NO_SSL_MT}
-    _EnterCriticalSection(LockServerNameCB);
+    LockServerNameCB.Enter;  { V8.15 }
     try
 {$ENDIF}
     PServerName := f_SSL_get_servername(SSL, TLSEXT_NAMETYPE_host_name);
@@ -16938,7 +17079,7 @@ begin
         Result := SSL_TLSEXT_ERR_OK;
 {$IFNDEF NO_SSL_MT}
     finally
-        _LeaveCriticalSection(LockServerNameCB);
+        LockServerNameCB.Leave;  { V8.15 }
     end;
 {$ENDIF}
 end;
@@ -16986,7 +17127,6 @@ begin
 end;
 {$ENDIF}
 
-{$ENDIF OPENSSL_NO_TLSEXT}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -17374,14 +17514,12 @@ begin
                 else
                     f_SSL_set_session(FSsl, nil);
 
-            {$IFNDEF OPENSSL_NO_TLSEXT}
                 { FSslServerName is the servername to be sent in client helo. }
                 { If not empty, enables SNI in SSL client mode.               }
                 if (FSslServerName <> '') and
                     (f_SSL_set_tlsext_host_name(FSsl, FSslServerName) = 0) then
                         RaiseLastOpenSslError(EOpenSslError, TRUE,
                              'Unable to set TLS servername extension');
-            {$ENDIF}
 
                 f_SSL_set_connect_state(FSsl);
             end
@@ -17418,7 +17556,6 @@ begin
                     end;
                 end;
 
-            {$IFNDEF OPENSSL_NO_TLSEXT}
                 { FSslServerName receives the servername from client helo if }
                 { FOnSslServerName was assigned in SSL server mode.          }
                 FSslServerName := '';
@@ -17431,7 +17568,6 @@ begin
                     if CheckLogOptions(loSslInfo) then
                         f_SSL_set_tlsext_debug_callback(FSsl, @TlsExtension_CB);
                 {$ENDIF}
-            {$ENDIF}
 
                 f_SSL_set_accept_state(FSsl);
             end;
@@ -20927,9 +21063,7 @@ initialization
         LockNewSessCB     := TIcsCriticalSection.Create;
         LockGetSessCB     := TIcsCriticalSection.Create;
         LockClientCertCB  := TIcsCriticalSection.Create;
-      {$IFNDEF OPENSSL_NO_TLSEXT}
         LockServerNameCB  := TIcsCriticalSection.Create;
-      {$ENDIF}
     {$ENDIF}
 {$ENDIF}
 {$IFDEF POSIX}
@@ -20956,9 +21090,7 @@ finalization
         FreeAndNil(LockNewSessCB);
         FreeAndNil(LockGetSessCB);
         FreeAndNil(LockClientCertCB);
-      {$IFNDEF OPENSSL_NO_TLSEXT}
         FreeAndNil(LockServerNameCB);
-      {$ENDIF}
     {$ENDIF}
     FreeAndNil(SslCritSect);
 {$ENDIF}

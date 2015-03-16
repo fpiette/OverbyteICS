@@ -2,7 +2,7 @@ object HttpsTstForm: THttpsTstForm
   Left = 244
   Top = 170
   Caption = 'HTTPS TEST'
-  ClientHeight = 394
+  ClientHeight = 506
   ClientWidth = 649
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object HttpsTstForm: THttpsTstForm
   TextHeight = 13
   object Splitter1: TSplitter
     Left = 0
-    Top = 302
+    Top = 362
     Width = 649
     Height = 3
     Cursor = crVSplit
@@ -28,9 +28,9 @@ object HttpsTstForm: THttpsTstForm
   end
   object DisplayMemo: TMemo
     Left = 0
-    Top = 199
+    Top = 226
     Width = 649
-    Height = 103
+    Height = 136
     Align = alClient
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
@@ -45,9 +45,9 @@ object HttpsTstForm: THttpsTstForm
   end
   object DocumentMemo: TMemo
     Left = 0
-    Top = 305
+    Top = 365
     Width = 649
-    Height = 89
+    Height = 141
     Align = alBottom
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -64,7 +64,7 @@ object HttpsTstForm: THttpsTstForm
     Left = 0
     Top = 0
     Width = 649
-    Height = 199
+    Height = 226
     Align = alTop
     TabOrder = 2
     object Label1: TLabel
@@ -103,7 +103,7 @@ object HttpsTstForm: THttpsTstForm
       Caption = 'CertFile'
     end
     object Label7: TLabel
-      Left = 238
+      Left = 236
       Top = 56
       Width = 33
       Height = 13
@@ -193,23 +193,33 @@ object HttpsTstForm: THttpsTstForm
       Height = 13
       Caption = 'Modified Since Date/Time'
     end
-    object UrlEdit: TEdit
-      Left = 68
-      Top = 4
-      Width = 373
-      Height = 21
-      Hint = 'Enter the hostname or IP address of the host to connect to'
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 0
-      Text = 'UrlEdit'
+    object Label19: TLabel
+      Left = 236
+      Top = 103
+      Width = 35
+      Height = 13
+      Caption = 'DH File'
+    end
+    object Label20: TLabel
+      Left = 6
+      Top = 176
+      Width = 58
+      Height = 13
+      Caption = 'SSL Version'
+    end
+    object Label21: TLabel
+      Left = 181
+      Top = 176
+      Width = 53
+      Height = 13
+      Caption = 'SSL Cipher'
     end
     object SocksServerEdit: TEdit
       Left = 516
       Top = 4
       Width = 121
       Height = 21
-      TabOrder = 1
+      TabOrder = 14
       Text = 'SocksServerEdit'
     end
     object SocksPortEdit: TEdit
@@ -217,7 +227,7 @@ object HttpsTstForm: THttpsTstForm
       Top = 28
       Width = 121
       Height = 21
-      TabOrder = 2
+      TabOrder = 15
       Text = 'SocksPortEdit'
     end
     object DocEdit: TEdit
@@ -228,7 +238,7 @@ object HttpsTstForm: THttpsTstForm
       Hint = 'Enter the document name to send to connected host.'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 3
+      TabOrder = 1
       Text = 'DocEdit'
     end
     object CertFileEdit: TEdit
@@ -239,7 +249,7 @@ object HttpsTstForm: THttpsTstForm
       Hint = 'Enter the certificate file name. PEM file format.'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 4
+      TabOrder = 2
       Text = 'CertFileEdit'
     end
     object CAFileEdit: TEdit
@@ -250,17 +260,17 @@ object HttpsTstForm: THttpsTstForm
       Hint = 'Enter the CA certificate file name.  PEM file format.'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 5
+      TabOrder = 8
       Text = 'CAFileEdit'
     end
     object VerifyPeerCheckBox: TCheckBox
-      Left = 238
-      Top = 104
+      Left = 258
+      Top = 149
       Width = 71
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Verify Peer'
-      TabOrder = 6
+      TabOrder = 11
     end
     object CAPathEdit: TEdit
       Left = 276
@@ -270,7 +280,7 @@ object HttpsTstForm: THttpsTstForm
       Hint = 'Enter CA certicate directory (can be empty).'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 7
+      TabOrder = 9
       Text = 'CAPathEdit'
     end
     object PrivKeyFileEdit: TEdit
@@ -284,7 +294,7 @@ object HttpsTstForm: THttpsTstForm
         'mat.'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 8
+      TabOrder = 3
       Text = 'PrivKeyFileEdit'
     end
     object PassPhraseEdit: TEdit
@@ -295,7 +305,7 @@ object HttpsTstForm: THttpsTstForm
       Hint = 'Enter pass phrase protecting private key file.'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 9
+      TabOrder = 4
       Text = 'PassPhraseEdit'
     end
     object AcceptableHostsEdit: TEdit
@@ -303,7 +313,7 @@ object HttpsTstForm: THttpsTstForm
       Top = 124
       Width = 373
       Height = 21
-      TabOrder = 10
+      TabOrder = 5
       Text = 'AcceptableHostsEdit'
     end
     object SocksLevelComboBox: TComboBox
@@ -313,7 +323,7 @@ object HttpsTstForm: THttpsTstForm
       Height = 21
       Style = csDropDownList
       ItemHeight = 13
-      TabOrder = 11
+      TabOrder = 16
       Items.Strings = (
         '5'
         '4A'
@@ -321,7 +331,7 @@ object HttpsTstForm: THttpsTstForm
     end
     object GetButton: TButton
       Left = 20
-      Top = 172
+      Top = 197
       Width = 69
       Height = 21
       Hint = 'Connect to the host using the port.'
@@ -329,31 +339,31 @@ object HttpsTstForm: THttpsTstForm
       Default = True
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 12
+      TabOrder = 23
       OnClick = GetButtonClick
     end
     object ClearButton: TButton
       Left = 164
-      Top = 172
+      Top = 197
       Width = 69
       Height = 21
       Hint = 'Clear display.'
       Caption = 'C&lear'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 13
+      TabOrder = 25
       OnClick = ClearButtonClick
     end
     object CloseButton: TButton
       Left = 308
-      Top = 172
+      Top = 197
       Width = 69
       Height = 21
       Hint = 'Close the connected or listening socket.'
       Caption = 'Cl&ose'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 14
+      TabOrder = 27
       OnClick = CloseButtonClick
     end
     object ProxyHostEdit: TEdit
@@ -361,7 +371,7 @@ object HttpsTstForm: THttpsTstForm
       Top = 100
       Width = 121
       Height = 21
-      TabOrder = 15
+      TabOrder = 18
       Text = 'ProxyHostEdit'
     end
     object ProxyPortEdit: TEdit
@@ -369,7 +379,7 @@ object HttpsTstForm: THttpsTstForm
       Top = 124
       Width = 121
       Height = 21
-      TabOrder = 16
+      TabOrder = 19
       Text = 'ProxyPortEdit'
     end
     object HttpVersionComboBox: TComboBox
@@ -385,21 +395,21 @@ object HttpsTstForm: THttpsTstForm
         'HTTP/1.1')
     end
     object SessCacheCheckBox: TCheckBox
-      Left = 320
-      Top = 104
+      Left = 340
+      Top = 149
       Width = 121
       Height = 17
       Alignment = taLeftJustify
       Caption = 'SSL Session Caching'
-      TabOrder = 18
+      TabOrder = 12
     end
     object ButtonOSSLVersion: TButton
       Left = 236
-      Top = 172
+      Top = 197
       Width = 69
       Height = 21
       Caption = 'OpenSSL?'
-      TabOrder = 19
+      TabOrder = 26
       OnClick = ButtonOSSLVersionClick
     end
     object DebugEventCheckBox: TCheckBox
@@ -408,7 +418,7 @@ object HttpsTstForm: THttpsTstForm
       Width = 85
       Height = 17
       Caption = 'loDestEvent'
-      TabOrder = 20
+      TabOrder = 22
     end
     object DebugOutputCheckBox: TCheckBox
       Left = 516
@@ -424,19 +434,19 @@ object HttpsTstForm: THttpsTstForm
       Width = 73
       Height = 17
       Caption = 'loDestFile'
-      TabOrder = 22
+      TabOrder = 20
     end
     object DateTimeEdit: TEdit
       Left = 136
       Top = 148
       Width = 116
       Height = 21
-      TabOrder = 23
+      TabOrder = 6
       Text = 'DateTimeEdit'
     end
     object HeadButton: TButton
       Left = 92
-      Top = 172
+      Top = 197
       Width = 69
       Height = 21
       Caption = '&Head'
@@ -445,13 +455,78 @@ object HttpsTstForm: THttpsTstForm
     end
     object AbortButton: TButton
       Left = 380
-      Top = 172
+      Top = 197
       Width = 69
       Height = 21
       Caption = '&Abort'
       Enabled = False
-      TabOrder = 25
+      TabOrder = 28
       OnClick = AbortButtonClick
+    end
+    object DhParamFileEdit: TEdit
+      Left = 276
+      Top = 100
+      Width = 165
+      Height = 21
+      Hint = 'Enter DH Parameter File (can be empty).'
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 10
+      Text = 'DhParamFileEdit'
+    end
+    object SslVersionList: TComboBox
+      Left = 68
+      Top = 172
+      Width = 108
+      Height = 21
+      Style = csDropDownList
+      ItemHeight = 13
+      TabOrder = 7
+      OnChange = ResetSsl
+      Items.Strings = (
+        'Best Version'
+        'SSLv2'
+        'SSLv3'
+        'TLSv1'
+        'TLSv1.1'
+        'TLSv1.2')
+    end
+    object SslCipherEdit: TEdit
+      Left = 241
+      Top = 172
+      Width = 260
+      Height = 21
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 13
+      Text = 'SslCipherEdit'
+      OnChange = ResetSsl
+    end
+    object UrlEdit: TComboBox
+      Left = 68
+      Top = 2
+      Width = 373
+      Height = 21
+      Hint = 'Enter the hostname or IP address of the host to connect to'
+      ItemHeight = 13
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 0
+      OnChange = ResetSsl
+      Items.Strings = (
+        'https://www.google.co.uk/'
+        'https://www.embarcadero.com/'
+        'https://telecom-tariffs.co.uk/serverinfo.htm'
+        'https://mail.magsys.co.uk/')
+    end
+    object ResetButton: TButton
+      Left = 455
+      Top = 197
+      Width = 69
+      Height = 21
+      Caption = '&Reset SSL'
+      TabOrder = 29
+      OnClick = ResetButtonClick
     end
   end
   object SslHttpCli1: TSslHttpCli
@@ -490,23 +565,24 @@ object HttpsTstForm: THttpsTstForm
     OnSslCliNewSession = SslHttpCli1SslCliNewSession
     OnSslHandshakeDone = SslHttpCli1SslHandshakeDone
     OnSslCliCertRequest = SslHttpCli1SslCliCertRequest
-    Left = 30
-    Top = 220
+    Left = 25
+    Top = 260
   end
   object SslContext1: TSslContext
     IcsLogger = IcsLogger1
     SslVerifyPeer = False
     SslVerifyDepth = 9
     SslVerifyFlags = []
-    SslOptions = [sslOpt_MICROSOFT_SESS_ID_BUG, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG, sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG, sslOpt_MICROSOFT_BIG_SSLV3_BUFFER, sslOpt_MSIE_SSLV2_RSA_PADDING, sslOpt_SSLEAY_080_CLIENT_DH_BUG, sslOpt_TLS_D5_BUG, sslOpt_TLS_BLOCK_PADDING_BUG, sslOpt_TLS_ROLLBACK_BUG, sslOpt_NO_SSLv2, sslOpt_NETSCAPE_CA_DN_BUG, sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG]
+    SslOptions = [sslOpt_MICROSOFT_SESS_ID_BUG, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG, sslOpt_MICROSOFT_BIG_SSLV3_BUFFER, sslOpt_SSLEAY_080_CLIENT_DH_BUG, sslOpt_TLS_D5_BUG, sslOpt_TLS_BLOCK_PADDING_BUG, sslOpt_TLS_ROLLBACK_BUG, sslOpt_NO_SSLv2, sslOpt_NO_SSLv3, sslOpt_NETSCAPE_CA_DN_BUG, sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = [sslSESS_CACHE_CLIENT, sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE]
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
-    SslVersionMethod = sslV23_CLIENT
+    SslVersionMethod = sslBestVer_CLIENT
+    SslECDHMethod = sslECDH_P256
     SslSessionTimeout = 300
     SslSessionCacheSize = 20480
-    Left = 62
-    Top = 220
+    Left = 57
+    Top = 260
   end
   object IcsLogger1: TIcsLogger
     TimeStampFormatString = 'hh:nn:ss:zzz'
@@ -515,15 +591,15 @@ object HttpsTstForm: THttpsTstForm
     LogFileName = 'Debug_Out_HttpsTst.txt'
     LogOptions = [loDestFile, loProtSpecErr, loProtSpecInfo, loProtSpecDump]
     OnIcsLogEvent = IcsLogger1IcsLogEvent
-    Left = 92
-    Top = 220
+    Left = 87
+    Top = 260
   end
   object SslAvlSessionCache1: TSslAvlSessionCache
     IcsLogger = IcsLogger1
     IdleTimeout = 30
     FlushInterval = 10000
     MaxCacheSize = 1000
-    Left = 140
-    Top = 220
+    Left = 125
+    Top = 260
   end
 end

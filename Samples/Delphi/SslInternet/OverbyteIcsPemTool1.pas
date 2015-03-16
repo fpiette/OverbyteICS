@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      1.13
+Version:      8.00
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -67,6 +67,7 @@ Feb 13, 2014 V1.14 Angus using TX509Ex instead of TMyX509 to read PEM entries
              certifcates.
 June 23, 2014 V1.15 Angus show issuer Common Name and Organisation Unit in
                     certificate comments
+Mar 16, 2015 V8.00 Angus default key length now 2048
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPemtool1;
@@ -97,10 +98,10 @@ uses
   OverbyteIcsLibeayEx, OverbyteIcsSslX509Utils, OverByteIcsMimeUtils, Buttons;
 
 const
-     PemToolVersion     = 115;
-     PemToolDate        = 'June 23, 2014';
+     PemToolVersion     = 800;
+     PemToolDate        = 'March 16, 2015';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2014 by François PIETTE V1.15 ';
+     CopyRight : String = '(c) 2003-2015 by François PIETTE V8.00 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 

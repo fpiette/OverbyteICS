@@ -3,11 +3,11 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Aug 26, 2007
 Description:
-Version:      1.08
+Version:      8.00
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2007-2014 by François PIETTE
+Legal issues: Copyright (C) 2007-2015 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -56,6 +56,7 @@ Feb 14, 2014 V1.07 Angus added class TX509Ex derived from TX509Base adding
              certifcates.
 Apr 18, 2014 V1.07a Arno removed some compiler warnings.
 Jul 07, 2014 V1.08 Angus improved certificate comment
+Mar 16, 2015 V8,00 Angus uses Sha256 instead of Sha1 for all signing 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslX509Utils;
@@ -630,7 +631,7 @@ begin
         *)
 
         { Sign it }
-        if f_X509_sign(X, PK, f_EVP_sha1) <= 0 then
+        if f_X509_sign(X, PK, f_EVP_sha256) <= 0 then       { V8.00 was sha1 }
             raise Exception.Create('Failed to sign certificate');
 
         { Angus - see if writing certificate and private key to separate files }
@@ -1092,7 +1093,7 @@ begin
 
         f_sk_pop_free(Exts, @f_X509_EXTENSION_free);
 
-        if f_X509_REQ_sign(Req, PK, f_EVP_sha1) <= 0 then
+        if f_X509_REQ_sign(Req, PK, f_EVP_sha256) <= 0 then            { V8.00 was shar1 }
             raise Exception.Create('Failed to sign request');
 
         FileBio := f_BIO_new_file(PAnsiChar(KeyFileName), PAnsiChar('w+'));

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Creation:     April 11, 2009
 Description:  SllWebAppServer is a demo application showing the HTTP application
               server component with SSL protocol (TSslHttpAppSrv).
-Version:      8.00
+Version:      8.01
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -49,6 +49,8 @@ Jun 09, 2013 V1.05 FPiette added code for DWScript support. Contionnaly
                    compiled using "use_DWScript" symbol.
 Sep 23, 2013 V1.06 Angus save SSL certificate settings
 Dec 10, 2014 V8.00 Angus added handshake response message, better ciphers
+Mar 16 2015  V8.01 Angus added DHParam File needed to supporting DH key exchange
+                   Set ECDH method to support ECDH key exchange
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebAppServerMain;
@@ -121,6 +123,8 @@ type
     Label9: TLabel;
     AcceptableHostsEdit: TEdit;
     VerifyPeerCheckBox: TCheckBox;
+    Label19: TLabel;
+    DhParamFileEdit: TEdit;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -179,6 +183,7 @@ const
     KeyCAPath          = 'CAPath';
     KeyAcceptableHosts = 'AcceptableHosts';
     KeyRenegInterval   = 'RenegotiationInterval';
+    KeyDHFile          = 'DHFile';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { simple log file, writes Msg to text file in progam directory with FNameMask
@@ -266,6 +271,8 @@ begin
                                                        'cacert.pem');
             CAPathEdit.Text      := IniFile.ReadString(SectionData, KeyCAPath,
                                                        '');
+            DHParamFileEdit.Text := IniFile.ReadString(SectionData, KeyDHFile,    { V8.02 }
+                                                       'dhparam512.pem');
             AcceptableHostsEdit.Text := IniFile.ReadString(SectionData, KeyAcceptableHosts,
                                                            'www.overbyte.be;www.borland.com');
             VerifyPeerCheckBox.Checked := Boolean(IniFile.ReadInteger(SectionData,
@@ -450,6 +457,7 @@ begin
         IniFile.WriteString(SectionData,    KeyPassPhrase,  PassPhraseEdit.Text);
         IniFile.WriteString(SectionData,    KeyCAFile,      CAFileEdit.Text);
         IniFile.WriteString(SectionData,    KeyCAPath,      CAPathEdit.Text);
+        IniFile.WriteString(SectionData,    KeyDHFile,      DhParamFileEdit.Text);        { V8.01 }
         IniFile.WriteString(SectionData,    KeyAcceptableHosts, AcceptableHostsEdit.Text);
         IniFile.WriteInteger(SectionData,   KeyVerifyPeer,  Ord(VerifyPeerCheckBox.Checked));
         IniFile.UpdateFile;
@@ -669,11 +677,14 @@ begin
     SslContext1.SslPrivKeyFile      := PrivKeyFileEdit.Text;
     SslContext1.SslCAFile           := CAFileEdit.Text;
     SslContext1.SslCAPath           := CAPathEdit.Text;
+    SslContext1.SslDHParamFile      := DhParamFileEdit.Text;    { V8.01 }
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
     SslContext1.SslCipherList       := sslCiphersMozillaSrvInter;   { V8.00 and better }
-    SslContext1.SslVersionMethod    := sslV23_SERVER;
+    SslContext1.SslVersionMethod    := sslBestVer_SERVER;
+    SslContext1.SslECDHMethod       := sslECDH_P256;             { V8.01 }
     SslContext1.SslOptions          := SslContext1.SslOptions -  { V8.00 disable SSLv3 }
-                            [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3, sslOpt_CIPHER_SERVER_PREFERENCE];
+                            [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,   { V8.01 single DH needed for perfect forward secrecy }
+                            sslOpt_CIPHER_SERVER_PREFERENCE, sslOpt_SINGLE_DH_USE];
     HttpAppSrv1.Start;
 end;
 

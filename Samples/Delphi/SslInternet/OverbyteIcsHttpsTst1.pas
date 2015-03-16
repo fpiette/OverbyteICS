@@ -6,11 +6,11 @@ Description:  A simple HTTPS client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.00
+Version:      8.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2011 by François PIETTE
+Legal issues: Copyright (C) 2003-2015 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -51,7 +51,9 @@ Dec 20, 2005  V1.05 Angus Robertson added new LogOptions and GZIP decompression
                 and display more log lines
 Jul 18, 2008  V1.06 A. Garrels fixed an AV in SslHttpCli1SslCliCertRequest
 Dec 9, 2014   V8.00 Angus added SslHandshakeRespMsg for better error handling
-
+Mar 16 2015   V8.01 Angus added DH File (mainly for servers)
+              Added SSL Version and Cipher edits to make testing easier
+              Reset SSL when changing parameters to force new negotiation
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;
@@ -90,10 +92,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 800;
-     HttpsTstDate        = 'Dec 5, 2014';
+     HttpsTstVersion     = 801;
+     HttpsTstDate        = 'Mar 11, 2015';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2014 Francois Piette V8.00 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2015 Francois Piette V8.01 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -119,7 +121,6 @@ type
     Label14: TLabel;
     Label15: TLabel;
     Label16: TLabel;
-    UrlEdit: TEdit;
     SocksServerEdit: TEdit;
     SocksPortEdit: TEdit;
     DocEdit: TEdit;
@@ -150,6 +151,14 @@ type
     HeadButton: TButton;
     AbortButton: TButton;
     SslAvlSessionCache1: TSslAvlSessionCache;
+    Label19: TLabel;
+    DhParamFileEdit: TEdit;
+    SslVersionList: TComboBox;
+    Label20: TLabel;
+    Label21: TLabel;
+    SslCipherEdit: TEdit;
+    UrlEdit: TComboBox;
+    ResetButton: TButton;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -183,6 +192,8 @@ type
     procedure AbortButtonClick(Sender: TObject);
     procedure SslHttpCli1DocData(Sender: TObject; Buffer: Pointer;
       Len: Integer);
+    procedure ResetSsl(Sender: TObject);
+    procedure ResetButtonClick(Sender: TObject);
 
   private
     FIniFileName               : String;
@@ -240,6 +251,9 @@ const
     KeyDebugEvent      = 'DebugEvent';
     KeyDebugOutput     = 'DebugOutput';
     KeyDebugFile       = 'DebugFile';
+    KeyDHFile          = 'DHFile';
+    KeySslVerion       = 'SslVerion';
+    KeySslCipher       = 'SslCipher';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF DEBUG_OUTPUT}
@@ -332,6 +346,13 @@ begin
                                                       'TrustedCABundle.pem');
             CAPathEdit.Text      := IniFile.ReadString(SectionData, KeyCAPath,
                                                       'TrustedCAStore');
+            DHParamFileEdit.Text := IniFile.ReadString(SectionData, KeyDHFile,    { V8.01 }
+                                                      'dhparam2048.pem');
+            SslVersionList.ItemIndex := IniFile.ReadInteger(SectionData,          { V8.01 }
+                                                            KeySslVerion,
+                                                            0);
+            SslCipherEdit.Text   := IniFile.ReadString(SectionData, KeySslCipher, { V8.01 }
+                                                       sslCiphersNormal);
 
             SocksLevelComboBox.ItemIndex := IniFile.ReadInteger(SectionData,
                                                                 KeySocksLevel,
@@ -357,7 +378,7 @@ begin
             DebugFileCheckBox.Checked     := IniFile.ReadBool(SectionData,
                                                               KeyDebugFile,
                                                               False);
-        finally                                                      
+        finally
             IniFile.Free;
         end;
         DisplayMemo.Clear;
@@ -388,6 +409,9 @@ begin
     IniFile.WriteString(SectionData,    KeyPassPhrase,  PassPhraseEdit.Text);
     IniFile.WriteString(SectionData,    KeyCAFile,      CAFileEdit.Text);
     IniFile.WriteString(SectionData,    KeyCAPath,      CAPathEdit.Text);
+    IniFile.WriteString(SectionData,    KeyDHFile,      DhParamFileEdit.Text);        { V8.01 }
+    IniFile.WriteInteger(SectionData,   KeySslVerion,   SslVersionList.ItemIndex);    { V8.01 }
+    IniFile.WriteString(SectionData,    KeySslCipher,   SslCipherEdit.Text);          { V8.01 }
     IniFile.WriteString(SectionData,    KeyAcceptableHosts, AcceptableHostsEdit.Text);
     IniFile.WriteInteger(SectionData,   KeySocksLevel,  SocksLevelComboBox.ItemIndex);
     IniFile.WriteInteger(SectionData,   KeyHttpVer,     HttpVersionComboBox.ItemIndex);
@@ -435,6 +459,8 @@ end;
 procedure THttpsTstForm.PrepareConnection;
 const
     SocksLevelValues : array [0..2] of String = ('5', '4A', '4');
+    SslVersions : array [0..5] of TSslVersionMethod =
+        (sslBestVer_CLIENT,sslV2_CLIENT,sslV3_CLIENT,sslTLS_V1_CLIENT,sslTLS_V1_1_CLIENT,sslTLS_V1_2_CLIENT);  { V8.01 }
 begin
     if SocksServerEdit.Text > '' then begin
         SslHttpCli1.SocksServer := SocksServerEdit.Text;
@@ -473,7 +499,36 @@ begin
     SslContext1.SslCAFile           := CAFileEdit.Text;
     SslContext1.SslCAPath           := CAPathEdit.Text;
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
-    SslContext1.SslVersionMethod    := sslV23_CLIENT;
+    SslContext1.SslVersionMethod    := SslVersions [SslVersionList.ItemIndex];   { V8.01 }
+    SslContext1.SslCipherList       := SslCipherEdit.Text;                       { V8.01 }
+    SslContext1.SslDHParamFile      := DhParamFileEdit.Text;                     { V8.01 }
+
+  {  V8.01 - set options to force a single SSL/TLS version, not normally a good idea,
+    but seems only reliable way of forcing use of a specific version } 
+    SslContext1.SslOptions := SslContext1.SslOptions + [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
+                                     sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];
+    if SslContext1.SslVersionMethod = sslV2_CLIENT then
+        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_SSLv2]
+    else if SslContext1.SslVersionMethod = sslV3_CLIENT then
+        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_SSLv3]
+    else if SslContext1.SslVersionMethod = sslTLS_V1_CLIENT then
+        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_TLSv1]
+    else if SslContext1.SslVersionMethod = sslTLS_V1_1_CLIENT then
+        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_TLSv1_1]
+    else if SslContext1.SslVersionMethod = sslTLS_V1_2_CLIENT then
+        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_TLSv1_2]
+    else
+        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
+                                     sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];
+
+    try
+        SslContext1.InitContext;  { V8.01 get any error now before making request }
+    except
+        on E:Exception do begin
+            Display('Failed to initialize SSL Context: ' + E.Message);
+            Exit;
+        end;
+    end;
 
     IcsLogger1.LogOptions := [];
     if DebugEventCheckBox.Checked then
@@ -496,8 +551,9 @@ procedure THttpsTstForm.GetButtonClick(Sender: TObject);
 begin
     try
         PrepareConnection;
+        if NOT SslContext1.IsCtxInitialized then Exit;  { V8.01 }
         Display('Connecting...');
-        GetButton.Enabled := FALSE;
+        SetButtonState(FALSE);
         DocumentMemo.Clear;
         SslHttpCli1.GetAsync;
     except
@@ -665,7 +721,7 @@ var
     DataIn  : TStream;
     I       : Integer;
 begin
-    GetButton.Enabled := TRUE;
+    SetButtonState(TRUE);
     if ErrCode <> 0 then begin
         Display('Request done, error #' + IntToStr(ErrCode));
         Exit;
@@ -798,6 +854,20 @@ begin
     end; *)
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpsTstForm.ResetButtonClick(Sender: TObject);    { V8.01 }
+begin
+    ResetSsl(Self);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpsTstForm.ResetSsl(Sender: TObject);   { V8.01 }
+begin
+    SslHttpCli1.CtrlSocket.ResetSSL;
+    SslContext1.DeInitContext;
+    Display('Reset SSL');
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpsTstForm.SslHttpCli1SslHandshakeDone(
@@ -997,6 +1067,7 @@ procedure THttpsTstForm.SetButtonState(State : Boolean);
 begin
     GetButton.Enabled   := State;
     HeadButton.Enabled  := State;
+    AbortButton.Enabled := NOT State;  { V8.01 }
 end;
 
 
@@ -1011,6 +1082,7 @@ begin
 
     try
         PrepareConnection;
+        if NOT SslContext1.IsCtxInitialized then Exit;  { V8.01 }
         SslHttpCli1.RcvdStream       := nil;
 
         try

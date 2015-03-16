@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.06
+Version:      8.07
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -99,7 +99,9 @@ Dec 09, 2014 V8.05 - Angus allow load of OSSL 1.0.1j (untested)
                      Added Ics_Ssl_ERR_GET_LIB, Ics_Ssl_ERR_GET_FUNC and Ics_Ssl_ERR_GET_REASON
                      Added error literals for library, function and reason
 Jan 19, 2015 V8.06 - Angus allow load of OSSL 1.0.1k (briefly tested)
-
+Mar 13, 2015 V8.07 - Angus allow load of OSSL 1.0.2 (briefly tested)
+                     Note, only OpenSSL 1.0.1 and later are now supported, removed some old conditionals and code
+                     Added functions and literals for DH and EC key support
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -140,15 +142,15 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 806;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2015 F. Piette V8.06 ';
+    IcsLIBEAYVersion   = 807;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2015 F. Piette V8.07 ';
 
 type
     EIcsLibeayException = class(Exception);
 
     TStatLockLockCallback = procedure(Mode : Integer; N : Integer; const _File : PAnsiChar; Line : Integer); cdecl;
     TStatLockIDCallback   = function : Longword; cdecl;
-    TCryptoThreadIDCallback = procedure (ID : PCRYPTO_THREADID) cdecl;
+    TCryptoThreadIDCallback = procedure (ID : PCRYPTO_THREADID); cdecl;
 
     TCRYPTO_dynlock_value_st = record
         Mutex : TIcsCriticalSection;
@@ -829,6 +831,17 @@ const
     NID_dsa                         = 116;
     NID_ext_key_usage               = 126;
     NID_X9_62_id_ecPublicKey        = 408;
+    NID_X9_62_prime192v1            = 409; // Angus elliptic curves
+    NID_X9_62_prime192v2            = 410; // Angus
+    NID_X9_62_prime192v3            = 411; // Angus
+    NID_X9_62_prime239v1            = 412; // Angus
+    NID_X9_62_prime239v2            = 413; // Angus
+    NID_X9_62_prime239v3            = 414; // Angus
+    NID_X9_62_prime256v1            = 415; // Angus  NIST Prime-Curve P-256
+    NID_secp224k1                   = 713; // Angus  NIST Prime-Curve P-224
+    NID_secp256k1                   = 714; // Angus  NID_X9_62_prime256v1 NIST Prime-Curve P-256
+    NID_secp384r1                   = 715; // Angus  NIST Prime-Curve P-384
+    NID_secp521r1                   = 716; // Angus  NIST Prime-Curve P-521
 
     { Asn1.h - For use with ASN1_mbstring_copy() } //AG
     MBSTRING_FLAG  = $1000;               //AG
@@ -1457,6 +1470,8 @@ const
     f_PEM_read_bio_X509_CRL :                  function(B: PBIO; CRL: PPX509_CRL; CallBack: TPem_password_cb; UData: PAnsiChar): PX509_CRL; cdecl = nil;//AG
     f_PEM_read_bio_X509 :                      function(B: PBIO; C509: PPX509; CallBack: TPem_password_cb; UData: PAnsiChar): PX509; cdecl = nil;
     f_PEM_read_bio_PKCS7 :                     function(B: PBIO; X: PPPKCS7; CallBack: TPem_password_cb; UData: PAnsiChar): PPKCS7; cdecl = nil;//AG;
+    f_PEM_read_bio_DHparams :                  function(B: PBIO; X: PDH; CallBack: TPem_password_cb; UData: PAnsiChar): PDH; cdecl = nil;  { V8.07 }
+
     f_PEM_write_bio_PKCS7 :                    function(B: PBIO; P7: PPKCS7): Integer; cdecl = nil;
     f_PEM_do_header :                          function(cipher: PEVP_CIPHER_INFO; data: PAnsiChar; var len: Integer; callback: TPem_password_cb; u: Pointer): Integer; cdecl = nil;//AG;
 
@@ -1520,6 +1535,11 @@ const
     f_PKCS12_verify_mac :                      function(p12: PPKCS12; const pass: PAnsiChar; passlen: Integer): Integer; cdecl = nil;//AG;
     f_PKCS12_free :                            procedure(P12: PPKCS12); cdecl = nil;//AG;
     f_PKCS12_create :                          function(pass: PAnsiChar; name: PAnsiChar; pkey: PEVP_PKEY; cert: PX509; ca: PSTACK_OF_X509; nid_key, nid_cert, iter, mac_iter, keytype: Integer):PPKCS12; cdecl = nil;//AG;
+
+    f_DH_free :                                procedure(dh: PDH) cdecl = nil;  { V8.07 }
+    f_EC_KEY_new_by_curve_name :               function (nid: integer): PEC_KEY; cdecl = nil;   { V8.07 }
+    f_EC_KEY_free :                            procedure (key: PEC_KEY); cdecl = nil;           { V8.07 }
+
 
 {$IFNDEF OPENSSL_NO_ENGINE}
     f_ENGINE_load_builtin_engines :            procedure; cdecl = nil; //AG;
@@ -1747,6 +1767,7 @@ const
     FN_PEM_read_bio_X509_CRL                  = 'PEM_read_bio_X509_CRL';//AG
     FN_PEM_read_bio_X509                      = 'PEM_read_bio_X509';
     FN_PEM_read_bio_PKCS7                     = 'PEM_read_bio_PKCS7';
+    FN_PEM_read_bio_DHparams                  = 'PEM_read_bio_DHparams'; { V8.07 }
     FN_PEM_write_bio_PKCS7                    = 'PEM_write_bio_PKCS7';
     FN_PEM_do_header                          = 'PEM_do_header';
     FN_PEM_X509_INFO_read_bio                 = 'PEM_X509_INFO_read_bio'; //AG
@@ -1811,6 +1832,10 @@ const
     FN_PKCS12_verify_mac                      = 'PKCS12_verify_mac';
     FN_PKCS12_free                            = 'PKCS12_free';
     FN_PKCS12_create                          = 'PKCS12_create';
+
+    FN_DH_free                                = 'DH_free'; { V8.07 }
+    FN_EC_KEY_new_by_curve_name               = 'EC_KEY_new_by_curve_name';   { V8.07 }
+    FN_EC_KEY_free                            = 'EC_KEY_free';   { V8.07 }
 
 {$IFNDEF OPENSSL_NO_ENGINE}
     FN_ENGINE_load_builtin_engines            = 'ENGINE_load_builtin_engines'; //AG
@@ -1890,29 +1915,8 @@ const
     ICS_OPENSSL_VERSION_NUMBER  : Longword  = 0;
     ICS_SSL_NO_RENEGOTIATION    : Boolean = FALSE;
 
-    { MMNNFFPPS: major minor fix patch status                                 }
-    { The status nibble has one of the values 0 for development, 1 to e for   }
-    { betas 1 to 14, and f for release.                                       }
-
-    { for example                                                             }
-    { 0x000906000 == 0.9.6 dev                                                }
-    { 0x000906023 == 0.9.6b beta 3                                            }
-    { 0x00090605f == 0.9.6e release                                           }
-
-    { Versions prior to 0.9.3 have identifiers < 0x0930. Versions between     }
-    { 0.9.3 and 0.9.5 had a version identifier with this interpretation:      }
-    { MMNNFFRBB major minor fix final beta/patch                              }
-
-    { for example                                                             }
-    { 0x000904100 == 0.9.4 release                                            }
-    { 0x000905000 == 0.9.5 dev                                                }
-
-    { Version 0.9.5a had an interim interpretation that is like the current   }
-    { one, except the patch level got the highest bit set, to keep continuity.}
-    { The number was therefore 0x0090581f.                                    }
-
     //OSSL_VER_0906G = $0090607f; no longer supported
-    OSSL_VER_0907G = $0090707f;
+ {   OSSL_VER_0907G = $0090707f;
     OSSL_VER_0907I = $0090709f;
     OSSL_VER_0908  = $00908000;
     OSSL_VER_0908A = $0090801f;
@@ -1926,27 +1930,24 @@ const
     OSSL_VER_0908R = $0090812f;
     OSSL_VER_1000  = $10000000; // Untested, did not build with MinGW
     OSSL_VER_1000D = $1000004f; // Might be still buggy, had to incl. one workaround so far, see TSslContext.InitContext
-    OSSL_VER_1000J = $100000af; // just briefly tested
+    OSSL_VER_1000J = $100000af; // just briefly tested}
+    
+{ V8.07 only supporting versions with TLS 1.1 and 1.2 }
+    OSSL_VER_1001  = $1000100F; // untested
     OSSL_VER_1001G = $1000107F; // just briefly tested  { V8.02 }
     OSSL_VER_1001H = $1000108F; // just briefly tested  { V8.03 }
     OSSL_VER_1001I = $1000109F; // just briefly tested  { V8.04 }
     OSSL_VER_1001J = $100010AF; // untested  { V8.05 }
     OSSL_VER_1001K = $100010BF; // just briefly tested   { V8.06 }
+    OSSL_VER_1001L = $100010CF; // untested              { V8.07 }
+    OSSL_VER_1002  = $1000200F; // just briefly tested   { V8.07 }
     { Basically versions listed above are tested if not otherwise commented.  }
     { Versions between are assumed to work, however they are untested.        }
     { OpenSSL libraries for ICS are available for download here:              }
     { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
 
-{$IFDEF BEFORE_OSSL_098E}
-    MIN_OSSL_VER   = OSSL_VER_0907G;
-{$ELSE}
-    {$IFNDEF OPENSSL_NO_TLSEXT}
-        MIN_OSSL_VER = OSSL_VER_0908F;
-    {$ELSE}
-        MIN_OSSL_VER = OSSL_VER_0908E;
-    {$ENDIF}
-{$ENDIF}
-    MAX_OSSL_VER   = OSSL_VER_1001K;  { V8.06 }
+    MIN_OSSL_VER   = OSSL_VER_1001;  { V8.07 }
+    MAX_OSSL_VER   = OSSL_VER_1002;  { V8.07 }
 
 {$ENDIF} // USE_SSL
 implementation
@@ -2006,16 +2007,16 @@ begin
         Exit;
     end;
     ICS_OPENSSL_VERSION_NUMBER := f_SSLeay;
-    ICS_SSL_NO_RENEGOTIATION   :=
+ {   ICS_SSL_NO_RENEGOTIATION   :=
             (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_0908L) and
-            (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_0908N);
+            (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_0908N);   }
 {$IFNDEF OPENSSL_NO_ENGINE}
-    if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_0908I then begin
+ {   if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_0908I then begin
         FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
         OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0;
         raise EIcsLibeayException.Create('Experimental engine code requires ' +
                                          'at least OpenSSL v0.9.8i');
-    end;
+    end;    }
 {$ENDIF}
     { Version Check }
 {$IFNDEF NO_OSSL_VERSION_CHECK}
@@ -2033,18 +2034,10 @@ begin
     end;
 {$ENDIF}
     { Let's set some values of constants having changed in v0.9.8 }
-    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_0908 then begin
-        SSL_CTRL_EXTRA_CHAIN_CERT    := 14;                     // Ssl.h
-        SSL_CTRL_GET_SESSION_REUSED  :=  8;                     // Ssl.h
+//       SSL_CTRL_EXTRA_CHAIN_CERT    := 14;                     // Ssl.h   V8.07 now set as literal
+//       SSL_CTRL_GET_SESSION_REUSED  :=  8;                     // Ssl.h   V8.07 now set as literal
         MBSTRING_UNIV                := MBSTRING_FLAG or 4;     // Asn1.h
         MBSTRING_UTF8                := MBSTRING_FLAG;          // Asn1.h
-    end
-    else begin
-        {SSL_CTRL_EXTRA_CHAIN_CERT    := 12;                     // Ssl.h
-        SSL_CTRL_GET_SESSION_REUSED  :=  6;                     // Ssl.h
-        MBSTRING_UNIV                := MBSTRING_FLAG or 3;     // Asn1.h
-        MBSTRING_UTF8                := MBSTRING_FLAG or 4;     // Asn1.h }
-    end;
 
     f_SSLeay_version                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_SSLeay_version);
     f_ERR_get_error_line_data                := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_get_error_line_data);
@@ -2215,6 +2208,7 @@ begin
     f_PEM_read_bio_X509_CRL                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_X509_CRL);//AG
     f_PEM_read_bio_X509                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_X509);
     f_PEM_read_bio_PKCS7                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_PKCS7);
+    f_PEM_read_bio_DHparams                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_DHparams); { V8.07 }
     f_PEM_write_bio_PKCS7                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_PKCS7);
     f_PEM_do_header                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_do_header);
     f_PEM_X509_INFO_read_bio                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_X509_INFO_read_bio); //AG
@@ -2278,6 +2272,10 @@ begin
     f_PKCS12_verify_mac                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS12_verify_mac);
     f_PKCS12_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS12_free);
     f_PKCS12_create                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS12_create);
+
+    f_DH_free                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_DH_free); { V8.07 }
+    f_EC_KEY_new_by_curve_name               := GetProcAddress(GLIBEAY_DLL_Handle, FN_EC_KEY_new_by_curve_name);  { V8.07 }
+    f_EC_KEY_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_EC_KEY_free);  { V8.07 }
 
 {$IFNDEF OPENSSL_NO_ENGINE}
     f_ENGINE_load_builtin_engines            := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_load_builtin_engines); //AG
@@ -2472,6 +2470,7 @@ begin
                    (@f_PEM_read_bio_X509_CRL                  = nil) or
                    (@f_PEM_read_bio_X509                      = nil) or
                    (@f_PEM_read_bio_PKCS7                     = nil) or
+                   (@f_PEM_read_bio_DHparams                  = nil) or
                    (@f_PEM_write_bio_PKCS7                    = nil) or
                    (@f_PEM_do_header                          = nil) or
                    (@f_PEM_X509_INFO_read_bio                 = nil) or
@@ -2535,7 +2534,12 @@ begin
                    (@f_PKCS12_parse                           = nil) or
                    (@f_PKCS12_verify_mac                      = nil) or
                    (@f_PKCS12_free                            = nil) or
-                   (@f_PKCS12_create                          = nil)
+                   (@f_PKCS12_create                          = nil) or
+
+                   (@f_DH_free                                = nil) or
+                   (@f_EC_KEY_new_by_curve_name               = Nil) or
+                   (@f_EC_KEY_free                            = Nil)
+
                 {$IFNDEF OPENSSL_NO_ENGINE}
                                                                      or
                    (@f_ENGINE_load_builtin_engines            = nil) or
@@ -2744,6 +2748,7 @@ begin
     if @f_PEM_read_bio_X509_CRL                  = nil then Result := Result + SP + FN_PEM_read_bio_X509_CRL; //AG
     if @f_PEM_read_bio_X509                      = nil then Result := Result + SP + FN_PEM_read_bio_X509;
     if @f_PEM_read_bio_PKCS7                     = nil then Result := Result + SP + FN_PEM_read_bio_PKCS7;
+    if @f_PEM_read_bio_DHparams                  = nil then Result := Result + SP + FN_PEM_read_bio_DHparams;
     if @f_PEM_write_bio_PKCS7                    = nil then Result := Result + SP + FN_PEM_write_bio_PKCS7;
     if @f_PEM_do_header                          = nil then Result := Result + SP + FN_PEM_do_header;
     if @f_PEM_X509_INFO_read_bio                 = nil then Result := Result + SP + FN_PEM_X509_INFO_read_bio; //AG
@@ -2807,6 +2812,10 @@ begin
     if @f_PKCS12_verify_mac                      = nil then Result := Result + SP + FN_PKCS12_verify_mac;
     if @f_PKCS12_free                            = nil then Result := Result + SP + FN_PKCS12_free;
     if @f_PKCS12_create                          = nil then Result := Result + SP + FN_PKCS12_create;
+
+    if @f_DH_free                                = nil then Result := Result + SP + FN_DH_free;
+    if @f_EC_KEY_new_by_curve_name               = Nil then Result := Result + SP + FN_EC_KEY_new_by_curve_name;
+    if @f_EC_KEY_free                            = Nil then Result := Result + SP + FN_EC_KEY_free;
 
 {$IFNDEF OPENSSL_NO_ENGINE}
     if @f_ENGINE_load_builtin_engines            = nil then Result := Result + SP + FN_ENGINE_load_builtin_engines;//AG
@@ -3353,10 +3362,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function f_SSL_get_secure_renegotiation_support(S: PSSL): Longint;
 begin
-    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_0908N then
+//    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_0908N then
         Result := f_SSL_ctrl(S, SSL_CTRL_GET_RI_SUPPORT, 0, nil)
-    else
-        Result := 0;
+//    else
+//        Result := 0;
 end;
 
 

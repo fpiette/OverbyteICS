@@ -72,6 +72,13 @@ object WebAppSrvForm: TWebAppSrvForm
       Height = 13
       Caption = 'hosts'
     end
+    object Label19: TLabel
+      Left = 256
+      Top = 103
+      Width = 35
+      Height = 13
+      Caption = 'DH File'
+    end
     object CertFileEdit: TEdit
       Left = 80
       Top = 52
@@ -121,13 +128,24 @@ object WebAppSrvForm: TWebAppSrvForm
       Text = 'AcceptableHostsEdit'
     end
     object VerifyPeerCheckBox: TCheckBox
-      Left = 242
-      Top = 104
+      Left = 22
+      Top = 149
       Width = 71
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Verify Peer'
       TabOrder = 6
+    end
+    object DhParamFileEdit: TEdit
+      Left = 300
+      Top = 100
+      Width = 153
+      Height = 21
+      Hint = 'Enter DH Parameter File (can be empty).'
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 7
+      Text = 'DhParamFileEdit'
     end
   end
   object DisplayMemo: TMemo
@@ -198,11 +216,12 @@ object WebAppSrvForm: TWebAppSrvForm
     SslVerifyPeer = False
     SslVerifyDepth = 9
     SslVerifyFlags = []
-    SslOptions = [sslOpt_MICROSOFT_SESS_ID_BUG, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG, sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG, sslOpt_MICROSOFT_BIG_SSLV3_BUFFER, sslOpt_SSLEAY_080_CLIENT_DH_BUG, sslOpt_TLS_D5_BUG, sslOpt_TLS_BLOCK_PADDING_BUG, sslOpt_TLS_ROLLBACK_BUG, sslOpt_NO_SSLv2, sslOpt_NETSCAPE_CA_DN_BUG, sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG]
+    SslOptions = [sslOpt_MICROSOFT_SESS_ID_BUG, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG, sslOpt_MICROSOFT_BIG_SSLV3_BUFFER, sslOpt_SSLEAY_080_CLIENT_DH_BUG, sslOpt_TLS_D5_BUG, sslOpt_TLS_BLOCK_PADDING_BUG, sslOpt_TLS_ROLLBACK_BUG, sslOpt_SINGLE_DH_USE, sslOpt_NO_SSLv2, sslOpt_NO_SSLv3, sslOpt_NETSCAPE_CA_DN_BUG, sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = [sslSESS_CACHE_SERVER, sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE]
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
-    SslVersionMethod = sslV23_SERVER
+    SslVersionMethod = sslBestVer_SERVER
+    SslECDHMethod = sslECDH_P256
     SslSessionTimeout = 300
     SslSessionCacheSize = 20480
     SslDefaultSessionIDContext = 'Webservertest'

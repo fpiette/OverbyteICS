@@ -109,7 +109,7 @@ object frmPemTool3: TfrmPemTool3
     object EditState: TEdit
       Left = 126
       Top = 63
-      Width = 121
+      Width = 190
       Height = 21
       TabOrder = 1
       Text = 'Germany'
@@ -117,7 +117,7 @@ object frmPemTool3: TfrmPemTool3
     object EditLocality: TEdit
       Left = 126
       Top = 90
-      Width = 121
+      Width = 190
       Height = 21
       TabOrder = 2
       Text = 'Berlin'
@@ -125,7 +125,7 @@ object frmPemTool3: TfrmPemTool3
     object EditOrganization: TEdit
       Left = 126
       Top = 117
-      Width = 121
+      Width = 215
       Height = 21
       TabOrder = 3
       Text = 'CryptoMania Inc.'
@@ -133,7 +133,7 @@ object frmPemTool3: TfrmPemTool3
     object EditOrganizationalUnit: TEdit
       Left = 126
       Top = 144
-      Width = 121
+      Width = 215
       Height = 21
       TabOrder = 4
       Text = 'CryptoMania Inc.'
@@ -141,7 +141,7 @@ object frmPemTool3: TfrmPemTool3
     object EditCommonName: TEdit
       Left = 126
       Top = 171
-      Width = 121
+      Width = 215
       Height = 21
       TabOrder = 5
       Text = 'www.domain.de'
@@ -149,7 +149,7 @@ object frmPemTool3: TfrmPemTool3
     object EditEMail: TEdit
       Left = 126
       Top = 198
-      Width = 121
+      Width = 215
       Height = 21
       TabOrder = 6
       Text = 'certs@cryptomania.de'
@@ -161,7 +161,7 @@ object frmPemTool3: TfrmPemTool3
       Height = 21
       MaxLength = 4
       TabOrder = 7
-      Text = '1024'
+      Text = '2048'
     end
     object CheckBoxCA: TCheckBox
       Left = 26
@@ -177,7 +177,7 @@ object frmPemTool3: TfrmPemTool3
     object Editdays: TEdit
       Left = 126
       Top = 270
-      Width = 121
+      Width = 70
       Height = 21
       TabOrder = 9
       Text = '365'

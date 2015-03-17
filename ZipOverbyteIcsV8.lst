@@ -1741,6 +1741,9 @@ Samples\Delphi\SslInternet\Server.pem
 Samples\Delphi\SslInternet\TrustedCABundle.pem
 Samples\Delphi\SslInternet\TrustedCaStore\6F6359FC.0
 Samples\Delphi\SslInternet\WinCrypt.pas
+Samples\Delphi\SslInternet\dhparam512.pem
+Samples\Delphi\SslInternet\dhparam1024.pem
+Samples\Delphi\SslInternet\dhparam2048.pem
 
 Samples\Delphi\SslInternet\OverbyteIcsHttpsServer.dof
 Samples\Delphi\SslInternet\OverbyteIcsHttpsServer.dpr

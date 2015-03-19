@@ -10,7 +10,7 @@ Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      8.03
+Version:      8.04
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -204,7 +204,7 @@ Mar 19, 2013 V8.01 Angus added OpenEx, Login, UserPass, Capa and
                    allow a host name to resolve to an IPv6 address.
 Apr 25, 2013 V8.02 Angus Login now checks AuthType and calls Auth, UserPass or APOP
 Dec 10, 2014 V8.03 Angus added SslHandshakeRespMsg for better error handling
-
+Mar 18, 2015 V8.04 Angus added IcsLogger
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -261,6 +261,9 @@ uses
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
 {$ENDIF}
+{$IFNDEF NO_DEBUG_LOG}
+    OverbyteIcsLogger,
+{$ENDIF}
     OverbyteIcsNtlmMsgs,
     OverbyteIcsMimeUtils,
     OverbyteIcsUtils,
@@ -272,8 +275,8 @@ uses
 (*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameW$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)
 
 const
-    Pop3CliVersion     = 803;
-    CopyRight : String = ' POP3 component (c) 1997-2014 F. Piette V8.03 ';
+    Pop3CliVersion     = 804;
+    CopyRight : String = ' POP3 component (c) 1997-2015 F. Piette V8.04 ';
     POP3_RCV_BUF_SIZE  = 4096;
 
 type
@@ -466,6 +469,12 @@ type
         procedure   TriggerMultiLineLine; virtual;
         procedure   TriggerMultiLineEnd; virtual;
         property    RequestType: TPop3Request read FRequestType;
+{$IFNDEF NO_DEBUG_LOG}
+        function  GetIcsLogger: TIcsLogger;                 { V8.04 }
+        procedure SetIcsLogger(const Value: TIcsLogger);    { V8.04 }
+        procedure DebugLog(LogOption: TLogOption; const Msg : string); virtual;   { V8.04 }
+        function  CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { V8.04 }
+{$ENDIF}
     public
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy; override;
@@ -591,6 +600,10 @@ type
         property OnSessionClosed : TSessionClosed
                                                      read  FOnSessionClosed
                                                      write FOnSessionClosed;
+{$IFNDEF NO_DEBUG_LOG}
+        property IcsLogger          : TIcsLogger     read  GetIcsLogger   { V8.04 }
+                                                     write SetIcsLogger;
+{$ENDIF}
     end;
 
     TPop3Cli = class(TCustomPop3Cli)
@@ -632,6 +645,7 @@ type
         property OnResponse;
         property OnSessionConnected;
         property OnSessionClosed;
+        property IcsLogger;  { V8.04 }
     end;
 
 
@@ -2319,6 +2333,37 @@ begin
     Result := (FTimeStamp <> '');
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF NO_DEBUG_LOG}
+function TCustomPop3Cli.GetIcsLogger: TIcsLogger;                            { V8.04}
+begin
+    Result := FWSocket.IcsLogger;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomPop3Cli.SetIcsLogger(const Value: TIcsLogger);              { V8.04 }
+begin
+    FWSocket.IcsLogger := Value;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomPop3Cli.CheckLogOptions(const LogOption: TLogOption): Boolean;  { V8.04 }
+begin
+    Result := Assigned(IcsLogger) and (LogOption in IcsLogger.LogOptions);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomPop3Cli.DebugLog(LogOption: TLogOption; const Msg: string);    { V8.04 }
+begin
+    if Assigned(IcsLogger) then
+        IcsLogger.DoDebugLog(Self, LogOption, Msg);
+end;
+{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TSyncPop3Cli.Create(AOwner : TComponent);

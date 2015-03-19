@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      8.04
+Version:      8.05
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -408,6 +408,7 @@ Mar 19, 2013 V8.03 Angus added LocalAddr6 for IPv6
              Note: SocketFamily must be set to sfAny, sfIPv6 or sfAnyIPv6 to
                    allow a host name to resolve to an IPv6 address.
 Dec 10, 2014 V8.04 - Angus added SslHandshakeRespMsg for better error handling
+Mar 18, 2015 V8.05 Angus added IcsLogger
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -484,6 +485,9 @@ uses
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
 {$ENDIF}
+{$IFNDEF NO_DEBUG_LOG}
+    OverbyteIcsLogger,
+{$ENDIF}
     OverbyteIcsNtlmMsgs,
     OverbyteIcsMimeUtils,
     OverbyteIcsMD5,
@@ -492,8 +496,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-  SmtpCliVersion     = 804;
-  CopyRight : String = ' SMTP component (c) 1997-2014 Francois Piette V8.04 ';
+  SmtpCliVersion     = 805;
+  CopyRight : String = ' SMTP component (c) 1997-2015 Francois Piette V8.05 ';
   smtpProtocolError  = 20600; {AG}
   SMTP_RCV_BUF_SIZE  = 4096;
 
@@ -868,6 +872,12 @@ type
         procedure   SetOnMessagePump(const Value: TNotifyEvent); override;
         procedure   AbortComponent; override; { V7.35 }
         procedure   SetOnBgException(const Value: TIcsBgExceptionEvent); override; { V7.35 }
+{$IFNDEF NO_DEBUG_LOG}
+        function  GetIcsLogger: TIcsLogger;                 { V8.05 }
+        procedure SetIcsLogger(const Value: TIcsLogger);    { V8.05 }
+        procedure DebugLog(LogOption: TLogOption; const Msg : string); virtual;   { V8.05 }
+        function  CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { V8.05 }
+{$ENDIF}
     public
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy;                     override;
@@ -1030,6 +1040,10 @@ type
         property ProxyHttpAuthType : THttpTunnelAuthType
                                                      read  FProxyHttpAuthType
                                                      write FProxyHttpAuthType;
+{$IFNDEF NO_DEBUG_LOG}
+        property IcsLogger          : TIcsLogger     read  GetIcsLogger   { V8.04 }
+                                                     write SetIcsLogger;
+{$ENDIF}
     end;
 
     { Descending component adding MIME (file attach) support }
@@ -1134,6 +1148,7 @@ type
         property ProxyUserCode;
         property ProxyPassword;
         property ProxyHttpAuthType;
+        property IcsLogger;  { V8.03 }
 
         property EmailFiles : TStrings               read  FEmailFiles
                                                      write SetEmailFiles;
@@ -4029,6 +4044,36 @@ begin
         FErrorMessage := FLastResponse;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF NO_DEBUG_LOG}
+function TCustomSmtpClient.GetIcsLogger: TIcsLogger;                            { V8.04}
+begin
+    Result := FWSocket.IcsLogger;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSmtpClient.SetIcsLogger(const Value: TIcsLogger);              { V8.04 }
+begin
+    FWSocket.IcsLogger := Value;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSmtpClient.CheckLogOptions(const LogOption: TLogOption): Boolean;  { V8.04 }
+begin
+    Result := Assigned(IcsLogger) and (LogOption in IcsLogger.LogOptions);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSmtpClient.DebugLog(LogOption: TLogOption; const Msg: string);    { V8.04 }
+begin
+    if Assigned(IcsLogger) then
+        IcsLogger.DoDebugLog(Self, LogOption, Msg);
+end;
+{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TSmtpCli.Create(AOwner : TComponent);

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.07
+Version:      8.08
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -102,6 +102,7 @@ Jan 19, 2015 V8.06 - Angus allow load of OSSL 1.0.1k (briefly tested)
 Mar 13, 2015 V8.07 - Angus allow load of OSSL 1.0.2 (briefly tested)
                      Note, only OpenSSL 1.0.1 and later are now supported, removed some old conditionals and code
                      Added functions and literals for DH and EC key support
+Mar 17, 2015 V8.08 - Angus allow load of OSSL 1.0.2a (untested)
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -142,8 +143,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 807;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2015 F. Piette V8.07 ';
+    IcsLIBEAYVersion   = 808;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2015 F. Piette V8.08 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -1931,7 +1932,7 @@ const
     OSSL_VER_1000  = $10000000; // Untested, did not build with MinGW
     OSSL_VER_1000D = $1000004f; // Might be still buggy, had to incl. one workaround so far, see TSslContext.InitContext
     OSSL_VER_1000J = $100000af; // just briefly tested}
-    
+
 { V8.07 only supporting versions with TLS 1.1 and 1.2 }
     OSSL_VER_1001  = $1000100F; // untested
     OSSL_VER_1001G = $1000107F; // just briefly tested  { V8.02 }
@@ -1941,13 +1942,14 @@ const
     OSSL_VER_1001K = $100010BF; // just briefly tested   { V8.06 }
     OSSL_VER_1001L = $100010CF; // untested              { V8.07 }
     OSSL_VER_1002  = $1000200F; // just briefly tested   { V8.07 }
+    OSSL_VER_1002A = $1000201F; // untested   { V8.08 }
     { Basically versions listed above are tested if not otherwise commented.  }
     { Versions between are assumed to work, however they are untested.        }
     { OpenSSL libraries for ICS are available for download here:              }
     { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
 
     MIN_OSSL_VER   = OSSL_VER_1001;  { V8.07 }
-    MAX_OSSL_VER   = OSSL_VER_1002;  { V8.07 }
+    MAX_OSSL_VER   = OSSL_VER_1002A; { V8.08 }
 
 {$ENDIF} // USE_SSL
 implementation

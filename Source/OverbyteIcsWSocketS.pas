@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.06
+Version:      8.07
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -105,6 +105,7 @@ Aug 18, 2013 V8.04 Arno - It was not possible to clear both string properties
                    stored in the .dfm.
 Aug 18, 2013 V8.05 Arno added some default property specifiers.
 Mar 10, 2015 V8.06 Angus CloseDelayed when too many clients so closes cleanly
+Mar 23, 2015 V8.07 Angus onSslServerName and OnBgException events set for clients
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -171,8 +172,8 @@ uses
     OverbyteIcsUtils, OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 806;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2015 F. Piette V8.06 ';
+    WSocketServerVersion     = 807;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2015 F. Piette V8.07 ';
 
 type
     TCustomWSocketServer       = class;
@@ -522,7 +523,8 @@ type
         property  OnSslSvrNewSession;
         property  OnSslSvrGetSession;
         property  OnSslHandshakeDone;
-    end;
+        property  OnSslServerName;    { V8.07 }
+  end;
 {$ENDIF} // USE_SSL
 
 implementation
@@ -703,6 +705,7 @@ begin
     try                                                 { FPiette V7.01 }
         Client                 := FClientClass.Create(Self);
         Client.FCliId          := FClientNum;           { angus V7.00 }
+        Client.OnBgException   := FOnBgException;       { angus V8.07 }
 {$IFDEF BUILTIN_THROTTLE}
         Client.BandwidthLimit    := Self.BandwidthLimit;     { angus V7.02 may be changed in event for different limit }
         Client.BandwidthSampling := Self.BandwidthSampling;  { angus V7.02 }
@@ -1964,6 +1967,7 @@ begin
         Client.OnSslSvrNewSession       := OnSslSvrNewSession;
         Client.OnSslSvrGetSession       := OnSslSvrGetSession;
         Client.OnSslHandshakeDone       := OnSslHandshakeDone;
+        Client.OnSslServerName          := OnSslServerName;   { V8.07 }
         try
             if Client.SslMode = sslModeClient then
                 Client.StartSslHandshake

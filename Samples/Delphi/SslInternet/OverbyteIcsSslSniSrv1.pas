@@ -3,11 +3,11 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     December 2009
 Description:  Test of Server Name Indication (SNI) in server mode.
-Version:      1.00
+Version:      8.00
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Unsupported code.
 Legal issues: Copyright (C) 2009 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -36,7 +36,7 @@ Legal issues: Copyright (C) 2009 by François PIETTE
                  street address, EMail address and any comment you like to say.
 
 History:
-
+Mar 23, 2015 V8.00 SslServerName is now a published property
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslSniSrv1;
@@ -72,13 +72,15 @@ type
       Client: TWSocketClient; Error: Word);
     procedure ClientDisconnect(Sender: TObject;
       Client: TWSocketClient; Error: Word);
+    procedure ClientSslServerName(Sender: TObject;
+      var Ctx: TSslContext; var ErrCode: TTlsExtError);
   private
     FIsInit: Boolean;
     FComputerName: String;
     procedure ClientDataAvailable(Sender: TObject; ErrCode: Word);
-    procedure ClientSslServerName(Sender      : TObject;
+{   procedure ClientSslServerName(Sender      : TObject;
                                   var Ctx     : TSslContext;
-                                  var ErrCode : TTlsExtError);
+                                  var ErrCode : TTlsExtError);   }
   public
     { Public declarations }
   end;
@@ -170,7 +172,7 @@ begin
     Client.LineEnd         := #13#10;
     Client.LineMode        := TRUE;
     Client.OnDataAvailable := ClientDataAvailable;
-    Client.OnSslServerName := ClientSslServerName;
+ // Client.OnSslServerName := ClientSslServerName;
     DisplayMemo.Lines.Add(#13#10'! Client connected');
 end;
 

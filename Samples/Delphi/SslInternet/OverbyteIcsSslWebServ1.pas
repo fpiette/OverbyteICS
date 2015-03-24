@@ -8,7 +8,7 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      8.02
+Version:      8.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -64,7 +64,8 @@ Mar 16 2015  V8.02 Angus added DHParam File needed to supporting DH key exchange
                    Added EllCurve to support ECDH key exchange
                    Display SSL handshake info on demo menu
                    Added Server Name Indication (SNI) display, used to support
-                     multiple host and certificates on the same IP address 
+                     multiple host and certificates on the same IP address
+Mar 23 2015 V8.03 SslServerName is now a published property
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
@@ -103,7 +104,7 @@ uses
   OverbyteIcsSslSessionCache, OverbyteIcsLogger, OverbyteIcsWndControl;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2015 F. Piette V8.02 ';
+  CopyRight : String         = 'WebServ (c) 1999-2015 F. Piette V8.03 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -114,7 +115,7 @@ type
   TMyHttpConnection = class(THttpConnection)
   protected
     FPostedRawData    : PAnsiChar; { Will hold dynamically allocated buffer }
-    FPostedDataBuffer : PChar;     { Contains either Unicode or Ansi data   } 
+    FPostedDataBuffer : PChar;     { Contains either Unicode or Ansi data   }
     FPostedDataSize   : Integer;   { Databuffer size                        }
     FDataLen          : Integer;   { Keep track of received byte count.     }
     LastHandshake     : Longword;
@@ -218,6 +219,9 @@ type
     procedure ButtonOSSLVersionClick(Sender: TObject);
     procedure SslHttpServer1SslSetSessionIDContext(Sender: TObject;
       var SessionIDContext: String);
+    procedure SslHttpServer1SslServerName(Sender      : TObject;
+                                  var Ctx     : TSslContext;
+                                  var ErrCode : TTlsExtError);
   private
     FIniFileName            : String;
     FInitialized            : Boolean;
@@ -243,9 +247,6 @@ type
     procedure ProcessPostedData_CgiFrm1(Client : TMyHttpConnection);
     procedure CloseLogFile;
     procedure OpenLogFile;
-    procedure ClientSslServerName(Sender      : TObject;
-                                  var Ctx     : TSslContext;
-                                  var ErrCode : TTlsExtError);
   public
     procedure Display(Msg : String);
     property  IniFileName : String read FIniFileName write FIniFileName;
@@ -590,12 +591,12 @@ begin
     ClientHttpsCountLabel.Caption :=
         IntToStr((Sender as THttpServer).ClientCount);
     TMyHttpConnection(Client).OnBgException := BackgroundException;
-    TMyHttpConnection(Client).OnSslServerName := ClientSslServerName;  { V8.02 }
+//    TMyHttpConnection(Client).OnSslServerName := ClientSslServerName;  { V8.02 }
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslWebServForm.ClientSslServerName(      { V8.02 }
+procedure TSslWebServForm.SslHttpServer1SslServerName(      { V8.02 }
   Sender      : TObject;
   var Ctx     : TSslContext;
   var ErrCode : TTlsExtError); // Optional error code

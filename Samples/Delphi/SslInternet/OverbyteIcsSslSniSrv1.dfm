@@ -1,9 +1,9 @@
 object MainForm: TMainForm
   Left = 298
   Top = 146
-  Width = 461
-  Height = 300
   Caption = 'ICS SSL SNI Server Demo'
+  ClientHeight = 273
+  ClientWidth = 453
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -20,7 +20,7 @@ object MainForm: TMainForm
     Left = 0
     Top = 0
     Width = 453
-    Height = 266
+    Height = 273
     Align = alClient
     Lines.Strings = (
       'DisplayMemo')
@@ -29,41 +29,21 @@ object MainForm: TMainForm
     WordWrap = False
   end
   object SslWSocketServer1: TSslWSocketServer
-    LineMode = False
-    LineLimit = 65536
     LineEnd = #13#10
-    LineEcho = False
-    LineEdit = False
     Addr = '0.0.0.0'
     Port = '443'
     Proto = 'tcp'
     LocalAddr = '0.0.0.0'
+    LocalAddr6 = '::'
     LocalPort = '0'
-    MultiThreaded = False
-    MultiCast = False
-    MultiCastIpTTL = 1
-    FlushTimeout = 60
-    SendFlags = wsSendNormal
-    LingerOnOff = wsLingerOn
-    LingerTimeout = 0
-    KeepAliveOnOff = wsKeepAliveOff
-    KeepAliveTime = 0
-    KeepAliveInterval = 0
     SocksLevel = '5'
-    SocksAuthentication = socksNoAuthentication
-    LastError = 0
-    ReuseAddr = False
     ComponentOptions = []
-    ListenBacklog = 5
-    ReqVerLow = 2
-    ReqVerHigh = 2
-    Banner = 'Welcome to OverByte ICS TcpSrv'
-    BannerTooBusy = 'Sorry, too many clients'
-    MaxClients = 0
     OnClientDisconnect = ClientDisconnect
     OnClientConnect = ClientConnect
+    MultiListenSockets = <>
     SslContext = SslContext1
     SslEnable = True
+    OnSslServerName = ClientSslServerName
     Left = 70
     Top = 104
   end
@@ -72,11 +52,13 @@ object MainForm: TMainForm
     SslPrivKeyFile = 'SelfSignedServer1.pem'
     SslVerifyPeer = False
     SslVerifyDepth = 9
+    SslVerifyFlags = []
     SslOptions = [sslOpt_CIPHER_SERVER_PREFERENCE, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG, sslOpt_NO_SSLv2]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = []
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
     SslVersionMethod = sslV23_SERVER
+    SslECDHMethod = sslECDHNone
     SslSessionTimeout = 0
     SslSessionCacheSize = 20480
     Left = 160
@@ -87,11 +69,13 @@ object MainForm: TMainForm
     SslPrivKeyFile = 'SelfSignedServer2.pem'
     SslVerifyPeer = False
     SslVerifyDepth = 9
+    SslVerifyFlags = []
     SslOptions = [sslOpt_CIPHER_SERVER_PREFERENCE, sslOpt_MICROSOFT_SESS_ID_BUG, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NO_SSLv2]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = []
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
     SslVersionMethod = sslV23_SERVER
+    SslECDHMethod = sslECDHNone
     SslSessionTimeout = 0
     SslSessionCacheSize = 20480
     Left = 240

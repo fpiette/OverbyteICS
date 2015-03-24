@@ -422,6 +422,7 @@ object SslWebServForm: TSslWebServForm
     OnSslSvrNewSession = SslHttpServer1SslSvrNewSession
     OnSslSvrGetSession = SslHttpServer1SslSvrGetSession
     OnSslHandshakeDone = SslHttpServer1SslHandshakeDone
+    OnSslServerName = SslHttpServer1SslServerName
     Left = 42
     Top = 206
   end

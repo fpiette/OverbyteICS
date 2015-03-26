@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.15
+Version:      8.16
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -973,6 +973,8 @@ Mar 16, 2015 V8.15 Angus added more SslOptions: sslOpt_NO_COMPRESSION, sslOpt_TL
                      to be generated using the opensll.exe utility (or use those that come with ICS)
                    Added SslECDHMethod to select Elliptic Curves to support ECDH and EECDH key ciphers
                    Note, only OpenSSL 1.0.1 and later are now supported since this added TLS 1.1/1.2
+Mar 26, 2015 V8.16 Angus, the OpenSSL version check is relaxed so minor versions with a letter suffix
+                      are now supported up to the next major version, so now support up to 1.0.2z
 }
 
 {
@@ -1124,8 +1126,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 815;
-  CopyRight    : String     = ' TWSocket (c) 1996-2015 Francois Piette V8.15 ';
+  WSocketVersion            = 816;
+  CopyRight    : String     = ' TWSocket (c) 1996-2015 Francois Piette V8.16 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -2512,7 +2514,8 @@ type
 
 
     TSslSessCacheMode = (//sslSESS_CACHE_OFF,
-                         sslSESS_CACHE_CLIENT,                                                            sslSESS_CACHE_SERVER,
+                         sslSESS_CACHE_CLIENT,
+                         sslSESS_CACHE_SERVER,
                          //sslSESS_CACHE_BOTH,
                          sslSESS_CACHE_NO_AUTO_CLEAR,
                          sslSESS_CACHE_NO_INTERNAL_LOOKUP,

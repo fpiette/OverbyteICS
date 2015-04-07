@@ -1,9 +1,9 @@
-ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio XE7
+ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio XE8
 ================================================================
 (Aka FPIETTE's Components)
 
 
-Revised: September 3, 2014
+Revised: April 6, 2015
 http://www.overbyte.be/
 
 Table of content:
@@ -28,12 +28,14 @@ Table of content:
 
 Legal issues:
 -------------
-              Copyright (C) 1997-2014 by François PIETTE
+              Copyright (C) 1997-2015 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium
               <francois.piette@overbyte.be>
 
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
+
+              ICS is freeware.
 
               This software is provided 'as-is', without any express or
               implied warranty. In no event will the author be held liable
@@ -169,7 +171,7 @@ This is the new V8 sub-directory layout:
       |
     \$(Platform)                      Win32 / Win64 / OSX32
         |
-      \<delphi_version>               D7..XE7 includes .dcu and .dfm files for Delphi
+      \<delphi_version>               D7..XE8 includes .dcu and .dfm files for Delphi
                                       and .obj and .hpp files for C++ Builder
 
 .\Samples                             Delphi Win32/Win64 common source for all demos
@@ -256,6 +258,8 @@ Delphi XE6       :  DXe6Install.groupproj // VCL only, no FireMonkey components
 Delphi XE6       :  DXe6InstallVclFmx.groupproj // Both VCL and FireMonkey components
 Delphi XE7       :  DXe7Install.groupproj // VCL only, no FireMonkey components
 Delphi XE7       :  DXe7InstallVclFmx.groupproj // Both VCL and FireMonkey components
+Delphi XE8       :  DXe8Install.groupproj // VCL only, no FireMonkey components
+Delphi XE8       :  DXe8InstallVclFmx.groupproj // Both VCL and FireMonkey components
 C++ Builder 2006 :  CB2006Install.bdsgroup
 C++ Builder 2007 :  CB2007Install.groupproj
 C++ Builder 2009 :  CB2009Install.groupproj
@@ -334,6 +338,7 @@ Delphi XE4       :  OverbyteIcsDXe4Run.dproj, OverbyteIcsDXe4Design.dproj
 Delphi XE5       :  OverbyteIcsDXe5Run.dproj, OverbyteIcsDXe5Design.dproj
 Delphi XE6       :  OverbyteIcsDXe6Run.dproj, OverbyteIcsDXe6Design.dproj
 Delphi XE7       :  OverbyteIcsDXe7Run.dproj, OverbyteIcsDXe7Design.dproj
+Delphi XE8       :  OverbyteIcsDXe8Run.dproj, OverbyteIcsDXe8Design.dproj
 C++ Builder 2006 :  OverbyteIcsCB2006Run.bdsproj, OverbyteIcsCB2006Design.bdsproj
 C++ Builder 2007 :  OverbyteIcsCB2007Run.cbproj, OverbyteIcsCB2007Design.cbproj
 C++ Builder 2009 :  OverbyteIcsCB2009Run.cbproj, OverbyteIcsCB2009Design.cbproj
@@ -361,6 +366,9 @@ Delphi XE6 FMX          :  IcsFmxDXe6Run.dproj, IcsFmxDXe6Design.dproj
 Delphi XE7 FMX/VCL      :  IcsCommonDXe7Run.dproj, IcsCommonDXe7Design.dproj
 Delphi XE7 VCL          :  IcsVclDXe7Run.dproj, IcsVclDXe7Design.dproj
 Delphi XE7 FMX          :  IcsFmxDXe7Run.dproj, IcsFmxDXe7Design.dproj
+Delphi XE8 FMX/VCL      :  IcsCommonDXe8Run.dproj, IcsCommonDXe8Design.dproj
+Delphi XE8 VCL          :  IcsVclDXe8Run.dproj, IcsVclDXe8Design.dproj
+Delphi XE8 FMX          :  IcsFmxDXe8Run.dproj, IcsFmxDXe8Design.dproj
 C++ Builder XE2 FMX/VCL :  IcsCommonCBXe2Run.dproj, IcsCommonDXe2Design.dproj
 C++ Builder XE2 VCL     :  IcsVclCBXe2Run.dproj, IcsVclCBXe2Design.dproj
 C++ Builder XE2 FMX     :  IcsFmxCBXe2Run.dproj, IcsFmxCBXe2Design.dproj
@@ -395,8 +403,8 @@ If not, add it manually. It is not mandatory to add .\Lib to the global Delphi p
 but it will be much easier for you because otherwise you'll have to add it to each
 project.
 
-DELPHI XE2/WIN32, XE3/WIN32, XE4/WIN32, XE5/WIN32, XE6/WIN32, XE7/WIN32, XE2/WIN64,
-XE3/WIN64, XE4/WIN64, XE5/WIN64, XE6/WIN64, XE7/WIN64:
+DELPHI XE2/WIN32, XE3/WIN32, XE4/WIN32, XE5/WIN32, XE6/WIN32, XE7/WIN32, XE8/WIN32,
+XE2/WIN64, XE3/WIN64, XE4/WIN64, XE5/WIN64, XE6/WIN64, XE7/WIN64, XE8/WIN64:
 
 Similar to above, but the Library path is specified separately for 32-bit and 64-bit
 Windows Platforms.
@@ -1013,4 +1021,6 @@ site http://www.overbyte.be.
 
 francois.piette@overbyte.be
 francois.piette@swing.be
-http://www.overbyte.be
+http://www.overbyte.be/
+http://wiki.overbyte.be/
+

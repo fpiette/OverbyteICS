@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.01
+Version:      8.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -71,6 +71,8 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
 Mar 13, 2015 V8.01 Angus updated SSL_OP option literals, added TLS v1.1 and 1.2 methods
              Added functions need to generate DH keys for EDH ciphers with Forward Secrecy
              Note, only OpenSSL 1.0.1 and later are now supported, removed various conditionals
+May 08, 2015 V8.02 Angus adding missing SSL_OP_SINGLE_ECDH_USE
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -110,8 +112,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 801;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2015 F. Piette V8.01 ';
+    IcsSSLEAYVersion   = 802;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2015 F. Piette V8.02 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -842,6 +844,9 @@ const
     // which can be set with SSL_CTX_set_options(). This is really
     // not recommended unless you know what you are doing.
     SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION    = $00040000;
+
+    // If set, always create a new key when using tmp_ecdh parameters
+    SSL_OP_SINGLE_ECDH_USE                       = $00080000;  // V8.02
 
     // If set, always create a new key when using tmp_ecdh parameters
     SSL_OP_SINGLE_DH_USE                        = $00100000;

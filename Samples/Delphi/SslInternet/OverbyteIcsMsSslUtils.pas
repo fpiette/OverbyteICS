@@ -37,7 +37,7 @@ History:
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMsSslUtils;
 
-{$I OverbyteIcsDefs.inc}
+{$I \include\OverbyteIcsDefs.inc}
 
 interface
 
@@ -48,7 +48,7 @@ uses
 type
   EMsCrypto = class(Exception);
 {$IFNDEF COMPILER12_UP}
-  UnicodeString = type WideString;
+//  UnicodeString = type WideString;  // angus not used  May 2015 
 {$ENDIF}
 
   TWinDlgStoreType = (wdstRoot, wdstCA, wdstPersonal, wdstEnterpriseTrust,

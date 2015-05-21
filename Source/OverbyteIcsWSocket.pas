@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.16
+Version:      8.17
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -975,6 +975,9 @@ Mar 16, 2015 V8.15 Angus added more SslOptions: sslOpt_NO_COMPRESSION, sslOpt_TL
                    Note, only OpenSSL 1.0.1 and later are now supported since this added TLS 1.1/1.2
 Mar 26, 2015 V8.16 Angus, the OpenSSL version check is relaxed so minor versions with a letter suffix
                       are now supported up to the next major version, so now support up to 1.0.2z
+May 08, 2015 V8.17 Angus, added SslOpt_SINGLE_ECDH_USE
+                   check for SslECDHMethodAuto after SSL initialised since need version
+
 }
 
 {
@@ -1126,8 +1129,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 816;
-  CopyRight    : String     = ' TWSocket (c) 1996-2015 Francois Piette V8.16 ';
+  WSocketVersion            = 817;
+  CopyRight    : String     = ' TWSocket (c) 1996-2015 Francois Piette V8.17 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -2509,7 +2512,8 @@ type
                    sslOpt_SAFARI_ECDHE_ECDSA_BUG, { V8.15 }
                    sslOpt_CISCO_ANYCONNECT,       { V8.15 }
                    sslOpt_NO_TLSv1_1,             { V8.15 }
-                   sslOpt_NO_TLSv1_2);            { V8.15 }
+                   sslOpt_NO_TLSv1_2,             { V8.15 }
+                   SslOpt_SINGLE_ECDH_USE);       { V8.16 }
    TSslOptions = set of TSslOption;
 
 
@@ -12890,7 +12894,8 @@ const
             SSL_OP_SAFARI_ECDHE_ECDSA_BUG, { V8.15 }
             SSL_OP_CISCO_ANYCONNECT,       { V8.15 }
             SSL_OP_NO_TLSv1_1,             { V8.15 }
-            SSL_OP_NO_TLSv1_2);            { V8.15 }
+            SSL_OP_NO_TLSv1_2,             { V8.15 }
+            SSL_OP_SINGLE_ECDH_USE);       { V8.16 }
 
   SslIntSessCacheModes: array[TSslSessCacheMode] of Integer =     { V7.30 }
             (SSL_SESS_CACHE_CLIENT,
@@ -13919,6 +13924,9 @@ begin
             LoadDHParamsFromFile(FSslDHParamFile);
 
             // V8.15 Elliptic Curve to generate Ephemeral ECDH keys
+            if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1002) and  { V8.17 do this after SSL initialised }
+                (FSslECDHMethod = sslECDHAuto) then FSslECDHMethod := sslECDH_P256;
+
             if FSslECDHMethod = sslECDHAuto then begin
                 if f_SSL_CTX_set_ecdh_auto(FSslCtx, 1) = 0 then
                     RaiseLastOpenSslError(ESslContextException, TRUE,
@@ -14247,9 +14255,9 @@ begin
     try
 {$ENDIF}
         FSslECDHMethod := Value;
-        if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1002) and
+   {     if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1002) and    V8.17 do this after SSL initialised
                          (FSslECDHMethod = sslECDHAuto) then
-                              FSslECDHMethod := sslECDH_P256;
+                              FSslECDHMethod := sslECDH_P256;  }
 {$IFNDEF NO_SSL_MT}
     finally
         Unlock

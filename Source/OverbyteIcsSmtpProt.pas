@@ -7,11 +7,11 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      8.05
+Version:      8.06
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2014 by François PIETTE
+Legal issues: Copyright (C) 1997-2015 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -409,6 +409,8 @@ Mar 19, 2013 V8.03 Angus added LocalAddr6 for IPv6
                    allow a host name to resolve to an IPv6 address.
 Dec 10, 2014 V8.04 - Angus added SslHandshakeRespMsg for better error handling
 Mar 18, 2015 V8.05 Angus added IcsLogger
+Jun 01, 2015 V8.06 Angus update SslServerName for SSL SNI support allowing server to
+                     select correct SSL context and certificate
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -496,8 +498,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-  SmtpCliVersion     = 805;
-  CopyRight : String = ' SMTP component (c) 1997-2015 Francois Piette V8.05 ';
+  SmtpCliVersion     = 806;
+  CopyRight : String = ' SMTP component (c) 1997-2015 Francois Piette V8.06 ';
   smtpProtocolError  = 20600; {AG}
   SMTP_RCV_BUF_SIZE  = 4096;
 
@@ -5547,6 +5549,7 @@ begin
     try
         //raise Exception.Create('Test');
         FWSocket.SslEnable := TRUE;
+        FWSocket.SslServerName := FHost;  { V8.06 needed for SNI support }
         FWSocket.StartSslHandshake;
     except
         on E: Exception do begin
@@ -5602,6 +5605,7 @@ begin
         TriggerDisplay('! Starting SSL handshake');
         FWSocket.OnSslHandshakeDone := TransferSslHandShakeDone;
         FWSocket.SslEnable := TRUE;
+        FWSocket.SslServerName := FHost;  { V8.06 needed for SNI support }
         try
             //raise Exception.Create('Test');
             FWSocket.StartSslHandshake;
@@ -5609,7 +5613,7 @@ begin
             on E: Exception do begin
                 FWSocket.SslEnable := FALSE;
                 FErrorMessage  := 'SSL Handshake failed ' + E.Classname + ' ' +
-                                  E.Message; 
+                                  E.Message;
                 FStatusCode    := 500;
                 FRequestResult := FStatusCode;
                 { Temporarily disable RequestDone }

@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.10
+Version:      8.11
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -11,7 +11,7 @@ Credit:       This component was based on a freeware from by Andreas
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2012 by François PIETTE
+Legal issues: Copyright (C) 1997-2015 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -499,6 +499,9 @@ Jul 14, 2014 V8.08 Angus try and match how Chrome and Firefox handle POST reloca
 Jul 16, 2014 V8.09 Angus added new methods: OPTIONS and TRACE
                    published RequestType for events
 Jul 18, 2014 V8.10 Angus applied V8.08 change to another function
+Jun 01, 2015 V8.11 Angus update SslServerName for SSL SNI support allowing server to
+                     select correct SSL context and certificate
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -587,8 +590,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 810;
-    CopyRight : String   = ' THttpCli (c) 1997-2014 F. Piette V8.10 ';
+    HttpCliVersion       = 811;
+    CopyRight : String   = ' THttpCli (c) 1997-2015 F. Piette V8.11 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -5109,6 +5112,7 @@ end;
 procedure TSslHttpCli.DoBeforeConnect;
 begin
     inherited DoBeforeConnect;
+    FCtrlSocket.SslServerName       := FHostName;  { V8.11 needed for SNI support }
     FCtrlSocket.OnSslVerifyPeer     := TransferSslVerifyPeer;
     FCtrlSocket.OnSslCliGetSession  := TransferSslCliGetSession;
     FCtrlSocket.OnSslCliNewSession  := TransferSslCliNewSession;

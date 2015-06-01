@@ -10,11 +10,11 @@ Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      8.04
+Version:      8.05
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2014 by François PIETTE
+Legal issues: Copyright (C) 1997-2015 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -205,6 +205,8 @@ Mar 19, 2013 V8.01 Angus added OpenEx, Login, UserPass, Capa and
 Apr 25, 2013 V8.02 Angus Login now checks AuthType and calls Auth, UserPass or APOP
 Dec 10, 2014 V8.03 Angus added SslHandshakeRespMsg for better error handling
 Mar 18, 2015 V8.04 Angus added IcsLogger
+Jun 01, 2015 V8.05 Angus update SslServerName for SSL SNI support allowing server to
+                     select correct SSL context and certificate
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -275,8 +277,8 @@ uses
 (*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameW$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)
 
 const
-    Pop3CliVersion     = 804;
-    CopyRight : String = ' POP3 component (c) 1997-2015 F. Piette V8.04 ';
+    Pop3CliVersion     = 805;
+    CopyRight : String = ' POP3 component (c) 1997-2015 F. Piette V8.05 ';
     POP3_RCV_BUF_SIZE  = 4096;
 
 type
@@ -2798,6 +2800,7 @@ begin
     TriggerDisplay('! Starting SSL handshake');
     FWSocket.OnSslHandshakeDone := TransferSslHandShakeDone;
     FWSocket.SslEnable := TRUE;
+    FWSocket.SslServerName := FHost;  { V8.05 needed for SNI support }
     try
         //raise Exception.Create('Test');
         FWSocket.StartSslHandshake;
@@ -2829,6 +2832,7 @@ begin
         TriggerDisplay('! Starting SSL handshake');
         FWSocket.OnSslHandshakeDone := TransferSslHandShakeDone;
         FWSocket.SslEnable := TRUE;
+        FWSocket.SslServerName := FHost;  { V8.05 needed for SNI support }
         try
             //raise Exception.Create('Test');
             FWSocket.StartSslHandshake;

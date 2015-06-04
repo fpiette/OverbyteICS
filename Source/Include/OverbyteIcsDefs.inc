@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  Version defines for ICS (Internet Component Suite)
 Creation:     2003
-Version:      8.06
+Version:      8.07
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -61,6 +61,7 @@ Aug 2014 - V8.04 - Angus XE7
 Nov 8,  2014 V8.05 Eugene Kotlyarov added namespace for all RTL units for XE2 and
                     later, using new define RTL_NAMESPACES
 Feb 2015 - V8.06 - Angus XE8
+Jun 2015 - V8.07 - Angus XE9
 
 
   SYMBOL           Compiler version
@@ -101,6 +102,7 @@ Feb 2015 - V8.06 - Angus XE8
   DELPHI20_UP      Delphi 20 or higher  (Delphi XE6  - Proteus)
   DELPHI21_UP      Delphi 21 or higher  (Delphi XE7  - Carpathia)
   DELPHI22_UP      Delphi 22 or higher  (Delphi XE8  - Elbrus)
+  DELPHI23_UP      Delphi 23 or higher  (Delphi XE9  - Aitana)
 
   BCB1             C++ Builder 1
   BCB3             C++ Builder 3
@@ -124,6 +126,7 @@ Feb 2015 - V8.06 - Angus XE8
   BCB20_UP         C++ Builder XE6  or higher
   BCB21_UP         C++ Builder XE7  or higher
   BCB22_UP         C++ Builder XE8  or higher
+  BCB23_UP         C++ Builder XE9  or higher
 
   COMPILER1        Delphi 1
   COMPILER2        Delphi 2  or C++ Builder 1
@@ -147,6 +150,7 @@ Feb 2015 - V8.06 - Angus XE8
   COMPILER20       Delphi or C++ Builder XE6
   COMPILER21       Delphi or C++ Builder XE7
   COMPILER22       Delphi or C++ Builder XE8
+  COMPILER23       Delphi or C++ Builder XE9
 
   COMPILER1_UP     Delphi 1  or higher
   COMPILER2_UP     Delphi 2  or C++ Builder 1 or higher
@@ -170,6 +174,7 @@ Feb 2015 - V8.06 - Angus XE8
   COMPILER20_UP    Delphi or C++ Builder XE6  or higher (Proteus)
   COMPILER21_UP    Delphi or C++ Builder XE7  or higher (Carpathia)
   COMPILER22_UP    Delphi or C++ Builder XE8  or higher (Elbrus)
+  COMPILER23_UP    Delphi or C++ Builder XE9  or higher (Aitana)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * }
 
@@ -233,6 +238,17 @@ Feb 2015 - V8.06 - Angus XE8
 {$ENDIF}
 
 {$DEFINE VER_UNKNOWN}
+
+{$IFDEF VER300}
+  {$UNDEF VER_UNKNOWN}
+  {$DEFINE COMPILER23}
+  {$IFDEF BCB}
+    {$DEFINE BCB23}
+  {$ELSE}
+    {$DEFINE DELPHI23}
+    {$DEFINE DELPHI}
+  {$ENDIF}
+{$ENDIF}
 
 {$IFDEF VER290}
   {$UNDEF VER_UNKNOWN}
@@ -464,13 +480,38 @@ Feb 2015 - V8.06 - Angus XE8
 {$ENDIF}
 
 {$IFDEF VER_UNKNOWN}   { If the compiler version is not detected define latest }
-  {$DEFINE COMPILER22} { supported compiler version.                           }
+  {$DEFINE COMPILER23} { supported compiler version.                           }
   {$IFDEF BCB}
-    {$DEFINE BCB22}
+    {$DEFINE BCB23}
   {$ELSE}
-    {$DEFINE DELPHI22}
+    {$DEFINE DELPHI23}
     {$DEFINE DELPHI}
   {$ENDIF}
+{$ENDIF}
+
+{$IFDEF DELPHI23}
+  {$DEFINE DELPHI23_UP}
+  {$DEFINE DELPHI22_UP}
+  {$DEFINE DELPHI21_UP}
+  {$DEFINE DELPHI20_UP}
+  {$DEFINE DELPHI19_UP}
+  {$DEFINE DELPHI18_UP}
+  {$DEFINE DELPHI17_UP}
+  {$DEFINE DELPHI16_UP}
+  {$DEFINE DELPHI15_UP}
+  {$DEFINE DELPHI14_UP}
+  {$DEFINE DELPHI12_UP}
+  {$DEFINE DELPHI11_UP}
+  {$DEFINE DELPHI10_UP}
+  {$DEFINE DELPHI9_UP}
+  {$DEFINE DELPHI8_UP}
+  {$DEFINE DELPHI7_UP}
+  {$DEFINE DELPHI6_UP}
+  {$DEFINE DELPHI5_UP}
+  {$DEFINE DELPHI4_UP}
+  {$DEFINE DELPHI3_UP}
+  {$DEFINE DELPHI2_UP}
+  {$DEFINE DELPHI1_UP}
 {$ENDIF}
 
 {$IFDEF DELPHI22}
@@ -765,6 +806,32 @@ Feb 2015 - V8.06 - Angus XE8
 
 {$IFDEF DELPHI1}
   {$DEFINE DELPHI1_UP}
+{$ENDIF}
+
+{$IFDEF COMPILER23}
+  {$DEFINE COMPILER23_UP}
+  {$DEFINE COMPILER22_UP}
+  {$DEFINE COMPILER21_UP}
+  {$DEFINE COMPILER20_UP}
+  {$DEFINE COMPILER19_UP}
+  {$DEFINE COMPILER18_UP}
+  {$DEFINE COMPILER17_UP}
+  {$DEFINE COMPILER16_UP}
+  {$DEFINE COMPILER15_UP}
+  {$DEFINE COMPILER14_UP}
+  {$DEFINE COMPILER12_UP}
+  {$DEFINE COMPILER11_UP}
+  {$DEFINE COMPILER10_UP}
+  {$DEFINE COMPILER9_UP}
+  {$DEFINE COMPILER8_UP}
+  {$DEFINE COMPILER7_UP}
+  {$DEFINE COMPILER6_UP}
+  {$DEFINE COMPILER5_UP}
+  {$DEFINE COMPILER4_UP}
+  {$DEFINE COMPILER35_UP}
+  {$DEFINE COMPILER3_UP}
+  {$DEFINE COMPILER2_UP}
+  {$DEFINE COMPILER1_UP}
 {$ENDIF}
 
 {$IFDEF COMPILER22}
@@ -1084,6 +1151,27 @@ Feb 2015 - V8.06 - Angus XE8
 
 {$IFDEF COMPILER1}
   {$DEFINE COMPILER1_UP}
+{$ENDIF}
+
+{$IFDEF BCB23}
+  {$DEFINE BCB23_UP}
+  {$DEFINE BCB22_UP}
+  {$DEFINE BCB21_UP}
+  {$DEFINE BCB20_UP}
+  {$DEFINE BCB19_UP}
+  {$DEFINE BCB18_UP}
+  {$DEFINE BCB17_UP}
+  {$DEFINE BCB16_UP}
+  {$DEFINE BCB15_UP}
+  {$DEFINE BCB14_UP}
+  {$DEFINE BCB12_UP}
+  {$DEFINE BCB11_UP}
+  {$DEFINE BCB10_UP}
+  {$DEFINE BCB6_UP}
+  {$DEFINE BCB5_UP}
+  {$DEFINE BCB4_UP}
+  {$DEFINE BCB3_UP}
+  {$DEFINE BCB1_UP}
 {$ENDIF}
 
 {$IFDEF BCB22}

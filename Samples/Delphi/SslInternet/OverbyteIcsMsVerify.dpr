@@ -1,14 +1,11 @@
 program OverbyteIcsMsVerify;
 
 {$R '..\..\OverbyteIcsXpManifest.res' '..\..\OverbyteIcsXpManifest.rc'}
-{$R '..\..\OverbyteIcsCommonVersion.res'  '..\..\OverbyteIcsCommonVersion.rc'}
+{$R '..\..\OverbyteIcsCommonVersion.res' '..\..\OverbyteIcsCommonVersion.rc'}
 
 uses
-  Forms, 
-  OverbyteIcsIniFiles in '..\..\OverbyteIcsIniFiles.pas',
-  OverbyteIcsMsVerify1 in 'OverbyteIcsMsVerify1.pas' {MsVerifyForm},
-  OverbyteIcsMsSslUtils in 'OverbyteIcsMsSslUtils.pas',
-  WinCrypt in 'WinCrypt.pas';
+  Forms,
+  OverbyteIcsMsVerify1 in 'OverbyteIcsMsVerify1.pas' {MsVerifyForm};
 
 {$R *.res}
 

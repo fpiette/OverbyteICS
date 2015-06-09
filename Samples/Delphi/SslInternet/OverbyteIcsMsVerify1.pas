@@ -9,11 +9,11 @@ Description:  Verify and show an OpenSSL certificate or certificate chain using
               certificate server if required. It's not very fast so SSL session
               caching is used to speed things up.
 Creation:     May 2011
-Version:      1.00 Beta
+Version:      8.00
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2011 by François PIETTE
+Legal issues: Copyright (C) 2015 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -43,7 +43,7 @@ Legal issues: Copyright (C) 2011 by François PIETTE
                  street address, EMail address and any comment you like to say.
 
 History:
-
+June 2015 - V8.00 - updated SslServerName to support Server Name Indication (SNI)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMsVerify1;
@@ -63,7 +63,7 @@ uses
 {$IF CompilerVersion > 23}
   System.UITypes,
 {$IFEND}
-  WinCrypt,
+  OverbyteIcsWinCrypt,
   OverbyteIcsIniFiles,
   OverbyteIcsWSocket,
   OverbyteIcsWndControl,
@@ -488,6 +488,7 @@ begin
     Display('');
     Display('Connecting to ' + HostEdit.Text + ' port #' + PortEdit.Text);
     SslWSocket1.Addr               := HostEdit.Text;
+    SslWSocket1.SslServerName      := HostEdit.Text;   // angus support SNI
     SslWSocket1.Port               := PortEdit.Text;
     SslWSocket1.Proto              := 'tcp';
     SslWSocket1.SslEnable          := TRUE;

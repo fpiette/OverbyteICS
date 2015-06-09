@@ -3,7 +3,7 @@
 Original Author: Ian Baker, ADV Systems 2003
 Updated by:   Angus Robertson, Magenta Systems Ltd
 Creation:     20 September 2013
-Version:      8.01
+Version:      8.02
 Description:  Implements a TWSocket-based SMTP server component.
               For further details please see
               RFC-821, RFC-1869, RFC-1870, RFC-1893, RFC-1985,
@@ -11,7 +11,7 @@ Description:  Implements a TWSocket-based SMTP server component.
 EMail:        francois.piette@overbyte.be      http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2013 by François PIETTE
+Legal issues: Copyright (C) 2004-2015 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -138,7 +138,7 @@ Sep 24, 2013 V8.00 Angus updated for ICS V8 with IPv6
     Optionally only allow authentication after TLS negotiated
     Optionally prevent relaying even with authentication
 Dec 18, 2013 V8.01 Angus  EHLO reports AUTH even without SSL
-
+June 2015 V8.02 Angus - fix FMX compile bug
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -210,11 +210,15 @@ uses
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsWndControl,
     Ics.Fmx.OverbyteIcsWSocket,
+    Ics.Fmx.OverbyteIcsWSockBuf,
+    Ics.Fmx.OverbyteIcsWSocketS,
+    Ics.Fmx.OverbyteIcsSmtpProt,
 {$ELSE}
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
     OverbyteIcsWSockBuf,
     OverbyteIcsWSocketS,
+    OverbyteIcsSmtpProt,  // just using some public utility functions
 {$ENDIF}
     OverbyteIcsDnsQuery,
     OverbyteIcsMimeUtils,
@@ -222,12 +226,11 @@ uses
     OverbyteIcsMD5,
     OverbyteIcsSha1,
     OverbyteIcsUtils,
-    OverbyteIcsSmtpProt,  // just using some public utility functions
     OverbyteIcsTypes;
 
 const
-    SmtpCliVersion     = 801;
-    CopyRight : String = ' SMTP Server (c) 1997-2013 Francois Piette V8.01 ';
+    SmtpCliVersion     = 802;
+    CopyRight : String = ' SMTP Server (c) 1997-2015 Francois Piette V8.02 ';
 
 const
   // ESMTP commands. Please note that not all are implemented - use AddCommand() to add a handler of your own

@@ -35,7 +35,7 @@ package OverbyteIcsDXE6Run;
 {$ALIGN 8}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
-{$DEBUGINFO ON}
+{$DEBUGINFO OFF}
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
@@ -56,7 +56,7 @@ package OverbyteIcsDXE6Run;
 {$DEFINE DEBUG}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS VCL Run-Time Package for Delphi XE6'}
+{$DESCRIPTION 'Overbyte ICS VCL Run-Time Package for Delphi XE6 (Confidential)'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
 
@@ -137,6 +137,12 @@ contains
   OverbyteIcsSysLogDefs in '..\Source\OverbyteIcsSysLogDefs.pas',
   OverbyteIcsSysLogServer in '..\Source\OverbyteIcsSysLogServer.pas',
   OverbyteIcsTicks64 in '..\Source\OverbyteIcsTicks64.pas',
-  OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas';
+  OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas',
+  OverbyteIcsSslX509Utils in '..\Source\OverbyteIcsSslX509Utils.pas',
+  OverbyteIcsLibeayEx in '..\Source\OverbyteIcsLibeayEx.pas',
+  OverbyteIcsCryptUiApi in '..\Source\OverbyteIcsCryptUiApi.pas',
+  OverbyteIcsMsSslUtils in '..\Source\OverbyteIcsMsSslUtils.pas',
+  OverbyteIcsWinCrypt in '..\Source\OverbyteIcsWinCrypt.pas',
+  OverbyteIcsIniFiles in '..\Source\OverbyteIcsIniFiles.pas';
 
 end.

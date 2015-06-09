@@ -63,7 +63,12 @@ package OverbyteIcsD2007Run;
 
 requires
   rtl,
-  vcl;
+  vcl,
+  designide,
+  xmlrtl,
+  vclactnband,
+  vclx,
+  inet;
 
 contains
   OverbyteIcsTypes in '..\Source\OverbyteIcsTypes.pas',
@@ -139,6 +144,12 @@ contains
   OverbyteIcsSnmpCli in '..\Source\OverbyteIcsSnmpCli.pas',
   OverbyteIcsAsn1Utils in '..\Source\OverbyteIcsAsn1Utils.pas',
   OverbyteIcsSnmpMsgs in '..\Source\OverbyteIcsSnmpMsgs.pas',
-  OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas';
+  OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas',
+  OverbyteIcsSslX509Utils in '..\Source\OverbyteIcsSslX509Utils.pas',
+  OverbyteIcsLibeayEx in '..\Source\OverbyteIcsLibeayEx.pas',
+  OverbyteIcsCryptUiApi in '..\Source\OverbyteIcsCryptUiApi.pas',
+  OverbyteIcsMsSslUtils in '..\Source\OverbyteIcsMsSslUtils.pas',
+  OverbyteIcsWinCrypt in '..\Source\OverbyteIcsWinCrypt.pas',
+  OverbyteIcsIniFiles in '..\Source\OverbyteIcsIniFiles.pas';
 
 end.

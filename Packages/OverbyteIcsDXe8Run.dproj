@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{BCD0545C-3A49-4959-BB73-0741D6E1D23B}</ProjectGuid>
         <MainSource>OverbyteIcsDXE8Run.dpk</MainSource>
@@ -240,6 +240,12 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsSysLogServer.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsTicks64.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.pas"/>
+        <Dccreference Include="..\Source\Overbyteicscryptuiapi.Pas" />
+        <Dccreference Include="..\Source\Overbyteicsinifiles.Pas" />
+        <Dccreference Include="..\Source\Overbyteicslibeayex.Pas" />
+        <Dccreference Include="..\Source\Overbyteicsmssslutils.Pas" />
+        <Dccreference Include="..\Source\Overbyteicssslx509Utils.Pas" />
+        <Dccreference Include="..\Source\Overbyteicswincrypt.Pas" />
         <BuildConfiguration Include="Release">
             <Key>Cfg_Release</Key>
             <CfgParent>Base</CfgParent>

@@ -282,6 +282,7 @@ Source\OverbyteIcsCommonVersion.rc
 Source\OverbyteIcsCommonVersion.res
 Source\OverbyteIcsCookies.dcr
 Source\OverbyteIcsCookies.pas
+Source\OverbyteIcsCryptUiApi.pas
 Source\OverbyteIcsCsc.pas
 Source\OverbyteIcsDES.pas
 Source\OverbyteIcsDigestAuth.pas
@@ -308,7 +309,10 @@ Source\OverbyteIcsHttpSrv.dcr
 Source\OverbyteIcsHttpSrv.pas
 Source\OverbyteIcsIcmp.pas
 Source\OverbyteIcsIconv.pas
+Source\OverbyteIcsIniFiles.pas
+Source\OverbyteIcsJwaWinCrypt.inc
 Source\OverbyteIcsLIBEAY.pas
+Source\OverbyteIcsLibeayEx.pas
 Source\OverbyteIcsLogger.dcr
 Source\OverbyteIcsLogger.pas
 Source\OverbyteIcsMD4.pas
@@ -318,6 +322,7 @@ Source\OverbyteIcsMimeDec.dcr
 Source\OverbyteIcsMimeDec.pas
 Source\OverbyteIcsMimeUtils.dcr
 Source\OverbyteIcsMimeUtils.pas
+Source\OverbyteIcsMsSslUtils.pas
 Source\OverbyteIcsMultiProgressBar.dcr
 Source\OverbyteIcsMultiProgressBar.pas
 Source\OverbyteIcsMultipartFtpDownloader.dcr
@@ -348,6 +353,7 @@ Source\OverbyteIcsSslSessionCache.dcr
 Source\OverbyteIcsSslSessionCache.pas
 Source\OverbyteIcsSslThrdLock.dcr
 Source\OverbyteIcsSslThrdLock.pas
+Source\OverbyteIcsSslX509Utils.pas
 Source\OverbyteIcsSspi.pas
 Source\OverbyteIcsStreams.pas
 Source\OverbyteIcsSysLogClient.dcr
@@ -389,6 +395,7 @@ Source\OverbyteIcsXpManifest.res
 Source\OverbyteIcsZLibDll.pas
 Source\OverbyteIcsZLibObj.pas
 Source\OverbyteIcsZlibHigh.pas
+Source\OverbyteIcsWinCrypt.pas
 
 Source\Include\Ics.InterlockedApi.inc
 Source\Include\OverbyteIcsDefs.inc
@@ -400,7 +407,6 @@ Source\Include\OverbyteIcsWinsockTypes.inc
 Source\Include\OverbyteIcsZlib.inc
 
 Source\Extras\OverbyteIcsConApp.pas
-Source\Extras\OverbyteIcsLibeayEx.pas
 Source\Extras\OverbyteIcsLibrary.pas
 Source\Extras\OverbyteIcsPop3ProtOld.pas
 Source\Extras\OverbyteIcsWinSock2.pas
@@ -1152,6 +1158,8 @@ Samples\cpp\Internet\CBXe2\OverbyteIcsUdpSend.cpp
 Samples\cpp\Internet\CBXe2\OverbyteIcsWebServ.cbproj
 Samples\cpp\Internet\CBXe2\OverbyteIcsWebServ.cpp
 
+Samples\Delphi\AllDemosProject.bpg
+
 Samples\Delphi\BrowserDemo\Dcu\dir.txt
 
 Samples\Delphi\BrowserDemo\FrameBrowserIcs.dof
@@ -1732,15 +1740,10 @@ Samples\Delphi\SslInternet\01cert.pem
 Samples\Delphi\SslInternet\01key.pem
 Samples\Delphi\SslInternet\cacert.pem
 Samples\Delphi\SslInternet\client.pem
-Samples\Delphi\SslInternet\CryptUiApi.pas
-Samples\Delphi\SslInternet\JwaWinCrypt.pas
 Samples\Delphi\SslInternet\root.pem
-Samples\Delphi\SslInternet\OverbyteIcsMsSslUtils.pas
-Samples\Delphi\SslInternet\OverbyteIcsSslX509Utils.pas
 Samples\Delphi\SslInternet\Server.pem
 Samples\Delphi\SslInternet\TrustedCABundle.pem
 Samples\Delphi\SslInternet\TrustedCaStore\6F6359FC.0
-Samples\Delphi\SslInternet\WinCrypt.pas
 Samples\Delphi\SslInternet\dhparam512.pem
 Samples\Delphi\SslInternet\dhparam1024.pem
 Samples\Delphi\SslInternet\dhparam2048.pem
@@ -1845,6 +1848,7 @@ Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServer.dpr
 Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServer.res
 Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServ1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServ1.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServer_Icon1.ico
 
 Samples\Delphi\SslInternet\OverbyteIcsCommonVersion.res
 

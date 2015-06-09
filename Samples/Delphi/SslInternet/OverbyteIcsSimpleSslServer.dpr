@@ -1,8 +1,7 @@
 program OverbyteIcsSimpleSslServer;
 
 uses
-  Forms, 
-  OverbyteIcsIniFiles in '..\..\OverbyteIcsIniFiles.pas',
+  Forms,
   OverbyteIcsSimpleSslServer1 in 'OverbyteIcsSimpleSslServer1.pas' {SimpleSslServerForm};
 
 {$R *.RES}

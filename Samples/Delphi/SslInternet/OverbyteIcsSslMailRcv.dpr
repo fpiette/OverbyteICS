@@ -1,11 +1,10 @@
 program OverbyteIcsSslMailRcv;
 
 {$R '..\..\OverbyteIcsXpManifest.res' '..\..\OverbyteIcsXpManifest.rc'}
-{$R '..\..\OverbyteIcsCommonVersion.res'  '..\..\OverbyteIcsCommonVersion.rc'}
+{$R '..\..\OverbyteIcsCommonVersion.res' '..\..\OverbyteIcsCommonVersion.rc'}
 
 uses
-  Forms, 
-  OverbyteIcsIniFiles in '..\..\OverbyteIcsIniFiles.pas',
+  Forms,
   OverbyteIcsSslMailRcv1 in 'OverbyteIcsSslMailRcv1.pas' {POP3ExcercizerForm},
   OverbyteIcsSslMailRcv2 in 'OverbyteIcsSslMailRcv2.pas' {MessageForm};
 

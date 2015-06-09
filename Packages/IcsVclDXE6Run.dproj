@@ -66,6 +66,7 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
+        <SanitizedProjectName>IcsVclDXE6Run</SanitizedProjectName>
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
@@ -131,6 +132,8 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCC_IncludePath>..\Vc32</DCC_IncludePath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Debug_Win32)'!=''">
+        <VerInfo_Build>2</VerInfo_Build>
+        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.2;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=;LastCompiledTime=2015/06/09 10:46:16</VerInfo_Keys>
         <DCC_Description>Overbyte ICS VCL Run-Time Package for Delphi XE6</DCC_Description>
         <PostBuildEvent><![CDATA[copy ..\Source\OverbyteIcsTnOptFrm.dfm ..\Lib\Debug\Win32\XE6\OverbyteIcsTnOptFrm.dfm
 $(PostBuildEvent)]]></PostBuildEvent>
@@ -213,6 +216,8 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsSnmpMsgs.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsIcmp.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsMsSslUtils.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsSslX509Utils.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_Release</Key>
             <CfgParent>Base</CfgParent>

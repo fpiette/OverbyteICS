@@ -98,6 +98,8 @@ contains
   OverbyteIcsSnmpCli in '..\Source\OverbyteIcsSnmpCli.pas',
   OverbyteIcsSnmpMsgs in '..\Source\OverbyteIcsSnmpMsgs.pas',
   OverbyteIcsIcmp in '..\Source\OverbyteIcsIcmp.pas',
-  OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas';
+  OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas',
+  OverbyteIcsSslX509Utils in '..\Source\OverbyteIcsSslX509Utils.pas',
+  OverbyteIcsMsSslUtils in '..\Source\OverbyteIcsMsSslUtils.pas';
 
 end.

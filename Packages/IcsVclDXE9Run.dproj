@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{4FBE10B7-7597-47D6-8CEA-9E9600499EA2}</ProjectGuid>
         <MainSource>IcsVclDXE9Run.dpk</MainSource>
@@ -206,6 +206,8 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsSnmpMsgs.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsIcmp.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsMsSslUtils.pas" />
+        <DCCReference Include="..\Source\OverbyteIcsSslX509Utils.pas" />
         <BuildConfiguration Include="Debug">
             <Key>Cfg_Debug</Key>
             <CfgParent>Base</CfgParent>

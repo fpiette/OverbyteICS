@@ -1,4 +1,10 @@
-unit WinCrypt;
+unit OverbyteIcsWinCrypt;
+
+{ June 2015 - Angus renamed from WinCrypt and moved to main source dir       }
+
+{ note this unit includes a Jedi header file JwaWinCrypt rnmamed to }
+{ OverbyteIcsJwaWinCrypt.inc with conditionals to make it independent of JCL }
+{ and stop it being compiled alone }
 
 {$WEAKPACKAGEUNIT}
 
@@ -50,7 +56,7 @@ type
 
 {$DEFINE JWA_INCLUDEMODE}
 {$DEFINE JWA_INTERFACESECTION}
-{$I JwaWinCrypt}
+{$I OverbyteIcsJwaWinCrypt.inc}
 
 implementation
 
@@ -66,6 +72,6 @@ const
 
 {$UNDEF JWA_INTERFACESECTION}
 {$DEFINE JWA_IMPLEMENTATIONSECTION}
-{$I JwaWinCrypt}
+{$I OverbyteIcsJwaWinCrypt.inc}
 
 end.

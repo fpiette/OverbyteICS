@@ -3,7 +3,7 @@
 Original Author: Ian Baker, ADV Systems 2003
 Updated by:   Angus Robertson, Magenta Systems Ltd
 Creation:     24 September 2013
-Version:      8.02
+Version:      8.03
 Description:  How to use TSslSmtpServer
 EMail:        francois.piette@overbyte.be      http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -41,14 +41,14 @@ Legal issues: Copyright (C) 2004-2013 by François PIETTE
 Sep 24, 2013 V8.00 Angus created SSL version
 Apr 26, 2014 V8.01 Arno - Check for IsIPv6Available rather than IsIPv6ApiAvailable
                    in doStartClick.
-Dec 10, 2014 V8.02 Angus added handshake response message, better cipher list 
+Dec 10, 2014 V8.02 Angus added handshake response message, better cipher list
+June 2015 V8.03    Angus fixed name space issue that stopped build
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslSmtpServ1;
 
 interface
 
-{xI include/OverbyteIcsDefs.inc}
 {$B-}                 { Enable partial boolean evaluation   }
 {$T-}                 { Untyped pointers                    }
 {$X+}                 { Enable extended syntax              }
@@ -73,8 +73,8 @@ uses
   OverbyteIcsSmtpSrv ;
 
 const
-    SmtpSslServerTestVersion    = 8.02;
-    CopyRight : String = ' OverbyteSslSmtpServer (c) 1997-2014 F. Piette V8.02 ';
+    SmtpSslServerTestVersion    = 8.03;
+    CopyRight : String = ' OverbyteSslSmtpServer (c) 1997-2015 F. Piette V8.03 ';
 
   // INI file stuff
     SectionData       = 'Data';

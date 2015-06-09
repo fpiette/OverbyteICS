@@ -1,13 +1,18 @@
 {*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 Author:       Arno Garrels <arno.garrels@gmx.de>
-Description:  MS crypto API utilities.
+Description:  MS crypto API utilities. These allow checking and validation of
+              SSL certificates using the Windows root certificate store to
+              avoid applications needing to include their own file of root
+              PEM certificates, also includes certificate Revocation checks,
+              warning these are slow since they need to access remote web sites.
+              See sample OverbyteIcsMsVerify for usage and demos 
 Creation:     May 2011
-Version:      1.00 Beta
+Version:      8.00
 EMail:        arno.garrels@gmx.de
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2011 by Arno Garrels, Berlin <arno.garrels@gmx.de>
+Legal issues: Copyright (C) 2015 by Arno Garrels, Berlin <arno.garrels@gmx.de>
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -32,23 +37,27 @@ Legal issues: Copyright (C) 2011 by Arno Garrels, Berlin <arno.garrels@gmx.de>
 
 
 History:
+June 2015 - V8.00 Angus moved to main source dir
+                  now using OverbyteIcsWinCrypt and OverbyteIcsCryptUiApi
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMsSslUtils;
 
-{$I \include\OverbyteIcsDefs.inc}
+{$I include\OverbyteIcsDefs.inc}
 
 interface
 
 uses
-  Windows, SysUtils, WinCrypt, CryptUiApi, OverbyteIcsLibeay,
-  OverbyteIcsSsleay, OverbyteIcsWSocket, SysConst;
+  Windows, SysUtils, SysConst,
+  OverbyteIcsWinCrypt, OverbyteIcsCryptUiApi,
+  OverbyteIcsLibeay, OverbyteIcsSsleay,
+  OverbyteIcsWSocket;
 
 type
   EMsCrypto = class(Exception);
 {$IFNDEF COMPILER12_UP}
-//  UnicodeString = type WideString;  // angus not used  May 2015 
+//  UnicodeString = type WideString;  // angus not used  May 2015
 {$ENDIF}
 
   TWinDlgStoreType = (wdstRoot, wdstCA, wdstPersonal, wdstEnterpriseTrust,

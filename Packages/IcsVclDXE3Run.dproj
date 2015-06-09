@@ -159,8 +159,8 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsWSocketTS.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSnmpCli.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSysLogClient.dcr"/>
-        <DCCReference Include="..\Source\OverbyteIcsSysLogServer.dcr"/> 
-        <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.dcr"/>       
+        <DCCReference Include="..\Source\OverbyteIcsSysLogServer.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.dcr"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="IcsCommonDXE3Run.dcp"/>
@@ -201,6 +201,8 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsSnmpMsgs.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsIcmp.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsMsSslUtils.pas" />
+        <DCCReference Include="..\Source\OverbyteIcsSslX509Utils.pas" />
         <BuildConfiguration Include="Release">
             <Key>Cfg_Release</Key>
             <CfgParent>Base</CfgParent>

@@ -127,6 +127,8 @@
         <DCC_IncludePath>..\Vc32</DCC_IncludePath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_Debug_Win32)'!=''">
+        <VerInfo_Build>2</VerInfo_Build>
+        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.2;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=;LastCompiledTime=2015/06/09 10:46:16</VerInfo_Keys>
         <DCC_Description>Overbyte ICS FMX Run-Time Package for Delphi XE6</DCC_Description>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
     </PropertyGroup>

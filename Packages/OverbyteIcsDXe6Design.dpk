@@ -5,7 +5,7 @@ package OverbyteIcsDXe6Design;
 {$ALIGN 8}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
-{$DEBUGINFO ON}
+{$DEBUGINFO OFF}
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
@@ -37,8 +37,8 @@ requires
   OverbyteIcsDXE6Run;
 
 contains
-  OverbyteIcsReg,
-  OverByteIcsWSocketE,
-  OverbyteIcsDprUpdFix;
+  OverbyteIcsReg in '..\Source\OverbyteIcsReg.pas',
+  OverByteIcsWSocketE in '..\Source\OverByteIcsWSocketE.pas',
+  OverbyteIcsDprUpdFix in '..\Source\OverbyteIcsDprUpdFix.pas';
 
 end.

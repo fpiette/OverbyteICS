@@ -1,11 +1,10 @@
 program OverbyteIcsSimpleSslCli;
 
 {$R '..\..\OverbyteIcsXpManifest.res' '..\..\OverbyteIcsXpManifest.rc'}
-{$R '..\..\OverbyteIcsCommonVersion.res'  '..\..\OverbyteIcsCommonVersion.rc'}
+{$R '..\..\OverbyteIcsCommonVersion.res' '..\..\OverbyteIcsCommonVersion.rc'}
 
 uses
-  Forms, 
-  OverbyteIcsIniFiles in '..\..\OverbyteIcsIniFiles.pas',
+  Forms,
   OverbyteIcsSimpleSslCli1 in 'OverbyteIcsSimpleSslCli1.pas' {Form1};
 
 {$R *.res}

@@ -1,10 +1,10 @@
 object MsVerifyForm: TMsVerifyForm
   Left = 69
   Top = 0
-  Width = 530
-  Height = 385
   ActiveControl = ConnectButton
   Caption = 'Test MS Crypto API Certificate Verification'
+  ClientHeight = 358
+  ClientWidth = 522
   Color = clBtnFace
   Constraints.MinHeight = 150
   Constraints.MinWidth = 530
@@ -121,7 +121,7 @@ object MsVerifyForm: TMsVerifyForm
     Left = 0
     Top = 65
     Width = 522
-    Height = 286
+    Height = 293
     Align = alClient
     Lines.Strings = (
       'DisplayMemo')
@@ -130,32 +130,13 @@ object MsVerifyForm: TMsVerifyForm
     WordWrap = False
   end
   object SslWSocket1: TSslWSocket
-    LineMode = False
-    LineLimit = 65536
     LineEnd = #13#10
-    LineEcho = False
-    LineEdit = False
     Proto = 'tcp'
     LocalAddr = '0.0.0.0'
+    LocalAddr6 = '::'
     LocalPort = '0'
-    MultiThreaded = False
-    MultiCast = False
-    MultiCastIpTTL = 1
-    FlushTimeout = 60
-    SendFlags = wsSendNormal
-    LingerOnOff = wsLingerOn
-    LingerTimeout = 0
-    KeepAliveOnOff = wsKeepAliveOff
-    KeepAliveTime = 0
-    KeepAliveInterval = 0
     SocksLevel = '5'
-    SocksAuthentication = socksNoAuthentication
-    LastError = 0
-    ReuseAddr = False
     ComponentOptions = []
-    ListenBacklog = 5
-    ReqVerLow = 2
-    ReqVerHigh = 2
     OnDataAvailable = SslWSocket1DataAvailable
     OnSessionClosed = SslWSocket1SessionClosed
     OnSessionConnected = SslWSocket1SessionConnected
@@ -178,8 +159,10 @@ object MsVerifyForm: TMsVerifyForm
     SslSessionCacheModes = [sslSESS_CACHE_CLIENT, sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE]
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
     SslVersionMethod = sslV23_CLIENT
+    SslECDHMethod = sslECDHNone
     SslSessionTimeout = 5000
     SslSessionCacheSize = 20480
+    AutoEnableBuiltinEngines = False
     Left = 112
     Top = 86
   end

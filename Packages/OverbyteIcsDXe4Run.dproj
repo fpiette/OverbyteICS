@@ -240,6 +240,12 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsSysLogServer.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsTicks64.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsCryptUiApi.pas" />
+        <DCCReference Include="..\Source\OverbyteIcsIniFiles.pas" />
+        <DCCReference Include="..\Source\OverbyteIcsLibeayEx.pas" />
+        <DCCReference Include="..\Source\OverbyteIcsMsSslUtils.pas" />
+        <DCCReference Include="..\Source\OverbyteIcsSslX509Utils.pas" />
+        <DCCReference Include="..\Source\OverbyteIcsWinCrypt.pas" />
         <BuildConfiguration Include="Release">
             <Key>Cfg_Release</Key>
             <CfgParent>Base</CfgParent>

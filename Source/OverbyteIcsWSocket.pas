@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.17
+Version:      8.18
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -977,7 +977,10 @@ Mar 26, 2015 V8.16 Angus, the OpenSSL version check is relaxed so minor versions
                       are now supported up to the next major version, so now support up to 1.0.2z
 May 08, 2015 V8.17 Angus, added SslOpt_SINGLE_ECDH_USE
                    check for SslECDHMethodAuto after SSL initialised since need version
-
+Jun 05, 2015 V8.18 Angus, enabled SSL engine support, which are cryptographic modules adding extra algorithms
+                   ICS packages are now include OverbyteIcsMsSslUtils and OverbyteIcsSslX509Utils
+                     which include certificate display and validation functions, and which were
+                     previously only in the SSL samples directory
 }
 
 {
@@ -1129,8 +1132,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 817;
-  CopyRight    : String     = ' TWSocket (c) 1996-2015 Francois Piette V8.17 ';
+  WSocketVersion            = 818;
+  CopyRight    : String     = ' TWSocket (c) 1996-2015 Francois Piette V8.18 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 

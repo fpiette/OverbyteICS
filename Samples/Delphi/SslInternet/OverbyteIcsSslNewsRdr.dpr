@@ -1,11 +1,10 @@
 program OverbyteIcsSslNewsRdr;
 
 {$R '..\..\OverbyteIcsXpManifest.res' '..\..\OverbyteIcsXpManifest.rc'}
-{$R '..\..\OverbyteIcsCommonVersion.res'  '..\..\OverbyteIcsCommonVersion.rc'}
+{$R '..\..\OverbyteIcsCommonVersion.res' '..\..\OverbyteIcsCommonVersion.rc'}
 
 uses
-  Forms, 
-  OverbyteIcsIniFiles in '..\..\OverbyteIcsIniFiles.pas',
+  Forms,
   OverbyteIcsSslNewsRdr1 in 'OverbyteIcsSslNewsRdr1.pas' {NNTPForm};
 
 {$R *.RES}

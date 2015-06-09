@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{4FBE10B7-7597-47D6-8CEA-9E9600499EA2}</ProjectGuid>
         <MainSource>IcsVclDXE4Run.dpk</MainSource>
@@ -158,10 +158,11 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsSslThrdLock.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsHttpAppServer.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsCharsetComboBox.dcr"/>
-        <DCCReference Include="..\Source\OverbyteIcsWSocketTS.dcr"/>        
+        <DCCReference Include="..\Source\OverbyteIcsWSocketTS.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSnmpCli.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSysLogClient.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSysLogServer.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.dcr"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="IcsCommonDXE4Run.dcp"/>
@@ -201,6 +202,9 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsSnmpCli.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSnmpMsgs.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsIcmp.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsMsSslUtils.pas" />
+        <DCCReference Include="..\Source\OverbyteIcsSslX509Utils.pas" />
         <BuildConfiguration Include="Release">
             <Key>Cfg_Release</Key>
             <CfgParent>Base</CfgParent>

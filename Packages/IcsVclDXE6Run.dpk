@@ -33,7 +33,7 @@ package IcsVclDXE6Run;
 {$ALIGN 8}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
-{$DEBUGINFO ON}
+{$DEBUGINFO OFF}
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
@@ -98,6 +98,8 @@ contains
   OverbyteIcsSnmpCli in '..\Source\OverbyteIcsSnmpCli.pas',
   OverbyteIcsSnmpMsgs in '..\Source\OverbyteIcsSnmpMsgs.pas',
   OverbyteIcsIcmp in '..\Source\OverbyteIcsIcmp.pas',
-  OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas';
+  OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas',
+  OverbyteIcsMsSslUtils in '..\Source\OverbyteIcsMsSslUtils.pas',
+  OverbyteIcsSslX509Utils in '..\Source\OverbyteIcsSslX509Utils.pas';
 
 end.

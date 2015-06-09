@@ -1,11 +1,10 @@
 program OverbyteIcsSslFtpTst;
 
 {$R '..\..\OverbyteIcsXpManifest.res' '..\..\OverbyteIcsXpManifest.rc'}
-{$R '..\..\OverbyteIcsCommonVersion.res'  '..\..\OverbyteIcsCommonVersion.rc'}
+{$R '..\..\OverbyteIcsCommonVersion.res' '..\..\OverbyteIcsCommonVersion.rc'}
 
 uses
-  Forms, 
-  OverbyteIcsIniFiles in '..\..\OverbyteIcsIniFiles.pas',
+  Forms,
   OverbyteIcsSslFtpTst1 in 'OverbyteIcsSslFtpTst1.pas' {FtpReceiveForm},
   OverbyteIcsSslFtpTst2 in 'OverbyteIcsSslFtpTst2.pas' {DirectoryForm};
 

@@ -30,9 +30,11 @@
 { Comment next define to include experimental Engine code.                     }
 { http://openssl.org/docs/crypto/engine.html                                   }
 { The default should be "OPENSSL_NO_ENGINE" it's currently very experimental   }
-{$DEFINE OPENSSL_NO_ENGINE}
+{.$DEFINE OPENSSL_NO_ENGINE}
 
 { Do not modify below this line                                                }
 { -----------------------------------------------------------------------------}
 { Angus - March 2015, no longer supporting 098 so nothing left                 }
+{ Angus - June 2015, enable engine support, which are cryptographic            }
+{                    modules adding extra algorithms                           }
 

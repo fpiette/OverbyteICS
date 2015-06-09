@@ -1,11 +1,10 @@
 program OverbyteIcsSslWebAppServer;
 
 {$R '..\..\OverbyteIcsXpManifest.res' '..\..\OverbyteIcsXpManifest.rc'}
-{$R '..\..\OverbyteIcsCommonVersion.res'  '..\..\OverbyteIcsCommonVersion.rc'}
+{$R '..\..\OverbyteIcsCommonVersion.res' '..\..\OverbyteIcsCommonVersion.rc'}
 
 uses
   Forms,
-  OverbyteIcsIniFiles in '..\..\OverbyteIcsIniFiles.pas',
   OverbyteIcsSslWebAppServerMain in 'OverbyteIcsSslWebAppServerMain.pas' {WebAppSrvForm},
   OverbyteIcsWebAppServerSessionData in '..\WebDemos\OverbyteIcsWebAppServerSessionData.pas',
   OverbyteIcsWebAppServerLogin in '..\WebDemos\OverbyteIcsWebAppServerLogin.pas',

@@ -32,7 +32,7 @@ package IcsCommonDXE8Run;
 {$DEFINE DEBUG}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS Common Run-Time Package for Delphi XE6'}
+{$DESCRIPTION 'Overbyte ICS Common Run-Time Package for Delphi XE8'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
 
@@ -80,7 +80,11 @@ contains
   OverbyteIcsCookies in '..\Source\OverbyteIcsCookies.pas',
   OverbyteIcsHttpCCodZLib in '..\Source\OverbyteIcsHttpCCodZLib.pas',
   OverbyteIcsAsn1Utils in '..\Source\OverbyteIcsAsn1Utils.pas',
-  OverbyteIcsFormDataDecoder in '..\Source\OverbyteIcsFormDataDecoder.pas';
+  OverbyteIcsFormDataDecoder in '..\Source\OverbyteIcsFormDataDecoder.pas',
+  OverbyteIcsLibeayEx in '..\Source\OverbyteIcsLibeayEx.pas',
+  OverbyteIcsCryptUiApi in '..\Source\OverbyteIcsCryptUiApi.pas',
+  OverbyteIcsWinCrypt in '..\Source\OverbyteIcsWinCrypt.pas',
+  OverbyteIcsIniFiles in '..\Source\OverbyteIcsIniFiles.pas';
 
 end.
 

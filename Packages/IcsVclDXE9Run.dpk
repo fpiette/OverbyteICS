@@ -54,7 +54,7 @@ package IcsVclDXE9Run;
 {$DEFINE DEBUG}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS VCL Run-Time Package for Delphi XE6'}
+{$DESCRIPTION 'Overbyte ICS VCL Run-Time Package for Delphi XE9'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
 
@@ -98,6 +98,8 @@ contains
   OverbyteIcsSnmpCli in '..\Source\OverbyteIcsSnmpCli.pas',
   OverbyteIcsSnmpMsgs in '..\Source\OverbyteIcsSnmpMsgs.pas',
   OverbyteIcsIcmp in '..\Source\OverbyteIcsIcmp.pas',
-  OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas';
+  OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas',
+  OverbyteIcsSslX509Utils in '..\Source\OverbyteIcsSslX509Utils.pas',
+  OverbyteIcsMsSslUtils in '..\Source\OverbyteIcsMsSslUtils.pas';
 
 end.

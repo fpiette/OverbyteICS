@@ -6,7 +6,7 @@
 { CryptuiApi.pas, released May 2011. The initial developer of the              }
 { original translation is Arno Garrels (arno dott garrels att gmx dott de).    }
 {                                                                              }
-{ Portions created by Arno Garrels are Copyright (C) 2011                      }
+{ Portions created by Arno Garrels are Copyright (C) 2015                      }
 { Arno Garrels. All Rights Reserved.                                           }
 {                                                                              }
 { Portions created by Microsoft are Copyright (C) 1992-1999 Microsoft          }
@@ -22,26 +22,27 @@
 { the specific language governing rights and limitations under the License.    }
 {                                                                              }
 { Modification history:                                                        }
-{                                                                              }
+{ June 2015 - Angus renamed from CryptuiApi and moved to main source dir       }
+{                   now using OverbyteIcsWinCrypt                              }
 {                                                                              }
 
 {******************************************************************************}
 
-unit CryptuiApi;
+unit OverbyteIcsCryptuiApi;
 
 {$WEAKPACKAGEUNIT}
 
-{.$DEFINE WIN7_UP}  // WinXp+, most likely W2K+ 
+{.$DEFINE WIN7_UP}  // WinXp+, most likely W2K+
 
 interface
 
 uses
   Windows,
 //#include <wintrust.h>
-  WinCrypt;
+  OverbyteIcsWinCrypt;
 //#include <prsht.h>
 
-{$HPPEMIT '#include <cryptuiapi.h>'}
+{$HPPEMIT '#include <OverbyteIcscryptuiapi.h>'}
 
 //#include <pshpack8.h>
 {.$ALIGN 8}
@@ -58,7 +59,7 @@ type
 
 const
   {$EXTERNALSYM CERT_CREDENTIAL_PROVIDER_ID}
-  CERT_CREDENTIAL_PROVIDER_ID         = - 509; 
+  CERT_CREDENTIAL_PROVIDER_ID         = - 509;
 
 //+----------------------------------------------------------------------------
 //  Dialog viewer of a certificate, CTL or CRL context.
@@ -115,17 +116,17 @@ function CryptUIDlgSelectCertificateFromStore(
 const
 // flags for dwDontUseColumn
   {$EXTERNALSYM CRYPTUI_SELECT_ISSUEDTO_COLUMN}
-  CRYPTUI_SELECT_ISSUEDTO_COLUMN      = $000000001; 
+  CRYPTUI_SELECT_ISSUEDTO_COLUMN      = $000000001;
   {$EXTERNALSYM CRYPTUI_SELECT_ISSUEDBY_COLUMN}
-  CRYPTUI_SELECT_ISSUEDBY_COLUMN      = $000000002; 
+  CRYPTUI_SELECT_ISSUEDBY_COLUMN      = $000000002;
   {$EXTERNALSYM CRYPTUI_SELECT_INTENDEDUSE_COLUMN}
-  CRYPTUI_SELECT_INTENDEDUSE_COLUMN   = $000000004; 
+  CRYPTUI_SELECT_INTENDEDUSE_COLUMN   = $000000004;
   {$EXTERNALSYM CRYPTUI_SELECT_FRIENDLYNAME_COLUMN}
-  CRYPTUI_SELECT_FRIENDLYNAME_COLUMN  = $000000008; 
+  CRYPTUI_SELECT_FRIENDLYNAME_COLUMN  = $000000008;
   {$EXTERNALSYM CRYPTUI_SELECT_LOCATION_COLUMN}
-  CRYPTUI_SELECT_LOCATION_COLUMN      = $000000010; 
+  CRYPTUI_SELECT_LOCATION_COLUMN      = $000000010;
   {$EXTERNALSYM CRYPTUI_SELECT_EXPIRATION_COLUMN}
-  CRYPTUI_SELECT_EXPIRATION_COLUMN    = $000000020; 
+  CRYPTUI_SELECT_EXPIRATION_COLUMN    = $000000020;
 
 //+----------------------------------------------------------------------------
 //
@@ -144,15 +145,15 @@ type
 
 {$IFDEF WIN7_UP}
   PCertSelectuiInput = ^TCertSelectuiInput;
-  {$EXTERNALSYM CERT_SELECTUI_INPUT} 
-  CERT_SELECTUI_INPUT = record 
-    hStore: HCERTSTORE; 
-    prgpChain: ^PCCERT_CHAIN_CONTEXT; 
-    cChain: DWORD; 
-  end; 
-  {$EXTERNALSYM PCERT_SELECTUI_INPUT} 
-  PCERT_SELECTUI_INPUT = ^CERT_SELECTUI_INPUT; 
-  TCertSelectuiInput = CERT_SELECTUI_INPUT; 
+  {$EXTERNALSYM CERT_SELECTUI_INPUT}
+  CERT_SELECTUI_INPUT = record
+    hStore: HCERTSTORE;
+    prgpChain: ^PCCERT_CHAIN_CONTEXT;
+    cChain: DWORD;
+  end;
+  {$EXTERNALSYM PCERT_SELECTUI_INPUT}
+  PCERT_SELECTUI_INPUT = ^CERT_SELECTUI_INPUT;
+  TCertSelectuiInput = CERT_SELECTUI_INPUT;
 
 //+----------------------------------------------------------------------------
 //
@@ -174,17 +175,17 @@ function CertSelectionGetSerializedBlob(
 //-----------------------------------------------------------------------------
 const
   {$EXTERNALSYM CRYPTUI_CERT_MGR_TAB_MASK}
-  CRYPTUI_CERT_MGR_TAB_MASK           = $0000000F; 
+  CRYPTUI_CERT_MGR_TAB_MASK           = $0000000F;
   {$EXTERNALSYM CRYPTUI_CERT_MGR_PUBLISHER_TAB}
-  CRYPTUI_CERT_MGR_PUBLISHER_TAB      = $00000004; 
+  CRYPTUI_CERT_MGR_PUBLISHER_TAB      = $00000004;
   {$EXTERNALSYM CRYPTUI_CERT_MGR_SINGLE_TAB_FLAG}
-  CRYPTUI_CERT_MGR_SINGLE_TAB_FLAG    = $00008000; 
+  CRYPTUI_CERT_MGR_SINGLE_TAB_FLAG    = $00008000;
 
 //+----------------------------------------------------------------------------
 //
 // CRYPTUI_CERT_MGR_STRUCT
 //
-// dwSize               IN Required: Should be set to 
+// dwSize               IN Required: Should be set to
 //                                   sizeof(CRYPTUI_CERT_MGR_STRUCT)
 //
 // hwndParent           IN Optional: Parent of this dialog.
@@ -202,32 +203,32 @@ const
 //
 // pwszTitle            IN Optional: Title of the dialog.
 //
-// pszInitUsageOID      IN Optional: The enhanced key usage object identifier 
-//                                   (OID). Certificates with this OID will 
+// pszInitUsageOID      IN Optional: The enhanced key usage object identifier
+//                                   (OID). Certificates with this OID will
 //                                   initially be shown as a default. User
-//                                   can then choose different OIDs. NULL 
-//                                   means all certificates will be shown 
+//                                   can then choose different OIDs. NULL
+//                                   means all certificates will be shown
 //                                   initially.
 //
 //-----------------------------------------------------------------------------
 type
   PCryptuiCertMgrStruct = ^TCryptuiCertMgrStruct;
-  {$EXTERNALSYM _CRYPTUI_CERT_MGR_STRUCT} 
-  _CRYPTUI_CERT_MGR_STRUCT = record 
-    dwSize: DWORD; 
-    hwndParent: HWND; 
-    dwFlags: DWORD; 
-    pwszTitle: LPCWSTR; 
-    pszInitUsageOID: LPCSTR; 
-  end; 
-  {$EXTERNALSYM CRYPTUI_CERT_MGR_STRUCT} 
-  CRYPTUI_CERT_MGR_STRUCT = _CRYPTUI_CERT_MGR_STRUCT; 
-  {$EXTERNALSYM PCRYPTUI_CERT_MGR_STRUCT} 
-  PCRYPTUI_CERT_MGR_STRUCT = ^_CRYPTUI_CERT_MGR_STRUCT; 
-  TCryptuiCertMgrStruct = _CRYPTUI_CERT_MGR_STRUCT; 
+  {$EXTERNALSYM _CRYPTUI_CERT_MGR_STRUCT}
+  _CRYPTUI_CERT_MGR_STRUCT = record
+    dwSize: DWORD;
+    hwndParent: HWND;
+    dwFlags: DWORD;
+    pwszTitle: LPCWSTR;
+    pszInitUsageOID: LPCSTR;
+  end;
+  {$EXTERNALSYM CRYPTUI_CERT_MGR_STRUCT}
+  CRYPTUI_CERT_MGR_STRUCT = _CRYPTUI_CERT_MGR_STRUCT;
+  {$EXTERNALSYM PCRYPTUI_CERT_MGR_STRUCT}
+  PCRYPTUI_CERT_MGR_STRUCT = ^_CRYPTUI_CERT_MGR_STRUCT;
+  TCryptuiCertMgrStruct = _CRYPTUI_CERT_MGR_STRUCT;
 
   {$EXTERNALSYM PCCRYPTUI_CERT_MGR_STRUCT}
-  PCCRYPTUI_CERT_MGR_STRUCT = ^CRYPTUI_CERT_MGR_STRUCT; 
+  PCCRYPTUI_CERT_MGR_STRUCT = ^CRYPTUI_CERT_MGR_STRUCT;
 
 
 //+----------------------------------------------------------------------------
@@ -236,7 +237,7 @@ type
 //
 // The wizard to manage certificates in store.
 //
-// pCryptUICertMgr      IN  Required: Poitner to CRYPTUI_CERT_MGR_STRUCT 
+// pCryptUICertMgr      IN  Required: Poitner to CRYPTUI_CERT_MGR_STRUCT
 //                                    structure.
 //
 //-----------------------------------------------------------------------------
@@ -245,12 +246,12 @@ function CryptUIDlgCertMgr(
   pCryptUICertMgr: PCCRYPTUI_CERT_MGR_STRUCT
 ): BOOL; stdcall;
 
-        
+
 //+----------------------------------------------------------------------------
 //
 // CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO
 //
-// dwSize               IN Required: Should be set to 
+// dwSize               IN Required: Should be set to
 //                                   sizeof(CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO)
 //
 // pGuidSubject         IN Required: Idenfity the sip functions to load
@@ -262,65 +263,65 @@ function CryptUIDlgCertMgr(
 //-----------------------------------------------------------------------------
 type
   PCryptuiWizDigitalSignBlobInfo = ^TCryptuiWizDigitalSignBlobInfo;
-  {$EXTERNALSYM _CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO} 
-  _CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO = record 
-    dwSize: DWORD; 
+  {$EXTERNALSYM _CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO}
+  _CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO = record
+    dwSize: DWORD;
     pGuidSubject: PGUID;
-    cbBlob: DWORD; 
-    pbBlob: PByte; 
-    pwszDisplayName: LPCWSTR; 
-  end; 
+    cbBlob: DWORD;
+    pbBlob: PByte;
+    pwszDisplayName: LPCWSTR;
+  end;
   {$EXTERNALSYM CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO}
   CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO = _CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO;
-  {$EXTERNALSYM PCRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO} 
-  PCRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO = ^_CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO; 
-  TCryptuiWizDigitalSignBlobInfo = _CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO; 
+  {$EXTERNALSYM PCRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO}
+  PCRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO = ^_CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO;
+  TCryptuiWizDigitalSignBlobInfo = _CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO;
 
   {$EXTERNALSYM PCCRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO}
-  PCCRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO = ^CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO; 
+  PCCRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO = ^CRYPTUI_WIZ_DIGITAL_SIGN_BLOB_INFO;
 
 //+----------------------------------------------------------------------------
 //
 // CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO
 //
-// dwSize               IN Required: Should be set to 
+// dwSize               IN Required: Should be set to
 //                                   sizeof(CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO)
 //
 // cCertStore           IN Required: The acount of certificate store array that
 //                                   includes potentical sining certs
 //
-// rghCertStore         IN Required: The certificate store array that includes 
+// rghCertStore         IN Required: The certificate store array that includes
 //                                   potential signing certs
 //
-// pFilterCallback      IN Optional: The filter call back function for display 
+// pFilterCallback      IN Optional: The filter call back function for display
 //                                   the certificate
 //
 // pvCallbackData       IN Optional: The call back data
 //
 //-----------------------------------------------------------------------------
   PCryptuiWizDigitalSignStoreInfo = ^TCryptuiWizDigitalSignStoreInfo;
-  {$EXTERNALSYM _CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO} 
-  _CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO = record 
-    dwSize: DWORD; 
-    cCertStore: DWORD; 
+  {$EXTERNALSYM _CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO}
+  _CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO = record
+    dwSize: DWORD;
+    cCertStore: DWORD;
     rghCertStore: PHCERTSTORE;
     pFilterCallback: TFNCFILTERPROC;
-    pvCallbackData: Pointer; 
-  end; 
-  {$EXTERNALSYM CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO} 
-  CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO = _CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO; 
-  {$EXTERNALSYM PCRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO} 
-  PCRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO = ^_CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO; 
-  TCryptuiWizDigitalSignStoreInfo = _CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO; 
+    pvCallbackData: Pointer;
+  end;
+  {$EXTERNALSYM CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO}
+  CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO = _CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO;
+  {$EXTERNALSYM PCRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO}
+  PCRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO = ^_CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO;
+  TCryptuiWizDigitalSignStoreInfo = _CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO;
 
   {$EXTERNALSYM PCCRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO}
-  PCCRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO = ^CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO; 
+  PCCRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO = ^CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO;
 
 //+----------------------------------------------------------------------------
 //
 // CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO
 //
-// dwSize               IN Required: Should be set to 
+// dwSize               IN Required: Should be set to
 //                                   sizeof(CRYPT_WIZ_DIGITAL_SIGN_PVK_FILE_INFO)
 //
 // pwszPvkFileName      IN Required: The PVK file name
@@ -331,29 +332,29 @@ type
 //
 //-----------------------------------------------------------------------------
   PCryptuiWizDigitalSignPvkFileInfo = ^TCryptuiWizDigitalSignPvkFileInfo;
-  {$EXTERNALSYM _CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO} 
-  _CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO = record 
-    dwSize: DWORD; 
-    pwszPvkFileName: LPWSTR; 
-    pwszProvName: LPWSTR; 
-    dwProvType: DWORD; 
-  end; 
-  {$EXTERNALSYM CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO} 
-  CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO = _CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO; 
-  {$EXTERNALSYM PCRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO} 
-  PCRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO = ^_CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO; 
-  TCryptuiWizDigitalSignPvkFileInfo = _CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO; 
+  {$EXTERNALSYM _CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO}
+  _CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO = record
+    dwSize: DWORD;
+    pwszPvkFileName: LPWSTR;
+    pwszProvName: LPWSTR;
+    dwProvType: DWORD;
+  end;
+  {$EXTERNALSYM CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO}
+  CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO = _CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO;
+  {$EXTERNALSYM PCRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO}
+  PCRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO = ^_CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO;
+  TCryptuiWizDigitalSignPvkFileInfo = _CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO;
 
   {$EXTERNALSYM PCCRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO}
-  PCCRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO = ^CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO; 
+  PCCRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO = ^CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE_INFO;
 
 //+----------------------------------------------------------------------------
-// Valid values for dwPvkChoice in CRYPTUI_WIZ_DIGITAL_SIGN_CERT_PVK_INFO 
+// Valid values for dwPvkChoice in CRYPTUI_WIZ_DIGITAL_SIGN_CERT_PVK_INFO
 // struct.
 //-----------------------------------------------------------------------------
 const
   {$EXTERNALSYM CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE}
-  CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE   = $01; 
+  CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE   = $01;
   {$EXTERNALSYM CRYPTUI_WIZ_DIGITAL_SIGN_PVK_PROV}
   CRYPTUI_WIZ_DIGITAL_SIGN_PVK_PROV   = $02;
 
@@ -361,13 +362,13 @@ const
 //
 // CRYPTUI_WIZ_DIGITAL_SIGN_CERT_PVK_INFO
 //
-// dwSize                   IN Required: Should be set to 
+// dwSize                   IN Required: Should be set to
 //                                       sizeof(CRYPTUI_WIZ_DIGITAL_SIGN_STORE_INFO)
 //
-// pwszSigningCertFileName  IN Required: The file name that contains the 
+// pwszSigningCertFileName  IN Required: The file name that contains the
 //                                       signing cert(s)
 //
-// dwPvkChoice              IN Required: Indicate the private key type. 
+// dwPvkChoice              IN Required: Indicate the private key type.
 //                                       It can be one of the following:
 //                                           CRYPTUI_WIZ_DIGITAL_SIGN_PVK_FILE
 //                                           CRYPTUI_WIZ_DIGITAL_SIGN_PVK_PROV
@@ -398,23 +399,23 @@ type
   TCryptuiWizDigitalSignCertPvkInfo = _CRYPTUI_WIZ_DIGITAL_SIGN_CERT_PVK_INFO;
 
   {$EXTERNALSYM PCCRYPTUI_WIZ_DIGITAL_SIGN_CERT_PVK_INFO}
-  PCCRYPTUI_WIZ_DIGITAL_SIGN_CERT_PVK_INFO = ^CRYPTUI_WIZ_DIGITAL_SIGN_CERT_PVK_INFO; 
+  PCCRYPTUI_WIZ_DIGITAL_SIGN_CERT_PVK_INFO = ^CRYPTUI_WIZ_DIGITAL_SIGN_CERT_PVK_INFO;
 
 //+----------------------------------------------------------------------------
-// Valid values for dwAttrFlags in CRYPTUI_WIZ_DIGITAL_SIGN_EXTENDED_INFO 
+// Valid values for dwAttrFlags in CRYPTUI_WIZ_DIGITAL_SIGN_EXTENDED_INFO
 // struct.
 //-----------------------------------------------------------------------------
 const
   {$EXTERNALSYM CRYPTUI_WIZ_DIGITAL_SIGN_COMMERCIAL}
-  CRYPTUI_WIZ_DIGITAL_SIGN_COMMERCIAL = $0001; 
+  CRYPTUI_WIZ_DIGITAL_SIGN_COMMERCIAL = $0001;
   {$EXTERNALSYM CRYPTUI_WIZ_DIGITAL_SIGN_INDIVIDUAL}
-  CRYPTUI_WIZ_DIGITAL_SIGN_INDIVIDUAL = $0002; 
+  CRYPTUI_WIZ_DIGITAL_SIGN_INDIVIDUAL = $0002;
 
 //+----------------------------------------------------------------------------
 //
 // CRYPTUI_WIZ_DIGITAL_SIGN_EXTENDED_INFO
 //
-// dwSize                       IN Required: Should be set to 
+// dwSize                       IN Required: Should be set to
 //                                           sizeof(CRYPTUI_WIZ_DIGITAL_SIGN_EXTENDED_INFO)
 //
 // dwAttrFlags                  IN Required: Flag to indicate signing options.
@@ -422,22 +423,22 @@ const
 //                                               CRYPTUI_WIZ_DIGITAL_SIGN_COMMERCIAL
 //                                               CRYPTUI_WIZ_DIGITAL_SIGN_INDIVIDUAL
 //
-// pwszDescription              IN Optional: The description of the signing 
+// pwszDescription              IN Optional: The description of the signing
 //                                           subject.
 
-// pwszMoreInfoLocation         IN Optional: The localtion to get more 
-//                                           information about file this 
-//                                           information will be shown upon 
+// pwszMoreInfoLocation         IN Optional: The localtion to get more
+//                                           information about file this
+//                                           information will be shown upon
 //                                           download time.
 //
-// pszHashAlg                   IN Optional: The hashing algorithm for the 
-//                                           signature. NULL means using SHA1 
+// pszHashAlg                   IN Optional: The hashing algorithm for the
+//                                           signature. NULL means using SHA1
 //                                           hashing algorithm.
 //
-// pwszSigningCertDisplayString IN Optional: The display string to be 
-//                                           displayed on the signing 
-//                                           certificate wizard page. The 
-//                                           string should prompt user to 
+// pwszSigningCertDisplayString IN Optional: The display string to be
+//                                           displayed on the signing
+//                                           certificate wizard page. The
+//                                           string should prompt user to
 //                                           select a certificate for a
 //                                           particular purpose.
 //
@@ -447,7 +448,7 @@ const
 // psAuthenticated              IN Optional: User supplied authenticated
 //                                           attributes added to the signature.
 //
-// psUnauthenticated	        IN Optional: User supplied unauthenticated
+// psUnauthenticated            IN Optional: User supplied unauthenticated
 //                                           attributes added to the signature.
 //
 //-----------------------------------------------------------------------------
@@ -828,7 +829,7 @@ type
     PCCRYPTUI_VIEWCERTIFICATE_STRUCTW = ^CRYPTUI_VIEWCERTIFICATE_STRUCTW;
 
   PCryptuiViewcertificateStructa = ^TCryptuiViewcertificateStructa;
-  {$EXTERNALSYM tagCRYPTUI_VIEWCERTIFICATE_STRUCTA} 
+  {$EXTERNALSYM tagCRYPTUI_VIEWCERTIFICATE_STRUCTA}
   tagCRYPTUI_VIEWCERTIFICATE_STRUCTA = record
     dwSize: DWORD;
     hwndParent: HWND;                                    // OPTIONAL
@@ -882,18 +883,18 @@ function CryptUIDlgViewCertificateA(
 type
 {$IFDEF UNICODE}
   {$EXTERNALSYM PCRYPTUI_VIEWCERTIFICATE_STRUCT}
-  PCRYPTUI_VIEWCERTIFICATE_STRUCT     = PCRYPTUI_VIEWCERTIFICATE_STRUCTW; 
+  PCRYPTUI_VIEWCERTIFICATE_STRUCT     = PCRYPTUI_VIEWCERTIFICATE_STRUCTW;
   {$EXTERNALSYM CRYPTUI_VIEWCERTIFICATE_STRUCT}
-  CRYPTUI_VIEWCERTIFICATE_STRUCT      = CRYPTUI_VIEWCERTIFICATE_STRUCTW; 
+  CRYPTUI_VIEWCERTIFICATE_STRUCT      = CRYPTUI_VIEWCERTIFICATE_STRUCTW;
   {$EXTERNALSYM PCCRYPTUI_VIEWCERTIFICATE_STRUCT}
-  PCCRYPTUI_VIEWCERTIFICATE_STRUCT    = PCCRYPTUI_VIEWCERTIFICATE_STRUCTW; 
+  PCCRYPTUI_VIEWCERTIFICATE_STRUCT    = PCCRYPTUI_VIEWCERTIFICATE_STRUCTW;
 {$ELSE}
   {$EXTERNALSYM PCRYPTUI_VIEWCERTIFICATE_STRUCT}
   PCRYPTUI_VIEWCERTIFICATE_STRUCT     = PCRYPTUI_VIEWCERTIFICATE_STRUCTA;
   {$EXTERNALSYM CRYPTUI_VIEWCERTIFICATE_STRUCT}
-  CRYPTUI_VIEWCERTIFICATE_STRUCT      = CRYPTUI_VIEWCERTIFICATE_STRUCTA; 
+  CRYPTUI_VIEWCERTIFICATE_STRUCT      = CRYPTUI_VIEWCERTIFICATE_STRUCTA;
   {$EXTERNALSYM PCCRYPTUI_VIEWCERTIFICATE_STRUCT}
-  PCCRYPTUI_VIEWCERTIFICATE_STRUCT    = PCCRYPTUI_VIEWCERTIFICATE_STRUCTA; 
+  PCCRYPTUI_VIEWCERTIFICATE_STRUCT    = PCCRYPTUI_VIEWCERTIFICATE_STRUCTA;
 {$ENDIF}
 
 {$EXTERNALSYM CryptUIDlgViewCertificate}
@@ -905,7 +906,7 @@ function CryptUIDlgViewCertificate(
 
 //-------------------------------------------------------------------------
 //
-//	Valid values for dwSubjectChoice in CRYPTUI_WIZ_EXPORT_INFO
+//  Valid values for dwSubjectChoice in CRYPTUI_WIZ_EXPORT_INFO
 //-------------------------------------------------------------------------
 const
   {$EXTERNALSYM CRYPTUI_WIZ_EXPORT_CERT_CONTEXT}
@@ -925,22 +926,22 @@ const
 
 //-------------------------------------------------------------------------
 //
-//	Struct to define the object to be exported and where to export it to
+//  Struct to define the object to be exported and where to export it to
 //
 //  CRYPTUI_WIZ_EXPORT_SUBJECT_INFO
 //
 //-------------------------------------------------------------------------
 type
   PCryptuiWizExportInfo = ^TCryptuiWizExportInfo;
-  {$EXTERNALSYM _CRYPTUI_WIZ_EXPORT_INFO} 
+  {$EXTERNALSYM _CRYPTUI_WIZ_EXPORT_INFO}
   _CRYPTUI_WIZ_EXPORT_INFO = record
-    dwSize: DWORD; 
-         //Required: should be set to sizeof(CRYPTUI_WIZ_EXPORT_INFO) 
-    pwszExportFileName: LPCWSTR; 
-         //Required if the CRYPTUI_WIZ_NO_UI flag is set, Optional otherwise. 
-         //The fully qualified file name to export to, if this is 
-         //non-NULL and the CRYPTUI_WIZ_NO_UI flag is NOT set, then it is 
-         //displayed to the user as the default file name 
+    dwSize: DWORD;
+         //Required: should be set to sizeof(CRYPTUI_WIZ_EXPORT_INFO)
+    pwszExportFileName: LPCWSTR;
+         //Required if the CRYPTUI_WIZ_NO_UI flag is set, Optional otherwise.
+         //The fully qualified file name to export to, if this is
+         //non-NULL and the CRYPTUI_WIZ_NO_UI flag is NOT set, then it is
+         //displayed to the user as the default file name
     case dwSubjectChoice: DWORD of
       //Required: indicate the type of the subject:
       //          If can one of the following:
@@ -969,7 +970,7 @@ type
         //           trust chain if the chain is being exported with a cert.
         //           this is ignored if dwSubjectChoice is anything other
         //           than CRYPTUI_WIZ_EXPORT_CERT_CONTEXT
-  end; 
+  end;
   {$EXTERNALSYM CRYPTUI_WIZ_EXPORT_INFO}
   CRYPTUI_WIZ_EXPORT_INFO = _CRYPTUI_WIZ_EXPORT_INFO;
   {$EXTERNALSYM PCRYPTUI_WIZ_EXPORT_INFO}
@@ -977,12 +978,12 @@ type
   TCryptuiWizExportInfo = _CRYPTUI_WIZ_EXPORT_INFO;
 
   {$EXTERNALSYM PCCRYPTUI_WIZ_EXPORT_INFO}
-  PCCRYPTUI_WIZ_EXPORT_INFO = ^CRYPTUI_WIZ_EXPORT_INFO; 
+  PCCRYPTUI_WIZ_EXPORT_INFO = ^CRYPTUI_WIZ_EXPORT_INFO;
 
 
 //-------------------------------------------------------------------------
 //
-//	Valid values for dwExportFormat in CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO
+//  Valid values for dwExportFormat in CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO
 //-------------------------------------------------------------------------
 const
   {$EXTERNALSYM CRYPTUI_WIZ_EXPORT_FORMAT_DER}
@@ -998,44 +999,44 @@ const
 
 //-------------------------------------------------------------------------
 //
-//	Struct to define the information needed to export a CERT_CONTEXT
+//  Struct to define the information needed to export a CERT_CONTEXT
 //
 //  CRYPTUI_WIZ_EXPORT_NOUI_INFO
 //
 //-------------------------------------------------------------------------
 type
   PCryptuiWizExportCertcontextInfo = ^TCryptuiWizExportCertcontextInfo;
-  {$EXTERNALSYM _CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO} 
-  _CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO = record 
-    dwSize: DWORD; 
-    //Required: should be set to sizeof(CRYPTUI_WIZ_EXPORT_NOUI_INFO) 
-    dwExportFormat: DWORD; 
-    //Required: 
-    //          It can be one of the following: 
-    //          CRYPTUI_WIZ_EXPORT_FORMAT_DER 
-    //          CRYPTUI_WIZ_EXPORT_FORMAT_PFX 
-    //          CRYPTUI_WIZ_EXPORT_FORMAT_PKCS7 
-    //          CRYPTUI_WIZ_EXPORT_FORMAT_SERIALIZED_CERT_STORE 
-    fExportChain: BOOL; 
-    //Required 
-    fExportPrivateKeys: BOOL; 
-    //Required 
-    pwszPassword: LPCWSTR; 
-    //Required if the fExportPrivateKeys boolean is TRUE, otherwise, 
-    //it is ignored 
-    fStrongEncryption: BOOL; 
-    //Required if dwExportFormat is CRYPTUI_WIZ_EXPORT_FORMAT_PFX 
-    //Note that if this flag is TRUE then the PFX blob produced is 
-    //NOT compatible with IE4. 
-  end; 
-  {$EXTERNALSYM CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO} 
-  CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO = _CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO; 
-  {$EXTERNALSYM PCRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO} 
-  PCRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO = ^_CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO; 
-  TCryptuiWizExportCertcontextInfo = _CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO; 
+  {$EXTERNALSYM _CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO}
+  _CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO = record
+    dwSize: DWORD;
+    //Required: should be set to sizeof(CRYPTUI_WIZ_EXPORT_NOUI_INFO)
+    dwExportFormat: DWORD;
+    //Required:
+    //          It can be one of the following:
+    //          CRYPTUI_WIZ_EXPORT_FORMAT_DER
+    //          CRYPTUI_WIZ_EXPORT_FORMAT_PFX
+    //          CRYPTUI_WIZ_EXPORT_FORMAT_PKCS7
+    //          CRYPTUI_WIZ_EXPORT_FORMAT_SERIALIZED_CERT_STORE
+    fExportChain: BOOL;
+    //Required
+    fExportPrivateKeys: BOOL;
+    //Required
+    pwszPassword: LPCWSTR;
+    //Required if the fExportPrivateKeys boolean is TRUE, otherwise,
+    //it is ignored
+    fStrongEncryption: BOOL;
+    //Required if dwExportFormat is CRYPTUI_WIZ_EXPORT_FORMAT_PFX
+    //Note that if this flag is TRUE then the PFX blob produced is
+    //NOT compatible with IE4.
+  end;
+  {$EXTERNALSYM CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO}
+  CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO = _CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO;
+  {$EXTERNALSYM PCRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO}
+  PCRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO = ^_CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO;
+  TCryptuiWizExportCertcontextInfo = _CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO;
 
   {$EXTERNALSYM PCCRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO}
-  PCCRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO = ^CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO; 
+  PCCRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO = ^CRYPTUI_WIZ_EXPORT_CERTCONTEXT_INFO;
 
 //-----------------------------------------------------------------------
 //
@@ -1081,7 +1082,7 @@ function CryptUIWizExport(
 
 //-------------------------------------------------------------------------
 //
-//	Valid values for dwSubjectChoice in IMPORT_SUBJECT_INFO
+//  Valid values for dwSubjectChoice in IMPORT_SUBJECT_INFO
 //-------------------------------------------------------------------------
 const
   {$EXTERNALSYM CRYPTUI_WIZ_IMPORT_SUBJECT_FILE}
@@ -1097,19 +1098,19 @@ const
 
 //-------------------------------------------------------------------------
 //
-//	Struct to define the subject CertImportWizard
+//  Struct to define the subject CertImportWizard
 //
 //  CRYPTUI_WIZ_IMPORT_SUBJECT_INFO
 //
 //-------------------------------------------------------------------------
 type
   PCryptuiWizImportSrcInfo = ^TCryptuiWizImportSrcInfo;
-  {$EXTERNALSYM _CRYPTUI_WIZ_IMPORT_SUBJECT_INFO} 
+  {$EXTERNALSYM _CRYPTUI_WIZ_IMPORT_SUBJECT_INFO}
   _CRYPTUI_WIZ_IMPORT_SUBJECT_INFO = record
     dwSize: DWORD;
     //Required: should be set to sizeof(IMPORT_SUBJECT_INFO)
     case dwSubjectChoice: DWORD of
-      //Required:	indicate the type of the subject:
+      //Required:   indicate the type of the subject:
       //          If can one of the following:
       //          CRYPTUI_WIZ_IMPORT_SUBJECT_FILE
       //          CRYPTUI_WIZ_IMPORT_SUBJECT_CERT_CONTEXT
@@ -1143,7 +1144,7 @@ type
   TCryptuiWizImportSrcInfo = _CRYPTUI_WIZ_IMPORT_SUBJECT_INFO;
 
   {$EXTERNALSYM PCCRYPTUI_WIZ_IMPORT_SRC_INFO}
-  PCCRYPTUI_WIZ_IMPORT_SRC_INFO = ^CRYPTUI_WIZ_IMPORT_SRC_INFO; 
+  PCCRYPTUI_WIZ_IMPORT_SRC_INFO = ^CRYPTUI_WIZ_IMPORT_SRC_INFO;
 
 //-----------------------------------------------------------------------
 //

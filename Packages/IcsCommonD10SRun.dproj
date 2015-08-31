@@ -1,13 +1,13 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{C1F49B17-09DF-4A2B-B78E-0A5FF0F54171}</ProjectGuid>
-        <MainSource>IcsCommonDXE9Design.dpk</MainSource>
-        <ProjectVersion>17.3</ProjectVersion>
+        <ProjectGuid>{326FE026-97FA-47A1-BAB9-9F56437E7CC3}</ProjectGuid>
+        <MainSource>IcsCommonD10SRun.dpk</MainSource>
+        <ProjectVersion>18.0</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
-        <TargetedPlatforms>1</TargetedPlatforms>
+        <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Package</AppType>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
@@ -15,6 +15,11 @@
     </PropertyGroup>
     <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Base)'=='true') or '$(Base_Win32)'!=''">
         <Base_Win32>true</Base_Win32>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Base)'=='true') or '$(Base_Win64)'!=''">
+        <Base_Win64>true</Base_Win64>
         <CfgParent>Base</CfgParent>
         <Base>true</Base>
     </PropertyGroup>
@@ -29,29 +34,52 @@
         <Cfg_1>true</Cfg_1>
         <Base>true</Base>
     </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_1)'=='true') or '$(Cfg_1_Win64)'!=''">
+        <Cfg_1_Win64>true</Cfg_1_Win64>
+        <CfgParent>Cfg_1</CfgParent>
+        <Cfg_1>true</Cfg_1>
+        <Base>true</Base>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' or '$(Cfg_2)'!=''">
         <Cfg_2>true</Cfg_2>
         <CfgParent>Base</CfgParent>
         <Base>true</Base>
     </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win32)'!=''">
+        <Cfg_2_Win32>true</Cfg_2_Win32>
+        <CfgParent>Cfg_2</CfgParent>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win64)'!=''">
+        <Cfg_2_Win64>true</Cfg_2_Win64>
+        <CfgParent>Cfg_2</CfgParent>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
-        <SanitizedProjectName>IcsCommonDXE9Design</SanitizedProjectName>
+        <SanitizedProjectName>IcsCommonD10SRun</SanitizedProjectName>
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_Description>Overbyte ICS Common Run-Time Package for Delphi 10 Seattle</DCC_Description>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
-        <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_Description>Overbyte ICS Common Design-Time Package for Delphi XE9</DCC_Description>
-        <DesignOnlyPackage>true</DesignOnlyPackage>
-        <GenDll>true</GenDll>
+        <DCC_Define>USE_SSL;$(DCC_Define)</DCC_Define>
+        <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <VerInfo_Locale>1031</VerInfo_Locale>
-        <DCC_UsePackage>rtl;IcsCommonDXE9Run;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <GenPackage>true</GenPackage>
-        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE9</DCC_DcuOutput>
+        <GenDll>true</GenDll>
+        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\D10S</DCC_DcuOutput>
         <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
+        <VerInfo_Locale>1033</VerInfo_Locale>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Base_Win64)'!=''">
+        <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
@@ -61,10 +89,13 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
-        <DCC_DcuOutput>..\Lib\$(Config)\$(Platform)\XE9</DCC_DcuOutput>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_RemoteDebug>false</DCC_RemoteDebug>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
@@ -73,14 +104,70 @@
         <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
         <DCC_DebugInformation>0</DCC_DebugInformation>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Locale>1033</VerInfo_Locale>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Locale>1033</VerInfo_Locale>
+    </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
+        <DCCReference Include="..\Source\OverbyteIcsLogger.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsTimeList.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsPing.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsMimeDec.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsMimeUtils.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsCookies.dcr"/>
         <DCCReference Include="rtl.dcp"/>
-        <DCCReference Include="designide.dcp"/>
-        <DCCReference Include="IcsCommonDXE9Run.dcp"/>
-        <DCCReference Include="..\Source\OverbyteIcsReg.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsAvlTrees.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsCharsetUtils.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsCRC.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsCsc.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsDES.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsIconv.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsLIBEAY.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsMD4.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsMD5.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsMLang.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsOneTimePw.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsSha1.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsSSLEAY.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsSspi.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsStreams.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsTypes.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsUtils.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsWinnls.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsZLibDll.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsZlibHigh.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsZLibObj.pas"/>
+        <DCCReference Include="..\Source\OverByteIcsFtpSrvT.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsHttpContCod.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsWinsock.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsWebSession.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsTimeList.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsLogger.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsDigestAuth.pas"/>
+        <DCCReference Include="..\Source\Ics.Posix.WinTypes.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsMimeUtils.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsUrl.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsWSockBuf.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsMimeDec.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsNtlmMsgs.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsNtlmSsp.pas"/>
+        <DCCReference Include="..\Source\Ics.Posix.KEventApi.pas"/>
+        <DCCReference Include="..\Source\Ics.Posix.KEventTypes.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsCookies.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsHttpCCodZLib.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsAsn1Utils.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsFormDataDecoder.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsLibeayEx.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsCryptUiApi.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsWinCrypt.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsIniFiles.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -99,7 +186,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">IcsCommonDXE9Design.dpk</Source>
+                    <Source Name="MainSource">IcsCommonD10SRun.dpk</Source>
                 </Source>
                 <VersionInfo>
                     <VersionInfo Name="IncludeVerInfo">True</VersionInfo>
@@ -129,7 +216,8 @@
                     <VersionInfoKeys Name="Comments"/>
                 </VersionInfoKeys>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="C:\Users\Public\Documents\Embarcadero\Studio\14.0\Bpl\OverbyteIcsDXe6Design.bpl">Overbyte ICS Design-Time Package for Delphi XE9 (Confidential)</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\bcboffice2k230.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\bcbofficexp230.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k230.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dclofficexp230.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
@@ -140,19 +228,19 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="$(BDS)\Redist\iossimulator\libcgunwind.1.0.dylib" Class="DependencyModule">
-                    <Platform Name="iOSSimulator">
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\iossimulator\libPCRE.dylib" Class="DependencyModule">
                     <Platform Name="iOSSimulator">
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\15.0\Bpl\IcsCommonDXE9Design.bpl" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="$(BDS)\Redist\iossimulator\libcgunwind.1.0.dylib" Class="DependencyModule">
+                    <Platform Name="iOSSimulator">
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\17.0\Bpl\IcsCommonD10SRun.bpl" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
-                        <RemoteName>IcsCommonDXE9Design.bpl</RemoteName>
+                        <RemoteName>IcsCommonD10SRun.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -424,6 +512,12 @@
                         <Operation>0</Operation>
                     </Platform>
                 </DeployClass>
+                <DeployClass Name="AndroidServiceOutput">
+                    <Platform Name="Android">
+                        <RemoteDir>library\lib\armeabi-v7a</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
                 <DeployClass Required="true" Name="DependencyPackage">
                     <Platform Name="Win32">
                         <Operation>0</Operation>
@@ -474,8 +568,8 @@
                         <Extensions>.dylib</Extensions>
                     </Platform>
                 </DeployClass>
-                <ProjectRoot Platform="Win64" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="iOSDevice64" Name="$(PROJECTNAME).app"/>
+                <ProjectRoot Platform="Win64" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="iOSDevice32" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="Win32" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="OSX32" Name="$(PROJECTNAME)"/>
@@ -484,6 +578,7 @@
             </Deployment>
             <Platforms>
                 <Platform value="Win32">True</Platform>
+                <Platform value="Win64">True</Platform>
             </Platforms>
         </BorlandProject>
         <ProjectFileVersion>12</ProjectFileVersion>

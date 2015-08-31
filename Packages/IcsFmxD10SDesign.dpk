@@ -1,11 +1,11 @@
-package IcsFmxDXE9Design;
+package IcsFmxD10SDesign;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
-{$DEBUGINFO ON}
+{$DEBUGINFO OFF}
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
@@ -26,15 +26,15 @@ package IcsFmxDXE9Design;
 {$DEFINE DEBUG}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS FMX Design-Time Package for Delphi XE9'}
+{$DESCRIPTION 'Overbyte ICS FMX Design-Time Package for Delphi 10 Seattle'}
 {$DESIGNONLY}
 {$IMPLICITBUILD ON}
 
 requires
   rtl,
   designide,
-  IcsCommonDXE9Run,
-  IcsFmxDXE9Run;
+  IcsCommonD10SRun,
+  IcsFmxD10SRun;
 
 contains
   Ics.Fmx.OverbyteIcsReg in '..\Source\Ics.Fmx.OverbyteIcsReg.pas',

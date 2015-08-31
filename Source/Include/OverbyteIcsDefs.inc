@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  Version defines for ICS (Internet Component Suite)
 Creation:     2003
-Version:      8.07
+Version:      8.08
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -62,6 +62,7 @@ Nov 8,  2014 V8.05 Eugene Kotlyarov added namespace for all RTL units for XE2 an
                     later, using new define RTL_NAMESPACES
 Feb 2015 - V8.06 - Angus XE8
 Jun 2015 - V8.07 - Angus XE9
+Aug 2015 - V8.08 - Angus XE9 is now Delphi 10 Seattle
 
 
   SYMBOL           Compiler version
@@ -102,7 +103,7 @@ Jun 2015 - V8.07 - Angus XE9
   DELPHI20_UP      Delphi 20 or higher  (Delphi XE6  - Proteus)
   DELPHI21_UP      Delphi 21 or higher  (Delphi XE7  - Carpathia)
   DELPHI22_UP      Delphi 22 or higher  (Delphi XE8  - Elbrus)
-  DELPHI23_UP      Delphi 23 or higher  (Delphi XE9  - Aitana)
+  DELPHI23_UP      Delphi 23 or higher  (Delphi 10 Seattle - Aitana)
 
   BCB1             C++ Builder 1
   BCB3             C++ Builder 3
@@ -126,7 +127,7 @@ Jun 2015 - V8.07 - Angus XE9
   BCB20_UP         C++ Builder XE6  or higher
   BCB21_UP         C++ Builder XE7  or higher
   BCB22_UP         C++ Builder XE8  or higher
-  BCB23_UP         C++ Builder XE9  or higher
+  BCB23_UP         C++ Builder 10 Seattle  or higher
 
   COMPILER1        Delphi 1
   COMPILER2        Delphi 2  or C++ Builder 1
@@ -150,7 +151,7 @@ Jun 2015 - V8.07 - Angus XE9
   COMPILER20       Delphi or C++ Builder XE6
   COMPILER21       Delphi or C++ Builder XE7
   COMPILER22       Delphi or C++ Builder XE8
-  COMPILER23       Delphi or C++ Builder XE9
+  COMPILER23       Delphi or C++ Builder 10 Seattle
 
   COMPILER1_UP     Delphi 1  or higher
   COMPILER2_UP     Delphi 2  or C++ Builder 1 or higher
@@ -174,7 +175,7 @@ Jun 2015 - V8.07 - Angus XE9
   COMPILER20_UP    Delphi or C++ Builder XE6  or higher (Proteus)
   COMPILER21_UP    Delphi or C++ Builder XE7  or higher (Carpathia)
   COMPILER22_UP    Delphi or C++ Builder XE8  or higher (Elbrus)
-  COMPILER23_UP    Delphi or C++ Builder XE9  or higher (Aitana)
+  COMPILER23_UP    Delphi or C++ Builder 10 Seattle or higher (Aitana)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * }
 

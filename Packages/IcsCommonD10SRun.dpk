@@ -1,4 +1,4 @@
-package IcsCommonDXE9Run;
+package IcsCommonD10SRun;
 
 {$R *.res}
 {$R '..\Source\OverbyteIcsLogger.dcr'}
@@ -32,7 +32,7 @@ package IcsCommonDXE9Run;
 {$DEFINE DEBUG}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS Common Run-Time Package for Delphi XE9'}
+{$DESCRIPTION 'Overbyte ICS Common Run-Time Package for Delphi 10 Seattle'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
 

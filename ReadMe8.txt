@@ -1,9 +1,9 @@
-ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio XE8
-================================================================
+ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10 Seattle
+=======================================================================
 (Aka FPIETTE's Components)
 
 
-Revised: April 6, 2015
+Revised: August 31, 2015
 http://www.overbyte.be/
 
 Table of content:
@@ -171,7 +171,7 @@ This is the new V8 sub-directory layout:
       |
     \$(Platform)                      Win32 / Win64 / OSX32
         |
-      \<delphi_version>               D7..XE8 includes .dcu and .dfm files for Delphi
+      \<delphi_version>               D7..XE8, 10 Seattle includes .dcu and .dfm files for Delphi
                                       and .obj and .hpp files for C++ Builder
 
 .\Samples                             Delphi Win32/Win64 common source for all demos
@@ -260,6 +260,8 @@ Delphi XE7       :  DXe7Install.groupproj // VCL only, no FireMonkey components
 Delphi XE7       :  DXe7InstallVclFmx.groupproj // Both VCL and FireMonkey components
 Delphi XE8       :  DXe8Install.groupproj // VCL only, no FireMonkey components
 Delphi XE8       :  DXe8InstallVclFmx.groupproj // Both VCL and FireMonkey components
+Delphi 10 Seattle : D10SInstall.groupproj // VCL only, no FireMonkey components
+Delphi 10 Seattle : D10SInstallVclFmx.groupproj // Both VCL and FireMonkey components
 C++ Builder 2006 :  CB2006Install.bdsgroup
 C++ Builder 2007 :  CB2007Install.groupproj
 C++ Builder 2009 :  CB2009Install.groupproj
@@ -339,6 +341,7 @@ Delphi XE5       :  OverbyteIcsDXe5Run.dproj, OverbyteIcsDXe5Design.dproj
 Delphi XE6       :  OverbyteIcsDXe6Run.dproj, OverbyteIcsDXe6Design.dproj
 Delphi XE7       :  OverbyteIcsDXe7Run.dproj, OverbyteIcsDXe7Design.dproj
 Delphi XE8       :  OverbyteIcsDXe8Run.dproj, OverbyteIcsDXe8Design.dproj
+Delphi 10 Seattle : OverbyteIcsD10SRun.dproj, OverbyteIcsD10SDesign.dproj
 C++ Builder 2006 :  OverbyteIcsCB2006Run.bdsproj, OverbyteIcsCB2006Design.bdsproj
 C++ Builder 2007 :  OverbyteIcsCB2007Run.cbproj, OverbyteIcsCB2007Design.cbproj
 C++ Builder 2009 :  OverbyteIcsCB2009Run.cbproj, OverbyteIcsCB2009Design.cbproj
@@ -369,6 +372,9 @@ Delphi XE7 FMX          :  IcsFmxDXe7Run.dproj, IcsFmxDXe7Design.dproj
 Delphi XE8 FMX/VCL      :  IcsCommonDXe8Run.dproj, IcsCommonDXe8Design.dproj
 Delphi XE8 VCL          :  IcsVclDXe8Run.dproj, IcsVclDXe8Design.dproj
 Delphi XE8 FMX          :  IcsFmxDXe8Run.dproj, IcsFmxDXe8Design.dproj
+Delphi 10 Seattle FMX/VCL: IcsCommonD10SRun.dproj, IcsCommonD10SDesign.dproj
+Delphi 10 Seattle VCL   :  IcsVclD10SRun.dproj, IcsVclD10SDesign.dproj
+Delphi 10 Seattle FMX   :  IcsFmxD10SRun.dproj, IcsFmxD10SDesign.dproj
 C++ Builder XE2 FMX/VCL :  IcsCommonCBXe2Run.dproj, IcsCommonDXe2Design.dproj
 C++ Builder XE2 VCL     :  IcsVclCBXe2Run.dproj, IcsVclCBXe2Design.dproj
 C++ Builder XE2 FMX     :  IcsFmxCBXe2Run.dproj, IcsFmxCBXe2Design.dproj
@@ -404,7 +410,8 @@ but it will be much easier for you because otherwise you'll have to add it to ea
 project.
 
 DELPHI XE2/WIN32, XE3/WIN32, XE4/WIN32, XE5/WIN32, XE6/WIN32, XE7/WIN32, XE8/WIN32,
-XE2/WIN64, XE3/WIN64, XE4/WIN64, XE5/WIN64, XE6/WIN64, XE7/WIN64, XE8/WIN64:
+10 Seattle/WIN32, XE2/WIN64, XE3/WIN64, XE4/WIN64, XE5/WIN64, XE6/WIN64, XE7/WIN64,
+XE8/WIN64, 10 Seattle/WIN64:
 
 Similar to above, but the Library path is specified separately for 32-bit and 64-bit
 Windows Platforms.

@@ -4,7 +4,7 @@ interface
 
 uses
     SysUtils, WinTypes, WinProcs, Messages, Classes, Graphics, Controls,
-    Forms, Dialogs, StdCtrls, Buttons, Htmlview, ExtCtrls, HTMLUn2;
+    Forms, Dialogs, StdCtrls, Buttons, HtmlGlobals, Htmlview, ExtCtrls, HTMLUn2;
 
 {$INCLUDE htmlcons.inc}
 
@@ -17,8 +17,8 @@ type
         { Private declarations }
     public
         { Public declarations }
-        constructor CreateIt(Owner : TComponent;
-            const ProgName, CompName : String);
+        constructor CreateIt(Owner: TComponent; const ProgName, CompName: string); overload;
+        constructor CreateIt(Owner: TComponent; const Message: ThtString); overload;
     end;
 
 var
@@ -93,10 +93,39 @@ begin
 {$IFDEF Ver260}
         'Delphi XE5'
 {$ENDIF}
+{$IFDEF Ver270}
+        'Delphi XE6'
+{$ENDIF}
+{$IFDEF Ver280}
+        'Delphi XE7'
+{$ENDIF}
+{$IFDEF Ver290}
+        'Delphi XE8'
+{$ENDIF}
+{$IFDEF Ver300}
+        'Delphi 10 Seattle'
+{$ENDIF}
 {$IFDEF LCL}
         'Lazarus ' + lcl_version
 {$ENDIF}
         ;
+
+{$ifdef win64}
+  Result := Result + '<li>Compiled for Win64</li>';
+{$endif}
+{$ifdef win32}
+  Result := Result + '<li>Compiled for Win32</li>';
+{$endif}
+{$ifdef wince}
+  Result := Result + '<li>Compiled for WinCE</li>';
+{$endif}
+{$ifdef unix}
+  Result := Result + '<li>Compiled for Unix';
+  {$ifdef LCL}
+    Result := Result + ' (' + LCLPlatformDirNames[WidgetSet.LCLPlatform] +')';
+  {$endif}
+  Result := Result + '</li>';
+{$endif}
 
 {$IFDEF UseTNT}
     Result := Result + '<li>Using TNT unicode controls.';
@@ -122,20 +151,38 @@ begin
     Result := Result + '</ul>';
 end;
 
-constructor TAboutBox.CreateIt(Owner : TComponent;
-    const ProgName, CompName : String);
+constructor TAboutBox.CreateIt(Owner: TComponent; const ProgName, CompName: string);
 var
-    S : String;
+  S: String;
 begin
-    inherited Create(Owner);
-    Viewer.DefFontName  := 'MS Sans Serif';
-    Viewer.DefFontSize  := 9;
-    Viewer.DefFontColor := clNavy;
-    S := '<body bgcolor="ffffeb" text="000080">' + '<center>' + '<h1>' +
-        ProgName + '</h1>' + '<font color="Maroon">A demo program for the ' +
-        CompName + ' component</font>' + '<p>Version ' + VersionNo + '</center>'
-        + ConfigInfo + '</body>';
-    Viewer.LoadFromString(S);
+  inherited Create(Owner);
+  inherited Loaded;
+  Viewer.DefFontName := 'MS Sans Serif';
+  Viewer.DefFontSize := 9;
+  Viewer.DefFontColor := clNavy;
+  S :='<body text="000080">'+
+    '<center>'+
+    '<h1>'+ProgName+'</h1>'+
+    '<font color="Maroon">A demo program for the '+CompName+' component</font>'+
+    '<h3>Version '+ VersionNo +'</h3>'+
+    '</center>'+
+    ConfigInfo +
+    '</body>';
+  Viewer.LoadFromString(S);
+end;
+
+
+constructor TAboutBox.CreateIt(Owner: TComponent;
+  const Message: ThtString);
+begin
+  inherited Create(Owner);
+  inherited Loaded;
+  if Owner is TCustomForm then
+    Caption := TCustomForm(Owner).Caption;
+  Viewer.DefFontName := 'Verdana';
+  Viewer.DefFontSize := 12;
+  Viewer.DefFontColor := clBlack;
+  Viewer.LoadFromString('<body>' + Message + '</body>');
 end;
 
 end.

@@ -75,6 +75,7 @@ object HTTPForm: THTTPForm
     Width = 729
     Height = 537
     CharSet = ANSI_CHARSET
+    CodePage = 0
     DefBackground = clWhite
     DefFontName = 'Times New Roman'
     DefHotSpotColor = clNavy
@@ -83,6 +84,12 @@ object HTTPForm: THTTPForm
     HistoryIndex = 0
     HistoryMaxCount = 0
     NoSelect = False
+    PrintMarginBottom = 3.000000000000000000
+    PrintMarginLeft = 2.000000000000000000
+    PrintMarginRight = 2.000000000000000000
+    PrintMarginTop = 2.000000000000000000
+    PrintScale = 1.000000000000000000
+    QuirksMode = qmDetect
     OnBlankWindowRequest = BlankWindowRequest
     OnFileBrowse = FrameBrowserFileBrowse
     OnHistoryChange = HistoryChange
@@ -96,12 +103,6 @@ object HTTPForm: THTTPForm
     OnRightClick = RightClick
     OnScript = FrameBrowserScript
     OnViewerClear = ViewerClear
-    PrintMarginBottom = 3.000000000000000000
-    PrintMarginLeft = 2.000000000000000000
-    PrintMarginRight = 2.000000000000000000
-    PrintMarginTop = 2.000000000000000000
-    PrintScale = 1.000000000000000000
-    QuirksMode = qmDetect
     Align = alClient
     TabOrder = 1
     OnMouseMove = FrameBrowserMouseMove
@@ -119,7 +120,7 @@ object HTTPForm: THTTPForm
         ImageIndex = -1
         MinHeight = 37
         MinWidth = 140
-        Width = 153
+        Width = 215
       end
       item
         Break = False
@@ -128,7 +129,7 @@ object HTTPForm: THTTPForm
         MinHeight = 21
         MinWidth = 170
         Text = 'URL:'
-        Width = 286
+        Width = 270
       end
       item
         Break = False
@@ -136,12 +137,12 @@ object HTTPForm: THTTPForm
         ImageIndex = -1
         MinHeight = 37
         MinWidth = 155
-        Width = 282
+        Width = 230
       end>
     object ToolBar2: TToolBar
       Left = 9
       Top = 0
-      Width = 140
+      Width = 142
       Height = 37
       AutoSize = True
       ButtonHeight = 37
@@ -185,11 +186,11 @@ object HTTPForm: THTTPForm
       end
     end
     object UrlComboBox: TComboBox
-      Left = 193
+      Left = 195
       Top = 8
-      Width = 244
+      Width = 356
       Height = 21
-      ItemHeight = 13
+      ItemHeight = 0
       TabOrder = 1
       OnClick = URLComboBoxClick
       OnKeyPress = URLComboBoxKeyPress
@@ -197,9 +198,9 @@ object HTTPForm: THTTPForm
         'http://pc19-web/local/localindex.html')
     end
     object Panel10: TPanel
-      Left = 452
+      Left = 448
       Top = 0
-      Width = 273
+      Width = 277
       Height = 37
       Align = alTop
       BevelOuter = bvNone
@@ -235,13 +236,14 @@ object HTTPForm: THTTPForm
         end
       end
       object Panel3: TPanel
-        Left = 245
+        Left = 249
         Top = 0
         Width = 28
         Height = 37
         Align = alRight
         BevelOuter = bvNone
         TabOrder = 1
+        ExplicitLeft = 247
         object Animate1: TAnimate
           Left = 3
           Top = 8
@@ -309,7 +311,7 @@ object HTTPForm: THTTPForm
     object Options1: TMenuItem
       Caption = '&Options'
       object Proxy1: TMenuItem
-        Caption = '&Proxy...'
+        Caption = '&Settings...'
         OnClick = Proxy1Click
       end
       object CachePages: TMenuItem
@@ -415,7 +417,7 @@ object HTTPForm: THTTPForm
     Left = 40
     Top = 160
     Bitmap = {
-      494C01010D006C006C0011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C01010D009400A80011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000440000004400000001002000000000004048
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1033,9 +1035,11 @@ object HTTPForm: THTTPForm
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = []
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
-    SslVersionMethod = sslV23
+    SslVersionMethod = sslBestVer_CLIENT
+    SslECDHMethod = sslECDHAuto
     SslSessionTimeout = 0
     SslSessionCacheSize = 20480
+    AutoEnableBuiltinEngines = False
     Left = 45
     Top = 95
   end

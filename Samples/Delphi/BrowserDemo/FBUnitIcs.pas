@@ -1,7 +1,9 @@
 {
-  Version   11.2
-  Copyright (c) 1995-2008 by L. David Baldwin, 2008-2010 by HtmlViewer Team
-  Copyright (c) 2012 by Angus Robertson delphi@magsys.co.uk
+  Version   11.6
+  Copyright (c) 1995-2008 by L. David Baldwin
+  Copyright (c) 2008-2010 by HtmlViewer Team
+  Copyright (c) 2012-2015 by Angus Robertson delphi@magsys.co.uk
+  Copyright (c) 2013-2015 by HtmlViewer Team
 
   Permission is hereby granted, free of charge, to any person obtaining a copy of
   this software and associated documentation files (the "Software"), to deal in
@@ -27,8 +29,7 @@
 
   This demo requires the HtmlViewer component from:
 
-  https://github.com/BerndGabriel/HtmlViewer or
-  http://code.google.com/p/thtmlviewer/
+  https://github.com/BerndGabriel/HtmlViewer
 
   which must also be downloaded and installed before the demo can be built.
 
@@ -66,6 +67,11 @@
 
   7  Oct 2013     Angus - simplfied Agent since Windows 98 long dead, recognise XE4 and XE5
 
+  27 Nov 2013     Angus - renamed Proxy form to Settings, added User Agent so it's configerable
+
+  7 Oct 2015      Angus - updated to work with 11.6 which has changed InsertImage, ImageObject
+                  and onGetPostRequestEx, recognise XE6 to 10 Seattle in About
+
 
   Pending - use NoCache header to stop dynamic pages being cached and expire them
   Pending - cache visited links so we can highlight them
@@ -86,10 +92,16 @@ interface
 
 uses
     WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-    Dialogs, ShellAPI, Menus, StdCtrls, Buttons, ExtCtrls, Gauges, mmSystem,
-    IniFiles, MPlayer, ImgList, ComCtrls, ToolWin,
+    ShellAPI, Menus, StdCtrls, Buttons, ExtCtrls, Gauges, mmSystem, IniFiles,
+    MPlayer, ImgList, ComCtrls, ToolWin, Dialogs,
     htmlun2, CachUnitId, URLSubs, htmlview, htmlsubs, FramBrwz, FramView,
-    PreviewForm, DownLoadId, Readhtml, OverbyteIcsHttpSrv, urlconIcs,
+{$IFDEF UseOldPreviewForm}
+  PreviewForm,
+{$ELSE UseOldPreviewForm}
+  BegaZoom,
+  BegaHtmlPrintPreviewForm,
+{$ENDIF UseOldPreviewForm}
+    DownLoadId, Readhtml, urlconIcs,
     OverbyteIcsWndControl, OverbyteIcsWsocket, OverbyteIcsHttpProt,
     OverbyteIcsCookies, OverbyteIcsStreams, OverbyteIcsUtils,
     OverbyteIcsMimeUtils,
@@ -101,7 +113,6 @@ uses
     HtmlGlobals;
 
 const
-    (* UsrAgent = 'Mozilla/4.0 (compatible; ICS Library)'; *)
 //    UsrAgent     = 'Mozilla/4.0 (compatible; MSIE 5.0; Windows 98)';
     UsrAgent     = 'Mozilla/4.0';
     MaxHistories = 15; { size of History list }
@@ -235,10 +246,9 @@ type
 {$IFDEF UNICODE}
         procedure BlankWindowRequest(Sender : TObject;
             const Target, URL : String);
-        procedure FrameBrowserGetPostRequestEx(Sender : TObject;
-            IsGet : Boolean; const URL, Query, EncType, RefererX : String;
-            Reload : Boolean; var NewURL : String; var DocType : ThtmlFileType;
-            var Stream : TMemorystream);
+        procedure FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: boolean;   // 11.6 changed slightly
+            const URL, Query, EncType, Referer: String; Reload: boolean;
+            var NewURL: String; var DocType: ThtmlFileType; var Stream: TStream);
         procedure GetImageRequest(Sender : TObject; const URL : String;
             var Stream : TStream);
         procedure HotSpotTargetClick(Sender : TObject;
@@ -256,10 +266,9 @@ type
 {$ELSE}
         procedure BlankWindowRequest(Sender : TObject;
             const Target, URL : WideString);
-        procedure FrameBrowserGetPostRequestEx(Sender : TObject;
-            IsGet : Boolean; const URL, Query, EncType, RefererX : WideString;
-            Reload : Boolean; var NewURL : WideString;
-            var DocType : ThtmlFileType; var Stream : TMemorystream);
+        procedure FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: boolean;          // 11.6 changed slightly
+            const URL, Query, EncType, Referer: WideString; Reload: boolean;
+            var NewURL: WideString; var DocType: ThtmlFileType; var Stream: TStream);
         procedure GetImageRequest(Sender : TObject; const URL : WideString;
             var Stream : TStream);
         procedure HotSpotTargetClick(Sender : TObject;
@@ -305,6 +314,7 @@ type
         ProxyPort                 : String;
         ProxyUser                 : String;
         ProxyPassword             : String;
+        UserAgent                 : String;  { Angus } 
         TimerCount                : Integer;
         OldTitle                  : ThtString;
         HintWindow                : ThtHintWindow;
@@ -336,6 +346,7 @@ type
         procedure HTTPSetCookie(Sender : TObject; const Data : String;
             var Accept : Boolean);
         procedure CloseHints;
+    procedure AppMessage(var Msg: TMsg; var Handled: Boolean);
     public
         { Public declarations }
         FIniFilename : String;
@@ -356,9 +367,14 @@ var
 implementation
 
 uses
+{$ifdef Compiler24_Plus}
+  System.Types,
+{$endif}
+{$ifdef HasSystemUITypes}
+  System.UITypes,
+{$endif}
     HTMLAbt, ProxyDlg, AuthUnit, LogWin;
 
-{$R fbHelp32.res}
 {$IFDEF LCL}
 {$R *.lfm}
 {$ELSE}
@@ -367,6 +383,169 @@ uses
 {$R manifest.res}
 {$IFEND}
 {$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Convert a string in Windows character set to HTML texte. That is replace  }
+{ all character with code between 160 and 255 by special sequences.         }
+{ For example, 'fête' is replaced by 'f&ecirc;te'                           }
+{ Also handle '<', '>', quote and double quote                              }
+{ Replace multiple spaces by a single space followed by the required number }
+{ of non-breaking-spaces (&nbsp;)                                           }
+{ Replace TAB by a non-breaking-space.                                      }
+
+function TextToHtmlText(const Src : ThtString) : String;
+const
+    HtmlSpecialChars : array [160..255] of String = (
+        'nbsp'   , { #160 no-break space = non-breaking space               }
+        'iexcl'  , { #161 inverted exclamation mark                         }
+        'cent'   , { #162 cent sign                                         }
+        'pound'  , { #163 pound sign                                        }
+        'curren' , { #164 currency sign                                     }
+        'yen'    , { #165 yen sign = yuan sign                              }
+        'brvbar' , { #166 broken bar = broken vertical bar,                 }
+        'sect'   , { #167 section sign                                      }
+        'uml'    , { #168 diaeresis = spacing diaeresis                     }
+        'copy'   , { #169 copyright sign                                    }
+        'ordf'   , { #170 feminine ordinal indicator                        }
+        'laquo'  , { #171 left-pointing double angle quotation mark         }
+        'not'    , { #172 not sign                                          }
+        'shy'    , { #173 soft hyphen = discretionary hyphen,               }
+        'reg'    , { #174 registered sign = registered trade mark sign,     }
+        'macr'   , { #175 macron = spacing macron = overline = APL overbar  }
+        'deg'    , { #176 degree sign                                       }
+        'plusmn' , { #177 plus-minus sign = plus-or-minus sign,             }
+        'sup2'   , { #178 superscript two = superscript digit two = squared }
+        'sup3'   , { #179 superscript three = superscript digit three = cubed }
+        'acute'  , { #180 acute accent = spacing acute,                     }
+        'micro'  , { #181 micro sign                                        }
+        'para'   , { #182 pilcrow sign = paragraph sign,                    }
+        'middot' , { #183 middle dot = Georgian comma = Greek middle dot    }
+        'cedil'  , { #184 cedilla = spacing cedilla                         }
+        'sup1'   , { #185 superscript one = superscript digit one           }
+        'ordm'   , { #186 masculine ordinal indicator,                      }
+        'raquo'  , { #187 right-pointing double angle quotation mark = right pointing guillemet }
+        'frac14' , { #188 vulgar fraction one quarter = fraction one quarter}
+        'frac12' , { #189 vulgar fraction one half = fraction one half      }
+        'frac34' , { #190 vulgar fraction three quarters = fraction three quarters }
+        'iquest' , { #191 inverted question mark = turned question mark     }
+        'Agrave' , { #192 latin capital letter A with grave = latin capital letter A grave, }
+        'Aacute' , { #193 latin capital letter A with acute,                }
+        'Acirc'  , { #194 latin capital letter A with circumflex,           }
+        'Atilde' , { #195 latin capital letter A with tilde,                }
+        'Auml'   , { #196 latin capital letter A with diaeresis,            }
+        'Aring'  , { #197 latin capital letter A with ring above = latin capital letter A ring, }
+        'AElig'  , { #198 latin capital letter AE = latin capital ligature AE, }
+        'Ccedil' , { #199 latin capital letter C with cedilla,              }
+        'Egrave' , { #200 latin capital letter E with grave,                }
+        'Eacute' , { #201 latin capital letter E with acute,                }
+        'Ecirc'  , { #202 latin capital letter E with circumflex,           }
+        'Euml'   , { #203 latin capital letter E with diaeresis,            }
+        'Igrave' , { #204 latin capital letter I with grave,                }
+        'Iacute' , { #205 latin capital letter I with acute,                }
+        'Icirc'  , { #206 latin capital letter I with circumflex,           }
+        'Iuml'   , { #207 latin capital letter I with diaeresis,            }
+        'ETH'    , { #208 latin capital letter ETH                          }
+        'Ntilde' , { #209 latin capital letter N with tilde,                }
+        'Ograve' , { #210 latin capital letter O with grave,                }
+        'Oacute' , { #211 latin capital letter O with acute,                }
+        'Ocirc'  , { #212 latin capital letter O with circumflex,           }
+        'Otilde' , { #213 latin capital letter O with tilde,                }
+        'Ouml'   , { #214 latin capital letter O with diaeresis,            }
+        'times'  , { #215 multiplication sign                               }
+        'Oslash' , { #216 latin capital letter O with stroke = latin capital letter O slash, }
+        'Ugrave' , { #217 latin capital letter U with grave,                }
+        'Uacute' , { #218 latin capital letter U with acute,                }
+        'Ucirc'  , { #219 latin capital letter U with circumflex,           }
+        'Uuml'   , { #220 latin capital letter U with diaeresis,            }
+        'Yacute' , { #221 latin capital letter Y with acute,                }
+        'THORN'  , { #222 latin capital letter THORN,                       }
+        'szlig'  , { #223 latin small letter sharp s = ess-zed,             }
+        'agrave' , { #224 latin small letter a with grave = latin small letter a grave, }
+        'aacute' , { #225 latin small letter a with acute,                  }
+        'acirc'  , { #226 latin small letter a with circumflex,             }
+        'atilde' , { #227 latin small letter a with tilde,                  }
+        'auml'   , { #228 latin small letter a with diaeresis,              }
+        'aring'  , { #229 latin small letter a with ring above = latin small letter a ring, }
+        'aelig'  , { #230 latin small letter ae = latin small ligature ae   }
+        'ccedil' , { #231 latin small letter c with cedilla,                }
+        'egrave' , { #232 latin small letter e with grave,                  }
+        'eacute' , { #233 latin small letter e with acute,                  }
+        'ecirc'  , { #234 latin small letter e with circumflex,             }
+        'euml'   , { #235 latin small letter e with diaeresis,              }
+        'igrave' , { #236 latin small letter i with grave,                  }
+        'iacute' , { #237 latin small letter i with acute,                  }
+        'icirc'  , { #238 latin small letter i with circumflex,             }
+        'iuml'   , { #239 latin small letter i with diaeresis,              }
+        'eth'    , { #240 latin small letter eth                            }
+        'ntilde' , { #241 latin small letter n with tilde,                  }
+        'ograve' , { #242 latin small letter o with grave,                  }
+        'oacute' , { #243 latin small letter o with acute,                  }
+        'ocirc'  , { #244 latin small letter o with circumflex,             }
+        'otilde' , { #245 latin small letter o with tilde,                  }
+        'ouml'   , { #246 latin small letter o with diaeresis,              }
+        'divide' , { #247 division sign                                     }
+        'oslash' , { #248 latin small letter o with stroke, = latin small letter o slash, }
+        'ugrave' , { #249 latin small letter u with grave,                  }
+        'uacute' , { #250 latin small letter u with acute,                  }
+        'ucirc'  , { #251 latin small letter u with circumflex,             }
+        'uuml'   , { #252 latin small letter u with diaeresis,              }
+        'yacute' , { #253 latin small letter y with acute,                  }
+        'thorn'  , { #254 latin small letter thorn,                         }
+        'yuml');   { #255 latin small letter y with diaeresis,              }
+var
+    I, J : Integer;
+    Sub  : String;
+begin
+    Result := '';
+    I := 1;
+    while I <= Length(Src) do begin
+        J   := I;
+        Sub := '';
+        while (I <= Length(Src)) and (Ord(Src[I]) < Low(HtmlSpecialChars)) do begin
+            case Src[I] of
+            ' '  : begin
+                       if (I > 1) and (Src[I - 1] = ' ') then begin
+                           { Replace multiple spaces by &nbsp; }
+                           while (I <= Length(Src)) and (Src[I] = ' ') do begin
+                               Sub := Sub + '&nbsp;';
+                               Inc(I);
+                           end;
+                           Dec(I);
+                       end
+                       else
+                           Inc(I);
+                   end;
+            '<'  : Sub := '&lt;';
+            '>'  : Sub := '&gt;';
+            '''' : sub := '&#39;';
+            '"'  : Sub := '&#34;';
+            '&'  : Sub := '&amp;';
+            #9   : Sub := '&nbsp;';
+            #10  : Sub := #10'<BR>';
+            else
+                Inc(I);
+            end;
+            if Length(Sub) > 0 then begin
+                Result := Result + Copy(Src, J, I - J) + Sub;
+                Inc(I);
+                J      := I;
+                Sub    := '';
+            end;
+        end;
+
+        if I > Length(Src) then begin
+            Result := Result + Copy(Src, J, I - J);
+            Exit;
+        end;
+        if Ord(Src[I]) > 255 then
+            Result := Result + Copy(Src, J, I - J) + '&#' + IntToStr(Ord(Src[I])) + ';'
+        else
+            Result := Result + Copy(Src, J, I - J) + '&' +
+                    HtmlSpecialChars[Ord(Src[I])] + ';';
+        Inc(I);
+    end;
+end;
+
 
 procedure StartProcess(CommandLine : String; ShowWindow : Word);
 var
@@ -393,6 +572,11 @@ var
     SL      : TStringList;
     S       : String;
 begin
+{$IFDEF HasGestures}
+  FrameBrowser.Touch.InteractiveGestureOptions := [igoPanSingleFingerHorizontal,
+    igoPanSingleFingerVertical, igoPanInertia];
+  FrameBrowser.Touch.InteractiveGestures := [igPan];
+{$ENDIF}
     Top := Top div 2;
     if Screen.Width <= 800 then { make window fit appropriately }
     begin
@@ -490,6 +674,7 @@ begin
         ProxyPort     := IniFile.ReadString('Proxy', 'ProxyPort', '80');
         ProxyUser     := IniFile.ReadString('Proxy', 'ProxyUsername', '');
         ProxyPassword := IniFile.ReadString('Proxy', 'ProxyPassword', '');
+        UserAgent     := IniFile.ReadString('Settings', 'UserAgent', UsrAgent);
         SL            := TStringList.Create;
         try
             IniFile.ReadSectionValues('favorites', SL);
@@ -513,6 +698,8 @@ begin
 {$ENDIF}
     HintWindow       := ThtHintWindow.Create(Self);
     HintWindow.Color := $C0FFFF;
+
+  Application.OnMessage := AppMessage;
 end;
 
 { ----------------THTTPForm.FormDestroy }
@@ -538,6 +725,7 @@ begin
             IniFile.WriteString('Proxy', 'ProxyPort', ProxyPort);
             IniFile.WriteString('Proxy', 'ProxyUsername', ProxyUser);
             IniFile.WriteString('Proxy', 'ProxyPassword', ProxyPassword);
+            IniFile.WriteString('Settings', 'UserAgent', UserAgent);
             IniFile.EraseSection('Favorites');
             for I := 0 to UrlComboBox.Items.Count - 1 do
                 IniFile.WriteString('Favorites', 'Url' + IntToStr(I),
@@ -621,10 +809,9 @@ begin
 end;
 
 { ----------------THTTPForm.FrameBrowserGetPostRequestEx }
-procedure THTTPForm.FrameBrowserGetPostRequestEx(Sender : TObject;
-    IsGet : Boolean; const URL, Query, EncType, RefererX : ThtString;
-    Reload : Boolean; var NewURL : ThtString; var DocType : ThtmlFileType;
-    var Stream : TMemorystream);
+procedure THTTPForm.FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: boolean;      // 11.6 changed slightly
+    const URL, Query, EncType, Referer: ThtString; Reload: boolean;
+    var NewURL: ThtString; var DocType: ThtmlFileType; var Stream: TStream);
 { OnGetPostRequest handler.
   URL is what to load.
   IsGet is set for Get (as opposed to Post)
@@ -703,7 +890,7 @@ begin
         if Connection <> nil then begin
             Connection.Session       := 0;
             Connection.OnDocData     := HTTPForm.HTTPDocData1; // progress only
-            Connection.Referer       := RefererX;
+            Connection.Referer       := Referer;
             LastUrl                  := URL1;
             Connection.OnRedirect    := HTTPForm.HTTPRedirect;
             Connection.OnCookie      := HTTPForm.HTTPSetCookie;
@@ -711,7 +898,7 @@ begin
             Connection.ProxyPort     := ProxyPort;
             Connection.ProxyUser     := ProxyUser;
             Connection.ProxyPassword := ProxyPassword;
-            Connection.UserAgent     := UsrAgent;
+            Connection.UserAgent     := UserAgent;
             Connection.Cookie        := IcsCookies.GetCookies(URL1);
             try
                 repeat
@@ -1066,7 +1253,7 @@ begin
         Connection.ProxyPort     := ProxyPort;
         Connection.ProxyUser     := ProxyUser;
         Connection.ProxyPassword := ProxyPassword;
-        Connection.UserAgent     := UsrAgent;
+        Connection.UserAgent     := UserAgent;
         Connection.Cookie        := IcsCookies.GetCookies(URL);
         inc (FCurHttpSess);
         DisableControls;
@@ -1152,15 +1339,14 @@ begin
             else if (Error = 0) then begin
                 LogLine('[' + IntToStr (Connection.Session) + '] GetImageRequest Done OK: ' + URL);
                 if Assigned(Connection.InputStream) then begin { Stream can be Nil }
-                    if FrameBrowser.InsertImage(ImRec.Viewer, URL, Connection.InputStream) then begin
-                        { save image in cache file }
-                        if CacheImages.Checked then begin
-                            FName := DiskCache.AddNameToCache(URL, '', ImgType, False);
-                            if FName <> '' then
-                            try
-                                ImageHTTP.Connection.InputStream.SaveToFile(FName);
-                            except
-                            end;
+                    ImRec.Viewer.InsertImage (URL, Connection.InputStream) ;   // 11.6 was FrameBrowser.InsertImage but gone
+                    { save image in cache file }
+                    if CacheImages.Checked then begin
+                        FName := DiskCache.AddNameToCache(URL, '', ImgType, False);
+                        if FName <> '' then
+                        try
+                            ImageHTTP.Connection.InputStream.SaveToFile(FName);
+                        except
                         end;
                     end;
                     Connection.InputStream.Clear;
@@ -1360,7 +1546,7 @@ begin
         end
         else
             Params := '';
-        S          := HTMLToDos(S);
+        S := HTMLToDos(S);
         if Ext = 'wav' then begin
             Handled := True;
             sndPlaySound(StrPCopy(PC, S), snd_Async);
@@ -1371,8 +1557,7 @@ begin
         end
         else if (Ext = 'mid') or (Ext = 'avi') then begin
             Handled := True;
-            StartProcess(StrPCopy(PC, 'MPlayer.exe /play /close ' + S),
-                sw_Show);
+            StartProcess(StrPCopy(PC, 'MPlayer.exe /play /close ' + S), sw_Show);
         end;
         { else ignore other extensions }
     end;
@@ -1467,7 +1652,7 @@ begin
                 DownLoadUrl := Self.DownLoadUrl;
                 Proxy       := Self.Proxy;
                 ProxyPort   := Self.ProxyPort;
-                UserAgent   := UsrAgent;
+                UserAgent   := UserAgent;
                 ShowModal;
             end;
         finally
@@ -1599,7 +1784,7 @@ begin
     Viewer := Sender as ThtmlViewer;
     with Parameters do begin
         FoundObject := Image;
-        if (FoundObject <> nil) and (FoundObject.Bitmap <> nil) then begin
+        if (FoundObject <> nil) and (FoundObject.Graphic <> nil) then begin     // 11.6 was Bitmap
             if not IsFullUrl(FoundObject.Source) then
                 FoundObjectName :=
                     CombineURL(FrameBrowser.GetViewerUrlBase(Viewer),
@@ -1694,8 +1879,7 @@ procedure THTTPForm.OpenInNewWindowClick(Sender : TObject);
 var
     PC : array [0 .. 255] of Char;
 begin
-    StartProcess(StrPCopy(PC, ParamStr(0) + ' "' + NewWindowFile +
-        '"'), sw_Show);
+    StartProcess(StrPCopy(PC, ParamStr(0) + ' "' + NewWindowFile + '"'), sw_Show);
 end;
 
 procedure THTTPForm.SaveURLClick(Sender : TObject);
@@ -1833,25 +2017,36 @@ end;
 
 procedure THTTPForm.PrintPreviewClick(Sender : TObject);
 var
-    pf     : TPreviewForm;
-    Viewer : ThtmlViewer;
-    Abort  : Boolean;
+{$IFDEF UseOldPreviewForm}
+  pf: TPreviewForm;
+{$ELSE UseOldPreviewForm}
+  pf: TBegaHtmlPrintPreviewForm;
+{$ENDIF UseOldPreviewForm}
+  Viewer: ThtmlViewer;
+  Abort: Boolean;
 begin
-    Viewer := FrameBrowser.ActiveViewer;
-    if Assigned(Viewer) then begin
-        pf := TPreviewForm.CreateIt(Self, Viewer, Abort);
-        try
-            if not Abort then
-                pf.ShowModal;
-        finally
-            pf.Free;
-        end;
+  Viewer := FrameBrowser.ActiveViewer;
+  if Assigned(Viewer) then
+  begin
+{$IFDEF UseOldPreviewForm}
+    pf := TPreviewForm.CreateIt(Self, Viewer, Abort);
+{$ELSE UseOldPreviewForm}
+    pf := TBegaHtmlPrintPreviewForm.Create(Self);
+    pf.FrameViewer := FrameBrowser;
+    Abort := False;
+{$ENDIF UseOldPreviewForm}
+    try
+      if not Abort then
+         pf.ShowModal;
+    finally
+         pf.Free;
     end;
+  end;
 end;
 
 procedure THTTPForm.File1Click(Sender : TObject);
 begin
-    Print1.Enabled       := FrameBrowser.ActiveViewer <> nil;
+    Print1.Enabled := FrameBrowser.ActiveViewer <> nil;
     PrintPreview.Enabled := Print1.Enabled;
 end;
 
@@ -1936,12 +2131,14 @@ begin
     ProxyForm.PortEdit.Text      := ProxyPort;
     ProxyForm.ProxyUsername.Text := ProxyUser;
     ProxyForm.ProxyPassword.Text := ProxyPassword;
+    ProxyForm.UserAgent.Text     := UserAgent;
     try
         if ProxyForm.ShowModal = mrOK then begin
             Proxy         := ProxyForm.ProxyEdit.Text;
             ProxyPort     := ProxyForm.PortEdit.Text;
             ProxyUser     := ProxyForm.ProxyUsername.Text;
             ProxyPassword := ProxyForm.ProxyPassword.Text;
+            UserAgent     := ProxyForm.UserAgent.Text;
         end;
     finally
         ProxyForm.Free;
@@ -2029,6 +2226,23 @@ begin
     except
         CloseHints;
     end;
+end;
+
+//-- BG ---------------------------------------------------------- 16.08.2015 --
+procedure THTTPForm.AppMessage(var Msg: TMsg; var Handled: Boolean);
+var
+  WinCtrl: TWinControl;
+begin
+  if Msg.message = WM_MOUSEWHEEL then
+  begin
+    WinCtrl := FindVCLWindow(Point(Word(Msg.lParam), HiWord(Msg.lParam)));
+    if (WinCtrl is TPaintPanel) {$ifndef UseOldPreviewForm} or (WinCtrl is TBegaZoomBox) {$endif UseOldPreviewForm} then
+    begin
+      // perform mouse wheel scrolling for the control under the mouse:
+      WinCtrl.Perform(CM_MOUSEWHEEL, Msg.WParam, Msg.LParam);
+      Handled := True;
+    end;
+  end;
 end;
 
 end.

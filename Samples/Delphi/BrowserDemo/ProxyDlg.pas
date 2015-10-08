@@ -18,6 +18,8 @@ type
         ProxyPassword : TEdit;
         Label3 : TLabel;
         Label4 : TLabel;
+    Label5: TLabel;
+    UserAgent: TEdit;
     private
         { Private declarations }
     public

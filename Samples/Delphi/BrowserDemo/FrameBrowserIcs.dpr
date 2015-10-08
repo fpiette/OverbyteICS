@@ -1,5 +1,7 @@
 program FrameBrowserIcs;
 
+{$R 'Resources\fbHelp.res' 'Resources\fbHelp.rc'}
+
 uses
   Forms,
   FBUnitIcs in 'FBUnitIcs.pas' {HTTPForm},

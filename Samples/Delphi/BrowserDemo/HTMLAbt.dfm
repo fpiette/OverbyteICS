@@ -39,11 +39,7 @@ object AboutBox: TAboutBox
       Top = 1
       Width = 379
       Height = 247
-      Enabled = False
-      TabOrder = 0
-      Align = alClient
       BorderStyle = htSingle
-      CharSet = DEFAULT_CHARSET
       DefFontName = 'Times New Roman'
       DefPreFontName = 'Courier New'
       HistoryMaxCount = 0
@@ -57,6 +53,9 @@ object AboutBox: TAboutBox
       QuirksMode = qmDetect
       ScrollBars = ssNone
       ViewImages = False
+      Align = alClient
+      Enabled = False
+      TabOrder = 0
     end
   end
 end

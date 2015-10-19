@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      8.06
+Version:      8.07
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -16,7 +16,7 @@ Legal issues: Copyright (C) 1997-2015 by François PIETTE
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
-              
+
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
               for any  damages arising from the use of this software.
@@ -411,6 +411,9 @@ Dec 10, 2014 V8.04 - Angus added SslHandshakeRespMsg for better error handling
 Mar 18, 2015 V8.05 Angus added IcsLogger
 Jun 01, 2015 V8.06 Angus update SslServerName for SSL SNI support allowing server to
                      select correct SSL context and certificate
+Oct 05, 2015 V8.07 Angus changed to receive with LineMode for more reliable line
+                     parsing, which fixes an endless loop if remote server returned
+                     nulls, thanks to Max Terentiev for finding a bad server
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -498,10 +501,10 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-  SmtpCliVersion     = 806;
-  CopyRight : String = ' SMTP component (c) 1997-2015 Francois Piette V8.06 ';
+  SmtpCliVersion     = 807;
+  CopyRight : String = ' SMTP component (c) 1997-2015 Francois Piette V8.07 ';
   smtpProtocolError  = 20600; {AG}
-  SMTP_RCV_BUF_SIZE  = 4096;
+{  SMTP_RCV_BUF_SIZE  = 4096;  V8.07 no longer used }
 
   SmtpDefEncArray : array [0..3] of AnsiString = ('7bit',             '8bit',
                                                   'quoted-printable', 'base64'); {AG}
@@ -542,7 +545,7 @@ type
         property  IsMultiByteCP : Boolean read FIsMultiByteCP write FIsMultiByteCP;
         property  DefaultEncoding : TSmtpDefaultEncoding read  FDefaultEncoding
                                                         write SetDefaultEncoding;
-        property  EncType : Char read FEncType;                                                
+        property  EncType : Char read FEncType;
     end;
 
     TSmtpMessageText = class(TObject)                                      {AG}
@@ -692,7 +695,7 @@ type
     { Base component, implementing the transport, without MIME support }
     TCustomSmtpClient = class(TIcsWndControl)
     protected
-        FWSocket             : TWSocket;     { Underlaying socket          }
+        FWSocket             : TWSocket; { Underlaying socket  }
         FHost                : String;       { SMTP server hostname or IP  }
         FSocketFamily        : TSocketFamily;
         FLocalAddr           : String; {bb}  { Local Address for mulithome }
@@ -750,10 +753,10 @@ type
         FESmtpSupported      : Boolean;
         FRequestType         : TSmtpRequest;
         FRequestDoneFlag     : Boolean;
-        FReceiveLen          : Integer;
+     {   FReceiveLen          : Integer;     V8.07 no longer used }
         FRequestResult       : Integer;
         FStatusCode          : Integer;
-        FReceiveBuffer       : array [0..SMTP_RCV_BUF_SIZE - 1] of AnsiChar;
+    {    FReceiveBuffer       : array [0..SMTP_RCV_BUF_SIZE - 1] of AnsiChar;  V8.07 no longer used }
         FNext                : TSmtpNextProc;
         FWhenConnected       : TSmtpNextProc;
         FFctSet              : TSmtpFctSet;
@@ -1934,6 +1937,7 @@ begin
 {$ENDIF}
     FWSocket.ExceptAbortProc := AbortComponent; { V7.35 }
     FWSocket.OnSessionClosed := WSocketSessionClosed;
+    FWSocket.LineMode        := True;  { V8.07 }
     FSocketFamily            := DefaultSocketFamily;
     FState                   := smtpReady;
     FRcptName                := TStringList.Create;
@@ -2199,13 +2203,23 @@ end;
 procedure TCustomSmtpClient.WSocketDataAvailable(Sender: TObject; ErrorCode: Word);
 var
     Len : Integer;
-    I   : Integer;
+ //I   : Integer;
     p   : PChar;
 {$IFDEF COMPILER12_UP}
-    TempS : AnsiString;
+ // TempS : AnsiString;
 {$ENDIF}
 begin
-    Len := FWSocket.Receive(@FReceiveBuffer[FReceiveLen],
+    if (Error <> ERROR_SUCCESS) then begin   { V8.07 don't ignore errors }
+        FStatusCode := 500;
+        SetErrorMessage;
+        FRequestResult := FStatusCode;
+        FWSocket.Close;
+        Exit;
+    end;
+
+  (* V8.07 now using line mode, which is simpler
+
+     Len := FWSocket.Receive(@FReceiveBuffer[FReceiveLen],
                             sizeof(FReceiveBuffer) - FReceiveLen);
 
     if Len <= 0 then
@@ -2225,7 +2239,7 @@ begin
             end;
             Inc(I);
         end;
-        if I <= 0 then
+        if I <= 0 then  { V8.07 if buffer contains null, now enters endless loop }
             break;
         if I > FReceiveLen then
             break;
@@ -2236,51 +2250,63 @@ begin
         Move(FReceiveBuffer[0], Pointer(Temps)^, I - 1);
         FLastResponse := String(Temps);
 {$ENDIF}
-        TriggerResponse(FLastResponse);
+*)
+
+  { V8.07 line mode gives us complete lines, need to remove CR/LF }
+    FLastResponse := FWSocket.ReceiveStr;
+    Len := Length(FLastResponse);
+    if (Len > 0) and (FLastResponse[Len] = #10) then begin  { LF first }
+        Dec(Len);
+        if (Len > 0) and (FLastResponse[Len] = #13) then    { may be no CR }
+            Dec(Len);
+        SetLength(FLastResponse, Len);
+    end;
+    TriggerResponse(FLastResponse);
 
 {$IFDEF DUMP}
-        FDumpBuf := '>|';
-        FDumpStream.WriteBuffer(FDumpBuf[1], Length(FDumpBuf));
-        FDumpStream.WriteBuffer(FLastResponse[1], Length(FLastResponse));
-        FDumpBuf := '|' + #13#10;
-        FDumpStream.WriteBuffer(FDumpBuf[1], Length(FDumpBuf));
+    FDumpBuf := '>|';
+    FDumpStream.WriteBuffer(FDumpBuf[1], Length(FDumpBuf));
+    FDumpStream.WriteBuffer(FLastResponse[1], Length(FLastResponse));
+    FDumpBuf := '|' + #13#10;
+    FDumpStream.WriteBuffer(FDumpBuf[1], Length(FDumpBuf));
 {$ENDIF}
-        FReceiveLen := FReceiveLen - I - 1;
+{        FReceiveLen := FReceiveLen - I - 1;
         if FReceiveLen > 0 then
             Move(FReceiveBuffer[I + 1], FReceiveBuffer[0], FReceiveLen + 1);
-
-        if FState = smtpWaitingBanner then begin
-            DisplayLastResponse;
-            p := GetInteger(@FLastResponse[1], FStatusCode);
-            if p^ = '-' then
-                Continue;  { Continuation line, ignore }
-            if FStatusCode <> 220 then begin
-                SetErrorMessage;
-                FRequestResult := FStatusCode;
-                FWSocket.Close;
-                Exit;
-            end;
-
-            StateChange(smtpConnected);
-            TriggerSessionConnected(ErrorCode);
-
-            if Assigned(FWhenConnected) then
-                FWhenConnected
-            else begin
-                TriggerRequestDone(0);
-            end;
-        end
-        else if FState = smtpWaitingResponse then begin
-            if Assigned(FNext) then
-                FNext
-            else
-                raise SmtpException.Create('Program error: FNext is nil');
-        end
-        else begin
-            { Unexpected data received }
-            DisplayLastResponse;
+}
+    if FState = smtpWaitingBanner then begin
+        DisplayLastResponse;
+        p := GetInteger(@FLastResponse[1], FStatusCode);
+        if p^ = '-' then  { Continuation line, ignore }
+         //   Continue;
+            Exit;   { V8.07 }
+        if FStatusCode <> 220 then begin
+            SetErrorMessage;
+            FRequestResult := FStatusCode;
+            FWSocket.Close;
+            Exit;
         end;
+
+        StateChange(smtpConnected);
+        TriggerSessionConnected(ErrorCode);
+
+        if Assigned(FWhenConnected) then
+            FWhenConnected
+        else begin
+            TriggerRequestDone(0);
+        end;
+    end
+    else if FState = smtpWaitingResponse then begin
+        if Assigned(FNext) then
+            FNext
+        else
+            raise SmtpException.Create('Program error: FNext is nil');
+    end
+    else begin
+        { Unexpected data received }
+        DisplayLastResponse;
     end;
+  //  end;
 end;
 
 
@@ -3418,7 +3444,7 @@ begin
     if not FHighLevelFlag then
         FRequestType  := smtpConnect;   { 10/05/99 }
     FRequestDoneFlag  := FALSE;
-    FReceiveLen       := 0;
+  { FReceiveLen       := 0;   }
     FRequestResult    := 0;
     FESmtpSupported   := FALSE;
     FErrorMessage     := '';

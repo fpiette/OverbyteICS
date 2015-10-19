@@ -10,7 +10,7 @@ Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      8.05
+Version:      8.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -207,6 +207,7 @@ Dec 10, 2014 V8.03 Angus added SslHandshakeRespMsg for better error handling
 Mar 18, 2015 V8.04 Angus added IcsLogger
 Jun 01, 2015 V8.05 Angus update SslServerName for SSL SNI support allowing server to
                      select correct SSL context and certificate
+Oct 08, 2015 V8.06 Angus changed to receive with LineMode for more reliable line parsing
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -277,9 +278,9 @@ uses
 (*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameW$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)
 
 const
-    Pop3CliVersion     = 805;
-    CopyRight : String = ' POP3 component (c) 1997-2015 F. Piette V8.05 ';
-    POP3_RCV_BUF_SIZE  = 4096;
+    Pop3CliVersion     = 806;
+    CopyRight : String = ' POP3 component (c) 1997-2015 F. Piette V8.06 ';
+ {   POP3_RCV_BUF_SIZE  = 4096;  gone V8.06 }
 
 type
     Pop3Exception = class(Exception);
@@ -328,10 +329,10 @@ type
         FConnected          : Boolean;
         FRequestType        : TPop3Request;
         FRequestDoneFlag    : Boolean;
-        FReceiveLen         : Integer;
+    {    FReceiveLen         : Integer;      V8.06 no longer used }
         FRequestResult      : Integer;
         FStatusCode         : Integer;
-        FReceiveBuffer      : array [0..POP3_RCV_BUF_SIZE - 1] of AnsiChar;
+    {    FReceiveBuffer      : array [0..POP3_RCV_BUF_SIZE - 1] of AnsiChar;  V8.06 no longer used }
         FNext               : TPop3NextProc;
         FWhenConnected      : TPop3NextProc;
         FFctSet             : TPop3FctSet;
@@ -890,6 +891,7 @@ begin
     CreateCtrlSocket;
     FWSocket.ExceptAbortProc := AbortComponent;  { V6.10 }
     FWSocket.OnSessionClosed := WSocketSessionClosed;
+    FWSocket.LineMode        := true;            { V8.06 }
     FProtocolState           := pop3Disconnected;
     FState                   := pop3Ready;
     FSocketFamily            := FWSocket.SocketFamily;
@@ -1055,12 +1057,22 @@ procedure TCustomPop3Cli.WSocketDataAvailable(Sender: TObject; Error: Word);
 var
     Len       : Integer;
     I, J      : Integer;
-    Remaining : Integer;
+ //   Remaining : Integer;
 begin
-    repeat
+    if (Error <> ERROR_SUCCESS) then begin   { V8.06 don't ignore errors }
+        FStatusCode := 500;
+        SetErrorMessage;
+        FRequestResult := FStatusCode;
+        FWSocket.Close;
+        Exit;
+    end;
+
+// V8.06 now using line mode, which is simpler
+
+ // repeat
         { Compute remaining space in our buffer. Preserve 3 bytes for CR/LF   }
         { and nul terminating byte.                                           }
-        Remaining := SizeOf(FReceiveBuffer) - FReceiveLen - 3;
+   (*     Remaining := SizeOf(FReceiveBuffer) - FReceiveLen - 3;
         if Remaining <= 0 then begin
             { Received message has a line longer than our buffer. This is not }
             { acceptable ! We will add a CR/LF to enable processing, but this }
@@ -1093,55 +1105,65 @@ begin
                 FLastResponse := Copy(FReceiveBuffer, 1, I - 1)
             else
                 FLastResponse := Copy(FReceiveBuffer, 1, I);
+            *)
 
-            TriggerResponse(FLastResponse);
+  { V8.06 line mode gives us complete lines, need to remove CR/LF }
+    FLastResponse := FWSocket.ReceiveStrA;
+    Len := Length(FLastResponse);
+    if (Len > 0) and (FLastResponse[Len] = #10) then begin  { LF first }
+        Dec(Len);
+        if (Len > 0) and (FLastResponse[Len] = #13) then    { may be no CR }
+            Dec(Len);
+        SetLength(FLastResponse, Len);
+    end;
+    TriggerResponse(FLastResponse);
 
-    {$IFDEF DUMP}
-            FDumpBuf := '>|';
-            FDumpStream.WriteBuffer(FDumpBuf[1], Length(FDumpBuf));
-            FDumpStream.WriteBuffer(FLastResponse[1], Length(FLastResponse));
-            FDumpBuf := '|' + #13#10;
-            FDumpStream.WriteBuffer(FDumpBuf[1], Length(FDumpBuf));
-    {$ENDIF}
-            FReceiveLen := FReceiveLen - I - 1;
+{$IFDEF DUMP}
+    FDumpBuf := '>|';
+    FDumpStream.WriteBuffer(FDumpBuf[1], Length(FDumpBuf));
+    FDumpStream.WriteBuffer(FLastResponse[1], Length(FLastResponse));
+    FDumpBuf := '|' + #13#10;
+    FDumpStream.WriteBuffer(FDumpBuf[1], Length(FDumpBuf));
+{$ENDIF}
+       {     FReceiveLen := FReceiveLen - I - 1;
             if FReceiveLen > 0 then
-                Move(FReceiveBuffer[I + 1], FReceiveBuffer[0], FReceiveLen + 1);
+                Move(FReceiveBuffer[I + 1], FReceiveBuffer[0], FReceiveLen + 1);   }
 
-            if FState = pop3WaitingBanner then begin
-                DisplayLastResponse;
-                if not OkResponse then begin
-                    SetErrorMessage;
-                    FRequestResult := FStatusCode;
-                    FWSocket.Close;
-                    Exit;
-                end;
-                I := CharPos('<', FLastResponse);
-                J := CharPos('>', Copy(FLastResponse, I, Length(FLastREsponse)));
-                if (I > 0) and (J > 0) then
-                    FTimeStamp := Copy(FLastResponse, I, J);
-
-                FProtocolState := pop3WaitingUser;
-                StateChange(pop3Connected);
-                TriggerSessionConnected(Error);
-
-                if Assigned(FWhenConnected) then
-                    FWhenConnected
-                else begin
-                    TriggerRequestDone(0);
-                end;
-            end
-            else if FState = pop3WaitingResponse then begin
-                if Assigned(FNext) then
-                    FNext
-                else
-                    raise Pop3Exception.Create('Program error: FNext is nil');
-            end
-            else begin
-                { Unexpected data received }
-                DisplayLastResponse;
-            end;
+    if FState = pop3WaitingBanner then begin
+        DisplayLastResponse;
+        if not OkResponse then begin
+            SetErrorMessage;
+            FRequestResult := FStatusCode;
+            FWSocket.Close;
+            Exit;
         end;
-    until (Remaining > 0);
+        I := CharPos('<', FLastResponse);
+        J := CharPos('>', Copy(FLastResponse, I, Length(FLastREsponse)));
+        if (I > 0) and (J > 0) then
+            FTimeStamp := Copy(FLastResponse, I, J);
+
+        FProtocolState := pop3WaitingUser;
+        StateChange(pop3Connected);
+        TriggerSessionConnected(Error);
+
+        if Assigned(FWhenConnected) then
+            FWhenConnected
+        else begin
+            TriggerRequestDone(0);
+        end;
+    end
+    else if FState = pop3WaitingResponse then begin
+        if Assigned(FNext) then
+            FNext
+        else
+            raise Pop3Exception.Create('Program error: FNext is nil');
+    end
+    else begin
+        { Unexpected data received }
+        DisplayLastResponse;
+    end;
+ //       end;
+//  until (Remaining > 0);
 end;
 
 
@@ -1824,7 +1846,7 @@ begin
         FRequestType  := pop3Connect;
 
     FRequestDoneFlag  := FALSE;
-    FReceiveLen       := 0;
+  {  FReceiveLen       := 0;  V8.06 no longer used }
     FRequestResult    := 0;
     FTimeStamp        := '';
     FLastResponse     := '';  { V6.08 }

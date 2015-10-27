@@ -581,6 +581,7 @@ object HttpsTstForm: THttpsTstForm
     SslECDHMethod = sslECDH_P256
     SslSessionTimeout = 300
     SslSessionCacheSize = 20480
+    AutoEnableBuiltinEngines = False
     Left = 57
     Top = 260
   end

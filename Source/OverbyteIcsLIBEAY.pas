@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.09
+Version:      8.10
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -105,7 +105,7 @@ Mar 13, 2015 V8.07 - Angus allow load of OSSL 1.0.2 (briefly tested)
 Mar 17, 2015 V8.08 - Angus allow load of OSSL 1.0.2a (untested)
 Mar 26, 2015 V8.09   Angus, the OpenSSL version check is relaxed so minor versions with a letter suffix
                       are now supported up to the next major version, so now support up to 1.0.2z
-
+Oct 23, 2015 V8.10   Angus, another NID literal
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -145,8 +145,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 809;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2015 F. Piette V8.09 ';
+    IcsLIBEAYVersion   = 810;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2015 F. Piette V8.10 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -803,6 +803,7 @@ const
     NID_pkcs7_signedAndEnveloped    = 24;
     NID_pkcs7_digest                = 25;
     NID_pkcs7_encrypted             = 26;
+    NID_dhKeyAgreement              = 28;  // Angus
     NID_pkcs9_emailAddress          = 48;  //AG
     NID_netscape                    = 57;
     NID_netscape_cert_extension     = 58;

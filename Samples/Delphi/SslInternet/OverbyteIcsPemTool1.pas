@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.01
+Version:      8.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -68,7 +68,8 @@ Feb 13, 2014 V1.14 Angus using TX509Ex instead of TMyX509 to read PEM entries
 June 23, 2014 V1.15 Angus show issuer Common Name and Organisation Unit in
                     certificate comments
 Mar 16, 2015 V8.00 Angus default key length now 2048
-June 2015, V8.01   Angus using new units
+June 2015,   V8.01 Angus using new units
+Oct 23, 2015 V8.02 Angus get certificate signing and encryption algorithms
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPemtool1;
@@ -99,10 +100,10 @@ uses
   OverbyteIcsLibeayEx, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 800;
-     PemToolDate        = 'June 8, 2015';
+     PemToolVersion     = 802;
+     PemToolDate        = 'Oct 23, 2015';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2015 by François PIETTE V8.01 ';
+     CopyRight : String = '(c) 2003-2015 by François PIETTE V8.02 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -439,13 +440,15 @@ begin
             end;
             frmPemTool2.Memo1.Lines.Add ('');
             frmPemTool2.Memo1.Lines.Add ('GENERAL');
-            frmPemTool2.Memo1.Lines.Add ('Serial Number: ' + IntToStr (X.SerialNum));
+            frmPemTool2.Memo1.Lines.Add ('Serial Number: ' + X.SerialNumHex); // Oct 2015 not always very numeric IntToStr (X.SerialNum));
             frmPemTool2.Memo1.Lines.Add ('Issued on:' + DateToStr(X.ValidNotBefore));
             frmPemTool2.Memo1.Lines.Add ('Expires on:' + DateToStr(X.ValidNotAfter));
             frmPemTool2.Memo1.Lines.Add ('Key Usage: ' + X.UnwrapNames(X.KeyUsage));
             frmPemTool2.Memo1.Lines.Add ('Extended Key Usage: ' + X.UnwrapNames(X.ExKeyUsage));
             frmPemTool2.Memo1.Lines.Add ('Basic Constraints: ' + X.UnwrapNames(X.BasicConstraints));
             frmPemTool2.Memo1.Lines.Add ('Authority Info Access: ' + X.UnwrapNames(X.AuthorityInfoAccess));
+            frmPemTool2.Memo1.Lines.Add ('Signature Algorithm: ' + X.SignatureAlgorithm);  // Oct 2015
+            frmPemTool2.Memo1.Lines.Add ('Key Info: ' + X.KeyInfo);                        // Oct 2015 
             frmPemTool2.Memo1.Lines.Add ('');
             frmPemTool2.Memo1.Lines.Text := frmPemTool2.Memo1.Lines.Text + 'Raw ' + X.GetRawText;
             frmPemTool2.ShowModal;

@@ -6,7 +6,7 @@ Description:  A simple HTTPS client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.01
+Version:      8.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -54,6 +54,8 @@ Dec 9, 2014   V8.00 Angus added SslHandshakeRespMsg for better error handling
 Mar 16 2015   V8.01 Angus added DH File (mainly for servers)
               Added SSL Version and Cipher edits to make testing easier
               Reset SSL when changing parameters to force new negotiation
+Oct 26 2015   V8.02 Angus simplified certificate display
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;
@@ -81,7 +83,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   OverbyteIcsIniFiles, StdCtrls, ExtCtrls, OverbyteIcsHttpProt, OverbyteIcsWSocket,
   OverbyteIcsLIBEAY, OverbyteIcsSsLeay, OverbyteIcsSslSessionCache,
-  OverbyteIcsLogger,
+  OverbyteIcsLogger, OverbyteIcsSslX509Utils,
 {$IF CompilerVersion > 23}
   System.UITypes,
 {$IFEND}
@@ -92,10 +94,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 801;
-     HttpsTstDate        = 'Mar 11, 2015';
+     HttpsTstVersion     = 802;
+     HttpsTstDate        = 'Oct 26, 2015';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2015 Francois Piette V8.01 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2015 Francois Piette V8.02 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -813,45 +815,21 @@ procedure THttpsTstForm.SslHttpCli1SslVerifyPeer(
     Sender  : TObject;
     var Ok  : Integer;
     Cert    : TX509Base);
+var
+    MyCert : TX509Ex; { V8.02 }
 begin
     { Alternate verification takes place in event HandshakeDone, we    }
     { accept anything temporarily here. Note that the same certificate }
     { may appear multiple times in this event when we set OK to 1      }
     { overwriting the real verify result.                              }
     OK := 1;
+    MyCert := TX509Ex (Cert);    { V8.02 }
     Display('Received certificate'#13#10 +
-            'Subject: "' + Cert.SubjectOneLine + '"'#13#10 +
-            'Issuer:  "' + Cert.IssuerOneLine + '"'#13#10  +
-            'Verify result: ' + Cert.VerifyErrMsg +
-            ' Verify depth: ' + IntToStr(Cert.VerifyDepth));
-
-    (* // original source
-    begin
-        Display('Received certificate'#13#10 +
-                'Subject: "' + Cert.SubjectOneLine + '"'#13#10 +
-                'Issuer:  "' + Cert.IssuerOneLine + '"');
-    end
-    else begin
-        if (ErrCode = X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN) or
-           (ErrCode = X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY) then begin
-            FNotTrusted := Cert.IssuerOneLine + '/SN=' + IntToStr(Cert.SerialNum);
-            if FTrustedList.IndexOf(FNotTrusted) >= 0 then begin
-                Display('Received certificate. Issuer = "' + Cert.IssuerOneLine + '"');
-                Display('Serial number = ' + IntToStr(Cert.SerialNum));
-                Display('Verify result: ' + Cert.VerifyErrMsg);
-                Display('We trust this one');
-                Ok := 1;
-                Exit;
-            end;
-            SslHttpCli1.Abort;
-            PostMessage(Handle, WM_SSL_NOT_TRUSTED, 0, 0);
-            Exit;
-        end;
-        Display('Can''t verify certificate:');
-        Display('  Issuer  = "' + Cert.IssuerOneLine + '"');
-        Display('  Subject = "' + Cert.SubjectOneLine + '"');
-        Display('  Error   = ' + IntToStr(Cert.VerifyResult) + ' (' + Cert.VerifyErrMsg + ')');
-    end; *)
+            MyCert.CertInfo + #13#10 +  { V8.02 four lines with parsed cert info }
+         {   'Subject: "' + Cert.SubjectOneLine + '"'#13#10 +
+            'Issuer:  "' + Cert.IssuerOneLine + '"'#13#10  +  }
+            'Verify result: ' + MyCert.VerifyErrMsg +
+            ' Verify depth: ' + IntToStr(MyCert.VerifyDepth));
 end;
 
 
@@ -882,6 +860,7 @@ var
     Hash        : String;
     HttpCli     : TSslHttpCli;
     ChainInfo   : String;
+    MyCert      : TX509Ex; { V8.02 }
 begin
     HttpCli   := Sender as TSslHttpCli;
     Display('Handshake done, error #' + IntToStr (ErrCode) +
@@ -953,15 +932,12 @@ begin
         for I := 0 to CertChain.Count -1 do begin
             if Length(ChainInfo) > 0 then
                 ChainInfo := ChainInfo + #13#10;
-            ChainInfo := ChainInfo +  IntToStr(I + 1) + ')' +
-                  ' SubjectCommonName: ' + CertChain[I].SubjectCName + #13#10 +
-                  ' VerifyResult: ' + CertChain[I].FirstVerifyErrMsg + #13#10;
+            MyCert := TX509Ex (CertChain[I]);    { V8.02 }
+            ChainInfo := ChainInfo +  IntToStr(I + 1) + ') ' +
+                  MyCert.CertInfo + #13#10 +    { V8.02 }
+                  ' VerifyResult: ' + MyCert.FirstVerifyErrMsg + #13#10;
         end;
     end;
-    { ChainInfo := ChainInfo + #13#10 +
-                   'PeerCert:'#13#10 +
-                   ' SubjectCommonName: ' + PeerCert.SubjectCName + #13#10 +
-                   ' VerifyResult: ' + PeerCert.FirstVerifyErrMsg + #13#10; }
 
     if MessageDlg(ChainInfo + #13#10 + DlgMsg,
                   mtWarning, [mbYes, mbNo], 0) = mrYes then begin
@@ -970,19 +946,20 @@ begin
         { that is not in our trusted store, we should ask the user whether he }
         { wants to trust this root CA by import into the trusted store,       }
         { this was a persistant trust.                                        }
+        MyCert := TX509Ex (CertChain[0]);    { V8.02 }
         if (CertChain.Count > 0) and
-           (CertChain[0].FirstVerifyResult = X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN) and
+           (MyCert.FirstVerifyResult = X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN) and
            (CaPathEdit.Text <> '') then begin
             { This looks ugly, real applications should provide a nicer dialog }
-            if (MessageDlg(CertChain[0].GetRawText + #13#10 +
+            if (MessageDlg(MyCert.CertInfo + #13#10 +    { V8.02 }
                 'Do you also want to add this root certificate to your ' +
                 'trusted CA certificate store?',
                 mtConfirmation, [mbYes, mbNo], 0) = mrYes) then begin
                 { Certificates stored this way are being looked up by openssl   }
                 { the next time a certificate is verified, w/o initializing the }
                 { SslContext first.                                             }
-                CertChain[0].SaveToPemFile(IncludeTrailingBackSlash(CaPathEdit.Text) +
-                IntToHex(f_X509_subject_name_hash(CertChain[0].X509), 8) + '.0');
+                MyCert.SaveToPemFile(IncludeTrailingBackSlash(CaPathEdit.Text) +
+                IntToHex(f_X509_subject_name_hash(MyCert.X509), 8) + '.0');
                 { If the same file name already exists we need to increment the }
                 { extension by one, skipped in this demo.                       }
                 { We could append those files to our trusted CA file later on.  }

@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.11
+Version:      8.12
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -501,6 +501,7 @@ Jul 16, 2014 V8.09 Angus added new methods: OPTIONS and TRACE
 Jul 18, 2014 V8.10 Angus applied V8.08 change to another function
 Jun 01, 2015 V8.11 Angus update SslServerName for SSL SNI support allowing server to
                      select correct SSL context and certificate
+Oct 19, 2015 V8.12 Angus allow better SSL Handshake error reporting
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -590,8 +591,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 811;
-    CopyRight : String   = ' THttpCli (c) 1997-2015 F. Piette V8.11 ';
+    HttpCliVersion       = 812;
+    CopyRight : String   = ' THttpCli (c) 1997-2015 F. Piette V8.12 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -4504,17 +4505,21 @@ procedure THttpCli.SslHandshakeDone(
     PeerCert       : TX509Base;
     var Disconnect : Boolean);
 begin
-    if Assigned(TSslHttpCli(Self).FOnSslHandshakeDone) then
+    if Assigned(TSslHttpCli(Self).FOnSslHandshakeDone) then begin
+        FReasonPhrase := '';  { V8.12 }
         TSslHttpCli(Self).FOnSslHandshakeDone(Self,       // FP: was Sender
                                               ErrCode,
                                               PeerCert,
                                               Disconnect);
+    end;
     if (ErrCode <> 0) or Disconnect then begin
         FStatusCode       := 404;
-        if Disconnect then
-            FReasonPhrase := 'SSL custom abort'
-        else
-            FReasonPhrase := 'SSL handshake failed';
+        if FReasonPhrase = '' then begin  { V8.12 may have set better reason in event }
+            if Disconnect then
+                FReasonPhrase := 'SSL custom abort'
+            else
+                FReasonPhrase := 'SSL handshake failed - ' + CtrlSocket.SslHandshakeRespMsg;  { V8.12 }
+        end;
         FRequestDoneError := httperrAborted;
         FConnected        := False;
         Exit;

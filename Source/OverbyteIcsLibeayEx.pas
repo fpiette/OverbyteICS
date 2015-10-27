@@ -5,7 +5,7 @@ Description:  Some more function headers of LIBEAY32.DLL which are not
               declared/used in OverbyteIcsLibeay.pas (OpenSSL)
               This is only the subset and may grow.
 Creation:     Jan 12, 2005
-Version:      8.01
+Version:      8.02
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -46,7 +46,8 @@ Sep 09, 2009 Arno - Don't define PEngine if it's already defined in
 Oct 17, 2009 Removed some declarations available in OverbyteIcsLibeay as well.
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
-June 2015 - V8.01 Angus moved to main source dir
+June 2015  - V8.01 Angus moved to main source dir
+Oct 23, 2015 V8.02 Angus added f_RSA_generate_key_ex, f_keyxx_size, EVP_PKEY_get1_xxx
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -158,6 +159,12 @@ f_RAND_bytes              : function(buf: PAnsiChar; num: Integer): Integer; cde
 f_RAND_pseudo_bytes       : function(buf: PAnsiChar; num: Integer): Integer; cdecl = nil;
 
 f_RSA_free                : procedure(RSA: PRSA); cdecl = nil;
+f_DSA_free                : procedure(DSA: PDSA); cdecl = nil;   //Angus
+f_DH_free                 : procedure(DH: PDH); cdecl = nil;     //Angus
+f_RSA_generate_key_ex     : function(Rsa: PRSA; Bits: Integer; e: Pointer; cb: Pointer): PRSA; cdecl = nil; //Angus
+f_RSA_size                : function(Rsa: PRSA): Integer; cdecl = nil; //Angus
+f_DH_size                 : function(Dh: PDH): Integer; cdecl = nil;   //Angus
+f_DSA_size                : function(Dsa: PDSA): Integer; cdecl = nil; //Angus
 
 f_X509V3_EXT_conf_nid     : function(Conf: PLHASH; Ctx: PX509V3_CTX; ext_nid: Integer; value: PAnsiChar): PX509_EXTENSION; cdecl = nil;
 f_X509_add_ext            : function(Cert: PX509; Ex: PX509_EXTENSION; loc: Integer): Integer; cdecl = nil;
@@ -181,6 +188,10 @@ f_EVP_bf_ecb              : function: PEVP_CIPHER; cdecl = nil;
 f_EVP_bf_cfb64            : function: PEVP_CIPHER; cdecl = nil;
 f_EVP_bf_ofb              : function: PEVP_CIPHER; cdecl = nil;
 f_EVP_aes_128_cbc         : function: PEVP_CIPHER; cdecl = nil;
+f_EVP_PKEY_get1_RSA       : function (pkey: PEVP_PKEY): PRSA; cdecl = nil; //Angus
+f_EVP_PKEY_get1_DSA       : function (pkey: PEVP_PKEY): PDSA; cdecl = nil; //Angus
+f_EVP_PKEY_get1_DH        : function (pkey: PEVP_PKEY): PDH; cdecl = nil; //Angus
+f_EVP_PKEY_get1_EC_KEY    : function (pkey: PEVP_PKEY): PEC_KEY; cdecl = nil; //Angus
 
 f_EVP_CIPHER_CTX_new      : function: PEVP_CIPHER_CTX; cdecl = nil;
 f_EVP_CIPHER_CTX_free     : procedure(ctx: PEVP_CIPHER_CTX); cdecl = nil;
@@ -324,6 +335,24 @@ begin
     f_RSA_free := GetProcAddress(GLIBEAY_DLL_Handle, 'RSA_free');
     if not Assigned(f_RSA_free) then
         raise Exception.Create(Msg + 'RSA_free');
+    f_DSA_free := GetProcAddress(GLIBEAY_DLL_Handle, 'DSA_free');
+    if not Assigned(f_DSA_free) then
+        raise Exception.Create(Msg + 'DSA_free');
+    f_DH_free := GetProcAddress(GLIBEAY_DLL_Handle, 'DH_free');
+    if not Assigned(f_DH_free) then
+        raise Exception.Create(Msg + 'DH_free');
+    f_RSA_generate_key_ex := GetProcAddress(GLIBEAY_DLL_Handle, 'RSA_generate_key_ex');
+    if not Assigned(f_RSA_generate_key_ex) then
+        raise Exception.Create(Msg + 'RSA_generate_key_ex');
+    f_RSA_size := GetProcAddress(GLIBEAY_DLL_Handle, 'RSA_size');
+    if not Assigned(f_RSA_size) then
+        raise Exception.Create(Msg + 'RSA_size');
+    f_DH_size := GetProcAddress(GLIBEAY_DLL_Handle, 'DH_size');
+    if not Assigned(f_DH_size) then
+        raise Exception.Create(Msg + 'DH_size');
+    f_DSA_size := GetProcAddress(GLIBEAY_DLL_Handle, 'DSA_size');
+    if not Assigned(f_DSA_size) then
+        raise Exception.Create(Msg + 'DSA_size');
     f_X509_Req_new := GetProcAddress(GLIBEAY_DLL_Handle, 'X509_REQ_new');
     if not Assigned(f_X509_Req_new) then
         raise Exception.Create(Msg + 'X509_REQ_new');
@@ -363,6 +392,18 @@ begin
     f_EVP_bf_ofb := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_bf_ofb');
     if not Assigned(f_EVP_bf_ofb) then
         raise Exception.Create(Msg + 'EVP_bf_ofb');
+    f_EVP_PKEY_get1_RSA := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_PKEY_get1_RSA');   //Angus
+    if not Assigned(f_EVP_PKEY_get1_RSA) then
+        raise Exception.Create(Msg + 'EVP_EVP_PKEY_get1_RSA');
+    f_EVP_PKEY_get1_DSA := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_PKEY_get1_DSA');    //Angus
+    if not Assigned(f_EVP_PKEY_get1_DSA) then
+        raise Exception.Create(Msg + 'EVP_EVP_PKEY_get1_DSA');
+    f_EVP_PKEY_get1_DH := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_PKEY_get1_DH');     //Angus
+    if not Assigned(f_EVP_PKEY_get1_DH) then
+        raise Exception.Create(Msg + 'EVP_PKEY_get1_DH');
+    f_EVP_PKEY_get1_EC_KEY := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_PKEY_get1_EC_KEY');  //Angus
+    if not Assigned(f_EVP_PKEY_get1_EC_KEY) then
+        raise Exception.Create(Msg + 'EVP_PKEY_get1_EC_KEY');
     f_EVP_aes_128_cbc := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_aes_128_cbc');
     if not Assigned(f_EVP_aes_128_cbc) then
         raise Exception.Create(Msg + 'EVP_aes_128_cbc');

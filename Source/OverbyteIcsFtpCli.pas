@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V8.07
+Version:      V8.08
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -991,7 +991,7 @@ Apr 16, 2009 V7.07 Angus assume STREAM64, USE_MODEZ, USE_ONPROGRESS64_ONLY, USE_
              Remove old conditional and suppressed code, OnProgress gone (BREAKING CHANGE)
 Jan 4, 2010  V7.08 added TriggerResponse virtual and CreateSocket virtual
              ConnectAsync and ConnectHostAsync methods now trigger FEAT command
-			 Thanks to "Anton Sviridov" <ant_s@rambler.ru>
+             Thanks to "Anton Sviridov" <ant_s@rambler.ru>
 Jun 9, 2010  V7.09 Angus - ConnectAsync and ConnectHostAsync methods no longer trigger FEAT command
              Added ConnectFeatAsync and ConnectFeatHostAsync methods which do trigger FEAT command
 Sep 8, 2010  V7.10 Arno - If conditional BUILTIN_THROTTLE is defined the
@@ -1071,7 +1071,8 @@ Feb 07, 2014 V8.04 - Arno, in DoneQuitAsync call FControlSocket.Close rather tha
 Dec 02, 2014 V8.05 - Angus fixed PBSZAsync set incorrect TFtpFct
 Dec 10, 2014 V8.06 - Angus added SslHandshakeRespMsg for better error handling
 Jun 01, 2015 V8.07 - Angus update SslServerName for SSL SNI support allowing server to
-                     select correct SSL context and certificate
+                       select correct SSL context and certificate
+Oct 25, 2015 V8.08 - Angus report SSL certificate check failed in HandshakeDone event
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -1162,9 +1163,9 @@ uses
     OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 807;
-  CopyRight : String = ' TFtpCli (c) 1996-2015 F. Piette V8.07 ';
-  FtpClientId : String = 'ICS FTP Client V8.07 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 808;
+  CopyRight : String = ' TFtpCli (c) 1996-2015 F. Piette V8.08 ';
+  FtpClientId : String = 'ICS FTP Client V8.08 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -7102,8 +7103,16 @@ begin
     else
         TriggerDisplay('! ' + (Sender as TCustomSslWSocket).SslHandshakeRespMsg);  { V8.06 }
 
-    if Assigned(FOnSslHandshakeDone) then
+    if Assigned(FOnSslHandshakeDone) then begin
         FOnSslHandshakeDone(Self, ErrCode, PeerCert, Disconnect);   // 12/14/05
+        if Disconnect then begin { V8.08 report failure in event instead of silently disconnecting }
+            FLastResponse := '535 SSL certificate check failed';
+            DisplayLastResponse;
+            FStatusCode    := 535;
+            FRequestResult := FStatusCode;
+            SetErrorMessage;
+        end;
+    end;
 
     { Trigger RequestDone when we initiated a re-negotiation on AUTH }
     if FRenegInitFlag then begin

@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Aug 26, 2007
 Description:
-Version:      1.08
+Version:      1.09
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -57,6 +57,9 @@ Feb 14, 2014 V1.07 Angus added class TX509Ex derived from TX509Base adding
 Apr 18, 2014 V1.07a Arno removed some compiler warnings.
 Jul 07, 2014 V1.08 Angus improved certificate comment
 June 2015    Angus moved to main source dir
+Oct 25, 2015 V1.09 Angus added SignatureAlgorithm property to TX509Ex so we can check
+             certificates are SHA256, also KeyInfo, SerialNumHex
+             CertInfo provides multiline string of main certificate information for logging
 
 pending - create a certificate signed by a root certificate
 
@@ -96,6 +99,10 @@ type
     function GetIssuerSTName: String;
     function GetIssuerLName: String;
     function GetIssuerEmailName: String;
+    function GetSignAlgo: String;
+    function GetKeyInfo: string;
+    function GetSerialNumHex: String;
+    function GetCertInfo: String;
   public
     function GetNameEntryByNid(IsSubject: Boolean; ANid: Integer): String;
     function GetExtensionByName(const S: String): TExtension;
@@ -121,6 +128,10 @@ type
     property IssuerSTName : String read GetIssuerSTName;
     property IssuerLName : String read GetIssuerLName;
     property IssuerEmailName : String read GetIssuerEmailName;
+    property SignatureAlgorithm : String read GetSignAlgo;       { V1.09 }
+    property KeyInfo: string read GetKeyInfo;                    { V1.09 }
+    property SerialNumHex: String read GetSerialNumHex;          { V1.09 }
+    property CertInfo: String read GetCertInfo;                  { V1.09 }
   end;
 
 
@@ -453,6 +464,104 @@ begin
     Result := GetNameEntryByNid(TRUE, NID_pkcs9_emailAddress);
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetSignAlgo: String;     { V1.09 }
+var
+    Nid: integer ;
+    Str : AnsiString;
+    MyX509: PX509;
+begin
+    Result := '';
+    if not Assigned(X509) then
+        Exit;
+    MyX509 := X509;
+    Nid := f_OBJ_obj2nid(MyX509^.sig_alg.algorithm);  // certificate signature
+    if Nid <> NID_undef then begin
+        SetLength(Str, 256);
+        Str := f_OBJ_nid2ln(Nid);
+        SetLength(Str, StrLen(PAnsiChar(Str)));
+        Result := String(Str);
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetKeyInfo: string;       { V1.09 }
+var
+    Nid, Bits: integer ;
+    MyX509: PX509;
+    Str : AnsiString;
+    pubkey: PEVP_PKEY;
+    rsakey: PRSA;
+    dsakey: PDSA;
+    dhkey: PDH;
+//    eckey: PEC_KEY;
+begin
+    result := '' ;
+    if not LibeayExLoaded then
+    begin
+        LoadLibeayEx;
+        IcsRandPoll;
+    end;
+    if not Assigned(X509) then
+        Exit;
+    MyX509 := X509;
+    Nid := f_OBJ_obj2nid(MyX509^.cert_info.key.algor.algorithm);  // certificate alogorithm
+    if Nid = NID_undef then Exit;
+    SetLength(Str, 256);
+    Str := f_OBJ_nid2ln(Nid);   // name of certificate alogorithm
+    SetLength(Str, StrLen(PAnsiChar(Str)));
+    Result := String(Str);
+    pubkey := f_X509_get_pubkey(X509);
+    Bits := 0 ;
+    if Nid = NID_rsaEncryption then begin
+        rsakey := f_EVP_PKEY_get1_RSA(pubkey);
+        if rsakey = nil then Exit;
+        Bits := f_RSA_Size (rsakey) * 8;
+        f_RSA_free (rsakey);
+    end
+    else if Nid = NID_dsa then begin
+        dsakey := f_EVP_PKEY_get1_DSA(pubkey);
+        if dsakey = nil then Exit;
+        Bits := f_DSA_Size (dsakey) * 8;
+        f_DSA_free (dsakey);
+    end
+    else if Nid = NID_dhKeyAgreement then begin
+        dhkey := f_EVP_PKEY_get1_DH(pubkey);
+        if dhkey = nil then Exit;
+        Bits := f_DH_Size (dhkey) * 8;
+        f_DH_free (dhkey);
+    end
+    else if Nid = NID_X9_62_id_ecPublicKey then begin
+      // EC has curves, not bits
+    end;
+    if Bits <> 0 then Result := Result + ' ' + IntToStr(Bits) + ' bits';
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetSerialNumHex: String;   { V1.09 }
+var
+    serial: PASN1_INTEGER;
+begin
+    Result := '';
+    if not Assigned(X509) then
+        Exit;
+    serial := f_X509_get_serialNumber(X509);
+    Result := IcsLowerCase(IcsBufferToHex(serial^.data, serial^.length)) ;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Ex.GetCertInfo: String;   { V1.09 }
+begin
+    Result := 'Issued to: ' + UnwrapNames (SubjectCName) + ', ' + UnwrapNames (SubjectOName) + #13#10 ;
+    if SubAltNameDNS <> '' then Result := Result + 'Alt Domains: ' + UnwrapNames (SubAltNameDNS) + #13#10 ;
+    if SelfSigned then
+        Result := Result + 'Issuer: Self Signed' + #13#10
+    else
+        Result := Result + 'Issuer: ' + UnwrapNames (IssuerCName) + ', ' + UnwrapNames (IssuerOName) + #13#10 ;
+    Result := Result + 'Expires: ' + DateToStr (ValidNotAfter) + ', Signature: ' + SignatureAlgorithm + #13#10 ;
+    Result := Result + 'Public Key: ' + KeyInfo;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function LastOpenSslErrMsg(Dump: Boolean): AnsiString;
@@ -475,7 +584,6 @@ begin
         end;
     end;
 end;
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure RaiseLastOpenSslError(

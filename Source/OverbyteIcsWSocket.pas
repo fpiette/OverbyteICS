@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.19
+Version:      8.20
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -982,6 +982,8 @@ Jun 05, 2015 V8.18 Angus, enabled SSL engine support, which are cryptographic mo
                      which include certificate display and validation functions, and which were
                      previously only in the SSL samples directory
 Oct 25, 2015 V8.19 Angus version bump only for SSL changes in other units
+Nov 3, 2015  V8.20 Angus SslECDHMethod defaults to sslECDHAuto since web sites are increasingly needing ECDH
+                   added two more protocols to sslCiphersMozillaSrvInter according to latest Mozilla update
 }
 
 {
@@ -1133,8 +1135,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 819;
-  CopyRight    : String     = ' TWSocket (c) 1996-2015 Francois Piette V8.19 ';
+  WSocketVersion            = 820;
+  CopyRight    : String     = ' TWSocket (c) 1996-2015 Francois Piette V8.20 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -2175,14 +2177,15 @@ const
     sslCiphersNormal = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH';
     sslCiphersServer = 'TLSv1+HIGH:!SSLv2:RC4+MEDIUM:!aNULL:!eNULL:!3DES:!CAMELLIA@STRENGTH';
 
-{ from https://wiki.mozilla.org/Security/Server_Side_TLS - Version 3.3 - 20th October 2013
+{ from https://wiki.mozilla.org/Security/Server_Side_TLS - Version 3.8 - 3rd November 2015
     Configuration   Oldest compatible client
         sslCiphersMozillaSrvHigh - Firefox 27, Chrome 22, IE 11, Opera 14, Safari 7, Android 4.4, Java 8
         sslCiphersMozillaSrvInter -  Firefox 1, Chrome 1, IE 7, Opera 5, Safari 1, Windows XP IE8, Android 2.3, Java 7
         sslCiphersMozillaSrvBack - Windows XP IE6, Java 6 }
 
    { Backward Compatible, works with all clients back to Windows XP/IE6,  Versions: SSLv3, TLSv1, TLSv1.1, TLSv1.2
-    RSA key size: 2048, DH Parameter size: 1024, Elliptic curves: secp256r1, secp384r1, secp521r1 }
+    RSA key size: 2048, DH Parameter size: 1024, Elliptic curves: secp256r1, secp384r1, secp521r1,
+    Certificate signature: SHA-1 (windows XP pre-sp3 is incompatible with sha-256)  }
     sslCiphersMozillaSrvBack =
         'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:' +
         'ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:' +
@@ -2193,7 +2196,8 @@ const
         'AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:' +
         '!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA' ;
   { For services that don't need backward compatibility, the parameters below provide a higher level of security
-   Versions: TLSv1.1, TLSv1.2, RSA key size: 2048, DH Parameter size: 2048, Elliptic curves: secp256r1, secp384r1, secp521r1 }
+   Versions: TLSv1.1, TLSv1.2, RSA key size: 2048, DH Parameter size: 2048, Elliptic curves: secp256r1, secp384r1, secp521r1,
+   Certificate signature: SHA-256, HSTS: max-age=15724800  }
     sslCiphersMozillaSrvHigh =
         'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:' +
         'ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:' +
@@ -2212,9 +2216,9 @@ const
         'ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:' +
         'ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:' +
         'DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:' +
-        'DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:' +
-        'AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:' +
-        '!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA';
+        'DHE-RSA-AES256-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:' +
+        'AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:' +
+        '!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA';
 
 {$IFNDEF NO_SSL_MT}
 var
@@ -12938,7 +12942,9 @@ begin
     SetSslVerifyPeerModes([SslVerifyMode_PEER]);
     SetSslCipherList(sslCiphersNormal);  // V8.10 same as 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
     FSslVersionMethod    := sslBestVer;  // V8.15 same as sslV23 but easier to understand
-    SslVerifyDepth       := 9;       FSslSessionTimeOut   := 0; // OSSL-default
+    FSslECDHMethod       := sslECDHAuto; // V8.20 web sites are increasingly needing ECDH so default it on
+    SslVerifyDepth       := 9;
+    FSslSessionTimeOut   := 0; // OSSL-default
     FSslSessionCacheSize := SSL_SESSION_CACHE_MAX_SIZE_DEFAULT;
 end;
 

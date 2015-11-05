@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Aug 26, 2007
 Description:
-Version:      1.09
+Version:      8.20
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -60,17 +60,24 @@ June 2015    Angus moved to main source dir
 Oct 25, 2015 V1.09 Angus added SignatureAlgorithm property to TX509Ex so we can check
              certificates are SHA256, also KeyInfo, SerialNumHex
              CertInfo provides multiline string of main certificate information for logging
+Nov 5, 2015  V8.20 Angus removed a compiler warning, version matches wsocket
+
 
 pending - create a certificate signed by a root certificate
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslX509Utils;
 
+{$I include\OverbyteIcsDefs.inc}
+
 interface
 
 uses
-    Windows,
-    SysUtils, Classes,
+{$IFDEF MSWINDOWS}
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+{$ENDIF}
+  {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     OverbyteIcsSSLEAY, OverbyteIcsLibeay,
     OverbyteIcsLibeayEx, OverByteIcsMD5,
     OverbyteIcsTypes, OverbyteIcsWSocket,
@@ -479,7 +486,7 @@ begin
     if Nid <> NID_undef then begin
         SetLength(Str, 256);
         Str := f_OBJ_nid2ln(Nid);
-        SetLength(Str, StrLen(PAnsiChar(Str)));
+        SetLength(Str, IcsStrLen(PAnsiChar(Str)));     { V8.20 }
         Result := String(Str);
     end;
 end;
@@ -509,7 +516,7 @@ begin
     if Nid = NID_undef then Exit;
     SetLength(Str, 256);
     Str := f_OBJ_nid2ln(Nid);   // name of certificate alogorithm
-    SetLength(Str, StrLen(PAnsiChar(Str)));
+    SetLength(Str, IcsStrLen(PAnsiChar(Str)));      { V8.20 }
     Result := String(Str);
     pubkey := f_X509_get_pubkey(X509);
     Bits := 0 ;

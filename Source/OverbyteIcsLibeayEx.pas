@@ -5,7 +5,7 @@ Description:  Some more function headers of LIBEAY32.DLL which are not
               declared/used in OverbyteIcsLibeay.pas (OpenSSL)
               This is only the subset and may grow.
 Creation:     Jan 12, 2005
-Version:      8.02
+Version:      8.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -48,6 +48,7 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 June 2015  - V8.01 Angus moved to main source dir
 Oct 23, 2015 V8.02 Angus added f_RSA_generate_key_ex, f_keyxx_size, EVP_PKEY_get1_xxx
+Nov 20, 2015 V8.03
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -158,10 +159,11 @@ f_RAND_add                : procedure(buf: Pointer; num: Integer; entropy: Doubl
 f_RAND_bytes              : function(buf: PAnsiChar; num: Integer): Integer; cdecl = nil;
 f_RAND_pseudo_bytes       : function(buf: PAnsiChar; num: Integer): Integer; cdecl = nil;
 
+f_RSA_new                 : function: PRSA; cdecl = nil;            { V8.03 }
 f_RSA_free                : procedure(RSA: PRSA); cdecl = nil;
 f_DSA_free                : procedure(DSA: PDSA); cdecl = nil;   //Angus
 f_DH_free                 : procedure(DH: PDH); cdecl = nil;     //Angus
-f_RSA_generate_key_ex     : function(Rsa: PRSA; Bits: Integer; e: Pointer; cb: Pointer): PRSA; cdecl = nil; //Angus
+f_RSA_generate_key_ex     : function(Rsa: PRSA; Bits: Integer; e: Pointer; cb: Pointer): Integer; cdecl = nil; //Angus  { V8.03 }
 f_RSA_size                : function(Rsa: PRSA): Integer; cdecl = nil; //Angus
 f_DH_size                 : function(Dh: PDH): Integer; cdecl = nil;   //Angus
 f_DSA_size                : function(Dsa: PDSA): Integer; cdecl = nil; //Angus
@@ -206,6 +208,8 @@ f_EVP_EncryptInit_ex      : function (ctx: PEVP_CIPHER_CTX; const cipher: PEVP_C
 f_EVP_DecryptInit_ex      : function (ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; const key: PAnsiChar; const iv: PAnsiChar): LongBool; cdecl = nil;
 f_EVP_EncryptUpdate       : function (ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
 f_EVP_DecryptUpdate       : function (ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
+
+f_HMAC                    : function(evp: pEVP_MD; key: PByte; key_len: integer; data: PByte; data_len: integer; md: PByte; var md_len: integer): PByte; cdecl = nil;    { V8.03 }
 
 var
   LibeayExLoaded: Boolean = FALSE;
@@ -332,6 +336,9 @@ begin
     f_X509V3_EXT_conf_nid := GetProcAddress(GLIBEAY_DLL_Handle, 'X509V3_EXT_conf_nid');
     if not Assigned(f_X509V3_EXT_conf_nid) then
         raise Exception.Create(Msg + 'X509V3_EXT_conf_nid');
+    f_RSA_new := GetProcAddress(GLIBEAY_DLL_Handle, 'RSA_new');
+    if not Assigned(f_RSA_new) then
+        raise Exception.Create(Msg + 'RSA_new');
     f_RSA_free := GetProcAddress(GLIBEAY_DLL_Handle, 'RSA_free');
     if not Assigned(f_RSA_free) then
         raise Exception.Create(Msg + 'RSA_free');
@@ -446,6 +453,9 @@ begin
     f_EVP_DecryptUpdate := GetProcAddress(GLIBEAY_DLL_Handle, 'EVP_DecryptUpdate');
     if not Assigned(f_EVP_DecryptUpdate) then
         raise Exception.Create(Msg + 'EVP_DecryptUpdate');
+    f_HMAC   := GetProcAddress(GLIBEAY_DLL_Handle, 'HMAC');
+    if not Assigned(f_HMAC) then
+        raise Exception.Create(Msg + 'HMAC');
 
     LibeayExLoaded := TRUE;
 

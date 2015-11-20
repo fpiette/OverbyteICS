@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.02
+Version:      8.03
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -72,6 +72,7 @@ Mar 13, 2015 V8.01 Angus updated SSL_OP option literals, added TLS v1.1 and 1.2 
              Added functions need to generate DH keys for EDH ciphers with Forward Secrecy
              Note, only OpenSSL 1.0.1 and later are now supported, removed various conditionals
 May 08, 2015 V8.02 Angus adding missing SSL_OP_SINGLE_ECDH_USE
+Nov 20, 2015 V8.03 
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -245,10 +246,18 @@ type
     end;
     PEVP_MD = ^TEVP_MD_st;
 
+    BN_ULONG = Cardinal;               { V8.03 }
+
+    TBIGNUM_st = packed record         { V8.03 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PBIGNUM = ^TBIGNUM_st;
+
     TRSA_st = packed record
         Dummy : array [0..0] of Byte;      //AG
     end;
     PRSA = ^TRSA_st;
+    PPRSA = ^PRSA;                        { V8.03 }
 
     TDSA_st = packed record                //AG
         Dummy : array [0..0] of Byte;

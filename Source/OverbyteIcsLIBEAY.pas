@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.10
+Version:      8.11
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -106,6 +106,8 @@ Mar 17, 2015 V8.08 - Angus allow load of OSSL 1.0.2a (untested)
 Mar 26, 2015 V8.09   Angus, the OpenSSL version check is relaxed so minor versions with a letter suffix
                       are now supported up to the next major version, so now support up to 1.0.2z
 Oct 23, 2015 V8.10   Angus, another NID literal
+Nov 20, 2015 V8.11
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -1302,6 +1304,11 @@ const
     f_ERR_error_string :                       function(Err: Cardinal; Buf: PAnsiChar): PAnsiChar; cdecl = nil;
     f_ERR_error_string_n :                     procedure(Err: Cardinal; Buf: PAnsiChar; Len: size_t); cdecl = nil;
     f_ERR_clear_error :                        procedure; cdecl = nil; //empties the current thread's error queue
+    f_ERR_lib_error_string:                    function (e: Cardinal): PAnsiChar; cdecl = nil;   { V8.11 }
+    f_ERR_func_error_string:                   function (e: Cardinal): PAnsiChar; cdecl = nil;
+    f_ERR_reason_error_string:                 function (e: Cardinal): PAnsiChar; cdecl = nil;
+    f_ERR_load_crypto_strings:                 procedure; cdecl = nil;
+
     { Note that ERR_remove_state() is now deprecated, because it is tied
      to the assumption that thread IDs are numeric.  ERR_remove_state(0)
      to free the current thread's error state should be replaced by
@@ -1337,6 +1344,10 @@ const
     f_BIO_puts :                               function(B: PBIO; Buf: PAnsiChar): Integer; cdecl = nil;
     f_BIO_push :                               function(B: PBIO; B_Append: PBIO): PBIO; cdecl = nil;
     f_BIO_write :                              function(B: PBIO; Buf: Pointer; Len: Integer): Integer; cdecl = nil;
+
+    f_BN_new:                                  function : PBIGNUM; cdecl = nil;                 { V8.11 }
+    f_BN_free:                                 procedure (a: PBIGNUM); cdecl = nil;             
+    f_BN_set_word:                             function (a: PBIGNUM; w: BN_ULONG): Integer; cdecl = nil;
 
     f_d2i_X509_bio :                           function(B: PBIO; X509: PPX509): PX509; cdecl = nil;
     f_i2d_X509_bio :                           function(B: PBIO; X509: PX509): Integer; cdecl = nil;
@@ -1480,6 +1491,13 @@ const
     f_PEM_do_header :                          function(cipher: PEVP_CIPHER_INFO; data: PAnsiChar; var len: Integer; callback: TPem_password_cb; u: Pointer): Integer; cdecl = nil;//AG;
 
     f_PEM_X509_INFO_read_bio :                 function(B: PBIO; Stack: PSTACK_OF_X509_INFO; CallBack: TPem_password_cb; UData: PAnsiChar): PSTACK_OF_X509_INFO; cdecl = nil;//AG;
+
+    f_PEM_read_bio_RSA_PUBKEY:                 function(B: PBIO; x: PPRSA; cb: TPem_password_cb; u: pointer): PRSA; cdecl = nil;        { V8.11 }
+    f_PEM_read_bio_RSAPrivateKey:              function(B: PBIO; x: PPRSA; cb: TPem_password_cb; u: pointer): PRSA; cdecl = nil;
+    f_d2i_RSAPrivateKey:                       function(a: PPRSA; var pp: PByte; length: Integer): PRSA; cdecl = nil;
+    f_i2d_RSAPublicKey:                        function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
+    f_i2d_RSA_PUBKEY:                          function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
+
     f_CRYPTO_free :                            procedure(P: Pointer); cdecl = nil;//AG
     f_X509_NAME_ENTRY_get_object :             function(Ne: PX509_NAME_ENTRY): PASN1_OBJECT; cdecl = nil;//AG
     f_X509_NAME_get_entry :                    function(Name: PX509_NAME; Loc: Integer): PX509_NAME_ENTRY; cdecl = nil;//AG
@@ -1514,6 +1532,8 @@ const
     f_i2d_ASN1_bytes :                         function(A : PASN1_STRING; var p: PAnsiChar; tag: Integer; xclass: Integer): Integer; cdecl = nil;//AG
     f_X509_get_pubkey :                        function(Cert: PX509): PEVP_PKEY; cdecl = nil; //AG;
     f_X509_PUBKEY_free :                       procedure(Key: PEVP_PKEY); cdecl = nil; //AG;
+
+    f_d2i_PKCS8PrivateKey_bio:                 function(bp: PBIO; x: PPEVP_PKEY; cb: Tpem_password_cb; u: pointer): PEVP_PKEY; cdecl = nil;     { V8.11 }
 
     f_X509_check_purpose :                     function(Cert: PX509; ID: Integer; CA: Integer): Integer; cdecl = nil;//AG;
     f_X509_PURPOSE_get_id :                    function(XP: PX509_PURPOSE): Integer; cdecl = nil;//AG;
@@ -1607,6 +1627,10 @@ const
     FN_ERR_get_error                          = 'ERR_get_error';
     FN_ERR_error_string                       = 'ERR_error_string';
     FN_ERR_error_string_n                     = 'ERR_error_string_n';
+    FN_ERR_lib_error_string                   = 'ERR_lib_error_string';
+    FN_ERR_func_error_string                  = 'ERR_func_error_string';
+    FN_ERR_reason_error_string                = 'ERR_reason_error_string';
+    FN_ERR_load_crypto_strings                = 'ERR_load_crypto_strings';
     FN_ERR_clear_error                        = 'ERR_clear_error';
     FN_ERR_remove_state                       = 'ERR_remove_state';
     FN_ERR_remove_thread_state                = 'ERR_remove_thread_state';
@@ -1639,6 +1663,10 @@ const
     FN_BIO_s_mem                              = 'BIO_s_mem';
     FN_BIO_get_retry_BIO                      = 'BIO_get_retry_BIO';
     FN_BIO_get_retry_reason                   = 'BIO_get_retry_reason';
+
+    FN_BN_new                                 = 'BN_new';
+    FN_BN_free                                = 'BN_free';
+    FN_BN_set_word                            = 'BN_set_word';
 
     FN_d2i_X509_bio                           = 'd2i_X509_bio';
     FN_i2d_X509_bio                           = 'i2d_X509_bio';
@@ -1776,6 +1804,12 @@ const
     FN_PEM_do_header                          = 'PEM_do_header';
     FN_PEM_X509_INFO_read_bio                 = 'PEM_X509_INFO_read_bio'; //AG
 
+    FN_PEM_read_bio_RSA_PUBKEY                = 'PEM_read_bio_RSA_PUBKEY';
+    FN_PEM_read_bio_RSAPrivateKey             = 'PEM_read_bio_RSAPrivateKey';
+    FN_d2i_RSAPrivateKey                      = 'd2i_RSAPrivateKey';
+    FN_i2d_RSAPublicKey                       = 'i2d_RSAPublicKey';
+    FN_i2d_RSA_PUBKEY                         = 'i2d_RSA_PUBKEY';
+
     FN_CRYPTO_free                            = 'CRYPTO_free'; //AG
     FN_X509_NAME_ENTRY_get_object             = 'X509_NAME_ENTRY_get_object'; //AG
     FN_X509_NAME_get_entry                    = 'X509_NAME_get_entry'; //AG
@@ -1811,6 +1845,8 @@ const
     FN_i2d_ASN1_bytes                         = 'i2d_ASN1_bytes'; //AG
     FN_X509_get_pubkey                        = 'X509_get_pubkey';//AG
     FN_X509_PUBKEY_free                       = 'X509_PUBKEY_free'; //AG
+
+    FN_d2i_PKCS8PrivateKey_bio                = 'd2i_PKCS8PrivateKey_bio';
 
     FN_X509_check_purpose                     = 'X509_check_purpose'; //AG
     FN_X509_PURPOSE_get_id                    = 'X509_PURPOSE_get_id'; //AG
@@ -2053,6 +2089,10 @@ begin
     f_ERR_get_error                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_get_error);
     f_ERR_error_string                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_error_string);
     f_ERR_error_string_n                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_error_string_n);
+    f_ERR_lib_error_string                   := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_lib_error_string);
+    f_ERR_func_error_string                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_func_error_string);
+    f_ERR_reason_error_string                := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_reason_error_string);
+    f_ERR_load_crypto_strings                := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_load_crypto_strings);
     f_ERR_clear_error                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_clear_error);
     f_ERR_remove_state                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_remove_state);
     f_ERR_remove_thread_state                := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_remove_thread_state);
@@ -2084,6 +2124,10 @@ begin
     f_BIO_s_mem                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_s_mem);
     f_BIO_get_retry_BIO                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_get_retry_BIO);
     f_BIO_get_retry_reason                   := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_get_retry_reason);
+
+    f_BN_new                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_BN_new);
+    f_BN_free                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_BN_free);
+    f_BN_set_word                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_BN_set_word);
 
     f_d2i_X509_bio                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_X509_bio);
     f_i2d_X509_bio                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_X509_bio);
@@ -2222,6 +2266,12 @@ begin
     f_PEM_write_bio_PrivateKey               := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_PrivateKey); //AG
     f_PEM_read_bio_PrivateKey                := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_PrivateKey); //AG
 
+    f_PEM_read_bio_RSA_PUBKEY                := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_RSA_PUBKEY);
+    f_PEM_read_bio_RSAPrivateKey             := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_RSAPrivateKey);
+    f_d2i_RSAPrivateKey                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_RSAPrivateKey);
+    f_i2d_RSAPublicKey                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_RSAPublicKey);
+    f_i2d_RSA_PUBKEY                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_RSA_PUBKEY);
+
     f_CRYPTO_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_free); //AG
     f_X509_NAME_ENTRY_get_object             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_ENTRY_get_object); //AG
     f_X509_NAME_get_entry                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_get_entry); //AG
@@ -2254,6 +2304,8 @@ begin
     f_i2d_ASN1_bytes                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_ASN1_bytes); //AG
     f_X509_get_pubkey                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_pubkey);//AG
     f_X509_PUBKEY_free                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_PUBKEY_free); //AG
+
+    f_d2i_PKCS8PrivateKey_bio                := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_PKCS8PrivateKey_bio);
 
     f_X509_check_purpose                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_check_purpose); //AG
     f_X509_PURPOSE_get_id                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_PURPOSE_get_id); //AG

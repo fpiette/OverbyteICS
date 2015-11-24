@@ -48,7 +48,8 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 June 2015  - V8.01 Angus moved to main source dir
 Oct 23, 2015 V8.02 Angus added f_RSA_generate_key_ex, f_keyxx_size, EVP_PKEY_get1_xxx
-Nov 20, 2015 V8.03
+Nov 20, 2015 V8.03 Eugene Kotlyarov added RSA key related stuff 
+Nov 23, 2015 V8.04 Eugene Kotlyarov MacOSX lacks PsAPI SO NO IcsRandPoll
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -57,6 +58,7 @@ Nov 20, 2015 V8.03
 {$X+}                                 { Enable extended syntax              }
 {$H+}                                 { Use long strings                    }
 {$J+}                                 { Allow typed constant to be modified }
+{$I Include\OverbyteIcsDefs.inc}
 {$I Include\OverbyteIcsSslDefs.inc}
 
 unit OverbyteIcsLibeayEx;
@@ -64,7 +66,11 @@ unit OverbyteIcsLibeayEx;
 interface
 
 uses
-    Windows, SysUtils, PsApi,
+{$IFDEF MSWINDOWS}  { V8.04 }
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF}, 
+    {$IFDEF RTL_NAMESPACES}Winapi.PsApi{$ELSE}PsApi{$ENDIF},
+{$ENDIF}
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
     OverbyteIcsSSLEAY, OverbyteIcsLibeay;
 
 const
@@ -216,7 +222,9 @@ var
 
 procedure LoadLibeayEx;
 function  IcsRandSeedFromFile(const FileName: String; MaxBytes: Integer = -1): Integer;
+{$IFDEF MSWINDOWS}  { V8.04 }
 procedure IcsRandPoll;
+{$ENDIF}
 
 { C-macros }
 function f_X509_REQ_get_subject_name(AReq: PX509_REQ): PX509_NAME;
@@ -237,6 +245,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF MSWINDOWS}  { V8.04 }
 procedure IcsRandPoll;
 var
     ProcIDs, P : PDWORD;
@@ -283,7 +292,7 @@ begin
         FreeMem(ProcIDs);
     end;
 end;
-
+{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function f_X509_REQ_get_subject_name(AReq: PX509_REQ): PX509_NAME;

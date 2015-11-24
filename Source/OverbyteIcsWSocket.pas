@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.20
+Version:      8.21
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -984,6 +984,7 @@ Jun 05, 2015 V8.18 Angus, enabled SSL engine support, which are cryptographic mo
 Oct 25, 2015 V8.19 Angus version bump only for SSL changes in other units
 Nov 3, 2015  V8.20 Angus SslECDHMethod defaults to sslECDHAuto since web sites are increasingly needing ECDH
                    added two more protocols to sslCiphersMozillaSrvInter according to latest Mozilla update
+Nov 23, 2015 V8.21 Eugene Kotlyarov fix MacOSX compilation and compiler warnings
 }
 
 {
@@ -1070,9 +1071,9 @@ uses
 {$IFDEF MSWINDOWS}
   {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
   {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
-  {$IFDEF RTL_NAMESPACES}System.Types{$ELSE}Types{$ENDIF},
   OverbyteIcsWinsock,
 {$ENDIF}
+  {$IFDEF RTL_NAMESPACES}System.Types{$ELSE}Types{$ENDIF},    { V8.21 }
   {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
   {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
   {$IFDEF RTL_NAMESPACES}System.Contnrs{$ELSE}Contnrs{$ENDIF},
@@ -1135,8 +1136,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 820;
-  CopyRight    : String     = ' TWSocket (c) 1996-2015 Francois Piette V8.20 ';
+  WSocketVersion            = 821;
+  CopyRight    : String     = ' TWSocket (c) 1996-2015 Francois Piette V8.21 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -7892,7 +7893,7 @@ begin
         begin
             if AHostName = ICS_BROADCAST_V4 then
             begin
-                PSockAddrIn(@ASockAddrIn6)^.sin_addr.S_addr := Integer(INADDR_BROADCAST);
+                PSockAddrIn(@ASockAddrIn6)^.sin_addr.S_addr := {$IFDEF MACOS}Cardinal{$ELSE}Integer{$ENDIF}(INADDR_BROADCAST);   { V8.21 }
                 Exit;
             end;
             raise ESocketException.Create('Winsock Resolve Host: ''' + AHostName +
@@ -8463,9 +8464,13 @@ begin
             TriggerDnsLookupDone(WSocket_Synchronized_WSAGetLastError)
         else begin
           {$IFDEF POSIX}
-            FDnsResult := String(StrPas(Phe^.hname));
+            {$IFDEF DELPHI23_UP}          { V8.21 }
+            FDnsResult := String(StrPas(Phe^.h_name));
+            {$ELSE}
+            FDnsResult := String(StrPas(Phe^.hname)); // Typo in Posix header
+            {$ENDIF}
           {$ELSE}
-            FDnsResult := String(StrPas(Phe^.h_name)); // Typo in Posix header
+            FDnsResult := String(StrPas(Phe^.h_name));
           {$ENDIF}
             FDnsResultList.Add(FDnsResult);
             GetAliasList(Phe, FDnsResultList);
@@ -9578,8 +9583,13 @@ begin
             SetLength(Result, StrLen(Phe^.h_name));
             StrCopy(@Result[1], Phe^.h_name);
           {$ELSE}
+            {$IFDEF DELPHI23_UP}           { V8.21 }
+            SetLength(Result, StrLen(Phe^.h_name));
+            StrCopy(@Result[1], Phe^.h_name);
+            {$ELSE}
             SetLength(Result, StrLen(Phe^.hname));
             StrCopy(@Result[1], Phe^.hname);
+            {$ENDIF}
           {$ENDIF}
         end;
     end

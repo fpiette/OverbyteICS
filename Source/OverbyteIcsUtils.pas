@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.07
+Version:      8.08
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -135,6 +135,7 @@ Jul 06, 2013 V8.06 Arno reverted the conditional define from previous fix and
              fixed IcsStrPCopy instead.
 Jul 13, 2013 V8.07 Arno added an overloaded version of IcsGetBufferCodepage that
              returns BOM's size.
+Nov 23, 2015 V8.08 Eugene Kotlyarov fix MacOSX compilation and compiler warnings
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -3758,7 +3759,7 @@ begin
     Result := IcsStrCompOrdinalW(PWideChar(S1), Length(S1), PWideChar(S2),
                              Length(S2), True);
 {$ELSE}
-    Result := SysUtils.AnsiCompareFileName(S1, S2);
+    Result := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.AnsiCompareFileName(S1, S2);  { V8.08 }
 {$ENDIF}
 end;
 

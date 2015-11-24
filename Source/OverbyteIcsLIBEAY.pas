@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.11
+Version:      8.12
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -106,7 +106,8 @@ Mar 17, 2015 V8.08 - Angus allow load of OSSL 1.0.2a (untested)
 Mar 26, 2015 V8.09   Angus, the OpenSSL version check is relaxed so minor versions with a letter suffix
                       are now supported up to the next major version, so now support up to 1.0.2z
 Oct 23, 2015 V8.10   Angus, another NID literal
-Nov 20, 2015 V8.11
+Nov 20, 2015 V8.11   Eugene Kotlyarov added RSA key related stuff
+Nov 23, 2015 V8.12   Angus added f_PEM_write_bio_RSAPrivateKey and f_PEM_write_bio_RSAPublicKey
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -147,8 +148,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 810;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2015 F. Piette V8.10 ';
+    IcsLIBEAYVersion   = 812;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2015 F. Piette V8.12 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -1497,6 +1498,8 @@ const
     f_d2i_RSAPrivateKey:                       function(a: PPRSA; var pp: PByte; length: Integer): PRSA; cdecl = nil;
     f_i2d_RSAPublicKey:                        function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
     f_i2d_RSA_PUBKEY:                          function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
+    f_PEM_write_bio_RSAPrivateKey:             function(B: PBIO; X: PRSA; const Enc: PEVP_CIPHER; Kstr: PAnsiChar; Klen: Integer; CallBack: TPem_password_cb; U: Pointer): Integer; cdecl = nil; { V8.12 }
+    f_PEM_write_bio_RSAPublicKey:              function(B: PBIO; X: PRSA): Integer; cdecl = nil; { V8.12 }
 
     f_CRYPTO_free :                            procedure(P: Pointer); cdecl = nil;//AG
     f_X509_NAME_ENTRY_get_object :             function(Ne: PX509_NAME_ENTRY): PASN1_OBJECT; cdecl = nil;//AG
@@ -1809,6 +1812,8 @@ const
     FN_d2i_RSAPrivateKey                      = 'd2i_RSAPrivateKey';
     FN_i2d_RSAPublicKey                       = 'i2d_RSAPublicKey';
     FN_i2d_RSA_PUBKEY                         = 'i2d_RSA_PUBKEY';
+    FN_PEM_write_bio_RSAPrivateKey            = 'PEM_write_bio_RSAPrivateKey'; { V8.12 }
+    FN_PEM_write_bio_RSAPublicKey             = 'PEM_write_bio_RSAPublicKey'; { V8.12 }
 
     FN_CRYPTO_free                            = 'CRYPTO_free'; //AG
     FN_X509_NAME_ENTRY_get_object             = 'X509_NAME_ENTRY_get_object'; //AG
@@ -2271,6 +2276,8 @@ begin
     f_d2i_RSAPrivateKey                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_RSAPrivateKey);
     f_i2d_RSAPublicKey                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_RSAPublicKey);
     f_i2d_RSA_PUBKEY                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_RSA_PUBKEY);
+    f_PEM_write_bio_RSAPrivateKey            := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_RSAPrivateKey); { V8.12 }
+    f_PEM_write_bio_RSAPublicKey             := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_RSAPublicKey); { V8.12 }
 
     f_CRYPTO_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_free); //AG
     f_X509_NAME_ENTRY_get_object             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_ENTRY_get_object); //AG

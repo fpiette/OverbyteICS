@@ -4,7 +4,7 @@
 Author:       François PIETTE
 Object:       Mime support routines (RFC2045).
 Creation:     May 03, 2003  (Extracted from SmtpProt unit)
-Version:      8.02
+Version:      8.03
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -117,6 +117,7 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 Oct 17, 2012 V8.01 Max Terentiev fixed a serious bug in StrEncodeQPEx()
 Feb 10, 2014 V8.02 Angus added builtin MIME types for js and json
+Nov 23, 2015 V8.03 Eugene Kotlyarov fix MacOSX compilation and compiler warnings
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -174,8 +175,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-    TMimeUtilsVersion = 802;
-    CopyRight : String = ' MimeUtils (c) 2003-2014 F. Piette V8.02 ';
+    TMimeUtilsVersion = 803;
+    CopyRight : String = ' MimeUtils (c) 2003-2015 F. Piette V8.03 ';
 
     SmtpDefaultLineLength = 76; // without CRLF
     SMTP_SND_BUF_SIZE     = 2048;
@@ -2591,6 +2592,10 @@ end;
 { for Windows 7/2008, it will load about 370 file extensions for 240 content types }
 
 {$IFDEF MSWINDOWS}
+{$IFDEF WIN64}  { V8.03 }
+// to fix hint that value assigned to 'iRes' variable is not used in Win64 compiler
+{$HINTS OFF}
+{$ENDIF}
 function TMimeTypesList.LoadWinReg: boolean;
 
     function GetKeyValue(const SubKey, ValName: String; out Value: string): Boolean;
@@ -2685,6 +2690,9 @@ begin
         RegCloseKey(KeyHandle);
     end;
 end;
+{$IFDEF WIN64}  { V8.03 }
+{$HINTS ON}
+{$ENDIF}
 {$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

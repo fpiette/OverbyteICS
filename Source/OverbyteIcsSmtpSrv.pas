@@ -3,7 +3,7 @@
 Original Author: Ian Baker, ADV Systems 2003
 Updated by:   Angus Robertson, Magenta Systems Ltd
 Creation:     20 September 2013
-Version:      8.02
+Version:      8.03
 Description:  Implements a TWSocket-based SMTP server component.
               For further details please see
               RFC-821, RFC-1869, RFC-1870, RFC-1893, RFC-1985,
@@ -139,6 +139,7 @@ Sep 24, 2013 V8.00 Angus updated for ICS V8 with IPv6
     Optionally prevent relaying even with authentication
 Dec 18, 2013 V8.01 Angus  EHLO reports AUTH even without SSL
 June 2015 V8.02 Angus - fix FMX compile bug
+Jan 22, 2016 V8.03 Angus - corrected 64-bit casting bug in PostMessage
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -229,8 +230,8 @@ uses
     OverbyteIcsTypes;
 
 const
-    SmtpCliVersion     = 802;
-    CopyRight : String = ' SMTP Server (c) 1997-2015 Francois Piette V8.02 ';
+    SmtpCliVersion     = 803;
+    CopyRight : String = ' SMTP Server (c) 1997-2016 Francois Piette V8.03 ';
 
 const
   // ESMTP commands. Please note that not all are implemented - use AddCommand() to add a handler of your own
@@ -1370,7 +1371,7 @@ begin
         begin
           // Check for DNS timeout
             if Delta >= cDNStimeout then
-                PostMessage (Handle, FMsg_wmClientLookupDone, 0, cardinal (Self.FServer.Client[i]))
+                PostMessage (Handle, FMsg_wmClientLookupDone, 0, lParam(Self.FServer.Client[i])) { V8.03}
         end
         else
         begin
@@ -1588,7 +1589,7 @@ begin
         begin
             if FDNSaddr = '' then
                 // No DNS available - skip lookup
-                PostMessage(Handle, FMsg_wmClientLookupDone, 0, cardinal (Client))
+                PostMessage(Handle, FMsg_wmClientLookupDone, 0, lParam(Client))   { V8.03}
             else
             begin
                 FLastContact := Now;
@@ -2798,7 +2799,7 @@ begin
             begin
                 if ResponseANCount = 0 then
               // No rDNS available.
-                    PostMessage(Handle, FMsg_wmClientLookupDone, 0, cardinal(Self))
+                    PostMessage(Handle, FMsg_wmClientLookupDone, 0, lParam(Self))  { V8.03}
                 else
                 begin
                     FClientRDNS := String(Hostname[0]);
@@ -2813,7 +2814,7 @@ begin
                     i := Pos ('.', String(QuestionName));
                     if i = 0 then
                // MX does not exist
-                        PostMessage (Handle, FMsg_wmClientLookupDone, 0, cardinal(Self))
+                        PostMessage (Handle, FMsg_wmClientLookupDone, 0, lParam(Self))  { V8.03}
                     else
               // Remove front portion and try again..
                         MXlookup (Copy (QuestionName, SUCC (i), Length (QuestionName)));
@@ -2832,7 +2833,7 @@ begin
          begin
            // DNS lookup has failed.
              OnRequestDone := nil;
-             PostMessage (Handle, FMsg_wmClientLookupDone, 0, cardinal(Self))
+             PostMessage (Handle, FMsg_wmClientLookupDone, 0, lParam(Self))  { V8.03}
          end;
     end;
 end;
@@ -2953,7 +2954,7 @@ begin
         FOnSslHandshakeDone(Sender, ErrCode, PeerCert, Disconnect);
     if (ErrCode <> 0) or Disconnect then
     begin
-        PostMessage (FHandle, Client.FMsg_wmClientClose, 0, cardinal(Sender));
+        PostMessage (FHandle, Client.FMsg_wmClientClose, 0, lParam(Sender));   { V8.03}
         Disconnect := FALSE;
     end
     else

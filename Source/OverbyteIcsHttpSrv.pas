@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.09
+Version:      8.10
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -384,6 +384,11 @@ Jul 17 2014 V8.08 Angus - added HTTP/1.1 methods OPTIONS, PUT, DELETE, TRACE, PA
                   added RequestMethod property for client of THttpMethod
                   added RequestUpgrade property for client, websoocket is protocol should be changed
 Mar 23 2015 V8.09 Angus onSslServerName event added
+Jan 25 2016 V8.10 Angus added ReqTarget property for client, which is similar to Path but may
+                    contain an absolute-form path starting with http://host
+                  Convert Path absolute-form to origin-form per RFC7230 section 5.3.2
+                    (a future version of HTTP may require absolute-form)
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -483,9 +488,9 @@ uses
     OverbyteIcsWinsock;
 
 const
-    THttpServerVersion = 809;
-    CopyRight : String = ' THttpServer (c) 1999-2014 F. Piette V8.09 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.09';   { V8.09 }
+    THttpServerVersion = 810;
+    CopyRight : String = ' THttpServer (c) 1999-2016 F. Piette V8.10 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.10';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -772,6 +777,7 @@ type
         FOnTraceDocument       : THttpGetConnEvent;    { V8.08 }
         FOnPatchDocument       : THttpGetConnEvent;    { V8.08 }
         FOnConnectDocument     : THttpGetConnEvent;    { V8.08 }
+        FReqTarget             : string;               { V8.10 }
         procedure SetSndBlkSize(const Value: Integer);
         procedure ConnectionDataAvailable(Sender: TObject; Error : Word); virtual;
         procedure ConnectionDataSent(Sender : TObject; Error : WORD); virtual;
@@ -1012,9 +1018,12 @@ type
         { Complete document path and file name on local file system }
         property Document       : String            read  FDocument
                                                     write FDocument;
-        { Document path as requested by client }
+        { Origin-form Document path as requested by client }
         property Path           : String            read  FPath
                                                     write FPath;
+        { Absolute-form path that may start with http://host as requested by client }
+        property ReqTarget      : string            read FReqTarget     { V8.10 }
+                                                    write FReqTarget;
         { Parameters in request (Question mark is separator) }
         property Params         : String            read  FParams
                                                     write FParams;
@@ -2947,7 +2956,7 @@ begin
         FAnswerStatus          := 0;      { V7.19 changed to 200, 404, etc whenever header status is set, used for logging }
         OnDataSent             := ConnectionDataSent;  { V7.19 always need an event after header is sent }
         { The line we just received is HTTP command, parse it  }
-        ParseRequest;
+        ParseRequest;   { sets FReqTarget, FPath, FMethod, FParams, FHttpVerNum, FKeepAlive }
         if FMethod = 'HEAD' then        { V7.44 }
             FSendType := httpSendHead   { V7.44 }
         else                            { V7.44 }
@@ -3041,10 +3050,10 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Request is in FRcvdLine property.                                         }
-{ Split it into FMethod, FPath, FVersion and parameters.                    }
+{ Split it into FMethod, FPath/FReqTarget, FVersion and parameters.         }
 procedure THttpConnection.ParseRequest;
 var
-    I, J : Integer;
+    I, J, K : Integer;
 begin
     I := 1;
     while (I <= Length(FRcvdLine)) and (FRcvdLine[I] <> ' ') do
@@ -3057,6 +3066,23 @@ begin
     while (I <= Length(FRcvdLine)) and (FRcvdLine[I] <> ' ') do
         Inc(I);
     FPath := Copy(FRcvdLine, J, I - J);
+
+  { V8.10 check if absolute-form path supplied, ie a complete URL, strip
+      off protocol and host and port for backward compatility }
+    FReqTarget := FPath;
+    if Pos ('HTTP', Trim(UpperCase(FPath))) = 1 then begin
+        J := 0;
+        K := 1;
+        while (K <= Length (FPath)) do begin
+            if FPath[K] = '/' then inc (J);
+            if J = 3 then begin
+                FPath := Copy (FPath, K, 999);
+                Break;
+            end;
+            Inc(K);
+        end;
+    end;
+
     { Find parameters }
     J := Pos('?', FPath);
     if J <= 0 then

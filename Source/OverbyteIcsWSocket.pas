@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.21
+Version:      8.22
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -985,6 +985,8 @@ Oct 25, 2015 V8.19 Angus version bump only for SSL changes in other units
 Nov 3, 2015  V8.20 Angus SslECDHMethod defaults to sslECDHAuto since web sites are increasingly needing ECDH
                    added two more protocols to sslCiphersMozillaSrvInter according to latest Mozilla update
 Nov 23, 2015 V8.21 Eugene Kotlyarov fix MacOSX compilation and compiler warnings
+Feb 1, 2016  V8.22 Fixed SSL bug where two consecutive requests from a client would leave a server in
+                     a waiting state and not process any other requests, thanks to AviaVox for the fix
 }
 
 {
@@ -1136,8 +1138,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 821;
-  CopyRight    : String     = ' TWSocket (c) 1996-2015 Francois Piette V8.21 ';
+  WSocketVersion            = 822;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.22 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -2905,7 +2907,7 @@ type
         procedure WMSslBiShutDown(var msg: TMessage);
         procedure WMSslASyncSelect(var msg: TMessage);
         procedure WMTriggerSslShutDownComplete(var msg: TMessage);
-        procedure Do_SSL_FD_READ(var Msg: TMessage);
+     {   procedure Do_SSL_FD_READ(var Msg: TMessage);    removed V8.22 }
         function  TriggerEvent(Event: TSslEvent; ErrCode: Word): Boolean;
 
         procedure AssignDefaultValue; override;
@@ -16050,6 +16052,8 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(* V8.22 moved this code into Do_FD_READ so it's called correctly
+
 procedure TCustomSslWSocket.Do_SSL_FD_READ(var Msg: TMessage);
 begin
     WSocket_Synchronized_WSAASyncSelect(
@@ -16073,7 +16077,7 @@ begin
                                             FD_READ or FD_WRITE or FD_CLOSE or
                                             FD_CONNECT);
     end;
-end;
+end;  *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -16087,166 +16091,175 @@ var
     PBuf       : TWSocketData;
     Dummy      : Byte;
 begin
-    if (not FSslEnable) or (FSocksState <> socksData) or
-       (FHttpTunnelState <> htsData) then begin
-        inherited Do_FD_READ(msg);
-        Exit;
-    end;
+ { V8.22 moved here from Do_SSL_FD_READ  }
+    WSocket_Synchronized_WSAASyncSelect({$IFDEF POSIX}Self,{$ENDIF}
+         FHSocket, Handle, FMsg_WM_ASYNCSELECT, FD_WRITE or FD_CLOSE or FD_CONNECT);
+    try
+        if (not FSslEnable) or (FSocksState <> socksData) or
+           (FHttpTunnelState <> htsData) then begin
+            inherited Do_FD_READ(msg);
+            Exit;
+        end;
 
-  {$IFNDEF NO_DEBUG_LOG}
-    if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
-                      ' TCustomSslWSocket.Do_FD_READ ' + IntToStr(FHSocket));
-  {$ENDIF}
-
-    if (FNetworkError > 0) then
-        Exit;
-
-    if (f_SSL_state(FSsl) = SSL_ST_OK) and (FSslBioWritePendingBytes < 0) and // <= 12/08/05
-       (my_BIO_ctrl_pending(FSslbio) > 0) then begin
       {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
             DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
-               ' TriggerDataAvailable (Do_FD_READ_1) ' + IntToStr(FHSocket));
+                          ' TCustomSslWSocket.Do_FD_READ ' + IntToStr(FHSocket));
       {$ENDIF}
-        TriggerDataAvailable(0);
-        Exit;
-    end;
 
-    FMayTriggerFD_Read := FALSE;
+        if (FNetworkError > 0) then
+            Exit;
 
-    { Get number of bytes we can receive and store in the network input bio.  }
-    { New call to BIO_ctrl_get_read_request in order to read only the amount  }
-    { of data from the socket that is needed to satisfy a read request, if    }
-    { any. Without that call I had random errors on bi-directional shutdowns. }
-    Len := my_BIO_ctrl_get_read_request(FNBio);
-    if Len = 0 then
-        Len := my_BIO_ctrl_get_write_guarantee(FNBio);
-    if Len > SizeOf(Buffer) then
-        Len := SizeOf(Buffer)
-    else if Len = 0 then begin
-        FMayTriggerFD_Read := TRUE;
-        TriggerEvents;
-        Exit;
-    end;
-    // Receive data
-    PBuf := @Buffer[0];
-    NumRead := my_WSocket_recv(FHSocket, PBuf, Len, 0);
-    if (NumRead > 0) then begin
-        // Store it in the network input bio and process data
-        my_BIO_write(FNBio, @Buffer, NumRead);
-        my_BIO_ctrl(FNBio, BIO_CTRL_FLUSH, 0, nil);
-        // Look if input data was valid.
-        // We may not call BIO_read if a write operation is pending !!
-        if (FSslBioWritePendingBytes < 0) then begin
-            Res := my_BIO_read(FSslBio, @Dummy, 0); //Pointer(1)
-            if Res < 0 then begin
-                if not my_BIO_should_retry(FSslBio) then begin
-                    HandleSslError;
-                    if (not FExplizitSsl) or
-                       (f_SSL_state(FSsl) <> SSL_ST_OK) then begin
-                        WSocket_WSASetLastError(WSAECONNABORTED);
-                        FNetworkError := WSAECONNABORTED;
-                        FLastError    := WSAECONNABORTED; //XX
-                        TriggerEvent(sslFdClose, 0);
+        if (f_SSL_state(FSsl) = SSL_ST_OK) and (FSslBioWritePendingBytes < 0) and // <= 12/08/05
+           (my_BIO_ctrl_pending(FSslbio) > 0) then begin
+          {$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+                DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                   ' TriggerDataAvailable (Do_FD_READ_1) ' + IntToStr(FHSocket));
+          {$ENDIF}
+            TriggerDataAvailable(0);
+            Exit;
+        end;
+
+        FMayTriggerFD_Read := FALSE;
+
+        { Get number of bytes we can receive and store in the network input bio.  }
+        { New call to BIO_ctrl_get_read_request in order to read only the amount  }
+        { of data from the socket that is needed to satisfy a read request, if    }
+        { any. Without that call I had random errors on bi-directional shutdowns. }
+        Len := my_BIO_ctrl_get_read_request(FNBio);
+        if Len = 0 then
+            Len := my_BIO_ctrl_get_write_guarantee(FNBio);
+        if Len > SizeOf(Buffer) then
+            Len := SizeOf(Buffer)
+        else if Len = 0 then begin
+            FMayTriggerFD_Read := TRUE;
+            TriggerEvents;
+            Exit;
+        end;
+        // Receive data
+        PBuf := @Buffer[0];
+        NumRead := my_WSocket_recv(FHSocket, PBuf, Len, 0);
+        if (NumRead > 0) then begin
+            // Store it in the network input bio and process data
+            my_BIO_write(FNBio, @Buffer, NumRead);
+            my_BIO_ctrl(FNBio, BIO_CTRL_FLUSH, 0, nil);
+            // Look if input data was valid.
+            // We may not call BIO_read if a write operation is pending !!
+            if (FSslBioWritePendingBytes < 0) then begin
+                Res := my_BIO_read(FSslBio, @Dummy, 0); //Pointer(1)
+                if Res < 0 then begin
+                    if not my_BIO_should_retry(FSslBio) then begin
+                        HandleSslError;
+                        if (not FExplizitSsl) or
+                           (f_SSL_state(FSsl) <> SSL_ST_OK) then begin
+                            WSocket_WSASetLastError(WSAECONNABORTED);
+                            FNetworkError := WSAECONNABORTED;
+                            FLastError    := WSAECONNABORTED; //XX
+                            TriggerEvent(sslFdClose, 0);
+                        end
+                        else begin
+                            WSocket_WSASetLastError(WSAEWOULDBLOCK);
+                            FLastError := WSAEWOULDBLOCK; //XX
+                            FSslEnable := False;
+                            ResetSsl;
+                            if FSslIntShutDown < 2 then
+                                TriggerSslShutDownComplete(FLastSslError);
+                        end;
+                      {$IFNDEF NO_DEBUG_LOG}
+                        if CheckLogOptions(loSslInfo) then  { V5.21 }
+                            DebugLog(loSslInfo,
+                                    IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                                     ' NetworkError #' + IntToStr(FNetworkError));
+                      {$ENDIF}
+                        Exit;
                     end
                     else begin
+                        FMayTriggerDoRecv := TRUE;
                         WSocket_WSASetLastError(WSAEWOULDBLOCK);
                         FLastError := WSAEWOULDBLOCK; //XX
-                        FSslEnable := False;
-                        ResetSsl;
-                        if FSslIntShutDown < 2 then
-                            TriggerSslShutDownComplete(FLastSslError);
                     end;
-                  {$IFNDEF NO_DEBUG_LOG}
-                    if CheckLogOptions(loSslInfo) then  { V5.21 }
-                        DebugLog(loSslInfo,
-                                IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
-                                 ' NetworkError #' + IntToStr(FNetworkError));
-                  {$ENDIF}
-                    Exit;
                 end
-                else begin
-                    FMayTriggerDoRecv := TRUE;
+                else if (FSslVersNum >= SSL3_VERSION) then begin // Doesn't work in SSLv2 - 12/06/05
+                    if f_SSL_get_Error(FSSL, Res) = SSL_ERROR_ZERO_RETURN then begin
+                    { SSL closure alert received }
+                        if FSslState < sslInShutdown then begin
+                            FSslState := sslInShutdown;
+                            { V7.80 }
+                            if (not FSslBiShutDownFlag) then // May be set later in the message handler if a SSL bi-shutdown message is pending
+                            begin
+                                SslShutDownAsync(1); // If a SSL bi-shutdown is pending this will be ignored in the message handler
+                                WSocket_WSASetLastError(WSAEWOULDBLOCK);
+                                FLastError := WSAEWOULDBLOCK;
+                                Exit;
+                            end;
+                            { / V7.80 }
+                        end;
+                        if (not FSslBiShutDownFlag) and (FSslIntShutDown = 2) then
+                            TriggerEvent(sslFdClose, FNetWorkError);
+                    end;
                     WSocket_WSASetLastError(WSAEWOULDBLOCK);
                     FLastError := WSAEWOULDBLOCK; //XX
+                    FMayTriggerDoRecv := TRUE;
                 end;
             end
-            else if (FSslVersNum >= SSL3_VERSION) then begin // Doesn't work in SSLv2 - 12/06/05
-                if f_SSL_get_Error(FSSL, Res) = SSL_ERROR_ZERO_RETURN then begin
-                { SSL closure alert received }
-                    if FSslState < sslInShutdown then begin
-                        FSslState := sslInShutdown;
-                        { V7.80 }
-                        if (not FSslBiShutDownFlag) then // May be set later in the message handler if a SSL bi-shutdown message is pending
-                        begin
-                            SslShutDownAsync(1); // If a SSL bi-shutdown is pending this will be ignored in the message handler
-                            WSocket_WSASetLastError(WSAEWOULDBLOCK);
-                            FLastError := WSAEWOULDBLOCK;
-                            Exit;
-                        end;
-                        { / V7.80 }
-                    end;
-                    if (not FSslBiShutDownFlag) and (FSslIntShutDown = 2) then
-                        TriggerEvent(sslFdClose, FNetWorkError);
-                end;
+            else begin
+                FMayTriggerDoRecv := TRUE;
                 WSocket_WSASetLastError(WSAEWOULDBLOCK);
                 FLastError := WSAEWOULDBLOCK; //XX
-                FMayTriggerDoRecv := TRUE;
+              {$IFNDEF NO_DEBUG_LOG}
+                if CheckLogOptions(loSslInfo) then  { V5.21 }
+                   DebugLog(loSslInfo, 'SslBio write operation pending: ' +
+                                            IntToStr(FSslBioWritePendingBytes));
+              {$ENDIF}
+            end;
+        end else
+        if Numread = 0 then begin
+            if FState = wsconnected then begin
+                TriggerEvent(sslFdClose, msg.LParamHi);
             end;
         end
-        else begin
-            FMayTriggerDoRecv := TRUE;
-            WSocket_WSASetLastError(WSAEWOULDBLOCK);
-            FLastError := WSAEWOULDBLOCK; //XX
+        else if Numread = SOCKET_ERROR then begin
+            nError := WSocket_WSAGetLastError;
+            if (nError > WSABASEERR) and (nError <> WSAEWOULDBLOCK) and
+               (nError <> WSAENOTCONN) then begin
+                FNetworkError := nError;
+                FLastError    := FNetworkError;
+                TriggerEvent(sslFdClose, 0);
+              {$IFNDEF NO_DEBUG_LOG}
+                if CheckLogOptions(loSslErr) then  { V5.21 }
+                    DebugLog(loSslErr, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                             ' NetworkError #' + IntToStr(FNetworkError));
+              {$ENDIF}
+                Exit;
+            end;
+        end;
+
+        if (f_SSL_state(FSsl) = SSL_ST_OK) {(FSslState >= sslEstablished)} and
+           (FSslBioWritePendingBytes < 0) and // <= 12/08/05
+           (my_BIO_ctrl_pending(FSslbio) > 0) then begin
           {$IFNDEF NO_DEBUG_LOG}
-            if CheckLogOptions(loSslInfo) then  { V5.21 }
-               DebugLog(loSslInfo, 'SslBio write operation pending: ' +
-                                        IntToStr(FSslBioWritePendingBytes));
+            if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
+                DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                         ' TriggerDataAvailable (Do_FD_READ_2) ' +
+                         IntToStr(FHSocket));
           {$ENDIF}
+            TriggerDataAvailable(0);
         end;
-    end else
-    if Numread = 0 then begin
-        if FState = wsconnected then begin
-            TriggerEvent(sslFdClose, msg.LParamHi);
-        end;
-    end
-    else if Numread = SOCKET_ERROR then begin
-        nError := WSocket_WSAGetLastError;
-        if (nError > WSABASEERR) and (nError <> WSAEWOULDBLOCK) and
-           (nError <> WSAENOTCONN) then begin
-            FNetworkError := nError;
-            FLastError    := FNetworkError;
-            TriggerEvent(sslFdClose, 0);
-          {$IFNDEF NO_DEBUG_LOG}
-            if CheckLogOptions(loSslErr) then  { V5.21 }
-                DebugLog(loSslErr, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
-                         ' NetworkError #' + IntToStr(FNetworkError));
-          {$ENDIF}
-            Exit;
-        end;
-    end;
 
-    if (f_SSL_state(FSsl) = SSL_ST_OK) {(FSslState >= sslEstablished)} and
-       (FSslBioWritePendingBytes < 0) and // <= 12/08/05
-       (my_BIO_ctrl_pending(FSslbio) > 0) then begin
-      {$IFNDEF NO_DEBUG_LOG}
-        if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
-                     ' TriggerDataAvailable (Do_FD_READ_2) ' +
-                     IntToStr(FHSocket));
-      {$ENDIF}
-        TriggerDataAvailable(0);
-    end;
-
-    if (FSslIntShutDown = 1) and SslShutDownCompleted(FShutDownHow) then begin
-        if not FSslBiShutDownFlag then begin
-            TriggerEvent(sslFdClose, 0);
-            Exit;
+        if (FSslIntShutDown = 1) and SslShutDownCompleted(FShutDownHow) then begin
+            if not FSslBiShutDownFlag then begin
+                TriggerEvent(sslFdClose, 0);
+                Exit;
+            end;
         end;
-    end;
 
-    TriggerEvents;
+        TriggerEvents;
+    finally
+       { V8.22 moved here from Do_SSL_FD_READ }
+        WSocket_Synchronized_WSAASyncSelect({$IFDEF POSIX}Self,{$ENDIF}
+          FHSocket, Handle, FMsg_WM_ASYNCSELECT, FD_READ or FD_WRITE or FD_CLOSE or FD_CONNECT);
+    end;
 end;
 
 
@@ -18126,7 +18139,8 @@ begin
     }
     if msg.lParamLo and FD_READ <> 0 then begin
         FPendingSslEvents := FPendingSslEvents - [sslFdRead];
-        Do_Ssl_FD_READ(Msg);
+        Do_FD_READ(Msg);  { V8.22 }
+       {   Do_Ssl_FD_READ(Msg);  }
     end
     else if msg.lParamLo and FD_WRITE <> 0 then begin
         FPendingSslEvents := FPendingSslEvents - [sslFdWrite];
@@ -18198,12 +18212,12 @@ begin
             Str := Str + IntToHex(State, 8);
 
         DebugLog(loSslInfo, Str +
-              ' // MayFD_Read='      + BoolToStr(FMayTriggerFD_Read, FALSE) +
-              ' MayDoRecv='       + BoolToStr(FMayTriggerDoRecv, FALSE)  +
-              ' MayFD_Write='     + BoolToStr(FMayTriggerFD_Write, FALSE) +
-              ' MaySslTryToSend=' + BoolToStr(FMayTriggerSslTryToSend, FALSE) +
-              ' bSslAllSent='     + BoolToStr(bSslAllSent, FALSE) +
-              ' bAllSent='        + BoolToStr(bAllSent, FALSE));
+              ' // MayFD_Read='      + BoolToStr(FMayTriggerFD_Read, True) +
+              ' MayDoRecv='       + BoolToStr(FMayTriggerDoRecv, True)  +
+              ' MayFD_Write='     + BoolToStr(FMayTriggerFD_Write, True) +
+              ' MaySslTryToSend=' + BoolToStr(FMayTriggerSslTryToSend, True) +
+              ' bSslAllSent='     + BoolToStr(bSslAllSent, True) +
+              ' bAllSent='        + BoolToStr(bAllSent, True));   { V8.22 display words }
     end;
 {$ENDIF}
 

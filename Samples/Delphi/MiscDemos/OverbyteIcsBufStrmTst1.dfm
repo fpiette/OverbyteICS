@@ -34,12 +34,12 @@ object MainForm: TMainForm
     Top = 68
     Width = 645
     Height = 427
-    ActivePage = TabSheet2
+    ActivePage = TabSheet1
     Align = alBottom
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
     object TabSheet1: TTabSheet
-      Caption = 'Speed Test TBufferedFileStream'
+      Caption = 'Speed Test TIcsBufferedFileStream'
       object Label8: TLabel
         Left = 54
         Top = 40
@@ -66,7 +66,7 @@ object MainForm: TMainForm
         Top = 66
         Width = 185
         Height = 189
-        Caption = ' TBufferedFileStream '
+        Caption = ' TIcsBufferedFileStream '
         TabOrder = 0
         DesignSize = (
           185

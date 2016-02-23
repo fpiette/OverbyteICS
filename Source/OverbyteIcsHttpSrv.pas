@@ -9,11 +9,11 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.10
+Version:      8.11
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2014 by François PIETTE
+Legal issues: Copyright (C) 1999-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -388,7 +388,12 @@ Jan 25 2016 V8.10 Angus added ReqTarget property for client, which is similar to
                     contain an absolute-form path starting with http://host
                   Convert Path absolute-form to origin-form per RFC7230 section 5.3.2
                     (a future version of HTTP may require absolute-form)
-
+Feb 23 2016 V8.11 Angus get If-Modified-Since request header to RequestIfModSince
+                  SendDocument does not return unchanged files but 304
+                  Added Option hoIgnoreIfModSince to ignore date
+                  Added Answer304
+                  Moved RFC1123_Date to Utils
+                  renamed TBufferedFileStream to TIcsBufferedFileStream
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -488,9 +493,9 @@ uses
     OverbyteIcsWinsock;
 
 const
-    THttpServerVersion = 810;
-    CopyRight : String = ' THttpServer (c) 1999-2016 F. Piette V8.10 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.10';   { V8.09 }
+    THttpServerVersion = 811;
+    CopyRight : String = ' THttpServer (c) 1999-2016 F. Piette V8.11 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.11';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -563,7 +568,8 @@ type
     THttpConnectionState = (hcRequest, hcHeader, hcPostedData, hcSendData);   { V8.01 }
     THttpOption          = (hoAllowDirList, hoAllowOutsideRoot, hoContentEncoding, { V7.20 }
                             hoAllowOptions, hoAllowPut, hoAllowDelete, hoAllowTrace,
-                            hoAllowPatch, hoAllowConnect, hoSendServerHdr);        { V8.08 allow new methods }
+                            hoAllowPatch, hoAllowConnect, hoSendServerHdr,   { V8.08 allow new methods }
+                            hoIgnoreIfModSince);                             { V8.11 }
     THttpOptions         = set of THttpOption;
     THttpRangeInt        = Int64;
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
@@ -778,6 +784,7 @@ type
         FOnPatchDocument       : THttpGetConnEvent;    { V8.08 }
         FOnConnectDocument     : THttpGetConnEvent;    { V8.08 }
         FReqTarget             : string;               { V8.10 }
+        FRequestIfModSince     : TDateTime;            { V8.11 }
         procedure SetSndBlkSize(const Value: Integer);
         procedure ConnectionDataAvailable(Sender: TObject; Error : Word); virtual;
         procedure ConnectionDataSent(Sender : TObject; Error : WORD); virtual;
@@ -796,6 +803,7 @@ type
         procedure ProcessPostPutPat; virtual;  { V8.08 }
         procedure Answer416; virtual;
         procedure Answer404; virtual;
+        procedure Answer304; virtual;   { V8.11 }
         procedure Answer403; virtual;
         procedure Answer401; virtual;
         procedure Answer400; virtual;   { V7.30 }
@@ -1004,7 +1012,8 @@ type
                                                      write FMaxRequestsKeepAlive;
         property AnswerStatus          : Integer     read  FAnswerStatus;  { V7.19 }
         property RequestMethod         : THttpMethod read  FRequestMethod; { V8.08 }
-        property RequestUpgrade        : string      read FRequestUpgrade; { V8.08 }
+        property RequestUpgrade        : string      read  FRequestUpgrade; { V8.08 }
+        property RequestIfModSince     : TDateTime   read  FRequestIfModSince; { V8.11 }
     published
         { Where all documents are stored. Default to c:\wwwroot }
         property DocDir         : String            read  FDocDir
@@ -1701,7 +1710,7 @@ function UrlDecode(const Url   : RawByteString;
 
 function FileDate(FileName : String) : TDateTime; deprecated
   {$IFDEF COMPILER12_UP}'Use OverbyteIcsUtils.IcsFileUtcModified'{$ENDIF};
-function RFC1123_Date(aDate : TDateTime) : String;
+{ function RFC1123_Date(aDate : TDateTime) : String;  }
 function DocumentToContentType(const FileName : String) : String;
 function TextToHtmlText(const Src : UnicodeString) : String; overload;
 function TextToHtmlText(const Src : RawByteString) : String; overload;
@@ -2932,6 +2941,7 @@ begin
         FRequestHostName       := '';     {DAVID}
         FRequestHostPort       := '';     {DAVID}
         FRequestConnection     := '';
+        FRequestIfModSince     := 0;      { V8.11 }
         FDataSent              := 0;      {TURCAN}
         FDocSize               := 0;      {TURCAN}
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
@@ -3037,8 +3047,11 @@ begin
                 RequestRangeValues.InitFromString(Trim(Copy(FRcvdLine, I,
                                                            Length(FRcvdLine))));
             end
-            else if StrLIComp(@FRcvdLine[1], 'Upgrade:', 7) = 0 then begin   { V8.08 for websockets }
+            else if StrLIComp(@FRcvdLine[1], 'Upgrade:', 8) = 0 then begin   { V8.08 for websockets }
                 FRequestUpgrade := Copy(FRcvdLine, I, Length(FRcvdLine));
+            end
+            else if StrLIComp(@FRcvdLine[1], 'If-Modified-Since:', 17) = 0 then begin   { V8.11 added }
+                FRequestIfModSince := RFC1123_StrToDate (Copy(FRcvdLine, I, Length(FRcvdLine)));
             end;
         except
             { Ignore any exception in parsing header line }
@@ -3623,6 +3636,17 @@ begin
         SendStr(Body);
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.Answer304;    { V8.11 }
+begin
+    SendHeader(FVersion + ' 304 Not Modified' + #13#10 +
+               'Content-Length: 0' + #13#10 +
+               GetKeepAliveHdrLines +
+               #13#10);
+    FAnswerStatus := 304;
+    Send(nil, 0)
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpConnection.Answer400;
@@ -4706,7 +4730,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ See also RFC822_DateTime function in SmtpCli component                    }
+(* { See also RFC822_DateTime function in SmtpCli component                    }
 { RFC1123 5.2.14 redefine RFC822 Section 5.                                 }
 function RFC1123_Date(aDate : TDateTime) : String;
 const
@@ -4724,7 +4748,7 @@ begin
               Format('%2.2d %s %4.4d %2.2d:%2.2d:%2.2d',
                      [Day, Copy(StrMonth, 1 + 3 * (Month - 1), 3),
                       Year, Hour, Min, Sec]);
-end;
+end;   *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -4775,6 +4799,12 @@ var
 begin
     ProtoNumber        := 200;
     FLastModified      := IcsFileUtcModified(FDocument);
+  { V8.11 see if document actually changed, within one second of time stamp }
+    if (NOT (hoIgnoreIfModSince in FOptions)) and
+             (FRequestIfModSince >= (FLastModified - (1 / SecsPerDay))) then begin
+        Answer304;
+        Exit;
+    end;
     if Assigned (FServer.MimeTypesList) then
         FAnswerContentType := FServer.MimeTypesList.TypeFromFile(FDocument)  { V7.46 }
     else
@@ -4782,7 +4812,7 @@ begin
     TriggerMimeContentType(FDocument, FAnswerContentType);  { V7.41 allow content type to be changed }
 
     FDocStream.Free;
-    FDocStream := TBufferedFileStream.Create(FDocument, fmOpenRead + fmShareDenyWrite, MAX_BUFSIZE); { V7.40 faster }
+    FDocStream := TIcsBufferedFileStream.Create(FDocument, fmOpenRead + fmShareDenyWrite, MAX_BUFSIZE); { V7.40 faster }
 
     CompleteDocSize := FDocStream.Size;
     {ANDREAS Create the virtual 'byte-range-doc-stream', if we are ask for ranges}

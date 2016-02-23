@@ -4,7 +4,7 @@ Original Author: Ian Baker, ADV Systems 2003
 Updated by:   Angus Robertson, Magenta Systems Ltd
 Creation:     24 September 2013
 Version:      8.01
-Description:  How to use TSmtpServer
+Description:  How to use TSslSmtpServer
 EMail:        francois.piette@overbyte.be      http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -38,16 +38,17 @@ Legal issues: Copyright (C) 2004-2016 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 
-Sep 24, 2013 V8.00 Angus created
+Sep 24, 2013 V8.00 Angus created SSL version
 Feb 23, 2016 V8.01 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-unit OverbyteIcsSmtpServ1;
+unit OverbyteSslSmtpServ1;
 
 interface
 
+{$I Include\OverbyteIcsDefs.inc}
 {$B-}                 { Enable partial boolean evaluation   }
 {$T-}                 { Untyped pointers                    }
 {$X+}                 { Enable extended syntax              }
@@ -71,8 +72,8 @@ uses
   OverbyteIcsSmtpSrv ;
 
 const
-    SmtpServerTestVersion    = 8.01;
-    CopyRight : String = ' OverbyteSmtpServer (c) 1997-2016 F. Piette V8.01 ';
+    SmtpSslServerTestVersion    = 8.01;
+    CopyRight : String = ' OverbyteSslSmtpServer (c) 1997-2016 F. Piette V8.01 ';
 
   // INI file stuff
     SectionData       = 'Data';
@@ -83,7 +84,14 @@ const
     KeyAddEnvHdrs     = 'AddEnvHdrs';
     KeyAddReplayHdrs  = 'AddReplayHdrs';
     KeyAllowRelay     = 'AddAllowRelay';
+    KeyAuthTls        = 'AuthTls';
     KeyAliasAccs      = 'AddAliasAccs';
+    KeyCertFile        = 'CertFile';
+    KeyPassPhrase      = 'PassPhrase';
+    KeyPrivKeyFile     = 'PrivKeyFile';
+    KeyVerifyPeer      = 'VerifyPeer';
+    KeyCAFile          = 'CAFile';
+    KeyCAPath          = 'CAPath';
 
     SectionWindow     = 'Window';
     KeyTop            = 'Top';
@@ -94,7 +102,7 @@ const
 
 type
 
-  TSmtpSrvForm       = class(TForm)
+  TSmtpSslSrvForm       = class(TForm)
     ButtonPanel: TPanel;
     Log        : TMemo;
     PrefDnsServer: TEdit;
@@ -105,7 +113,7 @@ type
     PrefAddRecvHdrs: TCheckBox;
     Label3: TLabel;
     PrefAddEnvHdrs: TCheckBox;
-    SmtpServer1: TSmtpServer;
+    SmtpServer1: TSslSmtpServer;
     doStart: TButton;
     doStop: TButton;
     doExit: TButton;
@@ -113,6 +121,20 @@ type
     PrefAliasAccs: TMemo;
     Label4: TLabel;
     PrefAddReplayHdrs: TCheckBox;
+    SslContext1: TSslContext;
+    ToolsPanel: TPanel;
+    Label5: TLabel;
+    Label11: TLabel;
+    Label10: TLabel;
+    Label7: TLabel;
+    Label6: TLabel;
+    CertFileEdit: TEdit;
+    CAFileEdit: TEdit;
+    CAPathEdit: TEdit;
+    PrivKeyFileEdit: TEdit;
+    PassPhraseEdit: TEdit;
+    VerifyPeerCheckBox: TCheckBox;
+    PrefAuthTls: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure SmtpServer1Auth(Sender, Client: TObject; const UserName: string; var Password: string;
@@ -138,10 +160,12 @@ type
     procedure doExitClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure SmtpServer1SslHandshakeDone(Sender: TObject; ErrCode: Word; PeerCert: TX509Base; var Disconnect: Boolean);
+    procedure SmtpServer1SslVerifyPeer(Sender: TObject; var Ok: Integer; Cert: TX509Base);
    end;
 
 var
-    SmtpSrvForm: TSmtpSrvForm;
+    SmtpSslSrvForm: TSmtpSslSrvForm;
     FIniFileName: string;
     FInitialized  : Boolean;
 
@@ -150,7 +174,7 @@ implementation
 {$R *.dfm}
 
 
-procedure TSmtpSrvForm.FormClose(Sender: TObject; var Action: TCloseAction);
+procedure TSmtpSslSrvForm.FormClose(Sender: TObject; var Action: TCloseAction);
 var
     IniFile : TIcsIniFile;
 begin
@@ -163,6 +187,13 @@ begin
     IniFile.WriteBool(SectionData,   KeyAddEnvHdrs,     PrefAddEnvHdrs.Checked);
     IniFile.WriteBool(SectionData,   KeyAddReplayHdrs,  PrefAddReplayHdrs.Checked);
     IniFile.WriteBool(SectionData,   KeyAllowRelay,     PrefAllowRelay.Checked);
+    IniFile.WriteBool(SectionData,   KeyAuthTls,        PrefAuthTls.Checked);
+    IniFile.WriteString(SectionData, KeyCertFile,       CertFileEdit.Text);
+    IniFile.WriteString(SectionData, KeyPrivKeyFile,    PrivKeyFileEdit.Text);
+    IniFile.WriteString(SectionData, KeyPassPhrase,     PassPhraseEdit.Text);
+    IniFile.WriteString(SectionData, KeyCAFile,         CAFileEdit.Text);
+    IniFile.WriteString(SectionData, KeyCAPath,         CAPathEdit.Text);
+    IniFile.WriteInteger(SectionData, KeyVerifyPeer,    Ord(VerifyPeerCheckBox.Checked));
 
     IniFile.WriteInteger(SectionWindow, KeyTop,    Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,   Left);
@@ -172,18 +203,18 @@ begin
     IniFile.Free;
 end;
 
-procedure TSmtpSrvForm.FormCreate(Sender: TObject);
+procedure TSmtpSslSrvForm.FormCreate(Sender: TObject);
 begin
     Log.Clear;
     FIniFileName := GetIcsIniFileName;
 end;
 
-procedure TSmtpSrvForm.FormDestroy(Sender: TObject);
+procedure TSmtpSslSrvForm.FormDestroy(Sender: TObject);
 begin
     SmtpServer1.Stop;
 end;
 
-procedure TSmtpSrvForm.FormShow(Sender: TObject);
+procedure TSmtpSslSrvForm.FormShow(Sender: TObject);
 var
     IniFile    : TIcsIniFile;
 begin
@@ -200,7 +231,13 @@ begin
         PrefAddEnvHdrs.Checked   := IniFile.ReadBool(SectionData, KeyAddEnvHdrs, false);
         PrefAddReplayHdrs.Checked := IniFile.ReadBool(SectionData, KeyAddReplayHdrs, false);
         PrefAllowRelay.Checked   := IniFile.ReadBool(SectionData, KeyAllowRelay, true);
-
+        PrefAuthTls.Checked      := IniFile.ReadBool(SectionData, KeyAuthTls, true);
+        CertFileEdit.Text    := IniFile.ReadString(SectionData, KeyCertFile, '01cert.pem');
+        PrivKeyFileEdit.Text := IniFile.ReadString(SectionData, KeyPrivKeyFile, '01key.pem');
+        PassPhraseEdit.Text  := IniFile.ReadString(SectionData, KeyPassPhrase, 'password');
+        CAFileEdit.Text      := IniFile.ReadString(SectionData, KeyCAFile, 'cacert.pem');
+        CAPathEdit.Text      := IniFile.ReadString(SectionData, KeyCAPath, '');
+        VerifyPeerCheckBox.Checked := Boolean(IniFile.ReadInteger(SectionData, KeyVerifyPeer, 0));
         Top    := IniFile.ReadInteger(SectionWindow, KeyTop,    (Screen.Height - Height) div 2);
         Left   := IniFile.ReadInteger(SectionWindow, KeyLeft,   (Screen.Width - Width) div 2);
         Width  := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
@@ -209,7 +246,7 @@ begin
     end;
 end;
 
-procedure TSmtpSrvForm.doStartClick(Sender: TObject);
+procedure TSmtpSslSrvForm.doStartClick(Sender: TObject);
 begin
     if PrefSpoolDir.Text = '' then
     begin
@@ -221,6 +258,12 @@ begin
         Log.Lines.Add ('Failed to create spool directory: ' + PrefSpoolDir.Text);
         exit;
     end;
+    SslContext1.SslCertFile         := CertFileEdit.Text;
+    SslContext1.SslPassPhrase       := PassPhraseEdit.Text;
+    SslContext1.SslPrivKeyFile      := PrivKeyFileEdit.Text;
+    SslContext1.SslCAFile           := CAFileEdit.Text;
+    SslContext1.SslCAPath           := CAPathEdit.Text;
+    SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
     with SmtpServer1 do
     begin
         Addr           := LocalIPList (sfIpv4, IPPROTO_TCP) [0];
@@ -272,6 +315,11 @@ begin
             Options := Options - [smtpsAllowOpenRelay];
             Options := Options - [smtpsAllowAuthRelay];
         end;
+        if PrefAuthTls.Checked then
+            Options := Options + [smtpsAuthNoTls]
+        else
+            Options := Options - [smtpsAuthNoTls];
+        Options := Options + [smtpsAllowTls];
         LocalAccounts  := PrefEmailAccs.Lines;
         AliasAccounts  := PrefAliasAccs.Lines;  // must be assigned after local account, since checked
 
@@ -286,18 +334,18 @@ begin
     end;
 end;
 
-procedure TSmtpSrvForm.doStopClick(Sender: TObject);
+procedure TSmtpSslSrvForm.doStopClick(Sender: TObject);
 begin
     SmtpServer1.Stop;
 end;
 
-procedure TSmtpSrvForm.doExitClick(Sender: TObject);
+procedure TSmtpSslSrvForm.doExitClick(Sender: TObject);
 begin
     SmtpServer1.Stop;
     Close;
 end;
 
-procedure TSmtpSrvForm.SmtpServer1ServerStarted(Sender: TObject);
+procedure TSmtpSslSrvForm.SmtpServer1ServerStarted(Sender: TObject);
 var
     K: integer ;
     ListenItem: TWSocketMultiListenItem;
@@ -322,7 +370,7 @@ begin
     end;
 end;
 
-procedure TSmtpSrvForm.SmtpServer1ServerStopped(Sender: TObject);
+procedure TSmtpSslSrvForm.SmtpServer1ServerStopped(Sender: TObject);
 begin
     with Sender as TSmtpServer do
     begin
@@ -334,7 +382,38 @@ begin
     doStop.Enabled := false;
 end;
 
-procedure TSmtpSrvForm.SmtpServer1Connect(Sender, Client: TObject; const IpAddr: string;
+procedure TSmtpSslSrvForm.SmtpServer1SslHandshakeDone(Sender: TObject; ErrCode: Word; PeerCert: TX509Base;
+  var Disconnect: Boolean);
+begin
+    with Sender as TSmtpSrvCli do
+    begin
+        if ErrCode = 0 then
+        begin
+            Log.Lines.Add (Format('%s  %8.8x  SslHandshake Done. Secure ' +
+                    'connection with %s, cipher %s, %d secret bits ' +
+                    '(%d total)',
+                    [FormatDateTime('hh:nn:ss', Time), ID, SslVersion, SslCipher,
+                    SslSecretBits, SslTotalBits]));
+        end
+        else
+            Log.Lines.Add (Format('%s  %8.8x  SslHandshake Failed', [FormatDateTime('hh:nn:aa', Time), ID]));
+    end;
+end;
+
+procedure TSmtpSslSrvForm.SmtpServer1SslVerifyPeer(Sender: TObject; var Ok: Integer; Cert: TX509Base);
+begin
+    Log.Lines.Add ('Received certificate'#13#10 +
+                'Subject: ' + Cert.SubjectOneLine + #13#10 +
+                'Issuer: '  + Cert.IssuerOneLine);
+    if OK <> 1 then
+    begin
+        Log.Lines.Add ('Error msg: ' + Cert.VerifyErrMsg + #13#10 +
+                    'In this example we accept any cert');
+        OK := 1; //In this example we accept any client.
+    end;
+end;
+
+procedure TSmtpSslSrvForm.SmtpServer1Connect(Sender, Client: TObject; const IpAddr: string;
                                             var Action: TSmtpMailAction; var Reason: string);
 begin
   // we might dislike the remote IP address if it's been spamming us, but generally should respond
@@ -346,18 +425,18 @@ begin
     // Action := wsmtpSysUnavail, wsmtpNetError or wsmtpCongested
 end;
 
-procedure TSmtpSrvForm.SmtpServer1Disconnect(Sender, Client: TObject; Error: Word);
+procedure TSmtpSslSrvForm.SmtpServer1Disconnect(Sender, Client: TObject; Error: Word);
 begin
     Log.Lines.Add (Format ('%s  %8.8x  Connection terminated', [FormatDateTime
                                  ('hh:nn:ss', Time), TSmtpSrvCli (Client).ID]));
 end;
 
-procedure TSmtpSrvForm.SmtpServer1Exception(Sender: TObject; E: Exception);
+procedure TSmtpSslSrvForm.SmtpServer1Exception(Sender: TObject; E: Exception);
 begin
     Log.Lines.Add ('Exception: ' + E.Message);
 end;
 
-procedure TSmtpSrvForm.SmtpServer1Auth(Sender, Client: TObject; const UserName: string;
+procedure TSmtpSslSrvForm.SmtpServer1Auth(Sender, Client: TObject; const UserName: string;
     var Password: string; var Action: TSmtpMailAction; var Reason: string);
 begin
   // do we need to check authentication now, blank means Cram-md5/sha1 already checked
@@ -380,28 +459,28 @@ begin
     end;
 end;
 
-procedure TSmtpSrvForm.SmtpServer1AuthPW(Sender, Client: TObject; const UserName: string; var Password: string;
+procedure TSmtpSslSrvForm.SmtpServer1AuthPW(Sender, Client: TObject; const UserName: string; var Password: string;
   var Action: TSmtpMailAction; var Reason: string);
 begin
   // we need to provide a password for Cram-md5/sha1 to test against
     Password := 'password';
 end;
 
-procedure TSmtpSrvForm.SmtpServer1Command(Sender, Client: TObject; const Command: string);
+procedure TSmtpSslSrvForm.SmtpServer1Command(Sender, Client: TObject; const Command: string);
 begin
   // information logging only
     Log.Lines.Add (Format ('%s  %8.8x  < %s', [FormatDateTime
                         ('hh:nn:ss', Time), TSmtpSrvCli (Client).ID, Command]));
 end;
 
-procedure TSmtpSrvForm.SmtpServer1Response(Sender, Client: TObject; const Response: string);
+procedure TSmtpSslSrvForm.SmtpServer1Response(Sender, Client: TObject; const Response: string);
 begin
   // information logging only
     Log.Lines.Add (Format ('%s  %8.8x  > %s', [FormatDateTime
                         ('hh:nn:ss', Time), TSmtpSrvCli (Client).ID, Response]));
 end;
 
-procedure TSmtpSrvForm.SmtpServer1MailFrom(Sender, Client: TObject;
+procedure TSmtpSslSrvForm.SmtpServer1MailFrom(Sender, Client: TObject;
                   const MailFrom: string; var Action: TSmtpMailAction; var Reason: string);
 begin
   // do we accept mail from this address?
@@ -412,7 +491,7 @@ begin
    //           wsmtpSysUnavail, wsmtpCongested
 end;
 
-procedure TSmtpSrvForm.SmtpServer1RcptTo(Sender, Client: TObject;
+procedure TSmtpSslSrvForm.SmtpServer1RcptTo(Sender, Client: TObject;
                     const RcptTo: string; var Action: TSmtpMailAction; var Reason: string);
 begin
   // can we deliver to this email account?
@@ -425,7 +504,7 @@ begin
    //           wsmtpTooMany, wsmtpSysUnavail, wsmtpCongested
 end;
 
-procedure TSmtpSrvForm.SmtpServer1DataStart(Sender, Client: TObject;
+procedure TSmtpSslSrvForm.SmtpServer1DataStart(Sender, Client: TObject;
                                     var Action: TSmtpMailAction; var Reason: string);
 begin
   // got all envelope commands, about to get email data, which we need to save
@@ -462,7 +541,7 @@ begin
    //           wsmtpAuthRequiredwsmtpSysUnavail
 end;
 
-procedure TSmtpSrvForm.SmtpServer1DataEnd(Sender, Client: TObject;
+procedure TSmtpSslSrvForm.SmtpServer1DataEnd(Sender, Client: TObject;
                                     var Action: TSmtpMailAction; var Reason: string);
 begin
   // got a complete email, maybe to several recipients in MessageTo [x] and ToAccount [x]

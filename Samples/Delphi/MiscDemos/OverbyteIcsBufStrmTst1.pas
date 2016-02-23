@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     March 2009
 Description:  Test of buffered stream classes, Delphi 7 and better.
-Version:      1.00
+Version:      8.00
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Unsupported code.
 Legal issues: Copyright (C) 2009 by François PIETTE
@@ -37,7 +37,8 @@ Legal issues: Copyright (C) 2009 by François PIETTE
 
 History:
 Apr 18, 2009 Added various strange looking tests I used to debug.
-
+Feb 23, 2016 V8.00 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
+                     to avoid conflicts with other libraries
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsBufStrmTst1;
@@ -407,8 +408,8 @@ end;
 procedure TMainForm.DisplayStream(X: TStream);
 begin
     Display(X.ClassName + ' Size: ' + IntToStr(X.Size));
-    if X is TBufferedFileStream then
-        Display(X.ClassName + ' FastSize: ' + IntToStr(TBufferedFileStream(X).FastSize));
+    if X is TIcsBufferedFileStream then
+        Display(X.ClassName + ' FastSize: ' + IntToStr(TIcsBufferedFileStream(X).FastSize));
     Display(X.ClassName + ' Position: ' + IntToStr(X.Position) + #13#10);
 end;
 
@@ -419,12 +420,12 @@ begin
     {
     TMemoryStream
     TFileStream
-    TBufferedFileStream
+    TIcsBufferedFileStream
     TBufferedStream
     }
     case StreamGroup.ItemIndex of
         0 : Result := TFileStream.Create(EditFileName.Text, fmOpenReadWrite or fmShareDenyNone);
-        1 : Result := TBufferedFileStream.Create(EditFileName.Text, fmOpenReadWrite or fmShareDenyNone, ABufferSize);
+        1 : Result := TIcsBufferedFileStream.Create(EditFileName.Text, fmOpenReadWrite or fmShareDenyNone, ABufferSize);
         2 : Result := TIcsBufferedStream.Create(EditFileName.Text, fmOpenReadWrite or fmShareDenyNone, ABufferSize);
         else
             Result := nil;
@@ -705,7 +706,7 @@ const
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TMainForm.ButtonBufferedFileStreamReadClick(Sender: TObject);
 var
-    Strm : TBufferedFileStream;
+    Strm : TIcsBufferedFileStream;
     BlockSize : Integer;
     A, B, C : Int64;
     Buf : TBytes;
@@ -718,7 +719,7 @@ begin
     QueryPerformanceFrequency(A);
     QueryPerformanceCounter(B);
 
-    Strm := TBufferedFileStream.Create(EditFileName.Text,
+    Strm := TIcsBufferedFileStream.Create(EditFileName.Text,
                                        fmOpenRead or fmShareDenyWrite,
                                        StrToIntDef(EditBufSize.Text,
                                        DefaultBufferSize));
@@ -764,7 +765,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TMainForm.ButtonBufferedFileStreamWriteClick(Sender: TObject);
 var
-    Strm : TBufferedFileStream;
+    Strm : TIcsBufferedFileStream;
     BlockSize : Integer;
     A, B, C : Int64;
     I : Integer;
@@ -779,7 +780,7 @@ begin
     QueryPerformanceFrequency(A);
     QueryPerformanceCounter(B);
 
-    Strm := TBufferedFileStream.Create(EditFileName.Text, fmCreate,
+    Strm := TIcsBufferedFileStream.Create(EditFileName.Text, fmCreate,
                                        StrToIntDef(EditBufSize.Text,
                                        DefaultBufferSize));
     try

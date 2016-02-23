@@ -4,11 +4,11 @@
 Author:       François PIETTE
 Object:       Mime support routines (RFC2045).
 Creation:     May 03, 2003  (Extracted from SmtpProt unit)
-Version:      8.03
+Version:      8.04
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2014 by François PIETTE
+Legal issues: Copyright (C) 2003-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -118,6 +118,7 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
 Oct 17, 2012 V8.01 Max Terentiev fixed a serious bug in StrEncodeQPEx()
 Feb 10, 2014 V8.02 Angus added builtin MIME types for js and json
 Nov 23, 2015 V8.03 Eugene Kotlyarov fix MacOSX compilation and compiler warnings
+Feb 23, 2016 V8.04 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -175,8 +176,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-    TMimeUtilsVersion = 803;
-    CopyRight : String = ' MimeUtils (c) 2003-2015 F. Piette V8.03 ';
+    TMimeUtilsVersion = 804;
+    CopyRight : String = ' MimeUtils (c) 2003-2016 F. Piette V8.04 ';
 
     SmtpDefaultLineLength = 76; // without CRLF
     SMTP_SND_BUF_SIZE     = 2048;
@@ -697,7 +698,7 @@ begin
 {$IFNDEF USE_BUFFERED_STREAM}
     Result := TFileStream.Create(FileName, fmOpenRead or ShareMode);
 {$ELSE}
-    Result := TBufferedFileStream.Create(FileName, fmOpenRead or ShareMode, 4096);
+    Result := TIcsBufferedFileStream.Create(FileName, fmOpenRead or ShareMode, 4096);
 {$ENDIF}
 end;
 
@@ -763,7 +764,7 @@ end;
 {Bjørnar}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ This is a slow function, it realy should be used with TBufferedFileStream }
+{ This is a slow function, it realy should be used with TIcsBufferedFileStream }
 { Assumes a plain ASCII text file.                                          }
 function DoTextFileReadNoEncoding(                                       {AG}
     var Stream : TStream;
@@ -1002,13 +1003,13 @@ begin
 
 {$IFDEF USE_BUFFERED_STREAM}
     { If ShareMode does not allow shared writes we may use the file size   }
-    if TBufferedFileStream(Stream).Mode and $F0 <= fmShareDenyWrite then
-        More := Stream.Position < TBufferedFileStream(Stream).FastSize
+    if TIcsBufferedFileStream(Stream).Mode and $F0 <= fmShareDenyWrite then
+        More := Stream.Position < TIcsBufferedFileStream(Stream).FastSize
     else
         { This is slow! But does anybody really allow shared writes?       }
         More := Stream.Position < Stream.Size;
 {$ELSE}
-    { Slow, TBufferedFileStream should be used anyway, it's much faster.   }
+    { Slow, TIcsBufferedFileStream should be used anyway, it's much faster.   }
     More := Stream.Position < Stream.Size;
 {$ENDIF}
 

@@ -8,11 +8,11 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      8.03
+Version:      8.04
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2015 by François PIETTE
+Legal issues: Copyright (C) 1999-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -65,7 +65,8 @@ Mar 16 2015  V8.02 Angus added DHParam File needed to supporting DH key exchange
                    Display SSL handshake info on demo menu
                    Added Server Name Indication (SNI) display, used to support
                      multiple host and certificates on the same IP address
-Mar 23 2015 V8.03 SslServerName is now a published property
+Mar 23 2015  V8.03 SslServerName is now a published property
+Feb 22 2016  V8.04 Angus fixed exception posting data
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
@@ -89,7 +90,7 @@ unit OverbyteIcsSslWebServ1;
     {$WARN IMPLICIT_STRING_CAST_LOSS  OFF}
     {$WARN EXPLICIT_STRING_CAST       OFF}
     {$WARN EXPLICIT_STRING_CAST_LOSS  OFF}
-{$IFEND}
+{$ENDIF}
 {$WARN SYMBOL_PLATFORM   OFF}
 {$WARN SYMBOL_LIBRARY    OFF}
 {$WARN SYMBOL_DEPRECATED OFF}
@@ -104,7 +105,7 @@ uses
   OverbyteIcsSslSessionCache, OverbyteIcsLogger, OverbyteIcsWndControl;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2015 F. Piette V8.03 ';
+  CopyRight : String         = 'WebServ (c) 1999-2016 F. Piette V8.04 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -925,7 +926,7 @@ begin
     { Add received length to our count }
     Inc(Remote.FDataLen, Len);
     { Add a nul terminating byte (handy to handle data as a string) }
-    Remote.FPostedDataBuffer[Remote.FDataLen] := #0;
+    Remote.FPostedRawData[Remote.FDataLen] := #0;     { V8.04 was wrong variable
     { Display receive data so far }
     Display('Data: ''' + StrPas(Remote.FPostedRawData) + '''');
 

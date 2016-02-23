@@ -7,11 +7,11 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      8.07
+Version:      8.08
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2015 by François PIETTE
+Legal issues: Copyright (C) 1997-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -414,6 +414,7 @@ Jun 01, 2015 V8.06 Angus update SslServerName for SSL SNI support allowing serve
 Oct 05, 2015 V8.07 Angus changed to receive with LineMode for more reliable line
                      parsing, which fixes an endless loop if remote server returned
                      nulls, thanks to Max Terentiev for finding a bad server
+Feb 23, 2016 V8.08 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -501,8 +502,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-  SmtpCliVersion     = 807;
-  CopyRight : String = ' SMTP component (c) 1997-2015 Francois Piette V8.07 ';
+  SmtpCliVersion     = 808;
+  CopyRight : String = ' SMTP component (c) 1997-2016 Francois Piette V8.08 ';
   smtpProtocolError  = 20600; {AG}
 {  SMTP_RCV_BUF_SIZE  = 4096;  V8.07 no longer used }
 
@@ -4004,7 +4005,7 @@ begin
         raise Exception.Create('File name not specified');
     FreeAndNil(FOutStream);
 {$IFDEF USE_BUFFERED_STREAM}
-    FOutStream := TBufferedFileStream.Create(FileName, fmCreate, MAX_BUFSIZE);
+    FOutStream := TIcsBufferedFileStream.Create(FileName, fmCreate, MAX_BUFSIZE);
 {$ELSE}
     FOutStream := TFileStream.Create(FileName, fmCreate);
 {$ENDIF}
@@ -4710,7 +4711,7 @@ begin
         raise SmtpException.Create('File name not specified');
     FreeAndNil(FOutStream);
 {$IFDEF USE_BUFFERED_STREAM}
-    FOutStream := TBufferedFileStream.Create(FileName, fmCreate, MAX_BUFSIZE);
+    FOutStream := TIcsBufferedFileStream.Create(FileName, fmCreate, MAX_BUFSIZE);
 {$ELSE}
     FOutStream := TFileStream.Create(FileName, fmCreate);
 {$ENDIF}

@@ -2,13 +2,13 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V8.08
+Version:      V8.09
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2015 by François PIETTE
+Legal issues: Copyright (C) 1996-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -1073,6 +1073,7 @@ Dec 10, 2014 V8.06 - Angus added SslHandshakeRespMsg for better error handling
 Jun 01, 2015 V8.07 - Angus update SslServerName for SSL SNI support allowing server to
                        select correct SSL context and certificate
 Oct 25, 2015 V8.08 - Angus report SSL certificate check failed in HandshakeDone event
+Feb 23, 2016 V8.09 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -1163,9 +1164,9 @@ uses
     OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 808;
-  CopyRight : String = ' TFtpCli (c) 1996-2015 F. Piette V8.08 ';
-  FtpClientId : String = 'ICS FTP Client V8.08 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 809;
+  CopyRight : String = ' TFtpCli (c) 1996-2016 F. Piette V8.09 ';
+  FtpClientId : String = 'ICS FTP Client V8.09 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -2542,7 +2543,7 @@ end;
 function TCustomFtpCli.OpenFileStream (const FileName: string; Mode: Word): TStream;  { V2.113 }
 begin
     //Result := TIcsBufferedStream.Create(FileName, Mode, MAX_BUFSIZE);
-    Result := TBufferedFileStream.Create(FileName, Mode, MAX_BUFSIZE);
+    Result := TIcsBufferedFileStream.Create(FileName, Mode, MAX_BUFSIZE);
     { Buffered stream makes sense with small block sizes only }
     //Result := TFileStream.Create(FileName, Mode);
 end ;

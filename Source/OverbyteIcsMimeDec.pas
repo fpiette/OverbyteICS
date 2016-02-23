@@ -6,11 +6,11 @@ Object:       TMimeDecode is a component whose job is to decode MIME encoded
               decode messages received with a POP3 or NNTP component.
               MIME is described in RFC-1521. Headers are described if RFC-822.
 Creation:     March 08, 1998
-Version:      8.03
+Version:      8.04
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2013 by François PIETTE
+Legal issues: Copyright (C) 1998-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -300,9 +300,11 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 Apr 25, 2013 V8.01 Arno minor XE4 changes.
 Jul 14, 2013 V8.02 Arno - Some default values changed in TMimeDecode.MessageBegin.
-                   Set IsTextPart to False if FPartContentType contains "application/". 
+                   Set IsTextPart to False if FPartContentType contains "application/".
 Nov 11, 2015 V8.03 Angus fixed bug that ignored body if boundary specified but
-                     never found, also meant base64 decoding was ignored  
+                     never found, also meant base64 decoding was ignored
+Feb 20, 2016 V8.04 Angus content-disposition now reads non-delimited filename
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMimeDec;
@@ -355,8 +357,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-    MimeDecodeVersion  = 803;
-    CopyRight : String = ' TMimeDecode (c) 1998-2015 Francois Piette V8.03';
+    MimeDecodeVersion  = 804;
+    CopyRight : String = ' TMimeDecode (c) 1998-2016 Francois Piette V8.04';
 
 type
     TMimeDecodePartLine = procedure (Sender  : TObject;
@@ -1846,7 +1848,10 @@ begin
         while Delim = ';' do begin
             p := GetToken(p, Token, Delim);
             if Delim = '=' then begin
-                p := GetQuoted(p, Value);
+                if p^ = #34 then     { V8.04 support non-delimited file names }
+                  p := GetQuoted(p, Value)
+                else
+                  p := GetToken(p, Value, Delim);  { V8.04 }
                 if Token = 'filename' then
                     FPartFileName := UnfoldHdrValue(Value);
             end;

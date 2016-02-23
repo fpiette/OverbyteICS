@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.22
+Version:      8.23
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2014 by François PIETTE
+Legal issues: Copyright (C) 1996-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -987,6 +987,7 @@ Nov 3, 2015  V8.20 Angus SslECDHMethod defaults to sslECDHAuto since web sites a
 Nov 23, 2015 V8.21 Eugene Kotlyarov fix MacOSX compilation and compiler warnings
 Feb 1, 2016  V8.22 Fixed SSL bug where two consecutive requests from a client would leave a server in
                      a waiting state and not process any other requests, thanks to AviaVox for the fix
+Feb 23, 2016 V8.23 version bump only for changes in other units
 }
 
 {
@@ -1138,8 +1139,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 822;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.22 ';
+  WSocketVersion            = 823;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.23 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 

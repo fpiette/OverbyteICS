@@ -527,6 +527,8 @@ Install\DXE8Install.groupproj
 Install\DXE8InstallVclFmx.groupproj
 Install\D10SInstall.groupproj
 Install\D10SInstallVclFmx.groupproj
+Install\D101Install.groupproj
+Install\D101InstallVclFmx.groupproj
 
 Install\CB2006Install.bdsgroup
 Install\CB2007Install.groupproj

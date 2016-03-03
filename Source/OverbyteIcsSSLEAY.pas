@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.03
+Version:      8.04
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2015 by François PIETTE
+Legal issues: Copyright (C) 2003-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -72,8 +72,9 @@ Mar 13, 2015 V8.01 Angus updated SSL_OP option literals, added TLS v1.1 and 1.2 
              Added functions need to generate DH keys for EDH ciphers with Forward Secrecy
              Note, only OpenSSL 1.0.1 and later are now supported, removed various conditionals
 May 08, 2015 V8.02 Angus adding missing SSL_OP_SINGLE_ECDH_USE
-Nov 20, 2015 V8.03 
-
+Nov 20, 2015 V8.03 Eugene Kotlyarov added RSA key related stuff
+Mar 3, 2016  V8.04 Angus support define OPENSSL_ALLOW_SSLV2 to load old OpenSSL
+                     DLLs that still export such methods
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -113,8 +114,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 802;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2015 F. Piette V8.02 ';
+    IcsSSLEAYVersion   = 804;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.04 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -1006,9 +1007,11 @@ const
     f_SSL_renegotiate_pending :                function(S: PSSL): Integer; cdecl = nil; //AG
     f_SSL_library_init :                       function: Integer; cdecl = nil;
     f_SSL_load_error_strings :                 procedure; cdecl = nil;
+{$IFDEF OPENSSL_ALLOW_SSLV2}
     f_SSLv2_method :                           function: PSSL_METHOD; cdecl = nil;
     f_SSLv2_client_method :                    function: PSSL_METHOD; cdecl = nil;
     f_SSLv2_server_method :                    function: PSSL_METHOD; cdecl = nil;
+{$ENDIF}
     f_SSLv3_method :                           function: PSSL_METHOD; cdecl = nil;
     f_SSLv3_client_method :                    function: PSSL_METHOD; cdecl = nil;
     f_SSLv3_server_method :                    function: PSSL_METHOD; cdecl = nil;
@@ -1287,9 +1290,11 @@ begin
     f_SSL_renegotiate_pending                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_renegotiate_pending');
     f_SSL_library_init                       := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_library_init');
     f_SSL_load_error_strings                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_load_error_strings');
+ {$IFDEF OPENSSL_ALLOW_SSLV2}
     f_SSLv2_method                           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv2_method');
     f_SSLv2_client_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv2_client_method');
     f_SSLv2_server_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv2_server_method');
+ {$ENDIF}
     f_SSLv3_method                           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv3_method');
     f_SSLv3_client_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv3_client_method');
     f_SSLv3_server_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv3_server_method');
@@ -1420,9 +1425,11 @@ begin
                    (@f_SSL_renegotiate_pending                = nil) or
                    (@f_SSL_library_init                       = nil) or
                    (@f_SSL_load_error_strings                 = nil) or
+ {$IFDEF OPENSSL_ALLOW_SSLV2}
                    (@f_SSLv2_method                           = nil) or
                    (@f_SSLv2_client_method                    = nil) or
                    (@f_SSLv2_server_method                    = nil) or
+ {$ENDIF}
                    (@f_SSLv3_method                           = nil) or
                    (@f_SSLv3_client_method                    = nil) or
                    (@f_SSLv3_server_method                    = nil) or
@@ -1558,9 +1565,11 @@ begin
     if @f_SSL_renegotiate_pending                = nil then Result := Result + ' SSL_renegotiate_pending';
     if @f_SSL_library_init                       = nil then Result := Result + ' SSL_library_init';
     if @f_SSL_load_error_strings                 = nil then Result := Result + ' SSL_load_error_strings';
+ {$IFDEF OPENSSL_ALLOW_SSLV2}
     if @f_SSLv2_method                           = nil then Result := Result + ' SSLv2_method';
     if @f_SSLv2_client_method                    = nil then Result := Result + ' SSLv2_client_method';
     if @f_SSLv2_server_method                    = nil then Result := Result + ' SSLv2_server_method';
+ {$ENDIF}
     if @f_SSLv3_method                           = nil then Result := Result + ' SSLv3_method';
     if @f_SSLv3_client_method                    = nil then Result := Result + ' SSLv3_client_method';
     if @f_SSLv3_server_method                    = nil then Result := Result + ' SSLv3_server_method';

@@ -3,8 +3,9 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10 Seattle
 (Aka FPIETTE's Components)
 
 
-Revised: August 31, 2015
+Revised: March 3, 2016
 http://www.overbyte.be/
+http://wiki.overbyte.be/
 
 Table of content:
 -----------------
@@ -28,7 +29,7 @@ Table of content:
 
 Legal issues:
 -------------
-              Copyright (C) 1997-2015 by François PIETTE
+              Copyright (C) 1997-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium
               <francois.piette@overbyte.be>
 
@@ -229,8 +230,13 @@ be compiled into your applications depending on whether the conditional define
 USE_SSL is set in the project options or not (this requires having the .\Source
 directory in either in the library path or in projects Search path).
 
-Actual use of SSL in your applications also requires LIBEAY32.DLL and SSLEAY32.DLL
-being available somewhere in the path, downloaded from:
+Actual use of SSL in your applications also requires the OpenSSL files 
+LIBEAY32.DLL and SSLEAY32.DLL being available somewhere in the path.  Note 
+different DLLs are needed for Win32 and Win64 applications.  The ICS 
+distribution includes the latest Win32 OpenSSL files in the .\OpenSSL-Win32 
+directory and the two main DLLs duplicated in .\Samples\delphi\sslinternet. 
+
+Other OpenSSL files, including older and Win64, may be downloaded from:
 
 http://wiki.overbyte.be/wiki/index.php/ICS_Download
 
@@ -864,11 +870,6 @@ function. Your applications will run on systems without OpenSSL DLLs as long
 as you don't call any SSL function.  The files may be downloaded from:
 
 http://wiki.overbyte.be/wiki/index.php/ICS_Download
-
-This version requires OpenSsl version 0.9.8r or later! The latest versions
-bult for ICS are currently v1.0.0j and v0.9.8x. If you need to support
-older OpenSsl versions as well (not recommended) define symbol
-BEFORE_OSSL_098E in OverbyteIcsSslDefs.inc and rebuild all.
 
 Most ICS components have their SSL enabled counter part. They work exactly
 the same way as the regular component except when SSL specific stuff is needed,

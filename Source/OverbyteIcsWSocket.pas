@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.23
+Version:      8.24
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -981,15 +981,20 @@ Jun 05, 2015 V8.18 Angus, enabled SSL engine support, which are cryptographic mo
                    ICS packages are now include OverbyteIcsMsSslUtils and OverbyteIcsSslX509Utils
                      which include certificate display and validation functions, and which were
                      previously only in the SSL samples directory
-Oct 25, 2015 V8.19 Angus version bump only for SSL changes in other units
-Nov 3, 2015  V8.20 Angus SslECDHMethod defaults to sslECDHAuto since web sites are increasingly needing ECDH
+Oct 25, 2015 V8.19 Angus, version bump only for SSL changes in other units
+Nov 3, 2015  V8.20 Angus, SslECDHMethod defaults to sslECDHAuto since web sites are increasingly needing ECDH
                    added two more protocols to sslCiphersMozillaSrvInter according to latest Mozilla update
 Nov 23, 2015 V8.21 Eugene Kotlyarov fix MacOSX compilation and compiler warnings
 Feb 1, 2016  V8.22 Fixed SSL bug where two consecutive requests from a client would leave a server in
                      a waiting state and not process any other requests, thanks to AviaVox for the fix
-Feb 23, 2016 V8.23 version bump only for changes in other units
-}
+Feb 23, 2016 V8.23 Angus, version bump only for changes in other units
+Mar 3, 2016  V8.24 Angus, OpenSSL 1.0.2g and 1.0.1s, and later, no longer generally support SSLv2
+                   Added define OPENSSL_ALLOW_SSLV2 which must be enabled to allow SSLv2 methods t
+                      to be specifically selected for older DLLs or new ones that specifically
+                      have SSLv2 support compiled.
+                   Don't attempt to set DH, EC and SNI that SSLv2 does not support 
 
+}
 {
 About multithreading and event-driven:
     TWSocket is a pure asynchronous component. It is non-blocking and
@@ -1139,8 +1144,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 823;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.23 ';
+  WSocketVersion            = 824;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.24 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -13034,9 +13039,14 @@ var
     Meth : PSSL_METHOD;
 begin
     case FSslVersionMethod of
+{$IFDEF OPENSSL_ALLOW_SSLV2}
     sslV2:            Meth := f_SSLv2_method;
     sslV2_CLIENT:     Meth := f_SSLv2_client_method;
     sslV2_SERVER:     Meth := f_SSLv2_server_method;
+{$ELSE}
+    sslV2, sslV2_CLIENT, sslV2_SERVER:             { V8.24 }
+        raise ESslContextException.Create('SSLv2 not supported');
+{$ENDIF}
     sslV3:            Meth := f_SSLv3_method;
     sslV3_CLIENT:     Meth := f_SSLv3_client_method;
     sslV3_SERVER:     Meth := f_SSLv3_server_method;
@@ -13749,6 +13759,7 @@ var
 begin
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
+    if (FSslVersionMethod < sslV3) then Exit;   { V8.24 SSLv2 does not support DH }
     if (FileName <> '') and (not FileExists(FileName)) then
         raise ESslContextException.Create('File not found "' + FileName + '"');
     if (FileName <> '') then begin
@@ -13949,6 +13960,7 @@ begin
             // V8.15 Elliptic Curve to generate Ephemeral ECDH keys
             if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1002) and  { V8.17 do this after SSL initialised }
                 (FSslECDHMethod = sslECDHAuto) then FSslECDHMethod := sslECDH_P256;
+            if (FSslVersionMethod < sslV3) then FSslECDHMethod := sslECDHNone;   { V8.24 SSLv2 does not support EC }
 
             if FSslECDHMethod = sslECDHAuto then begin
                 if f_SSL_CTX_set_ecdh_auto(FSslCtx, 1) = 0 then
@@ -17561,7 +17573,7 @@ begin
 
                 { FSslServerName is the servername to be sent in client helo. }
                 { If not empty, enables SNI in SSL client mode.               }
-                if (FSslServerName <> '') and
+                if (FSslServerName <> '') and (FSslContext.FSslVersionMethod >= sslV3) and   { V8.24 not SSLv2 }
                     (f_SSL_set_tlsext_host_name(FSsl, FSslServerName) = 0) then
                         RaiseLastOpenSslError(EOpenSslError, TRUE,
                              'Unable to set TLS servername extension');

@@ -3,7 +3,7 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10 Seattle
 (Aka FPIETTE's Components)
 
 
-Revised: March 3, 2016
+Revised: March 18, 2016
 http://www.overbyte.be/
 http://wiki.overbyte.be/
 
@@ -216,6 +216,7 @@ All DELPHI and C++ BUILDER VERSIONS/WIN32
 
 Always upgrade your compiler with the latest update available from Embarcadero.
 Always update your system with http://windowsupdate.microsoft.com
+
 
 SSL or not SSL?
 

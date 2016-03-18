@@ -67,6 +67,11 @@ Mar 16 2015  V8.02 Angus added DHParam File needed to supporting DH key exchange
                      multiple host and certificates on the same IP address
 Mar 23 2015  V8.03 SslServerName is now a published property
 Feb 22 2016  V8.04 Angus fixed exception posting data
+Mar 17 2016  V8.05 Angus added local IP address, SSL Version and SSL Cipher selection
+                    and new suite edits to make testing easier
+                   Reset SSL when changing parameters to try and force new negotiation
+                   Report server SSL certificates and warn if expired
+                   Display more SSL diags on demo.html menu
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
@@ -90,7 +95,7 @@ unit OverbyteIcsSslWebServ1;
     {$WARN IMPLICIT_STRING_CAST_LOSS  OFF}
     {$WARN EXPLICIT_STRING_CAST       OFF}
     {$WARN EXPLICIT_STRING_CAST_LOSS  OFF}
-{$ENDIF}
+{$IFEND}
 {$WARN SYMBOL_PLATFORM   OFF}
 {$WARN SYMBOL_LIBRARY    OFF}
 {$WARN SYMBOL_DEPRECATED OFF}
@@ -100,12 +105,13 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Controls, Forms,
-  OverbyteIcsIniFiles, StdCtrls, ExtCtrls, OverbyteIcsWinsock, OverbyteIcsWSocket,
-  OverbyteIcsWSocketS, OverbyteIcsHttpSrv, OverbyteIcsLIBEAY,
-  OverbyteIcsSslSessionCache, OverbyteIcsLogger, OverbyteIcsWndControl;
+  OverbyteIcsIniFiles, StdCtrls, ExtCtrls, OverbyteIcsWinsock,
+  OverbyteIcsWSocket, OverbyteIcsWSocketS, OverbyteIcsHttpSrv,
+  OverbyteIcsLIBEAY, OverbyteIcsSslSessionCache,  OverbyteIcsSslX509Utils,
+  OverbyteIcsLogger, OverbyteIcsWndControl;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2016 F. Piette V8.04 ';
+  CopyRight : String         = 'WebServ (c) 1999-2016 F. Piette V8.05 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -177,6 +183,14 @@ type
     DhParamFileEdit: TEdit;
     ECDHList: TComboBox;
     Label13: TLabel;
+    Label20: TLabel;
+    SslVersionList: TComboBox;
+    Label21: TLabel;
+    SslCipherEdit: TEdit;
+    Label14: TLabel;
+    SslCipherList: TComboBox;
+    Label22: TLabel;
+    ListenAddr: TComboBox;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -231,6 +245,7 @@ type
     FLogFileName            : String;
     FLogFileOpened          : Boolean;
     FRenegotiationInterval  : Longword;
+    FSrvSslCert             : string;
     procedure CreateVirtualDocument_Demo(Sender    : TObject;
                                          Client    : TObject;
                                          var Flags : THttpGetFlag);
@@ -285,6 +300,10 @@ const
     KeyRenegInterval   = 'RenegotiationInterval';
     KeyDHFile          = 'DHFile';
     KeyECDHList        = 'ECDHList';
+    KeySslVersionList  = 'SslVersionList';
+    KeySslCipherEdit   = 'SslCipherEdit';
+    KeySslCipherList   = 'SslCipherList';
+    KeyListenAddr      = 'ListenAddr';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslWebServForm.FormCreate(Sender: TObject);
@@ -312,6 +331,8 @@ procedure TSslWebServForm.FormShow(Sender: TObject);
 var
     IniFile : TIcsIniFile;
     wsi     : TWSADATA;
+    OldIp   : string;
+    I       : integer;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
@@ -358,9 +379,22 @@ begin
         FRenegotiationInterval := IniFile.ReadInteger(SectionData,
                                                       KeyRenegInterval, 0);
         ECDHList.ItemIndex := IniFile.ReadInteger(SectionData, KeyECDHList, 1);   { V8.02 }
+        SslVersionList.ItemIndex := IniFile.ReadInteger(SectionData, KeySslVersionList, 0);  { V8.05 }
+        SslCipherList.ItemIndex := IniFile.ReadInteger(SectionData, KeySslCipherList, 0);    { V8.05 }
+        SslCipherEdit.Text := IniFile.ReadString(SectionData, KeySslCipherEdit, '');         { V8.05 }
+        OldIp := IniFile.ReadString(SectionData, KeyListenAddr, '');                         { V8.05 }
         IniFile.Free;
 
         RenegotiationIntervalEdit.Text := IntToStr(FRenegotiationInterval);
+
+        { V8.05 allow user to choose which IP address to listen }
+        ListenAddr.Items.Text := 'localhost' + #13#10 +
+                               '0.0.0.0' + #13#10 + LocalIPList.Text;
+        I := ListenAddr.Items.IndexOf(OldIp);
+        if I >= 0 then
+            ListenAddr.ItemIndex := I
+        else
+            ListenAddr.ItemIndex := 0;
 
         { Start log file }
         if WriteLogFileCheckBox.Checked then begin
@@ -427,6 +461,10 @@ begin
     IniFile.WriteInteger(SectionData,   KeyVerifyPeer,  Ord(VerifyPeerCheckBox.Checked));
     IniFile.WriteInteger(SectionData,   KeyRenegInterval, FRenegotiationInterval);
     IniFile.WriteInteger(SectionData,   KeyECDHList,  ECDHList.ItemIndex);        { V8.01 }
+    IniFile.WriteInteger(SectionData,   KeySslVersionList, SslVersionList.ItemIndex);  { V8.05 }
+    IniFile.WriteInteger(SectionData,   KeySslCipherList, SslCipherList.ItemIndex);    { V8.05 }
+    IniFile.WriteString(SectionData,    KeySslCipherEdit, SslCipherEdit.Text);         { V8.05 }
+    IniFile.WriteString(SectionData,    KeyListenAddr, ListenAddr.Items [ListenAddr.ItemIndex]); { V8.05 }
     IniFile.UpdateFile;
     IniFile.Free;
     CloseLogFile;
@@ -473,10 +511,16 @@ end;
 { client.                                                                   }
 { When server is started, we will get OnServerStarted event triggered.      }
 procedure TSslWebServForm.StartHttpsButtonClick(Sender: TObject);
+const
+    SslSrvVersions : array [0..5] of TSslVersionMethod =
+        (sslBestVer_SERVER,sslV2_SERVER,sslV3_SERVER,sslTLS_V1_SERVER,sslTLS_V1_1_SERVER,sslTLS_V1_2_SERVER);  { V8.05 }
+var
+    MyCert: TX509Ex;
 begin
     SslHttpServer1.DocDir           := Trim(DocDirEdit.Text);
     SslHttpServer1.DefaultDoc       := Trim(DefaultDocEdit.Text);
     SslHttpServer1.Port             := Trim(PortHttpsEdit.Text);
+    SslHttpServer1.Addr             := ListenAddr.Items [ListenAddr.ItemIndex];  { V8.05 }
     SslHttpServer1.ClientClass      := TMyHttpConnection;
     SslHttpServer1.SetAcceptableHostsList(AcceptableHostsEdit.Text);
     SslContext1.SslCertFile         := CertFileEdit.Text;
@@ -486,15 +530,74 @@ begin
     SslContext1.SslCAPath           := CAPathEdit.Text;
     SslContext1.SslDHParamFile      := DhParamFileEdit.Text;      { V8.02 }
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
-   SslContext1.SslCipherList       := sslCiphersMozillaSrvBack;   { V8.00 much more secure }
-//    SslContext1.SslCipherList       := sslCiphersMozillaSrvInter;   { V8.01 and better }
-    SslContext1.SslVersionMethod    := sslBestVer_SERVER;        { V8.02 }
     SslContext1.SslECDHMethod       := TSslECDHMethod(ECDHList.ItemIndex); { V8.02 }
-    SslContext1.SslOptions          := SslContext1.SslOptions +  { V8.01 disable SSLv3 }
-                            [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,   { V8.02 single DH needed for perfect forward secrecy }
-                            sslOpt_CIPHER_SERVER_PREFERENCE, sslOpt_SINGLE_DH_USE];
+//    SslContext1.SslVersionMethod    := sslBestVer_SERVER;        { V8.02 }
+    SslContext1.SslVersionMethod    := SslSrvVersions [SslVersionList.ItemIndex];   { V8.05 }
+    if SslContext1.SslVersionMethod = sslV2_SERVER then begin
+        SslContext1.SslCipherList := 'SSLv2:RC4+MD5';  { V8.05 Mozilla ones don't support SSLv2 }
+        SslHttpServer1.OnSslServerName := nil; { not supported for SSLv2 }
+    end
+    else begin
+      case SslCipherList.ItemIndex of   { V8.05 choice of ciphers }
+          0: SslContext1.SslCipherList := sslCiphersServer;
+          1: SslContext1.SslCipherList := sslCiphersMozillaSrvBack;
+          2: SslContext1.SslCipherList := sslCiphersMozillaSrvInter;
+          3: SslContext1.SslCipherList := sslCiphersMozillaSrvHigh;
+          4: SslContext1.SslCipherList := sslCiphersMozillaSrvBack38;
+          5: SslContext1.SslCipherList := sslCiphersMozillaSrvInter38;
+          6: SslContext1.SslCipherList := sslCiphersMozillaSrvHigh38;
+      end;
+    end;
+   if SslCipherEdit.Text <> '' then  SslContext1.SslCipherList := SslCipherEdit.Text; { V8.05 }
+    SslContext1.SslOptions := SslContext1.SslOptions + [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
+                                     sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];
+    if SslContext1.SslVersionMethod = sslV2_SERVER then
+        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_SSLv2]
+    else if SslContext1.SslVersionMethod = sslV3_SERVER then
+        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_SSLv3]
+    else if SslContext1.SslVersionMethod = sslTLS_V1_SERVER then
+        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_TLSv1]
+    else if SslContext1.SslVersionMethod = sslTLS_V1_1_SERVER then
+        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_TLSv1_1]
+    else if SslContext1.SslVersionMethod = sslTLS_V1_2_SERVER then
+        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_TLSv1_2]
+    else
+        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
+                                     sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];
+ { V8.02 single DH needed for perfect forward secrecy }
+    SslContext1.SslOptions := SslContext1.SslOptions +
+                          [sslOpt_CIPHER_SERVER_PREFERENCE, sslOpt_SINGLE_DH_USE];
     try
+        if SslContext1.IsCtxInitialized then   { V8.05 }
+        begin
+          SslContext1.DeInitContext;
+          SslHttpServer1.WSocketServer.ResetSSL;
+        end;
         SslContext1.InitContext;  { V8.02 get any error now before starting server }
+        if NOT FileExists (GLIBEAY_DLL_FileName) then    { V8.05 }
+          Display('SSL/TLS DLL not found: ' + GLIBEAY_DLL_FileName)
+        else
+          Display('SSL/TLS DLL: ' + GLIBEAY_DLL_FileName + ', Version: ' + OpenSslVersion);
+        MyCert := TX509Ex.Create(self);  // Oct 2015 report server certificate
+        try
+            MyCert.LoadFromPemFile (SslContext1.SslCertFile); // Oct 2015
+            FSrvSslCert := MyCert.CertInfo ;
+            if (Date + 30) > MyCert.ValidNotAfter then
+            begin
+                Display ('Server SSL Certificate Exprires Shortly');
+            end;
+            MyCert.LoadFromPemFile (SslContext1.SslCAFile);   // Dec 2015
+            FSrvSslCert := FSrvSslCert +  #13#10#13#10 + MyCert.CertInfo ;
+            Display ('Server SSL Certificates' + #13#10 + FSrvSslCert + #13#10) ;
+            if (Date + 30) > MyCert.ValidNotAfter then
+            begin
+                Display ('Server SSL CA Certificate Exprires Shortly') ;
+            end;
+            FSrvSslCert := StringReplace (FSrvSslCert, #13#10, '<BR>'+#13#10, [rfReplaceAll]) ;
+        finally
+            MyCert.Free ;
+        end;
+
     except
         on E:Exception do begin
             Display('Failed to initialize SSL Context: ' + E.Message);
@@ -512,6 +615,7 @@ begin
     HttpServer2.DocDir         := Trim(DocDirEdit.Text);
     HttpServer2.DefaultDoc     := Trim(DefaultDocEdit.Text);
     HttpServer2.Port           := Trim(PortHttpEdit.Text);
+    HttpServer2.Addr           := ListenAddr.Items [ListenAddr.ItemIndex];  { V8.05 }
     HttpServer2.ClientClass    := TMyHttpConnection;
     HttpServer2.Start;
 end;
@@ -540,6 +644,8 @@ end;
 { This event handler is triggered when HTTP server is started, that is when }
 { server socket has started listening.                                      }
 procedure TSslWebServForm.SslHttpServer1ServerStarted(Sender: TObject);
+var
+  S: string ;
 begin
     DocDirEdit.Enabled       := FALSE;
     DefaultDocEdit.Enabled   := FALSE;
@@ -548,14 +654,22 @@ begin
     StartHttpsButton.Enabled := FALSE;
     StopButton.Enabled       := TRUE;
     Display('HTTPS Server is waiting for connections');
+    S := SslHttpServer1.Addr;
+    if S = '0.0.0.0' then S:= 'localhost';
+    Display('https://' + S + '/demo.html');
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslWebServForm.HttpServer2ServerStarted(Sender: TObject);
+var
+  S: string ;
 begin
     StartHttpButton.Enabled    := FALSE;
     Display('HTTP Server is waiting for connections');
+    S := SslHttpServer1.Addr;
+    if S = '0.0.0.0' then S:= 'localhost';
+    Display('http://' + S + '/demo.html');
 end;
 
 
@@ -686,7 +800,7 @@ end;
 procedure TSslWebServForm.SslHttpServer1GetDocument(
     Sender    : TObject;            { HTTP server component                 }
     Client    : TObject;            { Client connection issuing command     }
-    var Flags : THttpGetFlag);      { Tells what HTTP server has to do next } 
+    var Flags : THttpGetFlag);      { Tells what HTTP server has to do next }
 begin
     { Count request and display a message }
     Inc(FCountRequests);
@@ -696,7 +810,7 @@ begin
     DisplayHeader(TMyHttpConnection(Client));
 
     { Trap '/time.htm' path to dynamically generate an answer. }
-    if CompareText(THttpConnection(Client).Path, '/demo.html') = 0 then
+    if (CompareText(THttpConnection(Client).Path, '/demo.html') = 0) then
         CreateVirtualDocument_Demo(Sender, Client, Flags)
     else if CompareText(THttpConnection(Client).Path, '/time.html') = 0 then
         CreateVirtualDocument_time_htm(Sender, Client, Flags)
@@ -708,7 +822,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { This procedure is use to generate /redir.htm document                     }
-procedure TSslWebServForm.CreateVirtualDocument_redir_htm(
+procedure TSslWebServForm.CreateVirtualDocument_redir_htm(    // redir.html
     Sender    : TObject;            { HTTP server component                 }
     Client    : TObject;            { Client connection issuing command     }
     var Flags : THttpGetFlag);      { Tells what HTTP server has to do next }
@@ -755,29 +869,36 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslWebServForm.CreateVirtualDocument_Demo(
+procedure TSslWebServForm.CreateVirtualDocument_Demo(     // demo.html
     Sender    : TObject;
     Client    : TObject;
     var Flags : THttpGetFlag);
+var
+    Body   : String;
 begin
-    TMyHttpConnection(Client).AnswerString(Flags,
-        '',           { Default Status '200 OK'         }
-        '',           { Default Content-Type: text/html }
-        '',           { Default header                  }
-        '<HTML>' +
+    Body := '<HTML>' +
           '<HEAD>' +
             '<TITLE>ICS-SSL WebServer Demo - Menu</TITLE>' +
           '</HEAD>' +
           '<BODY>' +
-            '<H2>ICS-SSL WebServer Demo Menu</H2>' +
-            'SSL Handshake: ' + TMyHttpConnection(Client).SslHandshakeRespMsg  + '<BR>' +  { V8.02 }
-            '<A HREF="/time.html">Server time</A><BR>'  +
-            '<A HREF="/redir.html">Redirection</A><BR>' +
-            '<A HREF="/">Default document</A><BR>'     +
-            '<A HREF="http://www.overbyte.be">ICS Home page</A><BR>' +
-            'Note: You can find a better demo in the non-SSL ICS.<BR>' +
-          '</BODY>' +
-        '</HTML>');
+            '<H2>ICS-SSL WebServer Demo Menu</H2>' + #13#10 +
+            '<H3>' + TMyHttpConnection(Client).SslHandshakeRespMsg  + '</H3>' + #13#10 + { V8.02 }
+            '<A HREF="/time.html">Server time</A><BR>'  + #13#10 +
+            '<A HREF="/redir.html">Redirection</A><BR>' + #13#10 +
+            '<A HREF="/">Default document</A><BR>' + #13#10 +
+            '<A HREF="http://www.overbyte.be">ICS Home page</A><P>' + #13#10 +
+            '<P>OpenSSL Version: ' + OpenSslVersion + '<BR>' + #13#10#13#10 +
+             'Server SSL Certificates: <BR>' + #13#10 +
+             FSrvSslCert + '<BR><BR>' + #13#10 +
+             'OpenSSL Cipher: ' + SslContext1.SslCipherList +  '<P>' + #13#10 +
+             'Note: You can find a better demo in the non-SSL ICS.<P>' + #13#10 +
+          '</BODY>' + #13#10 +
+        '</HTML>' + #13#10;
+    TMyHttpConnection(Client).AnswerString(Flags,
+        '',           { Default Status '200 OK'         }
+        '',           { Default Content-Type: text/html }
+        '',           { Default header                  }
+        Body);
 end;
 
 

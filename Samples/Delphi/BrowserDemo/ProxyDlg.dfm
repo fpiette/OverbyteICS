@@ -5,7 +5,7 @@ object ProxyForm: TProxyForm
   BorderStyle = bsDialog
   Caption = 'Settings'
   ClientHeight = 314
-  ClientWidth = 288
+  ClientWidth = 553
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -50,6 +50,20 @@ object ProxyForm: TProxyForm
     Height = 13
     Caption = 'User Agent'
   end
+  object lbl1: TLabel
+    Left = 291
+    Top = 35
+    Width = 58
+    Height = 13
+    Caption = 'SSL Version'
+  end
+  object lbl2: TLabel
+    Left = 216
+    Top = 59
+    Width = 84
+    Height = 13
+    Caption = 'Acceptable Hosts'
+  end
   object ProxyEdit: TEdit
     Left = 24
     Top = 32
@@ -62,23 +76,23 @@ object ProxyForm: TProxyForm
     Top = 32
     Width = 49
     Height = 21
-    TabOrder = 1
+    TabOrder = 4
     Text = '80'
   end
   object OKBurron: TBitBtn
-    Left = 64
-    Top = 253
+    Left = 200
+    Top = 248
     Width = 65
     Height = 25
-    TabOrder = 2
+    TabOrder = 10
     Kind = bkOK
   end
   object CancelButton: TBitBtn
-    Left = 160
-    Top = 253
+    Left = 291
+    Top = 248
     Width = 65
     Height = 25
-    TabOrder = 3
+    TabOrder = 11
     Kind = bkCancel
   end
   object ProxyUsername: TEdit
@@ -86,21 +100,74 @@ object ProxyForm: TProxyForm
     Top = 80
     Width = 177
     Height = 21
-    TabOrder = 4
+    TabOrder = 1
   end
   object ProxyPassword: TEdit
     Left = 24
     Top = 128
     Width = 177
     Height = 21
-    TabOrder = 5
+    TabOrder = 2
   end
   object UserAgent: TEdit
     Left = 24
     Top = 181
     Width = 241
     Height = 21
-    TabOrder = 6
+    TabOrder = 3
     Text = 'Mozilla/4.0'
+  end
+  object SslVersionList: TComboBox
+    Left = 363
+    Top = 32
+    Width = 108
+    Height = 21
+    Style = csDropDownList
+    ItemHeight = 13
+    TabOrder = 5
+    Items.Strings = (
+      'Best Version'
+      'SSLv2'
+      'SSLv3'
+      'TLSv1'
+      'TLSv1.1'
+      'TLSv1.2')
+  end
+  object SslAcceptableHostsEdit: TEdit
+    Left = 216
+    Top = 80
+    Width = 325
+    Height = 21
+    TabOrder = 6
+    Text = 'SslAcceptableHostsEdit'
+  end
+  object SslVerifyCertMode: TRadioGroup
+    Left = 391
+    Top = 122
+    Width = 143
+    Height = 68
+    Caption = 'Verify Certificate Mode'
+    ItemIndex = 0
+    Items.Strings = (
+      'None'
+      'PEM Bundle File'
+      'Windows Cert Store')
+    TabOrder = 9
+  end
+  object SslRevokeCheck: TCheckBox
+    Left = 216
+    Top = 122
+    Width = 155
+    Height = 17
+    Caption = 'Certificate Revoke Check'
+    TabOrder = 7
+  end
+  object SslReportChain: TCheckBox
+    Left = 216
+    Top = 150
+    Width = 155
+    Height = 17
+    Caption = 'Report SSL Certificates'
+    TabOrder = 8
   end
 end

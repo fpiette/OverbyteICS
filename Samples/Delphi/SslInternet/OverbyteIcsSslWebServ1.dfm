@@ -2,8 +2,8 @@ object SslWebServForm: TSslWebServForm
   Left = 287
   Top = 154
   Caption = 'ICS SSL WebServer Demo - http://www.overbyte.be'
-  ClientHeight = 354
-  ClientWidth = 549
+  ClientHeight = 480
+  ClientWidth = 619
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -20,8 +20,8 @@ object SslWebServForm: TSslWebServForm
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
-    Width = 549
-    Height = 196
+    Width = 619
+    Height = 265
     Align = alTop
     TabOrder = 0
     object Label1: TLabel
@@ -39,22 +39,22 @@ object SslWebServForm: TSslWebServForm
       Caption = 'DefaultDoc'
     end
     object Label3: TLabel
-      Left = 232
-      Top = 7
+      Left = 367
+      Top = 32
       Width = 64
       Height = 13
       Caption = 'Port (HTTPS)'
     end
     object ClientHttpsCountLabel: TLabel
-      Left = 104
-      Top = 173
+      Left = 109
+      Top = 243
       Width = 105
       Height = 13
       Caption = 'ClientHttpsCountLabel'
     end
     object Label5: TLabel
-      Left = 15
-      Top = 173
+      Left = 14
+      Top = 243
       Width = 79
       Height = 13
       Caption = ' Clients (HTTPS)'
@@ -110,21 +110,21 @@ object SslWebServForm: TSslWebServForm
     end
     object Label12: TLabel
       Left = 240
-      Top = 31
+      Top = 32
       Width = 57
       Height = 13
       Caption = 'Port (HTTP)'
     end
     object Label15: TLabel
-      Left = 215
-      Top = 173
+      Left = 240
+      Top = 243
       Width = 72
       Height = 13
       Caption = ' Clients (HTTP)'
     end
     object ClientHttpCountLabel: TLabel
-      Left = 294
-      Top = 173
+      Left = 326
+      Top = 243
       Width = 105
       Height = 13
       Caption = 'ClientHttpsCountLabel'
@@ -165,6 +165,34 @@ object SslWebServForm: TSslWebServForm
       Height = 13
       Caption = 'DH File'
     end
+    object Label20: TLabel
+      Left = 16
+      Top = 175
+      Width = 58
+      Height = 13
+      Caption = 'SSL Version'
+    end
+    object Label21: TLabel
+      Left = 14
+      Top = 199
+      Width = 60
+      Height = 13
+      Caption = 'New Ciphers'
+    end
+    object Label14: TLabel
+      Left = 199
+      Top = 175
+      Width = 53
+      Height = 13
+      Caption = 'SSL Cipher'
+    end
+    object Label22: TLabel
+      Left = 212
+      Top = 8
+      Width = 82
+      Height = 13
+      Caption = 'Listen IP Address'
+    end
     object DocDirEdit: TEdit
       Left = 80
       Top = 4
@@ -187,7 +215,7 @@ object SslWebServForm: TSslWebServForm
       Width = 73
       Height = 21
       Caption = '&Start HTTPS'
-      TabOrder = 17
+      TabOrder = 21
       OnClick = StartHttpsButtonClick
     end
     object StopButton: TButton
@@ -196,15 +224,15 @@ object SslWebServForm: TSslWebServForm
       Width = 73
       Height = 21
       Caption = 'St&op'
-      TabOrder = 18
+      TabOrder = 22
       OnClick = StopButtonClick
     end
     object PortHttpsEdit: TEdit
-      Left = 300
-      Top = 4
+      Left = 437
+      Top = 28
       Width = 53
       Height = 21
-      TabOrder = 7
+      TabOrder = 14
       Text = 'PortHttpsEdit'
     end
     object ClearButton: TButton
@@ -213,26 +241,26 @@ object SslWebServForm: TSslWebServForm
       Width = 73
       Height = 21
       Caption = '&Clear'
-      TabOrder = 19
+      TabOrder = 23
       OnClick = ClearButtonClick
     end
     object DisplayHeaderCheckBox: TCheckBox
-      Left = 376
-      Top = 18
+      Left = 136
+      Top = 220
       Width = 97
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Display Header'
-      TabOrder = 15
+      TabOrder = 10
     end
     object WriteLogFileCheckBox: TCheckBox
-      Left = 376
-      Top = 4
+      Left = 16
+      Top = 220
       Width = 97
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Write to log file'
-      TabOrder = 14
+      TabOrder = 9
       OnClick = WriteLogFileCheckBoxClick
     end
     object CertFileEdit: TEdit
@@ -272,7 +300,7 @@ object SslWebServForm: TSslWebServForm
       Top = 76
       Width = 153
       Height = 21
-      TabOrder = 10
+      TabOrder = 16
       Text = 'CAPathEdit'
     end
     object CAFileEdit: TEdit
@@ -280,17 +308,17 @@ object SslWebServForm: TSslWebServForm
       Top = 52
       Width = 153
       Height = 21
-      TabOrder = 9
+      TabOrder = 15
       Text = 'CAFileEdit'
     end
     object VerifyPeerCheckBox: TCheckBox
-      Left = 217
-      Top = 153
+      Left = 218
+      Top = 149
       Width = 71
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Verify Peer'
-      TabOrder = 12
+      TabOrder = 18
     end
     object StartHttpButton: TButton
       Left = 460
@@ -298,7 +326,7 @@ object SslWebServForm: TSslWebServForm
       Width = 73
       Height = 21
       Caption = 'Start HTTP'
-      TabOrder = 20
+      TabOrder = 24
       OnClick = StartHttpButtonClick
     end
     object PortHttpEdit: TEdit
@@ -306,7 +334,7 @@ object SslWebServForm: TSslWebServForm
       Top = 28
       Width = 53
       Height = 21
-      TabOrder = 8
+      TabOrder = 13
       Text = 'PortHttpEdit'
     end
     object RenegotiationIntervalEdit: TEdit
@@ -324,17 +352,17 @@ object SslWebServForm: TSslWebServForm
       Width = 73
       Height = 21
       Caption = 'OpenSSL?'
-      TabOrder = 21
+      TabOrder = 25
       OnClick = ButtonOSSLVersionClick
     end
     object DisplaySslInfoCheckBox: TCheckBox
-      Left = 376
-      Top = 33
+      Left = 256
+      Top = 220
       Width = 97
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Display SSL Info'
-      TabOrder = 16
+      TabOrder = 11
     end
     object DhParamFileEdit: TEdit
       Left = 300
@@ -344,7 +372,7 @@ object SslWebServForm: TSslWebServForm
       Hint = 'Enter DH Parameter File (can be empty).'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 11
+      TabOrder = 17
       Text = 'DhParamFileEdit'
     end
     object ECDHList: TComboBox
@@ -354,7 +382,7 @@ object SslWebServForm: TSslWebServForm
       Height = 21
       Style = csDropDownList
       ItemHeight = 13
-      TabOrder = 13
+      TabOrder = 19
       Items.Strings = (
         'None'
         'Automatic'
@@ -362,12 +390,70 @@ object SslWebServForm: TSslWebServForm
         'ECDH_P384'
         'ECDH_P521')
     end
+    object SslVersionList: TComboBox
+      Left = 80
+      Top = 172
+      Width = 108
+      Height = 21
+      Style = csDropDownList
+      ItemHeight = 13
+      TabOrder = 7
+      Items.Strings = (
+        'Best Version'
+        'SSLv2'
+        'SSLv3'
+        'TLSv1'
+        'TLSv1.1'
+        'TLSv1.2')
+    end
+    object SslCipherEdit: TEdit
+      Left = 80
+      Top = 196
+      Width = 453
+      Height = 21
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 8
+      Text = 'SslCipherEdit'
+    end
+    object SslCipherList: TComboBox
+      Left = 264
+      Top = 172
+      Width = 190
+      Height = 21
+      Style = csDropDownList
+      ItemHeight = 13
+      ItemIndex = 0
+      TabOrder = 20
+      Text = 'sslCiphersServer'
+      Items.Strings = (
+        'sslCiphersServer'
+        'sslCiphersMozillaSrvBack'
+        'sslCiphersMozillaSrvInter'
+        'sslCiphersMozillaSrvHigh'
+        'sslCiphersMozillaSrvBack38'
+        'sslCiphersMozillaSrvInter38'
+        'sslCiphersMozillaSrvHigh38')
+    end
+    object ListenAddr: TComboBox
+      Left = 300
+      Top = 4
+      Width = 128
+      Height = 21
+      Style = csDropDownList
+      ItemHeight = 13
+      ItemIndex = 0
+      TabOrder = 12
+      Text = 'localhost'
+      Items.Strings = (
+        'localhost')
+    end
   end
   object DisplayMemo: TMemo
     Left = 0
-    Top = 196
-    Width = 549
-    Height = 158
+    Top = 265
+    Width = 619
+    Height = 215
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -424,7 +510,7 @@ object SslWebServForm: TSslWebServForm
     OnSslHandshakeDone = SslHttpServer1SslHandshakeDone
     OnSslServerName = SslHttpServer1SslServerName
     Left = 42
-    Top = 206
+    Top = 306
   end
   object SslContext1: TSslContext
     IcsLogger = IcsLogger1
@@ -440,8 +526,9 @@ object SslWebServForm: TSslWebServForm
     SslSessionTimeout = 300
     SslSessionCacheSize = 20480
     SslDefaultSessionIDContext = 'Webservertest'
-    Left = 122
-    Top = 206
+    AutoEnableBuiltinEngines = False
+    Left = 132
+    Top = 311
   end
   object HttpServer2: THttpServer
     IcsLogger = IcsLogger1
@@ -476,7 +563,7 @@ object SslWebServForm: TSslWebServForm
     AuthTypes = []
     AuthRealm = 'ics'
     Left = 42
-    Top = 242
+    Top = 357
   end
   object IcsLogger1: TIcsLogger
     TimeStampFormatString = 'hh:nn:ss:zzz'
@@ -484,14 +571,14 @@ object SslWebServForm: TSslWebServForm
     LogFileOption = lfoOverwrite
     LogFileName = 'Debug_Out_SslWebServ.txt'
     LogOptions = []
-    Left = 122
-    Top = 242
+    Left = 237
+    Top = 312
   end
   object SslAvlSessionCache1: TSslAvlSessionCache
     IdleTimeout = 30
     FlushInterval = 10000
     MaxCacheSize = 1000
-    Left = 156
-    Top = 206
+    Left = 131
+    Top = 361
   end
 end

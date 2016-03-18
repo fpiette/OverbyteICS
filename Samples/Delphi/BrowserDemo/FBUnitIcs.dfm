@@ -2,7 +2,7 @@ object HTTPForm: THTTPForm
   Left = 510
   Top = 261
   ActiveControl = UrlComboBox
-  Caption = 'Experimental Browser using ICSv7/v8'
+  Caption = 'Experimental Browser using ICSv8'
   ClientHeight = 606
   ClientWidth = 729
   Color = clBtnFace
@@ -120,7 +120,7 @@ object HTTPForm: THTTPForm
         ImageIndex = -1
         MinHeight = 37
         MinWidth = 140
-        Width = 215
+        Width = 170
       end
       item
         Break = False
@@ -129,7 +129,7 @@ object HTTPForm: THTTPForm
         MinHeight = 21
         MinWidth = 170
         Text = 'URL:'
-        Width = 270
+        Width = 377
       end
       item
         Break = False
@@ -137,12 +137,12 @@ object HTTPForm: THTTPForm
         ImageIndex = -1
         MinHeight = 37
         MinWidth = 155
-        Width = 230
+        Width = 168
       end>
     object ToolBar2: TToolBar
-      Left = 9
+      Left = 11
       Top = 0
-      Width = 142
+      Width = 157
       Height = 37
       AutoSize = True
       ButtonHeight = 37
@@ -186,21 +186,19 @@ object HTTPForm: THTTPForm
       end
     end
     object UrlComboBox: TComboBox
-      Left = 195
+      Left = 213
       Top = 8
-      Width = 356
+      Width = 336
       Height = 21
       ItemHeight = 0
       TabOrder = 1
       OnClick = URLComboBoxClick
       OnKeyPress = URLComboBoxKeyPress
-      Items.Strings = (
-        'http://pc19-web/local/localindex.html')
     end
     object Panel10: TPanel
-      Left = 448
+      Left = 566
       Top = 0
-      Width = 277
+      Width = 159
       Height = 37
       Align = alTop
       BevelOuter = bvNone
@@ -236,14 +234,13 @@ object HTTPForm: THTTPForm
         end
       end
       object Panel3: TPanel
-        Left = 249
+        Left = 131
         Top = 0
         Width = 28
         Height = 37
         Align = alRight
         BevelOuter = bvNone
         TabOrder = 1
-        ExplicitLeft = 247
         object Animate1: TAnimate
           Left = 3
           Top = 8
@@ -377,8 +374,8 @@ object HTTPForm: THTTPForm
   object FindDialog: TFindDialog
     Options = [frDown, frHideWholeWord, frDisableWholeWord]
     OnFind = FindDialogFind
-    Left = 480
-    Top = 145
+    Left = 465
+    Top = 160
   end
   object PopupMenu: TPopupMenu
     Left = 232
@@ -401,15 +398,15 @@ object HTTPForm: THTTPForm
     MaxPage = -1
     Options = [poPageNums]
     ToPage = 1
-    Left = 216
-    Top = 153
+    Left = 221
+    Top = 163
   end
   object Timer1: TTimer
     Enabled = False
     Interval = 200
     OnTimer = Timer1Timer
-    Left = 426
-    Top = 149
+    Left = 391
+    Top = 159
   end
   object ImageList1: TImageList
     Height = 17
@@ -417,7 +414,7 @@ object HTTPForm: THTTPForm
     Left = 40
     Top = 160
     Bitmap = {
-      494C01010D009400A80011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C01010D009400BC0011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000440000004400000001002000000000004048
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

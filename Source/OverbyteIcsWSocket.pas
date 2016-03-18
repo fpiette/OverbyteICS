@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.24
+Version:      8.25
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -992,7 +992,10 @@ Mar 3, 2016  V8.24 Angus, OpenSSL 1.0.2g and 1.0.1s, and later, no longer genera
                    Added define OPENSSL_ALLOW_SSLV2 which must be enabled to allow SSLv2 methods t
                       to be specifically selected for older DLLs or new ones that specifically
                       have SSLv2 support compiled.
-                   Don't attempt to set DH, EC and SNI that SSLv2 does not support 
+                   Don't attempt to set DH, EC and SNI that SSLv2 does not support
+Mar 17, 2015  V8.25 Angus, updated sslCiphersMozillaSrvxxx cipher literals to latest versions,
+                    but left old versions with suffix 38 for backward compatibility
+                    OverbyteIcsSslWebServ1 has cipher menu selection to allow comparison testing
 
 }
 {
@@ -1144,8 +1147,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 824;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.24 ';
+  WSocketVersion            = 825;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.25 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -2186,16 +2189,17 @@ const
     sslCiphersNormal = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH';
     sslCiphersServer = 'TLSv1+HIGH:!SSLv2:RC4+MEDIUM:!aNULL:!eNULL:!3DES:!CAMELLIA@STRENGTH';
 
-{ from https://wiki.mozilla.org/Security/Server_Side_TLS - Version 3.8 - 3rd November 2015
+{ from https://wiki.mozilla.org/Security/Server_Side_TLS - Version 4.0 - February 2016
+   Note these ciphers change peridically, old ones remain with their version
     Configuration   Oldest compatible client
-        sslCiphersMozillaSrvHigh - Firefox 27, Chrome 22, IE 11, Opera 14, Safari 7, Android 4.4, Java 8
+        sslCiphersMozillaSrvHigh - Firefox 27, Chrome 30, IE 11, Edge, Opera 17, Safari 9, Android 5, Java 8
         sslCiphersMozillaSrvInter -  Firefox 1, Chrome 1, IE 7, Opera 5, Safari 1, Windows XP IE8, Android 2.3, Java 7
         sslCiphersMozillaSrvBack - Windows XP IE6, Java 6 }
 
    { Backward Compatible, works with all clients back to Windows XP/IE6,  Versions: SSLv3, TLSv1, TLSv1.1, TLSv1.2
     RSA key size: 2048, DH Parameter size: 1024, Elliptic curves: secp256r1, secp384r1, secp521r1,
     Certificate signature: SHA-1 (windows XP pre-sp3 is incompatible with sha-256)  }
-    sslCiphersMozillaSrvBack =
+    sslCiphersMozillaSrvBack38 =
         'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:' +
         'ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:' +
         'ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:' +
@@ -2204,22 +2208,47 @@ const
         'DHE-RSA-AES256-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:' +
         'AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:' +
         '!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA' ;
+
+   { Backward Compatible, works with all clients back to Windows XP/IE6,  Versions: SSLv3, TLSv1, TLSv1.1, TLSv1.2
+    RSA key size: 2048, DH Parameter size: 1024, Elliptic curves: secp256r1, secp384r1, secp521r1,
+    Certificate signature: sha1WithRSAEncryption (windows XP pre-sp3 is incompatible with sha-256)  }
+    sslCiphersMozillaSrvBack =
+        'ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-GCM-SHA256:' +
+        'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:' +
+        'DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:' +
+        'ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:' +
+        'ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:' +
+        'DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:' +
+        'ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES128-GCM-SHA256:' +
+        'ES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:DES-CBC3-SHA:HIGH:SEED:' +
+        '!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!RSAPSK:!aDH:!aECDH:!EDH-DSS-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA:!SRP' ;
+
   { For services that don't need backward compatibility, the parameters below provide a higher level of security
    Versions: TLSv1.1, TLSv1.2, RSA key size: 2048, DH Parameter size: 2048, Elliptic curves: secp256r1, secp384r1, secp521r1,
    Certificate signature: SHA-256, HSTS: max-age=15724800  }
-    sslCiphersMozillaSrvHigh =
+    sslCiphersMozillaSrvHigh38 =
         'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:' +
         'ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:' +
         'ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:' +
         'ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:' +
         'DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:' +
         'DHE-RSA-AES256-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK' ;
+
+  { For services that don't need backward compatibility, the parameters below provide a higher level of security
+   Versions: TLSv1.2, RSA key size: 2048, DH Parameter size: none, Elliptic curves: secp256r1, secp384r1, secp521r1,
+    TLS curves: prime256v1, secp384r1, secp521r1, Certificate ECDSA, signature sha256WithRSAEncryption, ecdsa-with-SHA256,
+    ecdsa-with-SHA384, ecdsa-with-SHA512, ECDH Parameter size: 256, HSTS: max-age=15724800  }
+    sslCiphersMozillaSrvHigh =
+        'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:' +
+        'ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:' +
+        'ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
+
   {Intermediate compatibility - For services that don't need compatibility with legacy clients (mostly WinXP),
    but still need to support a wide range of clients, this configuration is recommended. It is is compatible with
    Firefox 1, Chrome 1, IE 7, Opera 5 and Safari 1.   Versions: TLSv1, TLSv1.1, TLSv1.2,  RSA key size: 2048
     DH Parameter size: 2048 (1024 tolerable), Elliptic curves: secp256r1, secp384r1, secp521r1 (at a minimum)
     Certificate signature: SHA-256 }
-    sslCiphersMozillaSrvInter =
+    sslCiphersMozillaSrvInter38 =
         'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:' +
         'ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:' +
         'ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:' +
@@ -2228,6 +2257,21 @@ const
         'DHE-RSA-AES256-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:' +
         'AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:' +
         '!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA';
+
+  {Intermediate compatibility - For services that don't need compatibility with legacy clients (mostly WinXP),
+   but still need to support a wide range of clients, this configuration is recommended. It is is compatible with
+   Firefox 1, Chrome 1, IE 7, Opera 5 and Safari 1.   Versions: TLSv1, TLSv1.1, TLSv1.2,  RSA key size: 2048
+    DH Parameter size: 2048, Elliptic curves: secp256r1, secp384r1, secp521r1 (at a minimum)
+    ECDH Parameter size: 256, Certificate signature: sha256WithRSAEncryption}
+    sslCiphersMozillaSrvInter =
+        'ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:' +
+        'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:' +
+        'DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:' +
+        'ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384:' +
+        'ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:' +
+        'DHE-RSA-AES256-SHA:ECDHE-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES128-GCM-SHA256:' +
+        'AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA:!DSS';
+
 
 {$IFNDEF NO_SSL_MT}
 var
@@ -17616,7 +17660,7 @@ begin
                 { FSslServerName receives the servername from client helo if }
                 { FOnSslServerName was assigned in SSL server mode.          }
                 FSslServerName := '';
-                if Assigned(FOnSslServerName) and
+                if Assigned(FOnSslServerName) and (FSslContext.FSslVersionMethod >= sslV3) and   { V8.24 not SSLv2 }
                    (f_SSL_CTX_set_tlsext_servername_callback(pSSLContext,
                                             @ServerNameCallBack) = 0) then
                     RaiseLastOpenSslError(EOpenSslError, TRUE,

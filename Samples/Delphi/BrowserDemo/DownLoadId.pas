@@ -83,27 +83,27 @@ var
   KBytesPerSec: Double;
   Elapsed: LongInt;
 begin
-BytesRead := Connection.RcvdCount;
-Elapsed := LongInt(TimeGetTime)-LongInt(StartTime);
-if Elapsed > 0 then
-  begin
-  KBytesPerSec := BytesRead/Elapsed;
-  Rem := ((FileSize - BytesRead) * (Elapsed div 1000)) div BytesRead;
-  Hr := Rem div 3600;
-  Rem := Rem mod 3600;
-  Min := Rem div 60;
-  Sec := Rem mod 60;
+  BytesRead := Connection.RcvdCount;
+  Elapsed := LongInt(TimeGetTime)-LongInt(StartTime);
+  if Elapsed > 0 then
+    begin
+    KBytesPerSec := BytesRead/Elapsed;
+    Rem := ((FileSize - BytesRead) * (Elapsed div 1000)) div BytesRead;
+    Hr := Rem div 3600;
+    Rem := Rem mod 3600;
+    Min := Rem div 60;
+    Sec := Rem mod 60;
 
-  TimeLeft.Caption := Format('%2.2d:%2.2d:%2.2d', [Hr, Min, Sec]);
-  Status.Caption := Format('%dk of %dk (at %4.1fk/sec)',
-                     [BytesRead div 1024, FileSize div 1024, KBytesPerSec]);
-  TimeLeft.Update;
+    TimeLeft.Caption := Format('%2.2d:%2.2d:%2.2d', [Hr, Min, Sec]);
+    Status.Caption := Format('%dk of %dk (at %4.1fk/sec)',
+                       [BytesRead div 1024, FileSize div 1024, KBytesPerSec]);
+    TimeLeft.Update;
   end;
 end;
 
 procedure TDownLoadForm.CancelButtonClick(Sender: TObject);
 begin
-Connection.Abort;
+  Connection.Abort;
 end;
 
 {procedure TDownLoadForm.DocBegin(Sender: TObject);

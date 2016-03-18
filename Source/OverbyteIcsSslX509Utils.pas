@@ -3,11 +3,11 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Aug 26, 2007
 Description:
-Version:      8.20
+Version:      8.21
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2007-2015 by François PIETTE
+Legal issues: Copyright (C) 2007-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -61,6 +61,7 @@ Oct 25, 2015 V1.09 Angus added SignatureAlgorithm property to TX509Ex so we can 
              certificates are SHA256, also KeyInfo, SerialNumHex
              CertInfo provides multiline string of main certificate information for logging
 Nov 5, 2015  V8.20 Angus removed a compiler warning, version matches wsocket
+Mar 17, 2015 V8.21 Angus use SHA256 for unicode self signed and non-unicode request
 
 
 pending - create a certificate signed by a root certificate
@@ -748,7 +749,7 @@ begin
         *)
 
         { Sign it }
-        if f_X509_sign(X, PK, f_EVP_sha1) <= 0 then
+        if f_X509_sign(X, PK, f_EVP_sha256) <= 0 then    { V.21 was sha1 }
             raise Exception.Create('Failed to sign certificate');
 
         { Angus - see if writing certificate and private key to separate files }
@@ -1210,7 +1211,7 @@ begin
 
         f_sk_pop_free(Exts, @f_X509_EXTENSION_free);
 
-        if f_X509_REQ_sign(Req, PK, f_EVP_sha1) <= 0 then
+        if f_X509_REQ_sign(Req, PK, f_EVP_sha256) <= 0 then    { V.21 was sha1 }
             raise Exception.Create('Failed to sign request');
 
         FileBio := f_BIO_new_file(PAnsiChar(KeyFileName), PAnsiChar('w+'));

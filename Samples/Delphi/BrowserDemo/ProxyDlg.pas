@@ -4,7 +4,7 @@ interface
 
 uses
     WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-    Dialogs, StdCtrls, Buttons;
+    Dialogs, StdCtrls, Buttons, ExtCtrls;
 
 type
     TProxyForm = class(TForm)
@@ -18,8 +18,15 @@ type
         ProxyPassword : TEdit;
         Label3 : TLabel;
         Label4 : TLabel;
-    Label5: TLabel;
-    UserAgent: TEdit;
+        Label5: TLabel;
+        UserAgent: TEdit;
+        lbl1: TLabel;
+        lbl2: TLabel;
+        SslVersionList: TComboBox;
+        SslAcceptableHostsEdit: TEdit;
+        SslVerifyCertMode: TRadioGroup;
+        SslRevokeCheck: TCheckBox;
+        SslReportChain: TCheckBox;
     private
         { Private declarations }
     public

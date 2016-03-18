@@ -2,7 +2,7 @@
   Version   11.6
   Copyright (c) 1995-2008 by L. David Baldwin
   Copyright (c) 2008-2010 by HtmlViewer Team
-  Copyright (c) 2012-2015 by Angus Robertson delphi@magsys.co.uk
+  Copyright (c) 2012-2016 by Angus Robertson delphi@magsys.co.uk
   Copyright (c) 2013-2015 by HtmlViewer Team
 
   Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -70,8 +70,14 @@
   27 Nov 2013     Angus - renamed Proxy form to Settings, added User Agent so it's configerable
 
   7 Oct 2015      Angus - updated to work with 11.6 which has changed InsertImage, ImageObject
-                  and onGetPostRequestEx, recognise XE6 to 10 Seattle in About
+                  and onGetPostRequestEx, recognise XE6 to D10 Seattle in About
 
+ 17 Feb 2016      Angus - changed again to work with 11.6
+
+ 17 March 2016    Angus improved SSL handshake reporting
+                  Settings now allows specific SSL protocols to be forced for testing
+                  Settings has options to display SSL certificates
+                  recognise D10.1 in About
 
   Pending - use NoCache header to stop dynamic pages being cached and expire them
   Pending - cache visited links so we can highlight them
@@ -104,7 +110,8 @@ uses
     DownLoadId, Readhtml, urlconIcs,
     OverbyteIcsWndControl, OverbyteIcsWsocket, OverbyteIcsHttpProt,
     OverbyteIcsCookies, OverbyteIcsStreams, OverbyteIcsUtils,
-    OverbyteIcsMimeUtils,
+    OverbyteIcsMimeUtils, OverbyteIcsSslX509Utils, OverbyteIcsMsSslUtils,
+  OverbyteIcsWinCrypt, OverByteIcsSSLEAY, OverByteIcsLIBEAY,
 {$IF CompilerVersion >= 15}
 {$IF CompilerVersion < 23}
     XpMan,
@@ -122,6 +129,7 @@ const
     WM_Next_Image = wm_User + 126;
 
     ImgStateFree = 1 ; ImgStateRequest = 2 ; ImgStateWaiting = 3 ; ImgStateCancel = 4 ;
+    SslVerNone = 0 ; SslVerBundle = 1 ; SslVerWinStore = 2 ;   // March 2016
 
 type
     ImageRec = class(TObject)
@@ -314,7 +322,12 @@ type
         ProxyPort                 : String;
         ProxyUser                 : String;
         ProxyPassword             : String;
-        UserAgent                 : String;  { Angus } 
+        UserAgent                 : String;  { Angus }
+        SslVersionList            : Integer; { Angus }
+        SslAcceptableHostsEdit    : String;  { Angus }
+        SslVerifyCertMode         : Integer; { Angus }
+        SslRevokeCheck            : Boolean; { Angus }
+        SslReportChain            : Boolean; { Angus }
         TimerCount                : Integer;
         OldTitle                  : ThtString;
         HintWindow                : ThtHintWindow;
@@ -326,6 +339,7 @@ type
         FImageHTTPs               : array of TImageHTTP;  // ANGUS, base1
         FCurHttpSess              : integer;
         LastProtocol              : String;
+        MsCertChainEngine         : TMsCertChainEngine; // Angus
 
         procedure EnableControls;
         procedure DisableControls;
@@ -346,8 +360,10 @@ type
         procedure HTTPSetCookie(Sender : TObject; const Data : String;
             var Accept : Boolean);
         procedure CloseHints;
-    procedure AppMessage(var Msg: TMsg; var Handled: Boolean);
-    public
+        procedure AppMessage(var Msg: TMsg; var Handled: Boolean);
+        procedure HTTPSslHandshakeDone(Sender: TObject; ErrCode: Word;
+            PeerCert: TX509Base; var Disconnect: Boolean);
+      public
         { Public declarations }
         FIniFilename : String;
     end;
@@ -627,6 +643,7 @@ begin
             Connection.Owner         := FImageHTTPs [I];
             Connection.OnCookie      := HTTPForm.HTTPSetCookie;
             Connection.OnRequestDone := ImageRequestDone;
+            Connection.OnSslHandshakeDone := HTTPForm.HTTPSslHandshakeDone;
         end;
     end;
 
@@ -675,6 +692,11 @@ begin
         ProxyUser     := IniFile.ReadString('Proxy', 'ProxyUsername', '');
         ProxyPassword := IniFile.ReadString('Proxy', 'ProxyPassword', '');
         UserAgent     := IniFile.ReadString('Settings', 'UserAgent', UsrAgent);
+        SslVersionList         := IniFile.ReadInteger('Settings', 'SslVersionList', 0);
+        SslAcceptableHostsEdit := IniFile.ReadString('Settings', 'SslAcceptableHostsEdit', '');
+        SslVerifyCertMode      := IniFile.ReadInteger('Settings', 'SslVerifyCertMode', 0);
+        SslRevokeCheck         := IniFile.ReadBool('Settings', 'SslRevokeCheck', False);
+        SslReportChain         := IniFile.ReadBool('Settings', 'SslReportChain',  False);
         SL            := TStringList.Create;
         try
             IniFile.ReadSectionValues('favorites', SL);
@@ -726,6 +748,11 @@ begin
             IniFile.WriteString('Proxy', 'ProxyUsername', ProxyUser);
             IniFile.WriteString('Proxy', 'ProxyPassword', ProxyPassword);
             IniFile.WriteString('Settings', 'UserAgent', UserAgent);
+            IniFile.WriteInteger('Settings', 'SslVersionList', SslVersionList);
+            IniFile.WriteString('Settings', 'SslAcceptableHostsEdit', SslAcceptableHostsEdit);
+            IniFile.WriteInteger('Settings', 'SslVerifyCertMode', SslVerifyCertMode);
+            IniFile.WriteBool('Settings', 'SslRevokeCheck', SslRevokeCheck);
+            IniFile.WriteBool('Settings', 'SslReportChain', SslReportChain);
             IniFile.EraseSection('Favorites');
             for I := 0 to UrlComboBox.Items.Count - 1 do
                 IniFile.WriteString('Favorites', 'Url' + IntToStr(I),
@@ -849,7 +876,10 @@ var
     Header, Footer, RandBoundary, Filename, InputName, InputValue : ThtString;
     protocol : String;
     I : Integer;
-
+const
+    SslVersions : array [0..5] of TSslVersionMethod =
+        (sslBestVer_CLIENT,sslV2_CLIENT,sslV3_CLIENT,sslTLS_V1_CLIENT,
+                                   sslTLS_V1_1_CLIENT,sslTLS_V1_2_CLIENT);
 begin
     CloseHints; { may be a hint window open }
     Query1          := Query;
@@ -866,6 +896,57 @@ begin
     URLBase       := GetUrlBase(URL1);
     DisableControls;
     NewLocation := '';
+
+    { 15 March 2015 see if initialising SSL }
+    if Pos ('https:', LowerCase (URL1)) = 1 then
+    begin
+        if NOT SslContext.IsCtxInitialized then
+        begin
+            SslContext.SslVerifyPeer := false;
+            SslContext.SslVersionMethod := SslVersions [SslVersionList];
+      {  V8.01 - set options to force a single SSL/TLS version, not normally a good idea,
+        but seems only reliable way of forcing use of a specific version }
+            SslContext.SslOptions := SslContext.SslOptions + [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
+                                         sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];
+            if SslContext.SslVersionMethod = sslV2_CLIENT then
+                SslContext.SslOptions := SslContext.SslOptions - [sslOpt_NO_SSLv2]
+            else if SslContext.SslVersionMethod = sslV3_CLIENT then
+                SslContext.SslOptions := SslContext.SslOptions - [sslOpt_NO_SSLv3]
+            else if SslContext.SslVersionMethod = sslTLS_V1_CLIENT then
+                SslContext.SslOptions := SslContext.SslOptions - [sslOpt_NO_TLSv1]
+            else if SslContext.SslVersionMethod = sslTLS_V1_1_CLIENT then
+                SslContext.SslOptions := SslContext.SslOptions - [sslOpt_NO_TLSv1_1]
+            else if SslContext.SslVersionMethod = sslTLS_V1_2_CLIENT then
+                SslContext.SslOptions := SslContext.SslOptions - [sslOpt_NO_TLSv1_2]
+            else
+                SslContext.SslOptions := SslContext.SslOptions - [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
+                                             sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];
+
+            if (SslVerifyCertMode > SslVerNone) and (SslContext.SslCAFile = '') then
+            begin
+                Filename := ExtractFileDir (Application.ExeName) + '\TrustedCABundle.pem' ;
+                if FileExists (Filename) then
+                begin
+                    SslContext.SslCAFile := Filename;
+                    SslContext.SslVerifyPeer := true ;
+                end
+                else
+                    LogLine('Can not verify SSL certificates, file not found: ' + Filename);
+            end;
+            try
+                SslContext.InitContext;  { get any error now before making requests }
+                if NOT FileExists (GLIBEAY_DLL_FileName) then
+                  LogLine('SSL/TLS DLL not found: ' + GLIBEAY_DLL_FileName)
+                else
+                  LogLine('SSL/TLS DLL: ' + GLIBEAY_DLL_FileName + ', Version: ' + OpenSslVersion);
+            except
+                on E:Exception do begin
+                    LogLine('Failed to initialize SSL Context: ' + E.Message);
+                end;
+            end;
+       end;
+    end;
+
     { will change if document referenced by URL has been relocated }
     ARealm   := '';
     TryRealm := True;
@@ -894,6 +975,8 @@ begin
             LastUrl                  := URL1;
             Connection.OnRedirect    := HTTPForm.HTTPRedirect;
             Connection.OnCookie      := HTTPForm.HTTPSetCookie;
+            Connection.OnSslHandshakeDone := HTTPForm.HTTPSslHandshakeDone;
+
             Connection.Proxy         := Proxy;
             Connection.ProxyPort     := ProxyPort;
             Connection.ProxyUser     := ProxyUser;
@@ -1115,6 +1198,161 @@ begin
         LogLine(String(AnsiQuery));
     end;
     Stream := AStream;
+end;
+
+procedure THTTPForm.HTTPSslHandshakeDone(Sender: TObject; ErrCode: Word;
+  PeerCert: TX509Base; var Disconnect: Boolean);
+var
+//    HttpCli: TSslHttpCli;
+    I: integer;
+    CertChain: TX509List;
+    MyCert: TX509Ex;
+    ChainVerifyResult: LongWord;
+    Hash, info: String;
+    Safe: Boolean;
+begin
+    with (Sender as TSslHttpCli).CtrlSocket do
+    begin
+ //   HttpCli := Sender as TSslHttpCli;
+
+        if (ErrCode <> 0) or Disconnect then
+        begin
+            LogLine(SslServerName + ' SSL Handshake Failed - ' + SslHandshakeRespMsg);
+            Disconnect := TRUE;
+            exit ;
+        end ;
+
+     // OK
+         LogLine(SslServerName + ' - ' + SslHandshakeRespMsg);
+        if SslSessionReused OR (SslVerifyCertMode = SslVerNone) or (NOT SslContext.SslVerifyPeer) then
+        begin
+            exit; // nothing to do, go ahead
+        end ;
+
+     // Is current host already in the list of temporarily accepted hosts ?
+        if NOT Assigned (PeerCert.X509) then
+        begin
+            LogLine(SslServerName + ' SSL No Certificate Set');
+            exit ;
+        end;
+        Hash := PeerCert.Sha1Hex ;
+        if SslAcceptableHosts.IndexOf (SslServerName + Hash ) > -1 then
+        begin
+            exit; // nothing to do, go ahead
+        end ;
+
+     // Property SslCertChain contains all certificates in current verify chain
+        CertChain := SslCertChain;
+        Safe := false ;
+
+     // see if validating against Windows certificate store
+        if SslVerifyCertMode = SslVerWinStore then
+        begin
+            // start engine
+            if not Assigned (MsCertChainEngine) then
+                MsCertChainEngine := TMsCertChainEngine.Create;
+
+          // see if checking revoocation, CRL checks and OCSP checks in Vista+, very slow!!!!
+            if SslRevokeCheck then
+                MsCertChainEngine.VerifyOptions := [mvoRevocationCheckChainExcludeRoot]
+            else
+                MsCertChainEngine.VerifyOptions := [];
+
+            // This option doesn't seem to work, at least when a DNS lookup fails
+            MsCertChainEngine.UrlRetrievalTimeoutMsec := 10 * 1000;
+
+            { Pass the certificate and the chain certificates to the engine      }
+            MsCertChainEngine.VerifyCert (PeerCert, CertChain, ChainVerifyResult, True);
+
+            Safe := (ChainVerifyResult = 0) or
+                    { We ignore the case if a revocation status is unknown.      }
+                    (ChainVerifyResult = CERT_TRUST_REVOCATION_STATUS_UNKNOWN) or
+                    (ChainVerifyResult = CERT_TRUST_IS_OFFLINE_REVOCATION) or
+                    (ChainVerifyResult = CERT_TRUST_REVOCATION_STATUS_UNKNOWN or
+                                         CERT_TRUST_IS_OFFLINE_REVOCATION);
+
+            { The MsChainVerifyErrorToStr function works on chain error codes     }
+            if NOT Safe then
+            begin
+                LogLine(SslServerName + ' SSL Chain Verification: '+ MsChainVerifyErrorToStr (ChainVerifyResult));
+            end;
+        end
+        else if SslVerifyCertMode = SslVerBundle then
+        begin
+            { check whether SSL chain verify result was OK }
+            MyCert := TX509Ex (PeerCert);
+            if MyCert.VerifyResult = X509_V_OK then
+                Safe := true
+            else if (CertChain.Count > 0) and
+                (CertChain[0].FirstVerifyResult = X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN) then
+            begin
+                Safe := true ;
+                LogLine(SslServerName + ' SSL Self Signed Certificate Succeeded: ' +
+                                                                  MyCert.UnwrapNames (MyCert.IssuerCName)) ;
+            end
+            else
+            begin
+               LogLine(SslServerName + ' SSL Chain Verification Failed: ' +
+                               PeerCert.FirstVerifyErrMsg + ' - ' + MyCert.UnwrapNames (MyCert.IssuerCName)) ;
+            end;
+        end
+        else
+        begin
+            exit ;  // unknown method
+        end ;
+
+     // check certificate was issued to remote host for out connection
+        if Safe then
+        begin
+            MyCert := TX509Ex (PeerCert);
+            if MyCert.PostConnectionCheck (SslServerName) then
+                info := SslServerName + ' SSL Chain Verification Succeeded'
+            else
+            begin
+                info := SslServerName + ' SSL Chain Verification Failed, Common Name or Subject Mismatch';
+                if MyCert.SubAltNameDNS = '' then
+                    info := info + MyCert.UnwrapNames (MyCert.SubjectCName)
+                else
+                    info := info + MyCert.UnwrapNames (MyCert.SubAltNameDNS) ;
+                Safe := false ;
+            end;
+           LogLine(info) ;
+        end;
+
+   // if certificate checking failed, see if the host is specifically listed as being allowed anyway
+        if (NOT Safe) and ((SslAcceptableHosts.IndexOf (SslServerName) > -1) or
+                            (Pos (SslServerName, SslAcceptableHostsEdit) > 1)) then
+        begin
+            Safe := true ;
+            SslAcceptableHosts.Add (SslServerName + Hash);  // keep it to avoid checking again
+            LogLine(SslServerName + ' SSL Succeeded with Acceptable Host Name');
+        end ;
+
+      // tell user about all the certificates we found
+        if SslReportChain and (CertChain.Count > 0) then
+        begin
+            info := SslServerName + ' ' + IntToStr (CertChain.Count) + ' SSL Certificates in the verify chain:'+ #13#10;
+            for I := CertChain.Count - 1 downto 0 do
+            begin
+                MyCert := TX509Ex (CertChain[I]);
+                if Length (info) > 0 then info := info + #13#10;
+                info := info + 'Depth #' + IntToStr (CertChain.Count - I) ;
+                if SslVerifyCertMode = SslVerWinStore then
+                     info := info + ' Verify Result: ' + MsCertVerifyErrorToStr (CertChain[I].CustomVerifyResult) + #13#10
+                else
+                     info := info + ' Verify Result: ' + MyCert.FirstVerifyErrMsg + #13#10 ;
+                info := info + MyCert.CertInfo + #13#10  + #13#10 ;
+            end;
+            LogLine(info);
+        end;
+
+      // all failed
+        if NOT Safe then
+        begin
+            Disconnect := TRUE;
+            exit ;
+        end;
+    end;
 end;
 
 procedure THTTPForm.HTTPRedirect(Sender : TObject);
@@ -1784,7 +2022,8 @@ begin
     Viewer := Sender as ThtmlViewer;
     with Parameters do begin
         FoundObject := Image;
-        if (FoundObject <> nil) and (FoundObject.Graphic <> nil) then begin     // 11.6 was Bitmap
+        if (FoundObject <> nil) and (FoundObject.Bitmap <> nil) then begin     // 11.6 again Bitmap not graphic?
+     //   if (FoundObject <> nil) and (FoundObject.Graphic <> nil) then begin     // 11.6 was Bitmap
             if not IsFullUrl(FoundObject.Source) then
                 FoundObjectName :=
                     CombineURL(FrameBrowser.GetViewerUrlBase(Viewer),
@@ -1904,6 +2143,7 @@ begin
     if Assigned(Connection) then
         Connection.Abort;
     ClearProcessing;
+    FreeAndNil (MsCertChainEngine) ;
 end;
 
 procedure THTTPForm.Progress(Num, Den : Integer);
@@ -2132,6 +2372,11 @@ begin
     ProxyForm.ProxyUsername.Text := ProxyUser;
     ProxyForm.ProxyPassword.Text := ProxyPassword;
     ProxyForm.UserAgent.Text     := UserAgent;
+    ProxyForm.SslVersionList.ItemIndex := SslVersionList;
+    ProxyForm.SslAcceptableHostsEdit.Text := SslAcceptableHostsEdit;
+    ProxyForm.SslVerifyCertMode.ItemIndex := SslVerifyCertMode;
+    ProxyForm.SslRevokeCheck.Checked := SslRevokeCheck;
+    ProxyForm.SslReportChain.Checked := SslReportChain;
     try
         if ProxyForm.ShowModal = mrOK then begin
             Proxy         := ProxyForm.ProxyEdit.Text;
@@ -2139,6 +2384,17 @@ begin
             ProxyUser     := ProxyForm.ProxyUsername.Text;
             ProxyPassword := ProxyForm.ProxyPassword.Text;
             UserAgent     := ProxyForm.UserAgent.Text;
+            SslVersionList:= ProxyForm.SslVersionList.ItemIndex;
+            SslAcceptableHostsEdit:= ProxyForm.SslAcceptableHostsEdit.Text;
+            SslVerifyCertMode:= ProxyForm.SslVerifyCertMode.ItemIndex;
+            SslRevokeCheck:= ProxyForm.SslRevokeCheck.Checked;
+            SslReportChain:= ProxyForm.SslReportChain.Checked;
+            if SslContext.IsCtxInitialized then  // may have changed SSL options
+            begin
+               if Assigned (Connection) then
+                  Connection.ResetSSL;
+                SslContext.DeInitContext;
+            end;
         end;
     finally
         ProxyForm.Free;

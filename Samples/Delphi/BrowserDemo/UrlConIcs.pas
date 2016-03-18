@@ -50,26 +50,23 @@ interface
 { *                                                       * }
 { * April 2012 - Angus simplified State                   * }
 { *                                                       * }
+{ * March 2015 - Angus improved SSL reporting             * }
+{ *                                                       * }
 { ********************************************************* }
 
 uses
     WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls,
     Forms, Dialogs, ShellAPI, TypInfo, URLSubs, htmlview,
     OverbyteIcsWndControl, OverbyteIcsWSocket, OverbyteIcsWinsock,
-    OverbyteIcsHttpProt, OverbyteIcsHttpCCodzlib
+    OverbyteIcsHttpProt, OverbyteIcsHttpCCodzlib, OverbyteIcsSslX509Utils,
+    OverbyteIcsMsSslUtils, OverbyteIcsWinCrypt, OverByteIcsSSLEAY,
+    OverByteIcsLIBEAY
 {$IFDEF IncludeZip}
         , VCLUnZIp, kpZipObj
 {$ENDIF}
         ;
 
 type
-    // THttpRequest     = (httpAbort, httpGET, httpPOST, httpHEAD);  use ICS version
-    // THttpState       = (httpReady,         httpNotConnected, httpConnected,
-    // httpDnsLookup,     httpDnsLookupDone,
-    // httpWaitingHeader, httpWaitingBody,  httpAborting); // use ICS version
-    // THttpRequestDone = procedure (Sender : TObject;
-    // RqType : THttpRequest;
-    // Error  : Word) of object;       // use ICS version
 
     TURLConnection = class(TObject)
     private
@@ -101,6 +98,7 @@ type
         FCookie          : String; // ANGUS
         FOnCookie        : TCookieRcvdEvent; // ANGUS
         FSession         : integer; // ANGUS
+        FSslHandshakeDone: TSslHandshakeDoneEvent;  // ANGUS
     public
         constructor Create;
         destructor Destroy; override;
@@ -116,6 +114,7 @@ type
         function State : THttpState; virtual;
         procedure Abort; virtual;
         procedure Close; virtual;  // ANGUS
+        procedure ResetSSL;         // ANGUS
         function ContentType : ThtmlFileType; virtual;
         function ContentLength : LongInt; virtual;
         class function Getconnection(const URL : String) : TURLConnection;
@@ -123,6 +122,8 @@ type
         property OnDocData : TDocDataEvent read FOnDocData write FOnDocData;
         property OnRequestDone : THttpRequestDone read FOnRequestDone
             write FOnRequestDone;
+        property OnSslHandshakeDone: TSslHandshakeDoneEvent
+            read FSslHandshakeDone write FSslHandshakeDone;  // ANGUS
         property Owner : TComponent read FOwner write FOwner;
         property InputStream : TMemoryStream read FInputStream
             write SetInputStream;
@@ -152,11 +153,9 @@ type
         ReturnedContentType : String;
         FResponseText       : String;
         FResponseCode       : integer;
-        // FRcvdCount: integer;
         FState         : THttpState;
         FAborted       : Boolean;
         FWinsockLoaded : Boolean;
-        // FLastResponse : String;
         procedure GetPostInit1;
         procedure GetPostFinal;
     protected
@@ -168,6 +167,8 @@ type
         procedure IcsHttpCommand(Sender : TObject; var S : String);
         procedure IcsHttpSessionConnected(Sender : TObject);
         procedure IcsHttpSessionClosed(Sender : TObject);
+        procedure IcsHttpSslHandshakeDone(Sender: TObject; ErrCode: Word;
+            PeerCert: TX509Base; var Disconnect: Boolean);   // March 2016
     public
         constructor Create;
         destructor Destroy; override;
@@ -183,6 +184,7 @@ type
         function ContentLength : LongInt; override;
         procedure Abort; override;
         procedure Close; override;  // ANGUS
+        procedure ResetSSL;         // ANGUS
     end;
 
     TFileConnection = class(TURLConnection)
@@ -302,6 +304,10 @@ procedure TURLConnection.Close;
 begin
 end;
 
+procedure TURLConnection.ResetSSL;
+begin
+end;
+
 procedure TURLConnection.CheckInputStream;
 begin
     if FInputStream = nil then begin
@@ -401,6 +407,7 @@ begin
     HTTP.OnSessionConnected := IcsHttpSessionConnected;
     HTTP.OnSessionClosed  := IcsHttpSessionClosed;
     HTTP.OnCookie         := FOnCookie;
+    HTTP.OnSslHandshakeDone := IcsHttpSslHandshakeDone;  // March 2016
     HTTP.RequestVer       := '1.1';
     HTTP.Connection       := 'Keep-Alive';
     HTTP.Reference        := FReferer;
@@ -570,6 +577,13 @@ begin
     result := FState;
 end;
 
+procedure THTTPConnection.IcsHttpSslHandshakeDone(Sender: TObject; ErrCode: Word;  // March 2016
+            PeerCert: TX509Base; var Disconnect: Boolean);
+begin
+  if Assigned (FSslHandshakeDone) then
+    FSslHandshakeDone (Sender, ErrCode, PeerCert, Disconnect);
+end;
+
 function THTTPConnection.ContentType : ThtmlFileType;
 var
     Content : String;
@@ -629,6 +643,13 @@ begin
         if FState = httpReady then
             HTTP.Close;
     end;
+end;
+
+{ ----------------THTTPConnection.ResetSSL }
+procedure THTTPConnection.ResetSSL;
+begin
+    if Assigned(HTTP) then
+            HTTP.CtrlSocket.ResetSSL;
 end;
 
 { ----------------TFileConnection.Get }

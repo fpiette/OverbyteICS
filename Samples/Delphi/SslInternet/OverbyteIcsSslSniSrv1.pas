@@ -3,10 +3,10 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     December 2009
 Description:  Test of Server Name Indication (SNI) in server mode.
-Version:      8.00
+Version:      8.01
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Unsupported code.
-Legal issues: Copyright (C) 2009 by François PIETTE
+Legal issues: Copyright (C) 2009-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -37,6 +37,8 @@ Legal issues: Copyright (C) 2009 by François PIETTE
 
 History:
 Mar 23, 2015 V8.00 SslServerName is now a published property
+Mar 23 2016  V8.01 Angus set ErrCode in onSslServerName event to stop Java clients
+                    rejecting SSL connections, and illustrate it's proper use
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslSniSrv1;
@@ -78,9 +80,6 @@ type
     FIsInit: Boolean;
     FComputerName: String;
     procedure ClientDataAvailable(Sender: TObject; ErrCode: Word);
-{   procedure ClientSslServerName(Sender      : TObject;
-                                  var Ctx     : TSslContext;
-                                  var ErrCode : TTlsExtError);   }
   public
     { Public declarations }
   end;
@@ -193,6 +192,11 @@ procedure TMainForm.ClientSslServerName(
 var
     Cli : TSslWSocketClient;
 begin
+   { V8.06 tell SSL whether server can handle SslServerName }
+    ErrCode := teeOk;              { accept SSL connection }
+  //  ErrCode := teeAlertWarning;  { old default, stopped Java clients connecting }
+  //  ErrCode := teeAlertFatal;    { reject SSL connection }
+
     Cli := TSslWSocketClient(Sender);
     { Provide a SslContext that corresponds to the server name received }
     if FComputerName = Cli.SslServerName then begin
@@ -202,9 +206,10 @@ begin
         DisplayMemo.Lines.Add('! Server name "' + Cli.SslServerName +'" received');
         DisplayMemo.Lines.Add('! Switching context to SslContext2');
     end
-    else
+    else begin
         DisplayMemo.Lines.Add('! Unknown server name "' + Cli.SslServerName +
                               '" received. Context switch denied');
+    end;
 end;
 
 

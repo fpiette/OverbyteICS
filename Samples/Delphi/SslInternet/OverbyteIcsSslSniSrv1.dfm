@@ -61,6 +61,7 @@ object MainForm: TMainForm
     SslECDHMethod = sslECDHNone
     SslSessionTimeout = 0
     SslSessionCacheSize = 20480
+    AutoEnableBuiltinEngines = False
     Left = 160
     Top = 104
   end
@@ -78,6 +79,7 @@ object MainForm: TMainForm
     SslECDHMethod = sslECDHNone
     SslSessionTimeout = 0
     SslSessionCacheSize = 20480
+    AutoEnableBuiltinEngines = False
     Left = 240
     Top = 104
   end

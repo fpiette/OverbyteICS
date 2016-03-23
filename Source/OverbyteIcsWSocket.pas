@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.25
+Version:      8.26
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -996,6 +996,9 @@ Mar 3, 2016  V8.24 Angus, OpenSSL 1.0.2g and 1.0.1s, and later, no longer genera
 Mar 17, 2015  V8.25 Angus, updated sslCiphersMozillaSrvxxx cipher literals to latest versions,
                     but left old versions with suffix 38 for backward compatibility
                     OverbyteIcsSslWebServ1 has cipher menu selection to allow comparison testing
+Mar 22, 2015  V8.26 Angus, OnSslServerName event error now defaults to OK instead of
+                      ERR_ALERT_WARNING which prevented Java clients connecting with SSL.
+                      
 
 }
 {
@@ -1147,8 +1150,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 825;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.25 ';
+  WSocketVersion            = 826;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.26 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -17140,7 +17143,8 @@ begin
             try
                 Ws.FSslServerName := String(UTF8String(PServerName));
                 Ctx := nil;
-                Err := teeAlertWarning; //SSL_TLSEXT_ERR_ALERT_WARNING
+             {   Err := teeAlertWarning; //SSL_TLSEXT_ERR_ALERT_WARNING  }
+                Err := teeOk;  { V8.26 warning stop Java clients connecting }
                 Ws.FOnSslServerName(Ws, Ctx, Err);
                 { Do not switch context if not initialized }
                 if Assigned(Ctx) and Assigned(Ctx.FSslCtx) then

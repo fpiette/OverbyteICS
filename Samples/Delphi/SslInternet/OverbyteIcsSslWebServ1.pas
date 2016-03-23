@@ -8,7 +8,7 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      8.04
+Version:      8.06
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -72,6 +72,8 @@ Mar 17 2016  V8.05 Angus added local IP address, SSL Version and SSL Cipher sele
                    Reset SSL when changing parameters to try and force new negotiation
                    Report server SSL certificates and warn if expired
                    Display more SSL diags on demo.html menu
+Mar 23 2016  V8.06 Angus set ErrCode in onSslServerName event to stop Java clients
+                    rejecting SSL connections, and illustrate it's proper use 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
@@ -111,7 +113,7 @@ uses
   OverbyteIcsLogger, OverbyteIcsWndControl;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2016 F. Piette V8.05 ';
+  CopyRight : String         = 'WebServ (c) 1999-2016 F. Piette V8.06 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -582,17 +584,17 @@ begin
         try
             MyCert.LoadFromPemFile (SslContext1.SslCertFile); // Oct 2015
             FSrvSslCert := MyCert.CertInfo ;
-            if (Date + 30) > MyCert.ValidNotAfter then
-            begin
+            if Date > MyCert.ValidNotAfter then
+                Display ('Server SSL Certificate Has Exprired')
+            else if (Date + 30) > MyCert.ValidNotAfter then
                 Display ('Server SSL Certificate Exprires Shortly');
-            end;
             MyCert.LoadFromPemFile (SslContext1.SslCAFile);   // Dec 2015
             FSrvSslCert := FSrvSslCert +  #13#10#13#10 + MyCert.CertInfo ;
             Display ('Server SSL Certificates' + #13#10 + FSrvSslCert + #13#10) ;
-            if (Date + 30) > MyCert.ValidNotAfter then
-            begin
+            if Date > MyCert.ValidNotAfter then
+                Display ('Server SSL CA Certificate Has Exprired')
+            else if (Date + 30) > MyCert.ValidNotAfter then
                 Display ('Server SSL CA Certificate Exprires Shortly') ;
-            end;
             FSrvSslCert := StringReplace (FSrvSslCert, #13#10, '<BR>'+#13#10, [rfReplaceAll]) ;
         finally
             MyCert.Free ;
@@ -718,9 +720,15 @@ procedure TSslWebServForm.SslHttpServer1SslServerName(      { V8.02 }
 var
     Cli : TSslWSocketClient;
 begin
+   { V8.06 tell SSL whether server can handle SslServerName }
+    ErrCode := teeOk;              { accept SSL connection }
+  //  ErrCode := teeAlertWarning;  { old default, stopped Java clients connecting }
+  //  ErrCode := teeAlertFatal;    { reject SSL connection }
+
     Cli := TSslWSocketClient(Sender);
     Display('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
             Cli.GetPeerAddr + '] SNI "' + Cli.SslServerName +'" received');
+
     { Provide a SslContext that corresponds to the server name received }
     { this allows different hosts and certificates on the same IP address }
 

@@ -63,7 +63,7 @@ Nov 8,  2014 V8.05 Eugene Kotlyarov added namespace for all RTL units for XE2 an
 Feb 2015 - V8.06 - Angus XE8
 Jun 2015 - V8.07 - Angus XE9
 Aug 2015 - V8.08 - Angus XE9 is now Delphi 10 Seattle
-Feb 2016 - V8.09 - Angus Delphi 10.1 and 10.2, USE_SSL now enabled
+Apr 2016 - V8.09 - Angus Delphi 10.1 and 10.2, USE_SSL now enabled
 
 
   SYMBOL           Compiler version
@@ -105,7 +105,7 @@ Feb 2016 - V8.09 - Angus Delphi 10.1 and 10.2, USE_SSL now enabled
   DELPHI21_UP      Delphi 21 or higher  (Delphi XE7  - Carpathia)
   DELPHI22_UP      Delphi 22 or higher  (Delphi XE8  - Elbrus)
   DELPHI23_UP      Delphi 23 or higher  (Delphi 10 Seattle - Aitana)
-  DELPHI24_UP      Delphi 24 or higher  (Delphi 10.1 - BigBen)
+  DELPHI24_UP      Delphi 24 or higher  (Delphi 10.1 Berlin - BigBen)
   DELPHI25_UP      Delphi 25 or higher  (Delphi 10.2 - Godzilla)
 
   BCB1             C++ Builder 1
@@ -181,7 +181,7 @@ Feb 2016 - V8.09 - Angus Delphi 10.1 and 10.2, USE_SSL now enabled
   COMPILER21_UP    Delphi or C++ Builder XE7  or higher (Carpathia)
   COMPILER22_UP    Delphi or C++ Builder XE8  or higher (Elbrus)
   COMPILER23_UP    Delphi or C++ Builder 10 Seattle or higher (Aitana)
-  COMPILER24_UP    Delphi or C++ Builder 10.1 or higher (BigBen)
+  COMPILER24_UP    Delphi or C++ Builder 10.1 Berlin or higher (BigBen)
   COMPILER25_UP    Delphi or C++ Builder 10.2 or higher (Godzilla)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * }

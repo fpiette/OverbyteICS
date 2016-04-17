@@ -1,9 +1,9 @@
-ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10 Seattle
-=======================================================================
+ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.1 Berlin
+========================================================================
 (Aka FPIETTE's Components)
 
 
-Revised: March 18, 2016
+Revised: April 17, 2016
 http://www.overbyte.be/
 http://wiki.overbyte.be/
 
@@ -267,8 +267,10 @@ Delphi XE7       :  DXe7Install.groupproj // VCL only, no FireMonkey components
 Delphi XE7       :  DXe7InstallVclFmx.groupproj // Both VCL and FireMonkey components
 Delphi XE8       :  DXe8Install.groupproj // VCL only, no FireMonkey components
 Delphi XE8       :  DXe8InstallVclFmx.groupproj // Both VCL and FireMonkey components
-Delphi 10 Seattle : D10SInstall.groupproj // VCL only, no FireMonkey components
-Delphi 10 Seattle : D10SInstallVclFmx.groupproj // Both VCL and FireMonkey components
+Delphi 10 Seattle  : D10SInstall.groupproj // VCL only, no FireMonkey components
+Delphi 10 Seattle  : D10SInstallVclFmx.groupproj // Both VCL and FireMonkey components
+Delphi 10.1 Berlin : D101Install.groupproj // VCL only, no FireMonkey components
+Delphi 10.1 Berlin : D101InstallVclFmx.groupproj // Both VCL and FireMonkey components
 C++ Builder 2006 :  CB2006Install.bdsgroup
 C++ Builder 2007 :  CB2007Install.groupproj
 C++ Builder 2009 :  CB2009Install.groupproj
@@ -382,6 +384,9 @@ Delphi XE8 FMX          :  IcsFmxDXe8Run.dproj, IcsFmxDXe8Design.dproj
 Delphi 10 Seattle FMX/VCL: IcsCommonD10SRun.dproj, IcsCommonD10SDesign.dproj
 Delphi 10 Seattle VCL   :  IcsVclD10SRun.dproj, IcsVclD10SDesign.dproj
 Delphi 10 Seattle FMX   :  IcsFmxD10SRun.dproj, IcsFmxD10SDesign.dproj
+Delphi 10.1 Berlin FMX/VCL: IcsCommonD101Run.dproj, IcsCommonD101Design.dproj
+Delphi 10.1 Berlin VCL  :  IcsVclD101Run.dproj, IcsVclD101Design.dproj
+Delphi 10.1 Berlin FMX  :  IcsFmxD101Run.dproj, IcsFmxD101Design.dproj
 C++ Builder XE2 FMX/VCL :  IcsCommonCBXe2Run.dproj, IcsCommonDXe2Design.dproj
 C++ Builder XE2 VCL     :  IcsVclCBXe2Run.dproj, IcsVclCBXe2Design.dproj
 C++ Builder XE2 FMX     :  IcsFmxCBXe2Run.dproj, IcsFmxCBXe2Design.dproj
@@ -417,11 +422,12 @@ but it will be much easier for you because otherwise you'll have to add it to ea
 project.
 
 DELPHI XE2/WIN32, XE3/WIN32, XE4/WIN32, XE5/WIN32, XE6/WIN32, XE7/WIN32, XE8/WIN32,
-10 Seattle/WIN32, XE2/WIN64, XE3/WIN64, XE4/WIN64, XE5/WIN64, XE6/WIN64, XE7/WIN64,
-XE8/WIN64, 10 Seattle/WIN64:
+10 Seattle/WIN32, 10.1 Berlin/WIN32, XE2/WIN64, XE3/WIN64, XE4/WIN64, XE5/WIN64, 
+XE6/WIN64, XE7/WIN64, XE8/WIN64, 10 Seattle/WIN64, 10.1 Berlin/WIN64:
 
 Similar to above, but the Library path is specified separately for 32-bit and 64-bit
-Windows Platforms.
+Windows Platforms. Beware Delphi seems to default to 64-bit platform, and needs to 
+be changed to 32-bit plaform before setting the Library path.  
 
 DELPHI 7: Add VC32 directory path to your library path (Tools menu / Environment
 Options / Library / Library Path. Add .\Lib\Debug\Win32\D7 path at the end of the
@@ -430,10 +436,11 @@ existing path).
 
 SAMPLE DELPHI PROJECTS
 
-Once the package is installed, you may open the sample projects. The samples are split
-into several directories according to protocols, most with a project group that can be
-opened in all versions of Delphi.
+Once the package is installed, you may open the sample projects. There are about 95 
+samples are split into several directories according to protocols, with a project 
+group that can be opened in all versions of Delphi.
 
+.\Samples\delphi\AllDemosProject.bpg
 .\Samples\delphi\BroswerDemo
 .\Samples\delphi\FtpDemos\FtpDemos.bpg
 .\Samples\delphi\MailNewsDemos\MailNewsDemos.bpg
@@ -444,7 +451,12 @@ opened in all versions of Delphi.
 .\Samples\delphi\sslinternet\SslDemos.bpg
 .\Samples\delphi\WebDemos\WebDemos.bpg
 
-Full details of the sample projects are shown later in this document.
+Full details of the individual sample projects are shown later in this document.
+
+AllDemosProject.bpg contains all 94 samples except BrowserDemo (which needs a third 
+party component installed).  But building all the samples at the same requires a 
+lot of memory and was not possible until Delphi 10 Seattle and later which have improved
+memory management.  Earlier versions of Delphi will compile each other project group.
 
 You might get some dialog box telling you that resource files are missing (they may not
 have been included in the zip file to save space) and are recreated by Delphi. It is OK.
@@ -454,11 +466,8 @@ been recreated, you should see in the project manager a group of projects.
 To compile all samples in the group at once, do Project / Build all projects. This may
 take a few minutes.
 
-Note 1: Delphi may run out of memory if you ask to compile all projects at
-once. If you have not enough RAM, then compile each project individually.
-
-Note 2: Delphi has warnings which triggers a lot of messages for 100% OK
-code. You can turn those warnings off in the project/ options / Compiler messages
+Note Delphi has warnings which triggers a lot of messages for 100% OK code. You 
+can turn those warnings off in the project/ options / Compiler messages
 and deselecting: "Deprecated symbol", "Platform symbol", "unsafe type", "unsafe code",
 "unsafe typecast". Those are intended for .NET and Linux portability. You can
 safely ignore them if you run windows. For you facility, I included a utility
@@ -663,8 +672,8 @@ for "deprecated".
 Sample applications:
 --------------------
 
-With V8, the sample applications are now grouped into directories according to general
-functionality, to make it easier to compare related samples.
+With V8, the 96 sample applications are now grouped into directories according to 
+general functionality, to make it easier to compare related samples.
 
 Many samples are similar. When searching for something, always look at the date
 the demos where created. The most recent is always the best code!  In the lists
@@ -836,7 +845,7 @@ Sample Notes
 Note 1: Not all samples have been rewritten in C++ for C++ Builder. And those rewritten are
         frequently much simpler. So C++ Builder user: have a look at the Delphi sample too !
 Note 2: Follow "UserMade" link on ICS web site to find more sample programs written by
-        ICS users.
+        ICS users, although these are mostly for older versions of ICS.
 
 As explained in the component installation, you may encounter an error loading
 a sample application or running it. This may be because the last time I loaded the form,

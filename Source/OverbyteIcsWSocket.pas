@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.26
+Version:      8.27
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -870,9 +870,9 @@ Mar 16, 2011 V7.68 Anton S. added two debug messages.
 Mar 21, 2011 V7.69 Method Abort no longer triggers an exception nor event OnError
                    if a call to winsock API WSACancelAsyncRequest in method
                    CancelDnsLookup failed for some reason.
-Apr 10, 2011 V7.70 Arno added property SslVerifyFlags to the TSslContext.
-                   This enables the component user to include CRLs added
-                   thru SslCRLFile and SslCRLPath in the certificate verification
+Apr 10, 2011 V7.70 Arno added property SslVerifyFlags to the TSslContext. This enables
+                   the component user to include certificate revocation lists (CRL)
+                   added thru SslCRLFile and SslCRLPath in the certificate verification
                    process. However enabling CRL-checks needs some additional
                    action in the OnSslVerifyPeer event since OpenSSL will the
                    trigger any error related to CRLs. If there's, for instance,
@@ -993,15 +993,114 @@ Mar 3, 2016  V8.24 Angus, OpenSSL 1.0.2g and 1.0.1s, and later, no longer genera
                       to be specifically selected for older DLLs or new ones that specifically
                       have SSLv2 support compiled.
                    Don't attempt to set DH, EC and SNI that SSLv2 does not support
-Mar 17, 2015  V8.25 Angus, updated sslCiphersMozillaSrvxxx cipher literals to latest versions,
+Mar 17, 2016  V8.25 Angus, updated sslCiphersMozillaSrvxxx cipher literals to latest versions,
                     but left old versions with suffix 38 for backward compatibility
                     OverbyteIcsSslWebServ1 has cipher menu selection to allow comparison testing
-Mar 22, 2015  V8.26 Angus, OnSslServerName event error now defaults to OK instead of
+Mar 22, 2016  V8.26 Angus, OnSslServerName event error now defaults to OK instead of
                       ERR_ALERT_WARNING which prevented Java clients connecting with SSL.
+May 24, 2016  V8.27 Angus, initial support for OpenSSL 1.1.0, new DLL file names, old exports gone
+                    Add public variable GSSLEAY_DLL_IgnoreNew which should be set to TRUE before calling
+                      any SSL functions if OpenSSL 1.1.0 should be ignored.  Otherwise libcrypto32.dll
+                      found in the PATH will override libeay32.dll in the local directory
+                    Added public variable GSSL_BUFFER_SIZE defaults to 16384, previously fixed
+                      at 4096, may improve SSL performance if larger
+                    Added public variable GSSL_DLL_DIR if set before OpenSSL loaded,
+                      will use this directory for DLLs, must have trailing \
+                    SslContext adds SslMinVersion and SslMaxVersion properties to
+                      specify the minimum and maximum SSL/TLS versions supported from:
+                      sslVerSSL3,sslVerTLS1,sslVerTLS1_1,sslVerTLS1_2,sslVerTLS1_3,sslVerMax,
+                      note 1.3 is not yet supported.  Although introduced for 1.1.0,
+                      these properties have also been implemented for 1.0.1/1.0.2 by
+                      internally using Options.  SslVersionMethod is ignored for 1.1.0
+                      and SslMinVersion > sslVerSSL3 or SslMaxVersion < sslVerMax.
+                   SslContext now allows SSL certificates, private keys, CA bundles and
+                      DHParams to be loaded from strings instead of files, allowing
+                      them to be saved or created in the application without using any
+                      files.  New properties SslCertLines, SslPrivKeyLines, SslCALines
+                      and SslDHParamLines allow PEM formatted certificates and keys to
+                      be saved with the form or loaded as TStrings.  SslCertLines may
+                      be a single certificate or a bundle including one or more
+                      intermediates, but must not include the private key.  There
+                      are new public methods LoadCertFromString, LoadPKeyFromString,
+                      LoadCAFromString and LoadDHParamsFromString that can be used to
+                      update the certificates after SslContext is initialised.
+                    SslContext has a new method SslGetAllCiphers that returns a multi
+                      line list of the ciphers supported by OpenSSL although some may
+                      be unusable if the correct protocols,  EC and DHParams are not set.
+                    TSslWSocket has a new method SslGetSupportedCiphers (Supported, Remote)
+                      that returns a multi line list of ciphers. Supported=True is only for
+                      1.1.0 and later and returns the actual ciphers available for the
+                      session allowed by the protocols, EC and DHParams.  Remote=True for
+                      list received by server from remote client, Remote=False is list
+                      supported by client or server. Supported=False is list of all ciphers.
+                    Added sslDHParams2048 and sslDHParams4096 constants, the latter is used
+                      as SslDHParamLines default so applications support DH and ECDH ciphers
+                      without needed a DHParams file.  Still better to generate your own
+                      DHParams and load them.
+                    Added sslRootCACertsBundle constant as a Root CA Certs Bundle of about
+                      30 PEM certificates extracted from Windows 2012 R2 server by
+                      OverbyteIcsPemtool, assign this to SslContext.SslCALines.Text to
+                      verify remote SSL certificates in client applications, not for servers.
+                      This is not used as a default to avoid linking the list unless needed.
+                    Many SslOptions are no longer supported for 1.1.0 and are now ignored.   
+                    Cleaned up SSL initialisation
+                    SSL debug logging has been improved by logging SSL certificate
+                      subjects when loaded from lines, and logging ciphers when
+                      SslContext is initialised.
+                    SslECDHMethod is ignored for 1.1.0, always enabled.    
+                    Various internal SSL changes to accommodate new or removed functions
+                       with 1.1.0.
+                    X509Base has new methods LoadFromText and PrivateKeyLoadFromText
+                      that load a PEM SSL certificate and private key from strings.
+                      A certificate may already be saved to a string by GetRawText.
                       
-
 }
 {
+Use of certificates for SSL clients:
+Client SSL applications will usually work without any certificates because all
+the encryption is done by the server.  If a client needs to confirm the identity
+of a server, set SslVerifyPeer=true and specify a certificate authority root
+bundle as SslCAFile, SslCAPath or SslCALines, that contains the certificates
+used to sign the server certificate or intermediate certificate, to confirm
+they are trusted.  To permanently trust an unknown certificate, save it to
+the CA file or path, or add it temporarily using TrustCert.
+
+More rarely in high security operations, the server will need
+a client to identify itself with a private certificate before granting access,
+and this is where a client SSL certificate and private key are needed.  Client
+certificate checking is controlled by the server.  An SslPassPhrase is only
+needed if the private key is password protected.
+
+Use of certificates for SSL servers:
+Server SSL applications always require an SSL certificate and matching private
+key because these control the SSL encryption.  The certificate may also confirm
+the identity of the web site using the domain name and often the company name.
+To be trusted by browsers and other applications, the SSL certificate needs to
+be signed by a root certificate available for local checking.  SSL certificates
+are often signed by intermediate certificates rather than root certificates, and
+these also need to sent by the server as part of a chain, the intermediate will
+have been signed by a trusted root certificate.  To configure an SSL server,
+SslCertFile or SslCertLines specify the SSL certificate and optionally
+intermediate certificates in same file as a bundle; SslPrivKeyFile or
+SslPrivKeyLines specify the private key used to generate the certificate, which
+may be optionally password protected by SslPassPhrase; and SslCAFile, SslCAPath
+or SslCALines specifies the intermediate certificates if not in the certificate
+bundle file.  Also, SslDHParamFile or SslDHParamLines should specify DHParams
+which are a secondary encryption key used for some ciphers, ICS has default
+DHParams but ideally applications should use unique DHParams.
+
+Sometimes SSL certificates are withdrawn due to misuse such as being stolen
+and appear in Certificate Revocation Lists (CRL) that are published by SSL
+certificate issuers.  Such lists in PEM format may be loaded by
+LoadCrlFromFile or LoadCrlFromPath.
+
+Rarely, a server may want to check the identify of clients by requesting a
+client SSL certificate by setting SslVerifyPeerModes=SslVerifyMode_PEER.
+AddClientCAFromFile and SetClientCAListFromFile are used to set acceptable
+CAs For the client certificate.
+
+
+
 About multithreading and event-driven:
     TWSocket is a pure asynchronous component. It is non-blocking and
     event-driven. It means that when you request an operation such as connect,
@@ -1150,8 +1249,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 826;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.26 ';
+  WSocketVersion            = 827;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.27 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -2182,7 +2281,7 @@ const
 
      //SSL_POST_CONNECTION_CHECK_FAILED = 12101;
      sslProtocolError                 = 20100;
-     SSL_BUFFER_SIZE                  = 4096;
+  {   SSL_BUFFER_SIZE                  = 4096;  V8.27 moved to SSLEAY and made configurable }
      msgSslCtxNotInit                 = 'SSL context not initialized';
 
   { V8.10 - TSslContext default SslCipherList
@@ -2275,6 +2374,907 @@ const
         'DHE-RSA-AES256-SHA:ECDHE-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES128-GCM-SHA256:' +
         'AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA:!DSS';
 
+   { V8.27 default 2048 and 4096-bit DH Params needed for DH/DHE ciphers - ideally create your own !!!! }
+    sslDHParams2048 =
+        '-----BEGIN DH PARAMETERS-----' + #13#10 +
+        'MIIBCAKCAQEA5lgSzWKPV8ZthosYUuPWuawgmUFfSyR/1srizVn7tXNPYE10Pz/t' + #13#10 +
+        'z1i0f1JppaoBBdFQMQnVlTrZjEIinavAZwLH9HRbmjvglO0gNL46NpgzgcXQbKbn' + #13#10 +
+        'jZs4BSFF9LbhP4VvvIIKI7lR/yQFNw5GtKtV+Pi/tZ5dCaRvALadAtzAXOmEadv0' + #13#10 +
+        'KNZXc7hONXf9kyRmtwr6C5AdeIH50enVBss6zRwwGi3fW7e5D6z3FvUrHzD9fot+' + #13#10 +
+        'y89hX5iXD/v3BurTkN3rG12JoTypQ3W1VD1lEfRrJm8rbvQTqO0RCSgxc2KwIULb' + #13#10 +
+        '3ONsf1ln/Lb+UuRiUpGeb4GQqPDkn7XW8wIBAg==' + #13#10 +
+        '-----END DH PARAMETERS-----' + #13#10;
+
+    sslDHParams4096 =
+        '-----BEGIN DH PARAMETERS-----' + #13#10 +
+        'MIICCAKCAgEA45KZVdTCptcakXZb7jJvSuuOdMlUbl1tpncHbQcYbFhRbcFmmefp' + #13#10 +
+        'bOmZsTowlWHQpoYRRTe6NEvYox8J+44i/X5cJkMTlIgMb0ZBty7t76U9f6qAId/O' + #13#10 +
+        '6elE0gnk2ThER9nmBcUA0ZKgSXn0XCBu6j5lzZ0FS+bx9OVNhlzvIFBclRPXbI58' + #13#10 +
+        '71dRoTjOjfO1SIzV69T3FoKJcqur58l8b+no/TOQzekMzz4XJTRDefqvePhj7ULP' + #13#10 +
+        'Z/Zg7vtEh11h8gHR0/rlF378S05nRMq5hbbJeLxIbj9kxQunETSbwwy9qx0SyQgH' + #13#10 +
+        'g+90+iUCrKCJ9Fb7WKqtQLkQuzJIkkXkXUyuxUuyBOeeP9XBUAOQu+eYnRPYSmTH' + #13#10 +
+        'GkhyRbIRTPCDiBWDFOskdyGYYDrxiK7LYJQanqHlEFtjDv9t1XmyzDm0k7W9oP/J' + #13#10 +
+        'p0ox1+WIpFgkfv6nvihqCPHtAP5wevqXNIQADhDk5EyrR3XWRFaySeKcmREM9tbc' + #13#10 +
+        'bOvmsEp5MWCC81ZsnaPAcVpO66aOPojNiYQZUbmm70fJsr8BDzXGpcQ44+wmL4Ds' + #13#10 +
+        'k3+ldVWAXEXs9s1vfl4nLNXefYl74cV8E5Mtki9hCjUrUQ4dzbmNA5fg1CyQM/v7' + #13#10 +
+        'JuP6PBYFK7baFDjG1F5YJiO0uHo8sQx+SWdJnGsq8piI3w0ON9JhUvMCAQI=' + #13#10 +
+        '-----END DH PARAMETERS-----' + #13#10;
+
+  { V8.27 Root CA Certs Bundle of about 30 PEM certificates extracted from
+    Windows 2012 R2 server by OverbyteIcsPemtool, assign this to
+    SslContext.SslCALines.Text to verify remote SSL certificates in client
+    aplications, not for servers }
+    sslRootCACertsBundle =
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Organisation: VeriSign Trust Network' + #13#10 +
+        '# Subject Organisation Unit: VeriSign, Inc., VeriSign Time Stamping Service Root, NO LIABILITY ACCEPTED, (c)97 VeriSign, Inc.' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 07/01/2004' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIICvDCCAiUCEEoZ0jiMglkcpV1zXxVd3KMwDQYJKoZIhvcNAQEEBQAwgZ4xHzAd' + #13#10 +
+        'BgNVBAoTFlZlcmlTaWduIFRydXN0IE5ldHdvcmsxFzAVBgNVBAsTDlZlcmlTaWdu' + #13#10 +
+        'LCBJbmMuMSwwKgYDVQQLEyNWZXJpU2lnbiBUaW1lIFN0YW1waW5nIFNlcnZpY2Ug' + #13#10 +
+        'Um9vdDE0MDIGA1UECxMrTk8gTElBQklMSVRZIEFDQ0VQVEVELCAoYyk5NyBWZXJp' + #13#10 +
+        'U2lnbiwgSW5jLjAeFw05NzA1MTIwMDAwMDBaFw0wNDAxMDcyMzU5NTlaMIGeMR8w' + #13#10 +
+        'HQYDVQQKExZWZXJpU2lnbiBUcnVzdCBOZXR3b3JrMRcwFQYDVQQLEw5WZXJpU2ln' + #13#10 +
+        'biwgSW5jLjEsMCoGA1UECxMjVmVyaVNpZ24gVGltZSBTdGFtcGluZyBTZXJ2aWNl' + #13#10 +
+        'IFJvb3QxNDAyBgNVBAsTK05PIExJQUJJTElUWSBBQ0NFUFRFRCwgKGMpOTcgVmVy' + #13#10 +
+        'aVNpZ24sIEluYy4wgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBANMuIPBofCwt' + #13#10 +
+        'LoEcsQaypwu3EQ1X2lPYdePJMyqy1PYJWzTz6ZD+CQzQ2xtauc3n9oixncCHJet9' + #13#10 +
+        'WBBzanjLcRX9xlj2KatYXpYE/S1iEViBHMpxlNUiWC/VzBQFhDa6lKq0TUrp7jsi' + #13#10 +
+        'rVaZfiGcbIbASkeXarSmNtX8CS3TtDmbAgMBAAEwDQYJKoZIhvcNAQEEBQADgYEA' + #13#10 +
+        'YVUOPnvHkhJ+ERCOIszUsxMrW+hE5At4nqR+86cHch7iWe/MhOOJlEzbTmHvs6T7' + #13#10 +
+        'Rj1QNAufcFb2jip/F87lY795aQdzLrCVKIr17aqp0l3NCsoQCY/Os68olsR5KYSS' + #13#10 +
+        '3P+6Z0JIppAQ5L9h+JxT5ZPRcz/4/Z1PhKxV0f0RY2M=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: UTN-USERFirst-Object' + #13#10 +
+        '# Subject Organisation: The USERTRUST Network' + #13#10 +
+        '# Subject Organisation Unit: http://www.usertrust.com' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 09/07/2019' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIEZjCCA06gAwIBAgIQRL4Mi1AAJLQR0zYt4LNfGzANBgkqhkiG9w0BAQUFADCB' + #13#10 +
+        'lTELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAlVUMRcwFQYDVQQHEw5TYWx0IExha2Ug' + #13#10 +
+        'Q2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBOZXR3b3JrMSEwHwYDVQQLExho' + #13#10 +
+        'dHRwOi8vd3d3LnVzZXJ0cnVzdC5jb20xHTAbBgNVBAMTFFVUTi1VU0VSRmlyc3Qt' + #13#10 +
+        'T2JqZWN0MB4XDTk5MDcwOTE4MzEyMFoXDTE5MDcwOTE4NDAzNlowgZUxCzAJBgNV' + #13#10 +
+        'BAYTAlVTMQswCQYDVQQIEwJVVDEXMBUGA1UEBxMOU2FsdCBMYWtlIENpdHkxHjAc' + #13#10 +
+        'BgNVBAoTFVRoZSBVU0VSVFJVU1QgTmV0d29yazEhMB8GA1UECxMYaHR0cDovL3d3' + #13#10 +
+        'dy51c2VydHJ1c3QuY29tMR0wGwYDVQQDExRVVE4tVVNFUkZpcnN0LU9iamVjdDCC' + #13#10 +
+        'ASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAM6qgT+jo2F4qjEAVZURnicP' + #13#10 +
+        'HxzfOpuCaDDASmEd8S8O+r5596Uj71VRloTN2+O5bj4x2AogZ8f02b+U60cEPgLO' + #13#10 +
+        'KqJdhwQJ9jCdGIqXsqoc/EHSoTbL+z2RuufZcDX65OeQw5ujm9M89RKZd7G3CeBo' + #13#10 +
+        '5hy485RjiGpq/gt2yb70IuRnuasaXnfBhQfdDWy/7gbHd2pBnqcP1/vulBe3/IW+' + #13#10 +
+        'pKvEHDHd17bR5PDv3xaPslKT16HUiaEHLr/hARJCHhrh2JU022R5KP+6LhHC5ehb' + #13#10 +
+        'kkj7RwvCbNqtMoNB86XlQXD9ZZBt+vpRxPm9lisZBCzTbafc8H9vg2XiaquHhnUC' + #13#10 +
+        'AwEAAaOBrzCBrDALBgNVHQ8EBAMCAcYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4E' + #13#10 +
+        'FgQU2u1kdBScFDyr3ZmpvVsoTYs8ydgwQgYDVR0fBDswOTA3oDWgM4YxaHR0cDov' + #13#10 +
+        'L2NybC51c2VydHJ1c3QuY29tL1VUTi1VU0VSRmlyc3QtT2JqZWN0LmNybDApBgNV' + #13#10 +
+        'HSUEIjAgBggrBgEFBQcDAwYIKwYBBQUHAwgGCisGAQQBgjcKAwQwDQYJKoZIhvcN' + #13#10 +
+        'AQEFBQADggEBAAgfUrE3RHjb/c652pWWmKpVZIC1WkDdIaXFwfNfLEzIR1pp6ujw' + #13#10 +
+        'NTX00CXzyKakh0q9G7FzCL3Uw8q2NbtZhncxzaeAFK4T7/yxSPlrJSUtUbYsbUXB' + #13#10 +
+        'mMiKVl0+7kNOPmsnjtA6S4ULX9Ptaqd1y9Fahy85dRNacrACgZ++8A+EVCBibGnU' + #13#10 +
+        '4U3GDZlDAQ0Slox4nb9QorFEqmrPF3rPbw/U+CRVX/A0FklmPlBGyWNxODFiuGK5' + #13#10 +
+        '81OtbLUrohKqGU8J2l7nk8aOFAj+8DCAGKCGhU3IfdeLA/5u1fedFqySLKAj5ZyR' + #13#10 +
+        'Uh+U3xeUc8OzwcFxBSAAeL0TUh2oPs0AH8g=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: GeoTrust Global CA' + #13#10 +
+        '# Subject Organisation: GeoTrust Inc.' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 21/05/2022' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDVDCCAjygAwIBAgIDAjRWMA0GCSqGSIb3DQEBBQUAMEIxCzAJBgNVBAYTAlVT' + #13#10 +
+        'MRYwFAYDVQQKEw1HZW9UcnVzdCBJbmMuMRswGQYDVQQDExJHZW9UcnVzdCBHbG9i' + #13#10 +
+        'YWwgQ0EwHhcNMDIwNTIxMDQwMDAwWhcNMjIwNTIxMDQwMDAwWjBCMQswCQYDVQQG' + #13#10 +
+        'EwJVUzEWMBQGA1UEChMNR2VvVHJ1c3QgSW5jLjEbMBkGA1UEAxMSR2VvVHJ1c3Qg' + #13#10 +
+        'R2xvYmFsIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2swYYzD9' + #13#10 +
+        '9BcjGlZ+W988bDjkcbd4kdS8odhM+KhDtgPpTSEHCIjaWC9mOSm9BXiLnTjoBbdq' + #13#10 +
+        'fnGk5sRgprDvgOSJKA+eJdbtg/OtppHHmMlCGDUUna2YRpIuT8rxh0PBFpVXLVDv' + #13#10 +
+        'iS2Aelet8u5fa9IAjbkU+BQVNdnARqN7csiRv8lVK83Qlz6cJmTM386DGXHKTubU' + #13#10 +
+        '1XupGc1V3sjs0l44U+VcT4wt/lAjNvxm5suOpDkZALeVAjmRCw7+OC7RHQWa9k0+' + #13#10 +
+        'bw8HHa8sHo9gOeL6NlMTOdReJivbPagUvTLrGAMoUgRx5aszPeE4uwc2hGKceeoW' + #13#10 +
+        'MPRfwCvocWvk+QIDAQABo1MwUTAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBTA' + #13#10 +
+        'ephojYn7qwVkDBF9qn1luMrMTjAfBgNVHSMEGDAWgBTAephojYn7qwVkDBF9qn1l' + #13#10 +
+        'uMrMTjANBgkqhkiG9w0BAQUFAAOCAQEANeMpauUvXVSOKVCUn5kaFOSPeCpilKIn' + #13#10 +
+        'Z57QzxpeR+nBsqTP3UEaBU6bS+5Kb1VSsyShNwrrZHYqLizz/Tt1kL/6cdjHPTfS' + #13#10 +
+        'tQWVYrmm3ok9Nns4d0iXrKYgjy6myQzCsplFAMfOEVEiIuCl6rYVSAlk6l5PdPcF' + #13#10 +
+        'PseKUgzbFbS9bZvlxrFUaKnjaZC2mqUPuLk/IH2uSrW4nOQdtqvmlKXBx4Ot2/Un' + #13#10 +
+        'hw4EbNX/3aBd7YdStysVAq45pmp06drE57xNNB6pXE0zX5IJL4hmXXeXxx12E6nV' + #13#10 +
+        '5fEWCRE11azbJHFwLJhWC9kXtNHjUStedejV0NxPNO3CBWaAocvmMw==' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: SwissSign Gold CA - G2' + #13#10 +
+        '# Subject Organisation: SwissSign AG' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 25/10/2036' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIFujCCA6KgAwIBAgIJALtAHEP1Xk+wMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV' + #13#10 +
+        'BAYTAkNIMRUwEwYDVQQKEwxTd2lzc1NpZ24gQUcxHzAdBgNVBAMTFlN3aXNzU2ln' + #13#10 +
+        'biBHb2xkIENBIC0gRzIwHhcNMDYxMDI1MDgzMDM1WhcNMzYxMDI1MDgzMDM1WjBF' + #13#10 +
+        'MQswCQYDVQQGEwJDSDEVMBMGA1UEChMMU3dpc3NTaWduIEFHMR8wHQYDVQQDExZT' + #13#10 +
+        'd2lzc1NpZ24gR29sZCBDQSAtIEcyMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIIC' + #13#10 +
+        'CgKCAgEAr+TufoskDhJuqVAtFkQ7kpJcyrhdhJJCEyq8ZVeCQD5XJM1QiyUqt2/8' + #13#10 +
+        '76LQwB8CJEoTlo8jE+YoWACjR8cGp4QjK7u9lit/VcyLwVcfDmJlD909Vopz2q5+' + #13#10 +
+        'bbqBHH5CjCA12UNNhPqE21Is8w4ndwtrvxEvcnifLtg+5hg3Wipy+dpikJKVyh+c' + #13#10 +
+        '6bM8K8vzARO/Ws/BtQpgvd21mWRTuKCWs2/iJneRjOBiEAKfNA+k1ZIzUd6+jbqE' + #13#10 +
+        'emA8atufK+ze3gE/bk3lUIbLtK/tREDFylqM2tIrfKjuvqblCqoOpd8FUrdVxyJd' + #13#10 +
+        'MmqXl2MT28nbeTZ7hTpKxVKJ+STnnXepgv9VHKVxaSvRAiTysybUa9oEVeXBCsdt' + #13#10 +
+        'MDeQKuSeFDNeFhdVxVu1yzSJkvGdJo+hB9TGsnhQ2wwMC3wLjEHXuendjIj3o02y' + #13#10 +
+        'MszYF9rNt85mndT9Xv+9lz4pded+p2JYryU0pUHHPbwNUMoDAw8IWh+Vc3hiv69y' + #13#10 +
+        'FGkOpeUDDniOJihC8AcLYiAQZzlG+qkDzAQ4embvIIO1jEpWjpEA/I5cgt6IoMPi' + #13#10 +
+        'aG59je883WX0XaxR7ySArqpWl2/5rX3aYT+YdzylkbYcjCbaZaIJbcHiVOO5ykxM' + #13#10 +
+        'gI93e2CaHt+28kgeDrpOVG2Y4OGiGqJ3UM/EY5LsRxmd6+ZrzsECAwEAAaOBrDCB' + #13#10 +
+        'qTAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUWyV7' + #13#10 +
+        'lqRlUX64OfPAeGZe6Drn8O4wHwYDVR0jBBgwFoAUWyV7lqRlUX64OfPAeGZe6Drn' + #13#10 +
+        '8O4wRgYDVR0gBD8wPTA7BglghXQBWQECAQEwLjAsBggrBgEFBQcCARYgaHR0cDov' + #13#10 +
+        'L3JlcG9zaXRvcnkuc3dpc3NzaWduLmNvbS8wDQYJKoZIhvcNAQEFBQADggIBACe6' + #13#10 +
+        '45R88a7A3hfm5djV9VSwg/S7zV4Fe0+fdWavPOhWfvxyeDgD2StiGwC5+OlgzczO' + #13#10 +
+        'UYrHUDFu4Up+GC9pWbY9ZIEr44OE5iKHjn3g7gKZYbge9LgriBIWhMIxkziWMaa5' + #13#10 +
+        'O1M/wySTVltpkuzFwbs4AOPsF6m43Md8AYOfMke6UiI0HTJ6CVanfCU2qT1L2sCC' + #13#10 +
+        'bwq7EsiHSycR+R4tx5M/nttfJmtS2S6K8RTGRI0Vqbe/vd6mGu6uLftIdxf+u+yv' + #13#10 +
+        'GPUqUfA5hJeVbG4bwyvEdGB5JbAKJ9/fXtI5z0V9QkvfsywexcZdylU6oJxpmo/a' + #13#10 +
+        '77KwPJ+HbBIrZXAVUjEaJM9vMSNQH4xPjyPDdEFjHFWoFN0+4FFQz/EbMFYOkrCC' + #13#10 +
+        'hdiDyyJkvC24JdVUorgG6q2SpCSgwYa1ShNqR88uC1aVVMvOmttqtKay20EIhid3' + #13#10 +
+        '92qgQmwLOM7XdVAyksLfKzAiSNDVQTglXaTpXZ/GlHXQRf0wl0OPkKsKx4ZzYEpp' + #13#10 +
+        'Ld6leNcG2mqeSz53OiATIgHQv2ieY2BrNU0LbbqhPcCT4H8js1WtciVORvnSFu+w' + #13#10 +
+        'ZMEBnunKoGqYDs/YYPIvSbjkQuE4NRb0yG5P94FW6LqjviOvrv1vA+ACOzB2+htt' + #13#10 +
+        'Qc8Bsem4yWb02ybzOqR08kkkW8mw0FfB+j564ZfJ' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: Baltimore CyberTrust Root' + #13#10 +
+        '# Subject Organisation: Baltimore' + #13#10 +
+        '# Subject Organisation Unit: CyberTrust' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 12/05/2025' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDdzCCAl+gAwIBAgIEAgAAuTANBgkqhkiG9w0BAQUFADBaMQswCQYDVQQGEwJJ' + #13#10 +
+        'RTESMBAGA1UEChMJQmFsdGltb3JlMRMwEQYDVQQLEwpDeWJlclRydXN0MSIwIAYD' + #13#10 +
+        'VQQDExlCYWx0aW1vcmUgQ3liZXJUcnVzdCBSb290MB4XDTAwMDUxMjE4NDYwMFoX' + #13#10 +
+        'DTI1MDUxMjIzNTkwMFowWjELMAkGA1UEBhMCSUUxEjAQBgNVBAoTCUJhbHRpbW9y' + #13#10 +
+        'ZTETMBEGA1UECxMKQ3liZXJUcnVzdDEiMCAGA1UEAxMZQmFsdGltb3JlIEN5YmVy' + #13#10 +
+        'VHJ1c3QgUm9vdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKMEuyKr' + #13#10 +
+        'mD1X6CZymrV51Cni4eiVgLGw41uOKymaZN+hXe2wCQVt2yguzmKiYv60iNoS6zjr' + #13#10 +
+        'IZ3AQSsBUnuId9Mcj8e6uYi1agnnc+gRQKfRzMpijS3ljwumUNKoUMMo6vWrJYeK' + #13#10 +
+        'mpYcqWe4PwzV9/lSEy/CG9VwcPCPwBLKBsua4dnKM3p31vjsufFoREJIE9LAwqSu' + #13#10 +
+        'XmD+tqYF/LTdB1kC1FkYmGP1pWPgkAx9XbIGevOF6uvUA65ehD5f/xXtabz5OTZy' + #13#10 +
+        'dc93Uk3zyZAsuT3lySNTPx8kmCFcB5kpvcY67Oduhjprl3RjM71oGDHweI12v/ye' + #13#10 +
+        'jl0qhqdNkNwnGjkCAwEAAaNFMEMwHQYDVR0OBBYEFOWdWTCCR1jMrPoIVDaGezq1' + #13#10 +
+        'BE3wMBIGA1UdEwEB/wQIMAYBAf8CAQMwDgYDVR0PAQH/BAQDAgEGMA0GCSqGSIb3' + #13#10 +
+        'DQEBBQUAA4IBAQCFDF2O5G9RaEIFoN27TyclhAO992T9Ldcw46QQF+vaKSm2eT92' + #13#10 +
+        '9hkTI7gQCvlYpNRhcL0EYWoSihfVCr3FvDB81ukMJY2GQE/szKN+OMY3EU/t3Wgx' + #13#10 +
+        'jkzSswF07r51XgdIGn9w/xZchMB5hbgF/X++ZRGjD8ACtPhSNzkE1akxehi/oCr0' + #13#10 +
+        'Epn3o0WC4zxe9Z2etciefC7IpJ5OCBRLbf1wbWsaY71k5h+3zvDyny67G7fyUIhz' + #13#10 +
+        'ksLi4xaNmjICq44Y3ekQEe5+NauQrz4wlHrQMz2nZQ/1/I6eYs9HRCwBXbsdtTLS' + #13#10 +
+        'R9I4LtD+gdwyah617jzV/OeBHRnDJELqYzmp' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Organisation: Equifax' + #13#10 +
+        '# Subject Organisation Unit: Equifax Secure Certificate Authority' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 22/08/2018' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDIDCCAomgAwIBAgIENd70zzANBgkqhkiG9w0BAQUFADBOMQswCQYDVQQGEwJV' + #13#10 +
+        'UzEQMA4GA1UEChMHRXF1aWZheDEtMCsGA1UECxMkRXF1aWZheCBTZWN1cmUgQ2Vy' + #13#10 +
+        'dGlmaWNhdGUgQXV0aG9yaXR5MB4XDTk4MDgyMjE2NDE1MVoXDTE4MDgyMjE2NDE1' + #13#10 +
+        'MVowTjELMAkGA1UEBhMCVVMxEDAOBgNVBAoTB0VxdWlmYXgxLTArBgNVBAsTJEVx' + #13#10 +
+        'dWlmYXggU2VjdXJlIENlcnRpZmljYXRlIEF1dGhvcml0eTCBnzANBgkqhkiG9w0B' + #13#10 +
+        'AQEFAAOBjQAwgYkCgYEAwV2xWGcIYu6gmi0fCG2RFGiYCh7+2gRvE4RiIcPRfM6f' + #13#10 +
+        'BeC4AfBONOziipUEZKzxa1NfBbPLZ4C/QgKO/t0BCezhABRP/PvwDN1Dulsr4R+A' + #13#10 +
+        'cJkVV5MW8Q+XarfCaCMczE1ZMKxRHjuvK9buY0V7xdlfUNLjUA86iOe/FP3gx7kC' + #13#10 +
+        'AwEAAaOCAQkwggEFMHAGA1UdHwRpMGcwZaBjoGGkXzBdMQswCQYDVQQGEwJVUzEQ' + #13#10 +
+        'MA4GA1UEChMHRXF1aWZheDEtMCsGA1UECxMkRXF1aWZheCBTZWN1cmUgQ2VydGlm' + #13#10 +
+        'aWNhdGUgQXV0aG9yaXR5MQ0wCwYDVQQDEwRDUkwxMBoGA1UdEAQTMBGBDzIwMTgw' + #13#10 +
+        'ODIyMTY0MTUxWjALBgNVHQ8EBAMCAQYwHwYDVR0jBBgwFoAUSOZo+SvSspXXR9gj' + #13#10 +
+        'IBBPM5iQn9QwHQYDVR0OBBYEFEjmaPkr0rKV10fYIyAQTzOYkJ/UMAwGA1UdEwQF' + #13#10 +
+        'MAMBAf8wGgYJKoZIhvZ9B0EABA0wCxsFVjMuMGMDAgbAMA0GCSqGSIb3DQEBBQUA' + #13#10 +
+        'A4GBAFjOKer89961zgK5F7WF0bnj4JXMJTENAKaSbn+2kmOeUJXRmm/kEd5jhW6Y' + #13#10 +
+        '7qj/WsjTVbJmcVfewCHrPSqnI0kBBIZCe/zuf6IWUrVnZ9NA2zsmWLIodz2uFHdh' + #13#10 +
+        '1voqZiegDfqnc1zqcPGUIWVEX/r87yloqaKHee9570+sB3c4' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: QuoVadis Root CA 2' + #13#10 +
+        '# Subject Organisation: QuoVadis Limited' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 24/11/2031' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIFtzCCA5+gAwIBAgICBQkwDQYJKoZIhvcNAQEFBQAwRTELMAkGA1UEBhMCQk0x' + #13#10 +
+        'GTAXBgNVBAoTEFF1b1ZhZGlzIExpbWl0ZWQxGzAZBgNVBAMTElF1b1ZhZGlzIFJv' + #13#10 +
+        'b3QgQ0EgMjAeFw0wNjExMjQxODI3MDBaFw0zMTExMjQxODIzMzNaMEUxCzAJBgNV' + #13#10 +
+        'BAYTAkJNMRkwFwYDVQQKExBRdW9WYWRpcyBMaW1pdGVkMRswGQYDVQQDExJRdW9W' + #13#10 +
+        'YWRpcyBSb290IENBIDIwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQCa' + #13#10 +
+        'GMpLlA0ALa8DKYrwD4HIrkwZhR0In6spRIXzL4GtMh6QRr+jhiYaHv5+HBg6XJxg' + #13#10 +
+        'Fyo6dIMzMH1hVBHL7avg5tKifvVrbxi3Cgst/ek+7wrGsxDp3MJGF/hd/aTa/55J' + #13#10 +
+        'WpzmM+Yklvc/ulsrHHo1wtZn/qtmUIttKGAr79dgw8eTvI02kfN/+NsRE8Scd3bB' + #13#10 +
+        'rrcCaoF6qUWD4gXmuVbBlDePSHFjIuwXZQeVikvfj8ZaCuWw419eaxGrDPmF60Tp' + #13#10 +
+        '+ARz8un+XJiM9XOva7R+zdRcAitMOeGylZUtQofX1bOQQ7dsE/He3fbE+Ik/0XX1' + #13#10 +
+        'ksOR1YqI0JDs3G3eicJlcZaLDQP9nL9bFqyS2+r+eXyt66/3FsvbzSUr5R/7mp/i' + #13#10 +
+        'Ucw6UwxI5g69ybR2BlLmEROFcmMDBOAENisgGQLodKcftslWZvB1JdxnwQ5hYIiz' + #13#10 +
+        'PtGo/KPaHbDRsSNU30R2be1B2MGyIrZTHN81Hdyhdyox5C315eXbyOD/5YDXC2Og' + #13#10 +
+        '/zOhD7osFRXql7PSorW+8oyWHhqPHWykYTe5hnMz15eWniN9gqRMgeKh0bpnX5UH' + #13#10 +
+        'oycR7hYQe7xFSkyyBNKr79X9DFHOUGoIMfmR2gyPZFwDwzqLID9ujWc9Otb+fVuI' + #13#10 +
+        'yV77zGHcizN300QyNQliBJIWENieJ0f7OyHj+OsdWwIDAQABo4GwMIGtMA8GA1Ud' + #13#10 +
+        'EwEB/wQFMAMBAf8wCwYDVR0PBAQDAgEGMB0GA1UdDgQWBBQahGK8SEwzJQTU7tD2' + #13#10 +
+        'A8QZRtGUazBuBgNVHSMEZzBlgBQahGK8SEwzJQTU7tD2A8QZRtGUa6FJpEcwRTEL' + #13#10 +
+        'MAkGA1UEBhMCQk0xGTAXBgNVBAoTEFF1b1ZhZGlzIExpbWl0ZWQxGzAZBgNVBAMT' + #13#10 +
+        'ElF1b1ZhZGlzIFJvb3QgQ0EgMoICBQkwDQYJKoZIhvcNAQEFBQADggIBAD4KFk2f' + #13#10 +
+        'BluornFdLwUvZ+YTRYPENvbzwCYMDbVHZF34tHLJRqUDGCdViXh9duqWNIAXINzn' + #13#10 +
+        'g/iN/Ae42l9NLmeyhP3ZRPx3UIHmfLTJDQtyU/h2BwdBR5YM++CCJpNVjP4iH2Bl' + #13#10 +
+        'fF/nJrP3MpCYUNQ3cVX2kiF495V5+vgtJodmVjB3pjd4M1IQWK4/YY7yarHvGH5K' + #13#10 +
+        'WWPKjaJW1acvvFYfzznB4vsKqBUsfU16Y8Zsl0Q80m/DShcK+JDSV6IZUaUtl0Ha' + #13#10 +
+        'B0+pUNqQjZRG4T7wlP0QADj1O+hA4bRuVhogzG9Yje0uRY/W6ZM/57Es3zrWIozc' + #13#10 +
+        'hLsib9D45MY56QSIPMO661V6bYCZJPVsAfv4l7CUW+v90m/xd2gNNWQjrLhVoQPR' + #13#10 +
+        'TUIZ3Ph1WVaj+ahJefivDrkRoHy3au000LYmYjgahwz46P0u05B/B5EqHdZ+XIWD' + #13#10 +
+        'mbA4CD/pXvk1B+TJYm5Xf6dQlfe6yJvmjqIBxdZmv3lh8zwc4bmCXF2gw+nYSL0Z' + #13#10 +
+        'ohEUGW6yhhtoPkg3Goi3XZZenMfvJ2II4pEZXNLxId26F0KCl3GBUzGpn/Z9Yr9y' + #13#10 +
+        '4aOTHcyKJloJONDO1w2AFrR4pTqHTI2KpdVGl/IsELm8VCLAAVBpQ570su9t+Oza' + #13#10 +
+        '8eOx79+Rj1QqCyXBJhnEUhAFZdWCEOrCMc0u' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: Starfield Root Certificate Authority - G2' + #13#10 +
+        '# Subject Organisation: Starfield Technologies, Inc.' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 31/12/2037' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIID3TCCAsWgAwIBAgIBADANBgkqhkiG9w0BAQsFADCBjzELMAkGA1UEBhMCVVMx' + #13#10 +
+        'EDAOBgNVBAgTB0FyaXpvbmExEzARBgNVBAcTClNjb3R0c2RhbGUxJTAjBgNVBAoT' + #13#10 +
+        'HFN0YXJmaWVsZCBUZWNobm9sb2dpZXMsIEluYy4xMjAwBgNVBAMTKVN0YXJmaWVs' + #13#10 +
+        'ZCBSb290IENlcnRpZmljYXRlIEF1dGhvcml0eSAtIEcyMB4XDTA5MDkwMTAwMDAw' + #13#10 +
+        'MFoXDTM3MTIzMTIzNTk1OVowgY8xCzAJBgNVBAYTAlVTMRAwDgYDVQQIEwdBcml6' + #13#10 +
+        'b25hMRMwEQYDVQQHEwpTY290dHNkYWxlMSUwIwYDVQQKExxTdGFyZmllbGQgVGVj' + #13#10 +
+        'aG5vbG9naWVzLCBJbmMuMTIwMAYDVQQDEylTdGFyZmllbGQgUm9vdCBDZXJ0aWZp' + #13#10 +
+        'Y2F0ZSBBdXRob3JpdHkgLSBHMjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC' + #13#10 +
+        'ggEBAL3twQP89o/8ArFvW59I2Z154qK3A2FWGMNHttfKPTUuiUP3oWmb3ooa/RMg' + #13#10 +
+        'nLRJdzIpVv257IzdIvpy3Cdhl+72WoTsbhm5iSzchFvVdPtrX8WJpRBSiUZV9Lh1' + #13#10 +
+        'HOZ/5FSuS/hVclcCGfgXcVnrHigHdMWdSL5stPSksPNkN3mSwOxGXn/hbVNMYq/N' + #13#10 +
+        'Hwtjuzqd+/x5AJhhdM8mgkBj87JyahkNmcrUDnXMN/uLicFZ8WJ/X7NfZTD4p7dN' + #13#10 +
+        'dloedl40wOiWVpmKs/B/pM293DIxfJHP4F8R+GuqSVzRmZTRouNjWwl2tVZi4Ut0' + #13#10 +
+        'HZbUJtQIBFnQmA4O5t78w+wfkPECAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAO' + #13#10 +
+        'BgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYEFHwMMh+n2TB/xH1oo2Kooc6rB1snMA0G' + #13#10 +
+        'CSqGSIb3DQEBCwUAA4IBAQARWfolTwNvlJk7mh+ChTnUdgWUXuEok21iXQnCoKjU' + #13#10 +
+        'sHU48TRqneSfioYmUeYs0cYtbpUgSpIB7LiKZ3sx4mcujJUDJi5DnUox9g61DLu3' + #13#10 +
+        '4jd/IroAow57UvtruzvE03lRTs2Q9GcHGcg8RnoNAX3FWOdt5oUwF5okxBDgBPfg' + #13#10 +
+        '8n/Uqgr/Qh037ZTlZFkSIHc40zI+OIF1lnP6aI+xy84fxez6nH7PfrHxBy22/L/K' + #13#10 +
+        'pL/QlwVKvOoYKAKQvVR4CSFx09F9HdkWsKlhPdAKACL8x3vLCWRFCztAgfd9fDL1' + #13#10 +
+        'mMpYjn0q7pBZc2T5NnReJaH1ZgUufzkVqSr7UIuOhWn0' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: Entrust Root Certification Authority' + #13#10 +
+        '# Subject Organisation: Entrust, Inc.' + #13#10 +
+        '# Subject Organisation Unit: www.entrust.net/CPS is incorporated by reference, (c) 2006 Entrust, Inc.' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 27/11/2026' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIEkTCCA3mgAwIBAgIERWtQVDANBgkqhkiG9w0BAQUFADCBsDELMAkGA1UEBhMC' + #13#10 +
+        'VVMxFjAUBgNVBAoTDUVudHJ1c3QsIEluYy4xOTA3BgNVBAsTMHd3dy5lbnRydXN0' + #13#10 +
+        'Lm5ldC9DUFMgaXMgaW5jb3Jwb3JhdGVkIGJ5IHJlZmVyZW5jZTEfMB0GA1UECxMW' + #13#10 +
+        'KGMpIDIwMDYgRW50cnVzdCwgSW5jLjEtMCsGA1UEAxMkRW50cnVzdCBSb290IENl' + #13#10 +
+        'cnRpZmljYXRpb24gQXV0aG9yaXR5MB4XDTA2MTEyNzIwMjM0MloXDTI2MTEyNzIw' + #13#10 +
+        'NTM0MlowgbAxCzAJBgNVBAYTAlVTMRYwFAYDVQQKEw1FbnRydXN0LCBJbmMuMTkw' + #13#10 +
+        'NwYDVQQLEzB3d3cuZW50cnVzdC5uZXQvQ1BTIGlzIGluY29ycG9yYXRlZCBieSBy' + #13#10 +
+        'ZWZlcmVuY2UxHzAdBgNVBAsTFihjKSAyMDA2IEVudHJ1c3QsIEluYy4xLTArBgNV' + #13#10 +
+        'BAMTJEVudHJ1c3QgUm9vdCBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTCCASIwDQYJ' + #13#10 +
+        'KoZIhvcNAQEBBQADggEPADCCAQoCggEBALaVtkNC+sZtKm9I35RMOVcF7sN5EUFo' + #13#10 +
+        'Nu3s/poBj6E4KPz3EEZmLk0eGrEaTsbRwJWIsMn/MYszA9u3g3s+IIRe7bJWKKf4' + #13#10 +
+        '4LlAcTfFy0cOlypowCKVYhXbR9n10Cv/gkvJrT7eTNuQgFA/CYqEAOwwCj0Yzfv9' + #13#10 +
+        'KlmaI5UXLEWeH25DeW0MXJj+SKfFI0dcXv1u5x609mhF0YaDW6KKjbHjKYD+JXGI' + #13#10 +
+        'rb68j6xSlkuqUY3kEzEZ6E5Nn9uss2rVvDlUccp6en+Q3X0dgNmBu1kmwhH+5pPi' + #13#10 +
+        '94DkZfs0Nw4pgHBNrziGLp5/V6+eF67rHMsoIV+2HNjnogQi+dPa2MsCAwEAAaOB' + #13#10 +
+        'sDCBrTAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zArBgNVHRAEJDAi' + #13#10 +
+        'gA8yMDA2MTEyNzIwMjM0MlqBDzIwMjYxMTI3MjA1MzQyWjAfBgNVHSMEGDAWgBRo' + #13#10 +
+        'kORnpKZTgMeGZqTx90tD+4S9bTAdBgNVHQ4EFgQUaJDkZ6SmU4DHhmak8fdLQ/uE' + #13#10 +
+        'vW0wHQYJKoZIhvZ9B0EABBAwDhsIVjcuMTo0LjADAgSQMA0GCSqGSIb3DQEBBQUA' + #13#10 +
+        'A4IBAQCT1DCw1wMgKtD5Y+iRDAUgqV8ZyntyTtSx29CW+1RaGSwMCPeyvIWonX9t' + #13#10 +
+        'O1KzKtvn1ISMY/YPyyYBkVBs9F8U4pN0wBOeMDpQ47RgxRzwIkSNcUesyBrJ6Zua' + #13#10 +
+        'AGAT/3B+XxFNSRuzFVJ7yVTav52Vr2ua2J7p8eRDjeIRRDq/r72DQnNSi6q7pynP' + #13#10 +
+        '9WQcCk3RvKqsnyrQ/39/2n3qse0wJcGE2jTSW3iDVuycNsMm4hH2Z0kdkquM++v/' + #13#10 +
+        'eu6FSqdQgPCnXEqULl8FmTxSQeDNtGPPAUO6nIPcj2A781q0tHuu2guQOHXvgR1m' + #13#10 +
+        '0vdXcDazv/wor3ElhVsT/h5/WrQ8' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: GlobalSign Root CA' + #13#10 +
+        '# Subject Organisation: GlobalSign nv-sa' + #13#10 +
+        '# Subject Organisation Unit: Root CA' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 28/01/2028' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDdTCCAl2gAwIBAgILBAAAAAABFUtaw5QwDQYJKoZIhvcNAQEFBQAwVzELMAkG' + #13#10 +
+        'A1UEBhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExEDAOBgNVBAsTB1Jv' + #13#10 +
+        'b3QgQ0ExGzAZBgNVBAMTEkdsb2JhbFNpZ24gUm9vdCBDQTAeFw05ODA5MDExMjAw' + #13#10 +
+        'MDBaFw0yODAxMjgxMjAwMDBaMFcxCzAJBgNVBAYTAkJFMRkwFwYDVQQKExBHbG9i' + #13#10 +
+        'YWxTaWduIG52LXNhMRAwDgYDVQQLEwdSb290IENBMRswGQYDVQQDExJHbG9iYWxT' + #13#10 +
+        'aWduIFJvb3QgQ0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDaDuaZ' + #13#10 +
+        'jc6j40+Kfvvxi4Mla+pIH/EqsLmVEQS98GPR4mdmzxzdzxtIK+6NiY6arymAZavp' + #13#10 +
+        'xy0Sy6scTHAHoT0KMM0VjU/43dSMUBUc71DuxC73/OlS8pF94G3VNTCOXkNz8kHp' + #13#10 +
+        '1Wrjsok6Vjk4bwY8iGlbKk3Fp1S4bInMm/k8yuX9ifUSPJJ4ltbcdG6TRGHRjcdG' + #13#10 +
+        'snUOhugZitVtbNV4FpWi6cgKOOvyJBNPc1STE4U6G7weNLWLBYy5d4ux2x8gkasJ' + #13#10 +
+        'U26Qzns3dLlwR5EiUWMWea6xrkEmCMgZK9FGqkjWZCrXgzT/LCrBbBlDSgeF59N8' + #13#10 +
+        '9iFo7+ryUp9/k5DPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8E' + #13#10 +
+        'BTADAQH/MB0GA1UdDgQWBBRge2YaRQ2XyolQL30EzTSo//z9SzANBgkqhkiG9w0B' + #13#10 +
+        'AQUFAAOCAQEA1nPnfE920I2/7LqivjTFKDK1fPxsnCwrvQmeU79rXqoRSLblCKOz' + #13#10 +
+        'yj1hTdNGCbM+w6DjY1Ub8rrvrTnhQ7k4o+YviiY776BQVvnGCv04zcQLcFGUl5gE' + #13#10 +
+        '38NflNUVyRRBnMRddWQVDf9VMOyGj/8N7yy5Y0b2qvzfvGn9LhJIZJrglfCm7ymP' + #13#10 +
+        'AbEVtQwdpf5pLGkkeB6zpxxxYu7KyJesF12KwvhHhm4qxFYxldBniYUr+WymXUad' + #13#10 +
+        'DKqC5JlR3XC321Y9YeRq4VzW9v493kHMB65jUr9TU/Qr6cf9tveCX4XSQRjbgbME' + #13#10 +
+        'HMUfpIBvFSDJ3gyICh3WZlXi/EjJKSZp4A==' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: COMODO RSA Certification Authority' + #13#10 +
+        '# Subject Organisation: COMODO CA Limited' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 18/01/2038' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIF2DCCA8CgAwIBAgIQTKr5yttjb+Af907YWwOGnTANBgkqhkiG9w0BAQwFADCB' + #13#10 +
+        'hTELMAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4G' + #13#10 +
+        'A1UEBxMHU2FsZm9yZDEaMBgGA1UEChMRQ09NT0RPIENBIExpbWl0ZWQxKzApBgNV' + #13#10 +
+        'BAMTIkNPTU9ETyBSU0EgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTAwMTE5' + #13#10 +
+        'MDAwMDAwWhcNMzgwMTE4MjM1OTU5WjCBhTELMAkGA1UEBhMCR0IxGzAZBgNVBAgT' + #13#10 +
+        'EkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4GA1UEBxMHU2FsZm9yZDEaMBgGA1UEChMR' + #13#10 +
+        'Q09NT0RPIENBIExpbWl0ZWQxKzApBgNVBAMTIkNPTU9ETyBSU0EgQ2VydGlmaWNh' + #13#10 +
+        'dGlvbiBBdXRob3JpdHkwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQCR' + #13#10 +
+        '6FSS0gpWsawNJN3Fz0RndJkrN6N9I3AAcbxT38T6KhKPS38QVr2fcHK3YX/JSw8X' + #13#10 +
+        'pz3jsARh7v8Rl8f0hj4K+j5c+ZPmNHrZFGvnnLOFoIJ6dq9xkNfs/Q36nGz637CC' + #13#10 +
+        '9BR++b7Epi9Pf5l/tfxnQ3K9DADWietrLNPtj5gcFKt+5eNu/Nio5JIk2kNrYrhV' + #13#10 +
+        '/erBvGy2i/MOjZrkm2xpmfh4SDBF1a3hDTxFYPwyllEnvGfDyi62a+pGx8cgoLEf' + #13#10 +
+        'Zd5ICLqkTqnyg0Y3hOvozIFIQ2dOciqbXL1MGyiKXCJ7tKuY2e7gUYPDCUZObT6Z' + #13#10 +
+        '+pUX2nwzV0E8jVHtC7ZcryxjGt9XyD+86V3Em69FmeKjWiS0uqlWPc9vqv9JWL7w' + #13#10 +
+        'qP/0uK3pN/u6uPQLOvnoQ0IeidiEyxPx2bvhiWC4jChWrBQdnArncevPDt09qZah' + #13#10 +
+        'SL0896+1DSJMwBGB7FY79tOi4lu3sgQiUpWAk2nojkxl8ZEDLXB0AuqLZxUpaVIC' + #13#10 +
+        'u9ffUGpVRr+goyhhf3DQw6KqLCGqR84onAZFdr+CGCe01a60y1Dma/RMhnEw6abf' + #13#10 +
+        'Fobg2P9A3fvQQoh/ozM6LlweQRGBY84YcWsr7KaKtzFcOmpH4MN5WdYgGq/yapiq' + #13#10 +
+        'crxXStJLnbsQ/LBMQeXtHT1eKJ2czL+zUdqnR+WEUwIDAQABo0IwQDAdBgNVHQ4E' + #13#10 +
+        'FgQUu69+Aj36pvE8hI6t7jiY7NkyMtQwDgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB' + #13#10 +
+        '/wQFMAMBAf8wDQYJKoZIhvcNAQEMBQADggIBAArx1UaEt65Ru2yyTUEUAJNMnMvl' + #13#10 +
+        'wFTPoCWOAvn9sKIN9SCYPBMtrFaisNZ+EZLpLrqeLppysb0ZRGxhNaKatBYSaVqM' + #13#10 +
+        '4dc+pBroLwP0rmEdEBsqpIt6xf4FpuHA1sj+nq6PK7o9mfjYcwlYRm6mnPTXJ9OV' + #13#10 +
+        '2jeDchzTc+CiR5kDOF3VSXkAKRzH7JsgHAckaVd4sjn8OoSgtZx8jb8uk2Intzna' + #13#10 +
+        'FxiuvTwJaP+EmzzV1gsD41eeFPfR60/IvYcjt7ZJQ3mFXLrrkguhxuhoqEwWsRqZ' + #13#10 +
+        'CuhTLJK7oQkYdQxlqHvLI7cawiiFwxv/0Cti76R7CZGYZ4wUAc1oBmpjIXUDgIiK' + #13#10 +
+        'boHGhfKppC3n9KUkEEeDys30jXlYsQab5xoq2Z0B15R97QNKyvDb6KkBPvVWmcke' + #13#10 +
+        'jkk9u+UJueBPSZI9FoJAzMxZxuY67RIuaTxslbH9qh17f4a+Hg4yRvv7E491f0yL' + #13#10 +
+        'S0Zj/gA0QHDBw7mh3aZw4gSzQbzpgJHqZJx64SIDqZxubw5lT2yHh17zbqD5daWb' + #13#10 +
+        'QOhTsiedSrnAdyGN/4fy3ryM7xfft0kL0fJuMAsaDk527RH89elWsn2/x20Kk4yl' + #13#10 +
+        '0MC2Hb46TpSi125sC8KKfPog88Tk5c0NqMuRkrF8hey1FGlmDoLnzc7ILaZRfyHB' + #13#10 +
+        'NVOFBkpdn627G190' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Organisation: Starfield Technologies, Inc.' + #13#10 +
+        '# Subject Organisation Unit: Starfield Class 2 Certification Authority' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 29/06/2034' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIEDzCCAvegAwIBAgIBADANBgkqhkiG9w0BAQUFADBoMQswCQYDVQQGEwJVUzEl' + #13#10 +
+        'MCMGA1UEChMcU3RhcmZpZWxkIFRlY2hub2xvZ2llcywgSW5jLjEyMDAGA1UECxMp' + #13#10 +
+        'U3RhcmZpZWxkIENsYXNzIDIgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMDQw' + #13#10 +
+        'NjI5MTczOTE2WhcNMzQwNjI5MTczOTE2WjBoMQswCQYDVQQGEwJVUzElMCMGA1UE' + #13#10 +
+        'ChMcU3RhcmZpZWxkIFRlY2hub2xvZ2llcywgSW5jLjEyMDAGA1UECxMpU3RhcmZp' + #13#10 +
+        'ZWxkIENsYXNzIDIgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwggEgMA0GCSqGSIb3' + #13#10 +
+        'DQEBAQUAA4IBDQAwggEIAoIBAQC3Msj+6XGmBIWtDBFk385N78gDGIc/oav7PKaf' + #13#10 +
+        '8MOh2tTYbitTkPskpD6E8J7oX+zlJ0T1KKY/e97gKvDIr1MvnsoFAZMej2YcOadN' + #13#10 +
+        '+lq2cwQlZut3f+dZxkqZJRRU6ybH838Z1TBwj6+wRir/resp7defqgSHo9T5iaU0' + #13#10 +
+        'X9tDkYI22WY8sbi5gv2cOj4QyDvvBmVmepsZGD3/cVE8MC5fvj13c7JdBmzDI1aa' + #13#10 +
+        'K4UmkhynArPkPw2vCHmCuDY96pzTNbO8acr1zJ3o/WSNF4Azbl5KXZnJHoe0nRrA' + #13#10 +
+        '1W4TNSNe35tfPe/W93bC6j67eA0cQmdrBNj41tpvi/JEoAGrAgEDo4HFMIHCMB0G' + #13#10 +
+        'A1UdDgQWBBS/X7fRzt0fhvRbVazc1xDCDqmI5zCBkgYDVR0jBIGKMIGHgBS/X7fR' + #13#10 +
+        'zt0fhvRbVazc1xDCDqmI56FspGowaDELMAkGA1UEBhMCVVMxJTAjBgNVBAoTHFN0' + #13#10 +
+        'YXJmaWVsZCBUZWNobm9sb2dpZXMsIEluYy4xMjAwBgNVBAsTKVN0YXJmaWVsZCBD' + #13#10 +
+        'bGFzcyAyIENlcnRpZmljYXRpb24gQXV0aG9yaXR5ggEAMAwGA1UdEwQFMAMBAf8w' + #13#10 +
+        'DQYJKoZIhvcNAQEFBQADggEBAAWdP4id0ckaVaGsafPzWdqbAYcaT1epoXkJKtv3' + #13#10 +
+        'L7IezMdeatiDh6GX70k1PncGQVhiv45YuApnP+yz3SFmH8lU+nLMPUxA2IGvd56D' + #13#10 +
+        'eruix/U0F47ZEUD0/CwqTRV/p2JdLiXTAAsgGh1o+Re49L2L7ShZ3U0WixeDyLJl' + #13#10 +
+        'xy16paq8U4Zt3VekyvggQQto8PT7dL5WXXp59fkdheMtlb71cZBDzI0fmgAKhynp' + #13#10 +
+        'VSJYACPq4xJDKVtHCN2MQWplBqjlIapBtJUhlbl90TSrE9atvNziPTnNvT51cKEY' + #13#10 +
+        'WQPJIrSPnNVeKtelttQKbfi3QBFGmh95DmK/D5fs4C8fF5Q=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: DigiCert Global Root CA' + #13#10 +
+        '# Subject Organisation: DigiCert Inc' + #13#10 +
+        '# Subject Organisation Unit: www.digicert.com' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 10/11/2031' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh' + #13#10 +
+        'MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3' + #13#10 +
+        'd3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD' + #13#10 +
+        'QTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVT' + #13#10 +
+        'MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j' + #13#10 +
+        'b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG' + #13#10 +
+        '9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsB' + #13#10 +
+        'CSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97' + #13#10 +
+        'nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt' + #13#10 +
+        '43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7P' + #13#10 +
+        'T19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4' + #13#10 +
+        'gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAO' + #13#10 +
+        'BgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbR' + #13#10 +
+        'TLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUw' + #13#10 +
+        'DQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/Esr' + #13#10 +
+        'hMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg' + #13#10 +
+        '06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJF' + #13#10 +
+        'PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls' + #13#10 +
+        'YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk' + #13#10 +
+        'CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: thawte Primary Root CA' + #13#10 +
+        '# Subject Organisation: thawte, Inc.' + #13#10 +
+        '# Subject Organisation Unit: Certification Services Division, (c) 2006 thawte, Inc. - For authorized use only' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 16/07/2036' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIEIDCCAwigAwIBAgIQNE7VVyDV7exJ9C/ON9srbTANBgkqhkiG9w0BAQUFADCB' + #13#10 +
+        'qTELMAkGA1UEBhMCVVMxFTATBgNVBAoTDHRoYXd0ZSwgSW5jLjEoMCYGA1UECxMf' + #13#10 +
+        'Q2VydGlmaWNhdGlvbiBTZXJ2aWNlcyBEaXZpc2lvbjE4MDYGA1UECxMvKGMpIDIw' + #13#10 +
+        'MDYgdGhhd3RlLCBJbmMuIC0gRm9yIGF1dGhvcml6ZWQgdXNlIG9ubHkxHzAdBgNV' + #13#10 +
+        'BAMTFnRoYXd0ZSBQcmltYXJ5IFJvb3QgQ0EwHhcNMDYxMTE3MDAwMDAwWhcNMzYw' + #13#10 +
+        'NzE2MjM1OTU5WjCBqTELMAkGA1UEBhMCVVMxFTATBgNVBAoTDHRoYXd0ZSwgSW5j' + #13#10 +
+        'LjEoMCYGA1UECxMfQ2VydGlmaWNhdGlvbiBTZXJ2aWNlcyBEaXZpc2lvbjE4MDYG' + #13#10 +
+        'A1UECxMvKGMpIDIwMDYgdGhhd3RlLCBJbmMuIC0gRm9yIGF1dGhvcml6ZWQgdXNl' + #13#10 +
+        'IG9ubHkxHzAdBgNVBAMTFnRoYXd0ZSBQcmltYXJ5IFJvb3QgQ0EwggEiMA0GCSqG' + #13#10 +
+        'SIb3DQEBAQUAA4IBDwAwggEKAoIBAQCsoPD7gFnUnMekz52hWXMJEEUMDSxuaPFs' + #13#10 +
+        'W0hoSVk3/AszGcJ3f8wQLZU0HObrTQmnHNK4yZc2AreJ1CRfBsDMRJSUjQJib+ta' + #13#10 +
+        '3RGNKJpchJAQeg29dGYvajig4tVUROsdB58Hum/u6f1OCyn1PoSgAfGcq/gcfomk' + #13#10 +
+        '6KHYcWUNo1F77rzSImANuVud37r8UVsLr5iy6S7pBOhih94ryNdOwUxkHt3Ph1i6' + #13#10 +
+        'Sk/KaAcdHJ1KxtUvkcx8cXIcxcBn6zL9yZJclNqFwJu/U30rCfSMnZEfl2pSy94J' + #13#10 +
+        'NqR32HuHUETVPm4pafs5SSYeCaWAe0At6+gnhcn+Yf1+5nyXHdWdAgMBAAGjQjBA' + #13#10 +
+        'MA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMB0GA1UdDgQWBBR7W0XP' + #13#10 +
+        'r87Lev0xkhpqtvNG61dIUDANBgkqhkiG9w0BAQUFAAOCAQEAeRHAS7ORtvzw6WfU' + #13#10 +
+        'DW5FvlXok9LOAz/t2iWwHVfLHjp2oEzsUHboZHIMpKnxuIvW1oeEuzLlQRHAd9mz' + #13#10 +
+        'YJ3rG9XRbkREqaYB7FViHXe4XI5ISXycO1cRrK1zN44veFyQaEfZYGDm/Ac9IiAX' + #13#10 +
+        'xPcW6cTYcvnIc3zfFi8VqT79aie2oetaupgf1eNNZAqdE8hhuvU5HIe6uL17In/2' + #13#10 +
+        '/qxAeeWsEG89jxt5dovEN7MhGITlNgDrYyCZuen+MwS7QcjBAvlEYyCegc5C09Y/' + #13#10 +
+        'LHbTY5xZ3Y+m4Q6gLkH3LpVHz7z9M/P2C2F+fpErgUfCJzDupxBdN49cOSvkBPB7' + #13#10 +
+        'jVaMaA==' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: Entrust Root Certification Authority - G2' + #13#10 +
+        '# Subject Organisation: Entrust, Inc.' + #13#10 +
+        '# Subject Organisation Unit: See www.entrust.net/legal-terms, (c) 2009 Entrust, Inc. - for authorized use only' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 07/12/2030' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIEPjCCAyagAwIBAgIESlOMKDANBgkqhkiG9w0BAQsFADCBvjELMAkGA1UEBhMC' + #13#10 +
+        'VVMxFjAUBgNVBAoTDUVudHJ1c3QsIEluYy4xKDAmBgNVBAsTH1NlZSB3d3cuZW50' + #13#10 +
+        'cnVzdC5uZXQvbGVnYWwtdGVybXMxOTA3BgNVBAsTMChjKSAyMDA5IEVudHJ1c3Qs' + #13#10 +
+        'IEluYy4gLSBmb3IgYXV0aG9yaXplZCB1c2Ugb25seTEyMDAGA1UEAxMpRW50cnVz' + #13#10 +
+        'dCBSb290IENlcnRpZmljYXRpb24gQXV0aG9yaXR5IC0gRzIwHhcNMDkwNzA3MTcy' + #13#10 +
+        'NTU0WhcNMzAxMjA3MTc1NTU0WjCBvjELMAkGA1UEBhMCVVMxFjAUBgNVBAoTDUVu' + #13#10 +
+        'dHJ1c3QsIEluYy4xKDAmBgNVBAsTH1NlZSB3d3cuZW50cnVzdC5uZXQvbGVnYWwt' + #13#10 +
+        'dGVybXMxOTA3BgNVBAsTMChjKSAyMDA5IEVudHJ1c3QsIEluYy4gLSBmb3IgYXV0' + #13#10 +
+        'aG9yaXplZCB1c2Ugb25seTEyMDAGA1UEAxMpRW50cnVzdCBSb290IENlcnRpZmlj' + #13#10 +
+        'YXRpb24gQXV0aG9yaXR5IC0gRzIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK' + #13#10 +
+        'AoIBAQC6hLZy254Ma+KZ6TABp3bqMriVQRrJ2mFOWHLP/vaCeb9zYQYKpSfYs1/T' + #13#10 +
+        'RU4cctZOMvJyig/3gxnQaoCAAEUesMfnmr8SVycco2gvCoe9amsOXmXzHHfV1IWN' + #13#10 +
+        'cCG0szLni6LVhjkCsbjSR87kyUnEO6fe+1R9V77w6G7CebI6C1XiUJgWMhNcL3hW' + #13#10 +
+        'wcKUs/Ja5CeanyTXxuzQmyWC48zCxEXFjJd6BmsqEZ+pCm5IO2/b1BEZQvePB7/1' + #13#10 +
+        'U1+cPvQXLOZprE4yTGJ36rfo5bs0vBmLrpxR57d+tVOxMyLlbc9wPBr64ptntoP0' + #13#10 +
+        'jaWvYkxN4FisZDQSA/i2jZRjJKRxAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAP' + #13#10 +
+        'BgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBRqciZ60B7vfec7aVHUbI2fkBJmqzAN' + #13#10 +
+        'BgkqhkiG9w0BAQsFAAOCAQEAeZ8dlsa2eT8ijYfThwMEYGprmi5ZiXMRrEPR9RP/' + #13#10 +
+        'jTkrwPK9T3CMqS/qF8QLVJ7UG5aYMzyorWKiAHarWWluBh1+xLlEjZivEtRh2woZ' + #13#10 +
+        'Rkfz6/djwUAFQKXSt/S1mja/qYh2iARVBCuch38aNzx+LaUa2NSJXsq9rD1s2G2v' + #13#10 +
+        '1fN2D807iDginWyTmsQ9v4IbZT+mD12q/OWyFcq1rca8PdCE6OoGcrBNOTJ4vz4R' + #13#10 +
+        'nAuknZoh8/CbCzB428Hch0P+vGOaysXCHMnHjf87ElgI5rY97HosTvuDls4MPGmH' + #13#10 +
+        'VHOkc8KT/1EQrBVUAdj8BbGJoX90g5pJ19xOe4pIb4tF9g==' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: SecureTrust CA' + #13#10 +
+        '# Subject Organisation: SecureTrust Corporation' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 31/12/2029' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDuDCCAqCgAwIBAgIQDPCOXAgWpa1Cf/DrJxhZ0DANBgkqhkiG9w0BAQUFADBI' + #13#10 +
+        'MQswCQYDVQQGEwJVUzEgMB4GA1UEChMXU2VjdXJlVHJ1c3QgQ29ycG9yYXRpb24x' + #13#10 +
+        'FzAVBgNVBAMTDlNlY3VyZVRydXN0IENBMB4XDTA2MTEwNzE5MzExOFoXDTI5MTIz' + #13#10 +
+        'MTE5NDA1NVowSDELMAkGA1UEBhMCVVMxIDAeBgNVBAoTF1NlY3VyZVRydXN0IENv' + #13#10 +
+        'cnBvcmF0aW9uMRcwFQYDVQQDEw5TZWN1cmVUcnVzdCBDQTCCASIwDQYJKoZIhvcN' + #13#10 +
+        'AQEBBQADggEPADCCAQoCggEBAKukgeWVzfX2FI7CT8rU4niVWJxB4Q2ZQCQXOZEz' + #13#10 +
+        'Zum+4YOvYlyJ0fwkW2Gz4BERQRwdbvC4u/jep4G6pkjGnx29vo6pQT64lO0pGtSO' + #13#10 +
+        '0gMdA+9tDWccV9cGrcrI9f4Or2YlSASWC12juhbDCE/RRvgUXPLIXgGZbf2IzIao' + #13#10 +
+        'wW8xQmxSPmjL8xk037uHGFaAJsTQ3MBv396gwpEWoGQRS0S8Hvbn+mPeZqx2pHGj' + #13#10 +
+        '7DaUaHp3pLHnDi+BeuK1cobvomuL8A/b01k/unK8RCSc43Oz969XL0Imnal0ugBS' + #13#10 +
+        '8kvNU3xHCzaFDmapCJcWNFfBZveA4+1wVMeT4C4oFVmHursCAwEAAaOBnTCBmjAT' + #13#10 +
+        'BgkrBgEEAYI3FAIEBh4EAEMAQTALBgNVHQ8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB' + #13#10 +
+        '/zAdBgNVHQ4EFgQUQjK2FvoE/f5dS3rD/fdMQB1aQ68wNAYDVR0fBC0wKzApoCeg' + #13#10 +
+        'JYYjaHR0cDovL2NybC5zZWN1cmV0cnVzdC5jb20vU1RDQS5jcmwwEAYJKwYBBAGC' + #13#10 +
+        'NxUBBAMCAQAwDQYJKoZIhvcNAQEFBQADggEBADDtT0rhWDpSclu1pqNlGKa7UTt3' + #13#10 +
+        '6Z3q059c4EVlew3KW+JwULKUBRSuSceNQQcSc5R+DCMh/bwQf2AQWnL1mA6s7Ll/' + #13#10 +
+        '3XpvXdMc9P+IBWlCqQVxyLesJugutIxq/3HcuLHfmbx8IVQr5Fiiu1cprp6poxkm' + #13#10 +
+        'D5kuCLDv/WnPmRoJjeOnnyvJNjR7JLN4TJUXpAYmHrZkUjZfYGfZnMUFdAvnZyPS' + #13#10 +
+        'CPyI6a6Lf+Ew9Dd+/cYy2i2eRDAwbO4H3tI0/NL/QPZL9GZGBlSm8jIKYyYwa5vR' + #13#10 +
+        '3ItHuuG51WLQoqD0ZwV4KWMabwTW+MZMo5qxN7SN5ShLHZ4swrhovO0C7jE=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: Deutsche Telekom Root CA 2' + #13#10 +
+        '# Subject Organisation: Deutsche Telekom AG' + #13#10 +
+        '# Subject Organisation Unit: T-TeleSec Trust Center' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 09/07/2019' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDnzCCAoegAwIBAgIBJjANBgkqhkiG9w0BAQUFADBxMQswCQYDVQQGEwJERTEc' + #13#10 +
+        'MBoGA1UEChMTRGV1dHNjaGUgVGVsZWtvbSBBRzEfMB0GA1UECxMWVC1UZWxlU2Vj' + #13#10 +
+        'IFRydXN0IENlbnRlcjEjMCEGA1UEAxMaRGV1dHNjaGUgVGVsZWtvbSBSb290IENB' + #13#10 +
+        'IDIwHhcNOTkwNzA5MTIxMTAwWhcNMTkwNzA5MjM1OTAwWjBxMQswCQYDVQQGEwJE' + #13#10 +
+        'RTEcMBoGA1UEChMTRGV1dHNjaGUgVGVsZWtvbSBBRzEfMB0GA1UECxMWVC1UZWxl' + #13#10 +
+        'U2VjIFRydXN0IENlbnRlcjEjMCEGA1UEAxMaRGV1dHNjaGUgVGVsZWtvbSBSb290' + #13#10 +
+        'IENBIDIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCrC6M14IspFLEU' + #13#10 +
+        'ha88EOQ5bzVdSq7d6mGNlUn0b2SjGmBmpKlAIoTZ1KXleJMOaAGtuU1cOs7TuKhC' + #13#10 +
+        'QN/Po7qCWWqSG6wcmtoIKyUn+WkjR/Hg6yx6m/UTAtB+NHzCnjwAWav12gz1Mjwr' + #13#10 +
+        'rFDa1sPeg5TKqAyZMg4ISFZbavva4VhYAUlfckE8FQYBjl2tqriTtM2e66foai1S' + #13#10 +
+        'NNs671x1Udrb8zH57nGYMsRUFUQM+ZtV7a3fGAigo4aKSe5TBY8ZTNXeWHmb0moc' + #13#10 +
+        'QqvF1afPaA+W5OFhmHZhyJF81j4A4pFQh+GdCuatl9Idxjp9y7zaAzTVjlsB9WoH' + #13#10 +
+        'txa2bkp/AgMBAAGjQjBAMB0GA1UdDgQWBBQxw3kbuvVT1xfgiXotF2wKsyudMzAP' + #13#10 +
+        'BgNVHRMECDAGAQH/AgEFMA4GA1UdDwEB/wQEAwIBBjANBgkqhkiG9w0BAQUFAAOC' + #13#10 +
+        'AQEAlGRZrTlk5ynrE/5aw4sTV8gEJPB0d8Bg42f76Ymmg7+Wgnxu1MM9756Abrsp' + #13#10 +
+        'tJh6sTtU6zkXR34ajgv8HzFZMQSyzhfzLMdiNlXiItiJVbSYSKpk+tYcNthEeFpa' + #13#10 +
+        'IzpXl/V6ME+un2pMSyuOoAPjPuCp1NJ70rOo4nI8rZ7/gFnkm0W09juwzTkZmDLl' + #13#10 +
+        '6iFhkOQxIY40sfcvNUqFENrnijchvllj4PKFiDFT1FQUhXB59C4Gdyd1Lx+4ivn+' + #13#10 +
+        'xbrYNuSD7Odlt79jWvNGr4GUN9RBjNYj1h7P9WgbRGOiWrqnNVmh5XAFmw4jV5mU' + #13#10 +
+        'Cm26OWMohpLzGITY+9HPBVZkVw==' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Organisation: VeriSign, Inc.' + #13#10 +
+        '# Subject Organisation Unit: Class 3 Public Primary Certification Authority' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 01/08/2028' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIICPDCCAaUCEHC65B0Q2Sk0tjjKewPMur8wDQYJKoZIhvcNAQECBQAwXzELMAkG' + #13#10 +
+        'A1UEBhMCVVMxFzAVBgNVBAoTDlZlcmlTaWduLCBJbmMuMTcwNQYDVQQLEy5DbGFz' + #13#10 +
+        'cyAzIFB1YmxpYyBQcmltYXJ5IENlcnRpZmljYXRpb24gQXV0aG9yaXR5MB4XDTk2' + #13#10 +
+        'MDEyOTAwMDAwMFoXDTI4MDgwMTIzNTk1OVowXzELMAkGA1UEBhMCVVMxFzAVBgNV' + #13#10 +
+        'BAoTDlZlcmlTaWduLCBJbmMuMTcwNQYDVQQLEy5DbGFzcyAzIFB1YmxpYyBQcmlt' + #13#10 +
+        'YXJ5IENlcnRpZmljYXRpb24gQXV0aG9yaXR5MIGfMA0GCSqGSIb3DQEBAQUAA4GN' + #13#10 +
+        'ADCBiQKBgQDJXFme8huKARS0EN8EQNvjV69qRUCPhAwL0TPZ2RHP7gJYHyX3KqhE' + #13#10 +
+        'BarsAx94f56TuZoAqiN91qyFomNFx3InzPRMxnVx0jnvT0Lwdd8KkMaOIG+YD/is' + #13#10 +
+        'I19wKTakyYbnsZogy1Olhec9vn2a/iRFM9x2Fe0PonFkTGUugWhFpwIDAQABMA0G' + #13#10 +
+        'CSqGSIb3DQEBAgUAA4GBALtMEivPLCYATxQT3ab7/AoRhIzzKBxnki98tsX63/Do' + #13#10 +
+        'lbwdj2wsqFHMc9ikwFPwTtYmwHYBV4GSXiHx0bH/59AhWM1pF+NEHJwZRDmJXNyc' + #13#10 +
+        'AA9WjQKZ7aKQRUzkuxCkPfAyAw7xzvjoyVGM5mKf5p/AfbdynMk2OmufTqj/ZA1k' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: Class 2 Primary CA' + #13#10 +
+        '# Subject Organisation: Certplus' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 06/07/2019' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDkjCCAnqgAwIBAgIRAIW9S/PY2uNp9pTXX8OlRCMwDQYJKoZIhvcNAQEFBQAw' + #13#10 +
+        'PTELMAkGA1UEBhMCRlIxETAPBgNVBAoTCENlcnRwbHVzMRswGQYDVQQDExJDbGFz' + #13#10 +
+        'cyAyIFByaW1hcnkgQ0EwHhcNOTkwNzA3MTcwNTAwWhcNMTkwNzA2MjM1OTU5WjA9' + #13#10 +
+        'MQswCQYDVQQGEwJGUjERMA8GA1UEChMIQ2VydHBsdXMxGzAZBgNVBAMTEkNsYXNz' + #13#10 +
+        'IDIgUHJpbWFyeSBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANxQ' + #13#10 +
+        'ltAS+DXSCHh6tlJw/W/uz7kRy1134ezpfgSN1sxvc0NXYKwzCkTsA18cgCSR5aiR' + #13#10 +
+        'VhKC9+Ar9NuuYS6JEI1rbLqzAr3VNsVINyPi8Fo3UjMXEuLRYE2+L0ER4/YXJQyL' + #13#10 +
+        'kcAbmXuZVg2v7tK8R1fjeUl7NIknJITesezpWE7+Tt9avkGtrAjFGA7v0lPubNCd' + #13#10 +
+        'EgETjdyAYveVqUSISnFOYFWe2yMZeVYHDD9jC1yw4r5+FfyUM1hBOHTE4Y+L3yas' + #13#10 +
+        'H7WLO7dDWWuwJKZtkIvEcupdM5i3y95ee++U8Rs+yskhwcWYAqqi9lt3m/V+llU0' + #13#10 +
+        'HGdpwPFC40es/CgcZlUCAwEAAaOBjDCBiTAPBgNVHRMECDAGAQH/AgEKMAsGA1Ud' + #13#10 +
+        'DwQEAwIBBjAdBgNVHQ4EFgQU43Mt38sOKAze3bOkynm4jrvoMIkwEQYJYIZIAYb4' + #13#10 +
+        'QgEBBAQDAgEGMDcGA1UdHwQwMC4wLKAqoCiGJmh0dHA6Ly93d3cuY2VydHBsdXMu' + #13#10 +
+        'Y29tL0NSTC9jbGFzczIuY3JsMA0GCSqGSIb3DQEBBQUAA4IBAQCnVM+IRBnL39R/' + #13#10 +
+        'AN9WM2K191EBkOvDP9GIROkkXe/nFL0gt5o8AP5tn9uQ3Nf0YtaLcF3n5QRIqWh8' + #13#10 +
+        'yfFC82x/xXp8HVGIutIKPidd3i1RTtMTZGnkLuPT55sJmabglZvOGtd/vjzOUrMR' + #13#10 +
+        'FcEPF80Du5wlFbqidon8BvEY0JNLDnyCt6X09l/+7UCmnYR0ObncHoUW2ikbhiMA' + #13#10 +
+        'ybuJfm6AiB4vFLQDJKgybwOaRywwvlbGp0ICcBvqQNi6BQNwB6SW//1IMwrh3KWB' + #13#10 +
+        'kJtN3X3n57LNXMhqlfil9o3EXXgIvnsG1knPGTZQIy4I5p4FTUcY1Rbpsda2ENW7' + #13#10 +
+        'l7+ijrRU' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: Thawte Premium Server CA' + #13#10 +
+        '# Subject Organisation: Thawte Consulting cc' + #13#10 +
+        '# Subject Organisation Unit: Certification Services Division' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 31/12/2020' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDJzCCApCgAwIBAgIBATANBgkqhkiG9w0BAQQFADCBzjELMAkGA1UEBhMCWkEx' + #13#10 +
+        'FTATBgNVBAgTDFdlc3Rlcm4gQ2FwZTESMBAGA1UEBxMJQ2FwZSBUb3duMR0wGwYD' + #13#10 +
+        'VQQKExRUaGF3dGUgQ29uc3VsdGluZyBjYzEoMCYGA1UECxMfQ2VydGlmaWNhdGlv' + #13#10 +
+        'biBTZXJ2aWNlcyBEaXZpc2lvbjEhMB8GA1UEAxMYVGhhd3RlIFByZW1pdW0gU2Vy' + #13#10 +
+        'dmVyIENBMSgwJgYJKoZIhvcNAQkBFhlwcmVtaXVtLXNlcnZlckB0aGF3dGUuY29t' + #13#10 +
+        'MB4XDTk2MDgwMTAwMDAwMFoXDTIwMTIzMTIzNTk1OVowgc4xCzAJBgNVBAYTAlpB' + #13#10 +
+        'MRUwEwYDVQQIEwxXZXN0ZXJuIENhcGUxEjAQBgNVBAcTCUNhcGUgVG93bjEdMBsG' + #13#10 +
+        'A1UEChMUVGhhd3RlIENvbnN1bHRpbmcgY2MxKDAmBgNVBAsTH0NlcnRpZmljYXRp' + #13#10 +
+        'b24gU2VydmljZXMgRGl2aXNpb24xITAfBgNVBAMTGFRoYXd0ZSBQcmVtaXVtIFNl' + #13#10 +
+        'cnZlciBDQTEoMCYGCSqGSIb3DQEJARYZcHJlbWl1bS1zZXJ2ZXJAdGhhd3RlLmNv' + #13#10 +
+        'bTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA0jY2aovXwlue2oFBYo847kkE' + #13#10 +
+        'VdbQ7xwblRZH7xhINTpS9CtqBo87L+pW46+GjZ4X9560ZXUCTe/LCaIhUdib0GfQ' + #13#10 +
+        'ug2SBhRz1JPLlyoAnFxODLz6FVL88kRu2hFKbgifLy3j+ao6hnO2RlNYyIkFvYMR' + #13#10 +
+        'uHM/qgeN9EJN50CdHDcCAwEAAaMTMBEwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG' + #13#10 +
+        '9w0BAQQFAAOBgQAmSCwWwlj66BZ0DKqqX1Q/8tfJeGBeXm43YyJ3Nn6yF8Q0ufUI' + #13#10 +
+        'hfzJATj/Tb7yFkJD57taRvvBxhEf8UqwKEbJw8RCfbz6q1lu1bdRiBHjpIUZa4JM' + #13#10 +
+        'pAwSremkrj/xw0llmozFyD4lt5SZu5IycQfwhl7tUCemDaYj+bvLpgcUQg==' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: DigiCert High Assurance EV Root CA' + #13#10 +
+        '# Subject Organisation: DigiCert Inc' + #13#10 +
+        '# Subject Organisation Unit: www.digicert.com' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 10/11/2031' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDxTCCAq2gAwIBAgIQAqxcJmoLQJuPC3nyrkYldzANBgkqhkiG9w0BAQUFADBs' + #13#10 +
+        'MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3' + #13#10 +
+        'd3cuZGlnaWNlcnQuY29tMSswKQYDVQQDEyJEaWdpQ2VydCBIaWdoIEFzc3VyYW5j' + #13#10 +
+        'ZSBFViBSb290IENBMB4XDTA2MTExMDAwMDAwMFoXDTMxMTExMDAwMDAwMFowbDEL' + #13#10 +
+        'MAkGA1UEBhMCVVMxFTATBgNVBAoTDERpZ2lDZXJ0IEluYzEZMBcGA1UECxMQd3d3' + #13#10 +
+        'LmRpZ2ljZXJ0LmNvbTErMCkGA1UEAxMiRGlnaUNlcnQgSGlnaCBBc3N1cmFuY2Ug' + #13#10 +
+        'RVYgUm9vdCBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMbM5XPm' + #13#10 +
+        '+9S75S0tMqbf5YE/yc0lSbZxKsPVlDRnogocsF9ppkCxxLeyj9CYpKlBWTrT3JTW' + #13#10 +
+        'PNt0OKRKzE0lgvdKpVMSOO7zSW1xkX5jtqumX8OkhPhPYlG++MXs2ziS4wblCJEM' + #13#10 +
+        'xChBVfvLWokVfnHoNb9Ncgk9vjo4UFt3MRuNs8ckRZqnrG0AFFoEt7oT61EKmEFB' + #13#10 +
+        'Ik5lYYeBQVCmeVyJ3hlKV9Uu5l0cUyx+mM0aBhakaHPQNAQTXKFx01p8VdteZOE3' + #13#10 +
+        'hzBWBOURtCmAEvF5OYiiAhF8J2a3iLd48soKqDirCmTCv2ZdlYTBoSUeh10aUAsg' + #13#10 +
+        'EsxBu24LUTi4S8sCAwEAAaNjMGEwDgYDVR0PAQH/BAQDAgGGMA8GA1UdEwEB/wQF' + #13#10 +
+        'MAMBAf8wHQYDVR0OBBYEFLE+w2kD+L9HAdSYJhoIAu9jZCvDMB8GA1UdIwQYMBaA' + #13#10 +
+        'FLE+w2kD+L9HAdSYJhoIAu9jZCvDMA0GCSqGSIb3DQEBBQUAA4IBAQAcGgaX3Nec' + #13#10 +
+        'nzyIZgYIVyHbIUf4KmeqvxgydkAQV8GK83rZEWWONfqe/EW1ntlMMUu4kehDLI6z' + #13#10 +
+        'eM7b41N5cdblIZQB2lWHmiRk9opmzN6cN82oNLFpmyPInngiK3BD41VHMWEZ71jF' + #13#10 +
+        'hS9OMPagMRYjyOfiZRYzy78aG6A9+MpeizGLYAiJLQwGXFK3xPkKmNEVX58Svnw2' + #13#10 +
+        'Yzi9RKR/5CYrCsSXaQ3pjOLAEFe4yHYSkVXySGnYvCoCWw9E1CAx2/S6cCZdkGCe' + #13#10 +
+        'vEsXCS+0yx5DaMkHJ8HSXPfqIbloEpw8nL+e/IBcm2PN7EeqJSdnoDfzAIJ9VNep' + #13#10 +
+        '+OkuE6N36B9K' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: Entrust.net Certification Authority (2048)' + #13#10 +
+        '# Subject Organisation: Entrust.net' + #13#10 +
+        '# Subject Organisation Unit: www.entrust.net/CPS_2048 incorp. by ref. (limits liab.), (c) 1999 Entrust.net Limited' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 24/07/2029' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIEKjCCAxKgAwIBAgIEOGPe+DANBgkqhkiG9w0BAQUFADCBtDEUMBIGA1UEChML' + #13#10 +
+        'RW50cnVzdC5uZXQxQDA+BgNVBAsUN3d3dy5lbnRydXN0Lm5ldC9DUFNfMjA0OCBp' + #13#10 +
+        'bmNvcnAuIGJ5IHJlZi4gKGxpbWl0cyBsaWFiLikxJTAjBgNVBAsTHChjKSAxOTk5' + #13#10 +
+        'IEVudHJ1c3QubmV0IExpbWl0ZWQxMzAxBgNVBAMTKkVudHJ1c3QubmV0IENlcnRp' + #13#10 +
+        'ZmljYXRpb24gQXV0aG9yaXR5ICgyMDQ4KTAeFw05OTEyMjQxNzUwNTFaFw0yOTA3' + #13#10 +
+        'MjQxNDE1MTJaMIG0MRQwEgYDVQQKEwtFbnRydXN0Lm5ldDFAMD4GA1UECxQ3d3d3' + #13#10 +
+        'LmVudHJ1c3QubmV0L0NQU18yMDQ4IGluY29ycC4gYnkgcmVmLiAobGltaXRzIGxp' + #13#10 +
+        'YWIuKTElMCMGA1UECxMcKGMpIDE5OTkgRW50cnVzdC5uZXQgTGltaXRlZDEzMDEG' + #13#10 +
+        'A1UEAxMqRW50cnVzdC5uZXQgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkgKDIwNDgp' + #13#10 +
+        'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArU1LqRKGsuqjIAcVFmQq' + #13#10 +
+        'K0vRvwtKTY7tgHalZ7d4QMBzQshowNtTK91euHaYNZOLGp18EzoOH1u3Hs/lJBQe' + #13#10 +
+        'sYGpjX24zGtLA/ECDNyrpUAkAH90lKGdCCmziAv1h3edVc3kw37XamSrhRSGlVuX' + #13#10 +
+        'MlBvPci6Zgzj/L24ScF2iUkZ/cCovYmjZy/Gn7xxGWC4LeksyZB2ZnuU4q941mVT' + #13#10 +
+        'XTzWnLLPKQP5L6RQstRIzgUyVYr9smRMDuSYB3Xbf9+5CFVghTAp+XtIpGmG4zU/' + #13#10 +
+        'HoZdenoVve8AjhUiVBcAkCaTvA5JaJG/+EfTnZVCwQ5N328mz8MYIWJmQ3DW1cAH' + #13#10 +
+        '4QIDAQABo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNV' + #13#10 +
+        'HQ4EFgQUVeSB0RGAvtiJuQijMfmhJAkWuXAwDQYJKoZIhvcNAQEFBQADggEBADub' + #13#10 +
+        'j1abMOdTmXx6eadNl9cZlZD7Bh/KM3xGY4+WZiT6QBshJ8rmcnPyT/4xmf3IDExo' + #13#10 +
+        'U8aAghOY+rat2l098c5u9hURlIIM7j+VrxGrD9cv3h8Dj1csHsm7mhpElesYT6Yf' + #13#10 +
+        'zX1XEC+bBAlahLVu2B064dae0Wx5XnkcFMXj0EyTO2U87d89vqbllRrDtRnDvV5b' + #13#10 +
+        'u/8j72gZyxKTJ1wDLW8w0B62GqzeWvfRqqgnpv55gcR5mTNXuhKwqeBCbJPKVt7+' + #13#10 +
+        'bYQLCIt+jerXmCHG8+c8eS9enNFMFY3h7CI3zJpDC5fcgJCNs2ebb0gIFVbPv/Er' + #13#10 +
+        'fF6adulZkMV8gzURZVE=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: VeriSign Class 3 Public Primary Certification Authority - G5' + #13#10 +
+        '# Subject Organisation: VeriSign, Inc.' + #13#10 +
+        '# Subject Organisation Unit: VeriSign Trust Network, (c) 2006 VeriSign, Inc. - For authorized use only' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 16/07/2036' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIE0zCCA7ugAwIBAgIQGNrRniZ96LtKIVjNzGs7SjANBgkqhkiG9w0BAQUFADCB' + #13#10 +
+        'yjELMAkGA1UEBhMCVVMxFzAVBgNVBAoTDlZlcmlTaWduLCBJbmMuMR8wHQYDVQQL' + #13#10 +
+        'ExZWZXJpU2lnbiBUcnVzdCBOZXR3b3JrMTowOAYDVQQLEzEoYykgMjAwNiBWZXJp' + #13#10 +
+        'U2lnbiwgSW5jLiAtIEZvciBhdXRob3JpemVkIHVzZSBvbmx5MUUwQwYDVQQDEzxW' + #13#10 +
+        'ZXJpU2lnbiBDbGFzcyAzIFB1YmxpYyBQcmltYXJ5IENlcnRpZmljYXRpb24gQXV0' + #13#10 +
+        'aG9yaXR5IC0gRzUwHhcNMDYxMTA4MDAwMDAwWhcNMzYwNzE2MjM1OTU5WjCByjEL' + #13#10 +
+        'MAkGA1UEBhMCVVMxFzAVBgNVBAoTDlZlcmlTaWduLCBJbmMuMR8wHQYDVQQLExZW' + #13#10 +
+        'ZXJpU2lnbiBUcnVzdCBOZXR3b3JrMTowOAYDVQQLEzEoYykgMjAwNiBWZXJpU2ln' + #13#10 +
+        'biwgSW5jLiAtIEZvciBhdXRob3JpemVkIHVzZSBvbmx5MUUwQwYDVQQDEzxWZXJp' + #13#10 +
+        'U2lnbiBDbGFzcyAzIFB1YmxpYyBQcmltYXJ5IENlcnRpZmljYXRpb24gQXV0aG9y' + #13#10 +
+        'aXR5IC0gRzUwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCvJAgIKXo1' + #13#10 +
+        'nmAMqudLO07cfLw8RRy7K+D+KQL5VwijZIUVJ/XxrcgxiV0i6CqqpkKzj/i5Vbex' + #13#10 +
+        't0uz/o9+B1fs70PbZmIVYc9gDaTY3vjgw2IIPVQT60nKWVSFJuUrjxuf6/WhkcIz' + #13#10 +
+        'SdhDY2pSS9KP6HBRTdGJaXvHcPaz3BJ023tdS1bTlr8Vd6Gw9KIl8q8ckmcY5fQG' + #13#10 +
+        'BO+QueQA5N06tRn/Arr0PO7gi+s3i+z016zy9vA9r911kTMZHRxAy3QkGSGT2RT+' + #13#10 +
+        'rCpSx4/VBEnkjWNHiDxpg8v+R70rfk/Fla4OndTRQ8Bnc+MUCH7lP59zuDMKz10/' + #13#10 +
+        'NIeWiu5T6CUVAgMBAAGjgbIwga8wDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8E' + #13#10 +
+        'BAMCAQYwbQYIKwYBBQUHAQwEYTBfoV2gWzBZMFcwVRYJaW1hZ2UvZ2lmMCEwHzAH' + #13#10 +
+        'BgUrDgMCGgQUj+XTGoasjY5rw8+AatRIGCx7GS4wJRYjaHR0cDovL2xvZ28udmVy' + #13#10 +
+        'aXNpZ24uY29tL3ZzbG9nby5naWYwHQYDVR0OBBYEFH/TZafC3ey78DAJ80M5+gKv' + #13#10 +
+        'MzEzMA0GCSqGSIb3DQEBBQUAA4IBAQCTJEowX2LP2BqYLz3q3JktvXf2pXkiOOzE' + #13#10 +
+        'p6B4Eq1iDkVwZMXnl2YtmAl+X6/WzChl8gGqCBpH3vn5fJJaCGkgDdk+bW48DW7Y' + #13#10 +
+        '5gaRQBi5+MHt39tBquCWIMnNZBU4gcmU7qKEKQsTb47bDN0lAtukixlE0kF6BWlK' + #13#10 +
+        'WE9gyn6CagsCqiUXObXbf+eEZSqVir2G3l6BFoMtEMze/aiCKm0oHw0LxOXnGiYZ' + #13#10 +
+        '4fQRbxC1lfznQgUy286dUV4otp6F01vvpX1FQHKOtw5rDgb7MzVIcbidJ4vEZV8N' + #13#10 +
+        'hnacRHr2lVz2XTIIM6RUthg/aFzyQkqFOFSDX9HoLPKsEdao7WNq' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: Go Daddy Root Certificate Authority - G2' + #13#10 +
+        '# Subject Organisation: GoDaddy.com, Inc.' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 31/12/2037' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDxTCCAq2gAwIBAgIBADANBgkqhkiG9w0BAQsFADCBgzELMAkGA1UEBhMCVVMx' + #13#10 +
+        'EDAOBgNVBAgTB0FyaXpvbmExEzARBgNVBAcTClNjb3R0c2RhbGUxGjAYBgNVBAoT' + #13#10 +
+        'EUdvRGFkZHkuY29tLCBJbmMuMTEwLwYDVQQDEyhHbyBEYWRkeSBSb290IENlcnRp' + #13#10 +
+        'ZmljYXRlIEF1dGhvcml0eSAtIEcyMB4XDTA5MDkwMTAwMDAwMFoXDTM3MTIzMTIz' + #13#10 +
+        'NTk1OVowgYMxCzAJBgNVBAYTAlVTMRAwDgYDVQQIEwdBcml6b25hMRMwEQYDVQQH' + #13#10 +
+        'EwpTY290dHNkYWxlMRowGAYDVQQKExFHb0RhZGR5LmNvbSwgSW5jLjExMC8GA1UE' + #13#10 +
+        'AxMoR28gRGFkZHkgUm9vdCBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkgLSBHMjCCASIw' + #13#10 +
+        'DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL9xYgjx+lk09xvJGKP3gElY6SKD' + #13#10 +
+        'E6bFIEMBO4Tx5oVJnyfq9oQbTqC023CYxzIBsQU+B07u9PpPL1kwIuerGVZr4oAH' + #13#10 +
+        '/PMWdYA5UXvl+TW2dE6pjYIT5LY/qQOD+qK+ihVqf94Lw7YZFAXK6sOoBJQ7Rnwy' + #13#10 +
+        'DfMAZiLIjWltNowRGLfTshxgtDj6AozO091GB94KPutdfMh8+7ArU6SSYmlRJQVh' + #13#10 +
+        'GkSBjCypQ5Yj36w6gZoOKcUcqeldHraenjAKOc7xiID7S13MMuyFYkMlNAJWJwGR' + #13#10 +
+        'tDtwKj9useiciAF9n9T521NtYJ2/LOdYq7hfRvzOxBsDPAnrSTFcaUaz4EcCAwEA' + #13#10 +
+        'AaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYE' + #13#10 +
+        'FDqahQcQZyi27/a9BUFuIMGU2g/eMA0GCSqGSIb3DQEBCwUAA4IBAQCZ21151fmX' + #13#10 +
+        'WWcDYfF+OwYxdS2hII5PZYe096acvNjpL9DbWu7PdIxztDhC2gV7+AJ1uP2lsdeu' + #13#10 +
+        '9tfeE8tTEH6KRtGX+rcuKxGrkLAngPnon1rpN5+r5N9ss4UXnT3ZJE95kTXWXwTr' + #13#10 +
+        'gIOrmgIttRD02JDHBHNA7XIloKmf7J6raBKZV8aPEjoJpL1E/QYVN8Gb5DKj7Tjo' + #13#10 +
+        '2GTzLH4U/ALqn83/B2gX2yKQOC16jdFU8WnjXzPKej17CuPKf1855eJ1usV2GDPO' + #13#10 +
+        'LPAvTK33sefOT6jEm0pUBsV/fdUID+Ic/n4XuKxe9tQWskMJDE32p2u0mYRlynqI' + #13#10 +
+        '4uJEvlz36hz1' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: StartCom Certification Authority' + #13#10 +
+        '# Subject Organisation: StartCom Ltd.' + #13#10 +
+        '# Subject Organisation Unit: Secure Digital Certificate Signing' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 17/09/2036' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIHyTCCBbGgAwIBAgIBATANBgkqhkiG9w0BAQUFADB9MQswCQYDVQQGEwJJTDEW' + #13#10 +
+        'MBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg' + #13#10 +
+        'Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNh' + #13#10 +
+        'dGlvbiBBdXRob3JpdHkwHhcNMDYwOTE3MTk0NjM2WhcNMzYwOTE3MTk0NjM2WjB9' + #13#10 +
+        'MQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMi' + #13#10 +
+        'U2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3Rh' + #13#10 +
+        'cnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwggIiMA0GCSqGSIb3DQEBAQUA' + #13#10 +
+        'A4ICDwAwggIKAoICAQDBiNsJvGxGfHiflXu1M5DycmLWwTYgIiRezul38kMKogZk' + #13#10 +
+        'pMyONvg45iPwbm2xPN1yo4UcodM9tDMr0y+v/uqwQVlntsQGfQqedIXWeUyAN3rf' + #13#10 +
+        'OQVSWff0G0ZDpNKFhdLDcfN1YjS6LIp/Ho/u7TTQEceWzVI9ujPW3U3eCztKS5/C' + #13#10 +
+        'Ji/6tRYccjV3yjxd5srhJosaNnZcAdt0FCX+7bWgiA/deMotHweXMAEtcnn6RtYT' + #13#10 +
+        'Kqi5pquDSR3l8u/d5AGOGAqPY1MWhWKpDhk6zLVmpsJrdAfkK+F2PrRt2PZE4XNi' + #13#10 +
+        'HzvEvqBTViVsUQn3qqvKv3b9bZvzndu/PWa8DFaqr5hIlTpL36dYUNk4dalb6kMM' + #13#10 +
+        'Av+Z6+hsTXBbKWWc3apdzK8BMewM69KN6Oqce+Zu9ydmDBpI125C4z/eIT574Q1w' + #13#10 +
+        '+2OqqGwaVLRcJXrJosmLFqa7LH4XXgVNWG4SHQHuEhANxjJ/GP/89PrNbpHoNkm+' + #13#10 +
+        'Gkhpi8KWTRoSsmkXwQqQ1vp5Iki/untp+HDH+no32NgN0nZPV/+Qt+OR0t3vwmC3' + #13#10 +
+        'Zzrd/qqc8NSLf3Iizsafl7b4r4qgEKjZ+xjGtrVcUjyJthkqcwEKDwOzEmDyei+B' + #13#10 +
+        '26Nu/yYwl/WL3YlXtq09s68rxbd2AvCl1iuahhQqcvbjM4xdCUsT37uMdBNSSwID' + #13#10 +
+        'AQABo4ICUjCCAk4wDAYDVR0TBAUwAwEB/zALBgNVHQ8EBAMCAa4wHQYDVR0OBBYE' + #13#10 +
+        'FE4L7xqkQFulF2mHMMo0aEPQQa7yMGQGA1UdHwRdMFswLKAqoCiGJmh0dHA6Ly9j' + #13#10 +
+        'ZXJ0LnN0YXJ0Y29tLm9yZy9zZnNjYS1jcmwuY3JsMCugKaAnhiVodHRwOi8vY3Js' + #13#10 +
+        'LnN0YXJ0Y29tLm9yZy9zZnNjYS1jcmwuY3JsMIIBXQYDVR0gBIIBVDCCAVAwggFM' + #13#10 +
+        'BgsrBgEEAYG1NwEBATCCATswLwYIKwYBBQUHAgEWI2h0dHA6Ly9jZXJ0LnN0YXJ0' + #13#10 +
+        'Y29tLm9yZy9wb2xpY3kucGRmMDUGCCsGAQUFBwIBFilodHRwOi8vY2VydC5zdGFy' + #13#10 +
+        'dGNvbS5vcmcvaW50ZXJtZWRpYXRlLnBkZjCB0AYIKwYBBQUHAgIwgcMwJxYgU3Rh' + #13#10 +
+        'cnQgQ29tbWVyY2lhbCAoU3RhcnRDb20pIEx0ZC4wAwIBARqBl0xpbWl0ZWQgTGlh' + #13#10 +
+        'YmlsaXR5LCByZWFkIHRoZSBzZWN0aW9uICpMZWdhbCBMaW1pdGF0aW9ucyogb2Yg' + #13#10 +
+        'dGhlIFN0YXJ0Q29tIENlcnRpZmljYXRpb24gQXV0aG9yaXR5IFBvbGljeSBhdmFp' + #13#10 +
+        'bGFibGUgYXQgaHR0cDovL2NlcnQuc3RhcnRjb20ub3JnL3BvbGljeS5wZGYwEQYJ' + #13#10 +
+        'YIZIAYb4QgEBBAQDAgAHMDgGCWCGSAGG+EIBDQQrFilTdGFydENvbSBGcmVlIFNT' + #13#10 +
+        'TCBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTANBgkqhkiG9w0BAQUFAAOCAgEAFmyZ' + #13#10 +
+        '9GYMNPXQhV59CuzaEE44HF7fpiUFS5Eyweg78T3dRAlbB0mKKctmArexmvclmAk8' + #13#10 +
+        'jhvh3TaHK0u7aNM5Zj2gJsfyOZEdUauCe37Vzlrk4gNXcGmXCPleWKYK34wGmkUW' + #13#10 +
+        'FjgKXlf2Ysd6AgXmvB618p70qSmD+LIU424oh0TDkBreOKk8rENNZEXO3SipXPJz' + #13#10 +
+        'ewT4F+irsfMuXGRuczE6Eri8sxHkfY+BUZo7jYn0TZNmezwD7dOaHZrzZVD1oNB1' + #13#10 +
+        'ny+v8OqCQ5j4aZyJecRDjkZy42Q2Eq/3JR44iZB3fsNrarnDy0RLrHiQi+fHLB5L' + #13#10 +
+        'EUTINFInzQpdn4XBidUaePKVEFMy3YCEZnXZtWgo+2EuvoSoOMCZEoalHmdkrQYu' + #13#10 +
+        'L6lwhceWD3yJZfWOQ1QOq92lgDmUYMA0yZZwLKMS9R9Ie70cfmu3nZD0Ijuu+Pwq' + #13#10 +
+        'yvqCUqDvr0tVk+vBtfAii6w0TiYiBKGHLHVKt+V9E9e4DGTANtLJL4YSjCMJwRuC' + #13#10 +
+        'O3NJo2pXh5Tl1njFmUNj403gdy3hZZlyaQQaRwnmDwFWJPsfvw55qVguucQJAX6V' + #13#10 +
+        'um0ABj6y6koQOdjQK/W/7HW/lwLFCRsI3FU34oH7N4RDYiDK51ZLZer+bMEkkySh' + #13#10 +
+        'NOsF/5oirpt9P/FlUQqmMGqz9IgcgA38corog14=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Organisation: The Go Daddy Group, Inc.' + #13#10 +
+        '# Subject Organisation Unit: Go Daddy Class 2 Certification Authority' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 29/06/2034' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIEADCCAuigAwIBAgIBADANBgkqhkiG9w0BAQUFADBjMQswCQYDVQQGEwJVUzEh' + #13#10 +
+        'MB8GA1UEChMYVGhlIEdvIERhZGR5IEdyb3VwLCBJbmMuMTEwLwYDVQQLEyhHbyBE' + #13#10 +
+        'YWRkeSBDbGFzcyAyIENlcnRpZmljYXRpb24gQXV0aG9yaXR5MB4XDTA0MDYyOTE3' + #13#10 +
+        'MDYyMFoXDTM0MDYyOTE3MDYyMFowYzELMAkGA1UEBhMCVVMxITAfBgNVBAoTGFRo' + #13#10 +
+        'ZSBHbyBEYWRkeSBHcm91cCwgSW5jLjExMC8GA1UECxMoR28gRGFkZHkgQ2xhc3Mg' + #13#10 +
+        'MiBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTCCASAwDQYJKoZIhvcNAQEBBQADggEN' + #13#10 +
+        'ADCCAQgCggEBAN6d1+pXGEmhW+vXX0iG6r7d/+TvZxz0ZWizV3GgXne77ZtJ6XCA' + #13#10 +
+        'PVYYYwhv2vLM0D9/AlQiVBDYsoHUwHU9S3/Hd8M+eKsaA7Ugay9qK7HFiH7Eux6w' + #13#10 +
+        'wdhFJ2+qN1j3hybX2C32qRe3H3I2TqYXP2WYktsqbl2i/ojgC95/5Y0V4evLOtXi' + #13#10 +
+        'EqITLdiOr18SPaAIBQi2XKVlOARFmR6jYGB0xUGlcmIbYsUfb18aQr4CUWWoriMY' + #13#10 +
+        'avx4A6lNf4DD+qta/KFApMoZFv6yyO9ecw3ud72a9nmYvLEHZ6IVDd2gWMZEewo+' + #13#10 +
+        'YihfukEHU1jPEX44dMX4/7VpkI+EdOqXG68CAQOjgcAwgb0wHQYDVR0OBBYEFNLE' + #13#10 +
+        'sNKR1EwRcbNhyz2h/t2oatTjMIGNBgNVHSMEgYUwgYKAFNLEsNKR1EwRcbNhyz2h' + #13#10 +
+        '/t2oatTjoWekZTBjMQswCQYDVQQGEwJVUzEhMB8GA1UEChMYVGhlIEdvIERhZGR5' + #13#10 +
+        'IEdyb3VwLCBJbmMuMTEwLwYDVQQLEyhHbyBEYWRkeSBDbGFzcyAyIENlcnRpZmlj' + #13#10 +
+        'YXRpb24gQXV0aG9yaXR5ggEAMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEFBQAD' + #13#10 +
+        'ggEBADJL87LKPpH8EsahB4yOd6AzBhRckB4Y9wimPQoZ+YeAEW5p5JYXMP80kWNy' + #13#10 +
+        'OO7MHAGjHZQopDH2esRU1/blMVgDoszOYtuURXO1v0XJJLXVggKtI3lpjbi2Tc7P' + #13#10 +
+        'TMozI+gciKqdi0FuFskg5YmezTvacPd+mSYgFFQlq25zheabIZ0KbIIOqPjCDPoQ' + #13#10 +
+        'HmyW74cNxA9hi63ugyuV+I6ShHI56yDqg+2DzZduCLzrTia2cyvk0/ZM/iZx4mER' + #13#10 +
+        'dEr/VxqHD3VILs9RaRegAhJhldXRQLIQTO7ErBBDpqWeCtWVYpoNz4iCxTIM5Cuf' + #13#10 +
+        'ReYNnyicsbkqWletNw+vHX/bvZ8=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: DigiCert Assured ID Root CA' + #13#10 +
+        '# Subject Organisation: DigiCert Inc' + #13#10 +
+        '# Subject Organisation Unit: www.digicert.com' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 10/11/2031' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDtzCCAp+gAwIBAgIQDOfg5RfYRv6P5WD8G/AwOTANBgkqhkiG9w0BAQUFADBl' + #13#10 +
+        'MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3' + #13#10 +
+        'd3cuZGlnaWNlcnQuY29tMSQwIgYDVQQDExtEaWdpQ2VydCBBc3N1cmVkIElEIFJv' + #13#10 +
+        'b3QgQ0EwHhcNMDYxMTEwMDAwMDAwWhcNMzExMTEwMDAwMDAwWjBlMQswCQYDVQQG' + #13#10 +
+        'EwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3d3cuZGlnaWNl' + #13#10 +
+        'cnQuY29tMSQwIgYDVQQDExtEaWdpQ2VydCBBc3N1cmVkIElEIFJvb3QgQ0EwggEi' + #13#10 +
+        'MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCtDhXO5EOAXLGH87dg+XESpa7c' + #13#10 +
+        'JpSIqvTO9SA5KFhgDPiA2qkVlTJhPLWxKISKityfCgyDF3qPkKyK53lTXDGEKvYP' + #13#10 +
+        'mDI2dsze3Tyoou9q+yHyUmHfnyDXH+Kx2f4YZNISW1/5WBg1vEfNoTb5a3/UsDg+' + #13#10 +
+        'wRvDjDPZ2C8Y/igPs6eD1sNuRMBhNZYW/lmci3Zt1/GiSw0r/wty2p5g0I6QNcZ4' + #13#10 +
+        'VYcgoc/lbQrISXwxmDNsIumH0DJaoroTghHtORedmTpyoeb6pNnVFzF1roV9Iq4/' + #13#10 +
+        'AUaG9ih5yLHa5FcXxH4cDrC0kqZWs72yl+2qp/C3xag/lRbQ/6GW6whfGHdPAgMB' + #13#10 +
+        'AAGjYzBhMA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW' + #13#10 +
+        'BBRF66Kv9JLLgjEtUYunpyGd823IDzAfBgNVHSMEGDAWgBRF66Kv9JLLgjEtUYun' + #13#10 +
+        'pyGd823IDzANBgkqhkiG9w0BAQUFAAOCAQEAog683+Lt8ONyc3pklL/3cmbYMuRC' + #13#10 +
+        'dWKuh+vy1dneVrOfzM4UKLkNl2BcEkxY5NM9g0lFWJc1aRqoR+pWxnmrEthngYTf' + #13#10 +
+        'fwk8lOa4JiwgvT2zKIn3X/8i4peEH+ll74fg38FnSbNd67IJKusm7Xi+fT8r87cm' + #13#10 +
+        'NW1fiQG2SVufAQWbqz0lwcy2f8Lxb4bG+mRo64EtlOtCt/qMHt1i8b5QZ7dsvfPx' + #13#10 +
+        'H2sMNgcWfzd8qVttevESRmCD1ycEvkvOl77DZypoEd+A5wwzZr8TDRRu838fYxAe' + #13#10 +
+        '+o0bJW1sj6W3YQGx0qMmoRBxna3iw/nDmVG3KwcIzi7mULKn+gpFL6Lw8g==' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: UTN-USERFirst-Hardware' + #13#10 +
+        '# Subject Organisation: The USERTRUST Network' + #13#10 +
+        '# Subject Organisation Unit: http://www.usertrust.com' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 09/07/2019' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIEdDCCA1ygAwIBAgIQRL4Mi1AAJLQR0zYq/mUK/TANBgkqhkiG9w0BAQUFADCB' + #13#10 +
+        'lzELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAlVUMRcwFQYDVQQHEw5TYWx0IExha2Ug' + #13#10 +
+        'Q2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBOZXR3b3JrMSEwHwYDVQQLExho' + #13#10 +
+        'dHRwOi8vd3d3LnVzZXJ0cnVzdC5jb20xHzAdBgNVBAMTFlVUTi1VU0VSRmlyc3Qt' + #13#10 +
+        'SGFyZHdhcmUwHhcNOTkwNzA5MTgxMDQyWhcNMTkwNzA5MTgxOTIyWjCBlzELMAkG' + #13#10 +
+        'A1UEBhMCVVMxCzAJBgNVBAgTAlVUMRcwFQYDVQQHEw5TYWx0IExha2UgQ2l0eTEe' + #13#10 +
+        'MBwGA1UEChMVVGhlIFVTRVJUUlVTVCBOZXR3b3JrMSEwHwYDVQQLExhodHRwOi8v' + #13#10 +
+        'd3d3LnVzZXJ0cnVzdC5jb20xHzAdBgNVBAMTFlVUTi1VU0VSRmlyc3QtSGFyZHdh' + #13#10 +
+        'cmUwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCx98M4P7Sof885glFn' + #13#10 +
+        '0G2f0v9Y8+efK+wNiVSZuTiZFvfgIXlIwrthdBKWHTxqctU8EGc6Oe0rE81m65UJ' + #13#10 +
+        'M6Rsl7HoxuzBdXmcRl6Nq9Bq/bkqVRcQVLMZ8Jr28bFdtqdt++BxF2uiiPsA3/4a' + #13#10 +
+        'MXcMmgF6sTLjKwEHOG7DpV4jvEWbe1DByTCP2+UretNb+zNAHqDVmBe8i4fDidNd' + #13#10 +
+        'oI6yqqr2jmmIBsX6iSHzCJ1pLgkzmykNRg+MzEk0sGlRvfkGzWitZky8PqxhvQqI' + #13#10 +
+        'DsjfPe58BEydCl5rkdbux+0ojatNh4lz0G6k0B4WixThdkQDf2Os5M1JnMWS9Ksy' + #13#10 +
+        'oUhbAgMBAAGjgbkwgbYwCwYDVR0PBAQDAgHGMA8GA1UdEwEB/wQFMAMBAf8wHQYD' + #13#10 +
+        'VR0OBBYEFKFyXyYbKJhDlV0HN9WFlp1L0sNFMEQGA1UdHwQ9MDswOaA3oDWGM2h0' + #13#10 +
+        'dHA6Ly9jcmwudXNlcnRydXN0LmNvbS9VVE4tVVNFUkZpcnN0LUhhcmR3YXJlLmNy' + #13#10 +
+        'bDAxBgNVHSUEKjAoBggrBgEFBQcDAQYIKwYBBQUHAwUGCCsGAQUFBwMGBggrBgEF' + #13#10 +
+        'BQcDBzANBgkqhkiG9w0BAQUFAAOCAQEARxkP3nTGmZev/K0oXnWO6y1n7k57K9cM' + #13#10 +
+        '//bey1WiCuFMVGWTYGufEpytXoMs61quwOQt9ABjHbjAbPLPSbtNk28Gpgoiskli' + #13#10 +
+        'CE7/yMgUsogWXecB5BKV5UU0s4tpvc+0hY91UZ59Ojg6FEgSxvunOxqNDYJAB+gE' + #13#10 +
+        'CJChicsZUN/KHAG8HQQZexB2lzvukJDKxA4fFm517zP4029bHpbj4HR3dHuKom4t' + #13#10 +
+        '3XbWOTCC8KucUvIqx69JXn7HaOWCgchqJ/kniCrVWFCVH/A7HFe7fRQ5YiuayZSS' + #13#10 +
+        'KqMiDP+JJn1fIytH1xUdqWqeUQ0qUZ6B+dQ7XnASfxAynB67nfhmqA==' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10 +
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: AddTrust External CA Root' + #13#10 +
+        '# Subject Organisation: AddTrust AB' + #13#10 +
+        '# Subject Organisation Unit: AddTrust External TTP Network' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        '# Expires: 30/05/2020' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIENjCCAx6gAwIBAgIBATANBgkqhkiG9w0BAQUFADBvMQswCQYDVQQGEwJTRTEU' + #13#10 +
+        'MBIGA1UEChMLQWRkVHJ1c3QgQUIxJjAkBgNVBAsTHUFkZFRydXN0IEV4dGVybmFs' + #13#10 +
+        'IFRUUCBOZXR3b3JrMSIwIAYDVQQDExlBZGRUcnVzdCBFeHRlcm5hbCBDQSBSb290' + #13#10 +
+        'MB4XDTAwMDUzMDEwNDgzOFoXDTIwMDUzMDEwNDgzOFowbzELMAkGA1UEBhMCU0Ux' + #13#10 +
+        'FDASBgNVBAoTC0FkZFRydXN0IEFCMSYwJAYDVQQLEx1BZGRUcnVzdCBFeHRlcm5h' + #13#10 +
+        'bCBUVFAgTmV0d29yazEiMCAGA1UEAxMZQWRkVHJ1c3QgRXh0ZXJuYWwgQ0EgUm9v' + #13#10 +
+        'dDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALf3GjPm8gAELTngTlvt' + #13#10 +
+        'H7xsD821+iO2zt6bETOXpClMfZOfvUq8k+0DGuOPz+VtUFrWlymUWoCwSXrbLpX9' + #13#10 +
+        'uMq/NzgtHj6RQa1wVsfwTz/oMp50ysiQVOnGXw94nZpAPA6sYapeFI+eh6FqUNzX' + #13#10 +
+        'mk6vBbOmcZSccbNQYArHE504B4YCqOmoaSYYkKtMsE8jqzpPhNjfzp/haW+710LX' + #13#10 +
+        'a0Tkx63ubUFfclpxCDezeWWkWaCUN/cALw3CknLa0Dhy2xSoRcRdKn23tNbE7qzN' + #13#10 +
+        'E0S3ySvdQwAl+mG5aWpYIxG3pzOPVnVZ9c0p10a3CitlttNCbxWyuHv77+ldU9U0' + #13#10 +
+        'WicCAwEAAaOB3DCB2TAdBgNVHQ4EFgQUrb2YejS0Jvf6xCZU7wO94CTLVBowCwYD' + #13#10 +
+        'VR0PBAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8wgZkGA1UdIwSBkTCBjoAUrb2YejS0' + #13#10 +
+        'Jvf6xCZU7wO94CTLVBqhc6RxMG8xCzAJBgNVBAYTAlNFMRQwEgYDVQQKEwtBZGRU' + #13#10 +
+        'cnVzdCBBQjEmMCQGA1UECxMdQWRkVHJ1c3QgRXh0ZXJuYWwgVFRQIE5ldHdvcmsx' + #13#10 +
+        'IjAgBgNVBAMTGUFkZFRydXN0IEV4dGVybmFsIENBIFJvb3SCAQEwDQYJKoZIhvcN' + #13#10 +
+        'AQEFBQADggEBALCb4IUlwtYj4g+WBpKdQZic2YR5gdkeWxQHIzZlj7DYd7usQWxH' + #13#10 +
+        'YINRsPkyPef89iYTx4AWpb9a/IfPeHmJIZriTAcKhjW88t5RxNKWt9x+Tu5w/Rw5' + #13#10 +
+        '6wwCURQtjr0W4MHfRnXnJK3s9EK0hZNwEGe6nQY1ShjTK3rMUUKhemPR5ruhxSvC' + #13#10 +
+        'Nr4TDea9Y355e6cJDUCrat2PisP29owaQgVR1EX1n6diIWgVIEM8med8vSTYqZEX' + #13#10 +
+        'c4g/VhsxOBi0cQ+azcgOno4uG+GMmIPLHzHxREzGBHNJdmAPx/i9F4BrLunMTA5a' + #13#10 +
+        'mnkPIAou1Z5jJh5VkpTYghdae9C8x49OhgQ=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10;
 
 {$IFNDEF NO_SSL_MT}
 var
@@ -2423,6 +3423,11 @@ type
         procedure   PrivateKeyLoadFromPemFile(const FileName: String;
                                               const Password: String = '');
         procedure   PrivateKeySaveToPemFile(const FileName: String);
+        procedure   LoadFromText(Lines: String;                        { V8.27 }
+                                 IncludePrivateKey: Boolean = False;
+                                 const Password: String = '');
+        procedure   PrivateKeyLoadFromText(Lines: String;          { V8.27 }
+                                              const Password: String = '');
         function    IssuedBy(ACert: TX509Base): Boolean;
         function    IssuerOf(ACert: TX509Base): Boolean;
         function    SameHash(const ACert: TX509Base): Boolean;
@@ -2460,7 +3465,7 @@ type
 
     TX509Class = class of TX509Base;
 
-    TCustomSslWSocket = class; //forward
+//    TCustomSslWSocket = class; //forward
 
     TX509ListSort = (xsrtIssuerFirst, xsrtIssuedFirst);
     TX509List  = class(TObject)
@@ -2508,10 +3513,10 @@ type
 
     TSslContextRemoveSession = procedure(Sender: TObject;
                                          SslSession : Pointer) of object;
-    // SSL Version selection
-    TSslVersionMethod = (sslV2,
-                         sslV2_CLIENT,
-                         sslV2_SERVER,
+    // single SSL Version selection  - old
+    TSslVersionMethod = (sslV2,                 { V8.27 gone 1.1.0 }
+                         sslV2_CLIENT,          { V8.27 gone 1.1.0 }
+                         sslV2_SERVER,          { V8.27 gone 1.1.0 }
                          sslV3,
                          sslV3_CLIENT,
                          sslV3_SERVER,
@@ -2531,6 +3536,14 @@ type
                          sslBestVer_CLIENT,
                          sslBestVer_SERVER);
 
+    // range SSL Version selection  - new V8.27 used to set minimum and maxium supported versions
+    TSslVerMethod = (sslVerSSL3,
+                     sslVerTLS1,
+                     sslVerTLS1_1,
+                     sslVerTLS1_2,
+                     sslVerTLS1_3,  { not yet supported, still draft }
+                     sslVerMax);
+
     TSslVerifyPeerMode = (SslVerifyMode_NONE,
                           SslVerifyMode_PEER,
                           SslVerifyMode_FAIL_IF_NO_PEER_CERT,
@@ -2548,28 +3561,28 @@ type
     TSslVerifyFlags = set of TSslVerifyFlag;
 
     TSslOption  = (sslOpt_CIPHER_SERVER_PREFERENCE,
-                   sslOpt_MICROSOFT_SESS_ID_BUG,
-                   sslOpt_NETSCAPE_CHALLENGE_BUG,
-                   sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG,
-                   sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG,  { V8.15 unused }
-                   sslOpt_MICROSOFT_BIG_SSLV3_BUFFER,
-                   sslOpt_MSIE_SSLV2_RSA_PADDING,       { V8.15 unused }
-                   sslOpt_SSLEAY_080_CLIENT_DH_BUG,
-                   sslOpt_TLS_D5_BUG,
-                   sslOpt_TLS_BLOCK_PADDING_BUG,
+                   sslOpt_MICROSOFT_SESS_ID_BUG,        { V8.27 gone 1.1.0 }
+                   sslOpt_NETSCAPE_CHALLENGE_BUG,       { V8.27 gone 1.1.0 }
+                   sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG,   { V8.27 gone 1.1.0 }
+                   sslOpt_SSLREF2_REUSE_CERT_TYPE_BUG,  { V8.27 gone 1.1.0 }
+                   sslOpt_MICROSOFT_BIG_SSLV3_BUFFER,   { V8.27 gone 1.1.0 }
+                   sslOpt_MSIE_SSLV2_RSA_PADDING,       { V8.27 gone 1.1.0 }
+                   sslOpt_SSLEAY_080_CLIENT_DH_BUG,     { V8.27 gone 1.1.0 }
+                   sslOpt_TLS_D5_BUG,                   { V8.27 gone 1.1.0 }
+                   sslOpt_TLS_BLOCK_PADDING_BUG,        { V8.27 gone 1.1.0 }
                    sslOpt_TLS_ROLLBACK_BUG,
                    sslOpt_DONT_INSERT_EMPTY_FRAGMENTS,
-                   sslOpt_SINGLE_DH_USE,
-                   sslOpt_EPHEMERAL_RSA,
-                   sslOpt_NO_SSLv2,
+                   sslOpt_SINGLE_DH_USE,                { V8.27 gone 1.1.0 }
+                   sslOpt_EPHEMERAL_RSA,                { V8.27 gone 1.1.0 }
+                   sslOpt_NO_SSLv2,                     { V8.27 gone 1.1.0 }
                    sslOpt_NO_SSLv3,
                    sslOpt_NO_TLSv1,
-                   sslOpt_PKCS1_CHECK_1,          { V8.15 unused }
-                   sslOpt_PKCS1_CHECK_2,          { V8.15 unused }
-                   sslOpt_NETSCAPE_CA_DN_BUG,
+                   sslOpt_PKCS1_CHECK_1,                { V8.27 gone 1.1.0 }
+                   sslOpt_PKCS1_CHECK_2,                { V8.27 gone 1.1.0 }
+                   sslOpt_NETSCAPE_CA_DN_BUG,           { V8.27 gone 1.1.0 }
                    //sslOP_NO_TICKET,             { no session tickets, this is forced later }
                    sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, // 12/09/05
-                   sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG,
+                   sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG,  { V8.27 gone 1.1.0 }
                    sslOpt_ALLOW_UNSAFE_LEGACY_RENEGOTIATION, // Since OSSL 0.9.8n
                    sslOpt_NO_COMPRESSION,         { V8.15 }
                    sslOpt_TLSEXT_PADDING,         { V8.15 }
@@ -2577,18 +3590,80 @@ type
                    sslOpt_CISCO_ANYCONNECT,       { V8.15 }
                    sslOpt_NO_TLSv1_1,             { V8.15 }
                    sslOpt_NO_TLSv1_2,             { V8.15 }
-                   SslOpt_SINGLE_ECDH_USE);       { V8.16 }
+                   SslOpt_SINGLE_ECDH_USE);             { V8.27 gone 1.1.0 }
    TSslOptions = set of TSslOption;
 
+const
+    SslIntOptions: array[TSslOption] of Integer =                   { V7.30 }
+           (SSL_OP_CIPHER_SERVER_PREFERENCE,
+            SSL_OP_MICROSOFT_SESS_ID_BUG,
+            SSL_OP_NETSCAPE_CHALLENGE_BUG,
+            SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG,
+            SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG,
+            SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER,
+            SSL_OP_MSIE_SSLV2_RSA_PADDING,
+            SSL_OP_SSLEAY_080_CLIENT_DH_BUG,
+            SSL_OP_TLS_D5_BUG,
+            SSL_OP_TLS_BLOCK_PADDING_BUG,
+            SSL_OP_TLS_ROLLBACK_BUG,
+            SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS,
+            SSL_OP_SINGLE_DH_USE,
+            SSL_OP_EPHEMERAL_RSA,
+            SSL_OP_NO_SSLv2,
+            SSL_OP_NO_SSLv3,
+            SSL_OP_NO_TLSv1,
+            SSL_OP_PKCS1_CHECK_1,
+            SSL_OP_PKCS1_CHECK_2,
+            SSL_OP_NETSCAPE_CA_DN_BUG,
+            SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION,
+            SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG,
+            SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION,  // Since OSSL 0.9.8n
+            SSL_OP_NO_COMPRESSION,         { V8.15 }
+            SSL_OP_TLSEXT_PADDING,         { V8.15 }
+            SSL_OP_SAFARI_ECDHE_ECDSA_BUG, { V8.15 }
+            SSL_OP_CISCO_ANYCONNECT,       { V8.15 }
+            SSL_OP_NO_TLSv1_1,             { V8.15 }
+            SSL_OP_NO_TLSv1_2,             { V8.15 }
+            SSL_OP_SINGLE_ECDH_USE);       { V8.16 }
 
-    TSslSessCacheMode = (//sslSESS_CACHE_OFF,
-                         sslSESS_CACHE_CLIENT,
+   { V8.27 OSSL 1.1.0 lost many old options }
+    SslIntOptions110: array[TSslOption] of Integer =
+           (SSL_OP_CIPHER_SERVER_PREFERENCE,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            SSL_OP_TLS_ROLLBACK_BUG,
+            SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS,
+            0,
+            0,
+            0,
+            SSL_OP_NO_SSLv3,
+            SSL_OP_NO_TLSv1,
+            0,
+            0,
+            0,
+            SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION,
+            0,
+            SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION,
+            SSL_OP_NO_COMPRESSION,
+            SSL_OP_TLSEXT_PADDING,
+            SSL_OP_SAFARI_ECDHE_ECDSA_BUG,
+            SSL_OP_CISCO_ANYCONNECT,
+            SSL_OP_NO_TLSv1_1,
+            SSL_OP_NO_TLSv1_2,
+            0);
+type
+    TSslSessCacheMode = (sslSESS_CACHE_CLIENT,
                          sslSESS_CACHE_SERVER,
-                         //sslSESS_CACHE_BOTH,
                          sslSESS_CACHE_NO_AUTO_CLEAR,
                          sslSESS_CACHE_NO_INTERNAL_LOOKUP,
-                         sslSESS_CACHE_NO_INTERNAL_STORE{,
-                         sslSESS_CACHE_NO_INTERNAL});
+                         sslSESS_CACHE_NO_INTERNAL_STORE);
     TSslSessCacheModes = set of TSslSessCacheMode;
 
     TSslSessionIdContext = String;//[SSL_MAX_SSL_SESSION_ID_LENGTH];
@@ -2599,6 +3674,41 @@ type
                       sslECDH_P256,
                       sslECDH_P384,
                       sslECDH_P521);
+const
+  SslIntSessCacheModes: array[TSslSessCacheMode] of Integer =     { V7.30 }
+            (SSL_SESS_CACHE_CLIENT,
+             SSL_SESS_CACHE_SERVER,
+             SSL_SESS_CACHE_NO_AUTO_CLEAR,
+             SSL_SESS_CACHE_NO_INTERNAL_LOOKUP,
+             SSL_SESS_CACHE_NO_INTERNAL_STORE);
+
+
+  SslIntVerifyFlags: array[TSslVerifyFlag] of Integer =
+           (X509_V_FLAG_CB_ISSUER_CHECK,
+            X509_V_FLAG_USE_CHECK_TIME,
+            X509_V_FLAG_CRL_CHECK,
+            X509_V_FLAG_CRL_CHECK_ALL,
+            X509_V_FLAG_IGNORE_CRITICAL,
+            X509_V_FLAG_X509_STRICT,
+            X509_V_FLAG_ALLOW_PROXY_CERTS);
+
+ SslECDHMethods: array [TSslECDHMethod] of integer =   { V8.15 }
+           (0,
+            0,
+            NID_X9_62_prime256v1,
+            NID_secp384r1,
+            NID_secp521r1);
+
+ SslVerMethods: array [TSslVerMethod] of LongWord =   { V8.27 }
+           (SSL3_VERSION,
+            TLS1_VERSION,
+            TLS1_1_VERSION,
+            TLS1_2_VERSION,
+            TLS_MAX_VERSION,  { waiting for TLS1_3_VERSION }
+            TLS_MAX_VERSION);
+
+
+type
 
     {
     TSslX509Trust = (ssl_X509_TRUST_NOT_DEFINED, // Custom value
@@ -2646,17 +3756,21 @@ type
     TSslContext = class(TSslBaseComponent)
     protected
         FSslCtx                     : PSSL_CTX;
-        FSslVersionMethod           : TSslVersionMethod;
+        FSslVersionMethod           : TSslVersionMethod;  { V8.27 ignored }
+        FSslMinVersion              : TSslVerMethod; { V8.27 }
+        FSslMaxVersion              : TSslVerMethod; { V8.27 }
         FSslCertFile                : String;
+        FSslCertLines               : TStrings;  { V8.27 }
         FSslPassPhrase              : String;
         FSslPrivKeyFile             : String;
+        FSslPrivKeyLines            : TStrings;  { V8.27 }
         FSslCAFile                  : String;
+        FSslCALines                 : TStrings;  { V8.27 }
         FSslCAPath                  : String;
         FSslCRLFile                 : String;
         FSslCRLPath                 : String;
-        FSslDHParamFile             : String;  { V8.15 }
-        //FSslIntermCAFile            : String;
-        //FSslIntermCAPath            : String;
+        FSslDHParamFile             : String;    { V8.15 }
+        FSslDHParamLines            : TStrings;  { V8.27 }
         FSslVerifyPeer              : Boolean;
         FSslVerifyDepth             : Integer;
         FSslVerifyFlags             : Integer;
@@ -2684,11 +3798,15 @@ type
 {$ENDIF}
         function  InitializeCtx : PSSL_CTX;
         procedure SetSslCertFile(const Value : String);
+        procedure SetSslCertLines(Value: TStrings);    { V8.27 }
         procedure SetSslPassPhrase(const Value : String);
         procedure SetSslPrivKeyFile(const Value : String);
+        procedure SetSslPrivKeyLines(Value: TStrings); { V8.27 }
         procedure SetSslCAFile(const Value : String);
+        procedure SetSslCALines(Value: TStrings);      { V8.27 }
         procedure SetSslCAPath(const Value : String);
-        procedure SetSslDHParamFile(const Value : String);    { V8.15 }
+        procedure SetSslDHParamFile(const Value : String);   { V8.15 }
+        procedure SetSslDHParamLines(Value: TStrings); { V8.27 }
         procedure SetSslCRLFile(const Value : String);
         procedure SetSslCRLPath(const Value : String);
         procedure SetSslSessionCacheSize(Value : Longint);
@@ -2702,17 +3820,11 @@ type
         procedure SetSslDefaultSessionIDContext(Value: TSslSessionIdContext);
         procedure SetSslSessionTimeout(Value : Longword);
         procedure SetSslVersionMethod(Value : TSslVersionMethod);
-        function  OpenFileBio(const FileName : String;
-            Methode : TBioOpenMethode): PBIO;
-        function  LoadStackFromInfoFile(const FileName : String;
-            Mode : TInfoExtractMode): PStack;
-        procedure LoadVerifyLocations(const CAFile, CAPath: String);
-        procedure LoadCertFromChainFile(const FileName : String);
-        procedure LoadPKeyFromFile(const FileName : String);
-        procedure LoadDHParamsFromFile(const FileName: String);   { V8.15 }
+        procedure SetSslMinVersion(Value : TSslVerMethod);   { V8.27 }
+        procedure SetSslMaxVersion(Value : TSslVerMethod);   { V8.27 }
+        function  OpenFileBio(const FileName : String; Methode : TBioOpenMethode): PBIO;
+        function  LoadStackFromInfoFile(const FileName : String; Mode : TInfoExtractMode): PStack;
         procedure SetSslECDHMethod(Value : TSslECDHMethod);
-        //procedure DebugLogInfo(const Msg: string);        { V5.21 }
-        //procedure SetSslX509Trust(const Value: TSslX509Trust);
         function  GetIsCtxInitialized : Boolean;
         function  GetSslVerifyFlags: TSslVerifyFlags;
         procedure SetSslVerifyFlags(const Value: TSslVerifyFlags);
@@ -2728,6 +3840,15 @@ type
         function    TrustCert(Cert : TX509Base): Boolean;
         procedure   LoadCrlFromFile(const Filename: String);
         procedure   LoadCrlFromPath(const Path: String);
+        function    LoadStackFromInfoString(const Value: String; Mode: TInfoExtractMode): PStack; { V8.27 }
+        procedure   LoadVerifyLocations(const CAFile, CAPath: String);
+        procedure   LoadCertFromChainFile(const FileName : String);
+        procedure   LoadPKeyFromFile(const FileName : String);
+        procedure   LoadDHParamsFromFile(const FileName: String); { V8.15 }
+        procedure   LoadCertFromString(const Value: String);      { V8.27 }
+        procedure   LoadPKeyFromString(const Value: String);      { V8.27 }
+        procedure   LoadDHParamsFromString(const Value: String);  { V8.27 }
+        procedure   LoadCAFromString(const Value: String);        { V8.27 }
     {$IFNDEF OPENSSL_NO_ENGINE}
         procedure   LoadPKeyFromEngine(CtxEngine: TSslEngine);
         //function    SetupEngine(Engine: String; Commands: TStrings): PENGINE;
@@ -2737,15 +3858,22 @@ type
         procedure   RemoveFreeNotification(AComponent: TComponent);
         procedure   SetClientCAListFromFile(const FileName: String);
         property    IsCtxInitialized : Boolean read GetIsCtxInitialized;
+        function    SslGetAllCiphers: String;     { V8.27 }
     published
         property  SslCertFile       : String            read  FSslCertFile
                                                         write SetSslCertFile;
+        property  SslCertLines      : TStrings          read  FSslCertLines     { V8.27 }
+                                                        write SetSslCertLines;
         property  SslPassPhrase     : String            read  FSslPassPhrase
                                                         write SetSslPassPhrase;
         property  SslPrivKeyFile    : String            read  FSslPrivKeyFile
                                                         write SetSslPrivKeyFile;
+        property  SslPrivKeyLines   : TStrings          read  FSslPrivKeyLines  { V8.27 }
+                                                        write SetSslPrivKeyLines;
         property  SslCAFile         : String            read  FSslCAFile
                                                         write SetSslCAFile;
+        property  SslCALines        : TStrings          read  FSslCALines       { V8.27 }
+                                                        write SetSslCALines;
         property  SslCAPath         : String            read  FSslCAPath
                                                         write SetSslCAPath;
         property  SslCRLFile        : String            read  FSslCRLFile
@@ -2754,10 +3882,8 @@ type
                                                         write SetSslCRLPath;
         property  SslDHParamFile    : String            read  FSslDHParamFile
                                                         write SetSslDHParamFile; { V8.15 }
-        {property  SslIntermCAFile   : String            read  FSslIntermCAFile
-                                                        write FSslIntermCAFile;
-        property  SslIntermCAPath    : String           read  FSslIntermCAPath
-                                                        write FSslIntermCAPath;}
+        property  SslDHParamLines   : TStrings          read  FSslDHParamLines   { V8.27 }
+                                                        write SetSslDHParamLines;
         property  SslVerifyPeer     : Boolean           read  FSslVerifyPeer
                                                         write SetSslVerifyPeer;
         property  SslVerifyDepth    : Integer           read  FSslVerifyDepth
@@ -2777,6 +3903,10 @@ type
         property  SslVersionMethod  : TSslVersionMethod
                                                     read  FSslVersionMethod
                                                     write SetSslVersionMethod;
+        property  SslMinVersion  : TSslVerMethod    read  FSslMinVersion        { V8.27 }
+                                                    write SetSslMinVersion;
+        property  SslMaxVersion  : TSslVerMethod    read  FSslMaxVersion        { V8.27 }
+                                                    write SetSslMaxVersion;
         property  SslECDHMethod  : TSslECDHMethod  { V8.15 }
                                                     read  FSslECDHMethod
                                                     write SetSslECDHMethod;
@@ -2804,21 +3934,6 @@ type
         property  CtxEngine : TSslEngine read FCtxEngine write SetCtxEngine;
     {$ENDIF}
     end;
-
-    {TSslState = (sslNone,
-                 sslWantConnect,
-                 sslConnectWantRead,
-                 sslConnectWantWrite,
-                 sslConnected,
-                 sslAccepted,
-                 sslAcceptWantRead,
-                 sslAcceptWantWrite,
-                 sslWriteWantRead,
-                 sslWriteWantWrite,
-                 sslShutdown,
-                 sslShutdownWantRead,
-                 sslShutdownWantWrite);
-     }
 
     TSslState = (sslNone,  // Not yet finished, Francois, could you care about states ??
                  sslHandshakeInit,
@@ -3019,6 +4134,8 @@ type
         procedure   StartSslHandshake;
         procedure   AcceptSslHandshake;
         procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
+        function    SslGetSupportedCiphers (Supported, Remote: boolean): String;    { V8.27 }
+
 
         property    LastSslError       : Integer          read FLastSslError;
         property    ExplizitSsl        : Boolean          read  FExplizitSsl
@@ -12142,8 +13259,7 @@ end;
 {$IFDEF USE_SSL}
 
 var
-    //GSslInitialized     : Integer = 0;
-    SslRefCount               : Integer = 0;
+    SslRefCount               : Integer = 0;      { count intialisations }
     GSslRegisterAllCompleted  : Boolean = FALSE;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -12183,10 +13299,10 @@ begin
     SslCritSect.Enter;
     try
         if SslRefCount = 0 then begin
-            // Load LIBEAY DLL
+            // Load LIBEAY DLL, V8.27 change Load and WhichFailedToLoad to unique names
             // Must be loaded before SSlEAY for the versioncheck to work!
-            if not OverbyteIcsLIBEAY.Load then begin
-                S := OverbyteIcsLIBEAY.WhichFailedToLoad;
+            if not LibeayLoad then begin
+                S := LibeayWhichFailedToLoad;
             {$IFDEF LOADSSL_ERROR_FILE}
                 AssignFile(F, _ExtractFilePath(ParamStr(0)) + 'FailedIcsLIBEAY.txt');
                 Rewrite(F);
@@ -12200,20 +13316,21 @@ begin
                 end;
                 CloseFile(F);
             {$ENDIF}
-                if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
-                    FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
-                    OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
+                if GLIBEAY_DLL_Handle <> 0 then begin   { V8.27 removed unit names }
+                    FreeLibrary(GLIBEAY_DLL_Handle);
+                    GLIBEAY_DLL_Handle := 0
                 end;
                 if Length(S) > LenErrMsg then begin
                     SetLength(S, LenErrMsg);
                     S[Length(S) - 1] := '.';
                     S[Length(S)]     := '.';
                 end;
-                raise EIcsLibeayException.Create('Unable to load LIBEAY DLL. Can''t find ' + S);
+                raise EIcsLibeayException.Create('Unable to load ' +
+                                  GLIBEAY_DLL_FileName + '. Can''t find ' + S);
             end;
             // Load SSlEAY DLL
-            if not OverbyteIcsSSLEAY.Load then begin
-                S := OverbyteIcsSSLEAY.WhichFailedToLoad;
+            if not SsleayLoad then begin
+                S := SsleayWhichFailedToLoad;
             {$IFDEF LOADSSL_ERROR_FILE}
                 AssignFile(F, _ExtractFilePath(ParamStr(0)) + 'FailedIcsSSLEAY.txt');
                 Rewrite(F);
@@ -12227,34 +13344,37 @@ begin
                 end;
                 CloseFile(F);
             {$ENDIF}
-                if OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle <> 0 then begin
-                    FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
-                    OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle := 0;
+                if GSSLEAY_DLL_Handle <> 0 then begin     { V8.27 removed unit names }
+                    FreeLibrary(GSSLEAY_DLL_Handle);
+                    GSSLEAY_DLL_Handle := 0;
                 end;
-                if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
-                    FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
-                    OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
+                if GLIBEAY_DLL_Handle <> 0 then begin
+                    FreeLibrary(GLIBEAY_DLL_Handle);
+                    GLIBEAY_DLL_Handle := 0
                 end;
                 if Length(S) > LenErrMsg then begin
                     SetLength(S, LenErrMsg);
                     S[Length(S) - 1] := '.';
                     S[Length(S)]     := '.';
                 end;
-                raise EIcsSsleayException.Create('Unable to load SSLEAY DLL. Can''t find ' + S);
+                raise EIcsSsleayException.Create('Unable to load ' +
+                                   GSSLEAY_DLL_FileName + '. Can''t find ' + S);
             end;
 
-            // Global system initialization
-            if f_SSL_library_init <> 1 then begin
-                if OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle <> 0 then begin
-                    FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
-                    OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle := 0;
+            // Global system initialization, V8.27 not needed for 1.1.0 and later
+            if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
+                if f_SSL_library_init <> 1 then begin
+                    if GSSLEAY_DLL_Handle <> 0 then begin
+                        FreeLibrary(GSSLEAY_DLL_Handle);
+                        GSSLEAY_DLL_Handle := 0;
+                    end;
+                    if GLIBEAY_DLL_Handle <> 0 then begin
+                        FreeLibrary(GLIBEAY_DLL_Handle);
+                        GLIBEAY_DLL_Handle := 0
+                    end;
                 end;
-                if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
-                    FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
-                    OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
-                end;
+                f_SSL_load_error_strings;
             end;
-            f_SSL_load_error_strings;
             Tick := IcsGetTickCount;           // probably weak
             f_RAND_seed(@Tick, SizeOf(Tick));
         {$IFNDEF OPENSSL_NO_ENGINE}
@@ -12270,52 +13390,47 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Reminder:
-  /* thread-local cleanup */
-  ERR_remove_state(0);  // deprecated
-  ERR_remove_thread_state(nil) // v1.0.0+ ** check for nil **
 
-  /* thread-safe cleanup */
-  ENGINE_cleanup();
-  CONF_modules_unload(1);
-
-  /* global application exit cleanup (after all SSL activity is shutdown) */
-  ERR_free_strings();
-  EVP_cleanup();
-  CRYPTO_cleanup_all_ex_data();
-}
 procedure UnloadSsl;
 begin
     SslCritSect.Enter;
     try
-        if SslRefCount > 0 then        {AG 12/30/07}
-            Dec(SslRefCount);
+        if SslRefCount = 0 then Exit;  { V8.27 sanity check }
+        Dec(SslRefCount);
         if SslRefCount = 0 then begin  {AG 12/30/07}
 
-            //* thread-local cleanup */
-            if @f_ERR_remove_thread_state <> nil then
-                f_ERR_remove_thread_state(nil) // OSSL v1.0.0+
-            else
-                f_ERR_remove_state(0); // deprecated
+           { V8.27 sanity check }
+            if (GSSLEAY_DLL_Handle = 0) and (GLIBEAY_DLL_Handle = 0) then Exit;
 
-            //* thread-safe cleanup */
-            f_CONF_modules_unload(1);
-        {$IFNDEF OPENSSL_NO_ENGINE}
-            f_ENGINE_cleanup;
-        {$ENDIF}
+            // cleanup, V8.27 not needed for 1.1.0 and later
+            if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
 
-            //* global application exit cleanup (after all SSL activity is shutdown) */
-            f_ERR_free_strings;
-            f_EVP_cleanup;
-            f_CRYPTO_cleanup_all_ex_data;
+                //* thread-local cleanup */
+                f_ERR_remove_thread_state(nil); // OSSL v1.0.0+
 
-            if OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle <> 0 then begin
-                FreeLibrary(OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle);
-                OverbyteIcsSSLEAY.GSSLEAY_DLL_Handle := 0;
+                //* thread-safe cleanup */
+                f_CONF_modules_unload(1);
+            {$IFNDEF OPENSSL_NO_ENGINE}
+                f_ENGINE_cleanup;
+            {$ENDIF}
+
+                //* global application exit cleanup (after all SSL activity is shutdown) */
+                f_ERR_free_strings;
+                f_EVP_cleanup;
+                f_CRYPTO_cleanup_all_ex_data;
             end;
-            if OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle <> 0 then begin
-                FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
-                OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0
+
+            if GSSLEAY_DLL_Handle <> 0 then begin   { V8.27 removed unit names }
+                FreeLibrary(GSSLEAY_DLL_Handle);
+                GSSLEAY_DLL_Handle := 0;
+            end;
+            if GLIBEAY_DLL_Handle <> 0 then begin
+                try
+                   FreeLibrary(GLIBEAY_DLL_Handle);
+                except
+                    { V8.27 !!!! TEMP getting an exception here with 1.1.0, ignore it }
+                end;
+                GLIBEAY_DLL_Handle := 0
             end;
         end;
     finally
@@ -12937,62 +14052,6 @@ end;
 {$ENDIF OPENSSL_NO_ENGINE}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-const
-    SslIntOptions: array[TSslOption] of Integer =                   { V7.30 }
-           (SSL_OP_CIPHER_SERVER_PREFERENCE,
-            SSL_OP_MICROSOFT_SESS_ID_BUG,
-            SSL_OP_NETSCAPE_CHALLENGE_BUG,
-            SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG,
-            SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG,
-            SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER,
-            SSL_OP_MSIE_SSLV2_RSA_PADDING,
-            SSL_OP_SSLEAY_080_CLIENT_DH_BUG,
-            SSL_OP_TLS_D5_BUG,
-            SSL_OP_TLS_BLOCK_PADDING_BUG,
-            SSL_OP_TLS_ROLLBACK_BUG,
-            SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS,
-            SSL_OP_SINGLE_DH_USE,
-            SSL_OP_EPHEMERAL_RSA,
-            SSL_OP_NO_SSLv2,
-            SSL_OP_NO_SSLv3,
-            SSL_OP_NO_TLSv1,
-            SSL_OP_PKCS1_CHECK_1,
-            SSL_OP_PKCS1_CHECK_2,
-            SSL_OP_NETSCAPE_CA_DN_BUG,
-            SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION,
-            SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG,
-            SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION,  // Since OSSL 0.9.8n
-            SSL_OP_NO_COMPRESSION,         { V8.15 }
-            SSL_OP_TLSEXT_PADDING,         { V8.15 }
-            SSL_OP_SAFARI_ECDHE_ECDSA_BUG, { V8.15 }
-            SSL_OP_CISCO_ANYCONNECT,       { V8.15 }
-            SSL_OP_NO_TLSv1_1,             { V8.15 }
-            SSL_OP_NO_TLSv1_2,             { V8.15 }
-            SSL_OP_SINGLE_ECDH_USE);       { V8.16 }
-
-  SslIntSessCacheModes: array[TSslSessCacheMode] of Integer =     { V7.30 }
-            (SSL_SESS_CACHE_CLIENT,
-             SSL_SESS_CACHE_SERVER,
-             SSL_SESS_CACHE_NO_AUTO_CLEAR,
-             SSL_SESS_CACHE_NO_INTERNAL_LOOKUP,
-             SSL_SESS_CACHE_NO_INTERNAL_STORE);
-
-
-  SslIntVerifyFlags: array[TSslVerifyFlag] of Integer =
-           (X509_V_FLAG_CB_ISSUER_CHECK,
-            X509_V_FLAG_USE_CHECK_TIME,
-            X509_V_FLAG_CRL_CHECK,
-            X509_V_FLAG_CRL_CHECK_ALL,
-            X509_V_FLAG_IGNORE_CRITICAL,
-            X509_V_FLAG_X509_STRICT,
-            X509_V_FLAG_ALLOW_PROXY_CERTS);
-
- SslECDHMethods: array [TSslECDHMethod] of integer =   { V8.15 }
-           (0,
-            0,
-            NID_X9_62_prime256v1,
-            NID_secp384r1,
-            NID_secp521r1);
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -13007,10 +14066,17 @@ begin
     SetSslVerifyPeerModes([SslVerifyMode_PEER]);
     SetSslCipherList(sslCiphersNormal);  // V8.10 same as 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
     FSslVersionMethod    := sslBestVer;  // V8.15 same as sslV23 but easier to understand
+    FSslMinVersion       := sslVerSSL3;  { V8.27 }
+    FSslMaxVersion       := sslVerMax;   { V8.27 }
     FSslECDHMethod       := sslECDHAuto; // V8.20 web sites are increasingly needing ECDH so default it on
     SslVerifyDepth       := 9;
     FSslSessionTimeOut   := 0; // OSSL-default
     FSslSessionCacheSize := SSL_SESSION_CACHE_MAX_SIZE_DEFAULT;
+    FSslCertLines        := TStringList.Create;  { V8.27 }
+    FSslPrivKeyLines     := TStringList.Create;  { V8.27 }
+    FSslCALines          := TStringList.Create;  { V8.27 }
+    FSslDHParamLines     := TStringList.Create;  { V8.27 }
+    FSslDHParamLines.Text := sslDHParams4096;    { V8.27 set default, ideally change if for your own }
 end;
 
 
@@ -13018,6 +14084,10 @@ end;
 destructor TSslContext.Destroy;
 begin
     DeInitContext;
+    FSslCertLines.Free;     { V8.27 }
+    FSslPrivKeyLines.Free;  { V8.27 }
+    FSslCALines.Free;       { V8.27 }
+    FSslDHParamLines.Free;  { V8.27 }
 {$IFNDEF NO_SSL_MT}
     FLock.Free;
 {$ENDIF}
@@ -13085,31 +14155,44 @@ function TSslContext.InitializeCtx: PSSL_CTX;
 var
     Meth : PSSL_METHOD;
 begin
-    case FSslVersionMethod of
-{$IFDEF OPENSSL_ALLOW_SSLV2}
-    sslV2:            Meth := f_SSLv2_method;
-    sslV2_CLIENT:     Meth := f_SSLv2_client_method;
-    sslV2_SERVER:     Meth := f_SSLv2_server_method;
-{$ELSE}
-    sslV2, sslV2_CLIENT, sslV2_SERVER:             { V8.24 }
-        raise ESslContextException.Create('SSLv2 not supported');
-{$ENDIF}
-    sslV3:            Meth := f_SSLv3_method;
-    sslV3_CLIENT:     Meth := f_SSLv3_client_method;
-    sslV3_SERVER:     Meth := f_SSLv3_server_method;
-    sslTLS_V1:        Meth := f_TLSv1_method;
-    sslTLS_V1_CLIENT: Meth := f_TLSv1_client_method;
-    sslTLS_V1_SERVER: Meth := f_TLSv1_server_method;
-    sslTLS_V1_1:          Meth := f_TLSv1_1_method;          { V8.15 added 1.1 and 1.2  }
-    sslTLS_V1_1_CLIENT:   Meth := f_TLSv1_1_client_method;
-    sslTLS_V1_1_SERVER:   Meth := f_TLSv1_1_server_method;
-    sslTLS_V1_2:          Meth := f_TLSv1_2_method;
-    sslTLS_V1_2_CLIENT:   Meth := f_TLSv1_2_client_method;
-    sslTLS_V1_2_SERVER:   Meth := f_TLSv1_2_server_method;
-    sslV23, sslBestVer:                Meth := f_SSLv23_method;
-    sslV23_CLIENT, sslBestVer_CLIENT:  Meth := f_SSLv23_client_method;
-    sslV23_SERVER, sslBestVer_SERVER:  Meth := f_SSLv23_server_method;
-    else              raise ESslContextException.Create('Unknown SslVersionMethod');
+ { V8.27 ignore FSslVersionMethod for OpenSSL 1.1.0 and later }
+    if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
+      { V8.27 see if set a version change do it later with options }
+        if (FSslMaxVersion >= FSslMinVersion) and
+          (FSslMinVersion > sslVerSSL3) and (FSslMaxVersion < sslVerMax) then
+            Meth := f_SSLv23_method
+        else begin
+            case FSslVersionMethod of
+        {$IFDEF OPENSSL_ALLOW_SSLV2}
+            sslV2:            Meth := f_SSLv2_method;
+            sslV2_CLIENT:     Meth := f_SSLv2_client_method;
+            sslV2_SERVER:     Meth := f_SSLv2_server_method;
+        {$ELSE}
+            sslV2, sslV2_CLIENT, sslV2_SERVER:             { V8.24 }
+                raise ESslContextException.Create('SSLv2 not supported');
+        {$ENDIF}
+            sslV3:            Meth := f_SSLv3_method;
+            sslV3_CLIENT:     Meth := f_SSLv3_client_method;
+            sslV3_SERVER:     Meth := f_SSLv3_server_method;
+            sslTLS_V1:        Meth := f_TLSv1_method;
+            sslTLS_V1_CLIENT: Meth := f_TLSv1_client_method;
+            sslTLS_V1_SERVER: Meth := f_TLSv1_server_method;
+            sslTLS_V1_1:          Meth := f_TLSv1_1_method;          { V8.15 added 1.1 and 1.2  }
+            sslTLS_V1_1_CLIENT:   Meth := f_TLSv1_1_client_method;
+            sslTLS_V1_1_SERVER:   Meth := f_TLSv1_1_server_method;
+            sslTLS_V1_2:          Meth := f_TLSv1_2_method;
+            sslTLS_V1_2_CLIENT:   Meth := f_TLSv1_2_client_method;
+            sslTLS_V1_2_SERVER:   Meth := f_TLSv1_2_server_method;
+            sslV23, sslBestVer:                Meth := f_SSLv23_method;
+            sslV23_CLIENT, sslBestVer_CLIENT:  Meth := f_SSLv23_client_method;
+            sslV23_SERVER, sslBestVer_SERVER:  Meth := f_SSLv23_server_method;
+            else
+                raise ESslContextException.Create('Unknown SslVersionMethod');
+            end;
+        end;
+    end
+    else begin
+        Meth := f_TLS_method;  { we set min/max versions later }
     end;
     Result := f_SSL_CTX_new(Meth);
 end;
@@ -13605,6 +14688,65 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.27 A X509_INFO may contain x509/crl/pkey sets, PEM format only }
+function TSslContext.LoadStackFromInfoString(const Value: String; Mode: TInfoExtractMode): PStack;
+var
+    InfoStack   : PStack;
+    CertInfo    : PX509_INFO;
+    InBIO       : PBIO;
+    //PKey        : PX509_PKEY;
+begin
+    //InfoStack := nil;
+    //CertInfo  := nil;
+    //InBIO     := nil;
+    Result      := nil;
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if Length (Value) = 0 then Exit;
+    InBio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Value)), Length (Value));
+    try
+        // This loads from a file, a stack of x509/crl/pkey sets
+        InfoStack := PStack(f_PEM_X509_INFO_read_bio(InBIO, nil, nil, nil));
+        if not Assigned(InfoStack) then
+            raise ESslContextException.Create('Failed to read encoded PEM certificates');
+        try
+            if f_sk_num(InfoStack) > 0 then
+                Result := f_sk_new_null
+            else
+                Exit;
+            if Result = nil then
+                raise ESslContextException.Create('Error creating Stack');
+            // Scan over it and pull out what is needed
+            while f_sk_num(InfoStack) > 0 do begin
+                CertInfo := PX509_INFO(f_sk_delete(InfoStack, 0));
+                case Mode of
+                emCert :
+                    if CertInfo^.x509 <> nil then
+                        f_sk_insert(Result, PAnsiChar(f_X509_dup(CertInfo^.x509)),
+                                                  f_sk_num(Result) + 1);
+                { A Dup-function for X509_PKEY is still missing in OpenSsl arrg!
+                emKey :
+                    if CertInfo^.x_pkey <> nil then
+                        f_sk_insert(Result, PChar(f_X509_PKEY_dup(CertInfo^.x_pkey)),
+                                                  f_sk_num(Result) + 1);}
+                emCrl :
+                    if CertInfo^.crl <> nil then
+                        f_sk_insert(Result, PAnsiChar(f_X509_CRL_dup(CertInfo^.crl)),
+                                                  f_sk_num(Result) + 1);
+                end; //case
+                f_X509_INFO_free(CertInfo);
+            end;
+        finally
+             f_sk_pop_free(InfoStack, @f_X509_INFO_free);
+        end;
+    finally
+       f_Bio_free(InBio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ certificate revocation list (CRL)                                         }
 { PEM format only, the file may contain multiple certificates.              }
 { Loads intermediate CA certificates needed to build a complete chain.      }
 { PEM format only, any file of a given directory }
@@ -13665,6 +14807,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ certificate revocation list (CRL)                                         }
 { PEM format only, any file of a given directory }
 procedure TSslContext.LoadCrlFromPath(const Path: String);
 var
@@ -13737,13 +14880,88 @@ begin
                                         PCAFile, PCAPath) = 0) then
         RaiseLastOpenSslError(ESslContextException, TRUE,
                               'Can''t read CA File "' +
-                              FSslCAFile + '" or ' +
+                              CAFile + '" or ' +
                               'CA Path "' + CAPath + '"');
     if (PCAFile = nil) and (PCAPath = nil) and
        (f_SSL_CTX_set_default_verify_paths(FSslCtx) <> 1) then
         RaiseLastOpenSslError(ESslContextException, TRUE,
                               'Error loading default CA file ' +
                               'and/or directory');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function GetX509SubjectOneLine(Cert: PX509): String;   { V8.27 }
+var
+    Str : AnsiString;
+begin
+    Result := '';
+    if not Assigned(Cert) then  Exit;
+    SetLength(Str, 512);
+    Str := f_X509_NAME_oneline(f_X509_get_subject_name(Cert), PAnsiChar(Str), Length(Str));
+    SetLength(Str, StrLen(PAnsiChar(Str)));
+    Result := String(Str);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.LoadCAFromString(const Value: String);        { V8.27 }
+var
+    Cert: PX509;
+    Store: PX509_STORE;
+    CertStack: PStack;
+begin
+    if Length(Value) = 0 then Exit;
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (Pos ('-BEGIN CERTIFICATE-', Value) = 0) and
+            (Pos ('-END CERTIFICATE-', Value) = 0) then
+        raise ESslContextException.Create('Expected a Base64 encoded PEM certificate');
+
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        CertStack := LoadStackFromInfoString(Value, emCert);
+        if not Assigned(CertStack) then
+            raise ESslContextException.Create('Error on reading CA certificate lines');
+        try
+            Store := f_SSL_CTX_get_cert_store(FSslCtx);
+            if not Assigned(Store) then
+                raise ESslContextException.Create('Error on opening store');
+{$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslInfo) then  { V5.21 }
+                DebugLog(loSslInfo, 'Read ' + IntToStr(f_sk_num(CertStack)) +
+                                                    ' CA certificates from strings');
+{$ENDIF};
+            while f_sk_num(CertStack) > 0 do begin
+                Cert := PX509(f_sk_delete(CertStack, 0));
+                if Assigned(Cert) then
+                try
+{$IFNDEF NO_DEBUG_LOG}
+                    if CheckLogOptions(loSslInfo) then  { V5.21 }
+                        DebugLog(loSslInfo, 'Certificate: ' + GetX509SubjectOneLine(Cert));
+{$ENDIF};
+                  { Fails if Cert is already in hash table }
+                    if f_X509_STORE_add_cert(Store, Cert) = 0 then
+{$IFNDEF NO_DEBUG_LOG}
+                        if CheckLogOptions(loSslErr) then  { V5.21 }
+                            DebugLog(loSslErr, String(LastOpenSslErrMsg(True)));
+{$ELSE}
+                        f_ERR_clear_error;
+{$ENDIF};
+                finally
+                    f_X509_free(Cert);
+                end;
+            end;
+         finally
+            f_sk_pop_free(CertStack, @f_X509_free);
+         end;
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock;
+    end;
+{$ENDIF}
 end;
 
 
@@ -13776,6 +14994,146 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.27 load a single PEM certificate from a string }
+(*procedure TSslContext.LoadCertFromStrings(Lines: TStrings);
+var
+    Bio: PBIO;
+    Cert: PX509;
+begin
+    if Lines.Count = 0 then Exit;
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (Pos ('-BEGIN CERTIFICATE-', Lines.Text) = 0) and
+            (Pos ('-END CERTIFICATE-', Lines.Text) = 0) then
+        raise ESslContextException.Create('Expected a Base64 encoded PEM certificate');
+
+    Cert := nil;
+    Bio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Lines.Text)), Length (Lines.Text));
+    try
+        if NOT Assigned(Bio) then
+            raise ESslContextException.Create('Failed to read encoded PEM certificate');
+        Cert := f_PEM_read_bio_X509(Bio, nil, PasswordCallBack, Self);
+        if NOT Assigned (Cert) then begin
+    {$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslErr) then
+                DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
+    {$ELSE}
+            f_ERR_clear_error;
+    {$ENDIF}
+            RaiseLastOpenSslError(ESslContextException, TRUE,
+                                  'Can''t read certificate lines');
+        end;
+        if (f_SSL_CTX_use_certificate(FSslCtx, Cert) = 0) then begin
+    {$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslErr) then
+                DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
+    {$ELSE}
+            f_ERR_clear_error;
+    {$ENDIF}
+            RaiseLastOpenSslError(ESslContextException, TRUE,
+                                  'Can''t add certificate to context');
+        end;
+    finally
+        if Assigned (Cert) then f_X509_free(Cert);
+        if Assigned (Bio) then f_BIO_free(Bio);
+    end;
+end;  *)
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.27 load a PEM certificate chain from a string }
+procedure TSslContext.LoadCertFromString(const Value: String);
+var
+    Cert: PX509;
+    CertStack: PStack;
+    Store: PX509_STORE;
+begin
+    if Length(Value) = 0 then Exit;
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (Pos ('-BEGIN CERTIFICATE-', Value) = 0) and
+            (Pos ('-END CERTIFICATE-', Value) = 0) then
+        raise ESslContextException.Create('Expected a Base64 encoded PEM certificate');
+
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        CertStack := LoadStackFromInfoString(Value, emCert);
+        if not Assigned(CertStack) then
+            raise ESslContextException.Create('Error on reading certificate lines');
+        try
+          if (f_SSL_CTX_clear_chain_certs(FSslCtx) = 0) then
+                raise ESslContextException.Create('Error on clearing chain certs');
+{$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslInfo) then  { V5.21 }
+                DebugLog(loSslInfo, 'Read ' + IntToStr(f_sk_num(CertStack)) +
+                                                    ' certificates from strings');
+{$ENDIF};
+         { first certificate is current used for encryption and identification }
+            Cert := PX509(f_sk_delete(CertStack, 0));
+            if Assigned(Cert) then
+            try
+{$IFNDEF NO_DEBUG_LOG}
+                if CheckLogOptions(loSslInfo) then  { V5.21 }
+                     DebugLog(loSslInfo, 'Current certificate: ' + GetX509SubjectOneLine(Cert));
+{$ENDIF};
+                if (f_SSL_CTX_use_certificate(FSslCtx, Cert) = 0) then begin
+            {$IFNDEF NO_DEBUG_LOG}
+                    if CheckLogOptions(loSslErr) then
+                        DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
+            {$ELSE}
+                    f_ERR_clear_error;
+            {$ENDIF}
+                    RaiseLastOpenSslError(ESslContextException, TRUE,
+                                          'Can''t add certificate to context');
+                end;
+            finally
+                f_X509_free(Cert);
+            end;
+
+        { remaining certificates are chain used to sign current certificate, usually one or two }
+        { !! this function is supposed to be for a server requesting a client certificate, but
+             seems to also store extra chain certificates }
+ //          if f_sk_num(CertStack) > 0 then begin
+ //              f_SSL_CTX_set_client_CA_list(FSslCTX, PSTACK_OF_X509_NAME(CertStack));  // frees Sk
+
+            Store := f_SSL_CTX_get_cert_store(FSslCtx);
+            if NOT Assigned(Store) then
+                raise ESslContextException.Create('Can not open store for chain certs');
+
+            while f_sk_num(CertStack) > 0 do begin   // seemed to cause exception with next OpenSSL function
+                Cert := PX509(f_sk_delete(CertStack, 0));
+                if Assigned(Cert) then
+                try
+{$IFNDEF NO_DEBUG_LOG}
+                    if CheckLogOptions(loSslInfo) then  { V5.21 }
+                        DebugLog(loSslInfo, 'Chain certificate: ' + GetX509SubjectOneLine(Cert));
+{$ENDIF};
+                    if f_X509_STORE_add_cert(Store, Cert) = 0 then
+{$IFNDEF NO_DEBUG_LOG}
+                        if CheckLogOptions(loSslErr) then  { V5.21 }
+                            DebugLog(loSslErr, String(LastOpenSslErrMsg(True)));
+{$ELSE}
+                        f_ERR_clear_error;
+{$ENDIF};
+                finally
+                    f_X509_free(Cert);
+                end;
+            end;
+         finally
+            f_sk_pop_free(CertStack, @f_X509_free);
+         end;
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock;
+    end;
+{$ENDIF}
+
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.LoadPKeyFromFile(const FileName: String);
 begin
     if not Assigned(FSslCtx) then
@@ -13797,6 +15155,52 @@ begin
     end;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.27 load a PEM private key from a string }
+procedure TSslContext.LoadPKeyFromString(const Value: String);
+var
+    Bio: PBIO;
+    Pkey: PEVP_PKEY;
+begin
+    if Length(Value) = 0 then Exit;
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (Pos ('-BEGIN PRIVATE KEY-', Value) = 0) and
+         (Pos ('-END PRIVATE KEY-', Value) = 0) then
+             raise ESslContextException.Create('Expected a Base64 encoded PEM private key');
+
+    Pkey := nil;
+    Bio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Value)), Length (Value));
+    try
+        if NOT Assigned(Bio) then
+            raise ESslContextException.Create('Failed to read encoded PEM private key');
+        Pkey := f_PEM_read_bio_PrivateKey(Bio, nil, PasswordCallBack, Self);
+        if NOT Assigned (Pkey) then begin
+    {$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslErr) then
+                DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
+    {$ELSE}
+            f_ERR_clear_error;
+    {$ENDIF}
+            RaiseLastOpenSslError(ESslContextException, TRUE,
+                                  'Can''t read private key lines');
+        end;
+        if (f_SSL_CTX_use_PrivateKey(FSslCtx, Pkey) = 0) then begin
+    {$IFNDEF NO_DEBUG_LOG}
+            if CheckLogOptions(loSslErr) then
+                DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
+    {$ELSE}
+            f_ERR_clear_error;
+    {$ENDIF}
+            RaiseLastOpenSslError(ESslContextException, TRUE,
+                                  'Can''t read add private key to context');
+        end;
+    finally
+        if Assigned (Pkey) then f_EVP_PKEY_free(Pkey);
+        if Assigned (Bio) then f_BIO_free(Bio);
+    end;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.LoadDHParamsFromFile(const FileName: String);   { V8.15 }
@@ -13834,6 +15238,45 @@ begin
     end;
 
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.LoadDHParamsFromString(const Value: String);
+var
+    Bio: PBIO;
+    MyPDH: PDH;
+begin
+    if Length(Value) = 0 then Exit;
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if (FSslVersionMethod < sslV3) then Exit;   { V8.24 SSLv2 does not support DH }
+    if (Pos ('-BEGIN DH PARAMETERS-', Value) = 0) and
+         (Pos ('-END DH PARAMETERS-', Value) = 0) then
+            raise ESslContextException.Create('Expected a Base64 encoded DH params');
+
+    MyPDH := nil;
+    Bio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Value)), Length (Value));
+    try
+        if NOT Assigned(Bio) then
+            raise ESslContextException.Create('Failed to read encoded DH params');
+        MyPDH := f_PEM_read_bio_DHParams(Bio, nil, PasswordCallBack, Self);
+        if not Assigned(MyPDH) then
+            RaiseLastOpenSslError(EX509Exception, TRUE, 'Error reading DHparams');
+        if (f_SSL_CTX_set_tmp_dh(FSslCtx, MyPDH) = 0) then begin
+{$IFNDEF NO_DEBUG_LOG}
+           if CheckLogOptions(loSslInfo) then
+                DebugLog(loSslInfo, String(LastOpenSslErrMsg(TRUE)));
+{$ELSE}
+           f_ERR_clear_error;
+{$ENDIF}
+           RaiseLastOpenSslError(ESslContextException, TRUE, 'Can''t load DHParamss');
+        end;
+    finally
+        if Assigned (MyPDH) then f_DH_free(MyPDH);
+        if Assigned (Bio) then f_BIO_free(Bio);
+    end;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF OPENSSL_NO_ENGINE}
@@ -13919,7 +15362,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Scan all certificates in a PEM CAfile and list their names as acceptable  }
-{ CAs sent to the client when we request a client certificate. Usefull only }
+{ CAs sent to the client when we request a client certificate. Useful only }
 { in server mode.                                                           }
 procedure TSslContext.SetClientCAListFromFile(const FileName: String);
 var
@@ -13944,7 +15387,7 @@ end;
 procedure TSslContext.InitContext;
 var
     SslSessCacheModes : TSslSessCacheModes;
-    LOpts: LongWord;
+    LOpts: Longint;
     MyECkey: PEC_KEY;
 begin
     InitializeSsl; //loads libs
@@ -13976,7 +15419,8 @@ begin
             if Assigned(FOnBeforeInit) then
                 FOnBeforeInit(Self);
 
-            // Load our key and certificate
+          { Load our key and certificate }
+
         {$IFNDEF OPENSSL_NO_ENGINE}
             if (FCtxEngine <> nil) and
                (eccLoadPrivKey in FCtxEngine.CtxCapabilities) then
@@ -13987,22 +15431,40 @@ begin
                 f_SSL_CTX_set_default_passwd_cb(FSslCtx, PasswordCallBack);
                 f_SSL_CTX_set_default_passwd_cb_userdata(FSslCtx, Self);
 
-                LoadPKeyFromFile(FSslPrivKeyFile);
+              { V8.27 load server private key from file or PEM string list }
+                if (FSslPrivKeyLines.Count > 0) and (FSslPrivKeyFile = '') then
+                    LoadPkeyFromString(FSslPrivKeyLines.Text)
+                else
+                    LoadPKeyFromFile(FSslPrivKeyFile);
         {$IFNDEF OPENSSL_NO_ENGINE}
             end;
         {$ENDIF}
 
-            LoadCertFromChainFile(FSslCertFile);
+         { V8.27 load server certificate from file or PEM string list }
+         { note this may include one or more intermediate certificates, or they may be in CAFile }
+            if (FSslCertLines.Count > 0) and (FSslCertFile = '') then
+                LoadCertFromString(FSslCertLines.Text)
+            else
+                LoadCertFromChainFile(FSslCertFile);
 
-            // See notes in the procedure
-            LoadVerifyLocations(FSslCAFile, FSslCAPath);
+         { V8.27 load CA certificate from file or PEM string list }
+            if (FSslCALines.Count > 0) and (FSslCAFile = '') and (FSslCAPath = '') then
+                LoadCAFromString(FSslCALines.Text)
+            else
+                LoadVerifyLocations(FSslCAFile, FSslCAPath);
 
+          { load certificate revocation lists (CRL) - need to set SslVerifyFlags to use them }
             LoadCRLFromFile(FSslCRLFile);
             LoadCRLFromPath(FSslCRLPath);
+
             //f_SSL_CTX_ctrl(FSslCtx, SSL_CTRL_MODE, SSL_MODE_ENABLE_PARTIAL_WRITE, nil); // Test
 
-            // V8.15 Diffie-Hellman key agreement protocol.- DHparam file needed to generate DH keys
-            LoadDHParamsFromFile(FSslDHParamFile);
+            // V8.15 Diffie-Hellman key agreement protocol.- DHparam file needed to generate DH and DHE keys
+           { V8.27 load DHParams from file or PEM string list }
+            if (FSslDHParamLines.Count > 0) and (FSslDHParamFile = '') then
+                LoadDHParamsFromString(FSslDHParamLines.Text)
+            else
+                LoadDHParamsFromFile(FSslDHParamFile);
 
             // V8.15 Elliptic Curve to generate Ephemeral ECDH keys
             if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1002) and  { V8.17 do this after SSL initialised }
@@ -14010,7 +15472,7 @@ begin
             if (FSslVersionMethod < sslV3) then FSslECDHMethod := sslECDHNone;   { V8.24 SSLv2 does not support EC }
 
             if FSslECDHMethod = sslECDHAuto then begin
-                if f_SSL_CTX_set_ecdh_auto(FSslCtx, 1) = 0 then
+                if f_SSL_CTX_set_ecdh_auto(FSslCtx, 1) = 0 then   { V8.27 ignored for 1.1.0, auto always enabled }
                     RaiseLastOpenSslError(ESslContextException, TRUE,
                                           'Error setting auto elliptic curve');
             end
@@ -14026,8 +15488,39 @@ begin
             end;
 
             // verify flags
-            f_X509_STORE_set_flags(f_SSL_CTX_get_cert_store(FSslCtx),
-                                   FSslVerifyFlags);
+            f_X509_STORE_set_flags(f_SSL_CTX_get_cert_store(FSslCtx), FSslVerifyFlags);
+
+            // V8.27 set TLS min and max versions for OpenSSL 1.1.0 and later }
+            LOpts := FSslOptionsValue or SSL_OP_NO_TICKET;
+            if (FSslMinVersion = sslVerMax) then FSslMinVersion := sslVerSSL3;  { sanity check }
+            if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then begin
+                if FSslMaxVersion >= FSslMinVersion then begin
+                    f_SSL_CTX_set_min_proto_version(FSslCtx, SslVerMethods [FSslMinVersion]);
+                    f_SSL_CTX_set_max_proto_version(FSslCtx, SslVerMethods [FSslMaxVersion]);
+                  // remove version specific protocols options
+                    LOpts := LOpts AND (NOT SSL_OP_NO_SSLv3) AND (NOT SSL_OP_NO_TLSv1) AND
+                                          (NOT SSL_OP_NO_TLSv1_2) AND (NOT SSL_OP_NO_TLSv1_1);
+                end;
+            end
+
+          { V8.27 for OpenSSL 1.0.2 and earlier simulate range of versions, if not set to defaults }
+            else begin
+                if (FSslMaxVersion >= FSslMinVersion) and
+                     (FSslMinVersion > sslVerSSL3) and (FSslMaxVersion < sslVerMax) then begin
+                    LOpts := LOpts AND (NOT SSL_OP_NO_SSLv3) AND (NOT SSL_OP_NO_TLSv1) AND
+                                          (NOT SSL_OP_NO_TLSv1_2) AND (NOT SSL_OP_NO_TLSv1_1);
+                    if (FSslMinVersion = sslVerTLS1) then
+                        LOpts := LOpts OR SSL_OP_NO_SSLv3
+                    else if (FSslMinVersion = sslVerTLS1_1) then
+                        LOpts := LOpts OR SSL_OP_NO_SSLv3 OR SSL_OP_NO_TLSv1
+                    else if (FSslMinVersion = sslVerTLS1_2) then
+                        LOpts := LOpts OR SSL_OP_NO_SSLv3 OR SSL_OP_NO_TLSv1 OR SSL_OP_NO_TLSv1_1;
+                    if (FSslMaxVersion = sslVerTLS1) then
+                        LOpts := LOpts OR SSL_OP_NO_TLSv1_1 OR SSL_OP_NO_TLSv1_2
+                    else if (FSslMaxVersion = sslVerTLS1_1) then
+                        LOpts := LOpts OR SSL_OP_NO_TLSv1_2;
+                end;
+            end;
 
             //raise Exception.Create('Test');
 
@@ -14037,19 +15530,17 @@ begin
                 if f_SSL_CTX_set_trust(FSslCtx, Integer(FSslX509Trust)) = 0 then
                     raise Exception.Create('Error setting trust'); }
 
-            { No s yet - angus don't want it since it stops forward secrecy ciphers }
-            LOpts := FSslOptionsValue or SSL_OP_NO_TICKET;
-
-        //    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1000 then begin
-                { This is a workaround a possible bug in OSSL 1.0.0(d)
+          { This is a workaround a possible bug in OSSL 1.0.0(d)
                   check if future versions fix it.
                   SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER causes
                   error:1408F044:SSL routines:SSL3_GET_RECORD:internal error
                   on session resumption in InitSslConnection. }
+            if ICS_OPENSSL_VERSION_NUMBER <= OSSL_VER_1100 then begin
                 if LOpts and SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER =
                   SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER then
                     LOpts := LOpts and not SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER;
-        //    end;
+            end;
+
             { Adds the options set via bitmask to Ctx.    }
             { Options already set before are not cleared? }
             f_SSL_CTX_set_options(FSslCtx, LOpts);
@@ -14090,9 +15581,15 @@ begin
                                   @FSslDefaultSessionIDContext[1],
                                   Length(FSslDefaultSessionIDContext)) = 0 then
                         RaiseLastOpenSslError(ESslContextException, TRUE,
-                                              'ssl_ctx_set_session_id_context ' +
-                                              'failed');
-            end;
+                                     'ssl_ctx_set_session_id_context failed');
+             end;
+
+{$IFNDEF NO_DEBUG_LOG}
+        { V8.27 list all ciphers available for connection }
+           if CheckLogOptions(loSslInfo) then
+                DebugLog(loSslInfo, 'SSL Ciphers Available: ' + #13#10 + SslGetAllCiphers);
+{$ENDIF}
+
         except
             if Assigned(FSslCtx) then begin
                 f_SSL_CTX_free(FSslCtx);
@@ -14149,8 +15646,29 @@ begin
         if IcsCompareStr(FSslCAFile, Value) = 0 then
             Exit;
         FSslCAFile := Value;
-        if Assigned(FSslCtx) then
+        if Assigned(FSslCtx) and (FSslCAFile <> '') then  { V8.27 }
             LoadVerifyLocations(FSslCAFile, FSslCAPath);
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslCALines(Value: TStrings);    { V8.27 }
+begin
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        if IcsCompareStr(FSslCALines.Text, Value.Text) = 0 then
+            Exit;
+        FSslCALines.Assign(Value);
+        if Assigned(FSslCtx) and (FSslCALines.Count > 0) and
+            (FSslCAFile = '') and (FSslCAPath = '') then
+                  LoadCAFromString(FSslCALines.Text);
 {$IFNDEF NO_SSL_MT}
     finally
         Unlock
@@ -14169,7 +15687,7 @@ begin
         if IcsCompareStr(FSslCAPath, Value) = 0 then
             Exit;
         FSslCAPath := Value;
-        if Assigned(FSslCtx) then
+        if Assigned(FSslCtx) and (FSslCAPath <> '') then  { V8.27 }
             LoadVerifyLocations(FSslCAFile, FSslCAPath);
 {$IFNDEF NO_SSL_MT}
     finally
@@ -14189,8 +15707,31 @@ begin
         if IcsCompareStr(Value, FSslCertFile) = 0 then
             Exit;
         FSslCertFile := Value;
-        if Assigned(FSslCtx) then
-            LoadCertFromChainFile(FSslCertFile);
+        if (FSslCertFile <> '') and
+                Assigned(FSslCtx) then
+                    LoadCertFromChainFile(FSslCertFile);
+
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock
+    end;
+{$ENDIF}
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslCertLines(Value: TStrings);    { V8.27 }
+begin
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        if IcsCompareStr(Value.Text, FSslCertLines.Text) = 0 then
+            Exit;
+        FSslCertLines.Assign(Value);
+        if (FSslCertFile = '') and
+          (FSslCertLines.Count > 0) and
+              Assigned(FSslCtx) then
+                 LoadCertFromString(FSslCertLines.Text);
 {$IFNDEF NO_SSL_MT}
     finally
         Unlock
@@ -14205,7 +15746,28 @@ begin
     Lock;
     try
 {$ENDIF}
-        FSslDHParamFile := Value
+        FSslDHParamFile := Value;
+        if (FSslDHParamFile <> '') and Assigned(FSslCtx) then
+           LoadDHParamsFromFile(FSslDHParamFile);   { V8.27 }
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslDHParamLines(Value : TStrings);     { V8.27 }
+begin
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslDHParamLines.Assign(Value);
+       if (FSslDHParamLines.Count > 0) and
+         (FSslDHParamFile = '') and Assigned(FSslCtx) then
+             LoadDHParamsFromString(FSslDHParamLines.Text);
 {$IFNDEF NO_SSL_MT}
     finally
         Unlock
@@ -14272,8 +15834,31 @@ begin
         if (IcsCompareStr(Value, FSslPrivKeyFile) = 0) then
             Exit;
         FSslPrivKeyFile := Value;
-        if Assigned(FSslCtx) then
+        if (FSslPrivKeyFile <> '') and
+          Assigned(FSslCtx) then
             LoadPKeyFromFile(FSslPrivKeyFile);
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslPrivKeyLines(Value: TStrings);      { V8.27 }
+begin
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        if (IcsCompareStr(Value.Text, FSslPrivKeyLines.Text) = 0) then
+            Exit;
+        FSslPrivKeyLines.Assign(Value);
+        if (FSslPrivKeyFile = '') and
+          (FSslPrivKeyLines.Count > 0) and
+             Assigned(FSslCtx) then
+                LoadPKeyFromString(FSslPrivKeyLines.Text);
 {$IFNDEF NO_SSL_MT}
     finally
         Unlock
@@ -14329,6 +15914,39 @@ begin
 {$ENDIF}
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslMinVersion(Value : TSslVerMethod);   { V8.27 }
+begin
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslMinVersion := Value;
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslMaxVersion(Value : TSslVerMethod);   { V8.27 }
+begin
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslMaxVersion := Value
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock
+    end;
+{$ENDIF}
+end;
+
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.SetSslECDHMethod(Value : TSslECDHMethod);    { V8.15 }
 begin
@@ -14358,9 +15976,16 @@ begin
     try
 {$ENDIF}
         Result := [];
-        for Opt := Low(TSslOption) to High(TSslOption) do
-            if (FSslOptionsValue and SslIntOptions[Opt]) <> 0 then
-                Include(Result, Opt);
+        for Opt := Low(TSslOption) to High(TSslOption) do begin
+            if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
+                if (FSslOptionsValue and SslIntOptions[Opt]) <> 0 then
+                    Include(Result, Opt);
+            end
+            else begin  { V8.27 fewer options in newer versions }
+                if (FSslOptionsValue and SslIntOptions110[Opt]) <> 0 then
+                    Include(Result, Opt);
+            end;
+        end;
 {$IFNDEF NO_SSL_MT}
     finally
         Unlock
@@ -14380,8 +16005,14 @@ begin
 {$ENDIF}
         FSslOptionsValue := 0;
         for Opt := Low(TSslOption) to High(TSslOption) do
-            if Opt in Value then
-                FSslOptionsValue := FSslOptionsValue or SslIntOptions[Opt];
+            if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
+                if Opt in Value then
+                    FSslOptionsValue := FSslOptionsValue or SslIntOptions[Opt];
+            end
+            else begin   { V8.27 fewer options in newer versions }
+                if Opt in Value then
+                    FSslOptionsValue := FSslOptionsValue or SslIntOptions110[Opt];
+            end;
 {$IFNDEF NO_SSL_MT}
     finally
         Unlock;
@@ -14523,11 +16154,7 @@ begin
         if FSslVerifyPeer then begin
             if f_SSL_CTX_get_verify_mode(FSslCtx) <> FSslVerifyPeerModesValue then begin
                 f_SSL_CTX_set_verify(FSslCtx, FSslVerifyPeerModesValue, PeerVerifyCallback);
-{$IFDEF OPENSSL_VERSION_NUMBER_LESS_THAN_0x00905100L}
-                f_SSL_CTX_set_verify_depth(FSslCtx, 1);
-{$ELSE}
                 f_SSL_CTX_set_verify_depth(FSslCtx, FSslVerifyDepth);
-{$ENDIF}
             end;
         end
         else begin
@@ -14588,6 +16215,34 @@ begin
         Unlock
     end;
 {$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.27 list all ciphers for current SSL context which must be initialised }
+{ seems to return all ciphers irrespective of whether supported by protocols }
+function TSslContext.SslGetAllCiphers: String;
+var
+    Next: PAnsiChar;
+    Priority: Integer;
+    MySsl: PSSL;
+begin
+    Result := '';
+   if NOT Assigned(FSslCtx) then Exit;
+  //Create temporary SSL Object
+    MySsl := f_SSL_new(FSslCtx);
+    if not Assigned(MySsl) then
+        RaiseLastOpenSslError(Exception, TRUE,
+                              'Error on creating the Ssl object');
+    Priority := 0;
+    while True do begin
+        Next := f_SSL_get_cipher_list(MySsl, Priority);
+        if Next = Nil then Break;
+        Inc (Priority);
+        if Priority > 100 then Break; // sanity check
+        Result := Result + String(Next) + #13#10;
+    end;
+    f_SSL_free(MySsl);
 end;
 
 
@@ -14990,6 +16645,8 @@ var
     B        : PBIO;
     Nid      : Integer;
     ABuf     : AnsiString;
+    Extvalue : PASN1_OCTET_STRING;
+    Extlen   : Integer;
 begin
     Result.Critical  := FALSE;
     Result.ShortName := '';
@@ -15036,14 +16693,19 @@ begin
             Result.Value := UnknownExtDataToStr(Ext);
             Exit;
         end;
-        Data := Ext^.value^.data;
+     //   Data := Ext^.value^.data;   { V8.27 Ext structure now hidden }
+        Extvalue := f_X509_EXTENSION_get_data(Ext);   { V8.27 }
+     //     Data := f_ASN1_STRING_data(Extvalue);     { V8.27 would be better, but not loaded }
+     //     Extlen := f_ASN1_STRING_length(Extvalue);
+        Data := Extvalue^.data;
+        Extlen := Extvalue^.length;
         if Assigned(Meth^.it) then
             ext_str := f_ASN1_item_d2i(nil,
                                        @Data,
-                                       Ext^.value^.length,
+                                       Extlen,
                                        ASN1_ITEM_ptr(Meth^.it))
         else
-            ext_str := Meth^.d2i(nil, @Data, Ext^.value^.length);
+            ext_str := Meth^.d2i(nil, @Data, Extlen);
 
         if not Assigned(ext_str) then begin
             Result.Value := UnknownExtDataToStr(Ext);
@@ -15409,6 +17071,58 @@ begin
         WriteToBio(FileBio, IncludePrivateKey, AddRawText);
     finally
         f_bio_free(FileBio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.LoadFromText(Lines: String;                     { V8.27 }
+                                 IncludePrivateKey: Boolean = False;
+                                 const Password: String = '');
+var
+    MemBio : PBIO;
+begin
+    if (Pos ('-BEGIN CERTIFICATE-', Lines) = 0) and
+            (Pos ('-END CERTIFICATE-', Lines) = 0) then
+        raise ESslContextException.Create('Expected a Base64 encoded PEM certificate');
+    InitializeSsl;
+    MemBio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Lines)), Length (Lines));
+    try
+        ReadFromBio(MemBio, IncludePrivateKey, Password);
+    finally
+        f_bio_free(MemBio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.PrivateKeyLoadFromText(Lines: String;          { V8.27 }
+                                           const Password: String = '');
+var
+    PKey    : PEVP_PKEY;
+    MemBio : PBIO;
+begin
+    if (Pos ('-BEGIN PRIVATE KEY-', Lines) = 0) and
+         (Pos ('-END PRIVATE KEY-', Lines) = 0) then
+             raise ESslContextException.Create('Expected a Base64 encoded PEM private key');
+    InitializeSsl;
+    MemBio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Lines)), Length (Lines));
+    try
+        PKey := f_PEM_read_bio_PrivateKey(MemBio, nil, nil, PAnsiChar(AnsiString(Password)));
+        if not Assigned(PKey) then
+            RaiseLastOpenSslError(EX509Exception, TRUE,
+                                  'Error reading private key');
+        try
+            if Assigned(FX509) then
+                if f_X509_check_private_key(FX509, PKey) < 1 then
+                    raise EX509Exception.Create('Certificate and private key ' +
+                                                'do not match');
+            PrivateKey := PKey;
+        finally
+            f_EVP_PKEY_free(PKey);
+        end;
+    finally
+        f_bio_free(MemBio);
     end;
 end;
 
@@ -15844,31 +17558,13 @@ begin
     FSslAcceptableHosts     := TStringList.Create;
     FSslCertChain           := TX509List.Create(nil);
     FX509Class              := TX509Base;
-    {
-    FSsl                    := nil;
-    FSslbio                 := nil;
-    FIBIO                   := nil;
-    FNBIO                   := nil;
-
-    FSslInitialized         := FALSE;
-    FNetworkError           := 0;
-    FSslIntShutDown         := 0;
-    FSslVerifyResult        := 0;
-    }
     FMayTriggerFD_Read      := TRUE;
     FMayTriggerFD_Write     := TRUE;
     FMayTriggerDoRecv       := TRUE;
     FMayTriggerSslTryToSend := TRUE;
-    //FCloseCalled            := FALSE;
-    //FCloseReceived          := FALSE;
-
-    //FMayInternalSslShut     := TRUE;
     inherited Create(AOwner);
     FSslBufList := TIcsBufferHandler.Create(nil);
-    FSslBufList.BufSize := SSL_BUFFER_SIZE;  // 4096              {AG 10/10/07}
-{ IFDEF DEBUG_OUTPUT}
-//    FSslDebugLevel := ssldbgDump;
-{ ENDIF}
+    FSslBufList.BufSize := GSSL_BUFFER_SIZE;  // 4096  { V8.27 size now configurable }
 end;
 
 
@@ -15970,14 +17666,15 @@ begin
     if (FState = wsConnecting) or (FHSocket = INVALID_SOCKET) then
         Exit;
 
-    SslStOk := f_SSL_state(FSsl) = SSL_ST_OK;
+    SslStOk := IcsSslGetState(FSsl) = TLS_ST_OK;  { V8.27 }
 
     if not FCloseCalled then begin
         FCloseCalled := TRUE;
 {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslInfo) then
             DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
-                     ' *CloseCalled ' + IntToStr(FHSocket));
+                     ' *CloseCalled ' + IntToStr(FHSocket) +
+                        ', State=' + String(f_SSL_state_string_long(Fssl))); { V8.27 }
 {$ENDIF}
     end;
     if FNetworkError = 0 then begin
@@ -16023,7 +17720,8 @@ begin
     if CheckLogOptions(loSslInfo) then
         DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                  ' FCloseInvoked=' + IntToStr(Ord(FCloseInvoked)) + ' ' +
-                 IntToStr(FHSocket));
+                 IntToStr(FHSocket) +
+                 ', State=' + String(f_SSL_state_string_long(Fssl))); { V8.27 }
 {$ENDIF}
     if (FHSocket <> INVALID_SOCKET) and (not FCloseInvoked) and {AG 12/30/07}
        (not (csDestroying in ComponentState)) then begin   // AG 03/03/06
@@ -16144,13 +17842,17 @@ end;  *)
 procedure TCustomSslWSocket.Do_FD_READ(var Msg: TMessage);
 var
     Len        : Integer; // How much to receive
-    Buffer     : array [0..(SSL_BUFFER_SIZE * 2) -1] of AnsiChar;
+    Buffer     : array{ [0..(SSL_BUFFER_SIZE * 2) -1]} of AnsiChar;  { V8.27 size now configurable }
+    BuffSize   : Integer;  { V8.27 }
     NumRead    : Integer;
     nError     : Integer;
     Res        : Integer;
     PBuf       : TWSocketData;
     Dummy      : Byte;
 begin
+    BuffSize := (GSSL_BUFFER_SIZE * 2)-1;  { V8.27 size now configurable }
+    SetLength(Buffer, BuffSize);
+
  { V8.22 moved here from Do_SSL_FD_READ  }
     WSocket_Synchronized_WSAASyncSelect({$IFDEF POSIX}Self,{$ENDIF}
          FHSocket, Handle, FMsg_WM_ASYNCSELECT, FD_WRITE or FD_CLOSE or FD_CONNECT);
@@ -16170,7 +17872,7 @@ begin
         if (FNetworkError > 0) then
             Exit;
 
-        if (f_SSL_state(FSsl) = SSL_ST_OK) and (FSslBioWritePendingBytes < 0) and // <= 12/08/05
+        if (IcsSslGetState(FSsl) = TLS_ST_OK){ V8.27 } and (FSslBioWritePendingBytes < 0) and // <= 12/08/05
            (my_BIO_ctrl_pending(FSslbio) > 0) then begin
           {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
@@ -16190,8 +17892,8 @@ begin
         Len := my_BIO_ctrl_get_read_request(FNBio);
         if Len = 0 then
             Len := my_BIO_ctrl_get_write_guarantee(FNBio);
-        if Len > SizeOf(Buffer) then
-            Len := SizeOf(Buffer)
+        if Len > BuffSize then   { V8.27 was sizeof(Buffer) }
+            Len := BuffSize
         else if Len = 0 then begin
             FMayTriggerFD_Read := TRUE;
             TriggerEvents;
@@ -16202,7 +17904,7 @@ begin
         NumRead := my_WSocket_recv(FHSocket, PBuf, Len, 0);
         if (NumRead > 0) then begin
             // Store it in the network input bio and process data
-            my_BIO_write(FNBio, @Buffer, NumRead);
+            my_BIO_write(FNBio, PBuf, NumRead);     { V8.27 was @Buffer }
             my_BIO_ctrl(FNBio, BIO_CTRL_FLUSH, 0, nil);
             // Look if input data was valid.
             // We may not call BIO_read if a write operation is pending !!
@@ -16212,7 +17914,7 @@ begin
                     if not my_BIO_should_retry(FSslBio) then begin
                         HandleSslError;
                         if (not FExplizitSsl) or
-                           (f_SSL_state(FSsl) <> SSL_ST_OK) then begin
+                           (IcsSslGetState(FSsl) <> TLS_ST_OK)  { V8.27 } then begin
                             WSocket_WSASetLastError(WSAECONNABORTED);
                             FNetworkError := WSAECONNABORTED;
                             FLastError    := WSAECONNABORTED; //XX
@@ -16295,7 +17997,7 @@ begin
             end;
         end;
 
-        if (f_SSL_state(FSsl) = SSL_ST_OK) {(FSslState >= sslEstablished)} and
+        if (IcsSslGetState(FSsl) = TLS_ST_OK) and  { V8.27 }
            (FSslBioWritePendingBytes < 0) and // <= 12/08/05
            (my_BIO_ctrl_pending(FSslbio) > 0) then begin
           {$IFNDEF NO_DEBUG_LOG}
@@ -16327,7 +18029,8 @@ end;
 procedure TCustomSslWSocket.Do_FD_WRITE(var Msg: TMessage);
 var
     Len        : Integer;    // How much to send
-    Buffer     : array [0..16383] of AnsiChar;
+    Buffer     : array { [0..16383] } of AnsiChar;  { V8.27 size now configurable }
+    BuffSize   : integer;
     NumRead    : Integer;
     NumSent    : Integer;
     Err        : Longword;
@@ -16346,6 +18049,8 @@ begin
         Exit;
 
     FMayTriggerFD_Write := FALSE;
+    BuffSize := (GSSL_BUFFER_SIZE * 2)-1;  { V8.27 size now configurable }
+    SetLength(Buffer, BuffSize);
 
     // Send encrypted data in the send buffer
     inherited TryToSend;
@@ -16375,12 +18080,13 @@ begin
 
     // Send the data waiting in the network bio
     Len     := my_BIO_ctrl_pending(FNBio);
-    NumRead := my_BIO_read(FNBio, @Buffer, Len);
+    if Len > BuffSize then Len := BuffSize;            { V8.27 sanity check }
+    NumRead := my_BIO_read(FNBio, @Buffer[0], Len);    { V8.27 }
     if NumRead <= 0 then
         FMayTriggerFD_Write := TRUE;
 
     while (NumRead > 0) do begin
-        NumSent := my_RealSend(@Buffer, NumRead{len});
+        NumSent := my_RealSend(@Buffer[0], NumRead);  { V8.27 }
         if NumSent = 0 then begin
             if FState = wsconnected then
                 TriggerEvent(sslFdClose, 0);
@@ -16417,12 +18123,13 @@ begin
             FMayTriggerFD_Write := TRUE;
             break;
         end;
-        NumRead := my_BIO_read(FNBio, @Buffer, Len);
+        if Len > BuffSize then Len := BuffSize;            { V8.27 sanity check }
+        NumRead := my_BIO_read(FNBio, @Buffer[0], Len);    { V8.27 }
         if Numread <= 0 then
             FMayTriggerFD_Write := TRUE;
     end;
 
-    if (f_Ssl_State(FSsl) = SSL_ST_OK) then begin                    // <= 12/08/05
+    if (IcsSslGetState(FSsl) = TLS_ST_OK) then begin { V8.27 }        // <= 12/08/05
         if not bSslAllSent then
             TryToSend
         (* else if {bSslAllSent and} bAllSent and (my_BIO_ctrl_pending(FNBio)= 0) and
@@ -16485,7 +18192,7 @@ begin
         Result := 0;
         Exit;
     end;
-    if (f_SSL_state(FSsl) <> SSL_ST_OK) or                //<= 01/01/06 AG
+    if (IcsSslGetState(FSsl) <> TLS_ST_OK) or { V8.27 }            //<= 01/01/06 AG
        (my_BIO_ctrl_pending(FSslbio) = 0) then begin
         if FState = wsclosed then begin
             Result := 0;
@@ -16643,7 +18350,7 @@ begin
     end;
 
     if FSslEnable and Assigned(FSsl) and
-      (f_SSL_state(FSsl) = SSL_ST_OK) and (my_BIO_ctrl_pending(FSslbio) > 0) then
+      (IcsSslGetState(FSsl) = TLS_ST_OK) and (my_BIO_ctrl_pending(FSslbio) > 0) then  { V8.27 }
         TriggerEvents
     else
        inherited Close;
@@ -17254,6 +18961,55 @@ end;    *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.27 list all ciphers supported for current SSL context which must be initialised }
+{ Supported=True returns only ciphers acceptable according to protocol and settings,
+  otherwise it's complete list available
+  Remote=True for server client connections gets list sent by remote client,
+  otherwise it's the list the client or servers supports according to protocol settings }
+function TCustomSslWSocket.SslGetSupportedCiphers (Supported, Remote: boolean): String;
+var
+    I, Total: Integer;
+    NewSSL: Boolean;
+    MySsl: PSSL;
+    MyStack: PSTACK_OF_SSL_CIPHER;
+    MyCipher: PAnsiChar;
+begin
+    Result := '';
+    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) and Supported then exit;  // not supported
+    NewSSL := false;
+    if (NOT Assigned(FSsl)) then begin
+        if NOT Assigned(FSslContext.FSslCtx) then Exit;
+      //Create temporary SSL Object
+        MySsl := f_SSL_new(FSslContext.FSslCtx);
+        if not Assigned(MySsl) then
+            RaiseLastOpenSslError(Exception, TRUE,
+                                  'Error on creating the Ssl object');
+       NewSSL := true;
+    end
+    else
+       MySsl := FSsl;
+
+    if Supported then begin
+       if Remote then
+            MyStack := f_SSL_get_client_ciphers(MySsl)   // list received by server from remote client
+       else
+            MyStack := f_SSL_get1_supported_ciphers(MySsl)  // list supported by client or server
+    end
+    else
+        MyStack := f_SSL_get_ciphers(MySsl);   // all ciphers
+    Total := f_sk_num(MyStack);
+    if Total = 0 then Exit;
+    for I := 0 to Total - 1 do begin
+        MyCipher := f_sk_value(MyStack, I);
+        if Assigned (MyCipher) then
+            Result := Result + String(f_SSL_CIPHER_get_name(MyCipher)) + #13#10;
+    end;
+    if Supported and (NOT Remote) then f_sk_free(MyStack);
+    if NewSSL then f_SSL_free(MySsl);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomSslWSocket.SslSessionReused : Boolean;
 begin
     Result := FSslEnable and Assigned(FSsl) and (f_SSL_session_reused(FSsl) = 1);
@@ -17280,23 +19036,23 @@ var
 begin
     Result := FALSE;
     if FSslEnable and Assigned(FSsl) then begin
-        TmpInt  := f_SSL_state(FSsl);
+      { TmpInt  := IcsSslGetState(FSsl); }
         Ver     := f_SSL_version(FSsl);
         Pen     := f_SSL_renegotiate_pending(FSsl);
         NoReneg := IsSslRenegotiationDisallowed(Self);
         if NoReneg or
-            not ((TmpInt = SSL_ST_OK) and
+            not ((IcsSslGetState(FSsl) = TLS_ST_OK) and   { V8.27 }
                  (Ver >= SSL3_VERSION) and
                  (Pen = 0)) then begin
 {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslErr) then begin
                 DebugLog(loSslErr,
-                         Format('%s ! Cannot start re-negotiation  State ' +
-                                '%d Version (0x%x) RenegotiatePending %d ' +
+                         Format('%s ! Cannot start re-negotiation  State= ' +
+                                '%s ,Version (0x%x) RenegotiatePending %d ' +
                                 'NO_RENEGOTIATION %d HSocket %d',
                                 [IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
-                                TmpInt, Ver, Pen, Ord(NoReneg),
-                                FHSocket]));
+                                String(f_SSL_state_string_long(Fssl)), Ver,   { V8.27 }
+                                Pen, Ord(NoReneg), FHSocket]));
             end;
 {$ENDIF}
             Exit;
@@ -17565,7 +19321,7 @@ begin
                                       'Error on creating the Ssl object');
             //Create BIOs
             FSslBio := f_BIO_new(f_BIO_f_ssl);
-            f_BIO_new_bio_pair(@FIBio, SSL_BUFFER_SIZE, @FNBio, SSL_BUFFER_SIZE);
+            f_BIO_new_bio_pair(@FIBio, GSSL_BUFFER_SIZE, @FNBio, GSSL_BUFFER_SIZE);  { V8.27 size now configurable }
             if (FSslBio = nil) or (FNBio = nil) or (FIBio = nil) then
                 RaiseLastOpenSslError(Exception, TRUE,
                                       'Creating BIOs failed');
@@ -18066,7 +19822,7 @@ begin
                     TriggerEvent(sslFdClose, 0);
                 Exit;
             end;
-            if (not Assigned(FSsl)) or (f_SSL_state(FSsl) <> SSL_ST_OK) or {(FSslState < sslEstablished)}
+            if (not Assigned(FSsl)) or (IcsSslGetState(FSsl) <> TLS_ST_OK) or   { V8.27 }
                (f_SSL_renegotiate_pending(FSsl) = 1) then begin    // <= 12/31/05 AG
                { Don't write app. data while in handshake }        // <= 12/31/05 AG
                 FMayTriggerSslTryToSend := TRUE;
@@ -18253,24 +20009,19 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomSslWSocket.TriggerEvents;
 var
-    State   : Integer;
+    State   : TSslHandshakeState;    { V8.27 }
 {$IFNDEF NO_DEBUG_LOG}
     Str   : String;
 {$ENDIF}
 begin
     if not Assigned(FSsl) or (not FSslEnable) then
         Exit;
-    State := f_SSL_state(FSsl);
+    State := IcsSslGetState(FSsl);  { V8.27 }
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then begin { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
         Str := IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
-               ' TriggerEvents ' + IntToStr(FHSocket) + ' SslState: ';
-        if State and SSL_ST_INIT <> 0  then
-            Str := Str + 'SSL_ST_INIT '
-        else if State = SSL_ST_OK then
-            Str := Str + 'SSL_ST_OK '
-        else
-            Str := Str + IntToHex(State, 8);
+               ' TriggerEvents ' + IntToStr(FHSocket) + ' State=' +
+               String(f_SSL_state_string_long(FSsl));  { V8.27  }
 
         DebugLog(loSslInfo, Str +
               ' // MayFD_Read='      + BoolToStr(FMayTriggerFD_Read, True) +
@@ -18295,25 +20046,25 @@ begin
                 FMayTriggerFD_Write := FALSE;
         end;
     end
-    else if (not bAllSent) and (State = SSL_ST_OK) and
+    else if (not bAllSent) and (State = TLS_ST_OK) and    { V8.27 }
             (my_BIO_ctrl_get_write_guarantee(FSslbio) > 0) and
              FMayTriggerFD_Write{FMayTriggerSslTryToSend} then begin  // AG 03/03/06
         if TriggerEvent(sslFdWrite, 0) then
             FMayTriggerFD_Write{FMayTriggerSslTryToSend} := FALSE;    // AG 03/03/06
     end
-    else if (not bSslAllSent) and (State = SSL_ST_OK) and
+    else if (not bSslAllSent) and (State = TLS_ST_OK) and  { V8.27 }
              FMayTriggerSslTryToSend then begin
         FMayTriggerSslTryToSend := FALSE;
         TryToSend;
     end
     else if bAllSent and bSslAllSent and FSendPending and
-       (State = SSL_ST_OK) then begin
+       (State = TLS_ST_OK) then begin   { V8.27 }
         //Inc(FTriggerCount);
         FSendPending := FALSE;
         TriggerDataSent(0);
     end;
 
-    if (State = SSL_ST_OK) and (my_BIO_ctrl_pending(FSslbio) > 0) then begin
+    if (State = TLS_ST_OK) and (my_BIO_ctrl_pending(FSslbio) > 0) then begin   { V8.27 }
         if FMayTriggerDoRecv  then begin
             if TriggerEvent(sslFdRead, 0) then
                 FMayTriggerDoRecv := FALSE;
@@ -18330,7 +20081,7 @@ begin
     else}
     if ((FCloseCalled and (FSslIntShutDown = 0)) or
        ((FSslIntShutDown = 2) and not FSslBiShutdownFlag)) and   // AG 03/03/06
-       (State = SSL_ST_OK) and (my_BIO_ctrl_pending(FSslbio) = 0) then
+       (State = TLS_ST_OK) and (my_BIO_ctrl_pending(FSslbio) = 0) then    { V8.27 }
         TriggerEvent(sslFdClose, 0);
 end;
 
@@ -18433,6 +20184,11 @@ var
     Disconnect   : Boolean;
     RefCert      : TX509Base;
     Buffer       : array [0..128] of AnsiChar; { V8.14 }
+
+  { examples of SSL_CIPHER_description():
+   <ciphername> <first protocol version> <key exchange> <authentication> <symmetric encryption method> <message authentication code>
+      ECDHE-RSA-AES256-GCM-SHA256 TLSv1.2 Kx=ECDH   Au=RSA  Enc=AESGCM(256) Mac=AEAD
+    RSA-PSK-AES256-CBC-SHA384 TLSv1.0 Kx=RSAPSK   Au=RSA  Enc=AES(256)  Mac=SHA384 }
 
     function FindCiphArg (const key: string): string;
     var

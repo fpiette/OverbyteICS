@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Aug 26, 2007
 Description:
-Version:      8.21
+Version:      8.27
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -62,6 +62,8 @@ Oct 25, 2015 V1.09 Angus added SignatureAlgorithm property to TX509Ex so we can 
              CertInfo provides multiline string of main certificate information for logging
 Nov 5, 2015  V8.20 Angus removed a compiler warning, version matches wsocket
 Mar 17, 2015 V8.21 Angus use SHA256 for unicode self signed and non-unicode request
+May 24, 2016 V8.27 Angus, initial support for OpenSSL 1.1.0
+
 
 
 pending - create a certificate signed by a root certificate
@@ -482,8 +484,13 @@ begin
     Result := '';
     if not Assigned(X509) then
         Exit;
-    MyX509 := X509;
-    Nid := f_OBJ_obj2nid(MyX509^.sig_alg.algorithm);  // certificate signature
+    { V8.27 need new export for 1.1.0, was in 1.0.2 }
+    if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) then
+        Nid := f_X509_get_signature_nid(X509)
+    else begin
+        MyX509 := X509;
+        Nid := f_OBJ_obj2nid(MyX509^.sig_alg.algorithm);  // certificate signature
+    end;
     if Nid <> NID_undef then begin
         SetLength(Str, 256);
         Str := f_OBJ_nid2ln(Nid);
@@ -512,8 +519,12 @@ begin
     end;
     if not Assigned(X509) then
         Exit;
-    MyX509 := X509;
-    Nid := f_OBJ_obj2nid(MyX509^.cert_info.key.algor.algorithm);  // certificate alogorithm
+    if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) then
+        Nid := f_X509_get_signature_nid(X509)
+    else begin
+        MyX509 := X509;
+        Nid := f_OBJ_obj2nid(MyX509^.cert_info.key.algor.algorithm);  // certificate alogorithm
+    end;
     if Nid = NID_undef then Exit;
     SetLength(Str, 256);
     Str := f_OBJ_nid2ln(Nid);   // name of certificate alogorithm
@@ -1620,7 +1631,10 @@ begin
 
     CiphCtx.Ctx := f_EVP_CIPHER_CTX_new;
     try
-        f_EVP_CIPHER_CTX_init(CiphCtx.Ctx);
+        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then
+            f_EVP_CIPHER_CTX_init(CiphCtx.Ctx)
+        else
+            f_EVP_CIPHER_CTX_reset(CiphCtx.Ctx);
         if SetKeySize > 0 then begin
             if not f_EVP_CipherInit_ex(CiphCtx.Ctx, CiphCtx.Cipher, nil, nil, nil,
                                        Ord(Enc)) then

@@ -3,12 +3,12 @@
 Original Author: Ian Baker, ADV Systems 2003
 Updated by:   Angus Robertson, Magenta Systems Ltd
 Creation:     24 September 2013
-Version:      8.03
+Version:      8.04
 Description:  How to use TSslSmtpServer
 EMail:        francois.piette@overbyte.be      http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2013 by François PIETTE
+Legal issues: Copyright (C) 2004-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -43,6 +43,7 @@ Apr 26, 2014 V8.01 Arno - Check for IsIPv6Available rather than IsIPv6ApiAvailab
                    in doStartClick.
 Dec 10, 2014 V8.02 Angus added handshake response message, better cipher list
 June 2015 V8.03    Angus fixed name space issue that stopped build
+May 24, 2016 V8.04 Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslSmtpServ1;
@@ -69,12 +70,13 @@ uses
   OverbyteIcsWSocket,
   OverbyteIcsWSocketS,
   OverbyteIcsLIBEAY,
+  OverbyteIcsSSLEAY,
   OverbyteIcsStreams,
   OverbyteIcsSmtpSrv ;
 
 const
-    SmtpSslServerTestVersion    = 8.03;
-    CopyRight : String = ' OverbyteSslSmtpServer (c) 1997-2015 F. Piette V8.03 ';
+    SmtpSslServerTestVersion    = 8.04;
+    CopyRight : String = ' OverbyteSslSmtpServer (c) 1997-2016 F. Piette V8.04 ';
 
   // INI file stuff
     SectionData       = 'Data';
@@ -541,7 +543,7 @@ begin
                 end;
                 DataFileName := DataFileName + MessageID + '.eml';
             end;
-            DataStream := TBufferedFileStream.Create (DataFileName, fmCreate, MAX_BUFSIZE);
+            DataStream := TIcsBufferedFileStream.Create (DataFileName, fmCreate, MAX_BUFSIZE);
         except
             Log.Lines.Add (Format ('%s  %8.8x  Failed to create mail spool file %s', [FormatDateTime
                         ('hh:nn:ss', Time), ID, DataFileName]));

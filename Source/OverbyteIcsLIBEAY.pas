@@ -2,13 +2,14 @@
 
 Author:       François PIETTE
 Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
+              Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.12
+Version:      8.27
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2014 by François PIETTE
+Legal issues: Copyright (C) 2003-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -108,7 +109,57 @@ Mar 26, 2015 V8.09   Angus, the OpenSSL version check is relaxed so minor versio
 Oct 23, 2015 V8.10   Angus, another NID literal
 Nov 20, 2015 V8.11   Eugene Kotlyarov added RSA key related stuff
 Nov 23, 2015 V8.12   Angus added f_PEM_write_bio_RSAPrivateKey and f_PEM_write_bio_RSAPublicKey
+Feb 1, 2016  V8.13   Angus changed GLIBEAY_DLL_xx from const to var
+May 24, 2016 V8.27   Angus match version to Wsocket where most of this API is used
+                     Initial support for OpenSSL 1.1.0, new DLL file names, old exports gone
+                      Load now LibeayLoad, WhichFailedToLoad now LibeayWhichFailedToLoad
+                     Moved all public GLIBEAY_xx variables to top of OverbyteIcsSSLEAY
 
+
+Notes - OpenSSL libeay32 changes between 1.0.2 and 1.1.0 - April 2016
+
+file libeay32.dll > libcrypto-1_1.dll
+function SSLeay >  OpenSSL_version_num
+function SSLeay_version > OpenSSL_version
+constants SSLEAY_xx to OPENSSL_xx (and values changes)
+
+New threading API used so locking functions removed:
+(also see OverbyteIcsSslThrdLock.pas)
+CRYPTO_lock
+CRYPTO_add_lock
+CRYPTO_num_locks
+CRYPTO_set_locking_callback
+CRYPTO_set_id_callback
+CRYPTO_set_dynlock_create_callback
+CRYPTO_set_dynlock_lock_callback
+CRYPTO_set_dynlock_destroy_callback
+
+Other functions gone:
+i2d_ASN1_bytes
+OpenSSL_add_all_ciphers
+OpenSSL_add_all_digests
+EVP_CIPHER_CTX_init
+EVP_CIPHER_CTX_cleanup
+ERR_free_strings
+CRYPTO_cleanup_all_ex_data
+X509_STORE_CTX_get_chain
+X509_STORE_CTX_trusted_stack
+EVP_cleanup
+ENGINE_cleanup
+RAND_cleanup
+
+Macros which are now new exported functions:
+X509_get_notBefore
+X509_get_notAfter
+
+New functions:
+EVP_CIPHER_CTX_reset
+
+A lot of data types have been made opaque so the elements can no
+longer be accessed directly, only by functions, many new.
+These data types include: X509_OBJECT, X509_STORE_CTX, X509_STORE, X509_LOOKUP,
+X509_LOOKUP_METHOD, DH, DH_METHOD, RSA, RSA_METHOD, DSA, DSA_METHOD, BIO,
+BIO_METHOD, EVP_MD_CTX, EVP_MD, EVP_CIPHER_CTX, EVP_CIPHER, HMAC_CTX.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -148,12 +199,13 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 812;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2015 F. Piette V8.12 ';
+    IcsLIBEAYVersion   = 827;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2016 F. Piette V8.27 ';
 
 type
     EIcsLibeayException = class(Exception);
 
+{ V8.27 thread locking no longer used in OpenSSL 1.1.0 and later }
     TStatLockLockCallback = procedure(Mode : Integer; N : Integer; const _File : PAnsiChar; Line : Integer); cdecl;
     TStatLockIDCallback   = function : Longword; cdecl;
     TCryptoThreadIDCallback = procedure (ID : PCRYPTO_THREADID); cdecl;
@@ -879,6 +931,13 @@ const
     SSLEAY_PLATFORM     = 4;
     SSLEAY_DIR          = 5; // since 0.9.7
 
+    { V8.27 Crypto.h - params for f_SOpenSSL_version() - WARNING changed from SSLEAY versions }
+    OPENSSL_VERSION        = 0;
+    OPENSSL_CFLAGS         = 1;
+    OPENSSL_BUILT_ON       = 2;
+    OPENSSL_PLATFORM       = 3;
+    OPENSSL_DIR            = 4;
+    OPENSSL_ENGINES_DIR    = 5;
 
     X509_V_OK                                           = 0;
     // illegal error (for uninitialized values, to avoid X509_V_OK): 1
@@ -1298,6 +1357,8 @@ type
 const
     f_SSLeay :                                 function: Longword; cdecl = nil; //AG
     f_SSLeay_version :                         function(t: Integer): PAnsiChar; cdecl = nil; //AG
+    f_OpenSSL_version_num :                    function: Longword; cdecl = nil;               { V8.27  }
+    f_OpenSSL_version :                        function(t: Integer): PAnsiChar; cdecl = nil;  { V8.27  }
     f_ERR_get_error_line_data :                function(const FileName: PPAnsiChar; Line: PInteger; const Data: PPAnsiChar; Flags: PInteger): Cardinal; cdecl = nil;
     f_ERR_peek_error :                         function : Cardinal; cdecl = nil;
     f_ERR_peek_last_error :                    function : Cardinal; cdecl = nil;
@@ -1347,7 +1408,7 @@ const
     f_BIO_write :                              function(B: PBIO; Buf: Pointer; Len: Integer): Integer; cdecl = nil;
 
     f_BN_new:                                  function : PBIGNUM; cdecl = nil;                 { V8.11 }
-    f_BN_free:                                 procedure (a: PBIGNUM); cdecl = nil;             
+    f_BN_free:                                 procedure (a: PBIGNUM); cdecl = nil;
     f_BN_set_word:                             function (a: PBIGNUM; w: BN_ULONG): Integer; cdecl = nil;
 
     f_d2i_X509_bio :                           function(B: PBIO; X509: PPX509): PX509; cdecl = nil;
@@ -1483,15 +1544,15 @@ const
     f_PEM_write_bio_X509 :                     function(B: PBIO; Cert: PX509): Integer; cdecl = nil;
     f_PEM_write_bio_X509_REQ :                 function(B: PBIO; Cert_Req: PX509_REQ) : Integer; cdecl = nil;
     f_PEM_write_bio_X509_CRL :                 function(B: PBIO; CRL: PX509_CRL) : Integer; cdecl = nil;
-    f_PEM_read_bio_X509_CRL :                  function(B: PBIO; CRL: PPX509_CRL; CallBack: TPem_password_cb; UData: PAnsiChar): PX509_CRL; cdecl = nil;//AG
-    f_PEM_read_bio_X509 :                      function(B: PBIO; C509: PPX509; CallBack: TPem_password_cb; UData: PAnsiChar): PX509; cdecl = nil;
-    f_PEM_read_bio_PKCS7 :                     function(B: PBIO; X: PPPKCS7; CallBack: TPem_password_cb; UData: PAnsiChar): PPKCS7; cdecl = nil;//AG;
-    f_PEM_read_bio_DHparams :                  function(B: PBIO; X: PDH; CallBack: TPem_password_cb; UData: PAnsiChar): PDH; cdecl = nil;  { V8.07 }
+    f_PEM_read_bio_X509_CRL :                  function(B: PBIO; CRL: PPX509_CRL; CallBack: TPem_password_cb; UData: Pointer): PX509_CRL; cdecl = nil;//AG    { V8.27 was PAnsiChar }
+    f_PEM_read_bio_X509 :                      function(B: PBIO; C509: PPX509; CallBack: TPem_password_cb; UData: Pointer): PX509; cdecl = nil;     { V8.27 was PAnsiChar }
+    f_PEM_read_bio_PKCS7 :                     function(B: PBIO; X: PPPKCS7; CallBack: TPem_password_cb; UData: Pointer): PPKCS7; cdecl = nil;//AG; { V8.27 was PAnsiChar }
+    f_PEM_read_bio_DHparams :                  function(B: PBIO; X: PDH; CallBack: TPem_password_cb; UData: Pointer): PDH; cdecl = nil;  { V8.07 }  { V8.27 was PAnsiChar }
 
     f_PEM_write_bio_PKCS7 :                    function(B: PBIO; P7: PPKCS7): Integer; cdecl = nil;
     f_PEM_do_header :                          function(cipher: PEVP_CIPHER_INFO; data: PAnsiChar; var len: Integer; callback: TPem_password_cb; u: Pointer): Integer; cdecl = nil;//AG;
 
-    f_PEM_X509_INFO_read_bio :                 function(B: PBIO; Stack: PSTACK_OF_X509_INFO; CallBack: TPem_password_cb; UData: PAnsiChar): PSTACK_OF_X509_INFO; cdecl = nil;//AG;
+    f_PEM_X509_INFO_read_bio :                 function(B: PBIO; Stack: PSTACK_OF_X509_INFO; CallBack: TPem_password_cb; UData: Pointer): PSTACK_OF_X509_INFO; cdecl = nil;//AG;   { V8.27 was PAnsiChar }
 
     f_PEM_read_bio_RSA_PUBKEY:                 function(B: PBIO; x: PPRSA; cb: TPem_password_cb; u: pointer): PRSA; cdecl = nil;        { V8.11 }
     f_PEM_read_bio_RSAPrivateKey:              function(B: PBIO; x: PPRSA; cb: TPem_password_cb; u: pointer): PRSA; cdecl = nil;
@@ -1530,9 +1591,9 @@ const
     f_i2d_X509 :                               function(Cert: PX509; pOut: PPAnsiChar): Integer; cdecl = nil;//AG
     f_i2d_PrivateKey :                         function(A: PEVP_PKEY; PP: PPAnsiChar): Integer; cdecl = nil;//AG
     f_d2i_PrivateKey :                         function(type_: Integer; var a: PEVP_PKEY; var pp : PAnsiChar; length: Integer): PEVP_PKEY; cdecl = nil;//AG
-    f_PEM_read_bio_PrivateKey :                function(B: PBIO; X:PPEVP_PKEY; CB: TPem_password_cb; UData: PAnsiChar): PEVP_PKEY; cdecl = nil; //AG
+    f_PEM_read_bio_PrivateKey :                function(B: PBIO; X:PPEVP_PKEY; CB: TPem_password_cb; UData: Pointer): PEVP_PKEY; cdecl = nil; //AG   { V8.27 was PAnsiChar }
     f_PEM_write_bio_PrivateKey :               function(B: PBIO; X: PEVP_PKEY; const Enc: PEVP_CIPHER; Kstr: PAnsiChar; Klen: Integer; CallBack: TPem_password_cb; U: Pointer): Integer; cdecl = nil;//AG
-    f_i2d_ASN1_bytes :                         function(A : PASN1_STRING; var p: PAnsiChar; tag: Integer; xclass: Integer): Integer; cdecl = nil;//AG
+ { B8.14 gone  f_i2d_ASN1_bytes :                         function(A : PASN1_STRING; var p: PAnsiChar; tag: Integer; xclass: Integer): Integer; cdecl = nil;//AG   }
     f_X509_get_pubkey :                        function(Cert: PX509): PEVP_PKEY; cdecl = nil; //AG;
     f_X509_PUBKEY_free :                       procedure(Key: PEVP_PKEY); cdecl = nil; //AG;
 
@@ -1549,8 +1610,8 @@ const
     f_OPENSSL_add_all_algorithms_noconf :      procedure; cdecl = nil;
     f_OPENSSL_add_all_algorithms_conf :        procedure; cdecl = nil;
     }
-    f_OpenSSL_add_all_ciphers :                procedure; cdecl = nil;
-    f_OpenSSL_add_all_digests :                procedure; cdecl = nil;
+ { B8.14 gone     f_OpenSSL_add_all_ciphers :                procedure; cdecl = nil;
+                  f_OpenSSL_add_all_digests :                procedure; cdecl = nil;  }
 
     f_PKCS7_new :                              function: PPKCS7; cdecl = nil;//AG;
     f_PKCS7_free :                             procedure(P7: PPKCS7); cdecl = nil;//AG;
@@ -1566,6 +1627,11 @@ const
     f_DH_free :                                procedure(dh: PDH) cdecl = nil;  { V8.07 }
     f_EC_KEY_new_by_curve_name :               function (nid: integer): PEC_KEY; cdecl = nil;   { V8.07 }
     f_EC_KEY_free :                            procedure (key: PEC_KEY); cdecl = nil;           { V8.07 }
+
+    { V8.27 OpenSSL 1.1.0 some macros are now exported functions or new }
+    f_X509_get_notBefore :                     function(X: PX509): PASN1_TIME; cdecl = nil;
+    f_X509_get_notAfter :                      function(X: PX509): PASN1_TIME; cdecl = nil;
+    f_X509_get_signature_nid :                 function(X: PX509): Integer; cdecl = nil;
 
 
 {$IFNDEF OPENSSL_NO_ENGINE}
@@ -1624,6 +1690,8 @@ const
     { Function name constants }
     FN_SSLeay                                 = 'SSLeay';
     FN_SSLeay_version                         = 'SSLeay_version';
+    FN_OpenSSL_version_num                    = 'OpenSSL_version_num';   { V8.27  }
+    FN_OpenSSL_version                        = 'OpenSSL_version';       { V8.27  }
     FN_ERR_get_error_line_data                = 'ERR_get_error_line_data';
     FN_ERR_peek_error                         = 'ERR_peek_error';
     FN_ERR_peek_last_error                    = 'ERR_peek_last_error';
@@ -1847,7 +1915,7 @@ const
     FN_d2i_PrivateKey                         = 'd2i_PrivateKey'; //AG
     FN_PEM_write_bio_PrivateKey               = 'PEM_write_bio_PrivateKey'; //AG
     FN_PEM_read_bio_PrivateKey                = 'PEM_read_bio_PrivateKey'; //AG
-    FN_i2d_ASN1_bytes                         = 'i2d_ASN1_bytes'; //AG
+ { B8.14 gone     FN_i2d_ASN1_bytes                         = 'i2d_ASN1_bytes'; //AG  }
     FN_X509_get_pubkey                        = 'X509_get_pubkey';//AG
     FN_X509_PUBKEY_free                       = 'X509_PUBKEY_free'; //AG
 
@@ -1860,12 +1928,8 @@ const
     FN_X509_PURPOSE_get0_sname                = 'X509_PURPOSE_get0_sname'; //AG
     FN_X509_PURPOSE_get_count                 = 'X509_PURPOSE_get_count'; //AG
     FN_CONF_modules_unload                    = 'CONF_modules_unload'; //AG
-    {
-    FN_OPENSSL_add_all_algorithms_noconf      = 'OPENSSL_add_all_algorithms_noconf';
-    FN_OPENSSL_add_all_algorithms_conf        = 'OPENSSL_add_all_algorithms_conf';
-    }
-    FN_OpenSSL_add_all_ciphers                = 'OpenSSL_add_all_ciphers';
-    FN_OpenSSL_add_all_digests                = 'OpenSSL_add_all_digests';
+  { B8.14 gone    FN_OpenSSL_add_all_ciphers                = 'OpenSSL_add_all_ciphers';
+                  FN_OpenSSL_add_all_digests                = 'OpenSSL_add_all_digests';  }
 
     FN_PKCS7_new                              = 'PKCS7_new';
     FN_PKCS7_free                             = 'PKCS7_free';
@@ -1881,6 +1945,10 @@ const
     FN_DH_free                                = 'DH_free'; { V8.07 }
     FN_EC_KEY_new_by_curve_name               = 'EC_KEY_new_by_curve_name';   { V8.07 }
     FN_EC_KEY_free                            = 'EC_KEY_free';   { V8.07 }
+
+    FN_X509_get_notBefore                     = 'X509_get_notBefore'; { V8.27 }
+    FN_X509_get_notAfter                      = 'X509_get_notAfter'; { V8.27 }
+    FN_X509_get_signature_nid                 = 'X509_get_signature_nid'; { V8.27 }
 
 {$IFNDEF OPENSSL_NO_ENGINE}
     FN_ENGINE_load_builtin_engines            = 'ENGINE_load_builtin_engines'; //AG
@@ -1907,8 +1975,8 @@ const
     FN_UI_OpenSSL                             = 'UI_OpenSSL'; //AG
 {$ENDIF}
 
-function Load : Boolean;
-function WhichFailedToLoad : String;
+function LibeayLoad : Boolean;
+function LibeayWhichFailedToLoad : String;
 function ERR_GET_REASON(ErrCode : Cardinal) : Cardinal; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function ERR_GET_LIB(ErrCode : Cardinal) : Cardinal; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function ERR_GET_FUNC(ErrCode : Cardinal) : Cardinal; {$IFDEF USE_INLINE} inline; {$ENDIF}
@@ -1951,17 +2019,21 @@ function Ics_Ssl_ERR_GET_LIB(E: DWORD): Integer;
 function Ics_Ssl_ERR_GET_FUNC(E: DWORD): Integer;
 function Ics_Ssl_ERR_GET_REASON(E: DWORD): Integer;
 
-const
+{ const - 8.13 why were these variables ever declared as const??? }
+{ V8.27 moved to OverbyteIcsSsLeay  } 
+(* var
     GLIBEAY_DLL_Handle   : THandle = 0;
-    GLIBEAY_DLL_Name     : String  = {$IFDEF MACOS} '/usr/lib/libcrypto.dylib'; {$ELSE} 'LIBEAY32.DLL'; {$ENDIF}
+    GLIBEAY_DLL_Name     : String  = {$IFDEF MACOS} '/usr/lib/libcrypto.dylib'; {$ELSE} 'libeay32.dll'; {$ENDIF}
+    GLIBEAY_110DLL_Name  : String  = {$IFDEF MACOS} '/usr/lib/libcrypto.dylib'; {$ELSE} 'libcrypto-1_1.dll'; {$ENDIF} { V8.27 }
     GLIBEAY_DLL_FileName : String  = '*NOT LOADED*';
 
-    { Version stuff added 07/12/05                                            }
-    ICS_OPENSSL_VERSION_NUMBER  : Longword  = 0;
-    ICS_SSL_NO_RENEGOTIATION    : Boolean = FALSE;
-
+    { Version stuff added 07/12/05  -  }
+{    ICS_OPENSSL_VERSION_NUMBER  : Longword  = 0;
+    ICS_SSL_NO_RENEGOTIATION    : Boolean = FALSE;   }
+*)
+{const
     //OSSL_VER_0906G = $0090607f; no longer supported
- {   OSSL_VER_0907G = $0090707f;
+    OSSL_VER_0907G = $0090707f;
     OSSL_VER_0907I = $0090709f;
     OSSL_VER_0908  = $00908000;
     OSSL_VER_0908A = $0090801f;
@@ -1975,27 +2047,27 @@ const
     OSSL_VER_0908R = $0090812f;
     OSSL_VER_1000  = $10000000; // Untested, did not build with MinGW
     OSSL_VER_1000D = $1000004f; // Might be still buggy, had to incl. one workaround so far, see TSslContext.InitContext
-    OSSL_VER_1000J = $100000af; // just briefly tested}
+    OSSL_VER_1000J = $100000af; // just briefly tested  }
 
 { V8.07 only supporting versions with TLS 1.1 and 1.2 }
-    OSSL_VER_1001  = $1000100F; // untested
+{ V8.27 moved to OverbyteIcsSsLeay }
+(*    OSSL_VER_1001  = $1000100F; // untested
     OSSL_VER_1001G = $1000107F; // just briefly tested  { V8.02 }
     OSSL_VER_1001H = $1000108F; // just briefly tested  { V8.03 }
     OSSL_VER_1001I = $1000109F; // just briefly tested  { V8.04 }
     OSSL_VER_1001J = $100010AF; // untested  { V8.05 }
     OSSL_VER_1001K = $100010BF; // just briefly tested   { V8.06 }
     OSSL_VER_1001L = $100010CF; // untested              { V8.07 }
-    OSSL_VER_1002  = $1000200F; // just briefly tested   { V8.07 }
+    OSSL_VER_1002  = $10002000; // just briefly tested   { V8.07 }
     OSSL_VER_1002A = $1000201F; // just briefly tested   { V8.08 }
-    OSSL_VER_1002ZZ= $10002FFF; // not yet released  { V8.09 }
-    OSSL_VER_1003  = $1000300F; // not yet released  { V8.09 }
+    OSSL_VER_1002ZZ= $10002FFF; // not yet released      { V8.09 }
     { Basically versions listed above are tested if not otherwise commented.  }
     { Versions between are assumed to work, however they are untested.        }
     { OpenSSL libraries for ICS are available for download here:              }
     { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
 
     MIN_OSSL_VER   = OSSL_VER_1001;  { V8.07 }
-    MAX_OSSL_VER   = OSSL_VER_1002ZZ; { V8.09 }
+    MAX_OSSL_VER   = OSSL_VER_1002ZZ; { V8.09 }   *)
 
 {$ENDIF} // USE_SSL
 implementation
@@ -2025,7 +2097,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function Load : Boolean;
+function LibeayLoad : Boolean;        { V8.27 make unique }
 var
     ErrCode : Integer;
 begin
@@ -2035,43 +2107,54 @@ begin
         Result := TRUE;
         Exit;                                 // Already loaded
     end;
-    GLIBEAY_DLL_Handle := LoadLibrary(PChar(GLIBEAY_DLL_Name));
-    if GLIBEAY_DLL_Handle {$IFDEF POSIX} = 0 {$ELSE} < HINSTANCE_ERROR {$ENDIF} then begin
-        ErrCode            := GLIBEAY_DLL_Handle;
-        GLIBEAY_DLL_Handle := 0;
-        raise EIcsLIBEAYException.Create('Unable to load ' +
-                                         GLIBEAY_DLL_Name +
-                                         '. Error #' + IntToStr(ErrCode) +
-                                         #13#10 + SysErrorMessage(GetLastError));
-    end;
-    SetLength(GLIBEAY_DLL_FileName, 256);
-    SetLength(GLIBEAY_DLL_FileName, GetModuleFileName(GLIBEAY_DLL_Handle,
+
+{ V8.27 try v1.1.0 and later first with new file name - libcrypto-1_1.dll }
+  { V8.27 allow a specific DLL directory to be specified in GSSL_DLL_DIR }
+    if NOT GSSLEAY_DLL_IgnoreNew then
+        GLIBEAY_DLL_Handle := LoadLibrary(PChar(GSSL_DLL_DIR+GLIBEAY_110DLL_Name));
+    if GLIBEAY_DLL_Handle {$IFDEF POSIX} > 0 {$ELSE} > HINSTANCE_ERROR {$ENDIF} then begin
+        SetLength(GLIBEAY_DLL_FileName, 256);
+        SetLength(GLIBEAY_DLL_FileName, GetModuleFileName(GLIBEAY_DLL_Handle,
                  PChar(GLIBEAY_DLL_FileName), Length(GLIBEAY_DLL_FileName)));
 
-    //This function is available in all versions so we can safely call it
-    f_SSLeay := GetProcAddress(GLIBEAY_DLL_Handle, FN_SSLeay);
-    if @f_SSLeay = nil then begin
-        Result := False;
-        Exit;
+        // all SSLeay_xx functions renamed to OpenSSL_xx with v1.1.0 and later
+        f_OpenSSL_version_num := GetProcAddress(GLIBEAY_DLL_Handle, FN_OpenSSL_version_num);
+        if @f_OpenSSL_version_num = nil then begin
+            Result := False;
+            Exit;
+        end;
+        f_SSLeay := @f_OpenSSL_version_num;  // keep old version for compability
+        ICS_OPENSSL_VERSION_NUMBER := f_OpenSSL_version_num;
+    end
+    else begin
+{ now try old file name - libeay32.dll }
+        GLIBEAY_DLL_Handle := LoadLibrary(PChar(GSSL_DLL_DIR+GLIBEAY_DLL_Name));
+        if GLIBEAY_DLL_Handle {$IFDEF POSIX} = 0 {$ELSE} < HINSTANCE_ERROR {$ENDIF} then begin
+            ErrCode            := GLIBEAY_DLL_Handle;
+            GLIBEAY_DLL_Handle := 0;
+            raise EIcsLIBEAYException.Create('Unable to load ' +
+                                             GLIBEAY_DLL_Name +
+                                             '. Error #' + IntToStr(ErrCode) +
+                                             #13#10 + SysErrorMessage(GetLastError));
+        end;
+        SetLength(GLIBEAY_DLL_FileName, 256);
+        SetLength(GLIBEAY_DLL_FileName, GetModuleFileName(GLIBEAY_DLL_Handle,
+                     PChar(GLIBEAY_DLL_FileName), Length(GLIBEAY_DLL_FileName)));
+
+        //This function is available in all versions so we can safely call it
+        f_SSLeay := GetProcAddress(GLIBEAY_DLL_Handle, FN_SSLeay);
+        if @f_SSLeay = nil then begin
+            Result := False;
+            Exit;
+        end;
+        ICS_OPENSSL_VERSION_NUMBER := f_SSLeay;
     end;
-    ICS_OPENSSL_VERSION_NUMBER := f_SSLeay;
- {   ICS_SSL_NO_RENEGOTIATION   :=
-            (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_0908L) and
-            (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_0908N);   }
-{$IFNDEF OPENSSL_NO_ENGINE}
- {   if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_0908I then begin
-        FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
-        OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0;
-        raise EIcsLibeayException.Create('Experimental engine code requires ' +
-                                         'at least OpenSSL v0.9.8i');
-    end;    }
-{$ENDIF}
     { Version Check }
 {$IFNDEF NO_OSSL_VERSION_CHECK}
     if (ICS_OPENSSL_VERSION_NUMBER < MIN_OSSL_VER) or
-       (ICS_OPENSSL_VERSION_NUMBER > MAX_OSSL_VER) then begin
-        FreeLibrary(OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle);
-        OverbyteIcsLIBEAY.GLIBEAY_DLL_Handle := 0;
+             (ICS_OPENSSL_VERSION_NUMBER > MAX_OSSL_VER) then begin
+        FreeLibrary({OverbyteIcsLIBEAY.}GLIBEAY_DLL_Handle);
+        {OverbyteIcsLIBEAY.}GLIBEAY_DLL_Handle := 0;
         raise EIcsLibeayException.Create(
                   'Unsupported OpenSSL version (0x' +
                   IntToHex(ICS_OPENSSL_VERSION_NUMBER, 8) + ') !'#13#10 +
@@ -2087,7 +2170,13 @@ begin
         MBSTRING_UNIV                := MBSTRING_FLAG or 4;     // Asn1.h
         MBSTRING_UTF8                := MBSTRING_FLAG;          // Asn1.h
 
-    f_SSLeay_version                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_SSLeay_version);
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then begin
+        f_OpenSSL_version                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_OpenSSL_version);
+        f_SSLeay_version                     := @f_OpenSSL_version;
+    end
+    else begin
+        f_SSLeay_version                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_SSLeay_version);
+    end;
     f_ERR_get_error_line_data                := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_get_error_line_data);
     f_ERR_peek_error                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_peek_error);
     f_ERR_peek_last_error                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_peek_last_error);
@@ -2143,19 +2232,21 @@ begin
     f_i2d_PKCS12_bio                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_PKCS12_bio);
     f_d2i_PKCS7_bio                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_PKCS7_bio);
 
-    f_CRYPTO_lock                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_lock);
-    f_CRYPTO_add_lock                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_add_lock);
-    f_CRYPTO_num_locks                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_num_locks);
-    f_CRYPTO_set_locking_callback            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_locking_callback);
-    f_CRYPTO_set_id_callback                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_id_callback);
-
+    { V8.27 thread locking no longer used in OpenSSL 1.1.0 and later }
+    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin
+        f_CRYPTO_lock                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_lock);
+        f_CRYPTO_add_lock                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_add_lock);
+        f_CRYPTO_num_locks                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_num_locks);
+        f_CRYPTO_set_locking_callback            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_locking_callback);
+        f_CRYPTO_set_id_callback                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_id_callback);
+        f_CRYPTO_set_dynlock_create_callback     := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_dynlock_create_callback);
+        f_CRYPTO_set_dynlock_lock_callback       := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_dynlock_lock_callback);
+        f_CRYPTO_set_dynlock_destroy_callback    := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_dynlock_destroy_callback);
+    end;
     f_CRYPTO_THREADID_set_callback           := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_THREADID_set_callback);
     f_CRYPTO_THREADID_set_numeric            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_THREADID_set_numeric);
     f_CRYPTO_THREADID_set_pointer            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_THREADID_set_pointer);
 
-    f_CRYPTO_set_dynlock_create_callback     := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_dynlock_create_callback);
-    f_CRYPTO_set_dynlock_lock_callback       := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_dynlock_lock_callback);
-    f_CRYPTO_set_dynlock_destroy_callback    := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_dynlock_destroy_callback);
 {$IFDEF OPENSSL_USE_DELPHI_MM}
     f_CRYPTO_set_mem_functions               := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_mem_functions);
 {$ENDIF}
@@ -2308,7 +2399,7 @@ begin
     f_i2d_PrivateKey                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_PrivateKey); //AG
     f_d2i_PrivateKey                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_PrivateKey); //AG
 
-    f_i2d_ASN1_bytes                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_ASN1_bytes); //AG
+  { B8.14 gone    f_i2d_ASN1_bytes                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_ASN1_bytes); //AG }
     f_X509_get_pubkey                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_pubkey);//AG
     f_X509_PUBKEY_free                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_PUBKEY_free); //AG
 
@@ -2321,12 +2412,8 @@ begin
     f_X509_PURPOSE_get0_sname                := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_PURPOSE_get0_sname); //AG
     f_X509_PURPOSE_get_count                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_PURPOSE_get_count); //AG
     f_CONF_modules_unload                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_CONF_modules_unload); //AG
-    {
-    f_OPENSSL_add_all_algorithms_noconf      := GetProcAddress(GLIBEAY_DLL_Handle, FN_OPENSSL_add_all_algorithms_noconf);
-    f_OPENSSL_add_all_algorithms_conf        := GetProcAddress(GLIBEAY_DLL_Handle, FN_OPENSSL_add_all_algorithms_conf);
-    }
-    f_OpenSSL_add_all_ciphers                := GetProcAddress(GLIBEAY_DLL_Handle, FN_OpenSSL_add_all_ciphers);
-    f_OpenSSL_add_all_digests                := GetProcAddress(GLIBEAY_DLL_Handle, FN_OpenSSL_add_all_digests);
+  { B8.14 gone    f_OpenSSL_add_all_ciphers                := GetProcAddress(GLIBEAY_DLL_Handle, FN_OpenSSL_add_all_ciphers);
+                  f_OpenSSL_add_all_digests                := GetProcAddress(GLIBEAY_DLL_Handle, FN_OpenSSL_add_all_digests); }
 
     f_PKCS7_new                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS7_new);
     f_PKCS7_free                             := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS7_free);
@@ -2342,6 +2429,13 @@ begin
     f_DH_free                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_DH_free); { V8.07 }
     f_EC_KEY_new_by_curve_name               := GetProcAddress(GLIBEAY_DLL_Handle, FN_EC_KEY_new_by_curve_name);  { V8.07 }
     f_EC_KEY_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_EC_KEY_free);  { V8.07 }
+
+    { V8.27 new exports in OpenSSL 1.1.0 and later }
+    if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) then begin
+        f_X509_get_notBefore                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_notBefore); { V8.27 }
+        f_X509_get_notAfter                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_notAfter);  { V8.27 } ;
+        f_X509_get_signature_nid             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_signature_nid);  { V8.27 } ;
+    end;
 
 {$IFNDEF OPENSSL_NO_ENGINE}
     f_ENGINE_load_builtin_engines            := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_load_builtin_engines); //AG
@@ -2379,7 +2473,6 @@ begin
                    (@f_ERR_clear_error                        = nil) or
                    (@f_ERR_remove_state                       = nil) or
                    //(@f_ERR_remove_thread_state                = nil) or v1.0.0+ check for nil
-                   (@f_ERR_free_strings                       = nil) or
                    (@f_RAND_seed                              = nil) or
 
                    (@f_BIO_new                                = nil) or
@@ -2417,21 +2510,9 @@ begin
                    (@f_i2d_PKCS12_bio                         = nil) or
                    (@f_d2i_PKCS7_bio                          = nil) or
 
-                   (@f_CRYPTO_lock                            = nil) or
-                   (@f_CRYPTO_add_lock                        = nil) or
-                   (@f_CRYPTO_num_locks                       = nil) or
-                   (@f_CRYPTO_set_locking_callback            = nil) or
-                   (@f_CRYPTO_set_id_callback                 = nil) or
-                   //(@f_CRYPTO_THREADID_set_callback           = nil) or  // check for nil at runtime
-                   //(@f_CRYPTO_THREADID_set_numeric            = nil) or  // check for nil at runtime
-                   //(@f_CRYPTO_THREADID_set_pointer            = nil) or  // check for nil at runtime
-                   (@f_CRYPTO_set_dynlock_create_callback     = nil) or
-                   (@f_CRYPTO_set_dynlock_lock_callback       = nil) or
-                   (@f_CRYPTO_set_dynlock_destroy_callback    = nil) or
                {$IFDEF OPENSSL_USE_DELPHI_MM}
                    (@f_CRYPTO_set_mem_functions               = nil) or
                {$ENDIF}
-                   (@f_CRYPTO_cleanup_all_ex_data             = nil) or
 
                    (@f_X509_dup                               = nil) or
                    (@f_X509_check_ca                          = nil) or
@@ -2451,8 +2532,6 @@ begin
                    (@f_X509_STORE_CTX_get_error               = nil) or
                    (@f_X509_STORE_CTX_set_error               = nil) or
                    (@f_X509_STORE_CTX_get_error_depth         = nil) or
-                   (@f_X509_STORE_CTX_get_chain               = nil) or
-                   (@f_X509_STORE_CTX_trusted_stack           = nil) or
                    (@f_X509_STORE_CTX_set_purpose             = nil) or
                    (@f_X509_STORE_CTX_set_verify_cb           = nil) or
                    (@f_X509_STORE_CTX_set_ex_data             = nil) or
@@ -2507,7 +2586,6 @@ begin
                    (@f_EVP_PKEY_bits                          = nil) or //AG
                    (@f_EVP_get_cipherbyname                   = nil) or //AG
                    (@f_EVP_des_ede3_cbc                       = nil) or //AG
-                   (@f_EVP_cleanup                            = nil) or
 
                    (@f_RSA_generate_key                       = nil) or //AG
                    (@f_RSA_print                              = nil) or //AG
@@ -2570,7 +2648,7 @@ begin
                    (@f_i2d_X509                               = nil) or
                    (@f_i2d_PrivateKey                         = nil) or
                    (@f_d2i_PrivateKey                         = nil) or
-                   (@f_i2d_ASN1_bytes                         = nil) or
+             { B8.14 gone        (@f_i2d_ASN1_bytes                         = nil) or  }
                    (@f_X509_get_pubkey                        = nil) or
 
                    (@f_X509_PUBKEY_free                       = nil) or
@@ -2589,8 +2667,8 @@ begin
                    (@f_OPENSSL_add_all_algorithms_noconf      = nil) or
                    (@f_OPENSSL_add_all_algorithms_conf        = nil) or
                    }
-                   (@f_OpenSSL_add_all_ciphers                = nil) or
-                   (@f_OpenSSL_add_all_digests                = nil) or
+                 { B8.14 gone    (@f_OpenSSL_add_all_ciphers                = nil) or
+                                 (@f_OpenSSL_add_all_digests                = nil) or  }
 
                    (@f_PKCS7_new                              = nil) or
                    (@f_PKCS7_free                             = nil) or
@@ -2610,7 +2688,6 @@ begin
                                                                      or
                    (@f_ENGINE_load_builtin_engines            = nil) or
                    (@f_ENGINE_register_all_complete           = nil) or
-                   (@f_ENGINE_cleanup                         = nil) or
                    (@f_ENGINE_by_id                           = nil) or
                    (@f_ENGINE_init                            = nil) or
                    (@f_ENGINE_finish                          = nil) or
@@ -2632,6 +2709,25 @@ begin
                    (@f_UI_OpenSSL                             = nil)
                 {$ENDIF}
                    );
+   { V8.27 thread locking no longer used in OpenSSL 1.1.0 and later }
+    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin
+        if (@f_CRYPTO_lock                            = nil) or
+           (@f_CRYPTO_add_lock                        = nil) or
+           (@f_CRYPTO_num_locks                       = nil) or
+           (@f_CRYPTO_set_locking_callback            = nil) or
+           (@f_CRYPTO_set_id_callback                 = nil) or
+           (@f_CRYPTO_set_dynlock_create_callback     = nil) or
+           (@f_CRYPTO_set_dynlock_lock_callback       = nil) or
+           (@f_CRYPTO_set_dynlock_destroy_callback    = nil) or
+           (@f_ERR_free_strings                       = nil) or
+           (@f_CRYPTO_cleanup_all_ex_data             = nil) or
+           (@f_X509_STORE_CTX_get_chain               = nil) or
+           (@f_X509_STORE_CTX_trusted_stack           = nil) or
+           (@f_EVP_cleanup                            = nil) or
+           (@f_ENGINE_cleanup                         = nil)
+                                                    then Result := False;
+    end;
+
 {$IFDEF OPENSSL_USE_DELPHI_MM}
     if Result then
         Assert(f_CRYPTO_set_mem_functions(@IcsMalloc, @IcsRealloc, @IcsFreeMem) <> 0);
@@ -2641,7 +2737,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WhichFailedToLoad : String;
+function LibeayWhichFailedToLoad : String;     { V8.27 make unique }
 const
     SP = #32;
 begin
@@ -2656,8 +2752,6 @@ begin
     if @f_ERR_error_string_n                     = nil then Result := Result + SP + FN_ERR_error_string_n;
     if @f_ERR_clear_error                        = nil then Result := Result + SP + FN_ERR_clear_error;
     if @f_ERR_remove_state                       = nil then Result := Result + SP + FN_ERR_remove_state;
-    //if @f_ERR_remove_thread_state                = nil then Result := Result + SP + FN_ERR_remove_thread_state; v1.0.0+ check for nil
-    if @f_ERR_free_strings                       = nil then Result := Result + SP + FN_ERR_free_strings;
 
     if @f_RAND_seed                              = nil then Result := Result + SP + FN_RAND_seed;
 
@@ -2695,22 +2789,9 @@ begin
     if @f_d2i_PKCS12_bio                         = nil then Result := Result + SP + FN_d2i_PKCS12_bio;
     if @f_i2d_PKCS12_bio                         = nil then Result := Result + SP + FN_i2d_PKCS12_bio;
     if @f_d2i_PKCS7_bio                          = nil then Result := Result + SP + FN_d2i_PKCS7_bio;
-
-    if @f_CRYPTO_lock                            = nil then Result := Result + SP + FN_CRYPTO_lock;
-    if @f_CRYPTO_add_lock                        = nil then Result := Result + SP + FN_CRYPTO_add_lock;
-    if @f_CRYPTO_num_locks                       = nil then Result := Result + SP + FN_CRYPTO_num_locks;
-    if @f_CRYPTO_set_locking_callback            = nil then Result := Result + SP + FN_CRYPTO_set_locking_callback;
-    if @f_CRYPTO_set_id_callback                 = nil then Result := Result + SP + FN_CRYPTO_set_id_callback;
-    //if @f_CRYPTO_THREADID_set_callback           = nil then Result := Result + SP + FN_CRYPTO_THREADID_set_callback; // check for nil at runtime
-    //if @f_CRYPTO_THREADID_set_numeric            = nil then Result := Result + SP + FN_CRYPTO_THREADID_set_numeric;  // check for nil at runtime
-    //if @f_CRYPTO_THREADID_set_pointer            = nil then Result := Result + SP + FN_CRYPTO_THREADID_set_pointer;  // check for nil at runtime
-    if @f_CRYPTO_set_dynlock_create_callback     = nil then Result := Result + SP + FN_CRYPTO_set_dynlock_create_callback;
-    if @f_CRYPTO_set_dynlock_lock_callback       = nil then Result := Result + SP + FN_CRYPTO_set_dynlock_lock_callback;
-    if @f_CRYPTO_set_dynlock_destroy_callback    = nil then Result := Result + SP + FN_CRYPTO_set_dynlock_destroy_callback;
 {$IFDEF OPENSSL_USE_DELPHI_MM}
     if @f_CRYPTO_set_mem_functions               = nil then Result := Result + SP + FN_CRYPTO_set_mem_functions;
 {$ENDIF}
-    if @f_CRYPTO_cleanup_all_ex_data             = nil then Result := Result + SP + FN_CRYPTO_cleanup_all_ex_data;
 
     if @f_X509_dup                               = nil then Result := Result + SP + FN_X509_dup;//AG
     if @f_X509_check_ca                          = nil then Result := Result + SP + FN_X509_check_ca;//AG
@@ -2730,8 +2811,6 @@ begin
     if @f_X509_STORE_CTX_get_error               = nil then Result := Result + SP + FN_X509_STORE_CTX_get_error;
     if @f_X509_STORE_CTX_set_error               = nil then Result := Result + SP + FN_X509_STORE_CTX_set_error;
     if @f_X509_STORE_CTX_get_error_depth         = nil then Result := Result + SP + FN_X509_STORE_CTX_get_error_depth;
-    if @f_X509_STORE_CTX_get_chain               = nil then Result := Result + SP + FN_X509_STORE_CTX_get_chain;//AG
-    if @f_X509_STORE_CTX_trusted_stack           = nil then Result := Result + SP + FN_X509_STORE_CTX_trusted_stack;//AG
     if @f_X509_STORE_CTX_set_purpose             = nil then Result := Result + SP + FN_X509_STORE_CTX_set_purpose;//AG
     if @f_X509_STORE_CTX_set_verify_cb           = nil then Result := Result + SP + FN_X509_STORE_CTX_set_verify_cb;//AG
     if @f_X509_STORE_CTX_set_ex_data             = nil then Result := Result + SP + FN_X509_STORE_CTX_set_ex_data;//AG
@@ -2786,7 +2865,6 @@ begin
     if @f_EVP_PKEY_bits                          = nil then Result := Result + SP + FN_EVP_PKEY_bits; //AG
     if @f_EVP_get_cipherbyname                   = nil then Result := Result + SP + FN_EVP_get_cipherbyname; //AG
     if @f_EVP_des_ede3_cbc                       = nil then Result := Result + SP + FN_EVP_des_ede3_cbc; //AG
-    if @f_EVP_cleanup                            = nil then Result := Result + SP + FN_EVP_cleanup;
 
     if @f_RSA_generate_key                       = nil then Result := Result + SP + FN_RSA_generate_key; //AG
     if @f_RSA_print                              = nil then Result := Result + SP + FN_RSA_print; //AG
@@ -2851,7 +2929,7 @@ begin
     if @f_i2d_PrivateKey                         = nil then Result := Result + SP + FN_i2d_PrivateKey;//AG
     if @f_d2i_PrivateKey                         = nil then Result := Result + SP + FN_d2i_PrivateKey;//AG
 
-    if @f_i2d_ASN1_bytes                         = nil then Result := Result + SP + FN_i2d_ASN1_bytes;//AG
+   { B8.14 gone   if @f_i2d_ASN1_bytes                         = nil then Result := Result + SP + FN_i2d_ASN1_bytes;//AG  }
     if @f_X509_get_pubkey                        = nil then Result := Result + SP + FN_X509_get_pubkey;//AG
     if @f_X509_PUBKEY_free                       = nil then Result := Result + SP + FN_X509_PUBKEY_free;//AG
     if @f_X509_check_purpose                     = nil then Result := Result + SP + FN_X509_check_purpose;//AG
@@ -2861,12 +2939,8 @@ begin
     if @f_X509_PURPOSE_get0_sname                = nil then Result := Result + SP + FN_X509_PURPOSE_get0_sname;//AG
     if @f_X509_PURPOSE_get_count                 = nil then Result := Result + SP + FN_X509_PURPOSE_get_count;//AG
     if @f_CONF_modules_unload                    = nil then Result := Result + SP + FN_CONF_modules_unload;//AG
-    {
-    if @f_OPENSSL_add_all_algorithms_noconf      = nil then Result := Result + SP + FN_OPENSSL_add_all_algorithms_noconf;
-    if @f_OPENSSL_add_all_algorithms_conf        = nil then Result := Result + SP + FN_OPENSSL_add_all_algorithms_conf;
-    }
-    if @f_OpenSSL_add_all_ciphers                = nil then Result := Result + SP + FN_OpenSSL_add_all_ciphers;
-    if @f_OpenSSL_add_all_digests                = nil then Result := Result + SP + FN_OpenSSL_add_all_digests;
+  { B8.14 gone    if @f_OpenSSL_add_all_ciphers                = nil then Result := Result + SP + FN_OpenSSL_add_all_ciphers;
+                  if @f_OpenSSL_add_all_digests                = nil then Result := Result + SP + FN_OpenSSL_add_all_digests;  }
 
     if @f_PKCS7_new                              = nil then Result := Result + SP + FN_PKCS7_new;
     if @f_PKCS7_free                             = nil then Result := Result + SP + FN_PKCS7_free;
@@ -2886,7 +2960,6 @@ begin
 {$IFNDEF OPENSSL_NO_ENGINE}
     if @f_ENGINE_load_builtin_engines            = nil then Result := Result + SP + FN_ENGINE_load_builtin_engines;//AG
     if @f_ENGINE_register_all_complete           = nil then Result := Result + SP + FN_ENGINE_register_all_complete;//AG
-    if @f_ENGINE_cleanup                         = nil then Result := Result + SP + FN_ENGINE_cleanup;//AG
     if @f_ENGINE_by_id                           = nil then Result := Result + SP + FN_ENGINE_by_id;//AG
     if @f_ENGINE_init                            = nil then Result := Result + SP + FN_ENGINE_init;//AG
     if @f_ENGINE_finish                          = nil then Result := Result + SP + FN_ENGINE_finish;//AG
@@ -2907,6 +2980,26 @@ begin
     if @f_UI_set_result                          = nil then Result := Result + SP + FN_UI_set_result;//AG
     if @f_UI_OpenSSL                             = nil then Result := Result + SP + FN_UI_OpenSSL;//AG
 {$ENDIF}
+
+
+{ V8.27 thread locking no longer used in OpenSSL 1.1.0 and later }
+    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin
+        if @f_CRYPTO_lock                            = nil then Result := Result + SP + FN_CRYPTO_lock;
+        if @f_CRYPTO_add_lock                        = nil then Result := Result + SP + FN_CRYPTO_add_lock;
+        if @f_CRYPTO_num_locks                       = nil then Result := Result + SP + FN_CRYPTO_num_locks;
+        if @f_CRYPTO_set_locking_callback            = nil then Result := Result + SP + FN_CRYPTO_set_locking_callback;
+        if @f_CRYPTO_set_id_callback                 = nil then Result := Result + SP + FN_CRYPTO_set_id_callback;
+        if @f_CRYPTO_set_dynlock_create_callback     = nil then Result := Result + SP + FN_CRYPTO_set_dynlock_create_callback;
+        if @f_CRYPTO_set_dynlock_lock_callback       = nil then Result := Result + SP + FN_CRYPTO_set_dynlock_lock_callback;
+        if @f_CRYPTO_set_dynlock_destroy_callback    = nil then Result := Result + SP + FN_CRYPTO_set_dynlock_destroy_callback;
+        if @f_ERR_free_strings                       = nil then Result := Result + SP + FN_ERR_free_strings;
+        if @f_CRYPTO_cleanup_all_ex_data             = nil then Result := Result + SP + FN_CRYPTO_cleanup_all_ex_data;
+        if @f_X509_STORE_CTX_get_chain               = nil then Result := Result + SP + FN_X509_STORE_CTX_get_chain;//AG
+        if @f_X509_STORE_CTX_trusted_stack           = nil then Result := Result + SP + FN_X509_STORE_CTX_trusted_stack;//AG
+        if @f_EVP_cleanup                            = nil then Result := Result + SP + FN_EVP_cleanup;
+        if @f_ENGINE_cleanup                         = nil then Result := Result + SP + FN_ENGINE_cleanup;//AG
+    end;
+
     if Length(Result) > 0 then
        Delete(Result, 1, 1);
 end;
@@ -3105,13 +3198,18 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
 function f_Ics_X509_get_notBefore(X: PX509): PASN1_TIME;        {AG 03/03/06}
 var
     PCInfo : PX509_CINF;
 begin
     if Assigned(X) then begin
-        PCInfo := Pointer(PINT_PTR(X)^);
-        Result := PCInfo^.Validity^.notBefore;
+        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
+            PCInfo := Pointer(PINT_PTR(X)^);
+            Result := PCInfo^.Validity^.notBefore;
+        end
+        else
+            Result := f_X509_get_notBefore(X);  { V8.27 no longer a macro }
     end
     else
         Result := nil;
@@ -3124,8 +3222,12 @@ var
     PCInfo : PX509_CINF;
 begin
     if Assigned(X) then begin
-        PCInfo := Pointer(PINT_PTR(X)^);
-        Result := PCInfo^.Validity^.notAfter;
+        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
+            PCInfo := Pointer(PINT_PTR(X)^);
+            Result := PCInfo^.Validity^.notAfter;
+        end
+        else
+            Result := f_X509_get_notAfter(X);  { V8.27 no longer a macro }
     end
     else
         Result := nil;
@@ -3311,35 +3413,50 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function OpenSslVersion : String;
 begin
-    Result := String(StrPas(f_SSLeay_version(SSLEAY_VERSION)));
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then
+        Result := String(StrPas(f_OpenSSL_version(OPENSSL_VERSION)))
+    else
+        Result := String(StrPas(f_SSLeay_version(SSLEAY_VERSION)));
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function OpenSslCompilerFlags : String;
 begin
-    Result := String(StrPas(f_SSLeay_version(SSLEAY_CFLAGS)));
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then
+        Result := String(StrPas(f_OpenSSL_version(OPENSSL_CFLAGS)))
+    else
+        Result := String(StrPas(f_SSLeay_version(SSLEAY_CFLAGS)));
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function OpenSslBuiltOn : String;
 begin
-    Result := String(StrPas(f_SSLeay_version(SSLEAY_BUILT_ON)));
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then
+        Result := String(StrPas(f_OpenSSL_version(OPENSSL_BUILT_ON)))
+    else
+        Result := String(StrPas(f_SSLeay_version(SSLEAY_BUILT_ON)));
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function OpenSslPlatForm : String;
 begin
-    Result := String(StrPas(f_SSLeay_version(SSLEAY_PLATFORM)));
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then
+        Result := String(StrPas(f_OpenSSL_version(OPENSSL_PLATFORM)))
+    else
+        Result := String(StrPas(f_SSLeay_version(SSLEAY_PLATFORM)));
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function OpenSslDir : String;
 begin
-    Result := String(StrPas(f_SSLeay_version(SSLEAY_DIR)));
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then
+        Result := String(StrPas(f_OpenSSL_version(OPENSSL_DIR)))
+    else
+        Result := String(StrPas(f_SSLeay_version(SSLEAY_DIR)));
 end;
 
 

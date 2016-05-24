@@ -8,11 +8,11 @@ Description:  This is a demo program showing how to use the TFtpServer
               In production program, you should add code to implement
               security issues.
 Creation:     April 21, 1998
-Version:      8.00
+Version:      8.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2011 by François PIETTE
+Legal issues: Copyright (C) 1998-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -66,10 +66,10 @@ Nov 6, 2008   V1.12 Angus, support server V7.00 which does not use OverbyteIcsFt
                     ReadOnly account supported
                    (next release will have a different file for each HOST supported)
                     Note: random account names are no longer allowed for this demo
-Nov 8, 2008, V1.13 Angus, support HOST and REIN(ialise) commands
-Nov 13, 2008, V1.14 Angus, ensure servers have ftpsCwdCheck set
-Dec 9, 2014   V8.00 Angus added SslHandshakeRespMsg for better error handling
-
+Nov 8, 2008  V1.13 Angus, support HOST and REIN(ialise) commands
+Nov 13, 2008 V1.14 Angus, ensure servers have ftpsCwdCheck set
+Dec 9, 2014  V8.00 Angus added SslHandshakeRespMsg for better error handling
+May 24, 2016 V8.01 Angus added OverbyteIcsLIBEAY, OverbyteIcsSsLeay to uses
 
 
 Sample entry from ftpaccounts-default.ini
@@ -101,11 +101,11 @@ uses
   Dialogs, OverbyteIcsIniFiles, OverbyteIcsFtpSrv, OverbyteIcsWSocket,
   StdCtrls, ExtCtrls, Menus,
   OverbyteIcsWinsock, OverbyteIcsLibeay, OverbyteIcsLogger,
-  OverbyteIcsWndControl, OverbyteIcsOneTimePw;
+  OverbyteIcsSsLeay, OverbyteIcsWndControl, OverbyteIcsOneTimePw;
 
 const
-  FtpServVersion      = 800;
-  CopyRight : String  = ' SslFtpServ (c) 1998-2014 F. Piette V8.00 ';
+  FtpServVersion      = 801;
+  CopyRight : String  = ' SslFtpServ (c) 1998-2016 F. Piette V8.01 ';
   WM_APPSTARTUP       = WM_USER + 1;
 
 type

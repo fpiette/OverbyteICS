@@ -2,9 +2,10 @@
 
 Author:       François PIETTE
 Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
+              Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.04
+Version:      8.27
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -75,6 +76,49 @@ May 08, 2015 V8.02 Angus adding missing SSL_OP_SINGLE_ECDH_USE
 Nov 20, 2015 V8.03 Eugene Kotlyarov added RSA key related stuff
 Mar 3, 2016  V8.04 Angus support define OPENSSL_ALLOW_SSLV2 to load old OpenSSL
                      DLLs that still export such methods
+May 24, 2016 V8.27 Angus match version to Wsocket where most of this API is used
+             Initial support for OpenSSL 1.1.0, new DLL file names, old exports gone
+             Moved all public GLIBEAY_xx variables here from OverbyteIcsLIBEAY
+             Add public variable GSSLEAY_DLL_IgnoreNew which should be set to TRUE before calling
+              any SSL functions if OpenSSL 1.1.0 should be ignored.  Otherwise libcrypto-1_1.dll
+              found in the PATH will override libeay32.dll in the local directory
+             Added public variable GSSL_BUFFER_SIZE defaults to 16384, previously fixed
+               at 4096, may improve SSL performance if larger
+             Added public variable GSSL_DLL_DIR if set before OpenSSL loaded,
+               will use this directory for DLLs, must have trailing \
+             Load now SsleayLoad, WhichFailedToLoad now SsleayWhichFailedToLoad
+             Added f_SSL_get_ciphers and related functions to get lists of ciphers
+             Added TSslHandshakeState more detail about handshakes in 1.1.0 
+             GetFileVerInfo renamed IcsGetFileVerInfo to prevent conflicts with other libs
+             
+
+Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - April 2016
+
+file ssleay32.dll > libssl-1_1.dll
+
+OpenSSL now auto initialises using OPENSSL_init_crypto and OPENSSL_init_ssl
+so these are gone:
+method SSL_library_init
+method SSL_load_error_strings
+
+method SSL_state > SSL_get_state (with different return value)
+
+new version selection using:
+TLS_client_method
+TLS_method
+TLS_server_method
+SSL_set_min_proto_version
+SSL_set_max_proto_version
+
+Old exports gone:
+SSLv3_method
+SSLv3_client_method
+SSLv3_server_method
+SSLv23_method
+SSLv23_client_method
+SSLv23_server_method
+All version specific TLSv1_1x_methods deprecated so don't load them either
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -114,12 +158,67 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 804;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.04 ';
+    IcsSSLEAYVersion   = 827;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.27 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
     EVP_MAX_KEY_LENGTH                = 32;       { 11/08/07 AG }
+
+{ const - why were these variables ever declared as const??? }
+{ V8.27 consolidated from LIBEAY so all in one place }
+var
+    GLIBEAY_DLL_Handle          : THandle = 0;
+    GLIBEAY_DLL_Name            : String  = {$IFDEF MACOS} '/usr/lib/libcrypto.dylib'; {$ELSE} 'libeay32.dll'; {$ENDIF}
+    GLIBEAY_110DLL_Name         : String  = {$IFDEF MACOS} '/usr/lib/libcrypto.dylib'; {$ELSE} 'libcrypto-1_1.dll'; {$ENDIF} { V8.27 }
+    GLIBEAY_DLL_FileName        : String  = '*NOT LOADED*';
+    GSSLEAY_DLL_Handle          : THandle = 0;
+    GSSLEAY_DLL_Name            : String  = {$IFDEF MACOS} '/usr/lib/libssl.dylib'; {$ELSE} 'ssleay32.dll'; {$ENDIF}
+    GSSLEAY_110DLL_Name         : String  = {$IFDEF MACOS} '/usr/lib/libssl.dylib'; {$ELSE} 'libssl-1_1.dll'; {$ENDIF}   { V8.27 }
+    GSSLEAY_DLL_FileName        : String  = '*NOT_LOADED*';
+    GSSLEAY_DLL_FileVersion     : String = '';
+    GSSLEAY_DLL_FileDescription : String = '';
+ { V8.27 don't attempt to find new name libcrypto-1_1.dll, use libeay32.dll }
+    GSSLEAY_DLL_IgnoreNew       : Boolean = False;
+ { V8.27 write buffer size, was fixed at 4096, but send used a 16K buffer }
+    GSSL_BUFFER_SIZE            : Integer = 16384;
+ { V8.27 if set before OpenSSL loaded, will use this directory for DLLs, must have trailing \ }
+    GSSL_DLL_DIR                : string = '';
+
+    { Version stuff added 07/12/05  = V8.27 moved from OverbyteIcsLIBEAY  }
+    ICS_OPENSSL_VERSION_NUMBER  : Longword  = 0;
+    ICS_SSL_NO_RENEGOTIATION    : Boolean = FALSE;
+
+const
+    //OSSL_VER_0906G = $0090607f; no longer supported
+ {  OSSL_VER_0907G = $0090707f;
+    OSSL_VER_1000  = $10000000; // Untested, did not build with MinGW
+    OSSL_VER_1000D = $1000004f; // Might be still buggy, had to incl. one workaround so far, see TSslContext.InitContext
+    OSSL_VER_1000J = $100000af; // just briefly tested}
+
+{ only supporting versions with TLS 1.1 and 1.2 }
+{ V8.27 moved from OverbyteIcsLIBEAY  }
+    OSSL_VER_1001  = $1000100F; // untested
+    OSSL_VER_1001G = $1000107F; // just briefly tested  {
+    OSSL_VER_1001H = $1000108F; // just briefly tested
+    OSSL_VER_1001I = $1000109F; // just briefly tested
+    OSSL_VER_1001J = $100010AF; // untested
+    OSSL_VER_1001K = $100010BF; // just briefly tested
+    OSSL_VER_1001L = $100010CF; // untested
+    OSSL_VER_1002  = $10002000; // just briefly tested
+    OSSL_VER_1002A = $1000201F; // just briefly tested
+    OSSL_VER_1002ZZ= $10002FFF; // not yet released
+    OSSL_VER_1100  = $10100000; // beta testing base     { V8.27 }
+    OSSL_VER_1100p5= $10100005; // beta testing          { V8.27 }
+    OSSL_VER_1100ZZ= $10100FFF; // not yet released      { V8.27 }
+
+    { Basically versions listed above are tested if not otherwise commented.  }
+    { Versions between are assumed to work, however they are untested.        }
+    { OpenSSL libraries for ICS are available for download here:              }
+    { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
+
+    MIN_OSSL_VER   = OSSL_VER_1001;
+    MAX_OSSL_VER   = OSSL_VER_1100p5; { V8.27 }
 
 type
     EIcsSsleayException = class(Exception);
@@ -177,6 +276,11 @@ type
     end;
     PSSL_METHOD     = ^TSSL_METHOD_st;
 
+    TSSL_CIPHER_st = packed record           { V8.27 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PSSL_CIPHER     = ^TSSL_CIPHER_st;
+
     TX509_STORE_st = packed record
         Dummy : array [0..0] of Byte;
     end;
@@ -221,6 +325,8 @@ type
     PSTACK_OF_X509_NAME = {$IFNDEF NoTypeEnforce}type{$ENDIF} PStack;
     PSTACK_OF_X509_INFO = {$IFNDEF NoTypeEnforce}type{$ENDIF} PStack;
 
+    PSTACK_OF_SSL_CIPHER        = PSTACK;                 { V8.27 }
+    PPSTACK_OF_SSL_CIPHER       = ^PSTACK_OF_SSL_CIPHER;  { V8.27 }
 
     TX509_lookup_method_st = packed record
         Dummy : array [0..0] of Byte;
@@ -653,7 +759,66 @@ type
         usr_data  : Pointer;
     end;
     PX509V3_EXT_METHOD = ^TX509V3_EXT_METHOD;
-    
+
+  { V8.27  The valid handshake states (one for each type message sent and one for each
+           type of message received). There are also two "special" states:
+     TLS = TLS or DTLS state
+     DTLS = DTLS specific state
+     CR/SR = Client Read/Server Read
+     CW/SW = Client Write/Server Write
+       The "special" states are:
+     TLS_ST_BEFORE = No handshake has been initiated yet
+     TLS_ST_OK = A handshake has been successfully completed }
+
+    TSslHandshakeState = (       { V8.27 OSSL_HANDSHAKE_STATE for SSL_get_state }
+        TLS_ST_Before,
+        TLS_ST_OK,
+        DTLS_ST_CR_Hello_Verify_Request,
+        TLS_ST_CR_Srvr_Hello,
+        TLS_ST_CR_Cert,
+        TLS_ST_CR_Cert_Status,
+        TLS_ST_CR_Key_Exch,
+        TLS_ST_CR_Cert_Req,
+        TLS_ST_CR_Srvr_Done,
+        TLS_ST_CR_Session_Ticket,
+        TLS_ST_CR_Change,
+        TLS_ST_CR_Finished,
+        TLS_ST_CW_Client_Hello,
+        TLS_ST_CW_Cert,
+        TLS_ST_CW_Key_Exch,
+        TLS_ST_CW_Cert_Verify,
+        TLS_ST_CW_Change,
+        TLS_ST_CW_Next_Proto,
+        TLS_ST_CW_Finished,
+        TLS_ST_SW_Hello_Req,
+        TLS_ST_SR_Client_Hello,
+        DTLS_ST_SW_Hello_Verify_Request,
+        TLS_ST_SW_Server_Hello,
+        TLS_ST_SW_Cert,
+        TLS_ST_SW_Key_Exch,
+        TLS_ST_SW_Cert_Req,
+        TLS_ST_SW_Server_Done,
+        TLS_ST_SR_Cert,
+        TLS_ST_SR_Key_Exch,
+        TLS_ST_SR_Cert_Verify,
+        TLS_ST_SR_Next_Proto,
+        TLS_ST_SR_Change,
+        TLS_ST_SR_Finished,
+        TLS_ST_SW_Session_Ticket,
+        TLS_ST_SW_Cert_Status,
+        TLS_ST_SW_Change,
+        TLS_ST_SW_Finished);
+
+const
+ { V8.27 values for handshake SSL_state up to 1.1.0, no longer used }
+    SSL_ST_CONNECT                              = $1000;
+    SSL_ST_ACCEPT                               = $2000;
+    SSL_ST_MASK                                 = $0FFF;
+    SSL_ST_INIT                                 = (SSL_ST_CONNECT or SSL_ST_ACCEPT);
+    SSL_ST_BEFORE                               = $4000;
+    SSL_ST_OK                                   = $03;
+    SSL_ST_RENEGOTIATE                          = ($04 or SSL_ST_INIT);
+
 type
     TPem_password_cb = function(Buf      : PAnsiChar;
                                 Num      : Integer;
@@ -699,6 +864,9 @@ const
     TLS1_2_VERSION_MAJOR                        = $03;    // V8.01
     TLS1_2_VERSION_MINOR                        = $03;    // V8.01
 
+    TLS_MAX_VERSION                             = TLS1_2_VERSION;  // V8.27
+    TLS_ANY_VERSION                             = $10000;          // V8.27 
+
  {   DTLS1_2_VERSION is for UDP, sorry not supported yet }
 
     BIO_NOCLOSE                                 = 0;
@@ -725,6 +893,18 @@ const
     SSL_VERIFY_PEER                             = 1;
     SSL_VERIFY_FAIL_IF_NO_PEER_CERT             = 2;
     SSL_VERIFY_CLIENT_ONCE                      = 4;
+
+    { V8.27 Flags for building certificate chains )
+    { treat any existing certificates as untrusted CAs }
+    SSL_BUILD_CHAIN_FLAG_UNTRUSTED              = $00000001;
+    { Don't include root CA in chain }
+    SSL_BUILD_CHAIN_FLAG_NO_ROOT                = $00000002;
+    { Just check certificates already there }
+    SSL_BUILD_CHAIN_FLAG_CHECK                  = $00000004;
+    { Ignore verification errors }
+    SSL_BUILD_CHAIN_FLAG_IGNORE_ERROR           = $00000008;
+    { clear verification errors from queue }
+    SSL_BUILD_CHAIN_FLAG_CLEAR_ERROR            = $00000010;
 
     { Removed 12/07/05 - due to changes in v0.9.8a - restored and corrected V8.01 }
     SSL_CTRL_NEED_TMP_RSA                       = 1;
@@ -804,9 +984,19 @@ const
     SSL_CTRL_GET_CHAIN_CERTS                    = 115;   // V8.01
     SSL_CTRL_SELECT_CURRENT_CERT                = 116;   // V8.01
     SSL_CTRL_SET_CURRENT_CERT                   = 117;   // V8.01
+    SSL_CTRL_SET_DH_AUTO                        = 118;   // V8.27
     SSL_CTRL_CHECK_PROTO_VERSION                = 119;   // V8.01
     DTLS_CTRL_SET_LINK_MTU                      = 120;   // V8.01
     DTLS_CTRL_GET_LINK_MIN_MTU                  = 121;   // V8.01
+    SSL_CTRL_GET_EXTMS_SUPPORT                  = 122;   // V8.27
+    SSL_CTRL_SET_MIN_PROTO_VERSION              = 123;   // V8.27
+    SSL_CTRL_SET_MAX_PROTO_VERSION              = 124;   // V8.27
+    SSL_CTRL_SET_SPLIT_SEND_FRAGMENT            = 125;   // V8.27
+    SSL_CTRL_SET_MAX_PIPELINES                  = 126;   // V8.27
+
+    SSL_CERT_SET_FIRST                          = 1;   // V8.27
+    SSL_CERT_SET_NEXT                           = 2;   // V8.27
+    SSL_CERT_SET_SERVER                         = 3;   // V8.27
 
     SSL_OP_MICROSOFT_SESS_ID_BUG                = $00000001;
     SSL_OP_NETSCAPE_CHALLENGE_BUG               = $00000002;
@@ -909,14 +1099,6 @@ const
 
     SSL_SESSION_CACHE_MAX_SIZE_DEFAULT          = (1024 * 20);
 
-    SSL_ST_CONNECT                              = $1000;
-    SSL_ST_ACCEPT                               = $2000;
-    SSL_ST_MASK                                 = $0FFF;
-    SSL_ST_INIT                                 = (SSL_ST_CONNECT or SSL_ST_ACCEPT);
-    SSL_ST_BEFORE                               = $4000;
-    SSL_ST_OK                                   = $03;
-    SSL_ST_RENEGOTIATE                          = ($04 or SSL_ST_INIT);
-
     SSL_CB_LOOP                                 = 1;
     SSL_CB_EXIT                                 = 2;
     SSL_CB_READ                                 = 4;
@@ -1018,6 +1200,9 @@ const
     f_SSLv23_method :                          function: PSSL_METHOD; cdecl = nil;
     f_SSLv23_client_method :                   function: PSSL_METHOD; cdecl = nil;
     f_SSLv23_server_method :                   function: PSSL_METHOD; cdecl = nil;
+    f_TLS_method :                             function: PSSL_METHOD; cdecl = nil;   { V8.27 }
+    f_TLS_client_method :                      function: PSSL_METHOD; cdecl = nil;   { V8.27 }
+    f_TLS_server_method :                      function: PSSL_METHOD; cdecl = nil;   { V8.27 }
     f_TLSv1_method :                           function: PSSL_METHOD; cdecl = nil;
     f_TLSv1_client_method :                    function: PSSL_METHOD; cdecl = nil;
     f_TLSv1_server_method :                    function: PSSL_METHOD; cdecl = nil;
@@ -1071,15 +1256,23 @@ const
     f_SSL_get_version :                        function(S: PSSL): PAnsiChar; cdecl = nil;
     f_SSL_version :                            function(const S: PSSL): Integer; cdecl = nil; //AG
     f_SSL_get_current_cipher :                 function(S: PSSL): Pointer; cdecl = nil;
-    f_SSL_state :                              function(S: PSSL): Integer; cdecl = nil;
+    f_SSL_state :                              function(S: PSSL): Integer; cdecl = nil;   { V8.27 gone 1.1.0 }
+    f_SSL_get_state :                          function(S: PSSL): TSslHandshakeState; cdecl = nil;   { V8.27 }
     f_SSL_state_string_long :                  function(S: PSSL): PAnsiChar; cdecl = nil;
     f_SSL_alert_type_string_long :             function(value: Integer): PAnsiChar; cdecl = nil;
     f_SSL_alert_desc_string_long :             function(value: Integer): PAnsiChar; cdecl = nil;
     f_SSL_CIPHER_get_bits :                    function(Cipher, Alg_Bits: Pointer): Integer; cdecl = nil;
     f_SSL_CIPHER_get_name :                    function(Cipher: Pointer): PAnsiChar; cdecl = nil;
     f_SSL_CIPHER_description :                 function(Cipher: Pointer; buf: PAnsiChar; size: Integer): PAnsiChar; cdecl = nil;
+
+    f_SSL_get_ciphers :                        function(S: PSSL): PSTACK_OF_SSL_CIPHER; cdecl = nil;   { V8.27 }
+    f_SSL_get_client_ciphers :                 function(S: PSSL): PSTACK_OF_SSL_CIPHER; cdecl = nil;   { V8.27 }
+    f_SSL_get1_supported_ciphers :             function(S: PSSL): PSTACK_OF_SSL_CIPHER; cdecl = nil;   { V8.27 }
+    f_SSL_get_cipher_list :                    function(S: PSSL; Priority: Integer): PAnsiChar; cdecl = nil;  { V8.27 }
+
     f_SSL_CTX_free :                           procedure(C: PSSL_CTX); cdecl = nil;
     f_SSL_CTX_set_info_callback:               procedure(ctx: PSSL_CTX; cb : TSetInfo_cb); cdecl = nil;
+    f_SSL_CTX_use_certificate :                function(C: PSSL_CTX; Cert: PX509): Integer; cdecl = nil;     { V8.27 }
     f_SSL_CTX_use_certificate_chain_file :     function(C: PSSL_CTX; const FileName: PAnsiChar): Integer; cdecl = nil;
     f_SSL_CTX_use_certificate_file :           function(C: PSSL_CTX; const FileName: PAnsiChar; type_: Integer): Integer; cdecl = nil; //AG
     f_SSL_CTX_set_default_passwd_cb :          procedure(C: PSSL_CTX; CallBack: TPem_password_cb); cdecl = nil;
@@ -1137,10 +1330,10 @@ const
 
 
 
-function Load : Boolean;
-function WhichFailedToLoad : String;
+function SsleayLoad : Boolean;
+function SsleayWhichFailedToLoad : String;
 {$IFDEF MSWINDOWS}
-function GetFileVerInfo(
+function IcsGetFileVerInfo(
     const AppName         : String;
     out   FileVersion     : String;
     out   FileDescription : String): Boolean;
@@ -1165,7 +1358,16 @@ function  f_SSL_CTX_set_tmp_ecdh(C: PSSL_CTX; ECDH: Pointer) : Integer; {$IFDEF 
 function  f_SSL_CTX_set_ecdh_auto(C: PSSL_CTX; onoff: integer) : Integer;    { V8.01 }
 function  f_SSL_set_tmp_dh(S: PSSL; DH: Pointer) : Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}            { V8.01 }
 function  f_SSL_set_tmp_ecdh(S: PSSL; ECDH: Pointer) : Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.01 }
-function  f_SSL_set_ecdh_auto(S: PSSL; onoff: integer) : Integer;    { V8.01 }
+function  f_SSL_set_ecdh_auto(S: PSSL; onoff: integer) : Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.01 }
+function  f_SSL_CTX_set_min_proto_version(C: PSSL_CTX; version: integer) : Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.27 }
+function  f_SSL_CTX_set_max_proto_version(C: PSSL_CTX;  version: integer) : Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.27 }
+function  f_SSL_set_min_proto_version(S: PSSL; version: integer) : Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.27 }
+function  f_SSL_set_max_proto_version(S: PSSL; version: integer) : Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.27 }
+function  f_SSL_CTX_set0_chain(C: PSSL_CTX; sk: PSTACK_OF_X509): Integer;  {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.27 }
+function  f_SSL_CTX_add0_chain_cert(C: PSSL_CTX; Cert: PX509): Integer;  {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.27 }
+function  f_SSL_CTX_get0_chain_certs(C: PSSL_CTX; sk: PPSTACK_OF_X509): Integer;  {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.27 }
+function  f_SSL_CTX_clear_chain_certs(C: PSSL_CTX): Integer;   {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.27 }
+function  f_SSL_CTX_build_cert_chain(C: PSSL_CTX; flags: integer): Integer;   {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.27 }
 
 function f_SSL_set_tlsext_host_name(const S: PSSL; const name: String): LongInt; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function f_SSL_CTX_set_tlsext_servername_callback(ctx: PSSL_CTX; cb: TCallback_ctrl_fp): LongInt; {$IFDEF USE_INLINE} inline; {$ENDIF}
@@ -1173,12 +1375,7 @@ function f_SSL_CTX_set_tlsext_servername_arg(ctx: PSSL_CTX; arg: Pointer): LongI
 function f_SSL_set_tlsext_debug_callback(S: PSSL; cb: TCallback_ctrl_fp): Longint; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function f_SSL_set_tlsext_debug_arg(S: PSSL; arg: Pointer): Longint; {$IFDEF USE_INLINE} inline; {$ENDIF}
 
-const
-    GSSLEAY_DLL_Handle          : THandle = 0;
-    GSSLEAY_DLL_Name            : String  = {$IFDEF MACOS} '/usr/lib/libssl.dylib'; {$ELSE} 'SSLEAY32.DLL'; {$ENDIF}
-    GSSLEAY_DLL_FileName        : String  = '*NOT_LOADED*';
-    GSSLEAY_DLL_FileVersion     : String = '';
-    GSSLEAY_DLL_FileDescription : String = '';
+function IcsSslGetState(S: PSSL): TSslHandshakeState;    { V8.27 }
 
 {$ENDIF} // USE_SSL
 
@@ -1188,7 +1385,7 @@ implementation
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF MSWINDOWS}
-function GetFileVerInfo(
+function IcsGetFileVerInfo(      { V8.27 added Ics to prevent conflicts }
     const AppName         : String;
     out   FileVersion     : String;
     out   FileDescription : String): Boolean;
@@ -1256,7 +1453,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$ENDIF}
 
-function Load : Boolean;
+function SsleayLoad : Boolean;      {  V8.27 make unique }
 var
     ErrCode : Integer;
 begin
@@ -1264,27 +1461,55 @@ begin
         Result := TRUE;
         Exit;                                 // Already loaded
     end;
-  {$IFDEF MSWINDOWS}
-    GetFileVerInfo(GSSLEAY_DLL_Name,
-                   GSSLEAY_DLL_FileVersion,
-                   GSSLEAY_DLL_FileDescription);
-  {$ENDIF}
-    GSSLEAY_DLL_Handle := LoadLibrary(PChar(GSSLEAY_DLL_Name));
-    if GSSLEAY_DLL_Handle = 0 then begin
-        ErrCode            := GetLastError;
-        GSSLEAY_DLL_Handle := 0;
-        if ErrCode = {$IFDEF POSIX} ENOENT {$ELSE} ERROR_MOD_NOT_FOUND {$ENDIF} then
-            raise EIcsSsleayException.Create('File not found: ' +
-                                             GSSLEAY_DLL_Name)
-        else
-            raise EIcsSsleayException.Create('Unable to load ' +
-                                             GSSLEAY_DLL_Name  +
-                                             '. Win32 error #' +
-                                             IntToStr(ErrCode));
+
+  { V8.27 sanity check }
+    if ICS_OPENSSL_VERSION_NUMBER = 0 then begin
+       raise EIcsSsleayException.Create('Must load LIBEAY DLL before SSLEAY');
+    end;
+
+  { V8.27 see if opening new or old DLL }
+  { V8.27 allow a specific DLL directory to be specified in GSSL_DLL_DIR }
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then begin
+        GSSLEAY_DLL_Handle := LoadLibrary(PChar(GSSL_DLL_DIR+GSSLEAY_110DLL_Name));
+        if GSSLEAY_DLL_Handle = 0 then begin
+            ErrCode            := GetLastError;
+            GSSLEAY_DLL_Handle := 0;
+            if ErrCode = {$IFDEF POSIX} ENOENT {$ELSE} ERROR_MOD_NOT_FOUND {$ENDIF} then
+                raise EIcsSsleayException.Create('File not found: ' +
+                                                 GSSLEAY_110DLL_Name)
+            else
+                raise EIcsSsleayException.Create('Unable to load ' +
+                                                 GSSLEAY_110DLL_Name  +
+                                                 '. Win32 error #' +
+                                                 IntToStr(ErrCode));
+        end;
+    end else
+    begin
+        GSSLEAY_DLL_Handle := LoadLibrary(PChar(GSSL_DLL_DIR+GSSLEAY_DLL_Name));
+        if GSSLEAY_DLL_Handle = 0 then begin
+            ErrCode            := GetLastError;
+            GSSLEAY_DLL_Handle := 0;
+            if ErrCode = {$IFDEF POSIX} ENOENT {$ELSE} ERROR_MOD_NOT_FOUND {$ENDIF} then
+                raise EIcsSsleayException.Create('File not found: ' +
+                                                 GSSLEAY_DLL_Name)
+            else
+                raise EIcsSsleayException.Create('Unable to load ' +
+                                                 GSSLEAY_DLL_Name  +
+                                                 '. Win32 error #' +
+                                                 IntToStr(ErrCode));
+        end;
     end;
     SetLength(GSSLEAY_DLL_FileName, 256);
     SetLength(GSSLEAY_DLL_FileName, GetModuleFileName(GSSLEAY_DLL_Handle,
                  PChar(GSSLEAY_DLL_FileName), Length(GSSLEAY_DLL_FileName)));
+
+  {$IFDEF MSWINDOWS}
+    IcsGetFileVerInfo(GSSLEAY_DLL_FileName,      { V8.27 use full path }
+                   GSSLEAY_DLL_FileVersion,
+                   GSSLEAY_DLL_FileDescription);
+  {$ENDIF}
+
+
     f_SSL_do_handshake                       := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_do_handshake');
     f_SSL_renegotiate                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_renegotiate');
     f_SSL_renegotiate_pending                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_renegotiate_pending');
@@ -1301,6 +1526,9 @@ begin
     f_SSLv23_method                          := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv23_method');
     f_SSLv23_client_method                   := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv23_client_method');
     f_SSLv23_server_method                   := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv23_server_method');
+    f_TLS_method                             := GetProcAddress(GSSLEAY_DLL_Handle, 'TLS_method');          { V8.27 }
+    f_TLS_client_method                      := GetProcAddress(GSSLEAY_DLL_Handle, 'TLS_client_method');   { V8.27 }
+    f_TLS_server_method                      := GetProcAddress(GSSLEAY_DLL_Handle, 'TLS_server_method');   { V8.27 }
     f_TLSv1_method                           := GetProcAddress(GSSLEAY_DLL_Handle, 'TLSv1_method');
     f_TLSv1_client_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'TLSv1_client_method');
     f_TLSv1_server_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'TLSv1_server_method');
@@ -1353,15 +1581,21 @@ begin
     f_SSL_version                            := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_version'); //AG
     f_SSL_get_current_cipher                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_current_cipher');
     f_SSL_state                              := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_state');
+    f_SSL_get_state                          := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_state');    { V8.27 }
     f_SSL_state_string_long                  := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_state_string_long');
     f_SSL_alert_type_string_long             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_alert_type_string_long');
     f_SSL_alert_desc_string_long             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_alert_desc_string_long');
     f_SSL_CIPHER_get_bits                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CIPHER_get_bits');
     f_SSL_CIPHER_get_name                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CIPHER_get_name');
     f_SSL_CIPHER_description                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CIPHER_description');
+    f_SSL_get_ciphers                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_ciphers');           { V8.27 }
+    f_SSL_get_client_ciphers                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_client_ciphers');    { V8.27 }
+    f_SSL_get1_supported_ciphers             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get1_supported_ciphers');{ V8.27 }
+    f_SSL_get_cipher_list                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_cipher_list');       { V8.27 }
     f_SSL_CTX_free                           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_free');
     f_SSL_CTX_set_info_callback              := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_info_callback');
     f_SSL_CTX_set_timeout                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_timeout');
+    f_SSL_CTX_use_certificate                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_use_certificate');    { V8.27 }
     f_SSL_CTX_use_certificate_chain_file     := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_use_certificate_chain_file');
     f_SSL_CTX_use_certificate_file           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_use_certificate_file');
     f_SSL_CTX_set_default_passwd_cb          := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_default_passwd_cb');
@@ -1423,31 +1657,6 @@ begin
     Result := not ((@f_SSL_do_handshake                       = nil) or
                    (@f_SSL_renegotiate                        = nil) or
                    (@f_SSL_renegotiate_pending                = nil) or
-                   (@f_SSL_library_init                       = nil) or
-                   (@f_SSL_load_error_strings                 = nil) or
- {$IFDEF OPENSSL_ALLOW_SSLV2}
-                   (@f_SSLv2_method                           = nil) or
-                   (@f_SSLv2_client_method                    = nil) or
-                   (@f_SSLv2_server_method                    = nil) or
- {$ENDIF}
-                   (@f_SSLv3_method                           = nil) or
-                   (@f_SSLv3_client_method                    = nil) or
-                   (@f_SSLv3_server_method                    = nil) or
-                   (@f_SSLv23_method                          = nil) or
-                   (@f_SSLv23_client_method                   = nil) or
-                   (@f_SSLv23_server_method                   = nil) or
-                   (@f_TLSv1_method                           = nil) or
-                   (@f_TLSv1_client_method                    = nil) or
-                   (@f_TLSv1_server_method                    = nil) or
-                   (@f_TLSv1_1_method                         = nil) or    // V8.01 added TLS 1.1 and 1.2
-                   (@f_TLSv1_1_client_method                  = nil) or
-                   (@f_TLSv1_1_server_method                  = nil) or
-                   (@f_TLSv1_2_method                         = nil) or
-                   (@f_TLSv1_2_client_method                  = nil) or
-                   (@f_TLSv1_2_server_method                  = nil) or
-                   (@f_TLSv1_method                           = nil) or
-                   (@f_TLSv1_client_method                    = nil) or
-                   (@f_TLSv1_server_method                    = nil) or
                    (@f_SSL_CTX_new                            = nil) or
                    (@f_SSL_new                                = nil) or
                    (@f_SSL_set_bio                            = nil) or
@@ -1490,16 +1699,18 @@ begin
                    (@f_SSL_get_version                        = nil) or
                    (@f_SSL_version                            = nil) or
                    (@f_SSL_get_current_cipher                 = nil) or
-                   (@f_SSL_state                              = nil) or
                    (@f_SSL_state_string_long                  = nil) or
                    (@f_SSL_alert_type_string_long             = nil) or
                    (@f_SSL_alert_desc_string_long             = nil) or
                    (@f_SSL_CIPHER_get_bits                    = nil) or
                    (@f_SSL_CIPHER_get_name                    = nil) or
                    (@f_SSL_CIPHER_description                 = nil) or
+                   (@f_SSL_get_ciphers                        = nil) or
+                   (@f_SSL_get_cipher_list                    = nil) or
                    (@f_SSL_CTX_free                           = nil) or
                    (@f_SSL_CTX_set_info_callback              = nil) or
                    (@f_SSL_CTX_set_timeout                    = nil) or
+                   (@f_SSL_CTX_use_certificate                = nil) or
                    (@f_SSL_CTX_use_certificate_chain_file     = nil) or
                    (@f_SSL_CTX_use_certificate_file           = nil) or
                    (@f_SSL_CTX_set_default_passwd_cb          = nil) or
@@ -1533,7 +1744,7 @@ begin
                    (@f_SSL_set_client_CA_list                 = nil) or
               {$IFNDEF OPENSSL_NO_ENGINE}
                    (@f_SSL_CTX_set_client_cert_engine         = nil) or
-              {$ENDIF}     
+              {$ENDIF}
                    (@f_SSL_load_client_CA_file                = nil) or
 
                    (@f_SSL_get_ex_data_X509_STORE_CTX_idx     = nil) or
@@ -1551,20 +1762,84 @@ begin
                    (@f_SSL_get_servername                     = nil) or
                    (@f_SSL_get_servername_type                = nil) or
                    (@f_SSL_CTX_callback_ctrl                  = nil) or
-                   (@f_SSL_callback_ctrl                      = nil) 
+                   (@f_SSL_callback_ctrl                      = nil)
                    );
+
+    { V8.27 older OpenSSL versions have different export }
+    if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
+        if (@f_SSL_library_init                       = nil) or
+           (@f_SSL_load_error_strings                 = nil) or
+           (@f_SSL_state                              = nil) or
+
+{$IFDEF OPENSSL_ALLOW_SSLV2}
+           (@f_SSLv2_method                           = nil) or
+           (@f_SSLv2_client_method                    = nil) or
+           (@f_SSLv2_server_method                    = nil) or
+{$ENDIF}
+           (@f_SSLv3_method                           = nil) or
+           (@f_SSLv3_client_method                    = nil) or
+           (@f_SSLv3_server_method                    = nil) or
+           (@f_SSLv23_method                          = nil) or
+           (@f_SSLv23_client_method                   = nil) or
+           (@f_SSLv23_server_method                   = nil) or
+           (@f_TLSv1_method                           = nil) or
+           (@f_TLSv1_client_method                    = nil) or
+           (@f_TLSv1_server_method                    = nil) or
+           (@f_TLSv1_1_method                         = nil) or    // V8.01 added TLS 1.1 and 1.2
+           (@f_TLSv1_1_client_method                  = nil) or
+           (@f_TLSv1_1_server_method                  = nil) or
+           (@f_TLSv1_2_method                         = nil) or
+           (@f_TLSv1_2_client_method                  = nil) or
+           (@f_TLSv1_2_server_method                  = nil) then result := false;
+
+    // V8.27 fake new best method with old best method }
+       f_TLS_method                := @f_SSLv23_method;
+       f_TLS_client_method         := @f_SSLv23_client_method;
+       f_TLS_server_method         := @f_SSLv23_server_method;
+    end
+
+    { V8.27 new OpenSSL versions have some new, fake old ones }
+    else begin
+        if (@f_SSL_get_state                          = nil) or
+           (@f_SSL_get_client_ciphers                 = nil) or
+           (@f_SSL_get1_supported_ciphers             = nil) or
+           (@f_TLS_method                             = nil) or
+           (@f_TLS_client_method                      = nil) or
+           (@f_TLS_server_method                      = nil) then result := false;
+
+    // V8.27 1.1.0 has lost v3 and v23, and tlsv1x are deprecated, so fake the lot }
+       @f_SSLv3_method             := @f_TLS_method;
+       @f_SSLv3_client_method      := @f_TLS_client_method;
+       @f_SSLv3_server_method      := @f_TLS_server_method;
+       @f_SSLv23_method            := @f_TLS_method;
+       @f_SSLv23_client_method     := @f_TLS_client_method;
+       @f_SSLv23_server_method     := @f_TLS_server_method;
+       @f_TLSv1_method             := @f_TLS_method;
+       @f_TLSv1_client_method      := @f_TLS_client_method;
+       @f_TLSv1_server_method      := @f_TLS_server_method;
+       @f_TLSv1_1_method           := @f_TLS_method;
+       @f_TLSv1_1_client_method    := @f_TLS_client_method;
+       @f_TLSv1_1_server_method    := @f_TLS_server_method;
+       @f_TLSv1_2_method           := @f_TLS_method;
+       @f_TLSv1_2_client_method    := @f_TLS_client_method;
+       @f_TLSv1_2_server_method    := @f_TLS_server_method;
+    end;
+
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WhichFailedToLoad : String;
+function SsleayWhichFailedToLoad : String;   {  V8.27 make unique }
 begin
     Result := '';
     if @f_SSL_do_handshake                       = nil then Result := Result + ' SSL_do_handshake';
     if @f_SSL_renegotiate                        = nil then Result := Result + ' SSL_renegotiate';
     if @f_SSL_renegotiate_pending                = nil then Result := Result + ' SSL_renegotiate_pending';
-    if @f_SSL_library_init                       = nil then Result := Result + ' SSL_library_init';
-    if @f_SSL_load_error_strings                 = nil then Result := Result + ' SSL_load_error_strings';
+    if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
+        if @f_SSL_library_init                   = nil then Result := Result + ' SSL_library_init';
+        if @f_SSL_load_error_strings             = nil then Result := Result + ' SSL_load_error_strings';
+        if @f_SSL_state                          = nil then Result := Result + ' SSL_state';
+    end;
  {$IFDEF OPENSSL_ALLOW_SSLV2}
     if @f_SSLv2_method                           = nil then Result := Result + ' SSLv2_method';
     if @f_SSLv2_client_method                    = nil then Result := Result + ' SSLv2_client_method';
@@ -1628,16 +1903,20 @@ begin
     if @f_SSL_get_version                        = nil then Result := Result + ' SSL_get_version';
     if @f_SSL_version                            = nil then Result := Result + ' SSL_version';
     if @f_SSL_get_current_cipher                 = nil then Result := Result + ' SSL_get_current_cipher';
-    if @f_SSL_state                              = nil then Result := Result + ' SSL_state';
     if @f_SSL_state_string_long                  = nil then Result := Result + ' SSL_state_string_long';
     if @f_SSL_alert_type_string_long             = nil then Result := Result + ' SSL_alert_type_string_long';
     if @f_SSL_alert_desc_string_long             = nil then Result := Result + ' SSL_alert_desc_string_long';
     if @f_SSL_CIPHER_get_bits                    = nil then Result := Result + ' SSL_CIPHER_get_bits';
     if @f_SSL_CIPHER_get_name                    = nil then Result := Result + ' SSL_CIPHER_get_name';
     if @f_SSL_CIPHER_description                 = nil then Result := Result + ' SSL_CIPHER_description';
+    if @f_SSL_get_ciphers                        = nil then Result := Result + ' SSL_get_ciphers';           { V8.27 }
+    if @f_SSL_get_client_ciphers                 = nil then Result := Result + ' SSL_get_client_ciphers';    { V8.27 }
+    if @f_SSL_get1_supported_ciphers             = nil then Result := Result + ' SSL_get1_supported_ciphers';{ V8.27 }
+    if @f_SSL_get_cipher_list                    = nil then Result := Result + ' SSL_get_cipher_list';       { V8.27 }
     if @f_SSL_CTX_free                           = nil then Result := Result + ' SSL_CTX_free';
     if @f_SSL_CTX_set_info_callback              = nil then Result := Result + ' SSL_CTX_set_info_callback';
     if @f_SSL_CTX_set_timeout                    = nil then Result := Result + ' SSL_CTX_set_timeout';
+    if @f_SSL_CTX_use_certificate                = nil then Result := Result + ' SSL_CTX_use_certificate';     { V8.27 }
     if @f_SSL_CTX_use_certificate_chain_file     = nil then Result := Result + ' SSL_CTX_use_certificate_chain_file';
     if @f_SSL_CTX_use_certificate_file           = nil then Result := Result + ' SSL_CTX_use_certificate_file';
     if @f_SSL_CTX_use_PrivateKey                 = nil then Result := Result + ' SSL_CTX_use_certificate';
@@ -1691,6 +1970,13 @@ begin
     if @f_SSL_get_servername_type                = nil then Result := Result + ' SSL_get_servername_type';
     if @f_SSL_CTX_callback_ctrl                  = nil then Result := Result + ' SSL_CTX_callback_ctrl';
     if @f_SSL_callback_ctrl                      = nil then Result := Result + ' SSL_callback_ctrl';
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then begin
+        if @f_SSL_get_state                      = nil then Result := Result + ' SSL_get_state';
+        if @f_TLS_method                         = nil then Result := Result + ' TLS_method';
+        if @f_TLS_client_method                  = nil then Result := Result + ' TLS_client_method';
+        if @f_TLS_server_method                  = nil then Result := Result + ' TLS_server_method';
+    end;
+
     if Length(Result) > 0 then
        Delete(Result, 1, 1);
 end;
@@ -1841,7 +2127,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function  f_SSL_CTX_set_ecdh_auto(C: PSSL_CTX; onoff: Integer): Integer;    { V8.01 }
 begin
-    Result := f_SSL_CTX_ctrl(C, SSL_CTRL_SET_ECDH_AUTO, onoff, Nil);
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then
+        Result := 1  { V8.27 always enabled }
+    else
+        Result := f_SSL_CTX_ctrl(C, SSL_CTRL_SET_ECDH_AUTO, onoff, Nil);
 end;
 
 
@@ -1858,11 +2147,96 @@ begin
     Result := f_SSL_ctrl(S, SSL_CTRL_SET_TMP_ECDH, 0, ECDH);
 end;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function  f_SSL_set_ecdh_auto(S: PSSL; onoff: integer) : Integer;    { V8.01 }
 begin
     Result := f_SSL_ctrl(S, SSL_CTRL_SET_ECDH_AUTO, onoff, Nil);
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  f_SSL_CTX_set_min_proto_version(C: PSSL_CTX; version: integer) : Integer;  { V8.27 }
+begin
+    Result := f_SSL_CTX_ctrl(C, SSL_CTRL_SET_MIN_PROTO_VERSION, version, Nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  f_SSL_CTX_set_max_proto_version(C: PSSL_CTX;  version: integer) : Integer;  { V8.27 }
+begin
+    Result := f_SSL_CTX_ctrl(C, SSL_CTRL_SET_MAX_PROTO_VERSION, version, Nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  f_SSL_set_min_proto_version(S: PSSL; version: integer) : Integer;     { V8.27 }
+begin
+    Result := f_SSL_ctrl(S, SSL_CTRL_SET_MIN_PROTO_VERSION, version, Nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  f_SSL_set_max_proto_version(S: PSSL; version: integer) : Integer;     { V8.27 }
+begin
+    Result := f_SSL_ctrl(S, SSL_CTRL_SET_MAX_PROTO_VERSION, version, Nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  f_SSL_CTX_set0_chain(C: PSSL_CTX; sk: PSTACK_OF_X509): Integer;       { V8.27 }
+begin
+    Result := f_SSL_CTX_ctrl(C, SSL_CTRL_CHAIN, 0, PAnsiChar(sk));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  f_SSL_CTX_add0_chain_cert(C: PSSL_CTX; Cert: PX509): Integer;         { V8.27 }
+begin
+    Result := f_SSL_CTX_ctrl(C, SSL_CTRL_CHAIN_CERT, 0, PAnsiChar(Cert));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  f_SSL_CTX_get0_chain_certs(C: PSSL_CTX; sk: PPSTACK_OF_X509): Integer; { V8.27 }
+begin
+    Result := f_SSL_CTX_ctrl(C, SSL_CTRL_GET_CHAIN_CERTS, 0, PAnsiChar(Sk));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  f_SSL_CTX_clear_chain_certs(C: PSSL_CTX): Integer;                    { V8.27 }
+begin
+    Result := f_SSL_CTX_set0_chain (C, nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  f_SSL_CTX_build_cert_chain(C: PSSL_CTX; flags: integer): Integer;     { V8.27 }
+begin
+    Result := f_SSL_CTX_ctrl(C, SSL_CTRL_BUILD_CERT_CHAIN, flags, Nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ alternate for f_SSL_state which has gone in 1.1.0 and later }
+function IcsSslGetState(S: PSSL): TSslHandshakeState;                           { V8.27 }
+var
+    oldstate: Integer;
+begin
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then
+        Result := f_SSL_get_state(S)
+    else begin
+        oldstate := f_SSL_state(S);
+        if ((oldstate and SSL_ST_INIT) <> 0) then
+            Result := TLS_ST_CR_SRVR_HELLO
+         else if oldstate = SSL_ST_OK then
+            Result := TLS_ST_OK
+         else
+            Result := TLS_ST_Before;
+    end;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$ENDIF}//USE_SSL

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.27
+Version:      8.28
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1042,20 +1042,22 @@ May 24, 2016  V8.27 Angus, initial support for OpenSSL 1.1.0, new DLL file names
                       OverbyteIcsPemtool, assign this to SslContext.SslCALines.Text to
                       verify remote SSL certificates in client applications, not for servers.
                       This is not used as a default to avoid linking the list unless needed.
-                    Many SslOptions are no longer supported for 1.1.0 and are now ignored.   
+                    Many SslOptions are no longer supported for 1.1.0 and are now ignored.
                     Cleaned up SSL initialisation
                     SSL debug logging has been improved by logging SSL certificate
                       subjects when loaded from lines, and logging ciphers when
                       SslContext is initialised.
-                    SslECDHMethod is ignored for 1.1.0, always enabled.    
+                    SslECDHMethod is ignored for 1.1.0, always enabled.
                     Various internal SSL changes to accommodate new or removed functions
                        with 1.1.0.
                     X509Base has new methods LoadFromText and PrivateKeyLoadFromText
                       that load a PEM SSL certificate and private key from strings.
                       A certificate may already be saved to a string by GetRawText.
-                      
-}
-{
+May 27, 2016  V8.28 Angus corrected SslMinVersion and SslMaxVersion setting protocols
+                      for OSLL 1.0.1 and 1.0.2
+                    Debug list all SSL Options
+
+
 Use of certificates for SSL clients:
 Client SSL applications will usually work without any certificates because all
 the encryption is done by the server.  If a client needs to confirm the identity
@@ -1249,8 +1251,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 827;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.27 ';
+  WSocketVersion            = 828;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.28 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -15387,7 +15389,8 @@ end;
 procedure TSslContext.InitContext;
 var
     SslSessCacheModes : TSslSessCacheModes;
-    LOpts: Longint;
+    LOpts, MyOpts, I: Longint;
+    S: string;
     MyECkey: PEC_KEY;
 begin
     InitializeSsl; //loads libs
@@ -15505,22 +15508,27 @@ begin
 
           { V8.27 for OpenSSL 1.0.2 and earlier simulate range of versions, if not set to defaults }
             else begin
-                if (FSslMaxVersion >= FSslMinVersion) and
-                     (FSslMinVersion > sslVerSSL3) and (FSslMaxVersion < sslVerMax) then begin
+                if (FSslMaxVersion >= FSslMinVersion) then begin
                     LOpts := LOpts AND (NOT SSL_OP_NO_SSLv3) AND (NOT SSL_OP_NO_TLSv1) AND
                                           (NOT SSL_OP_NO_TLSv1_2) AND (NOT SSL_OP_NO_TLSv1_1);
-                    if (FSslMinVersion = sslVerTLS1) then
-                        LOpts := LOpts OR SSL_OP_NO_SSLv3
-                    else if (FSslMinVersion = sslVerTLS1_1) then
-                        LOpts := LOpts OR SSL_OP_NO_SSLv3 OR SSL_OP_NO_TLSv1
-                    else if (FSslMinVersion = sslVerTLS1_2) then
-                        LOpts := LOpts OR SSL_OP_NO_SSLv3 OR SSL_OP_NO_TLSv1 OR SSL_OP_NO_TLSv1_1;
-                    if (FSslMaxVersion = sslVerTLS1) then
-                        LOpts := LOpts OR SSL_OP_NO_TLSv1_1 OR SSL_OP_NO_TLSv1_2
-                    else if (FSslMaxVersion = sslVerTLS1_1) then
-                        LOpts := LOpts OR SSL_OP_NO_TLSv1_2;
-                end;
-            end;
+                    if (FSslMinVersion > sslVerSSL3) then begin
+                        if (FSslMinVersion = sslVerTLS1) then
+                            LOpts := LOpts OR SSL_OP_NO_SSLv3
+                        else if (FSslMinVersion = sslVerTLS1_1) then
+                            LOpts := LOpts OR SSL_OP_NO_SSLv3 OR SSL_OP_NO_TLSv1
+                        else if (FSslMinVersion = sslVerTLS1_2) then
+                            LOpts := LOpts OR SSL_OP_NO_SSLv3 OR SSL_OP_NO_TLSv1 OR SSL_OP_NO_TLSv1_1;
+                    end;
+                    if (FSslMaxVersion < sslVerMax) then begin { V8.28 corrected maximum support }
+                        if (FSslMaxVersion = sslVerSSL3) then
+                            LOpts := LOpts OR SSL_OP_NO_TLSv1 OR SSL_OP_NO_TLSv1_1 OR SSL_OP_NO_TLSv1_2
+                        else if (FSslMaxVersion = sslVerTLS1) then
+                            LOpts := LOpts OR SSL_OP_NO_TLSv1_1 OR SSL_OP_NO_TLSv1_2
+                        else if (FSslMaxVersion = sslVerTLS1_1) then
+                            LOpts := LOpts OR SSL_OP_NO_TLSv1_2;
+                    end;
+                 end;
+              end;
 
             //raise Exception.Create('Test');
 
@@ -15585,9 +15593,19 @@ begin
              end;
 
 {$IFNDEF NO_DEBUG_LOG}
+        { V8.28 list all options }
+            if CheckLogOptions(loSslInfo) then begin
+                MyOpts := 1;
+                S := '';
+                for I := 0 to 31 do begin
+                if (LOpts and MyOpts) <> 0 then
+                    S := S + IntToHex(MyOpts, 8) + ', ';
+                    MyOpts := MyOpts * 2;
+                end;
+                DebugLog(loSslInfo, 'SSL Options: ' + IntToHex(LOpts, 8) + ': ' + S);
         { V8.27 list all ciphers available for connection }
-           if CheckLogOptions(loSslInfo) then
                 DebugLog(loSslInfo, 'SSL Ciphers Available: ' + #13#10 + SslGetAllCiphers);
+           end;
 {$ENDIF}
 
         except

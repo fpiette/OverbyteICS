@@ -3,7 +3,7 @@
 Original Author: Ian Baker, ADV Systems 2003
 Updated by:   Angus Robertson, Magenta Systems Ltd
 Creation:     20 September 2013
-Version:      8.03
+Version:      8.04
 Description:  Implements a TWSocket-based SMTP server component.
               For further details please see
               RFC-821, RFC-1869, RFC-1870, RFC-1893, RFC-1985,
@@ -11,7 +11,7 @@ Description:  Implements a TWSocket-based SMTP server component.
 EMail:        francois.piette@overbyte.be      http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2015 by François PIETTE
+Legal issues: Copyright (C) 2004-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -140,7 +140,7 @@ Sep 24, 2013 V8.00 Angus updated for ICS V8 with IPv6
 Dec 18, 2013 V8.01 Angus  EHLO reports AUTH even without SSL
 June 2015 V8.02 Angus - fix FMX compile bug
 Jan 22, 2016 V8.03 Angus - corrected 64-bit casting bug in PostMessage
-
+Jun 8, 2016  V8.04 Angus - corrected client timeout, thanks to Alex Markov
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSmtpSrv;
@@ -230,8 +230,8 @@ uses
     OverbyteIcsTypes;
 
 const
-    SmtpCliVersion     = 803;
-    CopyRight : String = ' SMTP Server (c) 1997-2016 Francois Piette V8.03 ';
+    SmtpCliVersion     = 804;
+    CopyRight : String = ' SMTP Server (c) 1997-2016 Francois Piette V8.04 ';
 
 const
   // ESMTP commands. Please note that not all are implemented - use AddCommand() to add a handler of your own
@@ -512,7 +512,7 @@ type
                                Context : TSmtpmsgContext;
                                Handler : TSmtpcmdHandler;
                             end;
-        FTimeout          : integer;
+        FClientTimeout    : integer;    { V8.04 avoid conflict with socket server }
         FCheckTimer       : TIcsTimer;
         FExtHandler       : TExceptionEvent;
         FCounter          : cardinal;
@@ -609,7 +609,7 @@ type
        // Address of DNS to be used for all queries
         property           DnsAddress         : string               read  FDNSaddr          write FDNSaddr;
        // Client timeout, in seconds. 0 for no timeout
-        property           ClientTimeout      : integer              read  FTimeout          write SetTimeout;
+        property           ClientTimeout      : integer              read  FClientTimeout    write SetTimeout;
        // Set number of seconds after which GreyListed mail will be accepted on subsequent attempts
         property           GreyDelaySecs      : integer              read  FGreyDelaySecs    write FGreyDelaySecs;
        // set of server options
@@ -1251,9 +1251,9 @@ end;
 procedure TSmtpServer.SetTimeout(ATimeout : integer);
 begin
     if ATimeout <= 0 then
-        FTimeout := ATimeout
+        FClientTimeout := ATimeout
     else
-        FTimeout := ATimeout;
+        FClientTimeout := ATimeout;
 end;
 
 //******************************************************************//
@@ -1376,7 +1376,7 @@ begin
         else
         begin
           // Check for client timeout
-            if (FTimeout > 0) and (Delta > FTimeout) then
+            if (Self.FClientTimeout > 0) and (Delta > Self.FClientTimeout) then   { V8.04 avoid conflict with socket server } 
             begin
                 SendStatus(s221,'0.0',[FServerHost,xTimeout]);
                 CloseDelayed;

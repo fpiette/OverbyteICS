@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.27
+Version:      8.29
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -90,7 +90,8 @@ May 24, 2016 V8.27 Angus match version to Wsocket where most of this API is used
              Added f_SSL_get_ciphers and related functions to get lists of ciphers
              Added TSslHandshakeState more detail about handshakes in 1.1.0 
              GetFileVerInfo renamed IcsGetFileVerInfo to prevent conflicts with other libs
-             
+June 26, 2016 V8.29 Angus Implement GSSL_DLL_DIR properly to report full file path on error
+
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - April 2016
 
@@ -158,8 +159,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 827;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.27 ';
+    IcsSSLEAYVersion   = 829;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.29 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -1456,6 +1457,7 @@ end;
 function SsleayLoad : Boolean;      {  V8.27 make unique }
 var
     ErrCode : Integer;
+    FullName: String ;  { V8.29 }
 begin
     if GSSLEAY_DLL_Handle <> 0 then begin
         Result := TRUE;
@@ -1470,33 +1472,27 @@ begin
   { V8.27 see if opening new or old DLL }
   { V8.27 allow a specific DLL directory to be specified in GSSL_DLL_DIR }
     if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then begin
-        GSSLEAY_DLL_Handle := LoadLibrary(PChar(GSSL_DLL_DIR+GSSLEAY_110DLL_Name));
+        FullName := GSSL_DLL_DIR+GSSLEAY_110DLL_Name;  { V8.29 }
+        GSSLEAY_DLL_Handle := LoadLibrary(PChar(FullName));
         if GSSLEAY_DLL_Handle = 0 then begin
             ErrCode            := GetLastError;
             GSSLEAY_DLL_Handle := 0;
             if ErrCode = {$IFDEF POSIX} ENOENT {$ELSE} ERROR_MOD_NOT_FOUND {$ENDIF} then
-                raise EIcsSsleayException.Create('File not found: ' +
-                                                 GSSLEAY_110DLL_Name)
+                raise EIcsSsleayException.Create('File not found: ' + FullName)
             else
-                raise EIcsSsleayException.Create('Unable to load ' +
-                                                 GSSLEAY_110DLL_Name  +
-                                                 '. Win32 error #' +
-                                                 IntToStr(ErrCode));
+                raise EIcsSsleayException.Create('Unable to load ' + FullName + '. Win32 error #' + IntToStr(ErrCode));
         end;
     end else
     begin
-        GSSLEAY_DLL_Handle := LoadLibrary(PChar(GSSL_DLL_DIR+GSSLEAY_DLL_Name));
+        FullName := GSSL_DLL_DIR+GSSLEAY_DLL_Name;  { V8.29 }
+        GSSLEAY_DLL_Handle := LoadLibrary(PChar(FullName));
         if GSSLEAY_DLL_Handle = 0 then begin
             ErrCode            := GetLastError;
             GSSLEAY_DLL_Handle := 0;
             if ErrCode = {$IFDEF POSIX} ENOENT {$ELSE} ERROR_MOD_NOT_FOUND {$ENDIF} then
-                raise EIcsSsleayException.Create('File not found: ' +
-                                                 GSSLEAY_DLL_Name)
+                raise EIcsSsleayException.Create('File not found: ' + FullName)
             else
-                raise EIcsSsleayException.Create('Unable to load ' +
-                                                 GSSLEAY_DLL_Name  +
-                                                 '. Win32 error #' +
-                                                 IntToStr(ErrCode));
+                raise EIcsSsleayException.Create('Unable to load ' + FullName  + '. Win32 error #' + IntToStr(ErrCode));
         end;
     end;
     SetLength(GSSLEAY_DLL_FileName, 256);

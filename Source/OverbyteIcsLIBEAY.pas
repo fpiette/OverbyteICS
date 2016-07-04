@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.27
+Version:      8.29
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -114,7 +114,7 @@ May 24, 2016 V8.27   Angus match version to Wsocket where most of this API is us
                      Initial support for OpenSSL 1.1.0, new DLL file names, old exports gone
                       Load now LibeayLoad, WhichFailedToLoad now LibeayWhichFailedToLoad
                      Moved all public GLIBEAY_xx variables to top of OverbyteIcsSSLEAY
-
+June 26, 2016 V8.29 Angus Implement GSSL_DLL_DIR properly to report full file path on error
 
 Notes - OpenSSL libeay32 changes between 1.0.2 and 1.1.0 - April 2016
 
@@ -199,8 +199,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 827;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2016 F. Piette V8.27 ';
+    IcsLIBEAYVersion   = 829;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2016 F. Piette V8.29 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -2100,6 +2100,7 @@ end;
 function LibeayLoad : Boolean;        { V8.27 make unique }
 var
     ErrCode : Integer;
+    FullName: String ;  { V8.29 }
 begin
     ICS_OPENSSL_VERSION_NUMBER := 0;
 
@@ -2110,8 +2111,10 @@ begin
 
 { V8.27 try v1.1.0 and later first with new file name - libcrypto-1_1.dll }
   { V8.27 allow a specific DLL directory to be specified in GSSL_DLL_DIR }
-    if NOT GSSLEAY_DLL_IgnoreNew then
-        GLIBEAY_DLL_Handle := LoadLibrary(PChar(GSSL_DLL_DIR+GLIBEAY_110DLL_Name));
+    if NOT GSSLEAY_DLL_IgnoreNew then begin
+        FullName := GSSL_DLL_DIR+GLIBEAY_110DLL_Name;  { V8.29 }
+        GLIBEAY_DLL_Handle := LoadLibrary(PChar(FullName));
+    end;
     if GLIBEAY_DLL_Handle {$IFDEF POSIX} > 0 {$ELSE} > HINSTANCE_ERROR {$ENDIF} then begin
         SetLength(GLIBEAY_DLL_FileName, 256);
         SetLength(GLIBEAY_DLL_FileName, GetModuleFileName(GLIBEAY_DLL_Handle,
@@ -2128,14 +2131,13 @@ begin
     end
     else begin
 { now try old file name - libeay32.dll }
-        GLIBEAY_DLL_Handle := LoadLibrary(PChar(GSSL_DLL_DIR+GLIBEAY_DLL_Name));
+        FullName := GSSL_DLL_DIR+GLIBEAY_DLL_Name;  { V8.29 }
+        GLIBEAY_DLL_Handle := LoadLibrary(PChar(FullName));
         if GLIBEAY_DLL_Handle {$IFDEF POSIX} = 0 {$ELSE} < HINSTANCE_ERROR {$ENDIF} then begin
             ErrCode            := GLIBEAY_DLL_Handle;
             GLIBEAY_DLL_Handle := 0;
-            raise EIcsLIBEAYException.Create('Unable to load ' +
-                                             GLIBEAY_DLL_Name +
-                                             '. Error #' + IntToStr(ErrCode) +
-                                             #13#10 + SysErrorMessage(GetLastError));
+            raise EIcsLIBEAYException.Create('Unable to load ' + FullName +
+                             '. Error #' + IntToStr(ErrCode) + #13#10 + SysErrorMessage(GetLastError));
         end;
         SetLength(GLIBEAY_DLL_FileName, 256);
         SetLength(GLIBEAY_DLL_FileName, GetModuleFileName(GLIBEAY_DLL_Handle,

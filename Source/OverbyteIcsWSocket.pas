@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.28
+Version:      8.29
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1056,7 +1056,9 @@ May 24, 2016  V8.27 Angus, initial support for OpenSSL 1.1.0, new DLL file names
 May 27, 2016  V8.28 Angus corrected SslMinVersion and SslMaxVersion setting protocols
                       for OSLL 1.0.1 and 1.0.2
                     Debug list all SSL Options
-
+June 26, 2016 V8.29 Angus check for WSAESHUTDOWN in TryToSend and clean close down
+                      instead of exception
+                    Implement GSSL_DLL_DIR properly to report full file path on error
 
 Use of certificates for SSL clients:
 Client SSL applications will usually work without any certificates because all
@@ -1251,8 +1253,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 828;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.28 ';
+  WSocketVersion            = 829;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.29 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -8204,7 +8206,8 @@ begin
                 LastError := WSocket_Synchronized_WSAGetLastError;
                 if (LastError = WSAECONNRESET) or (LastError = WSAENOTSOCK) or
                    (LastError = WSAENOTCONN)   or (LastError = WSAEINVAL)   or
-                   (LastError = WSAECONNABORTED)     { 07/05/99 }
+                   (LastError = WSAECONNABORTED) { 07/05/99 } or
+                   (LastError = WSAESHUTDOWN)    { V8.29 Can't send after socket shutdown }
                 then begin
                   {$IFNDEF NO_DEBUG_LOG}
                     if CheckLogOptions(loWsockErr) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }

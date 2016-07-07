@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.29
+Version:      8.30
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1059,6 +1059,12 @@ May 27, 2016  V8.28 Angus corrected SslMinVersion and SslMaxVersion setting prot
 June 26, 2016 V8.29 Angus check for WSAESHUTDOWN in TryToSend and clean close down
                       instead of exception
                     Implement GSSL_DLL_DIR properly to report full file path on error
+July 7, 2016  V8.30 Angus corrected FCounter.FLastRecvTick not updated in DoRecvFrom
+                       or in SSL DoRecv, and FCounter.FLastSendTick not in SentTo
+                       so timeouts did not always work
+                    Corrected ReadCount/WriteCount with SSL so xmit no longer includes
+                       encryption overhead (recv ignored overhead)
+                       
 
 Use of certificates for SSL clients:
 Client SSL applications will usually work without any certificates because all
@@ -1253,8 +1259,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 829;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.29 ';
+  WSocketVersion            = 830;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.30 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -7953,8 +7959,12 @@ begin
 {   FRcvdFlag := (Result > 0);}
     { If we received the requested size, we may need to receive more }
     FRcvdFlag := (Result >= BufferSize);
-    if Assigned(FCounter) and (Result > 0) then
-        FCounter.FLastRecvTick := IcsGetTickCount;
+    if (Result > 0) then begin
+        if Flags <> MSG_PEEK then
+            FReadCount := FReadCount + Result; { V8.30 was done in Receive }
+        if Assigned(FCounter) then
+            FCounter.FLastRecvTick := IcsGetTickCount;
+    end;
 end;
 
 
@@ -7965,12 +7975,9 @@ function TCustomWSocket.Receive(Buffer : TWSocketData; BufferSize: Integer) : In
 begin
     Result := DoRecv(Buffer, BufferSize, 0);
     if Result < 0 then
-        FLastError := WSocket_Synchronized_WSAGetLastError
-    else
-        { Here we should check for overflows ! It is well possible to }
-        { receive more than 2GB during a single session.              }
-        { Or we could use an Int64 variable...                        }
-        FReadCount := FReadCount + Result;
+        FLastError := WSocket_Synchronized_WSAGetLastError;
+   { else
+        FReadCount := FReadCount + Result;  V8.30 done in DoRecvFrom   }
 end;
 
 
@@ -8045,8 +8052,12 @@ begin
     if (not FPaused) and ((Result > -1) or (errno = WSAEWOULDBLOCK)) then
         WSocketSynchronizedEnableReadEvent(Self);
   {$ENDIF}
-{   FRcvdFlag := (Result > 0); }
     FRcvdFlag := (Result >= BufferSize);
+    if Result > 0 then begin
+        FReadCount := FReadCount + Result;               { V8.30 was in ReceiveFrom }
+        if Assigned(FCounter) then
+            FCounter.FLastRecvTick := IcsGetTickCount;    { V8.30 was missing }
+    end;
 end;
 
 
@@ -8059,9 +8070,9 @@ function TCustomWSocket.ReceiveFrom(
 begin
     Result := DoRecvFrom(FHSocket, Buffer, BufferSize, 0, From, FromLen);
     if Result < 0 then
-        FLastError := WSocket_Synchronized_WSAGetLastError
-    else
-        FReadCount := FReadCount + Result;
+        FLastError := WSocket_Synchronized_WSAGetLastError;
+   { else
+        FReadCount := FReadCount + Result;  V8.30 done in DoRecvFrom   }
 end;
 
 
@@ -8074,9 +8085,9 @@ function TCustomWSocket.ReceiveFrom6(       { V8.07 }
 begin
     Result := DoRecvFrom(FHSocket, Buffer, BufferSize, 0, PSockAddrIn(@From)^, FromLen);
     if Result < 0 then
-        FLastError := WSocket_Synchronized_WSAGetLastError
-    else
-        FReadCount := FReadCount + Result;
+        FLastError := WSocket_Synchronized_WSAGetLastError;
+  {  else
+        FReadCount := FReadCount + Result;    V8.30 done in DoRecvFrom   }
 end;
 
 
@@ -8118,6 +8129,8 @@ begin
                                           TSockAddr(Dest), DestLen);
     if Result > 0 then begin
         FWriteCount := FWriteCount + Result;  { 7.24 }
+        if Assigned(FCounter) then            { V8.30 }
+            FCounter.FLastSendTick := IcsGetTickCount;
         TriggerSendData(Result);
         { Post FD_WRITE message to have OnDataSent event triggered }
         if bAllSent and (FType = SOCK_DGRAM) then
@@ -8141,6 +8154,8 @@ begin
                                                    PSockAddrIn(@Dest)^, DestLen);
     if Result > 0 then begin
         FWriteCount := FWriteCount + Result;  { 7.24 }
+        if Assigned(FCounter) then            { V8.30 }
+            FCounter.FLastSendTick := IcsGetTickCount;
         TriggerSendData(Result);
         { Post FD_WRITE message to have OnDataSent event triggered }
         if bAllSent and (FType = SOCK_DGRAM) then
@@ -8155,15 +8170,13 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomWSocket.RealSend(var Data : TWSocketData; Len : Integer) : Integer;
 begin
-{ MoulinCnt := (MoulinCnt + 1) and 3; }
-{ Write('S', Moulin[MoulinCnt], #13); }
     if FType = SOCK_DGRAM then
         Result := WSocket_Synchronized_SendTo(FHSocket, Data, Len, FSendFlags,
                                                  PSockAddr(@Fsin)^, SizeOfAddr(Fsin))
     else
         Result := WSocket_Synchronized_Send(FHSocket, Data, Len, FSendFlags);
     if Result > 0 then begin
-        FWriteCount := FWriteCount + Result;  { 7.24 }
+    {    FWriteCount := FWriteCount + Result;  V8.30 done in TryToSend to avoid SSL overhead }
         if Assigned(FCounter) then
             FCounter.FLastSendTick := IcsGetTickCount;
         TriggerSendData(Result);
@@ -8198,6 +8211,7 @@ begin
                 Dec(FBufferedByteCount, Count);
                 if FBufferedByteCount < 0 then
                     FBufferedByteCount := 0;
+                FWriteCount := FWriteCount + Count;  { V8.30 was in RealSend }
             end;
             if Count = 0 then
                 break;  // Closed by remote
@@ -18305,6 +18319,11 @@ begin
     FMayTriggerDoRecv := TRUE;
     TriggerEvents;
     Result := Numread;
+    if (Result > 0) then begin
+        FReadCount := FReadCount + Result;             { V8.30 was in Receive }
+        if Assigned(FCounter) then
+            FCounter.FLastRecvTick := IcsGetTickCount;  { V8.30 was missing }
+    end;
 end;
 
 
@@ -19913,6 +19932,7 @@ begin
             my_BIO_ctrl(FSslbio, BIO_CTRL_FLUSH, 0, nil);
             FSslBioWritePendingBytes := -1;
             FSslBufList.Remove(Count);
+            FWriteCount := FWriteCount + Count;  { V8.30 was in RealSend }
             if Count < Len then
                 { Could not write as much as we wanted. Stop sending }
                 break;

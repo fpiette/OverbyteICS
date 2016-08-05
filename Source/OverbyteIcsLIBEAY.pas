@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.29
+Version:      8.31
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -115,6 +115,8 @@ May 24, 2016 V8.27   Angus match version to Wsocket where most of this API is us
                       Load now LibeayLoad, WhichFailedToLoad now LibeayWhichFailedToLoad
                      Moved all public GLIBEAY_xx variables to top of OverbyteIcsSSLEAY
 June 26, 2016 V8.29 Angus Implement GSSL_DLL_DIR properly to report full file path on error
+Aug 5, 2016   V8.31 Angus testing OpenSSL 1.1.0 beta 6, more renamed exports 
+
 
 Notes - OpenSSL libeay32 changes between 1.0.2 and 1.1.0 - April 2016
 
@@ -122,6 +124,8 @@ file libeay32.dll > libcrypto-1_1.dll
 function SSLeay >  OpenSSL_version_num
 function SSLeay_version > OpenSSL_version
 constants SSLEAY_xx to OPENSSL_xx (and values changes)
+stack functions sk_xx to OPENSSL_sk_xx
+lhash functions lh_xx to OPENSSL_lh_xx 
 
 New threading API used so locking functions removed:
 (also see OverbyteIcsSslThrdLock.pas)
@@ -1851,6 +1855,7 @@ const
     FN_OBJ_nid2ln                             = 'OBJ_nid2ln';
     FN_OBJ_obj2nid                            = 'OBJ_obj2nid';
 
+  { OpenSSL 1.0.x }
     FN_sk_num                                 = 'sk_num';
     FN_sk_value                               = 'sk_value';
     FN_sk_new_null                            = 'sk_new_null'; //AG
@@ -1863,6 +1868,20 @@ const
     FN_sk_insert                              = 'sk_insert'; //AG
     FN_sk_dup                                 = 'sk_dup'; //AG
     FN_sk_set                                 = 'sk_set'; //AG
+
+  { OpenSSL 1.1.x - V8.31  }
+    FN_osl_sk_num                             = 'OPENSSL_sk_num';
+    FN_osl_sk_value                           = 'OPENSSL_sk_value';
+    FN_osl_sk_new_null                        = 'OPENSSL_sk_new_null';
+    FN_osl_sk_free                            = 'OPENSSL_sk_free';
+    FN_osl_sk_pop_free                        = 'OPENSSL_sk_pop_free';
+    FN_osl_sk_push                            = 'OPENSSL_sk_push';
+    FN_osl_sk_delete                          = 'OPENSSL_sk_delete';
+    FN_osl_sk_pop                             = 'OPENSSL_sk_pop';
+    FN_osl_sk_find                            = 'OPENSSL_sk_find';
+    FN_osl_sk_insert                          = 'OPENSSL_sk_insert';
+    FN_osl_sk_dup                             = 'OPENSSL_sk_dup';
+    FN_osl_sk_set                             = 'OPENSSL_sk_set';
 
     FN_PEM_write_bio_X509                     = 'PEM_write_bio_X509';
     FN_PEM_write_bio_X509_REQ                 = 'PEM_write_bio_X509_REQ';
@@ -2338,19 +2357,36 @@ begin
     f_OBJ_nid2ln                             := GetProcAddress(GLIBEAY_DLL_Handle, FN_OBJ_nid2ln);
     f_OBJ_obj2nid                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_OBJ_obj2nid);
 
-    f_sk_num                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_num);
-    f_sk_value                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_value);
-    f_sk_new_null                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_new_null); //AG
-    f_sk_free                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_free); //AG
-    f_sk_pop_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_pop_free); //AG
-    f_sk_push                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_push); //AG
-    f_sk_delete                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_delete); //AG
-    f_sk_pop                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_pop); //AG
-    f_sk_find                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_find); //AG
-    f_sk_insert                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_insert); //AG
-    f_sk_dup                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_dup); //AG
-    f_sk_set                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_set); //AG
-
+ { OpenSSL 1.0.x - V8.31 }
+    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin
+        f_sk_num                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_num);
+        f_sk_value                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_value);
+        f_sk_new_null                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_new_null); //AG
+        f_sk_free                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_free); //AG
+        f_sk_pop_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_pop_free); //AG
+        f_sk_push                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_push); //AG
+        f_sk_delete                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_delete); //AG
+        f_sk_pop                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_pop); //AG
+        f_sk_find                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_find); //AG
+        f_sk_insert                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_insert); //AG
+        f_sk_dup                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_dup); //AG
+        f_sk_set                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_set); //AG
+    end
+  { OpenSSL 1.1.x - V8.31 }
+    else begin
+        f_sk_num                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_num);
+        f_sk_value                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_value);
+        f_sk_new_null                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_new_null);
+        f_sk_free                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_free);
+        f_sk_pop_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_pop_free);
+        f_sk_push                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_push);
+        f_sk_delete                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_delete);
+        f_sk_pop                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_pop);
+        f_sk_find                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_find);
+        f_sk_insert                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_insert);
+        f_sk_dup                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_dup);
+        f_sk_set                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_set); 
+    end;
     f_PEM_write_bio_X509                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_X509);
     f_PEM_write_bio_X509_REQ                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_X509_REQ);
     f_PEM_write_bio_X509_CRL                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_X509_CRL);
@@ -2876,19 +2912,36 @@ begin
     if @f_OBJ_nid2ln                             = nil then Result := Result + SP + FN_OBJ_nid2ln;
     if @f_OBJ_obj2nid                            = nil then Result := Result + SP + FN_OBJ_obj2nid;
 
-    if @f_sk_num                                 = nil then Result := Result + SP + FN_sk_num;
-    if @f_sk_value                               = nil then Result := Result + SP + FN_sk_value;
-    if @f_sk_new_null                            = nil then Result := Result + SP + FN_sk_new_null;//AG
-    if @f_sk_free                                = nil then Result := Result + SP + FN_sk_free;//AG
-    if @f_sk_pop_free                            = nil then Result := Result + SP + FN_sk_pop_free;//AG
-    if @f_sk_push                                = nil then Result := Result + SP + FN_sk_push;//AG
-    if @f_sk_delete                              = nil then Result := Result + SP + FN_sk_delete;//AG
-    if @f_sk_pop                                 = nil then Result := Result + SP + FN_sk_pop;//AG
-    if @f_sk_find                                = nil then Result := Result + SP + FN_sk_find;//AG
-    if @f_sk_insert                              = nil then Result := Result + SP + FN_sk_insert;//AG
-    if @f_sk_dup                                 = nil then Result := Result + SP + FN_sk_dup;//AG
-    if @f_sk_set                                 = nil then Result := Result + SP + FN_sk_set;//AG
-
+ { OpenSSL 1.0.x - V8.31 }
+    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin
+        if @f_sk_num                                 = nil then Result := Result + SP + FN_sk_num;
+        if @f_sk_value                               = nil then Result := Result + SP + FN_sk_value;
+        if @f_sk_new_null                            = nil then Result := Result + SP + FN_sk_new_null;//AG
+        if @f_sk_free                                = nil then Result := Result + SP + FN_sk_free;//AG
+        if @f_sk_pop_free                            = nil then Result := Result + SP + FN_sk_pop_free;//AG
+        if @f_sk_push                                = nil then Result := Result + SP + FN_sk_push;//AG
+        if @f_sk_delete                              = nil then Result := Result + SP + FN_sk_delete;//AG
+        if @f_sk_pop                                 = nil then Result := Result + SP + FN_sk_pop;//AG
+        if @f_sk_find                                = nil then Result := Result + SP + FN_sk_find;//AG
+        if @f_sk_insert                              = nil then Result := Result + SP + FN_sk_insert;//AG
+        if @f_sk_dup                                 = nil then Result := Result + SP + FN_sk_dup;//AG
+        if @f_sk_set                                 = nil then Result := Result + SP + FN_sk_set;//AG
+    end
+ { OpenSSL 1.1.x - V8.31 }
+    else begin
+        if @f_sk_num                                 = nil then Result := Result + SP + FN_osl_sk_num;
+        if @f_sk_value                               = nil then Result := Result + SP + FN_osl_sk_value;
+        if @f_sk_new_null                            = nil then Result := Result + SP + FN_osl_sk_new_null;
+        if @f_sk_free                                = nil then Result := Result + SP + FN_osl_sk_free;
+        if @f_sk_pop_free                            = nil then Result := Result + SP + FN_osl_sk_pop_free;
+        if @f_sk_push                                = nil then Result := Result + SP + FN_osl_sk_push;
+        if @f_sk_delete                              = nil then Result := Result + SP + FN_osl_sk_delete;
+        if @f_sk_pop                                 = nil then Result := Result + SP + FN_osl_sk_pop;
+        if @f_sk_find                                = nil then Result := Result + SP + FN_osl_sk_find;
+        if @f_sk_insert                              = nil then Result := Result + SP + FN_osl_sk_insert;
+        if @f_sk_dup                                 = nil then Result := Result + SP + FN_osl_sk_dup;
+        if @f_sk_set                                 = nil then Result := Result + SP + FN_osl_sk_set;
+    end;
     if @f_PEM_write_bio_X509_REQ                 = nil then Result := Result + SP + FN_PEM_write_bio_X509_REQ;
     if @f_PEM_write_bio_X509_CRL                 = nil then Result := Result + SP + FN_PEM_write_bio_X509_CRL;
     if @f_PEM_read_bio_X509_CRL                  = nil then Result := Result + SP + FN_PEM_read_bio_X509_CRL; //AG

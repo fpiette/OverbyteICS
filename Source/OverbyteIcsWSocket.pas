@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.30
+Version:      8.31
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1064,7 +1064,8 @@ July 7, 2016  V8.30 Angus corrected FCounter.FLastRecvTick not updated in DoRecv
                        so timeouts did not always work
                     Corrected ReadCount/WriteCount with SSL so xmit no longer includes
                        encryption overhead (recv ignored overhead)
-                       
+Aug 5, 2016   V8.31 Angus, testing OpenSSL 1.1.0 beta 6
+
 
 Use of certificates for SSL clients:
 Client SSL applications will usually work without any certificates because all
@@ -1259,8 +1260,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 830;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.30 ';
+  WSocketVersion            = 831;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.31 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 

@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.29
+Version:      8.31
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -91,6 +91,7 @@ May 24, 2016 V8.27 Angus match version to Wsocket where most of this API is used
              Added TSslHandshakeState more detail about handshakes in 1.1.0 
              GetFileVerInfo renamed IcsGetFileVerInfo to prevent conflicts with other libs
 June 26, 2016 V8.29 Angus Implement GSSL_DLL_DIR properly to report full file path on error
+Aug 5, 2016   V8.31 Angus testing OpenSSL 1.1.0 beta 6
 
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - April 2016
@@ -159,8 +160,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 829;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.29 ';
+    IcsSSLEAYVersion   = 831;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.31 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -211,6 +212,7 @@ const
     OSSL_VER_1002ZZ= $10002FFF; // not yet released
     OSSL_VER_1100  = $10100000; // beta testing base     { V8.27 }
     OSSL_VER_1100p5= $10100005; // beta testing          { V8.27 }
+    OSSL_VER_1100p6= $10100006; // beta testing          { V8.31 }
     OSSL_VER_1100ZZ= $10100FFF; // not yet released      { V8.27 }
 
     { Basically versions listed above are tested if not otherwise commented.  }
@@ -219,7 +221,7 @@ const
     { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
 
     MIN_OSSL_VER   = OSSL_VER_1001;
-    MAX_OSSL_VER   = OSSL_VER_1100p5; { V8.27 }
+    MAX_OSSL_VER   = OSSL_VER_1100p6; { V8.31 }
 
 type
     EIcsSsleayException = class(Exception);

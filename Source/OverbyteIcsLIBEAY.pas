@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.31
+Version:      8.32
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -115,17 +115,19 @@ May 24, 2016 V8.27   Angus match version to Wsocket where most of this API is us
                       Load now LibeayLoad, WhichFailedToLoad now LibeayWhichFailedToLoad
                      Moved all public GLIBEAY_xx variables to top of OverbyteIcsSSLEAY
 June 26, 2016 V8.29 Angus Implement GSSL_DLL_DIR properly to report full file path on error
-Aug 5, 2016   V8.31 Angus testing OpenSSL 1.1.0 beta 6, more renamed exports 
+Aug 5, 2016   V8.31 Angus testing OpenSSL 1.1.0 beta 6, more renamed exports
+Aug 27, 2016  V8.32 Angus, suuport final release OpenSSL 1.1.0
+                    OpenSSL 64-bit DLLs have different file names with -x64 added
+                    Two new 1.1.0 exports renamed 
 
+Notes - OpenSSL libeay32 changes between 1.0.2 and 1.1.0 - August 2016
 
-Notes - OpenSSL libeay32 changes between 1.0.2 and 1.1.0 - April 2016
-
-file libeay32.dll > libcrypto-1_1.dll
+file libeay32.dll > libcrypto-1_1.dll and libcrypto-1_1-x64.dll
 function SSLeay >  OpenSSL_version_num
 function SSLeay_version > OpenSSL_version
 constants SSLEAY_xx to OPENSSL_xx (and values changes)
 stack functions sk_xx to OPENSSL_sk_xx
-lhash functions lh_xx to OPENSSL_lh_xx 
+lhash functions lh_xx to OPENSSL_lh_xx
 
 New threading API used so locking functions removed:
 (also see OverbyteIcsSslThrdLock.pas)
@@ -153,8 +155,9 @@ ENGINE_cleanup
 RAND_cleanup
 
 Macros which are now new exported functions:
-X509_get_notBefore
-X509_get_notAfter
+X509_get0_notBefore
+X509_get0_notAfter
+X509_get_signature_nid
 
 New functions:
 EVP_CIPHER_CTX_reset
@@ -203,8 +206,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 829;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2016 F. Piette V8.29 ';
+    IcsLIBEAYVersion   = 832;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2016 F. Piette V8.32 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -1632,9 +1635,9 @@ const
     f_EC_KEY_new_by_curve_name :               function (nid: integer): PEC_KEY; cdecl = nil;   { V8.07 }
     f_EC_KEY_free :                            procedure (key: PEC_KEY); cdecl = nil;           { V8.07 }
 
-    { V8.27 OpenSSL 1.1.0 some macros are now exported functions or new }
-    f_X509_get_notBefore :                     function(X: PX509): PASN1_TIME; cdecl = nil;
-    f_X509_get_notAfter :                      function(X: PX509): PASN1_TIME; cdecl = nil;
+    { V8.32 OpenSSL 1.1.0 some macros are now exported functions or new }
+    f_X509_get0_notBefore :                    function(X: PX509): PASN1_TIME; cdecl = nil;
+    f_X509_get0_notAfter :                     function(X: PX509): PASN1_TIME; cdecl = nil;
     f_X509_get_signature_nid :                 function(X: PX509): Integer; cdecl = nil;
 
 
@@ -1965,8 +1968,8 @@ const
     FN_EC_KEY_new_by_curve_name               = 'EC_KEY_new_by_curve_name';   { V8.07 }
     FN_EC_KEY_free                            = 'EC_KEY_free';   { V8.07 }
 
-    FN_X509_get_notBefore                     = 'X509_get_notBefore'; { V8.27 }
-    FN_X509_get_notAfter                      = 'X509_get_notAfter'; { V8.27 }
+    FN_X509_get0_notBefore                    = 'X509_get0_notBefore'; { V8.32 }
+    FN_X509_get0_notAfter                     = 'X509_get0_notAfter'; { V8.32 }
     FN_X509_get_signature_nid                 = 'X509_get_signature_nid'; { V8.27 }
 
 {$IFNDEF OPENSSL_NO_ENGINE}
@@ -2470,8 +2473,8 @@ begin
 
     { V8.27 new exports in OpenSSL 1.1.0 and later }
     if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) then begin
-        f_X509_get_notBefore                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_notBefore); { V8.27 }
-        f_X509_get_notAfter                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_notAfter);  { V8.27 } ;
+        f_X509_get0_notBefore                := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get0_notBefore); { V8.32 }
+        f_X509_get0_notAfter                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get0_notAfter);  { V8.32 } ;
         f_X509_get_signature_nid             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_signature_nid);  { V8.27 } ;
     end;
 
@@ -2984,7 +2987,7 @@ begin
     if @f_i2d_PrivateKey                         = nil then Result := Result + SP + FN_i2d_PrivateKey;//AG
     if @f_d2i_PrivateKey                         = nil then Result := Result + SP + FN_d2i_PrivateKey;//AG
 
-   { B8.14 gone   if @f_i2d_ASN1_bytes                         = nil then Result := Result + SP + FN_i2d_ASN1_bytes;//AG  }
+   { V8.14 gone   if @f_i2d_ASN1_bytes                         = nil then Result := Result + SP + FN_i2d_ASN1_bytes;//AG  }
     if @f_X509_get_pubkey                        = nil then Result := Result + SP + FN_X509_get_pubkey;//AG
     if @f_X509_PUBKEY_free                       = nil then Result := Result + SP + FN_X509_PUBKEY_free;//AG
     if @f_X509_check_purpose                     = nil then Result := Result + SP + FN_X509_check_purpose;//AG
@@ -2994,8 +2997,15 @@ begin
     if @f_X509_PURPOSE_get0_sname                = nil then Result := Result + SP + FN_X509_PURPOSE_get0_sname;//AG
     if @f_X509_PURPOSE_get_count                 = nil then Result := Result + SP + FN_X509_PURPOSE_get_count;//AG
     if @f_CONF_modules_unload                    = nil then Result := Result + SP + FN_CONF_modules_unload;//AG
-  { B8.14 gone    if @f_OpenSSL_add_all_ciphers                = nil then Result := Result + SP + FN_OpenSSL_add_all_ciphers;
+  { V8.14 gone    if @f_OpenSSL_add_all_ciphers                = nil then Result := Result + SP + FN_OpenSSL_add_all_ciphers;
                   if @f_OpenSSL_add_all_digests                = nil then Result := Result + SP + FN_OpenSSL_add_all_digests;  }
+
+{ V8.32 some macros are now functions in OpenSSL 1.1.0 and later }
+    if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) then begin
+        if @f_X509_get0_notBefore                = nil then Result := Result + SP + FN_X509_get0_notBefore;
+        if @f_X509_get0_notAfter                 = nil then Result := Result + SP + FN_X509_get0_notAfter;
+        if @f_X509_get_signature_nid             = nil then Result := Result + SP + FN_X509_get_signature_nid;
+    end;
 
     if @f_PKCS7_new                              = nil then Result := Result + SP + FN_PKCS7_new;
     if @f_PKCS7_free                             = nil then Result := Result + SP + FN_PKCS7_free;
@@ -3264,7 +3274,7 @@ begin
             Result := PCInfo^.Validity^.notBefore;
         end
         else
-            Result := f_X509_get_notBefore(X);  { V8.27 no longer a macro }
+            Result := f_X509_get0_notBefore(X);  { V8.32 no longer a macro }
     end
     else
         Result := nil;
@@ -3282,7 +3292,7 @@ begin
             Result := PCInfo^.Validity^.notAfter;
         end
         else
-            Result := f_X509_get_notAfter(X);  { V8.27 no longer a macro }
+            Result := f_X509_get0_notAfter(X);  { V8.32 no longer a macro }
     end
     else
         Result := nil;

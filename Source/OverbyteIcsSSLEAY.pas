@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.31
+Version:      8.32
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -92,11 +92,13 @@ May 24, 2016 V8.27 Angus match version to Wsocket where most of this API is used
              GetFileVerInfo renamed IcsGetFileVerInfo to prevent conflicts with other libs
 June 26, 2016 V8.29 Angus Implement GSSL_DLL_DIR properly to report full file path on error
 Aug 5, 2016   V8.31 Angus testing OpenSSL 1.1.0 beta 6
+Aug 27, 2016  V8.32 Angus, suuport final release OpenSSL 1.1.0
+                OpenSSL 64-bit DLLs have different file names with -x64 added
 
 
-Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - April 2016
+Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
-file ssleay32.dll > libssl-1_1.dll
+file ssleay32.dll > libssl-1_1.dll and libssl-1_1-x64.dll
 
 OpenSSL now auto initialises using OPENSSL_init_crypto and OPENSSL_init_ssl
 so these are gone:
@@ -160,8 +162,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 831;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.31 ';
+    IcsSSLEAYVersion   = 832;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.32 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -171,12 +173,36 @@ const
 { V8.27 consolidated from LIBEAY so all in one place }
 var
     GLIBEAY_DLL_Handle          : THandle = 0;
-    GLIBEAY_DLL_Name            : String  = {$IFDEF MACOS} '/usr/lib/libcrypto.dylib'; {$ELSE} 'libeay32.dll'; {$ENDIF}
-    GLIBEAY_110DLL_Name         : String  = {$IFDEF MACOS} '/usr/lib/libcrypto.dylib'; {$ELSE} 'libcrypto-1_1.dll'; {$ENDIF} { V8.27 }
+    GLIBEAY_DLL_Name            : String  = {$IFDEF MACOS}
+                                                '/usr/lib/libcrypto.dylib';
+                                            {$ELSE}
+                                                'libeay32.dll';
+                                            {$ENDIF}
+    GLIBEAY_110DLL_Name         : String  = {$IFDEF MACOS}
+                                               '/usr/lib/libcrypto.dylib';  { V8.32 !!!! not tested, unknown file name }
+                                            {$ELSE}
+                                                {$IFDEF CPUX64}
+                                                    'libcrypto-1_1-x64.dll';  { V8.32 }
+                                                {$ELSE}
+                                                    'libcrypto-1_1.dll';  { V8.27 }
+                                                {$ENDIF}
+                                             {$ENDIF}
     GLIBEAY_DLL_FileName        : String  = '*NOT LOADED*';
     GSSLEAY_DLL_Handle          : THandle = 0;
-    GSSLEAY_DLL_Name            : String  = {$IFDEF MACOS} '/usr/lib/libssl.dylib'; {$ELSE} 'ssleay32.dll'; {$ENDIF}
-    GSSLEAY_110DLL_Name         : String  = {$IFDEF MACOS} '/usr/lib/libssl.dylib'; {$ELSE} 'libssl-1_1.dll'; {$ENDIF}   { V8.27 }
+    GSSLEAY_DLL_Name            : String  = {$IFDEF MACOS}
+                                                '/usr/lib/libssl.dylib';
+                                            {$ELSE}
+                                                'ssleay32.dll';
+                                            {$ENDIF}
+    GSSLEAY_110DLL_Name         : String  = {$IFDEF MACOS}
+                                                '/usr/lib/libssl.dylib';
+                                            {$ELSE}
+                                                {$IFDEF CPUX64}
+                                                    'libssl-1_1-x64.dll';  { V8.32 }
+                                                {$ELSE}
+                                                    'libssl-1_1.dll';   { V8.27 }
+                                                {$ENDIF}
+                                            {$ENDIF}
     GSSLEAY_DLL_FileName        : String  = '*NOT_LOADED*';
     GSSLEAY_DLL_FileVersion     : String = '';
     GSSLEAY_DLL_FileDescription : String = '';
@@ -192,6 +218,7 @@ var
     ICS_SSL_NO_RENEGOTIATION    : Boolean = FALSE;
 
 const
+ { found in \include\opensslv.h }
     //OSSL_VER_0906G = $0090607f; no longer supported
  {  OSSL_VER_0907G = $0090707f;
     OSSL_VER_1000  = $10000000; // Untested, did not build with MinGW
@@ -210,9 +237,8 @@ const
     OSSL_VER_1002  = $10002000; // just briefly tested
     OSSL_VER_1002A = $1000201F; // just briefly tested
     OSSL_VER_1002ZZ= $10002FFF; // not yet released
-    OSSL_VER_1100  = $10100000; // beta testing base     { V8.27 }
-    OSSL_VER_1100p5= $10100005; // beta testing          { V8.27 }
-    OSSL_VER_1100p6= $10100006; // beta testing          { V8.31 }
+    OSSL_VER_1100  = $1010000F; // 1.1.0                 { V8.32 }
+    OSSL_VER_1100A = $1010001F; // 1.1.0a next release   { V8.32 }
     OSSL_VER_1100ZZ= $10100FFF; // not yet released      { V8.27 }
 
     { Basically versions listed above are tested if not otherwise commented.  }
@@ -221,7 +247,7 @@ const
     { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
 
     MIN_OSSL_VER   = OSSL_VER_1001;
-    MAX_OSSL_VER   = OSSL_VER_1100p6; { V8.31 }
+    MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.32 }
 
 type
     EIcsSsleayException = class(Exception);

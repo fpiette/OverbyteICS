@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.32
+Version:      8.33
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1067,7 +1067,9 @@ July 7, 2016  V8.30 Angus corrected FCounter.FLastRecvTick not updated in DoRecv
 Aug 5, 2016   V8.31 Angus, testing OpenSSL 1.1.0 beta 6
 Aug 27, 2016  V8.32 Angus, suuport final release OpenSSL 1.1.0
                     OpenSSL 64-bit DLLs have different file names with -x64 added
-                    Moved sslRootCACertsBundle constant to OverbyteIcsSslX509Utils
+                    Fix sslRootCACertsBundle long constant would not compile under
+                       C++ Builder, by aplitting smaller and making function
+Aug 29, 2016  V8.33 Angus, free GLIBEAY_DLL_Handle before GSSLEAY_DLL_Handle to avoid exception
 
 
 Use of certificates for SSL clients:
@@ -1263,8 +1265,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 832;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.32 ';
+  WSocketVersion            = 833;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.33 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -12567,17 +12569,14 @@ begin
                 f_CRYPTO_cleanup_all_ex_data;
             end;
 
+         { V8.33 free GLIBEAY_DLL_Handle before GSSLEAY_DLL_Handle to avoid exception }
+            if GLIBEAY_DLL_Handle <> 0 then begin
+                FreeLibrary(GLIBEAY_DLL_Handle);
+                GLIBEAY_DLL_Handle := 0
+            end;
             if GSSLEAY_DLL_Handle <> 0 then begin   { V8.27 removed unit names }
                 FreeLibrary(GSSLEAY_DLL_Handle);
                 GSSLEAY_DLL_Handle := 0;
-            end;
-            if GLIBEAY_DLL_Handle <> 0 then begin
-                try
-                   FreeLibrary(GLIBEAY_DLL_Handle);
-                except
-                    { V8.27 !!!! TEMP getting an exception here with 1.1.0, ignore it }
-                end;
-                GLIBEAY_DLL_Handle := 0
             end;
         end;
     finally

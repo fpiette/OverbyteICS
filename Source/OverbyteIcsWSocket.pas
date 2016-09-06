@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.33
+Version:      8.34
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1070,6 +1070,8 @@ Aug 27, 2016  V8.32 Angus, suuport final release OpenSSL 1.1.0
                     Fix sslRootCACertsBundle long constant would not compile under
                        C++ Builder, by aplitting smaller and making function
 Aug 29, 2016  V8.33 Angus, free GLIBEAY_DLL_Handle before GSSLEAY_DLL_Handle to avoid exception
+Sept 5, 2016  V8.34 Angus, correct next OpenSSL release is 1.1.1 not 1.1.0a
+              Added public variable GSSLEAY_DLL_IgnoreOld so only OpenSSL 1.1.0 and later are loaded
 
 
 Use of certificates for SSL clients:
@@ -1265,8 +1267,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 833;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.33 ';
+  WSocketVersion            = 834;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.34 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 

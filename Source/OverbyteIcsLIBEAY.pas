@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.32
+Version:      8.34
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -118,7 +118,9 @@ June 26, 2016 V8.29 Angus Implement GSSL_DLL_DIR properly to report full file pa
 Aug 5, 2016   V8.31 Angus testing OpenSSL 1.1.0 beta 6, more renamed exports
 Aug 27, 2016  V8.32 Angus, suuport final release OpenSSL 1.1.0
                     OpenSSL 64-bit DLLs have different file names with -x64 added
-                    Two new 1.1.0 exports renamed 
+                    Two new 1.1.0 exports renamed
+Sept 5, 2016  V8.34 Angus, check GSSLEAY_DLL_IgnoreOld so only OpenSSL 1.1.0 and later are loaded
+
 
 Notes - OpenSSL libeay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -206,8 +208,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 832;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2016 F. Piette V8.32 ';
+    IcsLIBEAYVersion   = 834;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2016 F. Piette V8.34 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -2152,6 +2154,10 @@ begin
         ICS_OPENSSL_VERSION_NUMBER := f_OpenSSL_version_num;
     end
     else begin
+        if GSSLEAY_DLL_IgnoreOld then begin   { V8.34 }
+            Result := False;
+            Exit;
+        end;
 { now try old file name - libeay32.dll }
         FullName := GSSL_DLL_DIR+GLIBEAY_DLL_Name;  { V8.29 }
         GLIBEAY_DLL_Handle := LoadLibrary(PChar(FullName));

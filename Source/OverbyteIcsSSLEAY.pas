@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.32
+Version:      8.34
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -88,13 +88,14 @@ May 24, 2016 V8.27 Angus match version to Wsocket where most of this API is used
                will use this directory for DLLs, must have trailing \
              Load now SsleayLoad, WhichFailedToLoad now SsleayWhichFailedToLoad
              Added f_SSL_get_ciphers and related functions to get lists of ciphers
-             Added TSslHandshakeState more detail about handshakes in 1.1.0 
+             Added TSslHandshakeState more detail about handshakes in 1.1.0
              GetFileVerInfo renamed IcsGetFileVerInfo to prevent conflicts with other libs
 June 26, 2016 V8.29 Angus Implement GSSL_DLL_DIR properly to report full file path on error
 Aug 5, 2016   V8.31 Angus testing OpenSSL 1.1.0 beta 6
 Aug 27, 2016  V8.32 Angus, suuport final release OpenSSL 1.1.0
                 OpenSSL 64-bit DLLs have different file names with -x64 added
-
+Sept 5, 2016  V8.34 Angus, correct next OpenSSL release is 1.1.1 not 1.1.0a
+              Added public variable GSSLEAY_DLL_IgnoreOld so only OpenSSL 1.1.0 and later are loaded
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -162,8 +163,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 832;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.32 ';
+    IcsSSLEAYVersion   = 834;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.34 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -208,6 +209,8 @@ var
     GSSLEAY_DLL_FileDescription : String = '';
  { V8.27 don't attempt to find new name libcrypto-1_1.dll, use libeay32.dll }
     GSSLEAY_DLL_IgnoreNew       : Boolean = False;
+ { V8.34 only use libcrypto-1_1.dll, not libeay32.dll }
+    GSSLEAY_DLL_IgnoreOld       : Boolean = False;
  { V8.27 write buffer size, was fixed at 4096, but send used a 16K buffer }
     GSSL_BUFFER_SIZE            : Integer = 16384;
  { V8.27 if set before OpenSSL loaded, will use this directory for DLLs, must have trailing \ }
@@ -218,7 +221,7 @@ var
     ICS_SSL_NO_RENEGOTIATION    : Boolean = FALSE;
 
 const
- { found in \include\opensslv.h }
+ { found in \include\openssl\opensslv.h }
     //OSSL_VER_0906G = $0090607f; no longer supported
  {  OSSL_VER_0907G = $0090707f;
     OSSL_VER_1000  = $10000000; // Untested, did not build with MinGW
@@ -238,8 +241,8 @@ const
     OSSL_VER_1002A = $1000201F; // just briefly tested
     OSSL_VER_1002ZZ= $10002FFF; // not yet released
     OSSL_VER_1100  = $1010000F; // 1.1.0                 { V8.32 }
-    OSSL_VER_1100A = $1010001F; // 1.1.0a next release   { V8.32 }
-    OSSL_VER_1100ZZ= $10100FFF; // not yet released      { V8.27 }
+    OSSL_VER_1101  = $10101000; // 1.1.1 next release    { V8.34 }
+    OSSL_VER_1199  = $101FFFFF; // not yet released      { V8.34 }
 
     { Basically versions listed above are tested if not otherwise commented.  }
     { Versions between are assumed to work, however they are untested.        }
@@ -247,7 +250,7 @@ const
     { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
 
     MIN_OSSL_VER   = OSSL_VER_1001;
-    MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.32 }
+    MAX_OSSL_VER   = OSSL_VER_1199; { V8.34 }
 
 type
     EIcsSsleayException = class(Exception);

@@ -3,7 +3,7 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.1 Berlin
 (Aka FPIETTE's Components)
 
 
-Revised: April 17, 2016
+Revised: September 23, 2016
 http://www.overbyte.be/
 http://wiki.overbyte.be/
 
@@ -232,10 +232,10 @@ USE_SSL is set in the project options or not (this requires having the .\Source
 directory in either in the library path or in projects Search path).
 
 Actual use of SSL in your applications also requires the OpenSSL files 
-LIBEAY32.DLL and SSLEAY32.DLL being available somewhere in the path.  Note 
-different DLLs are needed for Win32 and Win64 applications.  The ICS 
-distribution includes the latest Win32 OpenSSL files in the .\OpenSSL-Win32 
-directory and the two main DLLs duplicated in .\Samples\delphi\sslinternet. 
+libcrypto-1_1.dll (or libcrypto-1_1-x64.dll) and libssl-1_1.dll (or libssl-1_1-x64).dll
+being available somewhere in the path.  The ICS distribution includes the latest Win32
+OpenSSL files in the .\OpenSSL-Win32 directory and the four main DLLs duplicated in 
+.\Samples\delphi\sslinternet. 
 
 Other OpenSSL files, including older and Win64, may be downloaded from:
 
@@ -588,7 +588,7 @@ properly add all of the available components in this collection:
 > OverbyteIcsHttpContCod.pas   HTTP Content Coding support, uses extra units
 > OverbyteIcsIcmp.pas          ICMP protocol support, used by the PING component
 > OverbyteIcsIconv.pas         Headers for iconv library (LGPL)
-> OverbyteIcsLIBEAY.pas        Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
+> OverbyteIcsLIBEAY.pas        Delphi encapsulation for libeay32.dll and libcrypto-1_1.dll (OpenSSL)
 > OverbyteIcsMD4.pas           Implementation of the MD4 Message-Digest Algorithm
 > OverbyteIcsMD5.pas           Implementation of the MD5 Message-Digest Algorithm
 > OverbyteIcsMimeUtil.pas      Support routines for MIME standard
@@ -598,7 +598,7 @@ properly add all of the available components in this collection:
 > OverbyteIcsOneTimePw.pas     One Time Password support functions, used by FTP
 > OverbyteIcsSHA1.pas          Implementation of US Secure Hash Algorithm 1 (SHA1)
 > OverbyteIcsSocketUtils.pas   Cross platform socket utilities for ICS
-> OverbyteIcsSSLEAY.pas        Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
+> OverbyteIcsSSLEAY.pas        Delphi encapsulation for ssleay32.dll and libssl-1_1.dll (OpenSSL)
 > OverbyteIcsSslSessionCache.pas  A very fast external SSL-session-cache component
 > OverbyteIcsSslThrdLock.pas   Implementation of OpenSsl thread locking (Windows);
 > OverbyteIcsSspi.pas          A few header translations from MS sspi.h and security.h

@@ -4,8 +4,9 @@ Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  Some more function headers of LIBEAY32.DLL which are not
               declared/used in OverbyteIcsLibeay.pas (OpenSSL)
               This is only the subset and may grow.
+              WARNING - Oct 2016 this unit now obsolete and not needed
 Creation:     Jan 12, 2005
-Version:      8.27
+Version:      8.35
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -52,7 +53,8 @@ Nov 20, 2015 V8.03 Eugene Kotlyarov added RSA key related stuff
 Nov 23, 2015 V8.04 Eugene Kotlyarov MacOSX lacks PsAPI SO NO IcsRandPoll
 May 24, 2016 V8.27 Angus match version to Wsocket where most of this API is used
                    Initial support for OpenSSL 1.1.0, RAND_cleanup gone
-
+Oct 18, 2016  V8.35 Angus, moved all imports to OverbyteIcsLIBEAY to ease maintenance and use
+                   only LoadLibeayEx left for backward compatibility 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -69,12 +71,12 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}  { V8.04 }
-    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF}, 
+    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
     {$IFDEF RTL_NAMESPACES}Winapi.PsApi{$ELSE}PsApi{$ENDIF},
 {$ENDIF}
     {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
     OverbyteIcsSSLEAY, OverbyteIcsLibeay;
-
+(*
 const
     RSA_PKCS1_PADDING                 = 1;
     RSA_SSLV23_PADDING                = 2;
@@ -88,7 +90,7 @@ const
 type
     TEVP_CIPHER_CTX_st = packed record
         Dummy : array [0..0] of Byte;
-        (*
+        {
         cipher        : PEVP_CIPHER;
         encrypt       : Integer;
         buf_len       : Integer;
@@ -103,7 +105,7 @@ type
         final_used    : Integer;
         block_mask    : Integer;
         final         : array [0..EVP_MAX_BLOCK_LENGTH -1] of Char;
-        *)
+        }
     end;
     PEVP_CIPHER_CTX = ^TEVP_CIPHER_CTX_st;
 
@@ -220,21 +222,23 @@ f_EVP_DecryptUpdate       : function (ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var
 
 f_HMAC                    : function(evp: pEVP_MD; key: PByte; key_len: integer; data: PByte; data_len: integer; md: PByte; var md_len: integer): PByte; cdecl = nil;    { V8.03 }
 
+*)
 var
   LibeayExLoaded: Boolean = FALSE;
 
 procedure LoadLibeayEx;
-function  IcsRandSeedFromFile(const FileName: String; MaxBytes: Integer = -1): Integer;
+(*function  IcsRandSeedFromFile(const FileName: String; MaxBytes: Integer = -1): Integer;
 {$IFDEF MSWINDOWS}  { V8.04 }
 procedure IcsRandPoll;
 {$ENDIF}
 
 { C-macros }
 function f_X509_REQ_get_subject_name(AReq: PX509_REQ): PX509_NAME;
-
+*)
 
 implementation
 
+(*
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function IcsRandSeedFromFile(const FileName: String; MaxBytes: Integer = -1): Integer;
 begin
@@ -302,15 +306,15 @@ function f_X509_REQ_get_subject_name(AReq: PX509_REQ): PX509_NAME;
 begin
     Result := AReq^.req_info^.subject;
 end;
-
+*)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure LoadLibeayEx;
-const
-    Msg = 'GetProcAddress failed ';
+//const
+//    Msg = 'GetProcAddress failed ';
 begin
     if LibeayExLoaded and (GLIBEAY_DLL_Handle <> 0) then Exit;
-    if GLIBEAY_DLL_Handle = 0 then
+(*    if GLIBEAY_DLL_Handle = 0 then
         LibeayLoad;    { V8.27 }
 {    f_RAND_pseudo_bytes := GetProcAddress(GLIBEAY_DLL_Handle, 'RAND_pseudo_bytes');
     if not Assigned(f_RAND_pseudo_bytes) then
@@ -478,7 +482,7 @@ begin
     f_HMAC   := GetProcAddress(GLIBEAY_DLL_Handle, 'HMAC');
     if not Assigned(f_HMAC) then
         raise Exception.Create(Msg + 'HMAC');
-
+*)
     LibeayExLoaded := TRUE;
 
 end;

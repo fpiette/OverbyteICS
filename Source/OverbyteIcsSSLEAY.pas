@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.34
+Version:      8.35
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -94,8 +94,14 @@ June 26, 2016 V8.29 Angus Implement GSSL_DLL_DIR properly to report full file pa
 Aug 5, 2016   V8.31 Angus testing OpenSSL 1.1.0 beta 6
 Aug 27, 2016  V8.32 Angus, suuport final release OpenSSL 1.1.0
                 OpenSSL 64-bit DLLs have different file names with -x64 added
-Sept 5, 2016  V8.34 Angus, correct next OpenSSL release is 1.1.1 not 1.1.0a
+Sept 5, 2016  V8.34 Angus, make ICS work up to OpenSSL release 1.1.1
+                (security and bug releases are 1.1.0a/b/etc with no changed exports, in theory)
               Added public variable GSSLEAY_DLL_IgnoreOld so only OpenSSL 1.1.0 and later are loaded
+Oct 18, 2016  V8.35 Angus, major rewrite to simplify loading OpenSSL DLL functions
+              Reversed V8.34 fix so this release only supports 1.1.0 not 1.1.1
+              OPENSSL_ALLOW_SSLV2 gone with all SSLv2 functions
+              stub more removed functions to save some exceptions
+
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -163,8 +169,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 834;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.34 ';
+    IcsSSLEAYVersion   = 835;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.35 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -219,6 +225,7 @@ var
     { Version stuff added 07/12/05  = V8.27 moved from OverbyteIcsLIBEAY  }
     ICS_OPENSSL_VERSION_NUMBER  : Longword  = 0;
     ICS_SSL_NO_RENEGOTIATION    : Boolean = FALSE;
+    ICS_RAND_INIT_DONE          : Boolean = FALSE;   { V8.35 have we initialised random numbers }
 
 const
  { found in \include\openssl\opensslv.h }
@@ -230,6 +237,7 @@ const
 
 { only supporting versions with TLS 1.1 and 1.2 }
 { V8.27 moved from OverbyteIcsLIBEAY  }
+    OSSL_VER_MIN   = $0000000F; // minimum version     { V8.35 }
     OSSL_VER_1001  = $1000100F; // untested
     OSSL_VER_1001G = $1000107F; // just briefly tested  {
     OSSL_VER_1001H = $1000108F; // just briefly tested
@@ -241,8 +249,12 @@ const
     OSSL_VER_1002A = $1000201F; // just briefly tested
     OSSL_VER_1002ZZ= $10002FFF; // not yet released
     OSSL_VER_1100  = $1010000F; // 1.1.0                 { V8.32 }
-    OSSL_VER_1101  = $10101000; // 1.1.1 next release    { V8.34 }
-    OSSL_VER_1199  = $101FFFFF; // not yet released      { V8.34 }
+    OSSL_VER_1100A = $1010001F; // 1.1.0a                { V8.35 }
+    OSSL_VER_1100B = $1010002F; // 1.1.0b                { V8.35 }
+    OSSL_VER_1100ZZ= $10100FFF; // not yet released              { V8.35 }
+    OSSL_VER_1101  = $10101000; // 1.1.1 next feature release  { V8.34 }
+    OSSL_VER_1199  = $10101FFF; // not yet released      { V8.34 }
+    OSSL_VER_MAX   = $FFFFFFFF; // maximum version       { V8.35 }
 
     { Basically versions listed above are tested if not otherwise commented.  }
     { Versions between are assumed to work, however they are untested.        }
@@ -250,9 +262,17 @@ const
     { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
 
     MIN_OSSL_VER   = OSSL_VER_1001;
-    MAX_OSSL_VER   = OSSL_VER_1199; { V8.34 }
+    MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.35 }
 
 type
+
+    TOSSLImports = record   { V8.35 }
+        F: PPointer;   // function pointer
+        N: PAnsiChar;  // export name
+        MI: LongWord;  // minimum OpenSSL version
+        MX: LongWord;  // maximum OpenSSL version
+    end;
+
     EIcsSsleayException = class(Exception);
     PPChar   = ^PChar;
     PPAnsiChar = ^PAnsiChar;
@@ -1221,11 +1241,6 @@ const
     f_SSL_renegotiate_pending :                function(S: PSSL): Integer; cdecl = nil; //AG
     f_SSL_library_init :                       function: Integer; cdecl = nil;
     f_SSL_load_error_strings :                 procedure; cdecl = nil;
-{$IFDEF OPENSSL_ALLOW_SSLV2}
-    f_SSLv2_method :                           function: PSSL_METHOD; cdecl = nil;
-    f_SSLv2_client_method :                    function: PSSL_METHOD; cdecl = nil;
-    f_SSLv2_server_method :                    function: PSSL_METHOD; cdecl = nil;
-{$ENDIF}
     f_SSLv3_method :                           function: PSSL_METHOD; cdecl = nil;
     f_SSLv3_client_method :                    function: PSSL_METHOD; cdecl = nil;
     f_SSLv3_server_method :                    function: PSSL_METHOD; cdecl = nil;
@@ -1363,7 +1378,8 @@ const
 
 
 function SsleayLoad : Boolean;
-function SsleayWhichFailedToLoad : String;
+// function SsleayWhichFailedToLoad : String;
+function SslGetImports (Handle: THandle; List: array of TOSSLImports): string ;  { V8.35 }
 {$IFDEF MSWINDOWS}
 function IcsGetFileVerInfo(
     const AppName         : String;
@@ -1408,6 +1424,145 @@ function f_SSL_set_tlsext_debug_callback(S: PSSL; cb: TCallback_ctrl_fp): Longin
 function f_SSL_set_tlsext_debug_arg(S: PSSL; arg: Pointer): Longint; {$IFDEF USE_INLINE} inline; {$ENDIF}
 
 function IcsSslGetState(S: PSSL): TSslHandshakeState;    { V8.27 }
+function IcsSslStub: integer;                            { V8.35 }
+
+// V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
+const
+    GSSLEAYImports1: array[0..128] of TOSSLImports = (
+    (F: @@f_BIO_f_ssl;                              N: 'BIO_f_ssl';                                 MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CIPHER_description;                 N: 'SSL_CIPHER_description';                    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CIPHER_get_bits;                    N: 'SSL_CIPHER_get_bits';                       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CIPHER_get_name;                    N: 'SSL_CIPHER_get_name';                       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_add_client_CA;                  N: 'SSL_CTX_add_client_CA';                     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_callback_ctrl;                  N: 'SSL_CTX_callback_ctrl';                     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_ctrl;                           N: 'SSL_CTX_ctrl';                              MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_free;                           N: 'SSL_CTX_free';                              MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_get_cert_store;                 N: 'SSL_CTX_get_cert_store';                    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_get_client_cert_cb;             N: 'SSL_CTX_get_client_cert_cb';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_get_ex_data;                    N: 'SSL_CTX_get_ex_data';                       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_get_verify_depth;               N: 'SSL_CTX_get_verify_depth';                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_get_verify_mode;                N: 'SSL_CTX_get_verify_mode';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_load_verify_locations;          N: 'SSL_CTX_load_verify_locations';             MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_new;                            N: 'SSL_CTX_new';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_sess_get_get_cb;                N: 'SSL_CTX_sess_get_get_cb';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_sess_get_new_cb;                N: 'SSL_CTX_sess_get_new_cb';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_sess_get_remove_cb;             N: 'SSL_CTX_sess_get_remove_cb';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_sess_set_get_cb;                N: 'SSL_CTX_sess_set_get_cb';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_sess_set_new_cb;                N: 'SSL_CTX_sess_set_new_cb';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_sess_set_remove_cb;             N: 'SSL_CTX_sess_set_remove_cb';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_cipher_list;                N: 'SSL_CTX_set_cipher_list';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_client_CA_list;             N: 'SSL_CTX_set_client_CA_list';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_client_cert_cb;             N: 'SSL_CTX_set_client_cert_cb';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_default_passwd_cb;          N: 'SSL_CTX_set_default_passwd_cb';             MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_default_passwd_cb_userdata; N: 'SSL_CTX_set_default_passwd_cb_userdata';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_default_verify_paths;       N: 'SSL_CTX_set_default_verify_paths';          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_ex_data;                    N: 'SSL_CTX_set_ex_data';                       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_info_callback;              N: 'SSL_CTX_set_info_callback';                 MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_session_id_context;         N: 'SSL_CTX_set_session_id_context';            MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_timeout;                    N: 'SSL_CTX_set_timeout';                       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_trust;                      N: 'SSL_CTX_set_trust';                         MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_verify;                     N: 'SSL_CTX_set_verify';                        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_verify_depth;               N: 'SSL_CTX_set_verify_depth';                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_use_PrivateKey;                 N: 'SSL_CTX_use_PrivateKey';                    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_use_PrivateKey_file;            N: 'SSL_CTX_use_PrivateKey_file';               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_use_certificate;                N: 'SSL_CTX_use_certificate';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_use_certificate_chain_file;     N: 'SSL_CTX_use_certificate_chain_file';        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_use_certificate_file;           N: 'SSL_CTX_use_certificate_file';              MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_SESSION_free;                       N: 'SSL_SESSION_free';                          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_SESSION_get_id;                     N: 'SSL_SESSION_get_id';                        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_SESSION_get_time;                   N: 'SSL_SESSION_get_time';                      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_SESSION_get_timeout;                N: 'SSL_SESSION_get_timeout';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_SESSION_set_time;                   N: 'SSL_SESSION_set_time';                      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_SESSION_set_timeout;                N: 'SSL_SESSION_set_timeout';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_accept;                             N: 'SSL_accept';                                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_add_client_CA;                      N: 'SSL_add_client_CA';                         MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_alert_desc_string_long;             N: 'SSL_alert_desc_string_long';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_alert_type_string_long;             N: 'SSL_alert_type_string_long';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_callback_ctrl;                      N: 'SSL_callback_ctrl';                         MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_clear;                              N: 'SSL_clear';                                 MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_connect;                            N: 'SSL_connect';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_ctrl;                               N: 'SSL_ctrl';                                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_do_handshake;                       N: 'SSL_do_handshake';                          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_free;                               N: 'SSL_free';                                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get1_session;                       N: 'SSL_get1_session';                          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get1_supported_ciphers;             N: 'SSL_get1_supported_ciphers';                MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_SSL_CTX;                        N: 'SSL_get_SSL_CTX';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_cipher_list;                    N: 'SSL_get_cipher_list';                       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_ciphers;                        N: 'SSL_get_ciphers';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_client_CA_list;                 N: 'SSL_get_client_CA_list';                    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_client_ciphers;                 N: 'SSL_get_client_ciphers';                    MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_current_cipher;                 N: 'SSL_get_current_cipher';                    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_error;                          N: 'SSL_get_error';                             MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_ex_data;                        N: 'SSL_get_ex_data';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_ex_data_X509_STORE_CTX_idx;     N: 'SSL_get_ex_data_X509_STORE_CTX_idx';        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_fd;                             N: 'SSL_get_fd';                                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_peer_cert_chain;                N: 'SSL_get_peer_cert_chain';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_peer_certificate;               N: 'SSL_get_peer_certificate';                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_rbio;                           N: 'SSL_get_rbio';                              MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_rfd;                            N: 'SSL_get_rfd';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_servername;                     N: 'SSL_get_servername';                        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_servername_type;                N: 'SSL_get_servername_type';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_session;                        N: 'SSL_get_session';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_shutdown;                       N: 'SSL_get_shutdown';                          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_state;                          N: 'SSL_get_state';                             MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_verify_depth;                   N: 'SSL_get_verify_depth';                      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_verify_result;                  N: 'SSL_get_verify_result';                     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_version;                        N: 'SSL_get_version';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_wbio;                           N: 'SSL_get_wbio';                              MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get_wfd;                            N: 'SSL_get_wfd';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_library_init;                       N: 'SSL_library_init';                          MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_SSL_load_client_CA_file;                N: 'SSL_load_client_CA_file';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_load_error_strings;                 N: 'SSL_load_error_strings';                    MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_SSL_new;                                N: 'SSL_new';                                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_read;                               N: 'SSL_read';                                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_renegotiate;                        N: 'SSL_renegotiate';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_renegotiate_pending;                N: 'SSL_renegotiate_pending';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_SSL_CTX;                        N: 'SSL_set_SSL_CTX';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_accept_state;                   N: 'SSL_set_accept_state';                      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_bio;                            N: 'SSL_set_bio';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_client_CA_list;                 N: 'SSL_set_client_CA_list';                    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_connect_state;                  N: 'SSL_set_connect_state';                     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_ex_data;                        N: 'SSL_set_ex_data';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_fd;                             N: 'SSL_set_fd';                                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_info_callback;                  N: 'SSL_set_info_callback';                     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_rfd;                            N: 'SSL_set_rfd';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_session;                        N: 'SSL_set_session';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_session_id_context;             N: 'SSL_set_session_id_context';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_shutdown;                       N: 'SSL_set_shutdown';                          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_verify;                         N: 'SSL_set_verify';                            MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_verify_result;                  N: 'SSL_set_verify_result';                     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_wfd;                            N: 'SSL_set_wfd';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_shutdown;                           N: 'SSL_shutdown';                              MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_state;                              N: 'SSL_state';                                 MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_SSL_state_string_long;                  N: 'SSL_state_string_long';                     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_version;                            N: 'SSL_version';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_want;                               N: 'SSL_want';                                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_write;                              N: 'SSL_write';                                 MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSLv23_client_method;                   N: 'SSLv23_client_method';                      MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_SSLv23_method;                          N: 'SSLv23_method';                             MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_SSLv23_server_method;                   N: 'SSLv23_server_method';                      MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_SSLv3_client_method;                    N: 'SSLv3_client_method';                       MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_SSLv3_method;                           N: 'SSLv3_method';                              MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_SSLv3_server_method;                    N: 'SSLv3_server_method';                       MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_TLS_client_method;                      N: 'TLS_client_method';                         MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_TLS_method;                             N: 'TLS_method';                                MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_TLS_server_method;                      N: 'TLS_server_method';                         MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_TLSv1_1_client_method;                  N: 'TLSv1_1_client_method';                     MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_TLSv1_1_method;                         N: 'TLSv1_1_method';                            MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_TLSv1_1_server_method;                  N: 'TLSv1_1_server_method';                     MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_TLSv1_2_client_method;                  N: 'TLSv1_2_client_method';                     MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_TLSv1_2_method;                         N: 'TLSv1_2_method';                            MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_TLSv1_2_server_method;                  N: 'TLSv1_2_server_method';                     MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_TLSv1_client_method;                    N: 'TLSv1_client_method';                       MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_TLSv1_method;                           N: 'TLSv1_method';                              MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_TLSv1_server_method;                    N: 'TLSv1_server_method';                       MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_d2i_SSL_SESSION;                        N: 'd2i_SSL_SESSION';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_i2d_SSL_SESSION;                        N: 'i2d_SSL_SESSION';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX) );
+
+{$IFNDEF OPENSSL_NO_ENGINE}
+    GSSLEAYImports2: array[0..0] of TOSSLImports = (
+    (F: @@f_SSL_CTX_set_client_cert_engine;         N: 'SSL_CTX_set_client_cert_engine';            MI: OSSL_VER_MIN; MX: OSSL_VER_MAX) );
+{$ENDIF}
 
 {$ENDIF} // USE_SSL
 
@@ -1485,15 +1640,34 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$ENDIF}
 
+// import OpenSSL functions from DLLs, returns blank for OK, or list of missing exports
+
+function SslGetImports (Handle: THandle; List: array of TOSSLImports): string ;  { V8.35 }
+var
+    I: integer ;
+begin
+    result := '';
+    if (Length (List) = 0) then begin
+        result := 'No import list specified' ;
+    end;
+    for I := 0 to Length(List) - 1 do begin
+        if (ICS_OPENSSL_VERSION_NUMBER >= List[I].MI) and
+               (ICS_OPENSSL_VERSION_NUMBER <= List[I].MX) then begin
+            List[I].F^ := GetProcAddress (Handle, List[I].N);
+            if List[I].F^ = nil then
+                result := result + String(List[I].N) + ',' ;
+        end;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function SsleayLoad : Boolean;      {  V8.27 make unique }
 var
-    ErrCode : Integer;
-    FullName: String ;  { V8.29 }
+    ErrCode: Integer;
+    FullName, errs: String ;  { V8.29 }
 begin
-    if GSSLEAY_DLL_Handle <> 0 then begin
-        Result := TRUE;
-        Exit;                                 // Already loaded
-    end;
+    Result := TRUE;
+    if GSSLEAY_DLL_Handle <> 0 then Exit; // Already loaded
 
   { V8.27 sanity check }
     if ICS_OPENSSL_VERSION_NUMBER = 0 then begin
@@ -1513,8 +1687,8 @@ begin
             else
                 raise EIcsSsleayException.Create('Unable to load ' + FullName + '. Win32 error #' + IntToStr(ErrCode));
         end;
-    end else
-    begin
+    end
+    else begin
         FullName := GSSL_DLL_DIR+GSSLEAY_DLL_Name;  { V8.29 }
         GSSLEAY_DLL_Handle := LoadLibrary(PChar(FullName));
         if GSSLEAY_DLL_Handle = 0 then begin
@@ -1536,17 +1710,24 @@ begin
                    GSSLEAY_DLL_FileDescription);
   {$ENDIF}
 
+  { V8.35 load all main GSSLEAY_DLL exports }
+    errs := SslGetImports (GSSLEAY_DLL_Handle, GSSLEAYImports1) ;
+    if errs <> '' then
+        raise  EIcsSsleayException.Create('Unable to load ' + FullName + '. Can not find: ' + errs);
 
+{$IFNDEF OPENSSL_NO_ENGINE}
+  { V8.35 load engine GSSLEAY_DLL exports }
+    errs := SslGetImports (GSSLEAY_DLL_Handle, GSSLEAYImports2) ;
+    if errs <> '' then
+        raise  EIcsSsleayException.Create('Unable to load ' + FullName + '. Can not find: ' + errs);
+{$ENDIF}
+
+ (*
     f_SSL_do_handshake                       := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_do_handshake');
     f_SSL_renegotiate                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_renegotiate');
     f_SSL_renegotiate_pending                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_renegotiate_pending');
     f_SSL_library_init                       := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_library_init');
     f_SSL_load_error_strings                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_load_error_strings');
- {$IFDEF OPENSSL_ALLOW_SSLV2}
-    f_SSLv2_method                           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv2_method');
-    f_SSLv2_client_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv2_client_method');
-    f_SSLv2_server_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv2_server_method');
- {$ENDIF}
     f_SSLv3_method                           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv3_method');
     f_SSLv3_client_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv3_client_method');
     f_SSLv3_server_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv3_server_method');
@@ -1678,10 +1859,10 @@ begin
     f_SSL_CTX_callback_ctrl                  := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_callback_ctrl'); //AG
     f_SSL_callback_ctrl                      := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_callback_ctrl'); //AG
 
-
+  *)
 
     // Check if any failed
-    Result := not ((@f_SSL_do_handshake                       = nil) or
+ (*   Result := not ((@f_SSL_do_handshake                       = nil) or
                    (@f_SSL_renegotiate                        = nil) or
                    (@f_SSL_renegotiate_pending                = nil) or
                    (@f_SSL_CTX_new                            = nil) or
@@ -1790,19 +1971,13 @@ begin
                    (@f_SSL_get_servername_type                = nil) or
                    (@f_SSL_CTX_callback_ctrl                  = nil) or
                    (@f_SSL_callback_ctrl                      = nil)
-                   );
+                   );     *)
 
     { V8.27 older OpenSSL versions have different export }
     if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
-        if (@f_SSL_library_init                       = nil) or
+      (*  if (@f_SSL_library_init                       = nil) or
            (@f_SSL_load_error_strings                 = nil) or
            (@f_SSL_state                              = nil) or
-
-{$IFDEF OPENSSL_ALLOW_SSLV2}
-           (@f_SSLv2_method                           = nil) or
-           (@f_SSLv2_client_method                    = nil) or
-           (@f_SSLv2_server_method                    = nil) or
-{$ENDIF}
            (@f_SSLv3_method                           = nil) or
            (@f_SSLv3_client_method                    = nil) or
            (@f_SSLv3_server_method                    = nil) or
@@ -1817,7 +1992,7 @@ begin
            (@f_TLSv1_1_server_method                  = nil) or
            (@f_TLSv1_2_method                         = nil) or
            (@f_TLSv1_2_client_method                  = nil) or
-           (@f_TLSv1_2_server_method                  = nil) then result := false;
+           (@f_TLSv1_2_server_method                  = nil) then result := false;   *)
 
     // V8.27 fake new best method with old best method }
        f_TLS_method                := @f_SSLv23_method;
@@ -1827,12 +2002,12 @@ begin
 
     { V8.27 new OpenSSL versions have some new, fake old ones }
     else begin
-        if (@f_SSL_get_state                          = nil) or
+     (*   if (@f_SSL_get_state                          = nil) or
            (@f_SSL_get_client_ciphers                 = nil) or
            (@f_SSL_get1_supported_ciphers             = nil) or
            (@f_TLS_method                             = nil) or
            (@f_TLS_client_method                      = nil) or
-           (@f_TLS_server_method                      = nil) then result := false;
+           (@f_TLS_server_method                      = nil) then result := false;   *)
 
     // V8.27 1.1.0 has lost v3 and v23, and tlsv1x are deprecated, so fake the lot }
        @f_SSLv3_method             := @f_TLS_method;
@@ -1850,13 +2025,16 @@ begin
        @f_TLSv1_2_method           := @f_TLS_method;
        @f_TLSv1_2_client_method    := @f_TLS_client_method;
        @f_TLSv1_2_server_method    := @f_TLS_server_method;
+       @f_SSL_library_init         := @IcsSslStub;  { V8.35 }
+       @f_SSL_load_error_strings   := @IcsSslStub;  { V8.35 }
+       @f_SSL_state                := @IcsSslStub;  { V8.35 }
     end;
 
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function SsleayWhichFailedToLoad : String;   {  V8.27 make unique }
+(* function SsleayWhichFailedToLoad : String;   {  V8.27 make unique }
 begin
     Result := '';
     if @f_SSL_do_handshake                       = nil then Result := Result + ' SSL_do_handshake';
@@ -1867,11 +2045,6 @@ begin
         if @f_SSL_load_error_strings             = nil then Result := Result + ' SSL_load_error_strings';
         if @f_SSL_state                          = nil then Result := Result + ' SSL_state';
     end;
- {$IFDEF OPENSSL_ALLOW_SSLV2}
-    if @f_SSLv2_method                           = nil then Result := Result + ' SSLv2_method';
-    if @f_SSLv2_client_method                    = nil then Result := Result + ' SSLv2_client_method';
-    if @f_SSLv2_server_method                    = nil then Result := Result + ' SSLv2_server_method';
- {$ENDIF}
     if @f_SSLv3_method                           = nil then Result := Result + ' SSLv3_method';
     if @f_SSLv3_client_method                    = nil then Result := Result + ' SSLv3_client_method';
     if @f_SSLv3_server_method                    = nil then Result := Result + ' SSLv3_server_method';
@@ -2006,7 +2179,7 @@ begin
 
     if Length(Result) > 0 then
        Delete(Result, 1, 1);
-end;
+end;  *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2264,6 +2437,12 @@ begin
     end;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ stub for old removed functions }
+function IcsSslStub: integer;                            { V8.35 }
+begin
+    result := 0;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$ENDIF}//USE_SSL

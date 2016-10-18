@@ -9,11 +9,11 @@ Description:  Verify and show an OpenSSL certificate or certificate chain using
               certificate server if required. It's not very fast so SSL session
               caching is used to speed things up.
 Creation:     May 2011
-Version:      8.00
+Version:      8.35
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2015 by François PIETTE
+Legal issues: Copyright (C) 2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -44,6 +44,7 @@ Legal issues: Copyright (C) 2015 by François PIETTE
 
 History:
 June 2015 - V8.00 - updated SslServerName to support Server Name Indication (SNI)
+Oct 2016  - V8.35 - removed old SSL2 ciphers that broke latest version
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMsVerify1;
@@ -143,9 +144,6 @@ const
     KeyRevocation      = 'CheckRevocation';
     KeyUrlTimeout      = 'UrlRetrievalTime';
 
-    { See http://www.openssl.org/docs/apps/ciphers.html }
-    sCiphersHighNoSSLv2 = 'TLSv1+HIGH:!aNULL:!eNULL:!3DES:!CAMELLIA@STRENGTH';
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TMsVerifyForm.FormCreate(Sender: TObject);
 begin
@@ -164,8 +162,6 @@ begin
     ShowCertButton.Width        := 0;
     HostEdit.OnChange           := nil;
     SslContext1.SslVerifyPeer   := True;
-    SslContext1.SslOptions      := [sslOpt_NO_SSLv2];
-    SslContext1.SslCipherList   := sCiphersHighNoSSLv2;
 end;
 
 
@@ -196,7 +192,15 @@ begin
         TimeoutEdit.Text := IniFile.ReadString(SectionSettings, KeyUrlTimeout,
                                                '15000');
         HostEdit.OnChange := HostEditChange;
-        SslContext1.InitContext;
+ //       GSSLEAY_DLL_IgnoreNew := true;  { V8.35 ignore OpenSSL 1.1.0 and later }
+        try
+            SslContext1.InitContext;
+        except
+            on E:Exception do begin
+                Display('Failed to initialize SSL Context: ' + E.Message);
+                Exit;
+            end;
+         end;
     end;
 end;
 

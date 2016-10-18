@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.34
+Version:      8.35
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1071,7 +1071,14 @@ Aug 27, 2016  V8.32 Angus, suuport final release OpenSSL 1.1.0
                        C++ Builder, by aplitting smaller and making function
 Aug 29, 2016  V8.33 Angus, free GLIBEAY_DLL_Handle before GSSLEAY_DLL_Handle to avoid exception
 Sept 5, 2016  V8.34 Angus, correct next OpenSSL release is 1.1.1 not 1.1.0a
-              Added public variable GSSLEAY_DLL_IgnoreOld so only OpenSSL 1.1.0 and later are loaded
+                    Added public variable GSSLEAY_DLL_IgnoreOld so only OpenSSL 1.1.0 and later are loaded
+Oct 18, 2016  V8.35 Angus, major rewrite to simplify loading OpenSSL DLL functions
+                    Reversed V8.34 fix so this release only supports 1.1.0 not 1.1.1
+                    OPENSSL_ALLOW_SSLV2 gone with all SSLv2 functions
+                    stub more removed functions to save some exceptions
+                    moved all imports from OverbyteIcsLibeayEx to OverbyteIcsLibeay to make
+                        maintenance and use easier, OverbyteIcsLibeayEx may be removed
+                    EVP_CIPHER_CTX_xx is now backward compatible with 1.1.0
 
 
 Use of certificates for SSL clients:
@@ -1267,8 +1274,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 834;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.34 ';
+  WSocketVersion            = 835;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.35 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -12437,85 +12444,70 @@ end; *)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure LoadSsl;
-const
-    LenErrMsg = 512;
+//const
+//    LenErrMsg = 512;
 var
     Tick : Cardinal;
-    S    : String;
+//    S    : String;
 {$IFDEF LOADSSL_ERROR_FILE} // Optional define in OverbyteIcsSslDefs.inc
-    F    : TextFile;
-    I, J : Integer;
+//    F    : TextFile;
+//    I, J : Integer;
 {$ENDIF}
 begin
     SslCritSect.Enter;
     try
         if SslRefCount = 0 then begin
-            // Load LIBEAY DLL, V8.27 change Load and WhichFailedToLoad to unique names
-            // Must be loaded before SSlEAY for the versioncheck to work!
-            if not LibeayLoad then begin
-                S := LibeayWhichFailedToLoad;
-            {$IFDEF LOADSSL_ERROR_FILE}
-                AssignFile(F, _ExtractFilePath(ParamStr(0)) + 'FailedIcsLIBEAY.txt');
-                Rewrite(F);
-                I := 1;
-                while I < Length(S) do begin
-                    J := I;
-                    while (I <= Length(S)) and (S[I] <> ' ') do
-                        Inc(I);
-                    Inc(I);
-                    WriteLn(F, Copy(S, J, I - J));
-                end;
-                CloseFile(F);
-            {$ENDIF}
-                if GLIBEAY_DLL_Handle <> 0 then begin   { V8.27 removed unit names }
-                    FreeLibrary(GLIBEAY_DLL_Handle);
-                    GLIBEAY_DLL_Handle := 0
-                end;
-                if Length(S) > LenErrMsg then begin
-                    SetLength(S, LenErrMsg);
-                    S[Length(S) - 1] := '.';
-                    S[Length(S)]     := '.';
-                end;
-                raise EIcsLibeayException.Create('Unable to load ' +
-                                  GLIBEAY_DLL_FileName + '. Can''t find ' + S);
-            end;
-            // Load SSlEAY DLL
-            if not SsleayLoad then begin
-                S := SsleayWhichFailedToLoad;
-            {$IFDEF LOADSSL_ERROR_FILE}
-                AssignFile(F, _ExtractFilePath(ParamStr(0)) + 'FailedIcsSSLEAY.txt');
-                Rewrite(F);
-                I := 1;
-                while I < Length(S) do begin
-                    J := I;
-                    while (I <= Length(S)) and (S[I] <> ' ') do
-                        Inc(I);
-                    Inc(I);
-                    WriteLn(F, Copy(S, J, I - J));
-                end;
-                CloseFile(F);
-            {$ENDIF}
-                if GSSLEAY_DLL_Handle <> 0 then begin     { V8.27 removed unit names }
-                    FreeLibrary(GSSLEAY_DLL_Handle);
-                    GSSLEAY_DLL_Handle := 0;
-                end;
-                if GLIBEAY_DLL_Handle <> 0 then begin
-                    FreeLibrary(GLIBEAY_DLL_Handle);
-                    GLIBEAY_DLL_Handle := 0
-                end;
-                if Length(S) > LenErrMsg then begin
-                    SetLength(S, LenErrMsg);
-                    S[Length(S) - 1] := '.';
-                    S[Length(S)]     := '.';
-                end;
-                raise EIcsSsleayException.Create('Unable to load ' +
-                                   GSSLEAY_DLL_FileName + '. Can''t find ' + S);
-            end;
+            try
+                // Load LIBEAY DLL, V8.27 change Load and WhichFailedToLoad to unique names
+                // Must be loaded before SSlEAY for the versioncheck to work!
+                LibeayLoad;
 
-            // Global system initialization, V8.27 not needed for 1.1.0 and later
-            if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
-                if f_SSL_library_init <> 1 then begin
-                    if GSSLEAY_DLL_Handle <> 0 then begin
+                 (*   S := LibeayWhichFailedToLoad;
+                {$IFDEF LOADSSL_ERROR_FILE}
+                    AssignFile(F, _ExtractFilePath(ParamStr(0)) + 'FailedIcsLIBEAY.txt');
+                    Rewrite(F);
+                    I := 1;
+                    while I < Length(S) do begin
+                        J := I;
+                        while (I <= Length(S)) and (S[I] <> ' ') do
+                            Inc(I);
+                        Inc(I);
+                        WriteLn(F, Copy(S, J, I - J));
+                    end;
+                    CloseFile(F);
+                {$ENDIF}
+
+                    if GLIBEAY_DLL_Handle <> 0 then begin   { V8.27 removed unit names }
+                        FreeLibrary(GLIBEAY_DLL_Handle);
+                        GLIBEAY_DLL_Handle := 0
+                    end;
+                    if Length(S) > LenErrMsg then begin
+                        SetLength(S, LenErrMsg);
+                        S[Length(S) - 1] := '.';
+                        S[Length(S)]     := '.';
+                    end;
+                    raise EIcsLibeayException.Create('Unable to load ' +
+                                      GLIBEAY_DLL_FileName + '. Can''t find ' + S);
+                end;   *)
+
+                // Load SSlEAY DLL
+                SsleayLoad;
+
+                 (*   S := SsleayWhichFailedToLoad;
+                {$IFDEF LOADSSL_ERROR_FILE}
+                    AssignFile(F, _ExtractFilePath(ParamStr(0)) + 'FailedIcsSSLEAY.txt');
+                    Rewrite(F);
+                    I := 1;
+                    while I < Length(S) do begin
+                        J := I;
+                        while (I <= Length(S)) and (S[I] <> ' ') do
+                            Inc(I);
+                        Inc(I);
+                        WriteLn(F, Copy(S, J, I - J));
+                    end;
+                    CloseFile(F);
+                {$ENDIF}
+                    if GSSLEAY_DLL_Handle <> 0 then begin     { V8.27 removed unit names }
                         FreeLibrary(GSSLEAY_DLL_Handle);
                         GSSLEAY_DLL_Handle := 0;
                     end;
@@ -12523,15 +12515,42 @@ begin
                         FreeLibrary(GLIBEAY_DLL_Handle);
                         GLIBEAY_DLL_Handle := 0
                     end;
+                    if Length(S) > LenErrMsg then begin
+                        SetLength(S, LenErrMsg);
+                        S[Length(S) - 1] := '.';
+                        S[Length(S)]     := '.';
+                    end;
+                    raise EIcsSsleayException.Create('Unable to load ' +
+                                       GSSLEAY_DLL_FileName + '. Can''t find ' + S);
+                end;  *)
+
+                // Global system initialization, V8.27 not needed for 1.1.0 and later
+                if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
+                    if f_SSL_library_init <> 1 then begin
+                        if GSSLEAY_DLL_Handle <> 0 then begin
+                            FreeLibrary(GSSLEAY_DLL_Handle);
+                            GSSLEAY_DLL_Handle := 0;
+                        end;
+                        if GLIBEAY_DLL_Handle <> 0 then begin
+                            FreeLibrary(GLIBEAY_DLL_Handle);
+                            GLIBEAY_DLL_Handle := 0
+                        end;
+                        raise EIcsSsleayException.Create('Unable to initialise OpenSSL');
+                    end;
+                    f_SSL_load_error_strings;
                 end;
-                f_SSL_load_error_strings;
+
+            // important key functions should call IcsRandPoll for a better random seed
+                Tick := IcsGetTickCount;           // probably weak
+                f_RAND_seed(@Tick, SizeOf(Tick));
+
+            {$IFNDEF OPENSSL_NO_ENGINE}
+                //* Load all bundled ENGINEs into memory and make them visible */
+                f_ENGINE_load_builtin_engines;
+            {$ENDIF}
+            except
+                raise EIcsSsleayException.Create('Unable to load OpenSSL');
             end;
-            Tick := IcsGetTickCount;           // probably weak
-            f_RAND_seed(@Tick, SizeOf(Tick));
-        {$IFNDEF OPENSSL_NO_ENGINE}
-            //* Load all bundled ENGINEs into memory and make them visible */
-            f_ENGINE_load_builtin_engines;
-        {$ENDIF}
         end; // SslRefCount = 0
         Inc(SslRefCount);
     finally
@@ -13311,14 +13330,8 @@ begin
             Meth := f_SSLv23_method
         else begin
             case FSslVersionMethod of
-        {$IFDEF OPENSSL_ALLOW_SSLV2}
-            sslV2:            Meth := f_SSLv2_method;
-            sslV2_CLIENT:     Meth := f_SSLv2_client_method;
-            sslV2_SERVER:     Meth := f_SSLv2_server_method;
-        {$ELSE}
             sslV2, sslV2_CLIENT, sslV2_SERVER:             { V8.24 }
                 raise ESslContextException.Create('SSLv2 not supported');
-        {$ENDIF}
             sslV3:            Meth := f_SSLv3_method;
             sslV3_CLIENT:     Meth := f_SSLv3_client_method;
             sslV3_SERVER:     Meth := f_SSLv3_server_method;
@@ -14535,9 +14548,12 @@ end;
 procedure TSslContext.InitContext;
 var
     SslSessCacheModes : TSslSessCacheModes;
-    LOpts, MyOpts, I: Longint;
-    S: string;
+    LOpts: Longint;
     MyECkey: PEC_KEY;
+{$IFNDEF NO_DEBUG_LOG}
+    MyOpts, I: Longint;
+    S: string;
+{$ENDIF}
 begin
     InitializeSsl; //loads libs
 {$IFNDEF NO_SSL_MT}
@@ -18546,7 +18562,7 @@ begin
 
                 { FSslServerName is the servername to be sent in client helo. }
                 { If not empty, enables SNI in SSL client mode.               }
-                if (FSslServerName <> '') and (FSslContext.FSslVersionMethod >= sslV3) and   { V8.24 not SSLv2 }
+                if (FSslServerName <> '') and {(FSslContext.FSslVersionMethod >= sslV3) and}   { V8.24 not SSLv2, V8.35 SSLv2 gone }
                     (f_SSL_set_tlsext_host_name(FSsl, FSslServerName) = 0) then
                         RaiseLastOpenSslError(EOpenSslError, TRUE,
                              'Unable to set TLS servername extension');

@@ -620,7 +620,7 @@ object HttpsTstForm: THttpsTstForm
     SslVersionMethod = sslBestVer_CLIENT
     SslMinVersion = sslVerSSL3
     SslMaxVersion = sslVerMax
-    SslECDHMethod = sslECDH_P256
+    SslECDHMethod = sslECDHAuto
     SslSessionTimeout = 300
     SslSessionCacheSize = 20480
     AutoEnableBuiltinEngines = False

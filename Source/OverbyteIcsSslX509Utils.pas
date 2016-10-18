@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Aug 26, 2007
 Description:
-Version:      8.32
+Version:      8.35
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -64,8 +64,9 @@ Nov 5, 2015  V8.20 Angus removed a compiler warning, version matches wsocket
 Mar 17, 2015 V8.21 Angus use SHA256 for unicode self signed and non-unicode request
 May 24, 2016 V8.27 Angus, initial support for OpenSSL 1.1.0
 Aug 27, 2016 V8.32 Angus, moved sslRootCACertsBundle long constant from twsocket and
-               split smaller and made function so it will compile under C++ Builder
-
+               aplit smaller and make function so it will compile under C++ Builder
+Oct 18, 2016 V8.35 Angus, no longer need OverbyteIcsLibeayEx
+             added CreateRsaKeyPair 
 
 
 pending - create a certificate signed by a root certificate
@@ -84,7 +85,7 @@ uses
   {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
   {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     OverbyteIcsSSLEAY, OverbyteIcsLibeay,
-    OverbyteIcsLibeayEx, OverByteIcsMD5,
+    {OverbyteIcsLibeayEx,} OverByteIcsMD5,
     OverbyteIcsTypes, OverbyteIcsWSocket,
     OverbyteIcsMimeUtils, OverbyteIcsUtils;
 
@@ -166,6 +167,8 @@ procedure CreateSelfSignedCert(const FileName, Country, State,
 {$ENDIF UNICODE}
 
 { RSA crypto functions }
+
+procedure CreateRsaKeyPair(const PubFName, PrivFName: String; Bits: Integer);  { V8.35 }
 
 type
   TRsaPadding = (rpPkcs1, rpPkcs1Oaep, rpNoPadding);
@@ -1157,7 +1160,6 @@ function sslRootCACertsBundle: string ;
 implementation
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-
 function sslRootCACertsBundle: string ;  { V8.32 }
 begin
     result :=
@@ -1169,6 +1171,7 @@ begin
         sslRootCACerts026 + sslRootCACerts027 + sslRootCACerts028 + sslRootCACerts029;
     end ;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Returns a CRLF-separated list if multiple entries exist }
 function TX509Ex.GetNameEntryByNid(IsSubject: Boolean; ANid: Integer): String;
 var
@@ -1432,11 +1435,11 @@ var
 //    eckey: PEC_KEY;
 begin
     result := '' ;
-    if not LibeayExLoaded then
+  {  if not LibeayExLoaded then
     begin
         LoadLibeayEx;
         IcsRandPoll;
-    end;
+    end;  }
     if not Assigned(X509) then
         Exit;
     if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) then
@@ -1583,11 +1586,12 @@ var
 begin
     FileBio := nil;
     X       := nil;
-    if not LibeayExLoaded then
+{    if not LibeayExLoaded then
     begin
         LoadLibeayEx;
         IcsRandPoll;
-    end;
+    end;  }
+    if NOT ICS_RAND_INIT_DONE then IcsRandPoll;  { V8.35 }
     PK := f_EVP_PKEY_new;
     if not Assigned(PK) then
         raise Exception.Create('Could not create key object');
@@ -1777,11 +1781,12 @@ begin
     //exts    := nil;
     Req     := nil;
 
-    if not LibeayExLoaded then
+ {   if not LibeayExLoaded then
     begin
         LoadLibeayEx;
         IcsRandPoll;
-    end;
+    end;   }
+    if NOT ICS_RAND_INIT_DONE then IcsRandPoll;  { V8.35 }
 
     PK := f_EVP_PKEY_new;
     if not Assigned(PK) then
@@ -1896,11 +1901,12 @@ begin
     //PK      := nil;
     //Name    := nil;
     //Ex      := nil;
-    if not LibeayExLoaded then
+  {  if not LibeayExLoaded then
     begin
         LoadLibeayEx;
         IcsRandPoll;
-    end;
+    end;   }
+    if NOT ICS_RAND_INIT_DONE then IcsRandPoll;  { V8.35 }
     PK := f_EVP_PKEY_new;
     if not Assigned(PK) then
         raise Exception.Create('Could not create key object');
@@ -2090,11 +2096,12 @@ begin
     //exts    := nil;
     Req     := nil;
 
-    if not LibeayExLoaded then
+ {   if not LibeayExLoaded then
     begin
         LoadLibeayEx;
         IcsRandPoll;
-    end;
+    end;   }
+    if NOT ICS_RAND_INIT_DONE then IcsRandPoll;  { V8.35 }
 
     PK := f_EVP_PKEY_new;
     if not Assigned(PK) then
@@ -2204,8 +2211,8 @@ var
     IntPad    : Integer;
 begin
     Result := FALSE;
-    if not LibeayExLoaded then
-        LoadLibeayEx;
+  {  if not LibeayExLoaded then
+        LoadLibeayEx;   }
     if not Assigned(PubKey) then
         raise Exception.Create('Public key not assigned');
     if Ics_Ssl_EVP_PKEY_GetType(PubKey) <> EVP_PKEY_RSA then
@@ -2291,8 +2298,8 @@ var
     IntPad    : Integer;
 begin
     Result := FALSE;
-    if not LibeayExLoaded then
-        LoadLibeayEx;
+  {  if not LibeayExLoaded then
+        LoadLibeayEx;    }
     if PrivKey = nil then
         raise Exception.Create('Private key not loaded');
     if Ics_Ssl_EVP_PKEY_GetType(PrivKey) <> EVP_PKEY_RSA then
@@ -2497,8 +2504,8 @@ var
     PIV         : Pointer;
     KLen, IVLen : Integer;
 begin
-    if not LibeayExLoaded then
-        LoadLibeayEx;
+ {   if not LibeayExLoaded then
+        LoadLibeayEx;   }
     SetKeySize := 0;
     KLen := 0;
     CiphFinalize(CiphCtx);
@@ -2902,6 +2909,58 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+procedure CreateRsaKeyPair(const PubFName, PrivFName: String; Bits: Integer);   { V8.35 }
+var
+    Bne       : PBIGNUM;
+    Rsa       : PRSA;
+    PubBIO, PrivBio : PBIO;
+    Ret       : Integer;
+begin
+    if NOT ICS_RAND_INIT_DONE then IcsRandPoll;
+    PubBIO := nil;
+    PrivBIO := nil;
+    Rsa := nil;
+  { generate fixed odd number exponent }
+    Bne := f_BN_new;
+    Ret := f_BN_set_word(Bne, RSA_F4);
+    if Ret = 0 then
+        raise Exception.Create('Failed to create exponent');
+    try
+
+      { generate RSA key paid }
+        Rsa := f_RSA_new;
+        Ret := f_RSA_generate_key_ex (Rsa, Bits, Bne, nil);
+        if (Ret = 0) or (not Assigned(Rsa)) then
+            raise Exception.Create('Failed to generate rsa key');
+
+      { save public key file }
+        PubBIO := f_BIO_new_file(PAnsiChar(AnsiString(PubFname)), PAnsiChar('w+'));
+        Ret := f_PEM_write_bio_RSAPublicKey (PubBIO, Rsa);
+        if Ret = 0 then
+            raise Exception.Create('Failed to save public key file: ' + PubFname);
+
+       { save private key file }
+        PrivBIO := f_BIO_new_file(PAnsiChar(AnsiString(PrivFname)), PAnsiChar('w+'));
+        Ret := f_PEM_write_bio_RSAPrivateKey (PrivBIO, Rsa, nil, nil, 0, nil, nil);
+        if Ret = 0 then
+            raise Exception.Create('Failed to save private key file: ' + PrivFname);
+
+    finally
+        if Assigned(Bne) then
+            f_BN_free(Bne);
+        if Assigned(Rsa) then
+            f_RSA_free(Rsa);
+        if Assigned(PubBio) then
+            f_BIO_free(PubBio);
+        if Assigned(PrivBio) then
+            f_BIO_free(PrivBio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
 
 
 end.

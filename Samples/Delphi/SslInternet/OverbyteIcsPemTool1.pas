@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.02
+Version:      8.35
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -70,6 +70,7 @@ June 23, 2014 V1.15 Angus show issuer Common Name and Organisation Unit in
 Mar 16, 2015 V8.00 Angus default key length now 2048
 June 2015,   V8.01 Angus using new units
 Oct 23, 2015 V8.02 Angus get certificate signing and encryption algorithms
+Oct 18, 2016 V8.35 Angus, no longer need OverbyteIcsLibeayEx
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPemtool1;
@@ -97,13 +98,13 @@ uses
 {$IFEND}
   OverByteIcsMimeUtils, OverbyteIcsWSocket,
   OverbyteIcsSsleay, OverbyteIcsLibeay, OverbyteIcsWinCrypt,
-  OverbyteIcsLibeayEx, OverbyteIcsSslX509Utils;
+  {OverbyteIcsLibeayEx,} OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 802;
-     PemToolDate        = 'Oct 23, 2015';
+     PemToolVersion     = 835;
+     PemToolDate        = 'Oct 18, 2016';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2015 by François PIETTE V8.02 ';
+     CopyRight : String = '(c) 2003-2016 by François PIETTE V8.35 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -1129,8 +1130,8 @@ var
     IV : TIVector;
     S  : AnsiString;
 begin
-    if not LibeayExLoaded then
-        LoadLibeayEx;
+  { if not LibeayExLoaded then
+        LoadLibeayEx;  }
     S := 'This the plain text This the plain text This the plain text';
     f_RAND_bytes(@IV, SizeOf(IV));
     S := StrEncBF(S, 'password', @IV, cklDefault, TRUE);

@@ -6,7 +6,7 @@ Description:  A simple  HTTPS SSL Web Client Demo client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.27
+Version:      8.32
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -62,7 +62,7 @@ May 24 2016   V8.27 Angus testing OpenSSL 1.1.0, added SslThrdLock
               Certificates and CA bundle may now be added as lines of text to
                 context instead of being read from files
               If no CA file or path or lines specified, use default CA bundle
-
+Aug 27, 2016  V8.32 set SslCipherEdit if empty
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -102,10 +102,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 827;
-     HttpsTstDate        = 'May 23, 2016';
+     HttpsTstVersion     = 832;
+     HttpsTstDate        = 'Aug 27, 2016';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2016 Francois Piette V8.27 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2016 Francois Piette V8.32 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -398,6 +398,7 @@ begin
         finally
             IniFile.Free;
         end;
+        if SslCipherEdit.Text = '' then SslCipherEdit.Text := sslCiphersNormal;
         DisplayMemo.Clear;
 
     { V8.03 load OpenSSL, then display OpenSSL DLL name and version  }
@@ -407,7 +408,7 @@ begin
             DisplayMemo.Lines.Add('SSL/TLS DLL not found: ' + GLIBEAY_DLL_FileName)
         else
             DisplayMemo.Lines.Add('SSL/TLS DLL: ' + GLIBEAY_DLL_FileName +
-                                                ', Version: ' + OpenSslVersion); 
+                                                ', Version: ' + OpenSslVersion);
     end;
 end;
 

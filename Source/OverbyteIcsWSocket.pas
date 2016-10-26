@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.35
+Version:      8.36
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1079,6 +1079,11 @@ Oct 18, 2016  V8.35 Angus, major rewrite to simplify loading OpenSSL DLL functio
                     moved all imports from OverbyteIcsLibeayEx to OverbyteIcsLibeay to make
                         maintenance and use easier, OverbyteIcsLibeayEx may be removed
                     EVP_CIPHER_CTX_xx is now backward compatible with 1.1.0
+Oct 26, 2016  V8.36 Now using new names for imports renamed in OpenSSL 1.1.0
+                    Added ExclusiveAddr property to stop other applications listening on same socket
+                    Added extended exception information, set FSocketErrs = wsErrFriendly for
+                      some more friendly messages (without error numbers)
+                    ESocketException has several more properties to detail errors
 
 
 Use of certificates for SSL clients:
@@ -1274,8 +1279,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 835;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.35 ';
+  WSocketVersion            = 836;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.36 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -1451,7 +1456,6 @@ type
   TIcsIPv4Address    = {$IFDEF POSIX} LongWord {$ELSE} Integer {$ENDIF};
   PIcsIPv4Address    = ^TIcsIPv4Address;
   TWndMethod         = procedure(var Message: TMessage) of object;
-  ESocketException   = class(Exception);
   TBgExceptionEvent  = TIcsBgExceptionEvent; { V7.35 }
   TSocketState       = (wsInvalidState,
                         wsOpened,     wsBound,
@@ -1462,6 +1466,35 @@ type
   TSocketLingerOnOff = (wsLingerOff, wsLingerOn, wsLingerNoSet);
   TSocketKeepAliveOnOff = (wsKeepAliveOff, wsKeepAliveOnCustom,
                            wsKeepAliveOnSystem);
+  TSocketErrs        = (wsErrTech, wsErrFriendly);  { V8.36 }
+
+  ESocketException   = class(Exception)  { V8.36 more detail }
+  private
+    FErrorMessage : string;
+    FIPStr        : String;
+    FPortStr      : String;
+    FProtoStr     : String;
+	FErrorCode    : Integer;
+    FFriendlyMsg  : String;
+    FFunc         : String;
+  public
+    constructor Create(const AMessage       : String;
+                       AErrorCode           : Integer = 0;
+	                   const AErrorMessage  : String = '';
+                       const AFriendlyMsg   : String = '';
+                       const AFunc          : String = '';
+                       const AIP            : String = '';
+                       const APort          : String = '';
+                       const AProto         : String = '');
+    property IPStr        : String  read FIPStr;
+    property PortStr      : String  read FPortStr;
+    property ProtoStr     : String  read FProtoStr;
+	property ErrorCode    : Integer read FErrorCode;
+    property ErrorMessage : String  read FErrorMessage;
+    property FriendlyMsg  : String  read FFriendlyMsg;
+    property Func         : String  read FFunc;
+  end;
+
 const
   SocketStateNames: array [TSocketState] of PChar = ('Invalid', 'Opened', 'Bound',
       'Connecting', 'SocksConnected', 'Connected', 'Accepting', 'Listening',
@@ -1480,6 +1513,7 @@ type
   TChangeState       = procedure (Sender: TObject;
                                  OldState, NewState : TSocketState) of object;
   TDebugDisplay      = procedure (Sender: TObject; var Msg : String) of object;
+  TIcsException      = procedure (Sender: TObject; SocExcept: ESocketException) of object; { V8.36 }
   TWSocketSyncNextProc = procedure of object;
   TWSocketOption       = (wsoNoReceiveLoop, wsoTcpNoDelay, wsoSIO_RCVALL,
                          { The HTTP tunnel supports HTTP/1.1. If next option }
@@ -1641,6 +1675,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     FMultiCastAddrStr   : String;
     FMultiCastIpTTL     : Integer;
     FReuseAddr          : Boolean;
+    FExclusiveAddr      : Boolean;   { V8.36 }
     FComponentOptions   : TWSocketOptions;
     FState              : TSocketState;
     FRcvdFlag           : Boolean;
@@ -1662,6 +1697,8 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     FSocketRcvBufSize   : Integer;  { Winsock internal socket Recv buffer size }
     FOnAddressListChanged : TNetChangeEvent;
     FOnRoutingInterfaceChanged : TNetChangeEvent;
+    FSocketErrs         : TSocketErrs;   { V8.36 }
+    FonException        : TIcsException; { V8.36 }
 {$IFNDEF NO_DEBUG_LOG}
     FIcsLogger          : TIcsLogger;                                           { V5.21 }
     procedure   SetIcsLogger(const Value : TIcsLogger); virtual;                { V5.21 }
@@ -1675,7 +1712,8 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     procedure   FreeMsgHandlers; override;
     procedure   AllocateSocketHWnd; virtual;
     procedure   DeallocateSocketHWnd; virtual;
-    procedure   SocketError(sockfunc: String; LastError: Integer = 0);
+    procedure   SocketError(sockfunc: String; LastError: Integer = 0;
+                                      FriendlyMsg: String = ''); virtual;   { V8.36 added FriendlyMsg }
     procedure   WMASyncSelect(var msg: TMessage); virtual;
     procedure   WMAsyncGetHostByName(var msg: TMessage);
     procedure   WMAsyncGetHostByAddr(var msg: TMessage);
@@ -1713,7 +1751,15 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     procedure   SendText(const Str : UnicodeString; ACodePage : LongWord); overload;
                                                      {$ENDIF}
     function    RealSend(var Data : TWSocketData; Len : Integer) : Integer; virtual;
-    procedure   RaiseException(const Msg : String); virtual;
+    procedure   RaiseException(const Msg : String); overload; virtual;
+    procedure   RaiseException(const Msg : String;
+                       AErrorCode           : Integer;   { V8.36 more }
+	                   const AErrorMessage  : String = '';
+                       const AFriendlyMsg   : String = '';
+                       const AFunc          : String = '';
+                       const AIP            : String = '';
+                       const APort          : String = '';
+                       const AProto         : String = ''); overload; virtual;
     function    GetReqVerLow: BYTE;
     procedure   SetReqVerLow(const Value: BYTE);
     function    GetReqVerHigh: BYTE;
@@ -1729,6 +1775,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     procedure   TriggerChangeState(OldState, NewState : TSocketState); virtual;
     procedure   TriggerDNSLookupDone(Error : Word); virtual;
     procedure   TriggerError; virtual;
+    procedure   TriggerException (E: ESocketException); virtual;   { V8.36 }
     procedure   TriggerAddressListChanged(ErrCode: Word);
     procedure   TriggerRoutingInterfaceChanged(ErrCode: Word);
     function    DoRecv(var Buffer : TWSocketData;
@@ -1889,6 +1936,8 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     property ReuseAddr       : Boolean              read  FReuseAddr
                                                     write FReuseAddr
                                                     default False;
+    property ExclusiveAddr   : Boolean              read  FExclusiveAddr
+                                                    write FExclusiveAddr;   { V8.36 }
     property PeerAddr : String                      read  GetPeerAddr;
     property PeerPort : String                      read  GetPeerPort;
     property DnsResult : String                     read  FDnsResult;
@@ -1936,6 +1985,10 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
                                                     write FOnDnsLookupDone;
     property OnError            : TNotifyEvent      read  FOnError
                                                     write FOnError;
+    property SocketErrs         : TSocketErrs       read  FSocketErrs
+                                                    write FSocketErrs;   { V8.36 }
+    property onException        : TicsException     read  FonException
+                                                    write FonException;  { V8.36 }
     { FlushTimeout property is not used anymore }
     property FlushTimeout : Integer                 read  FFlushTimeOut
                                                     write FFlushTimeout
@@ -3600,6 +3653,7 @@ type
     property SocksAuthentication;
     property LastError;
     property ReuseAddr;
+    property ExclusiveAddr;
     property ComponentOptions;
     property ListenBacklog;
     property ReqVerLow;
@@ -3627,6 +3681,8 @@ type
     property OnBgException;
     property OnSocksError;
     property OnSocksAuthState;
+    property SocketErrs;
+    property onException;
 {$IFNDEF NO_DEBUG_LOG}
     property IcsLogger;                       { V5.21 }
 {$ENDIF}
@@ -4652,26 +4708,6 @@ begin
             ASocketFamily := sfAnyIPv6;
     end;
 end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomWSocket.RaiseException(const Msg : String);
-begin
-    if Assigned(FOnError) then
-        TriggerError                 { Should be modified to pass Msg ! }
-    else
-        raise ESocketException.Create(Msg);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-//procedure TCustomWSocket.RaiseExceptionFmt(const Fmt : String; args : array of const);
-//begin
-//    if Assigned(FOnError) then
-//        TriggerError
-//    else
-//        raise ESocketException.CreateFmt(Fmt, args);
-//end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -6398,6 +6434,68 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.36 extended exception handler }
+constructor ESocketException.Create(
+                       const AMessage       : String;
+                       AErrorCode           : Integer = 0;
+	                   const AErrorMessage  : String = '';
+                       const AFriendlyMsg   : String = '';
+                       const AFunc          : String = '';
+                       const AIP            : String = '';
+                       const APort          : String = '';
+                       const AProto         : String = '');
+begin
+    FErrorCode    := AErrorCode;
+    FErrorMessage := AErrorMessage;
+    FIPStr        := AIP;
+    FPortStr      := APort;
+    FProtoStr     := AProto;
+    FFriendlyMsg  := AFriendlyMsg;
+    FFunc         := AFunc;
+    if (FErrorCode > 0) and (FErrorMessage = '') then
+                    FErrorMessage := SocketErrorDesc(FErrorCode);
+    if FFriendlyMsg = '' then FFriendlyMsg := AMessage;
+    inherited Create(AMessage);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.36 extended exception information, set FSocketErrs = wsErrFriendly for
+  more friendly messages (without error numbers) }
+procedure TCustomWSocket.RaiseException(const Msg : String;
+                       AErrorCode           : Integer;
+	                   const AErrorMessage  : String = '';
+                       const AFriendlyMsg   : String = '';
+                       const AFunc          : String = '';
+                       const AIP            : String = '';
+                       const APort          : String = '';
+                       const AProto         : String = '');
+var
+    MyException: ESocketException;
+    MyMessage: String;
+begin
+    MyMessage := Msg ;
+    if (FSocketErrs = wsErrFriendly) and (AFriendlyMsg <> '') then
+                                                MyMessage := AFriendlyMsg;
+    MyException := ESocketException.Create(MyMessage, AErrorCode, AErrorMessage,
+                                           AFriendlyMsg, AFunc, AIP, APort, AProto);
+    if Assigned(FOnError) then
+        TriggerError                 { Should be modified to pass Msg ! }
+    else if Assigned (FonException) then
+        TriggerException (MyException)        { V8.36 }
+    else
+        raise MyException;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomWSocket.RaiseException(const Msg : String);
+begin
+    RaiseException(Msg, 0, '', '', '', '', '', '');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TWSocketCounter.GetLastAliveTick : Cardinal;
 {$IFDEF PUREPASCAL}
 begin
@@ -6787,6 +6885,7 @@ begin
     FCounterClass       := TWSocketCounter;
     FSocketFamily       := DefaultSocketFamily;
     FOldSocketFamily    := FSocketFamily;
+    FSocketErrs         := wsErrTech;  { V8.36 }
     AssignDefaultValue;
 {$IFDEF MSWINDOWS}
     EnterCriticalSection(GWSockCritSect);
@@ -8605,10 +8704,14 @@ var
     HostName : AnsiString;
     Success  : Boolean;
     ScopeID  : LongWord;
+    Err      : integer;
 begin
     if AHostName = '' then begin
-        RaiseException('DNS lookup: invalid host name.');
-        TriggerDnsLookupDone(WSAEINVAL);
+        try
+            RaiseException('DNS lookup: invalid host name.');
+        finally   { V8.36 }
+            TriggerDnsLookupDone(WSAEINVAL);
+        end;
         Exit;
     end;
 
@@ -8651,8 +8754,10 @@ begin
         end;
     end;
 
-    if FWindowHandle = 0 then
+    if FWindowHandle = 0 then begin
         RaiseException('DnsLookup: Window not assigned');
+        Exit;   { V8.36 }
+    end;
 
     { John Goodwin found a case where winsock dispatch WM_ASYNCGETHOSTBYNAME }
     { message before returning from WSAAsyncGetHostByName call. Because of   }
@@ -8677,8 +8782,9 @@ begin
                                   AProtocol);
 
     if FDnsLookupHandle = 0 then begin
+        Err := WSocket_Synchronized_WSAGetLastError;
         RaiseException(String(HostName) + ': can''t start DNS lookup - ' +
-                       GetWinsockErr(WSocket_Synchronized_WSAGetLastError));  { V5.26 }
+                                                GetWinsockErr(Err), Err);  { V5.26, V8.36 }
         Exit;
     end;
     if FDnsLookupCheckMsg then begin
@@ -8704,8 +8810,11 @@ var
 {$ENDIF}
 begin
     if HostAddr = '' then begin
-        RaiseException('Reverse DNS Lookup: Invalid host name.'); { V5.26 }
-        TriggerDnsLookupDone(WSAEINVAL);
+        try
+            RaiseException('Reverse DNS Lookup: Invalid host name.'); { V5.26 }
+        finally    { V8.36 }
+            TriggerDnsLookupDone(WSAEINVAL);
+        end;
         Exit;
     end;
     { Cancel any pending lookup }
@@ -8725,8 +8834,10 @@ begin
     if FSocketFamily = sfIPv4 then
         lAddr := WSocket_Synchronized_inet_addr(PAnsiChar(AnsiString(HostAddr)));
   {$ENDIF}
-    if FWindowHandle = 0 then
+    if FWindowHandle = 0 then begin
         RaiseException('Reverse DNS Lookup: Window not assigned');  { V5.26 }
+        exit;  { V8.36 }
+    end;
   {$IFDEF MSWINDOWS}
     if FSocketFamily = sfIPv4 then
         FDnsLookupHandle := WSocket_Synchronized_WSAAsyncGetHostByAddr(
@@ -8767,8 +8878,11 @@ var
 
 begin
     if (Length(HostAddr) = 0) or (Length(HostAddr) >= SizeOf(szAddr)) then begin
-        RaiseException('Reverse DNS Lookup: Invalid host name.');   { V5.26 }
-        TriggerDnsLookupDone(WSAEINVAL);
+        try
+            RaiseException('Reverse DNS Lookup: Invalid host name.');   { V5.26 }
+        finally   { V8.36 }
+            TriggerDnsLookupDone(WSAEINVAL);
+        end;
         Exit;
     end;
     { Cancel any pending lookup }
@@ -8829,6 +8943,8 @@ var
     LocalSockName : TSockAddrIn6;
     LLocalAddr    : String;
     LSocketFamily : TSocketFamily;
+    ErrorCode     : integer;
+    FriendlyMsg   : String;
 begin
     if FAddrFormat = AF_INET6 then // requires Addr being resolved
     begin
@@ -8852,8 +8968,13 @@ begin
     end;
     SockNamelen := SizeOfAddr(LocalSockName);
     if WSocket_Synchronized_bind(HSocket, PSockAddrIn(@LocalSockName)^, SockNamelen) <> 0 then begin
-        RaiseException('Bind socket failed - ' +
-                       GetWinsockErr(WSocket_Synchronized_WSAGetLastError));  { V5.26 }
+        ErrorCode := WSocket_Synchronized_WSAGetLastError;
+        if (ErrorCode = WSAEADDRINUSE) or (ErrorCode = WSAEACCES)  then   { V8.36 more friendly message for common error }
+            FriendlyMsg := 'Another client is using address ' +
+                                LLocalAddr + ':' + IntToStr(FLocalPortNum) ;
+        RaiseException('Bind socket failed - ' + GetWinsockErr(ErrorCode),
+                   ErrorCode, '', FriendlyMsg, 'Bind Socket',
+                            LLocalAddr, IntToStr(FLocalPortNum), FProtoStr);  { V8.36 }
         Exit;
     end;
     if WSocket_Synchronized_GetSockName(FHSocket, PSockAddrIn(@SockName)^, SockNamelen) <> 0 then begin
@@ -9332,12 +9453,15 @@ var
     mreq           : ip_mreq;
     mreqv6         : TIpv6MReq;
     Success        : Boolean;
+    FriendlyMsg    : String;
+    ErrorCode      : Integer;
 {$IFDEF MSWINDOWS}
     dwBufferInLen  : DWORD;
     dwBufferOutLen : DWORD;
     dwDummy        : DWORD;
 {$ENDIF}
 begin
+    FriendlyMsg := '';
     if not FPortAssigned then begin
         WSocket_Synchronized_WSASetLastError(WSAEINVAL);
         SocketError('listen: port not assigned');
@@ -9412,7 +9536,7 @@ begin
         exit;
     end;
 
-    if FType = SOCK_DGRAM then begin
+    if FType = SOCK_DGRAM then begin  { UDP }
         if FReuseAddr then begin
         { Enable multiple tasks to listen on duplicate address and port }
             optval  := -1;
@@ -9428,13 +9552,31 @@ begin
         end;
     end;
 
+    if FExclusiveAddr then begin
+    { V8.36 Prevent other applications accessing this address and port }
+        optval  := -1;
+        iStatus := WSocket_Synchronized_SetSockOpt(FHSocket, SOL_SOCKET,
+                                                   SO_EXCLUSIVEADDRUSE,
+                                                   @optval, SizeOf(optval));
+
+        if iStatus <> 0 then begin
+            SocketError('setsockopt(SO_EXCLUSIVEADDRUSE)');
+            Close;
+            Exit;
+        end;
+    end;
+
     iStatus := WSocket_Synchronized_bind(FHSocket, PSockAddr(@Fsin)^,
                                          SizeOfAddr(Fsin));
     if iStatus = 0 then
         ChangeState(wsBound)
     else begin
         try
-            SocketError('Bind');
+            ErrorCode := WSocket_Synchronized_WSAGetLastError;
+            if (ErrorCode = WSAEADDRINUSE) or (ErrorCode = WSAEACCES)  then   { V8.36 more friendly message for common error }
+                FriendlyMsg := 'Another server is already listening on ' +
+                                                  FAddrStr + ':' + FPortStr ;
+            SocketError('listen: Bind', ErrorCode, FriendlyMsg);
         finally
             WSocket_Synchronized_closesocket(FHSocket);
             FHSocket := INVALID_SOCKET;
@@ -9465,7 +9607,7 @@ begin
             TriggerSessionConnectedSpecial(0);
         end;
 {$ENDIF}
-    SOCK_DGRAM :
+    SOCK_DGRAM :  { UDP }
         begin
             if FMultiCast then begin
                 if FAddrFormat = AF_INET then begin
@@ -9512,7 +9654,7 @@ begin
             ChangeState(wsConnected);
             TriggerSessionConnectedSpecial(0);
         end;
-    SOCK_STREAM :
+    SOCK_STREAM : { TCP }
         begin
             iStatus := WSocket_Synchronized_Listen(FHSocket, FListenBacklog);
             if iStatus = 0 then
@@ -10238,6 +10380,14 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomWSocket.TriggerException (E: ESocketException);   { V8.36 }
+begin
+    if Assigned(FOnException) then
+        FOnException(Self, E);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomWSocket.TriggerDNSLookupDone(Error : Word);
 begin
     if Assigned(FOnDNSLookupDone) then
@@ -10254,7 +10404,8 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomWSocket.SocketError(sockfunc: String; LastError: Integer = 0);
+procedure TCustomWSocket.SocketError(sockfunc: String; LastError: Integer = 0;
+                                                      FriendlyMsg: String = '');   { V8.36 added FriendlyMsg }
 var
     Error  : Integer;
     Line   : String;
@@ -10263,11 +10414,11 @@ begin
         Error := WSocket_Synchronized_WSAGetLastError
     else
         Error := LastError;
-{    Line  := 'Error '+ IntToStr(Error) + ' in function ' + sockfunc +
-             #13#10 + WSocketErrorDesc(Error);  }
-    Line  := WSocketErrorDesc(Error) + ' (#' + IntToStr(Error) +
-                                         ' in ' + sockfunc + ')' ;   { V5.26 }
-
+    Line  := WSocketErrorDesc(Error) ;
+    if (FSocketErrs = wsErrFriendly) then
+        Line := Line + ' in ' + sockfunc    { V8.36 }
+    else
+        Line := Line + ' (#' + IntToStr(Error) + ' in ' + sockfunc + ')' ;   { V5.26 }
     if (Error = WSAECONNRESET) or
        (Error = WSAENOTCONN) then begin
         WSocket_Synchronized_closesocket(FHSocket);
@@ -10276,9 +10427,9 @@ begin
            TriggerSessionClosed(Error);
         ChangeState(wsClosed);
     end;
-
     FLastError := Error;
-    RaiseException(Line);
+    RaiseException(Line, Error, SocketErrorDesc(Error), FriendlyMsg,
+                                   sockfunc, FAddrStr, FPortStr, FProtoStr);  { V5.26 }
 end;
 
 
@@ -13813,34 +13964,34 @@ begin
             raise ESslContextException.CreateFmt('Error reading info file "%s"',
                                                  [FileName]);
         try
-            if f_sk_num(InfoStack) > 0 then
-                Result := f_sk_new_null
+            if f_OPENSSL_sk_num(InfoStack) > 0 then
+                Result := f_OPENSSL_sk_new_null
             else
                 Exit;
             if Result = nil then
                 raise ESslContextException.Create('Error creating Stack');
             // Scan over it and pull out what is needed
-            while f_sk_num(InfoStack) > 0 do begin
-                CertInfo := PX509_INFO(f_sk_delete(InfoStack, 0));
+            while f_OPENSSL_sk_num(InfoStack) > 0 do begin
+                CertInfo := PX509_INFO(f_OPENSSL_sk_delete(InfoStack, 0));
                 case Mode of
                 emCert :
                     if CertInfo^.x509 <> nil then
-                        f_sk_insert(Result, PAnsiChar(f_X509_dup(CertInfo^.x509)),
-                                                  f_sk_num(Result) + 1);
+                        f_OPENSSL_sk_insert(Result, PAnsiChar(f_X509_dup(CertInfo^.x509)),
+                                                  f_OPENSSL_sk_num(Result) + 1);
                 { A Dup-function for X509_PKEY is still missing in OpenSsl arrg!
                 emKey :
                     if CertInfo^.x_pkey <> nil then
-                        f_sk_insert(Result, PChar(f_X509_PKEY_dup(CertInfo^.x_pkey)),
-                                                  f_sk_num(Result) + 1);}
+                        f_OPENSSL_sk_insert(Result, PChar(f_X509_PKEY_dup(CertInfo^.x_pkey)),
+                                                  f_OPENSSL_sk_num(Result) + 1);}
                 emCrl :
                     if CertInfo^.crl <> nil then
-                        f_sk_insert(Result, PAnsiChar(f_X509_CRL_dup(CertInfo^.crl)),
-                                                  f_sk_num(Result) + 1);
+                        f_OPENSSL_sk_insert(Result, PAnsiChar(f_X509_CRL_dup(CertInfo^.crl)),
+                                                  f_OPENSSL_sk_num(Result) + 1);
                 end; //case
                 f_X509_INFO_free(CertInfo);
             end;
         finally
-             f_sk_pop_free(InfoStack, @f_X509_INFO_free);
+             f_OPENSSL_sk_pop_free(InfoStack, @f_X509_INFO_free);
         end;
     finally
        f_Bio_free(InBio);
@@ -13871,34 +14022,34 @@ begin
         if not Assigned(InfoStack) then
             raise ESslContextException.Create('Failed to read encoded PEM certificates');
         try
-            if f_sk_num(InfoStack) > 0 then
-                Result := f_sk_new_null
+            if f_OPENSSL_sk_num(InfoStack) > 0 then
+                Result := f_OPENSSL_sk_new_null
             else
                 Exit;
             if Result = nil then
                 raise ESslContextException.Create('Error creating Stack');
             // Scan over it and pull out what is needed
-            while f_sk_num(InfoStack) > 0 do begin
-                CertInfo := PX509_INFO(f_sk_delete(InfoStack, 0));
+            while f_OPENSSL_sk_num(InfoStack) > 0 do begin
+                CertInfo := PX509_INFO(f_OPENSSL_sk_delete(InfoStack, 0));
                 case Mode of
                 emCert :
                     if CertInfo^.x509 <> nil then
-                        f_sk_insert(Result, PAnsiChar(f_X509_dup(CertInfo^.x509)),
-                                                  f_sk_num(Result) + 1);
+                        f_OPENSSL_sk_insert(Result, PAnsiChar(f_X509_dup(CertInfo^.x509)),
+                                                  f_OPENSSL_sk_num(Result) + 1);
                 { A Dup-function for X509_PKEY is still missing in OpenSsl arrg!
                 emKey :
                     if CertInfo^.x_pkey <> nil then
-                        f_sk_insert(Result, PChar(f_X509_PKEY_dup(CertInfo^.x_pkey)),
-                                                  f_sk_num(Result) + 1);}
+                        f_OPENSSL_sk_insert(Result, PChar(f_X509_PKEY_dup(CertInfo^.x_pkey)),
+                                                  f_OPENSSL_sk_num(Result) + 1);}
                 emCrl :
                     if CertInfo^.crl <> nil then
-                        f_sk_insert(Result, PAnsiChar(f_X509_CRL_dup(CertInfo^.crl)),
-                                                  f_sk_num(Result) + 1);
+                        f_OPENSSL_sk_insert(Result, PAnsiChar(f_X509_CRL_dup(CertInfo^.crl)),
+                                                  f_OPENSSL_sk_num(Result) + 1);
                 end; //case
                 f_X509_INFO_free(CertInfo);
             end;
         finally
-             f_sk_pop_free(InfoStack, @f_X509_INFO_free);
+             f_OPENSSL_sk_pop_free(InfoStack, @f_X509_INFO_free);
         end;
     finally
        f_Bio_free(InBio);
@@ -13938,9 +14089,9 @@ begin
                 St := f_SSL_CTX_get_cert_store(FSslCtx);
                 if not Assigned(St) then
                     raise ESslContextException.Create('Error on opening store');
-                while f_sk_num(CrlStack) > 0 do begin
+                while f_OPENSSL_sk_num(CrlStack) > 0 do begin
                     //Crl := nil;
-                    Crl := PX509_CRL(f_sk_delete(CrlStack, 0));
+                    Crl := PX509_CRL(f_OPENSSL_sk_delete(CrlStack, 0));
                     if Assigned(Crl) then
                         try
                             { Fails if CRL is already in hash table }
@@ -13956,7 +14107,7 @@ begin
                         end;
                     end;
             finally
-                f_sk_pop_free(CrlStack, @f_X509_CRL_free);
+                f_OPENSSL_sk_pop_free(CrlStack, @f_X509_CRL_free);
             end;
         end;
 {$IFNDEF NO_SSL_MT}
@@ -14092,11 +14243,11 @@ begin
                 raise ESslContextException.Create('Error on opening store');
 {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslInfo) then  { V5.21 }
-                DebugLog(loSslInfo, 'Read ' + IntToStr(f_sk_num(CertStack)) +
+                DebugLog(loSslInfo, 'Read ' + IntToStr(f_OPENSSL_sk_num(CertStack)) +
                                                     ' CA certificates from strings');
 {$ENDIF};
-            while f_sk_num(CertStack) > 0 do begin
-                Cert := PX509(f_sk_delete(CertStack, 0));
+            while f_OPENSSL_sk_num(CertStack) > 0 do begin
+                Cert := PX509(f_OPENSSL_sk_delete(CertStack, 0));
                 if Assigned(Cert) then
                 try
 {$IFNDEF NO_DEBUG_LOG}
@@ -14116,7 +14267,7 @@ begin
                 end;
             end;
          finally
-            f_sk_pop_free(CertStack, @f_X509_free);
+            f_OPENSSL_sk_pop_free(CertStack, @f_X509_free);
          end;
 {$IFNDEF NO_SSL_MT}
     finally
@@ -14228,11 +14379,11 @@ begin
                 raise ESslContextException.Create('Error on clearing chain certs');
 {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslInfo) then  { V5.21 }
-                DebugLog(loSslInfo, 'Read ' + IntToStr(f_sk_num(CertStack)) +
+                DebugLog(loSslInfo, 'Read ' + IntToStr(f_OPENSSL_sk_num(CertStack)) +
                                                     ' certificates from strings');
 {$ENDIF};
          { first certificate is current used for encryption and identification }
-            Cert := PX509(f_sk_delete(CertStack, 0));
+            Cert := PX509(f_OPENSSL_sk_delete(CertStack, 0));
             if Assigned(Cert) then
             try
 {$IFNDEF NO_DEBUG_LOG}
@@ -14256,15 +14407,15 @@ begin
         { remaining certificates are chain used to sign current certificate, usually one or two }
         { !! this function is supposed to be for a server requesting a client certificate, but
              seems to also store extra chain certificates }
- //          if f_sk_num(CertStack) > 0 then begin
+ //          if f_OPENSSL_sk_num(CertStack) > 0 then begin
  //              f_SSL_CTX_set_client_CA_list(FSslCTX, PSTACK_OF_X509_NAME(CertStack));  // frees Sk
 
             Store := f_SSL_CTX_get_cert_store(FSslCtx);
             if NOT Assigned(Store) then
                 raise ESslContextException.Create('Can not open store for chain certs');
 
-            while f_sk_num(CertStack) > 0 do begin   // seemed to cause exception with next OpenSSL function
-                Cert := PX509(f_sk_delete(CertStack, 0));
+            while f_OPENSSL_sk_num(CertStack) > 0 do begin   // seemed to cause exception with next OpenSSL function
+                Cert := PX509(f_OPENSSL_sk_delete(CertStack, 0));
                 if Assigned(Cert) then
                 try
 {$IFNDEF NO_DEBUG_LOG}
@@ -14283,7 +14434,7 @@ begin
                 end;
             end;
          finally
-            f_sk_pop_free(CertStack, @f_X509_free);
+            f_OPENSSL_sk_pop_free(CertStack, @f_X509_free);
          end;
 {$IFNDEF NO_SSL_MT}
     finally
@@ -15447,7 +15598,7 @@ constructor TX509Stack.Create;
 begin
     inherited Create;
     FStack := nil;
-    FStack := f_sk_new_null;
+    FStack := f_OPENSSL_sk_new_null;
     FCount := 0;
 end;
 
@@ -15457,7 +15608,7 @@ destructor TX509Stack.Destroy;
 begin
     if Assigned(FStack) then begin
         Clear;
-        f_sk_free(FStack);
+        f_OPENSSL_sk_free(FStack);
         FStack := nil;
     end;
     inherited Destroy;
@@ -15467,7 +15618,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Stack.Add(Cert: PX509): Integer;
 begin
-    Result := InternalInsert(Cert, f_sk_num(FStack)) - 1;
+    Result := InternalInsert(Cert, f_OPENSSL_sk_num(FStack)) - 1;
 end;
 
 
@@ -15486,8 +15637,8 @@ var
 begin
     Clear;
     if Value <> nil then
-        for I := 0 to f_sk_num(Value) - 1 do
-            Add(PX509(f_sk_value(Value, I)));
+        for I := 0 to f_OPENSSL_sk_num(Value) - 1 do
+            Add(PX509(f_OPENSSL_sk_value(Value, I)));
 end;
 
 
@@ -15497,7 +15648,7 @@ var
     P : PChar;
 begin
     P := nil;
-    P := f_sk_delete(FStack, Index);
+    P := f_OPENSSL_sk_delete(FStack, Index);
     if P <> nil then begin
         Dec(FCount);
         f_X509_free(PX509(P));
@@ -15511,7 +15662,7 @@ function TX509Stack.IndexOf(Cert: PX509): Integer;
 begin
     Result := 0;
     while (Result < FCount) and
-          (PX509(f_sk_value(FStack, Result)) <> Cert) do
+          (PX509(f_OPENSSL_sk_value(FStack, Result)) <> Cert) do
         Inc(Result);
     if Result = FCount then
         Result := -1;
@@ -15538,7 +15689,7 @@ begin
     P := f_X509_dup(Cert);  // increment reference count
     if P = nil then
         raise EX509Exception.Create('X509_dup failed');
-    Result := f_sk_insert(FStack, PChar(P), Index);
+    Result := f_OPENSSL_sk_insert(FStack, PChar(P), Index);
     if Result = 0 then
         f_X509_free(P)
     else
@@ -15549,7 +15700,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Stack.GetCert(Index: Integer): PX509;
 begin
-    Result := PX509(f_sk_value(FStack, Index));
+    Result := PX509(f_OPENSSL_sk_value(FStack, Index));
 end;
 
 
@@ -15902,8 +16053,8 @@ begin
             if not Assigned(Val) then
                 Exit;
             J := 0;
-            while J < f_sk_num(val) do begin
-                NVal := PCONF_VALUE(f_sk_value(Val, J));
+            while J < f_OPENSSL_sk_num(val) do begin
+                NVal := PCONF_VALUE(f_OPENSSL_sk_value(Val, J));
                 if Length(Result.Value) > 0 then
                     Result.Value := Result.Value + #13#10;
                 Result.Value := Result.Value + String(StrPas(NVal^.name));
@@ -15937,7 +16088,7 @@ begin
         end;
     finally
         if Assigned(Val) then
-            f_sk_pop_free(Val, @f_X509V3_conf_free);
+            f_OPENSSL_sk_pop_free(Val, @f_X509V3_conf_free);
         if Assigned(Value) then
             f_CRYPTO_free(Value);
         if Assigned(Meth) and Assigned(ext_str) then
@@ -17775,8 +17926,8 @@ begin
                                   meth^.d2i(nil, @Data, Ext^.value^.length),
                                   nil);
                 J := 0;
-                while J < f_sk_num(val) do begin
-                    NVal := PCONF_VALUE(f_sk_value(Val, J));
+                while J < f_OPENSSL_sk_num(val) do begin
+                    NVal := PCONF_VALUE(f_OPENSSL_sk_value(Val, J));
                     if (StrLIComp(NVal^.name, 'DNS', 255) = 0) then begin
                         HostBuf := StrPas(NVal^.value);
                         if FSslAcceptableHosts.IndexOf(HostBuf) >= 0 then begin
@@ -18182,14 +18333,14 @@ begin
     end
     else
         MyStack := f_SSL_get_ciphers(MySsl);   // all ciphers
-    Total := f_sk_num(MyStack);
+    Total := f_OPENSSL_sk_num(MyStack);
     if Total = 0 then Exit;
     for I := 0 to Total - 1 do begin
-        MyCipher := f_sk_value(MyStack, I);
+        MyCipher := f_OPENSSL_sk_value(MyStack, I);
         if Assigned (MyCipher) then
             Result := Result + String(f_SSL_CIPHER_get_name(MyCipher)) + #13#10;
     end;
-    if Supported and (NOT Remote) then f_sk_free(MyStack);
+    if Supported and (NOT Remote) then f_OPENSSL_sk_free(MyStack);
     if NewSSL then f_SSL_free(MySsl);
 end;
 

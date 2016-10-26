@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.35
+Version:      8.36
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -126,7 +126,8 @@ Oct 18, 2016  V8.35 Angus, major rewrite to simplify loading OpenSSL DLL functio
               stub more removed functions to save some exceptions
               combined all imports from OverbyteIcsLibeayEx to make maintenance and use easier
               EVP_CIPHER_CTX_xx is now backward compatible with 1.1.0
-              
+Oct 26, 2016  V8.36 more clean up of old stuff gone from 1.1.0
+              Now using new names for imports renamed in 1.1.0
 
 
 Notes - OpenSSL libeay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -167,6 +168,7 @@ Macros which are now new exported functions:
 X509_get0_notBefore
 X509_get0_notAfter
 X509_get_signature_nid
+X509_REQ_get_subject_name
 
 New functions:
 EVP_CIPHER_CTX_reset
@@ -1371,285 +1373,301 @@ type
     TCryptoFreeMemFunc  = procedure(P: Pointer); cdecl;
 {$ENDIF}
 
+// 8.35 moved lots of declarations from OverbyteIcsLibeayEx so they are all together
+
 const
-    f_SSLeay :                                 function: Longword; cdecl = nil; //AG
-    f_SSLeay_version :                         function(t: Integer): PAnsiChar; cdecl = nil; //AG
-    f_OpenSSL_version_num :                    function: Longword; cdecl = nil;               { V8.27  }
-    f_OpenSSL_version :                        function(t: Integer): PAnsiChar; cdecl = nil;  { V8.27  }
-    f_ERR_get_error_line_data :                function(const FileName: PPAnsiChar; Line: PInteger; const Data: PPAnsiChar; Flags: PInteger): Cardinal; cdecl = nil;
-    f_ERR_peek_error :                         function : Cardinal; cdecl = nil;
-    f_ERR_peek_last_error :                    function : Cardinal; cdecl = nil;
-    f_ERR_get_error :                          function: Cardinal; cdecl = nil;
-    f_ERR_error_string :                       function(Err: Cardinal; Buf: PAnsiChar): PAnsiChar; cdecl = nil;
-    f_ERR_error_string_n :                     procedure(Err: Cardinal; Buf: PAnsiChar; Len: size_t); cdecl = nil;
-    f_ERR_clear_error :                        procedure; cdecl = nil; //empties the current thread's error queue
-    f_ERR_lib_error_string:                    function (e: Cardinal): PAnsiChar; cdecl = nil;   { V8.11 }
-    f_ERR_func_error_string:                   function (e: Cardinal): PAnsiChar; cdecl = nil;
-    f_ERR_reason_error_string:                 function (e: Cardinal): PAnsiChar; cdecl = nil;
-    f_ERR_load_crypto_strings:                 procedure; cdecl = nil;
+    RSA_PKCS1_PADDING                 = 1;
+    RSA_SSLV23_PADDING                = 2;
+    RSA_NO_PADDING                    = 3;
+    RSA_PKCS1_OAEP_PADDING            = 4;
 
-    { Note that ERR_remove_state() is now deprecated, because it is tied
-     to the assumption that thread IDs are numeric.  ERR_remove_state(0)
-     to free the current thread's error state should be replaced by
-     ERR_remove_thread_state(nil). }
-    f_ERR_remove_state :                       procedure(ThreadID: Longword); cdecl = nil;
-    { Next is v1.0.0+ ** check for nil ** }
-    f_ERR_remove_thread_state :                procedure(tid: PCRYPTO_THREADID); cdecl = nil;
-    f_ERR_free_strings :                       procedure; cdecl = nil; //"Brutal" (thread-unsafe) Application-global cleanup functions
-    f_RAND_seed :                              procedure(Buf: Pointer; Num: Integer); cdecl = nil;
+    RSA_PKCS1_PADDING_SIZE            = 11;
+    RSA_PKCS1_OAEP_PADDING_SIZE       = 41;
+    PKCS5_SALT_LEN                    =  8;
 
+const
+//    f_SSLeay :                                 function: Longword; cdecl = nil; //AG   V8.36 renamed in 1.1.0
+//    f_SSLeay_version :                         function(t: Integer): PAnsiChar; cdecl = nil; //AG   V8.36 renamed in 1.1.0  
+
+    f_ASN1_INTEGER_get :                       function(Asn1_Int : PASN1_INTEGER): Integer; cdecl = nil;
+    f_ASN1_INTEGER_set :                       function(a: PASN1_INTEGER; v: LongInt) : Integer; cdecl = nil;//AG
+    f_ASN1_STRING_free :                       procedure(a: PASN1_STRING); cdecl = nil;//AG;
+    f_ASN1_STRING_print :                      function(B: PBIO; v: PASN1_STRING): integer; cdecl = nil;//AG;
+    f_ASN1_STRING_to_UTF8 :                    function(POut: PPAnsiChar; PIn: PASN1_STRING) : Integer; cdecl = nil;//AG
+    f_ASN1_item_d2i :                          function(Val: PPASN1_VALUE; _In: PPAnsiChar; Len: Longword; const It: PASN1_ITEM): PASN1_VALUE; cdecl = nil;//AG;
+    f_ASN1_item_free :                         procedure(Val: PASN1_VALUE; const It: PASN1_ITEM); cdecl = nil; //AG
+    f_BIO_ctrl :                               function(bp: PBIO; Cmd: Integer; LArg: LongInt; PArg: Pointer): LongInt; cdecl = nil;
+    f_BIO_ctrl_get_read_request :              function(b: PBIO): size_t; cdecl = nil;
+    f_BIO_ctrl_get_write_guarantee :           function(b: PBIO): size_t; cdecl = nil;
+    f_BIO_ctrl_pending :                       function(b: PBIO): size_t; cdecl = nil;
+    f_BIO_free :                               function(B: PBIO): Integer; cdecl = nil;
+    f_BIO_get_retry_BIO :                      function(B: PBIO; Reason : PInteger): PBIO; cdecl = nil;
+    f_BIO_get_retry_reason :                   function(B: PBIO): Integer; cdecl = nil;
+    f_BIO_gets :                               function(B: PBIO; Buf: PAnsiChar; Size: Integer): Integer; cdecl = nil;
     f_BIO_new :                                function(BioMethods: PBIO_METHOD): PBIO; cdecl = nil;
-    f_BIO_new_socket :                         function(Sock: Integer; CloseFlag: Integer): PBIO; cdecl = nil;
+    f_BIO_new_bio_pair :                       function(Bio1: PPBIO; WriteBuf1: size_t; Bio2: PPBIO; WriteBuf2: size_t): Integer; cdecl = nil;
     f_BIO_new_fd :                             function(Fd: Integer; CloseFlag: Integer): PBIO; cdecl = nil;
     f_BIO_new_file :                           function(FileName: PAnsiChar; Mode: PAnsiChar): PBIO; cdecl = nil;
     f_BIO_new_mem_buf :                        function(Buf : Pointer; Len : Integer): PBIO; cdecl = nil;
-    f_BIO_new_bio_pair :                       function(Bio1: PPBIO; WriteBuf1: size_t; Bio2: PPBIO; WriteBuf2: size_t): Integer; cdecl = nil;
-
-    f_BIO_ctrl :                               function(bp: PBIO; Cmd: Integer; LArg: LongInt; PArg: Pointer): LongInt; cdecl = nil;
-    f_BIO_ctrl_pending :                       function(b: PBIO): size_t; cdecl = nil;
-    f_BIO_ctrl_get_write_guarantee :           function(b: PBIO): size_t; cdecl = nil;
-    f_BIO_ctrl_get_read_request :              function(b: PBIO): size_t; cdecl = nil;
-
-    f_BIO_s_mem :                              function : PBIO_METHOD; cdecl = nil;
-    f_BIO_get_retry_BIO :                      function(B: PBIO; Reason : PInteger): PBIO; cdecl = nil;
-    f_BIO_get_retry_reason :                   function(B: PBIO): Integer; cdecl = nil;
-    f_BIO_free :                               function(B: PBIO): Integer; cdecl = nil;
-    f_BIO_read :                               function(B: PBIO; Buf: Pointer; Len: Integer): Integer; cdecl = nil;
+    f_BIO_new_socket :                         function(Sock: Integer; CloseFlag: Integer): PBIO; cdecl = nil;
     f_BIO_nread :                              function(B: PBIO; PBuf: PPAnsiChar; Num: Integer): Integer; cdecl = nil;
     f_BIO_nread0 :                             function(B: PBIO; PBuf: PPAnsiChar): Integer; cdecl = nil;
     f_BIO_nwrite :                             function(B: PBIO; PBuf: PPAnsiChar; Num: Integer): Integer; cdecl = nil;
     f_BIO_nwrite0 :                            function(B: PBIO; PBuf: PPAnsiChar): Integer; cdecl = nil;
-    f_BIO_gets :                               function(B: PBIO; Buf: PAnsiChar; Size: Integer): Integer; cdecl = nil;
-    f_BIO_puts :                               function(B: PBIO; Buf: PAnsiChar): Integer; cdecl = nil;
     f_BIO_push :                               function(B: PBIO; B_Append: PBIO): PBIO; cdecl = nil;
+    f_BIO_puts :                               function(B: PBIO; Buf: PAnsiChar): Integer; cdecl = nil;
+    f_BIO_read :                               function(B: PBIO; Buf: Pointer; Len: Integer): Integer; cdecl = nil;
+    f_BIO_s_mem :                              function : PBIO_METHOD; cdecl = nil;
     f_BIO_write :                              function(B: PBIO; Buf: Pointer; Len: Integer): Integer; cdecl = nil;
-
-    f_BN_new:                                  function : PBIGNUM; cdecl = nil;                 { V8.11 }
     f_BN_free:                                 procedure (a: PBIGNUM); cdecl = nil;
+    f_BN_new:                                  function : PBIGNUM; cdecl = nil;                 { V8.11 }
     f_BN_set_word:                             function (a: PBIGNUM; w: BN_ULONG): Integer; cdecl = nil;
-
-    f_d2i_X509_bio :                           function(B: PBIO; X509: PPX509): PX509; cdecl = nil;
-    f_i2d_X509_bio :                           function(B: PBIO; X509: PX509): Integer; cdecl = nil;
-    f_d2i_PrivateKey_bio :                     function(B: PBIO; A: PPEVP_PKEY): PEVP_PKEY; cdecl = nil;//AG
-    f_i2d_PrivateKey_bio :                     function(B: PBIO; pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
-    f_d2i_X509 :                               function(C509: PPX509; Buf: PPAnsiChar; Len: Integer): PX509; cdecl = nil;
-    f_d2i_PKCS12_bio :                         function(B: PBIO; p12: PPPKCS12): PPKCS12; cdecl = nil; //AG
-    f_i2d_PKCS12_bio :                         function(B: PBIO; p12: PPKCS12): Integer; cdecl = nil;
-    f_d2i_PKCS7_bio:                           function(B: PBIO; p7: PPKCS7): PPKCS7; cdecl = nil; //AG
-
-    f_CRYPTO_lock :                            procedure(mode, n: Longint; file_: PAnsiChar; line: Longint); cdecl = nil; //AG
-    f_CRYPTO_add_lock :                        procedure(IntPtr: PInteger; amount: Integer; type_: Integer; const file_ : PAnsiChar; line: Integer); cdecl = nil;
-    f_CRYPTO_num_locks :                       function: Integer; cdecl = nil;
-    f_CRYPTO_set_id_callback :                 procedure(CB : TStatLockIDCallback); cdecl = nil;
-    { Next three functions are v1.0.0+ only. ** Check for nil at runtime ** }
+    f_CONF_modules_unload :                    procedure(all: Integer); cdecl = nil;//AG;
     f_CRYPTO_THREADID_set_callback :           function(CB : TCryptoThreadIDCallback) : Integer; cdecl = nil;
-    // Only use CRYPTO_THREADID_set_[numeric|pointer]() within callbacks
     f_CRYPTO_THREADID_set_numeric :            procedure(id : PCRYPTO_THREADID; val: LongWord); cdecl = nil;
     f_CRYPTO_THREADID_set_pointer :            procedure(id : PCRYPTO_THREADID; ptr: Pointer); cdecl = nil;
-
-    f_CRYPTO_set_locking_callback :            procedure(CB : TStatLockLockCallback); cdecl = nil;
-    f_CRYPTO_set_dynlock_create_callback :     procedure(CB : TDynLockCreateCallBack); cdecl = nil;
-    f_CRYPTO_set_dynlock_lock_callback :       procedure(CB : TDynLockLockCallBack); cdecl = nil;
-    f_CRYPTO_set_dynlock_destroy_callback :    procedure(CB : TDynLockDestroyCallBack); cdecl = nil;
-{$IFDEF OPENSSL_USE_DELPHI_MM}
-    f_CRYPTO_set_mem_functions :               function(M: TCryptoMallocFunc; R: TCryptoReallocFunc; F: TCryptoFreeMemFunc): Integer; cdecl = nil; //AG
-{$ENDIF}
+    f_CRYPTO_add_lock :                        procedure(IntPtr: PInteger; amount: Integer; type_: Integer; const file_ : PAnsiChar; line: Integer); cdecl = nil;
     f_CRYPTO_cleanup_all_ex_data :             procedure; cdecl = nil;
-
-    f_X509_dup :                               function(X: PX509): PX509; cdecl = nil;//AG;
-    f_X509_check_ca :                          function(X: PX509): Integer; cdecl = nil;//AG;
-    f_X509_STORE_new :                         function: PX509_STORE; cdecl = nil;//AG;
-    f_X509_STORE_free :                        procedure(Store: PX509_STORE); cdecl = nil;//AG;
-    f_X509_STORE_add_cert :                    function(Store: PX509_STORE; Cert: PX509): Integer; cdecl = nil;//AG;
-    f_X509_STORE_add_crl :                     function(Store: PX509_STORE; CRL: PX509_CRL): Integer; cdecl = nil;//AG;
-    f_X509_STORE_add_lookup :                  function(Store: PX509_STORE; Meth: PX509_LOOKUP_METHOD): PX509_LOOKUP; cdecl = nil;//AG;
-    f_X509_STORE_set_flags :                   procedure(Store: PX509_STORE; Flags: Longword); cdecl = nil;//AG;
-
-    f_X509_STORE_CTX_new :                     function: PX509_STORE_CTX; cdecl = nil;//AG;
-    f_X509_STORE_CTX_free :                    procedure(Ctx: PX509_STORE_CTX); cdecl = nil;//AG;
-    f_X509_STORE_CTX_init :                    function(Ctx: PX509_STORE_CTX; Store: PX509_STORE; Cert: PX509; UnTrustedChain: PSTACK_OF_X509): Integer; cdecl = nil;//AG;
-    f_X509_STORE_CTX_cleanup :                 procedure(Ctx: PX509_STORE_CTX); cdecl = nil;//AG;
-    f_X509_STORE_CTX_get_ex_data :             function(Ctx: PX509_STORE_CTX; Idx: Integer): Pointer; cdecl = nil;
-    f_X509_STORE_CTX_get_current_cert :        function(Ctx: PX509_STORE_CTX): PX509; cdecl = nil;
-    f_X509_STORE_CTX_get_error :               function(Ctx: PX509_STORE_CTX): Integer; cdecl = nil;
-    f_X509_STORE_CTX_set_error :               procedure(Ctx: PX509_STORE_CTX; s: Integer); cdecl = nil;
-    f_X509_STORE_CTX_get_error_depth :         function(Ctx: PX509_STORE_CTX): Integer; cdecl = nil;
-    f_X509_STORE_CTX_get_chain :               function(Ctx: PX509_STORE_CTX): PSTACK_OF_X509; cdecl = nil;//AG;
-    f_X509_STORE_CTX_trusted_stack :           procedure(Ctx: PX509_STORE_CTX; STACK_OF_X509: PSTACK_OF_X509); cdecl = nil;//AG;
-    f_X509_STORE_CTX_set_purpose :             function(Ctx: PX509_STORE_CTX; Purpose: Integer): Integer; cdecl = nil;//AG;
-    f_X509_STORE_CTX_set_verify_cb :           procedure(Ctx: PX509_STORE_CTX; Cb: TSetVerify_cb); cdecl = nil;//AG;
-    f_X509_STORE_CTX_set_ex_data :             function(Ctx: PX509_STORE_CTX; Idx: Integer; Data: Pointer): Integer; cdecl = nil;//AG;
-
-    f_X509_load_crl_file :                     function(Ctx: PX509_LOOKUP; const Filename: PAnsiChar; type_: Integer): Integer; cdecl = nil;//AG;
-
-    f_X509_LOOKUP_file :                       function: PX509_LOOKUP_METHOD; cdecl = nil;//AG;
-    f_X509_LOOKUP_hash_dir :                   function: PX509_LOOKUP_METHOD; cdecl = nil;//AG;
-    f_X509_LOOKUP_new :                        function(Method: PX509_LOOKUP_METHOD): PX509_LOOKUP; cdecl = nil;//AG;
-    f_X509_LOOKUP_free :                       procedure(Ctx: PX509_LOOKUP); cdecl = nil;//AG;
-    f_X509_LOOKUP_by_issuer_serial :           function(Ctx: PX509_LOOKUP; Typ_: Integer; Name: PX509_NAME; Serial: PASN1_INTEGER; Ret: PX509_OBJECT): Integer; cdecl = nil;//AG;
-    f_X509_LOOKUP_by_fingerprint :             function(Ctx: PX509_LOOKUP; Typ_: Integer; Bytes: PAnsiChar; Len: Integer; Ret: PX509_OBJECT ): Integer; cdecl = nil;//AG;
-    f_X509_LOOKUP_ctrl :                       function(Ctx: PX509_LOOKUP; Cmd: Integer; Argc: PAnsiChar; Argl: Cardinal; Ret: PPAnsiChar): Integer; cdecl = nil;//AG;
-
-    f_X509_check_issued :                      function(Issuer: PX509; Subject: PX509): Integer; cdecl = nil;//AG;
-    f_X509_verify_cert :                       function(Ctx: PX509_STORE_CTX): Integer; cdecl = nil;//AG;
-    f_X509_verify_cert_error_string :          function(ErrCode : Integer): PAnsiChar; cdecl = nil;
-
-    f_X509_get_issuer_name :                   function(Cert: PX509): PX509_NAME; cdecl = nil;
-    f_X509_get_subject_name :                  function(Cert: PX509): PX509_NAME; cdecl = nil;
-    f_X509_get_serialNumber :                  function(Cert: PX509): PASN1_INTEGER; cdecl = nil;
-    f_X509_NAME_oneline :                      function(CertName: PX509_NAME; Buf: PAnsiChar; BufSize: Integer): PAnsiChar; cdecl = nil;
-    f_X509_NAME_get_text_by_NID :              function(CertName: PX509_NAME; Nid: Integer; Buf : PAnsiChar; Len : Integer): Integer; cdecl = nil;
-    f_X509_NAME_get_index_by_NID:              function(CertName: PX509_NAME; Nid: Integer; LastPos: Integer): Integer; cdecl = nil; //AG
-
-    f_X509_NAME_free :                         procedure(AName: PX509_NAME); cdecl = nil;//AG;
-    f_X509_NAME_cmp :                          function(const a: PX509_NAME; const b: PX509_NAME): Integer; cdecl = nil;//AG;
-
-    f_X509_get_ext :                           function(Cert: PX509; Loc : Integer): PX509_EXTENSION; cdecl = nil;
-    f_X509_get_ext_count :                     function(Cert: PX509): Integer; cdecl = nil;
-    f_X509_free :                              procedure(Cert: PX509); cdecl = nil;
-    f_X509_CRL_free :                          procedure(CRL: PX509_CRL); cdecl = nil;//AG
-    f_X509V3_EXT_get :                         function(Ext: PX509_EXTENSION): PX509V3_EXT_METHOD; cdecl = nil;
-    f_X509V3_EXT_print :                       function(B: PBIO; Ext: PX509_EXTENSION; Flag: Integer; Indent: Integer):Integer; cdecl = nil;//AG;
-    f_X509V3_EXT_d2i :                         function(Ext: PX509_EXTENSION): Pointer; cdecl = nil;//AG;
-    f_X509V3_conf_free :                       procedure(Val: PCONF_VALUE); cdecl = nil;//AG
-    f_X509_EXTENSION_get_object :              function(Ext: PX509_EXTENSION): PASN1_OBJECT; cdecl = nil;
-    f_X509_EXTENSION_get_data :                function(Ext : PX509_EXTENSION): PASN1_OCTET_STRING; cdecl = nil;//AG;
-    f_X509_EXTENSION_get_critical :            function(Ext: PX509_EXTENSION): Integer; cdecl = nil;//AG;
-    f_X509_subject_name_hash :                 function(Cert: PX509): Cardinal; cdecl = nil;
-    f_X509_print :                             function(B: PBIO; Cert: PX509): Integer; cdecl = nil;
-    f_X509_digest :                            function(Cert: PX509; Type_: PEVP_MD; Buf: PAnsiChar; BufSize: PInteger): Integer; cdecl = nil; //AG
-    f_X509_check_private_key :                 function(Cert: PX509; PKey: PEVP_PKEY): Integer; cdecl = nil; //AG
-
+    f_CRYPTO_free :                            procedure(P: Pointer); cdecl = nil;//AG
+    f_CRYPTO_lock :                            procedure(mode, n: Longint; file_: PAnsiChar; line: Longint); cdecl = nil; //AG
+    f_CRYPTO_num_locks :                       function: Integer; cdecl = nil;
+    f_CRYPTO_set_dynlock_create_callback :     procedure(CB : TDynLockCreateCallBack); cdecl = nil;
+    f_CRYPTO_set_dynlock_destroy_callback :    procedure(CB : TDynLockDestroyCallBack); cdecl = nil;
+    f_CRYPTO_set_dynlock_lock_callback :       procedure(CB : TDynLockLockCallBack); cdecl = nil;
+    f_CRYPTO_set_id_callback :                 procedure(CB : TStatLockIDCallback); cdecl = nil;
+    f_CRYPTO_set_locking_callback :            procedure(CB : TStatLockLockCallback); cdecl = nil;
+    f_DH_free :                                procedure(dh: PDH) cdecl = nil;  { V8.07 }
+    f_DH_size :                                function(Dh: PDH): Integer; cdecl = nil;   //Angus
+    f_DSA_free :                               procedure(DSA: PDSA); cdecl = nil;   //Angus
+    f_DSA_print :                              function(B: PBIO; Dsa: PDSA; Offset: Integer): Integer; cdecl = nil;//AG;
+    f_DSA_size :                               function(Dsa: PDSA): Integer; cdecl = nil; //Angus
+    f_EC_KEY_free :                            procedure (key: PEC_KEY); cdecl = nil;           { V8.07 }
+    f_EC_KEY_new_by_curve_name :               function (nid: integer): PEC_KEY; cdecl = nil;   { V8.07 }
+    f_EC_KEY_print :                           function(B: PBIO; const EC: PEC_KEY; Offset: Integer): Integer; cdecl = nil;//AG;
+    f_ERR_clear_error :                        procedure; cdecl = nil; //empties the current thread's error queue
+    f_ERR_error_string :                       function(Err: Cardinal; Buf: PAnsiChar): PAnsiChar; cdecl = nil;
+    f_ERR_error_string_n :                     procedure(Err: Cardinal; Buf: PAnsiChar; Len: size_t); cdecl = nil;
+    f_ERR_free_strings :                       procedure; cdecl = nil; //"Brutal" (thread-unsafe) Application-global cleanup functions
+    f_ERR_func_error_string:                   function (e: Cardinal): PAnsiChar; cdecl = nil;
+    f_ERR_get_error :                          function: Cardinal; cdecl = nil;
+    f_ERR_get_error_line_data :                function(const FileName: PPAnsiChar; Line: PInteger; const Data: PPAnsiChar; Flags: PInteger): Cardinal; cdecl = nil;
+    f_ERR_lib_error_string:                    function (e: Cardinal): PAnsiChar; cdecl = nil;   { V8.11 }
+    f_ERR_load_crypto_strings:                 procedure; cdecl = nil;
+    f_ERR_peek_error :                         function : Cardinal; cdecl = nil;
+    f_ERR_peek_last_error :                    function : Cardinal; cdecl = nil;
+    f_ERR_reason_error_string:                 function (e: Cardinal): PAnsiChar; cdecl = nil;
+    f_ERR_remove_state :                       procedure(ThreadID: Longword); cdecl = nil;
+    f_ERR_remove_thread_state :                procedure(tid: PCRYPTO_THREADID); cdecl = nil;
+    f_EVP_BytesToKey :                         function(const type_: PEVP_CIPHER; const md: PEVP_MD; const salt: PAnsiChar; const data: PAnsiChar; datalen, count : Integer; key, iv: PAnsiChar): Integer; cdecl = nil;
+    f_EVP_CIPHER_CTX_cleanup :                 function(ctx: PEVP_CIPHER_CTX): Integer; cdecl = nil;   { V8.27 gone with OpenSSL 1.1.0 }
+    f_EVP_CIPHER_CTX_free :                    procedure(ctx: PEVP_CIPHER_CTX); cdecl = nil;
+    f_EVP_CIPHER_CTX_init :                    procedure(ctx: PEVP_CIPHER_CTX); cdecl = nil;  { V8.27 gone with OpenSSL 1.1.0 }
+    f_EVP_CIPHER_CTX_new :                     function: PEVP_CIPHER_CTX; cdecl = nil;
+    f_EVP_CIPHER_CTX_reset :                   procedure(ctx: PEVP_CIPHER_CTX); cdecl = nil;  { V8.27 new with OpenSSL 1.1.0 }
+    f_EVP_CIPHER_CTX_set_key_length :          function(ctx: PEVP_CIPHER_CTX; keyl: Integer): LongBool; cdecl = nil;
+    f_EVP_CipherFinal_ex :                     function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer): LongBool; cdecl = nil;
+    f_EVP_CipherInit_ex :                      function(ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; key, iv: PAnsiChar; enc: Integer): LongBool; cdecl = nil;
+    f_EVP_CipherUpdate :                       function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
+    f_EVP_DecryptInit_ex :                     function (ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; const key: PAnsiChar; const iv: PAnsiChar): LongBool; cdecl = nil;
+    f_EVP_DecryptUpdate :                      function (ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
+    f_EVP_EncryptInit_ex :                     function (ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; const key: PAnsiChar; const iv: PAnsiChar): LongBool; cdecl = nil;
+    f_EVP_EncryptUpdate :                      function (ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
+    f_EVP_PKEY_assign :                        function(PKey: PEVP_PKEY; Type_: Integer; Key: PAnsiChar): Integer; cdecl = nil;//AG
+    f_EVP_PKEY_bits :                          function(Pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
+    f_EVP_PKEY_free :                          procedure(PKey: PEVP_PKEY); cdecl = nil;//AG
+    f_EVP_PKEY_get0 :                          function(PKey: PEVP_PKEY): Pointer; cdecl = nil;//AG
+    f_EVP_PKEY_get1_DH :                       function (pkey: PEVP_PKEY): PDH; cdecl = nil; //Angus
+    f_EVP_PKEY_get1_DSA :                      function (pkey: PEVP_PKEY): PDSA; cdecl = nil; //Angus
+    f_EVP_PKEY_get1_EC_KEY :                   function (pkey: PEVP_PKEY): PEC_KEY; cdecl = nil; //Angus
+    f_EVP_PKEY_get1_RSA :                      function (pkey: PEVP_PKEY): PRSA; cdecl = nil; //Angus
+    f_EVP_PKEY_new :                           function: PEVP_PKEY; cdecl = nil;//AG
+    f_EVP_PKEY_size :                          function(Pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
+    f_EVP_aes_128_cbc :                        function: PEVP_CIPHER; cdecl = nil;
+    f_EVP_bf_cbc :                             function: PEVP_CIPHER; cdecl = nil;
+    f_EVP_bf_cfb64 :                           function: PEVP_CIPHER; cdecl = nil;
+    f_EVP_bf_ecb :                             function: PEVP_CIPHER; cdecl = nil;
+    f_EVP_bf_ofb :                             function: PEVP_CIPHER; cdecl = nil;
+    f_EVP_cleanup :                            procedure; cdecl = nil;
+    f_EVP_des_ede3_cbc :                       function: PEVP_CIPHER; cdecl = nil;//AG
+    f_EVP_get_cipherbyname :                   function(name: PAnsiChar): PEVP_CIPHER; cdecl = nil;//AG
+    f_EVP_md5 :                                function: PEVP_MD; cdecl = nil;//AG
     f_EVP_sha1 :                               function: PEVP_MD; cdecl = nil;//AG
     f_EVP_sha256 :                             function: PEVP_MD; cdecl = nil;//AG
-    f_EVP_md5 :                                function: PEVP_MD; cdecl = nil;//AG
-    f_EVP_PKEY_free :                          procedure(PKey: PEVP_PKEY); cdecl = nil;//AG
-    { Next is v1.0.0+ ** check for nil ** }
-    f_EVP_PKEY_get0 :                          function(PKey: PEVP_PKEY): Pointer; cdecl = nil;//AG
-    f_EVP_PKEY_new :                           function: PEVP_PKEY; cdecl = nil;//AG
-    f_EVP_PKEY_assign :                        function(PKey: PEVP_PKEY; Type_: Integer; Key: PAnsiChar): Integer; cdecl = nil;//AG
-    f_EVP_PKEY_size :                          function(Pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
-    f_EVP_PKEY_bits :                          function(Pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
-    f_EVP_get_cipherbyname :                   function(name: PAnsiChar): PEVP_CIPHER; cdecl = nil;//AG
-    f_EVP_des_ede3_cbc :                       function: PEVP_CIPHER; cdecl = nil;//AG
-    f_EVP_cleanup :                            procedure; cdecl = nil;
-
-    f_RSA_generate_key :                       function(Num: Integer; E: Cardinal; CallBack: TRSA_genkey_cb; cb_arg: Pointer): PRSA; cdecl = nil;//AG
-    f_RSA_print :                              function(B: PBIO; Rsa: PRSA; Offset: Integer): Integer; cdecl = nil;//AG;
-    f_DSA_print :                              function(B: PBIO; Dsa: PDSA; Offset: Integer): Integer; cdecl = nil;//AG;
-    f_EC_KEY_print :                           function(B: PBIO; const EC: PEC_KEY; Offset: Integer): Integer; cdecl = nil;//AG;
-    f_OBJ_nid2sn :                             function(N: Integer): PAnsiChar; cdecl = nil;
+    f_HMAC :                                   function(evp: pEVP_MD; key: PByte; key_len: integer; data: PByte; data_len: integer; md: PByte; var md_len: integer): PByte; cdecl = nil;    { V8.03 }
     f_OBJ_nid2ln :                             function(N: Integer): PAnsiChar; cdecl = nil;
+    f_OBJ_nid2sn :                             function(N: Integer): PAnsiChar; cdecl = nil;
     f_OBJ_obj2nid :                            function(O: PASN1_OBJECT): Integer; cdecl = nil;
-    f_sk_num :                                 function(Stack: PSTACK): Integer; cdecl = nil;
-    f_sk_value :                               function(Stack: PSTACK; Item: Integer): PAnsiChar; cdecl = nil;
-    f_sk_new_null:                             function: PSTACK; cdecl = nil;//AG;
-    { This function free()'s a stack structure.  The elements in the stack will not be freed }
-    f_sk_free :                                procedure(Stack: PSTACK); cdecl = nil;//AG;
-    { This function calls 'func' for each element on the stack, passing the element as the argument.  sk_free() is then called to free the 'stack' structure.}
-    f_sk_pop_free :                            procedure(Stack: PSTACK; PFreeProc: Pointer); cdecl = nil;//AG;
-    { Append 'data' to the stack.  0 is returned if there is a failure (due to a malloc failure), else 1 }
-    f_sk_push :                                function(Stack: PSTACK; Data: PAnsiChar): Integer; cdecl = nil;//AG;
-    { Remove the item at location 'loc' from the stack and returns it. Returns NULL if the 'loc' is out of range }
-    f_sk_delete :                              function(Stack: PSTACK; Item: Integer): PAnsiChar; cdecl = nil;//AG;
-    { Return and delete the last element on the stack }
-    f_sk_pop :                                 function(Stack: PSTACK): PAnsiChar; cdecl = nil;//AG;
-    f_sk_find :                                function(Stack: PSTACK; Data: PAnsiChar): Integer; cdecl = nil;//AG;
-    f_sk_insert :                              function(Stack: PSTACK; Data: PAnsiChar; Index: Integer): Integer; cdecl = nil;//AG;
-    f_sk_dup :                                 function(Stack: PSTACK): PSTACK; cdecl = nil;//AG;
-    f_sk_set :                                 function(Stack: PSTACK; Index: Integer; value: PAnsiChar): PAnsiChar; cdecl = nil;//AG;
-    f_PEM_write_bio_X509 :                     function(B: PBIO; Cert: PX509): Integer; cdecl = nil;
-    f_PEM_write_bio_X509_REQ :                 function(B: PBIO; Cert_Req: PX509_REQ) : Integer; cdecl = nil;
-    f_PEM_write_bio_X509_CRL :                 function(B: PBIO; CRL: PX509_CRL) : Integer; cdecl = nil;
-    f_PEM_read_bio_X509_CRL :                  function(B: PBIO; CRL: PPX509_CRL; CallBack: TPem_password_cb; UData: Pointer): PX509_CRL; cdecl = nil;//AG    { V8.27 was PAnsiChar }
-    f_PEM_read_bio_X509 :                      function(B: PBIO; C509: PPX509; CallBack: TPem_password_cb; UData: Pointer): PX509; cdecl = nil;     { V8.27 was PAnsiChar }
-    f_PEM_read_bio_PKCS7 :                     function(B: PBIO; X: PPPKCS7; CallBack: TPem_password_cb; UData: Pointer): PPKCS7; cdecl = nil;//AG; { V8.27 was PAnsiChar }
-    f_PEM_read_bio_DHparams :                  function(B: PBIO; X: PDH; CallBack: TPem_password_cb; UData: Pointer): PDH; cdecl = nil;  { V8.07 }  { V8.27 was PAnsiChar }
-
-    f_PEM_write_bio_PKCS7 :                    function(B: PBIO; P7: PPKCS7): Integer; cdecl = nil;
-    f_PEM_do_header :                          function(cipher: PEVP_CIPHER_INFO; data: PAnsiChar; var len: Integer; callback: TPem_password_cb; u: Pointer): Integer; cdecl = nil;//AG;
-
+    f_OPENSSL_sk_delete :                      function(Stack: PSTACK; Item: Integer): PAnsiChar; cdecl = nil;//AG;
+    f_OPENSSL_sk_dup :                         function(Stack: PSTACK): PSTACK; cdecl = nil;//AG;
+    f_OPENSSL_sk_find :                        function(Stack: PSTACK; Data: PAnsiChar): Integer; cdecl = nil;//AG;
+    f_OPENSSL_sk_free :                        procedure(Stack: PSTACK); cdecl = nil;//AG;
+    f_OPENSSL_sk_insert :                      function(Stack: PSTACK; Data: PAnsiChar; Index: Integer): Integer; cdecl = nil;//AG;
+    f_OPENSSL_sk_new_null:                     function: PSTACK; cdecl = nil;//AG;
+    f_OPENSSL_sk_num :                         function(Stack: PSTACK): Integer; cdecl = nil;
+    f_OPENSSL_sk_pop :                         function(Stack: PSTACK): PAnsiChar; cdecl = nil;//AG;
+    f_OPENSSL_sk_pop_free :                    procedure(Stack: PSTACK; PFreeProc: Pointer); cdecl = nil;//AG;
+    f_OPENSSL_sk_push :                        function(Stack: PSTACK; Data: PAnsiChar): Integer; cdecl = nil;//AG;
+    f_OPENSSL_sk_set :                         function(Stack: PSTACK; Index: Integer; value: PAnsiChar): PAnsiChar; cdecl = nil;//AG;
+    f_OPENSSL_sk_value :                       function(Stack: PSTACK; Item: Integer): PAnsiChar; cdecl = nil;
+    f_OpenSSL_version :                        function(t: Integer): PAnsiChar; cdecl = nil;  { V8.27  }
+    f_OpenSSL_version_num :                    function: Longword; cdecl = nil;               { V8.27  }
     f_PEM_X509_INFO_read_bio :                 function(B: PBIO; Stack: PSTACK_OF_X509_INFO; CallBack: TPem_password_cb; UData: Pointer): PSTACK_OF_X509_INFO; cdecl = nil;//AG;   { V8.27 was PAnsiChar }
-
-    f_PEM_read_bio_RSA_PUBKEY:                 function(B: PBIO; x: PPRSA; cb: TPem_password_cb; u: pointer): PRSA; cdecl = nil;        { V8.11 }
+    f_PEM_do_header :                          function(cipher: PEVP_CIPHER_INFO; data: PAnsiChar; var len: Integer; callback: TPem_password_cb; u: Pointer): Integer; cdecl = nil;//AG;
+    f_PEM_read_bio_DHparams :                  function(B: PBIO; X: PDH; CallBack: TPem_password_cb; UData: Pointer): PDH; cdecl = nil;  { V8.07 }  { V8.27 was PAnsiChar }
+    f_PEM_read_bio_PKCS7 :                     function(B: PBIO; X: PPPKCS7; CallBack: TPem_password_cb; UData: Pointer): PPKCS7; cdecl = nil;//AG; { V8.27 was PAnsiChar }
+    f_PEM_read_bio_PrivateKey :                function(B: PBIO; X:PPEVP_PKEY; CB: TPem_password_cb; UData: Pointer): PEVP_PKEY; cdecl = nil; //AG   { V8.27 was PAnsiChar }
     f_PEM_read_bio_RSAPrivateKey:              function(B: PBIO; x: PPRSA; cb: TPem_password_cb; u: pointer): PRSA; cdecl = nil;
-    f_d2i_RSAPrivateKey:                       function(a: PPRSA; var pp: PByte; length: Integer): PRSA; cdecl = nil;
-    f_i2d_RSAPublicKey:                        function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
-    f_i2d_RSA_PUBKEY:                          function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
+    f_PEM_read_bio_RSA_PUBKEY:                 function(B: PBIO; x: PPRSA; cb: TPem_password_cb; u: pointer): PRSA; cdecl = nil;        { V8.11 }
+    f_PEM_read_bio_X509 :                      function(B: PBIO; C509: PPX509; CallBack: TPem_password_cb; UData: Pointer): PX509; cdecl = nil;     { V8.27 was PAnsiChar }
+    f_PEM_read_bio_X509_CRL :                  function(B: PBIO; CRL: PPX509_CRL; CallBack: TPem_password_cb; UData: Pointer): PX509_CRL; cdecl = nil;//AG    { V8.27 was PAnsiChar }
+    f_PEM_write_bio_PKCS7 :                    function(B: PBIO; P7: PPKCS7): Integer; cdecl = nil;
+    f_PEM_write_bio_PrivateKey :               function(B: PBIO; X: PEVP_PKEY; const Enc: PEVP_CIPHER; Kstr: PAnsiChar; Klen: Integer; CallBack: TPem_password_cb; U: Pointer): Integer; cdecl = nil;//AG
     f_PEM_write_bio_RSAPrivateKey:             function(B: PBIO; X: PRSA; const Enc: PEVP_CIPHER; Kstr: PAnsiChar; Klen: Integer; CallBack: TPem_password_cb; U: Pointer): Integer; cdecl = nil; { V8.12 }
     f_PEM_write_bio_RSAPublicKey:              function(B: PBIO; X: PRSA): Integer; cdecl = nil; { V8.12 }
-
-    f_CRYPTO_free :                            procedure(P: Pointer); cdecl = nil;//AG
-    f_X509_NAME_ENTRY_get_object :             function(Ne: PX509_NAME_ENTRY): PASN1_OBJECT; cdecl = nil;//AG
-    f_X509_NAME_get_entry :                    function(Name: PX509_NAME; Loc: Integer): PX509_NAME_ENTRY; cdecl = nil;//AG
-    f_X509_NAME_entry_count :                  function(Name: PX509_NAME) : Integer; cdecl = nil; //AG
-    f_X509_NAME_ENTRY_get_data :               function(Ne: PX509_NAME_ENTRY) : PASN1_STRING; cdecl = nil;//AG
-    f_X509_set_version :                       function(Cert: PX509; Version: LongInt): Integer; cdecl = nil;//AG
-    f_ASN1_INTEGER_get :                       function(Asn1_Int : PASN1_INTEGER): Integer; cdecl = nil;
-    f_ASN1_STRING_print :                      function(B: PBIO; v: PASN1_STRING): integer; cdecl = nil;//AG;
-    f_ASN1_item_free :                         procedure(Val: PASN1_VALUE; const It: PASN1_ITEM); cdecl = nil; //AG
-    f_ASN1_STRING_to_UTF8 :                    function(POut: PPAnsiChar; PIn: PASN1_STRING) : Integer; cdecl = nil;//AG
-    f_ASN1_INTEGER_set :                       function(a: PASN1_INTEGER; v: LongInt) : Integer; cdecl = nil;//AG
-    f_ASN1_item_d2i :                          function(Val: PPASN1_VALUE; _In: PPAnsiChar; Len: Longword; const It: PASN1_ITEM): PASN1_VALUE; cdecl = nil;//AG;
-    f_ASN1_STRING_free :                       procedure(a: PASN1_STRING); cdecl = nil;//AG;
-    //ASN1_VALUE * ASN1_item_d2i(ASN1_VALUE **val, unsigned char **in, long len, const ASN1_ITEM *it);
-    f_i2a_ASN1_OBJECT :                        function(B: PBIO; A: PASN1_OBJECT): Integer; cdecl = nil;//AG;
-    f_X509_gmtime_adj :                        function(S: PASN1_TIME; Adj: LongInt): PASN1_TIME; cdecl = nil;//AG
-    f_X509_set_pubkey :                        function(Cert: PX509; PKey: PEVP_PKEY): Integer; cdecl = nil;//AG
-    f_X509_new :                               function: PX509; cdecl = nil;//AG
-    f_X509_NAME_add_entry_by_txt :             function(Name: PX509_NAME; Field: PAnsiChar; Type_: Integer; Buf: PAnsiChar; BufferSize: Integer; Loc: Integer; Set_: Integer): Integer; cdecl = nil;//AG
-    f_X509_NAME_add_entry_by_NID :             function(Name: PX509_NAME; Nid: Integer; Type_: Integer; Buf: PAnsiChar; BufferSize: Integer; Loc: Integer; Set_: Integer): Integer; cdecl = nil;//AG
-    f_X509_NAME_new :                          function: PX509_NAME; cdecl = nil;//AG
-    f_X509_set_issuer_name :                   function(Cert: PX509; Name: PX509_NAME): Integer; cdecl = nil;//AG
-    f_X509_sign :                              function(Cert: PX509; PKey: PEVP_PKEY; const Md: PEVP_MD): Integer; cdecl = nil;//AG
-    f_X509_INFO_free :                         procedure(Xi: PX509_INFO); cdecl = nil;//AG;
+    f_PEM_write_bio_X509 :                     function(B: PBIO; Cert: PX509): Integer; cdecl = nil;
+    f_PEM_write_bio_X509_CRL :                 function(B: PBIO; CRL: PX509_CRL) : Integer; cdecl = nil;
+    f_PEM_write_bio_X509_REQ :                 function(B: PBIO; Cert_Req: PX509_REQ) : Integer; cdecl = nil;
+    f_PKCS12_create :                          function(pass: PAnsiChar; name: PAnsiChar; pkey: PEVP_PKEY; cert: PX509; ca: PSTACK_OF_X509; nid_key, nid_cert, iter, mac_iter, keytype: Integer):PPKCS12; cdecl = nil;//AG;
+    f_PKCS12_free :                            procedure(P12: PPKCS12); cdecl = nil;//AG;
+    f_PKCS12_parse :                           function(P12: PPKCS12; Pass: PAnsiChar; var Pkey: PEVP_PKEY; var Cert: PX509; var Ca: PSTACK_OF_X509): Integer; cdecl = nil;//AG
+    f_PKCS12_verify_mac :                      function(p12: PPKCS12; const pass: PAnsiChar; passlen: Integer): Integer; cdecl = nil;//AG;
+    f_PKCS7_add_certificate :                  function (p7: PPKCS7; x509: PX509): Integer; cdecl = nil;//AG;
+    f_PKCS7_content_new :                      function(P7: PPKCS7; nid: Integer): Integer; cdecl = nil;//AG;
+    f_PKCS7_free :                             procedure(P7: PPKCS7); cdecl = nil;//AG;
+    f_PKCS7_new :                              function: PPKCS7; cdecl = nil;//AG;
+    f_PKCS7_set_type :                         function(P7: PPKCS7; type_: Integer): Integer; cdecl = nil;//AG;
+    f_RAND_add :                               procedure(buf: Pointer; num: Integer; entropy: Double); cdecl = nil;
+    f_RAND_bytes :                             function(buf: PAnsiChar; num: Integer): Integer; cdecl = nil;
+    f_RAND_cleanup :                           procedure; cdecl = nil;              { gone V8.27 }
+    f_RAND_load_file :                         function(const FileName: PAnsiChar; Max_Bytes: Longint): Integer; cdecl = nil;
+    f_RAND_poll :                              function: Integer; cdecl = nil;
+    f_RAND_screen :                            procedure; cdecl = nil;
+    f_RAND_seed :                              procedure(Buf: Pointer; Num: Integer); cdecl = nil;
+    f_RAND_status :                            function: Integer; cdecl = nil;
+    f_RAND_write_file :                        function(const FileName: PAnsiChar): Integer; cdecl = nil;
+    f_RSA_free :                               procedure(RSA: PRSA); cdecl = nil;
+    f_RSA_generate_key :                       function(Num: Integer; E: Cardinal; CallBack: TRSA_genkey_cb; cb_arg: Pointer): PRSA; cdecl = nil;//AG
+    f_RSA_generate_key_ex :                    function(Rsa: PRSA; Bits: Integer; e: Pointer; cb: Pointer): Integer; cdecl = nil; //Angus  { V8.03 }
+    f_RSA_new :                                function: PRSA; cdecl = nil;            { V8.03 }
+    f_RSA_print :                              function(B: PBIO; Rsa: PRSA; Offset: Integer): Integer; cdecl = nil;//AG;
+    f_RSA_private_decrypt :                    function(flen: Integer; from: PAnsiChar; to_: PAnsiChar; rsa: PRSA; padding: Integer): Integer; cdecl = nil;
+    f_RSA_public_encrypt :                     function(flen: Integer; from: PAnsiChar; to_: PAnsiChar; rsa: PRSA; padding: Integer): Integer; cdecl = nil;
+    f_RSA_size :                               function(Rsa: PRSA): Integer; cdecl = nil; //Angus
+    f_X509V3_EXT_conf_nid :                    function(Conf: PLHASH; Ctx: PX509V3_CTX; ext_nid: Integer; value: PAnsiChar): PX509_EXTENSION; cdecl = nil;
+    f_X509V3_EXT_d2i :                         function(Ext: PX509_EXTENSION): Pointer; cdecl = nil;//AG;
+    f_X509V3_EXT_get :                         function(Ext: PX509_EXTENSION): PX509V3_EXT_METHOD; cdecl = nil;
+    f_X509V3_EXT_print :                       function(B: PBIO; Ext: PX509_EXTENSION; Flag: Integer; Indent: Integer):Integer; cdecl = nil;//AG;
+    f_X509V3_conf_free :                       procedure(Val: PCONF_VALUE); cdecl = nil;//AG
     f_X509_CRL_dup :                           function(CRL: PX509_CRL): PX509_CRL; cdecl = nil;//AG;
+    f_X509_CRL_free :                          procedure(CRL: PX509_CRL); cdecl = nil;//AG
+    f_X509_EXTENSION_free :                    procedure(Ext: PX509_EXTENSION); cdecl = nil;
+    f_X509_EXTENSION_get_critical :            function(Ext: PX509_EXTENSION): Integer; cdecl = nil;//AG;
+    f_X509_EXTENSION_get_data :                function(Ext : PX509_EXTENSION): PASN1_OCTET_STRING; cdecl = nil;//AG;
+    f_X509_EXTENSION_get_object :              function(Ext: PX509_EXTENSION): PASN1_OBJECT; cdecl = nil;
+    f_X509_INFO_free :                         procedure(Xi: PX509_INFO); cdecl = nil;//AG;
+    f_X509_LOOKUP_by_fingerprint :             function(Ctx: PX509_LOOKUP; Typ_: Integer; Bytes: PAnsiChar; Len: Integer; Ret: PX509_OBJECT ): Integer; cdecl = nil;//AG;
+    f_X509_LOOKUP_by_issuer_serial :           function(Ctx: PX509_LOOKUP; Typ_: Integer; Name: PX509_NAME; Serial: PASN1_INTEGER; Ret: PX509_OBJECT): Integer; cdecl = nil;//AG;
+    f_X509_LOOKUP_ctrl :                       function(Ctx: PX509_LOOKUP; Cmd: Integer; Argc: PAnsiChar; Argl: Cardinal; Ret: PPAnsiChar): Integer; cdecl = nil;//AG;
+    f_X509_LOOKUP_file :                       function: PX509_LOOKUP_METHOD; cdecl = nil;//AG;
+    f_X509_LOOKUP_free :                       procedure(Ctx: PX509_LOOKUP); cdecl = nil;//AG;
+    f_X509_LOOKUP_hash_dir :                   function: PX509_LOOKUP_METHOD; cdecl = nil;//AG;
+    f_X509_LOOKUP_new :                        function(Method: PX509_LOOKUP_METHOD): PX509_LOOKUP; cdecl = nil;//AG;
+    f_X509_NAME_ENTRY_get_data :               function(Ne: PX509_NAME_ENTRY) : PASN1_STRING; cdecl = nil;//AG
+    f_X509_NAME_ENTRY_get_object :             function(Ne: PX509_NAME_ENTRY): PASN1_OBJECT; cdecl = nil;//AG
+    f_X509_NAME_add_entry_by_NID :             function(Name: PX509_NAME; Nid: Integer; Type_: Integer; Buf: PAnsiChar; BufferSize: Integer; Loc: Integer; Set_: Integer): Integer; cdecl = nil;//AG
+    f_X509_NAME_add_entry_by_txt :             function(Name: PX509_NAME; Field: PAnsiChar; Type_: Integer; Buf: PAnsiChar; BufferSize: Integer; Loc: Integer; Set_: Integer): Integer; cdecl = nil;//AG
+    f_X509_NAME_cmp :                          function(const a: PX509_NAME; const b: PX509_NAME): Integer; cdecl = nil;//AG;
+    f_X509_NAME_entry_count :                  function(Name: PX509_NAME) : Integer; cdecl = nil; //AG
+    f_X509_NAME_free :                         procedure(AName: PX509_NAME); cdecl = nil;//AG;
+    f_X509_NAME_get_entry :                    function(Name: PX509_NAME; Loc: Integer): PX509_NAME_ENTRY; cdecl = nil;//AG
+    f_X509_NAME_get_index_by_NID:              function(CertName: PX509_NAME; Nid: Integer; LastPos: Integer): Integer; cdecl = nil; //AG
+    f_X509_NAME_get_text_by_NID :              function(CertName: PX509_NAME; Nid: Integer; Buf : PAnsiChar; Len : Integer): Integer; cdecl = nil;
+    f_X509_NAME_new :                          function: PX509_NAME; cdecl = nil;//AG
+    f_X509_NAME_oneline :                      function(CertName: PX509_NAME; Buf: PAnsiChar; BufSize: Integer): PAnsiChar; cdecl = nil;
     f_X509_PKEY_free :                         procedure(PKey: PX509_PKEY); cdecl = nil;//AG;
-    f_i2d_X509 :                               function(Cert: PX509; pOut: PPAnsiChar): Integer; cdecl = nil;//AG
-    f_i2d_PrivateKey :                         function(A: PEVP_PKEY; PP: PPAnsiChar): Integer; cdecl = nil;//AG
-    f_d2i_PrivateKey :                         function(type_: Integer; var a: PEVP_PKEY; var pp : PAnsiChar; length: Integer): PEVP_PKEY; cdecl = nil;//AG
-    f_PEM_read_bio_PrivateKey :                function(B: PBIO; X:PPEVP_PKEY; CB: TPem_password_cb; UData: Pointer): PEVP_PKEY; cdecl = nil; //AG   { V8.27 was PAnsiChar }
-    f_PEM_write_bio_PrivateKey :               function(B: PBIO; X: PEVP_PKEY; const Enc: PEVP_CIPHER; Kstr: PAnsiChar; Klen: Integer; CallBack: TPem_password_cb; U: Pointer): Integer; cdecl = nil;//AG
- { B8.14 gone  f_i2d_ASN1_bytes :                         function(A : PASN1_STRING; var p: PAnsiChar; tag: Integer; xclass: Integer): Integer; cdecl = nil;//AG   }
-    f_X509_get_pubkey :                        function(Cert: PX509): PEVP_PKEY; cdecl = nil; //AG;
     f_X509_PUBKEY_free :                       procedure(Key: PEVP_PKEY); cdecl = nil; //AG;
-
-    f_d2i_PKCS8PrivateKey_bio:                 function(bp: PBIO; x: PPEVP_PKEY; cb: Tpem_password_cb; u: pointer): PEVP_PKEY; cdecl = nil;     { V8.11 }
-
-    f_X509_check_purpose :                     function(Cert: PX509; ID: Integer; CA: Integer): Integer; cdecl = nil;//AG;
-    f_X509_PURPOSE_get_id :                    function(XP: PX509_PURPOSE): Integer; cdecl = nil;//AG;
     f_X509_PURPOSE_get0 :                      function(Idx: Integer): PX509_PURPOSE; cdecl = nil;//AG;
     f_X509_PURPOSE_get0_name :                 function(XP: PX509_PURPOSE): PAnsiChar; cdecl = nil;//AG;
     f_X509_PURPOSE_get0_sname :                function(XP: PX509_PURPOSE): PAnsiChar; cdecl = nil;//AG;
     f_X509_PURPOSE_get_count :                 function: Integer; cdecl = nil;//AG;
-    f_CONF_modules_unload :                    procedure(all: Integer); cdecl = nil;//AG;
-    {
-    f_OPENSSL_add_all_algorithms_noconf :      procedure; cdecl = nil;
-    f_OPENSSL_add_all_algorithms_conf :        procedure; cdecl = nil;
-    }
- { B8.14 gone     f_OpenSSL_add_all_ciphers :                procedure; cdecl = nil;
-                  f_OpenSSL_add_all_digests :                procedure; cdecl = nil;  }
+    f_X509_PURPOSE_get_id :                    function(XP: PX509_PURPOSE): Integer; cdecl = nil;//AG;
+    f_X509_REQ_add_extensions :                function(Req: PX509_REQ; Exts: PSTACK): Integer; cdecl = nil;
+    f_X509_REQ_free :                          procedure(Req: PX509_REQ); cdecl = nil;
+    f_X509_REQ_get_subject_name :              function(AReq: PX509_REQ): PX509_NAME; cdecl = nil; { V8.36 OpenSSL 1.1.0 some macros are now exported functions }
+    f_X509_REQ_set_pubkey :                    function(Req: PX509_REQ; PKey: PEVP_PKEY): Integer; cdecl = nil;
+    f_X509_REQ_set_version :                   function(Req: PX509_REQ; Version: LongInt): Integer; cdecl = nil;
+    f_X509_REQ_sign :                          function(Req: PX509_REQ; PKey: PEVP_PKEY; const Md: PEVP_MD): Integer; cdecl = nil;
+    f_X509_Req_new :                           function: PX509_REQ; cdecl = nil;
+    f_X509_STORE_CTX_cleanup :                 procedure(Ctx: PX509_STORE_CTX); cdecl = nil;//AG;
+    f_X509_STORE_CTX_free :                    procedure(Ctx: PX509_STORE_CTX); cdecl = nil;//AG;
+    f_X509_STORE_CTX_get_chain :               function(Ctx: PX509_STORE_CTX): PSTACK_OF_X509; cdecl = nil;//AG;
+    f_X509_STORE_CTX_get_current_cert :        function(Ctx: PX509_STORE_CTX): PX509; cdecl = nil;
+    f_X509_STORE_CTX_get_error :               function(Ctx: PX509_STORE_CTX): Integer; cdecl = nil;
+    f_X509_STORE_CTX_get_error_depth :         function(Ctx: PX509_STORE_CTX): Integer; cdecl = nil;
+    f_X509_STORE_CTX_get_ex_data :             function(Ctx: PX509_STORE_CTX; Idx: Integer): Pointer; cdecl = nil;
+    f_X509_STORE_CTX_init :                    function(Ctx: PX509_STORE_CTX; Store: PX509_STORE; Cert: PX509; UnTrustedChain: PSTACK_OF_X509): Integer; cdecl = nil;//AG;
+    f_X509_STORE_CTX_new :                     function: PX509_STORE_CTX; cdecl = nil;//AG;
+    f_X509_STORE_CTX_set_error :               procedure(Ctx: PX509_STORE_CTX; s: Integer); cdecl = nil;
+    f_X509_STORE_CTX_set_ex_data :             function(Ctx: PX509_STORE_CTX; Idx: Integer; Data: Pointer): Integer; cdecl = nil;//AG;
+    f_X509_STORE_CTX_set_purpose :             function(Ctx: PX509_STORE_CTX; Purpose: Integer): Integer; cdecl = nil;//AG;
+    f_X509_STORE_CTX_set_verify_cb :           procedure(Ctx: PX509_STORE_CTX; Cb: TSetVerify_cb); cdecl = nil;//AG;
+    f_X509_STORE_CTX_trusted_stack :           procedure(Ctx: PX509_STORE_CTX; STACK_OF_X509: PSTACK_OF_X509); cdecl = nil;//AG;
+    f_X509_STORE_add_cert :                    function(Store: PX509_STORE; Cert: PX509): Integer; cdecl = nil;//AG;
+    f_X509_STORE_add_crl :                     function(Store: PX509_STORE; CRL: PX509_CRL): Integer; cdecl = nil;//AG;
+    f_X509_STORE_add_lookup :                  function(Store: PX509_STORE; Meth: PX509_LOOKUP_METHOD): PX509_LOOKUP; cdecl = nil;//AG;
+    f_X509_STORE_free :                        procedure(Store: PX509_STORE); cdecl = nil;//AG;
+    f_X509_STORE_new :                         function: PX509_STORE; cdecl = nil;//AG;
+    f_X509_STORE_set_flags :                   procedure(Store: PX509_STORE; Flags: Longword); cdecl = nil;//AG;
+    f_X509_add_ext :                           function(Cert: PX509; Ex: PX509_EXTENSION; loc: Integer): Integer; cdecl = nil;
+    f_X509_check_ca :                          function(X: PX509): Integer; cdecl = nil;//AG;
+    f_X509_check_issued :                      function(Issuer: PX509; Subject: PX509): Integer; cdecl = nil;//AG;
+    f_X509_check_private_key :                 function(Cert: PX509; PKey: PEVP_PKEY): Integer; cdecl = nil; //AG
+    f_X509_check_purpose :                     function(Cert: PX509; ID: Integer; CA: Integer): Integer; cdecl = nil;//AG;
+    f_X509_digest :                            function(Cert: PX509; Type_: PEVP_MD; Buf: PAnsiChar; BufSize: PInteger): Integer; cdecl = nil; //AG
+    f_X509_dup :                               function(X: PX509): PX509; cdecl = nil;//AG;
+    f_X509_free :                              procedure(Cert: PX509); cdecl = nil;
+    f_X509_get0_notAfter :                     function(X: PX509): PASN1_TIME; cdecl = nil;   { V8.32 OpenSSL 1.1.0 some macros are now exported functions }
+    f_X509_get0_notBefore :                    function(X: PX509): PASN1_TIME; cdecl = nil;   { V8.32 OpenSSL 1.1.0 some macros are now exported functions }
+    f_X509_get_ext :                           function(Cert: PX509; Loc : Integer): PX509_EXTENSION; cdecl = nil;
+    f_X509_get_ext_count :                     function(Cert: PX509): Integer; cdecl = nil;
+    f_X509_get_issuer_name :                   function(Cert: PX509): PX509_NAME; cdecl = nil;
+    f_X509_get_pubkey :                        function(Cert: PX509): PEVP_PKEY; cdecl = nil; //AG;
+    f_X509_get_serialNumber :                  function(Cert: PX509): PASN1_INTEGER; cdecl = nil;
+    f_X509_get_signature_nid :                 function(X: PX509): Integer; cdecl = nil;      { V8.32 OpenSSL 1.1.0 some macros are now exported functions }
+    f_X509_get_subject_name :                  function(Cert: PX509): PX509_NAME; cdecl = nil;
+    f_X509_gmtime_adj :                        function(S: PASN1_TIME; Adj: LongInt): PASN1_TIME; cdecl = nil;//AG
+    f_X509_load_crl_file :                     function(Ctx: PX509_LOOKUP; const Filename: PAnsiChar; type_: Integer): Integer; cdecl = nil;//AG;
+    f_X509_new :                               function: PX509; cdecl = nil;//AG
+    f_X509_print :                             function(B: PBIO; Cert: PX509): Integer; cdecl = nil;
+    f_X509_set_issuer_name :                   function(Cert: PX509; Name: PX509_NAME): Integer; cdecl = nil;//AG
+    f_X509_set_pubkey :                        function(Cert: PX509; PKey: PEVP_PKEY): Integer; cdecl = nil;//AG
+    f_X509_set_version :                       function(Cert: PX509; Version: LongInt): Integer; cdecl = nil;//AG
+    f_X509_sign :                              function(Cert: PX509; PKey: PEVP_PKEY; const Md: PEVP_MD): Integer; cdecl = nil;//AG
+    f_X509_subject_name_hash :                 function(Cert: PX509): Cardinal; cdecl = nil;
+    f_X509_verify_cert :                       function(Ctx: PX509_STORE_CTX): Integer; cdecl = nil;//AG;
+    f_X509_verify_cert_error_string :          function(ErrCode : Integer): PAnsiChar; cdecl = nil;
+    f_d2i_PKCS12_bio :                         function(B: PBIO; p12: PPPKCS12): PPKCS12; cdecl = nil; //AG
+    f_d2i_PKCS7_bio:                           function(B: PBIO; p7: PPKCS7): PPKCS7; cdecl = nil; //AG
+    f_d2i_PKCS8PrivateKey_bio:                 function(bp: PBIO; x: PPEVP_PKEY; cb: Tpem_password_cb; u: pointer): PEVP_PKEY; cdecl = nil;     { V8.11 }
+    f_d2i_PrivateKey :                         function(type_: Integer; var a: PEVP_PKEY; var pp : PAnsiChar; length: Integer): PEVP_PKEY; cdecl = nil;//AG
+    f_d2i_PrivateKey_bio :                     function(B: PBIO; A: PPEVP_PKEY): PEVP_PKEY; cdecl = nil;//AG
+    f_d2i_RSAPrivateKey:                       function(a: PPRSA; var pp: PByte; length: Integer): PRSA; cdecl = nil;
+    f_d2i_X509 :                               function(C509: PPX509; Buf: PPAnsiChar; Len: Integer): PX509; cdecl = nil;
+    f_d2i_X509_bio :                           function(B: PBIO; X509: PPX509): PX509; cdecl = nil;
+    f_i2a_ASN1_OBJECT :                        function(B: PBIO; A: PASN1_OBJECT): Integer; cdecl = nil;//AG;
+    f_i2d_PKCS12_bio :                         function(B: PBIO; p12: PPKCS12): Integer; cdecl = nil;
+    f_i2d_PrivateKey :                         function(A: PEVP_PKEY; PP: PPAnsiChar): Integer; cdecl = nil;//AG
+    f_i2d_PrivateKey_bio :                     function(B: PBIO; pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
+    f_i2d_RSAPublicKey:                        function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
+    f_i2d_RSA_PUBKEY:                          function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
+    f_i2d_X509 :                               function(Cert: PX509; pOut: PPAnsiChar): Integer; cdecl = nil;//AG
+    f_i2d_X509_bio :                           function(B: PBIO; X509: PX509): Integer; cdecl = nil;
 
-    f_PKCS7_new :                              function: PPKCS7; cdecl = nil;//AG;
-    f_PKCS7_free :                             procedure(P7: PPKCS7); cdecl = nil;//AG;
-    f_PKCS7_set_type :                         function(P7: PPKCS7; type_: Integer): Integer; cdecl = nil;//AG;
-    f_PKCS7_content_new :                      function(P7: PPKCS7; nid: Integer): Integer; cdecl = nil;//AG;
-    f_PKCS7_add_certificate :                  function (p7: PPKCS7; x509: PX509): Integer; cdecl = nil;//AG;
 
-    f_PKCS12_parse :                           function(P12: PPKCS12; Pass: PAnsiChar; var Pkey: PEVP_PKEY; var Cert: PX509; var Ca: PSTACK_OF_X509): Integer; cdecl = nil;//AG
-    f_PKCS12_verify_mac :                      function(p12: PPKCS12; const pass: PAnsiChar; passlen: Integer): Integer; cdecl = nil;//AG;
-    f_PKCS12_free :                            procedure(P12: PPKCS12); cdecl = nil;//AG;
-    f_PKCS12_create :                          function(pass: PAnsiChar; name: PAnsiChar; pkey: PEVP_PKEY; cert: PX509; ca: PSTACK_OF_X509; nid_key, nid_cert, iter, mac_iter, keytype: Integer):PPKCS12; cdecl = nil;//AG;
 
-    f_DH_free :                                procedure(dh: PDH) cdecl = nil;  { V8.07 }
-    f_EC_KEY_new_by_curve_name :               function (nid: integer): PEC_KEY; cdecl = nil;   { V8.07 }
-    f_EC_KEY_free :                            procedure (key: PEC_KEY); cdecl = nil;           { V8.07 }
-
-    { V8.32 OpenSSL 1.1.0 some macros are now exported functions or new }
-    f_X509_get0_notBefore :                    function(X: PX509): PASN1_TIME; cdecl = nil;
-    f_X509_get0_notAfter :                     function(X: PX509): PASN1_TIME; cdecl = nil;
-    f_X509_get_signature_nid :                 function(X: PX509): Integer; cdecl = nil;
-
+{$IFDEF OPENSSL_USE_DELPHI_MM}
+    f_CRYPTO_set_mem_functions :               function(M: TCryptoMallocFunc; R: TCryptoReallocFunc; F: TCryptoFreeMemFunc): Integer; cdecl = nil; //AG
+{$ENDIF}
 
 {$IFNDEF OPENSSL_NO_ENGINE}
     f_ENGINE_load_builtin_engines :            procedure; cdecl = nil; //AG;
@@ -1661,20 +1679,10 @@ const
     f_ENGINE_set_default :                     function(e: PENGINE; flags: Cardinal): Integer; cdecl = nil; //AG;
     f_ENGINE_ctrl_cmd_string :                 function(e: PENGINE; const cmd_name: PAnsiChar; const arg: PAnsiChar; cmd_optional: Integer): Integer; cdecl = nil; //AG;
     f_ENGINE_free :                            function(e: PENGINE): Integer; cdecl = nil; //AG;
-    //* The following functions handle keys that are stored in some secondary
-    //* location, handled by the engine.  The storage may be on a card or
-    //* whatever. */
     f_ENGINE_load_private_key :                function(e: PENGINE; key_id: PAnsiChar; ui_method: PUI_METHOD; callback_data: Pointer): PEVP_PKEY; cdecl = nil; //AG;
     f_ENGINE_load_public_key :                 function(e: PENGINE; const key_id: PAnsiChar; ui_method: PUI_METHOD; callback_data: Pointer): PEVP_PKEY; cdecl = nil; //AG;
-    { Since V0.98i there's also:
-    int ENGINE_load_ssl_client_cert(ENGINE *e, SSL *s,
-    STACK_OF(X509_NAME) *ca_dn, X509 **pcert, EVP_PKEY **ppkey,
-    STACK_OF(X509) **pother,
-    UI_METHOD *ui_method, void *callback_data);
-    }
     f_ENGINE_load_ssl_client_cert :            function(e: PENGINE; SSL: PSSL; ca_dn: PSTACK_OF_X509_NAME; pcert: PPX509; ppkey: PPEVP_PKEY;
                                                pother: PSTACK_OF_X509; ui_method: PUI_METHOD; callback_data: Pointer): Integer; cdecl = nil;
-    // ui.h //
     f_UI_new :                                 function: PUI; cdecl = nil; //AG;
     f_UI_new_method :                          function(const method: PUI_METHOD): PUI; cdecl = nil; //AG;
     f_UI_free :                                procedure(ui: PUI); cdecl = nil; //AG;
@@ -1703,445 +1711,14 @@ const
     default for RSA use from then on.
     *)
 {$ENDIF}
+
     { Function name constants }
-    FN_SSLeay                                 = 'SSLeay';
-    FN_OpenSSL_version_num                    = 'OpenSSL_version_num';   { V8.27  }
-
- // not needed
-(*  FN_SSLeay_version                         = 'SSLeay_version';
-    FN_OpenSSL_version                        = 'OpenSSL_version';       { V8.27  }
-    FN_ERR_get_error_line_data                = 'ERR_get_error_line_data';
-    FN_ERR_peek_error                         = 'ERR_peek_error';
-    FN_ERR_peek_last_error                    = 'ERR_peek_last_error';
-    FN_ERR_get_error                          = 'ERR_get_error';
-    FN_ERR_error_string                       = 'ERR_error_string';
-    FN_ERR_error_string_n                     = 'ERR_error_string_n';
-    FN_ERR_lib_error_string                   = 'ERR_lib_error_string';
-    FN_ERR_func_error_string                  = 'ERR_func_error_string';
-    FN_ERR_reason_error_string                = 'ERR_reason_error_string';
-    FN_ERR_load_crypto_strings                = 'ERR_load_crypto_strings';
-    FN_ERR_clear_error                        = 'ERR_clear_error';
-    FN_ERR_remove_state                       = 'ERR_remove_state';
-    FN_ERR_remove_thread_state                = 'ERR_remove_thread_state';
-    FN_ERR_free_strings                       = 'ERR_free_strings';
-
-    FN_RAND_seed                              = 'RAND_seed';
-
-    FN_BIO_new                                = 'BIO_new';
-    FN_BIO_new_socket                         = 'BIO_new_socket';
-    FN_BIO_new_fd                             = 'BIO_new_fd';
-    FN_BIO_new_file                           = 'BIO_new_file';
-    FN_BIO_new_mem_buf                        = 'BIO_new_mem_buf';
-    FN_BIO_new_bio_pair                       = 'BIO_new_bio_pair';
-
-    FN_BIO_ctrl                               = 'BIO_ctrl';
-    FN_BIO_ctrl_pending                       = 'BIO_ctrl_pending';
-    FN_BIO_ctrl_get_write_guarantee           = 'BIO_ctrl_get_write_guarantee';
-    FN_BIO_ctrl_get_read_request              = 'BIO_ctrl_get_read_request';
-
-    FN_BIO_read                               = 'BIO_read';
-    FN_BIO_nread                              = 'BIO_nread';
-    FN_BIO_nread0                             = 'BIO_nread0';
-    FN_BIO_nwrite                             = 'BIO_nwrite';
-    FN_BIO_nwrite0                            = 'BIO_nwrite0';
-    FN_BIO_write                              = 'BIO_write';
-    FN_BIO_free                               = 'BIO_free';
-    FN_BIO_gets                               = 'BIO_gets';
-    FN_BIO_puts                               = 'BIO_puts';
-    FN_BIO_push                               = 'BIO_push';
-    FN_BIO_s_mem                              = 'BIO_s_mem';
-    FN_BIO_get_retry_BIO                      = 'BIO_get_retry_BIO';
-    FN_BIO_get_retry_reason                   = 'BIO_get_retry_reason';
-
-    FN_BN_new                                 = 'BN_new';
-    FN_BN_free                                = 'BN_free';
-    FN_BN_set_word                            = 'BN_set_word';
-
-    FN_d2i_X509_bio                           = 'd2i_X509_bio';
-    FN_i2d_X509_bio                           = 'i2d_X509_bio';
-    FN_d2i_PrivateKey_bio                     = 'd2i_PrivateKey_bio';
-    FN_i2d_PrivateKey_bio                     = 'i2d_PrivateKey_bio';
-    FN_d2i_X509                               = 'd2i_X509';
-    FN_d2i_PKCS12_bio                         = 'd2i_PKCS12_bio';
-    FN_i2d_PKCS12_bio                         = 'i2d_PKCS12_bio';
-    FN_d2i_PKCS7_bio                          = 'd2i_PKCS7_bio';
-
-    FN_CRYPTO_lock                            = 'CRYPTO_lock';
-    FN_CRYPTO_add_lock                        = 'CRYPTO_add_lock';
-    FN_CRYPTO_num_locks                       = 'CRYPTO_num_locks';
-    FN_CRYPTO_set_locking_callback            = 'CRYPTO_set_locking_callback';
-    FN_CRYPTO_set_id_callback                 = 'CRYPTO_set_id_callback';
-
-    FN_CRYPTO_THREADID_set_callback           = 'CRYPTO_THREADID_set_callback';
-    FN_CRYPTO_THREADID_set_numeric            = 'CRYPTO_THREADID_set_numeric';
-    FN_CRYPTO_THREADID_set_pointer            = 'CRYPTO_THREADID_set_pointer';
-
-    FN_CRYPTO_set_dynlock_create_callback     = 'CRYPTO_set_dynlock_create_callback';
-    FN_CRYPTO_set_dynlock_lock_callback       = 'CRYPTO_set_dynlock_lock_callback';
-    FN_CRYPTO_set_dynlock_destroy_callback    = 'CRYPTO_set_dynlock_destroy_callback';
-{$IFDEF OPENSSL_USE_DELPHI_MM}
-    FN_CRYPTO_set_mem_functions               = 'CRYPTO_set_mem_functions';
-{$ENDIF}
-    FN_CRYPTO_cleanup_all_ex_data             = 'CRYPTO_cleanup_all_ex_data';
-
-    FN_X509_dup                               = 'X509_dup'; //AG
-    FN_X509_check_ca                          = 'X509_check_ca'; //AG
-    FN_X509_STORE_new                         = 'X509_STORE_new'; //AG
-    FN_X509_STORE_free                        = 'X509_STORE_free'; //AG
-    FN_X509_STORE_add_cert                    = 'X509_STORE_add_cert'; //AG
-    FN_X509_STORE_add_crl                     = 'X509_STORE_add_crl'; //AG
-    FN_X509_STORE_add_lookup                  = 'X509_STORE_add_lookup'; //AG
-    FN_X509_STORE_set_flags                   = 'X509_STORE_set_flags'; //AG
-
-    FN_X509_STORE_CTX_new                     = 'X509_STORE_CTX_new'; //AG
-    FN_X509_STORE_CTX_free                    = 'X509_STORE_CTX_free'; //AG
-    FN_X509_STORE_CTX_init                    = 'X509_STORE_CTX_init'; //AG
-    FN_X509_STORE_CTX_cleanup                 = 'X509_STORE_CTX_cleanup'; //AG
-    FN_X509_STORE_CTX_get_ex_data             = 'X509_STORE_CTX_get_ex_data';
-    FN_X509_STORE_CTX_get_current_cert        = 'X509_STORE_CTX_get_current_cert';
-    FN_X509_STORE_CTX_get_error               = 'X509_STORE_CTX_get_error';
-    FN_X509_STORE_CTX_set_error               = 'X509_STORE_CTX_set_error';
-    FN_X509_STORE_CTX_get_error_depth         = 'X509_STORE_CTX_get_error_depth';
-    FN_X509_STORE_CTX_get_chain               = 'X509_STORE_CTX_get_chain'; //AG
-    FN_X509_STORE_CTX_trusted_stack           = 'X509_STORE_CTX_trusted_stack'; //AG
-    FN_X509_STORE_CTX_set_purpose             = 'X509_STORE_CTX_set_purpose'; //AG
-    FN_X509_STORE_CTX_set_verify_cb           = 'X509_STORE_CTX_set_verify_cb'; //AG
-    FN_X509_STORE_CTX_set_ex_data             = 'X509_STORE_CTX_set_ex_data'; //AG
-
-    FN_X509_load_crl_file                     = 'X509_load_crl_file'; //AG
-
-    FN_X509_LOOKUP_file                       = 'X509_LOOKUP_file'; //AG
-    FN_X509_LOOKUP_hash_dir                   = 'X509_LOOKUP_hash_dir'; //AG
-    FN_X509_LOOKUP_new                        = 'X509_LOOKUP_new'; //AG
-    FN_X509_LOOKUP_free                       = 'X509_LOOKUP_free'; //AG
-    FN_X509_LOOKUP_by_issuer_serial           = 'X509_LOOKUP_by_issuer_serial'; //AG
-    FN_X509_LOOKUP_by_fingerprint             = 'X509_LOOKUP_by_fingerprint'; //AG
-    FN_X509_LOOKUP_ctrl                       = 'X509_LOOKUP_ctrl'; //AG
-
-    FN_X509_check_issued                      = 'X509_check_issued'; //AG
-    FN_X509_verify_cert                       = 'X509_verify_cert'; //AG
-
-    FN_X509_verify_cert_error_string          = 'X509_verify_cert_error_string';
-
-    FN_X509_get_issuer_name                   = 'X509_get_issuer_name';
-    FN_X509_get_subject_name                  = 'X509_get_subject_name';
-    FN_X509_get_serialNumber                  = 'X509_get_serialNumber';
-    FN_X509_NAME_oneline                      = 'X509_NAME_oneline';
-    FN_X509_NAME_get_text_by_NID              = 'X509_NAME_get_text_by_NID';
-    FN_X509_NAME_get_index_by_NID             = 'X509_NAME_get_index_by_NID'; //AG
-
-    FN_X509_NAME_free                         = 'X509_NAME_free';
-    FN_X509_NAME_cmp                          = 'X509_NAME_cmp';
-    FN_X509_get_ext                           = 'X509_get_ext';
-    FN_X509_get_ext_count                     = 'X509_get_ext_count';
-    FN_X509_free                              = 'X509_free';
-    FN_X509_CRL_free                          = 'X509_CRL_free';
-    FN_X509V3_EXT_get                         = 'X509V3_EXT_get';
-    FN_X509V3_EXT_print                       = 'X509V3_EXT_print'; //AG
-    FN_X509V3_EXT_d2i                         = 'X509V3_EXT_d2i'; //AG
-    FN_X509V3_conf_free                       = 'X509V3_conf_free'; //AG
-    FN_X509_EXTENSION_get_object              = 'X509_EXTENSION_get_object';
-    FN_X509_EXTENSION_get_data                = 'X509_EXTENSION_get_data'; //AG
-    FN_X509_EXTENSION_get_critical            = 'X509_EXTENSION_get_critical'; //AG
-    FN_X509_subject_name_hash                 = 'X509_subject_name_hash';
-    FN_X509_print                             = 'X509_print';
-    FN_X509_digest                            = 'X509_digest'; //AG
-    FN_X509_check_private_key                 = 'X509_check_private_key'; //AG
-
-    FN_EVP_sha1                               = 'EVP_sha1'; //AG
-    FN_EVP_sha256                             = 'EVP_sha256';//AG
-    FN_EVP_md5                                = 'EVP_md5'; //AG
-    FN_EVP_PKEY_new                           = 'EVP_PKEY_new'; //AG
-    FN_EVP_PKEY_free                          = 'EVP_PKEY_free'; //AG
-    FN_EVP_PKEY_get0                          = 'EVP_PKEY_get0'; // AG
-    FN_EVP_PKEY_assign                        = 'EVP_PKEY_assign'; //AG
-    FN_EVP_PKEY_size                          = 'EVP_PKEY_size'; //AG
-    FN_EVP_PKEY_bits                          = 'EVP_PKEY_bits'; //AG
-    FN_EVP_get_cipherbyname                   = 'EVP_get_cipherbyname'; //AG
-    FN_EVP_des_ede3_cbc                       = 'EVP_des_ede3_cbc'; //AG
-    FN_EVP_cleanup                            = 'EVP_cleanup';
-
-    FN_RSA_generate_key                       = 'RSA_generate_key'; //AG
-    FN_RSA_print                              = 'RSA_print'; //AG
-    FN_DSA_print                              = 'DSA_print'; //AG
-    FN_EC_KEY_print                           = 'EC_KEY_print'; //AG
-    FN_OBJ_nid2sn                             = 'OBJ_nid2sn';
-    FN_OBJ_nid2ln                             = 'OBJ_nid2ln';
-    FN_OBJ_obj2nid                            = 'OBJ_obj2nid';
-
-  { OpenSSL 1.0.x }
-    FN_sk_num                                 = 'sk_num';
-    FN_sk_value                               = 'sk_value';
-    FN_sk_new_null                            = 'sk_new_null'; //AG
-    FN_sk_free                                = 'sk_free'; //AG
-    FN_sk_pop_free                            = 'sk_pop_free'; //AG
-    FN_sk_push                                = 'sk_push'; //AG
-    FN_sk_delete                              = 'sk_delete'; //AG
-    FN_sk_pop                                 = 'sk_pop'; //AG
-    FN_sk_find                                = 'sk_find'; //AG
-    FN_sk_insert                              = 'sk_insert'; //AG
-    FN_sk_dup                                 = 'sk_dup'; //AG
-    FN_sk_set                                 = 'sk_set'; //AG
-
-  { OpenSSL 1.1.x - V8.31  }
-    FN_osl_sk_num                             = 'OPENSSL_sk_num';
-    FN_osl_sk_value                           = 'OPENSSL_sk_value';
-    FN_osl_sk_new_null                        = 'OPENSSL_sk_new_null';
-    FN_osl_sk_free                            = 'OPENSSL_sk_free';
-    FN_osl_sk_pop_free                        = 'OPENSSL_sk_pop_free';
-    FN_osl_sk_push                            = 'OPENSSL_sk_push';
-    FN_osl_sk_delete                          = 'OPENSSL_sk_delete';
-    FN_osl_sk_pop                             = 'OPENSSL_sk_pop';
-    FN_osl_sk_find                            = 'OPENSSL_sk_find';
-    FN_osl_sk_insert                          = 'OPENSSL_sk_insert';
-    FN_osl_sk_dup                             = 'OPENSSL_sk_dup';
-    FN_osl_sk_set                             = 'OPENSSL_sk_set';
-
-    FN_PEM_write_bio_X509                     = 'PEM_write_bio_X509';
-    FN_PEM_write_bio_X509_REQ                 = 'PEM_write_bio_X509_REQ';
-    FN_PEM_write_bio_X509_CRL                 = 'PEM_write_bio_X509_CRL';
-    FN_PEM_read_bio_X509_CRL                  = 'PEM_read_bio_X509_CRL';//AG
-    FN_PEM_read_bio_X509                      = 'PEM_read_bio_X509';
-    FN_PEM_read_bio_PKCS7                     = 'PEM_read_bio_PKCS7';
-    FN_PEM_read_bio_DHparams                  = 'PEM_read_bio_DHparams'; { V8.07 }
-    FN_PEM_write_bio_PKCS7                    = 'PEM_write_bio_PKCS7';
-    FN_PEM_do_header                          = 'PEM_do_header';
-    FN_PEM_X509_INFO_read_bio                 = 'PEM_X509_INFO_read_bio'; //AG
-
-    FN_PEM_read_bio_RSA_PUBKEY                = 'PEM_read_bio_RSA_PUBKEY';
-    FN_PEM_read_bio_RSAPrivateKey             = 'PEM_read_bio_RSAPrivateKey';
-    FN_d2i_RSAPrivateKey                      = 'd2i_RSAPrivateKey';
-    FN_i2d_RSAPublicKey                       = 'i2d_RSAPublicKey';
-    FN_i2d_RSA_PUBKEY                         = 'i2d_RSA_PUBKEY';
-    FN_PEM_write_bio_RSAPrivateKey            = 'PEM_write_bio_RSAPrivateKey'; { V8.12 }
-    FN_PEM_write_bio_RSAPublicKey             = 'PEM_write_bio_RSAPublicKey'; { V8.12 }
-
-    FN_CRYPTO_free                            = 'CRYPTO_free'; //AG
-    FN_X509_NAME_ENTRY_get_object             = 'X509_NAME_ENTRY_get_object'; //AG
-    FN_X509_NAME_get_entry                    = 'X509_NAME_get_entry'; //AG
-    FN_X509_NAME_entry_count                  = 'X509_NAME_entry_count'; //AG
-    FN_X509_NAME_ENTRY_get_data               = 'X509_NAME_ENTRY_get_data'; //AG
-    FN_X509_set_version                       = 'X509_set_version'; //AG
-
-    FN_ASN1_STRING_to_UTF8                    = 'ASN1_STRING_to_UTF8'; //AG
-    FN_ASN1_INTEGER_set                       = 'ASN1_INTEGER_set'; //AG
-    FN_ASN1_INTEGER_get                       = 'ASN1_INTEGER_get';
-    FN_ASN1_STRING_print                      = 'ASN1_STRING_print'; //AG
-    FN_ASN1_item_d2i                          = 'ASN1_item_d2i'; //AG
-    FN_ASN1_item_free                         = 'ASN1_item_free'; //AG
-    FN_ASN1_STRING_free                       = 'ASN1_STRING_free'; //AG
-
-    FN_i2a_ASN1_OBJECT                        = 'i2a_ASN1_OBJECT'; //AG
-    FN_X509_gmtime_adj                        = 'X509_gmtime_adj'; //AG
-    FN_X509_set_pubkey                        = 'X509_set_pubkey'; //AG
-    FN_X509_new                               = 'X509_new'; //AG
-    FN_X509_NAME_add_entry_by_txt             = 'X509_NAME_add_entry_by_txt'; //AG
-    FN_X509_NAME_add_entry_by_NID             = 'X509_NAME_add_entry_by_NID'; //AG
-    FN_X509_NAME_new                          = 'X509_NAME_new'; //AG
-    FN_X509_set_issuer_name                   = 'X509_set_issuer_name'; //AG
-    FN_X509_sign                              = 'X509_sign'; //AG
-    FN_X509_INFO_free                         = 'X509_INFO_free'; //AG
-    FN_X509_CRL_dup                           = 'X509_CRL_dup'; //AG
-    FN_X509_PKEY_free                         = 'X509_PKEY_free'; //AG
-    FN_i2d_X509                               = 'i2d_X509'; //AG
-    FN_i2d_PrivateKey                         = 'i2d_PrivateKey'; //AG
-    FN_d2i_PrivateKey                         = 'd2i_PrivateKey'; //AG
-    FN_PEM_write_bio_PrivateKey               = 'PEM_write_bio_PrivateKey'; //AG
-    FN_PEM_read_bio_PrivateKey                = 'PEM_read_bio_PrivateKey'; //AG
- { B8.14 gone     FN_i2d_ASN1_bytes                         = 'i2d_ASN1_bytes'; //AG  }
-    FN_X509_get_pubkey                        = 'X509_get_pubkey';//AG
-    FN_X509_PUBKEY_free                       = 'X509_PUBKEY_free'; //AG
-
-    FN_d2i_PKCS8PrivateKey_bio                = 'd2i_PKCS8PrivateKey_bio';
-
-    FN_X509_check_purpose                     = 'X509_check_purpose'; //AG
-    FN_X509_PURPOSE_get_id                    = 'X509_PURPOSE_get_id'; //AG
-    FN_X509_PURPOSE_get0                      = 'X509_PURPOSE_get0'; //AG
-    FN_X509_PURPOSE_get0_name                 = 'X509_PURPOSE_get0_name'; //AG
-    FN_X509_PURPOSE_get0_sname                = 'X509_PURPOSE_get0_sname'; //AG
-    FN_X509_PURPOSE_get_count                 = 'X509_PURPOSE_get_count'; //AG
-    FN_CONF_modules_unload                    = 'CONF_modules_unload'; //AG
-  { B8.14 gone    FN_OpenSSL_add_all_ciphers                = 'OpenSSL_add_all_ciphers';
-                  FN_OpenSSL_add_all_digests                = 'OpenSSL_add_all_digests';  }
-
-    FN_PKCS7_new                              = 'PKCS7_new';
-    FN_PKCS7_free                             = 'PKCS7_free';
-    FN_PKCS7_set_type                         = 'PKCS7_set_type';
-    FN_PKCS7_content_new                      = 'PKCS7_content_new';
-    FN_PKCS7_add_certificate                  = 'PKCS7_add_certificate';
-
-    FN_PKCS12_parse                           = 'PKCS12_parse';
-    FN_PKCS12_verify_mac                      = 'PKCS12_verify_mac';
-    FN_PKCS12_free                            = 'PKCS12_free';
-    FN_PKCS12_create                          = 'PKCS12_create';
-
-    FN_DH_free                                = 'DH_free'; { V8.07 }
-    FN_EC_KEY_new_by_curve_name               = 'EC_KEY_new_by_curve_name';   { V8.07 }
-    FN_EC_KEY_free                            = 'EC_KEY_free';   { V8.07 }
-
-    FN_X509_get0_notBefore                    = 'X509_get0_notBefore'; { V8.32 }
-    FN_X509_get0_notAfter                     = 'X509_get0_notAfter'; { V8.32 }
-    FN_X509_get_signature_nid                 = 'X509_get_signature_nid'; { V8.27 }
-
-{$IFNDEF OPENSSL_NO_ENGINE}
-    FN_ENGINE_load_builtin_engines            = 'ENGINE_load_builtin_engines'; //AG
-    FN_ENGINE_register_all_complete           = 'ENGINE_register_all_complete'; //AG
-    FN_ENGINE_cleanup                         = 'ENGINE_cleanup'; //AG
-    FN_ENGINE_by_id                           = 'ENGINE_by_id'; //AG
-    FN_ENGINE_init                            = 'ENGINE_init'; //AG
-    FN_ENGINE_finish                          = 'ENGINE_finish'; //AG
-    FN_ENGINE_set_default                     = 'ENGINE_set_default'; //AG
-    FN_ENGINE_ctrl_cmd_string                 = 'ENGINE_ctrl_cmd_string'; //AG
-    FN_ENGINE_free                            = 'ENGINE_free'; //AG
-    FN_ENGINE_load_private_key                = 'ENGINE_load_private_key'; //AG
-    FN_ENGINE_load_public_key                 = 'ENGINE_load_public_key'; //AG
-    FN_ENGINE_load_ssl_client_cert            = 'ENGINE_load_ssl_client_cert';//AG
-    FN_UI_new                                 = 'UI_new'; //AG
-    FN_UI_new_method                          = 'UI_new_method'; //AG
-    FN_UI_free                                = 'UI_free'; //AG
-    FN_UI_create_method                       = 'UI_create_method'; //AG
-    FN_UI_destroy_method                      = 'UI_destroy_method'; //AG
-    FN_UI_set_ex_data                         = 'UI_set_ex_data'; //AG
-    FN_UI_get_ex_data                         = 'UI_get_ex_data'; //AG
-    FN_UI_method_set_reader                   = 'UI_method_set_reader'; //AG
-    FN_UI_set_result                          = 'UI_set_result'; //AG
-    FN_UI_OpenSSL                             = 'UI_OpenSSL'; //AG
-{$ENDIF}
-*)
-
-// 8.26 moved lots of declarations from OverbyteIcsLibeayEx so they are all together
-
-const
-    RSA_PKCS1_PADDING                 = 1;
-    RSA_SSLV23_PADDING                = 2;
-    RSA_NO_PADDING                    = 3;
-    RSA_PKCS1_OAEP_PADDING            = 4;
-
-    RSA_PKCS1_PADDING_SIZE            = 11;
-    RSA_PKCS1_OAEP_PADDING_SIZE       = 41;
-    PKCS5_SALT_LEN                    =  8;
-
-type
-    TEVP_CIPHER_CTX_st = packed record
-        Dummy : array [0..0] of Byte;
-    end;
-    PEVP_CIPHER_CTX = ^TEVP_CIPHER_CTX_st;
-
-{$IFDEF OPENSSL_NO_ENGINE}
-    TEngine_st = packed record
-        Dummy : array [0..0] of Byte;
-    end;
-    PEngine = ^TEngine_st;
-{$ENDIF}
-
-    TASN1_ENCODING_st = packed record
-        enc       : PAnsiChar;
-        len       : LongWord;
-        modified  : Integer;
-    end;
-    TASN1_ENCODING = TASN1_ENCODING_st;
-    PASN1_ENCODING = ^TASN1_ENCODING_st;
-
-    TLHASH_st = packed record
-        Dummy : array [0..0] of Byte;
-    end;
-    PLHASH = ^TLHASH_st;
-
-    TX509V3_CTX_st = packed record
-        Dummy : array [0..0] of Byte;
-    end;
-    PX509V3_CTX = ^TX509V3_CTX_st;
-
-    {TX509_PUBKEY_st = packed record
-        algor       : PX509_ALGOR;
-        public_key  : PASN1_BIT_STRING;
-        pkey        : PEVP_PKEY;
-    end;
-    PX509_PUBKEY = ^TX509_PUBKEY_st;}
-
-    TX509_REQ_INFO_st = packed record
-        enc         : TASN1_ENCODING;
-        version     : PASN1_INTEGER;
-        subject     : PX509_NAME;
-        pubkey      : PX509_PUBKEY;
-        attributes  : PSTACK;
-    end;
-    PX509_REQ_INFO = ^TX509_REQ_INFO_st;
-
-    TX509_REQ_st = packed record
-        req_info    : PX509_REQ_INFO;
-        sig_alg     : PX509_ALGOR;
-        signature   : PASN1_STRING;
-        references  : Integer;
-    end;
-    PX509_REQ = ^TX509_REQ_st;
-
-const
-f_RAND_screen             : procedure; cdecl = nil;
-f_RAND_load_file          : function(const FileName: PAnsiChar; Max_Bytes: Longint): Integer; cdecl = nil;
-f_RAND_write_file         : function(const FileName: PAnsiChar): Integer; cdecl = nil;
-f_RAND_status             : function: Integer; cdecl = nil;
-f_RAND_cleanup            : procedure; cdecl = nil;              { gone V8.27 }
-f_RAND_poll               : function: Integer; cdecl = nil;
-f_RAND_add                : procedure(buf: Pointer; num: Integer; entropy: Double); cdecl = nil;
-f_RAND_bytes              : function(buf: PAnsiChar; num: Integer): Integer; cdecl = nil;
-{f_RAND_pseudo_bytes       : function(buf: PAnsiChar; num: Integer): Integer; cdecl = nil;  V8.27 }
-
-f_RSA_new                 : function: PRSA; cdecl = nil;            { V8.03 }
-f_RSA_free                : procedure(RSA: PRSA); cdecl = nil;
-f_DSA_free                : procedure(DSA: PDSA); cdecl = nil;   //Angus
-f_RSA_generate_key_ex     : function(Rsa: PRSA; Bits: Integer; e: Pointer; cb: Pointer): Integer; cdecl = nil; //Angus  { V8.03 }
-f_RSA_size                : function(Rsa: PRSA): Integer; cdecl = nil; //Angus
-f_DH_size                 : function(Dh: PDH): Integer; cdecl = nil;   //Angus
-f_DSA_size                : function(Dsa: PDSA): Integer; cdecl = nil; //Angus
-
-f_X509V3_EXT_conf_nid     : function(Conf: PLHASH; Ctx: PX509V3_CTX; ext_nid: Integer; value: PAnsiChar): PX509_EXTENSION; cdecl = nil;
-f_X509_add_ext            : function(Cert: PX509; Ex: PX509_EXTENSION; loc: Integer): Integer; cdecl = nil;
-f_X509_EXTENSION_free     : procedure(Ext: PX509_EXTENSION); cdecl = nil;
-
-f_X509_Req_new            : function: PX509_REQ; cdecl = nil;
-f_X509_REQ_set_pubkey     : function(Req: PX509_REQ; PKey: PEVP_PKEY): Integer; cdecl = nil;
-f_X509_REQ_set_version    : function(Req: PX509_REQ; Version: LongInt): Integer; cdecl = nil;
-f_X509_REQ_sign           : function(Req: PX509_REQ; PKey: PEVP_PKEY; const Md: PEVP_MD): Integer; cdecl = nil;
-f_X509_REQ_add_extensions : function(Req: PX509_REQ; Exts: PSTACK): Integer; cdecl = nil;
-f_X509_REQ_free           : procedure(Req: PX509_REQ); cdecl = nil;
-
-f_RSA_public_encrypt      : function(flen: Integer; from: PAnsiChar; to_: PAnsiChar; rsa: PRSA; padding: Integer): Integer; cdecl = nil;
-f_RSA_private_decrypt     : function(flen: Integer; from: PAnsiChar; to_: PAnsiChar; rsa: PRSA; padding: Integer): Integer; cdecl = nil;
-
-
-// High level OpenSSL Crypto stuff, most require OSSL 0.9.7
-// Blowfish algo/modes
-f_EVP_bf_cbc              : function: PEVP_CIPHER; cdecl = nil;
-f_EVP_bf_ecb              : function: PEVP_CIPHER; cdecl = nil;
-f_EVP_bf_cfb64            : function: PEVP_CIPHER; cdecl = nil;
-f_EVP_bf_ofb              : function: PEVP_CIPHER; cdecl = nil;
-f_EVP_aes_128_cbc         : function: PEVP_CIPHER; cdecl = nil;
-f_EVP_PKEY_get1_RSA       : function (pkey: PEVP_PKEY): PRSA; cdecl = nil; //Angus
-f_EVP_PKEY_get1_DSA       : function (pkey: PEVP_PKEY): PDSA; cdecl = nil; //Angus
-f_EVP_PKEY_get1_DH        : function (pkey: PEVP_PKEY): PDH; cdecl = nil; //Angus
-f_EVP_PKEY_get1_EC_KEY    : function (pkey: PEVP_PKEY): PEC_KEY; cdecl = nil; //Angus
-f_EVP_CIPHER_CTX_reset    : procedure(ctx: PEVP_CIPHER_CTX); cdecl = nil;  { V8.27 new with OpenSSL 1.1.0 }
-
-f_EVP_CIPHER_CTX_new      : function: PEVP_CIPHER_CTX; cdecl = nil;
-f_EVP_CIPHER_CTX_free     : procedure(ctx: PEVP_CIPHER_CTX); cdecl = nil;
-f_EVP_CIPHER_CTX_init     : procedure(ctx: PEVP_CIPHER_CTX); cdecl = nil;  { V8.27 gone with OpenSSL 1.1.0 }
-f_EVP_CIPHER_CTX_set_key_length : function(ctx: PEVP_CIPHER_CTX; keyl: Integer): LongBool; cdecl = nil;
-f_EVP_CipherInit_ex       : function(ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; key, iv: PAnsiChar; enc: Integer): LongBool; cdecl = nil;
-f_EVP_CipherUpdate        : function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
-f_EVP_CipherFinal_ex      : function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer): LongBool; cdecl = nil;
-f_EVP_CIPHER_CTX_cleanup  : function(ctx: PEVP_CIPHER_CTX): Integer; cdecl = nil;   { V8.27 gone with OpenSSL 1.1.0 }
-f_EVP_BytesToKey          : function(const type_: PEVP_CIPHER; const md: PEVP_MD; const salt: PAnsiChar; const data: PAnsiChar; datalen, count : Integer; key, iv: PAnsiChar): Integer; cdecl = nil;
-f_EVP_EncryptInit_ex      : function (ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; const key: PAnsiChar; const iv: PAnsiChar): LongBool; cdecl = nil;
-f_EVP_DecryptInit_ex      : function (ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; const key: PAnsiChar; const iv: PAnsiChar): LongBool; cdecl = nil;
-f_EVP_EncryptUpdate       : function (ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
-f_EVP_DecryptUpdate       : function (ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
-
-f_HMAC                    : function(evp: pEVP_MD; key: PByte; key_len: integer; data: PByte; data_len: integer; md: PByte; var md_len: integer): PByte; cdecl = nil;    { V8.03 }
-
+    FN_SSLeay                                 = 'SSLeay';                { up to 1.1.0 }
+    FN_OpenSSL_version_num                    = 'OpenSSL_version_num';   { V8.27 from 1.1.0  }
 
 function LibeayLoad : Boolean;
-//function LibeayWhichFailedToLoad : String;
+
+// most of these functions replace OpenSSL macros
 function ERR_GET_REASON(ErrCode : Cardinal) : Cardinal; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function ERR_GET_LIB(ErrCode : Cardinal) : Cardinal; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function ERR_GET_FUNC(ErrCode : Cardinal) : Cardinal; {$IFDEF USE_INLINE} inline; {$ENDIF}
@@ -2163,36 +1740,34 @@ function f_Ics_X509_get_notBefore(X: PX509): PASN1_TIME;
 function f_Ics_X509_get_notAfter(X: PX509): PASN1_TIME;
 function f_Ics_X509_CRL_get_issuer(crl: PX509_CRL): PX509_NAME; {$IFDEF USE_INLINE} inline; {$ENDIF}// Macro
 function f_Ics_X509_get_version(X509: PX509): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
-function f_X509_REQ_get_subject_name(AReq: PX509_REQ): PX509_NAME;
+function f_Ics_X509_REQ_get_subject_name(AReq: PX509_REQ): PX509_NAME;  { V8.36 renamed }
+function f_Ics_X509_LOOKUP_load_file(Ctx: PX509_LOOKUP; FileName: PAnsiChar; Type_: Longword): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
+function f_Ics_X509_LOOKUP_add_dir(Ctx: PX509_LOOKUP; DirName: PAnsiChar; Type_: Longword): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
+function f_Ics_X509_get_signature_algorithm(X509: PX509): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
+procedure Ics_Ssl_EVP_PKEY_IncRefCnt(K: PEVP_PKEY; Increment: Integer = 1); {$IFDEF USE_INLINE} inline; {$ENDIF}
+function Ics_Ssl_EVP_PKEY_GetKey(K: PEVP_PKEY): Pointer; {$IFDEF USE_INLINE} inline; {$ENDIF}
+function Ics_Ssl_EVP_PKEY_GetType(K: PEVP_PKEY): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
+function f_SSL_get_secure_renegotiation_support(S: PSSL): Longint; {$IFDEF USE_INLINE} inline; {$ENDIF}
+function Ics_Ssl_ERR_GET_LIB(E: DWORD): Integer;
+function Ics_Ssl_ERR_GET_FUNC(E: DWORD): Integer;
+function Ics_Ssl_ERR_GET_REASON(E: DWORD): Integer;
 function Asn1ToUTDateTime(Asn1Time: PASN1_TIME; out UT: TDateTime): Boolean;
 function Asn1ToString(PAsn1 : PASN1_STRING): String;
+
+function  IcsRandSeedFromFile(const FileName: String; MaxBytes: Integer = -1): Integer;
+
 {$IFNDEF OPENSSL_NO_ENGINE}
 function f_Ics_UI_set_app_data(r: PUI; arg: Pointer): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
 function f_Ics_UI_get_app_data(r: PUI): Pointer; {$IFDEF USE_INLINE} inline; {$ENDIF}
 {$ENDIF}
-function f_Ics_X509_LOOKUP_load_file(Ctx: PX509_LOOKUP; FileName: PAnsiChar; Type_: Longword): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
-function f_Ics_X509_LOOKUP_add_dir(Ctx: PX509_LOOKUP; DirName: PAnsiChar; Type_: Longword): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
-function f_Ics_X509_get_signature_algorithm(X509: PX509): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
 
-procedure Ics_Ssl_EVP_PKEY_IncRefCnt(K: PEVP_PKEY; Increment: Integer = 1); {$IFDEF USE_INLINE} inline; {$ENDIF}
-function  Ics_Ssl_EVP_PKEY_GetKey(K: PEVP_PKEY): Pointer; {$IFDEF USE_INLINE} inline; {$ENDIF}
-function  Ics_Ssl_EVP_PKEY_GetType(K: PEVP_PKEY): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
-
-{ 0.9.8n }
-function f_SSL_get_secure_renegotiation_support(S: PSSL): Longint; {$IFDEF USE_INLINE} inline; {$ENDIF}
-
-function Ics_Ssl_ERR_GET_LIB(E: DWORD): Integer;
-function Ics_Ssl_ERR_GET_FUNC(E: DWORD): Integer;
-function Ics_Ssl_ERR_GET_REASON(E: DWORD): Integer;
-
-function  IcsRandSeedFromFile(const FileName: String; MaxBytes: Integer = -1): Integer;
 {$IFDEF MSWINDOWS}  { V8.04 }
 procedure IcsRandPoll;
 {$ENDIF}
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GLIBEAYImports1: array[0..284] of TOSSLImports = (
+    GLIBEAYImports1: array[0..285] of TOSSLImports = (
     (F: @@f_ASN1_INTEGER_get ;   N: 'ASN1_INTEGER_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_INTEGER_set ;   N: 'ASN1_INTEGER_set';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_STRING_free ;   N: 'ASN1_STRING_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2344,7 +1919,7 @@ const
     (F: @@f_RSA_private_decrypt;   N: 'RSA_private_decrypt';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_RSA_public_encrypt;   N: 'RSA_public_encrypt';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_RSA_size;   N: 'RSA_size';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_SSLeay_version ;   N: 'SSLeay_version';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OpenSSL_version ;   N: 'SSLeay_version';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_X509V3_EXT_conf_nid;   N: 'X509V3_EXT_conf_nid';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509V3_EXT_d2i ;   N: 'X509V3_EXT_d2i';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509V3_EXT_get ;   N: 'X509V3_EXT_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2386,6 +1961,7 @@ const
     (F: @@f_X509_PURPOSE_get_id;   N: 'X509_PURPOSE_get_id';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_REQ_add_extensions;   N: 'X509_REQ_add_extensions';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_REQ_free;   N: 'X509_REQ_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_REQ_get_subject_name;   N: 'X509_REQ_get_subject_name';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.36 }
     (F: @@f_X509_REQ_set_pubkey;   N: 'X509_REQ_set_pubkey';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_REQ_set_version;   N: 'X509_REQ_set_version';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_REQ_sign;   N: 'X509_REQ_sign';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2454,30 +2030,30 @@ const
     (F: @@f_i2d_RSA_PUBKEY ;   N: 'i2d_RSA_PUBKEY';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_i2d_X509 ;   N: 'i2d_X509';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_i2d_X509_bio ;   N: 'i2d_X509_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_sk_delete;   N: 'OPENSSL_sk_delete';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_sk_dup ;   N: 'OPENSSL_sk_dup';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_sk_find;   N: 'OPENSSL_sk_find';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_sk_free;   N: 'OPENSSL_sk_free';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_sk_insert;   N: 'OPENSSL_sk_insert';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_sk_new_null;   N: 'OPENSSL_sk_new_null';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_sk_num ;   N: 'OPENSSL_sk_num';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_sk_pop ;   N: 'OPENSSL_sk_pop';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_sk_pop_free;   N: 'OPENSSL_sk_pop_free';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_sk_push;   N: 'OPENSSL_sk_push';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_sk_set ;   N: 'OPENSSL_sk_set';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_sk_value ;   N: 'OPENSSL_sk_value';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_sk_delete;   N: 'sk_delete';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_sk_dup ;   N: 'sk_dup';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_sk_find;   N: 'sk_find';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_sk_free;   N: 'sk_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_sk_insert;   N: 'sk_insert';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_sk_new_null;   N: 'sk_new_null';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_sk_num ;   N: 'sk_num';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_sk_pop ;   N: 'sk_pop';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_sk_pop_free;   N: 'sk_pop_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_sk_push;   N: 'sk_push';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_sk_set ;   N: 'sk_set';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_sk_value ;   N: 'sk_value';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ) ) ;
+    (F: @@f_OPENSSL_sk_delete;   N: 'OPENSSL_sk_delete';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OPENSSL_sk_dup ;   N: 'OPENSSL_sk_dup';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OPENSSL_sk_find;   N: 'OPENSSL_sk_find';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OPENSSL_sk_free;   N: 'OPENSSL_sk_free';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OPENSSL_sk_insert;   N: 'OPENSSL_sk_insert';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OPENSSL_sk_new_null;   N: 'OPENSSL_sk_new_null';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OPENSSL_sk_num ;   N: 'OPENSSL_sk_num';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OPENSSL_sk_pop ;   N: 'OPENSSL_sk_pop';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OPENSSL_sk_pop_free;   N: 'OPENSSL_sk_pop_free';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OPENSSL_sk_push;   N: 'OPENSSL_sk_push';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OPENSSL_sk_set ;   N: 'OPENSSL_sk_set';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OPENSSL_sk_value ;   N: 'OPENSSL_sk_value';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OPENSSL_sk_delete;   N: 'sk_delete';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OPENSSL_sk_dup ;   N: 'sk_dup';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OPENSSL_sk_find;   N: 'sk_find';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OPENSSL_sk_free;   N: 'sk_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OPENSSL_sk_insert;   N: 'sk_insert';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OPENSSL_sk_new_null;   N: 'sk_new_null';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OPENSSL_sk_num ;   N: 'sk_num';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OPENSSL_sk_pop ;   N: 'sk_pop';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OPENSSL_sk_pop_free;   N: 'sk_pop_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OPENSSL_sk_push;   N: 'sk_push';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OPENSSL_sk_set ;   N: 'sk_set';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OPENSSL_sk_value ;   N: 'sk_value';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ) ) ;
 
 {$IFDEF OPENSSL_USE_DELPHI_MM}
     GLIBEAYImports2: array[0..0] of TOSSLImports = (
@@ -2626,7 +2202,7 @@ begin
             Result := False;
             Exit;
         end;
-        f_SSLeay := @f_OpenSSL_version_num;  // keep old version for compability
+  //      f_SSLeay := @f_OpenSSL_version_num;  // keep old version for compability
         ICS_OPENSSL_VERSION_NUMBER := f_OpenSSL_version_num;
     end
     else begin
@@ -2648,12 +2224,12 @@ begin
                      PChar(GLIBEAY_DLL_FileName), Length(GLIBEAY_DLL_FileName)));
 
         //This function is available in all versions so we can safely call it
-        f_SSLeay := GetProcAddress(GLIBEAY_DLL_Handle, FN_SSLeay);
-        if @f_SSLeay = nil then begin
+        f_OpenSSL_version_num := GetProcAddress(GLIBEAY_DLL_Handle, FN_SSLeay);
+        if @f_OpenSSL_version_num = nil then begin
             Result := False;
             Exit;
         end;
-        ICS_OPENSSL_VERSION_NUMBER := f_SSLeay;
+        ICS_OPENSSL_VERSION_NUMBER := f_OpenSSL_version_num;
     end;
     { Version Check }
 {$IFNDEF NO_OSSL_VERSION_CHECK}
@@ -2698,7 +2274,6 @@ begin
 
  { handle some backward compatible stuff }
     if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then begin
-        f_SSLeay_version             := @f_OpenSSL_version;
         @f_EVP_CIPHER_CTX_init       := @f_EVP_CIPHER_CTX_reset;
         // pending, should create duplicates OPENSSL_sk_xx for sk_xx
         @f_CRYPTO_lock                            := @IcsSslStub;  { V8.35 }
@@ -2717,887 +2292,7 @@ begin
         @f_EVP_cleanup                            := @IcsSslStub;  { V8.35 }
         @f_ENGINE_cleanup                         := @IcsSslStub;  { V8.35 }
     end;
-
-
-  (*
-    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then begin
-        f_OpenSSL_version                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_OpenSSL_version);
-        f_SSLeay_version                     := @f_OpenSSL_version;
-    end
-    else begin
-        f_SSLeay_version                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_SSLeay_version);
-    end;
-    f_ERR_get_error_line_data                := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_get_error_line_data);
-    f_ERR_peek_error                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_peek_error);
-    f_ERR_peek_last_error                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_peek_last_error);
-    f_ERR_get_error                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_get_error);
-    f_ERR_error_string                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_error_string);
-    f_ERR_error_string_n                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_error_string_n);
-    f_ERR_lib_error_string                   := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_lib_error_string);
-    f_ERR_func_error_string                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_func_error_string);
-    f_ERR_reason_error_string                := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_reason_error_string);
-    f_ERR_load_crypto_strings                := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_load_crypto_strings);
-    f_ERR_clear_error                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_clear_error);
-    f_ERR_remove_state                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_remove_state);
-    f_ERR_remove_thread_state                := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_remove_thread_state);
-    f_ERR_free_strings                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_ERR_free_strings);
-    f_RAND_seed                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_RAND_seed);
-
-    f_BIO_new                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_new);
-    f_BIO_new_socket                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_new_socket);
-    f_BIO_new_fd                             := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_new_fd);
-    f_BIO_new_file                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_new_file);
-    f_BIO_new_mem_buf                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_new_mem_buf);
-    f_BIO_new_bio_pair                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_new_bio_pair);
-
-    f_BIO_ctrl                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_ctrl);
-    f_BIO_ctrl_pending                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_ctrl_pending);
-    f_BIO_ctrl_get_write_guarantee           := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_ctrl_get_write_guarantee);
-    f_BIO_ctrl_get_read_request              := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_ctrl_get_read_request);
-
-    f_BIO_read                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_read);
-    f_BIO_nread                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_nread);
-    f_BIO_nread0                             := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_nread0);
-    f_BIO_nwrite                             := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_nwrite);
-    f_BIO_nwrite0                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_nwrite0);
-    f_BIO_write                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_write);
-    f_BIO_free                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_free);
-    f_BIO_gets                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_gets);
-    f_BIO_puts                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_puts);
-    f_BIO_push                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_push);
-    f_BIO_s_mem                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_s_mem);
-    f_BIO_get_retry_BIO                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_get_retry_BIO);
-    f_BIO_get_retry_reason                   := GetProcAddress(GLIBEAY_DLL_Handle, FN_BIO_get_retry_reason);
-
-    f_BN_new                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_BN_new);
-    f_BN_free                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_BN_free);
-    f_BN_set_word                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_BN_set_word);
-
-    f_d2i_X509_bio                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_X509_bio);
-    f_i2d_X509_bio                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_X509_bio);
-    f_d2i_PrivateKey_bio                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_PrivateKey_bio);
-    f_i2d_PrivateKey_bio                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_PrivateKey_bio);
-    f_d2i_X509                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_X509);
-    f_d2i_PKCS12_bio                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_PKCS12_bio);
-    f_i2d_PKCS12_bio                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_PKCS12_bio);
-    f_d2i_PKCS7_bio                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_PKCS7_bio);
-
-    { V8.27 thread locking no longer used in OpenSSL 1.1.0 and later }
-    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin
-        f_CRYPTO_lock                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_lock);
-        f_CRYPTO_add_lock                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_add_lock);
-        f_CRYPTO_num_locks                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_num_locks);
-        f_CRYPTO_set_locking_callback            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_locking_callback);
-        f_CRYPTO_set_id_callback                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_id_callback);
-        f_CRYPTO_set_dynlock_create_callback     := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_dynlock_create_callback);
-        f_CRYPTO_set_dynlock_lock_callback       := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_dynlock_lock_callback);
-        f_CRYPTO_set_dynlock_destroy_callback    := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_dynlock_destroy_callback);
-    end;
-    f_CRYPTO_THREADID_set_callback           := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_THREADID_set_callback);
-    f_CRYPTO_THREADID_set_numeric            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_THREADID_set_numeric);
-    f_CRYPTO_THREADID_set_pointer            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_THREADID_set_pointer);
-
-{$IFDEF OPENSSL_USE_DELPHI_MM}
-    f_CRYPTO_set_mem_functions               := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_set_mem_functions);
-{$ENDIF}
-    f_CRYPTO_cleanup_all_ex_data             := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_cleanup_all_ex_data);
-
-    f_X509_dup                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_dup); //AG
-    f_X509_check_ca                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_check_ca); //AG
-    f_X509_STORE_new                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_new); //AG
-    f_X509_STORE_free                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_free); //AG
-    f_X509_STORE_add_cert                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_add_cert); //AG
-    f_X509_STORE_add_crl                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_add_crl); //AG
-    f_X509_STORE_add_lookup                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_add_lookup); //AG
-    f_X509_STORE_set_flags                   := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_set_flags); //AG
-
-    f_X509_STORE_CTX_new                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_new); //AG
-    f_X509_STORE_CTX_free                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_free); //AG
-    f_X509_STORE_CTX_init                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_init); //AG
-    f_X509_STORE_CTX_cleanup                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_cleanup); //AG
-    f_X509_STORE_CTX_get_ex_data             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_get_ex_data);
-    f_X509_STORE_CTX_get_current_cert        := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_get_current_cert);
-    f_X509_STORE_CTX_get_error               := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_get_error);
-    f_X509_STORE_CTX_set_error               := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_set_error);
-    f_X509_STORE_CTX_get_error_depth         := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_get_error_depth);
-    f_X509_STORE_CTX_get_chain               := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_get_chain); //AG
-    f_X509_STORE_CTX_trusted_stack           := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_trusted_stack); //AG
-    f_X509_STORE_CTX_set_purpose             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_set_purpose); //AG
-    f_X509_STORE_CTX_set_verify_cb           := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_set_verify_cb); //AG
-    f_X509_STORE_CTX_set_ex_data             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_STORE_CTX_set_ex_data); //AG
-
-    f_X509_load_crl_file                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_load_crl_file); //AG
-
-    f_X509_LOOKUP_file                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_LOOKUP_file); //AG
-    f_X509_LOOKUP_hash_dir                   := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_LOOKUP_hash_dir); //AG
-    f_X509_LOOKUP_new                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_LOOKUP_new); //AG
-    f_X509_LOOKUP_free                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_LOOKUP_free); //AG
-    f_X509_LOOKUP_by_issuer_serial           := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_LOOKUP_by_issuer_serial); //AG
-    f_X509_LOOKUP_by_fingerprint             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_LOOKUP_by_fingerprint); //AG
-    f_X509_LOOKUP_ctrl                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_LOOKUP_ctrl); //AG
-
-    f_X509_check_issued                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_check_issued); //AG
-    f_X509_verify_cert                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_verify_cert); //AG
-    f_X509_verify_cert_error_string          := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_verify_cert_error_string);
-
-    f_X509_get_issuer_name                   := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_issuer_name);
-    f_X509_get_subject_name                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_subject_name);
-    f_X509_get_serialNumber                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_serialNumber);
-    f_X509_NAME_oneline                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_oneline);
-    f_X509_NAME_get_text_by_NID              := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_get_text_by_NID);
-    f_X509_NAME_get_index_by_NID             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_get_index_by_NID); //AG
-    f_X509_NAME_free                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_free);
-    f_X509_NAME_cmp                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_cmp);
-    f_X509_get_ext                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_ext);
-    f_X509_get_ext_count                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_ext_count);
-    f_X509_free                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_free);
-    f_X509_CRL_free                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_CRL_free);
-    f_X509V3_EXT_get                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509V3_EXT_get);
-    f_X509V3_EXT_print                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509V3_EXT_print); //AG
-    f_X509V3_EXT_d2i                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509V3_EXT_d2i); //AG
-    f_X509V3_conf_free                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509V3_conf_free); //AG
-    f_X509_EXTENSION_get_object              := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_EXTENSION_get_object);
-    f_X509_EXTENSION_get_data                := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_EXTENSION_get_data); //AG
-    f_X509_EXTENSION_get_critical            := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_EXTENSION_get_critical); //AG
-    f_X509_subject_name_hash                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_subject_name_hash);
-    f_X509_print                             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_print);
-    f_X509_digest                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_digest); //AG
-    f_X509_check_private_key                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_check_private_key); //AG
-
-    f_EVP_sha1                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_sha1); //AG
-    f_EVP_sha256                             := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_sha256); //AG
-    f_EVP_md5                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_md5); //AG
-    f_EVP_PKEY_new                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_new); //AG
-    f_EVP_PKEY_free                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_free); //AG
-    { Next is v1.0.0+ ** check for nil ** }
-    f_EVP_PKEY_get0                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_get0); //AG
-    f_EVP_PKEY_assign                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_assign); //AG
-    f_EVP_PKEY_size                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_size); //AG
-    f_EVP_PKEY_bits                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_PKEY_bits); //AG
-    f_EVP_get_cipherbyname                   := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_get_cipherbyname); //AG
-    f_EVP_des_ede3_cbc                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_des_ede3_cbc); //AG
-    f_EVP_cleanup                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_EVP_cleanup);
-
-    f_RSA_generate_key                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_RSA_generate_key); //AG
-    f_RSA_print                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_RSA_print); //AG
-    f_DSA_print                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_DSA_print); //AG
-    f_EC_KEY_print                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_EC_KEY_print); //AG
-    f_OBJ_nid2sn                             := GetProcAddress(GLIBEAY_DLL_Handle, FN_OBJ_nid2sn);
-    f_OBJ_nid2ln                             := GetProcAddress(GLIBEAY_DLL_Handle, FN_OBJ_nid2ln);
-    f_OBJ_obj2nid                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_OBJ_obj2nid);
-
- { OpenSSL 1.0.x - V8.31 }
-    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin
-        f_sk_num                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_num);
-        f_sk_value                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_value);
-        f_sk_new_null                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_new_null); //AG
-        f_sk_free                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_free); //AG
-        f_sk_pop_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_pop_free); //AG
-        f_sk_push                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_push); //AG
-        f_sk_delete                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_delete); //AG
-        f_sk_pop                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_pop); //AG
-        f_sk_find                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_find); //AG
-        f_sk_insert                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_insert); //AG
-        f_sk_dup                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_dup); //AG
-        f_sk_set                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_sk_set); //AG
-    end
-  { OpenSSL 1.1.x - V8.31 }
-    else begin
-        f_sk_num                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_num);
-        f_sk_value                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_value);
-        f_sk_new_null                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_new_null);
-        f_sk_free                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_free);
-        f_sk_pop_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_pop_free);
-        f_sk_push                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_push);
-        f_sk_delete                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_delete);
-        f_sk_pop                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_pop);
-        f_sk_find                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_find);
-        f_sk_insert                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_insert);
-        f_sk_dup                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_dup);
-        f_sk_set                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_osl_sk_set);
-    end;
-    f_PEM_write_bio_X509                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_X509);
-    f_PEM_write_bio_X509_REQ                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_X509_REQ);
-    f_PEM_write_bio_X509_CRL                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_X509_CRL);
-    f_PEM_read_bio_X509_CRL                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_X509_CRL);//AG
-    f_PEM_read_bio_X509                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_X509);
-    f_PEM_read_bio_PKCS7                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_PKCS7);
-    f_PEM_read_bio_DHparams                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_DHparams); { V8.07 }
-    f_PEM_write_bio_PKCS7                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_PKCS7);
-    f_PEM_do_header                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_do_header);
-    f_PEM_X509_INFO_read_bio                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_X509_INFO_read_bio); //AG
-    f_PEM_write_bio_PrivateKey               := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_PrivateKey); //AG
-    f_PEM_read_bio_PrivateKey                := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_PrivateKey); //AG
-
-    f_PEM_read_bio_RSA_PUBKEY                := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_RSA_PUBKEY);
-    f_PEM_read_bio_RSAPrivateKey             := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_read_bio_RSAPrivateKey);
-    f_d2i_RSAPrivateKey                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_RSAPrivateKey);
-    f_i2d_RSAPublicKey                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_RSAPublicKey);
-    f_i2d_RSA_PUBKEY                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_RSA_PUBKEY);
-    f_PEM_write_bio_RSAPrivateKey            := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_RSAPrivateKey); { V8.12 }
-    f_PEM_write_bio_RSAPublicKey             := GetProcAddress(GLIBEAY_DLL_Handle, FN_PEM_write_bio_RSAPublicKey); { V8.12 }
-
-    f_CRYPTO_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_CRYPTO_free); //AG
-    f_X509_NAME_ENTRY_get_object             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_ENTRY_get_object); //AG
-    f_X509_NAME_get_entry                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_get_entry); //AG
-    f_X509_NAME_entry_count                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_entry_count); //AG
-    f_X509_NAME_ENTRY_get_data               := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_ENTRY_get_data); //AG
-    f_X509_set_version                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_set_version); //AG
-    f_ASN1_STRING_to_UTF8                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_ASN1_STRING_to_UTF8); //AG
-    f_ASN1_INTEGER_set                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_ASN1_INTEGER_set); //AG
-    f_ASN1_INTEGER_get                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_ASN1_INTEGER_get);
-    f_ASN1_STRING_print                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_ASN1_STRING_print); //AG
-    f_ASN1_item_d2i                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_ASN1_item_d2i); //AG
-    f_ASN1_item_free                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_ASN1_item_free); //AG
-    f_ASN1_STRING_free                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_ASN1_STRING_free); //AG
-    f_i2a_ASN1_OBJECT                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2a_ASN1_OBJECT); //AG
-    f_X509_gmtime_adj                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_gmtime_adj); //AG
-    f_X509_set_pubkey                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_set_pubkey); //AG
-    f_X509_new                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_new); //AG
-    f_X509_NAME_add_entry_by_txt             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_add_entry_by_txt); //AG
-    f_X509_NAME_add_entry_by_NID             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_add_entry_by_NID); //AG
-    f_X509_NAME_new                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_NAME_new); //AG
-    f_X509_set_issuer_name                   := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_set_issuer_name); //AG
-    f_X509_sign                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_sign); //AG
-    f_X509_INFO_free                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_INFO_free); //AG
-    f_X509_CRL_dup                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_CRL_dup); //AG
-    f_X509_PKEY_free                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_PKEY_free); //AG
-    f_i2d_X509                               := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_X509); //AG
-    f_i2d_PrivateKey                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_PrivateKey); //AG
-    f_d2i_PrivateKey                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_PrivateKey); //AG
-
-  { B8.14 gone    f_i2d_ASN1_bytes                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_i2d_ASN1_bytes); //AG }
-    f_X509_get_pubkey                        := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_pubkey);//AG
-    f_X509_PUBKEY_free                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_PUBKEY_free); //AG
-
-    f_d2i_PKCS8PrivateKey_bio                := GetProcAddress(GLIBEAY_DLL_Handle, FN_d2i_PKCS8PrivateKey_bio);
-
-    f_X509_check_purpose                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_check_purpose); //AG
-    f_X509_PURPOSE_get_id                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_PURPOSE_get_id); //AG
-    f_X509_PURPOSE_get0                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_PURPOSE_get0); //AG
-    f_X509_PURPOSE_get0_name                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_PURPOSE_get0_name); //AG
-    f_X509_PURPOSE_get0_sname                := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_PURPOSE_get0_sname); //AG
-    f_X509_PURPOSE_get_count                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_PURPOSE_get_count); //AG
-    f_CONF_modules_unload                    := GetProcAddress(GLIBEAY_DLL_Handle, FN_CONF_modules_unload); //AG
-  { B8.14 gone    f_OpenSSL_add_all_ciphers                := GetProcAddress(GLIBEAY_DLL_Handle, FN_OpenSSL_add_all_ciphers);
-                  f_OpenSSL_add_all_digests                := GetProcAddress(GLIBEAY_DLL_Handle, FN_OpenSSL_add_all_digests); }
-
-    f_PKCS7_new                              := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS7_new);
-    f_PKCS7_free                             := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS7_free);
-    f_PKCS7_set_type                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS7_set_type);
-    f_PKCS7_content_new                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS7_content_new);
-    f_PKCS7_add_certificate                  := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS7_add_certificate);
-
-    f_PKCS12_parse                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS12_parse);
-    f_PKCS12_verify_mac                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS12_verify_mac);
-    f_PKCS12_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS12_free);
-    f_PKCS12_create                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_PKCS12_create);
-
-    f_DH_free                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_DH_free); { V8.07 }
-    f_EC_KEY_new_by_curve_name               := GetProcAddress(GLIBEAY_DLL_Handle, FN_EC_KEY_new_by_curve_name);  { V8.07 }
-    f_EC_KEY_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_EC_KEY_free);  { V8.07 }
-
-    { V8.27 new exports in OpenSSL 1.1.0 and later }
-    if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) then begin
-        f_X509_get0_notBefore                := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get0_notBefore); { V8.32 }
-        f_X509_get0_notAfter                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get0_notAfter);  { V8.32 } ;
-        f_X509_get_signature_nid             := GetProcAddress(GLIBEAY_DLL_Handle, FN_X509_get_signature_nid);  { V8.27 } ;
-    end;
-
-{$IFNDEF OPENSSL_NO_ENGINE}
-    f_ENGINE_load_builtin_engines            := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_load_builtin_engines); //AG
-    f_ENGINE_register_all_complete           := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_register_all_complete); //AG
-    f_ENGINE_cleanup                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_cleanup); //AG
-    f_ENGINE_by_id                           := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_by_id); //AG
-    f_ENGINE_init                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_init); //AG
-    f_ENGINE_finish                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_finish); //AG
-    f_ENGINE_set_default                     := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_set_default); //AG
-    f_ENGINE_ctrl_cmd_string                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_ctrl_cmd_string); //AG
-    f_ENGINE_free                            := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_free); //AG
-    f_ENGINE_load_private_key                := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_load_private_key); //AG
-    f_ENGINE_load_public_key                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_load_public_key); //AG
-    f_ENGINE_load_ssl_client_cert            := GetProcAddress(GLIBEAY_DLL_Handle, FN_ENGINE_load_ssl_client_cert); //AG
-    f_UI_new                                 := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_new); //AG
-    f_UI_new_method                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_new_method); //AG
-    f_UI_free                                := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_free); //AG
-    f_UI_create_method                       := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_create_method); //AG
-    f_UI_destroy_method                      := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_destroy_method); //AG
-    f_UI_set_ex_data                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_set_ex_data); //AG
-    f_UI_get_ex_data                         := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_get_ex_data); //AG
-    f_UI_method_set_reader                   := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_method_set_reader); //AG
-    f_UI_set_result                          := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_set_result); //AG
-    f_UI_OpenSSL                             := GetProcAddress(GLIBEAY_DLL_Handle, FN_UI_OpenSSL); //AG
-{$ENDIF}
-*)
-
-
-    // Check if any failed
-(*    Result := not ((@f_SSLeay                                 = nil) or
-                   (@f_SSLeay_version                         = nil) or
-                   (@f_ERR_get_error_line_data                = nil) or
-                   (@f_ERR_peek_error                         = nil) or
-                   (@f_ERR_peek_last_error                    = nil) or
-                   (@f_ERR_get_error                          = nil) or
-                   (@f_ERR_error_string                       = nil) or
-                   (@f_ERR_error_string_n                     = nil) or
-                   (@f_ERR_clear_error                        = nil) or
-                   (@f_ERR_remove_state                       = nil) or
-                   //(@f_ERR_remove_thread_state                = nil) or v1.0.0+ check for nil
-                   (@f_RAND_seed                              = nil) or
-
-                   (@f_BIO_new                                = nil) or
-                   (@f_BIO_new_socket                         = nil) or
-                   (@f_BIO_new_fd                             = nil) or
-                   (@f_BIO_new_file                           = nil) or
-                   (@f_BIO_new_mem_buf                        = nil) or
-                   (@f_BIO_new_bio_pair                       = nil) or
-
-                   (@f_BIO_ctrl                               = nil) or
-                   (@f_BIO_ctrl_pending                       = nil) or
-                   (@f_BIO_ctrl_get_read_request              = nil) or // B.S.
-                   (@f_BIO_ctrl_get_write_guarantee           = nil) or
-
-                   (@f_BIO_s_mem                              = nil) or
-                   (@f_BIO_get_retry_BIO                      = nil) or
-                   (@f_BIO_get_retry_reason                   = nil) or
-                   (@f_BIO_free                               = nil) or
-                   (@f_BIO_read                               = nil) or
-                   (@f_BIO_nread                              = nil) or
-                   (@f_BIO_nread0                             = nil) or
-                   (@f_BIO_gets                               = nil) or
-                   (@f_BIO_puts                               = nil) or
-                   (@f_BIO_push                               = nil) or
-                   (@f_BIO_write                              = nil) or
-                   (@f_BIO_nwrite                             = nil) or
-                   (@f_BIO_nwrite0                            = nil) or
-
-                   (@f_d2i_X509_bio                           = nil) or
-                   (@f_i2d_X509_bio                           = nil) or
-                   (@f_d2i_PrivateKey_bio                     = nil) or
-                   (@f_i2d_PrivateKey_bio                     = nil) or
-                   (@f_d2i_X509                               = nil) or
-                   (@f_d2i_PKCS12_bio                         = nil) or
-                   (@f_i2d_PKCS12_bio                         = nil) or
-                   (@f_d2i_PKCS7_bio                          = nil) or
-
-               {$IFDEF OPENSSL_USE_DELPHI_MM}
-                   (@f_CRYPTO_set_mem_functions               = nil) or
-               {$ENDIF}
-
-                   (@f_X509_dup                               = nil) or
-                   (@f_X509_check_ca                          = nil) or
-                   (@f_X509_STORE_new                         = nil) or
-                   (@f_X509_STORE_free                        = nil) or
-                   (@f_X509_STORE_add_cert                    = nil) or
-                   (@f_X509_STORE_add_crl                     = nil) or
-                   (@f_X509_STORE_add_lookup                  = nil) or
-                   (@f_X509_STORE_set_flags                   = nil) or
-
-                   (@f_X509_STORE_CTX_new                     = nil) or
-                   (@f_X509_STORE_CTX_free                    = nil) or
-                   (@f_X509_STORE_CTX_init                    = nil) or
-                   (@f_X509_STORE_CTX_cleanup                 = nil) or
-                   (@f_X509_STORE_CTX_get_ex_data             = nil) or
-                   (@f_X509_STORE_CTX_get_current_cert        = nil) or
-                   (@f_X509_STORE_CTX_get_error               = nil) or
-                   (@f_X509_STORE_CTX_set_error               = nil) or
-                   (@f_X509_STORE_CTX_get_error_depth         = nil) or
-                   (@f_X509_STORE_CTX_set_purpose             = nil) or
-                   (@f_X509_STORE_CTX_set_verify_cb           = nil) or
-                   (@f_X509_STORE_CTX_set_ex_data             = nil) or
-
-                   (@f_X509_load_crl_file                     = nil) or
-
-                   (@f_X509_LOOKUP_file                       = nil) or
-                   (@f_X509_LOOKUP_hash_dir                   = nil) or
-                   (@f_X509_LOOKUP_new                        = nil) or
-                   (@f_X509_LOOKUP_free                       = nil) or
-                   (@f_X509_LOOKUP_by_issuer_serial           = nil) or
-                   (@f_X509_LOOKUP_by_fingerprint             = nil) or //AG
-                   (@f_X509_LOOKUP_ctrl                       = nil) or
-
-                   (@f_X509_check_issued                      = nil) or
-                   (@f_X509_verify_cert                       = nil) or
-                   (@f_X509_verify_cert_error_string          = nil) or
-
-                   (@f_X509_get_issuer_name                   = nil) or
-                   (@f_X509_get_subject_name                  = nil) or
-                   (@f_X509_get_serialNumber                  = nil) or
-                   (@f_X509_NAME_oneline                      = nil) or
-                   (@f_X509_NAME_get_text_by_NID              = nil) or
-                   (@f_X509_NAME_get_index_by_NID             = nil) or //AG
-                   (@f_X509_NAME_cmp                          = nil) or //AG
-                   (@f_X509_NAME_free                         = nil) or
-                   (@f_X509_get_ext                           = nil) or
-                   (@f_X509_get_ext_count                     = nil) or
-                   (@f_X509_free                              = nil) or
-                   (@f_X509_CRL_free                          = nil) or
-                   (@f_X509V3_EXT_get                         = nil) or
-                   (@f_X509V3_EXT_print                       = nil) or
-                   (@f_X509V3_EXT_d2i                         = nil) or
-                   (@f_X509V3_conf_free                       = nil) or
-                   (@f_X509_EXTENSION_get_object              = nil) or
-                   (@f_X509_EXTENSION_get_data                = nil) or
-                   (@f_X509_EXTENSION_get_critical            = nil) or
-                   (@f_X509_subject_name_hash                 = nil) or
-                   (@f_X509_print                             = nil) or
-                   (@f_X509_digest                            = nil) or //AG
-                   (@f_X509_check_private_key                 = nil) or //AG
-
-                   (@f_EVP_sha1                               = nil) or //AG
-                   (@f_EVP_sha256                             = nil) or //AG
-                   (@f_EVP_md5                                = nil) or //AG
-                   (@f_EVP_PKEY_free                          = nil) or //AG
-                   { Next is v1.0.0+ ** check for nil ** }
-                   //(@f_EVP_PKEY_get0                          = nil) or //AG
-                   (@f_EVP_PKEY_new                           = nil) or //AG
-                   (@f_EVP_PKEY_assign                        = nil) or //AG
-                   (@f_EVP_PKEY_size                          = nil) or //AG
-                   (@f_EVP_PKEY_bits                          = nil) or //AG
-                   (@f_EVP_get_cipherbyname                   = nil) or //AG
-                   (@f_EVP_des_ede3_cbc                       = nil) or //AG
-
-                   (@f_RSA_generate_key                       = nil) or //AG
-                   (@f_RSA_print                              = nil) or //AG
-                   (@f_DSA_print                              = nil) or //AG
-                   (@f_EC_KEY_print                           = nil) or //AG
-                   (@f_OBJ_nid2sn                             = nil) or
-                   (@f_OBJ_nid2ln                             = nil) or
-                   (@f_OBJ_obj2nid                            = nil) or
-
-                   (@f_sk_num                                 = nil) or
-                   (@f_sk_value                               = nil) or
-                   (@f_sk_new_null                            = nil) or
-                   (@f_sk_free                                = nil) or
-                   (@f_sk_pop_free                            = nil) or
-                   (@f_sk_push                                = nil) or
-                   (@f_sk_delete                              = nil) or
-                   (@f_sk_pop                                 = nil) or
-                   (@f_sk_find                                = nil) or
-                   (@f_sk_insert                              = nil) or
-                   (@f_sk_dup                                 = nil) or
-                   (@f_sk_set                                 = nil) or
-
-                   (@f_PEM_write_bio_X509                     = nil) or
-                   (@f_PEM_write_bio_X509_REQ                 = nil) or
-                   (@f_PEM_write_bio_X509_CRL                 = nil) or
-                   (@f_PEM_read_bio_X509_CRL                  = nil) or
-                   (@f_PEM_read_bio_X509                      = nil) or
-                   (@f_PEM_read_bio_PKCS7                     = nil) or
-                   (@f_PEM_read_bio_DHparams                  = nil) or
-                   (@f_PEM_write_bio_PKCS7                    = nil) or
-                   (@f_PEM_do_header                          = nil) or
-                   (@f_PEM_X509_INFO_read_bio                 = nil) or
-                   (@f_PEM_read_bio_PrivateKey                = nil) or
-                   (@f_PEM_write_bio_PrivateKey               = nil) or
-
-                   (@f_CRYPTO_free                            = nil) or
-                   (@f_X509_NAME_get_entry                    = nil) or
-                   (@f_X509_NAME_ENTRY_get_object             = nil) or
-                   (@f_X509_NAME_entry_count                  = nil) or
-                   (@f_X509_NAME_ENTRY_get_data               = nil) or
-                   (@f_X509_set_version                       = nil) or
-                   (@f_ASN1_STRING_to_UTF8                    = nil) or
-                   (@f_ASN1_INTEGER_set                       = nil) or
-                   (@f_ASN1_INTEGER_get                       = nil) or
-                   (@f_ASN1_STRING_print                      = nil) or
-                   (@f_ASN1_item_free                         = nil) or
-                   (@f_ASN1_item_d2i                          = nil) or
-                   (@f_ASN1_STRING_free                       = nil) or //AG
-                   (@f_i2a_ASN1_OBJECT                        = nil) or
-                   (@f_X509_gmtime_adj                        = nil) or
-                   (@f_X509_set_pubkey                        = nil) or
-                   (@f_X509_new                               = nil) or
-                   (@f_X509_NAME_add_entry_by_txt             = nil) or
-                   (@f_X509_NAME_add_entry_by_NID             = nil) or
-                   (@f_X509_NAME_new                          = nil) or
-                   (@f_X509_set_issuer_name                   = nil) or
-                   (@f_X509_sign                              = nil) or
-                   (@f_X509_INFO_free                         = nil) or
-                   (@f_X509_CRL_dup                           = nil) or
-                   (@f_i2d_X509                               = nil) or
-                   (@f_i2d_PrivateKey                         = nil) or
-                   (@f_d2i_PrivateKey                         = nil) or
-             { B8.14 gone        (@f_i2d_ASN1_bytes                         = nil) or  }
-                   (@f_X509_get_pubkey                        = nil) or
-
-                   (@f_X509_PUBKEY_free                       = nil) or
-
-                   (@f_X509_check_purpose                     = nil) or
-                   (@f_X509_PURPOSE_get_id                    = nil) or
-                   (@f_X509_PURPOSE_get0                      = nil) or
-                   (@f_X509_PURPOSE_get0_name                 = nil) or
-                   (@f_X509_PURPOSE_get0_sname                = nil) or
-                   (@f_X509_PURPOSE_get_count                 = nil) or
-                   (@f_CONF_modules_unload                    = nil) or
-
-                   (@f_X509_PUBKEY_free                       = nil) or
-                   (@f_CONF_modules_unload                    = nil) or
-                   {
-                   (@f_OPENSSL_add_all_algorithms_noconf      = nil) or
-                   (@f_OPENSSL_add_all_algorithms_conf        = nil) or
-                   }
-                 { B8.14 gone    (@f_OpenSSL_add_all_ciphers                = nil) or
-                                 (@f_OpenSSL_add_all_digests                = nil) or  }
-
-                   (@f_PKCS7_new                              = nil) or
-                   (@f_PKCS7_free                             = nil) or
-                   (@f_PKCS7_set_type                         = nil) or
-                   (@f_PKCS7_content_new                      = nil) or
-                   (@f_PKCS7_add_certificate                  = nil) or
-                   (@f_PKCS12_parse                           = nil) or
-                   (@f_PKCS12_verify_mac                      = nil) or
-                   (@f_PKCS12_free                            = nil) or
-                   (@f_PKCS12_create                          = nil) or
-
-                   (@f_DH_free                                = nil) or
-                   (@f_EC_KEY_new_by_curve_name               = Nil) or
-                   (@f_EC_KEY_free                            = Nil)
-
-                {$IFNDEF OPENSSL_NO_ENGINE}
-                                                                     or
-                   (@f_ENGINE_load_builtin_engines            = nil) or
-                   (@f_ENGINE_register_all_complete           = nil) or
-                   (@f_ENGINE_by_id                           = nil) or
-                   (@f_ENGINE_init                            = nil) or
-                   (@f_ENGINE_finish                          = nil) or
-                   (@f_ENGINE_set_default                     = nil) or
-                   (@f_ENGINE_ctrl_cmd_string                 = nil) or
-                   (@f_ENGINE_free                            = nil) or
-                   (@f_ENGINE_load_private_key                = nil) or
-                   (@f_ENGINE_load_public_key                 = nil) or
-                   (@f_ENGINE_load_ssl_client_cert            = nil) or
-                   (@f_UI_new                                 = nil) or
-                   (@f_UI_new_method                          = nil) or
-                   (@f_UI_free                                = nil) or
-                   (@f_UI_create_method                       = nil) or
-                   (@f_UI_destroy_method                      = nil) or
-                   (@f_UI_set_ex_data                         = nil) or
-                   (@f_UI_get_ex_data                         = nil) or
-                   (@f_UI_method_set_reader                   = nil) or
-                   (@f_UI_set_result                          = nil) or
-                   (@f_UI_OpenSSL                             = nil)
-                {$ENDIF}
-                   );
-   { V8.27 thread locking no longer used in OpenSSL 1.1.0 and later }
-    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin
-        if (@f_CRYPTO_lock                            = nil) or
-           (@f_CRYPTO_add_lock                        = nil) or
-           (@f_CRYPTO_num_locks                       = nil) or
-           (@f_CRYPTO_set_locking_callback            = nil) or
-           (@f_CRYPTO_set_id_callback                 = nil) or
-           (@f_CRYPTO_set_dynlock_create_callback     = nil) or
-           (@f_CRYPTO_set_dynlock_lock_callback       = nil) or
-           (@f_CRYPTO_set_dynlock_destroy_callback    = nil) or
-           (@f_ERR_free_strings                       = nil) or
-           (@f_CRYPTO_cleanup_all_ex_data             = nil) or
-           (@f_X509_STORE_CTX_get_chain               = nil) or
-           (@f_X509_STORE_CTX_trusted_stack           = nil) or
-           (@f_EVP_cleanup                            = nil) or
-           (@f_ENGINE_cleanup                         = nil)
-                                                    then Result := False;
-    end;
-
-{$IFDEF OPENSSL_USE_DELPHI_MM}
-    if Result then
-        Assert(f_CRYPTO_set_mem_functions(@IcsMalloc, @IcsRealloc, @IcsFreeMem) <> 0);
-{$ENDIF}
-*)
-
 end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-(* function LibeayWhichFailedToLoad : String;     { V8.27 make unique }
-const
-    SP = #32;
-begin
-    Result := '';
-    if @f_SSLeay                                 = nil then Result := Result + SP + FN_SSLeay;
-    if @f_SSLeay_version                         = nil then Result := Result + SP + FN_SSLeay_version;
-    if @f_ERR_get_error_line_data                = nil then Result := Result + SP + FN_ERR_get_error_line_data;
-    if @f_ERR_peek_error                         = nil then Result := Result + SP + FN_ERR_peek_error;
-    if @f_ERR_peek_last_error                    = nil then Result := Result + SP + FN_ERR_peek_last_error;
-    if @f_ERR_get_error                          = nil then Result := Result + SP + FN_ERR_get_error;
-    if @f_ERR_error_string                       = nil then Result := Result + SP + FN_ERR_error_string;
-    if @f_ERR_error_string_n                     = nil then Result := Result + SP + FN_ERR_error_string_n;
-    if @f_ERR_clear_error                        = nil then Result := Result + SP + FN_ERR_clear_error;
-    if @f_ERR_remove_state                       = nil then Result := Result + SP + FN_ERR_remove_state;
-
-    if @f_RAND_seed                              = nil then Result := Result + SP + FN_RAND_seed;
-
-    if @f_BIO_new                                = nil then Result := Result + SP + FN_BIO_new;
-    if @f_BIO_new_socket                         = nil then Result := Result + SP + FN_BIO_new_socket;
-    if @f_BIO_new_fd                             = nil then Result := Result + SP + FN_BIO_new_fd;
-    if @f_BIO_new_file                           = nil then Result := Result + SP + FN_BIO_new_file;
-    if @f_BIO_new_mem_buf                        = nil then Result := Result + SP + FN_BIO_new_mem_buf;
-    if @f_BIO_new_bio_pair                       = nil then Result := Result + SP + FN_BIO_new_bio_pair;
-
-    if @f_BIO_ctrl                               = nil then Result := Result + SP + FN_BIO_ctrl;
-    if @f_BIO_ctrl_get_read_request              = nil then Result := Result + SP + FN_BIO_ctrl_get_read_request; // B.S.
-    if @f_BIO_ctrl_pending                       = nil then Result := Result + SP + FN_BIO_ctrl_pending;
-    if @f_BIO_ctrl_get_write_guarantee           = nil then Result := Result + SP + FN_BIO_ctrl_get_write_guarantee;
-
-    if @f_BIO_s_mem                              = nil then Result := Result + SP + FN_BIO_s_mem;
-    if @f_BIO_get_retry_BIO                      = nil then Result := Result + SP + FN_BIO_get_retry_BIO;
-    if @f_BIO_get_retry_reason                   = nil then Result := Result + SP + FN_BIO_get_retry_reason;
-    if @f_BIO_free                               = nil then Result := Result + SP + FN_BIO_free;
-    if @f_BIO_read                               = nil then Result := Result + SP + FN_BIO_read;
-    if @f_BIO_nread                              = nil then Result := Result + SP + FN_BIO_nread;
-    if @f_BIO_nread0                             = nil then Result := Result + SP + FN_BIO_nread0;
-    if @f_BIO_gets                               = nil then Result := Result + SP + FN_BIO_gets;
-    if @f_BIO_puts                               = nil then Result := Result + SP + FN_BIO_puts;
-    if @f_BIO_push                               = nil then Result := Result + SP + FN_BIO_push;
-    if @f_BIO_write                              = nil then Result := Result + SP + FN_BIO_write;
-    if @f_BIO_nwrite                             = nil then Result := Result + SP + FN_BIO_nwrite;
-    if @f_BIO_nwrite0                            = nil then Result := Result + SP + FN_BIO_nwrite0;
-
-    if @f_d2i_X509_bio                           = nil then Result := Result + SP + FN_d2i_X509_bio;
-    if @f_i2d_X509_bio                           = nil then Result := Result + SP + FN_i2d_X509_bio;
-    if @f_d2i_PrivateKey_bio                     = nil then Result := Result + SP + FN_d2i_PrivateKey_bio;
-    if @f_i2d_PrivateKey_bio                     = nil then Result := Result + SP + FN_i2d_PrivateKey_bio;
-    if @f_d2i_X509                               = nil then Result := Result + SP + FN_d2i_X509;
-    if @f_d2i_PKCS12_bio                         = nil then Result := Result + SP + FN_d2i_PKCS12_bio;
-    if @f_i2d_PKCS12_bio                         = nil then Result := Result + SP + FN_i2d_PKCS12_bio;
-    if @f_d2i_PKCS7_bio                          = nil then Result := Result + SP + FN_d2i_PKCS7_bio;
-{$IFDEF OPENSSL_USE_DELPHI_MM}
-    if @f_CRYPTO_set_mem_functions               = nil then Result := Result + SP + FN_CRYPTO_set_mem_functions;
-{$ENDIF}
-
-    if @f_X509_dup                               = nil then Result := Result + SP + FN_X509_dup;//AG
-    if @f_X509_check_ca                          = nil then Result := Result + SP + FN_X509_check_ca;//AG
-    if @f_X509_STORE_new                         = nil then Result := Result + SP + FN_X509_STORE_new;//AG
-    if @f_X509_STORE_free                        = nil then Result := Result + SP + FN_X509_STORE_free;//AG
-    if @f_X509_STORE_add_cert                    = nil then Result := Result + SP + FN_X509_STORE_add_cert;//AG
-    if @f_X509_STORE_add_crl                     = nil then Result := Result + SP + FN_X509_STORE_add_crl;//AG
-    if @f_X509_STORE_add_lookup                  = nil then Result := Result + SP + FN_X509_STORE_add_lookup;//AG
-    if @f_X509_STORE_set_flags                   = nil then Result := Result + SP + FN_X509_STORE_set_flags;//AG
-
-    if @f_X509_STORE_CTX_new                     = nil then Result := Result + SP + FN_X509_STORE_CTX_new;//AG
-    if @f_X509_STORE_CTX_free                    = nil then Result := Result + SP + FN_X509_STORE_CTX_free;//AG
-    if @f_X509_STORE_CTX_init                    = nil then Result := Result + SP + FN_X509_STORE_CTX_init;//AG
-    if @f_X509_STORE_CTX_cleanup                 = nil then Result := Result + SP + FN_X509_STORE_CTX_cleanup;//AG
-    if @f_X509_STORE_CTX_get_ex_data             = nil then Result := Result + SP + FN_X509_STORE_CTX_get_ex_data;
-    if @f_X509_STORE_CTX_get_current_cert        = nil then Result := Result + SP + FN_X509_STORE_CTX_get_current_cert;
-    if @f_X509_STORE_CTX_get_error               = nil then Result := Result + SP + FN_X509_STORE_CTX_get_error;
-    if @f_X509_STORE_CTX_set_error               = nil then Result := Result + SP + FN_X509_STORE_CTX_set_error;
-    if @f_X509_STORE_CTX_get_error_depth         = nil then Result := Result + SP + FN_X509_STORE_CTX_get_error_depth;
-    if @f_X509_STORE_CTX_set_purpose             = nil then Result := Result + SP + FN_X509_STORE_CTX_set_purpose;//AG
-    if @f_X509_STORE_CTX_set_verify_cb           = nil then Result := Result + SP + FN_X509_STORE_CTX_set_verify_cb;//AG
-    if @f_X509_STORE_CTX_set_ex_data             = nil then Result := Result + SP + FN_X509_STORE_CTX_set_ex_data;//AG
-
-    if @f_X509_load_crl_file                     = nil then Result := Result + SP + FN_X509_load_crl_file;//AG
-
-    if @f_X509_LOOKUP_file                       = nil then Result := Result + SP + FN_X509_LOOKUP_file;//AG
-    if @f_X509_LOOKUP_hash_dir                   = nil then Result := Result + SP + FN_X509_LOOKUP_hash_dir;//AG
-    if @f_X509_LOOKUP_new                        = nil then Result := Result + SP + FN_X509_LOOKUP_new;//AG
-    if @f_X509_LOOKUP_free                       = nil then Result := Result + SP + FN_X509_LOOKUP_free;//AG
-    if @f_X509_LOOKUP_by_issuer_serial           = nil then Result := Result + SP + FN_X509_LOOKUP_by_issuer_serial;//AG
-    if @f_X509_LOOKUP_by_fingerprint             = nil then Result := Result + SP + FN_X509_LOOKUP_by_fingerprint;//AG
-    if @f_X509_LOOKUP_ctrl                       = nil then Result := Result + SP + FN_X509_LOOKUP_ctrl;//AG
-
-    if @f_X509_check_issued                      = nil then Result := Result + SP + FN_X509_check_issued;//AG
-    if @f_X509_verify_cert                       = nil then Result := Result + SP + FN_X509_verify_cert;//AG
-    if @f_X509_verify_cert_error_string          = nil then Result := Result + SP + FN_X509_verify_cert_error_string;
-
-    if @f_X509_get_issuer_name                   = nil then Result := Result + SP + FN_X509_get_issuer_name;
-    if @f_X509_get_subject_name                  = nil then Result := Result + SP + FN_X509_get_subject_name;
-    if @f_X509_get_serialNumber                  = nil then Result := Result + SP + FN_X509_get_serialNumber;
-    if @f_X509_NAME_oneline                      = nil then Result := Result + SP + FN_X509_NAME_oneline;
-    if @f_X509_NAME_get_text_by_NID              = nil then Result := Result + SP + FN_X509_NAME_get_text_by_NID;
-    if @f_X509_NAME_get_index_by_NID             = nil then Result := Result + SP + FN_X509_NAME_get_index_by_NID;//AG
-    if @f_X509_NAME_free                         = nil then Result := Result + SP + FN_X509_NAME_free;
-    if @f_X509_NAME_cmp                          = nil then Result := Result + SP + FN_X509_NAME_cmp;
-    if @f_X509_get_ext                           = nil then Result := Result + SP + FN_X509_get_ext;
-    if @f_X509_get_ext_count                     = nil then Result := Result + SP + FN_X509_get_ext_count;
-    if @f_X509_CRL_free                          = nil then Result := Result + SP + FN_X509_CRL_free;//AG
-    if @f_X509_free                              = nil then Result := Result + SP + FN_X509_free;//AG
-    if @f_X509V3_EXT_get                         = nil then Result := Result + SP + FN_X509V3_EXT_get;
-    if @f_X509V3_EXT_print                       = nil then Result := Result + SP + FN_X509V3_EXT_print;//AG
-    if @f_X509V3_EXT_d2i                         = nil then Result := Result + SP + FN_X509V3_EXT_d2i;//AG
-    if @f_X509V3_conf_free                       = nil then Result := Result + SP + FN_X509V3_conf_free;//AG
-    if @f_X509_EXTENSION_get_object              = nil then Result := Result + SP + FN_X509_EXTENSION_get_object;
-    if @f_X509_EXTENSION_get_data                = nil then Result := Result + SP + FN_X509_EXTENSION_get_data;//AG
-    if @f_X509_EXTENSION_get_critical            = nil then Result := Result + SP + FN_X509_EXTENSION_get_critical;//AG
-    if @f_X509_subject_name_hash                 = nil then Result := Result + SP + FN_X509_subject_name_hash;
-    if @f_X509_print                             = nil then Result := Result + SP + FN_X509_print;
-    if @f_X509_digest                            = nil then Result := Result + SP + FN_X509_digest; //AG
-    if @f_X509_check_private_key                 = nil then Result := Result + SP + FN_X509_check_private_key; //AG
-
-    if @f_EVP_sha1                               = nil then Result := Result + SP + FN_EVP_sha1; //AG
-    if @f_EVP_sha256                             = nil then Result := Result + SP + FN_EVP_sha256; //AG
-    if @f_EVP_md5                                = nil then Result := Result + SP + FN_EVP_md5; //AG
-    if @f_EVP_PKEY_free                          = nil then Result := Result + SP + FN_EVP_PKEY_free; //AG
-    { Next is v1.0.0+ ** check for nil ** }
-    //if @f_EVP_PKEY_get0                          = nil then Result := Result + SP + FN_EVP_PKEY_get0; //AG
-    if @f_EVP_PKEY_new                           = nil then Result := Result + SP + FN_EVP_PKEY_new; //AG
-    if @f_EVP_PKEY_assign                        = nil then Result := Result + SP + FN_EVP_PKEY_assign; //AG
-    if @f_EVP_PKEY_size                          = nil then Result := Result + SP + FN_EVP_PKEY_size; //AG
-    if @f_EVP_PKEY_bits                          = nil then Result := Result + SP + FN_EVP_PKEY_bits; //AG
-    if @f_EVP_get_cipherbyname                   = nil then Result := Result + SP + FN_EVP_get_cipherbyname; //AG
-    if @f_EVP_des_ede3_cbc                       = nil then Result := Result + SP + FN_EVP_des_ede3_cbc; //AG
-
-    if @f_RSA_generate_key                       = nil then Result := Result + SP + FN_RSA_generate_key; //AG
-    if @f_RSA_print                              = nil then Result := Result + SP + FN_RSA_print; //AG
-    if @f_DSA_print                              = nil then Result := Result + SP + FN_DSA_print; //AG
-    if @f_EC_KEY_print                           = nil then Result := Result + SP + FN_EC_KEY_print; //AG
-    if @f_OBJ_nid2sn                             = nil then Result := Result + SP + FN_OBJ_nid2sn;
-    if @f_OBJ_nid2ln                             = nil then Result := Result + SP + FN_OBJ_nid2ln;
-    if @f_OBJ_obj2nid                            = nil then Result := Result + SP + FN_OBJ_obj2nid;
-
- { OpenSSL 1.0.x - V8.31 }
-    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin
-        if @f_sk_num                                 = nil then Result := Result + SP + FN_sk_num;
-        if @f_sk_value                               = nil then Result := Result + SP + FN_sk_value;
-        if @f_sk_new_null                            = nil then Result := Result + SP + FN_sk_new_null;//AG
-        if @f_sk_free                                = nil then Result := Result + SP + FN_sk_free;//AG
-        if @f_sk_pop_free                            = nil then Result := Result + SP + FN_sk_pop_free;//AG
-        if @f_sk_push                                = nil then Result := Result + SP + FN_sk_push;//AG
-        if @f_sk_delete                              = nil then Result := Result + SP + FN_sk_delete;//AG
-        if @f_sk_pop                                 = nil then Result := Result + SP + FN_sk_pop;//AG
-        if @f_sk_find                                = nil then Result := Result + SP + FN_sk_find;//AG
-        if @f_sk_insert                              = nil then Result := Result + SP + FN_sk_insert;//AG
-        if @f_sk_dup                                 = nil then Result := Result + SP + FN_sk_dup;//AG
-        if @f_sk_set                                 = nil then Result := Result + SP + FN_sk_set;//AG
-    end
- { OpenSSL 1.1.x - V8.31 }
-    else begin
-        if @f_sk_num                                 = nil then Result := Result + SP + FN_osl_sk_num;
-        if @f_sk_value                               = nil then Result := Result + SP + FN_osl_sk_value;
-        if @f_sk_new_null                            = nil then Result := Result + SP + FN_osl_sk_new_null;
-        if @f_sk_free                                = nil then Result := Result + SP + FN_osl_sk_free;
-        if @f_sk_pop_free                            = nil then Result := Result + SP + FN_osl_sk_pop_free;
-        if @f_sk_push                                = nil then Result := Result + SP + FN_osl_sk_push;
-        if @f_sk_delete                              = nil then Result := Result + SP + FN_osl_sk_delete;
-        if @f_sk_pop                                 = nil then Result := Result + SP + FN_osl_sk_pop;
-        if @f_sk_find                                = nil then Result := Result + SP + FN_osl_sk_find;
-        if @f_sk_insert                              = nil then Result := Result + SP + FN_osl_sk_insert;
-        if @f_sk_dup                                 = nil then Result := Result + SP + FN_osl_sk_dup;
-        if @f_sk_set                                 = nil then Result := Result + SP + FN_osl_sk_set;
-    end;
-    if @f_PEM_write_bio_X509_REQ                 = nil then Result := Result + SP + FN_PEM_write_bio_X509_REQ;
-    if @f_PEM_write_bio_X509_CRL                 = nil then Result := Result + SP + FN_PEM_write_bio_X509_CRL;
-    if @f_PEM_read_bio_X509_CRL                  = nil then Result := Result + SP + FN_PEM_read_bio_X509_CRL; //AG
-    if @f_PEM_read_bio_X509                      = nil then Result := Result + SP + FN_PEM_read_bio_X509;
-    if @f_PEM_read_bio_PKCS7                     = nil then Result := Result + SP + FN_PEM_read_bio_PKCS7;
-    if @f_PEM_read_bio_DHparams                  = nil then Result := Result + SP + FN_PEM_read_bio_DHparams;
-    if @f_PEM_write_bio_PKCS7                    = nil then Result := Result + SP + FN_PEM_write_bio_PKCS7;
-    if @f_PEM_do_header                          = nil then Result := Result + SP + FN_PEM_do_header;
-    if @f_PEM_X509_INFO_read_bio                 = nil then Result := Result + SP + FN_PEM_X509_INFO_read_bio; //AG
-    if @f_PEM_read_bio_PrivateKey                = nil then Result := Result + SP + FN_PEM_read_bio_PrivateKey;//AG
-    if @f_PEM_write_bio_PrivateKey               = nil then Result := Result + SP + FN_PEM_write_bio_PrivateKey;//AG
-
-    if @f_CRYPTO_free                            = nil then Result := Result + SP + FN_CRYPTO_free;//AG
-    if @f_X509_NAME_ENTRY_get_object             = nil then Result := Result + SP + FN_X509_NAME_ENTRY_get_object;//AG
-    if @f_X509_NAME_get_entry                    = nil then Result := Result + SP + FN_X509_NAME_get_entry;//AG
-    if @f_X509_NAME_entry_count                  = nil then Result := Result + SP + FN_X509_NAME_entry_count;//AG
-    if @f_X509_NAME_ENTRY_get_data               = nil then Result := Result + SP + FN_X509_NAME_ENTRY_get_data;//AG
-    if @f_X509_set_version                       = nil then Result := Result + SP + FN_X509_set_version;//AG
-    if @f_ASN1_STRING_to_UTF8                    = nil then Result := Result + SP + FN_ASN1_STRING_to_UTF8;//AG
-    if @f_ASN1_INTEGER_set                       = nil then Result := Result + SP + FN_ASN1_INTEGER_set;//AG
-    if @f_ASN1_INTEGER_get                       = nil then Result := Result + SP + FN_ASN1_INTEGER_get;
-    if @f_ASN1_STRING_print                      = nil then Result := Result + SP + FN_ASN1_STRING_print;//AG
-    if @f_ASN1_item_d2i                          = nil then Result := Result + SP + FN_ASN1_item_d2i;//AG
-    if @f_ASN1_item_free                         = nil then Result := Result + SP + FN_ASN1_item_free;//AG
-    if @f_ASN1_STRING_free                       = nil then Result := Result + SP + FN_ASN1_STRING_free;//AG
-
-    if @f_i2a_ASN1_OBJECT                        = nil then Result := Result + SP + FN_i2a_ASN1_OBJECT;//AG
-    if @f_X509_gmtime_adj                        = nil then Result := Result + SP + FN_X509_gmtime_adj;//AG
-    if @f_X509_set_pubkey                        = nil then Result := Result + SP + FN_X509_set_pubkey;//AG
-    if @f_X509_new                               = nil then Result := Result + SP + FN_X509_new;//AG
-    if @f_X509_NAME_add_entry_by_txt             = nil then Result := Result + SP + FN_X509_NAME_add_entry_by_txt;//AG
-    if @f_X509_NAME_add_entry_by_NID             = nil then Result := Result + SP + FN_X509_NAME_add_entry_by_NID;//AG
-    if @f_X509_NAME_new                          = nil then Result := Result + SP + FN_X509_NAME_new;//AG
-    if @f_X509_set_issuer_name                   = nil then Result := Result + SP + FN_X509_set_issuer_name;//AG
-    if @f_X509_sign                              = nil then Result := Result + SP + FN_X509_sign;//AG
-    if @f_X509_INFO_free                         = nil then Result := Result + SP + FN_X509_INFO_free;//AG
-    if @f_X509_CRL_dup                           = nil then Result := Result + SP + FN_X509_CRL_dup;//AG
-    if @f_X509_PKEY_free                         = nil then Result := Result + SP + FN_X509_PKEY_free;//AG
-    if @f_i2d_X509                               = nil then Result := Result + SP + FN_i2d_X509;//AG
-    if @f_i2d_PrivateKey                         = nil then Result := Result + SP + FN_i2d_PrivateKey;//AG
-    if @f_d2i_PrivateKey                         = nil then Result := Result + SP + FN_d2i_PrivateKey;//AG
-
-   { V8.14 gone   if @f_i2d_ASN1_bytes                         = nil then Result := Result + SP + FN_i2d_ASN1_bytes;//AG  }
-    if @f_X509_get_pubkey                        = nil then Result := Result + SP + FN_X509_get_pubkey;//AG
-    if @f_X509_PUBKEY_free                       = nil then Result := Result + SP + FN_X509_PUBKEY_free;//AG
-    if @f_X509_check_purpose                     = nil then Result := Result + SP + FN_X509_check_purpose;//AG
-    if @f_X509_PURPOSE_get_id                    = nil then Result := Result + SP + FN_X509_PURPOSE_get_id;//AG
-    if @f_X509_PURPOSE_get0                      = nil then Result := Result + SP + FN_X509_PURPOSE_get0;//AG
-    if @f_X509_PURPOSE_get0_name                 = nil then Result := Result + SP + FN_X509_PURPOSE_get0_name;//AG
-    if @f_X509_PURPOSE_get0_sname                = nil then Result := Result + SP + FN_X509_PURPOSE_get0_sname;//AG
-    if @f_X509_PURPOSE_get_count                 = nil then Result := Result + SP + FN_X509_PURPOSE_get_count;//AG
-    if @f_CONF_modules_unload                    = nil then Result := Result + SP + FN_CONF_modules_unload;//AG
-  { V8.14 gone    if @f_OpenSSL_add_all_ciphers                = nil then Result := Result + SP + FN_OpenSSL_add_all_ciphers;
-                  if @f_OpenSSL_add_all_digests                = nil then Result := Result + SP + FN_OpenSSL_add_all_digests;  }
-
-{ V8.32 some macros are now functions in OpenSSL 1.1.0 and later }
-    if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) then begin
-        if @f_X509_get0_notBefore                = nil then Result := Result + SP + FN_X509_get0_notBefore;
-        if @f_X509_get0_notAfter                 = nil then Result := Result + SP + FN_X509_get0_notAfter;
-        if @f_X509_get_signature_nid             = nil then Result := Result + SP + FN_X509_get_signature_nid;
-    end;
-
-    if @f_PKCS7_new                              = nil then Result := Result + SP + FN_PKCS7_new;
-    if @f_PKCS7_free                             = nil then Result := Result + SP + FN_PKCS7_free;
-    if @f_PKCS7_set_type                         = nil then Result := Result + SP + FN_PKCS7_set_type;
-    if @f_PKCS7_content_new                      = nil then Result := Result + SP + FN_PKCS7_content_new;
-    if @f_PKCS7_add_certificate                  = nil then Result := Result + SP + FN_PKCS7_add_certificate;
-
-    if @f_PKCS12_parse                           = nil then Result := Result + SP + FN_PKCS12_parse;
-    if @f_PKCS12_verify_mac                      = nil then Result := Result + SP + FN_PKCS12_verify_mac;
-    if @f_PKCS12_free                            = nil then Result := Result + SP + FN_PKCS12_free;
-    if @f_PKCS12_create                          = nil then Result := Result + SP + FN_PKCS12_create;
-
-    if @f_DH_free                                = nil then Result := Result + SP + FN_DH_free;
-    if @f_EC_KEY_new_by_curve_name               = Nil then Result := Result + SP + FN_EC_KEY_new_by_curve_name;
-    if @f_EC_KEY_free                            = Nil then Result := Result + SP + FN_EC_KEY_free;
-
-{$IFNDEF OPENSSL_NO_ENGINE}
-    if @f_ENGINE_load_builtin_engines            = nil then Result := Result + SP + FN_ENGINE_load_builtin_engines;//AG
-    if @f_ENGINE_register_all_complete           = nil then Result := Result + SP + FN_ENGINE_register_all_complete;//AG
-    if @f_ENGINE_by_id                           = nil then Result := Result + SP + FN_ENGINE_by_id;//AG
-    if @f_ENGINE_init                            = nil then Result := Result + SP + FN_ENGINE_init;//AG
-    if @f_ENGINE_finish                          = nil then Result := Result + SP + FN_ENGINE_finish;//AG
-    if @f_ENGINE_set_default                     = nil then Result := Result + SP + FN_ENGINE_set_default;//AG
-    if @f_ENGINE_ctrl_cmd_string                 = nil then Result := Result + SP + FN_ENGINE_ctrl_cmd_string;//AG
-    if @f_ENGINE_free                            = nil then Result := Result + SP + FN_ENGINE_free;//AG
-    if @f_ENGINE_load_private_key                = nil then Result := Result + SP + FN_ENGINE_load_private_key;//AG
-    if @f_ENGINE_load_public_key                 = nil then Result := Result + SP + FN_ENGINE_load_public_key;//AG
-    if @f_ENGINE_load_ssl_client_cert            = nil then Result := Result + SP + FN_ENGINE_load_ssl_client_cert;//AG
-    if @f_UI_new                                 = nil then Result := Result + SP + FN_UI_new;//AG
-    if @f_UI_new_method                          = nil then Result := Result + SP + FN_UI_new_method;//AG
-    if @f_UI_free                                = nil then Result := Result + SP + FN_UI_free;//AG
-    if @f_UI_create_method                       = nil then Result := Result + SP + FN_UI_create_method;//AG
-    if @f_UI_destroy_method                      = nil then Result := Result + SP + FN_UI_destroy_method;//AG
-    if @f_UI_set_ex_data                         = nil then Result := Result + SP + FN_UI_set_ex_data;//AG
-    if @f_UI_get_ex_data                         = nil then Result := Result + SP + FN_UI_get_ex_data;//AG
-    if @f_UI_method_set_reader                   = nil then Result := Result + SP + FN_UI_method_set_reader;//AG
-    if @f_UI_set_result                          = nil then Result := Result + SP + FN_UI_set_result;//AG
-    if @f_UI_OpenSSL                             = nil then Result := Result + SP + FN_UI_OpenSSL;//AG
-{$ENDIF}
-
-
-{ V8.27 thread locking no longer used in OpenSSL 1.1.0 and later }
-    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin
-        if @f_CRYPTO_lock                            = nil then Result := Result + SP + FN_CRYPTO_lock;
-        if @f_CRYPTO_add_lock                        = nil then Result := Result + SP + FN_CRYPTO_add_lock;
-        if @f_CRYPTO_num_locks                       = nil then Result := Result + SP + FN_CRYPTO_num_locks;
-        if @f_CRYPTO_set_locking_callback            = nil then Result := Result + SP + FN_CRYPTO_set_locking_callback;
-        if @f_CRYPTO_set_id_callback                 = nil then Result := Result + SP + FN_CRYPTO_set_id_callback;
-        if @f_CRYPTO_set_dynlock_create_callback     = nil then Result := Result + SP + FN_CRYPTO_set_dynlock_create_callback;
-        if @f_CRYPTO_set_dynlock_lock_callback       = nil then Result := Result + SP + FN_CRYPTO_set_dynlock_lock_callback;
-        if @f_CRYPTO_set_dynlock_destroy_callback    = nil then Result := Result + SP + FN_CRYPTO_set_dynlock_destroy_callback;
-        if @f_ERR_free_strings                       = nil then Result := Result + SP + FN_ERR_free_strings;
-        if @f_CRYPTO_cleanup_all_ex_data             = nil then Result := Result + SP + FN_CRYPTO_cleanup_all_ex_data;
-        if @f_X509_STORE_CTX_get_chain               = nil then Result := Result + SP + FN_X509_STORE_CTX_get_chain;//AG
-        if @f_X509_STORE_CTX_trusted_stack           = nil then Result := Result + SP + FN_X509_STORE_CTX_trusted_stack;//AG
-        if @f_EVP_cleanup                            = nil then Result := Result + SP + FN_EVP_cleanup;
-        if @f_ENGINE_cleanup                         = nil then Result := Result + SP + FN_ENGINE_cleanup;//AG
-    end;
-
-    if Length(Result) > 0 then
-       Delete(Result, 1, 1);
-end;  *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -3829,9 +2524,16 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function f_X509_REQ_get_subject_name(AReq: PX509_REQ): PX509_NAME;
+function f_Ics_X509_REQ_get_subject_name(AReq: PX509_REQ): PX509_NAME;   {V8.36 was f_X509_REQ_get_subject_name }
 begin
-    Result := AReq^.req_info^.subject;
+    if Assigned (AReq) then begin
+        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then
+            Result := AReq^.req_info^.subject
+        else
+            Result := f_X509_REQ_get_subject_name(AReq);   { V8.36 no longer a macro }
+    end
+    else
+        Result := nil;
 end;
 
 
@@ -4014,50 +2716,35 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function OpenSslVersion : String;
 begin
-    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then
-        Result := String(StrPas(f_OpenSSL_version(OPENSSL_VERSION)))
-    else
-        Result := String(StrPas(f_SSLeay_version(SSLEAY_VERSION)));
+    Result := String(StrPas(f_OpenSSL_version(OPENSSL_VERSION)))
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function OpenSslCompilerFlags : String;
 begin
-    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then
-        Result := String(StrPas(f_OpenSSL_version(OPENSSL_CFLAGS)))
-    else
-        Result := String(StrPas(f_SSLeay_version(SSLEAY_CFLAGS)));
+    Result := String(StrPas(f_OpenSSL_version(OPENSSL_CFLAGS)))
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function OpenSslBuiltOn : String;
 begin
-    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then
-        Result := String(StrPas(f_OpenSSL_version(OPENSSL_BUILT_ON)))
-    else
-        Result := String(StrPas(f_SSLeay_version(SSLEAY_BUILT_ON)));
+    Result := String(StrPas(f_OpenSSL_version(OPENSSL_BUILT_ON)))
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function OpenSslPlatForm : String;
 begin
-    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then
-        Result := String(StrPas(f_OpenSSL_version(OPENSSL_PLATFORM)))
-    else
-        Result := String(StrPas(f_SSLeay_version(SSLEAY_PLATFORM)));
+    Result := String(StrPas(f_OpenSSL_version(OPENSSL_PLATFORM)))
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function OpenSslDir : String;
 begin
-    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then
-        Result := String(StrPas(f_OpenSSL_version(OPENSSL_DIR)))
-    else
-        Result := String(StrPas(f_SSLeay_version(SSLEAY_DIR)));
+    Result := String(StrPas(f_OpenSSL_version(OPENSSL_DIR)))
 end;
 
 

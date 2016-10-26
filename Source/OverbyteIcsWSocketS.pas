@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.07
+Version:      8.36
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -106,6 +106,9 @@ Aug 18, 2013 V8.04 Arno - It was not possible to clear both string properties
 Aug 18, 2013 V8.05 Arno added some default property specifiers.
 Mar 10, 2015 V8.06 Angus CloseDelayed when too many clients so closes cleanly
 Mar 23, 2015 V8.07 Angus onSslServerName and OnBgException events set for clients
+Oct 26, 2016 V8.36 Angus TWSocketMultiListenItem now has SslEnable moved from SSL class
+                   Added extended exception information
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -172,8 +175,8 @@ uses
     OverbyteIcsUtils, OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 807;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2015 F. Piette V8.07 ';
+    WSocketServerVersion     = 836;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2016 F. Piette V8.36 ';
 
 type
     TCustomWSocketServer       = class;
@@ -316,6 +319,9 @@ type
       FCloseInvoked: Boolean;
       FPaused: Boolean;
       FSelectEvent: LongWord;
+{$IFDEF USE_SSL}
+      FSslEnable : Boolean;         { V8.36 moved from SSL class }
+{$ENDIF} // USE_SSL
       procedure SetAddr(const Value: string);
       procedure SetSocketFamily(const Value: TSocketFamily);
       function GetAddrResolved: string;
@@ -374,7 +380,10 @@ type
       property SocketFamily: TSocketFamily      read  FSocketFamily
                                                 write SetSocketFamily
                                                 default DefaultSocketFamily;
-    end;
+ {$IFDEF USE_SSL}
+      property SslEnable : Boolean read FSslEnable write FSslEnable;   { V8.36 moved from SSL class }
+{$ENDIF} // USE_SSL
+   end;
 
     TWSocketMultiListenItemClass = class of TWSocketMultiListenItem;
 
@@ -411,9 +420,9 @@ type
                                   AMsg: TMessage); virtual;
         procedure MlListen(AItem: TWSocketMultiListenItem); virtual;
         procedure MlClose(AItem: TWSocketMultiListenItem); virtual;
-        procedure MlSocketError(AItem           : TWSocketMultiListenItem;
-                                const ASockFunc : String;
-                                ALastError      : Integer = 0); virtual;
+        procedure MlSocketError(AItem: TWSocketMultiListenItem;
+            const ASockFunc: String; ALastError: Integer = 0;
+                FriendlyMsg: String = ''); virtual;  { V8.36 added FriendlyMsg }
         procedure MlPause(AItem: TWSocketMultiListenItem); virtual;
         procedure MlResume(AItem: TWSocketMultiListenItem); virtual;
         procedure MlSetAddr(var FldAddr              : string;
@@ -486,11 +495,11 @@ Description:  A component adding SSL support to TWSocketServer.
 type
     TSslWSocketMultiListenItem = class(TWSocketMultiListenItem)
     private
-      FSslEnable : Boolean;
+ {     FSslEnable : Boolean;      V8.36 moved to base class }
     public
       constructor Create(Collection: TCollection); override;
     published
-      property SslEnable : Boolean read FSslEnable write FSslEnable;
+ {     property SslEnable : Boolean read FSslEnable write FSslEnable;     V8.36 moved to base class }
     end;
 
     TSslWSocketClient = class(TWSocketClient)
@@ -1048,9 +1057,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomMultiListenWSocketServer.MlSocketError(
-    AItem: TWSocketMultiListenItem;
-    const ASockFunc: String;
-    ALastError: Integer = 0);
+    AItem: TWSocketMultiListenItem; const ASockFunc: String;
+    ALastError: Integer = 0; FriendlyMsg: String = '');   { V8.36 added FriendlyMsg }
 var
     ErrCode  : Integer;
     Line : String;
@@ -1064,7 +1072,6 @@ begin
         Line  := 'Listening socket index #' + IntToStr(FMultiListenIndex) + ' ' +
                   WSocketErrorDesc(ErrCode) + ' (#' + IntToStr(ErrCode) +
                   ' in ' + ASockFunc + ')' ;
-
         if (ErrCode = WSAECONNRESET) or
            (ErrCode = WSAENOTCONN) then begin
             WSocket_closesocket(AItem.HSocket);
@@ -1076,7 +1083,8 @@ begin
 
         AItem.LastError := ErrCode;
         LastError := ErrCode;
-        RaiseException(Line);
+        RaiseException(Line, ErrCode, SocketErrorDesc(ErrCode), FriendlyMsg,
+                                   ASockfunc, AItem.Addr, AItem.Port, FProtoStr);  { V8.36 }
     finally
         FMultiListenIndex := -1;
     end;
@@ -1105,8 +1113,12 @@ procedure TCustomMultiListenWSocketServer.MlListen(
     AItem: TWSocketMultiListenItem);
 var
     iStatus : Integer;
+    ErrorCode : Integer;
+    FriendlyMsg : string;
+    optval : Integer;
 begin
     FMultiListenIndex := AItem.Index;
+    FriendlyMsg := '';
     try
         if (AItem.State <> wsClosed) then begin
             WSocket_WSASetLastError(WSAEINVAL);
@@ -1160,11 +1172,24 @@ begin
         { (should already be empty !)                     }
         DeleteBufferedData;
 
-        AItem.HSocket :=
-          WSocket_socket(AItem.Fsin.sin6_family, SOCK_STREAM, IPPROTO_TCP);
+        AItem.HSocket := WSocket_socket(AItem.Fsin.sin6_family, SOCK_STREAM, IPPROTO_TCP);
         if AItem.HSocket = INVALID_SOCKET then begin
             MlSocketError(AItem, 'listen: socket');
             Exit;
+        end;
+
+        if FExclusiveAddr then begin
+        { V8.36 Prevent other applications accessing this address and port }
+            optval  := -1;
+            iStatus := WSocket_SetSockOpt(AItem.HSocket, SOL_SOCKET,
+                                                       SO_EXCLUSIVEADDRUSE,
+                                                       @optval, SizeOf(optval));
+
+            if iStatus <> 0 then begin
+                MlSocketError(AItem, 'setsockopt(SO_EXCLUSIVEADDRUSE)');
+                MlClose(AItem);
+                Exit;
+            end;
         end;
 
         iStatus := WSocket_bind(AItem.HSocket, PSockAddr(@AItem.Fsin)^,
@@ -1172,7 +1197,11 @@ begin
         if iStatus = 0 then
             AItem.State := wsBound
         else begin
-            MlSocketError(AItem, 'listen: Bind');
+            ErrorCode := WSocket_WSAGetLastError;
+            if (ErrorCode = WSAEADDRINUSE) or (ErrorCode = WSAEACCES)  then   { V8.36 more friendly message for common error }
+                FriendlyMsg := 'Another server is already listening on ' +
+                                                 AItem.Addr + ':' + AItem.Port;
+            MlSocketError(AItem, 'listen: Bind', ErrorCode, FriendlyMsg);
             MlClose(AItem);
             Exit;
         end;

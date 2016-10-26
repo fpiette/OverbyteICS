@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Aug 26, 2007
 Description:
-Version:      8.35
+Version:      8.36
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -67,6 +67,7 @@ Aug 27, 2016 V8.32 Angus, moved sslRootCACertsBundle long constant from twsocket
                aplit smaller and make function so it will compile under C++ Builder
 Oct 18, 2016 V8.35 Angus, no longer need OverbyteIcsLibeayEx
              added CreateRsaKeyPair 
+Oct 26, 2016  V8.36 Now using new names for imports renamed in OpenSSL 1.1.0
 
 
 pending - create a certificate signed by a root certificate
@@ -1762,7 +1763,7 @@ procedure CreateCertRequest(const RequestFileName, KeyFileName, Country,
       if not Assigned(Ext) then
           Result := FALSE
       else
-          Result := f_sk_push(sk, Pointer(ext)) = 1;
+          Result := f_OPENSSL_sk_push(sk, Pointer(ext)) = 1;
   end;
 
 var
@@ -1809,7 +1810,7 @@ begin
 
         f_X509_REQ_set_version(Req, 2);
 
-        Name := f_X509_REQ_get_subject_name(Req);
+        Name := f_ics_X509_REQ_get_subject_name(Req);   { V8.36 }
 
         { This function creates and adds the entry, working out the
           correct string type and performing checks on its length.
@@ -1827,12 +1828,12 @@ begin
             f_X509_NAME_add_entry_by_NID(Name, NID_pkcs9_emailAddress,
                         MBSTRING_ASC, PAnsiChar(AnsiString(Email)), -1, -1, 0);
 
-        Exts := f_sk_new_null;
+        Exts := f_OPENSSL_sk_new_null;
         Add_Ext(Exts, NID_key_usage, 'critical, digitalSignature, keyEncipherment');
 
         f_X509_REQ_add_extensions(Req, Exts);
 
-        f_sk_pop_free(Exts, @f_X509_EXTENSION_free);
+        f_OPENSSL_sk_pop_free(Exts, @f_X509_EXTENSION_free);
 
         if f_X509_REQ_sign(Req, PK, f_EVP_sha256) <= 0 then
             raise Exception.Create('Failed to sign request');
@@ -1864,7 +1865,7 @@ begin
         end;
 
         { Write request }
-        if f_PEM_write_bio_X509_REQ(FileBio, OverByteIcsSSLEAY.PX509_REQ(Req)) = 0 then
+        if f_PEM_write_bio_X509_REQ(FileBio, PX509_REQ(Req)) = 0 then
             raise Exception.Create('Failed to write certificate to BIO');
 
     finally
@@ -2077,7 +2078,7 @@ procedure CreateCertRequest(const RequestFileName, KeyFileName, Country, State,
       if not Assigned(Ext) then
           Result := FALSE
       else
-          Result := f_sk_push(sk, Pointer(ext)) = 1;
+          Result := f_OPENSSL_sk_push(sk, Pointer(ext)) = 1;
   end;
 
 var
@@ -2124,7 +2125,7 @@ begin
 
         f_X509_REQ_set_version(Req, 2);
 
-        Name := f_X509_REQ_get_subject_name(Req);
+        Name := f_ics_X509_REQ_get_subject_name(Req);   { V8.36 }
 
         { This function creates and adds the entry, working out the
           correct string type and performing checks on its length.
@@ -2142,12 +2143,12 @@ begin
             f_X509_NAME_add_entry_by_NID(Name, NID_pkcs9_emailAddress,
                                          MBSTRING_ASC, PAnsiChar(Email), -1, -1, 0);
 
-        Exts := f_sk_new_null;
+        Exts := f_OPENSSL_sk_new_null;
         Add_Ext(Exts, NID_key_usage, 'critical, digitalSignature, keyEncipherment');
 
         f_X509_REQ_add_extensions(Req, Exts);
 
-        f_sk_pop_free(Exts, @f_X509_EXTENSION_free);
+        f_OPENSSL_sk_pop_free(Exts, @f_X509_EXTENSION_free);
 
         if f_X509_REQ_sign(Req, PK, f_EVP_sha256) <= 0 then    { V.21 was sha1 }
             raise Exception.Create('Failed to sign request');
@@ -2178,7 +2179,7 @@ begin
         end;
 
         { Write request }
-        if f_PEM_write_bio_X509_REQ(FileBio, OverByteIcsSSLEAY.PX509_REQ(Req)) = 0 then
+        if f_PEM_write_bio_X509_REQ(FileBio, PX509_REQ(Req)) = 0 then
             raise Exception.Create('Failed to write certificate to BIO');
 
     finally

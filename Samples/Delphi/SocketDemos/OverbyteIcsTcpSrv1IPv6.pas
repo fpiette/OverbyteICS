@@ -2,14 +2,14 @@
 
 Author:       François Piette
 Creation:     Aug 29, 1999
-Version:      8.00
+Version:      8.36
 Description:  Basic TCP server showing how to use TWSocketServer and
               TWSocketClient components and how to send binary data
               which requires OverbyteIcsBinCliDemo as client application.
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2014 by François PIETTE
+Legal issues: Copyright (C) 1999-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -49,7 +49,8 @@ Dec 20, 2008 V7.02 F.Piette removed an implicit string conversion warning in
                    WMAppStartup (Hostname).
 Jun 15, 2010 V8.00 A.Garrels changed to demonstrate IPv6 and listening on
                    multiple interfaces.
-
+Oct 26, 2016 V8.36 Angus added WSocketServer1Exception event which is triggered
+                      instead of raising an exception with more details 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsTcpSrv1IPv6;
@@ -111,6 +112,8 @@ type
       var CanClose: Boolean);
     procedure WSocketServer1SessionClosed(Sender: TObject; ErrCode: Word);
     procedure WSocketServer1SessionAvailable(Sender: TObject; ErrCode: Word);
+    procedure WSocketServer1Exception(Sender: TObject;
+      SocExcept: ESocketException);
   private
     FIniFileName : String;
     FInitialized : Boolean;
@@ -254,6 +257,12 @@ begin
      //   SocketFamily := sfAny; // OS preference of either IPv4 or IPv6.
         SocketFamily := sfIPv4; // OS preference of either IPv4 or IPv6.
     end;
+    { Oct 2016 a duplicate to raise an exception } 
+    with WSocketServer1.MultiListenSockets.Add do begin
+        Addr := 'LocalHost';
+        Port := '24';
+        SocketFamily := sfIPv4;
+    end;
 
     try
         { MultiListen attempts to listen on all listeners not yet listening  }
@@ -332,6 +341,20 @@ begin
                 IntToStr(TWSocketServer(Sender).ClientCount - 1) +
                 ' clients connected.');
     end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ this event is triggered instead of raising an exception }
+procedure TTcpSrvForm.WSocketServer1Exception(Sender: TObject;
+  SocExcept: ESocketException);
+begin
+    Display('Server socket exception): ' + SocExcept.Message);
+    Display('Server socket exception (friendly): ' + SocExcept.FriendlyMsg);
+    Display('Exception details - Error: ' + SocExcept.ErrorMessage +
+       ', Errnr: ' + IntToStr (SocExcept.ErrorCode) + ', Function: ' +
+        SocExcept.Func + ', IP: ' + SocExcept.IPStr + ', Port: ' +
+                   SocExcept.PortStr + ', Proto: ' + SocExcept.ProtoStr) ;
 end;
 
 

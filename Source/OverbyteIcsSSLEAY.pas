@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.35
+Version:      8.36
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -101,6 +101,7 @@ Oct 18, 2016  V8.35 Angus, major rewrite to simplify loading OpenSSL DLL functio
               Reversed V8.34 fix so this release only supports 1.1.0 not 1.1.1
               OPENSSL_ALLOW_SSLV2 gone with all SSLv2 functions
               stub more removed functions to save some exceptions
+Oct 26, 2016  V8.36 Angus more clean up of old stuff gone from 1.1.0
 
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -169,8 +170,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 835;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.35 ';
+    IcsSSLEAYVersion   = 836;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.36 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -536,10 +537,10 @@ type
     end;
     PX509_PKEY = ^TPrivate_key_st;
 
-    TX509_REQ_st = packed record
+ {   TX509_REQ_st = packed record    V8.36 using longer version
         Dummy : array [0..0] of Byte;
     end;
-    PX509_REQ = ^TX509_REQ_st;
+    PX509_REQ = ^TX509_REQ_st;   }
 
     // 0.9.7g, 0.9.8a 0.9.8e, 1.0.0d
     TX509_CRL_INFO_st = record
@@ -569,7 +570,7 @@ type
 
     PX509  = ^TX509_st;
     PPX509 = ^PX509;
-    
+
     // 0.9.7g, 0.9.8a 0.9.8e, 1.0.0d
     TX509_INFO_st = record
         x509        : PX509;
@@ -643,6 +644,64 @@ type
         name        : PAnsiChar;
         {more ...}
     end;
+
+// 8.35 moved lots of declarations from OverbyteIcsLibeayEx so they are all together
+
+type
+    TEVP_CIPHER_CTX_st = packed record
+        Dummy : array [0..0] of Byte;
+    end;
+    PEVP_CIPHER_CTX = ^TEVP_CIPHER_CTX_st;
+
+{$IFDEF OPENSSL_NO_ENGINE}
+    TEngine_st = packed record
+        Dummy : array [0..0] of Byte;
+    end;
+    PEngine = ^TEngine_st;
+{$ENDIF}
+
+    TASN1_ENCODING_st = packed record
+        enc       : PAnsiChar;
+        len       : LongWord;
+        modified  : Integer;
+    end;
+    TASN1_ENCODING = TASN1_ENCODING_st;
+    PASN1_ENCODING = ^TASN1_ENCODING_st;
+
+    TLHASH_st = packed record
+        Dummy : array [0..0] of Byte;
+    end;
+    PLHASH = ^TLHASH_st;
+
+    TX509V3_CTX_st = packed record
+        Dummy : array [0..0] of Byte;
+    end;
+    PX509V3_CTX = ^TX509V3_CTX_st;
+
+    {TX509_PUBKEY_st = packed record
+        algor       : PX509_ALGOR;
+        public_key  : PASN1_BIT_STRING;
+        pkey        : PEVP_PKEY;
+    end;
+    PX509_PUBKEY = ^TX509_PUBKEY_st;}
+
+    TX509_REQ_INFO_st = packed record
+        enc         : TASN1_ENCODING;
+        version     : PASN1_INTEGER;
+        subject     : PX509_NAME;
+        pubkey      : PX509_PUBKEY;
+        attributes  : PSTACK;
+    end;
+    PX509_REQ_INFO = ^TX509_REQ_INFO_st;
+
+    TX509_REQ_st = packed record
+        req_info    : PX509_REQ_INFO;
+        sig_alg     : PX509_ALGOR;
+        signature   : PASN1_STRING;
+        references  : Integer;
+    end;
+    PX509_REQ = ^TX509_REQ_st;
+
 
     TPKCS7_ISSUER_AND_SERIAL_st = packed record     //AG
         Dummy : array [0..0] of Byte;
@@ -1236,145 +1295,139 @@ const
     SSL_TLSEXT_ERR_NOACK                        = 3;
 
 const
-    f_SSL_do_handshake :                       function(S: PSSL): Integer; cdecl = nil; //AG
-    f_SSL_renegotiate :                        function(S: PSSL): Integer; cdecl = nil; //AG
-    f_SSL_renegotiate_pending :                function(S: PSSL): Integer; cdecl = nil; //AG
-    f_SSL_library_init :                       function: Integer; cdecl = nil;
-    f_SSL_load_error_strings :                 procedure; cdecl = nil;
-    f_SSLv3_method :                           function: PSSL_METHOD; cdecl = nil;
-    f_SSLv3_client_method :                    function: PSSL_METHOD; cdecl = nil;
-    f_SSLv3_server_method :                    function: PSSL_METHOD; cdecl = nil;
-    f_SSLv23_method :                          function: PSSL_METHOD; cdecl = nil;
-    f_SSLv23_client_method :                   function: PSSL_METHOD; cdecl = nil;
-    f_SSLv23_server_method :                   function: PSSL_METHOD; cdecl = nil;
-    f_TLS_method :                             function: PSSL_METHOD; cdecl = nil;   { V8.27 }
-    f_TLS_client_method :                      function: PSSL_METHOD; cdecl = nil;   { V8.27 }
-    f_TLS_server_method :                      function: PSSL_METHOD; cdecl = nil;   { V8.27 }
-    f_TLSv1_method :                           function: PSSL_METHOD; cdecl = nil;
-    f_TLSv1_client_method :                    function: PSSL_METHOD; cdecl = nil;
-    f_TLSv1_server_method :                    function: PSSL_METHOD; cdecl = nil;
-    f_TLSv1_1_method :                         function: PSSL_METHOD; cdecl = nil;    // V8.01 added TLS 1.1 and 1.2
-    f_TLSv1_1_client_method :                  function: PSSL_METHOD; cdecl = nil;
-    f_TLSv1_1_server_method :                  function: PSSL_METHOD; cdecl = nil;
-    f_TLSv1_2_method :                         function: PSSL_METHOD; cdecl = nil;
-    f_TLSv1_2_client_method :                  function: PSSL_METHOD; cdecl = nil;
-    f_TLSv1_2_server_method :                  function: PSSL_METHOD; cdecl = nil;
-    f_SSL_CTX_new :                            function(Meth: PSSL_METHOD): PSSL_CTX; cdecl = nil;
-    f_SSL_new :                                function(Ctx: PSSL_CTX): PSSL; cdecl = nil;
-    f_SSL_set_bio :                            procedure(S: PSSL; RBio: PBIO; WBio: PBIO); cdecl = nil;
-    f_SSL_set_session :                        function(S: PSSL; Session: PSSL_SESSION): Integer; cdecl = nil;
-    f_SSL_get_session :                        function(S: PSSL): PSSL_SESSION; cdecl = nil;
-    f_SSL_get_rbio :                           function(S: PSSL): PBIO; cdecl = nil;
-    f_SSL_get_wbio :                           function(S: PSSL): PBIO; cdecl = nil;
-    f_SSL_get1_session :                       function(S: PSSL): PSSL_SESSION; cdecl = nil;
-    f_SSL_session_free :                       procedure(Session: PSSL_SESSION); cdecl = nil;
-    f_d2i_SSL_SESSION :                        function(Session: PPSSL_SESSION; const pp: PPAnsiChar; Length: Longword): PSSL_SESSION; cdecl = nil;
-    f_i2d_SSL_SESSION :                        function(InSession: PSSL_SESSION; pp: PPAnsiChar): Integer; cdecl = nil;
-    f_SSL_SESSION_get_time :                   function(const Sess: PSSL_SESSION): Longword; cdecl = nil;
-    f_SSL_SESSION_set_time :                   function(Sess: PSSL_SESSION; T: Longword): Longword; cdecl = nil;
-    f_SSL_SESSION_get_timeout :                function(const Sess: PSSL_SESSION): Longword; cdecl = nil;
-    f_SSL_SESSION_set_timeout :                function(Sess: PSSL_SESSION; T: Longword): Longword; cdecl = nil;
-    f_SSL_CTX_set_session_id_context :         function(Ctx: PSSL_CTX; const Sid_ctx: PAnsiChar; sid_ctx_len: Integer): Integer; cdecl = nil;
-    f_SSL_CTX_set_timeout :                    function(Ctx: PSSL_CTX; Timeout: Longword): Longword; cdecl = nil;
-    f_SSL_CTX_get_cert_store :                 function(const Ctx: PSSL_CTX): PX509_STORE; cdecl = nil; //AG
-    f_SSL_set_session_id_context :             function(S: PSSL; const Sid_ctx: PAnsiChar; sid_ctx_len: Integer): Integer; cdecl = nil;
-    f_SSL_accept :                             function(S: PSSL): Integer; cdecl = nil;
-    f_SSL_connect :                            function(S: PSSL): Integer; cdecl = nil;
-    f_SSL_ctrl :                               function(S: PSSL; Cmd: Integer; LArg: LongInt; PArg: Pointer): LongInt; cdecl = nil;
-    f_SSL_read :                               function(S: PSSL; Buf: Pointer; Num: Integer): Integer; cdecl = nil;
-    f_SSL_want :                               function(S: PSSL): Integer; cdecl = nil;
-    f_SSL_write :                              function(S: PSSL; const Buf: Pointer; Num: Integer): Integer; cdecl = nil;
-    f_SSL_get_error :                          function(S: PSSL; ErrCode: Integer): Integer; cdecl = nil;
-    f_SSL_get_shutdown :                       function(S: PSSL): Integer; cdecl = nil;
-    f_SSL_shutdown :                           function(S: PSSL): Integer; cdecl = nil;
-    f_SSL_clear :                              procedure(S: PSSL); cdecl = nil;
-    f_SSL_free :                               procedure(S: PSSL); cdecl = nil;
-    f_SSL_set_ex_data :                        function(S: PSSL; Idx: Integer; Arg: Pointer): Integer; cdecl = nil;
-    f_SSL_get_ex_data :                        function(S: PSSL; Idx: Integer): Pointer; cdecl = nil;
-    f_SSL_get_peer_certificate :               function(S: PSSL): PX509; cdecl = nil;
-    f_SSL_get_peer_cert_chain :                function(const S: PSSL): PSTACK_OF_X509; cdecl = nil;
-    f_SSL_get_verify_depth :                   function(const S: PSSL): Integer; cdecl = nil;
-    f_SSL_get_verify_result :                  function(S: PSSL): LongInt; cdecl = nil;
-    f_SSL_set_verify_result :                  procedure(S: PSSL; VResult: LongInt); cdecl = nil;
-    f_SSL_set_info_callback :                  procedure(S: PSSL; cb : TSetInfo_cb); cdecl = nil;
-    f_SSL_set_connect_state :                  procedure(S: PSSL); cdecl = nil;
-    f_SSL_set_accept_state :                   procedure(S: PSSL); cdecl = nil; //AG
-    f_SSL_set_shutdown :                       procedure(S: PSSL; Mode: Integer); cdecl = nil;
-    f_SSL_get_version :                        function(S: PSSL): PAnsiChar; cdecl = nil;
-    f_SSL_version :                            function(const S: PSSL): Integer; cdecl = nil; //AG
-    f_SSL_get_current_cipher :                 function(S: PSSL): Pointer; cdecl = nil;
-    f_SSL_state :                              function(S: PSSL): Integer; cdecl = nil;   { V8.27 gone 1.1.0 }
-    f_SSL_get_state :                          function(S: PSSL): TSslHandshakeState; cdecl = nil;   { V8.27 }
-    f_SSL_state_string_long :                  function(S: PSSL): PAnsiChar; cdecl = nil;
-    f_SSL_alert_type_string_long :             function(value: Integer): PAnsiChar; cdecl = nil;
-    f_SSL_alert_desc_string_long :             function(value: Integer): PAnsiChar; cdecl = nil;
+    f_BIO_f_ssl :                              function : PBIO_METHOD; cdecl = nil;
+    f_SSL_CIPHER_description :                 function(Cipher: Pointer; buf: PAnsiChar; size: Integer): PAnsiChar; cdecl = nil;
     f_SSL_CIPHER_get_bits :                    function(Cipher, Alg_Bits: Pointer): Integer; cdecl = nil;
     f_SSL_CIPHER_get_name :                    function(Cipher: Pointer): PAnsiChar; cdecl = nil;
-    f_SSL_CIPHER_description :                 function(Cipher: Pointer; buf: PAnsiChar; size: Integer): PAnsiChar; cdecl = nil;
-
-    f_SSL_get_ciphers :                        function(S: PSSL): PSTACK_OF_SSL_CIPHER; cdecl = nil;   { V8.27 }
-    f_SSL_get_client_ciphers :                 function(S: PSSL): PSTACK_OF_SSL_CIPHER; cdecl = nil;   { V8.27 }
-    f_SSL_get1_supported_ciphers :             function(S: PSSL): PSTACK_OF_SSL_CIPHER; cdecl = nil;   { V8.27 }
-    f_SSL_get_cipher_list :                    function(S: PSSL; Priority: Integer): PAnsiChar; cdecl = nil;  { V8.27 }
-
+    f_SSL_CTX_add_client_CA :                  function(C: PSSL_CTX; CaCert: PX509): Integer; cdecl = nil; //AG
+    f_SSL_CTX_callback_ctrl:                   function(ctx: PSSL_CTX; cb_id: Integer; fp: TCallback_ctrl_fp): Longint; cdecl = nil;
+    f_SSL_CTX_ctrl :                           function(C: PSSL_CTX; Cmd: Integer; LArg: LongInt; PArg: PAnsiChar): LongInt; cdecl = nil;
     f_SSL_CTX_free :                           procedure(C: PSSL_CTX); cdecl = nil;
+    f_SSL_CTX_get_cert_store :                 function(const Ctx: PSSL_CTX): PX509_STORE; cdecl = nil; //AG
+    f_SSL_CTX_get_client_cert_cb:              function(CTX: PSSL_CTX): TClient_cert_cb; cdecl = nil; //AG
+    f_SSL_CTX_get_ex_data :                    function(const C: PSSL_CTX; Idx: Integer): PAnsiChar; cdecl = nil;
+    f_SSL_CTX_get_verify_depth :               function(const ctx: PSSL_CTX): Integer; cdecl = nil; //AG
+    f_SSL_CTX_get_verify_mode :                function(const C: PSSL_CTX): Integer; cdecl = nil; //AG
+    f_SSL_CTX_load_verify_locations :          function(C: PSSL_CTX; const FileName: PAnsiChar; const SearchPath: PAnsiChar): Integer; cdecl = nil;
+    f_SSL_CTX_new :                            function(Meth: PSSL_METHOD): PSSL_CTX; cdecl = nil;
+    f_SSL_CTX_sess_get_get_cb:                 function(CTX: PSSL_CTX): TGet_session_cb; cdecl = nil; //AG
+    f_SSL_CTX_sess_get_new_cb:                 function (CTX: PSSL_CTX): TNew_session_cb; cdecl = nil; //AG
+    f_SSL_CTX_sess_get_remove_cb:              function(CTX: PSSL_CTX): TRemove_session_cb; cdecl = nil; //AG
+    f_SSL_CTX_sess_set_get_cb:                 procedure(Ctx: PSSL_CTX; CB: TGet_session_cb); cdecl = nil; //AG
+    f_SSL_CTX_sess_set_new_cb:                 procedure(Ctx: PSSL_CTX; CB: TNew_session_cb); cdecl = nil; //AG
+    f_SSL_CTX_sess_set_remove_cb:              procedure(Ctx: PSSL_CTX; CB: TRemove_session_cb); cdecl = nil; //AG
+    f_SSL_CTX_set_cipher_list :                function(C: PSSL_CTX; CipherString: PAnsiChar): Integer; cdecl = nil;
+    f_SSL_CTX_set_client_CA_list :             procedure(C: PSSL_CTX; List: PSTACK_OF_X509_NAME); cdecl = nil; //AG
+    f_SSL_CTX_set_client_cert_cb:              procedure(CTX: PSSL_CTX; CB: TClient_cert_cb); cdecl = nil; //AG
+    f_SSL_CTX_set_default_passwd_cb :          procedure(C: PSSL_CTX; CallBack: TPem_password_cb); cdecl = nil;
+    f_SSL_CTX_set_default_passwd_cb_userdata : procedure(C: PSSL_CTX; UData: Pointer); cdecl = nil;
+    f_SSL_CTX_set_default_verify_paths :       function(C: PSSL_CTX): Integer; cdecl = nil;
+    f_SSL_CTX_set_ex_data :                    function(C: PSSL_CTX; Idx: Integer; Arg: PAnsiChar): Integer; cdecl = nil;
     f_SSL_CTX_set_info_callback:               procedure(ctx: PSSL_CTX; cb : TSetInfo_cb); cdecl = nil;
+    f_SSL_CTX_set_session_id_context :         function(Ctx: PSSL_CTX; const Sid_ctx: PAnsiChar; sid_ctx_len: Integer): Integer; cdecl = nil;
+    f_SSL_CTX_set_timeout :                    function(Ctx: PSSL_CTX; Timeout: Longword): Longword; cdecl = nil;
+    f_SSL_CTX_set_trust :                      function(C: PSSL_CTX; Trust: Integer): Integer; cdecl = nil; //AG
+    f_SSL_CTX_set_verify :                     procedure(C: PSSL_CTX; Mode: Integer; CallBack : TSetVerify_cb); cdecl = nil;
+    f_SSL_CTX_set_verify_depth :               procedure(C: PSSL_CTX; Depth: Integer); cdecl = nil;
+    f_SSL_CTX_use_PrivateKey :                 function(C: PSSL_CTX; pkey: PEVP_PKEY): Integer; cdecl = nil;
+    f_SSL_CTX_use_PrivateKey_file :            function(C: PSSL_CTX; const FileName: PAnsiChar; CertType: Integer): Integer; cdecl = nil;
     f_SSL_CTX_use_certificate :                function(C: PSSL_CTX; Cert: PX509): Integer; cdecl = nil;     { V8.27 }
     f_SSL_CTX_use_certificate_chain_file :     function(C: PSSL_CTX; const FileName: PAnsiChar): Integer; cdecl = nil;
     f_SSL_CTX_use_certificate_file :           function(C: PSSL_CTX; const FileName: PAnsiChar; type_: Integer): Integer; cdecl = nil; //AG
-    f_SSL_CTX_set_default_passwd_cb :          procedure(C: PSSL_CTX; CallBack: TPem_password_cb); cdecl = nil;
-    f_SSL_CTX_set_default_passwd_cb_userdata : procedure(C: PSSL_CTX; UData: Pointer); cdecl = nil;
-    f_SSL_CTX_use_PrivateKey_file :            function(C: PSSL_CTX; const FileName: PAnsiChar; CertType: Integer): Integer; cdecl = nil;
-    f_SSL_CTX_use_PrivateKey :                 function(C: PSSL_CTX; pkey: PEVP_PKEY): Integer; cdecl = nil;
-    f_SSL_CTX_load_verify_locations :          function(C: PSSL_CTX; const FileName: PAnsiChar; const SearchPath: PAnsiChar): Integer; cdecl = nil;
-    f_SSL_CTX_set_default_verify_paths :       function(C: PSSL_CTX): Integer; cdecl = nil;
-    f_SSL_CTX_set_verify :                     procedure(C: PSSL_CTX; Mode: Integer; CallBack : TSetVerify_cb); cdecl = nil;
-    f_SSL_set_verify :                         procedure(S: PSSL; Mode: Integer; CallBack : TSetVerify_cb); cdecl = nil;
-    f_SSL_CTX_get_verify_mode :                function(const C: PSSL_CTX): Integer; cdecl = nil; //AG
-    f_SSL_CTX_get_verify_depth :               function(const ctx: PSSL_CTX): Integer; cdecl = nil; //AG
-    f_SSL_CTX_set_verify_depth :               procedure(C: PSSL_CTX; Depth: Integer); cdecl = nil;
-    f_SSL_CTX_ctrl :                           function(C: PSSL_CTX; Cmd: Integer; LArg: LongInt; PArg: PAnsiChar): LongInt; cdecl = nil;
-    f_SSL_CTX_set_ex_data :                    function(C: PSSL_CTX; Idx: Integer; Arg: PAnsiChar): Integer; cdecl = nil;
-    f_SSL_CTX_get_ex_data :                    function(const C: PSSL_CTX; Idx: Integer): PAnsiChar; cdecl = nil;
-    f_SSL_CTX_set_cipher_list :                function(C: PSSL_CTX; CipherString: PAnsiChar): Integer; cdecl = nil;
-    f_SSL_CTX_set_trust :                      function(C: PSSL_CTX; Trust: Integer): Integer; cdecl = nil; //AG
-    f_SSL_CTX_set_client_cert_cb:              procedure(CTX: PSSL_CTX; CB: TClient_cert_cb); cdecl = nil; //AG
-    f_SSL_CTX_get_client_cert_cb:              function(CTX: PSSL_CTX): TClient_cert_cb; cdecl = nil; //AG
-    f_SSL_CTX_sess_set_remove_cb:              procedure(Ctx: PSSL_CTX; CB: TRemove_session_cb); cdecl = nil; //AG
-    f_SSL_CTX_sess_get_remove_cb:              function(CTX: PSSL_CTX): TRemove_session_cb; cdecl = nil; //AG
-    f_SSL_CTX_sess_set_get_cb:                 procedure(Ctx: PSSL_CTX; CB: TGet_session_cb); cdecl = nil; //AG
-    f_SSL_CTX_sess_get_get_cb:                 function(CTX: PSSL_CTX): TGet_session_cb; cdecl = nil; //AG
-    f_SSL_CTX_sess_set_new_cb:                 procedure(Ctx: PSSL_CTX; CB: TNew_session_cb); cdecl = nil; //AG
-    f_SSL_CTX_sess_get_new_cb:                 function (CTX: PSSL_CTX): TNew_session_cb; cdecl = nil; //AG
     f_SSL_SESSION_get_id:                      function (const Ses: PSSL_SESSION; var Len: LongInt): PAnsiChar; cdecl = nil; //AG
-
-    { The next four functions are only useful for TLS/SSL servers. }
-    f_SSL_CTX_add_client_CA :                  function(C: PSSL_CTX; CaCert: PX509): Integer; cdecl = nil; //AG
+    f_SSL_SESSION_get_time :                   function(const Sess: PSSL_SESSION): Longword; cdecl = nil;
+    f_SSL_SESSION_get_timeout :                function(const Sess: PSSL_SESSION): Longword; cdecl = nil;
+    f_SSL_SESSION_set_time :                   function(Sess: PSSL_SESSION; T: Longword): Longword; cdecl = nil;
+    f_SSL_SESSION_set_timeout :                function(Sess: PSSL_SESSION; T: Longword): Longword; cdecl = nil;
+    f_SSL_accept :                             function(S: PSSL): Integer; cdecl = nil;
     f_SSL_add_client_CA :                      function(ssl: PSSL; CaCert: PX509): Integer; cdecl = nil; //AG
-    f_SSL_CTX_set_client_CA_list :             procedure(C: PSSL_CTX; List: PSTACK_OF_X509_NAME); cdecl = nil; //AG
+    f_SSL_alert_desc_string_long :             function(value: Integer): PAnsiChar; cdecl = nil;
+    f_SSL_alert_type_string_long :             function(value: Integer): PAnsiChar; cdecl = nil;
+    f_SSL_callback_ctrl:                       function(s: PSSL; cb_id: Integer; fp: TCallback_ctrl_fp): Longint; cdecl = nil;
+    f_SSL_clear :                              procedure(S: PSSL); cdecl = nil;
+    f_SSL_connect :                            function(S: PSSL): Integer; cdecl = nil;
+    f_SSL_ctrl :                               function(S: PSSL; Cmd: Integer; LArg: LongInt; PArg: Pointer): LongInt; cdecl = nil;
+    f_SSL_do_handshake :                       function(S: PSSL): Integer; cdecl = nil; //AG
+    f_SSL_free :                               procedure(S: PSSL); cdecl = nil;
+    f_SSL_get1_session :                       function(S: PSSL): PSSL_SESSION; cdecl = nil;
+    f_SSL_get1_supported_ciphers :             function(S: PSSL): PSTACK_OF_SSL_CIPHER; cdecl = nil;   { V8.27 }
+    f_SSL_get_SSL_CTX:                         function(const S: PSSL): PSSL_CTX; cdecl = nil;
+    f_SSL_get_cipher_list :                    function(S: PSSL; Priority: Integer): PAnsiChar; cdecl = nil;  { V8.27 }
+    f_SSL_get_ciphers :                        function(S: PSSL): PSTACK_OF_SSL_CIPHER; cdecl = nil;   { V8.27 }
+    f_SSL_get_client_CA_list :                 function(const S: PSSL): PSTACK_OF_X509_NAME; cdecl = nil;
+    f_SSL_get_client_ciphers :                 function(S: PSSL): PSTACK_OF_SSL_CIPHER; cdecl = nil;   { V8.27 }
+    f_SSL_get_current_cipher :                 function(S: PSSL): Pointer; cdecl = nil;
+    f_SSL_get_error :                          function(S: PSSL; ErrCode: Integer): Integer; cdecl = nil;
+    f_SSL_get_ex_data :                        function(S: PSSL; Idx: Integer): Pointer; cdecl = nil;
+    f_SSL_get_ex_data_X509_STORE_CTX_idx:      function: Integer; cdecl = nil;
+    f_SSL_get_fd:                              function(S: PSSL): Integer; cdecl = nil; // B.S.
+    f_SSL_get_peer_cert_chain :                function(const S: PSSL): PSTACK_OF_X509; cdecl = nil;
+    f_SSL_get_peer_certificate :               function(S: PSSL): PX509; cdecl = nil;
+    f_SSL_get_rbio :                           function(S: PSSL): PBIO; cdecl = nil;
+    f_SSL_get_rfd:                             function(S: PSSL): Integer; cdecl = nil; // B.S.
+    f_SSL_get_servername:                      function(const S: PSSL; const type_: Integer): PAnsiChar; cdecl = nil;
+    f_SSL_get_servername_type:                 function(const S: PSSL): Integer; cdecl = nil;
+    f_SSL_get_session :                        function(S: PSSL): PSSL_SESSION; cdecl = nil;
+    f_SSL_get_shutdown :                       function(S: PSSL): Integer; cdecl = nil;
+    f_SSL_get_state :                          function(S: PSSL): TSslHandshakeState; cdecl = nil;   { V8.27 }
+    f_SSL_get_verify_depth :                   function(const S: PSSL): Integer; cdecl = nil;
+    f_SSL_get_verify_result :                  function(S: PSSL): LongInt; cdecl = nil;
+    f_SSL_get_version :                        function(S: PSSL): PAnsiChar; cdecl = nil;
+    f_SSL_get_wbio :                           function(S: PSSL): PBIO; cdecl = nil;
+    f_SSL_get_wfd:                             function(S: PSSL): Integer; cdecl = nil; // B.S.
+    f_SSL_library_init :                       function: Integer; cdecl = nil;
+    f_SSL_load_client_CA_file :                function(const FileName: PAnsiChar): PSTACK_OF_X509_NAME; cdecl = nil; //AG
+    f_SSL_load_error_strings :                 procedure; cdecl = nil;
+    f_SSL_new :                                function(Ctx: PSSL_CTX): PSSL; cdecl = nil;
+    f_SSL_read :                               function(S: PSSL; Buf: Pointer; Num: Integer): Integer; cdecl = nil;
+    f_SSL_renegotiate :                        function(S: PSSL): Integer; cdecl = nil; //AG
+    f_SSL_renegotiate_pending :                function(S: PSSL): Integer; cdecl = nil; //AG
+    f_SSL_session_free :                       procedure(Session: PSSL_SESSION); cdecl = nil;
+    f_SSL_set_SSL_CTX:                         function(S: PSSL; ctx: PSSL_CTX): PSSL_CTX; cdecl = nil;
+    f_SSL_set_accept_state :                   procedure(S: PSSL); cdecl = nil; //AG
+    f_SSL_set_bio :                            procedure(S: PSSL; RBio: PBIO; WBio: PBIO); cdecl = nil;
     f_SSL_set_client_CA_list :                 procedure(s: PSSL; List: PSTACK_OF_X509_NAME); cdecl = nil; //AG
+    f_SSL_set_connect_state :                  procedure(S: PSSL); cdecl = nil;
+    f_SSL_set_ex_data :                        function(S: PSSL; Idx: Integer; Arg: Pointer): Integer; cdecl = nil;
+    f_SSL_set_fd:                              function(S: PSSL; fd: Integer): Integer; cdecl = nil; // B.S.
+    f_SSL_set_info_callback :                  procedure(S: PSSL; cb : TSetInfo_cb); cdecl = nil;
+    f_SSL_set_rfd:                             function(S: PSSL; fd: Integer): Integer; cdecl = nil; // B.S.
+    f_SSL_set_session :                        function(S: PSSL; Session: PSSL_SESSION): Integer; cdecl = nil;
+    f_SSL_set_session_id_context :             function(S: PSSL; const Sid_ctx: PAnsiChar; sid_ctx_len: Integer): Integer; cdecl = nil;
+    f_SSL_set_shutdown :                       procedure(S: PSSL; Mode: Integer); cdecl = nil;
+    f_SSL_set_verify :                         procedure(S: PSSL; Mode: Integer; CallBack : TSetVerify_cb); cdecl = nil;
+    f_SSL_set_verify_result :                  procedure(S: PSSL; VResult: LongInt); cdecl = nil;
+    f_SSL_set_wfd:                             function(S: PSSL; fd: Integer): Integer; cdecl = nil; // B.S.
+    f_SSL_shutdown :                           function(S: PSSL): Integer; cdecl = nil;
+    f_SSL_state :                              function(S: PSSL): Integer; cdecl = nil;   { V8.27 gone 1.1.0 }
+    f_SSL_state_string_long :                  function(S: PSSL): PAnsiChar; cdecl = nil;
+    f_SSL_version :                            function(const S: PSSL): Integer; cdecl = nil; //AG
+    f_SSL_want :                               function(S: PSSL): Integer; cdecl = nil;
+    f_SSL_write :                              function(S: PSSL; const Buf: Pointer; Num: Integer): Integer; cdecl = nil;
+    f_SSLv23_client_method :                   function: PSSL_METHOD; cdecl = nil;
+    f_SSLv23_method :                          function: PSSL_METHOD; cdecl = nil;
+    f_SSLv23_server_method :                   function: PSSL_METHOD; cdecl = nil;
+    f_SSLv3_client_method :                    function: PSSL_METHOD; cdecl = nil;
+    f_SSLv3_method :                           function: PSSL_METHOD; cdecl = nil;
+    f_SSLv3_server_method :                    function: PSSL_METHOD; cdecl = nil;
+    f_TLS_client_method :                      function: PSSL_METHOD; cdecl = nil;   { V8.27 }
+    f_TLS_method :                             function: PSSL_METHOD; cdecl = nil;   { V8.27 }
+    f_TLS_server_method :                      function: PSSL_METHOD; cdecl = nil;   { V8.27 }
+    f_TLSv1_1_client_method :                  function: PSSL_METHOD; cdecl = nil;
+    f_TLSv1_1_method :                         function: PSSL_METHOD; cdecl = nil;    // V8.01 added TLS 1.1 and 1.2
+    f_TLSv1_1_server_method :                  function: PSSL_METHOD; cdecl = nil;
+    f_TLSv1_2_client_method :                  function: PSSL_METHOD; cdecl = nil;
+    f_TLSv1_2_method :                         function: PSSL_METHOD; cdecl = nil;
+    f_TLSv1_2_server_method :                  function: PSSL_METHOD; cdecl = nil;
+    f_TLSv1_client_method :                    function: PSSL_METHOD; cdecl = nil;
+    f_TLSv1_method :                           function: PSSL_METHOD; cdecl = nil;
+    f_TLSv1_server_method :                    function: PSSL_METHOD; cdecl = nil;
+    f_d2i_SSL_SESSION :                        function(Session: PPSSL_SESSION; const pp: PPAnsiChar; Length: Longword): PSSL_SESSION; cdecl = nil;
+    f_i2d_SSL_SESSION :                        function(InSession: PSSL_SESSION; pp: PPAnsiChar): Integer; cdecl = nil;
+
 {$IFNDEF OPENSSL_NO_ENGINE}
     f_SSL_CTX_set_client_cert_engine :         function(Ctx: PSSL_CTX; e: PENGINE): Integer; cdecl = nil; //AG
 {$ENDIF}
-    f_SSL_load_client_CA_file :                function(const FileName: PAnsiChar): PSTACK_OF_X509_NAME; cdecl = nil; //AG
-
-    f_SSL_get_ex_data_X509_STORE_CTX_idx:      function: Integer; cdecl = nil;
-    f_BIO_f_ssl :                              function : PBIO_METHOD; cdecl = nil;
-    f_SSL_set_fd:                              function(S: PSSL; fd: Integer): Integer; cdecl = nil; // B.S.
-    f_SSL_set_rfd:                             function(S: PSSL; fd: Integer): Integer; cdecl = nil; // B.S.
-    f_SSL_set_wfd:                             function(S: PSSL; fd: Integer): Integer; cdecl = nil; // B.S.
-    f_SSL_get_fd:                              function(S: PSSL): Integer; cdecl = nil; // B.S.
-    f_SSL_get_rfd:                             function(S: PSSL): Integer; cdecl = nil; // B.S.
-    f_SSL_get_wfd:                             function(S: PSSL): Integer; cdecl = nil; // B.S.
-
-    f_SSL_get_SSL_CTX:                         function(const S: PSSL): PSSL_CTX; cdecl = nil;
-    f_SSL_get_client_CA_list :                 function(const S: PSSL): PSTACK_OF_X509_NAME; cdecl = nil;
-    f_SSL_set_SSL_CTX:                         function(S: PSSL; ctx: PSSL_CTX): PSSL_CTX; cdecl = nil;
-    f_SSL_get_servername:                      function(const S: PSSL; const type_: Integer): PAnsiChar; cdecl = nil;
-    f_SSL_get_servername_type:                 function(const S: PSSL): Integer; cdecl = nil;
-    f_SSL_CTX_callback_ctrl:                   function(ctx: PSSL_CTX; cb_id: Integer; fp: TCallback_ctrl_fp): Longint; cdecl = nil;
-    f_SSL_callback_ctrl:                       function(s: PSSL; cb_id: Integer; fp: TCallback_ctrl_fp): Longint; cdecl = nil;
-
 
 
 function SsleayLoad : Boolean;
@@ -1722,278 +1775,8 @@ begin
         raise  EIcsSsleayException.Create('Unable to load ' + FullName + '. Can not find: ' + errs);
 {$ENDIF}
 
- (*
-    f_SSL_do_handshake                       := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_do_handshake');
-    f_SSL_renegotiate                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_renegotiate');
-    f_SSL_renegotiate_pending                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_renegotiate_pending');
-    f_SSL_library_init                       := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_library_init');
-    f_SSL_load_error_strings                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_load_error_strings');
-    f_SSLv3_method                           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv3_method');
-    f_SSLv3_client_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv3_client_method');
-    f_SSLv3_server_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv3_server_method');
-    f_SSLv23_method                          := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv23_method');
-    f_SSLv23_client_method                   := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv23_client_method');
-    f_SSLv23_server_method                   := GetProcAddress(GSSLEAY_DLL_Handle, 'SSLv23_server_method');
-    f_TLS_method                             := GetProcAddress(GSSLEAY_DLL_Handle, 'TLS_method');          { V8.27 }
-    f_TLS_client_method                      := GetProcAddress(GSSLEAY_DLL_Handle, 'TLS_client_method');   { V8.27 }
-    f_TLS_server_method                      := GetProcAddress(GSSLEAY_DLL_Handle, 'TLS_server_method');   { V8.27 }
-    f_TLSv1_method                           := GetProcAddress(GSSLEAY_DLL_Handle, 'TLSv1_method');
-    f_TLSv1_client_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'TLSv1_client_method');
-    f_TLSv1_server_method                    := GetProcAddress(GSSLEAY_DLL_Handle, 'TLSv1_server_method');
-    f_TLSv1_1_method                         := GetProcAddress(GSSLEAY_DLL_Handle, 'TLSv1_1_method');      // V8.01 added TLS 1.1 and 1.2
-    f_TLSv1_1_client_method                  := GetProcAddress(GSSLEAY_DLL_Handle, 'TLSv1_1_client_method');
-    f_TLSv1_1_server_method                  := GetProcAddress(GSSLEAY_DLL_Handle, 'TLSv1_1_server_method');
-    f_TLSv1_2_method                         := GetProcAddress(GSSLEAY_DLL_Handle, 'TLSv1_2_method');
-    f_TLSv1_2_client_method                  := GetProcAddress(GSSLEAY_DLL_Handle, 'TLSv1_2_client_method');
-    f_TLSv1_2_server_method                  := GetProcAddress(GSSLEAY_DLL_Handle, 'TLSv1_2_server_method');
-    f_SSL_CTX_new                            := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_new');
-    f_SSL_new                                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_new');
-    f_SSL_set_bio                            := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_bio');
-    f_SSL_set_session                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_session');
-    f_SSL_get_session                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_session');
-    f_SSL_get_rbio                           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_rbio');
-    f_SSL_get_wbio                           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_wbio');
-    f_SSL_get1_session                       := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get1_session');
-    f_SSL_SESSION_free                       := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_SESSION_free');
-    f_SSL_SESSION_set_timeout                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_SESSION_set_timeout');
-    f_SSL_SESSION_get_timeout                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_SESSION_get_timeout');
-    f_SSL_SESSION_set_time                   := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_SESSION_set_time');
-    f_SSL_SESSION_get_time                   := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_SESSION_get_time');
-    f_d2i_SSL_SESSION                        := GetProcAddress(GSSLEAY_DLL_Handle, 'd2i_SSL_SESSION');
-    f_i2d_SSL_SESSION                        := GetProcAddress(GSSLEAY_DLL_Handle, 'i2d_SSL_SESSION');
-    f_SSL_CTX_set_session_id_context         := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_session_id_context');
-    f_SSL_set_session_id_context             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_session_id_context');
-    f_SSL_accept                             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_accept');
-    f_SSL_connect                            := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_connect');
-    f_SSL_ctrl                               := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_ctrl');
-    f_SSL_read                               := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_read');
-    f_SSL_want                               := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_want');
-    f_SSL_write                              := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_write');
-    f_SSL_get_error                          := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_error');
-    f_SSL_get_shutdown                       := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_shutdown');
-    f_SSL_shutdown                           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_shutdown');
-    f_SSL_clear                              := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_clear');
-    f_SSL_free                               := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_free');
-    f_SSL_set_ex_data                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_ex_data');
-    f_SSL_get_ex_data                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_ex_data');
-    f_SSL_get_peer_certificate               := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_peer_certificate');
-    f_SSL_get_peer_cert_chain                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_peer_cert_chain');
-    f_SSL_get_verify_depth                   := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_verify_depth');
-    f_SSL_get_verify_result                  := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_verify_result');
-    f_SSL_set_verify_result                  := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_verify_result');
-    f_SSL_set_info_callback                  := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_info_callback');
-    f_SSL_set_connect_state                  := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_connect_state');
-    f_SSL_set_shutdown                       := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_shutdown');
-    f_SSL_set_accept_state                   := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_accept_state'); //AG
-    f_SSL_get_version                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_version');
-    f_SSL_version                            := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_version'); //AG
-    f_SSL_get_current_cipher                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_current_cipher');
-    f_SSL_state                              := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_state');
-    f_SSL_get_state                          := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_state');    { V8.27 }
-    f_SSL_state_string_long                  := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_state_string_long');
-    f_SSL_alert_type_string_long             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_alert_type_string_long');
-    f_SSL_alert_desc_string_long             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_alert_desc_string_long');
-    f_SSL_CIPHER_get_bits                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CIPHER_get_bits');
-    f_SSL_CIPHER_get_name                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CIPHER_get_name');
-    f_SSL_CIPHER_description                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CIPHER_description');
-    f_SSL_get_ciphers                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_ciphers');           { V8.27 }
-    f_SSL_get_client_ciphers                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_client_ciphers');    { V8.27 }
-    f_SSL_get1_supported_ciphers             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get1_supported_ciphers');{ V8.27 }
-    f_SSL_get_cipher_list                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_cipher_list');       { V8.27 }
-    f_SSL_CTX_free                           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_free');
-    f_SSL_CTX_set_info_callback              := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_info_callback');
-    f_SSL_CTX_set_timeout                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_timeout');
-    f_SSL_CTX_use_certificate                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_use_certificate');    { V8.27 }
-    f_SSL_CTX_use_certificate_chain_file     := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_use_certificate_chain_file');
-    f_SSL_CTX_use_certificate_file           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_use_certificate_file');
-    f_SSL_CTX_set_default_passwd_cb          := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_default_passwd_cb');
-    f_SSL_CTX_set_default_passwd_cb_userdata := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_default_passwd_cb_userdata');
-    f_SSL_CTX_use_PrivateKey_file            := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_use_PrivateKey_file');
-    f_SSL_CTX_use_PrivateKey                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_use_PrivateKey');
-    f_SSL_CTX_load_verify_locations          := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_load_verify_locations');
-    f_SSL_CTX_set_default_verify_paths       := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_default_verify_paths');
-    f_SSL_CTX_set_verify                     := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_verify');
-    f_SSL_set_verify                         := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_verify');
-    f_SSL_CTX_get_verify_mode                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_get_verify_mode');
-    f_SSL_CTX_get_verify_depth               := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_get_verify_depth');
-    f_SSL_CTX_set_verify_depth               := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_verify_depth');
-    f_SSL_CTX_ctrl                           := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_ctrl');
-    f_SSL_CTX_set_cipher_list                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_cipher_list');
-    f_SSL_CTX_set_ex_data                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_ex_data');
-    f_SSL_CTX_get_ex_data                    := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_get_ex_data');
-    f_SSL_CTX_get_cert_store                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_get_cert_store');
-    f_SSL_CTX_set_trust                      := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_trust');
-    f_SSL_CTX_set_client_cert_cb             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_client_cert_cb'); //AG
-    f_SSL_CTX_get_client_cert_cb             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_get_client_cert_cb'); //AG
-    f_SSL_CTX_sess_set_remove_cb             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_sess_set_remove_cb'); //AG
-    f_SSL_CTX_sess_get_remove_cb             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_sess_get_remove_cb'); //AG
-    f_SSL_CTX_sess_set_get_cb                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_sess_set_get_cb'); //AG
-    f_SSL_CTX_sess_get_get_cb                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_sess_get_get_cb'); //AG
-    f_SSL_CTX_sess_set_new_cb                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_sess_set_new_cb'); //AG
-    f_SSL_CTX_sess_get_new_cb                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_sess_get_new_cb'); //AG
-    f_SSL_SESSION_get_id                     := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_SESSION_get_id'); //AG
-    f_SSL_CTX_add_client_CA                  := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_add_client_CA'); //AG
-    f_SSL_add_client_CA                      := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_add_client_CA'); //AG
-    f_SSL_CTX_set_client_CA_list             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_client_CA_list'); //AG
-    f_SSL_set_client_CA_list                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_client_CA_list'); //AG
-
-{$IFNDEF OPENSSL_NO_ENGINE}
-    f_SSL_CTX_set_client_cert_engine         := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_set_client_cert_engine'); //AG
-{$ENDIF}
-    f_SSL_load_client_CA_file                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_load_client_CA_file'); //AG
-
-    f_SSL_get_ex_data_X509_STORE_CTX_idx     := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_ex_data_X509_STORE_CTX_idx');
-    f_BIO_f_ssl                              := GetProcAddress(GSSLEAY_DLL_Handle, 'BIO_f_ssl');
-    f_SSL_set_fd                             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_fd'); // B.S.
-    f_SSL_set_rfd                            := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_rfd'); // B.S.
-    f_SSL_set_wfd                            := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_wfd'); // B.S.
-    f_SSL_get_fd                             := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_fd'); // B.S.
-    f_SSL_get_rfd                            := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_rfd'); // B.S.
-    f_SSL_get_wfd                            := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_wfd'); // B.S.
-
-    f_SSL_get_SSL_CTX                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_SSL_CTX'); //AG
-    f_SSL_get_client_CA_list                 := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_client_CA_list'); //AG
-    f_SSL_set_SSL_CTX                        := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_set_SSL_CTX'); //AG
-    f_SSL_get_servername                     := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_servername'); //AG
-    f_SSL_get_servername_type                := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_get_servername_type'); //AG
-    f_SSL_CTX_callback_ctrl                  := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_CTX_callback_ctrl'); //AG
-    f_SSL_callback_ctrl                      := GetProcAddress(GSSLEAY_DLL_Handle, 'SSL_callback_ctrl'); //AG
-
-  *)
-
-    // Check if any failed
- (*   Result := not ((@f_SSL_do_handshake                       = nil) or
-                   (@f_SSL_renegotiate                        = nil) or
-                   (@f_SSL_renegotiate_pending                = nil) or
-                   (@f_SSL_CTX_new                            = nil) or
-                   (@f_SSL_new                                = nil) or
-                   (@f_SSL_set_bio                            = nil) or
-                   (@f_SSL_set_session                        = nil) or
-                   (@f_SSL_get_session                        = nil) or
-                   (@f_SSL_get_rbio                           = nil) or
-                   (@f_SSL_get_wbio                           = nil) or
-                   (@f_SSL_get1_session                       = nil) or
-                   (@f_SSL_SESSION_free                       = nil) or
-                   (@f_SSL_SESSION_set_timeout                = nil) or
-                   (@f_SSL_SESSION_get_timeout                = nil) or
-                   (@f_SSL_SESSION_set_time                   = nil) or
-                   (@f_SSL_SESSION_get_time                   = nil) or
-                   (@f_d2i_SSL_SESSION                        = nil) or
-                   (@f_i2d_SSL_SESSION                        = nil) or
-                   (@f_SSL_CTX_set_session_id_context         = nil) or
-                   (@f_SSL_set_session_id_context             = nil) or
-                   (@f_SSL_accept                             = nil) or
-                   (@f_SSL_connect                            = nil) or
-                   (@f_SSL_ctrl                               = nil) or
-                   (@f_SSL_read                               = nil) or
-                   (@f_SSL_want                               = nil) or
-                   (@f_SSL_write                              = nil) or
-                   (@f_SSL_get_error                          = nil) or
-                   (@f_SSL_get_shutdown                       = nil) or
-                   (@f_SSL_shutdown                           = nil) or
-                   (@f_SSL_clear                              = nil) or
-                   (@f_SSL_free                               = nil) or
-                   (@f_SSL_set_ex_data                        = nil) or
-                   (@f_SSL_get_ex_data                        = nil) or
-                   (@f_SSL_get_peer_certificate               = nil) or
-                   (@f_SSL_get_peer_cert_chain                = nil) or
-                   (@f_SSL_get_verify_depth                   = nil) or
-                   (@f_SSL_get_verify_result                  = nil) or
-                   (@f_SSL_set_verify_result                  = nil) or
-                   (@f_SSL_set_info_callback                  = nil) or
-                   (@f_SSL_set_connect_state                  = nil) or
-                   (@f_SSL_set_shutdown                       = nil) or
-                   (@f_SSL_set_accept_state                   = nil) or //AG
-                   (@f_SSL_get_version                        = nil) or
-                   (@f_SSL_version                            = nil) or
-                   (@f_SSL_get_current_cipher                 = nil) or
-                   (@f_SSL_state_string_long                  = nil) or
-                   (@f_SSL_alert_type_string_long             = nil) or
-                   (@f_SSL_alert_desc_string_long             = nil) or
-                   (@f_SSL_CIPHER_get_bits                    = nil) or
-                   (@f_SSL_CIPHER_get_name                    = nil) or
-                   (@f_SSL_CIPHER_description                 = nil) or
-                   (@f_SSL_get_ciphers                        = nil) or
-                   (@f_SSL_get_cipher_list                    = nil) or
-                   (@f_SSL_CTX_free                           = nil) or
-                   (@f_SSL_CTX_set_info_callback              = nil) or
-                   (@f_SSL_CTX_set_timeout                    = nil) or
-                   (@f_SSL_CTX_use_certificate                = nil) or
-                   (@f_SSL_CTX_use_certificate_chain_file     = nil) or
-                   (@f_SSL_CTX_use_certificate_file           = nil) or
-                   (@f_SSL_CTX_set_default_passwd_cb          = nil) or
-                   (@f_SSL_CTX_set_default_passwd_cb_userdata = nil) or
-                   (@f_SSL_CTX_use_PrivateKey_file            = nil) or
-                   (@f_SSL_CTX_load_verify_locations          = nil) or
-                   (@f_SSL_CTX_set_default_verify_paths       = nil) or
-                   (@f_SSL_CTX_set_verify                     = nil) or
-                   (@f_SSL_set_verify                         = nil) or
-                   (@f_SSL_CTX_get_verify_mode                = nil) or
-                   (@f_SSL_CTX_ctrl                           = nil) or
-                   (@f_SSL_CTX_set_cipher_list                = nil) or
-                   (@f_SSL_CTX_get_verify_depth               = nil) or
-                   (@f_SSL_CTX_set_verify_depth               = nil) or
-                   (@f_SSL_CTX_get_ex_data                    = nil) or
-                   (@f_SSL_CTX_set_ex_data                    = nil) or
-                   (@f_SSL_CTX_get_cert_store                 = nil) or
-                   (@f_SSL_CTX_set_trust                      = nil) or
-                   (@f_SSL_CTX_set_client_cert_cb             = nil) or
-                   (@f_SSL_CTX_get_client_cert_cb             = nil) or
-                   (@f_SSL_CTX_sess_set_remove_cb             = nil) or
-                   (@f_SSL_CTX_sess_get_remove_cb             = nil) or
-                   (@f_SSL_CTX_sess_set_get_cb                = nil) or
-                   (@f_SSL_CTX_sess_get_get_cb                = nil) or
-                   (@f_SSL_CTX_sess_set_new_cb                = nil) or
-                   (@f_SSL_CTX_sess_get_new_cb                = nil) or
-                   (@f_SSL_SESSION_get_id                     = nil) or
-                   (@f_SSL_CTX_add_client_CA                  = nil) or
-                   (@f_SSL_add_client_CA                      = nil) or
-                   (@f_SSL_CTX_set_client_CA_list             = nil) or
-                   (@f_SSL_set_client_CA_list                 = nil) or
-              {$IFNDEF OPENSSL_NO_ENGINE}
-                   (@f_SSL_CTX_set_client_cert_engine         = nil) or
-              {$ENDIF}
-                   (@f_SSL_load_client_CA_file                = nil) or
-
-                   (@f_SSL_get_ex_data_X509_STORE_CTX_idx     = nil) or
-                   (@f_BIO_f_ssl                              = nil) or
-                   (@f_SSL_set_fd                             = nil) or
-                   (@f_SSL_set_rfd                            = nil) or
-                   (@f_SSL_set_wfd                            = nil) or
-                   (@f_SSL_get_fd                             = nil) or
-                   (@f_SSL_get_rfd                            = nil) or
-                   (@f_SSL_get_wfd                            = nil) or
-                   (@f_SSL_CTX_use_PrivateKey                 = nil) or
-                   (@f_SSL_get_SSL_CTX                        = nil) or
-                   (@f_SSL_get_client_CA_list                 = nil) or
-                   (@f_SSL_set_SSL_CTX                        = nil) or
-                   (@f_SSL_get_servername                     = nil) or
-                   (@f_SSL_get_servername_type                = nil) or
-                   (@f_SSL_CTX_callback_ctrl                  = nil) or
-                   (@f_SSL_callback_ctrl                      = nil)
-                   );     *)
-
     { V8.27 older OpenSSL versions have different export }
     if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
-      (*  if (@f_SSL_library_init                       = nil) or
-           (@f_SSL_load_error_strings                 = nil) or
-           (@f_SSL_state                              = nil) or
-           (@f_SSLv3_method                           = nil) or
-           (@f_SSLv3_client_method                    = nil) or
-           (@f_SSLv3_server_method                    = nil) or
-           (@f_SSLv23_method                          = nil) or
-           (@f_SSLv23_client_method                   = nil) or
-           (@f_SSLv23_server_method                   = nil) or
-           (@f_TLSv1_method                           = nil) or
-           (@f_TLSv1_client_method                    = nil) or
-           (@f_TLSv1_server_method                    = nil) or
-           (@f_TLSv1_1_method                         = nil) or    // V8.01 added TLS 1.1 and 1.2
-           (@f_TLSv1_1_client_method                  = nil) or
-           (@f_TLSv1_1_server_method                  = nil) or
-           (@f_TLSv1_2_method                         = nil) or
-           (@f_TLSv1_2_client_method                  = nil) or
-           (@f_TLSv1_2_server_method                  = nil) then result := false;   *)
-
     // V8.27 fake new best method with old best method }
        f_TLS_method                := @f_SSLv23_method;
        f_TLS_client_method         := @f_SSLv23_client_method;
@@ -2002,13 +1785,6 @@ begin
 
     { V8.27 new OpenSSL versions have some new, fake old ones }
     else begin
-     (*   if (@f_SSL_get_state                          = nil) or
-           (@f_SSL_get_client_ciphers                 = nil) or
-           (@f_SSL_get1_supported_ciphers             = nil) or
-           (@f_TLS_method                             = nil) or
-           (@f_TLS_client_method                      = nil) or
-           (@f_TLS_server_method                      = nil) then result := false;   *)
-
     // V8.27 1.1.0 has lost v3 and v23, and tlsv1x are deprecated, so fake the lot }
        @f_SSLv3_method             := @f_TLS_method;
        @f_SSLv3_client_method      := @f_TLS_client_method;
@@ -2031,155 +1807,6 @@ begin
     end;
 
 end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-(* function SsleayWhichFailedToLoad : String;   {  V8.27 make unique }
-begin
-    Result := '';
-    if @f_SSL_do_handshake                       = nil then Result := Result + ' SSL_do_handshake';
-    if @f_SSL_renegotiate                        = nil then Result := Result + ' SSL_renegotiate';
-    if @f_SSL_renegotiate_pending                = nil then Result := Result + ' SSL_renegotiate_pending';
-    if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
-        if @f_SSL_library_init                   = nil then Result := Result + ' SSL_library_init';
-        if @f_SSL_load_error_strings             = nil then Result := Result + ' SSL_load_error_strings';
-        if @f_SSL_state                          = nil then Result := Result + ' SSL_state';
-    end;
-    if @f_SSLv3_method                           = nil then Result := Result + ' SSLv3_method';
-    if @f_SSLv3_client_method                    = nil then Result := Result + ' SSLv3_client_method';
-    if @f_SSLv3_server_method                    = nil then Result := Result + ' SSLv3_server_method';
-    if @f_SSLv23_method                          = nil then Result := Result + ' SSLv23_method';
-    if @f_SSLv23_client_method                   = nil then Result := Result + ' SSLv23_client_method';
-    if @f_SSLv23_server_method                   = nil then Result := Result + ' SSLv23_server_method';
-    if @f_TLSv1_method                           = nil then Result := Result + ' TLSv1_method';
-    if @f_TLSv1_client_method                    = nil then Result := Result + ' TLSv1_client_method';
-    if @f_TLSv1_server_method                    = nil then Result := Result + ' TLSv1_server_method';
-    if @f_TLSv1_1_method                         = nil then Result := Result + ' TLSv1_1_method';
-    if @f_TLSv1_1_client_method                  = nil then Result := Result + ' TLSv1_1_client_method';
-    if @f_TLSv1_1_server_method                  = nil then Result := Result + ' TLSv1_1_server_method';
-    if @f_TLSv1_2_method                         = nil then Result := Result + ' TLSv1_2_method';
-    if @f_TLSv1_2_client_method                  = nil then Result := Result + ' TLSv1_2_client_method';
-    if @f_TLSv1_2_server_method                  = nil then Result := Result + ' TLSv1_2_server_method';
-    if @f_SSL_CTX_new                            = nil then Result := Result + ' SSL_CTX_new';
-    if @f_SSL_new                                = nil then Result := Result + ' SSL_new';
-    if @f_SSL_set_bio                            = nil then Result := Result + ' SSL_set_bio';
-    if @f_SSL_set_session                        = nil then Result := Result + ' SSL_set_session';
-    if @f_SSL_get_session                        = nil then Result := Result + ' SSL_get_session';
-    if @f_SSL_get_rbio                           = nil then Result := Result + ' SSL_get_rbio';
-    if @f_SSL_get_wbio                           = nil then Result := Result + ' SSL_get_wbio';
-    if @f_SSL_get1_session                       = nil then Result := Result + ' SSL_get1_session';
-    if @f_SSL_SESSION_free                       = nil then Result := Result + ' SSL_SESSION_free';
-    if @f_SSL_SESSION_set_timeout                = nil then Result := Result + ' SSL_SESSION_set_timeout';
-    if @f_SSL_SESSION_get_timeout                = nil then Result := Result + ' SSL_SESSION_get_timeout';
-    if @f_SSL_SESSION_set_time                   = nil then Result := Result + ' SSL_SESSION_set_time';
-    if @f_SSL_SESSION_get_time                   = nil then Result := Result + ' SSL_SESSION_get_time';
-    if @f_d2i_SSL_SESSION                        = nil then Result := Result + ' d2i_SSL_SESSION';
-    if @f_i2d_SSL_SESSION                        = nil then Result := Result + ' i2d_SSL_SESSION';
-    if @f_SSL_CTX_set_session_id_context         = nil then Result := Result + ' SSL_CTX_set_session_id_context';
-    if @f_SSL_set_session_id_context             = nil then Result := Result + ' SSL_set_session_id_context';
-    if @f_SSL_accept                             = nil then Result := Result + ' SSL_accept';
-    if @f_SSL_connect                            = nil then Result := Result + ' SSL_connect';
-    if @f_SSL_ctrl                               = nil then Result := Result + ' SSL_ctrl';
-    if @f_SSL_read                               = nil then Result := Result + ' SSL_read';
-    if @f_SSL_want                               = nil then Result := Result + ' SSL_want';
-    if @f_SSL_write                              = nil then Result := Result + ' SSL_write';
-    if @f_SSL_get_error                          = nil then Result := Result + ' SSL_get_error';
-    if @f_SSL_get_shutdown                       = nil then Result := Result + ' SSL_get_shutdown';
-    if @f_SSL_shutdown                           = nil then Result := Result + ' SSL_shutdown';
-    if @f_SSL_clear                              = nil then Result := Result + ' SSL_clear';
-    if @f_SSL_free                               = nil then Result := Result + ' SSL_free';
-    if @f_SSL_set_ex_data                        = nil then Result := Result + ' SSL_set_ex_data';
-    if @f_SSL_get_ex_data                        = nil then Result := Result + ' SSL_get_ex_data';
-    if @f_SSL_get_peer_certificate               = nil then Result := Result + ' SSL_get_peer_certificate';
-    if @f_SSL_get_peer_cert_chain                = nil then Result := Result + ' SSL_get_peer_cert_chain';
-    if @f_SSL_get_verify_depth                   = nil then Result := Result + ' SSL_get_verify_depth';
-    if @f_SSL_get_verify_result                  = nil then Result := Result + ' SSL_get_verify_result';
-    if @f_SSL_set_verify_result                  = nil then Result := Result + ' SSL_set_verify_result';
-    if @f_SSL_set_info_callback                  = nil then Result := Result + ' SSL_set_info_callback';
-    if @f_SSL_set_connect_state                  = nil then Result := Result + ' SSL_set_connect_state';
-    if @f_SSL_set_shutdown                       = nil then Result := Result + ' SSL_set_shutdown';
-    if @f_SSL_set_accept_state                   = nil then Result := Result + ' SSL_set_accept_state';//AG
-    if @f_SSL_set_bio                            = nil then Result := Result + ' SSL_set_bio';
-    if @f_SSL_get_version                        = nil then Result := Result + ' SSL_get_version';
-    if @f_SSL_version                            = nil then Result := Result + ' SSL_version';
-    if @f_SSL_get_current_cipher                 = nil then Result := Result + ' SSL_get_current_cipher';
-    if @f_SSL_state_string_long                  = nil then Result := Result + ' SSL_state_string_long';
-    if @f_SSL_alert_type_string_long             = nil then Result := Result + ' SSL_alert_type_string_long';
-    if @f_SSL_alert_desc_string_long             = nil then Result := Result + ' SSL_alert_desc_string_long';
-    if @f_SSL_CIPHER_get_bits                    = nil then Result := Result + ' SSL_CIPHER_get_bits';
-    if @f_SSL_CIPHER_get_name                    = nil then Result := Result + ' SSL_CIPHER_get_name';
-    if @f_SSL_CIPHER_description                 = nil then Result := Result + ' SSL_CIPHER_description';
-    if @f_SSL_get_ciphers                        = nil then Result := Result + ' SSL_get_ciphers';           { V8.27 }
-    if @f_SSL_get_client_ciphers                 = nil then Result := Result + ' SSL_get_client_ciphers';    { V8.27 }
-    if @f_SSL_get1_supported_ciphers             = nil then Result := Result + ' SSL_get1_supported_ciphers';{ V8.27 }
-    if @f_SSL_get_cipher_list                    = nil then Result := Result + ' SSL_get_cipher_list';       { V8.27 }
-    if @f_SSL_CTX_free                           = nil then Result := Result + ' SSL_CTX_free';
-    if @f_SSL_CTX_set_info_callback              = nil then Result := Result + ' SSL_CTX_set_info_callback';
-    if @f_SSL_CTX_set_timeout                    = nil then Result := Result + ' SSL_CTX_set_timeout';
-    if @f_SSL_CTX_use_certificate                = nil then Result := Result + ' SSL_CTX_use_certificate';     { V8.27 }
-    if @f_SSL_CTX_use_certificate_chain_file     = nil then Result := Result + ' SSL_CTX_use_certificate_chain_file';
-    if @f_SSL_CTX_use_certificate_file           = nil then Result := Result + ' SSL_CTX_use_certificate_file';
-    if @f_SSL_CTX_use_PrivateKey                 = nil then Result := Result + ' SSL_CTX_use_certificate';
-    if @f_SSL_CTX_set_default_passwd_cb          = nil then Result := Result + ' SSL_CTX_set_default_passwd_cb';
-    if @f_SSL_CTX_set_default_passwd_cb_userdata = nil then Result := Result + ' SSL_CTX_set_default_passwd_cb_userdata';
-    if @f_SSL_CTX_use_PrivateKey_file            = nil then Result := Result + ' SSL_CTX_use_PrivateKey_file';
-    if @f_SSL_CTX_load_verify_locations          = nil then Result := Result + ' SSL_CTX_load_verify_locations';
-    if @f_SSL_CTX_set_default_verify_paths       = nil then Result := Result + ' SSL_CTX_set_default_verify_paths';
-    if @f_SSL_CTX_set_verify                     = nil then Result := Result + ' SSL_CTX_set_verify';
-    if @f_SSL_set_verify                         = nil then Result := Result + ' SSL_set_verify';
-    if @f_SSL_CTX_get_verify_mode                = nil then Result := Result + ' SSL_CTX_get_verify_mode';
-    if @f_SSL_CTX_ctrl                           = nil then Result := Result + ' SSL_CTX_ctrl';
-    if @f_SSL_CTX_set_cipher_list                = nil then Result := Result + ' SSL_CTX_set_cipher_list';
-    if @f_SSL_CTX_get_verify_depth               = nil then Result := Result + ' SSL_CTX_get_verify_depth';
-    if @f_SSL_CTX_set_verify_depth               = nil then Result := Result + ' SSL_CTX_set_verify_depth';
-    if @f_SSL_CTX_get_ex_data                    = nil then Result := Result + ' SSL_CTX_get_ex_data';
-    if @f_SSL_CTX_set_ex_data                    = nil then Result := Result + ' SSL_CTX_set_ex_data';
-    if @f_SSL_CTX_get_cert_store                 = nil then Result := Result + ' SSL_CTX_get_cert_store';
-    if @f_SSL_CTX_set_trust                      = nil then Result := Result + ' SSL_CTX_set_trust';
-    if @f_SSL_CTX_set_client_cert_cb             = nil then Result := Result + ' SSL_CTX_set_client_cert_cb';
-    if @f_SSL_CTX_get_client_cert_cb             = nil then Result := Result + ' SSL_CTX_get_client_cert_cb';
-    if @f_SSL_CTX_sess_set_remove_cb             = nil then Result := Result + ' SSL_CTX_sess_set_remove_cb';
-    if @f_SSL_CTX_sess_get_remove_cb             = nil then Result := Result + ' SSL_CTX_sess_get_remove_cb';
-    if @f_SSL_CTX_sess_set_get_cb                = nil then Result := Result + ' SSL_CTX_sess_set_get_cb';
-    if @f_SSL_CTX_sess_get_get_cb                = nil then Result := Result + ' SSL_CTX_sess_get_get_cb';
-    if @f_SSL_CTX_sess_set_new_cb                = nil then Result := Result + ' SSL_CTX_sess_set_new_cb';
-    if @f_SSL_CTX_sess_get_new_cb                = nil then Result := Result + ' SSL_CTX_sess_get_new_cb';
-    if @f_SSL_SESSION_get_id                     = nil then Result := Result + ' SSL_SESSION_get_id';
-    if @f_SSL_CTX_add_client_CA                  = nil then Result := Result + ' SSL_CTX_add_client_CA';
-    if @f_SSL_add_client_CA                      = nil then Result := Result + ' SSL_add_client_CA';
-    if @f_SSL_CTX_set_client_CA_list             = nil then Result := Result + ' SSL_CTX_set_client_CA_list';
-    if @f_SSL_set_client_CA_list                 = nil then Result := Result + ' SSL_set_client_CA_list';
-{$IFNDEF OPENSSL_NO_ENGINE}
-    if @f_SSL_CTX_set_client_cert_engine         = nil then Result := Result + ' SSL_CTX_set_client_cert_engine';
-{$ENDIF}
-    if @f_SSL_load_client_CA_file                = nil then Result := Result + ' SSL_load_client_CA_file';
-
-    if @f_SSL_get_ex_data_X509_STORE_CTX_idx     = nil then Result := Result + ' SSL_get_ex_data_X509_STORE_CTX_idx';
-    if @f_BIO_f_ssl                              = nil then Result := Result + ' BIO_f_ssl';
-    if @f_SSL_set_fd                             = nil then Result := Result + ' SSL_set_fd';
-    if @f_SSL_set_rfd                            = nil then Result := Result + ' SSL_set_rfd';
-    if @f_SSL_set_wfd                            = nil then Result := Result + ' SSL_set_wfd';
-    if @f_SSL_get_fd                             = nil then Result := Result + ' SSL_get_fd';
-    if @f_SSL_get_rfd                            = nil then Result := Result + ' SSL_get_rfd';
-    if @f_SSL_get_wfd                            = nil then Result := Result + ' SSL_get_wfd';
-
-    if @f_SSL_get_SSL_CTX                        = nil then Result := Result + ' SSL_get_SSL_CTX';
-    if @f_SSL_get_client_CA_list                 = nil then Result := Result + ' SSL_get_client_CA_list';
-    if @f_SSL_set_SSL_CTX                        = nil then Result := Result + ' SSL_set_SSL_CTX';
-    if @f_SSL_get_servername                     = nil then Result := Result + ' SSL_get_servername';
-    if @f_SSL_get_servername_type                = nil then Result := Result + ' SSL_get_servername_type';
-    if @f_SSL_CTX_callback_ctrl                  = nil then Result := Result + ' SSL_CTX_callback_ctrl';
-    if @f_SSL_callback_ctrl                      = nil then Result := Result + ' SSL_callback_ctrl';
-    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then begin
-        if @f_SSL_get_state                      = nil then Result := Result + ' SSL_get_state';
-        if @f_TLS_method                         = nil then Result := Result + ' TLS_method';
-        if @f_TLS_client_method                  = nil then Result := Result + ' TLS_client_method';
-        if @f_TLS_server_method                  = nil then Result := Result + ' TLS_server_method';
-    end;
-
-    if Length(Result) > 0 then
-       Delete(Result, 1, 1);
-end;  *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

@@ -16,11 +16,11 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      8.00
+Version:      8.37
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2014 by François PIETTE
+Legal issues: Copyright (C) 1999-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -109,6 +109,7 @@ Jul 17, 2014 V8.00 Angus - added HTTP/1.1 methods OPTIONS, PUT, DELETE, TRACE, P
                    OPTIONS and TRACE are handled by the web server itself
                    PUT, DELETE and PATCH are handled as events, simple response here only
                    CONNECT is ignored since it's really for proxy servers
+Nov 04, 2016 V8.37 Set friendly errors
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -145,8 +146,8 @@ uses
   OverbyteIcsMimeUtils;
 
 const
-  WebServVersion     = 800;
-  CopyRight : String = 'WebServ (c) 1999-2014 F. Piette V8.00 ';
+  WebServVersion     = 837;
+  CopyRight : String = 'WebServ (c) 1999-2016 F. Piette V8.37 ';
   NO_CACHE           = 'Pragma: no-cache' + #13#10 + 'Expires: -1' + #13#10;
   WM_CLIENT_COUNT    = WM_USER + 1;
   FILE_UPLOAD_URL    = '/cgi-bin/FileUpload/';
@@ -592,12 +593,12 @@ begin
         on E: Exception do
         begin
             Display('**** Unable to start server ****');
-            if HttpServer1.WSocketServer.LastError = WSAEADDRINUSE then
+         {  if HttpServer1.WSocketServer.LastError = WSAEADDRINUSE then  V8.37 don't need this now 
             begin
                     Display('**** Port ' + HttpServer1.Port +
                         ' already used by another application ****');
                     Exit;
-            end;
+            end;     }
             Display('**** ' + E.ClassName + ': ' + E.Message + ' ****');
         end;
     end;

@@ -8,7 +8,7 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      8.27
+Version:      8.37
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -78,6 +78,7 @@ May 24 2016  V8.27 Angus testing OpenSSL 1.1.0, added SslThrdLock
                    Specify minimum and maximum SSL version supported
                    List SSL ciphers available and supported by protocols
                    Old SSL check box to ignore OpenSSL 1.1.0 and use older versions
+Nov 04 2016  V8.37 Set friendly errors
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
@@ -118,7 +119,7 @@ uses
   OverbyteIcsSslThrdLock;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2016 F. Piette V8.27 ';
+  CopyRight : String         = 'WebServ (c) 1999-2016 F. Piette V8.37 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type

@@ -2,12 +2,12 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.00
+Version:      8.37
 Description:  Sample program to demonstrate some of the THttpCli features.
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
+Legal issues: Copyright (C) 1997-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -63,6 +63,7 @@ Apr 19, 2014  V8.00 Angus added PATCH method, thanks to RTT <pdfe@sapo.pt>
 Jun  4, 2014  V8.01 Angus show StatusCode during relocation
 Jul 16, 2014  V8.02 Angus added DELETE, OPTIONS and TRACE
               simplified code with GetHeadDelOptTrace
+Nov 04, 2016  V8.37 report more error information
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpTst1;
@@ -94,8 +95,8 @@ uses
   OverbyteIcsWndControl, OverbyteIcsLogger;
 
 const
-  HttpTstVersion         = 802;
-  CopyRight : String     = 'HttpTst (c) 1997-2014 Francois Piette  V8.02 ';
+  HttpTstVersion         = 837;
+  CopyRight : String     = 'HttpTst (c) 1997-2016 Francois Piette  V8.37 ';
 
 type
   THttpTestForm = class(TForm)
@@ -773,7 +774,8 @@ begin
     SetButtonState(TRUE);
     if ErrCode <> 0 then
         Display('RequestDone Error = ' + IntToStr(ErrCode) + '. Status = ' +
-                IntToStr(HttpCli1.StatusCode))
+                IntToStr(HttpCli1.StatusCode) +
+                          ' - ' + HttpCli1.ReasonPhrase)  { V8.37 report more }
     else
         Display('RequestDone, no error. Status = ' +
                 IntToStr(HttpCli1.StatusCode));

@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.13
+Version:      8.37
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -505,6 +505,13 @@ Oct 19, 2015 V8.12 Angus allow better SSL Handshake error reporting
 Feb 22, 2016 V8.13 Angus check statuscode with StrToIntDef to avoid errors
                    ensure headers added in event are logged
                    Angus moved RFC1123_Date and RFC1123_StrToDate to Utils
+Nov 04, 2016 V8.37 V8.10 POST relocation fix failed 302 because status had been cleared
+                   Don't set blank SocksLevel
+                   Don't suppress socket exceptions unless we handle them with OnSocketError,
+                      note this means more exceptions may need to be handled
+                   Added extended exception information, set FSocketErrs = wsErrFriendly for
+                      some more friendly messages (without error numbers)
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -593,8 +600,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 813;
-    CopyRight : String   = ' THttpCli (c) 1997-2016 F. Piette V8.13 ';
+    HttpCliVersion       = 837;
+    CopyRight : String   = ' THttpCli (c) 1997-2016 F. Piette V8.37 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -836,6 +843,7 @@ type
         FOnSocketError        : TNotifyEvent;
         FOnBeforeHeaderSend   : TBeforeHeaderSendEvent;     { Wilfried 9 sep 02}
         FCloseReq             : Boolean;                    { SAE 01/06/04 }
+        FSocketErrs           : TSocketErrs;   { V8.37 }
         FTimeout              : UINT;  { V7.04 }            { Sync Timeout Seconds }
         FWMLoginQueued        : Boolean;
         procedure AbortComponent; override; { V7.11 }
@@ -1166,6 +1174,8 @@ type
         property OnBgException;                                             { V7.11 }
         property SocketFamily        : TSocketFamily read  FSocketFamily
                                                      write FSocketFamily;
+        property SocketErrs         : TSocketErrs    read  FSocketErrs
+                                                     write FSocketErrs;      { V8.37 }
     end;
 
 { You must define USE_SSL so that SSL code is included in the component.   }
@@ -1189,12 +1199,12 @@ Description:  A component adding SSL support to THttpCli.
 {$X+}                                 { Enable extended syntax              }
 {$H+}                                 { Use long strings                    }
 {$J+}                                 { Allow typed constant to be modified }
-
+{
 const
      SslHttpCliVersion            = 100;
      SslHttpCliDate               = 'Feb 15, 2003';
      SslHttpCliCopyRight : String = ' TSslHttpCli (c) 2008 Francois Piette V1.00.0 ';
-
+}
 type
     TSslHttpCli = class(THttpCli)
     protected
@@ -1294,77 +1304,6 @@ begin
     FErrorCode := ErrCode;
 end;
 
-(* moved to OverbyteIcsUtilt to share with web server
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-const
-   RFC1123_StrWeekDay : String = 'MonTueWedThuFriSatSun';
-   RFC1123_StrMonth   : String = 'JanFebMarAprMayJunJulAugSepOctNovDec';
-{ We cannot use Delphi own function because the date must be specified in   }
-{ english and Delphi use the current language.                              }
-function RFC1123_Date(aDate : TDateTime) : String;
-var
-   Year, Month, Day       : Word;
-   Hour, Min,   Sec, MSec : Word;
-   DayOfWeek              : Word;
-begin
-   DecodeDate(aDate, Year, Month, Day);
-   DecodeTime(aDate, Hour, Min,   Sec, MSec);
-   DayOfWeek := ((Trunc(aDate) - 2) mod 7);
-   Result := Copy(RFC1123_StrWeekDay, 1 + DayOfWeek * 3, 3) + ', ' +
-             Format('%2.2d %s %4.4d %2.2d:%2.2d:%2.2d',
-                    [Day, Copy(RFC1123_StrMonth, 1 + 3 * (Month - 1), 3),
-                     Year, Hour, Min, Sec]);
-end;
-
-{ Bug: time zone is ignored !! }
-function RFC1123_StrToDate(aDate : String) : TDateTime;
-var
-    Year, Month, Day : Word;
-    Hour, Min,   Sec : Word;
-begin
-    { Fri, 30 Jul 2004 10:10:35 GMT }
-    Day    := StrToIntDef(Copy(aDate, 6, 2), 0);
-    Month  := (Pos(Copy(aDate, 9, 3), RFC1123_StrMonth) + 2) div 3;
-    Year   := StrToIntDef(Copy(aDate, 13, 4), 0);
-    Hour   := StrToIntDef(Copy(aDate, 18, 2), 0);
-    Min    := StrToIntDef(Copy(aDate, 21, 2), 0);
-    Sec    := StrToIntDef(Copy(aDate, 24, 2), 0);
-    Result := EncodeDate(Year, Month, Day);
-    Result := Result + EncodeTime(Hour, Min, Sec, 0);
-end; *)
-(*
-{$IFDEF NOFORMS}
-{ This function is a callback function. It means that it is called by       }
-{ windows. This is the very low level message handler procedure setup to    }
-{ handle the message sent by windows (winsock) to handle messages.          }
-function HTTPCliWindowProc(
-    ahWnd   : HWND;
-    auMsg   : Integer;
-    awParam : WPARAM;
-    alParam : LPARAM): Integer; stdcall;
-var
-    Obj    : TObject;
-    MsgRec : TMessage;
-begin
-    { At window creation asked windows to store a pointer to our object     }
-    Obj := TObject(GetWindowLong(ahWnd, 0));
-
-    { If the pointer doesn't represent a TCustomFtpCli, just call the default procedure}
-    if not (Obj is THTTPCli) then
-        Result := DefWindowProc(ahWnd, auMsg, awParam, alParam)
-    else begin
-        { Delphi use a TMessage type to pass parameter to his own kind of   }
-        { windows procedure. So we are doing the same...                    }
-        MsgRec.Msg    := auMsg;
-        MsgRec.wParam := awParam;
-        MsgRec.lParam := alParam;
-        { May be a try/except around next line is needed. Not sure ! }
-        THTTPCli(Obj).WndProc(MsgRec);
-        Result := MsgRec.Result;
-    end;
-end;
-{$ENDIF}
-*)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function THttpCli.MsgHandlersCount : Integer;
@@ -1427,7 +1366,9 @@ begin
     FCtrlSocket.OnDnsLookupDone    := SocketDNSLookupDone;
     FCtrlSocket.OnSocksError       := DoSocksError;
     FCtrlSocket.OnSocksConnected   := DoSocksConnected;
-    FCtrlSocket.OnError            := SocketErrorTransfer;
+   { V8.37 don't suppress socket exceptions unless we handle them }
+    if Assigned (FOnSocketError) then
+        FCtrlSocket.OnError        := SocketErrorTransfer;
 {$IF DEFINED(UseBandwidthControl) or DEFINED(BUILTIN_THROTTLE)}
     FBandwidthLimit                := 10000;  { Bytes per second     }
     FBandwidthSampling             := 1000;   { mS sampling interval }
@@ -2141,6 +2082,7 @@ begin
     StateChange(httpDnsLookup);
     FCtrlSocket.LocalAddr := FLocalAddr; {bb}
     FCtrlSocket.LocalAddr6 := FLocalAddr6;  { V8.02 }
+    FCtrlSocket.SocketErrs := FSocketErrs;        { V8.37 }
     try
         FCtrlSocket.SocketFamily := FSocketFamily;
         { The setter of TCustomWSocket.Addr sets the correct internal     }
@@ -2168,11 +2110,13 @@ begin
     FCtrlSocket.Port                := FPort;
     FCtrlSocket.Proto               := 'tcp';
     FCtrlSocket.SocksServer         := FSocksServer;
-    FCtrlSocket.SocksLevel          := FSocksLevel;
+    if FSocksLevel <> '' then                        { V8.37 don't set blank }
+        FCtrlSocket.SocksLevel      := FSocksLevel;
     FCtrlSocket.SocksPort           := FSocksPort;
     FCtrlSocket.SocksUsercode       := FSocksUsercode;
     FCtrlSocket.SocksPassword       := FSocksPassword;
     FCtrlSocket.SocksAuthentication := FSocksAuthentication;
+    FCtrlSocket.SocketErrs          := FSocketErrs;        { V8.37 }
     FReceiveLen                     := 0; { Clear the receive buffer V7.10 }
 {$IFDEF BUILTIN_THROTTLE}
     if httpoBandwidthControl in FOptions then begin
@@ -4029,6 +3973,7 @@ procedure THttpCli.StartRelocation;
 var
     SaveLoc : String;
     AllowMoreRelocations : Boolean;
+    SavedStatus: integer;
 begin
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loProtSpecInfo) then  { V1.91 } { replaces $IFDEF DEBUG_OUTPUT  }
@@ -4063,7 +4008,8 @@ begin
         if Assigned(FOnLocationChange) then
              FOnLocationChange(Self);
         SaveLoc := FLocation;  { 01/05/03 }
-        InternalClear;
+        SavedStatus := FStatusCode;  { V8.37 keep if before it's lost }
+        InternalClear;   { clears most header vars }
         FLocation := SaveLoc;
         FDocName  := FPath;
         AdjustDocName;
@@ -4073,8 +4019,9 @@ begin
         { angus V8.07  unless a 307 or 308 POST which must not revert to GET }
         {if (FRequestType = httpPOST) and not ((FStatusCode = 307) or (FStatusCode = 308)) then }
         { angus V8.10 - try and match how Chrome and Firefox handle POST relocation }
-        if ((FStatusCode=303) and (FRequestType <> httpHEAD)) or
-              ((FRequestType = httpPOST) and ((FStatusCode=301) or (FStatusCode=302))) then
+        { angus V8.37 - last fix failed 302 because status had been cleared }
+        if ((SavedStatus=303) and (FRequestType <> httpHEAD)) or
+              ((FRequestType = httpPOST) and ((SavedStatus=301) or (SavedStatus=302))) then
             FRequestType  := httpGET;
         { Must clear what we already received }
         CleanupRcvdStream; {11/11/04}

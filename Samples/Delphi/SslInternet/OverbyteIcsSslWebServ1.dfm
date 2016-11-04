@@ -540,7 +540,7 @@ object SslWebServForm: TSslWebServForm
     MaxBlkSize = 8192
     BandwidthLimit = 0
     BandwidthSampling = 1000
-    ServerHeader = 'Server: ICS-HttpServer-8.08'
+    ServerHeader = 'Server: ICS-HttpServer-8.37'
     OnServerStarted = SslHttpServer1ServerStarted
     OnServerStopped = SslHttpServer1ServerStopped
     OnClientConnect = SslHttpServer1ClientConnect
@@ -552,6 +552,8 @@ object SslWebServForm: TSslWebServForm
     OnBeforeProcessRequest = SslHttpServer1BeforeProcessRequest
     AuthTypes = []
     AuthRealm = 'ics'
+    SocketErrs = wsErrFriendly
+    ExclusiveAddr = True
     SslEnable = True
     SslContext = SslContext1
     OnSslVerifyPeer = SslHttpServer1SslVerifyPeer
@@ -614,7 +616,7 @@ object SslWebServForm: TSslWebServForm
     MaxBlkSize = 8192
     BandwidthLimit = 0
     BandwidthSampling = 1000
-    ServerHeader = 'Server: ICS-HttpServer-8.08'
+    ServerHeader = 'Server: ICS-HttpServer-8.37'
     OnServerStarted = HttpServer2ServerStarted
     OnServerStopped = HttpServer2ServerStopped
     OnClientConnect = HttpServer2ClientConnect
@@ -624,6 +626,8 @@ object SslWebServForm: TSslWebServForm
     OnPostDocument = SslHttpServer1PostDocument
     AuthTypes = []
     AuthRealm = 'ics'
+    SocketErrs = wsErrFriendly
+    ExclusiveAddr = True
     Left = 42
     Top = 357
   end

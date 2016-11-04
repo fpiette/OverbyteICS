@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.36
+Version:      8.37
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1084,6 +1084,7 @@ Oct 26, 2016  V8.36 Now using new names for imports renamed in OpenSSL 1.1.0
                     Added extended exception information, set FSocketErrs = wsErrFriendly for
                       some more friendly messages (without error numbers)
                     ESocketException has several more properties to detail errors
+Nov 04, 2016  V8.37 Fixed memory leak in RaiseException in last build
 
 
 Use of certificates for SSL clients:
@@ -1279,8 +1280,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 836;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.36 ';
+  WSocketVersion            = 837;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.37 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -6474,17 +6475,25 @@ var
     MyException: ESocketException;
     MyMessage: String;
 begin
-    MyMessage := Msg ;
-    if (FSocketErrs = wsErrFriendly) and (AFriendlyMsg <> '') then
-                                                MyMessage := AFriendlyMsg;
-    MyException := ESocketException.Create(MyMessage, AErrorCode, AErrorMessage,
-                                           AFriendlyMsg, AFunc, AIP, APort, AProto);
     if Assigned(FOnError) then
         TriggerError                 { Should be modified to pass Msg ! }
-    else if Assigned (FonException) then
-        TriggerException (MyException)        { V8.36 }
-    else
-        raise MyException;
+    else begin
+        MyMessage := Msg ;
+        if (FSocketErrs = wsErrFriendly) and (AFriendlyMsg <> '') then
+                                                    MyMessage := AFriendlyMsg;
+        MyException := ESocketException.Create(MyMessage, AErrorCode, AErrorMessage,
+                                               AFriendlyMsg, AFunc, AIP, APort, AProto);
+        if Assigned (FonException) then
+        begin
+            TriggerException (MyException) ;       { V8.36 }
+        end
+        else
+        begin
+            TriggerException (MyException) ;       { V8.37 }
+            raise MyException;
+        end;
+        if Assigned (MyException) then MyException.Free;  { V8.37 }
+    end;
 end;
 
 

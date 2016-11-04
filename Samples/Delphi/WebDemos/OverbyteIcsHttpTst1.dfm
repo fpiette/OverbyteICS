@@ -386,6 +386,7 @@ object HttpTestForm: THttpTestForm
     SocksLevel = '5'
     SocksAuthentication = socksNoAuthentication
     SocketFamily = sfIPv4
+    SocketErrs = wsErrTech
     Left = 16
     Top = 136
   end

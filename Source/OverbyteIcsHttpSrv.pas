@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.11
+Version:      8.37
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -394,6 +394,13 @@ Feb 23 2016 V8.11 Angus get If-Modified-Since request header to RequestIfModSinc
                   Added Answer304
                   Moved RFC1123_Date to Utils
                   renamed TBufferedFileStream to TIcsBufferedFileStream
+Apr 25 2016 V8.12 Angus added RequestStartTick to allow timing of request processing
+                  Moved TextToHtmlText and RemoveHtmlSpecialChars to
+                    OverbyteIcsFormDataDecoder to share with others units
+Nov 04 2016 V8.37 Added ExclusiveAddr property to stop other applications listening on same socket
+                  Added extended exception information, set FSocketErrs = wsErrFriendly for
+                      some more friendly messages (without error numbers)
+                  MakeCookie has new Secure property that sets secure cookies
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -490,12 +497,13 @@ uses
     OverbyteIcsMimeUtils,
     OverbyteIcsTypes,
     OverbyteIcsUtils,
-    OverbyteIcsWinsock;
+    OverbyteIcsWinsock,
+    OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 811;
-    CopyRight : String = ' THttpServer (c) 1999-2016 F. Piette V8.11 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.11';   { V8.09 }
+    THttpServerVersion = 837;
+    CopyRight : String = ' THttpServer (c) 1999-2016 F. Piette V8.37 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.37';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -785,6 +793,7 @@ type
         FOnConnectDocument     : THttpGetConnEvent;    { V8.08 }
         FReqTarget             : string;               { V8.10 }
         FRequestIfModSince     : TDateTime;            { V8.11 }
+        FRequestStartTick      : LongWord;             { V8.12 }
         procedure SetSndBlkSize(const Value: Integer);
         procedure ConnectionDataAvailable(Sender: TObject; Error : Word); virtual;
         procedure ConnectionDataSent(Sender : TObject; Error : WORD); virtual;
@@ -1014,6 +1023,7 @@ type
         property RequestMethod         : THttpMethod read  FRequestMethod; { V8.08 }
         property RequestUpgrade        : string      read  FRequestUpgrade; { V8.08 }
         property RequestIfModSince     : TDateTime   read  FRequestIfModSince; { V8.11 }
+        property RequestStartTick      : LongWord    read  FRequestStartTick;  { V8.12 }
     published
         { Where all documents are stored. Default to c:\wwwroot }
         property DocDir         : String            read  FDocDir
@@ -1211,6 +1221,8 @@ type
 {$ENDIF}
         FOnAuthGetType            : TAuthGetTypeEvent;
 {$ENDIF}
+        FSocketErrs               : TSocketErrs;   { V8.37 }
+        FExclusiveAddr            : Boolean;       { V8.37 }
 {$IFNDEF NO_DEBUG_LOG}
         function  GetIcsLogger: TIcsLogger;                       { V1.38 }
         procedure SetIcsLogger(const Value: TIcsLogger);
@@ -1501,6 +1513,10 @@ type
     {$ENDIF}
 {$ENDIF}
         property OnBgException;  { F.Piette V7.27 }
+        property SocketErrs        : TSocketErrs read  FSocketErrs
+                                                 write FSocketErrs;      { V8.37 }
+        property ExclusiveAddr     : Boolean     read  FExclusiveAddr
+                                                 write FExclusiveAddr;   { V8.37 }
     end;
 
     THttpDirEntry = class
@@ -1712,8 +1728,8 @@ function FileDate(FileName : String) : TDateTime; deprecated
   {$IFDEF COMPILER12_UP}'Use OverbyteIcsUtils.IcsFileUtcModified'{$ENDIF};
 { function RFC1123_Date(aDate : TDateTime) : String;  }
 function DocumentToContentType(const FileName : String) : String;
-function TextToHtmlText(const Src : UnicodeString) : String; overload;
-function TextToHtmlText(const Src : RawByteString) : String; overload;
+//function TextToHtmlText(const Src : UnicodeString) : String; overload;
+//function TextToHtmlText(const Src : RawByteString) : String; overload;
 function TranslateChar(const Str: String; FromChar, ToChar: Char): String;
 function UnixPathToDosPath(const Path: String): String;
 function DosPathToUnixPath(const Path: String): String;
@@ -1723,7 +1739,8 @@ function AbsolutisePath(const Path : String) : String;
 function MakeCookie(const Name, Value : String;
                     Expires           : TDateTime;
                     const Path        : String;
-                    const Domain      : String = '') : String;
+                    const Domain      : String = '';
+                    const Secure      : Boolean = false) : String;   { V8.37 }
 function HtmlPageProducer(const FromStream   : TStream;
                           Tags               : array of const;
                           RowDataGetter      : PTableRowDataGetter;
@@ -1767,7 +1784,7 @@ function HtmlPageProducerFromMemory(
 {$ENDIF}
     ) : Boolean;
 function HtmlPageProducerSetTagPrefix(const Value : String) : String;
-function RemoveHtmlSpecialChars(const S : String) : String;
+//function RemoveHtmlSpecialChars(const S : String) : String;
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
 function AuthTypesToString(Types : TAuthenticationTypes) : String;
 {$ENDIF}
@@ -1928,6 +1945,7 @@ begin
     FBandwidthSampling    := 1000;    { angus V7.34 Msec sampling interval, less is not possible }
 {$ENDIF}
     FServerHeader         := DefServerHeader;  { V8.08 }
+    FExclusiveAddr        := True;    { 8.37 make our sockets exclusive  }
 end;
 
 
@@ -2011,6 +2029,8 @@ begin
 {$IFNDEF NO_DIGEST_AUTH}
     FAuthDigestServerSecret           := CreateServerSecret;
 {$ENDIF}
+    FWSocketServer.ExclusiveAddr      := FExclusiveAddr;     { V8.37 }
+    FWSocketServer.SocketErrs         := FSocketErrs;        { V8.37 }
     FWSocketServer.MultiListen;       { V8.00 listen on multiple sockets, if more than one configured }
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loProtSpecInfo) then                           { V1.38 }
@@ -2942,6 +2962,7 @@ begin
         FRequestHostPort       := '';     {DAVID}
         FRequestConnection     := '';
         FRequestIfModSince     := 0;      { V8.11 }
+        FRequestStartTick      := IcsGetTickCount;  { V8.12 }
         FDataSent              := 0;      {TURCAN}
         FDocSize               := 0;      {TURCAN}
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
@@ -5440,7 +5461,7 @@ begin
     end;
 end;
 
-
+(*
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TextToHtmlText(const Src: RawByteString) : String;
 begin
@@ -5609,7 +5630,7 @@ begin
                     HtmlSpecialChars[Ord(Src[I])] + ';';
         Inc(I);
     end;
-end;
+end;   *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -5648,7 +5669,7 @@ begin
   {$ENDIF}
 end;
 
-
+(*
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function RemoveHtmlSpecialChars(const S : String) : String;
 const
@@ -5672,7 +5693,7 @@ begin
             Result := Result + S[I];
         I := I + 1;
     end;
-end;
+end;   *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -5750,7 +5771,8 @@ function MakeCookie(
     const Name, Value : String;
     Expires           : TDateTime;
     const Path        : String;
-    const Domain      : String = '') : String;
+    const Domain      : String = '';
+    const Secure      : Boolean = false) : String;   { V8.37 }
 begin
     Result := 'Set-Cookie: ' + Name + '=' + UrlEncode(Value);
     if Length(Value) = 0 then
@@ -5758,7 +5780,9 @@ begin
     else if Expires <> 0 then
         Result := Result + '; EXPIRES=' + RFC1123_Date(Expires);
     if Domain <> '' then Result := Result + '; DOMAIN=' + Domain;   { 7.49 }
-    Result := Result + '; PATH=' + Path + #13#10;
+    Result := Result + '; PATH=' + Path;
+    if Secure then Result := Result + '; Secure; HttpOnly';   { V8.37 }
+    Result := Result + #13#10;
 end;
 
 

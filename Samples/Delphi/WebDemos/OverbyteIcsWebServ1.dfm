@@ -299,6 +299,8 @@ object WebServForm: TWebServForm
     OnAuthNtlmBeforeValidate = HttpServer1AuthNtlmBeforeValidate
     AuthTypes = []
     AuthRealm = 'ics'
+    SocketErrs = wsErrFriendly
+    ExclusiveAddr = True
     Left = 18
     Top = 179
   end

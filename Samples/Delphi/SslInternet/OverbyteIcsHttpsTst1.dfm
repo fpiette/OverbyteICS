@@ -590,6 +590,7 @@ object HttpsTstForm: THttpsTstForm
     SocksLevel = '5'
     SocksAuthentication = socksNoAuthentication
     SocketFamily = sfIPv4
+    SocketErrs = wsErrFriendly
     SslContext = SslContext1
     OnSslVerifyPeer = SslHttpCli1SslVerifyPeer
     OnSslCliGetSession = SslHttpCli1SslCliGetSession

@@ -6,7 +6,7 @@ Description:  A simple  HTTPS SSL Web Client Demo client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.32
+Version:      8.37
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -63,7 +63,8 @@ May 24 2016   V8.27 Angus testing OpenSSL 1.1.0, added SslThrdLock
                 context instead of being read from files
               If no CA file or path or lines specified, use default CA bundle
 Aug 27, 2016  V8.32 set SslCipherEdit if empty
-
+Nov 04, 2016  V8.37 report more error information
+              Only report client ciiphers once
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;
@@ -102,10 +103,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 832;
-     HttpsTstDate        = 'Aug 27, 2016';
+     HttpsTstVersion     = 837;
+     HttpsTstDate        = 'Nov 04, 2016';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2016 Francois Piette V8.32 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2016 Francois Piette V8.37 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -218,6 +219,7 @@ type
     FDocFileName               : String;
     FByteCount                 : Integer;
     FStartTime                 : Integer;
+    FDispCiphDone              : Boolean;  { V8.37 }
     procedure WMSslNotTrusted(var Msg: TMessage); message WM_SSL_NOT_TRUSTED;
     procedure BackgroundException(Sender: TObject; E: Exception; var CanClose: Boolean);
     procedure PrepareConnection;
@@ -404,6 +406,7 @@ begin
     { V8.03 load OpenSSL, then display OpenSSL DLL name and version  }
         GSSLEAY_DLL_IgnoreNew := OldSslCheckBox.Checked;  { V8.03 ignore OpenSSL 1.1.0 and later }
         SslStaticLock1.Enabled := true ;
+        FDispCiphDone := false; { V8.37 }
         if NOT FileExists (GLIBEAY_DLL_FileName) then
             DisplayMemo.Lines.Add('SSL/TLS DLL not found: ' + GLIBEAY_DLL_FileName)
         else
@@ -585,13 +588,16 @@ begin
     end;
 
    { list SSL ciphers }
-    List := SslContext1.SslGetAllCiphers;
-    List := StringReplace(List, #13#10, ', ', [rfReplaceAll]);
-    Display('SSL Ciphers Available: ' + #13#10 + List + #13#10);
+    if NOT FDispCiphDone then begin { V8.37 only once  }
+        List := SslContext1.SslGetAllCiphers;
+        List := StringReplace(List, #13#10, ', ', [rfReplaceAll]);
+        Display('SSL Ciphers Available: ' + #13#10 + List + #13#10);
 
-    List := SslHttpCli1.CtrlSocket.SslGetSupportedCiphers (True, False);
-    List := StringReplace(List, #13#10, ', ', [rfReplaceAll]);
-    Display('SSL Ciphers Supported by Protocol: ' + #13#10 + List + #13#10);
+        List := SslHttpCli1.CtrlSocket.SslGetSupportedCiphers (True, False);
+        List := StringReplace(List, #13#10, ', ', [rfReplaceAll]);
+        Display('SSL Ciphers Supported by Protocol: ' + #13#10 + List + #13#10);
+        FDispCiphDone := true;
+    end;
 
 end;
 
@@ -813,7 +819,9 @@ var
 begin
     SetButtonState(TRUE);
     if ErrCode <> 0 then begin
-        Display('Request done, error #' + IntToStr(ErrCode));
+        Display('Request done, error #' + IntToStr(ErrCode) +
+              '. Status = ' + IntToStr(SslHttpCli1.StatusCode) +
+                               ' - ' + SslHttpCli1.ReasonPhrase);  { V8.37 report more }
         Exit;
     end;
 
@@ -937,6 +945,7 @@ begin
         SslContext1.DeInitContext;
         Display('Reset SSL');
     end;
+    FDispCiphDone := false; { V8.37 }
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

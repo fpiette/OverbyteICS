@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      8.04
+Version:      8.06
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2013 by François PIETTE
+Legal issues: Copyright (C) 2003-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -96,6 +96,9 @@ Jun 09, 2013 V8.03 FPiette added TUrlHandler destructor to clear OnDestroying
 Nov 16, 2013 V8.04 Arno - Added property AppServer to the THttpAppSrvConnection.
                    Added an OnDisplay event and a public method Display to THttAppSrv.
                    Added a method Display to TUrlHandler.
+Mar 24, 2015 V8.05 Angus onSslServerName event added
+Apr 26, 2016 V8.06 Angus added OverbyteIcsFormDataDecoder to uses
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -145,7 +148,8 @@ uses
 {$ENDIF}
     {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     OverbyteIcsWebSession,
-    OverbyteIcsUtils;
+    OverbyteIcsUtils, 
+    OverbyteIcsFormDataDecoder;
 
 type
     THttpAppSrvDisplayEvent = procedure(Sender    : TObject;
@@ -428,6 +432,7 @@ type
         property OnSslSvrNewSession;
         property OnSslSvrGetSession;
         property OnSslHandshakeDone;
+        property onSslServerName;
     end;
 {$ENDIF} // USE_SSL
 

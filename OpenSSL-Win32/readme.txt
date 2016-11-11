@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------
-OpenSSL v1.1.0b Win32 for ICS, http://www.overbyte.be
+OpenSSL v1.1.0c Win32 for ICS, http://www.overbyte.be
 -----------------------------------------------------------------------
 
 Built with:       Visual Studio Community 2013

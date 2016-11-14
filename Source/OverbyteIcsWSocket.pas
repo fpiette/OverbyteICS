@@ -1081,7 +1081,7 @@ Oct 18, 2016  V8.35 Angus, major rewrite to simplify loading OpenSSL DLL functio
                     EVP_CIPHER_CTX_xx is now backward compatible with 1.1.0
 Oct 26, 2016  V8.36 Now using new names for imports renamed in OpenSSL 1.1.0
                     Added ExclusiveAddr property to stop other applications listening on same socket
-                    Added extended exception information, set FSocketErrs = wsErrFriendly for
+                    Added extended exception information, set SocketErrs = wsErrFriendly for
                       some more friendly messages (without error numbers)
                     ESocketException has several more properties to detail errors
 Nov 04, 2016  V8.37 Fixed memory leak in RaiseException in last build

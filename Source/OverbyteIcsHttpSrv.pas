@@ -398,7 +398,7 @@ Apr 25 2016 V8.12 Angus added RequestStartTick to allow timing of request proces
                   Moved TextToHtmlText and RemoveHtmlSpecialChars to
                     OverbyteIcsFormDataDecoder to share with others units
 Nov 04 2016 V8.37 Added ExclusiveAddr property to stop other applications listening on same socket
-                  Added extended exception information, set FSocketErrs = wsErrFriendly for
+                  Added extended exception information, set SocketErrs = wsErrFriendly for
                       some more friendly messages (without error numbers)
                   MakeCookie has new Secure property that sets secure cookies
 

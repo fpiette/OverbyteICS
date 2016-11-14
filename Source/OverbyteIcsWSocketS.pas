@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.36
+Version:      8.37
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -108,7 +108,7 @@ Mar 10, 2015 V8.06 Angus CloseDelayed when too many clients so closes cleanly
 Mar 23, 2015 V8.07 Angus onSslServerName and OnBgException events set for clients
 Oct 26, 2016 V8.36 Angus TWSocketMultiListenItem now has SslEnable moved from SSL class
                    Added extended exception information
-
+Nov 9, 2016  V8.37 Client inherits server SocketErrs
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -175,8 +175,8 @@ uses
     OverbyteIcsUtils, OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 836;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2016 F. Piette V8.36 ';
+    WSocketServerVersion     = 837;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2016 F. Piette V8.37 ';
 
 type
     TCustomWSocketServer       = class;
@@ -715,6 +715,7 @@ begin
         Client                 := FClientClass.Create(Self);
         Client.FCliId          := FClientNum;           { angus V7.00 }
         Client.OnBgException   := FOnBgException;       { angus V8.07 }
+        Client.SocketErrs      := FSocketErrs;          { V8.37 }
 {$IFDEF BUILTIN_THROTTLE}
         Client.BandwidthLimit    := Self.BandwidthLimit;     { angus V7.02 may be changed in event for different limit }
         Client.BandwidthSampling := Self.BandwidthSampling;  { angus V7.02 }

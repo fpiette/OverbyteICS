@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      8.06
+Version:      8.37
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2013 by François PIETTE
+Legal issues: Copyright (C) 1998-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -419,6 +419,9 @@ Jun 24, 2013 V8.04 Angus added new Options of ftpsCompressDirs defaults false
                       size less than one meg since really a straight stream copy
 Dec 09, 2014 V8.05 - Angus added SslHandshakeRespMsg for better error handling
 Feb 23, 2016 V8.06 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
+Nov 09 2016  V8.37 - Added ExclusiveAddr property to stop other applications listening on same socket
+                     Added extended exception information, set FSocketErrs = wsErrFriendly for
+                       some more friendly messages (without error numbers)
 
 
 Angus pending -
@@ -534,8 +537,8 @@ uses
 
 
 const
-    FtpServerVersion         = 806;
-    CopyRight : String       = ' TFtpServer (c) 1998-2016 F. Piette V8.06 ';
+    FtpServerVersion         = 837;
+    CopyRight : String       = ' TFtpServer (c) 1998-2016 F. Piette V8.37 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
     DefaultRcvSize           = 16384;    { V7.00 used for both xmit and recv, was 2048, too small }
 
@@ -1120,6 +1123,8 @@ type
         FOnLang                 : TFtpSrvLangEvent;          { angus V7.01 }
         FSystemCodePage         : LongWord;                  { AG 7.02 }
         FOnAddVirtFiles         : TFtpSrvAddVirtFilesEvent;  { angus V7.08 }
+        FSocketErrs             : TSocketErrs;               { V8.37 }
+        FExclusiveAddr          : Boolean;                   { V8.37 }
         procedure CreateSocket; virtual;
         function  GetMultiListenIndex: Integer;
         function  GetMultiListenSockets: TWSocketMultiListenCollection;
@@ -1799,6 +1804,11 @@ type
                                                       read  FOnAddVirtFiles
                                                       write FOnAddVirtFiles;
         property  OnBgException;
+        property SocketErrs              : TSocketErrs
+                                                      read  FSocketErrs
+                                                      write FSocketErrs;      { V8.37 }
+        property ExclusiveAddr           : Boolean    read  FExclusiveAddr
+                                                      write FExclusiveAddr;   { V8.37 }
     end;
 
 { You must define USE_SSL so that SSL code is included in the component.   }
@@ -2298,6 +2308,7 @@ begin
     FSystemCodePage     := GetAcp;  { AG 7.02 }
     FMaxAttempts        := 12 ;     { angus V7.06 }
     FBindFtpData        := True;
+    FExclusiveAddr      := True;    { V8.37 make our sockets exclusive  }
 {$IFDEF BUILTIN_THROTTLE}
     FBandwidthLimit     := 0;       { angus V7.12 no bandwidth limit, yet, bytes per second }
     FBandwidthSampling  := 1000;    { angus V7.12 Msec sampling interval, less is not possible }
@@ -2536,6 +2547,8 @@ begin
     FSocketServer.ComponentOptions  := [wsoNoReceiveLoop];
     FSocketServer.BandwidthLimit    := fBandwidthLimit;     { angus V7.16 in client connect }
     FSocketServer.BandwidthSampling := fBandwidthSampling;  { angus V7.16 }
+    FSocketServer.ExclusiveAddr     := FExclusiveAddr;      { V8.37 }
+    FSocketServer.SocketErrs        := FSocketErrs;         { V8.37 }
     FSocketServer.MultiListen;                    { V8.01 }
     FEventTimer.Enabled := true;                  { angus V1.54 }
 {$IFNDEF NO_DEBUG_LOG}
@@ -2669,6 +2682,8 @@ begin
     MyClient.FFtpState       := ftpcWaitingUserCode;
     MyClient.FileModeRead    := SrvFileModeRead;     { angus V1.57 }
     MyClient.FileModeWrite   := SrvFileModeWrite;    { angus V1.57 }
+    MyClient.ExclusiveAddr   := FExclusiveAddr;      { V8.37 }
+    MyClient.SocketErrs      := FSocketErrs;         { V8.37 }
 {$IFDEF BUILTIN_THROTTLE}
     MyClient.CBandwidthLimit    := fBandwidthLimit;     { angus V7.12 may be changed in event for different limit }
     MyClient.CBandwidthSampling := fBandwidthSampling;  { angus V7.12 }
@@ -3752,6 +3767,8 @@ procedure TFtpServer.PrepareStorDataSocket(Client : TFtpCtrlSocket);
 begin
     Client.AbortingTransfer := FALSE;
     Client.TransferError    := 'Transfer Ok';
+    Client.DataSocket.ExclusiveAddr := FExclusiveAddr;      { V8.37 }
+    Client.DataSocket.SocketErrs    := FSocketErrs;         { V8.37 }
 
     if Client.PassiveMode then begin
         PreparePassiveStorDataSocket(Client);
@@ -4482,6 +4499,8 @@ begin
     end;
     Client.DataSocket.LingerOnOff             := wsLingerOff;
     Client.DataSocket.LingerTimeout           := 0;
+    Client.DataSocket.ExclusiveAddr           := FExclusiveAddr;      { V8.37 }
+    Client.DataSocket.SocketErrs              := FSocketErrs;         { V8.37 }
 {$IFDEF BUILTIN_THROTTLE}
     Client.DataSocket.BandwidthLimit          := Client.CBandwidthLimit;     { angus V7.12 }
     Client.DataSocket.BandwidthSampling       := Client.CBandwidthSampling;  { angus V7.12 }
@@ -4503,7 +4522,9 @@ begin
     Client.AbortingTransfer              := FALSE;
     Client.DataSent                      := FALSE;
     Client.TransferError                 := 'Transfer Ok';
-    if Client.PassiveMode then begin
+    Client.DataSocket.ExclusiveAddr      := FExclusiveAddr;      { V8.37 }
+    Client.DataSocket.SocketErrs         := FSocketErrs;         { V8.37 }
+   if Client.PassiveMode then begin
         PreparePassiveRetrDataSocket(Client);
     end
     else begin
@@ -5541,6 +5562,8 @@ begin
         Client.DataSocket.OnSessionClosed    := nil;
         Client.DataSocket.OnDataAvailable    := nil;
         Client.DataSocket.ComponentOptions   := [wsoNoReceiveLoop];
+        Client.DataSocket.ExclusiveAddr      := FExclusiveAddr;      { V8.37 }
+        Client.DataSocket.SocketErrs         := FSocketErrs;         { V8.37 }
         Client.DataSocket.Listen;
 
         { Get the port assigned by winsock }
@@ -6842,7 +6865,9 @@ begin
         Client.DataSocket.OnSessionClosed    := nil;
         Client.DataSocket.OnDataAvailable    := nil;
         Client.DataSocket.ComponentOptions   := [wsoNoReceiveLoop];
-        Client.DataSocket.Listen;
+        Client.DataSocket.ExclusiveAddr      := FExclusiveAddr;      { V8.37 }
+        Client.DataSocket.SocketErrs         := FSocketErrs;         { V8.37 }
+       Client.DataSocket.Listen;
 
         { Get the port assigned by winsock }
         saddrlen := SizeOf(saddr);

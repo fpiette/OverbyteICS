@@ -221,6 +221,13 @@ object SmtpSslSrvForm: TSmtpSslSrvForm
       Height = 13
       Caption = 'PrivateKey'
     end
+    object Label8: TLabel
+      Left = 466
+      Top = 10
+      Width = 35
+      Height = 13
+      Caption = 'IP Addr'
+    end
     object CertFileEdit: TEdit
       Left = 80
       Top = 5
@@ -268,7 +275,15 @@ object SmtpSslSrvForm: TSmtpSslSrvForm
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Verify Peer'
+      TabOrder = 6
+    end
+    object ServIpAddr: TEdit
+      Left = 524
+      Top = 6
+      Width = 153
+      Height = 21
       TabOrder = 5
+      Text = '0.0.0.0'
     end
   end
   object SmtpServer1: TSslSmtpServer
@@ -276,18 +291,21 @@ object SmtpSslSrvForm: TSmtpSslSrvForm
       item
         Addr = '0.0.0.0'
         Port = '587'
+        SslEnable = False
       end>
     Addr = '0.0.0.0'
     Port = 'smtp'
     SocketFamily = sfAnyIPv4
     ServerHost = 'pc19-web'
-    ServerDesc = 'SMTP Server (c) 1997-2013 Francois Piette V8.00'
+    ServerDesc = 'SMTP Server (c) 1997-2016 Francois Piette V8.37'
     MaxClients = 0
     MultiThreaded = False
     MaxMessageSize = 0
     ClientTimeout = 60
     GreyDelaySecs = 0
     Options = [smtpsAddIpAddrHdr]
+    SocketErrs = wsErrFriendly
+    ExclusiveAddr = True
     OnException = SmtpServer1Exception
     OnServerStarted = SmtpServer1ServerStarted
     OnServerStopped = SmtpServer1ServerStopped

@@ -3,7 +3,7 @@
 Original Author: Ian Baker, ADV Systems 2003
 Updated by:   Angus Robertson, Magenta Systems Ltd
 Creation:     24 September 2013
-Version:      8.04
+Version:      8.37
 Description:  How to use TSslSmtpServer
 EMail:        francois.piette@overbyte.be      http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -44,6 +44,9 @@ Apr 26, 2014 V8.01 Arno - Check for IsIPv6Available rather than IsIPv6ApiAvailab
 Dec 10, 2014 V8.02 Angus added handshake response message, better cipher list
 June 2015 V8.03    Angus fixed name space issue that stopped build
 May 24, 2016 V8.04 Angus renamed TBufferedFileStream to TIcsBufferedFileStream
+Nov 12 2016  V8.37 Set friendly errors
+                   Specify minimum and maximum SSL version supported
+                   Allow server IP address to be specified 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslSmtpServ1;
@@ -75,8 +78,8 @@ uses
   OverbyteIcsSmtpSrv ;
 
 const
-    SmtpSslServerTestVersion    = 8.04;
-    CopyRight : String = ' OverbyteSslSmtpServer (c) 1997-2016 F. Piette V8.04 ';
+    SmtpSslServerTestVersion    = 8.37;
+    CopyRight : String = ' OverbyteSslSmtpServer (c) 1997-2016 F. Piette V8.37 ';
 
   // INI file stuff
     SectionData       = 'Data';
@@ -95,6 +98,7 @@ const
     KeyVerifyPeer      = 'VerifyPeer';
     KeyCAFile          = 'CAFile';
     KeyCAPath          = 'CAPath';
+    KeyServIpAddr      = 'ServIpAddr';
 
     SectionWindow     = 'Window';
     KeyTop            = 'Top';
@@ -138,6 +142,8 @@ type
     PassPhraseEdit: TEdit;
     VerifyPeerCheckBox: TCheckBox;
     PrefAuthTls: TCheckBox;
+    Label8: TLabel;
+    ServIpAddr: TEdit;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure SmtpServer1Auth(Sender, Client: TObject; const UserName: string; var Password: string;
@@ -197,6 +203,7 @@ begin
     IniFile.WriteString(SectionData, KeyCAFile,         CAFileEdit.Text);
     IniFile.WriteString(SectionData, KeyCAPath,         CAPathEdit.Text);
     IniFile.WriteInteger(SectionData, KeyVerifyPeer,    Ord(VerifyPeerCheckBox.Checked));
+    IniFile.WriteString(SectionData, KeyServIpAddr,     ServIpAddr.Text);  { V8.37 }
 
     IniFile.WriteInteger(SectionWindow, KeyTop,    Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,   Left);
@@ -241,6 +248,7 @@ begin
         CAFileEdit.Text      := IniFile.ReadString(SectionData, KeyCAFile, 'cacert.pem');
         CAPathEdit.Text      := IniFile.ReadString(SectionData, KeyCAPath, '');
         VerifyPeerCheckBox.Checked := Boolean(IniFile.ReadInteger(SectionData, KeyVerifyPeer, 0));
+        ServIpAddr.Text      := IniFile.ReadString(SectionData, KeyServIpAddr, '0.0.0.0');      { V8.37 }
         Top    := IniFile.ReadInteger(SectionWindow, KeyTop,    (Screen.Height - Height) div 2);
         Left   := IniFile.ReadInteger(SectionWindow, KeyLeft,   (Screen.Width - Width) div 2);
         Width  := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
@@ -273,7 +281,7 @@ begin
                             [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3, sslOpt_CIPHER_SERVER_PREFERENCE];
     with SmtpServer1 do
     begin
-        Addr           := LocalIPList (sfIpv4, IPPROTO_TCP) [0];
+        Addr           := ServIpAddr.Text; // LocalIPList (sfIpv4, IPPROTO_TCP) [0];  { V8.37 }
         ServerHost     := String(WSocketResolveIP (AnsiString (Addr)));  // should be the mail exchange domain name
         SocketFamily   := sfIpV4;
         Port           := '25';

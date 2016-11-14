@@ -10,11 +10,11 @@ Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      8.06
+Version:      8.37
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2015 by François PIETTE
+Legal issues: Copyright (C) 1997-2016 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -208,6 +208,8 @@ Mar 18, 2015 V8.04 Angus added IcsLogger
 Jun 01, 2015 V8.05 Angus update SslServerName for SSL SNI support allowing server to
                      select correct SSL context and certificate
 Oct 08, 2015 V8.06 Angus changed to receive with LineMode for more reliable line parsing
+Nov 12, 2016 V8.37 Added extended exception information, set SocketErrs = wsErrFriendly for
+                      some more friendly messages (without error numbers)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -278,8 +280,8 @@ uses
 (*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameW$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)
 
 const
-    Pop3CliVersion     = 806;
-    CopyRight : String = ' POP3 component (c) 1997-2015 F. Piette V8.06 ';
+    Pop3CliVersion     = 837;
+    CopyRight : String = ' POP3 component (c) 1997-2016 F. Piette V8.37 ';
  {   POP3_RCV_BUF_SIZE  = 4096;  gone V8.06 }
 
 type
@@ -380,6 +382,7 @@ type
         FHeaderCc           : AnsiString;
         FMsg_WM_POP3_REQUEST_DONE : UINT;
         FLmCompatLevel      : LongWord;  { V6.13 }
+        FSocketErrs         : TSocketErrs;   { V8.37 }
 
         FOnDisplay          : TPop3Display;
         FOnMessageBegin     : TNotifyEvent;
@@ -560,6 +563,8 @@ type
         property HeaderDate         : AnsiString     read  FHeaderDate;
         property HeaderReturnPath   : AnsiString     read  FHeaderReturnPath;
         property HeaderCc           : AnsiString     read  FHeaderCc;
+        property SocketErrs         : TSocketErrs    read  FSocketErrs
+                                                     write FSocketErrs;      { V8.37 }
         {:General purpose property, not used by component }
         property Tag : LongInt                       read  FTag
                                                      write FTag;
@@ -1856,6 +1861,7 @@ begin
     FWSocket.OnDataSent      := nil;
     FWSocket.OnDnsLookupDone := WSocketDnsLookupDone;
     FWSocket.SocketFamily    := FSocketFamily;
+    FWSocket.SocketErrs      := FSocketErrs;        { V8.37 }
     StateChange(pop3DnsLookup);
     try
         FWSocket.Addr := FHost;

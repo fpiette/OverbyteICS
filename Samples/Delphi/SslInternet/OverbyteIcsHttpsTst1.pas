@@ -64,7 +64,7 @@ May 24 2016   V8.27 Angus testing OpenSSL 1.1.0, added SslThrdLock
               If no CA file or path or lines specified, use default CA bundle
 Aug 27, 2016  V8.32 set SslCipherEdit if empty
 Nov 04, 2016  V8.37 report more error information
-              Only report client ciiphers once
+              Only report client ciphers once
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;

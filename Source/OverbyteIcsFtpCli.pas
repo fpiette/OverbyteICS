@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V8.09
+Version:      V8.37
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1074,6 +1074,8 @@ Jun 01, 2015 V8.07 - Angus update SslServerName for SSL SNI support allowing ser
                        select correct SSL context and certificate
 Oct 25, 2015 V8.08 - Angus report SSL certificate check failed in HandshakeDone event
 Feb 23, 2016 V8.09 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
+Nov 10, 2016 V8.37 - Added extended exception information, set SocketErrs = wsErrFriendly for
+                      some more friendly messages (without error numbers)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -1164,9 +1166,9 @@ uses
     OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 809;
-  CopyRight : String = ' TFtpCli (c) 1996-2016 F. Piette V8.09 ';
-  FtpClientId : String = 'ICS FTP Client V8.09 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 837;
+  CopyRight : String = ' TFtpCli (c) 1996-2016 F. Piette V8.37 ';
+  FtpClientId : String = 'ICS FTP Client V8.37 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -1411,6 +1413,7 @@ type
     FOnZlibProgress     : TZlibProgress; { V2.113 call back event during ZLIB processing }
     FZCompFileName      : String;        { V2.113 zlib file name of compressed file }
     FZlibWorkDir        : String;        { V2.113 zlib work directory }
+    FSocketErrs         : TSocketErrs;   { V8.37 }
 {$IF DEFINED(UseBandwidthControl) or DEFINED(BUILTIN_THROTTLE)}
     FBandwidthLimit     : Integer;  // Bytes per second
     FBandwidthSampling  : Integer;  // mS sampling interval
@@ -1765,6 +1768,8 @@ type
     property OnReadyToTransmit    : TFtpReadyToTransmit  read  FOnReadyToTransmit
                                                          write FOnReadyToTransmit;
     property OnBgException;   { V7.15 }
+    property SocketErrs          : TSocketErrs           read  FSocketErrs
+                                                         write FSocketErrs;      { V8.37 }
   end;
 
   TFtpClient = class(TCustomFtpCli)
@@ -1908,6 +1913,7 @@ type
     property BandwidthSampling;                                    { V2.106 }
 {$IFEND}
     property SocketFamily;
+    property SocketErrs;                                           { V8.37 } 
   end;
 
 { You must define USE_SSL so that SSL code is included in the component.   }
@@ -2894,6 +2900,7 @@ begin
     FLastResponse        := '';
     FErrorMessage        := '';
     FStatusCode          := 0;
+    FControlSocket.SocketErrs := FSocketErrs;        { V8.37 }
 
 { angus V7.00 always set proxy and SOCKS options before opening socket  }
     FControlSocket.SocksAuthentication := socksNoAuthentication;
@@ -2908,7 +2915,7 @@ begin
     end;
 
     case FConnectionType of
-       // ftpProxy:   FPassive := TRUE;     { V7.22 } 
+       // ftpProxy:   FPassive := TRUE;     { V7.22 }
         ftpSocks4:  FControlSocket.SocksLevel := '4';
         ftpSocks4A: FControlSocket.SocksLevel := '4A';
         ftpSocks5:  FControlSocket.SocksLevel := '5';
@@ -5086,7 +5093,7 @@ begin
     { passive mode.                                                         }
     case FConnectionType of
         ftpDirect, ftpProxy     : FPassive := NewValue;             { V7.22 }
-        ftpSocks4, ftpSocks4A, 
+        ftpSocks4, ftpSocks4A,
         ftpSocks5, ftpHttpProxy : FPassive := TRUE;                 { V7.22 }
     end;
 end;
@@ -5103,6 +5110,7 @@ begin
     FDataSocket.LingerOnOff        := wsLingerOff;
     FDataSocket.LingerTimeout      := 0;
     FDataSocket.ComponentOptions   := [wsoNoReceiveLoop];   { 26/10/02 } { 2.109 }
+    FDataSocket.SocketErrs         := FSocketErrs;        { V8.37 }
 {$IFDEF BUILTIN_THROTTLE}
     if ftpBandwidthControl in FOptions then begin
         FDataSocket.BandwidthLimit     := FBandwidthLimit;
@@ -5445,7 +5453,8 @@ begin
     FDataSocket.LingerOnOff        := wsLingerOff;
     FDataSocket.LingerTimeout      := 0;
     FDataSocket.ComponentOptions   := [wsoNoReceiveLoop];   { 26/10/02 }
-    FDataSocketSentFlag            := FALSE;          { V7.11 }    
+    FDataSocketSentFlag            := FALSE;          { V7.11 }
+    FDataSocket.SocketErrs         := FSocketErrs;        { V8.37 }
 {$IFDEF BUILTIN_THROTTLE}
     if ftpBandwidthControl in FOptions then begin
         FDataSocket.BandwidthLimit     := FBandwidthLimit;
@@ -5764,6 +5773,7 @@ begin
     FDataSocket.OnSessionClosed    := nil;
     FDataSocket.OnDataAvailable    := nil;
     FDataSocketSentFlag            := FALSE;     { V7.11 }
+    FDataSocket.SocketErrs := FSocketErrs;        { V8.37 }
 {$IFDEF BUILTIN_THROTTLE}
     if ftpBandwidthControl in FOptions then begin
         FDataSocket.BandwidthLimit     := FBandwidthLimit;

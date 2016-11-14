@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      8.08
+Version:      8.37
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -415,6 +415,8 @@ Oct 05, 2015 V8.07 Angus changed to receive with LineMode for more reliable line
                      parsing, which fixes an endless loop if remote server returned
                      nulls, thanks to Max Terentiev for finding a bad server
 Feb 23, 2016 V8.08 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
+Nov 12, 2016 V8.37 - Added extended exception information, set SocketErrs = wsErrFriendly for
+                      some more friendly messages (without error numbers)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -502,8 +504,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-  SmtpCliVersion     = 808;
-  CopyRight : String = ' SMTP component (c) 1997-2016 Francois Piette V8.08 ';
+  SmtpCliVersion     = 837;
+  CopyRight : String = ' SMTP component (c) 1997-2016 Francois Piette V8.37 ';
   smtpProtocolError  = 20600; {AG}
 {  SMTP_RCV_BUF_SIZE  = 4096;  V8.07 no longer used }
 
@@ -811,6 +813,7 @@ type
         FProxyPassword       : String;
         FProxyHttpAuthType   : THttpTunnelAuthType;
         FLmCompatLevel       : LongWord;  { V7.39 }
+        FSocketErrs          : TSocketErrs;   { V8.37 }
         procedure   HandleHttpTunnelError(Sender: TObject; ErrCode: Word;
             TunnelServerAuthTypes: THttpTunnelServerAuthTypes; const Msg: String);
         procedure   HandleSocksError(Sender: TObject; ErrCode: Integer; Msg: String);
@@ -1033,6 +1036,8 @@ type
                                                      write FXMailer;
         property SocketFamily : TSocketFamily        read  FSocketFamily
                                                      write FSocketFamily;
+        property SocketErrs        : TSocketErrs     read  FSocketErrs
+                                                     write FSocketErrs;      { V8.37 }
         property ProxyType         : TSmtpProxyType  read  FProxyType
                                                      write FProxyType;
         property ProxyServer       : String          read  FProxyServer
@@ -1175,6 +1180,7 @@ type
                                                      write FOnAfterFileOpen;
         {AG end}
         property SocketFamily;
+        property SocketErrs;   { V8.37 }
         {CLEM V8.01 start}
         property OnFileOpen  : TSmtpFileOpenEvent    read  FOnFileOpen
                                                      write FOnFileOpen;
@@ -3450,6 +3456,7 @@ begin
     FESmtpSupported   := FALSE;
     FErrorMessage     := '';
     FLastResponse     := '';
+    FWSocket.SocketErrs := FSocketErrs;        { V8.37 }
 
     if FProxyType <> smtpHttpProxy  then
     { Disable connection thru HTTP proxy. It's not done in   }

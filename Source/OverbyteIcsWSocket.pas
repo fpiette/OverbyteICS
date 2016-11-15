@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.37
+Version:      8.38
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1085,6 +1085,13 @@ Oct 26, 2016  V8.36 Now using new names for imports renamed in OpenSSL 1.1.0
                       some more friendly messages (without error numbers)
                     ESocketException has several more properties to detail errors
 Nov 04, 2016  V8.37 Fixed memory leak in RaiseException in last build
+Nov 15, 2016  V8.38 Don't hide detailed load SSL exceptions
+                    Added IcsVerifyTrust to check authenticode code signing digital
+                      certificate and hash on EXE and DLL files, note currently
+                      ignores certificate revoke checking since so slow
+                    Added public variable GSSL_SignTest_Check to check OpenSSL
+                      DLLs are digitally signed, and GSSL_SignTest_Certificate to
+                      check for a valid certificate, both default to false
 
 
 Use of certificates for SSL clients:
@@ -1280,8 +1287,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 837;
-  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.37 ';
+  WSocketVersion            = 838;
+  CopyRight    : String     = ' TWSocket (c) 1996-2016 Francois Piette V8.38 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -12604,87 +12611,22 @@ end; *)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure LoadSsl;
-//const
-//    LenErrMsg = 512;
 var
     Tick : Cardinal;
-//    S    : String;
-{$IFDEF LOADSSL_ERROR_FILE} // Optional define in OverbyteIcsSslDefs.inc
-//    F    : TextFile;
-//    I, J : Integer;
-{$ENDIF}
 begin
     SslCritSect.Enter;
     try
         if SslRefCount = 0 then begin
-            try
-                // Load LIBEAY DLL, V8.27 change Load and WhichFailedToLoad to unique names
-                // Must be loaded before SSlEAY for the versioncheck to work!
-                LibeayLoad;
 
-                 (*   S := LibeayWhichFailedToLoad;
-                {$IFDEF LOADSSL_ERROR_FILE}
-                    AssignFile(F, _ExtractFilePath(ParamStr(0)) + 'FailedIcsLIBEAY.txt');
-                    Rewrite(F);
-                    I := 1;
-                    while I < Length(S) do begin
-                        J := I;
-                        while (I <= Length(S)) and (S[I] <> ' ') do
-                            Inc(I);
-                        Inc(I);
-                        WriteLn(F, Copy(S, J, I - J));
-                    end;
-                    CloseFile(F);
-                {$ENDIF}
+            // Load LIBEAY DLL, V8.27 change Load and WhichFailedToLoad to unique names
+            // Must be loaded before SSlEAY for the versioncheck to work!
+            LibeayLoad;   { now libcrypto-1_1.dll }
 
-                    if GLIBEAY_DLL_Handle <> 0 then begin   { V8.27 removed unit names }
-                        FreeLibrary(GLIBEAY_DLL_Handle);
-                        GLIBEAY_DLL_Handle := 0
-                    end;
-                    if Length(S) > LenErrMsg then begin
-                        SetLength(S, LenErrMsg);
-                        S[Length(S) - 1] := '.';
-                        S[Length(S)]     := '.';
-                    end;
-                    raise EIcsLibeayException.Create('Unable to load ' +
-                                      GLIBEAY_DLL_FileName + '. Can''t find ' + S);
-                end;   *)
+            // Load SSlEAY DLL
+            SsleayLoad;   { now libssl-1_1.dll }
 
-                // Load SSlEAY DLL
-                SsleayLoad;
-
-                 (*   S := SsleayWhichFailedToLoad;
-                {$IFDEF LOADSSL_ERROR_FILE}
-                    AssignFile(F, _ExtractFilePath(ParamStr(0)) + 'FailedIcsSSLEAY.txt');
-                    Rewrite(F);
-                    I := 1;
-                    while I < Length(S) do begin
-                        J := I;
-                        while (I <= Length(S)) and (S[I] <> ' ') do
-                            Inc(I);
-                        Inc(I);
-                        WriteLn(F, Copy(S, J, I - J));
-                    end;
-                    CloseFile(F);
-                {$ENDIF}
-                    if GSSLEAY_DLL_Handle <> 0 then begin     { V8.27 removed unit names }
-                        FreeLibrary(GSSLEAY_DLL_Handle);
-                        GSSLEAY_DLL_Handle := 0;
-                    end;
-                    if GLIBEAY_DLL_Handle <> 0 then begin
-                        FreeLibrary(GLIBEAY_DLL_Handle);
-                        GLIBEAY_DLL_Handle := 0
-                    end;
-                    if Length(S) > LenErrMsg then begin
-                        SetLength(S, LenErrMsg);
-                        S[Length(S) - 1] := '.';
-                        S[Length(S)]     := '.';
-                    end;
-                    raise EIcsSsleayException.Create('Unable to load ' +
-                                       GSSLEAY_DLL_FileName + '. Can''t find ' + S);
-                end;  *)
-
-                // Global system initialization, V8.27 not needed for 1.1.0 and later
+           // Global system initialization, V8.27 not needed for 1.1.0 and later
+            try   { V8.38 moved here so don't hide earlier exception messages }
                 if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
                     if f_SSL_library_init <> 1 then begin
                         if GSSLEAY_DLL_Handle <> 0 then begin
@@ -12709,7 +12651,7 @@ begin
                 f_ENGINE_load_builtin_engines;
             {$ENDIF}
             except
-                raise EIcsSsleayException.Create('Unable to load OpenSSL');
+                raise EIcsSsleayException.Create('Unable to initialise OpenSSL');
             end;
         end; // SslRefCount = 0
         Inc(SslRefCount);

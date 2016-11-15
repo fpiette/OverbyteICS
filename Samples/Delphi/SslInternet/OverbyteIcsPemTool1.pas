@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.35
+Version:      8.38
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -71,6 +71,9 @@ Mar 16, 2015 V8.00 Angus default key length now 2048
 June 2015,   V8.01 Angus using new units
 Oct 23, 2015 V8.02 Angus get certificate signing and encryption algorithms
 Oct 18, 2016 V8.35 Angus, no longer need OverbyteIcsLibeayEx
+Nov 15, 2016 V8.38 Angus, only load digitally signed OpenSSL DLLs
+                   Added
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsPemtool1;
@@ -98,13 +101,13 @@ uses
 {$IFEND}
   OverByteIcsMimeUtils, OverbyteIcsWSocket,
   OverbyteIcsSsleay, OverbyteIcsLibeay, OverbyteIcsWinCrypt,
-  {OverbyteIcsLibeayEx,} OverbyteIcsSslX509Utils;
+  OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 835;
-     PemToolDate        = 'Oct 18, 2016';
+     PemToolVersion     = 838;
+     PemToolDate        = 'Nov 15, 2016';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2016 by François PIETTE V8.35 ';
+     CopyRight : String = '(c) 2003-2016 by François PIETTE V8.38 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -164,6 +167,7 @@ type
     SelImpDir: TBitBtn;
     btnImportPemFile: TButton;
     CheckBoxComment: TCheckBox;
+    btnCheckSigned: TButton;
     procedure btnImportClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -195,6 +199,7 @@ type
     procedure MMExtrasDecryptFileBlowfishClick(Sender: TObject);
     procedure SelCurrDirClick(Sender: TObject);
     procedure SelImpDirClick(Sender: TObject);
+    procedure btnCheckSignedClick(Sender: TObject);
   protected
     procedure WMAppStartup(var Msg: TMessage); message WM_APPSTARTUP;  
   private
@@ -218,6 +223,7 @@ type
 var
   frmPemTool1 : TfrmPemTool1;
   ColumnToSort: Integer;
+  VerifyDir: String;
 
 implementation
 
@@ -225,7 +231,7 @@ implementation
 
 uses
     OverByteIcsPemTool2, OverByteIcsPemTool3;
-    
+
 const
     SectionMainWindow    = 'MainWindow';
     SectionDisplayWindow = 'DisplayWindow';
@@ -241,6 +247,7 @@ const
     KeyEmptyDestDir      = 'EmptyDestDir';
     KeyComment           = 'Comment';
     KeyWriteToBundle     = 'WriteToBundle';
+    KeyVerifyDir         = 'VerifyDir';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.AppOnException(Sender: TObject; E: Exception);
@@ -260,6 +267,11 @@ begin
     FIniFileName := GetIcsIniFileName;
     ComboBoxStoreType.ItemIndex := 0;
     //Avoid dynamical loading and unloading the SSL DLLs plenty of times
+    GSSLEAY_DLL_IgnoreNew := False;  { V8.38 ignore OpenSSL 1.1.0 and later }
+    GSSLEAY_DLL_IgnoreOld := True;   { V8.38 ignore OpenSSL 1.0.2 and earlier }
+    GSSL_DLL_DIR := FProgDir;        { V8.38 only from our directory }
+    GSSL_SignTest_Check := True;     { V8.38 check digitally signed }
+    GSSL_SignTest_Certificate := True; { V8.38 check digital certificate }
     OverbyteIcsWSocket.LoadSsl;
 end;
 
@@ -306,7 +318,7 @@ begin
         CheckBoxWriteToBundle.Checked     := IniFile.ReadBool(SectionData,
                                                               KeyWriteToBundle,
                                                               FALSE);
-
+        VerifyDir := IniFile.ReadString(SectionData, KeyVerifyDir, FProgDir); { V8.38 }
         IniFile.Free;
         PostMessage(Handle, WM_APPSTARTUP, 0, 0);
     end;
@@ -340,6 +352,7 @@ begin
     IniFile.WriteBool(SectionData,          KeyEmptyDestDir,      CheckBoxEmptyDestDir.Checked);
     IniFile.WriteBool(SectionData,          KeyComment,           CheckBoxComment.Checked);       // angus
     IniFile.WriteBool(SectionData,          KeyWriteToBundle,     CheckBoxWriteToBundle.Checked); // angus
+    IniFile.WriteString(SectionData,        KeyVerifyDir,         VerifyDir); { V8.38 }
     IniFile.UpdateFile;
     IniFile.Free;
 end;
@@ -449,7 +462,7 @@ begin
             frmPemTool2.Memo1.Lines.Add ('Basic Constraints: ' + X.UnwrapNames(X.BasicConstraints));
             frmPemTool2.Memo1.Lines.Add ('Authority Info Access: ' + X.UnwrapNames(X.AuthorityInfoAccess));
             frmPemTool2.Memo1.Lines.Add ('Signature Algorithm: ' + X.SignatureAlgorithm);  // Oct 2015
-            frmPemTool2.Memo1.Lines.Add ('Key Info: ' + X.KeyInfo);                        // Oct 2015 
+            frmPemTool2.Memo1.Lines.Add ('Key Info: ' + X.KeyInfo);                        // Oct 2015
             frmPemTool2.Memo1.Lines.Add ('');
             frmPemTool2.Memo1.Lines.Text := frmPemTool2.Memo1.Lines.Text + 'Raw ' + X.GetRawText;
             frmPemTool2.ShowModal;
@@ -737,6 +750,30 @@ begin
     end;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.38 check digital signature on EXE and DLL files }
+procedure TfrmPemTool1.btnCheckSignedClick(Sender: TObject);
+var
+    FileName, Info: String;
+    RetCode: Integer;
+begin
+    OpenDlg.InitialDir := VerifyDir;
+    OpenDlg.Filter     := 'Executable Files|*.exe;*.dll;*.ocx|All Files *.*|*.*';
+    OpenDlg.Title      := 'Select executable file to check Digital Signature';
+    if OpenDlg.Execute then
+    begin
+        FileName := OpenDlg.FileName;
+        VerifyDir := ExtractFileDir(FileName);
+        if (FileName = '') or not FileExists(FileName) then
+            Exit;
+        RetCode := IcsVerifyTrust (FileName, False, True, Info);
+        MessageDlg('Checked Digital Signature for ' + FileName + #13#10#13#10 +
+                   'Result: ' + Info + #13#10 +
+                   'RetCode=' + IntToHex (RetCode, 8),
+                   mtInformation, [mbOK], 0);
+    end;
+ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.btnCopyCertClick(Sender: TObject);

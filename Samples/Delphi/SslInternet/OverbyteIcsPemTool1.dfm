@@ -45,10 +45,6 @@ object frmPemTool1: TfrmPemTool1
     OnChange = PageControl1Change
     object TabCertLv: TTabSheet
       Caption = 'Certificates'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         752
         467)
@@ -166,10 +162,6 @@ object frmPemTool1: TfrmPemTool1
     object TabImport: TTabSheet
       Caption = 'Import Certificates'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         752
         467)
@@ -372,6 +364,16 @@ object frmPemTool1: TfrmPemTool1
     TabOrder = 3
     Visible = False
   end
+  object btnCheckSigned: TButton
+    Left = 768
+    Top = 51
+    Width = 75
+    Height = 21
+    Anchors = [akTop, akRight]
+    Caption = '&Check Signed'
+    TabOrder = 4
+    OnClick = btnCheckSignedClick
+  end
   object pmLv: TPopupMenu
     Left = 74
     Top = 188
@@ -398,7 +400,7 @@ object frmPemTool1: TfrmPemTool1
     Left = 40
     Top = 186
     Bitmap = {
-      494C0101030028003C0010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010103002800400010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

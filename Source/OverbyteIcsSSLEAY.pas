@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.36
+Version:      8.38
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -102,7 +102,10 @@ Oct 18, 2016  V8.35 Angus, major rewrite to simplify loading OpenSSL DLL functio
               OPENSSL_ALLOW_SSLV2 gone with all SSLv2 functions
               stub more removed functions to save some exceptions
 Oct 26, 2016  V8.36 Angus more clean up of old stuff gone from 1.1.0
-
+Nov 15, 2016  V8.38 Added public variable GSSL_SignTest_Check to check OpenSSL
+                DLLs are digitally signed, and GSSL_SignTest_Certificate to
+                check for a valid certificate, both default to false
+              Moved IcsGetFileVerInfo to OverbyteIcsUtils
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -170,8 +173,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 836;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.36 ';
+    IcsSSLEAYVersion   = 838;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.38 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -223,6 +226,10 @@ var
  { V8.27 if set before OpenSSL loaded, will use this directory for DLLs, must have trailing \ }
     GSSL_DLL_DIR                : string = '';
 
+ { V8.38 wintrust stuff for authenticode digital signing checking }
+    GSSL_SignTest_Check         : Boolean = False;    { check OpenSSL DLLs are digitally signed }
+    GSSL_SignTest_Certificate   : Boolean = False;    { False only checks hash, True also checks certificate (longer) }
+
     { Version stuff added 07/12/05  = V8.27 moved from OverbyteIcsLIBEAY  }
     ICS_OPENSSL_VERSION_NUMBER  : Longword  = 0;
     ICS_SSL_NO_RENEGOTIATION    : Boolean = FALSE;
@@ -252,7 +259,8 @@ const
     OSSL_VER_1100  = $1010000F; // 1.1.0                 { V8.32 }
     OSSL_VER_1100A = $1010001F; // 1.1.0a                { V8.35 }
     OSSL_VER_1100B = $1010002F; // 1.1.0b                { V8.35 }
-    OSSL_VER_1100ZZ= $10100FFF; // not yet released              { V8.35 }
+    OSSL_VER_1100C = $1010003F; // 1.1.0c                { V8.38 }
+    OSSL_VER_1100ZZ= $10100FFF; // not yet released      { V8.35 }
     OSSL_VER_1101  = $10101000; // 1.1.1 next feature release  { V8.34 }
     OSSL_VER_1199  = $10101FFF; // not yet released      { V8.34 }
     OSSL_VER_MAX   = $FFFFFFFF; // maximum version       { V8.35 }
@@ -1431,14 +1439,10 @@ const
 
 
 function SsleayLoad : Boolean;
-// function SsleayWhichFailedToLoad : String;
 function SslGetImports (Handle: THandle; List: array of TOSSLImports): string ;  { V8.35 }
-{$IFDEF MSWINDOWS}
-function IcsGetFileVerInfo(
-    const AppName         : String;
-    out   FileVersion     : String;
-    out   FileDescription : String): Boolean;
-{$ENDIF}
+
+{ V8.38 Windows API to check authenticode code signing digital certificate on OpenSSL files }
+procedure IcsVerifySslDll (const Fname: string);
 
 // macro functions not exported from DLL
 function  f_SSL_CTX_set_options(C: PSSL_CTX; Op: LongInt): LongInt; {$IFDEF USE_INLINE} inline; {$ENDIF}
@@ -1624,71 +1628,25 @@ implementation
 {$IFDEF USE_SSL}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF MSWINDOWS}
-function IcsGetFileVerInfo(      { V8.27 added Ics to prevent conflicts }
-    const AppName         : String;
-    out   FileVersion     : String;
-    out   FileDescription : String): Boolean;
-const
-    DEFAULT_LANG_ID       = $0409;
-    DEFAULT_CHAR_SET_ID   = $04E4;
-type
-    TTranslationPair = packed record
-        Lang, CharSet: WORD;
-    end;
-    PTranslationIDList = ^TTranslationIDList;
-    TTranslationIDList = array[0..MAXINT div SizeOf(TTranslationPair) - 1]
-                             of TTranslationPair;
-var
-    Buffer, PStr    : PChar;
-    BufSize         : DWORD;
-    StrSize, IDsLen : DWORD;
-    Status          : Boolean;
-    LangCharSet     : String;
-    IDs             : PTranslationIDList;
-begin
-    Result          := FALSE;
-    FileVersion     := '';
-    FileDescription := '';
-    BufSize         := GetFileVersionInfoSize(PChar(AppName), StrSize);
-    if BufSize = 0 then
-        Exit;
-    GetMem(Buffer, BufSize);
-    try
-        // get all version info into Buffer
-        Status := GetFileVersionInfo(PChar(AppName), 0, BufSize, Buffer);
-        if not Status then
-            Exit;
-        // set language Id
-        LangCharSet := '040904E4';
-        if VerQueryValue(Buffer, PChar('\VarFileInfo\Translation'),
-                         Pointer(IDs), IDsLen) then begin
-            if IDs^[0].Lang = 0 then
-                IDs^[0].Lang := DEFAULT_LANG_ID;
-            if IDs^[0].CharSet = 0 then
-                IDs^[0].CharSet := DEFAULT_CHAR_SET_ID;
-            LangCharSet := Format('%.4x%.4x',
-                                  [IDs^[0].Lang, IDs^[0].CharSet]);
-        end;
 
-        // now read real information
-        Status := VerQueryValue(Buffer, PChar('\StringFileInfo\' +
-                                LangCharSet + '\FileVersion'),
-                                Pointer(PStr), StrSize);
-        if Status then begin
-            FileVersion := StrPas(PStr);
-            Result      := TRUE;
-        end;
-        Status := VerQueryValue(Buffer, PChar('\StringFileInfo\' +
-                                LangCharSet + '\FileDescription'),
-                                Pointer(PStr), StrSize);
-        if Status then
-            FileDescription := StrPas(PStr);
-    finally
-        FreeMem(Buffer);
+{$IFDEF MSWINDOWS}
+
+{ V8.38 Windows API to check authenticode code signing digital certificate on OpenSSL files }
+procedure IcsVerifySslDll (const Fname: string);
+var
+    ErrCode: integer;
+    TrustResp: String;
+begin
+    ErrCode := IcsVerifyTrust (FName, NOT GSSL_SignTest_Certificate, false, TrustResp);
+    if (ErrCode = TRUST_E_SUBJECT_NOT_TRUSTED) or (ErrCode = TRUST_E_BAD_DIGEST) or
+         (ErrCode = TRUST_E_NOSIGNATURE) or (ErrCode = TRUST_E_EXPLICIT_DISTRUST) then begin
+         raise  EIcsSsleayException.Create('Failed to load ' + FName + ' - ' + TrustResp);
+    end;
+    if GSSL_SignTest_Certificate and ((ErrCode = CERT_E_CHAINING) or
+        (ErrCode = CERT_E_UNTRUSTEDROOT) or (ErrCode = CERT_E_UNTRUSTEDTESTROOT)) then begin
+         raise  EIcsSsleayException.Create('Failed to load ' + FName + ' - ' + TrustResp);
     end;
 end;
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$ENDIF}
@@ -1717,7 +1675,7 @@ end;
 function SsleayLoad : Boolean;      {  V8.27 make unique }
 var
     ErrCode: Integer;
-    FullName, errs: String ;  { V8.29 }
+    FullName, errs: String;   { V8.29 }
 begin
     Result := TRUE;
     if GSSLEAY_DLL_Handle <> 0 then Exit; // Already loaded
@@ -1761,6 +1719,9 @@ begin
     IcsGetFileVerInfo(GSSLEAY_DLL_FileName,      { V8.27 use full path }
                    GSSLEAY_DLL_FileVersion,
                    GSSLEAY_DLL_FileDescription);
+
+   { V8.38 check authenticode digital signature on DLL }
+    if GSSL_SignTest_Check then IcsVerifySslDll (GSSLEAY_DLL_FileName);
   {$ENDIF}
 
   { V8.35 load all main GSSLEAY_DLL exports }
@@ -2073,6 +2034,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$ENDIF}//USE_SSL
+
 end.
 
 

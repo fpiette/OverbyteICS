@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.09
+Version:      8.38
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -137,6 +137,10 @@ Jul 13, 2013 V8.07 Arno added an overloaded version of IcsGetBufferCodepage that
              returns BOM's size.
 Nov 23, 2015 V8.08 Eugene Kotlyarov fix MacOSX compilation and compiler warnings
 Feb 22, 2016 V8.09 Angus moved RFC1123_Date and RFC1123_StrToDate from HttpProt
+Nov 15, 2016 V8.38 Angus moved IcsGetFileVerInfo from OverbyteIcsSSLEAY
+                   Added IcsVerifyTrust to check authenticode code signing digital
+                     certificate and hash on EXE and DLL files, note currently
+                     ignores certificate revoke checking since so slow
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -592,6 +596,143 @@ type
         procedure Leave; {$IFDEF USE_INLINE} inline; {$ENDIF}
         function TryEnter: Boolean;
     end;
+
+{ V8.38 handle for wintrust.dll }
+var
+    WinTrustHandle : THandle;
+
+{$IFDEF MSWINDOWS}
+{ V8.38 moved from OverbyteIcsSSLEAY }
+function IcsGetFileVerInfo(
+    const AppName         : String;
+    out   FileVersion     : String;
+    out   FileDescription : String): Boolean;
+{$ENDIF}
+
+{$IFDEF MSWINDOWS}
+{ V8.38 constants and records for Wintrust }
+const
+  WINTRUST_ACTION_GENERIC_VERIFY_V2: TGUID = '{00AAC56B-CD44-11d0-8CC2-00C04FC295EE}' ;
+
+  TRUST_E_NOSIGNATURE = HRESULT($800B0100);
+  CERT_E_EXPIRED = HRESULT($800B0101);
+  CERT_E_VALIDITYPERIODNESTING = HRESULT($800B0102);
+  CERT_E_ROLE = HRESULT($800B0103);
+  CERT_E_PATHLENCONST = HRESULT($800B0104);
+  CERT_E_CRITICAL = HRESULT($800B0105);
+  CERT_E_PURPOSE = HRESULT($800B0106);
+  CERT_E_ISSUERCHAINING = HRESULT($800B0107);
+  CERT_E_MALFORMED = HRESULT($800B0108);
+  CERT_E_UNTRUSTEDROOT = HRESULT($800B0109);
+  CERT_E_CHAINING = HRESULT($800B010A);
+  TRUST_E_FAIL = HRESULT($800B010B);
+  CERT_E_REVOKED = HRESULT($800B010C);
+  CERT_E_UNTRUSTEDTESTROOT = HRESULT($800B010D);
+  CERT_E_REVOCATION_FAILURE = HRESULT($800B010E);
+  CERT_E_CN_NO_MATCH = HRESULT($800B010F);
+  CERT_E_WRONG_USAGE = HRESULT($800B0110);
+  TRUST_E_EXPLICIT_DISTRUST = HRESULT($800B0111);
+  CERT_E_UNTRUSTEDCA = HRESULT($800B0112);
+  CERT_E_INVALID_POLICY = HRESULT($800B0113);
+  CERT_E_INVALID_NAME = HRESULT($800B0114);
+  TRUST_E_SYSTEM_ERROR = HRESULT($80096001);
+  TRUST_E_NO_SIGNER_CERT = HRESULT($80096002);
+  TRUST_E_COUNTER_SIGNER = HRESULT($80096003);
+  TRUST_E_CERT_SIGNATURE = HRESULT($80096004);
+  TRUST_E_TIME_STAMP = HRESULT($80096005);
+  TRUST_E_BAD_DIGEST = HRESULT($80096010);
+  TRUST_E_BASIC_CONSTRAINTS = HRESULT($80096019);
+  TRUST_E_FINANCIAL_CRITERIA = HRESULT($8009601E);
+  CRYPT_E_SECURITY_SETTINGS = HRESULT($80092026);
+
+  WTCI_DONT_OPEN_STORES = $00000001 ; // only open dummy "root" all other are in pahStores.
+  WTCI_OPEN_ONLY_ROOT = $00000002 ;
+
+// _WINTRUST_DATA.dwUIChoice
+    WTD_UI_ALL    = 1 ;
+    WTD_UI_NONE   = 2 ;
+    WTD_UI_NOBAD  = 3 ;
+    WTD_UI_NOGOOD = 4 ;
+
+// _WINTRUST_DATA.fdwRevocationChecks
+    WTD_REVOKE_NONE       = $00000000 ;
+    WTD_REVOKE_WHOLECHAIN = $00000001 ;
+
+// _WINTRUST_DATA.dwUnionChoice
+    WTD_CHOICE_FILE    = 1 ;
+    WTD_CHOICE_CATALOG = 2 ;
+    WTD_CHOICE_BLOB    = 3 ;
+    WTD_CHOICE_SIGNER  = 4 ;
+    WTD_CHOICE_CERT    = 5 ;
+
+// _WINTRUST_DATA.dwStateAction
+    WTD_STATEACTION_IGNORE  = $00000000 ;
+    WTD_STATEACTION_VERIFY  = $00000001 ;
+    WTD_STATEACTION_CLOSE   = $00000002 ;
+    WTD_STATEACTION_AUTO_CACHE       = $00000003 ;
+    WTD_STATEACTION_AUTO_CACHE_FLUSH = $00000004 ;
+    WTD_PROV_FLAGS_MASK     = $0000FFFF ;
+    WTD_USE_IE4_TRUST_FLAG  = $00000001 ;
+    WTD_NO_IE4_CHAIN_FLAG   = $00000002 ;
+    WTD_NO_POLICY_USAGE_FLAG = $00000004 ;
+    WTD_REVOCATION_CHECK_NONE = $00000010 ;
+    WTD_REVOCATION_CHECK_END_CERT = $00000020 ;
+    WTD_REVOCATION_CHECK_CHAIN    = $00000040 ;
+    WTD_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT = $00000080 ;
+    WTD_SAFER_FLAG                 = $00000100 ;
+    WTD_HASH_ONLY_FLAG             = $00000200 ;
+    WTD_USE_DEFAULT_OSVER_CHECK    = $00000400 ;
+    WTD_LIFETIME_SIGNING_FLAG      = $00000800 ;
+    WTD_CACHE_ONLY_URL_RETRIEVAL   = $00001000 ; // affects CRL retrieval and AIA retrieval }
+    WTD_UICONTEXT_EXECUTE = 0 ;
+    WTD_UICONTEXT_INSTALL = 1 ;
+
+type
+    PVOID           = Pointer;
+
+  WINTRUST_FILE_INFO_ = record
+    cbStruct: DWORD;
+    pcwszFilePath: LPCWSTR;
+    hFile: THandle;
+    pgKnownSubject: PGUID;
+  end {WINTRUST_FILE_INFO_};
+  TWinTrustFileInfo = WINTRUST_FILE_INFO_ ;
+  PWinTrustFileInfo = ^WINTRUST_FILE_INFO_ ;
+
+type
+  _WINTRUST_DATA = record
+    cbStruct: DWORD;                // = sizeof(WINTRUST_DATA)
+    pPolicyCallbackData: PVOID;     // optional: used to pass data between the app and policy
+    pSIPClientData: PVOID;          // optional: used to pass data between the app and SIP.
+    dwUIChoice: DWORD;              // required: UI choice, one of WTD_UI_xx
+    fdwRevocationChecks: DWORD;     // required: certificate revocation check options, one of WTD_REVOKE_xx
+    dwUnionChoice: DWORD;           // required: which structure is being passed in, one of WTD_CHOICE_xx
+    Info: record {union part of the original struct }
+    case integer of
+        0: (pFile: PWinTrustFileInfo);           // individual file
+  //      1: (pCatalog: PWinTrustCatalogInfo);     // member of a Catalog File
+  //      2: (pBlob: PWinTrustBlobInfo);           // memory blob
+  //      3: (pSgnr: PWinTrustSgnrInfo);           // signer structure only
+  //      4: (pCert: PWinTrustCertInfo);
+    end ;
+// end union
+    dwStateAction: DWORD;       // optional (Catalog File Processing), WTD_STATEACTION_xx
+    hWVTStateData: THANDLE;     // optional (Catalog File Processing)
+    pwszURLReference: LPCWSTR ; // angus ???  // optional: (future) used to determine zone.
+    dwProvFlags: DWORD;         // optional:  WTD_PROV_FLAGS, etc
+    dwUIContext: DWORD;         // optional: used to determine action text in UI. WTD_UICONTEXT_xx
+  end {_WINTRUST_DATA};
+  TWinTrustData = _WINTRUST_DATA ;
+  PWinTrustData = ^_WINTRUST_DATA ;
+
+var
+  WinVerifyTrust: function(hwnd: HWND; var pgActionID: TGUID;
+                                      pWVTData: Pointer): DWORD stdcall ;
+
+{ V8.38 Windows API to check authenticode code signing digital certificate on EXE and DLL files }
+  function IcsVerifyTrust (const Fname: string; const HashOnly,
+                          Expired: boolean; var Response: string): integer;
+{$ENDIF}
 
 implementation
 
@@ -5183,4 +5324,161 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF MSWINDOWS}
+function IcsGetFileVerInfo(      { V8.27 added Ics to prevent conflicts }
+    const AppName         : String;
+    out   FileVersion     : String;
+    out   FileDescription : String): Boolean;
+const
+    DEFAULT_LANG_ID       = $0409;
+    DEFAULT_CHAR_SET_ID   = $04E4;
+type
+    TTranslationPair = packed record
+        Lang, CharSet: WORD;
+    end;
+    PTranslationIDList = ^TTranslationIDList;
+    TTranslationIDList = array[0..MAXINT div SizeOf(TTranslationPair) - 1]
+                             of TTranslationPair;
+var
+    Buffer, PStr    : PChar;
+    BufSize         : DWORD;
+    StrSize, IDsLen : DWORD;
+    Status          : Boolean;
+    LangCharSet     : String;
+    IDs             : PTranslationIDList;
+begin
+    Result          := FALSE;
+    FileVersion     := '';
+    FileDescription := '';
+    BufSize         := GetFileVersionInfoSize(PChar(AppName), StrSize);
+    if BufSize = 0 then
+        Exit;
+    GetMem(Buffer, BufSize);
+    try
+        // get all version info into Buffer
+        Status := GetFileVersionInfo(PChar(AppName), 0, BufSize, Buffer);
+        if not Status then
+            Exit;
+        // set language Id
+        LangCharSet := '040904E4';
+        if VerQueryValue(Buffer, PChar('\VarFileInfo\Translation'),
+                         Pointer(IDs), IDsLen) then begin
+            if IDs^[0].Lang = 0 then
+                IDs^[0].Lang := DEFAULT_LANG_ID;
+            if IDs^[0].CharSet = 0 then
+                IDs^[0].CharSet := DEFAULT_CHAR_SET_ID;
+            LangCharSet := Format('%.4x%.4x',
+                                  [IDs^[0].Lang, IDs^[0].CharSet]);
+        end;
+
+        // now read real information
+        Status := VerQueryValue(Buffer, PChar('\StringFileInfo\' +
+                                LangCharSet + '\FileVersion'),
+                                Pointer(PStr), StrSize);
+        if Status then begin
+            FileVersion := StrPas(PStr);
+            Result      := TRUE;
+        end;
+        Status := VerQueryValue(Buffer, PChar('\StringFileInfo\' +
+                                LangCharSet + '\FileDescription'),
+                                Pointer(PStr), StrSize);
+        if Status then
+            FileDescription := StrPas(PStr);
+    finally
+        FreeMem(Buffer);
+    end;
+end;
+{$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF MSWINDOWS}
+{ V8.38 Windows API to check authenticode code signing digital certificate on EXE and DLL files }
+{ HashOnly ignores certificate, Expired ignores expired certificate }
+{ note currently ignores rovoked certificate check since very slow }
+function IcsVerifyTrust (const Fname: string; const HashOnly,
+                          Expired: boolean; var Response: string): integer;
+var
+    ActionID: TGUID ;
+    WinTrustData: TWinTrustData ;
+    WinTrustFileInfo: TWinTrustFileInfo ;
+    WFname: WideString ;
+begin
+    result := -1;
+    WinTrustHandle := LoadLibrary('WINTRUST.DLL');
+    if WinTrustHandle = 0 then begin
+        response := 'WINTRUST.DLL Not Found' ;
+        exit;
+    end ;
+    @WinVerifyTrust := GetProcAddress(WinTrustHandle, 'WinVerifyTrust');
+    if (@WinVerifyTrust = nil) then begin
+        response := 'WinVerifyTrust Not Found';
+        exit;
+    end ;
+    if NOT FileExists (Fname) then  begin
+        Response := 'Program File Not Found - ' + Fname;
+        exit;
+    end ;
+    WinTrustFileInfo.cbStruct := SizeOf (TWinTrustFileInfo);
+    WFname := Fname;
+    WinTrustFileInfo.pcwszFilePath := @WFname [1];
+    WinTrustFileInfo.hFile := 0;
+    WinTrustFileInfo.pgKnownSubject := Nil;
+    WinTrustData.cbStruct := SizeOf (TWinTrustData);
+    WinTrustData.pPolicyCallbackData := Nil;
+    WinTrustData.pSIPClientData := Nil;
+    WinTrustData.dwUIChoice := WTD_UI_NONE;
+    WinTrustData.fdwRevocationChecks := WTD_REVOKE_NONE;   // revoke check is horribly slow
+    WinTrustData.dwUnionChoice := WTD_CHOICE_FILE;
+    WinTrustData.Info.pFile := @WinTrustFileInfo;
+    WinTrustData.dwStateAction := 0;
+    WinTrustData.hWVTStateData := 0;
+    WinTrustData.pwszURLReference := Nil;
+    WinTrustData.dwProvFlags := WTD_REVOCATION_CHECK_NONE;
+    if HashOnly then WinTrustData.dwProvFlags :=
+                            WinTrustData.dwProvFlags OR WTD_HASH_ONLY_FLAG;      // ignore certificate
+    if Expired then WinTrustData.dwProvFlags :=
+                        WinTrustData.dwProvFlags OR WTD_LIFETIME_SIGNING_FLAG;   // check expired date
+    WinTrustData.dwUIContext := WTD_UICONTEXT_EXECUTE;
+    ActionID := WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    Result := WinVerifyTrust (INVALID_HANDLE_VALUE, ActionID, @WinTrustData);
+    case Result of
+      ERROR_SUCCESS:
+         response := 'Trusted Code';
+      TRUST_E_SUBJECT_NOT_TRUSTED:
+         response := 'Not Trusted Code';
+      TRUST_E_PROVIDER_UNKNOWN:
+         response := 'Trust Provider Unknown';
+      TRUST_E_ACTION_UNKNOWN:
+         response := 'Trust Provider Action Unknown';
+      TRUST_E_SUBJECT_FORM_UNKNOWN:
+         response := 'Trust Provider Form Unknown';
+      TRUST_E_NOSIGNATURE:
+         response := 'Unsigned Code';
+      TRUST_E_EXPLICIT_DISTRUST:
+         response := 'Certificate Marked as Untrusted by the User';
+      TRUST_E_BAD_DIGEST:
+         response := 'Code has been Modified' ;
+      CERT_E_EXPIRED:
+        response := 'Signed Code But Certificate Expired' ;
+      CERT_E_CHAINING:
+        response := 'Signed Code But Certificate Chain Not Trusted' ;
+      CERT_E_UNTRUSTEDROOT:
+        response := 'Signed Code But Certificate Root Not Trusted' ;
+      CERT_E_UNTRUSTEDTESTROOT:
+        response := 'Signed Code But With Untrusted Test Certificate' ;
+      CRYPT_E_SECURITY_SETTINGS:
+         response := 'Local Security Options Prevent Verification';
+      else
+         response := 'Trust Error: ' + SysErrorMessage (Result);
+    end ;
+end ;                   
+{$ENDIF}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+initialization
+finalization
+    if WinTrustHandle <> 0 then FreeLibrary (WinTrustHandle);
+    WinTrustHandle := 0;
+
 end.

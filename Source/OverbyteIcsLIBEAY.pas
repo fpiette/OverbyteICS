@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.36
+Version:      8.38
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -128,6 +128,9 @@ Oct 18, 2016  V8.35 Angus, major rewrite to simplify loading OpenSSL DLL functio
               EVP_CIPHER_CTX_xx is now backward compatible with 1.1.0
 Oct 26, 2016  V8.36 more clean up of old stuff gone from 1.1.0
               Now using new names for imports renamed in 1.1.0
+Nov 15, 2016  V8.38 Added public variable GSSL_SignTest_Check to check OpenSSL
+                DLLs are digitally signed, and GSSL_SignTest_Certificate to
+                check for a valid certificate, both default to false
 
 
 Notes - OpenSSL libeay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -218,8 +221,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 835;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2016 F. Piette V8.35 ';
+    IcsLIBEAYVersion   = 838;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2016 F. Piette V8.38 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -2252,6 +2255,10 @@ begin
         MBSTRING_UNIV                := MBSTRING_FLAG or 4;     // Asn1.h
         MBSTRING_UTF8                := MBSTRING_FLAG;          // Asn1.h
 
+  {$IFDEF MSWINDOWS}
+   { V8.38 check authenticode digital signature on DLL }
+    if GSSL_SignTest_Check then IcsVerifySslDll (GLIBEAY_DLL_FileName);
+  {$ENDIF}
 
   { V8.35 load all main GLIBEAY_DLL exports }
     errs := SslGetImports (GLIBEAY_DLL_Handle, GLIBEAYImports1) ;

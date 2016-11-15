@@ -72,7 +72,8 @@ June 2015,   V8.01 Angus using new units
 Oct 23, 2015 V8.02 Angus get certificate signing and encryption algorithms
 Oct 18, 2016 V8.35 Angus, no longer need OverbyteIcsLibeayEx
 Nov 15, 2016 V8.38 Angus, only load digitally signed OpenSSL DLLs
-                   Added
+                   Added Check Signed button that allows a single file to be
+                     selected and it's digital certificate tested
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -201,7 +202,7 @@ type
     procedure SelImpDirClick(Sender: TObject);
     procedure btnCheckSignedClick(Sender: TObject);
   protected
-    procedure WMAppStartup(var Msg: TMessage); message WM_APPSTARTUP;  
+    procedure WMAppStartup(var Msg: TMessage); message WM_APPSTARTUP;
   private
     FProgDir         : String;
     FInitialized     : Boolean;
@@ -219,7 +220,7 @@ type
   function  IsDirEmpty(const Path: String): Boolean;
   function  PathAddBackSlash(const Path: String): String;
   procedure EmptyDirectory(Path: String);
-  
+
 var
   frmPemTool1 : TfrmPemTool1;
   ColumnToSort: Integer;
@@ -267,7 +268,7 @@ begin
     FIniFileName := GetIcsIniFileName;
     ComboBoxStoreType.ItemIndex := 0;
     //Avoid dynamical loading and unloading the SSL DLLs plenty of times
-    GSSLEAY_DLL_IgnoreNew := False;  { V8.38 ignore OpenSSL 1.1.0 and later }
+    GSSLEAY_DLL_IgnoreNew := False;  { V8.38 don't ignore OpenSSL 1.1.0 and later }
     GSSLEAY_DLL_IgnoreOld := True;   { V8.38 ignore OpenSSL 1.0.2 and earlier }
     GSSL_DLL_DIR := FProgDir;        { V8.38 only from our directory }
     GSSL_SignTest_Check := True;     { V8.38 check digitally signed }
@@ -664,7 +665,7 @@ begin
             with LvColumn do begin
                 iImage := LVCerts.Columns[I].ImageIndex;
                 mask   := mask or LVCF_IMAGE or LVCF_FMT;
-                fmt    := fmt or LVCFMT_IMAGE or LVCFMT_BITMAP_ON_RIGHT; 
+                fmt    := fmt or LVCFMT_IMAGE or LVCFMT_BITMAP_ON_RIGHT;
                 case LVCerts.Columns[I].Alignment of
                     taLeftJustify  : fmt := fmt or LVCFMT_LEFT;
                     taCenter       : fmt := fmt or LVCFMT_CENTER;
@@ -1039,7 +1040,7 @@ begin
  {$R-}
     Code := GetFileAttributes(PChar(Name));
     Result := (Code <> -1) and (FILE_ATTRIBUTE_DIRECTORY and Code <> 0);
- {$R+}   
+ {$R+}
 end;
 
 
@@ -1268,7 +1269,7 @@ begin
         OpenDlg.Title := OldTitle;
     end;
     FillChar(EncCtx, SizeOf(EncCtx), #0);
-    
+
     CiphInitialize(EncCtx, AnsiString(Password), nil, nil, ctBfCbc, cklDefault, True);
     try
         Src  := TFileStream.Create(SrcFileName, fmOpenRead or fmShareDenyWrite);

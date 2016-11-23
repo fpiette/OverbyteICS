@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Aug 26, 2007
 Description:
-Version:      8.36
+Version:      8.39
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -66,9 +66,9 @@ May 24, 2016 V8.27 Angus, initial support for OpenSSL 1.1.0
 Aug 27, 2016 V8.32 Angus, moved sslRootCACertsBundle long constant from twsocket and
                aplit smaller and make function so it will compile under C++ Builder
 Oct 18, 2016 V8.35 Angus, no longer need OverbyteIcsLibeayEx
-             added CreateRsaKeyPair 
+             added CreateRsaKeyPair
 Oct 26, 2016  V8.36 Now using new names for imports renamed in OpenSSL 1.1.0
-
+Nov 22, 2016  V8.39 Moved TX509Ex properties into TX509Class in OverbyteIcsWSocket
 
 pending - create a certificate signed by a root certificate
 
@@ -90,6 +90,7 @@ uses
     OverbyteIcsTypes, OverbyteIcsWSocket,
     OverbyteIcsMimeUtils, OverbyteIcsUtils;
 
+(*
 type
   TX509Ex = class(TX509Base)
   private
@@ -147,7 +148,7 @@ type
     property SerialNumHex: String read GetSerialNumHex;          { V1.09 }
     property CertInfo: String read GetCertInfo;                  { V1.09 }
   end;
-
+ *)
 
 procedure CreateCertRequest(const RequestFileName, KeyFileName, Country,
   State, Locality, Organization, OUnit, CName, Email: AnsiString;
@@ -1173,6 +1174,7 @@ begin
     end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
 { Returns a CRLF-separated list if multiple entries exist }
 function TX509Ex.GetNameEntryByNid(IsSubject: Boolean; ANid: Integer): String;
 var
@@ -1527,6 +1529,8 @@ begin
         end;
     end;
 end;
+*)
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure RaiseLastOpenSslError(

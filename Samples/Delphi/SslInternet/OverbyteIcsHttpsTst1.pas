@@ -6,7 +6,7 @@ Description:  A simple  HTTPS SSL Web Client Demo client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.37
+Version:      8.39
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -65,6 +65,10 @@ May 24 2016   V8.27 Angus testing OpenSSL 1.1.0, added SslThrdLock
 Aug 27, 2016  V8.32 set SslCipherEdit if empty
 Nov 04, 2016  V8.37 report more error information
               Only report client ciphers once
+Nov 23, 2016  V3.39 no longer need PostConnectionCheck or TX509Ex
+              Added List Cert Store button to list common names of any
+                certificates loaded from CA File or CA Path, so you know
+                exactly what was found 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;
@@ -103,10 +107,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 837;
-     HttpsTstDate        = 'Nov 04, 2016';
+     HttpsTstVersion     = 839;
+     HttpsTstDate        = 'Nov 21, 2016';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2016 Francois Piette V8.37 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2016 Francois Piette V8.39 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -173,6 +177,7 @@ type
     SslMinVersion: TComboBox;
     OldSslCheckBox: TCheckBox;
     Label16: TLabel;
+    StoreButton: TButton;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -209,6 +214,7 @@ type
     procedure ResetSsl(Sender: TObject);
     procedure ResetButtonClick(Sender: TObject);
     procedure OldSslCheckBoxClick(Sender: TObject);
+    procedure StoreButtonClick(Sender: TObject);
 
   private
     FIniFileName               : String;
@@ -961,7 +967,6 @@ var
     Hash        : String;
     HttpCli     : TSslHttpCli;
     ChainInfo   : String;
-    MyCert      : TX509Ex; { V8.02 }
 begin
     HttpCli   := Sender as TSslHttpCli;
     Display('Handshake done, error #' + IntToStr (ErrCode) +
@@ -985,15 +990,13 @@ begin
 
     { Collect further information to display in the dialog.                  }
     if CertChain.Count > 0 then begin
-        ChainInfo := '! ' + IntToStr(CertChain.Count) +
-             ' Certificate(s) in the verify chain.' + #13#10;
+        ChainInfo := '! ' + 'VerifyResult: ' + PeerCert.FirstVerifyErrMsg +
+             ', Peer domain: ' +  HttpCli.CtrlSocket.SslCertPeerName + #13#10 +  { V8.39 }
+             IntToStr(CertChain.Count) +' Certificate(s) in the verify chain.' + #13#10;
         for I := 0 to CertChain.Count -1 do begin
             if Length(ChainInfo) > 0 then
                 ChainInfo := ChainInfo + #13#10;
-            MyCert := TX509Ex (CertChain[I]);    { V8.02 }
-            ChainInfo := ChainInfo +  IntToStr(I + 1) + ') ' +
-                  MyCert.CertInfo + #13#10 +    { V8.02 }
-                  'VerifyResult: ' + MyCert.FirstVerifyErrMsg + #13#10;
+            ChainInfo := ChainInfo +  IntToStr(I + 1) + ') ' + CertChain[I].CertInfo + #13#10;    { V8.02 }
         end;
         Display(ChainInfo + #13#10);
     end;
@@ -1011,23 +1014,16 @@ begin
       identifying information such as the IP address.
       We use function PostConnectionCheck to perform these checks for us. }
 
-    if PeerCert.PostConnectionCheck(HttpCli.Hostname) then begin
+//    if PeerCert.PostConnectionCheck(HttpCli.Hostname) then begin  { V8.39 no longer needed }
         { Now check whether chain verify result was OK as well }
-        if (PeerCert.VerifyResult = X509_V_OK) then begin
-            Display('! Chain verification and PostConnectionCheck succeeded');
-            Exit; // Everything OK, go ahead.
-        end
-        else
-           { Prepare our dialog text }
-           DlgMsg := 'Peer certificate was issued to the site.'#13#10#13#10 +
-                     'Do you want to trust the connection anyway?';
-    end
-    else { Prepare our other dialog text }
-        DlgMsg := 'Post connection check:'#13#10 +
-                  'The name specified in the peer certificate is '#13#10 +
-                  'invalid or does not match the site!'#13#10#13#10 +
-                  'Do you want to trust the connection anyway?';
+     if (PeerCert.VerifyResult = X509_V_OK) then begin
+         Display('! Chain verification and host check succeeded' + #13#10);
+         Exit; // Everything OK, go ahead.
+     end;
 
+     DlgMsg := 'Certificate verification failed: ' + PeerCert.FirstVerifyErrMsg + #13#10 +   { V8.39 more info }
+               'Certificate peer name: ' + HttpCli.CtrlSocket.SslCertPeerName + #13#10#13#10 +
+                  'Do you want to trust the connection anyway?';
 
     { OpenSsl's chain verification and/or our PostConnectionCheck failed,   }
     { abort current connection and ask the user what to do next.            }
@@ -1046,20 +1042,19 @@ begin
         { that is not in our trusted store, we should ask the user whether he }
         { wants to trust this root CA by import into the trusted store,       }
         { this was a persistant trust.                                        }
-        MyCert := TX509Ex (CertChain[0]);    { V8.02 }
         if (CertChain.Count > 0) and
-           (MyCert.FirstVerifyResult = X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN) and
+           (PeerCert.FirstVerifyResult = X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN) and
            (CaPathEdit.Text <> '') then begin
             { This looks ugly, real applications should provide a nicer dialog }
-            if (MessageDlg(MyCert.CertInfo + #13#10 +    { V8.02 }
+            if (MessageDlg(PeerCert.CertInfo + #13#10 +    { V8.02 }
                 'Do you also want to add this root certificate to your ' +
                 'trusted CA certificate store?',
                 mtConfirmation, [mbYes, mbNo], 0) = mrYes) then begin
                 { Certificates stored this way are being looked up by openssl   }
                 { the next time a certificate is verified, w/o initializing the }
                 { SslContext first.                                             }
-                MyCert.SaveToPemFile(IncludeTrailingBackSlash(CaPathEdit.Text) +
-                IntToHex(f_X509_subject_name_hash(MyCert.X509), 8) + '.0');
+                PeerCert.SaveToPemFile(IncludeTrailingBackSlash(CaPathEdit.Text) +
+                IntToHex(f_X509_subject_name_hash(PeerCert.X509), 8) + '.0');
                 { If the same file name already exists we need to increment the }
                 { extension by one, skipped in this demo.                       }
                 { We could append those files to our trusted CA file later on.  }
@@ -1153,6 +1148,40 @@ begin
     AbortButton.Enabled := NOT State;  { V8.01 }
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.39 lists the common name of all root certificates in the store }
+
+procedure THttpsTstForm.StoreButtonClick(Sender: TObject);
+var
+    CertList: TX509List;
+    Tot, I: Integer;
+    Info: string;
+begin
+    PrepareConnection;
+    CertList := TX509List.Create (self, True);
+    try
+        Tot := SslContext1.SslGetAllCerts (CertList);
+        if Tot > 0 then begin
+            CertList.SortChain(xsrtIssuerFirst);
+            Info := '! SSL context contains ' + IntToStr (Tot) +
+                                            ' certificate in store' + #13#10;
+            for I := 1 to Tot do begin
+                Info := Info + '#' + IntToStr (I) + ' ';
+                if CertList [I-1].SubAltNameDNS = '' then
+                    Info := Info + CertList [I-1].SubjectCName
+                else
+                    Info := Info + CertList [I-1].SubAltNameDNS;
+                Info := Info + ' (' + CertList [I-1].SubjectOName + ')' + #13#10;
+            end;
+            Display(Info);
+        end
+        else
+            Display('! SSL context certificate store empty');
+    finally
+        CertList.Free;
+    end;
+end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

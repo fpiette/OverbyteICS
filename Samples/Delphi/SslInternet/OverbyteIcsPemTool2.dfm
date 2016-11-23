@@ -1,9 +1,9 @@
 object frmPemTool2: TfrmPemTool2
   Left = 436
   Top = 237
-  Width = 513
-  Height = 339
   Caption = 'frmPemTool2'
+  ClientHeight = 712
+  ClientWidth = 641
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -20,8 +20,8 @@ object frmPemTool2: TfrmPemTool2
   object Memo1: TMemo
     Left = 0
     Top = 0
-    Width = 505
-    Height = 305
+    Width = 641
+    Height = 712
     Align = alClient
     Color = clBtnFace
     Lines.Strings = (
@@ -30,5 +30,7 @@ object frmPemTool2: TfrmPemTool2
     ScrollBars = ssBoth
     TabOrder = 0
     OnDblClick = Memo1DblClick
+    ExplicitWidth = 497
+    ExplicitHeight = 300
   end
 end

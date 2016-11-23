@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.38
+Version:      8.39
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -106,6 +106,9 @@ Nov 15, 2016  V8.38 Added public variable GSSL_SignTest_Check to check OpenSSL
                 DLLs are digitally signed, and GSSL_SignTest_Certificate to
                 check for a valid certificate, both default to false
               Moved IcsGetFileVerInfo to OverbyteIcsUtils
+Nov 22, 2016  V8.39 Added functions to check certificate params using X509_VERIFY_PARAM, X509_OBJECT
+              Minimum OpenSSL supported is now 1.0.2 (1.0.1 support ceases Dec 2016)
+
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -173,8 +176,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 838;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.38 ';
+    IcsSSLEAYVersion   = 839;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.39 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -246,14 +249,14 @@ const
 { only supporting versions with TLS 1.1 and 1.2 }
 { V8.27 moved from OverbyteIcsLIBEAY  }
     OSSL_VER_MIN   = $0000000F; // minimum version     { V8.35 }
-    OSSL_VER_1001  = $1000100F; // untested
+    OSSL_VER_1001  = $1000100F; // 1.0.1 untested
     OSSL_VER_1001G = $1000107F; // just briefly tested  {
     OSSL_VER_1001H = $1000108F; // just briefly tested
     OSSL_VER_1001I = $1000109F; // just briefly tested
     OSSL_VER_1001J = $100010AF; // untested
     OSSL_VER_1001K = $100010BF; // just briefly tested
     OSSL_VER_1001L = $100010CF; // untested
-    OSSL_VER_1002  = $10002000; // just briefly tested
+    OSSL_VER_1002  = $10002000; // 1.0.2 just briefly tested
     OSSL_VER_1002A = $1000201F; // just briefly tested
     OSSL_VER_1002ZZ= $10002FFF; // not yet released
     OSSL_VER_1100  = $1010000F; // 1.1.0                 { V8.32 }
@@ -270,7 +273,7 @@ const
     { OpenSSL libraries for ICS are available for download here:              }
     { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
 
-    MIN_OSSL_VER   = OSSL_VER_1001;
+    MIN_OSSL_VER   = OSSL_VER_1002;   { V8.39 minimum is now 1.0.2 }
     MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.35 }
 
 type
@@ -367,6 +370,11 @@ type
     end;
     PASN1_TYPE = ^TASN1_TYPE_st;
 
+    TX509_VERIFY_PARAM_st = packed record        { V8.39 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PX509_VERIFY_PARAM = ^TX509_VERIFY_PARAM_st;
+
     { Stack - dummies i.e. STACK_OF(X509) }
 
     PSTACK_OF_X509_EXTENSION    = PStack;     //AG
@@ -385,6 +393,7 @@ type
 
     PSTACK_OF_X509_NAME = {$IFNDEF NoTypeEnforce}type{$ENDIF} PStack;
     PSTACK_OF_X509_INFO = {$IFNDEF NoTypeEnforce}type{$ENDIF} PStack;
+    PSTACK_OF_X509_VERIFY_PARAM = PStack;     { V8.39 }
 
     PSTACK_OF_SSL_CIPHER        = PSTACK;                 { V8.27 }
     PPSTACK_OF_SSL_CIPHER       = ^PSTACK_OF_SSL_CIPHER;  { V8.27 }
@@ -403,6 +412,8 @@ type
         Dummy : array [0..0] of Byte;
     end;
     PX509_OBJECT = ^TX509_OBJECT_st;
+
+    TX509_LOOKUP_TYPE = (X509_LU_NONE, X509_LU_X509, X509_LU_CRL);  { V8.39 }
 
     TX509_NAME_ENTRY_st = packed record      //AG
         Dummy : array [0..0] of Byte;
@@ -477,6 +488,8 @@ type
         Dummy : array [0..0] of Byte;
     end;
     PASN1_OBJECT = ^TASN1_OBJECT_st;
+
+    PSTACK_OF_ASN1_OBJECT = PStack;     { V8.39 }
 
     TX509_ALGOR_st = record
         algorithm : PASN1_OBJECT;
@@ -780,7 +793,7 @@ type
         recipientinfo   : PSTACK_OF_PKCS7_RECIP_INFO;
     end;
     PPKCS7_SIGN_ENVELOPE = ^PKCS7_signedandenveloped;
-    
+
     // 0.9.7g, 0.9.8a, 0.9.8e, 1.0.0d
     TPKCS7_st = record                         //AG
       { The following is non NULL if it contains ASN1 encoding of this structure }
@@ -1311,6 +1324,7 @@ const
     f_SSL_CTX_callback_ctrl:                   function(ctx: PSSL_CTX; cb_id: Integer; fp: TCallback_ctrl_fp): Longint; cdecl = nil;
     f_SSL_CTX_ctrl :                           function(C: PSSL_CTX; Cmd: Integer; LArg: LongInt; PArg: PAnsiChar): LongInt; cdecl = nil;
     f_SSL_CTX_free :                           procedure(C: PSSL_CTX); cdecl = nil;
+    f_SSL_CTX_get0_param :                     function(Ctx: PSSL_CTX): PX509_VERIFY_PARAM; cdecl = nil;                { V8.39 1.0.2 }
     f_SSL_CTX_get_cert_store :                 function(const Ctx: PSSL_CTX): PX509_STORE; cdecl = nil; //AG
     f_SSL_CTX_get_client_cert_cb:              function(CTX: PSSL_CTX): TClient_cert_cb; cdecl = nil; //AG
     f_SSL_CTX_get_ex_data :                    function(const C: PSSL_CTX; Idx: Integer): PAnsiChar; cdecl = nil;
@@ -1324,6 +1338,7 @@ const
     f_SSL_CTX_sess_set_get_cb:                 procedure(Ctx: PSSL_CTX; CB: TGet_session_cb); cdecl = nil; //AG
     f_SSL_CTX_sess_set_new_cb:                 procedure(Ctx: PSSL_CTX; CB: TNew_session_cb); cdecl = nil; //AG
     f_SSL_CTX_sess_set_remove_cb:              procedure(Ctx: PSSL_CTX; CB: TRemove_session_cb); cdecl = nil; //AG
+    f_SSL_CTX_set1_param :                     function(Ctx: PSSL_CTX; vpm: PX509_VERIFY_PARAM): integer; cdecl = nil;  { V8.39 1.0.2 }
     f_SSL_CTX_set_cipher_list :                function(C: PSSL_CTX; CipherString: PAnsiChar): Integer; cdecl = nil;
     f_SSL_CTX_set_client_CA_list :             procedure(C: PSSL_CTX; List: PSTACK_OF_X509_NAME); cdecl = nil; //AG
     f_SSL_CTX_set_client_cert_cb:              procedure(CTX: PSSL_CTX; CB: TClient_cert_cb); cdecl = nil; //AG
@@ -1357,6 +1372,7 @@ const
     f_SSL_ctrl :                               function(S: PSSL; Cmd: Integer; LArg: LongInt; PArg: Pointer): LongInt; cdecl = nil;
     f_SSL_do_handshake :                       function(S: PSSL): Integer; cdecl = nil; //AG
     f_SSL_free :                               procedure(S: PSSL); cdecl = nil;
+    f_SSL_get0_param :                         function(S: PSSL): PX509_VERIFY_PARAM; cdecl = nil;                      { V8.39 1.0.2 }
     f_SSL_get1_session :                       function(S: PSSL): PSSL_SESSION; cdecl = nil;
     f_SSL_get1_supported_ciphers :             function(S: PSSL): PSTACK_OF_SSL_CIPHER; cdecl = nil;   { V8.27 }
     f_SSL_get_SSL_CTX:                         function(const S: PSSL): PSSL_CTX; cdecl = nil;
@@ -1391,6 +1407,7 @@ const
     f_SSL_renegotiate :                        function(S: PSSL): Integer; cdecl = nil; //AG
     f_SSL_renegotiate_pending :                function(S: PSSL): Integer; cdecl = nil; //AG
     f_SSL_session_free :                       procedure(Session: PSSL_SESSION); cdecl = nil;
+    f_SSL_set1_param :                         function(S: PSSL; vpm: PX509_VERIFY_PARAM): integer; cdecl = nil;        { V8.39 1.0.2 }
     f_SSL_set_SSL_CTX:                         function(S: PSSL; ctx: PSSL_CTX): PSSL_CTX; cdecl = nil;
     f_SSL_set_accept_state :                   procedure(S: PSSL); cdecl = nil; //AG
     f_SSL_set_bio :                            procedure(S: PSSL; RBio: PBIO; WBio: PBIO); cdecl = nil;
@@ -1485,7 +1502,7 @@ function IcsSslStub: integer;                            { V8.35 }
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GSSLEAYImports1: array[0..128] of TOSSLImports = (
+    GSSLEAYImports1: array[0..132] of TOSSLImports = (
     (F: @@f_BIO_f_ssl;                              N: 'BIO_f_ssl';                                 MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CIPHER_description;                 N: 'SSL_CIPHER_description';                    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CIPHER_get_bits;                    N: 'SSL_CIPHER_get_bits';                       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -1494,6 +1511,7 @@ const
     (F: @@f_SSL_CTX_callback_ctrl;                  N: 'SSL_CTX_callback_ctrl';                     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_ctrl;                           N: 'SSL_CTX_ctrl';                              MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_free;                           N: 'SSL_CTX_free';                              MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_get0_param;                     N: 'SSL_CTX_get0_param';                        MI: OSSL_VER_1002; MX: OSSL_VER_MAX),     { V8.39 }
     (F: @@f_SSL_CTX_get_cert_store;                 N: 'SSL_CTX_get_cert_store';                    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_get_client_cert_cb;             N: 'SSL_CTX_get_client_cert_cb';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_get_ex_data;                    N: 'SSL_CTX_get_ex_data';                       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -1507,6 +1525,7 @@ const
     (F: @@f_SSL_CTX_sess_set_get_cb;                N: 'SSL_CTX_sess_set_get_cb';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_sess_set_new_cb;                N: 'SSL_CTX_sess_set_new_cb';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_sess_set_remove_cb;             N: 'SSL_CTX_sess_set_remove_cb';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set1_param;                     N: 'SSL_CTX_set1_param';                        MI: OSSL_VER_1002; MX: OSSL_VER_MAX),     { V8.39 }
     (F: @@f_SSL_CTX_set_cipher_list;                N: 'SSL_CTX_set_cipher_list';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_set_client_CA_list;             N: 'SSL_CTX_set_client_CA_list';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_set_client_cert_cb;             N: 'SSL_CTX_set_client_cert_cb';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -1541,6 +1560,7 @@ const
     (F: @@f_SSL_ctrl;                               N: 'SSL_ctrl';                                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_do_handshake;                       N: 'SSL_do_handshake';                          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_free;                               N: 'SSL_free';                                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get0_param;                         N: 'SSL_get0_param';                            MI: OSSL_VER_1002; MX: OSSL_VER_MAX),     { V8.39 }
     (F: @@f_SSL_get1_session;                       N: 'SSL_get1_session';                          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_get1_supported_ciphers;             N: 'SSL_get1_supported_ciphers';                MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
     (F: @@f_SSL_get_SSL_CTX;                        N: 'SSL_get_SSL_CTX';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -1574,6 +1594,7 @@ const
     (F: @@f_SSL_read;                               N: 'SSL_read';                                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_renegotiate;                        N: 'SSL_renegotiate';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_renegotiate_pending;                N: 'SSL_renegotiate_pending';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set1_param;                         N: 'SSL_set1_param';                            MI: OSSL_VER_1002; MX: OSSL_VER_MAX),     { V8.39 }
     (F: @@f_SSL_set_SSL_CTX;                        N: 'SSL_set_SSL_CTX';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_set_accept_state;                   N: 'SSL_set_accept_state';                      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_set_bio;                            N: 'SSL_set_bio';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),

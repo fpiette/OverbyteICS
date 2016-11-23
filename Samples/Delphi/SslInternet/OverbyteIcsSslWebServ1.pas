@@ -8,7 +8,7 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      8.37
+Version:      8.39
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -79,6 +79,8 @@ May 24 2016  V8.27 Angus testing OpenSSL 1.1.0, added SslThrdLock
                    List SSL ciphers available and supported by protocols
                    Old SSL check box to ignore OpenSSL 1.1.0 and use older versions
 Nov 04 2016  V8.37 Set friendly errors
+Nov 29 2016  V8.39 Better way of listing certificates actually loaded into context
+                     rather than opening files a second time
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
@@ -119,7 +121,7 @@ uses
   OverbyteIcsSslThrdLock;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2016 F. Piette V8.37 ';
+  CopyRight : String         = 'WebServ (c) 1999-2016 F. Piette V8.39 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -555,7 +557,10 @@ procedure TSslWebServForm.StartHttpsButtonClick(Sender: TObject);
 //    SslSrvVersions : array [0..5] of TSslVersionMethod =
 //        (sslBestVer_SERVER,sslV2_SERVER,sslV3_SERVER,sslTLS_V1_SERVER,sslTLS_V1_1_SERVER,sslTLS_V1_2_SERVER);  { V8.05 }
 var
-    MyCert: TX509Ex;
+//    MyCert: TX509Base;
+    CertList: TX509List;
+    Tot, I: Integer;
+    Info: string;
 begin
     IcsLogger1.LogOptions := [];
     if DebugEventCheckBox.Checked then
@@ -622,26 +627,48 @@ begin
           Display('SSL/TLS DLL not found: ' + GLIBEAY_DLL_FileName)
         else
           Display('SSL/TLS DLL: ' + GLIBEAY_DLL_FileName + ', Version: ' + OpenSslVersion);  }
-        MyCert := TX509Ex.Create(self);  // Oct 2015 report server certificate
+
+        FSrvSslCert := '';
+      // Oct 2015 report server certificate by reading files again
+    {    MyCert := TX509Base.Create(self);
         if SslContext1.SslCertFile <> '' then
         try
             MyCert.LoadFromPemFile (SslContext1.SslCertFile); // Oct 2015
-            FSrvSslCert := MyCert.CertInfo ;
+            FSrvSslCert := 'SSL server certificate: ' + #13#10 + MyCert.CertInfo;
             if Date > MyCert.ValidNotAfter then
-                Display ('Server SSL Certificate Has Exprired')
+                FSrvSslCert := FSrvSslCert + 'Server SSL Certificate Has Expired'
             else if (Date + 30) > MyCert.ValidNotAfter then
-                Display ('Server SSL Certificate Exprires Shortly');
-            MyCert.LoadFromPemFile (SslContext1.SslCAFile);   // Dec 2015
-            FSrvSslCert := FSrvSslCert +  #13#10#13#10 + MyCert.CertInfo ;
-            Display ('Server SSL Certificates' + #13#10 + FSrvSslCert + #13#10) ;
-            if Date > MyCert.ValidNotAfter then
-                Display ('Server SSL CA Certificate Has Exprired')
-            else if (Date + 30) > MyCert.ValidNotAfter then
-                Display ('Server SSL CA Certificate Exprires Shortly') ;
-            FSrvSslCert := StringReplace (FSrvSslCert, #13#10, '<BR>'+#13#10, [rfReplaceAll]) ;
+                FSrvSslCert := FSrvSslCert + 'Server SSL Certificate Exprires Shortly';
+            Display(FSrvSslCert + #13#10);
         finally
             MyCert.Free ;
+        end;   }
+
+     // V8.39 better way of listing certificates actually loaded into store
+        CertList := TX509List.Create (self, True);
+        try
+            Tot := SslContext1.SslGetAllCerts (CertList);
+            if SslContext1.SslCertX509.SubjectOneLine <> '' then  // ensure loaded
+            begin
+                 CertList.Add(SslContext1.SslCertX509.X509);  // add server cert
+                 inc (Tot);
+            end;
+            if Tot > 0 then begin
+                CertList.SortChain(xsrtIssuerFirst);
+                for I := 1 to Tot do begin
+                    Info := 'Certficate #' + IntToStr (I) + #13#10 + CertList [I-1].CertInfo + #13#10;
+                    if Date > CertList [I-1].ValidNotAfter then
+                        Info := Info + '!!! SSL Certificate Has Expired' + #13#10
+                    else if (Date + 30) > CertList [I-1].ValidNotAfter then
+                        Info := Info + '!!! SSL Certificate Exprires Shortly' + #13#10;
+                    Display(Info);
+                    FSrvSslCert := FSrvSslCert + Info;
+                end;
+            end;
+        finally
+            CertList.Free;
         end;
+        FSrvSslCert := StringReplace (FSrvSslCert, #13#10, '<BR>'+#13#10, [rfReplaceAll]) ;
 
       { V8.07  list SSL ciphers }
         FSrvCipherList := SslContext1.SslGetAllCiphers;

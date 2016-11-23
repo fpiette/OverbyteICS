@@ -1,8 +1,8 @@
 object frmPemTool1: TfrmPemTool1
   Left = 212
   Top = 124
-  ClientHeight = 580
-  ClientWidth = 843
+  ClientHeight = 786
+  ClientWidth = 880
   Color = clBtnFace
   Constraints.MinHeight = 379
   Constraints.MinWidth = 527
@@ -20,14 +20,14 @@ object frmPemTool1: TfrmPemTool1
   OnCreate = FormCreate
   OnShow = FormShow
   DesignSize = (
-    843
-    580)
+    880
+    786)
   PixelsPerInch = 96
   TextHeight = 14
   object btnShowCert: TButton
-    Left = 764
+    Left = 792
     Top = 24
-    Width = 75
+    Width = 80
     Height = 21
     Anchors = [akTop, akRight]
     Caption = '&View PEM'
@@ -37,30 +37,35 @@ object frmPemTool1: TfrmPemTool1
   object PageControl1: TPageControl
     Left = 2
     Top = 2
-    Width = 760
-    Height = 496
+    Width = 784
+    Height = 776
     ActivePage = TabCertLv
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
     OnChange = PageControl1Change
     object TabCertLv: TTabSheet
       Caption = 'Certificates'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 752
+      ExplicitHeight = 467
       DesignSize = (
-        752
-        467)
+        776
+        747)
       object Label4: TLabel
         Left = 4
-        Top = 446
+        Top = 726
         Width = 47
         Height = 14
         Anchors = [akLeft, akBottom]
         Caption = 'Directory:'
+        ExplicitTop = 446
       end
       object LvCerts: TListView
         Left = 4
         Top = 6
-        Width = 744
-        Height = 430
+        Width = 769
+        Height = 710
         Anchors = [akLeft, akTop, akRight, akBottom]
         Columns = <
           item
@@ -94,50 +99,59 @@ object frmPemTool1: TfrmPemTool1
         OnCompare = LvCertsCompare
         OnCustomDraw = LvCertsCustomDraw
         OnDblClick = LvCertsDblClick
+        ExplicitWidth = 764
       end
       object btnRefresh: TButton
-        Left = 677
-        Top = 443
+        Left = 701
+        Top = 723
         Width = 71
         Height = 21
         Anchors = [akRight, akBottom]
         Caption = '&Refresh'
         TabOrder = 4
         OnClick = btnRefreshClick
+        ExplicitLeft = 677
+        ExplicitTop = 443
       end
       object CurrentCertDirEdit: TEdit
         Left = 54
-        Top = 442
-        Width = 420
+        Top = 722
+        Width = 444
         Height = 22
         Anchors = [akLeft, akRight, akBottom]
         TabOrder = 1
         Text = 'CurrentCertDirEdit'
         OnChange = CurrentCertDirEditChange
+        ExplicitTop = 442
+        ExplicitWidth = 420
       end
       object btnDeleteCert: TButton
-        Left = 597
-        Top = 443
+        Left = 621
+        Top = 723
         Width = 75
         Height = 21
         Anchors = [akRight, akBottom]
         Caption = '&Delete'
         TabOrder = 3
         OnClick = btnDeleteCertClick
+        ExplicitLeft = 597
+        ExplicitTop = 443
       end
       object btnCopyCert: TButton
-        Left = 517
-        Top = 442
+        Left = 541
+        Top = 722
         Width = 75
         Height = 21
         Anchors = [akRight, akBottom]
         Caption = '&Copy'
         TabOrder = 2
         OnClick = btnCopyCertClick
+        ExplicitLeft = 517
+        ExplicitTop = 442
       end
       object SelCurrDir: TBitBtn
-        Left = 480
-        Top = 441
+        Left = 504
+        Top = 721
         Width = 31
         Height = 25
         Anchors = [akRight, akBottom]
@@ -157,29 +171,37 @@ object frmPemTool1: TfrmPemTool1
           333377777F77377733330BBB0333333333337F337F33333333330BB003333333
           333373F773333333333330033333333333333773333333333333}
         NumGlyphs = 2
+        ExplicitLeft = 480
+        ExplicitTop = 441
       end
     end
     object TabImport: TTabSheet
       Caption = 'Import Certificates'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 752
+      ExplicitHeight = 467
       DesignSize = (
-        752
-        467)
+        776
+        747)
       object Bevel2: TBevel
         Left = 5
         Top = 305
-        Width = 744
+        Width = 768
         Height = 64
         Anchors = [akLeft, akTop, akRight]
         Shape = bsFrame
+        ExplicitWidth = 744
       end
       object Bevel1: TBevel
         Left = 5
         Top = 3
-        Width = 744
+        Width = 768
         Height = 283
         Anchors = [akLeft, akTop, akRight]
         Shape = bsFrame
+        ExplicitWidth = 744
       end
       object Label1: TLabel
         Left = 20
@@ -346,28 +368,31 @@ object frmPemTool1: TfrmPemTool1
     end
   end
   object About: TButton
-    Left = 764
-    Top = 477
+    Left = 801
+    Top = 683
     Width = 75
     Height = 21
     Anchors = [akRight, akBottom]
     Caption = '&About'
     TabOrder = 2
     OnClick = AboutClick
+    ExplicitLeft = 764
+    ExplicitTop = 477
   end
   object ProgressBar1: TProgressBar
-    Left = 764
+    Left = 801
     Top = 4
     Width = 73
     Height = 16
     Anchors = [akTop, akRight]
     TabOrder = 3
     Visible = False
+    ExplicitLeft = 764
   end
   object btnCheckSigned: TButton
-    Left = 768
+    Left = 792
     Top = 51
-    Width = 75
+    Width = 80
     Height = 21
     Anchors = [akTop, akRight]
     Caption = '&Check Signed'
@@ -400,7 +425,7 @@ object frmPemTool1: TfrmPemTool1
     Left = 40
     Top = 186
     Bitmap = {
-      494C010103002800400010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010103002800480010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

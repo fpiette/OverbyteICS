@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.38
+Version:      8.39
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -131,6 +131,7 @@ Oct 26, 2016  V8.36 more clean up of old stuff gone from 1.1.0
 Nov 15, 2016  V8.38 Added public variable GSSL_SignTest_Check to check OpenSSL
                 DLLs are digitally signed, and GSSL_SignTest_Certificate to
                 check for a valid certificate, both default to false
+Nov 22, 2016  V8.39 Added functions to check certificate params using X509_VERIFY_PARAM
 
 
 Notes - OpenSSL libeay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -221,8 +222,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 838;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2016 F. Piette V8.38 ';
+    IcsLIBEAYVersion   = 839;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2016 F. Piette V8.39 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -1008,11 +1009,48 @@ const
     X509_V_ERR_INVALID_EXTENSION                        = 41;
     X509_V_ERR_INVALID_POLICY_EXTENSION                 = 42;
     X509_V_ERR_NO_EXPLICIT_POLICY                       = 43;
-    X509_V_ERR_UNNESTED_RESOURCE                        = 44;
-
+{ V8.39 added v_err 44 to 72 }
+    X509_V_ERR_DIFFERENT_CRL_SCOPE                 = 44;
+    X509_V_ERR_UNSUPPORTED_EXTENSION_FEATURE       = 45;
+    X509_V_ERR_UNNESTED_RESOURCE                   = 46;
+    X509_V_ERR_PERMITTED_VIOLATION                 = 47;
+    X509_V_ERR_EXCLUDED_VIOLATION                  = 48;
+    X509_V_ERR_SUBTREE_MINMAX                      = 49;
     // The application is not happy
-    X509_V_ERR_APPLICATION_VERIFICATION                 = 50;
+    X509_V_ERR_APPLICATION_VERIFICATION            = 50;
+    X509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE         = 51;
+    X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX       = 52;
+    X509_V_ERR_UNSUPPORTED_NAME_SYNTAX             = 53;
+    X509_V_ERR_CRL_PATH_VALIDATION_ERROR           = 54;
+    // Another issuer check debug option
+    X509_V_ERR_PATH_LOOP                           = 55;
+    // Suite B mode algorithm violation
+    X509_V_ERR_SUITE_B_INVALID_VERSION             = 56;
+    X509_V_ERR_SUITE_B_INVALID_ALGORITHM           = 57;
+    X509_V_ERR_SUITE_B_INVALID_CURVE               = 58;
+    X509_V_ERR_SUITE_B_INVALID_SIGNATURE_ALGORITHM = 59;
+    X509_V_ERR_SUITE_B_LOS_NOT_ALLOWED             = 60;
+    X509_V_ERR_SUITE_B_CANNOT_SIGN_P_384_WITH_P_256 = 61;
+    // Host, email and IP check errors
+    X509_V_ERR_HOSTNAME_MISMATCH                   = 62;
+    X509_V_ERR_EMAIL_MISMATCH                      = 63;
+    X509_V_ERR_IP_ADDRESS_MISMATCH                 = 64;
+    // DANE TLSA errors
+    X509_V_ERR_DANE_NO_MATCH                       = 65;
+    // security level errors
+    X509_V_ERR_EE_KEY_TOO_SMALL                    = 66;
+    X509_V_ERR_CA_KEY_TOO_SMALL                    = 67;
+    X509_V_ERR_CA_MD_TOO_WEAK                      = 68;
+    // Caller error
+    X509_V_ERR_INVALID_CALL                        = 69;
+    // Issuer lookup error
+    X509_V_ERR_STORE_LOOKUP                        = 70;
+    // Certificate transparency
+    X509_V_ERR_NO_VALID_SCTS                       = 71;
+    X509_V_ERR_PROXY_SUBJECT_NAME_VIOLATION        = 72;
 
+
+{ note these literals are not normally used, OpenSSL API instead }
 {$IFDEF OPENSSL_USE_RESOURCE_STRINGS}
 resourcestring
   { Verify error strings from x509_txt.c }
@@ -1060,7 +1098,36 @@ resourcestring
   sX509_V_ERR_INVALID_EXTENSION                   = 'invalid or inconsistent certificate extension';
   sX509_V_ERR_INVALID_POLICY_EXTENSION            = 'invalid or inconsistent certificate policy extension';
   sX509_V_ERR_NO_EXPLICIT_POLICY                  = 'no explicit policy';
-  sX509_V_ERR_UNNESTED_RESOURCE                   = 'RFC 3779 resource not subset of parent''s resources';
+{ V8.39 more }
+  sX509_V_ERR_DIFFERENT_CRL_SCOPE               = 'Different CRL scope';
+  sX509_V_ERR_UNSUPPORTED_EXTENSION_FEATURE     = 'Unsupported extension feature';
+  sX509_V_ERR_UNNESTED_RESOURCE                 = 'RFC 3779 resource not subset of parent's resources';
+  sX509_V_ERR_PERMITTED_VIOLATION               = 'permitted subtree violation';
+  sX509_V_ERR_EXCLUDED_VIOLATION                = 'excluded subtree violation';
+  sX509_V_ERR_SUBTREE_MINMAX                    = 'name constraints minimum and maximum not supported';
+  sX509_V_ERR_APPLICATION_VERIFICATION          = 'application verification failure';
+  sX509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE       = 'unsupported name constraint type';
+  sX509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX     = 'unsupported or invalid name constraint syntax';
+  sX509_V_ERR_UNSUPPORTED_NAME_SYNTAX           = 'unsupported or invalid name syntax';
+  sX509_V_ERR_CRL_PATH_VALIDATION_ERROR         = 'CRL path validation error';
+  sX509_V_ERR_PATH_LOOP                         = 'Path Loop';
+  sX509_V_ERR_SUITE_B_INVALID_VERSION           = 'Suite B: certificate version invalid';
+  sX509_V_ERR_SUITE_B_INVALID_ALGORITHM         = 'Suite B: invalid public key algorithm';
+  sX509_V_ERR_SUITE_B_INVALID_CURVE             = 'Suite B: invalid ECC curve';
+  sX509_V_ERR_SUITE_B_INVALID_SIGNATURE_ALGORITHM   = 'Suite B: invalid signature algorithm';
+  sX509_V_ERR_SUITE_B_LOS_NOT_ALLOWED           = 'Suite B: curve not allowed for this LOS';
+  sX509_V_ERR_SUITE_B_CANNOT_SIGN_P_384_WITH_P_256  = 'Suite B: cannot sign P-384 with P-256';
+  sX509_V_ERR_HOSTNAME_MISMATCH                 = 'Hostname mismatch';
+  sX509_V_ERR_EMAIL_MISMATCH                    = 'Email address mismatch';
+  sX509_V_ERR_IP_ADDRESS_MISMATCH               = 'IP address mismatch';
+  sX509_V_ERR_DANE_NO_MATCH                     = 'No matching DANE TLSA records';
+  sX509_V_ERR_EE_KEY_TOO_SMALL                  = 'EE certificate key too weak';
+  sX509_V_ERR_CA_KEY_TOO_SMALL                  = 'CA certificate key too weak';
+  sX509_V_ERR_CA_MD_TOO_WEAK                    = 'CA signature digest algorithm too weak';
+  sX509_V_ERR_INVALID_CALL                      = 'Invalid certificate verification context';
+  sX509_V_ERR_STORE_LOOKUP                      = 'Issuer certificate lookup error';
+  sX509_V_ERR_NO_VALID_SCTS                     = 'Certificate Transparency required, but no valid SCTs found';
+  sX509_V_ERR_PROXY_SUBJECT_NAME_VIOLATION      = 'proxy subject name violation';
   sX509_V_ERR_NUMBER                              = 'Error number ';
 
 const
@@ -1117,10 +1184,10 @@ const
   CRYPTO_READ                         = 4;
   CRYPTO_WRITE                        = 8;
 
-    // Certificate verify flags
+    // Certificate verify flags  X509_VERIFY_PARAM flags
 
     // Send issuer+subject checks to verify_cb
-    X509_V_FLAG_CB_ISSUER_CHECK                         = $1;
+    X509_V_FLAG_CB_ISSUER_CHECK                         = $0;   { Deprecated }
     // Use check time instead of current time
     X509_V_FLAG_USE_CHECK_TIME                          = $2;
     // Lookup CRLs
@@ -1133,6 +1200,39 @@ const
     X509_V_FLAG_X509_STRICT                             = $20;
     // Enable proxy certificate validation
     X509_V_FLAG_ALLOW_PROXY_CERTS                       = $40;
+{ V8.39 more X509_VERIFY_PARAM flags }
+    // Enable policy checking
+    X509_V_FLAG_POLICY_CHECK                = $80;
+    // Policy variable require-explicit-policy
+    X509_V_FLAG_EXPLICIT_POLICY             = $100;
+    // Policy variable inhibit-any-policy
+    X509_V_FLAG_INHIBIT_ANY                 = $200;
+    // Policy variable inhibit-policy-mapping
+    X509_V_FLAG_INHIBIT_MAP                 = $400;
+    // Notify callback that policy is OK
+    X509_V_FLAG_NOTIFY_POLICY               = $800;
+    // Extended CRL features such as indirect CRLs, alternate CRL signing keys
+    X509_V_FLAG_EXTENDED_CRL_SUPPORT        = $1000;
+    // Delta CRL support
+    X509_V_FLAG_USE_DELTAS                  = $2000;
+    // Check self-signed CA signature
+    X509_V_FLAG_CHECK_SS_SIGNATURE          = $4000;
+    // Use trusted store first
+    X509_V_FLAG_TRUSTED_FIRST               = $8000;
+    // Suite B 128 bit only mode: not normally used
+    X509_V_FLAG_SUITEB_128_LOS_ONLY         = $10000;
+    // Suite B 192 bit only mode
+    X509_V_FLAG_SUITEB_192_LOS              = $20000;
+    // Suite B 128 bit mode allowing 192 bit algorithms
+    X509_V_FLAG_SUITEB_128_LOS              = $30000;
+    // Allow partial chains if at least one certificate is in trusted store
+    X509_V_FLAG_PARTIAL_CHAIN               = $80000;
+   {  If the initial chain is not trusted, do not attempt to build an alternative
+      chain. Alternate chain checking was introduced in 1.1.0. Setting this flag
+      will force the behaviour to match that of previous versions. }
+    X509_V_FLAG_NO_ALT_CHAINS               = $100000;
+    // Do not check certificate/CRL validity against current time  
+    X509_V_FLAG_NO_CHECK_TIME               = $200000;
 
     //Purposes
     X509_PURPOSE_SSL_CLIENT                             = 1;
@@ -1146,6 +1246,21 @@ const
 
     X509_PURPOSE_MIN                                    = 1;
     X509_PURPOSE_MAX                                    = 8;
+
+{ V8.39 flags for X509_check_host and X509_VERIFY_PARAM_set_hostflags }
+    // Always check subject name for host match even if subject alt names present
+    X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT            = $1;
+    // Disable wildcard matching for dnsName fields and common name.
+    X509_CHECK_FLAG_NO_WILDCARDS                    = $2;
+    // Wildcards must not match a partial label.
+    X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS            = $4;
+    // Allow (non-partial) wildcards to match multiple labels.
+    X509_CHECK_FLAG_MULTI_LABEL_WILDCARDS           = $8;
+    // Constraint verifier subdomain patterns to match a single labels.
+    X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS         = $10;
+    // Never check the subject CN
+    X509_CHECK_FLAG_NEVER_CHECK_SUBJECT             = $20;
+
 
 {$IFNDEF OPENSSL_NO_ENGINE}
 //const
@@ -1390,7 +1505,8 @@ const
 
 const
 //    f_SSLeay :                                 function: Longword; cdecl = nil; //AG   V8.36 renamed in 1.1.0
-//    f_SSLeay_version :                         function(t: Integer): PAnsiChar; cdecl = nil; //AG   V8.36 renamed in 1.1.0  
+//    f_SSLeay_version :                         function(t: Integer): PAnsiChar; cdecl = nil; //AG   V8.36 renamed in 1.1.0
+
 
     f_ASN1_INTEGER_get :                       function(Asn1_Int : PASN1_INTEGER): Integer; cdecl = nil;
     f_ASN1_INTEGER_set :                       function(a: PASN1_INTEGER; v: LongInt) : Integer; cdecl = nil;//AG
@@ -1588,6 +1704,9 @@ const
     f_X509_NAME_new :                          function: PX509_NAME; cdecl = nil;//AG
     f_X509_NAME_oneline :                      function(CertName: PX509_NAME; Buf: PAnsiChar; BufSize: Integer): PAnsiChar; cdecl = nil;
     f_X509_PKEY_free :                         procedure(PKey: PX509_PKEY); cdecl = nil;//AG;
+    f_X509_OBJECT_get_type :                   function (a: PX509_OBJECT): TX509_LOOKUP_TYPE; cdecl = nil; { V8.39 }
+    f_X509_OBJECT_get0_X509 :                  function (a: PX509_OBJECT): PX509; cdecl = nil; { V8.39 }
+    f_X509_OBJECT_get0_X509_CRL :              function (a: PX509_OBJECT): PX509_CRL; cdecl = nil; { V8.39 }
     f_X509_PUBKEY_free :                       procedure(Key: PEVP_PKEY); cdecl = nil; //AG;
     f_X509_PURPOSE_get0 :                      function(Idx: Integer): PX509_PURPOSE; cdecl = nil;//AG;
     f_X509_PURPOSE_get0_name :                 function(XP: PX509_PURPOSE): PAnsiChar; cdecl = nil;//AG;
@@ -1619,10 +1738,50 @@ const
     f_X509_STORE_add_crl :                     function(Store: PX509_STORE; CRL: PX509_CRL): Integer; cdecl = nil;//AG;
     f_X509_STORE_add_lookup :                  function(Store: PX509_STORE; Meth: PX509_LOOKUP_METHOD): PX509_LOOKUP; cdecl = nil;//AG;
     f_X509_STORE_free :                        procedure(Store: PX509_STORE); cdecl = nil;//AG;
+
+    f_X509_STORE_get0_objects :                function(Ctx: PX509_STORE): PSTACK_OF_X509_OBJECT; cdecl = nil;   { V8.39 }
+    f_X509_STORE_get0_param :                  function(Ctx: PX509_STORE): PX509_VERIFY_PARAM; cdecl = nil;   { V8.39 }
+    f_X509_STORE_set1_param :                  function(Ctx: PX509_STORE; pm: PX509_VERIFY_PARAM): Integer; cdecl = nil;   { V8.39 }
+
     f_X509_STORE_new :                         function: PX509_STORE; cdecl = nil;//AG;
     f_X509_STORE_set_flags :                   procedure(Store: PX509_STORE; Flags: Longword); cdecl = nil;//AG;
+    f_X509_VERIFY_PARAM_add0_policy :          function(param: PX509_VERIFY_PARAM; policy: PASN1_OBJECT): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_add0_table :           function(param: PX509_VERIFY_PARAM): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_add1_host :            function(param: PX509_VERIFY_PARAM; Pname: PAnsiChar; namelen: size_t): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_clear_flags :          function(param: PX509_VERIFY_PARAM; flags: Cardinal): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_free :                 procedure(param: PX509_VERIFY_PARAM); cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_get0 :                 function(id: Integer): PX509_VERIFY_PARAM; cdecl = nil;
+    f_X509_VERIFY_PARAM_get0_name :            function(param: PX509_VERIFY_PARAM): PAnsiChar; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_get0_peername :        function(param: PX509_VERIFY_PARAM): PAnsiChar; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_get_auth_level :       function(param: PX509_VERIFY_PARAM): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_get_count :            function: Integer; cdecl = nil;
+    f_X509_VERIFY_PARAM_get_depth :            function(param: PX509_VERIFY_PARAM): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_get_flags :            function(param: PX509_VERIFY_PARAM): Cardinal; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_inherit :              function(Pto: PX509_VERIFY_PARAM; Pfrom: PX509_VERIFY_PARAM): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_lookup :               function(Pname: PAnsiChar): PX509_VERIFY_PARAM; cdecl = nil;
+    f_X509_VERIFY_PARAM_move_peername :        procedure(param1: PX509_VERIFY_PARAM; param2: PX509_VERIFY_PARAM); cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_new :                  function: PX509_VERIFY_PARAM; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set1 :                 function(Pto: PX509_VERIFY_PARAM; Pfrom: PX509_VERIFY_PARAM): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set1_email :           function(param: PX509_VERIFY_PARAM; email: PAnsiChar; namelen: size_t): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set1_host :            function(param: PX509_VERIFY_PARAM; Pname: PAnsiChar; namelen: size_t): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set1_ip :              function(param: PX509_VERIFY_PARAM; ip: PAnsiChar; namelen: size_t): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set1_ip_asc :          function(param: PX509_VERIFY_PARAM; ipasc: PAnsiChar; namelen: size_t): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set1_name :            function(param: PX509_VERIFY_PARAM; Pname: PAnsiChar): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set1_policies :        function(param: PX509_VERIFY_PARAM; policies: PSTACK_OF_ASN1_OBJECT): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set_auth_level :       procedure(param: PX509_VERIFY_PARAM; auth_level: Integer); cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set_depth :            procedure(param: PX509_VERIFY_PARAM; depth: Integer); cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set_flags :            function(param: PX509_VERIFY_PARAM; flags: Cardinal): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set_hostflags :        procedure(param: PX509_VERIFY_PARAM; flags: Cardinal); cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set_purpose :          function(param: PX509_VERIFY_PARAM; purpose: Integer): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set_time :             procedure(param: PX509_VERIFY_PARAM; t: longword); cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_set_trust :            function(param: PX509_VERIFY_PARAM; trust: Integer): Integer; cdecl = nil;   { V8.39 }
+    f_X509_VERIFY_PARAM_table_cleanup :        procedure; cdecl = nil;   { V8.39 }
     f_X509_add_ext :                           function(Cert: PX509; Ex: PX509_EXTENSION; loc: Integer): Integer; cdecl = nil;
     f_X509_check_ca :                          function(X: PX509): Integer; cdecl = nil;//AG;
+    f_X509_check_email :                       function(Cert: PX509; Paddress: PAnsiChar; namelen: size_t;  flags: Cardinal): Integer; cdecl = nil;   { V8.39 }
+    f_X509_check_host :                        function(Cert: PX509; Pname: PAnsiChar; namelen: size_t;  flags: Cardinal; var peername: AnsiString): Integer; cdecl = nil;   { V8.39 }
+    f_X509_check_ip :                          function(Cert: PX509; Paddress: PAnsiChar; namelen: size_t;  flags: Cardinal): Integer; cdecl = nil;   { V8.39 }
+    f_X509_check_ip_asc :                      function(Cert: PX509; Paddress: PAnsiChar; namelen: size_t;  flags: Cardinal): Integer; cdecl = nil;   { V8.39 }
     f_X509_check_issued :                      function(Issuer: PX509; Subject: PX509): Integer; cdecl = nil;//AG;
     f_X509_check_private_key :                 function(Cert: PX509; PKey: PEVP_PKEY): Integer; cdecl = nil; //AG
     f_X509_check_purpose :                     function(Cert: PX509; ID: Integer; CA: Integer): Integer; cdecl = nil;//AG;
@@ -1770,7 +1929,7 @@ procedure IcsRandPoll;
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GLIBEAYImports1: array[0..285] of TOSSLImports = (
+    GLIBEAYImports1: array[0..326] of TOSSLImports = (
     (F: @@f_ASN1_INTEGER_get ;   N: 'ASN1_INTEGER_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_INTEGER_set ;   N: 'ASN1_INTEGER_set';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_STRING_free ;   N: 'ASN1_STRING_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -1954,6 +2113,9 @@ const
     (F: @@f_X509_NAME_get_text_by_NID;   N: 'X509_NAME_get_text_by_NID';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_NAME_new;   N: 'X509_NAME_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_NAME_oneline;   N: 'X509_NAME_oneline';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_OBJECT_get_type;       N: 'X509_OBJECT_get_type';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_OBJECT_get0_X509;      N: 'X509_OBJECT_get0_X509';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_OBJECT_get0_X509_CRL;  N: 'X509_OBJECT_get0_X509_CRL';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
     (F: @@f_X509_PKEY_free ;   N: 'X509_PKEY_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_PUBKEY_free ;   N: 'X509_PUBKEY_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_PUBKEY_free;   N: 'X509_PUBKEY_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -1979,19 +2141,57 @@ const
     (F: @@f_X509_STORE_CTX_init;   N: 'X509_STORE_CTX_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_STORE_CTX_new ;   N: 'X509_STORE_CTX_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_STORE_CTX_set_error ;   N: 'X509_STORE_CTX_set_error';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_STORE_CTX_set_ex_data ;   N: 'X509_STORE_CTX_set_ex_data';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_STORE_CTX_set_purpose ;   N: 'X509_STORE_CTX_set_purpose';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_STORE_CTX_set_verify_cb ;   N: 'X509_STORE_CTX_set_verify_cb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_STORE_CTX_trusted_stack ;   N: 'X509_STORE_CTX_trusted_stack';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_X509_STORE_add_cert;   N: 'X509_STORE_add_cert';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_STORE_add_crl ;   N: 'X509_STORE_add_crl';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_STORE_add_lookup;   N: 'X509_STORE_add_lookup';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_STORE_free;   N: 'X509_STORE_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_STORE_new ;   N: 'X509_STORE_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_STORE_set_flags ;   N: 'X509_STORE_set_flags';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_add_ext;   N: 'X509_add_ext';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_check_ca;   N: 'X509_check_ca';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_check_issued;   N: 'X509_check_issued';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_STORE_CTX_set_ex_data ;     N: 'X509_STORE_CTX_set_ex_data';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_STORE_CTX_set_purpose ;     N: 'X509_STORE_CTX_set_purpose';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_STORE_CTX_set_verify_cb ;   N: 'X509_STORE_CTX_set_verify_cb';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_STORE_CTX_trusted_stack ;   N: 'X509_STORE_CTX_trusted_stack';    MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_X509_STORE_add_cert;             N: 'X509_STORE_add_cert';             MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_STORE_add_crl ;             N: 'X509_STORE_add_crl';              MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_STORE_add_lookup ;          N: 'X509_STORE_add_lookup';           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_STORE_get0_objects ;        N: 'X509_STORE_get0_objects';         MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.39 }
+    (F: @@f_X509_STORE_get0_param ;          N: 'X509_STORE_get0_param';           MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.39 }
+    (F: @@f_X509_STORE_set1_param ;          N: 'X509_STORE_set1_param';           MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.39 }
+    (F: @@f_X509_STORE_free;                 N: 'X509_STORE_free';                 MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_STORE_new ;                 N: 'X509_STORE_new';                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_STORE_set_flags ;           N: 'X509_STORE_set_flags';            MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_VERIFY_PARAM_new ;          N: 'X509_VERIFY_PARAM_new';           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_free  ;        N: 'X509_VERIFY_PARAM_free';          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_inherit;       N: 'X509_VERIFY_PARAM_inherit';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set1;          N: 'X509_VERIFY_PARAM_set1';          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set1_name;     N: 'X509_VERIFY_PARAM_set1_name';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set_flags;     N: 'X509_VERIFY_PARAM_set_flags';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_clear_flags;   N: 'X509_VERIFY_PARAM_clear_flags';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_get_flags;     N: 'X509_VERIFY_PARAM_get_flags';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set_purpose;   N: 'X509_VERIFY_PARAM_set_purpose';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set_trust;     N: 'X509_VERIFY_PARAM_set_trust';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set_depth;     N: 'X509_VERIFY_PARAM_set_depth';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set_auth_level;N: 'X509_VERIFY_PARAM_set_auth_level'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set_time;      N: 'X509_VERIFY_PARAM_set_time';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_add0_policy;   N: 'X509_VERIFY_PARAM_add0_policy';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set1_policies; N: 'X509_VERIFY_PARAM_set1_policies'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set1_host;     N: 'X509_VERIFY_PARAM_set1_host';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_add1_host;     N: 'X509_VERIFY_PARAM_add1_host';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set_hostflags; N: 'X509_VERIFY_PARAM_set_hostflags'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_get0_peername; N: 'X509_VERIFY_PARAM_get0_peername'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_move_peername; N: 'X509_VERIFY_PARAM_move_peername'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set1_email;    N: 'X509_VERIFY_PARAM_set1_email';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set1_ip;       N: 'X509_VERIFY_PARAM_set1_ip';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_set1_ip_asc;   N: 'X509_VERIFY_PARAM_set1_ip_asc';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_get_depth;     N: 'X509_VERIFY_PARAM_get_depth';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_get_auth_level;N: 'X509_VERIFY_PARAM_get_auth_level'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_get0_name;     N: 'X509_VERIFY_PARAM_get0_name';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_add0_table;    N: 'X509_VERIFY_PARAM_add0_table';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_get_count;     N: 'X509_VERIFY_PARAM_get_count';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_get0;          N: 'X509_VERIFY_PARAM_get0';          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_lookup;        N: 'X509_VERIFY_PARAM_lookup';        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_VERIFY_PARAM_table_cleanup; N: 'X509_VERIFY_PARAM_table_cleanup'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.39 }
+    (F: @@f_X509_add_ext;        N: 'X509_add_ext';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_check_ca;       N: 'X509_check_ca';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_check_email;    N: 'X509_check_email';   MI: OSSL_VER_1002; MX: OSSL_VER_MAX),     { V8.39 }
+    (F: @@f_X509_check_host;     N: 'X509_check_host';    MI: OSSL_VER_1002; MX: OSSL_VER_MAX),     { V8.39 }
+    (F: @@f_X509_check_ip;       N: 'X509_check_ip';      MI: OSSL_VER_1002; MX: OSSL_VER_MAX),     { V8.39 }
+    (F: @@f_X509_check_ip_asc;   N: 'X509_check_ip_asc';  MI: OSSL_VER_1002; MX: OSSL_VER_MAX),     { V8.39 }
+    (F: @@f_X509_check_issued;   N: 'X509_check_issued';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_check_private_key ;   N: 'X509_check_private_key';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_check_purpose ;   N: 'X509_check_purpose';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_digest;   N: 'X509_digest';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2306,7 +2506,7 @@ end;
 function IcsX509VerifyErrorToStr(ErrCode: Integer): String;
 begin
 {$IFNDEF OPENSSL_USE_RESOURCE_STRINGS}
-    Result := String(AnsiString(f_X509_verify_cert_error_string(ErrCode)));
+   Result := String(AnsiString(f_X509_verify_cert_error_string(ErrCode)));
 {$ELSE}
     case ErrCode of
         X509_V_OK :
@@ -2397,8 +2597,11 @@ begin
             Result := sX509_V_ERR_INVALID_POLICY_EXTENSION;
         X509_V_ERR_NO_EXPLICIT_POLICY:
             Result := sX509_V_ERR_NO_EXPLICIT_POLICY;
+     { V8.39 lots more }
+     xx
         X509_V_ERR_UNNESTED_RESOURCE:
             Result := sX509_V_ERR_UNNESTED_RESOURCE;
+
     else
         Result := sX509_V_ERR_NUMBER + IntToStr(ErrCode);
     end;

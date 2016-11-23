@@ -74,6 +74,8 @@ Oct 18, 2016 V8.35 Angus, no longer need OverbyteIcsLibeayEx
 Nov 15, 2016 V8.38 Angus, only load digitally signed OpenSSL DLLs
                    Added Check Signed button that allows a single file to be
                      selected and it's digital certificate tested
+Nov 23, 2016 V8.39 Replaced TX509Ex with TX509Base
+                   View multiple PEM certificates in a bundle file
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -105,10 +107,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 838;
-     PemToolDate        = 'Nov 15, 2016';
+     PemToolVersion     = 839;
+     PemToolDate        = 'Nov 23, 2016';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2016 by François PIETTE V8.38 ';
+     CopyRight : String = '(c) 2003-2016 by François PIETTE V8.39 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -208,7 +210,7 @@ type
     FInitialized     : Boolean;
     FCurrentCertDir  : String;
     FLVSortFlag      : Boolean;
-    procedure AddListView(X: TX509Ex; const Filename: String);
+    procedure AddListView(X: TX509Base; const Filename: String);
     procedure FillListView;
     procedure ShowCert(const FileName: String);
   public
@@ -408,76 +410,90 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.ShowCert(const FileName: String);
 var
-    X : TX509Ex;
+    Certs: TX509List;      { V8.39 read multiple certificates from PEM file } 
+    Total, I: Integer;
+    Info: String;
 begin
     if (FileName = '') or not FileExists(FileName) then
         raise Exception.Create('FileName empty or file doesn''t exist');
-    X := TX509Ex.Create(nil);
+    Certs := TX509List.Create(nil, True);
     try
-        X.LoadFromPemFile(Filename);
+        Total := Certs.LoadFromFile(Filename);
         frmPemTool2 := TfrmPemTool2.Create(Self);
         try
-            frmPemTool2.Caption          := FileName;
+            frmPemTool2.Caption := FileName;
+            frmPemTool2.Memo1.Lines.Clear;
+            if Total <= 0 then begin
+                frmPemTool2.Memo1.Lines.Add ('No PEM certificates found in file');
+            end
+            else begin
+                frmPemTool2.Memo1.Lines.Add ('Number of PEM certificates found in file: ' + IntToStr (Total));
+
+                for I := 1 to Total do begin
+                    with Certs [I-1] do begin
+                        Info := #13#10 + 'Certificate #' + IntToStr(I) + #13#10;
          { Angus added major PEM entries separately, also serves to document how
            to access all the different properties of the T509 component.  Note multiple
            items may be returned, normally separated by CRLF, but unwrapped here for display.
            Rarely does a certificate have all these entries, particuarly the personal name
            stuff which is really for email certificates  }
-            frmPemTool2.Memo1.Lines.Clear;
-            frmPemTool2.Memo1.Lines.Add ('ISSUED TO (Subject)');
-            frmPemTool2.Memo1.Lines.Add ('Common Name (CN):' + X.UnwrapNames(X.SubjectCName));
-            frmPemTool2.Memo1.Lines.Add ('Alt Name (DNS):' + X.UnwrapNames(X.SubAltNameDNS));
-            frmPemTool2.Memo1.Lines.Add ('Alt Name (IP):' + X.UnwrapNames(X.SubAltNameIP));
-            frmPemTool2.Memo1.Lines.Add ('Organisation (O): ' + X.UnwrapNames(X.SubjectOName));
-            frmPemTool2.Memo1.Lines.Add ('Organisational Unit (OU): ' + X.UnwrapNames(X.SubjectOUName));
-            frmPemTool2.Memo1.Lines.Add ('Country (C): ' + X.SubjectCOName);
-            frmPemTool2.Memo1.Lines.Add ('State/Province(ST): ' + X.SubjectSTName);
-            frmPemTool2.Memo1.Lines.Add ('Locality (L): ' + X.SubjectLName);
-            frmPemTool2.Memo1.Lines.Add ('Serial Number: ' + X.SubjectSerialName);
-            frmPemTool2.Memo1.Lines.Add ('Title (T): ' + X.GetNameEntryByNid(TRUE, NID_title));
-            frmPemTool2.Memo1.Lines.Add ('Initials (I): ' + X.GetNameEntryByNid(TRUE, NID_initials));
-            frmPemTool2.Memo1.Lines.Add ('Given Name (G): ' + X.GetNameEntryByNid(TRUE, NID_givenName));
-            frmPemTool2.Memo1.Lines.Add ('Surname (S): ' + X.GetNameEntryByNid(TRUE, NID_surname));
-            frmPemTool2.Memo1.Lines.Add ('Description (D): ' + X.GetNameEntryByNid(TRUE, NID_description));
-            frmPemTool2.Memo1.Lines.Add ('Email (Email): ' + X.SubjectEmailName);
-            frmPemTool2.Memo1.Lines.Add ('');
-            if X.SelfSigned then
-                frmPemTool2.Memo1.Lines.Add ('SELF SIGNED')
-            else begin
-                frmPemTool2.Memo1.Lines.Add ('ISSUED BY');
-                frmPemTool2.Memo1.Lines.Add ('Common Name (CN):' + X.UnwrapNames(X.IssuerCName));
-                frmPemTool2.Memo1.Lines.Add ('Organisation (O): ' + X.UnwrapNames(X.IssuerOName));
-                frmPemTool2.Memo1.Lines.Add ('Organisational Unit (OU): ' + X.UnwrapNames(X.IssuerOUName));
-                frmPemTool2.Memo1.Lines.Add ('Country (C): ' + X.IssuerCOName);
-                frmPemTool2.Memo1.Lines.Add ('State/Province(ST): ' + X.IssuerSTName);
-                frmPemTool2.Memo1.Lines.Add ('Locality (L): ' + X.IssuerLName);
-                frmPemTool2.Memo1.Lines.Add ('Email (Email): ' + X.IssuerEmailName);
+                        Info := Info + 'ISSUED TO (Subject)' + #13#10 +
+                            'Common Name (CN):' + IcsUnwrapNames(SubjectCName) + #13#10 +
+                            'Alt Name (DNS):' + IcsUnwrapNames(SubAltNameDNS) + #13#10 +
+                            'Alt Name (IP):' + IcsUnwrapNames(SubAltNameIP) + #13#10 +
+                            'Organisation (O): ' + IcsUnwrapNames(SubjectOName) + #13#10 +
+                            'Organisational Unit (OU): ' + IcsUnwrapNames(SubjectOUName) + #13#10 +
+                            'Country (C): ' + SubjectCOName + #13#10 +
+                            'State/Province(ST): ' + SubjectSTName + #13#10 +
+                            'Locality (L): ' + SubjectLName + #13#10 +
+                            'Serial Number: ' + SubjectSerialName + #13#10 +
+                            'Title (T): ' + GetNameEntryByNid(TRUE, NID_title) + #13#10 +
+                            'Initials (I): ' + GetNameEntryByNid(TRUE, NID_initials) + #13#10 +
+                            'Given Name (G): ' + GetNameEntryByNid(TRUE, NID_givenName) + #13#10 +
+                            'Surname (S): ' + GetNameEntryByNid(TRUE, NID_surname) + #13#10 +
+                            'Description (D): ' + GetNameEntryByNid(TRUE, NID_description) + #13#10 +
+                            'Email (Email): ' + SubjectEmailName + #13#10 +
+                            '' + #13#10;
+                        if SelfSigned then
+                            Info := Info + 'SELF SIGNED' + #13#10
+                        else begin
+                            Info := Info + 'ISSUED BY' + #13#10 +
+                                'Common Name (CN):' + IcsUnwrapNames(IssuerCName) + #13#10 +
+                                'Organisation (O): ' + IcsUnwrapNames(IssuerOName) + #13#10 +
+                                'Organisational Unit (OU): ' + IcsUnwrapNames(IssuerOUName) + #13#10 +
+                                'Country (C): ' + IssuerCOName + #13#10 +
+                                'State/Province(ST): ' + IssuerSTName + #13#10 +
+                                'Locality (L): ' + IssuerLName + #13#10 +
+                                'Email (Email): ' + IssuerEmailName + #13#10;
+                        end;
+                        Info := Info + '' + #13#10 +
+                            'GENERAL' + #13#10 +
+                            'Serial Number: ' + SerialNumHex + #13#10 + // Oct 2015 not always very numeric IntToStr (SerialNum));
+                            'Issued on:' + DateToStr(ValidNotBefore) + #13#10 +
+                            'Expires on:' + DateToStr(ValidNotAfter) + #13#10 +
+                            'Key Usage: ' + IcsUnwrapNames(KeyUsage) + #13#10 +
+                            'Extended Key Usage: ' + IcsUnwrapNames(ExKeyUsage) + #13#10 +
+                            'Basic Constraints: ' + IcsUnwrapNames(BasicConstraints) + #13#10 +
+                            'Authority Info Access: ' + IcsUnwrapNames(AuthorityInfoAccess) + #13#10 +
+                            'Signature Algorithm: ' + SignatureAlgorithm + #13#10 +  // Oct 2015
+                            'Key Info: ' + KeyInfo + #13#10;                         // Oct 2015
+                        frmPemTool2.Memo1.Lines.Add (Info);
+                        frmPemTool2.Memo1.Lines.Text := frmPemTool2.Memo1.Lines.Text + 'Raw #' + IntToStr(I) + GetRawText;
+                    end;
+                end;
             end;
-            frmPemTool2.Memo1.Lines.Add ('');
-            frmPemTool2.Memo1.Lines.Add ('GENERAL');
-            frmPemTool2.Memo1.Lines.Add ('Serial Number: ' + X.SerialNumHex); // Oct 2015 not always very numeric IntToStr (X.SerialNum));
-            frmPemTool2.Memo1.Lines.Add ('Issued on:' + DateToStr(X.ValidNotBefore));
-            frmPemTool2.Memo1.Lines.Add ('Expires on:' + DateToStr(X.ValidNotAfter));
-            frmPemTool2.Memo1.Lines.Add ('Key Usage: ' + X.UnwrapNames(X.KeyUsage));
-            frmPemTool2.Memo1.Lines.Add ('Extended Key Usage: ' + X.UnwrapNames(X.ExKeyUsage));
-            frmPemTool2.Memo1.Lines.Add ('Basic Constraints: ' + X.UnwrapNames(X.BasicConstraints));
-            frmPemTool2.Memo1.Lines.Add ('Authority Info Access: ' + X.UnwrapNames(X.AuthorityInfoAccess));
-            frmPemTool2.Memo1.Lines.Add ('Signature Algorithm: ' + X.SignatureAlgorithm);  // Oct 2015
-            frmPemTool2.Memo1.Lines.Add ('Key Info: ' + X.KeyInfo);                        // Oct 2015
-            frmPemTool2.Memo1.Lines.Add ('');
-            frmPemTool2.Memo1.Lines.Text := frmPemTool2.Memo1.Lines.Text + 'Raw ' + X.GetRawText;
             frmPemTool2.ShowModal;
         finally
             frmPemTool2.free;
         end;
     finally
-        X.Free;
+        Certs.Free;
     end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TfrmPemTool1.AddListView(X: TX509Ex; const Filename: String);
+procedure TfrmPemTool1.AddListView(X: TX509Base; const Filename: String);
 var
     ListItem : TListItem;
     S        : String;
@@ -508,9 +524,9 @@ procedure TfrmPemTool1.FillListView;
 var
     SRec    : TSearchRec;
     CertDir : String;
-    X       : TX509Ex;
+    X       : TX509Base;
 begin
-    X := TX509Ex.Create(nil);
+    X := TX509Base.Create(nil);
     try
         LvCerts.Items.BeginUpdate;
         try
@@ -824,7 +840,7 @@ var
      hSystemStore    : HCERTSTORE;
      pCertContext    : PCCERT_CONTEXT;
      pwszSystemName  : LPCWSTR;
-     X               : TX509Ex;
+     X               : TX509Base;
      Subject_Hash    : Cardinal;
      BundleBio       : PBIO;          // added
      FileBio         : PBIO;          // Angus
@@ -907,7 +923,7 @@ begin
     { Enum all the certs in the store and store them in PEM format }
     pCertContext := CertEnumCertificatesInStore(hSystemStore, pCertContext);
     LoadSsl; // Need to load the libraries here since it may be required for the call of f_d2i_X509()
-    X := TX509Ex.Create(nil);
+    X := TX509Base.Create(nil);
     try
         while pCertContext <> nil do begin
             xTmp := f_d2i_X509(nil, @pCertContext.pbCertEncoded, pCertContext.cbCertEncoded);
@@ -928,18 +944,18 @@ begin
                 if CheckBoxComment.Checked then begin
                     Title := '# X509 SSL Certificate' + #13#10;
                     if X.SubjectCName <> '' then
-                        Title := Title + '# Subject Common Name: ' + AnsiString(X.UnwrapNames(X.SubjectCName))+ #13#10;
+                        Title := Title + '# Subject Common Name: ' + AnsiString(IcsUnwrapNames(X.SubjectCName))+ #13#10;
                     if X.SubAltNameDNS <> '' then
-                        Title := Title + '# Subject Alt Names: ' + AnsiString(X.UnwrapNames(X.SubAltNameDNS))+ #13#10;
-                    Title := Title + '# Subject Organisation: ' + AnsiString(X.UnwrapNames(X.SubjectOName)) + #13#10;
+                        Title := Title + '# Subject Alt Names: ' + AnsiString(IcsUnwrapNames(X.SubAltNameDNS))+ #13#10;
+                    Title := Title + '# Subject Organisation: ' + AnsiString(IcsUnwrapNames(X.SubjectOName)) + #13#10;
                     if X.SubjectOUName <> '' then
-                        Title := Title + '# Subject Organisation Unit: ' + AnsiString(X.UnwrapNames(X.SubjectOUName)) + #13#10;
+                        Title := Title + '# Subject Organisation Unit: ' + AnsiString(IcsUnwrapNames(X.SubjectOUName)) + #13#10;
                     if X.SelfSigned then
                         Title := Title + 'Issuer: Self Signed' + #13#10
                     else begin
                         Title := Title +
-                             '# Issuer Common Name: ' + AnsiString(X.UnwrapNames(X.IssuerCName)) + #13#10 +
-                             '# Issuer Organisation: ' + AnsiString(X.UnwrapNames(X.IssuerOName)) + #13#10;
+                             '# Issuer Common Name: ' + AnsiString(IcsUnwrapNames(X.IssuerCName)) + #13#10 +
+                             '# Issuer Organisation: ' + AnsiString(IcsUnwrapNames(X.IssuerOName)) + #13#10;
                     end;
                      Title := Title +'# Expires: ' + AnsiString(DateToStr (X.ValidNotAfter))+ #13#10;
                     f_BIO_write(FileBio, @Title [1], Length (Title));

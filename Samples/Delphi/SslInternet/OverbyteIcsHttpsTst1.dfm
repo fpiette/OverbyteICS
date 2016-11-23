@@ -559,6 +559,15 @@ object HttpsTstForm: THttpsTstForm
       TabOrder = 22
       OnClick = OldSslCheckBoxClick
     end
+    object StoreButton: TButton
+      Left = 542
+      Top = 199
+      Width = 79
+      Height = 21
+      Caption = '&List Cert Store'
+      TabOrder = 32
+      OnClick = StoreButtonClick
+    end
   end
   object SslHttpCli1: TSslHttpCli
     LocalAddr = '0.0.0.0'
@@ -614,6 +623,7 @@ object HttpsTstForm: THttpsTstForm
     SslVerifyPeer = False
     SslVerifyDepth = 9
     SslVerifyFlags = []
+    SslCheckHostFlags = []
     SslOptions = [sslOpt_MICROSOFT_SESS_ID_BUG, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG, sslOpt_MICROSOFT_BIG_SSLV3_BUFFER, sslOpt_SSLEAY_080_CLIENT_DH_BUG, sslOpt_TLS_D5_BUG, sslOpt_TLS_BLOCK_PADDING_BUG, sslOpt_TLS_ROLLBACK_BUG, sslOpt_NO_SSLv2, sslOpt_NO_SSLv3, sslOpt_NETSCAPE_CA_DN_BUG, sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = [sslSESS_CACHE_CLIENT, sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE]

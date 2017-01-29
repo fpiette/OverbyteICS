@@ -5,11 +5,11 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.39
+Version:      8.40
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2016 by François PIETTE
+Legal issues: Copyright (C) 2003-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -108,6 +108,9 @@ Nov 15, 2016  V8.38 Added public variable GSSL_SignTest_Check to check OpenSSL
               Moved IcsGetFileVerInfo to OverbyteIcsUtils
 Nov 22, 2016  V8.39 Added functions to check certificate params using X509_VERIFY_PARAM, X509_OBJECT
               Minimum OpenSSL supported is now 1.0.2 (1.0.1 support ceases Dec 2016)
+Jan 27, 2017  V8.40 Added more functions to get and check context certs
+              Added Protocol Message callback functions for handshake debugging
+              Added Security Level functions (1.1.0 and later)
 
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -176,8 +179,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 839;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2016 F. Piette V8.39 ';
+    IcsSSLEAYVersion   = 840;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2017 F. Piette V8.40 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -375,6 +378,47 @@ type
     end;
     PX509_VERIFY_PARAM = ^TX509_VERIFY_PARAM_st;
 
+    TBN_CTX_st = packed record                   { V8.40 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PBN_CTX = ^TBN_CTX_st;
+
+    TEC_GROUP_st = packed record                 { V8.40 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PEC_GROUP = ^TEC_GROUP_st;
+
+    TEC_METHOD_st = packed record                 { V8.40 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PEC_METHOD = ^TEC_METHOD_st;
+
+    TEC_POINT_st = packed record                  { V8.40 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PEC_POINT = ^TEC_POINT_st;
+
+    TEC_PKPARAMETERS_st = packed record           { V8.40 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PEC_PKPARAMETERS = ^TEC_PKPARAMETERS_st;
+
+    TEC_PARAMETERS_st = packed record             { V8.40 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PEC_PARAMETERS = ^TEC_PARAMETERS_st;
+
+    TEC_BUILTIN_CURVE_st = packed record          { V8.40 }
+        nid: Integer;
+        comment: PAnsiChar;
+    end;
+    PEC_BUILTIN_CURVE = ^TEC_BUILTIN_CURVE_st;
+    TEC_BUILTIN_CURVES = array of TEC_BUILTIN_CURVE_st;
+
+    TBN_MONT_CTX_st = packed record             { V8.40 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PBN_MONT_CTX = ^TBN_MONT_CTX_st;
     { Stack - dummies i.e. STACK_OF(X509) }
 
     PSTACK_OF_X509_EXTENSION    = PStack;     //AG
@@ -397,6 +441,7 @@ type
 
     PSTACK_OF_SSL_CIPHER        = PSTACK;                 { V8.27 }
     PPSTACK_OF_SSL_CIPHER       = ^PSTACK_OF_SSL_CIPHER;  { V8.27 }
+    PCRYPTO_EX_DATA             = PSTACK;                 { V8.40 }
 
     TX509_lookup_method_st = packed record
         Dummy : array [0..0] of Byte;
@@ -425,6 +470,16 @@ type
     end;
     PEVP_MD = ^TEVP_MD_st;
 
+    TEVP_MD_CTX_st = packed record      { V8.40 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PEVP_MD_CTX = ^TEVP_MD_CTX_st;
+
+    TEVP_PKEY_CTX_st = packed record    { V8.40 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PEVP_PKEY_CTX = ^TEVP_PKEY_CTX_st;
+
     BN_ULONG = Cardinal;               { V8.03 }
 
     TBIGNUM_st = packed record         { V8.03 }
@@ -447,6 +502,7 @@ type
         Dummy : array [0..0] of Byte;
     end;
     PDH = ^TDH_st;
+    PPDH = ^PDH;                        { V8.40 }
 
     TEC_KEY_st = packed record                 //AG
         Dummy : array [0..0] of Byte;
@@ -530,6 +586,32 @@ type
     end;
     PASN1_VALUE  = ^TASN1_VALUE_st;
     PPASN1_VALUE = ^PASN1_VALUE;
+
+    Tasn1_pctx_st = packed record      { V8.40 }
+        flags: DWORD;
+        nm_flags: DWORD;
+        cert_flags: DWORD;
+        oid_flags: DWORD;
+        str_flags: DWORD;
+    end;
+    PASN1_PCTX = ^Tasn1_pctx_st;       { V8.40 }
+
+const
+    GEN_OTHERNAME  = 0;          { V8.40 type of GENERAL_NAME }
+    GEN_EMAIL      = 1;
+    GEN_DNS        = 2;
+    GEN_X400       = 3;
+    GEN_DIRNAME    = 4;
+    GEN_EDIPARTY   = 5;
+    GEN_URI        = 6;
+    GEN_IPADD      = 7;
+    GEN_RID        = 8;
+
+type
+    TGENERAL_NAME_st  = packed record     { V8.40 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PGENERAL_NAME  = ^TGENERAL_NAME_st;
 
     // 0.9.7g, 0.9.8a 0.9.8e, 1.0.0d
     TEVP_CIPHER_INFO_st = record      { 03/02/07 AG }
@@ -722,7 +804,19 @@ type
         references  : Integer;
     end;
     PX509_REQ = ^TX509_REQ_st;
+    PPX509_REQ = ^PX509_REQ;            { V8.40 }
 
+    TECDSA_SIG_st = packed record       { V8.40 }
+        r  : PBIGNUM;
+        s  : PBIGNUM;
+    end;                    
+    ECDSA_SIG = TECDSA_SIG_st;
+    PECDSA_SIG = ^TECDSA_SIG_st;
+
+    TBN_GENCB = packed record            { V8.40 }
+        Dummy : array [0..0] of Byte;
+    end;
+    PBN_GENCB = ^TBN_GENCB;
 
     TPKCS7_ISSUER_AND_SERIAL_st = packed record     //AG
         Dummy : array [0..0] of Byte;
@@ -975,6 +1069,11 @@ type
     TCallback_ctrl_fp = procedure (p : Pointer); cdecl;
     TSsl_servername_cb = function (s: PSSL; var ad: Integer; arg: Pointer): Integer; cdecl;
 
+    TProto_msg_cb = function (write_p, version, content_type: integer;
+              buf: PAnsiChar; size_t: integer; ssl: PSSL; arg: Pointer): Integer; cdecl;   { V8.40 handshake protocol message callback }
+
+    TSecurity_level_cb = function  (s: PSSL; ctx: PSSL_CTX; op, bits, nid: integer; other, ex: Pointer): Integer; cdecl;  { V8.40 security level callback }
+
 const
     SSL2_VERSION                                = $0002;
     SSL2_VERSION_MAJOR                          = $00;
@@ -996,8 +1095,81 @@ const
     TLS1_2_VERSION_MAJOR                        = $03;    // V8.01
     TLS1_2_VERSION_MINOR                        = $03;    // V8.01
 
+    TLS1_3_VERSION                              = $0304;  // V8.40
+    TLS1_3_VERSION_MAJOR                        = $03;    // V8.40
+    TLS1_3_VERSION_MINOR                        = $04;    // V8.40
+
     TLS_MAX_VERSION                             = TLS1_2_VERSION;  // V8.27
-    TLS_ANY_VERSION                             = $10000;          // V8.27 
+    TLS_ANY_VERSION                             = $10000;          // V8.27
+
+{$IFNDEF NO_DEBUG_LOG}
+{ V8.40 literals for Protocol Message debugging }
+type
+    TLitLookups = record
+        S: String;
+        L: integer;
+    end ;
+
+const        
+    LitsSslVersions:  array[0..4] of TLitLookups = (
+        (S: 'SSL 3.0'; L: SSL3_VERSION),
+        (S: 'TLS 1.0'; L: TLS1_VERSION),
+        (S: 'TLS 1.1'; L: TLS1_1_VERSION),
+        (S: 'TLS 1.2'; L: TLS1_2_VERSION),
+        (S: 'TLS 1.3'; L: TLS1_3_VERSION) );
+
+
+    LitsAlertTypes:  array[0..28] of TLitLookups = (
+        (S: 'Close Notify'; L:  0),
+        (S: 'Unexpected Message'; L:  10),
+        (S: 'Bad Record Mac'; L:  20),
+        (S: 'Decryption Failed'; L:  21),
+        (S: 'Record Overflow'; L:  22),
+        (S: 'Decompression Failure'; L:  30),
+        (S: 'Handshake Failure'; L:  40),
+        (S: 'Bad Certificate'; L:  42),
+        (S: 'Unsupported Certificate'; L:  43),
+        (S: 'Certificate Revoked'; L:  44),
+        (S: 'Certificate Expired'; L:  45),
+        (S: 'Certificate Unknown'; L:  46),
+        (S: 'Illegal Parameter'; L:  47),
+        (S: 'Unknown CA'; L:  48),
+        (S: 'Access Denied'; L:  49),
+        (S: 'Decode Error'; L:  50),
+        (S: 'Decrypt Error'; L:  51),
+        (S: 'Export Restriction'; L:  60),
+        (S: 'Protocol Version'; L:  70),
+        (S: 'Insufficient Security'; L:  71),
+        (S: 'Internal Error'; L:  80),
+        (S: 'User Cancelled'; L:  90),
+        (S: 'No Renegotiation'; L:  100),
+        (S: 'Unsupported Extension'; L:  110),
+        (S: 'Certificate Unobtainable'; L:  111),
+        (S: 'Unrecognized Name'; L:  112),
+        (S: 'Bad Certificate Status Response'; L:  113),
+        (S: 'Bad Certificate Hash Value'; L:  114),
+        (S: 'Unknown PSK Identity'; L:  115) ) ;
+
+    LitsHandshake:  array[0..14] of TLitLookups = (
+        (S: 'Hello Request'; L:  0),
+        (S: 'Client Hello'; L:  1),
+        (S: 'Server Hello'; L:  2),
+        (S: 'Hello Verify Request'; L:  3),
+        (S: 'New Session Ticket'; L:  4),
+        (S: 'Certificate'; L:  11),
+        (S: 'Server Key Exchange'; L:  12),
+        (S: 'Certificate Request'; L:  13),
+        (S: 'Server Hello Done'; L:  14),
+        (S: 'Certificate Verify'; L:  15),
+        (S: 'Client Key Exchange'; L:  16),
+        (S: 'Finished'; L:  20),
+        (S: 'Certificate URL'; L:  21),
+        (S: 'Certificate Status'; L:  22),
+        (S: 'Supplemental Data'; L:  23) ) ;
+
+{$ENDIF}
+
+const
 
  {   DTLS1_2_VERSION is for UDP, sorry not supported yet }
 
@@ -1322,12 +1494,17 @@ const
     f_SSL_CIPHER_get_name :                    function(Cipher: Pointer): PAnsiChar; cdecl = nil;
     f_SSL_CTX_add_client_CA :                  function(C: PSSL_CTX; CaCert: PX509): Integer; cdecl = nil; //AG
     f_SSL_CTX_callback_ctrl:                   function(ctx: PSSL_CTX; cb_id: Integer; fp: TCallback_ctrl_fp): Longint; cdecl = nil;
+    f_SSL_CTX_check_private_key :              function(Ctx: PSSL_CTX): integer; cdecl = nil;     { V8.40 }
     f_SSL_CTX_ctrl :                           function(C: PSSL_CTX; Cmd: Integer; LArg: LongInt; PArg: PAnsiChar): LongInt; cdecl = nil;
     f_SSL_CTX_free :                           procedure(C: PSSL_CTX); cdecl = nil;
+    f_SSL_CTX_get0_certificate :               function(Ctx: PSSL_CTX): PX509; cdecl = nil;       { V8.40 }
     f_SSL_CTX_get0_param :                     function(Ctx: PSSL_CTX): PX509_VERIFY_PARAM; cdecl = nil;                { V8.39 1.0.2 }
+    f_SSL_CTX_get0_privatekey :                function(Ctx: PSSL_CTX): PEVP_PKEY; cdecl = nil;   { V8.40 }
+    f_SSL_CTX_get0_security_ex_data :          function(Ctx: PSSL_CTX): Pointer; cdecl = nil;            { V8.40 }
     f_SSL_CTX_get_cert_store :                 function(const Ctx: PSSL_CTX): PX509_STORE; cdecl = nil; //AG
     f_SSL_CTX_get_client_cert_cb:              function(CTX: PSSL_CTX): TClient_cert_cb; cdecl = nil; //AG
     f_SSL_CTX_get_ex_data :                    function(const C: PSSL_CTX; Idx: Integer): PAnsiChar; cdecl = nil;
+    f_SSL_CTX_get_security_level :             function(Ctx: PSSL_CTX): Integer; cdecl = nil;             { V8.40 }
     f_SSL_CTX_get_verify_depth :               function(const ctx: PSSL_CTX): Integer; cdecl = nil; //AG
     f_SSL_CTX_get_verify_mode :                function(const C: PSSL_CTX): Integer; cdecl = nil; //AG
     f_SSL_CTX_load_verify_locations :          function(C: PSSL_CTX; const FileName: PAnsiChar; const SearchPath: PAnsiChar): Integer; cdecl = nil;
@@ -1338,6 +1515,7 @@ const
     f_SSL_CTX_sess_set_get_cb:                 procedure(Ctx: PSSL_CTX; CB: TGet_session_cb); cdecl = nil; //AG
     f_SSL_CTX_sess_set_new_cb:                 procedure(Ctx: PSSL_CTX; CB: TNew_session_cb); cdecl = nil; //AG
     f_SSL_CTX_sess_set_remove_cb:              procedure(Ctx: PSSL_CTX; CB: TRemove_session_cb); cdecl = nil; //AG
+    f_SSL_CTX_set0_security_ex_data :          procedure(Ctx: PSSL_CTX;  ex: Pointer);  cdecl = nil;      { V8.40 }
     f_SSL_CTX_set1_param :                     function(Ctx: PSSL_CTX; vpm: PX509_VERIFY_PARAM): integer; cdecl = nil;  { V8.39 1.0.2 }
     f_SSL_CTX_set_cipher_list :                function(C: PSSL_CTX; CipherString: PAnsiChar): Integer; cdecl = nil;
     f_SSL_CTX_set_client_CA_list :             procedure(C: PSSL_CTX; List: PSTACK_OF_X509_NAME); cdecl = nil; //AG
@@ -1347,6 +1525,9 @@ const
     f_SSL_CTX_set_default_verify_paths :       function(C: PSSL_CTX): Integer; cdecl = nil;
     f_SSL_CTX_set_ex_data :                    function(C: PSSL_CTX; Idx: Integer; Arg: PAnsiChar): Integer; cdecl = nil;
     f_SSL_CTX_set_info_callback:               procedure(ctx: PSSL_CTX; cb : TSetInfo_cb); cdecl = nil;
+    f_SSL_CTX_set_msg_callback :               procedure(Ctx: PSSL_CTX; cb: TProto_msg_cb); cdecl = nil;  { V8.40 }
+    f_SSL_CTX_set_security_callback :          procedure(Ctx: PSSL_CTX; cb: TSecurity_level_cb); cdecl = nil;   { V8.40 }
+    f_SSL_CTX_set_security_level :             procedure(Ctx: PSSL_CTX; level: Integer); cdecl = nil;     { V8.40 }
     f_SSL_CTX_set_session_id_context :         function(Ctx: PSSL_CTX; const Sid_ctx: PAnsiChar; sid_ctx_len: Integer): Integer; cdecl = nil;
     f_SSL_CTX_set_timeout :                    function(Ctx: PSSL_CTX; Timeout: Longword): Longword; cdecl = nil;
     f_SSL_CTX_set_trust :                      function(C: PSSL_CTX; Trust: Integer): Integer; cdecl = nil; //AG
@@ -1373,6 +1554,7 @@ const
     f_SSL_do_handshake :                       function(S: PSSL): Integer; cdecl = nil; //AG
     f_SSL_free :                               procedure(S: PSSL); cdecl = nil;
     f_SSL_get0_param :                         function(S: PSSL): PX509_VERIFY_PARAM; cdecl = nil;                      { V8.39 1.0.2 }
+    f_SSL_get0_security_ex_data :              function(S: PSSL): Pointer; cdecl = nil;                  { V8.40 }
     f_SSL_get1_session :                       function(S: PSSL): PSSL_SESSION; cdecl = nil;
     f_SSL_get1_supported_ciphers :             function(S: PSSL): PSTACK_OF_SSL_CIPHER; cdecl = nil;   { V8.27 }
     f_SSL_get_SSL_CTX:                         function(const S: PSSL): PSSL_CTX; cdecl = nil;
@@ -1393,6 +1575,7 @@ const
     f_SSL_get_servername_type:                 function(const S: PSSL): Integer; cdecl = nil;
     f_SSL_get_session :                        function(S: PSSL): PSSL_SESSION; cdecl = nil;
     f_SSL_get_shutdown :                       function(S: PSSL): Integer; cdecl = nil;
+    f_SSL_get_security_level :                 function(S: PSSL): Integer; cdecl = nil;                   { V8.40 }
     f_SSL_get_state :                          function(S: PSSL): TSslHandshakeState; cdecl = nil;   { V8.27 }
     f_SSL_get_verify_depth :                   function(const S: PSSL): Integer; cdecl = nil;
     f_SSL_get_verify_result :                  function(S: PSSL): LongInt; cdecl = nil;
@@ -1407,6 +1590,7 @@ const
     f_SSL_renegotiate :                        function(S: PSSL): Integer; cdecl = nil; //AG
     f_SSL_renegotiate_pending :                function(S: PSSL): Integer; cdecl = nil; //AG
     f_SSL_session_free :                       procedure(Session: PSSL_SESSION); cdecl = nil;
+    f_SSL_set0_security_ex_data :              procedure(S: PSSL;  ex: Pointer);  cdecl = nil;            { V8.40 }
     f_SSL_set1_param :                         function(S: PSSL; vpm: PX509_VERIFY_PARAM): integer; cdecl = nil;        { V8.39 1.0.2 }
     f_SSL_set_SSL_CTX:                         function(S: PSSL; ctx: PSSL_CTX): PSSL_CTX; cdecl = nil;
     f_SSL_set_accept_state :                   procedure(S: PSSL); cdecl = nil; //AG
@@ -1416,7 +1600,10 @@ const
     f_SSL_set_ex_data :                        function(S: PSSL; Idx: Integer; Arg: Pointer): Integer; cdecl = nil;
     f_SSL_set_fd:                              function(S: PSSL; fd: Integer): Integer; cdecl = nil; // B.S.
     f_SSL_set_info_callback :                  procedure(S: PSSL; cb : TSetInfo_cb); cdecl = nil;
+    f_SSL_set_msg_callback :                   procedure(S: PSSL; cb: TProto_msg_cb); cdecl = nil;        { V8.40 }
     f_SSL_set_rfd:                             function(S: PSSL; fd: Integer): Integer; cdecl = nil; // B.S.
+    f_SSL_set_security_level :                 procedure(S: PSSL; level: Integer); cdecl = nil;           { V8.40 }
+    f_SSL_set_security_callback :              procedure(S: PSSL; cb: TSecurity_level_cb); cdecl = nil;   { V8.40 }
     f_SSL_set_session :                        function(S: PSSL; Session: PSSL_SESSION): Integer; cdecl = nil;
     f_SSL_set_session_id_context :             function(S: PSSL; const Sid_ctx: PAnsiChar; sid_ctx_len: Integer): Integer; cdecl = nil;
     f_SSL_set_shutdown :                       procedure(S: PSSL; Mode: Integer); cdecl = nil;
@@ -1425,6 +1612,7 @@ const
     f_SSL_set_wfd:                             function(S: PSSL; fd: Integer): Integer; cdecl = nil; // B.S.
     f_SSL_shutdown :                           function(S: PSSL): Integer; cdecl = nil;
     f_SSL_state :                              function(S: PSSL): Integer; cdecl = nil;   { V8.27 gone 1.1.0 }
+    f_SSL_state_string :                       function(S: PSSL): PAnsiChar; cdecl = nil;    { V8.40 }
     f_SSL_state_string_long :                  function(S: PSSL): PAnsiChar; cdecl = nil;
     f_SSL_version :                            function(const S: PSSL): Integer; cdecl = nil; //AG
     f_SSL_want :                               function(S: PSSL): Integer; cdecl = nil;
@@ -1449,6 +1637,7 @@ const
     f_TLSv1_server_method :                    function: PSSL_METHOD; cdecl = nil;
     f_d2i_SSL_SESSION :                        function(Session: PPSSL_SESSION; const pp: PPAnsiChar; Length: Longword): PSSL_SESSION; cdecl = nil;
     f_i2d_SSL_SESSION :                        function(InSession: PSSL_SESSION; pp: PPAnsiChar): Integer; cdecl = nil;
+
 
 {$IFNDEF OPENSSL_NO_ENGINE}
     f_SSL_CTX_set_client_cert_engine :         function(Ctx: PSSL_CTX; e: PENGINE): Integer; cdecl = nil; //AG
@@ -1500,9 +1689,32 @@ function f_SSL_set_tlsext_debug_arg(S: PSSL; arg: Pointer): Longint; {$IFDEF USE
 function IcsSslGetState(S: PSSL): TSslHandshakeState;    { V8.27 }
 function IcsSslStub: integer;                            { V8.35 }
 
+procedure  f_SSL_CTX_set_msg_callback_arg(Ctx: PSSL_CTX; arg: Pointer);  {$IFDEF USE_INLINE} inline; {$ENDIF}  { V8.40 }
+procedure  f_SSL_set_msg_callback_arg(S: PSSL; arg: Pointer); {$IFDEF USE_INLINE} inline; {$ENDIF}             { V8.40 }
+
+
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GSSLEAYImports1: array[0..132] of TOSSLImports = (
+    GSSLEAYImports1: array[0..148] of TOSSLImports = (
+
+    (F: @@f_SSL_CTX_get0_certificate;               N: 'SSL_CTX_get0_certificate';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_SSL_CTX_get0_privatekey;                N: 'SSL_CTX_get0_privatekey';                    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_SSL_CTX_check_private_key;              N: 'SSL_CTX_check_private_key';                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+
+    (F: @@f_SSL_CTX_set_msg_callback;               N: 'SSL_CTX_set_msg_callback';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_SSL_set_msg_callback;                   N: 'SSL_set_msg_callback';                       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+
+    (F: @@f_SSL_CTX_get_security_level;             N: 'SSL_CTX_get_security_level';                 MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_SSL_CTX_set_security_level;             N: 'SSL_CTX_set_security_level';                 MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_SSL_get_security_level;                 N: 'SSL_get_security_level';                     MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_SSL_set_security_level;                 N: 'SSL_set_security_level';                     MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_SSL_CTX_set_security_callback;          N: 'SSL_CTX_set_security_callback';              MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_SSL_set_security_callback;              N: 'SSL_set_security_callback';                  MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_SSL_CTX_set0_security_ex_data;          N: 'SSL_CTX_set0_security_ex_data';              MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_SSL_CTX_get0_security_ex_data;          N: 'SSL_CTX_get0_security_ex_data';              MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_SSL_get0_security_ex_data;              N: 'SSL_get0_security_ex_data';                  MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_SSL_set0_security_ex_data;              N: 'SSL_set0_security_ex_data';                  MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+
     (F: @@f_BIO_f_ssl;                              N: 'BIO_f_ssl';                                 MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CIPHER_description;                 N: 'SSL_CIPHER_description';                    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CIPHER_get_bits;                    N: 'SSL_CIPHER_get_bits';                       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -1612,6 +1824,7 @@ const
     (F: @@f_SSL_set_wfd;                            N: 'SSL_set_wfd';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_shutdown;                           N: 'SSL_shutdown';                              MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_state;                              N: 'SSL_state';                                 MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_SSL_state_string;                       N: 'SSL_state_string';                          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.40 }
     (F: @@f_SSL_state_string_long;                  N: 'SSL_state_string_long';                     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_version;                            N: 'SSL_version';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_want;                               N: 'SSL_want';                                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2052,6 +2265,21 @@ function IcsSslStub: integer;                            { V8.35 }
 begin
     result := 0;
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure  f_SSL_CTX_set_msg_callback_arg(Ctx: PSSL_CTX; arg: Pointer);    { V8.40 }
+begin
+    f_SSL_CTX_ctrl(Ctx, SSL_CTRL_SET_MSG_CALLBACK_ARG, 0, arg);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure  f_SSL_set_msg_callback_arg(S: PSSL; arg: Pointer);           { V8.40 }
+begin
+    f_SSL_ctrl(S, SSL_CTRL_SET_MSG_CALLBACK_ARG, 0, arg);
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$ENDIF}//USE_SSL

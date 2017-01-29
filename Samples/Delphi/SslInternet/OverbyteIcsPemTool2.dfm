@@ -24,13 +24,9 @@ object frmPemTool2: TfrmPemTool2
     Height = 712
     Align = alClient
     Color = clBtnFace
-    Lines.Strings = (
-      'Memo1')
     ReadOnly = True
     ScrollBars = ssBoth
     TabOrder = 0
     OnDblClick = Memo1DblClick
-    ExplicitWidth = 497
-    ExplicitHeight = 300
   end
 end

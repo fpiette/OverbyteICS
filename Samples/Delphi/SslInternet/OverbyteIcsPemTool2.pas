@@ -39,6 +39,7 @@ procedure TfrmPemTool2.FormShow(Sender: TObject);
 var
     IniFile : TIcsIniFile;
 begin
+    frmPemTool1.LogWinOpen := true;
     if not FInitialized then begin
         FInitialized := TRUE;
         IniFile := TIcsIniFile.Create(frmPemTool1.FIniFileName);
@@ -62,6 +63,7 @@ procedure TfrmPemTool2.FormClose(Sender: TObject; var Action: TCloseAction);
     var
     IniFile : TIcsIniFile;
 begin
+    frmPemTool1.LogWinOpen := false;
     IniFile := TIcsIniFile.Create(frmPemTool1.FIniFileName);
     IniFile.WriteInteger(SectionDisplayWindow, KeyTop,         Top);
     IniFile.WriteInteger(SectionDisplayWindow, KeyLeft,        Left);

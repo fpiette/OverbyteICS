@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.40
+Version:      8.41
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -111,6 +111,8 @@ Nov 22, 2016  V8.39 Added functions to check certificate params using X509_VERIF
 Jan 27, 2017  V8.40 Added more functions to get and check context certs
               Added Protocol Message callback functions for handshake debugging
               Added Security Level functions (1.1.0 and later)
+Feb 24, 2017  V8.41 Added more constants
+
 
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -179,8 +181,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 840;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2017 F. Piette V8.40 ';
+    IcsSSLEAYVersion   = 841;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2017 F. Piette V8.41 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -266,6 +268,7 @@ const
     OSSL_VER_1100A = $1010001F; // 1.1.0a                { V8.35 }
     OSSL_VER_1100B = $1010002F; // 1.1.0b                { V8.35 }
     OSSL_VER_1100C = $1010003F; // 1.1.0c                { V8.38 }
+    OSSL_VER_1100D = $1010004F; // 1.1.0d                { V8.41 }
     OSSL_VER_1100ZZ= $10100FFF; // not yet released      { V8.35 }
     OSSL_VER_1101  = $10101000; // 1.1.1 next feature release  { V8.34 }
     OSSL_VER_1199  = $10101FFF; // not yet released      { V8.34 }
@@ -277,7 +280,37 @@ const
     { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
 
     MIN_OSSL_VER   = OSSL_VER_1002;   { V8.39 minimum is now 1.0.2 }
-    MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.35 }
+    MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.35 1.1.0zz }
+
+    { V8.41 PEM base64 file titles }
+    PEM_STRING_HDR_BEGIN   = '-----BEGIN ';    { six hyphens }
+    PEM_STRING_HDR_END     = '-----END ';
+    PEM_STRING_HDR_TAIL    = '-----'+#13#10;
+    PEM_STRING_X509_OLD    = 'X509 CERTIFICATE' ;
+    PEM_STRING_X509        = 'CERTIFICATE' ;
+    PEM_STRING_X509_TRUSTED= 'TRUSTED CERTIFICATE' ;
+    PEM_STRING_X509_REQ_OLD= 'NEW CERTIFICATE REQUEST' ;
+    PEM_STRING_X509_REQ    = 'CERTIFICATE REQUEST' ;
+    PEM_STRING_X509_CRL    = 'X509 CRL' ;
+    PEM_STRING_EVP_PKEY    = 'ANY PRIVATE KEY' ;
+    PEM_STRING_PUBLIC      = 'PUBLIC KEY' ;
+    PEM_STRING_RSA         = 'RSA PRIVATE KEY' ;
+    PEM_STRING_RSA_PUBLIC  = 'RSA PUBLIC KEY' ;
+    PEM_STRING_DSA         = 'DSA PRIVATE KEY' ;
+    PEM_STRING_DSA_PUBLIC  = 'DSA PUBLIC KEY' ;
+    PEM_STRING_PKCS7       = 'PKCS7' ;
+    PEM_STRING_PKCS7_SIGNED= 'PKCS #7 SIGNED DATA' ;
+    PEM_STRING_PKCS8       = 'ENCRYPTED PRIVATE KEY' ;
+    PEM_STRING_PKCS8INF    = 'PRIVATE KEY' ;
+    PEM_STRING_DHPARAMS    = 'DH PARAMETERS' ;
+    PEM_STRING_DHXPARAMS   = 'X9.42 DH PARAMETERS' ;
+    PEM_STRING_SSL_SESSION = 'SSL SESSION PARAMETERS' ;
+    PEM_STRING_DSAPARAMS   = 'DSA PARAMETERS' ;
+    PEM_STRING_ECDSA_PUBLIC= 'ECDSA PUBLIC KEY' ;
+    PEM_STRING_ECPARAMETERS= 'EC PARAMETERS' ;
+    PEM_STRING_ECPRIVATEKEY= 'EC PRIVATE KEY' ;
+    PEM_STRING_PARAMETERS  = 'PARAMETERS' ;
+    PEM_STRING_CMS         = 'CMS' ;
 
 type
 
@@ -422,6 +455,7 @@ type
     { Stack - dummies i.e. STACK_OF(X509) }
 
     PSTACK_OF_X509_EXTENSION    = PStack;     //AG
+    PPSTACK_OF_X509_EXTENSION   = ^PSTACK_OF_X509_EXTENSION; { V8.41 }
     PSTACK_OF_X509_ALGOR        = PStack;     //AG
 
     PSTACK_OF_X509              = PSTACK;     //AG

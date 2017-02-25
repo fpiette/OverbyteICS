@@ -33,10 +33,8 @@ object frmPemTool1: TfrmPemTool1
     Align = alClient
     TabOrder = 0
     OnChange = PageControl1Change
-    ExplicitHeight = 767
     object TabCertLv: TTabSheet
       Caption = 'List Certificates'
-      ExplicitHeight = 738
       object LvCerts: TListView
         Left = 0
         Top = 0
@@ -62,7 +60,7 @@ object frmPemTool1: TfrmPemTool1
           end
           item
             Caption = 'File Name'
-            Width = 300
+            Width = 150
           end>
         ReadOnly = True
         RowSelect = True
@@ -75,7 +73,6 @@ object frmPemTool1: TfrmPemTool1
         OnCompare = LvCertsCompare
         OnCustomDraw = LvCertsCustomDraw
         OnDblClick = LvCertsDblClick
-        ExplicitHeight = 671
       end
       object Panel1: TPanel
         Left = 0
@@ -85,7 +82,6 @@ object frmPemTool1: TfrmPemTool1
         Align = alBottom
         Alignment = taLeftJustify
         TabOrder = 1
-        ExplicitTop = 671
         object Label4: TLabel
           Left = 4
           Top = 35
@@ -188,7 +184,6 @@ object frmPemTool1: TfrmPemTool1
     object TabImport: TTabSheet
       Caption = 'Import Certificates'
       ImageIndex = 1
-      ExplicitHeight = 738
       DesignSize = (
         872
         730)
@@ -295,7 +290,9 @@ object frmPemTool1: TfrmPemTool1
         Items.Strings = (
           'Certificate Authorities'
           'Root Certificate Authorities'
-          'My Own Certificates')
+          'My Own Certificates'
+          'Trusted Certificates'
+          'Email Certificates')
       end
       object DestDirEdit: TEdit
         Left = 106
@@ -408,7 +405,6 @@ object frmPemTool1: TfrmPemTool1
     object TabViewCerts: TTabSheet
       Caption = 'Create Certificates'
       ImageIndex = 2
-      ExplicitHeight = 738
       object BoxLoadCert: TGroupBox
         Left = 3
         Top = 3
@@ -707,7 +703,7 @@ object frmPemTool1: TfrmPemTool1
           Left = 10
           Top = 50
           Width = 296
-          Height = 119
+          Height = 136
           AutoSize = False
           Caption = 'Certificate: None'
           Color = clYellow
@@ -716,9 +712,9 @@ object frmPemTool1: TfrmPemTool1
           WordWrap = True
         end
         object LabelStateReq: TLabel
-          Left = 580
-          Top = 47
-          Width = 277
+          Left = 595
+          Top = 143
+          Width = 257
           Height = 101
           AutoSize = False
           Caption = 'Certificate Request: None'
@@ -728,9 +724,9 @@ object frmPemTool1: TfrmPemTool1
           WordWrap = True
         end
         object LabelStatePrivKey: TLabel
-          Left = 322
+          Left = 315
           Top = 50
-          Width = 236
+          Width = 273
           Height = 41
           AutoSize = False
           Caption = 'Private Key: None'
@@ -741,9 +737,9 @@ object frmPemTool1: TfrmPemTool1
         end
         object LabelStateCACert: TLabel
           Left = 10
-          Top = 176
+          Top = 200
           Width = 296
-          Height = 100
+          Height = 76
           AutoSize = False
           Caption = 'CA Certificate: None'
           Color = clYellow
@@ -752,16 +748,17 @@ object frmPemTool1: TfrmPemTool1
           WordWrap = True
         end
         object Label24: TLabel
-          Left = 325
-          Top = 255
-          Width = 86
-          Height = 14
+          Left = 315
+          Top = 250
+          Width = 57
+          Height = 29
           Caption = 'CA Files Directory'
+          WordWrap = True
         end
         object LabelInters: TLabel
-          Left = 322
+          Left = 315
           Top = 97
-          Width = 239
+          Width = 273
           Height = 147
           AutoSize = False
           Caption = 'Intermediate Certificates: None'
@@ -816,19 +813,19 @@ object frmPemTool1: TfrmPemTool1
           OnClick = doCreateCACertClick
         end
         object CAFilesDir: TEdit
-          Left = 428
-          Top = 250
+          Left = 378
+          Top = 255
           Width = 423
           Height = 22
-          TabOrder = 5
+          TabOrder = 6
           OnClick = CAFilesDirClick
         end
         object SelCertsDB: TBitBtn
-          Left = 805
-          Top = 210
+          Left = 820
+          Top = 250
           Width = 31
           Height = 25
-          TabOrder = 6
+          TabOrder = 7
           OnClick = SelCertsDBClick
           Glyph.Data = {
             76010000424D7601000000000000760000002800000020000000100000000100
@@ -844,6 +841,33 @@ object frmPemTool1: TfrmPemTool1
             333377777F77377733330BBB0333333333337F337F33333333330BB003333333
             333373F773333333333330033333333333333773333333333333}
           NumGlyphs = 2
+        end
+        object doCreateBundle: TButton
+          Left = 594
+          Top = 51
+          Width = 127
+          Height = 21
+          Caption = 'Create Cert Bundle'
+          TabOrder = 5
+          OnClick = doCreateBundleClick
+        end
+        object doCheckBundleWin: TButton
+          Left = 594
+          Top = 78
+          Width = 127
+          Height = 21
+          Caption = 'Check Cert Bundle (Win)'
+          TabOrder = 8
+          OnClick = doCheckBundleWinClick
+        end
+        object doCheckBundleSelf: TButton
+          Left = 594
+          Top = 105
+          Width = 127
+          Height = 21
+          Caption = 'Check Cert Bundle (Self)'
+          TabOrder = 9
+          OnClick = doCheckBundleSelfClick
         end
       end
       object BoxCertSave: TGroupBox
@@ -918,6 +942,13 @@ object frmPemTool1: TfrmPemTool1
           Height = 14
           Caption = 'Password'
         end
+        object Label32: TLabel
+          Left = 611
+          Top = 138
+          Width = 224
+          Height = 14
+          Caption = '(Must also set Key File Encryption on next tab)'
+        end
         object SaveDirectory: TEdit
           Left = 55
           Top = 20
@@ -949,17 +980,17 @@ object frmPemTool1: TfrmPemTool1
         end
         object doSaveCertPem: TButton
           Left = 5
-          Top = 140
+          Top = 165
           Width = 97
           Height = 21
           Caption = 'Save Pem Cert'
-          TabOrder = 12
+          TabOrder = 14
           OnClick = doSaveCertPemClick
         end
         object SaveCertPem: TEdit
           Left = 78
           Top = 50
-          Width = 163
+          Width = 200
           Height = 22
           TabOrder = 2
           Text = 'newpemcert.pem'
@@ -981,21 +1012,21 @@ object frmPemTool1: TfrmPemTool1
           Text = 'newrequest.pem'
         end
         object doSaveCertDer: TButton
-          Left = 110
-          Top = 140
+          Left = 108
+          Top = 165
           Width = 96
           Height = 21
           Caption = 'Save DER Cert'
-          TabOrder = 13
+          TabOrder = 15
           OnClick = doSaveCertDerClick
         end
         object doSaveReqCert: TButton
           Left = 692
-          Top = 140
+          Top = 165
           Width = 109
           Height = 21
           Caption = 'Save Cert Request '
-          TabOrder = 18
+          TabOrder = 20
           OnClick = doSaveReqCertClick
         end
         object SavePkcs7File: TEdit
@@ -1055,64 +1086,63 @@ object frmPemTool1: TfrmPemTool1
         end
         object SaveAutoReplace: TCheckBox
           Left = 5
-          Top = 175
+          Top = 140
           Width = 210
           Height = 17
           Caption = 'Automatically Replace Existing File'
-          TabOrder = 19
+          TabOrder = 12
         end
         object doSavePkcs12: TButton
           Left = 212
-          Top = 140
+          Top = 165
           Width = 109
           Height = 21
           Caption = 'Save PKCS12 Cert'
-          TabOrder = 14
+          TabOrder = 16
           OnClick = doSavePkcs12Click
         end
         object doSavePkcs7Cert: TButton
           Left = 330
-          Top = 140
+          Top = 165
           Width = 109
           Height = 21
           Caption = 'Save PKCS7 Cert '
-          TabOrder = 15
+          TabOrder = 17
           OnClick = doSavePkcs7CertClick
         end
         object doSavePrivKey: TButton
           Left = 452
-          Top = 140
+          Top = 165
           Width = 109
           Height = 21
           Caption = 'Save Private Key'
-          TabOrder = 16
+          TabOrder = 18
           OnClick = doSavePrivKeyClick
         end
         object doSavePubKey: TButton
           Left = 572
-          Top = 140
+          Top = 165
           Width = 109
           Height = 21
           Caption = 'Save Public Key'
-          TabOrder = 17
+          TabOrder = 19
           OnClick = doSavePubKeyClick
         end
         object CertAddComment: TCheckBox
-          Left = 238
-          Top = 175
+          Left = 221
+          Top = 140
           Width = 173
           Height = 17
           Caption = 'Add Comments to PEM File:'
           Checked = True
           State = cbChecked
-          TabOrder = 20
+          TabOrder = 13
         end
       end
     end
     object TabNew: TTabSheet
       Caption = 'New Certificate Properties'
       ImageIndex = 3
-      ExplicitHeight = 738
       object GroupBoxCertCreate: TGroupBox
         Left = 3
         Top = 337
@@ -1174,8 +1204,8 @@ object frmPemTool1: TfrmPemTool1
           Caption = 'E-Mail address:'
         end
         object lbDays: TLabel
-          Left = 352
-          Top = 120
+          Left = 437
+          Top = 170
           Width = 61
           Height = 14
           Caption = 'Expiry Days:'
@@ -1196,17 +1226,17 @@ object frmPemTool1: TfrmPemTool1
         end
         object Label30: TLabel
           Left = 352
-          Top = 70
+          Top = 80
           Width = 127
           Height = 14
           Caption = 'Alternate Names: Domains'
         end
         object Label31: TLabel
           Left = 352
-          Top = 95
-          Width = 100
+          Top = 130
+          Width = 150
           Height = 14
-          Caption = 'Alternate Names: IPs'
+          Caption = 'Alternate Names: IP Addresses'
         end
         object CertCountry: TEdit
           Left = 126
@@ -1245,8 +1275,8 @@ object frmPemTool1: TfrmPemTool1
         end
         object CertCommonName: TEdit
           Left = 518
-          Top = 40
-          Width = 291
+          Top = 30
+          Width = 290
           Height = 22
           TabOrder = 7
           Text = 'www.domain.com'
@@ -1260,15 +1290,15 @@ object frmPemTool1: TfrmPemTool1
         end
         object CertDays: TEdit
           Left = 518
-          Top = 115
+          Top = 165
           Width = 70
           Height = 22
           TabOrder = 10
           Text = '366'
         end
         object CertSignHash: TRadioGroup
-          Left = 623
-          Top = 115
+          Left = 624
+          Top = 170
           Width = 185
           Height = 81
           Caption = 'Sign Digest Hash'
@@ -1278,7 +1308,7 @@ object frmPemTool1: TfrmPemTool1
             'SHA256'
             'SHA384'
             'SHA512')
-          TabOrder = 11
+          TabOrder = 12
         end
         object CertDescr: TEdit
           Left = 126
@@ -1287,28 +1317,13 @@ object frmPemTool1: TfrmPemTool1
           Height = 22
           TabOrder = 6
         end
-        object CertAltDomains: TEdit
-          Left = 518
-          Top = 65
-          Width = 291
-          Height = 22
-          TabOrder = 8
-          Text = 'www.domain.com, domain.com'
-        end
-        object CertAltIPs: TEdit
-          Left = 518
-          Top = 90
-          Width = 291
-          Height = 22
-          TabOrder = 9
-        end
         object GroupBox1: TGroupBox
           Left = 10
           Top = 215
           Width = 200
           Height = 48
           Caption = 'Basic Constraints'
-          TabOrder = 12
+          TabOrder = 13
           object CertIsCA: TCheckBox
             Left = 10
             Top = 20
@@ -1324,7 +1339,7 @@ object frmPemTool1: TfrmPemTool1
           Width = 185
           Height = 166
           Caption = 'Key Usage'
-          TabOrder = 13
+          TabOrder = 14
           object CertUsageCertSign: TCheckBox
             Left = 10
             Top = 20
@@ -1388,7 +1403,7 @@ object frmPemTool1: TfrmPemTool1
           Width = 200
           Height = 112
           Caption = 'Extended Key Usage'
-          TabOrder = 14
+          TabOrder = 15
           object CertExtServer: TCheckBox
             Left = 10
             Top = 20
@@ -1424,11 +1439,40 @@ object frmPemTool1: TfrmPemTool1
         end
         object CertLinesNew: TMemo
           Left = 433
-          Top = 203
+          Top = 257
           Width = 401
-          Height = 188
+          Height = 124
           ScrollBars = ssBoth
-          TabOrder = 15
+          TabOrder = 16
+        end
+        object CertAltDomains: TMemo
+          Left = 518
+          Top = 60
+          Width = 290
+          Height = 56
+          Lines.Strings = (
+            'www.domain.com'
+            'mail.domain.com'
+            'domain.com')
+          ScrollBars = ssVertical
+          TabOrder = 8
+        end
+        object CertAltIPs: TMemo
+          Left = 518
+          Top = 120
+          Width = 290
+          Height = 45
+          ScrollBars = ssVertical
+          TabOrder = 9
+        end
+        object NewCertCopyExt: TCheckBox
+          Left = 437
+          Top = 193
+          Width = 180
+          Height = 38
+          Caption = 'Copy Request Extensions for New Certificate'
+          TabOrder = 11
+          WordWrap = True
         end
       end
       object GroupKeys: TGroupBox
@@ -1580,8 +1624,6 @@ object frmPemTool1: TfrmPemTool1
     Height = 39
     Align = alBottom
     TabOrder = 2
-    ExplicitLeft = 8
-    ExplicitWidth = 185
     object Status: TLabel
       Left = 5
       Top = 5
@@ -1620,7 +1662,7 @@ object frmPemTool1: TfrmPemTool1
     Left = 260
     Top = 751
     Bitmap = {
-      494C010103002800840010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010103002800A80010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

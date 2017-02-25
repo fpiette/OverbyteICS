@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.40
+Version:      8.41
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1121,7 +1121,7 @@ Jan 27, 2017  V8.40 TX509Base can now read and save all common X509 certificate 
                        PEM/P12 may have certificate and private key
                        PEM/P7B/P12 may have extra intermediate certificates
                     LoadFromFile/SaveToFile uses file extension to choose file format
-                    Extras options for TX509Base methods to load and save files to
+                    Extra options for TX509Base methods to load and save files to
                       specify if private key should be read or saved and the password
                     TX509Base will now encrypt private keys with a password
                     CheckCertAndPKey in TX509Base checks cert and pkey match
@@ -1147,8 +1147,6 @@ Jan 27, 2017  V8.40 TX509Base can now read and save all common X509 certificate 
                        use to make logging more readable, added more useful loSslInfo lines
                     Added SslBuildCertChain to context for servers to validate correct
                        certificates loaded OK  (not sure how useful yet)
-                    Added SslGetCertChain to context for servers to get list of
-                       certificates in chain (not sure how useful yet)
                     Added ReadOnly option to IcsSslOpenFileBio since mostly we don't
                        want to update certificates
                     GetKeyInfo now support both RSA and EC keys, displays curve names
@@ -1157,9 +1155,34 @@ Jan 27, 2017  V8.40 TX509Base can now read and save all common X509 certificate 
                     Added CertPolicies, AuthorityKeyId, SubjectKeyId and CRLDistribution
                       extended certificate properties
                     Added ExtendedValidation returns true for EV certificates
+Feb 24, 2017  V8.41 Fix bug in last build with TX509Base PEM cert error handling
+                    Simplified checks for base64 certificates
+                    Binary format certificate files are now saved correctly
+                    Implemented intermediate certificate support in TX509Base which
+                      includes loading and saving them from file formats supporting
+                      them, and LoadIntersFromPemFile, LoadIntersFromString,
+                      SaveIntersToToPemFile, GetIntersList and ListInters.
+                    Implemented CA certificate support in TX509Base mainly for
+                      chain verification, LoadCAFromPemFile, LoadCAFromString.
+                    KeyInfo displays correct key length and curve for certificates
+                    CertInfo has Brief option for shorter description
+                    ValidateCertChain in TX509Base checks and reports cert and inters
+                       and can save a lot of cert problems in servers
+                    Added AllCertInfo to TX509List that reports all certificates and
+                       can save code in clients reporting certificates 
+                    Added sslCiphersMozillaSrvInterFS with only forward security ciphers
+                    Added IsCertLoaded, IsPkeyLoaded and IsInterLoaded to TX509Base
+                    Added SslKeyAuth property to get cipher key authentication
+                    Added SslGetCerts to context to get cert, key and intermediates
+                    Added SslSetCertX509 to context which sets cert, key and
+                       intermediates from FSslCertX509 to load all together
+                    If FSslCertX509 in Context has cert loaded when context is
+                      initialised, context file properties are ignored and
+                      SslSetCertX509 called to load them.
+                    Made InitializeSsl public in TSslBaseComponent for more control
+                      over SSL loading and unloading
 
-                    
-Pending - TX509Base read and save intermediate certificates. 
+
 
 
 Use of certificates for SSL clients:
@@ -1364,8 +1387,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 840;
-  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.40 ';
+  WSocketVersion            = 841;
+  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.41 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -2538,6 +2561,15 @@ const
         'DHE-RSA-AES256-SHA:ECDHE-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES128-GCM-SHA256:' +
         'AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA:!DSS';
 
+  { V8.41 similar to Intermediate compatibility but removing all ciphers without forward security }
+    sslCiphersMozillaSrvInterFS =
+        'ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:' +
+        'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:' +
+        'DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:' +
+        'ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384:' +
+        'ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:' +
+        'DHE-RSA-AES256-SHA:ECDHE-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA';
+
 
    { V8.27 default 2048 and 4096-bit DH Params needed for DH/DHE ciphers - ideally create your own !!!! }
     sslDHParams2048 =
@@ -2600,12 +2632,13 @@ type
         procedure   RaiseLastOpenSslError(EClass          : ExceptClass;
                                           Dump            : Boolean = FALSE;
                                           const CustomMsg : String  = ''); virtual;
-        procedure   InitializeSsl; {$IFDEF USE_INLINE} inline; {$ENDIF}
-        procedure   FinalizeSsl;
     public
         constructor Create(AOwner: TComponent); override;
         destructor  Destroy; override;
-        property    LastSslError : Integer read FLastSslError;
+        procedure   InitializeSsl; {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.41 was protected }
+        procedure   FinalizeSsl;                                           { V8.41 }
+        property    LastSslError : Integer                read FLastSslError;
+        property    IsSslInitialized: Boolean             read FSslInitialized;  { V8.41 }
 {$IFNDEF NO_DEBUG_LOG}
     published
         property    IcsLogger : TIcsLogger                read  FIcsLogger    { V5.21 }
@@ -2726,10 +2759,13 @@ const
 
 
 type
-    TBioOpenMethode = (bomRead, bomWrite, bomReadOnly);  { V8.40 added read only }
+    { V8.40 added read only, V8.41 added WriteBin }
+    TBioOpenMethode = (bomRead, bomWrite, bomReadOnly, bomWriteBin);
    { V8.40 options to read pkey and inters from cert PEM and P12 files,
      croTry will silently fail, croYes will fail with exception  }
-    TCertReadOpt = (croNo, croTry, croYes);
+    TCertReadOpt = (croNo, croTry, croYes);             { V8.39 }
+    TChainResult = (chainOK, chainFail, chainWarn);     { V8.41 }
+    TX509List  = class;
 
     TX509Base = class(TSslBaseComponent)
     private
@@ -2737,18 +2773,21 @@ type
         FPrivateKey         : Pointer;
         FSha1Digest         : THashBytes20;
         FSha1Hex            : String;
-        FX509Inters         : PStack;     { V8.40 }
+        FX509Inters         : PStack;     { V8.41 }
+        FX509CATrust        : PStack;     { V8.41 }
     protected
         FVerifyResult       : Integer;  // current verify result
         FVerifyDepth        : Integer;
         FCustomVerifyResult : Integer;
         FFirstVerifyResult  : Integer;                      {05/21/2007 AG}
         procedure   FreeAndNilX509;
-        procedure   FreeAndNilX509Inters;               { V8.40 }
+        procedure   FreeAndNilX509Inters;               { V8.41 }
+        procedure   FreeAndNilX509CATrust;              { V8.41 }
         procedure   FreeAndNilPrivateKey;
         procedure   SetX509(X509: Pointer);
         procedure   SetPrivateKey(PKey: Pointer);
-        procedure   SetX509Inters(X509Inters: PStack);  { V8.40 }
+        procedure   SetX509Inters(X509Inters: PStack);   { V8.41 }
+        procedure   SetX509CATrust(X509CATrust: PStack); { V8.41 }
         function    GetPublicKey: Pointer;
         function    GetVerifyErrorMsg: String;
         function    GetFirstVerifyErrorMsg: String;         {05/21/2007 AG}
@@ -2759,6 +2798,7 @@ type
         function    GetSubjectAltName: TExtension; virtual;
         function    GetExtension(Index: Integer): TExtension; virtual;
         function    GetExtensionCount: Integer;
+        function    ExtByName(const ShortName: String): Integer;
         function    GetValidNotBefore: TDateTime;              {AG 02/06/06}
         function    GetValidNotAfter: TDateTime;               {AG 02/06/06}
         function    GetHasExpired: Boolean;                    {AG 02/06/06}
@@ -2771,17 +2811,6 @@ type
         function    GetSha1Hex: String;                { aka fingerprint }
 //        function    OpenFileBio(const FileName  : String;       { V8.40 now function }
 //                                Methode         : TBioOpenMethode): PBIO;
-        procedure   ReadFromBio(ABio: PBIO; IncludePKey: TCertReadOpt = croNo;
-                          IncludeInters: TCertReadOpt = croNo; const Password:
-                                 String = ''; const FName: String = ''); overload; virtual;   { V8.40 }
-        procedure   ReadFromBio(ABio: PBIO; IncludePrivateKey: Boolean = FALSE;
-                                           const Password: String = ''); overload; virtual; 
-        procedure   WriteToBio(ABio: PBIO; IncludePrivateKey: Boolean = FALSE;
-                          AddInfoText: Boolean = FALSE; const FName: String = ''); virtual;
-        procedure   WriteCertToBio(ABio: PBIO; AddInfoText: Boolean = FALSE; const FName: String = ''); virtual;  { V8.40 }
-        procedure   WritePkeyToBio(ABio: PBIO; const Password: String = '';
-                                PrivKeyType: TSslPrivKeyCipher = PrivKeyEncNone; const FName: String = ''); virtual;  { V8.40 }
-        procedure   WriteIntersToBio(ABio: PBIO; AddInfoText: Boolean = FALSE; const FName: String = ''); virtual;  { V8.40 }
        { V8.39 moved these from TX509Ex }
         function    GetSubjectOName : String;
         function    GetSubjectOUName : String;
@@ -2806,22 +2835,39 @@ type
         function    GetSignAlgo: String;
         function    GetKeyInfo: string;
         function    GetSerialNumHex: String;
-        function    GetCertInfo: String;
-        function    GetKeyDesc(Nid: integer; pubkey: PEVP_PKEY): string;   { V8.40 }
+        function    GetKeyDesc(pkey: PEVP_PKEY): string;                   { V8.41 }
         function    GetPrivateKeyInfo: string;                             { V8.40 }
         function    GetCertPolicies: String;                               { V8.40 }
         function    GetAuthorityKeyId: String;                             { V8.40 }
         function    GetSubjectKeyId: String;                               { V8.40 }
         function    GetCRLDistribution: String;                            { V8.40 }
         function    GetExtendedValidation: boolean;                        { V8.40 }
+        function    GetIsCertLoaded: Boolean;                              { V8.41 }
+        function    GetIsPKeyLoaded: Boolean;                              { V8.41 }
+        function    GetIsInterLoaded: Boolean;                             { V8.41 }
+        function    GetIsCATrustLoaded : Boolean;                          { V8.41 }
+        function    GetInterCount: Integer;                                { V8.41 }
+        function    GetCATrustCount: Integer;                              { V8.41 }
     public
         constructor Create(AOwner: TComponent; X509: Pointer = nil); reintroduce;
         destructor  Destroy; override;
-        function    ExtByName(const ShortName: String): Integer;
         function    PostConnectionCheck(HostOrIp: String): Boolean; virtual;
         function    CheckHost(const Host: string; Flags: integer): String;       { V8.39 }
         function    CheckEmail(const Email: string; Flags: integer): Boolean;    { V8.39 }
         function    CheckIPaddr(const IPadddr: string; Flags: integer): Boolean; { V8.39 }
+        procedure   ReadFromBio(ABio: PBIO; IncludePKey: TCertReadOpt = croNo;
+                          IncludeInters: TCertReadOpt = croNo; const Password:
+                                 String = ''; const FName: String = ''); overload; virtual;   { V8.40 }
+        procedure   ReadFromBio(ABio: PBIO; IncludePrivateKey: Boolean = FALSE;
+                                           const Password: String = ''); overload; virtual; 
+        procedure   WriteToBio(ABio: PBIO; IncludePrivateKey: Boolean = FALSE;
+                          AddInfoText: Boolean = FALSE; const FName: String = ''); virtual;
+        procedure   WriteCertToBio(ABio: PBIO; AddInfoText: Boolean = FALSE; const FName: String = ''); virtual;  { V8.40 }
+        procedure   WritePkeyToBio(ABio: PBIO; const Password: String = '';
+                                PrivKeyType: TSslPrivKeyCipher = PrivKeyEncNone; const FName: String = ''); virtual;  { V8.40 }
+        procedure   WriteIntersToBio(ABio: PBIO; AddInfoText: Boolean = FALSE; const FName: String = ''); virtual;  { V8.41 }
+        function    ReadStrBio(ABio: PBIO; MaxLen: Integer): AnsiString;  { V8.41 }
+        procedure   WriteStrBio(ABio: PBIO; Str: AnsiString; StripCR: Boolean = False);  { V8.41 }
         function    GetRawText: String;
         function    SavePKeyToText(const Password: String = '';
                      PrivKeyType: TSslPrivKeyCipher = PrivKeyEncNone): String;   { V8.40}
@@ -2849,11 +2895,11 @@ type
         procedure   LoadFromP7BFile(const FileName: String; IncludeInters: TCertReadOpt = croNo); { V8.40 }
         procedure   LoadFromFile(const FileName: String; IncludePKey: TCertReadOpt = croNo;
                        IncludeInters: TCertReadOpt = croNo; const Password: String = ''); { V8.40 }
-        procedure   SaveToP12File(const FileName, Password: String; IncludePrivateKey:
-                                      Boolean = FALSE; IncludeInters: Boolean = FALSE;
+        procedure   SaveToP12File(const FileName, Password: String; IncludeInters: Boolean = FALSE;
                                          PrivKeyType: TSslPrivKeyCipher = PrivKeyEncNone);   { V8.40 }
         procedure   SaveToDERFile(const FileName: String);                     { V8.40 }
-        procedure   SaveToP7BFile(const FileName: String; IncludeInters: Boolean = FALSE);  { V8.40 }
+        procedure   SaveToP7BFile(const FileName: String; IncludeInters: Boolean = FALSE;
+                                                                  Base64: Boolean = FALSE);  { V8.41 }
         procedure   SaveToFile(const FileName: String; IncludePrivateKey: Boolean = FALSE;
                         AddInfoText: Boolean = False; IncludeInters: Boolean = FALSE;
                           const Password: String = '';  PrivKeyType: TSslPrivKeyCipher = PrivKeyEncNone);   { V8.40 }
@@ -2861,14 +2907,28 @@ type
         procedure   ClearAll;                                              { V8.40 }
         function    GetPKeyRawText: String;                                { V8.40 }
         procedure   PublicKeySaveToPemFile(const FileName: String);        { V8.40 }
-
-
+        function    CertInfo(Brief: Boolean=False): String;                { V8.41 added Brief }
+        procedure   LoadIntersFromPemFile(const FileName: String);         { V8.41 }
+        procedure   LoadIntersFromString(const Value: String);             { V8.41 }
+        procedure   SaveIntersToToPemFile(const FileName: String; AddInfoText: Boolean = FALSE);         { V8.41 }
+        procedure   GetIntersList(CertList: TX509List);                    { V8.41 }
+        procedure   AddToInters(X509: Pointer);                            { V8.41 }
+        function    ListInters: string;                                    { V8.41 }
+        procedure   LoadCATrustFromPemFile(const FileName: String);        { V8.41 }
+        procedure   LoadCATrustFromString(const Value: String);            { V8.41 }
+        procedure   GetCATrustList(CertList: TX509List);                   { V8.41 }
+        procedure   AddToCATrust(X509: Pointer);                           { V8.41 }
+        function    ValidateCertChain(Host: String; var CertStr, ErrStr: String): TChainResult;  { V8.41 }
+        function    GetPX509NameByNid(XName: PX509_NAME; ANid: Integer): String;  { V8.41 }
+        function    CheckExtName(Ext: PX509_EXTENSION; const ShortName: String): Boolean;  { V8.41 }
+        function    GetExtDetail(Ext: PX509_EXTENSION): TExtension;        { V8.41 }
         function    IssuedBy(ACert: TX509Base): Boolean;
         function    IssuerOf(ACert: TX509Base): Boolean;
         function    SameHash(const ACert: TX509Base): Boolean;
        { V8.39 moved next four from TX509Ex }
         function    GetNameEntryByNid(IsSubject: Boolean; ANid: Integer): String;
         function    GetExtensionByName(const S: String): TExtension;
+        function    GetExtField(Ext: TExtension; const FieldName: String): String;   { V8.41 }
         function    GetExtensionValuesByName(const ShortName, FieldName: String): String;
         function    UnwrapNames(const S: String): String;
         property    IssuerOneLine       : String        read  GetIssuerOneLine;
@@ -2890,7 +2950,9 @@ type
                                                         write SetPrivateKey;
         property    PublicKey           : Pointer       read  GetPublicKey;      {AG 11/08/07}
         property    X509Inters          : PStack        read  FX509Inters
-                                                        write SetX509Inters;    { V8.40 }
+                                                        write SetX509Inters;    { V8.41 }
+        property    X509CATrust         : PStack        read  FX509CATrust
+                                                        write SetX509CATrust;   { V8.41 }
         property    SubjectCName        : String        read  GetSubjectCName;
         property    SubjectAltName      : TExtension    read  GetSubjectAltName;
         property    ExtensionCount      : Integer       read  GetExtensionCount;
@@ -2927,13 +2989,18 @@ type
         property    SignatureAlgorithm  : String        read GetSignAlgo;
         property    KeyInfo             : string        read GetKeyInfo;
         property    SerialNumHex        : String        read GetSerialNumHex;
-        property    CertInfo            : String        read GetCertInfo;
         property    PrivateKeyInfo      : String        read GetPrivateKeyInfo;       { V8.40 }
         property    CertPolicies        : String        read GetCertPolicies;         { V8.40 }
         property    AuthorityKeyId      : String        read GetAuthorityKeyId;       { V8.40 }
         property    SubjectKeyId        : String        read GetSubjectKeyId;         { V8.40 }
         property    CRLDistribution     : String        read GetCRLDistribution;      { V8.40 }
         property    ExtendedValidation  : boolean       read GetExtendedValidation;   { V8.40 }
+        property    IsCertLoaded        : Boolean       read GetIsCertLoaded;         { V8.41 }
+        property    IsPKeyLoaded        : Boolean       read GetIsPKeyLoaded;         { V8.41 }
+        property    IsInterLoaded       : Boolean       read GetIsInterLoaded;        { V8.41 }
+        property    IsCATrustLoaded     : Boolean       read GetIsCATrustLoaded;      { V8.41 }
+        property    InterCount          : Integer       read GetInterCount;           { V8.41 }
+        property    CATrustCount        : Integer       read GetCATrustCount;         { V8.41 }
     end;
 
     TX509Class = class of TX509Base;
@@ -2975,6 +3042,8 @@ type
         function    Remove(Item: TX509Base): Integer;
         function    Extract(Item: TX509Base): TX509Base;
         function    LoadAllFromFile(const Filename: string): integer;    { V8.39 }
+        function    LoadAllStack(CertStack: PStack): integer;            { V8.41 }
+        function    AllCertInfo(Brief: Boolean=False; Reverse: Boolean=False): String;   { V8.41 }
         procedure   SortChain(ASortOrder: TX509ListSort);
         property    Count                       : Integer       read  GetCount;
         property    Items[index: Integer]       : TX509Base     read  GetX509Base
@@ -3274,7 +3343,7 @@ type
 
     ESslContextException = class(Exception);
 
-    TInfoExtractMode = (emCert, emKey, emCRL); { V8.40 }
+    TInfoExtractMode = (emCert, {emKey,} emCRL);
     // TSslCertKeyFormat = (ckfPem {$IFNDEF OPENSSL_NO_ENGINE}, ckfEngine {$ENDIF}); {ckfPkcs12,}
     TSslContext = class(TSslBaseComponent)
     protected
@@ -3358,8 +3427,6 @@ type
     {$IFNDEF OPENSSL_NO_ENGINE}
         procedure Notification(AComponent: TComponent; Operation: TOperation); override;
         procedure SetCtxEngine(const Value: TSslEngine);
-        procedure UpdateCertX509;                                           { V8.40 }
-        procedure SetSslCertX509(Cert: TX509Base);                          { V8.40 }
     {$ENDIF}
     public
         constructor Create(AOwner: TComponent); override;
@@ -3369,7 +3436,6 @@ type
         function    TrustCert(Cert : TX509Base): Boolean;
         procedure   LoadCrlFromFile(const Filename: String);
         procedure   LoadCrlFromPath(const Path: String);
-        function    LoadStackFromInfoString(const Value: String; Mode: TInfoExtractMode): PStack; { V8.27 }
         procedure   LoadVerifyLocations(const CAFile, CAPath: String);
         procedure   LoadCertFromChainFile(const FileName : String);
         procedure   LoadPKeyFromFile(const FileName : String);
@@ -3388,12 +3454,14 @@ type
         procedure   SetClientCAListFromFile(const FileName: String);
         property    IsCtxInitialized : Boolean read GetIsCtxInitialized;
         function    SslGetAllCiphers: String;     { V8.27 }
-        function    SslGetAllCerts (CertList: TX509List): integer;       { V8.39 }
-        function    SslBuildCertChain (Flags: Integer): integer;         { V8.40 }
-        function    SslGetCertChain (CertList: TX509List): integer;      { V8.40 }
-        function    CheckPrivateKey: boolean;                            { V8.40 }
+        function    SslGetAllCerts(CertList: TX509List): integer;       { V8.39 }
+        function    SslBuildCertChain(Flags: Integer): integer;         { V8.40 }
+        procedure   LoadCAFromStack(CertStack: PStack);                 { V8.41 }
+        function    CheckPrivateKey: boolean;                           { V8.40 }
+        function    SslGetCerts(Cert: TX509Base): integer;              { V8.41 }
+        procedure   SslSetCertX509;                                     { V8.41 }
         property    SslCertX509     : TX509Base         read  FSslCertX509
-                                                        write SetSslCertX509;   { V8.40 }
+                                                        write FSslCertX509;   { V8.41 }
     published
         property  SslCertFile       : String            read  FSslCertFile
                                                         write SetSslCertFile;
@@ -3598,6 +3666,7 @@ type
         FSslKeyExchange             : String;       { V8.14  }
         FSslMessAuth                : String;       { V8.14  }
         FSslCertPeerName            : String;       { V8.39 }
+        FSslKeyAuth                 : String;       { V8.41 }
         FSslTotalBits               : Integer;
         FSslSecretBits              : Integer;
         FSslSupportsSecureRenegotiation : Boolean;
@@ -3747,6 +3816,7 @@ type
         property  SslKeyExchange : String                 read  FSslKeyExchange;         { V8.14  }
         property  SslMessAuth    : String                 read  FSslMessAuth;            { V8.14  }
         property  SslCertPeerName : String                read  FSslCertPeerName;        { V8.39 }
+        property  SslKeyAuth     : String                 read  FSslKeyAuth;             { V8.41  }
   private
       function my_WSocket_recv(s: TSocket;
                                var Buf: TWSocketData; len, flags: Integer): Integer;
@@ -3766,7 +3836,10 @@ type
 
 //procedure OutputDebugString(const Msg: String);
     function IcsSslOpenFileBio( const FileName : String;  Methode: TBioOpenMethode): PBIO;         { V8.39 was in TSslContext }
+    function IcsSslLoadStackFromBIO(InBIO: PBIO; Mode: TInfoExtractMode;
+                                              const FileName: String = ''): PStack;                { V8.41 consolidation }
     function IcsSslLoadStackFromInfoFile(const FileName: String; Mode: TInfoExtractMode): PStack;  { V8.39 was in TSslContext }
+    function IcsSslLoadStackFromInfoString(const Value: String; Mode: TInfoExtractMode): PStack;   { V8.41 was in TSslContext }
     function IcsUnwrapNames(const S: String): String;                                              { V8.39 multi-line with comma line }
     function IcsSslGetEVPCipher(Cipher: TEvpCipher): PEVP_CIPHER;      { V8.40 }
     function IcsSslGetEVPDigest(Digest: TEvpDigest): PEVP_MD;          { V8.40 }
@@ -13606,13 +13679,52 @@ var
     MyStack: PStack;
 begin
     MyStack := IcsSslLoadStackFromInfoFile(FileName, emCert);
-    Result := f_OPENSSL_sk_num(MyStack);   { don't free stack }
+    Result := f_OPENSSL_sk_num(MyStack);  
     try
         while f_OPENSSL_sk_num(MyStack) > 0 do begin
             Add(f_X509_dup(PX509(f_OPENSSL_sk_delete(MyStack, 0))));
         end;
     finally
        f_OPENSSL_sk_pop_free(MyStack, @f_X509_free);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.41 load all certificates from an X509 stack }
+function TX509List.LoadAllStack(CertStack: PStack): integer;
+var
+    I: integer;
+begin
+    Result := 0;
+    if NOT Assigned (CertStack) then Exit;
+    Result := f_OPENSSL_sk_num(CertStack);   { don't free stack }
+    if Result = 0 then Exit;
+    for I := 0 to Result - 1 do begin
+        Add(f_X509_dup(PX509(f_OPENSSL_sk_value(CertStack, I))));
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.41 list all certificates, forwards or backwards (client handshake) }
+function TX509List.AllCertInfo(Brief: Boolean=False; Reverse: Boolean=False): String;   { V8.41 }
+var
+    I, J: Integer;
+begin
+    Result := '';
+    if FList.Count = 0 then Exit;
+    if Reverse then
+        J := FList.Count - 1
+    else
+        J := 0;
+    for I := 0 to FList.Count - 1 do begin
+         if I > 0 then Result := Result + #13#10#13#10;
+         Result := Result + '#' + IntToStr(J + 1) + ' ' +
+                         TX509Base(FList[J]).CertInfo(True);
+         if Reverse then
+            J := J - 1
+         else
+            J := J + 1;
     end;
 end;
 
@@ -14313,62 +14425,78 @@ begin
     if (Methode in [bomRead, bomReadOnly]) and (not FileExists(Filename)) then
         raise ESslContextException.Create('File not found "' + Filename + '"');
     if Methode = bomRead then
-        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('r+'))
+        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('r+b'))
     else if Methode = bomReadOnly then             { V8.40 mostly we don't want to update certs }
         Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('rb'))
+    else if Methode = bomWriteBin then             { V8.40 mostly we don't want to update certs }
+        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('w+b'))   { V8.41 binary write mode }
     else
-        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('w+'));
+        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('w+'));   { writes ASCII CRLF }
     if Result = nil then
         raise ESslContextException.Create ('Error on opening file "' + Filename + '"');
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ A X509_INFO may contain x509/crl/pkey sets, PEM format only }
-function IcsSslLoadStackFromInfoFile(const FileName: String; Mode: TInfoExtractMode): PStack;  { V8.39 was in TSslContext }
+{ V8.41 consolidation, read multiple certificates from BIO, build stack }
+function IcsSslLoadStackFromBIO(InBIO: PBIO; Mode: TInfoExtractMode;
+                                        const FileName: String = ''): PStack;
 var
     InfoStack   : PStack;
     CertInfo    : PX509_INFO;
-    InBIO       : PBIO;
     //PKey        : PX509_PKEY;
 begin
-    Result      := nil;
+    Result := nil;
+    if NOT Assigned (InBIO) then Exit;
+
+ // loads stack of x509/crl/pkey sets
+    f_BIO_ctrl(InBio, BIO_CTRL_RESET, 0, nil);
+    InfoStack := PStack(f_PEM_X509_INFO_read_bio(InBIO, nil, nil, nil));
+    if not Assigned(InfoStack) then
+        raise ESslContextException.CreateFmt('Error reading info file "%s"', [FileName]);
+    try
+        if f_OPENSSL_sk_num(InfoStack) > 0 then
+            Result := f_OPENSSL_sk_new_null
+        else
+            Exit;
+        if Result = nil then
+            raise ESslContextException.Create('Error creating Stack');
+        // Scan over it and pull out what is needed
+        while f_OPENSSL_sk_num(InfoStack) > 0 do begin
+            CertInfo := PX509_INFO(f_OPENSSL_sk_delete(InfoStack, 0));
+
+       { X509_INFO may contain x509/crl/pkey sets }
+            case Mode of
+            emCert :
+                if CertInfo^.x509 <> nil then
+                    f_OPENSSL_sk_insert(Result, PAnsiChar(f_X509_dup(CertInfo^.x509)),
+                                              f_OPENSSL_sk_num(Result) + 1);
+         {   emKey :  does not return PKCS8 PRIVATE KEY, only RSA PRIVATE KEY, DSA PRIVATE KEY, EC PRIVATE KEY
+                if CertInfo^.x_pkey <> nil then
+                    f_OPENSSL_sk_insert(Result, PAnsiChar(ics_EVP_PKEY_dup(CertInfo^.x_pkey.dec_pkey)),
+                                              f_OPENSSL_sk_num(Result) + 1); }
+            emCrl :
+                if CertInfo^.crl <> nil then
+                    f_OPENSSL_sk_insert(Result, PAnsiChar(f_X509_CRL_dup(CertInfo^.crl)),
+                                              f_OPENSSL_sk_num(Result) + 1);
+            end; //case
+            f_X509_INFO_free(CertInfo);
+        end;
+    finally
+         f_OPENSSL_sk_pop_free(InfoStack, @f_X509_INFO_free);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ read multiple certificates from PEM base64 file, build stack }
+function IcsSslLoadStackFromInfoFile(const FileName: String; Mode: TInfoExtractMode): PStack;  { V8.39 was in TSslContext }
+var
+    InBIO : PBIO;
+begin
     InBIO := IcsSslOpenFileBio(FileName, bomReadOnly);     { V8.40 }
     try
-     // This loads from a file, a stack of x509/crl/pkey sets
-        InfoStack := PStack(f_PEM_X509_INFO_read_bio(InBIO, nil, nil, nil));
-        if not Assigned(InfoStack) then
-            raise ESslContextException.CreateFmt('Error reading info file "%s"',
-                                                 [FileName]);
-        try
-            if f_OPENSSL_sk_num(InfoStack) > 0 then
-                Result := f_OPENSSL_sk_new_null
-            else
-                Exit;
-            if Result = nil then
-                raise ESslContextException.Create('Error creating Stack');
-            // Scan over it and pull out what is needed
-            while f_OPENSSL_sk_num(InfoStack) > 0 do begin
-                CertInfo := PX509_INFO(f_OPENSSL_sk_delete(InfoStack, 0));
-                case Mode of
-                emCert :
-                    if CertInfo^.x509 <> nil then
-                        f_OPENSSL_sk_insert(Result, PAnsiChar(f_X509_dup(CertInfo^.x509)),
-                                                  f_OPENSSL_sk_num(Result) + 1);
-                emKey :
-                    if CertInfo^.x_pkey <> nil then
-                        f_OPENSSL_sk_insert(Result, PAnsiChar(ics_EVP_PKEY_dup(CertInfo^.x_pkey.dec_pkey)),   { V8.40 }
-                                                  f_OPENSSL_sk_num(Result) + 1);
-                emCrl :
-                    if CertInfo^.crl <> nil then
-                        f_OPENSSL_sk_insert(Result, PAnsiChar(f_X509_CRL_dup(CertInfo^.crl)),
-                                                  f_OPENSSL_sk_num(Result) + 1);
-                end; //case
-                f_X509_INFO_free(CertInfo);
-            end;
-        finally
-             f_OPENSSL_sk_pop_free(InfoStack, @f_X509_INFO_free);
-        end;
+        Result := IcsSslLoadStackFromBIO(InBIO, Mode, FileName);
     finally
        f_Bio_free(InBio);
     end;
@@ -14376,59 +14504,19 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.27 A X509_INFO may contain x509/crl/pkey sets, PEM format only }
-function TSslContext.LoadStackFromInfoString(const Value: String; Mode: TInfoExtractMode): PStack;
+{ V8.41 read multiple certificates from lines as base64, build stack }
+function IcsSslLoadStackFromInfoString(const Value: String; Mode: TInfoExtractMode): PStack;
 var
-    InfoStack   : PStack;
-    CertInfo    : PX509_INFO;
-    InBIO       : PBIO;
-    //PKey        : PX509_PKEY;
+    MemBIO : PBIO;
 begin
-    //InfoStack := nil;
-    //CertInfo  := nil;
-    //InBIO     := nil;
-    Result      := nil;
-    if not Assigned(FSslCtx) then
-        raise ESslContextException.Create(msgSslCtxNotInit);
-    if Length (Value) = 0 then Exit;
-    InBio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Value)), Length (Value));
+    if (Pos(PEM_STRING_HDR_BEGIN, Value) = 0) and
+            (Pos(PEM_STRING_HDR_END, Value) = 0) then
+        raise ESslContextException.Create('Expected Base64 encoded PEM certificates');
+    MemBio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Value)), Length (Value));
     try
-        // This loads from a file, a stack of x509/crl/pkey sets
-        InfoStack := PStack(f_PEM_X509_INFO_read_bio(InBIO, nil, nil, nil));
-        if not Assigned(InfoStack) then
-            raise ESslContextException.Create('Failed to read encoded PEM certificates');
-        try
-            if f_OPENSSL_sk_num(InfoStack) > 0 then
-                Result := f_OPENSSL_sk_new_null
-            else
-                Exit;
-            if Result = nil then
-                raise ESslContextException.Create('Error creating Stack');
-            // Scan over it and pull out what is needed
-            while f_OPENSSL_sk_num(InfoStack) > 0 do begin
-                CertInfo := PX509_INFO(f_OPENSSL_sk_delete(InfoStack, 0));
-                case Mode of
-                emCert :
-                    if CertInfo^.x509 <> nil then
-                        f_OPENSSL_sk_insert(Result, PAnsiChar(f_X509_dup(CertInfo^.x509)),
-                                                  f_OPENSSL_sk_num(Result) + 1);
-                { A Dup-function for X509_PKEY is still missing in OpenSsl arrg!
-                emKey :
-                    if CertInfo^.x_pkey <> nil then
-                        f_OPENSSL_sk_insert(Result, PChar(f_X509_PKEY_dup(CertInfo^.x_pkey)),
-                                                  f_OPENSSL_sk_num(Result) + 1);}
-                emCrl :
-                    if CertInfo^.crl <> nil then
-                        f_OPENSSL_sk_insert(Result, PAnsiChar(f_X509_CRL_dup(CertInfo^.crl)),
-                                                  f_OPENSSL_sk_num(Result) + 1);
-                end; //case
-                f_X509_INFO_free(CertInfo);
-            end;
-        finally
-             f_OPENSSL_sk_pop_free(InfoStack, @f_X509_INFO_free);
-        end;
+        Result := IcsSslLoadStackFromBIO(MemBIO, Mode, 'Lines');
     finally
-       f_Bio_free(InBio);
+       f_Bio_free(MemBio);
     end;
 end;
 
@@ -14575,7 +14663,6 @@ begin
         RaiseLastOpenSslError(ESslContextException, TRUE,
                               'Error loading default CA file ' +
                               'and/or directory');
-    UpdateCertX509; { V8.40 }
 end;
 
 
@@ -14594,28 +14681,77 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslContext.LoadCAFromString(const Value: String);        { V8.27 }
+procedure TSslContext.LoadCAFromStack(CertStack: PStack);        { V8.41 }
 var
     Cert: PX509;
     Store: PX509_STORE;
+    Tot, I: integer;
+begin
+    if not Assigned(FSslCtx) then
+        raise ESslContextException.Create(msgSslCtxNotInit);
+    if not Assigned(CertStack) then
+        raise ESslContextException.Create('No CA stack to load');
+    Tot := f_OPENSSL_sk_num(CertStack);
+    if Tot = 0 then Exit;
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        Store := f_SSL_CTX_get_cert_store(FSslCtx);
+        if not Assigned(Store) then
+            raise ESslContextException.Create('Error on opening store');
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then
+            DebugLog(loSslInfo, 'Read ' + IntToStr(Tot) + ' CA certificates from stack');
+{$ENDIF};
+        for I := 0 to Tot - 1 do begin
+            Cert := f_X509_dup(PX509(f_OPENSSL_sk_value(CertStack, I)));
+            if Assigned(Cert) then
+            try
+{$IFNDEF NO_DEBUG_LOG}
+                if CheckLogOptions(loSslInfo) then
+                    DebugLog(loSslInfo, 'Certificate: ' + GetX509SubjectOneLine(Cert));
+{$ENDIF};
+              { Fails if Cert is already in hash table }
+                if f_X509_STORE_add_cert(Store, Cert) = 0 then
+{$IFNDEF NO_DEBUG_LOG}
+                    if CheckLogOptions(loSslErr) then
+                        DebugLog(loSslErr, String(LastOpenSslErrMsg(True)));
+{$ELSE}
+                    f_ERR_clear_error;
+{$ENDIF};
+            finally
+                f_X509_free(Cert);
+            end;
+        end;
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock;
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.LoadCAFromString(const Value: String);        { V8.27 }
+var
+ //   Cert: PX509;
+ //   Store: PX509_STORE;
     CertStack: PStack;
 begin
     if Length(Value) = 0 then Exit;
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
-    if (Pos ('-BEGIN CERTIFICATE-', Value) = 0) and
-            (Pos ('-END CERTIFICATE-', Value) = 0) then
-        raise ESslContextException.Create('Expected a Base64 encoded PEM certificate');
-
 {$IFNDEF NO_SSL_MT}
-    Lock;
-    try
+//    Lock;
+//    try
 {$ENDIF}
-        CertStack := LoadStackFromInfoString(Value, emCert);
+        CertStack := IcsSslLoadStackFromInfoString(Value, emCert);
         if not Assigned(CertStack) then
             raise ESslContextException.Create('Error on reading CA certificate lines');
         try
-            Store := f_SSL_CTX_get_cert_store(FSslCtx);
+           LoadCAFromStack(CertStack);
+      (*      Store := f_SSL_CTX_get_cert_store(FSslCtx);
             if not Assigned(Store) then
                 raise ESslContextException.Create('Error on opening store');
 {$IFNDEF NO_DEBUG_LOG}
@@ -14642,14 +14778,14 @@ begin
                 finally
                     f_X509_free(Cert);
                 end;
-            end;
+            end;   *)
          finally
             f_OPENSSL_sk_pop_free(CertStack, @f_X509_free);
          end;
 {$IFNDEF NO_SSL_MT}
-    finally
-        Unlock;
-    end;
+//    finally
+//        Unlock;
+//    end;
 {$ENDIF}
 end;
 
@@ -14679,42 +14815,59 @@ begin
                               'Can''t read certificate ' +
                               'file "' + FileName + '"');
         end ;
-        UpdateCertX509; { V8.40 }
     end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.40 gupdate X509 certificate and private key from context }
-procedure TSslContext.UpdateCertX509;
+{ V8.41 get X509 certificate, private key and intermediates from context }
+function TSslContext.SslGetCerts(Cert: TX509Base): integer;
+var
+    Store: PX509_STORE;
+    MyStack: PStack;
+    Tot, I: integer;
+    MyX509Obj: PX509_OBJECT;
 begin
+    Result := 0;
     if not Assigned(FSslCtx) then exit;
-    FSslCertX509.X509 := f_SSL_CTX_get0_certificate(FSslCtx);
-    FSslCertX509.PrivateKey := f_SSL_CTX_get0_privatekey(FSslCtx);
+    if not Assigned(Cert) then exit;
+    Cert.X509 := f_SSL_CTX_get0_certificate(FSslCtx);
+    Cert.PrivateKey := f_SSL_CTX_get0_privatekey(FSslCtx);
+    Cert.FreeAndNilX509Inters;
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then begin
+        Store := f_SSL_CTX_get_cert_store(FSslCtx);
+        if NOT Assigned(Store) then Exit;
+        MyStack := f_X509_STORE_get0_objects(Store);
+        Tot := f_OPENSSL_sk_num(MyStack);   { !!! don't free stack }
+        if Tot = 0 then Exit;
+        for I := 0 to Tot - 1 do begin
+            MyX509Obj := PX509_OBJECT(f_OPENSSL_sk_value(MyStack, I));
+            if f_X509_OBJECT_get_type(MyX509Obj) = X509_LU_X509 then
+               Cert.AddToInters(f_X509_dup(f_X509_OBJECT_get0_X509 (MyX509Obj)));
+        end;
+    end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.40 set context certificate and/or private key from TX509Base }
-procedure TSslContext.SetSslCertX509(Cert: TX509Base);
+{ V8.41 set context certificate and/or private key and intermediate certificates }
+procedure TSslContext.SslSetCertX509;
 begin
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
-    FSslCertX509 := Cert;
-    if Assigned (Cert.X509) then begin
-        if (f_SSL_CTX_use_certificate(FSslCtx, Cert.X509) = 0) then begin
-        {$IFNDEF NO_DEBUG_LOG}
-            if CheckLogOptions(loSslErr) then
-                    DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
-        {$ELSE}
-            f_ERR_clear_error;
-        {$ENDIF}
-            RaiseLastOpenSslError(ESslContextException, TRUE,
-                                      'Can''t add certificate to context');
-        end;
+    if NOT FSslCertX509.IsCertLoaded then exit;
+    if (f_SSL_CTX_use_certificate(FSslCtx, FSslCertX509.X509) = 0) then begin
+    {$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslErr) then
+                DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
+    {$ELSE}
+        f_ERR_clear_error;
+    {$ENDIF}
+        RaiseLastOpenSslError(ESslContextException, TRUE,
+                                  'Can''t add certificate to context');
     end;
-    if Assigned (Cert.PrivateKey) then begin
-        if (f_SSL_CTX_use_PrivateKey(FSslCtx, Cert.PrivateKey) = 0) then begin
+    if FSslCertX509.IsPKeyLoaded then begin
+        if (f_SSL_CTX_use_PrivateKey(FSslCtx, FSslCertX509.PrivateKey) = 0) then begin
         {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslErr) then
                     DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
@@ -14724,6 +14877,9 @@ begin
             RaiseLastOpenSslError(ESslContextException, TRUE,
                                       'Can''t add private key to context');
         end;
+    end;
+    if FSslCertX509.IsInterLoaded then begin
+        LoadCAFromStack(FSslCertX509.X509Inters);
     end;
 end;
 
@@ -14737,52 +14893,6 @@ begin
     result := f_SSL_CTX_check_private_key(FSslCtx) <> 0;
 end;
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.27 load a single PEM certificate from a string }
-(*procedure TSslContext.LoadCertFromStrings(Lines: TStrings);
-var
-    Bio: PBIO;
-    Cert: PX509;
-begin
-    if Lines.Count = 0 then Exit;
-    if not Assigned(FSslCtx) then
-        raise ESslContextException.Create(msgSslCtxNotInit);
-    if (Pos ('-BEGIN CERTIFICATE-', Lines.Text) = 0) and
-            (Pos ('-END CERTIFICATE-', Lines.Text) = 0) then
-        raise ESslContextException.Create('Expected a Base64 encoded PEM certificate');
-
-    Cert := nil;
-    Bio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Lines.Text)), Length (Lines.Text));
-    try
-        if NOT Assigned(Bio) then
-            raise ESslContextException.Create('Failed to read encoded PEM certificate');
-        Cert := f_PEM_read_bio_X509(Bio, nil, PasswordCallBack, Self);
-        if NOT Assigned (Cert) then begin
-    {$IFNDEF NO_DEBUG_LOG}
-            if CheckLogOptions(loSslErr) then
-                DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
-    {$ELSE}
-            f_ERR_clear_error;
-    {$ENDIF}
-            RaiseLastOpenSslError(ESslContextException, TRUE,
-                                  'Can''t read certificate lines');
-        end;
-        if (f_SSL_CTX_use_certificate(FSslCtx, Cert) = 0) then begin
-    {$IFNDEF NO_DEBUG_LOG}
-            if CheckLogOptions(loSslErr) then
-                DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
-    {$ELSE}
-            f_ERR_clear_error;
-    {$ENDIF}
-            RaiseLastOpenSslError(ESslContextException, TRUE,
-                                  'Can''t add certificate to context');
-        end;
-    finally
-        if Assigned (Cert) then f_X509_free(Cert);
-        if Assigned (Bio) then f_BIO_free(Bio);
-    end;
-end;  *)
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.27 load a PEM certificate chain from a string }
@@ -14790,20 +14900,16 @@ procedure TSslContext.LoadCertFromString(const Value: String);
 var
     Cert: PX509;
     CertStack: PStack;
-    Store: PX509_STORE;
+//    Store: PX509_STORE;
 begin
     if Length(Value) = 0 then Exit;
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
-    if (Pos ('-BEGIN CERTIFICATE-', Value) = 0) and
-            (Pos ('-END CERTIFICATE-', Value) = 0) then
-        raise ESslContextException.Create('Expected a Base64 encoded PEM certificate');
-
 {$IFNDEF NO_SSL_MT}
     Lock;
     try
 {$ENDIF}
-        CertStack := LoadStackFromInfoString(Value, emCert);
+        CertStack := IcsSslLoadStackFromInfoString(Value, emCert);
         if not Assigned(CertStack) then
             raise ESslContextException.Create('Error on reading certificate lines');
         try
@@ -14832,7 +14938,6 @@ begin
                     RaiseLastOpenSslError(ESslContextException, TRUE,
                                           'Can''t add certificate to context');
                 end;
-                UpdateCertX509; { V8.40 }
             finally
                 f_X509_free(Cert);
             end;
@@ -14840,10 +14945,8 @@ begin
         { remaining certificates are chain used to sign current certificate, usually one or two }
         { !! this function is supposed to be for a server requesting a client certificate, but
              seems to also store extra chain certificates }
- //          if f_OPENSSL_sk_num(CertStack) > 0 then begin
- //              f_SSL_CTX_set_client_CA_list(FSslCTX, PSTACK_OF_X509_NAME(CertStack));  // frees Sk
-
-            Store := f_SSL_CTX_get_cert_store(FSslCtx);
+            LoadCAFromStack(CertStack);
+        (*    Store := f_SSL_CTX_get_cert_store(FSslCtx);
             if NOT Assigned(Store) then
                 raise ESslContextException.Create('Can not open store for chain certs');
 
@@ -14865,7 +14968,7 @@ begin
                 finally
                     f_X509_free(Cert);
                 end;
-            end;
+            end;   *)
          finally
             f_OPENSSL_sk_pop_free(CertStack, @f_X509_free);
          end;
@@ -14897,7 +15000,6 @@ begin
         RaiseLastOpenSslError(ESslContextException, TRUE,
                               'Can''t load private key ' +
                               'file "' + FileName + '"');
-        UpdateCertX509; { V8.40 }
     end;
 end;
 
@@ -14912,8 +15014,8 @@ begin
     if Length(Value) = 0 then Exit;
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
-    if (Pos ('-BEGIN PRIVATE KEY-', Value) = 0) and
-         (Pos ('-END PRIVATE KEY-', Value) = 0) then
+    if (Pos(PEM_STRING_HDR_BEGIN, Value) = 0) and
+         (Pos(PEM_STRING_HDR_END, Value) = 0) then
              raise ESslContextException.Create('Expected a Base64 encoded PEM private key');
 
     Pkey := nil;
@@ -14942,7 +15044,6 @@ begin
             RaiseLastOpenSslError(ESslContextException, TRUE,
                                   'Can''t read add private key to context');
         end;
-        UpdateCertX509; { V8.40 }
     finally
         if Assigned (Pkey) then f_EVP_PKEY_free(Pkey);
         if Assigned (Bio) then f_BIO_free(Bio);
@@ -14997,8 +15098,8 @@ begin
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
     if (FSslVersionMethod < sslV3) then Exit;   { V8.24 SSLv2 does not support DH }
-    if (Pos ('-BEGIN DH PARAMETERS-', Value) = 0) and
-         (Pos ('-END DH PARAMETERS-', Value) = 0) then
+    if (Pos(PEM_STRING_HDR_BEGIN, Value) = 0) and
+         (Pos(PEM_STRING_HDR_END, Value) = 0) then
             raise ESslContextException.Create('Expected a Base64 encoded DH params');
 
     MyPDH := nil;
@@ -15075,7 +15176,6 @@ begin
         if f_SSL_CTX_use_PrivateKey(FSslCtx, PKey) = 0 then
             RaiseLastOpenSslError(ESslContextException, TRUE,
                                   'Can''t use private key');
-        UpdateCertX509; { V8.40 }
 end;
 {$ENDIF OPENSSL_NO_ENGINE}
 
@@ -15186,7 +15286,7 @@ begin
 
         {$IFNDEF OPENSSL_NO_ENGINE}
             if (FCtxEngine <> nil) and
-               (eccLoadPrivKey in FCtxEngine.CtxCapabilities) then
+                      (eccLoadPrivKey in FCtxEngine.CtxCapabilities) then
                 LoadPKeyFromEngine(FCtxEngine)
             else begin
         {$ENDIF}
@@ -15195,26 +15295,37 @@ begin
                 f_SSL_CTX_set_default_passwd_cb_userdata(FSslCtx, Self);
 
               { V8.27 load server private key from file or PEM string list }
-                if (FSslPrivKeyLines.Count > 0) and (FSslPrivKeyFile = '') then
-                    LoadPkeyFromString(FSslPrivKeyLines.Text)
-                else
-                    LoadPKeyFromFile(FSslPrivKeyFile);
+              { V8.41 unless about to load it from FSslCertX509 }
+                if NOT FSslCertX509.IsPKeyLoaded then begin
+                    if (FSslPrivKeyLines.Count > 0) and (FSslPrivKeyFile = '') then
+                        LoadPkeyFromString(FSslPrivKeyLines.Text)
+                    else
+                        LoadPKeyFromFile(FSslPrivKeyFile);
+                end;
         {$IFNDEF OPENSSL_NO_ENGINE}
             end;
         {$ENDIF}
 
          { V8.27 load server certificate from file or PEM string list }
          { note this may include one or more intermediate certificates, or they may be in CAFile }
-            if (FSslCertLines.Count > 0) and (FSslCertFile = '') then
-                LoadCertFromString(FSslCertLines.Text)
-            else
-                LoadCertFromChainFile(FSslCertFile);
+            if FSslCertX509.IsCertLoaded then begin  { V8.41 load from FSslCertX509 }
+                SslSetCertX509;
+            end
+            else begin
+                if (FSslCertLines.Count > 0) and (FSslCertFile = '') then
+                    LoadCertFromString(FSslCertLines.Text)
+                else
+                    LoadCertFromChainFile(FSslCertFile);
+            end;
 
          { V8.27 load CA certificate from file or PEM string list }
-            if (FSslCALines.Count > 0) and (FSslCAFile = '') and (FSslCAPath = '') then
-                LoadCAFromString(FSslCALines.Text)
-            else
-                LoadVerifyLocations(FSslCAFile, FSslCAPath);
+          { V8.41 unless loaded it from FSslCertX509 }
+            if NOT FSslCertX509.IsInterLoaded then begin
+                if (FSslCALines.Count > 0) and (FSslCAFile = '') and (FSslCAPath = '') then
+                    LoadCAFromString(FSslCALines.Text)
+                else
+                    LoadVerifyLocations(FSslCAFile, FSslCAPath);
+            end;
 
           { load certificate revocation lists (CRL) - need to set SslVerifyFlags to use them }
             LoadCRLFromFile(FSslCRLFile);
@@ -15743,9 +15854,6 @@ begin
     try
 {$ENDIF}
         FSslECDHMethod := Value;
-   {     if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1002) and    V8.17 do this after SSL initialised
-                         (FSslECDHMethod = sslECDHAuto) then
-                              FSslECDHMethod := sslECDH_P256;  }
 {$IFNDEF NO_SSL_MT}
     finally
         Unlock
@@ -16086,7 +16194,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.39 list all certificates saved in the context CA store, note this
-  excludes the server or client certtificate (not found a way to get that) }
+  excludes the server or client certtificate  }
 function TSslContext.SslGetAllCerts (CertList: TX509List): integer;
 var
     MyStack: PStack;
@@ -16113,6 +16221,9 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.40 for servers, build certificate chain for current context certificate  }
+{ use SSL_BUILD_CHAIN_FLAG_xx flags OR'd to control verification, 1=OK }
+{ flag SSL_BUILD_CHAIN_FLAG_IGNORE_ERROR will return 2 on error instead of exception }
+{ !! WARNING - may stop intermediates being sent if error returned }
 function TSslContext.SslBuildCertChain (Flags: Integer): integer;
 begin
     if not Assigned(FSslCtx) then
@@ -16124,40 +16235,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.40 list chain of certificates associated with the current context certificate }
-{ not sure if this works yet }
-function TSslContext.SslGetCertChain (CertList: TX509List): integer;
-var
-    MyStack: PSTACK_OF_X509;
-    I: integer;
-    MyX509Obj: PX509_OBJECT;
-begin
-    Result := 0;
-    if not Assigned(FSslCtx) then
-        raise ESslContextException.Create(msgSslCtxNotInit);
-    if NOT Assigned(CertList) then exit;
-    if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then Exit;
-    CertList.Clear;
-    if f_SSL_CTX_get0_chain_certs(FSslCtx, @MyStack) = 0 then begin
-        RaiseLastOpenSslError(Exception, TRUE,
-                              'Failed to get certificate chain');
-        exit;
-    end;
-    Result := f_OPENSSL_sk_num(MyStack);   { !! don't free stack }
-    if Result = 0 then Exit;
-    for I := 0 to Result - 1 do begin
-        MyX509Obj := PX509_OBJECT (f_OPENSSL_sk_value(MyStack, I));
-        if f_X509_OBJECT_get_type (MyX509Obj) = X509_LU_X509 then
-           CertList.Add(f_X509_dup(f_X509_OBJECT_get0_X509 (MyX509Obj)));
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TX509Base.Create(AOwner: TComponent; X509: Pointer = nil);
 begin
     inherited Create(AOwner);
+    FX509 := nil;
     FPrivateKey := nil;
+    FX509Inters := nil;     { V8.41 }
+    FX509CATrust := nil;    { V8.41 }
     AssignDefaults;
     if Assigned(X509) then begin
         InitializeSsl;
@@ -16187,11 +16271,21 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TX509Base.FreeAndNilX509Inters;         { V8.40 }
+procedure TX509Base.FreeAndNilX509Inters;         { V8.41 }
 begin
     if Assigned(FX509Inters) then begin
         f_OPENSSL_sk_free(FX509Inters);
         FX509Inters := nil;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.FreeAndNilX509CATrust;         { V8.41 }
+begin
+    if Assigned(FX509CATrust) then begin
+        f_OPENSSL_sk_free(FX509CATrust);
+        FX509CATrust := nil;
     end;
 end;
 
@@ -16213,6 +16307,7 @@ begin
     FreeAndNilX509;
     FreeAndNilPrivateKey;
     FreeAndNilX509Inters;
+    FreeAndNilX509CATrust;
 end;
 
 
@@ -16229,12 +16324,23 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TX509Base.SetX509Inters(X509Inters: PStack);  { V8.40 }
+procedure TX509Base.SetX509Inters(X509Inters: PStack);  { V8.41 }
 begin
     InitializeSsl;
     FreeAndNilX509Inters;
     if Assigned(X509Inters) then begin
         FX509Inters := f_OPENSSL_sk_dup(X509Inters);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.SetX509CATrust(X509CATrust: PStack);  { V8.41 }
+begin
+    InitializeSsl;
+    FreeAndNilX509CATrust;
+    if Assigned(X509CATrust) then begin
+        FX509CATrust := f_OPENSSL_sk_dup(X509CATrust);
     end;
 end;
 
@@ -16261,6 +16367,51 @@ begin
         Result := nil;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetIsCertLoaded : Boolean;     { V8.41 }
+begin
+    result := Assigned(FX509);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  TX509Base.GetIsPKeyLoaded : Boolean;     { V8.41 }
+begin
+    result := Assigned(FPrivateKey);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetIsInterLoaded : Boolean;    { V8.41 }
+begin
+    result := Assigned(FX509Inters);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetIsCATrustLoaded : Boolean;                          { V8.41 }
+begin
+    result := Assigned(FX509CATrust);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base. GetInterCount: Integer;                                { V8.41 }
+begin
+    Result := 0;
+    if NOT GetIsInterLoaded then Exit;
+    Result := f_OPENSSL_sk_num(FX509Inters);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetCATrustCount: Integer;                              { V8.41 }
+begin
+    result := 0;
+    if NOT GetIsCATrustLoaded then Exit;
+    Result := f_OPENSSL_sk_num(FX509CATrust);
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.GetExtensionCount: Integer;
@@ -16273,58 +16424,291 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.ExtByName(const ShortName: String): Integer;
+function TX509Base.CheckExtName(Ext: PX509_EXTENSION; const ShortName: String): Boolean;  { V8.41 }
 var
-    Ext     : PX509_EXTENSION;
-    Count   : Integer;
-    I       : Integer;
     Len     : Integer;
     ExtStr  : PAnsiChar;
     B       : PBIO;
     Nid     : Integer;
 begin
+    Result := False;
+    if NOT Assigned(Ext) then Exit;
+    Nid := f_OBJ_obj2nid(f_X509_EXTENSION_get_object(Ext));
+    if Nid <> NID_undef then begin
+        ExtStr := f_OBJ_nid2sn(Nid);
+        if StrLIComp(ExtStr, PAnsiChar(AnsiString(ShortName)), 255) = 0 then begin
+            Result := True;
+            Exit;
+        end;
+    end
+    else begin // custom extension
+        B := f_BIO_new(f_BIO_s_mem);
+        if Assigned(B) then begin
+            try
+                f_i2a_ASN1_OBJECT(B, f_X509_EXTENSION_get_object(Ext));
+                Len := f_BIO_ctrl(B, BIO_CTRL_PENDING, 0, nil);
+                if Len > 0 then begin
+                    GetMem(ExtStr, Len);
+                    try
+                        f_Bio_read(B, ExtStr, Len);
+                        if StrLIComp(ExtStr, PAnsiChar(AnsiString(ShortName)), 255) = 0 then begin
+                            Result := True;
+                            Exit;
+                        end;
+                    finally
+                        FreeMem(ExtStr);
+                    end;
+                end;
+            finally
+                f_bio_free(B);
+            end;
+        end;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetExtDetail(Ext: PX509_EXTENSION): TExtension;      { V8.41 }
+var
+    J        : Integer;
+    Value    : PAnsiChar;
+    Meth     : PX509V3_EXT_METHOD;
+    Data     : PAnsiChar;
+    Val      : PSTACK;
+    NVal     : PCONF_VALUE;
+    ext_str  : Pointer;
+    B        : PBIO;
+    Nid      : Integer;
+    Extvalue : PASN1_STRING;   { V8.40 was octetstring  }
+    Extlen   : Integer;
+begin
+    Result.Critical  := FALSE;
+    Result.ShortName := '';
+    Result.Value     := '';
+    if not Assigned(Ext) then
+        raise EX509Exception.Create('Extension not assigned');
+    Value   := nil;
+    Meth    := nil;
+    Val     := nil;
+    ext_str := nil;
+    Result.Critical := f_X509_EXTENSION_get_critical(Ext) > 0;
+    Nid := f_OBJ_obj2nid(f_X509_EXTENSION_get_object(Ext));
+    if Nid <> NID_undef then
+        Result.ShortName := String(StrPas(f_OBJ_nid2sn(Nid)))
+    else begin // custom extension
+        //B := nil;
+        B := f_BIO_new(f_BIO_s_mem);
+        if Assigned(B) then begin
+            try
+                f_i2a_ASN1_OBJECT(B, f_X509_EXTENSION_get_object(Ext));
+                J := f_BIO_ctrl(B, BIO_CTRL_PENDING, 0, nil);
+                Result.ShortName := String(ReadStrBio(B, J));   { V8.41 }
+            finally
+                f_bio_free(B);
+            end;
+        end;
+    end;
+
+    try
+        Meth := f_X509V3_EXT_get(Ext);
+        if Meth = nil then begin
+            Result.Value := UnknownExtDataToStr(Ext);
+            Exit;
+        end;
+     //   Data := Ext^.value^.data;   { V8.27 Ext structure now hidden }
+        Extvalue := f_X509_EXTENSION_get_data(Ext);   { V8.27 }
+    //    Data := Extvalue^.data;                        { V8.27 }
+    //    Extlen := Extvalue^.length;                    { V8.27 }
+        Data := f_ASN1_STRING_get0_data(Extvalue);    { V8.40 }
+        Extlen := f_ASN1_STRING_length(Extvalue);
+        if Assigned(Meth^.it) then
+            ext_str := f_ASN1_item_d2i(nil,
+                                       @Data,
+                                       Extlen,
+                                       ASN1_ITEM_ptr(Meth^.it))
+        else
+            ext_str := Meth^.d2i(nil, @Data, Extlen);
+
+        if not Assigned(ext_str) then begin
+            Result.Value := UnknownExtDataToStr(Ext);
+            Exit;
+        end;
+
+        if Assigned(Meth^.i2s) then begin
+            Value := Meth^.i2s(Meth, ext_str);
+            if Assigned(Value) then
+                Result.Value := String(StrPas(Value));
+        end
+        else if Assigned(Meth^.i2v) then begin
+            Val := Meth^.i2v(Meth, ext_str, nil);
+            if not Assigned(Val) then
+                Exit;
+            J := 0;
+            while J < f_OPENSSL_sk_num(val) do begin
+                NVal := PCONF_VALUE(f_OPENSSL_sk_value(Val, J));
+                if Length(Result.Value) > 0 then
+                    Result.Value := Result.Value + #13#10;
+                Result.Value := Result.Value + String(StrPas(NVal^.name));
+                if (StrPas(NVal^.value) <> '') and (StrPas(NVal^.name) <> '') then
+                    Result.Value := Result.Value + '=';
+                Result.Value := Result.Value + String(StrPas(NVal^.value));
+                Inc(J);
+            end;
+        end
+        else if Assigned(Meth^.i2r) then begin
+            //B := nil;
+            B := f_BIO_new(f_BIO_s_mem);
+            if Assigned(B) then
+                try
+                    Meth.i2r(Meth, ext_str, B, 0);
+                    J := f_BIO_ctrl(B, BIO_CTRL_PENDING, 0, nil);
+                    if J > 0 then begin
+                        Result.Value := String(ReadStrBio(B, J)); { V8.41 }
+                        { This method separates multiple values by LF } // should I remove this stuff?
+                        while (Length(Result.Value) > 0) and
+                              (Result.Value[Length(Result.Value)] = #10) do
+                            SetLength(Result.Value, Length(Result.Value) -1);
+                        Result.Value := StringReplace(Result.Value, #10, #13#10, [rfReplaceAll]);
+                    end;
+                finally
+                    f_bio_free(B);
+                end;
+        end;
+    finally
+        if Assigned(Val) then
+            f_OPENSSL_sk_pop_free(Val, @f_X509V3_conf_free);
+        if Assigned(Value) then
+            f_CRYPTO_free(Value);
+        if Assigned(Meth) and Assigned(ext_str) then
+            if Assigned(Meth^.it) then
+                f_ASN1_item_free(ext_str, ASN1_ITEM_ptr(Meth^.it))
+            else
+                Meth^.ext_free(ext_str);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.ExtByName(const ShortName: String): Integer;
+var
+    Ext     : PX509_EXTENSION;
+    Count   : Integer;
+    I       : Integer;
+begin
     Result := -1;
     if Assigned(FX509) then begin
         Count := GetExtensionCount;
         for I := 0 to Count -1 do begin
-            //Ext := nil;
             Ext := f_X509_get_ext(FX509, I);
             if not Assigned(Ext) then
                 Continue;
-            Nid := f_OBJ_obj2nid(f_X509_EXTENSION_get_object(Ext));
-            if Nid <> NID_undef then begin
-                ExtStr := f_OBJ_nid2sn(Nid);
-                if StrLIComp(ExtStr, PAnsiChar(AnsiString(ShortName)), 255) = 0 then begin
-                    Result := I;
-                    Exit;
-                end;
-            end
-            else begin // custom extension
-                //B := nil;
-                B := f_BIO_new(f_BIO_s_mem);
-                if Assigned(B) then begin
-                    try
-                        f_i2a_ASN1_OBJECT(B, f_X509_EXTENSION_get_object(Ext));
-                        Len := f_BIO_ctrl(B, BIO_CTRL_PENDING, 0, nil);
-                        if Len > 0 then begin
-                            GetMem(ExtStr, Len);
-                            try
-                                f_Bio_read(B, ExtStr, Len);
-                                if StrLIComp(ExtStr, PAnsiChar(AnsiString(ShortName)), 255) = 0 then begin
-                                    Result := I;
-                                    Exit;
-                                end;
-                            finally
-                                FreeMem(ExtStr);
-                            end;
-                        end;
-                    finally
-                        f_bio_free(B);
-                    end;
-                end;
+            if CheckExtName(Ext, ShortName) then begin    { V8.41 simplify }
+                Result := I;
+                Exit;
             end;
         end;
     end
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.UnknownExtDataToStr(Ext: PX509_Extension) : String;
+begin
+    Result := Asn1ToString(PASN1_STRING(f_X509_EXTENSION_get_data(Ext)));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetExtension(Index: Integer): TExtension;
+var
+    ExtCount : Integer;
+    Ext      : PX509_EXTENSION;
+begin
+    Result.Critical  := FALSE;
+    Result.ShortName := '';
+    Result.Value     := '';
+    if not Assigned(FX509) then
+        Exit;
+    ExtCount := ExtensionCount;
+    if (Index < 0) or (Index > ExtCount -1) then
+        raise EX509Exception.Create('Extension index out of bounds');
+    Ext := f_X509_get_ext(FX509, Index);
+    if not Assigned(Ext) then
+        raise EX509Exception.Create('Extension not assigned');
+    Result := GetExtDetail(Ext);        { V8.41 simplify }
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetExtensionByName(const S: String): TExtension;
+var
+    I       : Integer;
+    Ext     : PX509_EXTENSION;
+    Count   : Integer;
+begin
+    Result.Critical  := FALSE;
+    Result.ShortName := '';
+    Result.Value     := '';
+    if NOT Assigned(FX509) then Exit;
+    Count := GetExtensionCount;
+    for I := 0 to Count - 1 do begin
+        Ext := f_X509_get_ext(FX509, I);
+        if not Assigned(Ext) then
+            Continue;
+        if CheckExtName(Ext, S) then begin    { V8.41 simplify }
+            Result := GetExtDetail(Ext);
+            Exit;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetExtField(Ext: TExtension; const FieldName: String): String;   { V8.41 simplify }
+var
+    I  : Integer;
+    Li : TStringList;
+begin
+    Result := '';
+    Li := TStringList.Create;
+    try
+        if Length(Ext.ShortName) > 0 then begin
+            Li.Text := Ext.Value;
+            for I := 0 to Li.Count -1 do begin
+                if (FieldName = '') then begin
+                    if Result <> '' then Result := Result + #13#10;
+                    Result := Result + Li[I];
+                end
+                else if (Pos(FieldName, IcsUpperCase(Li.Names[I])) = 1) then begin
+                    if Result <> '' then Result := Result + #13#10;
+                    Result := Result + Copy (Li[I], Length(Li.Names[I])+2,999);
+                end;
+            end;
+        end;
+    finally
+        Li.Free;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetExtensionValuesByName(const ShortName, FieldName: String): String;
+var
+    Ext : TExtension;
+begin
+    Result := '';
+    if not Assigned(X509) then
+        Exit;
+    Ext := GetExtensionByName(ShortName);
+    if Length(Ext.ShortName) > 0 then begin
+        Result := GetExtField(Ext, FieldName);   { V8.41 simplify }
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.UnwrapNames(const S: String): String;
+begin
+    Result := StringReplace(S, #13#10, ', ', [rfReplaceAll]);
 end;
 
 
@@ -16421,162 +16805,9 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.UnknownExtDataToStr(Ext: PX509_Extension) : String;
-begin
-    Result := Asn1ToString(PASN1_STRING(f_X509_EXTENSION_get_data(Ext)));
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.GetExtension(Index: Integer): TExtension;
-var
-    ExtCount : Integer;
-    J        : Integer;
-    Ext      : PX509_EXTENSION;
-    Value    : PAnsiChar;
-    Meth     : PX509V3_EXT_METHOD;
-    Data     : PAnsiChar;
-    Val      : PSTACK;
-    NVal     : PCONF_VALUE;
-    ext_str  : Pointer;
-    B        : PBIO;
-    Nid      : Integer;
-    ABuf     : AnsiString;
-    Extvalue : PASN1_STRING;   { V8.40 was octetstring  }
-    Extlen   : Integer;
-begin
-    Result.Critical  := FALSE;
-    Result.ShortName := '';
-    Result.Value     := '';
-    if not Assigned(FX509) then
-        Exit;
-    ExtCount := ExtensionCount;
-    if (Index < 0) or (Index > ExtCount -1) then
-        raise EX509Exception.Create('Extension index out of bounds');
-    Value   := nil;
-    Meth    := nil;
-    Val     := nil;
-    ext_str := nil;
-    //Ext   := nil;
-    Ext     := f_X509_get_ext(FX509, Index);
-    if not Assigned(Ext) then
-        raise EX509Exception.Create('Extension not assigned');
-    Result.Critical := f_X509_EXTENSION_get_critical(Ext) > 0;
-    Nid := f_OBJ_obj2nid(f_X509_EXTENSION_get_object(Ext));
-    if Nid <> NID_undef then
-        Result.ShortName := String(StrPas(f_OBJ_nid2sn(Nid)))
-    else begin // custom extension
-        //B := nil;
-        B := f_BIO_new(f_BIO_s_mem);
-        if Assigned(B) then begin
-            try
-                f_i2a_ASN1_OBJECT(B, f_X509_EXTENSION_get_object(Ext));
-                J := f_BIO_ctrl(B, BIO_CTRL_PENDING, 0, nil);
-                SetLength(ABuf, J);
-                if J > 0 then begin
-                    f_Bio_read(B, PAnsiChar(ABuf), J);
-                    SetLength(ABuf, StrLen(PAnsiChar(ABuf)));
-                    Result.ShortName := String(ABuf);
-                end;
-            finally
-                f_bio_free(B);
-            end;
-        end;
-    end;
-
-    try
-        Meth := f_X509V3_EXT_get(Ext);
-        if Meth = nil then begin
-            Result.Value := UnknownExtDataToStr(Ext);
-            Exit;
-        end;
-     //   Data := Ext^.value^.data;   { V8.27 Ext structure now hidden }
-        Extvalue := f_X509_EXTENSION_get_data(Ext);   { V8.27 }
-    //    Data := Extvalue^.data;                        { V8.27 }
-    //    Extlen := Extvalue^.length;                    { V8.27 }
-        Data := f_ASN1_STRING_get0_data(Extvalue);    { V8.40 }
-        Extlen := f_ASN1_STRING_length(Extvalue);
-        if Assigned(Meth^.it) then
-            ext_str := f_ASN1_item_d2i(nil,
-                                       @Data,
-                                       Extlen,
-                                       ASN1_ITEM_ptr(Meth^.it))
-        else
-            ext_str := Meth^.d2i(nil, @Data, Extlen);
-
-        if not Assigned(ext_str) then begin
-            Result.Value := UnknownExtDataToStr(Ext);
-            Exit;
-        end;
-
-        if Assigned(Meth^.i2s) then begin
-            Value := Meth^.i2s(Meth, ext_str);
-            if Assigned(Value) then
-                Result.Value := String(StrPas(Value));
-        end
-        else if Assigned(Meth^.i2v) then begin
-            Val := Meth^.i2v(Meth, ext_str, nil);
-            if not Assigned(Val) then
-                Exit;
-            J := 0;
-            while J < f_OPENSSL_sk_num(val) do begin
-                NVal := PCONF_VALUE(f_OPENSSL_sk_value(Val, J));
-                if Length(Result.Value) > 0 then
-                    Result.Value := Result.Value + #13#10;
-                Result.Value := Result.Value + String(StrPas(NVal^.name));
-                if (StrPas(NVal^.value) <> '') and (StrPas(NVal^.name) <> '') then
-                    Result.Value := Result.Value + '=';
-                Result.Value := Result.Value + String(StrPas(NVal^.value));
-                Inc(J);
-            end;
-        end
-        else if Assigned(Meth^.i2r) then begin
-            //B := nil;
-            B := f_BIO_new(f_BIO_s_mem);
-            if Assigned(B) then
-                try
-                    Meth.i2r(Meth, ext_str, B, 0);
-                    J := f_BIO_ctrl(B, BIO_CTRL_PENDING, 0, nil);
-                    SetLength(ABuf, J);                          { V7.31 }
-                    if J > 0 then begin
-                        f_Bio_read(B, PAnsiChar(ABuf), J);
-                        SetLength(ABuf, StrLen(PAnsiChar(ABuf)));
-                        Result.Value := String(ABuf);
-                        { This method separates multiple values by LF } // should I remove this stuff?
-                        while (Length(Result.Value) > 0) and
-                              (Result.Value[Length(Result.Value)] = #10) do
-                            SetLength(Result.Value, Length(Result.Value) -1);
-                        Result.Value := StringReplace(Result.Value, #10, #13#10, [rfReplaceAll]);
-                    end;
-                finally
-                    f_bio_free(B);
-                end;
-        end;
-    finally
-        if Assigned(Val) then
-            f_OPENSSL_sk_pop_free(Val, @f_X509V3_conf_free);
-        if Assigned(Value) then
-            f_CRYPTO_free(Value);
-        if Assigned(Meth) and Assigned(ext_str) then
-            if Assigned(Meth^.it) then
-                f_ASN1_item_free(ext_str, ASN1_ITEM_ptr(Meth^.it))
-            else
-                Meth^.ext_free(ext_str);
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.GetSubjectAltName: TExtension;
-var
-    I : Integer;
 begin
-    Result.Critical  := FALSE;
-    Result.ShortName := '';
-    Result.Value     := '';
-    I := ExtByName('subjectAltName');
-    if I > -1 then
-        Result := GetExtension(I);
+    Result := GetExtensionByName('subjectAltName');  { V8.41 simplify }
 end;
 
 
@@ -16591,7 +16822,7 @@ var
 begin
     Result := '';
 {$IFNDEF WIN64}    { V7.81 }
-    Entry  := nil; { Make dcc32 happy }
+    Entry  := nil;
 {$ENDIF}
     if not Assigned(FX509) then
         Exit;
@@ -16869,37 +17100,14 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.40 allow encryption of private key with extra params }
-procedure TX509Base.SaveToPemFile(const FileName: String;
-    IncludePrivateKey: Boolean = FALSE; AddInfoText: Boolean = FALSE;
-             IncludeInters: Boolean = FALSE; const Password: String = '';
-                            PrivKeyType: TSslPrivKeyCipher = PrivKeyEncNone);
-var
-    FileBio : PBIO;
-begin
-    InitializeSsl;
-    FileBio := IcsSslOpenFileBio(FileName, bomWrite);  { V8.40 }
-    try
-     //   WriteToBio(FileBio, IncludePrivateKey, AddInfoText);
-        WriteCertToBio(FileBio, AddInfoText);          { V8.40 split writing cert and key }
-        if IncludePrivateKey then WritePkeyToBio(FileBio, Password, PrivKeyType);
-        // !!! pending write intermediate certificates
-        // if IncludeInters then xxx
-    finally
-        f_bio_free(FileBio);
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { base64 enccoded PEM }
 procedure TX509Base.LoadFromText(Lines: String; IncludePKey: TCertReadOpt = croNo;
                   IncludeInters: TCertReadOpt = croNo; const Password: String = '');   { V8.40 }
 var
     MemBio : PBIO;
 begin
-    if (Pos ('-BEGIN CERTIFICATE-', Lines) = 0) and
-            (Pos ('-END CERTIFICATE-', Lines) = 0) then
+    if (Pos(PEM_STRING_HDR_BEGIN, Lines) = 0) and
+            (Pos(PEM_STRING_HDR_END, Lines) = 0) then
         raise ESslContextException.Create('Expected a Base64 encoded PEM certificate');
     InitializeSsl;
     MemBio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Lines)), Length (Lines));
@@ -16933,8 +17141,8 @@ var
     PKey    : PEVP_PKEY;
     MemBio : PBIO;
 begin
-    if (Pos ('-BEGIN PRIVATE KEY-', Lines) = 0) and
-         (Pos ('-END PRIVATE KEY-', Lines) = 0) then
+    if (Pos(PEM_STRING_HDR_BEGIN, Lines) = 0) and
+         (Pos(PEM_STRING_HDR_END, Lines) = 0) then
              raise ESslContextException.Create('Expected a Base64 encoded PEM private key');
     InitializeSsl;
     MemBio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Lines)), Length (Lines));
@@ -16975,64 +17183,84 @@ procedure TX509Base.ReadFromBio(ABio: PBIO; IncludePKey: TCertReadOpt = croNo;
                           IncludeInters: TCertReadOpt = croNo; const Password:
                                           String = ''; const FName: String = '');
 var
-    X     : PX509;
-    PKey  : PEVP_PKEY;
+    X         : PX509;
+    PKey      : PEVP_PKEY;
+    TotInfo : Integer;
+    AStr      : AnsiString;
+    MyStack   : PStack;
+const
+    Readmax = 2048;  { PEM files may have comments before real base64 stuff }
 begin
     InitializeSsl;
     if not Assigned(ABio) then
-        raise EX509Exception.Create('BIO not assigned');
-    X := f_PEM_read_bio_X509(ABio, nil, nil, PAnsiChar(AnsiString(Password)));
-    if not Assigned(X) then begin
-        IncludePKey := croNo;  { no private key in DER file }
-        IncludeInters := croNo;
-        f_BIO_ctrl(ABio, BIO_CTRL_RESET, 0, nil);
-        X := f_d2i_X509_bio(ABio, Nil);  { V8.40 not base64 encoded, try binary }
+        raise EX509Exception.Create('BIO not assigned, ' + FName);
+
+ { V8.41 check if base64 or binary DER by search for ---BEGIN }
+    AStr := ReadStrBio(ABio, Readmax);
+    if Length(AStr) <= 0 then
+        raise EX509Exception.Create('Certificate file is empty, ' + FName);  {V8.41 }
+    f_BIO_ctrl(ABio, BIO_CTRL_RESET, 0, nil);
+    if (Pos(PEM_STRING_HDR_BEGIN, String(AStr)) = 0) then begin
+
+ { DER file only has a single certificate, no key }
+        X := f_d2i_X509_bio(ABio, Nil);  { V8.40 binary DER }
         if NOT Assigned (X) then begin
-            f_ERR_clear_error; // ignore SSL error
-            EX509Exception.Create('Error reading X509 certificate from ' + FName);
+            f_ERR_clear_error; { ignore SSL error }
+            raise EX509Exception.Create('Error reading X509 DER certificate from ' + FName);  {V8.41 }
         end;
+        SetX509(X);
+        Exit;
     end;
+
+ { V8.41 read multiple base64 certificates from PEM file or lines }
+    MyStack := IcsSslLoadStackFromBIO(ABIO, emCert, FName);
+    if NOT Assigned (MyStack) then
+        raise EX509Exception.Create('No X509 Base64 certificate found');
     try
-         { V8.40 moved this check to new CheckCertAndPKey function }
-         {  if (not IncludePrivateKey) and Assigned(FPrivateKey) then
-            if f_X509_check_private_key(X, FPrivateKey) < 1 then
-                raise EX509Exception.Create('Certificate and private key do not match');  }
+        TotInfo := f_OPENSSL_sk_num(MyStack);
+        if TotInfo = 0 then
+            raise EX509Exception.Create('No X509 Base64 certificate found');
 
-      { look for private key in PEM file }
-        if IncludePKey > croNo then begin
-            f_BIO_ctrl(ABio, BIO_CTRL_RESET, 0, nil);
-            PKey := f_PEM_read_bio_PrivateKey(ABio, nil, nil,
-                                              PAnsiChar(AnsiString(Password)));
-            if not Assigned(PKey) then begin
-                if IncludePKey <> croTry then  { V8.40 ignores missing key }
-                    RaiseLastOpenSslError(EX509Exception, TRUE,
-                                      'Error reading private key from ' + FName);
-                f_ERR_clear_error; // ignore SSL error
-                SetX509(X);
-            end
-            else begin
-                try
-                    if f_X509_check_private_key(X, PKey) < 1 then
-                        raise EX509Exception.Create('Certificate and private key do not match');
-                     SetX509(X);               { V8.40 use proper setter }
-                     SetPrivateKey(PKey);
-                finally
-                    f_EVP_PKEY_free(PKey);
-                end;
+    { first in stack is server certificate }
+        SetX509(PX509(f_OPENSSL_sk_delete(MyStack, 0)));
+
+    { remaineder are intermediates }
+        if (TotInfo > 1) and (IncludeInters > croNo) then begin
+            FreeAndNilX509Inters;
+            FX509Inters := f_OPENSSL_sk_new_null;
+            if FX509Inters = nil then
+                RaiseLastOpenSslError(EX509Exception, TRUE, 'Error creating X509 stack');
+            while f_OPENSSL_sk_num(MyStack) > 0 do begin
+                X := f_X509_dup(PX509(f_OPENSSL_sk_delete(MyStack, 0)));
+                f_OPENSSL_sk_insert(FX509Inters, PAnsiChar(X), - 1);
             end;
-        end else
-            SetX509(X);
-
-     // load intermediate certificatss
-        if IncludeInters > croNo then begin
-            //
         end;
+   finally
+       f_OPENSSL_sk_pop_free(MyStack, @f_X509_free);
+   end;
 
-    finally
-        f_X509_free(X);
+ { look for PKCS8 PRIVATE KEY or ENCRYPTED PRIVATE KEY in PEM file }
+    if IncludePKey > croNo then begin
+        f_BIO_ctrl(ABio, BIO_CTRL_RESET, 0, nil);
+        PKey := f_PEM_read_bio_PrivateKey(ABio, nil, nil,
+                                          PAnsiChar(AnsiString(Password)));
+        if not Assigned(PKey) then begin
+            if IncludePKey = croYes then  { V8.40 require key so error }
+                RaiseLastOpenSslError(EX509Exception, TRUE,
+                                  'Error reading private key from ' + FName);
+            f_ERR_clear_error; // ignore SSL error
+        end
+        else begin
+            try
+                if f_X509_check_private_key(FX509, PKey) < 1 then
+                    raise EX509Exception.Create('Certificate and private key do not match from ' + FName);
+                 SetPrivateKey(PKey);
+            finally
+                f_EVP_PKEY_free(PKey);
+            end;
+        end;
     end;
 end;
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TX509Base.ReadFromBio(ABio: PBIO; IncludePrivateKey: Boolean = FALSE;
@@ -17051,17 +17279,13 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.40 write X509 certificate to BIO, optionally with raw certificate fields }
 procedure TX509Base.WriteCertToBio(ABio: PBIO; AddInfoText: Boolean = FALSE; const FName: String = '');
-var
-    comments: AnsiString;
 begin
     if not Assigned(ABio) then
         raise EX509Exception.Create('BIO not assigned');
     if not Assigned(FX509) then
         raise EX509Exception.Create('X509 not assigned');
     if AddInfoText then begin
-        comments := AnsiString(GetCertInfo) + #13#10;
-        if f_BIO_write(ABio, @comments [1], Length (comments)) = 0 then
-            RaiseLastOpenSslError(EX509Exception, TRUE, 'Error writing raw text to ' + FName);
+        WriteStrBio(ABio, AnsiString(CertInfo) + #13#10, True);
     end;
     if f_PEM_write_bio_X509(ABio, FX509) = 0 then
         RaiseLastOpenSslError(EX509Exception, TRUE, 'Error writing certificate to ' + FName);
@@ -17080,12 +17304,12 @@ begin
     if not Assigned(FPrivateKey) then
         raise EX509Exception.Create('Private key not assigned');
   //  ret := f_PEM_write_bio_PrivateKey(ABio, FPrivateKey, nil, nil, 0, nil, nil); // { old way }
-    if PrivKeyType = PrivKeyEncNone then  { V8.40 }                         
+    if PrivKeyType = PrivKeyEncNone then  { V8.40 }
         ret := f_PEM_write_bio_PKCS8PrivateKey(ABio, FPrivateKey, nil, nil, 0, nil, nil)
     else
         ret := f_PEM_write_bio_PKCS8PrivateKey(ABio, FPrivateKey,
                  IcsSslGetEVPCipher (SslPrivKeyEvpCipher[PrivKeyType]),
-                    PAnsiChar(AnsiString(Password)), Length(Password), Nil, Nil); 
+                    PAnsiChar(AnsiString(Password)), Length(Password), Nil, Nil);
     if ret = 0 then
         RaiseLastOpenSslError(EX509Exception, TRUE, 'Error writing private key to ' + FName);
 end;
@@ -17096,14 +17320,10 @@ procedure TX509Base.WriteToBio(ABio: PBIO; IncludePrivateKey: Boolean = FALSE;
                             AddInfoText: Boolean = FALSE; const FName: String = '');
 begin
     WriteCertToBio(ABio, AddInfoText, FName);          { V8.40 split writing cert and key }
-    if IncludePrivateKey then WritePkeyToBio(ABio, FName);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TX509Base.WriteIntersToBio(ABio: PBIO; AddInfoText: Boolean = FALSE; const FName: String = '');  { V8.40 }
-begin
-    //
+    if IncludePrivateKey then begin
+        WriteStrBio(ABio, #10#10);  { V8.41 blank lines between certs }
+        WritePkeyToBio(ABio, FName);
+    end;
 end;
 
 
@@ -17111,25 +17331,19 @@ end;
 { returns formatted text with raw certificate fields }
 function TX509Base.GetRawText: String;    {05/21/2007 AG}
 var
-    Bio  : PBIO;
+    ABio : PBIO;
     Len  : Integer;
-    AStr : AnsiString;
 begin
     Result := '';
     if FX509 = nil then Exit;
-    Bio := f_BIO_new(f_BIO_s_mem);
-    if Assigned(Bio) then
+    ABio := f_BIO_new(f_BIO_s_mem);
+    if Assigned(ABio) then
     try
-        f_X509_print(Bio, FX509);
-        Len := f_BIO_ctrl(Bio, BIO_CTRL_PENDING, 0, nil);
-        SetLength(AStr, Len);
-        if Len > 0 then begin
-            f_Bio_read(Bio, PAnsiChar(AStr), Len);
-            SetLength(AStr, StrLen(PAnsiChar(AStr)));
-            Result := String(AStr);
-        end;
+        f_X509_print(ABio, FX509);
+        Len := f_BIO_ctrl(ABio, BIO_CTRL_PENDING, 0, nil);
+        Result := String(ReadStrBio(ABio, Len));  { V8.41 }
     finally
-        f_bio_free(Bio);
+        f_bio_free(ABio);
     end;
 end;
 
@@ -17138,27 +17352,20 @@ end;
 { returns formatted text with raw private and public key fields }
 function TX509Base.GetPKeyRawText: String;    { V8.40}
 var
-    Bio  : PBIO;
+    ABio : PBIO;
     Len  : Integer;
-    AStr : AnsiString;
 begin
     Result := '';
     if FPrivateKey = nil then Exit;
-    Bio := f_BIO_new(f_BIO_s_mem);
-    if Assigned(Bio) then
+    ABio := f_BIO_new(f_BIO_s_mem);
+    if Assigned(ABio) then
     try
-    //    f_EVP_PKEY_print_params(Bio, FPrivateKey, 4, Nil);
-        f_EVP_PKEY_print_private(Bio, FPrivateKey, 4, Nil);
-        f_EVP_PKEY_print_public(Bio, FPrivateKey, 4, Nil);
-        Len := f_BIO_ctrl(Bio, BIO_CTRL_PENDING, 0, nil);
-        SetLength(AStr, Len);
-        if Len > 0 then begin
-            f_Bio_read(Bio, PAnsiChar(AStr), Len);
-            SetLength(AStr, StrLen(PAnsiChar(AStr)));
-            Result := String(AStr);
-        end;
+        f_EVP_PKEY_print_private(ABio, FPrivateKey, 4, Nil);
+        f_EVP_PKEY_print_public(ABio, FPrivateKey, 4, Nil);
+        Len := f_BIO_ctrl(ABio, BIO_CTRL_PENDING, 0, nil);
+        Result := String(ReadStrBio(ABio, Len));  { V8.41 }
     finally
-        f_bio_free(Bio);
+        f_bio_free(ABio);
     end;
 end;
 
@@ -17168,25 +17375,50 @@ end;
 { returns base64 encoded DER PEM certificate as string }
 function TX509Base.SaveCertToText(AddInfoText: Boolean = FALSE): String;       { V8.40}
 var
-    Bio  : PBIO;
+    ABio : PBIO;
     Len  : Integer;
-    AStr : AnsiString;
 begin
     Result := '';
     if FX509 = nil then Exit;
-    Bio := f_BIO_new(f_BIO_s_mem);
-    if Assigned(Bio) then
+    ABio := f_BIO_new(f_BIO_s_mem);
+    if Assigned(ABio) then
     try
-        WriteCertToBio(Bio, AddInfoText);          { V8.40 split writing cert and key }
-        Len := f_BIO_ctrl(Bio, BIO_CTRL_PENDING, 0, nil);
-        SetLength(AStr, Len);
-        if Len > 0 then begin
-            f_Bio_read(Bio, PAnsiChar(AStr), Len);
-            SetLength(AStr, StrLen(PAnsiChar(AStr)));
-            Result := String(AStr);
+        WriteCertToBio(ABio, AddInfoText);          { V8.40 split writing cert and key }
+        Len := f_BIO_ctrl(ABio, BIO_CTRL_PENDING, 0, nil);
+        Result := String(ReadStrBio(ABio, Len));  { V8.41 }
+    finally
+        f_bio_free(ABio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.40 allow encryption of private key with extra params }
+procedure TX509Base.SaveToPemFile(const FileName: String;
+    IncludePrivateKey: Boolean = FALSE; AddInfoText: Boolean = FALSE;
+             IncludeInters: Boolean = FALSE; const Password: String = '';
+                            PrivKeyType: TSslPrivKeyCipher = PrivKeyEncNone);
+var
+    FileBio : PBIO;
+begin
+    InitializeSsl;
+    FileBio := IcsSslOpenFileBio(FileName, bomWrite);  { V8.40 }
+    try
+        WriteCertToBio(FileBio, AddInfoText, FileName);          { V8.40 split writing cert and key }
+        if IncludePrivateKey and IsPKeyLoaded then begin
+            if NOT CheckCertAndPKey then                   { V8.41 }
+                raise EX509Exception.Create('Certificate and private key do not match');
+            WriteStrBio(FileBio, #10#10);  { V8.41 blank lines between certs }
+            WriteStrBio(FileBio, AnsiString(GetPrivateKeyInfo) + #10);
+            WritePkeyToBio(FileBio, Password, PrivKeyType, FileName);
+        end;
+        // write intermediate certificates
+        if IncludeInters and IsInterLoaded then begin
+            WriteStrBio(FileBio, #10#10);  { blank lines between certs }
+            WriteIntersToBio(FileBio, AddInfoText, FileName);
         end;
     finally
-        f_bio_free(Bio);
+        f_bio_free(FileBio);
     end;
 end;
 
@@ -17196,26 +17428,20 @@ end;
 function TX509Base.SavePKeyToText(const Password: String = '';
             PrivKeyType: TSslPrivKeyCipher = PrivKeyEncNone): String;   { V8.40}
 var
-    Bio  : PBIO;
+    ABio  : PBIO;
     Len  : Integer;
-    AStr : AnsiString;
 begin
     Result := '';
     if not Assigned(FPrivateKey) then
         raise EX509Exception.Create('Private key not assigned');
-    Bio := f_BIO_new(f_BIO_s_mem);
-    if Assigned(Bio) then
+    ABio := f_BIO_new(f_BIO_s_mem);
+    if Assigned(ABio) then
     try
-        WritePkeyToBio(Bio, Password, PrivKeyType);
-        Len := f_BIO_ctrl(Bio, BIO_CTRL_PENDING, 0, nil);
-        SetLength(AStr, Len);
-        if Len > 0 then begin
-            f_Bio_read(Bio, PAnsiChar(AStr), Len);
-            SetLength(AStr, StrLen(PAnsiChar(AStr)));
-            Result := String(AStr);
-        end;
+        WritePkeyToBio(ABio, Password, PrivKeyType);
+        Len := f_BIO_ctrl(ABio, BIO_CTRL_PENDING, 0, nil);
+        Result := String(ReadStrBio(ABio, Len));  { V8.41 }
     finally
-        f_bio_free(Bio);
+        f_bio_free(ABio);
     end;
 end;
 
@@ -17254,7 +17480,7 @@ begin
                     RaiseLastOpenSslError(EX509Exception, TRUE,
                               'Error parsing PKCS12 certificates from BIO');
             end;
-            if (IncludePKey = croYes) and Assigned(PKey) then begin
+            if (IncludePKey = croTry) and Assigned(PKey) then begin
                 if (f_X509_check_private_key(Cert, PKey) < 1) then
                     raise EX509Exception.Create('Certificate and private key do not match');
                  SetX509(Cert);
@@ -17265,7 +17491,7 @@ begin
                 SetX509(Cert);
             f_X509_free(Cert);
             FreeAndNilX509Inters;
-            if (IncludeInters = croYes) and Assigned(Ca) then begin
+            if (IncludeInters = croTry) and Assigned(Ca) then begin
                 FX509Inters := f_OPENSSL_sk_new_null;
                 for I := 0 to f_OPENSSL_sk_num(Ca) - 1 do
                     f_OPENSSL_sk_insert(FX509Inters, PAnsiChar(f_X509_dup
@@ -17290,19 +17516,26 @@ var
     p7 : PPKCS7;
     nid, total, I : integer;
     MyStack: PSTACK_OF_X509;
+    AStr: AnsiString;
+const
+    ReadMax = 2048;
 begin
     InitializeSsl;
     FileBio := IcsSslOpenFileBio(FileName, bomReadOnly);
     MyStack := Nil;
     try
-        p7 := f_PEM_read_bio_PKCS7(FileBio, Nil, Nil, Nil);  { base64 version }
-        if NOT Assigned (p7) then begin
-            f_BIO_ctrl(FileBio, BIO_CTRL_RESET, 0, nil);
+     { V8.41 check if base64 or binary DER by search for ---BEGIN }
+        AStr := ReadStrBio(FileBio, Readmax);
+        if Length(AStr) <= 0 then
+            raise EX509Exception.Create('Certificate file is empty, ' + FileName);  {V8.41 }
+        f_BIO_ctrl(FileBio, BIO_CTRL_RESET, 0, nil);
+        if (Pos(PEM_STRING_HDR_BEGIN, String(AStr)) > 0) then
+            p7 := f_PEM_read_bio_PKCS7(FileBio, Nil, Nil, Nil)  { base64 version }
+        else
             p7 := f_d2i_PKCS7_bio(FileBio, Nil);            { DER binary version }
-        end;
         if NOT Assigned (p7) then
             RaiseLastOpenSslError(EX509Exception, TRUE,
-                                  'Error reading PKCS7 certificate from file');
+                                  'Error reading PKCS7 certificate from file ' + FileName);
         // now extract X509
         nid := f_OBJ_obj2nid(p7.type_);
         if nid = NID_pkcs7_signed then
@@ -17311,15 +17544,15 @@ begin
             if p7.signed_and_enveloped <> Nil then MyStack := p7.signed_and_enveloped.cert
         else
             RaiseLastOpenSslError(EX509Exception, TRUE,
-                                  'Error no signed type found in PKCS7 file');
+                                  'Error no signed type found in PKCS7 file ' + FileName);
         total := f_OPENSSL_sk_num(MyStack);   { don't free stack }
         if total = 0 then
             RaiseLastOpenSslError(EX509Exception, TRUE,
-                                  'Error no certificate found in PKCS7 file');
+                                  'Error no certificate found in PKCS7 file ' + FileName);
         SetX509(PX509_OBJECT(f_OPENSSL_sk_value(MyStack, 0))); // first is cert
         FreeAndNilX509Inters;
      // save others as CA
-        if (IncludeInters = croYes) and (total >= 2) then begin
+        if (IncludeInters <> croNo) and (total >= 2) then begin
             FX509Inters := f_OPENSSL_sk_new_null;
             for I := 1 to total - 1 do
                 f_OPENSSL_sk_insert(FX509Inters, PAnsiChar(f_X509_dup
@@ -17328,7 +17561,7 @@ begin
         f_PKCS7_free(p7);
     finally
         f_bio_free(FileBio);
-        if Assigned (MyStack) then f_OPENSSL_sk_free(MyStack);
+     //   if Assigned (MyStack) then f_OPENSSL_sk_free(MyStack);
     end;
 end;
 
@@ -17359,35 +17592,33 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TX509Base.SaveToP12File(const FileName, Password: String;
-            IncludePrivateKey: Boolean = FALSE; IncludeInters: Boolean = FALSE;
-                PrivKeyType: TSslPrivKeyCipher = PrivKeyEncNone);   { V8.40 }
+         IncludeInters: Boolean = FALSE; PrivKeyType: TSslPrivKeyCipher = PrivKeyEncNone);   { V8.40 }
 var
     FileBio : PBIO;
     P12 : PPKCS12;
     PW: PAnsiChar;
     certenc, keyenc: integer;
+    castack: Pointer;
 const
 { MS key usage constants }
     KEY_EX  = $10;   { signing and encryption }
     KEY_SIG = $80;   { signing only }
     PKCS12_DEFAULT_ITER = 128;
     { pending, our modern encryption don't map well to these old ones }
-    NID_pbe_WithSHA1And128BitRC4           = 144;
-    NID_pbe_WithSHA1And40BitRC4            = 145;
-    NID_pbe_WithSHA1And3_Key_TripleDES_CBC = 146;
-    NID_pbe_WithSHA1And2_Key_TripleDES_CBC = 147;
-    NID_pbe_WithSHA1And128BitRC2_CBC       = 148;
-    NID_pbe_WithSHA1And40BitRC2_CBC        = 149;
 begin
     if not Assigned(FX509) then
         raise EX509Exception.Create('X509 not assigned');
-    if IncludePrivateKey and not Assigned(FPrivateKey) then
+  { must write cert and key, otherwise assumes only intermediates }
+    if not Assigned(FPrivateKey) then
         raise EX509Exception.Create('Private key not assigned');
     if IncludeInters and not Assigned(FX509Inters) then
         raise EX509Exception.Create('Intermediate X509 not assigned');
-    FileBio := IcsSslOpenFileBio(FileName, bomWrite);
+    if NOT CheckCertAndPKey then                   { V8.41 }
+        raise EX509Exception.Create('Certificate and private key do not match');
+    FileBio := IcsSslOpenFileBio(FileName, bomWriteBin);   { binary file }
     try
         PW := Nil;
+        castack := Nil;
         keyenc := -1;
         certenc := -1;
         if (Length(Password) > 0) and (PrivKeyType <> PrivKeyEncNone) then begin
@@ -17395,8 +17626,11 @@ begin
             certenc := NID_pbe_WithSHA1And128BitRC2_CBC;
             keyenc := NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
         end;
+        if IncludeInters then
+            castack := f_OPENSSL_sk_dup(FX509Inters);    { V8.41 only if required }
         P12 := f_PKCS12_create(PW, PAnsiChar(AnsiString(IcsUnwrapNames(SubjectCName))),
-                 FPrivateKey, FX509, FX509Inters, keyenc, certenc, PKCS12_DEFAULT_ITER, 1, KEY_EX);
+                 Ics_EVP_PKEY_dup(FPrivateKey), f_X509_dup(FX509), castack,
+                                keyenc, certenc, PKCS12_DEFAULT_ITER, 1, KEY_EX);
 
         if not Assigned(P12) then
             RaiseLastOpenSslError(EX509Exception, TRUE,
@@ -17419,7 +17653,7 @@ var
 begin
     if not Assigned(FX509) then
         raise EX509Exception.Create('Certificate not assigned');
-    FileBio := IcsSslOpenFileBio(FileName, bomWrite);
+    FileBio := IcsSslOpenFileBio(FileName, bomWriteBin);    { binary file }
     try
         if f_i2d_X509_bio(FileBio, FX509) = 0 then
             RaiseLastOpenSslError(EX509Exception, TRUE,
@@ -17431,17 +17665,19 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TX509Base.SaveToP7BFile(const FileName: String; IncludeInters: Boolean = FALSE);  { V8.40 }
+procedure TX509Base.SaveToP7BFile(const FileName: String; IncludeInters:
+                                  Boolean = FALSE; Base64: Boolean = FALSE);  { V8.41 }
 var
     FileBio : PBIO;
     p7  : PPKCS7;
     p7s : PPKCS7_SIGNED;
+    Tot,I : Integer;
 begin
     if not Assigned(FX509) then
         raise EX509Exception.Create('Certificate not assigned');
     if IncludeInters and not Assigned(FX509Inters) then
         raise EX509Exception.Create('Intermediate X509 not assigned');
-    FileBio := IcsSslOpenFileBio(FileName, bomWrite);
+    FileBio := IcsSslOpenFileBio(FileName, bomWriteBin);   { binary file }
     try
         p7 := f_PKCS7_new;
         if NOT Assigned(p7)then
@@ -17451,15 +17687,38 @@ begin
             RaiseLastOpenSslError(EX509Exception, TRUE, 'Error creating PKCS7 Signed object');
         p7.type_ := f_OBJ_nid2obj(NID_pkcs7_signed);  // set structure type
         p7.sign := p7s;
+        p7s.contents.type_ := f_OBJ_nid2obj(NID_pkcs7_data);        { V8.41 }
+        if f_ASN1_INTEGER_set(p7s.version, 1) = 0 then
+            RaiseLastOpenSslError(EX509Exception, TRUE,
+                           'Error setting version in PKCS7 file - ' + FileName);
         if f_PKCS7_add_certificate(p7, FX509) = 0 then
             RaiseLastOpenSslError(EX509Exception, TRUE,
-                           'Error adding certificate to PKCS7 file');
-   //     if f_i2d_PKCS7_bio(FileBio, P7) = 0 then // binary DER
-        if f_PEM_write_bio_PKCS7(FileBio, P7) = 0 then  // base64 PEM
-            RaiseLastOpenSslError(EX509Exception, TRUE,
-                           'Error writing PKCS7 certificate to ' + FileName);
-        // !!! pending write intermediate certificates
-        // if IncludeInters then xxx
+                           'Error adding certificate to PKCS7 file - ' + FileName);
+
+     // write intermediate certificates
+        if IncludeInters then begin
+            Tot := f_OPENSSL_sk_num(FX509Inters);
+            if Tot > 0 then begin
+                for I := 0 to Pred (Tot) do begin
+                    if f_PKCS7_add_certificate(p7,
+                             PX509(f_OPENSSL_sk_value(FX509Inters, I))) = 0 then
+                        RaiseLastOpenSslError(EX509Exception, TRUE,
+                            'Error adding certificate to PKCS7 file - ' + FileName);
+                end;
+            end;
+        end;
+
+     // write to file
+        if NOT Base64 then begin
+            if f_i2d_PKCS7_bio(FileBio, P7) = 0 then // binary DER
+                RaiseLastOpenSslError(EX509Exception, TRUE,
+                           'Error writing PKCS7 binary certificate to ' + FileName);
+        end
+        else begin
+            if f_PEM_write_bio_PKCS7(FileBio, P7) = 0 then  // base64 PEM
+                RaiseLastOpenSslError(EX509Exception, TRUE,
+                           'Error writing PKCS7 base64 certificate to ' + FileName);
+        end;
         f_PKCS7_free(p7);
     finally
         f_bio_free(FileBio);
@@ -17481,9 +17740,9 @@ var
 begin
     fext := IcsLowerCase(ExtractFileExt(FileName));
     if (fext = '.pfx') or  (fext = '.p12') then
-        SaveToP12File(FileName, Password, IncludePrivateKey, IncludeInters, PrivKeyType)
+        SaveToP12File(FileName, Password, IncludeInters, PrivKeyType)
     else if (fext = '.p7b') or (fext = '.p7r') or (fext = '.p7s') or (fext = '.spc') then
-        SaveToP7BFile(FileName, IncludeInters)
+        SaveToP7BFile(FileName, IncludeInters, false) { binary not base64 }
     else if (fext = '.der') then
         SaveToDERFile(FileName)
     else
@@ -17549,9 +17808,9 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Returns a CRLF-separated list if multiple entries exist }
-function TX509Base.GetNameEntryByNid(IsSubject: Boolean; ANid: Integer): String;
+{ used for certs and requests }
+function TX509Base.GetPX509NameByNid(XName: PX509_NAME; ANid: Integer): String;  { V8.41 }
 var
-    Name    : PX509_NAME;
     Entry   : PX509_NAME_ENTRY;
     Asn1    : PASN1_STRING;
     LastPos : Integer;
@@ -17560,85 +17819,47 @@ begin
 {$IFNDEF WIN64}
     Entry  := nil; { Make dcc32 happy }
 {$ENDIF}
+    if XName = nil then Exit;
+    LastPos := -1;
+    repeat
+        LastPos := f_X509_NAME_get_index_by_NID(XName, ANid, LastPos);
+        if LastPos > -1 then
+            Entry := f_X509_NAME_get_entry(XName, LastPos)
+        else
+            Break;
+        if Assigned(Entry) then begin
+            Asn1 := f_X509_NAME_ENTRY_get_data(Entry);
+            if Assigned(Asn1) then
+                Result := Result + Asn1ToString(Asn1) + #13#10;
+        end;
+    until
+        LastPos = -1;
+
+    while (Length(Result) > 0) and
+                  (Word(Result[Length(Result)]) in [Ord(#13), Ord(#10)]) do
+        SetLength(Result, Length(Result) - 1);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Returns a CRLF-separated list if multiple entries exist }
+function TX509Base.GetNameEntryByNid(IsSubject: Boolean; ANid: Integer): String;
+var
+    Name    : PX509_NAME;
+begin
+    Result := '';
+{$IFNDEF WIN64}
+//    Entry  := nil; { Make dcc32 happy }
+{$ENDIF}
     if not Assigned(X509) then
         Exit;
     if IsSubject then
         Name := f_X509_get_subject_name(X509)
     else
         Name := f_X509_get_issuer_name(X509);
-    if Name <> nil then begin
-        LastPos := -1;
-        repeat
-            LastPos := f_X509_NAME_get_index_by_NID(Name, ANid, LastPos);
-            if LastPos > -1 then
-                Entry := f_X509_NAME_get_entry(Name, LastPos)
-            else
-                Break;
-            if Assigned(Entry) then begin
-                Asn1 := f_X509_NAME_ENTRY_get_data(Entry);
-                if Assigned(Asn1) then
-                    Result := Result + Asn1ToString(Asn1) + #13#10;
-            end;
-        until
-            LastPos = -1;
-
-        while (Length(Result) > 0) and
-                      (Word(Result[Length(Result)]) in [Ord(#13), Ord(#10)]) do
-            SetLength(Result, Length(Result) - 1);
-    end;
+    if Name <> nil then
+        Result := GetPX509NameByNid(Name, ANid);   { V8.41 simplify }
 end;
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.GetExtensionByName(const S: String): TExtension;
-var
-    I : Integer;
-begin
-    Result.Critical  := FALSE;
-    Result.ShortName := '';
-    Result.Value     := '';
-    I := ExtByName(S);
-    if I > -1 then
-        Result := GetExtension(I);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.GetExtensionValuesByName(const ShortName, FieldName: String): String;
-var
-    I      : Integer;
-    Ext    : TExtension;
-    Li     : TStringList;
-begin
-    Result := '';
-    if not Assigned(X509) then
-        Exit;
-    Li := TStringList.Create;
-    try
-        Ext := GetExtensionByName(ShortName);
-        if Length(Ext.ShortName) > 0 then begin
-            Li.Text := Ext.Value;
-            for I := 0 to Li.Count -1 do begin
-                if (FieldName = '') then begin
-                    if Result <> '' then Result := Result + #13#10;
-                    Result := Result + Li[I];
-                end
-                else if (Pos(FieldName, IcsUpperCase(Li.Names[I])) = 1) then begin
-                    if Result <> '' then Result := Result + #13#10;
-                    Result := Result + Copy (Li[I], Length(Li.Names[I])+2,999);
-                end;
-            end;
-        end;
-    finally
-        Li.Free;
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.UnwrapNames(const S: String): String;
-begin
-    Result := StringReplace(S, #13#10, ', ', [rfReplaceAll]);
-end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -17764,11 +17985,41 @@ end;
 function TX509Base.GetExtendedValidation: boolean;            { V8.40 }
 var
     policy: String;
+    I: Integer;
 begin
+    Result := False;
     policy := GetExtensionValuesByName('certificatePolicies', '');
-    Result := (Pos ('2.16.840', policy) <> 0) or  // Digicert, Entrust, GoDaddy, Starfield, Thawte, Trustwave, Symantec, Verisign
-              (Pos ('1.3.6.1', policy) <> 0) or   // Comodo, Geotrust, Globalsign, Google, Network Solutions, OpenTrust, Startcom, Verizon, Wosign
-              (Pos ('2.16.756', policy) <> 0);    // SwissCom, SwissSign
+    I :=  Pos('1.3.6.1.4.1.', policy);     { V8.41 need to check more carefully }
+    if (I > 0) then begin
+        if Length (policy) < (I+16) then Exit;
+        policy := Copy(policy, I+12, 99);
+        Result := (Pos('34697.2', policy) <> 0) or          // AffirmTrust
+                  (Pos('6449.1.2.1.5.1', policy) <> 0) or   // Comodo
+                  (Pos('14370.1.6', policy) <> 0) or        // Geotrust
+                  (Pos('4146.1.1', policy) <> 0) or         // GlobalSign
+                  (Pos('782.1.2.1.8.1', policy) <> 0) or    // Network Solutions
+                  (Pos('22234.2.5.2.3.1', policy) <> 0) or  // OpenTrust
+                  (Pos('23223.2', policy) <> 0) or          // Startcom
+                  (Pos('6334.1.100.1', policy) <> 0) or     // Verizon
+                  (Pos('36305.2', policy) <> 0);            // Wosign
+        Exit;
+    end;
+    I :=  Pos('2.16.840.1.', policy);
+    if (I > 0) then begin
+        if Length (policy) < (I+16) then Exit;
+        policy := Copy(policy, I+11, 99);
+        Result := (Pos('114412.2.1', policy) <> 0) or          // Digicert
+                  (Pos('114412.1.3.0.2', policy) <> 0) or      // Digicert
+                  (Pos('114028.10.1.2', policy) <> 0) or       // Entrust
+                  (Pos('114413.1.7.23.3', policy) <> 0) or     // GoDaddy
+                  (Pos('114414.1.7.23.3', policy) <> 0) or     // Starfield
+                  (Pos('113733.1.7.48.1', policy) <> 0) or     // Thawte
+                  (Pos('114404.1.1.2.4.1', policy) <> 0) or    // Trustwave
+                  (Pos('113733.1.7.23.6', policy) <> 0);       // Symantec/Verisign
+        Exit;
+    end;
+    Result := (Pos('2.16.756.1.83.21.0', policy) <> 0) or      // SwissCom
+              (Pos('2.16.756.80.1.1.1.1', policy) <> 0);       // SwissSign
 end;
 
 
@@ -17848,9 +18099,9 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.GetKeyDesc(Nid: integer; pubkey: PEVP_PKEY): string;       { V8.40 }
+function TX509Base.GetKeyDesc(pkey: PEVP_PKEY): string;       { V8.40 }
 var
-    Bits: integer ;
+    Bits, Nid, keytype: Integer;
     Str : AnsiString;
     rsakey: PRSA;
     dsakey: PDSA;
@@ -17859,36 +18110,33 @@ var
     ecgroup: PEC_GROUP;
 begin
     result := '' ;
-    if not Assigned(pubkey) then
+    if not Assigned(pkey) then
         Exit;
-    SetLength(Str, 256);
-    Str := f_OBJ_nid2ln(Nid);   // name of certificate alogorithm
-    SetLength(Str, IcsStrLen(PAnsiChar(Str)));      { V8.20 }
-    Result := String(Str);
+    keytype := f_EVP_PKEY_base_id(pkey); { V8.41 key type }
     Bits := 0 ;
-    if Nid = NID_rsaEncryption then begin
+    if keytype = EVP_PKEY_RSA then begin
         Result := 'RSA Key Encryption';
-        rsakey := f_EVP_PKEY_get1_RSA(pubkey);
+        rsakey := f_EVP_PKEY_get1_RSA(pkey);
         if rsakey = nil then Exit;
         Bits := f_RSA_Size (rsakey) * 8;
         f_RSA_free (rsakey);
     end
-    else if Nid = NID_dsa then begin
-        dsakey := f_EVP_PKEY_get1_DSA(pubkey);
+    else if keytype = EVP_PKEY_DSA then begin
+        dsakey := f_EVP_PKEY_get1_DSA(pkey);
         if dsakey = nil then Exit;
         Bits := f_DSA_Size (dsakey) * 8;
         f_DSA_free (dsakey);
     end
-    else if Nid = NID_dhKeyAgreement then begin
-        dhkey := f_EVP_PKEY_get1_DH(pubkey);
+    else if keytype = EVP_PKEY_DH then begin
+        dhkey := f_EVP_PKEY_get1_DH(pkey);
         if dhkey = nil then Exit;
         Bits := f_DH_Size (dhkey) * 8;
         f_DH_free (dhkey);
     end
-    else if Nid = NID_X9_62_id_ecPublicKey then begin
+    else if keytype = EVP_PKEY_EC then begin
         Result := 'ECDSA Key Encryption';
       // EC has curves, not bits
-        eckey := f_EVP_PKEY_get1_EC_KEY(pubkey);  { V8.40 }
+        eckey := f_EVP_PKEY_get1_EC_KEY(pkey);  { V8.40 }
         if eckey = nil then Exit;
         ecgroup := f_EC_KEY_get0_group(eckey);
         if Assigned (ecgroup) then begin
@@ -17896,6 +18144,12 @@ begin
             Result := Result + ' ' + String(f_OBJ_nid2ln(Nid));
         end;
         f_EC_KEY_free(eckey);
+    end
+    else begin   { lots of obscure key types }
+        SetLength(Str, 256);
+        Str := f_OBJ_nid2ln(keytype);   { V8.41 }
+        SetLength(Str, IcsStrLen(PAnsiChar(Str)));
+        Result := String(Str);   { V8.41 }
     end;
     if Bits <> 0 then Result := Result + ' ' + IntToStr(Bits) + ' bits';
 end;
@@ -17904,22 +18158,12 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.GetKeyInfo: string;       { V1.09 }
 var
-    Nid: integer ;
-    MyX509: PX509;
     pubkey: PEVP_PKEY;
 begin
     result := '' ;
-    if not Assigned(X509) then
-        Exit;
+    if not Assigned(X509) then Exit;
     pubkey := f_X509_get_pubkey(X509);
-    if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) then
-        Nid := f_X509_get_signature_nid(X509)
-    else begin
-        MyX509 := X509;
-        Nid := f_OBJ_obj2nid(MyX509^.cert_info.key.algor.algorithm);  // certificate alogorithm
-    end;
-    if Nid = NID_undef then Exit;
-    Result := GetKeyDesc(Nid, pubkey);
+    Result := GetKeyDesc(pubkey);
 end;
 
 
@@ -17929,15 +18173,14 @@ var
     serial: PASN1_INTEGER;
 begin
     Result := '';
-    if not Assigned(X509) then
-        Exit;
+    if not Assigned(X509) then Exit;
     serial := f_X509_get_serialNumber(X509);
     Result := IcsLowerCase(IcsBufferToHex(serial^.data [0], serial^.length)) ;  { V8.40 }
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.GetCertInfo: String;   { V1.09 }
+function TX509Base.CertInfo(Brief: Boolean = False): String;   { V8.41 added Brief }
 begin
     Result := 'Issued to (CN): ' + UnwrapNames (SubjectCName);
     if SubjectOName <> '' then
@@ -17946,16 +18189,21 @@ begin
         Result := Result + #13#10;
     if SubAltNameDNS <> '' then
         Result := Result + 'Alt Domains: ' + UnwrapNames (SubAltNameDNS) + #13#10;
-    Result := Result + 'Serial Number: ' + GetSerialNumHex + #13#10;     { V8.40 }
-    if ExtendedValidation then                                           { V8.40 }
-        Result := Result + 'Extended Validation (EV) SSL Server Certificate' + #13#10;
+    if SubAltNameIP <> '' then
+        Result := Result + 'Alt IP: ' + UnwrapNames (SubAltNameIP) + #13#10;   { V8.41 }
     if SelfSigned then
         Result := Result + 'Issuer: Self Signed' + #13#10
     else
         Result := Result + 'Issued by (CN): ' + UnwrapNames (IssuerCName) + ', (O): ' + UnwrapNames (IssuerOName) + #13#10 ;
-    Result := Result +
-        'Expires: ' + DateToStr (ValidNotAfter) + ', Signature: ' + SignatureAlgorithm;
- //   Result := Result + 'Public Key: ' + KeyInfo;  { V8.40 duplicates signature }
+    if NOT Brief then begin
+        Result := Result + 'Serial Number: ' + GetSerialNumHex + #13#10 +     { V8.40 }
+            'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10;          { V8.41 }
+        if ExtendedValidation then
+            Result := Result + 'Extended Validation (EV) SSL Server Certificate' + #13#10;   { V8.40 }
+        Result := Result +
+            'Expires: ' + DateToStr (ValidNotAfter) + ', Signature: ' + SignatureAlgorithm + #13#10;
+    end;
+    Result := Result + 'Public Key: ' + KeyInfo;
 end;
 
 
@@ -17968,8 +18216,7 @@ var
     peername: AnsiString;
 begin
     Result := '';
-    if not Assigned(X509) then
-        Exit;
+    if not Assigned(X509) then Exit;
     SetLength (peername, 512);
     if f_X509_check_host (X509, PAnsiChar(AnsiString(Host)),
                         Length(Host), Flags, peername) <> 1 then exit;
@@ -17983,8 +18230,7 @@ end;
 function TX509Base.CheckEmail(const Email: string; Flags: integer): Boolean;    { V8.39 }
 begin
     Result := False;
-    if not Assigned(X509) then
-        Exit;
+    if not Assigned(X509) then Exit;
     result := (f_X509_check_email (X509, PAnsiChar(AnsiString(Email)), Length(Email), Flags) <> 1);
 end;
 
@@ -17994,23 +18240,336 @@ end;
 function TX509Base.CheckIPaddr(const IPadddr: string; Flags: integer): Boolean; { V8.39 }
 begin
     Result := False;
-    if not Assigned(X509) then
-        Exit;
+    if not Assigned(X509) then Exit;
     result := (f_X509_check_ip_asc (X509, PAnsiChar(AnsiString(IPadddr)), Length(IPadddr), Flags) <> 1);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.GetPrivateKeyInfo: string;                         { V8.40 }
-var
-    Nid: integer ;
 begin
     result := '' ;
-    if not Assigned(PrivateKey) then
+    if not Assigned(PrivateKey) then Exit;
+    Result := GetKeyDesc(PrivateKey);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.LoadIntersFromPemFile(const FileName: String);         { V8.41 }
+begin
+    InitializeSsl;
+    SetX509Inters(IcsSslLoadStackFromInfoFile(FileName, emCert));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.LoadIntersFromString(const Value: String);             { V8.41 }
+begin
+    InitializeSsl;
+    SetX509Inters(IcsSslLoadStackFromInfoString(Value, emCert));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.ReadStrBio(ABio: PBIO; MaxLen: Integer): AnsiString;  { V8.41 }
+var
+    Len: integer;
+begin
+    if not Assigned(ABio) then
+        raise EX509Exception.Create('BIO not assigned');
+    Result := '';
+    if MaxLen < 0 then Exit;
+    SetLength(Result, MaxLen);
+    Len := f_Bio_read(ABio, PAnsiChar(Result), MaxLen);
+//    SetLength(Result, StrLen(PAnsiChar(Result)));
+    SetLength(Result, Len);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.WriteStrBio(ABio: PBIO; Str: AnsiString; StripCR: Boolean = False);  { V8.41 }
+begin
+    if not Assigned(ABio) then
+        raise EX509Exception.Create('BIO not assigned');
+    if Length (Str) = 0 then Exit;
+    if StripCR then      { OpenSSL assume LF only and adds CR for Windows, so remove them }
+        Str := AnsiString(StringReplace (String(Str), #13, '', [rfReplaceAll]));
+    if f_BIO_write(ABio, @Str [1], Length (Str)) = 0 then
+        RaiseLastOpenSslError(EX509Exception, TRUE, 'Error writing text to BIO');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.WriteIntersToBio(ABio: PBIO; AddInfoText: Boolean = FALSE; const FName: String = '');  { V8.41 }
+var
+    Tot,I : Integer;
+    Cert: TX509Base;
+begin
+    if not Assigned(ABio) then
+        raise EX509Exception.Create('BIO not assigned');
+    if not IsInterLoaded then
+        raise EX509Exception.Create('X509Inters not assigned');
+    Tot := GetInterCount;
+    if Tot = 0 then Exit;
+    Cert := TX509Base.Create (self);
+    try
+        for I := 0 to Pred (Tot) do begin
+            Cert.X509 := PX509(f_OPENSSL_sk_value(FX509Inters, I));
+            if Cert.IsCertLoaded then begin
+                if AddInfoText then
+                    WriteStrBio(ABio, AnsiString(Cert.CertInfo) + #13#10, True);
+                if f_PEM_write_bio_X509(ABio, Cert.X509) = 0 then
+                    RaiseLastOpenSslError(EX509Exception, TRUE, 'Error writing certificate to ' + FName);
+                WriteStrBio(ABio, #10#10);  { blank lines between certs }
+            end;
+        end;
+    finally
+        Cert.Free;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.SaveIntersToToPemFile(const FileName: String;
+                                            AddInfoText: Boolean = FALSE);    { V8.41 }
+var
+    FileBio : PBIO;
+begin
+    InitializeSsl;
+    FileBio := IcsSslOpenFileBio(FileName, bomWrite);
+    try
+        WriteIntersToBio(FileBio, AddInfoText);
+    finally
+        f_bio_free(FileBio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.GetIntersList(CertList: TX509List);             { V8.41 }
+begin
+    if not Assigned(CertList) then Exit;
+    CertList.Clear;
+    if not IsInterLoaded then Exit;
+    CertList.LoadAllStack(FX509Inters);
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.ListInters: string;                               { V8.41 }
+var
+    Tot: Integer;
+    Certs: TX509List;
+begin
+    Result := '';
+    Tot := GetInterCount;
+    if Tot = 0 then Exit;
+    Certs := TX509List.Create (self);
+    try
+        Result := 'Total ' + IntToStr (Tot) + #13#10;
+        Certs.LoadAllStack(FX509Inters);
+        Result := Result + Certs.AllCertInfo(True);
+    finally
+        Certs.Free;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.AddToInters(X509: Pointer);                       { V8.41 }
+begin
+    if NOT IsInterLoaded then begin
+        FX509Inters := f_OPENSSL_sk_new_null;
+    end;
+    f_OPENSSL_sk_insert(FX509Inters, PAnsiChar(f_X509_dup(PX509(X509))), -1);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.LoadCATrustFromPemFile(const FileName: String);   { V8.41 }
+begin
+    InitializeSsl;
+    SetX509CATrust(IcsSslLoadStackFromInfoFile(FileName, emCert));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.LoadCATrustFromString(const Value: String);       { V8.41 }
+begin
+    InitializeSsl;
+    SetX509CATrust(IcsSslLoadStackFromInfoString(Value, emCert));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.GetCATrustList(CertList: TX509List);              { V8.41 }
+begin
+    if not Assigned(CertList) then Exit;
+    CertList.Clear;
+    if not IsCATrustLoaded then Exit;
+    CertList.LoadAllStack(FX509CATrust);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.AddToCATrust(X509: Pointer);                      { V8.41 }
+begin
+    if NOT IsCATrustLoaded then begin
+        FX509CATrust := f_OPENSSL_sk_new_null;
+    end;
+    f_OPENSSL_sk_insert(FX509CATrust, PAnsiChar(f_X509_dup(PX509(X509))), -1);
+
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.ValidateCertChain(Host: String; var CertStr, ErrStr: string): TChainResult;   { V8.41 }
+var
+    curDate: TDateTime;
+    InterList, CAList: TX509List;
+    issuer: string;
+    I: integer;
+
+    function FindInter(AName: string): Boolean;
+    var
+        J: Integer;
+    begin
+        Result := False;
+        for J := 0 to InterList.Count - 1 do begin
+            if (InterList[J].SubjectCName = AName) or
+                   (InterList[J].SubjectOName = AName) then begin
+                if curDate > InterList[J].ValidNotAfter then
+                    ErrStr := 'SSL certificate has expired - ' +
+                                            InterList[J].SubjectCName
+                else begin
+                    if (curDate + 30) > InterList[J].ValidNotAfter then begin
+                        ErrStr := 'SSL certificate expires on ' +
+                              DateToStr(InterList[J].ValidNotAfter) +
+                                           ' - ' + InterList[J].SubjectCName;;
+                    end;
+                end;
+                Result := True;
+                Exit;
+            end;
+        end;
+    end;
+
+    function FindCA(AName: string): Boolean;
+    var
+        J: Integer;
+    begin
+        Result := False;
+        if NOT IsCATrustLoaded then Exit;
+        for J := 0 to CAList.Count - 1 do begin
+            if (CAList[J].SubjectCName = AName) or
+                   (CAList[J].SubjectOName = AName) then begin
+               Result := True;
+               Exit;
+            end;
+        end;
+    end;
+
+begin
+// pending - use X509_verify_cert to check chain against inters and CA
+    Result := chainFail;
+    CertStr := '';
+    ErrStr := '';
+    curDate := Now;
+    if NOT IsCertLoaded then begin
+        ErrStr := 'No SSL certificate loaded';
         Exit;
-    Nid := f_EVP_PKEY_base_id(PrivateKey);
-    if Nid = NID_undef then Exit;
-    Result := GetKeyDesc(Nid, PrivateKey);
+    end;
+
+ { keep server cert details }
+    CertStr := 'Server: ' + CertInfo(False);
+
+ { check not expired }
+    if curDate < ValidNotBefore then begin
+        ErrStr := 'SSL certificate not valid yet - ' + SubjectCName;
+        Exit;
+    end;
+    if curDate > ValidNotAfter then begin
+        ErrStr := 'SSL certificate has expired - ' + SubjectCName;
+        Exit;
+    end;
+    if (curDate + 30) > ValidNotAfter then begin
+        Result := chainWarn; // not fatal
+        ErrStr := 'SSL certificate expires on ' + DateToStr(ValidNotAfter) +
+                                                           ' - ' + SubjectCName;
+    end;
+
+  { check host is listed - optional, may not be using SNI }
+    if (Host <> '') and NOT PostConnectionCheck (Host) then begin
+       Result := chainWarn;
+       ErrStr := 'SSL certificate expected host name not found: ' +
+                         Host + ', cert domains: ' + UnwrapNames(SubAltNameDNS);
+    end;
+
+ { self signed means nothing to check }
+    if SelfSigned then begin
+        Result := chainWarn;
+        ErrStr := 'SSL certificate is self signed - ' + SubjectCName;;
+        Exit;
+    end;
+
+ { build lists of inter and CA }
+    InterList := Nil;
+    CAList := Nil;
+    if IsInterLoaded then begin
+        InterList := TX509List.Create(self);
+        InterList.LoadAllStack(FX509Inters);
+    end;
+    if IsCATrustLoaded then begin
+        CAList := TX509List.Create(self);
+        CAList.LoadAllStack(FX509CATrust);
+    end;
+
+  { check inter chain or CA contains certificate that signed ours  }
+    issuer := IssuerOName;
+    try
+        if IsInterLoaded then begin
+
+        { keep inter cert details }
+            CertStr := CertStr + #13#10#13#10 + 'Intermediates, Total ' +
+                IntToStr (InterList.Count) + #13#10 + InterList.AllCertInfo(False, false);
+
+         { check server certificate was issued by our iutermediates }
+             if FindInter(issuer) then issuer := ''; { OK don't check again }
+
+        { now check our intermediates are issued by someone }
+            if InterList.Count > 0 then begin
+                for I := 0 to InterList.Count - 1 do begin
+                   { might be another inter }
+                    if NOT FindInter(InterList[I].IssuerOName) then begin
+                        if NOT IsCATrustLoaded then begin
+                            Result := chainWarn;
+                            ErrStr := 'Issuer for SSL certificate not found - ' +
+                                                            InterList[I].IssuerOName;
+                            Exit;
+                        end;
+                    { or signed by trusted CA }
+                        if NOT FindCA(InterList[I].IssuerOName) then begin
+                            Result := chainWarn;
+                            ErrStr := 'Issuer for SSL certificate not found - ' +
+                                                           InterList[I].IssuerOName;
+                            Exit;
+                        end;
+                    end;
+                end ;
+            end;
+        end ;
+        if issuer <> '' then begin { see if signed by trusted CA }
+            if IsCATrustLoaded and FindCA(issuer) then issuer := '';
+        end;
+        if issuer <> '' then begin
+            Result := chainWarn;
+            ErrStr := 'Issuer for SSL certificate not found - ' + SubjectCName;;
+        end;
+        if Result = chainFail then Result := chainOK;  // no warnings so OK
+    finally
+        if Assigned(InterList) then InterList.Free;
+        if Assigned(CAList) then CAList.Free;
+    end;
 end;
 
 
@@ -20807,20 +21366,23 @@ var
 
   { examples of SSL_CIPHER_description():
    <ciphername> <first protocol version> <key exchange> <authentication> <symmetric encryption method> <message authentication code>
-      ECDHE-RSA-AES256-GCM-SHA256 TLSv1.2 Kx=ECDH   Au=RSA  Enc=AESGCM(256) Mac=AEAD
-      RSA-PSK-AES256-CBC-SHA384 TLSv1.0 Kx=RSAPSK   Au=RSA  Enc=AES(256)  Mac=SHA384 }
+      ECDHE-RSA-AES256-GCM-SHA256    TLSv1.2 Kx=ECDH   Au=RSA   Enc=AESGCM(256) Mac=AEAD
+      ECDHE-ECDSA-AES256-GCM-SHA384  TLSv1.2 Kx=ECDH   Au=ECDSA Enc=AESGCM(256) Mac=AEAD
+      ECDHE-RSA-CHACHA20-POLY1305    TLSv1.2 Kx=ECDH   Au=RSA   Enc=CHACHA20/POLY1305(256) Mac=AEAD
+      AES256-SHA256                  TLSv1.2 Kx=RSA    Au=RSA   Enc=AES(256)    Mac=SHA256
+      RSA-PSK-AES256-CBC-SHA384      TLSv1.0 Kx=RSAPSK Au=RSA   Enc=AES(256)    Mac=SHA384 }
 
     function FindCiphArg (const key: string): string;
     var
         I: integer;
     begin
-        I := Pos (key, FSslCipherDesc);
+        I := Pos(key, FSslCipherDesc);
         if I <= 0 then
             Result := ''
         else begin
-            Result := Copy (FSslCipherDesc, I + Length (key), 99);
-            I := Pos (' ', Result);
-            if I <= 0 then I := Pos (#10, Result);
+            Result := Copy(FSslCipherDesc, I + Length (key), 99);
+            I := Pos(' ', Result);
+            if I <= 0 then I := Pos(#10, Result);
             if I > 0 then SetLength(Result, I - 1);
         end;
     end;
@@ -20856,6 +21418,7 @@ begin
             FSslEncryption := FindCiphArg ('Enc=');       { V8.14  }
             FSslKeyExchange := FindCiphArg ('Kx=');       { V8.14  }
             FSslMessAuth   := FindCiphArg ('Mac=');       { V8.14  }
+            FSslKeyAuth    := FindCiphArg ('Au=');        { V8.41  }
         end;
         if FSslContext.SslVerifyPeer then begin
         { Get the peer cert from OSSL. Note that servers always send their }
@@ -20869,9 +21432,10 @@ begin
         end;
 
      { V8.14 set with success or failure message once handshake completes }
-        FSslHandshakeRespMsg := Format('SSL Connected OK with %s, cipher %s, key exchange %s, ' +
-                        'encryption %s, message authentication %s',
-                          [SslVersion, SslCipher, FSslKeyExchange, FSslEncryption, FSslMessAuth]);
+        FSslHandshakeRespMsg := Format('SSL Connected OK with %s, cipher %s, ' +
+          'key auth %s, key exchange %s, encryption %s, message auth %s',
+                [SslVersion, SslCipher, FSslKeyAuth, FSslKeyExchange,
+                                                FSslEncryption, FSslMessAuth]);
     end  // FSslState = sslEstablished
     else begin
         if (FSslHandshakeRespMsg = '') then begin  { V8.14  }

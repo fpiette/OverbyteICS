@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.40
+Version:      8.41
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -134,6 +134,8 @@ Nov 15, 2016  V8.38 Added public variable GSSL_SignTest_Check to check OpenSSL
 Nov 22, 2016  V8.39 Added functions to check certificate params using X509_VERIFY_PARAM
 Jan 27, 2017  V8.40 Added 200 more certificate, EC key, digest, encryption and signing functions
                    (but still over 3,000 missing, fortunately not needed often)
+Feb 24, 2017  V8.41 Added more NIDs, few more imported functions
+
 
 
 Old Cryptography
@@ -232,8 +234,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 840;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2017 F. Piette V8.40 ';
+    IcsLIBEAYVersion   = 841;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2017 F. Piette V8.41 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -879,6 +881,8 @@ const
  { following from objects.h }
     NID_undef                       =  0;  //AG
     NID_rsaEncryption               =  6;  //AG
+    NID_md2WithRSAEncryption        =  7;  //  md2WithRSAEncryption
+    NID_md5WithRSAEncryption        =  8;  //  md5WithRSAEncryption
     NID_commonName                  = 13;  //AG
     NID_countryName                 = 14;  //AG
     NID_localityName                = 15;  //AG
@@ -893,10 +897,12 @@ const
     NID_pkcs7_digest                = 25;
     NID_pkcs7_encrypted             = 26;
     NID_dhKeyAgreement              = 28;  // Angus
-    NID_pkcs9_emailAddress          = 48;  // emailAddress - Email 
+    NID_pkcs9_emailAddress          = 48;  // emailAddress - Email
     NID_netscape                    = 57;
     NID_netscape_cert_extension     = 58;
     NID_netscape_data_type          = 59;
+    NID_sha1WithRSAEncryption       = 65;   // sha1WithRSAEncryption
+    NID_dsaWithSHA                  = 66;   // dsaWithSHA
     NID_netscape_base_url           = 72;
     NID_netscape_ca_revocation_url  = 74;
     NID_netscape_cert_type          = 71;
@@ -930,6 +936,12 @@ const
     NID_client_auth                 = 130;  // TLS Web Client Authentication - clientAuth
     NID_code_sign                   = 131;  // Code Signing - codeSigning
     NID_email_protect               = 132;  // E-mail Protection - emailProtection
+    NID_pbe_WithSHA1And128BitRC4           = 144;
+    NID_pbe_WithSHA1And40BitRC4            = 145;
+    NID_pbe_WithSHA1And3_Key_TripleDES_CBC = 146;
+    NID_pbe_WithSHA1And2_Key_TripleDES_CBC = 147;
+    NID_pbe_WithSHA1And128BitRC2_CBC       = 148;
+    NID_pbe_WithSHA1And40BitRC2_CBC        = 149;
     NID_info_access                 = 177;  // Authority Information Access - authorityInfoAccess
  { following from obj_mac.h }
     NID_X9_62_id_ecPublicKey        = 408;  // id-ecPublicKey
@@ -940,10 +952,18 @@ const
     NID_X9_62_prime239v2            = 413; // Angus
     NID_X9_62_prime239v3            = 414; // Angus
     NID_X9_62_prime256v1            = 415; // Angus  NIST Prime-Curve P-256
+    NID_sha256WithRSAEncryption     = 668;  // sha256WithRSAEncryption
+    NID_sha384WithRSAEncryption     = 669;  // sha384WithRSAEncryption
+    NID_sha512WithRSAEncryption     = 670;  // sha512WithRSAEncryption
+    NID_sha224WithRSAEncryption     = 671;  // sha224WithRSAEncryption
     NID_secp224k1                   = 713; // Angus  NIST Prime-Curve P-224
     NID_secp256k1                   = 714; // Angus  NID_X9_62_prime256v1 NIST Prime-Curve P-256
     NID_secp384r1                   = 715; // Angus  NIST Prime-Curve P-384
     NID_secp521r1                   = 716; // Angus  NIST Prime-Curve P-521
+    NID_ecdsa_with_SHA224           = 793; // ecdsa-with-SHA224
+    NID_ecdsa_with_SHA256           = 794; // ecdsa-with-SHA256
+    NID_ecdsa_with_SHA384           = 795; // ecdsa-with-SHA384
+    NID_ecdsa_with_SHA512           = 796; // ecdsa-with-SHA512
     NID_X25519                      = 1034; // V8.40 253-bits
 
     { Asn1.h - For use with ASN1_mbstring_copy() } //AG
@@ -963,6 +983,7 @@ const
     EVP_PKEY_RSA   = NID_rsaEncryption;   //AG
     EVP_PKEY_DSA   = NID_dsa;
     EVP_PKEY_EC    = NID_X9_62_id_ecPublicKey;  { following V8.40 }
+    EVP_PKEY_DH    = NID_dhKeyAgreement;
     EVP_PKEY_NONE  = NID_undef;
 
     EVP_MAX_MD_SIZE                   = 64; //* longest known is SHA512 */
@@ -1084,6 +1105,15 @@ const
     X509_V_ERR_NO_VALID_SCTS                       = 71;
     X509_V_ERR_PROXY_SUBJECT_NAME_VIOLATION        = 72;
 
+{ V8.41 Flags for X509V3_add1_i2d  }
+    X509V3_ADD_OP_MASK             = $0f;
+    X509V3_ADD_DEFAULT             = 0;
+    X509V3_ADD_APPEND              = 1;
+    X509V3_ADD_REPLACE             = 2;
+    X509V3_ADD_REPLACE_EXISTING    = 3;
+    X509V3_ADD_KEEP_EXISTING       = 4;
+    X509V3_ADD_DELETE              = 5;
+    X509V3_ADD_SILENT              = $10;
 
 { note these literals are not normally used, OpenSSL API instead }
 {$IFDEF OPENSSL_USE_RESOURCE_STRINGS}
@@ -1962,6 +1992,7 @@ const
     f_X509V3_EXT_d2i :                         function(Ext: PX509_EXTENSION): Pointer; cdecl = nil;//AG;
     f_X509V3_EXT_get :                         function(Ext: PX509_EXTENSION): PX509V3_EXT_METHOD; cdecl = nil;
     f_X509V3_EXT_print :                       function(B: PBIO; Ext: PX509_EXTENSION; Flag: Integer; Indent: Integer):Integer; cdecl = nil;//AG;
+    f_X509V3_add1_i2d :                        function(Ext: PSTACK_OF_X509_EXTENSION; nid: integer; value: Pointer; crit: integer; flags: longword): Integer; cdecl = Nil;  { V8.41 }
     f_X509V3_conf_free :                       procedure(Val: PCONF_VALUE); cdecl = nil;//AG
     f_X509_CRL_dup :                           function(CRL: PX509_CRL): PX509_CRL; cdecl = nil;//AG;
     f_X509_CRL_free :                          procedure(CRL: PX509_CRL); cdecl = nil;//AG
@@ -2008,6 +2039,7 @@ const
     f_X509_REQ_dup :                           function(Req: PX509_REQ): PX509_REQ; cdecl = nil;         { V8.40 }
     f_X509_REQ_free :                          procedure(Req: PX509_REQ); cdecl = nil;
     f_X509_REQ_get0_pubkey :                   function(Req: PX509_REQ): PEVP_PKEY; cdecl = nil;  { V8.40 }
+    f_X509_REQ_get_extensions :                function(Req: PX509_REQ): PSTACK; cdecl = nil;     { V8.41 }
     f_X509_REQ_get_pubkey :                    function(Req: PX509_REQ): PEVP_PKEY; cdecl = nil;  { V8.40 }
     f_X509_REQ_get_subject_name :              function(AReq: PX509_REQ): PX509_NAME; cdecl = nil; { V8.36 OpenSSL 1.1.0 some macros are now exported functions }
     f_X509_REQ_new :                           function: PX509_REQ; cdecl = nil;
@@ -2127,6 +2159,7 @@ const
     f_i2a_ASN1_OBJECT :                        function(B: PBIO; A: PASN1_OBJECT): Integer; cdecl = nil;//AG;
     f_i2d_ECDSA_SIG :                          function(sig: PECDSA_SIG; pp: PAnsiChar; len: DWORD): Integer; cdecl = Nil;     { V8.40 }
     f_i2d_PKCS12_bio :                         function(B: PBIO; p12: PPKCS12): Integer; cdecl = nil;
+    f_i2d_PKCS7_bio :                          function(B: PBIO; p7: PPKCS7): Integer; cdecl = nil;                            { V8.41 }
     f_i2d_PrivateKey :                         function(A: PEVP_PKEY; PP: PPAnsiChar): Integer; cdecl = nil;//AG
     f_i2d_PrivateKey_bio :                     function(B: PBIO; pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
     f_i2d_RSAPublicKey:                        function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
@@ -2263,7 +2296,7 @@ procedure IcsRandPoll;
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GLIBEAYImports1: array[0..528] of TOSSLImports = (
+    GLIBEAYImports1: array[0..531] of TOSSLImports = (
 
     (F: @@f_ASN1_INTEGER_get ;        N: 'ASN1_INTEGER_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_INTEGER_get_int64 ;  N: 'ASN1_INTEGER_get_int64';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
@@ -2595,9 +2628,10 @@ const
     (F: @@f_RSA_size;   N: 'RSA_size';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_OpenSSL_version ;   N: 'SSLeay_version';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_X509V3_EXT_conf_nid;   N: 'X509V3_EXT_conf_nid';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509V3_EXT_d2i ;   N: 'X509V3_EXT_d2i';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509V3_EXT_get ;   N: 'X509V3_EXT_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509V3_EXT_d2i ;   N: 'X509V3_EXT_d2i';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509V3_EXT_get ;   N: 'X509V3_EXT_get';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509V3_EXT_print ;   N: 'X509V3_EXT_print';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509V3_add1_i2d;   N: 'X509V3_add1_i2d';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),         { V8.41 }
     (F: @@f_X509V3_conf_free ;   N: 'X509V3_conf_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_CRL_dup ;   N: 'X509_CRL_dup';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_CRL_free;   N: 'X509_CRL_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2645,6 +2679,7 @@ const
     (F: @@f_X509_REQ_dup;               N: 'X509_REQ_dup';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_REQ_free;              N: 'X509_REQ_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_REQ_get0_pubkey;       N: 'X509_REQ_get0_pubkey';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),           { V8.40 }
+    (F: @@f_X509_REQ_get_extensions;    N: 'X509_REQ_get_extensions';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),         { V8.41 }
     (F: @@f_X509_REQ_get_pubkey;        N: 'X509_REQ_get_pubkey';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),             { V8.40 }
     (F: @@f_X509_REQ_get_subject_name;  N: 'X509_REQ_get_subject_name';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.36 }
     (F: @@f_X509_REQ_new;               N: 'X509_REQ_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2762,6 +2797,7 @@ const
     (F: @@f_d2i_X509_bio ;             N: 'd2i_X509_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_i2a_ASN1_OBJECT;           N: 'i2a_ASN1_OBJECT';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_i2d_PKCS12_bio ;           N: 'i2d_PKCS12_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_i2d_PKCS7_bio ;            N: 'i2d_PKCS7_bio';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.41 }
     (F: @@f_i2d_PrivateKey ;           N: 'i2d_PrivateKey';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_i2d_PrivateKey_bio ;       N: 'i2d_PrivateKey_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_i2d_RSAPublicKey ;         N: 'i2d_RSAPublicKey';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),

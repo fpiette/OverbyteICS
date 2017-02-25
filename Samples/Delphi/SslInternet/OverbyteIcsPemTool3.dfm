@@ -3,7 +3,7 @@ object frmPemTool3: TfrmPemTool3
   Top = 226
   BorderStyle = bsDialog
   Caption = 'Create self-signed certificate'
-  ClientHeight = 418
+  ClientHeight = 468
   ClientWidth = 374
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -16,14 +16,14 @@ object frmPemTool3: TfrmPemTool3
   OnShow = FormShow
   DesignSize = (
     374
-    418)
+    468)
   PixelsPerInch = 96
   TextHeight = 13
   object GroupBoxCertCreate: TGroupBox
     Left = 6
     Top = 4
     Width = 361
-    Height = 372
+    Height = 422
     Caption = ' Certificate Properties '
     TabOrder = 0
     object lbCountry: TLabel
@@ -97,6 +97,17 @@ object frmPemTool3: TfrmPemTool3
       Width = 28
       Height = 13
       Caption = 'Days:'
+    end
+    object Label1: TLabel
+      Left = 26
+      Top = 371
+      Width = 310
+      Height = 39
+      Caption = 
+        'Note: these functions only support a restricted set of certifica' +
+        'te properties,  for the full range use the new TSslCertTools com' +
+        'ponent demo'#39'd on the main tabs'
+      WordWrap = True
     end
     object EditCountry: TEdit
       Left = 126
@@ -196,22 +207,24 @@ object frmPemTool3: TfrmPemTool3
   end
   object btnCreate: TButton
     Left = 109
-    Top = 389
+    Top = 439
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
     Caption = 'Create'
     TabOrder = 1
     OnClick = btnCreateClick
+    ExplicitTop = 389
   end
   object btnClose: TButton
     Left = 193
-    Top = 389
+    Top = 439
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
     Caption = 'Close'
     ModalResult = 2
     TabOrder = 2
+    ExplicitTop = 389
   end
 end

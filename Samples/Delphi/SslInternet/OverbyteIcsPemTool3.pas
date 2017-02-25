@@ -36,6 +36,7 @@ type
     Editdays: TEdit;
     lbDays: TLabel;
     CheckBoxComment: TCheckBox;
+    Label1: TLabel;
     procedure btnCreateClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
   private
@@ -104,7 +105,7 @@ begin
                                      EditLocality.Text, EditOrganization.Text,
                                      EditOrganizationalUnit.Text,
                                      EditCommonName.Text, EditEMail.Text,
-                                     StrToIntDef(EditBits.Text, 1024), TRUE,
+                                     StrToIntDef(EditBits.Text, 2048), TRUE,
                                      StrToIntDef(EditDays.Text, 365), '',
                                      CheckBoxComment.Checked);
         end
@@ -122,7 +123,7 @@ begin
                               EditState.Text, EditLocality.Text,
                               EditOrganization.Text, EditOrganizationalUnit.Text,
                               EditCommonName.Text, EditEMail.Text,
-                              StrToIntDef(EditBits.Text, 1024),
+                              StrToIntDef(EditBits.Text, 2048),
                               CheckBoxComment.Checked);
         end;
     finally

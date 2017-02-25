@@ -4,7 +4,7 @@ Authors:      Arno Garrels <arno.garrels@gmx.de>
               Angus Robertson <delphi@magsys.co.uk>
 Creation:     Aug 26, 2007
 Description:
-Version:      8.40
+Version:      8.41
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -78,11 +78,17 @@ Jan 27, 2017  V8.40 Angus New TSslCertTools component to create and sign certifi
               Add alternate extended properties to certs, DNS and IP addresses
               Added TEvpCipher and TEvpDigest (hash) types supported by OpenSSL
               Display Sha1Hex in General certificate as Fingerprint
+Feb 24, 2017  V8.41 Added CreateCertBundle to build a new PEM or PKCS12 file
+                 combining certificate, private key and intermediate files
+              Added more certificate request extension properties including alt domains
+              Creating requests now adds alternate domains, IP addresses, etc
+              Create certificate from request now optionally copies extensions
+              The old CreateCertRequest and CreateSelfSignedCert functions now
+                 use the TSslCertTools component and provide backward compatiblity
+
 
 
 Pending - short term
-Saving more X509v3 extensions for requests and certs
-Saving intermediate certs in files
 Saving a CA databases of certificates created
 Sign buffers and files with private keys and digests
 
@@ -239,6 +245,14 @@ calculating DHParams.
 bits, 768, 1024, 20248, 4096, 8192.
 3 - Optionally save DHParams string returned by DoDHParams method.
 
+Create Certificate Bundle
+-------------------------
+Builds a new PEM or PKCS12 file by combining certificate, private key and
+intermediate files (in any formats with correct file extension).  For servers,
+a bundle file is easier to distribute and load than three separate files.
+1 - CreateCertBundle is a simple function, that requires four full file names
+for the three input files and output file, optional load and save passwords,
+and the cipher optionally to encrypt the output file.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -335,9 +349,9 @@ type
         FDescr             : String;
         FEmail             : String;
         FCommonName        : String;
-        FAltDNSList        : String;
-        FAltIpList         : String;
-        FAltEmailList      : String;
+        FAltDNSList        : TStrings;
+        FAltIpList         : TStrings;
+        FAltEmailList      : TStrings;
         FAltIssuer         : String;
         FCRLDistPoint      : String;  // URI:http://myhost.com/myca.crl
         FAuthInfoAcc       : String;  // OCSP;URI:http://ocsp.myhost.com/
@@ -366,7 +380,8 @@ type
         function    BuildKeyUsage: AnsiString;
         function    BuildExKeyUsage: AnsiString;
         procedure   SetCertExt(Cert: PX509; Nid: integer; const List: AnsiString);
-        procedure   BuildAltSubj (AltType: Integer; const Names: String);
+        procedure   BuildCertAltSubj(Cert: PX509; AltType: Integer; Names: TStrings);
+        function    BuildAltStack(AltType: Integer; Names: TStrings): PStack;
         procedure   FreeAndNilX509CA;
         procedure   FreeAndNilPrivKeyCA;
         procedure   FreeAndNilX509Req;
@@ -377,7 +392,12 @@ type
         function    GetReqSubjCName: String;
         function    GetReqSubjOName: String;
         function    GetReqSubjAltNameDNS: String;
+        function    GetReqSubjAltNameIP: String;
+        function    GetReqKeyUsage: String;
+        function    GetReqExKeyUsage: String;
         function    GetReqCertInfo: String;
+        function    GetIsReqLoaded: Boolean;
+        function    GetIsCALoaded: Boolean;
         procedure   WriteReqToBio(ABio: PBIO; AddInfoText: Boolean = FALSE; const FName: String = ''); virtual;
     public
         constructor Create(AOwner: TComponent);
@@ -389,19 +409,28 @@ type
         procedure   DoKeyPair;
         function    DoDHParams(const FileName: String; Bits: integer): String;
         procedure   DoClearCerts;
+        procedure   CreateCertBundle(const CertFile, PKeyFile, InterFile, LoadPw,
+                      SaveFile, SavePw: String; KeyCipher: TSslPrivKeyCipher = PrivKeyEncNone);
         function    GetReqEntryByNid(ANid: Integer): String;
         function    GetRequestRawText: String;
         procedure   LoadReqFromFile(const FileName: String);
         procedure   SaveReqToFile(const FileName: String; AddInfoText: Boolean = FALSE);
         function    SaveReqToText(AddInfoText: Boolean = FALSE): String;
-        property    X509Req             : Pointer       read  FX509Req      write SetX509Req;
+        function    GetReqExtValuesByName(const ShortName, FieldName: String): String;
+        function    GetReqExtByName(const S: String): TExtension;
+        property    X509Req             : Pointer       read FX509Req       write SetX509Req;
         property    X509CA              : Pointer       read FX509CA        write SetX509CA;
         property    PrivKeyCA           : PEVP_PKEY     read FPrivKeyCA     write SetPrivKeyCA;
         property    ReqSubjOneLine      : String        read GetReqSubjOneLine;
         property    ReqSubjCName        : String        read GetReqSubjCName;
         property    ReqSubjOName        : String        read GetReqSubjOName;
         property    ReqSubjAltNameDNS   : String        read GetReqSubjAltNameDNS;
+        property    ReqSubjAltNameIP    : String        read GetReqSubjAltNameIP;
+        property    ReqKeyUsage         : String        read GetReqKeyUsage;
+        property    ReqExKeyUsage       : String        read GetReqExKeyUsage;
         property    ReqCertInfo         : String        read GetReqCertInfo;
+        property    IsReqLoaded         : Boolean       read GetIsReqLoaded;
+        property    IsCALoaded          : Boolean       read GetIsCALoaded;
     published
         property Country           : String             read FCountry       write FCountry;
         property State             : String             read FState         write FState;
@@ -411,9 +440,9 @@ type
         property Descr             : String             read FDescr         write FDescr;
         property Email             : String             read FEmail         write FEmail;
         property CommonName        : String             read FCommonName    write FCommonName;
-        property AltDNSList        : String             read FAltDNSList    write FAltDNSList;
-        property AltIpList         : String             read FAltIpList     write FAltIpList;
-        property AltEmailList      : String             read FAltEmailList  write FAltEmailList;
+        property AltDNSList        : TStrings           read FAltDNSList    write FAltDNSList;
+        property AltIpList         : TStrings           read FAltIpList     write FAltIpList;
+        property AltEmailList      : TStrings           read FAltEmailList  write FAltEmailList;
         property AltIssuer         : String             read FAltIssuer     write FAltIssuer;
         property CRLDistPoint      : String             read FCRLDistPoint  write FCRLDistPoint;
         property AuthInfoAcc       : String             read FAuthInfoAcc   write FAuthInfoAcc;
@@ -443,15 +472,15 @@ type
 
 
 
-procedure CreateCertRequest(const RequestFileName, KeyFileName, Country,
+{procedure CreateCertRequest(const RequestFileName, KeyFileName, Country,
   State, Locality, Organization, OUnit, CName, Email: AnsiString;
   Bits: Integer; Comment: boolean = false);  overload;
 procedure CreateSelfSignedCert(const FileName, Country, State,
   Locality, Organization, OUnit, CName, Email: AnsiString; Bits: Integer;
   IsCA: Boolean; Days: Integer;
-  const KeyFileName: AnsiString = ''; Comment: boolean = false);  overload;
+  const KeyFileName: AnsiString = ''; Comment: boolean = false);  overload; }
 
-{$IFDEF UNICODE}
+{x$IFDEF UNICODE}
 procedure CreateCertRequest(const RequestFileName, KeyFileName, Country,
   State, Locality, Organization, OUnit, CName, Email: String;
   Bits: Integer; Comment: boolean = false); overload;
@@ -459,7 +488,8 @@ procedure CreateSelfSignedCert(const FileName, Country, State,
   Locality, Organization, OUnit, CName, Email: String; Bits: Integer;
   IsCA: Boolean; Days: Integer;
   const KeyFileName: String = ''; Comment: boolean = false);  overload;
-{$ENDIF UNICODE}
+{x$ENDIF UNICODE}
+
 
 { RSA crypto functions }
 
@@ -1504,6 +1534,9 @@ begin
     FX509Req := nil;
     FX509CA := Nil;
     FPrivKeyCA := Nil;
+    FAltDNSList  := TStringList.Create;
+    FAltIpList := TStringList.Create;
+    FAltEmailList := TStringList.Create;  
 end;
 
 
@@ -1511,7 +1544,10 @@ end;
 destructor TSslCertTools.Destroy;
 begin
     if FSslInitialized then begin
-     // must free public pointers before those they point to 
+        FAltDNSList.Free;
+        FAltIpList.Free;
+        FAltEmailList.Free;
+     // must free public pointers before those they point to
         PrivateKey := Nil;
         X509 := Nil;
         if Assigned(FNewCert) then
@@ -1568,6 +1604,20 @@ begin
     if Assigned(Cert) then begin
         FX509CA := f_X509_dup(Cert);
     end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslCertTools.GetIsReqLoaded: Boolean;
+begin
+    Result := Assigned(FX509Req);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslCertTools.GetIsCALoaded: Boolean;
+begin
+    Result := Assigned(FX509CA);
 end;
 
 
@@ -1715,37 +1765,13 @@ end;
 function TSslCertTools.GetReqEntryByNid(ANid: Integer): String;
 var
     Name    : PX509_NAME;
-    Entry   : PX509_NAME_ENTRY;
-    Asn1    : PASN1_STRING;
-    LastPos : Integer;
 begin
     Result := '';
-{$IFNDEF WIN64}
-    Entry  := nil; { Make dcc32 happy }
-{$ENDIF}
     if not Assigned(X509Req) then
         Exit;
-    Name := f_X509_REQ_get_subject_name(X509Req);
-    if Name <> nil then begin
-        LastPos := -1;
-        repeat
-            LastPos := f_X509_NAME_get_index_by_NID(Name, ANid, LastPos);
-            if LastPos > -1 then
-                Entry := f_X509_NAME_get_entry(Name, LastPos)
-            else
-                Break;
-            if Assigned(Entry) then begin
-                Asn1 := f_X509_NAME_ENTRY_get_data(Entry);
-                if Assigned(Asn1) then
-                    Result := Result + Asn1ToString(Asn1) + #13#10;
-            end;
-        until
-            LastPos = -1;
-
-        while (Length(Result) > 0) and
-                      (Word(Result[Length(Result)]) in [Ord(#13), Ord(#10)]) do
-            SetLength(Result, Length(Result) - 1);
-    end;
+    Name := f_Ics_X509_REQ_get_subject_name(X509Req);
+    if Name <> nil then
+        Result := GetPX509NameByNid(Name, ANid);  { V8.41 }
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1758,8 +1784,8 @@ begin
         Exit;
 
     SetLength(Str, 512);
-    Str := f_X509_NAME_oneline(f_X509_REQ_get_subject_name(FX509Req),
-                                            PAnsiChar(Str), Length(Str));
+    Str := f_X509_NAME_oneline(f_ics_X509_REQ_get_subject_name(FX509Req),
+                                              PAnsiChar(Str), Length(Str));
     SetLength(Str, StrLen(PAnsiChar(Str)));
     Result := String(Str);
 end;
@@ -1780,12 +1806,72 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TSslCertTools.GetReqSubjAltNameDNS: String;
+function TSslCertTools.GetReqExtByName(const S: String): TExtension;
+var
+    ExtnStack : PStack;
+    I         : Integer;
+    Ext       : PX509_EXTENSION;
+    Count     : Integer;
+begin
+    Result.Critical  := FALSE;
+    Result.ShortName := '';
+    Result.Value     := '';
+    if NOT Assigned(FX509Req) then Exit;
+    ExtnStack := f_X509_REQ_get_extensions(FX509Req);
+    if NOT Assigned(ExtnStack) then Exit;
+    Count := f_OPENSSL_sk_num(ExtnStack);
+    for I := 0 to Count - 1 do begin
+        Ext := PX509_EXTENSION(f_OPENSSL_sk_value(ExtnStack, I));
+        if not Assigned(Ext) then
+            Continue;
+        if CheckExtName(Ext, S) then begin    { V8.41 simplify }
+            Result := GetExtDetail(Ext);
+            Exit;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslCertTools.GetReqExtValuesByName(const ShortName, FieldName: String): String;
+var
+    Ext    : TExtension;
 begin
     Result := '';
- // pending,
-// X509_REQ_get_extensions
-//    Result := xxxGetExtensionValuesByName('subjectAltName', 'DNS');
+    if not Assigned(X509Req) then
+        Exit;
+    Ext := GetReqExtByName(ShortName);
+    if Length(Ext.ShortName) > 0 then begin
+        Result := GetExtField(Ext, FieldName);   { V8.41 simplify }
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslCertTools.GetReqSubjAltNameDNS: String;
+begin
+   Result := GetReqExtValuesByName('subjectAltName', 'DNS');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslCertTools.GetReqSubjAltNameIP: String;
+begin
+   Result := GetReqExtValuesByName('subjectAltName', 'IP');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslCertTools.GetReqKeyUsage: String;
+begin
+    Result := GetReqExtValuesByName('keyUsage', '');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslCertTools.GetReqExKeyUsage: String;
+begin
+    Result := GetReqExtValuesByName('extendedKeyUsage', '');
 end;
 
 
@@ -1799,6 +1885,12 @@ begin
         Result := Result + #13#10;
     if ReqSubjAltNameDNS <> '' then
         Result := Result + 'Alt Domains: ' + UnwrapNames (ReqSubjAltNameDNS) + #13#10;
+    if ReqSubjAltNameIP <> '' then
+        Result := Result + 'Alt IPs: ' + UnwrapNames (ReqSubjAltNameIP) + #13#10;
+    if ReqKeyUsage <> '' then
+        Result := Result + 'Key Usage: ' + IcsUnwrapNames(ReqKeyUsage) + #13#10;
+    if ReqExKeyUsage <> '' then
+        Result := Result + 'Extended Key Usage: ' + IcsUnwrapNames(ReqExKeyUsage) + #13#10;
 end;
 
 
@@ -1856,43 +1948,51 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslCertTools.BuildAltSubj(AltType: Integer; const Names: String);
+{ build stack of extension multiple values from list, all same type }
+function TSslCertTools.BuildAltStack(AltType: Integer; Names: TStrings): PStack;
 var
-    gens   : PStack;
     ia5    : PASN1_STRING;
     gen    : PGENERAL_NAME;
-    AList  : TStringList;
     Item   : AnsiString;
     I      : Integer;
 begin
-    gens := f_OPENSSL_sk_new_null;
-    AList := TStringList.Create;
+    result := f_OPENSSL_sk_new_null;
     ia5 := Nil;
     gen := Nil;
     try
-        Alist.CommaText := Names;
-        if Alist.Count = 0 then Exit;
-        for I := 0 to Alist.Count - 1 do begin
+        for I := 0 to Names.Count - 1 do begin
             gen := f_GENERAL_NAME_new;
             if NOT Assigned(gen) then Exit;
             ia5 := f_ASN1_STRING_new;
             if NOT Assigned(ia5) then Exit;
-            item := AnsiString(trim(Alist[I]));
+            item := AnsiString(trim(Names[I]));
             f_ASN1_STRING_set0(ia5, PAnsiChar(item), Length(item));
             f_GENERAL_NAME_set0_value(gen, AltType, ia5);
             ia5 := Nil;
-            f_OPENSSL_sk_push(gens, Pointer(gen));
+            f_OPENSSL_sk_push(result, Pointer(gen));
             gen := Nil;
         end;
-        if f_X509_add1_ext_i2d(FNewCert, NID_subject_alt_name, gens, 0, 0) = 0 then
-            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set subject_alt_name');
       finally
         if Assigned(gen) then f_GENERAL_NAME_free(gen);
         if Assigned(ia5) then f_ASN1_STRING_free(ia5);
-        f_OPENSSL_sk_free(gens);
-        AList.Free;
     end;
+end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslCertTools.BuildCertAltSubj(Cert: PX509; AltType: Integer; Names: TStrings);
+var
+    MultiValuesStack : PStack;
+begin
+    if Names.Count = 0 then Exit;
+    MultiValuesStack := BuildAltStack(AltType, Names);
+    if NOT Assigned(MultiValuesStack) then Exit;
+    try
+        if f_X509_add1_ext_i2d(Cert, NID_subject_alt_name, MultiValuesStack, 0, 0) = 0 then
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set subject_alt_name');
+      finally
+        f_OPENSSL_sk_free(MultiValuesStack);
+    end;
 end;
 
 
@@ -1914,7 +2014,7 @@ end;
 { in X509Req from where is may be saved by SaveReqTo.   }
 procedure TSslCertTools.DoCertReqProps;
 
-  procedure Add_Ext(sk : PStack; Nid : Integer; const Value : AnsiString);
+  procedure Add_Ext(sk :PSTACK_OF_X509_EXTENSION; Nid :Integer; const Value :AnsiString);
   var
       Ext : PX509_EXTENSION;
   begin
@@ -1925,16 +2025,30 @@ procedure TSslCertTools.DoCertReqProps;
       f_OPENSSL_sk_push(sk, Pointer(ext));
   end;
 
+    procedure BuildReqAltSubj(sk :PSTACK_OF_X509_EXTENSION; AltType: Integer; Names: TStrings);
+    var
+        MultiValuesStack : PStack;
+    begin
+        if Names.Count = 0 then Exit;
+        MultiValuesStack := BuildAltStack(AltType, Names);
+        if NOT Assigned(MultiValuesStack) then Exit;
+        try
+          if f_X509V3_add1_i2d(@sk, NID_subject_alt_name, MultiValuesStack, 0, 0) = 0 then
+                RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to create extension Altname stack');
+        finally
+            f_OPENSSL_sk_free(MultiValuesStack);
+        end;
+    end;
+
 var
     SubjName  : PX509_NAME;
-    Exts      : PStack;
+    Exts      : PSTACK_OF_X509_EXTENSION;
 begin
     InitializeSsl;
     if NOT Assigned(PrivateKey) then
         raise ECertToolsException.Create('Must create private key first');
 
-    if Assigned(FNewReq) then
-        f_X509_REQ_free(FNewReq);
+    if Assigned(FNewReq) then f_X509_REQ_free(FNewReq);
     FNewReq := f_X509_Req_new;
     if NOT Assigned(FNewReq) then
          raise ECertToolsException.Create('Can not create new request object');
@@ -1945,7 +2059,7 @@ begin
     if f_X509_REQ_set_pubkey(FNewReq, PrivateKey) = 0 then
         RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to add public key to request');
 
-     SubjName := f_ics_X509_REQ_get_subject_name(FNewReq);
+    SubjName := f_ics_X509_REQ_get_subject_name(FNewReq);
     if not Assigned(SubjName) then
         RaiseLastOpenSslError(ECertToolsException, FALSE, 'Can not read X509 subject_name');
     AddNameEntryByTxt(SubjName, 'CN', FCommonName);
@@ -1960,7 +2074,7 @@ begin
         f_X509_NAME_add_entry_by_NID(SubjName, NID_pkcs9_emailAddress,
                     MBSTRING_ASC, PAnsiChar(AnsiString(FEmail)), -1, -1, 0);
 
- { add extensions }
+ { add extensions - create new stack  }
     Exts := f_OPENSSL_sk_new_null;
     Add_Ext(Exts, NID_key_usage, BuildKeyUsage);
 
@@ -1968,11 +2082,16 @@ begin
     Add_Ext(Exts, NID_ext_key_usage, BuildExKeyUsage);
 
   { subject alternate name - DNS or domain names }
-//   if FAltDNSList <> '' then begin
+   if FAltDNSList.Count <> 0 then
+       BuildReqAltSubj(Exts, GEN_DNS, FAltDNSList)
+
   { subject alternate name - IP addresses }
-//   if FAltIPList <> '' then begin
+    else if FAltIPList.Count <> 0 then
+       BuildReqAltSubj(Exts, GEN_IPADD, FAltIPList)
+       
   { subject alternate name - email addresses }
-//    if FAltEmailList <> '' then begin
+    else if FAltEmailList.Count <> 0 then
+       BuildReqAltSubj(Exts, GEN_EMAIL, FAltEmailList);
 
  { finally add stack of extensions to request }
     if f_X509_REQ_add_extensions(FNewReq, Exts) = 0 then
@@ -2002,9 +2121,8 @@ begin
     if f_X509_check_private_key(X509, PrivateKey) < 1 then
         raise ECertToolsException.Create('Old certificate and private key do not match');
 
-  { create new request from old certificate }
-    if Assigned(FNewReq) then
-        f_X509_REQ_free(FNewReq);
+  { create new request from old certificate - warning ignores alternate subject DNS }
+    if Assigned(FNewReq) then f_X509_REQ_free(FNewReq);
      FNewReq := f_X509_to_X509_REQ(X509, PrivateKey, IcsSslGetEVPDigest(FCertDigest));
      if NOT Assigned (FNewReq) then
             RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign request with digest');
@@ -2022,8 +2140,8 @@ begin
     if NOT Assigned(PrivateKey) then
         raise ECertToolsException.Create('Must create private key first');
 
-    if NOT Assigned(FNewCert) then
-        FNewCert := f_X509_new;
+    if Assigned(FNewCert) then f_X509_free(FNewCert);
+    FNewCert := f_X509_new;
     if NOT Assigned(FNewCert) then
          RaiseLastOpenSslError(ECertToolsException, FALSE, 'Can not create new X509 object');
 
@@ -2072,16 +2190,16 @@ begin
     SetCertExt(FNewCert, NID_ext_key_usage, BuildExKeyUsage);
 
   { subject alternate name - DNS or domain names }
-    if FAltDNSList <> '' then
-        BuildAltSubj (GEN_DNS, FAltDNSList);
+    if FAltDNSList.Count <> 0 then
+        BuildCertAltSubj(FNewCert, GEN_DNS, FAltDNSList)
 
   { subject alternate name - IP addresses }
-    if FAltIPList <> '' then
-        BuildAltSubj (GEN_IPADD, FAltIPList);
+    else if FAltIPList.Count <> 0 then
+        BuildCertAltSubj(FNewCert, GEN_IPADD, FAltIPList)
 
   { subject alternate name - email addresses }
-    if FAltEmailList <> '' then
-       BuildAltSubj (GEN_EMAIL, FAltEmailList);
+    else if FAltEmailList.Count <> 0 then
+       BuildCertAltSubj(FNewCert, GEN_EMAIL, FAltEmailList);
 
   { Issuer Alternative Name. }
     if FAltIssuer <> '' then begin
@@ -2116,6 +2234,8 @@ procedure TSslCertTools.DoSignCertReq(CopyExtns: Boolean);
 var
     SubjName  : PX509_NAME;
     TempSerial : TULargeInteger ;  // 64-bit integer record
+    AltDomains: String;
+    TempList: TStringList;
 begin
     InitializeSsl;
     if NOT Assigned(FX509CA) then
@@ -2127,8 +2247,8 @@ begin
     if f_X509_check_private_key(FX509CA, FPrivKeyCA) = 0 then
         raise ECertToolsException.Create('CA certificate and private key do not match');
 
-    if NOT Assigned(FNewCert) then
-        FNewCert := f_X509_new;
+    if Assigned(FNewCert) then f_X509_free(FNewCert);
+    FNewCert := f_X509_new;
     if NOT Assigned(FNewCert) then
          RaiseLastOpenSslError(ECertToolsException, FALSE, 'Can not create new X509 object');
 
@@ -2151,10 +2271,7 @@ begin
         RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set public key to certificate');
 
   { set the cert subject name to the request subject }
-    if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then
-        SubjName := PX509_REQ(X509Req)^.req_info.subject
-    else
-        SubjName := f_X509_NAME_dup(f_X509_REQ_get_subject_name(X509Req));
+    SubjName := f_X509_NAME_dup(f_ics_X509_REQ_get_subject_name(X509Req));
     if NOT Assigned(SubjName) or (f_X509_set_subject_name(FNewCert, SubjName) = 0) then
         RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set subject from request');
 
@@ -2164,14 +2281,23 @@ begin
 
   { set extensions }
 
+  { Add basic contraints }
+    SetCertExt(FNewCert, NID_basic_constraints, BuildBasicCons(FBasicIsCA));
+
+
     if NOT CopyExtns then begin
 
-     { Add basic contraints }
-        SetCertExt(FNewCert, NID_basic_constraints, BuildBasicCons(FBasicIsCA));
-
     { subject alternate name - DNS or domain names }
-        if FAltDNSList <> '' then
-            BuildAltSubj(GEN_DNS, FAltDNSList);
+        if FAltDNSList.Count <> 0 then
+            BuildCertAltSubj(FNewCert, GEN_DNS, FAltDNSList)
+
+      { subject alternate name - IP addresses }
+        else if FAltIPList.Count <> 0 then
+            BuildCertAltSubj(FNewCert, GEN_IPADD, FAltIPList)
+
+      { subject alternate name - email addresses }
+        else if FAltEmailList.Count <> 0 then
+            BuildCertAltSubj(FNewCert, GEN_EMAIL, FAltEmailList);
 
      { Key usage }
         SetCertExt(FNewCert, NID_key_usage, BuildKeyUsage);
@@ -2181,9 +2307,26 @@ begin
 
     end
     else begin
-        // pending copy extension stack from request to certificate
-    end;
+        { copy some extension from request to certificate }
+        AltDomains :=  ReqSubjAltNameDNS;
+        if AltDomains <> '' then begin
+               TempList := TStringList.Create;
+               try
+                TempList.Text := AltDomains;
+                if TempList.Count > 0 then
+                    BuildCertAltSubj(FNewCert, GEN_DNS, TempList);
+               finally
+                TempList.Free;
+               end;
+        end;
 
+     { Key usage }
+        SetCertExt(FNewCert, NID_key_usage, AnsiString(UnwrapNames(ReqKeyUsage)));
+
+    { Extended Key usage }
+        SetCertExt(FNewCert, NID_ext_key_usage, AnsiString(UnwrapNames(ReqExKeyUsage)));
+
+    end;
 
   { Sign it with CA certificate and hash digest }
     if f_X509_sign(FNewCert, FPrivKeyCA, IcsSslGetEVPDigest(FCertDigest)) <= 0 then
@@ -2423,14 +2566,81 @@ begin
     FreeAndNilPrivKeyCA;
 end;
 
+         
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ method to create an SSL server certificate bundle file with an SSL certificate,
+  matching public key and optional itermediate certificate(s), to avoid
+  distributing and loading them all separately, output file format is determined
+  by the file extension, PEM, PFX or P12 - no others can have cert and pkey }
+procedure TSslCertTools.CreateCertBundle(const CertFile, PKeyFile, InterFile, LoadPw,
+                      SaveFile, SavePw: String; KeyCipher: TSslPrivKeyCipher = PrivKeyEncNone);
+begin
+    ClearAll;
+    LoadFromFile(CertFile, croNo, croTry, '');
+    if NOT IsCertLoaded then
+        raise Exception.Create('No certificate found 9n file');
+    PrivateKeyLoadFromPemFile(PKeyFile, LoadPw);
+    if InterFile <> '' then
+        LoadIntersFromPemFile(InterFile);
+    SaveToFile(SaveFile, true, true, IsInterLoaded, SavePw, KeyCipher);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { PENDING - replace code within following four functions with TSslCertTools }
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF UNICODE}
+{x$IFDEF UNICODE}
+
+{ V8.41 replaced old code with TSslCertTools component }
 procedure CreateSelfSignedCert(const FileName, Country, State,
   Locality, Organization, OUnit, CName, Email: String; Bits: Integer;
   IsCA: Boolean; Days: Integer;
   const KeyFileName: String = ''; Comment: boolean = false);
+var
+    MySslCertTools: TSslCertTools;
+    KeyType: TSslPrivKeyType;
+begin
+    MySslCertTools := TSslCertTools.Create(nil);
+    try
+        MySslCertTools.Country        := Country;
+        MySslCertTools.State          := State;
+        MySslCertTools.Locality       := Locality;
+        MySslCertTools.Organization   := Organization;
+        MySslCertTools.OrgUnit        := OUnit;
+        MySslCertTools.Email          := EMail;
+        MySslCertTools.CommonName     := CName;
+        MySslCertTools.BasicIsCA      := IsCA;
+        if Bits > 4096 then
+            KeyType := PrivKeyRsa7680
+        else if Bits > 3072 then
+            KeyType := PrivKeyRsa4096
+        else if Bits > 2048 then
+            KeyType := PrivKeyRsa3072
+        else if Bits > 1024 then
+            KeyType := PrivKeyRsa2048
+        else
+            KeyType := PrivKeyRsa1024;
+        MySslCertTools.PrivKeyType := KeyType;
+
+      { create private and public key, then create SSL certificate }
+        MySslCertTools.DoKeyPair;
+        MySslCertTools.DoSelfSignCert;
+
+      { now save them to PEM files - no passwords }
+        if KeyFileName <> '' then begin
+            MySslCertTools.PrivateKeySaveToPemFile(KeyFileName);
+            MySslCertTools.SaveToPemFile(FileName, False, Comment, False);
+        end
+        else begin
+            MySslCertTools.SaveToPemFile(FileName, True, Comment, False);
+       end;
+    finally
+        MySslCertTools.Free;
+    end;
+end;
+
+(*
 var
     X         : PX509;
     PK        : PEVP_PKEY;
@@ -2514,7 +2724,7 @@ begin
         f_X509_add_ext(X, Ex, -1);
         f_X509_EXTENSION_free(Ex);
 
-        (* Optional extensions
+        { Optional extensions
 
         { Purposes }
         Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_key_usage,
@@ -2538,7 +2748,7 @@ begin
         f_X509_add_ext(X, Ex, -1);
         f_X509_EXTENSION_free(Ex);}
 
-        *)
+        }
 
         { Sign it }
         if f_X509_sign(X, PK, f_EVP_sha256) <= 0 then    { V.21 was sha1 }
@@ -2602,15 +2812,52 @@ begin
         if Assigned(FileBio) then
             f_BIO_free(FileBio);
     end;
-end;
+end;     *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.41 replaced old code with TSslCertTools component }
 procedure CreateCertRequest(const RequestFileName, KeyFileName, Country,
   State, Locality, Organization, OUnit, CName, Email: String;
   Bits: Integer; Comment: boolean = false);
+var
+    MySslCertTools: TSslCertTools;
+    KeyType: TSslPrivKeyType;
+begin
+    MySslCertTools := TSslCertTools.Create(nil);
+    try
+        MySslCertTools.Country        := Country;
+        MySslCertTools.State          := State;
+        MySslCertTools.Locality       := Locality;
+        MySslCertTools.Organization   := Organization;
+        MySslCertTools.OrgUnit        := OUnit;
+        MySslCertTools.Email          := EMail;
+        MySslCertTools.CommonName     := CName;
+        if Bits > 4096 then
+            KeyType := PrivKeyRsa7680
+        else if Bits > 3072 then
+            KeyType := PrivKeyRsa4096
+        else if Bits > 2048 then
+            KeyType := PrivKeyRsa3072
+        else if Bits > 1024 then
+            KeyType := PrivKeyRsa2048
+        else
+            KeyType := PrivKeyRsa1024;
+        MySslCertTools.PrivKeyType := KeyType;
 
+      { create private and public key, then create certificate request }
+        MySslCertTools.DoKeyPair;
+        MySslCertTools.DoCertReqProps;
 
+      { now save them to PEM files - no passwords }
+        MySslCertTools.PrivateKeySaveToPemFile(KeyFileName);
+        MySslCertTools.SaveReqToFile(RequestFileName, Comment);
+    finally
+        MySslCertTools.Free;
+    end;
+end;
+
+(*
   function Add_Ext(sk : PStack; Nid : Integer; Value : PAnsiChar): Boolean;
   var
       Ext : PX509_EXTENSION;
@@ -2732,13 +2979,13 @@ begin
       if Assigned(FileBio) then
         f_BIO_free(FileBio);
     end;
-end;
+end;    *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$ENDIF UNICODE}
+{x$ENDIF UNICODE}
 
-
+(*
 procedure CreateSelfSignedCert(const FileName, Country, State,
     Locality, Organization, OUnit, CName, Email: AnsiString;
     Bits: Integer; IsCA: Boolean; Days: Integer;
@@ -2828,32 +3075,6 @@ begin
             raise Exception.Create('Function f_X509V3_EXT_conf_nid failed');
         f_X509_add_ext(X, Ex, -1);
         f_X509_EXTENSION_free(Ex);
-
-        (* Optional extensions
-
-        { Purposes }
-        Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_key_usage,
-                                PAnsiChar('critical, keyCertSign, cRLSign'));
-        f_X509_add_ext(X, Ex, -1);
-        f_X509_EXTENSION_free(Ex);
-
-        { Some Netscape specific extensions }
-        Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_netscape_comment,
-                                PAnsiChar('ICS Group'));
-        f_X509_add_ext(X, Ex, -1);
-        f_X509_EXTENSION_free(Ex);
-
-        Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_netscape_cert_type,
-                                PAnsiChar('SSL CA, S/MIME CA, Object Signing CA'));
-        f_X509_add_ext(X, Ex, -1);
-        f_X509_EXTENSION_free(Ex);
-
-        {Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_crl_distribution_points,
-                                PAnsiChar('URI:http://www.domain.com/CRL/class1.crl'));
-        f_X509_add_ext(X, Ex, -1);
-        f_X509_EXTENSION_free(Ex);}
-
-        *)
 
         { Sign it }
         if f_X509_sign(X, PK, f_EVP_sha256) <= 0 then
@@ -3046,7 +3267,7 @@ begin
       if Assigned(FileBio) then
         f_BIO_free(FileBio);
     end;
-end;
+end;      *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -3135,7 +3356,7 @@ begin
         end;
     until InLen = 0;
     Result := TRUE;
-end;
+end;   
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

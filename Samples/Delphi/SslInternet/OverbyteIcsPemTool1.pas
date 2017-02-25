@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.40
+Version:      8.41
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -82,8 +82,14 @@ Jan 27, 2017 V8.40 Angus display multiple certificate file formats
                      and to sign requests as a certificate authority.
                    This tool can now be used to convert different format certificate
                      files between formats, by reading one format and saving as
-                     a diffeent format.  Also combining keys and certificates in a file.
+                     a different format.  Also combining keys and certificates in a file.
+Feb 24, 2017 V8.41 Finished changes for TSslCertTools
+                   Simplified creating bundles from Windows with new functions
 
+
+Pending
+Load a windows certificate store into TX509List
+Save a TX509 certificate to a windows certificate store
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -111,19 +117,81 @@ uses
   System.UITypes,
 {$IFEND}
   OverByteIcsMimeUtils, OverbyteIcsWSocket,
-  OverbyteIcsSsleay, OverbyteIcsLibeay, OverbyteIcsWinCrypt,
+  OverbyteIcsSsleay, OverbyteIcsLibeay,
+  OverbyteIcsWinCrypt, OverbyteIcsMsSslUtils,
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 840;
-     PemToolDate        = 'Jan 25, 2017';
+     PemToolVersion     = 841;
+     PemToolDate        = 'Feb 24, 2017';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2017 by François PIETTE V8.40 ';
+     CopyRight : String = '(c) 2003-2017 by François PIETTE V8.41 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
 type
   TfrmPemTool1 = class(TForm)
+// following stuff saved to INI file
+    CAFilesDir: TEdit;
+    CertAddComment: TCheckBox;
+    CertAltDomains: TMemo;
+    CertAltIPs: TMemo;
+    CertCommonName: TEdit;
+    CertCountry: TEdit;
+    CertDays: TEdit;
+    CertDescr: TEdit;
+    CertEMail: TEdit;
+    CertExtClient: TCheckBox;
+    CertExtCodeSign: TCheckBox;
+    CertExtEmail: TCheckBox;
+    CertExtServer: TCheckBox;
+    CertLocality: TEdit;
+    CertOrganization: TEdit;
+    CertOrganizationalUnit: TEdit;
+    CertPassword: TEdit;
+    CertSignHash: TRadioGroup;
+    CertState: TEdit;
+    CertUsageCRLSign: TCheckBox;
+    CertUsageCertSign: TCheckBox;
+    CertUsageDataEn: TCheckBox;
+    CertUsageDigSign: TCheckBox;
+    CertUsageKeyAgree: TCheckBox;
+    CertUsageKeyEn: TCheckBox;
+    CertUsageNonRepud: TCheckBox;
+    CheckBoxComment: TCheckBox;
+    CheckBoxEmptyDestDir: TCheckBox;
+    CheckBoxOverwriteExisting: TCheckBox;
+    CheckBoxWarnDestNotEmpty: TCheckBox;
+    CheckBoxWriteToBundle: TCheckBox;
+    CurrentCertDirEdit: TEdit;
+    DHParamFile: TEdit;
+    DHParamSize: TRadioGroup;
+    DestDirEdit: TEdit;
+    KeyEncrypt: TRadioGroup;
+    KeyType: TRadioGroup;
+    LoadCertFile: TEdit;
+    LoadCertInters: TCheckBox;
+    LoadCertPrivKey: TCheckBox;
+    LoadCertPW: TEdit;
+    LoadDirectory: TEdit;
+    LoadInterCerts: TEdit;
+    LoadPrivatetKey: TEdit;
+    LoadRequestFile: TEdit;
+    NewCertCopyExt: TCheckBox;
+    SaveAutoReplace: TCheckBox;
+    SaveCertDer: TEdit;
+    SaveCertPW: TEdit;
+    SaveCertPem: TEdit;
+    SaveDirectory: TEdit;
+    SaveInterCerts: TCheckBox;
+    SavePkcs12File: TEdit;
+    SavePkcs7File: TEdit;
+    SavePrivateKey: TCheckBox;
+    SavePrvFileFile: TEdit;
+    SavePubKeyFile: TEdit;
+    SaveReqCertFile: TEdit;
+
+// following not saved
     pmLv: TPopupMenu;
     pmShowDetails: TMenuItem;
     pmDelete: TMenuItem;
@@ -255,66 +323,12 @@ type
     GroupBox3: TGroupBox;
     GroupDHParam: TGroupBox;
     CertLinesNew: TMemo;
-// following stuff saved to INI file
-    CAFilesDir: TEdit;
-    CertAddComment: TCheckBox;
-    CertAltDomains: TEdit;
-    CertAltIPs: TEdit;
-    CertCommonName: TEdit;
-    CertCountry: TEdit;
-    CertDays: TEdit;
-    CertDescr: TEdit;
-    CertEMail: TEdit;
-    CertExtClient: TCheckBox;
-    CertExtCodeSign: TCheckBox;
-    CertExtEmail: TCheckBox;
-    CertExtServer: TCheckBox;
-    CertLocality: TEdit;
-    CertOrganization: TEdit;
-    CertOrganizationalUnit: TEdit;
-    CertPassword: TEdit;
-    CertSignHash: TRadioGroup;
-    CertState: TEdit;
-    CertUsageCRLSign: TCheckBox;
-    CertUsageCertSign: TCheckBox;
-    CertUsageDataEn: TCheckBox;
-    CertUsageDigSign: TCheckBox;
-    CertUsageKeyAgree: TCheckBox;
-    CertUsageKeyEn: TCheckBox;
-    CertUsageNonRepud: TCheckBox;
-    CheckBoxComment: TCheckBox;
-    CheckBoxEmptyDestDir: TCheckBox;
-    CheckBoxOverwriteExisting: TCheckBox;
-    CheckBoxWarnDestNotEmpty: TCheckBox;
-    CheckBoxWriteToBundle: TCheckBox;
-    CurrentCertDirEdit: TEdit;
-    DHParamFile: TEdit;
-    DHParamSize: TRadioGroup;
-    DestDirEdit: TEdit;
-    KeyEncrypt: TRadioGroup;
-    KeyType: TRadioGroup;
-    LoadCertFile: TEdit;
-    LoadCertInters: TCheckBox;
-    LoadCertPrivKey: TCheckBox;
-    LoadCertPW: TEdit;
-    LoadDirectory: TEdit;
-    LoadInterCerts: TEdit;
-    LoadPrivatetKey: TEdit;
-    LoadRequestFile: TEdit;
-    SaveAutoReplace: TCheckBox;
-    SaveCertDer: TEdit;
-    SaveCertPW: TEdit;
-    SaveCertPem: TEdit;
-    SaveDirectory: TEdit;
-    SaveInterCerts: TCheckBox;
-    SavePkcs12File: TEdit;
-    SavePkcs7File: TEdit;
-    SavePrivateKey: TCheckBox;
-    SavePrvFileFile: TEdit;
-    SavePubKeyFile: TEdit;
-    SaveReqCertFile: TEdit;
     Panel2: TPanel;
     Status: TLabel;
+    doCreateBundle: TButton;
+    Label32: TLabel;
+    doCheckBundleWin: TButton;
+    doCheckBundleSelf: TButton;
 
     procedure btnImportClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -327,7 +341,6 @@ type
     procedure PageControl1Change(Sender: TObject);
     procedure btnDeleteCertClick(Sender: TObject);
     procedure btnCopyCertClick(Sender: TObject);
-    procedure AboutClick(Sender: TObject);
     procedure DestDirEditChange(Sender: TObject);
     procedure btnImportPemFileClick(Sender: TObject);
     procedure LvCertsColumnClick(Sender: TObject; Column: TListColumn);
@@ -377,6 +390,9 @@ type
     procedure doGenKeyClick(Sender: TObject);
     procedure doDHParamsClick(Sender: TObject);
     procedure doLoadIntersClick(Sender: TObject);
+    procedure doCreateBundleClick(Sender: TObject);
+    procedure doCheckBundleWinClick(Sender: TObject);
+    procedure doCheckBundleSelfClick(Sender: TObject);
   protected
     procedure WMAppStartup(var Msg: TMessage); message WM_APPSTARTUP;
   private
@@ -416,6 +432,7 @@ var
   ColumnToSort: Integer;
   VerifyDir: String;
   StartTickCount: integer;
+  MsCertChainEngine: TMsCertChainEngine;   { V8.41 }
 
 implementation
 
@@ -488,6 +505,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.FormDestroy(Sender: TObject);
 begin
+    FreeAndNil (MsCertChainEngine) ;
     OverbyteIcsWSocket.UnLoadSsl;
 end;
 
@@ -506,33 +524,12 @@ begin
                                             (Screen.Height - Height) div 2);
         Left         := IniFile.ReadInteger(SectionMainWindow, KeyLeft,
                                             (Screen.Width  - Width)  div 2);
-  {      DestDirEdit.Text                  := IniFile.ReadString(SectionData,
-                                                                KeyDestinationDir,
-                                                                'TrustedCaStore');
-        CurrentCertDirEdit.Text           := IniFile.ReadString(SectionData,
-                                                                KeyCurrentCertDir,
-                                                                'TrustedCaStore');
-        CheckBoxWarnDestNotEmpty.Checked  := IniFile.ReadBool(SectionData,
-                                                              KeyWarnDestNotEmpty,
-                                                              TRUE);
-        CheckBoxOverwriteExisting.Checked := IniFile.ReadBool(SectionData,
-                                                              KeyOverwriteExisting,
-                                                              FALSE);
-        CheckBoxEmptyDestDir.Checked      := IniFile.ReadBool(SectionData,
-                                                              KeyEmptyDestDir,
-                                                              FALSE);
-        CheckBoxComment.Checked           := IniFile.ReadBool(SectionData,
-                                                              KeyComment,
-                                                              FALSE);
-        CheckBoxWriteToBundle.Checked     := IniFile.ReadBool(SectionData,
-                                                              KeyWriteToBundle,
-                                                              FALSE);  }
         VerifyDir := IniFile.ReadString(SectionData, KeyVerifyDir, FProgDir); { V8.38 }
         with IniFile do begin   { V8.40 }
           CAFilesDir.Text := ReadString (SectionData, 'CAFilesDir_Text', CAFilesDir.Text) ;
           if ReadString (SectionData, 'CertAddComment_Checked', 'False') = 'True' then CertAddComment.Checked := true else CertAddComment.Checked := false ;
-          CertAltDomains.Text := ReadString (SectionData, 'CertAltDomains_Text', CertAltDomains.Text) ;
-          CertAltIPs.Text := ReadString (SectionData, 'CertAltIPs_Text', CertAltIPs.Text) ;
+          CertAltDomains.Lines.CommaText := ReadString (SectionData, 'CertAltDomains_CommaText', '') ;
+          CertAltIPs.Lines.CommaText := ReadString (SectionData, 'CertAltIPs_CommaText', '') ;
           CertCommonName.Text := ReadString (SectionData, 'CertCommonName_Text', CertCommonName.Text) ;
           CertCountry.Text := ReadString (SectionData, 'CertCountry_Text', CertCountry.Text) ;
           CertDays.Text := ReadString (SectionData, 'CertDays_Text', CertDays.Text) ;
@@ -574,6 +571,7 @@ begin
           LoadInterCerts.Text := ReadString (SectionData, 'LoadInterCerts_Text', LoadInterCerts.Text) ;
           LoadPrivatetKey.Text := ReadString (SectionData, 'LoadPrivatetKey_Text', LoadPrivatetKey.Text) ;
           LoadRequestFile.Text := ReadString (SectionData, 'LoadRequestFile_Text', LoadRequestFile.Text) ;
+          if ReadString (SectionData, 'NewCertCopyExt_Checked', 'False') = 'True' then NewCertCopyExt.Checked := true else NewCertCopyExt.Checked := false ;
           if ReadString (SectionData, 'SaveAutoReplace_Checked', 'False') = 'True' then SaveAutoReplace.Checked := true else SaveAutoReplace.Checked := false ;
           SaveCertDer.Text := ReadString (SectionData, 'SaveCertDer_Text', SaveCertDer.Text) ;
           SaveCertPem.Text := ReadString (SectionData, 'SaveCertPem_Text', SaveCertPem.Text) ;
@@ -614,19 +612,12 @@ begin
     IniFile.WriteInteger(SectionMainWindow, KeyLeft,              Left);
     IniFile.WriteInteger(SectionMainWindow, KeyWidth,             Width);
     IniFile.WriteInteger(SectionMainWindow, KeyHeight,            Height);
-{    IniFile.WriteString(SectionData,        KeyDestinationDir,    DestDirEdit.Text);
-    IniFile.WriteString(SectionData,        KeyCurrentCertDir,    CurrentCertDirEdit.Text);
-    IniFile.WriteBool(SectionData,          KeyWarnDestNotEmpty,  CheckBoxWarnDestNotEmpty.Checked);
-    IniFile.WriteBool(SectionData,          KeyOverwriteExisting, CheckBoxOverwriteExisting.Checked);
-    IniFile.WriteBool(SectionData,          KeyEmptyDestDir,      CheckBoxEmptyDestDir.Checked);
-    IniFile.WriteBool(SectionData,          KeyComment,           CheckBoxComment.Checked);       // angus
-    IniFile.WriteBool(SectionData,          KeyWriteToBundle,     CheckBoxWriteToBundle.Checked); // angus  }
     IniFile.WriteString(SectionData,        KeyVerifyDir,         VerifyDir); { V8.38 }
-        with IniFile do begin   { V8.40 }
+    with IniFile do begin   { V8.40 }
           WriteString (SectionData, 'CAFilesDir_Text', CAFilesDir.Text) ;
           if CertAddComment.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'CertAddComment_Checked', temp) ;
-          WriteString (SectionData, 'CertAltDomains_Text', CertAltDomains.Text) ;
-          WriteString (SectionData, 'CertAltIPs_Text', CertAltIPs.Text) ;
+          WriteString (SectionData, 'CertAltDomains_CommaText', CertAltDomains.Lines.CommaText) ;
+          WriteString (SectionData, 'CertAltIPs_CommaText', CertAltIPs.Lines.CommaText) ;
           WriteString (SectionData, 'CertCommonName_Text', CertCommonName.Text) ;
           WriteString (SectionData, 'CertCountry_Text', CertCountry.Text) ;
           WriteString (SectionData, 'CertDays_Text', CertDays.Text) ;
@@ -668,6 +659,7 @@ begin
           WriteString (SectionData, 'LoadInterCerts_Text', LoadInterCerts.Text) ;
           WriteString (SectionData, 'LoadPrivatetKey_Text', LoadPrivatetKey.Text) ;
           WriteString (SectionData, 'LoadRequestFile_Text', LoadRequestFile.Text) ;
+          if NewCertCopyExt.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'NewCertCopyExt_Checked', temp) ;
           if SaveAutoReplace.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'SaveAutoReplace_Checked', temp) ;
           WriteString (SectionData, 'SaveCertDer_Text', SaveCertDer.Text) ;
           WriteString (SectionData, 'SaveCertPem_Text', SaveCertPem.Text) ;
@@ -680,7 +672,7 @@ begin
           WriteString (SectionData, 'SavePrvFileFile_Text', SavePrvFileFile.Text) ;
           WriteString (SectionData, 'SavePubKeyFile_Text', SavePubKeyFile.Text) ;
           WriteString (SectionData, 'SaveReqCertFile_Text', SaveReqCertFile.Text) ;
-        end;
+    end;
     IniFile.UpdateFile;
     IniFile.Free;
     if Assigned (FSslCertTools) then FSslCertTools.Free;
@@ -690,6 +682,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function ListCertDetail(Cert: TX509Base): string;
 begin
+    if NOT Assigned (Cert) then begin
+        Result := 'No certificate loaded';
+        Exit;
+    end;
     with Cert do begin
     { Angus added major PEM entries separately, also serves to document how
     to access all the different properties of the T509 component.  Note multiple
@@ -739,7 +735,7 @@ begin
             'Authority Key Identifier: ' + IcsUnwrapNames(AuthorityKeyId) + #13#10 +
             'Subject Key Identifier: ' + IcsUnwrapNames(SubjectKeyId) + #13#10 +
             'Signature Algorithm: ' + SignatureAlgorithm + #13#10 +  // Oct 2015
-            'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10;        
+            'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10;
         if ExtendedValidation then
             Result := Result + 'Extended Validation (EV) SSL Server Certificate' + #13#10;
         Result := Result + 'Key Info: ' + KeyInfo + #13#10;                         // Oct 2015
@@ -780,17 +776,23 @@ begin
             try
                 frmPemTool2.Caption := FileName;
                 frmPemTool2.Memo1.Lines.Clear;
-                Cert.LoadFromFile(Filename, croNo, croNo, CertPassword.Text);
-                if Assigned (Cert.PrivateKey) then begin
-                    frmPemTool2.Memo1.Lines.Add ('!! Private key available for certificate');
-                end;
-                if NOT Assigned (Cert.X509) then begin
-                    frmPemTool2.Memo1.Lines.Add ('No certificate found in file');
+                Cert.LoadFromFile(Filename, croTry, croTry, CertPassword.Text);
+                if NOT Cert.IsCertLoaded then begin
+                    frmPemTool2.Memo1.Lines.Add ('No certificate found in file ' + FileName);
                 end
                 else begin
-                    frmPemTool2.Memo1.Lines.Add (ListCertDetail(Cert));
+                    frmPemTool2.Memo1.Lines.Add ('Certificate file ' + FileName);
+                    frmPemTool2.Memo1.Lines.Add (ListCertDetail(Cert) + #13#10);
                     frmPemTool2.Memo1.Lines.Text := frmPemTool2.Memo1.Lines.Text +
-                                           'Raw Cert' + #13#10 + Cert.GetRawText;
+                                    'Raw Cert' + #13#10 + Cert.GetRawText + #13#10;
+                    if Cert.IsPKeyLoaded then begin
+                        frmPemTool2.Memo1.Lines.Add ('!! Private key available for certificate: ' +
+                                                                               Cert.KeyInfo + #13#10);
+                    end;
+                end;
+                if Cert.IsInterLoaded then begin
+                     frmPemTool2.Memo1.Lines.Add ('!! Intermediate certificates: ' +
+                                                                  Cert.ListInters + #13#10);
                 end;
             except
                 on E:Exception do
@@ -828,6 +830,7 @@ begin
                 frmPemTool2.Memo1.Lines.Add ('No PEM certificates found in file');
             end
             else begin
+                frmPemTool2.Memo1.Lines.Add ('Certificate file ' + FileName);
                 frmPemTool2.Memo1.Lines.Add ('Number of PEM certificates found in file: ' + IntToStr (Total));
 
                 for I := 1 to Total do begin
@@ -1133,6 +1136,7 @@ const
     digestlist: array [0..3] of TEvpDigest =
         (Digest_sha1, Digest_sha256, Digest_sha384, Digest_sha512);
 begin
+    CertCommonName.Text := Trim(CertCommonName.Text);
     with FSslCertTools do begin
         Country           := CertCountry.Text;
         State             := CertState.Text;
@@ -1142,8 +1146,14 @@ begin
         Descr             := CertDescr.Text;
         Email             := CertEMail.Text;
         CommonName        := CertCommonName.Text;
-        AltDNSList        := CertAltDomains.Text;
-        AltIpList         := CertAltIPs.Text;
+
+     // make sure alt domain contains common name
+        if CertAltDomains.Lines.Count > 0 then begin
+            if CertAltDomains.Lines.IndexOf(CertCommonName.Text) < 0 then
+                CertAltDomains.Lines.Add(CertCommonName.Text);
+        end;
+        AltDNSList.Assign(CertAltDomains.Lines);
+        AltIpList.Assign(CertAltIPs.Lines);
   //      AltEmailList
   //      AltIssuer
   //      CRLDistPoint
@@ -1255,13 +1265,22 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.SelIntersFileClick(Sender: TObject);
 begin
-//
+    OpenDlg.InitialDir := LoadDirectory.Text;
+    OpenDlg.FileName := PathAddBackSlash(LoadDirectory.Text) + LoadInterCerts.Text;
+    if OpenDlg.FileName = '' then Exit;
+    if OpenDlg.Execute then begin
+        LoadInterCerts.Text := ExtractFileName(OpenDlg.FileName);
+        LoadDirectory.Text := ExtractFilePath(OpenDlg.FileName);
+    end;
 end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.CAFilesDirClick(Sender: TObject);
 begin
-//
+    OpenDirDiag.InitialDir := CAFilesDir.Text ;
+    if OpenDirDiag.Execute then
+        CAFilesDir.Text := ExtractFilePath(OpenDirDiag.FileName);
 end;
 
 
@@ -1305,6 +1324,107 @@ begin
     if LogWinOpen then frmPemTool2.Memo1.Lines.Clear;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.doCreateBundleClick(Sender: TObject);
+var
+    certfname, pkeyfname, interfname, savefname: string;
+begin
+    doClearCertsClick(self);
+    certfname := BuildLoadName(LoadCertFile.Text);
+    if certfname = '' then Exit;
+    pkeyfname := BuildLoadName(LoadPrivatetKey.Text);
+    if pkeyfname = '' then Exit;
+    interfname := BuildLoadName(LoadInterCerts.Text);   // optional
+    savefname := BuildSaveName(SaveCertPem.Text);
+    if savefname = '' then Exit;
+    try
+        FSslCertTools.CreateCertBundle(certfname, pkeyfname, interfname,
+                  LoadCertPW.Text, savefname, SaveCertPW.Text,
+                                     TSslPrivKeyCipher(KeyEncrypt.ItemIndex));
+        DispError('Saved certificate bundle OK - ' + savefname);
+        DispCert;
+        DispPKey;
+        DispInter;
+    except
+        on E:Exception do
+            DispError(E.Message);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.doCheckBundleSelfClick(Sender: TObject);
+var
+    CertStr, ErrStr: string;
+    ValRes: TChainResult;
+begin
+    if NOT FSslCertTools.IsCertLoaded then begin
+        DispError('Must load or create a certificate first');
+        exit;
+    end;
+    if NOT FSslCertTools.IsPKeyLoaded then begin
+        DispError('Must load or create a private key first');
+        exit;
+    end;
+    FSslCertTools.LoadCATrustFromString(sslRootCACertsBundle);  { trusted root }
+    ValRes := FSslCertTools.ValidateCertChain('', CertStr, ErrStr);   
+    if ValRes = chainOK then
+        ErrStr := 'Chain Validated OK'
+    else if ValRes = chainWarn then
+        ErrStr := 'Chain Warning - ' + ErrStr
+    else
+        ErrStr := 'Chain Failed - ' + ErrStr;
+    DispError(ErrStr);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.doCheckBundleWinClick(Sender: TObject);
+var
+    CertChain: TX509List;
+    ChainVerifyResult: LongWord;
+    VerifyInfo: String;
+begin
+    if NOT FSslCertTools.IsCertLoaded then begin
+        DispError('Must load or create a certificate first');
+        exit;
+    end;
+    if SaveInterCerts.Checked then begin
+        if NOT FSslCertTools.IsInterLoaded then begin
+            DispError('Must load intermediate certificates first');
+            exit;
+        end;
+    end;
+    if FSslCertTools.IsPKeyLoaded then begin
+        if NOT FSslCertTools.CheckCertAndPKey then begin
+            DispError('Mismatch certificate and private key');
+            exit;
+        end;
+    end;
+
+  { get intermediate chain }
+    CertChain := TX509List.Create(nil);
+    FSslCertTools.GetIntersList (CertChain);
+
+  { pending use ValidateCertChain when it's written }
+
+  { start Windows certificate engine }
+    if not Assigned (MsCertChainEngine) then
+        MsCertChainEngine := TMsCertChainEngine.Create;
+
+  { see if checking revoocation, very slow!!!! }
+    MsCertChainEngine.VerifyOptions := []; // [mvoRevocationCheckChainExcludeRoot];
+
+  { Pass the certificate and the chain certificates to the engine      }
+    MsCertChainEngine.VerifyCert (FSslCertTools, CertChain, ChainVerifyResult, True);
+
+   { The MsChainVerifyErrorToStr function works on chain error codes     }
+    VerifyInfo := MsChainVerifyErrorToStr (ChainVerifyResult);
+    DispError('Bundle check result - ' + VerifyInfo);
+end;
+
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.doCreateCACertClick(Sender: TObject);
 begin
@@ -1312,8 +1432,8 @@ begin
     doCreateCACert.Enabled := false;
     try
         try
-            if NOT Assigned(FSslCertTools.X509CA) then begin
-                if FSslCertTools.X509 = Nil then begin
+            if NOT FSslCertTools.IsCALoaded then begin
+                if NOT FSslCertTools.IsCertLoaded then begin
                     DispError('Must load CA ertificate first');
                     exit;
                 end;
@@ -1333,7 +1453,7 @@ begin
             FSslCertTools.PrivateKey := Nil;
             DispCert;
             DispPKey;
-            FSslCertTools.DoSignCertReq(false);
+            FSslCertTools.DoSignCertReq(NewCertCopyExt.Checked);
             DispError('Created certificate from request signed by CA certificate OK');
             DispCert;
             CertLinesNew.Lines.Text := FSslCertTools.SaveCertToText(true);
@@ -1473,12 +1593,12 @@ var
     info: String;
 begin
     info := 'Certificate: ';
-    if NOT Assigned (FSslCertTools.X509) then
+    if NOT FSslCertTools.IsCertLoaded then
         LabelStateCert.Caption := info + 'None'
     else begin
         ShowLogWindow;
         with FSslCertTools do begin
-            LabelStateCert.Caption := info + CertInfo;
+            LabelStateCert.Caption := info + CertInfo(False);
             frmPemTool2.Memo1.Lines.Add (ListCertDetail(FSslCertTools));
             frmPemTool2.Memo1.Lines.Text := frmPemTool2.Memo1.Lines.Text +
                                        'Raw Certificate' + #13#10 + GetRawText;
@@ -1491,7 +1611,7 @@ end;
 procedure TfrmPemTool1.DispPKey;
 begin
     LabelStatePrivKey.Caption := 'Private Key: ';
-    if NOT Assigned (FSslCertTools.PrivateKey) then
+    if NOT FSslCertTools.IsPKeyLoaded then
         LabelStatePrivKey.Caption := LabelStatePrivKey.Caption + 'None'
     else begin
         ShowLogWindow;
@@ -1510,12 +1630,14 @@ end;
 procedure TfrmPemTool1.DispReq;
 begin
     LabelStateReq.Caption := 'Certificate Request: ';
-    if NOT Assigned (FSslCertTools.X509Req) then
+    if NOT FSslCertTools.IsReqLoaded then
         LabelStateReq.Caption := LabelStateReq.Caption + 'None'
     else begin
         ShowLogWindow;
         with FSslCertTools do begin
             LabelStateReq.Caption := LabelStateReq.Caption + ReqCertInfo;
+            frmPemTool2.Memo1.Lines.Text := frmPemTool2.Memo1.Lines.Text +
+                                                       LabelStateReq.Caption;
             frmPemTool2.Memo1.Lines.Text := frmPemTool2.Memo1.Lines.Text +
                           'Raw Certificate Request' + #13#10 + GetRequestRawText;
             frmPemTool2.Memo1.Lines.Add ('');
@@ -1525,8 +1647,19 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.DispInter;
+var
+    info: String;
 begin
-//
+    info := 'Intermediate Certificates: ';
+    if NOT FSslCertTools.IsInterLoaded then
+        LabelInters.Caption := info + 'None'
+    else begin
+        ShowLogWindow;
+        LabelInters.Caption := info + FSslCertTools.ListInters;
+        frmPemTool2.Memo1.Lines.Text := frmPemTool2.Memo1.Lines.Text +
+                                                       LabelInters.Caption;
+        frmPemTool2.Memo1.Lines.Add ('');
+    end;
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1550,10 +1683,12 @@ end;
 procedure TfrmPemTool1.DispCACert;
 begin
     LabelStateCACert.Caption := 'CA Certificate: ';
-    if NOT Assigned (FSslCertTools.X509CA) then
+    if NOT FSslCertTools.IsCALoaded then
          LabelStateCACert.Caption := 'None'
     else
-        LabelStateCACert.Caption := 'CA ' + LabelStateCert.Caption;
+      { assume cert still loaded before being copied to CA }
+        LabelStateCACert.Caption := LabelStateCACert.Caption +
+                                            FSslCertTools.CertInfo(True);
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1568,10 +1703,12 @@ begin
                            GetCertReadOpt(LoadCertInters.Checked), LoadCertPW.Text);
         DispError('Loaded cerfificate OK - ' + fname);
         DispCert;
-        if Assigned(FSslCertTools.PrivateKey) then begin
+        if LoadCertPrivKey.Checked then begin
             DispError('Loaded cerfificate and key OK - ' + fname);
             DispPKey;
         end;
+        if LoadCertInters.Checked then
+            DispInter;
     except
         on E:Exception do
             DispError(E.Message);
@@ -1581,8 +1718,19 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.doLoadIntersClick(Sender: TObject);
+var
+    fname: string;
 begin
-//
+    fname := BuildLoadName(LoadInterCerts.Text);
+    if fname = '' then Exit;
+    try
+        FSslCertTools.LoadIntersFromPemFile(fname);
+        DispError('Loaded intermediates OK - ' + fname);
+        DispInter;
+    except
+         on E:Exception do
+            DispError(E.Message);
+    end;
 end;
 
 
@@ -1627,7 +1775,7 @@ procedure TfrmPemTool1.doSaveCertDerClick(Sender: TObject);
 var
     fname: string;
 begin
-    if NOT Assigned(FSslCertTools.X509) then begin
+    if NOT FSslCertTools.IsCertLoaded then begin
         DispError('Must load or create a certificate first');
         exit;
     end;
@@ -1648,18 +1796,18 @@ procedure TfrmPemTool1.doSaveCertPemClick(Sender: TObject);
 var
     fname: string;
 begin
-    if NOT Assigned(FSslCertTools.X509) then begin
+    if NOT FSslCertTools.IsCertLoaded then begin
         DispError('Must load or create a certificate first');
         exit;
     end;
     if SavePrivateKey.Checked then begin
-        if NOT Assigned(FSslCertTools.PrivateKey) then begin
+        if NOT FSslCertTools.IsPKeyLoaded then begin
             DispError('Must load or create a private key first');
             exit;
         end;
     end;
     if SaveInterCerts.Checked then begin
-        if NOT Assigned(FSslCertTools.X509Inters) then begin
+        if NOT FSslCertTools.IsInterLoaded then begin
             DispError('Must load intermediate certificates first');
             exit;
         end;
@@ -1683,18 +1831,16 @@ procedure TfrmPemTool1.doSavePkcs12Click(Sender: TObject);
 var
     fname: string;
 begin
-    if NOT Assigned(FSslCertTools.X509) then begin
+    if NOT FSslCertTools.IsCertLoaded then begin
         DispError('Must load or create a certificate first');
         exit;
     end;
-    if SavePrivateKey.Checked then begin
-        if NOT Assigned(FSslCertTools.PrivateKey) then begin
-            DispError('Must load or create a private key first');
-            exit;
-        end;
+    if NOT FSslCertTools.IsPKeyLoaded then begin
+        DispError('Must load or create a private key first');
+        exit;
     end;
     if SaveInterCerts.Checked then begin
-        if NOT Assigned(FSslCertTools.X509Inters) then begin
+        if NOT FSslCertTools.IsInterLoaded then begin
             DispError('Must load intermediate certificates first');
             exit;
         end;
@@ -1702,7 +1848,7 @@ begin
     fname := BuildSaveName(SavePkcs12File.Text);
     if fname = '' then Exit;
     try
-        FSslCertTools.SaveToP12File(fname, SaveCertPW.Text, SavePrivateKey.Checked,
+        FSslCertTools.SaveToP12File(fname, SaveCertPW.Text,
                      SaveInterCerts.Checked, TSslPrivKeyCipher(KeyEncrypt.ItemIndex));
         DispError('Saved certificate OK - ' + fname);
     except
@@ -1717,12 +1863,12 @@ procedure TfrmPemTool1.doSavePkcs7CertClick(Sender: TObject);
 var
     fname: string;
 begin
-    if NOT Assigned(FSslCertTools.X509) then begin
+    if NOT FSslCertTools.IsCertLoaded then begin
         DispError('Must load or create a certificate first');
         exit;
     end;
     if SaveInterCerts.Checked then begin
-        if NOT Assigned(FSslCertTools.X509Inters) then begin
+        if NOT FSslCertTools.IsInterLoaded then begin
             DispError('Must load intermediate certificates first');
             exit;
         end;
@@ -1745,7 +1891,7 @@ var
     fname: string;
 begin
     if SavePrivateKey.Checked then begin
-        if NOT Assigned(FSslCertTools.PrivateKey) then begin
+        if NOT FSslCertTools.IsPKeyLoaded then begin
             DispError('Must load or create a private key first');
             exit;
         end;
@@ -1769,7 +1915,7 @@ var
     fname: string;
 begin
     if SavePrivateKey.Checked then begin
-        if NOT Assigned(FSslCertTools.PrivateKey) then begin
+        if NOT FSslCertTools.IsPKeyLoaded then begin
             DispError('Must load or create a private key first');
             exit;
         end;
@@ -1791,7 +1937,7 @@ procedure TfrmPemTool1.doSaveReqCertClick(Sender: TObject);
 var
     fname: string;
 begin
-    if NOT Assigned(FSslCertTools.X509Req) then begin
+    if NOT FSslCertTools.IsReqLoaded then begin
         DispError('Must load or create a certificate request first');
         exit;
     end;
@@ -1903,11 +2049,8 @@ procedure TfrmPemTool1.About1Click(Sender: TObject);
 begin
    ShowMessage(
                PemToolName + #13#10
-             +  CopyRight + ' ' + PemToolDate);
-end;
-
-procedure TfrmPemTool1.AboutClick(Sender: TObject);
-begin
+             +  CopyRight + ' ' + PemToolDate +
+             'SSL Version: ' + OpenSslVersion + ', Dir: ' + GLIBEAY_DLL_FileName);
 end;
 
 
@@ -1920,15 +2063,14 @@ var
      X               : TX509Base;
      Subject_Hash    : Cardinal;
      BundleBio       : PBIO;          // added
-     FileBio         : PBIO;          // Angus
      FileName        : String;
      Path            : String;
      BundleFilename  : String;        // added
      BundlePath      : String;        // added
      Count           : Integer;
      xTmp            : PX509;
-     Title           : AnsiString;   // Angus
 begin
+    LoadSsl; // Need to load the libraries here since it may be required for the call of f_d2i_X509()
     Count := 0;
     pCertContext := nil;
     BundleBio    := nil;
@@ -1962,6 +2104,8 @@ begin
         0 : pwszSystemName := 'CA';
         1 : pwszSystemName := 'ROOT';
         2 : pwszSystemName := 'MY';
+        3 : pwszSystemName := 'TRUST';        { V8.41 }
+        4 : pwszSystemName := 'ADDRESSBOOK';  { V8.41 }
       else
         pwszSystemName := nil;
     end;
@@ -1993,13 +2137,15 @@ begin
              0 : BundleFilename := BundlePath + 'CaCertsBundle.pem';
              1 : BundleFilename := BundlePath + 'RootCaCertsBundle.pem';
              2 : BundleFilename := BundlePath + 'MyCertsBundle.pem';
+             3 : BundleFilename := BundlePath + 'TrustCertsBundle.pem';  { V8.41 }
+             4 : BundleFilename := BundlePath + 'EmailCertsBundle.pem';  { V8.41 }
          end;
+       { opens text file, adds CR to LF }
          BundleBio := f_BIO_new_file(Pointer(AnsiString(BundleFilename)), PAnsiChar('w+'));
      end;
 
     { Enum all the certs in the store and store them in PEM format }
     pCertContext := CertEnumCertificatesInStore(hSystemStore, pCertContext);
-    LoadSsl; // Need to load the libraries here since it may be required for the call of f_d2i_X509()
     X := TX509Base.Create(nil);
     try
         while pCertContext <> nil do begin
@@ -2012,39 +2158,12 @@ begin
                 if not CheckBoxOverwriteExisting.Checked then
                     if FileExists(FileName) then
                         FileName := FindPemFileName(FileName);
-//              X.SaveToPemFile(FileName);
-                FileBio := f_BIO_new_file(Pointer(AnsiString(Filename)), PAnsiChar('w+'));
-                if not Assigned(FileBio) then
-                    raise Exception.Create('Failed to open output file - ' + FileName);
-                 { Angus add comment before encoded certificate so we
-                   can actually identify each one easily }
-                if CheckBoxComment.Checked then begin
-                    Title := '# X509 SSL Certificate' + #13#10;
-                    if X.SubjectCName <> '' then
-                        Title := Title + '# Subject Common Name: ' + AnsiString(IcsUnwrapNames(X.SubjectCName))+ #13#10;
-                    if X.SubAltNameDNS <> '' then
-                        Title := Title + '# Subject Alt Names: ' + AnsiString(IcsUnwrapNames(X.SubAltNameDNS))+ #13#10;
-                    Title := Title + '# Subject Organisation: ' + AnsiString(IcsUnwrapNames(X.SubjectOName)) + #13#10;
-                    if X.SubjectOUName <> '' then
-                        Title := Title + '# Subject Organisation Unit: ' + AnsiString(IcsUnwrapNames(X.SubjectOUName)) + #13#10;
-                    if X.SelfSigned then
-                        Title := Title + 'Issuer: Self Signed' + #13#10
-                    else begin
-                        Title := Title +
-                             '# Issuer Common Name: ' + AnsiString(IcsUnwrapNames(X.IssuerCName)) + #13#10 +
-                             '# Issuer Organisation: ' + AnsiString(IcsUnwrapNames(X.IssuerOName)) + #13#10;
-                    end;
-                     Title := Title +'# Expires: ' + AnsiString(DateToStr (X.ValidNotAfter))+ #13#10;
-                    f_BIO_write(FileBio, @Title [1], Length (Title));
-                end;
-                f_PEM_write_bio_X509(FileBio, X.X509);
-                f_BIO_free(FileBio);
+                X.SaveToPemFile(FileName, False, CheckBoxComment.Checked);  { V8.41 does it all now }
                 Inc(Count);
                   // save to bundle also
                 if (Assigned(BundleBio)) and CheckBoxWriteToBundle.Checked then begin
-                    if CheckBoxComment.Checked then
-                        f_BIO_write(BundleBio, @Title [1], Length (Title));
-                    f_PEM_write_bio_X509(BundleBio, X.X509);
+                    X.WriteCertToBio(BundleBio, CheckBoxComment.Checked, BundleFilename);   { V8.41 does it all now }
+                    X.WriteStrBio(BundleBio, #10#10);  { blank lines between certs }
                 end;
             end;
             pCertContext := CertEnumCertificatesInStore(hSystemStore, pCertContext);

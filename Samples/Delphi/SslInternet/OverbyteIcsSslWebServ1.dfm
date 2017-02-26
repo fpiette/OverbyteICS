@@ -210,6 +210,13 @@ object SslWebServForm: TSslWebServForm
         'slContext to avoid using files.'#13#10
       WordWrap = True
     end
+    object Label25: TLabel
+      Left = 290
+      Top = 200
+      Width = 67
+      Height = 13
+      Caption = 'Security Level'
+    end
     object DocDirEdit: TEdit
       Left = 80
       Top = 4
@@ -232,7 +239,7 @@ object SslWebServForm: TSslWebServForm
       Width = 73
       Height = 21
       Caption = '&Start HTTPS'
-      TabOrder = 24
+      TabOrder = 25
       OnClick = StartHttpsButtonClick
     end
     object StopButton: TButton
@@ -241,7 +248,7 @@ object SslWebServForm: TSslWebServForm
       Width = 73
       Height = 21
       Caption = 'St&op'
-      TabOrder = 26
+      TabOrder = 27
       OnClick = StopButtonClick
     end
     object PortHttpsEdit: TEdit
@@ -258,7 +265,7 @@ object SslWebServForm: TSslWebServForm
       Width = 73
       Height = 21
       Caption = '&Clear'
-      TabOrder = 27
+      TabOrder = 28
       OnClick = ClearButtonClick
     end
     object DisplayHeaderCheckBox: TCheckBox
@@ -268,7 +275,7 @@ object SslWebServForm: TSslWebServForm
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Display Header'
-      TabOrder = 19
+      TabOrder = 20
     end
     object WriteLogFileCheckBox: TCheckBox
       Left = 544
@@ -277,7 +284,7 @@ object SslWebServForm: TSslWebServForm
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Write to log file'
-      TabOrder = 18
+      TabOrder = 19
       OnClick = WriteLogFileCheckBoxClick
     end
     object CertFileEdit: TEdit
@@ -335,7 +342,7 @@ object SslWebServForm: TSslWebServForm
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Verify Peer'
-      TabOrder = 21
+      TabOrder = 22
     end
     object StartHttpButton: TButton
       Left = 692
@@ -343,7 +350,7 @@ object SslWebServForm: TSslWebServForm
       Width = 73
       Height = 21
       Caption = 'Start HTTP'
-      TabOrder = 25
+      TabOrder = 26
       OnClick = StartHttpButtonClick
     end
     object PortHttpEdit: TEdit
@@ -369,7 +376,7 @@ object SslWebServForm: TSslWebServForm
       Width = 73
       Height = 21
       Caption = 'OpenSSL?'
-      TabOrder = 28
+      TabOrder = 29
       OnClick = ButtonOSSLVersionClick
     end
     object DisplaySslInfoCheckBox: TCheckBox
@@ -379,7 +386,7 @@ object SslWebServForm: TSslWebServForm
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Display SSL Info'
-      TabOrder = 20
+      TabOrder = 21
     end
     object DhParamFileEdit: TEdit
       Left = 300
@@ -424,17 +431,13 @@ object SslWebServForm: TSslWebServForm
       Height = 21
       Style = csDropDownList
       ItemHeight = 13
-      ItemIndex = 0
       TabOrder = 8
-      Text = 'sslCiphersServer'
       Items.Strings = (
         'sslCiphersServer'
         'sslCiphersMozillaSrvBack'
         'sslCiphersMozillaSrvInter'
-        'sslCiphersMozillaSrvHigh'
-        'sslCiphersMozillaSrvBack38'
-        'sslCiphersMozillaSrvInter38'
-        'sslCiphersMozillaSrvHigh38')
+        'sslCiphersMozillaSrvInterFS'
+        'sslCiphersMozillaSrvHigh')
     end
     object ListenAddr: TComboBox
       Left = 300
@@ -488,7 +491,7 @@ object SslWebServForm: TSslWebServForm
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Force OSSL 1.0.x'
-      TabOrder = 22
+      TabOrder = 23
     end
     object DebugEventCheckBox: TCheckBox
       Left = 528
@@ -497,7 +500,16 @@ object SslWebServForm: TSslWebServForm
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Logger Dest Event'
-      TabOrder = 23
+      TabOrder = 24
+    end
+    object SslSecLevel: TComboBox
+      Left = 367
+      Top = 196
+      Width = 169
+      Height = 21
+      ItemHeight = 13
+      TabOrder = 18
+      Text = 'SslSecLevel'
     end
   end
   object DisplayMemo: TMemo
@@ -580,6 +592,7 @@ object SslWebServForm: TSslWebServForm
     SslVerifyDepth = 9
     SslVerifyFlags = []
     SslCheckHostFlags = []
+    SslSecLevel = sslSecLevel80bits
     SslOptions = [sslOpt_MICROSOFT_SESS_ID_BUG, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG, sslOpt_MICROSOFT_BIG_SSLV3_BUFFER, sslOpt_SSLEAY_080_CLIENT_DH_BUG, sslOpt_TLS_D5_BUG, sslOpt_TLS_BLOCK_PADDING_BUG, sslOpt_TLS_ROLLBACK_BUG, sslOpt_SINGLE_DH_USE, sslOpt_NO_SSLv2, sslOpt_NO_SSLv3, sslOpt_NETSCAPE_CA_DN_BUG, sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = [sslSESS_CACHE_SERVER, sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE]

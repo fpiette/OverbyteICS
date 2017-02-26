@@ -8,11 +8,11 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      8.39
+Version:      8.41
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2016 by François PIETTE
+Legal issues: Copyright (C) 1999-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -81,6 +81,13 @@ May 24 2016  V8.27 Angus testing OpenSSL 1.1.0, added SslThrdLock
 Nov 04 2016  V8.37 Set friendly errors
 Nov 29 2016  V8.39 Better way of listing certificates actually loaded into context
                      rather than opening files a second time
+Feb 26 2017  V8.41 Added SslSecLevel to set minimum effective bits for
+                     certificate key length, 128 bits and higher won't usually work!
+                   Load certificates into SslCertX509 which supports PEM, DER,
+                     PKCS12, PKCS8 formats and check chain for errors before
+                     initialising SSL context, also reports chain
+                   Removed old ciphers, adding new new cipher
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
@@ -118,10 +125,10 @@ uses
   OverbyteIcsWSocket, OverbyteIcsWSocketS, OverbyteIcsHttpSrv,
   OverbyteIcsLIBEAY, OverbyteIcsSSLEAY, OverbyteIcsSslSessionCache,
   OverbyteIcsSslX509Utils, OverbyteIcsLogger, OverbyteIcsWndControl,
-  OverbyteIcsSslThrdLock;
+  OverbyteIcsSslThrdLock, TypInfo;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2016 F. Piette V8.39 ';
+  CopyRight : String         = 'WebServ (c) 1999-2017 F. Piette V8.41 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -207,6 +214,8 @@ type
     SslStaticLock1: TSslStaticLock;
     Label24: TLabel;
     DebugEventCheckBox: TCheckBox;
+    SslSecLevel: TComboBox;
+    Label25: TLabel;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -327,6 +336,7 @@ const
     KeySslMaxVersion   = 'SslMaxVersion';
     KeyOldSsl          = 'OldSsl';
     KeyDebugEvent      = 'DebugEvent';
+    KeySslSecLevel     = 'SslSecLevel';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslWebServForm.FormCreate(Sender: TObject);
@@ -356,11 +366,16 @@ var
     wsi     : TWSADATA;
     OldIp   : string;
     I       : integer;
+    SL      : TSslSecLevel;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
 
-        { Restore persistent data from INI file }
+    { V8.41 set SSL security level items from TSslSecLevel }
+        for SL := Low (TSslSecLevel) to High (TSslSecLevel) do
+            SslSecLevel.Items.Add (GetEnumName(TypeInfo(TSslSecLevel), Ord(SL)));
+
+    { Restore persistent data from INI file }
         IniFile      := TIcsIniFile.Create(FIniFileName);
         Width        := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         Height       := IniFile.ReadInteger(SectionWindow, KeyHeight, Height);
@@ -412,6 +427,7 @@ begin
         OldIp := IniFile.ReadString(SectionData, KeyListenAddr, '');                         { V8.05 }
         OldSslCheckBox.Checked  := IniFile.ReadBool(SectionData, KeyOldSsl, False);          { V8.07 }
         DebugEventCheckBox.Checked := IniFile.ReadBool(SectionData, KeyDebugEvent, False);   { V8.07 }
+        SslSecLevel.ItemIndex := IniFile.ReadInteger(SectionData, KeySslSecLevel, 1);  { V8.41 }
         IniFile.Free;
 
         RenegotiationIntervalEdit.Text := IntToStr(FRenegotiationInterval);
@@ -507,6 +523,7 @@ begin
     IniFile.WriteString(SectionData,    KeyListenAddr, ListenAddr.Items [ListenAddr.ItemIndex]); { V8.05 }
     IniFile.WriteBool(SectionData,      KeyOldSsl,      OldSslCheckBox.Checked);       { V8.07 }
     IniFile.WriteBool(SectionData,      KeyDebugEvent,  DebugEventCheckBox.Checked);    { V8.07 }
+    IniFile.WriteInteger(SectionData,   KeySslSecLevel, SslSecLevel.ItemIndex);   { V8.41 }
     IniFile.UpdateFile;
     IniFile.Free;
     CloseLogFile;
@@ -558,9 +575,11 @@ procedure TSslWebServForm.StartHttpsButtonClick(Sender: TObject);
 //        (sslBestVer_SERVER,sslV2_SERVER,sslV3_SERVER,sslTLS_V1_SERVER,sslTLS_V1_1_SERVER,sslTLS_V1_2_SERVER);  { V8.05 }
 var
 //    MyCert: TX509Base;
-    CertList: TX509List;
-    Tot, I: Integer;
-    Info: string;
+//    CertList: TX509List;
+//    Tot, I: Integer;
+//    Info: string;
+    ErrStr: string;
+    valres: TChainResult;
 begin
     IcsLogger1.LogOptions := [];
     if DebugEventCheckBox.Checked then
@@ -574,11 +593,36 @@ begin
     SslHttpServer1.Addr             := ListenAddr.Items [ListenAddr.ItemIndex];  { V8.05 }
     SslHttpServer1.ClientClass      := TMyHttpConnection;
     SslHttpServer1.SetAcceptableHostsList(AcceptableHostsEdit.Text);
+    FSrvSslCert := '';
+
+    { V8.41 the old way, loading into context, not check until initialised,
+      these properties are still used if SslCertX509 is not loaded from any files
     SslContext1.SslCertFile         := CertFileEdit.Text;
     SslContext1.SslPassPhrase       := PassPhraseEdit.Text;
     SslContext1.SslPrivKeyFile      := PrivKeyFileEdit.Text;
     SslContext1.SslCAFile           := CAFileEdit.Text;
-    SslContext1.SslCAPath           := CAPathEdit.Text;
+    SslContext1.SslCAPath           := CAPathEdit.Text; }
+
+    { V8.41 new way, supports PEM, DER, PKCS12, PKCS8 formats and check them earlier }
+    SslContext1.SslCertX509.LoadFromFile(CertFileEdit.Text, croTry, croTry,
+                                                          PassPhraseEdit.Text);  { try and load pkey and inter certs }
+    if NOT SslContext1.SslCertX509.IsPkeyLoaded then
+            SslContext1.SslCertX509.PrivateKeyLoadFromPemFile(PrivKeyFileEdit.Text);
+    if NOT SslContext1.SslCertX509.IsInterLoaded then
+            SslContext1.SslCertX509.LoadIntersFromPemFile(CAFileEdit.Text);
+
+     { V8.41 check certificate chain for errors }
+     SslContext1.SslCertX509.LoadCATrustFromString(sslRootCACertsBundle);  { trusted root so we check chain }
+     valres := SslContext1.SslCertX509.ValidateCertChain('', FSrvSslCert, ErrStr);  { really need host name  }
+    if valres = chainOK then
+        ErrStr := 'Chain Validated OK'
+    else if valres = chainWarn then
+        ErrStr := 'Chain Warning - ' + ErrStr
+    else
+        ErrStr := 'Chain Failed - ' + ErrStr;
+    Display(FSrvSslCert + #13#10 + ErrStr + #13#10);
+    if valres = chainFail then Exit;  
+
     SslContext1.SslDHParamFile      := DhParamFileEdit.Text;      { V8.02 }
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
     SslContext1.SslECDHMethod       := TSslECDHMethod(ECDHList.ItemIndex); { V8.02 }
@@ -590,12 +634,15 @@ begin
         0: SslContext1.SslCipherList := sslCiphersServer;
         1: SslContext1.SslCipherList := sslCiphersMozillaSrvBack;
         2: SslContext1.SslCipherList := sslCiphersMozillaSrvInter;
-        3: SslContext1.SslCipherList := sslCiphersMozillaSrvHigh;
-        4: SslContext1.SslCipherList := sslCiphersMozillaSrvBack38;
-        5: SslContext1.SslCipherList := sslCiphersMozillaSrvInter38;
-        6: SslContext1.SslCipherList := sslCiphersMozillaSrvHigh38;
+        3: SslContext1.SslCipherList := sslCiphersMozillaSrvInterFS; { V8.41 }
+        4: SslContext1.SslCipherList := sslCiphersMozillaSrvHigh;
+   //     4: SslContext1.SslCipherList := sslCiphersMozillaSrvBack38;   V8.41 gone
+   //     5: SslContext1.SslCipherList := sslCiphersMozillaSrvInter38;
+   //     6: SslContext1.SslCipherList := sslCiphersMozillaSrvHigh38;
     end;
    if SslCipherEdit.Text <> '' then  SslContext1.SslCipherList := SslCipherEdit.Text; { V8.05 }
+   SslContext1.SslSecLevel := TSslSecLevel (SslSecLevel.ItemIndex);   { V8.41 }
+
    { V8.07 setting minimum and maximum versions now handled when creating context }
  {  SslContext1.SslOptions := SslContext1.SslOptions + [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
                                      sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];
@@ -623,29 +670,10 @@ begin
           SslHttpServer1.WSocketServer.ResetSSL;
         end;
         SslContext1.InitContext;  { V8.02 get any error now before starting server }
-     {  if NOT FileExists (GLIBEAY_DLL_FileName) then
-          Display('SSL/TLS DLL not found: ' + GLIBEAY_DLL_FileName)
-        else
-          Display('SSL/TLS DLL: ' + GLIBEAY_DLL_FileName + ', Version: ' + OpenSslVersion);  }
-
-        FSrvSslCert := '';
-      // Oct 2015 report server certificate by reading files again
-    {    MyCert := TX509Base.Create(self);
-        if SslContext1.SslCertFile <> '' then
-        try
-            MyCert.LoadFromPemFile (SslContext1.SslCertFile); // Oct 2015
-            FSrvSslCert := 'SSL server certificate: ' + #13#10 + MyCert.CertInfo;
-            if Date > MyCert.ValidNotAfter then
-                FSrvSslCert := FSrvSslCert + 'Server SSL Certificate Has Expired'
-            else if (Date + 30) > MyCert.ValidNotAfter then
-                FSrvSslCert := FSrvSslCert + 'Server SSL Certificate Exprires Shortly';
-            Display(FSrvSslCert + #13#10);
-        finally
-            MyCert.Free ;
-        end;   }
 
      // V8.39 better way of listing certificates actually loaded into store
-        CertList := TX509List.Create (self, True);
+     // V8.41 now done earlier ion ValidateCertChain
+   (*     CertList := TX509List.Create (self, True);
         try
             Tot := SslContext1.SslGetAllCerts (CertList);
             if SslContext1.SslCertX509.SubjectOneLine <> '' then  // ensure loaded
@@ -667,7 +695,7 @@ begin
             end;
         finally
             CertList.Free;
-        end;
+        end;    *)
         FSrvSslCert := StringReplace (FSrvSslCert, #13#10, '<BR>'+#13#10, [rfReplaceAll]) ;
 
       { V8.07  list SSL ciphers }

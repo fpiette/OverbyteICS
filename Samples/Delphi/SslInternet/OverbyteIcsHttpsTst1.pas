@@ -6,11 +6,11 @@ Description:  A simple  HTTPS SSL Web Client Demo client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.39
+Version:      8.41
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2015 by François PIETTE
+Legal issues: Copyright (C) 2003-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -69,6 +69,9 @@ Nov 23, 2016  V3.39 no longer need PostConnectionCheck or TX509Ex
               Added List Cert Store button to list common names of any
                 certificates loaded from CA File or CA Path, so you know
                 exactly what was found 
+Feb 26, 2017  V8.41 added SslSecLevel to set minimum effective bits for
+                certificate key length, 128 bits and higher won't usually work!
+              Simplified listing certificate chain in handshake
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;
@@ -96,7 +99,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   OverbyteIcsIniFiles, StdCtrls, ExtCtrls, OverbyteIcsHttpProt, OverbyteIcsWSocket,
   OverbyteIcsLIBEAY, OverbyteIcsSsLeay, OverbyteIcsSslSessionCache,
-  OverbyteIcsLogger, OverbyteIcsSslX509Utils, OverbyteIcsSslThrdLock,
+  OverbyteIcsLogger, OverbyteIcsSslX509Utils, OverbyteIcsSslThrdLock, TypInfo,
 {$IF CompilerVersion > 23}
   System.UITypes,
 {$IFEND}
@@ -107,10 +110,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 839;
-     HttpsTstDate        = 'Nov 21, 2016';
+     HttpsTstVersion     = 841;
+     HttpsTstDate        = 'Feb 26, 2017';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2016 Francois Piette V8.39 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2017 Francois Piette V8.41 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -178,6 +181,8 @@ type
     OldSslCheckBox: TCheckBox;
     Label16: TLabel;
     StoreButton: TButton;
+    SslSecLevel: TComboBox;
+    Label22: TLabel;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -278,6 +283,7 @@ const
     KeySslMaxVersion   = 'SslMaxVersion';
     KeySslCipher       = 'SslCipher';
     KeyOldSsl          = 'OldSsl';
+    KeySslSecLevel     = 'SslSecLevel';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF DEBUG_OUTPUT}
@@ -334,9 +340,14 @@ end;
 procedure THttpsTstForm.FormShow(Sender: TObject);
 var
     IniFile : TIcsIniFile;
+    SL : TSslSecLevel;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
+
+    { V8.41 set SSL security level items from TSslSecLevel }
+        for SL := Low (TSslSecLevel) to High (TSslSecLevel) do
+            SslSecLevel.Items.Add (GetEnumName(TypeInfo(TSslSecLevel), Ord(SL)));
 
         IniFile      := TIcsIniFile.Create(FIniFileName);
         try
@@ -400,9 +411,11 @@ begin
             DebugFileCheckBox.Checked     := IniFile.ReadBool(SectionData,
                                                               KeyDebugFile,
                                                               False);
-            OldSslCheckBox.Checked     := IniFile.ReadBool(SectionData,
+            OldSslCheckBox.Checked        := IniFile.ReadBool(SectionData,
                                                               KeyOldSsl,
                                                               False);
+            SslSecLevel.ItemIndex         := IniFile.ReadInteger(SectionData,
+                                                              KeySslSecLevel, 1);  { V8.41 }
         finally
             IniFile.Free;
         end;
@@ -457,6 +470,7 @@ begin
     IniFile.WriteBool(SectionData,      KeyDebugOutput, DebugOutputCheckBox.Checked);
     IniFile.WriteBool(SectionData,      KeyDebugFile,   DebugFileCheckBox.Checked);
     IniFile.WriteBool(SectionData,      KeyOldSsl,      OldSslCheckBox.Checked);      { V8.03 }
+    IniFile.WriteInteger(SectionData,   KeySslSecLevel, SslSecLevel.ItemIndex);   { V8.41 }
     IniFile.UpdateFile;
     IniFile.Free;
 end;
@@ -548,6 +562,8 @@ begin
 
     //SslHttpCli1.SetAcceptableHostsList(AcceptableHostsEdit.Text);
 
+    { note SSL cert and priv key are only needed if the remote server requires
+      a client SSL certificate to be sent for maximum security, very rare!! }
     SslContext1.SslCertFile         := CertFileEdit.Text;
     SslContext1.SslPassPhrase       := PassPhraseEdit.Text;
     SslContext1.SslPrivKeyFile      := PrivKeyFileEdit.Text;
@@ -564,6 +580,7 @@ begin
     SslContext1.SslMaxVersion       := TSslVerMethod (SslMaxVersion.ItemIndex);  { V8.03}
     SslContext1.SslCipherList       := SslCipherEdit.Text;                       { V8.01 }
     SslContext1.SslDHParamFile      := DhParamFileEdit.Text;                     { V8.01 }
+    SslContext1.SslSecLevel         := TSslSecLevel (SslSecLevel.ItemIndex);     { V8.41 } 
 
   {  V8.01 - set options to force a single SSL/TLS version, not normally a good idea,
     but seems only reliable way of forcing use of a specific version }
@@ -963,7 +980,6 @@ procedure THttpsTstForm.SslHttpCli1SslHandshakeDone(
 var
     CertChain   : TX509List;
     DlgMsg      : String;
-    I           : Integer;
     Hash        : String;
     HttpCli     : TSslHttpCli;
     ChainInfo   : String;
@@ -992,12 +1008,8 @@ begin
     if CertChain.Count > 0 then begin
         ChainInfo := '! ' + 'VerifyResult: ' + PeerCert.FirstVerifyErrMsg +
              ', Peer domain: ' +  HttpCli.CtrlSocket.SslCertPeerName + #13#10 +  { V8.39 }
-             IntToStr(CertChain.Count) +' Certificate(s) in the verify chain.' + #13#10;
-        for I := 0 to CertChain.Count -1 do begin
-            if Length(ChainInfo) > 0 then
-                ChainInfo := ChainInfo + #13#10;
-            ChainInfo := ChainInfo +  IntToStr(I + 1) + ') ' + CertChain[I].CertInfo + #13#10;    { V8.02 }
-        end;
+             IntToStr(CertChain.Count) +' Certificate(s) in the verify chain.' +
+             #13#10 + CertChain.AllCertInfo(True, True);    { V8.41 }
         Display(ChainInfo + #13#10);
     end;
 
@@ -1015,6 +1027,7 @@ begin
       We use function PostConnectionCheck to perform these checks for us. }
 
 //    if PeerCert.PostConnectionCheck(HttpCli.Hostname) then begin  { V8.39 no longer needed }
+
         { Now check whether chain verify result was OK as well }
      if (PeerCert.VerifyResult = X509_V_OK) then begin
          Display('! Chain verification and host check succeeded' + #13#10);
@@ -1168,10 +1181,12 @@ begin
                                             ' certificate in store' + #13#10;
             for I := 1 to Tot do begin
                 Info := Info + '#' + IntToStr (I) + ' ';
-                if CertList [I-1].SubAltNameDNS = '' then
+                if CertList [I-1].SubAltNameDNS <> '' then
+                    Info := Info + CertList [I-1].SubAltNameDNS
+                else if CertList [I-1].SubjectCName <> '' then  { V8.41 some roots blank }
                     Info := Info + CertList [I-1].SubjectCName
                 else
-                    Info := Info + CertList [I-1].SubAltNameDNS;
+                    Info := Info + CertList [I-1].SubjectOName;
                 Info := Info + ' (' + CertList [I-1].SubjectOName + ')' + #13#10;
             end;
             Display(Info);

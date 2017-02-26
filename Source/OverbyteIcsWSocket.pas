@@ -1155,7 +1155,7 @@ Jan 27, 2017  V8.40 TX509Base can now read and save all common X509 certificate 
                     Added CertPolicies, AuthorityKeyId, SubjectKeyId and CRLDistribution
                       extended certificate properties
                     Added ExtendedValidation returns true for EV certificates
-Feb 24, 2017  V8.41 Fix bug in last build with TX509Base PEM cert error handling
+Feb 26, 2017  V8.41 Fix bug in last build with TX509Base PEM cert error handling
                     Simplified checks for base64 certificates
                     Binary format certificate files are now saved correctly
                     Implemented intermediate certificate support in TX509Base which
@@ -18423,11 +18423,18 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ this function is designed to validate and report a server certificate chain
+ before the server SSL context is initialised.  It checks a server certificate
+ is loaded, any chained intermediate certificates and optionally a CA root
+ bundle (available as literal sslRootCACertsBundle), and also certificate
+ expiry dates.  If returns chainOK for no errors, chainWarning for non-fetal
+ error and chainFail if the chain is broken or expired.  CertStr returns a
+ reportable list of all certificates in the chain for logs, etc.  }
 function TX509Base.ValidateCertChain(Host: String; var CertStr, ErrStr: string): TChainResult;   { V8.41 }
 var
     curDate: TDateTime;
     InterList, CAList: TX509List;
-    issuer: string;
+    CertIssuer, NextIssuer: string;
     I: integer;
 
     function FindInter(AName: string): Boolean;
@@ -18438,6 +18445,9 @@ var
         for J := 0 to InterList.Count - 1 do begin
             if (InterList[J].SubjectCName = AName) or
                    (InterList[J].SubjectOName = AName) then begin
+                CertStr := CertStr + #13#10 + 'Intermediate: ' +
+                                                InterList[J].CertInfo(False);
+                NextIssuer := InterList[J].IssuerCName;
                 if curDate > InterList[J].ValidNotAfter then
                     ErrStr := 'SSL certificate has expired - ' +
                                             InterList[J].SubjectCName
@@ -18463,14 +18473,15 @@ var
         for J := 0 to CAList.Count - 1 do begin
             if (CAList[J].SubjectCName = AName) or
                    (CAList[J].SubjectOName = AName) then begin
-               Result := True;
-               Exit;
+                CertStr := CertStr + #13#10 + 'Trusted CA: ' +
+                                                CAList[J].CertInfo(False);
+                Result := True;
+                Exit;
             end;
         end;
     end;
 
 begin
-// pending - use X509_verify_cert to check chain against inters and CA
     Result := chainFail;
     CertStr := '';
     ErrStr := '';
@@ -18525,45 +18536,58 @@ begin
     end;
 
   { check inter chain or CA contains certificate that signed ours  }
-    issuer := IssuerOName;
+    CertIssuer := IssuerCName;
+    NextIssuer := '';
     try
-        if IsInterLoaded then begin
+        if IsInterLoaded and (NOT Selfsigned) then begin
 
         { keep inter cert details }
-            CertStr := CertStr + #13#10#13#10 + 'Intermediates, Total ' +
-                IntToStr (InterList.Count) + #13#10 + InterList.AllCertInfo(False, false);
+            CertStr := CertStr + #13#10;
 
          { check server certificate was issued by our iutermediates }
-             if FindInter(issuer) then issuer := ''; { OK don't check again }
+            if FindInter(CertIssuer) then
+                CertIssuer := ''; { OK don't check again }
 
-        { now check our intermediates are issued by someone }
-            if InterList.Count > 0 then begin
+        { now check for multiple intermediates }
+            if (InterList.Count > 1) and (NextIssuer <> '') then begin
                 for I := 0 to InterList.Count - 1 do begin
-                   { might be another inter }
-                    if NOT FindInter(InterList[I].IssuerOName) then begin
+                    if NOT FindInter(NextIssuer) then begin
                         if NOT IsCATrustLoaded then begin
+                            CertStr := CertStr + #13#10 + 'Intermediates, Total ' +
+                                    IntToStr (InterList.Count) + #13#10 +
+                                        InterList.AllCertInfo(False, false);
                             Result := chainWarn;
                             ErrStr := 'Issuer for SSL certificate not found - ' +
                                                             InterList[I].IssuerOName;
-                            Exit;
-                        end;
-                    { or signed by trusted CA }
-                        if NOT FindCA(InterList[I].IssuerOName) then begin
-                            Result := chainWarn;
-                            ErrStr := 'Issuer for SSL certificate not found - ' +
-                                                           InterList[I].IssuerOName;
                             Exit;
                         end;
                     end;
                 end ;
             end;
         end ;
-        if issuer <> '' then begin { see if signed by trusted CA }
-            if IsCATrustLoaded and FindCA(issuer) then issuer := '';
+
+    { see if server signed directly by trusted CA }
+        if CertIssuer <> '' then begin
+            if IsCATrustLoaded and FindCA(CertIssuer) then begin
+                Result := chainOK;
+                Exit;
+            end;
         end;
-        if issuer <> '' then begin
+
+   { see if intermediate signed by a trusted CA }
+        if (NextIssuer <> '') then begin
+            if IsCATrustLoaded and FindCA(NextIssuer) then begin
+                Result := chainOK;
+                Exit;
+            end;
+        end;
+        if CertIssuer <> '' then begin
             Result := chainWarn;
-            ErrStr := 'Issuer for SSL certificate not found - ' + SubjectCName;;
+            ErrStr := 'Issuer ' + CertIssuer + ' not found for SSL certificate - ' + SubjectCName;;
+        end
+        else if (NextIssuer <> '') then begin
+            Result := chainWarn;
+            ErrStr := 'Issuer for SSL certificate not found - ' + NextIssuer;
         end;
         if Result = chainFail then Result := chainOK;  // no warnings so OK
     finally

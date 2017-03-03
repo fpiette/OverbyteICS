@@ -235,6 +235,26 @@ Packages\OverbyteIcsD101Run.dpk
 Packages\OverbyteIcsD101Design.dproj
 Packages\OverbyteIcsD101Design.dpk
 
+Packages\IcsCommonD102Run.dpk
+Packages\IcsCommonD102Run.dproj
+Packages\IcsCommonD102Design.dpk
+Packages\IcsCommonD102Design.dproj
+
+Packages\IcsFmxD102Run.dpk
+Packages\IcsFmxD102Run.dproj
+Packages\IcsFmxD102Design.dpk
+Packages\IcsFmxD102Design.dproj
+
+Packages\IcsVclD102Run.dpk
+Packages\IcsVclD102Run.dproj
+Packages\IcsVclD102Design.dpk
+Packages\IcsVclD102Design.dproj
+
+Packages\OverbyteIcsD102Run.dproj
+Packages\OverbyteIcsD102Run.dpk
+Packages\OverbyteIcsD102Design.dproj
+Packages\OverbyteIcsD102Design.dpk
+
 Packages\OverbyteIcsCB2006Run.bdsproj
 Packages\OverbyteIcsCB2006Run.cpp
 Packages\OverbyteIcsCB2006Run.res

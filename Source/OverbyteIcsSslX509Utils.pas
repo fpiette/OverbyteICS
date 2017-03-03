@@ -4,7 +4,7 @@ Authors:      Arno Garrels <arno.garrels@gmx.de>
               Angus Robertson <delphi@magsys.co.uk>
 Creation:     Aug 26, 2007
 Description:
-Version:      8.41
+Version:      8.42
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -84,7 +84,8 @@ Feb 24, 2017  V8.41 Added CreateCertBundle to build a new PEM or PKCS12 file
               Creating requests now adds alternate domains, IP addresses, etc
               Create certificate from request now optionally copies extensions
               The old CreateCertRequest and CreateSelfSignedCert functions now
-                 use the TSslCertTools component and provide backward compatiblity
+                 use the TSslCertTools component and provide backward compatibitity
+Mar 3, 2017  V8.42 Angus TULargeInteger now ULARGE_INTEGER
 
 
 
@@ -1536,7 +1537,7 @@ begin
     FPrivKeyCA := Nil;
     FAltDNSList  := TStringList.Create;
     FAltIpList := TStringList.Create;
-    FAltEmailList := TStringList.Create;  
+    FAltEmailList := TStringList.Create;
 end;
 
 
@@ -2088,7 +2089,7 @@ begin
   { subject alternate name - IP addresses }
     else if FAltIPList.Count <> 0 then
        BuildReqAltSubj(Exts, GEN_IPADD, FAltIPList)
-       
+
   { subject alternate name - email addresses }
     else if FAltEmailList.Count <> 0 then
        BuildReqAltSubj(Exts, GEN_EMAIL, FAltEmailList);
@@ -2134,7 +2135,7 @@ end;
 procedure TSslCertTools.DoSelfSignCert;
 var
     SubjName  : PX509_NAME;
-    TempSerial : TULargeInteger ;  // 64-bit integer record
+    TempSerial : ULARGE_INTEGER; { V8.42 was TULargeInteger } { 64-bit integer record }
 begin
     InitializeSsl;
     if NOT Assigned(PrivateKey) then
@@ -2233,7 +2234,7 @@ begin
 procedure TSslCertTools.DoSignCertReq(CopyExtns: Boolean);
 var
     SubjName  : PX509_NAME;
-    TempSerial : TULargeInteger ;  // 64-bit integer record
+    TempSerial : ULARGE_INTEGER; { V8.42 was TULargeInteger } { 64-bit integer record }
     AltDomains: String;
     TempList: TStringList;
 begin
@@ -2357,7 +2358,7 @@ begin
         end;
     except
     end;
- {  if (p == 0)   // how mamy generated n 
+ {  if (p == 0)   // how mamy generated n
         c = '.';
     if (p == 1)
         c = '+';  // testing prime n
@@ -2566,7 +2567,7 @@ begin
     FreeAndNilPrivKeyCA;
 end;
 
-         
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { method to create an SSL server certificate bundle file with an SSL certificate,
   matching public key and optional itermediate certificate(s), to avoid
@@ -2689,7 +2690,7 @@ begin
 
         { This function creates and adds the entry, working out the
         correct string type and performing checks on its length.
-        Normally we'd check the return value for errors...  	}
+        Normally we'd check the return value for errors...      }
 
         AddNameEntryByTxt(Name, 'CN', CName);
         AddNameEntryByTxt(Name, 'OU', OUnit);
@@ -3041,7 +3042,7 @@ begin
 
         { This function creates and adds the entry, working out the
         correct string type and performing checks on its length.
-        Normally we'd check the return value for errors...  	}
+        Normally we'd check the return value for errors...      }
 
         AddNameEntryByTxt(Name, 'CN', String(CName));
         AddNameEntryByTxt(Name, 'OU', String(OUnit));
@@ -3302,7 +3303,7 @@ begin
           begin
               IntPad := RSA_NO_PADDING;
               PadSize := 0;
-          end;    
+          end;
       rpPkcs1Oaep :
           begin
               IntPad := RSA_PKCS1_OAEP_PADDING;
@@ -3345,7 +3346,7 @@ begin
                 if BytesRet = -1 then
                     RaiseLastOpenSslError(Exception, TRUE,
                                           'Function f_RSA_public_encrypt:')
-                else 
+                else
                     raise Exception.Create('f_RSA_public_encrypt: ' +
                                         'Ciphertext must match length of key');
             end;
@@ -3356,7 +3357,7 @@ begin
         end;
     until InLen = 0;
     Result := TRUE;
-end;   
+end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

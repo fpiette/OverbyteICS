@@ -1,4 +1,4 @@
-package OverbyteIcsD101Design;
+package OverbyteIcsD102Design;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -27,14 +27,14 @@ package OverbyteIcsD101Design;
 {$DEFINE VCL}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS VCL Design-Time Package for Delphi 10.1 Berlin'}
+{$DESCRIPTION 'Overbyte ICS VCL Design-Time Package for Delphi 10.2 Tokyo'}
 {$DESIGNONLY}
 {$IMPLICITBUILD OFF}
 
 requires
   rtl,
   designide,
-  OverbyteIcsD101Run;
+  OverbyteIcsD102Run;
 
 contains
   OverbyteIcsReg in '..\Source\OverbyteIcsReg.pas',

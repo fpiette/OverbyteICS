@@ -1,4 +1,4 @@
-package OverbyteIcsD101Run;
+package OverbyteIcsD102Run;
 
 {$R *.res}
 {$R '..\Source\OverbyteIcsHttpSrv.dcr'}
@@ -56,7 +56,7 @@ package OverbyteIcsD101Run;
 {$DEFINE DEBUG}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS VCL Run-Time Package for Delphi 10.1 Berlin'}
+{$DESCRIPTION 'Overbyte ICS VCL Run-Time Package for Delphi 10.2 Tokyo'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
 

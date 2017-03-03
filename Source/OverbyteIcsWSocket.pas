@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.41
+Version:      8.42
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1181,8 +1181,12 @@ Feb 26, 2017  V8.41 Fix bug in last build with TX509Base PEM cert error handling
                       SslSetCertX509 called to load them.
                     Made InitializeSsl public in TSslBaseComponent for more control
                       over SSL loading and unloading
-
-
+Mar 3, 2017  V8.42 Angus couple of cross platform fixes, thanks to Bill Florac
+                   Fixed a change of behaviour made in V8.22 to only effect SSL,
+                     beware this means non-SSL applications that break ICS design
+                     rules by calling the message handler in the OnDataAvailable
+                     event risking re-entrancy may again fail (which was the
+                     case before V8.22).
 
 
 Use of certificates for SSL clients:
@@ -1387,10 +1391,17 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 841;
-  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.41 ';
+  WSocketVersion            = 842;
+  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.42 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
+
+{$IFDEF MSWINDOWS}
+type
+  TSockAddr      = sockaddr_in;   { V8.42 assists cross platform use }
+  TSockAddrIn6   = sockaddr_in6;
+{$ENDIF}
+
 
 {$IFDEF POSIX}
   {.$DEFINE NO_ADV_MT}
@@ -6882,7 +6893,7 @@ begin
     FFriendlyMsg  := AFriendlyMsg;
     FFunc         := AFunc;
     if (FErrorCode > 0) and (FErrorMessage = '') then
-                    FErrorMessage := SocketErrorDesc(FErrorCode);
+                    FErrorMessage := WSocketErrorDesc(FErrorCode);   { V8.42 }
     if FFriendlyMsg = '' then FFriendlyMsg := AMessage;
     inherited Create(AMessage);
 end;
@@ -9989,8 +10000,10 @@ begin
         end;
     end;
 
+{$IFDEF MSWINDOWS}
     if FExclusiveAddr then begin
     { V8.36 Prevent other applications accessing this address and port }
+    { V8.42 this iw windows specific }
         optval  := -1;
         iStatus := WSocket_Synchronized_SetSockOpt(FHSocket, SOL_SOCKET,
                                                    SO_EXCLUSIVEADDRUSE,
@@ -10002,6 +10015,7 @@ begin
             Exit;
         end;
     end;
+{$ENDIF}
 
     iStatus := WSocket_Synchronized_bind(FHSocket, PSockAddr(@Fsin)^,
                                          SizeOfAddr(Fsin));
@@ -10865,8 +10879,8 @@ begin
         ChangeState(wsClosed);
     end;
     FLastError := Error;
-    RaiseException(Line, Error, SocketErrorDesc(Error), FriendlyMsg,
-                                   sockfunc, FAddrStr, FPortStr, FProtoStr);  { V5.26 }
+    RaiseException(Line, Error, WSocketErrorDesc(Error), FriendlyMsg,
+                                   sockfunc, FAddrStr, FPortStr, FProtoStr);  { V8.42 }
 end;
 
 
@@ -19168,18 +19182,25 @@ var
     PBuf       : TWSocketData;
     Dummy      : Byte;
 begin
+    if (not FSslEnable) or (FSocksState <> socksData) or  { V8.42 don't stop reading for non-SSL }
+       (FHttpTunnelState <> htsData) then begin
+        inherited Do_FD_READ(msg);
+        Exit;
+    end;
+
     BuffSize := (GSSL_BUFFER_SIZE * 2)-1;  { V8.27 size now configurable }
     SetLength(Buffer, BuffSize);
 
  { V8.22 moved here from Do_SSL_FD_READ  }
+ { stop read windows events until we've processed this block }
     WSocket_Synchronized_WSAASyncSelect({$IFDEF POSIX}Self,{$ENDIF}
          FHSocket, Handle, FMsg_WM_ASYNCSELECT, FD_WRITE or FD_CLOSE or FD_CONNECT);
     try
-        if (not FSslEnable) or (FSocksState <> socksData) or
+     {   if (not FSslEnable) or (FSocksState <> socksData) or     V8.42 moved before WSAASyncSelect
            (FHttpTunnelState <> htsData) then begin
             inherited Do_FD_READ(msg);
             Exit;
-        end;
+        end;     }
 
       {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loSslDevel) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
@@ -19358,6 +19379,7 @@ begin
         inherited Do_FD_WRITE(msg);
         Exit;
     end;
+
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslDevel) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
         DebugLog(loSslDevel, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +

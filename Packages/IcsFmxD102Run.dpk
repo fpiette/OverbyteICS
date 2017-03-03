@@ -1,4 +1,4 @@
-package IcsFmxD101Run;
+package IcsFmxD102Run;
 
 {$R *.res}
 {$R '..\Source\OverbyteIcsHttpSrv.dcr'}
@@ -44,14 +44,14 @@ package IcsFmxD101Run;
 {$DEFINE DEBUG}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS FMX Run-Time Package for Delphi 10.1 Berlin'}
+{$DESCRIPTION 'Overbyte ICS FMX Run-Time Package for Delphi 10.2 Tokyo'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
 
 requires
   rtl,
   fmx,
-  IcsCommonD101Run;
+  IcsCommonD102Run;
 
 contains
   Ics.Fmx.OverbyteIcsWndControl in '..\Source\Ics.Fmx.OverbyteIcsWndControl.pas',

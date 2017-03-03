@@ -2,13 +2,13 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V8.37
+Version:      V8.42
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2016 by François PIETTE
+Legal issues: Copyright (C) 1996-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -1076,6 +1076,7 @@ Oct 25, 2015 V8.08 - Angus report SSL certificate check failed in HandshakeDone 
 Feb 23, 2016 V8.09 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 Nov 10, 2016 V8.37 - Added extended exception information, set SocketErrs = wsErrFriendly for
                       some more friendly messages (without error numbers)
+Mar 3, 2017  V8.42 - Angus TULargeInteger now ULARGE_INTEGER
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -1166,9 +1167,9 @@ uses
     OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 837;
-  CopyRight : String = ' TFtpCli (c) 1996-2016 F. Piette V8.37 ';
-  FtpClientId : String = 'ICS FTP Client V8.37 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 842;
+  CopyRight : String = ' TFtpCli (c) 1996-2017 F. Piette V8.42 ';
+  FtpClientId : String = 'ICS FTP Client V8.42 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -2160,7 +2161,7 @@ function GetFileSize(FileName : String) : TFtpBigInt; { V2.108 }
 var
     SR : TSearchRec;
 {$IFDEF MSWINDOWS}
-    TempSize: TULargeInteger;  // 64-bit integer record
+    TempSize: ULARGE_INTEGER; { V8.42 was TULargeInteger } { 64-bit integer record }
 {$ENDIF}
 begin
     if FindFirst(FileName, faReadOnly or faHidden or

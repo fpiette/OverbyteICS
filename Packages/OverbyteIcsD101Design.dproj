@@ -45,7 +45,7 @@
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_Define>VCL;USE_SSL;$(DCC_Define)</DCC_Define>
-        <DCC_Description>Overbyte ICS VCL Design-Time Package for Delphi 10 Seattle</DCC_Description>
+        <DCC_Description>Overbyte ICS VCL Design-Time Package for Delphi 10.1 Berlin</DCC_Description>
         <DesignOnlyPackage>true</DesignOnlyPackage>
         <GenPackage>true</GenPackage>
         <GenDll>true</GenDll>

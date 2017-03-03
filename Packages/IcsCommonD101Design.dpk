@@ -25,7 +25,7 @@ package IcsCommonD101Design;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS Common Design-Time Package for Delphi 10 Seattle'}
+{$DESCRIPTION 'Overbyte ICS Common Design-Time Package for Delphi 10.1 Berlin'}
 {$DESIGNONLY}
 {$IMPLICITBUILD OFF}
 

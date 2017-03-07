@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.42
+Version:      8.43
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1187,6 +1187,14 @@ Mar 3, 2017  V8.42 Angus couple of cross platform fixes, thanks to Bill Florac
                      rules by calling the message handler in the OnDataAvailable
                      event risking re-entrancy may again fail (which was the
                      case before V8.22).
+Mar 7, 2017  V8.43  Added new ComponentOptions wsoAsyncDnsLookup and
+                        wsoIcsDnsLookup, thanks to ant_s@rambler.ru.
+                    Setting wsoAsyncDnsLookup causes Connect to use async DNS
+                      lookups instead of blocking sync without needing to call
+                      DnsLookUp first and then Connect.
+                    Setting wsoIcsDnsLookup causes DnsLookUp to use a thread for
+                       async DNS lookups for IPv4 (previously only IPv6) to avoid
+                       a windows limitation of one active DNS lookup per thread.
 
 
 Use of certificates for SSL clients:
@@ -1391,8 +1399,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 842;
-  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.42 ';
+  WSocketVersion            = 843;
+  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.43 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -1639,8 +1647,10 @@ type
                          { is set HTTP/1.0 responses are treated as errors.  }
                           wsoNoHttp10Tunnel,
                           wsoNotifyAddressListChange,
-                          wsoNotifyRoutingInterfaceChange);
-  TWSocketOptions      = set of TWSocketOption;
+                          wsoNotifyRoutingInterfaceChange,
+                          wsoAsyncDnsLookup,    { V8.43 Connect uses Async lookup }
+                          wsoIcsDnsLookup);     { V8.43 DNSLookup uses thread }
+  TWSocketOptions      = set of TWSocketOption;   { published as ComponentOptions }
 
   TTcpKeepAlive = packed record
     OnOff             : u_long;
@@ -1707,6 +1717,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
   {$IFDEF MSWINDOWS}
     FDnsLookupBuffer    : array [0..MAXGETHOSTSTRUCT] of AnsiChar;
   {$ENDIF}
+    FInternalDnsActive  : Boolean;      { V8.43 } 
     FDnsLookupCheckMsg  : Boolean;
     FDnsLookupTempMsg   : TMessage;
     // FHandle             : HWND;
@@ -7072,6 +7083,7 @@ begin
 {   FReadCount          := 0;  V7.24 only reset when connection opened, not closed }
     FCloseInvoked       := FALSE;
     FFlushTimeout       := 60;
+    FInternalDnsActive  := FALSE;    { V8.43 } 
 end;
 
 
@@ -8428,7 +8440,7 @@ begin
     ErrCode := IcsHiWord(Msg.LParam);
     if ErrCode = 0 then begin
       {$IFDEF MSWINDOWS}
-        if FSocketFamily = sfIPv4 then begin
+        if (FSocketFamily = sfIPv4) and not (wsoIcsDnsLookup in ComponentOptions) then begin  { V8.43 }
             Phe := PHostent(@FDnsLookupBuffer);
             if phe <> nil then begin
                 GetIpList(Phe, FDnsResultList);
@@ -9112,8 +9124,9 @@ var
 begin
     if FDnsLookupHandle = 0 then
         Exit;
+    FInternalDnsActive := FALSE;     { V8.43 } 
   {$IFDEF MSWINDOWS}
-    if FSocketFamily = sfIPv4 then
+    if (FSocketFamily = sfIPv4) and not (wsoIcsDnsLookup in ComponentOptions) then   { V8.43 }
         RetVal := WSocket_Synchronized_WSACancelAsyncRequest(FDnsLookupHandle)
     else
   {$ENDIF}
@@ -9166,12 +9179,13 @@ begin
     { Cancel any pending lookup }
     if FDnsLookupHandle <> 0 then begin
     {$IFDEF MSWINDOWS}
-        if FSocketFamily = sfIPv4 then
+        if (FSocketFamily = sfIPv4) and not (wsoIcsDnsLookup in ComponentOptions) then   { V8.43 }
             WSocket_Synchronized_WSACancelAsyncRequest(FDnsLookupHandle)
         else
     {$ENDIF}
             IcsCancelAsyncRequest(FDnsLookupHandle);
         FDnsLookupHandle := 0;
+        FInternalDnsActive := FALSE;      { V8.43 } 
     end;
 
     FDnsResult := '';
@@ -9212,8 +9226,11 @@ begin
     { that, FDnsLookupHandle is not yet assigned when execution comes in     }
     { WMAsyncGetHostByName. John use a flag to check this situation.         }
     FDnsLookupCheckMsg := FALSE;
+
   {$IFDEF MSWINDOWS}
-    if FSocketFamily = sfIPv4 then
+   { V8.43 new option for IPv4 DNS lookups to be done using thread, previously
+     only IPv6 used thread.  This avoids windows limitation of one lookup at a time }
+    if (FSocketFamily = sfIPv4) and (not (wsoIcsDnsLookup in ComponentOptions)) then
         FDnsLookupHandle   := WSocket_Synchronized_WSAAsyncGetHostByName(
                                   FWindowHandle,
                                   FMsg_WM_ASYNCGETHOSTBYNAME,
@@ -9274,6 +9291,7 @@ begin
       {$ENDIF}
             IcsCancelAsyncRequest(FDnsLookupHandle);
         FDnsLookupHandle := 0;
+        FInternalDnsActive := FALSE;      { V8.43 } 
     end;
 
     FDnsResult := '';
@@ -9342,6 +9360,8 @@ begin
         else
       {$ENDIF}
             IcsCancelAsyncRequest(FDnsLookupHandle);
+      FDnsLookupHandle := 0;
+      FInternalDnsActive := FALSE;        { V8.43 } 
     end;
     FDnsResult := '';
     if FSocketFamily = sfIPv4 then
@@ -9593,8 +9613,9 @@ var
     optval  : Integer;
     optlen  : Integer;
     lAddr   : TSockAddrIn6;
+    TmpOnError: TNotifyEvent;
 begin
-    if (FHSocket <> INVALID_SOCKET) and (FState <> wsClosed) then begin
+    if ((FHSocket <> INVALID_SOCKET) and (FState <> wsClosed)) or FInternalDnsActive then begin    { V8.43 }
         RaiseException('Connect: Socket already in use');
         Exit;
     end;
@@ -9641,16 +9662,31 @@ begin
             FLocalPortResolved := TRUE;
         end;
 
+       { V8.43 see if doing an async DNS lookup instead of blocking sync DNS lookup }
         if not FAddrResolved then begin
-            { The next line will trigger an exception in case of failure }
-            if FSocketFamily = sfIPv4 then
-            begin
-                Fsin.sin6_family := AF_INET;
-                PSockAddrIn(@Fsin).sin_addr.S_addr := WSocket_Synchronized_ResolveHost(AnsiString(FAddrStr)).s_addr;
+            if (wsoAsyncDnsLookup in ComponentOptions) and not WSocketIsDottedIP(AnsiString(FAddrStr)) then begin
+                  { If Socket.OnError is assigned, any raised exception will be transferred to }
+                  { the handler silently. So clear the handler temporarily to catch exception. }
+                  TmpOnError := OnError;
+                  OnError := nil;
+                  try
+                      DnsLookup(FAddrStr);
+                      FInternalDnsActive := TRUE;
+                      Exit; { Actual connect will happen on DNS lookup done }
+                  finally
+                      OnError := TmpOnError;
+                  end;
             end
-            else
-                WSocket_Synchronized_ResolveHost(FAddrStr, Fsin, FSocketFamily, FProto);
-
+            else begin
+              { The next line will trigger an exception in case of failure }
+              if FSocketFamily = sfIPv4 then
+              begin
+                  Fsin.sin6_family := AF_INET;
+                  PSockAddrIn(@Fsin).sin_addr.S_addr := WSocket_Synchronized_ResolveHost(AnsiString(FAddrStr)).s_addr;
+              end
+              else
+                  WSocket_Synchronized_ResolveHost(FAddrStr, Fsin, FSocketFamily, FProto);
+            end;
             FAddrResolved := TRUE;
             FAddrFormat := Fsin.sin6_family;
         end;
@@ -10840,7 +10876,44 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomWSocket.TriggerDNSLookupDone(Error : Word);
+var
+    TmpOnError: TNotifyEvent;
 begin
+    { Actions if it was internal DNS call.           }
+    { In case of error call TriggerSessionConnected  }
+
+   { V8.43 finished an async lookup, now trigger connect }
+    if FInternalDnsActive then
+    begin
+        FInternalDnsActive := FALSE;
+        if Error = 0 then
+            try
+                { The next line will trigger an exception in case of failure }
+                if FSocketFamily = sfIPv4 then
+                begin
+                    Fsin.sin6_family := AF_INET;
+                    PSockAddrIn(@Fsin).sin_addr.S_addr := WSocket_Synchronized_ResolveHost(AnsiString(DnsResult)).s_addr;
+                end
+                else
+                    WSocket_Synchronized_ResolveHost(DnsResult, Fsin, FSocketFamily, FProto);
+                FAddrResolved := TRUE;
+                { If Socket.OnError is assigned, any raised exception will be transferred to }
+                { the handler silently. So clear the handler temporarily to catch exception. }
+                TmpOnError := OnError;
+                OnError := nil;
+                try
+                    Connect;
+                finally
+                    OnError := TmpOnError;
+                end;
+            except on E: Exception do
+                HandleBackGroundException(E);
+            end
+        else
+            TriggerSessionConnected(Error);
+        Exit;
+    end;
+
     if Assigned(FOnDNSLookupDone) then
         FOnDNSLookupDone(Self, Error);
 end;
@@ -23777,7 +23850,7 @@ begin
     LockQueue;
     try
       {$IFDEF MSWINDOWS}
-        if not IsIPv6APIAvailable then begin
+        if (ASocketFamily = sfIPv6) and not IsIPv6APIAvailable then begin    { V8.43 } 
             SetLastError(WSAVERNOTSUPPORTED);
             Exit;
         end;
@@ -23862,13 +23935,6 @@ var
 begin
     LockQueue;
     try
-      {$IFDEF MSWINDOWS}
-        if not IsIPv6APIAvailable then begin
-            Result := -1;
-            SetLastError(WSAVERNOTSUPPORTED);
-            Exit;
-        end;
-      {$ENDIF}
         I := FQueue.IndexOf(Pointer(AReq));
         if (I > -1) then
             Req := TIcsAsyncDnsLookupRequest(FQueue[I])
@@ -23876,6 +23942,13 @@ begin
             Req := nil;
 
         if Req <> nil then begin
+          {$IFDEF MSWINDOWS}
+            if (Req.FSocketFamily = sfIPv6) and not IsIPv6APIAvailable then begin  { V8.43 }
+                Result := -1;
+                SetLastError(WSAVERNOTSUPPORTED);
+                Exit;
+            end;
+          {$ENDIF}
             if Req.FState = lrsNone then begin
                 Req.Free;
                 FQueue.Delete(I);

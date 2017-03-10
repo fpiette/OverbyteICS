@@ -1,9 +1,9 @@
 object Cli7Form: TCli7Form
   Left = 70
   Top = 103
-  Width = 394
-  Height = 266
   Caption = 'Client 7'
+  ClientHeight = 227
+  ClientWidth = 378
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -19,7 +19,7 @@ object Cli7Form: TCli7Form
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 386
+    Width = 378
     Height = 105
     Align = alTop
     TabOrder = 0
@@ -120,8 +120,8 @@ object Cli7Form: TCli7Form
   object DisplayMemo: TMemo
     Left = 0
     Top = 105
-    Width = 386
-    Height = 127
+    Width = 378
+    Height = 122
     Align = alClient
     Lines.Strings = (
       'DisplayMemo')
@@ -134,10 +134,12 @@ object Cli7Form: TCli7Form
     LocalAddr6 = '::'
     LocalPort = '0'
     SocksLevel = '5'
-    ComponentOptions = []
+    ExclusiveAddr = False
+    ComponentOptions = [wsoAsyncDnsLookup, wsoIcsDnsLookup]
     OnDataAvailable = WSocket1DataAvailable
     OnSessionClosed = WSocket1SessionClosed
     OnSessionConnected = WSocket1SessionConnected
+    SocketErrs = wsErrTech
     Left = 112
     Top = 116
   end

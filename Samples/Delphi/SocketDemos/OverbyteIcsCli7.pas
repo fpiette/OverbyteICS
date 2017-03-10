@@ -3,13 +3,13 @@
 Author:       François PIETTE
 Object:       Simple client application demonstrating TWSocket object in action.
 Creation:     November 28, 1998
-Version:      1.02
+Version:      8.43
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2014 by François PIETTE
+Legal issues: Copyright (C) 1996-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
-              <francois.piette@overbyte.be> 
+              <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -39,6 +39,8 @@ Legal issues: Copyright (C) 1996-2014 by François PIETTE
 Updates:
 Mar 07, 1999  V1.01 Adapted for Delphi 1
 Oct 31, 2004  V1.02 Added a "Send" button. Remove "ReadLine" button.
+Mar 7, 2017   V8.43 set ComponentOptions AsynDnsLookup and IcsDNSLookup to
+                 test improved DNS 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsCli7;
@@ -54,8 +56,8 @@ uses
   OverbyteIcsWndControl;
 
 const
-  Client7Version        = 102;
-  CopyRight : String    = ' Client7 (c) 1996-2014 F. Piette V1.02 ';
+  Client7Version        = 843;
+  CopyRight : String    = ' Client7 (c) 1996-2017 F. Piette V8.43 ';
   EndOfLine = #13#10;
 
 type

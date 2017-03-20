@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.43
+Version:      8.44
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1195,6 +1195,8 @@ Mar 7, 2017  V8.43  Added new ComponentOptions wsoAsyncDnsLookup and
                     Setting wsoIcsDnsLookup causes DnsLookUp to use a thread for
                        async DNS lookups for IPv4 (previously only IPv6) to avoid
                        a windows limitation of one active DNS lookup per thread.
+Mar 14, 2017  V8.44 ReverseDnsLookup supports wsoIcsDnsLookup to use thread
+                    SslSetCertX509 did not load Inter unless Cert set
 
 
 Use of certificates for SSL clients:
@@ -1399,8 +1401,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 843;
-  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.43 ';
+  WSocketVersion            = 844;
+  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.44 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -8475,7 +8477,7 @@ begin
     if ErrCode = 0 then begin
         FDnsResultList.Clear;
       {$IFDEF MSWINDOWS}
-        if FSocketFamily = sfIPv4 then begin
+        if (FSocketFamily = sfIPv4) and (not (wsoIcsDnsLookup in ComponentOptions)) then begin  { V8.44 }
             Phe := PHostent(@FDnsLookupBuffer);
             if phe <> nil then begin
                 //SetLength(FDnsResult, StrLen(Phe^.h_name));
@@ -9285,19 +9287,19 @@ begin
     { Cancel any pending lookup }
     if FDnsLookupHandle <> 0 then begin
       {$IFDEF MSWINDOWS}
-        if FSocketFamily = sfIPv4 then
+        if (FSocketFamily = sfIPv4) and (not (wsoIcsDnsLookup in ComponentOptions)) then  { V8.44 }
             WSocket_Synchronized_WSACancelAsyncRequest(FDnsLookupHandle)
         else
       {$ENDIF}
             IcsCancelAsyncRequest(FDnsLookupHandle);
         FDnsLookupHandle := 0;
-        FInternalDnsActive := FALSE;      { V8.43 } 
+        FInternalDnsActive := FALSE;      { V8.43 }
     end;
 
     FDnsResult := '';
     FDnsResultList.Clear;
   {$IFDEF MSWINDOWS}
-    if FSocketFamily = sfIPv4 then
+    if (FSocketFamily = sfIPv4) and (not (wsoIcsDnsLookup in ComponentOptions)) then  { V8.44 }
         lAddr := WSocket_Synchronized_inet_addr(PAnsiChar(AnsiString(HostAddr)));
   {$ENDIF}
     if FWindowHandle = 0 then begin
@@ -9305,7 +9307,9 @@ begin
         exit;  { V8.36 }
     end;
   {$IFDEF MSWINDOWS}
-    if FSocketFamily = sfIPv4 then
+   { V8.44 new option for IPv4 DNS lookups to be done using thread, previously
+     only IPv6 used thread.  This avoids windows limitation of one lookup at a time }
+    if (FSocketFamily = sfIPv4) and (not (wsoIcsDnsLookup in ComponentOptions)) then
         FDnsLookupHandle := WSocket_Synchronized_WSAAsyncGetHostByAddr(
                             FWindowHandle,
                             FMsg_WM_ASYNCGETHOSTBYADDR,
@@ -9314,7 +9318,7 @@ begin
                             SizeOf(FDnsLookupBuffer))
     else
   {$ENDIF}
-        FDnsLookupHandle := {WSocket_Synchronized_}IcsAsyncGetHostByAddr(
+        FDnsLookupHandle := IcsAsyncGetHostByAddr(
                             FWindowHandle,
                             FMsg_WM_ASYNCGETHOSTBYADDR,
                             FSocketFamily,
@@ -9355,13 +9359,13 @@ begin
     if FDnsLookupHandle <> 0 then
     begin
       {$IFDEF MSWINDOWS}
-        if FSocketFamily = sfIPv4 then
+        if (FSocketFamily = sfIPv4) and (not (wsoIcsDnsLookup in ComponentOptions)) then  { V8.44 }
             WSocket_Synchronized_WSACancelAsyncRequest(FDnsLookupHandle)
         else
       {$ENDIF}
             IcsCancelAsyncRequest(FDnsLookupHandle);
       FDnsLookupHandle := 0;
-      FInternalDnsActive := FALSE;        { V8.43 } 
+      FInternalDnsActive := FALSE;        { V8.43 }
     end;
     FDnsResult := '';
     if FSocketFamily = sfIPv4 then
@@ -14942,19 +14946,8 @@ procedure TSslContext.SslSetCertX509;
 begin
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
-    if NOT FSslCertX509.IsCertLoaded then exit;
-    if (f_SSL_CTX_use_certificate(FSslCtx, FSslCertX509.X509) = 0) then begin
-    {$IFNDEF NO_DEBUG_LOG}
-        if CheckLogOptions(loSslErr) then
-                DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
-    {$ELSE}
-        f_ERR_clear_error;
-    {$ENDIF}
-        RaiseLastOpenSslError(ESslContextException, TRUE,
-                                  'Can''t add certificate to context');
-    end;
-    if FSslCertX509.IsPKeyLoaded then begin
-        if (f_SSL_CTX_use_PrivateKey(FSslCtx, FSslCertX509.PrivateKey) = 0) then begin
+    if FSslCertX509.IsCertLoaded then begin   { V8.44 did not load inter unless cert set }
+        if (f_SSL_CTX_use_certificate(FSslCtx, FSslCertX509.X509) = 0) then begin
         {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loSslErr) then
                     DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
@@ -14962,8 +14955,20 @@ begin
             f_ERR_clear_error;
         {$ENDIF}
             RaiseLastOpenSslError(ESslContextException, TRUE,
-                                      'Can''t add private key to context');
+                                      'Can''t add certificate to context');
         end;
+        if FSslCertX509.IsPKeyLoaded then begin
+            if (f_SSL_CTX_use_PrivateKey(FSslCtx, FSslCertX509.PrivateKey) = 0) then begin
+            {$IFNDEF NO_DEBUG_LOG}
+                if CheckLogOptions(loSslErr) then
+                        DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
+            {$ELSE}
+                f_ERR_clear_error;
+            {$ENDIF}
+                RaiseLastOpenSslError(ESslContextException, TRUE,
+                                          'Can''t add private key to context');
+            end;
+       end;
     end;
     if FSslCertX509.IsInterLoaded then begin
         LoadCAFromStack(FSslCertX509.X509Inters);
@@ -15395,7 +15400,7 @@ begin
 
          { V8.27 load server certificate from file or PEM string list }
          { note this may include one or more intermediate certificates, or they may be in CAFile }
-            if FSslCertX509.IsCertLoaded then begin  { V8.41 load from FSslCertX509 }
+            if FSslCertX509.IsCertLoaded or FSslCertX509.IsInterLoaded then begin  { V8.41 load from FSslCertX509 }
                 SslSetCertX509;
             end
             else begin
@@ -24187,31 +24192,6 @@ begin
         Result := nil;
 end;
 
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-(*
-function WSocket_Synchronized_IcsAsyncGetHostByName(AWnd: HWND; AMsgID: UINT;
-  const ASocketFamily: TSocketFamily; const AName: string): THandle;
-begin
-    Result := GAsyncDnsLookup.ExecAsync(AWnd, AMsgID, ASocketFamily, AName, FALSE);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_Synchronized_IcsAsyncGetHostByAddr(AWnd: HWND; AMsgID: UINT;
-  const ASocketFamily: TSocketFamily; const AAddr: string): THandle;
-begin
-    Result := GAsyncDnsLookup.ExecAsync(AWnd, AMsgID, ASocketFamily, AAddr, TRUE);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function WSocket_Synchronized_IcsCancelAsyncRequest(
-  const ARequest: THandle): Integer;
-begin
-    Result := GAsyncDnsLookup.CancelAsyncRequest(ARequest);
-end;
-*)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 initialization

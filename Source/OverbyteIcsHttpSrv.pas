@@ -7062,7 +7062,9 @@ var
     Rec       : THttpPartStream;
 begin
 {$IFNDEF WIN64}  { V7.37 }
+  {$IFNDEF DELPHI24_UP}
     Rec := nil;  { Just to remove a compiler warning }
+  {$ENDIF}
 {$ENDIF}
     if (FPosition >= 0) and (Count >= 0) then begin
         //Result := FSize - FPosition;

@@ -16914,7 +16914,9 @@ var
 begin
     Result := '';
 {$IFNDEF WIN64}    { V7.81 }
+  {$IFNDEF DELPHI24_UP}
     Entry  := nil;
+  {$ENDIF}
 {$ENDIF}
     if not Assigned(FX509) then
         Exit;
@@ -17909,7 +17911,9 @@ var
 begin
     Result := '';
 {$IFNDEF WIN64}
+  {$IFNDEF DELPHI24_UP}
     Entry  := nil; { Make dcc32 happy }
+  {$ENDIF}
 {$ENDIF}
     if XName = nil then Exit;
     LastPos := -1;

@@ -6937,7 +6937,9 @@ var
 {$ENDIF}
 begin
 {$IFNDEF WIN64}                  { V7.25 }
+  {$IFNDEF DELPHI24_UP}
     Result    := TRUE;           { Make dcc32 happy }
+  {$ENDIF}
 {$ENDIF}
     FTimeStop := LongInt(IcsGetTickCount) + LongInt(FTimeout) * 1000;
   {$IFDEF MSWINDOWS}

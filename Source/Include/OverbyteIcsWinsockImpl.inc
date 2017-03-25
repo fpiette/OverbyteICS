@@ -276,7 +276,9 @@ var
     LastError : Longint;
 begin
     { Prevents compiler warning "Return value might be undefined"  }
+{$IFNDEF DELPHI25_UP}
     Result := nil;
+{$ENDIF}
 
     EnterCriticalSection(GWSockCritSect);
     try
@@ -308,7 +310,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function GetProc2(const ProcName : AnsiString) : Pointer;
 begin
+{$IFNDEF DELPHI25_UP}
     Result := nil;
+{$ENDIF}
     EnterCriticalSection(GWSockCritSect);
     try
         if GWs2DLLHandle = 0 then begin
@@ -336,7 +340,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function GetProc3(const ProcName : AnsiString) : Pointer;
 begin
+{$IFNDEF DELPHI25_UP}
     Result := nil;
+{$ENDIF}
     EnterCriticalSection(GWSockCritSect);
     try
         if GWs2IPv6ProcHandle = 0 then begin

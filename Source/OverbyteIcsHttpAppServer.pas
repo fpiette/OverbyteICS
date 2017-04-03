@@ -98,7 +98,9 @@ Nov 16, 2013 V8.04 Arno - Added property AppServer to the THttpAppSrvConnection.
                    Added a method Display to TUrlHandler.
 Mar 24, 2015 V8.05 Angus onSslServerName event added
 Apr 26, 2016 V8.06 Angus added OverbyteIcsFormDataDecoder to uses
-
+Apr 03, 2017       F. Piette made some THttpAppSrvConnection methods vitual:
+                   CancelSession, CheckSession and ValidateSession.
+                   TUrlHandler.ValidateSession is made virtual.
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -178,16 +180,16 @@ type
         function   CreateSession(const Params : String;
                                  Expiration   : TDateTime;
                                  SessionData  : TWebSessionData) : String;
-        function   CancelSession : String;
+        function   CancelSession : String; virtual;
         function   CheckSession(var Flags                : THttpGetFlag;
-                                const NegativeAnswerHtml : String) : Boolean; overload;
+                                const NegativeAnswerHtml : String) : Boolean; overload; virtual;
         function   CheckSession(var   Flags              : THttpGetFlag;
                                 const Status             : String;
                                 const Header             : String;
                                 const NegativeAnswerHtml : String;
                                 UserData                 : TObject;
-                                Tags                     : array of const) : Boolean; overload;
-        function   ValidateSession: Boolean;
+                                Tags                     : array of const) : Boolean; overload; virtual;
+        function   ValidateSession: Boolean; virtual;
         procedure  BeforeGetHandler(Proc   : TMyHttpHandler;
                                     var OK : Boolean); virtual;
         procedure  BeforeObjGetHandler(SObj   : TUrlHandler;
@@ -240,7 +242,7 @@ type
         function  CreateSession(const Params : String;
                                 Expiration   : TDateTime;
                                 SessionData  : TWebSessionData) : String;
-        function  ValidateSession: Boolean;
+        function  ValidateSession: Boolean; virtual;
         procedure DeleteSession;
         function  CheckSession(const NegativeAnswerHtml : String) : Boolean; overload;
         function  CheckSession(const Status             : String;

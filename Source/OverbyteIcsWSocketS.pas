@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.37
+Version:      8.45
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2015 by François PIETTE
+Legal issues: Copyright (C) 1999-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -108,7 +108,44 @@ Mar 10, 2015 V8.06 Angus CloseDelayed when too many clients so closes cleanly
 Mar 23, 2015 V8.07 Angus onSslServerName and OnBgException events set for clients
 Oct 26, 2016 V8.36 Angus TWSocketMultiListenItem now has SslEnable moved from SSL class
                    Added extended exception information
-Nov 9, 2016  V8.37 Client inherits server SocketErrs
+Nov 9,  2016  V8.37 Client inherits server SocketErrs
+Apr 11, 2017  V8.45 Added multiple SSL host support to TSslWSocketServer.
+                    There is a new IcsHosts property which allows multiple hosts
+                      to be specified, each with one or two IP addresses and
+                      non-SSL and SSL port bindings, SSL certificates and private
+                      key, SSL context and security level, and other web server
+                      host related properties (not used here).
+                    If IcsHosts is specified, TSslWSocketServer ignores existing
+                      bindings and SSLContext, and creates new bindings and
+                      initialises an SSL context for each host checking and
+                      reporting all server certificate chains.
+                    IcsHosts includes SslSrvSecurity SSL server security
+                       level, that sets protocol, cipher and SslSecLevel according
+                       to eight levels from sslSrvSecNone to sslSrvSecHigh192 to
+                       avoid needing to set protocols and ciphers in SSL context.
+                    IcsHosts includes SslCert, SslKey, SslPassword and SslInter.
+                      SslCert may be a file name or a ASCII PEM string containing
+                      an Ssl server certificate. The file may be PEM/CER/DER/PFX/P12/etc,
+                      either a single certificate or bundle with private key and
+                      any intermediates (PEM/PFX/P12 only), SslPassword is the private
+                      key password if encrypted.  If a bundle is not found, SslKey is
+                      a PEM file or ASCII PEM private key, and SslInters is any
+                      intermediate SSL certificates used to sign the server SSL cert
+                      as a file name in PEM/CER/DER format or ASCII PEM.
+                    TSslWSocketServer has new RootCA property which should be loaded
+                      with CA Root certificates to validates the server chain and
+                      new DHParams property for a context DHParams file or string.
+                    The ValidateHosts property checks all host properties and
+                      attempts to validate SSL certificate chains and hosts,
+                      it keeps certificate chain information in the IcsHosts CertInfo
+                      property and validation warnings or error in ErrInfo.
+                    TWSocketClient includes new properties IcsHostIdx, MultiListenIdx
+                      and HostTag to identify which IcsHost and MultiListen socket
+                      accepted the connection.  Published client server and remote peer
+                      address and port as CServerAddr, CServerPort, CPeerAddr and
+                      CPeerPort since many clients need this information.
+
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -164,6 +201,9 @@ uses
 {$ENDIF}
     {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+{$IFDEF USE_SSL}
+    OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
+{$ENDIF}
 {$IFNDEF NO_DEBUG_LOG}
     OverbyteIcsLogger,
 {$ENDIF}
@@ -175,8 +215,8 @@ uses
     OverbyteIcsUtils, OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 837;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2016 F. Piette V8.37 ';
+    WSocketServerVersion     = 845;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.45 ';
 
 type
     TCustomWSocketServer       = class;
@@ -208,7 +248,13 @@ type
         FPeerPort          : String;
         FSessionClosedFlag : Boolean;
         FCliId             : LongInt;          { angus V7.00 }
-
+{$IFDEF USE_SSL}
+        FIcsHostIdx        : Integer;          { V8.45 }
+        FMultiListenIdx    : Integer;          { V8.45 }
+        FHostTag           : String;           { V8.45 }
+        FServerAddr        : String;           { V8.45 }
+        FServerPort        : String;           { V8.45 }
+{$ENDIF} // USE_SSL
     public
         procedure   StartConnection; virtual;
         procedure   TriggerSessionClosed(ErrCode : Word); override;
@@ -219,6 +265,15 @@ type
                                                   write FServer;
         property    CliId : LongInt               read  FCliId              { angus V7.00 }
                                                   write FCliId;
+        property    CPeerAddr : String            read  FPeerAddr;        { V8.45 }
+        property    CPeerPort : String            read  FPeerPort;        { V8.45 }
+{$IFDEF USE_SSL}
+        property    IcsHostIdx : Integer          read FIcsHostIdx;       { V8.45 }
+        property    MultiListenIdx : Integer      read FMultiListenIdx;   { V8.45 }
+        property    HostTag : String              read FHostTag;          { V8.45 }
+        property    CServerAddr : String          read FServerAddr;      { V8.45 }
+        property    CServerPort : String          read FServerPort;      { V8.45 }
+{$ENDIF} // USE_SSL
     published
         property    Banner : String               read  FBanner
                                                   write FBanner;
@@ -493,6 +548,109 @@ Description:  A component adding SSL support to TWSocketServer.
      SslWSocketServerCopyRight : String = ' TSslWSocket (c) 2003 Francois Piette V1.00.3 ';   }
 
 type
+{ TIcsHost defines the bindings for an SSL TCP/IP server, usually a web server,
+   such as which address and port to listen, which host names to accept using
+   which SSL certificate, and server related set-up such as directories }
+
+  TIcsHost = class(TCollectionItem)    { V8.45 }
+  private
+    FHostNames: TStrings;
+    FHostEnabled: boolean;
+    FBindIpAddr: String;
+    FBindIpAddr2: String;
+    FBindSslPort: integer;
+    FBindNonPort: integer;
+    FHostTag: String;
+    FDescr: String;
+    FWebDocDir: string;
+    FWebTemplDir: string;
+    FWebDefDoc: string;
+    FWebLogDir: string;
+    FSslCert: string;
+    FSslKey: string;
+    FSslInter: string;
+    FSslPassword: string;
+    FSslSrvSecurity: TSslSrvSecurity;
+    FCertDomains: string;
+    FCertInfo: string;
+    FCertExiry: TDateTime;
+    FCertErrs: string;
+    FCertValRes: TChainResult;
+    FBindIdxNone: Integer;
+    FBindIdxSsl: Integer;
+    FBindIdx2None: Integer;
+    FBindIdx2Ssl: Integer;
+  protected
+    function GetDisplayName: string; override;
+    function GetHostNameTot: integer;
+    procedure SetHostNames(Value : TStrings);
+  public
+    SslCtx: TSslContext;
+    property HostNameTot : Integer               read  GetHostNameTot;
+    property DisplayName : String                read  GetDisplayName;
+    property CertDomains : String                read  FCertDomains;
+    property CertInfo : String                   read  FCertInfo;
+    property CertExiry : TDateTime               read  FCertExiry;
+    property CertErrs : String                   read  FCertErrs;
+    property CertValRes : TChainResult           read  FCertValRes;
+    property BindIdxNone : Integer               read  FBindIdxNone;
+    property BindIdxSsl : Integer                read  FBindIdxSsl;
+    property BindIdx2None : Integer              read  FBindIdx2None;
+    property BindIdx2Ssl : Integer               read  FBindIdx2Ssl;
+  published
+    constructor Create (Collection: TCollection); Override ;
+    destructor Destroy; override;
+    property HostNames : TStrings                read  FHostNames
+                                                 write SetHostNames;
+    property HostEnabled : boolean               read  FHostEnabled
+                                                 write FHostEnabled;
+    property BindIpAddr : String                 read  FBindIpAddr
+                                                 write FBindIpAddr;
+    property BindIpAddr2 : String                read  FBindIpAddr2
+                                                 write FBindIpAddr2;
+    property BindSslPort : Integer               read  FBindSslPort
+                                                 write FBindSslPort;
+    property BindNonPort : Integer               read  FBindNonPort
+                                                 write FBindNonPort;
+    property HostTag: String                     read  FHostTag
+                                                 write FHostTag;
+    property Descr: String                       read  FDescr
+                                                 write FDescr;
+    property WebDocDir : String                  read  FWebDocDir
+                                                 write FWebDocDir;
+    property WebTemplDir : String                read  FWebTemplDir
+                                                 write FWebTemplDir;
+    property WebDefDoc : String                  read  FWebDefDoc
+                                                 write FWebDefDoc;
+    property WebLogDir : String                  read  FWebLogDir
+                                                 write FWebLogDir;
+    property SslCert : String                    read  FSslCert
+                                                 write FSslCert;
+    property SslKey : String                     read  FSslKey
+                                                 write FSslKey;
+    property SslInter : String                   read  FSslInter
+                                                 write FSslInter;
+    property SslPassword : String                read  FSslPassword
+                                                 write FSslPassword;
+    property SslSrvSecurity : TSslSrvSecurity    read  FSslSrvSecurity
+                                                 write FSslSrvSecurity;
+  end;
+
+  { TIcsHosts defines a collection of TIcsHost }
+
+  TIcsHostCollection = class(TCollection)     { V8.45 }
+  private
+    FOwner: TPersistent;
+    function GetItem(Index: Integer): TIcsHost;
+    procedure SetItem(Index: Integer; Value: TIcsHost);
+  protected
+    function GetOwner: TPersistent; override;
+  public
+    constructor Create(Owner: TPersistent);
+    property Items[Index: Integer]: TIcsHost read GetItem write SetItem; default;
+  end;
+
+type
     TSslWSocketMultiListenItem = class(TWSocketMultiListenItem)
     private
  {     FSslEnable : Boolean;      V8.36 moved to base class }
@@ -506,18 +664,31 @@ type
     public
         constructor Create(AOwner : TComponent); override;
         procedure   StartConnection; override;
+        procedure   TriggerSslServerName(var Ctx: TSslContext; var ErrCode: TTlsExtError); override; { V8.45 }
     end;
 
     TSslWSocketServer = class(TWSocketServer)
     protected
+        FIcsHosts: TIcsHostCollection;            { V8.45 }
+        FRootCA:   TX509Base;                     { V8.45 }
+        FDHParams: String;                        { V8.45 }
         procedure TriggerClientConnect(Client : TWSocketClient; Error : Word); override;
         function  MultiListenItemClass: TWSocketMultiListenItemClass; override;
     public
         constructor Create(AOwner : TComponent); override;
+        destructor Destroy; override;
         property  ClientClass;
         property  ClientCount;
         property  Client;
         property  SslMode;
+        procedure Listen; override;
+        function  GetIcsHosts: TIcsHostCollection;                   { V8.45 }
+        procedure SetIcsHosts(const Value: TIcsHostCollection);      { V8.45 }
+        function  FindBinding(const MAddr: String; MPort: Integer;
+                                 var MIndex: Integer): boolean;      { V8.45 }
+        function  GetRootCA: TX509Base;                              { V8.45 }
+        procedure SetRootCA(const Value: TX509Base);                 { V8.45 }
+        procedure ValidateHosts; virtual;                            { V8.45 }
     published
         property  SslContext;
         property  Banner;
@@ -527,6 +698,12 @@ type
         property  OnClientConnect;
         property  SslEnable;
         property  SslAcceptableHosts;
+        property  IcsHosts: TIcsHostCollection           read  GetIcsHosts
+                                                         write SetIcsHosts;   { V8.45 }
+        property  RootCA: TX509Base                      read  GetRootCA
+                                                         write SetRootCA;     { V8.45 }
+        property  DHParams: String                       read  FDHParams
+                                                         write FDHParams;     { V8.45 }
         property  OnSslVerifyPeer;
         property  OnSslSetSessionIDContext;
         property  OnSslSvrNewSession;
@@ -1961,6 +2138,23 @@ begin
     Proto            := 'tcp';
     Addr             := '0.0.0.0';
     SslMode          := sslModeServer;
+    FIcsHosts        := TIcsHostCollection.Create(self);            { V8.45 }
+    FRootCA          := TX509Base.Create(self);                       { V8.45 }
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TSslWSocketServer.Destroy;                                 { V8.45 }
+begin
+    if Assigned(FIcsHosts) then begin
+        FIcsHosts.Free;
+        FIcsHosts := nil;
+    end;
+    if Assigned(FRootCA) then begin
+        FRootCA.Free;
+        FRootCA := nil;
+    end;
+    inherited Destroy;
 end;
 
 
@@ -1974,20 +2168,54 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslWSocketServer.TriggerClientConnect(
     Client : TWSocketClient; Error : Word);
+var
+    I: Integer;
 begin
+   { V8.45 set SslEnable before event handler, so it can be used there }
+    if FMultiListenIndex = -1 then
+        Client.SslEnable := FSslEnable
+    else begin
+        Assert(MultiListenIndex < MultiListenSockets.Count);
+        Client.SslEnable := TSslWSocketMultiListenItem(
+                  MultiListenSockets[FMultiListenIndex]).SslEnable;
+    end;
+
+ { V8.45 keep server binding information for client }
+    Client.FMultiListenIdx := FMultiListenIndex;
+    if FMultiListenIndex = -1 then begin
+        Client.FServerAddr := GetXAddr;
+        Client.FServerPort := GetXPort;
+    end
+    else begin
+        with MultiListenSockets [FMultiListenIndex] do begin
+            Client.FServerAddr := Addr ;
+            Client.FServerPort := Port ;
+        end;
+    end ;
+
+  { V8.45 check binding for IcsHost - may be changed later if SNI or Host: header checked }
+  { beware multiple hosts may have the same binding }
+    if FIcsHosts.Count > 0 then begin
+        for I := 0 to FIcsHosts.Count - 1 do begin
+            if NOT (FIcsHosts [I].HostEnabled) then continue;
+            if (FIcsHosts [I].FBindIdxNone = FMultiListenIndex) or
+               (FIcsHosts [I].FBindIdxSsl = FMultiListenIndex) or
+                 (FIcsHosts [I].FBindIdx2None = FMultiListenIndex) or
+                   (FIcsHosts [I].FBindIdx2Ssl = FMultiListenIndex) then begin
+                Client.FIcsHostIdx := I;
+                Client.FHostTag := FIcsHosts [I].HostTag;
+                Break;
+            end;
+        end;
+    end;
+
     inherited TriggerClientConnect(Client, Error);
     { The event handler may have closed the connection }
     { The event handler may also have started the SSL }
     if (Error <> 0) or (Client.State <> wsConnected) or
        (Client.SslState > sslNone) then
         Exit;
-    if MultiListenIndex = -1 then
-        Client.SslEnable := FSslEnable
-    else begin
-        Assert(MultiListenIndex < MultiListenSockets.Count);
-        Client.SslEnable := TSslWSocketMultiListenItem(
-          MultiListenSockets[MultiListenIndex]).SslEnable;
-    end;
+
     if Client.SslEnable then begin
         Client.SslMode                  := FSslMode;
         Client.SslAcceptableHosts       := FSslAcceptableHosts;
@@ -2015,10 +2243,276 @@ begin
 end;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslWSocketServer.GetIcsHosts: TIcsHostCollection;                   { V8.45 }
+begin
+    Result := FIcsHosts;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslWSocketServer.SetIcsHosts(const Value: TIcsHostCollection);   { V8.45 }
+begin
+    FIcsHosts := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslWSocketServer.GetRootCA: TX509Base;                              { V8.45 }
+begin
+    Result := FRootCA;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslWSocketServer.SetRootCA(const Value: TX509Base);                 { V8.45 }
+begin
+    FRootCA := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ are we listening on this binding already }
+function TSslWSocketServer.FindBinding(const MAddr: String;
+                                MPort: Integer; var MIndex: Integer): boolean;      { V8.45 }
+var
+    J: integer;
+begin
+    Result := False;
+    if (Addr = MAddr) and (Port = IntToStr(MPort)) then begin
+        Result := True;
+        MIndex := -1;
+        Exit;
+    end;
+    if MultiListenSockets.Count = 0 then Exit;
+    for J := 0 to MultiListenSockets.Count -1 do begin
+        if (MultiListenSockets[J].Addr = MAddr) and
+                     (MultiListenSockets[J].Port = IntToStr(MPort)) then begin
+            Result := True;
+            MIndex := J;
+            Exit;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+ { V8.45 if IcsHostCollection has been specified, use it to define all
+   bindings and SSL contexts, including SSL certificates and security,
+   with SSL Server Name Indication (SNI) used to select the correct host.
+   HTTP descendants of SocketServer might check the Host: header for
+   non=SSL connections }
+
+procedure TSslWSocketServer.ValidateHosts;                            { V8.45 }
+var
+    I, FirstSsl: integer;
+    FirstHost: Boolean;
+
+    procedure AddBinding(const MAddr: String; MPort: Integer;
+                                    SslFlag: Boolean; var MIndex: Integer);
+    var
+        SockFamily: TSocketFamily;
+        ListenItem: TSslWSocketMultiListenItem;
+    begin
+        if (MAddr = '') OR (NOT WSocketIsIPEx (MAddr, SockFamily)) then begin
+            raise ESocketException.Create('Host #' + IntToStr(I) +
+                            ', Invalid host listen IP address: ' + MAddr);
+            exit ;
+        end ;
+        if FirstHost then begin    { first is not a multi-listen }
+            FirstHost := False;
+            Addr := MAddr;
+            Port := IntToStr(MPort);
+            SocketFamily := SockFamily;
+            SslEnable := SslFlag;
+            MIndex := -1;
+        end
+        else begin
+            { ignore duplicates, but keep binding index }
+            if NOT FindBinding(MAddr, MPort, MIndex) then begin
+                MultiListenSockets.Add;
+                MIndex := MultiListenSockets.Count - 1;
+                ListenItem := MultiListenSockets [MIndex] as TSslWSocketMultiListenItem;
+                ListenItem.Addr := MAddr;
+                ListenItem.Port := IntToStr(MPort);
+                ListenItem.SocketFamily := SockFamily;
+                ListenItem.SslEnable := SslFlag;
+            end;
+        end;
+    end;
+
+begin
+    if FIcsHosts.Count = 0 then Exit;
+    FirstSsl := -1;
+    FirstHost := True;
+    MultiListenSockets.Clear;
+    for I := 0 to FIcsHosts.Count - 1 do begin
+         with FIcsHosts [I] do begin
+            FCertInfo := '';
+            FCertErrs := '';
+            FBindIdxNone := -2;  { bindings are -1 to +x }
+            FBindIdx2None := -2;
+            FBindIdxSsl := -2;
+            FBindIdx2Ssl := -2;
+            if NOT (FHostEnabled) then continue;
+
+         { create up to four bindings for host, IPv4, IPv6, non-SSL, SSL }
+            if (FBindNonPort = 0) and (BindSslPort = 0) then continue;
+            if (FBindNonPort > 0) then begin
+                AddBinding(FBindIpAddr, FBindNonPort, False, FBindIdxNone);
+                if FBindIpAddr2 <> '' then
+                    AddBinding(FBindIpAddr2, FBindNonPort, False, FBindIdx2None);
+            end;
+            if (FBindSslPort > 0) then begin
+                if (FSslCert = '') then begin
+                    raise ESocketException.Create('Host #' + IntToStr(I) +
+                         ', SSL certificate can not be blank');
+                    exit ;
+                end;
+                AddBinding(FBindIpAddr, FBindSslPort, True, FBindIdxSsl);
+                if FBindIpAddr2 <> '' then
+                    AddBinding(FBindIpAddr2, FBindSslPort, True, FBindIdx2Ssl);
+            end;
+
+     { if using SSL, set-up context with server certificates }
+            if FBindSslPort > 0 then begin
+                if NOT Assigned(SslCtx) then
+                    SslCtx := TSslContext.Create(Self);
+                if FirstSsl < 0 then FirstSsl := I;
+                SslCtx.SslVersionMethod := sslBestVer_SERVER;
+                SslCtx.SslMinVersion := sslVerTLS1;
+                SslCtx.SslMaxVersion := sslVerMax;
+                SslCtx.SslOptions := [sslOpt_CIPHER_SERVER_PREFERENCE,
+                        sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION,
+                        sslOpt_NO_COMPRESSION,
+                        sslOpt_SINGLE_DH_USE, SslOpt_SINGLE_ECDH_USE ];
+                SslCtx.SslCipherList := sslCiphersMozillaSrvInter ;  // excludes MSIE6/XP no SSLv3
+
+             { set SSL security choices before loading certificates, which may then fail }
+                case FSslSrvSecurity of
+                  sslSrvSecNone: begin                { all protocols and ciphers, any key lenghts }
+                      SslCtx.SslMinVersion := sslVerSSL3;
+                      SslCtx.SslCipherList := 'ALL';
+                      SslCtx.SslSecLevel := sslSecLevelAny;
+                  end;
+                  sslSrvSecSsl3: begin                { SSL3 only, all ciphers, any key lenghts, MD5 }
+                      SslCtx.SslMinVersion := sslVerSSL3;
+                      SslCtx.SslMaxVersion := sslVerSSL3;
+                      SslCtx.SslCipherList := 'ALL';
+                      SslCtx.SslSecLevel := sslSecLevelAny;
+                  end;
+                  sslSrvSecBack: begin                { TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
+                      SslCtx.SslCipherList := sslCiphersMozillaSrvBack;
+                      SslCtx.SslSecLevel := sslSecLevel80bits;
+                  end;
+                  sslSrvSecInter: begin               { TLS1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                      SslCtx.SslCipherList := sslCiphersMozillaSrvInter;
+                      SslCtx.SslSecLevel := sslSecLevel112bits;  // Dec 2016  keys=>2048, ECC=>224, no RC4, no SSL3, no SHA1 certs
+                  end;
+                  sslSrvSecInterFS: begin             { TLS1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                      SslCtx.SslCipherList := sslCiphersMozillaSrvInterFS;
+                      SslCtx.SslSecLevel := sslSecLevel112bits;
+                  end;
+                  sslSrvSecHigh: begin                 { TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                      SslCtx.SslMinVersion := sslVerTLS1_2;
+                      SslCtx.SslCipherList := sslCiphersMozillaSrvHigh;
+                      SslCtx.SslSecLevel := sslSecLevel112bits;
+                  end;
+                  sslSrvSecHigh128: begin               { TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
+                      SslCtx.SslMinVersion := sslVerTLS1_2;
+                      SslCtx.SslCipherList := sslCiphersMozillaSrvHigh;
+                      SslCtx.SslSecLevel :=sslSecLevel128bits;
+                  end;
+                  sslSrvSecHigh192: begin                { TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+                      SslCtx.SslMinVersion := sslVerTLS1_2;
+                      SslCtx.SslCipherList := sslCiphersMozillaSrvHigh;
+                      SslCtx.SslSecLevel := sslSecLevel192bits;
+                  end;
+                end;
+                SslCtx.SslECDHMethod := sslECDHAuto;
+
+            { Enables OpenSsl's internal session caching }
+                SslCtx.SslSessionCacheModes := [sslSESS_CACHE_SERVER];
+
+            { load certificate, private key and optional intermediates, that may all be
+              in the same PEM or PFX bundle file or seperate files, or may be base64 text }
+                if (Pos(PEM_STRING_HDR_BEGIN, FSslCert) > 0) then
+                    SslCtx.SslCertX509.LoadFromText(FSslCert, croTry, croTry, FSslPassword)
+                else
+                    SslCtx.SslCertX509.LoadFromFile(FSslCert, croTry, croTry, FSslPassword);
+                if NOT SslCtx.SslCertX509.IsPKeyLoaded then begin
+                    if (FSslKey = '') then begin
+                        raise ESocketException.Create('Host #' + IntToStr(I) +
+                                      ', SSL private key can not be blank for ' + FSslCert);
+                        exit ;
+                    end;
+                    if (Pos(PEM_STRING_HDR_BEGIN, FSslKey) > 0) then
+                       SslCtx.SslCertX509.PrivateKeyLoadFromText(FSslKey, FSslPassword)
+                    else
+                       SslCtx.SslCertX509.PrivateKeyLoadFromPemFile(FSslKey, FSslPassword);
+                end ;
+                if (NOT SslCtx.SslCertX509.IsInterLoaded) and (FSslInter <> '') then begin
+                    if (Pos(PEM_STRING_HDR_BEGIN, FSslInter) > 0) then
+                        SslCtx.SslCertX509.LoadIntersFromString(FSslInter)
+                    else
+                        SslCtx.SslCertX509.LoadIntersFromPemFile(FSslInter);
+                end ;
+                SslCtx.SslVerifyPeer := false;  // don't expect remote client to send us certificate
+                SslCtx.SslSessionTimeout := 300; //sec
+                SslCtx.SslDefaultSessionIDContext := 'AnyStringForSessionCaching';
+                if FDHParams <> '' then begin
+                    if (Pos(PEM_STRING_HDR_BEGIN, FDHParams) > 0) then
+                        SslCtx.SslDHParamLines.Text := FDHParams
+                    else
+                        SslCtx.SslDHParamFile := FDHParams;
+                end;
+
+             { validate SSL certificate chain, helps to ensure server will work! }
+                if NOT SslCtx.SslCertX509.IsCertLoaded then
+                begin
+                    raise ESocketException.Create('Host #' + IntToStr(I) +
+                         ', SSL certificate not loaded - ' + FSslCert);
+                    exit ;
+                end;
+                SslCtx.SslCertX509.X509CATrust := FRootCA.X509CATrust;
+                FCertDomains := IcsUnwrapNames (SslCtx.SslCertX509.SubAltNameDNS);
+                FCertExiry := SslCtx.SslCertX509.ValidNotAfter;
+                FCertValRes := SslCtx.SslCertX509.ValidateCertChain(HostNames.Text, FCertInfo, FCertErrs);
+                if FCertValRes = chainOK then
+                    FCertErrs := 'Chain Validated OK'
+                else begin
+                    if FCertValRes = chainWarn then
+                        FCertErrs := 'Chain Warning - ' + FCertErrs
+                    else begin
+                        FCertErrs := 'Chain Failed - ' + FCertErrs;
+                        raise ESocketException.Create('Host #' + IntToStr(I) +
+                            ', SSL certificate errors - ' + FCertErrs);
+                        exit ;
+                    end;
+                end;
+                SslCtx.InitContext;
+            end;
+        end;
+    end;
+
+  { set server context as first host with SSL }
+    if FirstSsl >= 0 then FSslContext := FIcsHosts [FirstSsl].SslCtx;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslWSocketServer.Listen;                               { V8.45 }
+begin
+    ValidateHosts;
+    inherited Listen;
+end;
+
+
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TSslWSocketClient.Create(AOwner : TComponent);
 begin
     inherited Create(AOwner);
+    FIcsHostIdx := -1;
 end;
 
 
@@ -2030,6 +2524,41 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ SSL client has sent a host name using SNI, look up IcsHost }
+procedure TSslWSocketClient.TriggerSslServerName(var Ctx: TSslContext; var ErrCode: TTlsExtError);  { V8.45 }
+var
+    I: Integer;
+begin
+    inherited TriggerSslServerName(Ctx, ErrCode);
+
+  { if event has not set an SslContext, look for IcsHost instead }
+    if NOT Assigned(Ctx) then begin
+         with FServer as TSslWSocketServer do begin
+            if FIcsHosts.Count > 0 then begin
+               for I := 0 to FIcsHosts.Count - 1 do begin
+                    if NOT (FIcsHosts [I].HostEnabled) then continue;
+                    if (FIcsHosts [I].FBindIdxSsl <> Self.FMultiListenIdx) and
+                         (FIcsHosts [I].FBindIdx2Ssl <> Self.FMultiListenIdx) then continue;
+                    if FIcsHosts [I].SslCtx.SslCertX509.PostConnectionCheck(Self.FSslServerName) then begin
+                        Self.FIcsHostIdx := I;
+                        Self.FHostTag := FIcsHosts [I].HostTag;
+                        Ctx := FIcsHosts [I].SslCtx;
+                        {$IFNDEF NO_DEBUG_LOG}
+                            if CheckLogOptions(loSslInfo) then
+                                DebugLog(loSslInfo, 'SNI Found "' + Self.FSslServerName +
+                                                '" for IcsHost #' + IntToStr(I));
+                        {$ENDIF}
+                        break;
+                    end;
+                end;
+            end;
+        end;
+    end;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { TSslWSocketMultiListenItem }
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TSslWSocketMultiListenItem.Create(Collection: TCollection);
@@ -2037,6 +2566,90 @@ begin
     inherited Create(Collection);
     FSslEnable := TRUE;
 end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ TIcsHost }
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TIcsHost.Create(Collection: TCollection);
+begin
+    inherited;
+    FHostNames := TStringList.Create;
+    FHostNames.Add ('*');
+    FHostTag := 'HostTag';
+    FBindIpAddr := ICS_ANY_HOST_V4;
+    FBindNonPort := 0;
+    FBindSslPort := 0;
+    FSslSrvSecurity := sslSrvSecBack;
+    FHostEnabled := True;
+    SslCtx := Nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TIcsHost.Destroy;
+begin
+    FreeAndNil (SslCtx);
+    FreeAndNil (FHostNames);
+    inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsHost.GetDisplayName: string;
+begin
+    Result := FHostTag + ' - ' + FBindIpAddr;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsHost.SetHostNames(Value : TStrings);
+begin
+    FHostNames.Assign(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsHost.GetHostNameTot: integer;
+begin
+    if Assigned (FHostNames) then
+        Result := FHostNames.Count
+     else
+        Result := 0;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ TIcsHosts }
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TIcsHostCollection.Create(Owner: TPersistent);
+begin
+  FOwner := Owner;
+  inherited Create(TIcsHost);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsHostCollection.GetItem(Index: Integer): TIcsHost;
+begin
+  Result := TIcsHost(inherited GetItem(Index));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsHostCollection.SetItem(Index: Integer; Value: TIcsHost);
+begin
+  inherited SetItem(Index, TCollectionItem(Value));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsHostCollection.GetOwner: TPersistent;
+begin
+  Result := FOwner;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
 {$ENDIF} // USE_SSL
 

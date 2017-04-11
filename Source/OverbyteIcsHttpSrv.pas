@@ -9,11 +9,11 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.37
+Version:      8.45
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2016 by François PIETTE
+Legal issues: Copyright (C) 1999-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -401,6 +401,21 @@ Nov 04 2016 V8.37 Added ExclusiveAddr property to stop other applications listen
                   Added extended exception information, set SocketErrs = wsErrFriendly for
                       some more friendly messages (without error numbers)
                   MakeCookie has new Secure property that sets secure cookies
+Apr 11 2017 V8.45 Added multiple SSL host support using SNI or Host header.
+                  There is a new IcsHosts property which allows multiple hosts
+                    to be specified, each with one or two IP addresses and
+                    non-SSL and SSL port bindings, SSL certificates and private
+                    key, SSL context and security level.
+                  If IcsHosts is specified, TSslWSocketServer ignores existing
+                   bindings and SSLContext, and creates new bindings and
+                   initialises an SSL context for each host checking and reporting
+                   all certificates.
+                  For HttpSrv, IcsHostCollection includes four new properties,
+                   WebDocDir, WebTemplDir, WebDefDoc and WebLogDir, which set
+                   the client DocDir, TemplateDir and DefaultDoc according to
+                   the request Host, so the server supports multiple web sites.
+                  Note IcsHosts is only in the SSL server TSslHttpServer
+                   but may be used for HTTP or HTTPS connections.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -501,9 +516,9 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 837;
-    CopyRight : String = ' THttpServer (c) 1999-2016 F. Piette V8.37 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.37';   { V8.09 }
+    THttpServerVersion = 845;
+    CopyRight : String = ' THttpServer (c) 1999-2017 F. Piette V8.45 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.45';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -794,6 +809,7 @@ type
         FReqTarget             : string;               { V8.10 }
         FRequestIfModSince     : TDateTime;            { V8.11 }
         FRequestStartTick      : LongWord;             { V8.12 }
+        FWebLogDir             : string;               { V8.45 }
         procedure SetSndBlkSize(const Value: Integer);
         procedure ConnectionDataAvailable(Sender: TObject; Error : Word); virtual;
         procedure ConnectionDataSent(Sender : TObject; Error : WORD); virtual;
@@ -1024,6 +1040,7 @@ type
         property RequestUpgrade        : string      read  FRequestUpgrade; { V8.08 }
         property RequestIfModSince     : TDateTime   read  FRequestIfModSince; { V8.11 }
         property RequestStartTick      : LongWord    read  FRequestStartTick;  { V8.12 }
+        property WebLogDir             : string      read  FWebLogDir;         { V8.45 }
     published
         { Where all documents are stored. Default to c:\wwwroot }
         property DocDir         : String            read  FDocDir
@@ -1644,15 +1661,28 @@ type
                                             Client : TWSocketClient); override;
         procedure TransferSslServerName(Sender: TObject;   // V8.09
                      var Ctx: TSslContext; var ErrCode: TTlsExtError); virtual;
+        function  GetIcsHosts: TIcsHostCollection;                    { V8.45 }
+        procedure SetIcsHosts(const Value: TIcsHostCollection);       { V8.45 }
+        function  GetRootCA: TX509Base;                               { V8.45 }
+        procedure SetRootCA(const Value: TX509Base);                  { V8.45 }
+        function  GetDHParams: String;                                { V8.45 }
+        procedure SetDHParams(const Value: String);                   { V8.45 }
     public
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy; override;
         procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
+        procedure   ValidateHosts;                                     { V8.45 }
 //    published V8.02 Angus stop them being published
         property  SslEnable          : Boolean             read  FSslEnable  //  V8.02 Angus
                                                            write FSslEnable;
         property  SslContext         : TSslContext         read  GetSslContext
                                                            write SetSslContext;
+        property  IcsHosts           : TIcsHostCollection  read  GetIcsHosts
+                                                           write SetIcsHosts;    { V8.45 }
+        property  RootCA             : TX509Base           read  GetRootCA       
+                                                           write SetRootCA;      { V8.45 }
+        property  DHParams           : String              read  GetDHParams
+                                                           write SetDHParams;    { V8.45 }
         property  OnSslVerifyPeer    : TSslVerifyPeerEvent read  FOnSslVerifyPeer
                                                            write FOnSslVerifyPeer;
         property  OnSslSetSessionIDContext : TSslSetSessionIDContext
@@ -1674,6 +1704,9 @@ type
     published
         property SslEnable;
         property SslContext;
+        property IcsHosts;                      { V8.45 }
+        property RootCA;                        { V8.45 }
+        property DHParams;                      { V8.45 }
         property OnSslVerifyPeer;
         property OnSslSetSessionIDContext;
         property OnSslSvrNewSession;
@@ -2028,6 +2061,18 @@ begin
 {$ENDIF}
 {$IFNDEF NO_DIGEST_AUTH}
     FAuthDigestServerSecret           := CreateServerSecret;
+{$ENDIF}
+{$IFDEF USE_SSL}
+ { V8.45 if using IcsHosts, set default directories }
+    if FWSocketServer is TSslWSocketServer then begin
+      if TSslWSocketServer(FWSocketServer).IcsHosts.Count > 0 then begin
+          with TSslWSocketServer(FWSocketServer).IcsHosts [0] do begin
+              Self.FDocDir := WebDocDir;
+              Self.FTemplateDir := WebTemplDir;
+              Self.FDefaultDoc := WebDefDoc;
+          end;
+      end;
+    end;
 {$ENDIF}
     FWSocketServer.ExclusiveAddr      := FExclusiveAddr;     { V8.37 }
     FWSocketServer.SocketErrs         := FSocketErrs;        { V8.37 }
@@ -3877,7 +3922,7 @@ begin
     SendHeader(FVersion + ' 501 Unimplemented' + #13#10 +
                'Content-Type: text/plain' + #13#10 +
                'Content-Length: ' + IntToStr(Length(Body)) + #13#10 +
-               GetKeepAliveHdrLines + 
+               GetKeepAliveHdrLines +
                #13#10);
     FAnswerStatus := 501;   { V7.19 }
     if FSendType = httpSendHead then  { V7.44 }
@@ -3892,10 +3937,48 @@ end;
 procedure THttpConnection.ProcessRequest;
 var
     Handled : Boolean;
+    I, J, TotHosts: Integer;
 begin
     FRequestMethod := httpMethodNone;   { V8.08 keep method as literal }
     if FKeepAlive and (FKeepAliveTimeSec > 0) then
         FKeepAlive := FMaxRequestsKeepAlive > 0;
+
+  { V8.45 see if checking Host: against IcsHosts, may have already
+    been done using SSL server name indication }
+{$IFDEF USE_SSL}
+    if FServer.WSocketServer is TSslWSocketServer then begin
+      TotHosts := TCustomSslHttpServer(FServer).IcsHosts.Count;
+      if (TotHosts > 0) and (FRequestHostName <> '') then begin
+          if (FIcsHostIdx < 0) then begin
+              for I := 0 to TotHosts - 1 do begin
+                  with TCustomSslHttpServer(FServer).IcsHosts [I] do begin
+                      if HostNameTot > 0 then begin
+                          for J := 0 to HostNameTot - 1 do begin
+                              if ((HostNames [J] = '*') or
+                                  (HostNames [J] = FRequestHostName)) then begin
+                                  Self.FIcsHostIdx := I ;
+                                  break ;
+                              end;
+                          end;
+                      end;
+                  end;
+              end;
+          end;
+
+       { V8.45 change directories to host site, if found }
+          if FIcsHostIdx >= 0 then begin
+              with TCustomSslHttpServer(FServer).IcsHosts [FIcsHostIdx] do
+              begin
+                  Self.FDocDir := WebDocDir;
+                  Self.FTemplateDir := WebTemplDir;
+                  Self.FDefaultDoc := WebDefDoc;
+                  Self.FHostTag := HostTag;
+                  Self.FWebLogDir := WebLogDir;
+              end;
+          end;
+      end;
+    end;
+{$ENDIF}
 
     TriggerBeforeProcessRequest;
 
@@ -6655,6 +6738,71 @@ procedure TCustomSslHttpServer.SetAcceptableHostsList(
     const SemiColonSeparatedList : String);
 begin
     FWSocketServer.SetAcceptableHostsList(SemiColonSeparatedList);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslHttpServer.GetIcsHosts: TIcsHostCollection;                     { V8.45 }
+begin
+    if Assigned(FWSocketServer) then
+        Result := TSslWSocketServer(FWSocketServer).GetIcsHosts
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslHttpServer.SetIcsHosts(const Value: TIcsHostCollection);      { V8.45 }
+begin
+    if Assigned(FWSocketServer) then
+        TSslWSocketServer(FWSocketServer).SetIcsHosts(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslHttpServer.GetRootCA: TX509Base;                              { V8.45 }
+begin
+    if Assigned(FWSocketServer) then
+        Result := TSslWSocketServer(FWSocketServer).GetRootCA
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslHttpServer.SetRootCA(const Value: TX509Base);                 { V8.45 }
+begin
+    if Assigned(FWSocketServer) then
+        TSslWSocketServer(FWSocketServer).SetRootCA(Value);
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslHttpServer.GetDHParams: String;                                { V8.45 }
+begin
+    if Assigned(FWSocketServer) then
+        Result := TSslWSocketServer(FWSocketServer).DHParams
+    else
+        Result := '';
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslHttpServer.SetDHParams(const Value: String);                   { V8.45 }
+begin
+    if Assigned(FWSocketServer) then
+        TSslWSocketServer(FWSocketServer).DHParams := Value;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslHttpServer.ValidateHosts;                                     { V8.45 }
+begin
+    if Assigned(FWSocketServer) then
+        TSslWSocketServer(FWSocketServer).ValidateHosts;
 end;
 
 

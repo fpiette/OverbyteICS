@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.44
+Version:      8.45
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1169,7 +1169,7 @@ Feb 26, 2017  V8.41 Fix bug in last build with TX509Base PEM cert error handling
                     ValidateCertChain in TX509Base checks and reports cert and inters
                        and can save a lot of cert problems in servers
                     Added AllCertInfo to TX509List that reports all certificates and
-                       can save code in clients reporting certificates 
+                       can save code in clients reporting certificates
                     Added sslCiphersMozillaSrvInterFS with only forward security ciphers
                     Added IsCertLoaded, IsPkeyLoaded and IsInterLoaded to TX509Base
                     Added SslKeyAuth property to get cipher key authentication
@@ -1197,6 +1197,11 @@ Mar 7, 2017  V8.43  Added new ComponentOptions wsoAsyncDnsLookup and
                        a windows limitation of one active DNS lookup per thread.
 Mar 14, 2017  V8.44 ReverseDnsLookup supports wsoIcsDnsLookup to use thread
                     SslSetCertX509 did not load Inter unless Cert set
+Apr 11, 2017  V8.45 Added multiple SSL host support to TSslWSocketServer.
+                    CertInfo shows expiry date for brief (it's important).
+                    Added TriggerSslServerName so it can be overriden.
+                    Added TSslSrvSecurity SSL server security level, used by
+                       TIcsHost, sets protocol, cipher and SslSecLevel.
 
 
 Use of certificates for SSL clients:
@@ -1401,8 +1406,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 844;
-  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.44 ';
+  WSocketVersion            = 845;
+  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.45 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -3154,7 +3159,7 @@ type
                      sslX509_CHECK_FLAG_NEVER_CHECK_SUBJECT);
     TSslCheckHostFlags = set of TSslCheckHostFlag;
 
-   { V8.40 1.1.0 and later }
+   { V8.40 1.1.0 and later, sets OpenSSL security level to a number }
     TSslSecLevel = (
                      sslSecLevelAny,        { 0 - anything allowed, old compatibility }
                      sslSecLevel80bits,     { 1 - default, RSA/DH keys=>1024, ECC=>160, no MD5 }
@@ -3162,6 +3167,20 @@ type
                      sslSecLevel128bits,    { 3 - RSA/DH keys=>3072, ECC=>256, FS forced, no TLS/1.0  }
                      sslSecLevel192bits,    { 4 - RSA/DH keys=>7680, ECC=>384, no SHA1 suites, no TLS/1.1  }
                      sslSecLevel256bits);   { 5 - RSA/DH keys=>15360, ECC=>512  }
+
+   { V8.45 SSL server security level, used by TIcsHost, sets protocol, cipher and SslSecLevel }
+   { warning, requiring key lengths higher than 2048 requires all SSL certificates in the chain to
+     have that minimum key length, including the root }
+    TSslSrvSecurity = (
+                     sslSrvSecNone,         { 0 - all protocols and ciphers, any key lenghts }
+                     sslSrvSecSsl3,         { 1 - SSL3 only, all ciphers, any key lenghts, MD5 }
+                     sslSrvSecBack,         { 2 - TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
+                     sslSrvSecInter,        { 3 - TLS1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslSrvSecInterFS,      { 4 - TLS1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslSrvSecHigh,         { 5 - TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslSrvSecHigh128,      { 6 - TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
+                     sslSrvSecHigh192);     { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+
 
     TSslOption  = (sslOpt_CIPHER_SERVER_PREFERENCE,
                    sslOpt_MICROSOFT_SESS_ID_BUG,        { V8.27 gone 1.1.0 }
@@ -3749,6 +3768,7 @@ type
         procedure SetSslContext(const Value: TSslContext);
         procedure Notification(AComponent: TComponent; Operation: TOperation); override;
         procedure TriggerSslShutDownComplete(ErrCode: Integer); virtual;
+        procedure TriggerSslServerName(var Ctx: TSslContext; var ErrCode: TTlsExtError); virtual;  { V8.45 }
         function  MsgHandlersCount : Integer; override;
         procedure AllocateMsgHandlers; override;
         procedure FreeMsgHandlers; override;
@@ -18296,9 +18316,9 @@ begin
             'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10;          { V8.41 }
         if ExtendedValidation then
             Result := Result + 'Extended Validation (EV) SSL Server Certificate' + #13#10;   { V8.40 }
-        Result := Result +
-            'Expires: ' + DateToStr (ValidNotAfter) + ', Signature: ' + SignatureAlgorithm + #13#10;
     end;
+    Result := Result + 'Expires: ' + DateToStr (ValidNotAfter) +              { V8.45 need expiry for brief }
+                                        ', Signature: ' + SignatureAlgorithm + #13#10;
     Result := Result + 'Public Key: ' + KeyInfo;
 end;
 
@@ -20180,6 +20200,14 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.TriggerSslServerName(var Ctx: TSslContext; var ErrCode: TTlsExtError);  { V8.45 }
+begin
+    if Assigned(FOnSslServerName) then
+        FOnSslServerName(Self, Ctx, ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function ServerNameCallback(SSL: PSSL; var ad: Integer; arg: Pointer): Longint; cdecl;
 var
     Ws : TCustomSslWSocket;
@@ -20195,7 +20223,7 @@ begin
     if Assigned(PServerName) then
     begin
         Ws := TCustomSslWSocket(f_SSL_get_ex_data(SSL, 0));
-        if Assigned(Ws) and Assigned(Ws.FOnSslServerName) then
+        if Assigned(Ws) { and Assigned(Ws.FOnSslServerName) } then    { V8.45 }
         begin
             Ws.FSsl_In_CB := TRUE;
             try
@@ -20203,7 +20231,8 @@ begin
                 Ctx := nil;
              {   Err := teeAlertWarning; //SSL_TLSEXT_ERR_ALERT_WARNING  }
                 Err := teeOk;  { V8.26 warning stop Java clients connecting }
-                Ws.FOnSslServerName(Ws, Ctx, Err);
+            {   Ws.FOnSslServerName(Ws, Ctx, Err);  }
+                Ws.TriggerSslServerName(Ctx, Err);     { V8.45 }
                 { Do not switch context if not initialized }
                 if Assigned(Ctx) and Assigned(Ctx.FSslCtx) then
                 begin
@@ -20863,7 +20892,7 @@ begin
                 { FSslServerName receives the servername from client helo if }
                 { FOnSslServerName was assigned in SSL server mode.          }
                 FSslServerName := '';
-                if Assigned(FOnSslServerName) and (FSslContext.FSslVersionMethod >= sslV3) then begin   { V8.24 not SSLv2 }
+                if { Assigned(FOnSslServerName) and } (FSslContext.FSslVersionMethod >= sslV3) then begin   { V8.24 not SSLv2, V8.45 always enabled }
 {$IFNDEF NO_DEBUG_LOG}
                     if CheckLogOptions(loSslInfo) then  { V8.40 }
                         DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +

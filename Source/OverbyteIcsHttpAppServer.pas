@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      8.06
+Version:      8.45
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -101,6 +101,9 @@ Apr 26, 2016 V8.06 Angus added OverbyteIcsFormDataDecoder to uses
 Apr 03, 2017       F. Piette made some THttpAppSrvConnection methods vitual:
                    CancelSession, CheckSession and ValidateSession.
                    TUrlHandler.ValidateSession is made virtual.
+Apr 11, 2017 V8.45 Added SSL IcsHosts property
+
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -429,6 +432,7 @@ type
     published
         property SslEnable;
         property SslContext;
+        property IcsHosts;                        { V8.45 }
         property OnSslVerifyPeer;
         property OnSslSetSessionIDContext;
         property OnSslSvrNewSession;

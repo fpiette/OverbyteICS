@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.45
+Version:      8.46
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -144,7 +144,7 @@ Apr 11, 2017  V8.45 Added multiple SSL host support to TSslWSocketServer.
                       accepted the connection.  Published client server and remote peer
                       address and port as CServerAddr, CServerPort, CPeerAddr and
                       CPeerPort since many clients need this information.
-
+Apr 12, 2017  V8.46 New RootCA property is now a String (filename or base84 string)
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -215,8 +215,8 @@ uses
     OverbyteIcsUtils, OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 845;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.45 ';
+    WSocketServerVersion     = 846;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.46 ';
 
 type
     TCustomWSocketServer       = class;
@@ -670,7 +670,8 @@ type
     TSslWSocketServer = class(TWSocketServer)
     protected
         FIcsHosts: TIcsHostCollection;            { V8.45 }
-        FRootCA:   TX509Base;                     { V8.45 }
+        FRootCAX509: TX509Base;                   { V8.46 }
+        FRootCA: String;                          { V8.46 }
         FDHParams: String;                        { V8.45 }
         procedure TriggerClientConnect(Client : TWSocketClient; Error : Word); override;
         function  MultiListenItemClass: TWSocketMultiListenItemClass; override;
@@ -686,8 +687,6 @@ type
         procedure SetIcsHosts(const Value: TIcsHostCollection);      { V8.45 }
         function  FindBinding(const MAddr: String; MPort: Integer;
                                  var MIndex: Integer): boolean;      { V8.45 }
-        function  GetRootCA: TX509Base;                              { V8.45 }
-        procedure SetRootCA(const Value: TX509Base);                 { V8.45 }
         procedure ValidateHosts; virtual;                            { V8.45 }
     published
         property  SslContext;
@@ -700,8 +699,8 @@ type
         property  SslAcceptableHosts;
         property  IcsHosts: TIcsHostCollection           read  GetIcsHosts
                                                          write SetIcsHosts;   { V8.45 }
-        property  RootCA: TX509Base                      read  GetRootCA
-                                                         write SetRootCA;     { V8.45 }
+        property  RootCA: String                         read  FRootCA
+                                                         write FRootCA;       { V8.46 }
         property  DHParams: String                       read  FDHParams
                                                          write FDHParams;     { V8.45 }
         property  OnSslVerifyPeer;
@@ -2139,7 +2138,7 @@ begin
     Addr             := '0.0.0.0';
     SslMode          := sslModeServer;
     FIcsHosts        := TIcsHostCollection.Create(self);            { V8.45 }
-    FRootCA          := TX509Base.Create(self);                       { V8.45 }
+    FRootCAX509      := TX509Base.Create(self);                     { V8.46 }
 end;
 
 
@@ -2150,9 +2149,9 @@ begin
         FIcsHosts.Free;
         FIcsHosts := nil;
     end;
-    if Assigned(FRootCA) then begin
-        FRootCA.Free;
-        FRootCA := nil;
+    if Assigned(FRootCAX509) then begin
+        FRootCAX509.Free;
+        FRootCAX509 := nil;
     end;
     inherited Destroy;
 end;
@@ -2257,19 +2256,6 @@ begin
 end;
 
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TSslWSocketServer.GetRootCA: TX509Base;                              { V8.45 }
-begin
-    Result := FRootCA;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslWSocketServer.SetRootCA(const Value: TX509Base);                 { V8.45 }
-begin
-    FRootCA := Value;
-end;
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { are we listening on this binding already }
@@ -2345,6 +2331,14 @@ begin
     if FIcsHosts.Count = 0 then Exit;
     FirstSsl := -1;
     FirstHost := True;
+
+ { keep Root CA to validate SSL certificate chains }
+    if FRootCA <> '' then begin    { V8.46 }
+        if (Pos(PEM_STRING_HDR_BEGIN, FRootCA) > 0) then
+            FRootCAX509.LoadCATrustFromString(FRootCA)
+        else
+            FRootCAX509.LoadCATrustFromPemFile(FRootCA);
+    end;
     MultiListenSockets.Clear;
     for I := 0 to FIcsHosts.Count - 1 do begin
          with FIcsHosts [I] do begin
@@ -2474,7 +2468,7 @@ begin
                          ', SSL certificate not loaded - ' + FSslCert);
                     exit ;
                 end;
-                SslCtx.SslCertX509.X509CATrust := FRootCA.X509CATrust;
+                SslCtx.SslCertX509.X509CATrust := FRootCAX509.X509CATrust;
                 FCertDomains := IcsUnwrapNames (SslCtx.SslCertX509.SubAltNameDNS);
                 FCertExiry := SslCtx.SslCertX509.ValidNotAfter;
                 FCertValRes := SslCtx.SslCertX509.ValidateCertChain(HostNames.Text, FCertInfo, FCertErrs);

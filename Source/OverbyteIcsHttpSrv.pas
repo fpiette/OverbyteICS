@@ -1663,8 +1663,8 @@ type
                      var Ctx: TSslContext; var ErrCode: TTlsExtError); virtual;
         function  GetIcsHosts: TIcsHostCollection;                    { V8.45 }
         procedure SetIcsHosts(const Value: TIcsHostCollection);       { V8.45 }
-        function  GetRootCA: TX509Base;                               { V8.45 }
-        procedure SetRootCA(const Value: TX509Base);                  { V8.45 }
+        function  GetRootCA: String;                                  { V8.46 }
+        procedure SetRootCA(const Value: String);                     { V8.46 }
         function  GetDHParams: String;                                { V8.45 }
         procedure SetDHParams(const Value: String);                   { V8.45 }
     public
@@ -1679,7 +1679,7 @@ type
                                                            write SetSslContext;
         property  IcsHosts           : TIcsHostCollection  read  GetIcsHosts
                                                            write SetIcsHosts;    { V8.45 }
-        property  RootCA             : TX509Base           read  GetRootCA       
+        property  RootCA             : String              read  GetRootCA
                                                            write SetRootCA;      { V8.45 }
         property  DHParams           : String              read  GetDHParams
                                                            write SetDHParams;    { V8.45 }
@@ -6760,20 +6760,20 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TCustomSslHttpServer.GetRootCA: TX509Base;                              { V8.45 }
+function TCustomSslHttpServer.GetRootCA: String;                                  { V8.46 }
 begin
     if Assigned(FWSocketServer) then
-        Result := TSslWSocketServer(FWSocketServer).GetRootCA
+        Result := TSslWSocketServer(FWSocketServer).RootCA
     else
-        Result := nil;
+        Result := '';
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomSslHttpServer.SetRootCA(const Value: TX509Base);                 { V8.45 }
+procedure TCustomSslHttpServer.SetRootCA(const Value: String);                    { V8.46 }
 begin
     if Assigned(FWSocketServer) then
-        TSslWSocketServer(FWSocketServer).SetRootCA(Value);
+        TSslWSocketServer(FWSocketServer).RootCA := Value;
 end;
 
 

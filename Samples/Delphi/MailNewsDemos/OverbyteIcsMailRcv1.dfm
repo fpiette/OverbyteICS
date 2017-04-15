@@ -388,7 +388,6 @@ object POP3ExcercizerForm: TPOP3ExcercizerForm
       Width = 97
       Height = 21
       Style = csDropDownList
-      ItemHeight = 13
       TabOrder = 33
       Items.Strings = (
         'None'

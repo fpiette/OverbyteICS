@@ -97,7 +97,6 @@ object BatchDnsLookupForm: TBatchDnsLookupForm
     ScrollBars = ssBoth
     TabOrder = 0
     WordWrap = False
-    ExplicitHeight = 240
   end
   object ResultMemo: TMemo
     Left = 190
@@ -111,7 +110,6 @@ object BatchDnsLookupForm: TBatchDnsLookupForm
     ScrollBars = ssBoth
     TabOrder = 1
     WordWrap = False
-    ExplicitHeight = 240
   end
   object MinEdit: TEdit
     Left = 40
@@ -150,7 +148,6 @@ object BatchDnsLookupForm: TBatchDnsLookupForm
     Height = 21
     Style = csDropDownList
     Anchors = [akLeft, akBottom]
-    ItemHeight = 13
     ItemIndex = 0
     TabOrder = 5
     Text = 'sfAny'
@@ -161,7 +158,6 @@ object BatchDnsLookupForm: TBatchDnsLookupForm
       'sfAnyIPv6'
       'sfIPv4 (old API)'
       'sfIPv6')
-    ExplicitTop = 334
   end
   object UseThread: TCheckBox
     Left = 210

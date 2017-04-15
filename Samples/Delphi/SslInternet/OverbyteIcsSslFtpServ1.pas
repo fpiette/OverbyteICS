@@ -8,11 +8,11 @@ Description:  This is a demo program showing how to use the TFtpServer
               In production program, you should add code to implement
               security issues.
 Creation:     April 21, 1998
-Version:      8.01
+Version:      8.38
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2016 by François PIETTE
+Legal issues: Copyright (C) 1998-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -72,7 +72,8 @@ Dec 9, 2014  V8.00 Angus added SslHandshakeRespMsg for better error handling
 May 24, 2016 V8.01 Angus added OverbyteIcsLIBEAY, OverbyteIcsSsLeay to uses
 Nov 12 2016  V8.37 Set friendly errors
                    Specify minimum and maximum SSL version supported
-                   Allow server IP address to be specified 
+                   Allow server IP address to be specified
+Apr 15, 2017  V8.38 FPiette removed compiler warnings for D10.2
 
 Sample entry from ftpaccounts-default.ini
 
@@ -89,6 +90,10 @@ ReadOnly=false
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslFtpServ1;
 
+{$I OVERBYTEICSDEFS.INC}
+{$IFDEF DELPHI25_UP}
+   {$WARN SYMBOL_DEPRECATED OFF}
+{$ENDIF}
 {$IFNDEF USE_SSL}
   {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
 {$ENDIF}

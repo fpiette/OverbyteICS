@@ -7,11 +7,11 @@ Object:       This program is a demo for TMimeDecode component.
               decode messages received with a POP3 component.
               MIME is described in RFC-1521. headers are described if RFC-822.
 Creation:     March 08, 1998
-Version:      8.00
+Version:      8.01
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2010 by François PIETTE
+Legal issues: Copyright (C) 1998-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -65,7 +65,8 @@ Oct 9, 2009   V7.21 Angus - more content headers shown
 Feb 14, 2012  V7.22 Angus - test TMimeTypesList component
 Oct 2, 2012   V8.00 Angus - restored missing buttons to form
                             DecodeFileExButton uses ContentTypeGetExtn to display Reg Extn
-                            
+Apr 15, 2017  V8.01 FPiette - Removed compiler warning
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMimeDemo1;
@@ -612,7 +613,7 @@ begin
                       ', Charset: '  + String(PCharset) +
                       ', ApplType: ' + String(PApplType) +
                       ', Content Id: ' + String(PContentId) +
-                      ', Reg Extn: ' + ContentTypeGetExtn (PContentType, CLSID)) ;    { V8.00 }
+                      ', Reg Extn: ' + ContentTypeGetExtn (String(PContentType), CLSID)) ;    { V8.00 }
                  // the content of each part is in PartStream
                  // but we don't attempt to display it here, only the size
                  // you can save to file, ie PartStream.SaveToFile (fname)

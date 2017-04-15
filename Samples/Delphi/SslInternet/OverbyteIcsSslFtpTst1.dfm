@@ -1028,7 +1028,6 @@ object FtpReceiveForm: TFtpReceiveForm
       Width = 165
       Height = 21
       Style = csDropDownList
-      ItemHeight = 13
       TabOrder = 58
       Items.Strings = (
         'sslTypeNone'
@@ -1446,7 +1445,6 @@ object FtpReceiveForm: TFtpReceiveForm
       Top = 71
       Width = 126
       Height = 21
-      ItemHeight = 13
       TabOrder = 15
       Text = 'UTF8 ON'
       Items.Strings = (
@@ -1479,6 +1477,7 @@ object FtpReceiveForm: TFtpReceiveForm
     BandwidthLimit = 10000
     BandwidthSampling = 1000
     SocketFamily = sfIPv4
+    SocketErrs = wsErrTech
     SslContext = SslContext1
     SslType = sslTypeNone
     SslAcceptableHosts.Strings = (
@@ -1495,16 +1494,36 @@ object FtpReceiveForm: TFtpReceiveForm
   end
   object SslContext1: TSslContext
     IcsLogger = IcsLogger1
+    SslDHParamLines.Strings = (
+      '-----BEGIN DH PARAMETERS-----'
+      'MIICCAKCAgEA45KZVdTCptcakXZb7jJvSuuOdMlUbl1tpncHbQcYbFhRbcFmmefp'
+      'bOmZsTowlWHQpoYRRTe6NEvYox8J+44i/X5cJkMTlIgMb0ZBty7t76U9f6qAId/O'
+      '6elE0gnk2ThER9nmBcUA0ZKgSXn0XCBu6j5lzZ0FS+bx9OVNhlzvIFBclRPXbI58'
+      '71dRoTjOjfO1SIzV69T3FoKJcqur58l8b+no/TOQzekMzz4XJTRDefqvePhj7ULP'
+      'Z/Zg7vtEh11h8gHR0/rlF378S05nRMq5hbbJeLxIbj9kxQunETSbwwy9qx0SyQgH'
+      'g+90+iUCrKCJ9Fb7WKqtQLkQuzJIkkXkXUyuxUuyBOeeP9XBUAOQu+eYnRPYSmTH'
+      'GkhyRbIRTPCDiBWDFOskdyGYYDrxiK7LYJQanqHlEFtjDv9t1XmyzDm0k7W9oP/J'
+      'p0ox1+WIpFgkfv6nvihqCPHtAP5wevqXNIQADhDk5EyrR3XWRFaySeKcmREM9tbc'
+      'bOvmsEp5MWCC81ZsnaPAcVpO66aOPojNiYQZUbmm70fJsr8BDzXGpcQ44+wmL4Ds'
+      'k3+ldVWAXEXs9s1vfl4nLNXefYl74cV8E5Mtki9hCjUrUQ4dzbmNA5fg1CyQM/v7'
+      'JuP6PBYFK7baFDjG1F5YJiO0uHo8sQx+SWdJnGsq8piI3w0ON9JhUvMCAQI='
+      '-----END DH PARAMETERS-----')
     SslVerifyPeer = False
     SslVerifyDepth = 9
     SslVerifyFlags = []
+    SslCheckHostFlags = []
+    SslSecLevel = sslSecLevel80bits
     SslOptions = [sslOpt_NO_SSLv2]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = []
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
     SslVersionMethod = sslV23_CLIENT
+    SslMinVersion = sslVerSSL3
+    SslMaxVersion = sslVerMax
+    SslECDHMethod = sslECDHAuto
     SslSessionTimeout = 0
     SslSessionCacheSize = 20480
+    AutoEnableBuiltinEngines = False
     Left = 90
     Top = 440
   end
@@ -1512,6 +1531,7 @@ object FtpReceiveForm: TFtpReceiveForm
     TimeStampFormatString = 'hh:nn:ss:zzz'
     TimeStampSeparator = ' '
     LogFileOption = lfoOverwrite
+    LogFileEncoding = lfeUtf8
     LogFileName = 'Debug_SslFtpTst.txt'
     LogOptions = []
     Left = 152

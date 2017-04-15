@@ -4,11 +4,11 @@
 Author:       François PIETTE
 Object:       How to use TSslSmtpCli component
 Creation:     09 october 1997
-Version:      2.10
+Version:      2.11
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2011 by François PIETTE
+Legal issues: Copyright (C) 1997-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -47,10 +47,15 @@ Jul 23, 2008 A. Garrels changed code in OnGetDate event handler to prepare
 Aug 03, 2008 A. Garrels changed code in OnGetDate event handler to prepare
              code for Unicode again.
 May 17, 2009 A.Garrels added correct casts to PAnsiChar in SslSmtpClientHeaderLine.
+Apr 15, 2017 V2.11 FPiette removed compiler warnings for D10.2
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslMailSnd1;
 
+{$I OVERBYTEICSDEFS.INC}
+{$IFDEF DELPHI25_UP}
+   {$WARN SYMBOL_DEPRECATED OFF}
+{$ENDIF}
 {$IFNDEF USE_SSL}
   {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
 {$ENDIF}

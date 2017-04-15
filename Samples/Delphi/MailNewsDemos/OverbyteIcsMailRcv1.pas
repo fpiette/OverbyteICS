@@ -266,7 +266,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TPOP3ExcercizerForm.Pop3ClientCapaLine(Sender: TObject);
 begin
-    DisplayMemo.Lines.Add(Pop3Client.LastResponse);
+    DisplayMemo.Lines.Add(String(Pop3Client.LastResponse));
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

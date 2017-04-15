@@ -33,7 +33,6 @@ object SslFtpServerForm: TSslFtpServerForm
     ParentFont = False
     ScrollBars = ssBoth
     TabOrder = 0
-    ExplicitWidth = 461
   end
   object Panel1: TPanel
     Left = 0
@@ -369,6 +368,8 @@ object SslFtpServerForm: TSslFtpServerForm
     SslVerifyPeer = False
     SslVerifyDepth = 9
     SslVerifyFlags = []
+    SslCheckHostFlags = []
+    SslSecLevel = sslSecLevel80bits
     SslOptions = [sslOpt_NO_SSLv2]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = []
@@ -448,6 +449,7 @@ object SslFtpServerForm: TSslFtpServerForm
     TimeStampFormatString = 'hh:nn:ss:zzz'
     TimeStampSeparator = ' '
     LogFileOption = lfoOverwrite
+    LogFileEncoding = lfeUtf8
     LogFileName = 'DEBUG_SSLFtpSrv.txt'
     LogOptions = []
     Left = 140

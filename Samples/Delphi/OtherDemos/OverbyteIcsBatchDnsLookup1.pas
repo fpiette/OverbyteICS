@@ -4,7 +4,7 @@ Program:      NsLookup
 Description:  ICS batch async DNS lookup DnsLookup (IPv6 and IPv4)
 Author:       François Piette
 Creation:      ?
-Version:      8.43
+Version:      8.44
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -33,17 +33,22 @@ Legal issues: Copyright (C) 1999-2017 by François PIETTE
               3. This notice may not be removed or altered from any source
                  distribution.
 
-Mar 7, 2017  V8.43  Added Use Thread tick box so wsockets uses thread for
+Mar  7, 2017  V8.43  Added Use Thread tick box so wsockets uses thread for
                     all DNS lookups instead of just IPv4
+Apr 15, 2017  V8.44 FPiette removed compiler warnings for D10.2
 }
 
 interface
 
 {$WARN SYMBOL_PLATFORM OFF}
+{$I OVERBYTEICSDEFS.INC}
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Contnrs,
+{$IFDEF DELPHI24_UP}
+  UITypes,
+{$ENDIF}
   OverbyteIcsUtils,
   OverbyteIcsIniFiles,
   OverbyteIcsWndControl,

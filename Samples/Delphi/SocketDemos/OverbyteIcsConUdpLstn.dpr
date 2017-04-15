@@ -10,7 +10,7 @@ Object:       Demo program to show how to use TWSocket object inside a console
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2005-2010 by François PIETTE
+Legal issues: Copyright (C) 2005-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -45,6 +45,9 @@ Updates:
 program OverbyteIcsConUdpLstn;
 
 {$I OVERBYTEICSDEFS.INC}
+{$IFDEF DELPHI25_UP}
+{$WARN SYMBOL_DEPRECATED OFF}
+{$ENDIF}
 {$IFDEF VER80}
     Bomb('Sorry, Delphi 1 does not support console mode programs');
 {$ENDIF}

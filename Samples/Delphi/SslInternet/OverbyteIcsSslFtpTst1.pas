@@ -2,14 +2,14 @@
 
 Author:       François PIETTE
 Creation:     Aug 1997
-Version:      8.00
+Version:      8.01
 Object:       Demo for TFtpClient object (RFC 959 implementation)
               It is a graphical FTP client program
               Compatible with Delphi 1, 2, 3, 4 and 5
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2011 by François PIETTE
+Legal issues: Copyright (C) 1997-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -71,10 +71,15 @@ Dec 19, 2004  V2.30 Added Trim() and similar for Delphi 1 compatibility.
 Apr 16, 2009  V7.07 Angus assume STREAM64, USE_ONPROGRESS64_ONLY, removed OnProgress
               Removed local GetFileSize using IcsGetFileSize instead
 Dec 9, 2014   V8.00 Angus added SslHandshakeRespMsg for better error handling
+Apr 15, 2017  V8.01 FPiette removed compiler warnings for D10.2
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslFtpTst1;
 
+{$I OVERBYTEICSDEFS.INC}
+{$IFDEF DELPHI25_UP}
+   {$WARN SYMBOL_DEPRECATED OFF}
+{$ENDIF}
 {$IFNDEF USE_SSL}
   {$MESSAGE FATAL 'Define conditional define "USE_SSL" in the project options'};
 {$ENDIF}

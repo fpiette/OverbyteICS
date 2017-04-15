@@ -2,13 +2,13 @@
 
 Author:       François PIETTE
 Creation:     Aug 1997
-Version:      8.00
+Version:      8.01
 Object:       Demo for TFtpClient object (RFC 959 implementation)
               It is a graphical FTP client program
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2012 by François PIETTE
+Legal issues: Copyright (C) 1997-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -89,6 +89,7 @@ Mar 01, 2011  V7.09 Arno enable/disable the proxy-controls depending on proxy
               setting.
 Apr 09, 2012  V7.10 Arno - Changed OnRequestDone
 May 2012 - V8.00 - this is a Windows only demo, IPv4 only
+Apr 15, 2017  V8.01 FPiette - Removed compiler warning
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpTst1;
@@ -399,6 +400,10 @@ const
     KeyProxyUser      = 'ProxyUser';
     KeyProxyPassword  = 'ProxyPassword';
 
+
+{$IFDEF DELPHI25_UP}
+{$WARN SYMBOL_DEPRECATED OFF}
+{$ENDIF}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { To debug event driven programs, it is often handy to just use writeln to  }

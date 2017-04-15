@@ -6,13 +6,13 @@ Object:       This demo shows how to use TSmtpCli component within a console
               according to your situation. The mail message is also sent to
               me (CCi).
 Creation:     Dec 24, 2001
-Version:      1.03
+Version:      1.04
 EMail:        http://www.overbyte.be        http://www.rtfm.be/fpiette
               francois.piette@overbyte.be   francois.piette@rtfm.be
                                             francois.piette@pophost.eunet.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2001-2010 by Franois PIETTE
+Legal issues: Copyright (C) 2001-2017 by Franois PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -46,6 +46,7 @@ Nov 11, 2002 V1.01 Changed MsgLine argument of SmtpGetData from PChar to
                    pointer to reflect component change.
 Apr 20, 2003 V1.02 Corrected comment about SignOn: It's a domain name.
 May 27, 2009 V1.03 A. Garrels Delphi 2009 support.
+Apr 15, 2017 V1.04 FPiette - Removed compiler warning
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -58,6 +59,9 @@ program OverbyteIcsConSmtp;
 {$IFNDEF NOFORMS}
 Bomb('Please add NOFORMS to your project defines');
 {$ENDIF}
+{$IFDEF DELPHI25_UP}
+{$WARN SYMBOL_DEPRECATED OFF}
+{$ENDIF}
 
 uses
   Messages,
@@ -68,7 +72,7 @@ uses
 
 const
   ConSmtpVersion = 103;
-  CopyRight      = ' ConSmtp (c) 2001-2010 by Francois PIETTE. V1.03';
+  CopyRight      = ' ConSmtp (c) 2001-2017 by Francois PIETTE. V1.03';
 
 { You *MUST* change the settings below so that your ISP mail server is      }
 { addressed. If you don't change those settings, you'll use my ISP SMTP     }

@@ -18,11 +18,11 @@ Description:  This is a demo showing how to use a THttpCli component in a DLL.
               the document pointed by the URL is not found.
               To debug the DLL, enter DllTst1.exe as a host application into
               the run parameters.
-Version:      1.01
+Version:      1.02
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2012 by François PIETTE
+Legal issues: Copyright (C) 2004-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -53,6 +53,7 @@ Legal issues: Copyright (C) 2004-2012 by François PIETTE
 
 History:
 Jan 29, 2012 V1.01 Arno fixed it.
+Apr 15, 2017 V1.02 FPiette - Removed compiler warning
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -61,6 +62,11 @@ library OverbyteIcsDll2;
 {$DEFINE NOFORMS}   // This will avoid forms unit and reduce DLL size
 // You should add NOFORMS in the project options to be sure to have all units
 // compiled with this option, specially wsocket.pas.
+
+{$I OVERBYTEICSDEFS.INC}
+{$IFDEF DELPHI25_UP}
+{$WARN SYMBOL_DEPRECATED OFF}
+{$ENDIF}
 
 uses
   Windows,

@@ -41,6 +41,8 @@ History:
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverByteIcsWndControlTest1;
 
+{$I OVERBYTEICSDEFS.INC}
+
 interface
 
 uses
@@ -280,7 +282,9 @@ var
     Temp         : TWSocket;
 begin
     Display('Allocating...');
+{$IFNDEF DELPHI25_UP}
     Temp := nil;
+{$ENDIF}
     I := 0;
     while I < 65536 do begin
         if I >= Length(WSocketArray) then

@@ -1693,7 +1693,6 @@ object FtpReceiveForm: TFtpReceiveForm
           Top = 73
           Width = 126
           Height = 21
-          ItemHeight = 13
           TabOrder = 16
           Text = 'UTF8 ON'
           Items.Strings = (
@@ -1777,7 +1776,6 @@ object FtpReceiveForm: TFtpReceiveForm
         Top = 7
         Width = 145
         Height = 21
-        ItemHeight = 0
         TabOrder = 0
         Text = 'ProxyTypeComboBox'
         OnCloseUp = ProxyTypeComboBoxCloseUp
@@ -1787,7 +1785,6 @@ object FtpReceiveForm: TFtpReceiveForm
         Top = 8
         Width = 145
         Height = 21
-        ItemHeight = 0
         TabOrder = 1
         Text = 'ProxyHttpAuthTypeComboBox'
         OnCloseUp = ProxyHttpAuthTypeComboBoxCloseUp
@@ -1828,12 +1825,12 @@ object FtpReceiveForm: TFtpReceiveForm
   end
   object FtpClient1: TFtpClient
     Timeout = 15
-    MultiThreaded = False
     Port = 'ftp'
     CodePage = 0
     DataPortRangeStart = 0
     DataPortRangeEnd = 0
     LocalAddr = '0.0.0.0'
+    LocalAddr6 = '::'
     DisplayFileFlag = False
     Binary = True
     ShareMode = ftpShareExclusive
@@ -1850,6 +1847,7 @@ object FtpReceiveForm: TFtpReceiveForm
     BandwidthLimit = 10000
     BandwidthSampling = 1000
     SocketFamily = sfIPv4
+    SocketErrs = wsErrTech
     Left = 38
     Top = 446
   end

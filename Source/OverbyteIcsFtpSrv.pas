@@ -491,6 +491,7 @@ uses
     Ics.Posix.Messages,
     System.IOUtils,
 {$ENDIF}
+    {$IFDEF RTL_NAMESPACES}System.Types{$ELSE}Types{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
 {$IFNDEF NOFORMS}

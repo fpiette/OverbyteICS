@@ -14441,7 +14441,9 @@ begin
     LockNewSessCB.Enter;
     try
 {$ENDIF}
+{$IFNDEF DELPHI25_UP}
         Result := 0;
+{$ENDIF}
         Obj := TCustomSslWSocket(f_SSL_get_ex_data(SSL, 0));
         if not Assigned(Obj) then
             raise Exception.Create('NewSessionCallback Obj not assigned');
@@ -14496,7 +14498,9 @@ begin
     LockGetSessCB.Enter;
     try
 {$ENDIF}
+{$IFNDEF DELPHI25_UP}
         Result := nil;
+{$ENDIF}
         Obj := TCustomSslWSocket(f_SSL_get_ex_data(SSL, 0));
         if not Assigned(Obj) then
             raise Exception.Create('GetSessionCallback Obj not assigned');

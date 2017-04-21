@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.41
+Version:      8.46
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -85,6 +85,8 @@ Jan 27, 2017 V8.40 Angus display multiple certificate file formats
                      a different format.  Also combining keys and certificates in a file.
 Feb 24, 2017 V8.41 Finished changes for TSslCertTools
                    Simplified creating bundles from Windows with new functions
+Apr 20, 2017 V8.46 Force random serial for each new certificate to avoid duplicates
+
 
 
 Pending
@@ -122,10 +124,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 841;
-     PemToolDate        = 'Feb 24, 2017';
+     PemToolVersion     = 846;
+     PemToolDate        = 'Apr 20, 2017';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2017 by François PIETTE V8.41 ';
+     CopyRight : String = '(c) 2003-2017 by François PIETTE V8.46 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -1175,6 +1177,7 @@ begin
 //        SerialNum
         AddComments       := CertAddComment.Checked;
         CertDigest        := digestlist[CertSignHash.ItemIndex];
+        SerialNum         := 0;   { V8.46 force random serial }
     end;
 end;
 

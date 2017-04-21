@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.45
+Version:      8.46
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1202,8 +1202,11 @@ Apr 11, 2017  V8.45 Added multiple SSL host support to TSslWSocketServer.
                     Added TriggerSslServerName so it can be overriden.
                     Added TSslSrvSecurity SSL server security level, used by
                        TIcsHost, sets protocol, cipher and SslSecLevel.
+Apr 20, 2017  V8.46 Added sslCiphersNoDH which blocks DH and DHE ciphers,
+                       needed for forums.embarcadero.com
+                    Adjusted a V8.42 cross platform fix
 
-
+                    
 Use of certificates for SSL clients:
 Client SSL applications will usually work without any certificates because all
 the encryption is done by the server.  If a client needs to confirm the identity
@@ -1406,14 +1409,15 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 845;
-  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.45 ';
+  WSocketVersion            = 846;
+  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.46 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
 {$IFDEF MSWINDOWS}
 type
-  TSockAddr      = sockaddr_in;   { V8.42 assists cross platform use }
+//TSockAddr      = sockaddr_in;   { V8.42 assists cross platform use }
+  TSockAddrIn    = sockaddr_in;   { V8.46 assists cross platform use }
   TSockAddrIn6   = sockaddr_in6;
 {$ENDIF}
 
@@ -2505,6 +2509,9 @@ const
     kindly publishes it's internal recommendations for OpenSSL server configuration, see below. }
     sslCiphersNormal = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH';
     sslCiphersServer = 'TLSv1+HIGH:!SSLv2:RC4+MEDIUM:!aNULL:!eNULL:!3DES:!CAMELLIA@STRENGTH';
+
+  { V8.46 similar to normal but blocking DH and DHE ciphers, needed for forums.embarcadero.com }
+    sslCiphersNoDH = 'ALL:!ADH:!DH:RC4+RSA:+SSLv2:@STRENGTH';
 
 { from https://wiki.mozilla.org/Security/Server_Side_TLS - Version 4.0 - February 2016
    Note these ciphers change peridically, old ones remain with their version

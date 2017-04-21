@@ -144,7 +144,9 @@ Apr 11, 2017  V8.45 Added multiple SSL host support to TSslWSocketServer.
                       accepted the connection.  Published client server and remote peer
                       address and port as CServerAddr, CServerPort, CPeerAddr and
                       CPeerPort since many clients need this information.
-Apr 12, 2017  V8.46 New RootCA property is now a String (filename or base84 string)
+Apr 20, 2017  V8.46 New RootCA property is now a String (filename or base84 string)
+                    Improved IcsHost.GetDisplayName a little
+                    Set IcsLogger for SSL context
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2373,6 +2375,7 @@ begin
                 if NOT Assigned(SslCtx) then
                     SslCtx := TSslContext.Create(Self);
                 if FirstSsl < 0 then FirstSsl := I;
+                SslCtx.IcsLogger := IcsLogger;                           { V8.46 }
                 SslCtx.SslVersionMethod := sslBestVer_SERVER;
                 SslCtx.SslMinVersion := sslVerTLS1;
                 SslCtx.SslMaxVersion := sslVerMax;
@@ -2591,7 +2594,19 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TIcsHost.GetDisplayName: string;
 begin
-    Result := FHostTag + ' - ' + FBindIpAddr;
+    Result := FHostTag + ' - ';
+    if FDescr <> '' then
+        Result := Result + FDescr
+    else begin
+        Result := Result + FBindIpAddr + ':';
+        if FBindNonPort = 0 then
+            Result := Result + IntToStr(FBindSslPort)
+        else begin
+           Result := Result + IntToStr(FBindNonPort);
+            if FBindSslPort <> 0 then
+                Result := Result + '/' + IntToStr(FBindSslPort);
+        end;
+    end;
 end;
 
 

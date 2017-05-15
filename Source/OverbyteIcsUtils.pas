@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.45
+Version:      8.47
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -141,7 +141,8 @@ Nov 15, 2016 V8.38 Angus moved IcsGetFileVerInfo from OverbyteIcsSSLEAY
                    Added IcsVerifyTrust to check authenticode code signing digital
                      certificate and hash on EXE and DLL files, note currently
                      ignores certificate revoke checking since so slow
-Apr 4, 2017 V8.45  Added $EXTERNALSYM to satisfy C++. thanks to Jarek Karciarz
+Apr 4, 2017  V8.45 Added $EXTERNALSYM to satisfy C++. thanks to Jarek Karciarz
+May 12, 2017 V8.47 Added IcsCheckTrueFalse
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -506,6 +507,8 @@ const
     function IcsLoByte(W: Word): Byte; {$IFDEF USE_INLINE} inline; {$ENDIF}
     function IcsLoWord(LW: LongWord): Word; {$IFDEF USE_INLINE} inline; {$ENDIF}
     procedure IcsCheckOSError(ALastError: Integer); {$IFDEF USE_INLINE} inline; {$ENDIF}
+    function IcsCheckTrueFalse(const Value: string): boolean;    { V8.47 }
+
 
 { Moved from OverbyteIcsLibrary.pas prefix "_" replaced by "Ics" }
     function IcsIntToStrA(N : Integer): AnsiString;
@@ -616,6 +619,7 @@ function IcsGetFileVerInfo(
 { V8.45 added $EXTERNALSYM to satisfy C++ }
 const
   WINTRUST_ACTION_GENERIC_VERIFY_V2: TGUID = '{00AAC56B-CD44-11d0-8CC2-00C04FC295EE}' ;
+  {$EXTERNALSYM WINTRUST_ACTION_GENERIC_VERIFY_V2}
 
   TRUST_E_NOSIGNATURE = HRESULT($800B0100);
   {$EXTERNALSYM TRUST_E_NOSIGNATURE}
@@ -5540,6 +5544,17 @@ begin
     end ;
 end ;                   
 {$ENDIF}
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ INI file support read TRUE, true or 1 for a boolean }
+function IcsCheckTrueFalse(const Value: string): boolean;   { V8.47 }
+begin
+    result := (IcsLowerCase((Copy(Value, 1, 1))) = 't') OR (Value = '1') ;
+end;
+
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 

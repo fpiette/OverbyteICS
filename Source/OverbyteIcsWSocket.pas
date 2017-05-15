@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.46
+Version:      8.47
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1205,6 +1205,7 @@ Apr 11, 2017  V8.45 Added multiple SSL host support to TSslWSocketServer.
 Apr 20, 2017  V8.46 Added sslCiphersNoDH which blocks DH and DHE ciphers,
                        needed for forums.embarcadero.com
                     Adjusted a V8.42 cross platform fix
+May 15, 2017  V8.47 Fixed ValidateCertChain ignoring some warnings
 
                     
 Use of certificates for SSL clients:
@@ -1409,8 +1410,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 846;
-  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.46 ';
+  WSocketVersion            = 847;
+  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.47 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -18637,10 +18638,15 @@ begin
     end;
 
   { check host is listed - optional, may not be using SNI }
+  { WARNING - Host may have several lines, should check each one }
     if (Host <> '') and NOT PostConnectionCheck (Host) then begin
-       Result := chainWarn;
-       ErrStr := 'SSL certificate expected host name not found: ' +
-                         Host + ', cert domains: ' + UnwrapNames(SubAltNameDNS);
+        Result := chainWarn;
+        ErrStr := 'SSL certificate expected host name not found: ' +
+                         Host + ', certificate DNS: ';
+        if (SubAltNameDNS <> '') then         { V8.47 sometimes blank }
+            ErrStr := ErrStr + UnwrapNames(SubAltNameDNS)
+        else
+            ErrStr := ErrStr + SubjectCName;
     end;
 
  { self signed means nothing to check }
@@ -18696,7 +18702,7 @@ begin
     { see if server signed directly by trusted CA }
         if CertIssuer <> '' then begin
             if IsCATrustLoaded and FindCA(CertIssuer) then begin
-                Result := chainOK;
+                if Result = chainFail then Result := chainOK;  // no warnings so OK  V8.47
                 Exit;
             end;
         end;
@@ -18704,7 +18710,7 @@ begin
    { see if intermediate signed by a trusted CA }
         if (NextIssuer <> '') then begin
             if IsCATrustLoaded and FindCA(NextIssuer) then begin
-                Result := chainOK;
+                if Result = chainFail then Result := chainOK;  // no warnings so OK  V8.47
                 Exit;
             end;
         end;

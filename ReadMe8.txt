@@ -3,9 +3,11 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.2 Tokyo
 (Aka FPIETTE's Components)
 
 
-Revised: March 21, 2017
+Revised: May 15, 2017
 http://www.overbyte.be/
 http://wiki.overbyte.be/
+http://www.overbyte.eu/
+http://wiki.overbyte.eu/
 
 Table of content:
 -----------------
@@ -577,6 +579,7 @@ properly add all of the available components in this collection:
 > OverbyteIcsNntpCli.pas       NNTP client protocol - send and receive newsgroups messages
 > OverbyteIcsPing.pas          ICMP echo protocol - ping a host
 > OverbyteIcsPop3Prot.pas      POP3 client protocol - get mail from mail server
+> OverbyteIcsProxy.pas         Proxy server protocol - HTTP forward and reverse proxy, and others
 > OverbyteIcsReg.pas           Register design components
 > OverbyteIcsSmtpProt.pas      SMTP client protocol - send mail to server
 > OverbyteIcsSmtpSrv.pas       SMTP server protocol - receive mail from client
@@ -823,7 +826,8 @@ Delphi Win32/Win64 SSL-enabled sample applications
 --------------------------------------------------
 .\Samples\delphi\sslinternet\SslDemos.bpg - Project group
 > OverbyteIcsHttpsTst.dpr         Example of TSslHttpCli component (GET) - ACTIVE!!
-> OverbyteIcsPemTool.dpr          ICS Pem Certificate Tool - Create and import certificates in OpenSLL PEM format
+> OverbyteIcsPemTool.dpr          ICS Pem Certificate Tool - Create and import certificates in many formats  - ACTIVE!!
+> OverbyteIcsProxySslServer.dpr   ICS Proxy server  - ACTIVE!!
 > OverbyteIcsSimpleSslCli.dpr     Example of simple SSL client using TSslWSocket - ACTIVE!!
 > OverbyteIcsSimpleSslServer.dpr  Example of SSL server using TSslWSocket - ACTIVE!!
 > OverbyteIcsSslFtpServ.dpr       General purpose FTP SSL server, uses TSocketServer - ACTIVE!!

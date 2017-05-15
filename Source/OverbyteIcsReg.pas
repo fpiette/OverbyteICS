@@ -10,6 +10,7 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
 Jun 2012 - V8.00 - Angus added SysLog and SNMP components VCL only for now
 Jul 2012   V8.02   Angus added TSslHttpAppSrv
 Sep 2013   V8.03 - Angus added TSmtpSrv and TSslSmtpSrv
+May 2017   V8.45 - Angus added TIcsProxy, TIcsHttpProxy
 }
 
 
@@ -100,6 +101,7 @@ uses
     // VCL only
     OverbyteIcsMultiProgressBar,
     OverbyteIcsEmulVT, OverbyteIcsTnCnx, OverbyteIcsTnEmulVT, OverbyteIcsTnScript,
+    OverbyteIcsProxy,
     {$IFNDEF BCB}
       OverbyteIcsWSocketTS,
     {$ENDIF}
@@ -215,6 +217,8 @@ begin
         TSslWSocketThrdServer,
       {$ENDIF}
         TSslSmtpServer,
+        TIcsProxy,
+        TIcsHttpProxy,
     {$ENDIF VCL}
     {$IFNDEF NO_DYNLOCK}
       TSslDynamicLock,

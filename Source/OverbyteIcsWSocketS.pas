@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.46
+Version:      8.47
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -147,6 +147,16 @@ Apr 11, 2017  V8.45 Added multiple SSL host support to TSslWSocketServer.
 Apr 20, 2017  V8.46 New RootCA property is now a String (filename or base84 string)
                     Improved IcsHost.GetDisplayName a little
                     Set IcsLogger for SSL context
+May 15, 2017  V8.47 IcsHosts keeps file time stamps of SSL certs to check if
+                      changed, and BindInfo with reportable bindings
+                    Added IcsLoadIcsHostsFromIni function which loads IcsHosts from
+                      an open INI file to simplify application creation
+
+
+Pending...
+Nightly SSL cert check reloading new ones and warning about expiry
+Load IcsHosts from INI file
+Validate hosts returns list of all errors instead of stopping on first exception
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -192,6 +202,7 @@ uses
     {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
     {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.Types{$ELSE}Types{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
     OverbyteIcsWinsock,
 {$ENDIF}
 {$IFDEF POSIX}
@@ -214,11 +225,12 @@ uses
 {$ELSE}
     OverbyteIcsWSocket,
 {$ENDIF}
-    OverbyteIcsUtils, OverbyteIcsTypes;
+    OverbyteIcsUtils,
+    OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 846;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.46 ';
+    WSocketServerVersion     = 847;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.47 ';
 
 type
     TCustomWSocketServer       = class;
@@ -564,6 +576,8 @@ type
     FBindNonPort: integer;
     FHostTag: String;
     FDescr: String;
+    FProto: String;
+    FForwardProxy: Boolean;
     FWebDocDir: string;
     FWebTemplDir: string;
     FWebDefDoc: string;
@@ -575,7 +589,10 @@ type
     FSslSrvSecurity: TSslSrvSecurity;
     FCertDomains: string;
     FCertInfo: string;
+    FBindInfo: string;
     FCertExiry: TDateTime;
+    FCertFStamp: Integer;
+    FInterFStamp: Integer;
     FCertErrs: string;
     FCertValRes: TChainResult;
     FBindIdxNone: Integer;
@@ -592,7 +609,10 @@ type
     property DisplayName : String                read  GetDisplayName;
     property CertDomains : String                read  FCertDomains;
     property CertInfo : String                   read  FCertInfo;
+    property BindInfo : String                   read  FBindInfo;
     property CertExiry : TDateTime               read  FCertExiry;
+    property CertFStamp: Integer                 read  FCertFStamp;
+    property InterFStamp: Integer                read  FInterFStamp;
     property CertErrs : String                   read  FCertErrs;
     property CertValRes : TChainResult           read  FCertValRes;
     property BindIdxNone : Integer               read  FBindIdxNone;
@@ -618,6 +638,10 @@ type
                                                  write FHostTag;
     property Descr: String                       read  FDescr
                                                  write FDescr;
+    property Proto: String                       read  FProto
+                                                 write FProto;
+    property ForwardProxy : Boolean              read  FForwardProxy
+                                                 write FForwardProxy;
     property WebDocDir : String                  read  FWebDocDir
                                                  write FWebDocDir;
     property WebTemplDir : String                read  FWebTemplDir
@@ -712,6 +736,11 @@ type
         property  OnSslHandshakeDone;
         property  OnSslServerName;    { V8.07 }
   end;
+
+{ public functions }
+function IcsLoadIcsHostsFromIni(MyIniFile: TCustomIniFile; IcsHosts:
+                TIcsHostCollection; const Prefix: String = 'IcsHost'): Integer;
+
 {$ENDIF} // USE_SSL
 
 implementation
@@ -2297,12 +2326,12 @@ var
     FirstHost: Boolean;
 
     procedure AddBinding(const MAddr: String; MPort: Integer;
-                                    SslFlag: Boolean; var MIndex: Integer);
+                      SslFlag: Boolean; var MIndex: Integer; var Info: String);
     var
-        SockFamily: TSocketFamily;
+        SockFam: TSocketFamily;
         ListenItem: TSslWSocketMultiListenItem;
     begin
-        if (MAddr = '') OR (NOT WSocketIsIPEx (MAddr, SockFamily)) then begin
+        if (MAddr = '') OR (NOT WSocketIsIPEx (MAddr, SockFam)) then begin
             raise ESocketException.Create('Host #' + IntToStr(I) +
                             ', Invalid host listen IP address: ' + MAddr);
             exit ;
@@ -2311,7 +2340,7 @@ var
             FirstHost := False;
             Addr := MAddr;
             Port := IntToStr(MPort);
-            SocketFamily := SockFamily;
+            SocketFamily := SockFam;
             SslEnable := SslFlag;
             MIndex := -1;
         end
@@ -2323,10 +2352,12 @@ var
                 ListenItem := MultiListenSockets [MIndex] as TSslWSocketMultiListenItem;
                 ListenItem.Addr := MAddr;
                 ListenItem.Port := IntToStr(MPort);
-                ListenItem.SocketFamily := SockFamily;
+                ListenItem.SocketFamily := SockFam;
                 ListenItem.SslEnable := SslFlag;
             end;
         end;
+        if Info <> '' then Info := Info + ', ';        { V8.47 }
+        Info := Info + MAddr + ':' + IntToStr(MPort);
     end;
 
 begin
@@ -2345,6 +2376,7 @@ begin
     for I := 0 to FIcsHosts.Count - 1 do begin
          with FIcsHosts [I] do begin
             FCertInfo := '';
+            FBindInfo := '';
             FCertErrs := '';
             FBindIdxNone := -2;  { bindings are -1 to +x }
             FBindIdx2None := -2;
@@ -2355,9 +2387,9 @@ begin
          { create up to four bindings for host, IPv4, IPv6, non-SSL, SSL }
             if (FBindNonPort = 0) and (BindSslPort = 0) then continue;
             if (FBindNonPort > 0) then begin
-                AddBinding(FBindIpAddr, FBindNonPort, False, FBindIdxNone);
+                AddBinding(FBindIpAddr, FBindNonPort, False, FBindIdxNone, FBindInfo);
                 if FBindIpAddr2 <> '' then
-                    AddBinding(FBindIpAddr2, FBindNonPort, False, FBindIdx2None);
+                    AddBinding(FBindIpAddr2, FBindNonPort, False, FBindIdx2None, FBindInfo);
             end;
             if (FBindSslPort > 0) then begin
                 if (FSslCert = '') then begin
@@ -2365,9 +2397,9 @@ begin
                          ', SSL certificate can not be blank');
                     exit ;
                 end;
-                AddBinding(FBindIpAddr, FBindSslPort, True, FBindIdxSsl);
+                AddBinding(FBindIpAddr, FBindSslPort, True, FBindIdxSsl, FBindInfo);
                 if FBindIpAddr2 <> '' then
-                    AddBinding(FBindIpAddr2, FBindSslPort, True, FBindIdx2Ssl);
+                    AddBinding(FBindIpAddr2, FBindSslPort, True, FBindIdx2Ssl, FBindInfo);
             end;
 
      { if using SSL, set-up context with server certificates }
@@ -2435,8 +2467,15 @@ begin
               in the same PEM or PFX bundle file or seperate files, or may be base64 text }
                 if (Pos(PEM_STRING_HDR_BEGIN, FSslCert) > 0) then
                     SslCtx.SslCertX509.LoadFromText(FSslCert, croTry, croTry, FSslPassword)
-                else
+                else begin
+                    FCertFStamp := FileAge(FSslCert);  { keep file time stamp to check nightly }
+                    if FCertFStamp = -1 then begin
+                        raise ESocketException.Create('Host #' + IntToStr(I) +
+                                      ', SSL certificate not found: ' + FSslCert);
+                        exit ;
+                    end;
                     SslCtx.SslCertX509.LoadFromFile(FSslCert, croTry, croTry, FSslPassword);
+                end;
                 if NOT SslCtx.SslCertX509.IsPKeyLoaded then begin
                     if (FSslKey = '') then begin
                         raise ESocketException.Create('Host #' + IntToStr(I) +
@@ -2451,8 +2490,15 @@ begin
                 if (NOT SslCtx.SslCertX509.IsInterLoaded) and (FSslInter <> '') then begin
                     if (Pos(PEM_STRING_HDR_BEGIN, FSslInter) > 0) then
                         SslCtx.SslCertX509.LoadIntersFromString(FSslInter)
-                    else
+                    else begin
+                        FInterFStamp := FileAge(FSslInter);  { keep file time stamp to check nightly }
+                        if FInterFStamp = -1 then begin
+                            raise ESocketException.Create('Host #' + IntToStr(I) +
+                                      ', SSL intermediate certificate not found: ' + FSslInter);
+                            exit ;
+                        end;
                         SslCtx.SslCertX509.LoadIntersFromPemFile(FSslInter);
+                    end;
                 end ;
                 SslCtx.SslVerifyPeer := false;  // don't expect remote client to send us certificate
                 SslCtx.SslSessionTimeout := 300; //sec
@@ -2474,7 +2520,8 @@ begin
                 SslCtx.SslCertX509.X509CATrust := FRootCAX509.X509CATrust;
                 FCertDomains := IcsUnwrapNames (SslCtx.SslCertX509.SubAltNameDNS);
                 FCertExiry := SslCtx.SslCertX509.ValidNotAfter;
-                FCertValRes := SslCtx.SslCertX509.ValidateCertChain(HostNames.Text, FCertInfo, FCertErrs);
+             { V8.47 warning, currently only checking first Host name }
+                FCertValRes := SslCtx.SslCertX509.ValidateCertChain(HostNames[0], FCertInfo, FCertErrs);
                 if FCertValRes = chainOK then
                     FCertErrs := 'Chain Validated OK'
                 else begin
@@ -2656,6 +2703,56 @@ function TIcsHostCollection.GetOwner: TPersistent;
 begin
   Result := FOwner;
 end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsLoadIcsHostsFromIni(MyIniFile: TCustomIniFile; IcsHosts:
+                TIcsHostCollection; const Prefix: String = 'IcsHost'): Integer;
+var
+    J: Integer;
+    section, S: String;
+begin
+    Result := 0;
+    if NOT Assigned (MyIniFile) then
+        raise ESocketException.Create('Must open and assign INI file first');
+    if NOT Assigned (IcsHosts) then
+        raise ESocketException.Create('Must assign IcsHosts first');
+    IcsHosts.Clear;
+
+  { allow up to 100 hosts }
+    for J := 1 to 100 do begin
+        section := Prefix + IntToStr (J);
+        S := IcsTrim(MyIniFile.ReadString(section, 'Hosts', ''));
+        if S = '' then continue;
+        if NOT IcsCheckTrueFalse(MyIniFile.ReadString(section, 'Enabled', 'False')) then continue;
+        IcsHosts.Add;
+        Result := Result + 1;
+
+    { read site hosts from INI file   }
+        with IcsHosts[IcsHosts.Count - 1] do begin
+            HostEnabled := True;
+            HostNames.CommaText := StringReplace(IcsLowercase(S), ' ', '', [rfReplaceAll]);
+            BindIpAddr := MyIniFile.ReadString(section, 'BindIpAddr', '');
+            BindIpAddr2 := MyIniFile.ReadString(section, 'BindIpAddr2', '');
+            BindNonPort := MyIniFile.ReadInteger(section, 'BindNonPort', 0);
+            BindSslPort := MyIniFile.ReadInteger(section, 'BindSslPort', 0);
+            HostTag := IcsTrim(MyIniFile.ReadString(section, 'HostTag', ''));
+            Descr := IcsTrim(MyIniFile.ReadString(section, 'Descr', ''));
+            ForwardProxy := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'ForwardProxy', 'False'));
+            Proto := IcsTrim(MyIniFile.ReadString(section, 'Proto', ''));
+            if BindSslPort <> 0 then begin
+                SslSrvSecurity := TSslSrvSecurity(MyIniFile.ReadInteger(section, 'SslSecLevel', 4));
+                SslCert := IcsTrim(MyIniFile.ReadString(section, 'SslCert', ''));
+                SslKey := IcsTrim(MyIniFile. ReadString(section, 'SslKey', ''));
+                SslPassword := IcsTrim(MyIniFile.ReadString(section, 'SslPassword', ''));
+                SslInter := IcsTrim(MyIniFile.ReadString(section, 'SslInter', ''));
+            end;
+        end;
+    end;
+end;
+
+
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

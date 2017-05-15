@@ -34,6 +34,7 @@ package OverbyteIcsD2007Run;
 {$R '..\Source\OverbyteIcsSysLogServer.dcr'}
 {$R '..\Source\OverbyteIcsSnmpCli.dcr'}
 {$R '..\source\OverbyteIcsSmtpSrv.dcr'}
+{$R '..\source\OverbyteIcsProxy.dcr'}
 {$ALIGN 8}
 { ASSERTIONS ON}
 {$BOOLEVAL OFF}
@@ -150,6 +151,7 @@ contains
   OverbyteIcsCryptUiApi in '..\Source\OverbyteIcsCryptUiApi.pas',
   OverbyteIcsMsSslUtils in '..\Source\OverbyteIcsMsSslUtils.pas',
   OverbyteIcsWinCrypt in '..\Source\OverbyteIcsWinCrypt.pas',
-  OverbyteIcsIniFiles in '..\Source\OverbyteIcsIniFiles.pas';
+  OverbyteIcsIniFiles in '..\Source\OverbyteIcsIniFiles.pas',
+  OverbyteIcsProxy in '..\Source\OverbyteIcsProxy.pas';
 
 end.

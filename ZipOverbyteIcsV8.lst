@@ -398,6 +398,8 @@ Source\OverbyteIcsPing.dcr
 Source\OverbyteIcsPing.pas
 Source\OverbyteIcsPop3Prot.dcr
 Source\OverbyteIcsPop3Prot.pas
+Source\OverbyteIcsProxy.dcr
+Source\OverbyteIcsProxy.pas
 Source\OverbyteIcsReg.pas
 Source\OverbyteIcsSHA1.pas
 Source\OverbyteIcsSSLEAY.pas
@@ -1848,6 +1850,14 @@ Samples\Delphi\SslInternet\OverbyteIcsPemTool2.dfm
 Samples\Delphi\SslInternet\OverbyteIcsPemTool2.pas
 Samples\Delphi\SslInternet\OverbyteIcsPemTool3.dfm
 Samples\Delphi\SslInternet\OverbyteIcsPemTool3.pas
+
+Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.dof
+Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.dpr
+Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.res
+Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.ini
+Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.pas
+Samples\Delphi\SslInternet\OverbyteIcsProxySslServer1.dfm
+Samples\Delphi\SslInternet\OverbyteIcsProxySslServer1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsSimpleSslCli.dof
 Samples\Delphi\SslInternet\OverbyteIcsSimpleSslCli.dpr

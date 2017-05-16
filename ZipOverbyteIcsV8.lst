@@ -1263,7 +1263,6 @@ Samples\Delphi\BrowserDemo\Resources\XLeft1.htm
 Samples\Delphi\BrowserDemo\Resources\fbHelp.rc
 Samples\Delphi\BrowserDemo\Resources\starcross.avi
 Samples\Delphi\BrowserDemo\UrlConIcs.pas
-Samples\Delphi\BrowserDemo\fbHelp32.res
 Samples\Delphi\BrowserDemo\grid.res
 Samples\Delphi\BrowserDemo\logwin.dfm
 Samples\Delphi\BrowserDemo\logwin.pas
@@ -1855,7 +1854,6 @@ Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.dof
 Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.dpr
 Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.res
 Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.ini
-Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.pas
 Samples\Delphi\SslInternet\OverbyteIcsProxySslServer1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsProxySslServer1.pas
 

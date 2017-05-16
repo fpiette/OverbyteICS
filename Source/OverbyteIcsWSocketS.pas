@@ -147,11 +147,11 @@ Apr 11, 2017  V8.45 Added multiple SSL host support to TSslWSocketServer.
 Apr 20, 2017  V8.46 New RootCA property is now a String (filename or base84 string)
                     Improved IcsHost.GetDisplayName a little
                     Set IcsLogger for SSL context
-May 15, 2017  V8.47 IcsHosts keeps file time stamps of SSL certs to check if
+May 16, 2017  V8.47 IcsHosts keeps file time stamps of SSL certs to check if
                       changed, and BindInfo with reportable bindings
                     Added IcsLoadIcsHostsFromIni function which loads IcsHosts from
                       an open INI file to simplify application creation
-
+                    Fixed IcsLogger conditional 
 
 Pending...
 Nightly SSL cert check reloading new ones and warning about expiry
@@ -2407,7 +2407,9 @@ begin
                 if NOT Assigned(SslCtx) then
                     SslCtx := TSslContext.Create(Self);
                 if FirstSsl < 0 then FirstSsl := I;
+           {$IFNDEF NO_DEBUG_LOG}
                 SslCtx.IcsLogger := IcsLogger;                           { V8.46 }
+           {$ENDIF}
                 SslCtx.SslVersionMethod := sslBestVer_SERVER;
                 SslCtx.SslMinVersion := sslVerTLS1;
                 SslCtx.SslMaxVersion := sslVerMax;

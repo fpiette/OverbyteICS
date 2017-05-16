@@ -124,13 +124,13 @@ uses
 
 const
     THttpServerVersion = 847;
-    CopyRight : String = ' TIcsHttpProxy (c) 2017 F. Piette V8.47 ';
+    CopyRight : String = 'TIcsHttpProxy (c) 2017 F. Piette V8.47';
     DefServerHeader : string = 'Server: ICS-Proxy-8.47';
-    CompressMinSize = 5000;
-    CompressMaxSize = 5000000;
+    CompressMinSize = 5000;     // 5K minimum to make it worth compressing a page
+    CompressMaxSize = 5000000;  // 5M bigger takes too long
     DefRxBuffSize = 65536;
-    DefMaxBodySize = 1000000;  // general maximum length of body to buffer and process
-    MaxBodyDumpSize = 200000;  // maximum length of body to log
+    DefMaxBodySize = 1000000;  // 10M general maximum length of body to buffer and process
+    MaxBodyDumpSize = 200000;  // 200K maximum length of body to log
     Ssl_Session_ID_Context = 'IcsProxy';
     MaxPipelineReqs = 10;
     cLF = #10;
@@ -2707,8 +2707,9 @@ procedure THttpProxyClient.CompressBody;
     InStream, OutStream: TMemoryStream;
     ZStreamType: TZStreamType;
  begin
-   { skip small files }
+   { skip small and big files }
     if FHtmlRespBodyLen < (FProxySource as TIcsHttpProxy).FHttpCompMinSize then Exit;
+    if FHtmlRespBodyLen > CompressMaxSize then Exit;
 
   { only compress textual content }
     if NOT CheckTextualCotent(FRespContentType) then Exit;
@@ -3879,6 +3880,7 @@ begin
     inherited Create(Owner);
     FSourceServer.ClientClass := THttpProxyClient;
     FHttpMaxBody := DefMaxBodySize;
+    FHttpCompMinSize := CompressMinSize;
     FHttpStripUpgrade := True;
 end;
 
@@ -3911,6 +3913,7 @@ begin
         section := Prefix + IntToStr (J);
         S := IcsTrim(MyIniFile.ReadString(section, 'HostTag', ''));
         if S = '' then continue;
+        if NOT IcsCheckTrueFalse(MyIniFile.ReadString (section, 'HostEnabled', 'False')) then continue;
         ProxyTargets.Add;
         Result := Result + 1;
 
@@ -3959,7 +3962,8 @@ begin
         HttpStripUpgrade := IcsCheckTrueFalse(MyIniFile.ReadString (Section, 'HttpStripUpgrade', 'True'));
         HttpStopCached := IcsCheckTrueFalse(MyIniFile.ReadString (Section, 'SslReportChain', 'False'));
         HttpMaxBody := MyIniFile.ReadInteger(Section, 'HttpMaxBody', 1000000);
-    end;    
+        HttpCompMinSize := MyIniFile.ReadInteger(Section, 'HttpCompMinSize', CompressMinSize);
+    end;
 end;
 
 

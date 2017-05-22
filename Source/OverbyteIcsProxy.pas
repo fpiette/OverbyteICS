@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Forward and Reverse SSL HTTP Proxy
 Creation:     May 2017
 Updated:      May 2017
-Version:      8.47
+Version:      8.48
 Sponsor:      This component was sponsored in part by Avenir Health and
               Banxia Software Ltd. http://www.avenirhealth.org
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
@@ -37,24 +37,134 @@ Legal issues: Copyright (C) 1997-2017 by François PIETTE
               4. You must register this software by sending a picture postcard
                  to the author. Use a nice stamp and mention your name, street
                  address, EMail address and any comment you like to say.
+                 
 
 Overview
 --------
 
+TIcsProxy is protocol agnostic and may be used to proxy any TCP protocol,
+the sample includes SMTP, POP3, NNTP and telnet. It may be used to allow
+non-SSL news readers to access forums.embarcadero.com or other similar old
+applications and protocols.
+
+TIcsHttpProxy is a full forward and reverse HTTP/HTTPS proxy with header
+and body parsing and processing host names and URLs to match the source and
+destination. Could potentially be used as a caching proxy, but needs more
+events.  Can be used to monitor HTTP connections.  Reverse proxy targets
+may be selected according to partial paths, or using an event for more
+complex selection such as load sharing to multiple targets.  Or it can
+be used to add SSL support to non-SSL servers.  The HTTP proxy will
+uncompress received pages and/or compress pages returned by the proxy. 
+
+These components require USE_SSL to be set, there is no non-SSL version,
+but SSL is optional for source and targets.  The components support multiple
+sources and targets, with multiple ports and IP addresses.  To an extent,
+data may be intercepted and changed by the proxy, provided the protocols
+are not broken.  SSL server name identification is supported so multiple
+hosts can share the same server address and port.
+
+A forward proxy generally runs on a client or gateway server, and browsers
+are configured to redirect all traffic to the proxy, which forwards it to
+the remote target in the URL, typically logging or examining that target
+and perhaps rejecting it.  The browser may specify authentication login
+and password, which the proxy sends to the onHttpPxyAuth event.  For
+non-SSL traffic, the proxy processes requests and responses which may be
+checked and manipulated if necessary.  But the browser will send SSL
+traffic using the CONNECT method which opens a direct connection to the
+remote server and the proxy behaves as a transparent tunnel passing
+encrypted data back and forward, so requests and responses can not be
+seen.
+
+A reverse proxy generally runs in front of the remote web server, perhaps to
+provide SSL access to a non-SSL server, for load sharing between multiple
+servers, or to direct different URLs to different servers.  Potentially,
+the proxy can cache static pages, but this is not implemented yet.  
+
+Proxy configuration is based on a concept of multiple sources and targets:
+
+Source - TSslWSocketServer listening for incoming source connections, part
+   of TIcsProxy, defined as a collection of IcsHosts.  Each source can listen
+   on two different IP addresses BindIpAddr and BindIpAddr2 (perhaps IPv4
+   and IPv6) each with non-SSL BindNonPort and/or SSL BindSslPort.  Multiple
+   source clients can connect to each listening socket.  Each source needs
+   a unique HostTag alphabetic name, and one or more HostNames that match
+   DNS and SSL certificate names.  Each source should define Proto as HTTP
+   or other, and ForwardProxy as true if that behaviour is required otherwise
+   reverse proxy is assumed.  If SSL is used, an SSL certificate must also
+   be specified that matches the HostNames, see below.  Note IcsHosts is
+   part of TSslWSocketServer and is used for other server components such
+   as the web server.
+
+Target - TSslWSocket that connects to a remote target destination,   Part
+   of TProxyClient, at least one for each source client (unless ForwardProxy
+   is defined), defined as a collection of ProxyTargets, each with a HostTag
+   alphabetic name that must match a source in the IcsHosts collection, but
+   for HTTP the request path may be examined and there may be multiple
+   ProxyTargets.  Each target specifies TarHost, TarPort and TarSsl as the
+   remote target.  If the target is SSL, the remote SSL certificate chain may
+   be validated and reported according to the TCertVerMethod setting.  The
+   OnSetTarget event is called immediately before each remote target connection
+   is started and may be used for logging or TarHost, TarPort and TarSsl may be
+   changed to alter the target for this connection only.
+
+Once source and target are connected, traffic from source is sent to target,
+and vice versa.  The proxy receives data in a temporary TBytes buffer of size
+RxBuffSize (default 64K).  For HTTP, entire request and response headers are
+saved into a String for ease of processing and each line parsed into
+THttpProxyClient RequestXX and ResponseXX properties.   The event handlers
+onHttpReqHdr and onHttpRespHdr allow the complete headers to be logged or
+changed, with care because changes may break the proxy or protocol.
+
+If the target specifies UpdateHttp, the proxy may modify the Location, Host
+and Referrer headers from and to the source and target host names, ports
+and http/https, so the HTTP protocol works correctly.
+
+If UpdateHtml is specified, textual body content also has absolute URLs
+modified similarly, with the header page length modified if the content
+length changes.  To modify bodies, the proxy needs to read the entire body
+first which has required local memory and also delays response to the
+source that might cause a timeout, so body size is restricted by the
+HttpMaxBody setting, defaulting to 10MB, the assumption being larger
+textual bodies will not contain absolute server links.  If the
+onHttpRespBody event is set, it will be called with the body, but note
+only for textual bodies smaller than HttpMaxBody. 
+
+To support SSL sources, the SslCert property should ideally be set the
+SSL certificate bundle file name in PEM, PFX or P12 format that also
+includes the private key and any intermediate certificates required.
+But SslCert also accepts a bundle as Base64 encoded ASCII.  SslPassword
+should be set to the private key password, if required.   If SslCert only
+specifies a PEM, DER or PK7 certificate, SslKey and SslInter may be used
+to specify the private key and intermediate bundle file names (or ASCII
+versions).  SslSrvSecurity sets TSslSrvSecurity which may stop low security
+protocols or certificates being used.
+
+There is an ICS sample application OverbyteIcsProxySslServer that illustrates
+the use of TIcsHttpProxy.  It reads all it's settings from an INI file, using
+three functions in the main ICS components, IcsLoadIcsHostsFromIni in
+OverbyteIcsWSocketS.pas, and IcsLoadProxyTargetsFromIni and
+IcsLoadTIcsHttpProxyFromIni in this proxy unit.  The sample INI file is
+OverbyteIcsProxySslServer.ini with several source and target sections.
+So the application just needs to open an INI file and these three functions
+will read all necessary settings.  This is all optional, the application
+could keep settings in XML or the registry and set-up the proxy collection
+properties directly. nut using the same INI settings will ease adding future
+functionality to the proxy with minimal application changes.  
+
+
+
+
 
 Updates:
-15 May 2017 - 8.47 baseline
+22 May 2017 - 8.48 baseline
+
 
 
 
 pending...
-Documentation
-Convert buffers to UTF8 instead of ANSI
-More events to modify data through proxy
-Clear FTarSslCertList every few hours so certs are checked again
-Recheck SSL certiticates at midnight for expiry or new files
+Convert TByte buffers to UTF8 instead of ANSI
+Test Transfer-Encoding: gzip, chunked
 Proxy generated error page if target connection fails
-Report which mutlisteners are actually listening (without conflicts)
 Proxy statistics
 
 }
@@ -123,9 +233,9 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpServerVersion = 847;
-    CopyRight : String = 'TIcsHttpProxy (c) 2017 F. Piette V8.47';
-    DefServerHeader : string = 'Server: ICS-Proxy-8.47';
+    THttpServerVersion = 848;
+    CopyRight : String = ' TIcsHttpProxy (c) 2017 F. Piette V8.48 ';
+    DefServerHeader : string = 'Server: ICS-Proxy-8.48';
     CompressMinSize = 5000;     // 5K minimum to make it worth compressing a page
     CompressMaxSize = 5000000;  // 5M bigger takes too long
     DefRxBuffSize = 65536;
@@ -139,6 +249,7 @@ const
     cCRLF: PChar = cCR+cLF;
     cCRLF_ = cCR+cLF;
     cDoubleCRLF = cCR+cLF+cCR+cLF;
+    FlushSslCacheMins = 120;  // how often to clear SSL domain cache
 
 type
 { forware declarations }
@@ -239,16 +350,6 @@ type
   end;
 
   { socket server client, one instance for each proxy remote target session }
-  { Terminology and design -
-      Source - TSslSocketServer listening for incoming source connections,
-               part of TIcsProxy.
-      Target - TSslWSocket that connects to a remote target destination,
-               part of TProxyClient, one for each source connection.
-    Once both are connected, traffic from source is sent to target, and vice versa.
-    Sources are defined in IcsHosts, multiple addresses and ports.
-    Targets are defined in ProxyTarget, must be at least one for each IcsHost,
-       possibly more for HTTP where the request path may be examined.
-  }
 
   TProxyClient = class(TSslWSocketClient)
   private
@@ -268,8 +369,8 @@ type
     FTarBufMax: Integer;            // maximum size of TarBuffer
     FTarWaitTot: integer;           // current data in of TarBuffer
     FClosingFlag: Boolean;          // local client about to close
-    FTunnelling: Boolean;           // tunnelling data without processing it (probably already SSL)
-    FTarConnecting: Boolean;        // is target connection being attempted   !!! pending, remove when State = wsDnsLookup added
+    FTunnelling: Boolean;           // tunnelling data without processing it (probably using SSL)
+//    FTarConnecting: Boolean;        // is target connection being attempted   !!! pending, remove when State = wsDnsLookup added
     FForwardPrxy: Boolean;          // HTTP forward proxy
     FTarConditional: Boolean;       // target is conditional upon path or something
     FPxyTargetIdx: Integer;         // which ProxyTarget are we using
@@ -281,7 +382,7 @@ type
   protected
     procedure SourceDataAvailable(Sender: TObject; Error: Word);
     procedure SourceSessionClosed(Sender: TObject; Error: Word); Virtual;
-    procedure TargetDnsLookupDone(Sender: TObject; Error: Word);
+//    procedure TargetDnsLookupDone(Sender: TObject; Error: Word);
     procedure TargetSessionConnected(Sender: TObject; Error: Word);
     procedure TargetSessionClosed(Sender: TObject; Error: Word); Virtual;
     procedure TargetVerifyPeer(Sender: TObject; var Ok : Integer; Cert: TX509Base);
@@ -348,7 +449,8 @@ type
     FMsg_TARGET_CONNECTED: longword;
     FCleanupTimer: TIcsTimer;
     FTimerBusyFlag: Boolean;
-
+    FCurDate: Integer;
+    FFlushTick: LongWord; 
     function  GetIcsHosts: TIcsHostCollection;
     procedure SetIcsHosts(const Value: TIcsHostCollection);
     function  GetRootCA: String;
@@ -396,11 +498,15 @@ type
     destructor Destroy; override;
     function  FindPxyTarget(const Tag: String): Integer;
     function  FindPxySourceHost(const HHostName: String; MLIndx: Integer): Integer;
-    procedure ValidateHosts;
+    function  ValidateHosts(Stop1stErr: Boolean=True;
+                                           NoExceptions: Boolean=False): String;
+    function  RecheckSslCerts(var CertsInfo: String;
+                  Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean;
     procedure Start;
     procedure Stop;
     property  Running: Boolean                      read  GetRunning;
     property  ClientCount: Integer                  read  GetClientCount;
+    property  SourceServer: TSslWSocketServer       read  FSourceServer;
   published
       { Published declarations }
     property  IcsHosts : TIcsHostCollection         read  GetIcsHosts
@@ -438,7 +544,7 @@ type
     property  onProxyProg: TProxyProgEvent          read  FonProxyProg
                                                     write FonProxyProg;
     property  OnSetTarget: TProxyTarEvent           read  FOnSetTarget
-                                                    write FOnSetTarget; 
+                                                    write FOnSetTarget;
     property  OnDataSendTar: TProxyDataEvent        read  FOnDataSendTar
                                                     write FOnDataSendTar;
     property  OnDataRecvTar: TProxyDataEvent        read  FOnDataRecvTar
@@ -609,14 +715,14 @@ type
     FHttpSrcCompress: Boolean;          // HTTP Gzip source responses
     FHttpTarCompress: Boolean;          // HTTP Gzip target responses
     FHttpCompMinSize: Integer;          // minimum body size to compress
- //   FHttpStopCached: Boolean;           // ??
     FHttpStripUpgrade: Boolean;         // HTTP strip Upgrade: header to stop HTTP/2
     FHttpStopCached: Boolean;           // HTTP strip If-Modified header
     FHttpMaxBody: Integer;              // HTTP maximum body size to cached and process
     FonHttpReqHdr: TProxyHttpEvent;     // HTTP request header has been parsed
     FonHttpRespHdr: TProxyHttpEvent;    // HTTP response header has been parsed
     FonHttpPxyAuth: TProxyHttpEvent;    // HTTP proxy authorisation needed
-
+    FonHttpReqBody: TProxyHttpEvent;    // HTTP request POST body has been read
+    FonHttpRespBody: TProxyHttpEvent;   // HTTP response body has been read
   protected
       { Protected declarations }
   public
@@ -645,6 +751,10 @@ type
                                                     write FonHttpRespHdr;
     property  onHttpPxyAuth: TProxyHttpEvent        read  FonHttpPxyAuth
                                                     write FonHttpPxyAuth;
+    property  onHttpReqBody: TProxyHttpEvent        read  FonHttpReqBody
+                                                    write FonHttpReqBody;
+    property  onHttpRespBody: TProxyHttpEvent       read  FonHttpRespBody
+                                                    write FonHttpRespBody;
   end;
 
 { public functions }
@@ -1039,7 +1149,7 @@ begin
              end;
 
           { start another target connection if last one closed  }
-            if (FTarCurHost <> '') and (NOT FTarConnecting) and
+            if (FTarCurHost <> '') and { (NOT FTarConnecting) and }
                         (FTarSocket.State in [wsClosed, wsInvalidState]) then begin
                 if (FProxySource.DebugLevel >= DebugConn) then
                     LogSrcEvent('Starting new target connection');
@@ -1091,7 +1201,7 @@ begin
     FTarSocket.Proto := 'tcp';
     FTarSocket.OnDataAvailable := TargetDataAvailable;
     FTarSocket.OnSessionClosed := TargetSessionClosed;
-    FTarSocket.OnDnsLookupDone := TargetDnsLookupDone;
+//    FTarSocket.OnDnsLookupDone := TargetDnsLookupDone;
     FTarSocket.OnSessionConnected := TargetSessionConnected;
     FTarSocket.OnSslCliNewSession := TargetCliNewSession;
     FTarSocket.OnSslCliGetSession := TargetCliGetSession;
@@ -1119,7 +1229,7 @@ begin
     FTarWaitTot := 0;
 
  { other stuff }
-    FTarConnecting := False;
+//    FTarConnecting := False;
     FSrcPendClose := False;
     FTarCurHost := '';
     FTarClosedFlag := False;
@@ -1188,7 +1298,7 @@ function TProxyClient.TargetConnect: Boolean;
 begin
     Result := True;
     if (FTarSocket.State = wsConnected) then Exit;
-    if FTarConnecting then Exit;
+//    if FTarConnecting then Exit;
     if (FTarHost = '') or (FTarPort = '') then begin
         LogSrcEvent('Failed to Target #' +
                 IntToStr(FPxyTargetIdx) + ' - Host and/or Port Blank');
@@ -1203,19 +1313,18 @@ begin
   { localhost fails if real local address used }
     if (FTarHost = ICS_LOCAL_HOST_V4) or (IcsLowerCase(FTarHost) = 'localhost') then
         FTarSocket.LocalAddr := ICS_ANY_HOST_V4;
-    if (FProxySource.DebugLevel >= DebugConn) then
-        LogSrcEvent('Connecting to Target #' +
-                IntToStr(FPxyTargetIdx) + ' - ' + FTarHost + ':' + FTarPort);
+    if (FProxySource.DebugLevel >= DebugConn) then begin
+        if FPxyTargetIdx >= 0 then
+            LogSrcEvent('Connecting to Target #' +
+                IntToStr(FPxyTargetIdx) + ' - ' + FTarHost + ':' + FTarPort)
+        else
+            LogSrcEvent('Connecting to conditional Target - ' + FTarHost + ':' + FTarPort);
+    end ;
     try
-        FTarConnecting := True;
-        if (wsoAsyncDnsLookup in FTarSocket.ComponentOptions) then begin
-            FTarSocket.DnsLookup(FTarHost); // use for old event lookup
-        end
-        else begin
-            FTarSocket.Addr := FTarHost;    // use for new internal lookup
-            FTarSocket.Port := FTarPort;
-            FTarSocket.Connect;
-        end;
+  //      FTarConnecting := True;
+        FTarSocket.Addr := FTarHost;    // use for new internal lookup
+        FTarSocket.Port := FTarPort;
+        FTarSocket.Connect;
         Result := True;
     except
         on E:Exception do begin
@@ -1228,42 +1337,9 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ NOTE - not used if wsoAsyncDnsLookup set }
-procedure TProxyClient.TargetDnsLookupDone (Sender: TObject; Error: Word);
-var
-    MyFamily: TSocketFamily;
-begin
-    if Error <> 0 then begin
-        if (FProxySource.DebugLevel >= DebugConn) then
-            LogTarEvent('Remote DNS lookup failed (' + WSocketErrorDesc(Error) + ')');
-        Self.Close;
-        Exit;
-    end;
-    try
-        FTarSocket.Addr := FTarSocket.DnsResult;
-        FTarSocket.Port := FTarPort;
-      // pending, may be multiple results, could choose randomly
-        if WSocketIsIPEx (FTarSocket.DnsResult, MyFamily) then
-            FTarSocket.SocketFamily := MyFamily
-        else
-            FTarSocket.SocketFamily := sfIPv4;
-        if (FProxySource.DebugLevel >= DebugConn) then
-                LogTarEvent('DNS lookup result: ' + FTarSocket.DnsResult);
-        FTarSocket.Connect;
-    except
-        on E:Exception do begin
-            LogSrcEvent('Target connection error: ' + E.Message);
-            Self.Close;
-        end;
-    end;
-end;
-
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TProxyClient.TargetSessionConnected(Sender: TObject; Error: Word);
 begin
-    FTarConnecting := False;
+//    FTarConnecting := False;
     try
         if (Error <> 0) then begin
             if (FProxySource.DebugLevel >= DebugConn) then
@@ -1272,7 +1348,6 @@ begin
             Exit;
         end;
         FTarSocket.Counter.SetConnected;
-     //   TarIP := TarSocket.DnsResult;  // keep looked-up IP>
         FTarIP := FTarSocket.GetPeerAddr;  // keep looked-up IP>
         if (FProxySource.DebugLevel >= DebugConn) then
             LogTarEvent('Remote IP Adress ' + FTarIP);
@@ -1505,7 +1580,7 @@ end;
 { note this is overwritten for the HTTP client, it's more compicated }
 procedure TProxyClient.TargetSessionClosed(Sender: TObject; Error: Word);
 begin
-    FTarConnecting := False;
+//    FTarConnecting := False;
     FTarClosedFlag := True;
     if (Self.State = wsConnected) and (FTarWaitTot <> 0) then
         TargetXferData;
@@ -1555,6 +1630,8 @@ begin
     FIcsLog := TIcsLogger.Create (nil);
     FIcsLog.OnIcsLogEvent := IcsLogEvent;
     FIcsLog.LogOptions := [loDestEvent];
+    FCurDate := Trunc(Date);
+    FFlushTick := IcsGetTickCount;
 end;
 
 
@@ -1709,10 +1786,60 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TIcsProxy.ValidateHosts;
+function TIcsProxy.ValidateHosts(Stop1stErr: Boolean=True;
+                                        NoExceptions: Boolean=False): String;
+var
+    I, J, K: Integer;
+    HTag: String;
 begin
-    if Assigned(FSourceServer) then
-        TSslWSocketServer(FSourceServer).ValidateHosts;
+    Result := '';
+    if Assigned(FSourceServer) then begin
+        Result := TSslWSocketServer(FSourceServer).ValidateHosts(Stop1stErr, NoExceptions);
+
+     { each IcsHost must have at least one matching Target HostTag }
+        for I := 0 to IcsHosts.Count - 1 do begin
+            if NOT IcsHosts[I].HostEnabled then Continue;
+            if IcsHosts[I].ForwardProxy then Continue;  // no target needed
+            HTag := IcsHosts[I].HostTag;
+            J := FindPxyTarget(HTag);
+            if (J < 0) then begin
+                Result := Result + 'Host ' + IntToStr(I) +
+                                     HTag + ', no matching proxy target found';
+                if Stop1stErr then raise ESocketException.Create(Result);
+                continue;
+            end;
+
+          { check source tag is not a duplicate }
+            if I > 0 then begin
+                for K := 0 to I - 1 do begin
+                    if NOT IcsHosts[K].HostEnabled then Continue;
+                    if HTag = IcsHosts[K].HostTag then begin
+                        Result := Result + 'Host ' + IntToStr(I) +
+                                                       HTag + ' is a duplicate';
+                        if Stop1stErr then raise ESocketException.Create(Result);
+                        continue;
+                    end;
+                end;
+            end;
+            if Assigned(FSslSessCache) then begin
+                IcsHosts[I].SslCtx.SslSessionCacheModes := [sslSESS_CACHE_CLIENT,
+                  sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE];
+            end;
+        end;
+    end;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsProxy.RecheckSslCerts(var CertsInfo: String;
+                    Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean;
+begin
+    Result := False;
+    if Assigned(FSourceServer) then begin
+        Result := TSslWSocketServer(FSourceServer).RecheckSslCerts(CertsInfo,
+                                                        Stop1stErr, NoExceptions);
+    end;
 end;
 
 
@@ -1789,8 +1916,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TIcsProxy.Start;
 var
-    I, J, K: Integer;
-    HTag: String;
+    I: Integer;
 begin
   { If already listening, then do nothing }
     if FSourceServer.State = wsListening then Exit;
@@ -1806,29 +1932,8 @@ begin
     end;
 
  { each IcsHost must have at least one matching Target HostTag }
-    for I := 0 to IcsHosts.Count - 1 do begin
-        if NOT IcsHosts[I].HostEnabled then Continue;
-        if IcsHosts[I].ForwardProxy then Continue;  // no target needed
-        HTag := IcsHosts[I].HostTag;
-        J := FindPxyTarget(HTag);
-        if (J < 0) then begin
-            raise ESocketException.Create('Host ' + IntToStr(I) +
-                                 HTag + ', no matching proxy target found');
-            exit ;
-        end;
-
-      { check source tag is not a duplicate }
-        if I > 0 then begin
-            for K := 0 to I - 1 do begin
-                if NOT IcsHosts[K].HostEnabled then Continue;
-                if HTag = IcsHosts[K].HostTag then begin
-                    raise ESocketException.Create('Host ' + IntToStr(I) +
-                                                   HTag + ' is a duplicate');
-                    exit ;
-                end;
-            end;
-        end;
-        if Assigned(FSslSessCache) then begin
+   if Assigned(FSslSessCache) then begin
+        for I := 0 to IcsHosts.Count - 1 do begin
             IcsHosts[I].SslCtx.SslSessionCacheModes := [sslSESS_CACHE_CLIENT,
               sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE];
         end;
@@ -1856,8 +1961,8 @@ begin
     FTarSslCtx.SslMaxVersion := sslVerMax;
     FTarSslCtx.SslECDHMethod := sslECDHAuto;
     FTarSslCtx.SslCipherList := sslCiphersNoDH;
-     FTarSslCtx.SslOptions := [];
-   if RootCA <> '' then begin
+    FTarSslCtx.SslOptions := [];
+    if RootCA <> '' then begin
         if (Pos(PEM_STRING_HDR_BEGIN, RootCA) > 0) then
             FTarSslCtx.SslCALines.Text := RootCA
         else
@@ -1867,7 +1972,6 @@ begin
 
   { setup SocketServer events and properties, start it  }
     with FSourceServer do begin
-//        ClientClass := TProxyClient;
         OnClientCreate := ServerClientCreate;
         OnClientConnect := ServerClientConnect;
         OnClientDisconnect := ServerClientDisconnect;
@@ -1878,8 +1982,6 @@ begin
         OnSslSvrGetSession := ServerSvrGetSession;
         OnSslHandshakeDone := ServerHandshakeDone;
         OnSslServerName := ServerServerName;
-        Addr := '';   { using IcsHosts instead }
-        Port := '';
         Banner := ''; { must not send anything upon connect }
         BannerTooBusy := '';
         Proto := 'tcp';
@@ -1888,9 +1990,14 @@ begin
         SocketErrs := FSocketErrs;
         IcsLogger := FIcsLog;
         CreateCounter;
-        MultiListen;       { listen on multiple sockets, if more than one configured }
+        MultiListen;    { listen on multiple sockets, if more than one configured }
   { Warning - need to check all sockets are actually listening, conflicts are ignored }
-        LogProgEvent('Proxy server started listening');
+        if FSourceServer.ListenAllOK then
+            LogProgEvent('Proxy server started listening OK' +
+                                        cCRLF + FSourceServer.ListenStates)
+        else
+            LogProgEvent('Proxy server failed to start listening' +
+                                        cCRLF + FSourceServer.ListenStates);
     end;
     if NOT Assigned(FCleanupTimer) then begin
         FCleanupTimer := TIcsTimer.Create(Self);
@@ -1908,7 +2015,7 @@ begin
     if not Assigned(FSourceServer) then Exit;
     if FSourceServer.State = wsListening then begin
         FCleanupTimer.Enabled := False;
-        FSourceServer.Close;
+        FSourceServer.MultiClose;
         LogProgEvent('Proxy server stopped listening');
         { Disconnect all clients }
         FSourceServer.DisconnectAll;
@@ -2165,6 +2272,24 @@ var
 begin
     if FTimerBusyFlag then Exit;
     FTimerBusyFlag := true;
+
+  { midnight }
+    if (FCurDate <> Trunc(Date)) then begin
+        FCurDate := Trunc(Date);
+    end;
+
+  { periodically flush SSL host list so certificates are rechecked }
+    Duration := IcsCalcTickDiff (FFlushTick, IcsGetTickCount) div (1000*60);
+    if (Duration > FlushSslCacheMins) then begin
+        FFlushTick := IcsGetTickCount;
+        if FTarSslCertList.Count > 0 then begin
+            LogProgEvent('Clearing target SSL certificate cache, total ' +
+                                            IntToStr(FTarSslCertList.Count));
+            FTarSslCertList.Clear;
+        end;
+    end;
+
+ { look for idle clients }
     try
         if FSourceServer.ClientCount = 0 then exit;   // no clients
         try
@@ -2389,12 +2514,12 @@ end;
 { remote target has closed, ensure anything received is sent to client }
 procedure THttpProxyClient.TargetSessionClosed(Sender: TObject; Error: Word);
 begin
-    FTarConnecting := False;
+//    FTarConnecting := False;
     FTarClosedFlag := True;
     if (Self.State = wsConnected) and (FTarWaitTot <> 0) then
         TargetXferData;
 
-    if FHttpTotReqs <> FHttpTotResps then begin
+    if (FHttpTotReqs <> FHttpTotResps) and (NOT FTunnelling) then begin
         LogTarEvent('Warning, did not receive response');
         FRespKAFlag := false;
         FDelayedDisconn := false;
@@ -2541,19 +2666,28 @@ begin
             end;
         end;
         RemoveHdrLine('Proxy-Authorization:', FHttpReqHdr) ;
+        FTarReqModified := True;
     end;
 
   { MSIE and Firefox send an illegal header we need to remove }
     if (FRequestProxyConnection <> '') then begin
         FReqKAFlag := (Pos('Close', FRequestProxyConnection) > 0);
         RemoveHdrLine('Proxy-Connection:', FHttpReqHdr) ;
+        FTarReqModified := True;
     end;
 
   { CONNECT method means open a transparent tunnel, usually for SSL }
     if FRequestMethod = httpMethodConnect then begin
         LogTarEvent('Tunnel requested to: ' + FRequestPath);
+        LogTarEvent('Beware, no more headers will be logged');
         FindPort(FRequestPath); // check for :port, keep host and port
-   { pending SECURITY RISK, should really check for HTTP ports to stop 25, etc.  }
+   { SECURITY RISK, only allow HTTP ports to stop 25, etc.  }
+        if (FTarPort <> '80') and (FTarPort <> '443') then begin
+            LogTarEvent('Tunnel only allowed for HTTP, not port ' + FTarPort);
+            FClosingFlag := True;
+            Close;
+            Exit;
+        end;
         FTarSsl := False;  // no SSL for tunnel itself
         FTunnelling := True; // so we don't process anything more
         FHttpReqHdr := '';   // do not forward this request, create 200 response on succesful connect
@@ -2623,10 +2757,10 @@ end;
 procedure THttpProxyClient.UpdateBody;
 var
     P, DoneNr: Integer;
-    BodyStr: string;
+    BodyStr, OldBody: string;
 begin
     P := PosTBytes(FHttpTarURL2, FHtmlRespBody, 0, FHtmlRespBodyLen);  // URL without port
-    if (P > 0) then begin
+    if Assigned((FProxySource as TIcsHttpProxy).onHttpRespBody) or (P > 0) then begin
         if (FProxySource.DebugLevel >= DebugHttpHdr) then
             LogTarEvent('Updating body content URLs');
 
@@ -2649,6 +2783,13 @@ begin
             if DoneNr > 100 then break;  // sanity check, too many URLS
         end;
 
+     { application event may process body }
+        if Assigned((FProxySource as TIcsHttpProxy).onHttpRespBody) then begin
+            OldBody := BodyStr;
+            (FProxySource as TIcsHttpProxy).onHttpRespBody(FProxySource, Self, BodyStr);
+            if OldBody <> BodyStr then DoneNr := 1;
+        end;
+
       { update HTML header with new content length }
         if DoneNr > 0 then begin
             FHtmlRespBodyLen := Length(BodyStr);
@@ -2666,9 +2807,6 @@ begin
                                           IntToStr(FRespContentLength));
         end;
     end;
-
-    { should we let application mess with body - before we put string back in array  }
-
 end;
 
 
@@ -3028,7 +3166,8 @@ begin
   { we don't want to process or display binary stuff, only HTML }
     FRespBinary := CheckBinaryContent(FRespContentType);
 
-  { Content-Encoding, deflate or gzip }
+  { Content-Encoding, deflate or gzip - applied to content after unchunking }
+  { beware Transfer-Encoding: gzip only relates to chunks } 
     if (FRespContentEncoding <> '') then begin
         if (Pos('deflate', FRespContentEncoding) > 0) or
              (Pos('gzip', FRespContentEncoding) > 0) or
@@ -3363,6 +3502,14 @@ begin
                 if (FTarReqLenRemain <= 0) then begin
                     if (FProxySource.DebugLevel >= DebugHttpHdr) then
                         LogTarEvent('Finished request content, length=' + IntToStr(FRequestContentLength));
+
+                { application event may process body }
+                    if Assigned((FProxySource as TIcsHttpProxy).onHttpReqBody) then begin
+                    // pending, not got body in string !!!
+                    //    (FProxySource as TIcsHttpProxy).onHttpReqBody(FProxySource, Self, BodyStr);
+                    end;
+
+
                     if (FProxySource.DebugLevel >= DebugHttpBody) then begin
                         if NOT FReqBinary then begin
                             NewLen := FHtmlReqBodyLen;
@@ -3498,6 +3645,7 @@ begin
             end;
 
          { Transfer-Encoding may be chunked, deflate or gzip - after checking content length }
+         { note Transfer-Encoding: chunked and Content-Encoding: gzip is common, uncompress after unchunk }
             if (FRespTransferEncoding <> '') then begin
                 FChunkGzip := false;
                 if (Pos('deflate', FRespTransferEncoding) > 0) or
@@ -3507,7 +3655,7 @@ begin
                     LogTarEvent('Expecting compressed chunks');
                 end;
                 if (Pos('chunked', FRespTransferEncoding) > 0) then begin
-                    if (Pos('image/', FRespContentType) > 0) then
+                    if (Pos('image/', FRespContentType) > 0) then   { because we don't parse images }
                         LogTarEvent('Ignored chunked image')
                     else begin
                         FPxyRespState := PxyCnkEnd;
@@ -3515,6 +3663,13 @@ begin
                         SetLength(FHtmlRespBody, (FProxySource as TIcsHttpProxy).FHttpMaxBody);
                         LogTarEvent('Expecting multiple body chunks');
                     end;
+                end;
+
+             { not found a way to test this combination, so cheat for now }
+                if FChunkGzip and (FPxyRespState = PxyCnkEnd) then begin
+                    FRespGzip := True;
+                    FChunkGzip := false;
+                    LogTarEvent('!!! Warning, not tested compressed chunks, will attempt content decompress');
                 end;
             end;
 
@@ -3722,9 +3877,6 @@ begin
                             MoveTBytesToString(FTarBuffer, 0, S, 1, FTarWaitTot);
                             LogTarEvent('!! Still got chunked content, len=' + IntToStr(FTarWaitTot) + ', Data: ' + S);
                         end;   
-                     {   FRemTotWaitData := FTarWaitTot;
-                        MoveMemory (@FRemBuffer[0], @FRespBodyBuff[0], FRemTotWaitData);
-                        FTarWaitTot := 0;     }
                     end;
                     FRespContentLength := FHtmlRespBodyLen;
                     UpdateHdrLine('Content-Length:', IntToStr(FRespContentLength), FHttpRespHdr);

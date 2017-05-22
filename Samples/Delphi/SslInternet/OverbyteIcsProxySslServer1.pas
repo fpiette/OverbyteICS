@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Forward and Reverse SSL HTTP Proxy
 Creation:     May 2017
 Updated:      May 2017
-Version:      8.47
+Version:      8.48
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -38,7 +38,7 @@ Legal issues: Copyright (C) 2003-2017 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
-15 May 2017 - 8.47 baseline
+22 May 2017 - 8.48 baseline
 
 
 
@@ -81,6 +81,7 @@ type
     StopButton: TButton;
     IcsHttpProxy1: TIcsHttpProxy;
     Timer1: TTimer;
+    RecheckCertsButton: TButton;
     procedure WMCMSTARTUP (var Msg : TMessage); message WM_STARTUP ;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -97,11 +98,13 @@ type
     procedure IcsHttpProxy1SetTarget(Sender: TObject;
       ProxyClient: TProxyClient);
     procedure Timer1Timer(Sender: TObject);
+    procedure RecheckCertsButtonClick(Sender: TObject);
   private
     FIniFileName : String;
     FInitialized : Boolean;
   public
     procedure Display(Msg : String);
+    procedure ReportHosts;
     property IniFileName : String read FIniFileName write FIniFileName;
   end;
 
@@ -110,6 +113,7 @@ var
     WinLinesBuff: string ;
     WinDispCur: Integer;
     ProgDirectory: String;
+    LogDate: Integer;
 
 implementation
 
@@ -137,7 +141,31 @@ procedure TProxySslServerForm.Timer1Timer(Sender: TObject);
 var
     displen, removelen, newstart: integer ;
     S1: String ;
+    NewFlag: Boolean;
 begin
+
+  // rotate logs at midnight, recheck SSL certificates, log configuration again
+    if LogDate <> Trunc(Date) then begin
+        LogDate := Trunc(Date);
+
+    // revalidate SSL certs which might expire at midnight
+        try
+          // don't stop on first error, no exceptions
+            Display('Nightly Server Recheck Starting');
+            NewFlag := IcsHttpProxy1.RecheckSslCerts(S1, False, True);
+            if NewFlag or (S1 <> '') then  begin
+                if NewFlag then Display('Server Recheck Loaded New SSL Certificate(s)');
+                Display('Proxy Recheck SSL Certificate Errors:' + cCRLF + S1);
+            end;
+        except
+            on E:Exception do begin
+               Display('Proxy Recheck SSL Certificate Failed - ' + E.Message);
+            end;
+        end;
+        ReportHosts;    // new log file, report everything again
+        Display('Listen Bindings:' + cCRLF + IcsHttpProxy1.SourceServer.ListenStates);
+    end;
+
   // see if updating the log window with multiple lines
     displen := Length (WinLinesBuff) ;
     if displen > 0 then begin
@@ -180,6 +208,7 @@ begin
     GSSL_SignTest_Check := True;
     GSSL_SignTest_Certificate := True;
     OverbyteIcsWSocket.LoadSsl;
+    LogDate := Trunc(Date);
     PostMessage (Handle, WM_STARTUP, 0, 0) ;
 end;
 
@@ -238,13 +267,19 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TProxySslServerForm.RecheckCertsButtonClick(Sender: TObject);
+begin
+    LogDate := 0;  // force timer midnight event
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TProxySslServerForm.FormClose(
     Sender     : TObject;
     var Action : TCloseAction);
 var
     IniFile : TIcsIniFile;
 begin
-  StopButtonClick(Self);
+    StopButtonClick(Self);
     IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionWindow, KeyTop,         Top);
     IniFile.WriteInteger(SectionWindow, KeyLeft,        Left);
@@ -258,6 +293,47 @@ end;
 procedure TProxySslServerForm.WMCMSTARTUP (var Msg : TMessage);
 begin
     StartButtonClick(Self);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TProxySslServerForm.ReportHosts;
+var
+    J: Integer;
+    S: String;
+begin
+    Display('Total source server hosts ' + IntToStr(IcsHttpProxy1.IcsHosts.Count)) ;
+    for J := 0 to IcsHttpProxy1.IcsHosts.Count - 1 do begin
+        with IcsHttpProxy1.IcsHosts[J] do begin
+            if CertValRes > chainOK then begin
+                Display('Server SSL Certificate Errors: Server: ' + DisplayName +
+                    cCRLF + 'SSL Certificate chain: ' + cCRLF + CertInfo + cCRLF + CertErrs) ;
+            end;
+            if CertValRes = chainFail then begin
+                Display('Server SSL Certificate Errors') ;
+                Exit;
+            end;
+            S := 'Source #' + IntToStr(J) + ' - ' + HostTag + ': ' + Descr + cCRLF +
+              'Host: ' + HostNames [0] + ', Bindings: ' + BindInfo + cCRLF;
+            if BindSslPort <> 0 then S := S + 'SSL Security Level ' +
+                  GetEnumName(TypeInfo(TSslSrvSecurity), Ord(SslSrvSecurity)) +
+                    ' - ' + CertErrs + cCRLF + CertInfo + cCRLF
+            else
+                S := S + 'No SSL' + cCRLF;
+            if ForwardProxy then S := S + 'Forward Proxy' + cCRLF;
+            Display(S) ;
+        end;
+    end;
+    Display('Total remote targets ' + IntToStr(IcsHttpProxy1.ProxyTargets.Count)) ;
+    for J := 0 to IcsHttpProxy1.ProxyTargets.Count - 1 do begin
+        with IcsHttpProxy1.ProxyTargets[J] do begin
+            S := 'Target #' + IntToStr(J) + ' - ' + HostTag + ': ' + Descr + cCRLF +
+                    'Remote ' + TarHost + ':' + IntToStr (TarPort) ;
+            if TarSsl then S := S + ' with SSL' ;
+            if SrcPath <> '' then S := S + ', Path ' + SrcPath ;
+            S := S + cCRLF ;
+           Display(S) ;
+        end;
+    end;
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -287,7 +363,7 @@ begin
         IniFile := TIcsIniFile.Create(FIniFileName);
         Display('INI file: ' + FIniFileName);
 
-      // tell them who we are 
+      // tell them who we are
         Display(OverbyteIcsProxy.CopyRight + cCRLF +
            'SSL Version: ' + OpenSslVersion + ', Dir: ' + GLIBEAY_DLL_FileName + cCRLF);
 
@@ -336,40 +412,12 @@ begin
 
     // validate hosts and keep site certificiate information
         try
-            IcsHttpProxy1.ValidateHosts;
-            Display('Total source server hosts ' + IntToStr(IcsHttpProxy1.IcsHosts.Count)) ;
-            for J := 0 to IcsHttpProxy1.IcsHosts.Count - 1 do begin
-                with IcsHttpProxy1.IcsHosts[J] do begin
-                    if CertValRes > chainOK then begin
-                        Display('Server SSL Certificate Errors: Server: ' + DisplayName +
-                            cCRLF + 'SSL Certificate chain: ' + cCRLF + CertInfo + cCRLF + CertErrs) ;
-                    end;
-                    if CertValRes = chainFail then begin
-                        Display('Server SSL Certificate Errors') ;
-                        Exit;
-                    end;
-                    S := 'Source #' + IntToStr(J) + ' - ' + HostTag + ': ' + Descr + cCRLF +
-                      'Host: ' + HostNames [0] + ', Bindings: ' + BindInfo + cCRLF;
-                    if BindSslPort <> 0 then S := S + 'SSL Security Level ' +
-                          GetEnumName(TypeInfo(TSslSrvSecurity), Ord(SslSrvSecurity)) +
-                            ' - ' + CertErrs + cCRLF + CertInfo + cCRLF
-                    else
-                        S := S + 'No SSL' + cCRLF;
-                    if ForwardProxy then S := S + 'Forward Proxy' + cCRLF;
-                    Display(S) ;
-                end;
+            S := IcsHttpProxy1.ValidateHosts(False, True); // don't stop on first error, no exceptions }
+            if S <> '' then begin
+                Display('Proxy Validation Errors:' + cCRLF + S);
             end;
-            Display('Total remote targets ' + IntToStr(IcsHttpProxy1.ProxyTargets.Count)) ;
-            for J := 0 to IcsHttpProxy1.ProxyTargets.Count - 1 do begin
-                with IcsHttpProxy1.ProxyTargets[J] do begin
-                    S := 'Target #' + IntToStr(J) + ' - ' + HostTag + ': ' + Descr + cCRLF +
-                            'Remote ' + TarHost + ':' + IntToStr (TarPort) ;
-                    if TarSsl then S := S + ' with SSL' ;
-                    if SrcPath <> '' then S := S + ', Path ' + SrcPath ;
-                    S := S + cCRLF ;
-                   Display(S) ;
-                end;
-            end;
+            ReportHosts;
+            Display('Required Listen Bindings:' + cCRLF + IcsHttpProxy1.SourceServer.ListenStates);
         except
             on E:Exception do begin
                 Display('Host Validation Failed, Server Stopped - ' + E.Message);
@@ -377,6 +425,9 @@ begin
             end;
         end;
         IcsHttpProxy1.Start;
+        if NOT IcsHttpProxy1.SourceServer.ListenAllOK then
+            Display('Failed to Start, Listen Bindings:' +
+                                cCRLF + IcsHttpProxy1.SourceServer.ListenStates);
         StartButton.Enabled := false;
         StopButton.Enabled := true;
     except

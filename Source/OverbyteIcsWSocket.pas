@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.47
+Version:      8.48
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1206,6 +1206,9 @@ Apr 20, 2017  V8.46 Added sslCiphersNoDH which blocks DH and DHE ciphers,
                        needed for forums.embarcadero.com
                     Adjusted a V8.42 cross platform fix
 May 15, 2017  V8.47 Fixed ValidateCertChain ignoring some warnings
+May 22, 2017  V8.48 Added added wsDnsLookup SocketState during wsoAsyncDnsLookup
+                    Cancel async DNS if close called before connect
+
 
                     
 Use of certificates for SSL clients:
@@ -1410,8 +1413,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 847;
-  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.47 ';
+  WSocketVersion            = 848;
+  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.48 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -1600,7 +1603,7 @@ type
                         wsOpened,     wsBound,
                         wsConnecting, wsSocksConnected, wsConnected,
                         wsAccepting,  wsListening,
-                        wsClosed);
+                        wsClosed, wsDnsLookup);  { V8.48 added DnsLookup }
   TSocketSendFlags   = (wsSendNormal, wsSendUrgent);
   TSocketLingerOnOff = (wsLingerOff, wsLingerOn, wsLingerNoSet);
   TSocketKeepAliveOnOff = (wsKeepAliveOff, wsKeepAliveOnCustom,
@@ -1637,7 +1640,7 @@ type
 const
   SocketStateNames: array [TSocketState] of PChar = ('Invalid', 'Opened', 'Bound',
       'Connecting', 'SocksConnected', 'Connected', 'Accepting', 'Listening',
-      'Closed');
+      'Closed', 'DnsLookup');                                                        { V8.48 }
   SocketFamilyNames: array [TSocketFamily] of PChar = ('Any', 'AnyIPv4', 'AnyIPv6',  { V8.01 }
       'IPv4', 'IPv6');
 type
@@ -1729,7 +1732,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
   {$IFDEF MSWINDOWS}
     FDnsLookupBuffer    : array [0..MAXGETHOSTSTRUCT] of AnsiChar;
   {$ENDIF}
-    FInternalDnsActive  : Boolean;      { V8.43 } 
+    FInternalDnsActive  : Boolean;      { V8.43 }
     FDnsLookupCheckMsg  : Boolean;
     FDnsLookupTempMsg   : TMessage;
     // FHandle             : HWND;
@@ -7113,7 +7116,7 @@ begin
 {   FReadCount          := 0;  V7.24 only reset when connection opened, not closed }
     FCloseInvoked       := FALSE;
     FFlushTimeout       := 60;
-    FInternalDnsActive  := FALSE;    { V8.43 } 
+    FInternalDnsActive  := FALSE;    { V8.43 }
 end;
 
 
@@ -9154,7 +9157,7 @@ var
 begin
     if FDnsLookupHandle = 0 then
         Exit;
-    FInternalDnsActive := FALSE;     { V8.43 } 
+    FInternalDnsActive := FALSE;     { V8.43 }
   {$IFDEF MSWINDOWS}
     if (FSocketFamily = sfIPv4) and not (wsoIcsDnsLookup in ComponentOptions) then   { V8.43 }
         RetVal := WSocket_Synchronized_WSACancelAsyncRequest(FDnsLookupHandle)
@@ -9167,8 +9170,11 @@ begin
         Exit;
     end;
     FDnsLookupHandle := 0;
-    if not (csDestroying in ComponentState) then
+    if not (csDestroying in ComponentState) then begin
         TriggerDnsLookupDone(WSAEINTR);
+        if FState = wsDnsLookup then
+            ChangeState(wsClosed);  { V8.48 }
+    end;
 end;
 
 
@@ -9215,7 +9221,7 @@ begin
     {$ENDIF}
             IcsCancelAsyncRequest(FDnsLookupHandle);
         FDnsLookupHandle := 0;
-        FInternalDnsActive := FALSE;      { V8.43 } 
+        FInternalDnsActive := FALSE;      { V8.43 }
     end;
 
     FDnsResult := '';
@@ -9647,7 +9653,9 @@ var
     lAddr   : TSockAddrIn6;
     TmpOnError: TNotifyEvent;
 begin
-    if ((FHSocket <> INVALID_SOCKET) and (FState <> wsClosed)) or FInternalDnsActive then begin    { V8.43 }
+    if ((FHSocket <> INVALID_SOCKET) and
+         (NOT (FState in [wsClosed, wsDnsLookup]))) or
+                            FInternalDnsActive then begin    { V8.48 }
         RaiseException('Connect: Socket already in use');
         Exit;
     end;
@@ -9701,6 +9709,8 @@ begin
                   { the handler silently. So clear the handler temporarily to catch exception. }
                   TmpOnError := OnError;
                   OnError := nil;
+                  { Trigger OnChangeState event }
+                  ChangeState(wsDnsLookup);     { V8.48 }
                   try
                       DnsLookup(FAddrStr);
                       FInternalDnsActive := TRUE;
@@ -10436,6 +10446,7 @@ var
     iStatus : Integer;
 {    Buffer  : array [0..127] of Char; }
 begin
+    InternalCancelDnsLookup(TRUE);   { V8.48 }
     if FHSocket = INVALID_SOCKET then begin
         if FState <> wsClosed then begin
             ChangeState(wsClosed);

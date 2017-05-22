@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.47
+Version:      8.48
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -151,12 +151,21 @@ May 16, 2017  V8.47 IcsHosts keeps file time stamps of SSL certs to check if
                       changed, and BindInfo with reportable bindings
                     Added IcsLoadIcsHostsFromIni function which loads IcsHosts from
                       an open INI file to simplify application creation
-                    Fixed IcsLogger conditional 
+                    Fixed IcsLogger conditional
+May 22, 2017  V8.48 ValidateHosts has options to return all errors as a string
+                      instead of raising an exception on the first error.  The idea
+                      is that some hosts may still work, even if one or more SSL
+                      certificates are bad.
+                    Added RecheckSslCerts which shoulld be called at least once a
+                      day (after midnight) to check if new SSL certificates are
+                      available and if old ones have expired.
+                    Added ListenAllOK which returns true if all sockets are listening
+                      OK, note starting a multilistener server does not give errors
+                      if some listeners fail due to port conflicts
+                    Added ListenStates which returns a multiline string listing the
+                       IP, port, SSL and state of all socket listeners.
 
-Pending...
-Nightly SSL cert check reloading new ones and warning about expiry
-Load IcsHosts from INI file
-Validate hosts returns list of all errors instead of stopping on first exception
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -229,8 +238,8 @@ uses
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 847;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.47 ';
+    WSocketServerVersion     = 848;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.48 ';
 
 type
     TCustomWSocketServer       = class;
@@ -699,6 +708,7 @@ type
         FRootCAX509: TX509Base;                   { V8.46 }
         FRootCA: String;                          { V8.46 }
         FDHParams: String;                        { V8.45 }
+        FValidated: Boolean;                      { V8.48 }
         procedure TriggerClientConnect(Client : TWSocketClient; Error : Word); override;
         function  MultiListenItemClass: TWSocketMultiListenItemClass; override;
     public
@@ -713,7 +723,12 @@ type
         procedure SetIcsHosts(const Value: TIcsHostCollection);      { V8.45 }
         function  FindBinding(const MAddr: String; MPort: Integer;
                                  var MIndex: Integer): boolean;      { V8.45 }
-        procedure ValidateHosts; virtual;                            { V8.45 }
+        function  ValidateHosts(Stop1stErr: Boolean=True;
+                      NoExceptions: Boolean=False): String; virtual; { V8.48 }
+        function  RecheckSslCerts(var CertsInfo: String;
+                    Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean; { V8.48 }
+        function  ListenAllOK: Boolean;                              { V8.48 }
+        function  ListenStates: String;                              { V8.48 }
     published
         property  SslContext;
         property  Banner;
@@ -1561,6 +1576,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ beware this function does not give errors if some listeners fail due to port conflicts }
 procedure TCustomMultiListenWSocketServer.MultiListen;
 var
     I: Integer;
@@ -2170,6 +2186,7 @@ begin
     SslMode          := sslModeServer;
     FIcsHosts        := TIcsHostCollection.Create(self);            { V8.45 }
     FRootCAX509      := TX509Base.Create(self);                     { V8.46 }
+    FValidated       := False;                                      { V8.48 }
 end;
 
 
@@ -2320,7 +2337,8 @@ end;
    HTTP descendants of SocketServer might check the Host: header for
    non=SSL connections }
 
-procedure TSslWSocketServer.ValidateHosts;                            { V8.45 }
+function TSslWSocketServer.ValidateHosts(Stop1stErr: Boolean=True;
+                                    NoExceptions: Boolean=False): String; { V8.48 }
 var
     I, FirstSsl: integer;
     FirstHost: Boolean;
@@ -2361,20 +2379,30 @@ var
     end;
 
 begin
+    Result := '';
+    FValidated := False;                                      { V8.48 }
     if FIcsHosts.Count = 0 then Exit;
     FirstSsl := -1;
     FirstHost := True;
 
  { keep Root CA to validate SSL certificate chains }
-    if FRootCA <> '' then begin    { V8.46 }
-        if (Pos(PEM_STRING_HDR_BEGIN, FRootCA) > 0) then
-            FRootCAX509.LoadCATrustFromString(FRootCA)
-        else
-            FRootCAX509.LoadCATrustFromPemFile(FRootCA);
+    try
+        if FRootCA <> '' then begin    { V8.46 }
+            if (Pos(PEM_STRING_HDR_BEGIN, FRootCA) > 0) then
+                FRootCAX509.LoadCATrustFromString(FRootCA)
+            else
+                FRootCAX509.LoadCATrustFromPemFile(FRootCA);
+        end;
+    except
+        on E:Exception do begin
+            Result := E.Message + #13#10;
+            if Stop1stErr then Raise;
+        end;
     end;
     MultiListenSockets.Clear;
     for I := 0 to FIcsHosts.Count - 1 do begin
-         with FIcsHosts [I] do begin
+        with FIcsHosts [I] do begin
+        try
             FCertInfo := '';
             FBindInfo := '';
             FCertErrs := '';
@@ -2392,14 +2420,15 @@ begin
                     AddBinding(FBindIpAddr2, FBindNonPort, False, FBindIdx2None, FBindInfo);
             end;
             if (FBindSslPort > 0) then begin
-                if (FSslCert = '') then begin
-                    raise ESocketException.Create('Host #' + IntToStr(I) +
-                         ', SSL certificate can not be blank');
-                    exit ;
-                end;
                 AddBinding(FBindIpAddr, FBindSslPort, True, FBindIdxSsl, FBindInfo);
                 if FBindIpAddr2 <> '' then
                     AddBinding(FBindIpAddr2, FBindSslPort, True, FBindIdx2Ssl, FBindInfo);
+                if (FSslCert = '') then begin
+                    Result := Result + 'Host #' + IntToStr(I) +
+                                        ', SSL certificate can not be blank' + #13#10;
+                    if Stop1stErr then raise ESocketException.Create(Result);
+                    continue;
+                end;
             end;
 
      { if using SSL, set-up context with server certificates }
@@ -2472,17 +2501,19 @@ begin
                 else begin
                     FCertFStamp := FileAge(FSslCert);  { keep file time stamp to check nightly }
                     if FCertFStamp = -1 then begin
-                        raise ESocketException.Create('Host #' + IntToStr(I) +
-                                      ', SSL certificate not found: ' + FSslCert);
-                        exit ;
+                        Result := Result + 'Host #' + IntToStr(I) +
+                                 ', SSL certificate not found: ' + FSslCert + #13#10;
+                        if Stop1stErr then raise ESocketException.Create(Result);
+                        continue;
                     end;
                     SslCtx.SslCertX509.LoadFromFile(FSslCert, croTry, croTry, FSslPassword);
                 end;
                 if NOT SslCtx.SslCertX509.IsPKeyLoaded then begin
                     if (FSslKey = '') then begin
-                        raise ESocketException.Create('Host #' + IntToStr(I) +
-                                      ', SSL private key can not be blank for ' + FSslCert);
-                        exit ;
+                        Result := Result + 'Host #' + IntToStr(I) +
+                                 ', SSL private key can not be blank for ' + FSslCert + #13#10;
+                        if Stop1stErr then raise ESocketException.Create(Result);
+                        continue;
                     end;
                     if (Pos(PEM_STRING_HDR_BEGIN, FSslKey) > 0) then
                        SslCtx.SslCertX509.PrivateKeyLoadFromText(FSslKey, FSslPassword)
@@ -2495,9 +2526,10 @@ begin
                     else begin
                         FInterFStamp := FileAge(FSslInter);  { keep file time stamp to check nightly }
                         if FInterFStamp = -1 then begin
-                            raise ESocketException.Create('Host #' + IntToStr(I) +
-                                      ', SSL intermediate certificate not found: ' + FSslInter);
-                            exit ;
+                            Result := Result + 'Host #' + IntToStr(I) +
+                                 ', SSL intermediate certificate not found: ' + FSslInter + #13#10;
+                            if Stop1stErr then raise ESocketException.Create(Result);
+                            continue;
                         end;
                         SslCtx.SslCertX509.LoadIntersFromPemFile(FSslInter);
                     end;
@@ -2513,11 +2545,11 @@ begin
                 end;
 
              { validate SSL certificate chain, helps to ensure server will work! }
-                if NOT SslCtx.SslCertX509.IsCertLoaded then
-                begin
-                    raise ESocketException.Create('Host #' + IntToStr(I) +
-                         ', SSL certificate not loaded - ' + FSslCert);
-                    exit ;
+                if NOT SslCtx.SslCertX509.IsCertLoaded then begin
+                    Result := Result + 'Host #' + IntToStr(I) +
+                             ', SSL certificate not loaded - ' + FSslCert + #13#10;
+                    if Stop1stErr then raise ESocketException.Create(Result);
+                    continue;
                 end;
                 SslCtx.SslCertX509.X509CATrust := FRootCAX509.X509CATrust;
                 FCertDomains := IcsUnwrapNames (SslCtx.SslCertX509.SubAltNameDNS);
@@ -2531,24 +2563,199 @@ begin
                         FCertErrs := 'Chain Warning - ' + FCertErrs
                     else begin
                         FCertErrs := 'Chain Failed - ' + FCertErrs;
-                        raise ESocketException.Create('Host #' + IntToStr(I) +
-                            ', SSL certificate errors - ' + FCertErrs);
-                        exit ;
-                    end;
+                        Result := Result + 'Host #' + IntToStr(I) +
+                                    ', SSL certificate errors - ' + FCertErrs + #13#10;
+                        if Stop1stErr then raise ESocketException.Create(Result);
+                        continue;
+                     end;
                 end;
                 SslCtx.InitContext;
+            end;
+            except
+                on E:Exception do begin
+                    Result := Result + 'Host #' + IntToStr(I) + E.Message + #13#10;
+                    if Stop1stErr then Raise;
+                end;
             end;
         end;
     end;
 
   { set server context as first host with SSL }
     if FirstSsl >= 0 then FSslContext := FIcsHosts [FirstSsl].SslCtx;
+    FValidated := True;                                      { V8.48 }
+
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslWSocketServer.Listen;                               { V8.45 }
+{ V8.48 if IcsHostCollection has been specified, recheck SSL certificates
+  to see if new files found (returns True) or old certificates are about to expire }
+function TSslWSocketServer.RecheckSslCerts(var CertsInfo: String;
+                Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean; { V8.48 }
+var
+    I, NewFStamp: integer;
 begin
-    ValidateHosts;
+    Result := False;
+    CertsInfo := '';
+    if FIcsHosts.Count = 0 then Exit;
+    for I := 0 to FIcsHosts.Count - 1 do begin
+        with FIcsHosts [I] do begin
+        try
+            if NOT (FHostEnabled) then continue;
+            if FBindSslPort = 0 then continue;
+
+        { load certificate, private key and optional intermediates, that may all be
+          in the same PEM or PFX bundle file or seperate files, or may be base64 text }
+
+            if (Pos(PEM_STRING_HDR_BEGIN, FSslCert) > 0) then begin
+              { can we check this ?? }
+                SslCtx.SslCertX509.LoadFromText(FSslCert, croTry, croTry, FSslPassword)
+            end
+            else begin
+                NewFStamp := FileAge(FSslCert);  { keep file time stamp to check nightly }
+                if NewFStamp = -1 then begin
+                    CertsInfo := CertsInfo + 'Host #' + IntToStr(I) +
+                             ', SSL certificate not found: ' + FSslCert + #13#10;
+                    if Stop1stErr then raise ESocketException.Create(CertsInfo);
+                    continue;
+                end;
+                if FCertFStamp <> NewFStamp then begin
+                    Result := True;
+                    CertsInfo := CertsInfo + 'Host #' + IntToStr(I) +
+                                 ', Loading new SSL certificate: ' + FSslCert + #13#10;
+                    FCertFStamp := NewFStamp;
+                    SslCtx.SslCertX509.LoadFromFile(FSslCert, croTry, croTry, FSslPassword);
+                end;
+            end;
+            if NOT SslCtx.SslCertX509.IsPKeyLoaded then begin
+                if (FSslKey = '') then begin
+                    CertsInfo := CertsInfo + 'Host #' + IntToStr(I) +
+                             ', SSL private key can not be blank for ' + FSslCert + #13#10;
+                    if Stop1stErr then raise ESocketException.Create(CertsInfo);
+                    continue;
+                end;
+                if (Pos(PEM_STRING_HDR_BEGIN, FSslKey) > 0) then begin
+                   SslCtx.SslCertX509.PrivateKeyLoadFromText(FSslKey, FSslPassword)
+                end
+                else
+                   SslCtx.SslCertX509.PrivateKeyLoadFromPemFile(FSslKey, FSslPassword);
+            end ;
+            if (NOT SslCtx.SslCertX509.IsInterLoaded) and (FSslInter <> '') then begin
+                if (Pos(PEM_STRING_HDR_BEGIN, FSslInter) > 0) then begin
+                  { can we check this ?? }
+                    SslCtx.SslCertX509.LoadIntersFromString(FSslInter)
+                end
+                else begin
+                    NewFStamp := FileAge(FSslInter);  { keep file time stamp to check nightly }
+                    if NewFStamp = -1 then begin
+                        CertsInfo := CertsInfo + 'Host #' + IntToStr(I) +
+                             ', SSL intermediate certificate not found: ' + FSslInter + #13#10;
+                        if Stop1stErr then raise ESocketException.Create(CertsInfo);
+                        continue;
+                    end;
+                    if FInterFStamp <> NewFStamp then begin
+                        Result := True;
+                        CertsInfo := CertsInfo + 'Host #' + IntToStr(I) +
+                            ', Loading new SSL  intermediate certificate: ' + FSslInter + #13#10;
+                        FInterFStamp := NewFStamp;
+                        SslCtx.SslCertX509.LoadIntersFromPemFile(FSslInter);
+                    end;
+                end;
+            end ;
+
+         { validate SSL certificate chain, helps to ensure server will work! }
+            if NOT SslCtx.SslCertX509.IsCertLoaded then begin
+                CertsInfo := CertsInfo + 'Host #' + IntToStr(I) +
+                         ', SSL certificate not loaded - ' + FSslCert + #13#10;
+                if Stop1stErr then raise ESocketException.Create(CertsInfo);
+                continue;
+            end;
+            SslCtx.SslCertX509.X509CATrust := FRootCAX509.X509CATrust;
+            FCertDomains := IcsUnwrapNames (SslCtx.SslCertX509.SubAltNameDNS);
+            FCertExiry := SslCtx.SslCertX509.ValidNotAfter;
+         { V8.47 warning, currently only checking first Host name }
+            FCertValRes := SslCtx.SslCertX509.ValidateCertChain(HostNames[0], FCertInfo, FCertErrs);
+            if FCertValRes = chainOK then
+                FCertErrs := 'Chain Validated OK'
+            else begin
+                if FCertValRes = chainWarn then
+                    FCertErrs := 'Chain Warning - ' + FCertErrs
+                else begin
+                    FCertErrs := 'Chain Failed - ' + FCertErrs;
+                    CertsInfo := CertsInfo + 'Host #' + IntToStr(I) +
+                                ', SSL certificate errors - ' + FCertErrs + #13#10;
+                    if Stop1stErr then raise ESocketException.Create(CertsInfo);
+                    continue;
+                 end;
+            end;
+            except
+                on E:Exception do begin
+                    CertsInfo := CertsInfo + 'Host #' + IntToStr(I) + E.Message + #13#10;
+                    if Stop1stErr then Raise;
+                end;
+            end;
+        end;
+    end;        
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ returns state, ip address and port for all sockets }
+function TSslWSocketServer.ListenStates: String;
+var
+    K: integer ;
+    ListenItem: TSslWSocketMultiListenItem;
+begin
+    Result := 'Socket 1 State: ' + SocketStateNames[Self.FState] + ' ' +
+                  SocketFamilyNames [Self.SocketFamily] + ' on ' +
+                                        Self.Addr + ' port ' + Self.Port;
+    if SslEnable then
+        Result := Result + ' SSL' + #13#10
+    else
+        Result := Result + #13#10;
+    if MultiListenSockets.Count > 0 then begin
+        for K := 0 to MultiListenSockets.Count - 1 do begin
+            ListenItem := MultiListenSockets [K] as TSslWSocketMultiListenItem;
+            Result := Result + 'Socket ' + IntToStr (K + 2) +
+                 ' State: ' + SocketStateNames[ListenItem.FState] + ' ' +
+                     SocketFamilyNames [ListenItem.SocketFamily] +
+                       ' on ' + ListenItem.FAddr + ' port ' + ListenItem.FPort;
+            if ListenItem.SslEnable then
+               Result := Result + ' SSL' + #13#10
+            else
+                Result := Result + #13#10;
+        end;
+    end;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ return true is all sockets are listening OK }
+function TSslWSocketServer.ListenAllOK: Boolean ;
+var
+    K: integer ;
+begin
+    Result := False;
+    if FState <> wsListening then Exit;
+    if MultiListenSockets.Count > 0 then begin
+        for K := 0 to MultiListenSockets.Count - 1 do begin
+            if MultiListenSockets [K].FState <> wsListening then Exit;
+        end;
+    end;
+    Result := True;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ also called when MultiListen is called }
+{ beware this function does not give errors if some listeners fail due to port conflicts }
+procedure TSslWSocketServer.Listen;                             { V8.46 }
+begin
+{ better to call this before Listen and handle errors better, but in case not }
+    if NOT FValidated then ValidateHosts;
+    FValidated := False;
     inherited Listen;
 end;
 

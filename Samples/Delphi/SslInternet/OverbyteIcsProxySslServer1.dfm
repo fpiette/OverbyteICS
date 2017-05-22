@@ -24,7 +24,6 @@ object ProxySslServerForm: TProxySslServerForm
     Height = 41
     Align = alTop
     TabOrder = 0
-    ExplicitWidth = 1044
     object StartButton: TButton
       Left = 29
       Top = 8
@@ -36,7 +35,7 @@ object ProxySslServerForm: TProxySslServerForm
       OnClick = StartButtonClick
     end
     object StopButton: TButton
-      Left = 104
+      Left = 111
       Top = 8
       Width = 57
       Height = 21
@@ -44,6 +43,15 @@ object ProxySslServerForm: TProxySslServerForm
       Enabled = False
       TabOrder = 1
       OnClick = StopButtonClick
+    end
+    object RecheckCertsButton: TButton
+      Left = 184
+      Top = 8
+      Width = 102
+      Height = 21
+      Caption = 'Recheck Ssl Certs'
+      TabOrder = 2
+      OnClick = RecheckCertsButtonClick
     end
   end
   object DisplayMemo: TMemo
@@ -69,8 +77,6 @@ object ProxySslServerForm: TProxySslServerForm
     ParentFont = False
     ScrollBars = ssBoth
     TabOrder = 1
-    ExplicitWidth = 1044
-    ExplicitHeight = 660
   end
   object IcsHttpProxy1: TIcsHttpProxy
     IcsHosts = <>
@@ -95,7 +101,7 @@ object ProxySslServerForm: TProxySslServerForm
     HttpStripUpgrade = True
     HttpStopCached = False
     HttpMaxBody = 1000000
-    Left = 270
+    Left = 355
     Top = 5
   end
   object Timer1: TTimer

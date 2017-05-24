@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.45
+Version:      8.48
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -416,6 +416,10 @@ Apr 11 2017 V8.45 Added multiple SSL host support using SNI or Host header.
                    the request Host, so the server supports multiple web sites.
                   Note IcsHosts is only in the SSL server TSslHttpServer
                    but may be used for HTTP or HTTPS connections.
+May 24 2017 V8.48 ValidateHosts has more options
+                  Host: header checking higher priority than binding
+                  Added ListenAllOK, ListenStates, RecheckSslCerts
+                  
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -516,9 +520,9 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 845;
-    CopyRight : String = ' THttpServer (c) 1999-2017 F. Piette V8.45 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.45';   { V8.09 }
+    THttpServerVersion = 848;
+    CopyRight : String = ' THttpServer (c) 1999-2017 F. Piette V8.48 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.48';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -1316,6 +1320,8 @@ type
         destructor  Destroy; override;
         procedure   Start; virtual;
         procedure   Stop; virtual;
+        function    ListenAllOK: Boolean;                              { V8.48 }
+        function    ListenStates: String;                              { V8.48 }
         { Check  if a given object is one of our clients }
         function    IsClient(SomeThing : TObject) : Boolean;
         { Runtime readonly property which gives number of connected clients }
@@ -1671,7 +1677,10 @@ type
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy; override;
         procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
-        procedure   ValidateHosts;                                     { V8.45 }
+        function    ValidateHosts(Stop1stErr: Boolean=True;
+                      NoExceptions: Boolean=False): String; virtual; { V8.48 }
+        function    RecheckSslCerts(var CertsInfo: String;
+                      Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean; { V8.48 }
 //    published V8.02 Angus stop them being published
         property  SslEnable          : Boolean             read  FSslEnable  //  V8.02 Angus
                                                            write FSslEnable;
@@ -2593,6 +2602,26 @@ procedure THttpServer.SetMultiListenSockets(                                 { V
 begin
     if Assigned(FWSocketServer) then
         FWSocketServer.MultiListenSockets := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function THttpServer.ListenAllOK: Boolean;                              { V8.48 }
+begin
+    if Assigned(FWSocketServer) then
+        Result := FWSocketServer.ListenAllOK
+    else
+        Result := False;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function THttpServer.ListenStates: String;                              { V8.48 }
+begin
+    if Assigned(FWSocketServer) then
+        Result := FWSocketServer.ListenStates
+    else
+        Result := '';
 end;
 
 
@@ -3937,46 +3966,46 @@ end;
 procedure THttpConnection.ProcessRequest;
 var
     Handled : Boolean;
-    I, J, TotHosts: Integer;
+    I, J, TotHosts, NewIdx: Integer;
 begin
     FRequestMethod := httpMethodNone;   { V8.08 keep method as literal }
     if FKeepAlive and (FKeepAliveTimeSec > 0) then
         FKeepAlive := FMaxRequestsKeepAlive > 0;
 
-  { V8.45 see if checking Host: against IcsHosts, may have already
-    been done using SSL server name indication }
+  { V8.48 see if checking Host: against IcsHosts, should have already
+    been done using SSL server name indication, or bind address/port,
+    but Host: is the preferred choice }
 {$IFDEF USE_SSL}
     if FServer.WSocketServer is TSslWSocketServer then begin
-      TotHosts := TCustomSslHttpServer(FServer).IcsHosts.Count;
-      if (TotHosts > 0) and (FRequestHostName <> '') then begin
-          if (FIcsHostIdx < 0) then begin
-              for I := 0 to TotHosts - 1 do begin
-                  with TCustomSslHttpServer(FServer).IcsHosts [I] do begin
-                      if HostNameTot > 0 then begin
-                          for J := 0 to HostNameTot - 1 do begin
-                              if ((HostNames [J] = '*') or
-                                  (HostNames [J] = FRequestHostName)) then begin
-                                  Self.FIcsHostIdx := I ;
-                                  break ;
-                              end;
-                          end;
-                      end;
-                  end;
-              end;
-          end;
+        TotHosts := TCustomSslHttpServer(FServer).IcsHosts.Count;
+        if (TotHosts > 0) and (FRequestHostName <> '') then begin
+            NewIdx := -1;
+            for I := 0 to TotHosts - 1 do begin
+                with TCustomSslHttpServer(FServer).IcsHosts [I] do begin
+                    if HostNameTot > 0 then begin
+                        for J := 0 to HostNameTot - 1 do begin
+                            if ((HostNames [J] = '*') or
+                              (HostNames [J] = FRequestHostName)) then begin
+                                NewIdx := I;
+                                break ;
+                            end;
+                        end;
+                    end;
+                end;
+            end;
+            if NewIdx >= 0 then Self.FIcsHostIdx := NewIdx;
 
        { V8.45 change directories to host site, if found }
-          if FIcsHostIdx >= 0 then begin
-              with TCustomSslHttpServer(FServer).IcsHosts [FIcsHostIdx] do
-              begin
-                  Self.FDocDir := WebDocDir;
-                  Self.FTemplateDir := WebTemplDir;
-                  Self.FDefaultDoc := WebDefDoc;
-                  Self.FHostTag := HostTag;
-                  Self.FWebLogDir := WebLogDir;
-              end;
-          end;
-      end;
+            if FIcsHostIdx >= 0 then begin
+                with TCustomSslHttpServer(FServer).IcsHosts[FIcsHostIdx] do begin
+                    Self.FDocDir := WebDocDir;
+                    Self.FTemplateDir := WebTemplDir;
+                    Self.FDefaultDoc := WebDefDoc;
+                    Self.FHostTag := HostTag;
+                    Self.FWebLogDir := WebLogDir;
+                end;
+            end;
+        end;
     end;
 {$ENDIF}
 
@@ -6799,11 +6828,33 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomSslHttpServer.ValidateHosts;                                     { V8.45 }
+function TCustomSslHttpServer.ValidateHosts(Stop1stErr: Boolean=True;
+                                              NoExceptions: Boolean=False): String; { V8.48 }
+
 begin
-    if Assigned(FWSocketServer) then
-        TSslWSocketServer(FWSocketServer).ValidateHosts;
+    if Assigned(FWSocketServer) then begin
+        Result := TSslWSocketServer(FWSocketServer).ValidateHosts(Stop1stErr, NoExceptions);
+      { bodge because Start sets these again, make it backward compabible }
+        if TSslWSocketServer(FWSocketServer).IcsHosts.Count > 0 then begin
+            FPort := FWSocketServer.Port;
+            FAddr := FWSocketServer.Addr;
+        end;
+    end;
 end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslHttpServer.RecheckSslCerts(var CertsInfo: String;
+                    Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean;  { V8.48 }
+begin
+    Result := False;
+    if Assigned(FWSocketServer) then begin
+        Result := TSslWSocketServer(FWSocketServer).RecheckSslCerts(CertsInfo,
+                                                        Stop1stErr, NoExceptions);
+    end;
+end;
+
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

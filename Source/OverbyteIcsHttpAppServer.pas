@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      8.45
+Version:      8.48
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -102,7 +102,13 @@ Apr 03, 2017       F. Piette made some THttpAppSrvConnection methods vitual:
                    CancelSession, CheckSession and ValidateSession.
                    TUrlHandler.ValidateSession is made virtual.
 Apr 11, 2017 V8.45 Added SSL IcsHosts property
-
+May 24, 2017 V8.48 Added HostTag parameter to AddGetHandler, AddPostHandler and
+                     AddGetAllowedPath which will cause that handler to be
+                     matched against an IcsHosts HostTag to support multiple
+                     hosts per server.
+                   Added IcsLoadTHttpAppSrvFromIni function which loads
+                     HttpAppSrv from an open INI file to simplify application
+                     creation. 
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
@@ -139,6 +145,8 @@ uses
     Ics.Posix.Messages,
 {$ENDIF}
     {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.TypInfo{$ELSE}TypInfo{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
 {$IFDEF COMPILER7_UP}
     {$IFDEF RTL_NAMESPACES}System.StrUtils{$ELSE}StrUtils{$ENDIF},
 {$ENDIF}
@@ -153,7 +161,7 @@ uses
 {$ENDIF}
     {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     OverbyteIcsWebSession,
-    OverbyteIcsUtils, 
+    OverbyteIcsUtils,
     OverbyteIcsFormDataDecoder;
 
 type
@@ -212,8 +220,9 @@ type
     THttpAllowedFlag = (afBeginBy, afExactMatch, afDirList);
 
     THttpAllowedElement = class
-        Path  : String;
-        Flags : THttpAllowedFlag;
+        Path     : String;
+        HostTag  : String;      { V8.48 }
+        Flags    : THttpAllowedFlag;
     end;
 
     THttpAllowedPath = class(TStringList)
@@ -309,6 +318,7 @@ type
 
     THttpDispatchElement = class
         Path      : String;
+        HostTag   : String;      { V8.48 }
         FLags     : THttpGetFlag;
         Proc      : Pointer;
         SObjClass : THttpHandlerClass;
@@ -395,21 +405,26 @@ type
         procedure   Display(Sender: TObject; const AMsg: String);
         procedure   AddGetHandler(const Path : String;
                                   Proc       : Pointer;
-                                  FLags      : THttpGetFlag = hgWillSendMySelf);
+                                  FLags      : THttpGetFlag = hgWillSendMySelf;
+                                  HostTag    : String = '');      { V8.48 }
                                   overload;
         procedure   AddGetHandler(const Path : String;
                                   SObjClass  : THttpHandlerClass;
-                                  FLags      : THttpGetFlag = hgWillSendMySelf);
+                                  FLags      : THttpGetFlag = hgWillSendMySelf;
+                                  HostTag    : String = '');      { V8.48 }
                                   overload;
         procedure   AddGetAllowedPath(const Path : String;
-                                      Flags      : THttpAllowedFlag);
+                                      Flags      : THttpAllowedFlag;
+                                      HostTag    : String = '');      { V8.48 }
         procedure   AddPostHandler(const Path : String;
                                    Proc       : Pointer;
-                                   FLags      : THttpGetFlag = hgWillSendMySelf);
+                                   FLags      : THttpGetFlag = hgWillSendMySelf;
+                                   HostTag    : String = '');      { V8.48 }
                                    overload;
         procedure   AddPostHandler(const Path : String;
                                    SObjClass  : THttpHandlerClass;
-                                   FLags      : THttpGetFlag = hgWillSendMySelf);
+                                   FLags      : THttpGetFlag = hgWillSendMySelf;
+                                   HostTag    : String = '');      { V8.48 }
                                    overload;
         property SessionsCount              : Integer     read GetSessionsCount;
         property Sessions[nIndex : Integer] : TWebSession read GetSessions;
@@ -440,6 +455,10 @@ type
         property OnSslHandshakeDone;
         property onSslServerName;
     end;
+
+procedure IcsLoadTHttpAppSrvFromIni(MyIniFile: TCustomIniFile; HttpAppSrv:
+                THttpAppSrv; const Section: String = 'HttpAppSrv');      { V8.48 }
+
 {$ENDIF} // USE_SSL
 
 {$IFDEF MSWINDOWS} // todo: make it POSIX compatible
@@ -602,12 +621,15 @@ end;
 procedure THttpAppSrv.AddGetHandler(
     const Path : String;
     Proc       : Pointer;
-    FLags      : THttpGetFlag = hgWillSendMySelf);
+    FLags      : THttpGetFlag = hgWillSendMySelf;
+    HostTag    : String = '');      { V8.48 }
 var
     Disp  : THttpDispatchElement;
     Index : Integer;
+    Key   : String;
 begin
-    Index := FGetHandler.IndexOf({$IFDEF POSIX}Path{$ELSE}UpperCase(Path){$ENDIF});
+    Key := {$IFDEF POSIX}Path{$ELSE}IcsUpperCase(Path){$ENDIF} + '|' + HostTag;  { V8.48 }
+    Index := FGetHandler.IndexOf(Key);   { V8.48 }
     if Index >= 0 then begin
         // Already exists, update
         Disp           := THttpDispatchElement(FGetHandler.Objects[Index]);
@@ -619,10 +641,11 @@ begin
         // Add a new entry
         Disp           := THttpDispatchElement.Create;
         Disp.Path      := Path;
+        Disp.HostTag   := HostTag;  { V8.48 }
         Disp.FLags     := Flags;
         Disp.Proc      := Proc;
         Disp.SObjClass := nil;
-        FGetHandler.AddObject({$IFDEF POSIX}Path{$ELSE}UpperCase(Path){$ENDIF}, Disp);
+        FGetHandler.AddObject(Key, Disp);   { V8.48 }
     end;
 end;
 
@@ -631,12 +654,15 @@ end;
 procedure THttpAppSrv.AddGetHandler(
     const Path : String;
     SObjClass  : THttpHandlerClass;
-    FLags      : THttpGetFlag = hgWillSendMySelf);
+    FLags      : THttpGetFlag = hgWillSendMySelf;
+    HostTag    : String = '');      { V8.48 }
 var
     Disp  : THttpDispatchElement;
     Index : Integer;
+    Key   : String;
 begin
-    Index := FGetHandler.IndexOf({$IFDEF POSIX}Path{$ELSE}UpperCase(Path){$ENDIF});
+    Key := {$IFDEF POSIX}Path{$ELSE}IcsUpperCase(Path){$ENDIF} + '|' + HostTag;  { V8.48 }
+    Index := FGetHandler.IndexOf(Key);
     if Index >= 0 then begin
         // Already exists, update
         Disp           := THttpDispatchElement(FGetHandler.Objects[Index]);
@@ -648,10 +674,11 @@ begin
         // Add a new entry
         Disp           := THttpDispatchElement.Create;
         Disp.Path      := Path;
+        Disp.HostTag   := HostTag;  { V8.48 }
         Disp.FLags     := Flags;
         Disp.Proc      := nil;
         Disp.SObjClass := SObjClass;
-        FGetHandler.AddObject({$IFDEF POSIX}Path{$ELSE}UpperCase(Path){$ENDIF}, Disp);
+        FGetHandler.AddObject(Key, Disp);
     end;
 end;
 
@@ -660,12 +687,15 @@ end;
 procedure THttpAppSrv.AddPostHandler(
     const Path : String;
     SObjClass  : THttpHandlerClass;
-    FLags      : THttpGetFlag);
+    FLags      : THttpGetFlag = hgWillSendMySelf;
+    HostTag    : String = '');      { V8.48 }
 var
     Disp  : THttpDispatchElement;
     Index : Integer;
+    Key   : String;
 begin
-    Index := FPostHandler.IndexOf({$IFDEF POSIX}Path{$ELSE}UpperCase(Path){$ENDIF});
+    Key := {$IFDEF POSIX}Path{$ELSE}IcsUpperCase(Path){$ENDIF} + '|' + HostTag;  { V8.48 }
+    Index := FPostHandler.IndexOf(Key);
     if Index >= 0 then begin
         // Already exists, update
         Disp           := THttpDispatchElement(FPostHandler.Objects[Index]);
@@ -678,9 +708,10 @@ begin
         Disp           := THttpDispatchElement.Create;
         Disp.Path      := Path;
         Disp.FLags     := Flags;
+        Disp.HostTag   := HostTag;  { V8.48 }
         Disp.Proc      := nil;
         Disp.SObjClass := SObjClass;
-        FPostHandler.AddObject({$IFDEF POSIX}Path{$ELSE}UpperCase(Path){$ENDIF}, Disp);
+        FPostHandler.AddObject(Key, Disp);
     end;
 end;
 
@@ -689,12 +720,15 @@ end;
 procedure THttpAppSrv.AddPostHandler(
     const Path : String;
     Proc       : Pointer;
-    FLags      : THttpGetFlag = hgWillSendMySelf);
+    FLags      : THttpGetFlag = hgWillSendMySelf;
+    HostTag    : String = '');      { V8.48 }
 var
     Disp  : THttpDispatchElement;
     Index : Integer;
+    Key   : String;
 begin
-    Index := FPostHandler.IndexOf({$IFDEF POSIX}Path{$ELSE}UpperCase(Path){$ENDIF});
+    Key := {$IFDEF POSIX}Path{$ELSE}IcsUpperCase(Path){$ENDIF} + '|' + HostTag;  { V8.48 }
+    Index := FPostHandler.IndexOf(Key);
     if Index >= 0 then begin
         // Already exists, update
         Disp           := THttpDispatchElement(FPostHandler.Objects[Index]);
@@ -706,10 +740,11 @@ begin
         // Add a new entry
         Disp           := THttpDispatchElement.Create;
         Disp.Path      := Path;
+        Disp.HostTag   := HostTag;  { V8.48 }
         Disp.FLags     := Flags;
         Disp.Proc      := Proc;
         Disp.SObjClass := nil;
-        FPostHandler.AddObject({$IFDEF POSIX}Path{$ELSE}UpperCase(Path){$ENDIF}, Disp);
+        FPostHandler.AddObject(Key, Disp);
     end;
 end;
 
@@ -748,7 +783,8 @@ var
     Status   : Boolean;
 begin
     for I := 0 to FPostHandler.Count - 1 do begin
-        PathBuf := FPostHandler.Strings[I];
+        Disp := FGetHandler.Disp[I];  { V8.48 }
+        PathBuf := Disp.Path;         { V8.48 }
         J       := Length(PathBuf);
         if PathBuf[J] = '*' then begin
             SetLength(PathBuf, J - 1);
@@ -756,6 +792,11 @@ begin
         end
         else
             Status := (CompareText(PathBuf, ClientCnx.Path) = 0);
+
+      { V8.48 if HostTag specified, match it }
+        if Status and (ClientCnx.HostTag <> '') and (Disp.HostTag <> '') then begin
+            if (Disp.HostTag <> ClientCnx.HostTag) then Status := False;
+        end;
 
         if Status then begin
             Result    := TRUE;
@@ -827,14 +868,20 @@ var
     SObj    : TUrlHandler;
 begin
     for I := 0 to FGetHandler.Count - 1 do begin
-        PathBuf := FGetHandler.Strings[I];
-        J       := Length(PathBuf);
+        Disp := FGetHandler.Disp[I];  { V8.48 }
+        PathBuf := Disp.Path;         { V8.48 }
+        J := Length(PathBuf);
         if PathBuf[J] = '*' then begin
             SetLength(PathBuf, J - 1);
             Status := AnsiStartsText(PathBuf, ClientCnx.Path);
         end
         else
             Status := (CompareText(PathBuf, ClientCnx.Path) = 0);
+
+      { V8.48 if HostTag specified, match it }
+        if Status and (ClientCnx.HostTag <> '') and (Disp.HostTag <> '') then begin
+            if (Disp.HostTag <> ClientCnx.HostTag) then Status := False;
+        end;
 
         if Status then begin
             Result    := TRUE;
@@ -893,6 +940,12 @@ var
 begin
     for I := 0 to FGetAllowedPath.Count - 1 do begin
         Elem := FGetAllowedPath.Elem[I];
+
+       { V8.48 if HostTag specified, match it }
+        if (ClientCnx.HostTag <> '') and (Elem.HostTag <> '') then begin
+            if (Elem.HostTag <> ClientCnx.HostTag) then Continue;
+        end;
+
         case Elem.Flags of
         afBeginBy:
             begin
@@ -1014,12 +1067,15 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpAppSrv.AddGetAllowedPath(
     const Path : String;
-    Flags      : THttpAllowedFlag);
+    Flags      : THttpAllowedFlag;
+    HostTag    : String = '');      { V8.48 }
 var
     Item  : THttpAllowedElement;
     Index : Integer;
+    Key   : String;
 begin
-    Index := FGetAllowedPath.IndexOf({$IFDEF POSIX}Path{$ELSE}UpperCase(Path){$ENDIF});
+    Key := {$IFDEF POSIX}Path{$ELSE}IcsUpperCase(Path){$ENDIF} + '|' + HostTag;
+    Index := FGetAllowedPath.IndexOf(Key);  { V8.48 }
     if Index >= 0 then begin
         // Update the element if the path already exists
         Item       := THttpAllowedElement(FGetAllowedPath.Objects[Index]);
@@ -1027,10 +1083,11 @@ begin
     end
     else begin
         // Create a new element if path doesn't exist yet
-        Item       := THttpAllowedElement.Create;
-        Item.Path  := {$IFDEF POSIX}Path{$ELSE}UpperCase(Path){$ENDIF};
-        Item.Flags := Flags;
-        FGetAllowedPath.AddObject(Item.Path, Item);
+        Item         := THttpAllowedElement.Create;
+        Item.Path    := Path;
+        Item.HostTag := HostTag;  { V8.48 }
+        Item.Flags   := Flags;
+        FGetAllowedPath.AddObject(Key, Item);
     end;
 end;
 
@@ -1891,5 +1948,45 @@ begin
 
     inherited Destroy;
 end;
+
+
+{$IFDEF USE_SSL}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure IcsLoadTHttpAppSrvFromIni(MyIniFile: TCustomIniFile; HttpAppSrv:
+                THttpAppSrv; const Section: String = 'HttpAppSrv');
+begin
+    if NOT Assigned (MyIniFile) then
+        raise ESocketException.Create('Must open and assign INI file first');
+    if NOT Assigned (HttpAppSrv) then
+        raise ESocketException.Create('Must assign HttpAppSrv first');
+
+    with HttpAppSrv do begin
+        MaxClients := MyIniFile.ReadInteger(Section, 'MaxClients', MaxClients);
+        DocDir := IcsTrim(MyIniFile.ReadString(Section, 'DocDir', DocDir));
+        TemplateDir := IcsTrim(MyIniFile.ReadString(Section, 'TemplateDir', TemplateDir));
+        DefaultDoc := IcsTrim(MyIniFile.ReadString(Section, 'DefaultDoc', DefaultDoc));
+        KeepAliveTimeSec := MyIniFile.ReadInteger(Section, 'KeepAliveTimeSec', KeepAliveTimeSec);
+        KeepAliveTimeXferSec := MyIniFile.ReadInteger(Section, 'KeepAliveTimeXferSec',KeepAliveTimeXferSec);
+        MaxRequestsKeepAlive := MyIniFile.ReadInteger(Section, 'MaxRequestsKeepAlive', MaxRequestsKeepAlive);
+        SizeCompressMin := MyIniFile.ReadInteger(Section, 'SizeCompressMin', SizeCompressMin);
+        SizeCompressMax := MyIniFile.ReadInteger(Section, 'SizeCompressMax', SizeCompressMax);
+        PersistentHeader := IcsTrim(MyIniFile.ReadString(Section, 'PersistentHeader', PersistentHeader));
+        MaxBlkSize := MyIniFile.ReadInteger(Section, 'MaxBlkSize', MaxBlkSize);
+        BandwidthLimit := MyIniFile.ReadInteger(Section, 'BandwidthLimit',  BandwidthLimit);
+        BandwidthSampling := MyIniFile.ReadInteger(Section, 'BandwidthSampling', BandwidthSampling);
+        ServerHeader := IcsTrim(MyIniFile.ReadString(Section, 'ServerHeader', ServerHeader));
+        RootCA := IcsTrim(MyIniFile.ReadString(Section, 'RootCA', ''));
+        DHParams := IcsTrim(MyIniFile.ReadString(Section, 'DHParams', ''));
+        SessionTimeout := MyIniFile.ReadInteger(Section, 'SessionTimeout', SessionTimeout);
+        MaxSessions := MyIniFile.ReadInteger(Section, 'MaxSessions', MaxSessions);
+     // pending - need clever way to read set of Options as text
+    end;
+end;
+{$ENDIF}
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
 end.

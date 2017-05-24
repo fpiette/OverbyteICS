@@ -156,7 +156,7 @@ functionality to the proxy with minimal application changes.
 
 
 Updates:
-22 May 2017 - 8.48 baseline
+24 May 2017 - 8.48 baseline
 
 
 
@@ -370,7 +370,6 @@ type
     FTarWaitTot: integer;           // current data in of TarBuffer
     FClosingFlag: Boolean;          // local client about to close
     FTunnelling: Boolean;           // tunnelling data without processing it (probably using SSL)
-//    FTarConnecting: Boolean;        // is target connection being attempted   !!! pending, remove when State = wsDnsLookup added
     FForwardPrxy: Boolean;          // HTTP forward proxy
     FTarConditional: Boolean;       // target is conditional upon path or something
     FPxyTargetIdx: Integer;         // which ProxyTarget are we using
@@ -417,6 +416,10 @@ type
                                                write FTarPort;
     property  TarSsl: Boolean                  read  FTarSsl
                                                write FTarSsl;
+    property  SrcHost: String                  read  FSrcHost;
+    property  Tunnelling: Boolean              read  FTunnelling;
+    property  TarConditional: Boolean          read  FTarConditional;
+    property  PxyTargetIdx: Integer            read  FPxyTargetIdx;
   end;
 
 { TIcsProxy - forwards TCP/IP streams from source (server) to target (client) and back again, without
@@ -504,6 +507,8 @@ type
                   Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean;
     procedure Start;
     procedure Stop;
+    function  ListenAllOK: Boolean;
+    function  ListenStates: String;
     property  Running: Boolean                      read  GetRunning;
     property  ClientCount: Integer                  read  GetClientCount;
     property  SourceServer: TSslWSocketServer       read  FSourceServer;
@@ -1840,6 +1845,28 @@ begin
         Result := TSslWSocketServer(FSourceServer).RecheckSslCerts(CertsInfo,
                                                         Stop1stErr, NoExceptions);
     end;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsProxy.ListenAllOK: Boolean;
+begin
+    if Assigned(FSourceServer) then
+        Result := FSourceServer.ListenAllOK
+    else
+        Result := False;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsProxy.ListenStates: String;
+begin
+    if Assigned(FSourceServer) then
+        Result := FSourceServer.ListenStates
+    else
+        Result := '';
 end;
 
 

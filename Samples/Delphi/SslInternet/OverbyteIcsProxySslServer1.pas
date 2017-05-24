@@ -38,7 +38,7 @@ Legal issues: Copyright (C) 2003-2017 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
-22 May 2017 - 8.48 baseline
+24 May 2017 - 8.48 baseline
 
 
 
@@ -163,7 +163,7 @@ begin
             end;
         end;
         ReportHosts;    // new log file, report everything again
-        Display('Listen Bindings:' + cCRLF + IcsHttpProxy1.SourceServer.ListenStates);
+        Display('Listen Bindings:' + cCRLF + IcsHttpProxy1.ListenStates);
     end;
 
   // see if updating the log window with multiple lines
@@ -417,7 +417,7 @@ begin
                 Display('Proxy Validation Errors:' + cCRLF + S);
             end;
             ReportHosts;
-            Display('Required Listen Bindings:' + cCRLF + IcsHttpProxy1.SourceServer.ListenStates);
+            Display('Required Listen Bindings:' + cCRLF + IcsHttpProxy1.ListenStates);
         except
             on E:Exception do begin
                 Display('Host Validation Failed, Server Stopped - ' + E.Message);
@@ -425,9 +425,9 @@ begin
             end;
         end;
         IcsHttpProxy1.Start;
-        if NOT IcsHttpProxy1.SourceServer.ListenAllOK then
+        if NOT IcsHttpProxy1.ListenAllOK then
             Display('Failed to Start, Listen Bindings:' +
-                                cCRLF + IcsHttpProxy1.SourceServer.ListenStates);
+                                      cCRLF + IcsHttpProxy1.ListenStates);
         StartButton.Enabled := false;
         StopButton.Enabled := true;
     except

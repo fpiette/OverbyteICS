@@ -148,11 +148,11 @@ Apr 20, 2017  V8.46 New RootCA property is now a String (filename or base84 stri
                     Improved IcsHost.GetDisplayName a little
                     Set IcsLogger for SSL context
 May 16, 2017  V8.47 IcsHosts keeps file time stamps of SSL certs to check if
-                      changed, and BindInfo with reportable bindings
+                      changed, and BindInfo with reportable bindings.
                     Added IcsLoadIcsHostsFromIni function which loads IcsHosts from
-                      an open INI file to simplify application creation
-                    Fixed IcsLogger conditional
-May 22, 2017  V8.48 ValidateHosts has options to return all errors as a string
+                      an open INI file to simplify application creation.
+                    Fixed IcsLogger conditional.
+May 24, 2017  V8.48 ValidateHosts has options to return all errors as a string
                       instead of raising an exception on the first error.  The idea
                       is that some hosts may still work, even if one or more SSL
                       certificates are bad.
@@ -161,10 +161,10 @@ May 22, 2017  V8.48 ValidateHosts has options to return all errors as a string
                       available and if old ones have expired.
                     Added ListenAllOK which returns true if all sockets are listening
                       OK, note starting a multilistener server does not give errors
-                      if some listeners fail due to port conflicts
+                      if some listeners fail due to port conflicts.
                     Added ListenStates which returns a multiline string listing the
                        IP, port, SSL and state of all socket listeners.
-
+                    Updated Added IcsLoadIcsHostsFromIni to add web server properties.
 
 
 
@@ -524,6 +524,8 @@ type
         procedure MultiClose; virtual;
         procedure ThreadAttach; override;
         procedure ThreadDetach; override;
+        function  ListenAllOK: Boolean;                              { V8.48 }
+        function  ListenStates: String;                              { V8.48 }
         property  MultiListenIndex: Integer read  FMultiListenIndex;
 
         property  MultiListenSockets: TWSocketMultiListenCollection
@@ -727,8 +729,6 @@ type
                       NoExceptions: Boolean=False): String; virtual; { V8.48 }
         function  RecheckSslCerts(var CertsInfo: String;
                     Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean; { V8.48 }
-        function  ListenAllOK: Boolean;                              { V8.48 }
-        function  ListenStates: String;                              { V8.48 }
     published
         property  SslContext;
         property  Banner;
@@ -1736,6 +1736,55 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ returns state, ip address and port for all sockets }
+function TCustomMultiListenWSocketServer.ListenStates: String;
+var
+    K: integer ;
+    ListenItem: TSslWSocketMultiListenItem;
+begin
+    Result := 'Socket 1 State: ' + SocketStateNames[Self.FState] + ' ' +
+                  SocketFamilyNames [Self.SocketFamily] + ' on ' +
+                                        Self.Addr + ' port ' + Self.Port;
+    if SslEnable then
+        Result := Result + ' SSL' + #13#10
+    else
+        Result := Result + #13#10;
+    if MultiListenSockets.Count > 0 then begin
+        for K := 0 to MultiListenSockets.Count - 1 do begin
+            ListenItem := MultiListenSockets [K] as TSslWSocketMultiListenItem;
+            Result := Result + 'Socket ' + IntToStr (K + 2) +
+                 ' State: ' + SocketStateNames[ListenItem.FState] + ' ' +
+                     SocketFamilyNames [ListenItem.SocketFamily] +
+                       ' on ' + ListenItem.FAddr + ' port ' + ListenItem.FPort;
+            if ListenItem.SslEnable then
+               Result := Result + ' SSL' + #13#10
+            else
+                Result := Result + #13#10;
+        end;
+    end;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ return true is all sockets are listening OK }
+function TCustomMultiListenWSocketServer.ListenAllOK: Boolean ;
+var
+    K: integer ;
+begin
+    Result := False;
+    if FState <> wsListening then Exit;
+    if MultiListenSockets.Count > 0 then begin
+        for K := 0 to MultiListenSockets.Count - 1 do begin
+            if MultiListenSockets [K].FState <> wsListening then Exit;
+        end;
+    end;
+    Result := True;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { TWSocketMultiListenItem }
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
@@ -2700,55 +2749,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ returns state, ip address and port for all sockets }
-function TSslWSocketServer.ListenStates: String;
-var
-    K: integer ;
-    ListenItem: TSslWSocketMultiListenItem;
-begin
-    Result := 'Socket 1 State: ' + SocketStateNames[Self.FState] + ' ' +
-                  SocketFamilyNames [Self.SocketFamily] + ' on ' +
-                                        Self.Addr + ' port ' + Self.Port;
-    if SslEnable then
-        Result := Result + ' SSL' + #13#10
-    else
-        Result := Result + #13#10;
-    if MultiListenSockets.Count > 0 then begin
-        for K := 0 to MultiListenSockets.Count - 1 do begin
-            ListenItem := MultiListenSockets [K] as TSslWSocketMultiListenItem;
-            Result := Result + 'Socket ' + IntToStr (K + 2) +
-                 ' State: ' + SocketStateNames[ListenItem.FState] + ' ' +
-                     SocketFamilyNames [ListenItem.SocketFamily] +
-                       ' on ' + ListenItem.FAddr + ' port ' + ListenItem.FPort;
-            if ListenItem.SslEnable then
-               Result := Result + ' SSL' + #13#10
-            else
-                Result := Result + #13#10;
-        end;
-    end;
-end;
-
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ return true is all sockets are listening OK }
-function TSslWSocketServer.ListenAllOK: Boolean ;
-var
-    K: integer ;
-begin
-    Result := False;
-    if FState <> wsListening then Exit;
-    if MultiListenSockets.Count > 0 then begin
-        for K := 0 to MultiListenSockets.Count - 1 do begin
-            if MultiListenSockets [K].FState <> wsListening then Exit;
-        end;
-    end;
-    Result := True;
-end;
-
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { also called when MultiListen is called }
 { beware this function does not give errors if some listeners fail due to port conflicts }
 procedure TSslWSocketServer.Listen;                             { V8.46 }
@@ -2957,6 +2957,10 @@ begin
                 SslPassword := IcsTrim(MyIniFile.ReadString(section, 'SslPassword', ''));
                 SslInter := IcsTrim(MyIniFile.ReadString(section, 'SslInter', ''));
             end;
+            WebDocDir := IcsTrim(MyIniFile.ReadString(section, 'WebDocDir', ''));
+            WebTemplDir := IcsTrim(MyIniFile.ReadString(section, 'WebTemplDir', ''));
+            WebDefDoc := IcsTrim(MyIniFile.ReadString(section, 'WebDefDoc', ''));
+            WebLogDir := IcsTrim(MyIniFile.ReadString(section, 'WebLogDir', ''));
         end;
     end;
 end;

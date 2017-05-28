@@ -156,7 +156,7 @@ functionality to the proxy with minimal application changes.
 
 
 Updates:
-24 May 2017 - 8.48 baseline
+28 May 2017 - 8.48 baseline
 
 
 
@@ -453,7 +453,11 @@ type
     FCleanupTimer: TIcsTimer;
     FTimerBusyFlag: Boolean;
     FCurDate: Integer;
-    FFlushTick: LongWord; 
+    FFlushTick: LongWord;
+    FOnSrcConnect: TWSocketClientConnectEvent;    // when source client connects
+    FOnSrcDisconnect: TWSocketClientConnectEvent; // when source client disconnects
+    FOnTarConnect: TWSocketClientConnectEvent;    // when remote target connects
+    FOnTarDisconnect: TWSocketClientConnectEvent; // when remote target disconnects
     function  GetIcsHosts: TIcsHostCollection;
     procedure SetIcsHosts(const Value: TIcsHostCollection);
     function  GetRootCA: String;
@@ -555,6 +559,18 @@ type
     property  OnDataRecvTar: TProxyDataEvent        read  FOnDataRecvTar
                                                     write FOnDataRecvTar;
     property  OnBgException;
+    property  OnSrcConnect: TWSocketClientConnectEvent
+                                                    read  FOnSrcConnect
+                                                    write FOnSrcConnect;
+    property  OnSrcDisconnect: TWSocketClientConnectEvent
+                                                    read  FOnSrcDisconnect
+                                                    write FOnSrcDisconnect;
+    property  OnTarConnect: TWSocketClientConnectEvent
+                                                    read  FOnTarConnect
+                                                    write FOnTarConnect;
+    property  OnTarDisconnect: TWSocketClientConnectEvent
+                                                    read  FOnTarDisconnect
+                                                    write FOnTarDisconnect;
   end;
 
 { THtttpProxyClient - similar to TProxyClient, but processing HTTP/HTML }
@@ -1326,7 +1342,6 @@ begin
             LogSrcEvent('Connecting to conditional Target - ' + FTarHost + ':' + FTarPort);
     end ;
     try
-  //      FTarConnecting := True;
         FTarSocket.Addr := FTarHost;    // use for new internal lookup
         FTarSocket.Port := FTarPort;
         FTarSocket.Connect;
@@ -1344,11 +1359,16 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TProxyClient.TargetSessionConnected(Sender: TObject; Error: Word);
 begin
-//    FTarConnecting := False;
     try
         if (Error <> 0) then begin
-            if (FProxySource.DebugLevel >= DebugConn) then
+           if (FProxySource.DebugLevel >= DebugConn) then begin
+     { see if we looked up a DNS address, that might be silly }
+                if (FTarSocket.DnsResult <> '') then
+                    LogTarEvent('Remote IP Adress ' + FTarSocket.DnsResult);
                 LogTarEvent('Remote connection failed (' + WSocketErrorDesc(Error) + ')');
+            end;
+            if Assigned(FProxySource.FOnTarConnect) then
+                FProxySource.FOnTarDisconnect(FProxySource, Self, Error);
             Self.Close;
             Exit;
         end;
@@ -1356,9 +1376,11 @@ begin
         FTarIP := FTarSocket.GetPeerAddr;  // keep looked-up IP>
         if (FProxySource.DebugLevel >= DebugConn) then
             LogTarEvent('Remote IP Adress ' + FTarIP);
+        if Assigned(FProxySource.FOnTarConnect) then
+            FProxySource.FOnTarDisconnect(FProxySource, Self, Error);
         if FTarSocket.SslEnable then begin
-        if (FProxySource.DebugLevel >= DebugSsl) then
-                LogTarEvent('Remote starting SSL handshake to ' + FTarHost);
+            if (FProxySource.DebugLevel >= DebugSsl) then
+                    LogTarEvent('Remote starting SSL handshake to ' + FTarHost);
             FTarSocket.StartSslHandshake;
         end
         else begin
@@ -1585,11 +1607,9 @@ end;
 { note this is overwritten for the HTTP client, it's more compicated }
 procedure TProxyClient.TargetSessionClosed(Sender: TObject; Error: Word);
 begin
-//    FTarConnecting := False;
     FTarClosedFlag := True;
     if (Self.State = wsConnected) and (FTarWaitTot <> 0) then
         TargetXferData;
-
     if (FProxySource.DebugLevel >= DebugConn) then begin
         if (Error = 0) or (Error = 10053) then
             LogTarEvent('Remote closed, Data sent ' +
@@ -1598,6 +1618,8 @@ begin
             LogTarEvent('Remote lost (' + WSocketErrorDesc(Error) + '), Data sent ' +
                 IntToStr (FTarSocket.WriteCount) + ', Data recvd ' + IntToStr (FTarSocket.ReadCount));
     end;
+    if Assigned(FProxySource.FOnTarDisconnect) then
+        FProxySource.FOnTarDisconnect(FProxySource, Self, Error);
 
     if (NOT FClosingFlag) then begin
         if (FProxySource.DebugLevel >= DebugConn) then
@@ -2079,6 +2101,8 @@ begin
     MyClient.FProxySource := Self;  // before logging
     try
         if Error <> 0 then begin
+            if Assigned(FOnSrcConnect) then
+                FOnSrcConnect(Sender, Client, Error);
             LogErrEvent('Source listen connect error: ' + WSocketErrorDesc(Error));
             MyClient.FClosingFlag := True;
             MyClient.Close;
@@ -2093,6 +2117,10 @@ begin
         MyClient.FForwardPrxy := IcsHosts[MyClient.IcsHostIdx].ForwardProxy;
         if MyClient.FForwardPrxy then MyClient.FTarConditional := True;
         MyClient.TargetInitialiase;   { no LogDurEvent before this }
+
+    { application may be interested }
+        if Assigned(FOnSrcConnect) then
+            FOnSrcConnect(Sender, Client, Error);
 
     { is source SSL connection - note SocketServer starts handshake }
     { note MyClient.FPxyTargetIdx may be changed when SNI is checked for SSL }
@@ -2132,6 +2160,8 @@ end;
 procedure TIcsProxy.ServerClientDisconnect(Sender: TObject; Client: TWSocketClient; Error: Word);
 begin
     try
+        if Assigned(FOnSrcDisconnect) then
+            FOnSrcDisconnect(Sender, Client, Error);
         if Assigned (Client) then begin
             with Client as TProxyClient do begin
                 if (DebugLevel >= DebugConn) then begin

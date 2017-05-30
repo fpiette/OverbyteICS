@@ -109,6 +109,8 @@ May 24, 2017 V8.48 Added HostTag parameter to AddGetHandler, AddPostHandler and
                    Added IcsLoadTHttpAppSrvFromIni function which loads
                      HttpAppSrv from an open INI file to simplify application
                      creation. 
+ May 30, 2017 V8.48 PostDispatchVirtualDocument was broken in last update
+
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
@@ -783,8 +785,8 @@ var
     Status   : Boolean;
 begin
     for I := 0 to FPostHandler.Count - 1 do begin
-        Disp := FGetHandler.Disp[I];  { V8.48 }
-        PathBuf := Disp.Path;         { V8.48 }
+        Disp := FPostHandler.Disp[I];  { V8.48 }
+        PathBuf := Disp.Path;          { V8.48 }
         J       := Length(PathBuf);
         if PathBuf[J] = '*' then begin
             SetLength(PathBuf, J - 1);

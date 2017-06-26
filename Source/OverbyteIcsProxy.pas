@@ -37,7 +37,7 @@ Legal issues: Copyright (C) 1997-2017 by François PIETTE
               4. You must register this software by sending a picture postcard
                  to the author. Use a nice stamp and mention your name, street
                  address, EMail address and any comment you like to say.
-                 
+
 
 Overview
 --------
@@ -54,7 +54,7 @@ events.  Can be used to monitor HTTP connections.  Reverse proxy targets
 may be selected according to partial paths, or using an event for more
 complex selection such as load sharing to multiple targets.  Or it can
 be used to add SSL support to non-SSL servers.  The HTTP proxy will
-uncompress received pages and/or compress pages returned by the proxy. 
+uncompress received pages and/or compress pages returned by the proxy.
 
 These components require USE_SSL to be set, there is no non-SSL version,
 but SSL is optional for source and targets.  The components support multiple
@@ -78,7 +78,7 @@ seen.
 A reverse proxy generally runs in front of the remote web server, perhaps to
 provide SSL access to a non-SSL server, for load sharing between multiple
 servers, or to direct different URLs to different servers.  Potentially,
-the proxy can cache static pages, but this is not implemented yet.  
+the proxy can cache static pages, but this is not implemented yet.
 
 Proxy configuration is based on a concept of multiple sources and targets:
 
@@ -128,7 +128,7 @@ source that might cause a timeout, so body size is restricted by the
 HttpMaxBody setting, defaulting to 10MB, the assumption being larger
 textual bodies will not contain absolute server links.  If the
 onHttpRespBody event is set, it will be called with the body, but note
-only for textual bodies smaller than HttpMaxBody. 
+only for textual bodies smaller than HttpMaxBody.
 
 To support SSL sources, the SslCert property should ideally be set the
 SSL certificate bundle file name in PEM, PFX or P12 format that also
@@ -150,7 +150,7 @@ So the application just needs to open an INI file and these three functions
 will read all necessary settings.  This is all optional, the application
 could keep settings in XML or the registry and set-up the proxy collection
 properties directly. nut using the same INI settings will ease adding future
-functionality to the proxy with minimal application changes.  
+functionality to the proxy with minimal application changes.
 
 
 
@@ -167,10 +167,10 @@ Updates:
                       If the source specifies WellKnownPath as a path, any
                         access to /.well-known/xx is handled locally by the
                         proxy either in an event or by returning a local file,
-                        this is primarly for Let's Encrypt challeges but
+                        this is primarily for Let's Encrypt challenges but
                         will be used for a status web page, real soon.
                       If the source specifies WebRedirectStat as a response status
-                        codse like 301, immediate redirection is made to WebRedirectURL
+                        codes like 301, immediate redirection is made to WebRedirectURL
                         which is an absolute URL.
                       Proxy generates an error 502 page if target connection fails
                         or is not configured, maybe other pages would be useful?
@@ -630,7 +630,7 @@ type
     FRespGzip: Boolean;             // response is compressed
     FHttpSrcURL: String;            // HTTP source URL for seaching
     FHttpTarURL1: String;           // HTTP target URL for seachingm with port
-    FHttpTarURL2: String;           // HTTP target URL for seaching without port 
+    FHttpTarURL2: String;           // HTTP target URL for seaching without port
     FUpdateHttp: Boolean;           // from Targets
     FUpdateHtml: Boolean;           // from Targets
 { following are parsed from HTTP request header }
@@ -2082,7 +2082,7 @@ begin
         CreateCounter;
      { V8.49 returns list of exceptions, if any }
         ErrInfo := MultiListenEx;    { listen on multiple sockets, if more than one configured }
-        if ErrInfo <> '' then LogProgEvent(ErrInfo); 
+        if ErrInfo <> '' then LogProgEvent(ErrInfo);
         if FSourceServer.ListenAllOK then
             LogProgEvent('Proxy server started listening OK' +
                                         cCRLF + FSourceServer.ListenStates)
@@ -2799,7 +2799,7 @@ var
 begin
     if FProxySource.IcsHosts[IcsHostIdx].WebRedirectURL = '' then  begin
         LogTarEvent('Redirection URL empty');
-        exit; 
+        exit;
      end;
      LogTarEvent('Handling redirection to: ' +
                                  FProxySource.IcsHosts[IcsHostIdx].WebRedirectURL);
@@ -3477,7 +3477,7 @@ begin
     FRespBinary := CheckBinaryContent(FRespContentType);
 
   { Content-Encoding, deflate or gzip - applied to content after unchunking }
-  { beware Transfer-Encoding: gzip only relates to chunks } 
+  { beware Transfer-Encoding: gzip only relates to chunks }
     if (FRespContentEncoding <> '') then begin
         if (Pos('deflate', FRespContentEncoding) > 0) or
              (Pos('gzip', FRespContentEncoding) > 0) or
@@ -3611,9 +3611,9 @@ begin
                         Self.FUpdateHttp := FUpdateHttp;
                         Self.FUpdateHtml := FUpdateHttp;
                     end;
- 				end else begin
+                end else begin
                     LogSrcEvent('No target - host not supported: ' + FSrcHost);  { V8.49 }
-				end;
+                end;
              end;
 
           { V8.49 look for /.well-known/ directory, which we handle locally }
@@ -4406,7 +4406,7 @@ begin
             HostEnabled := True;
             HostTag := S;
             Descr := IcsTrim(MyIniFile.ReadString(section, 'Descr', ''));
-            SrcPath := IcsLowerCase(MyIniFile.ReadString(section, 'SrcPath', ''));  
+            SrcPath := IcsLowerCase(MyIniFile.ReadString(section, 'SrcPath', ''));
             TarHost := MyIniFile.ReadString(section, 'TarHost', '');
             TarPort := MyIniFile.ReadInteger(section, 'TarPort', 0);
             TarSsl := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'TarSsl', 'False'));

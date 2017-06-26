@@ -89,7 +89,7 @@ Mar 3, 2017  V8.42 Angus TULargeInteger now ULARGE_INTEGER
 Jun 21, 2017 V8.49 Added ISRG Root X1 certificate for Let's Encrypt
              Fixed AV creating second EC key (OpenSSL function fails)
              Now creating X25519 Elliptic Curve private keys
-             Total write creating private keys using EVP_PKEY_CTX functions
+             Total rewrite creating private keys using EVP_PKEY_CTX functions
 
 
 

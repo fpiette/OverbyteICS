@@ -91,10 +91,10 @@ Jun 26 2017 V8.49 Added .well-known directory support.  If WellKnownPath is
                      specified as a path, any access to /.well-known/xx is
                      handled locally either in the OnWellKnownDir Event or
                      by returning a file from WellKnownPath instead of DocDir.
-                     This is primarly for Let's Encrypt challenges.
+                     This is primarily for Let's Encrypt challenges.
 
 
-                     
+
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
 
@@ -603,7 +603,7 @@ begin
         IcsLogger1.LogOptions := IcsLogger1.LogOptions +
                                  LogAllOptInfo + [loAddStamp];
     SslHttpServer1.DocDir           := Trim(DocDirEdit.Text);
-    SslHttpServer1.WellKnownPath    := Trim(WellKnownPathEdit.Text);      { V8.49 } 
+    SslHttpServer1.WellKnownPath    := Trim(WellKnownPathEdit.Text);      { V8.49 }
     SslHttpServer1.DefaultDoc       := Trim(DefaultDocEdit.Text);
     SslHttpServer1.Port             := Trim(PortHttpsEdit.Text);
     SslHttpServer1.Addr             := ListenAddr.Items [ListenAddr.ItemIndex];  { V8.05 }
@@ -1158,7 +1158,7 @@ var
 begin
     { It's easyer to do the cast one time. Could use with clause... }
     Remote := TMyHttpConnection(Client);
-    
+
     { Count request and display a message }
     Inc(FCountRequests);
     Display(IntToStr(FCountRequests) + ': POST ' + Remote.Path);
@@ -1407,7 +1407,7 @@ begin
             Display('Error msg: ' + Cert.VerifyErrMsg + #13#10 +
                     'In this example we accept any cert');
         OK := 1; //In this example we accept any client.
-    end;    
+    end;
 end;
 
 

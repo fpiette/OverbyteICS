@@ -423,11 +423,11 @@ Jun 26 2017 V8.49 Added .well-known directory support.  If WellKnownPath is
                      specified as a path, any access to /.well-known/xx is
                      handled locally either in the OnWellKnownDir Event or
                      by returning a file from WellKnownPath instead of DocDir.
-                     This is primarly for Let's Encrypt challenges.
+                     This is primarily for Let's Encrypt challenges.
                    Start is now a function that optionally opens all possible
                       sockets ignoring errors, which are returned as a string.
                       This is primarily when using MultiListenrs where one
-                      failling no longer stops all of them.
+                      failing no longer stops all of them.
                    Moved DocumentToContentType to OverbyteIcsFormDataDecoder to share
 
 
@@ -1859,7 +1859,7 @@ function HtmlPageProducer(const ResName      : String;
                           RowDataGetter      : PTableRowDataGetter;
                           UserData           : TObject;
                           DestStream         : TStream
-                      {$IFDEF COMPILER12_UP};                          
+                      {$IFDEF COMPILER12_UP};
                           ResCodepage        : LongWord = CP_ACP;
                           DestCodePage       : LongWord = CP_ACP
                       {$ENDIF}
@@ -2007,7 +2007,7 @@ begin
     FOptions        := [];
     FAddr           := ICS_ANY_HOST_V4;
     FPort           := '80';
-    FSocketFamily   := DefaultSocketFamily;        { V8.00 } 
+    FSocketFamily   := DefaultSocketFamily;        { V8.00 }
     FMaxClients     := 0;                {DAVID}
     FListenBacklog  := 5; {Bjørnar}
     FDefaultDoc     := 'index.html';
@@ -2024,7 +2024,7 @@ begin
     FAuthTypes                    := [];
 {$ENDIF}
     FKeepAliveTimeSec     := 10;
-    FKeepAliveTimeXferSec := 300;  { V8.05 } 
+    FKeepAliveTimeXferSec := 300;  { V8.05 }
     FMaxRequestsKeepAlive := 100;
     FHeartBeat            := TIcsTimer.Create(FWSocketServer);
     FHeartBeat.OnTimer    := HeartBeatOnTimer;
@@ -2298,7 +2298,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THttpServer.SetKeepAliveTimeXferSec(const Value: Cardinal);  { V8.05 } 
+procedure THttpServer.SetKeepAliveTimeXferSec(const Value: Cardinal);  { V8.05 }
 begin
     if Value > High(Cardinal) div 1000 then
         FKeepAliveTimeXferSec := High(Cardinal) div 1000
@@ -2347,7 +2347,7 @@ begin
     Client.LingerTimeout                       := FLingerTimeout;
     (Client as THttpConnection).Options        := FOptions;
     THttpConnection(Client).KeepAliveTimeSec     := FKeepAliveTimeSec;
-    THttpConnection(Client).KeepAliveTimeXferSec := FKeepAliveTimeXferSec;  { V8.05 } 
+    THttpConnection(Client).KeepAliveTimeXferSec := FKeepAliveTimeXferSec;  { V8.05 }
     Client.CreateCounter;
     Client.Counter.SetConnected;               { V7.23 }
     {$IFDEF USE_SSL}
@@ -2650,7 +2650,7 @@ begin
         CurTicks := IcsGetTickCount;
         for I := ClientCount - 1 downto 0 do begin
             Cli := Client[I];
-            if (Cli.FState = hcRequest) then  { V8.05 } 
+            if (Cli.FState = hcRequest) then  { V8.05 }
                 Timeout := Cli.KeepAliveTimeSec
             else
                 Timeout := Cli.KeepAliveTimeXferSec;
@@ -2676,7 +2676,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THttpServer.SetMultiListenSockets(                                 { V8.00 } 
+procedure THttpServer.SetMultiListenSockets(                                 { V8.00 }
   const Value: TWSocketMultiListenCollection);
 begin
     if Assigned(FWSocketServer) then
@@ -6933,7 +6933,7 @@ begin
         for I := 0 to RangeList.Count-1 do begin
             if RangeList.Count > 1 then begin
                 AStream := TMemoryStream.Create;
-                if I <> 0 then 
+                if I <> 0 then
                     StreamWriteLnA(AStream, '');
                 StreamWriteLnA(AStream, '--' + ByteRangeSeparator);
                 StreamWriteLnA(AStream, 'Content-Type: ' + ContentString);

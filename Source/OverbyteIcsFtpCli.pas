@@ -1077,6 +1077,8 @@ Feb 23, 2016 V8.09 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 Nov 10, 2016 V8.37 - Added extended exception information, set SocketErrs = wsErrFriendly for
                       some more friendly messages (without error numbers)
 Mar 3, 2017  V8.42 - Angus TULargeInteger now ULARGE_INTEGER
+Jun 21, 2017 V8.49 - Angus using IcsGetFileSize instead of local version
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -1167,9 +1169,9 @@ uses
     OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 842;
-  CopyRight : String = ' TFtpCli (c) 1996-2017 F. Piette V8.42 ';
-  FtpClientId : String = 'ICS FTP Client V8.42 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 849;
+  CopyRight : String = ' TFtpCli (c) 1996-2017 F. Piette V8.49 ';
+  FtpClientId : String = 'ICS FTP Client V8.49 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -2157,6 +2159,7 @@ begin
 end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*  V8.49 using version n Utils
 function GetFileSize(FileName : String) : TFtpBigInt; { V2.108 }
 var
     SR : TSearchRec;
@@ -2178,7 +2181,7 @@ begin
     end
     else
         Result := -1;
-end;
+end;       *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -3326,7 +3329,7 @@ begin
     { value. This property could be initialized using Size command.         }
     if (not (FRequestType in [ftpRestartPutAsync, ftpRestPutAsync])) and
        (not (ftpNoAutoResumeAt in FOptions)) then
-        FResumeAt := GetFileSize(FLocalFileName)
+        FResumeAt := IcsGetFileSize(FLocalFileName);
 end;
 
 
@@ -5239,7 +5242,7 @@ begin
                 { We MUST check for file size >= RestartPos since Seek in any      } { V2.108 }
                 { write-mode may write to the stream returning always the correct  }
                 { new position.                                                    }
-                NewPos := GetFileSize(FLocalFileName);                    { V2.108 }
+                NewPos := IcsGetFileSize(FLocalFileName);                 { V2.108 }
                 if FResumeAt <= NewPos then                               { V2.108 }
                     NewPos := FLocalStream.Seek(FResumeAt, soBeginning);
                 if NewPos <> FResumeAt then begin

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.48
+Version:      8.49
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1208,9 +1208,9 @@ Apr 20, 2017  V8.46 Added sslCiphersNoDH which blocks DH and DHE ciphers,
 May 15, 2017  V8.47 Fixed ValidateCertChain ignoring some warnings
 May 22, 2017  V8.48 Added added wsDnsLookup SocketState during wsoAsyncDnsLookup
                     Cancel async DNS if close called before connect
+June 26, 2017 V8.49 SSL changes in other units, MacOS fixes in other units
 
 
-                    
 Use of certificates for SSL clients:
 Client SSL applications will usually work without any certificates because all
 the encryption is done by the server.  If a client needs to confirm the identity
@@ -1413,8 +1413,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 848;
-  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.48 ';
+  WSocketVersion            = 849;
+  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.49 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 

@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.46
+Version:      8.49
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -86,7 +86,8 @@ Jan 27, 2017 V8.40 Angus display multiple certificate file formats
 Feb 24, 2017 V8.41 Finished changes for TSslCertTools
                    Simplified creating bundles from Windows with new functions
 Apr 20, 2017 V8.46 Force random serial for each new certificate to avoid duplicates
-
+Jun 20, 2017 V8.49 Fixed some missing spaces after : in certificate info listing
+                   Clear more certificate fields, specifically DNS names
 
 
 Pending
@@ -124,10 +125,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 846;
-     PemToolDate        = 'Apr 20, 2017';
+     PemToolVersion     = 849;
+     PemToolDate        = 'Jun 16, 2017';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2017 by François PIETTE V8.46 ';
+     CopyRight : String = '(c) 2003-2017 by François PIETTE V8.49 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -488,10 +489,10 @@ begin
     FProgDir     := ExtractFilePath(ParamStr(0));
     FIniFileName := GetIcsIniFileName;
     ComboBoxStoreType.ItemIndex := 0;
-    //Avoid dynamical loading and unloading the SSL DLLs plenty of times
+ // Avoid dynamical loading and unloading the SSL DLLs plenty of times
     GSSLEAY_DLL_IgnoreNew := False;  { V8.38 don't ignore OpenSSL 1.1.0 and later }
-//    GSSLEAY_DLL_IgnoreNew := True;  { V8.38 don't ignore OpenSSL 1.1.0 and later }
-    GSSLEAY_DLL_IgnoreOld := True;   { V8.38 ignore OpenSSL 1.0.2 and earlier }
+//  GSSLEAY_DLL_IgnoreNew := True;  { V8.38 don't ignore OpenSSL 1.1.0 and later }
+//  GSSLEAY_DLL_IgnoreOld := True;   { V8.38 ignore OpenSSL 1.0.2 and earlier }
     GSSL_DLL_DIR := FProgDir;        { V8.38 only from our directory }
     GSSL_SignTest_Check := True;     { V8.38 check digitally signed }
     GSSL_SignTest_Certificate := True; { V8.38 check digital certificate }
@@ -694,10 +695,11 @@ begin
     items may be returned, normally separated by CRLF, but unwrapped here for display.
     Rarely does a certificate have all these entries, particuarly the personal name
     stuff which is really for email certificates  }
+    { V8.49 fixed some missing spaces after : }
         Result := 'ISSUED TO (Subject)' + #13#10 +
-            'Common Name (CN):' + IcsUnwrapNames(SubjectCName) + #13#10 +
-            'Alt Name (DNS):' + IcsUnwrapNames(SubAltNameDNS) + #13#10 +
-            'Alt Name (IP):' + IcsUnwrapNames(SubAltNameIP) + #13#10 +
+            'Common Name (CN): ' + IcsUnwrapNames(SubjectCName) + #13#10 +
+            'Alt Name (DNS): ' + IcsUnwrapNames(SubAltNameDNS) + #13#10 +
+            'Alt Name (IP): ' + IcsUnwrapNames(SubAltNameIP) + #13#10 +
             'Organisation (O): ' + IcsUnwrapNames(SubjectOName) + #13#10 +
             'Organisational Unit (OU): ' + IcsUnwrapNames(SubjectOUName) + #13#10 +
             'Country (C): ' + SubjectCOName + #13#10 +
@@ -715,7 +717,7 @@ begin
             Result := Result + 'SELF SIGNED' + #13#10
         else begin
             Result := Result + 'ISSUED BY' + #13#10 +
-                'Common Name (CN):' + IcsUnwrapNames(IssuerCName) + #13#10 +
+                'Common Name (CN): ' + IcsUnwrapNames(IssuerCName) + #13#10 +
                 'Organisation (O): ' + IcsUnwrapNames(IssuerOName) + #13#10 +
                 'Organisational Unit (OU): ' + IcsUnwrapNames(IssuerOUName) + #13#10 +
                 'Country (C): ' + IssuerCOName + #13#10 +
@@ -726,8 +728,8 @@ begin
         Result := Result + '' + #13#10 +
             'GENERAL' + #13#10 +
             'Serial Number: ' + SerialNumHex + #13#10 + // Oct 2015 not always very numeric IntToStr (SerialNum));
-            'Issued on:' + DateToStr(ValidNotBefore) + #13#10 +
-            'Expires on:' + DateToStr(ValidNotAfter) + #13#10 +
+            'Issued on: ' + DateToStr(ValidNotBefore) + #13#10 +
+            'Expires on: ' + DateToStr(ValidNotAfter) + #13#10 +
             'Basic Constraints: ' + IcsUnwrapNames(BasicConstraints) + #13#10 +
             'Key Usage: ' + IcsUnwrapNames(KeyUsage) + #13#10 +
             'Extended Key Usage: ' + IcsUnwrapNames(ExKeyUsage) + #13#10 +
@@ -1324,6 +1326,9 @@ begin
     KeyPairLines.Lines.Clear;
     DHParamsLines.Lines.Clear;
     CertLinesNew.Lines.Clear;
+    CertAltDomains.Lines.Clear;  // V8.49
+    CertAltIPs.Lines.Clear;      // V8.49
+    CertCommonName.Text := '';   // V8.49
     if LogWinOpen then frmPemTool2.Memo1.Lines.Clear;
 end;
 

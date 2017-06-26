@@ -39,6 +39,9 @@ Legal issues: Copyright (C) 2003-2017 by François PIETTE
 
 History:
 24 May 2017 - 8.48 baseline
+23 Jun 2017 - 8.49 -Start no longer gives exception if some binding fail, but
+                        opens as many source listeners as possible.
+                    Added host redirection and .well-known directory support
 
 
 
@@ -99,6 +102,8 @@ type
       ProxyClient: TProxyClient);
     procedure Timer1Timer(Sender: TObject);
     procedure RecheckCertsButtonClick(Sender: TObject);
+    procedure IcsHttpProxy1HttpWellKnown(Sender: TObject;
+      ProxyClient: THttpProxyClient; var Arg: string);
   private
     FIniFileName : String;
     FInitialized : Boolean;
@@ -252,6 +257,20 @@ begin
 //    Display('Data being sent to target, bytes ' + IntToStr(DataLen));
 end;
 
+procedure TProxySslServerForm.IcsHttpProxy1HttpWellKnown(Sender: TObject;
+  ProxyClient: THttpProxyClient; var Arg: string);
+begin
+   Display('Event: Well-Known File Requested: ' + ProxyClient.RequestPath);
+   if Pos('/acme-challenge/', ProxyClient.RequestPath) > 1 then
+   begin
+     // check challenge token received Let's Encrypt and return key authorization
+     // sample only !!!
+        if Pos('/LoqXcYV8q5ONbJQxbmR7SCTNo3tiAXDfowyjxAjEuX0', ProxyClient.RequestPath) > 1 then
+            Arg := 'LoqXcYV8q5ONbJQxbmR7SCTNo3tiAXDfowyjxAjEuX0' +
+                                            '.9jg46WB3rR_AHD-EBXdN7cBkH1WOu0tA3M9fm21mqTI';
+   end;
+end;
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TProxySslServerForm.IcsHttpProxy1ProxyProg(Sender: TObject;
   LogOption: TLogOption; const Msg: string);
@@ -320,6 +339,8 @@ begin
             else
                 S := S + 'No SSL' + cCRLF;
             if ForwardProxy then S := S + 'Forward Proxy' + cCRLF;
+            if WebRedirectStat <> 0 then S := S + 'Redirection to: ' + WebRedirectURL + cCRLF;      { V9.49 }
+            if WellKnownPath <> '' then S := S + 'Well-Known path root: ' + WellKnownPath + cCRLF;  { V9.49 }
             Display(S) ;
         end;
     end;

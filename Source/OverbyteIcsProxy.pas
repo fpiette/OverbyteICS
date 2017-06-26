@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Forward and Reverse SSL HTTP Proxy
 Creation:     May 2017
 Updated:      May 2017
-Version:      8.48
+Version:      8.49
 Sponsor:      This component was sponsored in part by Avenir Health and
               Banxia Software Ltd. http://www.avenirhealth.org
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
@@ -105,7 +105,8 @@ Target - TSslWSocket that connects to a remote target destination,   Part
    be validated and reported according to the TCertVerMethod setting.  The
    OnSetTarget event is called immediately before each remote target connection
    is started and may be used for logging or TarHost, TarPort and TarSsl may be
-   changed to alter the target for this connection only.
+   changed to alter the target for this connection only.  If TarPort is zero,
+   the source port and SSL method are copied for the target.
 
 Once source and target are connected, traffic from source is sent to target,
 and vice versa.  The proxy receives data in a temporary TBytes buffer of size
@@ -156,15 +157,30 @@ functionality to the proxy with minimal application changes.
 
 
 Updates:
-28 May 2017 - 8.48 baseline
-
-
+28 May 2017  - 8.48 - baseline
+26 June 2017 - 8.49 - Changed target behaviour for host listening on both 80 and
+                        443 so source port copied only if target is zero.
+                      Start no longer gives exception if some binding fail, but
+                        opens as many source listeners as possible.
+                      Various logging improvements to make things clearer.
+                      Added host redirection and .well-known directory support.
+                      If the source specifies WellKnownPath as a path, any
+                        access to /.well-known/xx is handled locally by the
+                        proxy either in an event or by returning a local file,
+                        this is primarly for Let's Encrypt challeges but
+                        will be used for a status web page, real soon.
+                      If the source specifies WebRedirectStat as a response status
+                        codse like 301, immediate redirection is made to WebRedirectURL
+                        which is an absolute URL.
+                      Proxy generates an error 502 page if target connection fails
+                        or is not configured, maybe other pages would be useful?
+                      Moved TBytes functions to OverbyteIcsUtils
 
 
 pending...
+Check document meta for charset
 Convert TByte buffers to UTF8 instead of ANSI
 Test Transfer-Encoding: gzip, chunked
-Proxy generated error page if target connection fails
 Proxy statistics
 
 }
@@ -225,6 +241,7 @@ uses
 {$ENDIF FMX}
     OverbyteIcsTypes,
     OverbyteIcsMimeUtils,
+    OverbyteIcsFormDataDecoder,
     OverbyteIcsURL,
     OverbyteIcsUtils;
 
@@ -233,9 +250,9 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpServerVersion = 848;
-    CopyRight : String = ' TIcsHttpProxy (c) 2017 F. Piette V8.48 ';
-    DefServerHeader : string = 'Server: ICS-Proxy-8.48';
+    THttpServerVersion = 849;
+    CopyRight : String = ' TIcsHttpProxy (c) 2017 F. Piette V8.49 ';
+    DefServerHeader : string = 'Server: ICS-Proxy-8.49';
     CompressMinSize = 5000;     // 5K minimum to make it worth compressing a page
     CompressMaxSize = 5000000;  // 5M bigger takes too long
     DefRxBuffSize = 65536;
@@ -250,6 +267,8 @@ const
     cCRLF_ = cCR+cLF;
     cDoubleCRLF = cCR+cLF+cCR+cLF;
     FlushSslCacheMins = 120;  // how often to clear SSL domain cache
+    WellKnownDir = '/.well-known/';
+    { see http://www.iana.org/assignments/well-known-uris/well-known-uris.xhtml }
 
 type
 { forware declarations }
@@ -382,7 +401,7 @@ type
     procedure SourceDataAvailable(Sender: TObject; Error: Word);
     procedure SourceSessionClosed(Sender: TObject; Error: Word); Virtual;
 //    procedure TargetDnsLookupDone(Sender: TObject; Error: Word);
-    procedure TargetSessionConnected(Sender: TObject; Error: Word);
+    procedure TargetSessionConnected(Sender: TObject; Error: Word); Virtual;
     procedure TargetSessionClosed(Sender: TObject; Error: Word); Virtual;
     procedure TargetVerifyPeer(Sender: TObject; var Ok : Integer; Cert: TX509Base);
     procedure TargetHandshakeDone(Sender: TObject; ErrCode: Word;
@@ -660,6 +679,7 @@ type
   protected
       { Protected declarations }
     procedure SourceSessionClosed(Sender: TObject; Error: Word); override;
+    procedure TargetSessionConnected(Sender: TObject; Error: Word); override;
     procedure TargetSessionClosed(Sender: TObject; Error: Word); override;
     procedure SourceDataSent(Sender: TObject; ErrCode : Word); override;
     procedure TargetDataSent(Sender: TObject; ErrCode : Word); override;
@@ -667,6 +687,7 @@ type
       { Public declarations }
     constructor Create(Owner:TComponent); override;
     destructor Destroy; override;
+    procedure TargetCheck; override;
     procedure TargetSpecify; override;
     function  RemoveHdrLine(const Hdr: String; var Headers: string): boolean;
     function  UpdateHdrLine(const Hdr, Arg: String; var Headers: string): boolean;
@@ -676,14 +697,18 @@ type
     procedure SourceBodyBufXmit;
  //   procedure SourceBodyStrXmit;
     procedure TargetForwardProxy; Virtual;
-    function  FindPxyPathTarget(const HTag, HPath: String): Integer; Virtual; 
+    function  FindPxyPathTarget(const HTag, HPath: String): Integer; Virtual;
     procedure UpdateBody; Virtual;
     procedure CompressBody; Virtual;
     procedure DecompressBody; Virtual;
     procedure ParseReqHdr; Virtual;
     procedure ParseRespHdr; Virtual;
     procedure SourceXferData; override;
+    procedure SourceCreatePage(const Status, ContentType, ExtraHdr, BodyStr: String); Virtual;
     procedure TargetXferData; override;
+    procedure TargetWellKnown; Virtual;
+    procedure TargetRedirection; Virtual;
+    procedure TargetErrorResponse(const RespStatus, Msg: string); Virtual;
     property  RequestMethod : THttpReqMethod        read  FRequestMethod;
     property  RequestVersion: String                read  FRequestVersion;
     property  RequestAccept : String                read  FRequestAccept;
@@ -744,6 +769,7 @@ type
     FonHttpPxyAuth: TProxyHttpEvent;    // HTTP proxy authorisation needed
     FonHttpReqBody: TProxyHttpEvent;    // HTTP request POST body has been read
     FonHttpRespBody: TProxyHttpEvent;   // HTTP response body has been read
+    FonHttpWellKnown: TProxyHttpEvent;  // HTTP well-known directory found
   protected
       { Protected declarations }
   public
@@ -776,6 +802,8 @@ type
                                                     write FonHttpReqBody;
     property  onHttpRespBody: TProxyHttpEvent       read  FonHttpRespBody
                                                     write FonHttpRespBody;
+    property  onHttpWellKnown: TProxyHttpEvent      read  FonHttpWellKnown
+                                                    write FonHttpWellKnown;
   end;
 
 { public functions }
@@ -788,8 +816,9 @@ procedure IcsLoadTIcsHttpProxyFromIni(MyIniFile: TCustomIniFile; IcsHttpProxy:
 implementation
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
 { we receive socket as single byte raw data into TBytes buffer without a
-  character set, then convertit onto Delphi Strings for each of processing }
+  character set, then convertit onto Delphi Strings for ease of processing }
 { Beware - this function treats buffers as ANSI, no Unicode conversion }
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure MoveTBytesToString(const Buffer: TBytes; OffsetFrom: Integer;
@@ -868,7 +897,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Pos that ignores nulls in the TBytes buffer, so avoid PAnsi functions }
+{ Pos that ignores nulls in the TBytes buffer, so avoid PAnsiChar functions }
 function PosTBytes(const Substr: String; const S: TBytes; Offset, Count: Integer): Integer;
 var
     Ch: Byte;
@@ -896,9 +925,7 @@ begin
             end;
         end;
     end;
-end;
-
-
+end;          *)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { TProxyTargets }
@@ -1034,7 +1061,7 @@ begin
  { remove what we sent from buffer }
     FSrcWaitTot := FSrcWaitTot - SendNr;
     if FSrcWaitTot > 0 then
-        MoveTBytes(FSrcBuffer, SendNr, 0, FSrcWaitTot);
+        IcsMoveTBytes(FSrcBuffer, SendNr, 0, FSrcWaitTot);
 end;
 
 
@@ -1082,7 +1109,7 @@ begin
  { remove what we sent from buffer }
     FTarWaitTot := FTarWaitTot - SendNr;
     if FTarWaitTot > 0 then
-        MoveTBytes(FTarBuffer, SendNr, 0, FTarWaitTot);
+        IcsMoveTBytes(FTarBuffer, SendNr, 0, FTarWaitTot);
 end;
 
 
@@ -1259,20 +1286,20 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { log source, find target according to HostTag }
+{ note this is overwritten for the HTTP client, it's more compicated }
 procedure TProxyClient.TargetCheck;
 begin
-    Self.FLogDescr := FProxySource.IcsHosts[IcsHostIdx].Descr +
-                                             ' (' + IntToStr (FCliId) + ') ';
+    Self.FLogDescr := FHostTag + ' - ' + FProxySource.IcsHosts[IcsHostIdx].Descr +    { V8.49 }
+                                                   ' (' + IntToStr (FCliId) + ') ';
     if (FProxySource.DebugLevel >= DebugConn) then
         LogSrcEvent('Host #' + IntToStr(FIcsHostIdx) + ' ' + FSrcHost +
-           ' - ' + FHostTag + ', Listener ' + CServerAddr + ':' + CServerPort);
+                           ', Listener ' + CServerAddr + ':' + CServerPort);
 
   { find ProxyTarget may change later if checking path in HTTP header }
     FPxyTargetIdx := FProxySource.FindPxyTarget(FHostTag);
     if FPxyTargetIdx < 0 then begin  { should have been checked earlier }
-    if (FProxySource.DebugLevel >= DebugConn) then
-            LogSrcEvent('Host #' + IntToStr(FIcsHostIdx) + ' -' +
-                            FHostTag + ', no matching proxy target found');
+        if (FProxySource.DebugLevel >= DebugConn) then
+            LogSrcEvent('Host #' + IntToStr(FIcsHostIdx) + ', no matching proxy target found');
         FClosingFlag := True;
         Self.Close;
         exit;
@@ -1293,18 +1320,29 @@ begin
             LogSrcEvent('Target #' + IntToStr(FPxyTargetIdx) + ' - ' +
                                           TarHost + ':' + IntToStr(TarPort));
         Self.FTarHost := TarHost;
-        self.FTarPort := IntToStr(TarPort);
-        Self.FTarSsl := TarSsl;
+       { V4.49 zero target means copy source port }
+         if TarPort > 0 then begin
+            Self.FTarPort := IntToStr(TarPort);
+            Self.FTarSsl := TarSsl;
+        end
+        else begin
+            Self.FTarSsl := SslEnable;
+            Self.FTarPort := CServerPort;
+            if (FProxySource.DebugLevel >= DebugConn) then
+                LogSrcEvent('Copied source port for target - ' +
+                                            TarHost + ':' + CServerPort);
+        end;
         Self.FIdleTimeout := IdleTimeout;
     end;
 
   { if IcsHost specified both non-SSL and SSL port, don't change SSL method }
+  { V4.49 bad idea, removed
     with  FProxySource.IcsHosts[IcsHostIdx] do begin
         if (BindSslPort = 443) and (BindNonPort = 80) then begin
             Self.FTarSsl := SslEnable;
             Self.FTarPort := CServerPort;
         end;
-    end;
+    end;    }
 
   { let application change target before we connect }
     if Assigned(FProxySource.FOnSetTarget) then begin
@@ -1357,6 +1395,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ note this is overwritten for the HTTP client, it's more compicated }
 procedure TProxyClient.TargetSessionConnected(Sender: TObject; Error: Word);
 begin
     try
@@ -1827,11 +1866,12 @@ begin
         for I := 0 to IcsHosts.Count - 1 do begin
             if NOT IcsHosts[I].HostEnabled then Continue;
             if IcsHosts[I].ForwardProxy then Continue;  // no target needed
+            if IcsHosts[I].WebRedirectStat <> 0 then Continue;  // no target needed
             HTag := IcsHosts[I].HostTag;
             J := FindPxyTarget(HTag);
             if (J < 0) then begin
                 Result := Result + 'Host ' + IntToStr(I) +
-                                     HTag + ', no matching proxy target found';
+                                ' ' + HTag + ', no matching proxy target found';
                 if Stop1stErr then raise ESocketException.Create(Result);
                 continue;
             end;
@@ -1842,7 +1882,7 @@ begin
                     if NOT IcsHosts[K].HostEnabled then Continue;
                     if HTag = IcsHosts[K].HostTag then begin
                         Result := Result + 'Host ' + IntToStr(I) +
-                                                       HTag + ' is a duplicate';
+                                               ' ' + HTag + ' is a duplicate';
                         if Stop1stErr then raise ESocketException.Create(Result);
                         continue;
                     end;
@@ -1966,6 +2006,7 @@ end;
 procedure TIcsProxy.Start;
 var
     I: Integer;
+    ErrInfo: String;
 begin
   { If already listening, then do nothing }
     if FSourceServer.State = wsListening then Exit;
@@ -2039,8 +2080,9 @@ begin
         SocketErrs := FSocketErrs;
         IcsLogger := FIcsLog;
         CreateCounter;
-        MultiListen;    { listen on multiple sockets, if more than one configured }
-  { Warning - need to check all sockets are actually listening, conflicts are ignored }
+     { V8.49 returns list of exceptions, if any }
+        ErrInfo := MultiListenEx;    { listen on multiple sockets, if more than one configured }
+        if ErrInfo <> '' then LogProgEvent(ErrInfo); 
         if FSourceServer.ListenAllOK then
             LogProgEvent('Proxy server started listening OK' +
                                         cCRLF + FSourceServer.ListenStates)
@@ -2541,6 +2583,30 @@ begin
 end;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ log source, find target according to HostTag }
+procedure THttpProxyClient.TargetCheck;
+begin
+    Self.FLogDescr := FHostTag + ' - ' + FProxySource.IcsHosts[IcsHostIdx].Descr +    { V8.49 }
+                                                   ' (' + IntToStr (FCliId) + ') ';
+    if (FProxySource.DebugLevel >= DebugConn) then
+        LogSrcEvent('Host #' + IntToStr(FIcsHostIdx) + ' ' + FSrcHost +
+                           ', Listener ' + CServerAddr + ':' + CServerPort);
+
+  { find ProxyTarget may change later if checking path in HTTP header }
+    FPxyTargetIdx := FProxySource.FindPxyTarget(FHostTag);
+    if FPxyTargetIdx < 0 then begin  { should have been checked earlier }
+        if (FProxySource.DebugLevel >= DebugConn) then
+            LogSrcEvent('Host #' + IntToStr(FIcsHostIdx) + ', no matching proxy target found');
+    { V8.49 tell the user something before closing the connectionn }
+       if FTarHttp then TargetErrorResponse('502 Bad Gateway',
+                                           'The gateway can not be found');
+       FClosingFlag := True;
+        Self.Close;
+        exit;
+    end;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { create the URLs we need to search and replace in headers and bodies }
@@ -2568,6 +2634,190 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpProxyClient.TargetSessionConnected(Sender: TObject; Error: Word);
+begin
+    try
+        if (Error <> 0) then begin
+           if (FProxySource.DebugLevel >= DebugConn) then begin
+     { see if we looked up a DNS address, that might be silly }
+                if (FTarSocket.DnsResult <> '') then
+                    LogTarEvent('Remote IP Adress ' + FTarSocket.DnsResult);
+                LogTarEvent('Remote connection failed (' + WSocketErrorDesc(Error) + ')');
+            end;
+        { V8.49 tell the user something before closing the connectionn }
+            if FTarHttp then TargetErrorResponse('502 Bad Gateway',
+                   'The gateway can not connect to the requested server: ' + FTarHost);
+            if Assigned(FProxySource.FOnTarDisconnect) then
+                FProxySource.FOnTarDisconnect(FProxySource, Self, Error);
+            Self.Close;
+            Exit;
+        end;
+        FTarSocket.Counter.SetConnected;
+        FTarIP := FTarSocket.GetPeerAddr;  // keep looked-up IP>
+        if (FProxySource.DebugLevel >= DebugConn) then
+            LogTarEvent('Remote IP Adress ' + FTarIP);
+        if Assigned(FProxySource.FOnTarDisconnect) then
+            FProxySource.FOnTarDisconnect(FProxySource, Self, Error);
+        if FTarSocket.SslEnable then begin
+            if (FProxySource.DebugLevel >= DebugSsl) then
+                    LogTarEvent('Remote starting SSL handshake to ' + FTarHost);
+            FTarSocket.StartSslHandshake;
+        end
+        else begin
+            if (FProxySource.DebugLevel >= DebugConn) then
+                 LogTarEvent('Remote connection OK to ' + FTarHost);
+            PostMessage(FProxySource.Handle, FProxySource.FMsg_TARGET_CONNECTED, 0, LPARAM(Self))
+        end;
+    except
+        on E:Exception do begin
+            if (FProxySource.DebugLevel >= DebugSsl) then
+                LogTarEvent('Remote start SSL handshake error: ' + E.Message);
+            Self.Close;
+        end;
+    end;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ send local werb page for errors and stuff }
+procedure THttpProxyClient.SourceCreatePage(const Status, ContentType, ExtraHdr, BodyStr: String);
+begin
+  { create response header }
+    FHttpRespHdr := FRequestVersion + ' ' + Status + cCRLF +
+       'Content-Length: ' + IntToStr(Length(BodyStr)) + cCRLF +
+       'Connection: close' + cCRLF;
+    if ContentType <> '' then FHttpRespHdr := FHttpRespHdr +
+       'Content-Type: ' + ContentType + cCRLF;
+    if ExtraHdr <> '' then
+        FHttpRespHdr := FHttpRespHdr + ExtraHdr + cCRLF;
+    FHttpRespHdr := FHttpRespHdr + cCRLF;
+
+  { create response body }
+    FHtmlRespBodyLen := Length(BodyStr);
+    FRespContentLength := FHtmlRespBodyLen;
+    if (Length(FHtmlRespBody) <= FHtmlRespBodyLen) then
+        SetLength(FHtmlRespBody, FHtmlRespBodyLen + 1);
+    IcsMoveStringToTBytes(BodyStr, FHtmlRespBody, FHtmlRespBodyLen);
+
+  { send header and body }
+    LogTarEvent('Sending Response Header:' + cCRLF + FHttpRespHdr);
+    SourceHdrRespXmit;
+    if (FRequestMethod <> httpMethodHead) and (FHtmlRespBodyLen > 0) then begin
+        LogTarEvent('Sending single-block body content, length ' +
+                                   IntToStr(FHtmlRespBodyLen));
+      { add body to debug log, before it was compressed }
+       if FHtmlRespBodyLen < 20000 then begin
+            if NOT FRespBinary then begin
+                LogTarEvent('Body:'+ cCRLF + BodyStr);
+            end;
+        end;
+        SourceBodyBufXmit;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.49 create and send response error page }
+procedure THttpProxyClient.TargetErrorResponse(const RespStatus, Msg: string);
+var
+    BodyStr: string;
+begin
+    BodyStr := '<HTML><HEAD><TITLE>' + RespStatus + '</TITLE></HEAD>' + cCRLF +
+            '<BODY>' + cCRLF +
+            '<H1>' + RespStatus + '</H1>' + Msg + '<P>' + cCRLF +
+            '</BODY></HTML>' + cCRLF;
+    SourceCreatePage(RespStatus, 'text/html', '', BodyStr);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.49 handle  /.well-known/ directory - mini web server }
+procedure THttpProxyClient.TargetWellKnown;
+var
+    FName, BodyStr, ContentType: string;
+    I, FSize: integer;
+    FHandle: THandle;
+begin
+    if (FRequestMethod <> httpMethodGet) then Exit;
+    LogTarEvent('Handling Well-Known Request: ' + FRequestPath);
+
+  { application event may generate a body to send, but blank contenttype }
+    BodyStr := '';
+    ContentType := 'text/html';
+    if Assigned((FProxySource as TIcsHttpProxy).onHttpWellKnown) then begin
+        (FProxySource as TIcsHttpProxy).onHttpWellKnown(FProxySource, Self, BodyStr);
+        if BodyStr <> '' then ContentType := '';  // no content-type for challenge
+    end;
+
+  { nothing returned, look for file, of reasonable size }
+    if BodyStr = '' then begin
+        FName := IncludeTrailingPathDelimiter(FProxySource.IcsHosts[IcsHostIdx].WellKnownPath);
+        FName := FName + Copy(FRequestPath, Length(WellKnownDir) + 1, 9999);
+        FSize := IcsGetFileSize(FName);
+        if FSize > 0 then begin
+            if FSize < (FProxySource as TIcsHttpProxy).FHttpMaxBody then begin
+                LogTarEvent('Attempt to open file: ' + Fname + ', Size: ' + IntToStr(FSize));
+                SetLength(BodyStr, FSize);
+                FHandle := FileOpen(FName, fmOpenRead + fmShareDenyWrite);
+                if FHandle <> 0 then begin
+                    FileSeek(FHandle, 0, sofromBeginning);
+                    I := FileRead(FHandle, BodyStr[1], FSize);
+                    if I <> FSize then begin
+                        BodyStr := '';
+                        LogTarEvent('Failed to read file: ' + Fname);
+                    end
+                    else begin
+                        LogTarEvent('Read file OK: ' + Fname);
+                        if Pos('/acme-challenge/', FRequestPath) > 1 then
+                            ContentType := ''
+                        else
+                            ContentType := DocumentToContentType(Fname);
+                    end;
+                    FileClose(FHandle);
+                end;
+            end
+            else
+                LogTarEvent('File too large: ' + Fname + ', Size: ' + IntToStr(FSize));
+         end;
+    end;
+
+  { create page and send it, connection closed on return }
+    if BodyStr = '' then
+        TargetErrorResponse('404 Not Found', 'The requested URL ' +
+            TextToHtmlText(FRequestPath) + ' was not found on this server.')
+    else
+        SourceCreatePage('200 OK', ContentType, '', BodyStr);
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.49 handle redirection }
+procedure THttpProxyClient.TargetRedirection;
+var
+    RespStatus: String;
+begin
+    if FProxySource.IcsHosts[IcsHostIdx].WebRedirectURL = '' then  begin
+        LogTarEvent('Redirection URL empty');
+        exit; 
+     end;
+     LogTarEvent('Handling redirection to: ' +
+                                 FProxySource.IcsHosts[IcsHostIdx].WebRedirectURL);
+     case FProxySource.IcsHosts[IcsHostIdx].WebRedirectStat of
+        301: RespStatus := '301 Moved Permanently';
+        302: RespStatus := '302 Found';
+        307: RespStatus := '307 Temporary Rediect';
+        308: RespStatus := '308 Permanent Rediect';
+     else
+        RespStatus := IntToStr(FProxySource.IcsHosts[IcsHostIdx].WebRedirectStat) + ' Unknown';
+     end;
+     SourceCreatePage(RespStatus, 'text/html', 'Location: ' +
+                         FProxySource.IcsHosts[IcsHostIdx].WebRedirectURL, '');
+ end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { remote target has closed, ensure anything received is sent to client }
 procedure THttpProxyClient.TargetSessionClosed(Sender: TObject; Error: Word);
 begin
@@ -2586,9 +2836,10 @@ begin
         if (Error = 0) or (Error = 10053) then
             LogTarEvent('Remote closed, Data sent ' +
                 IntToStr(FTarSocket.WriteCount) + ', Data recvd ' + IntToStr(FTarSocket.ReadCount))
-        else
+        else begin
             LogTarEvent('Remote lost (' + WSocketErrorDesc(Error) + '), Data sent ' +
                 IntToStr(FTarSocket.WriteCount) + ', Data recvd ' + IntToStr(FTarSocket.ReadCount));
+        end;
     end;
 
   { if still sending data, don't close yet }
@@ -2793,14 +3044,16 @@ end;
 function THttpProxyClient.FindPxyPathTarget(const HTag, HPath: String): Integer;
 var
     I: Integer;
+    LowerPath: String;
 begin
     Result := -1;
+    LowerPath := IcsLowerCase(HPath);  { V8.49 }
     with FProxySource do begin
         for I := 0 to ProxyTargets.Count - 1 do begin
             if NOT ProxyTargets[I].HostEnabled then Continue;
             if ProxyTargets[I].HostTag = HTag then begin
                 Result := I;
-                if Pos(ProxyTargets[I].FSrcPath, HPath) = 1 then begin
+                if Pos(ProxyTargets[I].FSrcPath, LowerPath) = 1 then begin
                     Exit;
                 end;
              end;
@@ -2816,7 +3069,7 @@ var
     P, DoneNr: Integer;
     BodyStr, OldBody: string;
 begin
-    P := PosTBytes(FHttpTarURL2, FHtmlRespBody, 0, FHtmlRespBodyLen);  // URL without port
+    P := IcsTBytesPos(FHttpTarURL2, FHtmlRespBody, 0, FHtmlRespBodyLen);  // URL without port
     if Assigned((FProxySource as TIcsHttpProxy).onHttpRespBody) or (P > 0) then begin
         if (FProxySource.DebugLevel >= DebugHttpHdr) then
             LogTarEvent('Updating body content URLs');
@@ -2826,7 +3079,7 @@ begin
       { first, need to copy body into String buffer from TBytes buffer so easier to manipulate }
       { the String is sent instead of YBytes if not empty }
         SetLength(BodyStr, FHtmlRespBodyLen);
-        MoveTBytesToString(FHtmlRespBody, 0, BodyStr, 1, FHtmlRespBodyLen);
+        IcsMoveTBytesToString(FHtmlRespBody, 0, BodyStr, 1, FHtmlRespBodyLen);
         FHtmlRespBodyLen := 0; // now in string, clear buffer so it's not sent
         DoneNr := 0;
         while (Pos(FHttpTarURL1, BodyStr) > 0) do begin   // URL with port
@@ -2855,7 +3108,7 @@ begin
           { !! PENDING - Unicode and UTF8 }
             if (Length(FHtmlRespBody) <= FHtmlRespBodyLen) then
                SetLength(FHtmlRespBody, FHtmlRespBodyLen + 1);
-            MoveStringToTBytes(BodyStr, FHtmlRespBody, FHtmlRespBodyLen);
+            IcsMoveStringToTBytes(BodyStr, FHtmlRespBody, FHtmlRespBodyLen);
             UpdateHdrLine('Content-Length:', IntToStr(FRespContentLength), FHttpRespHdr);
             FTarRespModified := True;
             if (FProxySource.DebugLevel >= DebugHttpHdr) then
@@ -3267,7 +3520,7 @@ begin
             if (FSrcWaitTot = 0) then Exit;  // nothing to process
 
           { search for blank line in receive buffer which means we have complete request header }
-            HdrLen := PosTBytes(cDoubleCRLF, FSrcBuffer, 0, FSrcWaitTot);
+            HdrLen := IcsTBytesPos(cDoubleCRLF, FSrcBuffer, 0, FSrcWaitTot);
             if (HdrLen <= 0) then begin
                 if (FProxySource.DebugLevel >= DebugAll) then LogTarEvent('Waiting for more source data');
                 Exit;
@@ -3278,10 +3531,10 @@ begin
 
           { keep headers in string so they are easier to process, remove from receive buffer  }
             SetLength(FHttpReqHdr, HdrLen);
-            MoveTBytesToString(FSrcBuffer, 0, FHttpReqHdr, 1, HdrLen);
+            IcsMoveTBytesToString(FSrcBuffer, 0, FHttpReqHdr, 1, HdrLen);
             FSrcWaitTot := FSrcWaitTot - HdrLen;
             if FSrcWaitTot > 0 then
-                MoveTBytes(FSrcBuffer, HdrLen, 0, FSrcWaitTot);
+                IcsMoveTBytes(FSrcBuffer, HdrLen, 0, FSrcWaitTot);
 
            { keep all header arguments }
             ParseReqHdr;
@@ -3336,6 +3589,14 @@ begin
                 (FProxySource as TIcsHttpProxy).onHttpReqHdr(FProxySource, Self, FHttpReqHdr);
             end;
 
+          { V8.49 handle redirection, don't need a target }
+            if FProxySource.IcsHosts[IcsHostIdx].WebRedirectStat <> 0 then begin
+                TargetRedirection;
+                FClosingFlag := True;
+                Close;
+                exit;
+            end;
+
           { first check Host: to find correct source and target }
             if (NOT FForwardPrxy) and (FSrcHost <> FRequestHostName) then begin
                 FSrcHost := FRequestHostName;
@@ -3350,6 +3611,18 @@ begin
                         Self.FUpdateHttp := FUpdateHttp;
                         Self.FUpdateHtml := FUpdateHttp;
                     end;
+ 				end else begin
+                    LogSrcEvent('No target - host not supported: ' + FSrcHost);  { V8.49 }
+				end;
+             end;
+
+          { V8.49 look for /.well-known/ directory, which we handle locally }
+            if FProxySource.IcsHosts[IcsHostIdx].WellKnownPath <> '' then begin
+                if Pos (WellKnownDir, IcsLowercase(FRequestPath)) = 1 then begin
+                    TargetWellKnown;
+                    FClosingFlag := True;
+                    Close;
+                    exit;
                 end;
             end;
 
@@ -3398,6 +3671,8 @@ begin
                 if NOT FForwardPrxy then TargetSpecify;    // logs target #
                 FTarSocket.Counter.SetConnected;
                 if NOT TargetConnect then begin
+                    if FTarHttp then TargetErrorResponse('502 Bad Gateway',
+                            'The gateway can not connect to the requested server: ' + FTarHost);
                     FClosingFlag := True;
                     Close;
                     Exit;
@@ -3545,11 +3820,11 @@ begin
             end
             else begin
           // keep POST content in buffer and remove from receive buffer
-                MoveTBytesEx(FSrcBuffer, FHtmlReqBody, 0, FHtmlReqBodyLen, NewLen);   // build body buffer
+                IcsMoveTBytesEx(FSrcBuffer, FHtmlReqBody, 0, FHtmlReqBodyLen, NewLen);   // build body buffer
                 FHtmlReqBodyLen := FHtmlReqBodyLen + NewLen;
                 FSrcWaitTot := FSrcWaitTot - NewLen;
                 if FSrcWaitTot > 0 then
-                    MoveTBytes(FSrcBuffer, NewLen, 0, FSrcWaitTot);  // remove from receive buffer
+                    IcsMoveTBytes(FSrcBuffer, NewLen, 0, FSrcWaitTot);  // remove from receive buffer
                 if (FProxySource.DebugLevel >= DebugAll) then
                     LogTarEvent('Building POST body, Length ' + IntToStr(FRequestContentLength) +
                      ', Added ' + IntToStr(NewLen) +  ', Remaining ' + IntToStr(FTarReqLenRemain) +
@@ -3572,7 +3847,7 @@ begin
                             NewLen := FHtmlReqBodyLen;
                             if NewLen > MaxBodyDumpSize then NewLen := MaxBodyDumpSize;
                             SetLength(S, NewLen);
-                            MoveTBytesToString(FHtmlReqBody, 0, S, 1, NewLen);
+                            IcsMoveTBytesToString(FHtmlReqBody, 0, S, 1, NewLen);
                             if NewLen = MaxBodyDumpSize then S := S + cCRLF + '!!! TRUNCATED !!!';
                             LogTarEvent('Body:'+ cCRLF + S);
                         end;
@@ -3650,7 +3925,7 @@ begin
             if (FTarWaitTot = 0) then Exit;  // nothing to process
 
           { search for blank line in receive buffer which means we have complete request header }
-            HdrLen := PosTBytes(cDoubleCRLF, FTarBuffer, 0, FTarWaitTot);
+            HdrLen := IcsTBytesPos(cDoubleCRLF, FTarBuffer, 0, FTarWaitTot);
             if (HdrLen <= 0) then begin
                 if (FProxySource.DebugLevel >= DebugAll) then LogTarEvent('Waiting for more target data');
                 Exit;
@@ -3661,10 +3936,10 @@ begin
 
           { keep headers in string so they are easier to process, remove from receive buffer  }
             SetLength(FHttpRespHdr, HdrLen);
-            MoveTBytesToString(FTarBuffer, 0, FHttpRespHdr, 1, HdrLen);
+            IcsMoveTBytesToString(FTarBuffer, 0, FHttpRespHdr, 1, HdrLen);
             FTarWaitTot := FTarWaitTot - HdrLen;
             if FTarWaitTot > 0 then
-                MoveTBytes(FTarBuffer, HdrLen, 0, FTarWaitTot);
+                IcsMoveTBytes(FTarBuffer, HdrLen, 0, FTarWaitTot);
 
            { keep all header arguments, give up if none found }
             ParseRespHdr;
@@ -3839,17 +4114,17 @@ begin
 
               { get chunk size, short line with single word hex, ie 5ee5 }
                 if (FChunkState = PxyChunkGetSize) and (FTarWaitTot > 2) then begin
-                    LineLen := PosTBytes(cCRLF, FTarBuffer, 0, FTarWaitTot);
+                    LineLen := IcsTBytesPos(cCRLF, FTarBuffer, 0, FTarWaitTot);
                     if LineLen < 1 then Break;  // not found a line end
                     SetLength(S, LineLen);
-                    MoveTBytesToString(FTarBuffer, 0, S, 1, LineLen);  // get line
+                    IcsMoveTBytesToString(FTarBuffer, 0, S, 1, LineLen);  // get line
                     LineLen := LineLen + 2; // add CRLF
                      if FTarWaitTot > LineLen then
                         FTarWaitTot := FTarWaitTot - LineLen  // gone from buffer
                     else
                         FTarWaitTot := 0;
                     if FTarWaitTot > 0 then
-                        MoveTBytes(FTarBuffer, LineLen, 0, FTarWaitTot);  // remove from receive buffer
+                        IcsMoveTBytes(FTarBuffer, LineLen, 0, FTarWaitTot);  // remove from receive buffer
                     P := Pos(';', S);  // strip off Chunk Extension
                     if P > 1 then SetLength(S, P - 1);
                     NewLen := htoin(PChar(S), Length(S));
@@ -3858,7 +4133,7 @@ begin
                                                          S + ' (' + IntToStr(NewLen) + ')');
                         if (FProxySource.DebugLevel >= DebugAll) then begin
                             SetLength(S, FTarWaitTot);
-                            MoveTBytesToString(FTarBuffer, 0, S, 1, FTarWaitTot);
+                            IcsMoveTBytesToString(FTarBuffer, 0, S, 1, FTarWaitTot);
                             LogTarEvent('Raw Chunked Data, Len=' + IntToStr(FTarWaitTot) + cCRLF + S);
                           end;
                         FPxyRespState := PxyGetBody;  // stop chunk processing
@@ -3899,7 +4174,7 @@ begin
                     FChunkRcvd := FChunkRcvd - NewLen;
 
                   { keep it in FHtmlRespBody, remove from receive buffer }
-                    MoveTBytesEx(FTarBuffer, FHtmlRespBody, 0, FHtmlRespBodyLen, NewLen);   // build body buffer
+                    IcsMoveTBytesEx(FTarBuffer, FHtmlRespBody, 0, FHtmlRespBodyLen, NewLen);   // build body buffer
                     FHtmlRespBodyLen := FHtmlRespBodyLen + NewLen;
                     if (FChunkRcvd <= 0) then NewLen := NewLen + 2; // add trailing CRLF
                      if FTarWaitTot > NewLen then
@@ -3907,7 +4182,7 @@ begin
                     else
                         FTarWaitTot := 0;
                     if FTarWaitTot > 0 then
-                        MoveTBytes(FTarBuffer, NewLen, 0, FTarWaitTot);  // remove from receive buffer
+                        IcsMoveTBytes(FTarBuffer, NewLen, 0, FTarWaitTot);  // remove from receive buffer
 
                   { whole chunked data block is available }
                     if (FChunkRcvd <= 0) then begin
@@ -3931,9 +4206,9 @@ begin
                     if (FTarWaitTot <> 0) then begin
                         if (FProxySource.DebugLevel >= DebugHttpHdr)  then begin
                             SetLength(S, FTarWaitTot);
-                            MoveTBytesToString(FTarBuffer, 0, S, 1, FTarWaitTot);
+                            IcsMoveTBytesToString(FTarBuffer, 0, S, 1, FTarWaitTot);
                             LogTarEvent('!! Still got chunked content, len=' + IntToStr(FTarWaitTot) + ', Data: ' + S);
-                        end;   
+                        end;
                     end;
                     FRespContentLength := FHtmlRespBodyLen;
                     UpdateHdrLine('Content-Length:', IntToStr(FRespContentLength), FHttpRespHdr);
@@ -3983,7 +4258,7 @@ begin
                             SetLength(FHtmlRespBody, Length(FHtmlRespBody) * 2);
 
              { keep body content in buffer and remove from receive buffer }
-                MoveTBytesEx(FTarBuffer, FHtmlRespBody, 0, FHtmlRespBodyLen, NewLen);   // build body buffer
+                IcsMoveTBytesEx(FTarBuffer, FHtmlRespBody, 0, FHtmlRespBodyLen, NewLen);   // build body buffer
                 FHtmlRespBodyLen := FHtmlRespBodyLen + NewLen;
                 FTarWaitTot := FTarWaitTot - NewLen;
                 if FTarWaitTot < 0 then begin
@@ -3991,7 +4266,7 @@ begin
                     FTarWaitTot := 0;  // sanity check
                 end;
                 if FTarWaitTot > 0 then
-                    MoveTBytes(FTarBuffer, NewLen, 0, FTarWaitTot);  // remove from receive buffer
+                    IcsMoveTBytes(FTarBuffer, NewLen, 0, FTarWaitTot);  // remove from receive buffer
                 if (FProxySource.DebugLevel >= DebugAll) then
                     LogTarEvent('Building content body, Length ' +
                         IntToStr(FRespContentLength) + ', Added ' + IntToStr(NewLen) +
@@ -4032,7 +4307,7 @@ begin
           { see if need to get body into string for debugging or application }
             if (FProxySource.DebugLevel >= DebugHttpBody) and (NOT FRespBinary) then begin
                 SetLength(BodyStr, FHtmlRespBodyLen);
-                MoveTBytesToString(FHtmlRespBody, 0, BodyStr, 1, FRespContentLength);
+                IcsMoveTBytesToString(FHtmlRespBody, 0, BodyStr, 1, FRespContentLength);
             end;
 
           { see if compressing body for source, browser may not be interested }
@@ -4131,7 +4406,7 @@ begin
             HostEnabled := True;
             HostTag := S;
             Descr := IcsTrim(MyIniFile.ReadString(section, 'Descr', ''));
-            SrcPath := MyIniFile.ReadString(section, 'SrcPath', '');
+            SrcPath := IcsLowerCase(MyIniFile.ReadString(section, 'SrcPath', ''));  
             TarHost := MyIniFile.ReadString(section, 'TarHost', '');
             TarPort := MyIniFile.ReadInteger(section, 'TarPort', 0);
             TarSsl := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'TarSsl', 'False'));

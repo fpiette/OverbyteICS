@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.47
+Version:      8.49
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -143,6 +143,10 @@ Nov 15, 2016 V8.38 Angus moved IcsGetFileVerInfo from OverbyteIcsSSLEAY
                      ignores certificate revoke checking since so slow
 Apr 4, 2017  V8.45 Added $EXTERNALSYM to satisfy C++. thanks to Jarek Karciarz
 May 12, 2017 V8.47 Added IcsCheckTrueFalse
+Jun 23, 2017 V8.49 Fixes for MacOs
+                   Added several functions for copying and searching TBytes buffers
+                     that receive socket data, converting them to Strings
+                   Moved IcsGetFileSize and GetUAgeSizeFile here from FtpSrvT
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -498,6 +502,9 @@ const
     function IcsFileAgeW(const Utf8FileName: UTF8String): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
     function IcsFileExistsW(const FileName: UnicodeString): Boolean; overload;
     function IcsFileExistsW(const Utf8FileName: UTF8String): Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
+    function IcsGetUAgeSizeFile (const filename: string; var FileUDT: TDateTime;
+                                                    var FSize: Int64): boolean;   { V8.49 moved from FtpSrvT }
+    function IcsGetFileSize(const FileName : String) : Int64;                     { V8.49 moved from FtpSrvT }
     function IcsAnsiLowerCaseW(const S: UnicodeString): UnicodeString;     // angus
     function IcsAnsiUpperCaseW(const S: UnicodeString): UnicodeString;     // angus
     function IcsMakeWord(L, H: Byte): Word; {$IFDEF USE_INLINE} inline; {$ENDIF}
@@ -508,6 +515,21 @@ const
     function IcsLoWord(LW: LongWord): Word; {$IFDEF USE_INLINE} inline; {$ENDIF}
     procedure IcsCheckOSError(ALastError: Integer); {$IFDEF USE_INLINE} inline; {$ENDIF}
     function IcsCheckTrueFalse(const Value: string): boolean;    { V8.47 }
+{ we receive socket as single byte raw data into TBytes buffer without a
+  character set, then convertit onto Delphi Strings for ease of processing }
+{ Beware - this function treats buffers as ANSI, no Unicode conversion }
+    procedure IcsMoveTBytesToString(const Buffer: TBytes; OffsetFrom: Integer;
+                      var Dest: String; OffsetTo: Integer; Count: Integer);  { V8.49 }
+{ Beware - this function treats buffers as ANSI, no Unicode conversion }
+    procedure IcsMoveStringToTBytes(const Source: String; var Buffer: TBytes; Count: Integer);  { V8.49 }
+    procedure IcsMoveTBytes(var Buffer: TBytes; OffsetFrom: Integer; OffsetTo: Integer;
+                                Count: Integer); {$IFDEF USE_INLINE} inline; {$ENDIF}   { V8.49 }
+    procedure IcsMoveTBytesEx(const BufferFrom: TBytes; var BufferTo: TBytes;
+              OffsetFrom, OffsetTo, Count: Integer); {$IFDEF USE_INLINE} inline; {$ENDIF}  { V8.49 }
+{ Pos that ignores nulls in the TBytes buffer, so avoid PAnsiChar functions }
+    function IcsTBytesPos(const Substr: String; const S: TBytes; Offset, Count: Integer): Integer;  { V8.49 }
+    function IcsTbytesStarts(Source: TBytes; Find: PAnsiChar) : Boolean;    { V8.49 }
+    function IcsTbytesContains(Source : TBytes; Find : PAnsiChar) : Boolean;   { V8.49 }
 
 
 { Moved from OverbyteIcsLibrary.pas prefix "_" replaced by "Ics" }
@@ -1385,7 +1407,7 @@ begin
                             DstBytesLeft := SizeOf(SBuf);
                         end
                         else begin
-                            Result := 0;
+                            //Result := 0; { V8.49 }
                             SetLastError(ERROR_INSUFFICIENT_BUFFER);
                             Break;
                         end;
@@ -5108,6 +5130,79 @@ begin
 {$ENDIF}
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF MSWINDOWS}
+function FileTimeToInt64 (const FileTime: TFileTime): Int64 ;    { V8.49 moved from FtpSrvT }
+begin
+    Move (FileTime, Result, SizeOf (Result));    // 29 Sept 2004, poss problem with 12/00 mixup
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function Int64ToFileTime (const FileTime: Int64): TFileTime ;     { V8.49 moved from FtpSrvT }
+begin
+    Move (FileTime, Result, SizeOf (Result));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+const
+  FileTimeBase = -109205.0;   // days between years 1601 and 1900
+  FileTimeStep: Extended = 24.0 * 60.0 * 60.0 * 1000.0 * 1000.0 * 10.0; // 100 nsec per Day
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function FileTimeToDateTime(const FileTime: TFileTime): TDateTime;    { V8.49 moved from FtpSrvT }
+begin
+    Result := FileTimeToInt64 (FileTime) / FileTimeStep ;
+    Result := Result + FileTimeBase ;
+end;
+{$ENDIF MSWINDOWS}
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ get file written UTC DateTime and size in bytes - no change for summer time }
+function IcsGetUAgeSizeFile (const filename: string; var FileUDT: TDateTime;
+                                                    var FSize: Int64): boolean;   { V8.49 moved from FtpSrvT }
+var
+   SResult: integer ;
+   SearchRec: TSearchRec ;
+{$IFDEF MSWINDOWS}
+   TempSize: ULARGE_INTEGER; { V8.42 was TULargeInteger } { 64-bit integer record }
+{$ENDIF}
+begin
+   Result := FALSE ;
+   FSize := -1;
+   SResult := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FindFirst(filename, faAnyFile, SearchRec);
+   if SResult = 0 then begin
+     {$IFDEF MSWINDOWS}
+        TempSize.LowPart  := SearchRec.FindData.nFileSizeLow ;
+        TempSize.HighPart := SearchRec.FindData.nFileSizeHigh ;
+        FSize             := TempSize.QuadPart ;
+        FileUDT := FileTimeToDateTime (SearchRec.FindData.ftLastWriteTime);
+      {$ENDIF}
+      {$IFDEF POSIX}
+        FSize := SearchRec.Size;
+        FileUDT := SearchRec.TimeStamp;
+      {$ENDIF}
+        Result            := TRUE ;
+   end;
+   {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FindClose(SearchRec);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsGetFileSize(const FileName : String) : Int64;            { V8.49 moved from FtpSrvT }
+var
+    FileUDT: TDateTime;
+begin
+    Result := -1 ;
+    IcsGetUAgeSizeFile (FileName, FileUDT, Result);
+end;
+
+
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Note: despite the name, this is a full Unicode function changing non-ANSI characters }
 function IcsAnsiLowerCaseW(const S: UnicodeString): UnicodeString;
@@ -5555,6 +5650,144 @@ begin
 end;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ we receive socket as single byte raw data into TBytes buffer without a
+  character set, then convertit onto Delphi Strings for ease of processing }
+{ Beware - this function treats buffers as ANSI, no Unicode conversion }
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure IcsMoveTBytesToString(const Buffer: TBytes; OffsetFrom: Integer;
+                      var Dest: String; OffsetTo: Integer; Count: Integer);  { V8.49 }
+{$IFDEF UNICODE}
+var
+    PSrc  : PByte;
+    PDest : PChar;
+begin
+    PSrc  := Pointer(Buffer);
+    if Length(Dest) < (OffsetTo + Count - 1) then
+        SetLength(Dest, OffsetTo + Count - 1);
+    PDest := Pointer(Dest);
+    Dec(OffsetTo); // String index!
+    while Count > 0 do begin
+        PDest[OffsetTo] := Char(PSrc[OffsetFrom]);
+        Inc(OffsetTo);
+        Inc(OffsetFrom);
+        Dec(Count);
+    end;
+{$ELSE}
+begin
+    if Length(Dest) < (OffsetTo + Count - 1) then
+        SetLength(Dest, OffsetTo + Count - 1);
+    Move(Buffer[OffsetFrom], Dest[OffsetTo], Count);
+{$ENDIF}
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Beware - this function treats buffers as ANSI, no Unicode conversion }
+procedure IcsMoveStringToTBytes(const Source: String; var Buffer: TBytes; Count: Integer);  { V8.49 }
+{$IFDEF UNICODE}
+var
+    PDest : PByte;
+    PSrc  : PChar;
+    I     : Integer;
+begin
+    PSrc  := Pointer(Source);
+    if Count > Length(Source) then
+        Count := Length(Source);
+    if Length(Buffer) < Count then
+        SetLength(Buffer, Count);
+    PDest := Pointer(Buffer);
+    for I := 0 to Count - 1 do begin
+        PDest[I] := Byte(PSrc[I]);
+    end;
+{$ELSE}
+begin
+    if Count > Length(Source) then
+        Count := Length(Source);
+    if Length(Buffer) < Count then
+        SetLength(Buffer, Count);
+    Move(Source[1], Buffer[0], Count);
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure IcsMoveTBytes(var Buffer: TBytes; OffsetFrom: Integer; OffsetTo: Integer;
+                                Count: Integer); {$IFDEF USE_INLINE} inline; {$ENDIF}   { V8.49 }
+begin
+    Move(Buffer[OffsetFrom], Buffer[OffsetTo], Count);
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure IcsMoveTBytesEx(const BufferFrom: TBytes; var BufferTo: TBytes;
+              OffsetFrom, OffsetTo, Count: Integer); {$IFDEF USE_INLINE} inline; {$ENDIF}  { V8.49 }
+begin
+    Move(BufferFrom[OffsetFrom], BufferTo[OffsetTo], Count);
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Pos that ignores nulls in the TBytes buffer, so avoid PAnsiChar functions }
+function IcsTBytesPos(const Substr: String; const S: TBytes; Offset, Count: Integer): Integer;  { V8.49 }
+var
+    Ch: Byte;
+    SubLen, I, J: Integer;
+    Found: Boolean;
+begin
+    Result := -1;
+    SubLen := Length(Substr);
+    if SubLen = 0 then Exit;
+    Ch := Byte(SubStr[1]);
+    for I := Offset to Count - SubLen do begin
+        if S[I] = Ch then begin
+            Found := True;
+            if SubLen > 1 then begin
+                for J := 2 to SubLen do begin
+                    if Byte(Substr[J]) <> S[I+J-1] then begin
+                        Found := False;
+                        Break;
+                     end;
+                end;
+            end;
+            if Found then begin
+                Result := I;
+                Exit;
+            end;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsTbytesStarts(Source: TBytes; Find: PAnsiChar) : Boolean;    { V8.49 }
+begin
+    Result := FALSE;
+{$IFDEF COMPILER18_UP}
+    if (System.AnsiStrings.StrLIComp(PAnsiChar(Source), Find, Length(Find)) = 0) then
+       Result := TRUE;
+{$ELSE}
+    if (StrLIComp(PAnsiChar(Source), Find, Length(Find)) = 0) then
+       Result := TRUE;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsTbytesContains(Source : TBytes; Find : PAnsiChar) : Boolean;   { V8.49 }
+begin
+    Result := FALSE;
+{$IFDEF COMPILER18_UP}
+    if (System.AnsiStrings.StrPos(PAnsiChar(Source), Find) <> nil) then
+      Result := TRUE;
+{$ELSE}
+    if (StrPos(PAnsiChar(Source), Find) <> nil) then
+      Result := TRUE;
+{$ENDIF}
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 

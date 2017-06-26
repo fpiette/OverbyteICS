@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.41
+Version:      8.49
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -135,7 +135,7 @@ Nov 22, 2016  V8.39 Added functions to check certificate params using X509_VERIF
 Jan 27, 2017  V8.40 Added 200 more certificate, EC key, digest, encryption and signing functions
                    (but still over 3,000 missing, fortunately not needed often)
 Feb 24, 2017  V8.41 Added more NIDs, few more imported functions
-
+Jun 21, 2017, V8.49 Added more EVP_PKEY functions
 
 
 Old Cryptography
@@ -234,8 +234,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 841;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2017 F. Piette V8.41 ';
+    IcsLIBEAYVersion   = 849;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2017 F. Piette V8.49 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -889,6 +889,7 @@ const
     NID_stateOrProvinceName         = 16;  //AG
     NID_organizationName            = 17;  //AG
     NID_organizationalUnitName      = 18;  //AG
+    NID_rsa                         = 19;  // V8.49
     NID_pkcs7                       = 20;
     NID_pkcs7_data                  = 21;
     NID_pkcs7_signed                = 22;
@@ -964,7 +965,12 @@ const
     NID_ecdsa_with_SHA256           = 794; // ecdsa-with-SHA256
     NID_ecdsa_with_SHA384           = 795; // ecdsa-with-SHA384
     NID_ecdsa_with_SHA512           = 796; // ecdsa-with-SHA512
-    NID_X25519                      = 1034; // V8.40 253-bits
+    NID_hmac                        = 855;  // V8.49
+    NID_cmac                        = 894;  // V8.49
+    NID_tls1_prf                    = 1021; // V8.49
+    NID_X25519                      = 1034; // V8.40 253 bits
+    NID_X448                        = 1035; // V8.49
+    NID_hkdf                        = 1036; // V8.49
 
     { Asn1.h - For use with ASN1_mbstring_copy() } //AG
     MBSTRING_FLAG  = $1000;               //AG
@@ -985,6 +991,12 @@ const
     EVP_PKEY_EC    = NID_X9_62_id_ecPublicKey;  { following V8.40 }
     EVP_PKEY_DH    = NID_dhKeyAgreement;
     EVP_PKEY_NONE  = NID_undef;
+    EVP_PKEY_RSA2  = NID_rsa;    // 8.49
+    EVP_PKEY_HMAC  = NID_hmac;   // 8.49
+    EVP_PKEY_CMAC  = NID_cmac;   // 8.49
+    EVP_PKEY_TLS1_PRF = NID_tls1_prf;   // 8.49
+    EVP_PKEY_HKDF  = NID_hkdf;   // 8.49
+    EVP_PKEY_X25519  = NID_X25519;   // 8.49
 
     EVP_MAX_MD_SIZE                   = 64; //* longest known is SHA512 */
 
@@ -996,6 +1008,86 @@ const
     EC_FLAG_NON_FIPS_ALLOW  = $01;
     EC_FLAG_FIPS_CHECKED    = $02;
     EC_FLAG_COFACTOR_ECDH   = $1000;
+
+// V8.49 more stuff for private keys
+    EVP_PKEY_MO_SIGN        = $0001;
+    EVP_PKEY_MO_VERIFY      = $0002;
+    EVP_PKEY_MO_ENCRYPT     = $0004;
+    EVP_PKEY_MO_DECRYPT     = $0008;
+
+    EVP_PKEY_CTRL_MD              = 1;
+    EVP_PKEY_CTRL_PEER_KEY        = 2;
+    EVP_PKEY_CTRL_PKCS7_ENCRYPT   = 3;
+    EVP_PKEY_CTRL_PKCS7_DECRYPT   = 4;
+    EVP_PKEY_CTRL_PKCS7_SIGN      = 5;
+    EVP_PKEY_CTRL_SET_MAC_KEY     = 6;
+    EVP_PKEY_CTRL_DIGESTINIT      = 7;
+// Used by GOST key encryption in TLS
+    EVP_PKEY_CTRL_SET_IV          = 8;
+    EVP_PKEY_CTRL_CMS_ENCRYPT     = 9;
+    EVP_PKEY_CTRL_CMS_DECRYPT     = 10;
+    EVP_PKEY_CTRL_CMS_SIGN        = 11;
+    EVP_PKEY_CTRL_CIPHER          = 12;
+    EVP_PKEY_CTRL_GET_MD          = 13;
+
+    EVP_PKEY_ALG_CTRL             = $1000;
+
+    EVP_PKEY_FLAG_AUTOARGLEN      = 2;
+
+// Method handles all operations: don't assume any digest related defaults.
+    EVP_PKEY_FLAG_SIGCTX_CUSTOM    = 4;
+
+    EVP_PKEY_CTRL_RSA_PADDING           = EVP_PKEY_ALG_CTRL + 1;
+    EVP_PKEY_CTRL_RSA_PSS_SALTLEN       = EVP_PKEY_ALG_CTRL + 2;
+    EVP_PKEY_CTRL_RSA_KEYGEN_BITS       = EVP_PKEY_ALG_CTRL + 3;
+    EVP_PKEY_CTRL_RSA_KEYGEN_PUBEXP     = EVP_PKEY_ALG_CTRL + 4;
+    EVP_PKEY_CTRL_RSA_MGF1_MD           = EVP_PKEY_ALG_CTRL + 5;
+    EVP_PKEY_CTRL_GET_RSA_PADDING       = EVP_PKEY_ALG_CTRL + 6;
+    EVP_PKEY_CTRL_GET_RSA_PSS_SALTLEN   = EVP_PKEY_ALG_CTRL + 7;
+    EVP_PKEY_CTRL_GET_RSA_MGF1_MD       = EVP_PKEY_ALG_CTRL + 8;
+    EVP_PKEY_CTRL_RSA_OAEP_MD           = EVP_PKEY_ALG_CTRL + 9;
+    EVP_PKEY_CTRL_RSA_OAEP_LABEL        = EVP_PKEY_ALG_CTRL + 10;
+    EVP_PKEY_CTRL_GET_RSA_OAEP_MD       = EVP_PKEY_ALG_CTRL + 11;
+    EVP_PKEY_CTRL_GET_RSA_OAEP_LABEL    = EVP_PKEY_ALG_CTRL + 12;
+
+    EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID    = EVP_PKEY_ALG_CTRL + 1;
+    EVP_PKEY_CTRL_EC_PARAM_ENC             = EVP_PKEY_ALG_CTRL + 2;
+    EVP_PKEY_CTRL_EC_ECDH_COFACTOR         = EVP_PKEY_ALG_CTRL + 3;
+    EVP_PKEY_CTRL_EC_KDF_TYPE              = EVP_PKEY_ALG_CTRL + 4;
+    EVP_PKEY_CTRL_EC_KDF_MD                = EVP_PKEY_ALG_CTRL + 5;
+    EVP_PKEY_CTRL_GET_EC_KDF_MD            = EVP_PKEY_ALG_CTRL + 6;
+    EVP_PKEY_CTRL_EC_KDF_OUTLEN            = EVP_PKEY_ALG_CTRL + 7;
+    EVP_PKEY_CTRL_GET_EC_KDF_OUTLEN        = EVP_PKEY_ALG_CTRL + 8;
+    EVP_PKEY_CTRL_EC_KDF_UKM               = EVP_PKEY_ALG_CTRL + 9;
+    EVP_PKEY_CTRL_GET_EC_KDF_UKM           = EVP_PKEY_ALG_CTRL + 10;
+
+    EVP_PKEY_OP_UNDEFINED          = 0;
+    EVP_PKEY_OP_PARAMGEN           = (1 shl 1);   // (1<<1)
+    EVP_PKEY_OP_KEYGEN             = (1 shl 2);
+    EVP_PKEY_OP_SIGN               = (1 shl 3);
+    EVP_PKEY_OP_VERIFY             = (1 shl 4);
+    EVP_PKEY_OP_VERIFYRECOVER      = (1 shl 5);
+    EVP_PKEY_OP_SIGNCTX            = (1 shl 6);
+    EVP_PKEY_OP_VERIFYCTX          = (1 shl 7);
+    EVP_PKEY_OP_ENCRYPT            = (1 shl 8);
+    EVP_PKEY_OP_DECRYPT            = (1 shl 9);
+    EVP_PKEY_OP_DERIVE             = (1 shl 10);  // (1<<10)
+
+
+// 8.35 moved lots of declarations from OverbyteIcsLibeayEx so they are all together
+
+const
+    RSA_PKCS1_PADDING                 = 1;
+    RSA_SSLV23_PADDING                = 2;
+    RSA_NO_PADDING                    = 3;
+    RSA_PKCS1_OAEP_PADDING            = 4;
+    RSA_X931_PADDING                  = 5;
+// EVP_PKEY_ only
+    RSA_PKCS1_PSS_PADDING             = 6;
+    
+    RSA_PKCS1_PADDING_SIZE            = 11;
+    RSA_PKCS1_OAEP_PADDING_SIZE       = 41;
+    PKCS5_SALT_LEN                    =  8;
 
   { point_conversion_form_t Enum for the point conversion form as defined in X9.62 (ECDSA) for the encoding of a elliptic curve point (x,y) }
     POINT_CONVERSION_COMPRESSED = 2; { the point is encoded as z||x||y, where z is the octet 0x04  }
@@ -1330,40 +1422,35 @@ const
  { Flags for X509_print_ex() }
     X509_FLAG_COMPAT                = $00;
     X509_FLAG_NO_HEADER             = $01;
-    X509_FLAG_NO_VERSION            = $02;  // (1L << 1)
-    X509_FLAG_NO_SERIAL             = $04;
-    X509_FLAG_NO_SIGNAME            = $08;
-    X509_FLAG_NO_ISSUER             = $10;
-    X509_FLAG_NO_VALIDITY           = $20;
-    X509_FLAG_NO_SUBJECT            = $40;
-    X509_FLAG_NO_PUBKEY             = $80;
-    X509_FLAG_NO_EXTENSIONS         = $0100;
-    X509_FLAG_NO_SIGDUMP            = $0200;
-    X509_FLAG_NO_AUX                = $0400;
-    X509_FLAG_NO_ATTRIBUTES         = $0800;
-    X509_FLAG_NO_IDS                = $1000;  // (1L << 12)
+    X509_FLAG_NO_VERSION            = (1 shl 1);   // (1L << 1)
+    X509_FLAG_NO_SERIAL             = (1 shl 2);
+    X509_FLAG_NO_SIGNAME            = (1 shl 3);
+    X509_FLAG_NO_ISSUER             = (1 shl 4);
+    X509_FLAG_NO_VALIDITY           = (1 shl 5);
+    X509_FLAG_NO_SUBJECT            = (1 shl 6);
+    X509_FLAG_NO_PUBKEY             = (1 shl 7);
+    X509_FLAG_NO_EXTENSIONS         = (1 shl 8);
+    X509_FLAG_NO_SIGDUMP            = (1 shl 9);
+    X509_FLAG_NO_AUX                = (1 shl 10);
+    X509_FLAG_NO_ATTRIBUTES         = (1 shl 11);
+    X509_FLAG_NO_IDS                = (1 shl 12);   // (1L << 12)
 
  { Flags specific to X509_NAME_print_ex() }
  { The field separator information }
-    XN_FLAG_SEP_MASK        = $0f000000; { (0xf << 16) }
-
+    XN_FLAG_SEP_MASK        = ($0F shl 16);  // 0xf << 16)  
     XN_FLAG_COMPAT          = $00;  // Traditional; use old X509_NAME_print
-    XN_FLAG_SEP_COMMA_PLUS  = $010000; // (1 << 16) RFC2253 ,+
-    XN_FLAG_SEP_CPLUS_SPC   = $020000; //* (2 << 16) + spaced: more readable
-    XN_FLAG_SEP_SPLUS_SPC   = $040000; //* (3 << 16) + spaced
-    XN_FLAG_SEP_MULTILINE   = $080000; //* (4 << 16) One line per field
-
-    XN_FLAG_DN_REV          = $01000000; //(1 << 20) Reverse DN order
-
+    XN_FLAG_SEP_COMMA_PLUS  = (1 shl 16);  // (1 << 16) RFC2253 ,+
+    XN_FLAG_SEP_CPLUS_SPC   = (2 shl 16);  //* (2 << 16) + spaced: more readable
+    XN_FLAG_SEP_SPLUS_SPC   = (3 shl 16);  //* (3 << 16) + spaced
+    XN_FLAG_SEP_MULTILINE   = (4 shl 16);  //* (4 << 16) One line per field
+    XN_FLAG_DN_REV          = (1 shl 20);  //(1 << 20) Reverse DN order
  { How the field name is shown }
-  //  XN_FLAG_FN_MASK         (0x3 << 21)
-
+    XN_FLAG_FN_MASK         = ($3 shl 21); //  (0x3 << 21)
     XN_FLAG_FN_SN           = $00; // Object short name
-    XN_FLAG_FN_LN           = $02000000; // (1 << 21) Object long name
-    XN_FLAG_FN_OID          = $04000000; // (2 << 21) Always use OIDs
-    XN_FLAG_FN_NONE         = $08000000; // (3 << 21) No field names
-
-    XN_FLAG_SPC_EQ          = $10000000; // (1 << 23) Put spaces round '='
+    XN_FLAG_FN_LN           = (1 shl 21);  // (1 << 21) Object long name
+    XN_FLAG_FN_OID          = (2 shl 21);  // (2 << 21) Always use OIDs
+    XN_FLAG_FN_NONE         = (3 shl 21);  // (3 << 21) No field names
+    XN_FLAG_SPC_EQ          = (1 shl 23);  // (1 << 23) Put spaces round '='
 
 {$IFNDEF OPENSSL_NO_ENGINE}
 //const
@@ -1600,6 +1687,8 @@ type
     TCryptoExDupFunc    = function(dto: PCRYPTO_EX_DATA; dfrom: PCRYPTO_EX_DATA; srcp: Pointer; idx: integer; argl: DWord; argp: Pointer): Integer; cdecl;
 { V8.40 progress callback for DH_generate_paramaters and RSA_generate_key_ex }
     TBNGENCBcallFunc    = function(a: Integer; b: Integer; cb: PBN_GENCB): Integer; cdecl;
+{ V8.49 progress callback for EVP_PKEY_gen }
+    TEVPPKEYCBcallFunc   = function(pctx: PEVP_PKEY_CTX): Integer; cdecl;
 
 { V8.40 classes for CRYPTO_get_ex_new_index }
 const
@@ -1619,17 +1708,7 @@ const
     CRYPTO_EX_INDEX_APP             = 13;
     CRYPTO_EX_INDEX__COUNT          = 14;
 
-// 8.35 moved lots of declarations from OverbyteIcsLibeayEx so they are all together
 
-const
-    RSA_PKCS1_PADDING                 = 1;
-    RSA_SSLV23_PADDING                = 2;
-    RSA_NO_PADDING                    = 3;
-    RSA_PKCS1_OAEP_PADDING            = 4;
-
-    RSA_PKCS1_PADDING_SIZE            = 11;
-    RSA_PKCS1_OAEP_PADDING_SIZE       = 41;
-    PKCS5_SALT_LEN                    =  8;
 
 const
 //    f_SSLeay :                                 function: Longword; cdecl = nil; //AG   V8.36 renamed in 1.1.0
@@ -1852,20 +1931,53 @@ const
     f_EVP_MD_block_size :                      function(md: PEVP_MD): Integer; cdecl = Nil;                       { V8.40 }
     f_EVP_MD_flags :                           function(md: PEVP_MD): LongInt; cdecl = Nil;                       { V8.40 }
     f_EVP_MD_CTX_md :                          function(ctx: PEVP_MD_CTX): PEVP_MD; cdecl = Nil;                  { V8.40 }
+    f_EVP_PKEY_CTX_ctrl :                      function(pctx: PEVP_PKEY_CTX; keytype: Integer; optype: Integer; cmd: Integer; p1: Integer; p2: Pointer): Integer; cdecl = Nil; { V8.49 }                  { V8.49 }
+    f_EVP_PKEY_CTX_ctrl_str :                  function(pctx: PEVP_PKEY_CTX; typestr: PAnsichar; valuestr: PAnsiChar): Integer; cdecl = Nil;   { V8.49 }
+    f_EVP_PKEY_CTX_dup :                       function(pctx: PEVP_PKEY_CTX): PEVP_PKEY_CTX; cdecl = Nil;             { V8.49 }
+    f_EVP_PKEY_CTX_free :                      procedure(pctx: PEVP_PKEY_CTX); cdecl = Nil;                           { V8.49 }
+    f_EVP_PKEY_CTX_get_app_data :              function(pctx: PEVP_PKEY_CTX): Pointer; cdecl = Nil;                   { V8.49 }
+    f_EVP_PKEY_CTX_get_cb :                    function(pctx: PEVP_PKEY_CTX): Pointer; cdecl = Nil;                   { V8.49 }
+    f_EVP_PKEY_CTX_get_keygen_info :           function(pctx: PEVP_PKEY_CTX; idx: Integer): Integer; cdecl = Nil;     { V8.49 }
+    f_EVP_PKEY_CTX_get_operation :             function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;                   { V8.49 }
+    f_EVP_PKEY_CTX_hex2ctrl :                  function(pctx: PEVP_PKEY_CTX; cmd: Integer; hexstr: PAnsichar): Integer; cdecl = Nil;   { V8.49 }
+    f_EVP_PKEY_CTX_new :                       function(pkey: PEVP_PKEY; eng: PEngine): PEVP_PKEY_CTX; cdecl = Nil;   { V8.49 }
+    f_EVP_PKEY_CTX_new_id :                    function(Id: Integer; eng: PEngine): PEVP_PKEY_CTX; cdecl = Nil;       { V8.49 }
+    f_EVP_PKEY_CTX_set0_keygen_info :          procedure(pctx: PEVP_PKEY_CTX; var data: Integer; datlen: Integer);  cdecl = Nil;       { V8.49 }
+    f_EVP_PKEY_CTX_set_app_data :              procedure(pctx: PEVP_PKEY_CTX; data: Pointer); cdecl = Nil;            { V8.49 }
+    f_EVP_PKEY_CTX_set_cb :                    procedure(pctx: PEVP_PKEY_CTX; cb: Pointer); cdecl = Nil;              { V8.49 }
+    f_EVP_PKEY_CTX_str2ctrl :                  function(pctx: PEVP_PKEY_CTX; cmd: Integer; estr: PAnsichar): Integer; cdecl = Nil;     { V8.49 }
     f_EVP_PKEY_assign :                        function(PKey: PEVP_PKEY; Type_: Integer; Key: PAnsiChar): Integer; cdecl = nil;//AG
-    f_EVP_PKEY_base_id :                       function(Pkey: PEVP_PKEY): Integer; cdecl = nil;                   { V8.40 }
+    f_EVP_PKEY_base_id :                       function(Pkey: PEVP_PKEY): Integer; cdecl = nil;                       { V8.40 }
     f_EVP_PKEY_bits :                          function(Pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
+    f_EVP_PKEY_decrypt :                       function(pctx: PEVP_PKEY_CTX; eout: PAnsiChar; var outlen: size_t; const ein: PAnsiChar; inlen: size_t): Integer; cdecl = Nil; { V8.49 }
+    f_EVP_PKEY_decrypt_init :                  function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;                   { V8.49 }
+    f_EVP_PKEY_derive :                        function(pctx: PEVP_PKEY_CTX; key: PAnsiChar; keylen: size_t): Integer; cdecl = Nil;    { V8.49 }
+    f_EVP_PKEY_derive_init :                   function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;                   { V8.49 }
+    f_EVP_PKEY_derive_set_peer :               function(pctx: PEVP_PKEY_CTX; peer: PEVP_PKEY): Integer; cdecl = Nil;  { V8.49 }
+    f_EVP_PKEY_encrypt :                       function(pctx: PEVP_PKEY_CTX; eout: PAnsiChar; var outlen: size_t; const ein: PAnsiChar; inlen: size_t): Integer; cdecl = Nil; { V8.49 }
+    f_EVP_PKEY_encrypt_init :                  function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;                   { V8.49 }
     f_EVP_PKEY_free :                          procedure(PKey: PEVP_PKEY); cdecl = nil;//AG
     f_EVP_PKEY_get0 :                          function(PKey: PEVP_PKEY): Pointer; cdecl = nil;//AG
     f_EVP_PKEY_get1_DH :                       function (pkey: PEVP_PKEY): PDH; cdecl = nil; //Angus
     f_EVP_PKEY_get1_DSA :                      function (pkey: PEVP_PKEY): PDSA; cdecl = nil; //Angus
     f_EVP_PKEY_get1_EC_KEY :                   function (pkey: PEVP_PKEY): PEC_KEY; cdecl = nil; //Angus
     f_EVP_PKEY_get1_RSA :                      function (pkey: PEVP_PKEY): PRSA; cdecl = nil; //Angus
+    f_EVP_PKEY_keygen :                        function(pctx: PEVP_PKEY_CTX; var pkey: PEVP_PKEY): Integer; cdecl = Nil;      { V8.49 }
+    f_EVP_PKEY_keygen_init :                   function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;                           { V8.49 }
     f_EVP_PKEY_new :                           function: PEVP_PKEY; cdecl = nil;//AG
+    f_EVP_PKEY_new_mac_key :                   function(keytype: Integer; eng: PEngine; key: PAnsiChar; keylen: Integer): PEVP_PKEY;  cdecl = Nil;  { V8.49 }
+    f_EVP_PKEY_paramgen :                      function(pctx: PEVP_PKEY_CTX; pkey: PEVP_PKEY): Integer; cdecl = Nil;          { V8.49 }
+    f_EVP_PKEY_paramgen_init :                 function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;                           { V8.49 }
     f_EVP_PKEY_print_params :                  function (outbio: PBIO; pkey: PEVP_PKEY; indent: Integer; pctx: PASN1_PCTX): Integer; cdecl = Nil;        { V8.40 }
     f_EVP_PKEY_print_private :                 function (outbio: PBIO; pkey: PEVP_PKEY; indent: Integer; pctx: PASN1_PCTX): Integer; cdecl = Nil;        { V8.40 }
     f_EVP_PKEY_print_public :                  function (outbio: PBIO; pkey: PEVP_PKEY; indent: Integer; pctx: PASN1_PCTX): Integer; cdecl = Nil;        { V8.40 }
+    f_EVP_PKEY_sign :                          function(pctx: PEVP_PKEY_CTX; sig: PAnsiChar; var siglen: size_t; tbs: PAnsiChar; tbslen: size_t): Integer; cdecl = Nil;      { V8.49 }
+    f_EVP_PKEY_sign_init :                     function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;      { V8.49 }
     f_EVP_PKEY_size :                          function(Pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
+    f_EVP_PKEY_verify :                        function(pctx: PEVP_PKEY_CTX; sig: PAnsiChar; siglen: size_t; tbs: PAnsiChar; tbslen: size_t): Integer; cdecl = Nil;      { V8.49 }
+    f_EVP_PKEY_verify_init :                   function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;      { V8.49 }
+    f_EVP_PKEY_verify_recover :                function(pctx: PEVP_PKEY_CTX; rout: PAnsiChar; var routlen: size_t; const sig: PAnsiChar; siglen: size_t): Integer; cdecl = Nil;      { V8.49 }
+    f_EVP_PKEY_verify_recover_init :           function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;      { V8.49 }
     f_EVP_SignFinal :                          function(ctx: PEVP_MD_CTX; var md: Byte; var s: Word; pkey: PEVP_PKEY): Integer; cdecl = Nil;        { V8.40 }
     f_EVP_VerifyFinal :                        function(ctx: PEVP_MD_CTX; sigbuf: PByte; siglen: Word; pkey: PEVP_PKEY): Integer; cdecl = Nil;      { V8.40 }
     f_EVP_aes_128_cbc :                        function: PEVP_CIPHER; cdecl = nil;
@@ -2282,6 +2394,13 @@ function f_EVP_VerifyUpdate(ctx: PEVP_MD_CTX; d: Pointer; cnt: SIZE_T): Integer;
 function f_DigestSignUpdate(ctx: PEVP_MD_CTX; d: Pointer; cnt: SIZE_T): Integer;        { V8.40 }
 function f_DigestVerifyUpdate(ctx: PEVP_MD_CTX; d: Pointer; cnt: SIZE_T): Integer;      { V8.40 }
 function f_EC_KEY_get_ex_new_index(argl: DWord; argp: Pointer; new_func: TCryptoExNewFunc; dup_func: TCryptoExDupFunc; free_func: TCryptoExFreeFunc): integer;  { V8.40 }
+function f_EVP_PKEY_CTX_set_rsa_padding(pctx: PEVP_PKEY_CTX; pad: Integer): integer;      { V8.49 }
+function f_EVP_PKEY_CTX_get_rsa_padding(pctx: PEVP_PKEY_CTX; ppad: Pointer): integer;     { V8.49 }
+function f_EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx: PEVP_PKEY_CTX; len: Integer): integer;  { V8.49 }
+function f_EVP_PKEY_CTX_get_rsa_pss_saltlen(pctx: PEVP_PKEY_CTX; len: PInteger): integer; { V8.49 }
+function f_EVP_PKEY_CTX_set_rsa_keygen_bits(pctx: PEVP_PKEY_CTX; bits: Integer): integer; { V8.49 }
+function f_EVP_PKEY_CTX_set_rsa_keygen_pubexp(pctx: PEVP_PKEY_CTX; pubexp: Pointer): integer;  { V8.49 }
+function f_EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx: PEVP_PKEY_CTX; nid: Integer): integer; { V8.49 }
 
 function  IcsRandSeedFromFile(const FileName: String; MaxBytes: Integer = -1): Integer;
 
@@ -2296,7 +2415,7 @@ procedure IcsRandPoll;
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GLIBEAYImports1: array[0..531] of TOSSLImports = (
+    GLIBEAYImports1: array[0..564] of TOSSLImports = (
 
     (F: @@f_ASN1_INTEGER_get ;        N: 'ASN1_INTEGER_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_INTEGER_get_int64 ;  N: 'ASN1_INTEGER_get_int64';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
@@ -2503,20 +2622,53 @@ const
     (F: @@f_EVP_MD_pkey_type ;        N: 'EVP_MD_pkey_type';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EVP_MD_size ;             N: 'EVP_MD_size';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EVP_MD_type ;             N: 'EVP_MD_type';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_PKEY_CTX_ctrl;        N: 'EVP_PKEY_CTX_ctrl';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_ctrl_str;    N: 'EVP_PKEY_CTX_ctrl_str';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_dup;         N: 'EVP_PKEY_CTX_dup';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_free;        N: 'EVP_PKEY_CTX_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_get_app_data;    N: 'EVP_PKEY_CTX_get_app_data';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_get_cb;      N: 'EVP_PKEY_CTX_get_cb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_get_keygen_info; N: 'EVP_PKEY_CTX_get_keygen_info';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_get_operation;   N: 'EVP_PKEY_CTX_get_operation';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_hex2ctrl;    N: 'EVP_PKEY_CTX_hex2ctrl';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_new;         N: 'EVP_PKEY_CTX_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_new_id;      N: 'EVP_PKEY_CTX_new_id';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_set0_keygen_info;  N: 'EVP_PKEY_CTX_set0_keygen_info';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_set_app_data;      N: 'EVP_PKEY_CTX_set_app_data';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_set_cb;      N: 'EVP_PKEY_CTX_set_cb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_str2ctrl;    N: 'EVP_PKEY_CTX_str2ctrl';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_assign;          N: 'EVP_PKEY_assign';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_PKEY_base_id;         N: 'EVP_PKEY_base_id';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EVP_PKEY_bits;            N: 'EVP_PKEY_bits';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_PKEY_decrypt;         N: 'EVP_PKEY_decrypt';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_decrypt_init;    N: 'EVP_PKEY_decrypt_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_derive;          N: 'EVP_PKEY_derive';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_derive_init;     N: 'EVP_PKEY_derive_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_derive_set_peer; N: 'EVP_PKEY_derive_set_peer';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_encrypt;         N: 'EVP_PKEY_encrypt';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_encrypt_init;    N: 'EVP_PKEY_encrypt_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_free;            N: 'EVP_PKEY_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_PKEY_get0;            N: 'EVP_PKEY_get0';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_PKEY_get1_DH;         N: 'EVP_PKEY_get1_DH';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_PKEY_get1_DSA;        N: 'EVP_PKEY_get1_DSA';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_PKEY_get1_EC_KEY;     N: 'EVP_PKEY_get1_EC_KEY';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_PKEY_get1_RSA;        N: 'EVP_PKEY_get1_RSA';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_PKEY_keygen;          N: 'EVP_PKEY_keygen';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_keygen_init;     N: 'EVP_PKEY_keygen_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_new ;            N: 'EVP_PKEY_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_PKEY_new_mac_key;     N: 'EVP_PKEY_new_mac_key';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_paramgen;        N: 'EVP_PKEY_paramgen';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_paramgen_init;   N: 'EVP_PKEY_paramgen_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_print_params ;   N: 'EVP_PKEY_print_params';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
     (F: @@f_EVP_PKEY_print_private ;  N: 'EVP_PKEY_print_private';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
     (F: @@f_EVP_PKEY_print_public ;   N: 'EVP_PKEY_print_public';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_PKEY_sign;            N: 'EVP_PKEY_sign';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_sign_init;       N: 'EVP_PKEY_sign_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_size;            N: 'EVP_PKEY_size';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_PKEY_verify;          N: 'EVP_PKEY_verify';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_verify_init;     N: 'EVP_PKEY_verify_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_verify_recover;  N: 'EVP_PKEY_verify_recover';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_verify_recover_init; N: 'EVP_PKEY_verify_recover_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_SignFinal ;           N: 'EVP_SignFinal';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
     (F: @@f_EVP_VerifyFinal ;         N: 'EVP_VerifyFinal';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EVP_aes_128_cbc;          N: 'EVP_aes_128_cbc';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2960,6 +3112,10 @@ begin
     Result := TRUE;
     if GLIBEAY_DLL_Handle <> 0 then Exit;  // Already loaded
     ICS_OPENSSL_VERSION_NUMBER := 0;
+    if GSSLEAY_DLL_IgnoreNew and GSSLEAY_DLL_IgnoreOld then begin { V8.49 sanity check }
+        GSSLEAY_DLL_IgnoreOld := false;
+        GSSLEAY_DLL_IgnoreNew := false;
+    end;
 
 { V8.27 try v1.1.0 and later first with new file name - libcrypto-1_1.dll }
   { V8.27 allow a specific DLL directory to be specified in GSSL_DLL_DIR }
@@ -3905,6 +4061,61 @@ begin
     result := f_CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_EC_KEY, argl, argp, new_func, dup_func, free_func);
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.49 macros }
+function f_EVP_PKEY_CTX_set_rsa_padding(pctx: PEVP_PKEY_CTX; pad: Integer): integer;
+begin
+    result := f_EVP_PKEY_CTX_ctrl(pctx, EVP_PKEY_RSA, -1, EVP_PKEY_CTRL_RSA_PADDING, pad, Nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.49 macros }
+function f_EVP_PKEY_CTX_get_rsa_padding(pctx: PEVP_PKEY_CTX; ppad: Pointer): integer;
+begin
+    result := f_EVP_PKEY_CTX_ctrl(pctx, EVP_PKEY_RSA, -1, EVP_PKEY_CTRL_GET_RSA_PADDING, 0, ppad);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.49 macros }
+function f_EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx: PEVP_PKEY_CTX; len: Integer): integer;
+begin
+    result := f_EVP_PKEY_CTX_ctrl(pctx, EVP_PKEY_RSA, EVP_PKEY_OP_SIGN OR EVP_PKEY_OP_VERIFY, EVP_PKEY_CTRL_RSA_PSS_SALTLEN, len, Nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.49 macros }
+function f_EVP_PKEY_CTX_get_rsa_pss_saltlen(pctx: PEVP_PKEY_CTX; len: PInteger): integer;
+begin
+    result := f_EVP_PKEY_CTX_ctrl(pctx, EVP_PKEY_RSA, EVP_PKEY_OP_SIGN OR EVP_PKEY_OP_VERIFY, EVP_PKEY_CTRL_GET_RSA_PSS_SALTLEN, 0, len);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.49 macros }
+function f_EVP_PKEY_CTX_set_rsa_keygen_bits(pctx: PEVP_PKEY_CTX; bits: Integer): integer;
+begin
+    result := f_EVP_PKEY_CTX_ctrl(pctx, EVP_PKEY_RSA, EVP_PKEY_OP_KEYGEN, EVP_PKEY_CTRL_RSA_KEYGEN_BITS, bits, Nil);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.49 macros }
+function f_EVP_PKEY_CTX_set_rsa_keygen_pubexp(pctx: PEVP_PKEY_CTX; pubexp: Pointer): integer;
+begin
+    result := f_EVP_PKEY_CTX_ctrl(pctx, EVP_PKEY_RSA, EVP_PKEY_OP_KEYGEN, EVP_PKEY_CTRL_RSA_KEYGEN_PUBEXP, 0, pubexp);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.49 macros }
+function f_EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx: PEVP_PKEY_CTX; nid: Integer): integer;
+begin
+    result := f_EVP_PKEY_CTX_ctrl(pctx, EVP_PKEY_EC, EVP_PKEY_OP_PARAMGEN OR EVP_PKEY_OP_KEYGEN, EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID, nid, Nil)
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$ENDIF} //USE_SSL

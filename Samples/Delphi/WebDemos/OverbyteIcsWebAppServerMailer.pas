@@ -8,7 +8,7 @@ Description:  This is an email form demo, designed to send a email to a hard
               entered in the form.  This demo uses a test email account at
               Magenta Systems, but the sender gets an identical copy of the
               email so you see it worked.
-Version:      1.05
+Version:      8.49
 EMail:        angus@magsys.co.uk
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -48,6 +48,7 @@ Jul 10, 2009 V1.02 Arno Removed string cast warnings.
 Sept 1, 2009 V1.03 Angus - report exceptions creating virtual pages
 Nov 16, 2013 V1.04 Removed all references to demo's main form.
 May 24, 2016 V1.04 Angus - added OverbyteIcsFormDataDecoder to uses
+Jun 26, 2017 V8.49 Changed GetUAgeSizeFile to IcsGetUAgeSizeFile
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -67,8 +68,7 @@ uses
     ExtCtrls,
   {$ENDIF}
     OverbyteIcsWndControl, OverbyteIcsHttpAppServer, OverbyteIcsHttpSrv, OverbyteIcsWebSession,
-    OverbyteIcsSmtpProt, OverbyteIcsUtils, OverbyteIcsWSocket, OverbyteIcsFormDataDecoder,
-    OverbyteIcsFtpSrvT;
+    OverbyteIcsSmtpProt, OverbyteIcsUtils, OverbyteIcsWSocket, OverbyteIcsFormDataDecoder;
 
 type
 
@@ -129,7 +129,7 @@ const
     DateMmmMask = 'dd mmm yyyy' ;
 begin
     FullName := Client.TemplateDir + '/' + Fname ;
-    if GetUAgeSizeFile (FullName, FileDT, FSize) then
+    if IcsGetUAgeSizeFile (FullName, FileDT, FSize) then
         DateTimeToString (Result, DateMmmMask, FileDT)
     else
         Result := 'Page not found' ;

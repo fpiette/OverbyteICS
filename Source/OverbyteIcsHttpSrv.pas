@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.48
+Version:      8.49
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -419,7 +419,18 @@ Apr 11 2017 V8.45 Added multiple SSL host support using SNI or Host header.
 May 24 2017 V8.48 ValidateHosts has more options
                   Host: header checking higher priority than binding
                   Added ListenAllOK, ListenStates, RecheckSslCerts
-                  
+Jun 26 2017 V8.49 Added .well-known directory support.  If WellKnownPath is
+                     specified as a path, any access to /.well-known/xx is
+                     handled locally either in the OnWellKnownDir Event or
+                     by returning a file from WellKnownPath instead of DocDir.
+                     This is primarly for Let's Encrypt challenges.
+                   Start is now a function that optionally opens all possible
+                      sockets ignoring errors, which are returned as a string.
+                      This is primarily when using MultiListenrs where one
+                      failling no longer stops all of them.
+                   Moved DocumentToContentType to OverbyteIcsFormDataDecoder to share
+
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -520,12 +531,14 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 848;
-    CopyRight : String = ' THttpServer (c) 1999-2017 F. Piette V8.48 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.48';   { V8.09 }
+    THttpServerVersion = 849;
+    CopyRight : String = ' THttpServer (c) 1999-2017 F. Piette V8.49 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.49';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
+    WellKnownDirStr = '/.well-known/';    { V8.49 }
+    { see http://www.iana.org/assignments/well-known-uris/well-known-uris.xhtml }
 
 type
     THttpServer          = class;
@@ -591,6 +604,15 @@ type
     TMimeContentTypeEvent= procedure (Sender    : TObject;         { V7.41 }
                                       const FileName: string;
                                       var ContentType: string) of object;
+
+    TWellKnownEvent= procedure (Sender          : TObject;         { V8.49 }
+                                Client          : TObject;
+                                const Path      : string;
+                                var BodyStr     : string)of object;
+
+    TWellKnownConnEvent= procedure (Sender          : TObject;     { V8.49 }
+                                    const Path      : string;
+                                    var BodyStr     : string)of object;
 
     THttpConnectionState = (hcRequest, hcHeader, hcPostedData, hcSendData);   { V8.01 }
     THttpOption          = (hoAllowDirList, hoAllowOutsideRoot, hoContentEncoding, { V7.20 }
@@ -814,6 +836,10 @@ type
         FRequestIfModSince     : TDateTime;            { V8.11 }
         FRequestStartTick      : LongWord;             { V8.12 }
         FWebLogDir             : string;               { V8.45 }
+        FWellKnownPath         : String;               { V8.49 }
+        FWebRedirectURL        : string;               { V8.49 }
+        FWebRedirectStat       : integer;              { V8.49 }
+        FonWellKnownDir        : TWellKnownConnEvent;  { V8.49 }
         procedure SetSndBlkSize(const Value: Integer);
         procedure ConnectionDataAvailable(Sender: TObject; Error : Word); virtual;
         procedure ConnectionDataSent(Sender : TObject; Error : WORD); virtual;
@@ -830,6 +856,7 @@ type
         procedure ProcessConnect; virtual;     { V8.08 }
         procedure ProcessGetHeadDel; virtual;  { V8.08 }
         procedure ProcessPostPutPat; virtual;  { V8.08 }
+        procedure ProcessWellKnownDir;         { V8.49 }
         procedure Answer416; virtual;
         procedure Answer404; virtual;
         procedure Answer304; virtual;   { V8.11 }
@@ -858,6 +885,7 @@ type
         procedure TriggerContEncoded; virtual;    { V7.20 }
         procedure TriggerUnknownRequestMethod(var Handled : Boolean); virtual; { V7.29 }
         procedure TriggerMimeContentType(const FileName: string; var ContentType: string); virtual; { V7.41 }
+        procedure TriggerWellKnownDir(const Path: string; var BodyStr: string); virtual;   { V8.49 }
         function  CheckContentEncoding(const ContType : String): Boolean; virtual; { V7.21 are we allowed to compress content }
         function  DoContentEncoding: String; virtual; { V7.21 compress content returning Content-Encoding header }
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
@@ -1044,7 +1072,6 @@ type
         property RequestUpgrade        : string      read  FRequestUpgrade; { V8.08 }
         property RequestIfModSince     : TDateTime   read  FRequestIfModSince; { V8.11 }
         property RequestStartTick      : LongWord    read  FRequestStartTick;  { V8.12 }
-        property WebLogDir             : string      read  FWebLogDir;         { V8.45 }
     published
         { Where all documents are stored. Default to c:\wwwroot }
         property DocDir         : String            read  FDocDir
@@ -1168,6 +1195,17 @@ type
         property AuthNtlmSession   : TNtlmAuthSession
                                                     read  FAuthNtlmSession;
     {$ENDIF}
+        property WebLogDir         : string         read  FWebLogDir            { V8.45 }
+                                                    write FWebLogDir;
+        property WellKnownPath     : String         read  FWellKnownPath        { V8.49 }
+                                                    write FWellKnownPath;
+        property WebRedirectURL    : string         read  FWebRedirectURL       { V8.49 }
+                                                    write FWebRedirectURL;
+        property WebRedirectStat   : integer        read  FWebRedirectStat      { V8.49 }
+                                                    write FWebRedirectStat;
+        property onWellKnownDir    : TWellKnownConnEvent  read  FonWellKnownDir  { V8.49 }
+                                                          write FonWellKnownDir;
+
 {$ENDIF}
     end;
 
@@ -1179,7 +1217,7 @@ type
         FWSocketServer            : TWSocketServer;
         FPort                     : String;
         FAddr                     : String;
-        FSocketFamily             : TSocketFamily;        { V8.00 } 
+        FSocketFamily             : TSocketFamily;        { V8.00 }
         FMaxClients               : Integer;              {DAVID}
         FClientClass              : THttpConnectionClass;
         FDocDir                   : String;
@@ -1201,7 +1239,7 @@ type
         FOnFilterDirEntry         : THttpFilterDirEntry;
         FListenBacklog            : Integer; {Bjørnar}
         FKeepAliveTimeSec         : Cardinal;
-        FKeepAliveTimeXferSec     : Cardinal;  { V8.05 } 
+        FKeepAliveTimeXferSec     : Cardinal;  { V8.05 }
         FMaxRequestsKeepAlive     : Integer;
         FHeartBeat                : TIcsTimer;
         FHeartBeatBusy            : Boolean;
@@ -1244,6 +1282,8 @@ type
 {$ENDIF}
         FSocketErrs               : TSocketErrs;   { V8.37 }
         FExclusiveAddr            : Boolean;       { V8.37 }
+        FWellKnownPath            : String;        { V8.49 }
+        FonWellKnownDir           : TWellKnownEvent;  { V8.49 }
 {$IFNDEF NO_DEBUG_LOG}
         function  GetIcsLogger: TIcsLogger;                       { V1.38 }
         procedure SetIcsLogger(const Value: TIcsLogger);
@@ -1305,6 +1345,7 @@ type
         procedure TriggerContEncoded(Client : TObject);   { V7.20 }
         procedure TriggerUnknownRequestMethod(Client : TObject; var Handled : Boolean); { V7.29 }
         procedure TriggerMimeContentType(Client : TObject; const FileName: string; var ContentType: string); virtual; { V7.41 }
+        procedure TriggerWellKnownDir(Client : TObject; const Path: string; var BodyStr: string); virtual;   { V8.49 }
         procedure SetPortValue(const newValue : String);
         procedure SetAddr(const newValue : String);
         procedure SetDocDir(const Value: String);
@@ -1315,10 +1356,11 @@ type
         procedure SetKeepAliveTimeSec(const Value: Cardinal);
         procedure SetKeepAliveTimeXferSec(const Value: Cardinal); { V8.05 }
         procedure SetMimeTypesList(const Value: TMimeTypesList); { V7.47 }
+        procedure SetWellKnownPath(const Value: String);    { V8.49 }
     public
         constructor Create(AOwner: TComponent); override;
         destructor  Destroy; override;
-        procedure   Start; virtual;
+        function    Start(ReturnErrs: Boolean = false): String; virtual; { V8.49 made function }
         procedure   Stop; virtual;
         function    ListenAllOK: Boolean;                              { V8.48 }
         function    ListenStates: String;                              { V8.48 }
@@ -1379,7 +1421,7 @@ type
         property KeepAliveTimeSec : Cardinal     read  FKeepAliveTimeSec
                                                  write SetKeepAliveTimeSec;
         property KeepAliveTimeXferSec : Cardinal read  FKeepAliveTimeXferSec
-                                                 write SetKeepAliveTimeXferSec;  { V8.05 } 
+                                                 write SetKeepAliveTimeXferSec;  { V8.05 }
         property MaxRequestsKeepAlive : Integer  read  FMaxRequestsKeepAlive
                                                  write FMaxRequestsKeepAlive;
         { Size between which textual responses should be compressed, too small is a
@@ -1536,10 +1578,18 @@ type
     {$ENDIF}
 {$ENDIF}
         property OnBgException;  { F.Piette V7.27 }
+        { wsErrFriendly gives more friendly error messages }
         property SocketErrs        : TSocketErrs read  FSocketErrs
                                                  write FSocketErrs;      { V8.37 }
+        { stop other applications listening on our socket }
         property ExclusiveAddr     : Boolean     read  FExclusiveAddr
                                                  write FExclusiveAddr;   { V8.37 }
+        { Where /.well-known/ documents are stored. Default is blank for ignore
+          for Let'S Encrypt challenges and other special uses }
+        property WellKnownPath     : String      read  FWellKnownPath
+                                                 write SetWellKnownPath;      { V8.49 }
+        property onWellKnownDir    : TWellKnownEvent  read  FonWellKnownDir
+                                                      write FonWellKnownDir; { V8.49 }
     end;
 
     THttpDirEntry = class
@@ -1769,7 +1819,7 @@ function UrlDecode(const Url   : RawByteString;
 function FileDate(FileName : String) : TDateTime; deprecated
   {$IFDEF COMPILER12_UP}'Use OverbyteIcsUtils.IcsFileUtcModified'{$ENDIF};
 { function RFC1123_Date(aDate : TDateTime) : String;  }
-function DocumentToContentType(const FileName : String) : String;
+//function DocumentToContentType(const FileName : String) : String;
 //function TextToHtmlText(const Src : UnicodeString) : String; overload;
 //function TextToHtmlText(const Src : RawByteString) : String; overload;
 function TranslateChar(const Str: String; FromChar, ToChar: Char): String;
@@ -1963,6 +2013,7 @@ begin
     FDefaultDoc     := 'index.html';
     FDocDir         := 'c:\wwwroot';
     FTemplateDir    := 'c:\wwwroot\templates';
+    FWellKnownPath  := '';                        { V8.49 blank means ignore }
     FLingerOnOff    := wsLingerNoSet;
     FLingerTimeout  := 0;
 {$IFNDEF NO_AUTHENTICATION_SUPPORT}
@@ -2035,10 +2086,12 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Start the server. That is make FWSocketServer listening to the port.      }
-procedure THttpServer.Start;
+{ V8.49 optionally return list of errors instead of exception on fail }
+function THttpServer.Start(ReturnErrs: Boolean = false): String;
 const
     BusyText = 'Server overloaded. Retry later.' + #13#10;
 begin
+    Result := '';
     { Create a new FWSocketServer if needed }
     if not Assigned(FWSocketServer) then
         CreateSocket;
@@ -2079,16 +2132,20 @@ begin
               Self.FDocDir := WebDocDir;
               Self.FTemplateDir := WebTemplDir;
               Self.FDefaultDoc := WebDefDoc;
+              Self.FWellKnownPath := WellKnownPath;   { V8.49 }
           end;
       end;
     end;
 {$ENDIF}
     FWSocketServer.ExclusiveAddr      := FExclusiveAddr;     { V8.37 }
     FWSocketServer.SocketErrs         := FSocketErrs;        { V8.37 }
-    FWSocketServer.MultiListen;       { V8.00 listen on multiple sockets, if more than one configured }
+    if ReturnErrs then
+        Result := FWSocketServer.MultiListenEx     { V8.49 no exception, opens as many as possible }
+    else
+        FWSocketServer.MultiListen;       { V8.00 listen on multiple sockets, if more than one configured }
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loProtSpecInfo) then                           { V1.38 }
-        DebugLog(loProtSpecInfo, Name + ' started');
+        DebugLog(loProtSpecInfo, Name + ' started, errors: ' + Result);
 {$ENDIF}
 end;
 
@@ -2147,6 +2204,16 @@ begin
         FDocDir := AbsolutisePath(Copy(Value, 1, Length(Value) - 1))
     else
         FDocDir := AbsolutisePath(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpServer.SetWellKnownPath(const Value: String);    { V8.49 }
+begin
+    if (Value > '') and (Value[Length(Value)] = PathDelim) then
+        FWellKnownPath := AbsolutisePath(Copy(Value, 1, Length(Value) - 1))
+    else
+        FWellKnownPath := AbsolutisePath(Value);
 end;
 
 
@@ -2328,6 +2395,8 @@ begin
     THttpConnection(Client).OnContEncoded     := TriggerContEncoded;   { V7.20 }
     THttpConnection(Client).OnUnknownRequestMethod  := TriggerUnknownRequestMethod; { V2.29 }
     THttpConnection(Client).OnMimeContentType := TriggerMimeContentType; { V7.41 }
+    THttpConnection(Client).WellKnownPath     := Self.WellKnownPath;    { V8.49 }
+    THttpConnection(Client).onWellKnownDir    := TriggerWellKnownDir;  { V8.49 }
     TriggerClientConnect(Client, Error);
 end;
 
@@ -2558,12 +2627,22 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpServer.TriggerWellKnownDir
+    (Client : TObject;
+     const Path      : string;
+     var BodyStr     : string);                                     { V8.49 }
+begin
+    if Assigned(FonWellKnownDir) then
+        FonWellKnownDir(Self, Client, Path, BodyStr);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpServer.HeartBeatOnTimer(Sender: TObject);
 var
     CurTicks : Cardinal;
     I        : Integer;
     Cli      : THttpConnection;
-    Timeout  : Cardinal;  { V8.05 } 
+    Timeout  : Cardinal;  { V8.05 }
 begin
     if not FHeartBeatBusy then  { Avoid reentrance }
     try
@@ -4003,6 +4082,9 @@ begin
                     Self.FDefaultDoc := WebDefDoc;
                     Self.FHostTag := HostTag;
                     Self.FWebLogDir := WebLogDir;
+                    Self.FWellKnownPath := WellKnownPath;        { V8.49 }
+                    Self.FWebRedirectURL := WebRedirectURL;    { V8.49 }
+                    Self.FWebRedirectStat := FWebRedirectStat; { V8.49 }
                 end;
             end;
         end;
@@ -4011,6 +4093,18 @@ begin
 
     TriggerBeforeProcessRequest;
 
+  { check for well-known directory, which we treat outside the normal web root }
+    if (FMethod = 'GET') and (FWellKnownPath <> '') then begin
+        if Pos (WellKnownDirStr, IcsLowercase(FPath)) = 1 then begin
+            FDocument := FWellKnownPath + Copy(FPath, Length(WellKnownDirStr), 9999);
+            ProcessWellKnownDir;
+            FKeepAlive := False;
+            CloseDelayed;
+            Exit;
+        end;
+    end;
+
+  { build document file name }
     if FPath = '/' then
         FDocument := FDocDir
     else if (FPath <> '') and (FPath[1] = '/') then
@@ -4240,6 +4334,13 @@ begin
         FOnContEncoded(Self);
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpConnection.TriggerWellKnownDir(const Path: string; var BodyStr: string);   { V8.49 }
+begin
+    if Assigned(FOnWellKnownDir) then
+        FOnWellKnownDir(Self, Path, BodyStr);
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { handle all methods that don't send any body content }
@@ -4333,6 +4434,62 @@ begin
     else
         if FKeepAlive = FALSE then {Bjornar}
             CloseDelayed;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ handle well-known directory separately to main root }
+procedure THttpConnection.ProcessWellKnownDir;  { V8.49 }
+var
+    BodyStr    : string;
+    TempStream : TFileStream;
+    OK         : Boolean;
+begin
+
+  { application event may generate a body to send }
+    BodyStr := '';
+    if Assigned(onWellKnownDir) then begin
+        TriggerWellKnownDir(FPath, BodyStr);
+    end;
+
+  { nothing returned, look for file }
+    if BodyStr = '' then begin
+        OK := FALSE;
+        try
+            if not FileExists(FDocument) then begin
+                { File not found }
+                PrepareGraceFullShutDown;
+                Answer404;
+            end
+            else begin
+                { see if we have access to file, but don't read it yet }
+                TempStream := TFileStream.Create(FDocument, fmOpenRead + fmShareDenyWrite);
+                TempStream.Destroy;
+                OK := TRUE;
+            end;
+        except
+            PrepareGraceFullShutDown;
+            Answer404;
+        end;
+        if OK then begin
+            SendDocument('');  // no custom headers
+            Exit;
+        end;
+    end;
+
+  { create page and send it }
+    if BodyStr = '' then
+        Answer404
+    else begin
+        SendHeader(FVersion + ' 200 OK' + #13#10 +
+               'Content-Length: ' + IntToStr(Length(BodyStr)) + #13#10 +
+               #13#10);
+        FAnswerStatus := 200;
+        if FSendType = httpSendHead then
+            Send(nil, 0)
+        else
+            SendStr(BodyStr);
     end;
 end;
 
@@ -4434,94 +4591,9 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpConnection.ProcessPost;
-{var
-    Flags : THttpGetFlag;  }
 begin
     FRequestMethod := httpMethodPost;
     ProcessPostPutPat;
-(* V8.08 commonise code
-    { POST and no content-length received, we treat this as "bad request"     }
-    { and don't pass it to the component user.                                }
-    if (not FRequestHasContentLength) or (FRequestContentLength < 0) then begin
-        { HTTP/1.0
-          A valid Content-Length is required on all HTTP/1.0 POST requests.
-          An HTTP/1.0 server should respond with a 400 (bad request) message
-          if it cannot determine the length of the request message's content.
-
-          HTTP/1.1
-          The presence of a message-body in a request is signaled by the
-          inclusion of a Content-Length or Transfer-Encoding header field in
-          the request's message-headers.
-          For compatibility with HTTP/1.0 applications, HTTP/1.1 requests
-          containing a message-body MUST include a valid Content-Length header
-          field unless the server is known to be HTTP/1.1 compliant. If a
-          request contains a message-body and a Content-Length is not given,
-          the server SHOULD respond with 400 (bad request) if it cannot
-          determine the length of the message, or with 411 (length required)
-          if it wishes to insist on receiving a valid Content-Length.
-
-          Currently we act as a HTTP/1.0 server. }
-        FKeepAlive := FALSE;
-        Answer400;
-        { We close the connection non-gracefully otherwise we might receive
-          data we cannot handle properly. }
-        CloseDelayed;
-        Exit;
-    end;
-
-{$IFNDEF NO_AUTHENTICATION_SUPPORT}
-    if not FAuthenticated then
-        Flags := hg401
-    else
-{$ENDIF}
-    if FOutsideFlag and (not (hoAllowOutsideRoot in FOptions)) then
-        Flags := hg403
-    else
-        Flags := hg404;
-    FAcceptPostedData := FALSE;
-    TriggerPostDocument(Flags);
-
-    if (not FAcceptPostedData) and (FRequestContentLength > 0) then begin { V7.30 }
-    { The component user doesn't handle posted data.               }
-    { Turn LineMode off if RequestContentLength > 0, we'll turn it }
-    { back on again in our overridden method Receive.              }
-        LineMode     := FALSE;
-        FPostCounter := FRequestContentLength;
-    end
-    else
-        FPostCounter := 0;
-
-    case Flags of
-    hg400:
-        begin
-            FKeepAlive := FALSE;
-            Answer400;
-            CloseDelayed;
-        end;                                                              {/V7.30 }
-    hg401:
-        begin
-            if FKeepAlive = FALSE then {Bjornar}
-                PrepareGraceFullShutDown;
-            Answer401;
-        end;
-    hg403:
-        begin
-            if FKeepAlive = FALSE then {Bjornar}
-                PrepareGraceFullShutDown;
-            Answer403;
-        end;
-    hg404:
-        begin
-            if FKeepAlive = FALSE then {Bjornar}
-                PrepareGraceFullShutDown;
-            Answer404;
-        end;
-    hgAcceptData:
-        FAcceptPostedData := TRUE;
-    else
-        if FKeepAlive = FALSE then {Bjornar}
-            CloseDelayed;
-    end;       *)
 end;
 
 
@@ -4538,148 +4610,17 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpConnection.ProcessHead;
-{var
-    Flags : THttpGetFlag;  }
 begin
     FRequestMethod := httpMethodHead;
     ProcessGetHeadDel;
-(* V8.08 commonise code
-{$IFNDEF NO_AUTHENTICATION_SUPPORT}
-    if not FAuthenticated then
-        Flags := hg401
-    else
-{$ENDIF}
-    if FOutsideFlag and (not (hoAllowOutsideRoot in FOptions)) then
-        Flags := hg403
-    else if (hoAllowDirList in FOptions) and IsDirectory(FDocument) then
-        Flags := hgSendDirList
-    else
-        Flags := hgSendDoc;
-    TriggerHeadDocument(Flags);
-    case Flags of
-    hg401:
-        begin
-            if FKeepAlive = FALSE then {Bjornar}
-                PrepareGraceFullShutDown;
-            Answer401;
-        end;
-    hg403:
-        begin
-            if FKeepAlive = FALSE then {Bjornar}
-                PrepareGraceFullShutDown;
-            Answer403;
-        end;
-    hg404:
-        begin
-            if FKeepAlive = FALSE then {Bjornar}
-                PrepareGraceFullShutDown;
-            Answer404;
-        end;
-    hgSendDoc:
-        begin
-            if FileExists(FDocument) then
-                SendDocument(httpSendHead)
-            else begin
-                if FKeepAlive = FALSE then {Bjornar}
-                    PrepareGraceFullShutDown;
-                Answer404;
-            end;
-        end;
-    hgSendStream:
-        SendStream;
-    hgSendDirList:
-        SendDirList(httpSendHead);
-    hgWillSendMySelf:
-        { Nothing to do };
-    else
-        if FKeepAlive = FALSE then {Bjornar}
-            CloseDelayed;
-    end;    *)
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpConnection.ProcessGet;
-{var
-    Flags      : THttpGetFlag;
-    TempStream : TFileStream;
-    OK         : Boolean;  }
 begin
     FRequestMethod := httpMethodGet;
     ProcessGetHeadDel;
-(*  V8.08 commonise code
-{$IFNDEF NO_AUTHENTICATION_SUPPORT}
-    if not FAuthenticated then
-        Flags := hg401
-    else
-{$ENDIF}
-    if FOutsideFlag and (not (hoAllowOutsideRoot in FOptions)) then
-        Flags := hg403
-    else if (hoAllowDirList in FOptions) and IsDirectory(FDocument) then
-        Flags := hgSendDirList
-    else
-        Flags := hgSendDoc;
-
-    TriggerGetDocument(Flags);
-    case Flags of
-    hg400:                             { V7.30 }
-        begin
-            if FKeepAlive = FALSE then
-                PrepareGraceFullShutDown;
-            Answer400;
-        end;
-    hg401:
-        begin
-            if FKeepAlive = FALSE then {Bjornar}
-                PrepareGraceFullShutDown;
-            Answer401;
-        end;
-    hg403:
-        begin
-            if FKeepAlive = FALSE then {Bjornar}
-                PrepareGraceFullShutDown;
-            Answer403;
-        end;
-    hg404:
-        begin
-            if FKeepAlive = FALSE then {Bjornar}
-                PrepareGraceFullShutDown;
-            Answer404;
-        end;
-    hgSendDoc:
-        begin
-            OK := FALSE;
-            try
-                if not FileExists(FDocument) then begin
-                    { File not found }
-                    if FKeepAlive = FALSE then {Bjornar}
-                        PrepareGraceFullShutDown;
-                    Answer404;
-                end
-                else begin
-                    { see if we have access to file, but don't read it yet }
-                    TempStream := TFileStream.Create(FDocument, fmOpenRead + fmShareDenyWrite);
-                    TempStream.Destroy;
-                    OK := TRUE;
-                end;
-            except
-                if FKeepAlive = FALSE then {Bjornar}
-                    PrepareGraceFullShutDown;
-                Answer404;
-            end;
-            if OK then
-                SendDocument(httpSendDoc)
-        end;
-    hgSendStream:
-        SendStream;
-    hgSendDirList:
-        SendDirList(httpSendDoc);
-    hgWillSendMySelf:
-        { Nothing to do };
-    else
-        if FKeepAlive = FALSE then {Bjornar}
-            CloseDelayed;
-    end;  *)
 end;
 
 
@@ -4811,6 +4752,7 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(* V8.49 moved to OverbyteIcsFormDataDecoder
 function DocumentToContentType(const FileName : String) : String;
 var
     Ext : String;
@@ -4859,28 +4801,6 @@ begin
         Result := 'application/xhtml+xml'    { V7.20 }
     else
         Result := 'application/binary';
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-(* { See also RFC822_DateTime function in SmtpCli component                    }
-{ RFC1123 5.2.14 redefine RFC822 Section 5.                                 }
-function RFC1123_Date(aDate : TDateTime) : String;
-const
-    StrWeekDay : String = 'MonTueWedThuFriSatSun';
-    StrMonth   : String = 'JanFebMarAprMayJunJulAugSepOctNovDec';
-var
-    Year, Month, Day       : Word;
-    Hour, Min,   Sec, MSec : Word;
-    DayOfWeek              : Word;
-begin
-    DecodeDate(aDate, Year, Month, Day);
-    DecodeTime(aDate, Hour, Min,   Sec, MSec);
-    DayOfWeek := ((Trunc(aDate) - 2) mod 7);
-    Result := Copy(StrWeekDay, 1 + DayOfWeek * 3, 3) + ', ' +
-              Format('%2.2d %s %4.4d %2.2d:%2.2d:%2.2d',
-                     [Day, Copy(StrMonth, 1 + 3 * (Month - 1), 3),
-                      Year, Hour, Min, Sec]);
 end;   *)
 
 
@@ -5572,177 +5492,6 @@ begin
             Inc(P);
     end;
 end;
-
-(*
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TextToHtmlText(const Src: RawByteString) : String;
-begin
-    { Convert the ANSI string to Unicode, HTML entities represent           }
-    { iso-8859-1 (Latin1) and Unicode code points                           }
-    Result := TextToHtmlText(UnicodeString(Src));
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Convert a string in Windows character set to HTML texte. That is replace  }
-{ all character with code between 160 and 255 by special sequences.         }
-{ For example, 'fête' is replaced by 'f&ecirc;te'                           }
-{ Also handle '<', '>', quote and double quote                              }
-{ Replace multiple spaces by a single space followed by the required number }
-{ of non-breaking-spaces (&nbsp;)                                           }
-{ Replace TAB by a non-breaking-space.                                      }
-function TextToHtmlText(const Src : UnicodeString) : String;
-const
-    HtmlSpecialChars : array [160..255] of String = (
-        'nbsp'   , { #160 no-break space = non-breaking space               }
-        'iexcl'  , { #161 inverted exclamation mark                         }
-        'cent'   , { #162 cent sign                                         }
-        'pound'  , { #163 pound sign                                        }
-        'curren' , { #164 currency sign                                     }
-        'yen'    , { #165 yen sign = yuan sign                              }
-        'brvbar' , { #166 broken bar = broken vertical bar,                 }
-        'sect'   , { #167 section sign                                      }
-        'uml'    , { #168 diaeresis = spacing diaeresis                     }
-        'copy'   , { #169 copyright sign                                    }
-        'ordf'   , { #170 feminine ordinal indicator                        }
-        'laquo'  , { #171 left-pointing double angle quotation mark         }
-        'not'    , { #172 not sign                                          }
-        'shy'    , { #173 soft hyphen = discretionary hyphen,               }
-        'reg'    , { #174 registered sign = registered trade mark sign,     }
-        'macr'   , { #175 macron = spacing macron = overline = APL overbar  }
-        'deg'    , { #176 degree sign                                       }
-        'plusmn' , { #177 plus-minus sign = plus-or-minus sign,             }
-        'sup2'   , { #178 superscript two = superscript digit two = squared }
-        'sup3'   , { #179 superscript three = superscript digit three = cubed }
-        'acute'  , { #180 acute accent = spacing acute,                     }
-        'micro'  , { #181 micro sign                                        }
-        'para'   , { #182 pilcrow sign = paragraph sign,                    }
-        'middot' , { #183 middle dot = Georgian comma = Greek middle dot    }
-        'cedil'  , { #184 cedilla = spacing cedilla                         }
-        'sup1'   , { #185 superscript one = superscript digit one           }
-        'ordm'   , { #186 masculine ordinal indicator,                      }
-        'raquo'  , { #187 right-pointing double angle quotation mark = right pointing guillemet }
-        'frac14' , { #188 vulgar fraction one quarter = fraction one quarter}
-        'frac12' , { #189 vulgar fraction one half = fraction one half      }
-        'frac34' , { #190 vulgar fraction three quarters = fraction three quarters }
-        'iquest' , { #191 inverted question mark = turned question mark     }
-        'Agrave' , { #192 latin capital letter A with grave = latin capital letter A grave, }
-        'Aacute' , { #193 latin capital letter A with acute,                }
-        'Acirc'  , { #194 latin capital letter A with circumflex,           }
-        'Atilde' , { #195 latin capital letter A with tilde,                }
-        'Auml'   , { #196 latin capital letter A with diaeresis,            }
-        'Aring'  , { #197 latin capital letter A with ring above = latin capital letter A ring, }
-        'AElig'  , { #198 latin capital letter AE = latin capital ligature AE, }
-        'Ccedil' , { #199 latin capital letter C with cedilla,              }
-        'Egrave' , { #200 latin capital letter E with grave,                }
-        'Eacute' , { #201 latin capital letter E with acute,                }
-        'Ecirc'  , { #202 latin capital letter E with circumflex,           }
-        'Euml'   , { #203 latin capital letter E with diaeresis,            }
-        'Igrave' , { #204 latin capital letter I with grave,                }
-        'Iacute' , { #205 latin capital letter I with acute,                }
-        'Icirc'  , { #206 latin capital letter I with circumflex,           }
-        'Iuml'   , { #207 latin capital letter I with diaeresis,            }
-        'ETH'    , { #208 latin capital letter ETH                          }
-        'Ntilde' , { #209 latin capital letter N with tilde,                }
-        'Ograve' , { #210 latin capital letter O with grave,                }
-        'Oacute' , { #211 latin capital letter O with acute,                }
-        'Ocirc'  , { #212 latin capital letter O with circumflex,           }
-        'Otilde' , { #213 latin capital letter O with tilde,                }
-        'Ouml'   , { #214 latin capital letter O with diaeresis,            }
-        'times'  , { #215 multiplication sign                               }
-        'Oslash' , { #216 latin capital letter O with stroke = latin capital letter O slash, }
-        'Ugrave' , { #217 latin capital letter U with grave,                }
-        'Uacute' , { #218 latin capital letter U with acute,                }
-        'Ucirc'  , { #219 latin capital letter U with circumflex,           }
-        'Uuml'   , { #220 latin capital letter U with diaeresis,            }
-        'Yacute' , { #221 latin capital letter Y with acute,                }
-        'THORN'  , { #222 latin capital letter THORN,                       }
-        'szlig'  , { #223 latin small letter sharp s = ess-zed,             }
-        'agrave' , { #224 latin small letter a with grave = latin small letter a grave, }
-        'aacute' , { #225 latin small letter a with acute,                  }
-        'acirc'  , { #226 latin small letter a with circumflex,             }
-        'atilde' , { #227 latin small letter a with tilde,                  }
-        'auml'   , { #228 latin small letter a with diaeresis,              }
-        'aring'  , { #229 latin small letter a with ring above = latin small letter a ring, }
-        'aelig'  , { #230 latin small letter ae = latin small ligature ae   }
-        'ccedil' , { #231 latin small letter c with cedilla,                }
-        'egrave' , { #232 latin small letter e with grave,                  }
-        'eacute' , { #233 latin small letter e with acute,                  }
-        'ecirc'  , { #234 latin small letter e with circumflex,             }
-        'euml'   , { #235 latin small letter e with diaeresis,              }
-        'igrave' , { #236 latin small letter i with grave,                  }
-        'iacute' , { #237 latin small letter i with acute,                  }
-        'icirc'  , { #238 latin small letter i with circumflex,             }
-        'iuml'   , { #239 latin small letter i with diaeresis,              }
-        'eth'    , { #240 latin small letter eth                            }
-        'ntilde' , { #241 latin small letter n with tilde,                  }
-        'ograve' , { #242 latin small letter o with grave,                  }
-        'oacute' , { #243 latin small letter o with acute,                  }
-        'ocirc'  , { #244 latin small letter o with circumflex,             }
-        'otilde' , { #245 latin small letter o with tilde,                  }
-        'ouml'   , { #246 latin small letter o with diaeresis,              }
-        'divide' , { #247 division sign                                     }
-        'oslash' , { #248 latin small letter o with stroke, = latin small letter o slash, }
-        'ugrave' , { #249 latin small letter u with grave,                  }
-        'uacute' , { #250 latin small letter u with acute,                  }
-        'ucirc'  , { #251 latin small letter u with circumflex,             }
-        'uuml'   , { #252 latin small letter u with diaeresis,              }
-        'yacute' , { #253 latin small letter y with acute,                  }
-        'thorn'  , { #254 latin small letter thorn,                         }
-        'yuml');   { #255 latin small letter y with diaeresis,              }
-var
-    I, J : Integer;
-    Sub  : String;
-begin
-    Result := '';
-    I := 1;
-    while I <= Length(Src) do begin
-        J   := I;
-        Sub := '';
-        while (I <= Length(Src)) and (Ord(Src[I]) < Low(HtmlSpecialChars)) do begin
-            case Src[I] of
-            ' '  : begin
-                       if (I > 1) and (Src[I - 1] = ' ') then begin
-                           { Replace multiple spaces by &nbsp; }
-                           while (I <= Length(Src)) and (Src[I] = ' ') do begin
-                               Sub := Sub + '&nbsp;';
-                               Inc(I);
-                           end;
-                           Dec(I);
-                       end
-                       else
-                           Inc(I);
-                   end;
-            '<'  : Sub := '&lt;';
-            '>'  : Sub := '&gt;';
-            '''' : sub := '&#39;';
-            '"'  : Sub := '&#34;';
-            '&'  : Sub := '&amp;';
-            #9   : Sub := '&nbsp;';
-            #10  : Sub := #10'<BR>';
-            else
-                Inc(I);
-            end;
-            if Length(Sub) > 0 then begin
-                Result := Result + Copy(Src, J, I - J) + Sub;
-                Inc(I);
-                J      := I;
-                Sub    := '';
-            end;
-        end;
-
-        if I > Length(Src) then begin
-            Result := Result + Copy(Src, J, I - J);
-            Exit;
-        end;
-        if Ord(Src[I]) > 255 then
-            Result := Result + Copy(Src, J, I - J) + '&#' + IntToStr(Ord(Src[I])) + ';'
-        else
-            Result := Result + Copy(Src, J, I - J) + '&' +
-                    HtmlSpecialChars[Ord(Src[I])] + ';';
-        Inc(I);
-    end;
-end;   *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

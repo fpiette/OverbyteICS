@@ -4,7 +4,7 @@ Authors:      Arno Garrels <arno.garrels@gmx.de>
               Angus Robertson <delphi@magsys.co.uk>
 Creation:     Aug 26, 2007
 Description:
-Version:      8.42
+Version:      8.49
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -86,10 +86,15 @@ Feb 24, 2017  V8.41 Added CreateCertBundle to build a new PEM or PKCS12 file
               The old CreateCertRequest and CreateSelfSignedCert functions now
                  use the TSslCertTools component and provide backward compatibitity
 Mar 3, 2017  V8.42 Angus TULargeInteger now ULARGE_INTEGER
+Jun 21, 2017 V8.49 Added ISRG Root X1 certificate for Let's Encrypt
+             Fixed AV creating second EC key (OpenSSL function fails)
+             Now creating X25519 Elliptic Curve private keys
+             Total write creating private keys using EVP_PKEY_CTX functions
 
 
 
 Pending - short term
+Alternate DNS names not being created properly
 Saving a CA databases of certificates created
 Sign buffers and files with private keys and digests
 
@@ -408,6 +413,7 @@ type
         procedure   DoSelfSignCert;
         procedure   DoSignCertReq(CopyExtns: Boolean);
         procedure   DoKeyPair;
+        procedure   DoKeyPairOld;
         function    DoDHParams(const FileName: String; Bits: integer): String;
         procedure   DoClearCerts;
         procedure   CreateCertBundle(const CertFile, PKeyFile, InterFile, LoadPw,
@@ -471,17 +477,6 @@ type
 
 
 
-
-
-{procedure CreateCertRequest(const RequestFileName, KeyFileName, Country,
-  State, Locality, Organization, OUnit, CName, Email: AnsiString;
-  Bits: Integer; Comment: boolean = false);  overload;
-procedure CreateSelfSignedCert(const FileName, Country, State,
-  Locality, Organization, OUnit, CName, Email: AnsiString; Bits: Integer;
-  IsCA: Boolean; Days: Integer;
-  const KeyFileName: AnsiString = ''; Comment: boolean = false);  overload; }
-
-{x$IFDEF UNICODE}
 procedure CreateCertRequest(const RequestFileName, KeyFileName, Country,
   State, Locality, Organization, OUnit, CName, Email: String;
   Bits: Integer; Comment: boolean = false); overload;
@@ -489,7 +484,6 @@ procedure CreateSelfSignedCert(const FileName, Country, State,
   Locality, Organization, OUnit, CName, Email: String; Bits: Integer;
   IsCA: Boolean; Days: Integer;
   const KeyFileName: String = ''; Comment: boolean = false);  overload;
-{x$ENDIF UNICODE}
 
 
 { RSA crypto functions }
@@ -565,7 +559,7 @@ const
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Organisation: VeriSign Trust Network' + #13#10 +
         '# Subject Organisation Unit: VeriSign, Inc., VeriSign Time Stamping Service Root, NO LIABILITY ACCEPTED, (c)97 VeriSign, Inc.' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 07/01/2004' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIICvDCCAiUCEEoZ0jiMglkcpV1zXxVd3KMwDQYJKoZIhvcNAQEEBQAwgZ4xHzAd' + #13#10 +
@@ -589,7 +583,7 @@ const
         '# Subject Common Name: UTN-USERFirst-Object' + #13#10 +
         '# Subject Organisation: The USERTRUST Network' + #13#10 +
         '# Subject Organisation Unit: http://www.usertrust.com' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 09/07/2019' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIEZjCCA06gAwIBAgIQRL4Mi1AAJLQR0zYt4LNfGzANBgkqhkiG9w0BAQUFADCB' + #13#10 +
@@ -621,7 +615,7 @@ const
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Common Name: GeoTrust Global CA' + #13#10 +
         '# Subject Organisation: GeoTrust Inc.' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 21/05/2022' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIDVDCCAjygAwIBAgIDAjRWMA0GCSqGSIb3DQEBBQUAMEIxCzAJBgNVBAYTAlVT' + #13#10 +
@@ -647,7 +641,7 @@ const
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Common Name: SwissSign Gold CA - G2' + #13#10 +
         '# Subject Organisation: SwissSign AG' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 25/10/2036' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIFujCCA6KgAwIBAgIJALtAHEP1Xk+wMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV' + #13#10 +
@@ -687,7 +681,7 @@ const
         '# Subject Common Name: Baltimore CyberTrust Root' + #13#10 +
         '# Subject Organisation: Baltimore' + #13#10 +
         '# Subject Organisation Unit: CyberTrust' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 12/05/2025' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIDdzCCAl+gAwIBAgIEAgAAuTANBgkqhkiG9w0BAQUFADBaMQswCQYDVQQGEwJJ' + #13#10 +
@@ -714,7 +708,7 @@ const
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Organisation: Equifax' + #13#10 +
         '# Subject Organisation Unit: Equifax Secure Certificate Authority' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 22/08/2018' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIDIDCCAomgAwIBAgIENd70zzANBgkqhkiG9w0BAQUFADBOMQswCQYDVQQGEwJV' + #13#10 +
@@ -739,7 +733,7 @@ const
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Common Name: QuoVadis Root CA 2' + #13#10 +
         '# Subject Organisation: QuoVadis Limited' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 24/11/2031' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIFtzCCA5+gAwIBAgICBQkwDQYJKoZIhvcNAQEFBQAwRTELMAkGA1UEBhMCQk0x' + #13#10 +
@@ -778,7 +772,7 @@ const
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Common Name: Starfield Root Certificate Authority - G2' + #13#10 +
         '# Subject Organisation: Starfield Technologies, Inc.' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 31/12/2037' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIID3TCCAsWgAwIBAgIBADANBgkqhkiG9w0BAQsFADCBjzELMAkGA1UEBhMCVVMx' + #13#10 +
@@ -808,7 +802,7 @@ const
         '# Subject Common Name: Entrust Root Certification Authority' + #13#10 +
         '# Subject Organisation: Entrust, Inc.' + #13#10 +
         '# Subject Organisation Unit: www.entrust.net/CPS is incorporated by reference, (c) 2006 Entrust, Inc.' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 27/11/2026' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIEkTCCA3mgAwIBAgIERWtQVDANBgkqhkiG9w0BAQUFADCBsDELMAkGA1UEBhMC' + #13#10 +
@@ -842,7 +836,7 @@ const
         '# Subject Common Name: GlobalSign Root CA' + #13#10 +
         '# Subject Organisation: GlobalSign nv-sa' + #13#10 +
         '# Subject Organisation Unit: Root CA' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 28/01/2028' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIDdTCCAl2gAwIBAgILBAAAAAABFUtaw5QwDQYJKoZIhvcNAQEFBQAwVzELMAkG' + #13#10 +
@@ -869,7 +863,7 @@ const
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Common Name: COMODO RSA Certification Authority' + #13#10 +
         '# Subject Organisation: COMODO CA Limited' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 18/01/2038' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIF2DCCA8CgAwIBAgIQTKr5yttjb+Af907YWwOGnTANBgkqhkiG9w0BAQwFADCB' + #13#10 +
@@ -909,7 +903,7 @@ const
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Organisation: Starfield Technologies, Inc.' + #13#10 +
         '# Subject Organisation Unit: Starfield Class 2 Certification Authority' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 29/06/2034' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIEDzCCAvegAwIBAgIBADANBgkqhkiG9w0BAQUFADBoMQswCQYDVQQGEwJVUzEl' + #13#10 +
@@ -940,7 +934,7 @@ const
         '# Subject Common Name: DigiCert Global Root CA' + #13#10 +
         '# Subject Organisation: DigiCert Inc' + #13#10 +
         '# Subject Organisation Unit: www.digicert.com' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 10/11/2031' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh' + #13#10 +
@@ -969,7 +963,7 @@ const
         '# Subject Common Name: thawte Primary Root CA' + #13#10 +
         '# Subject Organisation: thawte, Inc.' + #13#10 +
         '# Subject Organisation Unit: Certification Services Division, (c) 2006 thawte, Inc. - For authorized use only' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 16/07/2036' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIEIDCCAwigAwIBAgIQNE7VVyDV7exJ9C/ON9srbTANBgkqhkiG9w0BAQUFADCB' + #13#10 +
@@ -1001,7 +995,7 @@ const
         '# Subject Common Name: Entrust Root Certification Authority - G2' + #13#10 +
         '# Subject Organisation: Entrust, Inc.' + #13#10 +
         '# Subject Organisation Unit: See www.entrust.net/legal-terms, (c) 2009 Entrust, Inc. - for authorized use only' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 07/12/2030' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIEPjCCAyagAwIBAgIESlOMKDANBgkqhkiG9w0BAQsFADCBvjELMAkGA1UEBhMC' + #13#10 +
@@ -1032,7 +1026,7 @@ const
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Common Name: SecureTrust CA' + #13#10 +
         '# Subject Organisation: SecureTrust Corporation' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 31/12/2029' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIDuDCCAqCgAwIBAgIQDPCOXAgWpa1Cf/DrJxhZ0DANBgkqhkiG9w0BAQUFADBI' + #13#10 +
@@ -1061,7 +1055,7 @@ const
         '# Subject Common Name: Deutsche Telekom Root CA 2' + #13#10 +
         '# Subject Organisation: Deutsche Telekom AG' + #13#10 +
         '# Subject Organisation Unit: T-TeleSec Trust Center' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 09/07/2019' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIDnzCCAoegAwIBAgIBJjANBgkqhkiG9w0BAQUFADBxMQswCQYDVQQGEwJERTEc' + #13#10 +
@@ -1089,7 +1083,7 @@ const
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Organisation: VeriSign, Inc.' + #13#10 +
         '# Subject Organisation Unit: Class 3 Public Primary Certification Authority' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 01/08/2028' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIICPDCCAaUCEHC65B0Q2Sk0tjjKewPMur8wDQYJKoZIhvcNAQECBQAwXzELMAkG' + #13#10 +
@@ -1109,7 +1103,7 @@ const
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Common Name: Class 2 Primary CA' + #13#10 +
         '# Subject Organisation: Certplus' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 06/07/2019' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIDkjCCAnqgAwIBAgIRAIW9S/PY2uNp9pTXX8OlRCMwDQYJKoZIhvcNAQEFBQAw' + #13#10 +
@@ -1138,7 +1132,7 @@ const
         '# Subject Common Name: Thawte Premium Server CA' + #13#10 +
         '# Subject Organisation: Thawte Consulting cc' + #13#10 +
         '# Subject Organisation Unit: Certification Services Division' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 31/12/2020' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIDJzCCApCgAwIBAgIBATANBgkqhkiG9w0BAQQFADCBzjELMAkGA1UEBhMCWkEx' + #13#10 +
@@ -1164,7 +1158,7 @@ const
         '# Subject Common Name: DigiCert High Assurance EV Root CA' + #13#10 +
         '# Subject Organisation: DigiCert Inc' + #13#10 +
         '# Subject Organisation Unit: www.digicert.com' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 10/11/2031' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIDxTCCAq2gAwIBAgIQAqxcJmoLQJuPC3nyrkYldzANBgkqhkiG9w0BAQUFADBs' + #13#10 +
@@ -1194,7 +1188,7 @@ const
         '# Subject Common Name: Entrust.net Certification Authority (2048)' + #13#10 +
         '# Subject Organisation: Entrust.net' + #13#10 +
         '# Subject Organisation Unit: www.entrust.net/CPS_2048 incorp. by ref. (limits liab.), (c) 1999 Entrust.net Limited' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 24/07/2029' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIEKjCCAxKgAwIBAgIEOGPe+DANBgkqhkiG9w0BAQUFADCBtDEUMBIGA1UEChML' + #13#10 +
@@ -1226,7 +1220,7 @@ const
         '# Subject Common Name: VeriSign Class 3 Public Primary Certification Authority - G5' + #13#10 +
         '# Subject Organisation: VeriSign, Inc.' + #13#10 +
         '# Subject Organisation Unit: VeriSign Trust Network, (c) 2006 VeriSign, Inc. - For authorized use only' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 16/07/2036' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIE0zCCA7ugAwIBAgIQGNrRniZ96LtKIVjNzGs7SjANBgkqhkiG9w0BAQUFADCB' + #13#10 +
@@ -1260,7 +1254,7 @@ const
     sslRootCACerts024 =
         '# Subject Common Name: Go Daddy Root Certificate Authority - G2' + #13#10 +
         '# Subject Organisation: GoDaddy.com, Inc.' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 31/12/2037' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIDxTCCAq2gAwIBAgIBADANBgkqhkiG9w0BAQsFADCBgzELMAkGA1UEBhMCVVMx' + #13#10 +
@@ -1290,7 +1284,7 @@ const
         '# Subject Common Name: StartCom Certification Authority' + #13#10 +
         '# Subject Organisation: StartCom Ltd.' + #13#10 +
         '# Subject Organisation Unit: Secure Digital Certificate Signing' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 17/09/2036' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIHyTCCBbGgAwIBAgIBATANBgkqhkiG9w0BAQUFADB9MQswCQYDVQQGEwJJTDEW' + #13#10 +
@@ -1340,7 +1334,7 @@ const
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Organisation: The Go Daddy Group, Inc.' + #13#10 +
         '# Subject Organisation Unit: Go Daddy Class 2 Certification Authority' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 29/06/2034' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIEADCCAuigAwIBAgIBADANBgkqhkiG9w0BAQUFADBjMQswCQYDVQQGEwJVUzEh' + #13#10 +
@@ -1371,7 +1365,7 @@ const
         '# Subject Common Name: DigiCert Assured ID Root CA' + #13#10 +
         '# Subject Organisation: DigiCert Inc' + #13#10 +
         '# Subject Organisation Unit: www.digicert.com' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 10/11/2031' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIDtzCCAp+gAwIBAgIQDOfg5RfYRv6P5WD8G/AwOTANBgkqhkiG9w0BAQUFADBl' + #13#10 +
@@ -1400,7 +1394,7 @@ const
         '# Subject Common Name: UTN-USERFirst-Hardware' + #13#10 +
         '# Subject Organisation: The USERTRUST Network' + #13#10 +
         '# Subject Organisation Unit: http://www.usertrust.com' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 09/07/2019' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIEdDCCA1ygAwIBAgIQRL4Mi1AAJLQR0zYq/mUK/TANBgkqhkiG9w0BAQUFADCB' + #13#10 +
@@ -1433,7 +1427,7 @@ const
         '# Subject Common Name: AddTrust External CA Root' + #13#10 +
         '# Subject Organisation: AddTrust AB' + #13#10 +
         '# Subject Organisation Unit: AddTrust External TTP Network' + #13#10 +
-        'Issuer: Self Signed' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
         '# Expires: 30/05/2020' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
         'MIIENjCCAx6gAwIBAgIBATANBgkqhkiG9w0BAQUFADBvMQswCQYDVQQGEwJTRTEU' + #13#10 +
@@ -1460,7 +1454,43 @@ const
         'c4g/VhsxOBi0cQ+azcgOno4uG+GMmIPLHzHxREzGBHNJdmAPx/i9F4BrLunMTA5a' + #13#10 +
         'mnkPIAou1Z5jJh5VkpTYghdae9C8x49OhgQ=' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10;
-
+    sslRootCACerts030 =
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: ISRG Root X1' + #13#10 +
+        '# Subject Organisation: Internet Security Research Group' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
+        '# Expires: 04/06/2035' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw' + #13#10 +
+        'TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh' + #13#10 +
+        'cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4' + #13#10 +
+        'WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu' + #13#10 +
+        'ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY' + #13#10 +
+        'MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc' + #13#10 +
+        'h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+' + #13#10 +
+        '0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U' + #13#10 +
+        'A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW' + #13#10 +
+        'T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH' + #13#10 +
+        'B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC' + #13#10 +
+        'B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv' + #13#10 +
+        'KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn' + #13#10 +
+        'OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn' + #13#10 +
+        'jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw' + #13#10 +
+        'qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI' + #13#10 +
+        'rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV' + #13#10 +
+        'HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq' + #13#10 +
+        'hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL' + #13#10 +
+        'ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ' + #13#10 +
+        '3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK' + #13#10 +
+        'NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5' + #13#10 +
+        'ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur' + #13#10 +
+        'TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC' + #13#10 +
+        'jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc' + #13#10 +
+        'oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq' + #13#10 +
+        '4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA' + #13#10 +
+        'mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d' + #13#10 +
+        'emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10;
 
 implementation
 
@@ -1473,7 +1503,7 @@ begin
         sslRootCACerts011 + sslRootCACerts012 + sslRootCACerts013 + sslRootCACerts014 + sslRootCACerts015 +
         sslRootCACerts016 + sslRootCACerts017 + sslRootCACerts018 + sslRootCACerts019 + sslRootCACerts020 +
         sslRootCACerts021 + sslRootCACerts022 + sslRootCACerts023 + sslRootCACerts024 + sslRootCACerts025 +
-        sslRootCACerts026 + sslRootCACerts027 + sslRootCACerts028 + sslRootCACerts029;
+        sslRootCACerts026 + sslRootCACerts027 + sslRootCACerts028 + sslRootCACerts029 + sslRootCACerts030;
     end ;
 
 
@@ -2339,7 +2369,7 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function BNGENCBcallFunc (p: Integer; n: Integer; cb: PBN_GENCB): Integer; cdecl;
+function BNGENCBcallFunc(p: Integer; n: Integer; cb: PBN_GENCB): Integer; cdecl;
 var
 //    c: AnsiChar;
     Arg: Pointer;
@@ -2358,14 +2388,28 @@ begin
         end;
     except
     end;
- {  if (p == 0)   // how mamy generated n
-        c = '.';
-    if (p == 1)
-        c = '+';  // testing prime n
-    if (p == 2)
-        c = '*';  // prime found n
-    if (p == 3)
-        c = '\n';   }
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function EVPPKEYCBcallFunc(pctx: PEVP_PKEY_CTX): Integer; cdecl;
+var
+    Arg: Pointer;
+    CertTools: TSslCertTools;
+begin
+    result := 1; // success, will 0 cause the function to fail??
+    if NOT Assigned(pctx) then Exit;
+    try
+        Arg := f_EVP_PKEY_CTX_get_app_data(pctx);
+        if NOT Assigned (Arg) then exit;
+        CertTools := TSslCertTools(Arg);
+        with CertTools do begin
+          { good idea to call ProcessMessages in event so program remains responsive!!! }
+            if Assigned(CertTools.FOnKeyProgress) then
+                    CertTools.FOnKeyProgress(CertTools);
+        end;
+    except
+    end;
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2382,6 +2426,81 @@ end;
 { optionally encrypted with a password to protect it.   }
 procedure TSslCertTools.DoKeyPair;
 var
+    Bits, KeyNid, CurveNid: Integer;
+    Pctx: PEVP_PKEY_CTX;      { V8.49 total rewrite uising these methods }
+    KeyInfo: string;
+begin
+    InitializeSsl;
+    if NOT ICS_RAND_INIT_DONE then IcsRandPoll;
+ //   callback := Nil;
+
+ { note private keys can use DSA, but this is now obsolete }
+    if Assigned(FPrivKey) then
+        f_EVP_PKEY_free(FPrivKey);   { V8.49 free and new }
+    FPrivKey := Nil;
+
+    CurveNid := 0;
+    Bits := 0;
+    if (FPrivKeyType >= PrivKeyRsa1024) and (FPrivKeyType <= PrivKeyRsa15360) then begin
+        KeyNid := EVP_PKEY_RSA;
+        KeyInfo := 'RSA';
+        case FPrivKeyType of
+            PrivKeyRsa1024:  Bits := 1024;
+            PrivKeyRsa2048:  Bits := 2048;
+            PrivKeyRsa3072:  Bits := 3072;
+            PrivKeyRsa4096:  Bits := 4096;
+            PrivKeyRsa7680:  Bits := 7680;
+            PrivKeyRsa15360: Bits := 15360;
+        else
+            Bits := 2048;
+        end;
+    end
+    else if (FPrivKeyType = PrivKeyECX25519) then begin
+        KeyNid := EVP_PKEY_X25519;
+        KeyInfo := 'X25519';
+    end
+    else if (FPrivKeyType >= PrivKeyECsecp256) and (FPrivKeyType <= PrivKeyECsecp512) then begin
+        KeyNid := EVP_PKEY_EC;
+        KeyInfo := 'EC';
+        case FPrivKeyType of
+            PrivKeyECsecp256:  CurveNid := NID_X9_62_prime256v1;
+            PrivKeyECsecp384:  CurveNid := NID_secp384r1;
+            PrivKeyECsecp512:  CurveNid := NID_secp521r1;
+            else
+                CurveNid := NID_X9_62_prime256v1;
+        end;
+    end
+    else
+        Exit;
+
+ { initialise conext for private keys }
+    Pctx := f_EVP_PKEY_CTX_new_id(KeyNid, Nil);
+    if NOT Assigned(Pctx) then
+            RaiseLastOpenSslError(ECertToolsException, true, 'Failed to create new ' + KeyInfo + ' key');
+    if f_EVP_PKEY_keygen_init(Pctx) = 0 then
+            RaiseLastOpenSslError(ECertToolsException, true, 'Failed to init ' + KeyInfo + ' keygen');
+    if (Bits > 0) and (f_EVP_PKEY_CTX_set_rsa_keygen_bits(Pctx, Bits) = 0) then
+            RaiseLastOpenSslError(ECertToolsException, true, 'Failed to set RSA bits');
+    if (CurveNid > 0) and (f_EVP_PKEY_CTX_set_ec_paramgen_curve_nid(Pctx, CurveNid) = 0) then
+                RaiseLastOpenSslError(ECertToolsException, true, 'Failed to set EC curve');
+
+  { progress callback, really only needed for slow RSA }
+    f_EVP_PKEY_CTX_set_app_data(Pctx, Self);
+    f_EVP_PKEY_CTX_set_cb(Pctx, @EVPPKEYCBcallFunc);
+
+  { generate private key pair }
+    if f_EVP_PKEY_keygen(Pctx, FPrivKey) = 0 then
+            RaiseLastOpenSslError(ECertToolsException, true, 'Failed to generate ' + KeyInfo + ' key');
+    if NOT Assigned(FPrivKey) then
+            RaiseLastOpenSslError(ECertToolsException, true, 'Failed to create new ' + KeyInfo + ' key, empty');
+    SetPrivateKey(FPrivKey);
+    f_EVP_PKEY_CTX_free(Pctx);
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Old version that uses lower level functions, may still be useful }
+procedure TSslCertTools.DoKeyPairOld;
+var
     Bne       : PBIGNUM;
     Ret, Bits, Nid  : Integer;
     callback  : PBN_GENCB;
@@ -2394,7 +2513,8 @@ begin
     callback := Nil;
 
  { note private keys can use DSA, but this is now obsolete }
-    if NOT Assigned(FPrivKey) then
+    if Assigned(FPrivKey) then
+        f_EVP_PKEY_free(FPrivKey);   { V8.49 free and new }
     FPrivKey := f_EVP_PKEY_new;
     if NOT Assigned(FPrivKey) then
            RaiseLastOpenSslError(ECertToolsException, true, 'Failed to create new private key');
@@ -2455,11 +2575,11 @@ begin
             else
                 Nid := NID_X9_62_prime256v1;
         end;
+   //     if Assigned (FECkey) then
+   //         f_EC_KEY_free(FECKey);  // does not seem to work!!!
         if Assigned (FECgroup) then
             f_EC_GROUP_free(FECgroup);
         FECgroup := Nil;
-        if Assigned (FECkey) then
-            f_EC_KEY_free(FECKey);
         FECkey := f_EC_KEY_new;
         if NOT Assigned (FECkey) then
                 RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to create new EC key');
@@ -2480,8 +2600,6 @@ begin
         SetPrivateKey(FPrivKey);
     end;
 end;
-
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { This method creates DHParams which are needed by servers using DH and DHE
 { key exchange (but not for ECDH and ECDHE).  DHParams are usually created once }
@@ -2641,180 +2759,6 @@ begin
     end;
 end;
 
-(*
-var
-    X         : PX509;
-    PK        : PEVP_PKEY;
-    Rsa       : PRSA;
-    Name      : PX509_NAME;
-    FileBio   : PBIO;
-    Ex        : PX509_EXTENSION;
-    Title     : AnsiString;
-    Info      : AnsiString;
-begin
-    FileBio := nil;
-    X       := nil;
-{    if not LibeayExLoaded then
-    begin
-        LoadLibeayEx;
-        IcsRandPoll;
-    end;  }
-    if NOT ICS_RAND_INIT_DONE then IcsRandPoll;  { V8.35 }
-    PK := f_EVP_PKEY_new;
-    if not Assigned(PK) then
-        raise Exception.Create('Could not create key object');
-    try
-        Rsa := f_RSA_generate_key(Bits, RSA_F4, nil{callback}, nil);
-        if not Assigned(Rsa) then
-            raise Exception.Create('Failed to generate rsa key');
-
-        if f_EVP_PKEY_assign(PK, EVP_PKEY_RSA, PAnsiChar(Rsa)) = 0 then
-        begin
-            f_RSA_free(Rsa);
-            raise Exception.Create('Failed to assign rsa key to key object');
-        end;
-
-        X := f_X509_new;
-        if not Assigned(X) then
-            raise Exception.Create('Cert object nil');
-
-        f_X509_set_version(X, 2);
-        f_ASN1_INTEGER_set(f_X509_get_serialNumber(X), 0{serial});
-        f_X509_gmtime_adj(f_Ics_X509_get_notBefore(X), 0);
-        f_X509_gmtime_adj(f_Ics_X509_get_notAfter(X), 60 * 60 * 24 * Days);
-        f_X509_set_pubkey(X, PK);
-
-        Name := f_X509_get_subject_name(X);
-        if not Assigned(Name) then
-            raise Exception.Create('Function "f_X509_get_subject_name" failed');
-
-        { This function creates and adds the entry, working out the
-        correct string type and performing checks on its length.
-        Normally we'd check the return value for errors...      }
-
-        AddNameEntryByTxt(Name, 'CN', CName);
-        AddNameEntryByTxt(Name, 'OU', OUnit);
-        AddNameEntryByTxt(Name, 'ST', State);
-        AddNameEntryByTxt(Name, 'O',  Organization);
-        AddNameEntryByTxt(Name, 'C',  Country);
-        AddNameEntryByTxt(Name, 'L',  Locality);
-
-        if Length(AnsiString(Email)) > 0 then
-            f_X509_NAME_add_entry_by_NID(Name, NID_pkcs9_emailAddress,
-                        MBSTRING_ASC, PAnsiChar(AnsiString(Email)), -1, -1, 0);
-
-        { It's self signed so set the issuer name to be the same as the
-        subject. }
-        f_X509_set_issuer_name(X, Name);
-
-        {* Add extension using V3 code: we can set the config file as NULL
-        * because we wont reference any other sections. We can also set
-        * the context to NULL because none of these extensions below will need
-        * to access it.
-        *}
-        { Add various extensions }
-        if IsCA then
-            Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_basic_constraints,
-                                        PAnsiChar('critical,CA:TRUE'))
-        else
-            Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_basic_constraints,
-                                       PAnsiChar('critical,CA:FALSE'));
-
-        if not Assigned(Ex) then
-            raise Exception.Create('Function f_X509V3_EXT_conf_nid failed');
-        f_X509_add_ext(X, Ex, -1);
-        f_X509_EXTENSION_free(Ex);
-
-        { Optional extensions
-
-        { Purposes }
-        Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_key_usage,
-                                PAnsiChar('critical, keyCertSign, cRLSign'));
-        f_X509_add_ext(X, Ex, -1);
-        f_X509_EXTENSION_free(Ex);
-
-        { Some Netscape specific extensions }
-        Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_netscape_comment,
-                                PAnsiChar('ICS Group'));
-        f_X509_add_ext(X, Ex, -1);
-        f_X509_EXTENSION_free(Ex);
-
-        Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_netscape_cert_type,
-                                PAnsiChar('SSL CA, S/MIME CA, Object Signing CA'));
-        f_X509_add_ext(X, Ex, -1);
-        f_X509_EXTENSION_free(Ex);
-
-        {Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_crl_distribution_points,
-                                PAnsiChar('URI:http://www.domain.com/CRL/class1.crl'));
-        f_X509_add_ext(X, Ex, -1);
-        f_X509_EXTENSION_free(Ex);}
-
-        }
-
-        { Sign it }
-        if f_X509_sign(X, PK, f_EVP_sha256) <= 0 then    { V.21 was sha1 }
-            raise Exception.Create('Failed to sign certificate');
-
-        { Angus - see if writing certificate and private key to separate files }
-        if KeyFileName <> '' then begin
-            { We write private key only }
-            FileBio := f_BIO_new_file(PAnsiChar(AnsiString(KeyFileName)), PAnsiChar('w+'));
-            if not Assigned(FileBio) then
-                raise Exception.Create('Failed to open output file - ' + KeyFileName);
-        end
-        else begin
-            { We write private key as well as certificate to the same file }
-            FileBio := f_BIO_new_file(PAnsiChar(AnsiString(FileName)), PAnsiChar('w+'));
-            if not Assigned(FileBio) then
-                raise Exception.Create('Failed to open output file - ' + FileName);
-        end;
-
-        { Angus see if writing comment }
-        if Comment then begin
-            Info := '# Subject Common Name: ' + AnsiString(CName) + #13#10 +
-                    '# Subject Organisation: ' + AnsiString(Organization) + #13#10 +
-                    '# Issuer: Self Signed' + #13#10 +
-                    '# Expires: ' + AnsiString(DateToStr (Date + Days)) + #13#10;
-            Title := '# X509 SSL Private Key' + #13#10 + Info;
-            f_BIO_write(FileBio, @Title [1], Length (Title));
-        end;
-
-        { Write private key }
-        { Callback, old format }
-        //if f_PEM_write_bio_PrivateKey(FileBio, PK, f_EVP_des_ede3_cbc, nil, 0, @PasswordCallback, nil) = 0 then
-        { Plain, old format }
-        if f_PEM_write_bio_PrivateKey(FileBio, PK, nil, nil, 0, nil, nil) = 0 then
-            raise Exception.Create('Failed to write private key to BIO');
-
-        { Angus - see if closing private key file and opening another for certificate }
-        if KeyFileName <> '' then begin
-            if Assigned(FileBio) then
-                f_BIO_free(FileBio);
-            FileBio := f_BIO_new_file(PAnsiChar(AnsiString(FileName)), PAnsiChar('w+'));
-            if not Assigned(FileBio) then
-                raise Exception.Create('Failed to open output file - ' + FileName);
-        end;
-
-        { Angus see if writing comment }
-        if Comment then begin
-            Title := '# X509 SSL Certificate' + #13#10 + Info;
-            f_BIO_write(FileBio, @Title [1], Length (Title));
-        end;
-
-        { Write certificate }
-        if f_PEM_write_bio_X509(FileBio, X) = 0 then
-            raise Exception.Create('Failed to write certificate to BIO');
-
-    finally
-        if Assigned(PK) then
-            f_EVP_PKEY_free(PK);
-        if Assigned(X) then
-            f_X509_free(X);
-        if Assigned(FileBio) then
-            f_BIO_free(FileBio);
-    end;
-end;     *)
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.41 replaced old code with TSslCertTools component }
@@ -2858,417 +2802,6 @@ begin
     end;
 end;
 
-(*
-  function Add_Ext(sk : PStack; Nid : Integer; Value : PAnsiChar): Boolean;
-  var
-      Ext : PX509_EXTENSION;
-  begin
-      Ext := f_X509V3_EXT_conf_nid(nil, nil, NID, value);
-      if not Assigned(Ext) then
-          Result := FALSE
-      else
-          Result := f_OPENSSL_sk_push(sk, Pointer(ext)) = 1;
-  end;
-
-var
-    PK        : PEVP_PKEY;
-    Rsa       : PRSA;
-    Name      : PX509_NAME;
-    FileBio   : PBIO;
-    Req       : PX509_REQ;
-    Exts      : PStack;
-    Title     : AnsiString;
-    Info      : AnsiString;
-begin
-    FileBio := nil;
-    //Name    := nil;
-    //PK      := nil;
-    //exts    := nil;
-    Req     := nil;
-
- {   if not LibeayExLoaded then
-    begin
-        LoadLibeayEx;
-        IcsRandPoll;
-    end;   }
-    if NOT ICS_RAND_INIT_DONE then IcsRandPoll;  { V8.35 }
-
-    PK := f_EVP_PKEY_new;
-    if not Assigned(PK) then
-      raise Exception.Create('Could not create key object');
-
-    try
-        Rsa := f_RSA_generate_key(Bits, RSA_F4, nil{callback}, nil);
-        if not Assigned(Rsa) then
-            raise Exception.Create('Failed to generate rsa key');
-
-        if f_EVP_PKEY_assign(PK, EVP_PKEY_RSA, PAnsiChar(Rsa)) = 0 then
-        begin
-            f_RSA_free(Rsa);
-            raise Exception.Create('Failed to assign rsa key to key object');
-        end;
-
-        Req := f_X509_Req_new;
-
-        f_X509_REQ_set_pubkey(Req, pk);
-
-        f_X509_REQ_set_version(Req, 2);
-
-        Name := f_ics_X509_REQ_get_subject_name(Req);   { V8.36 }
-
-        { This function creates and adds the entry, working out the
-          correct string type and performing checks on its length.
-          Normally we'd check the return value for errors...
-        }
-
-        AddNameEntryByTxt(Name, 'CN', CName);
-        AddNameEntryByTxt(Name, 'OU', OUnit);
-        AddNameEntryByTxt(Name, 'ST', State);
-        AddNameEntryByTxt(Name, 'O',  Organization);
-        AddNameEntryByTxt(Name, 'C',  Country);
-        AddNameEntryByTxt(Name, 'L',  Locality);
-
-        if Length(AnsiString(Email)) > 0 then
-            f_X509_NAME_add_entry_by_NID(Name, NID_pkcs9_emailAddress,
-                        MBSTRING_ASC, PAnsiChar(AnsiString(Email)), -1, -1, 0);
-
-        Exts := f_OPENSSL_sk_new_null;
-        Add_Ext(Exts, NID_key_usage, 'critical, digitalSignature, keyEncipherment');
-
-        f_X509_REQ_add_extensions(Req, Exts);
-
-        f_OPENSSL_sk_pop_free(Exts, @f_X509_EXTENSION_free);
-
-        if f_X509_REQ_sign(Req, PK, f_EVP_sha256) <= 0 then
-            raise Exception.Create('Failed to sign request');
-
-        FileBio := f_BIO_new_file(PAnsiChar(AnsiString(KeyFileName)), PAnsiChar('w+'));
-        if not Assigned(FileBio) then
-            raise Exception.Create('Failed to open output file');
-
-        { Angus see if writing comment }
-        if Comment then begin
-            Info := '# Subject Common Name: ' + AnsiString(CName) + #13#10 +
-                    '# Subject Organisation: ' + AnsiString(Organization) + #13#10 +
-                    '# Subject Organisation Unit: ' + AnsiString(OUnit) + #13#10;
-            Title := '# X509 SSL Private Key' + #13#10 + Info;
-            f_BIO_write(FileBio, @Title [1], Length (Title));
-        end;
-
-        if f_PEM_write_bio_PrivateKey(FileBio, PK, nil, nil, 0, nil, nil) = 0 then
-            raise Exception.Create('Failed to write private key to BIO');
-        f_BIO_free(FileBio);
-        FileBio := f_BIO_new_file(PAnsiChar(AnsiString(RequestFileName)), PAnsiChar('w+'));
-        if not Assigned(FileBio) then
-            raise Exception.Create('Failed to open output file');
-
-        { Angus see if writing comment }
-        if Comment then begin
-            Title := '# X509 SSL Certificate Request' + #13#10 + Info;
-            f_BIO_write(FileBio, @Title [1], Length (Title));
-        end;
-
-        { Write request }
-        if f_PEM_write_bio_X509_REQ(FileBio, PX509_REQ(Req)) = 0 then
-            raise Exception.Create('Failed to write certificate to BIO');
-
-    finally
-      if Assigned(PK) then
-        f_EVP_PKEY_free(PK);
-      if Assigned(Req) then
-        f_X509_REQ_free(Req);
-      if Assigned(FileBio) then
-        f_BIO_free(FileBio);
-    end;
-end;    *)
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{x$ENDIF UNICODE}
-
-(*
-procedure CreateSelfSignedCert(const FileName, Country, State,
-    Locality, Organization, OUnit, CName, Email: AnsiString;
-    Bits: Integer; IsCA: Boolean; Days: Integer;
-    const KeyFileName: AnsiString = ''; Comment: boolean = false);
-var
-    X         : PX509;
-    PK        : PEVP_PKEY;
-    Rsa       : PRSA;
-    Name      : PX509_NAME;
-    FileBio   : PBIO;
-    Ex        : PX509_EXTENSION;
-    Title     : String;
-    Info      : String;
-begin
-    FileBio := nil;
-    X       := nil;
-    //PK      := nil;
-    //Name    := nil;
-    //Ex      := nil;
-  {  if not LibeayExLoaded then
-    begin
-        LoadLibeayEx;
-        IcsRandPoll;
-    end;   }
-    if NOT ICS_RAND_INIT_DONE then IcsRandPoll;  { V8.35 }
-    PK := f_EVP_PKEY_new;
-    if not Assigned(PK) then
-        raise Exception.Create('Could not create key object');
-    try
-        Rsa := f_RSA_generate_key(Bits, RSA_F4, nil{callback}, nil);
-        if not Assigned(Rsa) then
-            raise Exception.Create('Failed to generate rsa key');
-
-        if f_EVP_PKEY_assign(PK, EVP_PKEY_RSA, PAnsiChar(Rsa)) = 0 then
-        begin
-            f_RSA_free(Rsa);
-            raise Exception.Create('Failed to assign rsa key to key object');
-        end;
-
-        X := f_X509_new;
-        if not Assigned(X) then
-            raise Exception.Create('Cert object nil');
-
-        f_X509_set_version(X, 2);
-        f_ASN1_INTEGER_set(f_X509_get_serialNumber(X), 0{serial});
-        f_X509_gmtime_adj(f_Ics_X509_get_notBefore(X), 0);
-        f_X509_gmtime_adj(f_Ics_X509_get_notAfter(X), 60 * 60 * 24 * Days);
-        f_X509_set_pubkey(X, PK);
-
-        Name := f_X509_get_subject_name(X);
-        if not Assigned(Name) then
-            raise Exception.Create('Function "f_X509_get_subject_name" failed');
-
-        { This function creates and adds the entry, working out the
-        correct string type and performing checks on its length.
-        Normally we'd check the return value for errors...      }
-
-        AddNameEntryByTxt(Name, 'CN', String(CName));
-        AddNameEntryByTxt(Name, 'OU', String(OUnit));
-        AddNameEntryByTxt(Name, 'ST', String(State));
-        AddNameEntryByTxt(Name, 'O',  String(Organization));
-        AddNameEntryByTxt(Name, 'C',  String(Country));
-        AddNameEntryByTxt(Name, 'L',  String(Locality));
-
-        if Length(Email) > 0 then
-            f_X509_NAME_add_entry_by_NID(Name, NID_pkcs9_emailAddress,
-                                         MBSTRING_ASC, PAnsiChar(Email), -1, -1, 0);
-
-        { It's self signed so set the issuer name to be the same as the
-        subject. }
-        f_X509_set_issuer_name(X, Name);
-
-        {* Add extension using V3 code: we can set the config file as NULL
-        * because we wont reference any other sections. We can also set
-        * the context to NULL because none of these extensions below will need
-        * to access it.
-        *}
-        { Add various extensions }
-        if IsCA then
-            Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_basic_constraints,
-                                        PAnsiChar('critical,CA:TRUE'))
-        else
-            Ex := f_X509V3_EXT_conf_nid(nil, nil, NID_basic_constraints,
-                                       PAnsiChar('critical,CA:FALSE'));
-
-        if not Assigned(Ex) then
-            raise Exception.Create('Function f_X509V3_EXT_conf_nid failed');
-        f_X509_add_ext(X, Ex, -1);
-        f_X509_EXTENSION_free(Ex);
-
-        { Sign it }
-        if f_X509_sign(X, PK, f_EVP_sha256) <= 0 then
-            raise Exception.Create('Failed to sign certificate');
-
-        { Angus - see if writing certificate and private key to separate files }
-        if KeyFileName <> '' then begin
-            { We write private key only }
-            FileBio := f_BIO_new_file(PAnsiChar(KeyFileName), PAnsiChar('w+'));
-            if not Assigned(FileBio) then
-                raise Exception.Create('Failed to open output file - ' + string(KeyFileName));
-        end
-        else begin
-        { We write private key as well as certificate to the same file }
-            FileBio := f_BIO_new_file(PAnsiChar(FileName), PAnsiChar('w+'));
-            if not Assigned(FileBio) then
-                raise Exception.Create('Failed to open output file - ' + string(FileName));
-        end;
-
-        { Angus see if writing comment }
-        if Comment then begin
-            Info := '# Subject Common Name: ' + string(CName) + #13#10 +
-                    '# Subject Organisation: ' + string(Organization) + #13#10 +
-                    '# Subject Organisation Unit: ' + string(OUnit) + #13#10 +
-                    '# Issuer: Self Signed' + #13#10 +
-                    '# Expires: ' + DateToStr (Date + Days) + #13#10;
-            Title := '# X509 SSL Private Key' + #13#10 + Info;
-            f_BIO_write(FileBio, @Title [1], Length (Title));
-        end;
-
-        { Write private key }
-        { Callback, old format }
-        //if f_PEM_write_bio_PrivateKey(FileBio, PK, f_EVP_des_ede3_cbc, nil, 0, @PasswordCallback, nil) = 0 then
-        { Plain, old format }
-        if f_PEM_write_bio_PrivateKey(FileBio, PK, nil, nil, 0, nil, nil) = 0 then
-            raise Exception.Create('Failed to write private key to BIO');
-
-        { Angus - see if closing private key file and opening another for certificate }
-        if KeyFileName <> '' then begin
-            if Assigned(FileBio) then
-                f_BIO_free(FileBio);
-            FileBio := f_BIO_new_file(PAnsiChar(FileName), PAnsiChar('w+'));
-            if not Assigned(FileBio) then
-                raise Exception.Create('Failed to open output file - ' + string(FileName));
-        end;
-
-        { Angus see if writing comment }
-        if Comment then begin
-            Title := '# X509 SSL Certificate' + #13#10 + Info;
-            f_BIO_write(FileBio, @Title [1], Length (Title));
-        end;
-
-        { Write certificate }
-        if f_PEM_write_bio_X509(FileBio, X) = 0 then
-            raise Exception.Create('Failed to write certificate to BIO');
-
-    finally
-        if Assigned(PK) then
-            f_EVP_PKEY_free(PK);
-        if Assigned(X) then
-            f_X509_free(X);
-        if Assigned(FileBio) then
-            f_BIO_free(FileBio);
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure CreateCertRequest(const RequestFileName, KeyFileName, Country, State,
-  Locality, Organization, OUnit, CName, Email: AnsiString;
-  Bits: Integer; Comment: boolean = false);
-
-  function Add_Ext(sk : PStack; Nid : Integer; Value : PAnsiChar): Boolean;
-  var
-      Ext : PX509_EXTENSION;
-  begin
-      Ext := f_X509V3_EXT_conf_nid(nil, nil, NID, value);
-      if not Assigned(Ext) then
-          Result := FALSE
-      else
-          Result := f_OPENSSL_sk_push(sk, Pointer(ext)) = 1;
-  end;
-
-var
-    PK        : PEVP_PKEY;
-    Rsa       : PRSA;
-    Name      : PX509_NAME;
-    FileBio   : PBIO;
-    Req       : PX509_REQ;
-    Exts      : PStack;
-    Title     : String;
-    Info      : String;
-begin
-    FileBio := nil;
-    //Name    := nil;
-    //PK      := nil;
-    //exts    := nil;
-    Req     := nil;
-
- {   if not LibeayExLoaded then
-    begin
-        LoadLibeayEx;
-        IcsRandPoll;
-    end;   }
-    if NOT ICS_RAND_INIT_DONE then IcsRandPoll;  { V8.35 }
-
-    PK := f_EVP_PKEY_new;
-    if not Assigned(PK) then
-      raise Exception.Create('Could not create key object');
-
-    try
-        Rsa := f_RSA_generate_key(Bits, RSA_F4, nil{callback}, nil);
-        if not Assigned(Rsa) then
-            raise Exception.Create('Failed to generate rsa key');
-
-        if f_EVP_PKEY_assign(PK, EVP_PKEY_RSA, PAnsiChar(Rsa)) = 0 then
-        begin
-            f_RSA_free(Rsa);
-            raise Exception.Create('Failed to assign rsa key to key object');
-        end;
-
-        Req := f_X509_Req_new;
-
-        f_X509_REQ_set_pubkey(Req, pk);
-
-        f_X509_REQ_set_version(Req, 2);
-
-        Name := f_ics_X509_REQ_get_subject_name(Req);   { V8.36 }
-
-        { This function creates and adds the entry, working out the
-          correct string type and performing checks on its length.
-          Normally we'd check the return value for errors...
-        }
-
-        AddNameEntryByTxt(Name, 'CN', String(CName));
-        AddNameEntryByTxt(Name, 'OU', String(OUnit));
-        AddNameEntryByTxt(Name, 'ST', String(State));
-        AddNameEntryByTxt(Name, 'O',  String(Organization));
-        AddNameEntryByTxt(Name, 'C',  String(Country));
-        AddNameEntryByTxt(Name, 'L',  String(Locality));
-
-        if Length(Email) > 0 then
-            f_X509_NAME_add_entry_by_NID(Name, NID_pkcs9_emailAddress,
-                                         MBSTRING_ASC, PAnsiChar(Email), -1, -1, 0);
-
-        Exts := f_OPENSSL_sk_new_null;
-        Add_Ext(Exts, NID_key_usage, 'critical, digitalSignature, keyEncipherment');
-
-        f_X509_REQ_add_extensions(Req, Exts);
-
-        f_OPENSSL_sk_pop_free(Exts, @f_X509_EXTENSION_free);
-
-        if f_X509_REQ_sign(Req, PK, f_EVP_sha256) <= 0 then    { V.21 was sha1 }
-            raise Exception.Create('Failed to sign request');
-
-        FileBio := f_BIO_new_file(PAnsiChar(KeyFileName), PAnsiChar('w+'));
-        if not Assigned(FileBio) then
-            raise Exception.Create('Failed to open output file');
-
-        { Angus see if writing comment }
-        if Comment then begin
-            Info := '# Subject Common Name: ' + string(CName) + #13#10 +
-                    '# Subject Organisation: ' + string(Organization) + #13#10;
-            Title := '# X509 SSL Private Key' + #13#10 + string(Info);
-            f_BIO_write(FileBio, @Title [1], Length (Title));
-        end;
-
-        if f_PEM_write_bio_PrivateKey(FileBio, PK, nil, nil, 0, nil, nil) = 0 then
-            raise Exception.Create('Failed to write private key to BIO');
-        f_BIO_free(FileBio);
-        FileBio := f_BIO_new_file(PAnsiChar(RequestFileName), PAnsiChar('w+'));
-        if not Assigned(FileBio) then
-            raise Exception.Create('Failed to open output file');
-
-        { Angus see if writing comment }
-        if Comment then begin
-            Title := '# X509 SSL Certificate Request' + #13#10 + Info;
-            f_BIO_write(FileBio, @Title [1], Length (Title));
-        end;
-
-        { Write request }
-        if f_PEM_write_bio_X509_REQ(FileBio, PX509_REQ(Req)) = 0 then
-            raise Exception.Create('Failed to write certificate to BIO');
-
-    finally
-      if Assigned(PK) then
-        f_EVP_PKEY_free(PK);
-      if Assigned(Req) then
-        f_X509_REQ_free(Req);
-      if Assigned(FileBio) then
-        f_BIO_free(FileBio);
-    end;
-end;      *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

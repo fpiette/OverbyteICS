@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      8.48
+Version:      8.49
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2016 by François PIETTE
+Legal issues: Copyright (C) 2003-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -108,8 +108,9 @@ May 24, 2017 V8.48 Added HostTag parameter to AddGetHandler, AddPostHandler and
                      hosts per server.
                    Added IcsLoadTHttpAppSrvFromIni function which loads
                      HttpAppSrv from an open INI file to simplify application
-                     creation. 
+                     creation.
  May 30, 2017 V8.48 PostDispatchVirtualDocument was broken in last update
+Jun 23 2017 V8.49   Start is now a function, see HttpSrv
 
 
 
@@ -399,7 +400,7 @@ type
     public
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy; override;
-        procedure   Start; override;
+        function    Start(ReturnErrs: Boolean = false): String; override; { V8.49 made function }
         procedure   Stop; override;
         procedure   SaveSessionsToFile(const FileName : String);
         procedure   LoadSessionsFromFile(const FileName : String);
@@ -603,11 +604,11 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THttpAppSrv.Start;
+function THttpAppSrv.Start(ReturnErrs: Boolean = false): String;  { V8.49 made function }
 begin
     FSessionTimer.Interval     := 15000;
     FSessionTimer.Enabled      := TRUE;
-    inherited Start;
+    Result := inherited Start(ReturnErrs);
 end;
 
 

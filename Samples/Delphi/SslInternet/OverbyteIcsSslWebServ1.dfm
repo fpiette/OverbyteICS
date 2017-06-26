@@ -217,6 +217,13 @@ object SslWebServForm: TSslWebServForm
       Height = 13
       Caption = 'Security Level'
     end
+    object Label26: TLabel
+      Left = 551
+      Top = 200
+      Width = 82
+      Height = 13
+      Caption = 'Well-Known Path'
+    end
     object DocDirEdit: TEdit
       Left = 80
       Top = 4
@@ -511,6 +518,14 @@ object SslWebServForm: TSslWebServForm
       TabOrder = 18
       Text = 'SslSecLevel'
     end
+    object WellKnownPathEdit: TEdit
+      Left = 644
+      Top = 196
+      Width = 121
+      Height = 21
+      TabOrder = 30
+      Text = 'WellKnownPathEdit'
+    end
   end
   object DisplayMemo: TMemo
     Left = 0
@@ -566,8 +581,10 @@ object SslWebServForm: TSslWebServForm
     AuthRealm = 'ics'
     SocketErrs = wsErrFriendly
     ExclusiveAddr = True
+    onWellKnownDir = SslHttpServer1WellKnownDir
     SslEnable = True
     SslContext = SslContext1
+    IcsHosts = <>
     OnSslVerifyPeer = SslHttpServer1SslVerifyPeer
     OnSslSetSessionIDContext = SslHttpServer1SslSetSessionIDContext
     OnSslSvrNewSession = SslHttpServer1SslSvrNewSession
@@ -642,6 +659,7 @@ object SslWebServForm: TSslWebServForm
     AuthRealm = 'ics'
     SocketErrs = wsErrFriendly
     ExclusiveAddr = True
+    onWellKnownDir = HttpServer2WellKnownDir
     Left = 42
     Top = 357
   end

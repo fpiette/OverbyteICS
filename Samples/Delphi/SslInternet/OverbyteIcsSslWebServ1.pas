@@ -8,7 +8,7 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      8.41
+Version:      8.49
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -87,8 +87,14 @@ Feb 26 2017  V8.41 Added SslSecLevel to set minimum effective bits for
                      PKCS12, PKCS8 formats and check chain for errors before
                      initialising SSL context, also reports chain
                    Removed old ciphers, adding new new cipher
+Jun 26 2017 V8.49 Added .well-known directory support.  If WellKnownPath is
+                     specified as a path, any access to /.well-known/xx is
+                     handled locally either in the OnWellKnownDir Event or
+                     by returning a file from WellKnownPath instead of DocDir.
+                     This is primarly for Let's Encrypt challenges.
 
 
+                     
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
 
@@ -128,7 +134,7 @@ uses
   OverbyteIcsSslThrdLock, TypInfo;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2017 F. Piette V8.41 ';
+  CopyRight : String         = 'WebServ (c) 1999-2017 F. Piette V8.49 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -216,6 +222,8 @@ type
     DebugEventCheckBox: TCheckBox;
     SslSecLevel: TComboBox;
     Label25: TLabel;
+    WellKnownPathEdit: TEdit;
+    Label26: TLabel;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -264,6 +272,10 @@ type
                                   var ErrCode : TTlsExtError);
     procedure IcsLogger1IcsLogEvent(Sender: TObject; LogOption: TLogOption;
       const Msg: string);
+    procedure SslHttpServer1WellKnownDir(Sender, Client: TObject;
+      const Path: string; var BodyStr: string);
+    procedure HttpServer2WellKnownDir(Sender, Client: TObject;
+      const Path: string; var BodyStr: string);
   private
     FIniFileName            : String;
     FInitialized            : Boolean;
@@ -337,6 +349,7 @@ const
     KeyOldSsl          = 'OldSsl';
     KeyDebugEvent      = 'DebugEvent';
     KeySslSecLevel     = 'SslSecLevel';
+    KeyWellKnownPath   = 'WellKnownPath';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslWebServForm.FormCreate(Sender: TObject);
@@ -427,7 +440,8 @@ begin
         OldIp := IniFile.ReadString(SectionData, KeyListenAddr, '');                         { V8.05 }
         OldSslCheckBox.Checked  := IniFile.ReadBool(SectionData, KeyOldSsl, False);          { V8.07 }
         DebugEventCheckBox.Checked := IniFile.ReadBool(SectionData, KeyDebugEvent, False);   { V8.07 }
-        SslSecLevel.ItemIndex := IniFile.ReadInteger(SectionData, KeySslSecLevel, 1);  { V8.41 }
+        SslSecLevel.ItemIndex := IniFile.ReadInteger(SectionData, KeySslSecLevel, 1);        { V8.41 }
+        WellKnownPathEdit.Text := IniFile.ReadString(SectionData, KeyWellKnownPath, '');       { V8.49 }
         IniFile.Free;
 
         RenegotiationIntervalEdit.Text := IntToStr(FRenegotiationInterval);
@@ -522,8 +536,9 @@ begin
     IniFile.WriteString(SectionData,    KeySslCipherEdit, SslCipherEdit.Text);         { V8.05 }
     IniFile.WriteString(SectionData,    KeyListenAddr, ListenAddr.Items [ListenAddr.ItemIndex]); { V8.05 }
     IniFile.WriteBool(SectionData,      KeyOldSsl,      OldSslCheckBox.Checked);       { V8.07 }
-    IniFile.WriteBool(SectionData,      KeyDebugEvent,  DebugEventCheckBox.Checked);    { V8.07 }
-    IniFile.WriteInteger(SectionData,   KeySslSecLevel, SslSecLevel.ItemIndex);   { V8.41 }
+    IniFile.WriteBool(SectionData,      KeyDebugEvent,  DebugEventCheckBox.Checked);   { V8.07 }
+    IniFile.WriteInteger(SectionData,   KeySslSecLevel, SslSecLevel.ItemIndex);        { V8.41 }
+    IniFile.WriteString(SectionData,    KeyWellKnownPath, WellKnownPathEdit.Text);       { V8.49 }
     IniFile.UpdateFile;
     IniFile.Free;
     CloseLogFile;
@@ -588,6 +603,7 @@ begin
         IcsLogger1.LogOptions := IcsLogger1.LogOptions +
                                  LogAllOptInfo + [loAddStamp];
     SslHttpServer1.DocDir           := Trim(DocDirEdit.Text);
+    SslHttpServer1.WellKnownPath    := Trim(WellKnownPathEdit.Text);      { V8.49 } 
     SslHttpServer1.DefaultDoc       := Trim(DefaultDocEdit.Text);
     SslHttpServer1.Port             := Trim(PortHttpsEdit.Text);
     SslHttpServer1.Addr             := ListenAddr.Items [ListenAddr.ItemIndex];  { V8.05 }
@@ -621,7 +637,7 @@ begin
     else
         ErrStr := 'Chain Failed - ' + ErrStr;
     Display(FSrvSslCert + #13#10 + ErrStr + #13#10);
-    if valres = chainFail then Exit;  
+    if valres = chainFail then Exit;
 
     SslContext1.SslDHParamFile      := DhParamFileEdit.Text;      { V8.02 }
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
@@ -722,6 +738,7 @@ procedure TSslWebServForm.StartHttpButtonClick(Sender: TObject);
 begin
     // Just a little quick test to support also HTTP without SSL
     HttpServer2.DocDir         := Trim(DocDirEdit.Text);
+    HttpServer2.WellKnownPath  := Trim(WellKnownPathEdit.Text);  { V8.49 }
     HttpServer2.DefaultDoc     := Trim(DefaultDocEdit.Text);
     HttpServer2.Port           := Trim(PortHttpEdit.Text);
     HttpServer2.Addr           := ListenAddr.Items [ListenAddr.ItemIndex];  { V8.05 }
@@ -805,6 +822,44 @@ begin
 end;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ This event handler is triggered when a client specifies the /.well-known/ path }
+procedure TSslWebServForm.HttpServer2WellKnownDir(Sender, Client: TObject;     { V8.49 }
+  const Path: string; var BodyStr: string);
+begin
+   Display('HTTP Server: Well-Known File Requested: ' + Path);
+   if Pos('/acme-challenge/', Path) > 1 then begin
+     // check challenge token received Let's Encrypt and return key authorization
+     // sample only !!!
+        if Pos('/LoqXcYV8q5ONbJQxbmR7SCTNo3tiAXDfowyjxAjEuX0', Path) > 1 then  begin
+            BodyStr := 'LoqXcYV8q5ONbJQxbmR7SCTNo3tiAXDfowyjxAjEuX0' +
+                                            '.9jg46WB3rR_AHD-EBXdN7cBkH1WOu0tA3M9fm21mqTI';
+           Display('HTTP Server: acme-challenge response: ' + BodyStr);
+        end;
+   end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ This event handler is triggered when a client specifies the /.well-known/ path }
+procedure TSslWebServForm.SslHttpServer1WellKnownDir(Sender, Client: TObject;   { V8.49 }
+  const Path: string; var BodyStr: string);
+begin
+   Display('HTTPS Server: Well-Known File Requested: ' + Path);
+
+ { !!! note, acme challenges use HTTP only since they precede the ussuing
+       of an SSL certificate, but other services might use SSL }
+   if Pos('/acme-challenge/', Path) > 1 then begin
+     // check challenge token received Let's Encrypt and return key authorization
+     // sample only !!!
+        if Pos('/LoqXcYV8q5ONbJQxbmR7SCTNo3tiAXDfowyjxAjEuX0', Path) > 1 then  begin
+            BodyStr := 'LoqXcYV8q5ONbJQxbmR7SCTNo3tiAXDfowyjxAjEuX0' +
+                                            '.9jg46WB3rR_AHD-EBXdN7cBkH1WOu0tA3M9fm21mqTI';
+           Display('HTTPS Server: acme-challenge response: ' + BodyStr);
+        end;
+   end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslWebServForm.IcsLogger1IcsLogEvent(Sender: TObject;
   LogOption: TLogOption; const Msg: string);
 begin

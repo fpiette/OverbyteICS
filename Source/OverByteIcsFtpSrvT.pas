@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  Time functions.
 Creation:     Nov 24, 1999 from Bruce Christensen <bkc51831234@hotmail.com>
               code used with his permission. Thanks.
-Version:      8.42
+Version:      8.49
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -74,6 +74,7 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 Feb 23, 2016 V8.01 Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 Mar 3, 2017  V8.42 Angus TULargeInteger now ULARGE_INTEGER
+June 21 2017 V8.49 Moved IcsGetFileSize and GetUAgeSizeFile to Utils
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -111,8 +112,8 @@ uses
     OverbyteIcsStreams;    { angus V7.7 }
 
 const
-    FtpSrvT_Unit       = 842;
-    CopyRight : String = ' FtpSrvT  (c) 1999-2017 F. Piette V8.42 ';
+    FtpSrvT_Unit       = 849;
+    CopyRight : String = ' FtpSrvT  (c) 1999-2017 F. Piette V8.49 ';
 
   { V1.16 Tick and Trigger constants }
   TicksPerDay      : longword =  24 * 60 * 60 * 1000 ;
@@ -179,9 +180,9 @@ function ScanGetNextArg(const Params: String; var Start: integer): String;
 function SlashesToBackSlashes(const S : String) : String;
 function BackSlashesToSlashes(const S : String) : String;
 function IntToKbyte (Value: Int64): String;
-function GetUAgeSizeFile (const filename: string; var FileUDT: TDateTime;
+(* function GetUAgeSizeFile (const filename: string; var FileUDT: TDateTime;
                                                     var FSize: Int64): boolean;
-function IcsGetFileSize(const FileName : String) : Int64;            { V7.02 }
+function IcsGetFileSize(const FileName : String) : Int64;            { V7.02 }  *) 
 function GetFreeSpacePath(const Path: String): Int64;
 function FtpFileMD5(const Filename: String; Obj: TObject = Nil;
                 ProgressCallback : TMD5Progress = Nil; StartPos: Int64 = 0;
@@ -901,7 +902,7 @@ begin
     Result := Trim (Result);
 end;
 
-
+(*
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF MSWINDOWS}
 function FileTimeToInt64 (const FileTime: TFileTime): Int64 ;
@@ -970,7 +971,7 @@ begin
     Result := -1 ;
     GetUAgeSizeFile (FileName, FileUDT, Result);
 end;
-
+*)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { get free space for path or drive }

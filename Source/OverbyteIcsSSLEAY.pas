@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.41
+Version:      8.49
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -112,7 +112,7 @@ Jan 27, 2017  V8.40 Added more functions to get and check context certs
               Added Protocol Message callback functions for handshake debugging
               Added Security Level functions (1.1.0 and later)
 Feb 24, 2017  V8.41 Added more constants
-
+June 13, 2017 V8.49 Fixes to build on MacOs 
 
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -175,14 +175,14 @@ uses
     {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
   {$ENDIF}
   {$IFDEF POSIX}
-    Posix.Errno,
+    Posix.Errno,System.Types,   { V8.49 types needed for DWORD }
   {$ENDIF}
     {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 841;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2017 F. Piette V8.41 ';
+    IcsSSLEAYVersion   = 849;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2017 F. Piette V8.49 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -1682,7 +1682,9 @@ function SsleayLoad : Boolean;
 function SslGetImports (Handle: THandle; List: array of TOSSLImports): string ;  { V8.35 }
 
 { V8.38 Windows API to check authenticode code signing digital certificate on OpenSSL files }
+{$IFDEF MSWINDOWS} { V8.49 }
 procedure IcsVerifySslDll (const Fname: string);
+{$ENDIF}
 
 // macro functions not exported from DLL
 function  f_SSL_CTX_set_options(C: PSSL_CTX; Op: LongInt): LongInt; {$IFDEF USE_INLINE} inline; {$ENDIF}
@@ -1932,7 +1934,11 @@ begin
     for I := 0 to Length(List) - 1 do begin
         if (ICS_OPENSSL_VERSION_NUMBER >= List[I].MI) and
                (ICS_OPENSSL_VERSION_NUMBER <= List[I].MX) then begin
+            {$IFDEF MACOS}               { V8.49 }
+            List[I].F^ := GetProcAddress (Handle, PChar(string(List[I].N)));
+            {$ELSE}
             List[I].F^ := GetProcAddress (Handle, List[I].N);
+            {$ENDIF}
             if List[I].F^ = nil then
                 result := result + String(List[I].N) + ',' ;
         end;

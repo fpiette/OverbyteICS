@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Creation:     Jan 15, 2005
 Description:
-Version:      7.03
+Version:      8.00
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Unsupported code.
-Legal issues: Copyright (C) 2005-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2005-2018 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -41,6 +41,7 @@ Oct 03, 2009 V7.01 F.Piette added file upload demo. Fixed Unicode issue with
 Dec 19, 2009 V7.02 Arno fixed URL encoding.
 Feb 4,  2011 V7.03 Angus added bandwidth throttling using TCustomThrottledWSocket
                     Demo shows file upload duration and speed
+Apr 25, 2016 V8.00 Angus added more POST upload options
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -55,8 +56,10 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  OverbyteIcsIniFiles, StdCtrls, ExtCtrls, OverbyteIcsUrl, OverbyteIcsWndControl,
-  OverbyteIcsHttpProt, OverByteIcsFtpSrvT;
+  OverbyteIcsIniFiles, StdCtrls, ExtCtrls, Dialogs, Buttons,
+  OverbyteIcsUrl, OverbyteIcsWndControl, OverbyteIcsHttpProt,
+  OverByteIcsFtpSrvT, OverbyteIcsStreams, OverbyteIcsMimeUtils,
+  OverbyteIcsFormDataDecoder, OverbyteIcsUtils;
 
 type
   THttpPostForm = class(TForm)
@@ -79,6 +82,12 @@ type
     UploadURLEdit: TEdit;
     Label10: TLabel;
     BandwidthLimitEdit: TEdit;
+    UploadMethod: TRadioGroup;
+    OpenDialog: TOpenDialog;
+    SelectFile: TBitBtn;
+    Label7: TLabel;
+    FileDescr: TEdit;
+    MimeTypesList1: TMimeTypesList;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -86,6 +95,7 @@ type
     procedure HttpCli1RequestDone(Sender: TObject; RqType: THttpRequest;
                                   ErrCode: Word);
     procedure UploadButtonClick(Sender: TObject);
+    procedure SelectFileClick(Sender: TObject);
   private
     FIniFileName : String;
     FInitialized : Boolean;
@@ -115,6 +125,13 @@ const
     KeyUploadURL       = 'UploadURL';
     KeyFilePath        = 'UploadFilePath';
     KeyBandwidthLimit  = 'BandwidthLimit';
+    KeyUploadMethod    = 'UploadMethod';
+    KeyFileDescr       = 'FileDescr';
+
+    MethodPostBinPage  = 0;
+    MethodPostBinArgs  = 1;
+    MethodPutBinArgs   = 2;
+    MethodPostMIME     = 3;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpPostForm.FormCreate(Sender: TObject);
@@ -149,9 +166,12 @@ begin
         FileNameEdit.Text := IniFile.ReadString(SectionData, KeyFilePath,
                                   'c:\temp\unit1.pas');
         BandwidthLimitEdit.Text := IniFile.ReadString(SectionData, KeyBandwidthLimit, '1000000');
+        UploadMethod.ItemIndex := IniFile.ReadInteger(SectionData, KeyUploadMethod, 0);
+        FileDescr.Text := IniFile.ReadString(SectionData, KeyFileDescr, 'File upload description');
         IniFile.Free;
         DisplayMemo.Clear;
     end;
+   Randomize;
 end;
 
 
@@ -171,6 +191,8 @@ begin
     IniFile.WriteString(SectionData, KeyUploadURL, UploadURLEdit.Text);
     IniFile.WriteString(SectionData, KeyFilePath,  FileNameEdit.Text);
     IniFile.WriteString(SectionData, KeyBandwidthLimit,  BandwidthLimitEdit.Text);
+    IniFile.WriteInteger(SectionData, KeyUploadMethod,  UploadMethod.ItemIndex);
+    IniFile.WriteString(SectionData, KeyFileDescr,  FileDescr.Text);
     IniFile.UpdateFile;
     IniFile.Free;
 end;
@@ -207,30 +229,111 @@ begin
     HttpCli1.RcvdStream      := TMemoryStream.Create;
     HttpCli1.URL             := Trim(ActionURLEdit.Text);
     HttpCli1.ContentTypePost := 'application/x-www-form-urlencoded';
+    DisplayMemo.Lines.Add('POST data: ' + Data);
+    DisplayMemo.Lines.Add('To URL: ' + HttpCli1.URL);
+    DisplayMemo.Lines.Add('Content Type: ' + HttpCli1.ContentTypePost);
     StartTime := 0;
     HttpCli1.PostAsync;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpPostForm.SelectFileClick(Sender: TObject);
+begin
+    OpenDialog.InitialDir := ExtractFilePath(FilenameEdit.Text);
+    OpenDialog.FileName := FilenameEdit.Text ;
+    if OpenDialog.Execute then
+        FilenameEdit.Text := OpenDialog.FileName;
+
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpPostForm.UploadButtonClick(Sender: TObject);
 var
-    FileName : String;
+    FileName, Data, NameOnly: string;
+    Header, Footer, RandBoundary: String;
+    FileSize: int64;
 begin
-    FileName                 := Trim(FilenameEdit.Text);
-    HttpCli1.SendStream      := TFileStream.Create(FileName, fmOpenRead);
-    HttpCli1.RcvdStream      := TMemoryStream.Create;
-    HttpCli1.URL             := Trim(UploadURLEdit.Text);
-    HttpCli1.ContentTypePost := 'application/binary';
+    if UploadMethod.ItemIndex = MethodPostBinPage then begin
+        if Pos ('.', UploadURLEdit.Text) > 0  then begin
+            DisplayMemo.Lines.Add('URL can not have a page name');
+            Exit;
+        end;
+    end;
+    FileName := Trim(FilenameEdit.Text);
+    NameOnly := ExtractFileName(FileName);
+    FileSize := IcsGetFileSize(FileName);   { V8.00 sanity check }
+    if FileSize <= 0 then begin
+        DisplayMemo.Lines.Add('File not found');
+        Exit;
+    end;
+    HttpCli1.RcvdStream := TMemoryStream.Create;
+    HttpCli1.URL := Trim(UploadURLEdit.Text);
 {$IFDEF BUILTIN_THROTTLE}
     HttpCli1.BandwidthLimit := StrToIntDef(BandwidthLimitEdit.Text, 1000000);
     if HttpCli1.BandwidthLimit > 0 then
         HttpCli1.Options := HttpCli1.Options + [httpoBandwidthControl];
 {$ENDIF}
     StartTime := GetTickCount;
-    HttpCli1.PostAsync;
-end;
 
+  // there are several ways of uploading file to web servers, all of them require
+  // scripting or custom code at the web server that understands the syntax
+    DisplayMemo.Lines.Add('File uploading: ' + FileName + ', Size: ' + IntToKbyte(FileSize));
+
+    if UploadMethod.ItemIndex = MethodPostBinPage then begin
+        HttpCli1.SendStream := TIcsBufferedFileStream.Create(FileName,
+                                          fmOpenRead, MAX_BUFSIZE);   { V8.00 buffered file stream }
+        HttpCli1.ContentTypePost := 'application/binary';
+        if HttpCli1.URL [Length (HttpCli1.URL)] <> '/' then
+                                           HttpCli1.URL := HttpCli1.URL + '/';
+        HttpCli1.URL := HttpCli1.URL + NameOnly;
+        DisplayMemo.Lines.Add('To URL: ' + HttpCli1.URL);
+        DisplayMemo.Lines.Add('Content Type: ' + HttpCli1.ContentTypePost);
+        HttpCli1.PostAsync;
+    end
+    else if UploadMethod.ItemIndex = MethodPostBinArgs then begin
+        HttpCli1.SendStream := TIcsBufferedFileStream.Create(FileName,
+                                          fmOpenRead, MAX_BUFSIZE);   { V8.00 buffered file stream }
+        HttpCli1.ContentTypePost := 'application/binary';
+        Data := 'FileName=' + UrlEncodeToA(NameOnly) + '&' +
+                     'FileTitle='  + UrlEncodeToA(Trim(FileDescr.Text));
+        HttpCli1.URL := HttpCli1.URL + '?' + Data;
+        DisplayMemo.Lines.Add('To URL: ' + HttpCli1.URL);
+        DisplayMemo.Lines.Add('Content Type: ' + HttpCli1.ContentTypePost);
+        HttpCli1.PostAsync;
+    end
+    else if UploadMethod.ItemIndex = MethodPutBinArgs then begin
+        HttpCli1.SendStream := TIcsBufferedFileStream.Create(FileName,
+                                          fmOpenRead, MAX_BUFSIZE);   { V8.00 buffered file stream }
+        HttpCli1.ContentTypePost := 'application/binary';
+        Data := 'FileName=' + UrlEncodeToA(NameOnly) + '&' +
+                     'FileTitle='  + UrlEncodeToA(Trim(FileDescr.Text));
+        HttpCli1.URL := HttpCli1.URL + '?' + Data;
+        DisplayMemo.Lines.Add('To URL: ' + HttpCli1.URL);
+        DisplayMemo.Lines.Add('Content Type: ' + HttpCli1.ContentTypePost);
+        HttpCli1.PutAsync;
+    end
+    else if UploadMethod.ItemIndex = MethodPostMIME then begin
+        RandBoundary := '-----------------------------' +
+               IntToHex(Random(MaxInt), 8) + IntToHex(Random(MaxInt), 8);
+        HttpCli1.ContentTypePost := 'multipart/form-data' +
+                '; boundary=' + RandBoundary;
+        Header := RandBoundary + #13#10 +
+            'Content-Disposition: form-data; name="FileName"; FileName="'
+               + TextToHtmlText(ExtractFileName(NameOnly)) + '"' + #13#10 +
+                 'Content-Type: ' + MimeTypesList1.TypeFromFile(NameOnly)
+                    + #13#10 + #13#10;
+        Footer := RandBoundary + #13#10 +
+            'Content-Disposition: form-data; name="FileTitle"' + #13#10 + #13#10
+              + TextToHtmlText(FileDescr.Text) + #13#10 + RandBoundary + #13#10 +
+                'Content-Disposition: form-data; name="Submit"' + #13#10 + #13#10
+              + 'SubmitFile' + #13#10 + RandBoundary + '--' + #13#10;
+        HttpCli1.SendStream := TMultiPartFileReader.Create (Filename, Header, Footer);
+        HttpCli1.SendStream.Position := 0;
+        DisplayMemo.Lines.Add('POST data: ' + Header + #13#10 + '(file)' + #13#10 + Footer);
+        DisplayMemo.Lines.Add('To URL: ' + HttpCli1.URL);
+        HttpCli1.PostAsync;
+    end ;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function BuildLongString(Len : Integer) : String;

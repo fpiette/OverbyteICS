@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.48
+Version:      8.49
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -165,9 +165,13 @@ May 24, 2017  V8.48 ValidateHosts has options to return all errors as a string
                     Added ListenStates which returns a multiline string listing the
                        IP, port, SSL and state of all socket listeners.
                     Updated Added IcsLoadIcsHostsFromIni to add web server properties.
+June 23, 2017 V8.49 Fixes so we support MacOS again, thanks to Michael Berg.
+                    Added more elements to IcsHosts for a .well-known path and
+                      web redirection.
+                    Added MultiListenEx which opens all possible sockets ignoring
+                      errors, which are returned as a string.
 
-
-
+                    
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
 unit OverbyteIcsWSocketS;
@@ -214,6 +218,10 @@ uses
     {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
     OverbyteIcsWinsock,
 {$ENDIF}
+{$IFDEF MACOS}  { V8.49 }
+System.IniFiles,
+System.Types,
+{$ENDIF}
 {$IFDEF POSIX}
     Posix.Errno,
     Posix.NetinetIn,
@@ -238,8 +246,8 @@ uses
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 848;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.48 ';
+    WSocketServerVersion     = 849;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.49 ';
 
 type
     TCustomWSocketServer       = class;
@@ -521,6 +529,7 @@ type
         procedure Close; override;
         procedure Listen; override;
         procedure MultiListen; virtual;
+        function  MultiListenEx: string; virtual;                    { V8.49 }
         procedure MultiClose; virtual;
         procedure ThreadAttach; override;
         procedure ThreadDetach; override;
@@ -610,6 +619,10 @@ type
     FBindIdxSsl: Integer;
     FBindIdx2None: Integer;
     FBindIdx2Ssl: Integer;
+    FWellKnownPath: string;    { V8.49 }
+    { see http://www.iana.org/assignments/well-known-uris/well-known-uris.xhtml } 
+    FWebRedirectURL: string;   { V8.49 }
+    FWebRedirectStat: integer; { V8.49 }
   protected
     function GetDisplayName: string; override;
     function GetHostNameTot: integer;
@@ -671,6 +684,12 @@ type
                                                  write FSslPassword;
     property SslSrvSecurity : TSslSrvSecurity    read  FSslSrvSecurity
                                                  write FSslSrvSecurity;
+    property WellKnownPath: string               read  FWellKnownPath
+                                                 write FWellKnownPath;   { V8.49 }
+    property WebRedirectURL: string              read  FWebRedirectURL
+                                                 write FWebRedirectURL;  { V8.49 }
+    property WebRedirectStat: integer            read  FWebRedirectStat
+                                                 write FWebRedirectStat; { V8.49 }
   end;
 
   { TIcsHosts defines a collection of TIcsHost }
@@ -1306,7 +1325,7 @@ begin
 
         AItem.LastError := ErrCode;
         LastError := ErrCode;
-        RaiseException(Line, ErrCode, SocketErrorDesc(ErrCode), FriendlyMsg,
+        RaiseException(Line, ErrCode, WSocketErrorDesc(ErrCode), FriendlyMsg,  { V8.49 }
                                    ASockfunc, AItem.Addr, AItem.Port, FProtoStr);  { V8.36 }
     finally
         FMultiListenIndex := -1;
@@ -1401,19 +1420,20 @@ begin
             Exit;
         end;
 
+      {$IFDEF MSWINDOWS}  { V8.49 }
         if FExclusiveAddr then begin
         { V8.36 Prevent other applications accessing this address and port }
             optval  := -1;
             iStatus := WSocket_SetSockOpt(AItem.HSocket, SOL_SOCKET,
                                                        SO_EXCLUSIVEADDRUSE,
                                                        @optval, SizeOf(optval));
-
             if iStatus <> 0 then begin
                 MlSocketError(AItem, 'setsockopt(SO_EXCLUSIVEADDRUSE)');
                 MlClose(AItem);
                 Exit;
             end;
         end;
+      {$ENDIF}
 
         iStatus := WSocket_bind(AItem.HSocket, PSockAddr(@AItem.Fsin)^,
                                            SizeOfAddr(AItem.Fsin));
@@ -1587,6 +1607,37 @@ begin
         for I := 0 to FMultiListenSockets.Count - 1 do
             if FMultiListenSockets[I].State <> wsListening then
             MlListen(FMultiListenSockets[I]);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ this function ignores errors if some listeners fail due to port conflicts }
+function TCustomMultiListenWSocketServer.MultiListenEx: string;    { V8.49 }
+var
+    I: Integer;
+begin
+    Result := '';
+    if State <> wsListening then
+    try
+        Listen;
+    except
+        on E:Exception do
+            Result := 'Socket 1 Listen Failed: ' + Self.Addr +
+                          ' port ' + Self.Port + ' - ' + E.Message;
+    end;
+    if Assigned(FMultiListenSockets) then
+        for I := 0 to FMultiListenSockets.Count - 1 do
+            if FMultiListenSockets[I].State <> wsListening then
+            try
+                MlListen(FMultiListenSockets[I]);
+            except
+                on E:Exception do begin
+                    if Result <> '' then Result := Result + #13#10;
+                    Result := Result + 'Socket ' + IntToStr (I + 1) +
+                        ' Listen Failed: ' + Self.Addr +
+                              ' port ' + Self.Port + ' - ' + E.Message;
+                end;
+            end;
 end;
 
 
@@ -2961,6 +3012,9 @@ begin
             WebTemplDir := IcsTrim(MyIniFile.ReadString(section, 'WebTemplDir', ''));
             WebDefDoc := IcsTrim(MyIniFile.ReadString(section, 'WebDefDoc', ''));
             WebLogDir := IcsTrim(MyIniFile.ReadString(section, 'WebLogDir', ''));
+            WellKnownPath := IcsTrim(MyIniFile.ReadString(section, 'WellKnownPath', ''));   { V8.49 }
+            WebRedirectURL := IcsTrim(MyIniFile.ReadString(section, 'WebRedirectURL', '')); { V8.49 }
+            WebRedirectStat := MyIniFile.ReadInteger(section, 'WebRedirectStat', 0);        { V8.49 }
         end;
     end;
 end;

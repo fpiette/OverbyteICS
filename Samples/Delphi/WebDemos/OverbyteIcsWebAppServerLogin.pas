@@ -8,7 +8,7 @@ Description:  This source is part of WebAppServer demo application.
               never passed thru the connection. A hash code is use to avoid
               passing the password and offering the highest possible security.
               This implement a "challenge/response" algorithm.
-Version:      1.01
+Version:      8.49
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -44,6 +44,7 @@ Legal issues: Copyright (C) 2009 by François PIETTE
 History:
 Apr 19, 2010 V1.01 Angus, removed GSessionDataCount which duplicates same
                           variable in OverbyteIcsWebSession
+Jul 5, 2017  V8.49 Log when login fails or OK
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -139,12 +140,14 @@ begin
         WebAppSrvDataModule.CounterIncrement('LoginInvalid');
         DeleteSession;
         NotLogged;
+        Display ('Invalid password for ' + UserCode);   { V8.49 }
         Exit;
     end;
 
     WebAppSrvDataModule.CounterIncrement('LoginOK');
     SessionData.LogonTime  := Now;
     SessionData.UserCode   := UserCode;
+    Display ('Login OK for ' + UserCode);   { V8.49 }
     Relocate(UrlHomePage);
     Finish;
 end;

@@ -158,7 +158,7 @@ functionality to the proxy with minimal application changes.
 
 Updates:
 28 May 2017  - 8.48 - baseline
-26 June 2017 - 8.49 - Changed target behaviour for host listening on both 80 and
+6 July 2017  - 8.49 - Changed target behaviour for host listening on both 80 and
                         443 so source port copied only if target is zero.
                       Start no longer gives exception if some binding fail, but
                         opens as many source listeners as possible.
@@ -175,7 +175,9 @@ Updates:
                       Proxy generates an error 502 page if target connection fails
                         or is not configured, maybe other pages would be useful?
                       Moved TBytes functions to OverbyteIcsUtils
+                      Look for target path with all requests, not just common ones
 
+                      
 
 pending...
 Check document meta for charset
@@ -3637,21 +3639,20 @@ begin
                 end
 
                { not forward proxy, look for conditional forwarders based on the path }
+               { V8.49 ignore request type }
                 else begin
-                    if FRequestMethod in [httpMethodGet, httpMethodHead, httpMethodPost, httpMethodPut] then begin
-                        if (FProxySource.DebugLevel >= DebugHttpHdr) then
-                            LogSrcEvent('Checking conditional forwarding for ' + FRequestPath);
-                        FPxyTargetIdx := FindPxyPathTarget(HostTag, FRequestPath);
-                        if FPxyTargetIdx < 0 then begin  { should have been checked earlier }
-                            if (FProxySource.DebugLevel >= DebugConn) then
-                                    LogSrcEvent('Host #' + IntToStr(IcsHostIdx) + ' -' +
-                                            HostTag + ', no matching proxy target found for Path: ' + FRequestPath);
-                            FClosingFlag := True;
-                            Close;
-                            exit;
-                        end;
-                        TargetSpecify;
+                    if (FProxySource.DebugLevel >= DebugHttpHdr) then
+                        LogSrcEvent('Checking conditional forwarding for ' + FRequestPath);
+                    FPxyTargetIdx := FindPxyPathTarget(HostTag, FRequestPath);
+                    if FPxyTargetIdx < 0 then begin  { should have been checked earlier }
+                        if (FProxySource.DebugLevel >= DebugConn) then
+                                LogSrcEvent('Host #' + IntToStr(IcsHostIdx) + ' -' +
+                                        HostTag + ', no matching proxy target found for Path: ' + FRequestPath);
+                        FClosingFlag := True;
+                        Close;
+                        exit;
                     end;
+                    TargetSpecify;
                 end;
             end;
 

@@ -42,19 +42,12 @@ Legal issues: Copyright (C) 2012 by François PIETTE
 History:
 Jan 28, 2012 V1.01 Use asynchronous method rather than sync. Handle timeouts
                    with TWSocket's new built-in timeout.
-
+Jun 27, 2017 V8.49 removed BUILTIN_TIMEOUT and USE_SSL checks, standard now
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsWebAppServerHead;
 
 interface
-
-{$IFNDEF BUILTIN_TIMEOUT}
-  {$MESSAGE FATAL 'Please add "BUILTIN_TIMEOUT" to project option''s defines'};
-{$ENDIF}
-{$IFNDEF USE_SSL}
-  {$MESSAGE FATAL 'Please add "USE_SSL" to project option''s defines'};
-{$ENDIF}
 
 uses
   {$IFDEF MSWINDOWS}

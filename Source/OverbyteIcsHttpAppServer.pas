@@ -109,8 +109,8 @@ May 24, 2017 V8.48 Added HostTag parameter to AddGetHandler, AddPostHandler and
                    Added IcsLoadTHttpAppSrvFromIni function which loads
                      HttpAppSrv from an open INI file to simplify application
                      creation.
- May 30, 2017 V8.48 PostDispatchVirtualDocument was broken in last update
-Jun 23 2017 V8.49   Start is now a function, see HttpSrv
+May 30, 2017 V8.48 PostDispatchVirtualDocument was broken in last update
+Jul 5, 2017  V8.49 Start is now a function, see HttpSrv
 
 
 

@@ -419,7 +419,7 @@ Apr 11 2017 V8.45 Added multiple SSL host support using SNI or Host header.
 May 24 2017 V8.48 ValidateHosts has more options
                   Host: header checking higher priority than binding
                   Added ListenAllOK, ListenStates, RecheckSslCerts
-Jun 26 2017 V8.49 Added .well-known directory support.  If WellKnownPath is
+Jul 5 2017  V8.49 Added .well-known directory support.  If WellKnownPath is
                      specified as a path, any access to /.well-known/xx is
                      handled locally either in the OnWellKnownDir Event or
                      by returning a file from WellKnownPath instead of DocDir.
@@ -429,8 +429,10 @@ Jun 26 2017 V8.49 Added .well-known directory support.  If WellKnownPath is
                       This is primarily when using MultiListenrs where one
                       failing no longer stops all of them.
                    Moved DocumentToContentType to OverbyteIcsFormDataDecoder to share
+                   Fixed bug locating HostTag from Host must check port as well.
+                   Added RequestProtocol either http or https, useful to build links
 
-
+                   
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -840,6 +842,7 @@ type
         FWebRedirectURL        : string;               { V8.49 }
         FWebRedirectStat       : integer;              { V8.49 }
         FonWellKnownDir        : TWellKnownConnEvent;  { V8.49 }
+        FRequestProtocol       : String;               { V8.49 }
         procedure SetSndBlkSize(const Value: Integer);
         procedure ConnectionDataAvailable(Sender: TObject; Error : Word); virtual;
         procedure ConnectionDataSent(Sender : TObject; Error : WORD); virtual;
@@ -1069,9 +1072,10 @@ type
                                                      write FMaxRequestsKeepAlive;
         property AnswerStatus          : Integer     read  FAnswerStatus;  { V7.19 }
         property RequestMethod         : THttpMethod read  FRequestMethod; { V8.08 }
-        property RequestUpgrade        : string      read  FRequestUpgrade; { V8.08 }
+        property RequestUpgrade        : String      read  FRequestUpgrade; { V8.08 }
         property RequestIfModSince     : TDateTime   read  FRequestIfModSince; { V8.11 }
         property RequestStartTick      : LongWord    read  FRequestStartTick;  { V8.12 }
+        property RequestProtocol       : String      read  FRequestProtocol;   { V8.49 }
     published
         { Where all documents are stored. Default to c:\wwwroot }
         property DocDir         : String            read  FDocDir
@@ -3145,6 +3149,13 @@ begin
             FSendType := httpSendHead   { V7.44 }
         else                            { V7.44 }
             FSendType := httpSendDoc;   { V7.44 }
+      {  V8.49keep protocol, useful for building URLs  }
+{$IFDEF USE_SSL}
+        if SslEnable then
+            FRequestProtocol := 'https'
+        else
+{$ENDIF}
+            FRequestProtocol := 'http';
         { Next lines will be header lines }
         FState := hcHeader;
         FRequestHasContentLength := FALSE;
@@ -4045,7 +4056,7 @@ end;
 procedure THttpConnection.ProcessRequest;
 var
     Handled : Boolean;
-    I, J, TotHosts, NewIdx: Integer;
+    I, J, TotHosts, NewIdx, MLIndx: integer;
 begin
     FRequestMethod := httpMethodNone;   { V8.08 keep method as literal }
     if FKeepAlive and (FKeepAliveTimeSec > 0) then
@@ -4057,11 +4068,14 @@ begin
 {$IFDEF USE_SSL}
     if FServer.WSocketServer is TSslWSocketServer then begin
         TotHosts := TCustomSslHttpServer(FServer).IcsHosts.Count;
+        MLIndx := FServer.WSocketServer.MultiListenIndex;
         if (TotHosts > 0) and (FRequestHostName <> '') then begin
             NewIdx := -1;
             for I := 0 to TotHosts - 1 do begin
                 with TCustomSslHttpServer(FServer).IcsHosts [I] do begin
-                    if HostNameTot > 0 then begin
+                    if ((BindIdxNone = MLIndx) or  { V8.49 check port as well }
+                        (BindIdx2None = MLIndx) or (BindIdxSsl = MLIndx) or
+                        (BindIdx2Ssl = MLIndx)) and (HostNameTot > 0) then begin
                         for J := 0 to HostNameTot - 1 do begin
                             if ((HostNames [J] = '*') or
                               (HostNames [J] = FRequestHostName)) then begin
@@ -4082,7 +4096,7 @@ begin
                     Self.FDefaultDoc := WebDefDoc;
                     Self.FHostTag := HostTag;
                     Self.FWebLogDir := WebLogDir;
-                    Self.FWellKnownPath := WellKnownPath;        { V8.49 }
+                    Self.FWellKnownPath := WellKnownPath;      { V8.49 }
                     Self.FWebRedirectURL := WebRedirectURL;    { V8.49 }
                     Self.FWebRedirectStat := FWebRedirectStat; { V8.49 }
                 end;

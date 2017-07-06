@@ -1898,6 +1898,14 @@ Samples\Delphi\SslInternet\OverbyteIcsSslMailSnd.res
 Samples\Delphi\SslInternet\OverbyteIcsSslMailSnd1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslMailSnd1.pas
 
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.dof
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.ini
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.res
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ1.dfm
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ1.pas
+Samples\Delphi\SslInternet\OverbyteIcsWebAppServerUploads.pas
+
 Samples\Delphi\SslInternet\OverbyteIcsSslNewsRdr.dof
 Samples\Delphi\SslInternet\OverbyteIcsSslNewsRdr.dpr
 Samples\Delphi\SslInternet\OverbyteIcsSslNewsRdr.res
@@ -2061,9 +2069,14 @@ Samples\Delphi\WebDemos\WebAppServerData\Templates\Moved.html
 Samples\Delphi\WebDemos\WebAppServerData\Templates\NotLogged.html
 Samples\Delphi\WebDemos\WebAppServerData\Templates\maildone.html
 Samples\Delphi\WebDemos\WebAppServerData\Templates\mailer.html
+Samples\Delphi\WebDemos\WebAppServerData\Templates\uploadfile.html
 Samples\Delphi\WebDemos\WebAppServerData\Templates\HeadForm.html
 Samples\Delphi\WebDemos\WebAppServerData\wwwRoot\Images\Logo.png
 Samples\Delphi\WebDemos\WebAppServerData\wwwRoot\Js\md5.js
+Samples\Delphi\WebDemos\WebAppServerData\wwwRoot\Form.html
+Samples\Delphi\WebDemos\WebAppServerData\wwwRoot\HelloWorld.class
+Samples\Delphi\WebDemos\WebAppServerData\wwwRoot\HelloWorld.java
+Samples\Delphi\WebDemos\WebAppServerData\wwwRoot\Index.html
 Samples\Delphi\WebDemos\WebAppServerData\DWScripts\Hello.pas
 
 Samples\Delphi\WebDemos\WebServData\Template\FormData.html

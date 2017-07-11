@@ -29,6 +29,7 @@ package IcsVclDXE5Run;
 {$R '..\Source\OverbyteIcsSysLogClient.dcr'}
 {$R '..\Source\OverbyteIcsSysLogServer.dcr'}
 {$R '..\Source\OverbyteIcsSmtpSrv.dcr'}
+{$R '..\source\OverbyteIcsProxy.dcr'}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
@@ -100,6 +101,7 @@ contains
   OverbyteIcsIcmp in '..\Source\OverbyteIcsIcmp.pas',
   OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas',
   OverbyteIcsSslX509Utils in '..\Source\OverbyteIcsSslX509Utils.pas',
-  OverbyteIcsMsSslUtils in '..\Source\OverbyteIcsMsSslUtils.pas';
+  OverbyteIcsMsSslUtils in '..\Source\OverbyteIcsMsSslUtils.pas',
+  OverbyteIcsProxy in '..\Source\OverbyteIcsProxy.pas';
 
 end.

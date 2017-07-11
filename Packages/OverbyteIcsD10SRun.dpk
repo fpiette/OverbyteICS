@@ -31,6 +31,7 @@ package OverbyteIcsD10SRun;
 {$R '..\Source\OverbyteIcsMimeUtils.dcr'}
 {$R '..\Source\OverbyteIcsCookies.dcr'}
 {$R '..\Source\OverbyteIcsSmtpSrv.dcr'}
+{$R '..\source\OverbyteIcsProxy.dcr'}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
@@ -143,6 +144,7 @@ contains
   OverbyteIcsCryptUiApi in '..\Source\OverbyteIcsCryptUiApi.pas',
   OverbyteIcsMsSslUtils in '..\Source\OverbyteIcsMsSslUtils.pas',
   OverbyteIcsWinCrypt in '..\Source\OverbyteIcsWinCrypt.pas',
-  OverbyteIcsIniFiles in '..\Source\OverbyteIcsIniFiles.pas';
+  OverbyteIcsIniFiles in '..\Source\OverbyteIcsIniFiles.pas',
+  OverbyteIcsProxy in '..\Source\OverbyteIcsProxy.pas';
 
 end.

@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.49
+Version:      8.50
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -431,8 +431,11 @@ Jul 5 2017  V8.49 Added .well-known directory support.  If WellKnownPath is
                    Moved DocumentToContentType to OverbyteIcsFormDataDecoder to share
                    Fixed bug locating HostTag from Host must check port as well.
                    Added RequestProtocol either http or https, useful to build links
+Aug 10, 2017 V8.50 Fixed bug setting WebRedirectStat
+                   Fixed bug that first IcsHost could not be SSL
+                   Internal FSslEnable now FHttpSslEnable to ease confusion
 
-                   
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -533,9 +536,9 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 849;
-    CopyRight : String = ' THttpServer (c) 1999-2017 F. Piette V8.49 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.49';   { V8.09 }
+    THttpServerVersion = 850;
+    CopyRight : String = ' THttpServer (c) 1999-2017 F. Piette V8.50 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.50';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -1683,7 +1686,7 @@ Description:  A component adding SSL support to THttpServer.
 type
     TCustomSslHttpServer = class(THttpServer)  //  V8.02 Angus - was TSslHttpServer
     protected
-        FSslEnable                     : Boolean;  //  V8.02 Angus
+        FHttpSslEnable                 : Boolean;  //  V8.02 Angus renamed V8.50
         FOnSslHandshakeDone            : TSslHandshakeDoneEvent;
         FOnSslVerifyPeer               : TSslVerifyPeerEvent;
         FOnSslSetSessionIDContext      : TSslSetSessionIDContext;
@@ -1735,9 +1738,9 @@ type
                       NoExceptions: Boolean=False): String; virtual; { V8.48 }
         function    RecheckSslCerts(var CertsInfo: String;
                       Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean; { V8.48 }
-//    published V8.02 Angus stop them being published
-        property  SslEnable          : Boolean             read  FSslEnable  //  V8.02 Angus
-                                                           write FSslEnable;
+//    published V8.02 Angus stop them being published in custom component
+        property  SslEnable          : Boolean             read  FHttpSslEnable  //  V8.02 Angus, internal renamed V8.50
+                                                           write FHttpSslEnable;
         property  SslContext         : TSslContext         read  GetSslContext
                                                            write SetSslContext;
         property  IcsHosts           : TIcsHostCollection  read  GetIcsHosts
@@ -1765,7 +1768,7 @@ type
 
     TSslHttpServer = class(TCustomSslHttpServer)     //  V8.02 Angus
     published
-        property SslEnable;
+        property SslEnable;                
         property SslContext;
         property IcsHosts;                      { V8.45 }
         property RootCA;                        { V8.45 }
@@ -3151,7 +3154,7 @@ begin
             FSendType := httpSendDoc;   { V7.44 }
       {  V8.49keep protocol, useful for building URLs  }
 {$IFDEF USE_SSL}
-        if SslEnable then
+        if FSslEnable then     { V8.50 was SslEnable }
             FRequestProtocol := 'https'
         else
 {$ENDIF}
@@ -4098,7 +4101,7 @@ begin
                     Self.FWebLogDir := WebLogDir;
                     Self.FWellKnownPath := WellKnownPath;      { V8.49 }
                     Self.FWebRedirectURL := WebRedirectURL;    { V8.49 }
-                    Self.FWebRedirectStat := FWebRedirectStat; { V8.49 }
+                    Self.FWebRedirectStat := WebRedirectStat;  { V8.50 }
                 end;
             end;
         end;
@@ -4377,10 +4380,10 @@ begin
     else
         Flags := hgSendDoc;
 
-   if (FRequestMethod = httpMethodHead) then begin
+    if (FRequestMethod = httpMethodHead) then begin
         FSendType := httpSendHead;
         TriggerHeadDocument(Flags);
-   end
+    end
     else if (FRequestMethod = httpMethodGet) then
         TriggerGetDocument(Flags)
     else if (FRequestMethod = httpMethodDelete) then
@@ -6395,7 +6398,7 @@ begin
     FWSocketServer.OnSslSvrGetSession       := TransferSslSvrGetSession;
     FWSocketServer.OnSslHandshakeDone       := TransferSslHandshakeDone;
     FWSocketServer.OnSslServerName          := TransferSslServerName;  // V8.09
-    fSslEnable                              := TRUE;   // V8.02 Angus
+    fHttpSslEnable                          := TRUE;   // V8.02 Angus, renamed V8.50 
 end;
 
 
@@ -6425,7 +6428,7 @@ begin
     THttpConnection(Client).OnSslSetSessionIDContext := TransferSslSetSessionIDContext;
     THttpConnection(Client).OnSslHandshakeDone       := TransferSslHandshakeDone;
     THttpConnection(Client).OnSslServerName          := TransferSslServerName; // V8.09 Angus
-    FWSocketServer.SslEnable                         := fSslEnable;    // V8.02 Angus
+    FWSocketServer.SslEnable                         := fHttpSslEnable;    // V8.02 Angus, renamed V8.50
     inherited WSocketServerClientCreate(Sender, Client);
 end;
 
@@ -6601,6 +6604,7 @@ begin
         if TSslWSocketServer(FWSocketServer).IcsHosts.Count > 0 then begin
             FPort := FWSocketServer.Port;
             FAddr := FWSocketServer.Addr;
+            FHttpSslEnable := FWSocketServer.SslEnable; { V8.50 }
         end;
     end;
 end;

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.49
+Version:      8.50
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -170,6 +170,7 @@ June 23, 2017 V8.49 Fixes so we support MacOS again, thanks to Michael Berg.
                       web redirection.
                     Added MultiListenEx which opens all possible sockets ignoring
                       errors, which are returned as a string.
+Aug 10, 2017  V8.50 Minor clean up
 
                     
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -246,8 +247,8 @@ System.Types,
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 849;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.49 ';
+    WSocketServerVersion     = 850;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.50 ';
 
 type
     TCustomWSocketServer       = class;
@@ -1603,10 +1604,12 @@ var
 begin
     if State <> wsListening then
         Listen;
-    if Assigned(FMultiListenSockets) then
-        for I := 0 to FMultiListenSockets.Count - 1 do
+    if Assigned(FMultiListenSockets) then begin
+        for I := 0 to FMultiListenSockets.Count - 1 do begin
             if FMultiListenSockets[I].State <> wsListening then
             MlListen(FMultiListenSockets[I]);
+        end;
+    end;
 end;
 
 
@@ -1625,8 +1628,8 @@ begin
             Result := 'Socket 1 Listen Failed: ' + Self.Addr +
                           ' port ' + Self.Port + ' - ' + E.Message;
     end;
-    if Assigned(FMultiListenSockets) then
-        for I := 0 to FMultiListenSockets.Count - 1 do
+    if Assigned(FMultiListenSockets) then begin
+        for I := 0 to FMultiListenSockets.Count - 1 do begin
             if FMultiListenSockets[I].State <> wsListening then
             try
                 MlListen(FMultiListenSockets[I]);
@@ -1638,6 +1641,8 @@ begin
                               ' port ' + Self.Port + ' - ' + E.Message;
                 end;
             end;
+        end;
+    end;
 end;
 
 
@@ -2320,7 +2325,7 @@ var
 begin
    { V8.45 set SslEnable before event handler, so it can be used there }
     if FMultiListenIndex = -1 then
-        Client.SslEnable := FSslEnable
+        Client.SslEnable := Self.SslEnable      { V8.50 } 
     else begin
         Assert(MultiListenIndex < MultiListenSockets.Count);
         Client.SslEnable := TSslWSocketMultiListenItem(
@@ -2456,10 +2461,10 @@ var
         end ;
         if FirstHost then begin    { first is not a multi-listen }
             FirstHost := False;
-            Addr := MAddr;
-            Port := IntToStr(MPort);
-            SocketFamily := SockFam;
-            SslEnable := SslFlag;
+            Self.Addr := MAddr;
+            Self.Port := IntToStr(MPort);
+            Self.SocketFamily := SockFam;
+            Self.SslEnable := SslFlag;   { V8.50 }
             MIndex := -1;
         end
         else begin

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.49
+Version:      8.50
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1209,6 +1209,8 @@ May 15, 2017  V8.47 Fixed ValidateCertChain ignoring some warnings
 May 22, 2017  V8.48 Added added wsDnsLookup SocketState during wsoAsyncDnsLookup
                     Cancel async DNS if close called before connect
 June 26, 2017 V8.49 SSL changes in other units, MacOS fixes in other units
+Aug 16, 2017  V8.50 LoadFromP12File correctly supports croYes as well as croTry
+
 
 
 Use of certificates for SSL clients:
@@ -1413,8 +1415,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 849;
-  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.49 ';
+  WSocketVersion            = 850;
+  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.50 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -17603,7 +17605,7 @@ begin
         P12 := f_d2i_PKCS12_bio(FileBio, Nil);
         if not Assigned(P12) then
             RaiseLastOpenSslError(EX509Exception, TRUE,
-                              'Error reading PKCS12 certificates from BIO');
+                              'Error reading PKCS12 certificates from ' + FileName);
         try
             Cert := Nil;
             Pkey := Nil;
@@ -17612,23 +17614,30 @@ begin
             if Length(Password) > 0 then PW := PAnsiChar(AnsiString(Password));
             if f_PKCS12_parse(P12, PW, Pkey, Cert, Ca) = 0 then begin
                 if Ics_Ssl_ERR_GET_REASON(f_ERR_peek_error) = 113 then  { PKCS12_R_MAC_VERIFY_FAILURE }
-                    raise EX509Exception.Create('Error PKCS12 Certificate password invalid')
+                    raise EX509Exception.Create('Error PKCS12 Certificate password invalid for  ' + FileName)
                 else
                     RaiseLastOpenSslError(EX509Exception, TRUE,
-                              'Error parsing PKCS12 certificates from BIO');
+                              'Error parsing PKCS12 certificates from ' + FileName);
             end;
-            if (IncludePKey = croTry) and Assigned(PKey) then begin
-                if (f_X509_check_private_key(Cert, PKey) < 1) then
-                    raise EX509Exception.Create('Certificate and private key do not match');
-                 SetX509(Cert);
-                 SetPrivateKey(PKey);
-                 f_EVP_PKEY_free(PKey);
+            if (IncludePKey > croNo) then begin   { V8.50 don't ignore croYes }
+                if Assigned(PKey) then begin
+                    if (f_X509_check_private_key(Cert, PKey) < 1) then
+                        raise EX509Exception.Create('Certificate and private key do not match');
+                     SetX509(Cert);
+                     SetPrivateKey(PKey);
+                     f_EVP_PKEY_free(PKey);
+                end
+                else begin
+                    if IncludePKey = croYes then  { V8.50 require  private key so error }
+                        raise EX509Exception.Create('Error reading private key from ' + FileName);
+                end;
             end
             else
                 SetX509(Cert);
             f_X509_free(Cert);
             FreeAndNilX509Inters;
-            if (IncludeInters = croTry) and Assigned(Ca) then begin
+          { intermediate certificates are optional, no error if none found }
+            if (IncludeInters > croNo) and Assigned(Ca) then begin   { V8.50 don't ignore croYes }
                 FX509Inters := f_OPENSSL_sk_new_null;
                 for I := 0 to f_OPENSSL_sk_num(Ca) - 1 do
                     f_OPENSSL_sk_insert(FX509Inters, PAnsiChar(f_X509_dup
@@ -17689,7 +17698,7 @@ begin
         SetX509(PX509_OBJECT(f_OPENSSL_sk_value(MyStack, 0))); // first is cert
         FreeAndNilX509Inters;
      // save others as CA
-        if (IncludeInters <> croNo) and (total >= 2) then begin
+        if (IncludeInters > croNo) and (total >= 2) then begin
             FX509Inters := f_OPENSSL_sk_new_null;
             for I := 1 to total - 1 do
                 f_OPENSSL_sk_insert(FX509Inters, PAnsiChar(f_X509_dup

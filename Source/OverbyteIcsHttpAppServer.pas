@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      8.49
+Version:      8.50
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -111,7 +111,7 @@ May 24, 2017 V8.48 Added HostTag parameter to AddGetHandler, AddPostHandler and
                      creation.
 May 30, 2017 V8.48 PostDispatchVirtualDocument was broken in last update
 Jul 5, 2017  V8.49 Start is now a function, see HttpSrv
-
+Aug 10, 2017 V8.50 Corrected onSslServerName to OnSslServerName to keep C++ happy
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
@@ -448,7 +448,7 @@ type
 {$IFDEF USE_SSL}
     TSslHttpAppSrv = class(THttpAppSrv)     //  V8.02 Angus
     published
-        property SslEnable;
+        property SslEnable;                  
         property SslContext;
         property IcsHosts;                        { V8.45 }
         property OnSslVerifyPeer;
@@ -456,7 +456,7 @@ type
         property OnSslSvrNewSession;
         property OnSslSvrGetSession;
         property OnSslHandshakeDone;
-        property onSslServerName;
+        property OnSslServerName;                 { V8.50 }
     end;
 
 procedure IcsLoadTHttpAppSrvFromIni(MyIniFile: TCustomIniFile; HttpAppSrv:
@@ -516,7 +516,7 @@ begin
     FSessionTimer.Enabled      := FALSE;
     FSessionTimer.OnTimer      := SessionTimerHandler;
 {$IFDEF USE_SSL}
-    FSslEnable                 := FALSE;  // V8.02
+    FHttpSslEnable             := FALSE;  // V8.02, renamed V8.50 
     FWSocketServer.SslEnable   := FALSE;  // V8.02
 {$ENDIF}
 end;
@@ -1172,7 +1172,7 @@ destructor THttpAppSrvConnection.Destroy;
 begin
     if Assigned(FOnDestroying) then
         FOnDestroying(Self);
-    
+
     if Assigned(PostedData) then begin
         FreeMem(PostedData);
         PostedData := nil;

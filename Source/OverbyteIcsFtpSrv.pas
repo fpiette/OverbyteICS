@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      8.37
+Version:      8.50
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2016 by François PIETTE
+Legal issues: Copyright (C) 1998-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -422,6 +422,7 @@ Feb 23, 2016 V8.06 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 Nov 09 2016  V8.37 - Added ExclusiveAddr property to stop other applications listening on same socket
                      Added extended exception information, set FSocketErrs = wsErrFriendly for
                        some more friendly messages (without error numbers)
+Aug 25, 2017 V8.50 - Angus stopped LIST/RETV using ..\..\..\ (already stopped for CWD)
 
 
 Angus pending -
@@ -538,8 +539,8 @@ uses
 
 
 const
-    FtpServerVersion         = 837;
-    CopyRight : String       = ' TFtpServer (c) 1998-2016 F. Piette V8.37 ';
+    FtpServerVersion         = 850;
+    CopyRight : String       = ' TFtpServer (c) 1998-2017 F. Piette V8.50 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
     DefaultRcvSize           = 16384;    { V7.00 used for both xmit and recv, was 2048, too small }
 
@@ -4110,6 +4111,13 @@ function TFtpServer.IsPathAllowed(                                 { AG V1.52 }
 var
     NewFileName  : String;    { angus V7.08 }
 begin
+  { angus V8.50 check for nasty that allowed access to higher level directories than root }
+    if (Pos('.\', Path) <> 0) or (Pos('.%2f', Path) <> 0) or (Pos('.%5c', Path) <> 0) then begin
+        TriggerDisplay(Client, 'Blocked relative dot notation file path: ' + Path);
+        Result := False;
+        Exit;
+    end;
+
     if (ftpCdUpHome in Client.Options) then begin
     { angus V7.08 check if a virtual directory is being used, assume allowed if non-blank }
         NewFileName := '';
@@ -4830,6 +4838,10 @@ begin
             Client.DirListHidden := FALSE;
             Client.DirListSubDir := FALSE;
             Client.DirListType := ListType;
+
+          { angus V8.50 check for nasty that allowed indexing higher level directories than root }
+            if (Pos('.\', Params) <> 0) or (Pos('.%2f', Params) <> 0) or (Pos('.%5c', Params) <> 0) then
+                raise Exception.Create('Cannot accept relative path using dot notation');
 
          { angus 1.54  parse parameter for file/path and one argument }
             if Length (Params) > 0 then begin
@@ -7705,7 +7717,7 @@ begin
         else begin
             if UpperCase(newDrive[1]) <> UpperCase(FDirectory[1]) then
                 raise Exception.Create('Cannot accept path not relative to current directory');
-            if Pos('.\', newPath) <> 0 then
+            if (Pos('.\', newPath) <> 0) or (Pos('.%2f', newPath) <> 0) or (Pos('.%5c', NewPath) <> 0) then  { V8.50 }
                 raise Exception.Create('Cannot accept relative path using dot notation');
             if newPath = '.' then
                 newPath := Copy(FDirectory, 3, Length(FDirectory))
@@ -7714,7 +7726,7 @@ begin
         end;
     end
     else begin
-        if Pos('.\', newPath) <> 0 then
+        if (Pos('.\', newPath) <> 0) or (Pos('.%2f', newPath) <> 0) or (Pos('.%5c', NewPath) <> 0) then  { V8.50 }
             raise Exception.Create('Cannot accept relative path using dot notation');
     end;
 

@@ -8,7 +8,7 @@ Description:  This is a demo program showing how to use the TFtpServer
               In production program, you should add code to implement
               security issues.
 Creation:     April 21, 1998
-Version:      8.38
+Version:      8.50
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -74,6 +74,7 @@ Nov 12 2016  V8.37 Set friendly errors
                    Specify minimum and maximum SSL version supported
                    Allow server IP address to be specified
 Apr 15, 2017  V8.38 FPiette removed compiler warnings for D10.2
+Aug 25, 2107, V8.50 Angus added server onDisplay event
 
 Sample entry from ftpaccounts-default.ini
 
@@ -111,8 +112,8 @@ uses
   OverbyteIcsSsLeay, OverbyteIcsWndControl, OverbyteIcsOneTimePw;
 
 const
-  FtpServVersion      = 801;
-  CopyRight : String  = ' SslFtpServ (c) 1998-2016 F. Piette V8.01 ';
+  FtpServVersion      = 850;
+  CopyRight : String  = ' SslFtpServ (c) 1998-2017 F. Piette V8.50 ';
   WM_APPSTARTUP       = WM_USER + 1;
 
 type
@@ -244,6 +245,8 @@ type
       var Allowed: Boolean);
     procedure SslFtpServer1Host(Sender: TObject; Client: TFtpCtrlSocket; Host: TFtpString; var Allowed: Boolean);
     procedure SslFtpServer1Rein(Sender: TObject; Client: TFtpCtrlSocket; var Allowed: Boolean);
+    procedure SslFtpServer1Display(Sender: TObject; Client: TFtpCtrlSocket;
+      Msg: TFtpString);
   private
     FInitialized              : Boolean;
     FIniFileName              : String;
@@ -729,6 +732,13 @@ begin
     UpdateClientCount;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslFtpServerForm.SslFtpServer1Display(Sender: TObject;    { V8.50 }
+  Client: TFtpCtrlSocket; Msg: TFtpString);
+begin
+    InfoMemo.Lines.Add('! ' + Msg);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslFtpServerForm.SslFtpServer1Start(Sender: TObject);

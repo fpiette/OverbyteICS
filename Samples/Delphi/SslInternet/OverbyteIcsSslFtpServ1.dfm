@@ -41,7 +41,6 @@ object SslFtpServerForm: TSslFtpServerForm
     Height = 137
     Align = alTop
     TabOrder = 1
-    ExplicitWidth = 461
     object GreenImage: TImage
       Left = 16
       Top = 12
@@ -291,6 +290,7 @@ object SslFtpServerForm: TSslFtpServerForm
     OnValidateDele = SslFtpServer1ValidateDele
     OnValidateRnFr = SslFtpServer1ValidateRnFr
     OnGetProcessing = SslFtpServer1GetProcessing
+    OnDisplay = SslFtpServer1Display
     OnHost = SslFtpServer1Host
     OnRein = SslFtpServer1Rein
     SocketErrs = wsErrFriendly
@@ -449,7 +449,6 @@ object SslFtpServerForm: TSslFtpServerForm
     TimeStampFormatString = 'hh:nn:ss:zzz'
     TimeStampSeparator = ' '
     LogFileOption = lfoOverwrite
-    LogFileEncoding = lfeUtf8
     LogFileName = 'DEBUG_SSLFtpSrv.txt'
     LogOptions = []
     Left = 140

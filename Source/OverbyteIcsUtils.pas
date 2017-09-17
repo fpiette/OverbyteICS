@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.49
+Version:      8.50
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -147,6 +147,8 @@ Jun 23, 2017 V8.49 Fixes for MacOs
                    Added several functions for copying and searching TBytes buffers
                      that receive socket data, converting them to Strings
                    Moved IcsGetFileSize and GetUAgeSizeFile here from FtpSrvT
+Sep 17, 2017 V8.40 Added IcsMoveTBytesToString that takes a codepage for proper
+                     Unicode conversion
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -519,7 +521,10 @@ const
   character set, then convertit onto Delphi Strings for ease of processing }
 { Beware - this function treats buffers as ANSI, no Unicode conversion }
     procedure IcsMoveTBytesToString(const Buffer: TBytes; OffsetFrom: Integer;
-                      var Dest: String; OffsetTo: Integer; Count: Integer);  { V8.49 }
+                      var Dest: String; OffsetTo: Integer; Count: Integer); overload; { V8.49 }
+{ this function converts buffers to Unicode }
+    procedure IcsMoveTBytesToString(const Buffer: TBytes; OffsetFrom: Integer;
+        var Dest: String; OffsetTo: Integer; Count: Integer; ACodePage: LongWord); overload; { V8.50 }
 { Beware - this function treats buffers as ANSI, no Unicode conversion }
     procedure IcsMoveStringToTBytes(const Source: String; var Buffer: TBytes; Count: Integer);  { V8.49 }
     procedure IcsMoveTBytes(var Buffer: TBytes; OffsetFrom: Integer; OffsetTo: Integer;
@@ -530,6 +535,7 @@ const
     function IcsTBytesPos(const Substr: String; const S: TBytes; Offset, Count: Integer): Integer;  { V8.49 }
     function IcsTbytesStarts(Source: TBytes; Find: PAnsiChar) : Boolean;    { V8.49 }
     function IcsTbytesContains(Source : TBytes; Find : PAnsiChar) : Boolean;   { V8.49 }
+
 
 
 { Moved from OverbyteIcsLibrary.pas prefix "_" replaced by "Ics" }
@@ -2394,7 +2400,7 @@ function IcsGetWideChars(const Buffer; BufferSize: Integer;
 var
     PUCS4 : PUCS4Char;
     I     : Integer;
-    
+
     procedure UCS4ToU16;
     begin
         I := 0;
@@ -5684,6 +5690,29 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ we receive socket as single byte raw data into TBytes buffer without a
+  character set, then convertit onto Delphi Strings for ease of processing }
+{ this function handles Unicode conversion }
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure IcsMoveTBytesToString(const Buffer: TBytes; OffsetFrom: Integer;
+        var Dest: String; OffsetTo: Integer; Count: Integer; ACodePage: LongWord);  { V8.50 }
+var
+    WS: UnicodeString;
+    FailedByteCount: Integer;
+begin
+    if (ACodePage = CP_UTF16) or (ACodePage = CP_UTF16Be) then
+        WS := IcsBufferToUnicode(Pointer(@Buffer[OffsetFrom])^, Count, ACodePage, FailedByteCount)  // no-8bit ansi
+     else
+        WS := AnsiToUnicode(PAnsiChar(@Buffer[OffsetFrom]), ACodePage);  // no 16-bit unicode
+    if (OffsetTo > 1) and (Length(Dest) > 0) then
+        Dest := Copy (Dest, 1, OffsetTo) + String(WS)
+    else
+        Dest := String(WS);   { for non-Unicode compiler, ? may appear }
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Beware - this function treats buffers as ANSI, no Unicode conversion }
 procedure IcsMoveStringToTBytes(const Source: String; var Buffer: TBytes; Count: Integer);  { V8.49 }
 {$IFDEF UNICODE}
@@ -5763,6 +5792,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ case insensitive check for null terminated Find at start of buffer }
 function IcsTbytesStarts(Source: TBytes; Find: PAnsiChar) : Boolean;    { V8.49 }
 begin
     Result := FALSE;
@@ -5777,6 +5807,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ case sensitive check for Find within null terminated buffer }
 function IcsTbytesContains(Source : TBytes; Find : PAnsiChar) : Boolean;   { V8.49 }
 begin
     Result := FALSE;
@@ -5789,8 +5820,8 @@ begin
 {$ENDIF}
 end;
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 initialization
 finalization
     if WinTrustHandle <> 0 then FreeLibrary (WinTrustHandle);

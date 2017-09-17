@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.37
+Version:      8.50
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -11,7 +11,7 @@ Credit:       This component was based on a freeware from by Andreas
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2016 by François PIETTE
+Legal issues: Copyright (C) 1997-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -511,7 +511,16 @@ Nov 04, 2016 V8.37 V8.10 POST relocation fix failed 302 because status had been 
                       note this means more exceptions may need to be handled
                    Added extended exception information, set FSocketErrs = wsErrFriendly for
                       some more friendly messages (without error numbers)
+May 18, 2017 V8.48 Fixed SslServerName for correct host target name with SSL proxies
+Sep 17, 2017 V8.50 Replaced four TBytes functions with versions in OverbyteIcsUtils
 
+To convert the received HTML stream to a unicode string with the correct codepage,
+use this function in OverbyteIcsCharsetUtils, it's not used directly by this unit
+to avoid linking in various charset tables applications may not need. The last
+argumment determines whether entities like &pound; and &#9741; are converted to
+characters:
+
+UnicodeStr := IcsHtmlToStr(RcvdStream, ContentType, true);
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -600,8 +609,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 837;
-    CopyRight : String   = ' THttpCli (c) 1997-2016 F. Piette V8.37 ';
+    HttpCliVersion       = 850;
+    CopyRight : String   = ' THttpCli (c) 1997-2017 F. Piette V8.50 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -905,8 +914,8 @@ type
         procedure SocketSessionConnected(Sender : TObject; ErrCode : Word); virtual;
         procedure SocketDataSent(Sender : TObject; ErrCode : Word); virtual;
         procedure SocketDataAvailable(Sender: TObject; ErrCode: Word); virtual;
-        function  StartsWithText(Source : TBytes; Find : PAnsiChar) : Boolean; {Bjornar}
-        function  ContainsText(Source : TBytes; Find : PAnsiChar) : Boolean; {Bjornar}
+  {      function  StartsWithText(Source : TBytes; Find : PAnsiChar) : Boolean; V8.50 moved to Utils }
+  {      function  ContainsText(Source : TBytes; Find : PAnsiChar) : Boolean; V8.50 moved to Utils }
         procedure LocationSessionClosed(Sender: TObject; ErrCode: Word); virtual;
         procedure DoRequestAsync(Rq : THttpRequest); virtual;
         procedure DoRequestSync(Rq : THttpRequest); virtual;
@@ -2765,6 +2774,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { If UNICODE is defined each byte in Buffer must be ASCII (ord < 128) ! }
+(*  V8.50 moved to Utils
 procedure MoveTBytesToString(
     const Buffer : TBytes;
     OffsetFrom   : Integer;
@@ -2789,10 +2799,11 @@ begin
 begin
     Move(Buffer[OffsetFrom], Dest[OffsetTo], Count);
 {$ENDIF}
-end;
+end;   *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(* V8.50 moved to Utils
 procedure MoveTBytes(
     var Buffer : Tbytes;
     OffsetFrom : Integer;
@@ -2800,7 +2811,7 @@ procedure MoveTBytes(
     Count      : Integer); {$IFDEF USE_INLINE} inline; {$ENDIF}
 begin
     Move(Buffer[OffsetFrom], Buffer[OffsetTo], Count);
-end;
+end;  *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2937,7 +2948,7 @@ begin
             FReceiveLen := FReceiveLen - FBodyDataLen;
             { Move remaining data to start of buffer. 17/01/2004 }
             if FReceiveLen > 0 then
-                MoveTBytes(FReceiveBuffer, FBodyDataLen, 0, FReceiveLen + 1)
+                IcsMoveTBytes(FReceiveBuffer, FBodyDataLen, 0, FReceiveLen + 1)
             else if FReceiveLen < 0 then  { V8.03 }
                 FReceiveLen := 0;         { V8.03 }
         end;
@@ -3801,15 +3812,15 @@ begin
     {$ENDIF}
         FProxyConnected := TRUE;
         if ( {Bjornar - Start}
-           (StartsWithText(FReceiveBuffer, 'HTTP/1.0 200') or
-           StartsWithText(FReceiveBuffer,'HTTP/1.1 200') or
-           StartsWithText(FReceiveBuffer, 'HTTP/1.0  200') or //M$ Proxy Server 2.0
-           StartsWithText(FReceiveBuffer, 'HTTP/1.1  200')) //M$ Proxy Server 2.0 not tested ??
+           (IcsTbytesStarts(FReceiveBuffer, 'HTTP/1.0 200') or
+           IcsTbytesStarts(FReceiveBuffer,'HTTP/1.1 200') or
+           IcsTbytesStarts(FReceiveBuffer, 'HTTP/1.0  200') or //M$ Proxy Server 2.0
+           IcsTbytesStarts(FReceiveBuffer, 'HTTP/1.1  200')) //M$ Proxy Server 2.0 not tested ??
            and not
-           ((StartsWithText(FReceiveBuffer, 'HTTP/1.1 200 OK') or
-           StartsWithText(FReceiveBuffer, 'HTTP/1.0 200 OK')) and
-           ContainsText(FReceiveBuffer, 'Content-Length:') and
-           not ContainsText(FReceiveBuffer, 'Content-Length: 0'))
+           ((IcsTbytesStarts(FReceiveBuffer, 'HTTP/1.1 200 OK') or
+           IcsTbytesStarts(FReceiveBuffer, 'HTTP/1.0 200 OK')) and
+           IcsTbytesContains(FReceiveBuffer, 'Content-Length:') and
+           not IcsTbytesContains(FReceiveBuffer, 'Content-Length: 0'))
            ) then {Bjornar - End}
         begin
             { We have a connection to remote host thru proxy, we can start }
@@ -3871,7 +3882,7 @@ begin
             FReceiveLen  := FReceiveLen - FBodyDataLen;   {+++++}
             { Move remaining data to start of buffer. 17/01/2004 }
             if FReceiveLen > 0 then
-                MoveTBytes(FReceiveBuffer, FBodyDataLen, 0, FReceiveLen + 1);
+                IcsMoveTBytes(FReceiveBuffer, FBodyDataLen, 0, FReceiveLen + 1);
 
             FBodyDataLen := 0;
 
@@ -3914,8 +3925,8 @@ begin
             else                                                  // FP 09/09/06
                 SetLength(FLastResponse, I);                      // FP 09/09/06
             if Length(FLastResponse) > 0 then                     // FP 09/09/06
-                MoveTBytesToString(FReceiveBuffer, 0,
-                        FLastResponse, 1, Length(FLastResponse)); // FP 09/09/06 
+                IcsMoveTBytesToString(FReceiveBuffer, 0,
+                        FLastResponse, 1, Length(FLastResponse)); // FP 09/09/06
         end;                                                      // FP 09/09/06
 
 {$IFNDEF NO_DEBUG_LOG}
@@ -3925,7 +3936,7 @@ begin
         FReceiveLen := FReceiveLen - I - 1;                               // FP 09/09/06
         if FReceiveLen > 0 then begin
 //          Move(FReceiveBuffer[I], FReceiveBuffer[0], FReceiveLen + 1);
-            MoveTBytes(FReceiveBuffer, I + 1, 0, FReceiveLen);  // FP 09/09/06
+            IcsMoveTBytes(FReceiveBuffer, I + 1, 0, FReceiveLen);  // FP 09/09/06
             // Debugging purpose only
             //FillChar(FReceiveBuffer[FReceiveLen], I + 1, '*');
         end
@@ -3950,6 +3961,7 @@ end;
 
 {Bjornar - Start}
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(* V8.50 moved to Utils as IcsTbytesStarts
 function THttpCli.StartsWithText(Source : TBytes; Find : PAnsiChar) : Boolean;
 begin
     Result := FALSE;
@@ -3959,6 +3971,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+ V8.50 moved to Utils as IcsTbytesContains
 function THttpCli.ContainsText(Source : TBytes; Find : PAnsiChar) : Boolean;
 begin
     Result := FALSE;
@@ -3966,7 +3979,7 @@ begin
       Result := TRUE;
 end;
 {Bjornar - End}
-
+*)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpCli.StartRelocation;
@@ -5066,7 +5079,8 @@ end;
 procedure TSslHttpCli.DoBeforeConnect;
 begin
     inherited DoBeforeConnect;
-    FCtrlSocket.SslServerName       := FHostName;  { V8.11 needed for SNI support }
+   { V8.11 needed for SNI support, V8.48 was FHostName which failed for proxies }
+    FCtrlSocket.SslServerName       := FTargetHost;
     FCtrlSocket.OnSslVerifyPeer     := TransferSslVerifyPeer;
     FCtrlSocket.OnSslCliGetSession  := TransferSslCliGetSession;
     FCtrlSocket.OnSslCliNewSession  := TransferSslCliNewSession;

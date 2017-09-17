@@ -6,7 +6,7 @@ Description:  A simple  HTTPS SSL Web Client Demo client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.41
+Version:      8.50
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -68,10 +68,12 @@ Nov 04, 2016  V8.37 report more error information
 Nov 23, 2016  V3.39 no longer need PostConnectionCheck or TX509Ex
               Added List Cert Store button to list common names of any
                 certificates loaded from CA File or CA Path, so you know
-                exactly what was found 
+                exactly what was found
 Feb 26, 2017  V8.41 added SslSecLevel to set minimum effective bits for
                 certificate key length, 128 bits and higher won't usually work!
               Simplified listing certificate chain in handshake
+Sep 17, 2017  V8.50 HTML text content now converted to Delphi string with correct
+                 code page according to charset in header or page, or BOM
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;
@@ -106,14 +108,15 @@ uses
 {$IFDEF USE_MODEZ}              { V2.102 }
   OverbyteIcsHttpCCodZLib,
 {$ENDIF}
-  OverbyteIcsWndControl;
+  OverbyteIcsWndControl,
+  OverbyteIcsCharsetUtils;       { V8.50 }
 
 
 const
-     HttpsTstVersion     = 841;
-     HttpsTstDate        = 'Feb 26, 2017';
+     HttpsTstVersion     = 850;
+     HttpsTstDate        = 'Sep 17, 2017';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2017 Francois Piette V8.41 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2017 Francois Piette V8.50 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -839,6 +842,9 @@ procedure THttpsTstForm.SslHttpCli1RequestDone(
 var
     DataIn  : TStream;
     I       : Integer;
+    HtmlCodepage: Integer;
+    BOMSize : Integer;
+    DataStr : String;
 begin
     SetButtonState(TRUE);
     if ErrCode <> 0 then begin
@@ -861,8 +867,26 @@ begin
         else begin
             DataIn := TFileStream.Create(SslHttpCli1.DocName, fmOpenRead);
             try
-                if Copy(SslHttpCli1.ContentType, 1, 5) = 'text/' then
-                    DocumentMemo.Lines.LoadFromStream(DataIn)
+                if Copy(SslHttpCli1.ContentType, 1, 5) = 'text/' then begin
+                   BOMSize := 0;
+
+                 // first look for codepage in HTTP charset header, rarely set
+                    HtmlCodepage := IcsContentCodepage(SslHttpCli1.ContentType);
+
+                 // if none, look for codepage in file BOM or META headers in HTML
+                    if HtmlCodepage = 0 then
+                        HtmlCodepage := IcsFindHtmlCodepage(DataIn, BOMSize);
+                    Display('HTML Codepage: ' + CodePageToMimeCharsetString(HtmlCodepage));
+
+                 // finally convert stream into a string with correct codepage, including entities
+                    DataStr := IcsHtmlToStr(DataIn, HtmlCodepage, true);
+
+                 // convert HTML to string, including entities (does all above steps together)
+               //     DataStr := IcsHtmlToStr(DataIn, SslHttpCli1.ContentType, true);
+
+                 // show page 
+                    DocumentMemo.Lines.Add(DataStr);
+                end
                 else begin
                     DocumentMemo.Lines.Add('Content type is ' +
                                            SslHttpCli1.ContentType);

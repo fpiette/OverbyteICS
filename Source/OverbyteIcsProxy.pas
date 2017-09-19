@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Forward and Reverse SSL HTTP Proxy
 Creation:     May 2017
 Updated:      May 2017
-Version:      8.49
+Version:      8.50
 Sponsor:      This component was sponsored in part by Avenir Health and
               Banxia Software Ltd. http://www.avenirhealth.org
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
@@ -176,12 +176,12 @@ Updates:
                         or is not configured, maybe other pages would be useful?
                       Moved TBytes functions to OverbyteIcsUtils
                       Look for target path with all requests, not just common ones
-
-                      
+19 Sep 2017  - 8.50 - Check document meta for charset
+                      Convert html TByte buffers to unicode instead of ANSI
+                      Post data now calls onHttpReqBody event
 
 pending...
-Check document meta for charset
-Convert TByte buffers to UTF8 instead of ANSI
+
 Test Transfer-Encoding: gzip, chunked
 Proxy statistics
 
@@ -244,6 +244,7 @@ uses
     OverbyteIcsTypes,
     OverbyteIcsMimeUtils,
     OverbyteIcsFormDataDecoder,
+    OverbyteIcsCharsetUtils,   { V8.50 }
     OverbyteIcsURL,
     OverbyteIcsUtils;
 
@@ -252,9 +253,9 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpServerVersion = 849;
-    CopyRight : String = ' TIcsHttpProxy (c) 2017 F. Piette V8.49 ';
-    DefServerHeader : string = 'Server: ICS-Proxy-8.49';
+    THttpServerVersion = 850;
+    CopyRight : String = ' TIcsHttpProxy (c) 2017 F. Piette V8.50 ';
+    DefServerHeader : string = 'Server: ICS-Proxy-8.50';
     CompressMinSize = 5000;     // 5K minimum to make it worth compressing a page
     CompressMaxSize = 5000000;  // 5M bigger takes too long
     DefRxBuffSize = 65536;
@@ -700,6 +701,7 @@ type
  //   procedure SourceBodyStrXmit;
     procedure TargetForwardProxy; Virtual;
     function  FindPxyPathTarget(const HTag, HPath: String): Integer; Virtual;
+    procedure UpdatePostData; Virtual;    { V8.50 }
     procedure UpdateBody; Virtual;
     procedure CompressBody; Virtual;
     procedure DecompressBody; Virtual;
@@ -817,117 +819,6 @@ procedure IcsLoadTIcsHttpProxyFromIni(MyIniFile: TCustomIniFile; IcsHttpProxy:
 
 implementation
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-(*
-{ we receive socket as single byte raw data into TBytes buffer without a
-  character set, then convertit onto Delphi Strings for ease of processing }
-{ Beware - this function treats buffers as ANSI, no Unicode conversion }
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure MoveTBytesToString(const Buffer: TBytes; OffsetFrom: Integer;
-                      var Dest: String; OffsetTo: Integer; Count: Integer);
-{$IFDEF UNICODE}
-var
-    PSrc  : PByte;
-    PDest : PChar;
-begin
-    PSrc  := Pointer(Buffer);
-    if Length(Dest) < (OffsetTo + Count - 1) then
-        SetLength(Dest, OffsetTo + Count - 1);
-    PDest := Pointer(Dest);
-    Dec(OffsetTo); // String index!
-    while Count > 0 do begin
-        PDest[OffsetTo] := Char(PSrc[OffsetFrom]);
-        Inc(OffsetTo);
-        Inc(OffsetFrom);
-        Dec(Count);
-    end;
-{$ELSE}
-begin
-    if Length(Dest) < (OffsetTo + Count - 1) then
-        SetLength(Dest, OffsetTo + Count - 1);
-    Move(Buffer[OffsetFrom], Dest[OffsetTo], Count);
-{$ENDIF}
-end;
-
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Beware - this function treats buffers as ANSI, no Unicode conversion }
-procedure MoveStringToTBytes(const Source: String; var Buffer: TBytes; Count: Integer);
-{$IFDEF UNICODE}
-var
-    PDest : PByte;
-    PSrc  : PChar;
-    I     : Integer;
-begin
-    PSrc  := Pointer(Source);
-    if Count > Length(Source) then
-        Count := Length(Source);
-    if Length(Buffer) < Count then
-        SetLength(Buffer, Count);
-    PDest := Pointer(Buffer);
-    for I := 0 to Count - 1 do begin
-        PDest[I] := Byte(PSrc[I]);
-    end;
-{$ELSE}
-begin
-    if Count > Length(Source) then
-        Count := Length(Source);
-    if Length(Buffer) < Count then
-        SetLength(Buffer, Count);
-    Move(Source[1], Buffer[0], Count);
-{$ENDIF}
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure MoveTBytes(var Buffer: TBytes; OffsetFrom: Integer; OffsetTo: Integer;
-                                Count: Integer); {$IFDEF USE_INLINE} inline; {$ENDIF}
-begin
-    Move(Buffer[OffsetFrom], Buffer[OffsetTo], Count);
-end;
-
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure MoveTBytesEx(const BufferFrom: TBytes; var BufferTo: TBytes;
-              OffsetFrom, OffsetTo, Count: Integer); {$IFDEF USE_INLINE} inline; {$ENDIF}
-begin
-    Move(BufferFrom[OffsetFrom], BufferTo[OffsetTo], Count);
-end;
-
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Pos that ignores nulls in the TBytes buffer, so avoid PAnsiChar functions }
-function PosTBytes(const Substr: String; const S: TBytes; Offset, Count: Integer): Integer;
-var
-    Ch: Byte;
-    SubLen, I, J: Integer;
-    Found: Boolean;
-begin
-    Result := -1;
-    SubLen := Length(Substr);
-    if SubLen = 0 then Exit;
-    Ch := Byte(SubStr[1]);
-    for I := Offset to Count - SubLen do begin
-        if S[I] = Ch then begin
-            Found := True;
-            if SubLen > 1 then begin
-                for J := 2 to SubLen do begin
-                    if Byte(Substr[J]) <> S[I+J-1] then begin
-                        Found := False;
-                        Break;
-                     end;
-                end;
-            end;
-            if Found then begin
-                Result := I;
-                Exit;
-            end;
-        end;
-    end;
-end;          *)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { TProxyTargets }
@@ -2813,6 +2704,7 @@ begin
      else
         RespStatus := IntToStr(FProxySource.IcsHosts[IcsHostIdx].WebRedirectStat) + ' Unknown';
      end;
+  // generally, must close connection after relocation, since port may change
      SourceCreatePage(RespStatus, 'text/html', 'Location: ' +
                          FProxySource.IcsHosts[IcsHostIdx].WebRedirectURL, '');
  end;
@@ -3065,24 +2957,63 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ update response body, checking for URLs }
+{ update POST data body in application event }
+procedure THttpProxyClient.UpdatePostData;        { V8.50 }
+var
+    BodyStr: UnicodeString;   { V8.50 process in unicode }
+    ArgStr, OldBody: String;  { V8.50 process in unicode }
+    ACodePage: Longword;
+begin
+    if Assigned((FProxySource as TIcsHttpProxy).onHttpReqBody) then begin
+        if (Pos ('text/', FRequestContentType) <> 1) and (Pos ('www-form', FRequestContentType) = 0) then Exit;
+        ACodePage := IcsContentCodepage(FRequestContentType);
+
+     { first, need to convert TBytes buffer into unicode string so easier to manipulate }
+        BodyStr := IcsHtmlToStr(FHtmlReqBody, FHtmlReqBodyLen, ACodePage, false);  // leave entities
+        ArgStr := String(BodyStr);  // event is ansi in non-unicode compilers
+        OldBody := ArgStr;
+        (FProxySource as TIcsHttpProxy).onHttpReqBody(FProxySource, Self, ArgStr);
+        if (OldBody <> ArgStr) then begin
+            BodyStr := ArgStr;
+            LogTarEvent('Updated Request Body in Event');
+
+          { now move string back into TBytes buffer with correct codepage }
+            FHtmlReqBodyLen := IcsMoveStringToTBytes(BodyStr, FHtmlReqBody,
+                                                Length(BodyStr), ACodePage, false);
+            FRequestContentLength := FHtmlReqBodyLen;
+            UpdateHdrLine('Content-Length:', IntToStr(FRequestContentLength), FHttpReqHdr);
+            if (FProxySource.DebugLevel >= DebugHttpHdr) then
+                LogTarEvent('Modified request new content length ' + IntToStr(FRequestContentLength));
+        end;
+    end ;
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ update response body, checking for URLs, application event may change it as well }
 procedure THttpProxyClient.UpdateBody;
 var
-    P, DoneNr: Integer;
-    BodyStr, OldBody: string;
+    P, DoneNr, BOMSize: Integer;
+    BodyStr: UnicodeString;   { V8.50 process in unicode }
+    ArgStr, OldBody: String;  { V8.50 process in unicode }
+    ACodePage: Longword;
 begin
     P := IcsTBytesPos(FHttpTarURL2, FHtmlRespBody, 0, FHtmlRespBodyLen);  // URL without port
     if Assigned((FProxySource as TIcsHttpProxy).onHttpRespBody) or (P > 0) then begin
+
+      { V8.50 find codepage, keep Bom so we can restore it later }
+        BOMSize := 0;
+        ACodePage := IcsContentCodepage(FRespContentType);  // first HTTP header
+        if ACodePage = 0 then
+            ACodePage := IcsFindHtmlCodepage(FHtmlRespBody, FHtmlRespBodyLen, BOMSize);  // then BOM or meta header
+
         if (FProxySource.DebugLevel >= DebugHttpHdr) then
-            LogTarEvent('Updating body content URLs');
+            LogTarEvent('Checking for body content URLs, Codepage ' +
+               CodePageToMimeCharsetString(ACodepage) + ', Bom size ' + IntToStr(BOMSize));
 
-      { PENDING - check header sybmol set for UTF8 !!!!! }
+      { first, need to convert TBytes buffer into unicode string so easier to manipulate }
+        BodyStr := IcsHtmlToStr(FHtmlRespBody, FHtmlRespBodyLen, ACodePage, false);  // leave entities
 
-      { first, need to copy body into String buffer from TBytes buffer so easier to manipulate }
-      { the String is sent instead of YBytes if not empty }
-        SetLength(BodyStr, FHtmlRespBodyLen);
-        IcsMoveTBytesToString(FHtmlRespBody, 0, BodyStr, 1, FHtmlRespBodyLen);
-        FHtmlRespBodyLen := 0; // now in string, clear buffer so it's not sent
         DoneNr := 0;
         while (Pos(FHttpTarURL1, BodyStr) > 0) do begin   // URL with port
             DoneNr := DoneNr + 1;
@@ -3094,29 +3025,34 @@ begin
             BodyStr := StringReplace(BodyStr, FHttpTarURL2, FHttpSrcURL, [rfIgnoreCase]);
             if DoneNr > 100 then break;  // sanity check, too many URLS
         end;
+        if DoneNr > 0 then begin
+            if (FProxySource.DebugLevel >= DebugHttpHdr) then
+                LogTarEvent('Updated ' + IntToStr(DoneNr) + ' URLs, modified body');
+            FTarRespModified := True;
+        end;
 
      { application event may process body }
         if Assigned((FProxySource as TIcsHttpProxy).onHttpRespBody) then begin
-            OldBody := BodyStr;
-            (FProxySource as TIcsHttpProxy).onHttpRespBody(FProxySource, Self, BodyStr);
-            if OldBody <> BodyStr then DoneNr := 1;
+            ArgStr := String(BodyStr);  // event is ansi in non-unicode compilers
+            OldBody := ArgStr;
+            (FProxySource as TIcsHttpProxy).onHttpRespBody(FProxySource, Self, ArgStr);
+            if (OldBody <> ArgStr) then begin
+                FTarRespModified := True;
+                BodyStr := ArgStr;
+                LogTarEvent('Updated Response Body in Event');
+            end;
         end;
 
       { update HTML header with new content length }
-        if DoneNr > 0 then begin
-            FHtmlRespBodyLen := Length(BodyStr);
+    //    FTarRespModified := True;  // TEMP testing !!!!!!!!!
+        if FTarRespModified then begin
+          { now move string back into TBytes buffer with correct codepage, keep Bom if it had one }
+            FHtmlRespBodyLen := IcsMoveStringToTBytes(BodyStr, FHtmlRespBody,
+                                                Length(BodyStr), ACodePage, (BOMSize <> 0));
             FRespContentLength := FHtmlRespBodyLen;
-          { now move string back into TBytes buffer }
-          { !! PENDING - Unicode and UTF8 }
-            if (Length(FHtmlRespBody) <= FHtmlRespBodyLen) then
-               SetLength(FHtmlRespBody, FHtmlRespBodyLen + 1);
-            IcsMoveStringToTBytes(BodyStr, FHtmlRespBody, FHtmlRespBodyLen);
             UpdateHdrLine('Content-Length:', IntToStr(FRespContentLength), FHttpRespHdr);
-            FTarRespModified := True;
             if (FProxySource.DebugLevel >= DebugHttpHdr) then
-                LogTarEvent('Updated ' + IntToStr(DoneNr) +
-                     ' URLs, modified body new content length ' +
-                                          IntToStr(FRespContentLength));
+                LogTarEvent('Modified body new content length ' + IntToStr(FRespContentLength));
         end;
     end;
 end;
@@ -3836,12 +3772,10 @@ begin
                     if (FProxySource.DebugLevel >= DebugHttpHdr) then
                         LogTarEvent('Finished request content, length=' + IntToStr(FRequestContentLength));
 
-                { application event may process body }
-                    if Assigned((FProxySource as TIcsHttpProxy).onHttpReqBody) then begin
-                    // pending, not got body in string !!!
-                    //    (FProxySource as TIcsHttpProxy).onHttpReqBody(FProxySource, Self, BodyStr);
+                { application event may process upload post data }
+                    if Assigned((FProxySource as TIcsHttpProxy).onHttpReqBody) and FUpdateHtml then begin
+                        UpdatePostData;    { V8.50 }
                     end;
-
 
                     if (FProxySource.DebugLevel >= DebugHttpBody) then begin
                         if NOT FReqBinary then begin
@@ -4300,12 +4234,12 @@ begin
                 DecompressBody;
             end;
 
-          { do we need to modify body with new URLs ??? }
+          { do we need to modify body with new URLs, also calls HttpRespBody event }
             if (NOT FRespBinary) and FUpdateHtml then begin
                 UpdateBody;
             end ;
 
-          { see if need to get body into string for debugging or application }
+          { see if need to get body into string for logging }
             if (FProxySource.DebugLevel >= DebugHttpBody) and (NOT FRespBinary) then begin
                 SetLength(BodyStr, FHtmlRespBodyLen);
                 IcsMoveTBytesToString(FHtmlRespBody, 0, BodyStr, 1, FRespContentLength);

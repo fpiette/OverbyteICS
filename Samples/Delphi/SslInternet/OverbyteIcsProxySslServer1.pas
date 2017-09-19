@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Forward and Reverse SSL HTTP Proxy
 Creation:     May 2017
 Updated:      May 2017
-Version:      8.48
+Version:      8.50
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -42,7 +42,7 @@ History:
 23 Jun 2017 - 8.49 -Start no longer gives exception if some binding fail, but
                         opens as many source listeners as possible.
                     Added host redirection and .well-known directory support
-
+19 Sep 2017 - 8.50  Added body events
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -72,7 +72,7 @@ uses
   OverbyteIcsLogger, OverbyteIcsSslX509Utils, OverbyteIcsProxy;
 
 const
-    ProxyCopyRight : String = ' OverbyteIcsProxySslServer (c) 2017 Francois Piette V8.47 ';
+    ProxyCopyRight : String = ' OverbyteIcsProxySslServer (c) 2017 Francois Piette V8.50 ';
     MaxWinChars = 800000;
     WM_STARTUP = WM_USER + 711 ;
 
@@ -103,6 +103,10 @@ type
     procedure Timer1Timer(Sender: TObject);
     procedure RecheckCertsButtonClick(Sender: TObject);
     procedure IcsHttpProxy1HttpWellKnown(Sender: TObject;
+      ProxyClient: THttpProxyClient; var Arg: string);
+    procedure IcsHttpProxy1HttpReqBody(Sender: TObject;
+      ProxyClient: THttpProxyClient; var Arg: string);
+    procedure IcsHttpProxy1HttpRespBody(Sender: TObject;
       ProxyClient: THttpProxyClient; var Arg: string);
   private
     FIniFileName : String;
@@ -257,6 +261,23 @@ begin
 //    Display('Data being sent to target, bytes ' + IntToStr(DataLen));
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TProxySslServerForm.IcsHttpProxy1HttpReqBody(Sender: TObject;
+  ProxyClient: THttpProxyClient; var Arg: string);
+begin
+//    Display('Event: Request Body, Length ' + IntToStr(Length(Arg)));
+ //   Display('Event: Request Body: ' + Copy (Arg, 1, 200));
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TProxySslServerForm.IcsHttpProxy1HttpRespBody(Sender: TObject;
+  ProxyClient: THttpProxyClient; var Arg: string);
+begin
+//    Display('Event: Response Body, Length ' + IntToStr(Length(Arg)));
+//    Display('Event: Response Body: ' + Copy (Arg, 1, 200));
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TProxySslServerForm.IcsHttpProxy1HttpWellKnown(Sender: TObject;
   ProxyClient: THttpProxyClient; var Arg: string);
 begin

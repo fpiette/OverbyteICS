@@ -89,7 +89,7 @@ Nov 18, 2009 V7.11 Added MimeCharsetToCodePageEx(), MimeCharsetToCodePageExDef()
 May 07, 2010 v7.12 Should be POSIX-ready.
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
-Sep 17, 2017 V8.40 Added various functions to find the codepage for an HTML page
+Sep 18, 2017 V8.40 Added various functions to find the codepage for an HTML page
                      and convert a buffer to a unicode string, IcsFindHtmlCharset,
                      IcsFindHtmlCodepage, IcsContentCodepage, IcsHtmlToStr, which
                      take either a TBytes buffer or stream as input.
@@ -290,7 +290,8 @@ uses
     {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.Contnrs{$ELSE}Contnrs{$ENDIF},
     OverbyteIcsFormDataDecoder,    { V8.50 }
-    OverbyteIcsUtils;
+    OverbyteIcsUtils,
+    OverbyteIcsTypes;  { V8.50 for TBytes }
 
 const
     MAX_CODEPAGE          = High(WORD);
@@ -553,13 +554,13 @@ function IcsFindHtmlCodepage(HtmlStream: TStream; var BOMSize: Integer): Longwor
 function IcsContentCodepage(ContentType: String): Longword;   { V8.50 }
 { convert HTML page in buffer to string with correct codepage }
 function IcsHtmlToStr(HtmlData: TBytes; Count: Integer; ACodePage: Longword;
-                                            Entities: Boolean = False): String; overload;   { V8.50 }
+                                            Entities: Boolean = False): UnicodeString; overload;   { V8.50 }
 { convert HTML page in stream to string with correct codepage }
 function IcsHtmlToStr(HtmlStream: TStream; ACodePage: Longword;
-                                            Entities: Boolean = False): String; overload;    { V8.50 }
+                                            Entities: Boolean = False): UnicodeString; overload;    { V8.50 }
 { convert HTML page in stream to string with correct codepage }
 function IcsHtmlToStr(HtmlStream: TStream; const ContentHdr: String;
-                                            Entities: Boolean = False): String; overload;    { V8.50 }
+                                            Entities: Boolean = False): UnicodeString; overload;    { V8.50 }
 
 var
     IcsSystemCodePage     : LongWord;
@@ -1765,7 +1766,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { convert HTML page in buffer to string with correct codepage }
 function IcsHtmlToStr(HtmlData: TBytes; Count: Integer; ACodePage: Longword;
-                                            Entities: Boolean = False): String;   { V8.50 }
+                                            Entities: Boolean = False): UnicodeString;   { V8.50 }
 var
     BOMSize: Integer;
 begin
@@ -1785,10 +1786,11 @@ begin
         Result := IcsHtmlValuesToUnicode(PAnsiChar(@HtmlData[BOMSize]), ACodePage, False, True);
 end;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { convert HTML page in stream to string with correct codepage }
 function IcsHtmlToStr(HtmlStream: TStream; ACodePage: Longword;
-                                            Entities: Boolean = False): String;   { V8.50 }
+                                            Entities: Boolean = False): UnicodeString;   { V8.50 }
 var
     HtmlData: TBytes;
     Count: Integer;
@@ -1805,12 +1807,11 @@ begin
 end;
 
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { convert HTML page in stream to string with correct codepage }
 function IcsHtmlToStr(HtmlStream: TStream; const ContentHdr: String;
-                                            Entities: Boolean = False): String;   { V8.50 }
+                                            Entities: Boolean = False): UnicodeString;   { V8.50 }
 var
     HtmlData: TBytes;
     Count: Integer;
@@ -1818,7 +1819,7 @@ var
     BOMSize: Integer;
 begin
     Result := '';
-    if (ContentHdr <>'') and (Pos ('text/', ContentHdr) <> 1) then Exit; 
+    if (ContentHdr <>'') and (Pos ('text/', ContentHdr) <> 1) then Exit;
     Count := HtmlStream.Size ;
     if Count < 1 then Exit;
     SetLength(HtmlData, Count  + 2);
@@ -1835,7 +1836,7 @@ begin
     if ACodepage = 0 then
         ACodepage := IcsFindHtmlCodepage(HtmlData, Count, BOMSize);
 
-  // convert html to unicode string       
+  // convert html to unicode string
     Result := IcsHtmlToStr(HtmlData, Count, ACodePage, Entities);
 end;
 

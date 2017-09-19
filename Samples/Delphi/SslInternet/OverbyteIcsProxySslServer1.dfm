@@ -101,6 +101,8 @@ object ProxySslServerForm: TProxySslServerForm
     HttpStripUpgrade = True
     HttpStopCached = False
     HttpMaxBody = 1000000
+    onHttpReqBody = IcsHttpProxy1HttpReqBody
+    onHttpRespBody = IcsHttpProxy1HttpRespBody
     onHttpWellKnown = IcsHttpProxy1HttpWellKnown
     Left = 355
     Top = 5

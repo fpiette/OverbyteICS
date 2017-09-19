@@ -147,8 +147,8 @@ Jun 23, 2017 V8.49 Fixes for MacOs
                    Added several functions for copying and searching TBytes buffers
                      that receive socket data, converting them to Strings
                    Moved IcsGetFileSize and GetUAgeSizeFile here from FtpSrvT
-Sep 17, 2017 V8.40 Added IcsMoveTBytesToString that takes a codepage for proper
-                     Unicode conversion
+Sep 19, 2017 V8.40 Added IcsMoveTBytesToString and IcsMoveStringToTBytes that take
+                      a codepage for proper Unicode conversion
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -524,9 +524,16 @@ const
                       var Dest: String; OffsetTo: Integer; Count: Integer); overload; { V8.49 }
 { this function converts buffers to Unicode }
     procedure IcsMoveTBytesToString(const Buffer: TBytes; OffsetFrom: Integer;
-        var Dest: String; OffsetTo: Integer; Count: Integer; ACodePage: LongWord); overload; { V8.50 }
+        var Dest: UnicodeString; OffsetTo: Integer; Count: Integer; ACodePage: LongWord); overload; { V8.50 }
+{ this function converts buffers to Unicode }
+    procedure IcsMoveTBytesToString(const Buffer: TBytes; OffsetFrom: Integer;
+        var Dest: AnsiString; OffsetTo: Integer; Count: Integer; ACodePage: LongWord); overload; { V8.50 }
 { Beware - this function treats buffers as ANSI, no Unicode conversion }
-    procedure IcsMoveStringToTBytes(const Source: String; var Buffer: TBytes; Count: Integer);  { V8.49 }
+ //   procedure IcsMoveStringToTBytes(const Source: String; var Buffer: TBytes; Count: Integer);  { V8.49 }
+    function IcsMoveStringToTBytes(const Source: String; var Buffer: TBytes;
+                                                        Count: Integer): Integer; overload;  { V8.50 }
+    function IcsMoveStringToTBytes(const Source: UnicodeString; var Buffer: TBytes;
+                 Count: Integer; ACodePage: LongWord; Bom: Boolean = false): Integer; overload;  { V8.50 }
     procedure IcsMoveTBytes(var Buffer: TBytes; OffsetFrom: Integer; OffsetTo: Integer;
                                 Count: Integer); {$IFDEF USE_INLINE} inline; {$ENDIF}   { V8.49 }
     procedure IcsMoveTBytesEx(const BufferFrom: TBytes; var BufferTo: TBytes;
@@ -5692,10 +5699,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { we receive socket as single byte raw data into TBytes buffer without a
   character set, then convertit onto Delphi Strings for ease of processing }
-{ this function handles Unicode conversion }
+{ this function handles Unicode conversion, returns widestring }
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure IcsMoveTBytesToString(const Buffer: TBytes; OffsetFrom: Integer;
-        var Dest: String; OffsetTo: Integer; Count: Integer; ACodePage: LongWord);  { V8.50 }
+        var Dest: UnicodeString; OffsetTo: Integer; Count: Integer; ACodePage: LongWord);  { V8.50 }
 var
     WS: UnicodeString;
     FailedByteCount: Integer;
@@ -5705,16 +5712,33 @@ begin
      else
         WS := AnsiToUnicode(PAnsiChar(@Buffer[OffsetFrom]), ACodePage);  // no 16-bit unicode
     if (OffsetTo > 1) and (Length(Dest) > 0) then
-        Dest := Copy (Dest, 1, OffsetTo) + String(WS)
+        Dest := Copy (Dest, 1, OffsetTo) + WS
     else
-        Dest := String(WS);   { for non-Unicode compiler, ? may appear }
+        Dest := WS;
 end;
 
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Beware - this function treats buffers as ANSI, no Unicode conversion }
-procedure IcsMoveStringToTBytes(const Source: String; var Buffer: TBytes; Count: Integer);  { V8.49 }
+{ we receive socket as single byte raw data into TBytes buffer without a
+  character set, then convertit onto Delphi Strings for ease of processing }
+{ this function handles Unicode conversion, returns AnsiString }
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure IcsMoveTBytesToString(const Buffer: TBytes; OffsetFrom: Integer;
+        var Dest: AnsiString; OffsetTo: Integer; Count: Integer; ACodePage: LongWord);  { V8.50 }
+var
+    WS: UnicodeString;
+begin
+    IcsMoveTBytesToString(Buffer, OffsetFrom, WS, OffsetTo, Count, ACodePage);
+    Dest := String(WS);   { ? may appear for non-ANSI characters }
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Converts a String to a TBytes buffer as ANSI, no Unicode conversion }
+function IcsMoveStringToTBytes(const Source: String; var Buffer: TBytes;
+                                                Count: Integer): integer;  { V8.50 }
 {$IFDEF UNICODE}
 var
     PDest : PByte;
@@ -5738,6 +5762,57 @@ begin
         SetLength(Buffer, Count);
     Move(Source[1], Buffer[0], Count);
 {$ENDIF}
+    Result := Count;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Converts an UnicodeString to a TBytes buffer with correct codepage }
+function IcsMoveStringToTBytes(const Source: UnicodeString; var Buffer: TBytes;
+                            Count: Integer; ACodePage: LongWord; Bom: Boolean = false): Integer;  { V8.50 }
+var
+    Len2, Offset: Integer;
+    Newbom: TBytes;
+begin
+    Result := 0;
+    if Length(Source) < Count then Count := Length(Source);
+    if Count > 0 then begin
+
+      // two byte code page, cheat and copy unicode string with CP_UTF16 BOM
+        if (ACodePage = CP_UTF16) or (ACodePage = CP_UTF16Be) then begin
+            Newbom := IcsGetBomBytes(CP_UTF16);
+            Offset := Length(Newbom);
+            Result := (Count * 2) + Offset;
+            if Length(Buffer) < Result then
+                SetLength(Buffer, Result);
+            Move(newbom[0], Buffer[0], Offset);
+            Move(Source[1], Buffer[2], Count);
+        end
+
+     // handle all other codepages
+        else begin
+            Result := IcsWcToMb(ACodePage, 0, Pointer(Source), Count, nil, 0, nil, nil);
+            Offset := 0;
+            if Bom then begin
+                Newbom := IcsGetBomBytes(ACodePage);
+                Offset := Length(Newbom);
+                Result := Result + Offset;
+            end;
+            if Length(Buffer) < Result then
+                SetLength(Buffer, Result);
+            if Result > 0 then begin
+                if Bom then begin
+                    Move(newbom[0], Buffer[0], Offset);
+                end;
+                Len2 := IcsWcToMb(ACodePage, 0, Pointer(Source), Count,
+                                    PAnsiChar(@Buffer[Offset]), Result, nil, nil);
+                if Len2 <> Result then begin // May happen, very rarely
+                    Result := Len2 + Offset;
+                    SetLength(Buffer, Result);
+                end;
+            end;
+        end
+    end;
 end;
 
 

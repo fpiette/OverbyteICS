@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  SSL web application server sample, no real GUI
 Creation:     July 2017
 Updated:      July 2017
-Version:      8.49
+Version:      8.50
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -62,7 +62,7 @@ DNS server to do it.
 
 History:
 6 July 2017  - V8.49 baseline
-
+20 Sep 2017 - V8.50 - close connection after sending redirection
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -110,7 +110,7 @@ uses
   OverbyteIcsWebAppServerUploads;
 
 const
-    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2017 Francois Piette V8.49 ';
+    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2017 Francois Piette V8.50 ';
     MaxWinChars = 800000;
     WM_STARTUP = WM_USER + 712 ;
     SimpLogName = '"webapp-"yyyymmdd".log"' ;
@@ -1111,16 +1111,18 @@ begin
             RespStatus := IntToStr(ClientCnx.WebRedirectStat) + ' Unknown';
          end;
         Flags := hgWillSendMySelf ;
+        ClientCnx.KeepAlive := False ;   // V8.50 must close connection for redirect
         ClientCnx.AnswerString (Flags, RespStatus, '', 'Location: ' + ClientCnx.WebRedirectURL,
-        '<HTML>' +
-          '<HEAD>' +
-            '<TITLE>Redirection</TITLE>' +
-          '</HEAD>' + #13#10 +
-          '<BODY>' +
-            'You should be redirected automatically !<BR>' + #13#10 +
-            '<A HREF="' + ClientCnx.WebRedirectURL + '">Click Here</A><BR>' + #13#10 +
-          '</BODY>' +
-        '</HTML>');
+            '<HTML>' +
+              '<HEAD>' +
+                '<TITLE>Redirection</TITLE>' +
+              '</HEAD>' + #13#10 +
+              '<BODY>' +
+                'You should be redirected automatically !<BR>' + #13#10 +
+                '<A HREF="' + ClientCnx.WebRedirectURL + '">Click Here</A><BR>' + #13#10 +
+              '</BODY>' +
+            '</HTML>');
+        Exit;
     end;
 
  { webapp host is the one we handle here, mostly }

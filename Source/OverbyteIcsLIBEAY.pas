@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.49
+Version:      8.50
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -136,6 +136,7 @@ Jan 27, 2017  V8.40 Added 200 more certificate, EC key, digest, encryption and s
                    (but still over 3,000 missing, fortunately not needed often)
 Feb 24, 2017  V8.41 Added more NIDs, few more imported functions
 Jun 21, 2017, V8.49 Added more EVP_PKEY functions
+Sep 22, 2017  V8.50 Added more NIDs and EVPs for new private key types, one more import
 
 
 Old Cryptography
@@ -234,8 +235,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 849;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2017 F. Piette V8.49 ';
+    IcsLIBEAYVersion   = 850;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2017 F. Piette V8.50 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -967,10 +968,15 @@ const
     NID_ecdsa_with_SHA512           = 796; // ecdsa-with-SHA512
     NID_hmac                        = 855;  // V8.49
     NID_cmac                        = 894;  // V8.49
+    NID_rsassaPss                   = 912;  // V8.50  RSASSA-PSS
+    NID_id_scrypt                   = 973;  // V8.50
     NID_tls1_prf                    = 1021; // V8.49
     NID_X25519                      = 1034; // V8.40 253 bits
     NID_X448                        = 1035; // V8.49
     NID_hkdf                        = 1036; // V8.49
+    NID_poly1305                    = 1061; // V8.50
+    NID_siphash                     = 1062; // V8.50
+    NID_ED25519                     = 1087; // V8.50
 
     { Asn1.h - For use with ASN1_mbstring_copy() } //AG
     MBSTRING_FLAG  = $1000;               //AG
@@ -991,12 +997,17 @@ const
     EVP_PKEY_EC    = NID_X9_62_id_ecPublicKey;  { following V8.40 }
     EVP_PKEY_DH    = NID_dhKeyAgreement;
     EVP_PKEY_NONE  = NID_undef;
-    EVP_PKEY_RSA2  = NID_rsa;    // 8.49
-    EVP_PKEY_HMAC  = NID_hmac;   // 8.49
-    EVP_PKEY_CMAC  = NID_cmac;   // 8.49
-    EVP_PKEY_TLS1_PRF = NID_tls1_prf;   // 8.49
-    EVP_PKEY_HKDF  = NID_hkdf;   // 8.49
-    EVP_PKEY_X25519  = NID_X25519;   // 8.49
+    EVP_PKEY_RSA2     = NID_rsa;       // 8.49
+    EVP_PKEY_HMAC     = NID_hmac;      // 8.49
+    EVP_PKEY_CMAC     = NID_cmac;      // 8.49
+    EVP_PKEY_TLS1_PRF = NID_tls1_prf;  // 8.49
+    EVP_PKEY_HKDF     = NID_hkdf;      // 8.49
+    EVP_PKEY_X25519   = NID_X25519;    // 8.49
+    EVP_PKEY_SCRYPT   = NID_id_scrypt; // 8.50
+    EVP_PKEY_POLY1305 = NID_poly1305;  // 8.50
+    EVP_PKEY_SIPHASH  = NID_siphash;   // 8.50
+    EVP_PKEY_ED25519  = NID_ED25519;   // 8.50
+    EVP_PKEY_RSA_PSS  = NID_rsassaPss; // 8.50
 
     EVP_MAX_MD_SIZE                   = 64; //* longest known is SHA512 */
 
@@ -1727,6 +1738,7 @@ const
     f_ASN1_STRING_new :                        function: PASN1_STRING; cdecl = nil;                              { V8.40 }
     f_ASN1_STRING_print :                      function(B: PBIO; v: PASN1_STRING): integer; cdecl = nil;//AG;
     f_ASN1_STRING_type :                       function(str: PASN1_STRING): Integer; cdecl = nil;                         { V8.40 }
+    f_ASN1_STRING_set :                        function(str: PASN1_STRING; data: PAnsiChar; len: Integer): Integer; cdecl = nil;  { V8.50 }
     f_ASN1_STRING_set0 :                       procedure(str: PASN1_STRING; data: PAnsiChar; len: Integer); cdecl = nil;  { V8.40 }
     f_ASN1_STRING_to_UTF8 :                    function(POut: PPAnsiChar; PIn: PASN1_STRING) : Integer; cdecl = nil;//AG
     f_ASN1_item_d2i :                          function(Val: PPASN1_VALUE; _In: PPAnsiChar; Len: Longword; const It: PASN1_ITEM): PASN1_VALUE; cdecl = nil;//AG;
@@ -2415,7 +2427,7 @@ procedure IcsRandPoll;
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GLIBEAYImports1: array[0..564] of TOSSLImports = (
+    GLIBEAYImports1: array[0..565] of TOSSLImports = (
 
     (F: @@f_ASN1_INTEGER_get ;        N: 'ASN1_INTEGER_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_INTEGER_get_int64 ;  N: 'ASN1_INTEGER_get_int64';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
@@ -2430,6 +2442,7 @@ const
     (F: @@f_ASN1_STRING_new ;         N: 'ASN1_STRING_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),            { V8.40 }
     (F: @@f_ASN1_STRING_print;        N: 'ASN1_STRING_print';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_STRING_type ;        N: 'ASN1_STRING_type';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),           { V8.40 }
+    (F: @@f_ASN1_STRING_set ;         N: 'ASN1_STRING_set';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),           { V8.50 }
     (F: @@f_ASN1_STRING_set0 ;        N: 'ASN1_STRING_set0';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),           { V8.40 }
     (F: @@f_ASN1_STRING_to_UTF8;      N: 'ASN1_STRING_to_UTF8';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_item_d2i;            N: 'ASN1_item_d2i';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),

@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.49
+Version:      8.50
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -88,6 +88,10 @@ Feb 24, 2017 V8.41 Finished changes for TSslCertTools
 Apr 20, 2017 V8.46 Force random serial for each new certificate to avoid duplicates
 Jun 20, 2017 V8.49 Fixed some missing spaces after : in certificate info listing
                    Clear more certificate fields, specifically DNS names
+Sep 22, 2017 V8.50 Corrected X25519 private keys to ED25519, requires OpenSSL 1.1.1
+                   Alternate DNS names are now correctly added to requests and certs
+                   Specify and save CA Bundle separately to certificate to avoid
+                      confusion and needing to repeatedly reload pkey to sign certs 
 
 
 Pending
@@ -125,10 +129,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 849;
-     PemToolDate        = 'Jun 16, 2017';
+     PemToolVersion     = 850;
+     PemToolDate        = 'Sep 22, 2017';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2017 by François PIETTE V8.49 ';
+     CopyRight : String = '(c) 2003-2017 by François PIETTE V8.50 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -193,6 +197,7 @@ type
     SavePrvFileFile: TEdit;
     SavePubKeyFile: TEdit;
     SaveReqCertFile: TEdit;
+    LoadCaBundleFile: TEdit;  // V8.50
 
 // following not saved
     pmLv: TPopupMenu;
@@ -332,6 +337,9 @@ type
     Label32: TLabel;
     doCheckBundleWin: TButton;
     doCheckBundleSelf: TButton;
+    Label33: TLabel;
+    SelCAFile: TBitBtn;
+    doLoadCABundle: TButton;
 
     procedure btnImportClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -396,6 +404,8 @@ type
     procedure doCreateBundleClick(Sender: TObject);
     procedure doCheckBundleWinClick(Sender: TObject);
     procedure doCheckBundleSelfClick(Sender: TObject);
+    procedure SelCAFileClick(Sender: TObject);
+    procedure doLoadCABundleClick(Sender: TObject);
   protected
     procedure WMAppStartup(var Msg: TMessage); message WM_APPSTARTUP;
   private
@@ -404,6 +414,7 @@ type
     FCurrentCertDir  : String;
     FLVSortFlag      : Boolean;
     FSslCertTools    : TSslCertTools;
+    FSslCAX09        : TX509Base;    // V8.50
     procedure AddListView(X: TX509Base; const Filename: String);
     procedure FillListView;
     procedure ShowBundleCerts(const FileName: String);
@@ -502,6 +513,7 @@ begin
                             'All Files *.*|*.*';
     FSslCertTools := TSslCertTools.Create(self);
     FSslCertTools.OnKeyProgress := ToolsOKeyProgress;
+    FSslCAX09 := TX509Base.Create(self);    // V8.50
 end;
 
 
@@ -587,7 +599,8 @@ begin
           SavePrvFileFile.Text := ReadString (SectionData, 'SavePrvFileFile_Text', SavePrvFileFile.Text) ;
           SavePubKeyFile.Text := ReadString (SectionData, 'SavePubKeyFile_Text', SavePubKeyFile.Text) ;
           SaveReqCertFile.Text := ReadString (SectionData, 'SaveReqCertFile_Text', SaveReqCertFile.Text) ;
-           end;
+          LoadCaBundleFile.Text := ReadString (SectionData, 'LoadCaBundleFile_Text', LoadCaBundleFile.Text) ;
+       end;
         IniFile.Free;
         PostMessage(Handle, WM_APPSTARTUP, 0, 0);
     end;
@@ -675,6 +688,7 @@ begin
           WriteString (SectionData, 'SavePrvFileFile_Text', SavePrvFileFile.Text) ;
           WriteString (SectionData, 'SavePubKeyFile_Text', SavePubKeyFile.Text) ;
           WriteString (SectionData, 'SaveReqCertFile_Text', SaveReqCertFile.Text) ;
+          WriteString (SectionData, 'LoadCaBundleFile_Text', LoadCaBundleFile.Text) ;
     end;
     IniFile.UpdateFile;
     IniFile.Free;
@@ -1183,6 +1197,20 @@ begin
     end;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.SelCAFileClick(Sender: TObject);
+begin
+    OpenDlg.InitialDir := LoadDirectory.Text;
+    OpenDlg.FileName := PathAddBackSlash(LoadDirectory.Text) + LoadCaBundleFile.Text;
+    if OpenDlg.FileName = '' then Exit;
+    if OpenDlg.Execute then begin
+        LoadCaBundleFile.Text := ExtractFileName(OpenDlg.FileName);
+        LoadDirectory.Text := ExtractFilePath(OpenDlg.FileName);
+    end;
+end;
+
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.SelCertFileClick(Sender: TObject);
 begin
@@ -1318,6 +1346,7 @@ end;
 procedure TfrmPemTool1.doClearCertsClick(Sender: TObject);
 begin
     FSslCertTools.ClearAll;
+    FSslCAX09.ClearAll;
     DispCert;
     DispPKey;
     DispReq;
@@ -1440,27 +1469,13 @@ begin
     doCreateCACert.Enabled := false;
     try
         try
-            if NOT FSslCertTools.IsCALoaded then begin
-                if NOT FSslCertTools.IsCertLoaded then begin
-                    DispError('Must load CA ertificate first');
-                    exit;
-                end;
-                if (Pos ('CA=TRUE', FSslCertTools.BasicConstraints) = 0) then begin
-                    DispError('Certificate does not allow CA signing');
-                    exit;
-                end;
-                if NOT FSslCertTools.CheckCertAndPKey then begin
-                    DispError('Need matching certificate amd private key');
-                    exit;
-                end;
-                FSslCertTools.X509CA := FSslCertTools.X509;
-                FSslCertTools.PrivKeyCA := FSslCertTools.PrivateKey;
-                DispCACert;
+            if NOT FSslCAX09.IsCertLoaded then begin    { V8.50 }
+                DispError('Must specify CA ertificate first');
+                exit;
             end;
-            FSslCertTools.X509 := Nil;
-            FSslCertTools.PrivateKey := Nil;
-            DispCert;
-            DispPKey;
+            FSslCertTools.X509CA := FSslCAX09.X509;     { V8.50 }
+            FSslCertTools.PrivKeyCA := FSslCAX09.PrivateKey;   { V8.50 }
+            DispCACert;
             FSslCertTools.DoSignCertReq(NewCertCopyExt.Checked);
             DispError('Created certificate from request signed by CA certificate OK');
             DispCert;
@@ -1691,13 +1706,41 @@ end;
 procedure TfrmPemTool1.DispCACert;
 begin
     LabelStateCACert.Caption := 'CA Certificate: ';
-    if NOT FSslCertTools.IsCALoaded then
+    if NOT FSslCAX09.IsCertLoaded then                   { V8.50 }
          LabelStateCACert.Caption := 'None'
     else
       { assume cert still loaded before being copied to CA }
         LabelStateCACert.Caption := LabelStateCACert.Caption +
-                                            FSslCertTools.CertInfo(True);
+                                                FSslCAX09.CertInfo(True);     { V8.50 } 
 end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TfrmPemTool1.doLoadCABundleClick(Sender: TObject);     { V8.50 }
+var
+    fname: string;
+begin
+    fname := BuildLoadName(LoadCaBundleFile.Text);
+    if fname = '' then Exit;
+    try
+        FSslCAX09.LoadFromFile(fname, croTry, croNo, LoadCertPW.Text);
+        if (Pos ('CA=TRUE', FSslCAX09.BasicConstraints) = 0) then begin
+            DispError('Certificate does not allow CA signing');
+            FSslCAX09.ClearAll;
+            exit;
+        end;
+        if NOT FSslCAX09.CheckCertAndPKey then begin
+            DispError('Need matching CA certificate amd private key');
+            FSslCAX09.ClearAll;
+            exit;
+        end;
+        DispError('Loaded CA cerfificate OK - ' + fname);
+        DispCACert;
+    except
+        on E:Exception do
+            DispError(E.Message);
+    end;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.doLoadCertClick(Sender: TObject);

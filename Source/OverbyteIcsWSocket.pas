@@ -1209,8 +1209,8 @@ May 15, 2017  V8.47 Fixed ValidateCertChain ignoring some warnings
 May 22, 2017  V8.48 Added added wsDnsLookup SocketState during wsoAsyncDnsLookup
                     Cancel async DNS if close called before connect
 June 26, 2017 V8.49 SSL changes in other units, MacOS fixes in other units
-Aug 16, 2017  V8.50 LoadFromP12File correctly supports croYes as well as croTry
-
+Sep 21, 2017  V8.50 LoadFromP12File correctly supports croYes as well as croTry
+                    PrivKeyECX25519 is now correctly PrivKeyEd25519
 
 
 Use of certificates for SSL clients:
@@ -2769,7 +2769,7 @@ type
         PrivKeyECsecp256, { level 3 - 128 bits }
         PrivKeyECsecp384, { level 4 - 192 bits }
         PrivKeyECsecp512, { level 5 - 256 bits }
-        PrivKeyECX25519); { level 3 - 128 bits }
+        PrivKeyEd25519);  { level 3 - 128 bits }    { V8.50 was PrivKeyECX25519 }
 
 {P V8.40 ICS private key file encryption and mapping to OpenSSL params }
    TSslPrivKeyCipher = (

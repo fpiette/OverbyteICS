@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.49
+Version:      8.50
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -112,7 +112,8 @@ Jan 27, 2017  V8.40 Added more functions to get and check context certs
               Added Protocol Message callback functions for handshake debugging
               Added Security Level functions (1.1.0 and later)
 Feb 24, 2017  V8.41 Added more constants
-June 13, 2017 V8.49 Fixes to build on MacOs 
+June 13, 2017 V8.49 Fixes to build on MacOs
+Sep 22, 2017  V8.50 Added more types 
 
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -181,8 +182,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 849;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2017 F. Piette V8.49 ';
+    IcsSSLEAYVersion   = 850;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2017 F. Piette V8.50 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -395,6 +396,21 @@ type
         Dummy : array [0..0] of Byte;
     end;
     PX509_NAME = ^TX509_NAME_st;
+
+  { V8.50 internal representation of stack for debugging
+    STACK = record
+        num : LongInt;
+        data : PPAnsiChar;
+        sorted : LongInt;
+        num_alloc : LongInt;
+        comp : function (_para1: PPAnsiChar; _para2: PPAnsiChar):  LongInt; cdecl;
+    end;
+
+    STACK_OF = record
+        _stack: STACK;
+    end;
+    PSTACK_OF = ^STACK_OF;
+    PSTACK    = PSTACK_OF;   }
 
     TSTACK_st = packed record               //AG
         Dummy : array [0..0] of Byte;
@@ -630,6 +646,23 @@ type
     end;
     PASN1_PCTX = ^Tasn1_pctx_st;       { V8.40 }
 
+    POTHERNAME = ^TOTHERNAME;           { V8.50 }
+    PPOTHERNAME = ^POTHERNAME;
+    TOTHERNAME = record
+        type_id: PASN1_OBJECT;
+        value: PASN1_TYPE;
+    end;
+
+    PEDIPARTYNAME = ^TEDIPARTYNAME;     { V8.50 }
+    PPEDIPARTYNAME = ^PEDIPARTYNAME;
+    TEDIPARTYNAME = record
+        nameAssigner: PASN1_STRING;
+        partyName: PASN1_STRING;
+    end;
+
+    TASN1_IA5STRING = TASN1_STRING_st;     { V8.50 }
+    PASN1_IA5STRING = ^TASN1_IA5STRING;
+
 const
     GEN_OTHERNAME  = 0;          { V8.40 type of GENERAL_NAME }
     GEN_EMAIL      = 1;
@@ -642,6 +675,34 @@ const
     GEN_RID        = 8;
 
 type
+{ V8.50 help with debugging
+    GENERAL_NAME_union = record
+    case byte of
+        0: (ptr: PAnsiChar);
+        1: (otherName: POTHERNAME);
+        2: (rfc822Name: PASN1_IA5STRING);
+        3: (dNSName: PASN1_IA5STRING);
+        4: (x400Address: PASN1_TYPE);
+        5: (directoryName: PX509_NAME);
+        6: (ediPartyName: PEDIPARTYNAME);
+        7: (uniformResourceIdentifier: PASN1_IA5STRING);
+        8: (iPAddress: PASN1_OCTET_STRING);
+        9: (registeredID: PASN1_OBJECT);
+        // Old names
+        10: (ip: PASN1_OCTET_STRING);
+        11: (dirn: PX509_NAME);
+        12: (ia5: PASN1_IA5STRING);
+        13: (rid: PASN1_OBJECT);
+        14: (other: PASN1_TYPE);
+    end;
+
+    PGENERAL_NAME = ^GENERAL_NAME;
+    PPGENERAL_NAME = ^PGENERAL_NAME;
+    GENERAL_NAME = record
+        gtype: LongInt;
+        d:     GENERAL_NAME_union;
+    end;   }
+
     TGENERAL_NAME_st  = packed record     { V8.40 }
         Dummy : array [0..0] of Byte;
     end;

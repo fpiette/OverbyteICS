@@ -29,16 +29,12 @@ object frmPemTool1: TfrmPemTool1
     Top = 0
     Width = 880
     Height = 759
-    ActivePage = TabNew
+    ActivePage = TabViewCerts
     Align = alClient
     TabOrder = 0
     OnChange = PageControl1Change
     object TabCertLv: TTabSheet
       Caption = 'List Certificates'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object LvCerts: TListView
         Left = 0
         Top = 0
@@ -188,10 +184,6 @@ object frmPemTool1: TfrmPemTool1
     object TabImport: TTabSheet
       Caption = 'Import Certificates'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         872
         730)
@@ -413,10 +405,6 @@ object frmPemTool1: TfrmPemTool1
     object TabViewCerts: TTabSheet
       Caption = 'Create Certificates'
       ImageIndex = 2
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object BoxLoadCert: TGroupBox
         Left = 3
         Top = 3
@@ -455,8 +443,8 @@ object frmPemTool1: TfrmPemTool1
           Caption = 'Request File'
         end
         object Label13: TLabel
-          Left = 328
-          Top = 115
+          Left = 352
+          Top = 110
           Width = 85
           Height = 28
           Caption = 'Base64 Encoded DER (PEM)'
@@ -475,6 +463,13 @@ object frmPemTool1: TfrmPemTool1
           Width = 57
           Height = 14
           Caption = 'Prv Key File'
+        end
+        object Label33: TLabel
+          Left = 5
+          Top = 145
+          Width = 69
+          Height = 14
+          Caption = 'CA Bundle File'
         end
         object LoadDirectory: TEdit
           Left = 55
@@ -523,8 +518,8 @@ object frmPemTool1: TfrmPemTool1
           OnClick = doLoadCertClick
         end
         object LoadCertFile: TEdit
-          Left = 68
-          Top = 50
+          Left = 57
+          Top = 48
           Width = 163
           Height = 22
           TabOrder = 2
@@ -631,7 +626,7 @@ object frmPemTool1: TfrmPemTool1
           OnClick = doLoadReqClick
         end
         object doLoadBase64: TButton
-          Left = 324
+          Left = 332
           Top = 155
           Width = 109
           Height = 21
@@ -686,20 +681,60 @@ object frmPemTool1: TfrmPemTool1
           NumGlyphs = 2
         end
         object LoadCertPrivKey: TCheckBox
-          Left = 5
-          Top = 110
-          Width = 185
-          Height = 17
+          Left = 9
+          Top = 111
+          Width = 148
+          Height = 25
           Caption = 'Load Private Key from Cert File'
           TabOrder = 15
+          WordWrap = True
         end
         object LoadCertInters: TCheckBox
-          Left = 5
-          Top = 135
+          Left = 178
+          Top = 107
           Width = 168
           Height = 17
           Caption = 'Load Inters from Cert File'
           TabOrder = 16
+        end
+        object LoadCaBundleFile: TEdit
+          Left = 97
+          Top = 142
+          Width = 163
+          Height = 22
+          TabOrder = 19
+          Text = 'mycabundle.pem'
+        end
+        object SelCAFile: TBitBtn
+          Left = 280
+          Top = 139
+          Width = 31
+          Height = 25
+          TabOrder = 20
+          OnClick = SelCAFileClick
+          Glyph.Data = {
+            76010000424D7601000000000000760000002800000020000000100000000100
+            04000000000000010000120B0000120B00001000000000000000000000000000
+            800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+            FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+            333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+            300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+            333337F373F773333333303330033333333337F3377333333333303333333333
+            333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+            333337777F337F33333330330BB00333333337F373F773333333303330033333
+            333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+            333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+            333373F773333333333330033333333333333773333333333333}
+          NumGlyphs = 2
+        end
+        object doLoadCABundle: TButton
+          Left = 5
+          Top = 170
+          Width = 99
+          Height = 21
+          Caption = 'Load CA Bundle'
+          TabOrder = 21
+          OnClick = doLoadCABundleClick
         end
       end
       object BoxCertProc: TGroupBox
@@ -1155,10 +1190,6 @@ object frmPemTool1: TfrmPemTool1
     object TabNew: TTabSheet
       Caption = 'New Certificate Properties'
       ImageIndex = 3
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GroupBoxCertCreate: TGroupBox
         Left = 3
         Top = 337
@@ -1465,7 +1496,7 @@ object frmPemTool1: TfrmPemTool1
           Left = 518
           Top = 60
           Width = 290
-          Height = 56
+          Height = 54
           Lines.Strings = (
             'www.domain.com'
             'mail.domain.com'
@@ -1515,7 +1546,7 @@ object frmPemTool1: TfrmPemTool1
             'Elliptic Curve secp256  (level 3 - 128 bits) '
             'Elliptic Curve secp384  (level 4 - 192 bits) '
             'Elliptic Curve secp512  (level 5 - 256 bits) '
-            'Elliptic Curve X25519 (level 3 - 128 bits)  ')
+            'EdDSA Ed25519 (level 3 - 128 bits)  ')
           TabOrder = 0
         end
         object KeyEncrypt: TRadioGroup
@@ -1678,7 +1709,7 @@ object frmPemTool1: TfrmPemTool1
     Left = 260
     Top = 751
     Bitmap = {
-      494C010103002800B40010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010103002800B80010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

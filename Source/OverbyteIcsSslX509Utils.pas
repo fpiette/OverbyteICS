@@ -4,7 +4,7 @@ Authors:      Arno Garrels <arno.garrels@gmx.de>
               Angus Robertson <delphi@magsys.co.uk>
 Creation:     Aug 26, 2007
 Description:
-Version:      8.49
+Version:      8.50
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -90,11 +90,12 @@ Jun 21, 2017 V8.49 Added ISRG Root X1 certificate for Let's Encrypt
              Fixed AV creating second EC key (OpenSSL function fails)
              Now creating X25519 Elliptic Curve private keys
              Total rewrite creating private keys using EVP_PKEY_CTX functions
+Sep 22, 2017 V8.50 Alternate DNS names now added correctly to requests and certs
+             Corrected X25519 private keys to ED25519, requires OpenSSL 1.1.1
 
 
 
 Pending - short term
-Alternate DNS names not being created properly
 Saving a CA databases of certificates created
 Sign buffers and files with private keys and digests
 
@@ -381,6 +382,9 @@ type
         FPrivKeyCipher     : TSslPrivKeyCipher;
         FCertDigest        : TEvpDigest;
         FOnKeyProgress     : TNotifyEvent;
+        FAltAnsiStr        : array of AnsiString;
+        FAltIa5Str         : array of PASN1_STRING;
+        FAltGenStr         : array of PGENERAL_NAME;
     protected
         function    BuildBasicCons(IsCA: Boolean): AnsiString;
         function    BuildKeyUsage: AnsiString;
@@ -388,6 +392,7 @@ type
         procedure   SetCertExt(Cert: PX509; Nid: integer; const List: AnsiString);
         procedure   BuildCertAltSubj(Cert: PX509; AltType: Integer; Names: TStrings);
         function    BuildAltStack(AltType: Integer; Names: TStrings): PStack;
+        procedure   ClearAltStack;
         procedure   FreeAndNilX509CA;
         procedure   FreeAndNilPrivKeyCA;
         procedure   FreeAndNilX509Req;
@@ -413,7 +418,7 @@ type
         procedure   DoSelfSignCert;
         procedure   DoSignCertReq(CopyExtns: Boolean);
         procedure   DoKeyPair;
-        procedure   DoKeyPairOld;
+//        procedure   DoKeyPairOld;
         function    DoDHParams(const FileName: String; Bits: integer): String;
         procedure   DoClearCerts;
         procedure   CreateCertBundle(const CertFile, PKeyFile, InterFile, LoadPw,
@@ -1982,31 +1987,48 @@ end;
 { build stack of extension multiple values from list, all same type }
 function TSslCertTools.BuildAltStack(AltType: Integer; Names: TStrings): PStack;
 var
-    ia5    : PASN1_STRING;
-    gen    : PGENERAL_NAME;
-    Item   : AnsiString;
-    I      : Integer;
+    I, Tot: Integer;
 begin
     result := f_OPENSSL_sk_new_null;
-    ia5 := Nil;
-    gen := Nil;
-    try
-        for I := 0 to Names.Count - 1 do begin
-            gen := f_GENERAL_NAME_new;
-            if NOT Assigned(gen) then Exit;
-            ia5 := f_ASN1_STRING_new;
-            if NOT Assigned(ia5) then Exit;
-            item := AnsiString(trim(Names[I]));
-            f_ASN1_STRING_set0(ia5, PAnsiChar(item), Length(item));
-            f_GENERAL_NAME_set0_value(gen, AltType, ia5);
-            ia5 := Nil;
-            f_OPENSSL_sk_push(result, Pointer(gen));
-            gen := Nil;
+    Tot := Names.Count;
+    if Tot = 0 then Exit;
+    SetLength (FAltAnsiStr, Tot);    { V8.50 separate memory to allow stack to be built }
+    SetLength (FAltIa5Str, Tot);
+    SetLength (FAltGenStr, Tot);
+    for I := 0 to Tot - 1 do begin
+        FAltGenStr[I] := f_GENERAL_NAME_new;
+        if NOT Assigned(FAltGenStr[I]) then Exit;
+        FAltIa5Str[I] := f_ASN1_STRING_new;
+        if NOT Assigned(FAltIa5Str[I]) then Exit;
+        FAltAnsiStr[I] := AnsiString(trim(Names[I]));
+        if FAltAnsiStr[I] <> '' then begin    { V8.50 skip blanks }
+            f_ASN1_STRING_set(FAltIa5Str[I], PAnsiChar(FAltAnsiStr[I]), Length(FAltAnsiStr[I]));  { V8.50 was set0 } 
+            f_GENERAL_NAME_set0_value(FAltGenStr[I], AltType, FAltIa5Str[I]);
+            f_OPENSSL_sk_push(result, Pointer(FAltGenStr[I]));
         end;
-      finally
-        if Assigned(gen) then f_GENERAL_NAME_free(gen);
-        if Assigned(ia5) then f_ASN1_STRING_free(ia5);
     end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ clear alt extension stack }
+procedure TSslCertTools.ClearAltStack;
+var
+    I: Integer;
+begin
+    if Length (FAltGenStr) > 0 then begin
+        for I := 0 to Length (FAltGenStr) - 1 do begin
+            if Assigned(FAltGenStr[I]) then f_GENERAL_NAME_free(FAltGenStr[I]);
+        end;
+    end;
+    if Length (FAltIa5Str) > 0 then begin
+        for I := 0 to Length (FAltIa5Str) - 1 do begin
+            if Assigned(FAltIa5Str[I]) then f_ASN1_STRING_free(FAltIa5Str[I]);
+        end;
+    end;
+    SetLength (FAltAnsiStr, 0);
+    SetLength (FAltGenStr, 0);
+    SetLength (FAltIa5Str, 0);
 end;
 
 
@@ -2021,8 +2043,9 @@ begin
     try
         if f_X509_add1_ext_i2d(Cert, NID_subject_alt_name, MultiValuesStack, 0, 0) = 0 then
             RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set subject_alt_name');
-      finally
+    finally
         f_OPENSSL_sk_free(MultiValuesStack);
+        ClearAltStack;
     end;
 end;
 
@@ -2068,6 +2091,7 @@ procedure TSslCertTools.DoCertReqProps;
                 RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to create extension Altname stack');
         finally
             f_OPENSSL_sk_free(MultiValuesStack);
+            ClearAltStack;
         end;
     end;
 
@@ -2455,10 +2479,14 @@ begin
             Bits := 2048;
         end;
     end
-    else if (FPrivKeyType = PrivKeyECX25519) then begin
-        KeyNid := EVP_PKEY_X25519;
-        KeyInfo := 'X25519';
+    else if (FPrivKeyType = PrivKeyEd25519) then begin   { V8.50 needs OpenSSL 1.1.1 }
+        KeyNid := EVP_PKEY_ED25519;
+        KeyInfo := 'ED25519';
     end
+  (*  else if (FPrivKeyType = PrivKeyRsaPss) then begin    { V8.50 needs OpenSSL 1.1.1 }
+        KeyNid := EVP_PKEY_RSA_PSS;
+        KeyInfo := 'RSA-PSS';
+    end     *)
     else if (FPrivKeyType >= PrivKeyECsecp256) and (FPrivKeyType <= PrivKeyECsecp512) then begin
         KeyNid := EVP_PKEY_EC;
         KeyInfo := 'EC';
@@ -2483,6 +2511,10 @@ begin
             RaiseLastOpenSslError(ECertToolsException, true, 'Failed to set RSA bits');
     if (CurveNid > 0) and (f_EVP_PKEY_CTX_set_ec_paramgen_curve_nid(Pctx, CurveNid) = 0) then
                 RaiseLastOpenSslError(ECertToolsException, true, 'Failed to set EC curve');
+    if (KeyNid = EVP_PKEY_RSA_PSS) then begin
+        // pending more stuff from 1.1.1
+    end;
+
 
   { progress callback, really only needed for slow RSA }
     f_EVP_PKEY_CTX_set_app_data(Pctx, Self);
@@ -2499,6 +2531,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Old version that uses lower level functions, may still be useful }
+(*
 procedure TSslCertTools.DoKeyPairOld;
 var
     Bne       : PBIGNUM;
@@ -2566,12 +2599,11 @@ begin
     end;
 
  { new Elliptic Curve private and public key pair for ECDSA certificates }
-    if (FPrivKeyType >= PrivKeyECsecp256) and (FPrivKeyType <= PrivKeyECX25519) then begin
+    if (FPrivKeyType >= PrivKeyECsecp256) and (FPrivKeyType <= PrivKeyECsecp512) then begin
         case FPrivKeyType of
             PrivKeyECsecp256:  Nid := NID_X9_62_prime256v1;
             PrivKeyECsecp384:  Nid := NID_secp384r1;
             PrivKeyECsecp512:  Nid := NID_secp521r1;
-            PrivKeyECX25519:   Nid := NID_X25519;  // !!! does not work for private keys yet !!!!
             else
                 Nid := NID_X9_62_prime256v1;
         end;
@@ -2599,7 +2631,9 @@ begin
             RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to assign EC key to key object');
         SetPrivateKey(FPrivKey);
     end;
-end;
+end;  *)
+
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { This method creates DHParams which are needed by servers using DH and DHE
 { key exchange (but not for ECDH and ECDHE).  DHParams are usually created once }

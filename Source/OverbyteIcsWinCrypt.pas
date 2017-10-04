@@ -1,3 +1,4 @@
+
 unit OverbyteIcsWinCrypt;
 
 { June 2015 - Angus renamed from WinCrypt and moved to main source dir       }
@@ -9,6 +10,7 @@ unit OverbyteIcsWinCrypt;
 {$WEAKPACKAGEUNIT}
 
 interface
+{$IFDEF MSWINDOWS}
 
 uses
   Windows;
@@ -57,8 +59,10 @@ type
 {$DEFINE JWA_INCLUDEMODE}
 {$DEFINE JWA_INTERFACESECTION}
 {$I OverbyteIcsJwaWinCrypt.inc}
+{$ENDIF}
 
 implementation
+{$IFDEF MSWINDOWS}
 
 const
   advapi32  = 'advapi32.dll';
@@ -74,4 +78,7 @@ const
 {$DEFINE JWA_IMPLEMENTATIONSECTION}
 {$I OverbyteIcsJwaWinCrypt.inc}
 
+{$ENDIF}
 end.
+
+

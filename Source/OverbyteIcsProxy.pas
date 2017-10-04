@@ -176,9 +176,10 @@ Updates:
                         or is not configured, maybe other pages would be useful?
                       Moved TBytes functions to OverbyteIcsUtils
                       Look for target path with all requests, not just common ones
-19 Sep 2017  - 8.50 - Check document meta for charset
+4  Oct 2017  - 8.50 - Check document meta for charset
                       Convert html TByte buffers to unicode instead of ANSI
                       Post data now calls onHttpReqBody event
+                      Don't try and access Windows cert store on MacOS, etc
 
 pending...
 
@@ -211,6 +212,7 @@ uses
     {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
     {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
+    OverbyteIcsMsSslUtils, OverbyteIcsWinCrypt,     { V8.50 }
 {$ENDIF}
 {$IFDEF POSIX}
     Posix.Time,
@@ -222,7 +224,6 @@ uses
     {$IFDEF Rtl_Namespaces}System.StrUtils{$ELSE}StrUtils{$ENDIF},
     Overbyteicsssleay, Overbyteicslibeay,
     OverbyteIcsSslSessionCache,
-    OverbyteIcsMsSslUtils, OverbyteIcsWinCrypt,
     {$I Include\OverbyteIcsZlib.inc}
     OverbyteIcsZlibHigh,
     {$IFDEF USE_ZLIB_OBJ}
@@ -455,7 +456,9 @@ type
     FSslSessCache: TSslAvlSessionCache;
     FTarSslCtx: TSslContext;
     FTarSslCertList: TStringList;
-    FMsCertChainEngine: TMsCertChainEngine;
+{$IFDEF MSWINDOWS}
+    FMsCertChainEngine: TMsCertChainEngine;   { V8.50 } 
+{$ENDIF}
     FRxBuffSize: Integer;
     FMaxClients: Integer;
     FServerHeader: String;
@@ -1379,7 +1382,8 @@ begin
      { Property SslCertChain contains all certificates in current verify chain }
         CertChain := SslCertChain;
 
-     { see if validating against Windows certificate store  }
+     { see if validating against Windows certificate store, V8.50 not on MacOS  }
+{$IFDEF MSWINDOWS}
         if FProxySource.CertVerTar = CertVerWinStore then begin
 
             { start engine }
@@ -1414,7 +1418,9 @@ begin
                 VerifyInfo := PeerCert.FirstVerifyErrMsg;
              end;
         end
-        else if FProxySource.CertVerTar = CertVerBundle then begin
+        else
+{$ENDIF}
+        if FProxySource.CertVerTar = CertVerBundle then begin
             VerifyInfo := PeerCert.FirstVerifyErrMsg;
            { check whether SSL chain verify result was OK }
             Safe := (PeerCert.VerifyResult = X509_V_OK);
@@ -1585,7 +1591,9 @@ begin
     FSocketErrs := wsErrFriendly;
     FMaxClients := 999;
     FRxBuffSize := DefRxBuffSize;
-    FMsCertChainEngine := Nil;
+{$IFDEF MSWINDOWS}
+   FMsCertChainEngine := Nil;
+{$ENDIF}
     FIcsLog := TIcsLogger.Create (nil);
     FIcsLog.OnIcsLogEvent := IcsLogEvent;
     FIcsLog.LogOptions := [loDestEvent];
@@ -1599,7 +1607,9 @@ end;
 destructor TIcsProxy.Destroy;
 begin
     Stop;
+{$IFDEF MSWINDOWS}
     FreeAndNil(FMsCertChainEngine);
+{$ENDIF}
     FreeAndNil(FTarSslCtx);
     FreeAndNil(FProxyTargets);
     FreeAndNil(FTarSslCertList);

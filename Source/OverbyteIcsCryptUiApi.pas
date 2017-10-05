@@ -24,19 +24,19 @@
 { Modification history:                                                        }
 { June 2015 - Angus renamed from CryptuiApi and moved to main source dir       }
 {                   now using OverbyteIcsWinCrypt                              }
-{ Oct 2017 - only compile for Windows                                                                              }
+{ 5 Oct 2017 - only compile for Windows                                                                              }
 
 {******************************************************************************}
 
 
 unit OverbyteIcsCryptuiApi;
-{$IFDEF MSWINDOWS}
 
 {$WEAKPACKAGEUNIT}
 
 {.$DEFINE WIN7_UP}  // WinXp+, most likely W2K+
 
 interface
+{$IFDEF MSWINDOWS}
 
 uses
   Windows,

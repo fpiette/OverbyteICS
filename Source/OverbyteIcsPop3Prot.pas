@@ -10,11 +10,11 @@ Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      8.37
+Version:      8.50
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2016 by François PIETTE
+Legal issues: Copyright (C) 1997-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -210,6 +210,7 @@ Jun 01, 2015 V8.05 Angus update SslServerName for SSL SNI support allowing serve
 Oct 08, 2015 V8.06 Angus changed to receive with LineMode for more reliable line parsing
 Nov 12, 2016 V8.37 Added extended exception information, set SocketErrs = wsErrFriendly for
                       some more friendly messages (without error numbers)
+Oct 5, 2017  V8.50 MacOS Fix with V8.06
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -280,8 +281,8 @@ uses
 (*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameW$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)
 
 const
-    Pop3CliVersion     = 837;
-    CopyRight : String = ' POP3 component (c) 1997-2016 F. Piette V8.37 ';
+    Pop3CliVersion     = 850;
+    CopyRight : String = ' POP3 component (c) 1997-2017 F. Piette V8.50 ';
  {   POP3_RCV_BUF_SIZE  = 4096;  gone V8.06 }
 
 type
@@ -1064,53 +1065,13 @@ var
     I, J      : Integer;
  //   Remaining : Integer;
 begin
-    if (Error <> ERROR_SUCCESS) then begin   { V8.06 don't ignore errors }
+    if (Error <> 0) then begin   { V8.06 don't ignore errors, V8.50 MacOS friendly }
         FStatusCode := 500;
         SetErrorMessage;
         FRequestResult := FStatusCode;
         FWSocket.Close;
         Exit;
     end;
-
-// V8.06 now using line mode, which is simpler
-
- // repeat
-        { Compute remaining space in our buffer. Preserve 3 bytes for CR/LF   }
-        { and nul terminating byte.                                           }
-   (*     Remaining := SizeOf(FReceiveBuffer) - FReceiveLen - 3;
-        if Remaining <= 0 then begin
-            { Received message has a line longer than our buffer. This is not }
-            { acceptable ! We will add a CR/LF to enable processing, but this }
-            { will ALTER received message and could cause strange results.    }
-            { May be it is better to raise an exception ?                     }
-            FReceiveBuffer[SizeOf(FReceiveBuffer) - 3] := #13;
-            FReceiveBuffer[SizeOf(FReceiveBuffer) - 2] := #10;
-            Len := 2;
-        end
-        else begin
-            Len := FWSocket.Receive(@FReceiveBuffer[FReceiveLen], Remaining);
-            if Len <= 0 then
-                Exit;
-        end;
-
-        FReceiveBuffer[FReceiveLen + Len] := #0;
-        FReceiveLen := FReceiveLen + Len;
-
-        while FReceiveLen > 0 do begin
-            { Search LF. We can't use Pos because it stops at first #0 }
-            I := 1;
-            while (I < FReceiveLen) and                        {07/03/2004}
-                  (FReceiveBuffer[I] <> #10) do
-                    Inc(I);
-            if I >= FReceiveLen then
-                break;                   { LF not found }
-
-            { Found a LF. Extract data from buffer, ignoring CR if any }
-            if (I > 0) and (FReceiveBuffer[I - 1] = #13) then      {07/03/2004}
-                FLastResponse := Copy(FReceiveBuffer, 1, I - 1)
-            else
-                FLastResponse := Copy(FReceiveBuffer, 1, I);
-            *)
 
   { V8.06 line mode gives us complete lines, need to remove CR/LF }
     FLastResponse := FWSocket.ReceiveStrA;
@@ -1130,9 +1091,6 @@ begin
     FDumpBuf := '|' + #13#10;
     FDumpStream.WriteBuffer(FDumpBuf[1], Length(FDumpBuf));
 {$ENDIF}
-       {     FReceiveLen := FReceiveLen - I - 1;
-            if FReceiveLen > 0 then
-                Move(FReceiveBuffer[I + 1], FReceiveBuffer[0], FReceiveLen + 1);   }
 
     if FState = pop3WaitingBanner then begin
         DisplayLastResponse;
@@ -1191,26 +1149,6 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomPop3Cli.TriggerRequestDone(Error: Word);
 begin
-    { Special processing for Quit (Roger Morton 24-12-99) }
-(*  This code is bad!
-    if FRequestType = pop3Quit then begin
-        if FWaitingOnQuit then
-            { When the second RqDone arrives (from WSocketSessionClosed),   }
-            { treat it as a normal event by setting a zero Error code       }
-            Error := 0
-        else begin
-            { When the first RqDone arrives, set the FWaitingOnQuit flag so }
-            { we're ready to handle a second RqDone.                        }
-            { Take no other action (in particular, we don't advise the user }
-            { that the first RqDone has happened)                           }
-            FWaitingOnQuit := True;
-            Exit;
-        end;
-        { Fall down here for all normal RqDone, and after the second RqDone }
-        { following a Quit                                                  }
-        FWaitingOnQuit := False;
-    end;
-*)
     if not FRequestDoneFlag then begin
         FRequestDoneFlag := TRUE;
         if Assigned(FNextRequest) then begin

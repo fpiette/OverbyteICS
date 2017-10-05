@@ -422,7 +422,8 @@ Feb 23, 2016 V8.06 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 Nov 09 2016  V8.37 - Added ExclusiveAddr property to stop other applications listening on same socket
                      Added extended exception information, set FSocketErrs = wsErrFriendly for
                        some more friendly messages (without error numbers)
-Aug 25, 2017 V8.50 - Angus stopped LIST/RETV using ..\..\..\ (already stopped for CWD)
+Oct 5, 2017  V8.50 - Angus stopped LIST/RETV using ..\..\..\ (already stopped for CWD)
+                     Minor fix for MacOS 
 
 
 Angus pending -
@@ -2117,7 +2118,7 @@ end;
 {$ENDIF}
 {$IFDEF POSIX}
 begin
-    Result := SysUtils.DirectoryExists(Dir);
+    Result := System.SysUtils.DirectoryExists(Dir);  { V8.50 }
 end;
 {$ENDIF}
 

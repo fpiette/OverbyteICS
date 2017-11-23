@@ -6,7 +6,7 @@ Description:  A simple  HTTPS SSL Web Client Demo client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.50
+Version:      8.51
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -74,6 +74,7 @@ Feb 26, 2017  V8.41 added SslSecLevel to set minimum effective bits for
               Simplified listing certificate chain in handshake
 Sep 17, 2017  V8.50 HTML text content now converted to Delphi string with correct
                  code page according to charset in header or page, or BOM
+Nov 13, 2017  V8.51 added Debug Dump tick box to log SSL dump diagnostics
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;
@@ -113,10 +114,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 850;
-     HttpsTstDate        = 'Sep 17, 2017';
+     HttpsTstVersion     = 851;
+     HttpsTstDate        = 'Nov 13, 2017';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2017 Francois Piette V8.50 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2017 Francois Piette V8.51 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -186,6 +187,7 @@ type
     StoreButton: TButton;
     SslSecLevel: TComboBox;
     Label22: TLabel;
+    DebugDumpCheckBox: TCheckBox;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -287,6 +289,7 @@ const
     KeySslCipher       = 'SslCipher';
     KeyOldSsl          = 'OldSsl';
     KeySslSecLevel     = 'SslSecLevel';
+    KeyDebugDump       = 'DebugDump';
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF DEBUG_OUTPUT}
@@ -419,6 +422,9 @@ begin
                                                               False);
             SslSecLevel.ItemIndex         := IniFile.ReadInteger(SectionData,
                                                               KeySslSecLevel, 1);  { V8.41 }
+            DebugDumpCheckBox.Checked    :=  IniFile.ReadBool(SectionData,
+                                                              KeyDebugDump,
+                                                              False);              { V8.51 }
         finally
             IniFile.Free;
         end;
@@ -474,6 +480,7 @@ begin
     IniFile.WriteBool(SectionData,      KeyDebugFile,   DebugFileCheckBox.Checked);
     IniFile.WriteBool(SectionData,      KeyOldSsl,      OldSslCheckBox.Checked);      { V8.03 }
     IniFile.WriteInteger(SectionData,   KeySslSecLevel, SslSecLevel.ItemIndex);   { V8.41 }
+    IniFile.WriteBool(SectionData,      KeyDebugDump,   DebugDumpCheckBox.Checked);  { V8.51 }
     IniFile.UpdateFile;
     IniFile.Free;
 end;
@@ -514,9 +521,6 @@ end;
 procedure THttpsTstForm.PrepareConnection;
 const
     SocksLevelValues : array [0..2] of String = ('5', '4A', '4');
-//  SslOldVersions : array [0..5] of TSslVersionMethod =
-//      (sslV3_CLIENT,sslTLS_V1_CLIENT,sslTLS_V1_1_CLIENT,sslTLS_V1_2_CLIENT,
-//                                       sslBestVer_CLIENT, sslBestVer_CLIENT);  { V8.03 }
 var
    List: string;
 begin
@@ -530,9 +534,11 @@ begin
         IcsLogger1.LogFileOption := lfoOverwrite;
         IcsLogger1.LogOptions    := IcsLogger1.LogOptions + [loDestFile];
     end;
-    if IcsLogger1.LogOptions <> [] then
-        IcsLogger1.LogOptions := IcsLogger1.LogOptions +
-                                 LogAllOptInfo + [loAddStamp];
+    if IcsLogger1.LogOptions <> [] then begin
+        IcsLogger1.LogOptions := IcsLogger1.LogOptions + LogAllOptInfo + [loAddStamp];
+        if DebugDumpCheckBox.Checked then
+            IcsLogger1.LogOptions := IcsLogger1.LogOptions + LogAllOptDump ; { V8.51 SSL devel dump }
+    end;
 
     if SocksServerEdit.Text > '' then begin
         SslHttpCli1.SocksServer := SocksServerEdit.Text;
@@ -578,31 +584,11 @@ begin
             SslContext1.SslCALines.Text := sslRootCACertsBundle;
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
   { V8.03 SslVersionMethod is ignored by OpenSSL 1.1.0 and later which uses SslMinVersion and SslMaxVersion instead }
- // SslContext1.SslVersionMethod    := SslOldVersions [SslMaxVersion.ItemIndex]; { V8.03}
     SslContext1.SslMinVersion       := TSslVerMethod (SslMinVersion.ItemIndex);  { V8.03}
     SslContext1.SslMaxVersion       := TSslVerMethod (SslMaxVersion.ItemIndex);  { V8.03}
     SslContext1.SslCipherList       := SslCipherEdit.Text;                       { V8.01 }
     SslContext1.SslDHParamFile      := DhParamFileEdit.Text;                     { V8.01 }
     SslContext1.SslSecLevel         := TSslSecLevel (SslSecLevel.ItemIndex);     { V8.41 } 
-
-  {  V8.01 - set options to force a single SSL/TLS version, not normally a good idea,
-    but seems only reliable way of forcing use of a specific version }
-  { V8.03 setting minimum and maximum versions now handled when creating context }
-  {  SslContext1.SslOptions := SslContext1.SslOptions + [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
-                                     sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];
-    if SslContext1.SslVersionMethod = sslV2_CLIENT then
-        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_SSLv2]
-    else if SslContext1.SslVersionMethod = sslV3_CLIENT then
-        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_SSLv3]
-    else if SslContext1.SslVersionMethod = sslTLS_V1_CLIENT then
-        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_TLSv1]
-    else if SslContext1.SslVersionMethod = sslTLS_V1_1_CLIENT then
-        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_TLSv1_1]
-    else if SslContext1.SslVersionMethod = sslTLS_V1_2_CLIENT then
-        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_TLSv1_2]
-    else
-        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
-                                     sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];  }
 
     try
         SslContext1.InitContext;  { V8.01 get any error now before making request }

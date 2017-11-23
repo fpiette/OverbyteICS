@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.50
+Version:      8.51
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -147,8 +147,10 @@ Jun 23, 2017 V8.49 Fixes for MacOs
                    Added several functions for copying and searching TBytes buffers
                      that receive socket data, converting them to Strings
                    Moved IcsGetFileSize and GetUAgeSizeFile here from FtpSrvT
-Sep 19, 2017 V8.40 Added IcsMoveTBytesToString and IcsMoveStringToTBytes that take
+Sep 19, 2017 V8.50 Added IcsMoveTBytesToString and IcsMoveStringToTBytes that take
                       a codepage for proper Unicode conversion
+Nov 17, 2017 V8.51 Added IcsGetFileUAge
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -542,6 +544,8 @@ const
     function IcsTBytesPos(const Substr: String; const S: TBytes; Offset, Count: Integer): Integer;  { V8.49 }
     function IcsTbytesStarts(Source: TBytes; Find: PAnsiChar) : Boolean;    { V8.49 }
     function IcsTbytesContains(Source : TBytes; Find : PAnsiChar) : Boolean;   { V8.49 }
+    function IcsGetFileUAge(const FileName : String) : TDateTime;            { V8.51 }
+
 
 
 
@@ -5187,6 +5191,7 @@ var
 begin
    Result := FALSE ;
    FSize := -1;
+   FileUDT := 0;   { V8.51 }
    SResult := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FindFirst(filename, faAnyFile, SearchRec);
    if SResult = 0 then begin
      {$IFDEF MSWINDOWS}
@@ -5212,6 +5217,17 @@ var
 begin
     Result := -1 ;
     IcsGetUAgeSizeFile (FileName, FileUDT, Result);
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsGetFileUAge(const FileName : String) : TDateTime;            { V8.51 }
+var
+    FSize: Int64;
+begin
+    Result := 0 ;
+    IcsGetUAgeSizeFile (FileName, Result, FSize);
 end;
 
 

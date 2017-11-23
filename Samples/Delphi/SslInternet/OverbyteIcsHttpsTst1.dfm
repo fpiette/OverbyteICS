@@ -281,7 +281,7 @@ object HttpsTstForm: THttpsTstForm
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Verify Peer'
-      TabOrder = 23
+      TabOrder = 24
     end
     object CAPathEdit: TEdit
       Left = 276
@@ -350,7 +350,7 @@ object HttpsTstForm: THttpsTstForm
       Default = True
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 26
+      TabOrder = 27
       OnClick = GetButtonClick
     end
     object ClearButton: TButton
@@ -362,7 +362,7 @@ object HttpsTstForm: THttpsTstForm
       Caption = 'C&lear'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 28
+      TabOrder = 29
       OnClick = ClearButtonClick
     end
     object CloseButton: TButton
@@ -374,7 +374,7 @@ object HttpsTstForm: THttpsTstForm
       Caption = 'Cl&ose'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 30
+      TabOrder = 31
       OnClick = CloseButtonClick
     end
     object ProxyHostEdit: TEdit
@@ -412,7 +412,7 @@ object HttpsTstForm: THttpsTstForm
       Height = 17
       Alignment = taLeftJustify
       Caption = 'SSL Session Caching'
-      TabOrder = 24
+      TabOrder = 25
     end
     object ButtonOSSLVersion: TButton
       Left = 242
@@ -420,11 +420,11 @@ object HttpsTstForm: THttpsTstForm
       Width = 69
       Height = 21
       Caption = 'OpenSSL?'
-      TabOrder = 29
+      TabOrder = 30
       OnClick = ButtonOSSLVersionClick
     end
     object DebugEventCheckBox: TCheckBox
-      Left = 668
+      Left = 630
       Top = 105
       Width = 85
       Height = 17
@@ -432,7 +432,7 @@ object HttpsTstForm: THttpsTstForm
       TabOrder = 21
     end
     object DebugOutputCheckBox: TCheckBox
-      Left = 542
+      Left = 520
       Top = 105
       Width = 105
       Height = 17
@@ -440,7 +440,7 @@ object HttpsTstForm: THttpsTstForm
       TabOrder = 20
     end
     object DebugFileCheckBox: TCheckBox
-      Left = 463
+      Left = 447
       Top = 105
       Width = 73
       Height = 17
@@ -461,7 +461,7 @@ object HttpsTstForm: THttpsTstForm
       Width = 69
       Height = 21
       Caption = '&Head'
-      TabOrder = 27
+      TabOrder = 28
       OnClick = HeadButtonClick
     end
     object AbortButton: TButton
@@ -471,7 +471,7 @@ object HttpsTstForm: THttpsTstForm
       Height = 21
       Caption = '&Abort'
       Enabled = False
-      TabOrder = 31
+      TabOrder = 32
       OnClick = AbortButtonClick
     end
     object DhParamFileEdit: TEdit
@@ -536,7 +536,7 @@ object HttpsTstForm: THttpsTstForm
       Width = 69
       Height = 21
       Caption = '&Reset SSL'
-      TabOrder = 32
+      TabOrder = 33
       OnClick = ResetButtonClick
     end
     object SslMinVersion: TComboBox
@@ -557,13 +557,13 @@ object HttpsTstForm: THttpsTstForm
         'Best Version')
     end
     object OldSslCheckBox: TCheckBox
-      Left = 463
+      Left = 447
       Top = 128
       Width = 107
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Force OSSL 1.0.x'
-      TabOrder = 22
+      TabOrder = 23
       OnClick = OldSslCheckBoxClick
     end
     object StoreButton: TButton
@@ -572,7 +572,7 @@ object HttpsTstForm: THttpsTstForm
       Width = 79
       Height = 21
       Caption = '&List Cert Store'
-      TabOrder = 33
+      TabOrder = 34
       OnClick = StoreButtonClick
     end
     object SslSecLevel: TComboBox
@@ -580,9 +580,17 @@ object HttpsTstForm: THttpsTstForm
       Top = 172
       Width = 169
       Height = 21
-      ItemHeight = 0
-      TabOrder = 25
+      ItemHeight = 13
+      TabOrder = 26
       Text = 'SslSecLevel'
+    end
+    object DebugDumpCheckBox: TCheckBox
+      Left = 721
+      Top = 105
+      Width = 85
+      Height = 17
+      Caption = 'Dump'
+      TabOrder = 22
     end
   end
   object SslHttpCli1: TSslHttpCli
@@ -642,6 +650,7 @@ object HttpsTstForm: THttpsTstForm
     SslCheckHostFlags = []
     SslSecLevel = sslSecLevel80bits
     SslOptions = [sslOpt_MICROSOFT_SESS_ID_BUG, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG, sslOpt_MICROSOFT_BIG_SSLV3_BUFFER, sslOpt_SSLEAY_080_CLIENT_DH_BUG, sslOpt_TLS_D5_BUG, sslOpt_TLS_BLOCK_PADDING_BUG, sslOpt_TLS_ROLLBACK_BUG, sslOpt_NO_SSLv2, sslOpt_NO_SSLv3, sslOpt_NETSCAPE_CA_DN_BUG, sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG]
+    SslOptions2 = [sslOpt2_NO_RENEGOTIATION, sslOpt2_NO_COMPRESSION, sslOpt2_NO_TICKET, sslOpt2_TLS_ROLLBACK_BUG, sslOpt2_DONT_INSERT_EMPTY_FRAGMENTS, sslOpt2_ALLOW_UNSAFE_LEGACY_RENEGOTIATION, sslOpt2_TLSEXT_PADDING, sslOpt2_SAFARI_ECDHE_ECDSA_BUG, sslOpt2_CISCO_ANYCONNECT, SslOpt2_LEGACY_SERVER_CONNECT, SslOpt2_ALLOW_NO_DHE_KEX]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = [sslSESS_CACHE_CLIENT, sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE]
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
@@ -649,6 +658,7 @@ object HttpsTstForm: THttpsTstForm
     SslMinVersion = sslVerSSL3
     SslMaxVersion = sslVerMax
     SslECDHMethod = sslECDHAuto
+    SslCryptoGroups = 'P-256:P-384:P-512'
     SslSessionTimeout = 300
     SslSessionCacheSize = 20480
     AutoEnableBuiltinEngines = False

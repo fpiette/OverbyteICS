@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.50
+Version:      8.51
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -171,8 +171,9 @@ June 23, 2017 V8.49 Fixes so we support MacOS again, thanks to Michael Berg.
                     Added MultiListenEx which opens all possible sockets ignoring
                       errors, which are returned as a string.
 Aug 10, 2017  V8.50 Minor clean up
+Nov 22, 2017  V8.51 SSL certificate file stamp now stored as UTC date to avoid
+                       summer time triggers as file system stamps change
 
-                    
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
 unit OverbyteIcsWSocketS;
@@ -247,8 +248,8 @@ System.Types,
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 850;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.50 ';
+    WSocketServerVersion     = 851;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.51 ';
 
 type
     TCustomWSocketServer       = class;
@@ -612,8 +613,8 @@ type
     FCertInfo: string;
     FBindInfo: string;
     FCertExiry: TDateTime;
-    FCertFStamp: Integer;
-    FInterFStamp: Integer;
+    FCertFStamp: TDateTime;    { V8.51 was integer }
+    FInterFStamp: TDateTime;  { V8.51 was integer }
     FCertErrs: string;
     FCertValRes: TChainResult;
     FBindIdxNone: Integer;
@@ -636,8 +637,8 @@ type
     property CertInfo : String                   read  FCertInfo;
     property BindInfo : String                   read  FBindInfo;
     property CertExiry : TDateTime               read  FCertExiry;
-    property CertFStamp: Integer                 read  FCertFStamp;
-    property InterFStamp: Integer                read  FInterFStamp;
+    property CertFStamp: TDateTime               read  FCertFStamp;
+    property InterFStamp: TDateTime              read  FInterFStamp;
     property CertErrs : String                   read  FCertErrs;
     property CertValRes : TChainResult           read  FCertValRes;
     property BindIdxNone : Integer               read  FBindIdxNone;
@@ -2604,8 +2605,8 @@ begin
                 if (Pos(PEM_STRING_HDR_BEGIN, FSslCert) > 0) then
                     SslCtx.SslCertX509.LoadFromText(FSslCert, croTry, croTry, FSslPassword)
                 else begin
-                    FCertFStamp := FileAge(FSslCert);  { keep file time stamp to check nightly }
-                    if FCertFStamp = -1 then begin
+                    FCertFStamp := IcsGetFileUAge(FSslCert);  { keep file time stamp to check nightly, V8.51 UTC time }
+                    if FCertFStamp <= 0 then begin
                         Result := Result + 'Host #' + IntToStr(I) +
                                  ', SSL certificate not found: ' + FSslCert + #13#10;
                         if Stop1stErr then raise ESocketException.Create(Result);
@@ -2629,8 +2630,8 @@ begin
                     if (Pos(PEM_STRING_HDR_BEGIN, FSslInter) > 0) then
                         SslCtx.SslCertX509.LoadIntersFromString(FSslInter)
                     else begin
-                        FInterFStamp := FileAge(FSslInter);  { keep file time stamp to check nightly }
-                        if FInterFStamp = -1 then begin
+                        FInterFStamp := IcsGetFileUAge(FSslInter);  { keep file time stamp to check nightly, V8.51 UTC time }
+                        if FInterFStamp <= 0 then begin
                             Result := Result + 'Host #' + IntToStr(I) +
                                  ', SSL intermediate certificate not found: ' + FSslInter + #13#10;
                             if Stop1stErr then raise ESocketException.Create(Result);
@@ -2697,7 +2698,8 @@ end;
 function TSslWSocketServer.RecheckSslCerts(var CertsInfo: String;
                 Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean; { V8.48 }
 var
-    I, NewFStamp: integer;
+    I: integer;
+    NewFStamp: TDateTime;
 begin
     Result := False;
     CertsInfo := '';
@@ -2716,8 +2718,8 @@ begin
                 SslCtx.SslCertX509.LoadFromText(FSslCert, croTry, croTry, FSslPassword)
             end
             else begin
-                NewFStamp := FileAge(FSslCert);  { keep file time stamp to check nightly }
-                if NewFStamp = -1 then begin
+                NewFStamp := IcsGetFileUAge(FSslCert);  { keep file time stamp to check nightly, V8.51 UTC time }
+                if NewFStamp <= 0 then begin
                     CertsInfo := CertsInfo + 'Host #' + IntToStr(I) +
                              ', SSL certificate not found: ' + FSslCert + #13#10;
                     if Stop1stErr then raise ESocketException.Create(CertsInfo);
@@ -2750,8 +2752,8 @@ begin
                     SslCtx.SslCertX509.LoadIntersFromString(FSslInter)
                 end
                 else begin
-                    NewFStamp := FileAge(FSslInter);  { keep file time stamp to check nightly }
-                    if NewFStamp = -1 then begin
+                    NewFStamp := IcsGetFileUAge(FSslInter);  { keep file time stamp to check nightly, V8.51 UTC time }
+                    if NewFStamp <= 0 then begin
                         CertsInfo := CertsInfo + 'Host #' + IntToStr(I) +
                              ', SSL intermediate certificate not found: ' + FSslInter + #13#10;
                         if Stop1stErr then raise ESocketException.Create(CertsInfo);

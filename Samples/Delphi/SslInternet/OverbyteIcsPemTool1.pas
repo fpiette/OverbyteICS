@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.50
+Version:      8.51
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -91,7 +91,9 @@ Jun 20, 2017 V8.49 Fixed some missing spaces after : in certificate info listing
 Sep 22, 2017 V8.50 Corrected X25519 private keys to ED25519, requires OpenSSL 1.1.1
                    Alternate DNS names are now correctly added to requests and certs
                    Specify and save CA Bundle separately to certificate to avoid
-                      confusion and needing to repeatedly reload pkey to sign certs 
+                      confusion and needing to repeatedly reload pkey to sign certs
+Nov 3, 2017  V8.51 Tested ED25519 keys, can now sign requests and certs
+             Added RSA-PSS keys and SHA3 digest hashes, requires OpenSSL 1.1.1
 
 
 Pending
@@ -129,10 +131,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 850;
-     PemToolDate        = 'Sep 22, 2017';
+     PemToolVersion     = 851;
+     PemToolDate        = 'Nov 03, 2017';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2017 by François PIETTE V8.50 ';
+     CopyRight : String = '(c) 2003-2017 by François PIETTE V8.51 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -1151,8 +1153,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.SetCertProps;
 const
-    digestlist: array [0..3] of TEvpDigest =
-        (Digest_sha1, Digest_sha256, Digest_sha384, Digest_sha512);
+    digestlist: array [0..8] of TEvpDigest =
+        (Digest_sha1, Digest_sha224, Digest_sha256, Digest_sha384, Digest_sha512,
+        Digest_sha3_224, Digest_sha3_256, Digest_sha3_384, Digest_sha3_512);
 begin
     CertCommonName.Text := Trim(CertCommonName.Text);
     with FSslCertTools do begin

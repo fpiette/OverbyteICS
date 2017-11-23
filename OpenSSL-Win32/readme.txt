@@ -1,8 +1,8 @@
 -----------------------------------------------------------------------
-OpenSSL v1.1.0f Win32 for ICS, http://www.overbyte.be
+OpenSSL v1.1.0g Win32 for ICS, http://www.overbyte.be
 -----------------------------------------------------------------------
 
-Built with:       Visual Studio Community 2013
+Built with:       Visual Studio Community 2015
                   The Netwide Assembler (NASM) v2.11.05
                   Strawberry Perl v5.20.3.1
 

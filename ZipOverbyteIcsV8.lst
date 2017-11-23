@@ -255,6 +255,7 @@ Packages\OverbyteIcsD102Run.dpk
 Packages\OverbyteIcsD102Design.dproj
 Packages\OverbyteIcsD102Design.dpk
 
+
 Packages\OverbyteIcsCB2006Run.bdsproj
 Packages\OverbyteIcsCB2006Run.cpp
 Packages\OverbyteIcsCB2006Run.res
@@ -329,6 +330,32 @@ Packages\IcsVclCBXE3Run.cbproj
 Packages\IcsVclCBXE3Run.cpp
 Packages\IcsVclCBXE3Design.cbproj
 Packages\IcsVclCBXE3Design.cpp
+
+Packages\OverbyteIcsCBXe3Run.cbproj
+Packages\OverbyteIcsCBXe3Run.cpp
+Packages\OverbyteIcsCBXe3Design.cbproj
+Packages\OverbyteIcsCBXe3Design.cpp
+
+Packages\IcsCommonCB102Run.cbproj
+Packages\IcsCommonCB102Run.cpp
+Packages\IcsCommonCB102Run.res
+Packages\IcsCommonCB102Design.cbproj
+Packages\IcsCommonCB102Design.cpp
+Packages\IcsCommonCB102Design.res
+
+Packages\IcsFmxCB102Run.cbproj
+Packages\IcsFmxCB102Run.cpp
+Packages\IcsFmxCB102Run.res
+Packages\IcsFmxCB102Design.cbproj
+Packages\IcsFmxCB102Design.cpp
+Packages\IcsFmxCB102Design.res
+
+Packages\IcsVclCB102Run.cbproj
+Packages\IcsVclCB102Run.cpp
+Packages\IcsVclCB102Run.res
+Packages\IcsVclCB102Design.cbproj
+Packages\IcsVclCB102Design.cpp
+Packages\IcsVclCB102Design.res
 
 Packages\OverbyteIcsProductIcon.res
 
@@ -553,6 +580,7 @@ Install\D101Install.groupproj
 Install\D101InstallVclFmx.groupproj
 Install\D102Install.groupproj
 Install\D102InstallVclFmx.groupproj
+Install\CB102InstallVclFmx.groupproj
 
 Install\CB2006Install.bdsgroup
 Install\CB2007Install.groupproj

@@ -74,7 +74,9 @@ Feb 26, 2017  V8.41 added SslSecLevel to set minimum effective bits for
               Simplified listing certificate chain in handshake
 Sep 17, 2017  V8.50 HTML text content now converted to Delphi string with correct
                  code page according to charset in header or page, or BOM
-Nov 13, 2017  V8.51 added Debug Dump tick box to log SSL dump diagnostics
+Dec 7, 2017   V8.51 added Debug Dump tick box to log SSL dump diagnostics
+              Added proxy and socks authentication, login and password 
+              Report SOCKS proxy events
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;
@@ -183,11 +185,14 @@ type
     Label14: TLabel;
     SslMinVersion: TComboBox;
     OldSslCheckBox: TCheckBox;
-    Label16: TLabel;
     StoreButton: TButton;
     SslSecLevel: TComboBox;
     Label22: TLabel;
     DebugDumpCheckBox: TCheckBox;
+    Label16: TLabel;
+    Label23: TLabel;
+    ProxyLoginEdit: TEdit;
+    ProxyPwEdit: TEdit;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -225,6 +230,12 @@ type
     procedure ResetButtonClick(Sender: TObject);
     procedure OldSslCheckBoxClick(Sender: TObject);
     procedure StoreButtonClick(Sender: TObject);
+    procedure SslHttpCli1SocksConnected(Sender: TObject; ErrCode: Word);
+    procedure SslHttpCli1SocksError(Sender: TObject; Error: Integer;
+      Msg: string);
+    procedure SslHttpCli1SocksAuthState(Sender: TObject;
+      AuthState: TSocksAuthState);
+    procedure SslHttpCli1SocketError(Sender: TObject);
 
   private
     FIniFileName               : String;
@@ -290,6 +301,9 @@ const
     KeyOldSsl          = 'OldSsl';
     KeySslSecLevel     = 'SslSecLevel';
     KeyDebugDump       = 'DebugDump';
+    KeyProxyLogin      = 'ProxyLogin';
+    KeyProxyPw         = 'ProxyPw';
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF DEBUG_OUTPUT}
@@ -422,9 +436,15 @@ begin
                                                               False);
             SslSecLevel.ItemIndex         := IniFile.ReadInteger(SectionData,
                                                               KeySslSecLevel, 1);  { V8.41 }
-            DebugDumpCheckBox.Checked    :=  IniFile.ReadBool(SectionData,
+            DebugDumpCheckBox.Checked     :=  IniFile.ReadBool(SectionData,
                                                               KeyDebugDump,
                                                               False);              { V8.51 }
+            ProxyLoginEdit.Text           := IniFile.ReadString(SectionData,
+                                                              KeyProxyLogin,
+                                                              '');                 { V8.51 }
+            ProxyPwEdit.Text              := IniFile.ReadString(SectionData,
+                                                              KeyProxyPw,
+                                                              '');                 { V8.51 }
         finally
             IniFile.Free;
         end;
@@ -478,9 +498,11 @@ begin
     IniFile.WriteBool(SectionData,      KeyDebugEvent,  DebugEventCheckBox.Checked);
     IniFile.WriteBool(SectionData,      KeyDebugOutput, DebugOutputCheckBox.Checked);
     IniFile.WriteBool(SectionData,      KeyDebugFile,   DebugFileCheckBox.Checked);
-    IniFile.WriteBool(SectionData,      KeyOldSsl,      OldSslCheckBox.Checked);      { V8.03 }
-    IniFile.WriteInteger(SectionData,   KeySslSecLevel, SslSecLevel.ItemIndex);   { V8.41 }
+    IniFile.WriteBool(SectionData,      KeyOldSsl,      OldSslCheckBox.Checked);     { V8.03 }
+    IniFile.WriteInteger(SectionData,   KeySslSecLevel, SslSecLevel.ItemIndex);      { V8.41 }
     IniFile.WriteBool(SectionData,      KeyDebugDump,   DebugDumpCheckBox.Checked);  { V8.51 }
+    IniFile.WriteString(SectionData,    KeyProxyLogin,  ProxyLoginEdit.Text);        { V8.51 }
+    IniFile.WriteString(SectionData,    KeyProxyPw,     ProxyPwEdit.Text);           { V8.51 }
     IniFile.UpdateFile;
     IniFile.Free;
 end;
@@ -540,10 +562,18 @@ begin
             IcsLogger1.LogOptions := IcsLogger1.LogOptions + LogAllOptDump ; { V8.51 SSL devel dump }
     end;
 
+    SslHttpCli1.SocksAuthentication := socksNoAuthentication;    { V8.51 }
+    SslHttpCli1.ProxyAuth     := httpAuthNone;            { V8.51 }
+
     if SocksServerEdit.Text > '' then begin
-        SslHttpCli1.SocksServer := SocksServerEdit.Text;
-        SslHttpCli1.SocksPort   := SocksPortEdit.Text;
+        SslHttpCli1.SocksServer := Trim(SocksServerEdit.Text);
+        SslHttpCli1.SocksPort   := Trim(SocksPortEdit.Text);
         SslHttpCli1.SocksLevel  := SocksLevelValues[SocksLevelComboBox.ItemIndex];
+        if ProxyLoginEdit.Text <> '' then begin
+            SslHttpCli1.SocksAuthentication := socksAuthenticateUsercode;    { V8.51 }
+            SslHttpCli1.SocksUsercode := Trim(ProxyLoginEdit.Text);        { V8.51 }
+            SslHttpCli1.SocksPassword := Trim(ProxyPwEdit.Text);           { V8.51 }
+        end;
     end
     else begin
         SslHttpCli1.SocksServer := '';
@@ -552,14 +582,19 @@ begin
     end;
 
     if ProxyHostEdit.Text > '' then begin
-        SslHttpCli1.Proxy         := ProxyHostEdit.Text;
-        SslHttpCli1.ProxyPort     := ProxyPortEdit.Text;
+        SslHttpCli1.Proxy         := Trim(ProxyHostEdit.Text);
+        SslHttpCli1.ProxyPort     := Trim(ProxyPortEdit.Text);
+        if ProxyLoginEdit.Text <> '' then begin
+            SslHttpCli1.ProxyAuth     := httpAuthBasic;              { V8.51 }
+            SslHttpCli1.ProxyUsername := Trim(ProxyLoginEdit.Text);        { V8.51 }
+            SslHttpCli1.ProxyPassword := Trim(ProxyPwEdit.Text);           { V8.51 }
+        end;
     end
     else begin
-        SslHttpCli1.Proxy         := ProxyHostEdit.Text;
-        SslHttpCli1.ProxyPort     := ProxyPortEdit.Text;
+        SslHttpCli1.Proxy         := '';   { V8.51 }
+        SslHttpCli1.ProxyPort     := '';   { V8.51 }
     end;
-    SslHttpCli1.URL            := UrlEdit.Text;
+    SslHttpCli1.URL            := Trim(UrlEdit.Text);
     SslHttpCli1.AcceptLanguage := 'en, fr';
     SslHttpCli1.Connection     := 'Keep-Alive';
     SslHttpCli1.RequestVer     := '1.' + IntToStr(HttpVersionComboBox.ItemIndex);
@@ -573,11 +608,11 @@ begin
 
     { note SSL cert and priv key are only needed if the remote server requires
       a client SSL certificate to be sent for maximum security, very rare!! }
-    SslContext1.SslCertFile         := CertFileEdit.Text;
-    SslContext1.SslPassPhrase       := PassPhraseEdit.Text;
-    SslContext1.SslPrivKeyFile      := PrivKeyFileEdit.Text;
-    SslContext1.SslCAFile           := CAFileEdit.Text;
-    SslContext1.SslCAPath           := CAPathEdit.Text;
+    SslContext1.SslCertFile         := Trim(CertFileEdit.Text);
+    SslContext1.SslPassPhrase       := Trim(PassPhraseEdit.Text);
+    SslContext1.SslPrivKeyFile      := Trim(PrivKeyFileEdit.Text);
+    SslContext1.SslCAFile           := Trim(CAFileEdit.Text);
+    SslContext1.SslCAPath           := Trim(CAPathEdit.Text);
    { V8.03 no CA file or path or lines, use defaults Root CA Certs Bundle }
     if (SslContext1.SslCAFile = '') and (SslContext1.SslCAPath = '') and
         (SslContext1.SslCALines.Count = 0) then
@@ -586,9 +621,9 @@ begin
   { V8.03 SslVersionMethod is ignored by OpenSSL 1.1.0 and later which uses SslMinVersion and SslMaxVersion instead }
     SslContext1.SslMinVersion       := TSslVerMethod (SslMinVersion.ItemIndex);  { V8.03}
     SslContext1.SslMaxVersion       := TSslVerMethod (SslMaxVersion.ItemIndex);  { V8.03}
-    SslContext1.SslCipherList       := SslCipherEdit.Text;                       { V8.01 }
-    SslContext1.SslDHParamFile      := DhParamFileEdit.Text;                     { V8.01 }
-    SslContext1.SslSecLevel         := TSslSecLevel (SslSecLevel.ItemIndex);     { V8.41 } 
+    SslContext1.SslCipherList       := Trim(SslCipherEdit.Text);                       { V8.01 }
+    SslContext1.SslDHParamFile      := Trim(DhParamFileEdit.Text);                     { V8.01 }
+    SslContext1.SslSecLevel         := TSslSecLevel (SslSecLevel.ItemIndex);     { V8.41 }
 
     try
         SslContext1.InitContext;  { V8.01 get any error now before making request }
@@ -870,7 +905,7 @@ begin
                  // convert HTML to string, including entities (does all above steps together)
                //     DataStr := IcsHtmlToStr(DataIn, SslHttpCli1.ContentType, true);
 
-                 // show page 
+                 // show page
                     DocumentMemo.Lines.Add(DataStr);
                 end
                 else begin
@@ -1088,6 +1123,49 @@ begin
         HttpCli.SslAcceptableHosts.Add(HttpCli.Hostname + Hash);
         PostMessage(Handle, WM_SSL_NOT_TRUSTED, 0, Integer(Sender));
     end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpsTstForm.SslHttpCli1SocketError(Sender: TObject);     { V8.51 }
+begin
+    Display('Socket error: ' + WSocketErrorDesc(Error));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpsTstForm.SslHttpCli1SocksAuthState(Sender: TObject; AuthState: TSocksAuthState);   { V8.51 }
+begin
+    case AuthState of
+        socksAuthStart:
+            Display('Socks authentification start.');
+        socksAuthSuccess:
+            Display('Socks authentification success.');
+        socksAuthFailure:
+            Display('Socks authentification failure.');
+        socksAuthNotRequired:
+            Display('Socks authentification not required.');
+        else
+            Display('Unknown socks authentification state.')
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpsTstForm.SslHttpCli1SocksConnected(Sender: TObject;  ErrCode: Word);   { V8.51 }
+begin
+    if ErrCode = 0 then
+        Display('Session connected to socks server: ' + SslHttpCli1.SocksServer)
+    else
+        Display('Session failed to connect to socks server: ' +
+                    SslHttpCli1.SocksServer + ' - ' + WSocketErrorDesc(ErrCode));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpsTstForm.SslHttpCli1SocksError(Sender: TObject; Error: Integer; Msg: string);    { V8.51 }
+begin
+    Display('Socks error: ' + Msg);
 end;
 
 

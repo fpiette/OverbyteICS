@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.50
+Version:      8.51
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -513,6 +513,10 @@ Nov 04, 2016 V8.37 V8.10 POST relocation fix failed 302 because status had been 
                       some more friendly messages (without error numbers)
 May 18, 2017 V8.48 Fixed SslServerName for correct host target name with SSL proxies
 Sep 17, 2017 V8.50 Replaced four TBytes functions with versions in OverbyteIcsUtils
+Dec 7,  2017 V8.51 Fixed SOCKS4A/5 skip DNSLookup since hostname is passed to SOCKS server
+                      so it can resolve DNS instead, thanks to Colin Wall for fixing this.
+                   Socks authstate event now works
+                   Report sensible proxy and socks ReasonPhrase
 
 To convert the received HTML stream to a unicode string with the correct codepage,
 use this function in OverbyteIcsCharsetUtils, it's not used directly by this unit
@@ -609,8 +613,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 850;
-    CopyRight : String   = ' THttpCli (c) 1997-2017 F. Piette V8.50 ';
+    HttpCliVersion       = 851;
+    CopyRight : String   = ' THttpCli (c) 1997-2017 F. Piette V8.51 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -1375,6 +1379,7 @@ begin
     FCtrlSocket.OnDnsLookupDone    := SocketDNSLookupDone;
     FCtrlSocket.OnSocksError       := DoSocksError;
     FCtrlSocket.OnSocksConnected   := DoSocksConnected;
+    FCtrlSocket.OnSocksAuthState   := DoSocksAuthState;   { V8.51 }
    { V8.37 don't suppress socket exceptions unless we handle them }
     if Assigned (FOnSocketError) then
         FCtrlSocket.OnError        := SocketErrorTransfer;
@@ -2098,7 +2103,10 @@ begin
         { SocketFamily in case a host name is either a valid IPv6 or IPv4 }
         { address.                                                        }
         FCtrlSocket.Addr := FHostName;
-        FCtrlSocket.DnsLookup(FHostName);
+        if (FSocksServer = '') or (FSocksLevel = '4') then  { V8.51 socks5 takes host name }
+            FCtrlSocket.DnsLookup(FHostName)
+        else
+            SocketDNSLookupDone(self, 0);    { V8.51 skip DNS lookup }
     except
         on E: Exception do begin
             FStatusCode   := 404;
@@ -2113,7 +2121,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpCli.DoBeforeConnect;
 begin
-    FCtrlSocket.Addr                := FDnsResult;
+    FCtrlSocket.Addr                := FDnsResult; { V8.51 for SOCKS5 may be host name }
     FCtrlSocket.LocalAddr           := FLocalAddr; {bb}
     FCtrlSocket.LocalAddr6          := FLocalAddr6;  { V8.02 }
     FCtrlSocket.Port                := FPort;
@@ -2150,12 +2158,15 @@ begin
         SocketSessionClosed(Sender, ErrCode);
     end
     else begin
-        FDnsResult            := FCtrlSocket.DnsResult;
+        if (FSocksServer = '') or (FSocksLevel = '4') then  { V8.51 socks5 takes host name }
+            FDnsResult := FCtrlSocket.DnsResult
+        else
+            FDnsResult := FHostName;
         StateChange(httpDnsLookupDone);  { 19/09/98 }
 {$IFDEF UseNTLMAuthentication}
         { NTLM authentication is alive only for one connection            }
         { so when we reconnect to server NTLM auth states must be reseted }
-        (* Removed by *ML* on May 02, 2005 
+        (* Removed by *ML* on May 02, 2005
         if FAuthNTLMState = ntlmDone then
             FAuthNTLMState      := ntlmNone;  {BLD NTLM}
 
@@ -2167,7 +2178,7 @@ begin
 {$ENDIF}
         { Basic authentication is alive only for one connection            }
         { so when we reconnect to server Basic auth states must be reseted }
-        (* Removed by *ML* on May 02, 2005 
+        (* Removed by *ML* on May 02, 2005
         if FAuthBasicState = basicDone then
             FAuthBasicState      := basicNone;
 
@@ -2208,11 +2219,12 @@ begin
             FRequestDoneError := FCtrlSocket.LastError;
             FStatusCode       := 404;
             FReasonPhrase     := 'can''t connect: ' +
-                                 WSocketErrorDesc(FCtrlSocket.LastError) +
+                                 WSocketErrorMsgFromErrorCode(FCtrlSocket.LastError) +  { V8.51 handles proxy errors } 
+                              {   WSocketErrorDesc(FCtrlSocket.LastError) +  }
                                  ' (Error #' + IntToStr(FCtrlSocket.LastError) + ')';
             FCtrlSocket.Close;
             SocketSessionClosed(Sender, FCtrlSocket.LastError);
-        end;    
+        end;
     end;
 end;
 
@@ -2227,9 +2239,9 @@ begin
     if ErrCode <> 0 then begin
         FRequestDoneError := ErrCode;
         FStatusCode       := 404;
-        FReasonPhrase     := WSocketErrorDesc(ErrCode) +
+        FReasonPhrase     := WSocketErrorMsgFromErrorCode(ErrCode) +  { V8.51 handles proxy errors }
+                          {    WSocketErrorDesc(ErrCode) + }
                              ' (Error #' + IntToStr(ErrCode) + ')';
-        {SocketSessionClosed(Sender, ErrCode)}  {14/12/2003};
         TriggerSessionConnected; {14/12/2003}
         Exit;
     end;
@@ -2306,7 +2318,7 @@ begin
                     SocketDataSent(FCtrlSocket, 0);
                 {$ENDIF}
                 end;
-            httpPATCH:  { V8.06 } 
+            httpPATCH:  { V8.06 }
                 begin
                     SendRequest('PATCH', FRequestVer);
                 {$IFDEF UseNTLMAuthentication}

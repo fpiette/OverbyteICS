@@ -175,7 +175,7 @@ object HttpsTstForm: THttpsTstForm
     end
     object Label18: TLabel
       Left = 447
-      Top = 80
+      Top = 177
       Width = 124
       Height = 13
       Caption = 'Modified Since Date/Time'
@@ -208,22 +208,26 @@ object HttpsTstForm: THttpsTstForm
       Height = 13
       Caption = 'Maximum'
     end
-    object Label16: TLabel
-      Left = 463
-      Top = 145
-      Width = 213
-      Height = 39
-      Caption = 
-        'Note: Certificates, etc, may also be saved as lines of text in S' +
-        'slContext to avoid using files.'#13#10
-      WordWrap = True
-    end
     object Label22: TLabel
       Left = 449
-      Top = 178
+      Top = 153
       Width = 67
       Height = 13
       Caption = 'Security Level'
+    end
+    object Label16: TLabel
+      Left = 452
+      Top = 81
+      Width = 93
+      Height = 13
+      Caption = 'Proxy/Socks: Login'
+    end
+    object Label23: TLabel
+      Left = 643
+      Top = 81
+      Width = 46
+      Height = 13
+      Caption = 'Password'
     end
     object SocksServerEdit: TEdit
       Left = 517
@@ -276,12 +280,12 @@ object HttpsTstForm: THttpsTstForm
     end
     object VerifyPeerCheckBox: TCheckBox
       Left = 589
-      Top = 128
+      Top = 124
       Width = 71
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Verify Peer'
-      TabOrder = 24
+      TabOrder = 25
     end
     object CAPathEdit: TEdit
       Left = 276
@@ -350,7 +354,7 @@ object HttpsTstForm: THttpsTstForm
       Default = True
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 27
+      TabOrder = 29
       OnClick = GetButtonClick
     end
     object ClearButton: TButton
@@ -362,7 +366,7 @@ object HttpsTstForm: THttpsTstForm
       Caption = 'C&lear'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 29
+      TabOrder = 31
       OnClick = ClearButtonClick
     end
     object CloseButton: TButton
@@ -374,7 +378,7 @@ object HttpsTstForm: THttpsTstForm
       Caption = 'Cl&ose'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 31
+      TabOrder = 33
       OnClick = CloseButtonClick
     end
     object ProxyHostEdit: TEdit
@@ -407,12 +411,12 @@ object HttpsTstForm: THttpsTstForm
     end
     object SessCacheCheckBox: TCheckBox
       Left = 666
-      Top = 128
+      Top = 124
       Width = 121
       Height = 17
       Alignment = taLeftJustify
       Caption = 'SSL Session Caching'
-      TabOrder = 25
+      TabOrder = 26
     end
     object ButtonOSSLVersion: TButton
       Left = 242
@@ -420,39 +424,39 @@ object HttpsTstForm: THttpsTstForm
       Width = 69
       Height = 21
       Caption = 'OpenSSL?'
-      TabOrder = 30
+      TabOrder = 32
       OnClick = ButtonOSSLVersionClick
     end
     object DebugEventCheckBox: TCheckBox
       Left = 630
-      Top = 105
+      Top = 100
       Width = 85
       Height = 17
       Caption = 'loDestEvent'
-      TabOrder = 21
+      TabOrder = 22
     end
     object DebugOutputCheckBox: TCheckBox
       Left = 520
-      Top = 105
+      Top = 100
       Width = 105
       Height = 17
       Caption = 'loDestOutDebug'
-      TabOrder = 20
+      TabOrder = 21
     end
     object DebugFileCheckBox: TCheckBox
       Left = 447
-      Top = 105
+      Top = 100
       Width = 73
       Height = 17
       Caption = 'loDestFile'
-      TabOrder = 19
+      TabOrder = 20
     end
     object DateTimeEdit: TEdit
-      Left = 584
-      Top = 76
+      Left = 589
+      Top = 172
       Width = 116
       Height = 21
-      TabOrder = 18
+      TabOrder = 28
       Text = 'DateTimeEdit'
     end
     object HeadButton: TButton
@@ -461,7 +465,7 @@ object HttpsTstForm: THttpsTstForm
       Width = 69
       Height = 21
       Caption = '&Head'
-      TabOrder = 28
+      TabOrder = 30
       OnClick = HeadButtonClick
     end
     object AbortButton: TButton
@@ -471,7 +475,7 @@ object HttpsTstForm: THttpsTstForm
       Height = 21
       Caption = '&Abort'
       Enabled = False
-      TabOrder = 32
+      TabOrder = 34
       OnClick = AbortButtonClick
     end
     object DhParamFileEdit: TEdit
@@ -536,7 +540,7 @@ object HttpsTstForm: THttpsTstForm
       Width = 69
       Height = 21
       Caption = '&Reset SSL'
-      TabOrder = 33
+      TabOrder = 35
       OnClick = ResetButtonClick
     end
     object SslMinVersion: TComboBox
@@ -558,12 +562,12 @@ object HttpsTstForm: THttpsTstForm
     end
     object OldSslCheckBox: TCheckBox
       Left = 447
-      Top = 128
+      Top = 124
       Width = 107
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Force OSSL 1.0.x'
-      TabOrder = 23
+      TabOrder = 24
       OnClick = OldSslCheckBoxClick
     end
     object StoreButton: TButton
@@ -572,25 +576,41 @@ object HttpsTstForm: THttpsTstForm
       Width = 79
       Height = 21
       Caption = '&List Cert Store'
-      TabOrder = 34
+      TabOrder = 36
       OnClick = StoreButtonClick
     end
     object SslSecLevel: TComboBox
-      Left = 531
-      Top = 172
+      Left = 542
+      Top = 148
       Width = 169
       Height = 21
       ItemHeight = 13
-      TabOrder = 26
+      TabOrder = 27
       Text = 'SslSecLevel'
     end
     object DebugDumpCheckBox: TCheckBox
       Left = 721
-      Top = 105
+      Top = 100
       Width = 85
       Height = 17
       Caption = 'Dump'
-      TabOrder = 22
+      TabOrder = 23
+    end
+    object ProxyLoginEdit: TEdit
+      Left = 556
+      Top = 76
+      Width = 81
+      Height = 21
+      TabOrder = 18
+      Text = 'ProxyLoginEdit'
+    end
+    object ProxyPwEdit: TEdit
+      Left = 706
+      Top = 76
+      Width = 85
+      Height = 21
+      TabOrder = 19
+      Text = 'ProxyPwEdit'
     end
   end
   object SslHttpCli1: TSslHttpCli
@@ -622,6 +642,10 @@ object HttpsTstForm: THttpsTstForm
     OnCookie = SslHttpCli1Cookie
     SocksLevel = '5'
     SocksAuthentication = socksNoAuthentication
+    OnSocksConnected = SslHttpCli1SocksConnected
+    OnSocksAuthState = SslHttpCli1SocksAuthState
+    OnSocksError = SslHttpCli1SocksError
+    OnSocketError = SslHttpCli1SocketError
     SocketFamily = sfIPv4
     SocketErrs = wsErrFriendly
     SslContext = SslContext1

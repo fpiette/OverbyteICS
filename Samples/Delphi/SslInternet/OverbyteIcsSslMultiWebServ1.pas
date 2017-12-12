@@ -446,12 +446,12 @@ var
 begin
     FIniFileName := GetIcsIniFileName;
   // ensure SSL DLLs come from program directory, and exist, else die
-  GSSLEAY_DLL_IgnoreNew := true ; // !!! TEMP TESTING
-//    GSSLEAY_DLL_IgnoreOld := true;
+ // GSSLEAY_DLL_IgnoreNew := true ; // !!! TEMP TESTING
+    GSSLEAY_DLL_IgnoreOld := true;
     ProgDirectory := ExtractFileDir(Lowercase (ParamStr(0)));
     GSSL_DLL_DIR := ProgDirectory + '\';
-//    GSSL_SignTest_Check := True;
-//    GSSL_SignTest_Certificate := True;
+    GSSL_SignTest_Check := True;
+    GSSL_SignTest_Certificate := True;
     OverbyteIcsWSocket.LoadSsl;
     LogDate := Trunc(Date);
     HouseKeepingTrg := IcsGetTrgSecs (300);

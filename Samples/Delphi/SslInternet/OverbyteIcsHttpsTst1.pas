@@ -74,9 +74,11 @@ Feb 26, 2017  V8.41 added SslSecLevel to set minimum effective bits for
               Simplified listing certificate chain in handshake
 Sep 17, 2017  V8.50 HTML text content now converted to Delphi string with correct
                  code page according to charset in header or page, or BOM
-Dec 7, 2017   V8.51 added Debug Dump tick box to log SSL dump diagnostics
-              Added proxy and socks authentication, login and password 
+Dec 11, 2017  V8.51 added Debug Dump tick box to log SSL dump diagnostics
+              Added proxy and socks authentication, login and password
               Report SOCKS proxy events
+              Try and enable FIPS mode if supported by OpenSSL.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;
@@ -361,6 +363,7 @@ procedure THttpsTstForm.FormShow(Sender: TObject);
 var
     IniFile : TIcsIniFile;
     SL : TSslSecLevel;
+    mode: integer;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
@@ -460,6 +463,16 @@ begin
         else
             DisplayMemo.Lines.Add('SSL/TLS DLL: ' + GLIBEAY_DLL_FileName +
                                                 ', Version: ' + OpenSslVersion);
+
+    { V8.51 see if using FIPS OpenSSL DLLs, try and set FIPS mode }
+        if Pos ('fips', OpenSslVersion) > 0 then begin
+            mode := f_fips_mode_set(1);
+            if mode <> 0 then
+                DisplayMemo.Lines.Add('OpenSSL FIPS 140-2 self test successful')
+             else
+                DisplayMemo.Lines.Add('OpenSSL FIPS 140-2 self test failed - ' +
+                                                String(LastOpenSslErrMsg(False))) ;
+        end;
     end;
 end;
 

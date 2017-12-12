@@ -3,8 +3,8 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  SSL web application server sample, no real GUI
 Creation:     July 2017
-Updated:      July 2017
-Version:      8.50
+Updated:      Dec 2017
+Version:      8.51
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2017 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -62,7 +62,8 @@ DNS server to do it.
 
 History:
 6 July 2017  - V8.49 baseline
-20 Sep 2017 - V8.50 - close connection after sending redirection
+20 Sep 2017 - V8.50 - Close connection after sending redirection
+12 Dec 2017 - V8.51 - Try and enable FIPS mode if supported by OpenSSL.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -110,7 +111,7 @@ uses
   OverbyteIcsWebAppServerUploads;
 
 const
-    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2017 Francois Piette V8.50 ';
+    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2017 Francois Piette V8.51 ';
     MaxWinChars = 800000;
     WM_STARTUP = WM_USER + 712 ;
     SimpLogName = '"webapp-"yyyymmdd".log"' ;
@@ -440,18 +441,30 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TWeblServerForm.FormCreate(Sender: TObject);
+var
+    mode: integer;
 begin
     FIniFileName := GetIcsIniFileName;
   // ensure SSL DLLs come from program directory, and exist, else die
-  // GSSLEAY_DLL_IgnoreNew := true ; // !!! TEMP TESTING
-    GSSLEAY_DLL_IgnoreOld := true;
+  GSSLEAY_DLL_IgnoreNew := true ; // !!! TEMP TESTING
+//    GSSLEAY_DLL_IgnoreOld := true;
     ProgDirectory := ExtractFileDir(Lowercase (ParamStr(0)));
     GSSL_DLL_DIR := ProgDirectory + '\';
-    GSSL_SignTest_Check := True;
-    GSSL_SignTest_Certificate := True;
+//    GSSL_SignTest_Check := True;
+//    GSSL_SignTest_Certificate := True;
     OverbyteIcsWSocket.LoadSsl;
     LogDate := Trunc(Date);
     HouseKeepingTrg := IcsGetTrgSecs (300);
+
+{ V8.51 see if using FIPS OpenSSL DLLs, try and set FIPS mode }
+    if Pos ('fips', OpenSslVersion) > 0 then begin
+        mode := f_fips_mode_set(1);
+        if mode <> 0 then
+            Display('OpenSSL FIPS 140-2 self test successful')
+         else
+            Display('OpenSSL FIPS 140-2 self test failed - ' +
+                                            String(LastOpenSslErrMsg(False))) ;
+    end;
     PostMessage (Handle, WM_STARTUP, 0, 0) ;
 end;
 

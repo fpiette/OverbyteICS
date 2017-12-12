@@ -137,9 +137,12 @@ Jan 27, 2017  V8.40 Added 200 more certificate, EC key, digest, encryption and s
 Feb 24, 2017  V8.41 Added more NIDs, few more imported functions
 Jun 21, 2017, V8.49 Added more EVP_PKEY functions
 Sep 22, 2017  V8.50 Added more NIDs and EVPs for new private key types, one more import
-Nov 22, 2017  V8.51 Added SHA3 hashes for OpenSSL 1.1.1, also more PKEY functions
+Dec 11, 2017  V8.51 Added SHA3 hashes for OpenSSL 1.1.1, also more PKEY functions
                       to support RSA-PSS keys.
                     Added more constants and functions for 1.1.1
+                    Added fips mode functions.  Beware getting an application certified
+                      for FIPS 140-2 is very onerous and expensive, and we can not help!
+
 
 
 Old Cryptography
@@ -2073,6 +2076,8 @@ const
     f_EVP_shake128 :                           function: PEVP_MD; cdecl = nil;     { V8.51 }
     f_EVP_shake256 :                           function: PEVP_MD; cdecl = nil;     { V8.51 }
     f_EVP_ripemd160 :                          function: PEVP_MD; cdecl = nil;     { V8.40 }
+    f_FIPS_mode :                              function: Integer; cdecl = nil;     { V8.51 }
+    f_FIPS_mode_set :                          function(R: Integer): Integer; cdecl = nil;     { V8.51 }
     f_GENERAL_NAME_free :                      procedure(a: PGENERAL_NAME); cdecl = nil;                                { V8.40 }
     f_GENERAL_NAME_get0_value :                function(gen: PGENERAL_NAME; var atype: Integer): Pointer; cdecl = nil;  { V8.40 }
     f_GENERAL_NAME_new :                       function: PGENERAL_NAME; cdecl = nil;                                    { V8.40 }
@@ -2467,7 +2472,7 @@ procedure IcsRandPoll;
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GLIBEAYImports1: array[0..574] of TOSSLImports = (
+    GLIBEAYImports1: array[0..576] of TOSSLImports = (
 
     (F: @@f_ASN1_INTEGER_get ;        N: 'ASN1_INTEGER_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_INTEGER_get_int64 ;  N: 'ASN1_INTEGER_get_int64';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
@@ -2763,23 +2768,25 @@ const
     (F: @@f_EVP_get_cipherbyname ;    N: 'EVP_get_cipherbyname';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_get_digestbyname ;    N: 'EVP_get_digestbyname';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EVP_idea_cbc ;            N: 'EVP_idea_cbc';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_idea_cfb64 ;          N: 'EVP_idea_cfb64';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.40 }
+    (F: @@f_EVP_idea_cfb64 ;          N: 'EVP_idea_cfb64';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.40 }
     (F: @@f_EVP_idea_ecb ;            N: 'EVP_idea_ecb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EVP_idea_ofb ;            N: 'EVP_idea_ofb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_md5;                  N: 'EVP_md5';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_mdc2 ;                N: 'EVP_mdc2';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),       { V8.40 }
-    (F: @@f_EVP_ripemd160 ;           N: 'EVP_ripemd160';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.40 }
-    (F: @@f_EVP_sha1 ;                N: 'EVP_sha1';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_sha224 ;              N: 'EVP_sha224';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
-    (F: @@f_EVP_sha256 ;              N: 'EVP_sha256';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_sha384 ;              N: 'EVP_sha384';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
-    (F: @@f_EVP_sha3_224 ;            N: 'EVP_sha3_224';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),     { V8.51 }
-    (F: @@f_EVP_sha3_256 ;            N: 'EVP_sha3_256';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),     { V8.51 }
-    (F: @@f_EVP_sha3_384 ;            N: 'EVP_sha3_384';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),     { V8.51 }
-    (F: @@f_EVP_sha3_512 ;            N: 'EVP_sha3_512';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),     { V8.51 }
-    (F: @@f_EVP_sha512 ;              N: 'EVP_sha512';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
-    (F: @@f_EVP_shake128 ;            N: 'EVP_shake128';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),     { V8.51 }
-    (F: @@f_EVP_shake256 ;            N: 'EVP_shake256';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),     { V8.51 }
+    (F: @@f_EVP_md5;                  N: 'EVP_md5';        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_mdc2 ;                N: 'EVP_mdc2';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_ripemd160 ;           N: 'EVP_ripemd160';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_sha1 ;                N: 'EVP_sha1';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_sha224 ;              N: 'EVP_sha224';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_sha256 ;              N: 'EVP_sha256';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_sha384 ;              N: 'EVP_sha384';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_sha3_224 ;            N: 'EVP_sha3_224';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.51 }
+    (F: @@f_EVP_sha3_256 ;            N: 'EVP_sha3_256';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.51 }
+    (F: @@f_EVP_sha3_384 ;            N: 'EVP_sha3_384';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.51 }
+    (F: @@f_EVP_sha3_512 ;            N: 'EVP_sha3_512';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.51 }
+    (F: @@f_EVP_sha512 ;              N: 'EVP_sha512';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_shake128 ;            N: 'EVP_shake128';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.51 }
+    (F: @@f_EVP_shake256 ;            N: 'EVP_shake256';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.51 }
+    (F: @@f_FIPS_mode ;               N: 'FIPS_mode';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.51 }
+    (F: @@f_FIPS_mode_set ;           N: 'FIPS_mode_set';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.51 }
     (F: @@f_GENERAL_NAME_free ;       N: 'GENERAL_NAME_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),        { V8.40 }
     (F: @@f_GENERAL_NAME_get0_value ; N: 'GENERAL_NAME_get0_value';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_GENERAL_NAME_new ;        N: 'GENERAL_NAME_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),          { V8.40 }

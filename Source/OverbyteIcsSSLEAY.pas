@@ -147,7 +147,7 @@ SSLv23_client_method
 SSLv23_server_method
 All version specific TLSv1_1x_methods deprecated so don't load them either
 
-Macros which are now new exported functions:
+Macros which are now new exported functions (not done until V8.51, sorry):
 SSL_CTX_get_options;
 SSL_get_options
 SSL_CTX_clear_options

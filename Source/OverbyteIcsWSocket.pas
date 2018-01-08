@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.51
+Version:      8.52
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2017 by François PIETTE
+Legal issues: Copyright (C) 1996-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -1227,6 +1227,8 @@ Nov 23, 2017  V8.51 Testing OpenSSL 1.1.1 that adds TLS/1.3, not enabled yet.
                     Added SslContext SslCryptoGroups for 1.1.1 to set which
                        curve groups are supported in preference order.
                     Improved debug diagnostics and added more for SSL.
+Jan 3, 2018  V8.52  LocalIpList only uses GetHostByName for Windows XP, 2003 and
+                       earlier which also solves a MacOS issue
 
 
 Warning - OpenSSL 1.1.1 (beta) is not yet supported for SSL connections, possibly
@@ -1435,8 +1437,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 851;
-  CopyRight    : String     = ' TWSocket (c) 1996-2017 Francois Piette V8.51 ';
+  WSocketVersion            = 852;
+  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.52 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -3183,8 +3185,8 @@ type
    { warning, requiring key lengths higher than 2048 requires all SSL certificates in the chain to
      have that minimum key length, including the root }
     TSslSrvSecurity = (
-                     sslSrvSecNone,         { 0 - all protocols and ciphers, any key lenghts }
-                     sslSrvSecSsl3,         { 1 - SSL3 only, all ciphers, any key lenghts, MD5 }
+                     sslSrvSecNone,         { 0 - all protocols and ciphers, any key lengths }
+                     sslSrvSecSsl3,         { 1 - SSL3 only, all ciphers, any key lengths, MD5 }
                      sslSrvSecBack,         { 2 - TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
                      sslSrvSecInter,        { 3 - TLS1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
                      sslSrvSecInterFS,      { 4 - TLS1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
@@ -10714,12 +10716,15 @@ begin
         IPList.Clear;
         Result := IPList;
 
-        if ASocketFamily = sfIPv4 then begin
-            phe  := WSocketGetHostByName(LocalHostName);
+      { V8.52 only use GetHostByName for Windows XP, 2003 and earlier }
+        {$IFDEF MSWINDOWS}
+        if (ASocketFamily = sfIPv4) and (Win32MajorVersion <= 5) then begin
+            phe  := WSocketGetHostByName(LocalHostName);   { deprecated since 2003 and Vista }
             if phe <> nil then
                 GetIpList(Phe, IPList);
         end
         else begin
+        {$ENDIF}
             LHostName := string(LocalHostName);
             FillChar(Hints, SizeOf(Hints), 0);
             if ASocketFamily = sfIPv6 then
@@ -10729,7 +10734,7 @@ begin
             AddrInfo := nil;
             Hints.ai_protocol := AProtocol;
           {$IFDEF MSWINDOWS}
-            RetVal := WSocket_GetAddrInfo(PChar(LHostName), nil, @Hints, AddrInfo);
+            RetVal := WSocket_GetAddrInfo(PChar(LHostName), nil, @Hints, AddrInfo);  { only 2003 and Vista and later }
           {$ELSE}
             RetVal := WSocket_GetAddrInfo(PAnsiChar(UnicodeToAnsi(LHostName, CP_UTF8)), nil, @Hints, AddrInfo);
           {$ENDIF}
@@ -10780,7 +10785,9 @@ begin
             finally
                 WSocket_FreeAddrInfo(AddrInfo);
             end;
+        {$IFDEF MSWINDOWS}
         end;
+        {$ENDIF}
 {$IFNDEF NO_ADV_MT}
     finally
         CritSecIpList.Leave;

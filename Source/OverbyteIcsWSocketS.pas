@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.51
+Version:      8.52
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2017 by François PIETTE
+Legal issues: Copyright (C) 1999-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -173,6 +173,8 @@ June 23, 2017 V8.49 Fixes so we support MacOS again, thanks to Michael Berg.
 Aug 10, 2017  V8.50 Minor clean up
 Nov 22, 2017  V8.51 SSL certificate file stamp now stored as UTC date to avoid
                        summer time triggers as file system stamps change
+Jan 4, 2018   V8.52 Better error reporting when validating SSL certificates
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -248,8 +250,8 @@ System.Types,
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 851;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2017 F. Piette V8.51 ';
+    WSocketServerVersion     = 852;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2018 F. Piette V8.52 ';
 
 type
     TCustomWSocketServer       = class;
@@ -2679,7 +2681,8 @@ begin
             end;
             except
                 on E:Exception do begin
-                    Result := Result + 'Host #' + IntToStr(I) + E.Message + #13#10;
+                    FCertErrs := E.Message; { V8.52 keep exception }
+                    Result := Result + 'Host #' + IntToStr(I) +  ', ' + E.Message + #13#10;  { V8.52 cosmetic }
                     if Stop1stErr then Raise;
                 end;
             end;
@@ -2796,12 +2799,13 @@ begin
             end;
             except
                 on E:Exception do begin
-                    CertsInfo := CertsInfo + 'Host #' + IntToStr(I) + E.Message + #13#10;
+                    FCertErrs := E.Message; { V8.52 keep exception }
+                    CertsInfo := CertsInfo + 'Host #' + IntToStr(I) + ', ' + E.Message + #13#10;  { V8.52 cosmetic }
                     if Stop1stErr then Raise;
                 end;
             end;
         end;
-    end;        
+    end;
 end;
 
 

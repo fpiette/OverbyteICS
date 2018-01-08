@@ -4,7 +4,7 @@ Authors:      Arno Garrels <arno.garrels@gmx.de>
               Angus Robertson <delphi@magsys.co.uk>
 Creation:     Aug 26, 2007
 Description:
-Version:      8.50
+Version:      8.52
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -92,7 +92,9 @@ Jun 21, 2017 V8.49 Added ISRG Root X1 certificate for Let's Encrypt
              Total rewrite creating private keys using EVP_PKEY_CTX functions
 Sep 22, 2017 V8.50 Alternate DNS names now added correctly to requests and certs
              Corrected X25519 private keys to ED25519, requires OpenSSL 1.1.1
-
+Nov 3, 2017  V8.51 Tested ED25519 keys, can now sign requests and certs
+             Added RSA-PSS keys and SHA3 digest hashes, requires OpenSSL 1.1.1
+Jan 4, 2018  V8.52 Added DigiCert Global Root G2 and G3 root certificates
 
 
 Pending - short term
@@ -1496,6 +1498,59 @@ const
         'mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d' + #13#10 +
         'emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10;
+    sslRootCACerts031 =                                                           { V8.52 }
+        '# X509 SSL Certificate' + #13#10 +
+        'Issued to (CN): DigiCert Global Root G2, (O): DigiCert Inc' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        'Serial Number: 033af1e6a711a9a0bb2864b11d09fae5' + #13#10 +
+        'Fingerprint (sha1): df3c24f9bfd666761b268073fe06d1cc8d4f82a4' + #13#10 +
+        'Expires: 15/01/2038, Signature: sha256WithRSAEncryption' + #13#10 +
+        'Public Key: RSA Key Encryption 2048 bits, 112 security bits' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDjjCCAnagAwIBAgIQAzrx5qcRqaC7KGSxHQn65TANBgkqhkiG9w0BAQsFADBh' + #13#10 +
+        'MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3' + #13#10 +
+        'd3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBH' + #13#10 +
+        'MjAeFw0xMzA4MDExMjAwMDBaFw0zODAxMTUxMjAwMDBaMGExCzAJBgNVBAYTAlVT' + #13#10 +
+        'MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j' + #13#10 +
+        'b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IEcyMIIBIjANBgkqhkiG' + #13#10 +
+        '9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuzfNNNx7a8myaJCtSnX/RrohCgiN9RlUyfuI' + #13#10 +
+        '2/Ou8jqJkTx65qsGGmvPrC3oXgkkRLpimn7Wo6h+4FR1IAWsULecYxpsMNzaHxmx' + #13#10 +
+        '1x7e/dfgy5SDN67sH0NO3Xss0r0upS/kqbitOtSZpLYl6ZtrAGCSYP9PIUkY92eQ' + #13#10 +
+        'q2EGnI/yuum06ZIya7XzV+hdG82MHauVBJVJ8zUtluNJbd134/tJS7SsVQepj5Wz' + #13#10 +
+        'tCO7TG1F8PapspUwtP1MVYwnSlcUfIKdzXOS0xZKBgyMUNGPHgm+F6HmIcr9g+UQ' + #13#10 +
+        'vIOlCsRnKPZzFBQ9RnbDhxSJITRNrw9FDKZJobq7nMWxM4MphQIDAQABo0IwQDAP' + #13#10 +
+        'BgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBhjAdBgNVHQ4EFgQUTiJUIBiV' + #13#10 +
+        '5uNu5g/6+rkS7QYXjzkwDQYJKoZIhvcNAQELBQADggEBAGBnKJRvDkhj6zHd6mcY' + #13#10 +
+        '1Yl9PMWLSn/pvtsrF9+wX3N3KjITOYFnQoQj8kVnNeyIv/iPsGEMNKSuIEyExtv4' + #13#10 +
+        'NeF22d+mQrvHRAiGfzZ0JFrabA0UWTW98kndth/Jsw1HKj2ZL7tcu7XUIOGZX1NG' + #13#10 +
+        'Fdtom/DzMNU+MeKNhJ7jitralj41E6Vf8PlwUHBHQRFXGU7Aj64GxJUTFy8bJZ91' + #13#10 +
+        '8rGOmaFvE7FBcf6IKshPECBV1/MUReXgRPTqh5Uykw7+U0b6LJ3/iyK5S9kJRaTe' + #13#10 +
+        'pLiaWN0bfVKfjllDiIGknibVb63dDcY3fe0Dkhvld1927jyNxF1WW6LZZm6zNTfl' + #13#10 +
+        'MrY=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10;
+    sslRootCACerts032 =                                                               { V8.52 }
+        '# X509 SSL Certificate' + #13#10 +
+        'Issued to (CN): DigiCert Global Root G3, (O): DigiCert Inc' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        'Serial Number: 055556bcf25ea43535c3a40fd5ab4572' + #13#10 +
+        'Fingerprint (sha1): 7e04de896a3e666d00e687d33ffad93be83d349e' + #13#10 +
+        'Expires: 15/01/2038, Signature: ecdsa-with-SHA384' + #13#10 +
+        'Public Key: ECDSA Key Encryption secp384r1 384 bits, 192 security bits' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIICPzCCAcWgAwIBAgIQBVVWvPJepDU1w6QP1atFcjAKBggqhkjOPQQDAzBhMQsw' + #13#10 +
+        'CQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3d3cu' + #13#10 +
+        'ZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBHMzAe' + #13#10 +
+        'Fw0xMzA4MDExMjAwMDBaFw0zODAxMTUxMjAwMDBaMGExCzAJBgNVBAYTAlVTMRUw' + #13#10 +
+        'EwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20x' + #13#10 +
+        'IDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IEczMHYwEAYHKoZIzj0CAQYF' + #13#10 +
+        'K4EEACIDYgAE3afZu4q4C/sLfyHS8L6+c/MzXRq8NOrexpu80JX28MzQC7phW1FG' + #13#10 +
+        'fp4tn+6OYwwX7Adw9c+ELkCDnOg/QW07rdOkFFk2eJ0DQ+4QE2xy3q6Ip6FrtUPO' + #13#10 +
+        'Z9wj/wMco+I+o0IwQDAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBhjAd' + #13#10 +
+        'BgNVHQ4EFgQUs9tIpPmhxdiuNkHMEWNpYim8S8YwCgYIKoZIzj0EAwMDaAAwZQIx' + #13#10 +
+        'AK288mw/EkrRLTnDCgmXc/SINoyIJ7vmiI1Qhadj+Z4y3maTD/HMsQmP3Wyr+mt/' + #13#10 +
+        'oAIwOWZbwmSNuJ5Q3KjVSaLtx9zRSX8XAbjIho9OjIgrqJqpisXRAL34VOKa5Vt8' + #13#10 +
+        'sycX' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10;
 
 implementation
 
@@ -1508,7 +1563,8 @@ begin
         sslRootCACerts011 + sslRootCACerts012 + sslRootCACerts013 + sslRootCACerts014 + sslRootCACerts015 +
         sslRootCACerts016 + sslRootCACerts017 + sslRootCACerts018 + sslRootCACerts019 + sslRootCACerts020 +
         sslRootCACerts021 + sslRootCACerts022 + sslRootCACerts023 + sslRootCACerts024 + sslRootCACerts025 +
-        sslRootCACerts026 + sslRootCACerts027 + sslRootCACerts028 + sslRootCACerts029 + sslRootCACerts030;
+        sslRootCACerts026 + sslRootCACerts027 + sslRootCACerts028 + sslRootCACerts029 + sslRootCACerts030 +
+        sslRootCACerts031 + sslRootCACerts032;                                                  { V8.52 }
     end ;
 
 
@@ -2102,6 +2158,8 @@ begin
     InitializeSsl;
     if NOT Assigned(PrivateKey) then
         raise ECertToolsException.Create('Must create private key first');
+    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101) and (FCertDigest >= Digest_sha3_224) then   { V8.51 }
+        raise ECertToolsException.Create('SHA3 hashes not supported');
 
     if Assigned(FNewReq) then f_X509_REQ_free(FNewReq);
     FNewReq := f_X509_Req_new;
@@ -2154,9 +2212,14 @@ begin
     f_OPENSSL_sk_pop_free(Exts, @f_X509_EXTENSION_free);
 
  { sign request with private key and digest/hash }
-    if f_X509_REQ_sign(FNewReq, PrivateKey, IcsSslGetEVPDigest(FCertDigest)) = 0 then
-        RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign request with digest');
-
+    if f_EVP_PKEY_base_id(PrivateKey) = EVP_PKEY_ED25519 then begin   { V8.51 no digest for EVP_PKEY_ED25519 }
+        if f_X509_REQ_sign(FNewReq, PrivateKey, Nil) = 0 then
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign request with ED25519 key');
+    end
+    else begin
+        if f_X509_REQ_sign(FNewReq, PrivateKey, IcsSslGetEVPDigest(FCertDigest)) = 0 then
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign request with digest');
+    end;
     SetX509Req(FNewReq);
 end;
 
@@ -2175,12 +2238,17 @@ begin
         raise ECertToolsException.Create('Must create private key first');
     if f_X509_check_private_key(X509, PrivateKey) < 1 then
         raise ECertToolsException.Create('Old certificate and private key do not match');
+    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101) and (FCertDigest >= Digest_sha3_224) then   { V8.51 }
+        raise ECertToolsException.Create('SHA3 hashes not supported');
 
   { create new request from old certificate - warning ignores alternate subject DNS }
     if Assigned(FNewReq) then f_X509_REQ_free(FNewReq);
-     FNewReq := f_X509_to_X509_REQ(X509, PrivateKey, IcsSslGetEVPDigest(FCertDigest));
-     if NOT Assigned (FNewReq) then
-            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign request with digest');
+    if f_EVP_PKEY_base_id(PrivateKey) = EVP_PKEY_ED25519 then    { V8.51 no digest for EVP_PKEY_ED25519 }
+        FNewReq := f_X509_to_X509_REQ(X509, PrivateKey, Nil)
+    else
+        FNewReq := f_X509_to_X509_REQ(X509, PrivateKey, IcsSslGetEVPDigest(FCertDigest));
+    if NOT Assigned (FNewReq) then
+        RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign request with digest');
      SetX509Req(FNewReq);
 end;
 
@@ -2194,6 +2262,8 @@ begin
     InitializeSsl;
     if NOT Assigned(PrivateKey) then
         raise ECertToolsException.Create('Must create private key first');
+    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101) and (FCertDigest >= Digest_sha3_224) then   { V8.51 }
+        raise ECertToolsException.Create('SHA3 hashes not supported');
 
     if Assigned(FNewCert) then f_X509_free(FNewCert);
     FNewCert := f_X509_new;
@@ -2272,8 +2342,14 @@ begin
     end;
 
   { self sign it with our key and hash digest }
-    if f_X509_sign(FNewCert, PrivateKey, IcsSslGetEVPDigest(FCertDigest)) <= 0 then
-        RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certificate with digest');
+    if f_EVP_PKEY_base_id(PrivateKey) = EVP_PKEY_ED25519 then begin   { V8.51 no digest for EVP_PKEY_ED25519 }
+        if f_X509_sign(FNewCert, PrivateKey, Nil) = 0 then
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certifcate with ED25519 key');
+    end
+    else begin
+        if f_X509_sign(FNewCert, PrivateKey, IcsSslGetEVPDigest(FCertDigest)) <= 0 then
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certificate with digest');
+    end;
     SetX509(FNewCert);
 
   { add certificate to our database ? }
@@ -2301,6 +2377,9 @@ begin
         raise ECertToolsException.Create('Must open CA private key first');
     if f_X509_check_private_key(FX509CA, FPrivKeyCA) = 0 then
         raise ECertToolsException.Create('CA certificate and private key do not match');
+    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101) and (FCertDigest >= Digest_sha3_224) then   { V8.51 }
+        raise ECertToolsException.Create('SHA3 hashes not supported');
+
 
     if Assigned(FNewCert) then f_X509_free(FNewCert);
     FNewCert := f_X509_new;
@@ -2384,8 +2463,14 @@ begin
     end;
 
   { Sign it with CA certificate and hash digest }
-    if f_X509_sign(FNewCert, FPrivKeyCA, IcsSslGetEVPDigest(FCertDigest)) <= 0 then
+     if f_EVP_PKEY_base_id(FPrivKeyCA) = EVP_PKEY_ED25519 then begin   { V8.51 no digest for EVP_PKEY_ED25519 }
+        if f_X509_sign(FNewCert, FPrivKeyCA, Nil) = 0 then
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certifcate with ED25519 key');
+    end
+    else begin
+       if f_X509_sign(FNewCert, FPrivKeyCA, IcsSslGetEVPDigest(FCertDigest)) <= 0 then
         RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certificate with digest');
+    end;
     SetX509(FNewCert);
 
   { add certificate to our database ? }
@@ -2483,10 +2568,19 @@ begin
         KeyNid := EVP_PKEY_ED25519;
         KeyInfo := 'ED25519';
     end
-  (*  else if (FPrivKeyType = PrivKeyRsaPss) then begin    { V8.50 needs OpenSSL 1.1.1 }
+    else if (FPrivKeyType >= PrivKeyRsaPss2048) and (FPrivKeyType <= PrivKeyRsaPss15360) then begin    { V8.51 needs OpenSSL 1.1.1 }
         KeyNid := EVP_PKEY_RSA_PSS;
         KeyInfo := 'RSA-PSS';
-    end     *)
+        case FPrivKeyType of
+            PrivKeyRsaPss2048:  Bits := 2048;
+            PrivKeyRsaPss3072:  Bits := 3072;
+            PrivKeyRsaPss4096:  Bits := 4096;
+            PrivKeyRsaPss7680:  Bits := 7680;
+            PrivKeyRsaPss15360: Bits := 15360;
+        else
+            Bits := 2048;
+        end;
+    end
     else if (FPrivKeyType >= PrivKeyECsecp256) and (FPrivKeyType <= PrivKeyECsecp512) then begin
         KeyNid := EVP_PKEY_EC;
         KeyInfo := 'EC';
@@ -2501,18 +2595,25 @@ begin
     else
         Exit;
 
- { initialise conext for private keys }
+ { initialise context for private keys }
     Pctx := f_EVP_PKEY_CTX_new_id(KeyNid, Nil);
     if NOT Assigned(Pctx) then
             RaiseLastOpenSslError(ECertToolsException, true, 'Failed to create new ' + KeyInfo + ' key');
     if f_EVP_PKEY_keygen_init(Pctx) = 0 then
             RaiseLastOpenSslError(ECertToolsException, true, 'Failed to init ' + KeyInfo + ' keygen');
-    if (Bits > 0) and (f_EVP_PKEY_CTX_set_rsa_keygen_bits(Pctx, Bits) = 0) then
+    if (KeyNid = EVP_PKEY_RSA) or (KeyNid = EVP_PKEY_RSA_PSS) then begin
+        if (Bits > 0) and (f_EVP_PKEY_CTX_set_rsa_keygen_bits(Pctx, Bits) = 0) then
             RaiseLastOpenSslError(ECertToolsException, true, 'Failed to set RSA bits');
+         // f_EVP_PKEY_CTX_set_rsa_padding
+         // f_EVP_PKEY_CTX_set_signature_md
+    end;
     if (CurveNid > 0) and (f_EVP_PKEY_CTX_set_ec_paramgen_curve_nid(Pctx, CurveNid) = 0) then
                 RaiseLastOpenSslError(ECertToolsException, true, 'Failed to set EC curve');
     if (KeyNid = EVP_PKEY_RSA_PSS) then begin
-        // pending more stuff from 1.1.1
+        // pending - various macros to restrict digests, MGF1 and minimum salt length
+        // f_EVP_PKEY_CTX_set_rsa_pss_keygen_md
+        // f_EVP_PKEY_CTX_set_rsa_pss_saltlen
+        // f_EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md
     end;
 
 

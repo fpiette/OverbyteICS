@@ -3,11 +3,11 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.51
+Version:      8.52
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2002-2017 by François PIETTE
+Legal issues: Copyright (C) 2002-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -150,7 +150,8 @@ Jun 23, 2017 V8.49 Fixes for MacOs
 Sep 19, 2017 V8.50 Added IcsMoveTBytesToString and IcsMoveStringToTBytes that take
                       a codepage for proper Unicode conversion
 Nov 17, 2017 V8.51 Added IcsGetFileUAge
-
+Jan 3, 2018  V8.52 Added IcsFmtIpv6Addr, IcsFmtIpv6AddrPort and IcsStripIpv6Addr to
+                      format browser friendly IPv6 addresses with []
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -545,8 +546,9 @@ const
     function IcsTbytesStarts(Source: TBytes; Find: PAnsiChar) : Boolean;    { V8.49 }
     function IcsTbytesContains(Source : TBytes; Find : PAnsiChar) : Boolean;   { V8.49 }
     function IcsGetFileUAge(const FileName : String) : TDateTime;            { V8.51 }
-
-
+    function IcsFmtIpv6Addr (const Addr: string): string;              { V8.52 }
+    function IcsFmtIpv6AddrPort (const Addr, Port: string): string;    { V8.52 }
+    function IcsStripIpv6Addr (const Addr: string): string;            { V8.52 }
 
 
 { Moved from OverbyteIcsLibrary.pas prefix "_" replaced by "Ics" }
@@ -5909,6 +5911,36 @@ begin
     if (StrPos(PAnsiChar(Source), Find) <> nil) then
       Result := TRUE;
 {$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ format an IPv6 address with browser friendly [] }
+function IcsFmtIpv6Addr (const Addr: string): string;    { V8.52 }
+begin
+    if (Pos ('.', Addr) = 0) and (Pos ('[', Addr) = 0) and (Pos (':', Addr) > 0) then
+        result := '[' + Addr + ']'
+    else
+        result := Addr;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ format an IPv6 address with browser friendly [] and port }
+function IcsFmtIpv6AddrPort (const Addr, Port: string): string;    { V8.52 }
+begin
+    result := IcsFmtIpv6Addr (Addr) + ':' + Port;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ strip [] off IPv6 address }
+function IcsStripIpv6Addr (const Addr: string): string;         { V8.52 }
+begin
+    if (Pos ('[', Addr) = 1) and (Addr [Length (Addr)] = ']') then
+        result := Copy (Addr, 2, Length (Addr) - 2)
+    else
+        result := Addr;
 end;
 
 

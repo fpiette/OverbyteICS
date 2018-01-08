@@ -8,11 +8,11 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      8.49
+Version:      8.52
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2017 by François PIETTE
+Legal issues: Copyright (C) 1999-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -92,7 +92,8 @@ Jun 26 2017 V8.49 Added .well-known directory support.  If WellKnownPath is
                      handled locally either in the OnWellKnownDir Event or
                      by returning a file from WellKnownPath instead of DocDir.
                      This is primarily for Let's Encrypt challenges.
-
+Jan 3, 2018  V8.52 Added IPv6 support by listing IPv6 local listen addresses,
+                     and sorting them.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -131,10 +132,11 @@ uses
   OverbyteIcsWSocket, OverbyteIcsWSocketS, OverbyteIcsHttpSrv,
   OverbyteIcsLIBEAY, OverbyteIcsSSLEAY, OverbyteIcsSslSessionCache,
   OverbyteIcsSslX509Utils, OverbyteIcsLogger, OverbyteIcsWndControl,
-  OverbyteIcsSslThrdLock, TypInfo;
+  OverbyteIcsSslThrdLock, TypInfo, OverbyteIcsUtils,
+  OverbyteIcsSocketUtils;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2017 F. Piette V8.49 ';
+  CopyRight : String         = 'WebServ (c) 1999-2018 F. Piette V8.52 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -380,6 +382,7 @@ var
     OldIp   : string;
     I       : integer;
     SL      : TSslSecLevel;
+    InterfaceList : TStringList;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
@@ -446,9 +449,18 @@ begin
 
         RenegotiationIntervalEdit.Text := IntToStr(FRenegotiationInterval);
 
-        { V8.05 allow user to choose which IP address to listen }
-        ListenAddr.Items.Text := 'localhost' + #13#10 +
-                               '0.0.0.0' + #13#10 + LocalIPList.Text;
+      { V8.05 allow user to choose which IP address to listen }
+        InterfaceList := TStringList.Create;
+        InterfaceList.Sorted := True;  { V8.52 sort the list } 
+        try
+       { V8.52 get local IP list from newer cross platform function }
+         //  IcsGetInterfaceList(InterfaceList);
+            InterfaceList.AddStrings(LocalIPList(sfAny));   { V8.52 show IPv6 as well }
+            ListenAddr.Items.Text := 'localhost' + #13#10 +
+                                '0.0.0.0' + #13#10 + InterfaceList.Text;
+        finally
+            InterfaceList.Free;
+        end;
         I := ListenAddr.Items.IndexOf(OldIp);
         if I >= 0 then
             ListenAddr.ItemIndex := I
@@ -780,7 +792,7 @@ begin
     StartHttpsButton.Enabled := FALSE;
     StopButton.Enabled       := TRUE;
     Display('HTTPS Server is waiting for connections');
-    S := SslHttpServer1.Addr;
+    S := IcsFmtIpv6Addr(SslHttpServer1.Addr);  { V8.52 browser friendly IPv6 }
     if S = '0.0.0.0' then S:= 'localhost';
     Display('https://' + S + '/demo.html');
 end;
@@ -793,7 +805,7 @@ var
 begin
     StartHttpButton.Enabled    := FALSE;
     Display('HTTP Server is waiting for connections');
-    S := SslHttpServer1.Addr;
+    S := IcsFmtIpv6Addr(SslHttpServer1.Addr); { V8.52 browser friendly IPv6 }
     if S = '0.0.0.0' then S:= 'localhost';
     Display('http://' + S + '/demo.html');
 end;

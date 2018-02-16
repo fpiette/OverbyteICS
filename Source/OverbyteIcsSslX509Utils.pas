@@ -3,12 +3,12 @@
 Authors:      Arno Garrels <arno.garrels@gmx.de>
               Angus Robertson <delphi@magsys.co.uk>
 Creation:     Aug 26, 2007
-Description:
+Description:  SSL key and X509 certification creation
 Version:      8.52
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2007-2017 by François PIETTE
+Legal issues: Copyright (C) 2007-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -94,7 +94,9 @@ Sep 22, 2017 V8.50 Alternate DNS names now added correctly to requests and certs
              Corrected X25519 private keys to ED25519, requires OpenSSL 1.1.1
 Nov 3, 2017  V8.51 Tested ED25519 keys, can now sign requests and certs
              Added RSA-PSS keys and SHA3 digest hashes, requires OpenSSL 1.1.1
-Jan 4, 2018  V8.52 Added DigiCert Global Root G2 and G3 root certificates
+Feb 16, 2018 V8.52 Added DigiCert Global Root G2 and G3 root certificates
+             Added key and signature to ReqCertInfo
+
 
 
 Pending - short term
@@ -412,6 +414,8 @@ type
         function    GetIsReqLoaded: Boolean;
         function    GetIsCALoaded: Boolean;
         procedure   WriteReqToBio(ABio: PBIO; AddInfoText: Boolean = FALSE; const FName: String = ''); virtual;
+        function    GetReqKeyInfo: string;       { V8.52 }
+        function    GetReqSignAlgo: String;      { V8.52 }
     public
         constructor Create(AOwner: TComponent);
         destructor  Destroy; override;
@@ -445,6 +449,8 @@ type
         property    ReqCertInfo         : String        read GetReqCertInfo;
         property    IsReqLoaded         : Boolean       read GetIsReqLoaded;
         property    IsCALoaded          : Boolean       read GetIsCALoaded;
+        property    ReqKeyInfo          : string        read GetReqKeyInfo;       { V8.52 }
+        property    ReqSignAlgo         : string        read GetReqSignAlgo;      { V8.52 }
     published
         property Country           : String             read FCountry       write FCountry;
         property State             : String             read FState         write FState;
@@ -555,6 +561,7 @@ procedure StreamDecrypt(SrcStream: TStream; DestStream: TStream;
     StrBlkSize: Integer; CiphCtx: TCiphContext; RandomIV: Boolean;
     Obj: TObject; ProgressCallback : TCryptProgress); overload;
 function sslRootCACertsBundle: string ;
+
 
 const
   { V8.27 Root CA Certs Bundle of about 30 PEM certificates extracted from
@@ -1968,6 +1975,42 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslCertTools.GetReqKeyInfo: string;       { V8.52 }
+var
+    pubkey: PEVP_PKEY;
+begin
+    result := '' ;
+    if NOT Assigned(FX509Req) then Exit;
+    pubkey := f_X509_REQ_get_pubkey(FX509Req);
+    Result := GetKeyDesc(pubkey);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslCertTools.GetReqSignAlgo: String;      { V8.52 }
+var
+    Nid: integer ;
+    Str : AnsiString;
+    MyX509Req: PX509_REQ;
+begin
+    Result := '';
+    if NOT Assigned(FX509Req) then Exit;
+    if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) then
+        Nid := f_X509_REQ_get_signature_nid(FX509Req)
+    else begin
+        MyX509Req := FX509Req;
+        Nid := f_OBJ_obj2nid(MyX509Req^.sig_alg.algorithm); 
+    end;
+    if Nid <> NID_undef then begin
+        SetLength(Str, 256);
+        Str := f_OBJ_nid2ln(Nid);
+        SetLength(Str, IcsStrLen(PAnsiChar(Str)));
+        Result := String(Str);
+    end;
+end;
+
+
+                                   {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TSslCertTools.GetReqCertInfo: String;
 begin
     Result := 'Request for (CN): ' + UnwrapNames (ReqSubjCName);
@@ -1983,6 +2026,9 @@ begin
         Result := Result + 'Key Usage: ' + IcsUnwrapNames(ReqKeyUsage) + #13#10;
     if ReqExKeyUsage <> '' then
         Result := Result + 'Extended Key Usage: ' + IcsUnwrapNames(ReqExKeyUsage) + #13#10;
+    Result := Result + 'Signature: ' + ReqSignAlgo + #13#10;
+    Result := Result + 'Public Key: ' + ReqKeyInfo;
+
 end;
 
 
@@ -2629,6 +2675,7 @@ begin
     SetPrivateKey(FPrivKey);
     f_EVP_PKEY_CTX_free(Pctx);
 end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Old version that uses lower level functions, may still be useful }

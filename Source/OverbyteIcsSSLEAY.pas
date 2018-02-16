@@ -5,11 +5,11 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.51
+Version:      8.52
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2017 by François PIETTE
+Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -118,6 +118,8 @@ Nov 22, 2017  V8.51 Testing OpenSSL 1.1.1 that adds TLS/1.3
               Corrected various set options to be exports with 1.1.0 instead
                 of macros earlier, also SSL_session_reused
               Added more constants and functions for 1.1.1, f_SSL_xx_groups
+Feb 16, 2018  V8.52 Added more EVP functions for keys, hashing and signing
+
 
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -198,8 +200,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 850;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2017 F. Piette V8.50 ';
+    IcsSSLEAYVersion   = 852;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2018 F. Piette V8.52 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -268,7 +270,7 @@ const
     OSSL_VER_1000D = $1000004f; // Might be still buggy, had to incl. one workaround so far, see TSslContext.InitContext
     OSSL_VER_1000J = $100000af; // just briefly tested}
 
-{ only supporting versions with TLS 1.1 and 1.2 }
+{ only supporting versions with TLS 1.1, 1.2 and 1.3 }
 { V8.27 moved from OverbyteIcsLIBEAY  }
     OSSL_VER_MIN   = $0000000F; // minimum version     { V8.35 }
     OSSL_VER_1001  = $1000100F; // 1.0.1 untested
@@ -281,13 +283,14 @@ const
     OSSL_VER_1002  = $10002000; // 1.0.2 just briefly tested
     OSSL_VER_1002A = $1000201F; // just briefly tested
     OSSL_VER_1002ZZ= $10002FFF; // not yet released
-    OSSL_VER_1100  = $1010000F; // 1.1.0                 { V8.32 }
+    OSSL_VER_1100  = $1010000F; // 1.1.0 base            { V8.32 }
     OSSL_VER_1100A = $1010001F; // 1.1.0a                { V8.35 }
     OSSL_VER_1100B = $1010002F; // 1.1.0b                { V8.35 }
     OSSL_VER_1100C = $1010003F; // 1.1.0c                { V8.38 }
     OSSL_VER_1100D = $1010004F; // 1.1.0d                { V8.41 }
     OSSL_VER_1100ZZ= $10100FFF; // not yet released      { V8.35 }
-    OSSL_VER_1101  = $10101000; // 1.1.1 next feature release  { V8.34 }
+    OSSL_VER_1101  = $10101000; // 1.1.1 base            { V8.52 }
+    OSSL_VER_1101P1= $10101001; // 1.1.1-pre1 (alpha)    { V8.52 }
     OSSL_VER_1199  = $10101FFF; // not yet released      { V8.34 }
     OSSL_VER_MAX   = $FFFFFFFF; // maximum version       { V8.35 }
 
@@ -297,8 +300,8 @@ const
     { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
 
     MIN_OSSL_VER   = OSSL_VER_1002;   { V8.39 minimum is now 1.0.2 }
-    MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.35 1.1.0zz }
-  //  MAX_OSSL_VER   = OSSL_VER_1101;   { V8.51 1.1.1-dev }
+//  MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.35 1.1.0zz }
+    MAX_OSSL_VER   = OSSL_VER_1101P1; { V8.52 1.1.1-pre1 (alpha) }
 
     { V8.41 PEM base64 file titles }
     PEM_STRING_HDR_BEGIN   = '-----BEGIN ';    { six hyphens }
@@ -430,6 +433,23 @@ type
     PSTACK_OF = ^STACK_OF;
     PSTACK    = PSTACK_OF;   }
 
+    BN_ULONG = Cardinal;               { V8.03 }
+    PBN_ULONG = ^ BN_ULONG; 
+
+    TBIGNUM_st = packed record         { V8.03 }
+    //    Dummy : array [0..0] of Byte;
+        d: PBN_ULONG;                  { V8.52 need for array }
+        top: Integer;
+        dmax: Integer;
+        neg: Integer;
+        flags: Integer;
+    end;
+    PBIGNUM = ^TBIGNUM_st;
+    PPBIGNUM = ^PBIGNUM;                    { V8.52 }
+    TBIGNUMS = array [0..0] of TBIGNUM_st;  { V8.52 }
+    PBIGNUMS = ^TBIGNUMS;                   { V8.52 }
+    PPBIGNUMS = ^PBIGNUMS;                  { V8.52 }
+
     TSTACK_st = packed record               //AG
         Dummy : array [0..0] of Byte;
     end;
@@ -461,9 +481,16 @@ type
     PEC_METHOD = ^TEC_METHOD_st;
 
     TEC_POINT_st = packed record                  { V8.40 }
-        Dummy : array [0..0] of Byte;
+     //   Dummy : array [0..0] of Byte;
+        meth: PEC_METHOD;                  { V8.52 need full data for array }
+        X: PBIGNUM;
+        Y: PBIGNUM;
+        Z: PBIGNUM;
+        Z_is_one: Integer;
     end;
     PEC_POINT = ^TEC_POINT_st;
+    TEC_POINTS = array[0..0] of TEC_POINT_st;    { V8.52 }
+    PEC_POINTS = ^TEC_POINTS;                    { V8.52 }
 
     TEC_PKPARAMETERS_st = packed record           { V8.40 }
         Dummy : array [0..0] of Byte;
@@ -548,18 +575,43 @@ type
     end;
     PEVP_PKEY_CTX = ^TEVP_PKEY_CTX_st;
 
-    BN_ULONG = Cardinal;               { V8.03 }
-
-    TBIGNUM_st = packed record         { V8.03 }
-        Dummy : array [0..0] of Byte;
-    end;
-    PBIGNUM = ^TBIGNUM_st;
-
     TRSA_st = packed record
         Dummy : array [0..0] of Byte;      //AG
     end;
     PRSA = ^TRSA_st;
     PPRSA = ^PRSA;                        { V8.03 }
+
+    TCRYPTO_EX_DATA = record
+        sk: PSTACK;
+        dummy: Integer;
+    end;
+
+    TRSAreal = record                     { V8.52 only use for 1.0.2 }
+        pad: Integer;
+        version: LongWord;
+        meth: Pointer;
+        engine: Pointer;
+        n: PBIGNUM;
+        e: PBIGNUM;
+        d: PBIGNUM;
+        p: PBIGNUM;
+        q: PBIGNUM;
+        dmp1: PBIGNUM;
+        dmq1: PBIGNUM;
+        iqmp: PBIGNUM;
+     //   prime_infos: Pointer;  // added in 1.1.0?
+     //   pss: Pointer;          // added in 1.1.0?
+        ex_data: TCRYPTO_EX_DATA;
+        references: Integer;
+        flags: Integer;
+        _method_mod_n: Pointer;
+        _method_mod_p: Pointer;
+        _method_mod_q: Pointer;
+        bignum_data: PAnsiChar; // where are bignums are physically stored
+        blinding: Pointer;
+        mt_blinding: Pointer;
+    end;
+    PRSAreal = ^TRSAreal;
 
     TDSA_st = packed record                //AG
         Dummy : array [0..0] of Byte;
@@ -581,24 +633,6 @@ type
     { See helper functions Ics_Ssl_EVP_PKEYxxx in OverbyteIcsLibeay32  }
     TEVP_PKEY_st = packed record
         Dummy : array [0..0] of Byte;
-    (*
-        type_       : Longint;
-        save_type   : Longint;
-        references  : Longint;
-    {OSSL_100 two fields added}
-        ameth       : Pointer; //PEVP_PKEY_ASN1_METHOD;
-        engine      : Pointer; //PENGINE;
-    {/OSSL_100}
-        case Integer of
-        0 : (ptr  : PAnsiChar);
-        1 : (rsa  : PRSA); // RSA
-        2 : (dsa  : PDSA); // DSA
-        3 : (dh   : PDH);  // DH
-        4 : (ec   : PEC_KEY); //* ECC */
-        { more not needed ...
-        int save_parameters;
-        STACK_OF(X509_ATTRIBUTE) *attributes; /* [ 0 ] */ }
-    *)
     end;
     PEVP_PKEY = ^TEVP_PKEY_st;
     PPEVP_PKEY = ^PEVP_PKEY;
@@ -1099,6 +1133,18 @@ type
     end;
     PX509V3_EXT_METHOD = ^TX509V3_EXT_METHOD;
 
+    TPoint_Conversion_Form_t = byte;             { V8.52 }
+       { the point is encoded as z||x, where the octet z specifies
+         *  which solution of the quadratic equation y is  }
+const
+    POINT_CONVERSION_COMPRESSED = 2;
+        { the point is encoded as z||x||y, where z is the octet 0x04  }
+    POINT_CONVERSION_UNCOMPRESSED = 4;
+        { the point is encoded as z||x||y, where the octet z specifies
+           which solution of the quadratic equation y is  }
+    POINT_CONVERSION_HYBRID = 6;
+
+type 
   { V8.27  The valid handshake states (one for each type message sent and one for each
            type of message received). There are also two "special" states:
      TLS = TLS or DTLS state

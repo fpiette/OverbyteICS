@@ -6,11 +6,11 @@ Description:  A simple  HTTPS SSL Web Client Demo client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.51
+Version:      8.52
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2017 by François PIETTE
+Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -78,6 +78,7 @@ Dec 11, 2017  V8.51 added Debug Dump tick box to log SSL dump diagnostics
               Added proxy and socks authentication, login and password
               Report SOCKS proxy events
               Try and enable FIPS mode if supported by OpenSSL.
+Feb 16, 2018  V8.52 root certificates show SubjectOUName
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -118,10 +119,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 851;
-     HttpsTstDate        = 'Nov 13, 2017';
+     HttpsTstVersion     = 852;
+     HttpsTstDate        = 'Feb 16, 2018';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2017 Francois Piette V8.51 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2018 Francois Piette V8.52 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -1288,7 +1289,10 @@ begin
                     Info := Info + CertList [I-1].SubjectCName
                 else
                     Info := Info + CertList [I-1].SubjectOName;
-                Info := Info + ' (' + CertList [I-1].SubjectOName + ')' + #13#10;
+                Info := Info + ' (' + CertList [I-1].SubjectOName + ')';
+                if CertList [I-1].SubjectOUName <> '' then
+                    Info := Info + ' OU: ' + CertList [I-1].SubjectOUName;   { V8.52 }
+                Info := Info + #13#10;
             end;
             Display(Info);
         end

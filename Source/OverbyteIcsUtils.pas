@@ -150,9 +150,9 @@ Jun 23, 2017 V8.49 Fixes for MacOs
 Sep 19, 2017 V8.50 Added IcsMoveTBytesToString and IcsMoveStringToTBytes that take
                       a codepage for proper Unicode conversion
 Nov 17, 2017 V8.51 Added IcsGetFileUAge
-Jan 3, 2018  V8.52 Added IcsFmtIpv6Addr, IcsFmtIpv6AddrPort and IcsStripIpv6Addr to
+Feb 12, 2018 V8.52 Added IcsFmtIpv6Addr, IcsFmtIpv6AddrPort and IcsStripIpv6Addr to
                       format browser friendly IPv6 addresses with []
-
+                   Added useful constants like IcsLF and IcsCR, etc. 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -265,6 +265,28 @@ const
     CP_UTF16Be    = 1201;
     CP_UTF32      = 12000;
     CP_UTF32Be    = 12001;
+
+{ V8.52 some useful constants, make sure names are unique }
+const
+  IcsNULL            =  #0;
+  IcsSTX             =  #2;
+  IcsETX             =  #3;
+  IcsEOT             =  #4;
+  IcsBACKSPACE       =  #8;
+  IcsTAB             =  #9;
+  IcsLF              = #10;
+  IcsFF              = #12;
+  IcsCR              = #13;
+  IcsEOF             = #26;
+  IcsESC             = #27;
+  IcsFIELDSEP        = #28;
+  IcsRECSEP          = #30;
+  IcsBLANK           = #32;
+  IcsSQUOTE          = #39 ;
+  IcsDQUOTE          = #34 ;
+  IcsSPACE           = #32;
+  IcsHEX_PREFIX      = '$';     { prefix for hexnumbers }
+  IcsCRLF            = #13#10;
 
 type
     EIcsStringConvertError = class(Exception);

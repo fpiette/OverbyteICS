@@ -1466,6 +1466,7 @@ end;
 {$ENDIF}
 
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Any BreakStr not in a quoted string is truncated and the function returns!   }
 { i.e. when BreakStr #13#10#9 is found cPos returned is pos of char #9 + 1.    }

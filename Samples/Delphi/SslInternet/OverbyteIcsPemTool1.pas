@@ -8,11 +8,11 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.51
+Version:      8.52
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2017 by François PIETTE
+Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -94,6 +94,7 @@ Sep 22, 2017 V8.50 Corrected X25519 private keys to ED25519, requires OpenSSL 1.
                       confusion and needing to repeatedly reload pkey to sign certs
 Nov 3, 2017  V8.51 Tested ED25519 keys, can now sign requests and certs
              Added RSA-PSS keys and SHA3 digest hashes, requires OpenSSL 1.1.1
+Feb 14, 2018 V8.52 TX509 PublicKey now X509PublicKey
 
 
 Pending
@@ -131,10 +132,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 851;
-     PemToolDate        = 'Nov 03, 2017';
+     PemToolVersion     = 852;
+     PemToolDate        = 'Feb 14, 2018';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2017 by François PIETTE V8.51 ';
+     CopyRight : String = '(c) 2003-2018 by François PIETTE V8.52 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -2101,10 +2102,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.About1Click(Sender: TObject);
 begin
-   ShowMessage(
-               PemToolName + #13#10
-             +  CopyRight + ' ' + PemToolDate +
-             'SSL Version: ' + OpenSslVersion + ', Dir: ' + GLIBEAY_DLL_FileName);
+   ShowMessage(PemToolName + #13#10 +
+               CopyRight + ' ' + PemToolDate + #13#10 +
+               'SSL Version: ' + OpenSslVersion + #13#10 +
+               'Dir: ' + GLIBEAY_DLL_FileName);
 end;
 
 
@@ -2409,7 +2410,7 @@ begin
         { Load a certificate (public key) from PEM file, private key must not exist }
         Cert.LoadFromPemFile(PemFileName);
         { Encrypted string is Base64 encoded }
-        S := String(StrEncRsa(Cert.PublicKey, AnsiString(S), TRUE));
+        S := String(StrEncRsa(Cert.X509PublicKey, AnsiString(S), TRUE));   { V8.52 was PublicKey }
         ShowMessage('RSA encryted and Base64 encoded:'#13#10 + S);
     finally
         Cert.Free;

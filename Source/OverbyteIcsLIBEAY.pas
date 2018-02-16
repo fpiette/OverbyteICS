@@ -5,11 +5,11 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.51
+Version:      8.52
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2017 by François PIETTE
+Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -142,6 +142,11 @@ Dec 11, 2017  V8.51 Added SHA3 hashes for OpenSSL 1.1.1, also more PKEY function
                     Added more constants and functions for 1.1.1
                     Added fips mode functions.  Beware getting an application certified
                       for FIPS 140-2 is very onerous and expensive, and we can not help!
+Feb 16, 2018  V8.52 Added more EVP functions for keys, hashing and signing
+                    Fixed a problem with BIO_get_flags and 1.1.1 that caused SSL to
+                      fail, thanks to Rui for finding this.
+                    Ics_EVP_PKEY_dup now uses EVP_PKEY_up_ref for 1.1.0 up
+
 
 
 
@@ -192,6 +197,7 @@ X509_get0_notBefore
 X509_get0_notAfter
 X509_get_signature_nid
 X509_REQ_get_subject_name
+BIO_get_flags
 
 New functions:
 EVP_CIPHER_CTX_reset
@@ -204,7 +210,8 @@ BIO_METHOD, EVP_MD_CTX, EVP_MD, EVP_CIPHER_CTX, EVP_CIPHER, HMAC_CTX.
 
 
 Notes - OpenSSL libcrypto-1_1 changes between 1.1.0 and 1.1.1 - November 2017
-New SHA3 hash functions
+New Sha3 and Shake hash digest functions
+New Ed25519, X25519, RSA-PSS keys and signing
 
 
 
@@ -247,8 +254,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 851;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2017 F. Piette V8.51 ';
+    IcsLIBEAYVersion   = 852;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2018 F. Piette V8.52 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -1022,6 +1029,9 @@ const
     EVP_PKEY_RSA_PSS  = NID_rsassaPss; // 8.50
 
     EVP_MAX_MD_SIZE                   = 64; //* longest known is SHA512 */
+    EVP_MAX_KEY_LENGTH                = 64;  { V8.52 }
+    EVP_MAX_IV_LENGTH                 = 16;  { V8.52 }
+    EVP_MAX_BLOCK_LENGTH              = 32;  { V8.52 }
 
     { V8.40 some values for the EC_KEY encoding_flag }
     EC_PKEY_NO_PARAMETERS    = $01;
@@ -1794,14 +1804,17 @@ const
     f_BIO_read :                               function(B: PBIO; Buf: Pointer; Len: Integer): Integer; cdecl = nil;
     f_BIO_read_ex :                            function(B: PBIO; Buf: Pointer; DLen: size_t; var readbytes: size_t): Integer; cdecl = nil;  { V8.51 }
     f_BIO_s_mem :                              function : PBIO_METHOD; cdecl = nil;
+    f_BIO_test_flags:                          function(Bio: PBIO; flags: LongWord):Integer; cdecl = nil;     { V8.52 }
     f_BIO_write :                              function(B: PBIO; Buf: Pointer; Len: Integer): Integer; cdecl = nil;
     f_BIO_write_ex :                           function(B: PBIO; Buf: Pointer; dLen: Integer; var written: size_t): Integer; cdecl = nil;
     f_BN_GENCB_free :                          procedure(cb: PBN_GENCB); cdecl = nil;                { V8.40 }
     f_BN_GENCB_get_arg :                       function(cb: PBN_GENCB): Pointer; cdecl = nil;        { V8.40 }
     f_BN_GENCB_new :                           function : PBN_GENCB; cdecl = nil;                    { V8.40 }
     f_BN_GENCB_set :                           procedure(cb: PBN_GENCB; callback: TBNGENCBcallFunc; arg: pointer); cdecl = nil;  { V8.40 }
+    f_BN_bn2bin :                              function(const a: PBIGNUM; binto: PAnsiChar): Integer; cdecl = nil;  { V8.52 }
     f_BN_free:                                 procedure (a: PBIGNUM); cdecl = nil;
     f_BN_new:                                  function : PBIGNUM; cdecl = nil;                 { V8.11 }
+    f_BN_num_bits :                            function(const a: PBIGNUM): Integer; cdecl = nil;    { V8.52 }
     f_BN_set_word:                             function (a: PBIGNUM; w: BN_ULONG): Integer; cdecl = nil;
     f_CONF_modules_unload :                    procedure(all: Integer); cdecl = nil;//AG;
     f_CRYPTO_THREADID_set_callback :           function(CB : TCryptoThreadIDCallback) : Integer; cdecl = nil;
@@ -1815,6 +1828,7 @@ const
     f_CRYPTO_get_ex_data :                     function(r: PCRYPTO_EX_DATA; idx: integer): integer; cdecl = Nil;                           { V8.40 }
     f_CRYPTO_get_ex_new_index :                function(class_index: integer; argl: DWord; argp: Pointer; new_func: TCryptoExNewFunc; dup_func: TCryptoExDupFunc; free_func: TCryptoExFreeFunc): integer; cdecl = Nil; { V8.40 }
     f_CRYPTO_lock :                            procedure(mode, n: Longint; file_: PAnsiChar; line: Longint); cdecl = nil; //AG
+    f_CRYPTO_memcmp :                          function(in_a, in_b: pointer; len: Integer): Integer; cdecl = Nil;    { V8.52 }
     f_CRYPTO_new_ex_data :                     function(class_index: integer; obj: pointer; ad: PCRYPTO_EX_DATA): integer; cdecl = Nil;    { V8.40 }
     f_CRYPTO_num_locks :                       function: Integer; cdecl = nil;
     f_CRYPTO_set_dynlock_create_callback :     procedure(CB : TDynLockCreateCallBack); cdecl = nil;
@@ -1908,6 +1922,13 @@ const
     f_EC_curve_nid2nist:                       function(nid: Integer): PAnsiChar; cdecl = Nil;                     { V8.40 }
     f_EC_curve_nist2nid:                       function(ename: PAnsiChar): Integer; cdecl = Nil;                   { V8.40 }
     f_EC_get_builtin_curves :                  function(items: TEC_BUILTIN_CURVES; nitems: size_t): size_t; cdecl = Nil;           { V8.40 }
+    f_EC_POINT_set_affine_coordinates_GFp :    function(group: PEC_GROUP; p: PEC_POINT; x, y: PBIGNUM; ctx: PBN_CTX): Integer; cdecl = Nil;  { V8.52 }
+    f_EC_POINT_get_affine_coordinates_GFp :    function(group: PEC_GROUP; p: PEC_POINT; x, y: PBIGNUM; ctx: PBN_CTX): Integer; cdecl = Nil;  { V8.52 }
+    f_EC_POINT_set_affine_coordinates_GF2m :   function(group: PEC_GROUP; p: PEC_POINT; x, y: PBIGNUM; ctx: PBN_CTX): Integer; cdecl = Nil;  { V8.52 }
+    f_EC_POINT_get_affine_coordinates_GF2m :   function(group: PEC_GROUP; p: PEC_POINT; x, y: PBIGNUM; ctx: PBN_CTX): Integer; cdecl = Nil;  { V8.52 }
+    f_EC_POINT_method_of :                     function(point: PEC_POINT): PEC_METHOD; cdecl = Nil;  { V8.52 }
+    f_EC_POINT_oct2point :                     function(group: PEC_GROUP; p: PEC_POINT; buf: PAnsiChar; len: Integer;  ctx: PBN_CTX): Integer; cdecl = Nil;  { V8.52 }
+    f_EC_POINT_point2oct :                     function(group: PEC_GROUP; p: PEC_POINT; form: TPoint_Conversion_Form_t; buf: PAnsiChar; len: Integer; ctx: PBN_CTX): Integer; cdecl = Nil;  { V8.52 }
     f_ECDSA_SIG_free :                         procedure(sig: PECDSA_SIG); cdecl = Nil;          { V8.40 }
     f_ECDSA_SIG_get0 :                         procedure(sig: PECDSA_SIG; r: PBIGNUM; s: PBIGNUM); cdecl = Nil;                       { V8.40 }
     f_ECDSA_SIG_new :                          function: PECDSA_SIG; cdecl = Nil;                { V8.40 }
@@ -1949,16 +1970,19 @@ const
     f_EVP_DecryptFinal_ex :                    function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer): LongBool; cdecl = nil;   { V8.40 }
     f_EVP_DecryptInit_ex :                     function(ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; const key: PAnsiChar; const iv: PAnsiChar): LongBool; cdecl = nil;
     f_EVP_DecryptUpdate :                      function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
-    f_EVP_Digest :                             function(edata: Pointer; count: SIZE_T; var md: Byte; var size: Word; etype: PEVP_MD; impl: PEngine): Integer; cdecl = Nil;    { V8.40 }
-    f_EVP_DigestFinal_ex :                     function(ctx: PEVP_MD_CTX; md: Byte; var s: Word): Integer; cdecl = Nil;               { V8.40 }
+    f_EVP_Digest :                             function(edata: Pointer; count: Integer; md: PAnsiChar; var size: integer; etype: PEVP_MD; impl: PEngine): Integer; cdecl = Nil;    { V8.40 }
+    f_EVP_DigestFinal_ex :                     function(ctx: PEVP_MD_CTX; md: PAnsiChar; var s: integer): Integer; cdecl = Nil;               { V8.40 }
     f_EVP_DigestInit_ex :                      function(ctx: PEVP_MD_CTX; etype: PEVP_MD; impl: PEngine): Integer; cdecl = Nil;       { V8.40 }
-    f_EVP_DigestUpdate :                       function(ctx: PEVP_MD_CTX; d: Pointer; cnt: SIZE_T): Integer; cdecl = Nil;             { V8.40 }
-    f_EVP_DigestFinal :                        function(ctx: PEVP_MD_CTX; var md: Byte; var s: Word): Integer; cdecl = Nil;           { V8.40 }
+    f_EVP_DigestUpdate :                       function(ctx: PEVP_MD_CTX; d: Pointer; cnt: Integer): Integer; cdecl = Nil;             { V8.40 }
+    f_EVP_DigestFinal :                        function(ctx: PEVP_MD_CTX; md: PAnsiChar; var s: integer): Integer; cdecl = Nil;           { V8.40 }
     f_EVP_DigestInit :                         function(ctx: PEVP_MD_CTX; etype: PEVP_MD): Integer; cdecl = Nil;                      { V8.40 }
+    f_EVP_DigestSign :                         function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; var siglen: Integer; tbsret: PAnsiChar; tbslen: Integer): Integer; cdecl = Nil;  { V8.52 }
     f_EVP_DigestSignInit :                     function(ctx: PEVP_MD_CTX; pctx: PEVP_PKEY_CTX; etype: PEVP_MD; impl: PEngine; pkey: PEVP_PKEY): Integer; cdecl = Nil;   { V8.40 }
-    f_EVP_DigestSignFinal :                    function(ctx: PEVP_MD_CTX; var sigret: Byte; var siglen: SIZE_T): Integer; cdecl = Nil;           { V8.40 }
-    f_EVP_DigestVerifyInit :                   function(ctx: PEVP_MD_CTX; pctx: PEVP_PKEY_CTX; etype: PEVP_MD; impl: PEngine): Integer; cdecl = Nil;   { V8.40 }
-    f_EVP_DigestVerifyFinal:                   function(ctx: PEVP_MD_CTX; sig: PByte; siglen: SIZE_T): Integer; cdecl = Nil;                     { V8.40 }
+    f_EVP_DigestSignFinal :                    function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; var siglen: Integer): Integer; cdecl = Nil;  { V8.40 }
+    f_EVP_DigestSignUpdate :                   function(ctx: PEVP_MD_CTX; d: Pointer; cnt: Integer): Integer; cdecl = Nil;             { V8.52 macro  }
+    f_EVP_DigestVerify :                       function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; siglen: Integer; tbsret: PAnsiChar; tbslen: Integer): Integer; cdecl = Nil;  { V8.52 }
+    f_EVP_DigestVerifyInit :                   function(ctx: PEVP_MD_CTX; pctx: PEVP_PKEY_CTX; etype: PEVP_MD; impl: PEngine; pkey: PEVP_PKEY): Integer; cdecl = Nil;   { V8.40 }
+    f_EVP_DigestVerifyFinal:                   function(ctx: PEVP_MD_CTX; sig: PAnsiChar; siglen: Integer): Integer; cdecl = Nil;                     { V8.40 }
     f_EVP_EncryptFinal_ex :                    function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer): LongBool; cdecl = nil;   { V8.40 }
     f_EVP_EncryptInit_ex :                     function(ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; const key: PAnsiChar; const iv: PAnsiChar): LongBool; cdecl = nil;
     f_EVP_EncryptUpdate :                      function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
@@ -2017,6 +2041,7 @@ const
     f_EVP_PKEY_sign :                          function(pctx: PEVP_PKEY_CTX; sig: PAnsiChar; var siglen: size_t; tbs: PAnsiChar; tbslen: size_t): Integer; cdecl = Nil;      { V8.49 }
     f_EVP_PKEY_sign_init :                     function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;      { V8.49 }
     f_EVP_PKEY_size :                          function(Pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
+    f_EVP_PKEY_up_ref :                        function(Pkey: PEVP_PKEY): Integer; cdecl = nil;          { V8.52 }
     f_EVP_PKEY_verify :                        function(pctx: PEVP_PKEY_CTX; sig: PAnsiChar; siglen: size_t; tbs: PAnsiChar; tbslen: size_t): Integer; cdecl = Nil;      { V8.49 }
     f_EVP_PKEY_verify_init :                   function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;      { V8.49 }
     f_EVP_PKEY_verify_recover :                function(pctx: PEVP_PKEY_CTX; rout: PAnsiChar; var routlen: size_t; const sig: PAnsiChar; siglen: size_t): Integer; cdecl = Nil;      { V8.49 }
@@ -2151,6 +2176,23 @@ const
     f_RSA_private_decrypt :                    function(flen: Integer; from: PAnsiChar; to_: PAnsiChar; rsa: PRSA; padding: Integer): Integer; cdecl = nil;
     f_RSA_public_encrypt :                     function(flen: Integer; from: PAnsiChar; to_: PAnsiChar; rsa: PRSA; padding: Integer): Integer; cdecl = nil;
     f_RSA_size :                               function(Rsa: PRSA): Integer; cdecl = nil; //Angus
+
+    f_RSA_set0_key :                           function(Rsa: PRSA; n: PBIGNUM; e: PBIGNUM; d: PBIGNUM): Integer; cdecl = nil;  { V8.52 }
+    f_RSA_set0_factors :                       function(Rsa: PRSA; p: PBIGNUM; q: PBIGNUM): Integer; cdecl = nil;  { V8.52 }
+    f_RSA_set0_crt_params :                    function(Rsa: PRSA; dmp1: PBIGNUM; dmq1: PBIGNUM; iqmp: PBIGNUM): Integer; cdecl = nil;  { V8.52 1.1.1 or later }
+    f_RSA_set0_multi_prime_params :            function(Rsa: PRSA; primes: PBIGNUMS; exps: PBIGNUMS; coeffs: PBIGNUMS; pnum: Integer): Integer; cdecl = nil;  { V8.52 }
+    f_RSA_get0_key :                           procedure(Rsa: PRSA; var n, e, d: PBIGNUM); cdecl = nil;  { V8.52 }
+    f_RSA_get0_factors :                       procedure(Rsa: PRSA; var p, q: PBIGNUM); cdecl = nil;  { V8.52 }
+    f_RSA_get_multi_prime_extra_count :        function(Rsa: PRSA): Integer; cdecl = nil;             { V8.52 1.1.1 or later }
+    f_RSA_get0_multi_prime_factors :           function(Rsa: PRSA; var primes: PBIGNUMS): Integer; cdecl = nil;  { V8.52 1.1.1 or later }
+    f_RSA_get0_crt_params :                    procedure(Rsa: PRSA; var dmp1, dmq1, iqmp: PBIGNUM); cdecl = nil;  { V8.52 all set0/get0 1.1.0 or later }
+    f_RSA_get0_multi_prime_crt_params :        function(Rsa: PRSA; var exps, coeffs: PBIGNUMS): Integer; cdecl = nil;       { V8.52 }
+    f_RSA_clear_flags :                        procedure(Rsa: PRSA; flags: Integer); cdecl = nil;   { V8.52 }
+    f_RSA_test_flags :                         function(Rsa: PRSA; flags: Integer): Integer; cdecl = nil;  { V8.52 }
+    f_RSA_set_flags :                          procedure(Rsa: PRSA; flags: Integer); cdecl = nil;  { V8.52 }
+    f_RSA_get_version :                        function(Rsa: PRSA): Integer; cdecl = nil;         { V8.52 1.1.1 or later }
+    f_RSA_get0_engine :                        function(Rsa: PRSA): PENGINE; cdecl = nil;          { V8.52 }
+
     f_X509V3_EXT_conf_nid :                    function(Conf: PLHASH; Ctx: PX509V3_CTX; ext_nid: Integer; value: PAnsiChar): PX509_EXTENSION; cdecl = nil;
     f_X509V3_EXT_d2i :                         function(Ext: PX509_EXTENSION): Pointer; cdecl = nil;//AG;
     f_X509V3_EXT_get :                         function(Ext: PX509_EXTENSION): PX509V3_EXT_METHOD; cdecl = nil;
@@ -2204,6 +2246,7 @@ const
     f_X509_REQ_get0_pubkey :                   function(Req: PX509_REQ): PEVP_PKEY; cdecl = nil;  { V8.40 }
     f_X509_REQ_get_extensions :                function(Req: PX509_REQ): PSTACK; cdecl = nil;     { V8.41 }
     f_X509_REQ_get_pubkey :                    function(Req: PX509_REQ): PEVP_PKEY; cdecl = nil;  { V8.40 }
+    f_X509_REQ_get_signature_nid :             function(Req: PX509_REQ): Integer; cdecl = nil;    { V8.52 }
     f_X509_REQ_get_subject_name :              function(AReq: PX509_REQ): PX509_NAME; cdecl = nil; { V8.36 OpenSSL 1.1.0 some macros are now exported functions }
     f_X509_REQ_new :                           function: PX509_REQ; cdecl = nil;
     f_X509_REQ_print :                         function(B: PBIO; Req: PX509_REQ): Integer; cdecl = Nil;  { V8.40 }
@@ -2314,6 +2357,7 @@ const
     f_d2i_PKCS8PrivateKey_bio:                 function(bp: PBIO; x: PPEVP_PKEY; cb: Tpem_password_cb; u: pointer): PEVP_PKEY; cdecl = nil;     { V8.11 }
     f_d2i_PrivateKey :                         function(type_: Integer; var a: PEVP_PKEY; var pp : PAnsiChar; length: Integer): PEVP_PKEY; cdecl = nil;//AG
     f_d2i_PrivateKey_bio :                     function(B: PBIO; A: PPEVP_PKEY): PEVP_PKEY; cdecl = nil;//AG
+    f_d2i_PublicKey :                          function(keytype: Integer; a: PPEVP_PKEY; var Buf: PAnsiChar; Len: Integer): PEVP_PKEY; cdecl = nil; { V8.52 }
     f_d2i_RSAPrivateKey:                       function(a: PPRSA; var pp: PByte; length: Integer): PRSA; cdecl = nil;
     f_d2i_X509 :                               function(C509: PPX509; Buf: PPAnsiChar; Len: Integer): PX509; cdecl = nil;
     f_d2i_X509_REQ :                           function(CReq: PPX509_REQ; Buf: PPAnsiChar; Len: Integer): PX509; cdecl = nil;   { V8.40 }
@@ -2325,13 +2369,15 @@ const
     f_i2d_PKCS7_bio :                          function(B: PBIO; p7: PPKCS7): Integer; cdecl = nil;                            { V8.41 }
     f_i2d_PrivateKey :                         function(A: PEVP_PKEY; PP: PPAnsiChar): Integer; cdecl = nil;//AG
     f_i2d_PrivateKey_bio :                     function(B: PBIO; pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
+    f_i2d_PublicKey :                          function(a: PEVP_PKEY; pp: PPAnsiChar): Integer; cdecl = nil;                   { V8.52 }
     f_i2d_RSAPublicKey:                        function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
     f_i2d_RSA_PUBKEY:                          function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
     f_i2d_X509 :                               function(Cert: PX509; pOut: PPAnsiChar): Integer; cdecl = nil;//AG
     f_i2d_X509_REQ :                           function(Req: PX509_REQ; pOut: PPAnsiChar): Integer; cdecl = nil;               { V8.40 }
     f_i2d_X509_REQ_bio :                       function(B: PBIO; Req: PX509_REQ): Integer; cdecl = nil;                        { V8.40 }
     f_i2d_X509_bio :                           function(B: PBIO; X509: PX509): Integer; cdecl = nil;
-
+    f_i2o_ECPublicKey :                        function(key: PEC_KEY; out: PAnsiChar): Integer; cdecl = nil;                { V8.52 }
+    f_o2i_ECPublicKey :                        function(var key: PEC_KEY; inp: PAnsiChar; len: Integer): PEC_KEY; cdecl = nil;  { V8.52 }
 
 {$IFDEF OPENSSL_USE_DELPHI_MM}
     f_CRYPTO_set_mem_functions :               function(M: TCryptoMallocFunc; R: TCryptoReallocFunc; F: TCryptoFreeMemFunc): Integer; cdecl = nil; //AG
@@ -2472,7 +2518,7 @@ procedure IcsRandPoll;
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GLIBEAYImports1: array[0..576] of TOSSLImports = (
+    GLIBEAYImports1: array[0..614] of TOSSLImports = (
 
     (F: @@f_ASN1_INTEGER_get ;        N: 'ASN1_INTEGER_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_INTEGER_get_int64 ;  N: 'ASN1_INTEGER_get_int64';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
@@ -2515,34 +2561,38 @@ const
     (F: @@f_BIO_read ;                N: 'BIO_read';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_BIO_read_ex ;             N: 'BIO_read_ex';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),     { V8.51 }
     (F: @@f_BIO_s_mem;                N: 'BIO_s_mem';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_BIO_test_flags;           N: 'BIO_test_flags'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.52 }
     (F: @@f_BIO_write;                N: 'BIO_write';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_BIO_write_ex;             N: 'BIO_write_ex';   MI: OSSL_VER_1101; MX: OSSL_VER_MAX),     { V8.51 }
-    (F: @@f_BN_GENCB_free ;    N: 'BN_GENCB_free';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
-    (F: @@f_BN_GENCB_get_arg ; N: 'BN_GENCB_get_arg';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX), { V8.40 }
-    (F: @@f_BN_GENCB_new ;     N: 'BN_GENCB_new';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),     { V8.40 }
-    (F: @@f_BN_GENCB_set ;     N: 'BN_GENCB_set';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),      { V8.40 }
-    (F: @@f_BN_free;           N: 'BN_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_BN_new ;           N: 'BN_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_BN_set_word;       N: 'BN_set_word';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_CONF_modules_unload;   N: 'CONF_modules_unload';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_BIO_write_ex;             N: 'BIO_write_ex';    MI: OSSL_VER_1101; MX: OSSL_VER_MAX),   { V8.51 }
+    (F: @@f_BN_GENCB_free ;           N: 'BN_GENCB_free';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_BN_GENCB_get_arg ;        N: 'BN_GENCB_get_arg'; MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_BN_GENCB_new ;            N: 'BN_GENCB_new';     MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_BN_GENCB_set ;            N: 'BN_GENCB_set';     MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_BN_bn2bin;                N: 'BN_bn2bin';        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_BN_free;                  N: 'BN_free';          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_BN_new ;                  N: 'BN_new';           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_BN_num_bits;              N: 'BN_num_bits';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_BN_set_word;              N: 'BN_set_word';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_CONF_modules_unload;      N: 'CONF_modules_unload';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_CRYPTO_THREADID_set_callback ;   N: 'CRYPTO_THREADID_set_callback';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_CRYPTO_THREADID_set_numeric;   N: 'CRYPTO_THREADID_set_numeric';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_CRYPTO_THREADID_set_pointer;   N: 'CRYPTO_THREADID_set_pointer';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_CRYPTO_add_lock;   N: 'CRYPTO_add_lock';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_CRYPTO_add_lock;          N: 'CRYPTO_add_lock';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_CRYPTO_cleanup_all_ex_data ;   N: 'CRYPTO_cleanup_all_ex_data';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_CRYPTO_free;   N: 'CRYPTO_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_CRYPTO_free;              N: 'CRYPTO_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_CRYPTO_free_ex_data ;     N: 'CRYPTO_free_ex_data';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_CRYPTO_free_ex_index ;    N: 'CRYPTO_free_ex_index';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_CRYPTO_get_ex_data ;      N: 'CRYPTO_get_ex_data';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_CRYPTO_get_ex_new_index ; N: 'CRYPTO_get_ex_new_index';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_CRYPTO_lock;   N: 'CRYPTO_lock';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_CRYPTO_lock;              N: 'CRYPTO_lock';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_CRYPTO_memcmp;            N: 'CRYPTO_memcmp';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),        { V8.52 }
     (F: @@f_CRYPTO_new_ex_data ;      N: 'CRYPTO_new_ex_data';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_CRYPTO_num_locks ;   N: 'CRYPTO_num_locks';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_CRYPTO_num_locks ;        N: 'CRYPTO_num_locks';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_CRYPTO_set_dynlock_create_callback ;   N: 'CRYPTO_set_dynlock_create_callback';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_CRYPTO_set_dynlock_destroy_callback;   N: 'CRYPTO_set_dynlock_destroy_callback';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_CRYPTO_set_dynlock_lock_callback ;   N: 'CRYPTO_set_dynlock_lock_callback';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_CRYPTO_set_ex_data ;      N: 'CRYPTO_set_ex_data';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_CRYPTO_set_id_callback ;   N: 'CRYPTO_set_id_callback';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_CRYPTO_set_id_callback ;  N: 'CRYPTO_set_id_callback';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_CRYPTO_set_locking_callback;  N: 'CRYPTO_set_locking_callback';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_DH_check ;                   N: 'DH_check';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_DH_free;                     N: 'DH_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2626,6 +2676,13 @@ const
     (F: @@f_EC_KEY_set_public_key_affine_coordinates ;   N: 'EC_KEY_set_public_key_affine_coordinates';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EC_KEY_up_ref ;           N: 'EC_KEY_up_ref';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EC_METHOD_get_field_type ; N: 'EC_METHOD_get_field_type';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EC_POINT_set_affine_coordinates_GFp  ; N: 'EC_POINT_set_affine_coordinates_GFp';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_EC_POINT_get_affine_coordinates_GFp  ; N: 'EC_POINT_get_affine_coordinates_GFp';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_EC_POINT_set_affine_coordinates_GF2m ; N: 'EC_POINT_set_affine_coordinates_GF2m';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_EC_POINT_get_affine_coordinates_GF2m ; N: 'EC_POINT_get_affine_coordinates_GF2m';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_EC_POINT_method_of ;      N: 'EC_POINT_method_of';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_EC_POINT_oct2point ;      N: 'EC_POINT_oct2point';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_EC_POINT_point2oct ;      N: 'EC_POINT_point2oct';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 }
     (F: @@f_EC_curve_nid2nist ;       N: 'EC_curve_nid2nist';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EC_curve_nist2nid ;       N: 'EC_curve_nist2nid';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EC_get_builtin_curves ;   N: 'EC_get_builtin_curves';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
@@ -2652,40 +2709,45 @@ const
     (F: @@f_EVP_CIPHER_CTX_reset;     N: 'EVP_CIPHER_CTX_reset';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
     (F: @@f_EVP_CIPHER_CTX_set_key_length; N: 'EVP_CIPHER_CTX_set_key_length';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_CIPHER_CTX_set_padding ;   N: 'EVP_CIPHER_CTX_set_padding';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_CipherFinal_ex;       N: 'EVP_CipherFinal_ex';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_CipherInit_ex;        N: 'EVP_CipherInit_ex';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_CipherUpdate;         N: 'EVP_CipherUpdate';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_CipherFinal_ex;       N: 'EVP_CipherFinal_ex';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_CipherInit_ex;        N: 'EVP_CipherInit_ex';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_CipherUpdate;         N: 'EVP_CipherUpdate';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_DecryptFinal_ex ;     N: 'EVP_DecryptFinal_ex';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_DecryptInit_ex;       N: 'EVP_DecryptInit_ex';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_DecryptUpdate;        N: 'EVP_DecryptUpdate';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_Digest ;              N: 'EVP_Digest';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_DigestFinal ;         N: 'EVP_DigestFinal';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_DigestFinal_ex ;      N: 'EVP_DigestFinal_ex';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_DigestInit ;          N: 'EVP_DigestInit';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_DigestInit_ex ;       N: 'EVP_DigestInit_ex';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_DecryptInit_ex;       N: 'EVP_DecryptInit_ex';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_DecryptUpdate;        N: 'EVP_DecryptUpdate';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_Digest ;              N: 'EVP_Digest';            MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_DigestFinal ;         N: 'EVP_DigestFinal';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_DigestFinal_ex ;      N: 'EVP_DigestFinal_ex';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_DigestInit ;          N: 'EVP_DigestInit';        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_DigestInit_ex ;       N: 'EVP_DigestInit_ex';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_DigestSign ;          N: 'EVP_DigestSign';        MI: OSSL_VER_1101; MX: OSSL_VER_MAX),   { V8.52 }
     (F: @@f_EVP_DigestSignFinal ;     N: 'EVP_DigestSignFinal';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_DigestSignInit ;      N: 'EVP_DigestSignInit';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_DigestUpdate ;        N: 'EVP_DigestUpdate';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_DigestVerifyFinal;    N: 'EVP_DigestVerifyFinal';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_DigestVerifyInit ;    N: 'EVP_DigestVerifyInit';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_DigestSignInit ;      N: 'EVP_DigestSignInit';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_DigestSignUpdate ;    N: 'EVP_DigestUpdate';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 macro }
+    (F: @@f_EVP_DigestUpdate ;        N: 'EVP_DigestUpdate';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_DigestVerify ;        N: 'EVP_DigestVerify';      MI: OSSL_VER_1101; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_EVP_DigestVerifyFinal;    N: 'EVP_DigestVerifyFinal'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_DigestVerifyInit ;    N: 'EVP_DigestVerifyInit';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EVP_EncryptFinal_ex ;     N: 'EVP_EncryptFinal_ex';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_EncryptInit_ex;       N: 'EVP_EncryptInit_ex';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_EncryptUpdate;        N: 'EVP_EncryptUpdate';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_MD_CTX_copy ;         N: 'EVP_MD_CTX_copy';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_MD_CTX_copy_ex ;      N: 'EVP_MD_CTX_copy_ex';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_MD_CTX_free ;         N: 'EVP_MD_CTX_free';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_MD_CTX_md ;           N: 'EVP_MD_CTX_md';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_MD_CTX_new ;          N: 'EVP_MD_CTX_new';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_MD_CTX_reset ;        N: 'EVP_MD_CTX_reset';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_MD_block_size ;       N: 'EVP_MD_block_size';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_MD_flags ;            N: 'EVP_MD_flags';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_MD_pkey_type ;        N: 'EVP_MD_pkey_type';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_MD_size ;             N: 'EVP_MD_size';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_MD_type ;             N: 'EVP_MD_type';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_PKEY_CTX_ctrl;        N: 'EVP_PKEY_CTX_ctrl';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
-    (F: @@f_EVP_PKEY_CTX_ctrl_str;    N: 'EVP_PKEY_CTX_ctrl_str';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
-    (F: @@f_EVP_PKEY_CTX_dup;         N: 'EVP_PKEY_CTX_dup';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
-    (F: @@f_EVP_PKEY_CTX_free;        N: 'EVP_PKEY_CTX_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_EncryptInit_ex;       N: 'EVP_EncryptInit_ex';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_EncryptUpdate;        N: 'EVP_EncryptUpdate';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_MD_CTX_copy ;         N: 'EVP_MD_CTX_copy';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_MD_CTX_copy_ex ;      N: 'EVP_MD_CTX_copy_ex';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_MD_CTX_free ;         N: 'EVP_MD_CTX_destroy';    MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),{ V8.52 renamed in 1.1.0 }
+    (F: @@f_EVP_MD_CTX_new ;          N: 'EVP_MD_CTX_create';     MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),{ V8.52 renamed in 1.1.0 }
+    (F: @@f_EVP_MD_CTX_free ;         N: 'EVP_MD_CTX_free';       MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_EVP_MD_CTX_md ;           N: 'EVP_MD_CTX_md';         MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_MD_CTX_new ;          N: 'EVP_MD_CTX_new';        MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_EVP_MD_CTX_reset ;        N: 'EVP_MD_CTX_reset';      MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_EVP_MD_block_size ;       N: 'EVP_MD_block_size';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_MD_flags ;            N: 'EVP_MD_flags';          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_MD_pkey_type ;        N: 'EVP_MD_pkey_type';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_MD_size ;             N: 'EVP_MD_size';           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_MD_type ;             N: 'EVP_MD_type';           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_PKEY_CTX_ctrl;        N: 'EVP_PKEY_CTX_ctrl';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_ctrl_str;    N: 'EVP_PKEY_CTX_ctrl_str'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_dup;         N: 'EVP_PKEY_CTX_dup';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_CTX_free;        N: 'EVP_PKEY_CTX_free';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_CTX_get_app_data;    N: 'EVP_PKEY_CTX_get_app_data';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_CTX_get_cb;      N: 'EVP_PKEY_CTX_get_cb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_CTX_get_keygen_info; N: 'EVP_PKEY_CTX_get_keygen_info';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
@@ -2723,36 +2785,37 @@ const
     (F: @@f_EVP_PKEY_print_private ;  N: 'EVP_PKEY_print_private';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
     (F: @@f_EVP_PKEY_print_public ;   N: 'EVP_PKEY_print_public';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
     (F: @@f_EVP_PKEY_security_bits;   N: 'EVP_PKEY_security_bits';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.51 }
-    (F: @@f_EVP_PKEY_sign;            N: 'EVP_PKEY_sign';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_sign;            N: 'EVP_PKEY_sign';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.49 }
     (F: @@f_EVP_PKEY_sign_init;       N: 'EVP_PKEY_sign_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
-    (F: @@f_EVP_PKEY_size;            N: 'EVP_PKEY_size';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_PKEY_verify;          N: 'EVP_PKEY_verify';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_size;            N: 'EVP_PKEY_size';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_PKEY_up_ref;          N: 'EVP_PKEY_up_ref';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.52 }
+    (F: @@f_EVP_PKEY_verify;          N: 'EVP_PKEY_verify';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.49 }
     (F: @@f_EVP_PKEY_verify_init;     N: 'EVP_PKEY_verify_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_verify_recover;  N: 'EVP_PKEY_verify_recover';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_verify_recover_init; N: 'EVP_PKEY_verify_recover_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
-    (F: @@f_EVP_SignFinal ;           N: 'EVP_SignFinal';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
-    (F: @@f_EVP_VerifyFinal ;         N: 'EVP_VerifyFinal';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_SignFinal ;           N: 'EVP_SignFinal';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_VerifyFinal ;         N: 'EVP_VerifyFinal';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
     (F: @@f_EVP_aes_128_cbc;          N: 'EVP_aes_128_cbc';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_aes_128_ccm ;         N: 'EVP_aes_128_ccm';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_128_cfb128 ;      N: 'EVP_aes_128_cfb128';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.40 }
-    (F: @@f_EVP_aes_128_ecb ;         N: 'EVP_aes_128_ecb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_128_gcm ;         N: 'EVP_aes_128_gcm';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_128_ocb ;         N: 'EVP_aes_128_ocb';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_128_ofb ;         N: 'EVP_aes_128_ofb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_192_cbc ;         N: 'EVP_aes_192_cbc';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_192_ccm ;         N: 'EVP_aes_192_ccm';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_192_cfb128 ;      N: 'EVP_aes_192_cfb128';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.40 }
-    (F: @@f_EVP_aes_192_ecb ;         N: 'EVP_aes_192_ecb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_192_gcm ;         N: 'EVP_aes_192_gcm';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_192_ocb ;         N: 'EVP_aes_192_ocb';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_192_ofb ;         N: 'EVP_aes_192_ofb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_256_cbc ;         N: 'EVP_aes_256_cbc';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_256_ccm ;         N: 'EVP_aes_256_ccm';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_256_cfb128 ;      N: 'EVP_aes_256_cfb128';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX), { V8.40 }
-    (F: @@f_EVP_aes_256_ecb ;         N: 'EVP_aes_256_ecb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_256_gcm ;         N: 'EVP_aes_256_gcm';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_256_ocb ;         N: 'EVP_aes_256_ocb';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_EVP_aes_256_ofb ;         N: 'EVP_aes_256_ofb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_EVP_aes_128_ccm ;         N: 'EVP_aes_128_ccm';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_128_cfb128 ;      N: 'EVP_aes_128_cfb128';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_EVP_aes_128_ecb ;         N: 'EVP_aes_128_ecb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_128_gcm ;         N: 'EVP_aes_128_gcm';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_128_ocb ;         N: 'EVP_aes_128_ocb';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
+    (F: @@f_EVP_aes_128_ofb ;         N: 'EVP_aes_128_ofb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_192_cbc ;         N: 'EVP_aes_192_cbc';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_192_ccm ;         N: 'EVP_aes_192_ccm';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_192_cfb128 ;      N: 'EVP_aes_192_cfb128';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_EVP_aes_192_ecb ;         N: 'EVP_aes_192_ecb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_192_gcm ;         N: 'EVP_aes_192_gcm';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_192_ocb ;         N: 'EVP_aes_192_ocb';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
+    (F: @@f_EVP_aes_192_ofb ;         N: 'EVP_aes_192_ofb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_256_cbc ;         N: 'EVP_aes_256_cbc';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_256_ccm ;         N: 'EVP_aes_256_ccm';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_256_cfb128 ;      N: 'EVP_aes_256_cfb128';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_EVP_aes_256_ecb ;         N: 'EVP_aes_256_ecb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_256_gcm ;         N: 'EVP_aes_256_gcm';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
+    (F: @@f_EVP_aes_256_ocb ;         N: 'EVP_aes_256_ocb';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
+    (F: @@f_EVP_aes_256_ofb ;         N: 'EVP_aes_256_ofb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
     (F: @@f_EVP_bf_cbc;               N: 'EVP_bf_cbc';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_bf_cfb64;             N: 'EVP_bf_cfb64';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_bf_ecb;               N: 'EVP_bf_ecb';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2864,14 +2927,30 @@ const
     (F: @@f_RAND_seed;   N: 'RAND_seed';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_RAND_status;   N: 'RAND_status';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_RAND_write_file;   N: 'RAND_write_file';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_RSA_free;   N: 'RSA_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_RSA_generate_key ;   N: 'RSA_generate_key';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_RSA_generate_key_ex;   N: 'RSA_generate_key_ex';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_RSA_new;   N: 'RSA_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_RSA_print;   N: 'RSA_print';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_RSA_private_decrypt;   N: 'RSA_private_decrypt';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_RSA_public_encrypt;   N: 'RSA_public_encrypt';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_RSA_size;   N: 'RSA_size';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_RSA_free;                         N: 'RSA_free';                        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_RSA_generate_key ;                N: 'RSA_generate_key';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_RSA_generate_key_ex;              N: 'RSA_generate_key_ex';             MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_RSA_new;                          N: 'RSA_new';                         MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_RSA_print;                        N: 'RSA_print';                       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_RSA_private_decrypt;              N: 'RSA_private_decrypt';             MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_RSA_public_encrypt;               N: 'RSA_public_encrypt';              MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_RSA_size;                         N: 'RSA_size';                        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_RSA_set0_key;                     N: 'RSA_set0_key';                    MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_set0_factors;                 N: 'RSA_set0_factors';                MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_set0_crt_params;              N: 'RSA_set0_crt_params';             MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_set0_multi_prime_params;      N: 'RSA_set0_multi_prime_params';     MI: OSSL_VER_1101; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_get0_key;                     N: 'RSA_get0_key';                    MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_get0_factors;                 N: 'RSA_get0_factors';                MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_get_multi_prime_extra_count;  N: 'RSA_get_multi_prime_extra_count'; MI: OSSL_VER_1101; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_get0_multi_prime_factors;     N: 'RSA_get0_multi_prime_factors';    MI: OSSL_VER_1101; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_get0_multi_prime_factors;     N: 'RSA_get0_multi_prime_factors';    MI: OSSL_VER_1101; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_get0_crt_params;              N: 'RSA_get0_crt_params';             MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_get0_multi_prime_crt_params;  N: 'RSA_get0_multi_prime_crt_params'; MI: OSSL_VER_1101; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_clear_flags;                  N: 'RSA_clear_flags';                 MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_test_flags;                   N: 'RSA_test_flags';                  MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_set_flags;                    N: 'RSA_set_flags';                   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_get_version;                  N: 'RSA_get_version';                 MI: OSSL_VER_1101; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_RSA_get0_engine;                  N: 'RSA_get0_engine';                 MI: OSSL_VER_1100; MX: OSSL_VER_MAX),   { V8.52 }
     (F: @@f_X509V3_EXT_conf_nid;   N: 'X509V3_EXT_conf_nid';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509V3_EXT_d2i ;   N: 'X509V3_EXT_d2i';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509V3_EXT_get ;   N: 'X509V3_EXT_get';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2926,7 +3005,8 @@ const
     (F: @@f_X509_REQ_get0_pubkey;       N: 'X509_REQ_get0_pubkey';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),           { V8.40 }
     (F: @@f_X509_REQ_get_extensions;    N: 'X509_REQ_get_extensions';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),         { V8.41 }
     (F: @@f_X509_REQ_get_pubkey;        N: 'X509_REQ_get_pubkey';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),             { V8.40 }
-    (F: @@f_X509_REQ_get_subject_name;  N: 'X509_REQ_get_subject_name';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.36 }
+    (F: @@f_X509_REQ_get_signature_nid; N: 'X509_REQ_get_signature_nid';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.52 }
+    (F: @@f_X509_REQ_get_subject_name;  N: 'X509_REQ_get_subject_name';    MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.36 }
     (F: @@f_X509_REQ_new;               N: 'X509_REQ_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_REQ_print ;            N: 'X509_REQ_print';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),          { V8.40 }
     (F: @@f_X509_REQ_print_ex ;         N: 'X509_REQ_print_ex';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),       { V8.40 }
@@ -3023,35 +3103,38 @@ const
     (F: @@f_X509_set_pubkey;           N: 'X509_set_pubkey';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_set_subject_name ;    N: 'X509_set_subject_name';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.40 }
     (F: @@f_X509_set_version ;         N: 'X509_set_version';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_sign;                 N: 'X509_sign';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_X509_sign_ctx ;            N: 'X509_sign_ctx';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_X509_sign;                 N: 'X509_sign';          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_X509_sign_ctx ;            N: 'X509_sign_ctx';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_X509_subject_name_hash ;   N: 'X509_subject_name_hash';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_to_X509_REQ ;         N: 'X509_to_X509_REQ';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_X509_verify ;              N: 'X509_verify';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
+    (F: @@f_X509_verify ;              N: 'X509_verify';        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_X509_verify_cert ;         N: 'X509_verify_cert';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_X509_verify_cert_error_string;   N: 'X509_verify_cert_error_string';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_d2i_PKCS12_bio ;           N: 'd2i_PKCS12_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_d2i_PKCS7_bio;             N: 'd2i_PKCS7_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_d2i_PKCS8PrivateKey_bio;   N: 'd2i_PKCS8PrivateKey_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_d2i_PrivateKey ;           N: 'd2i_PrivateKey';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_d2i_PrivateKey_bio ;       N: 'd2i_PrivateKey_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_d2i_RSAPrivateKey;         N: 'd2i_RSAPrivateKey';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_d2i_X509 ;                 N: 'd2i_X509';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_d2i_X509_REQ ;             N: 'd2i_X509_REQ';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),       { V8.40 }
-    (F: @@f_d2i_X509_REQ_bio ;         N: 'd2i_X509_REQ_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_d2i_X509_bio ;             N: 'd2i_X509_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_i2a_ASN1_OBJECT;           N: 'i2a_ASN1_OBJECT';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_i2d_PKCS12_bio ;           N: 'i2d_PKCS12_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_i2d_PKCS7_bio ;            N: 'i2d_PKCS7_bio';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.41 }
-    (F: @@f_i2d_PrivateKey ;           N: 'i2d_PrivateKey';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_i2d_PrivateKey_bio ;       N: 'i2d_PrivateKey_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_d2i_PKCS12_bio ;           N: 'd2i_PKCS12_bio';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_d2i_PKCS7_bio;             N: 'd2i_PKCS7_bio';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_d2i_PKCS8PrivateKey_bio;   N: 'd2i_PKCS8PrivateKey_bio';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_d2i_PrivateKey ;           N: 'd2i_PrivateKey';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_d2i_PrivateKey_bio ;       N: 'd2i_PrivateKey_bio'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_d2i_PublicKey ;            N: 'd2i_PublicKey';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.52 }
+    (F: @@f_d2i_RSAPrivateKey;         N: 'd2i_RSAPrivateKey';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_d2i_X509 ;                 N: 'd2i_X509';           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_d2i_X509_REQ ;             N: 'd2i_X509_REQ';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.40 }
+    (F: @@f_d2i_X509_REQ_bio ;         N: 'd2i_X509_REQ_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.40 }
+    (F: @@f_d2i_X509_bio ;             N: 'd2i_X509_bio';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_i2a_ASN1_OBJECT;           N: 'i2a_ASN1_OBJECT';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_i2d_PKCS12_bio ;           N: 'i2d_PKCS12_bio';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_i2d_PKCS7_bio ;            N: 'i2d_PKCS7_bio';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.41 }
+    (F: @@f_i2d_PrivateKey ;           N: 'i2d_PrivateKey';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_i2d_PrivateKey_bio ;       N: 'i2d_PrivateKey_bio'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_i2d_PublicKey ;            N: 'i2d_PublicKey';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.52 }
     (F: @@f_i2d_RSAPublicKey ;         N: 'i2d_RSAPublicKey';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_i2d_RSA_PUBKEY ;           N: 'i2d_RSA_PUBKEY';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_i2d_X509 ;                 N: 'i2d_X509';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_i2d_X509_REQ ;             N: 'i2d_X509_REQ';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),       { V8.40 }
-    (F: @@f_i2d_X509_REQ_bio ;         N: 'i2d_X509_REQ_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_i2d_X509_bio ;             N: 'i2d_X509_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX) );
-
+    (F: @@f_i2d_RSA_PUBKEY ;           N: 'i2d_RSA_PUBKEY';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_i2d_X509 ;                 N: 'i2d_X509';           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_i2d_X509_REQ ;             N: 'i2d_X509_REQ';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.40 }
+    (F: @@f_i2d_X509_REQ_bio ;         N: 'i2d_X509_REQ_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.40 }
+    (F: @@f_i2d_X509_bio ;             N: 'i2d_X509_bio';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_i2o_ECPublicKey ;          N: 'i2o_ECPublicKey';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.52 }
+    (F: @@f_o2i_ECPublicKey ;          N: 'o2i_ECPublicKey';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX) );    { V8.52 }
 
 {$IFDEF OPENSSL_USE_DELPHI_MM}
     GLIBEAYImports2: array[0..0] of TOSSLImports = (
@@ -3673,10 +3756,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function BIO_get_flags(b: PBIO): Integer;
 begin
-    // This is a hack : BIO structure has not been defined. But I know
-    // flags member is the 6th field in the structure (index is 5)
-    // This could change when OpenSSL is updated. Check "struct bio_st".
-    Result := PInteger(PAnsiChar(b) + 3 * SizeOf(Pointer) + 2 * SizeOf(Integer))^;
+    result := f_BIO_test_flags(b, $FFFFFFFF);  { V8.52 }
 end;
 
 
@@ -3863,29 +3943,31 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function f_SSL_get_secure_renegotiation_support(S: PSSL): Longint;
 begin
-//    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_0908N then
         Result := f_SSL_ctrl(S, SSL_CTRL_GET_RI_SUPPORT, 0, nil)
-//    else
-//        Result := 0;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure Ics_Ssl_EVP_PKEY_IncRefCnt(K: PEVP_PKEY; Increment: Integer = 1);
 begin
-    { This is thread-safe only with a TSslStaticLock or TSslDynamicLock.    }
-    { From the OpenSSL sources I know that lock-ID CRYPTO_LOCK_EVP_PKEY is  }
-    { used by OpenSSL to protect EVP_PKEY_st.references field.              }
-    f_Crypto_lock(CRYPTO_LOCK, CRYPTO_LOCK_EVP_PKEY,
-                  PAnsiChar('Ics_Ssl_EVP_PKEY_IncRefCnt'), 0);
-    try
-        { This is a hack and might change with new OSSL version, search for }
-        { "struct EVP_PKEY_st" field "references".                          }
-        Inc(PInteger(PAnsiChar(K) + 2 * SizeOf(Longint))^, Increment);
-    finally
-        f_Crypto_lock(CRYPTO_UNLOCK, CRYPTO_LOCK_EVP_PKEY,
+    if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
+
+        { This is thread-safe only with a TSslStaticLock or TSslDynamicLock.    }
+        { From the OpenSSL sources I know that lock-ID CRYPTO_LOCK_EVP_PKEY is  }
+        { used by OpenSSL to protect EVP_PKEY_st.references field.              }
+        f_Crypto_lock(CRYPTO_LOCK, CRYPTO_LOCK_EVP_PKEY,
                       PAnsiChar('Ics_Ssl_EVP_PKEY_IncRefCnt'), 0);
-    end;
+        try
+            { This is a hack and might change with new OSSL version, search for }
+            { "struct EVP_PKEY_st" field "references".                          }
+            Inc(PInteger(PAnsiChar(K) + 2 * SizeOf(Longint))^, Increment);
+        finally
+            f_Crypto_lock(CRYPTO_UNLOCK, CRYPTO_LOCK_EVP_PKEY,
+                          PAnsiChar('Ics_Ssl_EVP_PKEY_IncRefCnt'), 0);
+        end;
+    end
+    else
+        f_EVP_PKEY_up_ref(K);    { V8.52 }
 end;
 
 
@@ -3903,15 +3985,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function Ics_Ssl_EVP_PKEY_GetKey(K: PEVP_PKEY): Pointer;
 begin
-//    if @f_EVP_PKEY_get0 <> nil then // v1.0.0+
     Result := f_EVP_PKEY_get0(K);        { V8.40 }
-(*    else
-        { * This is a hack * }
-    {$IFDEF CPUX64} // Alignment of OSSL records is 8 bytes!
-        Result := Pointer(PSize_t(PAnsiChar(K) + 4 * SizeOf(Longint))^);
-    {$ELSE}
-        Result := Pointer(PSize_t(PAnsiChar(K) + 3 * SizeOf(Longint))^);
-    {$ENDIF}     *)
 end;
 
 
@@ -3919,9 +3993,6 @@ end;
 function Ics_Ssl_EVP_PKEY_GetType(K: PEVP_PKEY): Integer;
 begin
      Result := f_EVP_PKEY_base_id(K);        { V8.40 }
-    { This is a hack and might change with new OSSL version, search }
-    { for "struct EVP_PKEY_st"                                      }
-//    Result := PInteger(K)^;      { V8.40 }
 end;
 
 

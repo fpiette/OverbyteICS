@@ -605,7 +605,7 @@ object SslWebServForm: TSslWebServForm
       'y89hX5iXD/v3BurTkN3rG12JoTypQ3W1VD1lEfRrJm8rbvQTqO0RCSgxc2KwIULb'
       '3ONsf1ln/Lb+UuRiUpGeb4GQqPDkn7XW8wIBAg=='
       '-----END DH PARAMETERS-----')
-    SslVerifyPeer = False
+    SslVerifyPeer = True
     SslVerifyDepth = 9
     SslVerifyFlags = []
     SslCheckHostFlags = []

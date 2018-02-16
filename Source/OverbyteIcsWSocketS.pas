@@ -173,7 +173,8 @@ June 23, 2017 V8.49 Fixes so we support MacOS again, thanks to Michael Berg.
 Aug 10, 2017  V8.50 Minor clean up
 Nov 22, 2017  V8.51 SSL certificate file stamp now stored as UTC date to avoid
                        summer time triggers as file system stamps change
-Jan 4, 2018   V8.52 Better error reporting when validating SSL certificates
+Feb 14, 2018  V8.52 Better error reporting when validating SSL certificates
+                    Add TLSv3 ciphers for OpenSSL 1.1.1 and later only
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2486,6 +2487,14 @@ var
         Info := Info + MAddr + ':' + IntToStr(MPort);
     end;
 
+    function AddTls13(const Ciphers: String): String; { V8.52 }
+    begin
+        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then
+            result := Ciphers
+        else
+            result := sslCipherTLS13 + Ciphers;
+    end;
+
 begin
     Result := '';
     FValidated := False;                                      { V8.48 }
@@ -2511,7 +2520,7 @@ begin
     for I := 0 to FIcsHosts.Count - 1 do begin
         with FIcsHosts [I] do begin
         try
-            FCertInfo := '';
+            FCertInfo := 'No certificates available';   { V8.52 }
             FBindInfo := '';
             FCertErrs := '';
             FBindIdxNone := -2;  { bindings are -1 to +x }
@@ -2532,8 +2541,8 @@ begin
                 if FBindIpAddr2 <> '' then
                     AddBinding(FBindIpAddr2, FBindSslPort, True, FBindIdx2Ssl, FBindInfo);
                 if (FSslCert = '') then begin
-                    Result := Result + 'Host #' + IntToStr(I) +
-                                        ', SSL certificate can not be blank' + #13#10;
+                    FCertErrs := 'Host #' + IntToStr(I) + ', SSL certificate can not be blank';
+                    Result := Result + FCertErrs + #13#10;  { V8.52 }
                     if Stop1stErr then raise ESocketException.Create(Result);
                     continue;
                 end;
@@ -2570,30 +2579,30 @@ begin
                       SslCtx.SslSecLevel := sslSecLevelAny;
                   end;
                   sslSrvSecBack: begin                { TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
-                      SslCtx.SslCipherList := sslCiphersMozillaSrvBack;
+                      SslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvBack);
                       SslCtx.SslSecLevel := sslSecLevel80bits;
                   end;
                   sslSrvSecInter: begin               { TLS1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                      SslCtx.SslCipherList := sslCiphersMozillaSrvInter;
+                      SslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvInter);
                       SslCtx.SslSecLevel := sslSecLevel112bits;  // Dec 2016  keys=>2048, ECC=>224, no RC4, no SSL3, no SHA1 certs
                   end;
                   sslSrvSecInterFS: begin             { TLS1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                      SslCtx.SslCipherList := sslCiphersMozillaSrvInterFS;
+                      SslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvInterFS);
                       SslCtx.SslSecLevel := sslSecLevel112bits;
                   end;
                   sslSrvSecHigh: begin                 { TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
                       SslCtx.SslMinVersion := sslVerTLS1_2;
-                      SslCtx.SslCipherList := sslCiphersMozillaSrvHigh;
+                      SslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvHigh);
                       SslCtx.SslSecLevel := sslSecLevel112bits;
                   end;
                   sslSrvSecHigh128: begin               { TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
                       SslCtx.SslMinVersion := sslVerTLS1_2;
-                      SslCtx.SslCipherList := sslCiphersMozillaSrvHigh;
+                      SslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvHigh);
                       SslCtx.SslSecLevel :=sslSecLevel128bits;
                   end;
                   sslSrvSecHigh192: begin                { TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
                       SslCtx.SslMinVersion := sslVerTLS1_2;
-                      SslCtx.SslCipherList := sslCiphersMozillaSrvHigh;
+                      SslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvHigh);
                       SslCtx.SslSecLevel := sslSecLevel192bits;
                   end;
                 end;
@@ -2609,8 +2618,8 @@ begin
                 else begin
                     FCertFStamp := IcsGetFileUAge(FSslCert);  { keep file time stamp to check nightly, V8.51 UTC time }
                     if FCertFStamp <= 0 then begin
-                        Result := Result + 'Host #' + IntToStr(I) +
-                                 ', SSL certificate not found: ' + FSslCert + #13#10;
+                        FCertErrs := 'Host #' + IntToStr(I) + ', SSL certificate not found: ' + FSslCert;
+                        Result := Result + FCertErrs + #13#10;  { V8.52 }
                         if Stop1stErr then raise ESocketException.Create(Result);
                         continue;
                     end;
@@ -2618,8 +2627,8 @@ begin
                 end;
                 if NOT SslCtx.SslCertX509.IsPKeyLoaded then begin
                     if (FSslKey = '') then begin
-                        Result := Result + 'Host #' + IntToStr(I) +
-                                 ', SSL private key can not be blank for ' + FSslCert + #13#10;
+                        FCertErrs := 'Host #' + IntToStr(I) + ', SSL private key can not be blank for ' + FSslCert;
+                        Result := Result + FCertErrs + #13#10;  { V8.52 }
                         if Stop1stErr then raise ESocketException.Create(Result);
                         continue;
                     end;
@@ -2634,8 +2643,8 @@ begin
                     else begin
                         FInterFStamp := IcsGetFileUAge(FSslInter);  { keep file time stamp to check nightly, V8.51 UTC time }
                         if FInterFStamp <= 0 then begin
-                            Result := Result + 'Host #' + IntToStr(I) +
-                                 ', SSL intermediate certificate not found: ' + FSslInter + #13#10;
+                            FCertErrs := 'Host #' + IntToStr(I) + ', SSL intermediate certificate not found: ' + FSslInter;
+                            Result := Result + FCertErrs + #13#10;  { V8.52 }
                             if Stop1stErr then raise ESocketException.Create(Result);
                             continue;
                         end;
@@ -2654,8 +2663,8 @@ begin
 
              { validate SSL certificate chain, helps to ensure server will work! }
                 if NOT SslCtx.SslCertX509.IsCertLoaded then begin
-                    Result := Result + 'Host #' + IntToStr(I) +
-                             ', SSL certificate not loaded - ' + FSslCert + #13#10;
+                    FCertErrs := 'Host #' + IntToStr(I) + ', SSL certificate not loaded - ' + FSslCert;
+                    Result := Result + FCertErrs + #13#10;  { V8.52 }
                     if Stop1stErr then raise ESocketException.Create(Result);
                     continue;
                 end;

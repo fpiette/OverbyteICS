@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.51
+Version:      8.52
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -11,7 +11,7 @@ Credit:       This component was based on a freeware from by Andreas
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2017 by François PIETTE
+Legal issues: Copyright (C) 1997-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -517,6 +517,9 @@ Dec 7,  2017 V8.51 Fixed SOCKS4A/5 skip DNSLookup since hostname is passed to SO
                       so it can resolve DNS instead, thanks to Colin Wall for fixing this.
                    Socks authstate event now works
                    Report sensible proxy and socks ReasonPhrase
+Feb 16, 2018 V8.52 Added ExtraHeaders property to simplify adding extra headers to
+                     a request (previously done using onBeforeHeaderSend event)
+
 
 To convert the received HTML stream to a unicode string with the correct codepage,
 use this function in OverbyteIcsCharsetUtils, it's not used directly by this unit
@@ -613,8 +616,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 851;
-    CopyRight : String   = ' THttpCli (c) 1997-2017 F. Piette V8.51 ';
+    HttpCliVersion       = 852;
+    CopyRight : String   = ' THttpCli (c) 1997-2018 F. Piette V8.52 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -750,6 +753,7 @@ type
         FAcceptLanguage       : String;
         FModifiedSince        : TDateTime;      { Warning ! Use GMT date/Time }
         FNoCache              : Boolean;
+        FExtraHeaders         : TStrings;      { V8.52 }
         FStatusCode           : Integer;
         FReasonPhrase         : String;
         FResponseVer          : String;
@@ -950,6 +954,7 @@ type
         procedure SetReady; virtual;
         procedure AdjustDocName; virtual;
         procedure SetRequestVer(const Ver : String);
+        procedure SetExtraHeaders(Value: TStrings);      { V8.82 } 
         procedure WMHttpRequestDone(var msg: TMessage);
         procedure WMHttpSetReady(var msg: TMessage);
         procedure WMHttpLogin(var msg: TMessage);
@@ -1068,6 +1073,8 @@ type
                                                      write FModifiedSince;
         property Cookie          : String            read  FCookie
                                                      write FCookie;
+        property ExtraHeaders    : TStrings          read  FExtraHeaders
+                                                     write SetExtraHeaders;    { V8.52 }
         property ContentTypePost : String            read  FContentPost
                                                      write FContentPost;
         property ContentRangeBegin: String           read  FContentRangeBegin  {JMR!! Added this line!!!}
@@ -1360,6 +1367,7 @@ begin
     FAgent                         := 'Mozilla/4.0'; { V8.04 removed (compatible; ICS) which upset some servers  }
     FDoAuthor                      := TStringlist.Create;
     FRcvdHeader                    := TStringList.Create;
+    FExtraHeaders                  := TStringList.Create;      { V8.52 }
     FReqStream                     := TMemoryStream.Create;
     FState                         := httpReady;
     FLocalAddr                     := ICS_ANY_HOST_V4;
@@ -1400,6 +1408,7 @@ begin
     FDoAuthor.Free;
     FreeAndNil(FCtrlSocket);
     FRcvdHeader.Free;
+    FExtraHeaders.Free;      { V8.52 }
     FReqStream.Free;
     SetLength(FReceiveBuffer, 0);   {AG 03/18/07}
     SetLength(FSendBuffer, 0);      {AG 03/18/07}
@@ -1519,6 +1528,13 @@ end;
 procedure THttpCli.SetReady;
 begin
     PostMessage(Handle, FMsg_WM_HTTP_SET_READY, 0, 0);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpCli.SetExtraHeaders(Value : TStrings);    { V8.82 }
+begin
+    FExtraHeaders.Assign(Value);
 end;
 
 
@@ -2540,6 +2556,14 @@ begin
             end;
         end;                                                                            {JMR!! Added this line!!!}
         FAcceptRanges := '';
+
+      { V8.52 add extra headers, ignore any without colon }
+        if FExtraHeaders.Count > 0 then begin
+            for N := 0 to FExtraHeaders.Count - 1 do begin
+                if Pos (': ', FExtraHeaders[N]) > 1 then
+                    Headers.Add(FExtraHeaders[N]);
+            end;
+        end;    
 
 {SendCommand('UA-pixels: 1024x768'); }
 {SendCommand('UA-color: color8'); }

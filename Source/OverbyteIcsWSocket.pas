@@ -1227,12 +1227,17 @@ Nov 23, 2017  V8.51 Testing OpenSSL 1.1.1 that adds TLS/1.3, not enabled yet.
                     Added SslContext SslCryptoGroups for 1.1.1 to set which
                        curve groups are supported in preference order.
                     Improved debug diagnostics and added more for SSL.
-Jan 3, 2018  V8.52  LocalIpList only uses GetHostByName for Windows XP, 2003 and
-                       earlier which also solves a MacOS issue
-
-
-Warning - OpenSSL 1.1.1 (beta) is not yet supported for SSL connections, possibly
-a a bug in 1.1.1 which is being investigated.
+Feb 16, 2018 V8.52  LocalIpList only uses GetHostByName for Windows XP, 2003 and
+                       earlier which also solves a MacOS issue.
+                    Renamed PublicKey property to X509PublicKey to avoid confusion.
+                    Added PublicKeySaveToText saves public part of private key.
+                    Added PublicKeyLoadFromText loads public key into private key
+                    Fixed a problem with BIO_get_flags and 1.1.1 that caused SSL to
+                      fail, thanks to Rui for finding this.
+                    Added sslCipherTLS13 server cipher suites for TLSv1.3.
+                    Cleaned up SSL handshake message for TLSv1.3 .
+                    IcsSslOpenFileBio now checks PEM files not empty to avoid
+                      strange ASN1 errors parsing them.
 
 
 Use of certificates for SSL clients:
@@ -2601,6 +2606,11 @@ const
         'ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:' +
         'DHE-RSA-AES256-SHA:ECDHE-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA';
 
+  { V8.52 TLSv1.3 ciphers supported by OpenSSL 1.1.1 and later, should be added to front
+    of one of the sslCiphersMozilla cipheers }
+    sslCipherTLS13 =
+        'TLS13-CHACHA20-POLY1305-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:' +
+        'TLS13-AES-128-CCM-8-SHA256:TLS13-AES-128-CCM-SHA256:';
 
    { V8.27 default 2048 and 4096-bit DH Params needed for DH/DHE ciphers - ideally create your own !!!! }
     sslDHParams2048 =
@@ -2749,7 +2759,8 @@ type
         Digest_sha3_384,
         Digest_sha3_512,
         Digest_shake128,
-        Digest_shake256);
+        Digest_shake256,
+        Digest_None);       { V8.52 }
 
 { V8.40 ICS private key algorithm and key length in bits }
 { bracketed comment is security level and effective bits,
@@ -2830,7 +2841,7 @@ type
         procedure   SetPrivateKey(PKey: Pointer);
         procedure   SetX509Inters(X509Inters: PStack);   { V8.41 }
         procedure   SetX509CATrust(X509CATrust: PStack); { V8.41 }
-        function    GetPublicKey: Pointer;
+        function    GetX509PublicKey: Pointer;           { V8.52 renamed from GetPublicKey }
         function    GetVerifyErrorMsg: String;
         function    GetFirstVerifyErrorMsg: String;         {05/21/2007 AG}
         function    GetIssuerOneLine: String;
@@ -2949,6 +2960,8 @@ type
         procedure   ClearAll;                                              { V8.40 }
         function    GetPKeyRawText: String;                                { V8.40 }
         procedure   PublicKeySaveToPemFile(const FileName: String);        { V8.40 }
+        function    PublicKeySaveToText: String;                           { V8.52 }
+        procedure   PublicKeyLoadFromText(const Lines: String);                  { V8.52 }
         function    CertInfo(Brief: Boolean=False): String;                { V8.41 added Brief }
         procedure   LoadIntersFromPemFile(const FileName: String);         { V8.41 }
         procedure   LoadIntersFromString(const Value: String);             { V8.41 }
@@ -2990,7 +3003,7 @@ type
                                                         write SetX509;
         property    PrivateKey          : Pointer       read  FPrivateKey
                                                         write SetPrivateKey;
-        property    PublicKey           : Pointer       read  GetPublicKey;      {AG 11/08/07}
+        property    X509PublicKey       : Pointer       read  GetX509PublicKey; { V8.52 renamed from PublicKey }
         property    X509Inters          : PStack        read  FX509Inters
                                                         write SetX509Inters;    { V8.41 }
         property    X509CATrust         : PStack        read  FX509CATrust
@@ -14625,11 +14638,18 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function IcsSslOpenFileBio( const FileName : String;  Methode: TBioOpenMethode): PBIO;   { V8.39 was in TSslContext }
+var
+    fsize: Integer;
 begin
     if Filename = '' then
         raise ESslContextException.Create('File name not specified');
-    if (Methode in [bomRead, bomReadOnly]) and (not FileExists(Filename)) then
-        raise ESslContextException.Create('File not found "' + Filename + '"');
+    if (Methode in [bomRead, bomReadOnly]) then begin
+        fsize := IcsGetFileSize(Filename);   { V8.52 check PEM file not empty, which gives strange ASN errors }
+        if fsize < 0 then
+            raise ESslContextException.Create('File not found "' + Filename + '"');
+        if fsize < 16 then    { V8.52 }
+            raise ESslContextException.Create('File empty "' + Filename + '"');
+    end;
     if Methode = bomRead then
         Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('r+b'))
     else if Methode = bomReadOnly then             { V8.40 mostly we don't want to update certs }
@@ -16631,7 +16651,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.GetPublicKey: Pointer;                       {AG 11/08/07}
+function TX509Base.GetX509PublicKey: Pointer;    { V8.52 renamed from GetPublicKey }
 begin
     if Assigned(FX509) then
         Result := f_X509_get_pubkey(FX509)
@@ -17342,6 +17362,49 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.PublicKeySaveToText: String;                             { V8.52 }
+var
+    MemBio: PBIO;
+    Len: Integer;
+begin
+    InitializeSsl;
+    Result := '';
+    if not Assigned(FPrivateKey) then
+        raise EX509Exception.Create('Private key not assigned');
+    MemBio := f_BIO_new(f_BIO_s_mem);
+    if Assigned(MemBio) then
+    try
+        if f_PEM_write_bio_PUBKEY(MemBio, FPrivateKey) = 0 then
+            RaiseLastOpenSslError(EX509Exception, TRUE,
+                                       'Error writing public key to text');
+        Len := f_BIO_ctrl(MemBio, BIO_CTRL_PENDING, 0, nil);
+        Result := String(ReadStrBio(MemBio, Len));
+    finally
+        f_bio_free(MemBio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.PublicKeyLoadFromText(const Lines: String);               { V8.52 }
+var
+    MemBio : PBIO;
+begin
+    if (Pos(PEM_STRING_HDR_BEGIN, Lines) = 0) and
+            (Pos(PEM_STRING_HDR_END, Lines) = 0) then
+               Raise EX509Exception.Create('Expected a Base64 encoded PEM public key');
+    MemBio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Lines)), Length (Lines));
+    try
+        PrivateKey := f_PEM_read_bio_PUBKEY(MemBio, Nil, Nil, Nil);
+        if NOT Assigned (FPrivateKey) then
+            RaiseLastOpenSslError(EX509Exception, TRUE, 'Failed to read public key');
+    finally
+        f_bio_free(MemBio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { .PEM, .CER, .CRT - Base64 encoded DER  }
 { .DER, .CER, .CRT - binary DER }
 procedure TX509Base.LoadFromPemFile(const FileName: String; IncludePKey: TCertReadOpt;
@@ -17698,7 +17761,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ returns base64 encoded DER PEM certificate }
+{ returns private key base64 encoded DER PEM }
 function TX509Base.SavePKeyToText(const Password: String = '';
             PrivKeyType: TSslPrivKeyCipher = PrivKeyEncNone): String;   { V8.40}
 var
@@ -18417,6 +18480,9 @@ begin
     end
     else if keytype = EVP_PKEY_ED25519 then begin    { V8.51 }
         Result := 'ED25519 Key Encryption';
+    end
+    else if keytype = EVP_PKEY_X25519 then begin     { V8.52 }
+        Result := 'X25519 Key Encryption';
     end
     else if keytype = EVP_PKEY_RSA_PSS then begin    { V8.51 }
         Result := 'RSA-PSS Key Encryption';
@@ -21712,6 +21778,7 @@ var
 
   { examples of SSL_CIPHER_description():
    <ciphername> <first protocol version> <key exchange> <authentication> <symmetric encryption method> <message authentication code>
+      TLS13-CHACHA20-POLY1305-SHA256 TLSv1.3 Kx=any      Au=any  Enc=CHACHA20/POLY1305(256) Mac=AEAD
       ECDHE-RSA-AES256-GCM-SHA256    TLSv1.2 Kx=ECDH   Au=RSA   Enc=AESGCM(256) Mac=AEAD
       ECDHE-ECDSA-AES256-GCM-SHA384  TLSv1.2 Kx=ECDH   Au=ECDSA Enc=AESGCM(256) Mac=AEAD
       ECDHE-RSA-CHACHA20-POLY1305    TLSv1.2 Kx=ECDH   Au=RSA   Enc=CHACHA20/POLY1305(256) Mac=AEAD
@@ -21778,8 +21845,13 @@ begin
         end;
 
      { V8.14 set with success or failure message once handshake completes }
-        FSslHandshakeRespMsg := Format('SSL Connected OK with %s, cipher %s, ' +
-          'key auth %s, key exchange %s, encryption %s, message auth %s',
+        if FSslKeyAuth = 'any' then   { V8.52 TLSv1.3 does not have all params }
+            FSslHandshakeRespMsg := Format('SSL Connected OK with %s, cipher %s, ' +
+              'encryption %s, message auth %s',
+                [SslVersion, SslCipher, FSslEncryption, FSslMessAuth])
+        else
+            FSslHandshakeRespMsg := Format('SSL Connected OK with %s, cipher %s, ' +
+              'key auth %s, key exchange %s, encryption %s, message auth %s',
                 [SslVersion, SslCipher, FSslKeyAuth, FSslKeyExchange,
                                                 FSslEncryption, FSslMessAuth]);
     end  // FSslState = sslEstablished

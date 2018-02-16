@@ -92,8 +92,9 @@ Jun 26 2017 V8.49 Added .well-known directory support.  If WellKnownPath is
                      handled locally either in the OnWellKnownDir Event or
                      by returning a file from WellKnownPath instead of DocDir.
                      This is primarily for Let's Encrypt challenges.
-Jan 3, 2018  V8.52 Added IPv6 support by listing IPv6 local listen addresses,
+Feb 14, 2018 V8.52 Added IPv6 support by listing IPv6 local listen addresses,
                      and sorting them.
+                   Add TLSv3 ciphers for OpenSSL 1.1.1 and later only
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -607,6 +608,15 @@ var
 //    Info: string;
     ErrStr: string;
     valres: TChainResult;
+
+    function AddTls13(const Ciphers: String): String; { V8.52 }
+    begin
+        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then
+            result := Ciphers
+        else
+            result := sslCipherTLS13 + Ciphers;
+    end;
+
 begin
     IcsLogger1.LogOptions := [];
     if DebugEventCheckBox.Checked then
@@ -622,14 +632,6 @@ begin
     SslHttpServer1.ClientClass      := TMyHttpConnection;
     SslHttpServer1.SetAcceptableHostsList(AcceptableHostsEdit.Text);
     FSrvSslCert := '';
-
-    { V8.41 the old way, loading into context, not check until initialised,
-      these properties are still used if SslCertX509 is not loaded from any files
-    SslContext1.SslCertFile         := CertFileEdit.Text;
-    SslContext1.SslPassPhrase       := PassPhraseEdit.Text;
-    SslContext1.SslPrivKeyFile      := PrivKeyFileEdit.Text;
-    SslContext1.SslCAFile           := CAFileEdit.Text;
-    SslContext1.SslCAPath           := CAPathEdit.Text; }
 
     { V8.41 new way, supports PEM, DER, PKCS12, PKCS8 formats and check them earlier }
     SslContext1.SslCertX509.LoadFromFile(CertFileEdit.Text, croTry, croTry,
@@ -654,39 +656,17 @@ begin
     SslContext1.SslDHParamFile      := DhParamFileEdit.Text;      { V8.02 }
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
     SslContext1.SslECDHMethod       := TSslECDHMethod(ECDHList.ItemIndex); { V8.02 }
-//    SslContext1.SslVersionMethod    := sslBestVer_SERVER;        { V8.02 }
-//    SslContext1.SslVersionMethod    := SslSrvVersions [SslVersionList.ItemIndex];   { V8.05 }
     SslContext1.SslMinVersion       := TSslVerMethod (SslMinVersion.ItemIndex);  { V8.07}
     SslContext1.SslMaxVersion       := TSslVerMethod (SslMaxVersion.ItemIndex);  { V8.07}
     case SslCipherList.ItemIndex of   { V8.05 choice of ciphers }
         0: SslContext1.SslCipherList := sslCiphersServer;
-        1: SslContext1.SslCipherList := sslCiphersMozillaSrvBack;
-        2: SslContext1.SslCipherList := sslCiphersMozillaSrvInter;
-        3: SslContext1.SslCipherList := sslCiphersMozillaSrvInterFS; { V8.41 }
-        4: SslContext1.SslCipherList := sslCiphersMozillaSrvHigh;
-   //     4: SslContext1.SslCipherList := sslCiphersMozillaSrvBack38;   V8.41 gone
-   //     5: SslContext1.SslCipherList := sslCiphersMozillaSrvInter38;
-   //     6: SslContext1.SslCipherList := sslCiphersMozillaSrvHigh38;
+        1: SslContext1.SslCipherList := AddTls13(sslCiphersMozillaSrvBack);
+        2: SslContext1.SslCipherList := AddTls13(sslCiphersMozillaSrvInter);
+        3: SslContext1.SslCipherList := AddTls13(sslCiphersMozillaSrvInterFS); { V8.41 }
+        4: SslContext1.SslCipherList := AddTls13(sslCiphersMozillaSrvHigh);
     end;
    if SslCipherEdit.Text <> '' then  SslContext1.SslCipherList := SslCipherEdit.Text; { V8.05 }
    SslContext1.SslSecLevel := TSslSecLevel (SslSecLevel.ItemIndex);   { V8.41 }
-
-   { V8.07 setting minimum and maximum versions now handled when creating context }
- {  SslContext1.SslOptions := SslContext1.SslOptions + [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
-                                     sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];
-    if SslContext1.SslVersionMethod = sslV2_SERVER then
-        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_SSLv2]
-    else if SslContext1.SslVersionMethod = sslV3_SERVER then
-        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_SSLv3]
-    else if SslContext1.SslVersionMethod = sslTLS_V1_SERVER then
-        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_TLSv1]
-    else if SslContext1.SslVersionMethod = sslTLS_V1_1_SERVER then
-        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_TLSv1_1]
-    else if SslContext1.SslVersionMethod = sslTLS_V1_2_SERVER then
-        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_TLSv1_2]
-    else
-        SslContext1.SslOptions := SslContext1.SslOptions - [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
-                                     sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];  }
 
  { V8.02 single DH needed for perfect forward secrecy }
     SslContext1.SslOptions := SslContext1.SslOptions +
@@ -699,31 +679,6 @@ begin
         end;
         SslContext1.InitContext;  { V8.02 get any error now before starting server }
 
-     // V8.39 better way of listing certificates actually loaded into store
-     // V8.41 now done earlier ion ValidateCertChain
-   (*     CertList := TX509List.Create (self, True);
-        try
-            Tot := SslContext1.SslGetAllCerts (CertList);
-            if SslContext1.SslCertX509.SubjectOneLine <> '' then  // ensure loaded
-            begin
-                 CertList.Add(SslContext1.SslCertX509.X509);  // add server cert
-                 inc (Tot);
-            end;
-            if Tot > 0 then begin
-                CertList.SortChain(xsrtIssuerFirst);
-                for I := 1 to Tot do begin
-                    Info := 'Certficate #' + IntToStr (I) + #13#10 + CertList [I-1].CertInfo + #13#10;
-                    if Date > CertList [I-1].ValidNotAfter then
-                        Info := Info + '!!! SSL Certificate Has Expired' + #13#10
-                    else if (Date + 30) > CertList [I-1].ValidNotAfter then
-                        Info := Info + '!!! SSL Certificate Exprires Shortly' + #13#10;
-                    Display(Info);
-                    FSrvSslCert := FSrvSslCert + Info;
-                end;
-            end;
-        finally
-            CertList.Free;
-        end;    *)
         FSrvSslCert := StringReplace (FSrvSslCert, #13#10, '<BR>'+#13#10, [rfReplaceAll]) ;
 
       { V8.07  list SSL ciphers }

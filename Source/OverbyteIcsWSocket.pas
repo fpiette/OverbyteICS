@@ -1227,7 +1227,7 @@ Nov 23, 2017  V8.51 Testing OpenSSL 1.1.1 that adds TLS/1.3, not enabled yet.
                     Added SslContext SslCryptoGroups for 1.1.1 to set which
                        curve groups are supported in preference order.
                     Improved debug diagnostics and added more for SSL.
-Feb 16, 2018 V8.52  LocalIpList only uses GetHostByName for Windows XP, 2003 and
+Feb 19, 2018 V8.52  LocalIpList only uses GetHostByName for Windows XP, 2003 and
                        earlier which also solves a MacOS issue.
                     Renamed PublicKey property to X509PublicKey to avoid confusion.
                     Added PublicKeySaveToText saves public part of private key.
@@ -1238,6 +1238,7 @@ Feb 16, 2018 V8.52  LocalIpList only uses GetHostByName for Windows XP, 2003 and
                     Cleaned up SSL handshake message for TLSv1.3 .
                     IcsSslOpenFileBio now checks PEM files not empty to avoid
                       strange ASN1 errors parsing them.
+                    Fixed IcsSslGetEVPDigest to work with 1.1.1
 
 
 Use of certificates for SSL clients:
@@ -13441,8 +13442,10 @@ begin
         Digest_sha512 :             result := f_EVP_sha512;
         Digest_ripemd160 :          result := f_EVP_ripemd160;    { not for certificates }
     else
-        Result := Nil;
+        result := Nil;
     end;
+    if Assigned(result) then Exit;                          { V8.52 }
+
  { V8.51 added SHA3 digests for OpenSSL 1.1.1 }
     if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then Exit;
     case Digest of
@@ -13451,9 +13454,7 @@ begin
         Digest_sha3_384 :           result := f_EVP_sha3_384;
         Digest_sha3_512 :           result := f_EVP_sha3_512;
         Digest_shake128 :           result := f_EVP_shake128;    { not for certificates }
-        Digest_shake256 :           result := f_EVP_shake256;    { not for certificates } 
-    else
-        Result := Nil;
+        Digest_shake256 :           result := f_EVP_shake256;    { not for certificates }
     end;
 end;
 

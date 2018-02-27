@@ -118,7 +118,7 @@ Nov 22, 2017  V8.51 Testing OpenSSL 1.1.1 that adds TLS/1.3
               Corrected various set options to be exports with 1.1.0 instead
                 of macros earlier, also SSL_session_reused
               Added more constants and functions for 1.1.1, f_SSL_xx_groups
-Feb 16, 2018  V8.52 Added more EVP functions for keys, hashing and signing
+Feb 27, 2018  V8.52 Added more EVP functions for keys, hashing and signing
 
 
 
@@ -291,6 +291,8 @@ const
     OSSL_VER_1100ZZ= $10100FFF; // not yet released      { V8.35 }
     OSSL_VER_1101  = $10101000; // 1.1.1 base            { V8.52 }
     OSSL_VER_1101P1= $10101001; // 1.1.1-pre1 (alpha)    { V8.52 }
+    OSSL_VER_1101P2= $10101002; // 1.1.1-pre2 (alpha)    { V8.52 }
+    OSSL_VER_1101P3= $10101003; // 1.1.1-pre3 (alpha)    { V8.52 }
     OSSL_VER_1199  = $10101FFF; // not yet released      { V8.34 }
     OSSL_VER_MAX   = $FFFFFFFF; // maximum version       { V8.35 }
 
@@ -301,7 +303,7 @@ const
 
     MIN_OSSL_VER   = OSSL_VER_1002;   { V8.39 minimum is now 1.0.2 }
 //  MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.35 1.1.0zz }
-    MAX_OSSL_VER   = OSSL_VER_1101P1; { V8.52 1.1.1-pre1 (alpha) }
+    MAX_OSSL_VER   = OSSL_VER_1101P2; { V8.52 1.1.1-pre2 (alpha) }
 
     { V8.41 PEM base64 file titles }
     PEM_STRING_HDR_BEGIN   = '-----BEGIN ';    { six hyphens }

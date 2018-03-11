@@ -2,7 +2,8 @@
 
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  Client program demonstrating receive of binary and delimited
-              text data. Works with BinTcpSrv demo. 
+              text data.
+              Works with OverbyteIcsTcpSrv and OverbyteIcsTcpSrvIPv6 demos.
 Creation:     28 November 2008
 Version:      6.00
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be

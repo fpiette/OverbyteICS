@@ -4,7 +4,7 @@ Authors:      Arno Garrels <arno.garrels@gmx.de>
               Angus Robertson <delphi@magsys.co.uk>
 Creation:     Aug 26, 2007
 Description:  SSL key and X509 certification creation
-Version:      8.52
+Version:      8.53
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -94,9 +94,11 @@ Sep 22, 2017 V8.50 Alternate DNS names now added correctly to requests and certs
              Corrected X25519 private keys to ED25519, requires OpenSSL 1.1.1
 Nov 3, 2017  V8.51 Tested ED25519 keys, can now sign requests and certs
              Added RSA-PSS keys and SHA3 digest hashes, requires OpenSSL 1.1.1
-Feb 16, 2018 V8.52 Added DigiCert Global Root G2 and G3 root certificates
+Feb 21, 2018 V8.52 Added DigiCert Global Root G2 and G3 root certificates
              Added key and signature to ReqCertInfo
-
+             Added SaveToDERText
+Mar 12, 2018 V8.53 Added GlobalSign Root CA - R2 and GlobalSign ECC Root CA - R5
+             root certificates, R2 used by Google.
 
 
 Pending - short term
@@ -434,6 +436,7 @@ type
         procedure   LoadReqFromFile(const FileName: String);
         procedure   SaveReqToFile(const FileName: String; AddInfoText: Boolean = FALSE);
         function    SaveReqToText(AddInfoText: Boolean = FALSE): String;
+        function    SaveToDERText: AnsiString;                                        { V8.52 }
         function    GetReqExtValuesByName(const ShortName, FieldName: String): String;
         function    GetReqExtByName(const S: String): TExtension;
         property    X509Req             : Pointer       read FX509Req       write SetX509Req;
@@ -1558,6 +1561,59 @@ const
         'oAIwOWZbwmSNuJ5Q3KjVSaLtx9zRSX8XAbjIho9OjIgrqJqpisXRAL34VOKa5Vt8' + #13#10 +
         'sycX' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10;
+    sslRootCACerts033 =                                                               { V8.53 }
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: GlobalSign' + #13#10 +
+        '# Subject Organisation: GlobalSign' + #13#10 +
+        '# Subject Organisation Unit: GlobalSign Root CA - R2' + #13#10 +
+        '# GlobalSign Root R2 SHA1 • RSA • 2048' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
+        '# Expires: 15/12/2021' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDujCCAqKgAwIBAgILBAAAAAABD4Ym5g0wDQYJKoZIhvcNAQEFBQAwTDEgMB4G' + #13#10 +
+        'A1UECxMXR2xvYmFsU2lnbiBSb290IENBIC0gUjIxEzARBgNVBAoTCkdsb2JhbFNp' + #13#10 +
+        'Z24xEzARBgNVBAMTCkdsb2JhbFNpZ24wHhcNMDYxMjE1MDgwMDAwWhcNMjExMjE1' + #13#10 +
+        'MDgwMDAwWjBMMSAwHgYDVQQLExdHbG9iYWxTaWduIFJvb3QgQ0EgLSBSMjETMBEG' + #13#10 +
+        'A1UEChMKR2xvYmFsU2lnbjETMBEGA1UEAxMKR2xvYmFsU2lnbjCCASIwDQYJKoZI' + #13#10 +
+        'hvcNAQEBBQADggEPADCCAQoCggEBAKbPJA6+Lm8omUVCxKs+IVSbC9N/hHD6ErPL' + #13#10 +
+        'v4dfxn+G07IwXNb9rfF73OX4YJYJkhD10FPe+3t+c4isUoh7SqbKSaZeqKeMWhG8' + #13#10 +
+        'eoLrvozps6yWJQeXSpkqBy+0Hne/ig+1AnwblrjFuTosvNYSuetZfeLQBoZfXklq' + #13#10 +
+        'tTleiDTsvHgMCJiEbKjNS7SgfQx5TfC4LcshytVsW33hoCmEofnTlEnLJGKRILzd' + #13#10 +
+        'C9XZzPnqJworc5HGnRusyMvo4KD0L5CLTfuwNhv2GXqF4G3yYROIXJ/gkwpRl4pa' + #13#10 +
+        'zq+r1feqCapgvdzZX99yqWATXgAByUr6P6TqBwMhAo6CygPCm48CAwEAAaOBnDCB' + #13#10 +
+        'mTAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUm+IH' + #13#10 +
+        'V2ccHsBqBt5ZtJot39wZhi4wNgYDVR0fBC8wLTAroCmgJ4YlaHR0cDovL2NybC5n' + #13#10 +
+        'bG9iYWxzaWduLm5ldC9yb290LXIyLmNybDAfBgNVHSMEGDAWgBSb4gdXZxwewGoG' + #13#10 +
+        '3lm0mi3f3BmGLjANBgkqhkiG9w0BAQUFAAOCAQEAmYFThxxol4aR7OBKuEQLq4Gs' + #13#10 +
+        'J0/WwbgcQ3izDJr86iw8bmEbTUsp9Z8FHSbBuOmDAGJFtqkIk7mpM0sYmsL4h4hO' + #13#10 +
+        '291xNBrBVNpGP+DTKqttVCL1OmLNIG+6KYnX3ZHu01yiPqFbQfXf5WRDLenVOavS' + #13#10 +
+        'ot+3i9DAgBkcRcAtjOj4LaR0VknFBbVPFd5uRHg5h6h+u/N5GJG79G+dwfCMNYxd' + #13#10 +
+        'AfvDbbnvRG15RjF+Cv6pgsH/76tuIMRQyV+dTZsXjAzlAcmgQWpzU/qlULRuJQ/7' + #13#10 +
+        'TBj0/VLZjmmx6BEP3ojY+x1J96relc8geMJgEtslQIxq/H5COEBkEveegeGTLg==' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10;
+    sslRootCACerts034 =                                                               { V8.53 }
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: GlobalSign' + #13#10 +
+        '# Subject Organisation: GlobalSign' + #13#10 +
+        '# Subject Organisation Unit: GlobalSign ECC Root CA - R5' + #13#10 +
+        '# GlobalSign ECC Root R5 SHA384 • ECC • 384' + #13#10 +
+        '# Issuer: Self Signed' + #13#10 +
+        '# Expires: 19/01/2038' + #13#10 +
+        '' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIICHjCCAaSgAwIBAgIRYFlJ4CYuu1X5CneKcflK2GwwCgYIKoZIzj0EAwMwUDEk' + #13#10 +
+        'MCIGA1UECxMbR2xvYmFsU2lnbiBFQ0MgUm9vdCBDQSAtIFI1MRMwEQYDVQQKEwpH' + #13#10 +
+        'bG9iYWxTaWduMRMwEQYDVQQDEwpHbG9iYWxTaWduMB4XDTEyMTExMzAwMDAwMFoX' + #13#10 +
+        'DTM4MDExOTAzMTQwN1owUDEkMCIGA1UECxMbR2xvYmFsU2lnbiBFQ0MgUm9vdCBD' + #13#10 +
+        'QSAtIFI1MRMwEQYDVQQKEwpHbG9iYWxTaWduMRMwEQYDVQQDEwpHbG9iYWxTaWdu' + #13#10 +
+        'MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAER0UOlvt9Xb/pOdEh+J8LttV7HpI6SFkc' + #13#10 +
+        '8GIxLcB6KP4ap1yztsyX50XUWPrRd21DosCHZTQKH3rd6zwzocWdTaRvQZU4f8ke' + #13#10 +
+        'hOvRnkmSh5SHDDqFSmafnVmTTZdhBoZKo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYD' + #13#10 +
+        'VR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUPeYpSJvqB8ohREom3m7e0oPQn1kwCgYI' + #13#10 +
+        'KoZIzj0EAwMDaAAwZQIxAOVpEslu28YxuglB4Zf4+/2a4n0Sye18ZNPLBSWLVtmg' + #13#10 +
+        '515dTguDnFt2KaAJJiFqYgIwcdK1j1zqO+F4CYWodZI7yFz9SO8NdCKoCOJuxUnO' + #13#10 +
+        'xwy8p2Fp8fc74SrL+SvzZpA3' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10;
 
 implementation
 
@@ -1571,7 +1627,7 @@ begin
         sslRootCACerts016 + sslRootCACerts017 + sslRootCACerts018 + sslRootCACerts019 + sslRootCACerts020 +
         sslRootCACerts021 + sslRootCACerts022 + sslRootCACerts023 + sslRootCACerts024 + sslRootCACerts025 +
         sslRootCACerts026 + sslRootCACerts027 + sslRootCACerts028 + sslRootCACerts029 + sslRootCACerts030 +
-        sslRootCACerts031 + sslRootCACerts032;                                                  { V8.52 }
+        sslRootCACerts031 + sslRootCACerts032 + sslRootCACerts033 + sslRootCACerts034                     { V8.53 }
     end ;
 
 
@@ -1833,7 +1889,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ returns base64 encoded DER PEM certificate }
+{ returns base64 encoded DER PEM certificate request }
 function TSslCertTools.SaveReqToText(AddInfoText: Boolean = FALSE): String;
 var
     Bio  : PBIO;
@@ -1852,6 +1908,32 @@ begin
             f_Bio_read(Bio, PAnsiChar(AStr), Len);
             SetLength(AStr, StrLen(PAnsiChar(AStr)));
             Result := String(AStr);
+        end;
+    finally
+        f_bio_free(Bio);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ returns binary DER certificate request }
+function TSslCertTools.SaveToDERText: AnsiString;      { V8.52 }
+var
+    Bio  : PBIO;
+    Len: Integer;
+begin
+    Result := '';
+    if FX509Req = nil then Exit;
+    Bio := f_BIO_new(f_BIO_s_mem);
+    if Assigned(Bio) then
+    try
+        if f_i2d_X509_REQ_bio(Bio, PX509_REQ(FX509Req)) = 0 then
+           RaiseLastOpenSslError(EX509Exception, TRUE, 'Error writing request to BIO');
+
+        Len := f_BIO_ctrl(Bio, BIO_CTRL_PENDING, 0, nil);
+        if Len > 0 then begin
+            SetLength(Result, Len);
+            f_Bio_read(Bio, PAnsiChar(Result), Len);
         end;
     finally
         f_bio_free(Bio);

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.52
+Version:      8.53
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1239,6 +1239,12 @@ Feb 19, 2018 V8.52  LocalIpList only uses GetHostByName for Windows XP, 2003 and
                     IcsSslOpenFileBio now checks PEM files not empty to avoid
                       strange ASN1 errors parsing them.
                     Fixed IcsSslGetEVPDigest to work with 1.1.1
+Mar 15, 2018 V8.53  CertInfo showsOU if available, but less in brief mode
+                    ValidateCertChain checks issuer OU for duplicate roots
+                    Added sanity check to GetSha1Hex if certificate not loaded
+
+Pending -  Default SslOptions2 to sslOpt2_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
+                       which is required for TLSv1.3 to work.
 
 
 Use of certificates for SSL clients:
@@ -1443,8 +1449,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 852;
-  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.52 ';
+  WSocketVersion            = 853;
+  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.53 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -14109,6 +14115,7 @@ begin
     FSslCertX509         := TX509Base.Create(Self);   { V8.39 }
     FSslSecLevel         := sslSecLevel80bits;   { V8.40 }
     FSslCryptoGroups     := sslCryptoGroupsDef;  { V8.51 1.1.1 and later }
+//  FSslOptions2         := [sslOpt2_NO_SESSION_RESUMPTION_ON_RENEGOTIATION]; { V8.53 required for TLSv1.3 }
 end;
 
 
@@ -17091,8 +17098,11 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.GetSha1Hex: String;            { aka fingerprint }
 begin
-    if FSha1Hex = '' then
-        FSha1Hex := IcsBufferToHex(Sha1Digest[0], 20);
+    if FSha1Hex = '' then begin
+        GetSha1Digest;
+        if Assigned(FSha1Digest) then   { V8.53 sanity test, may be no certificate }
+            FSha1Hex := IcsBufferToHex(FSha1Digest[0], 20);
+    end;
     Result := FSha1Hex;
 end;
 
@@ -18529,27 +18539,30 @@ end;
 function TX509Base.CertInfo(Brief: Boolean = False): String;   { V8.41 added Brief }
 begin
     Result := 'Issued to (CN): ' + UnwrapNames (SubjectCName);
-    if SubjectOName <> '' then
-        Result := Result + ', (O): ' + UnwrapNames (SubjectOName) + #13#10
-    else
-        Result := Result + #13#10;
+    if SubjectOName  <> '' then Result := Result + ', (O): '  + UnwrapNames (SubjectOName);
+    if SubjectOUName <> '' then Result := Result + ', (OU): ' + UnwrapNames (SubjectOUName);  { V8.53 }
+    Result := Result + #13#10;
     if SubAltNameDNS <> '' then
-        Result := Result + 'Alt Domains: ' + UnwrapNames (SubAltNameDNS) + #13#10;
+        Result := Result + 'Alt Domains (SAN): ' + UnwrapNames (SubAltNameDNS) + #13#10;
     if SubAltNameIP <> '' then
         Result := Result + 'Alt IP: ' + UnwrapNames (SubAltNameIP) + #13#10;   { V8.41 }
     if SelfSigned then
         Result := Result + 'Issuer: Self Signed' + #13#10
-    else
-        Result := Result + 'Issued by (CN): ' + UnwrapNames (IssuerCName) + ', (O): ' + UnwrapNames (IssuerOName) + #13#10 ;
+    else begin
+        Result := Result + 'Issued by (CN): ' + UnwrapNames (IssuerCName);
+        if IssuerOName  <> '' then Result := Result + ', (O): '  + UnwrapNames (IssuerOName);
+        if IssuerOUName <> '' then Result := Result + ', (OU): ' + UnwrapNames (IssuerOUName);   { V8.53 }
+        Result := Result + #13#10;
+    end;
+    Result := Result + 'Expires: ' + DateToStr (ValidNotAfter) +    { V8.45 need expiry for brief }
+                       ', Signature: ' + SignatureAlgorithm + #13#10; 
     if NOT Brief then begin
         Result := Result + 'Serial Number: ' + GetSerialNumHex + #13#10 +     { V8.40 }
-            'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10;          { V8.41 }
+            'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10 +         { V8.41 }
+            'Public Key: ' + KeyInfo;                                         { V8.53 not brief }
         if ExtendedValidation then
-            Result := Result + 'Extended Validation (EV) SSL Server Certificate' + #13#10;   { V8.40 }
+            Result := Result + #13#10 + 'Extended Validation (EV) SSL Server Certificate';   { V8.40 }
     end;
-    Result := Result + 'Expires: ' + DateToStr (ValidNotAfter) +              { V8.45 need expiry for brief }
-                                        ', Signature: ' + SignatureAlgorithm + #13#10;
-    Result := Result + 'Public Key: ' + KeyInfo;
 end;
 
 
@@ -18780,10 +18793,10 @@ function TX509Base.ValidateCertChain(Host: String; var CertStr, ErrStr: string):
 var
     curDate: TDateTime;
     InterList, CAList: TX509List;
-    CertIssuer, NextIssuer: string;
+    CertIssuer, NextIssuer, OUIssuer: string;
     I: integer;
 
-    function FindInter(AName: string): Boolean;
+    function FindInter(const AName: string): Boolean;
     var
         J: Integer;
     begin
@@ -18794,6 +18807,7 @@ var
                 CertStr := CertStr + #13#10 + 'Intermediate: ' +
                                                 InterList[J].CertInfo(False);
                 NextIssuer := InterList[J].IssuerCName;
+                OUIssuer := InterList[J].IssuerOUName;  { V8.53 }
                 if curDate > InterList[J].ValidNotAfter then
                     ErrStr := 'SSL certificate has expired - ' +
                                             InterList[J].SubjectCName
@@ -18810,19 +18824,22 @@ var
         end;
     end;
 
-    function FindCA(AName: string): Boolean;
+    function FindCA(const AName, OUName: string): Boolean;
     var
         J: Integer;
     begin
         Result := False;
         if NOT IsCATrustLoaded then Exit;
         for J := 0 to CAList.Count - 1 do begin
-            if (CAList[J].SubjectCName = AName) or
-                   (CAList[J].SubjectOName = AName) then begin
-                CertStr := CertStr + #13#10 + 'Trusted CA: ' +
-                                                CAList[J].CertInfo(False);
-                Result := True;
-                Exit;
+            if ((CAList[J].SubjectCName = AName) or
+                  (CAList[J].SubjectOName = AName)) then begin
+              { V8.53 also check Organisation Name, if used }
+                if (OUName = '') or (CAList[J].SubjectOUName = OUName) then begin
+                    CertStr := CertStr + #13#10 + 'Trusted CA: ' +
+                                                    CAList[J].CertInfo(False);
+                    Result := True;
+                    Exit;
+                end;
             end;
         end;
     end;
@@ -18888,6 +18905,7 @@ begin
 
   { check inter chain or CA contains certificate that signed ours  }
     CertIssuer := IssuerCName;
+    OUIssuer := IssuerOUName;  { V8.53 }
     NextIssuer := '';
     try
         if IsInterLoaded and (NOT Selfsigned) then begin
@@ -18919,7 +18937,7 @@ begin
 
     { see if server signed directly by trusted CA }
         if CertIssuer <> '' then begin
-            if IsCATrustLoaded and FindCA(CertIssuer) then begin
+            if IsCATrustLoaded and FindCA(CertIssuer, OUIssuer) then begin
                 if Result = chainFail then Result := chainOK;  // no warnings so OK  V8.47
                 Exit;
             end;
@@ -18927,7 +18945,7 @@ begin
 
    { see if intermediate signed by a trusted CA }
         if (NextIssuer <> '') then begin
-            if IsCATrustLoaded and FindCA(NextIssuer) then begin
+            if IsCATrustLoaded and FindCA(NextIssuer, OUIssuer) then begin
                 if Result = chainFail then Result := chainOK;  // no warnings so OK  V8.47
                 Exit;
             end;

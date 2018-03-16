@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.52
+Version:      8.53
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -95,6 +95,8 @@ Sep 22, 2017 V8.50 Corrected X25519 private keys to ED25519, requires OpenSSL 1.
 Nov 3, 2017  V8.51 Tested ED25519 keys, can now sign requests and certs
              Added RSA-PSS keys and SHA3 digest hashes, requires OpenSSL 1.1.1
 Feb 14, 2018 V8.52 TX509 PublicKey now X509PublicKey
+Mar 12, 2018 V8.53 Display Wsocket version in About
+
 
 
 Pending
@@ -132,10 +134,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 852;
-     PemToolDate        = 'Feb 14, 2018';
+     PemToolVersion     = 853;
+     PemToolDate        = 'Mar 12, 2018';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2018 by François PIETTE V8.52 ';
+     CopyRight : String = '(c) 2003-2018 by François PIETTE V8.53 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -2104,6 +2106,7 @@ procedure TfrmPemTool1.About1Click(Sender: TObject);
 begin
    ShowMessage(PemToolName + #13#10 +
                CopyRight + ' ' + PemToolDate + #13#10 +
+               Trim(OverbyteIcsWSocket.CopyRight)  + #13#10 +   { V8.53 }
                'SSL Version: ' + OpenSslVersion + #13#10 +
                'Dir: ' + GLIBEAY_DLL_FileName);
 end;

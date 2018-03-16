@@ -21,9 +21,8 @@ object AboutBox: TAboutBox
     Top = 261
     Width = 77
     Height = 30
-    Kind = bkOK
-    NumGlyphs = 2
     TabOrder = 0
+    Kind = bkOK
   end
   object Panel1: TPanel
     Left = 0
@@ -57,8 +56,6 @@ object AboutBox: TAboutBox
       Align = alClient
       Enabled = False
       TabOrder = 0
-      Touch.InteractiveGestures = [igPan]
-      Touch.InteractiveGestureOptions = [igoPanSingleFingerHorizontal, igoPanSingleFingerVertical, igoPanInertia]
     end
   end
 end

@@ -4,7 +4,8 @@ interface
 
 uses
     SysUtils, WinTypes, WinProcs, Messages, Classes, Graphics, Controls,
-    Forms, Dialogs, StdCtrls, Buttons, HtmlGlobals, Htmlview, ExtCtrls, HTMLUn2;
+    Forms, Dialogs, StdCtrls, Buttons, HtmlGlobals, Htmlview, ExtCtrls, HTMLUn2,
+    OverbyteIcsWSocket;
 
 {$INCLUDE htmlcons.inc}
 
@@ -106,7 +107,10 @@ begin
         'Delphi 10 Seattle'
 {$ENDIF}
 {$IFDEF Ver310}
-        'Delphi 10.1'
+        'Delphi 10.1 Berlin'
+{$ENDIF}
+{$IFDEF Ver320}
+        'Delphi 10.2 Tokyo'
 {$ENDIF}
 {$IFDEF LCL}
         'Lazarus ' + lcl_version
@@ -151,6 +155,8 @@ begin
 {$ENDIF}
 {$ENDIF}
 {$ENDIF}
+    Result := Result + '<li>ICS  ' + Trim(OverbyteIcsWSocket.CopyRight);   // March 2018
+
     Result := Result + '</ul>';
 end;
 

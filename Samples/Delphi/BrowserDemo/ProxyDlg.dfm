@@ -126,12 +126,12 @@ object ProxyForm: TProxyForm
     ItemHeight = 13
     TabOrder = 5
     Items.Strings = (
-      'Best Version'
-      'SSLv2'
       'SSLv3'
       'TLSv1'
       'TLSv1.1'
-      'TLSv1.2')
+      'TLSv1.2'
+      'TLSv1.3'
+      'Best Version')
   end
   object SslAcceptableHostsEdit: TEdit
     Left = 216

@@ -2,7 +2,7 @@
   Version   11.6
   Copyright (c) 1995-2008 by L. David Baldwin
   Copyright (c) 2008-2010 by HtmlViewer Team
-  Copyright (c) 2012-2016 by Angus Robertson delphi@magsys.co.uk
+  Copyright (c) 2012-2018 by Angus Robertson delphi@magsys.co.uk
   Copyright (c) 2013-2015 by HtmlViewer Team
 
   Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -33,7 +33,7 @@
 
   which must also be downloaded and installed before the demo can be built.
 
-  It also needs ICS v7 dated 1st April 2012 or later or ICS v8 from:
+  It also needs the latest ICS V8 from:
 
   http://wiki.overbyte.be/wiki/index.php/ICS_Download
 
@@ -78,6 +78,14 @@
                   Settings now allows specific SSL protocols to be forced for testing
                   Settings has options to display SSL certificates
                   recognise D10.1 in About
+
+15 Mar 2018 V8.53 Angus simplfied SSL handshake reporting
+                  Using new SslContext stuff for simplified version setting
+                  recognise D10.2 in About, also ICS version 
+                  Now requires latest ICS version per revision, v7 not supported
+                  Fixed updating URL bar for redirection
+                  Use common SSL acceptable hosts list so each connection does not recheck certificates
+
 
   Pending - use NoCache header to stop dynamic pages being cached and expire them
   Pending - cache visited links so we can highlight them
@@ -254,9 +262,12 @@ type
 {$IFDEF UNICODE}
         procedure BlankWindowRequest(Sender : TObject;
             const Target, URL : String);
-        procedure FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: boolean;   // 11.6 changed slightly
+{        procedure FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: boolean;   // 11.6 changed slightly
             const URL, Query, EncType, Referer: String; Reload: boolean;
-            var NewURL: String; var DocType: ThtmlFileType; var Stream: TStream);
+            var NewURL: String; var DocType: ThtmlFileType; var Stream: TStream);  }
+        procedure FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: Boolean;
+          const URL, Query, EncType, RefererX: String; Reload: Boolean;
+          var NewURL: String; var DocType: ThtDocType; var Stream: TStream);
         procedure GetImageRequest(Sender : TObject; const URL : String;
             var Stream : TStream);
         procedure HotSpotTargetClick(Sender : TObject;
@@ -274,9 +285,12 @@ type
 {$ELSE}
         procedure BlankWindowRequest(Sender : TObject;
             const Target, URL : WideString);
-        procedure FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: boolean;          // 11.6 changed slightly
+    {    procedure FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: boolean;          // 11.6 changed slightly
             const URL, Query, EncType, Referer: WideString; Reload: boolean;
-            var NewURL: WideString; var DocType: ThtmlFileType; var Stream: TStream);
+            var NewURL: WideString; var DocType: ThtmlFileType; var Stream: TStream);  }
+        procedure FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: Boolean;
+          const URL, Query, EncType, RefererX: WideString; Reload: Boolean;
+          var NewURL: WideString; var DocType: ThtDocType; var Stream: TStream);
         procedure GetImageRequest(Sender : TObject; const URL : WideString;
             var Stream : TStream);
         procedure HotSpotTargetClick(Sender : TObject;
@@ -340,6 +354,7 @@ type
         FCurHttpSess              : integer;
         LastProtocol              : String;
         MsCertChainEngine         : TMsCertChainEngine; // Angus
+        FAcceptableSslHosts       : TStringList;        // V8.53 common to all connections
 
         procedure EnableControls;
         procedure DisableControls;
@@ -628,6 +643,7 @@ begin
         Log.Active      := True;
     end;
 {$ENDIF}
+    FAcceptableSslHosts := TStringList.Create;   // V8.53 common to all connections
     IcsCookies.LoadFromFile(Cache + CookieFile);
     IcsCookies.AutoSave := True;
     AStream             := TMemorystream.Create;
@@ -763,6 +779,7 @@ begin
     end;
     AStream.Free;
     Pending.Free;
+    FAcceptableSslHosts.Free; 
     try
         if FCurHttpSess > 0 then
             HttpStopSessions;
@@ -836,8 +853,8 @@ begin
 end;
 
 { ----------------THTTPForm.FrameBrowserGetPostRequestEx }
-procedure THTTPForm.FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: boolean;      // 11.6 changed slightly
-    const URL, Query, EncType, Referer: ThtString; Reload: boolean;
+procedure THTTPForm.FrameBrowserGetPostRequestEx(Sender: TObject; IsGet: boolean;      // 11.7 changed slightly
+    const URL, Query, EncType, RefererX: ThtString; Reload: boolean;
     var NewURL: ThtString; var DocType: ThtmlFileType; var Stream: TStream);
 { OnGetPostRequest handler.
   URL is what to load.
@@ -876,10 +893,6 @@ var
     Header, Footer, RandBoundary, Filename, InputName, InputValue : ThtString;
     protocol : String;
     I : Integer;
-const
-    SslVersions : array [0..5] of TSslVersionMethod =
-        (sslBestVer_CLIENT,sslV2_CLIENT,sslV3_CLIENT,sslTLS_V1_CLIENT,
-                                   sslTLS_V1_1_CLIENT,sslTLS_V1_2_CLIENT);
 begin
     CloseHints; { may be a hint window open }
     Query1          := Query;
@@ -897,55 +910,35 @@ begin
     DisableControls;
     NewLocation := '';
 
-    { 15 March 2015 see if initialising SSL }
-    if Pos ('https:', LowerCase (URL1)) = 1 then
+    { 15 March 2015 see if initialising SSL, March 2018 always do it in case of SSL relocaton }
+    if NOT SslContext.IsCtxInitialized then
     begin
-        if NOT SslContext.IsCtxInitialized then
+     // GSSLEAY_DLL_IgnoreNew := true;  { V8.53 ignore OpenSSL 1.1.0 and later }
+        SslContext.SslVerifyPeer := false;
+        SslContext.SslMinVersion := sslVerSSL3;    { V8.52}
+        SslContext.SslMaxVersion := TSslVerMethod (SslVersionList);  { V8.52}
+        if (SslVerifyCertMode > SslVerNone) then
+    //    if (SslVerifyCertMode = SslVerBundle) then
         begin
-            SslContext.SslVerifyPeer := false;
-            SslContext.SslVersionMethod := SslVersions [SslVersionList];
-      {  V8.01 - set options to force a single SSL/TLS version, not normally a good idea,
-        but seems only reliable way of forcing use of a specific version }
-            SslContext.SslOptions := SslContext.SslOptions + [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
-                                         sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];
-            if SslContext.SslVersionMethod = sslV2_CLIENT then
-                SslContext.SslOptions := SslContext.SslOptions - [sslOpt_NO_SSLv2]
-            else if SslContext.SslVersionMethod = sslV3_CLIENT then
-                SslContext.SslOptions := SslContext.SslOptions - [sslOpt_NO_SSLv3]
-            else if SslContext.SslVersionMethod = sslTLS_V1_CLIENT then
-                SslContext.SslOptions := SslContext.SslOptions - [sslOpt_NO_TLSv1]
-            else if SslContext.SslVersionMethod = sslTLS_V1_1_CLIENT then
-                SslContext.SslOptions := SslContext.SslOptions - [sslOpt_NO_TLSv1_1]
-            else if SslContext.SslVersionMethod = sslTLS_V1_2_CLIENT then
-                SslContext.SslOptions := SslContext.SslOptions - [sslOpt_NO_TLSv1_2]
+            Filename := ExtractFileDir (Application.ExeName) + '\TrustedCABundle.pem' ;
+            if FileExists (Filename) then
+                SslContext.SslCAFile := Filename
             else
-                SslContext.SslOptions := SslContext.SslOptions - [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
-                                             sslOpt_NO_TLSv1, sslOpt_NO_TLSv1_1, sslOpt_NO_TLSv1_2];
-
-            if (SslVerifyCertMode > SslVerNone) and (SslContext.SslCAFile = '') then
-            begin
-                Filename := ExtractFileDir (Application.ExeName) + '\TrustedCABundle.pem' ;
-                if FileExists (Filename) then
-                begin
-                    SslContext.SslCAFile := Filename;
-                    SslContext.SslVerifyPeer := true ;
-                end
-                else
-                    LogLine('Can not verify SSL certificates, file not found: ' + Filename);
+               SslContext.SslCALines.Text := sslRootCACertsBundle;  { V8.52}
+            SslContext.SslVerifyPeer := true ;
+        end;
+        try
+            SslContext.InitContext;  { get any error now before making requests }
+            if NOT FileExists (GLIBEAY_DLL_FileName) then
+              LogLine('SSL/TLS DLL not found: ' + GLIBEAY_DLL_FileName)
+            else
+              LogLine('SSL/TLS DLL: ' + GLIBEAY_DLL_FileName + ', Version: ' + OpenSslVersion);
+        except
+            on E:Exception do begin
+                LogLine('Failed to initialize SSL Context: ' + E.Message);
             end;
-            try
-                SslContext.InitContext;  { get any error now before making requests }
-                if NOT FileExists (GLIBEAY_DLL_FileName) then
-                  LogLine('SSL/TLS DLL not found: ' + GLIBEAY_DLL_FileName)
-                else
-                  LogLine('SSL/TLS DLL: ' + GLIBEAY_DLL_FileName + ', Version: ' + OpenSslVersion);
-            except
-                on E:Exception do begin
-                    LogLine('Failed to initialize SSL Context: ' + E.Message);
-                end;
-            end;
-       end;
-    end;
+        end;
+   end;
 
     { will change if document referenced by URL has been relocated }
     ARealm   := '';
@@ -971,7 +964,7 @@ begin
         if Connection <> nil then begin
             Connection.Session       := 0;
             Connection.OnDocData     := HTTPForm.HTTPDocData1; // progress only
-            Connection.Referer       := Referer;
+            Connection.Referer       := RefererX;
             LastUrl                  := URL1;
             Connection.OnRedirect    := HTTPForm.HTTPRedirect;
             Connection.OnCookie      := HTTPForm.HTTPSetCookie;
@@ -1203,10 +1196,7 @@ end;
 procedure THTTPForm.HTTPSslHandshakeDone(Sender: TObject; ErrCode: Word;
   PeerCert: TX509Base; var Disconnect: Boolean);
 var
-//    HttpCli: TSslHttpCli;
-    I: integer;
     CertChain: TX509List;
-    MyCert: TX509Ex;
     ChainVerifyResult: LongWord;
     Hash, info: String;
     Safe: Boolean;
@@ -1224,7 +1214,7 @@ begin
 
      // OK
          LogLine(SslServerName + ' - ' + SslHandshakeRespMsg);
-        if SslSessionReused OR (SslVerifyCertMode = SslVerNone) or (NOT SslContext.SslVerifyPeer) then
+        if SslSessionReused OR (SslVerifyCertMode = SslVerNone) then
         begin
             exit; // nothing to do, go ahead
         end ;
@@ -1236,7 +1226,8 @@ begin
             exit ;
         end;
         Hash := PeerCert.Sha1Hex ;
-        if SslAcceptableHosts.IndexOf (SslServerName + Hash ) > -1 then
+      // V8.53 use common host list so each connection does not recheck certificates
+        if FAcceptableSslHosts.IndexOf (SslServerName + Hash ) > -1 then
         begin
             exit; // nothing to do, go ahead
         end ;
@@ -1280,20 +1271,19 @@ begin
         else if SslVerifyCertMode = SslVerBundle then
         begin
             { check whether SSL chain verify result was OK }
-            MyCert := TX509Ex (PeerCert);
-            if MyCert.VerifyResult = X509_V_OK then
+            if PeerCert.VerifyResult = X509_V_OK then
                 Safe := true
             else if (CertChain.Count > 0) and
                 (CertChain[0].FirstVerifyResult = X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN) then
             begin
                 Safe := true ;
                 LogLine(SslServerName + ' SSL Self Signed Certificate Succeeded: ' +
-                                                                  MyCert.UnwrapNames (MyCert.IssuerCName)) ;
+                                                 PeerCert.UnwrapNames (PeerCert.IssuerCName)) ;
             end
             else
             begin
                LogLine(SslServerName + ' SSL Chain Verification Failed: ' +
-                               PeerCert.FirstVerifyErrMsg + ' - ' + MyCert.UnwrapNames (MyCert.IssuerCName)) ;
+                     PeerCert.FirstVerifyErrMsg + ' - ' + PeerCert.UnwrapNames (PeerCert.IssuerCName)) ;
             end;
         end
         else
@@ -1304,45 +1294,30 @@ begin
      // check certificate was issued to remote host for out connection
         if Safe then
         begin
-            MyCert := TX509Ex (PeerCert);
-            if MyCert.PostConnectionCheck (SslServerName) then
-                info := SslServerName + ' SSL Chain Verification Succeeded'
-            else
-            begin
-                info := SslServerName + ' SSL Chain Verification Failed, Common Name or Subject Mismatch';
-                if MyCert.SubAltNameDNS = '' then
-                    info := info + MyCert.UnwrapNames (MyCert.SubjectCName)
-                else
-                    info := info + MyCert.UnwrapNames (MyCert.SubAltNameDNS) ;
-                Safe := false ;
-            end;
-           LogLine(info) ;
+        //    if PeerCert.PostConnectionCheck (SslServerName) then    { V8.52 no longer needed }
+            info := SslServerName + ' SSL Chain Verification Succeeded';
+            LogLine(info) ;
         end;
 
    // if certificate checking failed, see if the host is specifically listed as being allowed anyway
-        if (NOT Safe) and ((SslAcceptableHosts.IndexOf (SslServerName) > -1) or
+        if (NOT Safe) and ((FAcceptableSslHosts.IndexOf (SslServerName) > -1) or
                             (Pos (SslServerName, SslAcceptableHostsEdit) > 1)) then
         begin
             Safe := true ;
-            SslAcceptableHosts.Add (SslServerName + Hash);  // keep it to avoid checking again
             LogLine(SslServerName + ' SSL Succeeded with Acceptable Host Name');
         end ;
+
+     // V8.53 use common host list so each connection does not recheck certificates
+        if Safe then
+            FAcceptableSslHosts.Add (SslServerName + Hash);  // keep it to avoid checking again
 
       // tell user about all the certificates we found
         if SslReportChain and (CertChain.Count > 0) then
         begin
-            info := SslServerName + ' ' + IntToStr (CertChain.Count) + ' SSL Certificates in the verify chain:'+ #13#10;
-            for I := CertChain.Count - 1 downto 0 do
-            begin
-                MyCert := TX509Ex (CertChain[I]);
-                if Length (info) > 0 then info := info + #13#10;
-                info := info + 'Depth #' + IntToStr (CertChain.Count - I) ;
-                if SslVerifyCertMode = SslVerWinStore then
-                     info := info + ' Verify Result: ' + MsCertVerifyErrorToStr (CertChain[I].CustomVerifyResult) + #13#10
-                else
-                     info := info + ' Verify Result: ' + MyCert.FirstVerifyErrMsg + #13#10 ;
-                info := info + MyCert.CertInfo + #13#10  + #13#10 ;
-            end;
+            Info := '! ' + 'VerifyResult: ' + PeerCert.FirstVerifyErrMsg +
+             ', Peer domain: ' +  SslCertPeerName + #13#10 +  { V8.52 }
+             IntToStr(CertChain.Count) +' Certificate(s) in the verify chain.' +
+             #13#10 + CertChain.AllCertInfo(True, True);    { V8.52 }
             LogLine(info);
         end;
 
@@ -1370,6 +1345,9 @@ begin
         NewLocation := CombineURL(URLBase, Dest);
     end;
     URLBase := GetUrlBase(NewLocation);
+//    UrlComboBox.Text := NewLocation;  { V8.53 }
+//    FrameBrowser.LoadURL (NewLocation);  { V8.53 }
+//    FrameBrowser.History[0] := NewLocation;  { V8.53 }
 
     { cookies may have been sent during redirection, so update again now   }
     (Sender as TSslHttpCli).Cookie := IcsCookies.GetCookies(NewLocation);
@@ -1653,15 +1631,18 @@ var
     Cap : String;
 begin
     with Sender as TFrameBrowser do begin
-        if History.Count > 0 then
-            UrlComboBox.Text := History[0]; // ANGUS
+        if History.Count > 1 then begin
+            if UrlComboBox.Text <> History[0] then begin   // V8.53
+                 UrlComboBox.Text := History[0]; // ANGUS
+            end;
+         end;
         { check to see which buttons are to be enabled }
         FwdButton.Enabled  := FwdButtonEnabled;
         BackButton.Enabled := BackButtonEnabled;
 
         { Enable and caption the appropriate history menuitems }
         HistoryMenuItem.Visible := History.Count > 0;
-        for I                   := 0 to MaxHistories - 1 do
+        for I := 0 to MaxHistories - 1 do
             with Histories[I] do
                 if I < History.Count then begin
                     Cap := History.Strings[I]; { keep local file name }
@@ -2022,8 +2003,8 @@ begin
     Viewer := Sender as ThtmlViewer;
     with Parameters do begin
         FoundObject := Image;
-        if (FoundObject <> nil) and (FoundObject.Bitmap <> nil) then begin     // 11.6 again Bitmap not graphic?
-     //   if (FoundObject <> nil) and (FoundObject.Graphic <> nil) then begin     // 11.6 was Bitmap
+     //   if (FoundObject <> nil) and (FoundObject.Bitmap <> nil) then begin     // 11.6 again Bitmap not graphic?
+        if (FoundObject <> nil) and (FoundObject.Graphic <> nil) then begin     // 11.6 was Bitmap
             if not IsFullUrl(FoundObject.Source) then
                 FoundObjectName :=
                     CombineURL(FrameBrowser.GetViewerUrlBase(Viewer),
@@ -2355,7 +2336,7 @@ end;
 
 procedure THTTPForm.About1Click(Sender : TObject);
 begin
-    AboutBox := TAboutBox.CreateIt(Self, 'FrameBrowser ICSv7/v8 Demo',
+    AboutBox := TAboutBox.CreateIt(Self, 'FrameBrowser ICSv8 Demo',
         'TFrameBrowser');
     try
         AboutBox.ShowModal;

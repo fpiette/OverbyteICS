@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.52
+Version:      8.53
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -152,7 +152,9 @@ Sep 19, 2017 V8.50 Added IcsMoveTBytesToString and IcsMoveStringToTBytes that ta
 Nov 17, 2017 V8.51 Added IcsGetFileUAge
 Feb 12, 2018 V8.52 Added IcsFmtIpv6Addr, IcsFmtIpv6AddrPort and IcsStripIpv6Addr to
                       format browser friendly IPv6 addresses with []
-                   Added useful constants like IcsLF and IcsCR, etc. 
+                   Added useful constants like IcsLF and IcsCR, etc.
+Mar 14, 2018 V8.53 Added sanity test to IcsBufferToHex to avoid exceptions
+                                                               
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -3430,17 +3432,21 @@ var
     P : PChar;
     B : PAnsiChar;
 begin
-    if Size <= 0 then
+    if (Size <= 0) then
         Result := ''
     else begin
         SetLength(Result, (Fact * Size));
         P := PChar(Result);
         B := @Buf;
-        for I := 0 to Size -1 do begin
-            P[I * Fact]     := HexTable[(Ord(B[I]) shr 4) and 15];
-            P[I * Fact + 1] := HexTable[Ord(B[I]) and 15];
+        if (NOT Assigned(B)) then  { V8.53 sanity test }
+            Result := ''
+        else begin
+            for I := 0 to Size -1 do begin
+                P[I * Fact]     := HexTable[(Ord(B[I]) shr 4) and 15];
+                P[I * Fact + 1] := HexTable[Ord(B[I]) and 15];
+            end;
         end;
-    end;    
+    end;
 end;
 
 

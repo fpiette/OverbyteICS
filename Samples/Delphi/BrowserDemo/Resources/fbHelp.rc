@@ -1,5 +1,6 @@
 // usage: "c:\program files\borland\Delphi4\bin\BRCC32" -fofbHelp32.res  fbHelp.rc
 // usage: C:\D\DELPHI\BIN\BRCC -fofbHelp16.res  fbHelp.rc
+// c:\delphi2007\BIN\BRCC32.exe -fofbHelp.res  fbHelp.rc
 
 
 XLeft1   HTML    "Xleft1.htm"

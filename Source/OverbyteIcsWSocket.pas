@@ -1239,12 +1239,16 @@ Feb 19, 2018 V8.52  LocalIpList only uses GetHostByName for Windows XP, 2003 and
                     IcsSslOpenFileBio now checks PEM files not empty to avoid
                       strange ASN1 errors parsing them.
                     Fixed IcsSslGetEVPDigest to work with 1.1.1
-Mar 15, 2018 V8.53  CertInfo showsOU if available, but less in brief mode
+Mar 21, 2018 V8.53  CertInfo showsOU if available, but less in brief mode
                     ValidateCertChain checks issuer OU for duplicate roots
                     Added sanity check to GetSha1Hex if certificate not loaded
+                    Ignore CliNewSession event with TLSv1.3 since session not yet
+                      established until after handshake.
+                    Ignore second handshake start in InfoCallback with TLSv1.3
+                       since renegotiation not supported by protocol.
 
-Pending -  Default SslOptions2 to sslOpt2_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
-                       which is required for TLSv1.3 to work.
+
+Pending, use NewSessionCallback for clients as well as servers
 
 
 Use of certificates for SSL clients:
@@ -1652,13 +1656,13 @@ type
     FIPStr        : String;
     FPortStr      : String;
     FProtoStr     : String;
-	FErrorCode    : Integer;
+    FErrorCode    : Integer;
     FFriendlyMsg  : String;
     FFunc         : String;
   public
     constructor Create(const AMessage       : String;
                        AErrorCode           : Integer = 0;
-	                   const AErrorMessage  : String = '';
+                       const AErrorMessage  : String = '';
                        const AFriendlyMsg   : String = '';
                        const AFunc          : String = '';
                        const AIP            : String = '';
@@ -1667,7 +1671,7 @@ type
     property IPStr        : String  read FIPStr;
     property PortStr      : String  read FPortStr;
     property ProtoStr     : String  read FProtoStr;
-	property ErrorCode    : Integer read FErrorCode;
+    property ErrorCode    : Integer read FErrorCode;
     property ErrorMessage : String  read FErrorMessage;
     property FriendlyMsg  : String  read FFriendlyMsg;
     property Func         : String  read FFunc;
@@ -1935,7 +1939,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     procedure   RaiseException(const Msg : String); overload; virtual;
     procedure   RaiseException(const Msg : String;
                        AErrorCode           : Integer;   { V8.36 more }
-	                   const AErrorMessage  : String = '';
+                       const AErrorMessage  : String = '';
                        const AFriendlyMsg   : String = '';
                        const AFunc          : String = '';
                        const AIP            : String = '';
@@ -2919,7 +2923,7 @@ type
                           IncludeInters: TCertReadOpt = croNo; const Password:
                                  String = ''; const FName: String = ''); overload; virtual;   { V8.40 }
         procedure   ReadFromBio(ABio: PBIO; IncludePrivateKey: Boolean = FALSE;
-                                           const Password: String = ''); overload; virtual; 
+                                           const Password: String = ''); overload; virtual;
         procedure   WriteToBio(ABio: PBIO; IncludePrivateKey: Boolean = FALSE;
                           AddInfoText: Boolean = FALSE; const FName: String = ''); virtual;
         procedure   WriteCertToBio(ABio: PBIO; AddInfoText: Boolean = FALSE; const FName: String = ''); virtual;  { V8.40 }
@@ -3344,7 +3348,7 @@ const
             SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION,
             SSL_OP_NO_COMPRESSION,
             SSL_OP_NO_ENCRYPT_THEN_MAC,    { V8.51 }
-            SSL_OP_NO_TICKET, 
+            SSL_OP_NO_TICKET,
             SSL_OP_NO_SSLv3,
             SSL_OP_NO_TLSv1,
             SSL_OP_NO_TLSv1_1,
@@ -3645,7 +3649,7 @@ type
                                                     read  FSslECDHMethod
                                                     write SetSslECDHMethod;
         property  SslCryptoGroups  : String         read  FSslCryptoGroups
-                                                    write FSslCryptoGroups;    { V8.51 } 
+                                                    write FSslCryptoGroups;    { V8.51 }
         property  SslSessionTimeout : Longword      read  FSslSessionTimeout
                                                     write SetSslSessionTimeout;
         property  SslSessionCacheSize : Integer
@@ -6997,7 +7001,7 @@ end;
 constructor ESocketException.Create(
                        const AMessage       : String;
                        AErrorCode           : Integer = 0;
-	                   const AErrorMessage  : String = '';
+                       const AErrorMessage  : String = '';
                        const AFriendlyMsg   : String = '';
                        const AFunc          : String = '';
                        const AIP            : String = '';
@@ -7023,7 +7027,7 @@ end;
   more friendly messages (without error numbers) }
 procedure TCustomWSocket.RaiseException(const Msg : String;
                        AErrorCode           : Integer;
-	                   const AErrorMessage  : String = '';
+                       const AErrorMessage  : String = '';
                        const AFriendlyMsg   : String = '';
                        const AFunc          : String = '';
                        const AIP            : String = '';
@@ -9187,7 +9191,7 @@ begin
                 Result := WSocketIPv6ToStr(@saddr);
         end
         else begin
-            SocketError('GetPeerAddr');  { V8.51 corrected literal } 
+            SocketError('GetPeerAddr');  { V8.51 corrected literal }
             Exit;
         end;
     end;
@@ -13900,7 +13904,7 @@ var
     MyStack: PStack;
 begin
     MyStack := IcsSslLoadStackFromInfoFile(FileName, emCert);
-    Result := f_OPENSSL_sk_num(MyStack);  
+    Result := f_OPENSSL_sk_num(MyStack);
     try
         while f_OPENSSL_sk_num(MyStack) > 0 do begin
             Add(f_X509_dup(PX509(f_OPENSSL_sk_delete(MyStack, 0))));
@@ -14115,7 +14119,6 @@ begin
     FSslCertX509         := TX509Base.Create(Self);   { V8.39 }
     FSslSecLevel         := sslSecLevel80bits;   { V8.40 }
     FSslCryptoGroups     := sslCryptoGroupsDef;  { V8.51 1.1.1 and later }
-//  FSslOptions2         := [sslOpt2_NO_SESSION_RESUMPTION_ON_RENEGOTIATION]; { V8.53 required for TLSv1.3 }
 end;
 
 
@@ -14382,7 +14385,7 @@ begin
 {$IFNDEF NO_DEBUG_LOG}
                 if Obj.CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
                     Obj.DebugLog(loSslInfo,'VCB> VerifyPeer: Subject = '  + CurCert.SubjectOneLine);
-                    Obj.DebugLog(loSslInfo,'VCB> VerifyPeer: Serial  = $' + CurCert.SerialNumHex);  { V8.40 } 
+                    Obj.DebugLog(loSslInfo,'VCB> VerifyPeer: Serial  = $' + CurCert.SerialNumHex);  { V8.40 }
                     Obj.DebugLog(loSslInfo,'VCB> VerifyPeer: Error   = '  + CurCert.VerifyErrMsg);
                 end;
 {$ENDIF}
@@ -15737,7 +15740,7 @@ begin
                 if f_SSL_CTX_set1_groups_list(FSslCtx, PAnsiChar(FSslCryptoGroups)) = 0 then
                     RaiseLastOpenSslError(ESslContextException, TRUE,
                                           'Error loading curves groups list');
-            end; } 
+            end; }
 
             // Session caching stuff
             SslSessCacheModes := GetSslSessCacheModes;
@@ -18555,7 +18558,7 @@ begin
         Result := Result + #13#10;
     end;
     Result := Result + 'Expires: ' + DateToStr (ValidNotAfter) +    { V8.45 need expiry for brief }
-                       ', Signature: ' + SignatureAlgorithm + #13#10; 
+                       ', Signature: ' + SignatureAlgorithm + #13#10;
     if NOT Brief then begin
         Result := Result + 'Serial Number: ' + GetSerialNumHex + #13#10 +     { V8.40 }
             'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10 +         { V8.41 }
@@ -20316,7 +20319,7 @@ begin
           { The SSL-connection doesn't support secure renegotiations.   }
           (not Obj.FSslSupportsSecureRenegotiation) and
           { Unsafe legacy renegotiation is not set.                     }
-          (f_Ics_SSL_get_options(Obj.FSsl) and SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION = 0)    { V8.51 } 
+          (f_Ics_SSL_get_options(Obj.FSsl) and SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION = 0)    { V8.51 }
         )
      );
 end;
@@ -20354,6 +20357,10 @@ begin
                     Str := 'SSL_connect: '
                 else if (w and SSL_ST_ACCEPT) <> 0 then
                     Str := 'SSL_accept: '
+                else if (Where and SSL_CB_HANDSHAKE_START) <> 0 then
+                    Str := 'SSL_handshake_start: '                { V8.53 }
+                else if (Where and SSL_CB_HANDSHAKE_DONE) <> 0 then
+                    Str := 'SSL_handshake_done: '                 { V8.53 }
                 else
                     Str := 'undefined: ';
 
@@ -20394,38 +20401,39 @@ begin
                     end;
                 end
                 else
-                    Obj.DebugLog(loSslDevel, Pre + Str + 'where=' + IntToHex(where, 8)); { V8.51 default }
+                    Obj.DebugLog(loSslDevel, Pre + Str + 'where=' + IntToHex(where, 8) +
+                              ', state=' + String(f_SSL_state_string_long(ssl))); { V8.53 added state }
             end;
 {$ENDIF}
             if (Where and SSL_CB_HANDSHAKE_START) <> 0 then begin
-                Obj.FInHandshake   := TRUE;
+                Obj.FInHandshake   := TRUE;   { does not seem to be used anywhere ???? }
                 Inc(Obj.FHandShakeCount);
-                if (Obj.FHandShakeCount > 1) and
-                    IsSslRenegotiationDisallowed(Obj) then begin
-                //if ICS_SSL_NO_RENEGOTIATION and (Obj.FHandShakeCount > 1) then
-                    Obj.CloseDelayed;
-                   { todo: We need to handle this much better }
-                {$IFNDEF NO_DEBUG_LOG}
-                    if Obj.CheckLogOptions(loSslErr) or
-                       Obj.CheckLogOptions(loSslDevel) then
-                        Obj.DebugLog(loSslErr, Pre + 'Renegotiaton not supported ' +
-                                                'or not allowed. Connection ' +
-                                                'closed delayed');
-                {$ENDIF}
+
+           { V8.53 TLSv1.3 does not have renegotiation so skip these checks }
+                if Obj.FSslVersNum < TLS1_3_VERSION then begin
+                    if (Obj.FHandShakeCount > 1) and
+                                IsSslRenegotiationDisallowed(Obj) then begin
+                        Obj.CloseDelayed;
+                       { todo: We need to handle this much better }
+                    {$IFNDEF NO_DEBUG_LOG}
+                        if Obj.CheckLogOptions(loSslErr) or
+                           Obj.CheckLogOptions(loSslDevel) then
+                            Obj.DebugLog(loSslErr, Pre + 'Renegotiaton not supported ' +
+                                                    'or not allowed. Connection ' +
+                                                    'closed delayed');
+                    {$ENDIF}
+                    end;
+                    if Obj.FHandShakeCount > 1 then
+                        Obj.FSslInRenegotiation := TRUE;
+    {$IFNDEF NO_DEBUG_LOG}
+                    if Obj.CheckLogOptions(loSslInfo) then
+                        Obj.DebugLog(loSslInfo, Pre + 'SSL_CB_HANDSHAKE_START');
+    {$ENDIF}
                 end;
-                if Obj.FHandShakeCount > 1 then
-                    Obj.FSslInRenegotiation := TRUE;
-{$IFNDEF NO_DEBUG_LOG}
-                if Obj.CheckLogOptions(loSslInfo) then
-                    Obj.DebugLog(loSslInfo, Pre + 'SSL_CB_HANDSHAKE_START');
-{$ENDIF}
             end
             else if (Where and SSL_CB_HANDSHAKE_DONE) > 0 then begin
                 Obj.FInHandshake     := FALSE;
                 Obj.FHandshakeDone   := TRUE;
-                //PostMessage(Obj.FWindowHandle, WM_TRIGGER_SSLHANDSHAKEDONE, 0, 0);
-                //Obj.TriggerSslHandshakeDone(Err);
-                //Obj.FSSLState  := sslEstablished;
 {$IFNDEF NO_DEBUG_LOG}
                 if Obj.CheckLogOptions(loSslErr) or
                    Obj.CheckLogOptions(loSslInfo) then begin
@@ -20433,7 +20441,6 @@ begin
                     if Obj.CheckLogOptions(loSslInfo) or (Err <> X509_V_OK) then
                        Obj.DebugLog(loSslErr, Pre + 'SSL_CB_HANDSHAKE_DONE, Error ' +
                             IcsX509VerifyErrorToStr (Err));   { V8.14 real literal, V8.39 better function }
-
                 end;
 {$ENDIF}
             end
@@ -21043,7 +21050,7 @@ begin
             FSslBio := f_BIO_new(f_BIO_f_ssl);
             if (FSslBio = nil) then
                 RaiseLastOpenSslError(Exception, TRUE, 'Creating SslBIO failed');
-       
+
           // create two more BIOs for reading and writing
             f_BIO_new_bio_pair(@FIBio, GSSL_BUFFER_SIZE, @FNBio, GSSL_BUFFER_SIZE);  { V8.27 size now configurable }
             if (FNBio = nil) or (FIBio = nil) then
@@ -21756,7 +21763,6 @@ var
     IncRefCount    : Boolean;
 begin
     // Sessions are created by a ssl server only
-    // V8.51 Warning - may not work correctly with TLSv1.3
     if (FSslMode = sslModeClient) and Assigned(FOnSslCliNewSession) and
         Assigned(FSsl) then begin
         if FSslState = sslEstablished then
@@ -21921,9 +21927,15 @@ begin
         FOnSslHandshakeDone(Self, ErrCode, FSslPeerCert, Disconnect);
     if Disconnect and (ErrCode = 0) then
         Close{Delayed?}
-    else if ErrCode = 0 then
-        // Publish the new session so that the application can cache it.
-        TriggerSslCliNewSession;
+    else if ErrCode = 0 then begin
+       { V8.53 session not yet established yet with TLSv1.3 so skip event }
+       { pending, use SSL_CTX_sess_set_get_cb instead }
+        if FSslVersNum < TLS1_3_VERSION then begin
+
+          // Publish the new session so that the application can cache it.
+            TriggerSslCliNewSession;
+        end;
+    end;
 end;
 
 
@@ -24168,7 +24180,7 @@ begin
     LockQueue;
     try
       {$IFDEF MSWINDOWS}
-        if (ASocketFamily = sfIPv6) and not IsIPv6APIAvailable then begin    { V8.43 } 
+        if (ASocketFamily = sfIPv6) and not IsIPv6APIAvailable then begin    { V8.43 }
             SetLastError(WSAVERNOTSUPPORTED);
             Exit;
         end;

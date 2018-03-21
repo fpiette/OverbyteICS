@@ -153,8 +153,9 @@ Nov 17, 2017 V8.51 Added IcsGetFileUAge
 Feb 12, 2018 V8.52 Added IcsFmtIpv6Addr, IcsFmtIpv6AddrPort and IcsStripIpv6Addr to
                       format browser friendly IPv6 addresses with []
                    Added useful constants like IcsLF and IcsCR, etc.
-Mar 14, 2018 V8.53 Added sanity test to IcsBufferToHex to avoid exceptions
-                                                               
+Mar 19, 2018 V8.53 Added sanity test to IcsBufferToHex to avoid exceptions
+                   Added RFC3339_StrToDate and RFC3339_DateToStr, aka ISO 8601 dates
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -355,6 +356,8 @@ const
     function  IcsUTCToDateTime (dtDT: TDateTime): TDateTime;
     function  RFC1123_Date(aDate : TDateTime) : String;       { V8.09 }
     function  RFC1123_StrToDate(aDate : String) : TDateTime;  { V8.09 }
+    function  RFC3339_StrToDate(aDate: String): TDateTime;    { V8.53 }
+    function  RFC3339_DateToStr(DT: TDateTime): String ;      { V8.53 }
     function  IcsGetTickCount: LongWord;
     function  IcsWcToMb(CodePage: LongWord; Flags: Cardinal;
                         WStr: PWideChar; WStrLen: Integer; MbStr: PAnsiChar;
@@ -1221,6 +1224,64 @@ begin
     Result := EncodeDate(Year, Month, Day);
     Result := Result + EncodeTime(Hour, Min, Sec, 0);
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.53 RFC3339 string date to TDateTime, aka ISO 8601 date }
+{ Bug: time zone is ignored !! }
+{  yyyy-mm-ddThh:nn:ssZ (ISODateTimeMask), might be NULL
+   yyyy-mm-ddThh:nn:ss-hh:mm (time offset on end, ignored)
+   or just yyyy-mm-dd
+   or just hh:nn:ss }
+function RFC3339_StrToDate(aDate: String): TDateTime;
+var
+    yy, mm, dd, hh, nn, ss: Word;
+    timeDT: TDateTime ;
+begin
+    Result := 0;
+    aDate := Trim(aDate);
+    if Length(aDate) = 8 then // check time only
+    begin
+        if aDate[3] <> ':' then Exit;
+        if aDate[6] <> ':' then Exit;
+        hh := StrToIntDef(copy (aDate, 1, 2), 0);
+        nn := StrToIntDef(copy (aDate, 4, 2), 0);
+        ss := StrToIntDef(copy (aDate, 7, 2), 0);
+        if NOT TryEncodeTime(hh, nn, ss, 0, Result) then exit ;
+        Exit ;
+    end;
+    if Length(aDate) < 10 then Exit ;  // must have date
+    if aDate[5] <> '-' then Exit ;
+    if aDate[8] <> '-' then Exit ;
+    yy := StrToIntDef(copy (aDate, 1, 4), 0);
+    mm := StrToIntDef(copy (aDate, 6, 2), 0);
+    dd := StrToIntDef(copy (aDate, 9, 2), 0);
+    if NOT TryEncodeDate(yy, mm, dd, Result) then
+    begin
+        Result := -1 ;
+        Exit ;
+    end ;
+    if Length(aDate) < 19 then Exit ;  // might have time, ignore MS and time offsets
+    if aDate[14] <> ':' then Exit ;
+    if aDate[17] <> ':' then Exit ;
+    hh := StrToIntDef(copy (aDate, 12, 2), 0);
+    nn := StrToIntDef(copy (aDate, 15, 2), 0);
+    ss := StrToIntDef(copy (aDate, 18, 2), 0);
+    if NOT TryEncodeTime(hh, nn, ss, 0, timeDT) then Exit ;
+    Result := Result + timeDT ;
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.53 RFC3339 TDateTime to string, aka ISO 8601 date }
+{ TDateTime to to yyyy-mm-ddThh:nn:ss - no quotes, no Z }
+function RFC3339_DateToStr(DT: TDateTime): String ;
+const
+  ISODateTimeMask = 'yyyy-mm-dd"T"hh:nn:ss';
+begin
+    Result := FormatDateTime(ISODateTimeMask, DT);
+end ;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF MSWINDOWS}

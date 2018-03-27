@@ -97,9 +97,10 @@ Nov 3, 2017  V8.51 Tested ED25519 keys, can now sign requests and certs
 Feb 21, 2018 V8.52 Added DigiCert Global Root G2 and G3 root certificates
              Added key and signature to ReqCertInfo
              Added SaveToDERText
-Mar 12, 2018 V8.53 Added GlobalSign Root CA - R2 and GlobalSign ECC Root CA - R5
-             root certificates, R2 used by Google.
-
+Mar 27, 2018 V8.53 Added GlobalSign Root CA - R2 and GlobalSign ECC Root CA - R5
+                root certificates, R2 used by Google.
+             Added DST Root CA X3 root, used by Let's Encrypt crossed signing 
+             
 
 Pending - short term
 Saving a CA databases of certificates created
@@ -1614,6 +1615,33 @@ const
         '515dTguDnFt2KaAJJiFqYgIwcdK1j1zqO+F4CYWodZI7yFz9SO8NdCKoCOJuxUnO' + #13#10 +
         'xwy8p2Fp8fc74SrL+SvzZpA3' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10;
+    sslRootCACerts035 =                                                               { V8.53 }
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: DST Root CA X3' + #13#10 +
+        '# Subject Organisation: Digital Signature Trust Co.' + #13#10 +
+        '#Issuer: Self Signed' + #13#10 +
+        '# Expires: 30/09/2021' + #13#10 +
+        '' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDSjCCAjKgAwIBAgIQRK+wgNajJ7qJMDmGLvhAazANBgkqhkiG9w0BAQUFADA/' + #13#10 +
+        'MSQwIgYDVQQKExtEaWdpdGFsIFNpZ25hdHVyZSBUcnVzdCBDby4xFzAVBgNVBAMT' + #13#10 +
+        'DkRTVCBSb290IENBIFgzMB4XDTAwMDkzMDIxMTIxOVoXDTIxMDkzMDE0MDExNVow' + #13#10 +
+        'PzEkMCIGA1UEChMbRGlnaXRhbCBTaWduYXR1cmUgVHJ1c3QgQ28uMRcwFQYDVQQD' + #13#10 +
+        'Ew5EU1QgUm9vdCBDQSBYMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB' + #13#10 +
+        'AN+v6ZdQCINXtMxiZfaQguzH0yxrMMpb7NnDfcdAwRgUi+DoM3ZJKuM/IUmTrE4O' + #13#10 +
+        'rz5Iy2Xu/NMhD2XSKtkyj4zl93ewEnu1lcCJo6m67XMuegwGMoOifooUMM0RoOEq' + #13#10 +
+        'OLl5CjH9UL2AZd+3UWODyOKIYepLYYHsUmu5ouJLGiifSKOeDNoJjj4XLh7dIN9b' + #13#10 +
+        'xiqKqy69cK3FCxolkHRyxXtqqzTWMIn/5WgTe1QLyNau7Fqckh49ZLOMxt+/yUFw' + #13#10 +
+        '7BZy1SbsOFU5Q9D8/RhcQPGX69Wam40dutolucbY38EVAjqr2m7xPi71XAicPNaD' + #13#10 +
+        'aeQQmxkqtilX4+U9m5/wAl0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNV' + #13#10 +
+        'HQ8BAf8EBAMCAQYwHQYDVR0OBBYEFMSnsaR7LHH62+FLkHX/xBVghYkQMA0GCSqG' + #13#10 +
+        'SIb3DQEBBQUAA4IBAQCjGiybFwBcqR7uKGY3Or+Dxz9LwwmglSBd49lZRNI+DT69' + #13#10 +
+        'ikugdB/OEIKcdBodfpga3csTS7MgROSR6cz8faXbauX+5v3gTt23ADq1cEmv8uXr' + #13#10 +
+        'AvHRAosZy5Q6XkjEGB5YGV8eAlrwDPGxrancWYaLbumR9YbK+rlmM6pZW87ipxZz' + #13#10 +
+        'R8srzJmwN0jP41ZL9c8PDHIyh8bwRLtTcm1D9SZImlJnt1ir/md2cXjbDaJWFBM5' + #13#10 +
+        'JDGFoqgCWjBH4d1QB7wCCZAA62RjYJsWvIjJEubSfZGL+T0yjWW06XyxV3bqxbYo' + #13#10 +
+        'Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10;
 
 implementation
 
@@ -1627,7 +1655,7 @@ begin
         sslRootCACerts016 + sslRootCACerts017 + sslRootCACerts018 + sslRootCACerts019 + sslRootCACerts020 +
         sslRootCACerts021 + sslRootCACerts022 + sslRootCACerts023 + sslRootCACerts024 + sslRootCACerts025 +
         sslRootCACerts026 + sslRootCACerts027 + sslRootCACerts028 + sslRootCACerts029 + sslRootCACerts030 +
-        sslRootCACerts031 + sslRootCACerts032 + sslRootCACerts033 + sslRootCACerts034                     { V8.53 }
+        sslRootCACerts031 + sslRootCACerts032 + sslRootCACerts033 + sslRootCACerts034 + sslRootCACerts035;  { V8.53 }
     end ;
 
 

@@ -1296,7 +1296,6 @@ Samples\Delphi\BrowserDemo\logwin.dfm
 Samples\Delphi\BrowserDemo\logwin.pas
 Samples\Delphi\BrowserDemo\manifest.res
 Samples\Delphi\BrowserDemo\TrustedCABundle.pem
-Samples\Delphi\BrowserDemo\RootCaCertsBundle.pem
 
 Samples\Delphi\FtpDemos\FtpDemos.bpg
 Samples\Delphi\FtpDemos\Dcu\dir.txt
@@ -1842,6 +1841,7 @@ Samples\Delphi\SslInternet\01key.pem
 Samples\Delphi\SslInternet\cacert.pem
 Samples\Delphi\SslInternet\client.pem
 Samples\Delphi\SslInternet\root.pem
+Samples\Delphi\SslInternet\RootCaCertsBundle.pem
 Samples\Delphi\SslInternet\Server.pem
 Samples\Delphi\SslInternet\TrustedCABundle.pem
 Samples\Delphi\SslInternet\TrustedCaStore\6F6359FC.0

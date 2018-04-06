@@ -3,7 +3,7 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.2 Tokyo
 (Aka FPIETTE's Components)
 
 
-Revised: July 6, 2017
+Revised: April 6, 2018
 http://www.overbyte.be/
 http://wiki.overbyte.be/
 http://www.overbyte.eu/
@@ -31,7 +31,7 @@ Table of content:
 
 Legal issues:
 -------------
-              Copyright (C) 1997-2017 by François PIETTE
+              Copyright (C) 1997-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium
               <francois.piette@overbyte.be>
 
@@ -121,9 +121,13 @@ releases of Delphi, latest it supported was XE3.
 
 ICS V8 is the current development release which is held in a public Version Control
 repository that is zipped each night for easy download.  The download page above
-also includes the OpenSSL binaries needed to support SSL. ICS V8 supports Delphi 64-bit
-and Mac OS-X projects.  Note that latest C++ Builder version supported is XE3 (lack of
-spare time, sorry).
+also includes the OpenSSL binaries needed to support SSL. ICS V8 supports Delphi
+64-bit and Mac OS-X projects.  Note that C++ Builder versions supported are up to
+XE3 and 10.2 Tokyo.  There are currently no packages for XE4 to 10.1. but older or
+newer ones will often work.
+
+The latest version is V8.53, which will be reported by the CopyRight constant in
+OverbyteIcsWSocket.pas and the integer WSocketVersion as 853.
 
 ICS V9 is in early development and is planned to support Android and Linux Server. There
 are no current plans for ICS for iOS.
@@ -237,7 +241,7 @@ Actual use of SSL in your applications also requires the OpenSSL files
 libcrypto-1_1.dll (or libcrypto-1_1-x64.dll) and libssl-1_1.dll (or libssl-1_1-x64).dll
 being available somewhere in the path.  The ICS distribution includes the latest Win32
 OpenSSL files in the .\OpenSSL-Win32 directory and the four main DLLs duplicated in
-.\Samples\delphi\sslinternet.
+.\Samples\delphi\sslinternet for Win32 and Win64 samples.
 
 Other OpenSSL files, including older and Win64, may be downloaded from:
 
@@ -283,6 +287,7 @@ C++ Builder XE   :  CBXeInstall.groupproj
 C++ Builder XE2  :  CBXe2Install.groupproj // VCL only no FireMonkey components
 C++ Builder XE2  :  CBXe2InstallVclFmx.groupproj // Both VCL and FireMonkey components
 C++ Builder XE3  :  CBXe3InstallVclFmx.groupproj // Both VCL and FireMonkey components
+C++ Builder 10.2 Tokyo  : CB102InstallVclFmx.groupproj // Both VCL and FireMonkey components
 
 1 - Do a File/Open Project, navigate to the Install directory, select the correct
 file and open it. The project manager view should now display two package
@@ -412,6 +417,8 @@ C++ Builder XE2 FMX     :  IcsFmxCBXe2Run.dproj, IcsFmxCBXe2Design.dproj
 C++ Builder XE3 FMX/VCL :  IcsCommonCBXe3Run.dproj, IcsCommonDXe3Design.dproj
 C++ Builder XE3 VCL     :  IcsVclCBXe3Run.dproj, IcsVclCBXe3Design.dproj
 C++ Builder XE3 FMX     :  IcsFmxCBXe3Run.dproj, IcsFmxCBXe3Design.dproj
+C++ Builder 10.2 Tokyo VCL   : IcsVclCB102Run.dproj, IcsVclCB102Design.dproj
+C++ Builder 10.2 Tokyo FMX   : IcsFmxCB102Run.dproj, IcsFmxCB102Design.dproj
 
 
 1 - Open and Build the run-time package project (do not install!).
@@ -501,7 +508,7 @@ each one after the other and compile them. For each project, do file/open
 and select the dpr file in the internet directory. Then Project/Build All.
 
 
-C++ BUILDER 2006, 2007, 2009, 2010, XE, XE2, XE3:
+C++ BUILDER 2006, 2007, 2009, 2010, XE, XE2, XE3, 10.2 Tokyo:
 
 Follow the installation procedure described for Delphi 2006. Just change
 the project group and package name: use CB2006, CBXe, etc, see above.
@@ -930,7 +937,12 @@ SERVER.PEM :   A demo certificate and private key.
 ROOT.PEM :     A demo CA certificate.
                Passphrase is "password".
 TRUSTEDCABUNDLE.PEM :
-               A demo CA file in PEM format containing multiple
+               A demo CA file in PEM format containing about 52
+               well known root CA certificates to be specified in
+               property CA Path of the demo applications. Read
+               the comments included in this file.
+ROOTCABUNDLE.PEM :
+               A demo CA file in PEM format containing about 280
                well known root CA certificates to be specified in
                property CA Path of the demo applications. Read
                the comments included in this file.

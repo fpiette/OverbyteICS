@@ -1239,7 +1239,7 @@ Feb 19, 2018 V8.52  LocalIpList only uses GetHostByName for Windows XP, 2003 and
                     IcsSslOpenFileBio now checks PEM files not empty to avoid
                       strange ASN1 errors parsing them.
                     Fixed IcsSslGetEVPDigest to work with 1.1.1
-Mar 21, 2018 V8.53  CertInfo showsOU if available, but less in brief mode
+Apr 06, 2018 V8.53  CertInfo showsOU if available, but less in brief mode
                     ValidateCertChain checks issuer OU for duplicate roots
                     Added sanity check to GetSha1Hex if certificate not loaded
                     Ignore CliNewSession event with TLSv1.3 since session not yet

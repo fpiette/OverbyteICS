@@ -1296,6 +1296,7 @@ Samples\Delphi\BrowserDemo\logwin.dfm
 Samples\Delphi\BrowserDemo\logwin.pas
 Samples\Delphi\BrowserDemo\manifest.res
 Samples\Delphi\BrowserDemo\TrustedCABundle.pem
+Samples\Delphi\BrowserDemo\RootCaCertsBundle.pem
 
 Samples\Delphi\FtpDemos\FtpDemos.bpg
 Samples\Delphi\FtpDemos\Dcu\dir.txt

@@ -153,8 +153,10 @@ Nov 17, 2017 V8.51 Added IcsGetFileUAge
 Feb 12, 2018 V8.52 Added IcsFmtIpv6Addr, IcsFmtIpv6AddrPort and IcsStripIpv6Addr to
                       format browser friendly IPv6 addresses with []
                    Added useful constants like IcsLF and IcsCR, etc.
-Mar 19, 2018 V8.53 Added sanity test to IcsBufferToHex to avoid exceptions
+Apr 04, 2018 V8.53 Added sanity test to IcsBufferToHex to avoid exceptions
                    Added RFC3339_StrToDate and RFC3339_DateToStr, aka ISO 8601 dates
+                   Added IcsBufferToHex overload with AnsiString
+                   Added IcsHextoBin
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -436,6 +438,8 @@ const
     function  htoi2(value : PAnsiChar): Integer; overload;
     function  IcsBufferToHex(const Buf; Size: Integer): String; overload;
     function  IcsBufferToHex(const Buf; Size: Integer; Separator: Char): String; overload;
+    function  IcsBufferToHex(const BufStr: AnsiString): String; overload;    { V8.53 }
+    function  IcsHexToBin(const HexBuf: AnsiString): AnsiString;             { V8.53 }
     function  IsXDigit(Ch : WideChar): Boolean; overload;
     function  IsXDigit(Ch : AnsiChar): Boolean; overload;
     function  XDigit(Ch : WideChar): Integer; overload;
@@ -3507,6 +3511,31 @@ begin
                 P[I * Fact + 1] := HexTable[Ord(B[I]) and 15];
             end;
         end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  IcsBufferToHex(const BufStr: AnsiString): String; overload;    { V8.53 }
+begin
+    Result := '';
+    if Length(BufStr) > 0 then
+        Result := IcsBufferToHex(BufStr[1], Length(BufStr));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsHexToBin(const HexBuf: AnsiString): AnsiString;             { V8.53 }
+var
+    Source: PAnsiChar;
+    I, binlen: integer;
+begin
+    binlen := Length(HexBuf) div 2;
+    SetLength(Result, binlen);
+    Source := Pointer (HexBuf) ;
+    for I := 1 to binlen do begin
+        Result[I] := AnsiChar(htoin(Source, 2));
+        Inc (Source, 2);
     end;
 end;
 

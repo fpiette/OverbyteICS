@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.53
+Version:      8.54
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -119,7 +119,7 @@ Nov 22, 2017  V8.51 Testing OpenSSL 1.1.1 that adds TLS/1.3
                 of macros earlier, also SSL_session_reused
               Added more constants and functions for 1.1.1, f_SSL_xx_groups
 Feb 27, 2018  V8.52 Added more EVP functions for keys, hashing and signing
-Apr 3, 2018   V8.53 Testing with OpenSSL 1.1.1 beta
+Apr 18, 2018  V8.54 Testing with OpenSSL 1.1.1 beta
 
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -200,8 +200,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 853;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2018 F. Piette V8.53 ';
+    IcsSSLEAYVersion   = 854;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2018 F. Piette V8.54 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -294,8 +294,8 @@ const
     OSSL_VER_1101P2= $10101002; // 1.1.1-pre2 (alpha)    { V8.52 }
     OSSL_VER_1101P3= $10101003; // 1.1.1-pre3 (beta1)    { V8.52 }
     OSSL_VER_1101P4= $10101004; // 1.1.1-pre4 (beta2)    { V8.53 }
-    OSSL_VER_1101P5= $10101005; // 1.1.1-pre4 (beta3)    { V8.53 }
-    OSSL_VER_1101P6= $10101006; // 1.1.1-pre4 (beta4)    { V8.53 }
+    OSSL_VER_1101P5= $10101005; // 1.1.1-pre5 (beta3)    { V8.53 }
+    OSSL_VER_1101P6= $10101006; // 1.1.1-pre6 (beta4)    { V8.53 }
 //  OSSL_VER_1101  = $1010100F; // 1.1.1 final           { V8.53 }
     OSSL_VER_1199  = $10101FFF; // not yet released      { V8.34 }
     OSSL_VER_MAX   = $FFFFFFFF; // maximum version       { V8.35 }
@@ -307,7 +307,7 @@ const
 
     MIN_OSSL_VER   = OSSL_VER_1002;   { V8.39 minimum is now 1.0.2 }
 //  MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.35 1.1.0zz }
-    MAX_OSSL_VER   = OSSL_VER_1101P4; { V8.53 1.1.1-pre3 (beta2) }
+    MAX_OSSL_VER   = OSSL_VER_1101P5; { V8.53 1.1.1-pre5 (beta3) }
 
     { V8.41 PEM base64 file titles }
     PEM_STRING_HDR_BEGIN   = '-----BEGIN ';    { six hyphens }

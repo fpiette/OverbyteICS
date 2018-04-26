@@ -14,7 +14,7 @@ Description:  A place for MIME-charset stuff.
               http://msdn.microsoft.com/en-us/library/ms776446.aspx
               http://www.iana.org/assignments/character-sets
 Creation:     July 17, 2008
-Version:      V8.50
+Version:      V8.54
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -93,7 +93,7 @@ Sep 18, 2017 V8.40 Added various functions to find the codepage for an HTML page
                      and convert a buffer to a unicode string, IcsFindHtmlCharset,
                      IcsFindHtmlCodepage, IcsContentCodepage, IcsHtmlToStr, which
                      take either a TBytes buffer or stream as input.
-
+Apr 25, 2018 V8.54  IcsHtmlToStr accepts json/xml as textual
 
 
 //
@@ -1819,7 +1819,11 @@ var
     BOMSize: Integer;
 begin
     Result := '';
-    if (ContentHdr <>'') and (Pos ('text/', ContentHdr) <> 1) then Exit;
+    if (ContentHdr <>'') then begin
+        if (Pos ('text/', ContentHdr) <> 1) and
+             (Pos ('json', ContentHdr) = 0)  and
+                (Pos ('xml', ContentHdr) = 0) then Exit;  { V8.54 json/xml is text }
+    end;
     Count := HtmlStream.Size ;
     if Count < 1 then Exit;
     SetLength(HtmlData, Count  + 2);

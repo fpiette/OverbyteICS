@@ -4,12 +4,12 @@ Author:       François PIETTE
 Description:  Time functions.
 Creation:     Nov 24, 1999 from Bruce Christensen <bkc51831234@hotmail.com>
               code used with his permission. Thanks.
-Version:      8.49
+Version:      8.54
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2017 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. 
+Legal issues: Copyright (C) 1999-2018 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -75,7 +75,7 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
 Feb 23, 2016 V8.01 Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 Mar 3, 2017  V8.42 Angus TULargeInteger now ULARGE_INTEGER
 June 21 2017 V8.49 Moved IcsGetFileSize and GetUAgeSizeFile to Utils
-
+Apr 25, 2018 V8.54 Moved IntToKbyte and ticks stuff to utils
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpSrvT;
@@ -112,18 +112,18 @@ uses
     OverbyteIcsStreams;    { angus V7.7 }
 
 const
-    FtpSrvT_Unit       = 849;
-    CopyRight : String = ' FtpSrvT  (c) 1999-2017 F. Piette V8.49 ';
+    FtpSrvT_Unit       = 854;
+    CopyRight : String = ' FtpSrvT  (c) 1999-2018 F. Piette V8.54 ';
 
-  { V1.16 Tick and Trigger constants }
-  TicksPerDay      : longword =  24 * 60 * 60 * 1000 ;
+  { V1.16 Tick and Trigger constants V8.54 moved to Utils }
+{  TicksPerDay      : longword =  24 * 60 * 60 * 1000 ;
   TicksPerHour     : longword = 60 * 60 * 1000 ;
   TicksPerMinute   : longword = 60 * 1000 ;
   TicksPerSecond   : longword = 1000 ;
   TriggerDisabled  : longword = $FFFFFFFF ;
   TriggerImmediate : longword = 0 ;
 
-type
+}type
     TFtpBigInt = Int64;  { V1.13, V7.08 }
 
     TIcsFileRec = record
@@ -150,8 +150,8 @@ function DateTimeToUTC(dtDT : TDateTime) : TDateTime;
 function DecodeMlsResp64 (Response: String; var Fname, FType, FAttr: String;
                             var FSize: Int64; var FileUDT: TDateTime): boolean;
 
-{ V1.16 Tick and Trigger functions for timing stuff }
-function IcsGetTickCountX: longword ;
+{ V1.16 Tick and Trigger functions for timing stuff, V8.54 moved to Utils }
+{function IcsGetTickCountX: longword ;
 function IcsDiffTicks (const StartTick, EndTick: longword): longword ;
 function IcsElapsedTicks (const StartTick: longword): longword ;
 function IcsElapsedMsecs (const StartTick: longword): longword ;
@@ -163,7 +163,7 @@ function IcsGetTrgSecs (const DurSecs: integer): longword ;
 function IcsGetTrgMins (const DurMins: integer): longword ;
 function IcsTestTrgTick (const TrgTick: longword): boolean ;
 function IcsAddTrgMsecs (const TickCount, MilliSecs: longword): longword ;
-function IcsAddTrgSecs (const TickCount, DurSecs: integer): longword ;
+function IcsAddTrgSecs (const TickCount, DurSecs: integer): longword ;}
 
 { V1.15 recursive directory listing and argument scanning }
 function IcsGetDirList (const Path: string; SubDirs, Hidden: boolean; var LocFiles:
@@ -179,10 +179,10 @@ function ScanGetNextArg(const Params: String; var Start: integer): String;
 
 function SlashesToBackSlashes(const S : String) : String;
 function BackSlashesToSlashes(const S : String) : String;
-function IntToKbyte (Value: Int64): String;
+{ function IntToKbyte (Value: Int64): String; V8.54 moved to Utils }
 (* function GetUAgeSizeFile (const filename: string; var FileUDT: TDateTime;
                                                     var FSize: Int64): boolean;
-function IcsGetFileSize(const FileName : String) : Int64;            { V7.02 }  *) 
+function IcsGetFileSize(const FileName : String) : Int64;            { V7.02 }  *)
 function GetFreeSpacePath(const Path: String): Int64;
 function FtpFileMD5(const Filename: String; Obj: TObject = Nil;
                 ProgressCallback : TMD5Progress = Nil; StartPos: Int64 = 0;
@@ -379,8 +379,8 @@ begin
     if not TryEncodeDate (yy, mm, dd, Result) then begin
         Result := -1;
         Exit;
-    end;  
- {   try   // V6.01 removed, for D5 and earlier 
+    end;
+ {   try   // V6.01 removed, for D5 and earlier
         Result := EncodeDate(yy, mm, dd);
     except
         Result := -1;
@@ -400,10 +400,10 @@ begin
     end;
     if not TryEncodeTime (hh, nn, ss, zz, timeDT) then begin
         Result := -1;
-    	Exit;    
-    end;	
-    Result := Result + timeDT;                                           
-   { try 		 // V6.01 removed, for D5 and earlier 
+        Exit;
+    end;
+    Result := Result + timeDT;
+   { try         // V6.01 removed, for D5 and earlier
         Result := Result + EncodeTime(hh, nn, ss, zz);
     except
         Result := -1;
@@ -492,6 +492,7 @@ end;
 { helper functions for timers and triggers using GetTickCount - which wraps after 49 days }
 { note: Vista/2008 and later have GetTickCount64 which returns 64-bits }
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
 var
    TicksTestOffset: longword ;  { testing GetTickCount wrapping }
 
@@ -640,7 +641,7 @@ begin
         exit;  { trigger was wrapped, can not have been reached  }
     if curtick >= TrgTick then
         Result := TRUE ;
-end;
+end;  *)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V1.15, builds list of files in a directory and sub directories, optional
@@ -651,7 +652,7 @@ function IcsBuildDirList (const LocDir, LocPartName: String; SubDirs, Hidden: bo
      Level, InitDLen: integer ; var TotFiles: integer; var LocFiles: TIcsFileRecs;
                          Obj: TObject = Nil; ProgressCallback: TMD5Progress = Nil): boolean ;
 var
-   	SearchRec: TSearchRec ;
+    SearchRec: TSearchRec ;
     curname: string;
     retcode: integer;
     savename: boolean;
@@ -692,7 +693,7 @@ begin
                                                faDirectory) and SubDirs) then begin
                     if not IcsBuildDirList (LocDir + CurName + '\', LocPartName,
                                      SubDirs, Hidden, succ(Level), InitDLen, TotFiles,
-                                                        LocFiles, Obj, ProgressCallback) then  { V7.08 } 
+                                                        LocFiles, Obj, ProgressCallback) then  { V7.08 }
                         exit;
                   { savename := FALSE;  V7.09 always keep directories }
                 end;
@@ -870,9 +871,10 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V1.15 sensible formatting of large numbers }
+(*
 function IntToKbyte (Value: Int64): String;
 var
-    float: Extended	;
+    float: Extended ;
 const
     KBYTE = Sizeof(Byte) shl 10;
     MBYTE = KBYTE shl 10;
@@ -900,7 +902,7 @@ begin
     else
         FmtStr (Result, '%5.0f ', [float]);          // 123
     Result := Trim (Result);
-end;
+end;  *)
 
 (*
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1021,7 +1023,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 initialization
-    TicksTestOffset := 0 ;
+//    TicksTestOffset := 0 ;
 { force GetTickCount wrap in 5 mins - next line normally commented out }
 {    TicksTestOffset := MaxLongWord - GetTickCount - (5 * 60 * 1000);  }
 

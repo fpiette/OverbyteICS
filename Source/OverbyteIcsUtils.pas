@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.53
+Version:      8.54
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -157,7 +157,7 @@ Apr 04, 2018 V8.53 Added sanity test to IcsBufferToHex to avoid exceptions
                    Added RFC3339_StrToDate and RFC3339_DateToStr, aka ISO 8601 dates
                    Added IcsBufferToHex overload with AnsiString
                    Added IcsHextoBin
-
+Apr 25, 2018 V8.54 Moved IntToKbyte and ticks stuff from OverbyteIcsFtpSrvT
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -292,6 +292,15 @@ const
   IcsSPACE           = #32;
   IcsHEX_PREFIX      = '$';     { prefix for hexnumbers }
   IcsCRLF            = #13#10;
+  IcsDoubleCRLF      = #13#10#13#10;
+
+  { V8.54 Tick and Trigger constants }
+  TicksPerDay      : longword =  24 * 60 * 60 * 1000 ;
+  TicksPerHour     : longword = 60 * 60 * 1000 ;
+  TicksPerMinute   : longword = 60 * 1000 ;
+  TicksPerSecond   : longword = 1000 ;
+  TriggerDisabled  : longword = $FFFFFFFF ;
+  TriggerImmediate : longword = 0 ;
 
 type
     EIcsStringConvertError = class(Exception);
@@ -580,7 +589,22 @@ const
     function IcsFmtIpv6Addr (const Addr: string): string;              { V8.52 }
     function IcsFmtIpv6AddrPort (const Addr, Port: string): string;    { V8.52 }
     function IcsStripIpv6Addr (const Addr: string): string;            { V8.52 }
+    function IntToKbyte (Value: Int64; Bytes: boolean = false): String; { V8.54  moved here from OverbyteIcsFtpSrvT }
 
+    { V8.54 Tick and Trigger functions for timing stuff moved here from OverbyteIcsFtpSrvT   }
+    function IcsGetTickCountX: longword ;
+    function IcsDiffTicks (const StartTick, EndTick: longword): longword ;
+    function IcsElapsedTicks (const StartTick: longword): longword ;
+    function IcsElapsedMsecs (const StartTick: longword): longword ;
+    function IcsElapsedSecs (const StartTick: longword): integer ;
+    function IcsElapsedMins (const StartTick: longword): integer ;
+    function IcsWaitingSecs (const EndTick: longword): integer ;
+    function IcsGetTrgMSecs (const MilliSecs: integer): longword ;
+    function IcsGetTrgSecs (const DurSecs: integer): longword ;
+    function IcsGetTrgMins (const DurMins: integer): longword ;
+    function IcsTestTrgTick (const TrgTick: longword): boolean ;
+    function IcsAddTrgMsecs (const TickCount, MilliSecs: longword): longword ;
+    function IcsAddTrgSecs (const TickCount, DurSecs: integer): longword ;
 
 { Moved from OverbyteIcsLibrary.pas prefix "_" replaced by "Ics" }
     function IcsIntToStrA(N : Integer): AnsiString;
@@ -6061,9 +6085,280 @@ begin
         result := Addr;
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.54 sensible formatting of large numbers, moved here from OverbyteIcsFtpSrvT  }
+{
+function IntToKbyte (Value: Int64): String;
+var
+    float: Extended	;
+const
+    KBYTE = Sizeof(Byte) shl 10;
+    MBYTE = KBYTE shl 10;
+    GBYTE = MBYTE shl 10;
+begin
+    float := value ;
+    if (float / 100) >= GBYTE then
+        FmtStr (Result, '%5.0fG', [float / GBYTE])    // 134G
+    else if (float / 10) >= GBYTE then
+        FmtStr (Result, '%5.1fG', [float / GBYTE])    // 13.4G
+    else if float >= GBYTE then
+        FmtStr (Result, '%5.2fG', [float / GBYTE])    // 3.44G
+    else if float >= (MBYTE * 100) then
+        FmtStr (Result, '%5.0fM', [float / MBYTE])    // 234M
+    else if float >= (MBYTE * 10) then
+        FmtStr (Result, '%5.1fM', [float / MBYTE])    // 12.4M
+    else if float >= MBYTE then
+        FmtStr (Result, '%5.2fM', [float / MBYTE])    // 5.67M
+    else if float >= (KBYTE * 100) then
+        FmtStr (Result, '%5.0fK', [float / KBYTE])    // 678K
+    else if float >= (KBYTE * 10) then
+        FmtStr (Result, '%5.1fK', [float / KBYTE])    // 76.5K
+    else if float >= KBYTE then
+        FmtStr (Result, '%5.2fK', [float / KBYTE])    // 4.78K
+    else
+        FmtStr (Result, '%5.0f ', [float]);          // 123
+    Result := Trim (Result);
+end;   }
+
+function IntToKbyte (Value: Int64; Bytes: boolean = false): String;
+var
+    float, float2: Extended;
+    mask, suffix: string;
+const
+    KBYTE = Sizeof(Byte) shl 10;
+    MBYTE = KBYTE shl 10;
+    GBYTE = MBYTE shl 10;
+begin
+    float := Value;
+    if (float / 100) >= GBYTE then
+    begin
+        mask := '%5.0f';
+        suffix := 'G';
+        float2 := float / GBYTE;  // 134G
+    end
+    else if (float / 10) >= GBYTE then
+    begin
+        mask := '%5.1f';
+        suffix := 'G';
+        float2 := float / GBYTE;  // 13.4G
+    end
+    else if float >= GBYTE then
+    begin
+        mask := '%5.2f';
+        suffix := 'G';
+        float2 := float / GBYTE;  // 3.44G
+    end
+    else if float >= (MBYTE * 100) then
+    begin
+        mask := '%5.0f';
+        suffix := 'M';
+        float2 := float / MBYTE;  // 234M
+    end
+    else if float >= (MBYTE * 10) then
+    begin
+        mask := '%5.1f' ;
+        suffix := 'M';
+        float2 := float / MBYTE;  // 12.4M
+    end
+    else if float >= MBYTE then
+    begin
+        mask := '%5.2f';
+        suffix := 'M';
+        float2 := float / MBYTE;  // 12.4M
+    end
+    else if float >= (KBYTE * 100) then
+    begin
+        mask := '%5.0f';
+        suffix := 'K';
+        float2 := float / KBYTE;  // 678K
+    end
+    else if float >= (KBYTE * 10) then
+    begin
+        mask := '%5.1f';
+        suffix := 'K';
+        float2 := float / KBYTE ;  // 76.5K
+    end
+    else if float >= KBYTE then
+    begin
+        mask := '%5.2f';
+        suffix := 'K';
+        float2 := float / KBYTE;  // 4.78K
+    end
+    else
+    begin
+        mask := '%5.0f';
+        suffix := '';
+        float2 := float;  // 123
+    end ;
+    Result := Trim(Format (mask, [float2]));
+    if Bytes then  { V8.54 improve result a little }
+        Result := Result + IcsSPACE +  suffix + 'bytes'
+    else
+        Result := Result + suffix;
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ helper functions for timers and triggers using GetTickCount - which wraps after 49 days }
+{ note: Vista/2008 and later have GetTickCount64 which returns 64-bits }
+{ V8.54 moved here from OverbyteIcsFtpSrvT }
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+var
+   TicksTestOffset: longword ;  { testing GetTickCount wrapping }
+
+function IcsGetTickCountX: longword ;
+var
+    newtick: Int64 ;
+begin
+    Result := IcsGetTickCount ;
+  {ensure special trigger values never returned - V7.07 }
+    if (Result = TriggerDisabled) or (Result = TriggerImmediate) then Result := 1 ;
+    if TicksTestOffset = 0 then
+        exit;  { no testing, bye bye }
+
+{ TicksTestOffset is set in initialization so that the counter wraps five mins after startup }
+    newtick := Int64 (Result) + Int64 (TicksTestOffset);
+    if newtick >= $FFFFFFFF then
+        Result := newtick - $FFFFFFFF
+    else
+        Result := newtick ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsDiffTicks (const StartTick, EndTick: longword): longword ;
+begin
+    if (StartTick = TriggerImmediate) or (StartTick = TriggerDisabled) then
+        Result := 0
+    else
+    begin
+        if EndTick >= StartTick then
+            Result := EndTick - StartTick
+        else
+            Result := ($FFFFFFFF - StartTick) + EndTick ;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsElapsedMSecs (const StartTick: longword): longword ;
+begin
+    Result := IcsDiffTicks (StartTick, IcsGetTickCountX);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsElapsedTicks (const StartTick: longword): longword ;
+begin
+    Result := IcsDiffTicks (StartTick, IcsGetTickCountX);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsElapsedSecs (const StartTick: longword): integer ;
+begin
+    Result := (IcsDiffTicks (StartTick, IcsGetTickCountX)) div TicksPerSecond ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsWaitingSecs (const EndTick: longword): integer ;
+begin
+    if (EndTick = TriggerImmediate) or (EndTick = TriggerDisabled) then
+        Result := 0
+    else
+        Result := (IcsDiffTicks (IcsGetTickCountX, EndTick)) div TicksPerSecond ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsElapsedMins (const StartTick: longword): integer ;
+begin
+    Result := (IcsDiffTicks (StartTick, IcsGetTickCountX)) div TicksPerMinute ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsAddTrgMsecs (const TickCount, MilliSecs: longword): longword ;
+begin
+    Result := MilliSecs ;
+    if Result > ($FFFFFFFF - TickCount) then
+        Result := ($FFFFFFFF - TickCount) + Result
+    else
+        Result := Result + TickCount ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsAddTrgSecs (const TickCount, DurSecs: integer): longword ;
+begin
+    Result := TickCount ;
+    if DurSecs < 0 then
+        exit;
+    Result := IcsAddTrgMsecs (TickCount, longword (DurSecs) * TicksPerSecond);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsGetTrgMsecs (const MilliSecs: integer): longword ;
+begin
+    Result := TriggerImmediate ;
+    if MilliSecs < 0 then
+        exit;
+    Result := IcsAddTrgMsecs (IcsGetTickCountX,  MilliSecs);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsGetTrgSecs (const DurSecs: integer): longword ;
+begin
+    Result := TriggerImmediate ;
+    if DurSecs < 0 then
+        exit;
+    Result := IcsAddTrgMsecs (IcsGetTickCountX, longword (DurSecs) * TicksPerSecond);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsGetTrgMins (const DurMins: integer): longword ;
+begin
+    Result := TriggerImmediate ;
+    if DurMins < 0 then
+        exit;
+    Result := IcsAddTrgMsecs (IcsGetTickCountX, longword (DurMins) * TicksPerMinute);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsTestTrgTick (const TrgTick: longword): boolean ;
+var
+    curtick: longword ;
+begin
+    Result := FALSE ;
+    if TrgTick = TriggerDisabled then
+        exit;  { special case for trigger disabled }
+    if TrgTick = TriggerImmediate then begin
+        Result := TRUE ;  { special case for now }
+        exit;
+    end;
+    curtick := IcsGetTickCountX ;
+    if curtick <= $7FFFFFFF then  { less than 25 days, keep it simple }
+    begin
+        if curtick >= TrgTick then Result := TRUE ;
+        exit;
+    end;
+    if TrgTick <= $7FFFFFFF then
+        exit;  { trigger was wrapped, can not have been reached  }
+    if curtick >= TrgTick then
+        Result := TRUE ;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 initialization
+    TicksTestOffset := 0 ;
+{ force GetTickCount wrap in 5 mins - next line normally commented out }
+{    TicksTestOffset := MaxLongWord - GetTickCount - (5 * 60 * 1000);  }
 finalization
     if WinTrustHandle <> 0 then FreeLibrary (WinTrustHandle);
     WinTrustHandle := 0;

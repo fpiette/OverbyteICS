@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.52
+Version:      8.54
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -519,6 +519,7 @@ Dec 7,  2017 V8.51 Fixed SOCKS4A/5 skip DNSLookup since hostname is passed to SO
                    Report sensible proxy and socks ReasonPhrase
 Feb 16, 2018 V8.52 Added ExtraHeaders property to simplify adding extra headers to
                      a request (previously done using onBeforeHeaderSend event)
+Apr 25, 2018 V8.54 Added httpAuthBearer and httpAuthToken, and AuthBearerToken for OAuth1/2
 
 
 To convert the received HTML stream to a unicode string with the correct codepage,
@@ -616,8 +617,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 852;
-    CopyRight : String   = ' THttpCli (c) 1997-2018 F. Piette V8.52 ';
+    HttpCliVersion       = 854;
+    CopyRight : String   = ' THttpCli (c) 1997-2018 F. Piette V8.54 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -666,7 +667,8 @@ type
     THttpDigestState = (digestNone, digestMsg1, digestDone);
 {$ENDIF}
     THttpBasicState  = (basicNone, basicMsg1, basicDone);
-    THttpAuthType    = (httpAuthNone, httpAuthBasic, httpAuthNtlm, httpAuthDigest);
+    THttpAuthType    = (httpAuthNone, httpAuthBasic, httpAuthNtlm,
+                             httpAuthDigest, httpAuthBearer, httpAuthToken);  { V8.54 }
     THttpBeforeAuthEvent   = procedure(Sender  : TObject;
                                  AuthType      : THttpAuthType;
                                  ProxyAuth     : Boolean;
@@ -860,7 +862,8 @@ type
         FOnSocketError        : TNotifyEvent;
         FOnBeforeHeaderSend   : TBeforeHeaderSendEvent;     { Wilfried 9 sep 02}
         FCloseReq             : Boolean;                    { SAE 01/06/04 }
-        FSocketErrs           : TSocketErrs;   { V8.37 }
+        FSocketErrs           : TSocketErrs;                { V8.37 }
+        FAuthBearerToken      : String;                     { V8.54 }
         FTimeout              : UINT;  { V7.04 }            { Sync Timeout Seconds }
         FWMLoginQueued        : Boolean;
         procedure AbortComponent; override; { V7.11 }
@@ -1194,8 +1197,10 @@ type
         property OnBgException;                                             { V7.11 }
         property SocketFamily        : TSocketFamily read  FSocketFamily
                                                      write FSocketFamily;
-        property SocketErrs         : TSocketErrs    read  FSocketErrs
+        property SocketErrs          : TSocketErrs    read  FSocketErrs
                                                      write FSocketErrs;      { V8.37 }
+        property AuthBearerToken     : String        read  FAuthBearerToken
+                                                     write FAuthBearerToken; { V8.54 }
     end;
 
 { You must define USE_SSL so that SSL code is included in the component.   }
@@ -2497,7 +2502,12 @@ begin
                 FProxyAuthNtlmState := ntlmMsg1;
           {$ENDIF}
         end;
-        
+
+      { V8.54 add OAuth header, Bearer is the official way, X-Auth-Token unofficial }
+        if (FServerAuth = httpAuthBearer) and (FAuthBearerToken <> '') then
+            Headers.Add('Authorization: Bearer ' + FAuthBearerToken);
+        if (FServerAuth = httpAuthToken) and (FAuthBearerToken <> '') then
+            Headers.Add('X-Auth-Token: ' + FAuthBearerToken);
 
 {$IFDEF UseNTLMAuthentication}
         if (FProxyAuthNTLMState <> ntlmMsg1) then begin

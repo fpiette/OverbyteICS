@@ -438,13 +438,17 @@ Source\OverbyteIcsSnmpCli.dcr
 Source\OverbyteIcsSnmpCli.pas
 Source\OverbyteIcsSnmpMsgs.pas
 Source\OverbyteIcsSocketUtils.pas
+Source\OverbyteIcsSslHttpRest.pas
+Source\OverbyteIcsSslJose.pas
 Source\OverbyteIcsSslSessionCache.dcr
 Source\OverbyteIcsSslSessionCache.pas
 Source\OverbyteIcsSslThrdLock.dcr
 Source\OverbyteIcsSslThrdLock.pas
+Source\OverbyteIcsSslX509Certs.pas
 Source\OverbyteIcsSslX509Utils.pas
 Source\OverbyteIcsSspi.pas
 Source\OverbyteIcsStreams.pas
+Source\OverbyteIcsSuperObject.pas
 Source\OverbyteIcsSysLogClient.dcr
 Source\OverbyteIcsSysLogClient.pas
 Source\OverbyteIcsSysLogDefs.pas
@@ -1849,6 +1853,20 @@ Samples\Delphi\SslInternet\dhparam512.pem
 Samples\Delphi\SslInternet\dhparam1024.pem
 Samples\Delphi\SslInternet\dhparam2048.pem
 
+Samples/Delphi/SslInternet/jose-ec-prvkey.pem
+Samples/Delphi/SslInternet/jose-ec-pubkey.pem
+Samples/Delphi/SslInternet/jose-ed25519-prvkey.pem
+Samples/Delphi/SslInternet/jose-ed25519-pubkey.pem
+Samples/Delphi/SslInternet/jose-ras-prvkey.pem
+Samples/Delphi/SslInternet/jose-ras-pubkey.pem
+Samples/Delphi/SslInternet/jose-rsapss-prvkey.pem
+Samples/Delphi/SslInternet/jose-rsapss-pubkey.pem
+
+Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst.res
+Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst1.dfm
+Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst1.pas
+
 Samples\Delphi\SslInternet\OverbyteIcsHttpsServer.dof
 Samples\Delphi\SslInternet\OverbyteIcsHttpsServer.dpr
 Samples\Delphi\SslInternet\OverbyteIcsHttpsServer.res
@@ -1862,6 +1880,11 @@ Samples\Delphi\SslInternet\OverbyteIcsHttpsTst1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsHttpsTst1.pas
 Samples\Delphi\SslInternet\OverbyteIcsCliCertDlg.dfm
 Samples\Delphi\SslInternet\OverbyteIcsCliCertDlg.pas
+
+Samples\Delphi\SslInternet\OverbyteIcsJoseTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsJoseTst.res
+Samples\Delphi\SslInternet\OverbyteIcsJoseTst1.dfm
+Samples\Delphi\SslInternet\OverbyteIcsJoseTst1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsMsVerify.dof
 Samples\Delphi\SslInternet\OverbyteIcsMsVerify.dpr

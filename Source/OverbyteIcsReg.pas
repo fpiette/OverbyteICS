@@ -11,6 +11,7 @@ Jun 2012 - V8.00 - Angus added SysLog and SNMP components VCL only for now
 Jul 2012   V8.02   Angus added TSslHttpAppSrv
 Sep 2013   V8.03 - Angus added TSmtpSrv and TSslSmtpSrv
 May 2017   V8.45 - Angus added TIcsProxy, TIcsHttpProxy
+Apr 2018   V8.54 - Angus added TSslHttpRest, TSimpleWebSrv and TRestOAuth
 }
 
 
@@ -102,6 +103,7 @@ uses
     OverbyteIcsMultiProgressBar,
     OverbyteIcsEmulVT, OverbyteIcsTnCnx, OverbyteIcsTnEmulVT, OverbyteIcsTnScript,
     OverbyteIcsProxy,
+    OverbyteIcsSslHttpRest,
     {$IFNDEF BCB}
       OverbyteIcsWSocketTS,
     {$ENDIF}
@@ -219,6 +221,9 @@ begin
         TSslSmtpServer,
         TIcsProxy,
         TIcsHttpProxy,
+        TSslHttpRest,   { V8.54 }
+        TSimpleWebSrv,  { V8.54 }
+        TRestOAuth,     { V8.54 }
     {$ENDIF VCL}
     {$IFNDEF NO_DYNLOCK}
       TSslDynamicLock,

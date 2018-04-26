@@ -1246,6 +1246,8 @@ Apr 06, 2018 V8.53  CertInfo showsOU if available, but less in brief mode
                       established until after handshake.
                     Ignore second handshake start in InfoCallback with TLSv1.3
                        since renegotiation not supported by protocol.
+Apr 25, 2018 V8.54  Added TSslCliSecurity similar to TSslSrvSecurity
+
 
 
 Pending, use NewSessionCallback for clients as well as servers
@@ -3218,6 +3220,19 @@ type
                      sslSrvSecHigh128,      { 6 - TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
                      sslSrvSecHigh192);     { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
 
+
+   { V8.54 SSL client security level, used by TSslHttpRest, sets protocol, cipher and SslSecLevel }
+    TSslCliSecurity = (
+                     sslCliSecNone,         { 0 - all protocols and ciphers, any key lengths }
+                     sslCliSecSsl3,         { 1 - SSL3 only, all ciphers, any key lengths, MD5 }
+                     sslCliSecTls1,         { 2 - TLS1 or later, all ciphers, RSA/DH keys=>1024 }
+                     sslCliSecBack,         { 3 - TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
+                     sslCliSecInter,        { 4 - TLS1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslCliSecTls12,        { 5 - TLS1.2 or later, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecTls13,        { 6 - TLS1.3 or later, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecHigh,         { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslCliSecHigh128,      { 8 - TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
+                     sslCliSecHigh192);     { 9 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
 
   { V8.51 now only used for 1.0.2 and 1.1.0, many unused for 1.1.0, ignored for 1.1.1 and later }
     TSslOption  = (sslOpt_CIPHER_SERVER_PREFERENCE,

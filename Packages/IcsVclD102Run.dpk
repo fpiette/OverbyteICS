@@ -102,6 +102,9 @@ contains
   OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas',
   OverbyteIcsSslX509Utils in '..\Source\OverbyteIcsSslX509Utils.pas',
   OverbyteIcsMsSslUtils in '..\Source\OverbyteIcsMsSslUtils.pas',
-  OverbyteIcsProxy in '..\Source\OverbyteIcsProxy.pas';
+  OverbyteIcsProxy in '..\Source\OverbyteIcsProxy.pas',
+  OverbyteIcsSslHttpRest in '..\Source\OverbyteIcsSslHttpRest.pas',
+  OverbyteIcsSslJose in '..\Source\OverbyteIcsSslJose.pas',
+  OverbyteIcsSslX509Certs in '..\Source\OverbyteIcsSslX509Certs.pas';
 
 end.

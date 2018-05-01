@@ -119,7 +119,7 @@ Nov 22, 2017  V8.51 Testing OpenSSL 1.1.1 that adds TLS/1.3
                 of macros earlier, also SSL_session_reused
               Added more constants and functions for 1.1.1, f_SSL_xx_groups
 Feb 27, 2018  V8.52 Added more EVP functions for keys, hashing and signing
-Apr 18, 2018  V8.54 Testing with OpenSSL 1.1.1 beta
+May 01, 2018  V8.54 Testing with OpenSSL 1.1.1 beta
 
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -307,7 +307,7 @@ const
 
     MIN_OSSL_VER   = OSSL_VER_1002;   { V8.39 minimum is now 1.0.2 }
 //  MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.35 1.1.0zz }
-    MAX_OSSL_VER   = OSSL_VER_1101P5; { V8.53 1.1.1-pre5 (beta3) }
+    MAX_OSSL_VER   = OSSL_VER_1101P6; { V8.54 1.1.1-pre6 (beta4) }
 
     { V8.41 PEM base64 file titles }
     PEM_STRING_HDR_BEGIN   = '-----BEGIN ';    { six hyphens }

@@ -1862,6 +1862,7 @@ Samples/Delphi/SslInternet/jose-ras-pubkey.pem
 Samples/Delphi/SslInternet/jose-rsapss-prvkey.pem
 Samples/Delphi/SslInternet/jose-rsapss-pubkey.pem
 
+Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst.dof
 Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst.dpr
 Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst.res
 Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst1.dfm
@@ -1881,6 +1882,7 @@ Samples\Delphi\SslInternet\OverbyteIcsHttpsTst1.pas
 Samples\Delphi\SslInternet\OverbyteIcsCliCertDlg.dfm
 Samples\Delphi\SslInternet\OverbyteIcsCliCertDlg.pas
 
+Samples\Delphi\SslInternet\OverbyteIcsJoseTst.dof
 Samples\Delphi\SslInternet\OverbyteIcsJoseTst.dpr
 Samples\Delphi\SslInternet\OverbyteIcsJoseTst.res
 Samples\Delphi\SslInternet\OverbyteIcsJoseTst1.dfm

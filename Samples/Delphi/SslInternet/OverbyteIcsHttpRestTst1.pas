@@ -3,7 +3,7 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
-Updated:      Apr 2018
+Updated:      May 2018
 Version:      8.54
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2018 by François PIETTE
@@ -38,7 +38,7 @@ Legal issues: Copyright (C) 2003-2018 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
-25 Apr 2018 - 8.54 baseline
+03 May 2018 - 8.54 baseline
 
 
 
@@ -166,7 +166,6 @@ type
     procedure doStartReqClick(Sender: TObject);
     procedure doAbortClick(Sender: TObject);
     procedure doClearClick(Sender: TObject);
-    procedure SettingChange(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormShow(Sender: TObject);
     procedure doTestRedirClick(Sender: TObject);
@@ -179,6 +178,7 @@ type
     procedure doGrantPasswordClick(Sender: TObject);
     procedure RestOAuth1OAuthNewCode(Sender: TObject);
     procedure RestOAuth1OAuthNewToken(Sender: TObject);
+    procedure SettingsChange(Sender: TObject);
   private
     { Private declarations }
   public
@@ -381,6 +381,7 @@ begin
     SendMessage(LogWin.Handle, EM_LINESCROLL, 0, 999999);
 end;
 
+
 procedure THttpRestForm.HttpRest1HttpRestProg(Sender: TObject;
   LogOption: TLogOption; const Msg: string);
 begin
@@ -388,19 +389,15 @@ begin
 end;
 
 
-procedure THttpRestForm.SettingChange(Sender: TObject);
-begin
-    HttpRest1.ResetSsl;
-end;
-
 procedure THttpRestForm.doAbortClick(Sender: TObject);
 begin
-    if HttpRest1.State > httpReady then begin
+    if (HttpRest1.State > httpReady) or HttpRest1.Connected then begin
         AddLog ('Aborting operation');
         HttpRest1.Abort;
     end;
     doStartReq.Enabled := True;
 end;
+
 
 procedure THttpRestForm.doClearClick(Sender: TObject);
 begin
@@ -408,6 +405,12 @@ begin
     RespList.Items.Clear;
 end;
 
+
+procedure THttpRestForm.SettingsChange(Sender: TObject);
+begin
+    if HttpRest1.Connected then
+        HttpRest1.Abort;  // close socket so new settings used
+end;
 
 
 procedure THttpRestForm.doStartReqClick(Sender: TObject);
@@ -472,6 +475,7 @@ procedure THttpRestForm.HttpRest1RestRequestDone(Sender: TObject;
 var
     JsonItem: TSuperAvlEntry;
     JsonObj: ISuperObject;
+    JsonEnum: TSuperAvlIterator;
     I, CWid: integer;
     FirstCol, FirstRow: Boolean;
     CVal: String;
@@ -479,7 +483,7 @@ begin
     doStartReq.Enabled := True;
     AddLog (String(HttpRest1.ResponseRaw));
 
-    if (Length(HttpRest1.ResponseRaw) > 2) and (HttpRest1.ResponseRaw[1] = '{') then begin
+    if Assigned(HttpRest1.ResponseJson) then begin
         try
             AddLog ('Json main content type: ' + GetEnumName(TypeInfo(TSuperType),
                                                 Ord(HttpRest1.ResponseJson.DataType)));
@@ -500,13 +504,27 @@ begin
                     Caption := 'Value';
                     Width := 400;
                 end;
-                for JsonItem in HttpRest1.ResponseJson.AsObject do begin
+        {        for JsonItem in HttpRest1.ResponseJson.AsObject do begin
                     with RespList.Items.Add do begin
                         Caption := JsonItem.Name;
                         SubItems.Add(GetEnumName(TypeInfo(TSuperType),
                                                 Ord(JsonItem.Value.DataType)));
                         SubItems.Add(JsonItem.Value.AsString);
                     end;
+                end;   }
+                JsonEnum := HttpRest1.ResponseJson.AsObject.GetEnumerator;
+                try
+                    while JsonEnum.MoveNext do begin
+                        JsonItem := JsonEnum.GetIter;
+                        with RespList.Items.Add do begin
+                            Caption := JsonItem.Name;
+                            SubItems.Add(GetEnumName(TypeInfo(TSuperType),
+                                                    Ord(JsonItem.Value.DataType)));
+                            SubItems.Add(JsonItem.Value.AsString);
+                        end;
+                    end;
+                finally
+                    JsonEnum.Free;
                 end;
             end;
 
@@ -572,6 +590,7 @@ begin
     RestOAuth1.WebSrvIP := Trim(OAuthWebIP.Text);
     RestOAuth1.WebSrvPort := Trim(OAuthWebPort.Text);
 end;
+
 
 { call back for embedded browser window }
 procedure THttpRestForm.RestOAuth1OAuthAuthUrl(Sender: TObject;

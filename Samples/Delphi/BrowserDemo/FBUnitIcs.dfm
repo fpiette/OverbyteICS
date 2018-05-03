@@ -120,7 +120,7 @@ object HTTPForm: THTTPForm
         ImageIndex = -1
         MinHeight = 37
         MinWidth = 140
-        Width = 172
+        Width = 175
       end
       item
         Break = False
@@ -129,7 +129,7 @@ object HTTPForm: THTTPForm
         MinHeight = 21
         MinWidth = 170
         Text = 'URL:'
-        Width = 381
+        Width = 378
       end
       item
         Break = False
@@ -142,7 +142,7 @@ object HTTPForm: THTTPForm
     object ToolBar2: TToolBar
       Left = 9
       Top = 0
-      Width = 159
+      Width = 162
       Height = 37
       AutoSize = True
       ButtonHeight = 37
@@ -186,11 +186,11 @@ object HTTPForm: THTTPForm
       end
     end
     object UrlComboBox: TComboBox
-      Left = 212
+      Left = 215
       Top = 8
-      Width = 339
+      Width = 336
       Height = 21
-      ItemHeight = 0
+      ItemHeight = 13
       TabOrder = 1
       OnClick = URLComboBoxClick
       OnKeyPress = URLComboBoxKeyPress
@@ -414,7 +414,7 @@ object HTTPForm: THTTPForm
     Left = 40
     Top = 160
     Bitmap = {
-      494C01010D009400CC0011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C01010D009400D40011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000440000004400000001002000000000004048
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1047,13 +1047,14 @@ object HTTPForm: THTTPForm
     SslOptions = []
     SslOptions2 = []
     SslVerifyPeerModes = [SslVerifyMode_PEER]
-    SslSessionCacheModes = []
+    SslSessionCacheModes = [sslSESS_CACHE_CLIENT]
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
     SslVersionMethod = sslBestVer_CLIENT
     SslMinVersion = sslVerSSL3
     SslMaxVersion = sslVerMax
     SslECDHMethod = sslECDHAuto
     SslCryptoGroups = 'P-256:X25519:P-384:P-512'
+    SslCliSecurity = sslCliSecIgnore
     SslSessionTimeout = 0
     SslSessionCacheSize = 20480
     AutoEnableBuiltinEngines = False

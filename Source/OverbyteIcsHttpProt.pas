@@ -519,7 +519,8 @@ Dec 7,  2017 V8.51 Fixed SOCKS4A/5 skip DNSLookup since hostname is passed to SO
                    Report sensible proxy and socks ReasonPhrase
 Feb 16, 2018 V8.52 Added ExtraHeaders property to simplify adding extra headers to
                      a request (previously done using onBeforeHeaderSend event)
-Apr 25, 2018 V8.54 Added httpAuthBearer and httpAuthToken, and AuthBearerToken for OAuth1/2
+May 02, 2018 V8.54 Added httpAuthBearer and httpAuthToken, and AuthBearerToken for OAuth1/2
+                   Connected now available as a property
 
 
 To convert the received HTML stream to a unicode string with the correct codepage,
@@ -998,6 +999,7 @@ type
         property CtrlSocket           : TWSocket     read  FCtrlSocket;
         //property Handle               : HWND         read  FWindowHandle;
         property State                : THttpState   read  FState;
+        property Connected            : Boolean      read  FConnected;  { V8.54 }
         property LastResponse         : String       read  FLastResponse;
         property ContentLength        : THttpBigInt  read  FContentLength;
         property ContentType          : String       read  FContentType;

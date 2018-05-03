@@ -86,6 +86,8 @@
                   Fixed updating URL bar for redirection
                   Use common SSL acceptable hosts list so each connection does not recheck certificates
 
+03 May 2018 V8.54 Using new SslCliSecurity settings (set on ProxyDlg)                   
+
 
   Pending - use NoCache header to stop dynamic pages being cached and expire them
   Pending - cache visited links so we can highlight them
@@ -708,7 +710,7 @@ begin
         ProxyUser     := IniFile.ReadString('Proxy', 'ProxyUsername', '');
         ProxyPassword := IniFile.ReadString('Proxy', 'ProxyPassword', '');
         UserAgent     := IniFile.ReadString('Settings', 'UserAgent', UsrAgent);
-        SslVersionList         := IniFile.ReadInteger('Settings', 'SslVersionList', 0);
+        SslVersionList         := IniFile.ReadInteger('Settings', 'SslVersionList', 5);
         SslAcceptableHostsEdit := IniFile.ReadString('Settings', 'SslAcceptableHostsEdit', '');
         SslVerifyCertMode      := IniFile.ReadInteger('Settings', 'SslVerifyCertMode', 0);
         SslRevokeCheck         := IniFile.ReadBool('Settings', 'SslRevokeCheck', False);
@@ -915,8 +917,9 @@ begin
     begin
      // GSSLEAY_DLL_IgnoreNew := true;  { V8.53 ignore OpenSSL 1.1.0 and later }
         SslContext.SslVerifyPeer := false;
-        SslContext.SslMinVersion := sslVerSSL3;    { V8.52}
-        SslContext.SslMaxVersion := TSslVerMethod (SslVersionList);  { V8.52}
+    //    SslContext.SslMinVersion := sslVerSSL3;    { V8.52}
+    //    SslContext.SslMaxVersion := TSslVerMethod (SslVersionList);  { V8.52}
+        SslContext.SslCliSecurity := TSslCliSecurity(SslVersionList);  { V8.54}
         if (SslVerifyCertMode > SslVerNone) then
     //    if (SslVerifyCertMode = SslVerBundle) then
         begin
@@ -2370,6 +2373,7 @@ begin
             SslVerifyCertMode:= ProxyForm.SslVerifyCertMode.ItemIndex;
             SslRevokeCheck:= ProxyForm.SslRevokeCheck.Checked;
             SslReportChain:= ProxyForm.SslReportChain.Checked;
+            SslContext.SslCliSecurity := TSslCliSecurity(SslVersionList);  { V8.54}
             if SslContext.IsCtxInitialized then  // may have changed SSL options
             begin
                if Assigned (Connection) then

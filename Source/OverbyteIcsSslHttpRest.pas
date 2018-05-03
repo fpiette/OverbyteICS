@@ -12,7 +12,7 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      Apr 2018
+Updated:      May 2018
 Version:      8.54
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -131,7 +131,7 @@ often available, both are supported by TRestOAuth.
 
 
 Updates:
-Apr 25, 2018  - 8.54 - baseline
+May 03, 2018  - 8.54 - baseline
 
 
 
@@ -321,6 +321,7 @@ type
     procedure LogEvent(const Msg : String);
     procedure SetRestParams(Value: TRestParams);
     procedure SetSslCliCert(Value: TX509Base);
+    procedure SetSslCliSecurity(Value: TSslCliSecurity);
     procedure IcsLogEvent (Sender: TObject; LogOption: TLogOption; const Msg : String);
     procedure onHttpDocBegin(Sender : TObject);
     procedure onHttpCommand(Sender: TObject; var S: String);
@@ -366,7 +367,7 @@ type
     property MaxBodySize: Int64                         read  FMaxBodySize
                                                         write FMaxBodySize;
     property SslCliSecurity: TSslCliSecurity            read  FSslCliSecurity
-                                                        write FSslCliSecurity;
+                                                        write SetSslCliSecurity;
     property SslCliCert: TX509Base                      read  FSslCliCert
                                                         write SetSslCliCert;
     property SslSessCache: boolean                      read  FSslSessCache
@@ -948,7 +949,7 @@ begin
     FSslCliCert := TX509Base.Create(self);
     FCertVerMethod := CertVerNone;
     FSslRootFile := 'RootCaCertsBundle.pem';  // blank will use internal bundle
-    FSslCliSecurity := sslCliSecTls1;
+    FSslCliSecurity := sslCliSecTls12;
     FDebugLevel := DebugSsl;
     FRespReq := False;
     FInitSsl := false;
@@ -974,19 +975,8 @@ end;
 procedure TSslHttpRest.InitSsl;
 var
     rootfname: String;
-
-    function AddTls13(const Ciphers: String): String;
-    begin
-        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then
-            result := Ciphers
-        else
-            result := sslCipherTLS13 + Ciphers;
-    end;
-
 begin
     if FInitSsl then Exit;
-    if FDebugLevel >= DebugSsl then
-        LogEvent('SSL Version: ' + OpenSslVersion + ', Dir: ' + GLIBEAY_DLL_FileName);
     if FDebugLevel >= DebugSslLow then
         RestLogger.LogOptions := RestLogger.LogOptions + [loSslInfo, loProtSpecInfo];
 
@@ -996,59 +986,10 @@ begin
  //       fExternalSslSessionCache.SessionTimeOut := 30;
  //       fExternalSslSessionCache.FlushInterval := 3000;
     end;
-    RestSslCtx.SslMinVersion := sslVerTLS1;
-    RestSslCtx.SslMaxVersion := sslVerMax;
-    RestSslCtx.SslCipherList := 'ALL';
-    RestSslCtx.SslSecLevel := sslSecLevelAny;
-    case FSslCliSecurity of
-        sslCliSecNone: begin                { all protocols, any key lengths }
-          RestSslCtx.SslMinVersion := sslVerSSL3;
-        end;
-        sslCliSecSsl3: begin                { SSL3 only, any key lengths, MD5 }
-          RestSslCtx.SslMinVersion := sslVerSSL3;
-          RestSslCtx.SslMaxVersion := sslVerSSL3;
-        end;
-        sslCliSecTls1: begin   { TLS1 or later }
-          RestSslCtx.SslMinVersion := sslVerTLS1;
-          RestSslCtx.SslSecLevel := sslSecLevel80bits;
-        end;
-        sslCliSecTls12: begin   { TLS1.2 or later }
-          RestSslCtx.SslMinVersion := sslVerTLS1_2;
-          RestSslCtx.SslSecLevel := sslSecLevel112bits;
-        end;
-        sslCliSecTls13: begin   { TLS1.3 or later }
-          RestSslCtx.SslMinVersion := sslVerTLS1_3;
-          RestSslCtx.SslSecLevel := sslSecLevel112bits;
-        end;
-        sslCliSecBack: begin   { TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
-          RestSslCtx.SslMinVersion := sslVerTLS1;
-          RestSslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvBack);
-          RestSslCtx.SslSecLevel := sslSecLevel80bits;
-        end;
-        sslCliSecInter: begin   { TLS1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-          RestSslCtx.SslMinVersion := sslVerTLS1;
-          RestSslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvInter);
-          RestSslCtx.SslSecLevel := sslSecLevel112bits;
-        end;
-        sslCliSecHigh: begin    { TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-          RestSslCtx.SslMinVersion := sslVerTLS1_2;
-          RestSslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvHigh);
-          RestSslCtx.SslSecLevel := sslSecLevel112bits;
-        end;
-        sslCliSecHigh128: begin { TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
-          RestSslCtx.SslMinVersion := sslVerTLS1_2;
-          RestSslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvHigh);
-          RestSslCtx.SslSecLevel :=sslSecLevel128bits;
-        end;
-        sslCliSecHigh192: begin { TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
-          RestSslCtx.SslMinVersion := sslVerTLS1_2;
-          RestSslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvHigh);
-          RestSslCtx.SslSecLevel := sslSecLevel192bits;
-        end;
-    end;
     RestSslCtx.SslOptions2 := RestSslCtx.SslOptions2 +
        [sslOpt2_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, sslOpt2_NO_RENEGOTIATION];
     RestSslCtx.SslECDHMethod := sslECDHAuto;
+    RestSslCtx.SslCliSecurity := FSslCliSecurity;
 
   // see if verifying server SSL certificate
     if (FCertVerMethod > CertVerNone) then begin
@@ -1069,15 +1010,18 @@ begin
                     RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
                 end
                 else
-                   RestSslCtx.SslCAFile := rootfname ;
+                   RestSslCtx.SslCAFile := rootfname;
             end
             else
                 RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
         end;
     end ;
     try
-        if NOT RestSslCtx.IsCtxInitialized then
+        if NOT RestSslCtx.IsCtxInitialized then begin
             RestSslCtx.InitContext;
+            if FDebugLevel >= DebugSsl then
+                LogEvent('SSL Version: ' + OpenSslVersion + ', Dir: ' + GLIBEAY_DLL_FileName);
+        end;
         FInitSsl := True;
     except
         on E:Exception do
@@ -1085,6 +1029,15 @@ begin
             LogEvent('Error Starting SSL: ' + E.Message);
         end;
     end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpRest.SetSslCliSecurity(Value: TSslCliSecurity);
+begin
+    if Value = FSslCliSecurity then Exit;
+    FSslCliSecurity := Value;
+    RestSslCtx.SslCliSecurity := FSslCliSecurity;
 end;
 
 
@@ -1424,15 +1377,19 @@ begin
                          (Pos ('xml', FContentType) <> 0) then begin
                     FResponseRaw := IcsHtmlToStr(FResponseStream, FContentType, true);
                     FResponseStream.Seek (0, soFromBeginning) ;
-                    if (Length(FResponseRaw) > 2) and (FResponseRaw[1] = '{') then begin
-                        FResponseJson := TSuperObject.ParseString(PWideChar(FResponseRaw), True);
-                        if NOT Assigned (FResponseJson) then begin
-                            LogEvent('Failed to parse Json response');
+                    try
+                        // try to avoid Json errors unless it looks vaguely like Json }
+                        if (Pos('{', FResponseRaw) > 0) or (Pos('[', FResponseRaw) > 0) then begin
+                            FResponseJson := TSuperObject.ParseString(PWideChar(FResponseRaw), True);
+                            if NOT Assigned (FResponseJson) then begin
+                                LogEvent('Failed to parse Json response');
+                            end;
                         end;
+                        if DebugLevel >= DebugBody then
+                            LogEvent('Response (length ' + IntToKbyte(Length(FResponseRaw)) +
+                                                                  ')' + IcsCRLF +  FResponseRaw);
+                    except
                     end;
-                    if DebugLevel >= DebugBody then
-                        LogEvent('Response (length ' + IntToKbyte(Length(FResponseRaw)) +
-                                                              ')' + IcsCRLF +  FResponseRaw);
                 end;
             end;
         end;

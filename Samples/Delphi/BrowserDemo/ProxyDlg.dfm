@@ -120,18 +120,26 @@ object ProxyForm: TProxyForm
   object SslVersionList: TComboBox
     Left = 363
     Top = 32
-    Width = 108
+    Width = 182
     Height = 21
     Style = csDropDownList
     ItemHeight = 13
+    ItemIndex = 5
     TabOrder = 5
+    Text = 'TLSv1 or better'
     Items.Strings = (
-      'SSLv3'
-      'TLSv1'
-      'TLSv1.1'
-      'TLSv1.2'
-      'TLSv1.3'
-      'Best Version')
+      'Ignore'
+      'None'
+      'SSLv3 Only'
+      'TLSv1.2 Only'
+      'TLSv1.3 Only'
+      'TLSv1 or better'
+      'TLSv1.2 or better'
+      'Backward Ciphers'
+      'Intermedate Ciphers'
+      'High Ciphers, 2048 keys'
+      'High Ciphers, 3072 keys'
+      'High Ciphers, 7680 keys')
   end
   object SslAcceptableHostsEdit: TEdit
     Left = 216

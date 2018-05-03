@@ -1239,17 +1239,23 @@ Feb 19, 2018 V8.52  LocalIpList only uses GetHostByName for Windows XP, 2003 and
                     IcsSslOpenFileBio now checks PEM files not empty to avoid
                       strange ASN1 errors parsing them.
                     Fixed IcsSslGetEVPDigest to work with 1.1.1
-Apr 06, 2018 V8.53  CertInfo showsOU if available, but less in brief mode
+Apr 06, 2018 V8.53  CertInfo shows OU if available, but less in brief mode
                     ValidateCertChain checks issuer OU for duplicate roots
                     Added sanity check to GetSha1Hex if certificate not loaded
                     Ignore CliNewSession event with TLSv1.3 since session not yet
                       established until after handshake.
                     Ignore second handshake start in InfoCallback with TLSv1.3
                        since renegotiation not supported by protocol.
-Apr 25, 2018 V8.54  Added TSslCliSecurity similar to TSslSrvSecurity
+May 03, 2018 V8.54  Added TSslCliSecurity similar to TSslSrvSecurity
+                    Added SslCliSecurity to SslContext which if set to other
+                      than sslCliSecIgnore sets the protocols, security and
+                      ciphers to standadrdised settings, may be changed without
+                      reinitialising the context.
+                    Improved SSL handshake failed error message with protocol
+                      state information instead of just saying closed unexpectly
 
 
-
+                      
 Pending, use NewSessionCallback for clients as well as servers
 
 
@@ -3221,18 +3227,20 @@ type
                      sslSrvSecHigh192);     { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
 
 
-   { V8.54 SSL client security level, used by TSslHttpRest, sets protocol, cipher and SslSecLevel }
+   { V8.54 SSL client security level, used by context, sets protocol, cipher and SslSecLevel }
     TSslCliSecurity = (
-                     sslCliSecNone,         { 0 - all protocols and ciphers, any key lengths }
-                     sslCliSecSsl3,         { 1 - SSL3 only, all ciphers, any key lengths, MD5 }
-                     sslCliSecTls1,         { 2 - TLS1 or later, all ciphers, RSA/DH keys=>1024 }
-                     sslCliSecBack,         { 3 - TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
-                     sslCliSecInter,        { 4 - TLS1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     sslCliSecTls12,        { 5 - TLS1.2 or later, all ciphers, RSA/DH keys=>2048 }
-                     sslCliSecTls13,        { 6 - TLS1.3 or later, all ciphers, RSA/DH keys=>2048 }
-                     sslCliSecHigh,         { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     sslCliSecHigh128,      { 8 - TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
-                     sslCliSecHigh192);     { 9 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+                     sslCliSecIgnore,       { 0 - ignore, use old settings }
+                     sslCliSecNone,         { 1 - all protocols and ciphers, any key lengths }
+                     sslCliSecSsl3Only,     { 2 - SSLv3 only, all ciphers, any key lengths, MD5 }
+                     sslCliSecTls12Only,    { 3 - TLSv1.2 only, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecTls13Only,    { 4 - TLSv1.3 only, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecTls1,         { 5 - TLSv1 or later, all ciphers, RSA/DH keys=>1024 }
+                     sslCliSecTls12,        { 6 - TLSv1.2 or later, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecBack,         { 7 - TLSv1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
+                     sslCliSecInter,        { 8 - TLSv1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslCliSecHigh,         { 9 - TLSv1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslCliSecHigh128,      { 10 - TLSv1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
+                     sslCliSecHigh192);     { 11 - TLSv1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
 
   { V8.51 now only used for 1.0.2 and 1.1.0, many unused for 1.1.0, ignored for 1.1.1 and later }
     TSslOption  = (sslOpt_CIPHER_SERVER_PREFERENCE,
@@ -3509,13 +3517,14 @@ type
         FSslVerifyDepth             : Integer;
         FSslVerifyFlags             : Integer;
 //        FSslOptionsValue            : Longint;  {V8.51 now storing TSslOptions instead }
-        FSslOptions                 : TSslOptions;    {V8.51 }
-        FSslOptions2                : TSslOptions2;  { V8.51 }
+        FSslOptions                 : TSslOptions;     { V8.51 }
+        FSslOptions2                : TSslOptions2;    { V8.51 }
         FSslCipherList              : String;
-        FSslECDHMethod              : TSslECDHMethod; { V8.15 }
-        FSslCheckHostFlags          : Longint;      { V8.39 }
-        FSslSecLevel                : TSslSecLevel; { V8.40 }
-        FSslCryptoGroups            : String;        { V8.51 1.1.1 and later, 'P-256:X25519:P-384:P-512' }
+        FSslECDHMethod              : TSslECDHMethod;  { V8.15 }
+        FSslCheckHostFlags          : Longint;         { V8.39 }
+        FSslSecLevel                : TSslSecLevel;    { V8.40 }
+        FSslCryptoGroups            : String;          { V8.51 1.1.1 and later, 'P-256:X25519:P-384:P-512' }
+        FSslCliSecurity             : TSslCliSecurity; { V8.54 }
         FSslSessCacheModeValue      : Longint;
         FSslSessionCacheSize        : Longint;
         FSslSessionTimeout          : Longword;
@@ -3568,6 +3577,8 @@ type
         procedure SetSslVerifyFlags(const Value: TSslVerifyFlags);
         function  GetSslCheckHostFlags: TSslCheckHostFlags;                 { V8.39 }
         procedure SetSslCheckHostFlags(const Value: TSslCheckHostFlags);    { V8.39 }
+        procedure SetSslCliSecurity(Value: TSslCliSecurity);                { V8.54 }
+        procedure SetSslCliSec;                                             { V8.54 }
     {$IFNDEF OPENSSL_NO_ENGINE}
         procedure Notification(AComponent: TComponent; Operation: TOperation); override;
         procedure SetCtxEngine(const Value: TSslEngine);
@@ -3604,6 +3615,8 @@ type
         function    CheckPrivateKey: boolean;                           { V8.40 }
         function    SslGetCerts(Cert: TX509Base): integer;              { V8.41 }
         procedure   SslSetCertX509;                                     { V8.41 }
+        procedure   SetProtoSec;                                        { V8.54 }
+
         property    SslCertX509     : TX509Base         read  FSslCertX509
                                                         write FSslCertX509;   { V8.41 }
     published
@@ -3665,6 +3678,8 @@ type
                                                     write SetSslECDHMethod;
         property  SslCryptoGroups  : String         read  FSslCryptoGroups
                                                     write FSslCryptoGroups;    { V8.51 }
+        property  SslCliSecurity  : TSslCliSecurity read  FSslCliSecurity
+                                                    write SetSslCliSecurity;   { V8.54 }
         property  SslSessionTimeout : Longword      read  FSslSessionTimeout
                                                     write SetSslSessionTimeout;
         property  SslSessionCacheSize : Integer
@@ -14134,6 +14149,7 @@ begin
     FSslCertX509         := TX509Base.Create(Self);   { V8.39 }
     FSslSecLevel         := sslSecLevel80bits;   { V8.40 }
     FSslCryptoGroups     := sslCryptoGroupsDef;  { V8.51 1.1.1 and later }
+    FSslCliSecurity      := sslCliSecIgnore;     { V8.54 make backward compatible }
 end;
 
 
@@ -15483,13 +15499,11 @@ begin
     end;
 end;
 
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslContext.InitContext;
+{ V8.54, set TLS protocol and security level, before loading certs }
+procedure TSslContext.SetProtoSec;
 var
-    SslSessCacheModes : TSslSessCacheModes;
     LOpts, NewOpts: Longint;
-    MyECkey: PEC_KEY;
     Opt: TSslOption;     { V8.51 }
     Opt2: TSslOption2;   { V8.51 }
 
@@ -15509,6 +15523,129 @@ var
     end;
 {$ENDIF}
 
+begin
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then begin
+        f_SSL_CTX_set_security_level(FSslCtx, Ord(FSslSecLevel));
+{$IFNDEF NO_DEBUG_LOG}
+        if CheckLogOptions(loSslInfo) then  { V8.40 }
+            DebugLog(loSslInfo, 'Set Security Level: ' +
+                    GetEnumName(TypeInfo(TSslSecLevel), Ord(FSslSecLevel)));
+{$ENDIF}
+    end;
+
+// V8.52 build options bit mask from Delphi sets
+    LOpts := 0;
+    for Opt := Low(TSslOption) to High(TSslOption) do begin
+        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
+            if Opt in FSslOptions then
+                LOpts := LOpts or SslIntOptions[Opt];
+        end
+          { V8.27 fewer options in 1.1.0  }
+        else begin
+            if Opt in FSslOptions then
+                LOpts := LOpts or SslIntOptions110[Opt];
+        end;
+    end;
+    if (FSslOptions2 <> []) and (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) then begin
+        LOpts := 0 ; // ignore FSslOptions
+        for Opt2 := Low(TSslOption2) to High(TSslOption2) do begin
+            if Opt2 in FSslOptions2 then
+                LOpts := LOpts or SslIntOptions2[Opt2];
+        end;
+    end;
+
+  //  LOpts := LOpts or SSL_OP_NO_TICKET; // V8.51 may be a default
+
+  // V8.27 set TLS min and max versions for OpenSSL 1.1.0 and later }
+    if (FSslMinVersion = sslVerMax) then FSslMinVersion := sslVerSSL3;  { sanity check }
+    if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then begin  { V8.51 need 1.1.1 for TLS1_3 }
+        if FSslMinVersion > sslVerTLS1_2 then FSslMinVersion := sslVerTLS1_2;
+        if FSslMaxVersion > sslVerTLS1_2 then FSslMaxVersion := sslVerTLS1_2;
+    end;
+    if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then begin
+        if FSslMaxVersion >= FSslMinVersion then begin
+            f_SSL_CTX_set_min_proto_version(FSslCtx, SslVerMethods [FSslMinVersion]);
+            f_SSL_CTX_set_max_proto_version(FSslCtx, SslVerMethods [FSslMaxVersion]);
+          // remove version specific protocols options
+            LOpts := LOpts AND (NOT SSL_OP_NO_SSLv3) AND (NOT SSL_OP_NO_TLSv1) AND
+                                  (NOT SSL_OP_NO_TLSv1_2) AND (NOT SSL_OP_NO_TLSv1_1);
+        end;
+    end
+
+  { V8.27 for OpenSSL 1.0.2 and earlier simulate range of versions, if not set to defaults }
+    else begin
+        if (FSslMaxVersion >= FSslMinVersion) then begin
+            LOpts := LOpts AND (NOT SSL_OP_NO_SSLv3) AND (NOT SSL_OP_NO_TLSv1) AND
+                                  (NOT SSL_OP_NO_TLSv1_2) AND (NOT SSL_OP_NO_TLSv1_1);
+            if (FSslMinVersion > sslVerSSL3) then begin
+                if (FSslMinVersion = sslVerTLS1) then
+                    LOpts := LOpts OR SSL_OP_NO_SSLv3
+                else if (FSslMinVersion = sslVerTLS1_1) then
+                    LOpts := LOpts OR SSL_OP_NO_SSLv3 OR SSL_OP_NO_TLSv1
+                else if (FSslMinVersion = sslVerTLS1_2) then
+                    LOpts := LOpts OR SSL_OP_NO_SSLv3 OR SSL_OP_NO_TLSv1 OR SSL_OP_NO_TLSv1_1;
+            end;
+            if (FSslMaxVersion < sslVerMax) then begin { V8.28 corrected maximum support }
+                if (FSslMaxVersion = sslVerSSL3) then
+                    LOpts := LOpts OR SSL_OP_NO_TLSv1 OR SSL_OP_NO_TLSv1_1 OR SSL_OP_NO_TLSv1_2
+                else if (FSslMaxVersion = sslVerTLS1) then
+                    LOpts := LOpts OR SSL_OP_NO_TLSv1_1 OR SSL_OP_NO_TLSv1_2
+                else if (FSslMaxVersion = sslVerTLS1_1) then
+                    LOpts := LOpts OR SSL_OP_NO_TLSv1_2;
+            end;
+         end;
+    end;
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loSslInfo) then  { V8.40 }
+        DebugLog(loSslInfo, 'SslMinVersion: ' +  GetEnumName(TypeInfo(TSslVerMethod),
+                 Ord(FSslMinVersion)) + ', SslMaxVersion: ' +
+                        GetEnumName(TypeInfo(TSslVerMethod), Ord(FSslMaxVersion)));
+{$ENDIF}
+
+  { This is a workaround a possible bug in OSSL 1.0.0(d)
+          check if future versions fix it.
+          SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER causes
+          error:1408F044:SSL routines:SSL3_GET_RECORD:internal error
+          on session resumption in InitSslConnection. }
+    if ICS_OPENSSL_VERSION_NUMBER <= OSSL_VER_1100 then begin
+        if LOpts and SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER = SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER then
+            LOpts := LOpts and not SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER;
+    end;
+
+    { Adds the options set via bitmask to Ctx, leaving defaults alone }
+    NewOpts := f_Ics_SSL_CTX_set_options(FSslCtx, LOpts);   { V8.51 }
+    if NewOpts <> LOpts then begin             { V8.51 check it worked }
+        if (NewOpts = 0) and (Lopts <> 0) then
+            raise ESslContextException.Create('Failed to set context options');
+    end;
+
+    if FSslCipherList <> '' then begin
+        if f_SSL_CTX_set_cipher_list(FSslCtx, PAnsiChar(AnsiString(FSslCipherList))) = 0 then
+            RaiseLastOpenSslError(ESslContextException, TRUE, 'Error loading cipher list');
+    end
+    else
+        raise ESslContextException.Create('Cipher list empty');
+
+{$IFNDEF NO_DEBUG_LOG}
+        { V8.28 list all options }
+            if CheckLogOptions(loSslInfo) then begin
+                DebugLog(loSslInfo, 'SSL Options, Requested: ' +  GetMaskBits(LOpts));
+                DebugLog(loSslInfo, 'SSL Options, Actual: ' +  GetMaskBits(NewOpts));  { V8.51 and what was set }
+        { V8.27 list all ciphers available for connection }
+                DebugLog(loSslInfo, 'SSL Ciphers Available: ' + #13#10 + SslGetAllCiphers);
+           end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.InitContext;
+var
+    SslSessCacheModes : TSslSessCacheModes;
+//    LOpts, NewOpts: Longint;
+    MyECkey: PEC_KEY;
+//    Opt: TSslOption;     { V8.51 }
+//    Opt2: TSslOption2;   { V8.51 }
 begin
     InitializeSsl; //loads libs
 {$IFNDEF NO_SSL_MT}
@@ -15541,14 +15678,10 @@ begin
 
          { V8.40 set security level for 1.1.0 and later
            rarely more than sslSecLevel80bits if backward compatibility needed }
-            if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100 then begin
-                f_SSL_CTX_set_security_level(FSslCtx, Ord(FSslSecLevel));
-{$IFNDEF NO_DEBUG_LOG}
-                if CheckLogOptions(loSslInfo) then  { V8.40 }
-                    DebugLog(loSslInfo, 'Set Security Level: ' +
-                            GetEnumName(TypeInfo(TSslSecLevel), Ord(FSslSecLevel)));
-{$ENDIF}
-            end;
+            if FSslCliSecurity = sslCliSecIgnore then
+                SetProtoSec  { V8.54 commonise code, security, protocol, cipher, options }
+            else
+                SetSslCliSec; { V8.54 sets security, protocol, cipher }
 
           { V8.51 other context stuff we could set
               f_SSL_CTX_set_mode(ctx, SSL_MODE_ASYNC);
@@ -15649,7 +15782,7 @@ begin
               { we'll set HOST later once we know it, during the connection setup }
 
           // V8.52 build options bit mask from Delphi sets
-            LOpts := 0;
+     (*       LOpts := 0;
             for Opt := Low(TSslOption) to High(TSslOption) do begin
                 if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100 then begin
                     if Opt in FSslOptions then
@@ -15717,11 +15850,6 @@ begin
                                 GetEnumName(TypeInfo(TSslVerMethod), Ord(FSslMaxVersion)));
 {$ENDIF}
 
-            //raise Exception.Create('Test');
-
-            // Now the verify stuff
-            SetSslVerifyPeerModes(SslVerifyPeerModes);
-
           { This is a workaround a possible bug in OSSL 1.0.0(d)
                   check if future versions fix it.
                   SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER causes
@@ -15748,6 +15876,7 @@ begin
             end
             else
                 raise ESslContextException.Create('Cipher list empty');
+   *)
 
          { V8.51 OpenSSL 1.1.1 adds groups of curves for ECDHE ciphers, in order of preference }
          { does not seem to work yet
@@ -15756,6 +15885,11 @@ begin
                     RaiseLastOpenSslError(ESslContextException, TRUE,
                                           'Error loading curves groups list');
             end; }
+
+            //raise Exception.Create('Test');
+
+            // Now the verify stuff
+            SetSslVerifyPeerModes(SslVerifyPeerModes);
 
             // Session caching stuff
             SslSessCacheModes := GetSslSessCacheModes;
@@ -15794,16 +15928,6 @@ begin
                     DebugLog(loSslInfo, 'Set sslSESS_CACHE_SERVER');
 {$ENDIF}
              end;
-
-{$IFNDEF NO_DEBUG_LOG}
-        { V8.28 list all options }
-            if CheckLogOptions(loSslInfo) then begin
-                DebugLog(loSslInfo, 'SSL Options, Requested: ' +  GetMaskBits(LOpts));
-                DebugLog(loSslInfo, 'SSL Options, Actual: ' +  GetMaskBits(NewOpts));  { V8.51 and what was set }
-        { V8.27 list all ciphers available for connection }
-                DebugLog(loSslInfo, 'SSL Ciphers Available: ' + #13#10 + SslGetAllCiphers);
-           end;
-{$ENDIF}
 
         except
             if Assigned(FSslCtx) then begin
@@ -16318,6 +16442,102 @@ begin
         Unlock;
     end;
 {$ENDIF}
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.54  simplify setting SSL client security by using common levels
+         which set protocols, security and ciphers  }
+procedure TSslContext.SetSslCliSec;
+
+    function AddTls13(const Ciphers: String): String;
+    begin
+        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then
+            result := Ciphers
+        else
+            result := sslCipherTLS13 + Ciphers;
+    end;
+
+begin
+    if FSslCliSecurity = sslCliSecIgnore then Exit;
+{$IFNDEF NO_SSL_MT}
+    Lock;
+    try
+{$ENDIF}
+        FSslMinVersion := sslVerTLS1;
+        FSslMaxVersion := sslVerMax;
+        FSslCipherList := 'ALL';
+        FSslSecLevel := sslSecLevelAny;
+        case FSslCliSecurity of
+            sslCliSecNone: begin        { all protocols, any key lengths }
+              FSslMinVersion := sslVerSSL3;
+            end;
+            sslCliSecSsl3Only: begin    { SSL3 only, any key lengths, MD5 }
+              FSslMinVersion := sslVerSSL3;
+              FSslMaxVersion := sslVerSSL3;
+            end;
+            sslCliSecTls12Only: begin   { TLS1.2 only }
+              FSslMinVersion := sslVerTLS1_2;
+              FSslMaxVersion := sslVerTLS1_2;
+              FSslSecLevel := sslSecLevel112bits;
+            end;
+            sslCliSecTls13Only: begin   { TLS1.3 only }
+              FSslMinVersion := sslVerTLS1_3;
+              FSslMaxVersion := sslVerTLS1_3;
+              FSslSecLevel := sslSecLevel112bits;
+            end;
+            sslCliSecTls1: begin   { TLS1 or later }
+              FSslMinVersion := sslVerTLS1;
+              FSslSecLevel := sslSecLevel80bits;
+            end;
+            sslCliSecTls12: begin   { TLS1.2 or later }
+              FSslMinVersion := sslVerTLS1_2;
+              FSslSecLevel := sslSecLevel112bits;
+            end;
+            sslCliSecBack: begin   { TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
+              FSslMinVersion := sslVerTLS1;
+              FSslCipherList := AddTls13(sslCiphersMozillaSrvBack);
+              FSslSecLevel := sslSecLevel80bits;
+            end;
+            sslCliSecInter: begin   { TLS1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+              FSslMinVersion := sslVerTLS1;
+              FSslCipherList := AddTls13(sslCiphersMozillaSrvInter);
+              FSslSecLevel := sslSecLevel112bits;
+            end;
+            sslCliSecHigh: begin    { TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+              FSslMinVersion := sslVerTLS1_2;
+              FSslCipherList := AddTls13(sslCiphersMozillaSrvHigh);
+              FSslSecLevel := sslSecLevel112bits;
+            end;
+            sslCliSecHigh128: begin { TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
+              FSslMinVersion := sslVerTLS1_2;
+              FSslCipherList := AddTls13(sslCiphersMozillaSrvHigh);
+              FSslSecLevel :=sslSecLevel128bits;
+            end;
+            sslCliSecHigh192: begin { TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+              FSslMinVersion := sslVerTLS1_2;
+              FSslCipherList := AddTls13(sslCiphersMozillaSrvHigh);
+              FSslSecLevel := sslSecLevel192bits;
+            end;
+        end;
+        if GetIsCtxInitialized then
+            SetProtoSec;  { set security, protocol, options }
+
+{$IFNDEF NO_SSL_MT}
+    finally
+        Unlock
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslContext.SetSslCliSecurity(Value: TSslCliSecurity);                { V8.54 }
+begin
+    if Value = FSslCliSecurity then Exit;
+    FSslCliSecurity := Value;
+    SetSslCliSec;
 end;
 
 
@@ -19379,7 +19599,9 @@ begin
         if CheckLogOptions(loSslInfo) then
             DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                      ' *CloseCalled handle=' + IntToStr(FHSocket) +
-                        ', State=' + String(f_SSL_state_string_long(Fssl))); { V8.27 }
+                        ', State=' + String(f_SSL_state_string_long(Fssl)) +  { V8.27 }
+                        ' (' + GetEnumName(TypeInfo(TSslHandshakeState), Ord(IcsSslGetState(FSsl))) + { V8.54 }
+                        '), Err=' + OpenSslErrMsg(FLastSslError));            { V8.54 }
 {$ENDIF}
     end;
     if FNetworkError = 0 then begin
@@ -19412,8 +19634,7 @@ begin
             msg.LParamHi := FNetworkError;
     end;
 
-    if (not SslStOk) and
-       (not (csDestroying in ComponentState)) then begin         // AG 03/03/06
+    if (not SslStOk) and (not (csDestroying in ComponentState)) then begin         // AG 03/03/06
         TriggerSslHandshakeDone(1);
         if (FState = wsConnected) and (FSslIntShutDown < 2) and  // AG 03/03/06
            (msg.LParamHi = 0) then begin                         // AG 03/03/06
@@ -21898,19 +22119,20 @@ begin
     else begin
         if (FSslHandshakeRespMsg = '') then begin  { V8.14  }
             if (ErrCode = 1) then
-               FSslHandshakeRespMsg := 'Error, connection closed unexpectedly'
+        //       FSslHandshakeRespMsg := 'Error, connection closed unexpectedly'
+                FSslHandshakeRespMsg := 'Failed TLS protocol negotiation: ' +
+                                          String(f_SSL_state_string_long(Fssl))  { V8.54 }
             else
                FSslHandshakeRespMsg := String(LastOpenSslErrMsg(true));
         end;
     end;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-        DebugLog(loSslInfo, Format('%s SslHandshakeDone(%d) Error=%d. Secure connection ' +
-                             'with %s, cipher %s, %d secret bits (%d total), ' +
+        DebugLog(loSslInfo, Format('%s SslHandshakeDone(%d) Handle=%d. %s, ' +
                              'session reused=%s',
                              [IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2),
-                             ErrCode, FHSocket, SslVersion, SslCipher, SslSecretBits,
-                             SslTotalBits, BoolToStr(SslSessionReused, TRUE)]));
+                             ErrCode, FHSocket, FSslHandshakeRespMsg,    { 8.54 simplified }
+                             BoolToStr(SslSessionReused, TRUE)]));
 {$ENDIF}
     FSslPeerCert.X509 := PeerX;
     if Assigned(PeerX) then begin

@@ -3,7 +3,7 @@ object HttpRestForm: THttpRestForm
   Top = 0
   Caption = 
     'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.54 -' +
-    ' 25th April 2018'
+    ' 3rd May 2018'
   ClientHeight = 637
   ClientWidth = 806
   Color = clBtnFace
@@ -198,15 +198,15 @@ object HttpRestForm: THttpRestForm
         Caption = ' Bearer Token'
       end
       object Label9: TLabel
-        Left = 10
-        Top = 195
+        Left = 405
+        Top = 240
         Width = 253
         Height = 14
         Caption = 'Optional Client SSL Certificate (if required by server)'
       end
       object DebugLogging: TRadioGroup
         Left = 10
-        Top = 5
+        Top = 3
         Width = 121
         Height = 144
         Caption = 'Debug Logging'
@@ -220,28 +220,29 @@ object HttpRestForm: THttpRestForm
           'HTML Body'
           'Ssl Low Level')
         TabOrder = 0
-        OnClick = SettingChange
       end
       object SslSecurity: TRadioGroup
         Left = 152
         Top = 5
         Width = 169
-        Height = 178
+        Height = 216
         Caption = 'SSL Security Level'
-        ItemIndex = 5
+        ItemIndex = 6
         Items.Strings = (
+          'Ignore'
           'None'
           'SSLv3 Only'
+          'TLSv1.2 Only'
+          'TLSv1.3 Only'
           'TLSv1 or better'
+          'TLSv1.2 or better'
           'Backward Ciphers'
           'Intermedate Ciphers'
-          'TLSv1.2 or better'
-          'TLSv1.3 or better'
           'High Ciphers, 2048 keys'
           'High Ciphers, 3072 keys'
           'High Ciphers, 7680 keys')
         TabOrder = 2
-        OnClick = SettingChange
+        OnClick = SettingsChange
       end
       object CertVerMethod: TRadioGroup
         Left = 337
@@ -255,7 +256,6 @@ object HttpRestForm: THttpRestForm
           'PEM Bundle File'
           'Windows Cert Store')
         TabOrder = 3
-        OnClick = SettingChange
       end
       object ReportCertChain: TCheckBox
         Left = 10
@@ -267,8 +267,8 @@ object HttpRestForm: THttpRestForm
         WordWrap = True
       end
       object SslClientCertFile: TEdit
-        Left = 10
-        Top = 210
+        Left = 405
+        Top = 255
         Width = 341
         Height = 22
         TabOrder = 9
@@ -297,7 +297,6 @@ object HttpRestForm: THttpRestForm
           'Bearer'
           'XAuth Token')
         TabOrder = 4
-        OnClick = SettingChange
       end
       object AuthLogin: TEdit
         Left = 545

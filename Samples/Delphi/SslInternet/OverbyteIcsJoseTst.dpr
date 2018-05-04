@@ -8,7 +8,7 @@ uses
 
 begin
   Application.Initialize;
-  Application.MainFormOnTaskbar := True;
+//  Application.MainFormOnTaskbar := True;
   Application.CreateForm(TJsonDemoForm, JsonDemoForm);
   Application.Run;
 end.

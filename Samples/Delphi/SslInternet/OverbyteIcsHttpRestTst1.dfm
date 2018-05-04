@@ -1,11 +1,11 @@
 object HttpRestForm: THttpRestForm
-  Left = 0
-  Top = 0
+  Left = 86
+  Top = 176
+  Width = 839
+  Height = 675
   Caption = 
     'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.54 -' +
-    ' 3rd May 2018'
-  ClientHeight = 637
-  ClientWidth = 806
+    ' 4th May 2018'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -22,7 +22,7 @@ object HttpRestForm: THttpRestForm
   object PageControl1: TPageControl
     Left = 0
     Top = 0
-    Width = 806
+    Width = 823
     Height = 315
     ActivePage = TabREST
     Align = alTop
@@ -646,7 +646,7 @@ object HttpRestForm: THttpRestForm
   object LogWin: TMemo
     Left = 0
     Top = 435
-    Width = 806
+    Width = 823
     Height = 202
     Align = alBottom
     ScrollBars = ssBoth
@@ -656,7 +656,7 @@ object HttpRestForm: THttpRestForm
   object RespList: TListView
     Left = 0
     Top = 315
-    Width = 806
+    Width = 823
     Height = 120
     Align = alClient
     Columns = <

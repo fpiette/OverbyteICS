@@ -1,11 +1,11 @@
 object JsonDemoForm: TJsonDemoForm
-  Left = 0
-  Top = 0
+  Left = 96
+  Top = 180
+  Width = 839
+  Height = 675
   Caption = 
     'ICS SSL Json Object Signing Demos - http://www.overbyte.be - V8.' +
     '54 - 25th April 2018'
-  ClientHeight = 637
-  ClientWidth = 806
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -216,7 +216,7 @@ object JsonDemoForm: TJsonDemoForm
   object LogWin: TMemo
     Left = 0
     Top = 377
-    Width = 806
+    Width = 823
     Height = 260
     Align = alBottom
     ScrollBars = ssBoth

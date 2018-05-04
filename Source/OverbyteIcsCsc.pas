@@ -8,7 +8,7 @@ Version:      8.00
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2010 by Arno Garrels, contributed to ICS
+Legal issues: Copyright (C) 2018 by Arno Garrels, contributed to ICS
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -38,6 +38,7 @@ Legal issues: Copyright (C) 2010 by Arno Garrels, contributed to ICS
 History:
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
+May 4, 2018 - V8.54 - keep D7 happy
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsCsc;
@@ -1433,7 +1434,8 @@ begin
         else
             SetCodePage(CP_ACP);
 
-        Result := Length(GetBomBytes);
+        BOM := GetBomBytes;   { V8.54 keep D7 happy }
+        Result := Length(BOM);
     end
     else begin
         BOM := GetBomBytes;

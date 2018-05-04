@@ -5953,6 +5953,7 @@ begin
         else begin
             Result := IcsWcToMb(ACodePage, 0, Pointer(Source), Count, nil, 0, nil, nil);
             Offset := 0;
+            SetLength(NewBom, 0); { V8.54 keep D7 happy } 
             if Bom then begin
                 Newbom := IcsGetBomBytes(ACodePage);
                 Offset := Length(Newbom);
@@ -5961,8 +5962,8 @@ begin
             if Length(Buffer) < Result then
                 SetLength(Buffer, Result);
             if Result > 0 then begin
-                if Bom then begin
-                    Move(newbom[0], Buffer[0], Offset);
+                if Bom and (Length(NewBom) > 0) then begin { V8.54 keep D7 happy }
+                    Move(NewBom[0], Buffer[0], Offset);
                 end;
                 Len2 := IcsWcToMb(ACodePage, 0, Pointer(Source), Count,
                                     PAnsiChar(@Buffer[Offset]), Result, nil, nil);

@@ -131,7 +131,7 @@ often available, both are supported by TRestOAuth.
 
 
 Updates:
-May 03, 2018  - 8.54 - baseline
+May 04, 2018  - 8.54 - baseline
 
 
 
@@ -322,6 +322,7 @@ type
     procedure SetRestParams(Value: TRestParams);
     procedure SetSslCliCert(Value: TX509Base);
     procedure SetSslCliSecurity(Value: TSslCliSecurity);
+    function  GetResponseJson: ISuperObject;
     procedure IcsLogEvent (Sender: TObject; LogOption: TLogOption; const Msg : String);
     procedure onHttpDocBegin(Sender : TObject);
     procedure onHttpCommand(Sender: TObject; var S: String);
@@ -362,7 +363,7 @@ type
     property DebugLevel:THttpDebugLevel                 read  FDebugLevel
                                                         write FDebugLevel;
     property ResponseRaw: UnicodeString                 read  FResponseRaw;
-    property ResponseJson: ISuperObject                 read  FResponseJson;
+    property ResponseJson: ISuperObject                 read  GetResponseJson;
     property ResponseStream: TMemoryStream              read  FResponseStream;
     property MaxBodySize: Int64                         read  FMaxBodySize
                                                         write FMaxBodySize;
@@ -916,7 +917,6 @@ begin
     FRequestVer := '1.1';
     FRestParams := TRestParams.Create(self);
     FPostStream := TMemoryStream.Create;
-    FResponseJson := SO();   // ISuperObject
     FResponseStream := TMemoryStream.Create;
     FMaxBodySize := DefMaxBodySize;
  // winsock bug fix for fast connections
@@ -1350,6 +1350,20 @@ begin
 end;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslHttpRest.GetResponseJson: ISuperObject;
+begin
+    if NOT Assigned(FResponseJson) and (FResponseRaw <> '') then begin
+        try
+            FResponseJson := TSuperObject.ParseString(PWideChar(FResponseRaw), True);
+            if NOT Assigned (FResponseJson) then
+                    LogEvent('Failed to parse Json response');
+        except
+        end;
+    end;
+    Result := FResponseJson;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.onHttpRequestDone(Sender : TObject; RqType : THttpRequest; ErrCode : Word);
@@ -1377,20 +1391,12 @@ begin
                          (Pos ('xml', FContentType) <> 0) then begin
                     FResponseRaw := IcsHtmlToStr(FResponseStream, FContentType, true);
                     FResponseStream.Seek (0, soFromBeginning) ;
-                    try
-                        // try to avoid Json errors unless it looks vaguely like Json }
-                        if (Pos('{', FResponseRaw) > 0) or (Pos('[', FResponseRaw) > 0) then begin
-                            FResponseJson := TSuperObject.ParseString(PWideChar(FResponseRaw), True);
-                            if NOT Assigned (FResponseJson) then begin
-                                LogEvent('Failed to parse Json response');
-                            end;
-                        end;
-                        if DebugLevel >= DebugBody then
-                            LogEvent('Response (length ' + IntToKbyte(Length(FResponseRaw)) +
-                                                                  ')' + IcsCRLF +  FResponseRaw);
-                    except
-                    end;
-                end;
+                    if DebugLevel >= DebugBody then
+                        LogEvent('Response (length ' + IntToKbyte(Length(FResponseRaw)) +
+                                                              ')' + IcsCRLF +  FResponseRaw);
+                end
+                else if DebugLevel >= DebugBody then
+                        LogEvent('Response Non-Textual (length ' + IntToKbyte(FResponseStream.Size));
             end;
         end;
     except
@@ -1410,7 +1416,7 @@ procedure TSslHttpRest.ClearResp;
 begin
     FPostStream.Clear;
     FResponseStream.Clear;
-    if Assigned (FResponseJson) then FResponseJson.Clear;
+    FResponseJson := Nil;
     FResponseRaw := '';
 end;
 

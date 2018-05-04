@@ -38,7 +38,7 @@ Legal issues: Copyright (C) 2003-2018 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
-03 May 2018 - 8.54 baseline
+04 May 2018 - 8.54 baseline
 
 
 
@@ -483,7 +483,9 @@ begin
     doStartReq.Enabled := True;
     AddLog (String(HttpRest1.ResponseRaw));
 
-    if Assigned(HttpRest1.ResponseJson) then begin
+    if ((Pos('{', HttpRest1.ResponseRaw) > 0) or
+           (Pos('[', HttpRest1.ResponseRaw) > 0)) and
+                Assigned(HttpRest1.ResponseJson) then begin
         try
             AddLog ('Json main content type: ' + GetEnumName(TypeInfo(TSuperType),
                                                 Ord(HttpRest1.ResponseJson.DataType)));
@@ -537,7 +539,9 @@ begin
                     JsonObj := HttpRest1.ResponseJson.AsArray[I];
                     FirstCol := True;
                     with RespList.Items.Add do begin
-                        for JsonItem in JsonObj.AsObject do begin
+                        JsonEnum := JsonObj.AsObject.GetEnumerator;
+                        while JsonEnum.MoveNext do begin
+                            JsonItem := JsonEnum.GetIter;
                             CVal := JsonItem.Value.AsString;
                             if FirstRow then begin
                                 CWid := (Length(CVal) * 5) + 20;

@@ -22,6 +22,7 @@
  *  Beware only documentation is readme.md file.
  *  Taken from https://github.com/hgourvest/superobject
  *  Note this is an older 1.2 than github which has more complicated timezone stuff
+ * 4 May 2018 - removed duplicated Q-/Q+ overflow directive so Delphi 7 works 
  *
  *  v1.2
  *   + support of currency data type
@@ -5672,10 +5673,8 @@ var
   i: Integer;
 begin
   h := 0;
-{$Q-}
   for i := 1 to Length(k) do
     h := h*129 + ord(k[i]) + $9e370001;
-{$Q+}
   Result := h;
 end;
 

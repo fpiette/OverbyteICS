@@ -4,12 +4,12 @@ Author:       François PIETTE
 Creation:     April 11, 2009
 Description:  WebAppServer is a demo application showing the HTTP application
               server component (THttpAppSrv).
-Version:      1.06
+Version:      8.54
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2009-2013 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 2009-2018 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -48,6 +48,7 @@ Aug 08, 2010 V1.04 F.Piette: OnBgException is now published. Use a different
 Jun 09, 2013 V1.05 FPiette added code for DWScript support. Contionnaly
                    compiled using "use_DWScript" symbol.
 Nov 16, 2013 V1.06 Arno added handler for new event OnDisplay.
+May 21, 2018 V8.54 Added Utils instead of FtpSrvT
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsWebAppServerMain;
@@ -63,7 +64,7 @@ uses
   OverbyteIcsWSocket,
   OverbyteIcsWebSession,
   OverbyteIcsHttpSrv,
-  OverbyteIcsFtpSrvT,
+  OverbyteIcsUtils,
   OverbyteIcsHttpAppServer,
   OverbyteIcsWebAppServerDataModule,
   OverbyteIcsWebAppServerSessionData,

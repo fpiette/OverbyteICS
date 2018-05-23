@@ -129,12 +129,13 @@ object HttpGetForm: THttpGetForm
   end
   object HttpCli1: THttpCli
     LocalAddr = '0.0.0.0'
+    LocalAddr6 = '::'
     ProxyPort = '80'
     Agent = 'Mozilla/3.0 (compatible)'
     Accept = 'image/gif, image/x-xbitmap, image/jpeg, image/pjpeg, */*'
     NoCache = False
+    ResponseNoException = False
     ContentTypePost = 'application/x-www-form-urlencoded'
-    MultiThreaded = False
     RequestVer = '1.0'
     FollowRelocation = True
     LocationChangeMaxCount = 5
@@ -148,6 +149,8 @@ object HttpGetForm: THttpGetForm
     OnDocData = HttpCli1DocData
     SocksLevel = '5'
     SocksAuthentication = socksNoAuthentication
+    SocketFamily = sfIPv4
+    SocketErrs = wsErrTech
     Left = 16
     Top = 148
   end

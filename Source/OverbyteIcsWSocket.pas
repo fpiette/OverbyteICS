@@ -1246,14 +1246,14 @@ Apr 06, 2018 V8.53  CertInfo shows OU if available, but less in brief mode
                       established until after handshake.
                     Ignore second handshake start in InfoCallback with TLSv1.3
                        since renegotiation not supported by protocol.
-May 03, 2018 V8.54  Added TSslCliSecurity similar to TSslSrvSecurity
+May 21, 2018 V8.54  Added TSslCliSecurity similar to TSslSrvSecurity
                     Added SslCliSecurity to SslContext which if set to other
                       than sslCliSecIgnore sets the protocols, security and
-                      ciphers to standadrdised settings, may be changed without
+                      ciphers to standardised settings, may be changed without
                       reinitialising the context.
                     Improved SSL handshake failed error message with protocol
-                      state information instead of just saying closed unexpectly
-
+                      state information instead of just saying closed unexpectedly.
+                    CertInfo shows Valid From date 
 
                       
 Pending, use NewSessionCallback for clients as well as servers
@@ -1461,8 +1461,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 853;
-  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.53 ';
+  WSocketVersion            = 854;
+  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.54 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -18795,7 +18795,8 @@ begin
     Result := Result + 'Expires: ' + DateToStr (ValidNotAfter) +    { V8.45 need expiry for brief }
                        ', Signature: ' + SignatureAlgorithm + #13#10;
     if NOT Brief then begin
-        Result := Result + 'Serial Number: ' + GetSerialNumHex + #13#10 +     { V8.40 }
+        Result := Result + 'Valid From: ' + DateToStr (ValidNotBefore) +      { V8.54 }
+            ', Serial Number: ' + GetSerialNumHex + #13#10 +     { V8.40 }
             'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10 +         { V8.41 }
             'Public Key: ' + KeyInfo;                                         { V8.53 not brief }
         if ExtendedValidation then

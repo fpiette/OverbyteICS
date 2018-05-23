@@ -53,7 +53,8 @@ TRestParams
 -----------
 
 Defines a collection of  REST parameters and allows them to be saved as
-URL encoded or Json.
+URL encoded or Json. Note only supports Json strings with key/pair values,
+not arrays or nested objects.
 
 
 TSslHttpRest
@@ -131,15 +132,16 @@ often available, both are supported by TRestOAuth.
 
 
 Updates:
-May 04, 2018  - 8.54 - baseline
+May 21, 2018  - 8.54 - baseline
 
 
 
 
 Pending - more documentation
 Pending - better SSL error handling when connections fail, due to too high security in particular.
+Pending - OAuth don't spawn browser from Windows service 
 Pending - OAuth1 (need Twitter account).
-
+Pending - REST response for DelphiXE Json Objects Framework
 }
 
 unit OverbyteIcsSslHttpRest;
@@ -274,7 +276,7 @@ type
   protected
     function GetOwner: TPersistent; override;
   public
-    constructor Create(Owner: TPersistent);
+    constructor Create(Owner: TPersistent); 
     function GetParameters: AnsiString;
     function IndexOf(const aName: string): Integer;
     procedure AddItem(const aName, aValue: string; aRaw: Boolean = False);
@@ -298,6 +300,7 @@ type
     FResponseJson: ISuperObject;
     FResponseStream: TMemoryStream;
     FResponseRaw: UnicodeString;
+    FResponseSize: Integer;
     FMaxBodySize: Int64;
     FInitSsl: Boolean;
     FRespReq: Boolean;
@@ -323,6 +326,7 @@ type
     procedure SetSslCliCert(Value: TX509Base);
     procedure SetSslCliSecurity(Value: TSslCliSecurity);
     function  GetResponseJson: ISuperObject;
+    function  GetResponseOctet: AnsiString;
     procedure IcsLogEvent (Sender: TObject; LogOption: TLogOption; const Msg : String);
     procedure onHttpDocBegin(Sender : TObject);
     procedure onHttpCommand(Sender: TObject; var S: String);
@@ -364,7 +368,9 @@ type
                                                         write FDebugLevel;
     property ResponseRaw: UnicodeString                 read  FResponseRaw;
     property ResponseJson: ISuperObject                 read  GetResponseJson;
+    property ResponseOctet: AnsiString                  read  GetResponseOctet;
     property ResponseStream: TMemoryStream              read  FResponseStream;
+    property ResponseSize: Integer                      read  FResponseSize;
     property MaxBodySize: Int64                         read  FMaxBodySize
                                                         write FMaxBodySize;
     property SslCliSecurity: TSslCliSecurity            read  FSslCliSecurity
@@ -502,6 +508,10 @@ type
     procedure RestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
     procedure LogEvent(const Msg: String);
     procedure SetError(ErrCode: Integer; const Msg: String);
+    procedure SetRefreshDT;
+    procedure SetRefreshAuto(Value: Boolean);
+    procedure SetRefreshToken(Value: String);
+    procedure SetExpireDT(Value: TDateTime);
     procedure WebSrvReq(Sender: TObject; const Host, Path, Params: string; var RespCode, Body: string);
 //    procedure SetSslHttpCli(Value: TSslHttpCli);
     function  GetToken: boolean;
@@ -521,9 +531,9 @@ type
     function     GrantAppToken: boolean;
     function     TestRedirect: boolean;
     property     AccToken: string                   read  FAccToken;
-    property     ExpireDT: TDateTime                read  FExpireDT;
     property     LastErrCode: Integer               read  FLastErrCode;
     property     LastError: String                  read  FLastError;
+    property     RefreshDT: TDateTime               read  FRefreshDT;
   published
     { Published declarations }
     property DebugLevel: THttpDebugLevel            read  FDebugLevel
@@ -538,6 +548,8 @@ type
                                                     write FClientId;
     property ClientSecret: string                   read  FClientSecret
                                                     write FClientSecret;
+    property ExpireDT: TDateTime                    read  FExpireDT
+                                                    write SetExpireDT;
     property OAOptions: TOAuthOptions               read  FOAOptions
                                                     write FOAOptions;
     property ProtoType: TOAuthProto                 read  FProtoType
@@ -547,11 +559,11 @@ type
     property RedirectUrl: string                    read  FRedirectUrl
                                                     write FRedirectUrl;
     property RefreshAuto: Boolean                   read  FRefreshAuto
-                                                    write FRefreshAuto;
+                                                    write SetRefreshAuto;
     property RefrMinsPrior: Integer                 read  FRefrMinsPrior
                                                     write FRefrMinsPrior;
     property RefreshToken: string                   read  FRefreshToken
-                                                    write FRefreshToken;
+                                                    write SetRefreshToken;
     property Scope: string                          read  FScope
                                                     write FScope;
 //    property SslHttpCli: TSslHttpCli                read  FSslHttpCli
@@ -564,7 +576,7 @@ type
                                                     write FWebSrvPort;
     property OnOAuthAuthUrl: TOAuthAuthUrlEvent     read  FOnOAuthAuthUrl
                                                     write FOnOAuthAuthUrl;
-    property OnOnOAuthProg: THttpRestProgEvent      read  FOnOAuthProg
+    property OnOAuthProg: THttpRestProgEvent        read  FOnOAuthProg
                                                     write FOnOAuthProg;
     property OnOAuthNewCode: TNotifyEvent           read  FOnOAuthNewCode
                                                     write FOnOAuthNewCode;
@@ -896,9 +908,11 @@ begin
                     if Length(Result) > 1 then Result := Result + ',';
                     Result := Result + '"' + EscapeChars(AnsiString(PN)) + '":"';
                     if Items[I].PRaw then
-                        Result := Result + EscapeChars(StringToUtf8(PV))+ '"'
+                     // Result := Result + EscapeChars(StringToUtf8(PV))+ '"'
+                       Result := Result + StringToUtf8(PV) + '"'
                     else
-                        Result := Result + EscapeChars(UrlEncodeToA(PV, CP_UTF8)) + '"';
+//                        Result := Result + EscapeChars(UrlEncodeToA(PV, CP_UTF8)) + '"';
+                        Result := Result + EscapeChars(StringToUtf8(PV)) + '"';
                 end;
             end;
         end;
@@ -1069,7 +1083,7 @@ procedure TSslHttpRest.LogEvent(const Msg : String);
 begin
     if FDebugLevel = DebugNone then Exit;
     if Assigned(FonHttpRestProg) then
-        FonHttpRestProg(Self, loProtSpecErr, Msg) ;
+        FonHttpRestProg(Self, loProtSpecInfo, Msg) ;
 end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1366,6 +1380,18 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslHttpRest.GetResponseOctet: AnsiString;
+begin
+    Result := '';
+    if FResponseSize = 0 then Exit;
+    FResponseStream.Seek (0, soFromBeginning) ;
+    SetLength (Result, FResponseSize);
+    FResponseStream.Read(Result[1], FResponseSize);
+    FResponseStream.Seek (0, soFromBeginning) ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.onHttpRequestDone(Sender : TObject; RqType : THttpRequest; ErrCode : Word);
 var
     Info: String;
@@ -1381,13 +1407,14 @@ begin
     try
         if FRespReq then begin  // only process response for REST request
             FRespReq := False;
+            FResponseSize := FResponseStream.Size;
 
-            if FResponseStream.Size <> 0 then begin
+            if FResponseSize <> 0 then begin
                 FResponseStream.Seek (0, soFromBeginning) ;
 
               // convert response to correct codepage, including entities
                 if (Pos ('text/', FContentType) = 1) or
-                     (Pos ('json', FContentType) <> 0) or
+                       (Pos ('json', FContentType) <> 0) or
                          (Pos ('xml', FContentType) <> 0) then begin
                     FResponseRaw := IcsHtmlToStr(FResponseStream, FContentType, true);
                     FResponseStream.Seek (0, soFromBeginning) ;
@@ -1396,7 +1423,7 @@ begin
                                                               ')' + IcsCRLF +  FResponseRaw);
                 end
                 else if DebugLevel >= DebugBody then
-                        LogEvent('Response Non-Textual (length ' + IntToKbyte(FResponseStream.Size));
+                        LogEvent('Response Non-Textual (length ' + IntToKbyte(FResponseSize));
             end;
         end;
     except
@@ -1418,6 +1445,7 @@ begin
     FResponseStream.Clear;
     FResponseJson := Nil;
     FResponseRaw := '';
+    FResponseSize := 0;
 end;
 
 
@@ -1449,6 +1477,7 @@ begin
     InitSsl;
     FSendStream := FPostStream;
     FRcvdStream := FResponseStream;
+    FResponseNoException := True;  // stop exception for sync requests
     try
         FURL := RestURL;
         FCookie := RestCookies.GetCookies (RestURL);
@@ -1461,7 +1490,8 @@ begin
         end
         else if HttpRequest = httpPOST then begin
             if (Params <> '') then begin
-                if Params[1] = '{' then FContentPost := 'application/json';
+                if (Params[1] = '{') and (RawParams = '') then
+                    FContentPost := 'application/json';
                 FPostStream.Write(Params[1], Length(Params));
                 FPostStream.Seek(0, soFromBeginning) ;
             end
@@ -1483,7 +1513,7 @@ begin
             DoRequestSync(HttpRequest);
         Result := FStatusCode;  // only for sync requests
     except
-        on E:Exception do begin
+        on E:Exception do begin    { 400/500 no longer come here }
             if FRespReq then  { may have reported in Done }
                 LogEvent('Request failed: ' + E.Message);
             Result := FStatusCode;
@@ -1762,7 +1792,7 @@ begin
        { ask user what we should do next }
         if (RequestMethod = httpGET) and Assigned(OnSimpWebSrvReq) then begin
             RespCode := '';
-            OnSimpWebSrvReq(Self, RequestHostName, RequestPath, RequestParams, RespCode, Body);
+            OnSimpWebSrvReq(Self, RequestHost, RequestPath, RequestParams, RespCode, Body);
             if RespCode <> '' then
                 CliSendPage(RespCode, 'text/html', '', Body)
             else
@@ -1830,7 +1860,7 @@ procedure TRestOAuth.LogEvent(const Msg : String);
 begin
     if FDebugLevel = DebugNone then Exit;
     if Assigned(FOnOAuthProg) then
-        FOnOAuthProg(Self, loProtSpecErr, Msg) ;
+        FOnOAuthProg(Self, loProtSpecInfo, Msg) ;
 end;
 
 
@@ -1840,6 +1870,49 @@ begin
     FLastErrCode := ErrCode;
     FLastError := Msg;
     LogEvent(Msg);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TRestOAuth.SetRefreshDT;
+begin
+    FRefreshDT := 0;
+    if FRefreshToken = '' then Exit;
+    if (FExpireDT < 10) then Exit;
+    if (FRefrMinsPrior < 10) then FRefrMinsPrior := 10;
+    FRefreshDT := FExpireDT - ((FRefrMinsPrior * 60) / SecsPerDay);
+    if FRefreshAuto then
+        LogEvent('Token will Automatically Refresh at: ' + DateTimeToStr(FRefreshDT));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TRestOAuth.SetExpireDT(Value: TDateTime);
+begin
+    if Value <> FExpireDT then begin
+        FExpireDT := Value;
+        SetRefreshDT;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TRestOAuth.SetRefreshAuto(Value: Boolean);
+begin
+    if Value <> FRefreshAuto then begin
+        FRefreshAuto:= Value;
+        SetRefreshDT;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TRestOAuth.SetRefreshToken(Value: String);
+begin
+    if Value <> FRefreshToken then begin
+        FRefreshToken := Value;
+        SetRefreshDT;
+    end;
 end;
 
 
@@ -1855,8 +1928,8 @@ end; }
 function TRestOAuth.StartSrv: boolean ;
 begin
     FWebServer.DebugLevel := Self.FDebugLevel;
-    FWebServer.FWebSrvIP := Self.FWebSrvIP;
-    FWebServer.FWebSrvPort := Self.FWebSrvPort;
+    FWebServer.WebSrvIP := Self.FWebSrvIP;
+    FWebServer.WebSrvPort := Self.FWebSrvPort;
     Result := FWebServer.StartSrv;
     if Result then
         LogEvent('Local Web Server Started on: ' + IcsFmtIpv6AddrPort(FWebSrvIP, FWebSrvPort))
@@ -1915,7 +1988,7 @@ procedure TRestOAuth.WebSrvReq(Sender: TObject; const Host, Path,
                                 Params: string; var RespCode, Body: string);
 var
     State, Code, Title, Msg, Error, Redirect: String;
-    Client: TSimpleClientSocket;
+//    Client: TSimpleClientSocket;
 
     procedure BuildBody;
     begin
@@ -1927,20 +2000,20 @@ var
     end;
 
 begin
-    Client := Sender as TSimpleClientSocket;
+//    Client := Sender as TSimpleClientSocket;
 
  // ignore favicon requests completely
     if Path = '/favicon.ico' then begin
         RespCode := '404 Not Found';
         Title := RespCode;
-        Msg := 'Error: File Npt Found';
+        Msg := 'Error: File Not Found';
         BuildBody;
         Exit;
     end;
 
     FLastWebTick := IcsGetTickCountX;   // timeout to close server
     LogEvent('Web Server Request, Host: ' + Host + ', Path: ' + Path + ', Params: ' + Params);
-    Redirect := 'http://' + Client.RequestHost + Path;
+    Redirect := 'http://' + Host + Path;
     if Redirect <> FRedirectUrl then
         LogEvent('Warning, Differing Redirect URL: ' + Redirect);
 
@@ -2041,11 +2114,11 @@ begin
     FLastErrCode := OAuthErrNoError;
     FLastError := '';
     if Pos ('http://', FRedirectUrl) <> 1 then begin
-        SetError(OAuthErrParams, 'Can Not Start Authorization, Invalid Redirect URL');
+        SetError(OAuthErrParams, 'Can Not Start Authorization, Invalid Redirect URL: ' + FRedirectUrl);
         Exit;
     end;
     if Pos ('https://', FAppUrl) <> 1 then begin
-        SetError(OAuthErrParams, 'Can Not Start Authorization, Invalid App URL');
+        SetError(OAuthErrParams, 'Can Not Start Authorization, Invalid App URL: ' + FAppUrl);
         Exit;
     end;
     if (FClientId = '') or (FClientSecret = '') then begin
@@ -2119,16 +2192,14 @@ begin
             if FRefreshToken = '' then
                 LogEvent('No Refresh Available')
             else begin
-                if FRefreshAuto and (FRefrMinsPrior > 30) and (secs > 300) then begin
+               LogEvent('Which Can Be Refreshed With: ' + FRefreshToken);
+               if FRefreshAuto and (FRefrMinsPrior > 30) and (secs > 300) then begin
                     if (secs > (FRefrMinsPrior * 60)) then
                         FRefreshDT := FExpireDT - ((FRefrMinsPrior * 60) / SecsPerDay)
                     else
                         FRefreshDT := FExpireDT - (300 / SecsPerDay); // five minutes
                     LogEvent('Token will Automatically Refresh at: ' + DateTimeToStr(FRefreshDT));
-                end
-                else
-                    LogEvent('Then Refresh With: ' + FRefreshToken);
-
+                end;
             end ;
             if Assigned(FOnOAuthNewToken) then
                 FOnOAuthNewToken(Self);

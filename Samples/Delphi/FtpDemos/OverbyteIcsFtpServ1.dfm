@@ -197,6 +197,8 @@ object FtpServerForm: TFtpServerForm
     OnDisplay = FtpServer1Display
     OnHost = FtpServer1Host
     OnRein = FtpServer1Rein
+    SocketErrs = wsErrTech
+    ExclusiveAddr = True
     Left = 43
     Top = 103
   end

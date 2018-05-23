@@ -1980,6 +1980,7 @@ Samples\Delphi\SslInternet\OverbyteIcsSslWebServ1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsSslWebAppServer.dof
 Samples\Delphi\SslInternet\OverbyteIcsSslWebAppServer.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSslWebAppServer.dproj
 Samples\Delphi\SslInternet\OverbyteIcsSslWebAppServer.res
 Samples\Delphi\SslInternet\OverbyteIcsSslWebAppServerMain.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslWebAppServerMain.pas
@@ -1990,6 +1991,12 @@ Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServer.res
 Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServ1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServ1.pas
 Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServer_Icon1.ico
+
+Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst.dof
+Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst.res
+Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst1.dfm
+Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsCommonVersion.res
 

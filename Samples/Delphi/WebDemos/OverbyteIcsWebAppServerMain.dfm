@@ -62,6 +62,7 @@ object WebAppSrvForm: TWebAppSrvForm
     MaxBlkSize = 8192
     BandwidthLimit = 0
     BandwidthSampling = 1000
+    ServerHeader = 'Server: ICS-HttpServer-8.50'
     OnServerStarted = HttpAppSrv1ServerStarted
     OnServerStopped = HttpAppSrv1ServerStopped
     OnClientConnect = HttpAppSrv1ClientConnect
@@ -71,6 +72,8 @@ object WebAppSrvForm: TWebAppSrvForm
     AuthTypes = []
     AuthRealm = 'ics'
     OnBgException = HttpAppSrv1BgException
+    SocketErrs = wsErrTech
+    ExclusiveAddr = True
     SessionTimeout = 300
     MaxSessions = 100
     OnDeleteSession = HttpAppSrv1DeleteSession

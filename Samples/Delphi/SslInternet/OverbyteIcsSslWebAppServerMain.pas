@@ -4,11 +4,11 @@ Author:       François PIETTE
 Creation:     April 11, 2009
 Description:  SllWebAppServer is a demo application showing the HTTP application
               server component with SSL protocol (TSslHttpAppSrv).
-Version:      8.01
+Version:      8.54
 EMail:        francois.piette@overbyte.be    http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2014 by François PIETTE
+Legal issues: Copyright (C) 2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -51,6 +51,7 @@ Sep 23, 2013 V1.06 Angus save SSL certificate settings
 Dec 10, 2014 V8.00 Angus added handshake response message, better ciphers
 Mar 16 2015  V8.01 Angus added DHParam File needed to supporting DH key exchange
                    Set ECDH method to support ECDH key exchange
+May 20 2018  V8.54 Added Utils, removed FtpSrvT (functions moved) 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebAppServerMain;
@@ -66,7 +67,8 @@ uses
   OverbyteIcsWSocket,
   OverbyteIcsWebSession,
   OverbyteIcsHttpSrv,
-  OverbyteIcsFtpSrvT,
+//  OverbyteIcsFtpSrvT,
+  OverbyteIcsUtils,
   OverbyteIcsHttpAppServer,
   OverbyteIcsWebAppServerDataModule,
   OverbyteIcsWebAppServerSessionData,

@@ -519,8 +519,11 @@ Dec 7,  2017 V8.51 Fixed SOCKS4A/5 skip DNSLookup since hostname is passed to SO
                    Report sensible proxy and socks ReasonPhrase
 Feb 16, 2018 V8.52 Added ExtraHeaders property to simplify adding extra headers to
                      a request (previously done using onBeforeHeaderSend event)
-May 02, 2018 V8.54 Added httpAuthBearer and httpAuthToken, and AuthBearerToken for OAuth1/2
+May 21, 2018 V8.54 Added httpAuthBearer and httpAuthToken, and AuthBearerToken for OAuth1/2
                    Connected now available as a property
+                   Added ResponseNoException property to suppress error exceptions for
+                     sync requests, ie most 400 and 500 status codes (eases debugging).
+
 
 
 To convert the received HTML stream to a unicode string with the correct codepage,
@@ -756,7 +759,7 @@ type
         FAcceptLanguage       : String;
         FModifiedSince        : TDateTime;      { Warning ! Use GMT date/Time }
         FNoCache              : Boolean;
-        FExtraHeaders         : TStrings;      { V8.52 }
+        FExtraHeaders         : TStrings;   { V8.52 }
         FStatusCode           : Integer;
         FReasonPhrase         : String;
         FResponseVer          : String;
@@ -864,7 +867,8 @@ type
         FOnBeforeHeaderSend   : TBeforeHeaderSendEvent;     { Wilfried 9 sep 02}
         FCloseReq             : Boolean;                    { SAE 01/06/04 }
         FSocketErrs           : TSocketErrs;                { V8.37 }
-        FAuthBearerToken      : String;                     { V8.54 }
+        FAuthBearerToken      : String;     { V8.54 }
+        FResponseNoException  : Boolean;    { V8.54 should error exceptions be skipped? }
         FTimeout              : UINT;  { V7.04 }            { Sync Timeout Seconds }
         FWMLoginQueued        : Boolean;
         procedure AbortComponent; override; { V7.11 }
@@ -1080,6 +1084,8 @@ type
                                                      write FCookie;
         property ExtraHeaders    : TStrings          read  FExtraHeaders
                                                      write SetExtraHeaders;    { V8.52 }
+        property ResponseNoException : Boolean       read  FResponseNoException
+                                                     write FResponseNoException;    { V8.54 }
         property ContentTypePost : String            read  FContentPost
                                                      write FContentPost;
         property ContentRangeBegin: String           read  FContentRangeBegin  {JMR!! Added this line!!!}
@@ -3594,10 +3600,12 @@ begin
             is no more triggered for status 401 and 407.
 *}
     {* if FStatusCode > 401 then    Dec 14, 2004 *}
-    if FRequestDoneError <> httperrNoError then                       { V7.23 }
-        raise EHttpException.Create(FReasonPhrase, FRequestDoneError) { V7.23 }
-    else if (FStatusCode >= 400) and (FStatusCode <> 401) and (FStatusCode <> 407) then
-        raise EHttpException.Create(FReasonPhrase, FStatusCode);
+    if NOT FResponseNoException then begin  { V8.54 should error exceptions be skipped? }
+        if FRequestDoneError <> httperrNoError then                       { V7.23 }
+            raise EHttpException.Create(FReasonPhrase, FRequestDoneError) { V7.23 }
+        else if (FStatusCode >= 400) and (FStatusCode <> 401) and (FStatusCode <> 407) then
+            raise EHttpException.Create(FReasonPhrase, FStatusCode);
+    end;
 end;
 
 

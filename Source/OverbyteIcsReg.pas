@@ -12,6 +12,7 @@ Jul 2012   V8.02   Angus added TSslHttpAppSrv
 Sep 2013   V8.03 - Angus added TSmtpSrv and TSslSmtpSrv
 May 2017   V8.45 - Angus added TIcsProxy, TIcsHttpProxy
 Apr 2018   V8.54 - Angus added TSslHttpRest, TSimpleWebSrv and TRestOAuth
+May 2018   V8.54 - Angus added TSslX509Certs
 }
 
 
@@ -104,6 +105,7 @@ uses
     OverbyteIcsEmulVT, OverbyteIcsTnCnx, OverbyteIcsTnEmulVT, OverbyteIcsTnScript,
     OverbyteIcsProxy,
     OverbyteIcsSslHttpRest,
+    OverbyteIcsSslX509Certs,
     {$IFNDEF BCB}
       OverbyteIcsWSocketTS,
     {$ENDIF}
@@ -224,6 +226,7 @@ begin
         TSslHttpRest,   { V8.54 }
         TSimpleWebSrv,  { V8.54 }
         TRestOAuth,     { V8.54 }
+        TSslX509Certs,  { V8.54 }
     {$ENDIF VCL}
     {$IFNDEF NO_DYNLOCK}
       TSslDynamicLock,

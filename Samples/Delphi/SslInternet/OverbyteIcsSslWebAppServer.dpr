@@ -8,7 +8,7 @@ uses
   OverbyteIcsSslWebAppServerMain in 'OverbyteIcsSslWebAppServerMain.pas' {WebAppSrvForm},
   OverbyteIcsWebAppServerSessionData in '..\WebDemos\OverbyteIcsWebAppServerSessionData.pas',
   OverbyteIcsWebAppServerLogin in '..\WebDemos\OverbyteIcsWebAppServerLogin.pas',
-  OverbyteIcsWebAppServerHelloWorld in '..\WebDemos\OverbyteIcsWebAppServerHelloWorld.pas',
+//  OverbyteIcsWebAppServerUploads in '..\WebDemos\OverbyteIcsWebAppServerUploads.pas',
   OverbyteIcsWebAppServerUrlDefs in '..\WebDemos\OverbyteIcsWebAppServerUrlDefs.pas',
   OverbyteIcsWebAppServerHttpHandlerBase in '..\WebDemos\OverbyteIcsWebAppServerHttpHandlerBase.pas',
   OverbyteIcsWebAppServerDataModule in '..\WebDemos\OverbyteIcsWebAppServerDataModule.pas' {WebAppSrvDataModule: TDataModule},
@@ -17,6 +17,7 @@ uses
   OverbyteIcsWebAppServerConfig in '..\WebDemos\OverbyteIcsWebAppServerConfig.pas',
   OverbyteIcsWebAppServerCounterView in '..\WebDemos\OverbyteIcsWebAppServerCounterView.pas',
   OverbyteIcsWebAppServerHead in '..\WebDemos\OverbyteIcsWebAppServerHead.pas',
+  OverbyteIcsWebAppServerHelloWorld in '..\WebDemos\OverbyteIcsWebAppServerHelloWorld.pas',
   OverbyteIcsWebAppServerMailer in '..\WebDemos\OverbyteIcsWebAppServerMailer.pas';
 
 {$R *.res}

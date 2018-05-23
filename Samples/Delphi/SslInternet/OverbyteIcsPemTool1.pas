@@ -134,10 +134,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 853;
-     PemToolDate        = 'Mar 12, 2018';
+     PemToolVersion     = 854;
+     PemToolDate        = 'May 21, 2018';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2018 by François PIETTE V8.53 ';
+     CopyRight : String = '(c) 2003-2018 by François PIETTE V8.54 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 

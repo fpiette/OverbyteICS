@@ -8,7 +8,7 @@ Description:  This is a demo program showing how to use the TFtpServer
               In production program, you should add code to implement
               security issues.
 Creation:     April 21, 1998
-Version:      8.00
+Version:      8.54
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -86,7 +86,7 @@ Nov 21, 2008 V1.15 Angus removed raw display
 Jun 10, 2010 V1.16 Angus added MaxKB bandwidth limit
 Aug 8, 2011  V1.17 Angus constant FtpBuffSize = 32768 to increase FTP internal and data socket buffer sizes
 May 2012 - V8.00 - this is a Windows only demo, IPv4 only
-
+May 21, 2018 V8.54 GetUAgeSizeFile now IcsGetUAgeSizeFile
 
 
 Sample entry from ftpaccounts-default.ini
@@ -129,8 +129,8 @@ uses
   OverbyteIcsUtils;
 
 const
-  FtpServVersion      = 800;
-  CopyRight : String  = ' FtpServ (c) 1998-2012 F. Piette V8.00 ';
+  FtpServVersion      = 854;
+  CopyRight : String  = ' FtpServ (c) 1998-2018 F. Piette V8.54 ';
   WM_APPSTARTUP       = WM_USER + 1;
   FtpBuffSize         = 32768;  // V1.17
 
@@ -1251,7 +1251,7 @@ begin
     { Before the server calculates the MD5 checksum for a file this event   }
     { is to provide a MD5 checksum, mostly from some cache. MD5 calculation }
     { may take a while specially upon big files.                            }
-    if not GetUAgeSizeFile (Filepath, FileUDT, FSize) then exit ;
+    if not IcsGetUAgeSizeFile (Filepath, FileUDT, FSize) then exit ;
         Node := FMD5Cache.FindKey(FilePath);
     if (Node <> nil) and (PCacheData(Node.Data)^.CFileUDT = FileUDT) and
                             (PCacheData(Node.Data)^.CFSize = FSize) then begin
@@ -1298,7 +1298,7 @@ begin
         exit;
     end;
 
-    if GetUAgeSizeFile (FilePath, FileUDT, FSize) then begin
+    if IcsGetUAgeSizeFile (FilePath, FileUDT, FSize) then begin
         if Md5Sum <> '' then begin
           { only update cache md5sum if got it for entire file }
             if (Client.HashEndPos <> 0) AND (Client.HashEndPos <> FSize) then

@@ -1,11 +1,11 @@
 object HttpRestForm: THttpRestForm
   Left = 86
   Top = 176
-  Width = 839
-  Height = 675
   Caption = 
     'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.54 -' +
-    ' 4th May 2018'
+    ' 15th May 2018'
+  ClientHeight = 636
+  ClientWidth = 823
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -645,7 +645,7 @@ object HttpRestForm: THttpRestForm
   end
   object LogWin: TMemo
     Left = 0
-    Top = 435
+    Top = 434
     Width = 823
     Height = 202
     Align = alBottom
@@ -657,7 +657,7 @@ object HttpRestForm: THttpRestForm
     Left = 0
     Top = 315
     Width = 823
-    Height = 120
+    Height = 119
     Align = alClient
     Columns = <
       item
@@ -722,7 +722,6 @@ object HttpRestForm: THttpRestForm
     WebSrvIP = '127.0.0.1'
     WebSrvPort = '8080'
     OnOAuthAuthUrl = RestOAuth1OAuthAuthUrl
-    OnOnOAuthProg = HttpRest1HttpRestProg
     OnOAuthNewCode = RestOAuth1OAuthNewCode
     OnOAuthNewToken = RestOAuth1OAuthNewToken
     Left = 110

@@ -38,7 +38,7 @@ Legal issues: Copyright (C) 2003-2018 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
-04 May 2018 - 8.54 baseline
+08 May 2018 - 8.54 baseline
 
 
 
@@ -305,6 +305,7 @@ begin
         SslRootBundleFile.Text := HttpRest1.SslRootFile;
     HttpRest1.RestCookies.LoadFromFile(FCookieFileName);
     OAuthWebIP.Items.Assign(LocalIPList); 
+    OAuthWebIP.Items.Insert(0, ICS_LOCAL_HOST_V4);
 end;
 
 procedure THttpRestForm.FormClose(Sender: TObject; var Action: TCloseAction);

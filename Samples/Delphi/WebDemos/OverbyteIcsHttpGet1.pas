@@ -2,14 +2,14 @@
 
 Author:       François PIETTE
 Creation:     January 17, 1998
-Version:      7.00
+Version:      8.54
 Description:  This sample program show how to get a document from a webserver
               and store it to a file. Also display some progress info.
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Legal issues: Copyright (C) 1997-2018 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -36,6 +36,7 @@ Legal issues: Copyright (C) 1997-2010 by François PIETTE
 Updates:
 Feb 4,  2011  V7.00 Angus added bandwidth throttling using TCustomThrottledWSocket
                     Demo shows file download duration and speed
+May 21, 2018 V8.54 Added Utils instead of FtpSrvT
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpGet1;
@@ -50,7 +51,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, OverbyteIcsHttpProt, StdCtrls, OverbyteIcsIniFiles,
-  OverbyteIcsWndControl, OverByteIcsFtpSrvT;
+  OverbyteIcsWndControl, OverByteIcsUtils;
 
 type
   THttpGetForm = class(TForm)

@@ -71,7 +71,7 @@ verify it, using a hash alogrithm.
 
 
 Updates:
-Apr 25, 2018  - 8.54 - baseline
+May 21, 2018  - 8.54 - baseline
 
 
 
@@ -594,7 +594,7 @@ var
     big1, big2, big3: PBIGNUM;
     Buff: AnsiString;
 
-    function GetBinNum(big: PBIGNUM): String;
+    function GetBinNum(big: PBIGNUM): AnsiString;
     var
         NumLen: integer;
     begin
@@ -628,9 +628,9 @@ begin
                 big2 := PRSAreal(MyRSA).e;
             end;
          // no spaces, alpha order, or thumbnail fails
-            Result := '{"e":"' + IcsBase64UrlEncode(GetBinNum(big2)) + '",' +
+            Result := '{"e":"' + IcsBase64UrlEncode(String(GetBinNum(big2))) + '",' +
                       '"kty":"RSA",' +
-                      '"n":"' + IcsBase64UrlEncode(GetBinNum(big1)) + '"';
+                      '"n":"' + IcsBase64UrlEncode(String(GetBinNum(big1))) + '"';
         finally
             f_RSA_free(MyRSA);
         end;
@@ -679,8 +679,8 @@ begin
          // no spaces, alpha order, or thumbnail fails
                 Result := '{"crv":"' + Curve + '",' +
                           '"kty":"EC",' +
-                          '"x":"' + IcsBase64UrlEncode(GetBinNum(big1)) + '",' +
-                          '"y":"' + IcsBase64UrlEncode(GetBinNum(big2)) + '"';
+                          '"x":"' + IcsBase64UrlEncode(String(GetBinNum(big1))) + '",' +
+                          '"y":"' + IcsBase64UrlEncode(String(GetBinNum(big2))) + '"';
                 f_BN_free(big1);
                 f_BN_free(big2);
             end;

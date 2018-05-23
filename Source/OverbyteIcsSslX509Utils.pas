@@ -102,12 +102,9 @@ Mar 27, 2018 V8.53 Added GlobalSign Root CA - R2 and GlobalSign ECC Root CA - R5
              Added DST Root CA X3 root, used by Let's Encrypt crossed signing 
              
 
-Pending - short term
-Saving a CA databases of certificates created
-Sign buffers and files with private keys and digests
 
 Pending - long term
-Download free SSL certificates from Let's Encrypt using ACME protocol
+Saving a CA databases of certificates created
 Create string and file encryption component from existing functions
 
 

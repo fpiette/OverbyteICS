@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.53
+Version:      8.55
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1253,10 +1253,12 @@ May 21, 2018 V8.54  Added TSslCliSecurity similar to TSslSrvSecurity
                       reinitialising the context.
                     Improved SSL handshake failed error message with protocol
                       state information instead of just saying closed unexpectedly.
-                    CertInfo shows Valid From date 
-
-                      
-Pending, use NewSessionCallback for clients as well as servers
+                    CertInfo shows Valid From date
+Jun 08, 2018 V8.55  Server also ignores second handshake start in InfoCallback with
+                        TLSv1.3, so it works again.
+                    Use NewSessionCallback for clients as well as servers.
+                    TX509Base adds SslPWUtf8 to use UTF8 for private key passwords,
+                       defaults to true for OSSL 1.1.0 and later, otherwise ANSI.
 
 
 Use of certificates for SSL clients:
@@ -1461,8 +1463,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 854;
-  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.54 ';
+  WSocketVersion            = 855;
+  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.55 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -2852,6 +2854,7 @@ type
         FVerifyDepth        : Integer;
         FCustomVerifyResult : Integer;
         FFirstVerifyResult  : Integer;                      {05/21/2007 AG}
+        FSslPWUtf8          : Boolean;                  { V8.55 }
         procedure   FreeAndNilX509;
         procedure   FreeAndNilX509Inters;               { V8.41 }
         procedure   FreeAndNilX509CATrust;              { V8.41 }
@@ -3005,6 +3008,7 @@ type
         function    GetExtField(Ext: TExtension; const FieldName: String): String;   { V8.41 }
         function    GetExtensionValuesByName(const ShortName, FieldName: String): String;
         function    UnwrapNames(const S: String): String;
+        function    PasswordConvert(const PW: String): AnsiString;   { V8.55 }
         property    IssuerOneLine       : String        read  GetIssuerOneLine;
         property    SubjectOneLine      : String        read  GetSubjectOneLine;
         property    SerialNum           : Int64         read  GetSerialNum;      { V8.40 was integer }
@@ -3027,6 +3031,8 @@ type
                                                         write SetX509Inters;    { V8.41 }
         property    X509CATrust         : PStack        read  FX509CATrust
                                                         write SetX509CATrust;   { V8.41 }
+        property    SslPWUtf8           : Boolean       read  FSslPWUtf8
+                                                        write FSslPWUtf8;       { V8.55 }
         property    SubjectCName        : String        read  GetSubjectCName;
         property    SubjectAltName      : TExtension    read  GetSubjectAltName;
         property    ExtensionCount      : Integer       read  GetExtensionCount;
@@ -14574,6 +14580,8 @@ var
     AddToInternalCache : Boolean;
     SessID             : Pointer;
     IdLen              : Integer;
+    CurrentSession     : Pointer;
+    IncRefCount        : Boolean;
 begin
    { If this callback is not null, it will be called each                  }
    { time a session id is added to the cache.  If this function            }
@@ -14587,9 +14595,9 @@ begin
     LockNewSessCB.Enter;
     try
 {$ENDIF}
-{$IFNDEF DELPHI25_UP}
+{xIFNDEF DELPHI25_UP}
         Result := 0;
-{$ENDIF}
+{xENDIF}
         Obj := TCustomSslWSocket(f_SSL_get_ex_data(SSL, 0));
         if not Assigned(Obj) then
             raise Exception.Create('NewSessionCallback Obj not assigned');
@@ -14599,15 +14607,36 @@ begin
             if Obj.CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
                 Obj.DebugLog(loSslInfo, 'NSCB> New session created');
 {$ENDIF}
-            //f_SSL_session_get_id(Sess, SessID, IdLen); { 03/02/07 AG }
-            SessID := f_SSL_SESSION_get_id(Sess, IdLen); { 03/02/07 AG }
-            AddToInternalCache := FALSE; // not sure about the default value
-            if Assigned(Obj.FOnSslSvrNewSession) then
-                Obj.FOnSslSvrNewSession(Obj, Sess, SessID, IdLen, AddToInternalCache);
-            if AddToInternalCache then
-                Result := 1
-            else
-                Result := 0;
+      { V8.55 client now handled here as well }
+            if (Obj.SslMode = sslModeClient) then begin
+                if Assigned(Obj.FOnSslCliNewSession) then begin
+                    CurrentSession := f_SSL_get_Session(Obj.FSsl);
+                    IncRefCount := FALSE;
+            {$IFNDEF NO_DEBUG_LOG}
+                    if Obj.CheckLogOptions(loSslInfo) then
+                        Obj.DebugLog(loSslInfo, IntToHex(INT_PTR(Obj), SizeOf(Pointer) * 2) +
+                                 ' CliNewSessionCB [' +
+                                 IntToHex(INT_PTR(CurrentSession), SizeOf(CurrentSession) * 2) + '] ' +
+                                 'Reused: ' + BoolToStr(Obj.SslSessionReused, TRUE));
+            {$ENDIF}
+                    Obj.FOnSslCliNewSession(Obj, CurrentSession, Obj.SslSessionReused, IncRefCount);
+                    if IncRefCount and (CurrentSession <> nil) then begin   // external cache sets this false
+                       f_SSL_get1_Session(Obj.FSsl); // inc reference counter
+                       Result := 1;
+                    end;
+                end;
+            end
+        { sever only }
+            else begin
+                SessID := f_SSL_SESSION_get_id(Sess, IdLen); { 03/02/07 AG }
+                AddToInternalCache := FALSE; // not sure about the default value
+                if Assigned(Obj.FOnSslSvrNewSession) then
+                    Obj.FOnSslSvrNewSession(Obj, Sess, SessID, IdLen, AddToInternalCache);
+                if AddToInternalCache then   // external cache sets this false
+                    Result := 1
+                else
+                    Result := 0;
+            end;
         finally
             Obj.FSsl_In_CB := FALSE;
             if Obj.FHSocket = INVALID_SOCKET then
@@ -15910,7 +15939,8 @@ begin
                 if FSslSessionCacheSize <> SSL_SESSION_CACHE_MAX_SIZE_DEFAULT then
                     f_SSL_CTX_sess_set_cache_size(FSslCtx, FSslSessionCacheSize);
             end;
-            if (sslSESS_CACHE_SERVER in SslSessCacheModes) then begin
+           { V8.55 callback for both client and server }
+        //    if (sslSESS_CACHE_SERVER in SslSessCacheModes) then begin
                 { Set the timeout for newly created sessions                }
                 if FSslSessionTimeout > 0 then
                     f_SSL_CTX_set_timeout(FSslCtx, FSslSessionTimeout);
@@ -15927,7 +15957,7 @@ begin
                 if CheckLogOptions(loSslInfo) then  { V8.40 }
                     DebugLog(loSslInfo, 'Set sslSESS_CACHE_SERVER');
 {$ENDIF}
-             end;
+        //     end;
 
         except
             if Assigned(FSslCtx) then begin
@@ -16781,6 +16811,7 @@ begin
     FX509Inters := nil;     { V8.41 }
     FX509CATrust := nil;    { V8.41 }
     AssignDefaults;
+    FSslPWUtf8 := True;     { V8.55 }
     if Assigned(X509) then begin
         InitializeSsl;
         FX509     := f_X509_dup(X509);
@@ -16893,6 +16924,16 @@ begin
     end;
     if Assigned(PKey) then
         FPrivateKey := Ics_EVP_PKEY_dup(PKey);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.PasswordConvert(const PW: String): AnsiString;    { V8.55 }
+begin
+    if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) and FSslPWUtf8 then
+        Result := StringToUtf8(PW)
+    else
+        Result := AnsiString(PW);
 end;
 
 
@@ -17551,7 +17592,7 @@ begin
     InitializeSsl;
     FileBio := IcsSslOpenFileBio(FileName, bomReadOnly);  { V8.40 }
     try
-        PKey := f_PEM_read_bio_PrivateKey(FileBio, nil, nil, PAnsiChar(AnsiString(Password)));
+        PKey := f_PEM_read_bio_PrivateKey(FileBio, nil, nil, PAnsiChar(PasswordConvert(Password)));  { V8.55 }
         if not Assigned(PKey) then
             RaiseLastOpenSslError(EX509Exception, TRUE,
                     'Error reading private key file "' + Filename + '"');
@@ -17733,7 +17774,7 @@ begin
     InitializeSsl;
     MemBio := f_BIO_new_mem_buf(PAnsiChar(AnsiString(Lines)), Length (Lines));
     try
-        PKey := f_PEM_read_bio_PrivateKey(MemBio, nil, nil, PAnsiChar(AnsiString(Password)));
+        PKey := f_PEM_read_bio_PrivateKey(MemBio, nil, nil, PAnsiChar(PasswordConvert(Password)));  { V8.55 }
         if not Assigned(PKey) then
             RaiseLastOpenSslError(EX509Exception, TRUE,
                                   'Error reading private key');
@@ -17828,8 +17869,7 @@ begin
  { look for PKCS8 PRIVATE KEY or ENCRYPTED PRIVATE KEY in PEM file }
     if IncludePKey > croNo then begin
         f_BIO_ctrl(ABio, BIO_CTRL_RESET, 0, nil);
-        PKey := f_PEM_read_bio_PrivateKey(ABio, nil, nil,
-                                          PAnsiChar(AnsiString(Password)));
+        PKey := f_PEM_read_bio_PrivateKey(ABio, nil, nil, PAnsiChar(PasswordConvert(Password)));   { V8.55 }
         if not Assigned(PKey) then begin
             if IncludePKey = croYes then  { V8.40 require key so error }
                 RaiseLastOpenSslError(EX509Exception, TRUE,
@@ -17895,7 +17935,7 @@ begin
     else
         ret := f_PEM_write_bio_PKCS8PrivateKey(ABio, FPrivateKey,
                  IcsSslGetEVPCipher (SslPrivKeyEvpCipher[PrivKeyType]),
-                    PAnsiChar(AnsiString(Password)), Length(Password), Nil, Nil);
+                    PAnsiChar(PasswordConvert(Password)), Length(PasswordConvert(Password)), Nil, Nil);   { V8.55 }
     if ret = 0 then
         RaiseLastOpenSslError(EX509Exception, TRUE, 'Error writing private key to ' + FName);
 end;
@@ -18058,7 +18098,7 @@ begin
             Pkey := Nil;
             Ca := Nil;
             PW := Nil;
-            if Length(Password) > 0 then PW := PAnsiChar(AnsiString(Password));
+            if Length(Password) > 0 then PW := PAnsiChar(PasswordConvert(Password));   { V8.55 }
             if f_PKCS12_parse(P12, PW, Pkey, Cert, Ca) = 0 then begin
                 if Ics_Ssl_ERR_GET_REASON(f_ERR_peek_error) = 113 then  { PKCS12_R_MAC_VERIFY_FAILURE }
                     raise EX509Exception.Create('Error PKCS12 Certificate password invalid for  ' + FileName)
@@ -18215,7 +18255,7 @@ begin
         keyenc := -1;
         certenc := -1;
         if (Length(Password) > 0) and (PrivKeyType <> PrivKeyEncNone) then begin
-            PW := PAnsiChar(AnsiString(Password));
+            PW := PAnsiChar(PasswordConvert(Password));  { V8.55 }
             certenc := NID_pbe_WithSHA1And128BitRC2_CBC;
             keyenc := NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
         end;
@@ -20647,7 +20687,7 @@ begin
                 Inc(Obj.FHandShakeCount);
 
            { V8.53 TLSv1.3 does not have renegotiation so skip these checks }
-                if Obj.FSslVersNum < TLS1_3_VERSION then begin
+                if (f_SSL_version(Obj.FSsl) < TLS1_3_VERSION) then begin   { V8.55 }
                     if (Obj.FHandShakeCount > 1) and
                                 IsSslRenegotiationDisallowed(Obj) then begin
                         Obj.CloseDelayed;
@@ -21994,13 +22034,14 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// code moved to callback V8.55
 procedure TCustomSslWSocket.TriggerSslCliNewSession;
-var
-    CurrentSession : Pointer;
-    IncRefCount    : Boolean;
+//var
+//    CurrentSession : Pointer;
+//    IncRefCount    : Boolean;
 begin
     // Sessions are created by a ssl server only
-    if (FSslMode = sslModeClient) and Assigned(FOnSslCliNewSession) and
+(*    if (FSslMode = sslModeClient) and Assigned(FOnSslCliNewSession) and
         Assigned(FSsl) then begin
         if FSslState = sslEstablished then
             CurrentSession := f_SSL_get_Session(FSsl)
@@ -22024,7 +22065,7 @@ begin
         finally
             SslCritSect.Leave;
         end;
-    end;
+    end;  *)
 end;
 
 
@@ -22167,12 +22208,12 @@ begin
         Close{Delayed?}
     else if ErrCode = 0 then begin
        { V8.53 session not yet established yet with TLSv1.3 so skip event }
-       { pending, use SSL_CTX_sess_set_get_cb instead }
-        if FSslVersNum < TLS1_3_VERSION then begin
+       { V8.55, use SSL_CTX_sess_set_get_cb instead }
+ //     if FSslVersNum < TLS1_3_VERSION then begin
 
           // Publish the new session so that the application can cache it.
-            TriggerSslCliNewSession;
-        end;
+ //         TriggerSslCliNewSession;
+ //     end;
     end;
 end;
 

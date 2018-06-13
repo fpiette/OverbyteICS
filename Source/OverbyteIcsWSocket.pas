@@ -1254,12 +1254,15 @@ May 21, 2018 V8.54  Added TSslCliSecurity similar to TSslSrvSecurity
                     Improved SSL handshake failed error message with protocol
                       state information instead of just saying closed unexpectedly.
                     CertInfo shows Valid From date
-Jun 08, 2018 V8.55  Server also ignores second handshake start in InfoCallback with
+Jun 12, 2018 V8.55  Server also ignores second handshake start in InfoCallback with
                         TLSv1.3, so it works again.
+                    Prevent multiple SslHandshakeDone events for TLSv1.3 which broke
+                       FTP client and possibly other protocols.
                     Use NewSessionCallback for clients as well as servers.
                     TX509Base adds SslPWUtf8 to use UTF8 for private key passwords,
                        defaults to true for OSSL 1.1.0 and later, otherwise ANSI.
-
+                    sslSrvSecInter/FS, sslCliSecInter now requires TLS1.1, PCI
+                      council EOF TLS1.0 30 June 2018
 
 Use of certificates for SSL clients:
 Client SSL applications will usually work without any certificates because all
@@ -2681,6 +2684,7 @@ type
     protected
         FSslInitialized : Boolean;
         FLastSslError   : Integer;
+        FSslPWUtf8      : Boolean;                  { V8.55 }
 
     {$IFNDEF NO_DEBUG_LOG}                                             { V5.21 }
         FIcsLogger  : TIcsLogger;
@@ -2699,6 +2703,7 @@ type
         destructor  Destroy; override;
         procedure   InitializeSsl; {$IFDEF USE_INLINE} inline; {$ENDIF}    { V8.41 was protected }
         procedure   FinalizeSsl;                                           { V8.41 }
+        function    PasswordConvert(const PW: String): AnsiString;   { V8.55 }
         property    LastSslError : Integer                read FLastSslError;
         property    IsSslInitialized: Boolean             read FSslInitialized;  { V8.41 }
 {$IFNDEF NO_DEBUG_LOG}
@@ -2854,7 +2859,6 @@ type
         FVerifyDepth        : Integer;
         FCustomVerifyResult : Integer;
         FFirstVerifyResult  : Integer;                      {05/21/2007 AG}
-        FSslPWUtf8          : Boolean;                  { V8.55 }
         procedure   FreeAndNilX509;
         procedure   FreeAndNilX509Inters;               { V8.41 }
         procedure   FreeAndNilX509CATrust;              { V8.41 }
@@ -3008,7 +3012,6 @@ type
         function    GetExtField(Ext: TExtension; const FieldName: String): String;   { V8.41 }
         function    GetExtensionValuesByName(const ShortName, FieldName: String): String;
         function    UnwrapNames(const S: String): String;
-        function    PasswordConvert(const PW: String): AnsiString;   { V8.55 }
         property    IssuerOneLine       : String        read  GetIssuerOneLine;
         property    SubjectOneLine      : String        read  GetSubjectOneLine;
         property    SerialNum           : Int64         read  GetSerialNum;      { V8.40 was integer }
@@ -3222,12 +3225,13 @@ type
    { V8.45 SSL server security level, used by TIcsHost, sets protocol, cipher and SslSecLevel }
    { warning, requiring key lengths higher than 2048 requires all SSL certificates in the chain to
      have that minimum key length, including the root }
+   { V8.55 sslSrvSecInter/FS, sslCliSecInter now requires TLS1.1, PCI council EOF TLS1.0 30 June 2018 }
     TSslSrvSecurity = (
                      sslSrvSecNone,         { 0 - all protocols and ciphers, any key lengths }
                      sslSrvSecSsl3,         { 1 - SSL3 only, all ciphers, any key lengths, MD5 }
                      sslSrvSecBack,         { 2 - TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
-                     sslSrvSecInter,        { 3 - TLS1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     sslSrvSecInterFS,      { 4 - TLS1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslSrvSecInter,        { 3 - TLS1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslSrvSecInterFS,      { 4 - TLS1.1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
                      sslSrvSecHigh,         { 5 - TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
                      sslSrvSecHigh128,      { 6 - TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
                      sslSrvSecHigh192);     { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
@@ -3243,7 +3247,7 @@ type
                      sslCliSecTls1,         { 5 - TLSv1 or later, all ciphers, RSA/DH keys=>1024 }
                      sslCliSecTls12,        { 6 - TLSv1.2 or later, all ciphers, RSA/DH keys=>2048 }
                      sslCliSecBack,         { 7 - TLSv1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
-                     sslCliSecInter,        { 8 - TLSv1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslCliSecInter,        { 8 - TLSv1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
                      sslCliSecHigh,         { 9 - TLSv1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
                      sslCliSecHigh128,      { 10 - TLSv1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
                      sslCliSecHigh192);     { 11 - TLSv1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
@@ -3791,7 +3795,6 @@ type
         FSslCertChain               : TX509List;
         FSslPeerCert                : TX509Base;
         FSslMode                    : TSslMode;
-        //FTriggerCount               : Integer; //Test
         FSslBufList                 : TIcsBufferHandler;
         FExplizitSsl                : Boolean;
         bSslAllSent                 : Boolean;
@@ -3799,14 +3802,11 @@ type
         FMayTriggerFD_Write         : Boolean;
         FMayTriggerDoRecv           : Boolean;
         FMayTriggerSslTryToSend     : Boolean;
-        //FHandShakeDoneInvoked       : Boolean;
         FCloseCalled                : Boolean;
-        //FCloseReceived              : Boolean;
         FPendingSslEvents           : TSslPendingEvents;
         FSslIntShutDown             : Integer;
         FShutDownHow                : Integer;
         FSslEnable                  : Boolean;
-        //FSslEstablished           : Boolean;
         FLastSslError               : Integer;
         FSslInRenegotiation         : Boolean;    // <= 01/01/06
         FSslBioWritePendingBytes    : Integer;
@@ -3815,8 +3815,9 @@ type
         FOnSslShutDownComplete      : TSslShutDownComplete;
         FNetworkError               : Integer;
         FSslInitialized             : Boolean;
-        FInHandshake                : Boolean;
-        FHandshakeDone              : Boolean;
+//        FInHandshake                : Boolean;      { V8.55 unused }
+        FHandshakeDone              : Boolean;        { only used to trigger event once }
+        FHandshakeEventDone         : Boolean;        { V8.55 don't trigger event more than once }
         FSslHandshakeErr            : Integer;       { V8.14  }
         FSslHandshakeRespMsg        : string;        { V8.14  }
         FSslVersNum                 : Integer;        //12/09/05
@@ -13600,6 +13601,16 @@ begin
 end;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslBaseComponent.PasswordConvert(const PW: String): AnsiString;    { V8.55 }
+begin
+    if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) and FSslPWUtf8 then
+        Result := StringToUtf8(PW)
+    else
+        Result := AnsiString(PW);
+end;
+
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}  { V5.21 }
 {$IFNDEF NO_DEBUG_LOG}
 function TSslBaseComponent.CheckLogOptions(const LogOption: TLogOption): Boolean;
@@ -14344,7 +14355,7 @@ begin
            (Length(Obj.SslPassPhrase) = 0) then
             Result := 0
         else begin
-            SslPassPhraseA := AnsiString(Obj.SslPassPhrase);
+            SslPassPhraseA := Obj.PasswordConvert(Obj.SslPassPhrase);      { V8.55 }
             Move(Pointer(SslPassPhraseA)^, Buf^, Length(SslPassPhraseA) + 1);
             Result := Length(SslPassPhraseA);
         end;
@@ -14408,8 +14419,6 @@ begin
                 CurCert := Obj.SslCertChain.Find(Cert);
                 { Add it to our list }
                 if not Assigned(CurCert) then begin
-                    //SslCertChain.X509Class was set in InitSslConnection
-                    //Obj.SslCertChain.X509Class := Obj.X509Class;
                     CurCert := Obj.SslCertChain.Add(Cert);
                     CurCert.VerifyResult := f_X509_STORE_CTX_get_error(StoreCtx);
                     CurCert.FFirstVerifyResult := CurCert.VerifyResult;
@@ -14417,7 +14426,6 @@ begin
                 else { Unfortunately me must overwrite here }
                     CurCert.VerifyResult := f_X509_STORE_CTX_get_error(StoreCtx);
                 CurCert.VerifyDepth := f_X509_STORE_CTX_get_error_depth(StoreCtx);
-                //CurCert.CustomVerifyResult := CurCert.VerifyResult; // don't overwrite
                 Obj.SslCertChain.FLastVerifyResult := CurCert.VerifyResult;
 {$IFNDEF NO_DEBUG_LOG}
                 if Obj.CheckLogOptions(loSslInfo) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
@@ -16530,8 +16538,8 @@ begin
               FSslCipherList := AddTls13(sslCiphersMozillaSrvBack);
               FSslSecLevel := sslSecLevel80bits;
             end;
-            sslCliSecInter: begin   { TLS1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-              FSslMinVersion := sslVerTLS1;
+            sslCliSecInter: begin   { TLS1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+              FSslMinVersion := sslVerTLS1_1;  { V8.55 }
               FSslCipherList := AddTls13(sslCiphersMozillaSrvInter);
               FSslSecLevel := sslSecLevel112bits;
             end;
@@ -16924,16 +16932,6 @@ begin
     end;
     if Assigned(PKey) then
         FPrivateKey := Ics_EVP_PKEY_dup(PKey);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.PasswordConvert(const PW: String): AnsiString;    { V8.55 }
-begin
-    if (ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1100) and FSslPWUtf8 then
-        Result := StringToUtf8(PW)
-    else
-        Result := AnsiString(PW);
 end;
 
 
@@ -19676,7 +19674,7 @@ begin
     end;
 
     if (not SslStOk) and (not (csDestroying in ComponentState)) then begin         // AG 03/03/06
-        TriggerSslHandshakeDone(1);
+        TriggerSslHandshakeDone(1);  // error !!!
         if (FState = wsConnected) and (FSslIntShutDown < 2) and  // AG 03/03/06
            (msg.LParamHi = 0) then begin                         // AG 03/03/06
             inherited ShutDown(1);                               // AG 03/03/06
@@ -20624,6 +20622,8 @@ begin
         Obj.FSsl_In_CB := TRUE;
         try
 {$IFNDEF NO_DEBUG_LOG}
+
+        { all this stuff is debug logging, not necessary for normal operation }
             if Obj.CheckLogOptions(loSslErr) or
                Obj.CheckLogOptions(loSslInfo) then begin
 
@@ -20682,8 +20682,9 @@ begin
                               ', state=' + String(f_SSL_state_string_long(ssl))); { V8.53 added state }
             end;
 {$ENDIF}
+         { OpenSSL InfoCallback is when state changes }
             if (Where and SSL_CB_HANDSHAKE_START) <> 0 then begin
-                Obj.FInHandshake   := TRUE;   { does not seem to be used anywhere ???? }
+             {   Obj.FInHandshake   := TRUE;   V8.55 does not seem to be used anywhere ???? }
                 Inc(Obj.FHandShakeCount);
 
            { V8.53 TLSv1.3 does not have renegotiation so skip these checks }
@@ -20708,9 +20709,12 @@ begin
     {$ENDIF}
                 end;
             end
-            else if (Where and SSL_CB_HANDSHAKE_DONE) > 0 then begin
-                Obj.FInHandshake     := FALSE;
-                Obj.FHandshakeDone   := TRUE;
+          { V8.55 TLSv1.3 comes here too often due to tickets, FHandshakeEventDone is
+            used to make sure the event is only called once }
+            else if ((Where and SSL_CB_HANDSHAKE_DONE) > 0) and
+                                             (NOT Obj.FHandshakeEventDone) then begin
+              {  Obj.FInHandshake     := FALSE;   V8.55 does not seem to be used anywhere ???? }
+                Obj.FHandshakeDone   := TRUE;  { triggers event once then reset }
 {$IFNDEF NO_DEBUG_LOG}
                 if Obj.CheckLogOptions(loSslErr) or
                    Obj.CheckLogOptions(loSslInfo) then begin
@@ -21117,6 +21121,7 @@ begin
         ResetSsl;
     FSslState := sslHandshakeInit;
     FSslMode  := sslModeClient;
+    FHandshakeEventDone := FALSE;  { V8.55 }
     try
         if (FSslContext.FSslCtx = nil) then
             FSslContext.InitContext;
@@ -21130,7 +21135,6 @@ begin
                           ' Fatal error SSL handshake handle=' + IntToStr(FHSocket) +
                           ' ' + E.Classname + ' ' + E.Message);
 {$ENDIF}
-            //TriggerSslHandshakeDone(2); ?
             raise
         end;
     end;
@@ -21151,8 +21155,9 @@ begin
         raise ESslContextException.Create('SSL requires a context object');
     if Assigned(FSsl) then
         ResetSsl;
-    FSslState      := sslHandshakeInit;
-    FSslMode       := sslModeServer;
+    FSslState := sslHandshakeInit;
+    FSslMode  := sslModeServer;
+    FHandshakeEventDone := FALSE;  { V8.55 }
     try
         if (FSslContext.FSslCtx = nil) then
             FSslContext.InitContext;
@@ -21166,7 +21171,6 @@ begin
                           ' Fatal error SSL handshake handle=' + IntToStr(FHSocket) +
                           ' ' + E.Classname + ': ' + E.Message);
 {$ENDIF}
-            //TriggerSslHandshakeDone(2); ?
             raise
         end;
     end;
@@ -21601,7 +21605,8 @@ begin
     FSslVersNum              := 0;
     FSslCipherDesc           :='';     { V8.14 }
 
-    FInHandshake             := FALSE;
+  {  FInHandshake             := FALSE;  V8.55 }
+    FHandshakeEventDone      := FALSE;  { V8.55 }
     FHandshakeDone           := FALSE;
     FSslHandshakeRespMsg     := '';  { V8.14 set with success or failure message once handshake completes }
     FSslHandshakeErr         := 0;   { V8.14 }
@@ -21927,7 +21932,8 @@ begin
 
     if FHandshakeDone = TRUE then begin
         FHandshakeDone := FALSE;
-        TriggerSslHandshakeDone(0);
+        FHandshakeEventDone := TRUE;  { V8.55 TLS1.3 stop multiple events }
+        TriggerSslHandshakeDone(0);  // OK
         if FSslInRenegotiation then
             FSslInRenegotiation := FALSE;
     end;
@@ -21940,9 +21946,9 @@ begin
     end
     else if (not bAllSent) and (State = TLS_ST_OK) and    { V8.27 }
             (my_BIO_ctrl_get_write_guarantee(FSslbio) > 0) and
-             FMayTriggerFD_Write{FMayTriggerSslTryToSend} then begin  // AG 03/03/06
+             FMayTriggerFD_Write then begin  // AG 03/03/06
         if TriggerEvent(sslFdWrite, 0) then
-            FMayTriggerFD_Write{FMayTriggerSslTryToSend} := FALSE;    // AG 03/03/06
+            FMayTriggerFD_Write := FALSE;    // AG 03/03/06
     end
     else if (not bSslAllSent) and (State = TLS_ST_OK) and  { V8.27 }
              FMayTriggerSslTryToSend then begin
@@ -21951,7 +21957,6 @@ begin
     end
     else if bAllSent and bSslAllSent and FSendPending and
        (State = TLS_ST_OK) then begin   { V8.27 }
-        //Inc(FTriggerCount);
         FSendPending := FALSE;
         TriggerDataSent(0);
     end;
@@ -21968,9 +21973,6 @@ begin
             FMayTriggerFD_Read := FALSE;
     end;
 
-    {if FCloseReceived and (FSslIntShutDown = 0) then
-        TriggerEvent(sslFdClose, 0)
-    else}
     if ((FCloseCalled and (FSslIntShutDown = 0)) or
        ((FSslIntShutDown = 2) and not FSslBiShutdownFlag)) and   // AG 03/03/06
        (State = TLS_ST_OK) and (my_BIO_ctrl_pending(FSslbio) = 0) then    { V8.27 }

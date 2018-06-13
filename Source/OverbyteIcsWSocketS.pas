@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.52
+Version:      8.55
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -175,6 +175,7 @@ Nov 22, 2017  V8.51 SSL certificate file stamp now stored as UTC date to avoid
                        summer time triggers as file system stamps change
 Feb 14, 2018  V8.52 Better error reporting when validating SSL certificates
                     Add TLSv3 ciphers for OpenSSL 1.1.1 and later only
+Jun 12, 2018  V8.55 sslSrvSecInter/FS now requires TLS1.1, PCI council EOF TLS1.0 30 June 2018
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -251,8 +252,8 @@ System.Types,
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 852;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2018 F. Piette V8.52 ';
+    WSocketServerVersion     = 855;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2018 F. Piette V8.55 ';
 
 type
     TCustomWSocketServer       = class;
@@ -2579,14 +2580,17 @@ begin
                       SslCtx.SslSecLevel := sslSecLevelAny;
                   end;
                   sslSrvSecBack: begin                { TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
+                      SslCtx.SslMinVersion := sslVerTLS1;
                       SslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvBack);
                       SslCtx.SslSecLevel := sslSecLevel80bits;
                   end;
-                  sslSrvSecInter: begin               { TLS1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                  sslSrvSecInter: begin               { TLS1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                      SslCtx.SslMinVersion := sslVerTLS1_1;   // June 2018 PCI council EOF TLS1.0 30 June 2018
                       SslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvInter);
                       SslCtx.SslSecLevel := sslSecLevel112bits;  // Dec 2016  keys=>2048, ECC=>224, no RC4, no SSL3, no SHA1 certs
                   end;
-                  sslSrvSecInterFS: begin             { TLS1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                  sslSrvSecInterFS: begin             { TLS1.1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                      SslCtx.SslMinVersion := sslVerTLS1_1;   // June 2018 PCI council EOF TLS1.0 30 June 2018
                       SslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvInterFS);
                       SslCtx.SslSecLevel := sslSecLevel112bits;
                   end;

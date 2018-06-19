@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.54
+Version:      8.55
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -523,6 +523,8 @@ May 21, 2018 V8.54 Added httpAuthBearer and httpAuthToken, and AuthBearerToken f
                    Connected now available as a property
                    Added ResponseNoException property to suppress error exceptions for
                      sync requests, ie most 400 and 500 status codes (eases debugging).
+Jun 18, 2018 V8.55 ReasonPhrase for abort may return SSL handshake error.
+                   Minor clean-up, more relocation debugging
 
 
 
@@ -621,8 +623,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 854;
-    CopyRight : String   = ' THttpCli (c) 1997-2018 F. Piette V8.54 ';
+    HttpCliVersion       = 855;
+    CopyRight : String   = ' THttpCli (c) 1997-2018 F. Piette V8.55 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -1232,12 +1234,6 @@ Description:  A component adding SSL support to THttpCli.
 {$X+}                                 { Enable extended syntax              }
 {$H+}                                 { Use long strings                    }
 {$J+}                                 { Allow typed constant to be modified }
-{
-const
-     SslHttpCliVersion            = 100;
-     SslHttpCliDate               = 'Feb 15, 2003';
-     SslHttpCliCopyRight : String = ' TSslHttpCli (c) 2008 Francois Piette V1.00.0 ';
-}
 type
     TSslHttpCli = class(THttpCli)
     protected
@@ -2081,7 +2077,8 @@ begin
     end;
 
     FStatusCode       := 404;
-    FReasonPhrase     := 'Connection aborted on request';
+    if FReasonPhrase = '' then  { V8.55 may have SSL handshake error }
+        FReasonPhrase := 'Connection aborted on request';
     FRequestDoneError := httperrAborted;
 
     if bFlag then
@@ -2113,7 +2110,8 @@ begin
     FWMLoginQueued := FALSE;
     FStatusCode    := 0;
     FLocationFlag  := False;
-     
+    FReasonPhrase  := '';  { V8.55 } 
+
     FCtrlSocket.OnSessionClosed := SocketSessionClosed;
 
     if FCtrlSocket.State = wsConnected then begin
@@ -3625,6 +3623,10 @@ var
     I                                   : Integer;
     AllowMoreRelocations                : Boolean;
 begin
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loProtSpecInfo) then  { V8.55 }
+        DebugLog(loProtSpecInfo, 'Starting LocationSessionClosed');
+{$ENDIF}
   { Remove any bookmark from the URL }
     I := Pos('#', FLocation);
     if I > 0 then
@@ -3651,7 +3653,7 @@ begin
         FContentLength    := -1;
         FContentType      := '';
         FTransferEncoding := ''; { 28/12/2003 }
-        FResponseVer      := ''; { V7.20 } 
+        FResponseVer      := ''; { V7.20 }
     {$IFDEF UseContentCoding}
         FContentEncoding  := '';
     {$ENDIF}
@@ -4053,13 +4055,8 @@ begin
     FHeaderLineCount  := 0;
     FBodyLineCount    := 0;
 
-    if {(FResponseVer     = '1.1') and}
-        { [rawbite 31.08.2004 Connection controll] }
-       (FCurrentHost     = FHostName) and
-       (FCurrentPort     = FPort) and
-       (FCurrentProtocol = FProtocol) and
-       (not FCloseReq) then begin      { SAE 01/06/04 }
-
+    if (FCurrentHost = FHostName) and (FCurrentPort = FPort) and
+            (FCurrentProtocol = FProtocol) and (not FCloseReq) then begin      { SAE 01/06/04 }
         Inc (FLocationChangeCurCount) ;
         if FLocationChangeCurCount > FLocationChangeMaxCount then begin
             AllowMoreRelocations := false;
@@ -4533,9 +4530,9 @@ begin
     if (ErrCode <> 0) or Disconnect then begin
         FStatusCode       := 404;
         if FReasonPhrase = '' then begin  { V8.12 may have set better reason in event }
-            if Disconnect then
-                FReasonPhrase := 'SSL custom abort'
-            else
+         //   if Disconnect then  { V8.55 we always disconnect failure... }
+         //       FReasonPhrase := 'SSL custom abort'
+         //   else
                 FReasonPhrase := 'SSL handshake failed - ' + CtrlSocket.SslHandshakeRespMsg;  { V8.12 }
         end;
         FRequestDoneError := httperrAborted;

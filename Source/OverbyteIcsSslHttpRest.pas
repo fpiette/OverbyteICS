@@ -12,8 +12,8 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      May 2018
-Version:      8.54
+Updated:      June 2018
+Version:      8.55
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
 Legal issues: Copyright (C) 1997-2018 by François PIETTE
@@ -122,7 +122,7 @@ then the token exchange endpoint for REST requests.  Some sites may provide OAut
 details with the URL (host)/.well-known/openid-configuration as Json, ie:
 https://accounts.google.com/.well-known/openid-configuration .   Finally, OAuth
 may require the token Scope to be specified, it's purpose or access rights
-depending on the server.  
+depending on the server.
 
 Note that in addition to granting tokens using an Authorization Code from a
 browser login, some OAuth implementations may support grants for client
@@ -133,13 +133,13 @@ often available, both are supported by TRestOAuth.
 
 Updates:
 May 21, 2018  - 8.54 - baseline
-
+Jun 15, 2018  - 8.55 - Improved Json error handling
 
 
 
 Pending - more documentation
 Pending - better SSL error handling when connections fail, due to too high security in particular.
-Pending - OAuth don't spawn browser from Windows service 
+Pending - OAuth don't spawn browser from Windows service
 Pending - OAuth1 (need Twitter account).
 Pending - REST response for DelphiXE Json Objects Framework
 }
@@ -192,7 +192,7 @@ uses
 {$IFDEF MSWINDOWS}
     OverbyteIcsMsSslUtils, OverbyteIcsWinCrypt,
 {$ENDIF MSWINDOWS}
-    OverbyteIcsHttpCCodZLib,   
+    OverbyteIcsHttpCCodZLib,
     OverbyteIcsHttpContCod,
     OverbyteIcsHttpProt,
     OverbyteIcsLogger,
@@ -276,7 +276,7 @@ type
   protected
     function GetOwner: TPersistent; override;
   public
-    constructor Create(Owner: TPersistent); 
+    constructor Create(Owner: TPersistent);
     function GetParameters: AnsiString;
     function IndexOf(const aName: string): Integer;
     procedure AddItem(const aName, aValue: string; aRaw: Boolean = False);
@@ -1370,11 +1370,11 @@ begin
     if NOT Assigned(FResponseJson) and (FResponseRaw <> '') then begin
         try
             FResponseJson := TSuperObject.ParseString(PWideChar(FResponseRaw), True);
-            if NOT Assigned (FResponseJson) then
-                    LogEvent('Failed to parse Json response');
         except
         end;
     end;
+    if NOT Assigned (FResponseJson) then       { V8.55 }
+        LogEvent('Failed to parse Json response');
     Result := FResponseJson;
 end;
 
@@ -1957,7 +1957,7 @@ end;
 procedure TRestOAuth.RefreshOnTimer(Sender : TObject);
 begin
     FRefreshTimer.Enabled := False;
-    try            
+    try
      // auto refresh token
         if FRefreshAuto and (FRefreshToken <> '') and (FRefreshDT <> 0) then begin
             if Now > FRefreshDT then begin
@@ -2177,7 +2177,7 @@ var
 begin
     Result := false;
     StatCode := HttpRest.RestRequest(HttpPOST, FTokenUrl, False, '');
-    if StatCode = 0 then
+    if (StatCode = 0) or (NOT Assigned(HttpRest.ResponseJson)) then  { V8.55 }
         SetError(OAuthErrBadGrant, 'Token Exchange Failed: ' + HttpRest.LastResponse)
      else begin
         FAccToken := HttpRest.ResponseJson.S['access_token'];

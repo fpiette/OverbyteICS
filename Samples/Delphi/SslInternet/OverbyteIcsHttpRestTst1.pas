@@ -3,8 +3,8 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
-Updated:      May 2018
-Version:      8.54
+Updated:      June 2018
+Version:      8.55
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -38,8 +38,11 @@ Legal issues: Copyright (C) 2003-2018 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
-08 May 2018 - 8.54 baseline
+May, 8 2018  - 8.54 baseline
+Jun 15, 2018 - 8.55 Update SSL client security levels from literals
+                    Added https://cloudflare-dns.com/dns-query?name=magsys.co.uk&type=MX&ct=application/dns-json
 
+                    
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -225,7 +228,7 @@ begin
     OverbyteIcsWSocket.LoadSsl;
     GridParams.Cells[0,0] := 'Name';
     GridParams.Cells[1,0] := 'Value';
-    GridParams.Cells[2,0] := 'Raw (Y/N)'; 
+    GridParams.Cells[2,0] := 'Raw (Y/N)';
 //    CoInitializeEx(nil, COINIT_MULTITHREADED OR COINIT_DISABLE_OLE1DDE); { keep COM/ActiveX happy, free it on close }
 end;
 
@@ -239,9 +242,16 @@ var
     IniFile: TIcsIniFile;
     SL: TStringList;
     I, J, K, tot: Integer;
+    Level: TSslCliSecurity;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
+
+    // V8.55 update SSL client security levels
+        SslSecurity.Items.Clear;
+        for Level := Low(TSslCliSecurity) to High(TSslCliSecurity) do
+             SslSecurity.Items.Add (SslCliSecurityNames[Level]);
+
         IniFile := TIcsIniFile.Create(FIniFileName);
         Width := IniFile.ReadInteger(SectionMainWindow, KeyWidth,  Width);
         Height := IniFile.ReadInteger(SectionMainWindow, KeyHeight, Height);

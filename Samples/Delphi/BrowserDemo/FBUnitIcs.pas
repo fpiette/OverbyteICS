@@ -86,7 +86,7 @@
                   Fixed updating URL bar for redirection
                   Use common SSL acceptable hosts list so each connection does not recheck certificates
 
-03 May 2018 V8.54 Using new SslCliSecurity settings (set on ProxyDlg)                   
+15 Jun 2018 V8.55 Using new SslCliSecurity settings (set on ProxyDlg)
 
 
   Pending - use NoCache header to stop dynamic pages being cached and expire them

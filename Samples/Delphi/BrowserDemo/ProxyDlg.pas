@@ -4,7 +4,7 @@ interface
 
 uses
     WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-    Dialogs, StdCtrls, Buttons, ExtCtrls;
+    Dialogs, StdCtrls, Buttons, ExtCtrls,  OverbyteIcsWsocket;
 
 type
     TProxyForm = class(TForm)
@@ -27,6 +27,7 @@ type
         SslVerifyCertMode: TRadioGroup;
         SslRevokeCheck: TCheckBox;
         SslReportChain: TCheckBox;
+    procedure FormCreate(Sender: TObject);
     private
         { Private declarations }
     public
@@ -39,5 +40,15 @@ var
 implementation
 
 {$R *.DFM}
+
+procedure TProxyForm.FormCreate(Sender: TObject);
+var
+    Level: TSslCliSecurity;
+begin
+    // V8.55 update SSL client security levels
+    SslVersionList.Items.Clear;
+    for Level := Low(TSslCliSecurity) to High(TSslCliSecurity) do
+         SslVersionList.Items.Add (SslCliSecurityNames[Level]);
+end;
 
 end.

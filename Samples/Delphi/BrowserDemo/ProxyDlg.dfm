@@ -13,6 +13,7 @@ object ProxyForm: TProxyForm
   Font.Name = 'MS Sans Serif'
   Font.Style = []
   OldCreateOrder = True
+  OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
   object Label1: TLabel
@@ -53,9 +54,9 @@ object ProxyForm: TProxyForm
   object lbl1: TLabel
     Left = 291
     Top = 35
-    Width = 58
+    Width = 61
     Height = 13
-    Caption = 'SSL Version'
+    Caption = 'SSL Security'
   end
   object lbl2: TLabel
     Left = 216
@@ -124,9 +125,7 @@ object ProxyForm: TProxyForm
     Height = 21
     Style = csDropDownList
     ItemHeight = 13
-    ItemIndex = 5
     TabOrder = 5
-    Text = 'TLSv1 or better'
     Items.Strings = (
       'Ignore'
       'None'
@@ -134,6 +133,7 @@ object ProxyForm: TProxyForm
       'TLSv1.2 Only'
       'TLSv1.3 Only'
       'TLSv1 or better'
+      'TLSv1.1 or better'
       'TLSv1.2 or better'
       'Backward Ciphers'
       'Intermedate Ciphers'

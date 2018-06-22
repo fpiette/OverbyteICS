@@ -9,8 +9,8 @@ Description:  Automatically download SSL X509 certifcates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     Apr 2018
-Updated:      May 2018
-Version:      8.54
+Updated:      June 2018
+Version:      8.55
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
 Legal issues: Copyright (C) 1997-2018 by François PIETTE
@@ -105,7 +105,7 @@ Encrypt to download free domain validated certificates, beware V1 bears little
 resemblance to any of the Acme Internet Draft specifications, V2 is much closer
 to draft 10 but only implemented sufficiently for Let's Encrypt, V2 is designed
 to also handle commercial certificates which are more complicated to process.
-Note that Acme V1 has been superceded by V2, and was only supported because V2
+Note that Acme V1 has been superseded by V2, and was only supported because V2
 did not go public until March 2018.
 
 You don't need to register with Let's Encrypt, but it only supplies domain
@@ -301,6 +301,8 @@ within 30 days, and certificates revoked if necessary.
 
 Updates:
 May 22, 2018  - 8.54 - baseline
+June 22, 2018 - 8.55 - don't load LoadCATrust in Create, it loads OpenSSL in IDE 
+
 
 
 Pending - more documentation
@@ -318,6 +320,7 @@ Pending - CertCentre re-issue certificate, use ModifiedOrders for last x days
 Pending - Servertastic APIv2 for commercial certificates
 Pending - install PKCS12 certificates into Windows cert store for IIS
 Pending - better error reporting and logging
+Pending - Private CA support, create and sign certificates
 
 
 }
@@ -987,8 +990,8 @@ begin
     FRefreshTimer.Enabled := True;
     fSslCert := TSslCertTools.Create (self) ;
     fAcmePrivKey := TSslCertTools.Create(self);
-    FRootCAX509 := TX509Base.Create (Self);
-    FRootCAX509.LoadCATrustFromString(sslRootCACertsBundle);  // builtin roots
+//    FRootCAX509 := TX509Base.Create (Self);
+//    FRootCAX509.LoadCATrustFromString(sslRootCACertsBundle);  // builtin roots
     FDirPubWebCert := TStringList.Create;
     FProductList := TStringList.Create;
     FApproverEmails := TStringList.Create;
@@ -2326,6 +2329,10 @@ begin
 
 // now validate and report certificate  chain
     try
+        if NOT Assigned(FRootCAX509) then begin  { V8.55  }
+            FRootCAX509 := TX509Base.Create (Self);
+            FRootCAX509.LoadCATrustFromString(sslRootCACertsBundle);  // builtin roots
+        end ;
         FSslCert.X509CATrust := FRootCAX509.X509CATrust;
      { V8.47 warning, currently only checking first Host name }
         FNewCertValRes := FSslCert.ValidateCertChain(CertName, FNewCertChainInfo, FNewCertErrs);

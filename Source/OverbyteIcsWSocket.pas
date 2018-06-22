@@ -1254,7 +1254,7 @@ May 21, 2018 V8.54  Added TSslCliSecurity similar to TSslSrvSecurity
                     Improved SSL handshake failed error message with protocol
                       state information instead of just saying closed unexpectedly.
                     CertInfo shows Valid From date
-Jun 19, 2018 V8.55  Server also ignores second handshake start in InfoCallback with
+Jun 22, 2018 V8.55  Server also ignores second handshake start in InfoCallback with
                         TLSv1.3, so it works again.
                     Prevent multiple SslHandshakeDone events for TLSv1.3 which broke
                        FTP client and possibly other protocols.
@@ -1268,7 +1268,8 @@ Jun 19, 2018 V8.55  Server also ignores second handshake start in InfoCallback w
                     OnSslHandshakeDone is now called if StartSslHandshake or
                       AcceptSslHandshake raises an exception to report the SSL
                       error (previously only in the debug log).
-
+                    Added sslCliSecDefault and sslSrvSecDefault recommended
+                       security defaults, two more client security levels
 
 
 Use of certificates for SSL clients:
@@ -3245,23 +3246,32 @@ type
                      sslSrvSecHigh128,      { 6 - TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
                      sslSrvSecHigh192);     { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
 
+const
+    sslSrvSecDefault = sslSrvSecInterFS;    { V8.55 recommended default }
 
+type
    { V8.54 SSL client security level, used by context, sets protocol, cipher and SslSecLevel }
     TSslCliSecurity = (
                      sslCliSecIgnore,       { 0 - ignore, use old settings }
                      sslCliSecNone,         { 1 - all protocols and ciphers, any key lengths }
                      sslCliSecSsl3Only,     { 2 - SSLv3 only, all ciphers, any key lengths, MD5 }
-                     sslCliSecTls12Only,    { 3 - TLSv1.2 only, all ciphers, RSA/DH keys=>2048 }
-                     sslCliSecTls13Only,    { 4 - TLSv1.3 only, all ciphers, RSA/DH keys=>2048 }
-                     sslCliSecTls1,         { 5 - TLSv1 or later, all ciphers, RSA/DH keys=>1024 }
-                     sslCliSecTls11,        { 6 - TLSv1.1 or later, all ciphers, RSA/DH keys=>1024 }
-                     sslCliSecTls12,        { 7 - TLSv1.2 or later, all ciphers, RSA/DH keys=>2048 }
-                     sslCliSecBack,         { 8 - TLSv1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
-                     sslCliSecInter,        { 9 - TLSv1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     sslCliSecHigh,         { 10 - TLSv1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     sslCliSecHigh128,      { 11 - TLSv1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
-                     sslCliSecHigh192);     { 12 - TLSv1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+                     sslCliSecTls1Only,     { 3 - TLSv1 only, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecTls11Only,    { 4 - TLSv1.1 only, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecTls12Only,    { 5 - TLSv1.2 only, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecTls13Only,    { 6 - TLSv1.3 only, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecTls1,         { 7 - TLSv1 or later, all ciphers, RSA/DH keys=>1024 }
+                     sslCliSecTls11,        { 8 - TLSv1.1 or later, all ciphers, RSA/DH keys=>1024 }
+                     sslCliSecTls12,        { 0 - TLSv1.2 or later, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecBack,         { 10 - TLSv1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
+                     sslCliSecInter,        { 11 - TLSv1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslCliSecHigh,         { 12 - TLSv1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslCliSecHigh128,      { 13 - TLSv1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
+                     sslCliSecHigh192);     { 14 - TLSv1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
 
+const
+    sslCliSecDefault = sslCliSecTls11;  { V8.55 recommended default }
+
+type    
   { V8.51 now only used for 1.0.2 and 1.1.0, many unused for 1.1.0, ignored for 1.1.1 and later }
     TSslOption  = (sslOpt_CIPHER_SERVER_PREFERENCE,
                    sslOpt_MICROSOFT_SESS_ID_BUG,        { V8.27 gone 1.1.0 }
@@ -3494,16 +3504,18 @@ const
                      'Ignore',         { 0 - ignore, use old settings }
                      'None',           { 1 - all protocols and ciphers, any key lengths }
                      'SSLv3 Only',     { 2 - SSLv3 only, all ciphers, any key lengths, MD5 }
-                     'TLSv1.2 Only',   { 3 - TLSv1.2 only, all ciphers, RSA/DH keys=>2048 }
-                     'TLSv1.3 Only',   { 4 - TLSv1.3 only, all ciphers, RSA/DH keys=>2048 }
-                     'TLSv1 or Better',       { 5 - TLSv1 or later, all ciphers, RSA/DH keys=>1024 }
-                     'TLSv1.1 or Better',     { 6 - TLSv1.1 or later, all ciphers, RSA/DH keys=>1024 }
-                     'TLSv1.2 or Better',     { 7 - TLSv1.2 or later, all ciphers, RSA/DH keys=>2048 }
-                     'Backward Ciphers',      { 8 - TLSv1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
-                     'Intermediate Ciphers',  { 9 - TLSv1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     'High Ciphers, 2048 keys',  { 10 - TLSv1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     'High Ciphers, 3072 keys',  { 11 - TLSv1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
-                     'High Ciphers, 7680 keys'); { 12 - TLSv1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+                     'TLSv1 Only',     { 3 - TLSv1 only, all ciphers, RSA/DH keys=>2048 }
+                     'TLSv1.1 Only',   { 4 - TLSv1.1 only, all ciphers, RSA/DH keys=>2048 }
+                     'TLSv1.2 Only',   { 5 - TLSv1.2 only, all ciphers, RSA/DH keys=>2048 }
+                     'TLSv1.3 Only',   { 6 - TLSv1.3 only, all ciphers, RSA/DH keys=>2048 }
+                     'TLSv1 or Better',       { 7 - TLSv1 or later, all ciphers, RSA/DH keys=>1024 }
+                     'TLSv1.1 or Better',     { 8 - TLSv1.1 or later, all ciphers, RSA/DH keys=>1024 }
+                     'TLSv1.2 or Better',     { 9 - TLSv1.2 or later, all ciphers, RSA/DH keys=>2048 }
+                     'Backward Ciphers',      { 10 - TLSv1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
+                     'Intermediate Ciphers',  { 11 - TLSv1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     'High Ciphers, 2048 keys',  { 12 - TLSv1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     'High Ciphers, 3072 keys',  { 13 - TLSv1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
+                     'High Ciphers, 7680 keys'); { 14 - TLSv1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
 
 type
 
@@ -16438,6 +16450,16 @@ begin
             sslCliSecSsl3Only: begin    { SSL3 only, any key lengths, MD5 }
               FSslMinVersion := sslVerSSL3;
               FSslMaxVersion := sslVerSSL3;
+            end;
+            sslCliSecTls1Only: begin   { TLS1 only }
+              FSslMinVersion := sslVerTLS1;
+              FSslMaxVersion := sslVerTLS1;
+              FSslSecLevel := sslSecLevel112bits;
+            end;
+            sslCliSecTls11Only: begin   { TLS1.1 only }
+              FSslMinVersion := sslVerTLS1_1;
+              FSslMaxVersion := sslVerTLS1_1;
+              FSslSecLevel := sslSecLevel112bits;
             end;
             sslCliSecTls12Only: begin   { TLS1.2 only }
               FSslMinVersion := sslVerTLS1_2;

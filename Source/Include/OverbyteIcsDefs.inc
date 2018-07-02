@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:  Version defines for ICS (Internet Component Suite)
 Creation:     2003
-Version:      8.42
+Version:      8.55
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2016 by François PIETTE
+Legal issues: Copyright (C) 1996-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -64,7 +64,8 @@ Feb 2015 - V8.06 - Angus XE8
 Jun 2015 - V8.07 - Angus XE9
 Aug 2015 - V8.08 - Angus XE9 is now Delphi 10 Seattle
 Apr 2016 - V8.09 - Angus Delphi 10.1 and 10.2, USE_SSL now enabled
-Mar 2017 - V8.42 - Angus couple more BCBs, added BDS numbers 
+Mar 2017 - V8.42 - Angus couple more BCBs, added BDS numbers
+Jul 2018 - V8.55 - Angus added NO_DEBUG_LOG as disabled but used for testing 
 
 
   SYMBOL           Compiler version
@@ -212,6 +213,9 @@ Mar 2017 - V8.42 - Angus couple more BCBs, added BDS numbers
 { Next symbols include extra features.                                       }
 {$DEFINE BUILTIN_TIMEOUT}
 {$DEFINE BUILTIN_THROTTLE}
+
+{ Next symbol removes a lot of debug logging code, to save space }
+{.$DEFINE NO_DEBUG_LOG}
 
 
 { Do not change anything below this line !                                   }

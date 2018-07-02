@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Forward and Reverse SSL HTTP Proxy
 Creation:     May 2017
 Updated:      May 2017
-Version:      8.50
+Version:      8.55
 Sponsor:      This component was sponsored in part by Avenir Health and
               Banxia Software Ltd. http://www.avenirhealth.org
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
@@ -180,6 +180,7 @@ Updates:
                       Convert html TByte buffers to unicode instead of ANSI
                       Post data now calls onHttpReqBody event
                       Don't try and access Windows cert store on MacOS, etc
+Jul 2, 2018  V8.55 - Builds with NO_DEBUG_LOG
 
 pending...
 
@@ -254,9 +255,9 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpServerVersion = 850;
-    CopyRight : String = ' TIcsHttpProxy (c) 2017 F. Piette V8.50 ';
-    DefServerHeader : string = 'Server: ICS-Proxy-8.50';
+    THttpServerVersion = 855;
+    CopyRight : String = ' TIcsHttpProxy (c) 2018 F. Piette V8.55 ';
+    DefServerHeader : string = 'Server: ICS-Proxy-8.55';
     CompressMinSize = 5000;     // 5K minimum to make it worth compressing a page
     CompressMaxSize = 5000000;  // 5M bigger takes too long
     DefRxBuffSize = 65536;
@@ -1151,7 +1152,9 @@ begin
     FTarSocket.OnSslCliGetSession := TargetCliGetSession;
     FTarSocket.OnSslVerifyPeer := TargetVerifyPeer;
     FTarSocket.OnSslHandshakeDone := TargetHandshakeDone;
+{$IFNDEF NO_DEBUG_LOG}
     FTarSocket.IcsLogger := FProxySource.FIcsLog;
+{$ENDIF}
     FTarSocket.LingerOnOff := wsLingerOff;
     FTarSocket.LingerTimeout := 0;
     FTarSocket.LineMode := false;
@@ -1936,8 +1939,10 @@ begin
     Self.Handle;
 
   { single SslContext for all target sockets }
+{$IFNDEF NO_DEBUG_LOG}
     FTarSslCtx.IcsLogger := FIcsLog;
-    FTarSslCtx.SslSessionCacheModes := [];
+ {$ENDIF}
+   FTarSslCtx.SslSessionCacheModes := [];
     if Assigned(FSslSessCache) then begin
         FTarSslCtx.SslSessionCacheModes := [sslSESS_CACHE_CLIENT,
             sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE];
@@ -1981,7 +1986,9 @@ begin
         MaxClients := FMaxClients;
         ExclusiveAddr := FExclusiveAddr;
         SocketErrs := FSocketErrs;
+{$IFNDEF NO_DEBUG_LOG}
         IcsLogger := FIcsLog;
+{$ENDIF}
         CreateCounter;
      { V8.49 returns list of exceptions, if any }
         ErrInfo := MultiListenEx;    { listen on multiple sockets, if more than one configured }

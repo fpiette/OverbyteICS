@@ -7,7 +7,7 @@ Object:       TSmtpCli class implements the SMTP protocol (RFC-821)
               Support authentification (RFC-2104)
               Support HTML mail with embedded images.
 Creation:     09 october 1997
-Version:      8.50
+Version:      8.55
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -418,6 +418,7 @@ Feb 23, 2016 V8.08 - Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 Nov 12, 2016 V8.37 - Added extended exception information, set SocketErrs = wsErrFriendly for
                       some more friendly messages (without error numbers)
 Oct 5, 2017  V8.50 - Fixed bad error handling with V8.07
+Jul 2, 2018  V8.55 - Builds with NO_DEBUG_LOG
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -505,8 +506,8 @@ uses
     OverbyteIcsCharsetUtils;
 
 const
-  SmtpCliVersion     = 850;
-  CopyRight : String = ' SMTP component (c) 1997-2017 Francois Piette V8.50 ';
+  SmtpCliVersion     = 855;
+  CopyRight : String = ' SMTP component (c) 1997-2018 Francois Piette V8.55 ';
   smtpProtocolError  = 20600; {AG}
 {  SMTP_RCV_BUF_SIZE  = 4096;  V8.07 no longer used }
 
@@ -1160,7 +1161,9 @@ type
         property ProxyUserCode;
         property ProxyPassword;
         property ProxyHttpAuthType;
-        property IcsLogger;  { V8.03 }
+{$IFNDEF NO_DEBUG_LOG}
+        property IcsLogger;  { V8.55 }
+{$ENDIF}
 
         property EmailFiles : TStrings               read  FEmailFiles
                                                      write SetEmailFiles;

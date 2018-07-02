@@ -10,7 +10,7 @@ Author:       François PIETTE
 Object:       TPop3Cli class implements the POP3 protocol
               (RFC-1225, RFC-1939)
 Creation:     03 october 1997
-Version:      8.50
+Version:      8.55
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -211,6 +211,7 @@ Oct 08, 2015 V8.06 Angus changed to receive with LineMode for more reliable line
 Nov 12, 2016 V8.37 Added extended exception information, set SocketErrs = wsErrFriendly for
                       some more friendly messages (without error numbers)
 Oct 5, 2017  V8.50 MacOS Fix with V8.06
+Jul 2, 2018  V8.55 - Builds with NO_DEBUG_LOG
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -281,8 +282,8 @@ uses
 (*$HPPEMIT '#pragma alias "@Overbyteicspop3prot@TCustomPop3Cli@GetUserNameW$qqrv"="@Overbyteicspop3prot@TCustomPop3Cli@GetUserName$qqrv"' *)
 
 const
-    Pop3CliVersion     = 850;
-    CopyRight : String = ' POP3 component (c) 1997-2017 F. Piette V8.50 ';
+    Pop3CliVersion     = 855;
+    CopyRight : String = ' POP3 component (c) 1997-2018 F. Piette V8.55 ';
  {   POP3_RCV_BUF_SIZE  = 4096;  gone V8.06 }
 
 type
@@ -654,7 +655,9 @@ type
         property OnResponse;
         property OnSessionConnected;
         property OnSessionClosed;
-        property IcsLogger;  { V8.04 }
+{$IFNDEF NO_DEBUG_LOG}
+        property IcsLogger;  { V8.55 }
+{$ENDIF}
     end;
 
 

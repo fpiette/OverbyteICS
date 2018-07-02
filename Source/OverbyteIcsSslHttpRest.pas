@@ -133,13 +133,14 @@ often available, both are supported by TRestOAuth.
 
 Updates:
 May 21, 2018  - 8.54 - baseline
-Jun 15, 2018  - 8.55 - Improved Json error handling
+Jul  2, 2018  - 8.55 - Improved Json error handling
+                       Builds with NO_DEBUG_LOG
 
 
 
 Pending - more documentation
 Pending - better SSL error handling when connections fail, due to too high security in particular.
-Pending - OAuth don't spawn browser from Windows service
+Pending - OAuth don't spawn browser from Windows service 
 Pending - OAuth1 (need Twitter account).
 Pending - REST response for DelphiXE Json Objects Framework
 }
@@ -192,7 +193,7 @@ uses
 {$IFDEF MSWINDOWS}
     OverbyteIcsMsSslUtils, OverbyteIcsWinCrypt,
 {$ENDIF MSWINDOWS}
-    OverbyteIcsHttpCCodZLib,
+    OverbyteIcsHttpCCodZLib,   
     OverbyteIcsHttpContCod,
     OverbyteIcsHttpProt,
     OverbyteIcsLogger,
@@ -213,8 +214,8 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpRestVersion = 854;
-    CopyRight : String = ' TSslHttpRest (c) 2018 F. Piette V8.54 ';
+    THttpRestVersion = 855;
+    CopyRight : String = ' TSslHttpRest (c) 2018 F. Piette V8.55 ';
     DefMaxBodySize = 100*100*100; { max memory/string size 100Mbyte }
     TestState = 'Testing-Redirect';
 
@@ -276,7 +277,7 @@ type
   protected
     function GetOwner: TPersistent; override;
   public
-    constructor Create(Owner: TPersistent);
+    constructor Create(Owner: TPersistent); 
     function GetParameters: AnsiString;
     function IndexOf(const aName: string): Integer;
     procedure AddItem(const aName, aValue: string; aRaw: Boolean = False);
@@ -349,7 +350,9 @@ type
   public
     { Public declarations }
     RestCookies: TIcsCookies;
+{$IFNDEF NO_DEBUG_LOG}
     RestLogger:  TIcsLogger;
+{$ENDIF}
     RestSslCtx:  TSslContext;
     constructor  Create (Aowner: TComponent); override;
     destructor   Destroy; override;
@@ -952,14 +955,18 @@ begin
     OnSslCliCertRequest := OnHttpSslCliCertRequest;
     RestCookies := TIcsCookies.Create(self);
     RestCookies.OnNewCookie := onCookiesNewCookie;
+{$IFNDEF NO_DEBUG_LOG}
     RestLogger := TIcsLogger.Create (nil);
     RestLogger.OnIcsLogEvent := IcsLogEvent;
     RestLogger.LogOptions := [loDestEvent];
     IcsLogger := RestLogger;
+{$ENDIF}
     RestSslCtx := TSslContext.Create(self) ;
     SslContext := RestSslCtx;
     RestSslCtx.SslVerifyPeer := false ;
+{$IFNDEF NO_DEBUG_LOG}
     RestSslCtx.IcsLogger := RestLogger;
+{$ENDIF}
     FSslCliCert := TX509Base.Create(self);
     FCertVerMethod := CertVerNone;
     FSslRootFile := 'RootCaCertsBundle.pem';  // blank will use internal bundle
@@ -980,7 +987,9 @@ begin
     FreeAndNil(FExternalSslSessionCache);
     FreeAndNil(RestSslCtx);
     FreeAndNil(FSslCliCert);
+{$IFNDEF NO_DEBUG_LOG}
     FreeAndNil(RestLogger) ;
+{$ENDIF}
     FreeAndNil(RestCookies);
     inherited Destroy;
 end;
@@ -991,8 +1000,10 @@ var
     rootfname: String;
 begin
     if FInitSsl then Exit;
+{$IFNDEF NO_DEBUG_LOG}
     if FDebugLevel >= DebugSslLow then
         RestLogger.LogOptions := RestLogger.LogOptions + [loSslInfo, loProtSpecInfo];
+{$ENDIF}
 
     if not Assigned (FExternalSslSessionCache) then begin
         FExternalSslSessionCache := TSslAvlSessionCache.Create (self);
@@ -1957,7 +1968,7 @@ end;
 procedure TRestOAuth.RefreshOnTimer(Sender : TObject);
 begin
     FRefreshTimer.Enabled := False;
-    try
+    try            
      // auto refresh token
         if FRefreshAuto and (FRefreshToken <> '') and (FRefreshDT <> 0) then begin
             if Now > FRefreshDT then begin

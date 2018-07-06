@@ -8,7 +8,7 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      8.52
+Version:      8.56
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -95,7 +95,8 @@ Jun 26 2017 V8.49 Added .well-known directory support.  If WellKnownPath is
 Feb 14, 2018 V8.52 Added IPv6 support by listing IPv6 local listen addresses,
                      and sorting them.
                    Add TLSv3 ciphers for OpenSSL 1.1.1 and later only
-
+Jul 6, 2018  V8.56 Added SslAlpnSelect callback for SSL application layer protocol
+                      negotiation, used for HTTP/2 (not supported yet)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
@@ -137,7 +138,7 @@ uses
   OverbyteIcsSocketUtils;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2018 F. Piette V8.52 ';
+  CopyRight : String         = 'WebServ (c) 1999-2018 F. Piette V8.56 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -279,6 +280,8 @@ type
       const Path: string; var BodyStr: string);
     procedure HttpServer2WellKnownDir(Sender, Client: TObject;
       const Path: string; var BodyStr: string);
+    procedure SslHttpServer1SslAlpnSelect(Sender: TObject; ProtoList: TStrings;
+      var SelProto: string; var ErrCode: TTlsExtError);
   private
     FIniFileName            : String;
     FInitialized            : Boolean;
@@ -624,6 +627,7 @@ begin
     if IcsLogger1.LogOptions <> [] then
         IcsLogger1.LogOptions := IcsLogger1.LogOptions +
                                  LogAllOptInfo + [loAddStamp];
+//  IcsLogger1.LogOptions := IcsLogger1.LogOptions + LogAllOptDump ; { SSL devel dump }
     SslHttpServer1.DocDir           := Trim(DocDirEdit.Text);
     SslHttpServer1.WellKnownPath    := Trim(WellKnownPathEdit.Text);      { V8.49 }
     SslHttpServer1.DefaultDoc       := Trim(DefaultDocEdit.Text);
@@ -876,6 +880,29 @@ begin
     else
         DisplayMemo.Lines.Add('! Unknown server name "' + Cli.SslServerName +
                               '" received. Context switch denied');   }
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslWebServForm.SslHttpServer1SslAlpnSelect(Sender: TObject;
+  ProtoList: TStrings; var SelProto: string; var ErrCode: TTlsExtError);  { V8.56 }
+var
+    I: Integer;
+begin
+    if ProtoList.Count = 0 then Exit;
+    Display('[' + FormatDateTime('HH:NN:SS', Now) +
+     '] SSL Application Layer Protocols allowed from client: ' + ProtoList.CommaText);
+  // optionally select a protocol we want to use
+    for I := 0 to ProtoList.Count - 1 do begin
+        if ProtoList[I] = ALPN_ID_HTTP11 then begin
+            SelProto := ALPN_ID_HTTP11;
+        //    SelProto := ALPN_ID_HTTP2; // TEMP confuse them 
+            ErrCode := teeOk;
+            Exit;
+        end;
+   //     if ProtoList[I] = ALPN_ID_HTTP2 then begin  don't support HTTP/2 yet
+
+    end;
 end;
 
 

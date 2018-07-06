@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.55
+Version:      8.56
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1254,7 +1254,7 @@ May 21, 2018 V8.54  Added TSslCliSecurity similar to TSslSrvSecurity
                     Improved SSL handshake failed error message with protocol
                       state information instead of just saying closed unexpectedly.
                     CertInfo shows Valid From date
-Jun 22, 2018 V8.55  Server also ignores second handshake start in InfoCallback with
+Jun 27, 2018 V8.55  Server also ignores second handshake start in InfoCallback with
                         TLSv1.3, so it works again.
                     Prevent multiple SslHandshakeDone events for TLSv1.3 which broke
                        FTP client and possibly other protocols.
@@ -1270,6 +1270,16 @@ Jun 22, 2018 V8.55  Server also ignores second handshake start in InfoCallback w
                       error (previously only in the debug log).
                     Added sslCliSecDefault and sslSrvSecDefault recommended
                        security defaults, two more client security levels
+                    Ensure that SSL alerts are logged with more detail.
+Jul 06, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
+                     extension which is sent with the initial SSL hello. 
+                    For clients, SslAlpnProtocols sets SslContext with a list of
+                      protocols the application supports (ie http/1.1, h2), and
+                      SslGetAlpnProtocol after connection returns whatever the
+                      server selected (if any).
+                    For servers, there is a new OnSslAlpnSelect event that has
+                       the list of protocols from the client, from which one
+                       may be selected (ie H2 to support HTTP/2).
 
 
 Use of certificates for SSL clients:
@@ -1474,8 +1484,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 855;
-  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.55 ';
+  WSocketVersion            = 856;
+  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.56 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -3583,6 +3593,7 @@ type
         FSslSecLevel                : TSslSecLevel;    { V8.40 }
         FSslCryptoGroups            : String;          { V8.51 1.1.1 and later, 'P-256:X25519:P-384:P-512' }
         FSslCliSecurity             : TSslCliSecurity; { V8.54 }
+        FSslAlpnProtoList           : TStrings;        { V8.56 }
         FSslSessCacheModeValue      : Longint;
         FSslSessionCacheSize        : Longint;
         FSslSessionTimeout          : Longword;
@@ -3637,6 +3648,8 @@ type
         procedure SetSslCheckHostFlags(const Value: TSslCheckHostFlags);    { V8.39 }
         procedure SetSslCliSecurity(Value: TSslCliSecurity);                { V8.54 }
         procedure SetSslCliSec;                                             { V8.54 }
+        procedure UpdateAlpnProtocols;                                      { V8.56 }
+        procedure SetSslAlpnProtocols(ProtoList: TStrings);                 { V8.56 }
     {$IFNDEF OPENSSL_NO_ENGINE}
         procedure Notification(AComponent: TComponent; Operation: TOperation); override;
         procedure SetCtxEngine(const Value: TSslEngine);
@@ -3674,7 +3687,6 @@ type
         function    SslGetCerts(Cert: TX509Base): integer;              { V8.41 }
         procedure   SslSetCertX509;                                     { V8.41 }
         procedure   SetProtoSec;                                        { V8.54 }
-
         property    SslCertX509     : TX509Base         read  FSslCertX509
                                                         write FSslCertX509;   { V8.41 }
     published
@@ -3738,6 +3750,8 @@ type
                                                     write FSslCryptoGroups;    { V8.51 }
         property  SslCliSecurity  : TSslCliSecurity read  FSslCliSecurity
                                                     write SetSslCliSecurity;   { V8.54 }
+        property  SslAlpnProtocols : TStrings       read  FSslAlpnProtoList
+                                                    write SetSslAlpnProtocols; { V8.56 }
         property  SslSessionTimeout : Longword      read  FSslSessionTimeout
                                                     write SetSslSessionTimeout;
         property  SslSessionCacheSize : Integer
@@ -3808,12 +3822,7 @@ type
                                         Bidirectional   : Boolean;
                                         ErrCode         : Integer) of object;
   TTlsExtError = (teeOk, teeAlertWarning, teeAlertFatal, teeNoAck);
-{
-  SSL_TLSEXT_ERR_OK                           = 0;
-  SSL_TLSEXT_ERR_ALERT_WARNING                = 1;
-  SSL_TLSEXT_ERR_ALERT_FATAL                  = 2;
-  SSL_TLSEXT_ERR_NOACK                        = 3;
-}
+
   TSslServerNameEvent       = procedure(Sender               : TObject;
                                         var Ctx              : TSslContext;
                                         var ErrCode          : TTlsExtError) of object;
@@ -3826,6 +3835,12 @@ type
                                         ContentType          : integer;
                                         Buffer               : PAnsiChar;
                                         BuffSize             : integer) of object;
+
+ { V8.56 SSL ALPN protocol selectiopn }
+  TSslAlpnSelect           = procedure (Sender               : TObject;
+                                        ProtoList            : TStrings;
+                                        var SelProto         : String;
+                                        var ErrCode          : TTlsExtError) of object;
 
   TCustomSslWSocket = class(TCustomSocksWSocket)
   private
@@ -3898,7 +3913,7 @@ type
         FHandShakeCount             : Integer;
         FSslServerName              : String;
         FOnSslProtoMsg              : TSslProtoMsgEvent;  { V8.40 }
-        //procedure   SetSslEnable(const Value: Boolean); virtual;
+        FOnSslAlpnSelect            : TSslAlpnSelect;     { V8.56 }
         procedure   RaiseLastOpenSslError(EClass          : ExceptClass;
                                           Dump            : Boolean = FALSE;
                                           const CustomMsg : String  = ''); virtual;
@@ -3943,6 +3958,7 @@ type
         procedure Notification(AComponent: TComponent; Operation: TOperation); override;
         procedure TriggerSslShutDownComplete(ErrCode: Integer); virtual;
         procedure TriggerSslServerName(var Ctx: TSslContext; var ErrCode: TTlsExtError); virtual;  { V8.45 }
+        procedure TriggerSslAlpnSelect(ProtoList: TStrings; var SelProto: String; var ErrCode: TTlsExtError);   { V8.56 }
         function  MsgHandlersCount : Integer; override;
         procedure AllocateMsgHandlers; override;
         procedure FreeMsgHandlers; override;
@@ -3970,8 +3986,8 @@ type
         procedure   AcceptSslHandshake;
         procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
         function    SslGetSupportedCiphers (Supported, Remote: boolean): String;    { V8.27 }
-
-
+        function    SslGetAlpnProtocol: String;         { V8.56 }
+                    
         property    LastSslError       : Integer          read FLastSslError;
         property    ExplizitSsl        : Boolean          read  FExplizitSsl
                                                           write FExplizitSsl;
@@ -4014,6 +4030,8 @@ type
         property  OnSslServerName    : TSslServerNameEvent
                                                           read  FOnSslServerName
                                                           write FOnSslServerName;
+        property  OnSslAlpnSelect  : TSslAlpnSelect       read  FOnSslAlpnSelect
+                                                          write FOnSslAlpnSelect;    { V8.56 }
 {$IFNDEF NO_DEBUG_LOG}
         property  OnSslProtoMsg  : TSslProtoMsgEvent      read  FOnSslProtoMsg            { V8.40 }
                                                           write FOnSslProtoMsg;
@@ -14213,6 +14231,7 @@ begin
     FSslSecLevel         := sslSecLevel80bits;   { V8.40 }
     FSslCryptoGroups     := sslCryptoGroupsDef;  { V8.51 1.1.1 and later }
     FSslCliSecurity      := sslCliSecIgnore;     { V8.54 make backward compatible }
+    FSslAlpnProtoList    := TStringList.Create;  { V8.56 }
 end;
 
 
@@ -14225,6 +14244,7 @@ begin
     FSslCALines.Free;       { V8.27 }
     FSslDHParamLines.Free;  { V8.27 }
     FSslCertX509.Free;      { V8.39 }
+    FSslAlpnProtoList.Free; { V8.56 }
 {$IFNDEF NO_SSL_MT}
     FLock.Free;
 {$ENDIF}
@@ -15722,6 +15742,52 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 application layer protocol negotiation, servers only }
+{ client sends us a list of protocols it supports, and we can select one or
+ ignore them all, ie spdy/1, http/1.1, h2 (http/2). pop3, acme-tls/1, etc }
+function AlpnSelectCallBack(SSL: PSSL; var output: Pointer; var outlen: Integer;
+                     input: Pointer; inlen: Integer; arg: Pointer): Integer; cdecl;
+var
+    Ws: TCustomSslWSocket;
+    Err: TTlsExtError;
+    ProtoList: TStringList;
+    Count: Integer;
+    SelProto: String;
+    ProtoAnsi: AnsiString;
+begin
+    Result := SSL_TLSEXT_ERR_NOACK;
+    outlen := 0;
+    Ws := TCustomSslWSocket(f_SSL_get_ex_data(SSL, 0));
+    if Assigned(Ws) then begin
+        ProtoList := TStringList.Create;
+        try
+            Count := IcsWireFmtToStrList(TBytes(input), inlen, ProtoList);
+            if Count > 0 then begin
+
+                {$IFNDEF NO_DEBUG_LOG}
+                    if Ws.CheckLogOptions(loSslInfo) then
+                        Ws.DebugLog(loSslInfo, 'AlpnCB> Protocols: ' + ProtoList.CommaText);
+                {$ENDIF}
+
+             { ask user if they want to select a single protocol to use from the list }
+                SelProto := '';
+                Err := teeNoAck;
+                Ws.TriggerSslAlpnSelect(ProtoList, SelProto, Err);
+                outlen := Length(SelProto);
+                if (outlen > 0) then begin
+                    ProtoAnsi := AnsiString(SelProto);
+                    output := @ProtoAnsi[1];
+                    Result := Ord(Err);
+                end;
+            end;
+        finally
+            ProtoList.Free;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.InitContext;
 var
     SslSessCacheModes : TSslSessCacheModes;
@@ -15886,22 +15952,28 @@ begin
            { V8.55 callback for both client and server }
         //    if (sslSESS_CACHE_SERVER in SslSessCacheModes) then begin
                 { Set the timeout for newly created sessions                }
-                if FSslSessionTimeout > 0 then
-                    f_SSL_CTX_set_timeout(FSslCtx, FSslSessionTimeout);
-                { Set session callbacks, ssl server mode only               }
-                f_SSL_CTX_sess_set_new_cb(FSslCtx, NewSessionCallback);
-                f_SSL_CTX_sess_set_get_cb(FSslCtx, GetSessionCallback);
-                if Length(FSslDefaultSessionIDContext) > 0 then
-                    if f_SSL_CTX_set_session_id_context(FSslCtx,
-                                  @FSslDefaultSessionIDContext[1],
-                                  Length(FSslDefaultSessionIDContext)) = 0 then
-                        RaiseLastOpenSslError(ESslContextException, TRUE,
-                                     'ssl_ctx_set_session_id_context failed');
+            if FSslSessionTimeout > 0 then
+                f_SSL_CTX_set_timeout(FSslCtx, FSslSessionTimeout);
+            { Set session callbacks, ssl server mode only               }
+            f_SSL_CTX_sess_set_new_cb(FSslCtx, NewSessionCallback);
+            f_SSL_CTX_sess_set_get_cb(FSslCtx, GetSessionCallback);
+            if Length(FSslDefaultSessionIDContext) > 0 then
+                if f_SSL_CTX_set_session_id_context(FSslCtx,
+                              @FSslDefaultSessionIDContext[1],
+                              Length(FSslDefaultSessionIDContext)) = 0 then
+                    RaiseLastOpenSslError(ESslContextException, TRUE,
+                                 'ssl_ctx_set_session_id_context failed');
 {$IFNDEF NO_DEBUG_LOG}
-                if CheckLogOptions(loSslInfo) then  { V8.40 }
-                    DebugLog(loSslInfo, 'Set sslSESS_CACHE_SERVER');
+            if CheckLogOptions(loSslInfo) then  { V8.40 }
+                DebugLog(loSslInfo, 'Set sslSESS_CACHE_SERVER');
 {$ENDIF}
         //     end;
+
+          { V8.56 see if setting APLN Protocol for HTTP/2 or something, client only  }
+            UpdateAlpnProtocols;
+
+          { V8.56 set application layer protocol select callback, servers only }
+            f_SSL_CTX_set_alpn_select_cb(FSslCtx, @AlpnSelectCallBack, Self);
 
         except
             if Assigned(FSslCtx) then begin
@@ -20590,12 +20662,12 @@ begin
                     Str := 'undefined: ';
 
                 if ((Where and SSL_CB_LOOP) <> 0) then begin
-                    if Obj.CheckLogOptions(loSslDevel) then
+                    if Obj.CheckLogOptions(loSslErr) then    { V8.55 was SslDevel, really Errs }
                         Obj.DebugLog(loSslDevel, Pre + Str +
                                         String(f_SSL_state_string_long(ssl)));
                 end
                 else if ((Where and SSL_CB_ALERT) <> 0) and
-                        Obj.CheckLogOptions(loSslDevel) then begin
+                        Obj.CheckLogOptions(loSslErr) then begin
                     if (Where and SSL_CB_READ) <> 0 then
                         Str := 'read '
                     else
@@ -20607,7 +20679,7 @@ begin
                 end
                 else if (Where and SSL_CB_EXIT) <> 0 then begin
                     if Ret = 0 then begin
-                        if Obj.CheckLogOptions(loSslDevel) then
+                        if Obj.CheckLogOptions(loSslErr) then
                             Obj.DebugLog(loSslDevel, Pre + Str + 'failed in ' +
                                             String(f_SSL_state_string_long(ssl)));
                     end
@@ -20763,6 +20835,64 @@ begin
 {$ENDIF}
 end;
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 application layer protocol negotiation, servers only }
+procedure TCustomSslWSocket.TriggerSslAlpnSelect(ProtoList: TStrings;
+                          var SelProto: String; var ErrCode: TTlsExtError);
+begin
+    if Assigned(FOnSslAlpnSelect) then
+        FOnSslAlpnSelect(Self, ProtoList, SelProto, ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 set application layer protocols supported, clients only }
+procedure TSslContext.UpdateAlpnProtocols;
+var
+    buffer: TBytes;
+    bufflen: Integer;
+begin
+    if FSslAlpnProtoList.Count = 0 then Exit;
+    if NOT Assigned(FSslCtx) then Exit;
+    IcsStrListToWireFmt(FSslAlpnProtoList, buffer);
+    bufflen := Length(buffer);
+    if bufflen = 0 then Exit;
+//   if f_SSL_CTX_set_alpn_protos(FSslCtx, @buffer[0], bufflen) <> 0 then
+    if f_SSL_CTX_set_alpn_protos(FSslCtx, buffer, bufflen) <> 0 then
+        RaiseLastOpenSslError(Exception, TRUE, 'Error setting alpn protos');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 keep application layer protocols supported, clients only }
+procedure TSslContext.SetSslAlpnProtocols(ProtoList: TStrings);
+begin
+    if NOT Assigned(ProtoList) then Exit;
+    if FSslAlpnProtoList.Text <> ProtoList.Text then
+        FSslAlpnProtoList.Assign(ProtoList);
+    if Assigned(FSslCtx) then
+        UpdateAlpnProtocols;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 get application layer protocol sekected by server, clients only }
+function TCustomSslWSocket.SslGetAlpnProtocol: String;
+var
+    plen: integer;
+    pdata: Pointer;
+begin
+    Result := '';
+    if NOT Assigned(FSsl) then Exit;
+    plen := 0;
+    pdata := Nil;
+    f_SSL_get0_alpn_selected(FSsl, pdata, plen);
+    if Assigned(pdata) and (plen > 0) then begin
+        SetLength(Result, plen);
+        Move(pdata^, Result[1], plen);
+    end;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.40 handshake protocol message callback }
@@ -20894,6 +21024,42 @@ begin
           ExtName := 'EC point formats';
       TLSEXT_TYPE_session_ticket :
           ExtName := 'server ticket';
+      TLSEXT_TYPE_signature_algorithms :
+          ExtName := 'signature algorithms';    { V8.56 }
+      TLSEXT_TYPE_use_srtp :
+          ExtName := 'use srtp';    { V8.56 }
+      TLSEXT_TYPE_heartbeat :
+          ExtName := 'heartbeat';    { V8.56 }
+      TLSEXT_TYPE_application_layer_protocol_negotiation :
+          ExtName := 'application layer protocol negotiation';    { V8.56 }
+      TLSEXT_TYPE_signed_certificate_timestamp :
+          ExtName := 'signed certificate timestamp';    { V8.56 }
+      TLSEXT_TYPE_padding :
+          ExtName := 'padding';    { V8.56 }
+      TLSEXT_TYPE_encrypt_then_mac :
+          ExtName := 'encrypt then mac';    { V8.56 }
+      TLSEXT_TYPE_extended_master_secret :
+          ExtName := 'extended master secret';    { V8.56 }
+      TLSEXT_TYPE_psk :
+          ExtName := 'psk';    { V8.56 }
+      TLSEXT_TYPE_early_data :
+          ExtName := 'early_data';    { V8.56 }
+      TLSEXT_TYPE_supported_versions :
+          ExtName := 'supported_versions';    { V8.56 }
+      TLSEXT_TYPE_cookie :
+          ExtName := 'cookie';    { V8.56 }
+      TLSEXT_TYPE_psk_kex_modes :
+          ExtName := 'psk_kex_modes';    { V8.56 }
+      TLSEXT_TYPE_certificate_authorities :
+          ExtName := 'certificate_authorities';    { V8.56 }
+      TLSEXT_TYPE_post_handshake_auth :
+          ExtName := 'post_handshake_auth';    { V8.56 }
+      TLSEXT_TYPE_signature_algorithms_cert :
+          ExtName := 'signature_algorithms_cert';    { V8.56 }
+      TLSEXT_TYPE_key_share :
+          ExtName := 'key_share';    { V8.56 }
+      TLSEXT_TYPE_renegotiate :
+          ExtName := 'renegotiate';    { V8.56 }
     else
         ExtName := 'unknown';
     end;
@@ -21222,8 +21388,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{var
-    FCount : Integer = 0; //Test}
 procedure TCustomSslWSocket.InitSSLConnection(ClientMode : Boolean;
     pSSLContext : PSSL_CTX = nil);
 var
@@ -21238,7 +21402,6 @@ var
 begin
     if not FSslEnable then
         Exit;
-    //Inc(FCount); // Test
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
         DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
@@ -21390,18 +21553,19 @@ begin
                 { FSslServerName receives the servername from client helo if }
                 { FOnSslServerName was assigned in SSL server mode.          }
                 FSslServerName := '';
-                if { Assigned(FOnSslServerName) and }
-                      (FSslContext.FSslVersionMethod >= sslV3) then begin   { V8.24 not SSLv2, V8.45 always enabled }
+//              if { Assigned(FOnSslServerName) and }
+//                    (FSslContext.FSslVersionMethod >= sslV3) then begin   { V8.24 not SSLv2, V8.56 always enabled }
 {$IFNDEF NO_DEBUG_LOG}
-                    if CheckLogOptions(loSslInfo) then  { V8.40 }
-                        DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
-                          ' Setting servername callback for SNI');
+                if CheckLogOptions(loSslInfo) then  { V8.40 }
+                    DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+                      ' Setting servername callback for SNI');
 {$ENDIF}
-                    if (f_SSL_CTX_set_tlsext_servername_callback(pSSLContext,
-                                                  @ServerNameCallBack) = 0) then
-                        RaiseLastOpenSslError(EOpenSslError, TRUE,
-                            'Unable to initialize servername callback for SNI');
-                end;
+                if (f_SSL_CTX_set_tlsext_servername_callback(pSSLContext,
+                                              @ServerNameCallBack) = 0) then
+                    RaiseLastOpenSslError(EOpenSslError, TRUE,
+                        'Unable to initialize servername callback for SNI');
+
+//              end;
 {$IFNDEF NO_DEBUG_LOG}
                 if CheckLogOptions(loSslInfo) then
                         f_SSL_set_tlsext_debug_callback(FSsl, @TlsExtension_CB);

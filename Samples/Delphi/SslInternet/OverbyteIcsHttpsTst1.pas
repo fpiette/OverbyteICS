@@ -6,7 +6,7 @@ Description:  A simple  HTTPS SSL Web Client Demo client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.52
+Version:      8.56
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -79,7 +79,14 @@ Dec 11, 2017  V8.51 added Debug Dump tick box to log SSL dump diagnostics
               Report SOCKS proxy events
               Try and enable FIPS mode if supported by OpenSSL.
 Feb 16, 2018  V8.52 root certificates show SubjectOUName
+Jul 6, 2018   V8.56 testing SSL application layer protocol negotiation, used
+                 for HTTP/2 (not supported yet), set the protoools supported
+                 in SslContext.SslAlpnProtocols and check what the servers
+                 choose after SslHandshake.
 
+
+
+// pending add persistent cookie support, and gzip content encoding
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;
@@ -119,10 +126,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 852;
-     HttpsTstDate        = 'Feb 16, 2018';
+     HttpsTstVersion     = 856;
+     HttpsTstDate        = 'July 6, 2018';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2018 Francois Piette V8.52 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2018 Francois Piette V8.56 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -900,6 +907,7 @@ begin
         if not FileExists(SslHttpCli1.DocName) then
             DocumentMemo.Lines.Add('*** NO DOCUMENT FILE ***')
         else begin
+           { V8.50 convert response to correct codepage }
             DataIn := TFileStream.Create(SslHttpCli1.DocName, fmOpenRead);
             try
                 if Copy(SslHttpCli1.ContentType, 1, 5) = 'text/' then begin
@@ -963,7 +971,7 @@ begin
                                             HttpCli.CtrlSocket.PeerPort,
                                             IncRefCount);
         Display('! New SSL session');
-    end                                  
+    end
     else
         Display('! SSL Session reused');
 end;
@@ -1046,6 +1054,10 @@ begin
     HttpCli   := Sender as TSslHttpCli;
     Display('Handshake done, error #' + IntToStr (ErrCode) +
                                      ' - ' + HttpCli.CtrlSocket.SslHandshakeRespMsg);  { V8.00 }
+
+    { V8.56 see if ALPN selected by server }
+    if HttpCli.CtrlSocket.SslGetAlpnProtocol <> '' then
+        Display('Application layer protocol selected: ' + HttpCli.CtrlSocket.SslGetAlpnProtocol);
 
     { A simple custom verification that may be unsecure!...               }
     { See also SslVerifyPeer above.                                       }

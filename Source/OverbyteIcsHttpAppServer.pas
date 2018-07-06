@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      8.50
+Version:      8.56
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2017 by François PIETTE
+Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -112,6 +112,7 @@ May 24, 2017 V8.48 Added HostTag parameter to AddGetHandler, AddPostHandler and
 May 30, 2017 V8.48 PostDispatchVirtualDocument was broken in last update
 Jul 5, 2017  V8.49 Start is now a function, see HttpSrv
 Aug 10, 2017 V8.50 Corrected onSslServerName to OnSslServerName to keep C++ happy
+Jul 6, 2018  V8.56 Added OnSslAlpnSelect called after OnSslServerName for HTTP/2.
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
@@ -457,6 +458,7 @@ type
         property OnSslSvrGetSession;
         property OnSslHandshakeDone;
         property OnSslServerName;                 { V8.50 }
+        property OnSslAlpnSelect;                 { V8.56 }
     end;
 
 procedure IcsLoadTHttpAppSrvFromIni(MyIniFile: TCustomIniFile; HttpAppSrv:

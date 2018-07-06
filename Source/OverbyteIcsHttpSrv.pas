@@ -434,7 +434,7 @@ Jul 5 2017  V8.49 Added .well-known directory support.  If WellKnownPath is
 Aug 10, 2017 V8.50 Fixed bug setting WebRedirectStat
                    Fixed bug that first IcsHost could not be SSL
                    Internal FSslEnable now FHttpSslEnable to ease confusion
-
+Jul 6, 2018  V8.56 Added OnSslAlpnSelect called after OnSslServerName for HTTP/2
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -536,9 +536,9 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 850;
-    CopyRight : String = ' THttpServer (c) 1999-2017 F. Piette V8.50 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.50';   { V8.09 }
+    THttpServerVersion = 856;
+    CopyRight : String = ' THttpServer (c) 1999-2018 F. Piette V8.56 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.56';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -1693,6 +1693,7 @@ type
         FOnSslSvrNewSession            : TSslSvrNewSession;
         FOnSslSvrGetSession            : TSslSvrGetSession;
         FOnSslServerName               : TSslServerNameEvent;     // V8.09
+        FOnSslAlpnSelect               : TSslAlpnSelect;     { V8.56 }
         procedure CreateSocket; override;
         procedure SetSslContext(Value: TSslContext);
         function  GetSslContext: TSslContext;
@@ -1730,6 +1731,8 @@ type
         procedure SetRootCA(const Value: String);                     { V8.46 }
         function  GetDHParams: String;                                { V8.45 }
         procedure SetDHParams(const Value: String);                   { V8.45 }
+        procedure TransferSslAlpnSelect(Sender: TObject;
+          ProtoList: TStrings; var SelProto : String; var ErrCode: TTlsExtError);  { V8.56 }
     public
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy; override;
@@ -1764,6 +1767,8 @@ type
         property  OnSslServerName    : TSslServerNameEvent
                                                            read  FOnSslServerName     // V8.09
                                                            write FOnSslServerName;
+        property  OnSslAlpnSelect : TSslAlpnSelect         read  FOnSslAlpnSelect
+                                                           write FOnSslAlpnSelect;     { V8.56 }
     end;
 
     TSslHttpServer = class(TCustomSslHttpServer)     //  V8.02 Angus
@@ -1779,6 +1784,7 @@ type
         property OnSslSvrGetSession;
         property OnSslHandshakeDone;
         property OnSslServerName;
+        property OnSslAlpnSelect;              { V8.56 } 
     end;
 
 {$ENDIF} // USE_SSL
@@ -6398,7 +6404,8 @@ begin
     FWSocketServer.OnSslSvrGetSession       := TransferSslSvrGetSession;
     FWSocketServer.OnSslHandshakeDone       := TransferSslHandshakeDone;
     FWSocketServer.OnSslServerName          := TransferSslServerName;  // V8.09
-    fHttpSslEnable                          := TRUE;   // V8.02 Angus, renamed V8.50 
+    FWSocketServer.OnSslAlpnSelect          := TransferSslAlpnSelect;  { V8.56 }
+    fHttpSslEnable                          := TRUE;   // V8.02 Angus, renamed V8.50
 end;
 
 
@@ -6428,6 +6435,7 @@ begin
     THttpConnection(Client).OnSslSetSessionIDContext := TransferSslSetSessionIDContext;
     THttpConnection(Client).OnSslHandshakeDone       := TransferSslHandshakeDone;
     THttpConnection(Client).OnSslServerName          := TransferSslServerName; // V8.09 Angus
+    THttpConnection(Client).OnSslAlpnSelect          := TransferSslAlpnSelect;  { V8.56 }
     FWSocketServer.SslEnable                         := fHttpSslEnable;    // V8.02 Angus, renamed V8.50
     inherited WSocketServerClientCreate(Sender, Client);
 end;
@@ -6517,6 +6525,16 @@ begin
     if Assigned(FOnSslServerName) then
         FOnSslServerName(Sender, Ctx, ErrCode);
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslHttpServer.TransferSslAlpnSelect(Sender: TObject;
+    ProtoList: TStrings; var SelProto : String; var ErrCode: TTlsExtError);  { V8.56 }
+begin
+    if Assigned(FOnSslAlpnSelect) then
+        FOnSslAlpnSelect(Sender, ProtoList, SelProto, ErrCode);
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomSslHttpServer.WSocketServerClientConnect(

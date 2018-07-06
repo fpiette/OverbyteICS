@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.55
+Version:      8.56
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -120,6 +120,8 @@ Nov 22, 2017  V8.51 Testing OpenSSL 1.1.1 that adds TLS/1.3
               Added more constants and functions for 1.1.1, f_SSL_xx_groups
 Feb 27, 2018  V8.52 Added more EVP functions for keys, hashing and signing
 Jun 20, 2018  V8.55 Testing with OpenSSL 1.1.1 beta
+Jul 4, 2018   V8.56 added APLN APIs and literals 
+
 
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -200,8 +202,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 855;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2018 F. Piette V8.55 ';
+    IcsSSLEAYVersion   = 856;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2018 F. Piette V8.56 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -335,6 +337,23 @@ const
     PEM_STRING_ECPRIVATEKEY= 'EC PRIVATE KEY' ;
     PEM_STRING_PARAMETERS  = 'PARAMETERS' ;
     PEM_STRING_CMS         = 'CMS' ;
+
+{ V8.56 TLS Application-Layer Protocol Negotiation (ALPN) Protocol IDs }
+    ALPN_ID_HTTP10        = 'http/1.0';
+    ALPN_ID_HTTP11        = 'http/1.1';
+    ALPN_ID_HTTP2         = 'h2';
+    ALPN_ID_SPDY1         = 'spdy/1';
+    ALPN_ID_SPDY2         = 'spdy/2';
+    ALPN_ID_SPDY3         = 'spdy/3';
+    ALPN_ID_TURN          = 'stun.turn';
+    ALPN_ID_STUN          = 'stun.nat-discovery';
+    ALPN_ID_WEBRTC        = 'webrtc';
+    ALPN_ID_CWEBRTC       = 'c-webrtc';
+    ALPN_ID_FTP           = 'ftp';
+    ALPN_ID_IMAP          = 'imap';
+    ALPN_ID_POP3          = 'pop3';
+    ALPN_ID_ACME_TLS1     = 'acme-tls/1';
+
 
 type
 
@@ -1239,7 +1258,11 @@ type
     TProto_msg_cb = function (write_p, version, content_type: integer;
               buf: PAnsiChar; size_t: integer; ssl: PSSL; arg: Pointer): Integer; cdecl;   { V8.40 handshake protocol message callback }
 
-    TSecurity_level_cb = function  (s: PSSL; ctx: PSSL_CTX; op, bits, nid: integer; other, ex: Pointer): Integer; cdecl;  { V8.40 security level callback }
+    TSecurity_level_cb = function  (s: PSSL; ctx: PSSL_CTX; op, bits,
+              nid: integer; other, ex: Pointer): Integer; cdecl;  { V8.40 security level callback }
+
+    TSsl_alpn_cb = function (s: PSSL; var output: Pointer; var outlen: Integer;
+              input: Pointer; inlen: Integer; arg: Pointer): Integer; cdecl;  { V8.56 application layer protocol callback }
 
 const
     SSL2_VERSION                                = $0002;
@@ -1739,7 +1762,27 @@ const
     TLSEXT_TYPE_status_request                  = 5;
     TLSEXT_TYPE_elliptic_curves                 = 10;
     TLSEXT_TYPE_ec_point_formats                = 11;
+    TLSEXT_TYPE_signature_algorithms            = 13;  { V8.56 }
+    TLSEXT_TYPE_use_srtp                        = 14;  { V8.56 }
+    TLSEXT_TYPE_heartbeat                       = 15;  { V8.56 }
+    TLSEXT_TYPE_application_layer_protocol_negotiation = 16;  { V8.56 }
+    TLSEXT_TYPE_signed_certificate_timestamp    = 18;  { V8.56 }
+    TLSEXT_TYPE_padding                         = 21;  { V8.56 }
+    TLSEXT_TYPE_encrypt_then_mac                = 22;  { V8.56 }
+    TLSEXT_TYPE_extended_master_secret          = 23;  { V8.56 }
     TLSEXT_TYPE_session_ticket                  = 35;
+    { As defined for TLS1.3 }
+    TLSEXT_TYPE_psk                             = 41;  { V8.56 }
+    TLSEXT_TYPE_early_data                      = 42;  { V8.56 }
+    TLSEXT_TYPE_supported_versions              = 43;  { V8.56 }
+    TLSEXT_TYPE_cookie                          = 44;  { V8.56 }
+    TLSEXT_TYPE_psk_kex_modes                   = 45;  { V8.56 }
+    TLSEXT_TYPE_certificate_authorities         = 47;  { V8.56 }
+    TLSEXT_TYPE_post_handshake_auth             = 49;  { V8.56 }
+    TLSEXT_TYPE_signature_algorithms_cert       = 50;  { V8.56 }
+    TLSEXT_TYPE_key_share                       = 51;  { V8.56 }
+ { Temporary extension type }
+    TLSEXT_TYPE_renegotiate                     = $ff01;  { V8.56 }
 
     TLSEXT_MAXLEN_host_name                     = 255;
     TLSEXT_NAMETYPE_host_name                   = 0;
@@ -1806,6 +1849,8 @@ const
     f_SSL_CTX_sess_set_remove_cb:              procedure(Ctx: PSSL_CTX; CB: TRemove_session_cb); cdecl = nil; //AG
     f_SSL_CTX_set0_security_ex_data :          procedure(Ctx: PSSL_CTX;  ex: Pointer);  cdecl = nil;      { V8.40 }
     f_SSL_CTX_set1_param :                     function(Ctx: PSSL_CTX; vpm: PX509_VERIFY_PARAM): integer; cdecl = nil;  { V8.39 1.0.2 }
+    f_SSL_CTX_set_alpn_protos :                function(Ctx: PSSL_CTX; protos: Pointer; protos_len: integer): integer; cdecl = nil;  { V8.56 }
+    f_SSL_CTX_set_alpn_select_cb :             procedure(Ctx: PSSL_CTX; cb: TSsl_alpn_cb; arg: Pointer); cdecl = nil;  { V8.56 }
     f_SSL_CTX_set_cipher_list :                function(C: PSSL_CTX; CipherString: PAnsiChar): Integer; cdecl = nil;
     f_SSL_CTX_set_client_CA_list :             procedure(C: PSSL_CTX; List: PSTACK_OF_X509_NAME); cdecl = nil; //AG
     f_SSL_CTX_set_client_cert_cb:              procedure(CTX: PSSL_CTX; CB: TClient_cert_cb); cdecl = nil; //AG
@@ -1842,6 +1887,7 @@ const
     f_SSL_ctrl :                               function(S: PSSL; Cmd: Integer; LArg: LongInt; PArg: Pointer): LongInt; cdecl = nil;
     f_SSL_do_handshake :                       function(S: PSSL): Integer; cdecl = nil; //AG
     f_SSL_free :                               procedure(S: PSSL); cdecl = nil;
+    f_SSL_get0_alpn_selected :                 procedure(S: PSSL; var data: Pointer; var len: Integer); cdecl = nil;  { V8.56 }
     f_SSL_get0_param :                         function(S: PSSL): PX509_VERIFY_PARAM; cdecl = nil;                      { V8.39 1.0.2 }
     f_SSL_get0_security_ex_data :              function(S: PSSL): Pointer; cdecl = nil;                  { V8.40 }
     f_SSL_get1_session :                       function(S: PSSL): PSSL_SESSION; cdecl = nil;
@@ -1878,11 +1924,13 @@ const
     f_SSL_read :                               function(S: PSSL; Buf: Pointer; Num: Integer): Integer; cdecl = nil;
     f_SSL_renegotiate :                        function(S: PSSL): Integer; cdecl = nil; //AG
     f_SSL_renegotiate_pending :                function(S: PSSL): Integer; cdecl = nil; //AG
+    f_SSL_select_next_proto :                  function (var output: Pointer; var outlen: Integer; input: Pointer; inlen: Integer; client: Pointer; client_len: Integer): Integer; cdecl = nil; { V8.56 }
     f_SSL_session_free :                       procedure(Session: PSSL_SESSION); cdecl = nil;
     f_SSL_set0_security_ex_data :              procedure(S: PSSL;  ex: Pointer);  cdecl = nil;            { V8.40 }
     f_SSL_set1_param :                         function(S: PSSL; vpm: PX509_VERIFY_PARAM): integer; cdecl = nil;        { V8.39 1.0.2 }
     f_SSL_set_SSL_CTX:                         function(S: PSSL; ctx: PSSL_CTX): PSSL_CTX; cdecl = nil;
     f_SSL_set_accept_state :                   procedure(S: PSSL); cdecl = nil; //AG
+    f_SSL_set_alpn_protos :                    function(S: PSSL; protos: TBytes; protos_len: integer): integer; cdecl = nil;  { V8.56 }
     f_SSL_set_bio :                            procedure(S: PSSL; RBio: PBIO; WBio: PBIO); cdecl = nil;
     f_SSL_set_client_CA_list :                 procedure(s: PSSL; List: PSTACK_OF_X509_NAME); cdecl = nil; //AG
     f_SSL_set_connect_state :                  procedure(S: PSSL); cdecl = nil;
@@ -2018,8 +2066,7 @@ procedure  f_SSL_set_msg_callback_arg(S: PSSL; arg: Pointer); {$IFDEF USE_INLINE
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GSSLEAYImports1: array[0..160] of TOSSLImports = (
-
+    GSSLEAYImports1: array[0..165] of TOSSLImports = (
     (F: @@f_BIO_f_ssl;                              N: 'BIO_f_ssl';                                 MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_BIO_new_buffer_ssl_connect;             N: 'BIO_new_buffer_ssl_connect';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),    { V8.51 }
     (F: @@f_BIO_new_ssl;                            N: 'BIO_new_ssl';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),    { V8.51 }
@@ -2039,6 +2086,8 @@ const
     (F: @@f_SSL_CTX_get0_param;                     N: 'SSL_CTX_get0_param';                        MI: OSSL_VER_1002; MX: OSSL_VER_MAX),     { V8.39 }
     (F: @@f_SSL_CTX_get0_privatekey;                N: 'SSL_CTX_get0_privatekey';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_SSL_CTX_get0_security_ex_data;          N: 'SSL_CTX_get0_security_ex_data';             MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
+    (F: @@f_SSL_CTX_set_alpn_protos;                N: 'SSL_CTX_set_alpn_protos';                   MI: OSSL_VER_1002; MX: OSSL_VER_MAX),   { V8.56 }
+    (F: @@f_SSL_CTX_set_alpn_select_cb;             N: 'SSL_CTX_set_alpn_select_cb';                MI: OSSL_VER_1002; MX: OSSL_VER_MAX),   { V8.56 }
     (F: @@f_SSL_CTX_get_cert_store;                 N: 'SSL_CTX_get_cert_store';                    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_get_client_cert_cb;             N: 'SSL_CTX_get_client_cert_cb';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_get_ex_data;                    N: 'SSL_CTX_get_ex_data';                       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2095,6 +2144,7 @@ const
     (F: @@f_SSL_ctrl;                               N: 'SSL_ctrl';                                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_do_handshake;                       N: 'SSL_do_handshake';                          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_free;                               N: 'SSL_free';                                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_get0_alpn_selected;                 N: 'SSL_get0_alpn_selected';                    MI: OSSL_VER_1002; MX: OSSL_VER_MAX),   { V8.56 }
     (F: @@f_SSL_get0_param;                         N: 'SSL_get0_param';                            MI: OSSL_VER_1002; MX: OSSL_VER_MAX),     { V8.39 }
     (F: @@f_SSL_get0_security_ex_data;              N: 'SSL_get0_security_ex_data';                 MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
     (F: @@f_SSL_get1_session;                       N: 'SSL_get1_session';                          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2132,11 +2182,13 @@ const
     (F: @@f_SSL_read;                               N: 'SSL_read';                                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_renegotiate;                        N: 'SSL_renegotiate';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_renegotiate_pending;                N: 'SSL_renegotiate_pending';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_select_next_proto;                  N: 'SSL_select_next_proto';                     MI: OSSL_VER_1002; MX: OSSL_VER_MAX),  { V8.56 }
     (F: @@f_SSL_session_reused;                     N: 'SSL_session_reused';                        MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.51 }
     (F: @@f_SSL_set0_security_ex_data;              N: 'SSL_set0_security_ex_data';                 MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
-    (F: @@f_SSL_set1_param;                         N: 'SSL_set1_param';                            MI: OSSL_VER_1002; MX: OSSL_VER_MAX),     { V8.39 }
+    (F: @@f_SSL_set1_param;                         N: 'SSL_set1_param';                            MI: OSSL_VER_1002; MX: OSSL_VER_MAX),  { V8.39 }
     (F: @@f_SSL_set_SSL_CTX;                        N: 'SSL_set_SSL_CTX';                           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_set_accept_state;                   N: 'SSL_set_accept_state';                      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_set_alpn_protos;                    N: 'SSL_set_alpn_protos';                       MI: OSSL_VER_1002; MX: OSSL_VER_MAX),   { V8.56 }
     (F: @@f_SSL_set_bio;                            N: 'SSL_set_bio';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_set_client_CA_list;                 N: 'SSL_set_client_CA_list';                    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_set_connect_state;                  N: 'SSL_set_connect_state';                     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),

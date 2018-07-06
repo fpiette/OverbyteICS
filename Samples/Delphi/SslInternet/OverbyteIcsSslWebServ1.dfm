@@ -591,6 +591,7 @@ object SslWebServForm: TSslWebServForm
     OnSslSvrGetSession = SslHttpServer1SslSvrGetSession
     OnSslHandshakeDone = SslHttpServer1SslHandshakeDone
     OnSslServerName = SslHttpServer1SslServerName
+    OnSslAlpnSelect = SslHttpServer1SslAlpnSelect
     Left = 42
     Top = 306
   end
@@ -620,6 +621,7 @@ object SslWebServForm: TSslWebServForm
     SslMaxVersion = sslVerMax
     SslECDHMethod = sslECDHNone
     SslCryptoGroups = 'P-256:X25519:P-384:P-512'
+    SslCliSecurity = sslCliSecIgnore
     SslSessionTimeout = 300
     SslSessionCacheSize = 20480
     SslDefaultSessionIDContext = 'Webservertest'

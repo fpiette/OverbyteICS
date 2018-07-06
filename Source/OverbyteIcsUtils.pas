@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.54
+Version:      8.56
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -158,6 +158,10 @@ Apr 04, 2018 V8.53 Added sanity test to IcsBufferToHex to avoid exceptions
                    Added IcsBufferToHex overload with AnsiString
                    Added IcsHextoBin
 Apr 25, 2018 V8.54 Moved IntToKbyte and ticks stuff from OverbyteIcsFtpSrvT
+Jul 6, 2018  V8.56 Added IcsWireFmtToStrList and IcsStrListToWireFmt converting
+                     Wire Format concatanated length prefixed strings to TStrings
+                     and vice versa, used by SSL hello.  
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -427,7 +431,7 @@ const
     function  Utf8ToStringW(const Str: RawByteString): UnicodeString; {$IFDEF USE_INLINE} inline; {$ENDIF}
     function  Utf8ToStringA(const Str: RawByteString; ACodePage: LongWord = CP_ACP): AnsiString; {$IFDEF USE_INLINE} inline; {$ENDIF}
     function  CheckUnicodeToAnsi(const Str: UnicodeString; ACodePage: LongWord = CP_ACP): Boolean;
-    { This is a weak check, it does not detect whether it's a valid UTF-8 byte }  
+    { This is a weak check, it does not detect whether it's a valid UTF-8 byte }
     function  IsUtf8TrailByte(const B: Byte): Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF}
     function  IsUtf8LeadByte(const B: Byte): Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF}
     function  IcsUtf8Size(const LeadByte: Byte): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
@@ -590,6 +594,8 @@ const
     function IcsFmtIpv6AddrPort (const Addr, Port: string): string;    { V8.52 }
     function IcsStripIpv6Addr (const Addr: string): string;            { V8.52 }
     function IntToKbyte (Value: Int64; Bytes: boolean = false): String; { V8.54  moved here from OverbyteIcsFtpSrvT }
+    function IcsWireFmtToStrList(Buffer: TBytes; Len: Integer; SList: TStrings): Integer;  { V8.56 }
+    function IcsStrListToWireFmt(SList: TStrings; var Buffer: TBytes): Integer;            { V8.56 }
 
     { V8.54 Tick and Trigger functions for timing stuff moved here from OverbyteIcsFtpSrvT   }
     function IcsGetTickCountX: longword ;
@@ -6353,6 +6359,55 @@ begin
     if curtick >= TrgTick then
         Result := TRUE ;
 end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 convert wire-format concactanted length prefixed strings to TStrings }
+function IcsWireFmtToStrList(Buffer: TBytes; Len: Integer; SList: TStrings): Integer;
+var
+    offset, mylen: integer;
+    AStr: AnsiString;
+begin
+    Result := 0;
+    if NOT Assigned(SList) then Exit;
+    SList.Clear;
+    offset := 0;
+    while offset < Len do begin
+        mylen := Buffer[offset];
+        if mylen = 0 then Exit;  // illegal
+        offset := offset + 1;
+        SetLength(AStr, mylen);
+        Move(Buffer[offset], AStr[1], mylen);
+        SList.Add(String(AStr));
+        offset := offset + mylen;
+    end;
+    Result := Slist.Count;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 convert TStrings to wire-format concactanted length prefixed strings  }
+function IcsStrListToWireFmt(SList: TStrings; var Buffer: TBytes): Integer;
+var
+    I, offset, mylen: integer;
+begin
+    Result := 0;
+    if NOT Assigned(SList) then Exit;
+    if SList.Count = 0 then Exit;
+    for I := 0 to SList.Count - 1 do
+        Result := Result + Length(SList[I]) + 1;
+    SetLength(Buffer, Result);
+    offset := 0;
+    for I := 0 to SList.Count - 1 do  begin
+        mylen := Length(SList[I]);
+        if mylen > 0 then begin
+            Buffer[offset] := mylen;
+            offset := offset + 1;
+            Move(SList[I] [1], Buffer[offset], mylen);
+            offset := offset + mylen;
+        end;
+    end;
+end;
+
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

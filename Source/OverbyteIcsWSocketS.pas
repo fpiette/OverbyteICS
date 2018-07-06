@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.55
+Version:      8.56
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -176,6 +176,7 @@ Nov 22, 2017  V8.51 SSL certificate file stamp now stored as UTC date to avoid
 Feb 14, 2018  V8.52 Better error reporting when validating SSL certificates
                     Add TLSv3 ciphers for OpenSSL 1.1.1 and later only
 Jun 12, 2018  V8.55 sslSrvSecInter/FS now requires TLS1.1, PCI council EOF TLS1.0 30 June 2018
+Jul 6, 2018   V8.56 Added OnSslAlpnSelect called after OnSslServerName for HTTP/2.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -252,8 +253,8 @@ System.Types,
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 855;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2018 F. Piette V8.55 ';
+    WSocketServerVersion     = 856;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2018 F. Piette V8.56 ';
 
 type
     TCustomWSocketServer       = class;
@@ -727,6 +728,8 @@ type
         constructor Create(AOwner : TComponent); override;
         procedure   StartConnection; override;
         procedure   TriggerSslServerName(var Ctx: TSslContext; var ErrCode: TTlsExtError); override; { V8.45 }
+        procedure   TriggerSslAlpnSelect(ProtoList: TStrings;
+                             var SelProto: String; var ErrCode: TTlsExtError);  { V8.56 } 
     end;
 
     TSslWSocketServer = class(TWSocketServer)
@@ -775,6 +778,7 @@ type
         property  OnSslSvrGetSession;
         property  OnSslHandshakeDone;
         property  OnSslServerName;    { V8.07 }
+        property  OnSslAlpnSelect;    { V8.56 }
   end;
 
 { public functions }
@@ -2383,6 +2387,7 @@ begin
         Client.OnSslSvrGetSession       := OnSslSvrGetSession;
         Client.OnSslHandshakeDone       := OnSslHandshakeDone;
         Client.OnSslServerName          := OnSslServerName;   { V8.07 }
+        Client.OnSslAlpnSelect          := OnSslAlpnSelect;   { V8.56 }
         try
             if Client.SslMode = sslModeClient then
                 Client.StartSslHandshake
@@ -2884,6 +2889,16 @@ begin
     end;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 application layer protocol negotiation, servers only }
+procedure TSslWSocketClient.TriggerSslAlpnSelect(ProtoList: TStrings;
+                          var SelProto: String; var ErrCode: TTlsExtError);
+begin
+    inherited TriggerSslAlpnSelect(ProtoList, SelProto, ErrCode);
+    if Assigned(FOnSslAlpnSelect) then
+        FOnSslAlpnSelect(Self, ProtoList, SelProto, ErrCode);
+end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

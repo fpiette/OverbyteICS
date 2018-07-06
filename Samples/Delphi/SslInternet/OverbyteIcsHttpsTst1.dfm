@@ -584,7 +584,7 @@ object HttpsTstForm: THttpsTstForm
       Top = 148
       Width = 169
       Height = 21
-      ItemHeight = 0
+      ItemHeight = 13
       TabOrder = 27
       Text = 'SslSecLevel'
     end
@@ -621,6 +621,7 @@ object HttpsTstForm: THttpsTstForm
     Accept = 'image/gif, image/x-xbitmap, image/jpeg, image/pjpeg, */*'
     ProxyConnection = 'Keep-Alive'
     NoCache = False
+    ResponseNoException = False
     ContentTypePost = 'application/x-www-form-urlencoded'
     RequestVer = '1.0'
     FollowRelocation = True
@@ -674,7 +675,7 @@ object HttpsTstForm: THttpsTstForm
     SslCheckHostFlags = []
     SslSecLevel = sslSecLevel80bits
     SslOptions = [sslOpt_MICROSOFT_SESS_ID_BUG, sslOpt_NETSCAPE_CHALLENGE_BUG, sslOpt_NETSCAPE_REUSE_CIPHER_CHANGE_BUG, sslOpt_MICROSOFT_BIG_SSLV3_BUFFER, sslOpt_SSLEAY_080_CLIENT_DH_BUG, sslOpt_TLS_D5_BUG, sslOpt_TLS_BLOCK_PADDING_BUG, sslOpt_TLS_ROLLBACK_BUG, sslOpt_NO_SSLv2, sslOpt_NO_SSLv3, sslOpt_NETSCAPE_CA_DN_BUG, sslOpt_NETSCAPE_DEMO_CIPHER_CHANGE_BUG]
-    SslOptions2 = [sslOpt2_NO_RENEGOTIATION, sslOpt2_NO_COMPRESSION, sslOpt2_NO_TICKET, sslOpt2_TLS_ROLLBACK_BUG, sslOpt2_DONT_INSERT_EMPTY_FRAGMENTS, sslOpt2_ALLOW_UNSAFE_LEGACY_RENEGOTIATION, sslOpt2_TLSEXT_PADDING, sslOpt2_SAFARI_ECDHE_ECDSA_BUG, sslOpt2_CISCO_ANYCONNECT, SslOpt2_LEGACY_SERVER_CONNECT, SslOpt2_ALLOW_NO_DHE_KEX]
+    SslOptions2 = [sslOpt2_NO_COMPRESSION, SslOpt2_ALLOW_NO_DHE_KEX]
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = [sslSESS_CACHE_CLIENT, sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE]
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
@@ -683,6 +684,9 @@ object HttpsTstForm: THttpsTstForm
     SslMaxVersion = sslVerMax
     SslECDHMethod = sslECDHAuto
     SslCryptoGroups = 'P-256:P-384:P-512'
+    SslCliSecurity = sslCliSecIgnore
+    SslAlpnProtocols.Strings = (
+      'http/1.1')
     SslSessionTimeout = 300
     SslSessionCacheSize = 20480
     AutoEnableBuiltinEngines = False

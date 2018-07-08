@@ -1271,8 +1271,8 @@ Jun 27, 2018 V8.55  Server also ignores second handshake start in InfoCallback w
                     Added sslCliSecDefault and sslSrvSecDefault recommended
                        security defaults, two more client security levels
                     Ensure that SSL alerts are logged with more detail.
-Jul 06, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
-                     extension which is sent with the initial SSL hello. 
+Jul 08, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
+                     extension which is sent with the initial SSL hello.
                     For clients, SslAlpnProtocols sets SslContext with a list of
                       protocols the application supports (ie http/1.1, h2), and
                       SslGetAlpnProtocol after connection returns whatever the
@@ -1280,6 +1280,8 @@ Jul 06, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
                     For servers, there is a new OnSslAlpnSelect event that has
                        the list of protocols from the client, from which one
                        may be selected (ie H2 to support HTTP/2).
+                    Added IPv6 support for TCustomSocksWSocket and
+                       TCustomHttpTunnelWSocket, thanks to Max Terentiev.
 
 
 Use of certificates for SSL clients:
@@ -3281,7 +3283,7 @@ type
 const
     sslCliSecDefault = sslCliSecTls11;  { V8.55 recommended default }
 
-type    
+type
   { V8.51 now only used for 1.0.2 and 1.1.0, many unused for 1.1.0, ignored for 1.1.1 and later }
     TSslOption  = (sslOpt_CIPHER_SERVER_PREFERENCE,
                    sslOpt_MICROSOFT_SESS_ID_BUG,        { V8.27 gone 1.1.0 }
@@ -3987,7 +3989,7 @@ type
         procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
         function    SslGetSupportedCiphers (Supported, Remote: boolean): String;    { V8.27 }
         function    SslGetAlpnProtocol: String;         { V8.56 }
-                    
+
         property    LastSslError       : Integer          read FLastSslError;
         property    ExplizitSsl        : Boolean          read  FExplizitSsl
                                                           write FExplizitSsl;
@@ -11767,6 +11769,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomSocksWSocket.Connect;
+var
+    LSocketFamily: TSocketFamily;
 begin
     { Check if we really wants to use socks server }
     if not FSocksServerAssigned then begin
@@ -11780,6 +11784,16 @@ begin
         Exit;
     end;
 
+    { V8.56 IPv6 support from Max Terentiev }
+    if WSocketIsIP(FSocksServer, LSocketFamily) then begin // is socks proxy IP is IPv6 ?
+        if (LSocketFamily = sfIPv4) or (IsIPv6APIAvailable) then
+            FSocketFamily := LSocketFamily
+        else
+            FSocketFamily := DefaultSocketFamily;
+      end
+      else
+          raise ESocketException.Create('Unsupported socks address format');
+
     try
         if not FPortResolved then begin
             { The next line will trigger an exception in case of failure }
@@ -11791,8 +11805,7 @@ begin
 
         if not FAddrResolved then begin
             { The next line will trigger an exception in case of failure }
-            if FSocketFamily = sfIPv4 then
-            begin
+            if FSocketFamily = sfIPv4 then begin
                 Fsin.sin6_family := AF_INET;
                 PSockAddrIn(@Fsin).sin_addr.s_addr :=
                 WSocket_Synchronized_ResolveHost(AnsiString(FSocksServer)).s_addr;
@@ -11803,6 +11816,8 @@ begin
                     raise ESocketException.Create('IPv6 not supported with current socks version');
             end;
             FAddrResolved := TRUE;
+        { V8.56 IPv6 support from Max Terentiev }
+            FAddrFormat := Fsin.sin6_family;
         end;
         { The next line will trigger an exception in case of failure }
         FPortNum := WSocket_Synchronized_ResolvePort(AnsiString(FPortStr), AnsiString(FProtoStr));
@@ -11817,21 +11832,6 @@ begin
     FRcvCnt     := 0;
     inherited Connect;
 end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{function BufToStr(Buf : PChar; Cnt : Integer) : String;
-begin
-    Result := '';
-    while Cnt > 0 do begin
-        if Buf^ in [#32..#126] then
-            Result := Result + Buf^
-        else
-            Result := Result + '#' + Format('%2.2d', [ord(Buf^)]);
-        Inc(Buf);
-        Dec(Cnt);
-    end;
-end;}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -11950,6 +11950,10 @@ var
 {$IFDEF COMPILER12_UP}
     S : AnsiString;
 {$ENDIF}
+    LSocketFamily : TSocketFamily;
+    ConvOk : Boolean;
+    v4Addr : TIcsIPv4Address;
+    v6Addr : TIcsIPv6Address;
 begin
     FSocksState := socksConnect;
     if FSocksLevel[1] = '4' then begin
@@ -12005,17 +12009,44 @@ begin
         Buf[0] := #$05;            { Socks version }
         Buf[1] := #$01;            { Connect command }
         Buf[2] := #$00;            { Reserved, must be $00 }
-        Buf[3] := #$03;            { Address type is domain name }
+
+     (* Buf[3] := #$03;            { Address type is domain name }
         Buf[4] := AnsiChar((Length(FAddrStr)));
         { Should check buffer overflow }
         Move(AnsiString(FAddrStr)[1], Buf[5], Length(FAddrStr)); // No length change expected (ASCII)
         I := 5 + Length(FAddrStr);
         PWord(@Buf[I])^ := WSocket_Synchronized_htons(FPortNum);
-        I := I + 2;
+        I := I + 2;  *)
+
+    { V8.56 IPv6 support from Max Terentiev }
+        if not WSocketIsIP(FAddrStr,LSocketFamily) then begin
+            Buf[3] := #$03;            { Address type is domain name }
+            Buf[4] := AnsiChar((Length(FAddrStr)));
+            { Should check buffer overflow }
+            Move(AnsiString(FAddrStr)[1], Buf[5], Length(FAddrStr)); // No length change expected (ASCII)
+            I := 5 + Length(FAddrStr);
+            PWord(@Buf[I])^ := WSocket_Synchronized_htons(FPortNum);
+            I := I + 2;
+        end
+        else begin
+            if LSocketFamily=sfIPv4 then begin
+                Buf[3] := #$01; // IPv4
+                v4Addr := WSocketStrToIPv4(FAddrStr,ConvOk);
+                Move(v4Addr,Buf[4],4);
+                PWord(@Buf[8])^ := WSocket_Synchronized_htons(FPortNum);
+                I := 10;
+            end
+            else begin
+                Buf[3] := #$04; // IPv6
+                v6Addr := WSocketStrToIPv6(FAddrStr,ConvOk);
+                Move(v6Addr,Buf[4],16);
+                PWord(@Buf[20])^ := WSocket_Synchronized_htons(FPortNum);
+                I := 22;
+            end;
+        end;
     end;
 
     try
-{TriggerDisplay('Send = ''' + BufToStr(Buf, I + 2) + '''');}
         Send(@Buf, I);
     except
     end;
@@ -12068,7 +12099,6 @@ begin
             Exit;
         FRcvCnt := FRcvCnt + Len;
 
-{TriggerDisplay('socksNegociateMethods FrcvBuf = ''' + BufToStr(FRcvBuf, FRcvCnt) + '''');}
         if FSocksLevel[1] = '4' then begin
             { We should never comes here }
             DataAvailableError(socksProtocolError, 'TWSocket logic error');
@@ -12078,10 +12108,6 @@ begin
             { We are waiting only two bytes }
             if FRcvCnt < 2 then
                 Exit;
-{            if FRcvCnt <> 2 then begin  06/03/99}
-{                DataAvailableError(socksProtocolError, 'too much data availaible');}
-{                Exit;                                                              }
-{            end;                                                                   }
             FRcvCnt := 0; { Clear receive counter }
             if FRcvBuf[0] <> $05 then begin
                 DataAvailableError(socksVersionError, 'socks version error');
@@ -12107,7 +12133,6 @@ begin
     end
     else if FSocksState = socksConnect then begin
         Result := TRUE;
-{TriggerDisplay('socksConnect FrcvBuf = ''' + BufToStr(FRcvBuf, FRcvCnt) + '''');}
         if FSocksLevel[1] = '4' then begin
             { We want at most 8 characters }
             Len := Receive(@FRcvBuf[FRcvCnt], 8 - FRcvCnt);
@@ -12145,11 +12170,8 @@ begin
                 Exit;
             end;
             FSocksState := socksData;
-{           inherited TriggerSessionConnectedSpecial(0); }
-{           Result := inherited TriggerDataAvailable(0); }
-            {inherited} TriggerSessionConnectedSpecial(0);
-            {**ALON** removed 'inherited' now calls top level}
-            Result := {inherited} TriggerDataAvailable(0);
+            TriggerSessionConnectedSpecial(0);
+            Result := TriggerDataAvailable(0);
             {**ALON** removed 'inherited' now calls top level}
         end
         else begin { SOCKS5 }
@@ -12218,7 +12240,6 @@ begin
 
             if FRcvBuf[3] = $01 then begin
                 { IP V4 address }
-                //Move(FRcvBuf[4], InAddr, 4);
                 InAddr.S_addr := FRcvBuf[4] or
                                  (FRcvBuf[5] shl 8) or
                                  (FRcvBuf[6] shl 16) or
@@ -12231,6 +12252,10 @@ begin
                 SetLength(FBoundAddr, Ord(FRcvBuf[4]));
                 Move(FRcvBuf[5], FBoundAddr[1], Length(FBoundAddr)); { david.brock }
                 I := 4 + Ord(FRcvBuf[4]) + 1;
+            end
+           { V8.56 IPv6 support from Max Terentiev }
+            else if FRcvBuf[3] = $04 then begin
+                I := 16 + 4 // IPv6
             end
             else begin
                 { Unsupported address type }
@@ -12265,19 +12290,16 @@ begin
         { We expect 2 bytes }
         if FRcvCnt < 2 then  {AG 15/02/11}
             Exit;            {AG 15/02/11}
-{TriggerDisplay('socksAuthenticate FrcvBuf = ''' + BufToStr(FRcvBuf, FRcvCnt) + '''');}
-        //if FRcvCnt >= 1 then begin
-            { First byte is version of the subnegotiation proto (rfc1929), }
-            { we expect version 1. However i.e. WinGate returns socks      }
-            { version 5 here if user credentials are wrong, so don't       }
-            { trigger a version error but socksAuthenticationFailed. AG 15/02/11 }
-            if FRcvBuf[0] <> $01 then begin { 06/03/99 }
+        { First byte is version of the subnegotiation proto (rfc1929), }
+        { we expect version 1. However i.e. WinGate returns socks      }
+        { version 5 here if user credentials are wrong, so don't       }
+        { trigger a version error but socksAuthenticationFailed. AG 15/02/11 }
+        if FRcvBuf[0] <> $01 then begin { 06/03/99 }
 {                TriggerSocksAuthState(socksAuthFailure); Burlakov 12/11/99 }
 {                DataAvailableError(socksVersionError, 'socks version error'); AG 15/02/11 }
-                DataAvailableError(socksAuthenticationFailed, 'socks authentication failed'); {AG 15/02/11}
-                Exit;
-            end;
-        //end;
+            DataAvailableError(socksAuthenticationFailed, 'socks authentication failed'); {AG 15/02/11}
+            Exit;
+        end;
         if FRcvCnt = 2 then begin
             { Second byte is status }
             if FRcvBuf[1] <> $00 then begin
@@ -21733,7 +21755,7 @@ begin
   {  FInHandshake             := FALSE;  V8.55 }
     FHandshakeEventDone      := FALSE;  { V8.55 }
     FHandshakeDone           := FALSE;
-// V8.55 reset is called during error handling, don't clear error reasons     
+// V8.55 reset is called during error handling, don't clear error reasons
 //    FSslHandshakeRespMsg     := '';  { V8.14 set with success or failure message once handshake completes }
 //    FSslHandshakeErr         := 0;   { V8.14 }
     FSslCipherDesc           := '';  { V8.14  }
@@ -22453,6 +22475,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomHttpTunnelWSocket.Connect;
+var
+  LSocketFamily:TSocketFamily;
 begin
     if not FHttpTunnelServerAssigned then
         inherited Connect
@@ -22460,6 +22484,20 @@ begin
     else if (IcsLowerCase(FProtoStr) <> 'tcp') and (IcsTrim(FProtoStr) <> '6') then
         RaiseException('TCP is the only protocol supported by HTTP proxies')
     else begin
+     { V8.56 IPv6 support from Max Terentiev }
+        if WSocketIsIP(FHttpTunnelServer, LSocketFamily) then begin
+            if (LSocketFamily = sfIPv4) or (IsIPv6APIAvailable) then
+                FSocketFamily := LSocketFamily
+            else
+                FSocketFamily := DefaultSocketFamily;
+        end
+        else
+          raise ESocketException.Create('Unsupported http proxy address format');
+        if WSocketIsIP(FAddrStr, LSocketFamily) then begin
+            if LSocketFamily=sfIPv6 then
+                FAddrStr:='['+FAddrStr+']';  // IPv6 must be in [ ]
+        end;
+
         try
             if not FPortResolved then begin
                 { The next line will trigger an exception in case of failure }
@@ -22481,6 +22519,8 @@ begin
                     WSocket_Synchronized_ResolveHost(HttpTunnelServer, Fsin,
                                                      FSocketFamily, IPPROTO_TCP);
                 FAddrResolved := TRUE;
+            { V8.56 IPv6 support from Max Terentiev }
+                FAddrFormat := Fsin.sin6_family; // IPv6 support
             end;
             { The next line will trigger an exception in case of failure }
             FPortNum := WSocket_Synchronized_ResolvePort(AnsiString(FPortStr),

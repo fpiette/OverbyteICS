@@ -22485,7 +22485,7 @@ begin
         RaiseException('TCP is the only protocol supported by HTTP proxies')
     else begin
      { V8.56 IPv6 support from Max Terentiev }
-        if WSocketIsIP(FHttpTunnelServer, LSocketFamily) then begin
+        if WSocketIsIP(String(FHttpTunnelServer), LSocketFamily) then begin
             if (LSocketFamily = sfIPv4) or (IsIPv6APIAvailable) then
                 FSocketFamily := LSocketFamily
             else

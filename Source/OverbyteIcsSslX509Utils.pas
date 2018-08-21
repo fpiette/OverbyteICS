@@ -4,7 +4,7 @@ Authors:      Arno Garrels <arno.garrels@gmx.de>
               Angus Robertson <delphi@magsys.co.uk>
 Creation:     Aug 26, 2007
 Description:  SSL key and X509 certification creation
-Version:      8.53
+Version:      8.57
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -99,12 +99,14 @@ Feb 21, 2018 V8.52 Added DigiCert Global Root G2 and G3 root certificates
              Added SaveToDERText
 Mar 27, 2018 V8.53 Added GlobalSign Root CA - R2 and GlobalSign ECC Root CA - R5
                 root certificates, R2 used by Google.
-             Added DST Root CA X3 root, used by Let's Encrypt crossed signing 
+             Added DST Root CA X3 root, used by Let's Encrypt crossed signing
+Aug 15, 2018 V8.57 tidy up UnwrapNames.
+             DoSelfSignCert can now use a CSR instead of properties
+             Added DoClearCA
+             Added SaveToCADatabase which saves CA database entry to CADBFile
+
              
-
-
 Pending - long term
-Saving a CA databases of certificates created
 Create string and file encryption component from existing functions
 
 
@@ -389,6 +391,7 @@ type
         FAltAnsiStr        : array of AnsiString;
         FAltIa5Str         : array of PASN1_STRING;
         FAltGenStr         : array of PGENERAL_NAME;
+        FCADBFile          : String;   { V8.57 }
     protected
         function    BuildBasicCons(IsCA: Boolean): AnsiString;
         function    BuildKeyUsage: AnsiString;
@@ -421,12 +424,14 @@ type
         destructor  Destroy; override;
         procedure   DoCertReqProps;
         procedure   DoCertReqOld;
-        procedure   DoSelfSignCert;
+        procedure   DoSelfSignCert(UseCSR: Boolean = False);   { V8.57 added UseCSR }
         procedure   DoSignCertReq(CopyExtns: Boolean);
         procedure   DoKeyPair;
 //        procedure   DoKeyPairOld;
         function    DoDHParams(const FileName: String; Bits: integer): String;
         procedure   DoClearCerts;
+        procedure   DoClearCA;  { V8.57 split from DoClearCerts }
+        function    SaveToCADatabase(const CertFName: String = 'unknown'): Boolean;  { V8.57 }
         procedure   CreateCertBundle(const CertFile, PKeyFile, InterFile, LoadPw,
                       SaveFile, SavePw: String; KeyCipher: TSslPrivKeyCipher = PrivKeyEncNone);
         function    GetReqEntryByNid(ANid: Integer): String;
@@ -486,6 +491,7 @@ type
         property PrivKeyType       : TSslPrivKeyType    read FPrivKeyType   write FPrivKeyType;
         property PrivKeyCipher     : TSslPrivKeyCipher  read FPrivKeyCipher write FPrivKeyCipher;
         property CertDigest        : TEvpDigest         read FCertDigest    write FCertDigest;
+        property CADBFile          : String             read FCADBFile      write FCADBFile;    { V8.57 }
         property OnKeyProgress     : TNotifyEvent       read FOnKeyProgress write FOnKeyProgress;
     end;
 
@@ -2117,18 +2123,18 @@ begin
 end;
 
 
-                                   {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TSslCertTools.GetReqCertInfo: String;
 begin
-    Result := 'Request for (CN): ' + UnwrapNames (ReqSubjCName);
+    Result := 'Request for (CN): ' + IcsUnwrapNames (ReqSubjCName);
     if ReqSubjOName <> '' then
-        Result := Result + ', (O): ' + UnwrapNames (ReqSubjOName) + #13#10
+        Result := Result + ', (O): ' + IcsUnwrapNames (ReqSubjOName) + #13#10
     else
         Result := Result + #13#10;
     if ReqSubjAltNameDNS <> '' then
-        Result := Result + 'Alt Domains: ' + UnwrapNames (ReqSubjAltNameDNS) + #13#10;
+        Result := Result + 'Alt Domains: ' + IcsUnwrapNames (ReqSubjAltNameDNS) + #13#10;
     if ReqSubjAltNameIP <> '' then
-        Result := Result + 'Alt IPs: ' + UnwrapNames (ReqSubjAltNameIP) + #13#10;
+        Result := Result + 'Alt IPs: ' + IcsUnwrapNames (ReqSubjAltNameIP) + #13#10;
     if ReqKeyUsage <> '' then
         Result := Result + 'Key Usage: ' + IcsUnwrapNames(ReqKeyUsage) + #13#10;
     if ReqExKeyUsage <> '' then
@@ -2211,7 +2217,7 @@ begin
         if NOT Assigned(FAltIa5Str[I]) then Exit;
         FAltAnsiStr[I] := AnsiString(trim(Names[I]));
         if FAltAnsiStr[I] <> '' then begin    { V8.50 skip blanks }
-            f_ASN1_STRING_set(FAltIa5Str[I], PAnsiChar(FAltAnsiStr[I]), Length(FAltAnsiStr[I]));  { V8.50 was set0 } 
+            f_ASN1_STRING_set(FAltIa5Str[I], PAnsiChar(FAltAnsiStr[I]), Length(FAltAnsiStr[I]));  { V8.50 was set0 }
             f_GENERAL_NAME_set0_value(FAltGenStr[I], AltType, FAltIa5Str[I]);
             f_OPENSSL_sk_push(result, Pointer(FAltGenStr[I]));
         end;
@@ -2406,228 +2412,327 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ create a self signed certificate from properties and private key }
-procedure TSslCertTools.DoSelfSignCert;
+{ create a self signed certificate from properties or request and private key }
+procedure TSslCertTools.DoSelfSignCert(UseCSR: Boolean = False);   { V8.57 added UseCSR }
 var
     SubjName  : PX509_NAME;
     TempSerial : ULARGE_INTEGER; { V8.42 was TULargeInteger } { 64-bit integer record }
+    AltItems: String;
+    TempList: TStringList;
 begin
     InitializeSsl;
-    if NOT Assigned(PrivateKey) then
-        raise ECertToolsException.Create('Must create private key first');
-    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101) and (FCertDigest >= Digest_sha3_224) then   { V8.51 }
-        raise ECertToolsException.Create('SHA3 hashes not supported');
+    TempList := TStringList.Create;
+    try
+        if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101) and (FCertDigest >= Digest_sha3_224) then   { V8.51 }
+            raise ECertToolsException.Create('SHA3 hashes not supported');
+        if NOT Assigned(PrivateKey) then
+            raise ECertToolsException.Create('Must create private key first');
+        if UseCSR then begin   { V8.57 }
+            if NOT Assigned(FX509Req) then
+                raise ECertToolsException.Create('Must open certificate request first');
+        end;
 
-    if Assigned(FNewCert) then f_X509_free(FNewCert);
-    FNewCert := f_X509_new;
-    if NOT Assigned(FNewCert) then
-         RaiseLastOpenSslError(ECertToolsException, FALSE, 'Can not create new X509 object');
+        if Assigned(FNewCert) then f_X509_free(FNewCert);
+        FNewCert := f_X509_new;
+        if NOT Assigned(FNewCert) then
+             RaiseLastOpenSslError(ECertToolsException, FALSE, 'Can not create new X509 object');
 
-   { set version, serial number, expiry and public key }
-    if f_X509_set_version(FNewCert, 2) = 0 then   // v3
-        RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set version to certificate');;
-    if FSerialNum = 0 then begin
-        TempSerial.LowPart := IcsRandomInt($7FFFFFFF);
-        TempSerial.HighPart := IcsRandomInt($7FFFFFFF);
-        FSerialNum := TempSerial.QuadPart;
+       { set version, serial number, expiry }
+        if f_X509_set_version(FNewCert, 2) = 0 then   // v3
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set version to certificate');;
+        if FSerialNum = 0 then begin
+            TempSerial.LowPart := IcsRandomInt($7FFFFFFF);
+            TempSerial.HighPart := IcsRandomInt($7FFFFFFF);
+            FSerialNum := TempSerial.QuadPart;
+        end;
+        if FExpireDays < 30 then FExpireDays := 30;
+        f_ASN1_INTEGER_set_int64(f_X509_get_serialNumber(FNewCert), FSerialNum);
+        f_X509_gmtime_adj(f_Ics_X509_get_notBefore(FNewCert), 0);
+        f_X509_gmtime_adj(f_Ics_X509_get_notAfter(FNewCert), 60 * 60 * 24 * FExpireDays);
+
+        if f_X509_set_pubkey(FNewCert, PrivateKey) = 0 then
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to add public key to certificate');
+
+     { V8.57 see if using CSR for out new certificate }
+        if UseCSR then begin
+
+          { set the cert subject name to the request subject }
+            SubjName := f_X509_NAME_dup(f_ics_X509_REQ_get_subject_name(X509Req));
+            if NOT Assigned(SubjName) or (f_X509_set_subject_name(FNewCert, SubjName) = 0) then
+                RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set subject from request');
+
+          { It's self signed so set the issuer name to be the same as the subject. }
+            f_X509_set_issuer_name(FNewCert, SubjName);
+
+          { Add basic contraints }
+            SetCertExt(FNewCert, NID_basic_constraints, BuildBasicCons(FBasicIsCA));
+
+         { copy some extension from request to certificate }
+
+            AltItems :=  ReqSubjAltNameDNS;
+            if AltItems <> '' then begin
+                TempList.Text := AltItems;
+                if TempList.Count > 0 then BuildCertAltSubj(FNewCert, GEN_DNS, TempList);
+            end;
+
+            AltItems :=  ReqSubjAltNameIP;
+            if AltItems <> '' then begin
+                TempList.Text := AltItems;
+                if TempList.Count > 0 then BuildCertAltSubj(FNewCert, GEN_IPADD, TempList);
+            end;
+
+         { Key usage }
+            SetCertExt(FNewCert, NID_key_usage, AnsiString(IcsUnwrapNames(ReqKeyUsage)));
+
+        { Extended Key usage }
+            SetCertExt(FNewCert, NID_ext_key_usage, AnsiString(IcsUnwrapNames(ReqExKeyUsage)));
+        end
+
+     { build certificate from properties }
+        else begin
+
+        { build certificate subject name as one line
+          ie Subject: C=GB, ST=Surrey, L=Croydon, O=Magenta Systems Ltd, CN=Magenta Systems Ltd }
+            SubjName := f_X509_get_subject_name(FNewCert);
+            if not Assigned(SubjName) then
+                RaiseLastOpenSslError(ECertToolsException, FALSE, 'Can not read X509 subject_name');
+            AddNameEntryByTxt(SubjName, 'CN', FCommonName);
+            AddNameEntryByTxt(SubjName, 'OU', FOrgUnit);
+            AddNameEntryByTxt(SubjName, 'ST', FState);
+            AddNameEntryByTxt(SubjName, 'O',  FOrganization);
+            AddNameEntryByTxt(SubjName, 'C',  FCountry);
+            AddNameEntryByTxt(SubjName, 'L',  FLocality);
+            AddNameEntryByTxt(SubjName, 'D',  FDescr);
+
+            if Length(AnsiString(FEmail)) > 0 then
+                f_X509_NAME_add_entry_by_NID(SubjName, NID_pkcs9_emailAddress,
+                            MBSTRING_ASC, PAnsiChar(AnsiString(FEmail)), -1, -1, 0);
+
+          { It's self signed so set the issuer name to be the same as the subject. }
+            f_X509_set_issuer_name(FNewCert, SubjName);
+
+          { Add basic contraints }
+            SetCertExt(FNewCert, NID_basic_constraints, BuildBasicCons(FBasicIsCA));
+
+          { Key usage }
+            SetCertExt(FNewCert, NID_key_usage, BuildKeyUsage);
+
+          { Extended Key usage }
+            SetCertExt(FNewCert, NID_ext_key_usage, BuildExKeyUsage);
+
+          { subject alternate name - DNS or domain names }
+            if FAltDNSList.Count <> 0 then
+                BuildCertAltSubj(FNewCert, GEN_DNS, FAltDNSList)
+
+          { subject alternate name - IP addresses }
+            else if FAltIPList.Count <> 0 then
+                BuildCertAltSubj(FNewCert, GEN_IPADD, FAltIPList)
+
+          { subject alternate name - email addresses }
+            else if FAltEmailList.Count <> 0 then
+               BuildCertAltSubj(FNewCert, GEN_EMAIL, FAltEmailList);
+
+        end;
+
+      { Issuer Alternative Name. }
+        if FAltIssuer <> '' then begin
+            SetCertExt(FNewCert, NID_issuer_alt_name, AnsiString(FAltIssuer));
+        end;
+
+      { CRL distribution points - URI:http://myhost.com/myca.crl }
+        if FCRLDistPoint <> '' then begin
+            SetCertExt(FNewCert, NID_crl_distribution_points, AnsiString(FCRLDistPoint));
+        end;
+
+      { Authority Info Access - OCSP;URI:http://ocsp.myhost.com/ }
+        if FAuthInfoAcc <> '' then begin
+            SetCertExt(FNewCert, NID_info_access, AnsiString(FAuthInfoAcc));
+        end;
+
+      { self sign it with our key and hash digest }
+        if f_EVP_PKEY_base_id(PrivateKey) = EVP_PKEY_ED25519 then begin   { V8.51 no digest for EVP_PKEY_ED25519 }
+            if f_X509_sign(FNewCert, PrivateKey, Nil) = 0 then
+                RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certifcate with ED25519 key');
+        end
+        else begin
+            if f_X509_sign(FNewCert, PrivateKey, IcsSslGetEVPDigest(FCertDigest)) <= 0 then
+                RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certificate with digest');
+        end;
+        SetX509(FNewCert);
+
+      { add certificate to our database ? }
+      { note this is done in OverbyteIcsSslX509Certs }
+
+    finally
+        TempList.Free;
     end;
-    if FExpireDays < 30 then FExpireDays := 30;
-    f_ASN1_INTEGER_set_int64(f_X509_get_serialNumber(FNewCert), FSerialNum);
-    f_X509_gmtime_adj(f_Ics_X509_get_notBefore(FNewCert), 0);
-    f_X509_gmtime_adj(f_Ics_X509_get_notAfter(FNewCert), 60 * 60 * 24 * FExpireDays);
-    if f_X509_set_pubkey(FNewCert, PrivateKey) = 0 then
-        RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to add public key to certificate');
-
-{ build certificate subject name as one line
-  ie Subject: C=GB, ST=Surrey, L=Croydon, O=Magenta Systems Ltd, CN=Magenta Systems Ltd }
-    SubjName := f_X509_get_subject_name(FNewCert);
-    if not Assigned(SubjName) then
-        RaiseLastOpenSslError(ECertToolsException, FALSE, 'Can not read X509 subject_name');
-    AddNameEntryByTxt(SubjName, 'CN', FCommonName);
-    AddNameEntryByTxt(SubjName, 'OU', FOrgUnit);
-    AddNameEntryByTxt(SubjName, 'ST', FState);
-    AddNameEntryByTxt(SubjName, 'O',  FOrganization);
-    AddNameEntryByTxt(SubjName, 'C',  FCountry);
-    AddNameEntryByTxt(SubjName, 'L',  FLocality);
-    AddNameEntryByTxt(SubjName, 'D',  FDescr);
-
-    if Length(AnsiString(FEmail)) > 0 then
-        f_X509_NAME_add_entry_by_NID(SubjName, NID_pkcs9_emailAddress,
-                    MBSTRING_ASC, PAnsiChar(AnsiString(FEmail)), -1, -1, 0);
-
-  { It's self signed so set the issuer name to be the same as the subject. }
-    f_X509_set_issuer_name(FNewCert, SubjName);
-
-  { Add basic contraints }
-    SetCertExt(FNewCert, NID_basic_constraints, BuildBasicCons(FBasicIsCA));
-
-  { Key usage }
-    SetCertExt(FNewCert, NID_key_usage, BuildKeyUsage);
-
-  { Extended Key usage }
-    SetCertExt(FNewCert, NID_ext_key_usage, BuildExKeyUsage);
-
-  { subject alternate name - DNS or domain names }
-    if FAltDNSList.Count <> 0 then
-        BuildCertAltSubj(FNewCert, GEN_DNS, FAltDNSList)
-
-  { subject alternate name - IP addresses }
-    else if FAltIPList.Count <> 0 then
-        BuildCertAltSubj(FNewCert, GEN_IPADD, FAltIPList)
-
-  { subject alternate name - email addresses }
-    else if FAltEmailList.Count <> 0 then
-       BuildCertAltSubj(FNewCert, GEN_EMAIL, FAltEmailList);
-
-  { Issuer Alternative Name. }
-    if FAltIssuer <> '' then begin
-        SetCertExt(FNewCert, NID_issuer_alt_name, AnsiString(FAltIssuer));
-    end;
-
-  { CRL distribution points - URI:http://myhost.com/myca.crl }
-    if FCRLDistPoint <> '' then begin
-        SetCertExt(FNewCert, NID_crl_distribution_points, AnsiString(FCRLDistPoint));
-    end;
-
-  { Authority Info Access - OCSP;URI:http://ocsp.myhost.com/ }
-    if FAuthInfoAcc <> '' then begin
-        SetCertExt(FNewCert, NID_info_access, AnsiString(FAuthInfoAcc));
-    end;
-
-  { self sign it with our key and hash digest }
-    if f_EVP_PKEY_base_id(PrivateKey) = EVP_PKEY_ED25519 then begin   { V8.51 no digest for EVP_PKEY_ED25519 }
-        if f_X509_sign(FNewCert, PrivateKey, Nil) = 0 then
-            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certifcate with ED25519 key');
-    end
-    else begin
-        if f_X509_sign(FNewCert, PrivateKey, IcsSslGetEVPDigest(FCertDigest)) <= 0 then
-            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certificate with digest');
-    end;
-    SetX509(FNewCert);
-
-  { add certificate to our database ? }
-
  end;
+
+
+ {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslCertTools.SaveToCADatabase(const CertFName: String = 'unknown'): Boolean;
+var
+    FStream: TFileStream;
+    CertRec: String;
+const
+  DateTimeMask = 'yymmddhhnnss"Z"';
+begin
+    Result := False;
+    if FCADBFile = '' then Exit;
+    if NOT IsCertLoaded then Exit;
+
+// CA database record, similar to OpenSSL but with SANs on the end
+// 1 - status - V=valid, R=revoked, E=expired
+// 2 - cert expire date
+// 3 - cert revoked date (empty is not)
+// 4 - serial number in hex
+// 5 - cert file name or 'unknown'
+// 6 - cert subject including common name 
+// 7 - cert subject alternate names
+    CertRec := 'V' + IcsTAB + FormatDateTime(DateTimeMask, ValidNotAfter) +
+      IcsTAB + {no revoke data } IcsTAB + SerialNumHex + IcsTAB + CertFName +
+      IcsTAB + SubjectOneLine + IcsTAB + IcsUnwrapNames(GetSubjectAltName.Value) + icsCRLF;
+        //  IcsUnwrapNames(SubAltNameDNS) + icsCRLF;
+
+    if NOT ForceDirectories (ExtractFileDir (FCADBFile)) then
+        raise ECertToolsException.Create('Failed to create CA DB Directory: ' + FCADBFile);
+    FStream := Nil;     
+    try
+        if NOT FileExists((FCADBFile)) then
+            FStream := TFileStream.Create (FCADBFile, fmCreate)
+        else begin
+            FStream := TFileStream.Create (FCADBFile, fmOpenReadWrite OR fmShareDenyWrite);
+            FStream.Seek(0, soEnd);
+        end;
+        FStream.WriteBuffer(AnsiString(CertRec) [1], Length (CertRec));
+        Result := True;
+    finally
+        FStream.Free;
+    end;
+end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { create a new CA signed certificate from a certificate request }
 { need to create a CA certificate (X509CA) and private key (PrivKeyCA) first }
-{ not finished, does not copy extensions or save certificate database }
+{ not finished, does not copy extensions }
 procedure TSslCertTools.DoSignCertReq(CopyExtns: Boolean);
 var
     SubjName  : PX509_NAME;
     TempSerial : ULARGE_INTEGER; { V8.42 was TULargeInteger } { 64-bit integer record }
-    AltDomains: String;
+    AltItems: String;
     TempList: TStringList;
 begin
     InitializeSsl;
-    if NOT Assigned(FX509CA) then
-        raise ECertToolsException.Create('Must open CA certificate first');
-    if NOT Assigned(X509Req) then
-        raise ECertToolsException.Create('Must open certificate request first');
-    if NOT Assigned(FPrivKeyCA) then
-        raise ECertToolsException.Create('Must open CA private key first');
-    if f_X509_check_private_key(FX509CA, FPrivKeyCA) = 0 then
-        raise ECertToolsException.Create('CA certificate and private key do not match');
-    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101) and (FCertDigest >= Digest_sha3_224) then   { V8.51 }
-        raise ECertToolsException.Create('SHA3 hashes not supported');
+    TempList := TStringList.Create;
+    try
+        if NOT Assigned(FX509CA) then
+            raise ECertToolsException.Create('Must open CA certificate first');
+        if NOT Assigned(FX509Req) then
+            raise ECertToolsException.Create('Must open certificate request first');
+        if NOT Assigned(FPrivKeyCA) then
+            raise ECertToolsException.Create('Must open CA private key first');
+        if f_X509_check_private_key(FX509CA, FPrivKeyCA) = 0 then
+            raise ECertToolsException.Create('CA certificate and private key do not match');
+        if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101) and (FCertDigest >= Digest_sha3_224) then   { V8.51 }
+            raise ECertToolsException.Create('SHA3 hashes not supported');
 
 
-    if Assigned(FNewCert) then f_X509_free(FNewCert);
-    FNewCert := f_X509_new;
-    if NOT Assigned(FNewCert) then
-         RaiseLastOpenSslError(ECertToolsException, FALSE, 'Can not create new X509 object');
+        if Assigned(FNewCert) then f_X509_free(FNewCert);
+        FNewCert := f_X509_new;
+        if NOT Assigned(FNewCert) then
+             RaiseLastOpenSslError(ECertToolsException, FALSE, 'Can not create new X509 object');
 
-   { set version, serial number, expiry and public key }
-    if f_X509_set_version(FNewCert, 2) = 0 then  { version 3}
-        RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set version to certificate');
-    if FSerialNum = 0 then begin
-        TempSerial.LowPart := IcsRandomInt($7FFFFFFF);
-        TempSerial.HighPart := IcsRandomInt($7FFFFFFF);
-        FSerialNum := TempSerial.QuadPart;
-    end;
-    if FExpireDays < 30 then FExpireDays := 30;
-    if f_ASN1_INTEGER_set_int64(f_X509_get_serialNumber(FNewCert), FSerialNum) = 0 then
-        RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set serial num');
-    f_X509_gmtime_adj(f_Ics_X509_get_notBefore(FNewCert), 0);
-    f_X509_gmtime_adj(f_Ics_X509_get_notAfter(FNewCert), 60 * 60 * 24 * FExpireDays);
+       { set version, serial number, expiry and public key }
+        if f_X509_set_version(FNewCert, 2) = 0 then  { version 3}
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set version to certificate');
+        if FSerialNum = 0 then begin
+            TempSerial.LowPart := IcsRandomInt($7FFFFFFF);
+            TempSerial.HighPart := IcsRandomInt($7FFFFFFF);
+            FSerialNum := TempSerial.QuadPart;
+        end;
+        if FExpireDays < 30 then FExpireDays := 30;
+        if f_ASN1_INTEGER_set_int64(f_X509_get_serialNumber(FNewCert), FSerialNum) = 0 then
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set serial num');
+        f_X509_gmtime_adj(f_Ics_X509_get_notBefore(FNewCert), 0);
+        f_X509_gmtime_adj(f_Ics_X509_get_notAfter(FNewCert), 60 * 60 * 24 * FExpireDays);
 
-  { public key from request, not CA }
-    if f_X509_set_pubkey(FNewCert, f_X509_REQ_get0_pubkey(X509Req)) = 0 then
-        RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set public key to certificate');
+      { public key from request, not CA }
+        if f_X509_set_pubkey(FNewCert, f_X509_REQ_get0_pubkey(X509Req)) = 0 then
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set public key to certificate');
 
-  { set the cert subject name to the request subject }
-    SubjName := f_X509_NAME_dup(f_ics_X509_REQ_get_subject_name(X509Req));
-    if NOT Assigned(SubjName) or (f_X509_set_subject_name(FNewCert, SubjName) = 0) then
-        RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set subject from request');
+      { set the cert subject name to the request subject }
+        SubjName := f_X509_NAME_dup(f_ics_X509_REQ_get_subject_name(X509Req));
+        if NOT Assigned(SubjName) or (f_X509_set_subject_name(FNewCert, SubjName) = 0) then
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set subject from request');
 
-  { set the issuer name to CA subject }
-    if f_X509_set_issuer_name(FNewCert, f_X509_get_subject_name(FX509CA)) = 0 then
-        RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set issuer from CA');
+      { set the issuer name to CA subject }
+        if f_X509_set_issuer_name(FNewCert, f_X509_get_subject_name(FX509CA)) = 0 then
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set issuer from CA');
 
-  { set extensions }
+      { set extensions }
 
-  { Add basic contraints }
-    SetCertExt(FNewCert, NID_basic_constraints, BuildBasicCons(FBasicIsCA));
+      { Add basic contraints }
+        SetCertExt(FNewCert, NID_basic_constraints, BuildBasicCons(FBasicIsCA));
 
 
-    if NOT CopyExtns then begin
+        if NOT CopyExtns then begin
 
-    { subject alternate name - DNS or domain names }
-        if FAltDNSList.Count <> 0 then
-            BuildCertAltSubj(FNewCert, GEN_DNS, FAltDNSList)
+        { subject alternate name - DNS or domain names }
+            if FAltDNSList.Count <> 0 then
+                BuildCertAltSubj(FNewCert, GEN_DNS, FAltDNSList)
 
-      { subject alternate name - IP addresses }
-        else if FAltIPList.Count <> 0 then
-            BuildCertAltSubj(FNewCert, GEN_IPADD, FAltIPList)
+          { subject alternate name - IP addresses }
+            else if FAltIPList.Count <> 0 then
+                BuildCertAltSubj(FNewCert, GEN_IPADD, FAltIPList)
 
-      { subject alternate name - email addresses }
-        else if FAltEmailList.Count <> 0 then
-            BuildCertAltSubj(FNewCert, GEN_EMAIL, FAltEmailList);
+          { subject alternate name - email addresses }
+            else if FAltEmailList.Count <> 0 then
+                BuildCertAltSubj(FNewCert, GEN_EMAIL, FAltEmailList);
 
-     { Key usage }
-        SetCertExt(FNewCert, NID_key_usage, BuildKeyUsage);
+         { Key usage }
+            SetCertExt(FNewCert, NID_key_usage, BuildKeyUsage);
 
-    { Extended Key usage }
-        SetCertExt(FNewCert, NID_ext_key_usage, BuildExKeyUsage);
+        { Extended Key usage }
+            SetCertExt(FNewCert, NID_ext_key_usage, BuildExKeyUsage);
 
-    end
-    else begin
-        { copy some extension from request to certificate }
-        AltDomains :=  ReqSubjAltNameDNS;
-        if AltDomains <> '' then begin
-               TempList := TStringList.Create;
-               try
-                TempList.Text := AltDomains;
-                if TempList.Count > 0 then
-                    BuildCertAltSubj(FNewCert, GEN_DNS, TempList);
-               finally
-                TempList.Free;
-               end;
+        end
+        else begin
+         { copy some extension from request to certificate }
+
+            AltItems :=  ReqSubjAltNameDNS;
+            if AltItems <> '' then begin
+                TempList.Text := AltItems;
+                if TempList.Count > 0 then BuildCertAltSubj(FNewCert, GEN_DNS, TempList);
+            end;
+
+            AltItems :=  ReqSubjAltNameIP;
+            if AltItems <> '' then begin
+                TempList.Text := AltItems;
+                if TempList.Count > 0 then BuildCertAltSubj(FNewCert, GEN_IPADD, TempList);
+            end;
+
+         { Key usage }
+            SetCertExt(FNewCert, NID_key_usage, AnsiString(IcsUnwrapNames(ReqKeyUsage)));
+
+        { Extended Key usage }
+            SetCertExt(FNewCert, NID_ext_key_usage, AnsiString(IcsUnwrapNames(ReqExKeyUsage)));
+
         end;
 
-     { Key usage }
-        SetCertExt(FNewCert, NID_key_usage, AnsiString(UnwrapNames(ReqKeyUsage)));
-
-    { Extended Key usage }
-        SetCertExt(FNewCert, NID_ext_key_usage, AnsiString(UnwrapNames(ReqExKeyUsage)));
-
+      { Sign it with CA certificate and hash digest }
+         if f_EVP_PKEY_base_id(FPrivKeyCA) = EVP_PKEY_ED25519 then begin   { V8.51 no digest for EVP_PKEY_ED25519 }
+            if f_X509_sign(FNewCert, FPrivKeyCA, Nil) = 0 then
+                RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certifcate with ED25519 key');
+        end
+        else begin
+           if f_X509_sign(FNewCert, FPrivKeyCA, IcsSslGetEVPDigest(FCertDigest)) <= 0 then
+            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certificate with digest');
+        end;
+        SetX509(FNewCert);
+    finally
+        TempList.Free;
     end;
-
-  { Sign it with CA certificate and hash digest }
-     if f_EVP_PKEY_base_id(FPrivKeyCA) = EVP_PKEY_ED25519 then begin   { V8.51 no digest for EVP_PKEY_ED25519 }
-        if f_X509_sign(FNewCert, FPrivKeyCA, Nil) = 0 then
-            RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certifcate with ED25519 key');
-    end
-    else begin
-       if f_X509_sign(FNewCert, FPrivKeyCA, IcsSslGetEVPDigest(FCertDigest)) <= 0 then
-        RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to sign certificate with digest');
-    end;
-    SetX509(FNewCert);
-
-  { add certificate to our database ? }
-
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2970,6 +3075,13 @@ begin
     X509Req := Nil;
     X509Inters := Nil;
     FreeAndNilX509Req;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslCertTools.DoClearCA;  { V8.57 split from DoClearCerts }
+begin
+    InitializeSsl;
     FreeAndNilX509CA;
     FreeAndNilPrivKeyCA;
 end;

@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.56
+Version:      8.57
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1271,7 +1271,7 @@ Jun 27, 2018 V8.55  Server also ignores second handshake start in InfoCallback w
                     Added sslCliSecDefault and sslSrvSecDefault recommended
                        security defaults, two more client security levels
                     Ensure that SSL alerts are logged with more detail.
-Jul 08, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
+Jul 14, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
                      extension which is sent with the initial SSL hello.
                     For clients, SslAlpnProtocols sets SslContext with a list of
                       protocols the application supports (ie http/1.1, h2), and
@@ -1282,6 +1282,7 @@ Jul 08, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
                        may be selected (ie H2 to support HTTP/2).
                     Added IPv6 support for TCustomSocksWSocket and
                        TCustomHttpTunnelWSocket, thanks to Max Terentiev.
+Aug 21, 2018 V8.57  Tidy up UnwrapNames.
 
 
 Use of certificates for SSL clients:
@@ -1486,8 +1487,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 856;
-  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.56 ';
+  WSocketVersion            = 857;
+  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.57 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -3283,7 +3284,7 @@ type
 const
     sslCliSecDefault = sslCliSecTls11;  { V8.55 recommended default }
 
-type
+type    
   { V8.51 now only used for 1.0.2 and 1.1.0, many unused for 1.1.0, ignored for 1.1.1 and later }
     TSslOption  = (sslOpt_CIPHER_SERVER_PREFERENCE,
                    sslOpt_MICROSOFT_SESS_ID_BUG,        { V8.27 gone 1.1.0 }
@@ -3989,7 +3990,7 @@ type
         procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
         function    SslGetSupportedCiphers (Supported, Remote: boolean): String;    { V8.27 }
         function    SslGetAlpnProtocol: String;         { V8.56 }
-
+                    
         property    LastSslError       : Integer          read FLastSslError;
         property    ExplizitSsl        : Boolean          read  FExplizitSsl
                                                           write FExplizitSsl;
@@ -17325,7 +17326,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.UnwrapNames(const S: String): String;
 begin
-    Result := StringReplace(S, #13#10, ', ', [rfReplaceAll]);
+    Result := IcsUnwrapNames(S);     { V8.56 simplify }
 end;
 
 
@@ -18854,20 +18855,20 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.CertInfo(Brief: Boolean = False): String;   { V8.41 added Brief }
 begin
-    Result := 'Issued to (CN): ' + UnwrapNames (SubjectCName);
-    if SubjectOName  <> '' then Result := Result + ', (O): '  + UnwrapNames (SubjectOName);
-    if SubjectOUName <> '' then Result := Result + ', (OU): ' + UnwrapNames (SubjectOUName);  { V8.53 }
+    Result := 'Issued to (CN): ' + IcsUnwrapNames (SubjectCName);
+    if SubjectOName  <> '' then Result := Result + ', (O): '  + IcsUnwrapNames (SubjectOName);
+    if SubjectOUName <> '' then Result := Result + ', (OU): ' + IcsUnwrapNames (SubjectOUName);  { V8.53 }
     Result := Result + #13#10;
     if SubAltNameDNS <> '' then
-        Result := Result + 'Alt Domains (SAN): ' + UnwrapNames (SubAltNameDNS) + #13#10;
+        Result := Result + 'Alt Domains (SAN): ' + IcsUnwrapNames (SubAltNameDNS) + #13#10;
     if SubAltNameIP <> '' then
-        Result := Result + 'Alt IP: ' + UnwrapNames (SubAltNameIP) + #13#10;   { V8.41 }
+        Result := Result + 'Alt IP: ' + IcsUnwrapNames (SubAltNameIP) + #13#10;   { V8.41 }
     if SelfSigned then
         Result := Result + 'Issuer: Self Signed' + #13#10
     else begin
-        Result := Result + 'Issued by (CN): ' + UnwrapNames (IssuerCName);
-        if IssuerOName  <> '' then Result := Result + ', (O): '  + UnwrapNames (IssuerOName);
-        if IssuerOUName <> '' then Result := Result + ', (OU): ' + UnwrapNames (IssuerOUName);   { V8.53 }
+        Result := Result + 'Issued by (CN): ' + IcsUnwrapNames (IssuerCName);
+        if IssuerOName  <> '' then Result := Result + ', (O): '  + IcsUnwrapNames (IssuerOName);
+        if IssuerOUName <> '' then Result := Result + ', (OU): ' + IcsUnwrapNames (IssuerOUName);   { V8.53 }
         Result := Result + #13#10;
     end;
     Result := Result + 'Expires: ' + DateToStr (ValidNotAfter) +    { V8.45 need expiry for brief }
@@ -19196,7 +19197,7 @@ begin
         ErrStr := 'SSL certificate expected host name not found: ' +
                          Host + ', certificate DNS: ';
         if (SubAltNameDNS <> '') then         { V8.47 sometimes blank }
-            ErrStr := ErrStr + UnwrapNames(SubAltNameDNS)
+            ErrStr := ErrStr + IcsUnwrapNames(SubAltNameDNS)
         else
             ErrStr := ErrStr + SubjectCName;
     end;
@@ -21755,7 +21756,7 @@ begin
   {  FInHandshake             := FALSE;  V8.55 }
     FHandshakeEventDone      := FALSE;  { V8.55 }
     FHandshakeDone           := FALSE;
-// V8.55 reset is called during error handling, don't clear error reasons
+// V8.55 reset is called during error handling, don't clear error reasons     
 //    FSslHandshakeRespMsg     := '';  { V8.14 set with success or failure message once handshake completes }
 //    FSslHandshakeErr         := 0;   { V8.14 }
     FSslCipherDesc           := '';  { V8.14  }

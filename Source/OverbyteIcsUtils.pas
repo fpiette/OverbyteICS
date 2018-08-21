@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.56
+Version:      8.57
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -158,10 +158,13 @@ Apr 04, 2018 V8.53 Added sanity test to IcsBufferToHex to avoid exceptions
                    Added IcsBufferToHex overload with AnsiString
                    Added IcsHextoBin
 Apr 25, 2018 V8.54 Moved IntToKbyte and ticks stuff from OverbyteIcsFtpSrvT
-Jul 6, 2018  V8.56 Added IcsWireFmtToStrList and IcsStrListToWireFmt converting
+Aug 10, 2018 V8.57 Added IcsWireFmtToStrList and IcsStrListToWireFmt converting
                      Wire Format concatanated length prefixed strings to TStrings
-                     and vice versa, used by SSL hello.  
-
+                     and vice versa, used by SSL hello.
+                   Added IcsEscapeCRLF and IcsUnEscapeCRLF to change CRLF to \n
+                     and vice versa
+                   Added IcsSetToInt, IcsIntToSet, IcsSetToStr, IcsStrToSet to
+                     ease saving set bit maps to INI files and registry.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -218,6 +221,7 @@ uses
     {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.RtlConsts{$ELSE}RtlConsts{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.SysConst{$ELSE}SysConst{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.TypInfo{$ELSE}TypInfo{$ENDIF},
 {$IFDEF COMPILER16_UP}
     System.SyncObjs,
 {$ENDIF}
@@ -596,6 +600,13 @@ const
     function IntToKbyte (Value: Int64; Bytes: boolean = false): String; { V8.54  moved here from OverbyteIcsFtpSrvT }
     function IcsWireFmtToStrList(Buffer: TBytes; Len: Integer; SList: TStrings): Integer;  { V8.56 }
     function IcsStrListToWireFmt(SList: TStrings; var Buffer: TBytes): Integer;            { V8.56 }
+    function IcsEscapeCRLF(const Value: String): String;               { V8.56 }
+    function IcsUnEscapeCRLF(const Value: String): String;             { V8.56 }
+
+    function IcsSetToInt(const aSet; const aSize: Integer): Integer;      { V8.56 }
+    procedure IcsIntToSet(const Value: Integer; var aSet; const aSize: Integer);    { V8.56 }
+    function IcsSetToStr(TypInfo: PTypeInfo; const aSet; const aSize: Integer): string;   { V8.56 }
+    procedure IcsStrToSet(TypInfo: PTypeInfo; const Values: String; var aSet; const aSize: Integer);  { V8.56 }
 
     { V8.54 Tick and Trigger functions for timing stuff moved here from OverbyteIcsFtpSrvT   }
     function IcsGetTickCountX: longword ;
@@ -6408,6 +6419,102 @@ begin
     end;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 convert CRLF to \n  }
+function IcsEscapeCRLF(const Value: String): String;
+var
+    I: Integer;
+begin
+    Result := Value;
+    while True do begin
+        I := Pos(IcsCRLF, Result);
+        if I <= 0 then Exit;
+        Result[I] := '\';
+        Result[I+1] := 'n';
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 convert \n to CRLF  }
+function IcsUnEscapeCRLF(const Value: String): String;
+var
+    I: Integer;
+begin
+    Result := Value;
+    while True do begin
+        I := Pos('\n', Result);
+        if I <= 0 then Exit;
+        Result[I] := IcsCR;
+        Result[I+1] := IcsLF;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 convert Set bit map to Integer }
+function IcsSetToInt(const aSet; const aSize: Integer): Integer;
+begin
+    Result := 0;
+    Move(aSet, Result, aSize);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 convert Integer to Set bit map }
+procedure IcsIntToSet(const Value: Integer; var aSet; const aSize: Integer);
+begin
+    Move(Value, aSet, aSize);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 convert Set bit map to [] comma string with enumerated names,
+ ie [OutFmtSep,OutFmtBudl,OutFmtP12] for TCertOutFmt }
+function IcsSetToStr(TypInfo: PTypeInfo; const aSet; const aSize: Integer): string;
+var
+    I, W: Integer;
+begin
+    W := IcsSetToInt(aSet, aSize);
+    Result := '[';
+    for I := 0 to (aSize * 8) - 1 do begin
+        if I in TIntegerSet(W) then begin
+            if Length(Result) <> 1 then Result := Result + ',';
+            Result := Result + GetSetElementName (TypInfo, I);
+        end;
+    end;
+  Result := Result + ']';
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 convert [] comma string with enumerated names to Set bit map,
+ ie [OutFmtSep,OutFmtBudl,OutFmtP12] for TCertOutFmt }
+procedure IcsStrToSet(TypInfo: PTypeInfo; const Values: String; var aSet; const aSize: Integer);
+var
+    ValueList: TStringList;
+    I, J, W: Integer;
+begin
+    W := 0;
+    ValueList := TStringList.Create;
+    try
+        if Length(Values) < 3 then Exit;
+        if Pos('[', Values) <> 1 then Exit;
+        ValueList.CommaText := Copy (Values, 2, Length(Values) - 2);
+        if ValueList.Count = 0 then Exit;
+        for J := 0 to ValueList.Count - 1 do begin
+            try
+                I := GetSetElementValue (TypInfo, ValueList[J]);
+                if I >= 0 then Include(TIntegerSet(W), I);
+            except
+            end;
+        end;
+    finally
+        IcsIntToSet(W, aSet, aSize);
+        ValueList.Free;
+    end;
+end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

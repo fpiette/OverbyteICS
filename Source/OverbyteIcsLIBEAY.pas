@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.52
+Version:      8.57
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -254,8 +254,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 852;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2018 F. Piette V8.52 ';
+    IcsLIBEAYVersion   = 857;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2018 F. Piette V8.57 ';
 
 type
     EIcsLibeayException = class(Exception);

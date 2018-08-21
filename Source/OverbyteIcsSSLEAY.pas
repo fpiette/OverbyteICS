@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.56
+Version:      8.57
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -120,9 +120,10 @@ Nov 22, 2017  V8.51 Testing OpenSSL 1.1.1 that adds TLS/1.3
               Added more constants and functions for 1.1.1, f_SSL_xx_groups
 Feb 27, 2018  V8.52 Added more EVP functions for keys, hashing and signing
 Jun 20, 2018  V8.55 Testing with OpenSSL 1.1.1 beta
-Jul 4, 2018   V8.56 added APLN APIs and literals 
+Aug 21, 2018  V8.57 added APLN APIs and literals
+                    Another OpenSSL 1.1.1 beta
 
-
+                    
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -199,6 +200,7 @@ uses
     Posix.Errno,System.Types,   { V8.49 types needed for DWORD }
   {$ENDIF}
     {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+    OverbyteIcsTypes,
     OverbyteIcsUtils;
 
 const
@@ -306,7 +308,7 @@ const
 
     MIN_OSSL_VER   = OSSL_VER_1002;   { V8.39 minimum is now 1.0.2 }
 //  MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.35 1.1.0zz }
-    MAX_OSSL_VER   = OSSL_VER_1101P8; { V8.55 1.1.1-pre8 (beta6) }
+    MAX_OSSL_VER   = OSSL_VER_1101P9; { V8.57 1.1.1-pre9 (beta7) }
 
     { V8.41 PEM base64 file titles }
     PEM_STRING_HDR_BEGIN   = '-----BEGIN ';    { six hyphens }
@@ -339,12 +341,16 @@ const
     PEM_STRING_CMS         = 'CMS' ;
 
 { V8.56 TLS Application-Layer Protocol Negotiation (ALPN) Protocol IDs }
+{ received from one client: h2,h2-14,h2-15,h2-16,h2-17,spdy/1,spdy/2,spdy/3,spdy/3.1,spdy/4,http/1.1,h2-fb,webrtc,c-webrtc,ftp }
     ALPN_ID_HTTP10        = 'http/1.0';
     ALPN_ID_HTTP11        = 'http/1.1';
     ALPN_ID_HTTP2         = 'h2';
-    ALPN_ID_SPDY1         = 'spdy/1';
-    ALPN_ID_SPDY2         = 'spdy/2';
+    ALPN_ID_HTTP2S        = 'h2s';
+    ALPN_ID_HTTP214       = 'h2-14';   { and -15, -16, -17 }
+//    ALPN_ID_SPDY1         = 'spdy/1';
+//    ALPN_ID_SPDY2         = 'spdy/2';
     ALPN_ID_SPDY3         = 'spdy/3';
+    ALPN_ID_SPDY31        = 'spdy/3.1';
     ALPN_ID_TURN          = 'stun.turn';
     ALPN_ID_STUN          = 'stun.nat-discovery';
     ALPN_ID_WEBRTC        = 'webrtc';

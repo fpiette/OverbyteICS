@@ -10,13 +10,12 @@ Description:  JOSE - Json Object Signing and Encryption, used for:
               Includes OpenSSL Message Authentication Code functions used
               for signing JOSE structures with secret or private/public keys.
 Creation:     Feb 2018
-Updated:      Apr 2018
-Version:      8.54
+Updated:      Aug 2018
+Version:      8.57
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
-Legal issues: Copyright (C) 1997-2018 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium.
-              <francois.piette@overbyte.be>
+Legal issues: Copyright (C) 2018 by Angus Robertson, Magenta Systems Ltd,
+              Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable

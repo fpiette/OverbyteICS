@@ -158,8 +158,8 @@ Apr 04, 2018 V8.53 Added sanity test to IcsBufferToHex to avoid exceptions
                    Added IcsBufferToHex overload with AnsiString
                    Added IcsHextoBin
 Apr 25, 2018 V8.54 Moved IntToKbyte and ticks stuff from OverbyteIcsFtpSrvT
-Aug 10, 2018 V8.57 Added IcsWireFmtToStrList and IcsStrListToWireFmt converting
-                     Wire Format concatanated length prefixed strings to TStrings
+Aug 23, 2018 V8.57 Added IcsWireFmtToStrList and IcsStrListToWireFmt converting
+                     Wire Format concatenated length prefixed strings to TStrings
                      and vice versa, used by SSL hello.
                    Added IcsEscapeCRLF and IcsUnEscapeCRLF to change CRLF to \n
                      and vice versa
@@ -6470,7 +6470,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 convert Set bit map to [] comma string with enumerated names,
+{ V8.57 convert Set bit map to [] comma string with enumerated names,
  ie [OutFmtSep,OutFmtBudl,OutFmtP12] for TCertOutFmt }
 function IcsSetToStr(TypInfo: PTypeInfo; const aSet; const aSize: Integer): string;
 var
@@ -6481,7 +6481,7 @@ begin
     for I := 0 to (aSize * 8) - 1 do begin
         if I in TIntegerSet(W) then begin
             if Length(Result) <> 1 then Result := Result + ',';
-            Result := Result + GetSetElementName (TypInfo, I);
+            Result := Result + GetEnumName (TypInfo, I);
         end;
     end;
   Result := Result + ']';
@@ -6489,7 +6489,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 convert [] comma string with enumerated names to Set bit map,
+{ V8.57 convert [] comma string with enumerated names to Set bit map,
  ie [OutFmtSep,OutFmtBudl,OutFmtP12] for TCertOutFmt }
 procedure IcsStrToSet(TypInfo: PTypeInfo; const Values: String; var aSet; const aSize: Integer);
 var
@@ -6505,7 +6505,7 @@ begin
         if ValueList.Count = 0 then Exit;
         for J := 0 to ValueList.Count - 1 do begin
             try
-                I := GetSetElementValue (TypInfo, ValueList[J]);
+                I := GetEnumValue (TypInfo, ValueList[J]);
                 if I >= 0 then Include(TIntegerSet(W), I);
             except
             end;

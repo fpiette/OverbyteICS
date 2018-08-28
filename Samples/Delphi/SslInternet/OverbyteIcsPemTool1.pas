@@ -96,7 +96,7 @@ Nov 3, 2017  V8.51 Tested ED25519 keys, can now sign requests and certs
              Added RSA-PSS keys and SHA3 digest hashes, requires OpenSSL 1.1.1
 Feb 14, 2018 V8.52 TX509 PublicKey now X509PublicKey
 Mar 12, 2018 V8.53 Display Wsocket version in About
-
+Jun 11, 2018 V8.55 don't load OpenSSL in Create
 
 
 Pending
@@ -134,10 +134,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 854;
-     PemToolDate        = 'May 21, 2018';
+     PemToolVersion     = 857;
+     PemToolDate        = 'Aug 27, 2018';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2018 by François PIETTE V8.54 ';
+     CopyRight : String = '(c) 2003-2018 by François PIETTE V8.57 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -512,13 +512,9 @@ begin
     GSSL_DLL_DIR := FProgDir;        { V8.38 only from our directory }
     GSSL_SignTest_Check := True;     { V8.38 check digitally signed }
     GSSL_SignTest_Certificate := True; { V8.38 check digital certificate }
-    OverbyteIcsWSocket.LoadSsl;
     OpenDlg.Filter := 'Certs *.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
                             '*.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
                             'All Files *.*|*.*';
-    FSslCertTools := TSslCertTools.Create(self);
-    FSslCertTools.OnKeyProgress := ToolsOKeyProgress;
-    FSslCAX09 := TX509Base.Create(self);    // V8.50
 end;
 
 
@@ -615,6 +611,11 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.WMAppStartup(var Msg: TMessage);
 begin
+ // V8.55 don't load OpenSSL in create
+    OverbyteIcsWSocket.LoadSsl;
+    FSslCertTools := TSslCertTools.Create(self);
+    FSslCertTools.OnKeyProgress := ToolsOKeyProgress;
+    FSslCAX09 := TX509Base.Create(self);    // V8.50
     frmPemTool1.Caption := CaptionMain + Trim(CurrentCertDirEdit.Text);
     PageControl1.ActivePageIndex := 0;
     LvCerts.Perform(CM_RECREATEWND, 0, 0); // fix column buttons not displayed

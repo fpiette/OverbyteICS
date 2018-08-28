@@ -3,8 +3,8 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS SSL Json Object Signing (Jose) Demos
 Creation:     May 2018
-Updated:      May 2018
-Version:      8.54
+Updated:      July 2018
+Version:      8.57
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -38,11 +38,13 @@ Legal issues: Copyright (C) 2003-2018 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
-22 May 2018 - 8.54 baseline
+May 22, 2018 - V8.54 baseline
+Aug 28, 2018 - V8.57 Added Database tab and settings
 
 For docunentation on how to use this sample, please see a length Overview in
-the OverbyteIcsSslX509Certs.pas unit.  
+the OverbyteIcsSslX509Certs.pas unit.
 
+Pending - Waiting challenges list
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsX509CertsTst1;
@@ -65,7 +67,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls, ComCtrls, Grids,
+  Dialogs, StdCtrls, ExtCtrls, ComCtrls, Grids, Buttons,
+  OverbyteIcsTypes,
   OverbyteIcsWSocket,
   OverbyteIcsWndControl,
   OverbyteIcsHttpProt,
@@ -89,6 +92,10 @@ type
     AccAcmeKeyV2: TComboBox;
     AcmeServerV1: TComboBox;
     AcmeServerV2: TComboBox;
+    AutoOrderComplete: TCheckBox;
+    CACertFile: TEdit;
+    CAPkeyFile: TEdit;
+    CAPkeyPw: TEdit;
     CertAddress: TEdit;
     CertCentreApprovEmail: TComboBox;
     CertCentreOrderId: TEdit;
@@ -100,9 +107,17 @@ type
     CertContactLast: TEdit;
     CertContactTitle: TEdit;
     CertCountry: TEdit;
+    CertCsrOrigin: TRadioGroup;
     CertLocality: TEdit;
+    CertOldCsrFile: TEdit;
+    CertOldPrvKey: TEdit;
     CertOrganization: TEdit;
     CertOrganizationalUnit: TEdit;
+    CertOutFmtBudl: TCheckBox;
+    CertOutFmtP12: TCheckBox;
+    CertOutFmtP7: TCheckBox;
+    CertOutFmtReq: TCheckBox;
+    CertOutFmtSep: TCheckBox;
     CertPhone: TEdit;
     CertPostCode: TEdit;
     CertSignDigestType: TRadioGroup;
@@ -112,6 +127,7 @@ type
     DirAcmeConfV1: TEdit;
     DirAcmeConfV2: TEdit;
     DirCertCenConf: TEdit;
+    DirDatabase: TComboBox;
     DirLogs: TEdit;
     DirPubWebCert: TEdit;
     DirWellKnown: TEdit;
@@ -132,10 +148,12 @@ type
     OAuthWebIP: TComboBox;
     OAuthWebPort: TEdit;
     OldOSL: TCheckBox;
+    OwnCACertDir: TEdit;
     PrivKeyCipher: TRadioGroup;
     PrivKeyPassword: TEdit;
     PrivKeyType: TRadioGroup;
     SuppCertChallenge: TRadioGroup;
+    SupplierEmail: TEdit;
 
  // properties not saved
     X509Certs1: TSslX509Certs;
@@ -200,8 +218,6 @@ type
     doCertCentreCollect: TButton;
     doCertCentreOther: TButton;
     doCertCentreOrders: TButton;
-    doCertCentreCancel: TButton;
-    doCertCentreRevoke: TButton;
     doCertCentreCheck: TButton;
     TabCCOAuth: TTabSheet;
     TabServtas: TTabSheet;
@@ -227,6 +243,59 @@ type
     doOACodeToken: TButton;
     Label42: TLabel;
     CertCommonName: TEdit;
+    LabelAcme2Info: TLabel;
+    TabDatabase: TTabSheet;
+    Label43: TLabel;
+    SelDirDatabase: TBitBtn;
+    OpenDirDiag: TOpenDialog;
+    doOpenDatabase: TButton;
+    LabelDB: TLabel;
+    Label45: TLabel;
+    doDBCheck: TButton;
+    doDBOrder: TButton;
+    LabelInfoDomain: TLabel;
+    Acme2DnsUpdated: TCheckBox;
+    doClearDomain: TButton;
+    doCloseDatabase: TButton;
+    TabOwnCA: TTabSheet;
+    CABox: TGroupBox;
+    Label44: TLabel;
+    Label46: TLabel;
+    SelCACertFile: TBitBtn;
+    SelCAPkeyFile: TBitBtn;
+    doSelfSigned: TButton;
+    doCASignCert: TButton;
+    LabelOwnCA: TLabel;
+    Label48: TLabel;
+    doLoadCA: TButton;
+    Label49: TLabel;
+    Label50: TLabel;
+    Label51: TLabel;
+    Label52: TLabel;
+    OpenFileDlg: TOpenDialog;
+    BoxCertFmts: TGroupBox;
+    SelDirLogs: TBitBtn;
+    SelCertOldCsrFile: TBitBtn;
+    SelCertOldPrvKey: TBitBtn;
+    SelDirWellKnown: TBitBtn;
+    SelDirPubWebCert: TBitBtn;
+    SelDirAcmeConfV1: TBitBtn;
+    SelDirAcmeConfV2: TBitBtn;
+    SelDirCertCenConf: TBitBtn;
+    doCheckCSR: TButton;
+    LabelCertOwnCA: TLabel;
+    SelOwnCACertDir: TBitBtn;
+    CertSerNumType: TRadioGroup;
+    DatabaseDomains: TListView;
+    TabChallenges: TTabSheet;
+    DatabaseChallg: TListView;
+    Label47: TLabel;
+    Label53: TLabel;
+    doDBRevoke: TButton;
+    doDBCollect: TButton;
+    doDBCancel: TButton;
+    doDBRemove: TButton;
+    CCDnsUpdated: TCheckBox;
 
 
     procedure FormCreate(Sender: TObject);
@@ -239,8 +308,6 @@ type
     procedure doCertCentreOtherClick(Sender: TObject);
     procedure doCertCentreOrdersClick(Sender: TObject);
     procedure doCertCentreCollectClick(Sender: TObject);
-    procedure doCertCentreCancelClick(Sender: TObject);
-    procedure doCertCentreRevokeClick(Sender: TObject);
     procedure CertCentreProductsClick(Sender: TObject);
     procedure doTestWellKnownClick(Sender: TObject);
     procedure doAcmeAccV1Click(Sender: TObject);
@@ -258,6 +325,42 @@ type
     procedure X509Certs1NewToken(Sender: TObject);
     procedure doOARefreshNowClick(Sender: TObject);
     procedure doOACodeTokenClick(Sender: TObject);
+    procedure X509Certs1ChallengeDNS(Sender: TObject;
+      ChallengeItem: TChallengeItem);
+    procedure X509Certs1ChallengeEmail(Sender: TObject;
+      ChallengeItem: TChallengeItem);
+    procedure X509Certs1ChallengeFTP(Sender: TObject;
+      ChallengeItem: TChallengeItem);
+    procedure SelDirDatabaseClick(Sender: TObject);
+    procedure doOpenDatabaseClick(Sender: TObject);
+    procedure DatabaseDomainsClick(Sender: TObject);
+    procedure doDBCheckClick(Sender: TObject);
+    procedure doDBOrderClick(Sender: TObject);
+    procedure doClearDomainClick(Sender: TObject);
+    procedure doCloseDatabaseClick(Sender: TObject);
+    procedure doAcmeRevokeV2Click(Sender: TObject);
+    procedure SelCACertFileClick(Sender: TObject);
+    procedure doLoadCAClick(Sender: TObject);
+    procedure SelCAPkeyFileClick(Sender: TObject);
+    procedure SelDirLogsClick(Sender: TObject);
+    procedure SelCertOldCsrFileClick(Sender: TObject);
+    procedure SelCertOldPrvKeyClick(Sender: TObject);
+    procedure SelDirWellKnownClick(Sender: TObject);
+    procedure SelDirPubWebCertClick(Sender: TObject);
+    procedure SelDirAcmeConfV1Click(Sender: TObject);
+    procedure SelDirAcmeConfV2Click(Sender: TObject);
+    procedure SelDirCertCenConfClick(Sender: TObject);
+    procedure doCheckCSRClick(Sender: TObject);
+    procedure doCASignCertClick(Sender: TObject);
+    procedure doSelfSignedClick(Sender: TObject);
+    procedure SelOwnCACertDirClick(Sender: TObject);
+    procedure doDBCollectClick(Sender: TObject);
+    procedure doDBCancelClick(Sender: TObject);
+    procedure doDBRevokeClick(Sender: TObject);
+    procedure doDBRemoveClick(Sender: TObject);
+    procedure X509Certs1ChallgRefresh(Sender: TObject);
+    procedure X509Certs1DomainsRefresh(Sender: TObject);
+    procedure X509Certs1SuppDBRefresh(Sender: TObject);
   private
     { Private declarations }
   public
@@ -274,6 +377,9 @@ type
     procedure SetCommParams;
     procedure SetCertParams;
     procedure ResetButtons;
+    procedure RefreshDomains;
+    procedure ResetDomButtons;
+    procedure SetDomButtons;
   end;
 
 const
@@ -309,6 +415,10 @@ begin
     CertSANGrid.Cells[0,0] := 'Domain Name';
     CertSANGrid.Cells[1,0] := 'Web Server UNC HTTP .Well-Known';
     CertSANGrid.Cells[2,0] := 'Web Server UNC Public Certs Dir';
+    CertSANGrid.Cells[3,0] := 'Approval Email';
+    OpenFileDlg.Filter := 'Certs *.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
+                            '*.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
+            'All Files *.*|*.*';
 end;
 
 procedure TX509CertsForm.FormDestroy(Sender: TObject);
@@ -319,7 +429,7 @@ end;
 procedure TX509CertsForm.FormShow(Sender: TObject);
 var
     IniFile: TIcsIniFile;
-    SL: TStringList;
+    SL, SR: TStringList;
     I, J, K, tot: Integer;
 begin
     if not FInitialized then begin
@@ -330,20 +440,25 @@ begin
         Top := IniFile.ReadInteger(SectionMainWindow, KeyTop, (Screen.Height - Height) div 2);
         Left := IniFile.ReadInteger(SectionMainWindow, KeyLeft, (Screen.Width  - Width)  div 2);
         SL := TStringList.Create;
+        SR := TStringList.Create;
         try
-             SL.Delimiter := '|';
+             SL.Delimiter := ',';
+             SR.Delimiter := '|';
              SL.DelimitedText := IniFile.ReadString(SectionData, KeyCertSANGrid, '');
              tot := SL.Count;
-             K := 0;
-             for I := 0 to CertSANGrid.RowCount - 1 do begin
-                for J := 0 to CertSANGrid.ColCount - 1 do begin
-                    if K < tot then
-                        CertSANGrid.Cells[J, I] := SL[K];
-                    K := K + 1;
+             CertSANGrid.RowCount := tot + 10;
+             for I := 0 to tot - 1 do begin
+                SR.DelimitedText := SL[I];
+                if SR.Count >= 4 then begin
+                    CertSANGrid.Cells[0, I + 1] := SR[0];
+                    CertSANGrid.Cells[1, I + 1] := SR[1];
+                    CertSANGrid.Cells[2, I + 1] := SR[2];
+                    CertSANGrid.Cells[3, I + 1] := SR[3];
                 end;
              end;
         finally
              SL.Free;
+             SR.Free;
         end;
 
        with IniFile do begin
@@ -351,12 +466,16 @@ begin
   AccAcmeKeyV2.ItemIndex := ReadInteger (SectionData, 'AccAcmeKeyV2_ItemIndex', AccAcmeKeyV2.ItemIndex) ;
   AcmeServerV1.Text := ReadString (SectionData, 'AcmeServerV1_Text', AcmeServerV1.Text) ;
   AcmeServerV2.Text := ReadString (SectionData, 'AcmeServerV2_Text', AcmeServerV2.Text) ;
+  if ReadString (SectionData, 'AutoOrderComplete_Checked', 'False') = 'True' then AutoOrderComplete.Checked := true else AutoOrderComplete.Checked := false ;
+  CACertFile.Text := ReadString (SectionData, 'CACertFile_Text', CACertFile.Text) ;
+  CAPkeyFile.Text := ReadString (SectionData, 'CAPkeyFile_Text', CAPkeyFile.Text) ;
+  CAPkeyPw.Text := ReadString (SectionData, 'CAPkeyPw_Text', CAPkeyPw.Text) ;
   CertAddress.Text := ReadString (SectionData, 'CertAddress_Text', CertAddress.Text) ;
   CertCentreApprovEmail.Text := ReadString (SectionData, 'CertCentreApprovEmail_Text', CertCentreApprovEmail.Text) ;
   CertCentreOrderId.Text := ReadString (SectionData, 'CertCentreOrderId_Text', CertCentreOrderId.Text) ;
   CertCentreOrderRef.Text := ReadString (SectionData, 'CertCentreOrderRef_Text', CertCentreOrderRef.Text) ;
-  CertCentreProducts.Items.CommaText := ReadString (SectionData, 'CertCentreProducts_Items', '') ;
   CertCentreProducts.ItemIndex := ReadInteger (SectionData, 'CertCentreProducts_ItemIndex', CertCentreProducts.ItemIndex) ;
+  CertCentreProducts.Items.CommaText := ReadString (SectionData, 'CertCentreProducts_Items', '') ;
   CertCentreServer.Text := ReadString (SectionData, 'CertCentreServer_Text', CertCentreServer.Text) ;
   CertCommonName.Text := ReadString (SectionData, 'CertCommonName_Text', CertCommonName.Text) ;
   CertContactEmail.Text := ReadString (SectionData, 'CertContactEmail_Text', CertContactEmail.Text) ;
@@ -364,11 +483,20 @@ begin
   CertContactLast.Text := ReadString (SectionData, 'CertContactLast_Text', CertContactLast.Text) ;
   CertContactTitle.Text := ReadString (SectionData, 'CertContactTitle_Text', CertContactTitle.Text) ;
   CertCountry.Text := ReadString (SectionData, 'CertCountry_Text', CertCountry.Text) ;
+  CertCsrOrigin.ItemIndex := ReadInteger (SectionData, 'CertCsrOrigin_ItemIndex', CertCsrOrigin.ItemIndex) ;
   CertLocality.Text := ReadString (SectionData, 'CertLocality_Text', CertLocality.Text) ;
+  CertOldCsrFile.Text := ReadString (SectionData, 'CertOldCsrFile_Text', CertOldCsrFile.Text) ;
+  CertOldPrvKey.Text := ReadString (SectionData, 'CertOldPrvKey_Text', CertOldPrvKey.Text) ;
   CertOrganization.Text := ReadString (SectionData, 'CertOrganization_Text', CertOrganization.Text) ;
   CertOrganizationalUnit.Text := ReadString (SectionData, 'CertOrganizationalUnit_Text', CertOrganizationalUnit.Text) ;
+  if ReadString (SectionData, 'CertOutFmtBudl_Checked', 'False') = 'True' then CertOutFmtBudl.Checked := true else CertOutFmtBudl.Checked := false ;
+  if ReadString (SectionData, 'CertOutFmtP12_Checked', 'False') = 'True' then CertOutFmtP12.Checked := true else CertOutFmtP12.Checked := false ;
+  if ReadString (SectionData, 'CertOutFmtP7_Checked', 'False') = 'True' then CertOutFmtP7.Checked := true else CertOutFmtP7.Checked := false ;
+  if ReadString (SectionData, 'CertOutFmtReq_Checked', 'False') = 'True' then CertOutFmtReq.Checked := true else CertOutFmtReq.Checked := false ;
+  if ReadString (SectionData, 'CertOutFmtSep_Checked', 'False') = 'True' then CertOutFmtSep.Checked := true else CertOutFmtSep.Checked := false ;
   CertPhone.Text := ReadString (SectionData, 'CertPhone_Text', CertPhone.Text) ;
   CertPostCode.Text := ReadString (SectionData, 'CertPostCode_Text', CertPostCode.Text) ;
+  CertSerNumType.ItemIndex := ReadInteger (SectionData, 'CertSerNumType_ItemIndex', CertSerNumType.ItemIndex) ;
   CertSignDigestType.ItemIndex := ReadInteger (SectionData, 'CertSignDigestType_ItemIndex', CertSignDigestType.ItemIndex) ;
   CertState.Text := ReadString (SectionData, 'CertState_Text', CertState.Text) ;
   CertValidity.Text := ReadString (SectionData, 'CertValidity_Text', CertValidity.Text) ;
@@ -376,6 +504,8 @@ begin
   DirAcmeConfV1.Text := ReadString (SectionData, 'DirAcmeConfV1_Text', DirAcmeConfV1.Text) ;
   DirAcmeConfV2.Text := ReadString (SectionData, 'DirAcmeConfV2_Text', DirAcmeConfV2.Text) ;
   DirCertCenConf.Text := ReadString (SectionData, 'DirCertCenConf_Text', DirCertCenConf.Text) ;
+  DirDatabase.Items.CommaText := ReadString (SectionData, 'DirDatabase_Items', '') ;
+  DirDatabase.Text := ReadString (SectionData, 'DirDatabase_Text', DirDatabase.Text) ;
   DirLogs.Text := ReadString (SectionData, 'DirLogs_Text', DirLogs.Text) ;
   DirPubWebCert.Text := ReadString (SectionData, 'DirPubWebCert_Text', DirPubWebCert.Text) ;
   DirWellKnown.Text := ReadString (SectionData, 'DirWellKnown_Text', DirWellKnown.Text) ;
@@ -396,10 +526,12 @@ begin
   OAuthWebIP.Text := ReadString (SectionData, 'OAuthWebIP_Text', OAuthWebIP.Text) ;
   OAuthWebPort.Text := ReadString (SectionData, 'OAuthWebPort_Text', OAuthWebPort.Text) ;
   if ReadString (SectionData, 'OldOSL_Checked', 'False') = 'True' then OldOSL.Checked := true else OldOSL.Checked := false ;
+  OwnCACertDir.Text := ReadString (SectionData, 'OwnCACertDir_Text', OwnCACertDir.Text) ;
   PrivKeyCipher.ItemIndex := ReadInteger (SectionData, 'PrivKeyCipher_ItemIndex', PrivKeyCipher.ItemIndex) ;
   PrivKeyPassword.Text := ReadString (SectionData, 'PrivKeyPassword_Text', PrivKeyPassword.Text) ;
   PrivKeyType.ItemIndex := ReadInteger (SectionData, 'PrivKeyType_ItemIndex', PrivKeyType.ItemIndex) ;
   SuppCertChallenge.ItemIndex := ReadInteger (SectionData, 'SuppCertChallenge_ItemIndex', SuppCertChallenge.ItemIndex) ;
+  SupplierEmail.Text := ReadString (SectionData, 'SupplierEmail_Text', SupplierEmail.Text) ;
        end;
         IniFile.Free;
     end;
@@ -427,7 +559,7 @@ var
     IniFile : TIcsIniFile;
     temp: String;
     SL: TStringList;
-    I, J: Integer;
+    I: Integer;
 begin
     if FLogOpen then FreeAndNil(FLogFStream);
     FLogOpen := False;
@@ -438,11 +570,10 @@ begin
     IniFile.WriteInteger(SectionMainWindow, KeyHeight, Height);
     SL := TStringList.Create;
     try
-        SL.Delimiter := '|';
-        for I := 0 to CertSANGrid.RowCount - 1 do begin
-            for J := 0 to CertSANGrid.ColCount - 1 do begin
-                SL.Add(CertSANGrid.Cells[J,I]);
-            end;
+        SL.Delimiter := ',';
+        for I := 1 to CertSANGrid.RowCount - 1 do begin
+            SL.Add(CertSANGrid.Cells[0,I] + '|' + CertSANGrid.Cells[1,I] +
+                 '|' + CertSANGrid.Cells[2,I] + '|' + CertSANGrid.Cells[3,I] );
         end;
         IniFile.WriteString(SectionData, KeyCertSANGrid, SL.DelimitedText);
     finally
@@ -454,6 +585,10 @@ begin
   WriteInteger (SectionData, 'AccAcmeKeyV2_ItemIndex', AccAcmeKeyV2.ItemIndex) ;
   WriteString (SectionData, 'AcmeServerV1_Text', AcmeServerV1.Text) ;
   WriteString (SectionData, 'AcmeServerV2_Text', AcmeServerV2.Text) ;
+  if AutoOrderComplete.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'AutoOrderComplete_Checked', temp) ;
+  WriteString (SectionData, 'CACertFile_Text', CACertFile.Text) ;
+  WriteString (SectionData, 'CAPkeyFile_Text', CAPkeyFile.Text) ;
+  WriteString (SectionData, 'CAPkeyPw_Text', CAPkeyPw.Text) ;
   WriteString (SectionData, 'CertAddress_Text', CertAddress.Text) ;
   WriteString (SectionData, 'CertCentreApprovEmail_Text', CertCentreApprovEmail.Text) ;
   WriteString (SectionData, 'CertCentreOrderId_Text', CertCentreOrderId.Text) ;
@@ -467,11 +602,20 @@ begin
   WriteString (SectionData, 'CertContactLast_Text', CertContactLast.Text) ;
   WriteString (SectionData, 'CertContactTitle_Text', CertContactTitle.Text) ;
   WriteString (SectionData, 'CertCountry_Text', CertCountry.Text) ;
+  WriteInteger (SectionData, 'CertCsrOrigin_ItemIndex', CertCsrOrigin.ItemIndex) ;
   WriteString (SectionData, 'CertLocality_Text', CertLocality.Text) ;
+  WriteString (SectionData, 'CertOldCsrFile_Text', CertOldCsrFile.Text) ;
+  WriteString (SectionData, 'CertOldPrvKey_Text', CertOldPrvKey.Text) ;
   WriteString (SectionData, 'CertOrganization_Text', CertOrganization.Text) ;
   WriteString (SectionData, 'CertOrganizationalUnit_Text', CertOrganizationalUnit.Text) ;
+  if CertOutFmtBudl.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'CertOutFmtBudl_Checked', temp) ;
+  if CertOutFmtP12.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'CertOutFmtP12_Checked', temp) ;
+  if CertOutFmtP7.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'CertOutFmtP7_Checked', temp) ;
+  if CertOutFmtReq.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'CertOutFmtReq_Checked', temp) ;
+  if CertOutFmtSep.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'CertOutFmtSep_Checked', temp) ;
   WriteString (SectionData, 'CertPhone_Text', CertPhone.Text) ;
   WriteString (SectionData, 'CertPostCode_Text', CertPostCode.Text) ;
+  WriteInteger (SectionData, 'CertSerNumType_ItemIndex', CertSerNumType.ItemIndex) ;
   WriteInteger (SectionData, 'CertSignDigestType_ItemIndex', CertSignDigestType.ItemIndex) ;
   WriteString (SectionData, 'CertState_Text', CertState.Text) ;
   WriteString (SectionData, 'CertValidity_Text', CertValidity.Text) ;
@@ -479,6 +623,8 @@ begin
   WriteString (SectionData, 'DirAcmeConfV1_Text', DirAcmeConfV1.Text) ;
   WriteString (SectionData, 'DirAcmeConfV2_Text', DirAcmeConfV2.Text) ;
   WriteString (SectionData, 'DirCertCenConf_Text', DirCertCenConf.Text) ;
+  WriteString (SectionData, 'DirDatabase_Items', DirDatabase.Items.CommaText) ;
+  WriteString (SectionData, 'DirDatabase_Text', DirDatabase.Text) ;
   WriteString (SectionData, 'DirLogs_Text', DirLogs.Text) ;
   WriteString (SectionData, 'DirPubWebCert_Text', DirPubWebCert.Text) ;
   WriteString (SectionData, 'DirWellKnown_Text', DirWellKnown.Text) ;
@@ -499,10 +645,12 @@ begin
   WriteString (SectionData, 'OAuthWebIP_Text', OAuthWebIP.Text) ;
   WriteString (SectionData, 'OAuthWebPort_Text', OAuthWebPort.Text) ;
   if OldOSL.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'OldOSL_Checked', temp) ;
+  WriteString (SectionData, 'OwnCACertDir_Text', OwnCACertDir.Text) ;
   WriteInteger (SectionData, 'PrivKeyCipher_ItemIndex', PrivKeyCipher.ItemIndex) ;
   WriteString (SectionData, 'PrivKeyPassword_Text', PrivKeyPassword.Text) ;
   WriteInteger (SectionData, 'PrivKeyType_ItemIndex', PrivKeyType.ItemIndex) ;
   WriteInteger (SectionData, 'SuppCertChallenge_ItemIndex', SuppCertChallenge.ItemIndex) ;
+  WriteString (SectionData, 'SupplierEmail_Text', SupplierEmail.Text) ;
     end;
     IniFile.UpdateFile;
     IniFile.Free;
@@ -522,7 +670,7 @@ begin
         if (DirLogs.Text = '') then Exit ;
         if NOT FLogOpen then
            FLogFStream := TFileStream.Create (IncludeTrailingPathDelimiter(DirLogs.Text) +
-                 'ics-certlog-' + FormatDateTime (DateMaskPacked, Now) + '.log', fmCreate) ;
+                    'ics-certlog-' + FormatDateTime (DateMaskPacked, Now) + '.log', fmCreate) ;
         FLogOpen := true ;
         S2 := S + IcsCRLF ;
         FLogFStream.WriteBuffer (S2 [1], Length (S2)) ;
@@ -536,9 +684,212 @@ begin
     AddLog(Msg);
 end;
 
+procedure TX509CertsForm.X509Certs1ChallengeDNS(Sender: TObject;
+  ChallengeItem: TChallengeItem);
+var
+    secswait: integer;
+    Trg: LongWord;
+    S1, S2: String;
+
+begin
+     S1 := 'Add DNS ' + ChallengeItem.CAuthzURL + ' Record for: ' +
+        ChallengeItem.CPage + ', with: ' + IcsCRLF + ChallengeItem.CDNSValue;
+     S2 := 'Waiting up to five minutes for DNS Server to be manually updated with challenge, Tick box when done';
+    if ChallengeItem.CSupplierProto = SuppProtoAcmeV2 then begin
+    // !!! must now wait until DNS server is updated, or challenge will fail
+    // might be able to use WMI to do this automatically???
+        AddLog(S1);
+        AddLog(S2);
+        Acme2DnsUpdated.Checked := False;
+        Acme2DnsUpdated.Visible := True;
+        secswait := 300;  // 5 minutes
+        while NOT Acme2DnsUpdated.Checked do begin
+            LabelAcme2Info.Caption := 'DNS Challenge: ' + IcsCRLF + S1 +
+              IcsCRLF + 'Challenge Will Continue in ' + IntToStr(secswait) + ' seconds';
+            Trg := IcsGetTrgSecs(5); // five second wait
+            while True do begin
+                Application.ProcessMessages;
+                if Application.Terminated then Exit;
+                if IcsTestTrgTick(Trg) then break ;
+                Sleep(0);   // thread now stops for rest of time slice
+            end ;
+            secswait := secswait - 5;
+            if secswait <= 0 then break;
+        end;
+        LabelAcme2Info.Caption := '';
+        Acme2DnsUpdated.Visible := False;
+    end;
+    if ChallengeItem.CSupplierProto = SuppProtoCertCentre then begin
+    // !!! must now wait until DNS server is updated, or challenge will fail
+    // might be able to use WMI to do this automatically???
+        AddLog(S1);
+        AddLog(S2);
+        CCDnsUpdated.Checked := False;
+        CCDnsUpdated.Visible := True;
+        secswait := 300;  // 5 minutes
+        while NOT CCDnsUpdated.Checked do begin
+            LabelCertInfo.Caption := 'DNS Challenge: ' + IcsCRLF + S1 +
+              IcsCRLF + 'Challenge Will Continue in ' + IntToStr(secswait) + ' seconds';
+            Trg := IcsGetTrgSecs(5); // five second wait
+            while True do begin
+                Application.ProcessMessages;
+                if Application.Terminated then Exit;
+                if IcsTestTrgTick(Trg) then break ;
+                Sleep(0);   // thread now stops for rest of time slice
+            end ;
+            secswait := secswait - 5;
+            if secswait <= 0 then break;
+        end;
+        CCDnsUpdated.Visible := False;
+        LabelCertInfo.Caption := '';
+    end;
+end;
+
+procedure TX509CertsForm.X509Certs1ChallengeEmail(Sender: TObject;
+  ChallengeItem: TChallengeItem);
+begin
+    LabelCertInfo.Caption := 'Email Challenge: ' + icsCRLF +
+        'Please collect order once email challenge has been completed for ' +
+                                                         ChallengeItem.CDomain;
+end;
+
+procedure TX509CertsForm.X509Certs1ChallengeFTP(Sender: TObject;
+  ChallengeItem: TChallengeItem);
+var
+    S: String;
+begin
+    S := '.Well-Known Challenge: ' + icsCRLF +
+        'Use FTP to Copy file: ' + ChallengeItem.CWKFullName +
+            ' to server .Well-Known directory for domain: ' + ChallengeItem.CDomain;
+    if ChallengeItem.CSupplierProto = SuppProtoAcmeV2 then
+        LabelAcme2Info.Caption := S;
+    if ChallengeItem.CSupplierProto = SuppProtoCertCentre then
+        LabelCertInfo.Caption := S;
+    // need some FTP code here
+    // !!! must now wait until server is updated, or challenge will fail
+end;
+
+procedure TX509CertsForm.X509Certs1ChallgRefresh(Sender: TObject);
+begin
+//
+end;
+
+procedure TX509CertsForm.ResetDomButtons;
+begin
+    doDBCheck.Enabled := False;
+    doDBOrder.Enabled := False;
+    doDBCollect.Enabled := False;
+    doDBRevoke.Enabled := False;
+    doDBCancel.Enabled := False;
+    LabelInfoDomain.Caption := '';
+end;
+
+procedure TX509CertsForm.SetDomButtons;
+var
+    SelNr: Integer;
+begin
+    LabelInfoDomain.Caption := '';
+    SelNr := DatabaseDomains.ItemIndex;
+    if SelNr < 0 then Exit;
+    if SelNr > Length(X509Certs1.DomainItems) then Exit;
+    with X509Certs1.DomainItems[SelNr] do begin
+//        SelIssueState := X509Certs1.DomainItems[SelNr].DIssueState;
+        doDBCheck.Enabled := True;
+        if DIssueState >= IssStateChecked then doDBOrder.Enabled := True;
+        if DIssueState >= IssStateChallgPend then begin
+            doDBCollect.Enabled := True;
+            doDBCancel.Enabled := True;
+            LabelInfoDomain.Caption := 'Certificate Common Name Domain: ' + DCommonName + IcsCRLF +
+              'Alternate Names: ' + DCertSANs + IcsCRLF +
+              'Challenge Type: ' + ChallengeTypeLits[DSuppCertChallg] + IcsCRLF +
+              'Product: ' + DProduct + IcsCRLF +
+              'Issue State: ' + IssueStateLits[DIssueState] + IcsCRLF;
+        end;
+        if DIssueState >= IssStateCollect then begin
+            doDBRevoke.Enabled := True;
+        end;
+    end;
+end;
+
+procedure TX509CertsForm.RefreshDomains;
+var
+    I, Tot: integer;
+//    OldDom: TListItem;
+    OldDom: String;
+begin
+    Tot := Length(X509Certs1.DomainItems);
+    if (Tot = 0) or (DatabaseDomains.Items.Count > Tot) then begin
+        DatabaseDomains.Items.Clear;
+        ResetDomButtons;
+    end
+    else begin
+//        OldDom := DatabaseDomains.Items[DatabaseDomains.ItemIndex];
+        if DatabaseDomains.ItemIndex >= 0 then
+            OldDom := DatabaseDomains.Items[DatabaseDomains.ItemIndex].Caption
+        else
+            OldDom := '';     
+        while (DatabaseDomains.Items.Count < Tot) do begin
+            DatabaseDomains.Items.Add;
+            ResetDomButtons;
+        end;
+        for I := 0 to Tot - 1 do begin
+            with X509Certs1.DomainItems[I] do begin
+                DatabaseDomains.Items[I].Caption := DCommonName;
+                while (DatabaseDomains.Items[I].SubItems.Count) < 6 do
+                    DatabaseDomains.Items[I].SubItems.Add('');
+                DatabaseDomains.Items[I].SubItems[0] := IssueStateLits[DIssueState];
+                DatabaseDomains.Items[I].SubItems[1] := DSuppOrderId;
+                DatabaseDomains.Items[I].SubItems[2] := DateToStr(DStartDT);
+                DatabaseDomains.Items[I].SubItems[3] := DateToStr(DEndDT);
+                DatabaseDomains.Items[I].SubItems[4] := DProduct;
+                DatabaseDomains.Items[I].SubItems[5] := DCertSANs;
+                if OldDom = DCommonName then begin
+                    DatabaseDomains.Items[I].Selected := True;
+                    DatabaseDomains.Items[I].Focused := True;
+                end;
+            end;
+        end;
+        SetDomButtons;
+        if PageControl1.ActivePage = TabDatabase then
+            DatabaseDomains.SetFocus;
+    end;
+end;
+
+procedure TX509CertsForm.X509Certs1DomainsRefresh(Sender: TObject);
+begin
+    RefreshDomains;
+end;
+
+procedure TX509CertsForm.X509Certs1SuppDBRefresh(Sender: TObject);
+var
+    S: String;
+begin
+    if X509Certs1.SupplierProto > SuppProtoNone then begin
+        if DirDatabase.Items.IndexOf(DirDatabase.Text) < 0 then
+                           DirDatabase.Items.Add(DirDatabase.Text);
+        S := 'Account Database Supplier: ' + X509Certs1.SupplierTitle + IcsCRLF +
+          'Protocol: ' + SupplierProtoLits [X509Certs1.SupplierProto] + IcsCRLF;
+        LabelDB.Caption := S;
+    end
+    else begin
+        LabelDB.Caption := 'No Supplier Account Database Open';
+        DatabaseDomains.Items.Clear;
+    end;
+end;
+
 procedure TX509CertsForm.X509Certs1NewCert(Sender: TObject);
 begin
-// x
+    with Sender as TSslX509Certs do begin
+        if SupplierProto = SuppProtoAcmeV1 then
+            LabelAcme1Cert.Caption := 'Acme Certificate Issued OK: ' + icsCRLF +
+                X509Certs1.SslCert.CertInfo(False);
+        if SupplierProto = SuppProtoAcmeV2 then
+            LabelAcme2Info.Caption := 'Acme Certificate Issued OK: ' + icsCRLF +
+                X509Certs1.SslCert.CertInfo(False);
+        if SupplierProto = SuppProtoCertCentre then
+            LabelCertInfo.Caption := 'Certificate Issued OK: ' + icsCRLF +
+                X509Certs1.SslCert.CertInfo(False);
+    end;
 end;
 
 procedure TX509CertsForm.X509Certs1NewToken(Sender: TObject);
@@ -550,7 +901,7 @@ begin
     else
         OAuthExpire.Text := '';
 
-  // see if repeating CC Profile command, only once 
+  // see if repeating CC Profile command, only once
     if FPendCCProfile and (X509Certs1.OAAccToken <> '') then begin
         FPendCCProfile := False;
         doCCProfileClick(Self);
@@ -560,7 +911,6 @@ end;
 
 procedure TX509CertsForm.ResetButtons;
 begin
-    SetCommParams;
     doAcmeCheckOrderV1.Enabled := False;
     doAcmeCheckOrderV2.Enabled := False;
     doAcmeGetCertV1.Enabled := False;
@@ -570,8 +920,6 @@ begin
     doCertCentreAlways.Enabled := False;
     doCertCentreCollect.Enabled := False;
     doCertCentreOrders.Enabled := False;
-    doCertCentreCancel.Enabled := False;
-    doCertCentreRevoke.Enabled := False;
     doCertCentreCheck.Enabled := False;
 end;
 
@@ -580,6 +928,8 @@ begin
     X509Certs1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
     X509Certs1.LogJson := LogJson.Checked;
     X509Certs1.LogPkeys := LogPkeys.Checked;
+    X509Certs1.DomWebSrvIP := DomWebSrvIP.Text;
+    X509Certs1.AutoOrderComplete := AutoOrderComplete.Checked;
 end;
 
 procedure TX509CertsForm.SetOAParams;
@@ -600,46 +950,204 @@ begin
 end;
 
 
+procedure TX509CertsForm.SelCertOldCsrFileClick(Sender: TObject);
+var
+    FName: String;
+begin
+    OpenFileDlg.InitialDir := CertOldCsrFile.Text;
+    if OpenFileDlg.Execute then begin
+        FName := OpenFileDlg.FileName;
+        if (FName = '') or (not FileExists(FName)) then Exit;
+        CertOldCsrFile.Text := FName;
+    end;
+end;
+
+procedure TX509CertsForm.SelCertOldPrvKeyClick(Sender: TObject);
+var
+    FName: String;
+begin
+    OpenFileDlg.InitialDir := CertOldPrvKey.Text;
+    if OpenFileDlg.Execute then begin
+        FName := OpenFileDlg.FileName;
+        if (FName = '') or (not FileExists(FName)) then Exit;
+        CertOldPrvKey.Text := FName;
+    end;
+end;
+
+procedure TX509CertsForm.SelDirDatabaseClick(Sender: TObject);
+begin
+    OpenDirDiag.InitialDir := DirDatabase.Text ;
+    if OpenDirDiag.Execute then
+        DirDatabase.Text := ExtractFilePath(OpenDirDiag.FileName);
+end;
+
+procedure TX509CertsForm.SelDirAcmeConfV1Click(Sender: TObject);
+begin
+    OpenDirDiag.InitialDir := DirAcmeConfV1.Text ;
+    if OpenDirDiag.Execute then
+        DirAcmeConfV1.Text := ExtractFilePath(OpenDirDiag.FileName);
+end;
+
+procedure TX509CertsForm.SelDirAcmeConfV2Click(Sender: TObject);
+begin
+    OpenDirDiag.InitialDir := DirAcmeConfV2.Text ;
+    if OpenDirDiag.Execute then
+        DirAcmeConfV2.Text := ExtractFilePath(OpenDirDiag.FileName);
+end;
+
+procedure TX509CertsForm.SelDirCertCenConfClick(Sender: TObject);
+begin
+    OpenDirDiag.InitialDir := DirCertCenConf.Text ;
+    if OpenDirDiag.Execute then
+        DirCertCenConf.Text := ExtractFilePath(OpenDirDiag.FileName);
+end;
+
+procedure TX509CertsForm.SelDirLogsClick(Sender: TObject);
+begin
+    OpenDirDiag.InitialDir := DirLogs.Text ;
+    if OpenDirDiag.Execute then
+        DirLogs.Text := ExtractFilePath(OpenDirDiag.FileName);
+end;
+
+procedure TX509CertsForm.SelDirPubWebCertClick(Sender: TObject);
+begin
+    OpenDirDiag.InitialDir := DirPubWebCert.Text ;
+    if OpenDirDiag.Execute then
+        DirPubWebCert.Text := ExtractFilePath(OpenDirDiag.FileName);
+end;
+
+procedure TX509CertsForm.SelDirWellKnownClick(Sender: TObject);
+begin
+    OpenDirDiag.InitialDir := DirWellKnown.Text ;
+    if OpenDirDiag.Execute then
+        DirWellKnown.Text := ExtractFilePath(OpenDirDiag.FileName);
+end;
+
+procedure TX509CertsForm.SelOwnCACertDirClick(Sender: TObject);
+begin
+    OpenDirDiag.InitialDir := OwnCACertDir.Text ;
+    if OpenDirDiag.Execute then
+        OwnCACertDir.Text := ExtractFilePath(OpenDirDiag.FileName);
+end;
+
+procedure TX509CertsForm.SelCACertFileClick(Sender: TObject);
+var
+    FName: String;
+begin
+    OpenFileDlg.InitialDir := CACertFile.Text;
+    if OpenFileDlg.Execute then begin
+        FName := OpenFileDlg.FileName;
+        if (FName = '') or (not FileExists(FName)) then Exit;
+        CACertFile.Text := FName;
+    end;
+end;
+
+procedure TX509CertsForm.SelCAPkeyFileClick(Sender: TObject);
+var
+    FName: String;
+begin
+    OpenFileDlg.InitialDir := CAPkeyFile.Text;
+    if OpenFileDlg.Execute then begin
+        FName := OpenFileDlg.FileName;
+        if (FName = '') or (not FileExists(FName)) then Exit;
+        CAPkeyFile.Text := FName;
+    end;
+end;
+
 procedure TX509CertsForm.SetCertParams;
+var
+    I, J: Integer;
 begin
     SetCommParams;
-    X509Certs1.DirWellKnown := IncludeTrailingPathDelimiter (DirWellKnown.Text);
-    X509Certs1.DirPubWebCert.Text := IncludeTrailingPathDelimiter (Trim (DirPubWebCert.Text));
-    CertCommonName.Text := Trim (CertCommonName.Text);
-    X509Certs1.CertCommonName := CertCommonName.Text;
+    X509Certs1.CertCsrOrigin := TCertCsrOrigin(CertCsrOrigin.ItemIndex);
+    CertCommonName.Text := IcsLowerCase(Trim(CertCommonName.Text));
+    X509Certs1.CertCommonName := '';  // set later, may come from CSR
+    X509Certs1.DirWellKnown := DirWellKnown.Text;
+    X509Certs1.DirPubWebCert.Text := DirPubWebCert.Text;
+    X509Certs1.PrivKeyPassword := PrivKeyPassword.Text;
     X509Certs1.PrivKeyType := TSslPrivKeyType (PrivKeyType.ItemIndex);
     X509Certs1.CertSignDigestType := digestlist[CertSignDigestType.ItemIndex];
     X509Certs1.SuppCertChallenge := TChallengeType(SuppCertChallenge.ItemIndex);
-    X509Certs1.CertOrganization := CertOrganization.Text;
-    X509Certs1.CertOrgUnit := CertOrganizationalUnit.Text;
-    X509Certs1.SuppOrderId := '';
-    X509Certs1.SuppOrderRef := '';
-    X509Certs1.CertAddress := CertAddress.Text;
-    X509Certs1.CertLocality := CertLocality.Text;
-    X509Certs1.CertState := CertState.Text;
-    X509Certs1.CertPostCode := CertPostCode.Text;
-    X509Certs1.CertCountry := CertCountry.Text;
-//    X509Certs1.CertDescr := CertDescr.Text;
-    X509Certs1.CertContactEmail := CertContactEmail.Text;
-    X509Certs1.CertContactTitle := CertContactTitle.Text;
-    X509Certs1.CertContactFirst := CertContactFirst.Text;
-    X509Certs1.CertContactLast := CertContactLast.Text;
-    X509Certs1.CertPhone := CertPhone.Text;
+    X509Certs1.CertOldCsrFile := CertOldCsrFile.Text;
+    X509Certs1.CertOldPrvKey := CertOldPrvKey.Text;
     X509Certs1.CertApprovEmail := CertCentreApprovEmail.Text;
-    X509Certs1.CertValidity := atoi(CertValidity.Text);
-// X509Certs1.CertSubAltNames    - CertSANGrid
+    X509Certs1.CertSerNumType := TSerNumType(CertSerNumType.ItemIndex);
+    X509Certs1.SuppOrderRef := '';
+    X509Certs1.SuppOrderId := '';
+
+    X509Certs1.CertOutFmts := [];
+  // must have one sensible certificate output format
+    if (NOT CertOutFmtBudl.Checked) and (NOT CertOutFmtSep.Checked) and
+                     (NOT CertOutFmtP12.Checked) then CertOutFmtSep.Checked := True;
+    if CertOutFmtBudl.Checked then X509Certs1.CertOutFmts := X509Certs1.CertOutFmts + [OutFmtBudl];
+    if CertOutFmtP12.Checked then X509Certs1.CertOutFmts := X509Certs1.CertOutFmts + [OutFmtP12];
+    if CertOutFmtP7.Checked then X509Certs1.CertOutFmts := X509Certs1.CertOutFmts + [OutFmtP7];
+    if CertOutFmtReq.Checked then X509Certs1.CertOutFmts := X509Certs1.CertOutFmts + [OutFmtReq];
+    if CertOutFmtSep.Checked then X509Certs1.CertOutFmts := X509Certs1.CertOutFmts + [OutFmtSep];
+
+ // see if creating own CSR from properties
+    if X509Certs1.CertCsrOrigin = CsrOriginProps then begin
+        X509Certs1.CertCommonName := CertCommonName.Text;
+        X509Certs1.CertOrganization := CertOrganization.Text;
+        X509Certs1.CertOrgUnit := CertOrganizationalUnit.Text;
+        X509Certs1.SuppOrderId := '';
+        X509Certs1.SuppOrderRef := '';
+        X509Certs1.CertAddress := CertAddress.Text;
+        X509Certs1.CertLocality := CertLocality.Text;
+        X509Certs1.CertState := CertState.Text;
+        X509Certs1.CertPostCode := CertPostCode.Text;
+        X509Certs1.CertCountry := CertCountry.Text;
+    //    X509Certs1.CertDescr := CertDescr.Text;
+        X509Certs1.CertContactEmail := CertContactEmail.Text;
+        X509Certs1.CertContactTitle := CertContactTitle.Text;
+        X509Certs1.CertContactFirst := CertContactFirst.Text;
+        X509Certs1.CertContactLast := CertContactLast.Text;
+        X509Certs1.CertPhone := CertPhone.Text;
+        X509Certs1.CertValidity := atoi(CertValidity.Text);
+
+    // build list of SANs from grid
+        X509Certs1.CertSubAltNames.Clear;
+        J := -1;
+        for I := 1 to CertSANGrid.RowCount - 1 do begin
+            CertSANGrid.Cells[0,I] := IcsLowercase(Trim (CertSANGrid.Cells[0,I]));
+            if (CertSANGrid.Cells[0,I] = CertCommonName.Text) then begin
+                J := 0;
+                break;
+            end;
+            if (CertSANGrid.Cells[0,I] = '') and (J < 0) then J := I;  // first blank row
+        end;
+        if J > 0 then begin  // add common name to SANs, if missing
+            CertSANGrid.Cells[0,J] := CertCommonName.Text;
+            CertSANGrid.Cells[1,J] := X509Certs1.DirWellKnown;
+            CertSANGrid.Cells[2,J] := X509Certs1.DirPubWebCert[0];
+            CertSANGrid.Cells[3,J] := X509Certs1.CertApprovEmail;
+        end;
+        for I := 1 to CertSANGrid.RowCount - 1 do begin
+            if (CertSANGrid.Cells[0,I] <> '') then begin
+                X509Certs1.CertSubAltNames.AddItem(CertSANGrid.Cells[0,I],
+                   CertSANGrid.Cells[1,I], CertSANGrid.Cells[2,I], CertSANGrid.Cells[3,I]);
+            end;
+        end;
+    end
+    else begin
+        if (CertOldCsrFile.Text = '') OR (NOT FileExists(CertOldCsrFile.Text)) then
+            AddLog('Must Specify CSR File Name');
+    end;
 end;
 
 
 procedure TX509CertsForm.doAcmeAccV1Click(Sender: TObject);
 begin
     ResetButtons;
+    X509Certs1.CloseAccount;
+    SetCommParams;
+    X509Certs1.SupplierTitle := 'ACME V1 by Let''s Encrypt';
     X509Certs1.SupplierProto := SuppProtoAcmeV1;
     X509Certs1.SupplierServer := trim(AcmeServerV1.Text);
     X509Certs1.DirCertWork := IncludeTrailingPathDelimiter (DirAcmeConfV1.Text) ;
     X509Certs1.AcmeAccKeyType := TSslPrivKeyType(AccAcmeKeyV1.ItemIndex);
-    X509Certs1.CertContactEmail := CertContactEmail.Text;
-    if X509Certs1.SetAcmeAccount then begin
+    X509Certs1.SupplierEmail := SupplierEmail.Text;
+    if X509Certs1.SetAcmeAccount(True) then begin
         doAcmeCheckOrderV1.Enabled := True;
     end;
 end;
@@ -647,40 +1155,46 @@ end;
 procedure TX509CertsForm.doAcmeAccV2Click(Sender: TObject);
 begin
     ResetButtons;
+    X509Certs1.CloseAccount;
+    SetCommParams;
+    X509Certs1.SupplierTitle := 'ACME V2 by Let''s Encrypt';
     X509Certs1.SupplierProto := SuppProtoAcmeV2;
     X509Certs1.SupplierServer := trim(AcmeServerV2.Text);
     X509Certs1.DirCertWork := IncludeTrailingPathDelimiter (DirAcmeConfV2.Text) ;
     X509Certs1.AcmeAccKeyType := TSslPrivKeyType (AccAcmeKeyV2.ItemIndex);
-    X509Certs1.CertContactEmail := CertContactEmail.Text;
-    if X509Certs1.SetAcmeAccount then begin
+    X509Certs1.SupplierEmail := SupplierEmail.Text;
+    if X509Certs1.SetAcmeAccount(True) then begin
         doAcmeCheckOrderV2.Enabled := True;
     end;
  end;
 
 procedure TX509CertsForm.doAcmeCheckOrderV1Click(Sender: TObject);
 begin
-    if X509Certs1.IssueState < IssStateAccount then begin
-        AddLog('Must Register Acme Account First');
+    if X509Certs1.SupplierProto <> SuppProtoAcmeV1 then begin
+        AddLog('Must Register ACME Account First');
         Exit;
     end;
     SetCertParams;
-    if NOT X509Certs1.AcmeCheckOrder then exit;
+    if NOT X509Certs1.AcmeCheckOrder(True) then exit;
     LabelAcme1Cert.Caption := 'Let''s Encrypt three month SSL certificate' +
-                                 icsCRLF + 'Domain: ' + X509Certs1.CertCommonName;
+                       icsCRLF + 'Domain(s): ' + X509Certs1.CertSANs.CommaText;
     doAcmeOrderV1.Enabled := true;
+    if X509Certs1.IssueState >= IssStateChallgPend then doAcmeGetCertV1.Enabled := true;
 end;
 
 procedure TX509CertsForm.doAcmeCheckOrderV2Click(Sender: TObject);
 begin
-    if X509Certs1.IssueState < IssStateAccount then begin
-        AddLog('Must Register Acme Account First');
+    if X509Certs1.SupplierProto <> SuppProtoAcmeV2 then begin
+        AddLog('Must Register ACME Account First');
         Exit;
     end;
     SetCertParams;
-    if NOT X509Certs1.AcmeCheckOrder then exit;
+    if NOT X509Certs1.AcmeCheckOrder(True) then exit;
+    LabelAcme2Info.Caption := '';
     LabelAcme2Cert.Caption := 'Let''s Encrypt three month SSL certificate' +
-                                 icsCRLF + 'Domain: ' + X509Certs1.CertCommonName;
+                       icsCRLF + 'Domain(s): ' + X509Certs1.CertSANs.CommaText;
     doAcmeOrderV2.Enabled := true;
+    if X509Certs1.IssueState >= IssStateChallgPend then doAcmeGetCertV2.Enabled := true;
 end;
 
 procedure TX509CertsForm.doAcmeOrderV1Click(Sender: TObject);
@@ -690,7 +1204,8 @@ begin
         Exit;
     end;
     if NOT X509Certs1.AcmeV1OrderCert then Exit;
-    doAcmeGetCertV1.Enabled := true;
+    if X509Certs1.IssueState >= IssStateChallgPend then doAcmeGetCertV1.Enabled := true;
+    if X509Certs1.IssueState = IssStateChallgOK then X509Certs1.AcmeV1GetCert;
 end;
 
 procedure TX509CertsForm.doAcmeOrderV2Click(Sender: TObject);
@@ -700,8 +1215,13 @@ begin
         Exit;
     end;
     if NOT X509Certs1.AcmeV2OrderCert then Exit;
-    doAcmeGetCertV2.Enabled := true;
+    if X509Certs1.IssueState >= IssStateChallgPend then doAcmeGetCertV2.Enabled := true;
+    if X509Certs1.IssueState = IssStateChallgOK then X509Certs1.AcmeV2GetCert;
+end;
 
+procedure TX509CertsForm.doAcmeRevokeV2Click(Sender: TObject);
+begin
+//
 end;
 
 procedure TX509CertsForm.doAcmeGetCertV1Click(Sender: TObject);
@@ -722,22 +1242,32 @@ begin
     X509Certs1.AcmeV2GetCert;
 end;
 
+procedure TX509CertsForm.doCASignCertClick(Sender: TObject);
+begin
+    SetCommParams;
+    SetCertParams;
+    X509Certs1.SupplierProto := SuppProtoOwnCA;
+    X509Certs1.DirCertWork := IncludeTrailingPathDelimiter(OwnCACertDir.Text);
+    X509Certs1.OwnCASign;
+end;
+
 procedure TX509CertsForm.doCCProfileClick(Sender: TObject);
 begin
     ResetButtons;
+    X509Certs1.CloseAccount;
+    SetCommParams;
     SetOAParams;
+    X509Certs1.SupplierTitle := 'CertCenter AG';
     X509Certs1.SupplierProto := SuppProtoCertCentre;
     X509Certs1.SupplierServer := trim(CertCentreServer.Text);
     X509Certs1.DirCertWork := IncludeTrailingPathDelimiter (DirCertCenConf.Text) ;
 
-    X509Certs1.SetCertCentre;
+    X509Certs1.SetCertCentre(True);
     if X509Certs1.CCGetProfile then begin
         doCertCentreCheck.Enabled := True;
         doCertCentreAlways.Enabled := True;
         doCertCentreOrders.Enabled := True;
         doCertCentreCollect.Enabled := True;
-        doCertCentreCancel.Enabled := True;
-        doCertCentreRevoke.Enabled := True;
         if (CertCentreProducts.Items.Count <> X509Certs1.ProductList.Count) then
             CertCentreProducts.Items.Assign(X509Certs1.ProductList);
     end
@@ -747,8 +1277,7 @@ end;
 
 procedure TX509CertsForm.CertCentreProductsClick(Sender: TObject);
 begin
-    if (X509Certs1.IssueState < IssStateAccount) or
-         (X509Certs1.SupplierProto <> SuppProtoCertCentre) then Exit;
+    if (X509Certs1.SupplierProto <> SuppProtoCertCentre) then Exit;
     if CertCentreProducts.ItemIndex < 0 then Exit;
     if X509Certs1.CCGetOneProduct(CertCentreProducts.Items[CertCentreProducts.ItemIndex]) then begin
         LabelCertInfo.Caption := X509Certs1.ProductInfo;
@@ -756,9 +1285,10 @@ begin
     end;
 end;
 
+
 procedure TX509CertsForm.doCertCentreCheckClick(Sender: TObject);
 begin
-    if X509Certs1.IssueState < IssStateAccount then begin
+    if X509Certs1.SupplierProto <> SuppProtoCertCentre then begin
         AddLog('Must Get CertCentre Profile First');
         Exit;
     end;
@@ -772,27 +1302,29 @@ begin
     X509Certs1.SuppOrderRef := CertCentreOrderRef.Text;
     CertCentreProductsClick(Self) ;
     X509Certs1.SuppCertProduct := CertCentreProducts.Items[CertCentreProducts.ItemIndex];
-    if X509Certs1.CCCheckOrder then begin
+    if X509Certs1.CCCheckOrder(True) then begin
         LabelCertInfo.Caption := LabelCertInfo.Caption + IcsCRLF +
             'Domain: ' + X509Certs1.CertCommonName + ', quote price ' + X509Certs1.ProductQuote;
-        CertBuy.Enabled := true;
-        doCertCentreOther.Enabled := true;
-        if X509Certs1.CCGetApproverEmail then begin
-            if (CertCentreApprovEmail.Items.Text <> X509Certs1.ApproverEmails.Text) then
-                CertCentreApprovEmail.Items.Assign(X509Certs1.ApproverEmails);
-            CertCentreApprovEmail.ItemIndex := 0;
-        end;
-        if X509Certs1.SuppCertChallenge = ChallEmail then begin
-            CertCentreApprovEmail.ItemIndex := -1;
-            CertCentreApprovEmail.Text := '';
-            AddLog('Must Select a Approver Email Address');
+        if Pos ('AlwaysOnSSL', X509Certs1.SuppCertProduct) = 0 then begin
+            CertBuy.Enabled := true;
+            doCertCentreOther.Enabled := true;
+            if X509Certs1.CCGetApproverEmail then begin
+                if (CertCentreApprovEmail.Items.Text <> X509Certs1.ApproverEmails.Text) then
+                    CertCentreApprovEmail.Items.Assign(X509Certs1.ApproverEmails);
+                CertCentreApprovEmail.ItemIndex := 0;
+            end;
+            if X509Certs1.SuppCertChallenge = ChallEmail then begin
+                CertCentreApprovEmail.ItemIndex := -1;
+                CertCentreApprovEmail.Text := '';
+                AddLog('Must Select a Approver Email Address');
+            end;
         end;
     end;
 end;
 
 procedure TX509CertsForm.doCertCentreAlwaysClick(Sender: TObject);
 begin
-    if X509Certs1.IssueState < IssStateAccount then begin
+    if X509Certs1.SupplierProto <> SuppProtoCertCentre then begin
         AddLog('Must Get CertCentre Profile First');
         Exit;
     end;
@@ -802,11 +1334,6 @@ begin
     X509Certs1.SuppOrderRef := CertCentreOrderRef.Text;
     if X509Certs1.SuppCertChallenge = ChallEmail then begin
         AddLog('Email challenge not available');
-        exit;
-    end;
-    if (X509Certs1.SuppCertChallenge = ChallFileFtp) or
-                  (X509Certs1.SuppCertChallenge = ChallFileSrv) then begin
-        AddLog('FTP and local server challenge not available yet');
         exit;
     end;
     X509Certs1.SuppCertProduct := 'AlwaysOnSSL.AlwaysOnSSL';
@@ -833,11 +1360,6 @@ begin
     X509Certs1.SuppOrderId := '';
     CertCentreOrderId.Text := '';
     X509Certs1.SuppOrderRef := CertCentreOrderRef.Text;
-    if (X509Certs1.SuppCertChallenge = ChallFileFtp) or
-                  (X509Certs1.SuppCertChallenge = ChallFileSrv) then begin
-        AddLog('FTP and local server challenge not available yet');
-        exit;
-    end;
     CertBuy.Text := '';
     if X509Certs1.CCOrderCert then begin
         CertCentreOrderId.Text := X509Certs1.SuppOrderId;
@@ -847,7 +1369,7 @@ end;
 
 procedure TX509CertsForm.doCertCentreCollectClick(Sender: TObject);
 begin
-    if X509Certs1.IssueState < IssStateAccount then begin
+    if X509Certs1.SupplierProto <> SuppProtoCertCentre then begin
         AddLog('Must Get CertCentre Profile First');
         Exit;
     end;
@@ -857,14 +1379,14 @@ begin
     end;
     SetCertParams;
     X509Certs1.SuppOrderId := CertCentreOrderId.Text;
-    if X509Certs1.CCGetOneOrder then begin
+    if X509Certs1.CCGetCert then begin
       //
     end;
 end;
 
 procedure TX509CertsForm.doCertCentreOrdersClick(Sender: TObject);
 begin
-    if X509Certs1.IssueState < IssStateAccount then begin
+    if X509Certs1.SupplierProto <> SuppProtoCertCentre then begin
         AddLog('Must Get CertCentre Profile First');
         Exit;
     end;
@@ -873,37 +1395,32 @@ begin
     end;
 end;
 
-procedure TX509CertsForm.doCertCentreCancelClick(Sender: TObject);
+
+procedure TX509CertsForm.doCheckCSRClick(Sender: TObject);
 begin
-    if X509Certs1.IssueState < IssStateAccount then begin
-        AddLog('Must Get CertCentre Profile First');
+    if (CertOldCsrFile.Text = '') OR (NOT FileExists(CertOldCsrFile.Text)) then begin
+        AddLog('Can Not Find Old Certificate Signing Request File');
         Exit;
     end;
-    if CertCentreOrderId.Text = '' then begin
-        AddLog('CertCentre Order ID is Required');
+    if (CertOldPrvKey.Text <> '') and (NOT FileExists(CertOldPrvKey.Text)) then begin
+        AddLog('Can Not Find Old Private Key File');
         Exit;
     end;
-    SetCertParams;
-    X509Certs1.SuppOrderId := CertCentreOrderId.Text;
-    if X509Certs1.CCCancelOrder (False)then begin
-      //
-    end;
+    X509Certs1.CertOldCsrFile := CertOldCsrFile.Text;
+    X509Certs1.CertOldPrvKey := CertOldPrvKey.Text;
+    X509Certs1.CheckCSR(False);
 end;
 
-procedure TX509CertsForm.doCertCentreRevokeClick(Sender: TObject);
+procedure TX509CertsForm.doClearDomainClick(Sender: TObject);
+var
+    I, J: Integer;
 begin
-    if X509Certs1.IssueState < IssStateAccount then begin
-        AddLog('Must Get CertCentre Profile First');
-        Exit;
-    end;
-    if CertCentreOrderId.Text = '' then begin
-        AddLog('CertCentre Order ID is Required');
-        Exit;
-    end;
-    SetCertParams;
-    X509Certs1.SuppOrderId := CertCentreOrderId.Text;
-    if X509Certs1.CCCancelOrder (True)then begin
-      //
+    CertCommonName.Text := '';
+    DirPubWebCert.Text := '';
+    DirWellKnown.Text := '';
+    for I := 1 to CertSANGrid.RowCount - 1 do begin
+        for J := 0 to 3 do
+            CertSANGrid.Cells[0,J] := '';
     end;
 end;
 
@@ -928,15 +1445,118 @@ begin
     X509Certs1.OAGrantRefresh;
 end;
 
+procedure TX509CertsForm.doOpenDatabaseClick(Sender: TObject);
+begin
+    DatabaseDomains.Items.Clear;
+    ResetDomButtons;
+    LabelInfoDomain.Caption := '';
+    LabelDB.Caption := '';
+    DirDatabase.Text := Trim(DirDatabase.Text);
+    if DirDatabase.Text = '' then Exit;
+    X509Certs1.OpenAccount(DirDatabase.Text);
+    // result checken in event
+end;
+
+procedure TX509CertsForm.doCloseDatabaseClick(Sender: TObject);
+begin
+    X509Certs1.CloseAccount;
+    DatabaseDomains.Items.Clear;
+    LabelDB.Caption := '';
+end;
+
+procedure TX509CertsForm.DatabaseDomainsClick(Sender: TObject);
+begin
+    ResetDomButtons;
+    if DatabaseDomains.Items.Count = 0 then Exit;
+    if DatabaseDomains.ItemIndex < 0 then Exit;
+    SetDomButtons;
+end;
+
+procedure TX509CertsForm.doDBCheckClick(Sender: TObject);
+begin
+    LabelInfoDomain.Caption := '';
+    if DatabaseDomains.ItemIndex < 0 then Exit;
+    if NOT X509Certs1.CertCheckDomain(DatabaseDomains.Items[DatabaseDomains.ItemIndex].Caption) then Exit;
+    SetDomButtons;
+end;
+
+procedure TX509CertsForm.doDBOrderClick(Sender: TObject);
+begin
+    if DatabaseDomains.ItemIndex < 0 then Exit;
+    if NOT X509Certs1.CertOrderDomain(DatabaseDomains.Items[DatabaseDomains.ItemIndex].Caption) then Exit;
+ //   RefreshDomains;
+    SetDomButtons;
+end;
+
+procedure TX509CertsForm.doDBCollectClick(Sender: TObject);
+begin
+    if DatabaseDomains.ItemIndex < 0 then Exit;
+    if NOT X509Certs1.CertCollectDomain(DatabaseDomains.Items[DatabaseDomains.ItemIndex].Caption) then Exit;
+//    RefreshDomains;
+    SetDomButtons;
+end;
+
+procedure TX509CertsForm.doDBCancelClick(Sender: TObject);
+begin
+    if DatabaseDomains.ItemIndex < 0 then Exit;
+    if NOT X509Certs1.CertCancelDomain(DatabaseDomains.Items[DatabaseDomains.ItemIndex].Caption) then Exit;
+//    RefreshDomains;
+    SetDomButtons;
+end;
+
+procedure TX509CertsForm.doDBRemoveClick(Sender: TObject);
+begin
+    if DatabaseDomains.ItemIndex < 0 then Exit;
+    if NOT X509Certs1.CertRemoveDomain(DatabaseDomains.Items[DatabaseDomains.ItemIndex].Caption) then Exit;
+//    RefreshDomains;
+    SetDomButtons;
+end;
+
+procedure TX509CertsForm.doDBRevokeClick(Sender: TObject);
+begin
+    if DatabaseDomains.ItemIndex < 0 then Exit;
+    if NOT X509Certs1.CertRevokeDomain(DatabaseDomains.Items[DatabaseDomains.ItemIndex].Caption) then Exit;
+ //   RefreshDomains;
+    SetDomButtons;
+end;
+
+procedure TX509CertsForm.doLoadCAClick(Sender: TObject);
+begin
+    X509Certs1.CACertFile := CACertFile.Text;
+    X509Certs1.CAPkeyFile := CAPkeyFile.Text;
+    X509Certs1.CAPkeyPw := CAPkeyPw.Text;
+    if NOT X509Certs1.LoadOwnCA then begin
+        LabelOwnCA.Caption := 'Failed to load Own CA';
+    end
+    else begin
+        LabelOwnCA.Caption := X509Certs1.SslCert.CertInfo(true);
+    end;
+end;
+
+procedure TX509CertsForm.doSelfSignedClick(Sender: TObject);
+begin
+    SetCommParams;
+    X509Certs1.DirCertWork := IncludeTrailingPathDelimiter(OwnCACertDir.Text);
+    X509Certs1.SelfSign;
+end;
+
 procedure TX509CertsForm.doTestWellKnownClick(Sender: TObject);
+var
+    I: Integer;
 begin
     SetCertParams;
-    X509Certs1.TestWellKnown(X509Certs1.CertCommonName, X509Certs1.DirWellKnown);
+    if X509Certs1.CertSubAltNames.Count > 0 then begin
+        for I := 0 to X509Certs1.CertSubAltNames.Count - 1 do begin
+            X509Certs1.TestWellKnown(X509Certs1.CertSubAltNames[I].Domain,
+                                 X509Certs1.CertSubAltNames[I].DirWellKnown);
+        end;
+     end;
 end;
 
 procedure TX509CertsForm.doWebServerClick(Sender: TObject);
 begin
-//
+    SetCommParams;
+    X509Certs1.StartDomSrv;
 end;
 
 end.

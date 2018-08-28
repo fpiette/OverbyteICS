@@ -1282,7 +1282,10 @@ Jul 14, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
                        may be selected (ie H2 to support HTTP/2).
                     Added IPv6 support for TCustomSocksWSocket and
                        TCustomHttpTunnelWSocket, thanks to Max Terentiev.
-Aug 21, 2018 V8.57  Tidy up UnwrapNames.
+Aug 27, 2018 V8.57  Tidy up UnwrapNames.
+                    WriteIntersToBio now ignores self signed certificate which
+                       are roots not an intermediate.
+
 
 
 Use of certificates for SSL clients:
@@ -18992,7 +18995,8 @@ begin
     try
         for I := 0 to Pred (Tot) do begin
             Cert.X509 := PX509(f_OPENSSL_sk_value(FX509Inters, I));
-            if Cert.IsCertLoaded then begin
+         { V8.57 a self signed certificate is a root not an intermediate }
+            if (Cert.IsCertLoaded) and (NOT Cert.SelfSigned) then begin
                 if AddInfoText then
                     WriteStrBio(ABio, AnsiString(Cert.CertInfo) + #13#10, True);
                 if f_PEM_write_bio_X509(ABio, Cert.X509) = 0 then

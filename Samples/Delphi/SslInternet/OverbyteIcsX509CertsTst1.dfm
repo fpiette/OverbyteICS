@@ -2,8 +2,8 @@ object X509CertsForm: TX509CertsForm
   Left = 0
   Top = 0
   Caption = 
-    'ICS Automatically download SSL X509 certificates demo - http://w' +
-    'ww.overbyte.be - V8.54 - 22nd May 2018'
+    'ICS Automatically download SSL X509 certificates development dem' +
+    'o - http://www.overbyte.be - V8.57 - 28th August 2018'
   ClientHeight = 637
   ClientWidth = 1024
   Color = clBtnFace
@@ -54,26 +54,47 @@ object X509CertsForm: TX509CertsForm
         Caption = 'Log Directory'
       end
       object Label14: TLabel
-        Left = 160
-        Top = 63
+        Left = 472
+        Top = 55
         Width = 72
         Height = 14
         Caption = 'Debug Logging'
       end
       object Label41: TLabel
-        Left = 220
-        Top = 100
+        Left = 160
+        Top = 55
         Width = 127
         Height = 14
         Caption = 'Private Key File Password'
       end
+      object Label50: TLabel
+        Left = 667
+        Top = 90
+        Width = 66
+        Height = 14
+        Caption = 'Supplier Email'
+      end
+      object Label51: TLabel
+        Left = 428
+        Top = 145
+        Width = 149
+        Height = 14
+        Caption = 'Certificate Signing Request File'
+      end
+      object Label52: TLabel
+        Left = 427
+        Top = 165
+        Width = 122
+        Height = 28
+        Caption = 'Private Key File, optional'#13#10'(needed to build bundles)'
+      end
       object DomWebSrvIP: TComboBox
-        Left = 607
-        Top = 30
+        Left = 600
+        Top = 25
         Width = 176
         Height = 22
         ItemHeight = 14
-        TabOrder = 4
+        TabOrder = 5
         Text = '0.0.0.0'
       end
       object doWebServer: TButton
@@ -82,13 +103,12 @@ object X509CertsForm: TX509CertsForm
         Width = 181
         Height = 25
         Caption = 'Start Challenge Local Web Server'
-        Enabled = False
-        TabOrder = 5
+        TabOrder = 6
         OnClick = doWebServerClick
       end
       object LogJson: TCheckBox
         Left = 10
-        Top = 30
+        Top = 25
         Width = 97
         Height = 17
         Caption = 'Log Raw Json'
@@ -96,15 +116,15 @@ object X509CertsForm: TX509CertsForm
       end
       object DirLogs: TEdit
         Left = 160
-        Top = 30
-        Width = 416
+        Top = 25
+        Width = 382
         Height = 22
         TabOrder = 3
         Text = 'c:\tempfiles'
       end
       object LogPkeys: TCheckBox
         Left = 10
-        Top = 50
+        Top = 45
         Width = 97
         Height = 17
         Caption = 'Log Private Keys'
@@ -112,36 +132,38 @@ object X509CertsForm: TX509CertsForm
       end
       object SuppCertChallenge: TRadioGroup
         Left = 10
-        Top = 100
+        Top = 68
         Width = 196
-        Height = 114
+        Height = 156
         Caption = 'Domain Challenge Method'
         ItemIndex = 0
         Items.Strings = (
+          'None'
           'File - Web Server - UNC'
           'File - Web Server - FTP'
           'File - Local Web Server'
           'Domain Name Server'
-          'Server Name Indication'
-          'Email manually ')
-        TabOrder = 6
+          'Email manually '
+          'TLS-ALPN Cert - Web UNC'
+          'TLS-ALPN Cert - Local Web')
+        TabOrder = 10
       end
       object OldOSL: TCheckBox
         Left = 10
-        Top = 10
+        Top = 5
         Width = 126
         Height = 17
         Caption = 'Old OpenSSL 1.0.2 '
         TabOrder = 0
       end
       object DebugLogging: TComboBox
-        Left = 265
-        Top = 62
+        Left = 576
+        Top = 50
         Width = 175
         Height = 22
         ItemHeight = 14
         ItemIndex = 3
-        TabOrder = 7
+        TabOrder = 8
         Text = 'SSL Negotiation'
         Items.Strings = (
           'None'
@@ -153,10 +175,10 @@ object X509CertsForm: TX509CertsForm
           'Ssl Low Level')
       end
       object PrivKeyCipher: TRadioGroup
-        Left = 374
-        Top = 100
+        Left = 219
+        Top = 80
         Width = 185
-        Height = 129
+        Height = 133
         Caption = 'Private Key File Encryption'
         ItemIndex = 0
         Items.Strings = (
@@ -167,15 +189,131 @@ object X509CertsForm: TX509CertsForm
           'AES192'
           'AES256'
           'Blowfish')
-        TabOrder = 8
+        TabOrder = 11
       end
       object PrivKeyPassword: TEdit
-        Left = 220
-        Top = 120
-        Width = 126
+        Left = 313
+        Top = 50
+        Width = 153
         Height = 22
         PasswordChar = '*'
+        TabOrder = 7
+      end
+      object AutoOrderComplete: TCheckBox
+        Left = 800
+        Top = 55
+        Width = 189
+        Height = 17
+        Caption = 'Automatic Order Completion'
         TabOrder = 9
+      end
+      object CertCsrOrigin: TRadioGroup
+        Left = 428
+        Top = 80
+        Width = 214
+        Height = 54
+        Caption = 'Certificate CSR Origin'
+        ItemIndex = 0
+        Items.Strings = (
+          'From Properties, creates new key'
+          'From CSR File, old private key')
+        TabOrder = 12
+      end
+      object SupplierEmail: TEdit
+        Left = 755
+        Top = 85
+        Width = 221
+        Height = 22
+        TabOrder = 13
+      end
+      object CertOldCsrFile: TEdit
+        Left = 590
+        Top = 140
+        Width = 369
+        Height = 22
+        TabOrder = 14
+      end
+      object CertOldPrvKey: TEdit
+        Left = 590
+        Top = 170
+        Width = 371
+        Height = 22
+        TabOrder = 16
+      end
+      object SelDirLogs: TBitBtn
+        Left = 548
+        Top = 24
+        Width = 31
+        Height = 25
+        TabOrder = 4
+        OnClick = SelDirLogsClick
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
+      end
+      object SelCertOldCsrFile: TBitBtn
+        Left = 973
+        Top = 140
+        Width = 31
+        Height = 25
+        TabOrder = 15
+        OnClick = SelCertOldCsrFileClick
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
+      end
+      object SelCertOldPrvKey: TBitBtn
+        Left = 973
+        Top = 170
+        Width = 31
+        Height = 25
+        TabOrder = 17
+        OnClick = SelCertOldPrvKeyClick
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
+      end
+      object doCheckCSR: TButton
+        Left = 590
+        Top = 198
+        Width = 96
+        Height = 25
+        Caption = 'Check CSR'
+        TabOrder = 18
+        OnClick = doCheckCSRClick
       end
     end
     object TabDomain: TTabSheet
@@ -190,14 +328,14 @@ object X509CertsForm: TX509CertsForm
       end
       object Label2: TLabel
         Left = 5
-        Top = 55
+        Top = 50
         Width = 222
         Height = 14
         Caption = 'Web Server UNC HTTP .Well-Known Directory'
       end
       object Label13: TLabel
         Left = 5
-        Top = 105
+        Top = 90
         Width = 218
         Height = 14
         Caption = 'Web Server UNC Public Certificates Directory'
@@ -205,27 +343,29 @@ object X509CertsForm: TX509CertsForm
       object Label23: TLabel
         Left = 400
         Top = 5
-        Width = 206
+        Width = 469
         Height = 14
-        Caption = 'Certificate SAN (Subject Alternate Names) '
+        Caption = 
+          'Certificate SAN (Subject Alternate Names)  - Common Name will be' +
+          ' added automatically, if missing'
       end
       object DirWellKnown: TEdit
         Left = 5
-        Top = 75
-        Width = 371
-        Height = 22
-        TabOrder = 1
-      end
-      object DirPubWebCert: TEdit
-        Left = 5
-        Top = 125
-        Width = 371
+        Top = 65
+        Width = 352
         Height = 22
         TabOrder = 2
       end
+      object DirPubWebCert: TEdit
+        Left = 5
+        Top = 105
+        Width = 352
+        Height = 22
+        TabOrder = 5
+      end
       object doTestWellKnown: TButton
-        Left = 10
-        Top = 200
+        Left = 269
+        Top = 36
         Width = 96
         Height = 25
         Caption = 'Test Well-Known'
@@ -236,24 +376,126 @@ object X509CertsForm: TX509CertsForm
         Left = 400
         Top = 25
         Width = 600
-        Height = 191
-        ColCount = 3
+        Height = 204
+        ColCount = 4
         DefaultRowHeight = 20
         FixedCols = 0
         RowCount = 10
         Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goColSizing, goEditing]
-        TabOrder = 3
+        TabOrder = 8
         ColWidths = (
           160
-          215
-          215)
+          281
+          350
+          225)
       end
       object CertCommonName: TEdit
         Left = 5
-        Top = 25
+        Top = 20
         Width = 242
         Height = 22
         TabOrder = 0
+      end
+      object doClearDomain: TButton
+        Left = 269
+        Top = 5
+        Width = 96
+        Height = 25
+        Caption = 'Clear Domains'
+        TabOrder = 1
+        OnClick = doClearDomainClick
+      end
+      object BoxCertFmts: TGroupBox
+        Left = 5
+        Top = 135
+        Width = 326
+        Height = 87
+        Caption = 'Output Certificate Formats'
+        TabOrder = 7
+        object CertOutFmtSep: TCheckBox
+          Left = 15
+          Top = 20
+          Width = 146
+          Height = 17
+          Caption = 'Separate PEM Files'
+          TabOrder = 0
+        end
+        object CertOutFmtBudl: TCheckBox
+          Left = 15
+          Top = 40
+          Width = 97
+          Height = 17
+          Caption = 'PEM Bundle File'
+          TabOrder = 1
+        end
+        object CertOutFmtP12: TCheckBox
+          Left = 15
+          Top = 60
+          Width = 146
+          Height = 17
+          Caption = 'PKCS12/PFX Bundle File'
+          TabOrder = 2
+        end
+        object CertOutFmtP7: TCheckBox
+          Left = 185
+          Top = 20
+          Width = 121
+          Height = 17
+          Caption = 'PKCS7 Bundle File'
+          TabOrder = 3
+        end
+        object CertOutFmtReq: TCheckBox
+          Left = 185
+          Top = 40
+          Width = 97
+          Height = 21
+          Caption = 'CSR PEM File'
+          TabOrder = 4
+        end
+      end
+      object SelDirWellKnown: TBitBtn
+        Left = 363
+        Top = 65
+        Width = 31
+        Height = 25
+        TabOrder = 3
+        OnClick = SelDirWellKnownClick
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
+      end
+      object SelDirPubWebCert: TBitBtn
+        Left = 363
+        Top = 105
+        Width = 31
+        Height = 25
+        TabOrder = 6
+        OnClick = SelDirPubWebCertClick
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
       end
     end
     object TabInfo: TTabSheet
@@ -345,10 +587,10 @@ object X509CertsForm: TX509CertsForm
       end
       object Label42: TLabel
         Left = 585
-        Top = 195
-        Width = 128
-        Height = 14
-        Caption = 'Certificate Period (months)'
+        Top = 190
+        Width = 142
+        Height = 28
+        Caption = 'Certificate Period (days)'#13#10'(1 year = 365, 2 year >= 366)'
       end
       object CertCountry: TEdit
         Left = 706
@@ -455,8 +697,8 @@ object X509CertsForm: TX509CertsForm
         TabOrder = 13
       end
       object CertSignDigestType: TRadioGroup
-        Left = 295
-        Top = 124
+        Left = 282
+        Top = 125
         Width = 176
         Height = 105
         Caption = 'Sign Digest Type'
@@ -475,13 +717,25 @@ object X509CertsForm: TX509CertsForm
         TabOrder = 14
       end
       object CertValidity: TEdit
-        Left = 731
+        Left = 740
         Top = 190
-        Width = 31
+        Width = 35
         Height = 22
-        MaxLength = 2
+        MaxLength = 3
         TabOrder = 12
-        Text = '12'
+        Text = '366'
+      end
+      object CertSerNumType: TRadioGroup
+        Left = 464
+        Top = 125
+        Width = 110
+        Height = 54
+        Caption = 'Serial Number Type'
+        ItemIndex = 0
+        Items.Strings = (
+          'Random'
+          'Sequential')
+        TabOrder = 15
       end
     end
     object TabAcme1: TTabSheet
@@ -503,7 +757,7 @@ object X509CertsForm: TX509CertsForm
       end
       object Label28: TLabel
         Left = 15
-        Top = 95
+        Top = 105
         Width = 441
         Height = 42
         Caption = 
@@ -518,10 +772,11 @@ object X509CertsForm: TX509CertsForm
         Width = 364
         Height = 83
         AutoSize = False
-        Caption = 'LabelAcme1Cert'
+        Caption = 'Information'
         Color = clYellow
         ParentColor = False
         Transparent = False
+        WordWrap = True
       end
       object Label29: TLabel
         Left = 10
@@ -529,6 +784,21 @@ object X509CertsForm: TX509CertsForm
         Width = 134
         Height = 14
         Caption = 'Account Key Type and Size'
+      end
+      object Label53: TLabel
+        Left = 550
+        Top = 105
+        Width = 279
+        Height = 32
+        Caption = 
+          'Acme V1 is only supported for historic reasons, '#13#10'and only parti' +
+          'ally, please use Acme V2 instead. '
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clRed
+        Font.Height = -13
+        Font.Name = 'Arial'
+        Font.Style = []
+        ParentFont = False
       end
       object AcmeServerV1: TComboBox
         Left = 170
@@ -545,7 +815,7 @@ object X509CertsForm: TX509CertsForm
         Height = 25
         Caption = 'Order Certificate'
         Enabled = False
-        TabOrder = 5
+        TabOrder = 6
         OnClick = doAcmeOrderV1Click
       end
       object doAcmeAccV1: TButton
@@ -554,7 +824,7 @@ object X509CertsForm: TX509CertsForm
         Width = 107
         Height = 25
         Caption = 'Register Account'
-        TabOrder = 3
+        TabOrder = 4
         OnClick = doAcmeAccV1Click
       end
       object DirAcmeConfV1: TEdit
@@ -570,7 +840,7 @@ object X509CertsForm: TX509CertsForm
         Width = 89
         Height = 25
         Caption = 'Check Order'
-        TabOrder = 4
+        TabOrder = 5
         OnClick = doAcmeCheckOrderV1Click
       end
       object doAcmeGetCertV1: TButton
@@ -580,7 +850,7 @@ object X509CertsForm: TX509CertsForm
         Height = 25
         Caption = 'Collect Certificate'
         Enabled = False
-        TabOrder = 6
+        TabOrder = 7
         OnClick = doAcmeGetCertV1Click
       end
       object AccAcmeKeyV1: TComboBox
@@ -591,7 +861,7 @@ object X509CertsForm: TX509CertsForm
         Style = csDropDownList
         ItemHeight = 14
         ItemIndex = 1
-        TabOrder = 2
+        TabOrder = 3
         Text = 'RSA 2,048 bits (level 2 - 112 bits) '
         Items.Strings = (
           'RSA 1,024 bits (level 1 - 80 bits)'
@@ -604,6 +874,28 @@ object X509CertsForm: TX509CertsForm
           'Elliptic Curve secp384  (level 4 - 192 bits) '
           'Elliptic Curve secp512  (level 5 - 256 bits) '
           'EdDSA ED25519 (level 3 - 128 bits)  ')
+      end
+      object SelDirAcmeConfV1: TBitBtn
+        Left = 570
+        Top = 40
+        Width = 31
+        Height = 25
+        TabOrder = 2
+        OnClick = SelDirAcmeConfV1Click
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
       end
     end
     object TabAcme2: TTabSheet
@@ -645,12 +937,25 @@ object X509CertsForm: TX509CertsForm
         Left = 635
         Top = 3
         Width = 364
-        Height = 83
+        Height = 46
         AutoSize = False
-        Caption = 'LabelAcme2Cert'
+        Caption = 'Certificate Order:'
         Color = clYellow
         ParentColor = False
         Transparent = False
+        WordWrap = True
+      end
+      object LabelAcme2Info: TLabel
+        Left = 635
+        Top = 57
+        Width = 364
+        Height = 139
+        AutoSize = False
+        Caption = 'Information:'
+        Color = clYellow
+        ParentColor = False
+        Transparent = False
+        WordWrap = True
       end
       object AcmeServerV2: TComboBox
         Left = 170
@@ -677,7 +982,7 @@ object X509CertsForm: TX509CertsForm
         Style = csDropDownList
         ItemHeight = 14
         ItemIndex = 1
-        TabOrder = 2
+        TabOrder = 3
         Text = 'RSA 2,048 bits (level 2 - 112 bits) '
         Items.Strings = (
           'RSA 1,024 bits (level 1 - 80 bits)'
@@ -697,7 +1002,7 @@ object X509CertsForm: TX509CertsForm
         Width = 107
         Height = 25
         Caption = 'Register Account'
-        TabOrder = 3
+        TabOrder = 4
         OnClick = doAcmeAccV2Click
       end
       object doAcmeCheckOrderV2: TButton
@@ -706,7 +1011,7 @@ object X509CertsForm: TX509CertsForm
         Width = 89
         Height = 25
         Caption = 'Check Order'
-        TabOrder = 4
+        TabOrder = 5
         OnClick = doAcmeCheckOrderV2Click
       end
       object doAcmeOrderV2: TButton
@@ -716,7 +1021,7 @@ object X509CertsForm: TX509CertsForm
         Height = 25
         Caption = 'Order Certificate'
         Enabled = False
-        TabOrder = 5
+        TabOrder = 6
         OnClick = doAcmeOrderV2Click
       end
       object doAcmeGetCertV2: TButton
@@ -726,8 +1031,39 @@ object X509CertsForm: TX509CertsForm
         Height = 25
         Caption = 'Collect Certificate'
         Enabled = False
-        TabOrder = 6
+        TabOrder = 7
         OnClick = doAcmeGetCertV2Click
+      end
+      object Acme2DnsUpdated: TCheckBox
+        Left = 365
+        Top = 142
+        Width = 221
+        Height = 17
+        Caption = 'Tick When DNS Server Record Updated'
+        TabOrder = 8
+        Visible = False
+      end
+      object SelDirAcmeConfV2: TBitBtn
+        Left = 570
+        Top = 40
+        Width = 31
+        Height = 25
+        TabOrder = 2
+        OnClick = SelDirAcmeConfV2Click
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
       end
     end
     object TabCCOrder: TTabSheet
@@ -771,15 +1107,16 @@ object X509CertsForm: TX509CertsForm
         Caption = 'Type BUY for commercial certs'
       end
       object LabelCertInfo: TLabel
-        Left = 635
+        Left = 630
         Top = 3
-        Width = 364
+        Width = 383
         Height = 114
         AutoSize = False
         Caption = 'LabelCertInfo'
         Color = clYellow
         ParentColor = False
         Transparent = False
+        WordWrap = True
       end
       object Label4: TLabel
         Left = 355
@@ -809,7 +1146,7 @@ object X509CertsForm: TX509CertsForm
       object DirCertCenConf: TEdit
         Left = 170
         Top = 40
-        Width = 431
+        Width = 396
         Height = 22
         TabOrder = 1
       end
@@ -819,7 +1156,7 @@ object X509CertsForm: TX509CertsForm
         Width = 82
         Height = 25
         Caption = 'Get Profile'
-        TabOrder = 7
+        TabOrder = 8
         OnClick = doCCProfileClick
       end
       object CertCentreOrderId: TEdit
@@ -827,7 +1164,7 @@ object X509CertsForm: TX509CertsForm
         Top = 130
         Width = 179
         Height = 22
-        TabOrder = 5
+        TabOrder = 6
       end
       object doCertCentreAlways: TButton
         Left = 100
@@ -835,16 +1172,16 @@ object X509CertsForm: TX509CertsForm
         Width = 121
         Height = 25
         Caption = 'Order AlwaysOn Cert'
-        TabOrder = 9
+        TabOrder = 10
         OnClick = doCertCentreAlwaysClick
       end
       object doCertCentreCollect: TButton
-        Left = 462
-        Top = 200
+        Left = 464
+        Top = 199
         Width = 84
         Height = 25
         Caption = 'Collect Order'
-        TabOrder = 12
+        TabOrder = 13
         OnClick = doCertCentreCollectClick
       end
       object doCertCentreOther: TButton
@@ -854,7 +1191,7 @@ object X509CertsForm: TX509CertsForm
         Height = 25
         Caption = 'Order Commercial Cert'
         Enabled = False
-        TabOrder = 10
+        TabOrder = 11
         OnClick = doCertCentreOtherClick
       end
       object doCertCentreOrders: TButton
@@ -863,26 +1200,8 @@ object X509CertsForm: TX509CertsForm
         Width = 84
         Height = 25
         Caption = 'List Orders'
-        TabOrder = 11
+        TabOrder = 12
         OnClick = doCertCentreOrdersClick
-      end
-      object doCertCentreCancel: TButton
-        Left = 558
-        Top = 200
-        Width = 84
-        Height = 25
-        Caption = 'Cancel Order'
-        TabOrder = 13
-        OnClick = doCertCentreCancelClick
-      end
-      object doCertCentreRevoke: TButton
-        Left = 657
-        Top = 200
-        Width = 104
-        Height = 25
-        Caption = 'Revoke Certificate'
-        TabOrder = 14
-        OnClick = doCertCentreRevokeClick
       end
       object CertCentreApprovEmail: TComboBox
         Left = 445
@@ -890,7 +1209,7 @@ object X509CertsForm: TX509CertsForm
         Width = 179
         Height = 22
         ItemHeight = 14
-        TabOrder = 3
+        TabOrder = 4
       end
       object CertBuy: TEdit
         Left = 540
@@ -898,7 +1217,7 @@ object X509CertsForm: TX509CertsForm
         Width = 121
         Height = 22
         Enabled = False
-        TabOrder = 6
+        TabOrder = 7
       end
       object doCertCentreCheck: TButton
         Left = 10
@@ -906,7 +1225,7 @@ object X509CertsForm: TX509CertsForm
         Width = 82
         Height = 25
         Caption = 'Check Order'
-        TabOrder = 8
+        TabOrder = 9
         OnClick = doCertCentreCheckClick
       end
       object CertCentreProducts: TListBox
@@ -915,7 +1234,7 @@ object X509CertsForm: TX509CertsForm
         Width = 226
         Height = 116
         ItemHeight = 14
-        TabOrder = 2
+        TabOrder = 3
         OnClick = CertCentreProductsClick
       end
       object CertCentreOrderRef: TEdit
@@ -923,7 +1242,38 @@ object X509CertsForm: TX509CertsForm
         Top = 100
         Width = 179
         Height = 22
-        TabOrder = 4
+        TabOrder = 5
+      end
+      object SelDirCertCenConf: TBitBtn
+        Left = 577
+        Top = 40
+        Width = 31
+        Height = 25
+        TabOrder = 2
+        OnClick = SelDirCertCenConfClick
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
+      end
+      object CCDnsUpdated: TCheckBox
+        Left = 576
+        Top = 205
+        Width = 221
+        Height = 17
+        Caption = 'Tick When DNS Server Record Updated'
+        TabOrder = 14
+        Visible = False
       end
     end
     object TabCCOAuth: TTabSheet
@@ -1164,9 +1514,415 @@ object X509CertsForm: TX509CertsForm
       Caption = 'Servertastic'
       ImageIndex = 7
     end
+    object TabOwnCA: TTabSheet
+      Caption = 'Own CA'
+      ImageIndex = 9
+      object Label48: TLabel
+        Left = 10
+        Top = 205
+        Width = 96
+        Height = 14
+        Caption = 'Certificate Directory'
+      end
+      object LabelCertOwnCA: TLabel
+        Left = 657
+        Top = 65
+        Width = 319
+        Height = 158
+        AutoSize = False
+        Caption = 'Information'
+        Color = clYellow
+        ParentColor = False
+        Transparent = False
+        WordWrap = True
+      end
+      object CABox: TGroupBox
+        Left = 10
+        Top = 6
+        Width = 631
+        Height = 183
+        Caption = 'Own Certificate Authority - for signing certificates'
+        TabOrder = 0
+        object Label44: TLabel
+          Left = 10
+          Top = 55
+          Width = 91
+          Height = 14
+          Caption = 'CA Private Key File'
+        end
+        object Label46: TLabel
+          Left = 10
+          Top = 20
+          Width = 82
+          Height = 28
+          Caption = 'CA Certificate or Bundle File'
+          WordWrap = True
+        end
+        object LabelOwnCA: TLabel
+          Left = 118
+          Top = 110
+          Width = 501
+          Height = 61
+          AutoSize = False
+          Caption = 'CA Information'
+          Color = clYellow
+          ParentColor = False
+          Transparent = False
+          WordWrap = True
+        end
+        object Label49: TLabel
+          Left = 10
+          Top = 85
+          Width = 125
+          Height = 14
+          Caption = 'CA Private Key Password'
+        end
+        object CAPkeyFile: TEdit
+          Left = 115
+          Top = 50
+          Width = 454
+          Height = 22
+          TabOrder = 2
+        end
+        object CACertFile: TEdit
+          Left = 115
+          Top = 20
+          Width = 454
+          Height = 22
+          TabOrder = 0
+        end
+        object SelCACertFile: TBitBtn
+          Left = 583
+          Top = 20
+          Width = 31
+          Height = 25
+          TabOrder = 1
+          OnClick = SelCACertFileClick
+          Glyph.Data = {
+            76010000424D7601000000000000760000002800000020000000100000000100
+            04000000000000010000120B0000120B00001000000000000000000000000000
+            800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+            FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+            333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+            300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+            333337F373F773333333303330033333333337F3377333333333303333333333
+            333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+            333337777F337F33333330330BB00333333337F373F773333333303330033333
+            333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+            333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+            333373F773333333333330033333333333333773333333333333}
+          NumGlyphs = 2
+        end
+        object SelCAPkeyFile: TBitBtn
+          Left = 583
+          Top = 50
+          Width = 31
+          Height = 25
+          TabOrder = 3
+          OnClick = SelCAPkeyFileClick
+          Glyph.Data = {
+            76010000424D7601000000000000760000002800000020000000100000000100
+            04000000000000010000120B0000120B00001000000000000000000000000000
+            800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+            FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+            333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+            300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+            333337F373F773333333303330033333333337F3377333333333303333333333
+            333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+            333337777F337F33333330330BB00333333337F373F773333333303330033333
+            333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+            333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+            333373F773333333333330033333333333333773333333333333}
+          NumGlyphs = 2
+        end
+        object doLoadCA: TButton
+          Left = 14
+          Top = 123
+          Width = 75
+          Height = 25
+          Caption = 'Load CA'
+          TabOrder = 5
+          OnClick = doLoadCAClick
+        end
+        object CAPkeyPw: TEdit
+          Left = 154
+          Top = 80
+          Width = 97
+          Height = 22
+          PasswordChar = '*'
+          TabOrder = 4
+        end
+      end
+      object doSelfSigned: TButton
+        Left = 657
+        Top = 26
+        Width = 103
+        Height = 25
+        Caption = 'Self Signed Cert'
+        Enabled = False
+        TabOrder = 2
+        OnClick = doSelfSignedClick
+      end
+      object doCASignCert: TButton
+        Left = 782
+        Top = 24
+        Width = 102
+        Height = 25
+        Caption = 'CA Signed Cert'
+        TabOrder = 3
+        OnClick = doCASignCertClick
+      end
+      object OwnCACertDir: TEdit
+        Left = 137
+        Top = 200
+        Width = 442
+        Height = 22
+        TabOrder = 1
+      end
+      object SelOwnCACertDir: TBitBtn
+        Left = 593
+        Top = 200
+        Width = 31
+        Height = 25
+        TabOrder = 4
+        OnClick = SelOwnCACertDirClick
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
+      end
+    end
+    object TabDatabase: TTabSheet
+      Caption = 'Supplier Database'
+      ImageIndex = 8
+      object Label43: TLabel
+        Left = 10
+        Top = 15
+        Width = 86
+        Height = 14
+        Caption = 'Supplier Directory'
+      end
+      object LabelDB: TLabel
+        Left = 647
+        Top = 51
+        Width = 366
+        Height = 56
+        AutoSize = False
+        Caption = 'Supplier Information:'
+        Color = clYellow
+        ParentColor = False
+        Transparent = False
+        WordWrap = True
+      end
+      object Label45: TLabel
+        Left = 10
+        Top = 35
+        Width = 278
+        Height = 16
+        AutoSize = False
+        Caption = 'Supplier Certificate Orders'
+        WordWrap = True
+      end
+      object LabelInfoDomain: TLabel
+        Left = 647
+        Top = 118
+        Width = 366
+        Height = 111
+        AutoSize = False
+        Caption = 'Order Information:'
+        Color = clYellow
+        ParentColor = False
+        Transparent = False
+        WordWrap = True
+      end
+      object DirDatabase: TComboBox
+        Left = 120
+        Top = 10
+        Width = 381
+        Height = 22
+        ItemHeight = 14
+        TabOrder = 0
+      end
+      object SelDirDatabase: TBitBtn
+        Left = 513
+        Top = 10
+        Width = 31
+        Height = 25
+        TabOrder = 1
+        OnClick = SelDirDatabaseClick
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
+      end
+      object doOpenDatabase: TButton
+        Left = 572
+        Top = 10
+        Width = 99
+        Height = 25
+        Caption = 'Open Supplier'
+        TabOrder = 2
+        OnClick = doOpenDatabaseClick
+      end
+      object doDBCheck: TButton
+        Left = 529
+        Top = 44
+        Width = 100
+        Height = 25
+        Caption = 'Check Order'
+        Enabled = False
+        TabOrder = 4
+        OnClick = doDBCheckClick
+      end
+      object doDBOrder: TButton
+        Left = 527
+        Top = 75
+        Width = 102
+        Height = 25
+        Caption = 'Order Certificate'
+        Enabled = False
+        TabOrder = 5
+        OnClick = doDBOrderClick
+      end
+      object doCloseDatabase: TButton
+        Left = 690
+        Top = 9
+        Width = 99
+        Height = 25
+        Caption = 'Close Supplier'
+        TabOrder = 3
+        OnClick = doCloseDatabaseClick
+      end
+      object DatabaseDomains: TListView
+        Left = 10
+        Top = 55
+        Width = 506
+        Height = 174
+        Columns = <
+          item
+            Caption = 'Common Name'
+            Width = 180
+          end
+          item
+            Caption = 'Issue State'
+            Width = 70
+          end
+          item
+            Caption = 'Order Id'
+            Width = 80
+          end
+          item
+            Caption = 'Issued'
+            Width = 70
+          end
+          item
+            Caption = 'Exoires'
+            Width = 70
+          end
+          item
+            Caption = 'Product'
+            Width = 150
+          end
+          item
+            Caption = 'Subject Alternate Names'
+            Width = 300
+          end>
+        GridLines = True
+        ReadOnly = True
+        RowSelect = True
+        TabOrder = 9
+        ViewStyle = vsReport
+        OnClick = DatabaseDomainsClick
+      end
+      object doDBRevoke: TButton
+        Left = 525
+        Top = 168
+        Width = 104
+        Height = 25
+        Caption = 'Revoke Certificate'
+        Enabled = False
+        TabOrder = 8
+        OnClick = doDBRevokeClick
+      end
+      object doDBCollect: TButton
+        Left = 527
+        Top = 106
+        Width = 102
+        Height = 25
+        Caption = 'Collect Order'
+        Enabled = False
+        TabOrder = 6
+        OnClick = doDBCollectClick
+      end
+      object doDBCancel: TButton
+        Left = 527
+        Top = 137
+        Width = 102
+        Height = 25
+        Caption = 'Cancel Order'
+        Enabled = False
+        TabOrder = 7
+        OnClick = doDBCancelClick
+      end
+      object doDBRemove: TButton
+        Left = 525
+        Top = 199
+        Width = 104
+        Height = 25
+        Caption = 'Remove Order'
+        Enabled = False
+        TabOrder = 10
+        OnClick = doDBRemoveClick
+      end
+    end
+    object TabChallenges: TTabSheet
+      Caption = 'Challenges'
+      ImageIndex = 10
+      object Label47: TLabel
+        Left = 10
+        Top = 5
+        Width = 152
+        Height = 14
+        Caption = 'Outstanding Domain Challenges'
+      end
+      object DatabaseChallg: TListView
+        Left = 3
+        Top = 25
+        Width = 468
+        Height = 196
+        Columns = <>
+        TabOrder = 0
+        ViewStyle = vsReport
+      end
+    end
   end
   object X509Certs1: TSslX509Certs
     AcmeAccKeyType = PrivKeyRsa2048
+    AutoOrderComplete = False
+    CertSubAltNames = <>
+    CertCsrOrigin = CsrOriginProps
+    CertOutFmts = []
+    CertSerNumType = SerNumRandom
     CertSignDigestType = Digest_sha256
     CertValidity = 0
     DebugLevel = DebugConn
@@ -1179,12 +1935,32 @@ object X509CertsForm: TX509CertsForm
     OAWebSrvPort = '8080'
     PrivKeyCipher = PrivKeyEncNone
     PrivKeyType = PrivKeyRsa2048
+    SeqOrderNum = 0
     SuppCertChallenge = ChallFileUNC
-    SupplierProto = SuppProtoAcmeV2
+    SupplierProto = SuppProtoNone
     OnCertProg = X509Certs1CertProg
     OnNewCert = X509Certs1NewCert
     OnNewToken = X509Certs1NewToken
+    OnDomainsRefresh = X509Certs1DomainsRefresh
+    OnSuppDBRefresh = X509Certs1SuppDBRefresh
+    OnChallgRefresh = X509Certs1ChallgRefresh
+    OnChallengeEmail = X509Certs1ChallengeEmail
+    OnChallengeFTP = X509Certs1ChallengeFTP
+    OnChallengeDNS = X509Certs1ChallengeDNS
     Left = 75
     Top = 290
+  end
+  object OpenDirDiag: TOpenDialog
+    Options = [ofHideReadOnly, ofNoValidate, ofPathMustExist, ofNoTestFileCreate, ofEnableSizing]
+    Title = 'Select Database Directory'
+    Left = 215
+    Top = 750
+  end
+  object OpenFileDlg: TOpenDialog
+    Filter = 'All Files *.*|*.*|PEM Files *.pem|*.pem'
+    Options = [ofHideReadOnly, ofNoChangeDir, ofEnableSizing]
+    Title = 'Select Certificate File'
+    Left = 178
+    Top = 747
   end
 end

@@ -100,12 +100,14 @@ Feb 21, 2018 V8.52 Added DigiCert Global Root G2 and G3 root certificates
 Mar 27, 2018 V8.53 Added GlobalSign Root CA - R2 and GlobalSign ECC Root CA - R5
                 root certificates, R2 used by Google.
              Added DST Root CA X3 root, used by Let's Encrypt crossed signing
-Aug 15, 2018 V8.57 tidy up UnwrapNames.
+Aug 28, 2018 V8.57 tidy up UnwrapNames.
              DoSelfSignCert can now use a CSR instead of properties
              Added DoClearCA
              Added SaveToCADatabase which saves CA database entry to CADBFile
+             Added COMODO ECC Certification Authority root
 
-             
+
+
 Pending - long term
 Create string and file encryption component from existing functions
 
@@ -1645,7 +1647,29 @@ const
         'JDGFoqgCWjBH4d1QB7wCCZAA62RjYJsWvIjJEubSfZGL+T0yjWW06XyxV3bqxbYo' + #13#10 +
         'Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10;
-
+    sslRootCACerts036 =                                                               { V8.57 }
+        '# X509 SSL Certificate' + #13#10 +
+        '# Subject Common Name: COMODO ECC Certification Authority' + #13#10 +
+        '# Subject Organisation: COMODO CA Limited' + #13#10 +
+        '#Issuer: Self Signed' + #13#10 +
+        '# Expires: 18/01/2038' + #13#10 +
+        '' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIICiTCCAg+gAwIBAgIQH0evqmIAcFBUTAGem2OZKjAKBggqhkjOPQQDAzCBhTEL' + #13#10 +
+        'MAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4GA1UE' + #13#10 +
+        'BxMHU2FsZm9yZDEaMBgGA1UEChMRQ09NT0RPIENBIExpbWl0ZWQxKzApBgNVBAMT' + #13#10 +
+        'IkNPTU9ETyBFQ0MgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMDgwMzA2MDAw' + #13#10 +
+        'MDAwWhcNMzgwMTE4MjM1OTU5WjCBhTELMAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdy' + #13#10 +
+        'ZWF0ZXIgTWFuY2hlc3RlcjEQMA4GA1UEBxMHU2FsZm9yZDEaMBgGA1UEChMRQ09N' + #13#10 +
+        'T0RPIENBIExpbWl0ZWQxKzApBgNVBAMTIkNPTU9ETyBFQ0MgQ2VydGlmaWNhdGlv' + #13#10 +
+        'biBBdXRob3JpdHkwdjAQBgcqhkjOPQIBBgUrgQQAIgNiAAQDR3svdcmCFYX7deSR' + #13#10 +
+        'FtSrYpn1PlILBs5BAH+X4QokPB0BBO490o0JlwzgdeT6+3eKKvUDYEs2ixYjFq0J' + #13#10 +
+        'cfRK9ChQtP6IHG4/bC8vCVlbpVsLM5niwz2J+Wos77LTBumjQjBAMB0GA1UdDgQW' + #13#10 +
+        'BBR1cacZSBm8nZ3qQUfflMRId5nTeTAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/' + #13#10 +
+        'BAUwAwEB/zAKBggqhkjOPQQDAwNoADBlAjEA7wNbeqy3eApyt4jf/7VGFAkK+qDm' + #13#10 +
+        'fQjGGoe9GKhzvSbKYAydzpmfz1wPMOG+FDHqAjAU9JM8SaczepBGR7NjfRObTrdv' + #13#10 +
+        'GDeAU/7dIOA1mjbRxwG55tzd8/8dLDoWV9mSOdY=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10;
 implementation
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1658,7 +1682,8 @@ begin
         sslRootCACerts016 + sslRootCACerts017 + sslRootCACerts018 + sslRootCACerts019 + sslRootCACerts020 +
         sslRootCACerts021 + sslRootCACerts022 + sslRootCACerts023 + sslRootCACerts024 + sslRootCACerts025 +
         sslRootCACerts026 + sslRootCACerts027 + sslRootCACerts028 + sslRootCACerts029 + sslRootCACerts030 +
-        sslRootCACerts031 + sslRootCACerts032 + sslRootCACerts033 + sslRootCACerts034 + sslRootCACerts035;  { V8.53 }
+        sslRootCACerts031 + sslRootCACerts032 + sslRootCACerts033 + sslRootCACerts034 + sslRootCACerts035 +
+        sslRootCACerts036;    { V8.57 }
     end ;
 
 

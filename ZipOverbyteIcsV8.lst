@@ -487,12 +487,14 @@ Source\OverbyteIcsSnmpCli.dcr
 Source\OverbyteIcsSnmpCli.pas
 Source\OverbyteIcsSnmpMsgs.pas
 Source\OverbyteIcsSocketUtils.pas
+Source\OverbyteIcsSslHttpRest.dcr
 Source\OverbyteIcsSslHttpRest.pas
 Source\OverbyteIcsSslJose.pas
 Source\OverbyteIcsSslSessionCache.dcr
 Source\OverbyteIcsSslSessionCache.pas
 Source\OverbyteIcsSslThrdLock.dcr
 Source\OverbyteIcsSslThrdLock.pas
+Source\OverbyteIcsSslX509Certs.dcr
 Source\OverbyteIcsSslX509Certs.pas
 Source\OverbyteIcsSslX509Utils.pas
 Source\OverbyteIcsSspi.pas
@@ -633,7 +635,6 @@ Install\D101Install.groupproj
 Install\D101InstallVclFmx.groupproj
 Install\D102Install.groupproj
 Install\D102InstallVclFmx.groupproj
-Install\CB102InstallVclFmx.groupproj
 Install\D103Install.groupproj
 Install\D103InstallVclFmx.groupproj
 
@@ -646,6 +647,8 @@ Install\CBXe2Install.groupproj
 Install\CBXe3Install.groupproj
 Install\CBXe2InstallVclFmx.groupproj
 Install\CBXe3InstallVclFmx.groupproj
+Install\CB102InstallVclFmx.groupproj
+Install\CB103InstallVclFmx.groupproj
 
 Samples\OverbyteIcsCommonVersion.rc
 Samples\OverbyteIcsCommonVersion.res

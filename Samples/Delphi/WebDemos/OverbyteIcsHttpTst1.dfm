@@ -365,6 +365,7 @@ object HttpTestForm: THttpTestForm
     Agent = 'Mozilla/3.0 (compatible)'
     Accept = 'image/gif, image/x-xbitmap, image/jpeg, image/pjpeg, */*'
     NoCache = False
+    ResponseNoException = False
     ContentTypePost = 'application/x-www-form-urlencoded'
     RequestVer = '1.0'
     FollowRelocation = True
@@ -385,8 +386,9 @@ object HttpTestForm: THttpTestForm
     OnCookie = HttpCli1Cookie
     SocksLevel = '5'
     SocksAuthentication = socksNoAuthentication
-    SocketFamily = sfIPv4
+    SocketFamily = sfAny
     SocketErrs = wsErrTech
+    OnSelectDns = HttpCli1SelectDns
     Left = 16
     Top = 136
   end

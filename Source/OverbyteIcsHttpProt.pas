@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.55
+Version:      8.57
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -525,6 +525,10 @@ May 21, 2018 V8.54 Added httpAuthBearer and httpAuthToken, and AuthBearerToken f
                      sync requests, ie most 400 and 500 status codes (eases debugging).
 Jun 18, 2018 V8.55 ReasonPhrase for abort may return SSL handshake error.
                    Minor clean-up, more relocation debugging
+Sep 5, 2018  V8.57 Added OnSelectDns event to allow application to change DnsResult to
+                       one of the several offered, round robin or IPV4/IPV6
+
+
 
 
 
@@ -623,8 +627,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 855;
-    CopyRight : String   = ' THttpCli (c) 1997-2018 F. Piette V8.55 ';
+    HttpCliVersion       = 857;
+    CopyRight : String   = ' THttpCli (c) 1997-2018 F. Piette V8.57 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -703,6 +707,9 @@ type
     TLocationChangeExceeded = procedure (Sender              : TObject;
                                   const RelocationCount      : Integer;
                                   var   AllowMoreRelocations : Boolean) of object;  {  V1.90 }
+    TSelectDnsEvent = procedure(Sender : TObject;
+                                  DnsList     : TStrings;
+                                  var NewDns  : String) of object;      { V8.57 }
 
 
     THttpCli = class(TIcsWndControl)
@@ -867,6 +874,7 @@ type
         FOnSocksError         : TSocksErrorEvent;
         FOnSocketError        : TNotifyEvent;
         FOnBeforeHeaderSend   : TBeforeHeaderSendEvent;     { Wilfried 9 sep 02}
+        FOnSelectDns          : TSelectDnsEvent;            { V8.57 }
         FCloseReq             : Boolean;                    { SAE 01/06/04 }
         FSocketErrs           : TSocketErrs;                { V8.37 }
         FAuthBearerToken      : String;     { V8.54 }
@@ -1211,6 +1219,9 @@ type
                                                      write FSocketErrs;      { V8.37 }
         property AuthBearerToken     : String        read  FAuthBearerToken
                                                      write FAuthBearerToken; { V8.54 }
+        property OnSelectDns         : TSelectDnsEvent
+                                                     read  FOnSelectDns
+                                                     write FOnSelectDns;     { V8.57 }
     end;
 
 { You must define USE_SSL so that SSL code is included in the component.   }
@@ -2185,36 +2196,16 @@ begin
         SocketSessionClosed(Sender, ErrCode);
     end
     else begin
-        if (FSocksServer = '') or (FSocksLevel = '4') then  { V8.51 socks5 takes host name }
-            FDnsResult := FCtrlSocket.DnsResult
+        if (FSocksServer = '') or (FSocksLevel = '4') then begin  { V8.51 socks5 takes host name }
+            FDnsResult := FCtrlSocket.DnsResult;
+
+        { V8.57 allow application to change DnsResult to one of the several offered, round robin or IPV4/IPV6 }
+            if Assigned(FOnSelectDns) then
+                FOnSelectDns(Self, FCtrlSocket.DnsResultList, FDnsResult);
+        end
         else
             FDnsResult := FHostName;
         StateChange(httpDnsLookupDone);  { 19/09/98 }
-{$IFDEF UseNTLMAuthentication}
-        { NTLM authentication is alive only for one connection            }
-        { so when we reconnect to server NTLM auth states must be reseted }
-        (* Removed by *ML* on May 02, 2005
-        if FAuthNTLMState = ntlmDone then
-            FAuthNTLMState      := ntlmNone;  {BLD NTLM}
-
-        if FProxyAuthNTLMState = ntlmDone then begin
-            FProxyAuthNTLMState := ntlmNone;  {BLD NTLM}
-            FAuthNTLMState      := ntlmNone;
-        end;
-        *)
-{$ENDIF}
-        { Basic authentication is alive only for one connection            }
-        { so when we reconnect to server Basic auth states must be reseted }
-        (* Removed by *ML* on May 02, 2005
-        if FAuthBasicState = basicDone then
-            FAuthBasicState      := basicNone;
-
-        if FProxyAuthBasicState = BasicDone then begin
-            FProxyAuthBasicState := basicNone;
-            FAuthBasicState      := basicNone;
-        end;
-        *)
-
         DoBeforeConnect;
         FCurrentHost          := FHostName;
         FCurrentPort          := FPort;
@@ -2246,7 +2237,7 @@ begin
             FRequestDoneError := FCtrlSocket.LastError;
             FStatusCode       := 404;
             FReasonPhrase     := 'can''t connect: ' +
-                                 WSocketErrorMsgFromErrorCode(FCtrlSocket.LastError) +  { V8.51 handles proxy errors } 
+                                 WSocketErrorMsgFromErrorCode(FCtrlSocket.LastError) +  { V8.51 handles proxy errors }
                               {   WSocketErrorDesc(FCtrlSocket.LastError) +  }
                                  ' (Error #' + IntToStr(FCtrlSocket.LastError) + ')';
             FCtrlSocket.Close;

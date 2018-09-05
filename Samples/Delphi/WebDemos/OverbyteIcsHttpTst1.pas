@@ -2,12 +2,12 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.37
+Version:      8.57
 Description:  Sample program to demonstrate some of the THttpCli features.
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2016 by François PIETTE
+Legal issues: Copyright (C) 1997-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -64,6 +64,9 @@ Jun  4, 2014  V8.01 Angus show StatusCode during relocation
 Jul 16, 2014  V8.02 Angus added DELETE, OPTIONS and TRACE
               simplified code with GetHeadDelOptTrace
 Nov 04, 2016  V8.37 report more error information
+Sep 05, 2018  V8.57 Using OnSelectDns to show alternate IP addresses, changed
+                      SocketFamily to sfAny so it finds both IPV4 and IPV6 addresses
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpTst1;
@@ -95,8 +98,8 @@ uses
   OverbyteIcsWndControl, OverbyteIcsLogger;
 
 const
-  HttpTstVersion         = 837;
-  CopyRight : String     = 'HttpTst (c) 1997-2016 Francois Piette  V8.37 ';
+  HttpTstVersion         = 857;
+  CopyRight : String     = 'HttpTst (c) 1997-2018 Francois Piette  V8.57 ';
 
 type
   THttpTestForm = class(TForm)
@@ -165,6 +168,8 @@ type
     procedure OptionsButtonClick(Sender: TObject);
     procedure TraceButtonClick(Sender: TObject);
     procedure DeleteButtonClick(Sender: TObject);
+    procedure HttpCli1SelectDns(Sender: TObject; DnsList: TStrings;
+      var NewDns: string);
   private
     Initialized  : Boolean;
     DocFileName  : String;
@@ -498,6 +503,7 @@ begin
 
     try
         HttpCli1.URL            := URLEdit.Text;
+        HttpCli1.SocketFamily   := sfAny;  { V8.57 IP4 and IPV6 }
         HttpCli1.Proxy          := ProxyHostEdit.Text;
         HttpCli1.ProxyPort      := ProxyPortEdit.Text;
         HttpCli1.AcceptLanguage := 'en, fr';
@@ -701,6 +707,18 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpTestForm.HttpCli1SelectDns(Sender: TObject; DnsList: TStrings;
+  var NewDns: string);
+begin
+    Display('Looked-up DNS: ' + NewDns);
+    if DnsList.Count > 1 then begin
+        Display(IntToStr(DnsList.Count) + ' alternate addresses: ' + DnsList.CommaText);
+      { we could select an alternate now, round robin or IPV4/IPV6 } 
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { WARNING: With DELPHI1, change "s: String" to "s: OpenString"              }
 procedure THttpTestForm.HttpCli1Command(Sender: TObject; var S: String);
 begin
@@ -780,6 +798,7 @@ begin
         Display('RequestDone, no error. Status = ' +
                 IntToStr(HttpCli1.StatusCode));
 end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpTestForm.AbortButtonClick(Sender: TObject);

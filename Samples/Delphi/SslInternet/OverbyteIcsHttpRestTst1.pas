@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
 Updated:      June 2018
-Version:      8.55
+Version:      8.57
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -38,11 +38,13 @@ Legal issues: Copyright (C) 2003-2018 by François PIETTE
                  address, EMail address and any comment you like to say.
 
 History:
-May, 8 2018  - 8.54 baseline
-Jun 15, 2018 - 8.55 Update SSL client security levels from literals
+May, 8 2018  - V8.54 baseline
+Jun 15, 2018 - V8.55 Update SSL client security levels from literals
                     Added https://cloudflare-dns.com/dns-query?name=magsys.co.uk&type=MX&ct=application/dns-json
+Jul 9, 2018 - V8.56 Using OverbyteIcsTypes instead of OverbyteIcsLogger
+Sep 5, 2018 - V8.57 Using OnSelectDns to show alternate IP addresses, changed
+                      SocketFamily to sfAny so it finds both IPV4 and IPV6 addresses
 
-                    
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -69,6 +71,7 @@ uses
   Dialogs, StdCtrls, TypInfo, ExtCtrls, Grids, ComCtrls, ActiveX,
   OverbyteIcsWSocket,
   OverbyteIcsIniFiles,
+  OverbyteIcsTypes,
   OverbyteIcsUtils,
   OverbyteIcsMimeUtils,
   OverbyteIcsURL,
@@ -182,6 +185,8 @@ type
     procedure RestOAuth1OAuthNewCode(Sender: TObject);
     procedure RestOAuth1OAuthNewToken(Sender: TObject);
     procedure SettingsChange(Sender: TObject);
+    procedure HttpRest1SelectDns(Sender: TObject; DnsList: TStrings;
+      var NewDns: string);
   private
     { Private declarations }
   public
@@ -457,6 +462,7 @@ begin
     HttpRest1.Password := AuthPassword.Text;
     HttpRest1.AuthBearerToken := AuthBearer.Text;
     HttpRest1.ExtraHeaders := ExtraHeaders.Lines;
+    HttpRest1.SocketFamily := sfAny;  { V8.57 IP4 and IPV6 }
 
   // read grid and build REST paramaters
     HttpRest1.RestParams.Clear;
@@ -579,6 +585,16 @@ begin
         end;
     end;
 
+end;
+
+procedure THttpRestForm.HttpRest1SelectDns(Sender: TObject; DnsList: TStrings;
+  var NewDns: string);
+begin
+    AddLog('Looked-up DNS: ' + NewDns);
+    if DnsList.Count > 1 then begin
+        AddLog(IntToStr(DnsList.Count) + ' alternate addresses: ' + DnsList.CommaText);
+      { we could select an alternate now, round robin or IPV4/IPV6 }
+    end;
 end;
 
 

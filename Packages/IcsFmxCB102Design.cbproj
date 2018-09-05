@@ -58,8 +58,8 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-        <ILINK_LibraryPath>..\Source\;..\Lib\$(Config)\$(Platform)\102;$(ILINK_LibraryPath)</ILINK_LibraryPath>
-        <IncludePath>..\Source\;..\Lib\$(Config)\$(Platform)\102;$(IncludePath)</IncludePath>
+        <ILINK_LibraryPath>..\Source\;..\Lib\$(Config)\$(Platform);$(ILINK_LibraryPath)</ILINK_LibraryPath>
+        <IncludePath>..\Source\;..\Lib\$(Config)\$(Platform);$(IncludePath)</IncludePath>
         <DCC_ObjOutput>..\Lib\$(Config)\$(Platform)\102</DCC_ObjOutput>
         <DCC_HppOutput>..\source\include\102\$(Platform)</DCC_HppOutput>
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(BDSLIB)\$(PLATFORM)\release;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
@@ -76,7 +76,7 @@
         <DCC_CBuilderOutput>All</DCC_CBuilderOutput>
         <DynamicRTL>true</DynamicRTL>
         <UsePackages>true</UsePackages>
-        <IntermediateOutputDir>..\Lib\$(Config)\$(Platform)\102</IntermediateOutputDir>
+        <IntermediateOutputDir>..\Lib\$(Config)\$(Platform)</IntermediateOutputDir>
         <BCC_wpar>false</BCC_wpar>
         <BCC_OptimizeForSpeed>true</BCC_OptimizeForSpeed>
         <BCC_ExtendedErrorInfo>true</BCC_ExtendedErrorInfo>
@@ -210,6 +210,8 @@
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcboffice2k250.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcbofficexp250.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k250.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp250.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
                 <ProjectProperties>
                     <ProjectProperties Name="AutoShowDeps">False</ProjectProperties>

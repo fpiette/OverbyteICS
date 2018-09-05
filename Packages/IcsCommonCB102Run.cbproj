@@ -69,10 +69,10 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <ILINK_MapFileType>None</ILINK_MapFileType>
         <BPILibOutputDir>$(BDSCOMMONDIR)\BPL\$(Platform)</BPILibOutputDir>
         <DCC_ObjOutput>..\Lib\$(Config)\$(Platform)\102</DCC_ObjOutput>
-        <ILINK_LibraryPath>..\Source\;..\Lib\$(Config)\$(Platform)\102;$(ILINK_LibraryPath)</ILINK_LibraryPath>
+        <ILINK_LibraryPath>..\Source\;..\Lib\$(Config)\$(Platform);$(ILINK_LibraryPath)</ILINK_LibraryPath>
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(BDSLIB)\$(PLATFORM)\release;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_HppOutput>..\source\include\102\$(Platform)</DCC_HppOutput>
-        <IncludePath>..\Source\;..\Lib\$(Config)\$(Platform)\102;$(IncludePath)</IncludePath>
+        <IncludePath>..\Source\;..\Lib\$(Config)\$(Platform);$(IncludePath)</IncludePath>
         <ILINK_Description>Overbyte ICS Common Run-Time Package for C++ Builder 10.2</ILINK_Description>
         <PackageImports>IPIndyImpl;bindcompfmx;fmx;rtl;dbrtl;IndySystem;DbxClientDriver;bindcomp;inetdb;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DataSnapServer;DataSnapProviderClient;xmlrtl;ibxpress;DbxCommonDriver;IndyProtocols;DBXMySQLDriver;dbxcds;soaprtl;bindengine;DBXOracleDriver;CustomIPTransport;dsnap;DBXInformixDriver;IndyCore;fmxase;CloudService;DBXFirebirdDriver;inet;fmxobj;inetdbxpress;DBXSybaseASADriver;fmxdae;dbexpress;DataSnapIndy10ServerTransport;$(PackageImports)</PackageImports>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
@@ -86,7 +86,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
         <DCC_CBuilderOutput>All</DCC_CBuilderOutput>
         <UsePackages>true</UsePackages>
-        <IntermediateOutputDir>..\Lib\$(Config)\$(Platform)\102</IntermediateOutputDir>
+        <IntermediateOutputDir>..\Lib\$(Config)\$(Platform)</IntermediateOutputDir>
         <BCC_wpar>false</BCC_wpar>
         <BCC_OptimizeForSpeed>true</BCC_OptimizeForSpeed>
         <BCC_ExtendedErrorInfo>true</BCC_ExtendedErrorInfo>
@@ -264,6 +264,9 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DelphiCompile Include="..\Source\OverbyteIcsStreams.pas">
             <BuildOrder>31</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\OverbyteIcsSuperObject.pas">
+            <BuildOrder>52</BuildOrder>
+        </DelphiCompile>
         <ResFiles Include="..\Source\OverbyteIcsTimeList.dcr">
             <BuildOrder>33</BuildOrder>
         </ResFiles>
@@ -359,6 +362,8 @@ $(PreBuildEvent)]]></PreBuildEvent>
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcboffice2k250.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcbofficexp250.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k250.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp250.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </CPlusPlusBuilder.Personality>
             <Deployment Version="3">
@@ -400,6 +405,12 @@ $(PreBuildEvent)]]></PreBuildEvent>
                 </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\iossimulator\libcgunwind.1.0.dylib" Class="DependencyModule">
                     <Platform Name="iOSSimulator">
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\19.0\BPL\Win32\IcsCommonCB102Run.bpl" Configuration="Release" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>IcsCommonCB102Run.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

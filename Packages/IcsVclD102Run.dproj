@@ -162,6 +162,8 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsSysLogServer.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsProxy.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.dcr"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="IcsCommonD102Run.dcp"/>
@@ -205,6 +207,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsSslX509Utils.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsMsSslUtils.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsProxy.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsTicks64.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSslJose.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.pas"/>

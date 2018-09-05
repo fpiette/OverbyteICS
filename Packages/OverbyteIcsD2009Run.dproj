@@ -99,6 +99,9 @@
             <DCCReference Include="..\source\OverbyteIcsSysLogClient.dcr"/>
             <DCCReference Include="..\source\OverbyteIcsSysLogServer.dcr"/>
             <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.dcr"/>
+            <DCCReference Include="..\Source\OverbyteIcsProxy.dcr"/>
+            <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.dcr"/>
+            <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.dcr"/>
             <DCCReference Include="rtl.dcp"/>
             <DCCReference Include="vcl.dcp"/>
             <DCCReference Include="..\Source\OverbyteIcsTypes.pas"/>
@@ -214,6 +217,11 @@
             <DCCReference Include="..\Source\OverbyteIcsMsSslUtils.pas" />
             <DCCReference Include="..\Source\OverbyteIcsSslX509Utils.pas" />
             <DCCReference Include="..\Source\OverbyteIcsWinCrypt.pas" />
+            <DCCReference Include="..\Source\OverbyteIcsProxy.pas"/>
+            <DCCReference Include="..\Source\OverbyteIcsTicks64.pas"/>
+            <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.pas"/>
+            <DCCReference Include="..\Source\OverbyteIcsSslJose.pas"/>
+            <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.pas"/>
             <BuildConfiguration Include="Base">
                 <Key>Base</Key>
             </BuildConfiguration>

@@ -53,8 +53,8 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_AdditionalSwitches>-LUDesignIde</DCC_AdditionalSwitches>
         <DCC_ObjOutput>..\Lib\$(Config)\$(Platform)\102</DCC_ObjOutput>
-        <ILINK_LibraryPath>..\Source\;..\Lib\$(Config)\$(Platform)\102;$(ILINK_LibraryPath)</ILINK_LibraryPath>
-        <IncludePath>..\Source\;..\Lib\$(Config)\$(Platform)\102;$(IncludePath)</IncludePath>
+        <ILINK_LibraryPath>..\Source\;..\Lib\$(Config)\$(Platform);$(ILINK_LibraryPath)</ILINK_LibraryPath>
+        <IncludePath>..\Source\;..\Lib\$(Config)\$(Platform);$(IncludePath)</IncludePath>
         <DCC_HppOutput>..\Source\Include\102\$(Platform)</DCC_HppOutput>
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(BDS)\Source\ToolsAPI;$(BDSLIB)\$(PLATFORM)\release;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
@@ -71,7 +71,7 @@
         <DCC_CBuilderOutput>All</DCC_CBuilderOutput>
         <DynamicRTL>true</DynamicRTL>
         <UsePackages>true</UsePackages>
-        <IntermediateOutputDir>..\Lib\$(Config)\$(Platform)\102</IntermediateOutputDir>
+        <IntermediateOutputDir>..\Lib\$(Config)\$(Platform)</IntermediateOutputDir>
         <BCC_wpar>false</BCC_wpar>
         <BCC_OptimizeForSpeed>true</BCC_OptimizeForSpeed>
         <BCC_ExtendedErrorInfo>true</BCC_ExtendedErrorInfo>
@@ -81,8 +81,6 @@
         <Defines>USE_SSL;SECURITY_WIN32;$(Defines)</Defines>
         <PackageImports>adortl;bcbie;bcbofficexp;bcbsmp;bdertl;bindcompvcl;DataSnapConnectors;DBXDb2Driver;DBXMSSQLDriver;DBXOdbcDriver;DBXSybaseASEDriver;dsnapcon;inetdbbde;rtl;vcl;vclactnband;vcldb;vcldbx;vcldsnap;vclib;vclie;vclimg;VclSmp;vcltouch;vclx;webdsnap;websnap;$(PackageImports)</PackageImports>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
-        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-        <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
@@ -192,6 +190,8 @@
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcboffice2k250.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcbofficexp250.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k250.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp250.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
                 <ProjectProperties>
                     <ProjectProperties Name="AutoShowDeps">False</ProjectProperties>

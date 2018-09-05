@@ -48,10 +48,10 @@
         <ILINK_DisableIncrementalLinking>true</ILINK_DisableIncrementalLinking>
         <BPILibOutputDir>$(BDSCOMMONDIR)\BPL\$(Platform)</BPILibOutputDir>
         <_TCHARMapping>wchar_t</_TCHARMapping>
-        <IntermediateOutputDir>..\Lib\$(Config)\$(Platform)\102</IntermediateOutputDir>
+        <IntermediateOutputDir>..\Lib\$(Config)\$(Platform)</IntermediateOutputDir>
         <DCC_ObjOutput>..\Lib\$(Config)\$(Platform)\102</DCC_ObjOutput>
         <DCC_HppOutput>..\Source\include\102\$(Platform)</DCC_HppOutput>
-        <IncludePath>..\Source\;..\Lib\$(Config)\$(Platform)\102;$(IncludePath)</IncludePath>
+        <IncludePath>..\Source\;..\Lib\$(Config)\$(Platform);$(IncludePath)</IncludePath>
         <Debugger_LoadAllSymbols>false</Debugger_LoadAllSymbols>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
@@ -83,7 +83,7 @@
         <DCC_CBuilderOutput>All</DCC_CBuilderOutput>
         <BCC_GenerateDLL>false</BCC_GenerateDLL>
         <Multithreaded>true</Multithreaded>
-        <ILINK_LibraryPath>..\Source\;..\Lib\$(Config)\$(Platform)\102;$(BDS)\lib;$(BDS)\lib\obj;$(BDSCOMMONDIR)\BPL\$(Platform);$(ILINK_LibraryPath)</ILINK_LibraryPath>
+        <ILINK_LibraryPath>..\Source\;..\Lib\$(Config)\$(Platform);$(BDS)\lib;$(BDS)\lib\obj;$(BDSCOMMONDIR)\BPL\$(Platform);$(ILINK_LibraryPath)</ILINK_LibraryPath>
         <DCC_BpiOutput>$(BDSCOMMONDIR)\BPL\$(Platform)</DCC_BpiOutput>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
@@ -246,6 +246,8 @@
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcboffice2k250.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcbofficexp250.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k250.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp250.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </CPlusPlusBuilder.Personality>
             <Platforms>

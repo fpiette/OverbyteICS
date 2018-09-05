@@ -100,14 +100,14 @@
             <Platforms>Win32</Platforms>
             <Enabled>True</Enabled>
         </BuildGroupProject>
-        <BuildGroupProject Include="..\Packages\IcsCommonCB102Design.cbproj">
-            <ProjectGuid>{1010FD9F-B3E6-4535-A2BD-55D34CEDE4A0}</ProjectGuid>
-            <Configurations>Release</Configurations>
-            <Platforms>Win32</Platforms>
-            <Enabled>True</Enabled>
-        </BuildGroupProject>
         <BuildGroupProject Include="..\Packages\IcsCommonCB102Run.cbproj">
             <ProjectGuid>{CE749E31-F1AF-4B3E-B8DB-8A612EE77630}</ProjectGuid>
+            <Configurations>Release</Configurations>
+            <Platforms>Win32;Win64</Platforms>
+            <Enabled>True</Enabled>
+        </BuildGroupProject>
+        <BuildGroupProject Include="..\Packages\IcsCommonCB102Design.cbproj">
+            <ProjectGuid>{1010FD9F-B3E6-4535-A2BD-55D34CEDE4A0}</ProjectGuid>
             <Configurations>Release</Configurations>
             <Platforms>Win32</Platforms>
             <Enabled>True</Enabled>
@@ -115,7 +115,7 @@
         <BuildGroupProject Include="..\Packages\IcsVclCB102Run.cbproj">
             <ProjectGuid>{6C7913B1-1951-4432-B5DB-37FEB6653783}</ProjectGuid>
             <Configurations>Release</Configurations>
-            <Platforms>Win32</Platforms>
+            <Platforms>Win32;Win64</Platforms>
             <Enabled>True</Enabled>
         </BuildGroupProject>
         <BuildGroupProject Include="..\Packages\IcsFmxCB102Design.cbproj">
@@ -127,7 +127,7 @@
         <BuildGroupProject Include="..\Packages\IcsFmxCB102Run.cbproj">
             <ProjectGuid>{1B2F65E1-82BB-4692-897D-62845B3CED67}</ProjectGuid>
             <Configurations>Release</Configurations>
-            <Platforms>Win32</Platforms>
+            <Platforms>Win32;Win64</Platforms>
             <Enabled>True</Enabled>
         </BuildGroupProject>
     </ItemGroup>

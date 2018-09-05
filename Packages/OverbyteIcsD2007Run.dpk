@@ -35,6 +35,8 @@ package OverbyteIcsD2007Run;
 {$R '..\Source\OverbyteIcsSnmpCli.dcr'}
 {$R '..\source\OverbyteIcsSmtpSrv.dcr'}
 {$R '..\source\OverbyteIcsProxy.dcr'}
+{$R '..\Source\OverbyteIcsSslHttpRest.dcr'}
+{$R '..\Source\OverbyteIcsSslX509Certs.dcr'}
 {$ALIGN 8}
 { ASSERTIONS ON}
 {$BOOLEVAL OFF}
@@ -156,7 +158,7 @@ contains
   OverbyteIcsSuperObject in '..\Source\OverbyteIcsSuperObject.pas',
   OverbyteIcsSslJose in '..\Source\OverbyteIcsSslJose.pas',
   OverbyteIcsSslHttpRest in '..\Source\OverbyteIcsSslHttpRest.pas',
-  OverbyteIcsSslX509Certs in '..\Source\OverbyteIcsSslX509Certs.pas'; 
+  OverbyteIcsSslX509Certs in '..\Source\OverbyteIcsSslX509Certs.pas';
 
 
 end.

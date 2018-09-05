@@ -163,6 +163,9 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsMimeUtils.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsCookies.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsProxy.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.dcr"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="..\Source\OverbyteIcsTypes.pas"/>
@@ -246,6 +249,10 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <Dccreference Include="..\Source\Overbyteicsmssslutils.Pas" />
         <Dccreference Include="..\Source\Overbyteicssslx509Utils.Pas" />
         <Dccreference Include="..\Source\Overbyteicswincrypt.Pas" />
+        <DCCReference Include="..\Source\OverbyteIcsProxy.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsSslJose.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_Release</Key>
             <CfgParent>Base</CfgParent>

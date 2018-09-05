@@ -73,9 +73,9 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <ILINK_MapFileType>None</ILINK_MapFileType>
         <DCC_ObjOutput>..\Lib\$(Config)\$(Platform)\102</DCC_ObjOutput>
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(BDSLIB)\$(PLATFORM)\release;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-        <ILINK_LibraryPath>..\Source\;..\Source;..\Lib\$(Config)\$(Platform)\102;$(ILINK_LibraryPath)</ILINK_LibraryPath>
+        <ILINK_LibraryPath>..\Source\;..\Source;..\Lib\$(Config)\$(Platform);$(ILINK_LibraryPath)</ILINK_LibraryPath>
         <DCC_HppOutput>..\source\include\102\$(Platform)</DCC_HppOutput>
-        <IncludePath>..\Source\;..\Source;..\Lib\$(Config)\$(Platform)\102;$(IncludePath)</IncludePath>
+        <IncludePath>..\Source\;..\Source;..\Lib\$(Config)\$(Platform);$(IncludePath)</IncludePath>
         <ILINK_Description>Overbyte ICS VCL Run-Time Package for C++ Builder 10.2</ILINK_Description>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
@@ -90,7 +90,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <Multithreaded>true</Multithreaded>
         <DCC_CBuilderOutput>All</DCC_CBuilderOutput>
         <UsePackages>true</UsePackages>
-        <IntermediateOutputDir>..\Lib\$(Config)\$(Platform)\102</IntermediateOutputDir>
+        <IntermediateOutputDir>..\Lib\$(Config)\$(Platform)</IntermediateOutputDir>
         <BCC_wpar>false</BCC_wpar>
         <BCC_OptimizeForSpeed>true</BCC_OptimizeForSpeed>
         <BCC_ExtendedErrorInfo>true</BCC_ExtendedErrorInfo>
@@ -99,7 +99,6 @@ $(PostBuildEvent)]]></PostBuildEvent>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <Defines>SECURITY_WIN32;$(Defines)</Defines>
-        <IncludePath>$(BDSINCLUDE)\windows\vcl;$(IncludePath)</IncludePath>
         <PackageImports>vcldbx;vclib;inetdbbde;DBXOdbcDriver;DBXSybaseASEDriver;vclimg;vclactnband;vcldb;vcldsnap;bindcompvcl;vclie;vcltouch;DBXDb2Driver;bcbsmp;websnap;VclSmp;vcl;DataSnapConnectors;DBXMSSQLDriver;dsnapcon;vclx;webdsnap;bdertl;adortl;bcbie;$(PackageImports)</PackageImports>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
@@ -273,6 +272,9 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DelphiCompile Include="..\Source\OverbyteIcsPop3Prot.pas">
             <BuildOrder>48</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\OverbyteIcsProxy.pas">
+            <BuildOrder>70</BuildOrder>
+        </DelphiCompile>
         <ResFiles Include="..\Source\OverbyteIcsSmtpProt.dcr">
             <BuildOrder>35</BuildOrder>
         </ResFiles>
@@ -294,6 +296,12 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DelphiCompile Include="..\Source\OverbyteIcsSocketUtils.pas">
             <BuildOrder>59</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\OverbyteIcsSslHttpRest.pas">
+            <BuildOrder>71</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\OverbyteIcsSslJose.pas">
+            <BuildOrder>72</BuildOrder>
+        </DelphiCompile>
         <ResFiles Include="..\Source\OverbyteIcsSslSessionCache.dcr">
             <BuildOrder>38</BuildOrder>
         </ResFiles>
@@ -305,6 +313,9 @@ $(PostBuildEvent)]]></PostBuildEvent>
         </ResFiles>
         <DelphiCompile Include="..\Source\OverbyteIcsSslThrdLock.pas">
             <BuildOrder>51</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\OverbyteIcsSslX509Certs.pas">
+            <BuildOrder>73</BuildOrder>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\OverbyteIcsSslX509Utils.pas">
             <BuildOrder>69</BuildOrder>
@@ -320,6 +331,9 @@ $(PostBuildEvent)]]></PostBuildEvent>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\OverbyteIcsThreadTimer.pas">
             <BuildOrder>60</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\OverbyteIcsTicks64.pas">
+            <BuildOrder>74</BuildOrder>
         </DelphiCompile>
         <ResFiles Include="..\Source\OverbyteIcsTnCnx.dcr">
             <BuildOrder>43</BuildOrder>
@@ -419,6 +433,8 @@ $(PostBuildEvent)]]></PostBuildEvent>
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcboffice2k250.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcbofficexp250.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k250.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp250.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </CPlusPlusBuilder.Personality>
             <Deployment Version="3">
@@ -486,6 +502,12 @@ $(PostBuildEvent)]]></PostBuildEvent>
                 </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\osx32\libcgunwind.1.0.dylib" Class="DependencyModule">
                     <Platform Name="OSX32">
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\19.0\BPL\Win32\IcsVclCB102Run.bpl" Configuration="Release" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>IcsVclCB102Run.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

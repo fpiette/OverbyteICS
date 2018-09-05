@@ -30,6 +30,8 @@ package IcsVclDXE8Run;
 {$R '..\Source\OverbyteIcsSysLogServer.dcr'}
 {$R '..\Source\OverbyteIcsSmtpSrv.dcr'}
 {$R '..\source\OverbyteIcsProxy.dcr'}
+{$R '..\Source\OverbyteIcsSslHttpRest.dcr'}
+{$R '..\Source\OverbyteIcsSslX509Certs.dcr'}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
@@ -102,6 +104,10 @@ contains
   OverbyteIcsSmtpSrv in '..\Source\OverbyteIcsSmtpSrv.pas',
   OverbyteIcsSslX509Utils in '..\Source\OverbyteIcsSslX509Utils.pas',
   OverbyteIcsMsSslUtils in '..\Source\OverbyteIcsMsSslUtils.pas',
-  OverbyteIcsProxy in '..\Source\OverbyteIcsProxy.pas';
+  OverbyteIcsProxy in '..\Source\OverbyteIcsProxy.pas',
+  OverbyteIcsTicks64 in '..\Source\OverbyteIcsTicks64.pas',
+  OverbyteIcsSslHttpRest in '..\Source\OverbyteIcsSslHttpRest.pas',
+  OverbyteIcsSslJose in '..\Source\OverbyteIcsSslJose.pas',
+  OverbyteIcsSslX509Certs in '..\Source\OverbyteIcsSslX509Certs.pas';
 
 end.

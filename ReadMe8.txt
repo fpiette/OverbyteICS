@@ -3,7 +3,7 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.2 Tokyo
 (Aka FPIETTE's Components)
 
 
-Revised: April 6, 2018
+Revised: September 11, 2018
 http://www.overbyte.be/
 http://wiki.overbyte.be/
 http://www.overbyte.eu/
@@ -126,8 +126,8 @@ also includes the OpenSSL binaries needed to support SSL. ICS V8 supports Delphi
 XE3 and 10.2 Tokyo.  There are currently no packages for XE4 to 10.1. but older or
 newer ones will often work.
 
-The latest version is V8.53, which will be reported by the CopyRight constant in
-OverbyteIcsWSocket.pas and the integer WSocketVersion as 853.
+The latest version is V8.57, which will be reported by the CopyRight constant in
+OverbyteIcsWSocket.pas and the integer WSocketVersion as 857.
 
 ICS V9 is in early development and is planned to support Android and Linux Server. There
 are no current plans for ICS for iOS.

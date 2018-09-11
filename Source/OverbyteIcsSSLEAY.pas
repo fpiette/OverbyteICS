@@ -120,8 +120,8 @@ Nov 22, 2017  V8.51 Testing OpenSSL 1.1.1 that adds TLS/1.3
               Added more constants and functions for 1.1.1, f_SSL_xx_groups
 Feb 27, 2018  V8.52 Added more EVP functions for keys, hashing and signing
 Jun 20, 2018  V8.55 Testing with OpenSSL 1.1.1 beta
-Aug 21, 2018  V8.57 added APLN APIs and literals
-                    Another OpenSSL 1.1.1 beta
+Sep 11, 2018  V8.57 added APLN APIs and literals
+                    Support OpenSSL 1.1.1 final with TLS/1.3
 
                     
 
@@ -204,8 +204,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 856;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2018 F. Piette V8.56 ';
+    IcsSSLEAYVersion   = 857;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2018 F. Piette V8.57 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -293,13 +293,10 @@ const
     OSSL_VER_1100C = $1010003F; // 1.1.0c                { V8.38 }
     OSSL_VER_1100D = $1010004F; // 1.1.0d                { V8.41 }
     OSSL_VER_1100ZZ= $10100FFF; // 1.1.0zz not yet released  { V8.35 }
-    OSSL_VER_1101  = $10101000; // 1.1.1 base            { V8.52 }
-    OSSL_VER_1101P7= $10101007; // 1.1.1-pre7 (beta5)    { V8.54 }
-    OSSL_VER_1101P8= $10101008; // 1.1.1-pre8 (beta6)    { V8.55 }
-    OSSL_VER_1101P9= $10101009; // 1.1.1-pre9 (beta7)    { V8.55 }
-//  OSSL_VER_1101  = $1010100F; // 1.1.1 base final      { V8.55 }
-    OSSL_VER_1101ZZ= $10101FFF; // 1.1.1zz not yet released  { V8.35 }
-    OSSL_VER_MAX   = $FFFFFFFF; // maximum version       { V8.35 }
+    OSSL_VER_1101  = $1010100F; // 1.1.1 base                { V8.57 }
+    OSSL_VER_1101A = $10101010; // 1.1.1a not yet released   { V8.57 }
+    OSSL_VER_1101ZZ= $10101FFF; // 1.1.1zz not yet released  { V8.57 }
+    OSSL_VER_MAX   = $FFFFFFFF; // maximum version           { V8.35 }
 
     { Basically versions listed above are tested if not otherwise commented.  }
     { Versions between are assumed to work, however they are untested.        }
@@ -307,8 +304,7 @@ const
     { http://wiki.overbyte.be/wiki/index.php/ICS_Download                     }
 
     MIN_OSSL_VER   = OSSL_VER_1002;   { V8.39 minimum is now 1.0.2 }
-//  MAX_OSSL_VER   = OSSL_VER_1100ZZ; { V8.35 1.1.0zz }
-    MAX_OSSL_VER   = OSSL_VER_1101P9; { V8.57 1.1.1-pre9 (beta7) }
+    MAX_OSSL_VER   = OSSL_VER_1101ZZ; { V8.57 1.1.1zz }
 
     { V8.41 PEM base64 file titles }
     PEM_STRING_HDR_BEGIN   = '-----BEGIN ';    { six hyphens }

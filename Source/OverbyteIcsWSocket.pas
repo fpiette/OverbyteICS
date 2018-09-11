@@ -1282,10 +1282,18 @@ Jul 14, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
                        may be selected (ie H2 to support HTTP/2).
                     Added IPv6 support for TCustomSocksWSocket and
                        TCustomHttpTunnelWSocket, thanks to Max Terentiev.
-Aug 27, 2018 V8.57  Tidy up UnwrapNames.
+Sep 11, 2018 V8.57  Tidy up UnwrapNames.
                     WriteIntersToBio now ignores self signed certificate which
                        are roots not an intermediate.
+                    Added TSslCliCertMethod so an SSL server asks a client to
+                       send an SSL certificate.
+                    Support OpenSSL 1.1.1 final with TLS/1.3
 
+                    
+
+
+Pending - server certificate bundle files may not have server certificate as first
+Pending - intermediate certificate bundle files may have self signed root that should be ignored
 
 
 Use of certificates for SSL clients:
@@ -3448,6 +3456,22 @@ type
                       sslECDH_P256,
                       sslECDH_P384,
                       sslECDH_P521);
+
+  { V8.57 whether an SSL server asks a client to send an SSL certificate }
+    TSslCliCertMethod = (sslCliCertNone,
+                         sslCliCertOptional,
+                         sslCliCertRequire);
+
+  { V8.57 certificate supplier protocol, determines which functions are used to get certificates }
+    TSupplierProto = (SuppProtoNone, SuppProtoAcmeV1, SuppProtoAcmeV2,
+                      SuppProtoCertCentre, SuppProtoServtas, SuppProtoOwnCA);
+
+ { V8.57 challenge types, differing certificate types support differing challenges,
+     some have to be processed manually taking several days. }
+    TChallengeType = (ChallNone, ChallFileUNC, ChallFileFtp, ChallFileSrv, ChallDNS,
+                      ChallEmail, ChallAlpnUNC, ChallAlpnSrv, ChallManual);
+
+
 const
   SslIntSessCacheModes: array[TSslSessCacheMode] of Integer =     { V7.30 }
             (SSL_SESS_CACHE_CLIENT,

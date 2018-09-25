@@ -112,7 +112,7 @@ object WeblServerForm: TWeblServerForm
     MaxBlkSize = 8192
     BandwidthLimit = 0
     BandwidthSampling = 1000
-    ServerHeader = 'Server: ICS-HttpServer-8.49'
+    ServerHeader = 'Server: ICS-HttpServer-8.57'
     OnServerStarted = SslHttpAppSrv1ServerStarted
     OnServerStopped = SslHttpAppSrv1ServerStopped
     OnClientConnect = SslHttpAppSrv1ClientConnect
@@ -144,8 +144,42 @@ object WeblServerForm: TWeblServerForm
     OnDisplay = SslHttpAppSrv1Display
     SslEnable = False
     IcsHosts = <>
+    SslCliCertMethod = sslCliCertNone
+    SslCertAutoOrder = False
+    CertExpireDays = 30
+    SslX509Certs = IcsSslX509Certs
     OnSslHandshakeDone = SslHttpAppSrv1SslHandshakeDone
     Left = 365
+    Top = 5
+  end
+  object IcsSslX509Certs: TSslX509Certs
+    AcmeAccKeyType = PrivKeyRsa2048
+    AutoOrderComplete = False
+    CertSubAltNames = <>
+    CertCsrOrigin = CsrOriginProps
+    CertOutFmts = []
+    CertSerNumType = SerNumRandom
+    CertSignDigestType = Digest_sha256
+    CertValidity = 365
+    DebugLevel = DebugConn
+    DomWebSrvIP = '0.0.0.0'
+    LogJson = False
+    LogPkeys = False
+    OAAuthType = OAuthTypeWeb
+    OARefreshAuto = False
+    OARefrMinsPrior = 120
+    OAWebSrvIP = '127.0.0.1'
+    OAWebSrvPort = '8080'
+    PrivKeyCipher = PrivKeyEncNone
+    PrivKeyType = PrivKeyRsa2048
+    SeqOrderNum = 0
+    SuppCertChallenge = ChallNone
+    SupplierProto = SuppProtoNone
+    OnCertProg = IcsSslX509CertsCertProg
+    OnNewCert = IcsSslX509CertsNewCert
+    OnOAuthAuthUrl = IcsSslX509CertsOAuthAuthUrl
+    OnChallengeDNS = IcsSslX509CertsChallengeDNS
+    Left = 545
     Top = 5
   end
 end

@@ -1282,14 +1282,17 @@ Jul 14, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
                        may be selected (ie H2 to support HTTP/2).
                     Added IPv6 support for TCustomSocksWSocket and
                        TCustomHttpTunnelWSocket, thanks to Max Terentiev.
-Sep 11, 2018 V8.57  Tidy up UnwrapNames.
+Sep 25, 2018 V8.57  Tidy up UnwrapNames.
                     WriteIntersToBio now ignores self signed certificate which
                        are roots not an intermediate.
                     Added TSslCliCertMethod so an SSL server asks a client to
                        send an SSL certificate.
-                    Support OpenSSL 1.1.1 final with TLS/1.3
+                    Support OpenSSL 1.1.1 final with TLS/1.3.
+                    CertInfo returns blank if no certificate loaded.
+                    ValidateCertChain ExpireDays warning now configurable,
+                      defaults to 30 days, used to order new certificates.
+                    Moved some SSL types and lits to OverbyteIcsSSLEAY.
 
-                    
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -2764,6 +2767,7 @@ type
 
     THashBytes20 = array of Byte;
 
+(*  V8.57 Moved to OverbyteIcsSSLEAY
 { V8.40 OpenSSL streaming ciphers with various modes }
 { pending ciphers, rc5, cast5, if we care }
     TEvpCipher = (
@@ -2869,15 +2873,18 @@ const
 
     SslPrivKeyEvpBits: array[TSslPrivKeyCipher] of integer = (
          0,0,0,0,0,0,128,192,256);
-
+*)
 
 type
     { V8.40 added read only, V8.41 added WriteBin }
     TBioOpenMethode = (bomRead, bomWrite, bomReadOnly, bomWriteBin);
+
+{ V8.57 Moved to OverbyteIcsSSLEAY }
    { V8.40 options to read pkey and inters from cert PEM and P12 files,
      croTry will silently fail, croYes will fail with exception  }
-    TCertReadOpt = (croNo, croTry, croYes);             { V8.39 }
-    TChainResult = (chainOK, chainFail, chainWarn);     { V8.41 }
+//    TCertReadOpt = (croNo, croTry, croYes);             { V8.39 }
+//    TChainResult = (chainOK, chainFail, chainWarn);     { V8.41 }
+
     TX509List  = class;
 
     TX509Base = class(TSslBaseComponent)
@@ -3033,7 +3040,7 @@ type
         procedure   LoadCATrustFromString(const Value: String);            { V8.41 }
         procedure   GetCATrustList(CertList: TX509List);                   { V8.41 }
         procedure   AddToCATrust(X509: Pointer);                           { V8.41 }
-        function    ValidateCertChain(Host: String; var CertStr, ErrStr: String): TChainResult;  { V8.41 }
+        function    ValidateCertChain(Host: String; var CertStr, ErrStr: String; ExpireDays: Integer = 30): TChainResult;  { V8.57 }
         function    GetPX509NameByNid(XName: PX509_NAME; ANid: Integer): String;  { V8.41 }
         function    CheckExtName(Ext: PX509_EXTENSION; const ShortName: String): Boolean;  { V8.41 }
         function    GetExtDetail(Ext: PX509_EXTENSION): TExtension;        { V8.41 }
@@ -3247,6 +3254,7 @@ type
                      sslX509_CHECK_FLAG_NEVER_CHECK_SUBJECT);
     TSslCheckHostFlags = set of TSslCheckHostFlag;
 
+(* V8.57 Moved to OverbyteIcsSSLEAY
    { V8.40 1.1.0 and later, sets OpenSSL security level to a number }
     TSslSecLevel = (
                      sslSecLevelAny,        { 0 - anything allowed, old compatibility }
@@ -3294,8 +3302,9 @@ type
 
 const
     sslCliSecDefault = sslCliSecTls11;  { V8.55 recommended default }
+*)
 
-type    
+type
   { V8.51 now only used for 1.0.2 and 1.1.0, many unused for 1.1.0, ignored for 1.1.1 and later }
     TSslOption  = (sslOpt_CIPHER_SERVER_PREFERENCE,
                    sslOpt_MICROSOFT_SESS_ID_BUG,        { V8.27 gone 1.1.0 }
@@ -3458,7 +3467,7 @@ type
                       sslECDH_P521);
 
   { V8.57 whether an SSL server asks a client to send an SSL certificate }
-    TSslCliCertMethod = (sslCliCertNone,
+(*    TSslCliCertMethod = (sslCliCertNone,
                          sslCliCertOptional,
                          sslCliCertRequire);
 
@@ -3470,7 +3479,7 @@ type
      some have to be processed manually taking several days. }
     TChallengeType = (ChallNone, ChallFileUNC, ChallFileFtp, ChallFileSrv, ChallDNS,
                       ChallEmail, ChallAlpnUNC, ChallAlpnSrv, ChallManual);
-
+*)
 
 const
   SslIntSessCacheModes: array[TSslSessCacheMode] of Integer =     { V7.30 }
@@ -18882,6 +18891,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.CertInfo(Brief: Boolean = False): String;   { V8.41 added Brief }
 begin
+    Result := '';
+    if NOT IsCertLoaded then Exit;  { V8.57 sanity check }
     Result := 'Issued to (CN): ' + IcsUnwrapNames (SubjectCName);
     if SubjectOName  <> '' then Result := Result + ', (O): '  + IcsUnwrapNames (SubjectOName);
     if SubjectOUName <> '' then Result := Result + ', (OU): ' + IcsUnwrapNames (SubjectOUName);  { V8.53 }
@@ -19135,7 +19146,8 @@ end;
  expiry dates.  If returns chainOK for no errors, chainWarning for non-fetal
  error and chainFail if the chain is broken or expired.  CertStr returns a
  reportable list of all certificates in the chain for logs, etc.  }
-function TX509Base.ValidateCertChain(Host: String; var CertStr, ErrStr: string): TChainResult;   { V8.41 }
+{ V8.41, V8.57 make ExpireDaya configurable }
+function TX509Base.ValidateCertChain(Host: String; var CertStr, ErrStr: string; ExpireDays: Integer = 30): TChainResult;
 var
     curDate: TDateTime;
     InterList, CAList: TX509List;
@@ -19158,7 +19170,7 @@ var
                     ErrStr := 'SSL certificate has expired - ' +
                                             InterList[J].SubjectCName
                 else begin
-                    if (curDate + 30) > InterList[J].ValidNotAfter then begin
+                    if (curDate + ExpireDays) > InterList[J].ValidNotAfter then begin
                         ErrStr := 'SSL certificate expires on ' +
                               DateToStr(InterList[J].ValidNotAfter) +
                                            ' - ' + InterList[J].SubjectCName;;
@@ -19212,7 +19224,7 @@ begin
         ErrStr := 'SSL certificate has expired - ' + SubjectCName;
         Exit;
     end;
-    if (curDate + 30) > ValidNotAfter then begin
+    if (curDate + ExpireDays) > ValidNotAfter then begin
         Result := chainWarn; // not fatal
         ErrStr := 'SSL certificate expires on ' + DateToStr(ValidNotAfter) +
                                                            ' - ' + SubjectCName;

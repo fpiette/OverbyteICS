@@ -3,10 +3,10 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Forward and Reverse SSL HTTP Proxy
 Creation:     May 2017
-Updated:      May 2017
+Updated:      Sept 2018
 Version:      8.50
 Support:      Use the mailing list ics-ssl@elists.org
-Legal issues: Copyright (C) 2003-2017 by François PIETTE
+Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -43,6 +43,27 @@ History:
                         opens as many source listeners as possible.
                     Added host redirection and .well-known directory support
 19 Sep 2017 - 8.50  Added body events
+24 Sep 2018 - V8.57 INI file reads CertVerTar, DebugLevel and TarSecLevel to be
+                      read as typed liternals as well as numeric values.
+                    INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays
+                    Allow SSL certificates to be ordered and installed automatically if
+                      SslCertAutoOrder=True and so specified in IcsHosts, and a
+                      certificate supplier account has been created (by the
+                      OverbyteIcsX509CertsTst sample application).
+                    Note certificate ordering currently only works with Proto=HTTP.
+
+
+Insalling note:
+All proxy server configuration is in OverbyteIcsProxySslServer.ini file, a default file
+is included in the \ics\Samples\Delphi\SslInternet directory, and is copied into the
+ICS temporary working directory, usually c:\Users\(login)\AppData\Local\ICS. This
+INI file will need to be edited for IP addresses, SSL certificates, etc, although
+some defaults may work.  Specifically Source8 has certificate ordering settings but
+is disabled and will need new valid hosts, IP addresss and files names before it
+will do anything useful.
+
+Once this demo has been run once, any changes to the default INI file from new versions
+ (ie auto certificate ordering) will need to copied manually into the working file.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -69,10 +90,15 @@ uses
   OverbyteIcsIniFiles, StdCtrls, ExtCtrls, ComCtrls, TypInfo,
   OverbyteIcsWSocket, OverbyteIcsWSocketS, OverbyteIcsWndControl,
   OverbyteIcsUtils, OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
-  OverbyteIcsLogger, OverbyteIcsSslX509Utils, OverbyteIcsProxy;
+  OverbyteIcsLogger,
+  OverbyteIcsSslX509Utils,
+  OverbyteIcsProxy,
+  OverbyteIcsTicks64,       { V8.57 }
+  OverbyteIcsSslX509Certs,  { V8.57 }
+  OverbyteIcsSslHttpRest;   { V8.57 }
 
 const
-    ProxyCopyRight : String = ' OverbyteIcsProxySslServer (c) 2017 Francois Piette V8.50 ';
+    ProxyCopyRight : String = ' OverbyteIcsProxySslServer (c) 2018 Francois Piette V8.57 ';
     MaxWinChars = 800000;
     WM_STARTUP = WM_USER + 711 ;
 
@@ -85,6 +111,7 @@ type
     IcsHttpProxy1: TIcsHttpProxy;
     Timer1: TTimer;
     RecheckCertsButton: TButton;
+    IcsSslX509Certs: TSslX509Certs;
     procedure WMCMSTARTUP (var Msg : TMessage); message WM_STARTUP ;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -108,6 +135,12 @@ type
       ProxyClient: THttpProxyClient; var Arg: string);
     procedure IcsHttpProxy1HttpRespBody(Sender: TObject;
       ProxyClient: THttpProxyClient; var Arg: string);
+    procedure IcsSslX509CertsCertProg(Sender: TObject; LogOption: TLogOption;
+      const Msg: string);
+    procedure IcsSslX509CertsChallengeDNS(Sender: TObject;
+      ChallengeItem: TChallengeItem);
+    procedure IcsSslX509CertsNewCert(Sender: TObject);
+    procedure IcsSslX509CertsOAuthAuthUrl(Sender: TObject; const URL: string);
   private
     FIniFileName : String;
     FInitialized : Boolean;
@@ -123,6 +156,7 @@ var
     WinDispCur: Integer;
     ProgDirectory: String;
     LogDate: Integer;
+    CertCheckTrigger: int64 ;  { V8.57 }
 
 implementation
 
@@ -153,25 +187,32 @@ var
     NewFlag: Boolean;
 begin
 
-  // rotate logs at midnight, recheck SSL certificates, log configuration again
-    if LogDate <> Trunc(Date) then begin
-        LogDate := Trunc(Date);
-
-    // revalidate SSL certs which might expire at midnight
+  // check SSL certificates every two hours, may order expired certs
+    if IcsTestTrgTick64 (CertCheckTrigger) then  { V8.57 }
+    begin
+        CertCheckTrigger := IcsGetTrgMins64 (120) ;
         try
           // don't stop on first error, no exceptions
-            Display('Nightly Server Recheck Starting');
             NewFlag := IcsHttpProxy1.RecheckSslCerts(S1, False, True);
             if NewFlag or (S1 <> '') then  begin
                 if NewFlag then Display('Server Recheck Loaded New SSL Certificate(s)');
                 Display('Proxy Recheck SSL Certificate Errors:' + cCRLF + S1);
+                ReportHosts;    // report everything again
+                Display('Listen Bindings:' + cCRLF + IcsHttpProxy1.ListenStates);
             end;
         except
             on E:Exception do begin
                Display('Proxy Recheck SSL Certificate Failed - ' + E.Message);
             end;
         end;
-        ReportHosts;    // new log file, report everything again
+    end;
+
+  // rotate logs at midnight, recheck SSL certificates, log configuration again
+    if LogDate <> Trunc(Date) then begin
+        LogDate := Trunc(Date);
+        Display('Nightly Server Recheck Starting');
+        CertCheckTrigger := Trigger64Immediate; { V8.57 }
+        ReportHosts;    // report everything again
         Display('Listen Bindings:' + cCRLF + IcsHttpProxy1.ListenStates);
     end;
 
@@ -218,6 +259,7 @@ begin
     GSSL_SignTest_Certificate := True;
     OverbyteIcsWSocket.LoadSsl;
     LogDate := Trunc(Date);
+    CertCheckTrigger := Trigger64Disabled;  { V8.57 }
     PostMessage (Handle, WM_STARTUP, 0, 0) ;
 end;
 
@@ -282,14 +324,6 @@ procedure TProxySslServerForm.IcsHttpProxy1HttpWellKnown(Sender: TObject;
   ProxyClient: THttpProxyClient; var Arg: string);
 begin
    Display('Event: Well-Known File Requested: ' + ProxyClient.RequestPath);
-   if Pos('/acme-challenge/', ProxyClient.RequestPath) > 1 then
-   begin
-     // check challenge token received Let's Encrypt and return key authorization
-     // sample only !!!
-        if Pos('/LoqXcYV8q5ONbJQxbmR7SCTNo3tiAXDfowyjxAjEuX0', ProxyClient.RequestPath) > 1 then
-            Arg := 'LoqXcYV8q5ONbJQxbmR7SCTNo3tiAXDfowyjxAjEuX0' +
-                                            '.9jg46WB3rR_AHD-EBXdN7cBkH1WOu0tA3M9fm21mqTI';
-   end;
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -306,10 +340,39 @@ begin
     Display('Do we want to change target??? - ' + ProxyClient.TarHost);
 end;
 
+procedure TProxySslServerForm.IcsSslX509CertsCertProg(Sender: TObject;     { V8.57 }
+  LogOption: TLogOption; const Msg: string);
+begin
+    Display(Msg);
+end;
+
+procedure TProxySslServerForm.IcsSslX509CertsChallengeDNS(Sender: TObject;
+  ChallengeItem: TChallengeItem);                                        { V8.57 }
+begin
+//   update DNS server with TXT challenge information
+end;
+
+procedure TProxySslServerForm.IcsSslX509CertsNewCert(Sender: TObject);   { V8.57 }
+begin
+    CertCheckTrigger := Trigger64Immediate;
+ // force certiificate check to load new ones
+    Display ('Trigger Recheck Certificates') ;
+    Display('Proxy server ordered new SSL cerrtificate.' + IcsCRLF +
+                                      IcsSslX509Certs.GetOrderResult);
+end;
+
+procedure TProxySslServerForm.IcsSslX509CertsOAuthAuthUrl(Sender: TObject;
+  const URL: string);                                                      { V8.57 }
+begin
+ // ideally email this to user, if run as a service!!!!
+   Display('Proxy server demo needs OAuth authenfication for new certificate. ' +
+                'Browse to this URL: ' + URL +  ', From PC: ' + IcsGetCompName) ;
+end;
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TProxySslServerForm.RecheckCertsButtonClick(Sender: TObject);
 begin
-    LogDate := 0;  // force timer midnight event
+    CertCheckTrigger := Trigger64Immediate; 
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -319,6 +382,7 @@ procedure TProxySslServerForm.FormClose(
 var
     IniFile : TIcsIniFile;
 begin
+    CertCheckTrigger := Trigger64Disabled;  { V8.57 }
     StopButtonClick(Self);
     IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionWindow, KeyTop,         Top);
@@ -383,7 +447,6 @@ procedure TProxySslServerForm.StartButtonClick(Sender: TObject);
 var
     IniFile : TIcsIniFile;
     List: TStringList;
-    J: Integer;
     S: String;
 begin
     try
@@ -421,29 +484,6 @@ begin
             Display('Can Not Start Server - No Source Server Hosts Configured') ;
             exit ;
         end;
-        for J := 0 to IcsHttpProxy1.IcsHosts.Count - 1 do begin
-            with IcsHttpProxy1.IcsHosts [J] do begin
-                if BindSslPort <> 0 then begin
-
-               // check if file names need paths and they exist
-                     if (NOT FileExists (SslCert)) then begin
-                        HostEnabled := false ;
-                        Display('SSL HTTP Server disabled, certificate file not found for: ' +
-                                                                        Descr + ', Cert: ' + SslCert) ;
-                     end;
-                     if (SslKey <> '') and (NOT FileExists (SslKey)) then begin
-                        HostEnabled := false ;
-                        Display('SSL HTTP Server disabled, private key file not found for: ' +
-                                                                        Descr + ', Cert: ' + SslKey) ;
-                     end;
-                     if (SslInter <> '') and (NOT FileExists (SslInter)) then begin
-                        HostEnabled := false ;
-                        Display('SSL HTTP Server disabled, intermediate certificate file not found for: ' +
-                                                                        Descr + ', Cert: ' + SslInter) ;
-                     end;
-                end;
-            end;
-        end;
 
     // read the remote proxy targets
         IcsLoadProxyTargetsFromIni(IniFile, IcsHttpProxy1.ProxyTargets, 'Target');
@@ -454,7 +494,7 @@ begin
 
     // validate hosts and keep site certificiate information
         try
-            S := IcsHttpProxy1.ValidateHosts(False, True); // don't stop on first error, no exceptions }
+            S := IcsHttpProxy1.ValidateHosts(False, True); // don't stop on first error, no exceptions
             if S <> '' then begin
                 Display('Proxy Validation Errors:' + cCRLF + S);
             end;
@@ -470,6 +510,7 @@ begin
         if NOT IcsHttpProxy1.ListenAllOK then
             Display('Failed to Start, Listen Bindings:' +
                                       cCRLF + IcsHttpProxy1.ListenStates);
+        CertCheckTrigger := IcsGetTrgSecs64 (15) ;  { V8.57 first check is early to order new certificates }
         StartButton.Enabled := false;
         StopButton.Enabled := true;
     except
@@ -484,6 +525,7 @@ end;
 procedure TProxySslServerForm.StopButtonClick(Sender: TObject);
 begin
     if NOT StopButton.Enabled then Exit;
+    CertCheckTrigger := Trigger64Disabled;  { V8.57 }
     StartButton.Enabled := true;
     StopButton.Enabled := false;
     IcsHttpProxy1.Stop;

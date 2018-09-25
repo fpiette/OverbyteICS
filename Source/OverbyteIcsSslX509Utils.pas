@@ -1,6 +1,6 @@
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-Authors:      Arno Garrels <arno.garrels@gmx.de>
+Authors:      Arno Garrels
               Angus Robertson <delphi@magsys.co.uk>
 Creation:     Aug 26, 2007
 Description:  SSL key and X509 certification creation
@@ -271,7 +271,9 @@ and the cipher optionally to encrypt the output file.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF ICS_INCLUDE_MODE}
 unit OverbyteIcsSslX509Utils;
+{$ENDIF}
 
 {$I include\OverbyteIcsDefs.inc}
 {$I Include\OverbyteIcsSslDefs.inc}
@@ -306,9 +308,16 @@ uses
   {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
   {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     OverbyteIcsSSLEAY, OverbyteIcsLibeay,
-    {OverbyteIcsLibeayEx,} OverByteIcsMD5,
-    OverbyteIcsTypes, OverbyteIcsWSocket, OverbyteIcsLogger,
-    OverbyteIcsMimeUtils, OverbyteIcsUtils;
+{$IFDEF FMX}
+    Ics.Fmx.OverbyteIcsWSocket,
+{$ELSE}
+    OverbyteIcsWSocket,
+{$ENDIF FMX}
+    OverByteIcsMD5,
+    OverbyteIcsTypes,
+    OverbyteIcsLogger,
+    OverbyteIcsMimeUtils,
+    OverbyteIcsUtils;
 
 const
   BF_BLOCK_SIZE     = 8;

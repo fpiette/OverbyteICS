@@ -1,12 +1,13 @@
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 Author:       Angus Robertson, Magenta Systems Ltd
-Description:  SSL web application server sample, no real GUI
+Description:  SSL web application server sample, no real GUI, really designed
+              to be a Windows service application.
 Creation:     July 2017
-Updated:      Dec 2017
-Version:      8.51
+Updated:      Sept 2018
+Version:      8.57
 Support:      Use the mailing list ics-ssl@elists.org
-Legal issues: Copyright (C) 2003-2017 by François PIETTE
+Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -50,20 +51,48 @@ which will be copied into the ICS shared INI directory on first run, with the
 actual file name shown when you start the application, and that is the file
 to edit.
 
-Unlike the other web server samples, this one uses Hosts to support multiple addresses
-and ports and SSL certificates, but all of these must exist and not being used by
-other applications, otherwise the server will not start.  To use SSL, an SSL c
-certificate must exist for the host name used, IP addresses don't eeally work with
-SSL, the OverbyteIcsPemtool sample allows self signed SSL certificates to be created
-for testing.  Up to 100 hosts can be specified, you can edit the Windows HOSTS file
-if necessary to create alternate host names for your PC, if you don't have a local
-DNS server to do it.  
+Unlike the other web server samples, this one uses IcsHosts to support multiple
+addresses and ports and SSL certificates, but all of these must exist and not being
+used by other applications, otherwise the server will not start.  To use SSL, an
+SSL certificate should exist for the host name used, IP addresses don't eeally work
+with SSL, the OverbyteIcsPemtool sample allows self signed SSL certificates to be
+created for testing.  Up to 100 IcsHosts can be specified, you can edit the Windows
+HOSTS file if necessary to create alternate host names for your PC, if you don't
+have a local DNS server to do it.  Documentation for IcsHosts may be found in
+OverbyteIcsWSocketS.pas.
+
+This web server will automatically order and install SSL certificates if so required,
+from various suppliers, including free certificates from Let's Encrypt, and commercial
+certificates for Digicert, Comodo, Thawte and GeoTrust from CertCentre AG.  For
+automated ordering, Domain Validation is used which means the web server must be
+accessible from the public internet by all the host names for which an SSL
+certificate is being ordered. See OverbyteIcsSslX509Certs.pas fore more info.
 
 
 History:
 6 July 2017  - V8.49 baseline
 20 Sep 2017 - V8.50 - Close connection after sending redirection
 12 Dec 2017 - V8.51 - Try and enable FIPS mode if supported by OpenSSL.
+24 Sep 2018 - V8.57 - INI file now reads Options as enumerated type literals,
+                        ie Options=[hoContentEncoding,hoAllowDirList,hoSendServerHdr,hoAllowPut]
+                      INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays
+                      Allow SSL certificates to be ordered and installed automatically if
+                        SslCertAutoOrder=True and so specified in IcsHosts, and a
+                        certificate supplier account has been created (by the
+                        OverbyteIcsX509CertsTst sample application).
+
+
+Insalling note:
+All web server configuration is in OverbyteIcsSslMultiWebServ.ini file, a default file
+is included in the \ics\Samples\Delphi\SslInternet directory, and is copied into the
+ICS temporary working directory, usually c:\Users\(login)\AppData\Local\ICS. This
+INI file will need to be edited for IP addresses, SSL certificates, etc, although
+some defaults may work.  Specifically Host4 has certificate ordering settings but
+is disabled and will need new valid hosts, IP addresss and files names before it
+will do anything useful. 
+
+Once this demo has been run once, any changes to the default INI file from new versions
+ (ie auto certificate ordering) will need to copied manually into the working file.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -108,10 +137,12 @@ uses
   OverbyteIcsWebAppServerDWScriptUrlHandler,
 {$ENDIF}
   OverbyteIcsWebAppServerHead,
-  OverbyteIcsWebAppServerUploads;
-
+  OverbyteIcsWebAppServerUploads,
+  OverbyteIcsTicks64,       { V8.57 }
+  OverbyteIcsSslX509Certs,  { V8.57 }
+  OverbyteIcsSslHttpRest;   { V8.57 }
 const
-    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2017 Francois Piette V8.51 ';
+    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2018 Francois Piette V8.57 ';
     MaxWinChars = 800000;
     WM_STARTUP = WM_USER + 712 ;
     SimpLogName = '"webapp-"yyyymmdd".log"' ;
@@ -149,6 +180,7 @@ type
     RecheckCertsButton: TButton;
     SslHttpAppSrv1: TSslHttpAppSrv;
     DisplayHeaderCheckBox: TCheckBox;
+    IcsSslX509Certs: TSslX509Certs;
     procedure WMCMSTARTUP (var Msg : TMessage); message WM_STARTUP ;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -199,6 +231,12 @@ type
       var Flags: THttpGetFlag);
     procedure SslHttpAppSrv1TraceDocument(Sender, Client: TObject;
       var Flags: THttpGetFlag);
+    procedure IcsSslX509CertsCertProg(Sender: TObject; LogOption: TLogOption;
+      const Msg: string);
+    procedure IcsSslX509CertsChallengeDNS(Sender: TObject;
+      ChallengeItem: TChallengeItem);
+    procedure IcsSslX509CertsNewCert(Sender: TObject);
+    procedure IcsSslX509CertsOAuthAuthUrl(Sender: TObject; const URL: string);
 //    procedure SslHttpAppSrv1PostedData(Sender, Client: TObject; Error: Word);
   private
     FIniFileName : String;
@@ -259,7 +297,8 @@ var
     SrvCompName: string;
     StatSrvSslCert: String;
     StatSrvSslCertWeb: String;
-    HouseKeepingTrg: longword;
+    HouseKeepingTrg: int64;    { V8.57 }
+    CertCheckTrigger: int64 ;  { V8.57 }
     LockFileAccess: TRtlCriticalSection;
 
 implementation
@@ -305,20 +344,6 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ get the computer name from networking }
-function GetCompName: string;
-var
-    Buffer: array[0..255] of WideChar ;
-    NLen: DWORD ;
-begin
-    Buffer [0] := #0 ;
-    result := '' ;
-    NLen := Length (Buffer) ;
-    if GetComputerNameW (Buffer, NLen) then Result := Buffer ;
-end ;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TMyHttpConnection.Create(AOwner: TComponent);
 begin
     inherited Create(AOwner);
@@ -340,17 +365,17 @@ begin
     AnswerString(Flags,
         '',                            { Default Status '200 OK'            }
         '',                            { Default Content-Type: text/html    }
-        'Pragma: no-cache' + #13#10 +  { No client caching please           }
-        'Expires: -1'      + #13#10,   { I said: no caching !               }
+        'Pragma: no-cache' + icsCRLF +  { No client caching please           }
+        'Expires: -1'      + icsCRLF,   { I said: no caching !               }
         '<HTML>' +
           '<HEAD>' +
             '<TITLE>ICS WebServer Demo</TITLE>' +
-          '</HEAD>' + #13#10 +
+          '</HEAD>' + icsCRLF +
           '<BODY>' +
-            '<H2>This page was deliberately returned slowly</H2>' + #13#10 +
-            '<H2>Time at server side:</H2>' + #13#10 +
-            '<P>' + DateTimeToStr(Now) +'</P>' + #13#10 +
-            '<A HREF="/demo.html">Demo menu</A>' + #13#10 +
+            '<H2>This page was deliberately returned slowly</H2>' + icsCRLF +
+            '<H2>Time at server side:</H2>' + icsCRLF +
+            '<P>' + DateTimeToStr(Now) +'</P>' + icsCRLF +
+            '<A HREF="/demo.html">Demo menu</A>' + icsCRLF +
           '</BODY>' +
         '</HTML>');
 end;
@@ -368,7 +393,7 @@ end;
 { we update DisplayMemo once a second in the timer }
 procedure TWeblServerForm.Display(Msg : String);
 begin
-    WinLinesBuff := WinLinesBuff + Msg + #13#10 ;
+    WinLinesBuff := WinLinesBuff + Msg + icsCRLF ;
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -379,26 +404,33 @@ var
     NewFlag: Boolean;
 begin
 
-  // rotate logs at midnight, recheck SSL certificates, log configuration again
-    if LogDate <> Trunc(Date) then begin
-        LogDate := Trunc(Date);
-
-    // revalidate SSL certs which might expire at midnight
+  // check SSL certificates every two hours, may order expired certs
+    if IcsTestTrgTick64 (CertCheckTrigger) then  { V8.57 }
+    begin
+        CertCheckTrigger := IcsGetTrgMins64 (120) ;
         try
           // don't stop on first error, no exceptions
-            Display('Nightly Server Recheck Starting');
             NewFlag := SslHttpAppSrv1.RecheckSslCerts(S1, False, True);
             if NewFlag or (S1 <> '') then  begin
                 if NewFlag then Display('Server Recheck Loaded New SSL Certificate(s)');
-                Display('Proxy Recheck SSL Certificate Errors:' + #13#10 + S1);
+                Display('Server Recheck SSL Certificate Errors:' + icsCRLF + S1);
+                ReportHosts;    // report everything again
+                Display('Listen Bindings:' + icsCRLF + SslHttpAppSrv1.ListenStates);
             end;
         except
             on E:Exception do begin
-               Display('Proxy Recheck SSL Certificate Failed - ' + E.Message);
+               Display('Server Recheck SSL Certificate Failed - ' + E.Message);
             end;
         end;
-        ReportHosts;    // new log file, report everything again
-        Display('Listen Bindings:' + #13#10 + SslHttpAppSrv1.ListenStates);
+    end;
+
+  // rotate logs at midnight, recheck SSL certificates, log configuration again
+    if LogDate <> Trunc(Date) then begin
+        LogDate := Trunc(Date);
+        Display('Nightly Server Recheck Starting');
+        ReportHosts;    // report everything again
+        Display('Listen Bindings:' + icsCRLF + SslHttpAppSrv1.ListenStates);
+        CertCheckTrigger := Trigger64Immediate; { V8.57 }
     end;
 
   // see if updating the log window with multiple lines
@@ -432,7 +464,7 @@ begin
 
  // house keeping every five minutes
     if IcsTestTrgTick(HouseKeepingTrg) then begin
-        HouseKeepingTrg := IcsGetTrgSecs (300);
+        HouseKeepingTrg := IcsGetTrgMSecs64 (300);
         CleanupTimeStampedDir(WebAppSrvDataModule.DataDir);
     end;
 
@@ -454,7 +486,8 @@ begin
     GSSL_SignTest_Certificate := True;
     OverbyteIcsWSocket.LoadSsl;
     LogDate := Trunc(Date);
-    HouseKeepingTrg := IcsGetTrgSecs (300);
+    HouseKeepingTrg := IcsGetTrgSecs64 (300);
+    CertCheckTrigger := Trigger64Disabled;  { V8.57 }
 
 { V8.51 see if using FIPS OpenSSL DLLs, try and set FIPS mode }
     if Pos ('fips', OpenSslVersion) > 0 then begin
@@ -500,7 +533,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TWeblServerForm.RecheckCertsButtonClick(Sender: TObject);
 begin
-    LogDate := 0;  // force timer midnight event
+    CertCheckTrigger := Trigger64Immediate; 
 end;
 
 
@@ -511,6 +544,8 @@ procedure TWeblServerForm.FormClose(
 var
     IniFile : TIcsIniFile;
 begin
+    CertCheckTrigger := Trigger64Disabled;  { V8.57 }
+    HouseKeepingTrg := Trigger64Disabled;  { V8.57 }
     StopButtonClick(Self);
     IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionWindow, KeyTop,         Top);
@@ -546,20 +581,20 @@ begin
 
         // build site info for log and status page
             StatSrvSslCert := StatSrvSslCert + 'Site Host ' + IntToStr (I) +
-             ' [' + DisplayName + '] ' + HostNames.CommaText + #13#10 +
-             'Bindings: ' + BindInfo + #13#10 +
-             'SSL Security Level ' + GetEnumName(TypeInfo(TSslSrvSecurity), Ord(SslSrvSecurity)) +
-             ' - ' + CertErrs + #13#10 + CertInfo + #13#10 +
-             'Web Pages Root: ' + WebDocDir + #13#10 +
-             'Templates Root: ' + WebTemplDir + #13#10;
+             ' [' + DisplayName + '] ' + HostNames.CommaText + icsCRLF +
+             'Bindings: ' + BindInfo + icsCRLF +
+             'SSL Security Level: ' + GetEnumName(TypeInfo(TSslSrvSecurity), Ord(SslSrvSecurity)) + IcsCRLF +
+                    'SSL Certifcate: ' + CertErrs + IcsCRLF + CertInfo + IcsCRLF +
+             'Web Pages Root: ' + WebDocDir + icsCRLF +
+             'Templates Root: ' + WebTemplDir + icsCRLF;
             if WebRedirectStat <> 0 then StatSrvSslCert := StatSrvSslCert +
-                                    'Redirection to: ' + WebRedirectURL + #13#10;
+                                    'Redirection to: ' + WebRedirectURL + icsCRLF;
             if WellKnownPath <> '' then StatSrvSslCert := StatSrvSslCert +
-                                    'Well-Known Root: ' + WellKnownPath + #13#10;
-             StatSrvSslCert := StatSrvSslCert + #13#10;
+                                    'Well-Known Root: ' + WellKnownPath + icsCRLF;
+             StatSrvSslCert := StatSrvSslCert + icsCRLF;
         end;
     end;
-    StatSrvSslCertWeb := StringReplace (StatSrvSslCert, #13#10, '<BR>' + #13#10, [rfReplaceAll]);
+    StatSrvSslCertWeb := StringReplace (StatSrvSslCert, icsCRLF, '<BR>' + icsCRLF, [rfReplaceAll]);
     Display(StatSrvSslCert);
 end;
 
@@ -601,12 +636,12 @@ var
                 if BindNonPort <> 0 then begin
                     Result := Result + 'http://' + SslHttpAppSrv1.IcsHosts [0].HostNames[0];
                     if BindNonPort <> 80 then Result := Result + ':' + IntToStr(BindNonPort);
-                    Result := Result + '/' + WebDefDoc + #13#10;
+                    Result := Result + '/' + WebDefDoc + icsCRLF;
                 end;
                 if BindSslPort <> 0 then begin
                     Result := Result + 'https://' + SslHttpAppSrv1.IcsHosts [0].HostNames[0];
                     if BindSslPort <> 443 then Result := Result + ':' + IntToStr(BindSslPort);
-                    Result := Result + '/' + WebDefDoc + #13#10;
+                    Result := Result + '/' + WebDefDoc + icsCRLF;
                 end;
             end;
         end;
@@ -641,8 +676,8 @@ begin
         Display('INI file: ' + FIniFileName);
 
       // tell them who we are
-        Display(OverbyteIcsHttpSrv.CopyRight + #13#10 +
-           'SSL Version: ' + OpenSslVersion + ', Dir: ' + GLIBEAY_DLL_FileName + #13#10);
+        Display(OverbyteIcsHttpSrv.CopyRight + icsCRLF +
+           'SSL Version: ' + OpenSslVersion + ', Dir: ' + GLIBEAY_DLL_FileName + icsCRLF);
 
       // main proxy settings from INI file, built in CA if no file found
         IcsLoadTHttpAppSrvFromIni(IniFile, SslHttpAppSrv1, 'WebAppServer');
@@ -651,33 +686,13 @@ begin
 
       // read the server hosts from INI file and check SSL files exist
         IcsLoadIcsHostsFromIni(IniFile, SslHttpAppSrv1.IcsHosts, 'Host');
-        if SslHttpAppSrv1.IcsHosts.Count <= 0 then
-         begin
+        if SslHttpAppSrv1.IcsHosts.Count <= 0 then begin
             Display('Can Not Start Server - No Source Server Hosts Configured') ;
             exit ;
         end;
         for J := 0 to SslHttpAppSrv1.IcsHosts.Count - 1 do begin
             with SslHttpAppSrv1.IcsHosts [J] do begin
                 if NOT HostEnabled then continue;
-                if BindSslPort <> 0 then begin
-
-               // check if file names need paths and they exist
-                     if (NOT FileExists (SslCert)) then begin
-                        HostEnabled := false ;
-                        Display('SSL HTTP Server disabled, certificate file not found for: ' +
-                                                                        Descr + ', Cert: ' + SslCert);
-                     end;
-                     if (SslKey <> '') and (NOT FileExists (SslKey)) then begin
-                        HostEnabled := false ;
-                        Display('SSL HTTP Server disabled, private key file not found for: ' +
-                                                                        Descr + ', Cert: ' + SslKey);
-                     end;
-                     if (SslInter <> '') and (NOT FileExists (SslInter)) then begin
-                        HostEnabled := false ;
-                        Display('SSL HTTP Server disabled, intermediate certificate file not found for: ' +
-                                                                        Descr + ', Cert: ' + SslInter) ;
-                     end;
-                end;
 
             // special case, add ICS sample directory path to directories without drive letters
                 if Pos ('WebAppServerData\', WebDocDir) = 1 then WebDocDir := BaseDir + WebDocDir;
@@ -692,12 +707,12 @@ begin
 
     // validate hosts and keep site certificiate information
         try
-            Errs := SslHttpAppSrv1.ValidateHosts(False, True); // don't stop on first error, no exceptions }
+            Errs := SslHttpAppSrv1.ValidateHosts(False, True); // don't stop on first error, no exceptions
             if Errs <> '' then begin
-                Display('Proxy Validation Errors:' + #13#10 + Errs);
+                Display('Proxy Validation Errors:' + icsCRLF + Errs);
             end;
             ReportHosts;
-            Display('Required Listen Bindings:' + #13#10 + SslHttpAppSrv1.ListenStates);
+            Display('Required Listen Bindings:' + icsCRLF + SslHttpAppSrv1.ListenStates);
         except
             on E:Exception do begin
                 Display('Host Validation Failed, Server Stopped - ' + E.Message);
@@ -791,7 +806,7 @@ begin
         CleanupTimeStampedDir(WebAppSrvDataModule.DataDir);
 
       // start logging file for each host
-        SrvCompName := GetCompName ;
+        SrvCompName := IcsGetCompName ;
         for J := 0 to SslHttpAppSrv1.IcsHosts.Count - 1 do begin
             with SslHttpAppSrv1.IcsHosts [J] do begin
                 if NOT HostEnabled then continue;
@@ -806,15 +821,16 @@ begin
         if Errs <> '' then Display('Start Web Server Error - ' + Errs) ;
         if NOT SslHttpAppSrv1.ListenAllOK then
             Display('Failed to Start, Listen Bindings:' +
-                                      #13#10 + SslHttpAppSrv1.ListenStates)
+                                      icsCRLF + SslHttpAppSrv1.ListenStates)
         else
             Display('Started OK, Listen Bindings:' +
-                                      #13#10 + SslHttpAppSrv1.ListenStates);
+                                      icsCRLF + SslHttpAppSrv1.ListenStates);
+        CertCheckTrigger := IcsGetTrgSecs64 (15) ;  { V8.57 first check is early to order new certificates }
         StartButton.Enabled := false;
         StopButton.Enabled := true;
 
      // try and show URLSs that will access the first host
-        Display('Now browse to one of these URLs:' + #13#10 + BuildDemoURIs);
+        Display('Now browse to one of these URLs:' + icsCRLF + BuildDemoURIs);
 
     except
         on E:Exception do begin
@@ -828,6 +844,7 @@ end;
 procedure TWeblServerForm.StopButtonClick(Sender: TObject);
 begin
     if NOT StopButton.Enabled then Exit;
+    CertCheckTrigger := Trigger64Disabled;  { V8.57 }
     StartButton.Enabled := true;
     StopButton.Enabled := false;
     SslHttpAppSrv1.Stop;
@@ -1063,10 +1080,10 @@ begin
         '<HTML>' +
           '<HEAD>' +
             '<TITLE>ICS WebServer DELETE Demo</TITLE>' +
-          '</HEAD>' + #13#10 +
+          '</HEAD>' + icsCRLF +
           '<BODY>' +
-            '<H2>Your DELETE request has been noted:</H2>' + #13#10 +
-            '<P>Command: ' + ClientCnx.Path + '</P>' + #13#10 +
+            '<H2>Your DELETE request has been noted:</H2>' + icsCRLF +
+            '<P>Command: ' + ClientCnx.Path + '</P>' + icsCRLF +
             '<A HREF="/demo.html">Back to demo menu</A><BR>' +
           '</BODY>' +
         '</HTML>');
@@ -1129,10 +1146,10 @@ begin
             '<HTML>' +
               '<HEAD>' +
                 '<TITLE>Redirection</TITLE>' +
-              '</HEAD>' + #13#10 +
+              '</HEAD>' + icsCRLF +
               '<BODY>' +
-                'You should be redirected automatically !<BR>' + #13#10 +
-                '<A HREF="' + ClientCnx.WebRedirectURL + '">Click Here</A><BR>' + #13#10 +
+                'You should be redirected automatically !<BR>' + icsCRLF +
+                '<A HREF="' + ClientCnx.WebRedirectURL + '">Click Here</A><BR>' + icsCRLF +
               '</BODY>' +
             '</HTML>');
         Exit;
@@ -1446,20 +1463,37 @@ var
 begin
     ClientCnx := Client as TMyHttpConnection;
     Display(ClientCnx.PeerAddr + ' - ' + ClientCnx.HostTag + '  Well-Known File Requested: ' + Path);
-
- { !!! note, acme challenges use HTTP only since they precede the ussuing
-       of an SSL certificate, but other services might use SSL }
-    if Pos('/acme-challenge/', Path) > 1 then begin
-     // check challenge token received Let's Encrypt and return key authorization
-     // sample only !!!
-        if Pos('/LoqXcYV8q5ONbJQxbmR7SCTNo3tiAXDfowyjxAjEuX0', Path) > 1 then  begin
-            BodyStr := 'LoqXcYV8q5ONbJQxbmR7SCTNo3tiAXDfowyjxAjEuX0' +
-                                            '.9jg46WB3rR_AHD-EBXdN7cBkH1WOu0tA3M9fm21mqTI';
-           Display(ClientCnx.PeerAddr + ' - ' + ClientCnx.HostTag + ' acme-challenge response: ' + BodyStr);
-        end;
-    end;
 end;
 
+
+procedure TWeblServerForm.IcsSslX509CertsCertProg(Sender: TObject;
+  LogOption: TLogOption; const Msg: string);
+begin
+    Display(Msg);
+end;
+
+procedure TWeblServerForm.IcsSslX509CertsChallengeDNS(Sender: TObject;
+  ChallengeItem: TChallengeItem);
+begin
+//   update DNS server with TXT challenge information
+end;
+
+procedure TWeblServerForm.IcsSslX509CertsNewCert(Sender: TObject);    { V8.57 }
+begin
+    CertCheckTrigger := Trigger64Immediate;
+ // force certiificate check to load new ones
+    Display ('Trigger Recheck Certificates') ;
+    Display('Web server ordered new SSL cerrtificate.' + IcsCRLF +
+                                      IcsSslX509Certs.GetOrderResult);
+end;
+
+procedure TWeblServerForm.IcsSslX509CertsOAuthAuthUrl(Sender: TObject;
+  const URL: string);
+begin
+ // ideally email this to user, if run as a service!!!!
+   Display('Web server demo needs OAuth authenfication for new certificate, ' +
+                'Browse to this URL: ' + URL +  ', From PC: ' + IcsGetCompName) ;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TWeblServerForm.HttpAppSrvClientBgException(Sender: TObject; E: Exception; var CanClose : Boolean);
@@ -1656,14 +1690,14 @@ begin
     ClientCnx.AnswerString(Flags,
         '302 Moved',                    { Tell the browser about relocation }
         '',                             { Default Content-Type: text/html   }
-        'Location: ' + Location + #13#10,            { Specify new location }
+        'Location: ' + Location + icsCRLF,            { Specify new location }
         '<HTML>' +
           '<HEAD>' +
             '<TITLE>ICS WebServer Demo - Redir</TITLE>' +
-          '</HEAD>' + #13#10 +
+          '</HEAD>' + icsCRLF +
           '<BODY>' +
-            'You should be redirected automatically !<BR>' + #13#10 +
-            '<A HREF="' + Location + '">Click Here</A><BR>' + #13#10 +
+            'You should be redirected automatically !<BR>' + icsCRLF +
+            '<A HREF="' + Location + '">Click Here</A><BR>' + icsCRLF +
           '</BODY>' +
         '</HTML>');
 end;
@@ -1679,16 +1713,16 @@ begin
     ClientCnx.AnswerString(Flags,
         '',                            { Default Status '200 OK'            }
         '',                            { Default Content-Type: text/html    }
-        'Pragma: no-cache' + #13#10 +  { No client caching please           }
-        'Expires: -1'      + #13#10,   { I said: no caching !               }
+        'Pragma: no-cache' + icsCRLF +  { No client caching please           }
+        'Expires: -1'      + icsCRLF,   { I said: no caching !               }
         '<HTML>' +
           '<HEAD>' +
             '<TITLE>ICS WebServer Demo</TITLE>' +
-          '</HEAD>' + #13#10 +
+          '</HEAD>' + icsCRLF +
           '<BODY>' +
-            '<H2>Time at server side:</H2>' + #13#10 +
-            '<P>' + DateTimeToStr(Now) +'</P>' + #13#10 +
-            '<A HREF="/demo.html">Demo menu</A>' + #13#10 +
+            '<H2>Time at server side:</H2>' + icsCRLF +
+            '<P>' + DateTimeToStr(Now) +'</P>' + icsCRLF +
+            '<A HREF="/demo.html">Demo menu</A>' + icsCRLF +
           '</BODY>' +
         '</HTML>');
 end;
@@ -1711,14 +1745,14 @@ begin
     if Count > 20000 then
         Count := 20000;
     Body := '<HTML>' + '<HEAD>' + '<TITLE>Test Page from Bruno :-)</TITLE>' +
-            '</HEAD>' + #13#10 +  '<BODY>';
+            '</HEAD>' + icsCRLF +  '<BODY>';
     for I := 1 to Count do
         Body := Body + '<br>This is line number ' + IntToStr(I);
     Body := Body + '</BODY></HTML>';
-    Header := 'Pragma: no-cache' + #13#10 +  { No client caching please     }
-              'Expires: -1'      + #13#10 +
-              'Set-Cookie: Usuario=a; path=/'+ #13#10 +
-              'Set-Cookie: Senha=a; path=/'+ #13#10;
+    Header := 'Pragma: no-cache' + icsCRLF +  { No client caching please     }
+              'Expires: -1'      + icsCRLF +
+              'Set-Cookie: Usuario=a; path=/'+ icsCRLF +
+              'Set-Cookie: Senha=a; path=/'+ icsCRLF;
 //    ClientCnx.OnRequestDone := RequestDone;
     ClientCnx.AnswerString(Flags, '', '', Header, Body);
 end;
@@ -1734,14 +1768,14 @@ begin
     ClientCnx.AnswerString(Flags,
         '',                            { Default Status '200 OK'            }
         '',                            { Default Content-Type: text/html    }
-        'Pragma: no-cache' + #13#10 +  { No client caching please           }
-        'Expires: -1'      + #13#10,   { I said: no caching !               }
+        'Pragma: no-cache' + icsCRLF +  { No client caching please           }
+        'Expires: -1'      + icsCRLF,   { I said: no caching !               }
         '<HTML>' +
           '<HEAD>' +
             '<TITLE>ICS WebServer Demo</TITLE>' +
-          '</HEAD>' + #13#10 +
+          '</HEAD>' + icsCRLF +
           '<BODY>' +
-            'Congratulations !' + #13#10 +
+            'Congratulations !' + icsCRLF +
           '</BODY>' +
         '</HTML>');
 end;
@@ -1756,15 +1790,15 @@ begin
     ClientCnx.AnswerString(Flags,
         '',           { Default Status '200 OK'         }
         '',           { Default Content-Type: text/html }
-        'Pragma: no-cache' + #13#10 +  { No client caching please           }
-        'Expires: -1'      + #13#10,   { I said: no caching !               }
+        'Pragma: no-cache' + icsCRLF +  { No client caching please           }
+        'Expires: -1'      + icsCRLF,   { I said: no caching !               }
         '<HTML>' +
           '<HEAD>' +
             '<TITLE>ICS WebServer Demo</TITLE>' +
-          '</HEAD>' + #13#10 +
+          '</HEAD>' + icsCRLF +
           '<BODY>' +
             'Your IP is: ' +
-            ClientCnx.PeerAddr + #13#10 +
+            ClientCnx.PeerAddr + icsCRLF +
           '</BODY>' +
         '</HTML>');
 end;

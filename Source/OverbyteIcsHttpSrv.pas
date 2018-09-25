@@ -9,11 +9,11 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.50
+Version:      8.57
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2017 by François PIETTE
+Legal issues: Copyright (C) 1999-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -435,6 +435,17 @@ Aug 10, 2017 V8.50 Fixed bug setting WebRedirectStat
                    Fixed bug that first IcsHost could not be SSL
                    Internal FSslEnable now FHttpSslEnable to ease confusion
 Jul 6, 2018  V8.56 Added OnSslAlpnSelect called after OnSslServerName for HTTP/2
+Sep 25, 2018 V8.57 Added SslCliCertMethod to allow server to request a client
+                       SSL certificate from the browser, NOTE you should check it
+                       the OnSslHandshakeDone event and close the connection if
+                       invalid, beware this usually causes the browser to request
+                       a certificate which can be obtrusive.
+                   Allow SSL certificates to be ordered and installed automatically
+                       by RecheckSslCerts if SslCertAutoOrder=True and so specified in
+                       IcsHosts, if a TSslX509Certs component is attached and a
+                       certificate supplier account has been created (by the
+                       OverbyteIcsX509CertsTst sample application).
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -498,6 +509,7 @@ uses
 { Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
     OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
+    OverbyteIcsSslX509Certs,  { V8.57 }
 {$ENDIF}
     {$I Include\OverbyteIcsZlib.inc} { V7.20 }
     OverbyteIcsZlibHigh,     { V7.20 }
@@ -536,9 +548,9 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 856;
-    CopyRight : String = ' THttpServer (c) 1999-2018 F. Piette V8.56 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.56';   { V8.09 }
+    THttpServerVersion = 857;
+    CopyRight : String = ' THttpServer (c) 1999-2018 F. Piette V8.57 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.57';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -1733,6 +1745,14 @@ type
         procedure SetDHParams(const Value: String);                   { V8.45 }
         procedure TransferSslAlpnSelect(Sender: TObject;
           ProtoList: TStrings; var SelProto : String; var ErrCode: TTlsExtError);  { V8.56 }
+        function  GetSslX509Certs: TSslX509Certs;                     { V8.57 }
+        procedure SetSslX509Certs(const Value : TSslX509Certs);       { V8.57 }
+        function  GetSslCliCertMethod: TSslCliCertMethod;             { V8.57 }
+        procedure SetSslCliCertMethod(const Value : TSslCliCertMethod); { V8.57 }
+        function  GetCertExpireDays: Integer;                         { V8.57 }
+        procedure SetCertExpireDays(const Value : Integer);           { V8.57 }
+        function  GetSslCertAutoOrder: Boolean;                       { V8.57 }
+        procedure SetSslCertAutoOrder(const Value : Boolean);         { V8.57 }
     public
         constructor Create(AOwner : TComponent); override;
         destructor  Destroy; override;
@@ -1752,6 +1772,14 @@ type
                                                            write SetRootCA;      { V8.45 }
         property  DHParams           : String              read  GetDHParams
                                                            write SetDHParams;    { V8.45 }
+        property  SslCliCertMethod   : TSslCliCertMethod   read  GetSslCliCertMethod
+                                                           write SetSslCliCertMethod; { V8.57 }
+        property  SslCertAutoOrder   : Boolean             read  GetSslCertAutoOrder
+                                                           write SetSslCertAutoOrder; { V8.57 }
+        property  CertExpireDays     : Integer             read  GetCertExpireDays
+                                                           write SetCertExpireDays; { V8.57 }
+        property  SslX509Certs       : TSslX509Certs       read  GetSslX509Certs
+                                                           write SetSslX509Certs; { V8.57 }
         property  OnSslVerifyPeer    : TSslVerifyPeerEvent read  FOnSslVerifyPeer
                                                            write FOnSslVerifyPeer;
         property  OnSslSetSessionIDContext : TSslSetSessionIDContext
@@ -1773,11 +1801,15 @@ type
 
     TSslHttpServer = class(TCustomSslHttpServer)     //  V8.02 Angus
     published
-        property SslEnable;                
+        property SslEnable;
         property SslContext;
         property IcsHosts;                      { V8.45 }
         property RootCA;                        { V8.45 }
         property DHParams;                      { V8.45 }
+        property SslCliCertMethod;              { V8.57 }
+        property SslCertAutoOrder;              { V8.57 }
+        property CertExpireDays;                { V8.57 }
+        property SslX509Certs;                  { V8.57 }
         property OnSslVerifyPeer;
         property OnSslSetSessionIDContext;
         property OnSslSvrNewSession;
@@ -6590,7 +6622,6 @@ begin
 end;
 
 
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomSslHttpServer.GetDHParams: String;                                { V8.45 }
 begin
@@ -6601,8 +6632,7 @@ begin
 end;
 
 
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+   {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TCustomSslHttpServer.SetDHParams(const Value: String);                   { V8.45 }
 begin
     if Assigned(FWSocketServer) then
@@ -6610,8 +6640,7 @@ begin
 end;
 
 
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+   {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomSslHttpServer.ValidateHosts(Stop1stErr: Boolean=True;
                                               NoExceptions: Boolean=False): String; { V8.48 }
 
@@ -6628,7 +6657,6 @@ begin
 end;
 
 
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TCustomSslHttpServer.RecheckSslCerts(var CertsInfo: String;
                     Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean;  { V8.48 }
@@ -6638,6 +6666,79 @@ begin
         Result := TSslWSocketServer(FWSocketServer).RecheckSslCerts(CertsInfo,
                                                         Stop1stErr, NoExceptions);
     end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslHttpServer.GetSslCliCertMethod: TSslCliCertMethod;             { V8.57 }
+begin
+    if Assigned(FWSocketServer) then
+        Result := TSslWSocketServer(FWSocketServer).SslCliCertMethod
+    else
+        Result := sslCliCertNone;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslHttpServer.SetSslCliCertMethod(const Value : TSslCliCertMethod); { V8.57 }
+begin
+    if Assigned(FWSocketServer) then
+        TSslWSocketServer(FWSocketServer).SslCliCertMethod := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslHttpServer.GetSslCertAutoOrder: Boolean;                       { V8.57 }
+begin
+    if Assigned(FWSocketServer) then
+        Result := TSslWSocketServer(FWSocketServer).SslCertAutoOrder
+    else
+        Result := False;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslHttpServer.SetSslCertAutoOrder(const Value : Boolean);         { V8.57 }
+begin
+    if Assigned(FWSocketServer) then
+        TSslWSocketServer(FWSocketServer).SslCertAutoOrder := Value;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslHttpServer.GetCertExpireDays: Integer;                         { V8.57 }
+begin
+    if Assigned(FWSocketServer) then
+        Result := TSslWSocketServer(FWSocketServer).CertExpireDays
+    else
+        Result := 30;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslHttpServer.SetCertExpireDays(const Value : Integer);           { V8.57 }
+begin
+    if Assigned(FWSocketServer) then
+        TSslWSocketServer(FWSocketServer).CertExpireDays := Value;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TCustomSslHttpServer.GetSslX509Certs: TSslX509Certs;    { V8.57 }
+begin
+    if Assigned(FWSocketServer) then
+        Result := TSslWSocketServer(FWSocketServer).GetSslX509Certs as TSslX509Certs
+    else
+        Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslHttpServer.SetSslX509Certs(const Value : TSslX509Certs);    { V8.57 }
+begin
+    if Assigned(FWSocketServer) then
+        TSslWSocketServer(FWSocketServer).SetSslX509Certs(Value);
 end;
 
 

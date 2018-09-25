@@ -90,6 +90,10 @@ object ProxySslServerForm: TProxySslServerForm
     CertVerTar = CertVerNone
     SslRevocation = False
     SslReportChain = False
+    SslCliCertMethod = sslCliCertNone
+    SslCertAutoOrder = False
+    CertExpireDays = 30
+    SslX509Certs = IcsSslX509Certs
     onProxyProg = IcsHttpProxy1ProxyProg
     OnSetTarget = IcsHttpProxy1SetTarget
     OnDataSendTar = IcsHttpProxy1DataSendTar
@@ -110,6 +114,36 @@ object ProxySslServerForm: TProxySslServerForm
   object Timer1: TTimer
     OnTimer = Timer1Timer
     Left = 320
+    Top = 5
+  end
+  object IcsSslX509Certs: TSslX509Certs
+    AcmeAccKeyType = PrivKeyRsa2048
+    AutoOrderComplete = False
+    CertSubAltNames = <>
+    CertCsrOrigin = CsrOriginProps
+    CertOutFmts = []
+    CertSerNumType = SerNumRandom
+    CertSignDigestType = Digest_sha256
+    CertValidity = 365
+    DebugLevel = DebugConn
+    DomWebSrvIP = '0.0.0.0'
+    LogJson = False
+    LogPkeys = False
+    OAAuthType = OAuthTypeWeb
+    OARefreshAuto = False
+    OARefrMinsPrior = 120
+    OAWebSrvIP = '127.0.0.1'
+    OAWebSrvPort = '8080'
+    PrivKeyCipher = PrivKeyEncNone
+    PrivKeyType = PrivKeyRsa2048
+    SeqOrderNum = 0
+    SuppCertChallenge = ChallNone
+    SupplierProto = SuppProtoNone
+    OnCertProg = IcsSslX509CertsCertProg
+    OnNewCert = IcsSslX509CertsNewCert
+    OnOAuthAuthUrl = IcsSslX509CertsOAuthAuthUrl
+    OnChallengeDNS = IcsSslX509CertsChallengeDNS
+    Left = 390
     Top = 5
   end
 end

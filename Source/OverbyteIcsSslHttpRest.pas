@@ -12,13 +12,12 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      June 2018
-Version:      8.55
+Updated:      Sep 2018
+Version:      8.57
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
-Legal issues: Copyright (C) 1997-2018 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium.
-              <francois.piette@overbyte.be>
+Legal issues: Copyright (C) 2018 by Angus Robertson, Magenta Systems Ltd,
+              Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -132,20 +131,24 @@ often available, both are supported by TRestOAuth.
 
 
 Updates:
-May 21, 2018  - 8.54 - baseline
-Jul  2, 2018  - 8.55 - Improved Json error handling
+May 21, 2018  - V8.54 - baseline
+Jul  2, 2018  - V8.55 - Improved Json error handling
                        Builds with NO_DEBUG_LOG
+Sep 25, 2018  - V8.57 - Need OAuth local web server for all auth methods.
 
 
 
+Pending - Simple web server now less simple to supports SSL and ALPN
 Pending - more documentation
 Pending - better SSL error handling when connections fail, due to too high security in particular.
-Pending - OAuth don't spawn browser from Windows service 
+Pending - OAuth don't spawn browser from Windows service
 Pending - OAuth1 (need Twitter account).
 Pending - REST response for DelphiXE Json Objects Framework
 }
 
+{$IFNDEF ICS_INCLUDE_MODE}
 unit OverbyteIcsSslHttpRest;
+{$ENDIF}
 
 {$I Include\OverbyteIcsDefs.inc}
 
@@ -169,40 +172,42 @@ uses
     {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
     {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
     ShellAPI,
-//    {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
 {$ENDIF}
 {$IFDEF POSIX}
     Posix.Time,
     Ics.Posix.WinTypes,
     Ics.Posix.Messages,
 {$ENDIF}
-    {$Ifdef Rtl_Namespaces}System.Classes{$Else}Classes{$Endif},
-    {$Ifdef Rtl_Namespaces}System.Sysutils{$Else}Sysutils{$Endif},
+    {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+    {$IFDEF RTL_NAMESPACES}System.Sysutils{$ELSE}Sysutils{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.TypInfo{$ELSE}TypInfo{$ENDIF},
-//    {$IFDEF Rtl_Namespaces}System.StrUtils{$ELSE}StrUtils{$ENDIF},
     Overbyteicsssleay, Overbyteicslibeay,
+    OverbyteIcsTypes,
+    OverbyteIcsUtils,
+    OverbyteIcsUrl,
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsWndControl,
     Ics.Fmx.OverbyteIcsWSocket,
     Ics.Fmx.OverbyteIcsWSocketS,
+    Ics.Fmx.OverbyteIcsHttpProt,
+    Ics.Fmx.OverbyteIcsSslX509Utils,
+    Ics.Fmx.OverbyteIcsMsSslUtils,
 {$ELSE}
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
     OverbyteIcsWSocketS,
+    OverbyteIcsHttpProt,
+    OverbyteIcsSslX509Utils,
+    OverbyteIcsMsSslUtils,
 {$ENDIF FMX}
 {$IFDEF MSWINDOWS}
-    OverbyteIcsMsSslUtils, OverbyteIcsWinCrypt,
+    OverbyteIcsWinCrypt,
 {$ENDIF MSWINDOWS}
-    OverbyteIcsHttpCCodZLib,   
+    OverbyteIcsHttpCCodZLib,
     OverbyteIcsHttpContCod,
-    OverbyteIcsHttpProt,
     OverbyteIcsLogger,
     OverbyteIcsCookies,
     OverbyteIcsSslSessionCache,
-    OverbyteIcsSslX509Utils,
-    OverbyteIcsTypes,
-    OverbyteIcsUtils,
-    OverbyteIcsUrl,
     OverbyteIcsMimeUtils,
     OverbyteIcsFormDataDecoder,
     OverbyteIcsCharsetUtils,
@@ -214,8 +219,8 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpRestVersion = 855;
-    CopyRight : String = ' TSslHttpRest (c) 2018 F. Piette V8.55 ';
+    THttpRestVersion = 857;
+    CopyRight : String = ' TSslHttpRest (c) 2018 F. Piette V8.57 ';
     DefMaxBodySize = 100*100*100; { max memory/string size 100Mbyte }
     TestState = 'Testing-Redirect';
 
@@ -235,8 +240,8 @@ type
   TOAuthAuthUrlEvent = procedure (Sender: TObject; const URL: string) of object;
 
 { property and state types }
-  TCertVerMethod   = (CertVerNone, CertVerBundle, CertVerWinStore);
-  THttpDebugLevel  = (DebugNone, DebugConn, DebugParams, DebugSsl, DebugHdr, DebugBody, DebugSslLow);
+//TCertVerMethod   = (CertVerNone, CertVerBundle, CertVerWinStore);
+//THttpDebugLevel  = (DebugNone, DebugConn, DebugParams, DebugSsl, DebugHdr, DebugBody, DebugSslLow);
   TPContent = (PContUrlencoded, PContJson);
   TOAuthProto = (OAuthv1, OAuthv1A, OAuthv2);
   TOAuthType = (OAuthTypeWeb, OAuthTypeMan, OAuthTypeEmbed);
@@ -435,6 +440,7 @@ type
     FDebugLevel: THttpDebugLevel;
     FWebSrvIP: string;
     FWebSrvPort: string;
+    FWebSrvPortSsl: string;
     FWebServer: TSslWSocketServer;
     FOnServerProg: THttpRestProgEvent;
     FOnSimpWebSrvReq: TSimpleWebSrvReqEvent;
@@ -461,6 +467,8 @@ type
                                                     write FWebSrvIP;
     property WebSrvPort: string                     read  FWebSrvPort
                                                     write FWebSrvPort;
+    property WebSrvPortSsl: string                  read  FWebSrvPortSsl
+                                                    write FWebSrvPortSsl;
     property OnSimpWebSrvReq: TSimpleWebSrvReqEvent read  FOnSimpWebSrvReq
                                                     write FOnSimpWebSrvReq;
     property OnServerProg: THttpRestProgEvent       read  FOnServerProg
@@ -496,7 +504,6 @@ type
     FRefrMinsPrior: Integer;
     FRefreshDT: TDateTime;
     FRefreshToken: string;
-//    FSslHttpCli: TSslHttpCli;
     FTokenUrl: string;
     FWebSrvIP: string;
     FWebSrvPort: string;
@@ -516,7 +523,6 @@ type
     procedure SetRefreshToken(Value: String);
     procedure SetExpireDT(Value: TDateTime);
     procedure WebSrvReq(Sender: TObject; const Host, Path, Params: string; var RespCode, Body: string);
-//    procedure SetSslHttpCli(Value: TSslHttpCli);
     function  GetToken: boolean;
     procedure RefreshOnTimer(Sender: TObject);
   public
@@ -569,8 +575,6 @@ type
                                                     write SetRefreshToken;
     property Scope: string                          read  FScope
                                                     write FScope;
-//    property SslHttpCli: TSslHttpCli                read  FSslHttpCli
-//                                                    write SetSslHttpCli;
     property TokenUrl: string                       read  FTokenUrl
                                                     write FTokenUrl;
     property WebSrvIP: string                       read  FWebSrvIP
@@ -1552,6 +1556,7 @@ begin
     FWebServer.SocketErrs := wsErrFriendly ;
     FWebSrvIP := '127.0.0.1';
     FWebSrvPort := '8080';
+    FWebSrvPortSsl := '0';
     FDebugLevel := DebugConn;
 end;
 
@@ -1569,6 +1574,9 @@ begin
     try
         FWebServer.Addr := FWebSrvIP;
         FWebServer.Port := FWebSrvPort ;
+        if FWebSrvPortSsl <> '0' then begin
+    //    x
+        end;
         FWebServer.ExclusiveAddr := true ;
         FWebServer.Listen ;      // start listening for incoming connections
         Result := IsRunning;
@@ -1928,14 +1936,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{procedure TRestOAuth.SetSslHttpCli(Value: TSslHttpCli);
-begin
-    if Value <> FSslHttpCli then
-        FSslHttpCli.Assign(Value);
-end; }
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TRestOAuth.StartSrv: boolean ;
 begin
     FWebServer.DebugLevel := Self.FDebugLevel;
@@ -2155,13 +2155,17 @@ begin
     LogEvent('Authorization URL: ' + BrowserURL);
 
   { various schemes to get authorization code from browser }
-    if FAuthType = OAuthTypeWeb then begin
+  { V8.57 need local web server for all methods }
+    if (FAuthType = OAuthTypeWeb) or (FAuthType = OAuthTypeMan) or
+                                        (FAuthType = OAuthTypeEmbed) then begin
         if NOT SrvIsRunning then
             StartSrv;
         if NOT SrvIsRunning then begin
             SetError(OAuthErrWebSrv, 'Can Not Start Authorization, Web Server Will Not Start');
             Exit;
         end;
+    end;
+    if FAuthType = OAuthTypeWeb then begin
         if IcsShellExec(BrowserURL) then begin
             LogEvent('Launched Browser to Login to application, once completeted you should see "App Token Generated Successfully"');
             Result := True;

@@ -120,10 +120,10 @@ Nov 22, 2017  V8.51 Testing OpenSSL 1.1.1 that adds TLS/1.3
               Added more constants and functions for 1.1.1, f_SSL_xx_groups
 Feb 27, 2018  V8.52 Added more EVP functions for keys, hashing and signing
 Jun 20, 2018  V8.55 Testing with OpenSSL 1.1.1 beta
-Sep 11, 2018  V8.57 added APLN APIs and literals
+Sep 25, 2018  V8.57 added APLN APIs and literals
                     Support OpenSSL 1.1.1 final with TLS/1.3
+                    Moved some SSL types and lits from Wsocket
 
-                    
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -1819,6 +1819,190 @@ const
     SSL_EXT_TLS1_3_CERTIFICATE              = $1000;
     SSL_EXT_TLS1_3_NEW_SESSION_TICKET       = $2000;
     SSL_EXT_TLS1_3_CERTIFICATE_REQUEST      = $4000;
+
+type
+  { V8.57 whether an SSL server asks a client to send an SSL certificate }
+    TSslCliCertMethod = (sslCliCertNone,
+                         sslCliCertOptional,
+                         sslCliCertRequire);
+
+  { V8.57 certificate supplier protocol, determines which functions are used to get certificates }
+    TSupplierProto = (SuppProtoNone, SuppProtoAcmeV1, SuppProtoAcmeV2,
+                      SuppProtoCertCentre, SuppProtoServtas, SuppProtoOwnCA);
+
+ { V8.57 challenge types, differing certificate types support differing challenges,
+     some have to be processed manually taking several days. }
+    TChallengeType = (ChallNone, ChallFileUNC, ChallFileFtp, ChallFileSrv, ChallDNS,
+                      ChallEmail, ChallAlpnUNC, ChallAlpnSrv, ChallManual);
+
+{ V8.40 OpenSSL streaming ciphers with various modes }
+{ pending ciphers, rc5, cast5, if we care }
+    TEvpCipher = (
+        Cipher_none,
+        Cipher_aes_128_cbc,
+        Cipher_aes_128_cfb,
+        Cipher_aes_128_ecb,
+        Cipher_aes_128_ofb,
+        Cipher_aes_128_gcm,
+        Cipher_aes_128_ocb,
+        Cipher_aes_128_ccm,
+        Cipher_aes_192_cbc,
+        Cipher_aes_192_cfb,
+        Cipher_aes_192_ecb,
+        Cipher_aes_192_ofb,
+        Cipher_aes_192_gcm,
+        Cipher_aes_192_ocb,
+        Cipher_aes_192_ccm,
+        Cipher_aes_256_cbc,
+        Cipher_aes_256_cfb,
+        Cipher_aes_256_ecb,
+        Cipher_aes_256_ofb,
+        Cipher_aes_256_gcm,
+        Cipher_aes_256_ocb,
+        Cipher_aes_256_ccm,
+        Cipher_bf_cbc,        { blowfish needs key length set, 128, 192 or 256 }
+        Cipher_bf_cfb64,
+        Cipher_bf_ecb,
+        Cipher_bf_ofb,
+        Cipher_chacha20,      { chacha20 fixed 256 key }
+        Cipher_des_ede3_cbc,
+        Cipher_des_ede3_cfb64,
+        Cipher_des_ede3_ecb,
+        Cipher_des_ede3_ofb,
+        Cipher_idea_cbc,      { IDEA fixed 128 key }
+        Cipher_idea_cfb64,
+        Cipher_idea_ecb,
+        Cipher_idea_ofb);
+
+
+{ V8.40 OpenSSL message digests or hashes }
+    TEvpDigest = (
+        Digest_md5,
+        Digest_mdc2,
+        Digest_sha1,
+        Digest_sha224,
+        Digest_sha256,
+        Digest_sha384,
+        Digest_sha512,
+        Digest_ripemd160,
+        Digest_sha3_224,    { following V8.51 }
+        Digest_sha3_256,
+        Digest_sha3_384,
+        Digest_sha3_512,
+        Digest_shake128,
+        Digest_shake256,
+        Digest_None);       { V8.52 }
+
+{ V8.40 ICS private key algorithm and key length in bits }
+{ bracketed comment is security level and effective bits,
+  beware long RSA key lengths increase SSL overhead heavily }
+    TSslPrivKeyType = (
+        PrivKeyRsa1024,   { level 1 - 80 bits  }
+        PrivKeyRsa2048,   { level 2 - 112 bits }
+        PrivKeyRsa3072,   { level 3 - 128 bits }
+        PrivKeyRsa4096,   { level 3 - 128 bits }
+        PrivKeyRsa7680,   { level 4 - 192 bits }
+        PrivKeyRsa15360,  { level 5 - 256 bits }
+        PrivKeyECsecp256, { level 3 - 128 bits }
+        PrivKeyECsecp384, { level 4 - 192 bits }
+        PrivKeyECsecp512, { level 5 - 256 bits }
+        PrivKeyEd25519,   { level 3 - 128 bits }    { V8.50 was PrivKeyECX25519 }
+        PrivKeyRsaPss2048,   { level 2 - 112 bits } { V8.51 several RsaPss keys }
+        PrivKeyRsaPss3072,   { level 3 - 128 bits }
+        PrivKeyRsaPss4096,   { level 3 - 128 bits }
+        PrivKeyRsaPss7680,   { level 4 - 192 bits }
+        PrivKeyRsaPss15360); { level 5 - 256 bits }
+
+{ V8.40 ICS private key file encryption and mapping to OpenSSL params }
+   TSslPrivKeyCipher = (
+        PrivKeyEncNone,
+        PrivKeyEncTripleDES,
+        PrivKeyEncIDEA,
+        PrivKeyEncAES128,
+        PrivKeyEncAES192,
+        PrivKeyEncAES256,
+        PrivKeyEncBlowfish128,
+        PrivKeyEncBlowfish192,
+        PrivKeyEncBlowfish256);
+
+
+const
+    SslPrivKeyEvpCipher: array[TSslPrivKeyCipher] of TEvpCipher = (
+        Cipher_none,
+        Cipher_des_ede3_cbc,
+        Cipher_idea_cbc,
+        Cipher_aes_128_cbc,
+        Cipher_aes_192_cbc,
+        Cipher_aes_256_cbc,
+        Cipher_bf_cbc,
+        Cipher_bf_cbc,
+        Cipher_bf_cbc);
+
+    SslPrivKeyEvpBits: array[TSslPrivKeyCipher] of integer = (
+         0,0,0,0,0,0,128,192,256);
+
+type
+   { V8.57 SSL/TLS certifioate root validation method }
+    TCertVerMethod   = (CertVerNone, CertVerBundle, CertVerWinStore);
+
+   { V8.57 Logging debug level }
+    THttpDebugLevel  = (DebugNone, DebugConn, DebugParams, DebugSsl, DebugHdr, DebugBody, DebugSslLow);
+
+   { V8.40 options to read pkey and inters from cert PEM and P12 files,
+     croTry will silently fail, croYes will fail with exception  }
+    TCertReadOpt = (croNo, croTry, croYes);             { V8.39 }
+
+   { V8.41 SSL/TLS certificate validation result, V8.57 added None }
+    TChainResult = (chainOK, chainFail, chainWarn, chainNone);
+
+   { V8.40 1.1.0 and later, sets OpenSSL security level to a number }
+    TSslSecLevel = (
+                     sslSecLevelAny,        { 0 - anything allowed, old compatibility }
+                     sslSecLevel80bits,     { 1 - default, RSA/DH keys=>1024, ECC=>160, no MD5 }
+                     sslSecLevel112bits,    { 2 - RSA/DH keys=>2048, ECC=>224, no RC4, no SSL3, no SHA1 certs }
+                     sslSecLevel128bits,    { 3 - RSA/DH keys=>3072, ECC=>256, FS forced, no TLS/1.0  }
+                     sslSecLevel192bits,    { 4 - RSA/DH keys=>7680, ECC=>384, no SHA1 suites, no TLS/1.1  }
+                     sslSecLevel256bits);   { 5 - RSA/DH keys=>15360, ECC=>512  }
+
+   { V8.45 SSL server security level, used by TIcsHost, sets protocol, cipher and SslSecLevel }
+   { warning, requiring key lengths higher than 2048 requires all SSL certificates in the chain to
+     have that minimum key length, including the root }
+   { V8.55 sslSrvSecInter/FS, sslCliSecInter now requires TLS1.1, PCI council EOF TLS1.0 30 June 2018 }
+    TSslSrvSecurity = (
+                     sslSrvSecNone,         { 0 - all protocols and ciphers, any key lengths }
+                     sslSrvSecSsl3,         { 1 - SSL3 only, all ciphers, any key lengths, MD5 }
+                     sslSrvSecBack,         { 2 - TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
+                     sslSrvSecInter,        { 3 - TLS1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslSrvSecInterFS,      { 4 - TLS1.1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslSrvSecHigh,         { 5 - TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslSrvSecHigh128,      { 6 - TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
+                     sslSrvSecHigh192);     { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+
+const
+    sslSrvSecDefault = sslSrvSecInterFS;    { V8.55 recommended default }
+
+type
+   { V8.54 SSL client security level, used by context, sets protocol, cipher and SslSecLevel }
+    TSslCliSecurity = (
+                     sslCliSecIgnore,       { 0 - ignore, use old settings }
+                     sslCliSecNone,         { 1 - all protocols and ciphers, any key lengths }
+                     sslCliSecSsl3Only,     { 2 - SSLv3 only, all ciphers, any key lengths, MD5 }
+                     sslCliSecTls1Only,     { 3 - TLSv1 only, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecTls11Only,    { 4 - TLSv1.1 only, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecTls12Only,    { 5 - TLSv1.2 only, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecTls13Only,    { 6 - TLSv1.3 only, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecTls1,         { 7 - TLSv1 or later, all ciphers, RSA/DH keys=>1024 }
+                     sslCliSecTls11,        { 8 - TLSv1.1 or later, all ciphers, RSA/DH keys=>1024 }
+                     sslCliSecTls12,        { 0 - TLSv1.2 or later, all ciphers, RSA/DH keys=>2048 }
+                     sslCliSecBack,         { 10 - TLSv1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
+                     sslCliSecInter,        { 11 - TLSv1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslCliSecHigh,         { 12 - TLSv1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslCliSecHigh128,      { 13 - TLSv1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
+                     sslCliSecHigh192);     { 14 - TLSv1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+
+const
+    sslCliSecDefault = sslCliSecTls11;  { V8.55 recommended default }
+
 
 
 const

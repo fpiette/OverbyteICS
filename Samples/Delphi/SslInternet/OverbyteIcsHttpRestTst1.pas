@@ -40,9 +40,9 @@ Legal issues: Copyright (C) 2003-2018 by François PIETTE
 History:
 May, 8 2018  - V8.54 baseline
 Jun 15, 2018 - V8.55 Update SSL client security levels from literals
-                    Added https://cloudflare-dns.com/dns-query?name=magsys.co.uk&type=MX&ct=application/dns-json
-Jul 9, 2018 - V8.56 Using OverbyteIcsTypes instead of OverbyteIcsLogger
-Sep 5, 2018 - V8.57 Using OnSelectDns to show alternate IP addresses, changed
+                     Added https://cloudflare-dns.com/dns-query?name=magsys.co.uk&type=MX&ct=application/dns-json
+Jul 9, 2018  - V8.56 Using OverbyteIcsTypes instead of OverbyteIcsLogger
+Sep 25, 2018 - V8.57 Using OnSelectDns to show alternate IP addresses, changed
                       SocketFamily to sfAny so it finds both IPV4 and IPV6 addresses
 
 

@@ -8,11 +8,11 @@ Description:  MS crypto API utilities. These allow checking and validation of
               warning these are slow since they need to access remote web sites.
               See sample OverbyteIcsMsVerify for usage and demos 
 Creation:     May 2011
-Version:      8.00
+Version:      8.57
 EMail:        arno.garrels@gmx.de
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2015 by Arno Garrels, Berlin <arno.garrels@gmx.de>
+Legal issues: Copyright (C) 2018 by Arno Garrels, Berlin
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -39,20 +39,37 @@ Legal issues: Copyright (C) 2015 by Arno Garrels, Berlin <arno.garrels@gmx.de>
 History:
 June 2015 - V8.00 Angus moved to main source dir
                   now using OverbyteIcsWinCrypt and OverbyteIcsCryptUiApi
+Sep 25, 2018  - V8.57 - Updated to build with FMX only with SSL and windows.
 
+
+Pending
+Move functions for extracting certificates from Windows stores from PemTool
+New function to install certificates into windows stores
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFNDEF ICS_INCLUDE_MODE}
 unit OverbyteIcsMsSslUtils;
+{$ENDIF}
 
 {$I include\OverbyteIcsDefs.inc}
 
 interface
 
+{$IFDEF MSWINDOWS}
+{$IFDEF USE_SSL}
+
 uses
-  Windows, SysUtils, SysConst,
-  OverbyteIcsWinCrypt, OverbyteIcsCryptUiApi,
-  OverbyteIcsLibeay, OverbyteIcsSsleay,
-  OverbyteIcsWSocket;
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.Sysutils{$ELSE}Sysutils{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.SysConst{$ELSE}SysConst{$ENDIF},
+  OverbyteIcsWinCrypt,
+  OverbyteIcsCryptUiApi,
+{$IFDEF FMX}
+    Ics.Fmx.OverbyteIcsWSocket,
+{$ELSE}
+    OverbyteIcsWSocket,
+{$ENDIF FMX}
+  OverbyteIcsLibeay, OverbyteIcsSsleay;
 
 type
   EMsCrypto = class(Exception);
@@ -119,7 +136,13 @@ type
   function MsChainVerifyErrorToStr(const ErrCode: LongWord): string;
   function MsCertVerifyErrorToStr(const ErrCode: LongWord): string;
 
+{$ENDIF} // MSWINDOWS
+{$ENDIF} // USE_SSL}
+
 implementation
+
+{$IFDEF MSWINDOWS}
+{$IFDEF USE_SSL}
 
 const
   CRYPT_E_REVOKED     = $80092010;
@@ -128,7 +151,7 @@ const
   {WinDlgStoreTypeStrings : array [TWinDlgStoreType] of string =
   ('Root', 'CA', 'My', 'Trust', 'TrustedPublisher', 'TrustedPeople',
    'Addressbook', 'AuthRoot', 'REQUEST', 'Disallowed'); }
-   
+
   sCryptoApiError   = 'CryptoAPI Error. Code: %d.'+#13#10+'%s';
   sUnKnownCryptoApi = 'A call to a CryptoAPI function failed';
 
@@ -657,4 +680,8 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$ENDIF} // MSWINDOWS
+{$ENDIF} // USE_SSL
 end.
+
+

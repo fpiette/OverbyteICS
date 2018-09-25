@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      8.56
+Version:      8.57
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -113,6 +113,9 @@ May 30, 2017 V8.48 PostDispatchVirtualDocument was broken in last update
 Jul 5, 2017  V8.49 Start is now a function, see HttpSrv
 Aug 10, 2017 V8.50 Corrected onSslServerName to OnSslServerName to keep C++ happy
 Jul 6, 2018  V8.56 Added OnSslAlpnSelect called after OnSslServerName for HTTP/2.
+Sep 25, 2018 V8.57 INI file now reads Options as enumerated type literals,
+                     ie Options=[hoContentEncoding,hoAllowDirList,hoSendServerHdr,hoAllowPut]
+                   INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
@@ -154,6 +157,7 @@ uses
 {$IFDEF COMPILER7_UP}
     {$IFDEF RTL_NAMESPACES}System.StrUtils{$ELSE}StrUtils{$ENDIF},
 {$ENDIF}
+  OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
 {$IFDEF FMX}
     FMX.Types,
     Ics.Fmx.OverbyteIcsWSocket,
@@ -164,6 +168,9 @@ uses
     OverbyteIcsHttpSrv,
 {$ENDIF}
     {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+{$IFDEF USE_SSL}
+//    OverbyteIcsSslX509Certs,  { V8.57 }
+{$ENDIF}
     OverbyteIcsWebSession,
     OverbyteIcsUtils,
     OverbyteIcsFormDataDecoder;
@@ -449,9 +456,15 @@ type
 {$IFDEF USE_SSL}
     TSslHttpAppSrv = class(THttpAppSrv)     //  V8.02 Angus
     published
-        property SslEnable;                  
+        property SslEnable;
         property SslContext;
-        property IcsHosts;                        { V8.45 }
+        property IcsHosts;                      { V8.45 }
+        property RootCA;                        { V8.45 }
+        property DHParams;                      { V8.45 }
+        property SslCliCertMethod;              { V8.57 }
+        property SslCertAutoOrder;              { V8.57 }
+        property CertExpireDays;                { V8.57 }
+        property SslX509Certs;                  { V8.57 }
         property OnSslVerifyPeer;
         property OnSslSetSessionIDContext;
         property OnSslSvrNewSession;
@@ -1985,7 +1998,12 @@ begin
         DHParams := IcsTrim(MyIniFile.ReadString(Section, 'DHParams', ''));
         SessionTimeout := MyIniFile.ReadInteger(Section, 'SessionTimeout', SessionTimeout);
         MaxSessions := MyIniFile.ReadInteger(Section, 'MaxSessions', MaxSessions);
-     // pending - need clever way to read set of Options as text
+        SslCliCertMethod := TSslCliCertMethod(GetEnumValue (TypeInfo (TSslCliCertMethod),
+                        IcsTrim(MyIniFile.ReadString(section, 'SslCliCertMethod', 'sslCliCertNone'))));     { V8.57 }
+        SslCertAutoOrder := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'SslCertAutoOrder', 'False')); { V8.57 }
+        CertExpireDays := MyIniFile.ReadInteger(Section, 'CertExpireDays', CertExpireDays);                 { V8.57 }
+        IcsStrToSet(TypeInfo (THttpOption), MyIniFile.ReadString (section, 'Options', '[]'), FOptions, SizeOf(Options)); { V8.57 }
+     // ie Options=[hoContentEncoding,hoAllowDirList,hoSendServerHdr,hoAllowPut]
     end;
 end;
 {$ENDIF}

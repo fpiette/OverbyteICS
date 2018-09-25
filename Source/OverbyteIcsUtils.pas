@@ -158,13 +158,15 @@ Apr 04, 2018 V8.53 Added sanity test to IcsBufferToHex to avoid exceptions
                    Added IcsBufferToHex overload with AnsiString
                    Added IcsHextoBin
 Apr 25, 2018 V8.54 Moved IntToKbyte and ticks stuff from OverbyteIcsFtpSrvT
-Aug 23, 2018 V8.57 Added IcsWireFmtToStrList and IcsStrListToWireFmt converting
+Sep 18, 2018 V8.57 Added IcsWireFmtToStrList and IcsStrListToWireFmt converting
                      Wire Format concatenated length prefixed strings to TStrings
                      and vice versa, used by SSL hello.
                    Added IcsEscapeCRLF and IcsUnEscapeCRLF to change CRLF to \n
                      and vice versa
                    Added IcsSetToInt, IcsIntToSet, IcsSetToStr, IcsStrToSet to
                      ease saving set bit maps to INI files and registry.
+                   Added IcsExtractNameOnly and IsPathDelim
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -471,6 +473,8 @@ const
     function  IsCRLF(Ch : AnsiChar) : Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
     function  IsSpaceOrCRLF(Ch : WideChar) : Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
     function  IsSpaceOrCRLF(Ch : AnsiChar) : Boolean; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
+    function  IsPathSep(Ch : WideChar) : Boolean;{$IFDEF USE_INLINE} inline; {$ENDIF} overload;   { V8.57  }
+    function  IsPathSep(Ch : AnsiChar) : Boolean;{$IFDEF USE_INLINE} inline; {$ENDIF} overload;   { V8.57  }
     function  XDigit2(S : PChar) : Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
     function  stpblk(PValue : PWideChar) : PWideChar; overload;
     function  stpblk(PValue : PAnsiChar) : PAnsiChar; overload;
@@ -598,15 +602,16 @@ const
     function IcsFmtIpv6AddrPort (const Addr, Port: string): string;    { V8.52 }
     function IcsStripIpv6Addr (const Addr: string): string;            { V8.52 }
     function IntToKbyte (Value: Int64; Bytes: boolean = false): String; { V8.54  moved here from OverbyteIcsFtpSrvT }
-    function IcsWireFmtToStrList(Buffer: TBytes; Len: Integer; SList: TStrings): Integer;  { V8.56 }
-    function IcsStrListToWireFmt(SList: TStrings; var Buffer: TBytes): Integer;            { V8.56 }
-    function IcsEscapeCRLF(const Value: String): String;               { V8.56 }
-    function IcsUnEscapeCRLF(const Value: String): String;             { V8.56 }
-
-    function IcsSetToInt(const aSet; const aSize: Integer): Integer;      { V8.56 }
-    procedure IcsIntToSet(const Value: Integer; var aSet; const aSize: Integer);    { V8.56 }
-    function IcsSetToStr(TypInfo: PTypeInfo; const aSet; const aSize: Integer): string;   { V8.56 }
-    procedure IcsStrToSet(TypInfo: PTypeInfo; const Values: String; var aSet; const aSize: Integer);  { V8.56 }
+    function IcsWireFmtToStrList(Buffer: TBytes; Len: Integer; SList: TStrings): Integer;  { V8.57 }
+    function IcsStrListToWireFmt(SList: TStrings; var Buffer: TBytes): Integer;            { V8.57 }
+    function IcsEscapeCRLF(const Value: String): String;               { V8.57 }
+    function IcsUnEscapeCRLF(const Value: String): String;             { V8.57 }
+    function IcsSetToInt(const aSet; const aSize: Integer): Integer;      { V8.57 }
+    procedure IcsIntToSet(const Value: Integer; var aSet; const aSize: Integer);    { V8.57 }
+    function IcsSetToStr(TypInfo: PTypeInfo; const aSet; const aSize: Integer): string;   { V8.57 }
+    procedure IcsStrToSet(TypInfo: PTypeInfo; const Values: String; var aSet; const aSize: Integer);  { V8.57 }
+    function IcsExtractNameOnly(const FileName: String): String; { V8.57 }
+    function IcsGetCompName: String;                             { V8.57 }
 
     { V8.54 Tick and Trigger functions for timing stuff moved here from OverbyteIcsFtpSrvT   }
     function IcsGetTickCountX: longword ;
@@ -6372,7 +6377,7 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 convert wire-format concactanted length prefixed strings to TStrings }
+{ V8.57 convert wire-format concactanted length prefixed strings to TStrings }
 function IcsWireFmtToStrList(Buffer: TBytes; Len: Integer; SList: TStrings): Integer;
 var
     offset, mylen: integer;
@@ -6396,7 +6401,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 convert TStrings to wire-format concactanted length prefixed strings  }
+{ V8.57 convert TStrings to wire-format concactanted length prefixed strings  }
 function IcsStrListToWireFmt(SList: TStrings; var Buffer: TBytes): Integer;
 var
     I, offset, mylen: integer;
@@ -6421,7 +6426,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 convert CRLF to \n  }
+{ V8.57 convert CRLF to \n  }
 function IcsEscapeCRLF(const Value: String): String;
 var
     I: Integer;
@@ -6437,7 +6442,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 convert \n to CRLF  }
+{ V8.57 convert \n to CRLF  }
 function IcsUnEscapeCRLF(const Value: String): String;
 var
     I: Integer;
@@ -6453,7 +6458,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 convert Set bit map to Integer }
+{ V8.57 convert Set bit map to Integer }
 function IcsSetToInt(const aSet; const aSize: Integer): Integer;
 begin
     Result := 0;
@@ -6462,7 +6467,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 convert Integer to Set bit map }
+{ V8.57 convert Integer to Set bit map }
 procedure IcsIntToSet(const Value: Integer; var aSet; const aSize: Integer);
 begin
     Move(Value, aSet, aSize);
@@ -6505,6 +6510,7 @@ begin
         if ValueList.Count = 0 then Exit;
         for J := 0 to ValueList.Count - 1 do begin
             try
+                if ValueList[J] = '' then Continue;
                 I := GetEnumValue (TypInfo, ValueList[J]);
                 if I >= 0 then Include(TIntegerSet(W), I);
             except
@@ -6515,6 +6521,49 @@ begin
         ValueList.Free;
     end;
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IsPathSep(Ch : WideChar) : Boolean;   { V8.57  }
+begin
+    Result := (Ch = '.') or (Ch = '\') or (Ch = ':') ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IsPathSep(Ch : AnsiChar) : Boolean;    { V8.57  }
+begin
+    Result := (Ch = '.') or (Ch = '\') or (Ch = ':') ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.57 extract file name less extension, drive and path }
+function IcsExtractNameOnly(const FileName: String): String;
+var
+    I: Integer;
+begin
+    Result := ExtractFileName(FileName);  // remove path
+    I := Length(Result);
+    while (I > 0) and (NOT (IsPathSep (Result[I]))) do
+        Dec(I);
+    if (I > 1) and (Result[I] = '.') then
+        Result := Copy(Result, 1, I - 1) ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.57 get the computer name from networking, moved from web sample }
+function IcsGetCompName: String;
+var
+    Buffer: array[0..255] of WideChar ;
+    NLen: DWORD ;
+begin
+    Buffer [0] := #0 ;
+    result := '' ;
+    NLen := Length (Buffer) ;
+    if GetComputerNameW (Buffer, NLen) then Result := Buffer ;
+end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

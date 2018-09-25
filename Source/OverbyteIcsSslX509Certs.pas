@@ -9,7 +9,7 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     Apr 2018
-Updated:      Aug 2018
+Updated:      Sept 2018
 Version:      8.57
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -85,7 +85,8 @@ TSslX509Certs Overview
 
 The TSslX509Certs component automatically downloads SSL/TLS X509 certificates from
 various suppliers, including free certificates from Let's Encrypt, and commercial
-certificates from CertCentre AG and Servertastic (not done yet).  The component
+certificates for Digicert, Comodo, Thawte and GeoTrust from CertCentre AG and S
+ervertastic (not done yet).  The component
 automates the process from creating a new private key and certificate request,
 placing the order, arranging for domain validated certificates to be checked by
 various challenge methods, collecting the certificate and intermediate, creating
@@ -300,14 +301,14 @@ within 30 days, and certificates revoked if necessary.
 
 Updates:
 May 22, 2018  - V8.54 - baseline
-July 03, 2018 - V8.55 - don't load LoadCATrust in Create, it loads OpenSSL in IDE
-Aug 28, 2018  - V8.57 - added database for domains and challenges (INI file)
-                       challenges for local web server, FTP and DNS server
-                       AcmeV2 certificates with multiple SANs or wildcard
-                       CertCentre orders with multiple SANs
-                       automatic order completion when challenge completed
-                       added own CA to issue local certificates
-                       Use own CSR and PKey instead of creating them new
+July 03, 2018 - V8.55 - don't load LoadCATrust in Create, it loads OpenSSL in IDE.
+Sep 25, 2018  - V8.57 - Added database for domains and challenges (INI file).
+                        Added challenges for local web server, FTP and DNS server.
+                        Order AcmeV2 certificates with multiple SANs or wildcard.
+                        Order CertCentre orders with multiple SANs.
+                        Automatic order completion when challenge completed.
+                        Added own CA to issue local certificates.
+                        Use own CSR and PKey instead of creating them new.
 
 
 
@@ -325,7 +326,9 @@ Pending - Comodo intermediates have too many certificates including a root
 
 }
 
+{$IFNDEF ICS_INCLUDE_MODE}
 unit OverbyteIcsSslX509Certs;
+{$ENDIF}
 
 {$I Include\OverbyteIcsDefs.inc}
 
@@ -348,7 +351,6 @@ uses
 {$IFDEF MSWINDOWS}
     {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
     {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
-//    {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
 {$ENDIF}
 {$IFDEF POSIX}
     Posix.Time,
@@ -358,22 +360,26 @@ uses
     {$Ifdef Rtl_Namespaces}System.Classes{$Else}Classes{$Endif},
     {$Ifdef Rtl_Namespaces}System.Sysutils{$Else}Sysutils{$Endif},
     {$IFDEF RTL_NAMESPACES}System.TypInfo{$ELSE}TypInfo{$ENDIF},
-//    {$IFDEF Rtl_Namespaces}System.StrUtils{$ELSE}StrUtils{$ENDIF},
     Overbyteicsssleay, Overbyteicslibeay,
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsWndControl,
     Ics.Fmx.OverbyteIcsWSocket,
+    Ics.Fmx.OverbyteIcsHttpProt,
+    Ics.Fmx.OverbyteIcsSslHttpRest,
+    Ics.Fmx.OverbyteIcsSslX509Utils,
+    Ics.Fmx.OverbyteIcsMsSslUtils,
 {$ELSE}
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
+    OverbyteIcsHttpProt,
+    OverbyteIcsSslHttpRest,
+    OverbyteIcsSslX509Utils,
+    OverbyteIcsMsSslUtils,
 {$ENDIF FMX}
     OverbyteIcsTypes,
     OverbyteIcsIniFiles,
     OverbyteIcsUtils,
     OverbyteIcsLogger,     { for TLogOption }
-    OverbyteIcsSslX509Utils,
-    OverbyteIcsHttpProt,
-    OverbyteIcsSslHttpRest,
     OverbyteIcsUrl,
     OverbyteIcsMimeUtils,
     OverbyteIcsSuperObject,
@@ -410,22 +416,13 @@ const
 
 type
 
-  // supplier protocol, determines which functions are used to get certificates
-    TSupplierProto = (SuppProtoNone, SuppProtoAcmeV1, SuppProtoAcmeV2,
-                      SuppProtoCertCentre, SuppProtoServtas, SuppProtoOwnCA);
-
- // challenge types, differing certificate types support differing challenges,
- // some have to be processed manually taking several days.
-    TChallengeType = (ChallNone, ChallFileUNC, ChallFileFtp, ChallFileSrv, ChallDNS,
-                      ChallEmail, ChallAlpnUNC, ChallAlpnSrv, ChallManual);
-
  // certficate serial number
     TSerNumType = (SerNumRandom, SerNumSequential);
 
  // issue state within the component
     TIssueState = (IssStateNone, IssStateAccount, IssStateChecked,
                    IssStateChallgPend, IssStateChallgOK, IssStateCollect,
-                   IssStateCancel);
+                   IssStateInstall, IssStateCancel);
 
  // certificate CSR origin
     TCertCsrOrigin = (CsrOriginProps, CsrOriginFile);
@@ -455,7 +452,7 @@ type
         CSuppOrderId: String;
         CDirWellKnown: String;
         CDirPubWebCert: String;
-        CWKFullName: String;    // challenge full file name 
+        CWKFullName: String;    // challenge full file name
         CSupplierProto: TSupplierProto;
         CType: TChallengeType;
         CIssueState: TIssueState;
@@ -471,7 +468,7 @@ type
     end;
     TChallengeItems = array of TChallengeItem;
 
- // Acme URLs for specific commands 
+ // Acme URLs for specific commands
     AcmeActionDir = record
         Action: string ;
         URL: string ;
@@ -516,7 +513,7 @@ const
 
     IssueStateLits: array[TIssueState] of String =
          ('None', 'Ready', 'Checked', 'Challg Pend', 'Challg OK',
-          'Collected', 'Cancelled');
+          'Collected', 'Installed', 'Cancelled');
 
     AcmeResNewReg1 = 'new-reg';        // V1 aka newaccount
     AcmeResNewAuthz1 = 'new-authz';    // V1 neworder
@@ -642,9 +639,8 @@ type
                                                     write SetItem; default;
   end;
 
-
-
  TSslX509Certs = class(TComponent)
+// TSslX509Certs = class(TIcsWndControl)
   private
     { Private declarations }
 // components
@@ -652,7 +648,7 @@ type
     FHttpTest: TSslHttpRest;
     FRestOAuth: TRestOAuth;
     FDomWebServer: TSimpleWebSrv;
-    FSslCert: TSslCertTools;
+    FNewSslCert: TSslCertTools;
     FAcmePrivKey: TSslCertTools;
     FRootCAX509: TX509Base;
     FChallengeTimer: TIcsTimer;
@@ -687,6 +683,7 @@ type
     FLogPkeys: Boolean;
     FOAAccToken: String;
     FOAAppUrl: String;
+    FOAAuthType: TOAuthType;
     FOAClientId: String;
     FOAClientSecret: String;
     FOAExpireDT: TDateTime;
@@ -715,6 +712,7 @@ type
     FOnDomainsRefresh: TNotifyEvent;
     FOnSuppDBRefresh: TNotifyEvent;
     FOnChallgRefresh: TNotifyEvent;
+    FOnOAuthAuthUrl: TOAuthAuthUrlEvent;
     FonChallengeEmail: TChallengeEvent;
     FonChallengeFTP: TChallengeEvent;
     FonChallengeDNS: TChallengeEvent;
@@ -798,6 +796,7 @@ type
     FDbIniSections: TStringList;
     FDomainItems: TDomainItems;
     FControlFile: TIcsIniFile;
+    FCnrtFileName: String;
     FChallengeItems: TChallengeItems;  // domain blank is unused
     FChallengesTot: Integer;           // used challenges
     FFileFinalCSR: String;
@@ -814,7 +813,7 @@ type
     FPendingChallg: Integer;
     FX509BusyFlag: Boolean;
     FPendOpenAccount: String;
-
+    FLastResponse: String;
 
   protected
     { Protected declarations }
@@ -826,6 +825,7 @@ type
     procedure ChallengeOnTimer(Sender: TObject);
     procedure SetSubAltNames(Value: TSubAltNames);
     procedure OAuthNewToken(Sender: TObject);
+    procedure OAuth1OAuthAuthUrl(Sender: TObject; const URL: string);
     procedure SetCertCommonName(const Value: String);
     procedure SetDirWellKnown(const Value: String);
     procedure SetDirPubWebCert(const Value: TStringList);
@@ -833,6 +833,7 @@ type
   public
     { Public declarations }
     constructor  Create (Aowner: TComponent); override;
+//    constructor  Create (Aowner: TIcsWndControl); override;
     destructor   Destroy; override;
     function  StartDomSrv: boolean ;
     function  StopDomSrv: boolean ;
@@ -848,8 +849,10 @@ type
     procedure SetFullFileNames(const FileDir: String);
     function CreateKeyandReq: boolean;
     procedure DumpJson(const Item: String = '');
+    function BuildCertName(const Domain: String): String;
     function SetPartFNames (ReadOnly: Boolean = False): Boolean;
     function SaveCertificateFiles(const CertName: string): Boolean;
+    function RedistribteFiles: Boolean;
     function SetCertCentre(CreateNew: Boolean = False): boolean;
     function CCGetRequest(HttpReq: THttpRequest;
                 const PageURL: String; const RawParams: String = ''): boolean;
@@ -862,14 +865,14 @@ type
     function CCGetCert: Boolean;
     function CCCheckChallg(ChallgNum: Integer): Boolean;
     function CCOrderCert: Boolean;
-    function CCCheckOrder(UpdateDB: Boolean = False): Boolean;
+    function CCCheckOrder(DomainCheck: Boolean = True; UpdateDB: Boolean = False): Boolean;
     function CCCancelOrder(Revoke: Boolean): Boolean;
     function SetAcmeAccount(CreateNew: Boolean = False): boolean;
     function AcmeGetRequest(HttpReq: THttpRequest;
                 const FullURL: String; AcmeJson: ISuperObject): boolean;
     function AcmeLoadPKey(New: Boolean): Boolean;
     function AcmeGetActions: Boolean;
-    function AcmeCheckOrder(UpdateDB: Boolean = False): Boolean;
+    function AcmeCheckOrder(DomainCheck: Boolean = True; UpdateDB: Boolean = False): Boolean;
     function AcmeV1NewAccount: Boolean;
     function AcmeV2NewAccount: Boolean;
     function AcmeV1OrderCert: Boolean;
@@ -881,6 +884,7 @@ type
     function AcmeV2OrderCancel (Revoke: Boolean): Boolean;
     function CheckChallg(const aDomain: String): Boolean;
     procedure RemoveChallgs(const CNDomain: String);
+    function DBOpenINI(const WorkDir: String; CreateNew: Boolean = False): Boolean;
     function DBReadCNDomain(const CNDomain: String; UseStoredProps: Boolean): Boolean;
     function DBWriteCNDomain: Boolean;
     function DBDeleteCNDomain(const CNDomain: String): Boolean;
@@ -890,25 +894,30 @@ type
     function DBFindSAN(const adomain: String): Integer;
     function DBWriteOneChallenge (Item: TChallengeItem): Integer;
     function DBReadChallenges: Boolean;
+    function DBFindDomain(const CNDomain: String): Integer;
     function DBReadSections: Boolean;
     function DBAddChallenge(Item: TChallengeItem): Integer;
     function DBRemoveChallenge(ChallgNum: Integer): Boolean;
     function DBFindChallengeNum (const Domain: String): Integer;
     function DBFreeChallengeNum: Integer;
     function DBDeleteChallenge (const Domain: String): Boolean;
-    function OpenAccount(const WorkDir: String): Boolean;
+    function OpenAccount(const WorkDir: String; CreateNew: Boolean = False): Boolean;
     function CloseAccount: Boolean;
     procedure BuildSANList;
+    function CertReadDomain(const aDomain: String): Boolean;
+    function CertSaveDomain(const aDomain: String): Boolean;
     function CertCheckDomain(const aDomain: String): Boolean;
     function CertOrderDomain(const aDomain: String): Boolean;
     function CertCollectDomain(const aDomain: String): Boolean;
     function CertCancelDomain(const aDomain: String): Boolean;
     function CertRevokeDomain(const aDomain: String): Boolean;
     function CertRemoveDomain(const aDomain: String): Boolean;
+    function CertRedistDomain(const aDomain: String): Boolean;
     function LoadOwnCA: Boolean;
     function OwnCASign: Boolean;
     function SelfSign: Boolean;
     function CheckCSR(RequirePkey: Boolean = True): Boolean;
+    function GetOrderResult: String;
 
     property ProductJson: ISuperObject              read FProductJson;
     property ProductDVAuth: String                  read FProductDVAuth;
@@ -917,7 +926,7 @@ type
     property ProductList: TStringList               read FProductList;
     property ProductQuote: String                   read FProductQuote;
     property ApproverEmails: TStringList            read FApproverEmails;
-    property SslCert: TSslCertTools                 read FSslCert;
+    property NewSslCert: TSslCertTools              read FNewSslCert;
     property IssueState: TIssueState                read FIssueState;
     property NewCertPrefix: string                  read FNewCertPrefix;
     property NewCertLines: string                   read FNewCertLines;
@@ -933,7 +942,9 @@ type
     property NewOrderNum: Integer                   read FNewOrderNum;
     property DomainItems: TDomainItems              read FDomainItems;
     property ChallengeItems: TChallengeItems        read FChallengeItems;
+    property ChallengesTot: Integer                 read FChallengesTot;
     property CertSANs: TStringList                  read FCertSANs;  // matches FCertSubAltNames.Domain
+    property LastResponse: String                   read FLastResponse;
 
   published
     { Published declarations }
@@ -1015,6 +1026,8 @@ type
                                                     write FOAClientId;
     property OAAccToken: String                     read  FOAAccToken
                                                     write FOAAccToken;
+    property OAAuthType: TOAuthType                 read  FOAAuthType
+                                                    write FOAAuthType;
     property OAExpireDT: TDateTime                  read  FOAExpireDT
                                                     write FOAExpireDT;
     property OAClientSecret: string                 read  FOAClientSecret
@@ -1069,6 +1082,8 @@ type
                                                     write FOnNewCert;
     property OnNewToken: TNotifyEvent               read  FOnNewToken
                                                     write FOnNewToken;
+    property OnOAuthAuthUrl: TOAuthAuthUrlEvent     read  FOnOAuthAuthUrl
+                                                    write FOnOAuthAuthUrl;
     property OnDomainsRefresh: TNotifyEvent         read  FOnDomainsRefresh
                                                     write FOnDomainsRefresh;
     property OnSuppDBRefresh: TNotifyEvent          read  FOnSuppDBRefresh
@@ -1175,7 +1190,7 @@ begin
         Items[Result].SADirPubWebCert := IncludeTrailingPathDelimiter(Trim(aDirPubWebCert))
     else
         Items[Result].SADirPubWebCert := '';
-    Items[Result].SAApprovalEmail := aApprovalEmail; 
+    Items[Result].SAApprovalEmail := aApprovalEmail;
 end;
 
 
@@ -1184,6 +1199,7 @@ end;
 { TSslX509Certs }
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TSslX509Certs.Create (Aowner: TComponent);
+//constructor TSslX509Certs.Create (Aowner: TIcsWndControl);
 begin
     inherited Create(AOwner);
     FDomWebServer := TSimpleWebSrv.Create(self);
@@ -1196,6 +1212,7 @@ begin
     FRestOAuth := TRestOAuth.Create(self);
     FRestOAuth.OnOAuthProg := RestProg;
     FRestOAuth.OnOAuthNewToken := OAuthNewToken;
+    FRestOAuth.OnOAuthAuthUrl := OAuth1OAuthAuthUrl;
     FDomWebSrvIP := '0.0.0.0';
     FOAWebSrvIP := '127.0.0.1';
     FOAWebSrvPort := '8080';
@@ -1206,14 +1223,15 @@ begin
     FCertSignDigestType := Digest_sha256;
     FCertValidity := 365; // days
     FRestOAuth.ProtoType := OAuthv2;
-    FRestOAuth.AuthType := OAuthTypeWeb;
+    FOAAuthType := OAuthTypeWeb;
     FOARefrMinsPrior := 120;
     FPrivKeyCipher := PrivKeyEncNone;
     FChallengeTimer := TIcsTimer.Create(FHttpRest);
+//    FChallengeTimer := TIcsTimer.Create(Self);
     FChallengeTimer.OnTimer := ChallengeOnTimer;
     FChallengeTimer.Interval := 30 * TicksPerSecond;
     FChallengeTimer.Enabled := False;
-    FSslCert := TSslCertTools.Create(self) ;
+    FNewSslCert := TSslCertTools.Create(self) ;
     FAcmePrivKey := TSslCertTools.Create(self);
     FDirPubWebCert := TStringList.Create;
     FProductList := TStringList.Create;
@@ -1237,7 +1255,7 @@ begin
     FreeAndNil(FHttpRest);
     FreeAndNil(FDomWebServer);
     FreeAndNil(FRestOAuth);
-    FreeAndNil(FSslCert);
+    FreeAndNil(FNewSslCert);
     FreeAndNil(FAcmePrivKey);
     FreeAndNil(FRootCAX509);
     FreeAndNil(FDirPubWebCert);
@@ -1318,6 +1336,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslX509Certs.LogEvent(const Msg : String);
 begin
+    FLastResponse := Msg;
     if FDebugLevel = DebugNone then Exit;
     if Assigned(FOnCertProg) then begin
             FOnCertProg(Self, loProtSpecInfo, Msg);
@@ -1400,7 +1419,8 @@ begin
     RespData := '';
 
   /// check if URL is for .well-known and matches a pending challenge
-    if ( FChallengesTot > 0) and (Pos ('/.well-known', Path) = 1) then begin
+    if ( FChallengesTot > 0) and (Pos ('/.well-known', Path) = 1) and
+                                         (Length(FChallengeItems) > 0) then begin
         for I := 0 to Length(FChallengeItems) - 1 do begin
             if FChallengeItems [I].CDomain = IcsLowerCase(Host) then begin  // was it for our domain
                 with FChallengeItems [I] do begin
@@ -1468,7 +1488,7 @@ procedure TSslX509Certs.SetOAuth2;
 begin
     FRestOAuth.DebugLevel := FDebugLevel;
     FRestOAuth.ProtoType := OAuthv2;
-    FRestOAuth.AuthType := OAuthTypeWeb;
+    FRestOAuth.AuthType := FOAAuthType;
     FRestOAuth.AppUrl := Trim(FOAAppUrl);
     FRestOAuth.RedirectMsg := 'App: ' + FRestOAuth.AppUrl;
     FRestOAuth.ClientId := Trim(FOAClientId);
@@ -1499,6 +1519,17 @@ begin
     if FPendOpenAccount <> '' then begin
         OpenAccount(FPendOpenAccount);
         FPendOpenAccount := '';  // only once
+    end;
+end;
+
+
+{* * * * * * * * * * * ** * * * * * * * * * * * * * * * * * * * * * * * *}
+{ ask user to access a URL  }
+procedure TSslX509Certs.OAuth1OAuthAuthUrl(Sender: TObject; const URL: string);
+begin
+    LogEvent('Please copy this URL and browse to it, then enter Auth Code: ' + URL);
+    if Assigned (OnOAuthAuthUrl) then begin
+        OnOAuthAuthUrl(Self, URL);
     end;
 end;
 
@@ -1548,7 +1579,7 @@ begin
                     exit ;
                 end;
             end;
-            if NOT ForceDirectories (ExtractFileDir (FName)) then
+            if NOT ForceDirectories(ExtractFileDir (FName)) then
             begin
                 LogEvent('Failed to create directory: ' + FName);
                 continue;
@@ -1585,7 +1616,7 @@ end;
 
 function TSslX509Certs.TestWellKnown(const aDomain, aDirWellKnown: String): Boolean;
 var
-    URL, path, testfile, fullname, Randomstr, Content: string;
+    URL, path, testfile, fullname, Randomstr, Content, errinfo: string;
     StatCode, ChallgNum: integer;
     CurChallenge: TChallengeItem;
 begin
@@ -1595,6 +1626,7 @@ begin
     path := 'ics-validation/' + testfile;  // forward slashes
     URL := 'http://' + aDomain + '/.well-known/' + path;
     ChallgNum := -1;
+    fullname := '';
 
  // UNC file share, create file on remote server
     if fSuppCertChallenge = ChallFileUNC then begin
@@ -1626,15 +1658,15 @@ begin
     try
         FHttpTest.RestParams.Clear;
         StatCode := FHttpTest.RestRequest(HttpGET, URL, False, '');
+        errinfo := FHttpTest.ReasonPhrase;
     except
         on E:Exception do begin
-            LogEvent('Could not read file at: ' + URL + ' - ' + E.Message);
-            if ChallgNum >= 0 then DBRemoveChallenge(ChallgNum); // delete challenge
-            Exit;
+            errinfo := 'Could not read file at: ' + URL + ' - ' + E.Message;
+            StatCode := 99;
         end;
     end;
     if StatCode <> 200 then begin
-        LogEvent('Could not read file at: ' + URL + ' - ' + FHttpTest.ReasonPhrase);
+        LogEvent('Could not read file at: ' + URL + ' - ' + errinfo);
     end
     else begin
         Content := String(FHttpTest.ResponseOctet); // ignore content coding
@@ -1646,6 +1678,32 @@ begin
              LogEvent('Failed to compare temporary file content - ' + Content);
     end;
     if ChallgNum >= 0 then DBRemoveChallenge(ChallgNum); // delete challenge
+    if (fullname <> '') and FileExists(FullName) then DeleteFile(FullName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// certificate supplier specific stuff,
+function TSslX509Certs.DBOpenINI(const WorkDir: String; CreateNew: Boolean = False): Boolean;
+begin
+    Result := False;
+    if NOT Assigned( FControlFile) then begin
+        FCnrtFileName := IncludeTrailingPathDelimiter(WorkDir) + FileIcsCntlDB;
+        if (NOT CreateNew) and (NOT FileExists(FCnrtFileName)) then begin
+            LogEvent('Account Control File Not Found: ' + FCnrtFileName);
+            Exit;
+        end;
+        try
+            FControlFile := TIcsIniFile.Create(FCnrtFileName);
+        except
+            on E:Exception do begin
+                LogEvent('Could Not Open Account Database: ' +
+                                            FCnrtFileName + ' - ' + E.Message);
+                Exit;
+            end;
+        end;
+    end;
+    Result := True;
 end;
 
 
@@ -1653,25 +1711,11 @@ end;
 // certificate supplier specific stuff,
 function TSslX509Certs.DBReadAccount(const WorkDir: String; UseStoredProps: Boolean): Boolean;
 var
-    fname, section, OldWorkDir: String;
+    section, OldWorkDir: String;
     OldProto: TSupplierProto;
 begin
     Result := False;
-    if NOT Assigned( FControlFile) then begin
-        fname := IncludeTrailingPathDelimiter(WorkDir) + FileIcsCntlDB;
-        if (NOT FileExists(fname)) then begin
-            LogEvent('Account Control File Not Found: ' + fname);
-            Exit;
-        end;
-        try
-            FControlFile := TIcsIniFile.Create(fname);
-        except
-            on E:Exception do begin
-                LogEvent('Could Not Open Database: ' + fname + ' - ' + E.Message);
-                Exit;
-            end;
-        end;
-    end;
+    if NOT DBOpenINI(WorkDir) then Exit;
     section := CntlDBAccount;
     with FControlFile do begin
 
@@ -1682,9 +1726,8 @@ begin
             Exit;
         end;
         OldWorkDir := ReadString (section, 'DirCertWork', '') ;
-        if (OldWorkDir <> '') and (OldWorkDir <> WorkDir) then begin
-            LogEvent('Certifcate Work Directory, Expected ' + WorkDir +
-                                              ' but found ' + OldWorkDir);
+        if (OldWorkDir <> '') and (CompareText(OldWorkDir, WorkDir) <> 0) then begin
+            LogEvent('Certifcate Work Directory, Expected ' + WorkDir + ' but found ' + OldWorkDir);
             Exit;
         end;
         if UseStoredProps then begin
@@ -1725,7 +1768,7 @@ begin
         end;
         if UseStoredProps then
             LogEvent('Opened Supplier Account for: ' + FSupplierTitle + ', Protocol: ' +
-                SupplierProtoLits [FSupplierProto] + ', File: ' + fname);
+                SupplierProtoLits [FSupplierProto] + ', File: ' + FCnrtFileName);
 
     // ACME stuff
         if FSupplierProto in [SuppProtoAcmeV1,SuppProtoAcmeV2] then begin
@@ -1754,10 +1797,7 @@ var
     section: String;
 begin
     Result := False;
-    if NOT Assigned( FControlFile) then begin
-        LogEvent('Account Control File Not Opened Yet');
-        Exit;
-    end;
+    if NOT DBOpenINI(FDirCertWork) then Exit;
     MyDomains := TStringList.Create;
     try
         FControlFile.ReadSections(FDBIniSections);    // get cert domains and challenges
@@ -1793,24 +1833,10 @@ begin
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TSslX509Certs.DBWriteAccount: Boolean;
 var
-    section, temp, fname: string;
+    section, temp: string;
 begin
     Result := False;
-    if NOT Assigned( FControlFile) then begin
-        if NOT DirectoryExists(FDirCertWork) then begin
-            LogEvent('Account Work Directory Not Found: ' + FDirCertWork);
-            Exit;
-        end;
-        fname := FDirCertWork + FileIcsCntlDB;
-        try
-            FControlFile := TIcsIniFile.Create(fname);
-        except
-            on E:Exception do begin
-                LogEvent('Could Not Open Databbase: ' + fname + ' - ' + E.Message);
-                Exit;
-            end;
-        end;
-    end;
+    if NOT DBOpenINI(FDirCertWork) then Exit;
     section := CntlDBAccount;
     with FControlFile do begin
 
@@ -1861,24 +1887,42 @@ begin
     Result := True;
 end;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TSslX509Certs.DBNewOrderNum: Integer;
 var
     section: string;
 begin
     Result := 0;
-    if NOT Assigned( FControlFile) then Exit;
+    if NOT DBOpenINI(FDirCertWork) then Exit;
     section := CntlDBAccount;
     with FControlFile do begin
-        FSeqOrderNum := ReadInteger (section, 'SeqOrderNum', 0) ;
         if FSeqOrderNum < 1001 then begin
             LogEvent('Failed to Read Valid SeqOrderNum, Resetting');
             FSeqOrderNum := 1001;
         end;
         Result := FSeqOrderNum;
+        LogEvent('New Sequential Order Number: ' + IntToStr(Result)) ;
         FSeqOrderNum := FSeqOrderNum + 1;
         WriteInteger (section, 'SeqOrderNum', FSeqOrderNum) ;
         FControlFile.UpdateFile;  // write INI file
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSslX509Certs.DBFindDomain(const CNDomain: String): Integer;
+var
+    I: Integer;
+begin
+    Result := -1;
+    if Length(FDomainItems) > 0 then begin
+        for I := 0 to Length(FDomainItems) - 1 do begin
+            if FDomainItems[I].DCommonName = CNDomain then begin
+                Result := I;
+                Exit;
+            end;
+        end;
     end;
 end;
 
@@ -1892,10 +1936,7 @@ var
     I, idx: Integer;
 begin
     Result := False;
-    if NOT Assigned( FControlFile) then begin
-        LogEvent('Account Control File Not Opened Yet');
-        Exit;
-    end;
+    if NOT DBOpenINI(FDirCertWork) then Exit;
     section := IcsLowerCase(CntlDBDomainPre + CNDomain);
 
     with FControlFile do begin
@@ -1999,15 +2040,7 @@ begin
     Result := True;
 
   // try and update one FDomainItems to avoid reloading lot
-    idx := -1;
-    if Length(FDomainItems) > 0 then begin
-        for I := 0 to Length(FDomainItems) - 1 do begin
-            if FDomainItems[I].DCommonName = CNDomain then begin
-                idx := I;
-                break
-            end;
-        end;
-    end;
+    idx := DBFindDomain(CNDomain);
     if idx < 0 then
         DBReadSections
     else begin
@@ -2030,10 +2063,7 @@ var
     flag: Boolean;
 begin
     Result := False;
-    if NOT Assigned( FControlFile) then begin
-        LogEvent('Account Control File Not Opened Yet');
-        Exit;
-    end;
+    if NOT DBOpenINI(FDirCertWork) then Exit;
     section := CntlDBDomainPre + FCertCommonName;
     with FControlFile do begin
         WriteString (Section, 'CertAddress', FCertAddress) ;
@@ -2147,6 +2177,7 @@ begin
     end;
     FControlFile.UpdateFile;  // write INI file
     DBReadSections;
+    if Assigned(FOnDomainsRefresh) then FOnDomainsRefresh(Self);
     Result := True;
 end;
 
@@ -2159,10 +2190,7 @@ var
     J: Integer;
 begin
     Result := False;
-    if NOT Assigned( FControlFile) then begin
-        LogEvent('Account Control File Not Opened Yet');
-        Exit;
-    end;
+    if NOT DBOpenINI(FDirCertWork) then Exit;
     section := CntlDBDomainPre + CNDomain;
     if FControlFile.SectionExists(section) then
                FControlFile.EraseSection(section);
@@ -2177,6 +2205,7 @@ begin
     end;
     FControlFile.UpdateFile;  // write INI file
     DBReadSections;
+    if Assigned(FOnDomainsRefresh) then FOnDomainsRefresh(Self);
     Result := True;
 
 end;
@@ -2252,7 +2281,7 @@ begin
     Result := False;
     if NOT DBReadSections then Exit;
     FChallengesTot := 0;
-    SetLength(FChallengeItems, FDBIniSections.Count);
+    SetLength(FChallengeItems, FDBIniSections.Count + 2);
     for I := 0 to Length(FChallengeItems) - 1 do
                             FChallengeItems [I].CDomain := '';    // clear all records
     for I := 0 to FDBIniSections.Count - 1 do begin
@@ -2321,10 +2350,7 @@ var
     section: string;
 begin
     Result := -1;
-    if NOT Assigned( FControlFile) then begin
-        LogEvent('Account Control File Not Opened Yet');
-        Exit;
-    end;
+    if NOT DBOpenINI(FDirCertWork) then Exit;
     with Item do begin
         section := IcsLowerCase(CntlDBChallenge + CDomain);
         with FControlFile do begin
@@ -2362,10 +2388,7 @@ var
     section: string;
 begin
     Result := False;
-    if NOT Assigned(FControlFile) then begin
-        LogEvent('Account Control File Not Opened Yet');
-        Exit;
-    end;
+    if NOT DBOpenINI(FDirCertWork) then Exit;
     section := IcsLowerCase(CntlDBChallenge + Domain);
     if NOT FControlFile.SectionExists(section) then Exit;
     FControlFile.EraseSection(section);
@@ -2403,6 +2426,17 @@ begin
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// create certificate file name from domain common name, change . to _ and * to x
+function TSslX509Certs.BuildCertName(const Domain: String): String;
+begin
+    Result := StringReplace (Domain, '.', '_', [rfReplaceAll]) ;
+    if Result = '' then Exit;
+    if Result [1] = '*' then Result [1] := 'x';  // can not have * in file names
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// set partial directory names for work and final certificate dictorties
 function TSslX509Certs.SetPartFNames(ReadOnly: Boolean = False): Boolean;
 var
     CN, NewDir: string;
@@ -2425,15 +2459,15 @@ begin
 
   // work dir here we will save our certificates and keys
     if NOT ReadOnly then begin
-        if NOT ForceDirectories (FDirCertWork) then
-        begin
+        if NOT ForceDirectories (FDirCertWork) then begin
             LogEvent ('Failed to create directory: ' + FDirCertWork);
             exit;
         end;
     end;
 
-    CN := StringReplace (FCertCommonName, '.', '_', [rfReplaceAll]) ;
-    if CN [1] = '*' then CN [1] := 'x';  // can not have * in file names
+  // create certificate file name from domain common name, change . to _ and * to x
+    CN := BuildCertName (FCertCommonName) ;
+
     FPartFNameWork := IncludeTrailingPathDelimiter(FDirCertWork) + FNewCertPrefix + 'work-' + CN ;
     if fSuppOrderId <> '' then begin
         FPartFNameOrder := IncludeTrailingPathDelimiter(FDirCertWork) + FNewCertPrefix + FSuppOrderId + '-' + CN ;
@@ -2459,11 +2493,12 @@ begin
         end;
     end;
 
- // see if creating remote directories, ignore errors
+ // see if creating remote directories
     if (NOT ReadOnly) and (FPartFNameServer.Count > 0) then begin
         for I := 0 to FPartFNameServer.Count - 1 do begin
             if NOT ForceDirectories (FPartFNameServer[I]) then begin
                 LogEvent ('Failed to create directory: ' + FPartFNameServer[I]);
+                Exit;
             end;
         end;
     end;
@@ -2502,11 +2537,11 @@ begin
 
  // see if using old CSR
     if FCertCsrOrigin = CsrOriginFile then begin
-        if NOT FSslCert.IsReqLoaded then begin
+        if NOT FNewSslCert.IsReqLoaded then begin
             LogEvent ('No Old Certificate Request Loaded: ' + FCertOldCsrFile);
             Exit;
         end;
-        if NOT FSslCert.IsPKeyLoaded then begin
+        if NOT FNewSslCert.IsPKeyLoaded then begin
             LogEvent ('No Old Private Key Loaded: ' + FCertOldPrvKey);
             Exit;
         end;
@@ -2518,10 +2553,10 @@ begin
         end;
         LogEvent ('Generating Private and Public Key Pair, Please Wait');
         try
-            fSslCert.PrivKeyType := FPrivKeyType;
-            fSslCert.PrivateKey := Nil;
-            fSslCert.DoKeyPair;
-            LogEvent ('Generated private and public key pair OK:' + IcsCRLF + fSslCert.PrivateKeyInfo);
+            FNewSslCert.PrivKeyType := FPrivKeyType;
+            FNewSslCert.PrivateKey := Nil;
+            FNewSslCert.DoKeyPair;
+            LogEvent ('Generated private and public key pair OK:' + IcsCRLF + FNewSslCert.PrivateKeyInfo);
         except
             on E:Exception do  begin
                 LogEvent ('Failed to Generate Private Key - ' + E.Message);
@@ -2531,8 +2566,8 @@ begin
 
         LogEvent ('Generating Certificate Signing Request');
         try
-            fSslCert.X509Req := Nil;
-            with fSslCert do begin
+            FNewSslCert.X509Req := Nil;
+            with fNewSslCert do begin
                 CommonName := fCertCommonName;
                 AltDNSList.Clear;
                 for I := 0 to FCertSubAltNames.Count - 1 do begin
@@ -2547,8 +2582,8 @@ begin
                 Descr := FCertDescr;
                 Email := FCertContactEmail;
             end;
-            fSslCert.DoCertReqProps;
-            LogEvent('Created Certificate Signing Request OK:' + IcsCRLF + fSslCert.ReqCertInfo);
+            FNewSslCert.DoCertReqProps;
+            LogEvent('Created Certificate Signing Request OK:' + IcsCRLF + FNewSslCert.ReqCertInfo);
         except
             on E:Exception do begin
                 LogEvent ('Failed to Generate CSR - ' + E.Message);
@@ -2557,12 +2592,12 @@ begin
         end;
     end;
     try
-        fSslCert.PrivateKeySaveToPemFile (fFilePrvKey, FPrivKeyPassword, FPrivKeyCipher) ;
-        fPrvKeyLines := fSslCert.SavePKeyToText (FPrivKeyPassword, FPrivKeyCipher);
+        FNewSslCert.PrivateKeySaveToPemFile (fFilePrvKey, FPrivKeyPassword, FPrivKeyCipher) ;
+        fPrvKeyLines := FNewSslCert.SavePKeyToText (FPrivKeyPassword, FPrivKeyCipher);
         LogEvent ('Saved private key file: ' + fFilePrvKey) ;
         if FLogPkeys then LogEvent (IcsCRLF + fPrvKeyLines + IcsCRLF) ;
-        fSslCert.SaveReqToFile(fFileCSR, true);
-        fCSRLines := fSslCert.SaveReqToText (false) ;  // no comments, confused order
+        FNewSslCert.SaveReqToFile(fFileCSR, true);
+        fCSRLines := FNewSslCert.SaveReqToText (false) ;  // no comments, confused order
         LogEvent ('Saved certificate signing request file: ' + fFileCSR +
                                            IcsCRLF + IcsCRLF + fCSRLines + IcsCRLF) ;
     except
@@ -2593,33 +2628,33 @@ begin
         if RequirePkey then Exit;
     end;
     try
-        FSslCert.LoadReqFromFile(FCertOldCsrFile);
-        if NOT FSslCert.IsReqLoaded then begin
+        FNewSslCert.LoadReqFromFile(FCertOldCsrFile);
+        if NOT FNewSslCert.IsReqLoaded then begin
             LogEvent ('Failed to Load CSR File: ' + FCertOldCsrFile);
             Exit;
         end;
-        LogEvent('Loaded Certificate Request OK' + IcsCRLF + FSslCert.ReqCertInfo);
+        LogEvent('Loaded Certificate Request OK' + IcsCRLF + FNewSslCert.ReqCertInfo);
         if (FCertOldPrvKey <> '') then begin
             try
-                fSslCert.PrivateKeyLoadFromPemFile (FCertOldPrvKey, FPrivKeyPassword) ;
+                FNewSslCert.PrivateKeyLoadFromPemFile (FCertOldPrvKey, FPrivKeyPassword) ;
             except
                 on E:Exception do begin
                     LogEvent ('Failed to Load Private Key File: ' + E.Message);
                 end;
             end;
-            if NOT FSslCert.IsPKeyLoaded then begin
+            if NOT FNewSslCert.IsPKeyLoaded then begin
                 LogEvent ('Failed to Load Old Private Key File: ' + FCertOldPrvKey);
                 if RequirePkey then Exit;
             end;
         end;
-        FCertCommonName := FSslCert.ReqSubjCName;
+        FCertCommonName := FNewSslCert.ReqSubjCName;
         FCertSubAltNames.Clear;
         PubDir := '';
         if FDirPubWebCert.Count > 0 then PubDir := FDirPubWebCert[0];
         FCertSubAltNames.AddItem(FCertCommonName, FDirWellKnown, PubDir);
         ReqSANs := TStringList.Create;
         try
-            ReqSANs.Text := FSslCert.ReqSubjAltNameDNS;
+            ReqSANs.Text := FNewSslCert.ReqSubjAltNameDNS;
             if ReqSANs.Count > 0 then begin
                 for I := 0 to ReqSANs.Count - 1 do begin
                     if (ReqSANs[I] <> FCertCommonName) then
@@ -2657,25 +2692,25 @@ var
         try
             if (FCSRLines <> '') and (OutFmtReq in FCertOutFmts) then begin
                 SaveDataFile (FFileCSR, FCSRLines);
-                LogEvent('Saved certificate request file: ' + FFileCSR);
+                LogEvent('Saved Certificate Request File: ' + FFileCSR);
             end;
             if (OutFmtSep in FCertOutFmts) then begin
-                FSslCert.PrivateKeySaveToPemFile (FFilePrvKey, FPrivKeyPassword, FPrivKeyCipher);
-                LogEvent ('Saved private key file: ' + FFilePrvKey);
-                FSslCert.SaveToPemFile(FFileCertPem, False, True, False);  // no private key or inters
-                LogEvent('Saved PEM certficate alone: ' + FFileCertPem);
-                if FSslCert.IsInterLoaded then begin
-                    FSslCert.SaveIntersToToPemFile(FFileInterPem, True);
-                    LogEvent('Saved PEM intermediate certficate: ' + FFileInterPem);
+                FNewSslCert.PrivateKeySaveToPemFile (FFilePrvKey, FPrivKeyPassword, FPrivKeyCipher);
+                LogEvent ('Saved Private Key File: ' + FFilePrvKey);
+                FNewSslCert.SaveToPemFile(FFileCertPem, False, True, False);  // no private key or inters
+                LogEvent('Saved PEM Certficate Alone: ' + FFileCertPem);
+                if FNewSslCert.IsInterLoaded then begin
+                    FNewSslCert.SaveIntersToToPemFile(FFileInterPem, True);
+                    LogEvent('Saved PEM Intermediate Certficate: ' + FFileInterPem);
                 end;
             end;
             if (OutFmtBudl in FCertOutFmts) then begin
-                FSslCert.SaveToPemFile(FFileBundPem, True, True, True, FPrivKeyPassword, FPrivKeyCipher);  // add private key and inters
-                LogEvent('Saved PEM bundle with certficate, key and intermediate: ' + FFileBundPem);
+                FNewSslCert.SaveToPemFile(FFileBundPem, True, True, True, FPrivKeyPassword, FPrivKeyCipher);  // add private key and inters
+                LogEvent('Saved PEM Bundle with Certficate, Key and Intermediate: ' + FFileBundPem);
             end;
             if (OutFmtP12 in FCertOutFmts) then begin
-                FSslCert.SaveToP12File(fFileBundP12, P12Password, True, P12KeyCipher);  // add private key and inters
-                LogEvent('Saved PKCS12 bundle with certficate, key and intermediate: ' + FFileBundP12);
+                FNewSslCert.SaveToP12File(fFileBundP12, P12Password, True, P12KeyCipher);  // add private key and inters
+                LogEvent('Saved PKCS12 Bundle with Certficate, Key and Intermediate: ' + FFileBundP12);
             end;
             if (FNewCertP7Lines <> '') and (OutFmtP7 in FCertOutFmts) then begin
                 SaveDataFile (FFileBundP7, FNewCertP7Lines) ;
@@ -2684,7 +2719,7 @@ var
             Result := True;
         except
             on E:Exception do begin
-                LogEvent('Failed to save file - ' + E.Message);
+                LogEvent('Failed to Save File - ' + E.Message);
             end;
         end;
     end;
@@ -2692,78 +2727,81 @@ var
 begin
     Result := False;
     LogTimeStamp;
-    LogEvent ('Saving SSL certificate files for: ' + CertName);
+    LogEvent ('Saving SSL Certificate Files for: ' + CertName);
     if FPartFNameOrder = '' then begin
-        LogEvent('Can not saved certificate files without directory');
+        LogEvent('Can Not Save Certificate Files Without Directory');
         Exit ;
     end;
     SetFullFileNames (FPartFNameOrder);
     if (Pos(PEM_STRING_HDR_BEGIN, FNewCertLines) = 0) then begin
-        LogEvent('Did not receive a valid PEM certificate');
+        LogEvent('Did Not Receive a Valid PEM Certificate');
         Exit ;
     end;
 
  // sanity check, must save some files
-    if NOT ((OutFmtSep in FCertOutFmts) OR (OutFmtBudl in FCertOutFmts) OR (OutFmtP12 in FCertOutFmts)) then
+    if NOT ((OutFmtSep in FCertOutFmts) OR (OutFmtBudl in
+                            FCertOutFmts) OR (OutFmtP12 in FCertOutFmts)) then
         FCertOutFmts := FCertOutFmts + [OutFmtSep];
 
  // Windows will not load PKCS12 file without a password, so create one if missing
+    FPrivKeyPassword := Trim(FPrivKeyPassword);
     if (OutFmtP12 in FCertOutFmts) then begin
         P12KeyCipher := FPrivKeyCipher;
         P12Password := FPrivKeyPassword;
-        if P12KeyCipher = PrivKeyEncNone then P12KeyCipher := PrivKeyEncTripleDES;
-        if P12Password = '' then begin
-            P12Password := 'password';
-            LogEvent('Set required PKCS12 file password to "password"');
+        if (P12KeyCipher = PrivKeyEncNone) or (P12Password = '') then begin
+            P12KeyCipher := PrivKeyEncTripleDES;
+            if (P12Password = '') then P12Password := 'password';
+            LogEvent('Set Required PKCS12 File Password to "password"');
         end;
     end;
 
     try
-        FSslCert.LoadFromText(FNewCertLines, croNo, croTry, '');   // look for intermediate cert
-        if NOT FSslCert.CheckCertAndPKey then
-            LogEvent ('!!! WARNING, private key does not match certificate public key');
+        FNewSslCert.LoadFromText(FNewCertLines, croNo, croTry, '');   // look for intermediate cert
+        if NOT FNewSslCert.CheckCertAndPKey then
+            LogEvent ('!!! WARNING, Private Key Does Not Match Certificate Public Key');
         if (OutFmtSep in FCertOutFmts) then begin
-           FSslCert.SaveToPemFile(FFileCertPem, False, True, False);  // no private key or inters
-            LogEvent('Saved PEM certficate alone: ' + FFileCertPem);
+           FNewSslCert.SaveToPemFile(FFileCertPem, False, True, False);  // no private key or inters
+            LogEvent('Saved PEM Certficate Alone: ' + FFileCertPem);
+            FFileFinalBundle := FFileCertPem; // in case no bundle specified 
         end;
     except
         on E:Exception do begin
-            LogEvent('Failed to recognise certificate - ' + E.Message);
+            LogEvent('Failed to Recognise Certificate - ' + E.Message);
             exit ;
         end;
     end;
-    FNewCertCN := FSslCert.SubjectCName;
+    FNewCertCN := FNewSslCert.SubjectCName;
     if CertName <> FNewCertCN then
         LogEvent('Mismatch Subject Common Name, found: ' + FNewCertCN);
-    FNewCertSAN := IcsUnwrapNames (fSslCert.SubAltNameDNS);
+    FNewCertSAN := IcsUnwrapNames (FNewSslCert.SubAltNameDNS);
     LogEvent('Certificate Subject Alt Names (SAN): ' + FNewCertSAN);
-    FNewCertEndDT := fSslCert.ValidNotAfter;
-    FNewCertStartDT := fSslCert.ValidNotBefore;
+    FNewCertEndDT := FNewSslCert.ValidNotAfter;
+    FNewCertStartDT := FNewSslCert.ValidNotBefore;
 
-    if NOT FSslCert.IsInterLoaded then begin
+    if NOT FNewSslCert.IsInterLoaded then begin
         LogEvent (IcsCRLF + 'PEM Intermediate Certificate' + IcsCRLF + FNewInterLines + IcsCRLF);
         if (Pos(PEM_STRING_HDR_BEGIN, FNewInterLines) = 0) then begin
-            LogEvent ('Did not receive a valid PEM intermediate certificate: ' + FNewInterLines);
+            LogEvent ('Did Not Receive a Valid PEM Intermediate Certificate: ' + FNewInterLines);
             FNewInterLines := '';
         end
         else begin
             try
                 if FNewInterLines <> '' then
-                    FSslCert.LoadIntersFromString(FNewInterLines);
+                    FNewSslCert.LoadIntersFromString(FNewInterLines);
             except
                 on E:Exception do begin
-                    LogEvent('Failed to recognise intermediate certificate - ' + E.Message);
+                    LogEvent('Failed to Recognise Intermediate Certificate - ' + E.Message);
                  end;
             end;
         end;
     end;
-    if FSslCert.IsInterLoaded and (OutFmtSep in FCertOutFmts) then begin
+    if FNewSslCert.IsInterLoaded and (OutFmtSep in FCertOutFmts) then begin
         try
-            FSslCert.SaveIntersToToPemFile(FFileInterPem, True);
-            LogEvent('Saved PEM intermediate certficate: ' + FFileInterPem);
+            FNewSslCert.SaveIntersToToPemFile(FFileInterPem, True);
+            LogEvent('Saved PEM Intermediate Certficate: ' + FFileInterPem);
         except
             on E:Exception do begin
-                LogEvent ('Failed to recognise intermediate certificate - ' + E.Message);
+                LogEvent ('Failed to Recognise Intermediate Certificate - ' + E.Message);
              end;
         end;
     end;
@@ -2775,23 +2813,25 @@ begin
 
  // log certificate content
     LogEvent (IcsCRLF + 'Certificate Details: ' + IcsCRLF +
-                                   FSslCert.CertInfo(False) + IcsCRLF + IcsCRLF);
+                                   FNewSslCert.CertInfo(False) + IcsCRLF + IcsCRLF);
 
  // save PEM bundle file for Apache and PKCS12 bundle for Windows, both with key passworded
     try
         if (OutFmtBudl in FCertOutFmts) then begin
-            FSslCert.SaveToPemFile(FFileBundPem, True, True, True, FPrivKeyPassword, FPrivKeyCipher);  // add private key and inters
-            LogEvent('Saved PEM bundle with certficate, key and intermediate: ' + fFileBundPem);
+            FNewSslCert.SaveToPemFile(FFileBundPem, True, True, True, FPrivKeyPassword, FPrivKeyCipher);  // add private key and inters
+            LogEvent('Saved PEM Bundle with Certficate, Key and Intermediate: ' + fFileBundPem);
+            FFileFinalBundle := FFileBundPem;
         end;
 
         if (OutFmtP12 in FCertOutFmts) then begin
-            FSslCert.SaveToP12File(FFileBundP12, P12Password, True, P12KeyCipher);  // add private key and inters
-            LogEvent('Saved PKCS12 bundle with certficate, key and intermediate: ' + FFileBundP12);
+            FNewSslCert.SaveToP12File(FFileBundP12, P12Password, True, P12KeyCipher);  // add private key and inters
+            LogEvent('Saved PKCS12 Bundle with Certficate, Key and Intermediate: ' + FFileBundP12);
+            FFileFinalBundle := FFileBundP12;
         end;
     except
         on E:Exception do
         begin
-            LogEvent ('Failed to save bundle - ' + E.Message);
+            LogEvent ('Failed to Save Bundle - ' + E.Message);
         end;
     end;
 
@@ -2801,41 +2841,42 @@ begin
             FRootCAX509 := TX509Base.Create (Self);
             FRootCAX509.LoadCATrustFromString(sslRootCACertsBundle);  // builtin roots
         end ;
-        FSslCert.X509CATrust := FRootCAX509.X509CATrust;
+        FNewSslCert.X509CATrust := FRootCAX509.X509CATrust;
      { V8.47 warning, currently only checking first Host name }
-        FNewCertValRes := FSslCert.ValidateCertChain(CertName, FNewCertChainInfo, FNewCertErrs);
+        FNewCertValRes := FNewSslCert.ValidateCertChain(CertName, FNewCertChainInfo, FNewCertErrs, 30);
         if FNewCertValRes = chainOK then
-            LogEvent ('SSL certificate chain validated OK: ' + IcsCRLF +
+            LogEvent ('SSL Certificate Chain Validated OK: ' + IcsCRLF +
                                                 FNewCertChainInfo + IcsCRLF + IcsCRLF)
         else begin
             if FNewCertValRes = chainWarn then
                 FNewCertErrs := 'Chain Warning - ' + FNewCertErrs
             else begin
                 FNewCertErrs := 'Chain Failed - ' + FNewCertErrs;
-                LogEvent ('SSL certificate errors - ' + FNewCertErrs + IcsCRLF + IcsCRLF);
+                LogEvent ('SSL Certificate Errors - ' + FNewCertErrs + IcsCRLF + IcsCRLF);
              end;
         end;
         FNewCertChainInfo := IcsEscapeCRLF(FNewCertChainInfo);
         FNewCertErrs := IcsEscapeCRLF(FNewCertErrs);
     except
         on E:Exception do begin
-            LogEvent ('Failed to validate chain - ' + E.Message);
+            LogEvent ('Failed to Validate Chain - ' + E.Message);
             Exit;
         end;
     end;
     FFileFinalCSR := FFileCSR;
     FFileFinalPrvKey := FFilePrvKey;
-    FFileFinalBundle := FFileBundPem;
     FFileFinalCert := FFileCertPem;
 
 // finally save files again without order number, locally
-    LogEvent ('Saving final versions of all files without order numbers locally');
+    LogEvent ('Saving final Versions Of All Files Without Order Numbers Locally');
     SetFullFileNames (FPartFNameFinal);
     if NOT SaveAllCerts then SaveAllCerts;  // one repeat
 
+ // pending - did order succeed if some of this copying failed!!!!
+
 // see if copying files to web server directories
     if (FPartFNameServer.Count > 0) then begin
-        LogEvent ('Saving final versions of all files without order numbers on server');
+        LogEvent ('Saving Final Versions Of All Files Without Order Numbers on Server');
         for I := 0 to FPartFNameServer.Count - 1 do begin
             SetFullFileNames (FPartFNameServer[I]);
             if NOT SaveAllCerts then begin
@@ -2843,7 +2884,56 @@ begin
             end;
         end;
     end;
-    LogEvent('Finished collecting and saving certificate for ' + CertName + IcsCRLF + IcsCRLF);
+    LogEvent('Finished Collecting and Saving Certificate for ' + CertName + IcsCRLF + IcsCRLF);
+    Result := True;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+function TSslX509Certs.RedistribteFiles: Boolean;
+begin
+    Result := False;
+    if (fCertCommonName = '') then begin
+        LogEvent('Must Specify Domain Common Name for Certifcate');
+        Exit;
+    end;
+
+ // read internal variables and public properties from database, so same as order
+    if NOT DBReadCNDomain(fCertCommonName, True) then Exit;
+    if FIssueState < IssStateCollect then begin
+        LogEvent('Certifcate Order Must Be Completed First');
+        Exit;
+    end;
+    LogEvent ('Redistributing Old Certificate');
+    FNewSslCert.ClearAll;
+    try
+        if FFileFinalBundle <> '' then
+            FNewSslCert.LoadFromFile(FFileFinalBundle, croTry, croTry, FPrivKeyPassword);
+        if NOT (FNewSslCert.IsCertLoaded and FNewSslCert.IsPKeyLoaded) then begin
+            LogEvent('Failed to Read Certificate Bundle, Trying Separate Files');
+            FNewSslCert.LoadFromFile(FFileFinalCert, croTry, croTry, FPrivKeyPassword);
+            FNewSslCert.PrivateKeyLoadFromPemFile(FFileFinalPrvKey, FPrivKeyPassword);
+        end;
+    except
+        on E:Exception do begin
+            LogEvent ('Failed to Read Old Certificate - ' + E.Message);
+            Exit;
+        end;
+    end;
+    if NOT (FNewSslCert.IsCertLoaded and FNewSslCert.IsPKeyLoaded) then begin
+        LogEvent ('Failed to Read Old Certificate - ' + FFileFinalBundle);
+        Exit;
+    end;
+    if FNewSslCert.ValidNotAfter < Now then begin
+        LogEvent ('Old Certificate Has Expired');
+        Exit;
+    end;
+    fNewCertLines := FNewSslCert.SaveCertToText(False);
+
+// save lots of certificates in different formats and places
+    if NOT SaveCertificateFiles(fCertCommonName) then Exit;
+    DBWriteCNDomain;
+    if Assigned(FOnNewCert) then FOnNewCert(Self);
     Result := True;
 end;
 
@@ -2894,8 +2984,20 @@ begin
     FSupplierProto := SuppProtoCertCentre;
     FIssueState := IssStateNone;
     if (NOT DBReadAccount(FDirCertWork, False)) and (NOT CreateNew) then Exit;
+
+    // create account working directory and database INI file
+    if CreateNew then begin
+        LogEvent ('Checking Account Directory: ' + FDirCertWork);
+        if NOT ForceDirectories(FDirCertWork) then begin
+            LogEvent ('Failed to Create Directory: ' + FDirCertWork);
+            exit;
+        end;
+        if NOT DBOpenINI(FDirCertWork, True) then Exit;
+        DBWriteAccount;
+    end;
+
     if Pos ('https://', FSupplierServer) <> 1 then begin
-        LogEvent('Invalid certificate supplier server: ' + FSupplierServer);
+        LogEvent('Invalid Certificate Supplier Server: ' + FSupplierServer);
     end;
     FNewCertPrefix := 'CC-' ;
 
@@ -2916,7 +3018,7 @@ begin
     DBWriteAccount;
     if (FOAAccToken = '') then begin
         if NOT FRestOAuth.StartAuthorization then Exit;
-        LogEvent('OAuth2 authorization started, login using browser');
+        LogEvent('OAuth2 Authorization Started, Login Using Browser');
         Exit;
     end;
     Result := True;
@@ -3183,7 +3285,8 @@ end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 // CertCentre check order for a SSL certificate
-function TSslX509Certs.CCCheckOrder(UpdateDB: Boolean = False): Boolean;
+function TSslX509Certs.CCCheckOrder(DomainCheck: Boolean = True;
+                                        UpdateDB: Boolean = False): Boolean;
 var
     success, isqualified: Boolean;
     S, FullName: string;
@@ -3192,7 +3295,7 @@ begin
     Result := false;
 
     // see if using details from old CSR
-    FSslCert.DoClearCerts;
+    FNewSslCert.DoClearCerts;
     if FCertCsrOrigin = CsrOriginFile then begin
         if NOT CheckCSR(True) then Exit;  // sets CommonName and SANs
     end;
@@ -3211,7 +3314,7 @@ begin
 
  // read internal variables, but not saved public properties, they may be new
     DBReadCNDomain(fCertCommonName, False);  // ignore errors, may be new domain
-
+    if FIssueState > IssStateChecked then FIssueState := IssStateNone;   // reset old order
     LogTimeStamp;
     LogEvent ('Checking CertCentre Certificate Order for: ' + fCertCommonName);
 
@@ -3235,10 +3338,11 @@ begin
     end;
 
   // see is need to start local web server
-    if (fSuppCertChallenge in [ChallFileSrv]) then begin
+    if DomainCheck and (fSuppCertChallenge in [ChallFileSrv]) then begin
         if NOT StartDomSrv then Exit;
     end;
 
+  // check challenges and if domain is available for Well-Known
     try // except
         LogTimeStamp;
         LogEvent ('Checking CertCentre ' + FSuppCertProduct + ' certificate order for: ' + fCertCommonName);
@@ -3258,17 +3362,19 @@ begin
             end;
 
           // where the well known directory is located for rach domain
-            if FIssueState < IssStateChecked then begin
-                if (fSuppCertChallenge in [ChallFileUNC, ChallFileSrv]) then begin
-                    for I := 0 to FCertSubAltNames.Count - 1 do begin
-                        if NOT TestWellKnown(FCertSubAltNames[I].SADomain,
-                                        FCertSubAltNames[I].SADirWellKnown) then exit;
+            if DomainCheck then begin
+                if FIssueState < IssStateChecked then begin
+                    if (fSuppCertChallenge in [ChallFileUNC, ChallFileFtp, ChallFileSrv]) then begin
+                        for I := 0 to FCertSubAltNames.Count - 1 do begin
+                            if NOT TestWellKnown(FCertSubAltNames[I].SADomain,
+                                            FCertSubAltNames[I].SADirWellKnown) then exit;
+                        end;
                     end;
                 end;
             end;
         end;
 
-     // free AlwaysOnSSL does not have price
+     // free AlwaysOnSSL does not have price but needs simple validation
         if Pos ('AlwaysOnSSL', FSuppCertProduct) > 0 then begin
             LogEvent ('Validate Name domain name at CertCentre for: ' + fCertCommonName);
             FHttpRest.RestParams.Clear;
@@ -3313,22 +3419,24 @@ begin
                 LogEvent ('Failed to get quote: ' + FHttpRest.ResponseJson.AsString);
         end ;
 
-    // get and save user agreement
-        LogEvent (IcsCRLF + 'Getting User Agreement at CertCentre for: ' + FSuppCertProduct );
-        FHttpRest.RestParams.Clear;
-        FHttpRest.RestParams.PContent := PContUrlencoded;
-        FHttpRest.RestParams.AddItem('ProductCode', FSuppCertProduct, False);
-        if NOT CCGetRequest (HttpGET, 'UserAgreement') then exit ;
-        DumpJson;
-        if FHttpRest.ResponseJson.B['success'] then  begin
-            S := FHttpRest.ResponseJson.S['UserAgreement'] + IcsCRLF;
-            FullName := fDirCertWork + FSuppCertProduct + '.txt';
-            LogEvent ('Saving user agreement as: ' + FullName);
-            SaveDataFile (FullName, S);
-            // ask client if happy!!!
-        end
-        else
-            LogEvent ('Failed to get User Agreement: ' + FHttpRest.ResponseJson.AsString);
+    // get and save user agreement, free AlwaysOnSSL does not have one
+        if Pos ('AlwaysOnSSL', FSuppCertProduct) = 0 then begin
+            LogEvent (IcsCRLF + 'Getting User Agreement at CertCentre for: ' + FSuppCertProduct );
+            FHttpRest.RestParams.Clear;
+            FHttpRest.RestParams.PContent := PContUrlencoded;
+            FHttpRest.RestParams.AddItem('ProductCode', FSuppCertProduct, False);
+            if NOT CCGetRequest (HttpGET, 'UserAgreement') then exit ;
+            DumpJson;
+            if FHttpRest.ResponseJson.B['success'] then  begin
+                S := FHttpRest.ResponseJson.S['UserAgreement'] + IcsCRLF;
+                FullName := fDirCertWork + FSuppCertProduct + '.txt';
+                LogEvent ('Saving user agreement as: ' + FullName);
+                SaveDataFile (FullName, S);
+                // ask client if happy!!!
+            end
+            else
+                LogEvent ('Failed to get User Agreement: ' + FHttpRest.ResponseJson.AsString);
+        end;         
 
     except
         on E:Exception do begin
@@ -3336,7 +3444,7 @@ begin
             exit ;
         end;
     end;
-    FIssueState := IssStateChecked;
+    if DomainCheck then FIssueState := IssStateChecked;
     if UpdateDB then begin
         if DBWriteCNDomain then   // write database
             LogEvent ('Saved Domain to Database: ' + fCertCommonName)
@@ -3454,7 +3562,7 @@ var
             FCertSubAltNames[CurChallenge.CSanIdx].SADoneDT := CurChallenge.CDoneDT;
 
          // update database with new challenge
-            if NOT DBWriteOneChallenge(CurChallenge) < 0 then
+            if (DBWriteOneChallenge(CurChallenge) < 0) then
                     LogEvent('Failed to Update Challenge Database');
         end;
     end;
@@ -3518,7 +3626,7 @@ var
             FCertSubAltNames[CurChallenge.CSanIdx].SADoneDT := CurChallenge.CDoneDT;
 
          // update database with new challenge
-            if DBWriteOneChallenge(CurChallenge) < 0 then begin
+            if (DBWriteOneChallenge(CurChallenge) < 0) then begin
                 LogEvent('Failed to Update Challenge Database');
                 Exit;
             end;
@@ -3541,7 +3649,7 @@ begin
  // check challenge allowed,  and well known directory for each domain on certificate
  // loads internal variables from database
     if FIssueState <> IssStateChecked then begin
-        if NOT CCCheckOrder(True) then Exit;    // update database
+        if NOT CCCheckOrder(True, True) then Exit;    // update database
     end;
 
     try // except
@@ -3559,7 +3667,7 @@ begin
         HashMd5 := '';   // used for Comondo file validation
         HashSha256 := '';
         UniqueValue := '';
-        if NOT SetPartFNames (false) then Exit ;  // will only set short path names, no orderid yet
+        if NOT SetPartFNames (False) then Exit ;  // will only set short path names, no orderid yet
 
         case fSuppCertChallenge of
             ChallFileUNC: AuthMethod := 'FILE';
@@ -3632,7 +3740,7 @@ begin
 
      // step two - create private key and CSR
         if NOT CreateKeyandReq then exit ;
-        if fSslCert.PrivKeyType >= PrivKeyECsecp256 then
+        if FNewSslCert.PrivKeyType >= PrivKeyECsecp256 then
             SigHash := 'SHA256-ECC-HYBRID'
      //   SigHash := 'SHA256-ECC-FULL'   //   Symantec only
         else
@@ -3857,11 +3965,12 @@ begin
                       ', CertCenterOrderID: ' + fSuppOrderId + ', at ' + OrderDT +
                                                           ', PartnerOrderID: ' + Partnerorderid);
 
-        if NOT SetPartFNames (true) then Exit ;  // set long path name with orderid
+    // fail now if can not create all file directories
+        if NOT SetPartFNames (False) then Exit ;  // set long path name with orderid
         SetFullFileNames (FPartFNameOrder) ;
-        FSslCert.PrivateKeySaveToPemFile (FFilePrvKey, '', PrivKeyEncNone) ;
+        FNewSslCert.PrivateKeySaveToPemFile (FFilePrvKey, '', PrivKeyEncNone) ;
         LogEvent ('Saved private key file: ' + FFilePrvKey) ;
-        FSslCert.SaveReqToFile(fFileCSR, true);
+        FNewSslCert.SaveReqToFile(fFileCSR, true);
         LogEvent ('Saved certificate request file: ' + FFileCSR) ;
 
     // see if we have certificates or need to wait for them
@@ -3903,7 +4012,7 @@ begin
                 FCertSubAltNames[CurChallenge.CSanIdx].SADoneDT := CurChallenge.CDoneDT;
 
              // update database with new challenge
-                if DBWriteOneChallenge(CurChallenge) < 0 then begin
+                if (DBWriteOneChallenge(CurChallenge) < 0) then begin
                     LogEvent('Failed to Update Challenge Database');
                 end;
                 LogEvent('You should receive an email when the order is completed');
@@ -4054,7 +4163,7 @@ begin
     LogTimeStamp;
     LogEvent ('Checking CertCentre Order Status for ' + FSuppOrderId +
                                         ' Certificate Order for: ' + fCertCommonName);
-    if NOT SetPartFNames (false) then Exit ;  // set long path name with orderid
+    if NOT SetPartFNames (False) then Exit ;  // set long path name with orderid
     SetFullFileNames (FPartFNameOrder) ;
 
    // load private key for order
@@ -4063,19 +4172,19 @@ begin
         Exit ;
     end;
     try
-        fSslCert.ClearAll ;
-        fSslCert.PrivateKeyLoadFromPemFile (fFilePrvKey, FPrivKeyPassword) ;
+        FNewSslCert.ClearAll ;
+        FNewSslCert.PrivateKeyLoadFromPemFile (fFilePrvKey, FPrivKeyPassword) ;
     except
         on E:Exception do begin
             LogEvent ('Failed to load private key file: ' + fFilePrvKey + ' - ' + E.Message);
             Exit ;
         end;
     end;
-    if NOT fSslCert.IsPKeyLoaded then begin
+    if NOT FNewSslCert.IsPKeyLoaded then begin
         LogEvent ('Failed to load private key for this order: ' +  fFilePrvKey);
         Exit ;
     end;
-    fPrvKeyLines := fSslCert.SavePKeyToText ('', PrivKeyEncNone) ;
+    fPrvKeyLines := FNewSslCert.SavePKeyToText ('', PrivKeyEncNone) ;
     LogEvent (IcsCRLF + 'Downloading CertCentre OrderId: ' + fSuppOrderId);
     if FLogJson then
         InfoFlag := 'True'
@@ -4562,7 +4671,7 @@ begin
         Exit;
     end;
 
-    if NOT SetPartFNames (true) then Exit ;  // set long path name with orderid
+    if NOT SetPartFNames (False) then Exit ;  // set long path name with orderid
     SetFullFileNames (FPartFNameOrder) ;
 
    // for revoke, we need the old certificate
@@ -4572,19 +4681,19 @@ begin
             Exit ;
         end;
         try
-            FSslCert.ClearAll ;
-            FSslCert.LoadFromPemFile (FFileFinalCert) ;
+            FNewSslCert.ClearAll ;
+            FNewSslCert.LoadFromPemFile (FFileFinalCert) ;
         except
             on E:Exception do begin
                 LogEvent ('Failed to load certifcate file: ' + FFileFinalCert + ' - ' + E.Message);
                 Exit ;
             end;
         end;
-        if NOT FSslCert.IsCertLoaded then begin
+        if NOT FNewSslCert.IsCertLoaded then begin
             LogEvent ('Failed to load cetificate for this order: ' +  FFileFinalCert);
             Exit ;
         end;
-        FNewCertLines := FSslCert.SaveCertToText (false) ;
+        FNewCertLines := FNewSslCert.SaveCertToText (false) ;
     end;
     LogTimeStamp;
     LogEvent ('Checking CertCentre OrderId: ' + FSuppOrderId + ' for ' + FCertCommonName);
@@ -4801,32 +4910,47 @@ var
 begin
     Result := False;
     FIssueState := IssStateNone;
-    if (NOT DBReadAccount(FDirCertWork, False)) and (NOT CreateNew) then Exit;
+    FAcmeAccountUrl := '';
+    FAcmeAccountNum := '';
+    if NOT DirectoryExists(FDirCertWork) and (NOT CreateNew) then begin
+        LogEvent('Can Not Find Account Work Directory: ' + FDirCertWork);
+        Exit;
+    end;
+    if (NOT DBReadAccount(FDirCertWork, False)) then begin
+        if (NOT CreateNew) then Exit;
+
+    // create account working directory
+        LogEvent ('Checking Account Work Directory: ' + FDirCertWork);
+        if NOT ForceDirectories (FDirCertWork) then begin
+            LogEvent ('Failed to Create Directory: ' + FDirCertWork);
+            Exit;
+        end;
+        if NOT DBOpenINI(FDirCertWork, True) then Exit;
+        DBWriteAccount;
+    end;
     if Pos ('https://', FSupplierServer) <> 1 then begin
         LogEvent('Invalid certificate supplier server: ' + FSupplierServer);
-    end;
-    if NOT DirectoryExists(FDirCertWork) and (NOT CreateNew) then begin
-        LogEvent('Can Not Find Work Directory: ' + FDirCertWork);
-        Exit;
     end;
     if (Pos ('@', SupplierEmail) = 0) then begin
         LogEvent('Must Specify Supplier Email Address');
         Exit;
     end;
+    LogEvent('Opening ACME Account');
     ParseURL(FSupplierServer, Proto, User, Pass, fAcmeHost, Port, Path);
-    fAcmePubFName := FDirCertWork + 'AcmePublicKey.pem' ;
-    fAcmePrivFName := FDirCertWork + 'AcmePrivateKey.pem' ;
-    fAcmeKwkKid := '';
+    FAcmePubFName := FDirCertWork + 'AcmePublicKey.pem' ;
+    FAcmePrivFName := FDirCertWork + 'AcmePrivateKey.pem' ;
+    FAcmeKwkKid := '';
     FNewCertPrefix := 'LE-' ;
-    fAcmeOrderFinalizeURL := '';
+    FAcmeOrderFinalizeURL := '';
     FAcmeOrderObjUrl := '';
-    fSuppOrderId := '';
-    if NOT AcmeLoadPKey(True) then exit; // new account and new directory
-    if NOT AcmeGetActions then exit;
+    FSuppOrderId := '';
+    FAcmeRespNonce := '';
+    if NOT AcmeLoadPKey(True) then Exit; // new account and new directory
+    if NOT AcmeGetActions then Exit;
 
   // see if account already exists
-    if (fAcmeAccountUrl <> '') and (fAcmeAccountNum <> '') then begin
-        fAcmeKwkKid := fAcmeAccountUrl;  // this is our Kid for future requests, V2 only
+    if (FAcmeAccountUrl <> '') and (FAcmeAccountNum <> '') then begin
+        FAcmeKwkKid := FAcmeAccountUrl;  // this is our Kid for future requests, V2 only
         FIssueState := IssStateAccount;
         Result := True;
     end
@@ -4835,6 +4959,7 @@ begin
             Result := AcmeV1NewAccount
         else if SupplierProto = SuppProtoAcmeV2 then
             Result := AcmeV2NewAccount;
+        if Result then FIssueState := IssStateAccount;
     end;
     if Result and CreateNew then
         Result := DBWriteAccount;
@@ -4848,57 +4973,49 @@ end;
 function TSslX509Certs.AcmeLoadPKey(New: Boolean): Boolean;
 begin
     Result := False;
+    if FAcmeAccKeyType > PrivKeyRsa4096 then begin
+        LogEvent ('Sorry, Only RSA Private Keys Currently Supported for Acme Accounts');
+        exit;
+    end;
     try
-        if (NOT New) and (NOT DirectoryExists (DirCertWork)) then begin
-            LogEvent ('Account directory not found: ' + DirCertWork);
-            exit;
-        end;
-
-    // create admin working directory and files names
-        LogEvent ('Checking account directory: ' + DirCertWork);
-        if NOT ForceDirectories (DirCertWork) then begin
-            LogEvent ('Failed to create directory: ' + DirCertWork);
-            exit;
-        end;
-
     // get private keys, Acme prefers Elliptic Curve since shorter
-        fAcmePrivKey.PrivKeyType := fAcmeAccKeyType;
-        case fAcmeAccKeyType of
-            PrivKeyRsa2048, PrivKeyRsa3072, PrivKeyRsa4096: fAcmeJoseAlg := jsigRsa256;
-            PrivKeyECsecp256: fAcmeJoseAlg := jsigEcdsa256;
-            PrivKeyECsecp384: fAcmeJoseAlg := jsigEcdsa384;
-            PrivKeyECsecp512: fAcmeJoseAlg := jsigEcdsa512;
-            PrivKeyRsaPss2048, PrivKeyRsaPss3072, PrivKeyRsaPss4096: fAcmeJoseAlg := jsigRsaPss256;
-            PrivKeyEd25519: fAcmeJoseAlg := jsigEdDSA;
+        FAcmePrivKey.PrivKeyType := FAcmeAccKeyType;
+        case FAcmeAccKeyType of
+            PrivKeyRsa2048, PrivKeyRsa3072, PrivKeyRsa4096: FAcmeJoseAlg := jsigRsa256;
+            PrivKeyECsecp256: FAcmeJoseAlg := jsigEcdsa256;
+            PrivKeyECsecp384: FAcmeJoseAlg := jsigEcdsa384;
+            PrivKeyECsecp512: FAcmeJoseAlg := jsigEcdsa512;
+            PrivKeyRsaPss2048, PrivKeyRsaPss3072, PrivKeyRsaPss4096: FAcmeJoseAlg := jsigRsaPss256;
+            PrivKeyEd25519: FAcmeJoseAlg := jsigEdDSA;
         end;
-        fAcmePrivKey.PrivateKey := Nil;
+        FAcmePrivKey.PrivateKey := Nil;
 
-        if (FileExists (fAcmePrivFName)) then begin  // load account private key
+        if (FileExists (FAcmePrivFName)) then begin  // load account private key
             try
-                LogEvent ('Loading old private key file: ' + fAcmePrivFName);
-                fAcmePrivKey.PrivateKeyLoadFromPemFile (fAcmePrivFName, '');
-                LogEvent ('Loaded old private key OK: ' + fAcmePrivKey.PrivateKeyInfo);
+                LogEvent ('Loading old private key file: ' + FAcmePrivFName);
+                fAcmePrivKey.PrivateKeyLoadFromPemFile (FAcmePrivFName, '');
+                LogEvent ('Loaded old private key OK: ' + FAcmePrivKey.PrivateKeyInfo);
             except
                 on E:Exception do begin
-                    LogEvent ('Exception loading private key: ' + E.Message + ' - ' + fAcmePrivFName);
+                    LogEvent ('Exception loading private key: ' + E.Message + ' - ' + FAcmePrivFName);
                     exit;
                 end;
             end;
         end
         else begin
             if NOT New then begin
-                LogEvent ('Failed to find old private key: ' + fAcmePrivFName);
+                LogEvent ('Failed to find old private key: ' + FAcmePrivFName);
                 exit;
             end;
             try
-                fAcmePrivKey.DoKeyPair;
-                LogEvent ('Generated private key OK: ' + fAcmePrivKey.PrivateKeyInfo);
-                fAcmePrivKey.PrivateKeySaveToPemFile (fAcmePrivFName, '', PrivKeyEncNone);
-                LogEvent ('Saved private key file: ' + fAcmePrivFName);
-                fAcmePrivKey.PublicKeySaveToPemFile (fAcmePubFName);
-                fPrvKeyLines := fAcmePrivKey.SavePKeyToText ('', PrivKeyEncNone);
-                LogEvent ('Saved public key file: ' + fAcmePubFName);
-                if FLogPkeys then LogEvent (IcsCRLF + fPrvKeyLines + IcsCRLF);
+                FAcmePrivKey.DoKeyPair;
+                LogEvent ('Generated private key OK: ' + FAcmePrivKey.PrivateKeyInfo);
+                FAcmePrivKey.PrivateKeySaveToPemFile (FAcmePrivFName, '', PrivKeyEncNone);
+                LogEvent ('Saved private key file: ' + FAcmePrivFName);
+                FAcmePrivKey.PublicKeySaveToPemFile (FAcmePubFName);
+                FPrvKeyLines := fAcmePrivKey.SavePKeyToText ('', PrivKeyEncNone);
+                LogEvent ('Saved public key file: ' + FAcmePubFName);
+                if FLogPkeys then LogEvent (IcsCRLF + FPrvKeyLines + IcsCRLF);
             except
                 on E:Exception do begin
                     LogEvent ('Failed to generate private key - ' + E.Message);
@@ -4909,13 +5026,13 @@ begin
 
      // build public Json Web Key for Json Web Signing
      // basic jwk, no alg, kid or sig
-        fAcmeJwsAlg := IcsJoseFindAlg(fAcmeJoseAlg, fAcmePrivKey.PrivateKey);
-        fAcmeKwkPub := IcsJoseJWKPubKey(fAcmePrivKey.PrivateKey, '', '', '');
-        LogEvent ('JWK: ' + fAcmeKwkPub);
+        FAcmeJwsAlg := IcsJoseFindAlg(FAcmeJoseAlg, FAcmePrivKey.PrivateKey);
+        FAcmeKwkPub := IcsJoseJWKPubKey(FAcmePrivKey.PrivateKey, '', '', '');
+        LogEvent ('JWK: ' + FAcmeKwkPub);
 
      // create JWK Thumbprint, used for challenge
-        fAcmeKwkThumb := IcsBase64UrlEncode(String(IcsHashDigest(AnsiString(fAcmeKwkPub), Digest_sha256)));
-        LogEvent ('Thumbprint: ' + fAcmeKwkThumb);
+        FAcmeKwkThumb := IcsBase64UrlEncode(String(IcsHashDigest(AnsiString(FAcmeKwkPub), Digest_sha256)));
+        LogEvent ('Thumbprint: ' + FAcmeKwkThumb);
         Result := true;
     except
         on E:Exception do begin
@@ -4935,8 +5052,8 @@ var
 begin
     Result := False;
     try
-        LogEvent ('Getting actions from ACME server: ' + fAcmeHost);
-        fAcmeRespNonce := '';
+        LogEvent ('Getting actions from ACME server: ' + FAcmeHost);
+        FAcmeRespNonce := '';
         if NOT AcmeGetRequest(httpGET, FSupplierServer, Nil) then exit;
         LogEvent ('Downloaded ACME Server Action URLs OK');
         for I := 1 to AcmeActionTot do begin
@@ -4944,12 +5061,12 @@ begin
         end;
         MetaJson := FHttpRest.ResponseJson.O['meta'];
         if Assigned(MetaJson) then begin
-            fAcmeTermsUrl := MetaJson.S['terms-of-service'];   // V1
-            if fAcmeTermsUrl = '' then fAcmeTermsUrl := MetaJson.S['termsOfService']; // V2
-            if fAcmeTermsUrl <> '' then begin
-                I := LastDelimiter('/', fAcmeTermsUrl);
+            FAcmeTermsUrl := MetaJson.S['terms-of-service'];   // V1
+            if FAcmeTermsUrl = '' then FAcmeTermsUrl := MetaJson.S['termsOfService']; // V2
+            if FAcmeTermsUrl <> '' then begin
+                I := LastDelimiter('/', FAcmeTermsUrl);
                 if I > 0 then begin
-                    TermsFname := Copy (fAcmeTermsUrl, I + 1, 999);
+                    TermsFname := Copy (FAcmeTermsUrl, I + 1, 999);
                     FullName := DirCertWork + TermsFName;
                     if NOT (FileExists (FullName)) then begin
                         if NOT AcmeGetRequest(httpGET, fAcmeTermsUrl, Nil) then exit;
@@ -5121,15 +5238,18 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-// Acme check order for a SSL certificate, make sure domain exists
-function TSslX509Certs.AcmeCheckOrder(UpdateDB: Boolean = False): Boolean;
+// Acme check order for a SSL certificate
+// optionally check domain exists for domain challenge
+// optionally save order to database
+function TSslX509Certs.AcmeCheckOrder(DomainCheck: Boolean = True;
+                                        UpdateDB: Boolean = False): Boolean;
 var
     I: Integer;
 begin
     Result := false ;
 
 // see if using details from old CSR
-    FSslCert.DoClearCerts;
+    FNewSslCert.DoClearCerts;
     if FCertCsrOrigin = CsrOriginFile then begin
         if NOT CheckCSR(True) then Exit;  // sets CommonName and SANs
     end;
@@ -5146,15 +5266,23 @@ begin
 
  // read internal variables, but not saved public properties, they may be new
     DBReadCNDomain(fCertCommonName, False);  // ignore errors, may be new domain
+    if FIssueState > IssStateChecked then FIssueState := IssStateNone;   // reset old order
     LogTimeStamp;
     LogEvent ('Checking Let''s Encrypt Certificate Order for: ' + fCertCommonName);
+
+ // only allowed five duplicate orders for the same certificate each week
+ // so one only per day
+     if ((Now - FNewCertStartDT) < 1) then begin
+        LogEvent ('Only One Order Per Domain Per Day Allowed');
+        Exit;
+     end;
 
  // make sure common name is also in SANs, so we can ignore it subsequently
     BuildSANList;
 
 // validate some settings
     if (FSupplierProto <> SuppProtoAcmeV2) and (FCertSANTot > 1) then begin
-        LogEvent ('Acme V2 required for more than one domain name');
+        LogEvent ('Acme V2 Required for More Than One Domain Name');
         Exit;
     end;
 
@@ -5168,10 +5296,6 @@ begin
         LogEvent ('Wild Card Certificates Not Supported by Supplier');
         Exit;
     end;
-//  if (fSuppCertChallenge = ChallDNS) and (FSupplierProto <> SuppProtoAcmeV2) then begin
-//      LogEvent ('DNS Validation Not Available for this Supplier');
-//      Exit;
-//  end;
     if ((fSuppCertChallenge = ChallAlpnUNC) or (fSuppCertChallenge = ChallAlpnUNC)) and
                                              (FSupplierProto <> SuppProtoAcmeV2) then begin
         LogEvent ('ALPN SSL Validation Not Available for this Supplier');
@@ -5182,23 +5306,27 @@ begin
         Exit;
     end;
 
-  // see is need to start local web server
-    if (fSuppCertChallenge in [ChallFileSrv, ChallAlpnSrv]) then begin
-        if NOT StartDomSrv then Exit;
-    end;
+ // see if checking challenge by creatng and reading Well-Known file
+    if DomainCheck then begin
 
-  // where the well known directory is located for rach domain
-    if FIssueState < IssStateChecked then begin
-        if (fSuppCertChallenge in [ChallFileUNC, ChallFileSrv, ChallAlpnUNC, ChallAlpnSrv]) then begin
-            for I := 0 to FCertSubAltNames.Count - 1 do begin
-                if NOT TestWellKnown(FCertSubAltNames[I].SADomain,
-                                FCertSubAltNames[I].SADirWellKnown) then exit;
-            end;
-        end
-        else
-            LogEvent ('Order Checking Passed');
+      // see is need to start local web server
+        if (fSuppCertChallenge in [ChallFileSrv, ChallAlpnSrv]) then begin
+            if NOT StartDomSrv then Exit;
+        end;
 
-        FIssueState := IssStateChecked;
+      // where the well known directory is located for rach domain
+        if FIssueState < IssStateChecked then begin
+            if (fSuppCertChallenge in [ChallFileUNC, ChallFileFtp, ChallFileSrv,
+                                              ChallAlpnUNC, ChallAlpnSrv]) then begin
+                for I := 0 to FCertSubAltNames.Count - 1 do begin
+                    if NOT TestWellKnown(FCertSubAltNames[I].SADomain,
+                                    FCertSubAltNames[I].SADirWellKnown) then exit;
+                end;
+            end
+            else
+                LogEvent ('Order Checking Passed: ' + fCertCommonName);
+            FIssueState := IssStateChecked;
+        end;
     end;
     if UpdateDB then begin
         if DBWriteCNDomain then   // write database
@@ -5229,7 +5357,7 @@ begin
  // check challenge allowed,  and well known directory for each domain on certificate
  // loads internal variables from database
     if FIssueState <> IssStateChecked then begin
-        if NOT AcmeCheckOrder (True) then Exit;   // update database
+        if NOT AcmeCheckOrder (True, True) then Exit;   // update database
     end;
     LogTimeStamp;
     LogEvent ('Starting Let''s Encrypt certificate order for: ' + fCertCommonName);
@@ -5434,7 +5562,7 @@ expires=2018-02-26T17:51:37.280339321Z
             end;
 
          // update database with new challenge
-            if DBWriteOneChallenge(CurChallenge) < 0 then begin
+            if (DBWriteOneChallenge(CurChallenge) < 0) then begin
                 LogEvent('Failed to Update Challenge Database');
                 Exit;
             end;
@@ -5658,26 +5786,11 @@ begin
         fAcmeCertURL := '';
         fAcmeCertLines := '';
         fNewInterLines := '';
-    {    fAcmeOrderStatus := 'pending';
-        AuthStatus := '';
-
-      // see if challenge completed
-        if NOT AcmeGetRequest(httpGET, xxfAcmeChallengeURL, Nil) then exit;
-        if fAcmeLastStatus > 202 then begin
-            LogEvent('Acme did not not respond to challenge');
-            Exit;
-        end;
-        DumpJson;
-        AuthStatus := FHttpRest.ResponseJson.S['status'];
-        if AuthStatus = 'pending' then begin
-            LogEvent('Acme has not yet responded to challenge');
-            // any more info ??
-            Exit;
-        end ;     }
 
     // work file names, in account directory, with orderid (no work names)
-        fSslCert.ClearAll;
-        if NOT SetPartFNames (true) then Exit ;
+    // fail now if can not create directories 
+        FNewSslCert.ClearAll;
+        if NOT SetPartFNames (False) then Exit ;
         SetFullFileNames (FPartFNameWork) ;
 
     // if order still pending, finalize it
@@ -5687,7 +5800,7 @@ begin
             if NOT CreateKeyandReq then exit ;
 
           // Acme needs DER request UrlBase64 encoded no headers, not PEM base64
-            CSREn := IcsBase64UrlEncode(String(fSslCert.SaveToDERText));
+            CSREn := IcsBase64UrlEncode(String(FNewSslCert.SaveToDERText));
 
          // order new certificate for our CSR
             if NOT AcmeGetRequest(httpPOST, AcmeActionDirs [AcmeNewCert1].URL,
@@ -5754,10 +5867,10 @@ Location: https://acme-staging.api.letsencrypt.org/acme/cert/faa5856362d8a1b9b79
         end;
 
     // do we need to load private key
-        if NOT fSslCert.IsPKeyLoaded then begin
+        if NOT FNewSslCert.IsPKeyLoaded then begin
             try
                 LogEvent('Loading old private key from: ' + fFilePrvKey);
-                fSslCert.PrivateKeyLoadFromPemFile(fFilePrvKey, FPrivKeyPassword);
+                FNewSslCert.PrivateKeyLoadFromPemFile(fFilePrvKey, FPrivKeyPassword);
             except
                 on E:Exception do begin
                     LogEvent ('Failed to load old private key: ' + E.Message);
@@ -5809,7 +5922,7 @@ begin
  // check challenge allowed,  and well known directory for each domain on certificate
  // loads internal variables from database
     if FIssueState <> IssStateChecked then begin
-        if NOT AcmeCheckOrder(True) then Exit;    // update database
+        if NOT AcmeCheckOrder(True, True) then Exit;    // update database
     end;
     LogTimeStamp;
     LogEvent ('Starting Let''s Encrypt Certificate Order for: ' + fCertCommonName);
@@ -6077,7 +6190,7 @@ Response (length 919)
                 end ;
 
              // update database with new challenge
-                if DBWriteOneChallenge(CurChallenge) < 0 then begin
+                if (DBWriteOneChallenge(CurChallenge) < 0) then begin
                     LogEvent('Failed to Update Challenge Database');
                     Exit;
                 end;
@@ -6401,8 +6514,9 @@ begin
         fNewInterLines := '';
 
     // work file names, in account directory, with orderid (no work names)
-        fSslCert.ClearAll;
-        if NOT SetPartFNames (true) then Exit ;
+    // fail now if can not create directories
+        FNewSslCert.ClearAll;
+        if NOT SetPartFNames (False) then Exit ;
         SetFullFileNames (FPartFNameWork) ;
 
     // if order not yet valid, finalize it
@@ -6415,7 +6529,7 @@ begin
             if NOT CreateKeyandReq then exit ;
 
           // Acme needs DER request UrlBase64 encoded no headers, not PEM base64
-            CSREn := IcsBase64UrlEncode(String(fSslCert.SaveToDERText));
+            CSREn := IcsBase64UrlEncode(String(FNewSslCert.SaveToDERText));
 
          // order certificate
             if NOT AcmeGetRequest(httpPOST, fAcmeOrderFinalizeURL, SO([ 'csr', CSREn]) ) then Exit;
@@ -6481,10 +6595,10 @@ begin
         end;
 
     // do we need to load private key
-        if NOT fSslCert.IsPKeyLoaded then begin
+        if NOT FNewSslCert.IsPKeyLoaded then begin
             try
                 LogEvent('Loading old private key from: ' + fFilePrvKey);
-                fSslCert.PrivateKeyLoadFromPemFile(fFilePrvKey, FPrivKeyPassword);
+                FNewSslCert.PrivateKeyLoadFromPemFile(fFilePrvKey, FPrivKeyPassword);
             except
                 on E:Exception do
                 begin
@@ -6535,19 +6649,19 @@ begin
             Exit ;
         end;
         try
-            fSslCert.ClearAll ;
-            fSslCert.LoadFromPemFile (fFileCertPem) ;
+            FNewSslCert.ClearAll ;
+            FNewSslCert.LoadFromPemFile (fFileCertPem) ;
         except
             on E:Exception do begin
                 LogEvent ('Failed to load certifcate file: ' + fFileCertPem + ' - ' + E.Message);
                 Exit ;
             end;
         end;
-        if NOT fSslCert.IsCertLoaded then begin
+        if NOT FNewSslCert.IsCertLoaded then begin
             LogEvent ('Failed to load cetificate for this order: ' +  fFileCertPem);
             Exit ;
         end;
-        FNewCertLines := FSslCert.SaveCertToText (false) ;
+        FNewCertLines := FNewSslCert.SaveCertToText (false) ;
     end;
 
     LogEvent (IcsCRLF + 'Checking CertCentre OrderId: ' + fSuppOrderId + ' for ' + fCertCommonName);
@@ -6605,11 +6719,10 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-// look for any completed challenges, try to complete orders
+// look for any completed challenges, try to complete orders by getting certificate
 procedure TSslX509Certs.ChallengeOnTimer(Sender : TObject);
 var
     I: Integer;
-//    Flag: Boolean;
 
  // look for other pending challenges for same common namw
     function CheckPending(const CNDomain: String): Boolean;
@@ -6633,35 +6746,52 @@ begin
     if FX509BusyFlag then Exit;
     FChallengeTimer.Enabled := False;
     FX509BusyFlag := True;
-    try
+    try // finally
         if (FChallengesTot > 0) then begin
             for I := 0 to Length(FChallengeItems) - 1 do begin
-                with FChallengeItems [I] do begin
-                    if (CDomain = '') then continue;
-                    if (CIssueState = IssStateChallgPend) then begin
-                        if SupplierProto = SuppProtoAcmeV1 then
-                            AcmeV1CheckChallg(I)
-                        else if SupplierProto = SuppProtoAcmeV2 then
-                            AcmeV2CheckChallg(I)
-                        else if SupplierProto = SuppProtoCertCentre then
-                           CCCheckChallg(I)
-                        else
-                            Continue;
-                    end;
-                    if (CIssueState = IssStateChallgOK) then begin
-                        if CheckPending(CCommonName) then begin
-                            LogEvent('Web Server Challenge Response Sent for: ' + CDomain);
-                            Continue;
+                try // except
+                  // sanity check, account may have been closed from newcert event
+                    if (FChallengesTot = 0) then Exit;
+                    if (Length(FChallengeItems) = 0) then Exit;
+                    if FSupplierProto = SuppProtoNone then Exit;
+                    with FChallengeItems [I] do begin
+                        if (CDomain = '') then continue;
+
+                    // see if challenge has completed
+                        if (CIssueState = IssStateChallgPend) then begin
+                            if SupplierProto = SuppProtoAcmeV1 then
+                                AcmeV1CheckChallg(I)
+                            else if SupplierProto = SuppProtoAcmeV2 then
+                                AcmeV2CheckChallg(I)
+                            else if SupplierProto = SuppProtoCertCentre then
+                                CCCheckChallg(I)
+                            else
+                                Continue;
                         end;
-                     // should delete challenge
-                        if SupplierProto = SuppProtoAcmeV1 then
-                              AcmeV1GetCert 
-                        else if SupplierProto = SuppProtoAcmeV2 then
-                            AcmeV2GetCert
-                        else if SupplierProto = SuppProtoCertCentre then
-                            CCGetCert
-                        else
-                            Continue;
+
+                    // if all challenges completed, get certificate
+                        if (CIssueState = IssStateChallgOK) then begin
+                            if CheckPending(CCommonName) then begin
+                                LogEvent('Web Server Challenge Response Sent for: ' + CDomain);
+                                Continue;
+                            end;
+                         // delete challenge
+                            RemoveChallgs(CDomain);
+
+                         // collect certificates
+                            if SupplierProto = SuppProtoAcmeV1 then
+                                  AcmeV1GetCert
+                            else if SupplierProto = SuppProtoAcmeV2 then
+                                AcmeV2GetCert
+                            else if SupplierProto = SuppProtoCertCentre then
+                                CCGetCert
+                            else
+                                Continue;
+                        end;
+                    end;
+                except
+                    on E:Exception do begin
+                      LogEvent ('Failed to read Challenge Item in Timer: ' + E.Message);
                     end;
                 end;
             end;
@@ -6696,23 +6826,27 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-// open certificate supplier account from a specific directory, must exist,
+// open certificate supplier account from a specific directory
+// optionally create new account if not found
 // sets DbCNDomains list of certificate common name domains created using
 // the account
-function TSslX509Certs.OpenAccount(const WorkDir: String): Boolean;
+function TSslX509Certs.OpenAccount(const WorkDir: String; CreateNew: Boolean = False): Boolean;
 begin
     Result := False;
     CloseAccount;
     FSupplierProto := SuppProtoNone;
   // ignore public properties, read everything from database
-    if NOT DBReadAccount(IncludeTrailingPathDelimiter(WorkDir), True) then Exit;
+    if NOT DBReadAccount(IncludeTrailingPathDelimiter(WorkDir), True) then begin
+        if NOT CreateNew then Exit;
+        LogEvent ('Old Account Not Found, Creating New Account in: ' + WorkDir);
+    end;
     if FSupplierProto in [SuppProtoAcmeV1, SuppProtoAcmeV2] then
-        Result := SetAcmeAccount (False)
+        Result := SetAcmeAccount (CreateNew)
 
  // CertCentre may need manual OAuth2 login to be completed!!!
     else if SupplierProto = SuppProtoCertCentre then begin
         FPendOpenAccount := WorkDir;
-        Result := SetCertCentre(False);
+        Result := SetCertCentre(CreateNew);
         if (NOT Result) and (FOAAccToken = '') then begin
             LogEvent ('CertCentre Waiting for OAuth2 Login, Will Then Open Again');
             Exit;
@@ -6727,8 +6861,8 @@ begin
 
  // check for old challenges, start time to see if done
     if Result then begin
-        LogEvent ('Opened Supplier Account for: ' + FSupplierTitle +
-                         ', Protocol: ' + SupplierProtoLits [FSupplierProto]);
+        LogEvent ('Opened Supplier Account for: ' + FSupplierTitle +  ', Protocol: ' +
+                            SupplierProtoLits [FSupplierProto] + ', From: ' + WorkDir);
         DBReadChallenges;
         FChallengeTimer.Enabled := True;
         ChallengeOnTimer(Self);  // immediate
@@ -6740,13 +6874,43 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-// read common domain name properties from database
-function TSslX509Certs.CertCheckDomain(const aDomain: String): Boolean;
+// save new common domain name with public properties
+function TSslX509Certs.CertSaveDomain(const aDomain: String): Boolean;
 begin
+    Result := False;
+    if aDomain <> CertCommonName then Exit;
+    if CertSubAltNames.Count = 0 then Exit;
+    if SupplierProto = SuppProtoNone then Exit; 
+
+  // read non-public props, it the domain exists
+    DBReadCNDomain(aDomain, False);
+    if (SupplierProto = SuppProtoAcmeV1) or (SupplierProto = SuppProtoAcmeV2) then
+        Result := AcmeCheckOrder(False, True)  // update database, no domain check
+    else if SupplierProto = SuppProtoCertCentre then
+        Result := CCCheckOrder(False, True)  // update database, no domain check
+    else if SupplierProto = SuppProtoServtas then
+      //  Result := ServtasCheckOrder(True, False)
+    else
+        LogEvent('Can Not Check Order, Unknown Supplier Protocol');
+    if Result then
+        LogEvent('Saved New Domain OK in Database: ' + aDomain)
+    else
+        LogEvent('Failed to Save New Domain in Database: ' + aDomain);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// read common domain name properties from database
+function TSslX509Certs.CertReadDomain(const aDomain: String): Boolean;
+begin
+    Result := False;
+    if DBFindDomain (aDomain) < 0 then begin
+        LogEvent('Domain Not Found in Database: ' + aDomain);
+        Exit;
+    end;
     fAcmeOrderStatus := '';
     FAcmeOrderFinalizeUrl := '';
     FAcmeOrderObjUrl := '';
-    FIssueState := IssStateNone;
     fCertCommonName := '';
     FCertSubAltNames.Clear;
     FSuppCertProduct := '';
@@ -6755,8 +6919,27 @@ begin
 
   // ignore public properties, read everything from database
     Result := DBReadCNDomain(aDomain, True);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// read and check common domain name properties from database
+function TSslX509Certs.CertCheckDomain(const aDomain: String): Boolean;
+begin
+    Result := CertReadDomain(aDomain);
+    if NOT Result then Exit;
+    if (SupplierProto = SuppProtoAcmeV1) or (SupplierProto = SuppProtoAcmeV2) then
+        Result := AcmeCheckOrder(True, False)  // don't update database yet
+    else if SupplierProto = SuppProtoCertCentre then
+        Result := CCCheckOrder(True, False)    // don't update database yet
+    else if SupplierProto = SuppProtoServtas then
+      //  Result := ServtasCheckOrder(True, False)
+    else
+        LogEvent('Can Not Check Order, Unknown Supplier Protocol');
     if Result then
-        LogEvent ('Read Certificate Common Name Domain for: ' + fCertCommonName);
+        LogEvent('Checked Certificate Order OK for: ' + aDomain)
+    else
+        LogEvent('Failed to Check Certificate Order for: ' + aDomain);
 end;
 
 
@@ -6764,10 +6947,9 @@ end;
 // order certificate for common domain name and collect certificate when ready
 function TSslX509Certs.CertOrderDomain(const aDomain: String): Boolean;
 begin
-    Result := false ;
-    if aDomain <> fCertCommonName then begin
-        if NOT CertCheckDomain(aDomain) then Exit;
-    end;
+    Result := CertReadDomain(aDomain);
+    if NOT Result then Exit;
+    FIssueState := IssStateNone;
     if SupplierProto = SuppProtoAcmeV1 then begin
         Result := AcmeV1OrderCert;
         if FIssueState >= IssStateChallgOK then
@@ -6785,6 +6967,10 @@ begin
     else begin
             LogEvent('Can Not Order Certificate, Unknown Supplier Protocol');
     end;
+    if Result then
+        LogEvent('Ordered Certificate OK for: ' + aDomain)
+    else
+        LogEvent('Failed to Order Certificate for: ' + aDomain);
 end;
 
 
@@ -6794,10 +6980,14 @@ function TSslX509Certs.CertCollectDomain(const aDomain: String): Boolean;
 begin
     Result := false ;
     if aDomain <> fCertCommonName then begin
-        if NOT CertCheckDomain(aDomain) then Exit;
+        if NOT CertReadDomain(aDomain) then Exit;
     end;
     if FIssueState < IssStateChallgPend then begin
         LogEvent('Can Not Collect Certificate, No Pending Order');
+        Exit;
+    end;
+    if FIssueState >= IssStateCollect then begin
+        LogEvent('Order Already Collected');
         Exit;
     end;
     if SupplierProto = SuppProtoAcmeV1 then
@@ -6811,6 +7001,10 @@ begin
      else begin
             LogEvent('Can Not Collect Certificate, Unknown Supplier Protocol');
      end;
+    if Result then
+        LogEvent('Collected Certificate OK for: ' + aDomain)
+    else
+        LogEvent('Failed to Collect Certificate for: ' + aDomain);
 end;
 
 
@@ -6820,7 +7014,7 @@ function TSslX509Certs.CertCancelDomain(const aDomain: String): Boolean;
 begin
     Result := false ;
     if aDomain <> fCertCommonName then begin
-        if NOT CertCheckDomain(aDomain) then Exit;
+        if NOT CertReadDomain(aDomain) then Exit;
     end;
     if FIssueState < IssStateChallgPend then begin
         LogEvent('Can Not Cancel, No Pending Order');
@@ -6847,7 +7041,7 @@ function TSslX509Certs.CertRevokeDomain(const aDomain: String): Boolean;
 begin
     Result := false ;
     if aDomain <> fCertCommonName then begin
-        if NOT CertCheckDomain(aDomain) then Exit;
+        if NOT CertReadDomain(aDomain) then Exit;
     end;
     if FIssueState < IssStateCollect then begin
         LogEvent('Can Not Revoke, No Certificate Collected');
@@ -6866,18 +7060,57 @@ begin
      end;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// redistribute previously collected certicate, locally and to servers
+function TSslX509Certs.CertRedistDomain(const aDomain: String): Boolean;
+begin
+    Result := false ;
+    if aDomain <> fCertCommonName then begin
+        if NOT CertReadDomain(aDomain) then Exit;
+    end;
+    Result := RedistribteFiles;
+end;
+
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 // remove domain from database
 function TSslX509Certs.CertRemoveDomain(const aDomain: String): Boolean;
 begin
     Result := false ;
     if aDomain <> fCertCommonName then begin
-        if NOT CertCheckDomain(aDomain) then Exit;
+        if NOT CertReadDomain(aDomain) then Exit;
     end;
     RemoveChallgs(aDomain);
     Result := DBDeleteCNDomain(aDomain);
     if Result then
-        LogEvent('Common Name Domain Removed from Database: ' + aDomain); 
+        LogEvent('Common Name Domain Removed from Database: ' + aDomain);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// get order result, as best we can for logging and emails
+function TSslX509Certs.GetOrderResult: String;
+begin
+    if SupplierProto = SuppProtoNone then begin
+       Result := 'Order Failed, No Supplier Database Opened';
+       Exit;
+    end;
+    Result := 'Account Database Supplier: ' + FSupplierTitle + IcsCRLF +
+              'Supplier: Protocol: ' + SupplierProtoLits [FSupplierProto] + IcsCRLF +
+              'Challenge Type: ' + ChallengeTypeLits[FSuppCertChallenge] + IcsCRLF +
+              'Product: ' + FSuppCertProduct + IcsCRLF;
+    if FIssueState < IssStateCollect then begin
+       Result := Result + 'Order Not Yet Completed, State: ' +
+                                             IssueStateLits[FIssueState];
+    end
+    else begin
+        Result := Result + 'SSl Certificate Order Completed OK' + IcsCRLF +
+            'Supplier Order Id: ' + FSuppOrderId + IcsCRLF +
+            'Our Order Number: ' + IntToStr(FNewOrderNum) + IcsCRLF +
+            'Certificate Saved at: ' + FFileFinalBundle + IcsCRLF +
+            FNewSslCert.CertInfo(False);
+    end;
 end;
 
 
@@ -6887,34 +7120,34 @@ function TSslX509Certs.LoadOwnCA: Boolean;
 begin
     Result := False;
     LogTimeStamp;
-    FSslCert.DoClearCA;
+    FNewSslCert.DoClearCA;
     FNewInterLines := '';
     if (FCACertFile = '') or (NOT FileExists(FCACertFile)) then begin
         LogEvent ('Can Not Found Own CA Certificate File: ' + FCACertFile);
     end;
     try
-        FSslCert.LoadFromFile(FCACertFile, croTry, croNo, FCAPkeyPw);
-        if NOT FSslCert.IsPKeyLoaded then begin
+        FNewSslCert.LoadFromFile(FCACertFile, croTry, croNo, FCAPkeyPw);
+        if NOT FNewSslCert.IsPKeyLoaded then begin
             if (FCAPkeyFile = '') or (NOT FileExists(FCAPkeyFile)) then begin
                 LogEvent('Can Not Find Own CA Private Key File: ' + FCAPkeyFile);
                 Exit;
             end;
-            FSslCert.PrivateKeyLoadFromPemFile(FCAPkeyFile, FCAPkeyPw);
+            FNewSslCert.PrivateKeyLoadFromPemFile(FCAPkeyFile, FCAPkeyPw);
         end;
-        if NOT FSslCert.IsCertLoaded then begin
+        if NOT FNewSslCert.IsCertLoaded then begin
             LogEvent('No Certificate Loaded');
             exit;
         end;
-        if Pos ('CA=TRUE', FSslCert.BasicConstraints) = 0 then begin
+        if Pos ('CA=TRUE', FNewSslCert.BasicConstraints) = 0 then begin
             LogEvent('Certificate is not a CA');
             exit;
         end;
-        if NOT FSslCert.SelfSigned then  // need to add intermediate CA to bundle
-            FNewInterLines := FSslCert.SaveCertToText(False);
-        FSslCert.X509CA := FSslCert.X509;
-        FSslCert.PrivKeyCA := FSslCert.PrivateKey;
+        if NOT FNewSslCert.SelfSigned then  // need to add intermediate CA to bundle
+            FNewInterLines := FNewSslCert.SaveCertToText(False);
+        FNewSslCert.X509CA := FNewSslCert.X509;
+        FNewSslCert.PrivKeyCA := FNewSslCert.PrivateKey;
         LogEvent('Loaded Own Certificate Authority OK' + IcsCRLF +
-                                                FSslCert.CertInfo(False));
+                                                FNewSslCert.CertInfo(False));
         Result := True;
     except
         on E:Exception do begin
@@ -6930,12 +7163,14 @@ function TSslX509Certs.OwnCASign: Boolean;
 begin
     Result := False;
     LogTimeStamp;
-    DBReadAccount(FDirCertWork, False);  // ignore errors
-    if NOT DirectoryExists(FDirCertWork) then begin
-        LogEvent('Can Not Find Work Directory: ' + FDirCertWork);
-        Exit;
+    LogEvent ('Checking Account Directory: ' + FDirCertWork);
+    if NOT ForceDirectories(FDirCertWork) then begin
+        LogEvent ('Failed to Create Directory: ' + FDirCertWork);
+        exit;
     end;
-    if NOT FSslCert.IsCALoaded then begin
+    if NOT DBOpenINI(FDirCertWork, True) then Exit;
+    DBReadAccount(FDirCertWork, False);  // ignore errors
+    if NOT FNewSslCert.IsCALoaded then begin
         LogEvent('Must Specify CA Certificate First');
         exit;
     end;
@@ -6944,7 +7179,7 @@ begin
     if NOT DBWriteAccount then Exit;
 
 // see if using details from old CSR
-    FSslCert.DoClearCerts;
+    FNewSslCert.DoClearCerts;
     if FCertCsrOrigin = CsrOriginFile then begin
         if NOT CheckCSR(True) then Exit;  // sets CommonName and SANs
     end;
@@ -6966,36 +7201,37 @@ begin
 
  // create CSR and private key
 // work file names, in account directory, with orderid (no work names)
-    fSslCert.ClearAll;
+// fails if can not create directories
+    FNewSslCert.ClearAll;
     fSuppOrderId := '';
-    if NOT SetPartFNames (true) then Exit ;
+    if NOT SetPartFNames (False) then Exit ;
     SetFullFileNames (FPartFNameWork) ;
 
 // create private key and certificate service request
     if NOT CreateKeyandReq then exit ;
 
 // set extensions
-    FSslCert.BasicIsCA := False;
-    FSslCert.ExpireDays := FCertValidity;
-    FSslCert.BasicPathLen := 0;
-    FSslCert.KeyCertSign := True;
-    FSslCert.KeyCRLSign := False;
-    FSslCert.KeyDigiSign := True;
-    FSslCert.KeyDataEnc := False;
-    FSslCert.KeyKeyEnc  := True;
-    FSslCert.KeyKeyAgree := False;
-    FSslCert.KeyNonRepud  := False;
-    FSslCert.KeyExtClient  := True;
-    FSslCert.KeyExtServer  := True;
-    FSslCert.KeyExtEmail  := False;
-    FSslCert.KeyExtCode := False;
+    FNewSslCert.BasicIsCA := False;
+    FNewSslCert.ExpireDays := FCertValidity;
+    FNewSslCert.BasicPathLen := 0;
+    FNewSslCert.KeyCertSign := True;
+    FNewSslCert.KeyCRLSign := False;
+    FNewSslCert.KeyDigiSign := True;
+    FNewSslCert.KeyDataEnc := False;
+    FNewSslCert.KeyKeyEnc  := True;
+    FNewSslCert.KeyKeyAgree := False;
+    FNewSslCert.KeyNonRepud  := False;
+    FNewSslCert.KeyExtClient  := True;
+    FNewSslCert.KeyExtServer  := True;
+    FNewSslCert.KeyExtEmail  := False;
+    FNewSslCert.KeyExtCode := False;
     if FCertSerNumType = SerNumRandom then
-        FSslCert.SerialNum := 0   // random serial
+        FNewSslCert.SerialNum := 0   // random serial
     else
-        FSslCert.SerialNum := FNewOrderNum;
+        FNewSslCert.SerialNum := FNewOrderNum;
     FSuppOrderId := IntToStr(FNewOrderNum);
     try
-        FSslCert.DoSignCertReq(False);
+        FNewSslCert.DoSignCertReq(False);
         LogEvent('Created Certificate Signed by Own CA Certificate OK');
     except
         on E:Exception do begin
@@ -7003,8 +7239,8 @@ begin
             Exit;
         end;
     end;
-    if NOT SetPartFNames (true) then Exit ;   // build file names with order id
-    fNewCertLines := FSslCert.SaveCertToText(False);
+    if NOT SetPartFNames (False) then Exit ;   // build file names with order id
+    fNewCertLines := FNewSslCert.SaveCertToText(False);
     LogEvent ('Certificate(s):' + IcsCRLF + fNewCertLines);
 
 // save lots of certificates in different formats and places
@@ -7012,10 +7248,10 @@ begin
 
 // add our new certificate to a database
     if Result then begin
-        FSslCert.CADBFile := FDirCertWork + FileCADB;
+        FNewSslCert.CADBFile := FDirCertWork + FileCADB;
         try
-            FSslCert.SaveToCADatabase(FFileFinalCert);
-            LogEvent('Updated CA Database: ' + FSslCert.CADBFile);
+            FNewSslCert.SaveToCADatabase(FFileFinalCert);
+            LogEvent('Updated CA Database: ' + FNewSslCert.CADBFile);
         except
             on E:Exception do begin
                 LogEvent('Failed to Write CA Database: ' + E.Message);

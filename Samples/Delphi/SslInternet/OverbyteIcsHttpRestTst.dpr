@@ -8,6 +8,7 @@ uses
 
 begin
   Application.Initialize;
+  Application.Title := 'ICS HTTPS REST and OAuth Demo';
   Application.CreateForm(THttpRestForm, HttpRestForm);
   Application.Run;
 end.

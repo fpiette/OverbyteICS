@@ -71,7 +71,7 @@ verify it, using a hash alogrithm.
 
 Updates:
 May 21, 2018  - 8.54 - baseline
-
+Oct 2, 2018   - 8.57 - build with FMX
 
 
 Pending
@@ -90,7 +90,9 @@ Implement RSA-PSS and Ed25519 (OpenSSL 1.1.1 and later).
 
 }
 
+{$IFNDEF ICS_INCLUDE_MODE}
 unit OverbyteIcsSslJose;
+{$ENDIF}
 
 {$I Include\OverbyteIcsDefs.inc}
 
@@ -123,7 +125,7 @@ uses
     {$Ifdef Rtl_Namespaces}System.Classes{$Else}Classes{$Endif},
     {$Ifdef Rtl_Namespaces}System.Sysutils{$Else}Sysutils{$Endif},
     {$IFDEF RTL_NAMESPACES}System.TypInfo{$ELSE}TypInfo{$ENDIF},
-    Overbyteicsssleay, Overbyteicslibeay,
+    OverbyteIcsSsleay, OverbyteIcsLibeay,
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsWSocket,
 {$ELSE}

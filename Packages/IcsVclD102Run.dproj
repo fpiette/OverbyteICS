@@ -207,7 +207,6 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsSslX509Utils.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsMsSslUtils.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsProxy.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsTicks64.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSslJose.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.pas"/>

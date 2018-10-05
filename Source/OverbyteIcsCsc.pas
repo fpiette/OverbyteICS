@@ -4,7 +4,7 @@ Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  TIcsCsc (Csc => Charset Context) provides string conversion and
               improved (Ansi) multi-byte character set routines.
 Creation:     Apr 25, 2010
-Version:      8.00
+Version:      8.57
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -39,6 +39,7 @@ History:
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 May 4, 2018 - V8.54 - keep D7 happy
+Oct 5, 2018 - V8.57 - Using IcsStrLen to resolve compiler warnings
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsCsc;
@@ -613,7 +614,7 @@ var
     Tmp : array [0..5] of WideChar;
 begin
     if InSize < 0 then
-        InSize := StrLen(PAnsiChar(InBuf)) + 1;
+        InSize := IcsStrLen(PAnsiChar(InBuf)) + 1; { V8.57 }
 
     Cnt := 0;
     while TRUE do
@@ -678,7 +679,7 @@ begin
     else
         OutCnt := OutSize div SizeOf(WideChar);
     if InSize < 0 then
-        InSize := StrLen(PAnsiChar(InBuf)) + 1;
+        InSize := IcsStrLen(PAnsiChar(InBuf)) + 1;     { V8.57 }
 
     InCnt := InSize;
     case ConvertINetMultibyteToUnicode(Csc.FToWcShiftState, Csc.CodePage,

@@ -4,11 +4,11 @@
 Author:       François PIETTE
 Object:       Mime support routines (RFC2045).
 Creation:     May 03, 2003  (Extracted from SmtpProt unit)
-Version:      8.51
+Version:      8.57
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2016 by François PIETTE
+Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -124,7 +124,7 @@ Aug 16, 2017 V8.50 - Angus TMimeTypesList always adds major missing standard MIM
                      AddContentType has option to ignore duplicate extensions to
                        avoid changing previous ones
 Nov 23, 2017 V8.51 - Angus fixed memory leak introduced in V8.50
-
+Oct 5, 2018  V8.57 - Added AnsiStrings to resolve compiler warnings
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMimeUtils;
@@ -175,14 +175,17 @@ uses
     {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.Math{$ELSE}Math{$ENDIF},
+{$IFDEF COMPILER18_UP}
+    {$IFDEF RTL_NAMESPACES}System.AnsiStrings{$ELSE}AnsiStrings{$ENDIF},
+{$ENDIF}
     OverbyteIcsTypes,
     OverbyteIcsUtils,
     OverbyteIcsCsc,
     OverbyteIcsCharsetUtils;
 
 const
-    TMimeUtilsVersion = 851;
-    CopyRight : String = ' MimeUtils (c) 2003-2017 F. Piette V8.51 ';
+    TMimeUtilsVersion = 857;
+    CopyRight : String = ' MimeUtils (c) 2003-2018 F. Piette V8.57 ';
 
     SmtpDefaultLineLength = 76; // without CRLF
     SMTP_SND_BUF_SIZE     = 2048;
@@ -1026,7 +1029,7 @@ begin
         SB[I] := Char(DataOut[I]);
     Result := SB.ToString;
 {$ELSE}
-    Result := StrPas(PAnsiChar(@DataOut[0]));
+    Result := IcsStrPas(PAnsiChar(@DataOut[0]));    { V8.57 }
 {$ENDIF}
 end;
 
@@ -1514,9 +1517,11 @@ begin
         //else begin
             if CurChar = BreakStr[1] then begin
                 if QuoteChar = #0 then begin
-                    ExistingBreak := StrLComp(PAnsiChar(BreakStr),
-                                              PAnsiChar(@Line[cPos]),
-                                              BreakLen) = 0;
+{$IFDEF COMPILER18_UP}
+                    ExistingBreak := System.AnsiStrings.StrLComp(PAnsiChar(BreakStr), PAnsiChar(@Line[cPos]), BreakLen) = 0;   { V8.57 }
+{$ELSE}
+                    ExistingBreak := StrLComp(PAnsiChar(BreakStr), PAnsiChar(@Line[cPos]), BreakLen) = 0;
+{$ENDIF}
                     if ExistingBreak then begin
                         Inc(cPos, BreakLen - 1);
                         BreakPos := cPos;

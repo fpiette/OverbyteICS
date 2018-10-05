@@ -19,6 +19,9 @@ package IcsFmxDXE7Run;
 {$R '..\Source\OverbyteIcsSslThrdLock.dcr'}
 {$R '..\Source\OverbyteIcsHttpAppServer.dcr'}
 {$R '..\Source\OverbyteIcsCharsetComboBox.dcr'}
+{$R '..\Source\OverbyteIcsProxy.dcr'}
+{$R '..\Source\OverbyteIcsSslX509Certs.dcr'}
+{$R '..\Source\OverbyteIcsSslHttpRest.dcr'}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
@@ -76,7 +79,13 @@ contains
   Ics.Fmx.OverbyteIcsThreadTimer in '..\Source\Ics.Fmx.OverbyteIcsThreadTimer.pas',
   Ics.Fmx.OverbyteIcsCharsetComboBox in '..\Source\Ics.Fmx.OverbyteIcsCharsetComboBox.pas',
   Ics.Posix.Messages in '..\Source\Ics.Posix.Messages.pas',
-  Ics.Fmx.OverbyteIcsIcmp in '..\Source\Ics.Fmx.OverbyteIcsIcmp.pas';
+  Ics.Fmx.OverbyteIcsIcmp in '..\Source\Ics.Fmx.OverbyteIcsIcmp.pas',
+  Ics.Fmx.OverbyteIcsProxy in '..\Source\Ics.Fmx.OverbyteIcsProxy.pas',
+  Ics.Fmx.OverbyteIcsSslX509Certs in '..\Source\Ics.Fmx.OverbyteIcsSslX509Certs.pas',
+  Ics.Fmx.OverbyteIcsSslHttpRest in '..\Source\Ics.Fmx.OverbyteIcsSslHttpRest.pas',
+  Ics.Fmx.OverbyteIcsMsSslUtils in '..\Source\Ics.Fmx.OverbyteIcsMsSslUtils.pas',
+  Ics.Fmx.OverbyteIcsSslX509Utils in '..\Source\Ics.Fmx.OverbyteIcsSslX509Utils.pas',
+  Ics.Fmx.OverbyteIcsSslJose in '..\Source\Ics.Fmx.OverbyteIcsSslJose.pas';
 
 end.
 

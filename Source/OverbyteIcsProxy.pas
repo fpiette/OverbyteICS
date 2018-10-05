@@ -3,13 +3,13 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Forward and Reverse SSL HTTP Proxy
 Creation:     May 2017
-Updated:      Sept 2018
+Updated:      Oct 2018
 Version:      8.57
 Sponsor:      This component was sponsored in part by Avenir Health and
               Banxia Software Ltd. http://www.avenirhealth.org
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
-Legal issues: Copyright (C) 1997-2017 by François PIETTE
+Legal issues: Copyright (C) 1997-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -181,7 +181,7 @@ Updates:
                       Post data now calls onHttpReqBody event
                       Don't try and access Windows cert store on MacOS, etc
 Jul 2, 2018  V8.55 - Builds with NO_DEBUG_LOG
-Sep 25, 2018 V8.57 - Added OnSslAlpnSelect called after OnSslServerName for HTTP/2
+Oct 2, 2018  V8.57 - Added OnSslAlpnSelect called after OnSslServerName for HTTP/2
                      INI file reads CertVerTar, DebugLevel and TarSecLevel to be
                        read as typed literals as well as numeric values.
                      Added SslCliCertMethod to allow server to request a client
@@ -196,14 +196,17 @@ Sep 25, 2018 V8.57 - Added OnSslAlpnSelect called after OnSslServerName for HTTP
                        OverbyteIcsX509CertsTst sample application).
                     Note certificate ordering currently only works with Proto=HTTP.
                     INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays.
+                    Support FMX
+
 
 pending...
 Test Transfer-Encoding: gzip, chunked
 Proxy statistics
-
 }
 
+{$IFNDEF ICS_INCLUDE_MODE}
 unit OverbyteIcsProxy;
+{$ENDIF}
 
 {$I Include\OverbyteIcsDefs.inc}
 
@@ -228,7 +231,6 @@ uses
     {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.TypInfo{$ELSE}TypInfo{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
-    OverbyteIcsMsSslUtils, OverbyteIcsWinCrypt,     { V8.50 }
 {$ENDIF}
 {$IFDEF POSIX}
     Posix.Time,
@@ -238,8 +240,7 @@ uses
     {$Ifdef Rtl_Namespaces}System.Classes{$Else}Classes{$Endif},
     {$Ifdef Rtl_Namespaces}System.Sysutils{$Else}Sysutils{$Endif},
     {$IFDEF Rtl_Namespaces}System.StrUtils{$ELSE}StrUtils{$ENDIF},
-    Overbyteicsssleay, Overbyteicslibeay,
-    OverbyteIcsSslSessionCache,
+    OverbyteIcsSsleay, OverbyteIcsLibeay,
     {$I Include\OverbyteIcsZlib.inc}
     OverbyteIcsZlibHigh,
     {$IFDEF USE_ZLIB_OBJ}
@@ -248,17 +249,24 @@ uses
         OverbyteIcsZLibDll,     {interface to access zLib1.dll}
     {$ENDIF}
     OverbyteIcsLogger,
- // OverbyteIcsStreams,
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsWndControl,
     Ics.Fmx.OverbyteIcsWSocket,
     Ics.Fmx.OverbyteIcsWSocketS,
+    Ics.Fmx.OverbyteIcsSslSessionCache,
+    Ics.Fmx.OverbyteIcsMsSslUtils,     { V8.57 }
+    Ics.Fmx.OverbyteIcsSslX509Certs,   { V8.57 }
 {$ELSE}
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
     OverbyteIcsWSocketS,
+    OverbyteIcsSslSessionCache,
+    OverbyteIcsMsSslUtils,      { V8.57 }
+    OverbyteIcsSslX509Certs,    { V8.57 }
 {$ENDIF FMX}
-    OverbyteIcsSslX509Certs,  { V8.57 }
+{$IFDEF MSWINDOWS}
+    OverbyteIcsWinCrypt,
+{$ENDIF MSWINDOWS}
     OverbyteIcsTypes,
     OverbyteIcsMimeUtils,
     OverbyteIcsFormDataDecoder,

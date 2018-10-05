@@ -9,7 +9,7 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     Apr 2018
-Updated:      Sept 2018
+Updated:      Oct 2018
 Version:      8.57
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -302,14 +302,14 @@ within 30 days, and certificates revoked if necessary.
 Updates:
 May 22, 2018  - V8.54 - baseline
 July 03, 2018 - V8.55 - don't load LoadCATrust in Create, it loads OpenSSL in IDE.
-Sep 25, 2018  - V8.57 - Added database for domains and challenges (INI file).
+Oct 2, 2018   - V8.57 - Added database for domains and challenges (INI file).
                         Added challenges for local web server, FTP and DNS server.
                         Order AcmeV2 certificates with multiple SANs or wildcard.
                         Order CertCentre orders with multiple SANs.
                         Automatic order completion when challenge completed.
                         Added own CA to issue local certificates.
                         Use own CSR and PKey instead of creating them new.
-
+                        Builds with FMX 
 
 
 Pending - more documentation
@@ -360,11 +360,12 @@ uses
     {$Ifdef Rtl_Namespaces}System.Classes{$Else}Classes{$Endif},
     {$Ifdef Rtl_Namespaces}System.Sysutils{$Else}Sysutils{$Endif},
     {$IFDEF RTL_NAMESPACES}System.TypInfo{$ELSE}TypInfo{$ENDIF},
-    Overbyteicsssleay, Overbyteicslibeay,
+    OverbyteIcsSsleay, OverbyteIcsLibeay,
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsWndControl,
     Ics.Fmx.OverbyteIcsWSocket,
     Ics.Fmx.OverbyteIcsHttpProt,
+    Ics.Fmx.OverbyteIcsSslJose,
     Ics.Fmx.OverbyteIcsSslHttpRest,
     Ics.Fmx.OverbyteIcsSslX509Utils,
     Ics.Fmx.OverbyteIcsMsSslUtils,
@@ -372,6 +373,7 @@ uses
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
     OverbyteIcsHttpProt,
+    OverbyteIcsSslJose,
     OverbyteIcsSslHttpRest,
     OverbyteIcsSslX509Utils,
     OverbyteIcsMsSslUtils,
@@ -382,8 +384,7 @@ uses
     OverbyteIcsLogger,     { for TLogOption }
     OverbyteIcsUrl,
     OverbyteIcsMimeUtils,
-    OverbyteIcsSuperObject,
-    OverbyteIcsSslJose;
+    OverbyteIcsSuperObject;
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
 

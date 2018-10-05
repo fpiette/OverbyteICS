@@ -202,6 +202,9 @@
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsIcmp.pas">
             <BuildOrder>44</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsMsSslUtils.pas">
+            <BuildOrder>48</BuildOrder>
+        </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsMultipartFtpDownloader.pas">
             <BuildOrder>8</BuildOrder>
         </DelphiCompile>
@@ -217,17 +220,32 @@
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsPop3Prot.pas">
             <BuildOrder>12</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsProxy.pas">
+            <BuildOrder>45</BuildOrder>
+        </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSmtpProt.pas">
             <BuildOrder>13</BuildOrder>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSocketUtils.pas">
             <BuildOrder>14</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSslHttpRest.pas">
+            <BuildOrder>49</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSslJose.pas">
+            <BuildOrder>46</BuildOrder>
+        </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSslSessionCache.pas">
             <BuildOrder>16</BuildOrder>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSslThrdLock.pas">
             <BuildOrder>17</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSslX509Certs.pas">
+            <BuildOrder>50</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSslX509Utils.pas">
+            <BuildOrder>47</BuildOrder>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsThreadTimer.pas">
             <BuildOrder>18</BuildOrder>
@@ -359,6 +377,12 @@
                 </Excluded_Packages>
             </CPlusPlusBuilder.Personality>
             <Deployment Version="3">
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\19.0\BPL\Win32\IcsFmxCB102Run.bpl" Configuration="Release" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>IcsFmxCB102Run.bpl</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile Condition="'$(DynamicRTL)'=='true' And '$(Multithreaded)'=='true'" LocalName="$(BDS)\bin\cc32c250mt.dll" Class="DependencyModule">
                     <Platform Name="Win32">
                         <Overwrite>true</Overwrite>

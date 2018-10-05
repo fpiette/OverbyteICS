@@ -435,7 +435,7 @@ Aug 10, 2017 V8.50 Fixed bug setting WebRedirectStat
                    Fixed bug that first IcsHost could not be SSL
                    Internal FSslEnable now FHttpSslEnable to ease confusion
 Jul 6, 2018  V8.56 Added OnSslAlpnSelect called after OnSslServerName for HTTP/2
-Sep 25, 2018 V8.57 Added SslCliCertMethod to allow server to request a client
+Oct 2, 2018  V8.57  Added SslCliCertMethod to allow server to request a client
                        SSL certificate from the browser, NOTE you should check it
                        the OnSslHandshakeDone event and close the connection if
                        invalid, beware this usually causes the browser to request
@@ -509,7 +509,6 @@ uses
 { Either in OverbyteIcsDefs.inc or in the project/package options.          }
 {$IFDEF USE_SSL}
     OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
-    OverbyteIcsSslX509Certs,  { V8.57 }
 {$ENDIF}
     {$I Include\OverbyteIcsZlib.inc} { V7.20 }
     OverbyteIcsZlibHigh,     { V7.20 }
@@ -532,6 +531,13 @@ uses
     OverbyteIcsWSocket,
     OverbyteIcsWSocketS,
 {$ENDIF FMX}
+{$IFDEF USE_SSL}
+{$IFDEF FMX}
+    Ics.Fmx.OverbyteIcsSslX509Certs,  { V8.57 }
+{$ELSE}
+    OverbyteIcsSslX509Certs,  { V8.57 }
+{$ENDIF}
+{$ENDIF}
 
 {$IFDEF USE_NTLM_AUTH}
     OverbyteIcsSspi,

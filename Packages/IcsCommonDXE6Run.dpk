@@ -85,7 +85,8 @@ contains
   OverbyteIcsCryptUiApi in '..\Source\OverbyteIcsCryptUiApi.pas',
   OverbyteIcsWinCrypt in '..\Source\OverbyteIcsWinCrypt.pas',
   OverbyteIcsIniFiles in '..\Source\OverbyteIcsIniFiles.pas',
-  OverbyteIcsSuperObject in '..\Source\OverbyteIcsSuperObject.pas';
+  OverbyteIcsSuperObject in '..\Source\OverbyteIcsSuperObject.pas',
+  OverbyteIcsTicks64 in '..\Source\OverbyteIcsTicks64.pas';
 
 end.
 

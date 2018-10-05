@@ -156,6 +156,9 @@
         <DCCReference Include="..\Source\OverbyteIcsSslThrdLock.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsHttpAppServer.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsCharsetComboBox.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsProxy.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.dcr"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="fmx.dcp"/>
         <DCCReference Include="IcsCommonDXE8Run.dcp"/>
@@ -182,6 +185,12 @@
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsCharsetComboBox.pas"/>
         <DCCReference Include="..\Source\Ics.Posix.Messages.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsIcmp.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSslX509Certs.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSslHttpRest.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsMsSslUtils.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSslX509Utils.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSslJose.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsProxy.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_Release</Key>
             <CfgParent>Base</CfgParent>

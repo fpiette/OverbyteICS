@@ -267,6 +267,9 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DelphiCompile Include="..\Source\OverbyteIcsSuperObject.pas">
             <BuildOrder>52</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\OverbyteIcsTicks64.pas">
+            <BuildOrder>53</BuildOrder>
+        </DelphiCompile>
         <ResFiles Include="..\Source\OverbyteIcsTimeList.dcr">
             <BuildOrder>33</BuildOrder>
         </ResFiles>

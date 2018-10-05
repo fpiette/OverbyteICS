@@ -1,3 +1,4 @@
+{ Oct 5, 2018 - V8.57 - fixed compiler hints in GetProc }
 const
   GWsDLLName      = 'wsock32.dll';      { 32 bits TCP/IP system DLL }
   GWs2DLLName     = 'ws2_32.dll';       { 32 bits TCP/IP system DLL version 2}
@@ -276,10 +277,9 @@ var
     LastError : Longint;
 begin
     { Prevents compiler warning "Return value might be undefined"  }
-{$IFNDEF DELPHI25_UP}
+  {$IFNDEF COMPILER24_UP}
     Result := nil;
-{$ENDIF}
-
+  {$ENDIF}
     EnterCriticalSection(GWSockCritSect);
     try
         if GWsDLLHandle = 0 then begin
@@ -310,9 +310,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function GetProc2(const ProcName : AnsiString) : Pointer;
 begin
-{$IFNDEF DELPHI25_UP}
+  {$IFNDEF COMPILER24_UP}
     Result := nil;
-{$ENDIF}
+  {$ENDIF}
     EnterCriticalSection(GWSockCritSect);
     try
         if GWs2DLLHandle = 0 then begin
@@ -340,9 +340,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function GetProc3(const ProcName : AnsiString) : Pointer;
 begin
-{$IFNDEF DELPHI25_UP}
+  {$IFNDEF COMPILER24_UP}
     Result := nil;
-{$ENDIF}
+  {$ENDIF}
     EnterCriticalSection(GWSockCritSect);
     try
         if GWs2IPv6ProcHandle = 0 then begin

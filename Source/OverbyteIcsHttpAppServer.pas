@@ -113,9 +113,10 @@ May 30, 2017 V8.48 PostDispatchVirtualDocument was broken in last update
 Jul 5, 2017  V8.49 Start is now a function, see HttpSrv
 Aug 10, 2017 V8.50 Corrected onSslServerName to OnSslServerName to keep C++ happy
 Jul 6, 2018  V8.56 Added OnSslAlpnSelect called after OnSslServerName for HTTP/2.
-Sep 25, 2018 V8.57 INI file now reads Options as enumerated type literals,
+Oct 2, 2018  V8.57 INI file now reads Options as enumerated type literals,
                      ie Options=[hoContentEncoding,hoAllowDirList,hoSendServerHdr,hoAllowPut]
                    INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays
+                   FSessionTimer is now TIcsTimer so Vcl.ExtCtrls can disappear
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
@@ -160,17 +161,16 @@ uses
   OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
 {$IFDEF FMX}
     FMX.Types,
+    Ics.Fmx.OverbyteIcsWndControl,
     Ics.Fmx.OverbyteIcsWSocket,
     Ics.Fmx.OverbyteIcsHttpSrv,
 {$ELSE}
-    {$IFDEF RTL_NAMESPACES}Vcl.ExtCtrls{$ELSE}ExtCtrls{$ENDIF},
+//    {$IFDEF RTL_NAMESPACES}Vcl.ExtCtrls{$ELSE}ExtCtrls{$ENDIF},  { V8.57 }
+    OverbyteIcsWndControl,       { V8.57 }
     OverbyteIcsWSocket,
     OverbyteIcsHttpSrv,
 {$ENDIF}
     {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
-{$IFDEF USE_SSL}
-//    OverbyteIcsSslX509Certs,  { V8.57 }
-{$ENDIF}
     OverbyteIcsWebSession,
     OverbyteIcsUtils,
     OverbyteIcsFormDataDecoder;
@@ -370,7 +370,7 @@ type
         FPostHandler     : THttpHandlerList;
         FGetAllowedPath  : THttpAllowedPath;
         FWSessions       : TWebSessions;
-        FSessionTimer    : TTimer;
+        FSessionTimer    : TIcsTimer;  { V8.57 }
         FMsg_WM_FINISH   : UINT;
         FHasAllocateHWnd : Boolean;
         FOnDeleteSession : TDeleteSessionEvent;
@@ -527,7 +527,7 @@ begin
     FWSessions                 := TWebSessions.Create(nil);
     FWSessions.OnDeleteSession := DeleteSessionHandler;
     FClientClass               := THttpAppSrvConnection;
-    FSessionTimer              := TTimer.Create(nil);
+    FSessionTimer              := TIcsTimer.Create(nil);    { V8.57 }
     FSessionTimer.Enabled      := FALSE;
     FSessionTimer.OnTimer      := SessionTimerHandler;
 {$IFDEF USE_SSL}

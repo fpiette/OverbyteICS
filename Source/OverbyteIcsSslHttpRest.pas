@@ -12,7 +12,7 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      Sep 2018
+Updated:      Oct 2018
 Version:      8.57
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -134,8 +134,8 @@ Updates:
 May 21, 2018  - V8.54 - baseline
 Jul  2, 2018  - V8.55 - Improved Json error handling
                        Builds with NO_DEBUG_LOG
-Sep 25, 2018  - V8.57 - Need OAuth local web server for all auth methods.
-
+Oct 2, 2018   - V8.57 - Need OAuth local web server for all auth methods.
+                        Builds with FMX 
 
 
 Pending - Simple web server now less simple to supports SSL and ALPN
@@ -181,7 +181,7 @@ uses
     {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.Sysutils{$ELSE}Sysutils{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.TypInfo{$ELSE}TypInfo{$ENDIF},
-    Overbyteicsssleay, Overbyteicslibeay,
+    OverbyteIcsSsleay, OverbyteIcsLibeay,
     OverbyteIcsTypes,
     OverbyteIcsUtils,
     OverbyteIcsUrl,
@@ -190,15 +190,19 @@ uses
     Ics.Fmx.OverbyteIcsWSocket,
     Ics.Fmx.OverbyteIcsWSocketS,
     Ics.Fmx.OverbyteIcsHttpProt,
+    Ics.Fmx.OverbyteIcsSslSessionCache,
     Ics.Fmx.OverbyteIcsSslX509Utils,
     Ics.Fmx.OverbyteIcsMsSslUtils,
+    Ics.Fmx.OverbyteIcsSslJose,
 {$ELSE}
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
     OverbyteIcsWSocketS,
     OverbyteIcsHttpProt,
+    OverbyteIcsSslSessionCache,
     OverbyteIcsSslX509Utils,
     OverbyteIcsMsSslUtils,
+    OverbyteIcsSslJose,
 {$ENDIF FMX}
 {$IFDEF MSWINDOWS}
     OverbyteIcsWinCrypt,
@@ -207,12 +211,10 @@ uses
     OverbyteIcsHttpContCod,
     OverbyteIcsLogger,
     OverbyteIcsCookies,
-    OverbyteIcsSslSessionCache,
     OverbyteIcsMimeUtils,
     OverbyteIcsFormDataDecoder,
     OverbyteIcsCharsetUtils,
-    OverbyteIcsSuperObject,
-    OverbyteIcsSslJose;
+    OverbyteIcsSuperObject;
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
 

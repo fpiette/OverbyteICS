@@ -71,11 +71,11 @@
     <PropertyGroup Condition="'$(Base)'!=''">
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <_TCHARMapping>wchar_t</_TCHARMapping>
-        <DCC_ObjOutput>..\Lib\$(Config)\$(Platform)\103</DCC_ObjOutput>
+        <DCC_ObjOutput>..\Lib\$(Config)\$(Platform)\102</DCC_ObjOutput>
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(BDSLIB)\$(PLATFORM)\release;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-        <DCC_HppOutput>..\source\include\103\$(Platform)</DCC_HppOutput>
+        <DCC_HppOutput>..\source\include\102\$(Platform)</DCC_HppOutput>
         <IncludePath>..\Source\;..\Lib\$(Config)\$(Platform);$(IncludePath)</IncludePath>
-        <ILINK_Description>Overbyte ICS FMX Run-Time Package for C++ Builder 10.3 Tokyo</ILINK_Description>
+        <ILINK_Description>Overbyte ICS FMX Run-Time Package for C++ Builder 10.2 Tokyo</ILINK_Description>
         <ILINK_LibraryPath>..\Source\;..\Lib\$(Config)\$(Platform);$(ILINK_LibraryPath)</ILINK_LibraryPath>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
@@ -202,6 +202,9 @@
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsIcmp.pas">
             <BuildOrder>44</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsMsSslUtils.pas">
+            <BuildOrder>48</BuildOrder>
+        </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsMultipartFtpDownloader.pas">
             <BuildOrder>8</BuildOrder>
         </DelphiCompile>
@@ -217,17 +220,32 @@
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsPop3Prot.pas">
             <BuildOrder>12</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsProxy.pas">
+            <BuildOrder>45</BuildOrder>
+        </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSmtpProt.pas">
             <BuildOrder>13</BuildOrder>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSocketUtils.pas">
             <BuildOrder>14</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSslHttpRest.pas">
+            <BuildOrder>49</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSslJose.pas">
+            <BuildOrder>46</BuildOrder>
+        </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSslSessionCache.pas">
             <BuildOrder>16</BuildOrder>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSslThrdLock.pas">
             <BuildOrder>17</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSslX509Certs.pas">
+            <BuildOrder>50</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSslX509Utils.pas">
+            <BuildOrder>47</BuildOrder>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsThreadTimer.pas">
             <BuildOrder>18</BuildOrder>
@@ -359,6 +377,12 @@
                 </Excluded_Packages>
             </CPlusPlusBuilder.Personality>
             <Deployment Version="3">
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\19.0\BPL\Win32\IcsFmxCB103Run.bpl" Configuration="Release" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>IcsFmxCB103Run.bpl</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile Condition="'$(DynamicRTL)'=='true' And '$(Multithreaded)'=='true'" LocalName="$(BDS)\bin\cc32c250mt.dll" Class="DependencyModule">
                     <Platform Name="Win32">
                         <Overwrite>true</Overwrite>

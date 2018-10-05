@@ -13,6 +13,9 @@ Sep 2013   V8.03 - Angus added TSmtpSrv and TSslSmtpSrv
 May 2017   V8.45 - Angus added TIcsProxy, TIcsHttpProxy
 Apr 2018   V8.54 - Angus added TSslHttpRest, TSimpleWebSrv and TRestOAuth
 May 2018   V8.54 - Angus added TSslX509Certs
+Oct 2018   V8.57 - New components now installed for FMX and VCL
+                   Added subversion to sIcsLongProductName for splash screen
+
 }
 
 
@@ -68,6 +71,9 @@ uses
     {$IFDEF USE_SSL}
       Ics.Fmx.OverbyteIcsSslSessionCache,
       Ics.Fmx.OverbyteIcsSslThrdLock,
+      Ics.Fmx.OverbyteIcsProxy,
+      Ics.Fmx.OverbyteIcsSslHttpRest,
+      Ics.Fmx.OverbyteIcsSslX509Certs,
     {$ENDIF}
     Ics.Fmx.OverbyteIcsWSocketE,
     Ics.Fmx.OverbyteIcsWSocketS,
@@ -93,6 +99,9 @@ uses
     {$IFDEF USE_SSL}
       OverbyteIcsSslSessionCache,
       OverbyteIcsSslThrdLock,
+      OverbyteIcsProxy,
+      OverbyteIcsSslHttpRest,
+      OverbyteIcsSslX509Certs,
     {$ENDIF}
     OverbyteIcsWSocketE,
     OverbyteIcsWSocketS,
@@ -103,9 +112,6 @@ uses
     // VCL only
     OverbyteIcsMultiProgressBar,
     OverbyteIcsEmulVT, OverbyteIcsTnCnx, OverbyteIcsTnEmulVT, OverbyteIcsTnScript,
-    OverbyteIcsProxy,
-    OverbyteIcsSslHttpRest,
-    OverbyteIcsSslX509Certs,
     {$IFNDEF BCB}
       OverbyteIcsWSocketTS,
     {$ENDIF}
@@ -216,17 +222,17 @@ begin
       TSslSmtpCli, TSslHtmlSmtpCli,
       TSslNntpCli,
       TSslAvlSessionCache,
+      TIcsProxy,
+      TIcsHttpProxy,
+      TSslHttpRest,   { V8.54 }
+      TSimpleWebSrv,  { V8.54 }
+      TRestOAuth,     { V8.54 }
+      TSslX509Certs,  { V8.54 }
     {$IFDEF VCL}
       {$IFNDEF BCB}
         TSslWSocketThrdServer,
       {$ENDIF}
         TSslSmtpServer,
-        TIcsProxy,
-        TIcsHttpProxy,
-        TSslHttpRest,   { V8.54 }
-        TSimpleWebSrv,  { V8.54 }
-        TRestOAuth,     { V8.54 }
-        TSslX509Certs,  { V8.54 }
     {$ENDIF VCL}
     {$IFNDEF NO_DYNLOCK}
       TSslDynamicLock,
@@ -269,10 +275,10 @@ const
         sIcsSplashImg   = 'ICSPRODUCTICON';
     {$ENDIF}
 {$ENDIF}
-    sIcsLongProductName = 'Internet Component Suite V8';
+    sIcsLongProductName = 'Internet Component Suite V8.57';
     sIcsFreeware        = 'Freeware';
     sIcsDescription     = sIcsLongProductName + #13#10 +
-                          //'Copyright (C) 1996-2012 by François PIETTE'+ #13#10 +
+                          //'Copyright (C) 1996-2018 by François PIETTE'+ #13#10 +
                           // Actually there's source included with different
                           // copyright, so either all or none should be mentioned
                           // here.

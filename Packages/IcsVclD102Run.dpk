@@ -105,9 +105,8 @@ contains
   OverbyteIcsSslX509Utils in '..\Source\OverbyteIcsSslX509Utils.pas',
   OverbyteIcsMsSslUtils in '..\Source\OverbyteIcsMsSslUtils.pas',
   OverbyteIcsProxy in '..\Source\OverbyteIcsProxy.pas',
-  OverbyteIcsTicks64 in '..\Source\OverbyteIcsTicks64.pas',
-  OverbyteIcsSslJose in '..\Source\OverbyteIcsSslJose.pas',
   OverbyteIcsSslHttpRest in '..\Source\OverbyteIcsSslHttpRest.pas',
+  OverbyteIcsSslJose in '..\Source\OverbyteIcsSslJose.pas',
   OverbyteIcsSslX509Certs in '..\Source\OverbyteIcsSslX509Certs.pas';
 
 end.

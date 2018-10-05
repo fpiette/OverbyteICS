@@ -332,9 +332,6 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DelphiCompile Include="..\Source\OverbyteIcsThreadTimer.pas">
             <BuildOrder>60</BuildOrder>
         </DelphiCompile>
-        <DelphiCompile Include="..\Source\OverbyteIcsTicks64.pas">
-            <BuildOrder>74</BuildOrder>
-        </DelphiCompile>
         <ResFiles Include="..\Source\OverbyteIcsTnCnx.dcr">
             <BuildOrder>43</BuildOrder>
         </ResFiles>

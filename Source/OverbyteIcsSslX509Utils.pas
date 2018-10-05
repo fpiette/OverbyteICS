@@ -100,12 +100,12 @@ Feb 21, 2018 V8.52 Added DigiCert Global Root G2 and G3 root certificates
 Mar 27, 2018 V8.53 Added GlobalSign Root CA - R2 and GlobalSign ECC Root CA - R5
                 root certificates, R2 used by Google.
              Added DST Root CA X3 root, used by Let's Encrypt crossed signing
-Aug 28, 2018 V8.57 tidy up UnwrapNames.
+Oct 2, 2018  V8.57 tidy up UnwrapNames.
              DoSelfSignCert can now use a CSR instead of properties
              Added DoClearCA
              Added SaveToCADatabase which saves CA database entry to CADBFile
              Added COMODO ECC Certification Authority root
-
+             Build with FMX 
 
 
 Pending - long term

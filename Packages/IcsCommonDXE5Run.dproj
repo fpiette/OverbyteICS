@@ -179,6 +179,7 @@
         <DCCReference Include="..\Source\OverbyteIcsLibeayex.Pas" />
         <DCCReference Include="..\Source\OverbyteIcsWincrypt.Pas" />
         <DCCReference Include="..\Source\OverbyteIcsSuperObject.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsTicks64.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

@@ -1282,7 +1282,7 @@ Jul 14, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
                        may be selected (ie H2 to support HTTP/2).
                     Added IPv6 support for TCustomSocksWSocket and
                        TCustomHttpTunnelWSocket, thanks to Max Terentiev.
-Sep 25, 2018 V8.57  Tidy up UnwrapNames.
+Oct 5, 2018  V8.57  Tidy up UnwrapNames.
                     WriteIntersToBio now ignores self signed certificate which
                        are roots not an intermediate.
                     Added TSslCliCertMethod so an SSL server asks a client to
@@ -1292,7 +1292,7 @@ Sep 25, 2018 V8.57  Tidy up UnwrapNames.
                     ValidateCertChain ExpireDays warning now configurable,
                       defaults to 30 days, used to order new certificates.
                     Moved some SSL types and lits to OverbyteIcsSSLEAY.
-
+                    Fixed compiler hints in GetProc
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -14806,7 +14806,7 @@ begin
     LockGetSessCB.Enter;
     try
 {$ENDIF}
-{$IFNDEF DELPHI25_UP}
+{$IFNDEF COMPILER25_UP}
         Result := nil;
 {$ENDIF}
         Obj := TCustomSslWSocket(f_SSL_get_ex_data(SSL, 0));
@@ -17479,7 +17479,7 @@ var
 begin
     Result := '';
 {$IFNDEF WIN64}    { V7.81 }
-  {$IFNDEF DELPHI24_UP}
+  {$IFNDEF COMPILER24_UP}
     Entry  := nil;
   {$ENDIF}
 {$ENDIF}
@@ -18525,7 +18525,7 @@ var
 begin
     Result := '';
 {$IFNDEF WIN64}
-  {$IFNDEF DELPHI24_UP}
+  {$IFNDEF COMPILER24_UP}
     Entry  := nil; { Make dcc32 happy }
   {$ENDIF}
 {$ENDIF}

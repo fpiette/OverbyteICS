@@ -126,6 +126,10 @@
         <DCCReference Include="..\Source\OverbyteIcsSslThrdLock.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsHttpAppServer.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsCharsetComboBox.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsProxy.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.dcr"/>
+        <DCCReference Include="..\Source\OverbyteIcsProxy.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.dcr"/>
         <DCCReference Include="rtl.dcp"/>
@@ -135,8 +139,8 @@
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsWSocket.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsFtpCli.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsFtpSrv.pas"/>
-        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsWSocketS.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsHttpProt.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsWSocketS.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSmtpProt.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsPop3Prot.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsNntpCli.pas"/>
@@ -154,12 +158,12 @@
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsCharsetComboBox.pas"/>
         <DCCReference Include="..\Source\Ics.Posix.Messages.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsIcmp.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsTicks64.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsSslJose.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSslX509Certs.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSslHttpRest.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsMsSslUtils.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSslX509Utils.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSslJose.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsProxy.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_Debug</Key>
             <CfgParent>Base</CfgParent>

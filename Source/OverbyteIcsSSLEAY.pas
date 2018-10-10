@@ -120,10 +120,10 @@ Nov 22, 2017  V8.51 Testing OpenSSL 1.1.1 that adds TLS/1.3
               Added more constants and functions for 1.1.1, f_SSL_xx_groups
 Feb 27, 2018  V8.52 Added more EVP functions for keys, hashing and signing
 Jun 20, 2018  V8.55 Testing with OpenSSL 1.1.1 beta
-Sep 25, 2018  V8.57 added APLN APIs and literals
+Oct 10, 2018  V8.57 added APLN APIs and literals
                     Support OpenSSL 1.1.1 final with TLS/1.3
                     Moved some SSL types and lits from Wsocket
-
+                    EVP_MAX_KEY_LENGTH now 64
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -209,7 +209,7 @@ const
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
-    EVP_MAX_KEY_LENGTH                = 32;       { 11/08/07 AG }
+    EVP_MAX_KEY_LENGTH                = 64;       { 11/08/07 AG  { V8.52 was 32 }
 
 { const - why were these variables ever declared as const??? }
 { V8.27 consolidated from LIBEAY so all in one place }
@@ -269,10 +269,6 @@ var
 const
  { found in \include\openssl\opensslv.h }
     //OSSL_VER_0906G = $0090607f; no longer supported
- {  OSSL_VER_0907G = $0090707f;
-    OSSL_VER_1000  = $10000000; // Untested, did not build with MinGW
-    OSSL_VER_1000D = $1000004f; // Might be still buggy, had to incl. one workaround so far, see TSslContext.InitContext
-    OSSL_VER_1000J = $100000af; // just briefly tested}
 
 { only supporting versions with TLS 1.1, 1.2 and 1.3 }
 { V8.27 moved from OverbyteIcsLIBEAY  }

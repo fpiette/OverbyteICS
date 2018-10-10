@@ -146,7 +146,7 @@ Feb 16, 2018  V8.52 Added more EVP functions for keys, hashing and signing
                     Fixed a problem with BIO_get_flags and 1.1.1 that caused SSL to
                       fail, thanks to Rui for finding this.
                     Ics_EVP_PKEY_dup now uses EVP_PKEY_up_ref for 1.1.0 up
-
+Oct 10, 2018  V8.57 Removed duplicate EVP_MAX lits
 
 
 
@@ -155,8 +155,8 @@ Several algorithms no longer provide adequate security, so will not be supported
 by ICS, including SSLv2, DSA keys, RSA keys less than 768 bits, DSS, MD5 and SHA1
 digests/hashes
 
-Preferred algorithms moving forward are TLS/1.2 and 1.3 (not yet), SHA224 or longer,
-RSA keys 2,048 or longer, ECDSA (EC) keys, ED25519 keys (not yet)
+Preferred algorithms moving forward are TLS/1.2 and 1.3, SHA224 or longer,
+RSA keys 2,048 or longer, ECDSA (EC) keys, ED25519 keys
 
 Notes - OpenSSL libeay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -1029,9 +1029,9 @@ const
     EVP_PKEY_RSA_PSS  = NID_rsassaPss; // 8.50
 
     EVP_MAX_MD_SIZE                   = 64; //* longest known is SHA512 */
-    EVP_MAX_KEY_LENGTH                = 64;  { V8.52 }
+ (*   EVP_MAX_KEY_LENGTH                = 64;  { V8.52 }  duplicates
     EVP_MAX_IV_LENGTH                 = 16;  { V8.52 }
-    EVP_MAX_BLOCK_LENGTH              = 32;  { V8.52 }
+    EVP_MAX_BLOCK_LENGTH              = 32;  { V8.52 }  *)
 
     { V8.40 some values for the EC_KEY encoding_flag }
     EC_PKEY_NO_PARAMETERS    = $01;

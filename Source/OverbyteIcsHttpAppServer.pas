@@ -113,7 +113,7 @@ May 30, 2017 V8.48 PostDispatchVirtualDocument was broken in last update
 Jul 5, 2017  V8.49 Start is now a function, see HttpSrv
 Aug 10, 2017 V8.50 Corrected onSslServerName to OnSslServerName to keep C++ happy
 Jul 6, 2018  V8.56 Added OnSslAlpnSelect called after OnSslServerName for HTTP/2.
-Oct 2, 2018  V8.57 INI file now reads Options as enumerated type literals,
+Oct 10, 2018 V8.57 INI file now reads Options as enumerated type literals,
                      ie Options=[hoContentEncoding,hoAllowDirList,hoSendServerHdr,hoAllowPut]
                    INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays
                    FSessionTimer is now TIcsTimer so Vcl.ExtCtrls can disappear
@@ -527,7 +527,7 @@ begin
     FWSessions                 := TWebSessions.Create(nil);
     FWSessions.OnDeleteSession := DeleteSessionHandler;
     FClientClass               := THttpAppSrvConnection;
-    FSessionTimer              := TIcsTimer.Create(nil);    { V8.57 }
+    FSessionTimer              := TIcsTimer.Create(Self);    { V8.57 }
     FSessionTimer.Enabled      := FALSE;
     FSessionTimer.OnTimer      := SessionTimerHandler;
 {$IFDEF USE_SSL}

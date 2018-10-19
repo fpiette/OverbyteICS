@@ -10,7 +10,7 @@ Description:  Automatically download SSL X509 certificates from various
               certificates may take days to be approved.
 Creation:     Apr 2018
 Updated:      Oct 2018
-Version:      8.57
+Version:      8.58
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
 Legal issues: Copyright (C) 2018 by Angus Robertson, Magenta Systems Ltd,
@@ -56,22 +56,22 @@ is cheaper than multiple certificates, wild card means any subdmains usually for
 the cost of about six single domains.
 
 Domain Validated certificate issuance is mostly automated so they are cheap (or
-free), using one of three challenge methods: file validation where the supplier
+free), using one of four challenge methods: file validation where the supplier
 checks for a specific file under the domain, usually http://domain/.well-known/file,
 domain validation where a special DNS record is created that can be accessed by
-the supplier, and email validation where an email is sent to a predefined address
-at the domain, ie admin@domain, with a supplier link that must be clicked to
-confirm receipt and domain ownership.  A fourth method Server Name Indication
-(SNI) validation has been used in the past which allows an SSL server to check
-a special domain name, but security weakness in some implementations mean this
-is not currently used.
+the supplier, TLS-ALPN SSL SNI (server name indication) validated where an
+https://domain/ connection is opened passing data using the ALPN extension, with
+the server returning a special self signed SSL certificate. and email validation
+where an email is sent to a predefined address at the domain, ie admin@domain,
+with a supplier link that must be clicked to confirm receipt and domain ownership.
 
-File and domain validation challenges can both be automated, file is easiest using
-a simple HTTP server, while domain validation is dependent on being able to access
-and control the DNS server of which there are many different products.  Note
-file validation challenges are not instant, the supplier may have a queue of
-challenges waiting to the tested, but usually happen without a couple of minutes.
-Applications need to be aware the wait may be longer.
+File, SNI and domain validation challenges can both be automated, file is easiest
+using a simple HTTP server, SNI using an HTTPS server, while domain validation is
+dependent on being able to access and control the DNS server of which there are
+many different products.  Note file validation challenges are not instant, the
+supplier may have a queue of challenges waiting to the tested, but usually happen
+within a couple of minutes. Applications need to be aware the wait may be longer.
+Automated wild card certificates typically use the domain validation challenge.
 
 Organisation and Extended Validated certificates can be ordered online, but
 require manual validation that the company or organisation legally exists and is
@@ -85,22 +85,30 @@ TSslX509Certs Overview
 
 The TSslX509Certs component automatically downloads SSL/TLS X509 certificates from
 various suppliers, including free certificates from Let's Encrypt, and commercial
-certificates for Digicert, Comodo, Thawte and GeoTrust from CertCentre AG and S
-ervertastic (not done yet).  The component
-automates the process from creating a new private key and certificate request,
-placing the order, arranging for domain validated certificates to be checked by
-various challenge methods, collecting the certificate and intermediate, creating
-PEM and PKC12 bundle files with the private key, then copying the files to the
-web server ready for automatic installation.
+certificates for Digicert, Comodo, Thawte and GeoTrust from CertCentre AG and
+Servertastic (not done yet).  The component  automates the process from creating
+a new private key and certificate request, placing the order, arranging for
+domain validated certificates to be checked by various challenge methods,
+collecting the certificate and intermediate, creating PEM and PKC12 bundle files
+with the private key, then copying the files to the web server ready for
+automatic installation. The TSslWSocketServer, TSslHttpServer, TSslHttpAppSrv,
+TIcsProxy and TIcsHttpProxy components can assign a TSslX509Certs component to
+support automatic certificate ordering of domain validated certificates with
+very little extra code.
 
 The component supports automated file challenge for Domain Validated certificates,
-initially using an external HTTP server to which files may be copied using UNC
-shares, but the next release will support a built-in HTTP server as well.  The
-application can also use an FTP server to copy files to an external HTTP server.
-DNS challenge currently require the application to update the DNS server, likewise
-email challenge needs an external email application.
+using an external HTTP server such as IIS or HTTP server component such as
+TSslHttpServer or TSslHttpAppSrv to which files may be copied using UNC
+shares, or a built-in local HTTP server so the component is self contained.
+In all cases, the web server must be accessible from the public internet for the
+domain (or domains) for which a certificate is being ordered.  The application
+can also use an FTP server to copy files to an external HTTP server. DNS
+challenge currently require the application to update the DNS server, the demo
+application waits a few minutes for the user to manually update the DNS server
+which allows wild card certificates to be ordered.  A pending feature is
+TLS-ALPN SSL SNI challenges for Let's Encrypt using HTTPS.
 
-The component supports the Acme V1 and V2 protocols as implemented by Let's
+The component supports the ACME V1 and V2 protocols as implemented by Let's
 Encrypt to download free domain validated certificates, beware V1 bears little
 resemblance to any of the Acme Internet Draft specifications, V2 is much closer
 to draft 10 but only implemented sufficiently for Let's Encrypt, V2 is designed
@@ -110,11 +118,8 @@ did not go public until March 2018.
 
 You don't need to register with Let's Encrypt, but it only supplies domain
 validated certificates so the domains for which you order certificates must
-already be registered and have DNS pointing to a live HTTP (not HTTPS) server
-where the component can copy a challenge file for Let's Encrypt to access to prove
-domain ownership.  Let's Encrypt also supports DNS challenges but this is not yet
-implemented by the component.  Currently only single domains are supported,
-multiple domains and wildcard will be added for V2 shortly.
+already be registered and have DNS pointing to a live HTTP (HTTPS next release)
+server to satisfy the domain challenge.
 
 Commercial suppliers of certificates have their own APIs, usually using HTTP
 REST, currently the component supports CertCentre AG https://www.certcenter.de/,
@@ -122,24 +127,34 @@ https://www.certcenter.co.uk/ or https://www.certcenter.com/ from where you
 can buy certificates issued by Comondo, DigiCert (including GeoTrust, Symantec
 and Thawte) and GlobalSign, and free certificates from AlwaysOnSSL (by resellers
 only), see https://alwaysonssl.com/issue.php.  You need to register with
-CertCentre AG and open an account to pay for any certificates bought, although
-for testing most can be cancelled within 30 days without charge.  CertCentre AG
-uses OAuth2 authentication which is complex to set-up, but then mostly invisible.
-Domain validated certificates can be purchased and downloaded automatically using
-file challenge, other types of certificates can be ordered and then downloaded
-when the order is completed.
+CertCentre AG and open a reseller account to pay for any certificates bought,
+although for testing most can be cancelled within 30 days without charge.
+CertCentre AG uses OAuth2 authentication which is complex to set-up, but then
+mostly invisible.  Domain validated certificates can be purchased and downloaded
+automatically using file or DNS challenges, other types of certificates can be
+ordered and then downloaded when the order is completed.
+
+The TSslX509Certs component includes a database of certificate orders and pending
+challenges, allowing certificates to be re-ordered and the supplier periodically
+checked to see if a challenge has been successful when the X509 certificate can
+be automatically downloaded and installed.  Events are generated upon completion
+or failure, allowing the application to inform the user (by email) of certificate
+ordering progress.
 
 
 TSslX509Certs Accounts
 ----------------------
 
-The TSslX509Certs component has a concept of an account directory for a certificate
-supplier, into which all certificate and related files will be saved, with extra
-information about the account.  The next release will include an account database
-file to keep track of domains being ordered and when they need renewing.  For
-Let's Encrypt Acme, the directory includes an account private key (separate to
-certificate private keys) that is used to identify the account, this is created
-automatically if the directory is blank.
+The TSslX509Certs component has a concept of an Account Directory for a
+certificate supplier into which all certificate and related files will be saved,
+with a database file ics-control.db containing information about the account.
+certificate orders and pending challenges.  For Let's Encrypt Acme, the directory
+includes an account private key (separate to certificate private keys) that is
+used to identify the account, this is created automatically if the directory is
+blank. This account private key will be needed to cancel or revoke any
+certificates issued using it.  Note an account directory and database can only
+be accessed by one application at a time, they can not be shared between
+different servers.
 
 When ordering a new certificate, temporary files may be created in the account
 directory, the new certificate private key and certificate request.  Once the
@@ -149,8 +164,9 @@ a second copy of all files is saved without the order number for final distribut
 to the web server, and optionally copied to the web server using a UNC file share.
 Note the files without order numbers are always automatically overwritten by new
 orders.  So an Let's Encrypt order for the domain test3.telecom-tariffs.co.uk
-will find the following files upon completion:
+will generally find the following files upon completion:
 
+ics-control.db
 AcmePrivateKey.pem
 AcmePublicKey.pem
 LE-SA-v1.2-November-15-2017.pdf
@@ -176,17 +192,46 @@ has a password since Windows requires that, it will be 'password' if not otherwi
 specified. Note AcmePrivateKey is unprotected.  A wildcard order for
 *.telecom-tariffs.co.uk will have a file name x_telecom-tariffs_co_uk since * can
 not be used in file names.  Until the order number is available, the file name
-will be LE-work, or CC-work for CertCentre.
+will be LE-work, or CC-work for CertCentre.   There are component options to
+ignore some of these files, if not needed.
+
+
+TSslX509Certs Database
+----------------------
+
+For each account there is a database file ics-control.db containing information
+about the account. certificate orders and pending challenges.  This is a simple
+INI file, and is generally updated only by the TSslX509Certs component.
+
+There is an [account] section or record with general information about the
+supplier, logging, next order sequence number, account private key (for Let's
+Encrypt), etc.
+
+There are then multiple [domain-mydomain] sections or records for each X509 order
+placed where my-domain is the Common Name of the certificate, and then one
+section or record for each Subject Alternate Name on the certificate
+[san-mydomain=mysan] including the Common Name which are used for domain
+validation. These records are updated as the order progresses and may be
+checked afterwards to see the main files created and certificate details.  The
+record may be used to re-order a certificate, but not on the same day a
+certificate was downloaded to prevent wild repeated orders.
+
+When an order has been placed, a temporary section [challenge-mysan] is created
+for each SAN on the certificate to keep track of challenge progress, effectively
+a queue of waiting challenges.  This queue is checked every 30 seconds and
+the supplier contacted to see if the challenge has completed or failed, the
+section is then removed with the main domain and san records updated.
+
 
 
 TSslX509Certs Sample Application
 --------------------------------
 
-There is a sample application Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst.dpr
+There is a application Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst.dpr
 that illustrates all the functionality of the TSslX509Certs component, allowing
-certificates to be ordered and collected by clicking a few buttons.  Note that
-currently there must be a external HTTP (not HTTPS) server where the component
-can copy challenge files to prove domain ownership.
+certificates to be ordered and collected by clicking a few buttons.   The
+sample also shows all certificates ordered by ICS components and saved in the
+account databases and allows them to be re-ordered.
 
 In the following sample descriptions, all the fields and buttons mentioned have
 corresponding properties and methods in the TSslX509Certs component itself.
@@ -195,84 +240,201 @@ On the Common tab, there are various logging options, to keep track of activity
 and for diagnostics when things don't work as expected, if the Log Directory is
 not blank.  There are several levels of debug logging from just connections,
 through SSL negotiations, then HTTP headers and content, also Json logging for
-protocol errors (or changes).
+protocol errors (or changes).  The Domain Challenge Methods are File Web Server
+UNC (external), File Web Server FTP (manual), File Local Web Server (built in),
+Domain Name Server (manual), Email Manually, TLS-ALPN Cert (next release).  If
+using the Local Web Server, specify the IP address from the drop down box and
+start it with the button, this IP address must routed to be accessible from the
+public internet with any domains requiring certificates pointing at it.  Specify
+a Supplier Account Email address for orders, that will receive progress
+information. Add an optional private key password and encryption type (3DES) if
+needed.  Certificate CSR Origin specifies whether the component should create a
+new private key and CSR for a new order, or use files previously created, in
+which case both should be specified and many properties will be ignored.  Click
+the 'Check CSR' button to read the files and check they contain the correct
+domain and the key matches.  Automatic Order Completion being ticked means the
+component will check every 30 seconds to see if an order is ready for collection
+and finish it automatically.
 
-For CertCentre AG, you must create an account on their web site first, then go to
-Settings, Your Apps & API Keys, under OAuth2 Your Apps, click the blue + icon to
-create a new App, with OAuth2 Redirect-URI: http://localhost:8080/certcenter/.
-Back in the sample application, copy the various OAuth2 parameters from your new
-app to the sample fields, App Auth URl, Client ID, Client Secret and Redirect-URI,
-set App Token URL to https://api.certcenter.com/oauth2/token and scope to write,
-web server IP to 127.0.0.1 port 8080.  The first time you access a CertCentre
-function, OAuth2 authentication will be triggered to display an account login
-page in your default browser, then a German language page appears so click the
-'Akzeptieren' button which should result in the sample application completing
-OAuth2 and displaying access and refresh tokens with an expiry date and time, and
-the browser saying 'App Token Generated Successfully'.  The tokens initially
-remain valid for 24 hours before another login is required, but may be refreshed
-manually or automatically before they expire without needing another login.
-Refreshed tokens expire after six hours, but can be extended again and again,
-provided the sample is still running.
+For CertCentre AG, you must create an account at https://www.certcenter.com/signup
+first, then go to Settings, Your Apps & API Keys, under OAuth2 Your Apps, click
+the blue + icon to create a new App, with OAuth2 Redirect-URI:
+http://localhost:8080/certcenter/. Back in the sample application, on the
+CertCentre 0Auth tab, copy the various parameters from your new app to the sample
+fields, App Auth URl, Client ID, Client Secret and Redirect-URI, set App Token
+URL to https://api.certcenter.com/oauth2/token and scope to write, web server IP
+to 127.0.0.1 port 8080.  The first time you access a CertCentre function, OAuth2
+authentication will be triggered to display an account login page in your default
+browser, then a German language page appears so click the 'Akzeptieren' button
+which should result in the sample application completing OAuth2 and displaying
+access and refresh tokens with an expiry date and time, and the browser saying
+'App Token Generated Successfully'.  The tokens initially remain valid for 24
+hours before another login is required, but may be refreshed manually or
+automatically before they expire without needing another login. Refreshed tokens
+expire after six hours, but can be extended again and again, provided the sample
+application is still running.
 
-For certificate orders, on the Common Tab set the challenge method and optional
-private key password and encryption type (3DES) if needed, on the Domain tab
-set the certificate common domain name (note alternate names not yet supported),
-then the 'Web Server UNC HTTP .Well-Known Directory' and optionally
-'Web Server UNC Public Certificates Directory' where the final certificates will
-be copied. Clicking the 'Test Well-Known' button will copy a file to the web
-server and attempt to access it using the domain name, to prove future challenges
-will be successful.  The Cert Admin tab has a lot more fields relating to
-certificate order needed to create a private key and certificate signing request,
-many can be ignored for Let's Encrypt (except email) but commercial certificates
-need most of the fields, including certificate period in months, usually 12 or 24,
-but this may be overwritten by the order process. Currently only RSA keys and
-SHA-2 are tested, not ECC or SHA-3.
+On the Domain tab set the Certificate Domain Common Name and any Subject
+Alternate Names, the sample application will add the Common Name to the SAN list
+if not done manually. If Domain Challenge is for UNC file, set the Web Server UNC
+HTTP .Well-Known Directory' for the Common Name, and optionally for each SAN if
+different.  If the final certificates are to be copied to the web server, set the
+Web Server UNC Public Certificates Directory. Clicking the Test Well-Known button
+will copy a file to the web server and attempt to access it using the domain name,
+to prove future challenges will be successful.  If commercial certificates are
+being ordered using Email Challenge, each SAN should specify the Approval Email
+address required (scroll across the grid).  There are various Output Certificate
+Formats that may be ticked or unticked to reduce the number of unneeded files,
+Separate PEM Files, PEM Bundle File, PKCS12/PFX Bundle File, PKCS7 Bundle File
+and CSR PEM File.
+
+The Cert Admin tab has a lot more fields relating to certificate orders. All
+certificates need to specify a Private Key Type and Size depending on security
+requirements (generally RSA2048, EC256 is better but not supported by many
+certificates), Signature Digest Type usually SHA256, Serial Number Type either
+random or sequential (stored in the database), Certificate Period in days,
+usually 365 for one year, 366 or more for two years, ignored for Let's Encrypt
+which is always 90 days.  For commercial certificates, contact details,
+organisation name, address, email and phone numbers are usually required as well.
+Note that private keys EdDSA ED25519 and SHA3 hashes are not yet tested since
+they are not supported by any certificate suppliers, likewise longer keys and
+SHA sizes may not work.
 
 
-TSslX509Certs Order Process
----------------------------
+TSslX509Certs ACME/Let's Encrypt Order Process
+----------------------------------------------
+
+ACME (Automatic Certificate Management Environment) is the protocol designed by
+Let's Encrypt, currently at draft 16 and which should eventually become an
+official RFC.  It is hoped other certificate suppliers will use ACME in future,
+but currently only Let's Encrypt.  ACME V1 is partially supported by the
+component since it was done before V2 became public, but should generally be
+ignored.  Beware Let's Encrypt does not implement any of the ACME draft protocols
+precisely, which is difficult for developers, but they are getting closer with V2.
 
 Let's Encrypt offers live and staging servers, the latter is best for testing
-since it issue certificates signed by a fake CA.  Select a directory for the
-account and certificates and the server.  For Let's Encrypt, click 'Register
-Account' which will create a new account private key or open an old one, and
-then register the account.  For CertCentre, Get Profile will trigger OAuth2
-if necessary, then check your account and list the certificate products that
-can be ordered, from which one will be selected, and the details and cost will
-be displayed.
+since it issue certificates signed by a fake CA and there are fewer rate limits
+than the live server which will only issue five duplicate certificates a week
+(if ordering goes mad), no more than 50 per domain per week and five failed
+domain validations per hour.
 
-Next, click 'Check Order' which will check the challenge method specified on the
-Common tab is valid for the certificate product, and repeat the local 'Test
-Well-Known' check for file challenges.  If the checks succeed, the Order button
-will be enabled.
+Select a Account Directory for the database and certificates files, either by
+typing a path or clicking the square path box to select a Database Directory
+using a dialog window.  Click 'Register Account' which will create a new account
+private key or open an old one, and then register the account.  Once the account
+ is open, the Supplier Database tab will be updated with account details and any
+ certificate orders in the account database, with their issue state and details.
 
-For Let's Encrypt Acme and AlwaysOnSSL, click the Order button to start the order
-process.  There will be another local 'Test Well-Known' check.  Then the supplier
-is asked if it can register the domain name.  If the name is acceptable, information
-about the actual challenge is returned by the supplier and the component creates
-the domain validation file in the web server .well-known directory and requests
-the supplier to test it, returning an order number.
+After completing all the necessary domain name and certificate details on the
+Common, Domain and Cert Admin tabs, click 'Check Order' which will check the
+challenge method specified on the Common tab is valid and repeat the local
+'Test Well-Known' check for file challenges.  If the checks succeed, the order
+will be written to the account database, and the 'Order Certificate' button
+enabled.  The Supplier Database tab will be updated with the new order with
+an Issue State of Checked.
 
-The component then waits up to two minutes periodically checking the order status
-to see if the challenge has been completed and been successful.  The next release
-of the component will remove this wait and instead implement a queue of challenge
-checks over days if necessary, allowing multiple domains to be handled.
+Now click the 'Order Certificate' button to start the order process.  There will
+be another local 'Test Well-Known' check.  Then Let's Encrypt is asked if it can
+register each of the domain names for the certificate.  If the names are
+acceptable, information about the actual challenge is returned by the supplier
+and the component prepares it by writing a queue record to the database and then
+by copying a file to the web server .well-known directory or starting the local
+web server, or for FTP and DNS by raising an event so the application can prepare
+the challenge before returning.  The sample application waits five minutes for
+the DNS server to be updated manually.
 
-Once the challenge succeeds, the 'Collect Certificate' button is enabled and
-should be clicked. Another check is made the challenge has been completed OK,
-then a private key and certificate signing request will be created and submitted.
-If the CSR matches the challenged domain, a new domain SSL/TLS X509 certificate
-is generated and saved including the order number, then the intermediate
-certificate that will be needed by the web server, then the PEM and PKCS12 bundles
-are built by adding the private key, as detailed above.  Finally the component
-runs a check to validate the certificate chain, and reports all the details.
-If validation passes, all the files are saved a second time without the order
-number, as detailed above, and finally a third time by copying to the web server
-certificate directory.  Some web servers, such as those based on TWSocketServer
+Once the challenge is ready, Let's Encrypt is instructed to test the challenge,
+which may take a few seconds or minutes, and the Issue State on the Supplier
+Database tab will be updated to 'Challg Pend', and the 'Collect Certificate'
+button will be enabled.
+
+If Automatic Order Completion is enabled (on the Common tab), the component will
+check for successful or failed challenges every 30 seconds while the sample
+application is running, updating Issue Status to 'Challg OK', 'Collected' and
+'Installed' if the order is successful, or 'None' if it fails the challenges or
+problems in collecting the certificate. If Automatic Order Completion is not
+enabled, clicking the 'Collect Certificate' button will check if the challenges
+have been successful and proceed to collect the new SSL certificate.
+
+Multiple certificate orders may be placed using the same account, without waiting
+for earlier orders to be completed.  If the sample application is stopped, the
+next time it is run and the Supplier Account opened, any pending orders will be
+checked and completed if possible, or failed.
+
+Once all challenges succeed, the component proceeds to collect the certificate.
+First, a new private key and certificate signing request will be created and
+submitted or old ones uses if so specified on the Common tab. If the CSR matches
+the domain challenge, a new domain SSL/TLS X509 certificate is downloaded and
+saved including the order number, then the intermediate certificate that will be
+needed by the web server, then the PEM and PKCS12 bundles are built by adding the
+private key, as detailed above.  Finally the component runs a check to validate
+the certificate chain, and reports all the details. If validation passes, all the
+files are saved a second time without the order number, as detailed above. and
+the Issue Status updated to 'Collected'.  If a Web Server UNC Public Certificate
+Directory has been specified, the certificates will be copied to the servers,
+and the Issue Status updated to 'Installed'.  Servers based on TWSocketServer
 will periodically check for new SSL certificates (RecheckSslCerts method) and
-will automatically install the new certificate.  Note that Let's Encrypt
-certificates are only valid for three months since they are intended to be
-renewed automatically.
+will automatically install the new certificate.
+
+Note that Let's Encrypt certificates are only valid for three months since they
+are intended to be renewed automatically.
+
+
+TSslX509Certs CertCentre Order Process
+--------------------------------------
+
+CertCentra AG orders are similar in concept to Let's Encrypt, but require a
+commercial reseller account to opened to pay for commercial certificates, as
+described earlier.  It is also necessary to choose the Certificate Product
+carefully, probably with the assistance of the CertCentre web site, although
+the sample application provides basic certificate features and cost.  Note
+that Certificate Products change periodically as companies change name, issue
+new products or cease old ones.  So renewing orders annually may not always work.
+
+Select a Account Directory for the database and certificates files.  Click the
+'Get Profile' button  will trigger OAuth2 if necessary (see earlier), then
+check your account  and list the Certificate Products that can be ordered as
+a list.  Clicking on a Certificate Product will display details and cost,
+similarly to these examples:
+
+PositiveSSL
+Cost 6.7 GBP/year
+Max Validity: 24 months, Features: "DV","ECC"
+CA: Comodo, Refund Period: 30 days
+DV Methods: "FILE","DNS","EMAIL"
+Predicted Approval Duration: 3 mins
+
+InstantSSL
+Cost 23.1 GBP/year
+Max Validity: 24 months, Features: "OV","RI","ECC"
+CA: Comodo, Refund Period: 30 days
+Predicted Approval Duration: 2 hours
+
+PositiveSSL Wildcard
+Cost 77. GBP/year
+Max Validity: 24 months, Features: "DV","WC","ECC"
+CA: Comodo, Refund Period: 30 days
+DV Methods: "FILE","DNS","EMAIL"
+Predicted Approval Duration: 3 mins
+
+Comodo mit EV Multi-Domain (MDC)
+Cost 183.2 GBP/year
+Max Validity: 24 months, Features: "EV","SAN","RI","ECC"
+CA: Comodo, Refund Period: 30 days
+SANMaxHosts: 250 at 60.2 GBP/year each
+Predicted Approval Duration: 3 hours
+
+AlwaysOnSSL
+Cost 0r GBP/year
+Max Validity: 12 months, Features: "DV"
+CA: DigiCert, Refund Period: 30 days
+DV Methods: "FILE","DNS"
+Predicted Approval Duration: 4 mins
+
+Only certifcates showing DV Methods as FILE or DNS can use automated challenges,
+EMAIL will need a manual response but collection will be automatic.  Organisation
+and Extended validation (OV and EV) are processed manually.  ECC means that
+EC private keys are supported.  WC means wild card, SAN is multiple domain names.
 
 AlwaysOnSSL is a similar free certificate available to resellers of CertCentre,
 and the order process is similar to Acme, except the CSR is supplied before the
@@ -290,14 +452,209 @@ for file similarly to Acme and AlwaysOnSSL.  For email validation, organisation
 and extended validated certificates, an order number is returned and the process
 now stalls for manual processing.
 
+If Automatic Order Completion is enabled (on the Common tab), the component will
+check for successful or failed challenges and completed orders ready to collect
+the certificate, and complete them.
+
 The 'List Orders' button will generate a list in the log of recent CertCentre
 orders with their order number and status.  For orders that are completed, the
 order number can be entered in the field and 'Collect Order' clicked to collect
 the certificate, similarly to Acme.  Likewise, specific orders may be cancelled
 within 30 days, and certificates revoked if necessary.
 
+The Supplier Database tab also shows any orders for the account in the database,
+and allows them to be Collected, Cancelled or Revoked.
 
 
+TSslX509Certs Own CA Order Process
+----------------------------------
+
+For internal network use and testing, it is possible to create your Own
+Certificate Authority and issue your own SSL certificates for devices that are
+not accessible from the public internet.  To avoid horrible browser warnings,
+your CA certificate needs to be installed as a trusted root on each device that
+will access servers running certificates issued by the CA.
+
+The sample application does not currently create self signed SSL certificates,
+you need to use the OverbyteIcsPemTool sample instead.  You should create a new
+private key and self signed certificate with your organisation's common name,
+ie Magenta Development CA.  Rather than signing certificates directly with the
+new trusted CA, it is better create an intermediate CA signed by the trusted CA,
+allowing variations of key types and digests, ie Magenta Intermediate EC CA1.
+The intermediate CA certificate does not need to be installed on client devices,
+only the trusted CA.
+
+On the Own CA tab, the Certificate Directory should be specified, note the
+account database for Own CA certificates currently does not store certificate
+details so they can not be ordered automatically by TWSocketServer. Then specify
+the CA Certificate or Bundle File and CA Private Key File (if not in bundle) and
+click the 'Load CA'  button check and load it, with Issued to and Issued by
+being shown.
+
+To issue your own signed SSL certificates, the usual settings on the Domain and
+Cert Admin tabs should be completed, and the 'CA Signed Cert' button pressed.
+The component will then create a new private key and CSR files, then a new
+certificate signed by the Own CA, in a process otherwise identical to collecting
+an ACME certificate, using a sequential order number, with files saved with and
+without the order number and optionally distributed to the web server.  Note
+this sample sets common certificate extensions only, for more control you
+should create your own CSR using OverbyteIcsPemTool or it's functions.
+
+Each certificate signed by the Own CA is logged to the index.txt database file
+in the Certificate Directory, in OpenSSL CA command format, which is tab
+delimited with status, expiry date, SHA1 fingerprint, file name, subject and
+subject alternate names. This file could be updated if the certificate is
+revoked and used to support Certificate Revocation Lists (not implemented).
+
+
+TSslX509Certs Supplier Database
+-------------------------------
+
+As mention above, each Supplier Directory includes an Account Database, and
+the Supplier Database tab has options to view Supplier Certificate Orders, and
+perform most of functions previously discussed on those orders.
+
+First select a Supplier Database from the drop down box, or a new one either by
+typing a path or clicking the square path box to select a Database Directory
+using a dialog window.  Click the 'Open Supplier' button, the database will be
+opened, the supplier details shown in the yellow box and the Supplier Certificate
+Orders list populated with the principal order details, clicking any line will
+show extra details in the yellow box.  Certain buttons will be enabled or
+disabled depending on each Issue State.
+
+Buttons available are: Check Order, Order Certificate, Collect Certificate,
+Redistribute (copy to web server again), Cancel Order (without revoke), Revoke
+Certificate and Remove Order (removed from database only), most of which have
+been described for the order process earlier.
+
+Revoke an order should generally only be done if the certificate is in public
+use and the private key has been compromised.  Revoke means the certificate will
+be added to supplier CRL and OCSP databases which are checked by browsers to
+prevent compromised certificates being trusted until expiry.
+
+The TSslX509Certs component provides several functions for dealing with accounts
+and the database, which relate closely to the buttons on the Supplier Database
+tab.  These functions are used by the TSslWSocketServer method OrderCert.
+
+
+function OpenAccount(const WorkDir: String; CreateNew: Boolean = False): Boolean;
+
+Opens the supplier account in the specified directory, optionally creating a new
+account if the directory does not exist or is empty.  For a new account, several
+properties are needed: DebugLevel, DomWebSrvIP, LogJson, LogPkeys, SupplierEmail,
+SupplierProto, SupplierServer and SupplierTitle. SupplierEmail and SupplierProto
+as SuppProtoAcmeV2 and SuppProtoCertCentre and SupplierServer from
+GetServerAPIUrl are required, others are optional.  For SuppProtoCertCentre
+several more OAuth2 properties for the CertCentre AG account are needed: OAAppUrl,
+OAClientId. OAClientSecret, OARedirectUrl, OARefrMinsPrior, OAScope, OATokenUrl,
+OAWebSrvIP and OAWebSrvPort, see sample application for more info.
+
+Once the account is opened, the property DomainItems returns an array of
+TDomainItems containing the main details of each domain record in the database,
+and an event is triggered whenever this changes.
+
+The function will fail if ics-control.db can not be found or the working
+directory mismatches the database.
+
+
+function CloseAccount: Boolean;
+
+Close the account, if open.
+
+
+function CertReadDomain(const aDomain: String): Boolean;
+
+For an open account, reads all the properties for an X509 SSL certificate with
+the Common Name from the database, if found, including one or more subject
+alternate names.
+
+The function will fail if the domain has not been saved in the database.
+
+
+function CertSaveDomain(const aDomain: String): Boolean;
+
+Save or update properties for an X509 SSL certificate with the Common Name to
+the database.  There are many possible properties, depending on the type of
+certificate being ordered, the supplier, challenge type, etc, all of which are
+illustrated in the sample application.  The main properties are: CertCommonName,
+SuppCertChallenge as TChallengeType supports ChallFileUNC, ChallFileFtp,
+ChallFileSrv, ChallDNS, ChallEmail, ChallAlpnUNC, ChallAlpnSrv, ChallManual,
+CertPKeyType as type TSslPrivKeyType typically PrivKeyRsa2048, CertSignDigest as
+type TEvpDigest typically Digest_sha256, CertCsrOrigin usually CsrOriginProps,
+CertSerNumType usually SerNumRandom, CertOutFmts usually set [OutFmtBudl,
+OutFmtP12], DirWellKnown if ChallFileUNC, DirPubWebCert as a path,
+PrivKeyPassword, PrivKeyCipher usually PrivKeyEncTripleDES, CertSubAltNames as
+multiple subject alternate names if supported by the certificate, CertValidity
+in days (usually 365 or 730), SuppCertProduct.
+
+For SuppProtoCertCentre contact and address details are required: CertAddress,
+CertContactEmail, CertContactFirst, CertContactLast, CertContactTitle,
+CertCountry, CertLocality, CertOrgUnit, CertOrganization, CertPhone,
+CertPostCode, CertState.  For commercial certificates, the sample application
+provides ProductCA, ProductCertType, ProductDVAuth, ProductFeatures,
+ProductMaxSan and ProductQuote, and will show the price of the certificate
+with a warning before the product is saved, but once in the database it can
+be ordered automatically if the CertCentre AG account has sufficient credit.
+CertApprovEmail for email challenge.
+
+Fails if account not opened, if CertCommonName does not match aDomain, if
+SupplierProto is not set, or CertSubAltNames is empty.  But otherwise does
+not check properties for validity.
+
+
+function CertCheckDomain(const aDomain: String): Boolean;
+
+For an open account, reads all the properties for an X509 SSL certificate with
+the Common Name from the database, if found, including one or more subject
+alternate names. If CertCsrOrigin is CsrOriginCSR, the Common Name and SANs
+are read from an old CSR file at CertOldCsrFile and the key file from
+CertOldPrvKey.  It then checks the Common Name is included in the SANs and adds
+it if not, then checks the challenge method and SAN number are supported by
+the certificate product. Finally for domain file validation, the component copies
+a file to the server Well-Known directory and checks it can be accessed using
+each of the SANs domain names.  Any changes are saved to the database.
+
+
+function CertOrderDomain(const aDomain: String): Boolean;
+
+First calls CertCheckDomain, if that passes continues to place the SSL
+certificate order with the supplier, whose processes vary as described in
+the ACME and CertCentre AG order processes earlier.  Collection will be
+automatic once the challenges succeed.
+
+
+function CertCollectDomain(const aDomain: String): Boolean;
+
+For an order with issue state challenge pending, checks if all the challenges
+have been completed successfully and then collects the order.
+
+
+function CertCancelDomain(const aDomain: String): Boolean;
+
+For an order with issue state Collected or Installed, will cancel the order
+with the supplier, which may result in a refund if done within a reasonable
+period.
+
+
+function CertRevokeDomain(const aDomain: String): Boolean;
+
+For an order with issue state Collected or Installed, will cancel and revoke the
+order with the supplier.
+
+
+function CertRemoveDomain(const aDomain: String): Boolean;
+
+Removes any order from the database, to stop further processing or re-use.
+
+
+function CertRedistDomain(const aDomain: String): Boolean;
+
+For an order with issue state Collected or Installed, copies the certificate
+files to the web server again, if lost.
+
+
+
+----------------------------------------------------------------
 
 Updates:
 May 22, 2018  - V8.54 - baseline
@@ -309,12 +666,15 @@ Oct 2, 2018   - V8.57 - Added database for domains and challenges (INI file).
                         Automatic order completion when challenge completed.
                         Added own CA to issue local certificates.
                         Use own CSR and PKey instead of creating them new.
-                        Builds with FMX 
+                        Builds with FMX but not tested.
+Oct 19, 2018  - V8.58 - Bug fixes and more documentation.
 
 
 Pending - more documentation
+Pending - keep CertCentre admin details as supplier
+Pending - Challenge timer relaxed checking for completed orders after waiting
+          x minutes (currently every 30 secs)
 Pending - tls-alpn-01 challenge for local web server on 443
-Pending - integrate with SocketServer component (for web server, proxy server)
 Pending - Acme EC accounts, signing currently fails validation
 Pending - Acme EC certificates, not properly tested yet
 Pending - Acme revoke certificate
@@ -323,7 +683,9 @@ Pending - Servertastic APIv2 for commercial certificates
 Pending - install PKCS12 certificates into Windows cert store for IIS
 Pending - better error reporting and logging
 Pending - Comodo intermediates have too many certificates including a root
-
+Pending - Add self signed and CA certs to database
+Pending - try and share INI file?
+Pending - check well-known challenge made to TSslHttpServer 
 }
 
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -1686,22 +2048,32 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 // certificate supplier specific stuff,
 function TSslX509Certs.DBOpenINI(const WorkDir: String; CreateNew: Boolean = False): Boolean;
+var
+    fname: String;
 begin
     Result := False;
-    if NOT Assigned( FControlFile) then begin
-        FCnrtFileName := IncludeTrailingPathDelimiter(WorkDir) + FileIcsCntlDB;
-        if (NOT CreateNew) and (NOT FileExists(FCnrtFileName)) then begin
-            LogEvent('Account Control File Not Found: ' + FCnrtFileName);
+    fname := IncludeTrailingPathDelimiter(WorkDir) + FileIcsCntlDB;
+    if Assigned(FControlFile) then begin
+        if FCnrtFileName = fname then begin
+            Result := True;
             Exit;
         end;
-        try
-            FControlFile := TIcsIniFile.Create(FCnrtFileName);
-        except
-            on E:Exception do begin
-                LogEvent('Could Not Open Account Database: ' +
-                                            FCnrtFileName + ' - ' + E.Message);
-                Exit;
-            end;
+        FControlFile.Free;
+    end;
+    FCnrtFileName := fname;
+    if (NOT CreateNew) and (NOT FileExists(FCnrtFileName)) then begin
+        LogEvent('Account Control File Not Found: ' + FCnrtFileName);
+        FCnrtFileName := '';
+        Exit;
+    end;
+    try
+        FControlFile := TIcsIniFile.Create(FCnrtFileName);
+    except
+        on E:Exception do begin
+            LogEvent('Could Not Open Account Database: ' +
+                                        FCnrtFileName + ' - ' + E.Message);
+            FCnrtFileName := '';
+            Exit;
         end;
     end;
     Result := True;
@@ -1861,7 +2233,7 @@ begin
              WriteString (section, 'OAClientSecret', FOAClientSecret) ;
              WriteString (section, 'OAExpire', RFC3339_DateToStr(FOAExpireDT)) ;
              WriteString (section, 'OARedirectUrl', FOARedirectUrl) ;
-             if FOARefreshAuto then temp := 'True' else temp := 'False' ; WriteString (section, 'OARefreshAut', temp) ;
+             if FOARefreshAuto then temp := 'True' else temp := 'False' ; WriteString (section, 'OARefreshAuto', temp) ;
              WriteString (section, 'OARefreshToken', FOARefreshToken) ;
              WriteInteger (section, 'OARefrMinsPrior', FOARefrMinsPrior) ;
              WriteString (section, 'OAScope', FOAScope) ;
@@ -2067,9 +2439,9 @@ begin
     if NOT DBOpenINI(FDirCertWork) then Exit;
     section := CntlDBDomainPre + FCertCommonName;
     with FControlFile do begin
-        WriteString (Section, 'CertAddress', FCertAddress) ;
         WriteString (section, 'AcmeOrderFinalizeUrl', FAcmeOrderFinalizeUrl);
         WriteString (section, 'AcmeOrderObjUrl', FAcmeOrderObjUrl);
+        WriteString (Section, 'CertAddress', FCertAddress) ;
         WriteString (section, 'CertApprovEmail', FCertApprovEmail) ;
         WriteString (section, 'CertCommonName', FCertCommonName) ;
         WriteString (section, 'CertContactEmail', FCertContactEmail) ;
@@ -2117,18 +2489,16 @@ begin
         WriteString (section, 'PrivKeyCipher', GetEnumName (TypeInfo (TSslPrivKeyCipher), Ord(FPrivKeyCipher))) ;
         WriteString (section, 'PrivKeyPassword', FPrivKeyPassword) ;  // encrypt password !!!!
         WriteString (section, 'PrivKeyType', GetEnumName (TypeInfo (TSslPrivKeyType), Ord(FPrivKeyType))) ;
-        WriteString (section, 'SuppCertChallenge', GetEnumName (TypeInfo (TChallengeType), Ord(FSuppCertChallenge)));
-        WriteString (section, 'SuppOrderId', FSuppOrderId) ;
-        WriteString (section, 'SuppOrderRef', FSuppOrderRef) ;
-
-
-        WriteString (section, 'SuppCertProduct', FSuppCertProduct) ;
-        WriteString (section, 'ProductCA', FProductCA) ;
         WriteString (section, 'ProductCertType', FProductCertType) ;
         WriteString (section, 'ProductDVAuth', FProductDVAuth) ;
         WriteString (section, 'ProductFeatures', FProductFeatures) ;
         WriteInteger (section, 'ProductMaxSan', FProductMaxSan) ;
         WriteString (section, 'ProductQuote', FProductQuote) ;
+        WriteString (section, 'SuppCertChallenge', GetEnumName (TypeInfo (TChallengeType), Ord(FSuppCertChallenge)));
+        WriteString (section, 'SuppOrderId', FSuppOrderId) ;
+        WriteString (section, 'SuppOrderRef', FSuppOrderRef) ;
+        WriteString (section, 'SuppCertProduct', FSuppCertProduct) ;
+        WriteString (section, 'ProductCA', FProductCA) ;
 
     // write INI file
         FControlFile.UpdateFile;
@@ -6809,12 +7179,14 @@ end;
 function TSslX509Certs.CloseAccount: Boolean;
 begin
     Result := False;
-    if FSupplierProto = SuppProtoNone then Exit;
+    if (FSupplierProto = SuppProtoNone) and
+                 (FControlFile = Nil) and (FCnrtFileName = '') then Exit;
     FChallengeTimer.Enabled := False;
     StopDomSrv;
     FSupplierProto := SuppProtoNone;
     FDirCertWork := '';
     FIssueState := IssStateNone;
+    FCnrtFileName := '';
     FreeAndNil(FControlFile);
     SetLength(FDomainItems, 0);
     FChallengesTot := 0;
@@ -6881,7 +7253,7 @@ begin
     Result := False;
     if aDomain <> CertCommonName then Exit;
     if CertSubAltNames.Count = 0 then Exit;
-    if SupplierProto = SuppProtoNone then Exit; 
+    if SupplierProto = SuppProtoNone then Exit;
 
   // read non-public props, it the domain exists
     DBReadCNDomain(aDomain, False);
@@ -7199,6 +7571,8 @@ begin
     FNewOrderNum := DBNewOrderNum;
     FSuppOrderRef := 'ICS-' + IntToStr(FNewOrderNum);
     FSuppCertProduct := FSupplierTitle;
+    FNewCertPrefix := 'OwnCA-' ;
+
 
  // create CSR and private key
 // work file names, in account directory, with orderid (no work names)

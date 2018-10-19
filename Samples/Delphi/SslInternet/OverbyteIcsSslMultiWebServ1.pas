@@ -4,8 +4,8 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  SSL web application server sample, no real GUI, really designed
               to be a Windows service application.
 Creation:     July 2017
-Updated:      Sept 2018
-Version:      8.57
+Updated:      Oct 2018
+Version:      8.58
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -73,13 +73,14 @@ History:
 6 July 2017  - V8.49 baseline
 20 Sep 2017 - V8.50 - Close connection after sending redirection
 12 Dec 2017 - V8.51 - Try and enable FIPS mode if supported by OpenSSL.
-24 Sep 2018 - V8.57 - INI file now reads Options as enumerated type literals,
+2 Oct 2018  - V8.57 - INI file now reads Options as enumerated type literals,
                         ie Options=[hoContentEncoding,hoAllowDirList,hoSendServerHdr,hoAllowPut]
                       INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays
                       Allow SSL certificates to be ordered and installed automatically if
                         SslCertAutoOrder=True and so specified in IcsHosts, and a
                         certificate supplier account has been created (by the
                         OverbyteIcsX509CertsTst sample application).
+19 Oct 2018  V8.58 version only
 
 
 Insalling note:
@@ -89,10 +90,15 @@ ICS temporary working directory, usually c:\Users\(login)\AppData\Local\ICS. Thi
 INI file will need to be edited for IP addresses, SSL certificates, etc, although
 some defaults may work.  Specifically Host4 has certificate ordering settings but
 is disabled and will need new valid hosts, IP addresss and files names before it
-will do anything useful. 
+will do anything useful.
 
 Once this demo has been run once, any changes to the default INI file from new versions
  (ie auto certificate ordering) will need to copied manually into the working file.
+
+See OverbyteIcsWSocketS.pas for documentation on TSslWSocketServer whose
+properties are exposed by TSslHttpAppSrv, and for IcsHosts which allows the web
+server to support multiple Hosts on multiple IP addresses and ports with SSL
+support, including automatic SSL certificate ordering.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -142,7 +148,7 @@ uses
   OverbyteIcsSslX509Certs,  { V8.57 }
   OverbyteIcsSslHttpRest;   { V8.57 }
 const
-    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2018 Francois Piette V8.57 ';
+    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2018 Francois Piette V8.58 ';
     MaxWinChars = 800000;
     WM_STARTUP = WM_USER + 712 ;
     SimpLogName = '"webapp-"yyyymmdd".log"' ;
@@ -584,7 +590,7 @@ begin
              ' [' + DisplayName + '] ' + HostNames.CommaText + icsCRLF +
              'Bindings: ' + BindInfo + icsCRLF +
              'SSL Security Level: ' + GetEnumName(TypeInfo(TSslSrvSecurity), Ord(SslSrvSecurity)) + IcsCRLF +
-                    'SSL Certifcate: ' + CertErrs + IcsCRLF + CertInfo + IcsCRLF +
+                    'SSL Certificate: ' + CertErrs + IcsCRLF + CertInfo + IcsCRLF +
              'Web Pages Root: ' + WebDocDir + icsCRLF +
              'Templates Root: ' + WebTemplDir + icsCRLF;
             if WebRedirectStat <> 0 then StatSrvSslCert := StatSrvSslCert +

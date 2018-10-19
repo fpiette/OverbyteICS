@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.57
+Version:      8.58
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -38,7 +38,7 @@ Legal issues: Copyright (C) 1996-2018 by François PIETTE
                  to the author. Use a nice stamp and mention your name, street
                  address, EMail address and any comment you like to say.
 
-History:
+History:   
 If not otherwise noted, changes are by Francois Piette
 Jul 18, 1996  Move all low level socket to winsock to be Delphi 2.x compatible
 Sep 18, 1996  Use structured exception for handling errors
@@ -1293,6 +1293,9 @@ Oct 5, 2018  V8.57  Tidy up UnwrapNames.
                       defaults to 30 days, used to order new certificates.
                     Moved some SSL types and lits to OverbyteIcsSSLEAY.
                     Fixed compiler hints in GetProc
+Oct 19, 2018 V8.58 Increased ListenBacklog property default to 15 to handle
+                      higher server loads before rejecting new connections.
+                    Corrected soem debug error loSslInfo to loSslErr.
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -1501,8 +1504,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 857;
-  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.57 ';
+  WSocketVersion            = 858;
+  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.58 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -7590,7 +7593,7 @@ begin
     FBufHandler.BufSize := 1460; {1514;}             { Default buffer size }
     FDnsResultList      := TStringList.Create;
     FMultiCastIpTTL     := IP_DEFAULT_MULTICAST_TTL;
-    ListenBacklog       := 5;
+    ListenBacklog       := 15; { V8.57 was 5 }
     FBufferedByteCount  := 0;  { V5.20 }
     FMultiCastAddrStr   := '';
     FAddrStr            := '';
@@ -15165,58 +15168,19 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslContext.LoadCAFromString(const Value: String);        { V8.27 }
 var
- //   Cert: PX509;
- //   Store: PX509_STORE;
     CertStack: PStack;
 begin
     if Length(Value) = 0 then Exit;
     if not Assigned(FSslCtx) then
         raise ESslContextException.Create(msgSslCtxNotInit);
-{$IFNDEF NO_SSL_MT}
-//    Lock;
-//    try
-{$ENDIF}
         CertStack := IcsSslLoadStackFromInfoString(Value, emCert);
         if not Assigned(CertStack) then
             raise ESslContextException.Create('Error on reading CA certificate lines');
         try
            LoadCAFromStack(CertStack);
-      (*      Store := f_SSL_CTX_get_cert_store(FSslCtx);
-            if not Assigned(Store) then
-                raise ESslContextException.Create('Error on opening store');
-{$IFNDEF NO_DEBUG_LOG}
-            if CheckLogOptions(loSslInfo) then  { V5.21 }
-                DebugLog(loSslInfo, 'Read ' + IntToStr(f_OPENSSL_sk_num(CertStack)) +
-                                                    ' CA certificates from strings');
-{$ENDIF};
-            while f_OPENSSL_sk_num(CertStack) > 0 do begin
-                Cert := PX509(f_OPENSSL_sk_delete(CertStack, 0));
-                if Assigned(Cert) then
-                try
-{$IFNDEF NO_DEBUG_LOG}
-                    if CheckLogOptions(loSslInfo) then  { V5.21 }
-                        DebugLog(loSslInfo, 'Certificate: ' + GetX509SubjectOneLine(Cert));
-{$ENDIF};
-                  { Fails if Cert is already in hash table }
-                    if f_X509_STORE_add_cert(Store, Cert) = 0 then
-{$IFNDEF NO_DEBUG_LOG}
-                        if CheckLogOptions(loSslErr) then  { V5.21 }
-                            DebugLog(loSslErr, String(LastOpenSslErrMsg(True)));
-{$ELSE}
-                        f_ERR_clear_error;
-{$ENDIF};
-                finally
-                    f_X509_free(Cert);
-                end;
-            end;   *)
          finally
             f_OPENSSL_sk_pop_free(CertStack, @f_X509_free);
          end;
-{$IFNDEF NO_SSL_MT}
-//    finally
-//        Unlock;
-//    end;
-{$ENDIF}
 end;
 
 
@@ -15331,7 +15295,6 @@ procedure TSslContext.LoadCertFromString(const Value: String);
 var
     Cert: PX509;
     CertStack: PStack;
-//    Store: PX509_STORE;
 begin
     if Length(Value) = 0 then Exit;
     if not Assigned(FSslCtx) then
@@ -15377,29 +15340,6 @@ begin
         { !! this function is supposed to be for a server requesting a client certificate, but
              seems to also store extra chain certificates }
             LoadCAFromStack(CertStack);
-        (*    Store := f_SSL_CTX_get_cert_store(FSslCtx);
-            if NOT Assigned(Store) then
-                raise ESslContextException.Create('Can not open store for chain certs');
-
-            while f_OPENSSL_sk_num(CertStack) > 0 do begin   // seemed to cause exception with next OpenSSL function
-                Cert := PX509(f_OPENSSL_sk_delete(CertStack, 0));
-                if Assigned(Cert) then
-                try
-{$IFNDEF NO_DEBUG_LOG}
-                    if CheckLogOptions(loSslInfo) then  { V5.21 }
-                        DebugLog(loSslInfo, 'Chain certificate: ' + GetX509SubjectOneLine(Cert));
-{$ENDIF};
-                    if f_X509_STORE_add_cert(Store, Cert) = 0 then
-{$IFNDEF NO_DEBUG_LOG}
-                        if CheckLogOptions(loSslErr) then  { V5.21 }
-                            DebugLog(loSslErr, String(LastOpenSslErrMsg(True)));
-{$ELSE}
-                        f_ERR_clear_error;
-{$ENDIF};
-                finally
-                    f_X509_free(Cert);
-                end;
-            end;   *)
          finally
             f_OPENSSL_sk_pop_free(CertStack, @f_X509_free);
          end;
@@ -15423,8 +15363,8 @@ begin
        (f_SSL_CTX_use_PrivateKey_file(FSslCtx, PAnsiChar(AnsiString(FileName)),
                                       SSL_FILETYPE_PEM) = 0) then begin
 {$IFNDEF NO_DEBUG_LOG}
-        if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loSslInfo, String(LastOpenSslErrMsg(TRUE)));
+        if CheckLogOptions(loSslErr) then   { V8.57 was loSslInfo }
+            DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
 {$ELSE}
         f_ERR_clear_error;
 {$ENDIF}
@@ -15502,8 +15442,8 @@ begin
                      'Error reading DHparam file "' +  Filename + '"');
             if (f_SSL_CTX_set_tmp_dh(FSslCtx, MyPDH) = 0) then begin
 {$IFNDEF NO_DEBUG_LOG}
-               if CheckLogOptions(loSslInfo) then
-                    DebugLog(loSslInfo, String(LastOpenSslErrMsg(TRUE)));
+               if CheckLogOptions(loSslErr) then       { V8.57 was loSslInfo }
+                    DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
 {$ELSE}
                f_ERR_clear_error;
 {$ENDIF}
@@ -15543,8 +15483,8 @@ begin
             RaiseLastOpenSslError(EX509Exception, TRUE, 'Error reading DHparams');
         if (f_SSL_CTX_set_tmp_dh(FSslCtx, MyPDH) = 0) then begin
 {$IFNDEF NO_DEBUG_LOG}
-           if CheckLogOptions(loSslInfo) then
-                DebugLog(loSslInfo, String(LastOpenSslErrMsg(TRUE)));
+           if CheckLogOptions(loSslErr) then   { V8.57 was loSslInfo }
+                DebugLog(loSslErr, String(LastOpenSslErrMsg(TRUE)));
 {$ELSE}
            f_ERR_clear_error;
 {$ENDIF}
@@ -20726,7 +20666,7 @@ begin
 
                 if ((Where and SSL_CB_LOOP) <> 0) then begin
                     if Obj.CheckLogOptions(loSslErr) then    { V8.55 was SslDevel, really Errs }
-                        Obj.DebugLog(loSslDevel, Pre + Str +
+                        Obj.DebugLog(loSslErr, Pre + Str +
                                         String(f_SSL_state_string_long(ssl)));
                 end
                 else if ((Where and SSL_CB_ALERT) <> 0) and
@@ -20736,14 +20676,14 @@ begin
                     else
                         Str := 'write ';
 
-                    Obj.DebugLog(loSslDevel, Pre + 'SSL3 alert ' + Str +
+                    Obj.DebugLog(loSslInfo, Pre + 'SSL3 alert ' + Str +
                                  String(f_SSL_alert_type_string_long(ret)) + ' ' +
                                  String(f_SSL_alert_desc_string_long(ret)));
                 end
                 else if (Where and SSL_CB_EXIT) <> 0 then begin
                     if Ret = 0 then begin
                         if Obj.CheckLogOptions(loSslErr) then
-                            Obj.DebugLog(loSslDevel, Pre + Str + 'failed in ' +
+                            Obj.DebugLog(loSslErr, Pre + Str + 'failed in ' +
                                             String(f_SSL_state_string_long(ssl)));
                     end
                     else if Ret < 0 then begin
@@ -20755,7 +20695,7 @@ begin
                               {  if Err = SSL_ERROR_SSL then  { V8.14 report proper error }
                               {      Obj.HandleSslError  V8.55 clears error, don't use for debug purposes }
                               {  else   }
-                                    Obj.DebugLog(loSslDevel, Pre + Str + 'error ' + IntToStr (Err) + { V8.14 actual error }
+                                    Obj.DebugLog(loSslErr, Pre + Str + 'error ' + IntToStr (Err) + { V8.14 actual error }
                                      ' in ' + String(f_SSL_state_string_long(ssl)));
                             end;
                     end;
@@ -21306,8 +21246,8 @@ begin
         on E : Exception do begin
             FSslState := sslNone;
 {$IFNDEF NO_DEBUG_LOG}
-            if CheckLogOptions(loSslInfo) then  { V5.21 }
-                DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+            if CheckLogOptions(loSslErr) then  { V8.57 was loSslInfo }
+                DebugLog(loSslErr, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                           ' Fatal error StartSslHandshake handle=' + IntToStr(FHSocket) +
                           ' ' + E.Classname + ' ' + E.Message);
 {$ENDIF}
@@ -21345,8 +21285,8 @@ begin
         on E : Exception do begin
             FSslState  := sslNone;
 {$IFNDEF NO_DEBUG_LOG}
-            if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-                DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
+            if CheckLogOptions(loSslErr) then  { V8.57 was loSslInfo }
+                DebugLog(loSslErr, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                           ' Fatal error AcceptSslHandshake handle=' + IntToStr(FHSocket) +
                           ' ' + E.Classname + ': ' + E.Message);
 {$ENDIF}
@@ -21671,12 +21611,6 @@ begin
                     { Usually happens with an invalid context option set }
                     { V8.55 such as no ciphers available, tell someone!! }
                     Count := f_BIO_get_retry_reason(FSslbio);
-//                    FSslHandshakeRespMsg := String(LastOpenSslErrMsg(False));
-{$IFNDEF NO_DEBUG_LOG}
-//                    if CheckLogOptions(loSslInfo) then  { V8.55 }
-//                        DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
-//                          ' InitSSLConnection: ReadBIO Error: ' + FSslHandshakeRespMsg);
-{$ENDIF}
                     RaiseLastOpenSslError(EOpenSslError, TRUE,
                         'InitSSLConnection: ReadBIO, Retry Reason ' + IntToStr(Count));
                 end;
@@ -21956,18 +21890,6 @@ begin
                     FLastError := FNetworkError; //XX
                     Exit;
                 end;
-(*
-{$IFNDEF NO_DEBUG_LOG}
-                    if CheckLogOptions(loSslDevel) then begin  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-                        Err := f_SSL_get_error(FSSL, Count);
-                        DebugLog(loSslDevel, IntToHex(Integer(Self), 8) +
-                                 ' BIO_write error: ' + IntToStr(Err) +
-                                 ' ' +  SslErrorToStr(Err) + ' ' +
-                                 IntToStr(FHSocket));
-                        DebugLog(loSslDevel, LastOpenSslErrMsg(TRUE));
-                    end;
-{$ENDIF}
-*)
                 WSocket_WSASetLastError(WSAECONNABORTED);
                 FLastError := WSAECONNABORTED; //XX
                 TriggerEvent(sslFdClose, 0);
@@ -22226,36 +22148,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 // code moved to callback V8.55
 procedure TCustomSslWSocket.TriggerSslCliNewSession;
-//var
-//    CurrentSession : Pointer;
-//    IncRefCount    : Boolean;
 begin
-    // Sessions are created by a ssl server only
-(*    if (FSslMode = sslModeClient) and Assigned(FOnSslCliNewSession) and
-        Assigned(FSsl) then begin
-        if FSslState = sslEstablished then
-            CurrentSession := f_SSL_get_Session(FSsl)
-        else
-            CurrentSession := nil; // bad session
-        IncRefCount := FALSE;
-{$IFNDEF NO_DEBUG_LOG}
-        if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
-                     ' CliNewSession [' +
-                     IntToHex(INT_PTR(CurrentSession), SizeOf(CurrentSession) * 2) + '] ' +
-                     'Reused: ' + BoolToStr(SslSessionReused, TRUE));
-{$ENDIF}
-        SslCritSect.Enter;
-        try
-            FOnSslCliNewSession(Self, CurrentSession,
-                                SslSessionReused,
-                                IncRefCount);
-            if IncRefCount and (CurrentSession <> nil) then
-                f_SSL_get1_Session(FSsl);
-        finally
-            SslCritSect.Leave;
-        end;
-    end;  *)
+//
 end;
 
 
@@ -22350,11 +22244,13 @@ begin
     end  // FSslState = sslEstablished
     else begin
         if (FSslHandshakeRespMsg = '') then begin  { V8.14  }
-            if (ErrCode = 1) then
-        //       FSslHandshakeRespMsg := 'Error, connection closed unexpectedly'
-                FSslHandshakeRespMsg := 'Failed TLS protocol negotiation: ' +
-                                          String(f_SSL_state_string_long(Fssl))  { V8.54 }
-            else
+            if (ErrCode = 1) then begin
+                if Fssl = Nil then    { V8.57 }
+                    FSslHandshakeRespMsg := 'Error, connection closed unexpectedly'
+                else
+                    FSslHandshakeRespMsg := 'Failed TLS protocol negotiation: ' +
+                                          String(f_SSL_state_string_long(Fssl));   { V8.54 }
+            end else
                FSslHandshakeRespMsg := String(LastOpenSslErrMsg(true));
         end;
     end;

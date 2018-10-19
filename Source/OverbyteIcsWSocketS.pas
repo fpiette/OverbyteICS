@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.57
+Version:      8.58
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -39,15 +39,6 @@ Legal issues: Copyright (C) 1999-2018 by François PIETTE
                  to the author. Use a nice stamp and mention your name, street
                  address, EMail address and any comment you like to say.
 
-Quick reference guide:
-TWSocketServer will normally be used to listen on a given tcp port. When a
-client connect, it will instanciate a new TWSocketClient component to handle
-communication with client. Normally you will derive your own component from
-TWSocketClient to add private data and methods to handle it. You tell
-TWSocketServer which component it has to instanciate using ClientClass
-property. You have to initialize instances from OnClientConnect event handler.
-TWSocketServer maintain a list of connected clients. You can access it using
-Client[] indexed property and ClientCount property.
 
 History:
 Sep 05, 1999 V1.01 Adpted for Delphi 1
@@ -177,7 +168,7 @@ Feb 14, 2018  V8.52 Better error reporting when validating SSL certificates
                     Add TLSv3 ciphers for OpenSSL 1.1.1 and later only
 Jun 12, 2018  V8.55 sslSrvSecInter/FS now requires TLS1.1, PCI council EOF TLS1.0 30 June 2018
 Jul 6, 2018   V8.56 Added OnSslAlpnSelect called after OnSslServerName for HTTP/2.
-Oct 2, 2018   V8.57 Fixed bug so that a newly found SSL certificate is immediately
+Oct 5, 2018  V8.57  Fixed bug so that a newly found SSL certificate is immediately
                       loaded to the context.
                     IcsHosts INI file now accepts enum string for SslSecLevel, ie
                        SslSecLevel=sslSrvSecHigh as well as sslSrvSecHigh=5 .
@@ -195,62 +186,408 @@ Oct 2, 2018   V8.57 Fixed bug so that a newly found SSL certificate is immediate
                        OverbyteIcsX509CertsTst sample application).
                     Added LoadOneCert which consolidates all certificate loading code
                        from ValidateHosts and RecheckSslCerts.
+Oct 19, 2018  V8.58 Increased ListenBacklog property default to 15 to handle
+                      higher server loads before rejecting new connections.
+                    Documentation on IcsHosts and main components.   
 
 
+Quick reference guide:
+----------------------
 
-IcsHosts  (not finished...)
+TWSocketServer will normally be used to listen on a given tcp port. When a
+client connect, it will instanciate a new TWSocketClient component to handle
+communication with client. Normally you will derive your own component from
+TWSocketClient to add private data and methods to handle it. You tell
+TWSocketServer which component it has to instantiate using ClientClass
+property. You have to initialize instances from OnClientConnect event handler.
+TWSocketServer maintain a list of connected clients. You can access it using
+Client[] indexed property and ClientCount property.
+
+
+IcsHosts
 --------
 
-When originally designed, TWSocketServer only supported listening on a single IP
+When originally designed TWSocketServer only supported listening on a single IP
 address and port, subsequently MultiListenSockets were added to listen on multiple
-IP addresses and ports. TSslWSocketServer SSL support required a lot of extra code
-in the application to specify SSL certificates, protocols, ciphers and security
-using multiple SslContexts for multiple hosts.
+IP addresses and ports, and TSslWSocketServer SSL support required a lot of extra
+code in the application to specify SSL certificates, protocols, ciphers and
+security using multiple SslContexts for multiple hosts.
 
 The IcsHosts property is an alternate way for specifying multiple listeners for
 TSslWSocketServer that allows multiple hosts to be specified, each with one or
 two IP addresses and non-SSL and SSL port bindings, SSL certificates and private
 key (perhaps combined in a bundle), SSL context and security level, and other web
-server host related properties (used by higher level servers).
+server host related properties (used by higher level components).  Each IcsHost
+has one or more HostNames to which it will recognise, that can share IP addresses.
 
-If IcsHosts is specified, TSslWSocketServer ignores existing bindings and SSLContext,
-and creates new bindings and initialises an SSL context for each host checking and
-reporting all server certificate chains.
+If IcsHosts is specified, TSslWSocketServer ignores existing bindings and SSL
+context, and creates new bindings and initializes an SSL context for each host
+checking and reporting all server certificate chains.  To ease implementation,
+functions are provided to read IcsHosts and TWSocketServer from an INI file, or
+they may be specified through IDE form properties and saved by other means.
+
+Note IcsHosts is only available for TSslWSocketServer, not TWSocketServer, but
+you don't need to use SSL for any Hosts.
 
 HostNames     - One or more domain Host Names to which the server will respond,
-                comma separated list.  Host Names are matched initially against
-                SSL Server Name Indication (SNI), or against the HTTP Host: header
-                if no SSL or SNI.
-HostEnabled   - True or False if this Host is enabled, NOTE INI file reads Enabled
-                if HostEnabled missing.
-BindIpAddr    - Listening IP Address for this Host, may be 0.0.0.0 for all IP
-                Addresses, must exist.  Multiple Hosts can use the same IP Address.
-BindIpAddr2   - Optional second IP Address for this Host, perhaps an IPV6 address.
-BindNonPort   - Non-SSL/TLS Port, may be blank or zero if only SSL supported by Host.
-BindSslPort   - SSL/TLS Port, may be blank or zero if SSL not supported by Host, if used
-                several other SSL paramaters are requirted.
-HostTag       - (pending)
-Descr         -
-Proto         -
-ForwardProxy  -
-WebDocDir     -
-WebTemplDir   -
-WebDefDoc     -
-WebLogDir     -
-SslCert       -
-SslKey        -
-SslInter      -
-SslPassword   -
-SslSrvSecurity -
-WellKnownPath -
-WebRedirectURL -
-WebRedirectStat -
-CertSupplierProto -
-CertDirWork   -
-CertChallenge -
-CertPKeyType  -
-CertProduct   -
-CertSignDigest -
+                comma separated list, no quotes.  Host Names are matched initially
+                against SSL Server Name Indication (SNI), or against the HTTP
+                Host: header if no SSL or SNI for web and proxy servers. Note
+                INI file reads as Hosts.  Wild card host names are not allowed,
+                but SNI may match a wild card certificate to an IcsHost.
+HostEnabled   - True or False if this IcsHost is enabled, NOTE INI file also
+                reads Enabled if HostEnabled missing for backward compatibility.
+BindIpAddr    - Listening IP Address for this IcsHost, may be 0.0.0.0 for all IP
+                Addresses, must exist.  Multiple IcsHosts can use the same IP
+                Address which will then be chosen from HostNames using SNI or
+                Host: header.
+BindIpAddr2   - Optional second IP Address for this IcsHost, perhaps an IPv6
+                address.
+BindNonPort   - Optional non-SSL/TLS Port, may be blank or zero if only SSL is
+                supported by IcsHost, usually 80 for HTTP, required if
+                WellKnownPath specified for SSL automatic certificates.
+BindSslPort   - Optional SSL/TLS Port, may be blank or zero if SSL not supported
+                by IcsHost, if used generally 443 for HTTPS, and several other SSL
+                parameters are required.  Either BindNonPort or BindSslPort is
+                required.
+HostTag       - A short alphabetic name for the IcsHost, used variously in
+                high level servers.  The web application server uses HostTag in
+                the AddGetHandler, AddPostHandler and AddGetAllowedPath to cause
+                that handler to be matched.  The proxy server uses HostTag to
+                match source to one or more targets.  When SocketServer creates
+                a TWSocketClient for a new connection it sets the IcsHostIdx and
+                HostTag properties to this value, also ServerAddr and ServerPort
+                for the bindings.
+Descr         - Optional free description of the IcsHost, may be used for logging.
+Proto         - Optional high level protocol used by this IcsHost, used variously
+                in servers.  The proxy server uses HTTP, SMTP, POP3, etc.
+ForwardProxy  - Optional True/False used by the proxy server if this IcsHost is
+                functioning as a Forward Proxy rather than a Reverse Proxy. A
+                forward supports multiple targets according to the URL, while a
+                reverse proxy generally ignores the URL and has a single fixed
+                target, sometimes multiple fixed targets depending on the URL.
+                See OverbyteIcsProxy.pas for more information.
+WebDocDir     - Optional default web document directory for this IcsHost, used by
+                the web server.
+WebTemplDir   - Optional default web template directory for this IcsHost, used by
+                the web server.
+WebDefDoc     - Optional default web document for this IcsHost, used by the web
+                server.
+WebLogDir     - Optional web logging directory for this IcsHost, for use by web
+                server applications (not by the server itself which has not
+                logging).
+SslCert       - Optional SSL server certificate file name, may be PEM, DER, PFX,
+                P12, P7 format, optionally a bundle including a private key and
+                one or more intermediate certificates.  Required if BindSslPort
+                set. If a private key is included, will use SslPassword for an
+                encrypted file. Rather than a file name, may be an ASCII PEM string
+                containing the certificate without any line endings.  HostNames
+                will be checked against those listed on the certificate, and a not
+                warning given for mismatches so a single certificate needs to
+                contain all the HostName, or wild cards * so they match.
+                TSslWSocketServer has a method RecheckSslCerts that should be
+                called from the server application periodically, at least once
+                a day, which will check the certificate file time stamp and
+                reload it if changed, issue warnings if it expires within
+                CertExpireDays (default 30) and optionally order a new
+                certificate, see CertSupplierProto below.  Note if automatic
+                certificate ordering is used, the file name in SslCert must
+                conform to the format used by the TSslX509Certs component, with
+                the host name having all dots replaced by underscore and * by x,
+                then with suffix .pfx or -bundle.pem, ie
+                test3_telecom-tariffs_co_uk-bundle.pem or
+                test3_telecom-tariffs_co_uk.pfx.
+SslKey        - Optional SSL private key file name, PEM format, will use
+                SslPassword for an encrypted file.  Ignored if SslCert was a
+                bundle file with a private key.  Note all SSL servers need an
+                SSL certificate and matching private key to function, and these
+                are checked before the server will start. Rather than a file
+                name, may be an ASCII PEM string containing the private key
+                without any line endings.
+SslInter      - Optional SSL intermediate certificate bundle file name, PEM, DER,
+                P12 or P7 format. Ignored if SslCert was a bundle with
+                intermediate certificates.  The SSL certificate chains is checked
+                to ensure the server certificate is signed by an intermediate or
+                trusted root certificate, and likewise the intermediate(s). The
+                TSslWSocketServer RootCA property specifies a PEM bundle file
+                containing the trusted root certificates, if not specified an
+                internal bundle of about 36 major root certificates is used.
+SslPassword   - Optional password for the SSL private key, if encrypted.  Note
+                this is clear text in the INI file, steps should be taken to read
+                an encrypted password if security is required.  Beware most
+                PFX/P12 bundles need a password, since Windows will not import
+                them without a password.
+SslSrvSecurity - Optional SSL server security level, that sets protocol, cipher
+                and SslSecLevel according to eight levels from type TSslSrvSecurity:
+                sslSrvSecNone, sslSrvSecSsl3, sslSrvSecBack, sslSrvSecInter,
+                sslSrvSecInterFS, sslSrvSecHigh, sslSrvSecHigh128, sslSrvSecHigh192.
+                Details of each are in the OverbyteIcsSSLEAY.pas unit.  Beware the
+                server may not start, ie High128 requires an RSA private key length
+                greater than the 2,048 bits commonly used.  If not specified,
+                sslSrvSecDefault is used which is currently sslSrvSecInterFS
+                meaning TLSv1.1 or later with forward security ciphers.
+WellKnownPath - Optional, full file directory path for .Well-Known web URLs, used
+                by the web and proxy servers for automated SSL certificates.
+WebRedirectURL - Optional, a web server redirection URL, used in the proxy server
+                to redirect HTTP connections to HTTPS, if WebRedirectStat is none
+                zero.  Not currently used by the web server, but web server
+                applications can add event code to use these values, see event
+                SslHttpAppSrv1GetDocument in OverbyteIcsSslMultiWebServ1.pas.
+                Or more intelligent redirection could be implemented like
+                changing http:// to https://.
+WebRedirectStat - Optional, a web server redirection status code, 301, 302, 307
+                or 308 depending on reason.
+CertSupplierProto - Optional, if SSL X509 certificates are to be automatically
+                ordered, downloaded and installed, specifies the Supplier and
+                Protocol to be used as type TSupplierProto. Currently supports
+                SuppProtoNone, SuppProtoAcmeV2 and SuppProtoCertCentre. Ignored
+                unless TSslWSocketServer property SslCertAutoOrder is True.
+                Note any SSL certificates ordered will use all HostNames so must
+                support multiple Subject Alternative Names if more than one host
+                is specified.  Note wild card certificates can not currently be
+                ordered by IcsHosts, but can be done using TSslX509Certs.
+                Automatic certificate ordering is triggered by calling the server
+                method RecheckSslCerts after the server has started listening,
+                which checks all certificates and chains for expiry within
+                CertExpireDays (default 30) and will then order a new certificate
+                for any that fail, including certificate file missing.  The server
+                application should call RecheckSslCerts at least once a day, but
+                it can be more often to give more chances to check for ordering
+                problems.  The TSslX509Certs has an internal timer that checks
+                for order completion and calls an onNewCert event when the new
+                certificate is ready, this event should call RecheckSslCerts again
+                which will find the new certificate file and load it into
+                SslContext.
+CertDirWork   - Optional, if CertSupplierProto is not SuppProtoNone, specifies
+                the Certificate Database Working Directory, in which an account
+                that matches CertSupplierProto should already have been created,
+                see OverbyteIcsSslX509Certs.pas for more information.  All new
+                certificates, requests and private keys are saved in the work
+                directory with a unique order number, then again with the final
+                name format, and finally the certificate bundles as PEM and PFX
+                are copied to the directory used by SslCert.  CertDirWork must
+                not be the same directory as SslCert.  Generally, CertDirWork
+                should be the same for all Hosts that order certificates for the
+                server, because the TSslX509Certs currently only checks for
+                completed order for one supplier database at a time.  Different
+                directories can be used, provided certificates do not expire the
+                same day.
+CertChallenge - Optional, if CertSupplierProto is not SuppProtoNone, specifies
+                the Challenge Type as TChallengeType, used by the supplier to
+                check the domain names for the certificate resolve to this server.
+                Currently supports ChallNone, ChallFileUNC, ChallDNS and
+                ChallEmail.  Note that DNS require extra code in the server
+                application to update DNS records. ChallFileUNC means the server
+                will create a special file in the .Well-Known directory which
+                the supplier will read for each different HostName to confirm
+                they can all be accessed from the public internet, this usually
+                happens within a few seconds for domain validated certificates.
+                ChallEmail means that manual validation of the host names will
+                be needed, with notification by email when ready, but the
+                component will periodically check with the supplier to see when
+                the order is completed and can be downloaded and installed.
+CertProduct   - Optional, primarily for CertSupplierProto is SuppProtoCertCentre
+                to specify the particular certificate issuer and product,
+                currently only AlwaysOnSSL.AlwaysOnSSL supported since all
+                commercial certificates require contact details not in these
+                properties.  For SuppProtoAcmeV2, use Let's Encrypt currently
+                for descriptive purposes although in theory other suppliers may
+                use the same Acme2 protocol for other certificates.
+CertPKeyType  - Optional, specifies the new SSL certificate Private Key algorithm
+                and key length as type TSslPrivKeyType. Typically use
+                PrivKeyRsa2048, PrivKeyRsa3072, PrivKeyRsa4096, PrivKeyECsecp256,
+                PrivKeyECsecp384, PrivKeyECsecp512 or PrivKeyEd25519, although
+                the supplier may reject any of them. Beware RSA keys longer than
+                4,096 bits can take many minute to generate blocking the server.
+CertSignDigest - Optional, specifies the new SSL certificate request signing
+                digest as type TEvpDigest.  Typically use Digest_sha256,
+                Digest_sha384 or Digest_sha512, there are now SHA3 options but
+                unlikely to be supported by suppliers yet.
+
+
+Example from \Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.ini which can
+be read using the function IcsLoadIcsHostsFromIni.
+
+[Host4]
+Hosts=test7.ftptest.org,test7.ftptest.org.uk,test7.ftptest.co.uk
+HostTag=HTTP-FTPTEST
+Desc=test7-LetsEncrypt
+BindIpAddr=192.168.1.123
+BindNonPort=80
+BindSslPort=443
+HostEnabled=False
+SslSecLevel=sslSrvSecInterFS
+WellKnownPath=c:\websites\well-known\
+WebRedirectURL=https://www.telecom-tariffs.co.uk/
+WebRedirectStat=301
+SslCert=c:\certificates\local\test7_ftptest_org.pfx
+SslPassword=password
+CertSupplierProto=SuppProtoAcmeV2
+CertProduct=Let's Encrypt
+CertDirWork=c:\weblogs\acme-certs\
+CertChallenge=ChallFileUNC
+CertPKeyType=PrivKeyRsa2048
+CertSignDigest=Digest_sha256
+
+Once IcsHosts have been validated, a number of read only properties are available
+with more information about the IcsHost from the certificate and bindings, that
+may be usefully logged for configuration and error checking purposes.
+
+SslCtx       - TSslContext component used by IcsHost.
+HostNameTot  - Number of items in HostNames TStrings.
+DisplayName  - IcsHost display name, variously using HostTag, Descr, and bind
+               IP addresses and ports.
+CertDomains  - Comma separated list of SSL certificate host names from Subject
+               Alternate Names field.
+CertInfo     - A long multiple line text block describing all the main fields of
+               one or more SSL certificates in the chain including subject,
+               issuer, expiry, public key type and signature method.
+BindInfo     - List of one or more IP addresses and ports.
+CertExiry    - SSL certificate expiry date and time, as TDateTime.
+CertFStamp   - Unix file time stamp for SSL server certificate, to check if
+               changed.
+InterFStamp  - Unix file time stamp for SSL intermediate certificates, to check
+               if changed.
+CertErrs     - Description of any errors found in the SSL certificate chain
+               during validation.
+CertValRes   - SSL certificate chain validation result as type TChainResult,
+               chainOK, chainFail, chainWarn, chainNone.
+BindIdxNone  - MultiListenIdx for first IP address, non-SSL.
+BindIdxSsl   - MultiListenIdx for first IP address, SSL.
+BindIdx2None - MultiListenIdx for second IP address, non-SSL.
+BindIdx2Ssl  - MultiListenIdx for second IP address, SSL.
+
+
+0Auth2 Consideration
+--------------------
+
+If the CertSupplierProto requirss 0Auth2 authentication, ie SuppProtoCertCentre,
+a TSslX509Certs event is triggered with a browser URL that should be visited to
+login to the supplier account.  For a background server, the application can
+send an email to an administrator who performs the login manually on the same
+PC as the server is running, and the TSslX509Certs component will accept and
+save the authentication token automatically and use it for the next certificate
+order attempt. Tokens usually expire after 12 to 24 hours, but the server will
+automatically refresh the token provided it is not stopped before token expiry.
+
+
+TSslWSocketServer
+-----------------
+
+Proto        - Server protocol, always TCP.
+Addr         - Server listen IP address, IPv4 or IPv6, maybe 0.0.0.0 or :: to
+               listen on all available addresses, ignored if any IcsHosts
+               specified.  IP address must exist and not be in use elsewhere
+               for the same port.
+Port         - Server listen port, usually 80 or 443, ignored if any IcsHosts
+               specified.
+SocketFamily - IP address socket family as TSocketFamily, from sfIPv4, sfIPv6.
+SslEnable    - True if an SSL connection should be negotiated. ignored if any
+               IcsHosts specified.
+SslContext   - Assign to an TSslContext component for SSL support, where SSL
+               certificates, keys, protocols and ciphers are specified, ignored
+               if any IcsHosts specified.
+MultiListenSockets - Allows one or more extra server listen IP addresses and
+               ports to be specified, as type TWSocketMultiListenCollection,
+               allowing server to listen on several IP addresses/ports at the
+               same time, in addition to the that specified as Addr/Port props.
+               Each TWSocketMultiListenItem has Addr, Port, SocketFamily,
+               SslEnable and ListenBacklog properties. Better to use IcsHosts
+               for new applications which does the same, ignored if any IcsHosts
+               specified.
+MultiListenIndex - Read only, which listen socket accepted last connection, -1
+               if default Addr.Poprt used, 0 or above is index into
+               MultiListenSockets collection.
+MaxClients   - Maximum number of simultaneous clients the server should accept
+               if non-zero.  Any further clients will receive then BannerTooBusy
+               response and the connection closed, until earlier connections
+               are closed.
+Banner       - If non-blank, a text string that will be sent in response to a
+               new incoming connection, should generally be blank.
+BannerTooBusy - If non-blank, a text string that will be sent once MaxClients
+               is exceeded.
+ClientClass  - The class type the application has derived from TSslWSocketClient
+               for client application code.
+Client       - Currently active clients of ClientClass, indexed base zero.  Note
+               the index value may change each time a new client connects or
+               disconnects, so check CliId to confirm it's the correct one.
+ClientCount  - Number of active client connected.
+SocketErrs   - How socket error messages should be presented as type TSocketErrs,
+               wsErrTech or wsErrFriendly.
+ExclusiveAddr - True is other applications should be blocked from sharing the
+               server IP addresses.
+ListenBacklog - How many new client connections should be queued by Windows while
+               the server accepts them, before the server starts rejecting new
+               connections by immediately closing them.  Recommended as 15 for
+               heavy use servers, may be up to 250.
+IcsHosts     - Allows one or more TIcsHosts to be set, as TIcsHostCollection, an
+               alternate way for specifying multiple listeners that allows
+               multiple hosts to be specified, each with one or two IP addresses
+               and non-SSL and SSL port bindings, SSL certificates and private
+               key (perhaps combined in a bundle), SSL context and security level,
+               and other web server host related properties (used by higher level
+               components).  Each IcsHost has one or more HostNames to which it
+               will recognise, that can share IP addresses.  See above for more
+               detail.
+RootCA       - Specifying a file name containing a PEM bundle of trusted root SSL
+               certificates allows validation of SSL server certificate chains.
+               ICS includes RootCaCertsBundle.pem (large) and TrustedCABundle.pem
+               (medium size), and a default built-in (small) that will be used
+               if no file is specified.
+DHParams     - Specifies a DHParams file name, created using the PenTools sample,
+               or use the provided dhparam1024.pem or dhparam2048.pem files. Used
+               for DH and DHE ciphers, but not needed for modern ECDHE ciphers.
+               Rather than a file name, may be an ASCII PEM string containing
+               the DHParams without any line endings.
+SslCliCertMethod - Allows server to request a client SSL certificate from the
+               browser or remote application, as type TSslCliCertMethod, with
+               sslCliCertNone, sslCliCertOptional or sslCliCertRequire. Require
+               will close the connection unless a valid certificate is received
+               and validated against RootCA. Beware requesting a client
+               certificate usually causes the browser to prompt the user for
+               which certificate to send which can be obtrusive.
+CertExpireDays - When using IcsHosts, the number of days before an SSL server
+               certificate is due to expire that warnings will be generated (by
+               the method RecheckSslCerts, perhaps triggering automatic SSL
+               certificate ordering.
+SslCertAutoOrder - True if IcsHosts are allowed to order and install SSL
+               certificates automatically.  Requires SslX509Certs property to
+               be set, and CertSupplierProto set for any IcsHost that will order
+               certificates.
+SslX509Certs - Assign to a TSslX509Certs component if automatic SSL certificate
+               ordering is required.  Ir ia very important that the onCertProg
+               is used to log progress messages from the certificate ordering
+               process in case of errors.  The onCertsChallengeDNS event is
+               called if a DNS server should be updated, onCertsOAuthAuthUrl if
+               0Auth2 authenication is needed, and onCertsNewCert when a new
+               certificate is available which should be logged and the
+               RecheckSslCerts method called to cause the server to load it.
+
+
+TSslWSocketClient
+-----------------
+
+Each new incoming connection to TSslWSocketServer causes a new instance of
+TSslWSocketClient to be created, with a number of read only properties set,
+that may be useful for client application code.  Generally, applications will
+create their own class descended from TSslWSocketClient which is where all
+the code to listen to requests and send responses will go.
+
+Server      - TCustomWSocketServer component to which the client belongs.
+PeerAddr    - Remote IP address of the client, IPv4 or IPv6.
+PeerPort    - Remote IP port of the client.
+SessionClosedFlag - True if the client is in the process of closing.
+CliId       - A sequential client ID number that may be used to identify the
+              client, note clients are creating and destroyed regularly.
+IcsHostIdx  - If 0 or higher index into the IcsHosts collection, -1 if
+              IcsHosts not used.
+MultiListenIdx - -1 if default SocketServer listener used, 0 or above is
+              index into MultiListenSockets collection.
+HostTag     - A short alphabetic name for the IcsHost, used variously in
+              high level servers.
+CServerAddr - Local server IP address for listener.
+CServerPort - Local server IP port for listener.
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -328,8 +665,8 @@ uses
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 857;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2018 F. Piette V8.57 ';
+    WSocketServerVersion     = 858;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2018 F. Piette V8.58 ';
 
 type
     TCustomWSocketServer       = class;
@@ -2111,7 +2448,7 @@ end;
 constructor TWSocketMultiListenItem.Create(Collection: TCollection);
 begin
     inherited Create(Collection);
-    FListenBackLog := 5;
+    FListenBackLog := 15; { V8.57 was 5 }
     FSocketFamily := DefaultSocketFamily;
     FOldSocketFamily := FSocketFamily;
     AssignDefaults;

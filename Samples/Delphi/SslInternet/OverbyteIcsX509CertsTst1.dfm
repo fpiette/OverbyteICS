@@ -3,7 +3,7 @@ object X509CertsForm: TX509CertsForm
   Top = 0
   Caption = 
     'ICS Automatically Download SSL X509 Certificates Development Dem' +
-    'o - http://www.overbyte.be - V8.57 - 25th September 2018'
+    'o - http://www.overbyte.be - V8.58 - 19th October 2018'
   ClientHeight = 637
   ClientWidth = 1024
   Color = clBtnFace
@@ -323,10 +323,6 @@ object X509CertsForm: TX509CertsForm
     object TabDomain: TTabSheet
       Caption = 'Domain'
       ImageIndex = 4
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label9: TLabel
         Left = 5
         Top = 5
@@ -513,10 +509,6 @@ object X509CertsForm: TX509CertsForm
     object TabInfo: TTabSheet
       Caption = 'Cert Admin'
       ImageIndex = 6
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object lbCountry: TLabel
         Left = 585
         Top = 165
@@ -1532,18 +1524,10 @@ object X509CertsForm: TX509CertsForm
       Caption = 'Servertastic'
       ImageIndex = 7
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
     end
     object TabOwnCA: TTabSheet
       Caption = 'Own CA'
       ImageIndex = 9
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label48: TLabel
         Left = 10
         Top = 205
@@ -1940,10 +1924,6 @@ object X509CertsForm: TX509CertsForm
       Caption = 'Challenges'
       ImageIndex = 10
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label47: TLabel
         Left = 10
         Top = 5

@@ -3,7 +3,8 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.2 Tokyo
 (Aka FPIETTE's Components)
 
 
-Revised: September 11, 2018
+Revised: October 19, 2018
+Release: V8.58
 http://www.overbyte.be/
 http://wiki.overbyte.be/
 http://www.overbyte.eu/
@@ -103,7 +104,7 @@ components and sample programs. The history of changes in each source file list
 all developers having contributed (When no name is given, the change is by F. Piette).
 I can't list all contributors here but I want to specially thanks two specially active
 contributors:
-    - Arno Garrels <arno.garrels@gmx.de>
+    - Arno Garrels
     - Angus Robertson <angus@magsys.co.uk>
 
 
@@ -126,8 +127,8 @@ also includes the OpenSSL binaries needed to support SSL. ICS V8 supports Delphi
 XE3 and 10.2 Tokyo.  There are currently no packages for XE4 to 10.1. but older or
 newer ones will often work.
 
-The latest version is V8.57, which will be reported by the CopyRight constant in
-OverbyteIcsWSocket.pas and the integer WSocketVersion as 857.
+The latest version is V8.58, which will be reported by the CopyRight constant in
+OverbyteIcsWSocket.pas and the integer WSocketVersion as 858.
 
 ICS V9 is in early development and is planned to support Android and Linux Server. There
 are no current plans for ICS for iOS.
@@ -592,6 +593,7 @@ properly add all of the available components in this collection:
 > OverbyteIcsSmtpSrv.pas       SMTP server protocol - receive mail from client
 > OverbyteIcsSnmpCli.pas       SNMP client protocol - network management
 > OverbyteIcsSnmpMsgs.pas      SNMP client protocol - message helper
+> OverbyteIcsSslHttpRest.pas   HTTPS REST functions, descends from THttpCli, includes OAuth2 authentication.
 > OverbyteIcsSysLogClient.pas  Syslog Client Protocol - receive syslog messages
 > OverbyteIcsSysLogDefs.pas    Syslog Protocol - helpers
 > OverbyteIcsSysLogServer.pas  Syslog Server Protocol - send syslog messages
@@ -629,8 +631,11 @@ properly add all of the available components in this collection:
 > OverbyteIcsSHA1.pas          Implementation of US Secure Hash Algorithm 1 (SHA1)
 > OverbyteIcsSocketUtils.pas   Cross platform socket utilities for ICS
 > OverbyteIcsSSLEAY.pas        Delphi encapsulation for ssleay32.dll and libssl-1_1.dll (OpenSSL)
+> OverbyteIcsSslJose.pas       JOSE - Json Object Signing and Encryption
 > OverbyteIcsSslSessionCache.pas  A very fast external SSL-session-cache component
 > OverbyteIcsSslThrdLock.pas   Implementation of OpenSsl thread locking (Windows);
+> OverbyteIcsSslX509Certs.pas  Automatically download SSL X509 certificates from Let's Encrypt and CertCentre AG
+> OverbyteIcsSslX509Utils.pas  SSL key and X509 certification creation
 > OverbyteIcsSspi.pas          A few header translations from MS sspi.h and security.h
 > OverbyteIcsStreams.pas       Fast streams for ICS
 > OverbyteIcsThreadTimer.pas   A custom timer class using custom timer messages from one or more threads
@@ -832,7 +837,9 @@ All these samples may be built for Mac OS X (and Windows).
 Delphi Win32/Win64 SSL-enabled sample applications
 --------------------------------------------------
 .\Samples\delphi\sslinternet\SslDemos.bpg - Project group
+> OverbyteIcsHttpRestTst,dpr      ICS HTTPS REST and 0Auth functions demo - ACTIVE!!.
 > OverbyteIcsHttpsTst.dpr         Example of TSslHttpCli component (GET) - ACTIVE!!
+> OverbyteIcsJoseTst.dpr          ICS SSL Json Object Signing (Jose) Demos - ACTIVE!!
 > OverbyteIcsPemTool.dpr          ICS Pem Certificate Tool - Create and import certificates in many formats  - ACTIVE!!
 > OverbyteIcsProxySslServer.dpr   ICS Proxy server  - ACTIVE!!
 > OverbyteIcsSimpleSslCli.dpr     Example of simple SSL client using TSslWSocket - ACTIVE!!
@@ -849,8 +856,9 @@ Delphi Win32/Win64 SSL-enabled sample applications
 > OverbyteIcsSslWebServ.dpr       Demo of HTTPS server, uses TSocketServer - ACTIVE!!
 > OverbyteIcsSslWebAppServer.dpr  Advanced HTTPS server demo, uses WebServ, adds sessions - ACTIVE!!
 > OverbyteIcsSslSmtpServer.dpr    Internet EMail server using SMTP protocol and SSL - ACTIVE!!
+> OverbyteIcsX509CertsTst.dpr     Automatically download SSL X509 certificates from Let's Encrypt and CertCentre AG - ACTIVE!!
 
-Delphi Win32/Win64 HTTP sample applications
+Delphi Win32/Win64 HTTP sample applications (the SSL versions are preferred!)
 -------------------------------------------
 .\Samples\delphi\WebDemos\WebDemos.bpg - Project group
 > OverbyteIcsConHttp.dpr          Basic console mode HTTP client
@@ -868,9 +876,6 @@ Delphi Win32/Win64 HTTP sample applications
 > OverbyteIcsWebAppServer.dpr     Advanced HTTP server demo, uses WebServ, adds sessions - ACTIVE!!
 > OverbyteIcsWebServ.dpr          Demo of HTTP server, uses TSocketServer - ACTIVE!!
 
-Two samples are not in the project group since they need extra components installed
-> OverbyteIcsRestDemo.drp         Demo program showing how to use REST API from Google and Yahoo
-> OverbyteIcsRestJsonDemo.drp     Demo program showing how to use REST API from Google Search and JSON
 
 Sample Notes
 ------------

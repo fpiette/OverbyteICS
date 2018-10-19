@@ -1,10 +1,16 @@
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 Author:       Angus Robertson, Magenta Systems Ltd
-Description:  ICS SSL Json Object Signing (Jose) Demos
+Description:  Automatically download SSL X509 certificates from various
+              issuers, including free certificates from Let's Encrypt, and
+              commercial certificates from CertCentre AG and Servertastic.
+              Supports and ACME V1 and V2 protocols, and REST protocols
+              for specific vendors.  Domain validated certificates should
+              generally be issued without internvention, other commercial
+              certificates may take days to be approved.
 Creation:     May 2018
-Updated:      Sept 2018
-Version:      8.57
+Updated:      Oct 2018
+Version:      8.58
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -39,9 +45,10 @@ Legal issues: Copyright (C) 2003-2018 by François PIETTE
 
 History:
 May 22, 2018 - V8.54 baseline
-Sep 25, 2018 - V8.57 Added Database tab and settings
+Oct 5, 2018  - V8.57 Added Database tab and settings
+Oct 19, 2018 - V8.58 Bug fixes
 
-For docunentation on how to use this sample, please see a length Overview in
+For docunentation on how to use this sample, please see a lengthy Overview in
 the OverbyteIcsSslX509Certs.pas unit.
 
 Pending - Waiting challenges list
@@ -1160,7 +1167,7 @@ begin
             if (CertSANGrid.Cells[0,I] = CertCommonName.Text) then CommRow := I;
             if (CertSANGrid.Cells[0,I] = '') and (NewRow < 0) then NewRow := I;  // first blank row
         end;
-    // add common name to SANs if missing, ensure correct workdir 
+    // add common name to SANs if missing, ensure correct workdir
         if (CommRow = -1) and (NewRow >= 1) then begin
             CertSANGrid.Cells[0,NewRow] := CertCommonName.Text;
             CertSANGrid.Cells[1,NewRow] := X509Certs1.DirWellKnown;
@@ -1199,6 +1206,7 @@ begin
     if X509Certs1.SetAcmeAccount(True) then begin
         doAcmeCheckOrderV1.Enabled := True;
     end;
+    X509Certs1SuppDBRefresh(Self);
 end;
 
 procedure TX509CertsForm.doAcmeAccV2Click(Sender: TObject);
@@ -1215,6 +1223,7 @@ begin
     if X509Certs1.SetAcmeAccount(True) then begin
         doAcmeCheckOrderV2.Enabled := True;
     end;
+    X509Certs1SuppDBRefresh(Self);
  end;
 
 procedure TX509CertsForm.doAcmeCheckOrderV1Click(Sender: TObject);
@@ -1329,6 +1338,7 @@ begin
         doCertCentreCollect.Enabled := True;
         if (CertCentreProducts.Items.Count <> X509Certs1.ProductList.Count) then
             CertCentreProducts.Items.Assign(X509Certs1.ProductList);
+        X509Certs1SuppDBRefresh(Self);
     end
     else
         FPendCCProfile := True;  // waiting for oAuth2 response
@@ -1442,7 +1452,7 @@ begin
     X509Certs1.SuppOrderRef := CertCentreOrderRef.Text;
     CertCentreProductsClick(Self) ;
     X509Certs1.SuppCertProduct := CertCentreProducts.Items[CertCentreProducts.ItemIndex];
-    if NOT X509Certs1.CCCheckOrder(False, True) then Exit; 
+    if NOT X509Certs1.CCCheckOrder(False, True) then Exit;
     AddLog('Saved Certificate Order');
 end;
 

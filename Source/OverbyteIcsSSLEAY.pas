@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.57
+Version:      8.58
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -124,6 +124,7 @@ Oct 10, 2018  V8.57 added APLN APIs and literals
                     Support OpenSSL 1.1.1 final with TLS/1.3
                     Moved some SSL types and lits from Wsocket
                     EVP_MAX_KEY_LENGTH now 64
+Oct 19, 2018  V8.58 version only
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -204,8 +205,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 857;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2018 F. Piette V8.57 ';
+    IcsSSLEAYVersion   = 858;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2018 F. Piette V8.58 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -1892,6 +1893,8 @@ type
 { V8.40 ICS private key algorithm and key length in bits }
 { bracketed comment is security level and effective bits,
   beware long RSA key lengths increase SSL overhead heavily }
+{ creating new RSA keys is computationally expensive, 4096 bits
+  a couple of seconds, 7680 maybe a minute, 15360 hours }   
     TSslPrivKeyType = (
         PrivKeyRsa1024,   { level 1 - 80 bits  }
         PrivKeyRsa2048,   { level 2 - 112 bits }

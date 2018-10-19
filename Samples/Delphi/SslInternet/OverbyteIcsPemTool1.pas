@@ -97,6 +97,7 @@ Nov 3, 2017  V8.51 Tested ED25519 keys, can now sign requests and certs
 Feb 14, 2018 V8.52 TX509 PublicKey now X509PublicKey
 Mar 12, 2018 V8.53 Display Wsocket version in About
 Jun 11, 2018 V8.55 don't load OpenSSL in Create
+Oct 19, 2018 V8.58 version only
 
 
 Pending
@@ -134,10 +135,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 857;
-     PemToolDate        = 'Sept 19, 2018';
+     PemToolVersion     = 858;
+     PemToolDate        = 'Oct 19, 2018';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2018 by François PIETTE V8.57 ';
+     CopyRight : String = '(c) 2003-2018 by François PIETTE V8.58 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 

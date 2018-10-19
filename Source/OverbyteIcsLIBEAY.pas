@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.57
+Version:      8.58
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -147,6 +147,7 @@ Feb 16, 2018  V8.52 Added more EVP functions for keys, hashing and signing
                       fail, thanks to Rui for finding this.
                     Ics_EVP_PKEY_dup now uses EVP_PKEY_up_ref for 1.1.0 up
 Oct 10, 2018  V8.57 Removed duplicate EVP_MAX lits
+Oct 19, 2018  V8.58 version only
 
 
 
@@ -254,8 +255,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 857;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2018 F. Piette V8.57 ';
+    IcsLIBEAYVersion   = 858;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2018 F. Piette V8.58 ';
 
 type
     EIcsLibeayException = class(Exception);

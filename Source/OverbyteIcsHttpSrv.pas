@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.57
+Version:      8.58
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -44,23 +44,6 @@ Legal issues: Copyright (C) 1999-2018 by François PIETTE
                  to the author. Use a nice stamp and mention your name, street
                  address, EMail address and any comment you like to say.
 
-How-To:
-
-Authentication:
-  To implement authentication in your website, you must install an event
-  handler for OnAuthGetType. In this handler, you check for each
-  Client.Path which need to be password protected. For each selected path, you
-  have to set Client.AuthType to whatever authentication method you need (none,
-  basic or digest). You could also set Client.AuthRealm to whatever realm you
-  need. By default AuthType and AuthRealm are initialized from the corresponding
-  values ate the server component level.
-  The next thing to do is to implement an event handler for the
-  OnAuthGetPassword event. This event is triggered whenever the component need
-  to get a password to check with what the client sent. Usually, you'll get
-  the password using Client.AuthUsername property which is the username
-  provided by the client. You may also use the path and the realm to
-  implement more complex passwrod system.
-  Use the OnAuthResult event to log authentication success or failure.
 
 History:
 If not otherwise noted, changes are by Francois Piette
@@ -435,7 +418,7 @@ Aug 10, 2017 V8.50 Fixed bug setting WebRedirectStat
                    Fixed bug that first IcsHost could not be SSL
                    Internal FSslEnable now FHttpSslEnable to ease confusion
 Jul 6, 2018  V8.56 Added OnSslAlpnSelect called after OnSslServerName for HTTP/2
-Oct 2, 2018  V8.57  Added SslCliCertMethod to allow server to request a client
+Oct 5, 2018 V8.57  Added SslCliCertMethod to allow server to request a client
                        SSL certificate from the browser, NOTE you should check it
                        the OnSslHandshakeDone event and close the connection if
                        invalid, beware this usually causes the browser to request
@@ -445,8 +428,42 @@ Oct 2, 2018  V8.57  Added SslCliCertMethod to allow server to request a client
                        IcsHosts, if a TSslX509Certs component is attached and a
                        certificate supplier account has been created (by the
                        OverbyteIcsX509CertsTst sample application).
+Oct 19, 2018 V8.58 Increased ListenBacklog property default to 15 to handle
+                      higher server loads before rejecting new connections.
+                   Some documentation on IcsHosts and main components.
 
 
+Quick reference guide:
+----------------------
+
+See OverbyteIcsWSocketS.pas for documentation on TSslWSocketServer whose
+properties are exposed by TSslHttpServer, TSslWSocketClient for properties
+exposed by THttpConnection, and for IcsHosts which allows the web server to
+support multiple Hosts on multiple IP addresses and ports with SSL support,
+including automatic SSL certificate ordering.
+
+TSslHttpAppSrv in OverbyteIcsHttpAppServer.pas descends from TSslHttpServer
+and adds session support and template processing based on URLs, it is generally
+preferred over TSslHttpServer.  It includes a function IcsLoadTHttpAppSrvFromIni
+that will load all major server settings from an INI file, as documented in that
+unit and the OverbyteIcsSslMultiWebServ sample application.
+
+
+Authentication:
+  To implement authentication in your website, you must install an event
+  handler for OnAuthGetType. In this handler, you check for each
+  Client.Path which need to be password protected. For each selected path, you
+  have to set Client.AuthType to whatever authentication method you need (none,
+  basic or digest). You could also set Client.AuthRealm to whatever realm you
+  need. By default AuthType and AuthRealm are initialized from the corresponding
+  values ate the server component level.
+  The next thing to do is to implement an event handler for the
+  OnAuthGetPassword event. This event is triggered whenever the component need
+  to get a password to check with what the client sent. Usually, you'll get
+  the password using Client.AuthUsername property which is the username
+  provided by the client. You may also use the path and the realm to
+  implement more complex passwrod system.
+  Use the OnAuthResult event to log authentication success or failure.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -554,9 +571,9 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 857;
-    CopyRight : String = ' THttpServer (c) 1999-2018 F. Piette V8.57 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.57';   { V8.09 }
+    THttpServerVersion = 858;
+    CopyRight : String = ' THttpServer (c) 1999-2018 F. Piette V8.58 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.58';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -2060,7 +2077,7 @@ begin
     FPort           := '80';
     FSocketFamily   := DefaultSocketFamily;        { V8.00 }
     FMaxClients     := 0;                {DAVID}
-    FListenBacklog  := 5; {Bjørnar}
+    FListenBacklog  := 15; {Bjørnar} { V8.57 was 5 }
     FDefaultDoc     := 'index.html';
     FDocDir         := 'c:\wwwroot';
     FTemplateDir    := 'c:\wwwroot\templates';

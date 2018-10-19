@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      8.57
+Version:      8.58
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -115,9 +115,43 @@ Aug 10, 2017 V8.50 Corrected onSslServerName to OnSslServerName to keep C++ happ
 Jul 6, 2018  V8.56 Added OnSslAlpnSelect called after OnSslServerName for HTTP/2.
 Oct 10, 2018 V8.57 INI file now reads Options as enumerated type literals,
                      ie Options=[hoContentEncoding,hoAllowDirList,hoSendServerHdr,hoAllowPut]
-                   INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays
+                   INI file reads SslCliCertMethod, SslCertAutoOrder, CertExpireDays.
                    FSessionTimer is now TIcsTimer so Vcl.ExtCtrls can disappear
+Oct 19, 2018 V8.58 INI file reads ListenBacklog.
 
+
+[WebAppServer]
+MaxClients=200
+MaxSessions=
+SessionTimeout=14400
+; CA root bundle to validate certificates and local chains
+RootCA=c:\certificates\RootCaCertsBundle.pem
+; needed for DH and DHE ciphers
+DHParams=c:\certificates\dhparams2048.pem
+; should maximum speed limit be imposed
+BandwidthLimitKB=0
+; how long idle clients should remain open
+KeepAliveTimeSec=60
+; how long active but stalled clients should remain open
+KeepAliveTimeXferSec=300
+; minimum and maxmum sized content to GZIP compress , no point in compressing
+;  small files, very large ones can take a long time and block server.
+SizeCompressMin=5000
+SizeCompressMax=5000000
+; Header items that should be included in any response header
+PersistentHeader=
+; multiple server Options: hoAllowDirList, hoAllowOutsideRoot, hoContentEncoding, hoAllowOptions,
+;   hoAllowPut, hoAllowDelete, hoAllowTrace, hoAllowPatch, hoAllowConnect, hoSendServerHdr, hoIgnoreIfModSince
+Options=[hoContentEncoding,hoSendServerHdr,hoAllowPut]
+; should browser send certificate: sslCliCertNone, sslCliCertOptional, sslCliCertRequire
+SslCliCertMethod=sslCliCertNone
+; should server automatically order and install SSL certificates, also needs CertSupplierProto specified
+; also needs a Certificate Supplier Account to be created first
+SslCertAutoOrder=True
+; how many days before expiry of SSL certificates should warnings and AutoOrder start
+CertExpireDays=30
+; how many new connections should be queued before rejecting new connections
+ListenBacklog=25
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *_*}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -2004,6 +2038,7 @@ begin
         CertExpireDays := MyIniFile.ReadInteger(Section, 'CertExpireDays', CertExpireDays);                 { V8.57 }
         IcsStrToSet(TypeInfo (THttpOption), MyIniFile.ReadString (section, 'Options', '[]'), FOptions, SizeOf(Options)); { V8.57 }
      // ie Options=[hoContentEncoding,hoAllowDirList,hoSendServerHdr,hoAllowPut]
+        ListenBacklog := MyIniFile.ReadInteger(Section, 'ListenBacklog', ListenBacklog);  { V8.57 }
     end;
 end;
 {$ENDIF}

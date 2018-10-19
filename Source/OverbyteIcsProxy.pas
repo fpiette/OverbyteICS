@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Forward and Reverse SSL HTTP Proxy
 Creation:     May 2017
 Updated:      Oct 2018
-Version:      8.57
+Version:      8.58
 Sponsor:      This component was sponsored in part by Avenir Health and
               Banxia Software Ltd. http://www.avenirhealth.org
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
@@ -108,6 +108,10 @@ Target - TSslWSocket that connects to a remote target destination,   Part
    changed to alter the target for this connection only.  If TarPort is zero,
    the source port and SSL method are copied for the target.
 
+See OverbyteIcsWSocketS.pas for documentation on TSslWSocketServer whose
+properties are exposed by TSslWSocketServer and for IcsHosts which is each
+Source. including automatic SSL certificate ordering.
+
 Once source and target are connected, traffic from source is sent to target,
 and vice versa.  The proxy receives data in a temporary TBytes buffer of size
 RxBuffSize (default 64K).  For HTTP, entire request and response headers are
@@ -197,6 +201,7 @@ Oct 2, 2018  V8.57 - Added OnSslAlpnSelect called after OnSslServerName for HTTP
                     Note certificate ordering currently only works with Proto=HTTP.
                     INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays.
                     Support FMX
+Oct 19, 2018  V8.58 version only
 
 
 pending...
@@ -279,9 +284,9 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpServerVersion = 857;
-    CopyRight : String = ' TIcsHttpProxy (c) 2018 F. Piette V8.57 ';
-    DefServerHeader : string = 'Server: ICS-Proxy-8.57';
+    THttpServerVersion = 858;
+    CopyRight : String = ' TIcsHttpProxy (c) 2018 F. Piette V8.58 ';
+    DefServerHeader : string = 'Server: ICS-Proxy-8.58';
     CompressMinSize = 5000;     // 5K minimum to make it worth compressing a page
     CompressMaxSize = 5000000;  // 5M bigger takes too long
     DefRxBuffSize = 65536;

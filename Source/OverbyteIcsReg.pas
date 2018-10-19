@@ -13,7 +13,7 @@ Sep 2013   V8.03 - Angus added TSmtpSrv and TSslSmtpSrv
 May 2017   V8.45 - Angus added TIcsProxy, TIcsHttpProxy
 Apr 2018   V8.54 - Angus added TSslHttpRest, TSimpleWebSrv and TRestOAuth
 May 2018   V8.54 - Angus added TSslX509Certs
-Oct 2018   V8.57 - New components now installed for FMX and VCL
+Oct 2018   V8.58 - New components now installed for FMX and VCL
                    Added subversion to sIcsLongProductName for splash screen
 
 }
@@ -275,7 +275,7 @@ const
         sIcsSplashImg   = 'ICSPRODUCTICON';
     {$ENDIF}
 {$ENDIF}
-    sIcsLongProductName = 'Internet Component Suite V8.57';
+    sIcsLongProductName = 'Internet Component Suite V8.58';
     sIcsFreeware        = 'Freeware';
     sIcsDescription     = sIcsLongProductName + #13#10 +
                           //'Copyright (C) 1996-2018 by François PIETTE'+ #13#10 +

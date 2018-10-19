@@ -38,7 +38,7 @@ Legal issues: Copyright (C) 1996-2018 by François PIETTE
                  to the author. Use a nice stamp and mention your name, street
                  address, EMail address and any comment you like to say.
 
-History:   
+History:
 If not otherwise noted, changes are by Francois Piette
 Jul 18, 1996  Move all low level socket to winsock to be Delphi 2.x compatible
 Sep 18, 1996  Use structured exception for handling errors
@@ -1295,7 +1295,7 @@ Oct 5, 2018  V8.57  Tidy up UnwrapNames.
                     Fixed compiler hints in GetProc
 Oct 19, 2018 V8.58 Increased ListenBacklog property default to 15 to handle
                       higher server loads before rejecting new connections.
-                    Corrected soem debug error loSslInfo to loSslErr.
+                    Corrected some debug error loSslInfo to loSslErr.
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -4029,7 +4029,7 @@ type
         procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
         function    SslGetSupportedCiphers (Supported, Remote: boolean): String;    { V8.27 }
         function    SslGetAlpnProtocol: String;         { V8.56 }
-                    
+
         property    LastSslError       : Integer          read FLastSslError;
         property    ExplizitSsl        : Boolean          read  FExplizitSsl
                                                           write FExplizitSsl;
@@ -21730,7 +21730,7 @@ begin
   {  FInHandshake             := FALSE;  V8.55 }
     FHandshakeEventDone      := FALSE;  { V8.55 }
     FHandshakeDone           := FALSE;
-// V8.55 reset is called during error handling, don't clear error reasons     
+// V8.55 reset is called during error handling, don't clear error reasons
 //    FSslHandshakeRespMsg     := '';  { V8.14 set with success or failure message once handshake completes }
 //    FSslHandshakeErr         := 0;   { V8.14 }
     FSslCipherDesc           := '';  { V8.14  }

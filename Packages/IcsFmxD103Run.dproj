@@ -61,7 +61,7 @@
         <DCC_Define>USE_SSL;$(DCC_Define)</DCC_Define>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
-        <DCC_Description>Overbyte ICS FMX Run-Time Package for Delphi 10.3</DCC_Description>
+        <DCC_Description>Overbyte ICS FMX Run-Time Package for Delphi 10.3 Rio</DCC_Description>
         <DCC_RangeChecking>true</DCC_RangeChecking>
         <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
         <GenDll>true</GenDll>

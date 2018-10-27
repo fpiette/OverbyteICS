@@ -32,7 +32,7 @@ package IcsCommonD103Run;
 {$DEFINE DEBUG}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS Common Run-Time Package for Delphi 10.3'}
+{$DESCRIPTION 'Overbyte ICS Common Run-Time Package for Delphi 10.3 Rio'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
 

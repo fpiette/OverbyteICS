@@ -27,7 +27,7 @@ package OverbyteIcsD103Design;
 {$DEFINE VCL}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS VCL Design-Time Package for Delphi 10.3'}
+{$DESCRIPTION 'Overbyte ICS VCL Design-Time Package for Delphi 10.3 Rio'}
 {$DESIGNONLY}
 {$IMPLICITBUILD OFF}
 

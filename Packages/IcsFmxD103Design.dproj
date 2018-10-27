@@ -43,7 +43,7 @@
     <PropertyGroup Condition="'$(Base)'!=''">
         <SanitizedProjectName>IcsFmxD103Design</SanitizedProjectName>
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-        <DCC_Description>Overbyte ICS FMX Design-Time Package for Delphi 10.3</DCC_Description>
+        <DCC_Description>Overbyte ICS FMX Design-Time Package for Delphi 10.3 Rio</DCC_Description>
         <DCC_Define>USE_SSL;$(DCC_Define)</DCC_Define>
         <DCC_UsePackage>rtl;IcsFmxRun;IcsCommonDXE9Run;IcsFmxDXE9Run;$(DCC_UsePackage)</DCC_UsePackage>
         <DesignOnlyPackage>true</DesignOnlyPackage>

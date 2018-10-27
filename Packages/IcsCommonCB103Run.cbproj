@@ -73,7 +73,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(BDSLIB)\$(PLATFORM)\release;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_HppOutput>..\source\include\102\$(Platform)</DCC_HppOutput>
         <IncludePath>..\Source\;..\Lib\$(Config)\$(Platform);$(IncludePath)</IncludePath>
-        <ILINK_Description>Overbyte ICS Common Run-Time Package for C++ Builder 10.2</ILINK_Description>
+        <ILINK_Description>Overbyte ICS Common Run-Time Package for C++ Builder 10.3 Rio</ILINK_Description>
         <PackageImports>IPIndyImpl;bindcompfmx;fmx;rtl;dbrtl;IndySystem;DbxClientDriver;bindcomp;inetdb;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DataSnapServer;DataSnapProviderClient;xmlrtl;ibxpress;DbxCommonDriver;IndyProtocols;DBXMySQLDriver;dbxcds;soaprtl;bindengine;DBXOracleDriver;CustomIPTransport;dsnap;DBXInformixDriver;IndyCore;fmxase;CloudService;DBXFirebirdDriver;inet;fmxobj;inetdbxpress;DBXSybaseASADriver;fmxdae;dbexpress;DataSnapIndy10ServerTransport;$(PackageImports)</PackageImports>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <Multithreaded>true</Multithreaded>

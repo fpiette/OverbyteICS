@@ -3,7 +3,7 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.2 Tokyo
 (Aka FPIETTE's Components)
 
 
-Revised: October 19, 2018
+Revised: October 27, 2018
 Release: V8.58
 http://www.overbyte.be/
 http://wiki.overbyte.be/
@@ -124,8 +124,8 @@ ICS V8 is the current development release which is held in a public Version Cont
 repository that is zipped each night for easy download.  The download page above
 also includes the OpenSSL binaries needed to support SSL. ICS V8 supports Delphi
 64-bit and Mac OS-X projects.  Note that C++ Builder versions supported are up to
-XE3 and 10.2 Tokyo.  There are currently no packages for XE4 to 10.1. but older or
-newer ones will often work.
+XE3, 10.2 Tokyo and 10.3 Rio.  There are currently no packages for XE4 to 10.1. but
+older or newer ones will often work.
 
 The latest version is V8.58, which will be reported by the CopyRight constant in
 OverbyteIcsWSocket.pas and the integer WSocketVersion as 858.
@@ -280,6 +280,8 @@ Delphi 10.1 Berlin : D101Install.groupproj // VCL only, no FireMonkey components
 Delphi 10.1 Berlin : D101InstallVclFmx.groupproj // Both VCL and FireMonkey components
 Delphi 10.2 Tokyo  : D102Install.groupproj // VCL only, no FireMonkey components
 Delphi 10.2 Tokyo  : D102InstallVclFmx.groupproj // Both VCL and FireMonkey components
+Delphi 10.3 Rio  : D103Install.groupproj // VCL only, no FireMonkey components
+Delphi 10.3 Rio  : D103InstallVclFmx.groupproj // Both VCL and FireMonkey components
 C++ Builder 2006 :  CB2006Install.bdsgroup
 C++ Builder 2007 :  CB2007Install.groupproj
 C++ Builder 2009 :  CB2009Install.groupproj
@@ -289,6 +291,7 @@ C++ Builder XE2  :  CBXe2Install.groupproj // VCL only no FireMonkey components
 C++ Builder XE2  :  CBXe2InstallVclFmx.groupproj // Both VCL and FireMonkey components
 C++ Builder XE3  :  CBXe3InstallVclFmx.groupproj // Both VCL and FireMonkey components
 C++ Builder 10.2 Tokyo  : CB102InstallVclFmx.groupproj // Both VCL and FireMonkey components
+C++ Builder 10.3 Rio  : CB103InstallVclFmx.groupproj // Both VCL and FireMonkey components
 
 1 - Do a File/Open Project, navigate to the Install directory, select the correct
 file and open it. The project manager view should now display two package
@@ -373,6 +376,7 @@ Delphi XE8       :  OverbyteIcsDXe8Run.dproj, OverbyteIcsDXe8Design.dproj
 Delphi 10 Seattle  : OverbyteIcsD10SRun.dproj, OverbyteIcsD10SDesign.dproj
 Delphi 10.1 Berlin : OverbyteIcsD101Run.dproj, OverbyteIcsD101Design.dproj
 Delphi 10.2 Tokyo  : OverbyteIcsD102Run.dproj, OverbyteIcsD102Design.dproj
+Delphi 10.3 Rio  : OverbyteIcsD103Run.dproj, OverbyteIcsD103Design.dproj
 C++ Builder 2006 :  OverbyteIcsCB2006Run.bdsproj, OverbyteIcsCB2006Design.bdsproj
 C++ Builder 2007 :  OverbyteIcsCB2007Run.cbproj, OverbyteIcsCB2007Design.cbproj
 C++ Builder 2009 :  OverbyteIcsCB2009Run.cbproj, OverbyteIcsCB2009Design.cbproj
@@ -412,14 +416,19 @@ Delphi 10.1 Berlin FMX  :  IcsFmxD101Run.dproj, IcsFmxD101Design.dproj
 Delphi 10.2 Tokyo FMX/VCL: IcsCommonD102Run.dproj, IcsCommonD102Design.dproj
 Delphi 10.2 Tokyo VCL   :  IcsVclD102Run.dproj, IcsVclD102Design.dproj
 Delphi 10.2 Tokyo FMX   :  IcsFmxD102Run.dproj, IcsFmxD102Design.dproj
+Delphi 10.3 Rio FMX/VCL :  IcsCommonD103Run.dproj, IcsCommonD103Design.dproj
+Delphi 10.3 Rio VCL     :  IcsVclD103Run.dproj, IcsVclD103Design.dproj
+Delphi 10.3 Rio FMX     :  IcsFmxD103Run.dproj, IcsFmxD103Design.dproj
 C++ Builder XE2 FMX/VCL :  IcsCommonCBXe2Run.dproj, IcsCommonDXe2Design.dproj
 C++ Builder XE2 VCL     :  IcsVclCBXe2Run.dproj, IcsVclCBXe2Design.dproj
 C++ Builder XE2 FMX     :  IcsFmxCBXe2Run.dproj, IcsFmxCBXe2Design.dproj
 C++ Builder XE3 FMX/VCL :  IcsCommonCBXe3Run.dproj, IcsCommonDXe3Design.dproj
 C++ Builder XE3 VCL     :  IcsVclCBXe3Run.dproj, IcsVclCBXe3Design.dproj
 C++ Builder XE3 FMX     :  IcsFmxCBXe3Run.dproj, IcsFmxCBXe3Design.dproj
-C++ Builder 10.2 Tokyo VCL   : IcsVclCB102Run.dproj, IcsVclCB102Design.dproj
-C++ Builder 10.2 Tokyo FMX   : IcsFmxCB102Run.dproj, IcsFmxCB102Design.dproj
+C++ Builder 10.2 Tokyo VCL : IcsVclCB102Run.dproj, IcsVclCB102Design.dproj
+C++ Builder 10.2 Tokyo FMX : IcsFmxCB102Run.dproj, IcsFmxCB102Design.dproj
+C++ Builder 10.3 Rio VCL: IcsVclCB103Run.dproj, IcsVclCB103Design.dproj
+C++ Builder 10.3 Rio FMX: IcsFmxCB103Run.dproj, IcsFmxCB103Design.dproj
 
 
 1 - Open and Build the run-time package project (do not install!).
@@ -450,9 +459,9 @@ project.
 
 
 DELPHI XE2/WIN32, XE3/WIN32, XE4/WIN32, XE5/WIN32, XE6/WIN32, XE7/WIN32, XE8/WIN32,
-10 Seattle/WIN32, 10.1 Berlin/WIN32, 10.2 Tokyo/WIN32, XE2/WIN64, XE3/WIN64, XE4/WIN64,
-XE5/WIN64, XE6/WIN64, XE7/WIN64, XE8/WIN64, 10 Seattle/WIN64, 10.1 Berlin/WIN64,
-10.2 Tokyo/WIN64:
+10 Seattle/WIN32, 10.1 Berlin/WIN32, 10.2 Tokyo/WIN32, 10.3 Rio/WIN32, XE2/WIN64,
+XE3/WIN64, XE4/WIN64,XE5/WIN64, XE6/WIN64, XE7/WIN64, XE8/WIN64, 10 Seattle/WIN64,
+10.1 Berlin/WIN64, 10.2 Tokyo/WIN64, 10.3 Rio/WIN64:
 
 Similar to above, but the Library path is specified separately for 32-bit and 64-bit
 Windows Platforms. Beware Delphi seems to default to 64-bit platform, and needs to
@@ -509,7 +518,7 @@ each one after the other and compile them. For each project, do file/open
 and select the dpr file in the internet directory. Then Project/Build All.
 
 
-C++ BUILDER 2006, 2007, 2009, 2010, XE, XE2, XE3, 10.2 Tokyo:
+C++ BUILDER 2006, 2007, 2009, 2010, XE, XE2, XE3, 10.2 Tokyo, 10.3 Rio:
 
 Follow the installation procedure described for Delphi 2006. Just change
 the project group and package name: use CB2006, CBXe, etc, see above.

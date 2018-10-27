@@ -75,7 +75,7 @@
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(BDSLIB)\$(PLATFORM)\release;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_HppOutput>..\source\include\102\$(Platform)</DCC_HppOutput>
         <IncludePath>..\Source\;..\Lib\$(Config)\$(Platform);$(IncludePath)</IncludePath>
-        <ILINK_Description>Overbyte ICS FMX Run-Time Package for C++ Builder 10.2 Tokyo</ILINK_Description>
+        <ILINK_Description>Overbyte ICS FMX Run-Time Package for C++ Builder 10.3 Rio</ILINK_Description>
         <ILINK_LibraryPath>..\Source\;..\Lib\$(Config)\$(Platform);$(ILINK_LibraryPath)</ILINK_LibraryPath>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>

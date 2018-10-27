@@ -46,7 +46,7 @@
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_Description>Overbyte ICS Common Design-Time Package for Delphi 10.3</DCC_Description>
+        <DCC_Description>Overbyte ICS Common Design-Time Package for Delphi 10.3 Rio</DCC_Description>
         <DesignOnlyPackage>true</DesignOnlyPackage>
         <GenDll>true</GenDll>
         <VerInfo_Locale>1031</VerInfo_Locale>

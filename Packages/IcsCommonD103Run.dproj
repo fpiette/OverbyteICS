@@ -66,7 +66,7 @@
     <PropertyGroup Condition="'$(Base)'!=''">
         <SanitizedProjectName>IcsCommonD103Run</SanitizedProjectName>
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-        <DCC_Description>Overbyte ICS Common Run-Time Package for Delphi 10.3</DCC_Description>
+        <DCC_Description>Overbyte ICS Common Run-Time Package for Delphi 10.3 Rio</DCC_Description>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_Define>USE_SSL;$(DCC_Define)</DCC_Define>

@@ -59,7 +59,7 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_Define>USE_SSL;$(DCC_Define)</DCC_Define>
         <LinkPackageStatics>rtl.lib;vcl.lib</LinkPackageStatics>
-        <ILINK_Description>Overbyte ICS Common Design-Time Package for C++ Builder 10.3</ILINK_Description>
+        <ILINK_Description>Overbyte ICS Common Design-Time Package for C++ Builder 10.3 Rio</ILINK_Description>
         <DCC_SYMBOL_DEPRECATED>false</DCC_SYMBOL_DEPRECATED>
         <DCC_SYMBOL_PLATFORM>false</DCC_SYMBOL_PLATFORM>
         <DCC_UNIT_PLATFORM>false</DCC_UNIT_PLATFORM>

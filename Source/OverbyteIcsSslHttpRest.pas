@@ -13,7 +13,7 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
 Updated:      Oct 2018
-Version:      8.57
+Version:      8.58
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
 Legal issues: Copyright (C) 2018 by Angus Robertson, Magenta Systems Ltd,
@@ -136,6 +136,8 @@ Jul  2, 2018  - V8.55 - Improved Json error handling
                        Builds with NO_DEBUG_LOG
 Oct 2, 2018   - V8.57 - Need OAuth local web server for all auth methods.
                         Builds with FMX 
+Oct 27, 2018 - V8.58 - Bug fixes, call RequestDone event if it fails
+
 
 
 Pending - Simple web server now less simple to supports SSL and ALPN
@@ -221,8 +223,8 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpRestVersion = 857;
-    CopyRight : String = ' TSslHttpRest (c) 2018 F. Piette V8.57 ';
+    THttpRestVersion = 858;
+    CopyRight : String = ' TSslHttpRest (c) 2018 F. Piette V8.58 ';
     DefMaxBodySize = 100*100*100; { max memory/string size 100Mbyte }
     TestState = 'Testing-Redirect';
 
@@ -242,8 +244,6 @@ type
   TOAuthAuthUrlEvent = procedure (Sender: TObject; const URL: string) of object;
 
 { property and state types }
-//TCertVerMethod   = (CertVerNone, CertVerBundle, CertVerWinStore);
-//THttpDebugLevel  = (DebugNone, DebugConn, DebugParams, DebugSsl, DebugHdr, DebugBody, DebugSslLow);
   TPContent = (PContUrlencoded, PContJson);
   TOAuthProto = (OAuthv1, OAuthv1A, OAuthv2);
   TOAuthType = (OAuthTypeWeb, OAuthTypeMan, OAuthTypeEmbed);
@@ -728,7 +728,6 @@ begin
 end;
 
 
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { run a program, URL or document }
 function IcsShellExec(aFile: String): Boolean;
@@ -737,7 +736,6 @@ var
 begin
     Result := IcsShellExec(aFile, PID);
 end;
-
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -749,7 +747,6 @@ begin
     inherited;
     FPRaw := False;
 end;
-
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -773,7 +770,6 @@ begin
 end;
 
 
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TRestParams.GetItem(Index: Integer): TRestParam;
 begin
@@ -781,13 +777,11 @@ begin
 end;
 
 
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TRestParams.SetItem(Index: Integer; Value: TRestParam);
 begin
   inherited SetItem(Index, TCollectionItem(Value));
 end;
-
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -827,7 +821,6 @@ begin
     Items[Index].PValue := aValue;
     Items[Index].PRaw := aRaw;
 end;
-
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -930,7 +923,6 @@ begin
 end;
 
 
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { TSslHttpRest }
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1000,6 +992,7 @@ begin
     inherited Destroy;
 end;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.InitSsl;
 var
@@ -1050,7 +1043,7 @@ begin
     try
         if NOT RestSslCtx.IsCtxInitialized then begin
             RestSslCtx.InitContext;
-            if FDebugLevel >= DebugSsl then
+            if FDebugLevel >= DebugSslLow then
                 LogEvent('SSL Version: ' + OpenSslVersion + ', Dir: ' + GLIBEAY_DLL_FileName);
         end;
         FInitSsl := True;
@@ -1079,6 +1072,7 @@ begin
     if FConnected then CloseAsync;
 end;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.SetRestParams(Value: TRestParams);
 begin
@@ -1086,13 +1080,11 @@ begin
 end;
 
 
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.SetSslCliCert(Value: TX509Base);
 begin
     FSslCliCert.Assign(Value);
 end;
-
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1103,6 +1095,7 @@ begin
         FonHttpRestProg(Self, loProtSpecInfo, Msg) ;
 end ;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.IcsLogEvent(Sender: TObject; LogOption: TLogOption;
                                                       const Msg : String);
@@ -1112,31 +1105,39 @@ begin
 end ;
 
 
-
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.onHttpSessionConnected (Sender : TObject);
 begin
     if FDebugLevel < DebugConn then Exit;
     LogEvent ('Connected to: ' + IcsFmtIpv6Addr(HostName)) ;
 end ;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.onHttpSessionClosed(Sender : TObject);
 begin
     if FDebugLevel < DebugConn then Exit;
     LogEvent ('Connection closed') ;
 end ;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.onHttpCommand (Sender: TObject; var S: String) ;
 begin
     if FDebugLevel < DebugHdr then Exit;
     LogEvent ('> ' + S) ;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.onHttpHeaderData (Sender : TObject);
 begin
     if FDebugLevel < DebugHdr then Exit;
     LogEvent ('< ' + LastResponse) ;
 end ;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.onHttpDocBegin(Sender : TObject);
 begin
     if FRespReq and (FContentLength > FMaxBodySize) then begin
@@ -1145,6 +1146,8 @@ begin
     end;
 end ;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.onHttpLocationChange(Sender : TObject);
 begin
   { cookies may have been sent during redirection, so update again now }
@@ -1157,12 +1160,15 @@ begin
 end ;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.onHttpCookie(Sender : TObject; const Data : String;
     var Accept : Boolean);
 begin
     RestCookies.SetCookie(Data, FURL);
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.onCookiesNewCookie(Sender : TObject; ACookie : TCookie;
     var Save : Boolean);
 var
@@ -1186,6 +1192,7 @@ begin
 end;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.OnHttpSslVerifyPeer(Sender: TObject;
                                             var Ok: Integer; Cert : TX509Base);
 begin
@@ -1193,6 +1200,7 @@ begin
 end ;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.OnHttpSslCliNewSession(Sender: TObject; SslSession: Pointer;
                                     WasReused: Boolean; var IncRefCount : Boolean) ;
 var
@@ -1216,6 +1224,8 @@ begin
     end;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.OnHttpSslCliGetSession(Sender: TObject; var SslSession: Pointer;
                                                             var FreeSession : Boolean);
 var
@@ -1236,6 +1246,8 @@ begin
         LogEvent ('No Old SSL Session Cached');
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.OnHttpSslHandshakeDone(Sender: TObject; ErrCode: Word;
                                     PeerCert: TX509Base; var Disconnect: Boolean);
 var
@@ -1251,7 +1263,6 @@ begin
     if (ErrCode <> 0) or Disconnect then begin
         FReasonPhrase := HttpCtl.SslServerName + ' SSL Handshake Failed: ' + HttpCtl.SslHandshakeRespMsg;
         LogEvent (FReasonPhrase) ;
-        Disconnect := TRUE;
         exit;
     end  ;
     if FDebugLevel >= DebugSsl then
@@ -1315,6 +1326,7 @@ begin
         info := info + ', Expected: ' + HttpCtl.SslServerName ;
         if FDebugLevel >= DebugSsl then
             LogEvent (info);
+        FReasonPhrase := info;  { V8.58 }
     end
     else begin
         if FDebugLevel >= DebugSsl then
@@ -1343,7 +1355,6 @@ begin
         exit ;
     end;
 end;
-
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1418,41 +1429,41 @@ begin
     if ErrCode <> 0 then begin   // ReasonPhrase has description of ErrCode
         LogEvent('Request failed: ' + Info) ;
         FRespReq := False;
-        Exit;
-    end;
-    LogEvent('Request completed: ' + Info);
-    try
-        if FRespReq then begin  // only process response for REST request
-            FRespReq := False;
-            FResponseSize := FResponseStream.Size;
+    end
+    else begin  { V8.58 }
+        LogEvent('Request completed: ' + Info);
+        try
+            if FRespReq then begin  // only process response for REST request
+                FRespReq := False;
+                FResponseSize := FResponseStream.Size;
 
-            if FResponseSize <> 0 then begin
-                FResponseStream.Seek (0, soFromBeginning) ;
-
-              // convert response to correct codepage, including entities
-                if (Pos ('text/', FContentType) = 1) or
-                       (Pos ('json', FContentType) <> 0) or
-                         (Pos ('xml', FContentType) <> 0) then begin
-                    FResponseRaw := IcsHtmlToStr(FResponseStream, FContentType, true);
+                if FResponseSize <> 0 then begin
                     FResponseStream.Seek (0, soFromBeginning) ;
-                    if DebugLevel >= DebugBody then
-                        LogEvent('Response (length ' + IntToKbyte(Length(FResponseRaw)) +
-                                                              ')' + IcsCRLF +  FResponseRaw);
-                end
-                else if DebugLevel >= DebugBody then
-                        LogEvent('Response Non-Textual (length ' + IntToKbyte(FResponseSize));
+
+                  // convert response to correct codepage, including entities
+                    if (Pos ('text/', FContentType) = 1) or
+                           (Pos ('json', FContentType) <> 0) or
+                             (Pos ('xml', FContentType) <> 0) then begin
+                        FResponseRaw := IcsHtmlToStr(FResponseStream, FContentType, true);
+                        FResponseStream.Seek (0, soFromBeginning) ;
+                        if DebugLevel >= DebugBody then
+                            LogEvent('Response (length ' + IntToKbyte(Length(FResponseRaw)) +
+                                                                  ')' + IcsCRLF +  FResponseRaw);
+                    end
+                    else if DebugLevel >= DebugBody then
+                            LogEvent('Response Non-Textual (length ' + IntToKbyte(FResponseSize));
+                end;
             end;
-        end;
-    except
-        on E:Exception do
-        begin
-            LogEvent('Failed to process response: ' + E.Message);
+        except
+            on E:Exception do
+            begin
+                LogEvent('Failed to process response: ' + E.Message);
+            end;
         end;
     end;
     if Assigned (FOnRestRequestDone) then
         FOnRestRequestDone(Sender, RqType, ErrCode);
 end;
-
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1540,9 +1551,10 @@ begin
     end;
 end;
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
-//  TSimpleWebSrv
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{  TSimpleWebSrv }
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TSimpleWebSrv.Create (Aowner: TComponent);
 begin
     inherited Create(AOwner);
@@ -1562,12 +1574,14 @@ begin
     FDebugLevel := DebugConn;
 end;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor TSimpleWebSrv.Destroy;
 begin
     FreeAndNil(FWebServer);
     inherited Destroy;
 end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TSimpleWebSrv.StartSrv: boolean ;
@@ -1589,6 +1603,7 @@ begin
     end;
 end;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TSimpleWebSrv.StopSrv: boolean ;
 var
@@ -1609,6 +1624,7 @@ begin
     end;
     Result := IsRunning;
 end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSimpleWebSrv.LogEvent(const Msg : String);
@@ -1829,6 +1845,7 @@ begin
     end ;
 end ;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { TRestOAuth }
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1970,7 +1987,7 @@ end;
 procedure TRestOAuth.RefreshOnTimer(Sender : TObject);
 begin
     FRefreshTimer.Enabled := False;
-    try            
+    try
      // auto refresh token
         if FRefreshAuto and (FRefreshToken <> '') and (FRefreshDT <> 0) then begin
             if Now > FRefreshDT then begin
@@ -1992,7 +2009,6 @@ begin
         FRefreshTimer.Enabled := True;
     end;
 end;
-
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2080,7 +2096,6 @@ begin
     BuildBody;
   { web page is sent by event handler }
 end;
-
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2268,6 +2283,7 @@ begin
     Result := GetToken;
 end;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TRestOAuth.GrantRefresh: boolean;
 begin
@@ -2289,6 +2305,7 @@ begin
     HttpRest.RestParams.AddItem('client_secret', FClientSecret, true);
     Result := GetToken;
 end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TRestOAuth.GrantPasswordToken(const User, Pass: String): boolean;
@@ -2314,6 +2331,7 @@ begin
     Result := GetToken;
 end;
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TRestOAuth.GrantAppToken: boolean;
 begin
@@ -2332,8 +2350,8 @@ begin
     Result := GetToken;
 end;
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
 {$ENDIF USE_SSL}

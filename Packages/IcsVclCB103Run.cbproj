@@ -76,7 +76,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <ILINK_LibraryPath>..\Source\;..\Source;..\Lib\$(Config)\$(Platform);$(ILINK_LibraryPath)</ILINK_LibraryPath>
         <DCC_HppOutput>..\source\include\102\$(Platform)</DCC_HppOutput>
         <IncludePath>..\Source\;..\Source;..\Lib\$(Config)\$(Platform);$(IncludePath)</IncludePath>
-        <ILINK_Description>Overbyte ICS VCL Run-Time Package for C++ Builder 10.2</ILINK_Description>
+        <ILINK_Description>Overbyte ICS VCL Run-Time Package for C++ Builder 10.3 Rio</ILINK_Description>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>

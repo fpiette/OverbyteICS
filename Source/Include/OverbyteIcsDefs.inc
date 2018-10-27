@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  Version defines for ICS (Internet Component Suite)
 Creation:     2003
-Version:      8.57
+Version:      8.58
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -66,7 +66,7 @@ Aug 2015 - V8.08 - Angus XE9 is now Delphi 10 Seattle
 Apr 2016 - V8.09 - Angus Delphi 10.1 and 10.2, USE_SSL now enabled
 Mar 2017 - V8.42 - Angus couple more BCBs, added BDS numbers
 Jul 2018 - V8.55 - Angus added NO_DEBUG_LOG as disabled but used for testing
-Aug 2018 - V8.57 - Angus Delphi 10.3, updated BDB for 10.1 and later
+Oct 2018 - V8.58 - Angus Delphi 10.3 Rio, updated BDB for 10.1 and later
 
   SYMBOL           Compiler version
   ===============  ======================================
@@ -136,7 +136,7 @@ Aug 2018 - V8.57 - Angus Delphi 10.3, updated BDB for 10.1 and later
   BCB23_UP         C++ Builder 10 Seattle  or higher
   BCB24_UP         C++ Builder 10.1 Berlin or higher
   BCB25_UP         C++ Builder 10.2 Tokyo or higher
-  BCB26_UP         C++ Builder 10.3 ? or higher
+  BCB26_UP         C++ Builder 10.3 Rio or higher
 
   COMPILER1        Delphi 1
   COMPILER2        Delphi 2  or C++ Builder 1
@@ -163,7 +163,7 @@ Aug 2018 - V8.57 - Angus Delphi 10.3, updated BDB for 10.1 and later
   COMPILER23       Delphi or C++ Builder 10 Seattle
   COMPILER24       Delphi or C++ Builder 10.1 Berlin
   COMPILER25       Delphi or C++ Builder 10.2 Tokyo
-  COMPILER26       Delphi or C++ Builder 10.3 ?
+  COMPILER26       Delphi or C++ Builder 10.3 Rio
 
   COMPILER1_UP     Delphi 1  or higher
   COMPILER2_UP     Delphi 2  or C++ Builder 1 or higher
@@ -190,7 +190,7 @@ Aug 2018 - V8.57 - Angus Delphi 10.3, updated BDB for 10.1 and later
   COMPILER23_UP    Delphi or C++ Builder 10 Seattle or higher (Aitana)
   COMPILER24_UP    Delphi or C++ Builder 10.1 Berlin or higher (BigBen)
   COMPILER25_UP    Delphi or C++ Builder 10.2 Tokyo or higher (Godzilla)
-  COMPILER26_UP    Delphi or C++ Builder 10.3 ? or higher (Carnival)
+  COMPILER26_UP    Delphi or C++ Builder 10.3 Rio or higher (Carnival)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * }
 

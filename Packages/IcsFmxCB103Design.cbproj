@@ -66,7 +66,7 @@
         <DCC_AdditionalSwitches>-LUDesignIde</DCC_AdditionalSwitches>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <ILINK_Description>Overbyte ICS FMX Design-Time Package for C++ Builder 10.3 Toyo</ILINK_Description>
+        <ILINK_Description>Overbyte ICS FMX Design-Time Package for C++ Builder 10.3 Rio</ILINK_Description>
         <ILINK_GenerateImportLibrary>true</ILINK_GenerateImportLibrary>
         <ProjectType>CppPackage</ProjectType>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>

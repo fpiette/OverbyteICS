@@ -3,8 +3,8 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
-Updated:      June 2018
-Version:      8.57
+Updated:      Oct 2018
+Version:      8.58
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -44,7 +44,7 @@ Jun 15, 2018 - V8.55 Update SSL client security levels from literals
 Jul 9, 2018  - V8.56 Using OverbyteIcsTypes instead of OverbyteIcsLogger
 Sep 25, 2018 - V8.57 Using OnSelectDns to show alternate IP addresses, changed
                       SocketFamily to sfAny so it finds both IPV4 and IPV6 addresses
-
+Oct 27, 2018 - V8.58 Better error handling.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -164,6 +164,8 @@ type
     doGrantPassword: TButton;
     Label21: TLabel;
     LabelResult: TLabel;
+    TabSheet1: TTabSheet;
+    TabSheet2: TTabSheet;
     procedure FormCreate(Sender: TObject);
     procedure HttpRest1HttpRestProg(Sender: TObject; LogOption: TLogOption;
       const Msg: string);
@@ -476,15 +478,13 @@ begin
 
   // make HTTP request, note RestParams are ignored if RawRarams not blank
     StatCode := HttpRest1.RestRequest(Req, RestURL.Text, Async, RawParams.Text);
-    if StatCode < 0 then begin
-        AddLog ('Request failed: ' + HttpRest1.ReasonPhrase);
-        doStartReq.Enabled := True;
-    end
+    if Async then
+        AddLog ('Async request started')
     else begin
-        if Async then
-             AddLog ('Request started');
+        AddLog ('Sync request completed, Status ' + IntToStr (StatCode));
+      // for sync we can process the result here instead of HttpRest1RestRequestDone
+        doStartReq.Enabled := True;
     end;
-    if NOT Async then doStartReq.Enabled := True;
 end;
 
 procedure THttpRestForm.HttpRest1RestRequestDone(Sender: TObject;
@@ -498,6 +498,14 @@ var
     CVal: String;
 begin
     doStartReq.Enabled := True;
+    if ErrCode <> 0 then begin
+        AddLog('Request failed, error #' + IntToStr(ErrCode) +
+              '. Status = ' + IntToStr(HttpRest1.StatusCode) +
+                               ' - ' + HttpRest1.ReasonPhrase);
+        Exit;
+    end;
+
+    AddLog('Request done, StatusCode #' + IntToStr(HttpRest1.StatusCode));
     AddLog (String(HttpRest1.ResponseRaw));
 
     if ((Pos('{', HttpRest1.ResponseRaw) > 0) or

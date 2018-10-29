@@ -16,6 +16,10 @@ May 2018   V8.54 - Angus added TSslX509Certs
 Oct 2018   V8.58 - New components now installed for FMX and VCL
                    Added subversion to sIcsLongProductName for splash screen
 
+Oct 29, 2018 WARNING - TSimpleWebSrv, TRestOAuth and TSslX509Certs are not
+currently registered for FMX due to a bug that brings in VCL, sorry
+
+
 }
 
 
@@ -225,14 +229,17 @@ begin
       TIcsProxy,
       TIcsHttpProxy,
       TSslHttpRest,   { V8.54 }
-      TSimpleWebSrv,  { V8.54 }
-      TRestOAuth,     { V8.54 }
-      TSslX509Certs,  { V8.54 }
+//    TSimpleWebSrv,  { V8.58 trying to get FMX to build }
+//    TRestOAuth,     { V8.58 }
+//    TSslX509Certs,  { V8.58 }
     {$IFDEF VCL}
       {$IFNDEF BCB}
         TSslWSocketThrdServer,
       {$ENDIF}
         TSslSmtpServer,
+        TSimpleWebSrv,  { V8.54 }
+        TRestOAuth,     { V8.54 }
+        TSslX509Certs,  { V8.54 }
     {$ENDIF VCL}
     {$IFNDEF NO_DYNLOCK}
       TSslDynamicLock,

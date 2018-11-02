@@ -9,7 +9,7 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     Apr 2018
-Updated:      Oct 2018
+Updated:      Nov 2018
 Version:      8.58
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -667,7 +667,8 @@ Oct 2, 2018   - V8.57 - Added database for domains and challenges (INI file).
                         Added own CA to issue local certificates.
                         Use own CSR and PKey instead of creating them new.
                         Builds with FMX but not tested.
-Oct 19, 2018  - V8.58 - Bug fixes and more documentation.
+Nov 2, 2018   - V8.58 - Bug fixes and more documentation.
+                        Descend components from TIcsWndControl not TComponent
 
 
 Pending - more documentation
@@ -685,7 +686,7 @@ Pending - better error reporting and logging
 Pending - Comodo intermediates have too many certificates including a root
 Pending - Add self signed and CA certs to database
 Pending - try and share INI file?
-Pending - check well-known challenge made to TSslHttpServer 
+Pending - check well-known challenge made to TSslHttpServer
 }
 
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -1002,8 +1003,7 @@ type
                                                     write SetItem; default;
   end;
 
- TSslX509Certs = class(TComponent)
-// TSslX509Certs = class(TIcsWndControl)
+TSslX509Certs = class(TIcsWndControl)
   private
     { Private declarations }
 // components
@@ -1196,7 +1196,6 @@ type
   public
     { Public declarations }
     constructor  Create (Aowner: TComponent); override;
-//    constructor  Create (Aowner: TIcsWndControl); override;
     destructor   Destroy; override;
     function  StartDomSrv: boolean ;
     function  StopDomSrv: boolean ;
@@ -1562,7 +1561,6 @@ end;
 { TSslX509Certs }
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 constructor TSslX509Certs.Create (Aowner: TComponent);
-//constructor TSslX509Certs.Create (Aowner: TIcsWndControl);
 begin
     inherited Create(AOwner);
     FDomWebServer := TSimpleWebSrv.Create(self);
@@ -1590,7 +1588,6 @@ begin
     FOARefrMinsPrior := 120;
     FPrivKeyCipher := PrivKeyEncNone;
     FChallengeTimer := TIcsTimer.Create(FHttpRest);
-//    FChallengeTimer := TIcsTimer.Create(Self);
     FChallengeTimer.OnTimer := ChallengeOnTimer;
     FChallengeTimer.Interval := 30 * TicksPerSecond;
     FChallengeTimer.Enabled := False;

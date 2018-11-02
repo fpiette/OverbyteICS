@@ -12,7 +12,7 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      Oct 2018
+Updated:      Nov 2018
 Version:      8.58
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -135,8 +135,9 @@ May 21, 2018  - V8.54 - baseline
 Jul  2, 2018  - V8.55 - Improved Json error handling
                        Builds with NO_DEBUG_LOG
 Oct 2, 2018   - V8.57 - Need OAuth local web server for all auth methods.
-                        Builds with FMX 
-Oct 27, 2018 - V8.58 - Bug fixes, call RequestDone event if it fails
+                        Builds with FMX
+Nov 2, 2018   - V8.58 - Bug fixes, call RequestDone event if it fails
+                        Descend components from TIcsWndControl not TComponent
 
 
 
@@ -173,7 +174,7 @@ uses
 {$IFDEF MSWINDOWS}
     {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
     {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
-    ShellAPI,
+    {$IFDEF RTL_NAMESPACES}Winapi.ShellAPI{$ELSE} ShellAPI{$ENDIF},
 {$ENDIF}
 {$IFDEF POSIX}
     Posix.Time,
@@ -436,7 +437,7 @@ type
     procedure ParseReqHdr;
   end;
 
-  TSimpleWebSrv = class(TComponent)
+  TSimpleWebSrv = class(TIcsWndControl)
   private
     { Private declarations }
     FDebugLevel: THttpDebugLevel;
@@ -482,7 +483,7 @@ type
   does not normally allow applications to specify the actual login to the
   app, this is done via a browser web page }
 
-  TRestOAuth = class(TComponent)
+  TRestOAuth = class(TIcsWndControl)
   private
     { Private declarations }
     FDebugLevel: THttpDebugLevel;

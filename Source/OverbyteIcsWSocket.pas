@@ -1293,7 +1293,7 @@ Oct 5, 2018  V8.57  Tidy up UnwrapNames.
                       defaults to 30 days, used to order new certificates.
                     Moved some SSL types and lits to OverbyteIcsSSLEAY.
                     Fixed compiler hints in GetProc
-Oct 19, 2018 V8.58 Increased ListenBacklog property default to 15 to handle
+Nov 2, 2018  V8.58 Increased ListenBacklog property default to 15 to handle
                       higher server loads before rejecting new connections.
                     Corrected some debug error loSslInfo to loSslErr.
 

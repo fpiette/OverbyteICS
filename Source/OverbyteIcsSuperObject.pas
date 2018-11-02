@@ -22,7 +22,8 @@
  *  Beware only documentation is readme.md file.
  *  Taken from https://github.com/hgourvest/superobject
  *  Note this is an older 1.2 than github which has more complicated timezone stuff
- * 4 May 2018 - removed duplicated Q-/Q+ overflow directive so Delphi 7 works 
+ *  4 May 2018 - removed duplicated Q-/Q+ overflow directive so Delphi 7 works
+ *  Nov 2, 2018 - V8.58 - Use namespaces to keep FMX happy
  *
  *  v1.2
  *   + support of currency data type
@@ -123,9 +124,11 @@ interface
 {$RANGECHECKS OFF}
 
 uses
-  Classes
+  {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF}
 {$IFDEF HAVE_RTTI}
-  ,Generics.Collections, RTTI, TypInfo
+  ,{$IFDEF RTL_NAMESPACES}System.Generics.Collections{$ELSE}Generics.Collections{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.RTTI{$ELSE}RTTI{$ENDIF},
+  {$IFDEF RTL_NAMESPACES}System.TypInfo{$ELSE}TypInfo{$ENDIF}
 {$ENDIF}
   ;
 
@@ -847,17 +850,20 @@ function SOInvoke(const obj: TValue; const method: string; const params: string;
 {$ENDIF}
 
 implementation
-uses sysutils,
-{$IFDEF UNIX}
-  baseunix, unix, DateUtils
-{$ELSE}
-  Windows
-{$ENDIF}
-{$IFDEF FPC}
-  ,sockets
-{$ELSE}
-  ,WinSock
-{$ENDIF};
+
+uses
+ {$IFDEF RTL_NAMESPACES}System.SysUtils,{$ELSE}SysUtils,{$ENDIF}
+ {$IFDEF UNIX}
+   baseunix, unix, DateUtils
+ {$ELSE}
+   {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF}
+ {$ENDIF}
+ {$IFDEF FPC}
+   ,sockets
+ {$ELSE}
+   ,{$IFDEF RTL_NAMESPACES}Winapi.WinSock{$ELSE}WinSock{$ENDIF}
+ {$ENDIF}
+  ;
 
 {$IFDEF DEBUG}
 var

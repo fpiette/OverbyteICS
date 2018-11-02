@@ -1,9 +1,9 @@
-ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.2 Tokyo
-=======================================================================
+ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.3 Rio
+=====================================================================
 (Aka FPIETTE's Components)
 
 
-Revised: October 27, 2018
+Revised: November 2, 2018
 Release: V8.58
 http://www.overbyte.be/
 http://wiki.overbyte.be/

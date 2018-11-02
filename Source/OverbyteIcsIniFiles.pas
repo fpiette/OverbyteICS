@@ -46,6 +46,7 @@ Oct 11, 2010 V7.02 Added methods ReadStrings and WriteStrings from MailSnd demo.
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 June 2015 - V8.01 Angus moved to main source dir
+Nov 2, 2018 - V8.58 - Use namespaces to keep FMX happy
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsIniFiles;
@@ -70,9 +71,11 @@ interface
 
 uses
 {$IFDEF MSWINDOWS}
-  Windows,
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
-  SysUtils, Classes, IniFiles,
+ {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+ {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
+ {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
   OverbyteIcsStreams,
   OverbyteIcsUtils;
 

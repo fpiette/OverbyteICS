@@ -2,18 +2,20 @@
 unit OverbyteIcsWinCrypt;
 
 { June 2015 - Angus renamed from WinCrypt and moved to main source dir       }
+{ Nov 2, 2018 - V8.58 - Use namespaces to keep FMX happy }
 
 { note this unit includes a Jedi header file JwaWinCrypt rnmamed to }
 { OverbyteIcsJwaWinCrypt.inc with conditionals to make it independent of JCL }
 { and stop it being compiled alone }
 
 {$WEAKPACKAGEUNIT}
+{$I Include\OverbyteIcsDefs.inc}
 
 interface
 {$IFDEF MSWINDOWS}
 
 uses
-  Windows;
+  {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF};
 
 type
   {$EXTERNALSYM LPBYTE}

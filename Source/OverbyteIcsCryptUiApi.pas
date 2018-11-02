@@ -25,6 +25,7 @@
 { June 2015 - Angus renamed from CryptuiApi and moved to main source dir       }
 {                   now using OverbyteIcsWinCrypt                              }
 { 5 Oct 2017 - only compile for Windows                                                                              }
+{ Nov 2, 2018 - V8.58 - Use namespaces to keep FMX happy }
 
 {******************************************************************************}
 
@@ -34,12 +35,13 @@ unit OverbyteIcsCryptuiApi;
 {$WEAKPACKAGEUNIT}
 
 {.$DEFINE WIN7_UP}  // WinXp+, most likely W2K+
+{$I Include\OverbyteIcsDefs.inc}
 
 interface
 {$IFDEF MSWINDOWS}
 
 uses
-  Windows,
+ {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 //#include <wintrust.h>
   OverbyteIcsWinCrypt;
 //#include <prsht.h>

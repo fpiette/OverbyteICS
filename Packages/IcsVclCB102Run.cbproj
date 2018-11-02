@@ -1,7 +1,7 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{6C7913B1-1951-4432-B5DB-37FEB6653783}</ProjectGuid>
-        <ProjectVersion>18.2</ProjectVersion>
+        <ProjectVersion>18.3</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <MainSource>IcsVclCB102Run.cpp</MainSource>
         <Base>True</Base>
@@ -73,10 +73,10 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <ILINK_MapFileType>None</ILINK_MapFileType>
         <DCC_ObjOutput>..\Lib\$(Config)\$(Platform)\102</DCC_ObjOutput>
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(BDSLIB)\$(PLATFORM)\release;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-        <ILINK_LibraryPath>..\Source\;..\Source;..\Lib\$(Config)\$(Platform);$(ILINK_LibraryPath)</ILINK_LibraryPath>
+        <ILINK_LibraryPath>..\Source\;..\Source;..\Lib\$(Config)\$(Platform);$(BDSCOMMONDIR)\BPL\$(Platform);$(ILINK_LibraryPath)</ILINK_LibraryPath>
         <DCC_HppOutput>..\source\include\102\$(Platform)</DCC_HppOutput>
         <IncludePath>..\Source\;..\Source;..\Lib\$(Config)\$(Platform);$(IncludePath)</IncludePath>
-        <ILINK_Description>Overbyte ICS VCL Run-Time Package for C++ Builder 10.2</ILINK_Description>
+        <ILINK_Description>Overbyte ICS VCL Run-Time Package for C++ Builder 10.2 Tokyo</ILINK_Description>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
@@ -430,8 +430,6 @@ $(PostBuildEvent)]]></PostBuildEvent>
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcboffice2k250.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcbofficexp250.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k250.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp250.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </CPlusPlusBuilder.Personality>
             <Deployment Version="3">

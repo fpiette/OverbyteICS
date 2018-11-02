@@ -4,7 +4,7 @@
         <ProjectType>CppPackage</ProjectType>
         <MainSource>IcsCommonCB102Design.cpp</MainSource>
         <Config Condition="'$(Config)'==''">Release</Config>
-        <ProjectVersion>18.2</ProjectVersion>
+        <ProjectVersion>18.3</ProjectVersion>
         <Base>True</Base>
         <AppType>Library</AppType>
         <FrameworkType>VCL</FrameworkType>
@@ -59,7 +59,7 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_Define>USE_SSL;$(DCC_Define)</DCC_Define>
         <LinkPackageStatics>rtl.lib;vcl.lib</LinkPackageStatics>
-        <ILINK_Description>Overbyte ICS Common Design-Time Package for C++ Builder 10.2</ILINK_Description>
+        <ILINK_Description>Overbyte ICS Common Design-Time Package for C++ Builder 10.2 Tokyo</ILINK_Description>
         <DCC_SYMBOL_DEPRECATED>false</DCC_SYMBOL_DEPRECATED>
         <DCC_SYMBOL_PLATFORM>false</DCC_SYMBOL_PLATFORM>
         <DCC_UNIT_PLATFORM>false</DCC_UNIT_PLATFORM>

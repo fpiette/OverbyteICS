@@ -4,7 +4,7 @@
         <ProjectType>CppPackage</ProjectType>
         <MainSource>IcsCommonCB103Design.cpp</MainSource>
         <Config Condition="'$(Config)'==''">Release</Config>
-        <ProjectVersion>18.2</ProjectVersion>
+        <ProjectVersion>18.3</ProjectVersion>
         <Base>True</Base>
         <AppType>Library</AppType>
         <FrameworkType>VCL</FrameworkType>

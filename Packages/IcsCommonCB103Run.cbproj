@@ -1,7 +1,7 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{CE749E31-F1AF-4B3E-B8DB-8A612EE77630}</ProjectGuid>
-        <ProjectVersion>18.2</ProjectVersion>
+        <ProjectVersion>18.3</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <MainSource>IcsCommonCB103Run.cpp</MainSource>
         <Base>True</Base>
@@ -59,8 +59,8 @@
         <ILINK_LinkwithSQL>false</ILINK_LinkwithSQL>
         <ILINK_LinkwithRegEx>false</ILINK_LinkwithRegEx>
         <PreBuildEventCancelOnError>false</PreBuildEventCancelOnError>
-        <PreBuildEvent><![CDATA[mkdir $(PROJECTDIR)\..\source\include\102
-mkdir $(PROJECTDIR)\..\source\include\102\$(Platform)
+        <PreBuildEvent><![CDATA[mkdir $(PROJECTDIR)\..\source\include\103
+mkdir $(PROJECTDIR)\..\source\include\103\$(Platform)
 $(PreBuildEvent)]]></PreBuildEvent>
         <Defines>USE_SSL;MSWINDOWS;$(Defines)</Defines>
         <SanitizedProjectName>IcsCommonCB103Run</SanitizedProjectName>
@@ -68,10 +68,10 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <BCC_PCHUsage>None</BCC_PCHUsage>
         <ILINK_MapFileType>None</ILINK_MapFileType>
         <BPILibOutputDir>$(BDSCOMMONDIR)\BPL\$(Platform)</BPILibOutputDir>
-        <DCC_ObjOutput>..\Lib\$(Config)\$(Platform)\102</DCC_ObjOutput>
+        <DCC_ObjOutput>..\Lib\$(Config)\$(Platform)\103</DCC_ObjOutput>
         <ILINK_LibraryPath>..\Source\;..\Lib\$(Config)\$(Platform);$(ILINK_LibraryPath)</ILINK_LibraryPath>
         <DCC_UnitSearchPath>..\Source;..\Source\Include;$(BDSLIB)\$(PLATFORM)\release;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-        <DCC_HppOutput>..\source\include\102\$(Platform)</DCC_HppOutput>
+        <DCC_HppOutput>..\source\include\103\$(Platform)</DCC_HppOutput>
         <IncludePath>..\Source\;..\Lib\$(Config)\$(Platform);$(IncludePath)</IncludePath>
         <ILINK_Description>Overbyte ICS Common Run-Time Package for C++ Builder 10.3 Rio</ILINK_Description>
         <PackageImports>IPIndyImpl;bindcompfmx;fmx;rtl;dbrtl;IndySystem;DbxClientDriver;bindcomp;inetdb;DBXInterBaseDriver;DataSnapClient;DataSnapCommon;DataSnapServer;DataSnapProviderClient;xmlrtl;ibxpress;DbxCommonDriver;IndyProtocols;DBXMySQLDriver;dbxcds;soaprtl;bindengine;DBXOracleDriver;CustomIPTransport;dsnap;DBXInformixDriver;IndyCore;fmxase;CloudService;DBXFirebirdDriver;inet;fmxobj;inetdbxpress;DBXSybaseASADriver;fmxdae;dbexpress;DataSnapIndy10ServerTransport;$(PackageImports)</PackageImports>
@@ -365,8 +365,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcboffice2k250.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\bcbofficexp250.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k250.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp250.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </CPlusPlusBuilder.Personality>
             <Deployment Version="3">
@@ -408,12 +406,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
                 </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\iossimulator\libcgunwind.1.0.dylib" Class="DependencyModule">
                     <Platform Name="iOSSimulator">
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\19.0\BPL\Win32\IcsCommonCB103Run.bpl" Configuration="Release" Class="ProjectOutput">
-                    <Platform Name="Win32">
-                        <RemoteName>IcsCommonCB103Run.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -833,7 +825,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
     <Import Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')" Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj"/>
     <Import Project="$(MSBuildProjectName).deployproj" Condition="Exists('$(MSBuildProjectName).deployproj')"/>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
-        <PreBuildEvent>mkdir $(PROJECTDIR)\..\source\include\102&amp;mkdir $(PROJECTDIR)\..\source\include\102\$(Platform)</PreBuildEvent>
+        <PreBuildEvent>mkdir $(PROJECTDIR)\..\source\include\103&amp;mkdir $(PROJECTDIR)\..\source\include\103\$(Platform)</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>True</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
@@ -841,7 +833,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
-        <PreBuildEvent>mkdir $(PROJECTDIR)\..\source\include\102&amp;mkdir $(PROJECTDIR)\..\source\include\102\$(Platform)</PreBuildEvent>
+        <PreBuildEvent>mkdir $(PROJECTDIR)\..\source\include\103&amp;mkdir $(PROJECTDIR)\..\source\include\103\$(Platform)</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>True</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
@@ -849,7 +841,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win32'">
-        <PreBuildEvent>mkdir $(PROJECTDIR)\..\source\include\102&amp;mkdir $(PROJECTDIR)\..\source\include\102\$(Platform)</PreBuildEvent>
+        <PreBuildEvent>mkdir $(PROJECTDIR)\..\source\include\103&amp;mkdir $(PROJECTDIR)\..\source\include\103\$(Platform)</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>True</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
@@ -857,7 +849,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">
-        <PreBuildEvent>mkdir $(PROJECTDIR)\..\source\include\102&amp;mkdir $(PROJECTDIR)\..\source\include\102\$(Platform)</PreBuildEvent>
+        <PreBuildEvent>mkdir $(PROJECTDIR)\..\source\include\103&amp;mkdir $(PROJECTDIR)\..\source\include\103\$(Platform)</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>True</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>

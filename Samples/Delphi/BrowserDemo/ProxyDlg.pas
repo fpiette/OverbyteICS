@@ -4,7 +4,7 @@ interface
 
 uses
     WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-    Dialogs, StdCtrls, Buttons, ExtCtrls,  OverbyteIcsWsocket;
+    Dialogs, StdCtrls, Buttons, ExtCtrls, OverbyteIcsWsocket, OverByteIcsSSLEAY;
 
 type
     TProxyForm = class(TForm)

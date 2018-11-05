@@ -40,6 +40,8 @@ PROJECTS = FtpDemos\OverbyteIcsConFtp.exe FtpDemos\OverbyteIcsFtpTst.exe FtpDemo
   SslInternet\OverbyteIcsSslMailRcv.exe SslInternet\OverbyteIcsSslNewsRdr.exe SslInternet\OverbyteIcsSimpleSslCli.exe \
   SslInternet\OverbyteIcsSimpleSslServer.exe SslInternet\OverbyteIcsPemTool.exe SslInternet\OverbyteIcsMsVerify.exe \
   SslInternet\OverbyteIcsSslSniSrv.exe SslInternet\OverbyteIcsSslWebAppServer.exe SslInternet\OverbyteIcsSslSmtpServer.exe \
+  SslInternet\OverbyteIcsProxySslServer.exe SslInternet\OverbyteIcsJoseTst.exe SslInternet\OverbyteIcsHttpRestTst.exe  \
+  SslInternet\OverbyteIcsX509CertsTst.exe SslInternet\OverbyteIcsSslMultiWebServ.exe \
   WebDemos\OverbyteIcsHttpTst.exe WebDemos\OverbyteIcsWebServ.exe \
   WebDemos\OverbyteIcsHttpPost.exe WebDemos\OverbyteIcsHttpMultipartDownload.exe \
   WebDemos\OverbyteIcsConHttp.exe WebDemos\OverbyteIcsHttpAsy.exe WebDemos\OverbyteIcsHttpAsp.exe \
@@ -290,6 +292,21 @@ SslInternet\OverbyteIcsSslWebAppServer.exe: SslInternet\OverbyteIcsSslWebAppServ
   $(DCC)
 
 SslInternet\OverbyteIcsSslSmtpServer.exe: SslInternet\OverbyteIcsSslSmtpServer.dpr
+  $(DCC)
+
+SslInternet\OverbyteIcsProxySslServer.exe: SslInternet\OverbyteIcsProxySslServer.dpr
+  $(DCC)
+
+SslInternet\OverbyteIcsJoseTst.exe: SslInternet\OverbyteIcsJoseTst.dpr
+  $(DCC)
+
+SslInternet\OverbyteIcsHttpRestTst.exe: SslInternet\OverbyteIcsHttpRestTst.dpr
+  $(DCC)
+
+SslInternet\OverbyteIcsX509CertsTst.exe: SslInternet\OverbyteIcsX509CertsTst.dpr
+  $(DCC)
+
+SslInternet\OverbyteIcsSslMultiWebServ.exe: SslInternet\OverbyteIcsSslMultiWebServ.dpr
   $(DCC)
 
 WebDemos\OverbyteIcsHttpTst.exe: WebDemos\OverbyteIcsHttpTst.dpr

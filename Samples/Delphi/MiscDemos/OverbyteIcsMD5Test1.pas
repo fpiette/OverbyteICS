@@ -3,11 +3,11 @@
 Author:       François PIETTE.
 Description:  MD5 self test routine for OverByteIcsMD5 unit.
 Creation:     Aug 01, 2007
-Version:      7.00
+Version:      8.58
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2007 by François PIETTE
+Legal issues: Copyright (C) 2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
               <francois.piette@overbyte.be>
 
@@ -41,7 +41,7 @@ Dec 21, 2008 V1.01 F.Piette added a string cast in RunButtonClick to avoid
              a warning when compiling with Delphi 2009.
 Apr 16, 2009 V7.00 Angus allow choose specific file, compare buffered and
              non-buffered MD5 and CRC32B
-
+Nov 5, 2018  V8.58 Added Utils to uses.
 
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsMD5Test1;
@@ -52,7 +52,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, OverbyteIcsMD5, OverbyteIcsCrc, OverbyteIcsFtpSrvT;
+  Dialogs, StdCtrls, OverbyteIcsMD5, OverbyteIcsCrc, OverbyteIcsFtpSrvT,
+  OverbyteIcsUtils;
 
 type
   TForm1 = class(TForm)

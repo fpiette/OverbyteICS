@@ -112,6 +112,9 @@ begin
 {$IFDEF Ver320}
         'Delphi 10.2 Tokyo'
 {$ENDIF}
+{$IFDEF Ver330}
+        'Delphi 10.3 Rio'
+{$ENDIF}
 {$IFDEF LCL}
         'Lazarus ' + lcl_version
 {$ENDIF}

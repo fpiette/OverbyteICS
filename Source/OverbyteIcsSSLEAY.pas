@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.58
+Version:      8.59
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -125,6 +125,7 @@ Oct 10, 2018  V8.57 added APLN APIs and literals
                     Moved some SSL types and lits from Wsocket
                     EVP_MAX_KEY_LENGTH now 64
 Oct 19, 2018  V8.58 version only
+Nov 27, 2018  V8.59 version only
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -205,8 +206,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 858;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2018 F. Piette V8.58 ';
+    IcsSSLEAYVersion   = 859;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2018 F. Piette V8.59 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -269,31 +270,25 @@ var
 
 const
  { found in \include\openssl\opensslv.h }
-    //OSSL_VER_0906G = $0090607f; no longer supported
-
 { only supporting versions with TLS 1.1, 1.2 and 1.3 }
+{ last digit is 0 for dev/beta, F for final release } 
 { V8.27 moved from OverbyteIcsLIBEAY  }
-    OSSL_VER_MIN   = $0000000F; // minimum version     { V8.35 }
-    OSSL_VER_1001  = $1000100F; // 1.0.1 untested
-    OSSL_VER_1001G = $1000107F; // just briefly tested  {
-    OSSL_VER_1001H = $1000108F; // just briefly tested
-    OSSL_VER_1001I = $1000109F; // just briefly tested
-    OSSL_VER_1001J = $100010AF; // untested
-    OSSL_VER_1001K = $100010BF; // just briefly tested
-    OSSL_VER_1001L = $100010CF; // untested
-    OSSL_VER_1002  = $10002000; // 1.0.2 just briefly tested
-    OSSL_VER_1002A = $1000201F; // 1.0.2a just briefly tested
-    OSSL_VER_1002ZZ= $10002FFF; // 1.0.2zz not yet released
-    OSSL_VER_1100  = $1010000F; // 1.1.0 base final      { V8.32 }
-    OSSL_VER_1100A = $1010001F; // 1.1.0a                { V8.35 }
-    OSSL_VER_1100B = $1010002F; // 1.1.0b                { V8.35 }
-    OSSL_VER_1100C = $1010003F; // 1.1.0c                { V8.38 }
-    OSSL_VER_1100D = $1010004F; // 1.1.0d                { V8.41 }
-    OSSL_VER_1100ZZ= $10100FFF; // 1.1.0zz not yet released  { V8.35 }
-    OSSL_VER_1101  = $1010100F; // 1.1.1 base                { V8.57 }
-    OSSL_VER_1101A = $10101010; // 1.1.1a not yet released   { V8.57 }
-    OSSL_VER_1101ZZ= $10101FFF; // 1.1.1zz not yet released  { V8.57 }
-    OSSL_VER_MAX   = $FFFFFFFF; // maximum version           { V8.35 }
+    OSSL_VER_MIN    = $0000000F; // minimum version     { V8.35 }
+    OSSL_VER_1002   = $10002000; // 1.0.2 just briefly tested
+    OSSL_VER_1002A  = $1000201F; // 1.0.2a just briefly tested
+    OSSL_VER_1002ZZ = $10002FFF; // 1.0.2zz not yet released
+    OSSL_VER_1100   = $1010000F; // 1.1.0 base final      { V8.32 }
+    OSSL_VER_1100A  = $1010001F; // 1.1.0a                { V8.35 }
+    OSSL_VER_1100B  = $1010002F; // 1.1.0b                { V8.35 }
+    OSSL_VER_1100C  = $1010003F; // 1.1.0c                { V8.38 }
+    OSSL_VER_1100D  = $1010004F; // 1.1.0d                { V8.41 }
+    OSSL_VER_1100ZZ = $10100FFF; // 1.1.0zz not yet released  { V8.35 }
+    OSSL_VER_1101   = $1010100F; // 1.1.1 base                { V8.57 }
+    OSSL_VER_1101A  = $1010101F; // 1.1.1a                    { V8.59 }
+    OSSL_VER_1101B  = $1010102F; // 1.1.1b not yet released   { V8.59 }
+    OSSL_VER_1101ZZ = $10101FFF; // 1.1.1zz not yet released  { V8.57 }
+    OSSL_VER_1102d1 = $10102000; // 1.1.2 dev                 { V8.59 }
+    OSSL_VER_MAX    = $FFFFFFFF; // maximum version           { V8.35 }
 
     { Basically versions listed above are tested if not otherwise commented.  }
     { Versions between are assumed to work, however they are untested.        }

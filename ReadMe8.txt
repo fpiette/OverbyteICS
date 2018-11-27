@@ -846,7 +846,7 @@ All these samples may be built for Mac OS X (and Windows).
 Delphi Win32/Win64 SSL-enabled sample applications
 --------------------------------------------------
 .\Samples\delphi\sslinternet\SslDemos.bpg - Project group
-> OverbyteIcsHttpRestTst,dpr      ICS HTTPS REST and 0Auth functions demo - ACTIVE!!.
+> OverbyteIcsHttpRestTst.dpr      ICS HTTPS REST and OAuth functions demo - ACTIVE!!.
 > OverbyteIcsHttpsTst.dpr         Example of TSslHttpCli component (GET) - ACTIVE!!
 > OverbyteIcsJoseTst.dpr          ICS SSL Json Object Signing (Jose) Demos - ACTIVE!!
 > OverbyteIcsPemTool.dpr          ICS Pem Certificate Tool - Create and import certificates in many formats  - ACTIVE!!

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      8.58
+Version:      8.59
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -118,6 +118,7 @@ Oct 10, 2018 V8.57 INI file now reads Options as enumerated type literals,
                    INI file reads SslCliCertMethod, SslCertAutoOrder, CertExpireDays.
                    FSessionTimer is now TIcsTimer so Vcl.ExtCtrls can disappear
 Oct 19, 2018 V8.58 INI file reads ListenBacklog.
+Nov 19, 2018 V8.59 Sanity checks reading mistyped enumerated values from INI file.
 
 
 [WebAppServer]
@@ -2034,6 +2035,8 @@ begin
         MaxSessions := MyIniFile.ReadInteger(Section, 'MaxSessions', MaxSessions);
         SslCliCertMethod := TSslCliCertMethod(GetEnumValue (TypeInfo (TSslCliCertMethod),
                         IcsTrim(MyIniFile.ReadString(section, 'SslCliCertMethod', 'sslCliCertNone'))));     { V8.57 }
+        if SslCliCertMethod > High(TSslCliCertMethod) then
+             SslCliCertMethod := sslCliCertNone;                                                            { V8.59 sanity test }
         SslCertAutoOrder := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'SslCertAutoOrder', 'False')); { V8.57 }
         CertExpireDays := MyIniFile.ReadInteger(Section, 'CertExpireDays', CertExpireDays);                 { V8.57 }
         IcsStrToSet(TypeInfo (THttpOption), MyIniFile.ReadString (section, 'Options', '[]'), FOptions, SizeOf(Options)); { V8.57 }

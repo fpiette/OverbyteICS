@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Forward and Reverse SSL HTTP Proxy
 Creation:     May 2017
 Updated:      Oct 2018
-Version:      8.58
+Version:      8.59
 Sponsor:      This component was sponsored in part by Avenir Health and
               Banxia Software Ltd. http://www.avenirhealth.org
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
@@ -202,6 +202,7 @@ Oct 2, 2018  V8.57 - Added OnSslAlpnSelect called after OnSslServerName for HTTP
                     INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays.
                     Support FMX
 Oct 19, 2018  V8.58 version only
+Nov 19, 2018  V8.59 Sanity checks reading mistyped enumerated values from INI file.
 
 
 pending...
@@ -284,9 +285,9 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpServerVersion = 858;
-    CopyRight : String = ' TIcsHttpProxy (c) 2018 F. Piette V8.58 ';
-    DefServerHeader : string = 'Server: ICS-Proxy-8.58';
+    THttpServerVersion = 859;
+    CopyRight : String = ' TIcsHttpProxy (c) 2018 F. Piette V8.59 ';
+    DefServerHeader : string = 'Server: ICS-Proxy-8.59';
     CompressMinSize = 5000;     // 5K minimum to make it worth compressing a page
     CompressMaxSize = 5000000;  // 5M bigger takes too long
     DefRxBuffSize = 65536;
@@ -4565,6 +4566,8 @@ begin
         HttpCompMinSize := MyIniFile.ReadInteger(Section, 'HttpCompMinSize', CompressMinSize);
         SslCliCertMethod := TSslCliCertMethod(GetEnumValue (TypeInfo (TSslCliCertMethod),
                         IcsTrim(MyIniFile.ReadString(section, 'SslCliCertMethod', 'sslCliCertNone'))));     { V8.57 }
+        if SslCliCertMethod > High(TSslCliCertMethod) then
+             SslCliCertMethod := sslCliCertNone;                                                            { V8.59 sanity test }
         SslCertAutoOrder := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'SslCertAutoOrder', 'False')); { V8.57 }
         CertExpireDays := MyIniFile.ReadInteger(Section, 'CertExpireDays', CertExpireDays);                 { V8.57 }
     end;

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.58
+Version:      8.59
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -188,7 +188,9 @@ Oct 5, 2018  V8.57  Fixed bug so that a newly found SSL certificate is immediate
                        from ValidateHosts and RecheckSslCerts.
 Oct 19, 2018  V8.58 Increased ListenBacklog property default to 15 to handle
                       higher server loads before rejecting new connections.
-                    Documentation on IcsHosts and main components.   
+                    Documentation on IcsHosts and main components.
+Nov 19, 2018  V8.59 Sanity checks reading mistyped enumerated values from INI file.
+
 
 
 Quick reference guide:
@@ -665,8 +667,8 @@ uses
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 858;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2018 F. Piette V8.58 ';
+    WSocketServerVersion     = 859;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2018 F. Piette V8.59 ';
 
 type
     TCustomWSocketServer       = class;
@@ -3665,9 +3667,9 @@ begin
             WellKnownPath := IcsTrim(MyIniFile.ReadString(section, 'WellKnownPath', ''));   { V8.49 }
             WebRedirectURL := IcsTrim(MyIniFile.ReadString(section, 'WebRedirectURL', '')); { V8.49 }
             WebRedirectStat := MyIniFile.ReadInteger(section, 'WebRedirectStat', 0);        { V8.49 }
+            CertSupplierProto := SuppProtoNone;   { V8.59 }
 
             if BindSslPort <> 0 then begin
-//                SslSrvSecurity := TSslSrvSecurity(MyIniFile.ReadInteger(section, 'SslSecLevel', 4));
                 S := IcsTrim(MyIniFile.ReadString(section, 'SslSecLevel', ''));
                 if S = '' then
                     V := -1
@@ -3684,14 +3686,22 @@ begin
               { V8.57 following are for automatic ordering and installation of SSL certificates }
                 CertSupplierProto := TSupplierProto(GetEnumValue (TypeInfo (TSupplierProto),
                           IcsTrim(MyIniFile.ReadString(section, 'CertSupplierProto', 'SuppProtoNone'))));
+                if CertSupplierProto > High(TSupplierProto) then
+                    CertSupplierProto := SuppProtoNone;                          { V8.59 sanity test }
                 CertDirWork := IcsTrim(MyIniFile.ReadString(section, 'CertDirWork', ''));
                 CertChallenge := TChallengeType(GetEnumValue (TypeInfo (TChallengeType),
                          IcsTrim(MyIniFile.ReadString(section, 'CertChallenge', 'ChallNone'))));
+                if CertChallenge > High(TChallengeType) then
+                    CertChallenge := ChallNone;                                 { V8.59 sanity test }
                 CertPKeyType := TSslPrivKeyType(GetEnumValue (TypeInfo (TSslPrivKeyType),
                          IcsTrim(MyIniFile.ReadString(section, 'CertPKeyType', 'PrivKeyRsa2048'))));
+                if CertPKeyType > High(TSslPrivKeyType) then
+                    CertPKeyType := PrivKeyRsa2048;                             { V8.59 sanity test }
                 CertProduct := IcsTrim(MyIniFile.ReadString(section, 'CertProduct', ''));
                 CertSignDigest := TEvpDigest(GetEnumValue (TypeInfo (TEvpDigest),
                          IcsTrim(MyIniFile.ReadString(section, 'CertSignDigest', 'Digest_sha256'))));
+                if CertSignDigest > High(TEvpDigest) then
+                    CertSignDigest := Digest_sha256;                          { V8.59 sanity test }
             end;
         end;
     end;

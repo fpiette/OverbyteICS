@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.58
+Version:      8.59
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -1295,7 +1295,9 @@ Oct 5, 2018  V8.57  Tidy up UnwrapNames.
                     Fixed compiler hints in GetProc
 Nov 2, 2018  V8.58 Increased ListenBacklog property default to 15 to handle
                       higher server loads before rejecting new connections.
-                    Corrected some debug error loSslInfo to loSslErr.
+                   Corrected some debug error loSslInfo to loSslErr.
+Nov 27, 2018 V8.59 Version only so far, new OpenSSL
+
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -1504,8 +1506,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 858;
-  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.58 ';
+  WSocketVersion            = 859;
+  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.59 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 

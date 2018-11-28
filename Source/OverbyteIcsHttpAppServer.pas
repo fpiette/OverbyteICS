@@ -236,7 +236,7 @@ type
         destructor Destroy; override;
         function   CreateSession(const Params : String;
                                  Expiration   : TDateTime;
-                                 SessionData  : TWebSessionData) : String;
+                                 SessionData  : TWebSessionData) : String; virtual;
         function   CancelSession : String; virtual;
         function   CheckSession(var Flags                : THttpGetFlag;
                                 const NegativeAnswerHtml : String) : Boolean; overload; virtual;
@@ -299,7 +299,7 @@ type
         procedure Display(const AMsg: String); virtual;
         function  CreateSession(const Params : String;
                                 Expiration   : TDateTime;
-                                SessionData  : TWebSessionData) : String;
+                                SessionData  : TWebSessionData) : String; virtual;
         function  ValidateSession: Boolean; virtual;
         procedure DeleteSession;
         function  CheckSession(const NegativeAnswerHtml : String) : Boolean; overload;

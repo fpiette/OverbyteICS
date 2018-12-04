@@ -1,5 +1,5 @@
 {
-  Version   11.6
+  Version   11.9
   Copyright (c) 1995-2008 by L. David Baldwin
   Copyright (c) 2008-2010 by HtmlViewer Team
   Copyright (c) 2012-2018 by Angus Robertson delphi@magsys.co.uk
@@ -81,12 +81,16 @@
 
 15 Mar 2018 V8.53 Angus simplfied SSL handshake reporting
                   Using new SslContext stuff for simplified version setting
-                  recognise D10.2 in About, also ICS version 
+                  recognise D10.2 in About, also ICS version
                   Now requires latest ICS version per revision, v7 not supported
                   Fixed updating URL bar for redirection
                   Use common SSL acceptable hosts list so each connection does not recheck certificates
 
 15 Jun 2018 V8.55 Using new SslCliSecurity settings (set on ProxyDlg)
+
+4 Dec 2018  V8.59 Works with modern compilers again by using Winapi.Messages to
+                   avoid conflict with Ics.Posix.Messages.pas (also changed lots
+                   of htmlview units....
 
 
   Pending - use NoCache header to stop dynamic pages being cached and expire them
@@ -107,7 +111,9 @@ unit FBUnitIcs;
 interface
 
 uses
-    WinTypes, WinProcs, Messages, SysUtils, Classes, Graphics, Controls, Forms,
+    {$ifdef Compiler16_Plus}Winapi.Windows{$ELSE}Windows{$ENDIF},
+    {$ifdef Compiler16_Plus}Winapi.Messages{$ELSE}Messages{$ENDIF},
+    SysUtils, Classes, Graphics, Controls, Forms,
     ShellAPI, Menus, StdCtrls, Buttons, ExtCtrls, Gauges, mmSystem, IniFiles,
     MPlayer, ImgList, ComCtrls, ToolWin, Dialogs,
     htmlun2, CachUnitId, URLSubs, htmlview, htmlsubs, FramBrwz, FramView,

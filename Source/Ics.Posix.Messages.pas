@@ -3,11 +3,11 @@
 Author:       Arno Garrels
 Creation:     October 30, 2011
 Description:  Emulates Windows messages on MacOS.
-Version:      0.9 Beta
+Version:      V8.59
 EMail:        <arno.garrels@gmx.de>
 Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2011-2011 by Arno Garrels, Berlin, Germany,
+              Follow "support" link at http://www.overbyte.eu for subscription.
+Legal issues: Copyright (C) 2011-2018 by Arno Garrels, Berlin, Germany,
               <arno.garrels@gmx.de>
 
               This software is freeware and provided 'as-is', without any
@@ -31,7 +31,8 @@ Legal issues: Copyright (C) 2011-2011 by Arno Garrels, Berlin, Germany,
 
 
 History:
-
+Dec 2018 - V8.59 - Added fatal message if this unit is included in a Windows
+                   project. Make sure you use Winapi.Messages instead'
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
@@ -51,6 +52,11 @@ interface
 
 {$IFDEF POSIX}
 {.$DEFINE MSGQ_DEBUG}
+
+{$IFNDEF MSWINDOWS }
+  {$MESSAGES Fatal 'This unit should not be included in a Windows project. Make sure you use Winapi.Messages instead'}
+{$ENDIF}
+
 
 uses
   System.SysUtils, System.Classes, System.SyncObjs, System.Generics.Collections,

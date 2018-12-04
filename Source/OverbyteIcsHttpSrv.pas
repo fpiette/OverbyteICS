@@ -431,6 +431,9 @@ Oct 5, 2018 V8.57  Added SslCliCertMethod to allow server to request a client
 Oct 19, 2018 V8.58 Increased ListenBacklog property default to 15 to handle
                       higher server loads before rejecting new connections.
                    Some documentation on IcsHosts and main components.
+Dec 04, 2018 V8.59 Added AUTO_X509_CERTS define set in OverbyteIcsDefs.inc which
+                      can be disabled to remove a lot of units if automatic SSL/TLS
+                      ordering is not required, saves up to 1 meg of code.
 
 
 Quick reference guide:
@@ -549,11 +552,13 @@ uses
     OverbyteIcsWSocketS,
 {$ENDIF FMX}
 {$IFDEF USE_SSL}
+{$IFDEF AUTO_X509_CERTS}  { V8.59 }
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsSslX509Certs,  { V8.57 }
 {$ELSE}
     OverbyteIcsSslX509Certs,  { V8.57 }
 {$ENDIF}
+{$ENDIF} // AUTO_X509_CERTS
 {$ENDIF}
 
 {$IFDEF USE_NTLM_AUTH}
@@ -571,9 +576,9 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 858;
-    CopyRight : String = ' THttpServer (c) 1999-2018 F. Piette V8.58 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.58';   { V8.09 }
+    THttpServerVersion = 859;
+    CopyRight : String = ' THttpServer (c) 1999-2018 F. Piette V8.59 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.59';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -1768,8 +1773,10 @@ type
         procedure SetDHParams(const Value: String);                   { V8.45 }
         procedure TransferSslAlpnSelect(Sender: TObject;
           ProtoList: TStrings; var SelProto : String; var ErrCode: TTlsExtError);  { V8.56 }
+{$IFDEF AUTO_X509_CERTS}  { V8.59 }
         function  GetSslX509Certs: TSslX509Certs;                     { V8.57 }
         procedure SetSslX509Certs(const Value : TSslX509Certs);       { V8.57 }
+{$ENDIF} // AUTO_X509_CERTS
         function  GetSslCliCertMethod: TSslCliCertMethod;             { V8.57 }
         procedure SetSslCliCertMethod(const Value : TSslCliCertMethod); { V8.57 }
         function  GetCertExpireDays: Integer;                         { V8.57 }
@@ -1801,8 +1808,10 @@ type
                                                            write SetSslCertAutoOrder; { V8.57 }
         property  CertExpireDays     : Integer             read  GetCertExpireDays
                                                            write SetCertExpireDays; { V8.57 }
+{$IFDEF AUTO_X509_CERTS}  { V8.59 }
         property  SslX509Certs       : TSslX509Certs       read  GetSslX509Certs
                                                            write SetSslX509Certs; { V8.57 }
+{$ENDIF} // AUTO_X509_CERTS
         property  OnSslVerifyPeer    : TSslVerifyPeerEvent read  FOnSslVerifyPeer
                                                            write FOnSslVerifyPeer;
         property  OnSslSetSessionIDContext : TSslSetSessionIDContext
@@ -1832,7 +1841,9 @@ type
         property SslCliCertMethod;              { V8.57 }
         property SslCertAutoOrder;              { V8.57 }
         property CertExpireDays;                { V8.57 }
+{$IFDEF AUTO_X509_CERTS}  { V8.59 }
         property SslX509Certs;                  { V8.57 }
+{$ENDIF} // AUTO_X509_CERTS
         property OnSslVerifyPeer;
         property OnSslSetSessionIDContext;
         property OnSslSvrNewSession;
@@ -6748,6 +6759,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF AUTO_X509_CERTS}  { V8.59 }
 function TCustomSslHttpServer.GetSslX509Certs: TSslX509Certs;    { V8.57 }
 begin
     if Assigned(FWSocketServer) then
@@ -6763,7 +6775,7 @@ begin
     if Assigned(FWSocketServer) then
         TSslWSocketServer(FWSocketServer).SetSslX509Certs(Value);
 end;
-
+{$ENDIF} // AUTO_X509_CERTS
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

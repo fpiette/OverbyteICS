@@ -203,6 +203,10 @@ Oct 2, 2018  V8.57 - Added OnSslAlpnSelect called after OnSslServerName for HTTP
                     Support FMX
 Oct 19, 2018  V8.58 version only
 Nov 19, 2018  V8.59 Sanity checks reading mistyped enumerated values from INI file.
+Dec 04, 2018  V8.59 Added AUTO_X509_CERTS define set in OverbyteIcsDefs.inc which
+                      can be disabled to remove a lot of units if automatic SSL/TLS
+                      ordering is not required, saves up to 1 meg of code.
+
 
 
 pending...
@@ -261,14 +265,18 @@ uses
     Ics.Fmx.OverbyteIcsWSocketS,
     Ics.Fmx.OverbyteIcsSslSessionCache,
     Ics.Fmx.OverbyteIcsMsSslUtils,     { V8.57 }
+{$IFDEF AUTO_X509_CERTS}  { V8.59 }
     Ics.Fmx.OverbyteIcsSslX509Certs,   { V8.57 }
+{$ENDIF} // AUTO_X509_CERTS
 {$ELSE}
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
     OverbyteIcsWSocketS,
     OverbyteIcsSslSessionCache,
     OverbyteIcsMsSslUtils,      { V8.57 }
+{$IFDEF AUTO_X509_CERTS}  { V8.59 }
     OverbyteIcsSslX509Certs,    { V8.57 }
+{$ENDIF} // AUTO_X509_CERTS
 {$ENDIF FMX}
 {$IFDEF MSWINDOWS}
     OverbyteIcsWinCrypt,
@@ -488,7 +496,7 @@ type
     FTarSslCtx: TSslContext;
     FTarSslCertList: TStringList;
 {$IFDEF MSWINDOWS}
-    FMsCertChainEngine: TMsCertChainEngine;   { V8.50 } 
+    FMsCertChainEngine: TMsCertChainEngine;   { V8.50 }
 {$ENDIF}
     FRxBuffSize: Integer;
     FMaxClients: Integer;
@@ -524,8 +532,10 @@ type
     procedure SetProxyTargets(const Value: TProxyTargets);
     function  GetRunning: Boolean;
     function  GetClientCount: Integer;
+{$IFDEF AUTO_X509_CERTS}  { V8.59 }
     function  GetSslX509Certs: TSslX509Certs;                     { V8.57 }
     procedure SetSslX509Certs(const Value : TSslX509Certs);       { V8.57 }
+{$ENDIF} // AUTO_X509_CERTS
     function  GetSslCliCertMethod: TSslCliCertMethod;             { V8.57 }
     procedure SetSslCliCertMethod(const Value : TSslCliCertMethod); { V8.57 }
     function  GetCertExpireDays: Integer;                         { V8.57 }
@@ -623,8 +633,10 @@ type
                                                     write SetSslCertAutoOrder; { V8.57 }
     property  CertExpireDays: Integer               read  GetCertExpireDays
                                                     write SetCertExpireDays; { V8.57 }
+{$IFDEF AUTO_X509_CERTS}  { V8.59 }
     property  SslX509Certs: TSslX509Certs           read  GetSslX509Certs
                                                     write SetSslX509Certs; { V8.57 }
+{$ENDIF} // AUTO_X509_CERTS
     property  onProxyProg: TProxyProgEvent          read  FonProxyProg
                                                     write FonProxyProg;
     property  OnSetTarget: TProxyTarEvent           read  FOnSetTarget
@@ -1864,6 +1876,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{$IFDEF AUTO_X509_CERTS}  { V8.59 }
 function TIcsProxy.GetSslX509Certs: TSslX509Certs;    { V8.57 }
 begin
     if Assigned(FSourceServer) then
@@ -1881,6 +1894,7 @@ begin
 end;
 
 
+{$ENDIF} // AUTO_X509_CERTS
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TIcsProxy.ValidateHosts(Stop1stErr: Boolean=True;
                                         NoExceptions: Boolean=False): String;

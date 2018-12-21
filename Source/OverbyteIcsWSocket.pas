@@ -1296,7 +1296,7 @@ Oct 5, 2018  V8.57  Tidy up UnwrapNames.
 Nov 2, 2018  V8.58 Increased ListenBacklog property default to 15 to handle
                       higher server loads before rejecting new connections.
                    Corrected some debug error loSslInfo to loSslErr.
-Nov 27, 2018 V8.59 Version only so far, new OpenSSL
+Dec 11, 2018 V8.59 Too many lines in SSL diags for errors only, bug in V8.55
 
 
 
@@ -20667,44 +20667,43 @@ begin
                     Str := 'undefined: ';
 
                 if ((Where and SSL_CB_LOOP) <> 0) then begin
-                    if Obj.CheckLogOptions(loSslErr) then    { V8.55 was SslDevel, really Errs }
-                        Obj.DebugLog(loSslErr, Pre + Str +
+                    if Obj.CheckLogOptions(loSslInfo) then    { V8.55 was SslDevel, really Errs }
+                        Obj.DebugLog(loSslInfo, Pre + Str +   { V8.59 really meant Info }
                                         String(f_SSL_state_string_long(ssl)));
                 end
                 else if ((Where and SSL_CB_ALERT) <> 0) and
-                        Obj.CheckLogOptions(loSslErr) then begin
+                        Obj.CheckLogOptions(loSslInfo) then begin    { V8.59 was SslDevel, really meant Info }
                     if (Where and SSL_CB_READ) <> 0 then
                         Str := 'read '
                     else
                         Str := 'write ';
-
                     Obj.DebugLog(loSslInfo, Pre + 'SSL3 alert ' + Str +
                                  String(f_SSL_alert_type_string_long(ret)) + ' ' +
                                  String(f_SSL_alert_desc_string_long(ret)));
                 end
                 else if (Where and SSL_CB_EXIT) <> 0 then begin
                     if Ret = 0 then begin
-                        if Obj.CheckLogOptions(loSslErr) then
+             //         if Obj.CheckLogOptions(loSslErr) then   { V8.59 was Devel, Err and Info }
                             Obj.DebugLog(loSslErr, Pre + Str + 'failed in ' +
                                             String(f_SSL_state_string_long(ssl)));
                     end
                     else if Ret < 0 then begin
                         Err := f_ssl_get_error(ssl, Ret);
-                      {  if ((Err <> SSL_ERROR_WANT_READ) or
-                            (Err <> SSL_ERROR_WANT_WRITE)) then  }
                         if NOT ((Err = SSL_ERROR_WANT_READ) or        { V8.14 only want real errors }
-                            (Err = SSL_ERROR_WANT_WRITE)) then begin
+                                 (Err = SSL_ERROR_WANT_WRITE)) then begin
                               {  if Err = SSL_ERROR_SSL then  { V8.14 report proper error }
                               {      Obj.HandleSslError  V8.55 clears error, don't use for debug purposes }
                               {  else   }
-                                    Obj.DebugLog(loSslErr, Pre + Str + 'error ' + IntToStr (Err) + { V8.14 actual error }
-                                     ' in ' + String(f_SSL_state_string_long(ssl)));
-                            end;
+                            Obj.DebugLog(loSslErr, Pre + Str + 'error ' + IntToStr (Err) + { V8.14 actual error }
+                                                    ' in ' + String(f_SSL_state_string_long(ssl)));
+                        end;
                     end;
                 end
-                else
-                    Obj.DebugLog(loSslDevel, Pre + Str + 'where=' + IntToHex(where, 8) +
+                else begin
+                    if Obj.CheckLogOptions(loSslInfo) then     { V8.59 really meant Info }
+                        Obj.DebugLog(loSslDevel, Pre + Str + 'where=' + IntToHex(where, 8) +
                               ', state=' + String(f_SSL_state_string_long(ssl))); { V8.53 added state }
+                end;
             end;
 {$ENDIF}
          { OpenSSL InfoCallback is when state changes }

@@ -15,7 +15,9 @@ Apr 2018   V8.54 - Angus added TSslHttpRest, TSimpleWebSrv and TRestOAuth
 May 2018   V8.54 - Angus added TSslX509Certs
 Oct 2018   V8.58 - New components now installed for FMX and VCL
                    Added subversion to sIcsLongProductName for splash screen
-Nov 2019   V8.59 - Version only 
+Nov 2019   V8.59 - Version only
+Feb 2019   V8.60 - Angus added TIcsMailQueue, TIcsIpStrmLog, TIcsWhoisCli,
+                   TIcsTimeServer, TIcsTimeClient, TIcsBlacklist
 
 
 }
@@ -76,9 +78,14 @@ uses
       Ics.Fmx.OverbyteIcsProxy,
       Ics.Fmx.OverbyteIcsSslHttpRest,
       Ics.Fmx.OverbyteIcsSslX509Certs,
+      Ics.Fmx.OverbyteIcsIpStreamLog,
+      Ics.Fmx.OverbyteIcsMailQueue,
     {$ENDIF}
     Ics.Fmx.OverbyteIcsWSocketE,
     Ics.Fmx.OverbyteIcsWSocketS,
+    Ics.Fmx.OverbyteIcsWhoisCli,
+    Ics.Fmx.OverbyteIcsSntp,
+    Ics.Fmx.OverbyteIcsBlacklist,
   {$ENDIF FMX}
   {$IFDEF VCL}
     Controls,
@@ -104,6 +111,8 @@ uses
       OverbyteIcsProxy,
       OverbyteIcsSslHttpRest,
       OverbyteIcsSslX509Certs,
+      OverbyteIcsIpStreamLog,
+      OverbyteIcsMailQueue,
     {$ENDIF}
     OverbyteIcsWSocketE,
     OverbyteIcsWSocketS,
@@ -111,6 +120,9 @@ uses
     OverbyteIcsSysLogServer,
     OverbyteIcsSnmpCli,
     OverbyteIcsSmtpSrv,
+    OverbyteIcsWhoisCli,
+    OverbyteIcsSntp,
+    OverbyteIcsBlacklist,
     // VCL only
     OverbyteIcsMultiProgressBar,
     OverbyteIcsEmulVT, OverbyteIcsTnCnx, OverbyteIcsTnEmulVT, OverbyteIcsTnScript,
@@ -192,7 +204,11 @@ begin
       TSysLogClient,
       TSysLogServer,
       TSnmpCli,
-      TSmtpServer
+      TSmtpServer,
+      TIcsWhoisCli,      { V8.60 }
+      TIcsTimeServer,    { V8.60 }
+      TIcsTimeClient,     { V8.60 }
+      TIcsBlacklist      { V8.60 }
     ]);
 {$ENDIF VCL}
 {$IFDEF ICS_COMMON}
@@ -230,6 +246,8 @@ begin
       TSimpleWebSrv,  { V8.54 }
       TRestOAuth,     { V8.54 }
       TSslX509Certs,  { V8.54 }
+      TIcsMailQueue,  { V8.60 }
+      TIcsIpStrmLog,  { V8.60 }
     {$IFDEF VCL}
       {$IFNDEF BCB}
         TSslWSocketThrdServer,
@@ -277,7 +295,7 @@ const
         sIcsSplashImg   = 'ICSPRODUCTICON';
     {$ENDIF}
 {$ENDIF}
-    sIcsLongProductName = 'Internet Component Suite V8.59';
+    sIcsLongProductName = 'Internet Component Suite V8.60';
     sIcsFreeware        = 'Freeware';
     sIcsDescription     = sIcsLongProductName + #13#10 +
                           //'Copyright (C) 1996-2018 by François PIETTE'+ #13#10 +

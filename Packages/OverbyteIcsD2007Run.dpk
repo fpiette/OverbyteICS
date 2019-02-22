@@ -37,6 +37,11 @@ package OverbyteIcsD2007Run;
 {$R '..\source\OverbyteIcsProxy.dcr'}
 {$R '..\Source\OverbyteIcsSslHttpRest.dcr'}
 {$R '..\Source\OverbyteIcsSslX509Certs.dcr'}
+{$R '..\source\OverbyteIcsBlacklist.dcr'}
+{$R '..\source\OverbyteIcsIpStreamLog.dcr'}
+{$R '..\source\OverbyteIcsMailQueue.dcr'}
+{$R '..\source\OverbyteIcsSntp.dcr'}
+{$R '..\source\OverbyteIcsWhoisCli.dcr'}
 {$ALIGN 8}
 { ASSERTIONS ON}
 {$BOOLEVAL OFF}
@@ -158,7 +163,11 @@ contains
   OverbyteIcsSuperObject in '..\Source\OverbyteIcsSuperObject.pas',
   OverbyteIcsSslJose in '..\Source\OverbyteIcsSslJose.pas',
   OverbyteIcsSslHttpRest in '..\Source\OverbyteIcsSslHttpRest.pas',
-  OverbyteIcsSslX509Certs in '..\Source\OverbyteIcsSslX509Certs.pas';
-
+  OverbyteIcsSslX509Certs in '..\Source\OverbyteIcsSslX509Certs.pas',
+  OverbyteIcsBlacklist in '..\Source\OverbyteIcsBlacklist.pas',
+  OverbyteIcsIpStreamLog in '..\Source\OverbyteIcsIpStreamLog.pas',
+  OverbyteIcsMailQueue in '..\Source\OverbyteIcsMailQueue.pas',
+  OverbyteIcsSntp in '..\Source\OverbyteIcsSntp.pas',
+  OverbyteIcsWhoisCli in '..\Source\OverbyteIcsWhoisCli.pas';
 
 end.

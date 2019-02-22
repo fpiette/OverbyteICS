@@ -541,6 +541,17 @@ Source\OverbyteIcsZLibObj.pas
 Source\OverbyteIcsZlibHigh.pas
 Source\OverbyteIcsWinCrypt.pas
 
+Source\OverbyteIcsBlacklist.dcr
+Source\OverbyteIcsBlacklist.pas
+Source\OverbyteIcsIpStreamLog.dcr
+Source\OverbyteIcsIpStreamLog.pas
+Source\OverbyteIcsMailQueue.dcr
+Source\OverbyteIcsMailQueue.pas
+Source\OverbyteIcsSntp.dcr
+Source\OverbyteIcsSntp.pas
+Source\OverbyteIcsWhoisCli.dcr
+Source\OverbyteIcsWhoisCli.pas
+
 Source\Include\Ics.InterlockedApi.inc
 Source\Include\OverbyteIcsDefs.inc
 Source\Include\OverbyteIcsDotNetSockImpl.inc
@@ -585,6 +596,12 @@ Source\Ics.Fmx.OverbyteIcsThreadTimer.pas
 Source\Ics.Fmx.OverbyteIcsWSocket.pas
 Source\Ics.Fmx.OverbyteIcsWSocketS.pas
 Source\Ics.Fmx.OverbyteIcsWndControl.pas
+
+Source\Ics.Fmx.OverbyteIcsBlacklist.pas
+Source\Ics.Fmx.OverbyteIcsIpStreamLog.pas
+Source\Ics.Fmx.OverbyteIcsMailQueue.pas
+Source\Ics.Fmx.OverbyteIcsSntp.pas
+Source\Ics.Fmx.OverbyteIcsWhoisCli.pas
 
 Source\Ics.Posix.KEventApi.pas
 Source\Ics.Posix.KEventTypes.pas
@@ -1628,6 +1645,15 @@ Samples\Delphi\OtherDemos\OverbyteIcsSysLogServerDemo.res
 Samples\Delphi\OtherDemos\OverbyteIcsSysLogServerDemo1.dfm
 Samples\Delphi\OtherDemos\OverbyteIcsSysLogServerDemo1.pas
 
+Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst.dof
+Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst1.pas
+Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst1.dfm
+
+Samples\Delphi\OtherDemos\OverbyteIcsTimeTst.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsTimeTst.dof
+Samples\Delphi\OtherDemos\OverbyteIcsTimeTst1.pas
+Samples\Delphi\OtherDemos\OverbyteIcsTimeTst1.dfm
 
 Samples\Delphi\PlatformDemos\xSamples.groupproj
 
@@ -2020,6 +2046,9 @@ Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.res
 Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ1.pas
 Samples\Delphi\SslInternet\OverbyteIcsWebAppServerUploads.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebMailer.pas
+Samples\Delphi\SslInternet\hackfilterlist.txt
+Samples\Delphi\SslInternet\whiteiplist.txt
 
 Samples\Delphi\SslInternet\OverbyteIcsSslNewsRdr.dof
 Samples\Delphi\SslInternet\OverbyteIcsSslNewsRdr.dpr
@@ -2059,6 +2088,20 @@ Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst.dproj
 Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst.res
 Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst1.pas
+
+Samples\Delphi\SslInternet\OverbyteIcsMailQuTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsMailQuTst.dof
+Samples\Delphi\SslInternet\OverbyteIcsMailQuTst1.pas
+Samples\Delphi\SslInternet\OverbyteIcsMailQuTst1.dfm
+Samples\Delphi\SslInternet\OverbyteIcsMailQuTstDiag.pas
+Samples\Delphi\SslInternet\OverbyteIcsMailQuTstDiag.dfm
+Samples\Delphi\SslInternet\OverbyteIcsMailQuTstView.pas
+Samples\Delphi\SslInternet\OverbyteIcsMailQuTstView.dfm
+
+Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.dof
+Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst1.pas
+Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst1.dfm
 
 Samples\Delphi\SslInternet\OverbyteIcsCommonVersion.res
 

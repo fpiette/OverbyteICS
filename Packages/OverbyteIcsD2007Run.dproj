@@ -68,6 +68,9 @@ copy Source\OverbyteIcsTnOptFrm.dfm Lib\Release\Win32\D2007\OverbyteIcsTnOptFrm.
     </DelphiCompile>
     <DCCReference Include="..\Source\OverbyteIcsAsn1Utils.pas" />
     <DCCReference Include="..\Source\OverbyteIcsAvlTrees.pas" />
+    <DCCReference Include="..\source\OverbyteIcsBlacklist.dcr" />
+    <DCCReference Include="..\source\OverbyteIcsBlacklist.dcr" />
+    <DCCReference Include="..\Source\OverbyteIcsBlacklist.pas" />
     <DCCReference Include="..\Source\OverbyteIcsCharsetComboBox.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsCharsetComboBox.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsCharsetComboBox.pas" />
@@ -111,11 +114,17 @@ copy Source\OverbyteIcsTnOptFrm.dfm Lib\Release\Win32\D2007\OverbyteIcsTnOptFrm.
     <DCCReference Include="..\Source\OverbyteIcsIcmp.pas" />
     <DCCReference Include="..\Source\OverbyteIcsIconv.pas" />
     <DCCReference Include="..\Source\OverbyteIcsIniFiles.pas" />
+    <DCCReference Include="..\source\OverbyteIcsIpStreamLog.dcr" />
+    <DCCReference Include="..\source\OverbyteIcsIpStreamLog.dcr" />
+    <DCCReference Include="..\Source\OverbyteIcsIpStreamLog.pas" />
     <DCCReference Include="..\Source\OverbyteIcsLIBEAY.pas" />
     <DCCReference Include="..\Source\OverbyteIcsLibeayEx.pas" />
     <DCCReference Include="..\Source\OverbyteIcsLogger.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsLogger.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsLogger.pas" />
+    <DCCReference Include="..\source\OverbyteIcsMailQueue.dcr" />
+    <DCCReference Include="..\source\OverbyteIcsMailQueue.dcr" />
+    <DCCReference Include="..\Source\OverbyteIcsMailQueue.pas" />
     <DCCReference Include="..\Source\OverbyteIcsMD4.pas" />
     <DCCReference Include="..\Source\OverbyteIcsMD5.pas" />
     <DCCReference Include="..\Source\OverbyteIcsMimeDec.dcr" />
@@ -161,6 +170,9 @@ copy Source\OverbyteIcsTnOptFrm.dfm Lib\Release\Win32\D2007\OverbyteIcsTnOptFrm.
     <DCCReference Include="..\Source\OverbyteIcsSnmpCli.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsSnmpCli.pas" />
     <DCCReference Include="..\Source\OverbyteIcsSnmpMsgs.pas" />
+    <DCCReference Include="..\source\OverbyteIcsSntp.dcr" />
+    <DCCReference Include="..\source\OverbyteIcsSntp.dcr" />
+    <DCCReference Include="..\Source\OverbyteIcsSntp.pas" />
     <DCCReference Include="..\Source\OverbyteIcsSocketUtils.pas" />
     <DCCReference Include="..\Source\OverbyteIcsSSLEAY.pas" />
     <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.dcr" />
@@ -208,6 +220,9 @@ copy Source\OverbyteIcsTnOptFrm.dfm Lib\Release\Win32\D2007\OverbyteIcsTnOptFrm.
     <DCCReference Include="..\Source\OverbyteIcsUrl.pas" />
     <DCCReference Include="..\Source\OverbyteIcsUtils.pas" />
     <DCCReference Include="..\Source\OverbyteIcsWebSession.pas" />
+    <DCCReference Include="..\source\OverbyteIcsWhoisCli.dcr" />
+    <DCCReference Include="..\source\OverbyteIcsWhoisCli.dcr" />
+    <DCCReference Include="..\Source\OverbyteIcsWhoisCli.pas" />
     <DCCReference Include="..\Source\OverbyteIcsWinCrypt.pas" />
     <DCCReference Include="..\Source\OverbyteIcsWinnls.pas" />
     <DCCReference Include="..\Source\OverbyteIcsWinsock.pas" />

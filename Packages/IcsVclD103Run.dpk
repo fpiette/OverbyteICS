@@ -32,6 +32,11 @@ package IcsVclD103Run;
 {$R '..\Source\OverbyteIcsProxy.dcr'}
 {$R '..\Source\OverbyteIcsSslHttpRest.dcr'}
 {$R '..\Source\OverbyteIcsSslX509Certs.dcr'}
+{$R '..\source\OverbyteIcsBlacklist.dcr'}
+{$R '..\source\OverbyteIcsIpStreamLog.dcr'}
+{$R '..\source\OverbyteIcsMailQueue.dcr'}
+{$R '..\source\OverbyteIcsSntp.dcr'}
+{$R '..\source\OverbyteIcsWhoisCli.dcr'}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
@@ -57,7 +62,7 @@ package IcsVclD103Run;
 {$DEFINE DEBUG}
 {$DEFINE USE_SSL}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Overbyte ICS VCL Run-Time Package for Delphi 10.3 Rio'}
+{$DESCRIPTION 'Overbyte ICS VCL Run-Time Package for Delphi 10.3'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
 
@@ -107,6 +112,11 @@ contains
   OverbyteIcsProxy in '..\Source\OverbyteIcsProxy.pas',
   OverbyteIcsSslHttpRest in '..\Source\OverbyteIcsSslHttpRest.pas',
   OverbyteIcsSslJose in '..\Source\OverbyteIcsSslJose.pas',
-  OverbyteIcsSslX509Certs in '..\Source\OverbyteIcsSslX509Certs.pas';
+  OverbyteIcsSslX509Certs in '..\Source\OverbyteIcsSslX509Certs.pas',
+  OverbyteIcsBlacklist in '..\Source\OverbyteIcsBlacklist.pas',
+  OverbyteIcsIpStreamLog in '..\Source\OverbyteIcsIpStreamLog.pas',
+  OverbyteIcsMailQueue in '..\Source\OverbyteIcsMailQueue.pas',
+  OverbyteIcsSntp in '..\Source\OverbyteIcsSntp.pas',
+  OverbyteIcsWhoisCli in '..\Source\OverbyteIcsWhoisCli.pas';
 
 end.

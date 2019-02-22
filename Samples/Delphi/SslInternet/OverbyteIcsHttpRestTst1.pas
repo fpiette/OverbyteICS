@@ -3,8 +3,8 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
-Updated:      Oct 2018
-Version:      8.58
+Updated:      Feb 2019
+Version:      8.60
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -45,6 +45,9 @@ Jul 9, 2018  - V8.56 Using OverbyteIcsTypes instead of OverbyteIcsLogger
 Sep 25, 2018 - V8.57 Using OnSelectDns to show alternate IP addresses, changed
                       SocketFamily to sfAny so it finds both IPV4 and IPV6 addresses
 Oct 27, 2018 - V8.58 Better error handling.
+Feb 15, 2019 - V8.60 Add Socket Family selection for IPv4, IPv6 or both.
+                     Added log file using new TIcsBuffLogStream for UTF8 file logging,
+                      one log per day.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -82,7 +85,8 @@ uses
   OverbyteIcsSuperObject,
   OverbyteIcsSslJose,
   OverbyteIcsWndControl,
-  OverbyteIcsHttpProt;
+  OverbyteIcsBlacklist,
+  OverbyteIcsHttpProt, Buttons;
 
 type
   THttpRestForm = class(TForm)
@@ -120,6 +124,8 @@ type
     SslClientCertFile: TEdit;
     SslRootBundleFile: TEdit;
     SslSecurity: TRadioGroup;
+    IpSockFamily: TRadioGroup;
+    DirLogs: TEdit;
 
  // properties not saved
     LogWin: TMemo;
@@ -166,6 +172,9 @@ type
     LabelResult: TLabel;
     TabSheet1: TTabSheet;
     TabSheet2: TTabSheet;
+    SelDirLogs: TBitBtn;
+    Label22: TLabel;
+    OpenDirDiag: TOpenDialog;
     procedure FormCreate(Sender: TObject);
     procedure HttpRest1HttpRestProg(Sender: TObject; LogOption: TLogOption;
       const Msg: string);
@@ -189,6 +198,7 @@ type
     procedure SettingsChange(Sender: TObject);
     procedure HttpRest1SelectDns(Sender: TObject; DnsList: TStrings;
       var NewDns: string);
+    procedure SelDirLogsClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -197,8 +207,10 @@ type
     FIniFileName: String;
     FCookieFileName: String;
     FInitialized: Boolean;
+    FIcsBuffLogStream: TIcsBuffLogStream;  { V8.60 }
     procedure AddLog (const S: string) ;
     procedure RestOAuthSetup;
+    procedure OpenLogFile;
 
   end;
 
@@ -314,6 +326,8 @@ begin
           SslClientCertFile.Text := ReadString (SectionData, 'SslClientCertFile_Text', SslClientCertFile.Text) ;
           SslRootBundleFile.Text := ReadString (SectionData, 'SslRootBundleFile_Text', SslRootBundleFile.Text) ;
           SslSecurity.ItemIndex := ReadInteger (SectionData, 'SslSecurity_ItemIndex', SslSecurity.ItemIndex) ;
+          IpSockFamily.ItemIndex := ReadInteger (SectionData, 'IpSockFamily_ItemIndex', IpSockFamily.ItemIndex) ;
+          DirLogs.Text := ReadString (SectionData, 'DirLogs_Text', DirLogs.Text) ;
        end;
         IniFile.Free;
     end;
@@ -321,7 +335,7 @@ begin
     if HttpRest1.SslRootFile = '' then
         SslRootBundleFile.Text := HttpRest1.SslRootFile;
     HttpRest1.RestCookies.LoadFromFile(FCookieFileName);
-    OAuthWebIP.Items.Assign(LocalIPList); 
+    OAuthWebIP.Items.Assign(LocalIPList);
     OAuthWebIP.Items.Insert(0, ICS_LOCAL_HOST_V4);
 end;
 
@@ -333,6 +347,7 @@ var
     I, J: Integer;
 begin
     HttpRest1.RestCookies.SaveToFile(FCookieFileName);
+    FreeAndNil(FIcsBuffLogStream); // V8.60 write log file }
     IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionMainWindow, KeyTop, Top);
     IniFile.WriteInteger(SectionMainWindow, KeyLeft, Left);
@@ -384,6 +399,8 @@ begin
       WriteString (SectionData, 'SslClientCertFile_Text', SslClientCertFile.Text) ;
       WriteString (SectionData, 'SslRootBundleFile_Text', SslRootBundleFile.Text) ;
       WriteInteger (SectionData, 'SslSecurity_ItemIndex', SslSecurity.ItemIndex) ;
+      WriteInteger (SectionData, 'IpSockFamily_ItemIndex', IpSockFamily.ItemIndex) ;
+      WriteString (SectionData, 'DirLogs_Text', DirLogs.Text) ;
     end;
     IniFile.UpdateFile;
     IniFile.Free;
@@ -397,6 +414,14 @@ begin
     else
         LogWin.Lines.Add (S) ;
     SendMessage(LogWin.Handle, EM_LINESCROLL, 0, 999999);
+
+  { V8.60 write log file }
+    try
+        if (DirLogs.Text = '') then Exit ;
+        if NOT Assigned(FIcsBuffLogStream) then Exit; // sanity check
+        FIcsBuffLogStream.WriteLine(S);
+    except
+    end;
 end;
 
 
@@ -406,6 +431,27 @@ begin
     AddLog(Msg);
 end;
 
+{ V8.60 this event is used to open the log file, or change it's name
+  if already opened, change only needed for GUI applications where the user
+  can change the log path. Note ls written as UTF8 codepage }
+procedure THttpRestForm.OpenLogFile;
+var
+    FName: String;
+begin
+    if DirLogs.Text = '' then Exit; // no log
+    FName := '"' + IncludeTrailingPathDelimiter(DirLogs.Text) +
+                                              'ics-httprest-"yyyy-mm-dd".log"';
+    if NOT Assigned(FIcsBuffLogStream) then
+        FIcsBuffLogStream := TIcsBuffLogStream.Create(self, FName,
+                                HttpRestForm.Caption + IcsCRLF, FileCPUtf8)
+    else begin
+        if FName = FIcsBuffLogStream.NameMask then Exit; // skip no change
+        if FIcsBuffLogStream.LogSize > 0 then
+            FIcsBuffLogStream.FlushFile(True);  // changing log path, write old log first
+        FIcsBuffLogStream.NameMask := FName;
+    end;
+    AddLog(IcsCRLF + 'Opened log file: ' + FIcsBuffLogStream.FullName);
+end;
 
 procedure THttpRestForm.doAbortClick(Sender: TObject);
 begin
@@ -423,6 +469,13 @@ begin
     RespList.Items.Clear;
 end;
 
+
+procedure THttpRestForm.SelDirLogsClick(Sender: TObject);
+begin
+    OpenDirDiag.InitialDir := DirLogs.Text ;
+    if OpenDirDiag.Execute then
+        DirLogs.Text := ExtractFilePath(OpenDirDiag.FileName);
+end;
 
 procedure THttpRestForm.SettingsChange(Sender: TObject);
 begin
@@ -442,6 +495,7 @@ var
 begin
     doStartReq.Enabled := False;
     RespList.Items.Clear;
+    OpenLogFile;  { V8.60 } 
 
  // optional HTTP parameters, all have defaults so can be ignored if not needed
     Req := ReqList[ReqType.ItemIndex];
@@ -464,7 +518,7 @@ begin
     HttpRest1.Password := AuthPassword.Text;
     HttpRest1.AuthBearerToken := AuthBearer.Text;
     HttpRest1.ExtraHeaders := ExtraHeaders.Lines;
-    HttpRest1.SocketFamily := sfAny;  { V8.57 IP4 and IPV6 }
+    HttpRest1.SocketFamily := TSocketFamily(IpSockFamily.ItemIndex);  { V8.60 IP4 and/or IPV6 }
 
   // read grid and build REST paramaters
     HttpRest1.RestParams.Clear;

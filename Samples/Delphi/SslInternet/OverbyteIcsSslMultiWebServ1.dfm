@@ -1,7 +1,7 @@
 object WeblServerForm: TWeblServerForm
   Left = 339
   Top = 282
-  Caption = 'Web Application Server '
+  Caption = 'Web Application Server  - V8.60 21st Feb 2019 '
   ClientHeight = 437
   ClientWidth = 587
   Color = clBtnFace
@@ -173,6 +173,7 @@ object WeblServerForm: TWeblServerForm
     PrivKeyCipher = PrivKeyEncNone
     PrivKeyType = PrivKeyRsa2048
     SeqOrderNum = 0
+    SocketFamily = sfAny
     SuppCertChallenge = ChallNone
     SupplierProto = SuppProtoNone
     OnCertProg = IcsSslX509CertsCertProg
@@ -180,6 +181,28 @@ object WeblServerForm: TWeblServerForm
     OnOAuthAuthUrl = IcsSslX509CertsOAuthAuthUrl
     OnChallengeDNS = IcsSslX509CertsChallengeDNS
     Left = 545
+    Top = 5
+  end
+  object IcsMailQueue: TIcsMailQueue
+    MailServers = <>
+    Active = False
+    ArchiveSent = False
+    DeleteFailed = True
+    Debug = False
+    BodyDebug = False
+    RetryList = '5,5,10,10,30,30,60,90,300,300,300,300'
+    QuStartDelay = 3
+    SslVerMethod = MailSslVerNone
+    SslRevocation = False
+    SslReportChain = False
+    SslRootFile = 'RootCaCertsBundle.pem'
+    SmtpMethod = MailSmtpRelay
+    FileQuSent = '"MailQuSent-"yyyymmdd".log'
+    LogQuSent = False
+    MxSrvUseSsl = False
+    MxSocketFamily = sfIPv4
+    LogEvent = IcsMailQueueLogEvent
+    Left = 295
     Top = 5
   end
 end

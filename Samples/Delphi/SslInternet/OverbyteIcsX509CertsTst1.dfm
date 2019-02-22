@@ -3,7 +3,7 @@ object X509CertsForm: TX509CertsForm
   Top = 0
   Caption = 
     'ICS Automatically Download SSL X509 Certificates Development Dem' +
-    'o - http://www.overbyte.be - V8.58 - 19th October 2018'
+    'o - http://www.overbyte.be - V8.60 - 21st February 2019'
   ClientHeight = 637
   ClientWidth = 1024
   Color = clBtnFace
@@ -89,6 +89,13 @@ object X509CertsForm: TX509CertsForm
         Height = 28
         Caption = 'Private Key File, optional'#13#10'(needed to build bundles)'
       end
+      object Label54: TLabel
+        Left = 590
+        Top = 205
+        Width = 66
+        Height = 14
+        Caption = 'Socket Family'
+      end
       object DomWebSrvIP: TComboBox
         Left = 600
         Top = 25
@@ -121,7 +128,7 @@ object X509CertsForm: TX509CertsForm
         Width = 382
         Height = 22
         TabOrder = 3
-        Text = 'c:\tempfiles'
+        OnExit = DirLogsExit
       end
       object LogPkeys: TCheckBox
         Left = 10
@@ -311,13 +318,30 @@ object X509CertsForm: TX509CertsForm
         NumGlyphs = 2
       end
       object doCheckCSR: TButton
-        Left = 590
-        Top = 198
+        Left = 445
+        Top = 196
         Width = 96
         Height = 25
         Caption = 'Check CSR'
         TabOrder = 18
         OnClick = doCheckCSRClick
+      end
+      object IpSocFamily: TComboBox
+        Left = 679
+        Top = 200
+        Width = 102
+        Height = 22
+        Style = csDropDownList
+        ItemHeight = 14
+        ItemIndex = 0
+        TabOrder = 19
+        Text = 'Any'
+        Items.Strings = (
+          'Any'
+          'Prefer IPv4'
+          'Prefer IPv6'
+          'Only IPv4 '
+          'Only IPv6')
       end
     end
     object TabDomain: TTabSheet
@@ -1963,6 +1987,7 @@ object X509CertsForm: TX509CertsForm
     PrivKeyCipher = PrivKeyEncNone
     PrivKeyType = PrivKeyRsa2048
     SeqOrderNum = 0
+    SocketFamily = sfAny
     SuppCertChallenge = ChallFileUNC
     SupplierProto = SuppProtoNone
     OnCertProg = X509Certs1CertProg
@@ -1980,7 +2005,7 @@ object X509CertsForm: TX509CertsForm
   end
   object OpenDirDiag: TOpenDialog
     Options = [ofHideReadOnly, ofNoValidate, ofPathMustExist, ofNoTestFileCreate, ofEnableSizing]
-    Title = 'Select Database Directory'
+    Title = 'Select Directory'
     Left = 215
     Top = 750
   end

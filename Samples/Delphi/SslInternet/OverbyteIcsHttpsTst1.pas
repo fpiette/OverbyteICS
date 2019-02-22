@@ -6,7 +6,7 @@ Description:  A simple  HTTPS SSL Web Client Demo client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.56
+Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
@@ -83,10 +83,14 @@ Jul 6, 2018   V8.56 testing SSL application layer protocol negotiation, used
                  for HTTP/2 (not supported yet), set the protoools supported
                  in SslContext.SslAlpnProtocols and check what the servers
                  choose after SslHandshake.
-
-
+Feb 6, 2019  V8.60 Add Socket Family selection for IPv4 and/or IPv6, previously
+                 ignored IPV6 only hosts.
+             Report SessionConnnected event with actual IP address.
+             OpenSSL 1.0.2 only ticj box gone, not needed any longer. 
 
 // pending add persistent cookie support, and gzip content encoding
+// Note these are done by default in the TSslHttpRest component which may
+// may be used instead of TSslHttpCli, see sample OverbyteIcsHttpRestTst
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpsTst1;
@@ -122,14 +126,15 @@ uses
   OverbyteIcsHttpCCodZLib,
 {$ENDIF}
   OverbyteIcsWndControl,
-  OverbyteIcsCharsetUtils;       { V8.50 }
+  OverbyteIcsCharsetUtils,        { V8.50 }
+  OverbyteIcsUtils;               { V8.60 }
 
 
 const
-     HttpsTstVersion     = 856;
-     HttpsTstDate        = 'July 6, 2018';
+     HttpsTstVersion     = 860;
+     HttpsTstDate        = 'February 5, 2019';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2018 Francois Piette V8.56 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2019 Francois Piette V8.60 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -194,7 +199,6 @@ type
     SslStaticLock1: TSslStaticLock;
     Label14: TLabel;
     SslMinVersion: TComboBox;
-    OldSslCheckBox: TCheckBox;
     StoreButton: TButton;
     SslSecLevel: TComboBox;
     Label22: TLabel;
@@ -203,6 +207,7 @@ type
     Label23: TLabel;
     ProxyLoginEdit: TEdit;
     ProxyPwEdit: TEdit;
+    IpSockFamily: TRadioGroup;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -246,6 +251,7 @@ type
     procedure SslHttpCli1SocksAuthState(Sender: TObject;
       AuthState: TSocksAuthState);
     procedure SslHttpCli1SocketError(Sender: TObject);
+    procedure SslHttpCli1SessionConnected(Sender: TObject);
 
   private
     FIniFileName               : String;
@@ -308,11 +314,11 @@ const
     KeySslMinVersion   = 'SslMinVersion';
     KeySslMaxVersion   = 'SslMaxVersion';
     KeySslCipher       = 'SslCipher';
-    KeyOldSsl          = 'OldSsl';
     KeySslSecLevel     = 'SslSecLevel';
     KeyDebugDump       = 'DebugDump';
     KeyProxyLogin      = 'ProxyLogin';
     KeyProxyPw         = 'ProxyPw';
+    KeyIpSockFamily    = 'IpSockFamily';
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -442,20 +448,16 @@ begin
             DebugFileCheckBox.Checked     := IniFile.ReadBool(SectionData,
                                                               KeyDebugFile,
                                                               False);
-            OldSslCheckBox.Checked        := IniFile.ReadBool(SectionData,
-                                                              KeyOldSsl,
-                                                              False);
             SslSecLevel.ItemIndex         := IniFile.ReadInteger(SectionData,
                                                               KeySslSecLevel, 1);  { V8.41 }
             DebugDumpCheckBox.Checked     :=  IniFile.ReadBool(SectionData,
-                                                              KeyDebugDump,
-                                                              False);              { V8.51 }
+                                                              KeyDebugDump, False);{ V8.51 }
             ProxyLoginEdit.Text           := IniFile.ReadString(SectionData,
-                                                              KeyProxyLogin,
-                                                              '');                 { V8.51 }
+                                                              KeyProxyLogin, '');  { V8.51 }
             ProxyPwEdit.Text              := IniFile.ReadString(SectionData,
-                                                              KeyProxyPw,
-                                                              '');                 { V8.51 }
+                                                              KeyProxyPw, '');     { V8.51 }
+            IpSockFamily.ItemIndex         := IniFile.ReadInteger(SectionData,
+                                                              KeyIpSockFamily, 0); { V8.60 }
         finally
             IniFile.Free;
         end;
@@ -463,7 +465,7 @@ begin
         DisplayMemo.Clear;
 
     { V8.03 load OpenSSL, then display OpenSSL DLL name and version  }
-        GSSLEAY_DLL_IgnoreNew := OldSslCheckBox.Checked;  { V8.03 ignore OpenSSL 1.1.0 and later }
+        GSSLEAY_DLL_IgnoreNew := false;  { V8.03 ignore OpenSSL 1.1.0 and later }
         SslStaticLock1.Enabled := true ;
         FDispCiphDone := false; { V8.37 }
         if NOT FileExists (GLIBEAY_DLL_FileName) then
@@ -519,11 +521,11 @@ begin
     IniFile.WriteBool(SectionData,      KeyDebugEvent,  DebugEventCheckBox.Checked);
     IniFile.WriteBool(SectionData,      KeyDebugOutput, DebugOutputCheckBox.Checked);
     IniFile.WriteBool(SectionData,      KeyDebugFile,   DebugFileCheckBox.Checked);
-    IniFile.WriteBool(SectionData,      KeyOldSsl,      OldSslCheckBox.Checked);     { V8.03 }
     IniFile.WriteInteger(SectionData,   KeySslSecLevel, SslSecLevel.ItemIndex);      { V8.41 }
     IniFile.WriteBool(SectionData,      KeyDebugDump,   DebugDumpCheckBox.Checked);  { V8.51 }
     IniFile.WriteString(SectionData,    KeyProxyLogin,  ProxyLoginEdit.Text);        { V8.51 }
     IniFile.WriteString(SectionData,    KeyProxyPw,     ProxyPwEdit.Text);           { V8.51 }
+    IniFile.WriteInteger(SectionData,   KeyIpSockFamily, IpSockFamily.ItemIndex);    { V8.60 }
     IniFile.UpdateFile;
     IniFile.Free;
 end;
@@ -619,6 +621,7 @@ begin
     SslHttpCli1.AcceptLanguage := 'en, fr';
     SslHttpCli1.Connection     := 'Keep-Alive';
     SslHttpCli1.RequestVer     := '1.' + IntToStr(HttpVersionComboBox.ItemIndex);
+    SslHttpCli1.SocketFamily   := TSocketFamily(IpSockFamily.ItemIndex);  { V8.60 }
 
     if DateTimeEdit.Text <> '' then
         SslHttpCli1.ModifiedSince := StrToDateTime(DateTimeEdit.Text)
@@ -639,12 +642,15 @@ begin
         (SslContext1.SslCALines.Count = 0) then
             SslContext1.SslCALines.Text := sslRootCACertsBundle;
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
+    SslContext1.SslDHParamFile      := Trim(DhParamFileEdit.Text);               { V8.01 }
   { V8.03 SslVersionMethod is ignored by OpenSSL 1.1.0 and later which uses SslMinVersion and SslMaxVersion instead }
     SslContext1.SslMinVersion       := TSslVerMethod (SslMinVersion.ItemIndex);  { V8.03}
     SslContext1.SslMaxVersion       := TSslVerMethod (SslMaxVersion.ItemIndex);  { V8.03}
-    SslContext1.SslCipherList       := Trim(SslCipherEdit.Text);                       { V8.01 }
-    SslContext1.SslDHParamFile      := Trim(DhParamFileEdit.Text);                     { V8.01 }
-    SslContext1.SslSecLevel         := TSslSecLevel (SslSecLevel.ItemIndex);     { V8.41 }
+    SslContext1.SslCipherList       := Trim(SslCipherEdit.Text);                 { V8.01 }
+    SslContext1.SslSecLevel         := TSslSecLevel(SslSecLevel.ItemIndex);      { V8.41 }
+
+ { NOTE newer applications should replace SslMin/MaxVersion. SslCipherList and
+      SslSecLevel with SslCliSecurity which combines all three  }
 
     try
         SslContext1.InitContext;  { V8.01 get any error now before making request }
@@ -861,6 +867,29 @@ begin
         HttpCli.RcvdStream := nil;
     end;
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpsTstForm.SslHttpCli1SessionConnected(Sender: TObject);    { V8.60  }
+var
+    S: String;
+begin
+    if SslHttpCli1.State = httpConnected then
+        S := 'Connected OK to: '
+    else
+        S := 'Connection failed to: ';
+    S := S + SslHttpCli1.Hostname + ' (' +
+                IcsFmtIpv6Addr(SslHttpCli1.AddrResolvedStr) + ')';
+    Display(S);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpsTstForm.SslHttpCli1SocketError(Sender: TObject);     { V8.51 }
+begin
+    Display('Socket error: ' + WSocketErrorDesc(Error));
+end;
+
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1149,13 +1178,6 @@ begin
         HttpCli.SslAcceptableHosts.Add(HttpCli.Hostname + Hash);
         PostMessage(Handle, WM_SSL_NOT_TRUSTED, 0, Integer(Sender));
     end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THttpsTstForm.SslHttpCli1SocketError(Sender: TObject);     { V8.51 }
-begin
-    Display('Socket error: ' + WSocketErrorDesc(Error));
 end;
 
 

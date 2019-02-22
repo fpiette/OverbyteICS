@@ -9,14 +9,11 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     May 2018
-Updated:      Oct 2018
-Version:      8.58
-Support:      Use the mailing list ics-ssl@elists.org
-Legal issues: Copyright (C) 2003-2018 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium.
-              <francois.piette@overbyte.be>
-              SSL implementation includes code written by Arno Garrels,
-              Berlin, Germany, contact: <arno.garrels@gmx.de>
+Updated:      Feb 2019
+Version:      8.60
+Support:      Use the mailing list ics@elists.org
+Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
+              Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -43,15 +40,23 @@ Legal issues: Copyright (C) 2003-2018 by François PIETTE
                  to the author. Use a nice stamp and mention your name, street
                  address, EMail address and any comment you like to say.
 
+Trade Marks:  Let’s Encrypt and ISRG are trademarks of the Internet Security
+              Research Group. All rights reserved.
+
 History:
 May 22, 2018 - V8.54 baseline
 Oct 5, 2018  - V8.57 Added Database tab and settings
 Oct 19, 2018 - V8.58 Bug fixes
+Feb 21, 2019 - V8.60 Using new TIcsBuffLogStream for UTF8 or UTF16 file logging,
+                 one log per day rather than per session.
+               Added Socket Family to allow use with IPv6 hosts.
+
+
 
 For docunentation on how to use this sample, please see a lengthy Overview in
 the OverbyteIcsSslX509Certs.pas unit.
 
-Pending - Waiting challenges list
+Pending - Waiting challenges list window
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsX509CertsTst1;
@@ -90,7 +95,8 @@ uses
   OverbyteIcsSuperObject,
   OverbyteIcsSslJose,
   OverbyteIcsSslX509Utils,
-  OverbyteIcsSslX509Certs;
+  OverbyteIcsSslX509Certs,
+  OverbyteIcsBlacklist;
 
 type
   TX509CertsForm = class(TForm)
@@ -161,6 +167,7 @@ type
     PrivKeyType: TRadioGroup;
     SuppCertChallenge: TRadioGroup;
     SupplierEmail: TEdit;
+    IpSocFamily: TComboBox;   { V8.60 } 
 
  // properties not saved
     X509Certs1: TSslX509Certs;
@@ -305,6 +312,7 @@ type
     doAcmeSaveOrderV2: TButton;
     doCertCentreSaveOrder: TButton;
     doDBRedist: TButton;
+    Label54: TLabel;
 
 
     procedure FormCreate(Sender: TObject);
@@ -374,6 +382,7 @@ type
     procedure doCertCentreSaveOrderClick(Sender: TObject);
     procedure X509Certs1OAuthAuthUrl(Sender: TObject; const URL: string);
     procedure doDBRedistClick(Sender: TObject);
+    procedure DirLogsExit(Sender: TObject);
   private
     { Private declarations }
   public
@@ -382,8 +391,7 @@ type
     FIniFileName: String;
     FCookieFileName: String;
     FInitialized: Boolean;
-    FLogFStream: TFileStream;
-    FLogOpen: Boolean;
+    FIcsBuffLogStream: TIcsBuffLogStream;  { V8.60 }
     FPendCCProfile: Boolean;
     procedure AddLog (const S: string) ;
     procedure SetOAParams;
@@ -393,6 +401,7 @@ type
     procedure RefreshDomains;
     procedure ResetDomButtons;
     procedure SetDomButtons;
+    procedure OpenLogFile;
   end;
 
 const
@@ -430,8 +439,8 @@ begin
     CertSANGrid.Cells[2,0] := 'Web Server UNC Public Certs Dir';
     CertSANGrid.Cells[3,0] := 'Approval Email';
     OpenFileDlg.Filter := 'Certs *.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
-                            '*.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
-            'All Files *.*|*.*';
+                          '*.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
+                          'All Files *.*|*.*';
 end;
 
 procedure TX509CertsForm.FormDestroy(Sender: TObject);
@@ -549,6 +558,7 @@ begin
   PrivKeyType.ItemIndex := ReadInteger (SectionData, 'PrivKeyType_ItemIndex', PrivKeyType.ItemIndex) ;
   SuppCertChallenge.ItemIndex := ReadInteger (SectionData, 'SuppCertChallenge_ItemIndex', SuppCertChallenge.ItemIndex) ;
   SupplierEmail.Text := ReadString (SectionData, 'SupplierEmail_Text', SupplierEmail.Text) ;
+  IpSocFamily.ItemIndex := ReadInteger (SectionData, 'IpSocFamily_ItemIndex', IpSocFamily.ItemIndex) ;
        end;
         IniFile.Free;
     end;
@@ -572,6 +582,30 @@ begin
     if AcmeServerV2.Text = '' then AcmeServerV2.ItemIndex := 0;
     if CertCentreServer.Text = '' then CertCentreServer.ItemIndex := 0;
 
+// V8.60 prepare log file
+    OpenLogFile;
+end;
+
+{ V8.60 this event is used to open the log file, or change it's name
+  if already opened, change only needed for GUI applications where the user
+  can change the log path. Note ls written as UTF8 codepage }
+procedure TX509CertsForm.OpenLogFile;
+var
+    FName: String;
+begin
+    if DirLogs.Text = '' then Exit; // no log
+    FName := '"' + IncludeTrailingPathDelimiter(DirLogs.Text) +
+                                              'ics-certlog-"yyyy-mm-dd".log"';
+    if NOT Assigned(FIcsBuffLogStream) then
+        FIcsBuffLogStream := TIcsBuffLogStream.Create(self, FName,
+                                X509CertsForm.Caption + IcsCRLF, FileCPUtf8)
+    else begin
+        if FName = FIcsBuffLogStream.NameMask then Exit; // skip no change
+        if FIcsBuffLogStream.LogSize > 0 then
+            FIcsBuffLogStream.FlushFile(True);  // changing log path, write old log first
+        FIcsBuffLogStream.NameMask := FName;
+    end;
+    AddLog(IcsCRLF + 'Opened log file: ' + FIcsBuffLogStream.FullName);
 end;
 
 procedure TX509CertsForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -581,8 +615,7 @@ var
     SL: TStringList;
     I: Integer;
 begin
-    if FLogOpen then FreeAndNil(FLogFStream);
-    FLogOpen := False;
+    FreeAndNil(FIcsBuffLogStream); // V8.60 write log file }
     IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionMainWindow, KeyTop, Top);
     IniFile.WriteInteger(SectionMainWindow, KeyLeft, Left);
@@ -672,14 +705,13 @@ begin
   WriteInteger (SectionData, 'PrivKeyType_ItemIndex', PrivKeyType.ItemIndex) ;
   WriteInteger (SectionData, 'SuppCertChallenge_ItemIndex', SuppCertChallenge.ItemIndex) ;
   WriteString (SectionData, 'SupplierEmail_Text', SupplierEmail.Text) ;
+  WriteInteger (SectionData, 'IpSocFamily_ItemIndex', IpSocFamily.ItemIndex) ;
     end;
     IniFile.UpdateFile;
     IniFile.Free;
 end;
 
 procedure TX509CertsForm.AddLog(const S: string);
-var
-    S2: String;
 begin
     if Pos (IcsLF,S) > 0 then
         LogWin.Lines.Text := LogWin.Lines.Text + IcsCRLF + S
@@ -687,14 +719,11 @@ begin
        LogWin.Lines.Add (S) ;
     SendMessage(LogWin.Handle, EM_LINESCROLL, 0, 999999);
 
+  { V8.60 write log file }
     try
         if (DirLogs.Text = '') then Exit ;
-        if NOT FLogOpen then
-           FLogFStream := TFileStream.Create (IncludeTrailingPathDelimiter(DirLogs.Text) +
-                    'ics-certlog-' + FormatDateTime (DateMaskPacked, Now) + '.log', fmCreate) ;
-        FLogOpen := true ;
-        S2 := S + IcsCRLF ;
-        FLogFStream.WriteBuffer (S2 [1], Length (S2)) ;
+        if NOT Assigned(FIcsBuffLogStream) then Exit; // sanity check
+        FIcsBuffLogStream.WriteLine(S);
     except
     end;
 end;
@@ -971,6 +1000,7 @@ end;
 
 procedure TX509CertsForm.SetCommParams;
 begin
+    OpenLogFile;
     X509Certs1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
     X509Certs1.LogJson := LogJson.Checked;
     X509Certs1.LogPkeys := LogPkeys.Checked;
@@ -1344,6 +1374,7 @@ begin
         FPendCCProfile := True;  // waiting for oAuth2 response
 end;
 
+
 procedure TX509CertsForm.CertCentreProductsClick(Sender: TObject);
 begin
     if (X509Certs1.SupplierProto <> SuppProtoCertCentre) then Exit;
@@ -1559,6 +1590,11 @@ begin
     if DatabaseDomains.Items.Count = 0 then Exit;
     if DatabaseDomains.ItemIndex < 0 then Exit;
     SetDomButtons;
+end;
+
+procedure TX509CertsForm.DirLogsExit(Sender: TObject);
+begin
+    OpenLogFile;
 end;
 
 procedure TX509CertsForm.doDBCheckClick(Sender: TObject);

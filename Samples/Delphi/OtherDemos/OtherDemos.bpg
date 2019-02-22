@@ -13,7 +13,9 @@ PROJECTS = OverbyteIcsPingTst.exe OverbyteIcsNsLookup.exe \
   OverbyteIcsDnsLook.exe OverbyteIcsDnsResolver.exe OverbyteIcsDll1.dll \
   OverbyteIcsDll2.dll OverbyteIcsDllTst.exe OverbyteIcsFinger.exe \
   OverbyteIcsBatchDnsLookup.exe OverbyteIcsSysLogClientDemo.exe \
-  OverbyteIcsSysLogServerDemo.exe OverbyteIcsSnmpCliTst.exe
+  OverbyteIcsSysLogServerDemo.exe OverbyteIcsSnmpCliTst.exe \
+  OverbyteIcsWhoisCliTst.exe OverbyteIcsTimeTst.exe
+
 #----------------------------------------------------------------------------
 default: $(PROJECTS)
 #----------------------------------------------------------------------------
@@ -54,6 +56,9 @@ OverbyteIcsSysLogServerDemo.exe: OverbyteIcsSysLogServerDemo.dpr
 OverbyteIcsSnmpCliTst.exe: OverbyteIcsSnmpCliTst.dpr
   $(DCC)
 
+OverbyteIcsWhoisCliTst.exe: OverbyteIcsWhoisCliTst.dpr
+  $(DCC)
 
-
+OverbyteIcsTimeTst.exe: OverbyteIcsTimeTst.dpr
+  $(DCC)
 

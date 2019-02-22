@@ -174,7 +174,7 @@ object HttpsTstForm: THttpsTstForm
       Caption = 'CA Path'
     end
     object Label18: TLabel
-      Left = 447
+      Left = 440
       Top = 177
       Width = 124
       Height = 13
@@ -209,7 +209,7 @@ object HttpsTstForm: THttpsTstForm
       Caption = 'Maximum'
     end
     object Label22: TLabel
-      Left = 449
+      Left = 440
       Top = 153
       Width = 67
       Height = 13
@@ -279,13 +279,13 @@ object HttpsTstForm: THttpsTstForm
       Text = 'CAFileEdit'
     end
     object VerifyPeerCheckBox: TCheckBox
-      Left = 589
-      Top = 124
+      Left = 452
+      Top = 125
       Width = 71
       Height = 17
       Alignment = taLeftJustify
       Caption = 'Verify Peer'
-      TabOrder = 25
+      TabOrder = 24
     end
     object CAPathEdit: TEdit
       Left = 276
@@ -410,13 +410,13 @@ object HttpsTstForm: THttpsTstForm
         'HTTP/1.1')
     end
     object SessCacheCheckBox: TCheckBox
-      Left = 666
-      Top = 124
+      Left = 548
+      Top = 125
       Width = 121
       Height = 17
       Alignment = taLeftJustify
       Caption = 'SSL Session Caching'
-      TabOrder = 26
+      TabOrder = 25
     end
     object ButtonOSSLVersion: TButton
       Left = 242
@@ -452,7 +452,7 @@ object HttpsTstForm: THttpsTstForm
       TabOrder = 20
     end
     object DateTimeEdit: TEdit
-      Left = 589
+      Left = 575
       Top = 172
       Width = 116
       Height = 21
@@ -531,8 +531,10 @@ object HttpsTstForm: THttpsTstForm
       Items.Strings = (
         'https://www.google.co.uk/'
         'https://www.embarcadero.com/'
-        'https://telecom-tariffs.co.uk/serverinfo.htm'
-        'https://mail.magsys.co.uk/')
+        'https://www.telecom-tariffs.co.uk/serverinfo.htm'
+        'https://ipv6.telecom-tariffs.co.uk/serverinfo.htm'
+        'https://www.magsys.co.uk/'
+        'https://ipv6.magsys.co.uk/')
     end
     object ResetButton: TButton
       Left = 467
@@ -560,16 +562,6 @@ object HttpsTstForm: THttpsTstForm
         'TLSv1.3'
         'Best Version')
     end
-    object OldSslCheckBox: TCheckBox
-      Left = 447
-      Top = 124
-      Width = 107
-      Height = 17
-      Alignment = taLeftJustify
-      Caption = 'Force OSSL 1.0.x'
-      TabOrder = 24
-      OnClick = OldSslCheckBoxClick
-    end
     object StoreButton: TButton
       Left = 542
       Top = 199
@@ -580,7 +572,7 @@ object HttpsTstForm: THttpsTstForm
       OnClick = StoreButtonClick
     end
     object SslSecLevel: TComboBox
-      Left = 542
+      Left = 525
       Top = 148
       Width = 169
       Height = 21
@@ -612,6 +604,21 @@ object HttpsTstForm: THttpsTstForm
       TabOrder = 19
       Text = 'ProxyPwEdit'
     end
+    object IpSockFamily: TRadioGroup
+      Left = 700
+      Top = 123
+      Width = 87
+      Height = 97
+      Caption = 'Socket Family'
+      ItemIndex = 0
+      Items.Strings = (
+        'Any'
+        'Prefer IPv4'
+        'Prefer IPv6'
+        'Only IPv4 '
+        'Only IPv6')
+      TabOrder = 26
+    end
   end
   object SslHttpCli1: TSslHttpCli
     LocalAddr = '0.0.0.0'
@@ -633,6 +640,7 @@ object HttpsTstForm: THttpsTstForm
     Options = []
     IcsLogger = IcsLogger1
     Timeout = 30
+    OnSessionConnected = SslHttpCli1SessionConnected
     OnHeaderData = SslHttpCli1HeaderData
     OnCommand = SslHttpCli1Command
     OnDocBegin = SslHttpCli1DocBegin

@@ -2,8 +2,8 @@ object HttpRestForm: THttpRestForm
   Left = 86
   Top = 176
   Caption = 
-    'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.58 -' +
-    ' 27th October 2018'
+    'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.60 -' +
+    ' 15th February 2019'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace
@@ -24,7 +24,7 @@ object HttpRestForm: THttpRestForm
     Top = 0
     Width = 823
     Height = 315
-    ActivePage = TabREST
+    ActivePage = TabSettings
     Align = alTop
     TabOrder = 0
     object TabREST: TTabSheet
@@ -204,11 +204,18 @@ object HttpRestForm: THttpRestForm
         Height = 14
         Caption = 'Optional Client SSL Certificate (if required by server)'
       end
+      object Label22: TLabel
+        Left = 460
+        Top = 185
+        Width = 65
+        Height = 14
+        Caption = 'Log Directory'
+      end
       object DebugLogging: TRadioGroup
         Left = 10
         Top = 3
         Width = 121
-        Height = 144
+        Height = 136
         Caption = 'Debug Logging'
         ItemIndex = 3
         Items.Strings = (
@@ -223,21 +230,24 @@ object HttpRestForm: THttpRestForm
       end
       object SslSecurity: TRadioGroup
         Left = 152
-        Top = 5
+        Top = 3
         Width = 169
-        Height = 216
+        Height = 246
         Caption = 'SSL Security Level'
         ItemIndex = 6
         Items.Strings = (
           'Ignore'
           'None'
           'SSLv3 Only'
+          'TLSv1 Only'
+          'TLSv1.1 Only'
           'TLSv1.2 Only'
           'TLSv1.3 Only'
-          'TLSv1 or better'
-          'TLSv1.2 or better'
+          'TLSv1 or Better'
+          'TLSv1.1 or Better'
+          'TLSv1.2 or Better'
           'Backward Ciphers'
-          'Intermedate Ciphers'
+          'Intermediate Ciphers'
           'High Ciphers, 2048 keys'
           'High Ciphers, 3072 keys'
           'High Ciphers, 7680 keys')
@@ -258,12 +268,12 @@ object HttpRestForm: THttpRestForm
         TabOrder = 3
       end
       object ReportCertChain: TCheckBox
-        Left = 10
-        Top = 160
+        Left = 337
+        Top = 80
         Width = 111
         Height = 29
         Caption = 'Report SSL Certificate Chain'
-        TabOrder = 1
+        TabOrder = 4
         WordWrap = True
       end
       object SslClientCertFile: TEdit
@@ -271,7 +281,7 @@ object HttpRestForm: THttpRestForm
         Top = 255
         Width = 341
         Height = 22
-        TabOrder = 9
+        TabOrder = 13
       end
       object ExtraHeaders: TMemo
         Left = 490
@@ -280,11 +290,11 @@ object HttpRestForm: THttpRestForm
         Height = 59
         Lines.Strings = (
           'ExtraHeaders')
-        TabOrder = 5
+        TabOrder = 6
       end
       object AuthType: TRadioGroup
         Left = 337
-        Top = 85
+        Top = 115
         Width = 104
         Height = 119
         Caption = 'Authentication'
@@ -296,14 +306,14 @@ object HttpRestForm: THttpRestForm
           'Digest'
           'Bearer'
           'XAuth Token')
-        TabOrder = 4
+        TabOrder = 5
       end
       object AuthLogin: TEdit
         Left = 545
         Top = 100
         Width = 141
         Height = 22
-        TabOrder = 6
+        TabOrder = 7
       end
       object AuthPassword: TEdit
         Left = 545
@@ -311,19 +321,63 @@ object HttpRestForm: THttpRestForm
         Width = 141
         Height = 22
         PasswordChar = '*'
-        TabOrder = 7
+        TabOrder = 8
       end
       object AuthBearer: TEdit
         Left = 545
         Top = 160
         Width = 241
         Height = 22
-        TabOrder = 8
+        TabOrder = 9
       end
       object SslRootBundleFile: TEdit
         Left = 10
         Top = 255
         Width = 341
+        Height = 22
+        TabOrder = 12
+      end
+      object IpSockFamily: TRadioGroup
+        Left = 10
+        Top = 145
+        Width = 121
+        Height = 92
+        Caption = 'Socket Family'
+        ItemIndex = 0
+        Items.Strings = (
+          'Any'
+          'Prefer IPv4'
+          'Prefer IPv6'
+          'Only IPv4 '
+          'Only IPv6')
+        TabOrder = 1
+      end
+      object SelDirLogs: TBitBtn
+        Left = 769
+        Top = 233
+        Width = 31
+        Height = 25
+        TabOrder = 11
+        OnClick = SelDirLogsClick
+        Glyph.Data = {
+          76010000424D7601000000000000760000002800000020000000100000000100
+          04000000000000010000120B0000120B00001000000000000000000000000000
+          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+          333337F373F773333333303330033333333337F3377333333333303333333333
+          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+          333337777F337F33333330330BB00333333337F373F773333333303330033333
+          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+          333373F773333333333330033333333333333773333333333333}
+        NumGlyphs = 2
+      end
+      object DirLogs: TEdit
+        Left = 460
+        Top = 205
+        Width = 326
         Height = 22
         TabOrder = 10
       end
@@ -738,5 +792,11 @@ object HttpRestForm: THttpRestForm
     OnOAuthNewToken = RestOAuth1OAuthNewToken
     Left = 110
     Top = 375
+  end
+  object OpenDirDiag: TOpenDialog
+    Options = [ofHideReadOnly, ofNoValidate, ofPathMustExist, ofNoTestFileCreate, ofEnableSizing]
+    Title = 'Select Directory'
+    Left = 215
+    Top = 750
   end
 end

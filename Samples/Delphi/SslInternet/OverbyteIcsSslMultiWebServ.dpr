@@ -14,8 +14,8 @@ uses
   OverbyteIcsWebAppServerConfig in '..\WebDemos\OverbyteIcsWebAppServerConfig.pas',
   OverbyteIcsWebAppServerCounterView in '..\WebDemos\OverbyteIcsWebAppServerCounterView.pas',
   OverbyteIcsWebAppServerHead in '..\WebDemos\OverbyteIcsWebAppServerHead.pas',
-  OverbyteIcsWebAppServerMailer in '..\WebDemos\OverbyteIcsWebAppServerMailer.pas',
-  OverbyteIcsWebAppServerUploads in 'OverbyteIcsWebAppServerUploads.pas';
+  OverbyteIcsWebAppServerUploads in 'OverbyteIcsWebAppServerUploads.pas',
+  OverbyteIcsSslMultiWebMailer in 'OverbyteIcsSslMultiWebMailer.pas';
 
 {$R *.RES}
 

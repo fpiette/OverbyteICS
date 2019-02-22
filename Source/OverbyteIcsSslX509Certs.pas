@@ -9,11 +9,11 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     Apr 2018
-Updated:      Nov 2018
-Version:      8.58
+Updated:      Feb 2019
+Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
-Legal issues: Copyright (C) 2018 by Angus Robertson, Magenta Systems Ltd,
+Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
@@ -40,6 +40,9 @@ Legal issues: Copyright (C) 2018 by Angus Robertson, Magenta Systems Ltd,
               4. You must register this software by sending a picture postcard
                  to the author. Use a nice stamp and mention your name, street
                  address, EMail address and any comment you like to say.
+
+Trade Marks:  Let’s Encrypt and ISRG are trademarks of the Internet Security
+              Research Group. All rights reserved.
 
 
 Overview
@@ -669,6 +672,7 @@ Oct 2, 2018   - V8.57 - Added database for domains and challenges (INI file).
                         Builds with FMX but not tested.
 Nov 2, 2018   - V8.58 - Bug fixes and more documentation.
                         Descend components from TIcsWndControl not TComponent
+Feb 6, 2019   - V8.60   Added SocketFamily property to allow both IPv4 and IPv6.
 
 
 Pending - more documentation
@@ -677,7 +681,6 @@ Pending - Challenge timer relaxed checking for completed orders after waiting
           x minutes (currently every 30 secs)
 Pending - tls-alpn-01 challenge for local web server on 443
 Pending - Acme EC accounts, signing currently fails validation
-Pending - Acme EC certificates, not properly tested yet
 Pending - Acme revoke certificate
 Pending - CertCentre re-issue certificate, use ModifiedOrders for last x days
 Pending - Servertastic APIv2 for commercial certificates
@@ -687,6 +690,8 @@ Pending - Comodo intermediates have too many certificates including a root
 Pending - Add self signed and CA certs to database
 Pending - try and share INI file?
 Pending - check well-known challenge made to TSslHttpServer
+Pending - test challenge may find publc address on LAN rather than WAN,
+            need to restrict failed challenges if this happens. 
 }
 
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -754,6 +759,8 @@ uses
 {$IFDEF USE_SSL}
 
 const
+    ComponentVersion = 'V8.60';  // used in user agent
+
  // file suffixes to build various file names
     FileSuffPKey     = '-privatekey.pem' ;
     FileSuffCSR      = '-request.pem' ;
@@ -763,7 +770,7 @@ const
     FileSuffBundP12  = '.pfx' ;
     FileSuffBundP7   = '.p7' ;
     FileIcsCntlDB    = 'ics-control.db';  // INI file
-    FileCADB         = 'index.txt'; 
+    FileCADB         = 'index.txt';
 
  // INI file section headers
     CntlDBAccount   = 'account' ;    // ie, [account]
@@ -1177,7 +1184,7 @@ TSslX509Certs = class(TIcsWndControl)
     FX509BusyFlag: Boolean;
     FPendOpenAccount: String;
     FLastResponse: String;
-
+    FSocketFamily:  TSocketFamily;   { V8.60 }
   protected
     { Protected declarations }
     procedure RestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
@@ -1420,6 +1427,8 @@ TSslX509Certs = class(TIcsWndControl)
                                                     write FPrivKeyType;
     property SeqOrderNum: Integer                   read  FSeqOrderNum
                                                     write FSeqOrderNum;
+    property SocketFamily: TSocketFamily            read  FSocketFamily
+                                                    write FSocketFamily;   { V8.60 }
     property SuppCertChallenge: TChallengeType      read  FSuppCertChallenge
                                                     write FSuppCertChallenge;
     property SuppCertFeatures: String               read  FSuppCertFeatures
@@ -1601,6 +1610,7 @@ begin
     FCertSANs := TStringList.Create;  // matches FCertSubAltNames.Domain
     FDBIniSections := TStringList.Create;
     FPartFNameServer := TStringList.Create;
+    FSocketFamily := sfAny;         // V8.60 allow IPv6
     Randomize;
 end;
 
@@ -2016,6 +2026,7 @@ begin
 
   // try and read it via HTTP
     try
+        FHttpTest.SocketFamily := FSocketFamily;         // V8.60 allow IPv6
         FHttpTest.RestParams.Clear;
         StatCode := FHttpTest.RestRequest(HttpGET, URL, False, '');
         errinfo := FHttpTest.ReasonPhrase;
@@ -3331,7 +3342,8 @@ begin
     FHttpRest.AuthBearerToken := FOAAccToken;
     FHttpRest.ServerAuth := httpAuthBearer;
     FHttpRest.DebugLevel := FDebugLevel;
-    FHttpRest.Agent := 'ICS-CertCentre-V8.54';
+    FHttpRest.Agent := 'ICS-CertCentre-' + ComponentVersion; // V8.60
+    FHttpRest.SocketFamily := FSocketFamily;        // V8.60 allow IPv6
 
     try
         FCCLastStatCode := FHttpRest.RestRequest(HttpReq, FullURL, false, RawParams);
@@ -5154,7 +5166,8 @@ begin
     end;
     FHttpRest.ServerAuth := httpAuthNone;
     FHttpRest.DebugLevel := FDebugLevel;
-    FHttpRest.Agent := 'ICS-ACME1-V8.54';
+    FHttpRest.Agent := 'ICS-ACME1-' +  ComponentVersion; // V8.60
+    FHttpRest.SocketFamily := FSocketFamily;        // V8.60 allow IPv6
     if (Pos ('/new-cert', FullURL) > 1) or (Pos ('/cert/', FullURL) > 1) or
                                          (Pos ('issuer-cert', FullURL) > 1) then
         FHttpRest.Accept := 'application/pkix-cert'

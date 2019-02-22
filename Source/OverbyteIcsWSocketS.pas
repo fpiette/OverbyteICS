@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.59
+Version:      8.60
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2018 by François PIETTE
+Legal issues: Copyright (C) 1999-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -194,6 +194,7 @@ Dec 04, 2018  V8.59 Sanity checks reading mistyped enumerated values from INI fi
                     Added AUTO_X509_CERTS define set in OverbyteIcsDefs.inc which
                       can be disabled to remove a lot of units if automatic SSL/TLS
                       ordering is not required, saves up to 350KB of code.
+Feb 13, 2019  V8.60 Added WebLogIdx to IcsHosts for web server logging
 
 
 
@@ -280,6 +281,9 @@ WebTemplDir   - Optional default web template directory for this IcsHost, used b
 WebDefDoc     - Optional default web document for this IcsHost, used by the web
                 server.
 WebLogDir     - Optional web logging directory for this IcsHost, for use by web
+                server applications (not by the server itself which has not
+                logging).
+WebLogIdx     - Optional web logging index for this IcsHost, for use by web
                 server applications (not by the server itself which has not
                 logging).
 SslCert       - Optional SSL server certificate file name, may be PEM, DER, PFX,
@@ -1056,6 +1060,7 @@ type
     FCertPKeyType: TSslPrivKeyType;
     FCertProduct: String;
     FCertSignDigest: TEvpDigest;
+    FWebLogIdx: Integer;    { V8.60 }
   protected
     function GetDisplayName: string; override;
     function GetHostNameTot: integer;
@@ -1107,6 +1112,8 @@ type
                                                  write FWebDefDoc;
     property WebLogDir : String                  read  FWebLogDir
                                                  write FWebLogDir;
+    property WebLogIdx : Integer                 read  FWebLogIdx
+                                                 write FWebLogIdx; { V8.60 }
     property SslCert : String                    read  FSslCert
                                                  write FSslCert;
     property SslKey : String                     read  FSslKey

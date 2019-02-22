@@ -9,11 +9,11 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.58
+Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2018 by François PIETTE
+Legal issues: Copyright (C) 1999-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -434,6 +434,8 @@ Oct 19, 2018 V8.58 Increased ListenBacklog property default to 15 to handle
 Dec 04, 2018 V8.59 Added AUTO_X509_CERTS define set in OverbyteIcsDefs.inc which
                       can be disabled to remove a lot of units if automatic SSL/TLS
                       ordering is not required, saves up to 1 meg of code.
+Feb 20, 2019 V8.60 Added WebLogIdx to THttpConnection for web logging.
+                   Fixed bug Close did not close multi-listener sockets.
 
 
 Quick reference guide:
@@ -576,9 +578,9 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 859;
-    CopyRight : String = ' THttpServer (c) 1999-2018 F. Piette V8.59 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.59';   { V8.09 }
+    THttpServerVersion = 860;
+    CopyRight : String = ' THttpServer (c) 1999-2019 F. Piette V8.60 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.60';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -886,6 +888,7 @@ type
         FWebRedirectStat       : integer;              { V8.49 }
         FonWellKnownDir        : TWellKnownConnEvent;  { V8.49 }
         FRequestProtocol       : String;               { V8.49 }
+        FWebLogIdx             : Integer;              { V8.60 }
         procedure SetSndBlkSize(const Value: Integer);
         procedure ConnectionDataAvailable(Sender: TObject; Error : Word); virtual;
         procedure ConnectionDataSent(Sender : TObject; Error : WORD); virtual;
@@ -1252,6 +1255,8 @@ type
                                                     write FWebRedirectStat;
         property onWellKnownDir    : TWellKnownConnEvent  read  FonWellKnownDir  { V8.49 }
                                                           write FonWellKnownDir;
+        property WebLogIdx         : integer        read  FWebLogIdx      { V8.60 }
+                                                    write FWebLogIdx;
 
 {$ENDIF}
     end;
@@ -2234,7 +2239,7 @@ procedure THttpServer.Stop;
 begin
     if not Assigned(FWSocketServer) then
         Exit;
-    FWSocketServer.Close;
+    FWSocketServer.MultiClose;     { V8.60 close all hosts }
     { Disconnect all clients }
     FWSocketServer.DisconnectAll;
 {$IFNDEF NO_DEBUG_LOG}
@@ -2254,7 +2259,7 @@ begin
     { new port. Do not disconnect already connected clients.                }
     if Assigned(FWSocketServer) and
        (FWSocketServer.State = wsListening) then begin
-        FWSocketServer.Close;
+        FWSocketServer.MultiClose;     { V8.60 close all hosts }
         Start;
     end;
 end;
@@ -2270,7 +2275,7 @@ begin
     { new Addr. Do not disconnect already connected clients.                }
     if Assigned(FWSocketServer) and
        (FWSocketServer.State = wsListening) then begin
-        FWSocketServer.Close;
+        FWSocketServer.MultiClose;     { V8.60 close all hosts }
         Start;
     end;
 end;
@@ -4174,6 +4179,8 @@ begin
                     Self.FWellKnownPath := WellKnownPath;      { V8.49 }
                     Self.FWebRedirectURL := WebRedirectURL;    { V8.49 }
                     Self.FWebRedirectStat := WebRedirectStat;  { V8.50 }
+                    Self.FWebLogIdx := WebLogIdx;              { V8.60 }
+
                 end;
             end;
         end;

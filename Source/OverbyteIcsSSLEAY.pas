@@ -5,11 +5,11 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.59
+Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2018 by François PIETTE
+Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -126,6 +126,9 @@ Oct 10, 2018  V8.57 added APLN APIs and literals
                     EVP_MAX_KEY_LENGTH now 64
 Oct 19, 2018  V8.58 version only
 Nov 27, 2018  V8.59 version only
+Feb 12, 2019  V8.60 next major OpenSSL version is 3.0.0
+
+
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -206,8 +209,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 859;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2018 F. Piette V8.59 ';
+    IcsSSLEAYVersion   = 860;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2019 F. Piette V8.60 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -287,7 +290,7 @@ const
     OSSL_VER_1101A  = $1010101F; // 1.1.1a                    { V8.59 }
     OSSL_VER_1101B  = $1010102F; // 1.1.1b not yet released   { V8.59 }
     OSSL_VER_1101ZZ = $10101FFF; // 1.1.1zz not yet released  { V8.57 }
-    OSSL_VER_1102d1 = $10102000; // 1.1.2 dev                 { V8.59 }
+    OSSL_VER_30000  = $30000000; // 3.0.0 dev                 { V8.60 }
     OSSL_VER_MAX    = $FFFFFFFF; // maximum version           { V8.35 }
 
     { Basically versions listed above are tested if not otherwise commented.  }

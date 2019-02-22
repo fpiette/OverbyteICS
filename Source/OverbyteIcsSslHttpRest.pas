@@ -12,11 +12,11 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      Nov 2018
-Version:      8.58
+Updated:      Feb 2019
+Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
-Legal issues: Copyright (C) 2018 by Angus Robertson, Magenta Systems Ltd,
+Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
@@ -138,9 +138,10 @@ Oct 2, 2018   - V8.57 - Need OAuth local web server for all auth methods.
                         Builds with FMX
 Nov 2, 2018   - V8.58 - Bug fixes, call RequestDone event if it fails
                         Descend components from TIcsWndControl not TComponent
-
-
-
+Feb 6, 2019   - V8.60   Default with SocketFamily Any for both IPv4 and IPv6.
+                        SessionConnect logging shows IP address as well as host name.
+                        Increased OAuth web server timeout from 2 to 30 mins. 
+                        
 Pending - Simple web server now less simple to supports SSL and ALPN
 Pending - more documentation
 Pending - better SSL error handling when connections fail, due to too high security in particular.
@@ -224,8 +225,8 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpRestVersion = 858;
-    CopyRight : String = ' TSslHttpRest (c) 2018 F. Piette V8.58 ';
+    THttpRestVersion = 860;
+    CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.60 ';
     DefMaxBodySize = 100*100*100; { max memory/string size 100Mbyte }
     TestState = 'Testing-Redirect';
 
@@ -937,6 +938,7 @@ begin
     FMaxBodySize := DefMaxBodySize;
  // winsock bug fix for fast connections
     CtrlSocket.ComponentOptions := [wsoNoReceiveLoop];
+    SocketFamily := sfAny;         { V8.60 allow IPv6 or IPv4 }
     OnDocBegin := onHttpDocBegin;
     OnCommand := onHttpCommand;
     OnHeaderData := onHttpHeaderData;
@@ -1108,9 +1110,16 @@ end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslHttpRest.onHttpSessionConnected (Sender : TObject);
+var
+    S: String;
 begin
     if FDebugLevel < DebugConn then Exit;
-    LogEvent ('Connected to: ' + IcsFmtIpv6Addr(HostName)) ;
+    if FState = httpConnected then   { V8.60  }
+        S := 'Connected OK to: '
+    else
+        S := 'Connection failed to: ';
+    S := S + FHostname + ' (' + IcsFmtIpv6Addr(AddrResolvedStr) + ')';    { V8.60  }
+    LogEvent (S) ;
 end ;
 
 
@@ -1962,6 +1971,7 @@ begin
     FWebServer.WebSrvIP := Self.FWebSrvIP;
     FWebServer.WebSrvPort := Self.FWebSrvPort;
     Result := FWebServer.StartSrv;
+    FLastWebTick := TriggerDisabled;  { V8.60 don't timeout until request }
     if Result then
         LogEvent('Local Web Server Started on: ' + IcsFmtIpv6AddrPort(FWebSrvIP, FWebSrvPort))
     else
@@ -2000,8 +2010,8 @@ begin
             end;
         end;
 
-     // close web server
-        if SrvIsRunning and (IcsElapsedSecs(FLastWebTick) > 120) then begin
+     // close web server on idle timeout - 30 minutes
+        if SrvIsRunning and (IcsElapsedMins(FLastWebTick) > 30) then begin
             FLastWebTick := TriggerDisabled;
             LogEvent('Local Web Server Stopping on Idle Timeout');
             StopSrv;

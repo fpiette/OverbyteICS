@@ -3,11 +3,11 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.59
+Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2018 by François PIETTE
+Legal issues: Copyright (C) 1996-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -1297,6 +1297,14 @@ Nov 2, 2018  V8.58 Increased ListenBacklog property default to 15 to handle
                       higher server loads before rejecting new connections.
                    Corrected some debug error loSslInfo to loSslErr.
 Dec 11, 2018 V8.59 Too many lines in SSL diags for errors only, bug in V8.55
+Feb 22, 2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
+                     set during Connect method after DNS lookup.
+                   Clean-up old commented out code.
+                   Made SocketFamilyNames more descriptive.
+                   Moved OnDNSLookupDone before internal Connect attempt so
+                      user can change DNS result, bug in V8.43.
+                   DnsResult can now be updated in OnDNSLookupDone event.
+                   Added TLS version to SslSrvSecurityNames.
 
 
 
@@ -1506,8 +1514,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 859;
-  CopyRight    : String     = ' TWSocket (c) 1996-2018 Francois Piette V8.59 ';
+  WSocketVersion            = 860;
+  CopyRight    : String     = ' TWSocket (c) 1996-2019 Francois Piette V8.60 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -1734,8 +1742,8 @@ const
   SocketStateNames: array [TSocketState] of PChar = ('Invalid', 'Opened', 'Bound',
       'Connecting', 'SocksConnected', 'Connected', 'Accepting', 'Listening',
       'Closed', 'DnsLookup');                                                        { V8.48 }
-  SocketFamilyNames: array [TSocketFamily] of PChar = ('Any', 'AnyIPv4', 'AnyIPv6',  { V8.01 }
-      'IPv4', 'IPv6');
+  SocketFamilyNames: array [TSocketFamily] of PChar = ('Any', 'Prefer IPv4',
+    'Prefer IPv6', 'Only IPv4', 'Only IPv6');   { V8.60 made more descriptive }
 type
   TNetChangeEvent    = procedure (Sender: TObject; ErrCode: Word) of object;
   TDataAvailable     = procedure (Sender: TObject; ErrCode: Word) of object;
@@ -1821,14 +1829,12 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     FDnsResultList      : TStrings;
     FSendFlags          : Integer;
     FLastError          : Integer;
-    //FWindowHandle       : HWND;
   {$IFDEF MSWINDOWS}
     FDnsLookupBuffer    : array [0..MAXGETHOSTSTRUCT] of AnsiChar;
   {$ENDIF}
     FInternalDnsActive  : Boolean;      { V8.43 }
     FDnsLookupCheckMsg  : Boolean;
     FDnsLookupTempMsg   : TMessage;
-    // FHandle             : HWND;
     FCounter            : TWSocketCounter;
     FCounterClass       : TWsocketCounterClass;
     { ThreadID at the time of the first call to one of the IcsAsyncXxxx methods}
@@ -1937,6 +1943,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     FOnRoutingInterfaceChanged : TNetChangeEvent;
     FSocketErrs         : TSocketErrs;   { V8.36 }
     FonException        : TIcsException; { V8.36 }
+    FAddrResolvedStr    : String;        { V8.60 IPv4 or IPv6 address }
 {$IFNDEF NO_DEBUG_LOG}
     FIcsLogger          : TIcsLogger;                                           { V5.21 }
     procedure   SetIcsLogger(const Value : TIcsLogger); virtual;                { V5.21 }
@@ -2142,6 +2149,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     procedure   DestroyCounter;
     property    BufferedByteCount  : LongInt        read FBufferedByteCount;  { V5.20 }
     property    CurrentSocketFamily: TSocketFamily  read GetCurrentSocketFamily;
+    property    AddrResolvedStr : String            read FAddrResolvedStr;    { V8.60 IPv4 or IPv6 address }
   protected
 {$IFNDEF NO_DEBUG_LOG}
     property IcsLogger : TIcsLogger                 read  FIcsLogger          { V5.21 }
@@ -2178,7 +2186,8 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
                                                     write FExclusiveAddr;   { V8.36 }
     property PeerAddr : String                      read  GetPeerAddr;
     property PeerPort : String                      read  GetPeerPort;
-    property DnsResult : String                     read  FDnsResult;
+    property DnsResult : String                     read  FDnsResult
+                                                    write FDnsResult;     { V8.60 }
     property DnsResultList : TStrings               read  FDnsResultList;
     property State : TSocketState                   read  FState;
     property AllSent   : Boolean                    read  bAllSent;
@@ -2588,11 +2597,6 @@ Later SSL changes are detailed above with main changes
 {$IFDEF DEBUG_DUMP}
     {$DEFINE DEBUG_OUTPUT}
 {$ENDIF}
-{const
-     SslWSocketVersion            = 100;
-     SslWSocketDate               = 'Jan 18, 2006';
-     SslWSocketCopyRight : String = ' TSslWSocket (c) 2003-2010 Francois Piette V1.00.5e ';
-}
 const
 
      //SSL_POST_CONNECTION_CHECK_FAILED = 12101;
@@ -2621,7 +2625,8 @@ const
         sslCiphersMozillaSrvInter -  Firefox 1, Chrome 1, IE 7, Opera 5, Safari 1, Windows XP IE8, Android 2.3, Java 7
         sslCiphersMozillaSrvBack - Windows XP IE6, Java 6 }
 
-    { Nov 2017 - beware the Mozilla ciphers don't support TLS/1.3 yet }
+    { Nov 2017 - beware the Mozilla ciphers don't support TLS/1.3 yet, but ICS adds special TLS/1.3
+      ciphers to these lists if enabled }
 
    { Backward Compatible, works with all clients back to Windows XP/IE6,  Versions: SSLv3, TLSv1, TLSv1.1, TLSv1.2
     RSA key size: 2048, DH Parameter size: 1024, Elliptic curves: secp256r1, secp384r1, secp521r1,
@@ -2772,123 +2777,9 @@ type
 
     THashBytes20 = array of Byte;
 
-(*  V8.57 Moved to OverbyteIcsSSLEAY
-{ V8.40 OpenSSL streaming ciphers with various modes }
-{ pending ciphers, rc5, cast5, if we care }
-    TEvpCipher = (
-        Cipher_none,
-        Cipher_aes_128_cbc,
-        Cipher_aes_128_cfb,
-        Cipher_aes_128_ecb,
-        Cipher_aes_128_ofb,
-        Cipher_aes_128_gcm,
-        Cipher_aes_128_ocb,
-        Cipher_aes_128_ccm,
-        Cipher_aes_192_cbc,
-        Cipher_aes_192_cfb,
-        Cipher_aes_192_ecb,
-        Cipher_aes_192_ofb,
-        Cipher_aes_192_gcm,
-        Cipher_aes_192_ocb,
-        Cipher_aes_192_ccm,
-        Cipher_aes_256_cbc,
-        Cipher_aes_256_cfb,
-        Cipher_aes_256_ecb,
-        Cipher_aes_256_ofb,
-        Cipher_aes_256_gcm,
-        Cipher_aes_256_ocb,
-        Cipher_aes_256_ccm,
-        Cipher_bf_cbc,        { blowfish needs key length set, 128, 192 or 256 }
-        Cipher_bf_cfb64,
-        Cipher_bf_ecb,
-        Cipher_bf_ofb,
-        Cipher_chacha20,      { chacha20 fixed 256 key }
-        Cipher_des_ede3_cbc,
-        Cipher_des_ede3_cfb64,
-        Cipher_des_ede3_ecb,
-        Cipher_des_ede3_ofb,
-        Cipher_idea_cbc,      { IDEA fixed 128 key }
-        Cipher_idea_cfb64,
-        Cipher_idea_ecb,
-        Cipher_idea_ofb);
-
-
-{ V8.40 OpenSSL message digests or hashes }
-    TEvpDigest = (
-        Digest_md5,
-        Digest_mdc2,
-        Digest_sha1,
-        Digest_sha224,
-        Digest_sha256,
-        Digest_sha384,
-        Digest_sha512,
-        Digest_ripemd160,
-        Digest_sha3_224,    { following V8.51 }
-        Digest_sha3_256,
-        Digest_sha3_384,
-        Digest_sha3_512,
-        Digest_shake128,
-        Digest_shake256,
-        Digest_None);       { V8.52 }
-
-{ V8.40 ICS private key algorithm and key length in bits }
-{ bracketed comment is security level and effective bits,
-  beware long RSA key lengths increase SSL overhead heavily }
-    TSslPrivKeyType = (
-        PrivKeyRsa1024,   { level 1 - 80 bits  }
-        PrivKeyRsa2048,   { level 2 - 112 bits }
-        PrivKeyRsa3072,   { level 3 - 128 bits }
-        PrivKeyRsa4096,   { level 3 - 128 bits }
-        PrivKeyRsa7680,   { level 4 - 192 bits }
-        PrivKeyRsa15360,  { level 5 - 256 bits }
-        PrivKeyECsecp256, { level 3 - 128 bits }
-        PrivKeyECsecp384, { level 4 - 192 bits }
-        PrivKeyECsecp512, { level 5 - 256 bits }
-        PrivKeyEd25519,   { level 3 - 128 bits }    { V8.50 was PrivKeyECX25519 }
-        PrivKeyRsaPss2048,   { level 2 - 112 bits } { V8.51 several RsaPss keys }
-        PrivKeyRsaPss3072,   { level 3 - 128 bits }
-        PrivKeyRsaPss4096,   { level 3 - 128 bits }
-        PrivKeyRsaPss7680,   { level 4 - 192 bits }
-        PrivKeyRsaPss15360); { level 5 - 256 bits }
-
-{P V8.40 ICS private key file encryption and mapping to OpenSSL params }
-   TSslPrivKeyCipher = (
-        PrivKeyEncNone,
-        PrivKeyEncTripleDES,
-        PrivKeyEncIDEA,
-        PrivKeyEncAES128,
-        PrivKeyEncAES192,
-        PrivKeyEncAES256,
-        PrivKeyEncBlowfish128,
-        PrivKeyEncBlowfish192,
-        PrivKeyEncBlowfish256);
-
-
-const
-    SslPrivKeyEvpCipher: array[TSslPrivKeyCipher] of TEvpCipher = (
-        Cipher_none,
-        Cipher_des_ede3_cbc,
-        Cipher_idea_cbc,
-        Cipher_aes_128_cbc,
-        Cipher_aes_192_cbc,
-        Cipher_aes_256_cbc,
-        Cipher_bf_cbc,
-        Cipher_bf_cbc,
-        Cipher_bf_cbc);
-
-    SslPrivKeyEvpBits: array[TSslPrivKeyCipher] of integer = (
-         0,0,0,0,0,0,128,192,256);
-*)
-
 type
     { V8.40 added read only, V8.41 added WriteBin }
     TBioOpenMethode = (bomRead, bomWrite, bomReadOnly, bomWriteBin);
-
-{ V8.57 Moved to OverbyteIcsSSLEAY }
-   { V8.40 options to read pkey and inters from cert PEM and P12 files,
-     croTry will silently fail, croYes will fail with exception  }
-//    TCertReadOpt = (croNo, croTry, croYes);             { V8.39 }
-//    TChainResult = (chainOK, chainFail, chainWarn);     { V8.41 }
 
     TX509List  = class;
 
@@ -3259,56 +3150,6 @@ type
                      sslX509_CHECK_FLAG_NEVER_CHECK_SUBJECT);
     TSslCheckHostFlags = set of TSslCheckHostFlag;
 
-(* V8.57 Moved to OverbyteIcsSSLEAY
-   { V8.40 1.1.0 and later, sets OpenSSL security level to a number }
-    TSslSecLevel = (
-                     sslSecLevelAny,        { 0 - anything allowed, old compatibility }
-                     sslSecLevel80bits,     { 1 - default, RSA/DH keys=>1024, ECC=>160, no MD5 }
-                     sslSecLevel112bits,    { 2 - RSA/DH keys=>2048, ECC=>224, no RC4, no SSL3, no SHA1 certs }
-                     sslSecLevel128bits,    { 3 - RSA/DH keys=>3072, ECC=>256, FS forced, no TLS/1.0  }
-                     sslSecLevel192bits,    { 4 - RSA/DH keys=>7680, ECC=>384, no SHA1 suites, no TLS/1.1  }
-                     sslSecLevel256bits);   { 5 - RSA/DH keys=>15360, ECC=>512  }
-
-   { V8.45 SSL server security level, used by TIcsHost, sets protocol, cipher and SslSecLevel }
-   { warning, requiring key lengths higher than 2048 requires all SSL certificates in the chain to
-     have that minimum key length, including the root }
-   { V8.55 sslSrvSecInter/FS, sslCliSecInter now requires TLS1.1, PCI council EOF TLS1.0 30 June 2018 }
-    TSslSrvSecurity = (
-                     sslSrvSecNone,         { 0 - all protocols and ciphers, any key lengths }
-                     sslSrvSecSsl3,         { 1 - SSL3 only, all ciphers, any key lengths, MD5 }
-                     sslSrvSecBack,         { 2 - TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
-                     sslSrvSecInter,        { 3 - TLS1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     sslSrvSecInterFS,      { 4 - TLS1.1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     sslSrvSecHigh,         { 5 - TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     sslSrvSecHigh128,      { 6 - TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
-                     sslSrvSecHigh192);     { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
-
-const
-    sslSrvSecDefault = sslSrvSecInterFS;    { V8.55 recommended default }
-
-type
-   { V8.54 SSL client security level, used by context, sets protocol, cipher and SslSecLevel }
-    TSslCliSecurity = (
-                     sslCliSecIgnore,       { 0 - ignore, use old settings }
-                     sslCliSecNone,         { 1 - all protocols and ciphers, any key lengths }
-                     sslCliSecSsl3Only,     { 2 - SSLv3 only, all ciphers, any key lengths, MD5 }
-                     sslCliSecTls1Only,     { 3 - TLSv1 only, all ciphers, RSA/DH keys=>2048 }
-                     sslCliSecTls11Only,    { 4 - TLSv1.1 only, all ciphers, RSA/DH keys=>2048 }
-                     sslCliSecTls12Only,    { 5 - TLSv1.2 only, all ciphers, RSA/DH keys=>2048 }
-                     sslCliSecTls13Only,    { 6 - TLSv1.3 only, all ciphers, RSA/DH keys=>2048 }
-                     sslCliSecTls1,         { 7 - TLSv1 or later, all ciphers, RSA/DH keys=>1024 }
-                     sslCliSecTls11,        { 8 - TLSv1.1 or later, all ciphers, RSA/DH keys=>1024 }
-                     sslCliSecTls12,        { 0 - TLSv1.2 or later, all ciphers, RSA/DH keys=>2048 }
-                     sslCliSecBack,         { 10 - TLSv1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
-                     sslCliSecInter,        { 11 - TLSv1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     sslCliSecHigh,         { 12 - TLSv1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     sslCliSecHigh128,      { 13 - TLSv1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
-                     sslCliSecHigh192);     { 14 - TLSv1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
-
-const
-    sslCliSecDefault = sslCliSecTls11;  { V8.55 recommended default }
-*)
-
 type
   { V8.51 now only used for 1.0.2 and 1.1.0, many unused for 1.1.0, ignored for 1.1.1 and later }
     TSslOption  = (sslOpt_CIPHER_SERVER_PREFERENCE,
@@ -3471,21 +3312,6 @@ type
                       sslECDH_P384,
                       sslECDH_P521);
 
-  { V8.57 whether an SSL server asks a client to send an SSL certificate }
-(*    TSslCliCertMethod = (sslCliCertNone,
-                         sslCliCertOptional,
-                         sslCliCertRequire);
-
-  { V8.57 certificate supplier protocol, determines which functions are used to get certificates }
-    TSupplierProto = (SuppProtoNone, SuppProtoAcmeV1, SuppProtoAcmeV2,
-                      SuppProtoCertCentre, SuppProtoServtas, SuppProtoOwnCA);
-
- { V8.57 challenge types, differing certificate types support differing challenges,
-     some have to be processed manually taking several days. }
-    TChallengeType = (ChallNone, ChallFileUNC, ChallFileFtp, ChallFileSrv, ChallDNS,
-                      ChallEmail, ChallAlpnUNC, ChallAlpnSrv, ChallManual);
-*)
-
 const
   SslIntSessCacheModes: array[TSslSessCacheMode] of Integer =     { V7.30 }
             (SSL_SESS_CACHE_CLIENT,
@@ -3544,15 +3370,15 @@ const
             TLS_MAX_VERSION);
 
 
-  SslSrvSecurityNames: array [TSslSrvSecurity ] of PChar = (   { V8.55 }
-                     'None',         { 0 - all protocols and ciphers, any key lengths }
-                     'SSLv3 Only',               { 1 - SSL3 only, all ciphers, any key lengths, MD5 }
-                     'Backward Ciphers',         { 2 - TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
-                     'Intermediate Ciphers',     { 3 - TLS1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     'Intermediate Ciphers FS',  { 4 - TLS1.1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     'High 112 bit Ciphers',     { 5 - TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
-                     'High 128 bit Ciphers',     { 6 - TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
-                     'High 192 bit Ciphers');    { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+  SslSrvSecurityNames: array [TSslSrvSecurity ] of PChar = (   { V8.55, V8.60 added TLS version  }
+                     'None',                                      { 0 - all protocols and ciphers, any key lengths }
+                     'SSLv3 Only',                                { 1 - SSL3 only, all ciphers, any key lengths, MD5 }
+                     'Backward Ciphers, TLS1 or Later',           { 2 - TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
+                     'Intermediate Ciphers, TLS1.1 or Later',     { 3 - TLS1.1 or later, intermediate ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     'Intermediate Ciphers FS, TLS1.1 or Later',  { 4 - TLS1.1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     'High 112 bit Ciphers, TLS1.2 or Later',     { 5 - TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     'High 128 bit Ciphers, TLS1.2 or Later',     { 6 - TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
+                     'High 192 bit Ciphers, TLS1.2 or Later');    { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
 
  SslCliSecurityNames: array [TSslCliSecurity] of PChar = (   { V8.55 }
                      'Ignore',         { 0 - ignore, use old settings }
@@ -7342,6 +7168,7 @@ begin
     FCloseInvoked       := FALSE;
     FFlushTimeout       := 60;
     FInternalDnsActive  := FALSE;    { V8.43 }
+    FAddrResolvedStr    := '';       { V8.60 }
 end;
 
 
@@ -9964,6 +9791,12 @@ begin
         end;
     end;
 
+    { V8.60 keep resolived IP address as string, code from debug log later }
+    if Fsin.sin6_family = AF_INET then
+        FAddrResolvedStr := String(WSocket_Synchronized_inet_ntoa(PSockAddrIn(@Fsin).sin_addr))
+    else
+        FAddrResolvedStr := WSocketIPv6ToStr(PIcsIpv6Address(@Fsin.sin6_addr)^);
+
     { Remove any data from the internal output buffer }
     { (should already be empty !)                     }
     DeleteBufferedData;
@@ -10051,7 +9884,7 @@ begin
                ((FAddrFormat = AF_INET6) and (FLocalAddr6 <> ICS_ANY_HOST_V6)) then begin
                 if FAddrFormat = PF_INET then
                     PSockAddrIn(@laddr)^.sin_addr.S_addr :=
-                    WSocket_Synchronized_ResolveHost(AnsiString(FLocalAddr)).S_addr
+                        WSocket_Synchronized_ResolveHost(AnsiString(FLocalAddr)).S_addr
                 else
                     WSocket_Synchronized_ResolveHost(FLocalAddr6, laddr, sfIPv6, FProto);
 
@@ -10164,14 +9997,21 @@ begin
     else begin
       {$IFNDEF NO_DEBUG_LOG}
         if CheckLogOptions(loWsockInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
-            if Fsin.sin6_family = AF_INET then
+
+            if Fsin.sin6_family = AF_INET then  { V8.60 kept the string earlier }
+                DebugLog(loWsockInfo, 'TWSocket will connect to ' + FAddrResolvedStr + ':' +
+                             IntToStr(WSocket_Synchronized_ntohs(PSockAddrIn(@Fsin).sin_port)))
+            else
+                DebugLog(loWsockInfo, 'TWSocket will connect to ' + FAddrResolvedStr + ':' +
+                                         IntToStr(WSocket_Synchronized_ntohs(Fsin.sin6_port)));
+     {       if Fsin.sin6_family = AF_INET then
                 DebugLog(loWsockInfo, 'TWSocket will connect to ' +
                   WSocket_Synchronized_inet_ntoa(PSockAddrIn(@Fsin).sin_addr) + ':' +
                   IntToStr(WSocket_Synchronized_ntohs(PSockAddrIn(@Fsin).sin_port)))
             else
                 DebugLog(loWsockInfo, 'TWSocket will connect to ' +
                   WSocketIPv6ToStr(PIcsIpv6Address(@Fsin.sin6_addr)^) + ':' +
-                  IntToStr(WSocket_Synchronized_ntohs(Fsin.sin6_port)));
+                  IntToStr(WSocket_Synchronized_ntohs(Fsin.sin6_port)));   }
 
       {$ENDIF}
         iStatus := WSocket_Synchronized_Connect(FHSocket, PSockAddrIn(@Fsin)^,
@@ -11154,6 +10994,12 @@ begin
     { Actions if it was internal DNS call.           }
     { In case of error call TriggerSessionConnected  }
 
+   { PENDING - round robin DNS for multiple IP addresses on failure }
+
+   { V8.60 moved before Connect attempt so user can change DnsResult }
+    if Assigned(FOnDNSLookupDone) then
+        FOnDNSLookupDone(Self, Error);
+
    { V8.43 finished an async lookup, now trigger connect }
     if FInternalDnsActive then
     begin
@@ -11186,8 +11032,6 @@ begin
         Exit;
     end;
 
-    if Assigned(FOnDNSLookupDone) then
-        FOnDNSLookupDone(Self, Error);
 end;
 
 

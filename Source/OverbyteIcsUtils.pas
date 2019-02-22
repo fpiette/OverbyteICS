@@ -3,11 +3,11 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.57
+Version:      8.60
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2002-2018 by François PIETTE
+Legal issues: Copyright (C) 2002-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -166,7 +166,11 @@ Sep 18, 2018 V8.57 Added IcsWireFmtToStrList and IcsStrListToWireFmt converting
                    Added IcsSetToInt, IcsIntToSet, IcsSetToStr, IcsStrToSet to
                      ease saving set bit maps to INI files and registry.
                    Added IcsExtractNameOnly and IsPathDelim
-
+Dec 17, 2019 V8.59 Added IcsGetExceptMess
+Feb 08, 2019 V8.60 Added IcsFormatSettings to replace formatting public vars removed in XE3.
+                   Added IcsAddThouSeps to add thousand separators to a numeric string.
+                   Added IcsInt64ToCStr and IcsIntToCStr integer to thou sep strings.
+                   Added GetBomFromCodePage
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -224,6 +228,7 @@ uses
     {$IFDEF RTL_NAMESPACES}System.RtlConsts{$ELSE}RtlConsts{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.SysConst{$ELSE}SysConst{$ENDIF},
     {$IFDEF RTL_NAMESPACES}System.TypInfo{$ELSE}TypInfo{$ENDIF},
+    {$IFDEF Rtl_Namespaces}System.DateUtils{$ELSE}DateUtils{$ENDIF},  { V8.60 }
 {$IFDEF COMPILER16_UP}
     System.SyncObjs,
 {$ENDIF}
@@ -311,6 +316,18 @@ const
   TicksPerSecond   : longword = 1000 ;
   TriggerDisabled  : longword = $FFFFFFFF ;
   TriggerImmediate : longword = 0 ;
+  OneSecondDT: TDateTime = 1 / SecsPerDay ;         { V8.60 }
+  OneMinuteDT: TDateTime = 1 / (SecsPerDay / 60) ;  { V8.60 }
+
+  { V8.60 date and time masks }
+  ISOTimeMask = 'hh:nn:ss' ;
+  ISOLongTimeMask = 'hh:nn:ss:zzz' ;
+  ISODateMask = 'yyyy-mm-dd' ;
+  ISODateTimeMask = 'yyyy-mm-dd"T"hh:nn:ss' ;
+  ISODateLongTimeMask = 'yyyy-mm-dd"T"hh:nn:ss.zzz' ;
+
+var
+  IcsFormatSettings: TFormatSettings;  { V8.60 }
 
 type
     EIcsStringConvertError = class(Exception);
@@ -379,6 +396,11 @@ const
     function  RFC1123_StrToDate(aDate : String) : TDateTime;  { V8.09 }
     function  RFC3339_StrToDate(aDate: String): TDateTime;    { V8.53 }
     function  RFC3339_DateToStr(DT: TDateTime): String ;      { V8.53 }
+    function  IcsGetUTCTime: TDateTime;                       { V8.60 }
+    function  IcsSetUTCTime (DateTime: TDateTime): boolean ;  { V8.60 }
+    function  IcsGetNewTime (DateTime, Difference: TDateTime): TDateTime ; { V8.60 }
+    function  IcsChangeSystemTime (Difference: TDateTime): boolean ;       { V8.60 } 
+    function  IcsGetUnixTime: Int64;                          { V8.60 }
     function  IcsGetTickCount: LongWord;
     function  IcsWcToMb(CodePage: LongWord; Flags: Cardinal;
                         WStr: PWideChar; WStrLen: Integer; MbStr: PAnsiChar;
@@ -451,6 +473,7 @@ const
     function  IcsCharNextUtf8(const Str: PAnsiChar): PAnsiChar; {$IFDEF USE_INLINE} inline; {$ENDIF}
     function  IcsCharPrevUtf8(const Start, Current: PAnsiChar): PAnsiChar; {$IFDEF USE_INLINE} inline; {$ENDIF}
     function  ConvertCodepage(const Str: RawByteString; SrcCodePage: LongWord; DstCodePage: LongWord = CP_ACP): RawByteString;
+    function  GetBomFromCodePage(ACodePage: LongWord) : TBytes;  { V8.60 }
     function  htoin(Value : PWideChar; Len : Integer) : Integer; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
     function  htoin(Value : PAnsiChar; Len : Integer) : Integer; {$IFDEF USE_INLINE} inline; {$ENDIF} overload;
     function  htoi2(value : PWideChar): Integer; overload;
@@ -612,6 +635,13 @@ const
     procedure IcsStrToSet(TypInfo: PTypeInfo; const Values: String; var aSet; const aSize: Integer);  { V8.57 }
     function IcsExtractNameOnly(const FileName: String): String; { V8.57 }
     function IcsGetCompName: String;                             { V8.57 }
+    function IcsGetExceptMess(ExceptObject: TObject): string;   { V8.59 }
+    function IcsAddThouSeps (const S: String): String;          { V8.60 }
+    function IcsInt64ToCStr (const N: Int64): String ;          { V8.60 }
+    function IcsIntToCStr (const N: Integer): String ;          { V8.60 }
+    function IcsDeleteFile(const Fname: string; const ReadOnly: boolean): Integer;   { V8.60 }
+    function IcsRenameFile(const OldName, NewName: string;
+                                        const Replace, ReadOnly: boolean): Integer;  { V8.60 }
 
     { V8.54 Tick and Trigger functions for timing stuff moved here from OverbyteIcsFtpSrvT   }
     function IcsGetTickCountX: longword ;
@@ -922,6 +952,24 @@ var
   function IcsVerifyTrust (const Fname: string; const HashOnly,
                           Expired: boolean; var Response: string): integer;
 {$ENDIF}
+
+type
+{ V8.60 descendent of TList added a Find function using binary search identical to sorting }
+    TIcsFindList = class(TList)
+    private
+      { Private declarations }
+    protected
+      { Protected declarations }
+    public
+      { Public declarations }
+      Sorted: boolean ;
+      function AddSorted(const Item2: Pointer; Compare: TListSortCompare): Integer; virtual;
+      function Find(const Item2: Pointer; Compare: TListSortCompare;
+                                                      var index: longint): Boolean; virtual;
+  end;
+
+  function CompareGTMem (P1, P2: Pointer; Length: Integer): Integer ;
+
 
 implementation
 
@@ -1325,11 +1373,60 @@ end ;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.53 RFC3339 TDateTime to string, aka ISO 8601 date }
 { TDateTime to to yyyy-mm-ddThh:nn:ss - no quotes, no Z }
-function RFC3339_DateToStr(DT: TDateTime): String ;
-const
-  ISODateTimeMask = 'yyyy-mm-dd"T"hh:nn:ss';
+function RFC3339_DateToStr(DT: TDateTime): String;
 begin
     Result := FormatDateTime(ISODateTimeMask, DT);
+end ;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 get system date and time as UTC/GMT into Delphi time }
+function IcsGetUTCTime: TDateTime;
+var
+    SystemTime: TSystemTime;
+begin
+    GetSystemTime(SystemTime);
+    with SystemTime do begin
+        Result := EncodeTime (wHour, wMinute, wSecond, wMilliSeconds) +
+                                              EncodeDate (wYear, wMonth, wDay);
+    end ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 set system date and time as UTC/GMT, requires administrator rights }
+function IcsSetUTCTime (DateTime: TDateTime): boolean;
+var
+    SystemTime: TSystemTime;
+begin
+    with SystemTime do DecodeDateTime (DateTime, wYear, wMonth,
+                                 wDay, wHour, wMinute, wSecond, wMilliSeconds);
+    Result := SetSystemTime (SystemTime);
+end ;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 get time adjusted by a difference }
+function IcsGetNewTime (DateTime, Difference: TDateTime): TDateTime;
+begin
+    result := DateTime + Difference;
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 change PC system time by a difference, requires administrator rights }
+function IcsChangeSystemTime (Difference: TDateTime): boolean;
+var
+    NewUTCTime: TDateTime;
+begin
+    NewUTCTime := IcsGetUTCTime + Difference;
+    Result := IcsSetUTCTime (NewUTCTime);
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 get current Unix time (in UTC) -}
+function IcsGetUnixTime: Int64;
+begin
+    result := DateTimeToUnix (IcsGetUTCTime);
 end ;
 
 
@@ -6108,41 +6205,8 @@ begin
         result := Addr;
 end;
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.54 sensible formatting of large numbers, moved here from OverbyteIcsFtpSrvT  }
-{
-function IntToKbyte (Value: Int64): String;
-var
-    float: Extended	;
-const
-    KBYTE = Sizeof(Byte) shl 10;
-    MBYTE = KBYTE shl 10;
-    GBYTE = MBYTE shl 10;
-begin
-    float := value ;
-    if (float / 100) >= GBYTE then
-        FmtStr (Result, '%5.0fG', [float / GBYTE])    // 134G
-    else if (float / 10) >= GBYTE then
-        FmtStr (Result, '%5.1fG', [float / GBYTE])    // 13.4G
-    else if float >= GBYTE then
-        FmtStr (Result, '%5.2fG', [float / GBYTE])    // 3.44G
-    else if float >= (MBYTE * 100) then
-        FmtStr (Result, '%5.0fM', [float / MBYTE])    // 234M
-    else if float >= (MBYTE * 10) then
-        FmtStr (Result, '%5.1fM', [float / MBYTE])    // 12.4M
-    else if float >= MBYTE then
-        FmtStr (Result, '%5.2fM', [float / MBYTE])    // 5.67M
-    else if float >= (KBYTE * 100) then
-        FmtStr (Result, '%5.0fK', [float / KBYTE])    // 678K
-    else if float >= (KBYTE * 10) then
-        FmtStr (Result, '%5.1fK', [float / KBYTE])    // 76.5K
-    else if float >= KBYTE then
-        FmtStr (Result, '%5.2fK', [float / KBYTE])    // 4.78K
-    else
-        FmtStr (Result, '%5.0f ', [float]);          // 123
-    Result := Trim (Result);
-end;   }
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function IntToKbyte (Value: Int64; Bytes: boolean = false): String;
 var
     float, float2: Extended;
@@ -6215,7 +6279,7 @@ begin
     end ;
     Result := Trim(Format (mask, [float2]));
     if Bytes then  { V8.54 improve result a little }
-        Result := Result + IcsSPACE +  suffix + 'bytes'
+        Result := Result + IcsSPACE + suffix + 'bytes'
     else
         Result := Result + suffix;
 end ;
@@ -6567,10 +6631,225 @@ end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.59 get exception literal message }
+function IcsGetExceptMess(ExceptObject: TObject): string;
+var
+    MsgPtr: PChar;
+    MsgEnd: PChar;
+    MsgLen: Integer;
+    MessEnd: String;
+begin
+    MsgPtr := '';
+    MsgEnd := '';
+    if ExceptObject is Exception then begin
+        MsgPtr := PChar(Exception(ExceptObject).Message);
+        MsgLen := StrLen(MsgPtr);
+        if (MsgLen <> 0) and (MsgPtr[MsgLen - 1] <> '.') then MsgEnd := '.';
+    end;
+    result := Trim (MsgPtr);
+    MessEnd := Trim (MsgEnd);
+    if Length (MessEnd) > 5 then
+        result := result + ' - ' + MessEnd;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 add thousand separators to a string of numbers (not checked }
+function IcsAddThouSeps (const S: String): String;
+var
+    LS, L2, I, N: Integer;
+    Temp: String;
+begin
+    Result := S;
+    LS := Length(S);
+    N := 1;
+    if LS > 1 then begin
+        if S [1] = '-' then begin // check for negative value
+            N := 2;
+            LS := LS - 1;
+        end ;
+    end ;
+    if LS <= 3 then exit;
+    L2 := (LS - 1) div 3;
+    Temp := '';
+    for I := 1 to L2 do
+        Temp := IcsFormatSettings.ThousandSeparator + Copy (S, LS - 3 * I + 1, 3) + Temp;
+    Result := Copy (S, N, (LS - 1) mod 3 + 1) + Temp;
+    if N > 1 then Result := '-' + Result;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 integer to string with thousand separators }
+function IcsIntToCStr (const N: Integer): String ;
+begin
+    result := IcsAddThouSeps (IntToStr (N)) ;
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 int64 to string with thousand separators }
+function IcsInt64ToCStr (const N: Int64): String ;
+begin
+    result := IcsAddThouSeps (IntToStr (N)) ;
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 get format settings, allowing compatability all compilers }
+procedure GetIcsFormatSettings;
+begin
+{$IF CompilerVersion >= 23.0}   // XE2 and later
+     IcsFormatSettings := TFormatSettings.Create (GetThreadLocale) ;
+{$ELSE}
+     GetLocaleFormatSettings (GetThreadLocale, IcsFormatSettings) ;
+{$IFEND}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 compare two memory buffers, used for sorting.
+ ideally ASM SysUtils.CompareMem should be modified to return less or greater }
+
+function CompareGTMem (P1, P2: Pointer; Length: Integer): Integer;
+var
+    I: Integer;
+    PC1, PC2: PAnsiChar;
+begin
+    result := 0;   // equals
+    if Length <= 0 then exit;
+    PC1 := P1;
+    PC2 := P2;
+    for I := 1 to Length do begin
+        if (PC1^ <> PC2^) then begin
+            if (PC1^ < PC2^) then
+                result := -1   // less than
+            else
+                result := 1;  // greater than
+            exit ;
+        end ;
+        Inc (PC1);
+        Inc (PC2);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 descendent of TList, adding sorted, works on sorted list }
+function TIcsFindList.AddSorted(const Item2: Pointer; Compare: TListSortCompare): Integer;
+begin
+    if NOT Sorted then
+        Result := Count
+    else begin
+       if Find (Item2, Compare, Result) then exit;
+    end ;
+    Insert (Result, Item2) ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 adding binary FIND works on sorted list }
+function TIcsFindList.Find(const Item2: Pointer; Compare: TListSortCompare;
+                                                    var Index: longint): Boolean;
+var
+    l, h, i, c: longint;
+begin
+    Result := False;
+    Index := 0 ;
+    if (List = nil) or (Count = 0) then exit ;
+    l := 0;
+    h := Count - 1;
+    while (l <= h) do begin
+        i := (l + h) shr 1;  // binary shifting
+        c := Compare (List[i], Item2) ;
+        if c < 0 then
+            l := i + 1
+        else begin
+            h := i - 1;
+            if c = 0 then begin
+                Result := True;
+                l := i;
+            end;
+        end;
+    end;
+    Index := l;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60  Delete a single file, optionally read only }
+function IcsDeleteFile(const Fname: string; const ReadOnly: boolean): Integer;
+var
+    attrs: integer ;
+begin
+    result := -1 ;    // file not found
+    attrs := FileGetAttr (Fname);
+    if attrs < 0 then exit;
+    if ((attrs and faReadOnly) <> 0) and ReadOnly then begin
+        result := FileSetAttr (Fname, 0);
+        if result <> 0 then result := 1;
+        if result <> 0 then exit;  // 1 could not change file attribute, ignore system error
+    end ;
+    if DeleteFile (Fname) then
+        result := 0   // OK
+    else
+        result := GetLastError; // system error
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 Rename a single file, optionally replacing, optionally read only }
+function IcsRenameFile(const OldName, NewName: string;
+                                        const Replace, ReadOnly: boolean): Integer;
+begin
+    if FileExists (NewName) then begin
+        result := 2 ;  // rename failed, new file exists
+        if NOT Replace then exit;
+        result := IcsDeleteFile (NewName, ReadOnly);
+        if result <> 0 then exit ;  // 1 could not change file attribute, higher could not delete file
+    end ;
+    if RenameFile (OldName, NewName) then
+        result := 0   // OK
+    else
+        result := GetLastError; // system error
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.60 borrowed from IcsStreams }
+function GetBomFromCodePage(ACodePage: LongWord) : TBytes;
+begin
+    case ACodePage of
+        CP_UTF16 :
+            begin
+                SetLength(Result, 2);
+                Result[0] := $FF;
+                Result[1] := $FE;
+            end;
+        CP_UTF16Be :
+            begin
+                SetLength(Result, 2);
+                Result[0] := $FE;
+                Result[1] := $FF;
+            end;
+        CP_UTF8    :
+            begin
+                SetLength(Result, 3);
+                Result[0] := $EF;
+                Result[1] := $BB;
+                Result[2] := $BF;
+            end;
+        else
+            SetLength(Result, 0);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 initialization
     TicksTestOffset := 0 ;
 { force GetTickCount wrap in 5 mins - next line normally commented out }
 {    TicksTestOffset := MaxLongWord - GetTickCount - (5 * 60 * 1000);  }
+    GetIcsFormatSettings;  { V8.60 }
 finalization
     if WinTrustHandle <> 0 then FreeLibrary (WinTrustHandle);
     WinTrustHandle := 0;

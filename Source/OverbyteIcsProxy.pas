@@ -397,7 +397,7 @@ type
   end;
 
 
-  { TIcsHosts defines a collection of TIcsHost }
+  { TProxyTargets defines a collection of TProxyTarget }
 
   TProxyTargets = class(TCollection)
   private

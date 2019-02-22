@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  Time functions.
 Creation:     Nov 24, 1999 from Bruce Christensen <bkc51831234@hotmail.com>
               code used with his permission. Thanks.
-Version:      8.54
+Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2018 by François PIETTE
+Legal issues: Copyright (C) 1999-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -76,6 +76,8 @@ Feb 23, 2016 V8.01 Angus renamed TBufferedFileStream to TIcsBufferedFileStream
 Mar 3, 2017  V8.42 Angus TULargeInteger now ULARGE_INTEGER
 June 21 2017 V8.49 Moved IcsGetFileSize and GetUAgeSizeFile to Utils
 Apr 25, 2018 V8.54 Moved IntToKbyte and ticks stuff to utils
+Jan 14, 2019 V8.60 Removed old code moved elsewhere
+                   PadIntZero now public and supports integer
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsFtpSrvT;
@@ -112,18 +114,10 @@ uses
     OverbyteIcsStreams;    { angus V7.7 }
 
 const
-    FtpSrvT_Unit       = 854;
-    CopyRight : String = ' FtpSrvT  (c) 1999-2018 F. Piette V8.54 ';
+    FtpSrvT_Unit       = 860;
+    CopyRight : String = ' FtpSrvT  (c) 1999-2019 F. Piette V8.60 ';
 
-  { V1.16 Tick and Trigger constants V8.54 moved to Utils }
-{  TicksPerDay      : longword =  24 * 60 * 60 * 1000 ;
-  TicksPerHour     : longword = 60 * 60 * 1000 ;
-  TicksPerMinute   : longword = 60 * 1000 ;
-  TicksPerSecond   : longword = 1000 ;
-  TriggerDisabled  : longword = $FFFFFFFF ;
-  TriggerImmediate : longword = 0 ;
-
-}type
+type
     TFtpBigInt = Int64;  { V1.13, V7.08 }
 
     TIcsFileRec = record
@@ -150,21 +144,6 @@ function DateTimeToUTC(dtDT : TDateTime) : TDateTime;
 function DecodeMlsResp64 (Response: String; var Fname, FType, FAttr: String;
                             var FSize: Int64; var FileUDT: TDateTime): boolean;
 
-{ V1.16 Tick and Trigger functions for timing stuff, V8.54 moved to Utils }
-{function IcsGetTickCountX: longword ;
-function IcsDiffTicks (const StartTick, EndTick: longword): longword ;
-function IcsElapsedTicks (const StartTick: longword): longword ;
-function IcsElapsedMsecs (const StartTick: longword): longword ;
-function IcsElapsedSecs (const StartTick: longword): integer ;
-function IcsElapsedMins (const StartTick: longword): integer ;
-function IcsWaitingSecs (const EndTick: longword): integer ;
-function IcsGetTrgMSecs (const MilliSecs: integer): longword ;
-function IcsGetTrgSecs (const DurSecs: integer): longword ;
-function IcsGetTrgMins (const DurMins: integer): longword ;
-function IcsTestTrgTick (const TrgTick: longword): boolean ;
-function IcsAddTrgMsecs (const TickCount, MilliSecs: longword): longword ;
-function IcsAddTrgSecs (const TickCount, DurSecs: integer): longword ;}
-
 { V1.15 recursive directory listing and argument scanning }
 function IcsGetDirList (const Path: string; SubDirs, Hidden: boolean; var LocFiles:
                  TIcsFileRecs; var LocFileList: TList; Obj: TObject = Nil;
@@ -179,29 +158,27 @@ function ScanGetNextArg(const Params: String; var Start: integer): String;
 
 function SlashesToBackSlashes(const S : String) : String;
 function BackSlashesToSlashes(const S : String) : String;
-{ function IntToKbyte (Value: Int64): String; V8.54 moved to Utils }
-(* function GetUAgeSizeFile (const filename: string; var FileUDT: TDateTime;
-                                                    var FSize: Int64): boolean;
-function IcsGetFileSize(const FileName : String) : Int64;            { V7.02 }  *)
+
 function GetFreeSpacePath(const Path: String): Int64;
+
 function FtpFileMD5(const Filename: String; Obj: TObject = Nil;
                 ProgressCallback : TMD5Progress = Nil; StartPos: Int64 = 0;
                             EndPos: Int64 = 0; Mode: Word = DefaultMode): String;
 function FtpFileCRC32B(const Filename: String; Obj: TObject = Nil;
                 ProgressCallback : TCrcProgress = Nil; StartPos: Int64 = 0;
                             EndPos: Int64 = 0; Mode: Word = DefaultMode): String;
+function PadIntZero(num : Integer; nWidth : Byte): String;  { V8.60 }
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 implementation
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function PadIntZero(nWord  : Word;
-                    nWidth : Byte): String;
+function PadIntZero(num : Integer; nWidth : Byte): String;  { V8.60 integer not word }
 var
     cResult : String;
 begin
-    cResult := IntToStr(nWord);
+    cResult := IntToStr(num);
     while Length(cResult) < nWidth do
         cResult := '0' + cResult;
 
@@ -489,161 +466,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ helper functions for timers and triggers using GetTickCount - which wraps after 49 days }
-{ note: Vista/2008 and later have GetTickCount64 which returns 64-bits }
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-(*
-var
-   TicksTestOffset: longword ;  { testing GetTickCount wrapping }
-
-function IcsGetTickCountX: longword ;
-var
-    newtick: Int64 ;
-begin
-    Result := IcsGetTickCount ;
-  {ensure special trigger values never returned - V7.07 }
-    if (Result = TriggerDisabled) or (Result = TriggerImmediate) then Result := 1 ;
-    if TicksTestOffset = 0 then
-        exit;  { no testing, bye bye }
-
-{ TicksTestOffset is set in initialization so that the counter wraps five mins after startup }
-    newtick := Int64 (Result) + Int64 (TicksTestOffset);
-    if newtick >= $FFFFFFFF then
-        Result := newtick - $FFFFFFFF
-    else
-        Result := newtick ;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsDiffTicks (const StartTick, EndTick: longword): longword ;
-begin
-    if (StartTick = TriggerImmediate) or (StartTick = TriggerDisabled) then
-        Result := 0
-    else
-    begin
-        if EndTick >= StartTick then
-            Result := EndTick - StartTick
-        else
-            Result := ($FFFFFFFF - StartTick) + EndTick ;
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsElapsedMSecs (const StartTick: longword): longword ;
-begin
-    Result := IcsDiffTicks (StartTick, IcsGetTickCountX);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsElapsedTicks (const StartTick: longword): longword ;
-begin
-    Result := IcsDiffTicks (StartTick, IcsGetTickCountX);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsElapsedSecs (const StartTick: longword): integer ;
-begin
-    Result := (IcsDiffTicks (StartTick, IcsGetTickCountX)) div TicksPerSecond ;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsWaitingSecs (const EndTick: longword): integer ;
-begin
-    if (EndTick = TriggerImmediate) or (EndTick = TriggerDisabled) then
-        Result := 0
-    else
-        Result := (IcsDiffTicks (IcsGetTickCountX, EndTick)) div TicksPerSecond ;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsElapsedMins (const StartTick: longword): integer ;
-begin
-    Result := (IcsDiffTicks (StartTick, IcsGetTickCountX)) div TicksPerMinute ;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsAddTrgMsecs (const TickCount, MilliSecs: longword): longword ;
-begin
-    Result := MilliSecs ;
-    if Result > ($FFFFFFFF - TickCount) then
-        Result := ($FFFFFFFF - TickCount) + Result
-    else
-        Result := Result + TickCount ;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsAddTrgSecs (const TickCount, DurSecs: integer): longword ;
-begin
-    Result := TickCount ;
-    if DurSecs < 0 then
-        exit;
-    Result := IcsAddTrgMsecs (TickCount, longword (DurSecs) * TicksPerSecond);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsGetTrgMsecs (const MilliSecs: integer): longword ;
-begin
-    Result := TriggerImmediate ;
-    if MilliSecs < 0 then
-        exit;
-    Result := IcsAddTrgMsecs (IcsGetTickCountX,  MilliSecs);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsGetTrgSecs (const DurSecs: integer): longword ;
-begin
-    Result := TriggerImmediate ;
-    if DurSecs < 0 then
-        exit;
-    Result := IcsAddTrgMsecs (IcsGetTickCountX, longword (DurSecs) * TicksPerSecond);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsGetTrgMins (const DurMins: integer): longword ;
-begin
-    Result := TriggerImmediate ;
-    if DurMins < 0 then
-        exit;
-    Result := IcsAddTrgMsecs (IcsGetTickCountX, longword (DurMins) * TicksPerMinute);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsTestTrgTick (const TrgTick: longword): boolean ;
-var
-    curtick: longword ;
-begin
-    Result := FALSE ;
-    if TrgTick = TriggerDisabled then
-        exit;  { special case for trigger disabled }
-    if TrgTick = TriggerImmediate then begin
-        Result := TRUE ;  { special case for now }
-        exit;
-    end;
-    curtick := IcsGetTickCountX ;
-    if curtick <= $7FFFFFFF then  { less than 25 days, keep it simple }
-    begin
-        if curtick >= TrgTick then Result := TRUE ;
-        exit;
-    end;
-    if TrgTick <= $7FFFFFFF then
-        exit;  { trigger was wrapped, can not have been reached  }
-    if curtick >= TrgTick then
-        Result := TRUE ;
-end;  *)
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V1.15, builds list of files in a directory and sub directories, optional
   search path Level and InitDLen should be 0, except when called recursively
   LocFiles array should be set to length zero, generally
@@ -870,112 +692,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V1.15 sensible formatting of large numbers }
-(*
-function IntToKbyte (Value: Int64): String;
-var
-    float: Extended ;
-const
-    KBYTE = Sizeof(Byte) shl 10;
-    MBYTE = KBYTE shl 10;
-    GBYTE = MBYTE shl 10;
-begin
-    float := value ;
-    if (float / 100) >= GBYTE then
-        FmtStr (Result, '%5.0fG', [float / GBYTE])    // 134G
-    else if (float / 10) >= GBYTE then
-        FmtStr (Result, '%5.1fG', [float / GBYTE])    // 13.4G
-    else if float >= GBYTE then
-        FmtStr (Result, '%5.2fG', [float / GBYTE])    // 3.44G
-    else if float >= (MBYTE * 100) then
-        FmtStr (Result, '%5.0fM', [float / MBYTE])    // 234M
-    else if float >= (MBYTE * 10) then
-        FmtStr (Result, '%5.1fM', [float / MBYTE])    // 12.4M
-    else if float >= MBYTE then
-        FmtStr (Result, '%5.2fM', [float / MBYTE])    // 5.67M
-    else if float >= (KBYTE * 100) then
-        FmtStr (Result, '%5.0fK', [float / KBYTE])    // 678K
-    else if float >= (KBYTE * 10) then
-        FmtStr (Result, '%5.1fK', [float / KBYTE])    // 76.5K
-    else if float >= KBYTE then
-        FmtStr (Result, '%5.2fK', [float / KBYTE])    // 4.78K
-    else
-        FmtStr (Result, '%5.0f ', [float]);          // 123
-    Result := Trim (Result);
-end;  *)
-
-(*
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFDEF MSWINDOWS}
-function FileTimeToInt64 (const FileTime: TFileTime): Int64 ;
-begin
-    Move (FileTime, Result, SizeOf (Result));    // 29 Sept 2004, poss problem with 12/00 mixup
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function Int64ToFileTime (const FileTime: Int64): TFileTime ;
-begin
-    Move (FileTime, Result, SizeOf (Result));
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-const
-  FileTimeBase = -109205.0;   // days between years 1601 and 1900
-  FileTimeStep: Extended = 24.0 * 60.0 * 60.0 * 1000.0 * 1000.0 * 10.0; // 100 nsec per Day
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function FileTimeToDateTime(const FileTime: TFileTime): TDateTime;
-begin
-    Result := FileTimeToInt64 (FileTime) / FileTimeStep ;
-    Result := Result + FileTimeBase ;
-end;
-{$ENDIF MSWINDOWS}
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ get file written UTC DateTime and size in bytes - no change for summer time }
-function GetUAgeSizeFile (const filename: string; var FileUDT: TDateTime;
-                                                    var FSize: Int64): boolean;
-var
-   SResult: integer ;
-   SearchRec: TSearchRec ;
-{$IFDEF MSWINDOWS}
-   TempSize: ULARGE_INTEGER; { V8.42 was TULargeInteger } { 64-bit integer record }
-{$ENDIF}
-begin
-   Result := FALSE ;
-   FSize := -1;
-   SResult := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FindFirst(filename, faAnyFile, SearchRec);
-   if SResult = 0 then begin
-     {$IFDEF MSWINDOWS}
-        TempSize.LowPart  := SearchRec.FindData.nFileSizeLow ;
-        TempSize.HighPart := SearchRec.FindData.nFileSizeHigh ;
-        FSize             := TempSize.QuadPart ;
-        FileUDT := FileTimeToDateTime (SearchRec.FindData.ftLastWriteTime);
-      {$ENDIF}
-      {$IFDEF POSIX}
-        FSize := SearchRec.Size;
-        FileUDT := SearchRec.TimeStamp;
-      {$ENDIF}
-        Result            := TRUE ;
-   end;
-   {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FindClose(SearchRec);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function IcsGetFileSize(const FileName : String) : Int64;            { V7.02 }
-var
-    FileUDT: TDateTime;
-begin
-    Result := -1 ;
-    GetUAgeSizeFile (FileName, FileUDT, Result);
-end;
-*)
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { get free space for path or drive }
 function GetFreeSpacePath (const Path: String): int64;
 begin
@@ -1023,9 +739,6 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 initialization
-//    TicksTestOffset := 0 ;
-{ force GetTickCount wrap in 5 mins - next line normally commented out }
-{    TicksTestOffset := MaxLongWord - GetTickCount - (5 * 60 * 1000);  }
 
 finalization
 

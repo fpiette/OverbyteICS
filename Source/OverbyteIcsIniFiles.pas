@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Creation:     Nov 10, 2008
 Description:  Classes and little helpers for use with the ICS demo applications.
-Version:      8.01
+Version:      8.60
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -40,6 +40,28 @@ Legal issues: Copyright (C) 2015 by François PIETTE
         handle UTF-8 encoded INI files. By default it attempts to preserve ANSI
         format.
 
+        TIcsStringBuild will efficiently build ANSI or Unicode strings on all
+        versions of Delphi, allowing access to the TBytes buffer to allow
+        efficient extraction for writing to streams.
+
+        TIcsBuffLogStream buffered log file stream is designed to efficiently
+        write busy log files ensuring they are safely and reguarly written to disk
+        in case of application crashes. The log file name is in date/time mask
+        format, typically for one log file per day, and is updated  before each
+        write.  The file is updated by being opened. written and closed to ensure
+        nothing remains in memory only, with repeated attempts to open the file
+        if another application has it open, and with an inactivity timeout so it
+        is written regularly, defaulting to every 30 seconds. The file code page
+        may be FileCPAnsi, FileCPUtf8 or FileCPUtf16 (unicode compilers only)
+        with a BOM written for unicode.  When writing to the log, CRLF is
+        optionally added to each line (default on).
+
+        IcsSimpleLogging is a non-buffered log file function which writes text
+        to the end of old or new file, opening and closing file for each line,
+        ignoring any errors, not designed for continual updating!  The file name
+        is in date/time mask format, typically for one log file per day.
+
+
 History:
 Dec 03, 2009 V7.01 Uses TIcsStreamReader and TIcsStreamWriter.
 Oct 11, 2010 V7.02 Added methods ReadStrings and WriteStrings from MailSnd demo.
@@ -47,6 +69,7 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 June 2015 - V8.01 Angus moved to main source dir
 Nov 2, 2018 - V8.58 - Use namespaces to keep FMX happy
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsIniFiles;
@@ -76,6 +99,7 @@ uses
  {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
  {$IFDEF RTL_NAMESPACES}System.Classes{$ELSE}Classes{$ENDIF},
  {$IFDEF RTL_NAMESPACES}System.IniFiles{$ELSE}IniFiles{$ENDIF},
+  OverbyteIcsTypes,
   OverbyteIcsStreams,
   OverbyteIcsUtils;
 
@@ -93,8 +117,7 @@ type
   protected
     procedure LoadValues; virtual;  
   public
-    constructor Create(const FileName: String;
-      PreserveAnsi: Boolean = TRUE);
+    constructor Create(const FileName: String; PreserveAnsi: Boolean = TRUE);
     destructor Destroy; override;
     procedure Clear;
     procedure DeleteKey(const Section, Ident: String); override;
@@ -114,6 +137,7 @@ type
   end;
 
   TIcsIniFile = TIcsUtf8IniFile;
+
 
 {$IFDEF MSWINDOWS}
   function GetCommonAppDataFolder(const SubPath: String): String;
@@ -565,6 +589,5 @@ begin
                         ExtractFileName(ChangeFileExt(ParamStr(0), '.ini'));
 end;
 
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 end.

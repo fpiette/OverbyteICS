@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.57
+Version:      8.60
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -11,7 +11,7 @@ Credit:       This component was based on a freeware from by Andreas
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2018 by François PIETTE
+Legal issues: Copyright (C) 1997-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -526,9 +526,9 @@ May 21, 2018 V8.54 Added httpAuthBearer and httpAuthToken, and AuthBearerToken f
 Jun 18, 2018 V8.55 ReasonPhrase for abort may return SSL handshake error.
                    Minor clean-up, more relocation debugging
 Sep 5, 2018  V8.57 Added OnSelectDns event to allow application to change DnsResult to
-                       one of the several offered, round robin or IPV4/IPV6
-
-
+                       one of the several offered, round robin or IPv4/IPv6
+Feb 5, 2019  V8.60 Added AddrResolvedStr read only property which is the IPv4/IPv6
+                      address to which the client is trying to connect.
 
 
 
@@ -627,8 +627,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 857;
-    CopyRight : String   = ' THttpCli (c) 1997-2018 F. Piette V8.57 ';
+    HttpCliVersion       = 860;
+    CopyRight : String   = ' THttpCli (c) 1997-2019 F. Piette V8.60 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -972,7 +972,8 @@ type
         procedure SetReady; virtual;
         procedure AdjustDocName; virtual;
         procedure SetRequestVer(const Ver : String);
-        procedure SetExtraHeaders(Value: TStrings);      { V8.82 } 
+        procedure SetExtraHeaders(Value: TStrings);      { V8.52 }
+        function  GetAddrResolvedStr: String;            { V8.60 }
         procedure WMHttpRequestDone(var msg: TMessage);
         procedure WMHttpSetReady(var msg: TMessage);
         procedure WMHttpLogin(var msg: TMessage);
@@ -1027,6 +1028,7 @@ type
         property StatusCode           : Integer      read  FStatusCode;
         property ReasonPhrase         : String       read  FReasonPhrase;
         property DnsResult            : String       read  FDnsResult;
+        property AddrResolvedStr      : String       read  GetAddrResolvedStr;
         property AuthorizationRequest : TStringList  read  FDoAuthor;
         property DocName              : String       read  FDocName;
         property Location             : String       read  FLocation
@@ -1552,9 +1554,18 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure THttpCli.SetExtraHeaders(Value : TStrings);    { V8.82 }
+procedure THttpCli.SetExtraHeaders(Value : TStrings);    { V8.52 }
 begin
     FExtraHeaders.Assign(Value);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  THttpCli.GetAddrResolvedStr: String;            { V8.60 }
+begin
+    Result := '';
+   if Assigned(FCtrlSocket) then
+        Result := FCtrlSocket.AddrResolvedStr;
 end;
 
 

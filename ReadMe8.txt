@@ -3,7 +3,7 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.3 Rio
 (Aka FPIETTE's Components)
 
 
-Revised: February 27, 2019
+Revised: March 4, 2019
 Release: V8.59
 http://www.overbyte.be/
 http://wiki.overbyte.be/
@@ -108,6 +108,22 @@ contributors:
     - Angus Robertson <angus@magsys.co.uk>
 
 
+Support:
+--------
+
+A new web support forum was created for ICS in February 2019:
+
+https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+
+Once registered, it is possible to follow a forum with email messages for new
+posts, or a daily summary like the old mailing list.
+
+The old twsocket mailing list ceased accepting new messages in late 2018, but
+20 years of archived messages are still available at:
+
+http://lists.elists.org/pipermail/twsocket/
+
+
 Latest versions:
 ---------------
 
@@ -148,7 +164,7 @@ ICS V8 has been designed for Embarcadero Delphi 2009 and up, and C++ Builder
 2009 and up, but is fully compatible with Borland Delphi 7 and CodeGear 2006 and
 2007. Embarcadero RAD Studio includes Delphi and C++ Builder.
 
-http://www.embarcadero.com/
+https://www.embarcadero.com/
 
 With Delphi XE2 and later, VCL 64-bit Windows targets are supported for Delphi only.
 Currently FireMonkey is partly supported for Delphi only (there are still a few
@@ -1030,46 +1046,6 @@ your new PEM files.
 your application, with properties SslCertFile, SslPrivKeyFile and SslCAFile.
 The request certificate file has no further use.
 
-
-Support:
---------
-
-There is a mailing list to discuss F. Piette's components and applications.
-To subscribe surf to http://lists.elists.org/mailman/listinfo/twsocket.
-Do not use an aliased EMail address, use your real EMail address, the one
-you'll use to post messages. After asking for subscription, you'll receive a
-confirmation email you must reply to it or you will _not_ be added to the
-subscriber's list (this is to check for email path and also make sure
-someone doesn't subscribe you without your consent).
-
-Once you have been registered with the mailing list processor, you can
-send messages to twsocket@elists.org. Every subscriber will receive a copy of
-your message. I will respond, but anybody is welcome to respond to each
-other's messages. So every body can share his expertise. There are many other
-useful mailing lists at http://www.elists.org !
-
-Before asking a question, browse the message archive you can download from
-the support page on the web site (click the "support" button from main page)
-and from the mailing list web site http://lists.elists.org/mailman/listinfo/twsocket.
-Google is also archiving the list with some delay.
-
-If you found a bug, please make a short program that reproduces the problem
-attach it to a message addressed to me. If I can reproduce the problem, I
-can find a fix ! Do not send exe file but just source code and instructions.
-Always use the latest version (beta if any) before reporting any bug.
-
-You are also encouraged to use the support mailing list to ask for
-enhancements. You are welcome to post your own code.
-
-The support mailing list has sometimes a heavy traffic. If
-it is too much for you, you can select "digest" mode in which mailing list
-processor will mail you only one big message per day. To select digest mode
-goto http://lists.elists.org/mailman/listinfo/twsocket.
-
-You can also subscribe to another mailing list called twsocket-announce which
-will receive only very few messages when major bug fixes or updates are done.
-The subscription process is the same as for the other mailing list.
-See above procedure.
 
 
 Release notes

@@ -10,7 +10,7 @@ Creation:     March 2009
 Updated:      Feb 2019
 Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2002-2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
@@ -52,7 +52,7 @@ Baseline - March 2009
 14 Oct 2016  - added SaveAscii to save strings instead of IP addresses
                added ListName propertry for events
                better check for old saved duplicates
-21 Feb 2019  - V8.60 - Adapted for main ICS packages and FMX support.
+07 Nar 2019  - V8.60 - Adapted for main ICS packages and FMX support.
                        Renamed from TMagBlacklist to TIcsBlacklist
                        Added TIcsStringBuild to efficiently build Ansi or Unicode
                         strings on all versions of Delphi.
@@ -228,12 +228,13 @@ type
     constructor Create (ABufferSize: integer = 4096);
     destructor Destroy; override;
     procedure AppendBuf(const AString: AnsiString); overload;
-    procedure AppendBuf(const AString: WideString); overload;
+    procedure AppendBuf(const AString: UnicodeString); overload;
     procedure AppendLine(const AString: AnsiString); overload;
-    procedure AppendLine(const AString: widestring); overload;
+    procedure AppendLine(const AString: UnicodeString); overload;
     procedure Clear ;
-    function ToAString: AnsiString;
-    function ToWString: WideString;
+    function GetAString: AnsiString;
+    function GetWString: UnicodeString;
+    function GetString: String;
     procedure Capacity (ABufferSize: integer);
     property Len: integer            read FIndex;
     property Buffer: TBytes          read FBuffer;
@@ -1088,7 +1089,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TIcsStringBuild.AppendBuf(const AString: WideString);
+procedure TIcsStringBuild.AppendBuf(const AString: UnicodeString);
 var
     Len : integer;
 begin
@@ -1109,7 +1110,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TIcsStringBuild.AppendLine(const AString: WideString);
+procedure TIcsStringBuild.AppendLine(const AString: UnicodeString);
 begin
     AppendBuf(AString);
     AppendBuf(IcsCRLF);
@@ -1117,7 +1118,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsStringBuild.ToAString: AnsiString;
+function TIcsStringBuild.GetAString: AnsiString;
 begin
     if FCharSize <> SizeOf (Char) then begin
         Result := 'Need WideString Result';
@@ -1129,14 +1130,24 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsStringBuild.ToWString: WideString;
+function TIcsStringBuild.GetWString: UnicodeString;
 begin
     if FCharSize <> 2 then begin
-        result := 'Need AnsiString Result';
+        Result := 'Need AnsiString Result';
         exit ;
     end;
     SetLength(Result, FIndex div FCharSize);
     Move(FBuffer[0], Result[1], FIndex);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsStringBuild.GetString: String;
+begin
+    if FCharSize = 2 then
+        Result := String(GetWString)
+    else
+        Result := String(GetAString);
 end;
 
 

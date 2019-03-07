@@ -9,8 +9,7 @@ Credit:       This component was based on a freeware from by Andreas
               Hoerstemeier and used with his permission.
               andy@hoerstemeier.de http://www.hoerstemeier.com/index.htm
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1997-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
@@ -527,8 +526,12 @@ Jun 18, 2018 V8.55 ReasonPhrase for abort may return SSL handshake error.
                    Minor clean-up, more relocation debugging
 Sep 5, 2018  V8.57 Added OnSelectDns event to allow application to change DnsResult to
                        one of the several offered, round robin or IPv4/IPv6
-Feb 5, 2019  V8.60 Added AddrResolvedStr read only property which is the IPv4/IPv6
+Mar 6, 2019  V8.60 Added AddrResolvedStr read only property which is the IPv4/IPv6
                       address to which the client is trying to connect.
+                   Added IP address and port to 404 Connect error.
+                   Added round robin DNS lookup if DNSLookup returns multiple
+                     IP addresses so they are used in turn after a failure
+                     when the component is called repeatedly.
 
 
 
@@ -877,8 +880,11 @@ type
         FOnSelectDns          : TSelectDnsEvent;            { V8.57 }
         FCloseReq             : Boolean;                    { SAE 01/06/04 }
         FSocketErrs           : TSocketErrs;                { V8.37 }
-        FAuthBearerToken      : String;     { V8.54 }
-        FResponseNoException  : Boolean;    { V8.54 should error exceptions be skipped? }
+        FAuthBearerToken      : String;        { V8.54 }
+        FResponseNoException  : Boolean;       { V8.54 should error exceptions be skipped? }
+        FCurrDnsResult        : Integer;       { V8.60 round robin DNS results }
+        FTotDnsResult         : Integer;       { V8.60 round robin DNS results }
+        FLastAddrOK           : String;        { V8.60 round robin DNS results }
         FTimeout              : UINT;  { V7.04 }            { Sync Timeout Seconds }
         FWMLoginQueued        : Boolean;
         procedure AbortComponent; override; { V7.11 }
@@ -1028,7 +1034,7 @@ type
         property StatusCode           : Integer      read  FStatusCode;
         property ReasonPhrase         : String       read  FReasonPhrase;
         property DnsResult            : String       read  FDnsResult;
-        property AddrResolvedStr      : String       read  GetAddrResolvedStr;
+        property AddrResolvedStr      : String       read  GetAddrResolvedStr;    { V8.60 }
         property AuthorizationRequest : TStringList  read  FDoAuthor;
         property DocName              : String       read  FDocName;
         property Location             : String       read  FLocation
@@ -1421,6 +1427,8 @@ begin
     FLocationChangeCurCount        := 0;  {  V1.90 }
     FTimeOut                       := 30;
     FSocketFamily                  := DefaultSocketFamily;   { V8.00 }
+    FLastAddrOK                    := '';     { V8.60 }
+    FCurrDnsResult                 := -1;     { V8.60 }
 end;
 
 
@@ -2197,7 +2205,14 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpCli.SocketDNSLookupDone(Sender: TObject; ErrCode: Word);
+var
+    I: Integer;
 begin
+{$IFNDEF NO_DEBUG_LOG}
+    if CheckLogOptions(loProtSpecInfo) then
+        DebugLog(loProtSpecInfo, 'Socket DNS Lookup Done - '  +
+                                FCtrlSocket.DnsResultList.CommaText);  { V8.60 }
+{$ENDIF}
     if ErrCode <> 0 then begin
         if FState = httpAborting then
             Exit;
@@ -2208,11 +2223,56 @@ begin
     end
     else begin
         if (FSocksServer = '') or (FSocksLevel = '4') then begin  { V8.51 socks5 takes host name }
-            FDnsResult := FCtrlSocket.DnsResult;
 
         { V8.57 allow application to change DnsResult to one of the several offered, round robin or IPV4/IPV6 }
-            if Assigned(FOnSelectDns) then
+            if Assigned(FOnSelectDns) then begin
+                FDnsResult := FCtrlSocket.DnsResult;
                 FOnSelectDns(Self, FCtrlSocket.DnsResultList, FDnsResult);
+            end
+            else begin
+
+              { V8.60 DNS lookup may return multiple IP addrese, round robin through
+                them trying each on multiple retries.  Addresses taken consecutively
+                from DnsResultList unless FLastAddrOK has been set on a successful
+                connect, when it will re-used for the next attempt if still in
+                DnsResultList.  Loop to start again when all addresses tried.  }
+
+                FTotDnsResult := FCtrlSocket.DnsResultList.Count;
+                if (FTotDnsResult <= 0) then Exit;  { sanity check }
+
+              { single DNS result, nothing more to do }
+                if (FTotDnsResult = 1) then
+                    FDnsResult := FCtrlSocket.DnsResult
+                else begin
+                  { if last succesaful IP address in list of results, use it again }
+                    FDnsResult := '';
+                    if (FLastAddrOK <> '') then begin
+                        for I := 0 to FTotDnsResult - 1 do begin
+                            if FLastAddrOK = FCtrlSocket.DnsResultList[I] then begin
+                                FCurrDnsResult := I;
+                                FDnsResult := FLastAddrOK;
+        {$IFNDEF NO_DEBUG_LOG}
+                                if CheckLogOptions(loProtSpecInfo) then
+                                    DebugLog(loProtSpecInfo, 'Reusing Last OK Address: ' + FLastAddrOK);
+        {$ENDIF}
+                                break;
+                            end;
+                        end;
+                    end;
+
+                  { not found it, find next, loop to start if gone past last }
+                    if FDnsResult = '' then begin
+                        inc (FCurrDnsResult);
+                        if (FCurrDnsResult >= FTotDnsResult) then
+                            FCurrDnsResult := 0;
+                        FDnsResult := FCtrlSocket.DnsResultList[FCurrDnsResult];
+        {$IFNDEF NO_DEBUG_LOG}
+                        if CheckLogOptions(loProtSpecInfo) then
+                            DebugLog(loProtSpecInfo, 'Alternate Address: ' + FDnsResult);
+        {$ENDIF}
+                    end;
+                end;
+            end;
         end
         else
             FDnsResult := FHostName;
@@ -2262,15 +2322,17 @@ end;
 procedure THttpCli.SocketSessionConnected(Sender : TObject; ErrCode : Word);
 begin
 {$IFNDEF NO_DEBUG_LOG}
-    if CheckLogOptions(loProtSpecInfo) then  { V1.91 } { replaces $IFDEF DEBUG_OUTPUT  }
-            DebugLog(loProtSpecInfo, 'SessionConnected');
+    if CheckLogOptions(loProtSpecInfo) then  { V1.91 }
+        DebugLog(loProtSpecInfo, 'SessionConnected, error='  +
+          IntToStr (ErrCode) + ' to ' + IcsFmtIpv6AddrPort(AddrResolvedStr, FPort));  { V8.60 }
 {$ENDIF}
     if ErrCode <> 0 then begin
         FRequestDoneError := ErrCode;
         FStatusCode       := 404;
         FReasonPhrase     := WSocketErrorMsgFromErrorCode(ErrCode) +  { V8.51 handles proxy errors }
-                          {    WSocketErrorDesc(ErrCode) + }
-                             ' (Error #' + IntToStr(ErrCode) + ')';
+                             ' (Error #' + IntToStr(ErrCode) + ') to ' +
+                               IcsFmtIpv6AddrPort(AddrResolvedStr, FPort);  { V8.60 }
+        FLastAddrOK := '';  { V8.60 }
         TriggerSessionConnected; {14/12/2003}
         Exit;
     end;
@@ -2278,6 +2340,7 @@ begin
     FLocationFlag := FALSE;
 
     FConnected := TRUE;
+    FLastAddrOK := AddrResolvedStr;  { V8.60 }
     StateChange(httpConnected);
     TriggerSessionConnected;
 

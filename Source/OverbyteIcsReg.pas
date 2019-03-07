@@ -16,7 +16,7 @@ May 2018   V8.54 - Angus added TSslX509Certs
 Oct 2018   V8.58 - New components now installed for FMX and VCL
                    Added subversion to sIcsLongProductName for splash screen
 Nov 2019   V8.59 - Version only
-Feb 2019   V8.60 - Angus added TIcsMailQueue, TIcsIpStrmLog, TIcsWhoisCli,
+Mar 2019   V8.60 - Angus added TIcsMailQueue, TIcsIpStrmLog, TIcsWhoisCli,
                    TIcsTimeServer, TIcsTimeClient, TIcsBlacklist
 
 
@@ -80,12 +80,15 @@ uses
       Ics.Fmx.OverbyteIcsSslX509Certs,
       Ics.Fmx.OverbyteIcsIpStreamLog,
       Ics.Fmx.OverbyteIcsMailQueue,
+      Ics.Fmx.OverbyteIcsFtpMulti,
+      Ics.Fmx.OverbyteIcsHttpMulti,
     {$ENDIF}
     Ics.Fmx.OverbyteIcsWSocketE,
     Ics.Fmx.OverbyteIcsWSocketS,
     Ics.Fmx.OverbyteIcsWhoisCli,
     Ics.Fmx.OverbyteIcsSntp,
     Ics.Fmx.OverbyteIcsBlacklist,
+    Ics.Fmx.OverbyteIcsFileCopy,
   {$ENDIF FMX}
   {$IFDEF VCL}
     Controls,
@@ -113,6 +116,8 @@ uses
       OverbyteIcsSslX509Certs,
       OverbyteIcsIpStreamLog,
       OverbyteIcsMailQueue,
+      OverbyteIcsFtpMulti,
+      OverbyteIcsHttpMulti,
     {$ENDIF}
     OverbyteIcsWSocketE,
     OverbyteIcsWSocketS,
@@ -123,6 +128,7 @@ uses
     OverbyteIcsWhoisCli,
     OverbyteIcsSntp,
     OverbyteIcsBlacklist,
+    OverbyteIcsFileCopy,
     // VCL only
     OverbyteIcsMultiProgressBar,
     OverbyteIcsEmulVT, OverbyteIcsTnCnx, OverbyteIcsTnEmulVT, OverbyteIcsTnScript,
@@ -190,7 +196,9 @@ begin
       TPop3Cli, TSyncPop3Cli,
       TNntpCli, THtmlNntpCli,
       TDnsQuery, TFingerCli, TPing,
-      TIcsCharsetComboBox
+      TIcsCharsetComboBox,
+      TIcsBlacklist,     { V8.60 }
+      TIcsFileCopy       { V8.60 }
     ]);
 {$ENDIF}
 {$IFDEF VCL}
@@ -207,8 +215,7 @@ begin
       TSmtpServer,
       TIcsWhoisCli,      { V8.60 }
       TIcsTimeServer,    { V8.60 }
-      TIcsTimeClient,     { V8.60 }
-      TIcsBlacklist      { V8.60 }
+      TIcsTimeClient     { V8.60 }
     ]);
 {$ENDIF VCL}
 {$IFDEF ICS_COMMON}
@@ -248,6 +255,8 @@ begin
       TSslX509Certs,  { V8.54 }
       TIcsMailQueue,  { V8.60 }
       TIcsIpStrmLog,  { V8.60 }
+      TIcsFtpMulti,   { V8.60 }
+      TIcsHttpMulti,  { V8.60 }
     {$IFDEF VCL}
       {$IFNDEF BCB}
         TSslWSocketThrdServer,

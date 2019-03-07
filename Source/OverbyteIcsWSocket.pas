@@ -5,8 +5,7 @@ Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
 Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1996-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
@@ -1297,7 +1296,7 @@ Nov 2, 2018  V8.58 Increased ListenBacklog property default to 15 to handle
                       higher server loads before rejecting new connections.
                    Corrected some debug error loSslInfo to loSslErr.
 Dec 11, 2018 V8.59 Too many lines in SSL diags for errors only, bug in V8.55
-Feb 22, 2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
+Mar 6,  2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
                      set during Connect method after DNS lookup.
                    Clean-up old commented out code.
                    Made SocketFamilyNames more descriptive.
@@ -9999,11 +9998,11 @@ begin
         if CheckLogOptions(loWsockInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
 
             if Fsin.sin6_family = AF_INET then  { V8.60 kept the string earlier }
-                DebugLog(loWsockInfo, 'TWSocket will connect to ' + FAddrResolvedStr + ':' +
-                             IntToStr(WSocket_Synchronized_ntohs(PSockAddrIn(@Fsin).sin_port)))
+                DebugLog(loWsockInfo, 'TWSocket will connect to ' + IcsFmtIpv6AddrPort(FAddrResolvedStr,
+                                       IntToStr(WSocket_Synchronized_ntohs(PSockAddrIn(@Fsin).sin_port))))
             else
-                DebugLog(loWsockInfo, 'TWSocket will connect to ' + FAddrResolvedStr + ':' +
-                                         IntToStr(WSocket_Synchronized_ntohs(Fsin.sin6_port)));
+                DebugLog(loWsockInfo, 'TWSocket will connect to ' + IcsFmtIpv6AddrPort(FAddrResolvedStr,
+                                                    IntToStr(WSocket_Synchronized_ntohs(Fsin.sin6_port))));
      {       if Fsin.sin6_family = AF_INET then
                 DebugLog(loWsockInfo, 'TWSocket will connect to ' +
                   WSocket_Synchronized_inet_ntoa(PSockAddrIn(@Fsin).sin_addr) + ':' +

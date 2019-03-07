@@ -150,6 +150,11 @@ Oct 10, 2018  V8.57 Removed duplicate EVP_MAX lits
 Oct 19, 2018  V8.58 version only
 
 
+Pending - OpenSSL 3.0.0 may require numeric NID_xx to be replaced by string
+SN_xx and/or LN_xx (short/long name), ie CN or CommonName for NID_CommonName = 13.
+So need to add lots of SN/LN costants, and OBJ_txt2nid.
+
+
 
 Old Cryptography
 Several algorithms no longer provide adequate security, so will not be supported

@@ -3,7 +3,7 @@ object HttpRestForm: THttpRestForm
   Top = 176
   Caption = 
     'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.60 -' +
-    ' 15th February 2019'
+    ' 6th March 2019'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace
@@ -24,7 +24,7 @@ object HttpRestForm: THttpRestForm
     Top = 0
     Width = 823
     Height = 315
-    ActivePage = TabSettings
+    ActivePage = TabREST
     Align = alTop
     TabOrder = 0
     object TabREST: TTabSheet
@@ -762,7 +762,6 @@ object HttpRestForm: THttpRestForm
     SocksAuthentication = socksNoAuthentication
     SocketFamily = sfAny
     SocketErrs = wsErrTech
-    OnSelectDns = HttpRest1SelectDns
     RestParams.PContent = PContUrlencoded
     RestParams = <>
     DebugLevel = DebugSsl

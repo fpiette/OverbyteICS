@@ -16,7 +16,7 @@ PROJECTS = OverbyteIcsHttpsTst.exe OverbyteIcsSslWebServ.exe \
   OverbyteIcsSslSniSrv.exe OverbyteIcsSslWebAppServer.exe OverbyteIcsSslSmtpServer.exe \
   OverbyteIcsProxySslServer.exe OverbyteIcsJoseTst.exe OverbyteIcsHttpRestTst.exe \
   OverbyteIcsX509CertsTst.exe OverbyteIcsSslMultiWebServ.exe \
-  OverbyteIcsMailQuTst.exe OverbyteIcsIpStmLogTst.exe
+  OverbyteIcsMailQuTst.exe OverbyteIcsIpStmLogTst.exe OverbyteIcsXferTst.exe
 #------------------------------------------------------------------------------
 default: $(PROJECTS)
 #------------------------------------------------------------------------------
@@ -82,5 +82,8 @@ OverbyteIcsMailQuTst.exe: OverbyteIcsMailQuTst.dpr
   $(DCC)
 
 OverbyteIcsIpStmLogTst.exe: OverbyteIcsIpStmLogTst.dpr
+  $(DCC)
+
+OverbyteIcsXferTst.exe: OverbyteIcsXferTst.dpr
   $(DCC)
 

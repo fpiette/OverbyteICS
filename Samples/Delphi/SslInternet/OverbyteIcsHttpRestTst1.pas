@@ -3,7 +3,7 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
-Updated:      Feb 2019
+Updated:      Mar 2019
 Version:      8.60
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2018 by François PIETTE
@@ -45,9 +45,10 @@ Jul 9, 2018  - V8.56 Using OverbyteIcsTypes instead of OverbyteIcsLogger
 Sep 25, 2018 - V8.57 Using OnSelectDns to show alternate IP addresses, changed
                       SocketFamily to sfAny so it finds both IPV4 and IPV6 addresses
 Oct 27, 2018 - V8.58 Better error handling.
-Feb 15, 2019 - V8.60 Add Socket Family selection for IPv4, IPv6 or both.
+Mar 6,  2019 - V8.60 Add Socket Family selection for IPv4, IPv6 or both.
                      Added log file using new TIcsBuffLogStream for UTF8 file logging,
                       one log per day.
+                     Removed onSelectDns event so base component does it for us.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -196,8 +197,6 @@ type
     procedure RestOAuth1OAuthNewCode(Sender: TObject);
     procedure RestOAuth1OAuthNewToken(Sender: TObject);
     procedure SettingsChange(Sender: TObject);
-    procedure HttpRest1SelectDns(Sender: TObject; DnsList: TStrings;
-      var NewDns: string);
     procedure SelDirLogsClick(Sender: TObject);
   private
     { Private declarations }
@@ -648,17 +647,6 @@ begin
     end;
 
 end;
-
-procedure THttpRestForm.HttpRest1SelectDns(Sender: TObject; DnsList: TStrings;
-  var NewDns: string);
-begin
-    AddLog('Looked-up DNS: ' + NewDns);
-    if DnsList.Count > 1 then begin
-        AddLog(IntToStr(DnsList.Count) + ' alternate addresses: ' + DnsList.CommaText);
-      { we could select an alternate now, round robin or IPV4/IPV6 }
-    end;
-end;
-
 
 procedure THttpRestForm.RestOAuthSetup;
 begin

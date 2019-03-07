@@ -576,7 +576,7 @@ object HttpsTstForm: THttpsTstForm
       Top = 148
       Width = 169
       Height = 21
-      ItemHeight = 13
+      ItemHeight = 0
       TabOrder = 27
       Text = 'SslSecLevel'
     end

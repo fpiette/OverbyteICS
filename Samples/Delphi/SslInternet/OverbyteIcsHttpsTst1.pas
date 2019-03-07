@@ -86,7 +86,7 @@ Jul 6, 2018   V8.56 testing SSL application layer protocol negotiation, used
 Feb 6, 2019  V8.60 Add Socket Family selection for IPv4 and/or IPv6, previously
                  ignored IPV6 only hosts.
              Report SessionConnnected event with actual IP address.
-             OpenSSL 1.0.2 only ticj box gone, not needed any longer. 
+             OpenSSL 1.0.2 only tick box gone, not needed any longer. 
 
 // pending add persistent cookie support, and gzip content encoding
 // Note these are done by default in the TSslHttpRest component which may

@@ -59,11 +59,11 @@
     <DelphiCompile Include="OverbyteIcsD2007Design.dpk">
       <MainSource>MainSource</MainSource>
     </DelphiCompile>
+    <DCCReference Include="..\Samples\Delphi\SslInternet\designide.dcp" />
+    <DCCReference Include="..\Samples\Delphi\SslInternet\OverbyteIcsD2007Run.dcp" />
+    <DCCReference Include="..\Samples\Delphi\SslInternet\rtl.dcp" />
+    <DCCReference Include="..\Samples\Delphi\SslInternet\vcl.dcp" />
     <DCCReference Include="..\Source\OverbyteIcsReg.pas" />
     <DCCReference Include="..\Source\OverByteIcsWSocketE.pas" />
-    <DCCReference Include="C:\Users\angus\Desktop\designide.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\OverbyteIcsD2007Run.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\rtl.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\vcl.dcp" />
   </ItemGroup>
 </Project>

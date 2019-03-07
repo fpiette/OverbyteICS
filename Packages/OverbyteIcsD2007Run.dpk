@@ -42,6 +42,9 @@ package OverbyteIcsD2007Run;
 {$R '..\source\OverbyteIcsMailQueue.dcr'}
 {$R '..\source\OverbyteIcsSntp.dcr'}
 {$R '..\source\OverbyteIcsWhoisCli.dcr'}
+{$R '..\source\OverbyteIcsFileCopy.dcr'}
+{$R '..\source\OverbyteIcsHttpMulti.dcr'}
+{$R '..\source\OverbyteIcsFtpMulti.dcr'}
 {$ALIGN 8}
 { ASSERTIONS ON}
 {$BOOLEVAL OFF}
@@ -168,6 +171,10 @@ contains
   OverbyteIcsIpStreamLog in '..\Source\OverbyteIcsIpStreamLog.pas',
   OverbyteIcsMailQueue in '..\Source\OverbyteIcsMailQueue.pas',
   OverbyteIcsSntp in '..\Source\OverbyteIcsSntp.pas',
-  OverbyteIcsWhoisCli in '..\Source\OverbyteIcsWhoisCli.pas';
+  OverbyteIcsWhoisCli in '..\Source\OverbyteIcsWhoisCli.pas',
+  OverbyteIcsFileCopy in '..\Source\OverbyteIcsFileCopy.pas',
+  OverbyteIcsHttpMulti in '..\Source\OverbyteIcsHttpMulti.pas',
+  OverbyteIcsFtpMulti in '..\Source\OverbyteIcsFtpMulti.pas',
+  OverbyteIcsHtmlPars in '..\Source\OverbyteIcsHtmlPars.pas';
 
 end.

@@ -37,6 +37,9 @@ package IcsVclD103Run;
 {$R '..\source\OverbyteIcsMailQueue.dcr'}
 {$R '..\source\OverbyteIcsSntp.dcr'}
 {$R '..\source\OverbyteIcsWhoisCli.dcr'}
+{$R '..\source\OverbyteIcsFileCopy.dcr'}
+{$R '..\source\OverbyteIcsHttpMulti.dcr'}
+{$R '..\source\OverbyteIcsFtpMulti.dcr'}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
@@ -117,6 +120,9 @@ contains
   OverbyteIcsIpStreamLog in '..\Source\OverbyteIcsIpStreamLog.pas',
   OverbyteIcsMailQueue in '..\Source\OverbyteIcsMailQueue.pas',
   OverbyteIcsSntp in '..\Source\OverbyteIcsSntp.pas',
-  OverbyteIcsWhoisCli in '..\Source\OverbyteIcsWhoisCli.pas';
+  OverbyteIcsWhoisCli in '..\Source\OverbyteIcsWhoisCli.pas',
+  OverbyteIcsFileCopy in '..\Source\OverbyteIcsFileCopy.pas',
+  OverbyteIcsHttpMulti in '..\Source\OverbyteIcsHttpMulti.pas',
+  OverbyteIcsFtpMulti in '..\Source\OverbyteIcsFtpMulti.pas';
 
 end.

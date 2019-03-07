@@ -89,6 +89,9 @@ copy Source\OverbyteIcsTnOptFrm.dfm Lib\Release\Win32\D2007\OverbyteIcsTnOptFrm.
     <DCCReference Include="..\Source\OverbyteIcsEmulVT.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsEmulVT.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsEmulVT.pas" />
+    <DCCReference Include="..\source\OverbyteIcsFileCopy.dcr" />
+    <DCCReference Include="..\source\OverbyteIcsFileCopy.dcr" />
+    <DCCReference Include="..\Source\OverbyteIcsFileCopy.pas" />
     <DCCReference Include="..\Source\OverbyteIcsFingCli.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsFingCli.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsFingCli.pas" />
@@ -96,15 +99,22 @@ copy Source\OverbyteIcsTnOptFrm.dfm Lib\Release\Win32\D2007\OverbyteIcsTnOptFrm.
     <DCCReference Include="..\Source\OverbyteIcsFtpCli.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsFtpCli.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsFtpCli.pas" />
+    <DCCReference Include="..\source\OverbyteIcsFtpMulti.dcr" />
+    <DCCReference Include="..\source\OverbyteIcsFtpMulti.dcr" />
+    <DCCReference Include="..\Source\OverbyteIcsFtpMulti.pas" />
     <DCCReference Include="..\Source\OverbyteIcsFtpSrv.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsFtpSrv.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsFtpSrv.pas" />
     <DCCReference Include="..\Source\OverByteIcsFtpSrvT.pas" />
+    <DCCReference Include="..\Source\OverbyteIcsHtmlPars.pas" />
     <DCCReference Include="..\Source\OverbyteIcsHttpAppServer.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsHttpAppServer.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsHttpAppServer.pas" />
     <DCCReference Include="..\Source\OverbyteIcsHttpCCodZLib.pas" />
     <DCCReference Include="..\Source\OverbyteIcsHttpContCod.pas" />
+    <DCCReference Include="..\source\OverbyteIcsHttpMulti.dcr" />
+    <DCCReference Include="..\source\OverbyteIcsHttpMulti.dcr" />
+    <DCCReference Include="..\Source\OverbyteIcsHttpMulti.pas" />
     <DCCReference Include="..\Source\OverbyteIcsHttpProt.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsHttpProt.dcr" />
     <DCCReference Include="..\Source\OverbyteIcsHttpProt.pas" />
@@ -240,12 +250,12 @@ copy Source\OverbyteIcsTnOptFrm.dfm Lib\Release\Win32\D2007\OverbyteIcsTnOptFrm.
     <DCCReference Include="..\Source\OverbyteIcsZLibDll.pas" />
     <DCCReference Include="..\Source\OverbyteIcsZlibHigh.pas" />
     <DCCReference Include="..\Source\OverbyteIcsZLibObj.pas" />
-    <DCCReference Include="C:\Users\angus\Desktop\designide.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\inet.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\rtl.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\vcl.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\vclactnband.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\vclx.dcp" />
-    <DCCReference Include="C:\Users\angus\Desktop\xmlrtl.dcp" />
+    <DCCReference Include="designide.dcp" />
+    <DCCReference Include="inet.dcp" />
+    <DCCReference Include="rtl.dcp" />
+    <DCCReference Include="vcl.dcp" />
+    <DCCReference Include="vclactnband.dcp" />
+    <DCCReference Include="vclx.dcp" />
+    <DCCReference Include="xmlrtl.dcp" />
   </ItemGroup>
 </Project>

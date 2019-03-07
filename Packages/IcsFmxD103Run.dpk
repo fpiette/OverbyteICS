@@ -27,6 +27,9 @@ package IcsFmxD103Run;
 {$R '..\source\OverbyteIcsMailQueue.dcr'}
 {$R '..\source\OverbyteIcsSntp.dcr'}
 {$R '..\source\OverbyteIcsWhoisCli.dcr'}
+{$R '..\source\OverbyteIcsFileCopy.dcr'}
+{$R '..\source\OverbyteIcsHttpMulti.dcr'}
+{$R '..\source\OverbyteIcsFtpMulti.dcr'}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
@@ -95,7 +98,10 @@ contains
   Ics.Fmx.OverbyteIcsIpStreamLog in '..\Source\Ics.Fmx.OverbyteIcsIpStreamLog.pas',
   Ics.Fmx.OverbyteIcsMailQueue in '..\Source\Ics.Fmx.OverbyteIcsMailQueue.pas',
   Ics.Fmx.OverbyteIcsSntp in '..\Source\Ics.Fmx.OverbyteIcsSntp.pas',
-  Ics.Fmx.OverbyteIcsWhoisCli in '..\Source\Ics.Fmx.OverbyteIcsWhoisCli.pas';
+  Ics.Fmx.OverbyteIcsWhoisCli in '..\Source\Ics.Fmx.OverbyteIcsWhoisCli.pas',
+  Ics.Fmx.OverbyteIcsFileCopy in '..\Source\Ics.Fmx.OverbyteIcsFileCopy.pas',
+  Ics.Fmx.OverbyteIcsHttpMulti in '..\Source\Ics.Fmx.OverbyteIcsHttpMulti.pas',
+  Ics.Fmx.OverbyteIcsFtpMulti in '..\Source\Ics.Fmx.OverbyteIcsFtpMulti.pas';
 
 end.
 

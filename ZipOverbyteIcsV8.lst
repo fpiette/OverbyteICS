@@ -551,6 +551,14 @@ Source\OverbyteIcsSntp.dcr
 Source\OverbyteIcsSntp.pas
 Source\OverbyteIcsWhoisCli.dcr
 Source\OverbyteIcsWhoisCli.pas
+Source\OverbyteIcsFileCopy.dcr
+Source\OverbyteIcsFileCopy.pas
+Source\OverbyteIcsFtpMulti.dcr
+Source\OverbyteIcsFtpMulti.pas
+Source\OverbyteIcsHttpMulti.dcr
+Source\OverbyteIcsHttpMulti.pas
+Source\OverbyteIcsHtmlPars.pas
+Source\Include\OverbyteVclZip.inc
 
 Source\Include\Ics.InterlockedApi.inc
 Source\Include\OverbyteIcsDefs.inc
@@ -597,6 +605,11 @@ Source\Ics.Fmx.OverbyteIcsWSocket.pas
 Source\Ics.Fmx.OverbyteIcsWSocketS.pas
 Source\Ics.Fmx.OverbyteIcsWndControl.pas
 
+Source\Ics.Fmx.OverbyteIcsBlacklist.pas
+Source\Ics.Fmx.OverbyteIcsIpStreamLog.pas
+Source\Ics.Fmx.OverbyteIcsMailQueue.pas
+Source\Ics.Fmx.OverbyteIcsSntp.pas
+Source\Ics.Fmx.OverbyteIcsWhoisCli.pas
 Source\Ics.Fmx.OverbyteIcsBlacklist.pas
 Source\Ics.Fmx.OverbyteIcsIpStreamLog.pas
 Source\Ics.Fmx.OverbyteIcsMailQueue.pas
@@ -2102,6 +2115,11 @@ Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.dpr
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.dof
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst1.pas
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst1.dfm
+
+Samples\Delphi\SslInternet\OverbyteIcsXferTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsXferTst.dof
+Samples\Delphi\SslInternet\OverbyteIcsXferTst1.pas
+Samples\Delphi\SslInternet\OverbyteIcsXferTst1.dfm
 
 Samples\Delphi\SslInternet\OverbyteIcsCommonVersion.res
 

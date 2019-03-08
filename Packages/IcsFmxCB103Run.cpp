@@ -14,11 +14,11 @@
 #ifdef _WIN64
   #pragma link "cryptui.a"
   #pragma link "crypt32.a"
-  #pragma link "IcsCommonCB102Run.a"
+  #pragma link "IcsCommonCB103Run.a"
 #else
   #pragma link "cryptui.lib"
   #pragma link "crypt32.lib"
-  #pragma link "IcsCommonCB102Run.lib"
+  #pragma link "IcsCommonCB103Run.lib"
 #endif
 
 #pragma argsused

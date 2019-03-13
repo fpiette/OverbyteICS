@@ -615,6 +615,9 @@ Source\Ics.Fmx.OverbyteIcsIpStreamLog.pas
 Source\Ics.Fmx.OverbyteIcsMailQueue.pas
 Source\Ics.Fmx.OverbyteIcsSntp.pas
 Source\Ics.Fmx.OverbyteIcsWhoisCli.pas
+Source\Ics.Fmx.OverbyteIcsFileCopy.pas
+Source\Ics.Fmx.OverbyteIcsFtpMulti.pas
+Source\Ics.Fmx.OverbyteIcsHttpMulti.pas
 
 Source\Ics.Posix.KEventApi.pas
 Source\Ics.Posix.KEventTypes.pas

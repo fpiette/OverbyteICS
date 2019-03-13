@@ -3,7 +3,7 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.3 Rio
 (Aka FPIETTE's Components)
 
 
-Revised: March 4, 2019
+Revised: March 8, 2019
 Release: V8.59
 http://www.overbyte.be/
 http://wiki.overbyte.be/
@@ -541,6 +541,25 @@ the project group and package name: use CB2006, CBXe, etc, see above.
 You can't have Delphi 2006 and CBuilder 2006 packages installed at the
 same time in the IDE. So when switching from one to the other, be sure to
 remove the one you don't need.
+
+The Embarcadero installation adds this to the system path:
+
+  C:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl
+
+This however does not allow Win32 packages to be installed, to do that you
+need to add this path to the system path (win10=Start, Edit the system
+environment variables, Environment variables, System variables, Path,
+Edit, New:)
+
+C:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl\Win32
+
+New projects that need to use ICS:
+
+include path:
+- add {THE DIR YOU EXTRACTED ICS To}\source\include\103\win32
+
+library path
+- add C:\Users\Public\Documents\Embarcadero\Studio\20.0\BPL\Win32
 
 Building the FireMonkey CBXE2InstallVclFmx C++ packages for OSX may trigger an
 ILINK32 error, this is a bug in C++ Builder reported as QC #103668 the Win32

@@ -1184,7 +1184,7 @@ TSslX509Certs = class(TIcsWndControl)
     FX509BusyFlag: Boolean;
     FPendOpenAccount: String;
     FLastResponse: String;
-    FSocketFamily:  TSocketFamily;   { V8.60 }
+    FSocketFamily: TSocketFamily;   { V8.60 }
   protected
     { Protected declarations }
     procedure RestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);

@@ -167,13 +167,13 @@ Sep 18, 2018 V8.57 Added IcsWireFmtToStrList and IcsStrListToWireFmt converting
                      ease saving set bit maps to INI files and registry.
                    Added IcsExtractNameOnly and IsPathDelim
 Dec 17, 2019 V8.59 Added IcsGetExceptMess
-Feb 25, 2019 V8.60 Added IcsFormatSettings to replace formatting public vars removed in XE3.
+Mar 11, 2019 V8.60 Added IcsFormatSettings to replace formatting public vars removed in XE3.
                    Added IcsAddThouSeps to add thousand separators to a numeric string.
                    Added IcsInt64ToCStr and IcsIntToCStr integer to thou sep strings.
                    Added GetBomFromCodePage
                    Added TIcsFindList descendent of TList with a Find function
                         using binary search identical to sorting.
-                   Added IcsDeleteFile and IcsRenameFile
+                   Added IcsDeleteFile, IcsRenameFile and IcsForceDirsEx
                    Added IcsTransChar, IcsPathUnixToDos and IcsPathDosToUnix
                    Added IcsSecsToStr and IcsGetTempPath
 
@@ -649,9 +649,13 @@ const
     function IcsDeleteFile(const Fname: string; const ReadOnly: boolean): Integer;   { V8.60 }
     function IcsRenameFile(const OldName, NewName: string;
                                         const Replace, ReadOnly: boolean): Integer;  { V8.60 }
+    function IcsForceDirsEx(const Dir: String): Boolean;  { V8.60 }
     function IcsTransChar(const S: string; FromChar, ToChar: Char): string;  { V8.60 }
+    function IcsTransCharW(const S: UnicodeString; FromChar, ToChar: WideChar): UnicodeString;  { V8.60 }
     function IcsPathUnixToDos(const Path: string): string;   { V8.60 }
     function IcsPathDosToUnix(const Path: string): string;   { V8.60 }
+    function IcsPathUnixToDosW(const Path: UnicodeString): UnicodeString;   { V8.60 }
+    function IcsPathDosToUnixW(const Path: UnicodeString): UnicodeString;   { V8.60 }
     function IcsSecsToStr(Seconds: Integer): String;         { V8.60 }
     function IcsGetTempPath: String;                         { V8.60 }
 
@@ -6827,6 +6831,23 @@ end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ force sub directories, replacing file of same name if necessary }
+function IcsForceDirsEx(const Dir: String): Boolean;  { V8.60 }
+begin
+    Result := True;
+    if Length(Dir) = 0 then begin
+        Result := False;
+        Exit;
+    end;
+    if (Pos ('\', Dir) = 0) and (Pos (':', Dir) = 0) then Exit;
+    if DirectoryExists (Dir) then Exit;
+    if FileExists(ExcludeTrailingPathDelimiter(Dir)) then
+            IcsDeleteFile(ExcludeTrailingPathDelimiter(Dir), True);
+    Result := ForceDirectories (Dir);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.60 borrowed from IcsStreams }
 function GetBomFromCodePage(ACodePage: LongWord) : TBytes;
 begin
@@ -6879,6 +6900,32 @@ end;
 function IcsPathDosToUnix(const Path: string): string;   { V8.60 }
 begin
   Result := IcsTransChar(Path, '\', '/');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsTransCharW(const S: UnicodeString; FromChar, ToChar: WideChar): UnicodeString;  { V8.60 }
+var
+    I: Integer;
+begin
+    Result := S;
+    for I := 1 to Length(Result) do begin
+        if Result[I] = FromChar then
+            Result[I] := ToChar;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsPathUnixToDosW(const Path: UnicodeString): UnicodeString;   { V8.60 }
+begin
+  Result := IcsTransCharW(Path, '/', '\');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsPathDosToUnixW(const Path: UnicodeString): UnicodeString;   { V8.60 }
+begin
+  Result := IcsTransCharW(Path, '\', '/');
 end;
 
 

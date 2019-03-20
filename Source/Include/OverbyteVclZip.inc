@@ -1,4 +1,4 @@
-// define zipping supported in magcopy, magftp and maghttp
+// define zipping supported in OverbyteIcsFileCopy, OverbyteIcsFtpMulti, OverbyteIcsHttpMulti
 // requires VCLZip installed
-{$DEFINE Zipping}
+{.DEFINE Zipping}
 

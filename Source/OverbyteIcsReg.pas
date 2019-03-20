@@ -17,7 +17,11 @@ Oct 2018   V8.58 - New components now installed for FMX and VCL
                    Added subversion to sIcsLongProductName for splash screen
 Nov 2019   V8.59 - Version only
 Mar 2019   V8.60 - Angus added TIcsMailQueue, TIcsIpStrmLog, TIcsWhoisCli,
-                   TIcsTimeServer, TIcsTimeClient, TIcsBlacklist
+                     TIcsTimeServer, TIcsTimeClient, TIcsBlacklist,
+                     TIcsFileCopy, TIcsFtpMulti, TIcsHttpMulti.
+                   For Delphi 2007 only, added TFtpClientW, TFtpServerW,
+                     TIcsFileCopyW, TIcsFtpMultiW and TIcsHttpMultiW.
+                   Added Forum and Wiki URLs to About Box.
 
 
 }
@@ -129,6 +133,13 @@ uses
     OverbyteIcsSntp,
     OverbyteIcsBlacklist,
     OverbyteIcsFileCopy,
+   {$IFDEF DELPHI11}
+      OverbyteIcsFtpCliW,
+      OverbyteIcsFtpSrvW,
+      OverbyteIcsFileCopyW,
+      OverbyteIcsFtpMultiW,
+      OverbyteIcsHttpMultiW,
+   {$ENDIF}
     // VCL only
     OverbyteIcsMultiProgressBar,
     OverbyteIcsEmulVT, OverbyteIcsTnCnx, OverbyteIcsTnEmulVT, OverbyteIcsTnScript,
@@ -198,6 +209,11 @@ begin
       TDnsQuery, TFingerCli, TPing,
       TIcsCharsetComboBox,
       TIcsBlacklist,     { V8.60 }
+      {$IFDEF DELPHI11}
+        TFtpClientW,    { V8.60 }
+        TFtpServerW,    { V8.60 }
+        TIcsFileCopyW,  { V8.60 }
+      {$ENDIF}
       TIcsFileCopy       { V8.60 }
     ]);
 {$ENDIF}
@@ -221,7 +237,10 @@ begin
 {$IFDEF ICS_COMMON}
     RegisterComponents('Overbyte ICS', [
       { Components neither depending on the FMX nor on the VCL package }
-      TMimeDecode, TMimeDecodeEx, TMimeDecodeW, TMimeTypesList,
+      TMimeDecode,
+      TMimeDecodeEx,
+      TMimeDecodeW,
+      TMimeTypesList,
    {$IFNDEF BCB}
       TIcsCookies,
    {$ENDIF !BCB}
@@ -257,6 +276,12 @@ begin
       TIcsIpStrmLog,  { V8.60 }
       TIcsFtpMulti,   { V8.60 }
       TIcsHttpMulti,  { V8.60 }
+      {$IFDEF DELPHI11}
+        TSslFtpClientW,  { V8.60 }
+        TSslFtpServerW,  { V8.60 }
+        TIcsFtpMultiW,   { V8.60 }
+        TIcsHttpMultiW,  { V8.60 }
+      {$ENDIF}
     {$IFDEF VCL}
       {$IFNDEF BCB}
         TSslWSocketThrdServer,
@@ -312,6 +337,8 @@ const
                           // copyright, so either all or none should be mentioned
                           // here.
                           'http://www.overbyte.eu/' + #13#10 +
+                          'Wiki: http://wiki.overbyte.eu/' + #13#10 +
+                          'Support: https://en.delphipraxis.net/forum/37-ics-internet-component-suite/' + #13#10 +
                           'svn://svn.overbyte.be/ics/trunk' + #13#10 +
                           'http://svn.overbyte.be:8443/svn/ics/trunk' + #13#10 +
                           'User and password = "ics"';

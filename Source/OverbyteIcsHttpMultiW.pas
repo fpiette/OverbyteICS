@@ -1,9 +1,10 @@
 {*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 Author:       Angus Robertson, Magenta Systems Ltd
-Description:  TIcsHttpMulti is a high level HTTP Delphi component that allows
+Description:  TIcsHttpMultiW is a high level HTTP Delphi component that allows
               downloading of multiple files from an HTTP server using full URLs,
               or listed by parsing links from a web page, using a single
               function call.
+              W version supports widestring/Unicode for Delphi 2007 and earlier
 Creation:     May 2001
 Updated:      Mar 2019
 Version:      8.60
@@ -58,18 +59,16 @@ Requires Kevin Boylan's TVCLZip component for zipping from http://www.vclzip.net
 if you don't purchase this component you will need to suppress DEFINE Zipping from
 MAGZIP.INC so the zip code is not linked.
 
-
 Main functions:
 
 Download - download a list of URLs, optionally parsing HTML for links
 
 
 
-
 08 May 2001  - baseline
 6 June 2001  - added ReplRO to replace read only files on download
               support # at end of URL for section
-8 June 2001  - added Fr to TIcsFileRec elements so names are unique
+8 June 2001  - added Fr to TFileRec elements so names are unique
 14 June 2001 - remove section from URL
 25 June 2001 - added LogLevelDelimFile and LogLevelDelimTot to return info
                  for each file suitable for further processing
@@ -108,9 +107,10 @@ Download - download a list of URLs, optionally parsing HTML for links
 03 Mar 2008  - added DelimActualSize which if non-zero is actual size relating to duration
                fix content field parsing for text failed if multiple arguments
 7 Aug 2008   - updated for latest ICS V6 and V7, and for Delphi 2009 compatibility
-18 Nov 2008  - no changes
-7 Aug 2010   - 3.5 - fixed various string casts for D2009 and later
-11 Aug 2011  - 3.7 - now registered in MagentaXferReg
+---------------------------------------------------------------------------------
+11 Sept 2008 - Unicode vesion unit renamed MagentaFtpW with TMagFtpW
+22 Oct 2008  - using OverbyteIcsFtpSrvWT
+18 Nov 2008  - renamed to MagentaHttp3W
 20 Oct 2011  - 3.8 - log time and speed of each download
                slow down progress updates for better performance
                support 64-bit downloads
@@ -118,7 +118,7 @@ Download - download a list of URLs, optionally parsing HTML for links
                most file sizes now reported in Kbytes. Mbytes, Gbytes instead of bytes
 24 Aug 2012 - 4.0 - updated to support ICS V8 with IPv6
 11 Mar 2013 - 4.1 - default to allowing IPv4 or IPv6 host names
-12 May 2015 - 4.2 - better SSL handshake reporting
+13 Jul 2015 - 4.2 - better SSL handshake reporting
               added SSL server certificate checking
 23 Oct 2015 - 4.3 - better SSL certificate reporting
               fixed cert checking corrupting download file name
@@ -138,16 +138,22 @@ Download - download a list of URLs, optionally parsing HTML for links
               Use built-in CA bundle if file missing.
               Added SslCliSecurity property to set security level to TSslCliSecurity
 18 Mar 2019 - V8.60 - Adapted for main ICS packages and FMX support.
-              TMagHttp to TIcsHttpMulti.
-              Most Types have Ics added, so: TIcsTaskResult now TIcsTaskResult.
-              No longer needs Forms.
-              Added MaxRetries to repeat each URL, might help if multiple DNS
-                addresses are returned.
+             TIcsHttpMultiW to TIcsHttpMultiW.
+             Most Types have Ics added, so: TIcsTaskResult now TIcsTaskResult.
+             No longer needs Forms.
+             Added MaxRetries to repeat each URL, might help if multiple DNS
+               addresses are returned.
+
+
+
+PENDING - recognise UTF8 encoded files, decode them and download UTF8 file names
+
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
-unit OverbyteIcsHttpMulti;
+unit OverbyteIcsHttpMultiW;
 {$ENDIF}
 
 {$I Include\OverbyteIcsDefs.inc}
@@ -170,66 +176,43 @@ unit OverbyteIcsHttpMulti;
 interface
 
 uses
-{$IFDEF MSWINDOWS}
-    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
-    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
-{$ENDIF}
-{$IFDEF POSIX}
-    Posix.Time,
-    Ics.Posix.WinTypes,
-    Ics.Posix.Messages,
-{$ENDIF}
-    {$Ifdef Rtl_Namespaces}System.Classes{$Else}Classes{$Endif},
-    {$Ifdef Rtl_Namespaces}System.Sysutils{$Else}Sysutils{$Endif},
-    {$Ifdef Rtl_Namespaces}System.Masks{$Else}Masks{$Endif},
-{$IFDEF FMX}
-    Ics.Fmx.OverbyteIcsWndControl,
-    Ics.Fmx.OverbyteIcsWSocket,
-    Ics.Fmx.OverbyteIcsHttpProt,
-    Ics.Fmx.OverbyteIcsBlacklist,
-    Ics.Fmx.OverbyteIcsFileCopy,
-    Ics.Fmx.OverbyteIcsSslSessionCache,
-    Ics.Fmx.OverbyteIcsSslX509Utils,
-    Ics.Fmx.OverbyteIcsMsSslUtils,
-{$ELSE}
-    OverbyteIcsWndControl,
-    OverbyteIcsWSocket,
-    OverbyteIcsHttpProt,
-    OverbyteIcsBlacklist,
-    OverbyteIcsFileCopy,
-    OverbyteIcsSslSessionCache,
-    OverbyteIcsSslX509Utils,
-    OverbyteIcsMsSslUtils,
-{$ENDIF FMX}
+  Windows, Messages, SysUtils, Classes, Forms, Masks,
+  OverbyteIcsWndControl,
+  OverbyteIcsWSocket,
+  OverbyteIcsHttpProt,
+  OverbyteIcsUrl,
   OverbyteIcsFtpSrvT,
   OverbyteIcsHtmlPars,
-  OverbyteIcsURL,
+  OverbyteIcsBlacklist,
+  OverbyteIcsFileCopyW,
+  OverbyteIcsFtpSrvWT,
   OverbyteIcsTypes,
   OverbyteIcsUtils,
-  OverbyteIcsLogger
-  {$IFDEF Zipping} , VCLZip, VCLUnZip, kpZipObj {$ENDIF}
-  , OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
+  OverbyteIcsLogger,
+  {$IFDEF Zipping} VCLZip, VCLUnZip, kpZipObj, {$ENDIF}
+  OverbyteIcsSSLEAY,
+  OverbyteIcsLIBEAY,
+  OverbyteIcsSslSessionCache,
+  OverbyteIcsSslX509Utils,
+  OverbyteIcsMsSslUtils,
   OverbyteIcsWinCrypt;
-
-{ NOTE - these components only build with SSL, there is no non-SSL option }
 
 {$IFDEF USE_SSL}
 
 
 const
-    HttpMultiCopyRight : String = ' TIcsHttpMulti (c) 2019 V8.60 ';
-
+    HttpMultiCopyRight : String = ' TIcsHttpMultiW (c) 2019 V8.60 ';
 type
     THttpSslVerifyMethod = (httpSslVerNone, httpSslVerBundle, httpSslVerWinStore) ;   // 20 Apr 2015
 
 type
-  TIcsHttpMulti = class(TSslHttpCli)
+  TIcsHttpMultiW = class(TSslHttpCli)
   private
     { Private declarations }
         fCancelFlag: boolean ;
         fProgFileSize: int64 ;
         fProgMessBase: string ;
-        fIcsFileCopy: TIcsFileCopy ;
+        fIcsFileCopy: TIcsFileCopyW ;
         fSslSessCache: boolean ;
         fSslContext: TSslContext ;
         fExternalSslSessionCache: TSslAvlSessionCache ;
@@ -257,7 +240,7 @@ type
         fLogProt: boolean ;
         fLogLDir: boolean ;
         fLogRDir: boolean ;
-        fCopyEvent: TBulkCopyEvent ;
+        fCopyEvent: TBulkCopyEventW ;
         fTotProcFiles: integer ;
         fProcOKFiles: integer ;
         fProcFailFiles: integer ;
@@ -274,7 +257,7 @@ type
         fZipDir: String ;
      {$ENDIF}
 
-    procedure doCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: string) ;
+    procedure doCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: UnicodeString) ;
     procedure onHttpDataEvent (Sender : TObject; Buffer : Pointer; Len : Integer);
     procedure onHttpCommand (Sender: TObject; var S: String) ;
     procedure onHttpHeaderData (Sender : TObject);
@@ -291,7 +274,7 @@ type
     procedure OnHttpSslHandshakeDone(Sender: TObject; ErrCode: Word;
                                       PeerCert: TX509Base; var Disconnect: Boolean);
     procedure OnHttpSslCliCertRequest(Sender: TObject; var Cert: TX509Base);
-    procedure onMagCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: string ;
+    procedure onMagCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: UnicodeString ;
                                                   var Cancel: boolean) ;
     procedure UnZipHandleMessage(Sender: TObject;
               const MessageID: Integer; const Msg1, Msg2: String;
@@ -300,10 +283,10 @@ type
 
   public
     { Public declarations }
-        SrcFiles: TIcsFDirRecs  ;
+        SrcFiles: TIcsFDirRecsW ;
         SrcFileList: TIcsFindList ;
         TotSrcFiles: integer ;
-        TarFiles: TIcsFDirRecs  ;
+        TarFiles: TIcsFDirRecsW ;
         TarFileList: TIcsFindList ;
         LogRcvdCerts: boolean ; // 20 Apr 2015
 
@@ -326,7 +309,7 @@ type
     property LogProt: boolean           read fLogProt    write fLogProt ;
     property LogLDir: boolean           read fLogLDir    write fLogLDir ;
     property LogRDir: boolean           read fLogRDir    write fLogRDir ;
-    property CopyEvent: TBulkCopyEvent  read fCopyEvent  write fCopyEvent ;
+    property CopyEvent: TBulkCopyEventW read fCopyEvent  write fCopyEvent ;
     property SslSessCache: boolean      read fSslSessCache write fSslSessCache ;
     property HttpSslVerMethod: THttpSslVerifyMethod read fHttpSslVerMethod write fHttpSslVerMethod ;  // 20 Apr 2015
     property SslRootFile: string        read fSslRootFile write fSslRootFile ;         // 20 Apr 2015
@@ -359,7 +342,7 @@ type
 
 implementation
 
-function ExtractUNIXName(const FileName: string): string;
+function IcsExtractUNIXNameW(const FileName: UnicodeString): string;
 var
     I: Integer;
 begin
@@ -367,19 +350,20 @@ begin
     Result := Copy(FileName, I + 1, MaxInt);
 end;
 
-constructor TIcsHttpMulti.Create(Aowner:TComponent);
+
+constructor TIcsHttpMultiW.Create(Aowner:TComponent);
 begin
     inherited create(AOwner);
  // winsock bug fix for fast connections
     CtrlSocket.ComponentOptions := [wsoNoReceiveLoop] ;
-    fIcsFileCopy := TIcsFileCopy.Create (self) ;
+    fIcsFileCopy := TIcsFileCopyW.Create (self) ;
     fIcsFileCopy.CopyEvent := onMagCopyEvent ;
     OnDocData := onHttpDataEvent ;
     OnCommand := onHttpCommand ;
     OnHeaderData := onHttpHeaderData ;
     OnSessionConnected := onHttpSessionConnected ;
     OnLocationChange := onHttpLocationChange ;
-    fProgressSecs := 2 ;   // update progress every two seconds default
+    fProgressSecs := 2 ;
     FSocketFamily := sfAny ;  // March 2013 allow IPv4 or IPv6
     fSslSessCache := true ;
     fExternalSslSessionCache := nil ;  // 9 Nov 2005
@@ -408,7 +392,7 @@ begin
     fAttemptDelay := 1 ;   // seconds
 end ;
 
-destructor TIcsHttpMulti.Destroy;
+destructor TIcsHttpMultiW.Destroy;
 begin
     FreeAndNil (fIcsFileCopy) ;
     FreeAndNil (SrcFileList) ;
@@ -419,7 +403,7 @@ begin
     inherited Destroy;
 end;
 
-procedure TIcsHttpMulti.DoRequestSync(Rq : THttpRequest);
+procedure TIcsHttpMultiW.DoRequestSync(Rq : THttpRequest);
 begin
     DoRequestAsync(Rq);
 
@@ -430,10 +414,24 @@ begin
     end
     else begin
         while FState <> httpReady do begin
+{$IFNDEF NOFORMS}
+            Application.ProcessMessages;
+            if Application.Terminated then begin
+                Abort;
+                break;
+            end;
+{$ELSE}
             FCtrlSocket.ProcessMessages;
+{$ENDIF}
         end;
     end;
 
+{* Jul 12, 2004
+   WARNING: The component now doesn't consider 401 status
+            as a fatal error (no exception is triggered). This required a
+            change in the application code if it was using the exception that
+            is no more triggered for status 401.
+*}
     if NOT FResponseNoException then begin  { V8.54 should error exceptions be skipped? May 2018 }
         if FStatusCode > 401 then
             raise EHttpException.Create(FReasonPhrase, FStatusCode);
@@ -493,6 +491,7 @@ var
     path: string ;
     nsep1, nsep2: integer ;
 begin
+//    HttpProt.ParseURL (url, Proto, User, Pass, Host, Port, path) ;
     OverbyteIcsURL.ParseURL (url, Proto, User, Pass, Host, Port, path) ;
     Dirs := '' ;
     Fname := '' ;
@@ -571,7 +570,7 @@ begin
     if Dirs <> '' then
     begin
         if Dirs [Length (Dirs)] = '/' then
-                      SetLength (Dirs, Pred (Length (Dirs))) ;  // remove last /
+              SetLength (Dirs, Pred (Length (Dirs))) ;  // remove last /
     end ;
     while (Pos ('../', Rname) = 1) do
     begin
@@ -590,14 +589,14 @@ begin
         Result := Rname ;
 end ;
 
-procedure TIcsHttpMulti.onMagCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: string ;
+procedure TIcsHttpMultiW.onMagCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: UnicodeString ;
                                                   var Cancel: boolean) ;
 begin
     doCopyEvent (LogLevel, Info) ;
     Cancel := fCancelFlag ;
 end ;
 
-procedure TIcsHttpMulti.doCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: string) ;
+procedure TIcsHttpMultiW.doCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: UnicodeString) ;
 begin
     if Assigned (CopyEvent) then
     begin
@@ -605,7 +604,7 @@ begin
     end ;
 end ;
 
-procedure TIcsHttpMulti.onHttpSessionConnected (Sender : TObject);
+procedure TIcsHttpMultiW.onHttpSessionConnected (Sender : TObject);
 var
     S: String;
 begin
@@ -617,27 +616,27 @@ begin
     doCopyEvent (LogLevelDiag, S) ;
 end ;
 
-procedure TIcsHttpMulti.onHttpLocationChange(Sender : TObject);
+procedure TIcsHttpMultiW.onHttpLocationChange(Sender : TObject);
 begin
     doCopyEvent (LogLevelDiag, '= ' + FURL + ' Redirected to: ' + FLocation) ;
 end ;
 
-procedure TIcsHttpMulti.onHttpCommand (Sender: TObject; var S: String) ;
+procedure TIcsHttpMultiW.onHttpCommand (Sender: TObject; var S: String) ;
 begin
     doCopyEvent (LogLevelDiag, '> ' + S) ;
 end;
 
-procedure TIcsHttpMulti.onHttpHeaderData (Sender : TObject);
+procedure TIcsHttpMultiW.onHttpHeaderData (Sender : TObject);
 begin
     doCopyEvent (LogLevelDiag, '< ' + LastResponse) ;
 end ;
 
-procedure TIcsHttpMulti.onAuthStep (Sender : TObject);
+procedure TIcsHttpMultiW.onAuthStep (Sender : TObject);
 begin
     doCopyEvent (LogLevelDiag, '= NTLM Authorisation Step ' + LastResponse) ;
 end ;
 
-procedure TIcsHttpMulti.onHttpDataEvent (Sender : TObject; Buffer : Pointer; Len : Integer);
+procedure TIcsHttpMultiW.onHttpDataEvent (Sender : TObject; Buffer : Pointer; Len : Integer);
 var
     info: string ;
     newsize: int64 ;
@@ -656,17 +655,17 @@ begin
     fLastProgTick := IcsGetTickCount ;
 end ;
 
-procedure TIcsHttpMulti.EndUnZipEvent (Sender: TObject; FileIndex: Integer; FName: String) ;
+procedure TIcsHttpMultiW.EndUnZipEvent (Sender: TObject; FileIndex: Integer; FName: String) ;
 var
     newsize: integer ;
 begin
     if FName = '' then exit ;
-    newsize := IcsGetFileSize (Fname) ;
+    newsize := IcsGetFileSizeW (Fname) ;
     doCopyEvent (LogLevelFile, 'Unzipped OK: ' + Fname + ', size: ' + IntToKByte (newsize, true)) ;
     doCopyEvent (LogLevelDelimFile, 'Unzipped|' + Fname + '|' + IntToStr (newsize) + '|1|0|OK|0|0') ;
 end ;
 
-procedure TIcsHttpMulti.UnZipHandleMessage(Sender: TObject;
+procedure TIcsHttpMultiW.UnZipHandleMessage(Sender: TObject;
           const MessageID: Integer; const Msg1, Msg2: String;
           const flags: Cardinal; var Return: Integer);
 begin
@@ -674,7 +673,7 @@ begin
     Return := 0 ;
 end;
 
-procedure TIcsHttpMulti.OnHttpSslVerifyPeer(Sender: TObject;
+procedure TIcsHttpMultiW.OnHttpSslVerifyPeer(Sender: TObject;
                                             var Ok: Integer; Cert : TX509Base);
 var
     info: string ;
@@ -682,7 +681,7 @@ begin
     OK := 1; // don't check certificate until handshaking over
     if LogRcvdCerts then   // 20 Apr 2015
     begin
-        info := 'Received Certificate, Depth ' + IntToStr (Cert.VerifyDepth) + #13#10 +
+         info := 'Received Certificate, Depth ' + IntToStr (Cert.VerifyDepth) + #13#10 +
                  'Verify Result: ' + Cert.VerifyErrMsg + #13#10 +
                  Cert.CertInfo (true) + #13#10 ;  // Mar 2017 simplify
         doCopyEvent (LogLevelDiag, info);
@@ -690,27 +689,28 @@ begin
 end ;
 
 
-procedure TIcsHttpMulti.OnHttpSslCliNewSession(Sender: TObject; SslSession: Pointer;
+procedure TIcsHttpMultiW.OnHttpSslCliNewSession(Sender: TObject; SslSession: Pointer;
                                     WasReused: Boolean; var IncRefCount : Boolean) ;
 var
     HttpCli: TSslHttpCli;
 begin
     { SslCliNewSession/SslCliGetSession allow external, client-side session }
     { caching.                                                              }
+    if not fSslSessCache then Exit;  // March 2018 no logging if disabled
     doCopyEvent (LogLevelDiag, 'Starting SSL Session');
-    if not fSslSessCache then Exit;
     if (not WasReused) then
     begin
         HttpCli := (Sender as TSslHttpCli);
         fExternalSslSessionCache.CacheCliSession(SslSession,
-                           HttpCli.CtrlSocket.PeerAddr + HttpCli.CtrlSocket.PeerPort, IncRefCount);
+                                   HttpCli.CtrlSocket.PeerAddr + HttpCli.CtrlSocket.PeerPort, IncRefCount);
         doCopyEvent (LogLevelDiag, 'Cache SSL Session: New');
     end
     else
         doCopyEvent (LogLevelDiag, 'Cache SSL Session: Reuse');
+ //   IncRefCount := false ;  // Dec 2016 should not be here
 end;
 
-procedure TIcsHttpMulti.OnHttpSslCliGetSession(Sender: TObject; var SslSession: Pointer;
+procedure TIcsHttpMultiW.OnHttpSslCliGetSession(Sender: TObject; var SslSession: Pointer;
                                                             var FreeSession : Boolean);
 var
     HttpCli: TSslHttpCli;
@@ -720,15 +720,16 @@ begin
     if not fSslSessCache then Exit;
     doCopyEvent (LogLevelDiag, 'Check for Old SSL Session');
     HttpCli := (Sender as TSslHttpCli);
-    SslSession := fExternalSslSessionCache.GetCliSession(
-                         HttpCli.CtrlSocket.PeerAddr + HttpCli.CtrlSocket.PeerPort, FreeSession);
+    SslSession := fExternalSslSessionCache.GetCliSession(HttpCli.CtrlSocket.PeerAddr +
+                                                                    HttpCli.CtrlSocket.PeerPort, FreeSession);
+//    FreeSession := True;   // Dec 2016 should not be here
     if Assigned (SslSession) then   // Dec 2016
         doCopyEvent (LogLevelDiag, 'Old SSL Session Found Cached')
     else
         doCopyEvent (LogLevelDiag, 'No Old SSL Session Cached');
 end;
 
-procedure TIcsHttpMulti.OnHttpSslHandshakeDone(Sender: TObject; ErrCode: Word;
+procedure TIcsHttpMultiW.OnHttpSslHandshakeDone(Sender: TObject; ErrCode: Word;
                                     PeerCert: TX509Base; var Disconnect: Boolean);
 var
     CertChain: TX509List;
@@ -749,8 +750,7 @@ begin
     end  ;
 
     doCopyEvent (LogLevelInfo, HttpCtl.SslServerName + ' ' + HttpCtl.SslHandshakeRespMsg) ;     // Dec 2014
-    if (SslAcceptableHosts.IndexOf (HttpCtl.SslServerName + PeerCert.Sha1Hex) >= 0) or  // Dec 2016 done it already
-       HttpCtl.SslSessionReused OR (fHttpSslVerMethod = HttpSslVerNone) then
+    if HttpCtl.SslSessionReused OR (fHttpSslVerMethod = HttpSslVerNone) then
     begin
         exit; // nothing to do, go ahead
     end ;
@@ -817,7 +817,6 @@ begin
     else
     begin
         doCopyEvent (LogLevelInfo, HttpCtl.SslServerName + ' SSL Chain Verification Succeeded') ;
-        SslAcceptableHosts.Add (HttpCtl.SslServerName + PeerCert.Sha1Hex) ;  // Dec 2016 save it
     end;
 
 // if certificate checking failed, see if the host is specifically listed as being allowed anyway
@@ -832,9 +831,9 @@ begin
     begin
         info := HttpCtl.SslServerName + ' ' + IntToStr (CertChain.Count) +
                 ' SSL Certificates in the verify chain:' + #13#10 +
-                     CertChain.AllCertInfo (true, true) + #13#10 ; // Mar 2017 report all certs, backwards
+                    CertChain.AllCertInfo (true, true) + #13#10 ; // Mar 2017 report all certs, backwards
         doCopyEvent (LogLevelInfo, info);
-   end;
+    end;
 
   // all failed
     if NOT Safe then
@@ -844,19 +843,21 @@ begin
     end;
 end;
 
-procedure TIcsHttpMulti.OnHttpSslCliCertRequest(Sender: TObject; var Cert: TX509Base);
+procedure TIcsHttpMultiW.OnHttpSslCliCertRequest(Sender: TObject; var Cert: TX509Base);
 begin
     doCopyEvent (LogLevelDiag, 'Certificate Request Ignored') ;
 end;
+
 
 // HTTP download multiple local files
 // returns false if error, with ReqResponse completed
 { Syntax of acceptable URL: protocol://[user[:password]@]server[:port]/path }
 
-function TIcsHttpMulti.Download (CheckFiles: boolean): TIcsTaskResult ;
+function TIcsHttpMultiW.Download (CheckFiles: boolean): TIcsTaskResult ;
 var
-    fnametar, newtardir, dochref, myerror: string ;
-    info, curURL, curresp, headfield, headdata, content: string ;
+    fnamesrc, fnametar, newtardir, dochref, myerror: string ;
+    ret: boolean ;
+    tempdir, info, curURL, curresp, headfield, headdata, content: string ;
     hostname, rootfname: string ;
     I, J, K, L, donenr, nsep, statcode, attemptnr: integer ;
     newsize, totsize, pagesize: int64 ;    // 10 Oct 2011
@@ -865,7 +866,7 @@ var
     starttick: DWORD ;
     fstarttick, duration: longword ;
     NewList: TStringList ;
-    SrcFileRec: PTIcsFDirRec ;
+    SrcFileRec: PTIcsFDirRecW ;
     DownloadStream: TMemoryStream ;
     CMask: TMask ;
     Proto, User, Pass, Host, Port, Dirs, Fname, Section, Query: String ;  // parsed URL
@@ -879,11 +880,12 @@ var
     var
         TickCount: longword;
     begin
-        TickCount := IcsGetTickCount ;
-        while ((IcsGetTickCount - TickCount) < aMs) do
+        TickCount := GetTickCount ;
+        while ((GetTickCount - TickCount) < aMs) do
         begin
-            ProcessMessages;
-            if FTerminated then break ;
+            Application.ProcessMessages;
+           //  MessagePump;  // in HTTP client
+            if Application.Terminated then break ;
         end ;
     end;
 
@@ -970,7 +972,7 @@ begin
     initURLs := NewList.Count ;
     while (I < NewList.Count) do   // URLs may get added to this list during parsing
     begin
-        ProcessMessages ;
+        Application.ProcessMessages ;
         if fCancelFlag then exit ;
         curURL := trim (NewList [I]) ;
         inc (I) ;
@@ -987,6 +989,7 @@ begin
         ParseExURL (curURL, Proto, User, Pass, Host, Port, Dirs, Fname, Section, Query) ;
         if (Dirs = '') or (Section <> '') then
         begin
+   //         if Dirs = '' then Dirs := '/' ;  get added automatically
             curURL := BuildExURL (Proto, User, Pass, Host, Port, Dirs, Fname, '', Query) ;
         end ;
         ParseExURL (curURL, Proto, User, Pass, Host, Port, Dirs, Fname, Section, Query) ;
@@ -1009,6 +1012,10 @@ begin
             if Length (curURL) <> 0 then doCopyEvent (LogLevelInfo, 'Invalid URL: ' + curURL) ;
             continue ;
         end ;
+
+    // Initializes Openssl library on create - 9 Nov 2005
+   // 4.7 June 2018 do it once before loop
+//      if (Pos ('https', Proto) = 1) then
         doCopyEvent (LogLevelDiag, 'Get Headers for URL: ' + curURL) ;
         doCopyEvent (LogLevelProg, 'Get Headers for URL: ' + curURL) ;
         URL := curURL ;
@@ -1030,8 +1037,6 @@ begin
                 statcode := StatusCode ;
                 if statcode = 200 then statcode := 999 ;
             end ;
-         // few seconds wait for next attempt
-            if fCancelFlag then exit ;
             if attemptnr < fMaxAttempts then
             begin
                 doCopyEvent (LogLevelInfo, 'Waiting for ' + IntToStr (fAttemptDelay) + ' secs, then Retrying') ;
@@ -1078,7 +1083,7 @@ begin
         if modDT = 0 then modDT := Now ;
 
       // keeping this file, create file record
-        info := LowerCase (ExtractUNIXName (Fname)) ;
+        info := LowerCase (IcsExtractUNIXNameW (Fname)) ;
         if fParseHTML and (fSrcMask <> '*.*') then   // allow blank names if all
         begin
             if NOT CMask.Matches (info) then info := '' ; // check against mask
@@ -1115,7 +1120,7 @@ begin
             DownloadStream.Clear ;
             RcvdStream := DownloadStream ;
             onHttpDataEvent (Self, Nil, 0) ;
-            ProcessMessages ;
+            Application.ProcessMessages ;
             sysDelayX (20) ;  // short delay, too rapid requests seem to die,  7 Apr 2003 TEMP !!!!
             try
                 Get ;   // get sync header and body
@@ -1126,6 +1131,8 @@ begin
                 statcode := StatusCode ;
                 if statcode = 200 then statcode := 999 ;
             end ;
+         // few seconds wait for next attempt
+            if fCancelFlag then exit ;
             if statcode <> 200 then
             begin
                 doCopyEvent (LogLevelInfo, 'Can Not Access URL: ' + curURL + ', ' + myerror +
@@ -1139,7 +1146,7 @@ begin
 
         // parse file into tags
             doCopyEvent (LogLevelDiag, 'Parse Content for: ' + curURL) ;
-            ProcessMessages ;
+            Application.ProcessMessages ;
             HTMLParser := TIcsHTMLParser.Create;
             try
             HTMLParser.Lines.LoadFromStream (DownloadStream) ;
@@ -1169,7 +1176,7 @@ begin
                         doCopyEvent (LogLevelDiag, 'Found Link: ' + dochref) ;
                         if Pos ('ftp://', dochref) > 0 then continue ;
                         if Pos ('mailto:', dochref) > 0 then continue ;
-                        info := LowerCase (ExtractUNIXName (dochref)) ;
+                        info := LowerCase (IcsExtractUNIXNameW (dochref)) ;
                         if (info <> '') or (fSrcMask <> '*.*') then   // allow blank names if all
                         begin
                             if NOT CMask.Matches (info) then continue ; // check against mask
@@ -1178,14 +1185,14 @@ begin
                             info := HTMLParam.Value
                         else
                             info := BuildExURL (Proto, User, Pass, Host, Port,
-                                                        '', RelativeName (Dirs, HTMLParam.Value), '', '') ;
+                                                                '', RelativeName (Dirs, HTMLParam.Value), '', '') ;
                         if NewList.IndexOf (info) = -1 then  // not if we have it already
                         begin
                             doCopyEvent (LogLevelDiag, 'Saved URL: ' + info) ;  // TEMP !!!!
                             NewList.Add (info) ;
                         end ;
                     end ;
-                    ProcessMessages ;
+                    Application.ProcessMessages ;
                     if fCancelFlag then exit ;
                 end ;
             end ;
@@ -1203,38 +1210,41 @@ begin
     end ;
 
 // build sorted list of source records, then remove duplicates
+    doCopyEvent (LogLevelDiag, 'Sorting URLs') ;  // TEMP !!!!
     SrcFileList.Capacity := TotSrcFiles ;
     for I := 0 to Pred (TotSrcFiles) do SrcFileList.Add (@SrcFiles [I]) ;
-    SrcFileList.Sort (IcsCompareFNext) ;
+    SrcFileList.Sort (IcsCompareFNextW) ;
+    doCopyEvent (LogLevelDiag, 'Removing Duplicate URLs') ;  // TEMP !!!!
     for I := 1 to Pred (SrcFileList.Count) do  // may get shorter!!
     begin
-        if PTIcsFDirRec (SrcFileList [I]).FrFullName =
-                            PTIcsFDirRec (SrcFileList [Pred (I)]).FrFullName then SrcFileList.Delete (I) ;
+        if PTIcsFDirRecW (SrcFileList [I]).FrFullName = PTIcsFDirRecW (SrcFileList [Pred (I)]).FrFullName then
+                                                                                          SrcFileList.Delete (I) ;
         if I >= Pred (SrcFileList.Count) then break ;
     end ;
     TotSrcFiles := SrcFileList.Count ;
 
 // show user the list we found
-    if fLogRDir then doCopyEvent (LogLevelInfo, 'Source HTTP Files:' + IcsCRLF + IcsFmtFileDirList (SrcFileList, false)) ;
-    ProcessMessages ;
+    if fLogRDir then doCopyEvent (LogLevelInfo, 'Source HTTP Files:' + IcsCRLF + IcsFmtFileDirListW (SrcFileList, false)) ;
+    Application.ProcessMessages ;
     if fCancelFlag then exit ;
 
 // build list of target files, so we don't copy unnecessary stuff
     doCopyEvent (LogLevelFile, 'Target Directory: ' + fDownDir) ;
-    if NOT IcsForceDirsEx (fDownDir) then
+    if NOT IcsForceDirsExW (fDownDir) then
     begin
         result := TaskResFail ;
         fReqResponse := 'Can Not Create Target Directory' ;
         exit ;
     end ;
     fIcsFileCopy.GetDirList (fDownDir, '*.*', FCTypeAllDir, true, 0, 0, TarFiles, TarFileList) ;
-    if fLogLDir then doCopyEvent (LogLevelInfo, 'Target Files on PC:' + IcsCRLF + IcsFmtFileDirList (TarFileList, false)) ;
-    ProcessMessages ;
+    if fLogLDir then doCopyEvent (LogLevelInfo, 'Target Files on PC' + IcsCRLF + IcsFmtFileDirListW (TarFileList, false)) ;
+    Application.ProcessMessages ;
     if fCancelFlag then exit ;
 
 // compare source and target files, see what to copy
+    doCopyEvent (LogLevelDiag, 'Checking Files Needed') ;  // TEMP !!!!
     fTotProcFiles := fIcsFileCopy.SelectCopyFileList (SrcFileList, TarFileList,
-                                 '*.*' , FCTypeMaskDir, fRepl, -1, false, '', fSkippedFiles, false) ;
+                                         '*.*' , FCTypeMaskDir, fRepl, -1, false, '', fSkippedFiles, false) ;
     if fTotProcFiles = 0  then
     begin
         result := TaskResOKNone ;
@@ -1246,7 +1256,7 @@ begin
     end ;
 
 // find size of stuff to copy
-    info := 'HTTP URLs Selected for Downloading are: ' + IcsCRLF ;
+    info := IcsCRLF + 'HTTP URLs Selected for Downloading are: ' + IcsCRLF ;
     newsize := 0 ;
     for I := 0 to Pred (TotSrcFiles) do
     begin
@@ -1256,14 +1266,14 @@ begin
             if FrFileCopy = FCStateSelect then
             begin
                 newsize := newsize + FrFileBytes ;
-                if CheckFiles then info := info + FrFullName + ', size ' + IntToKByte (FrFileBytes) + IcsCRLF ;
+                if CheckFiles then info := info + FrFullName + ', Size ' + IcsIntToCStr (FrFileBytes) + IcsCRLF ;
             end ;
         end ;
     end ;
     if CheckFiles then doCopyEvent (LogLevelInfo, info) ;
     doCopyEvent (LogLevelInfo, 'HTTP URLs Skipped ' + IntToStr (SkippedFiles)) ;
-    doCopyEvent (LogLevelInfo, 'Selected Total Files ' + IntToStr
-                                    (fTotProcFiles) + ', Total size ' + IntToKByte (newsize, true)) ;
+    doCopyEvent (LogLevelInfo, 'Selected Total Files ' + IntToStr (fTotProcFiles) +
+                                                             ', Total size ' + IntToKByte (newsize, true)) ;
 
 // stop now if only checking what will be downoaded
     if CheckFiles then
@@ -1272,18 +1282,18 @@ begin
         exit ;
     end ;
     doCopyEvent (LogLevelInfo, 'Started HTTP Download') ;
-    ProcessMessages ;
+    Application.ProcessMessages ;
     if fCancelFlag then exit ;
 
 // start real HTTP downloading
     donenr := 0 ;
     totsize := 0 ;
     result := TaskResOKNone ;  // now want to get one file OK
-    starttick := IcsGetTickCount ;
+    starttick := GetTickCount ;
     for I := 0 to Pred (TotSrcFiles) do
     begin
         doCopyEvent (LogLevelProg, '') ;  // clear
-        ProcessMessages ;
+        Application.ProcessMessages ;
         if fCancelFlag then exit ;
         SrcFileRec := SrcFileList [I] ;
         with SrcFileRec^ do
@@ -1293,8 +1303,8 @@ begin
             curURL := FrFullName ;
             if Length (FrSubDirs) > 1 then
             begin
-                newtardir := IcsPathUnixToDos (fDownDir + FrSubDirs) ;
-                if NOT IcsForceDirsEx (newtardir) then
+                newtardir := IcsPathUnixToDosW (fDownDir + FrSubDirs) ;
+                if NOT IcsForceDirsExW (newtardir) then
                 begin
                     doCopyEvent (LogLevelInfo, 'Can Not Create Directory: ' + newtardir) ;
                     inc (fProcFailFiles) ;
@@ -1305,20 +1315,21 @@ begin
             else
                 newtardir := fDownDir ;
             fnametar := IncludeTrailingBackslash (newtardir) + FrFileName ;
-            fProgMessBase := 'Downloading ' + IntToStr (donenr) +' of ' + IntToStr (fTotProcFiles) ;
-            doCopyEvent (LogLevelFile,  fProgMessBase + ' - ' + curURL +
-                                            ' to ' + fnametar + ', size ' + IntToKByte (FrFileBytes, true)) ;
+            fProgMessBase := 'Downloading ' + IntToStr (donenr) + ' of ' + IntToStr (fTotProcFiles) ;
+            doCopyEvent (LogLevelFile,  fProgMessBase + ' - ' + curURL +  ' to ' + fnametar +
+                                                                     ', size ' + IntToKByte (FrFileBytes, true)) ;
             FrFileCopy := FCStateCopying ;
             fProgMessBase := fProgMessBase + IcsCRLF + 'URL: ' + curURL ;
             fProgFileSize := FrFileBytes ;   // keep size and data for event handler
             URL := curURL ;
             fLastResponse := '' ;   // clear in case rubbish appears
             DownloadStream.Clear ;
+          //      DownloadStream.SetSize (FileBytes) ;  // not sure if this is efficient
             RcvdStream := DownloadStream ;
             onHttpDataEvent (Self, Nil, 0) ;
             duration := 0 ;
             try
-                fstarttick := IcsGetTickCount ;
+                fstarttick := GetTickCount ;
                 Get ;   // get sync header and body
                 statcode := StatusCode ;
                 if statcode <> 200 then myerror := ReasonPhrase ;  // 19 Oct 2015
@@ -1348,17 +1359,17 @@ begin
                         UpdateFileAge (fnametar, FrFileDT) ;  // not UTC date
                         FrFileCopy := FCStateOK ;
                         duration := IcsElapsedTicks (fstarttick) ;
-                        doCopyEvent (LogLevelFile, 'Download OK, size: ' + IntToKByte (newsize, true) + ', duration ' +
-                                     IcsSecsToStr (duration div 1000) + ', average speed ' +
-                                                      IntToKByte (IcsCalcSpeed (duration, newsize)) + '/sec') ;
+                        doCopyEvent (LogLevelFile, 'Download OK, size: ' + IntToKByte (newsize, true) +
+                          ', duration ' + IcsSecsToStr (duration div 1000) + ', average speed ' +
+                                                          IntToKByte (IcsCalcSpeed (duration, newsize)) + '/sec') ;
                                                                          // 10 Oct 2011 added duration and speed
                         doCopyEvent (LogLevelDelimFile, curURL + '|' + fnametar + '|' + IntToStr (newsize) +
-                                   '|1|0|OK|' + IntToStr (duration) + '|' + IntToStr (IcsCalcSpeed(duration, newsize))) ;
+                                                     '|1|0|OK|' + IntToStr (duration) + '|' + IntToStr (newsize)) ;
                     except
-                        doCopyEvent (LogLevelInfo, 'Error Saving File: ' +
-                                                      fnametar + ', ' + IcsGetExceptMess (ExceptObject)) ;
+                        doCopyEvent (LogLevelInfo, 'Error Saving File: ' + fnametar + ', ' + IcsGetExceptMess (ExceptObject)) ;
                         inc (fProcFailFiles) ;
                         FrFileCopy := FCStateFailed ;
+                      //  statcode := 0 ;
                     end ;
 
               // see if unzipping it
@@ -1379,23 +1390,23 @@ begin
                                 if ZipHasComment then info := ZipComment + IcsCRLF ;
                                 for J := 0 to Pred (Count) do
                                 begin
-                                   info := info + Format (sDirLine, [Filename [J], IntToKByte (UnCompressedSize [J]), ' ',
-                                         DateToStr (DateTime [J]) + ' ' + TimeToStr (DateTime [J]), Pathname[J]]) + IcsCRLF ;
+                                   info := info + Format (sDirLine, [Filename [J], IcsIntToCStr (UnCompressedSize [J]), ' ',
+                                     DateToStr (DateTime [J]) + ' ' + TimeToStr (DateTime [J]), Pathname[J]]) + IcsCRLF;
                                 end ;
                                 doCopyEvent (LogLevelInfo, 'Unzipping Files:' + IcsCRLF + info) ;
 
                             // extract all files
                                 FilesList.Clear ;
                                 DoAll := true ;
-                                if (fZipDir = '') and (fZipPath >= PathSpecific) then fZipPath := PathNew ;
+                                if (fZipDir = '') and (fZipPath >=  PathSpecific) then fZipPath := PathNew ;
                                 DestDir := ExtractFileDir (fnametar) ;     // Set destination directory
                                 RecreateDirs := false ;
                                 RootDir := '' ;   // base subdirectory
                                 if fZipPath in [PathOriginal, PathNewOrig, PathSpecOrig] then RecreateDirs := true ;
                                 if fZipPath in [PathNew, PathNewOrig] then
-                                           DestDir := ExtractFileDir (fnametar) + '\' + IcsExtractNameOnly (fnametar) ;
+                                   DestDir := ExtractFileDir (fnametar) + '\' + IcsExtractNameOnly (fnametar) ;
                                 if fZipPath in [PathSpecific, PathSpecOrig] then DestDir := fZipDir ;
-                                if NOT IcsForceDirsEx (DestDir) then
+                                if NOT IcsForceDirsExW (DestDir) then
                                 begin
                                     doCopyEvent (LogLevelFile, 'Failed to Create Unzip Dir: ' + DestDir) ;
                                     doCopyEvent (LogLevelDelimFile, fnametar + '|' + DestDir +
@@ -1419,15 +1430,13 @@ begin
                                 else
                                 begin
                                     doCopyEvent (LogLevelFile, 'Failed to Unzip: ' + fnametar) ;
-                                    doCopyEvent (LogLevelDelimFile, fnametar + '|' + DestDir +
-                                                                         '|0|0|1|Failed to Unzip File|0|0') ;
+                                    doCopyEvent (LogLevelDelimFile, fnametar + '|' + DestDir + '|0|0|1|Failed to Unzip File|0|0') ;
                                 end ;
                             end
                             else
                             begin
                                 doCopyEvent (LogLevelInfo, 'Zip File Corrupted:' + fnametar) ;
-                                doCopyEvent (LogLevelDelimFile, fnametar + '|' + DestDir +
-                                                                         '|0|0|1|Zip File Corrupted|0|0') ;
+                                doCopyEvent (LogLevelDelimFile, fnametar + '|' + DestDir + '|0|0|1|Zip File Corrupted|0|0') ;
                             end ;
                             ClearZip;
                         end ;
@@ -1442,12 +1451,12 @@ begin
                     else
                         doCopyEvent (LogLevelFile, 'Request Failed: No File Downloaded') ;
                     doCopyEvent (LogLevelDelimFile, curURL + '|' + fnametar + '|0|0|1|Download Failed: ' +
-                                                            LastResponse + '|' + IntToStr (duration) + '|0') ;
+                                                                 LastResponse + '|' + IntToStr (duration) + '|0') ;
                 end ;
             end
             else
             begin
-                duration := IcsElapsedTicks (fstarttick) ;
+                duration := GetTickCount - fstarttick ;
                 doCopyEvent (LogLevelInfo, 'Can Not Access URL: ' + curURL + ', ' +
                                                     myerror + ' (' + IntToStr (statcode) + ')') ;   // 19 Oct 2015
                 doCopyEvent (LogLevelDelimFile, curURL + '|' + fnametar + '|0|0|1|Download Failed: ' +
@@ -1457,6 +1466,8 @@ begin
             end ;
        end ;
     end ;
+//    if NOT fCancelFlag then // 14 Oct 2011
+//    begin
         result := TaskResOKNone ;
         if fProcFailFiles <> 0 then
             result := TaskResFail
@@ -1472,6 +1483,7 @@ begin
         doCopyEvent (LogLevelInfo, 'Total size downloaded ' + IntToKByte (totsize, true) + ', duration ' +
                                      IcsSecsToStr (duration div 1000) + ', average speed ' +
                                                      IntToKByte (IcsCalcSpeed (duration, totsize)) + '/sec') ;
+//    end ;
     finally
         {$IFDEF Zipping}
         if fZipped and (Assigned (VCLUnZip)) then VCLUnZip.Free ;  {$ENDIF}
@@ -1487,13 +1499,13 @@ begin
    end ;
 end;
 
-procedure TIcsHttpMulti.Cancel ;
+procedure TIcsHttpMultiW.Cancel ;
 begin
     fCancelFlag := true ;
     fLastProgTick := IcsGetTickCount ; // force progress event
     Abort ;
 end ;
 
-{$ENDIF USE_SSL}
+{$ENDIF}
 
 end.

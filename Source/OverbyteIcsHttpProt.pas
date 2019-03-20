@@ -366,7 +366,7 @@ Oct 31, 2005 V1.89a rework of authentication handling to fix a problem that coul
                in the URL (if specified), otherwise the content of the property.
             - same logic for Connection and ProxyConnection (introduced
               FCurrConnection and FCurrProxyConnection)
-Nov 19, 2005 V1.89b supports SSL v5 by Arno Garrels 
+Nov 19, 2005 V1.89b supports SSL v5 by Arno Garrels
 Nov 27, 2005 V1.90 implemented redirection limiting to avoid continuous
              looping to same URL, by Angus Robertson, Magenta Systems
              test example is http://www.callserve.com/ that keeps looping
@@ -526,13 +526,14 @@ Jun 18, 2018 V8.55 ReasonPhrase for abort may return SSL handshake error.
                    Minor clean-up, more relocation debugging
 Sep 5, 2018  V8.57 Added OnSelectDns event to allow application to change DnsResult to
                        one of the several offered, round robin or IPv4/IPv6
-Mar 6, 2019  V8.60 Added AddrResolvedStr read only property which is the IPv4/IPv6
+Mar 15, 2019 V8.60 Added AddrResolvedStr read only property which is the IPv4/IPv6
                       address to which the client is trying to connect.
                    Added IP address and port to 404 Connect error.
                    Added round robin DNS lookup if DNSLookup returns multiple
                      IP addresses so they are used in turn after a failure
                      when the component is called repeatedly.
-
+                   Only follow relocation for 3xx response codes, not 201 Created,
+                    but keep Location for 201 which is often response to a POST.
 
 
 To convert the received HTML stream to a unicode string with the correct codepage,
@@ -722,7 +723,6 @@ type
         FMsg_WM_HTTP_LOGIN        : UINT;
         FCtrlSocket           : TWSocket;
         FSocketFamily         : TSocketFamily;
-        //FWindowHandle         : HWND;
         FState                : THttpState;
         FLocalAddr            : String;
         FLocalAddr6           : String; { V8.02 IPv6 address for local interface to use }
@@ -746,10 +746,8 @@ type
         FCurrentProtocol      : String;
         FConnected            : Boolean;
         FDnsResult            : String;
-//      FSendBuffer           : array [0..HTTP_SND_BUF_SIZE - 1] of char;
         FSendBuffer           : TBytes;  // FP 09/09/06
         FRequestType          : THttpRequest;
-//      FReceiveBuffer        : array [0..HTTP_RCV_BUF_SIZE - 1] of char;
         FReceiveBuffer        : TBytes;  // FP 09/09/06
         FReceiveLen           : Integer;
         FLastResponse         : String;
@@ -804,7 +802,6 @@ type
         FReqStream            : TMemoryStream;
         FRequestDoneError     : Integer;
         FNext                 : procedure of object;
-//      FBodyData             : PChar;
         FBodyData             : Integer;  // Offset in FReceiveBuffer (FP 09/09/06)
         FBodyDataLen          : THttpBigInt;
         FOptions              : THttpCliOptions;
@@ -832,8 +829,6 @@ type
         FOnBeforeAuth         : THttpBeforeAuthEvent;
         FAuthBasicState       : THttpBasicState;
         FProxyAuthBasicState  : THttpBasicState;
-        //FServerAuth           : String;
-        //FProxyAuth            : String;
         FServerAuth           : THttpAuthType;
         FProxyAuth            : THttpAuthType;
 {$IF DEFINED(UseBandwidthControl) or DEFINED(BUILTIN_THROTTLE)}
@@ -946,8 +941,6 @@ type
         procedure SocketSessionConnected(Sender : TObject; ErrCode : Word); virtual;
         procedure SocketDataSent(Sender : TObject; ErrCode : Word); virtual;
         procedure SocketDataAvailable(Sender: TObject; ErrCode: Word); virtual;
-  {      function  StartsWithText(Source : TBytes; Find : PAnsiChar) : Boolean; V8.50 moved to Utils }
-  {      function  ContainsText(Source : TBytes; Find : PAnsiChar) : Boolean; V8.50 moved to Utils }
         procedure LocationSessionClosed(Sender: TObject; ErrCode: Word); virtual;
         procedure DoRequestAsync(Rq : THttpRequest); virtual;
         procedure DoRequestSync(Rq : THttpRequest); virtual;
@@ -980,6 +973,7 @@ type
         procedure SetRequestVer(const Ver : String);
         procedure SetExtraHeaders(Value: TStrings);      { V8.52 }
         function  GetAddrResolvedStr: String;            { V8.60 }
+        procedure SetSocketFamily(Value : TSocketFamily); { V8.60 }
         procedure WMHttpRequestDone(var msg: TMessage);
         procedure WMHttpSetReady(var msg: TMessage);
         procedure WMHttpLogin(var msg: TMessage);
@@ -1222,7 +1216,7 @@ type
                                                      write FOnBeforeAuth;
         property OnBgException;                                             { V7.11 }
         property SocketFamily        : TSocketFamily read  FSocketFamily
-                                                     write FSocketFamily;
+                                                     write SetSocketFamily;  { V8.60 }
         property SocketErrs          : TSocketErrs    read  FSocketErrs
                                                      write FSocketErrs;      { V8.37 }
         property AuthBearerToken     : String        read  FAuthBearerToken
@@ -1574,6 +1568,17 @@ begin
     Result := '';
    if Assigned(FCtrlSocket) then
         Result := FCtrlSocket.AddrResolvedStr;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure THttpCli.SetSocketFamily(Value : TSocketFamily); { V8.60 }
+begin
+    if FSocketFamily <> Value then begin
+        FSocketFamily := Value;
+        FLastAddrOK  := '';   { ensure we don't use last IP address again }
+        FCurrDnsResult := -1;
+    end;
 end;
 
 
@@ -1942,7 +1947,7 @@ begin
                         FlgClean := True;
 
                     Break;
-                end;    
+                end;
             end;
             Dec(TmpInt);
         end;
@@ -2140,7 +2145,7 @@ begin
     FWMLoginQueued := FALSE;
     FStatusCode    := 0;
     FLocationFlag  := False;
-    FReasonPhrase  := '';  { V8.55 } 
+    FReasonPhrase  := '';  { V8.55 }
 
     FCtrlSocket.OnSessionClosed := SocketSessionClosed;
 
@@ -2418,13 +2423,13 @@ begin
                             (FProxyAuthNTLMState = ntlmMsg1)) then begin
                         TriggerSendBegin;
                         FAllowedToSend := TRUE;
-                        FDelaySetReady := FALSE;     
+                        FDelaySetReady := FALSE;
                         SocketDataSent(FCtrlSocket, 0);
                     end;
                 {$ELSE}
                     TriggerSendBegin;
                     FAllowedToSend := TRUE;
-                    FDelaySetReady := FALSE;    
+                    FDelaySetReady := FALSE;
                     SocketDataSent(FCtrlSocket, 0);
                 {$ENDIF}
                 end;
@@ -2529,7 +2534,7 @@ begin
             if (FContentCodingHnd.HeaderText <> '') and (FRequestType <> httpHEAD) then
                 Headers.Add('Accept-Encoding: ' + FContentCodingHnd.HeaderText);
         {$ENDIF}
-            if (FRequestType in [httpPOST, httpPUT, httpPATCH]) and   { V8.06 } 
+            if (FRequestType in [httpPOST, httpPUT, httpPATCH]) and   { V8.06 }
                (FContentPost <> '') then
                 Headers.Add('Content-Type: ' + FContentPost);
             {if ((method = 'PUT') or (method = 'POST')) and (FContentPost <> '') then
@@ -2548,7 +2553,7 @@ begin
         if (Method = 'CONNECT') then                                   // <= 12/29/05 AG
             Headers.Add('Content-Length: 0')                           // <= 12/29/05 AG}
         else begin  { V7.05 begin }
-            if FRequestType in [httpPOST, httpPUT, httpPATCH] then begin   { V8.06 } 
+            if FRequestType in [httpPOST, httpPUT, httpPATCH] then begin   { V8.06 }
             {$IFDEF UseNTLMAuthentication}
                 if (FAuthNTLMState = ntlmMsg1) or
                    (FProxyAuthNTLMState = ntlmMsg1) then
@@ -2644,7 +2649,7 @@ begin
                 if Pos (': ', FExtraHeaders[N]) > 1 then
                     Headers.Add(FExtraHeaders[N]);
             end;
-        end;    
+        end;
 
 {SendCommand('UA-pixels: 1024x768'); }
 {SendCommand('UA-color: color8'); }
@@ -2767,7 +2772,6 @@ begin
                     FRcvdCount := FRcvdCount + K;
                     FChunkRcvd := FChunkRcvd + K;
                 {$IFDEF UseContentCoding}
-//                  FContentCodingHnd.WriteBuffer(P, K);
                     FContentCodingHnd.WriteBuffer(@FReceiveBuffer[P], K);   // FP 09/09/06
                 {$ELSE}
                     if Assigned(FRcvdStream) then
@@ -2781,7 +2785,6 @@ begin
             end;
             if FChunkState = httpChunkSkipDataEnd then begin
                 while N > 0 do begin
-//                  if P^ = #10 then begin
                     if Ord(FReceiveBuffer[P]) = 10 then begin  // FP 09/09/06
                         if FChunkLength = 0 then
                             { Last chunk is a chunk with length = 0 }
@@ -2811,25 +2814,8 @@ begin
             if (httpoBandwidthControl in FOptions) and Assigned(FBandwidthTimer)
             then FBandwidthTimer.Enabled := FALSE;
 {$ENDIF}
-{$IFDEF UseContentCoding} {V7.06}
- {           FContentCodingHnd.Complete;  V7.19 moved to TriggerDocEnd }
-        {$IFNDEF NO_DEBUG_LOG}
- {           if CheckLogOptions(loProtSpecInfo) then begin
-                if Assigned(FRcvdStream) and (FContentEncoding <> '') then begin
-                    DebugLog(loProtSpecInfo, FContentEncoding +
-                             ' content uncompressed from ' +
-                             IntToStr(FContentLength) + ' bytes to ' +
-                             IntToStr(FRcvdStream.Size) + ' bytes');
-                end;
-            end;   }
-        {$ENDIF}
-{$ENDIF}
             TriggerDocEnd;
-            if {(FResponseVer = '1.0') or (FRequestVer = '1.0') or }
-                { SAE's modification is almost right but if you have HTTP/1.0  }
-                { not necesary must disconect after request done               }
-                { [rawbite 31.08.2004 Connection controll]                     }
-                (FCloseReq) then     { SAE 01/06/04 }
+            if (FCloseReq) then     { SAE 01/06/04 }
                 FCtrlSocket.CloseDelayed
         end;
     end
@@ -2837,7 +2823,6 @@ begin
         if FBodyDataLen > 0 then begin
             FRcvdCount := FRcvdCount + FBodyDataLen;
 {$IFDEF UseContentCoding}
-//          FContentCodingHnd.WriteBuffer(FBodyData, FBodyDataLen);
             FContentCodingHnd.WriteBuffer(@FReceiveBuffer[FBodyData], FBodyDataLen); // FP 09/09/06
 {$ELSE}
             if Assigned(FRcvdStream) then
@@ -2860,18 +2845,6 @@ begin
                Assigned(FBandwidthTimer) then
                 FBandwidthTimer.Enabled := FALSE;
 {$ENDIF}
-{$IFDEF UseContentCoding}
- {           FContentCodingHnd.Complete;  V7.19 moved to TriggerDocEnd }
-        {$IFNDEF NO_DEBUG_LOG}
- {           if CheckLogOptions(loProtSpecInfo) then begin
-                if Assigned(FRcvdStream) and (FContentEncoding <> '') then begin
-                    DebugLog(loProtSpecInfo, FContentEncoding + ' content uncompressed from ' +
-                      IntToStr(FContentLength) + ' bytes to ' +
-                               IntToStr(FRcvdStream.Size) + ' bytes');
-                end;
-            end;  }
-        {$ENDIF}
-{$ENDIF}
             TriggerDocEnd;
             if {(FResponseVer = '1.0') or (FRequestVer = '1.0') or  }
                 { see above                                }
@@ -2887,48 +2860,6 @@ begin
             DebugLog(loProtSpecInfo, 'GetBodyLineNext end');
 {$ENDIF}
 end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ If UNICODE is defined each byte in Buffer must be ASCII (ord < 128) ! }
-(*  V8.50 moved to Utils
-procedure MoveTBytesToString(
-    const Buffer : TBytes;
-    OffsetFrom   : Integer;
-    var Dest     : String;
-    OffsetTo     : Integer;
-    Count        : Integer);
-{$IFDEF UNICODE}
-var
-    PSrc  : PByte;
-    PDest : PChar;
-begin
-    PSrc  := Pointer(Buffer);
-    PDest := Pointer(Dest);
-    Dec(OffsetTo); // String index!
-    while Count > 0 do begin
-        PDest[OffsetTo] := Char(PSrc[OffsetFrom]);
-        Inc(OffsetTo);
-        Inc(OffsetFrom);
-        Dec(Count);
-    end;
-{$ELSE}
-begin
-    Move(Buffer[OffsetFrom], Dest[OffsetTo], Count);
-{$ENDIF}
-end;   *)
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-(* V8.50 moved to Utils
-procedure MoveTBytes(
-    var Buffer : Tbytes;
-    OffsetFrom : Integer;
-    OffsetTo   : Integer;
-    Count      : Integer); {$IFDEF USE_INLINE} inline; {$ENDIF}
-begin
-    Move(Buffer[OffsetFrom], Buffer[OffsetTo], Count);
-end;  *)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -2965,8 +2896,6 @@ begin
         StateChange(httpWaitingBody);
         FNext := GetBodyLineNext;
         TriggerHeaderEnd;
-//      FBodyData    := @FLastResponse[1];         FP 09/09/06
-//      FBodyDataLen := Length(FLastResponse);     FP 09/09/06
         GetBodyLineNext;
         Exit;
     end;
@@ -2999,24 +2928,11 @@ begin
              (FStatusCode = 301) or              { Added 06/10/2004 }
              (FStatusCode = 302) or              { Added 06/10/2004 }
              (FStatusCode = 304)))               { Added 12/03/2004 }
-           (* or //                              { Removed again V7.20 }             
-             { AFAIR, next two lines have been added since it might }
-             { happen that a body is not sent with both responses.  }
-             { Unfortunately we truncate body data in those cases   }
-             { and we have to ensure that FReceiveLen is cleared    }
-             { properly. If it's not done below it's now done in    }
-             { SocketSessionClosed() a little bit later anyway. (AG)}
-             (FStatusCode = 401) or              { Added 12/28/2005 } //AG 12/28/05
-             (FStatusCode = 407)))               { Added 12/28/2005 } //AG 12/28/05
-            *) { V7.20 }
-           or
-            (FContentLength = 0)
-           or
-            (FRequestType = httpHEAD) then begin
-            { TriggerHeaderEnd;  }{ Removed 10/01/2004 }
-            if {(FResponseVer = '1.0') or (FRequestVer = '1.0') or}
-                { [rawbite 31.08.2004 Connection controll] }
-                FCloseReq then begin
+             or
+              (FContentLength = 0)
+             or
+              (FRequestType = httpHEAD) then begin
+            if FCloseReq then begin
                 if FLocationFlag then          { Added 16/02/2004 }
                     StartRelocation            { Added 16/02/2004 }
                 else begin                     { Added 16/02/2004 }
@@ -3052,9 +2968,7 @@ begin
 
         StateChange(httpWaitingBody);
         FNext := GetBodyLineNext;
-        {TriggerHeaderEnd;  Removed 11/11/04 because it is already trigger above }
         if FReceiveLen > 0 then begin
-//            FBodyData    := FReceiveBuffer;
             FBodyData    := 0;  // FP 09/09/06
             if (FContentLength < 0) or
                ((FRcvdCount + FReceiveLen) <= FContentLength) then
@@ -3076,8 +2990,6 @@ begin
             else
                 CheckDelaySetReady; { 09/26/08 ML }
         end;
-        { if FStatusCode >= 400 then }   { 01/11/01 }
-        {    FCtrlSocket.Close;      }
         Exit;
     end;
 
@@ -3130,21 +3042,22 @@ begin
         if Field = 'location' then begin { Change the URL ! }
             if Copy(Data, 1, 2) = '//' then         { V7.22 }
                 Data := FProtocol + ':' + Data;     { V7.22 }
-            if FRequestType in [httpPUT, httpPATCH] then begin   { V8.06 } 
+            if FRequestType in [httpPUT, httpPATCH] then begin   { V8.06 }
                  { Location just tell us where the document has been stored }
                  FLocation := Data;
             end
-            else if FFollowRelocation then begin    {TED}
+
+          { V8.60 201 created means newly created resource }
+            else if (StatusCode = 201) then begin
+                 FLocation := Data;
+            end
+
+          { V8.60 301, 302, 303, 307 and 308 mean relocation to new relative or absolute URL  }
+          { ignore 4xx and 5xx responses }
+          { NOTE we don't set FLocation if we are actually relocating somewhere, only for data  }
+            else if FFollowRelocation and    {TED}
+                    (FStatusCode >= 301) and (FStatusCode <= 308) then begin  { V8.60 not for 201 }
                 { OK, we have a real relocation !       }
-                { URL with relocations:                 }
-                { http://www.webcom.com/~wol2wol/       }
-                { http://www.purescience.com/delphi/    }
-                { http://www.maintron.com/              }
-                { http://www.infoseek.com/AddURL/addurl }
-                { http://www.micronpc.com/              }
-                { http://www.amazon.com/                }
-                { http://count.paycounter.com/?fn=0&si=44860&bt=msie&bv=5&    }
-                { co=32&js=1.4&sr=1024x768&re=http://www.thesite.com/you.html }
                 FLocationFlag := TRUE;
                 if Proxy <> '' then begin
                     { We are using a proxy }
@@ -3168,10 +3081,6 @@ begin
                         then begin
                         { Relative location }
                         FPath     := GetBaseUrl(FPath) + Data;
-                        { if Proto = '' then
-                            Proto := 'http';
-                          FLocation := Proto + '://' + FHostName + '/' + FPath;
-                        }
                         FLocation := FPath;
                     end
                     else begin
@@ -3394,7 +3303,7 @@ begin
     if (Rq <> httpCLOSE) and (FState <> httpReady) then
         raise EHttpException.Create('HTTP component ' + Name + ' is busy', httperrBusy);
 
-    if (Rq in [httpPOST, httpPUT, httpPATCH]) and    { V8.06 } 
+    if (Rq in [httpPOST, httpPUT, httpPATCH]) and    { V8.06 }
        (not Assigned(FSendStream)
        { or (FSendStream.Position = FSendStream.Size)}   { Removed 21/03/05 }
        ) then
@@ -4481,7 +4390,7 @@ begin
                     end
                     else
                         Result := FALSE;
-                end;    
+                end;
             end;
         end;
     end;
@@ -4646,20 +4555,20 @@ begin
                 SocketDataSent(FCtrlSocket, 0);
 {$ENDIF}
             end;
-        httpPATCH:    { V8.06 } 
+        httpPATCH:    { V8.06 }
             begin
                 SendRequest('PATCH', FRequestVer);
 {$IFDEF UseNTLMAuthentication}
                 if not ((FAuthNTLMState = ntlmMsg1) or (FProxyAuthNTLMState = ntlmMsg1)) then begin
                 TriggerSendBegin;
                 FAllowedToSend := TRUE;
-                FDelaySetReady := FALSE;    
+                FDelaySetReady := FALSE;
                 SocketDataSent(FCtrlSocket, 0);
             end;
 {$ELSE}
                 TriggerSendBegin;
                 FAllowedToSend := TRUE;
-                FDelaySetReady := FALSE;    
+                FDelaySetReady := FALSE;
                 SocketDataSent(FCtrlSocket, 0);
 {$ENDIF}
             end;
@@ -4822,7 +4731,7 @@ end;
 { This will start the delete process and returns immediately (non blocking) }
 procedure THttpCli.DelAsync;
 begin
-    FLocationChangeCurCount := 0 ; 
+    FLocationChangeCurCount := 0 ;
     DoRequestASync(httpDELETE);
 end;
 

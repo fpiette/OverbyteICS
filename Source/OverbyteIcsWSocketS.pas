@@ -6,8 +6,7 @@ Description:  A TWSocket that has server functions: it listen to connections
 Creation:     Aug 29, 1999
 Version:      8.60
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1999-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
@@ -194,7 +193,9 @@ Dec 04, 2018  V8.59 Sanity checks reading mistyped enumerated values from INI fi
                     Added AUTO_X509_CERTS define set in OverbyteIcsDefs.inc which
                       can be disabled to remove a lot of units if automatic SSL/TLS
                       ordering is not required, saves up to 350KB of code.
-Feb 13, 2019  V8.60 Added WebLogIdx to IcsHosts for web server logging
+Mar 18, 2019  V8.60 Added WebLogIdx to IcsHosts for web server logging.
+                    Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
+                       in server IcsHosts if TLS1.3 fails.
 
 
 
@@ -675,8 +676,8 @@ uses
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 859;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2018 F. Piette V8.59 ';
+    WSocketServerVersion     = 860;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2019 F. Piette V8.60 ';
 
 type
     TCustomWSocketServer       = class;
@@ -3377,7 +3378,19 @@ begin
                       SslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvHigh);
                       SslCtx.SslSecLevel := sslSecLevel192bits;
                   end;
-                end;
+                  sslSrvSecTls12Less: begin             { TLS1.1 or 1.2, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                      SslCtx.SslMinVersion := sslVerTLS1_1;
+                      SslCtx.SslMaxVersion := sslVerTLS1_2;
+                      SslCtx.SslCipherList := sslCiphersMozillaSrvInterFS;
+                      SslCtx.SslSecLevel := sslSecLevel112bits;
+                  end;
+                  sslSrvSecTls13Only: begin             { TLS1.3 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                      SslCtx.SslMinVersion := sslVerTLS1_3;
+                      SslCtx.SslCipherList := AddTls13(sslCiphersMozillaSrvInterFS);
+                      SslCtx.SslSecLevel := sslSecLevel112bits;
+                  end;
+
+               end;
                 SslCtx.SslECDHMethod := sslECDHAuto;
 
             { Enables OpenSsl's internal session caching }

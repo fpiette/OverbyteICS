@@ -7,8 +7,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
 Creation:     Jan 12, 2003
 Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list ics-ssl@elists.org
-              Follow "SSL" link at http://www.overbyte.be for subscription.
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
@@ -126,7 +125,9 @@ Oct 10, 2018  V8.57 added APLN APIs and literals
                     EVP_MAX_KEY_LENGTH now 64
 Oct 19, 2018  V8.58 version only
 Nov 27, 2018  V8.59 version only
-Feb 12, 2019  V8.60 next major OpenSSL version is 3.0.0
+Mar 18, 2019  V8.60 Next major OpenSSL version is 3.0.0 (or maybe 4)
+                    Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
+                      in server IcsHosts if TLS1.3 fails.
 
 
 
@@ -1965,6 +1966,7 @@ type
    { warning, requiring key lengths higher than 2048 requires all SSL certificates in the chain to
      have that minimum key length, including the root }
    { V8.55 sslSrvSecInter/FS, sslCliSecInter now requires TLS1.1, PCI council EOF TLS1.0 30 June 2018 }
+   { V8.60 added sslSrvSecTls12Less and sslSrvSecTls13Only to disable TLS1.3 if it fails }
     TSslSrvSecurity = (
                      sslSrvSecNone,         { 0 - all protocols and ciphers, any key lengths }
                      sslSrvSecSsl3,         { 1 - SSL3 only, all ciphers, any key lengths, MD5 }
@@ -1973,7 +1975,9 @@ type
                      sslSrvSecInterFS,      { 4 - TLS1.1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
                      sslSrvSecHigh,         { 5 - TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
                      sslSrvSecHigh128,      { 6 - TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
-                     sslSrvSecHigh192);     { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+                     sslSrvSecHigh192,      { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+                     sslSrvSecTls12Less,    { 8 - TLSv1.2 or earlier, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     sslSrvSecTls13Only);   { 9 - TLSv1.3 only, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
 
 const
     sslSrvSecDefault = sslSrvSecInterFS;    { V8.55 recommended default }

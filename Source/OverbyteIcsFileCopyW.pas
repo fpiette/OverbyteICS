@@ -1,7 +1,8 @@
 {*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 Author:       Angus Robertson, Magenta Systems Ltd
-Description:  TIcsFileCopy allows indexing, copying and deleting of multiple
+Description:  TIcsFileCopyW allows indexing, copying and deleting of multiple
               file directories, using a single function call.
+              W version supports widestring/Unicode for Delphi 2007 and 2005, not D7
 Creation:     May 2001
 Updated:      Mar 2019
 Version:      8.60
@@ -36,7 +37,7 @@ Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
                  address, EMail address and any comment you like to say.
 
 
-TIcsFileCopy allows indexing, copying and deleting of multiple file
+TIcsFileCopyW allows indexing, copying and deleting of multiple file
 directories, using a single function call.  The component handles listing
 source and destination files, and comparing them to avoid unnecessary
 transfers, selection using a file mask, deletion of old files, delete after
@@ -70,13 +71,14 @@ Cancel - cancel copying
 
 
 All these functions make use of file directories comprising dynamic arrays
-of TIcsFileRec.  These arrays may be used in applications, where individual
+of TIcsFDirRecW.  These arrays may be used in applications, where individual
 access to files is required.
+
 
 08 May 2001 - baseline
 28 May 2001 - fixed single dir never copying anything (recent bug)
 6 June 2001 - added ReplyRO to replace read only files, set some errors for single dir
-8 June 2001 - added Fr to TIcsFileRec elements so names are unique, using FindFirstFile
+8 June 2001 - added Fr to TFileRec elements so names are unique, using FindFirstFile
 11 June 2001 - should compile with D6
 25 June 2001 - added LogLevelDelimFile and LogLevelDelimTot to return info
                  for each file suitable for further processing
@@ -92,7 +94,7 @@ access to files is required.
 4 Sept 2002  - added IgnoreFileExt - list is tmp;ftp;xxx;etc
 8 Oct 2002   - check for file mask in multiple directories in copy type masked
              - no longer using trailing slashes on directories internally, still seems to work
-14 Oct 2002  - added FrFileUDT UTC file time stamps to TIcsFileRec record
+14 Oct 2002  - added FrFileUDT UTC file time stamps to TFileRec record
 15 Oct 2002  - fix bug always replacing masked files
 9 Dec 2002   - added UseUTC (def true) to use UTC time for directory listings and selections
 30 Jan 2003  - ensure source file deleted if it was zipped before copy
@@ -121,7 +123,7 @@ access to files is required.
 11 Feb 2004  - ensure BuildDirList2 dynamic array is initialised, otherwise do it
 21 Feb 2004  - replaced TMask by Match for better masked file selection
 19 Mar 2004  - don't delete root source or target directory after copying
-25 Aug 2004  - added MagRenameFile and IcsDeleteFile to consolidate delete/rename read only files
+25 Aug 2004  - added MagRenameFile and MagDeleteFile to consolidate delete/rename read only files
                FCReplNewer replaces if target file is empty and source file not empty
                added CheckReplace to commonise date/size replace checking
 11 Sept 2004 - GetDirList, SelectFiles and DeleteFiles now use SrcFName mask
@@ -134,51 +136,53 @@ access to files is required.
                sDirLine shows more size, MaxFNameLen from 22 to 32
 5 Sept 2005  - MagCheckReplace and CopyOneFile support 64-bits, not backward compatible!
              - prevent too rapid progress messages, which slow down transfers, ProgressSecs = 5
-11 Nov 2005  - added TIcsSslCertCheck for FTP and HTTP
+11 Nov 2005  - added TSslCertCheck for FTP and HTTP
 3  Nov 2006  - unit now MagentaCopy for ICS V6
 03 Mar 2008  - added DelimActualSize which if non-zero is actual size relating to
                    duration, specifically during failed or partial FTP xfers
 07 Aug 2008  - 2.3 - ensure lists set as sorted after sorting
                updated file copying to support Unicode/Widestring with Delphi 2009
                updated MaskMatches for unicode and performance (no string copying)
-22 Sep 2008  - 3.0 - support Unicode file listing and copying with Delphi 2007 and earlier
-               increased size of initial TIcsFDirRecs  array from 1000 to 5000 or 25000
+22 Sep 2008  - 3.0 - Unicode vesion unit renamed MagentaCopyW with TIcsFileCopyW
+               support Unicode file listing and copying with Delphi 2007 and earlier
+               increased size of initial TFileRecs array from 1000 to 5000 or 25000
                  if subdirs to avoid too many resizes causing copying of data
-               FmtFileDirList builds listing with stream
-18 Nov 2008  - 3.1 - fixed FmtFileDirList with D2009
-7 Aug 2010   - 3.5 - fixed various string casts for D2009 and later
-11 Feb 2011  - 3.7 - list and copy empty directories.  Directory functions have a ListDirs parameter,
+               FmtFileDirListW builds listing with stream
+               DeleteEmptyDirs takes UStringArray argument for widestrings, not StringList
+               new SrcDirUList and TarDirUList properties as UStringArray to set Unicode file dirs
+18 Nov 2008  - 3.1 - fixed zipping for Unicode changes, but still VCLZip 3
+               FmtFileDirListW, FmtFileDirW now Unicode, but probably D2007 or later due to WideFormat
+               ensure Progress event called during copying of first file, and when copying starts rather than after 2 secs
+               Ignore File Extensions now minimum 2 characters instead of 4
+7 Apr 2009   - 3.2 - made GetMaskedName Unicode, but internally still Ansi since no WideFormatDateTime in D2007
+16 Feb 2011  - 3.7 - list and copy empty directories.  Directory functions have a ListDirs parameter,
                TIcsFileCopyW has a new EmptyDirs property, directory attributes should be copied
                Using FCTypeMaskDir and *.* now selects files without an extension
                added MultiThreaded property to stop Application.ProceessMessages being called
 11 Aug 2011  - 3.7 - fix copying into new empty directory instead of next existing directory
-               now registered in MagentaXferReg
 20 Oct 2011  - 3.8 - most file sizes now reported in Kbytes. Mbytes, Gbytes instead of bytes
                added explict file name length errors (max 255 + drive/path)
 24 Aug 2012 - 4.0 - updated to support ICS V8 with IPv6
-11 Jun 2013 - 4.1 - added IgnorePaths to SelectCopyFileList and TIcsFileCopy to ignore files where source
+11 Jun 2013 - 4.1 - added IgnorePaths to SelectCopyFileList and TIcsFileCopyW to ignore files where source
                  has specific partial path, list is c:\temp;c:\temp2\;c:\temp3\;etc, or destination for
                  deletion matches partial path
               added Wow64RedirDisable property for Win64 allow all files to be copied correctly from Win32
-              added new ProgressEvent which passes TIcsCopyProgress record updated for progress of
+              added new ProgressEvent which passes TCopyProgress record updated for progress of
                   current file and session including total bytes copied allowing percentage progress display
               using TIcsStringBuild to build listings instead of TMemoryStream
               when checking copy, use TIcsStringBuild for improved listing performance
+11 May 2015 - 4.2 - TSslCertCheck, SslCertCheckStrings gone
 6 Mar 2017 - 4.6 - changed TULargeInteger to ULARGE_INTEGER to keep modern compilers happy
 18 Mar 2019 - V8.60 - Adapted for main ICS packages and FMX support.
-              Renamed TMagFileCopy to TIcsFileCopy.
+              Renamed TMagFileCopyW to TIcsFileCopyW.
               Most Types have Ics added, so: TTaskResult now TIcsTaskResult.
               No longer needs Forms.
-              Using TStringList instead of StringArray
+              Using TWideStringList instead of UStringArray, not Delphi 7
               Before creating directory check not a file of same name, delete it. 
 
 
-Warning - this unit is not Posix compatible yet...
-
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFNDEF ICS_INCLUDE_MODE}
-unit OverbyteIcsFileCopy;
-{$ENDIF}
+unit OverbyteIcsFileCopyW;
 
 {$I Include\OverbyteIcsDefs.inc}
 {$I Include\OverbyteVclZip.inc}
@@ -199,37 +203,18 @@ unit OverbyteIcsFileCopy;
 interface
 
 uses
-{$IFDEF MSWINDOWS}
-    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
-    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
-{$ENDIF}
-{$IFDEF POSIX}
-    Posix.Time,
-    Ics.Posix.WinTypes,
-    Ics.Posix.Messages,
-{$ENDIF}
-    {$Ifdef Rtl_Namespaces}System.Classes{$Else}Classes{$Endif},
-    {$Ifdef Rtl_Namespaces}System.Sysutils{$Else}Sysutils{$Endif},
-    {$IFDEF Rtl_Namespaces}System.Masks{$ELSE}Masks{$ENDIF},
-{$IFDEF FMX}
-    Ics.Fmx.OverbyteIcsWndControl,
-    Ics.Fmx.OverbyteIcsWSocket,
-    Ics.Fmx.OverbyteIcsBlacklist,
-{$ELSE}
-    OverbyteIcsWndControl,
-    OverbyteIcsWSocket,
-    OverbyteIcsBlacklist,
-{$ENDIF FMX}
-{$IFDEF MSWINDOWS}
-    ShellAPI,
-{$ENDIF MSWINDOWS}
-    OverbyteIcsTypes,
-    OverbyteIcsUtils
-{$IFDEF Zipping} , VCLZip, VCLUnZip, kpZipObj {$ENDIF};
+  Windows, Messages, SysUtils, Classes, Masks, ShellAPI,
+  StrUtils, WideStrings,  // Delphi 2007, may be in 2005 and 2006??
+  OverbyteIcsWndControl,
+  OverbyteIcsWSocket,
+  OverbyteIcsBlacklist,
+  OverbyteIcsTypes,
+  OverbyteIcsUtils,
+  {$IFDEF Zipping} VCLZip, VCLUnZip, kpZipObj, {$ENDIF}
+  OverbyteIcsFtpSrvWT ;
 
 const
-    FileCopyCopyRight : String = ' TIcsFileCopy (c) 2019 V8.60 ';
-
+    FileCopyCopyRight : String = ' TIcsFileCopyW (c) 2019 V8.60 ';
 
 {ex000616.log.zip      11,123,903  -rwx  23/03/2001 12:57:00    /dir}
 {dvdimage.nrg           4,610,785,436    A 26/08/2005 16:01:49  \    }
@@ -242,7 +227,7 @@ const
     DelimSrcFile = 0 ; DelimTarFile = 1 ; DelimSize = 2 ; DelimSucc = 3 ;
     DelimFail = 4 ; DelimComm = 5 ; DelimDuration = 6 ; DelimActualSize = 7 ;
     DelimTotFields = 8 ;
-    sLineEnd: array [0..1] of Char = (IcsCR, IcsLF) ;  // 21 May 2013
+    sLineEnd: array [0..1] of WideChar = (IcsCR, IcsLF) ;  // 21 May 2013
 type
 // file copy selection and replace options
     TIcsFileCopyType = (FCTypeSingle, FCTypeMaskDir, FCTypeArchDir,
@@ -258,13 +243,10 @@ type
 
     TIcsTaskResult = (TaskResNone, TaskResOKNew, TaskResOKNone, TaskResFail,
                     TaskResAbort, TaskRunning) ;
-    TIcsSslCertCheck = (SslCCNone, SslCCWarn, SslCCRequire) ;    // 11 Nov 2005
-    {$IFDEF Zipping}
     TIcsZipExtFmt = (ExtnAdd, ExtnReplace) ;
     TIcsZipPath = (PathNone, PathNew, PathOriginal, PathNewOrig,
                 PathSpecific, PathSpecOrig) ;
     TIcsZipType = (TypeUnzip, TypeSrcAddX, TypeSrcReplX, TypeSrcDirs) ;
-    {$ENDIF}
 
     TIsWow64Process = function (hProcess: THandle; var Wow64Process: BOOL): BOOL; stdcall;  // 14 Dec 2009
     TWow64DisableWow64FsRedirection = function (var Wow64FsEnableRedirection: BOOL): BOOL; stdcall;  // 17 May 2013
@@ -276,15 +258,16 @@ var
 const
     IcsTaskResultStrings: array [Low(TIcsTaskResult)..High(TIcsTaskResult)] of ShortString =
       ('No Result', 'OK New', 'OK None', 'Failed', 'Aborted', 'Running') ;
-    IcsSslCertCheckStrings: array [Low(TIcsSslCertCheck)..High(TIcsSslCertCheck)] of ShortString =
-      ('None', 'Warn', 'Require') ;
+
+// UnicodeString is defined in OverbyteIcsTypes as WideString for Delphi 2007 and earlier
 
 type
+
 // file listing record - beware OverbyteIcsFtpSrvT has simplified TIcsFileRec
-    TIcsFDirRec = record
-        FrFileName: string ;    // filename and extension
-        FrSubDirs: string ;     // \ for base directory, else located sub directories
-        FrFullName: string ;    // basedir, subdirs, filename - complete path
+    TIcsFDirRecW = record
+        FrFileName: UnicodeString ;    // filename and extension
+        FrSubDirs: UnicodeString ;     // \ for base directory, else located sub directories
+        FrFullName: UnicodeString ;    // basedir, subdirs, filename - complete path
         FrDirLevel: integer ;   // 0 for base directory, or level of sub dirs
         FrDirBaseLen: integer ; // length of basedir within FullName - used for display
         FrFileBytes: int64 ;    // size of file in bytes (FileSize is a function name) 27 Aug 2005 (was int)
@@ -295,17 +278,17 @@ type
         FrLinks: string ;       // not blank means this is not a real file
         FrFileCopy: TIcsFileCopyState ;  // file copy state, selected, done, etc,
     end ;
-    TIcsFDirRecs = array of TIcsFDirRec ;   // lots of records
-    PTIcsFDirRec = ^TIcsFDirRec ;           // pointer once record added to TList
+    TIcsFDirRecsW = array of TIcsFDirRecW ;   // lots of records
+    PTIcsFDirRecW = ^TIcsFDirRecW ;        // pointer once record added to TList
 
 // 20 May 2013 - file copying progress, current file and session
-    TIcsCopyProgress = record
-        LogLevel: TIcsCopyLogLevel ;  // log level
-        Info: String ;                // simple display information
-        ProgMessBase: String ;        // partial progess info
-        CurSrcName: String ;          // current copy source file
-        CurTarName: String ;          // current copy target file
-        CurDelName: String ;          // current delete file
+    TIcsCopyProgressW = record
+        LogLevel: TIcsCopyLogLevel ;         // log level
+        Info: UnicodeString ;         // simple display information
+        ProgMessBase: UnicodeString ; // partial progess info
+        CurSrcName: UnicodeString ;   // current copy source file
+        CurTarName: UnicodeString ;   // current copy target file
+        CurDelName: UnicodeString ;   // current delete file
         CurOKDone: int64 ;            // bytes copied of current file
         CurFileBytes: int64 ;         // size of file being copied
         CurStartTick: longword ;      // when current file started copying or deleting in ticks (from when PC booted)
@@ -334,28 +317,28 @@ type
     end ;
 
 // copying event, allowing main program to log and display stuff, and cancel
-    TBulkCopyEvent = Procedure (LogLevel: TIcsCopyLogLevel ; Info: string ;
+    TBulkCopyEventW = Procedure (LogLevel: TIcsCopyLogLevel ; Info: UnicodeString ;
                                               var Cancel: boolean) of object ;
-    PBulkCopyEvent = ^TBulkCopyEvent ;
+    PBulkCopyEventW = ^TBulkCopyEventW ;
 
-    TProgressEvent = Procedure (Sender: TObject ; CopyProgress: TIcsCopyProgress ;     // 20 May 2013
+    TProgressEventW = Procedure (Sender: TObject ; CopyProgress: TIcsCopyProgressW ;     // 20 May 2013
                                                     var Cancel: boolean) of object ;
-    PProgressEvent = ^TProgressEvent ;
+    PProgressEventW = ^TProgressEventW ;
 
-    TThreadEvent = Procedure (LogLevel: TIcsCopyLogLevel ; const Id, Info: String ;
+    TThreadEvent = Procedure (LogLevel: TIcsCopyLogLevel ; const Id, Info: UnicodeString ;
                                               var Cancel: boolean) of object ;      // 16 Feb 2011
 
 // main multi file copy function
-  TIcsFileCopy = class(TIcsWndControl) { V8.60 to use message pump}
+  TIcsFileCopyW = class(TIcsWndControl) { V8.60 to use message pump}
   protected
     { Protected declarations }
         fCancelFlag: boolean ;
-        fMultiDirList: String ;
-        fSrcDir: String ;
-        fSrcDirList: TStringList ;
-        fSrcFName: String ;
-        fTarDir: String ;
-        fTarDirList: TStringList ;
+        fMultiDirList: UnicodeString ;
+        fSrcDir: UnicodeString ;
+        fSrcDirList: TWideStringList ;
+        fSrcFName: UnicodeString ;
+        fTarDir: UnicodeString ;
+        fTarDirList: TWideStringList ;
         fCopyType: TIcsFileCopyType ;
         fMultiDir: Boolean ;
         fSubDirs: Boolean ;
@@ -366,36 +349,36 @@ type
         fRepl: TIcsFileCopyRepl ;
         fReplRO: boolean ;
         fSafe: Boolean ;
-        fLocalHost: string ;
-        fCopyEvent: TBulkCopyEvent ;
-        fReqResponse: string ;
-        fIgnoreFileExt: string ;
+        fLocalHost: AnsiString ;
+        fCopyEvent: TBulkCopyEventW ;
+        fReqResponse: UnicodeString ;
+        fIgnoreFileExt: UnicodeString ;
         fUseUTC: Boolean ;
         fCopyLoDT: TDateTime ;
         fCopyHiDT: TDateTime ;
-        fUserName: string;
-        fPassword: string;
-        fLocalName: string;
-        fRemoteName: string;
-        fRemConnected: string ;
+        fUserName: UnicodeString;
+        fPassword: UnicodeString;
+        fLocalName: UnicodeString;
+        fRemoteName: UnicodeString;
+        fRemConnected: UnicodeString ;
         fProgressSecs: integer ;     // 5 Sept 2005
         fMultiThreaded: boolean ;    // 16 Sept 2010
         fEmptyDirs: boolean ;        // 7 Feb 2011
-        fIgnorePaths: String ;       // 22 May 2013
-        fCopyProg: TIcsCopyProgress ;   // 22 May 2013 replaces most fTotxx/fProcxx variables
+        fIgnorePaths: UnicodeString ; // 22 May 2013
+        fCopyProg: TIcsCopyProgressW ;   // 22 May 2013 replaces most fTotxx/fProcxx variables
         fWow64RedirDisable: boolean ; // 22 May 2013
-        fProgressEvent: TProgressEvent ;  // 22 May 2013
+        fProgressEvent: TProgressEventW ;  // 22 May 2013
      {$IFDEF Zipping}
         fZipDownDel: Boolean ;
         fZipped: Boolean ;
         fZipType: TIcsZipType ;
         fZipPath: TIcsZipPath ;
-        fZipDir: String ;
+        fZipDir: UnicodeString ;
      {$ENDIF}
 
-        procedure SetMultiDirList (Const Value: string) ;
-        procedure SetSrcDirList (Value: TStringList) ;
-        procedure SetTarDirList (Value: TStringList) ;
+        procedure SetMultiDirList (const Value: UnicodeString) ;
+        procedure SetSrcDirList (Value: TWideStringList) ;
+        procedure SetTarDirList (Value: TWideStringList) ;
         procedure EndUnZipEvent (Sender: TObject; FileIndex: Integer; FName: String) ;
         procedure UnZipHandleMessage(Sender: TObject;
                   const MessageID: Integer; const Msg1, Msg2: String;
@@ -404,9 +387,9 @@ type
   public
     { Public declarations }
 
-    SrcFiles: TIcsFDirRecs  ;
+    SrcFiles: TIcsFDirRecsW ;
     SrcFileList: TIcsFindList ;
-    TarFiles: TIcsFDirRecs  ;
+    TarFiles: TIcsFDirRecsW ;
     TarFileList: TIcsFindList ;
     TotSrcFiles: integer ;
     TotTarFiles: integer ;
@@ -416,47 +399,50 @@ type
 
     constructor Create(Aowner:TComponent); override;
     destructor Destroy; override;
-    procedure doCopyEvent (const LogLevel:TIcsCopyLogLevel ; const Info: string) ;
+    procedure doCopyEvent (const LogLevel: TIcsCopyLogLevel ; const Info: UnicodeString) ;
     function SelCopyFiles (const CheckFiles: boolean): TIcsTaskResult ;
-    function SelectFiles (const CurSrcDir, CurTarDir: string): TIcsTaskResult ;
-    function CopyFiles (const CurSrcDir, CurTarDir: string): TIcsTaskResult ;
+    function SelectFiles (const CurSrcDir, CurTarDir: UnicodeString): TIcsTaskResult ;
+    function CopyFiles (const CurSrcDir, CurTarDir: UnicodeString): TIcsTaskResult ;
     function DeleteFiles (const CheckFiles: boolean): TIcsTaskResult ;
-    function DeleteEmptyDirs (RootDir: string; DirList: TStringList): integer ;
-    function CopyOneFile (const Fnamesrc, Fnametar: string ;
+    function DeleteEmptyDirs (RootDir: UnicodeString; DirList: TWideStringList): integer ;
+    function CopyOneFile (const Fnamesrc, Fnametar: UnicodeString ;
         Replopt: TIcsFileCopyRepl; const Safe: boolean; var Fsize: Int64) : TIcsTaskResult ;
     procedure Cancel ;
     procedure ClearTarList ;
     procedure ClearSrcList ;
-    function BuildDirList2 (LocDir, LocPartName: string; const SubDirs: boolean;
-                Level, InitDLen: integer ; const LoDT, HiDT: TDateTime ; var TotFiles: integer;
-                                var LocFiles: TIcsFDirRecs ; const ListDirs: boolean = false): boolean ;
-    function BuildDirList (LocDir, LocPartName: string; const SubDirs: boolean;
-                 Level, InitDLen: integer; var TotFiles: integer;
-                    var LocFiles: TIcsFDirRecs ; const ListDirs: boolean = false): boolean ;
-    function GetDirList (LocDir, LocPartName: string; const SelOpt: TIcsFileCopyType;
-              const SubDirs: boolean; LoDT, HiDT: TDateTime ; var LocFiles: TIcsFDirRecs ;
-                        var LocFileList: TIcsFindList; const ListDirs: boolean = false): integer ;
-    function DispLocFiles (const SrcDir, SrcFile: string ;
-              const CopyType: TIcsFileCopyType ; const SubDirs: boolean; const UTCFlag: boolean;
-                                                const ListDirs: boolean = false): string ;
-    function SelectCopyFileList (const SrcFileList, TarFileList: TIcsFindList; const fname: string;
-              const selopt: TIcsFileCopyType; const replopt: TIcsFileCopyRepl; const DiffStamp: integer;
-              const IgnoreOldTime: boolean; IgnoreExt: string ; var skipped: integer;
-                                    const UTCFlag: boolean; const IgnorePaths: String = ''): integer ;
+    function BuildDirList2 (LocDir, LocPartName: UnicodeString; const SubDirs: boolean;
+                Level, InitDLen: integer ; const LoDT, HiDT: TDateTime ;
+                                var TotFiles: integer; var LocFiles: TIcsFDirRecsW;
+                                             const ListDirs: boolean = false) : boolean ;
+    function BuildDirList (LocDir, LocPartName: UnicodeString; const SubDirs: boolean;
+                 Level, InitDLen: integer; var TotFiles: integer; var LocFiles: TIcsFDirRecsW ;
+                                                 const ListDirs: boolean = false) : boolean ;
+    function GetDirList (LocDir, LocPartName: UnicodeString; const SelOpt: TIcsFileCopyType;
+              const SubDirs: boolean; LoDT, HiDT: TDateTime ; var LocFiles: TIcsFDirRecsW;
+                    var LocFileList: TIcsFindList; const ListDirs: boolean = false): integer ;
+    function DispLocFiles (const SrcDir, SrcFile: UnicodeString ;
+              const CopyType: TIcsFileCopyType ; const SubDirs: boolean;
+                  const UTCFlag: boolean; const ListDirs: boolean = false): UnicodeString ;
+    function SelectCopyFileList (const SrcFileList, TarFileList: TIcsFindList;
+              const fname: UnicodeString; const selopt: TIcsFileCopyType;
+              const replopt: TIcsFileCopyRepl; const DiffStamp: integer;
+              const IgnoreOldTime: boolean; IgnoreExt: UnicodeString ;
+              var skipped: integer; const UTCFlag: boolean;
+                    const IgnorePaths: UnicodeString = ''): integer ;
     function Connect: boolean ;
     function Disconnect (AForce: boolean): boolean ;
-    function GetConnection (ALocalName: string): string ;
+    function GetConnection (ALocalName: UnicodeString): string ;
 
   published
     { Published declarations }
 
     property CancelFlag: boolean       read fCancelFlag     write fCancelFlag ;
-    property MultiDirList: String      read fMultiDirList   write SetMultiDirList ;
-    property SrcDir: String            read fSrcDir         write fSrcDir ;
-    property SrcDirList: TStringList   read fSrcDirList     write SetSrcDirList ;
-    property SrcFName: String          read fSrcFName       write fSrcFName ;
-    property TarDir: String            read fTarDir         write fTarDir ;
-    property TarDirList: TStringList   read fTarDirList     write SetTarDirList ;
+    property MultiDirList: UnicodeString read fMultiDirList   write SetMultiDirList ;
+    property SrcDir: UnicodeString     read fSrcDir         write fSrcDir ;
+    property SrcDirList: TWideStringList   read fSrcDirList    write SetSrcDirList ;
+    property SrcFName: UnicodeString   read fSrcFName       write fSrcFName ;
+    property TarDir: UnicodeString     read fTarDir         write fTarDir ;
+    property TarDirList: TWideStringList   read fTarDirList    write SetTarDirList ;
     property CopyType: TIcsFileCopyType   read fCopyType       write fCopyType ;
     property MultiDir: Boolean         read fMultiDir       write fMultiDir ;
     property SubDirs: Boolean          read fSubDirs        write fSubDirs ;
@@ -467,60 +453,65 @@ type
     property Repl: TIcsFileCopyRepl       read fRepl           write fRepl ;
     property ReplRO: boolean           read fReplRO         write fReplRO ;
     property Safe: Boolean             read fSafe           write fSafe ;
-    property LocalHost: string         read fLocalHost      write fLocalHost ;
+    property LocalHost: AnsiString     read fLocalHost      write fLocalHost ;
     property ProgressSecs: integer     read fProgressSecs   write fProgressSecs ;   // 5 Sept 2005
-    property CopyEvent: TBulkCopyEvent read fCopyEvent      write fCopyEvent ;
+    property CopyEvent: TBulkCopyEventW read fCopyEvent     write fCopyEvent ;
     property TotProcFiles: integer     read fCopyProg.TotProcFiles ;
     property ProcOKFiles: integer      read fCopyProg.ProcOKFiles ;
     property DelOKFiles: integer       read fCopyProg.DelOKFiles ;
     property ProcFailFiles: integer    read fCopyProg.ProcFailFiles ;
     property SkippedFiles: integer     read fCopyProg.SkippedFiles ;
-    property ReqResponse: string       read fReqResponse ;
+    property ReqResponse: UnicodeString read fReqResponse ;
     property TotProcBytes: int64       read fCopyProg.TotProcBytes ;
     property ProcOKBytes: int64        read fCopyProg.ProcOKBytes ;
     property DelOKBytes: int64         read fCopyProg.DelOKBytes ;
-    property IgnoreFileExt: string     read fIgnoreFileExt  write fIgnoreFileExt ;
+    property IgnoreFileExt: UnicodeString read fIgnoreFileExt  write fIgnoreFileExt ;
     property UseUTC: Boolean           read fUseUTC         write fUseUTC ;
     property CopyLoDT: TDateTime       read fCopyLoDT       write fCopyLoDT ;
     property CopyHiDT: TDateTime       read fCopyHiDT       write fCopyHiDT ;
-    property UserName: string          read fUserName       write fUserName ;
-    property Password: string          read fPassword       write fPassword ;
-    property LocalName: string         read fLocalName      write fLocalName ;
-    property RemoteName: string        read fRemoteName     write fRemoteName ;
-    property RemConnected: string      read fRemConnected ;
+    property UserName: UnicodeString   read fUserName       write fUserName ;
+    property Password: UnicodeString   read fPassword       write fPassword ;
+    property LocalName: UnicodeString  read fLocalName      write fLocalName ;
+    property RemoteName: UnicodeString read fRemoteName     write fRemoteName ;
+    property RemConnected: UnicodeString read fRemConnected ;
     property MultiThreaded : Boolean   read fMultiThreaded  write fMultiThreaded;   // 16 Sept 2010
-    property EmptyDirs: Boolean        read fEmptyDirs      write fEmptyDirs ;  // 7 Feb 2011
-    property IgnorePaths: String       read fIgnorePaths    write fIgnorePaths ;    // 22 May 2013
-    property CopyProg: TIcsCopyProgress  read fCopyProg ;                             // 22 May 2013
+    property EmptyDirs: Boolean        read fEmptyDirs      write fEmptyDirs ;      // 7 Feb 2011
+    property IgnorePaths: UnicodeString read fIgnorePaths   write fIgnorePaths ;    // 22 May 2013
+    property CopyProg: TIcsCopyProgressW  read fCopyProg ;                             // 22 May 2013
     property Wow64RedirDisable: boolean read fWow64RedirDisable write fWow64RedirDisable ; // 22 May 2013
-    property ProgressEvent: TProgressEvent read fProgressEvent write fProgressEvent; // 22 May 2013
+    property ProgressEvent: TProgressEventW read fProgressEvent write fProgressEvent; // 22 May 2013
   {$IFDEF Zipping}
     property ZipDownDel: Boolean       read fZipDownDel     write fZipDownDel ;
     property Zipped: Boolean           read fZipped         write fZipped ;
     property ZipType: TIcsZipType         read fZipType        write fZipType ;
     property ZipPath: TIcsZipPath         read fZipPath        write fZipPath ;
-    property ZipDir: String            read fZipDir         write fZipDir ;
+    property ZipDir: UnicodeString     read fZipDir         write fZipDir ;
   {$ENDIF}
   end ;
 
 // various public file handling and copying functions
 // also used by OverbyteIcsFtpMulti and OverbyteIcsHttpMulti
 
-function IcsGetMaskedName (const mask: string; const PrevFlag: boolean; const host: string): string ;
-function IcsFmtFileDir (const FileRecs: TIcsFDirRecs ; const UTCFlag: boolean): string ;
-function IcsFmtFileDirList (const LocFileList: TIcsFindList; const UTCFlag: boolean): string ;
-function IcsCompareFNext (Item1, Item2: Pointer): Integer ;
+function IcsGetMaskedNameW (const mask: UnicodeString; const PrevFlag: boolean;
+                                            const host: AnsiString): UnicodeString ;
+function IcsFmtFileDirW (const FileRecs: TIcsFDirRecsW; const UTCFlag: boolean): UnicodeString ;
+function IcsFmtFileDirListW (const LocFileList: TIcsFindList; const UTCFlag: boolean): UnicodeString ;
+function IcsCompareFNextW (Item1, Item2: Pointer): Integer ;
 function IcsAttrStr (const Attr: longword): string ;
 function IcsGetTaskResName (TaskResult: TIcsTaskResult): string ;
-function IcsCheckDirAny (LocDir: string): boolean ;
-function IcsFileInUse(FileName: String): Boolean;
-function IcsTruncateFile(const FName: String; NewSize: int64): int64;
+function IcsCheckDirAnyW (LocDir: UnicodeString): boolean ;
+function IcsFileInUseW(FileName: UnicodeString): Boolean;
+function IcsTruncateFileW(const FName: UnicodeString; NewSize: int64): int64;
+// Utitls has IcsRenameFileW and IcsDeleteFileW
+function IcsRenameFileWW (const OldName, NewName: UnicodeString;
+                                        const Replace, ReadOnly: boolean): Integer ;
+function IcsDeleteFileWW (const Fname: UnicodeString; const ReadOnly: boolean): Integer ;
 function IcsCheckReplace (const replopt: TIcsFileCopyRepl;
            const IgnoreOldTime: boolean; const AllowDiffDT: TDateTime;
             const SrcSize, TarSize: Int64; SrcDT, TarDT: TDateTime): boolean ;
-procedure IcsCopyProgClearAll (var CopyProg: TIcsCopyProgress) ;    // 16 May 2013
-procedure IcsCopyProgClearCur (var CopyProg: TIcsCopyProgress) ;    // 16 May 2013
-procedure IcsCopyProgDuration (var CopyProg: TIcsCopyProgress; TicksPerFile: Longword = 50) ; // 16 May 2013
+procedure IcsCopyProgClearAll (var CopyProg: TIcsCopyProgressW) ;    // 16 May 2013
+procedure IcsCopyProgClearCur (var CopyProg: TIcsCopyProgressW) ;    // 16 May 2013
+procedure IcsCopyProgDuration (var CopyProg: TIcsCopyProgressW; TicksPerFile: Longword = 50) ; // 16 May 2013
 function IcsCalcSpeed (DurTicks, FSize: int64): int64 ;  // 22 May 2013 moved from MagentaFTP
 function IsWin64: boolean ;   // 22 July 2011
 function IsWow64: boolean ;   // 14 Dec 2009
@@ -528,7 +519,6 @@ function DisableWow64Redir (var OldRedir: BOOL): boolean ;  // 17 May 2013
 function RevertWow64Redir (OldRedir: BOOL): boolean ;       // 17 May 2013
 
 var
-
     AppProcMessCount: integer = 0 ;
     AppProgressCount: integer = 0 ;
     MaxFNameLen: integer = 32 ;     // maximum file name length to display in listings
@@ -539,15 +529,17 @@ const
     AppTicksPerFile = 20 ;   // 22 May 2013 millisecs to open file when calculation session duration
     AppDurationWait = 5000 ; // 22 May 2013 millisecs to wait before estimating duration and speed
 
+
 implementation
 
-function IcsFileInUse(FileName: String): Boolean;
+
+function IcsFileInUseW(FileName: UnicodeString): Boolean;
 var
     hFileRes: HFILE;
 begin
     Result := False;
-    if IcsGetFileSize (FileName) < 0 then exit;
-    hFileRes := CreateFile (PChar (FileName), GENERIC_READ or GENERIC_WRITE, 0,
+    if IcsGetFileSizeW (FileName) < 0 then exit;
+    hFileRes := CreateFileW (PWideChar (FileName), GENERIC_READ or GENERIC_WRITE, 0,
                                    nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0) ;
     Result := (hFileRes = INVALID_HANDLE_VALUE);
     if NOT Result then CloseHandle(hFileRes);
@@ -555,14 +547,13 @@ end;
 
 // truncate file
 
-function IcsTruncateFile(const FName: String; NewSize: int64): int64;
+function IcsTruncateFileW(const FName: UnicodeString; NewSize: int64): int64;
 var
     H: Integer;
 begin
     result := -1;   // file not found
-    if IcsGetFileSize (FName) < 0 then exit;  // unicode
-//    H := FileOpen(FName, fmOpenReadWrite);
-    H := Integer(CreateFile (PChar (FName), GENERIC_READ or GENERIC_WRITE, 0,
+    if IcsGetFileSizeW (FName) < 0 then exit;  // unicode
+    H := Integer(CreateFileW (PWideChar (FName), GENERIC_READ or GENERIC_WRITE, 0,
                                    nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)) ;
     if H < 0 then exit;
     result := FileSeek (H, Int64 (0), soFromEnd) ;   // size of file
@@ -671,7 +662,7 @@ end ;
 
 // 16 May 2013 clear current file progress stuff
 
-procedure IcsCopyProgClearCur (var CopyProg: TIcsCopyProgress) ;
+procedure IcsCopyProgClearCur (var CopyProg: TIcsCopyProgressW) ;
 begin
     with CopyProg do
     begin
@@ -690,7 +681,7 @@ end;
 
 // 16 May 2013 clear all progress stuff
 
-procedure IcsCopyProgClearAll (var CopyProg: TIcsCopyProgress) ;
+procedure IcsCopyProgClearAll (var CopyProg: TIcsCopyProgressW) ;
 begin
     IcsCopyProgClearCur (CopyProg) ;
     with CopyProg do
@@ -727,7 +718,9 @@ end ;
 
 // 16 May 2013 calculate file progress stuff
 
-procedure IcsCopyProgDuration (var CopyProg: TIcsCopyProgress; TicksPerFile: Longword = 50) ;
+procedure IcsCopyProgDuration (var CopyProg: TIcsCopyProgressW; TicksPerFile: Longword = 50) ;
+//var
+//    T: Int64 ;
 begin
     with CopyProg do
     begin
@@ -759,22 +752,22 @@ begin
     end;
 end;
 
-constructor TIcsFileCopy.Create(Aowner:TComponent);
+constructor TIcsFileCopyW.Create(Aowner:TComponent);
 begin
     inherited create(AOwner);
-    fSrcDirList := TStringList.Create ;
-    fTarDirList := TStringList.Create ;
+    fSrcDirList := TWideStringList.Create ;
+    fTarDirList := TWideStringList.Create ;
     SrcFileList := TIcsFindList.Create ;
     TarFileList := TIcsFindList.Create ;
     ClearTarList ;
     ClearSrcList ;
     fCancelFlag := false ;
     fUseUTC := true ;
-    fProgressSecs := 2 ;   // update progress every two seconds default
+    fProgressSecs := 2 ;   // update progress every two seconds default, zero means none LogLevelProg events
     IcsCopyProgClearAll (fCopyProg) ;  // 22 May 2013
 end ;
 
-destructor TIcsFileCopy.Destroy;
+destructor TIcsFileCopyW.Destroy;
 begin
     ClearTarList ;
     ClearSrcList ;
@@ -785,21 +778,21 @@ begin
     inherited Destroy;
 end;
 
-function TIcsFileCopy.Connect: boolean ;
+function TIcsFileCopyW.Connect: boolean ;
 var
-    NetResource: TNetResource;
+    NetResource: TNetResourceW;
     dwFlags: DWORD;
 begin
     result := false ;
     NetResource.dwType := RESOURCETYPE_DISK ;
-    NetResource.lpLocalName := PChar (FLocalName) ;   // ie N: for drive N
-    NetResource.lpRemoteName := PChar (FRemoteName) ; // ie \\sysname\share UNC name
+    NetResource.lpLocalName := PWideChar (FLocalName) ;   // ie N: for drive N
+    NetResource.lpRemoteName := PWideChar (FRemoteName) ; // ie \\sysname\share UNC name
     NetResource.lpProvider := Nil ;
     dwFlags := 0 ;
-    if WNetAddConnection2 (NetResource, PChar (FPassword), PChar (FUserName), dwFlags) <> NO_ERROR then
+    if WNetAddConnection2W (NetResource, PWideChar (FPassword), PWideChar (FUserName), dwFlags) <> NO_ERROR then
     begin
         fReqResponse := 'Failed to Connect to Remote Name: ' +
-                              FRemoteName + '; Error: ' + SysErrorMessage (GetLastError) ;
+                                  FRemoteName + '; Error: ' + SysErrorMessage (GetLastError) ;
         doCopyEvent (LogLevelInfo, fReqResponse) ;
     end
     else
@@ -812,16 +805,16 @@ begin
     end
 end;
 
-function TIcsFileCopy.Disconnect (AForce: boolean): boolean ;
+function TIcsFileCopyW.Disconnect (AForce: boolean): boolean ;
 var
-    Device: string;
+    Device: WideString;
 begin
     result := false ;
     if Trim (FLocalName) <> '' then
         Device := FLocalName
     else
         Device := FRemoteName;
-    if WNetCancelConnection2 (PChar (Device), CONNECT_UPDATE_PROFILE, AForce) <> NO_ERROR then
+    if WNetCancelConnection2W (PWideChar (Device), CONNECT_UPDATE_PROFILE, AForce) <> NO_ERROR then
     begin
         fReqResponse := 'Failed to Disconnect: ' + Device + '; Error: ' + SysErrorMessage (GetLastError) ;
         doCopyEvent (LogLevelInfo, fReqResponse) ;
@@ -835,14 +828,14 @@ begin
     end
 end;
 
-function TIcsFileCopy.GetConnection (ALocalName: string): string ;
+function TIcsFileCopyW.GetConnection (ALocalName: UnicodeString): string ;
 var
-    Buffer: array[0..1024] of Char;
+    Buffer: array[0..1024] of WideChar;
     BufSize: DWORD ;
 begin
     result := '' ;
     BufSize := 1024 ;
-    if WNetGetConnection (PChar (ALocalName), Buffer, BufSize) <> NO_ERROR then
+    if WNetGetConnectionW (PWideChar (ALocalName), Buffer, BufSize) <> NO_ERROR then
     begin
         fReqResponse := 'Connection Not Found: ' + ALocalName + '; Error: ' + SysErrorMessage (GetLastError) ;
         doCopyEvent (LogLevelInfo, fReqResponse) ;
@@ -858,7 +851,7 @@ end;
 
 // free memory used by Src lists
 
-procedure TIcsFileCopy.ClearSrcList ;
+procedure TIcsFileCopyW.ClearSrcList ;
 begin
     TotSrcFiles := 0 ;
     SrcFiles := Nil ;
@@ -870,7 +863,7 @@ end ;
 
 // free memory used by Tars lists
 
-procedure TIcsFileCopy.ClearTarList ;
+procedure TIcsFileCopyW.ClearTarList ;
 begin
     TotTarFiles := 0 ;
     TarFiles := Nil ;
@@ -884,17 +877,16 @@ end ;
 // multi directories are passed as srcdir+tab+tardir+recsep (repeat)
 // parse them into simple stringlists
 
-procedure TIcsFileCopy.SetMultiDirList (const Value: string) ;
+procedure TIcsFileCopyW.SetMultiDirList (const Value: Unicodestring) ;
 var
     I: integer ;
-    aitems, afields: TStringList ;
+    aitems, afields: TWideStringList ;
 begin
     fSrcDirList.Clear ;
     fTarDirList.Clear ;
     if value = '' then exit ;
-{$IFDEF COMPILER10_UP}   { only supported D2006 and later }
-    afields := TStringList.Create ;
-    aitems := TStringList.Create ;
+    afields := TWideStringList.Create ;
+    aitems := TWideStringList.Create ;
     aitems.Delimiter := IcsRECSEP ;
     aitems.StrictDelimiter := True;
     afields.Delimiter := IcsTAB ;
@@ -912,35 +904,43 @@ begin
                     fSrcDirList.Add (afields [0]) ;
                     fTarDirList.Add (afields [1]) ;
                 end ;
-            end ;
+            end; 
         end ;
     finally
         afields.Free ;
         aitems.Free ;
     end;
-{$ENDIF}
 end ;
 
-procedure TIcsFileCopy.SetSrcDirList (Value: TStringList) ;
+procedure TIcsFileCopyW.SetSrcDirList (Value: TWideStringList) ;
 begin
     if fSrcDirList.Text <> Value.Text then
         fSrcDirList.Assign(Value) ;
 end;
 
-procedure TIcsFileCopy.SetTarDirList (Value: TStringList) ;
+procedure TIcsFileCopyW.SetTarDirList (Value: TWideStringList) ;
 begin
     if fTarDirList.Text <> Value.Text then
         fTarDirList.Assign(Value) ;
 end;
 
 
-function IcsMaskMatches(const Pattern: string; const aString: string; CaseSensitive: Boolean = false): Boolean;
+function  UpCaseWide( ch : WideChar ) : WideChar;
+begin
+  Result := ch;
+  case Result of
+    'a'..'z':  Dec(Result, Ord('a') - Ord('A'));
+  end;
+end;
+
+function MaskMatchesW(const Pattern: UnicodeString; const aString: UnicodeString;
+                            CaseSensitive: Boolean = false): Boolean;
 { Returns true if astring matches the Pattern, which may contain   }
 { wildcards * and ?. }
 { Copied from the "matcher" component for Delphi32.                                 }
 { Copyright 1996, Patrick Brisacier and Jean-Fabien Connault.  All Rights Reserved. }
 
-  function RMatch(s: PChar; i: Integer; p: PChar; j: Integer): Boolean;
+  function RMatch(s: PWideChar; i: Integer; p: PWideChar; j: Integer): Boolean;
   Var
    matched        : Boolean;
    k              : Integer;
@@ -977,8 +977,8 @@ function IcsMaskMatches(const Pattern: string; const aString: string; CaseSensit
        begin
         if not CaseSensitive then
          begin
-          p[j] := UpCase(p[j]);
-          s[i] := UpCase(s[i]);
+          p[j] := UpCaseWide(p[j]);
+          s[i] := UpCaseWide(s[i]);
          end;
 
         if ((p[j] = '?') and (s[i] <> #0)) OR (p[j] = s[i]) then
@@ -995,22 +995,65 @@ function IcsMaskMatches(const Pattern: string; const aString: string; CaseSensit
     end;
 
 begin {Match}
-    result := RMatch(PChar (aString), 0, PChar(Pattern), 0);
+// 6 Aug 2008 - skip all this string copying, did not work with Unicode either but unneeded
+    result := RMatch(PWideChar (aString), 0, PWideChar(Pattern), 0);
 end;
 
-function IcsGetMaskedName (const mask: string; const PrevFlag: boolean;
-                                            const host: string): string ;
+// NOTE - no WideFormatDateTime in Delphi 7 to Delphi 2007
+
+function IcsGetMaskedNameW (const mask: UnicodeString; const PrevFlag: boolean;
+                                            const host: AnsiString): UnicodeString ;
+var
+    S: string ;
 begin
-    result := trim (mask) ;
+    result := Trim (mask) ;
     if result = '' then result := '*.*' ;
     if result = '*.*' then exit ;
-    result := StringReplace (result, '$H', host, [rfReplaceAll]) ;
+    S := StringReplace (result, '$H', String (host), [rfReplaceAll]) ;
     if PrevFlag then
-        result := FormatDateTime (result, Now - 1)
+        result := FormatDateTime (S, Now - 1)
     else
-        result := FormatDateTime (result, Now) ;
+        result := FormatDateTime (S, Now) ;
 end ;
 
+// delete a single file, optionally read only
+
+function IcsDeleteFileWW (const Fname: UnicodeString; const ReadOnly: boolean): Integer ;
+var
+    attrs: integer ;
+begin
+    result := -1 ;    // file not found
+    attrs := IcsFileGetAttrW (Fname) ;
+    if attrs < 0 then exit ;
+    if ((attrs and faReadOnly) <> 0) and ReadOnly then
+    begin
+        result := IcsFileSetAttrW (Fname, 0) ;
+        if result <> 0 then result := 1 ;
+        if result <> 0 then exit ;  // 1 could not change file attribute, ignore system error
+    end ;
+    if IcsDeleteFileW (Fname) then
+        result := 0   // OK
+    else
+        result := GetLastError ; // system error
+end ;
+
+// rename a single file, optionally replacing, optionally read only
+
+function IcsRenameFileWW (const OldName, NewName: UnicodeString;
+                                        const Replace, ReadOnly: boolean): Integer ;
+begin
+    if IcsFileExistsW (NewName) then
+    begin
+        result := 2 ;  // rename failed, new file exists
+        if NOT Replace then exit ;
+        result := IcsDeleteFileWW (NewName, ReadOnly) ;
+        if result <> 0 then exit ;  // 1 could not change file attribute, higher could not delete file
+    end ;
+    if IcsRenameFileW (OldName, NewName) then
+        result := 0   // OK
+    else
+        result := GetLastError ; // system error
+end ;
 
 // returns a string with ASCII file attributes
 
@@ -1030,11 +1073,11 @@ end ;
 
 // format file directory from arrays
 
-function IcsFmtFileDir (const FileRecs: TIcsFDirRecs ; const UTCFlag: boolean): string ;
+function IcsFmtFileDirW (const FileRecs: TIcsFDirRecsW; const UTCFlag: boolean): UnicodeString ;
 var
     I, tot, len: integer ;
     totfsize: int64 ;
-    temp1, temp2, temp3, linemask: string ;
+    temp1, temp2, temp3, linemask: UnicodeString ;
     listing: TIcsStringBuild ;
 begin
     result := '' ;
@@ -1044,7 +1087,7 @@ begin
     linemask [4] := temp1 [2] ;
     totfsize := 0 ;
     tot := Length (FileRecs) ;
-    listing := TIcsStringBuild.Create (tot * 100) ;  // allocate memory for each line
+    listing := TIcsStringBuild.Create (tot * 100, True) ;  // allocate memory for each widestring line
     try
     if tot <> 0 then
     begin
@@ -1070,12 +1113,12 @@ begin
                     else
                         temp3 := DateToStr (FrfileDT) + ' ' + TimeToStr (FrfileDT) ;
                 end ;
-                listing.AppendLine (Format (linemask, [temp1, temp2, IcsAttrStr (FrFileAttr), temp3, FrSubDirs])) ;
+                listing.AppendLineW (WideFormat (linemask, [temp1, temp2, IcsAttrStr (FrFileAttr), temp3, FrSubDirs])) ;
              end ;
         end ;
     end ;
-    listing.AppendLine ('Total Files Found: '+ IcsIntToCStr (tot) + ', Total size: ' + IntToKByte (totfsize, true)) ;
-    Result := listing.GetString ;
+    listing.AppendLineW ('Total Files Found: '+ IcsIntToCStr (tot) + ', Total Size: ' + IntToKByte (totfsize, true)) ;
+    Result := listing.GetWString ;
     finally
         listing.Free ;
     end ;
@@ -1083,58 +1126,58 @@ end ;
 
 // format file directory for list (pointers to arrays)
 
-function IcsFmtFileDirList (const LocFileList: TIcsFindList; const UTCFlag: boolean): string ;
+function IcsFmtFileDirListW (const LocFileList: TIcsFindList; const UTCFlag: boolean): UnicodeString ;
 var
     I, tot, len: integer ;
     totfsize: int64 ;
-    temp1, temp2, temp3, linemask: string ;
-    FileRecX: PTIcsFDirRec ;
+    temp1, temp2, temp3, linemask: UnicodeString ;
+    FileRecX: PTIcsFDirRecW ;
     listing: TIcsStringBuild ;
 begin
     tot := LocFileList.Count ;
     result := '' ;
     linemask := sDirLine ;
-    listing := TIcsStringBuild.Create (tot * 100) ;  // allocate memory for each line
+    listing := TIcsStringBuild.Create (tot * 100, True) ;  // allocate memory for each line
     temp1 := IntToStr (MaxFNameLen) ;
     linemask [3] := temp1 [1] ;
     linemask [4] := temp1 [2] ;
     totfsize := 0 ;
     try
     try
-    if tot <> 0 then
-    begin
-        for I := 0 to Pred (tot) do
+        if tot <> 0 then
         begin
-            if LocFileList [I] = Nil then continue ;
-            FileRecX := LocFileList [I] ;
-            with FileRecX^ do
+            for I := 0 to Pred (tot) do
             begin
-                temp1 := FrFileName ;
-                if temp1 = '' then temp1 := '???' ;  // should never happen
-                len := Length (temp1) ;
-                if len > MaxFNameLen then temp1 := Copy (temp1, 1, MaxFNameLen - 3) + '...' ;  // too long to display
-                inc (totfsize, FrFileBytes) ;
-                if FrExtra = sDirLit then
-                    temp2 := sDirLit
-                else
-                    temp2 := IcsInt64ToCStr (FrFileBytes) ;
-                temp3 := '' ;
-                if FrfileDT <> 0 then
+                if LocFileList [I] = Nil then continue ;
+                FileRecX := LocFileList [I] ;
+                with FileRecX^ do
                 begin
-                    if UTCFlag then
-                        temp3 := DateToStr (FrfileUDT) + ' ' + TimeToStr (FrfileUDT)
+                    temp1 := FrFileName ;
+                    if temp1 = '' then temp1 := '???' ;  // should never happen
+                    len := Length (temp1) ;
+                    if len > MaxFNameLen then temp1 := Copy (temp1, 1, MaxFNameLen - 3) + '...' ;  // too long to display
+                    inc (totfsize, FrFileBytes) ;
+                    if FrExtra = sDirLit then
+                        temp2 := sDirLit
                     else
-                        temp3 := DateToStr (FrfileDT) + ' ' + TimeToStr (FrfileDT) ;
+                        temp2 := IcsInt64ToCStr (FrFileBytes) ;
+                    temp3 := '' ;
+                    if FrfileDT <> 0 then
+                    begin
+                        if UTCFlag then
+                            temp3 := DateToStr (FrfileUDT) + ' ' + TimeToStr (FrfileUDT)
+                        else
+                            temp3 := DateToStr (FrfileDT) + ' ' + TimeToStr (FrfileDT) ;
+                    end ;
+                    listing.AppendLineW (WideFormat (linemask, [temp1, temp2, IcsAttrStr (FrFileAttr), temp3, FrSubDirs])) ;
                 end ;
-                listing.AppendLine (Format (linemask, [temp1, temp2, IcsAttrStr (FrFileAttr), temp3, FrSubDirs])) ;
-            end ;
-       end ;
-    end ;
+           end ;
+        end ;
     except
-        listing.AppendLine ('Exception accessing file record') ;
+        listing.AppendLineW ('Exception accessing file record') ;
     end ;
-    listing.AppendLine ('Total Files Found: ' + IcsIntToCStr (tot) + ', Total size: ' + IntToKByte (totfsize, true)) ;
-    Result := listing.GetString ;
+    listing.AppendLineW ('Total Files Found: '+ IcsIntToCStr (tot) + ', Total Size: ' + IntToKByte (totfsize, true)) ;
+    Result := listing.GetWString ;
     finally
         listing.Free ;
     end ;
@@ -1142,22 +1185,22 @@ end ;
 
 // check if directory has at least one file or subdirectory
 
-function IcsCheckDirAny (LocDir: string): boolean ;
+function IcsCheckDirAnyW (LocDir: UnicodeString): boolean ;
 var
   FindHandle: THandle;
-  FindData: TWin32FindData;
-  CurName: string;
+  FindData: TWin32FindDataW;
+  CurName: UnicodeString;
   MoreFlag: boolean;
 begin
     FindHandle := 0 ;
     result := false ;
     FillChar(FindData, SizeOf(FindData), #0) ;
-    LocDir := IncludeTrailingBackslash (LocDir) + '*.*' ;
+    LocDir := IcsIncludeTrailingPathDelimiterW (LocDir) + '*.*' ;
     try
     try
 
     // loop through directory until a real name found
-        FindHandle := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindFirstFile(Pchar(LocDir), FindData);
+        FindHandle := Windows.FindFirstFileW(PWidechar(LocDir), FindData);
         MoreFlag := (FindHandle <> INVALID_HANDLE_VALUE);
         while MoreFlag do
         begin
@@ -1168,14 +1211,14 @@ begin
                 MoreFlag := false
             end
             else
-                MoreFlag := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindNextFile(FindHandle, FindData);
+                MoreFlag := Windows.FindNextFileW(FindHandle, FindData);
         end;
     except
         result := false;
     end;
     finally
         if FindHandle <> INVALID_HANDLE_VALUE then
-          {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindClose(FindHandle);
+        Windows.FindClose(FindHandle);
     end;
 end;
 
@@ -1186,14 +1229,14 @@ end;
 
 // this version uses W32 FindFirstFile API rather than VCL FindFirst
 
-function TIcsFileCopy.BuildDirList2 (LocDir, LocPartName: string; const SubDirs: boolean;
+function TIcsFileCopyW.BuildDirList2 (LocDir, LocPartName: UnicodeString; const SubDirs: boolean;
                 Level, InitDLen: integer ; const LoDT, HiDT: TDateTime ;
-                                var TotFiles: integer; var LocFiles: TIcsFDirRecs ;
+                                var TotFiles: integer; var LocFiles: TIcsFDirRecsW;
                                                         const ListDirs: boolean = false) : boolean ;
 var
     FindHandle: THandle;
-    FindData: TWin32FindData;
-    fullname, CurName: string;
+    FindData: TWin32FindDataW;
+    fullname, CurName: UnicodeString;
     CurAttr: integer;
     LocalFileTime: TFileTime;
     CheckMatch, keepflag, succflag, MoreFlag, DateCheckFlag: boolean;
@@ -1242,8 +1285,8 @@ begin
     end ;
     result := true ;
     FillChar (FindData, SizeOf(FindData), #0) ;
-    LocPartName := Trim (AnsiLowerCase (LocPartName)) ;
-    LocDir := IncludeTrailingBackslash (LocDir) ;  // 7 Jan 2001, keep case
+    LocPartName := Trim (IcsAnsiLowerCaseW (LocPartName)) ;
+    LocDir := IcsIncludeTrailingPathDelimiterW (LocDir) ;  // 7 Jan 2001, keep case
     if InitDLen = 0 then InitDLen := Length(LocDir) ;
     CheckMatch := true;
     DateCheckFlag := (LoDT <> 0) and (HiDT <> 0) ;
@@ -1255,7 +1298,7 @@ begin
 
     // loop through directory getting all file names in directory
             fullname := LocDir + '*.*';
-            FindHandle := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindFirstFile(Pchar(fullname), FindData);
+            FindHandle := Windows.FindFirstFileW(PWideChar(fullname), FindData);
             MoreFlag := (FindHandle <> INVALID_HANDLE_VALUE);
             while MoreFlag do
             begin
@@ -1284,7 +1327,7 @@ begin
                    // if file matches mask, add record with all file details to dynamic array
                         if CheckMatch then
                         begin
-                            keepflag :=  IcsMaskMatches (LocPartName, AnsiLowerCase (CurName), true) ;
+                            keepflag := MaskMatchesW (LocPartName, IcsAnsiLowerCaseW (CurName), true) ;
                         end
                         else
                            keepflag := true;
@@ -1305,7 +1348,7 @@ begin
                         if keepflag then AddFiletoArray ;
                     end;
                 end;
-                MoreFlag := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindNextFile(FindHandle, FindData);
+                MoreFlag := Windows.FindNextFileW(FindHandle, FindData);
                 if AppProcMessCount <= 0 then      // make sure applications remains responsive
                 begin
                     MessagePump ; // 16 Sept 2010
@@ -1329,55 +1372,58 @@ begin
         end;
     finally
         if FindHandle <> INVALID_HANDLE_VALUE then
-           {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindClose(FindHandle);
+                                    Windows.FindClose(FindHandle);
         if fWow64RedirDisable then RevertWow64Redir (OldWow64) ; // 22 May 2013
     end;
 end;
 
 // backward compatible version, no dates
 
-function TIcsFileCopy.BuildDirList (LocDir, LocPartName: string; const SubDirs: boolean;
+function TIcsFileCopyW.BuildDirList (LocDir, LocPartName: UnicodeString; const SubDirs: boolean;
                  Level, InitDLen: integer ; var TotFiles: integer;
-                                        var LocFiles: TIcsFDirRecs  ; const ListDirs: boolean = false) : boolean ;
+                        var LocFiles: TIcsFDirRecsW ; const ListDirs: boolean = false) : boolean ;
 begin
     fCancelFlag := false ;
     AppProgressCount := 0 ;
-    result := BuildDirList2 (LocDir, LocPartName, SubDirs, Level, InitDLen, 0, 0, TotFiles, LocFiles, ListDirs) ;
+//    fLastProgTick := IcsGetTickCount ; // 22 Oct 2008 ensure progress displayed - 20 May 2013 never used
+    result := BuildDirList2 (LocDir, LocPartName, SubDirs, Level, InitDLen,
+                                                   0, 0, TotFiles, LocFiles, ListDirs) ;
 end ;
 
 // called by TIcsFindList for sort and find comparison of file records - case insensitive
 
-function IcsCompareFNext (Item1, Item2: Pointer): Integer;
+function IcsCompareFNextW (Item1, Item2: Pointer): Integer;
 // Compare returns < 0 if Item1 is less than Item2, 0 if they are equal
 // and > 0 if Item1 is greater than Item2.
 var
-    Sort1, Sort2: string ;
+    Sort1, Sort2: UnicodeString ;
 begin
-{ // 16 Sept 2010 had to remove this since TMagCopy object not available
+{  // 16 Sept 2010 had to remove this since TMagCopy object not available
     if AppProcMessCount <= 0 then      // make sure applications remains responsive
     begin
         MessagePump ; // 16 Sept 2010
         AppProcMessCount := AppProcMessMax ;
     end ;
-    dec (AppProcMessCount) ;  }
+    dec (AppProcMessCount) ; }
 
 // using fullname might be faster, ! as last path delim makes files sort before dirs
-    Sort1 := PTIcsFDirRec (Item1).FrSubDirs + '!' + PTIcsFDirRec (Item1).FrFileName ;
-    Sort2 := PTIcsFDirRec (Item2).FrSubDirs + '!' + PTIcsFDirRec (Item2).FrFileName ;
-    result := CompareText (Sort1, Sort2) ;  // case insensitive
+    Sort1 := PTIcsFDirRecW (Item1).FrSubDirs + '!' + PTIcsFDirRecW (Item1).FrFileName ;
+    Sort2 := PTIcsFDirRecW (Item2).FrSubDirs + '!' + PTIcsFDirRecW (Item2).FrFileName ;
+    result := WideCompareText (Sort1, Sort2) ;  // case insensitive
 end ;
 
 // builds sorted list of files in a directory and sub directories, optional search path
 // returns total files, or -1 for error or cancelled from CopyEvent
 
-function TIcsFileCopy.GetDirList (LocDir, LocPartName: string; const SelOpt: TIcsFileCopyType;
-              const SubDirs: boolean; LoDT, HiDT: TDateTime ;
-                    var LocFiles: TIcsFDirRecs ; var LocFileList: TIcsFindList; const ListDirs: boolean = false): integer ;
+function TIcsFileCopyW.GetDirList (LocDir, LocPartName: UnicodeString; const SelOpt: TIcsFileCopyType;
+              const SubDirs: boolean; LoDT, HiDT: TDateTime ; var LocFiles: TIcsFDirRecsW;
+                        var LocFileList: TIcsFindList; const ListDirs: boolean = false): integer ;
 var
     I, totfiles: integer ;
     flag: boolean ;
 begin
     fCancelFlag := false ;
+//    fLastProgTick := IcsGetTickCount ; // 22 Oct 2008 ensure progress displayed  - 20 May 2013 never used
     AppProgressCount := 0 ;
     if SubDirs then  // 7 Sept 2008 was 1000 more if subdirs, avoids too much copying
         SetLength (LocFiles, 25000)
@@ -1406,17 +1452,17 @@ begin
 // build list and sort it
     LocFileList.Capacity := totfiles ;
     for I := 0 to Pred (totfiles) do LocFileList.Add (@LocFiles [I]) ;
-    LocFileList.Sort (IcsCompareFNext) ;
+    LocFileList.Sort (IcsCompareFNextW) ;
     LocFileList.Sorted := true ; // 11 June 2008 not sure if really needed
 end ;
 
 // build displayable file directory
 
-function TIcsFileCopy.DispLocFiles (const SrcDir, SrcFile: string ; const CopyType:
+function TIcsFileCopyW.DispLocFiles (const SrcDir, SrcFile: UnicodeString ; const CopyType:
         TIcsFileCopyType ; const SubDirs: boolean; const UTCFlag: boolean;
-                                        const ListDirs: boolean = false): string ;
+                                        const ListDirs: boolean = false): UnicodeString ;
 var
-    DirSrcFiles: TIcsFDirRecs  ;
+    DirSrcFiles: TIcsFDirRecsW ;
     DirSrcFileList: TIcsFindList ;
     totfiles: integer ;
 begin
@@ -1428,7 +1474,7 @@ begin
         if totfiles = -1 then
             result := 'Error Locating Files - ' + IcsGetExceptMess (ExceptObject)
         else
-            result := IcsFmtFileDirList (DirSrcFileList, UTCFlag) ;
+            result := IcsFmtFileDirListW (DirSrcFileList, UTCFlag) ;
 
     finally
         DirSrcFileList.Free ;
@@ -1484,20 +1530,22 @@ end ;
 // select files to copy from one place to another
 // also used to select files not in target directory to delete
 
-function TIcsFileCopy.SelectCopyFileList (const SrcFileList, TarFileList: TIcsFindList;
-        const Fname: string; const Selopt: TIcsFileCopyType; const Replopt: TIcsFileCopyRepl;
-            const DiffStamp: integer; const IgnoreOldTime: boolean; IgnoreExt: string ;
-              var Skipped: integer; const UTCFlag: boolean; const IgnorePaths: String = ''): integer ;  // 16 May 2013 added IgnorePath
+function TIcsFileCopyW.SelectCopyFileList (const SrcFileList, TarFileList: TIcsFindList;
+        const Fname: UnicodeString; const Selopt: TIcsFileCopyType;
+          const Replopt: TIcsFileCopyRepl; const DiffStamp: integer;
+            const IgnoreOldTime: boolean; IgnoreExt: UnicodeString ;
+              var skipped: integer; const UTCFlag: boolean;
+                    const IgnorePaths: UnicodeString = ''): integer ;  // 16 May 2013 added IgnorePath
 var
-    I, J, TotSrc, TotTar: integer ;
+    I, J, TotSrc, TotTar, IgnorePathTot: integer ;
     srchBytes: int64 ;
     srchDT, oldDT, realdiffDT, allowdiffDT: TDateTime ;
-    compname, extn: string ;
+    compname, extn: UnicodeString ;
     flag, xlatsrc, xlattar: boolean ;
-    SrcFileRec, TarFileRec: PTIcsFDirRec ;
-    SrchFileRec: TIcsFDirRec ;
+    SrcFileRec, TarFileRec: PTIcsFDirRecW ;
+    SrchFileRec: TIcsFDirRecW ;
     NewSelopt: TIcsFileCopyType ;
-    IgnorePathList: TStringList ;    // 16 May 2013
+    IgnorePathList: TWideStringList ;    // 16 May 2013
 begin
     result := 0 ;
     skipped := 0 ;
@@ -1507,23 +1555,20 @@ begin
     totSrc := SrcFileList.Count ;
     totTar := TarFileList.Count ;
     if totSrc = 0 then exit ;
-    IgnoreExt := AnsiLowerCase (IgnoreExt) ;  // list, ie tmp;bak
-    compname := AnsiLowerCase (trim (fname)) ;
+    IgnoreExt := IcsAnsiLowerCaseW (IgnoreExt) ;  // list, ie tmp;bak
+    compname := IcsAnsiLowerCaseW (Trim (Fname)) ;
     NewSelopt := Selopt ;
     if compname = '*.*' then NewSelopt := FCTypeAllDir ; // 9 Feb 2011 faster and allow files without an extension to be selected
     if DiffStamp = -1 then
         allowdiffDT := OneSecondDT * 2 // allow for errors on file time stamps
     else
-        allowdiffDT := DiffStamp / (SecsPerDay / 60) ; // diff in minutes
+        allowdiffDT := DiffStamp / (SecsPerDay / 60) ;  // diff in minutes
 
  // ignore files where source has specific partial path, list is c:\temp;c:\temp2;c:\temp3;etc
-    IgnorePathList := TStringList.Create ;
-{$IFDEF COMPILER10_UP}   { only supported D2006 and later }
+    IgnorePathList := TWideStringList.Create ;
     IgnorePathList.Delimiter := ';';
     IgnorePathList.StrictDelimiter := True;
-    IgnorePathList.DelimitedText := AnsiLowerCase (IgnorePaths) ;
-    IgnorePathList.Sort;
-{$ENDIF}
+    IgnorePathList.DelimitedText := IcsAnsiLowerCaseW (IgnorePaths) ;
     if (IgnorePathList.Count > 0) then  { V8.60 }
     begin
         for J := 0 to Pred (IgnorePathList.Count) do
@@ -1533,184 +1578,184 @@ begin
     end;
 
 // test first file in both lists to see if path translation needed
-    try
-        SrcFileRec := SrcFileList [0] ;
-        xlatsrc := (Pos ('/', SrcFileRec^.FrFullName) > 0) ;
-        if totTar <> 0 then
+    SrcFileRec := SrcFileList [0] ;
+    xlatsrc := (Pos ('/', SrcFileRec^.FrFullName) > 0) ;
+    if totTar <> 0 then
+    begin
+        TarFileRec := TarFileList [0] ;
+        xlattar := (Pos ('/', TarFileRec^.FrFullName) > 0) ;
+        if xlattar and xlatsrc then   // if both UNIX, don't translate
         begin
-            TarFileRec := TarFileList [0] ;
-            xlattar := (Pos ('/', TarFileRec^.FrFullName) > 0) ;
-            if xlattar and xlatsrc then   // if both UNIX, don't translate
-            begin
-                xlatsrc := false ;
-                xlattar := false ;
-            end
-        end
-        else
+            xlatsrc := false ;
             xlattar := false ;
+        end
+    end
+    else
+        xlattar := false ;
 
 // check each source file to see if it's being copied
-        for I := 0 to Pred (totSrc) do
+    try
+    for I := 0 to Pred (totSrc) do
+    begin
+        if AppProcMessCount <= 0 then      // make sure applications remains responsive
         begin
-            if AppProcMessCount <= 0 then      // make sure applications remains responsive
+            MessagePump ; // 16 Sept 2010
+            AppProcMessCount := AppProcMessMax ;
+            if AppProgressCount <= 0 then
             begin
-                MessagePump ; // 16 Sept 2010
-                AppProcMessCount := AppProcMessMax ;
-                if AppProgressCount <= 0 then
+                doCopyEvent (LogLevelProg, 'Checking Files, Done ' + IcsIntToCStr (I)) ;  // 20 May 2013
+                if fCancelFlag then
                 begin
-                    doCopyEvent (LogLevelProg, 'Checking Files, Done ' + IcsIntToCStr (I)) ;  // 20 May 2013
-                    if fCancelFlag then
-                    begin
-                        result := 0 ;
-                        exit ;
-                    end ;
-                    AppProgressCount := AppProgressMax ;
+                    result := 0 ;
+                    exit ;
                 end ;
-                dec (AppProgressCount) ;
+                AppProgressCount := AppProgressMax ;
             end ;
-            dec (AppProcMessCount) ;
-            flag := false ;
-            SrcFileRec := SrcFileList [I] ;
-            with SrcFileRec^ do
+            dec (AppProgressCount) ;
+        end ;
+        dec (AppProcMessCount) ;
+        flag := false ;
+        SrcFileRec := SrcFileList [I] ;
+        with SrcFileRec^ do
+        begin
+            if (FrLinks = '') then
             begin
-                if { (FrExtra <> sDirLit) and } (FrLinks = '') then    // 9 Feb 2011 don't ignore directories
+                if NewSelopt = FCTypeAllDir then flag := true
+                else if NewSelopt = FCTypeDates then flag := true
+                else if NewSelopt = FCTypeSingle then
                 begin
-                    if NewSelopt = FCTypeAllDir then flag := true
-                    else if NewSelopt = FCTypeDates then flag := true
-                    else if NewSelopt = FCTypeSingle then
-                    begin
-                        if FrFileName = compname then flag := true ;
-                    end
-                    else if NewSelopt = FCTypeMaskDir then
-                    begin
-                        if IcsMaskMatches (compname, AnsiLowerCase (FrFileName), true) then flag := true ;
-                    end
-                    else if NewSelopt = FCTypeArchDir then
-                    begin
-                        if (FrFileAttr AND File_Attribute_Archive) > 0 then flag := true ;
-                    end ;
+                    if FrFileName = compname then flag := true ;
+                end
+                else if NewSelopt = FCTypeMaskDir then
+                begin
+                    if MaskMatchesW (compname, IcsAnsiLowerCaseW (FrFileName), true) then flag := true ;
+                end
+                else if NewSelopt = FCTypeArchDir then
+                begin
+                    if (FrFileAttr AND File_Attribute_Archive) > 0 then flag := true ;
+                end ;
 
-               // ignore files with specific extensions - list is tmp;ftp;xxx;etc
-                    if flag and (Length (IgnoreExt) <> 0) then
+           // ignore files with specific extensions - list is tmp;ftp;xxx;etc
+                if flag and (Length (IgnoreExt) <> 0) then
+                begin
+                    extn := IcsAnsiLowerCaseW (IcsExtractFileExtW (FrFileName)) ;
+                    if Length (extn) >= 2 then  // 22 Oct 2008 was minimum 4, now 2
                     begin
-                        extn := AnsiLowerCase (ExtractFileExt (FrFileName)) ;
-                        if Length (extn) >= 4 then
-                        begin
-                            if Pos (Copy (extn, 2, 99), IgnoreExt) > 0 then flag := false ;
-                        end ;
+                        if Pos (Copy (extn, 2, 99), IgnoreExt) > 0 then flag := false ;
                     end ;
+                end ;
 
-              // ignore files where source has specific partial path, list is c:\temp;c:\temp2;c:\temp3;etc
-                    if flag and (IgnorePathList.Count > 0) then  // 16 May 2013
+          // ignore files where source has specific partial path, list is c:\temp;c:\temp2;c:\temp3;etc
+                if flag and (IgnorePathList.Count > 0) then  // 16 May 2013
+                begin
+                    for J := 0 to Pred (IgnorePathList.Count) do
                     begin
-                        for J := 0 to IgnorePathList.Count - 1 do
-                        begin
-                            if Pos (IgnorePathList [J], AnsiLowerCase (FrFullName)) = 1 then flag := false ;
-                        end;
+                        if Pos (IgnorePathList [J], IcsAnsiLowerCaseW (FrFullName)) = 1 then flag := false ;
                     end;
-                end ;
+                end;
             end ;
+        end ;
 
-       // see if file already exists and whether we can skip downloading it again
-            if flag and (totTar <> 0) and (replopt <> FCReplAlways) then
+   // see if file already exists and whether we can skip downloading it again
+        if flag and (totTar <> 0) and (replopt <> FCReplAlways) then
+        begin
+            SrchFileRec := SrcFileRec^ ;   // copy record to see can mess with it
+            with SrchFileRec do
             begin
-                SrchFileRec := SrcFileRec^ ;   // copy record to see can mess with it
-                with SrchFileRec do
+                if UTCFlag then
+                    srchDT := FrFileUDT
+                else
+                    srchDT := FrFileDT ;
+                srchBytes := FrFileBytes ;
+            end ;
+        // allow for comparing DOS and UNIX file paths
+            if xlatsrc then SrchFileRec.FrSubDirs := IcsPathUnixToDosW (SrchFileRec.FrSubDirs) ;
+            if xlattar then SrchFileRec.FrSubDirs := IcsPathDosToUnixW (SrchFileRec.FrSubDirs) ;
+            if TarFileList.Find (@SrchFileRec, IcsCompareFNextW, J) then
+            begin
+               // check if we can ignore the file
+                TarFileRec := TarFileList [J] ;
+                with TarFileRec^ do
                 begin
-                    if UTCFlag then
-                        srchDT := FrFileUDT
+                 // 9 Feb 2011 directory exists, can not replace it
+                    if ((FrFileAttr and faDirectory) = faDirectory) then
+                        flag := false
+                 // never replace
+                    else if (replopt = FCReplNever) then
+                        flag := false
                     else
-                        srchDT := FrFileDT ;
-                    srchBytes := FrFileBytes ;
-                end ;
-            // allow for comparing DOS and UNIX file paths
-                if xlatsrc then SrchFileRec.FrSubDirs := IcsPathUnixToDos (SrchFileRec.FrSubDirs) ;
-                if xlattar then SrchFileRec.FrSubDirs := IcsPathDosToUnix (SrchFileRec.FrSubDirs) ;
-                if TarFileList.Find (@SrchFileRec, IcsCompareFNext, J) then
-                begin
-                   // check if we can ignore the file
-                    TarFileRec := TarFileList [J] ;
-                    with TarFileRec^ do
                     begin
-                     // 9 Feb 2011 directory exists, can not replace it
-                        if ((FrFileAttr and faDirectory) = faDirectory) then
-                            flag := false
-                     // never replace
-                        else if (replopt = FCReplNever) then
-                            flag := false
-                        else
+                        if ((replopt = FCReplDiff) or (replopt = FCReplNewer)) then // 18 July 2003
                         begin
-                            if ((replopt = FCReplDiff) or (replopt = FCReplNewer)) then // 18 July 2003
+                       // see if FTP timestamp without time
+                            if UTCFlag then
+                                oldDT := FrFileUDT
+                            else
+                                oldDT := FrFileDT ;
+                            if IgnoreOldTime then
                             begin
-                           // see if FTP timestamp without time
-                                if UTCFlag then
-                                    oldDT := FrFileUDT
-                                else
-                                    oldDT := FrFileDT ;
-                                if IgnoreOldTime then
-                                begin
-                                    if Frac (oldDT) = 0 then
-                                        srchDT := Int (srchDT)
-                                    else if Frac (srchDT) = 0 then
-                                        oldDT := Int (oldDT) ;
-                                end ;
+                                if Frac (oldDT) = 0 then
+                                    srchDT := Int (srchDT)
+                                else if Frac (srchDT) = 0 then
+                                    oldDT := Int (oldDT) ;
+                            end ;
 
-                            // check time stamp difference, if close don't select
-                                if srchDT >= oldDT then
-                                    realdiffDT := srchDT - oldDT
-                                else
-                                    realdiffDT := oldDT - srchDT ;
+                        // check time stamp difference, if close don't select
+                            if srchDT >= oldDT then
+                                realdiffDT := srchDT - oldDT
+                            else
+                                realdiffDT := oldDT - srchDT ;
 
-                            // replace if different date or size
-                                if (replopt = FCReplDiff) and (srchBytes = FrFileBytes) then  // 18 July 2003
-                                begin
-                                    if realdiffDT <= allowdiffDT then flag := false ; // 18 July 2003
-                                end
-                             // replace if newer date
-                                else if (replopt = FCReplNewer) then
-                                begin
-                                    if realdiffDT <= allowdiffDT then flag := false
-                                    else if (srchDT <= oldDT) then flag := false ;
-                                 // unless target is empty (18 Aug 2004)
-                                    if (srchBytes <> 0) and (FrFileBytes = 0) then flag := true ;
-                                end ;
+                        // replace if different date or size
+                            if (replopt = FCReplDiff) and (srchBytes = FrFileBytes) then  // 18 July 2003
+                            begin
+                                if realdiffDT <= allowdiffDT then flag := false ; // 18 July 2003
+                            end
+                         // replace if newer date
+                            else if (replopt = FCReplNewer) then
+                            begin
+                                if realdiffDT <= allowdiffDT then flag := false
+                                else if (srchDT <= oldDT) then flag := false ;
+                             // unless target is empty (18 Aug 2004)
+                                if (srchBytes <> 0) and (FrFileBytes = 0) then flag := true ;
                             end ;
                         end ;
                     end ;
                 end ;
-                if NOT flag then inc (skipped) ;
             end ;
-            if flag then
-            begin
-                SrcFileRec^.FrFileCopy := FCStateSelect ;  // yes, we want file
-                inc (result) ;
-            end ;
+            if NOT flag then inc (skipped) ;
         end ;
-        doCopyEvent (LogLevelProg, '') ;
+        if flag then
+        begin
+            SrcFileRec^.FrFileCopy := FCStateSelect ;  // yes, we want file
+            inc (result) ;
+        end ;
+    end ;
+    doCopyEvent (LogLevelProg, '') ;
     finally
-        IgnorePathList.Free;
+         IgnorePathList.Free;
     end ;
 end ;
 
 // called by Windows CopyFileEx API
 
-function CopyProgressRoutine (TotalFileSize, TotalBytesTransferred, StreamSize,
+function IcsCopyProgressRoutine (TotalFileSize, TotalBytesTransferred, StreamSize,
     StreamBytesTransferred: Int64; dwStreamNumber, dwCallbackReason: DWORD;
        hSourceFile, hDestinationFile: THandle; lpData: Pointer): DWORD ; stdcall;
 var
     xCancelFlag: boolean ;
     Obj: TObject;
-    info: String ;
+    info: UnicodeString ;
 begin
     result := PROGRESS_CONTINUE ;
     xCancelFlag := false ;
-    Obj := lpData ;      // 16 Sept 2010
-    TIcsFileCopy (Obj).MessagePump ; // 16 Sept 2010
+    Obj := lpData ;     // 16 Sept 2010
+    TIcsFileCopyW (Obj).MessagePump ; // 16 Sept 2010
     if (dwCallbackReason = CALLBACK_CHUNK_FINISHED) or
                 (dwCallbackReason = CALLBACK_STREAM_SWITCH) then  // 16 May 2013 switch is first call
     begin
         try
-            with TIcsFileCopy (Obj) do
+            with TIcsFileCopyW (Obj) do
             begin
                 fCopyProg.CurFileBytes := TotalFileSize ;     // 20 May 2013
                 fCopyProg.CurOKDone := TotalBytesTransferred ;
@@ -1732,14 +1777,14 @@ begin
                         fProgressEvent (Obj, fCopyProg, xCancelFlag) ;
                     end;
                 end;
-             end ;
+            end ;
         except
         end ;
     end ;
     if xCancelFlag then result := PROGRESS_CANCEL ;
 end ;
 
-procedure TIcsFileCopy.doCopyEvent (const LogLevel:TIcsCopyLogLevel ; const Info: string) ;
+procedure TIcsFileCopyW.doCopyEvent (const LogLevel: TIcsCopyLogLevel ; const Info: UnicodeString) ;
 begin
     if Assigned (fCopyEvent) then fCopyEvent (LogLevel, Info, fCancelFlag) ;
     if Assigned (fProgressEvent) then   // 22 May 2013
@@ -1750,18 +1795,19 @@ begin
     end;
 end ;
 
-procedure TIcsFileCopy.EndUnZipEvent (Sender: TObject; FileIndex: Integer; FName: String) ;
+procedure TIcsFileCopyW.EndUnZipEvent (Sender: TObject; FileIndex: Integer; FName: String) ;
 var
     newsize: int64 ;
 begin
     if FName = '' then exit ;
-    newsize := IcsGetFileSize (Fname) ;
-    doCopyEvent (LogLevelFile, 'Unzipped OK: ' + Fname + ', size: ' + IntToKByte (newsize, true)) ;
+    newsize := IcsGetFileSizeW (Fname) ;
+    doCopyEvent (LogLevelFile, 'Unzipped OK: ' + Fname + ', Size: ' + IntToKByte (newsize, true)) ;
     doCopyEvent (LogLevelDelimFile, 'Unzipped|' + Fname + '|' + IntToStr (newsize) + '|1|0|OK|0|0') ;
 end ;
 
-procedure TIcsFileCopy.UnZipHandleMessage(Sender: TObject; const MessageID: Integer;
-                    const Msg1, Msg2: String; const flags: Cardinal; var Return: Integer);
+procedure TIcsFileCopyW.UnZipHandleMessage(Sender: TObject;
+          const MessageID: Integer; const Msg1, Msg2: String;
+          const flags: Cardinal; var Return: Integer);
 begin
     doCopyEvent (LogLevelFile, 'Fatal Unzip Error: ' + Msg1) ;
     Return := 0 ;
@@ -1769,9 +1815,9 @@ end;
 
 // get lists of files to copy
 
-function TIcsFileCopy.SelectFiles (const CurSrcDir, CurTarDir: string): TIcsTaskResult ;
+function TIcsFileCopyW.SelectFiles (const CurSrcDir, CurTarDir: UnicodeString): TIcsTaskResult ;
 var
-    newfname, newsrcdir: string ;
+    newfname, newsrcdir: UnicodeString ;
     nodeltot: integer ;
 begin
     ClearTarList ;
@@ -1779,8 +1825,7 @@ begin
     CurProcFiles := 0 ;
     CurSkippedFiles := 0 ;
     CurDelFiles := 0 ;
-    doCopyEvent (LogLevelInfo, 'Locating Files to Copy:' + IcsCRLF +
-                                    'Source: ' + CurSrcDir + IcsCRLF + 'Target: ' + CurTarDir) ;
+    doCopyEvent (LogLevelInfo, 'Locating Files to Copy' + IcsCRLF + 'Source: ' + CurSrcDir + IcsCRLF + 'Target: ' + CurTarDir) ;
 
 // don't delete target files unless processing full directories
     if fDelOldTar then
@@ -1796,9 +1841,9 @@ begin
     begin
         if fMultiDir then
         begin
-            newfname := ExtractFileName (CurSrcDir) ;   // check found a file name
+            newfname := IcsExtractFileNameW (CurSrcDir) ;   // check found a file name
             if (Pos ('.', newfname) > 1) and (Pos ('*', newfname) > 0) then
-                newsrcdir := ExtractFilePath (CurSrcDir)
+                newsrcdir := IcsExtractFilePathW (CurSrcDir)
             else
                 newfname := '*.*' ;
         end
@@ -1808,7 +1853,7 @@ begin
     if (NOT fMultiDir) and fMask then newfname := '*.*' ;  // date mask
     doCopyEvent (LogLevelProg, 'Listing Files') ;
     TotSrcFiles := GetDirList (newsrcdir, newfname, fCopyType, fSubDirs,
-                                         fCopyLoDT, fCopyHiDT, SrcFiles, SrcFileList, fEmptyDirs) ; // 8 Feb 2011
+                                     fCopyLoDT, fCopyHiDT, SrcFiles, SrcFileList, fEmptyDirs) ; // 8 Feb 2011
     doCopyEvent (LogLevelProg, '') ;
     MessagePump ; // 16 Sept 2010
     if fCancelFlag then
@@ -1835,7 +1880,7 @@ begin
 //        doCopyEvent (LogLevelDiag, 'GetTarDir=' + IcsInt64ToCStr (GetTickCount)) ; // DIAG
         doCopyEvent (LogLevelProg, 'Listing Files') ;
         TotTarFiles := GetDirList (CurTarDir, '*.*', fCopyType,
-                                               fSubDirs, 0, 0, TarFiles, TarFileList, fEmptyDirs) ; // 8 Feb 2011
+                                      fSubDirs, 0, 0, TarFiles, TarFileList, fEmptyDirs) ; // 8 Feb 2011
         doCopyEvent (LogLevelProg, '') ;
         MessagePump ; // 16 Sept 2010
         if fCancelFlag then
@@ -1855,7 +1900,7 @@ begin
     if NOT fMultiDir then
     begin
         if fMask then
-            newfname := IcsGetMaskedName (fSrcFName, fPrev, fLocalHost)
+            newfname := IcsGetMaskedNameW (fSrcFName, fPrev, fLocalHost)    // Warning - not widestring
         else if (fCopyType = FCTypeSingle) then
             newfname := fSrcFName ;
     end ;
@@ -1887,16 +1932,15 @@ begin
     Result := TaskResOKNew ;
 end ;
 
-function TIcsFileCopy.CopyOneFile (const Fnamesrc, Fnametar: string ;
-                Replopt: TIcsFileCopyRepl; const Safe: boolean; var Fsize: Int64) : TIcsTaskResult ;
+function TIcsFileCopyW.CopyOneFile (const Fnamesrc, Fnametar: UnicodeString ;
+    Replopt: TIcsFileCopyRepl; const Safe: boolean; var Fsize: Int64) : TIcsTaskResult ;
 var
-    fnamecopy, newdir, code: string ;
+    fnamecopy, newdir, code: UnicodeString ;
     ret, flag: boolean ;
     retval: integer ;
     duration: longword ;
     SrcFSize, TarFSize: Int64 ;
     SrcFileDT, TarFileDT: TDateTime;
-    WideFnamesrc, WideFnamecopy: array [0..MAX_PATH] of WideChar ;   // Unicode
     OldWow64: BOOL ;        // 22 May 2013
 begin
     result := TaskResFail ;
@@ -1907,7 +1951,7 @@ begin
     try  // finally
 
 // check source exists
-    if NOT IcsGetUAgeSizeFile (Fnamesrc, SrcFileDT, SrcFSize) then
+    if NOT IcsGetUAgeSizeFileW (Fnamesrc, SrcFileDT, SrcFSize) then
     begin
         doCopyEvent (LogLevelInfo, 'Copy Failed: ' + fnamesrc + ' - File Not Found') ;
         doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + fnametar + '|0|0|1|Copy Failed: File Not Found|0|0') ;
@@ -1917,18 +1961,18 @@ begin
 // create target directory
     fnamecopy := Fnametar ;
     if Safe then
-        fnamecopy := ChangeFileExt (Fnametar, '.TMP')
+        fnamecopy := IcsChangeFileExtW (Fnametar, '.TMP')
     else
         fnamecopy := Fnametar ;
-    newdir := ExtractFileDir (fnamecopy) ;
-    if (NOT IcsForceDirsEx (newdir)) then
+    newdir := IcsExtractFileDirW (fnamecopy) ;
+    if (NOT IcsForceDirsExW (newdir)) then
     begin
         doCopyEvent (LogLevelInfo, 'Can Not Create Directory: ' + newdir) ;
         exit ;
     end ;
 
 // see if replacing existing file
-    if IcsGetUAgeSizeFile (Fnametar, TarFileDT, TarFSize) and (replopt <> FCReplAlways) then
+    if IcsGetUAgeSizeFileW (Fnametar, TarFileDT, TarFSize) and (replopt <> FCReplAlways) then
     begin
         flag := IcsCheckReplace (replopt, false, OneSecondDT * 2, SrcFSize, TarFSize, SrcFileDT, TarFileDT) ;
         if NOT flag then
@@ -1941,7 +1985,7 @@ begin
     end ;
 
 // try and delete existing file before copying, removing read only if necessary
-    retval := IcsDeleteFile (fnamecopy, fReplRO) ;
+    retval := IcsDeleteFileWW (fnamecopy, fReplRO) ;
     if retval = 1 then
     begin
         doCopyEvent (LogLevelInfo, 'Can Not Replace Read Only File: ' + fnametar) ;
@@ -1971,9 +2015,8 @@ begin
 
 // copy file and it's attributes
     inc (fCopyProg.TotDoneNr) ;
-    ret := CopyFileExW (StringToWideChar (fnamesrc, WideFnamesrc, MAX_PATH),
-                    StringToWideChar (fnamecopy, WideFnamecopy, MAX_PATH),
-                                        Pointer (@CopyProgressRoutine), Pointer (Self), Nil, 0) ;  // Unicode
+    ret := CopyFileExW (PWideChar (fnamesrc), PWideChar (fnamecopy),
+                                     Pointer (@IcsCopyProgressRoutine), Pointer (Self), Nil, 0) ;  // Unicode
     duration := IcsElapsedTicks (fCopyProg.CurStartTick) ;
     doCopyEvent (LogLevelProg, '') ;  // clear progress display
     IcsCopyProgClearCur (fCopyProg) ;  // 16 May 2013 clear current since copying done
@@ -1992,7 +2035,7 @@ begin
 
 // check new file same size, if not see if original has changed size
     if duration = 0 then duration := 10 ;  // special case of copy OK but duration too short to measure
-    ret := IcsGetUAgeSizeFile (fnamecopy, TarFileDT, TarFSize) ;
+    ret := IcsGetUAgeSizeFileW (fnamecopy, TarFileDT, TarFSize) ;
     if (NOT ret) or (SrcFSize <> TarFSize) then
     begin
         Fsize := -1 ;
@@ -2005,7 +2048,7 @@ begin
 // see if renaming temporary file
     if Safe then
     begin
-        retval := IcsRenameFile (fnamecopy, fnametar, true, fReplRO) ;
+        retval := IcsRenameFileWW (fnamecopy, fnametar, true, fReplRO) ;
         if retval <> 0 then
         begin
             if (retval = 1) then
@@ -2016,8 +2059,7 @@ begin
             else
             begin
                 doCopyEvent (LogLevelInfo, 'Final File Rename Failed: ' + fnametar + ' - ' +  SysErrorMessage (retval)) ;
-                doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + fnametar + '|0|0|1|Final File Rename Failed: ' +
-                                                                                SysErrorMessage (retval)+ '|0|0') ;
+                doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + fnametar + '|0|0|1|Final File Rename Failed: ' + SysErrorMessage (retval)+ '|0|0') ;
             end ;
             doCopyEvent (LogLevelInfo, 'File Copied as: ' + fnamecopy) ;
             exit ;
@@ -2029,45 +2071,45 @@ begin
     fCopyProg.ProcBytesDone := fCopyProg.ProcBytesLast + Fsize ;
     doCopyEvent (LogLevelFile, 'Copy Succeeded, size ' + IntToKByte (Fsize, true)) ;
     doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + fnametar + '|' +
-                                IntToStr (Fsize) + '|1|0|OK|' + IntToStr (duration) + '|' + IntToStr (Fsize)) ;
+                            IntToStr (Fsize) + '|1|0|OK|' + IntToStr (duration) + '|' + IntToStr (Fsize)) ;
     finally
         if fWow64RedirDisable then RevertWow64Redir (OldWow64) ; // 22 May 2013
     end;
 end ;
 
-function TIcsFileCopy.CopyFiles (const CurSrcDir, CurTarDir: string): TIcsTaskResult ;
+function TIcsFileCopyW.CopyFiles (const CurSrcDir, CurTarDir: UnicodeString): TIcsTaskResult ;
 var
-    fnamesrc, fnametar, fnamecopy, curdir, newdir, deldir, errmess: string ;
+    fnamesrc, fnametar, fnamecopy, curdir, newdir, deldir, errmess: UnicodeString ;
     ret: boolean ;
-    I, J, {donenr,} oldFail, retval: integer ;
+    I, oldFail, retval: integer ;
     newsize, srcfsize: int64 ;
-    SrcFileRec, DelFileRec: PTIcsFDirRec ;
-    DelDirSrcList, DelDirTarList: TStringList ;
+    SrcFileRec, DelFileRec: PTIcsFDirRecW ;
+    DelDirSrcList, DelDirTarList: TWideStringList ;
     duration: longword ;
     OldWow64: BOOL ;        // 22 May 2013
-    WideFnamesrc, WideFnamecopy: array [0..MAX_PATH] of WideChar ;   // Unicode
 {$IFDEF Zipping}
+    J: integer ;
     info: string ;
     VCLUnZip: TVCLUnZip ;
     VCLZip: TVCLZip ;
-   {$ENDIF}
+{$ENDIF}
 
     procedure DeleteTempZip ;
     begin
     {$IFDEF Zipping}
         if fZipped and (fZipType in [TypeSrcAddX, TypeSrcReplX]) then
         begin
-            if fnamesrc = VCLZip.ZipName then IcsDeleteFile (fnamesrc, true) ;
+            if fnamesrc = VCLZip.ZipName then IcsDeleteFileWW (fnamesrc, true);
         end ;
     {$ENDIF}
     end ;
 
 begin
     result := TaskResOKNew ;
-    DelDirSrcList := TStringList.Create ;
+    DelDirSrcList := TWideStringList.Create ;
     DelDirSrcList.Sorted := true ;
     DelDirSrcList.Duplicates := dupIgnore ;
-    DelDirTarList := TStringList.Create ;
+    DelDirTarList := TWideStringList.Create ;
     DelDirTarList.Sorted := true ;
     DelDirTarList.Duplicates := dupIgnore ;
     DelDirSrcList.CaseSensitive := false ;
@@ -2100,7 +2142,7 @@ begin
                 begin
                     if ((FrFileAttr and faDirectory) = faDirectory) then continue ;  // 8 Feb 2011 ignore directory
                     doCopyEvent (LogLevelFile, 'Deleting: ' + FrFullName) ;
-                    retval := IcsDeleteFile (FrFullName, true) ;
+                    retval := IcsDeleteFileWW (FrFullName, true) ;
                     if retval <= 0 then
                     begin
                         doCopyEvent (LogLevelDelimFile, '|' + FrFullName + '|0|0|0|Old Target File Deleted|0|0') ;
@@ -2109,11 +2151,8 @@ begin
                         inc (fCopyProg.DelOKFiles) ;
 
                      // add directory to list we'll try and delete later, 24 Apr 2003
-                        deldir := AnsiLowerCase (Trim (FrSubDirs)) ;
-                        if deldir <> '' then
-                        begin
-                            if NOT DelDirTarList.Find (deldir, J) then DelDirTarList.Add (deldir) ;
-                        end ;
+                        deldir := IcsAnsiLowerCaseW (Trim (FrSubDirs)) ;
+                        if deldir <> '' then DelDirTarList.Add (deldir) ;
                     end
                     else
                     begin
@@ -2144,17 +2183,23 @@ begin
     end ;
 
 // make sure the destination is available
-    if NOT IcsForceDirsEx (CurTarDir) then
+    if (Pos ('\', CurTarDir) = 0) and (Pos (':', CurTarDir) = 0) then
     begin
         result := TaskResFail ;
         inc (fCopyProg.ProcFailFiles, CurProcFiles) ;
-        fReqResponse := 'Can Not Create Destination Directory: ' + CurTarDir ;
+        fReqResponse := 'Invalid Destination Directory: ' + CurTarDir ;    { V8.60 }
         exit ;
     end ;
+    if (NOT IcsForceDirsExW (CurTarDir)) then
+    begin
+        result := TaskResFail ;
+        inc (fCopyProg.ProcFailFiles, CurProcFiles) ;
+        fReqResponse := 'Can Not Create Destination Directory: ' + CurTarDir + ' - ' + GetWindowsErr(GetLastError) ;   { V8.60 }
+        exit ;
+    end;
     doCopyEvent (LogLevelInfo, 'Copying Files:' + IcsCRLF + 'Source: ' + CurSrcDir + IcsCRLF + 'Target: ' + CurTarDir) ;
 
 // start real copying
-//    donenr := 0 ;
     curdir := '.,.,.' ;  // illegal directory
     oldfail := fCopyProg.ProcFailFiles ;
     for I := 0 to Pred (TotSrcFiles) do
@@ -2177,20 +2222,18 @@ begin
             begin
                 curdir := '.,.,.' ;  // 8 July 2011, illegal directory to ensure newdir reset
                 newdir := CurTarDir + FrSubDirs + FrFileName + '\' ;
-                if (NOT IcsForceDirsEx (newdir)) then
+                if (NOT IcsForceDirsExW (newdir)) then
                 begin
                     inc (fCopyProg.ProcFailFiles) ;
                     FrFileCopy := FCStateFailed ;
-                    doCopyEvent (LogLevelInfo, 'Can Not Create Directory: '+ newdir +
-                                                         ' - ' + GetWindowsErr(GetLastError)) ;
+                    doCopyEvent (LogLevelInfo, 'Can Not Create Empty Directory: '+ newdir + ' - ' + GetWindowsErr(GetLastError)) ;
                     continue ;
                 end ;
-            //    if ((FrFileAttr and faReadOnly) <> 0) then
                 FrFileCopy := FCStateOK ;
                 inc (fCopyProg.ProcOKFiles) ;
                 doCopyEvent (LogLevelFile, 'Created Directory OK: ' + newdir) ;
                 doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + newdir + '|0|1|0|OK|0|0') ;
-                retval := FileSetAttr (newdir, FrFileAttr) ;
+                retval := IcsFileSetAttrW (newdir, FrFileAttr) ;
                 if retval > 0 then doCopyEvent (LogLevelInfo,
                             'Failed to Set Directory Attributes: '+ newdir + ' - ' + SysErrorMessage (retval)) ;
                 continue ;
@@ -2202,14 +2245,14 @@ begin
                     newdir := CurTarDir + '\' + curdir
                 else
                     newdir := CurTarDir + curdir ;
-                if (NOT IcsForceDirsEx (newdir)) then
+                if (NOT IcsForceDirsExW (newdir)) then
                 begin
+                    curdir := '.,.,.' ;  // V8.60, illegal directory to ensure newdir reset
                     inc (fCopyProg.ProcFailFiles) ;
                     FrFileCopy := FCStateFailed ;
-                    doCopyEvent (LogLevelInfo, 'Can Not Create Directory: '+ newdir +
-                                                        ' - ' + GetWindowsErr(GetLastError)) ;
+                    doCopyEvent (LogLevelInfo, 'Can Not Create Directory: '+ newdir + ' - ' + GetWindowsErr(GetLastError)) ;
                     continue ;
-                end ;
+                end;
             end ;
             fnametar := newdir + FrFileName ;
             srcfsize := FrFileBytes ;
@@ -2217,12 +2260,12 @@ begin
         // see if zipping file
             {$IFDEF Zipping}
             if fZipped and (fZipType in [TypeSrcAddX, TypeSrcReplX]) and
-                    (AnsiLowerCase (ExtractFileExt (fnamesrc)) <> '.zip') then
+                            (IcsAnsiLowerCaseW (IcsExtractFileExtW (fnamesrc)) <> '.zip') then
             begin
                 With VCLZip do
                 begin
                     doCopyEvent (LogLevelFile, 'Compressing ' + fnamesrc) ;
-                    ZipName := IncludeTrailingBackslash (IcsGetTempPath) + FrFileName ;
+                    ZipName := IcsIncludeTrailingPathDelimiterW (IcsGetTempPath) + FrFileName ;
                     FilesList.Clear ;
                     FilesList.Add (fnamesrc) ;  // zip all file in directory */
                     ZipComment := 'Zipped by Sync Files Task' ;
@@ -2235,7 +2278,7 @@ begin
                         srcfsize := ZipSize ;
                         if fZipType = TypeSrcReplX then
                         begin
-                            fnametar := ChangeFileExt (fnametar, '.zip') ;
+                            fnametar := IcsChangeFileExtW (fnametar, '.zip') ;
                         end
                         else
                         begin
@@ -2251,11 +2294,11 @@ begin
         // safe copying, will rename later
             FrFileCopy := FCStateCopying ;
             fnamecopy := fnametar ;
-            if fSafe then fnamecopy := ChangeFileExt (fnametar, '.TMP') ;
+            if fSafe then fnamecopy := IcsChangeFileExtW (fnametar, '.TMP') ;
 
         // try and delete existing file before copying, removing read only if necessary
             ret := true ;
-            retval := IcsDeleteFile (fnamecopy, fReplRO) ;
+            retval := IcsDeleteFileWW (fnamecopy, fReplRO) ;
             if retval > 0 then
             begin
                 if retval = 1 then
@@ -2275,6 +2318,7 @@ begin
             duration := 0 ;
             if ret then
             begin
+
             // 22 May 2013 prepare current file progress info
 //                fLastProgTick := IcsGetTickCount - (LongWord (fProgressSecs + 1) * TicksPerSecond) ; // 22 Oct 2008 ensure progress displayed
                 fCopyProg.CurStartTick := IcsGetTickCount ;
@@ -2287,9 +2331,8 @@ begin
                 doCopyEvent (LogLevelFile, fCopyProg.ProgMessBase) ;
 
             // actual file copy
-                ret := CopyFileExW (StringToWideChar (fnamesrc, WideFnamesrc, MAX_PATH),
-                                StringToWideChar (fnamecopy, WideFnamecopy, MAX_PATH),
-                                             Pointer (@CopyProgressRoutine), Pointer (Self), Nil, 0) ;  // Unicode
+                ret := CopyFileExW (PWideChar (fnamesrc), PWideChar (fnamecopy),
+                                           Pointer (@IcsCopyProgressRoutine), Pointer (Self), Nil, 0) ;  // Unicode
                 duration := IcsElapsedTicks (fCopyProg.CurStartTick) ;
             end ;
             doCopyEvent (LogLevelProg, '') ;  // clear progress display
@@ -2303,7 +2346,7 @@ begin
                     errmess := 'Target file name too long ' + IcsIntToCStr (Length (fnametar))
                 else
                     errmess := SysErrorMessage (GetLastError) ;
-                doCopyEvent (LogLevelInfo, 'Copy Failed: ' + fnametar + ' - ' +  errmess) ;
+                doCopyEvent (LogLevelInfo, 'Copy Failed: ' + fnametar + ' - ' + errmess) ;
                 doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + fnametar + '|0|0|1|Copy Failed: ' + errmess + '|0|0') ;
                 inc (fCopyProg.ProcFailFiles) ;
                 fCopyProg.ProcBytesDone := fCopyProg.ProcBytesLast + SrcFSize ;
@@ -2314,10 +2357,10 @@ begin
 
         // check new file same size, if not see if original has changed size
             if duration = 0 then duration := 10 ;  // special case of copy OK but duration too short to measure
-            newsize := IcsGetFileSize (fnamecopy) ;
+            newsize := IcsGetFileSizeW (fnamecopy) ;
             if newsize <> srcfsize then
             begin
-                if newsize <> IcsGetFileSize (fnamesrc) then
+                if newsize <> IcsGetFileSizeW (fnamesrc) then
                 begin
                     doCopyEvent (LogLevelInfo, 'Copy Failed: ' + fnametar + ' - Size Mismatch') ;
                     doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + fnametar + '|0|0|1|Size Mismatch|0|0') ;
@@ -2332,7 +2375,7 @@ begin
         // see if renaming temporary file
             if fSafe then
             begin
-                retval := IcsRenameFile (fnamecopy, fnametar, true, fReplRO) ;
+                retval := IcsRenameFileWW (fnamecopy, fnametar, true, fReplRO) ;
                 if (retval > 0) then
                 begin
                     if retval = 1 then
@@ -2342,9 +2385,9 @@ begin
                     end
                     else
                     begin
-                        doCopyEvent (LogLevelInfo, 'Final File Rename Failed: ' + fnametar + ' - ' +  SysErrorMessage (retval)) ;
-                        doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + fnametar + '|0|0|1|Final File Rename Failed: ' +
-                                                                                        SysErrorMessage (retval)+ '|0|0') ;
+                        doCopyEvent (LogLevelInfo, 'Final File Rename Failed: ' +  fnametar + ' - ' +  SysErrorMessage (retval)) ;
+                        doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + fnametar +
+                                               '|0|0|1|Final File Rename Failed: ' + SysErrorMessage (retval)+ '|0|0') ;
                     end ;
                     doCopyEvent (LogLevelInfo, 'File Copied as: ' + fnamecopy) ;
                     FrFileCopy := FCStateFailed ;
@@ -2362,11 +2405,11 @@ begin
             inc (fCopyProg.ProcOKFiles) ;
             doCopyEvent (LogLevelFile, 'Copy Succeeded, size ' + IntToKByte (newsize, true)) ;
             doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + fnametar + '|' +
-                                        IntToStr (newsize) + '|1|0|OK|' + IntToStr (duration) + '|' + IntToStr (newsize)) ;
+                                 IntToStr (newsize) + '|1|0|OK|' + IntToStr (duration) + '|' + IntToStr (newsize)) ;
 
        // see if unzipping it
            {$IFDEF Zipping}
-            if fZipped and (fZipType = TypeUnzip) and (AnsiLowerCase (ExtractFileExt (fnametar)) = '.zip') then
+            if fZipped and (fZipType = TypeUnzip) and (IcsAnsiLowerCaseW (IcsExtractFileExtW (fnametar)) = '.zip') then
             begin
                 with VCLUnZip do
                 begin
@@ -2391,14 +2434,14 @@ begin
                         FilesList.Clear ;
                         DoAll := true ;
                         if (fZipDir = '') and (fZipPath >= PathSpecific) then fZipPath := PathNew ;
-                        DestDir := ExtractFileDir (fnametar) ;     // Set destination directory
+                        DestDir := IcsExtractFileDirW (fnametar) ;     // Set destination directory
                         RecreateDirs := false ;
                         RootDir := '' ;   // base subdirectory
                         if fZipPath in [PathOriginal, PathNewOrig, PathSpecOrig] then RecreateDirs := true ;
                         if fZipPath in [PathNew, PathNewOrig] then
-                                             DestDir := ExtractFileDir (fnametar) + '\' + IcsExtractNameOnly (fnametar) ;
+                                       DestDir := IcsExtractFileDirW (fnametar) + '\' + IcsExtractNameOnlyW (fnametar) ;
                         if fZipPath >= PathSpecific then DestDir := fZipDir ;
-                        if NOT IcsForceDirsEx (DestDir) then
+                        if (NOT IcsForceDirsExW (DestDir)) then
                         begin
                             doCopyEvent (LogLevelFile, 'Failed to Create Unzip Dir: ' + DestDir) ;
                             doCopyEvent (LogLevelDelimFile, fnametar + '|' + DestDir + '|0|0|1|Failed to Create Unzip Dir|0|0') ;
@@ -2414,7 +2457,7 @@ begin
                             if fZipDownDel then
                             begin
                                 doCopyEvent (LogLevelFile, 'Deleting: ' + fnametar) ;
-                                IcsDeleteFile (fnametar, true) ;
+                                IcsDeleteFileWW (fnametar, true);
                                 doCopyEvent (LogLevelDelimFile, fnametar + '| |0|0|0|File Deleted After Unzipping|0|0') ;
                             end ;
                         end
@@ -2441,23 +2484,20 @@ begin
         // see if deleting source file
             if fDelDone then
             begin
-                retval := IcsDeleteFile (FrFullName, fReplRO) ;     // 30 Jan 2003, was fnamesrc
+                retval := IcsDeleteFileWW (FrFullName, fReplRO) ;     // 30 Jan 2003, was fnamesrc
                 if retval = 0 then
                 begin
                     doCopyEvent (LogLevelDelimFile, FrFullName + '| |0|0|0|Source File Deleted After Copy|0|0') ;
-                    deldir := AnsiLowerCase (Trim (FrSubDirs)) ;
-                    if deldir <> '' then
-                    begin
-                        if NOT DelDirSrcList.Find (deldir, J) then DelDirSrcList.Add (deldir) ;
-                    end ;
-                end
+                    deldir := IcsAnsiLowerCaseW (Trim (FrSubDirs)) ;
+                    if deldir <> '' then DelDirSrcList.Add (deldir) ;
+               end
                 else
                 begin
                     doCopyEvent (LogLevelFile, 'Failed to Delete File - ' + SysErrorMessage (retval)) ;
                     doCopyEvent (LogLevelDelimFile, FrFullName + '| |0|0|0|Source File Delete Failed - ' + SysErrorMessage (retval) + '|0|0') ;
                     continue ;
                 end ;
-            end ;
+            end;
         end ;
     end ;
     if oldfail <> fCopyProg.ProcFailFiles then
@@ -2487,7 +2527,7 @@ end;
 
 // select and copy multiple local files from one location to another
 
-function TIcsFileCopy.SelCopyFiles (const CheckFiles: boolean): TIcsTaskResult ;
+function TIcsFileCopyW.SelCopyFiles (const CheckFiles: boolean): TIcsTaskResult ;
 var
     I, totsecs: integer ;
     errflag: boolean ;
@@ -2501,23 +2541,20 @@ var
     var
         I: integer ;
         newsize, delsize: int64 ;
-        info: string ;
-        FileRec: PTIcsFDirRec ;
+        info: UnicodeString ;
+        FileRec: PTIcsFDirRecW ;
         listing: TIcsStringBuild ;
     begin
 
     // find size of stuff to copy
         newsize := 0 ;
         delsize := 0 ;
-        listing := TIcsStringBuild.Create ;
+        listing := TIcsStringBuild.Create (TotSrcFiles * 50, True) ;   // 20 May 2013 make it faster
         try
         if fDelOldTar and (CurDelFiles <> 0) then
         begin
             if CheckFiles then
-            begin
-                listing.Capacity (TotSrcFiles * 50) ;  // no real idea yet
-                listing.AppendLine ('Old Files Selected for Deletion are: ') ;
-            end;
+                listing.AppendLineW ('Old Files Selected for Deletion are: ') ;
             for I := 0 to Pred (TotTarFiles) do
             begin
                 FileRec := TarFileList [I] ;
@@ -2526,16 +2563,13 @@ var
                     if FrFileCopy = FCStateSelect then
                     begin
                         inc (delsize, FrFileBytes) ;
-                        if CheckFiles then listing.AppendLine (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
+                        if CheckFiles then listing.AppendLineW (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
                     end ;
                 end ;
             end ;
         end ;
         if CheckFiles then
-        begin
-            listing.Capacity (TotSrcFiles * 50) ;   // no real idea yet
-            listing.AppendLine ('Files Selected for Copying are: ') ;
-        end;
+            listing.AppendLineW ('Files Selected for Copying are: ') ;
         for I := 0 to Pred (TotSrcFiles) do
         begin
             FileRec := SrcFileList [I] ;
@@ -2547,21 +2581,21 @@ var
                     if CheckFiles then
                     begin
                         if ((FrFileAttr and faDirectory) = faDirectory) then   // 8 Feb 2011 display directory
-                            listing.AppendLine (FrFullName + IcsSpace + sDirLit)
+                            listing.AppendLineW (FrFullName + Icsspace + sDirLit)
                         else
-                            listing.AppendLine (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
+                            listing.AppendLineW (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
                     end;
                 end ;
             end ;
         end ;
         if CheckFiles then
         begin
-            info := listing.GetString ;
+            info := listing.GetWString ;
             doCopyEvent (LogLevelInfo, info) ;
             info := '' ;
         end;
         finally
-            listing.Free ;
+             listing.Free ;
         end;
         doCopyEvent (LogLevelInfo, 'Source Files Skipped ' + IcsIntToCStr (CurSkippedFiles)) ;
         info := 'Selected Total Files ' + IcsIntToCStr (CurProcFiles) + ', Total size ' + IntToKByte (newsize, true) ;
@@ -2588,7 +2622,7 @@ begin
     if fMultiDir then
     begin
 // some simple validation
-        if (fSrcDirList.Count = 0) or (fTarDirList.Count = 0) or (fSrcDirList.Count <> fTarDirList.Count) then
+        if (fSrcDirList.Count = 0) or (fTarDirList.Count = 0) {or (fSrcDirList.Count <> fTarDirList.Count)} then
         begin
             result := TaskResFail ;
             fReqResponse := 'Multiple Directories Must Be Specified' ;
@@ -2599,12 +2633,11 @@ begin
         for I := 0 to Pred (fSrcDirList.Count) do
         begin
             doCopyEvent (LogLevelInfo, ' ') ;
-            doCopyEvent (LogLevelInfo, 'Processing Multiple Directory ' +
-                                        IcsIntToCStr (succ (I)) + ' of ' + IcsIntToCStr (fSrcDirList.Count)) ;
+            doCopyEvent (LogLevelInfo, 'Processing Multiple Directory ' + IcsIntToCStr (succ (I)) + ' of ' + IcsIntToCStr (fSrcDirList.Count)) ;
             ClearTarList ;
             ClearSrcList ;
-            fSrcDirList [I] := ExcludeTrailingBackslash (fSrcDirList [I]) ;
-            fTarDirList [I] := ExcludeTrailingBackslash (fTarDirList [I]) ;
+            fSrcDirList [I] := IcsExcludeTrailingPathDelimiterW (fSrcDirList [I]) ;
+            fTarDirList [I] := IcsExcludeTrailingPathDelimiterW (fTarDirList [I]) ;
             TaskResult := SelectFiles (fSrcDirList [I], fTarDirList [I]) ;
             MessagePump ; // 16 Sept 2010
             if fCancelFlag then
@@ -2678,8 +2711,8 @@ begin
             exit ;
         end ;
         doCopyEvent (LogLevelInfo, ' ') ;
-        fSrcDir := ExcludeTrailingBackslash (fSrcDir) ;
-        fTarDir := ExcludeTrailingBackslash (fTarDir) ;
+        fSrcDir := IcsExcludeTrailingPathDelimiterW (fSrcDir) ;
+        fTarDir := IcsExcludeTrailingPathDelimiterW (fTarDir) ;
         TaskResult := SelectFiles (fSrcDir, fTarDir) ;
 
     // don't clear source list, application may want to look at it
@@ -2731,16 +2764,16 @@ end ;
 
 // delete list of empty directories, including higher level directories (but not root)
 
-function TIcsFileCopy.DeleteEmptyDirs (RootDir: string; DirList: TStringList): integer ;
+function TIcsFileCopyW.DeleteEmptyDirs (RootDir: UnicodeString; DirList: TWideStringList): integer ;
 var
     I, J: integer ;
-    curdir: string ;
+    curdir: UnicodeString ;
 begin
     result := 0 ;
     if NOT Assigned (DirList) then exit ;
     if DirList.Count = 0 then exit ;
     doCopyEvent (LogLevelInfo, 'Checking for Directories: ' + RootDir) ;
-    RootDir := trim (ExcludeTrailingBackslash (RootDir)) ;
+    RootDir := Trim (IcsExcludeTrailingPathDelimiterW (RootDir)) ;
     for I := 0 to Pred (DirList.Count) do
     begin
         if fCancelFlag then exit ;
@@ -2753,10 +2786,10 @@ begin
             curdir := copy (curdir, 1, J) ;
             if curdir = RootDir then break ;   // stop at root directory  // 19 March 2003
             doCopyEvent (LogLevelDiag, 'Checking Directory Empty: ' +  curdir) ;
-            if NOT IcsCheckDirAny (curdir) then
+            if NOT IcsCheckDirAnyW (curdir) then
             begin
              // doCopyEvent (LogLevelDiag, 'Will Delete Dir: ' + curdir) ;
-                if RemoveDir (curdir) then
+                if RemoveDirectoryW (PWideChar (curdir)) then
                 begin
                     inc (result) ;
                     doCopyEvent (LogLevelFile, 'Removed Directory OK: ' + curdir) ;
@@ -2778,23 +2811,24 @@ end ;
 // delete specified files, use fSrcDir, fCopyType, fSubDirs, fSrcFName,
 //   fCopyLoDT, fCopyHiDT
 
-function TIcsFileCopy.DeleteFiles (const CheckFiles: boolean): TIcsTaskResult ;
+function TIcsFileCopyW.DeleteFiles (const CheckFiles: boolean): TIcsTaskResult ;
 var
-    newfname, newsrcdir, curdir, info: string ;
-    I, J, retval: integer ;
+    newfname, newsrcdir, curdir, info: UnicodeString ;
+    I, retval: integer ;
     newsize: int64 ;
-    DelFileRec: PTIcsFDirRec ;
-    DelDirList: TStringList ;
-    OldWow64: BOOL ;        // 22 May 2013
+    DelFileRec: PTIcsFDirRecW ;
+    DelDirList: TWideStringList ;
     listing: TIcsStringBuild ;
+    OldWow64: BOOL ;        // 22 May 2013
 begin
     result := TaskResNone ;
-    DelDirList := TStringList.Create ;
+    DelDirList := TWideStringList.Create ;
     DelDirList.Sorted := true ;
     DelDirList.CaseSensitive := false ;
     DelDirList.Duplicates := dupIgnore ;
     OldWow64 := false ; // 22 May 2013
     if fWow64RedirDisable then DisableWow64Redir (OldWow64) ; // 22 May 2013
+    listing := TIcsStringBuild.Create (100 * 50, True) ;   // 20 May 2013 make it faster
     try  // finally
     ClearSrcList ;
     IcsCopyProgClearAll (fCopyProg) ;   // 16 May 2013 clear all progress information
@@ -2808,9 +2842,9 @@ begin
     begin
         if fMultiDir then
         begin
-            newfname := ExtractFileName (fSrcDir) ;   // check found a file name
+            newfname := IcsExtractFileNameW (fSrcDir) ;   // check found a file name
             if (Pos ('.', newfname) > 1) and (Pos ('*', newfname) > 0) then
-                newsrcdir := ExtractFilePath (fSrcDir)
+                newsrcdir := IcsExtractFilePathW (fSrcDir)
             else
                 newfname := '*.*' ;
         end
@@ -2818,7 +2852,8 @@ begin
             newfname := fSrcFName ;   /// partial masked directory
     end ;
     if (NOT fMultiDir) and fMask then newfname := '*.*' ;  // date mask
-    TotSrcFiles := GetDirList (newsrcdir, newfname, fCopyType, fSubDirs, fCopyLoDT, fCopyHiDT, SrcFiles, SrcFileList) ;
+    TotSrcFiles := GetDirList (newsrcdir, newfname, fCopyType, fSubDirs,
+                                 fCopyLoDT, fCopyHiDT, SrcFiles, SrcFileList, fEmptyDirs) ; // 8 Feb 2011
     if TotSrcFiles = -1  then
     begin
         result := TaskResFail ;
@@ -2839,13 +2874,11 @@ begin
     end ;
 
 // list files for deletion
-    listing := TIcsStringBuild.Create ;
-    try
     if CheckFiles then
-     begin
+    begin
         listing.Capacity (TotSrcFiles * 50) ;   // no real idea yet
-        listing.AppendLine ('Files Selected for Deletion are: ') ;
-     end;
+        listing.AppendLineW ('Files Selected for Deletion are: ') ;
+    end;
     newsize := 0 ;
     for I := 0 to Pred (TotSrcFiles) do
     begin
@@ -2856,20 +2889,17 @@ begin
             if CheckFiles then
             begin
                 if ((FrFileAttr and faDirectory) = faDirectory) then   // 8 Feb 2011 display directory
-                    listing.AppendLine (FrFullName + IcsSpace + sDirLit)
+                    listing.AppendLineW (FrFullName + Icsspace + sDirLit)
                 else
-                    listing.AppendLine (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
+                    listing.AppendLineW (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
             end;
         end ;
     end ;
     if CheckFiles then
     begin
-        info := listing.GetString ;
+        info := listing.GetWString ;
         doCopyEvent (LogLevelInfo, info) ;
         info := '' ;
-    end;
-    finally
-        listing.Free ;
     end;
     info := 'Will Delete Total Files ' + IcsIntToCStr (TotSrcFiles) + ', Total size ' + IntToKByte (newsize, true) ;
     fCopyProg.TotProcFiles := TotSrcFiles ;
@@ -2891,14 +2921,14 @@ begin
         begin
             if ((FrFileAttr and faDirectory) = faDirectory) then   // 8 Feb 2011 display directory
             begin
-                DelDirList.Add (AnsiLowerCase (Trim (FrFullName))) ;
+                DelDirList.Add (IcsAnsiLowerCaseW (Trim (FrFullName))) ;
                 FrFileCopy := FCStateOK ;
                 inc (fCopyProg.DelOKFiles) ;
                 continue ;
             end;
             doCopyEvent (LogLevelFile, 'Deleting: ' + FrFullName) ;
             inc (fCopyProg.TotDoneNr) ;
-            retval :=  IcsDeleteFile (FrFullName, fReplRO) ;
+            retval :=  IcsDeleteFileWW (FrFullName, fReplRO) ;
             if retval = 0 then
             begin
                 doCopyEvent (LogLevelDelimFile, '|' + FrFullName + '|0|0|0|File Deleted|0|0') ;
@@ -2907,11 +2937,8 @@ begin
                 inc (fCopyProg.DelOKFiles) ;
 
              // add directory to list we'll try and delete later
-                curdir := AnsiLowerCase (Trim (FrSubDirs)) ;
-                if curdir <> '' then
-                begin
-                    if NOT DelDirList.Find (curdir, J) then DelDirList.Add (curdir) ;
-                end ;
+                curdir := IcsAnsiLowerCaseW (Trim (FrSubDirs)) ;
+                if curdir <> '' then DelDirList.Add (curdir) ;
             end
             else
             begin
@@ -2936,19 +2963,20 @@ begin
     end ;
     doCopyEvent (LogLevelProg, '') ;  // clear progress display
     finally
-       DelDirList.Free ;
+        DelDirList.Free ;
         if fCancelFlag then
         begin
             result := TaskResAbort ;
             fReqResponse := 'Cancelled Deleting Files' ;
         end ;
+        if fWow64RedirDisable then RevertWow64Redir (OldWow64) ; // 22 May 2013
+        listing.Free ;
     end ;
 end ;
 
-procedure TIcsFileCopy.Cancel ;
+procedure TIcsFileCopyW.Cancel ;
 begin
     fCancelFlag := true ;
 end ;
 
 end.
-

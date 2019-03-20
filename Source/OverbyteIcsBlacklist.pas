@@ -52,7 +52,7 @@ Baseline - March 2009
 14 Oct 2016  - added SaveAscii to save strings instead of IP addresses
                added ListName propertry for events
                better check for old saved duplicates
-07 Nar 2019  - V8.60 - Adapted for main ICS packages and FMX support.
+14 Nar 2019  - V8.60 - Adapted for main ICS packages and FMX support.
                        Renamed from TMagBlacklist to TIcsBlacklist
                        Added TIcsStringBuild to efficiently build Ansi or Unicode
                         strings on all versions of Delphi.
@@ -68,10 +68,10 @@ Baseline - March 2009
                         date/time mask format, typically for one log file per day.
 
 
-Note: IP Mask, and White List not implemented yet
+Note: TIcsBlacklist IP Mask, and White List not implemented yet
 
 There is a web server test application OverbyteIcsSslMultiWebServ.dpr that
-uses this component to block potential hackers and abusers.
+uses TIcsBlacklist to block potential hackers and abusers.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -225,12 +225,14 @@ type
     FCharSize: integer;
     procedure ExpandBuffer;
   public
-    constructor Create (ABufferSize: integer = 4096);
+    constructor Create (ABufferSize: integer = 4096; Wide: Boolean = False) ;
     destructor Destroy; override;
     procedure AppendBuf(const AString: AnsiString); overload;
     procedure AppendBuf(const AString: UnicodeString); overload;
+    procedure AppendBufW(const AString: UnicodeString);
     procedure AppendLine(const AString: AnsiString); overload;
     procedure AppendLine(const AString: UnicodeString); overload;
+    procedure AppendLineW(const AString: UnicodeString);
     procedure Clear ;
     function GetAString: AnsiString;
     function GetWString: UnicodeString;
@@ -1039,12 +1041,15 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { IcsStringBuild Class  }
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-constructor TIcsStringBuild.Create (ABufferSize: integer = 4096) ;
+constructor TIcsStringBuild.Create (ABufferSize: integer = 4096; Wide: Boolean = False) ;
 begin
     inherited Create;
-    Capacity(ABufferSize);
     FIndex := 0;
-    FCharSize := SizeOf(Char);
+    if Wide then
+        FCharSize := 2
+    else
+        FCharSize := SizeOf(Char);
+    Capacity(ABufferSize);
 end;
 
 
@@ -1054,7 +1059,7 @@ begin
     if ABufferSize <= 1024 then ABufferSize := 1024;
     if ABufferSize < FBuffSize then exit;  // not smaller
     if ABufferSize <= FIndex then exit;    // sanity check
-    FBuffSize := ABufferSize;
+    FBuffSize := ABufferSize * FCharSize;
     FBuffMax := FBuffSize - 1;
     SetLength(FBuffer, FBuffSize);
 end;
@@ -1082,7 +1087,26 @@ var
     Len: integer;
 begin
     Len := length (AString);
-    if ((Len + FIndex) >= FBuffMax) then ExpandBuffer ;
+    if ((Len + FIndex) >= FBuffMax) then begin
+        Capacity(Len + FIndex + 32);
+        ExpandBuffer ;
+    end;
+    Move(AString[1], FBuffer[FIndex], Len);
+    Inc(FIndex, Len);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsStringBuild.AppendBufW(const AString: UnicodeString);
+var
+    Len : integer;
+begin
+    FCharSize := 2;
+    Len := Length (AString) * FCharSize;
+    if ((Len + FIndex) >= FBuffMax) then begin
+        Capacity(Len + FIndex + 32);
+        ExpandBuffer ;
+    end;
     Move(AString[1], FBuffer[FIndex], Len);
     Inc(FIndex, Len);
 end;
@@ -1090,14 +1114,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TIcsStringBuild.AppendBuf(const AString: UnicodeString);
-var
-    Len : integer;
 begin
-    FCharSize := 2;
-    Len := Length (AString) * FCharSize;
-    if ((Len + FIndex) >= FBuffMax) then ExpandBuffer;
-    Move(AString[1], FBuffer[FIndex], Len);
-    Inc(FIndex, Len);
+    AppendBufW(AString);
 end;
 
 
@@ -1113,7 +1131,15 @@ end;
 procedure TIcsStringBuild.AppendLine(const AString: UnicodeString);
 begin
     AppendBuf(AString);
-    AppendBuf(IcsCRLF);
+    AppendBuf(UnicodeString(IcsCRLF));
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsStringBuild.AppendLineW(const AString: UnicodeString);
+begin
+    AppendBufW(AString);
+    AppendBufW(UnicodeString(IcsCRLF));
 end;
 
 

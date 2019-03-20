@@ -1,8 +1,9 @@
 {*_* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 Author:       Angus Robertson, Magenta Systems Ltd
-Description:  TIcsFtpMulti is a high level FTP Delphi component that allows uploading
+Description:  TIcsFtpMultiW is a high level FTP Delphi component that allows uploading
               or downloading of multiple files from or to an FTP server, from a
               single function call.
+              W version supports widestring/Unicode for Delphi 2007
 Creation:     May 2001
 Updated:      Mar 2019
 Version:      8.60
@@ -37,7 +38,7 @@ Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
                  address, EMail address and any comment you like to say.
 
 
-TIcsFtpMulti is a high level FTP Delphi component that allows uploading or
+TIcsFtpMultiW is a high level FTP Delphi component that allows uploading or
 downloading of multiple files from or to an FTP server, from a single
 function call.  The component handles listing local and remote files,
 including subdirectories, and comparing them to avoid unnecessary
@@ -48,7 +49,7 @@ upload.  A progress event provides various levels of information for
 logging or display, depending upon application requirements, and allows
 transfers to be cancelled.
 
-TIcsFtpMulti descends from ICS TFtpClient, and publishes all it's logon and proxy
+TIcsFtpMultiW descends from ICS TFtpClient, and publishes all it's logon and proxy
 properties and events.  The component is undocumented, except for source code
 comments, but end user help is available describing most of the functionality in
 Magenta Systems DUN Manager application (from https://www.magsys.co.uk/dunman/),
@@ -73,7 +74,7 @@ Cancel - abort FTP xfers
 
 14 May 2001  - baseline
 5 June 2001  - added ReplRO to replace read only files on download
-8 June 2001  - added Fr to TIcsFileRec elements so names are unique
+8 June 2001  - added Fr to TFileRec elements so names are unique
 25 June 2001 - added LogLevelDelimFile and LogLevelDelimTot to return info
                  for each file suitable for further processing
 29 June 2001 - fixed problem with fMask not getting all files to check
@@ -121,7 +122,7 @@ Cancel - abort FTP xfers
 12 Feb 2004  - clear progress event, correct upload none response message
 28 Aug 2004  - added FtpLogoff, FtpDownFiles (same as FtpDownload but already logged-on)
                added FtpDownOneFile, FtpUpOneFile and FtpCheckFile
-               FtpDir no longer changes directories when listing (except LIST dirname fails if it contains a space on IIS/5)
+               FtpDir no longer changes directories when listing (except LIST dirname fails if it contains a IcsSpace on IIS/5)
                added workaround for error sending PORT command when PO lost, causing xfer failure
                fUpImmed forced, by checking each upload file after it's done to avoid directory afterwards
                if remote directory listing fails for uploads, give up to stop all files being uploaded, unless replacing all files
@@ -179,7 +180,7 @@ Cancel - abort FTP xfers
 03 Mar 2008  - MSLD fix for Serv-U where it only listed directories and no files
                new NoFeatCmd property which stops FEAT command being sent where
                  servers have not implemented features 'correctly' causing FTP to fail
-               using ALLO command to check space on server before uploads
+               using ALLO command to check IcsSpace on server before uploads
                send CLNT client string on logon
                use SITE DMLSD command to list directories including subdirectore
                   and SITE CMLSD for single dirs (ICS FTP server only at present)
@@ -208,36 +209,41 @@ Cancel - abort FTP xfers
 11 Jun 2008  - ensure lists set as sorted after sorting
 7 Aug 2008   - 2.3 - updated for latest ICS V6 and V7, and for Delphi 2009 compatibility
                Note: FTP does not yet support Unicode commands
-22 Sept 2008 - 2.4 - added magftpNoUtf8 property to turn off UTF8
+
+
+22 Sept 2008 - 3.0 - Unicode vesion unit renamed MagentaFtpW with TIcsFtpMultiW
+               support UTF8 FTP commands and file listings with ICS V7 - currently ICS V6 not supported
+               added magftpNoUtf8 property to turn off UTF8, and magftpIgnoreUtf8 if server will not turn it off
+               support Unicode file listing and xfers with Delphi 2007 and earlier
+                 (note this meant replacing vast numbers of Ansi functions with widestring versions)
                don't attempt to access files or directories with Unicode substitution ? character
+               check file names only have ANSI characters unless UTF8 is enabled
                don't keep upload resume files unless some data actually sent
                don't attempt to upload _xxx.ftp resume files
                uploading always allowed to create base directory, and it now works properly
                WS_FTP MLST with 501 Invalid number of arguments with spaces, so try quoting file name
                SSL send PBSZ before PROT to keep MS FTP7 happy
-18 Nov 2008  - 3.2 - renamed to MagentaFtp3
-               support UTF8 FTP commands and file listings with ICS V7.02, ICS V6 is not supported
-               added magftpNoUtf8 property to turn off UTF8, and magftpIgnoreUtf8 if server will not turn it off
-               support full Unicode file listing and xfers with Delphi 2009 and later only
-               don't attempt to access files or directories with Unicode substitution ? character
-               check file names only have ANSI characters unless UTF8 is enabled
                send HOST command before logon unless magftpNoHost specified (for virtual FTP servers)
+22 Oct 2008  - 3.1 - fixed zipping for Unicode changes, but still VCLZip 3
                fixed bug if PWD returned blank rather than '/' (Indy)
+               directory listings now Unicode
+               using private wide ICS units, OverbyteIcsFtpcliW, OverbyteIcsFtpSrvWT which support Unicode with D2007
                ensure Progress event called xfer starts rather than after 2 secs
-               support XDMLSD and XCLMSD commands
+18 Nov 2008  - 3.2 - renamed to MagentaFtp3w, support XDMLSD and XCLMSD commands
+               fixed PASS argument not being sanitised
+               all FTP display events now UnicodeString
 17 May 2009  - 3.4 - don't ignore failed MD5/XMD5 command but report error, prefer MD5 to XMD5
                added MaskLocDir and MaskRemDir flags to take masked directory from SrcFName and
                  add to local and/or remote directory, typically for dated directories
                Unicode MD5sum and CRC32B, add magftpNoMd5 and magftpNoCrc to allow them to be tested separately
-7 Aug 2010   - 3.5 - fix a problem parsing UNIX file listing with strange upper case file attributes
-               fixed various string casts for D2009 and later
-11 Aug 201   - 3.7 - ICS changes, new throttling, zlib 1.2.5
+22 May 2009  - 3.5 - fix bug to stop looping listing sub directories if CWD returns 550
+7 June 2010  - 3.5 - fix a problem parsing UNIX file listing with strange upper case file attributes
+11 Aug 2011  - 3.7 - ICS changes, new throttling, zlib 1.2.5
                support MultiThreaded using TIcsWndControl.MessagePump instead of Application.ProcessMessages
                some checksum Info logging should only have been File logging
-               added TIcsFtpMultiThread component which runs TIcsFtpMulti in a thread, tested with 250 threads running together
+               added TIcsFtpMultiThreadW component which runs TIcsFtpMultiW in a thread, tested with 250 threads running together
                added NoProgress property to skip LogLevelProg progress log events
                FTP empty directories if EmptyDirs property set
-               now registered in MagentaXferReg
                fixed bug listing sub-directories from root with MLSD command
 20 Oct 2011  - 3.8 - log time and speed of each download
                most file sizes now reported in Kbytes. Mbytes, Gbytes instead of bytes
@@ -246,9 +252,8 @@ Cancel - abort FTP xfers
               added IgnorePaths, ignore files where source has specific partial path, list is
                c:\temp;c:\temp2\;c:\temp3\;etc, or destination for deletion marches partial path
               added Wow64RedirDisable property for Win64 allow all files to be copied correctly from Win32
-              added new ProgressEvent which passes TIcsCopyProgress record updated for progress of
+              added new ProgressEvent which passes TCopyProgress record updated for progress of
                  current file and session including total bytes copied allowing percentage progress display
-              when checking copy, use MemoryStream for improved listing performance
               using TIcsStringBuild to build listings
               Fixed bug in WaitUntilReady that meant some sync methods with multiple
                commands randomly terminated prematurely allowing further commands to
@@ -268,12 +273,17 @@ Cancel - abort FTP xfers
               set SSL security level low, ideally should be configurable
 18 Jun 2018 - 4.7 - Use built-in CA bundle if file missing.
               Added SslCliSecurity property to set security level to TSslCliSecurity
-              Changed GetUAgeSizeFile to IcsGetUAgeSizeFile
-18 Mar 2019 - V8.60 - Adapted for main ICS packages and FMX support. SSL only.
-              Renamed TMagFtp to  TIcsFtpMulti.
-              Most Types have Ics added, so: TIcsTaskResult now TIcsTaskResult.
-              No longer needs Forms.
+18 Mar 2019  - V8.60 - Adapted for main ICS packages and FMX support. SSL only.
+               Renamed TMagFtp to  TIcsFtpMulti.
+               Most Types have Ics added, so: TIcsTaskResult now TIcsTaskResult.
+               No longer needs Forms.
+               Using TWideStringList instead of UStringArray, not Delphi 7
 
+
+
+
+pending - use VclZip v4 widestring version
+pending - average speed should only time actual download and ignore MD5 and checking
 
 
 Unicode Compatibility with various web servers
@@ -284,6 +294,10 @@ UTF8 file listings or uploads
 ICS V6 - does not support UTF8
 
 ICS V7 - support UTF8, fully Unicode capable when build with Delphi 2009 or later,
+defaults to UTF8 OFF and returns ANSI file listings, OPTS UTF8 or OPTS UTF8 ON
+enables UTF8 file listings and uploads
+
+ICS V7 Wide - support UTF8, fully Unicode capable when build with Delphi 2007 or later
 defaults to UTF8 OFF and returns ANSI file listings, OPTS UTF8 or OPTS UTF8 ON
 enables UTF8 file listings and uploads
 
@@ -316,11 +330,8 @@ Indy 10 FTP Server component built with Delphi 2007 - no UTF8 support (probably,
 but may be configured using some hidden option)
 MLST fails with 250 end if a file name is passed
 
-
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{$IFNDEF ICS_INCLUDE_MODE}
-unit OverbyteIcsFtpMulti;
-{$ENDIF}
+unit OverbyteIcsFtpMultiW;
 
 {$I Include\OverbyteIcsDefs.inc}
 {$I Include\OverbyteIcsZlib.inc}
@@ -342,46 +353,25 @@ unit OverbyteIcsFtpMulti;
 interface
 
 uses
-{$IFDEF MSWINDOWS}
-    {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
-    {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
-{$ENDIF}
-{$IFDEF POSIX}
-    Posix.Time,
-    Ics.Posix.WinTypes,
-    Ics.Posix.Messages,
-{$ENDIF}
-    {$Ifdef Rtl_Namespaces}System.Classes{$Else}Classes{$Endif},
-    {$Ifdef Rtl_Namespaces}System.Sysutils{$Else}Sysutils{$Endif},
-    {$Ifdef Rtl_Namespaces}System.Masks{$Else}Masks{$Endif},
-{$IFDEF FMX}
-    Ics.Fmx.OverbyteIcsWndControl,
-    Ics.Fmx.OverbyteIcsWSocket,
-    Ics.Fmx.OverbyteIcsFtpcli,
-    Ics.Fmx.OverbyteIcsBlacklist,
-    Ics.Fmx.OverbyteIcsFileCopy,
-    Ics.Fmx.OverbyteIcsSslSessionCache,
-    Ics.Fmx.OverbyteIcsSslX509Utils,
-    Ics.Fmx.OverbyteIcsMsSslUtils,
-{$ELSE}
-    OverbyteIcsWndControl,
-    OverbyteIcsWSocket,
-    OverbyteIcsFtpcli,
-    OverbyteIcsBlacklist,
-    OverbyteIcsFileCopy,
-    OverbyteIcsSslSessionCache,
-    OverbyteIcsSslX509Utils,
-    OverbyteIcsMsSslUtils,
-{$ENDIF FMX}
-  OverbyteIcsFtpSrvT,
+  Windows, Messages, SysUtils, Classes, Forms,
+  StrUtils, WideStrings,
+  OverbyteIcsWndControl,
+  OverbyteIcsWSocket,
+  OverbyteIcsFtpcliW,
+  OverbyteIcsFtpSrvWT,
+  OverbyteIcsFileCopyW,
   OverbyteIcsMd5,
   OverbyteIcsCRC,
+  OverbyteIcsBlacklist,
   OverbyteIcsTypes,
   OverbyteIcsUtils,
-  OverbyteIcsLogger
-  {$IFDEF Zipping} , VCLZip, VCLUnZip, kpZipObj {$ENDIF}
-  , OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
-  OverbyteIcsWinCrypt;
+  OverbyteIcsLogger,
+  {$IFDEF Zipping} VCLZip, VCLUnZip, kpZipObj,{$ENDIF}
+  OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
+  OverbyteIcsSslSessionCache,
+  OverbyteIcsSslX509Utils,
+  OverbyteIcsMsSslUtils,
+  OverbyteIcsWinCrypt ;
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
@@ -389,7 +379,7 @@ uses
 
 
 const
-    FtpMultiCopyRight : String = ' TIcsFtpMulti (c) 2019 V8.60 ';
+    FtpMultiCopyRight : String = ' TIcsFtpMultiW (c) 2019 V8.60 ';
 
 type
 // host type, for directory listing
@@ -403,13 +393,13 @@ type
                  FtpTypeConnSslCtl, FtpTypeConnSslData, FtpTypeConnSslBoth);
     { AuthSsl    = explicit encryption on port 21 using AUTH command }
     { ConnSsl    = implicit encryption on port 990 forced on connection }
-    TIcsFtpMultiOpt  = (magftpNoFeat, magftpNoZlib, magftpNoMd5Crc, magftpNoTmpFile,
+    TMagFtpOpt  = (magftpNoFeat, magftpNoZlib, magftpNoMd5Crc, magftpNoTmpFile,
                    magftpNoUtf8, magftpIgnoreUtf8, magftpNoHost,
                    magftpNoMd5, magftpNoCrc);   // 15 Apr 2009
-    TIcsFtpMultiOpts = set of TIcsFtpMultiOpt;
+    TMagFtpOpts = set of TMagFtpOpt;
     TFtpThreadOpt = (ftpthdList, ftpthdDownCheck, ftpthdDownFiles,
                     ftpthdUpCheck, ftpthdUpFiles) ;  // 14 Feb 2011
-    TFtpSslVerifyMethod = (ftpSslVerNone, ftpSslVerBundle, ftpSslVerWinStore) ;   // 20 Apr 2015
+    TFtpSslVerifyMethod = (ftpSslVerNone, ftpSslVerBundle, ftpSslVerWinStore) ;
 
 const
     FtpTypeStrings: array[Low(TFtpType)..High(TFtpType)] of String =
@@ -425,34 +415,35 @@ const
     ResInfAttempts = 4 ; ResInfLastBytes = 5 ;
 
 type
-  TIcsFtpMulti = class(TSslFtpClient)
+
+  TIcsFtpMultiW = class(TSslFtpClientW)
   private
     { Private declarations }
         fCancelFlag: boolean ;
         fProgFileSize: Int64 ;
         fLoggedIn: boolean ;
         fFtpErrFlag: boolean ;
-        fIcsFileCopy: TIcsFileCopy ;
+        fIcsFileCopy: TIcsFileCopyW ;
         fFtpType: TFtpType ;   // 11 Nov 2005, settable even if no SSL
         fFtpSslVerMethod: TFtpSslVerifyMethod;  // 20 Apr 2015
         fFtpSslRootFile: string ;  // 20 Apr 2015
         fFtpSslPort: string ;
-        fFtpSslRevocation: boolean;   // 20 Apr 2015
-        fFtpSslReportChain: boolean ;  // 20 Apr 2015
+        fFtpSslRevocation: boolean;
+        fFtpSslReportChain: boolean ;
         fFtpSslCliSecurity: TSslCliSecurity;   // June 2018
         fSslSessCache: boolean ;
         fSslContext: TSslContext ;
         fExternalSslSessionCache: TSslAvlSessionCache ;
-        fMsCertChainEngine: TMsCertChainEngine;   // 20 Apr 2015
+        FMsCertChainEngine: TMsCertChainEngine;
 
   protected
     { Protected declarations }
         fBulkMode: TBulkMode ;
         fHostName1: string ;
         fHostName2: string ;
-        fSrcDir: String ;
-        fSrcFName: String ;
-        fTarDir: String ;
+        fSrcDir: UnicodeString ;
+        fSrcFName: UnicodeString ;
+        fTarDir: UnicodeString ;
         fCopyType: TIcsFileCopyType ;
         fSubDirs: Boolean ;
         fDelDone: Boolean ;
@@ -463,7 +454,7 @@ type
         fReplRO: boolean ;
         fSafe: Boolean ;
         fTimeStamp: boolean ;
-        fLocalHost: string ;
+        fLocalHost: Ansistring ;
         fDispLog: boolean ;
         fDispFiles: boolean ;
         fDispLDir: boolean ;
@@ -472,21 +463,21 @@ type
         fXferMode: TXferMode ;
         fCaseFile: TCaseFile ;
         fDiffStampMins: integer ;
-        fCopyEvent: TBulkCopyEvent ;
-        fReqResponse: string ;
-        fServRootDir: string ;
-        fServBaseDir: string ;
+        fCopyEvent: TBulkCopyEventW ;
+        fReqResponse: String ;
+        fServRootDir: UnicodeString ;
+        fServBaseDir: UnicodeString ;
         fMaxAttempts: integer ;     // logon attempts
         fAttemptDelay: integer ;
-        fUpArchDir: String ;
+        fUpArchDir: UnicodeString ;
         fUpArchive: Boolean ;
         fResFailed: Boolean ;
         fMinResSize: Int64 ;        // also used for Resume Overlap 24 June 2006
-        fIgnoreFileExt: string ;
+        fIgnoreFileExt: UnicodeString ;
         fUpImmed: Boolean ;                        // 17 Aug 2004 - now ignored
         fSpecificFiles: boolean ;    // 14 Oct 03
         fDispRemList: boolean ;      // 30 Dec 2003
-        fCurRemDir: string ;         // 10 Aug 2004
+        fCurRemDir: UnicodeString ;  // 10 Aug 2004
         fFailRepeat: integer ;       // 20 Aug 2004
         fProgressSecs: integer ;     // 5 Sept 2005
         fUseCompression: boolean ;   // 2 Dec 2005
@@ -495,15 +486,15 @@ type
         fZlibNoCompExt: string ;     // 2 Dec 2007
         fZlibMaxSize: int64 ;        // 9 Dec 2007 - zero means no compression
         fMaxResumeAttempts: integer ; // 31 Dec 2007  resume attempts
-        fMagFtpOpts: TIcsFtpMultiOpts;    // 5 Jan 2008
+        fMagFtpOpts: TMagFtpOpts;    // 5 Jan 2008
         fMaskLocDir: boolean ;       // 8 Apr 2009
         fMaskRemDir: boolean ;       // 8 Apr 2009
         fNoProgress: boolean ;       // 15 Feb 2011
         fEmptyDirs: boolean ;        // 17 Feb 2011
-        fIgnorePaths: String ;       // 22 May 2013
-        fCopyProg: TIcsCopyProgress ;   // 22 May 2013 replaces most fTotxx/fProcxx variables
-        fWow64RedirDisable: boolean ;// 22 May 2013
-        fProgressEvent: TProgressEvent ;  // 22 May 2013
+        fIgnorePaths: UnicodeString ; // 22 May 2013
+        fCopyProg: TIcsCopyProgressW ;   // 22 May 2013 replaces most fTotxx/fProcxx variables
+        fWow64RedirDisable: boolean ; // 22 May 2013
+        fProgressEvent: TProgressEventW ;  // 22 May 2013
     {$IFDEF Zipping}
         fZipDownDel: Boolean ;
         fZipped: Boolean ;
@@ -512,31 +503,31 @@ type
         fZipDir: String ;
      {$ENDIF}
 
-        procedure doCopyEvent (const LogLevel: TIcsCopyLogLevel; const Info: string) ;
-        procedure onFtpClientProg64(Sender: TObject; Count: Int64;
+        procedure doCopyEvent (const LogLevel: TIcsCopyLogLevel; const Info: UnicodeString) ;
+        procedure onFtpClientProg64 (Sender: TObject; Count: Int64;
                                                      var Abort: Boolean);
-        procedure onFtpClientDisplay(Sender: TObject; var Msg: String);
-        procedure onFtpError(Sender: TObject; var Msg: String);
+        procedure onFtpClientDisplay (Sender: TObject; var Msg: UnicodeString);
+        procedure onFtpError(Sender: TObject; var Msg: UnicodeString);
         procedure OnFtpResponse (Sender: TObject) ;
         procedure OnFtpSessConn (Sender: TObject; Error: word) ;
         procedure OnFtpSessClosed (Sender: TObject; Error: word) ;
         procedure OnFtpRequestDone (Sender: TObject; RqType: TFtpRequest; Error: Word) ;
         procedure OnFtpStateChange (Sender: TObject) ;
         procedure OnFTPSocksConnected (Sender: TObject; Error: word) ;
-        procedure onMagCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: string ;
+        procedure onMagCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: UnicodeString ;
                                                   var Cancel: boolean) ;
         procedure EndUnZipEvent (Sender: TObject; FileIndex: Integer; FName: String) ;
         procedure UnZipHandleMessage(Sender: TObject;
                       const MessageID: Integer; const Msg1, Msg2: String;
                       const flags: Cardinal; var Return: Integer);
-        function IntDownOne (const RemDir, RemFile, RemFull, LocFileFull: string;
+        function IntDownOne (const RemDir, RemFile, RemFull, LocFileFull: UnicodeString ;
                                const RFSize: Int64; RFileUDT: TDateTime): integer ;
 
-        function IntUpOne (const LocFileFull, RemDir, RemFile: string;
+        function IntUpOne (const LocFileFull, RemDir, RemFile: UnicodeString ;
                                  const RFSize: Int64; RFileUDT: TDateTime): integer ;
         function WaitUntilReady : Boolean; Override ;
-        procedure SetSrcDir (S: string) ;
-        procedure SetTarDir (S: string) ;
+        procedure SetSrcDir (S: UnicodeString) ;
+        procedure SetTarDir (S: UnicodeString) ;
         procedure onZlibProg (Sender: TObject; Count: Int64; var Cancel: Boolean); // 9 Dec 2007
         procedure sysDelayX (aMs: longword);
         procedure OnFTPSslVerifyPeer(Sender: TObject; var Ok: Integer;
@@ -551,33 +542,35 @@ type
   public
     { Public declarations }
 
-        SrcFiles: TIcsFDirRecs  ;
+        SrcFiles: TIcsFDirRecsW ;
         SrcFileList: TIcsFindList ;
         TotSrcFiles: integer ;
-        TarFiles: TIcsFDirRecs  ;
+        TarFiles: TIcsFDirRecsW ;
         TarFileList: TIcsFindList ;
         TotTarFiles: integer ;
+     //   CurDelFiles: integer ;  /// 22 May 2013
         LogRcvdCerts: boolean ; // 20 Apr 2015
+        Utf8DiagFlag: boolean ;  // 13 Nov 2008
 
         constructor Create (Aowner: TComponent) ; override ;
         destructor  Destroy ; override ;
-        function DispFtpDir (var dirlisting: string): TIcsTaskResult ;
-        function FtpDir (var FtpFiles: TIcsFDirRecs ;
+        function DispFtpDir (var dirlisting: UnicodeString): TIcsTaskResult ;
+        function FtpDir (var FtpFiles: TIcsFDirRecsW;
                             var FtpFileList: TIcsFindList; const ListDirs: boolean = false): TIcsTaskResult ;  // 17 Feb 2011
         function FtpLogon: TIcsTaskResult ;
         function FtpDownload (const CheckFiles: boolean): TIcsTaskResult ;
         function FtpUpload (const CheckFiles: boolean): TIcsTaskResult ;
         procedure Cancel ;
-        function UnpackFtpFDir (DirStream: TStream; RemDir, BaseDir: string;
-                  Level: integer ; var DCodePage: Cardinal ; var HostType: THostType;
-                            var TotFiles: integer; var RemFiles: TIcsFDirRecs ): integer ;
+        function UnpackFtpFDir (DirStream: TStream; RemDir, BaseDir: UnicodeString;
+                Level: integer ; var DCodePage: Cardinal ; var HostType: THostType;
+                    var TotFiles: integer; var RemFiles: TIcsFDirRecsW): integer ;
         procedure FtpLogoff ;
         function FtpDownFiles (const CheckFiles: boolean): TIcsTaskResult ;
-        function FtpDownOneFile (const FdirSrc, Fnamesrc, Fnametar: string ;
+        function FtpDownOneFile (const FdirSrc, Fnamesrc, Fnametar: UnicodeString ;
                                             Replopt: TIcsFileCopyRepl) : TIcsTaskResult ;
-        function FtpUpOneFile (const LocFileFull, RemTarDir, RemTarFile: string;
+        function FtpUpOneFile (const LocFileFull, RemTarDir, RemTarFile: UnicodeString;
                                             Replopt: TIcsFileCopyRepl) : TIcsTaskResult ;
-        function FtpCheckFile (const RemDir, RemFile: string ;
+        function FtpCheckFile (const RemDir, RemFile: UnicodeString ;
                                  var FSize: Int64; var FileUDT: TDateTime): boolean;
 
 { Pass it the string that you get back when you get the
@@ -594,9 +587,9 @@ type
     property BulkMode: TBulkMode       read fBulkMode       write fBulkMode ;
     property HostName1: string         read fHostName1      write fHostName1 ;
     property HostName2: string         read fHostName2      write fHostName2 ;
-    property SrcDir: String            read fSrcDir         write SetSrcDir ;
-    property SrcFName: String          read fSrcFName       write fSrcFName ;
-    property TarDir: String            read fTarDir         write SetTarDir ;
+    property SrcDir: UnicodeString     read fSrcDir         write SetSrcDir ;
+    property SrcFName: UnicodeString   read fSrcFName       write fSrcFName ;
+    property TarDir: UnicodeString     read fTarDir         write SetTarDir ;
     property CopyType: TIcsFileCopyType   read fCopyType       write fCopyType ;
     property SubDirs: Boolean          read fSubDirs        write fSubDirs ;
     property DelDone: Boolean          read fDelDone        write fDelDone ;
@@ -607,7 +600,7 @@ type
     property ReplRO: boolean           read fReplRO         write fReplRO ;
     property Safe: Boolean             read fSafe           write fSafe ;
     property TimeStamp: boolean        read fTimeStamp      write fTimeStamp ;
-    property LocalHost: string         read fLocalHost      write fLocalHost ;
+    property LocalHost: AnsiString     read fLocalHost      write fLocalHost ;
     property DispLog: boolean          read fDispLog        write fDispLog ;
     property DispFiles: boolean        read fDispFiles      write fDispFiles ;
     property DispLDir: boolean         read fDispLDir       write fDispLDir ;
@@ -618,7 +611,7 @@ type
     property DiffStampMins: integer    read fDiffStampMins  write fDiffStampMins ;
     property FailRepeat: integer       read fFailRepeat     write fFailRepeat ;     // 20 Aug 2004
     property ProgressSecs: integer     read fProgressSecs   write fProgressSecs ;   // 5 Sept 2005
-    property CopyEvent: TBulkCopyEvent read fCopyEvent      write fCopyEvent ;
+    property CopyEvent: TBulkCopyEventW read fCopyEvent      write fCopyEvent ;
     property FtpType: TFtpType         read fFtpType        write fFtpType ;      // 11 Nov 2005
     property UseCompression: boolean   read fUseCompression write fUseCompression ; // 3 Dec 2005
     property SslSessCache: boolean     read fSslSessCache   write fSslSessCache ; // 11 Nov 2005
@@ -634,33 +627,32 @@ type
     property ProcFailFiles: integer    read fCopyProg.ProcFailFiles ;
     property ReqResponse: string       read fReqResponse ;
     property SkippedFiles: integer     read fCopyProg.SkippedFiles ;
-    property ServRootDir: string       read fServRootDir ;
-    property ServBaseDir: string       read fServBaseDir ;
+    property ServRootDir: UnicodeString read fServRootDir ;
+    property ServBaseDir: UnicodeString read fServBaseDir ;
     property LoggedIn: boolean         read fLoggedIn ;
-
     property MaxAttempts: integer      read fMaxAttempts    write fMaxAttempts ;   // logon attempts
     property AttemptDelay: integer     read fAttemptDelay   write fAttemptDelay ;
     property PassiveX: Boolean         read FPassive        write FPassive;
-    property UpArchDir: String         read fUpArchDir      write fUpArchDir ;
+    property UpArchDir: UnicodeString  read fUpArchDir      write fUpArchDir ;
     property UpArchive: Boolean        read fUpArchive      write fUpArchive ;
     property ResFailed: Boolean        read fResFailed      write fResFailed ;
     property MinResSize: Int64         read fMinResSize     write fMinResSize ;
-    property IgnoreFileExt: string     read fIgnoreFileExt  write fIgnoreFileExt ;
+    property IgnoreFileExt: UnicodeString  read fIgnoreFileExt  write fIgnoreFileExt ;
     property UpImmed: Boolean          read fUpImmed        write fUpImmed ;
     property SpecificFiles: Boolean    read fSpecificFiles  write fSpecificFiles ;
     property DispRemList: boolean      read fDispRemList    write fDispRemList ;
     property ZlibNoCompExt: string     read fZlibNoCompExt  write fZlibNoCompExt ; // 2 Dec 2007
     property ZlibMaxSize: Int64        read fZlibMaxSize    write fZlibMaxSize ;   // 9 Dec 2007
     property MaxResumeAttempts: integer  read fMaxResumeAttempts write fMaxResumeAttempts ; // 31 Dec 2007
-    property MagFtpOpts: TIcsFtpMultiOpts   read fMagFtpOpts     write fMagFtpOpts ;    // 5 Jan 2008
+    property MagFtpOpts: TMagFtpOpts   read fMagFtpOpts     write fMagFtpOpts ;    // 5 Jan 2008
     property MaskLocDir: boolean       read fMaskLocDir     write fMaskLocDir ;    // 8 Apr 2009
     property MaskRemDir: boolean       read fMaskRemDir     write fMaskRemDir ;    // 8 Apr 2009
     property NoProgress: boolean       read fNoProgress     write fNoProgress ;    // 15 Feb 2011
     property EmptyDirs: Boolean        read fEmptyDirs      write fEmptyDirs ;     // 17 Feb 2011
-    property IgnorePaths: String       read fIgnorePaths    write fIgnorePaths ;   // 22 May 2013
-    property CopyProg: TIcsCopyProgress   read fCopyProg ;                            // 22 May 2013
+    property IgnorePaths: UnicodeString read fIgnorePaths   write fIgnorePaths ;    // 22 May 2013
+    property CopyProg: TIcsCopyProgressW  read fCopyProg ;                             // 22 May 2013
     property Wow64RedirDisable: boolean read fWow64RedirDisable write fWow64RedirDisable ; // 22 May 2013
-    property ProgressEvent: TProgressEvent read fProgressEvent write fProgressEvent; // 22 May 2013
+    property ProgressEvent: TProgressEventW read fProgressEvent write fProgressEvent; // 22 May 2013
   {$IFDEF Zipping}
     property ZipDownDel: Boolean       read fZipDownDel     write fZipDownDel ;
     property Zipped: Boolean           read fZipped         write fZipped ;
@@ -671,21 +663,21 @@ type
 
   end;
 
-// 23 Sept 2010 threaded version of TIcsFtpMulti
+// 23 Sept 2010 threaded version of TMagFtp
 
-  TThreadEvent = Procedure (LogLevel: TIcsCopyLogLevel ; const Id, Info: string ;
+  TThreadEventW = Procedure (LogLevel: TIcsCopyLogLevel ; const Id, Info: UnicodeString ;
                                               var Cancel: boolean) of object ;
 
-  TIcsFtpMultiThread = class(TThread)
+  TIcsFtpMultiThreadW = class(TThread)
   private
         FFtpThreadOpt: TFtpThreadOpt ;
         FTaskRes: TIcsTaskResult ;
-        FDirListing: String ;
+        FDirListing: UnicodeString ;
         FLogLevel: TIcsCopyLogLevel ;
-        FInfo: string ;
-        FId: string ;
+        FInfo: String ;
+        FId: String ;
         FAbort: boolean ;
-        FLogmaskName: string ;
+        FLogmaskName: UnicodeString ;
         FBuffLogStream: TIcsBuffLogStream ;
         FIcsLog: TIcsLogger ;
 //  protected
@@ -706,55 +698,50 @@ type
 //      FLastDataPort       : DWORD;
         FDSocketSndBufSize  : Integer;{AG V7.26}
         FDSocketRcvBufSize  : Integer;{AG V7.26}
-//      FLocalAddr          : String;
-        FUserName           : String;
-        FPassWord           : String;
-        FAccount            : String;
-//      FLocalFileName      : String;
-//      FHostFileName       : String;
-//      FHostDirName        : String;
-//      FDnsResult          : String;
-//      FType               : Char;
+//      FLocalAddr          : UnicodeString;
+        FUserName           : UnicodeString;
+        FPassWord           : UnicodeString;
+        FAccount            : UnicodeString;
+//      FLocalFileName      : UnicodeString;
+//      FHostFileName       : UnicodeString;
+//      FHostDirName        : UnicodeString;
+//      FDnsResult          : UnicodeString;
+//      FType               : WideChar;
 //      FShareMode          : Word;
         FConnectionType     : TFTPConnectionType;
         FProxyServer        : String;
         FProxyPort          : String;
         FOptions            : TFtpOptions;
         FPassive            : Boolean;
-        FNewOpts            : string;        { V2.102 arguments for OPTS command }
+        FNewOpts            : String;        { V2.102 arguments for OPTS command }
         FTransferMode       : TFtpTransMode; { V2.102 new tranfer mode }
 //    FSupportedExtensions : TFtpExtensions; { V2.94  which features server supports }
         FKeepAliveSecs      : integer;       { V2.107 zero means window default }
-        FClientIdStr        : String;        { V2.113 string sent for CLNT command }
+        FClientIdStr        : UnicodeString;        { V2.113 string sent for CLNT command }
         FSocksPassword      : String;        { V7.00 }
         FSocksPort          : String;        { V7.00 }
         FSocksServer        : String;        { V7.00 }
         FSocksUserCode      : String;        { V7.00 }
         FLanguage           : String;        { V7.01 language argment for LANG command }
         FLangSupport        : String;        { V7.01 list of languages server supports }
-//      FZlibWorkDir        : String;        { V2.113 zlib work directory }
 {$IF DEFINED(UseBandwidthControl) or DEFINED(BUILTIN_THROTTLE)}
         FBandwidthLimit     : Integer;  // Bytes per second
         FBandwidthSampling  : Integer;  // mS sampling interval
 {$IFEND}
-        // from TIcsFtpMulti
-//        fLoggedIn: boolean ;
+        // from TMagFtp
         fFtpType: TFtpType ;
-//        fSslCertCheck: TSslCertCheck ;
         fFtpSslVerMethod: TFtpSslVerifyMethod; // 20 Apr 2015
         fFtpSslPort: String;
         fFtpSslRevocation: boolean;       // 20 Apr 2015
         fFtpSslReportChain: boolean ;     // 20 Apr 2015
         fFtpSslRootFile: string ;  // 20 Apr 2015
         fSslSessCache: boolean ;
-//      fSslContext: TSslContext ;
-//      fExternalSslSessionCache: TSslAvlSessionCache ;
         fBulkMode: TBulkMode ;
         fHostName1: String ;
         fHostName2: String ;
-        fSrcDir: String ;
-        fSrcFName: String ;
-        fTarDir: String ;
+        fSrcDir: UnicodeString ;
+        fSrcFName: UnicodeString ;
+        fTarDir: UnicodeString ;
         fCopyType: TIcsFileCopyType ;
         fSubDirs: Boolean ;
         fDelDone: Boolean ;
@@ -782,11 +769,11 @@ type
         fReqResponse: String ;
         fMaxAttempts: integer ;
         fAttemptDelay: integer ;
-        fUpArchDir: String ;
+        fUpArchDir: UnicodeString ;
         fUpArchive: Boolean ;
         fResFailed: Boolean ;
         fMinResSize: Int64 ;
-        fIgnoreFileExt: string ;
+        fIgnoreFileExt: UnicodeString ;
         fSpecificFiles: boolean ;
         fDispRemList: boolean ;
         fFailRepeat: integer ;
@@ -795,27 +782,28 @@ type
         fZlibNoCompExt: String ;
         fZlibMaxSize: int64 ;
         fMaxResumeAttempts: integer ;
-        fMagFtpOpts: TIcsFtpMultiOpts;
+        fMagFtpOpts: TMagFtpOpts;
         fMaskLocDir: boolean ;
         fMaskRemDir: boolean ;
         fNoProgress: boolean ;
         fEmptyDirs: boolean ;
   public
-    IcsFTPMultiCli: TIcsFtpMulti ;
-    FThreadEvent: TThreadEvent ;
+    IcsFTPMultiCli: TIcsFtpMultiW ;
+    FThreadEvent: TThreadEventW ;
+    Utf8DiagFlag: boolean ;
     constructor CreateThread;
-    procedure LogEvent (LogLevel: TIcsCopyLogLevel ; Info: String ; var Cancel: boolean) ;
+    procedure LogEvent (LogLevel: TIcsCopyLogLevel ; Info: UnicodeString ; var Cancel: boolean) ;
     procedure IcsLogEvent (Sender: TObject; LogOption: TLogOption; const Msg : String) ;
     procedure CallThreadEvent ;
     procedure Execute; override;
     property FtpThreadOpt         : TFtpThreadOpt        read FFtpThreadOpt
                                                          write FFtpThreadOpt;
     property TaskRes              : TIcsTaskResult          read FTaskRes;
-    property DirListing           : string               read FDirListing;
-    property LogmaskName          : string               read FLogmaskName
+    property DirListing           : UnicodeString        read FDirListing;
+    property LogmaskName          : UnicodeString        read FLogmaskName
                                                          write FLogmaskName;
-    property ID                   : string               read FID
-                                                         write FID ;
+    property ID                   : String               read FID
+                                                         write FID;
     property Timeout              : Integer              read FTimeout
                                                          write FTimeout;
     property MultiThreaded        : Boolean              read FMultiThreaded
@@ -826,7 +814,7 @@ type
                                                          write FKeepAliveSecs;
     property Options              : TFtpOptions          read  FOptions
                                                          write FOptions;
-    property ClientIdStr          : String               read  FClientIdStr
+    property ClientIdStr          : UnicodeString        read  FClientIdStr
                                                          write FClientIdStr;
     property BandwidthLimit       : Integer              read  FBandwidthLimit
                                                          write FBandwidthLimit;
@@ -850,9 +838,9 @@ type
                                                          write FDSocketRcvBufSize;
     property LocalAddr            : String               read  FLocalAddr
                                                          write FLocalAddr;
-    property UserName             : String               read  FUserName
+    property UserName             : UnicodeString        read  FUserName
                                                          write FUserName;
-    property PassWord             : String               read  FPassWord
+    property PassWord             : UnicodeString        read  FPassWord
                                                          write FPassWord;
 //    property Binary               : Boolean              read  FBinary
 //                                                         write SetBinary;
@@ -874,7 +862,7 @@ type
                                                          write FSocksServer;
     property SocksUserCode        : String               read  FSocksUserCode
                                                          write FSocksUserCode;
-    property Account              : String               read  FAccount
+    property Account              : UnicodeString        read  FAccount
                                                          write FAccount;
     property Language             : String               read  FLanguage
                                                          write FLanguage;
@@ -882,9 +870,9 @@ type
     property BulkMode: TBulkMode       read fBulkMode       write fBulkMode ;
     property HostName1: string         read fHostName1      write fHostName1 ;
     property HostName2: string         read fHostName2      write fHostName2 ;
-    property SrcDir: String            read fSrcDir         write fSrcDir ;
-    property SrcFName: String          read fSrcFName       write fSrcFName ;
-    property TarDir: String            read fTarDir         write fTarDir ;
+    property SrcDir: UnicodeString     read fSrcDir         write fSrcDir ;
+    property SrcFName: UnicodeString   read fSrcFName       write fSrcFName ;
+    property TarDir: UnicodeString     read fTarDir         write fTarDir ;
     property CopyType: TIcsFileCopyType   read fCopyType       write fCopyType ;
     property SubDirs: Boolean          read fSubDirs        write fSubDirs ;
     property DelDone: Boolean          read fDelDone        write fDelDone ;
@@ -906,13 +894,11 @@ type
     property DiffStampMins: integer    read fDiffStampMins  write fDiffStampMins ;
     property FailRepeat: integer       read fFailRepeat     write fFailRepeat ;
     property ProgressSecs: integer     read fProgressSecs   write fProgressSecs ;
-//    property CopyEvent: TBulkCopyEvent read fCopyEvent      write fCopyEvent ;
     property FtpType: TFtpType         read fFtpType        write fFtpType ;
     property UseCompression: boolean   read fUseCompression write fUseCompression ;
     property SocketFamily: TSocketFamily read FSocketFamily write FSocketFamily ;
     property SocketErrs: TSocketErrs   read FSocketErrs     write FSocketErrs;      { Nov 2016}
     property SslSessCache: boolean     read fSslSessCache   write fSslSessCache ;
-//    property SslCertCheck:TSslCertCheck read fSslCertCheck  write fSslCertCheck ;
     property FtpSslPort: string        read fFtpSslPort     write fFtpSslPort ;
     property FtpSslVerMethod: TFtpSslVerifyMethod read fFtpSslVerMethod write fFtpSslVerMethod ;  // 20 Apr 2015
     property FtpSslRootFile: string    read fFtpSslRootFile write fFtpSslRootFile ;         // 20 Apr 2015
@@ -928,17 +914,17 @@ type
     property MaxAttempts: integer      read fMaxAttempts    write fMaxAttempts ;
     property AttemptDelay: integer     read fAttemptDelay   write fAttemptDelay ;
     property PassiveX: Boolean         read FPassive        write FPassive;
-    property UpArchDir: String         read fUpArchDir      write fUpArchDir ;
+    property UpArchDir: UnicodeString  read fUpArchDir      write fUpArchDir ;
     property UpArchive: Boolean        read fUpArchive      write fUpArchive ;
     property ResFailed: Boolean        read fResFailed      write fResFailed ;
     property MinResSize: Int64         read fMinResSize     write fMinResSize ;
-    property IgnoreFileExt: string     read fIgnoreFileExt  write fIgnoreFileExt ;
+    property IgnoreFileExt: UnicodeString read fIgnoreFileExt  write fIgnoreFileExt ;
     property SpecificFiles: Boolean    read fSpecificFiles  write fSpecificFiles ;
     property DispRemList: boolean      read fDispRemList    write fDispRemList ;
     property ZlibNoCompExt: String     read fZlibNoCompExt  write fZlibNoCompExt ;
     property ZlibMaxSize: Int64        read fZlibMaxSize    write fZlibMaxSize ;
     property MaxResumeAttempts: integer  read fMaxResumeAttempts write fMaxResumeAttempts ;
-    property MagFtpOpts: TIcsFtpMultiOpts   read fMagFtpOpts     write fMagFtpOpts ;
+    property MagFtpOpts: TMagFtpOpts   read fMagFtpOpts     write fMagFtpOpts ;
     property MaskLocDir: boolean       read fMaskLocDir     write fMaskLocDir ;
     property MaskRemDir: boolean       read fMaskRemDir     write fMaskRemDir ;
     property NoProgress: boolean       read fNoProgress     write fNoProgress ;
@@ -948,8 +934,14 @@ type
 const
     AppTicksPerFtp = 50 ;   // 22 May 2013 millisecs to open file when calculation session duration
 
+procedure Register;
 
 implementation
+
+procedure Register;
+begin
+  RegisterComponents('Magenta Systems', [TIcsFtpMultiW]);
+end;
 
 function ConvUSADate (info: string): TDateTime ;
 // mm/dd/yyyy
@@ -965,7 +957,8 @@ begin
     if NOT TryEncodeDate (yy, mm, dd, result) then result := 0 ;
 end ;
 
-{function GetWinsockErr (error: integer): string ;
+{
+function GetWinsockErr (error: integer): string ;
 begin
     result := WSocketErrorDesc (error) + ' (' + IntToStr (error) + ')' ;
 end ;
@@ -988,15 +981,15 @@ function CalcSpeed (DurTicks, FSize: int64): int64 ;  // 12 Oct 2011
 begin
     if DurTicks <= 0 then DurTicks := 10 ;  // stop division by zero
      result := (1000 * FSize) div DurTicks;
-end ;}
+end ;  }
 
-constructor TIcsFtpMulti.Create(Aowner:TComponent);
+constructor TIcsFtpMultiW.Create(Aowner:TComponent);
 begin
     inherited create(AOwner);
  // winsock bug fix for fast connections
     FControlSocket.ComponentOptions := [wsoNoReceiveLoop] ;
     FDataSocket.ComponentOptions := [wsoNoReceiveLoop] ;
-    fIcsFileCopy := TIcsFileCopy.Create (self) ;
+    fIcsFileCopy := TIcsFileCopyW.Create (self) ;
     fIcsFileCopy.CopyEvent := onMagCopyEvent ;
     fIcsFileCopy.MultiThreaded := FMultiThreaded ; // 16 Sept 2010
     SrcFileList := TIcsFindList.Create ;
@@ -1005,6 +998,10 @@ begin
     SetLength (TarFiles, 0) ;
     TotSrcFiles := 0 ;
     TotTarFiles := 0 ;
+{   fTotProcFiles := 0 ;
+    fProcOKFiles := 0 ;
+    fProcFailFiles := 0 ;
+    fSkippedFiles := 0 ;   }
     fCancelFlag := false ;
     fLoggedIn := false ;
     fMaxAttempts := 3 ;
@@ -1027,6 +1024,7 @@ begin
     onStateChange := onFTPStateChange ;
     FControlSocket.OnSocksConnected := OnFTPSocksConnected ;
     fFtpType := FtpTypeNone ;  // 11 Nov 2005, even for no SSL
+ //   fSslCertCheck := SslCCNone ;
     fFtpSslVerMethod := ftpSslVerNone ;  // 20 Apr 2015
     fFtpSslRootFile := 'RootCaCertsBundle.pem' ; // 20 Apr 2015
     fFtpSslPort := '990' ;
@@ -1050,7 +1048,7 @@ begin
     fFtpSslCliSecurity := sslCliSecIgnore;  // June 2018
 end ;
 
-destructor TIcsFtpMulti.Destroy;
+destructor TIcsFtpMultiW.Destroy;
 begin
     fIcsFileCopy.Free ;
     SrcFileList.Free  ;
@@ -1061,24 +1059,25 @@ begin
     inherited Destroy;
 end;
 
-procedure TIcsFtpMulti.OnFTPSslVerifyPeer(Sender: TObject; var Ok: Integer; Cert : TX509Base);
+procedure TIcsFtpMultiW.OnFTPSslVerifyPeer(Sender: TObject; var Ok: Integer;
+  Cert : TX509Base);
 var
     info: string ;
 begin
     OK := 1; // don't check certificate until handshaking over
     if LogRcvdCerts then   // 20 Apr 2015
     begin
-         info := 'Received Certificate, Depth ' + IntToStr (Cert.VerifyDepth) + #13#10 +
+        info := 'Received Certificate, Depth ' + IntToStr (Cert.VerifyDepth) + #13#10 +
                  'Verify Result: ' + Cert.VerifyErrMsg + #13#10 +
                  Cert.CertInfo (true) + #13#10 ;  // Mar 2017 simplify
         doCopyEvent (LogLevelDiag, info);
     end;
 end ;
 
-procedure TIcsFtpMulti.OnFTPSslCliNewSession(Sender: TObject; SslSession: Pointer;
-                                            WasReused: Boolean; var IncRefCount : Boolean);
+procedure TIcsFtpMultiW.OnFTPSslCliNewSession(Sender: TObject; SslSession: Pointer;
+                                WasReused: Boolean; var IncRefCount : Boolean);
 var
-    FtpCli: TSslFtpClient ;
+    FtpCli: TSslFtpClientW ;
 begin
     { SslCliNewSession/SslCliGetSession allow external, client-side session }
     { caching.                                                              }
@@ -1086,34 +1085,36 @@ begin
     if not fSslSessCache then Exit;
     if (not WasReused) then
     begin
-        FtpCli := Sender as TSslFtpClient ;
+        FtpCli := Sender as TSslFtpClientW ;
         fExternalSslSessionCache.CacheCliSession (SslSession,
                         FtpCli.ControlSocket.PeerAddr + FtpCli.ControlSocket.PeerPort, IncRefCount);
         doCopyEvent (LogLevelDiag, 'Cache SSL Session: New');
     end
     else
         doCopyEvent (LogLevelDiag, 'Cache SSL Session: Reuse');
+ //   IncRefCount := false ;  // Dec 2016 should not be here
 end ;
 
-procedure TIcsFtpMulti.OnFTPSslCliGetSession(Sender: TObject; var SslSession: Pointer;
+procedure TIcsFtpMultiW.OnFTPSslCliGetSession(Sender: TObject; var SslSession: Pointer;
                                                         var FreeSession : Boolean);
 var
-    FtpCli: TSslFtpClient ;
+    FtpCli: TSslFtpClientW ;
 begin
     { SslCliNewSession/SslCliGetSession allow external, client-side session }
     { caching.                                                              }
     if not fSslSessCache then Exit;
     doCopyEvent (LogLevelDiag, 'Check for Old SSL Session');
-    FtpCli := Sender as TSslFtpClient ;
+    FtpCli := Sender as TSslFtpClientW ;
     SslSession := fExternalSslSessionCache.GetCliSession(
                      FtpCli.ControlSocket.PeerAddr + FtpCli.ControlSocket.PeerPort, FreeSession);
+//    FreeSession := True;   // Dec 2016 should not be here
     if Assigned (SslSession) then   // Dec 2016
         doCopyEvent (LogLevelDiag, 'Old SSL Session Found Cached')
     else
         doCopyEvent (LogLevelDiag, 'No Old SSL Session Cached');
 end ;
 
-procedure TIcsFtpMulti.OnFTPSslHandshakeDone(Sender: TObject; ErrCode: Word;
+procedure TIcsFtpMultiW.OnFTPSslHandshakeDone(Sender: TObject; ErrCode: Word;
                                   PeerCert: TX509Base; var Disconnect: Boolean);
 var
     CertChain: TX509List;
@@ -1122,7 +1123,7 @@ var
     Safe: Boolean;
     FtpCtl: TWSocket ;      // Dec 2016
 begin
-    FtpCtl := (Sender as TSslFtpClient).ControlSocket ;  // Dec 2016
+    FtpCtl := (Sender as TSslFtpClientW).ControlSocket ;  // Dec 2016
 
   // nothing much to do if SSL failed or event said disconnect
     if (ErrCode <> 0) or Disconnect then
@@ -1172,8 +1173,7 @@ begin
         VerifyInfo := MsChainVerifyErrorToStr (ChainVerifyResult); // Nov 2016
 
     // MSChain ignores host name, so see if it failed using OpenSSL
-        if PeerCert.VerifyResult = X509_V_ERR_HOSTNAME_MISMATCH then
-        begin  // Nov 2016
+        if PeerCert.VerifyResult = X509_V_ERR_HOSTNAME_MISMATCH then begin  // Nov 2016
             Safe := False;
             VerifyInfo := PeerCert.FirstVerifyErrMsg;
         end;
@@ -1203,7 +1203,7 @@ begin
     begin
         doCopyEvent (LogLevelInfo, FtpCtl.SslServerName + ' SSL Chain Verification Succeeded') ;
         SslAcceptableHosts.Add (FtpCtl.SslServerName + PeerCert.Sha1Hex) ;  // Dec 2016 save it
-    end ;
+    end;
 
 // if certificate checking failed, see if the host is specifically listed as being allowed anyway
     if (NOT Safe) and (SslAcceptableHosts.IndexOf (FtpCtl.SslServerName) > -1) then  // 19 Oct 2015
@@ -1216,8 +1216,8 @@ begin
     if fFtpSslReportChain and (CertChain.Count > 0) then
     begin
         info := FtpCtl.SslServerName + ' ' + IntToStr (CertChain.Count) +
-             ' SSL Certificates in the verify chain:' + #13#10 +
-                CertChain.AllCertInfo (true, true) + #13#10 ; // Mar 2017 report all certs, backwards
+                ' SSL Certificates in the verify chain:' + #13#10 +
+                      CertChain.AllCertInfo (true, true) + #13#10 ; // Mar 2017 report all certs, backwards
         doCopyEvent (LogLevelInfo, info);
     end;
 
@@ -1229,31 +1229,26 @@ begin
     end;
 end ;
 
-procedure TIcsFtpMulti.OnFTPSslCliCertRequest(Sender: TObject; var Cert: TX509Base);
+procedure TIcsFtpMultiW.OnFTPSslCliCertRequest(Sender: TObject; var Cert: TX509Base);
 begin
     doCopyEvent (LogLevelDiag, 'Certificate Request Ignored') ;
 end;
 
-procedure TIcsFtpMulti.SetSrcDir (S: string) ;
+procedure TIcsFtpMultiW.SetSrcDir (S: UnicodeString) ;
 begin
     fSrcDir := Trim (S) ;
 end ;
 
-procedure TIcsFtpMulti.SetTarDir (S: string) ;
+procedure TIcsFtpMultiW.SetTarDir (S: UnicodeString) ;
 begin
     fTarDir := Trim (S) ;
 end ;
 
-
-function TIcsFtpMulti.WaitUntilReady : Boolean;
+function TIcsFtpMultiW.WaitUntilReady : Boolean;
 var
     DummyHandle     : THandle;
 begin
-{$IFNDEF WIN64}                  
-  {$IFNDEF COMPILER24_UP}
-    Result    := TRUE;           { Make dcc32 happy }
-  {$ENDIF}
-{$ENDIF}
+    Result    := TRUE;           { Assume success }
     FTimeStop := LongInt(GetTickCount) + LongInt(FTimeout) * 1000;
     while TRUE do begin
         // 24 July 2013 InternalReady happens between multiple commands, ignore it
@@ -1273,7 +1268,7 @@ begin
             end;
         end;
 
-        if FTerminated or ((FTimeout > 0) and (LongInt(GetTickCount) > FTimeStop)) then begin
+        if Application.Terminated or FTerminated or ((FTimeout > 0) and (LongInt(GetTickCount) > FTimeStop)) then begin
             { Timeout occured }
             AbortAsync;
             FErrorMessage := '426 Timeout';
@@ -1285,7 +1280,7 @@ begin
     end;
 end;
 
-procedure TIcsFtpMulti.sysDelayX (aMs: longword);
+procedure TIcsFtpMultiW.sysDelayX (aMs: longword);
 var
     Trg: longword;
 begin
@@ -1293,7 +1288,7 @@ begin
     while True do
     begin
         MessagePump ; // 15 Sept 2010 needed to support MultiThreaded
-        if FTerminated then break ;
+        if Application.Terminated or FTerminated then break ;
         if IcsTestTrgTick (Trg) then break ;
     end ;
 end;
@@ -1662,13 +1657,13 @@ Enterprise UNIX 2.4.02
 
 
 
-Procedure TIcsFtpMulti.SetupVMS (const BaseFolder: string; var HostType: THostType);
+Procedure TIcsFtpMultiW.SetupVMS (const BaseFolder: string; var HostType: THostType);
 Begin
     HostType := FTPTYPE_NONE ;
     If Pos(':[',BaseFolder) <> 0 Then HostType := FTPTYPE_MVS ;
 End;
 
-function IncludeTrailingUnixDelimiter(const S : String): String;
+function IncludeTrailingUnixDelimiterW(const S : UnicodeString): UnicodeString;
 begin
     if (Length(S) > 0) and (S[Length(S)] <> '/') then
         Result := S + '/'
@@ -1678,7 +1673,7 @@ begin
         Result := S;
 end;
 
-Function Strunc(S1:String):String;
+Function Strunc(S1:UnicodeString):UnicodeString;
 Var
     Len:Integer;
 Begin
@@ -1699,69 +1694,64 @@ End;
 
 // unpack FTP directory in downloaded file into dynamic array
 // returns number of actual files in directory (it may include other dirs)
+// directory stream may be ANSI with a specific code page or UTF8
 
-function TIcsFtpMulti.UnpackFtpFDir (DirStream: TStream; RemDir, BaseDir: string; Level: integer ;
-                               var DCodePage: Cardinal ; var HostType: THostType;
-                                    var TotFiles: integer; var RemFiles: TIcsFDirRecs ): integer ;
+function TIcsFtpMultiW.UnpackFtpFDir (DirStream: TStream; RemDir, BaseDir: UnicodeString;
+        Level: integer ; var DCodePage: Cardinal ; var HostType: THostType;
+                    var TotFiles: integer; var RemFiles: TIcsFDirRecsW): integer ;
 var
     RawLines, RawCurLine: RawByteString ;
     initdlen, RawTotLen, RawLineStart, RawLineEnd: integer ;
 Type
-    SArray=Array[0..20] Of String;
+    SArray=Array[0..20] Of UnicodeString;
 Const
-    Months:Array[1..12] Of String =     // v3.5
+    Months:Array[1..12] Of UnicodeString =
      ('JANUARY','FEBRUARY','MARCH','APRIL',
      'MAY','JUNE','JULY','AUGUST',
      'SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER');
 Var
     CurYear,Month,Day:Word;
     PosX,X,MaxX,I:Integer;
-    MyGroup,MyLink,S2,MySize,MyAttr,MyDate,MyTime,MyName,MyDir,S1:String;
+    MyGroup,MyLink,S2,MySize,MyAttr,MyDate,MyTime,MyName,MyDir,S1:UnicodeString;
     MyDateTime:TDateTime;
-    Second,Fifth:String;
+    Second,Fifth,CurLine:UnicodeString;
     JunkArray:SArray;
     ACodePage: Cardinal;
-    CurLine: String;
 
-Function IntToStr2(const W1:Integer):String;
-Var
-    S1:String;
-Begin
-    S1:=IntToStr(W1);
-    If Length(S1)<2 Then S1:='0'+S1;
-    IntToStr2:=S1;
-End;
-
-Function Value(const S1:String):LongInt;
-Var
-    X,Y:LongInt;
-Begin
-    Val(S1,X,Y);
-    Value:=X;
-End;
-
-
-Function GetFirstParam(Var S1:String):String;
-Var
-    X:Integer;
-Begin
-    If S1='' Then
+    Function IntToStr2(const W1:Integer):UnicodeString;
+    Var
+        S1:UnicodeString;
     Begin
-        Result:='';
-        Exit;
+        S1:=IntToStr(W1);
+        If Length(S1)<2 Then S1:='0'+S1;
+        IntToStr2:=S1;
     End;
-    If S1[Length(S1)]<>' ' Then S1:=S1+' ';
-    X:=Pos(' ',S1);
-    Result:=Copy(S1,1,X-1);
-    S1:=Copy(S1,X,Length((S1)));
-    S1:=Strunc(S1);
-End;
 
+    Function Value(const S1:UnicodeString):LongInt;
+    Var
+        X,Y:LongInt;
+    Begin
+        Val(S1,X,Y);
+        Value:=X;
+    End;
 
+    Function GetFirstParam(Var S1:UnicodeString):UnicodeString;
+    Var
+        X:Integer;
+    Begin
+        If S1='' Then
+        Begin
+            Result:='';
+            Exit;
+        End;
+        If S1[Length(S1)]<>' ' Then S1:=S1+' ';
+        X:=Pos(' ',S1);
+        Result:=Copy(S1,1,X-1);
+        S1:=Copy(S1,X,Length((S1)));
+        S1:=Strunc(S1);
+    End;
 
-
-
-    Function MonthMatch(P2:String):Integer;
+    Function MonthMatch(P2:UnicodeString):Integer;
     Var
         X:Integer;
     Begin
@@ -1773,7 +1763,7 @@ End;
         Until (Result<>0) Or (X>12);
     End;
 
-    Function SuckParmsB(Var S1:String):String;
+    Function SuckParmsB(Var S1:UnicodeString):UnicodeString;
     Var
         Y:Integer;
     Begin
@@ -1789,7 +1779,7 @@ End;
         S1:=Strunc(S1);
     End;
 
-    Function GetFifth(S1:String):String;
+    Function GetFifth(S1:UnicodeString):UnicodeString;
     Begin
         Result:=GetFirstParam(S1);
         Result:=GetFirstParam(S1);
@@ -1799,25 +1789,25 @@ End;
         If Result='' Then Result:='-';
     End;
 
-    Function GetSecond(S1:String):String;
+    Function GetSecond(S1:UnicodeString):UnicodeString;
     Begin
         Result:=GetFirstParam(S1);
         Result:=GetFirstParam(S1);
         If Result='' Then Result:='-';
     End;
 
-    Function Filter(S1:String):String;
+    Function Filter(S1:UnicodeString):UnicodeString;
     Var
         X:Integer;
     Begin
         For X:=1 To Length(S1) Do
         Begin
-           If AnsiChar (S1[X]) In [#0..#27] Then S1[X]:=' ';   // v3.5
+           If S1[X] <= #27 Then S1[X]:=' ';
         End;
         Result:=S1;
     End;
 
-    Function FormatDate2(S1:String):String;
+    Function FormatDate2(S1:UnicodeString):UnicodeString;
     Var
         Year:Integer;
     Begin
@@ -1830,9 +1820,9 @@ End;
         Result:=Copy(S1,1,6)+IntToStr(Year);
     End;
 
-    Function FormatDate1(S1:String):String;
+    Function FormatDate1(S1:UnicodeString):UnicodeString;
     Var
-        P1,P2,P3:String;
+        P1,P2,P3:UnicodeString;
         X:Integer;
         Found:Integer;
     Begin
@@ -1849,7 +1839,7 @@ End;
             Begin
                 P2:=UpperCase(Copy(S1,1,X-1));
                 P3:=Copy(S1,X+1,Length(S1));
-                If NOT(AnsiChar (P2[1]) In ['0'..'9']) Then
+                If NOT((P2[1] >= '0') and (P2[1] <= '9')) Then
                 Begin
                     Found:=MonthMatch(P2);
                     If Found>0 Then P2:=IntToStr2(Found);
@@ -1861,7 +1851,7 @@ End;
         End;
     End;
 
-    Function FormatTime1(S1:String):String;
+    Function FormatTime1(S1:UnicodeString):UnicodeString;
     Var
         X:Integer;
     Begin
@@ -1888,7 +1878,7 @@ End;
             Result:=S1;
     End;
 
-    Function AdjustS1(Junk1Array:SArray):String;
+    Function AdjustS1(Junk1Array:SArray):UnicodeString;
     Var
         Found:Boolean;
         Y,X,TopEnd:Integer;
@@ -1911,10 +1901,10 @@ End;
         Until (Found=True) Or (X>=TopEnd);
     End;
 
-    function FindMlsFact (const response, fact: string): string ;
+    function FindMlsFact (const response, fact: UnicodeString): UnicodeString ;
     var
         I: integer ;
-        S: string ;
+        S: UnicodeString ;
     begin
         result := '' ;
         I := Pos (fact, response) ;   // ie type=, size=, modify=, perm=
@@ -1927,7 +1917,7 @@ End;
         result := Copy (S, 1, Pred (I)) ;
     end ;
 
-    function CheckUnixAttributes (const AttrStr: string): boolean ;   // 7 June 2010
+    function CheckUnixAttributes (const AttrStr: UnicodeString): boolean ;    // 7 June 2010
     var
         len, I: integer ;
     begin
@@ -1944,10 +1934,11 @@ End;
         end;
     end;
 
+
 // mainline start
 Begin
     result := 0 ;
-    RemDir := IncludeTrailingUnixDelimiter (RemDir) ;
+    RemDir := IncludeTrailingUnixDelimiterW (RemDir) ;
     initdlen := Length (BaseDir) ;
     if NOT Assigned (DirStream) then exit ;
     RawTotLen := DirStream.Size ;
@@ -1979,7 +1970,7 @@ Begin
 
 // count lines in listing, and check for MVS header
     MaxX := 1 ;
-    for RawLineEnd := 1 to RawTotLen - 1 do  // skip last IcsLF
+    for RawLineEnd := 1 to RawTotLen - 1 do  // skip last LF
     begin
         if RawLines [RawLineEnd] = IcsLF then inc (MaxX) ;
         if (MaxX < 10) and (HostType <> FTPTYPE_MVS) then  // look for header: WORK:[POOR]
@@ -2005,7 +1996,7 @@ Begin
     end ;
     doCopyEvent (LogLevelDiag, 'Server Returned ' + IcsIntToCStr (MaxX) + ' Line(s), Bytes ' +
                 IcsIntToCStr (DirStream.Size) + ' for Directory: ' + RemDir + ', Format: ' + S2) ;
-    SetLength (RemFiles, TotFiles + MaxX + 2) ;   // allocate space for filerecs
+    SetLength (RemFiles, TotFiles + MaxX + 2) ;   // allocate IcsSpace for filerecs
 
 // keep year, for UNIX listing without it
     MyDateTime:=Date;
@@ -2019,20 +2010,16 @@ Begin
         if (RawLineEnd > RawTotLen) then break ; // sanity test
         while (RawLineEnd <= RawTotLen) and (RawLines [RawLineEnd] <> IcsLF) do inc (RawLineEnd) ; // find next line end
         I := RawLineEnd - RawLineStart ;
-        if (RawLineEnd > 1) and (RawLines [RawLineEnd - 1] < IcsSpace) then dec (I) ; // remove CR
+        if (RawLineEnd > 1) and (RawLines [RawLineEnd - 1] < Icsspace) then dec (I) ; // remove CR
         RawCurLine := Copy (RawLines, RawLineStart, I) ;  // get next line
         inc (RawLineEnd) ;
         RawLineStart := RawLineEnd ;
 
       // see if logging raw list, do it for single file anyway
-        if fDispRemList or (MaxX = 1) then doCopyEvent (LogLevelDiag, String (RawCurLine)) ;   // v3.5
+        if fDispRemList or (MaxX = 1) then doCopyEvent (LogLevelDiag, UnicodeString (RawCurLine)) ;
 
-       // 16 Sept 2008 convert UTF8 rawstring to UTF16 widestring or ANSI
-    {$IFDEF COMPILER12_UP}
+       // 16 Sept 2008 convert UTF8 rawsting to UTF16 widestring
         CurLine := AnsiToUnicode (RawCurLine, ACodePage) ;
-    {$ELSE}
-        CurLine := ConvertCodepage (RawCurLine, ACodePage, CP_ACP);
-    {$ENDIF}
         if Length (CurLine) = 0 then continue ;
         MyDate:='';
         MyTime:='';
@@ -2062,11 +2049,11 @@ Begin
                 Begin
                     while (RawLines [RawLineEnd] <> IcsLF) and  (RawLineEnd <= RawTotLen) do inc (RawLineEnd) ; // find next line end
                     I := RawLineEnd - RawLineStart ;
-                    if (RawLineEnd > 1) and (RawLines [RawLineEnd - 1] < IcsSpace) then dec (I) ; // remove CR
+                    if (RawLineEnd > 1) and (RawLines [RawLineEnd - 1] < Icsspace) then dec (I) ; // remove CR
                     RawCurLine := Copy (RawLines, RawLineStart, I) ;  // get next line
                     inc (RawLineEnd) ;
                     RawLineStart := RawLineEnd ;
-                    if fDispRemList then doCopyEvent (LogLevelDiag, String (RawCurLine)) ;   // v3.5
+                    if fDispRemList then doCopyEvent (LogLevelDiag, UnicodeString (RawCurLine)) ;
                     S1 := Strunc (AnsiToUnicode (RawCurLine, ACodePage)) ;
                 End;
                 MySize:=IntToStr(Value(GetFirstParam(S1))*512);
@@ -2078,7 +2065,7 @@ Begin
                 If Pos('.DIR',UpperCase(MyName))<>0 Then
                 Begin
                     MyDir:=sDirLit;
-                    MyName:=IcsExtractNameOnly(Copy(MyName,1,Pos(';',MyName)-1));
+                    MyName:=IcsExtractNameOnlyW(Copy(MyName,1,Pos(';',MyName)-1));
                 End
                 Else
                 Begin
@@ -2090,10 +2077,10 @@ Begin
          // FTP MSLD command
             else if HostType = FTPTYPE_MLSD then
             begin
-                I := Pos (#32, S1) ;  /// file name follows first space in line
+                I := Pos (#32, S1) ;  /// file name follows first IcsSpace in line
                 if (I > 1) and (Length (S1) >= Succ (I)) then  // 6 Aug 2007 allow for single char directory
                                      MyName := Copy (S1, Succ (I), 999) ;
-                S1 := AnsiLowerCase (S1) ;
+                S1 := IcsAnsiLowerCaseW (S1) ;
                 S2 := FindMlsFact (S1, 'type=') ;
                 if (S2 = 'dir') {or (S2 = 'cdir') or (S2 = 'pdir')} then  // 16 Mar 2006
                     MyDir := sDirLit
@@ -2109,6 +2096,10 @@ Begin
 
         // UNIX line
             Else if CheckUnixAttributes (S1) then   // 7 June 2010 simplified checking UNIX attributes
+         {   Else If (Pos(S1[1],'cldwrx-s')<>0) And (Pos(S1[2],'cldwrx-s')<>0) And
+                  (Pos(S1[3],'cldwrx-s')<>0) And (Pos(S1[4],'cldwrx-s')<>0) And
+                  (Pos(S1[5],'cldwrx-s')<>0) And (Pos(S1[6],'cldwrx-s')<>0) And
+                  (Pos(S1[7],'cldwrx-s')<>0) And (Pos(S1[8],'cldwrx-s')<>0) Then  }
             Begin
                 HostType := FTPTYPE_UNIX;
                 MyAttr:=GetFirstParam(S1);
@@ -2268,11 +2259,13 @@ End;
 // also setups most common FTP parameters and event handlers
 // keep server root directory and creates base directory
 
-function TIcsFtpMulti.FtpLogon: TIcsTaskResult ;
+function TIcsFtpMultiW.FtpLogon: TIcsTaskResult ;
 var
-    remdir, fname: string ;
+    remdir: UnicodeString ;
     attemptnr: integer ;
+//    waittick: DWORD ;
     ret: boolean ;
+    fname: string ;
 begin
     result := TaskResAbort ;
     IcsCopyProgClearAll (fCopyProg) ;  // 22 May 2013
@@ -2284,7 +2277,7 @@ begin
     else
         remdir := fTarDir ;
     fUsingCompression := false ;
-    if CaseFile = FileLowerCase then fServBaseDir := AnsiLowerCase (fServBaseDir) ;
+    if CaseFile = FileLowerCase then fServBaseDir := IcsAnsiLowerCaseW (fServBaseDir) ;
     if Timeout < 15 then Timeout := 15 ;
     if Port = '0' then Port := 'ftp' ;
     ResumeAt := 0 ; // 4 July 2007 ensure resume position reset
@@ -2324,6 +2317,9 @@ begin
     if (fSslType > sslTypeNone) and (NOT Assigned (fExternalSslSessionCache)) then
     begin
         fExternalSslSessionCache := TSslAvlSessionCache.Create (self) ;
+     //   fExternalSslSessionCache.AdjustTimeout := True;
+     //   fExternalSslSessionCache.SessionTimeOut := 30;
+     //   fExternalSslSessionCache.FlushInterval := 3000;
     end;
  //   FSslContext.SslSecLevel := sslSecLevel80bits ;  // March 2017
     FSslContext.SslCliSecurity := fFtpSslCliSecurity;  // June 2018
@@ -2349,6 +2345,10 @@ begin
             if (Pos (':', fname) = 0) then fname := ExtractFileDir (ParamStr (0)) + '\' + fname ;
             if NOT FileExists (fname) then
             begin
+              //  fReqResponse := 'Can Not Find SSL CA Bundle File - ' + fname ;
+             //   doCopyEvent (LogLevelInfo, fReqResponse) ;
+             //   result := TaskResFail ;
+             //   exit ;
                 fSslContext.SslCALines.Text := sslRootCACertsBundle;  // June 2018 built-in
             end
             else
@@ -2431,8 +2431,8 @@ begin
                 end ;
 
             // keep PWD response as root
-                fServRootDir := IcsPathDosToUnix(DirResult) ; // 6 Jan 2006 change to Unix, 11 Sept 2008 was not changing directory!!
-                fServRootDir := IncludeTrailingUnixDelimiter (fServRootDir) ;
+                fServRootDir := IcsPathDosToUnixW(DirResult) ; // 6 Jan 2006 change to Unix, 11 Sept 2008 was not changing directory!!
+                fServRootDir := IncludeTrailingUnixDelimiterW (fServRootDir) ;
                 doCopyEvent (LogLevelInfo, 'Server Start-up Directory: ' + fServRootDir) ;
 
         // set base directory, combining root and remote dir - warning, might not exist
@@ -2442,7 +2442,7 @@ begin
                        fServBaseDir := fServRootDir + Copy (remdir, 2, 999)
                 else
                     fServBaseDir := fServRootDir + remdir ;
-                fServBaseDir := IncludeTrailingUnixDelimiter (fServBaseDir) ;
+                fServBaseDir := IncludeTrailingUnixDelimiterW (fServBaseDir) ;
                 fCurRemDir := fServBaseDir ;
                 doCopyEvent (LogLevelInfo, 'Xfer Base Directory: ' + fCurRemDir) ;
             end ;
@@ -2452,13 +2452,13 @@ begin
                 Feat ;
                 doCopyEvent (LogLevelInfo, Trim (LastMultiResponse)) ;
                 if (magftpNoMd5Crc in fMagFtpOpts) then FSupportedExtensions :=
-                                     FSupportedExtensions - [ftpFeatMD5, ftpFeatXMD5, ftpFeatXCRC] ;
+                                       FSupportedExtensions - [ftpFeatMD5, ftpFeatXMD5, ftpFeatXCRC] ;
                 if (magftpNoMd5 in fMagFtpOpts) then FSupportedExtensions :=
-                                                 FSupportedExtensions - [ftpFeatMD5, ftpFeatXMD5] ;   // 15 Apr 2009
+                                                     FSupportedExtensions - [ftpFeatMD5, ftpFeatXMD5] ;   // 15 Apr 2009
                 if (magftpNoCrc in fMagFtpOpts) then FSupportedExtensions :=
-                                                 FSupportedExtensions - [ftpFeatXCRC] ;   // 15 Apr 2009
+                                                             FSupportedExtensions - [ftpFeatXCRC] ;   // 15 Apr 2009
                 if (magftpNoZlib in fMagFtpOpts) then FSupportedExtensions :=
-                                                 FSupportedExtensions - [ftpFeatModeZ] ;
+                                                             FSupportedExtensions - [ftpFeatModeZ] ;
 
              // 8 Nov 2007 tell server who we are - before UTF8 to keep Gene6 happy
                 if (ftpFeatClnt in FSupportedExtensions) and (Length (ClientIdStr) > 4) then
@@ -2555,12 +2555,11 @@ begin
     result := TaskResFail ;
 end;
 
-// build file list for remote file using FTP, optionally including sub directories
+// build file list for remote file using FTP, optionally including sub directories and directory names
 
-function TIcsFtpMulti.FtpDir (var FtpFiles: TIcsFDirRecs ; var FtpFileList: TIcsFindList;
-                                        const ListDirs: boolean = false): TIcsTaskResult ;  // 17 Feb 2011
+function TIcsFtpMultiW.FtpDir (var FtpFiles: TIcsFDirRecsW; var FtpFileList: TIcsFindList; const ListDirs: boolean = false): TIcsTaskResult ;
 var
-    fullpath, fname: string ;
+    fullpath, fname: UnicodeString ;
     ret, dirsflag, hostnameflag, chkdirflag: boolean ;
     lastdirrec, level, I, totfiles: integer ;
     DirStream: TStream ;
@@ -2784,7 +2783,7 @@ begin
         exit ;
     end ;
     doCopyEvent (LogLevelInfo, 'Files listed OK, total found ' + IntToStr (totfiles) +
-                                        ' took ' + IntToStr (IcsElapsedSecs (fstarttick)) + ' secs') ;
+                                                    ' took ' + IntToStr (IcsElapsedSecs (fstarttick)) + ' secs') ;
 
 // build list from array, omitting directories and rubbish, then sort
     if (totfiles <> 0) then
@@ -2795,16 +2794,16 @@ begin
         begin
             if FtpFiles [I].FrFileCopy <> FCStateIgnore then FtpFileList.Add (@FtpFiles [I]) ;
         end ;
-        FtpFileList.Sort (IcsCompareFNext) ;
+        FtpFileList.Sort (IcsCompareFNextW) ;
         FtpFileList.Sorted := true ; // 11 June 2008 not sure if really needed
     end
     else
         result := TaskResOKNone ;
 end;
 
-function TIcsFtpMulti.DispFtpDir (var dirlisting: string): TIcsTaskResult ;
+function TIcsFtpMultiW.DispFtpDir (var dirlisting: UnicodeString): TIcsTaskResult ;
 var
-    DirFiles: TIcsFDirRecs  ;
+    DirFiles: TIcsFDirRecsW ;
     DirFileList: TIcsFindList ;
 begin
     dirlisting := '' ;
@@ -2816,7 +2815,7 @@ begin
         result := FtpDir (DirFiles, DirFileList, fEmptyDirs) ;  // 17  Feb 2011
         if fCancelFlag then exit ;
         if result in [TaskResOKNew, TaskResOKNone] then
-                        dirlisting := 'Remote Directory: ' + fSrcDir + IcsCRLF + IcsFmtFileDirList (DirFileList, false) ;
+                    dirlisting := 'Remote Directory: ' + fSrcDir + IcsCRLF + IcsFmtFileDirListW (DirFileList, false) ;
     finally
         if fLoggedIn then Quit ;   // clean log off
         fLoggedIn := false ;
@@ -2826,7 +2825,7 @@ begin
     end ;
 end;
 
-procedure TIcsFtpMulti.doCopyEvent (const LogLevel: TIcsCopyLogLevel; const Info: string) ;
+procedure TIcsFtpMultiW.doCopyEvent (const LogLevel: TIcsCopyLogLevel; const Info: UnicodeString) ;
 var
     oldflag: boolean ;
 begin
@@ -2854,17 +2853,18 @@ end ;
 
 procedure MD5Progress (Obj: TObject; Count: Int64 ; var Cancel: Boolean); // callback
 begin
-    TIcsFtpMulti (Obj).MessagePump ; // 15 Sept 2010 needed to support MultiThreaded
-    TIcsFtpMulti (Obj).onFtpClientProg64 (Nil, Count, Cancel) ;
+    TIcsFtpMultiW (Obj).MessagePump ; // 15 Sept 2010 needed to support MultiThreaded
+    TIcsFtpMultiW (Obj).onFtpClientProg64 (Nil, Count, Cancel) ;
 end ;
 
-procedure TIcsFtpMulti.onZlibProg (Sender: TObject; Count: Int64; var Cancel: Boolean); // 9 Dec 2007
+procedure TIcsFtpMultiW.onZlibProg (Sender: TObject; Count: Int64; var Cancel: Boolean); // 9 Dec 2007
 begin
     MessagePump ; // 15 Sept 2010 needed to support MultiThreaded
     Cancel := fCancelFlag ;
+ //   TMagFtp (Obj).onFtpClientProg64 (Obj, Count, Cancel) ;
 end ;
 
-procedure TIcsFtpMulti.onMagCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: string ; var Cancel: boolean) ;
+procedure TIcsFtpMultiW.onMagCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: UnicodeString ; var Cancel: boolean) ;
 begin
     doCopyEvent (LogLevel, Info) ;
     Cancel := fCancelFlag ;
@@ -2872,9 +2872,9 @@ end ;
 
 // called during real downloads and uploads, also directories, MD5sums and CRC32s
 
-procedure TIcsFtpMulti.onFtpClientProg64(Sender: TObject; Count: Int64; var Abort: Boolean);
+procedure TIcsFtpMultiW.onFtpClientProg64 (Sender: TObject; Count: Int64; var Abort: Boolean);
 var
-    temp: String ;
+    temp: UnicodeString ;
 begin
     Abort := fCancelFlag ;  // 23 June 2006
     if fNoProgress then exit ; // 15 Feb 2011
@@ -2904,36 +2904,44 @@ begin
     end;
 end;
 
-procedure TIcsFtpMulti.onFtpClientDisplay(Sender: TObject; var Msg: String);
+procedure TIcsFtpMultiW.onFtpClientDisplay(Sender: TObject; var Msg: UnicodeString);
 var
-    temp: string ;
+    temp: UnicodeString ;
 begin
     temp := Msg ;
     if Length (temp) > 1 then
     begin
         if (Pos ('> PASS', temp) > 0) then
             temp := '> PASS ****'
-        else if (temp [1] = '<') then exit ;   // ignore response
+        else if (temp [1] = '<') then exit    // ignore response
+        else if ((temp [1] = '>') and Utf8DiagFlag) then
+            temp := UnicodeString (FCmdUtf8) ;
     end ;
     doCopyEvent (LogLevelDiag, temp) ;
 end;
 
-procedure TIcsFtpMulti.onFtpError(Sender: TObject; var Msg: String);
+procedure TIcsFtpMultiW.onFtpError(Sender: TObject; var Msg: UnicodeString);
 begin
     fFtpErrFlag := true ;
     doCopyEvent (LogLevelInfo, '!! FTP Error: ' + Msg) ;
     if FState <> ftpAbort then Abort ;  // 28 Dec 2007 don't repeatedly abort
 end;
 
-procedure TIcsFtpMulti.OnFtpResponse (Sender: TObject) ;
+procedure TIcsFtpMultiW.OnFtpResponse (Sender: TObject) ;
+var
+    temp: UnicodeString ;
 begin
+    if Utf8DiagFlag then
+        temp := UnicodeString (FLastRawResponse)
+    else
+        temp := FLastResponse ;
 // 25 Nov 2007 ignore continuation response for FEAT and SITE INDEX/CMLSD
-    if Pos ('200-', FLastResponse) = 1 then exit ;
-    if Pos ('250-', FLastResponse) = 1 then exit ;
-    doCopyEvent (LogLevelDiag, '< ' + FLastResponse) ;
+    if Pos ('200-', temp) = 1 then exit ;
+    if Pos ('250-', temp) = 1 then exit ;
+    doCopyEvent (LogLevelDiag, '< ' + temp) ;
 end;
 
-procedure TIcsFtpMulti.OnFtpSessConn (Sender: TObject; Error: word) ;
+procedure TIcsFtpMultiW.OnFtpSessConn (Sender: TObject; Error: word) ;
 var
     temp: string ;
 begin
@@ -2946,7 +2954,7 @@ begin
     doCopyEvent (LogLevelDiag, temp) ;
 end;
 
-procedure TIcsFtpMulti.OnFTPSocksConnected (Sender: TObject; Error: word) ;
+procedure TIcsFtpMultiW.OnFTPSocksConnected (Sender: TObject; Error: word) ;
 var
     temp: string ;
 begin
@@ -2955,7 +2963,7 @@ begin
     doCopyEvent (LogLevelDiag, temp) ;
 end;
 
-procedure TIcsFtpMulti.OnFtpSessClosed (Sender: TObject; Error: word) ;
+procedure TIcsFtpMultiW.OnFtpSessClosed (Sender: TObject; Error: word) ;
 var
     temp: string ;
 begin
@@ -2964,27 +2972,29 @@ begin
     doCopyEvent (LogLevelDiag, temp) ;
 end;
 
-procedure TIcsFtpMulti.OnFtpRequestDone (Sender: TObject; RqType: TFtpRequest; Error: Word) ;
+procedure TIcsFtpMultiW.OnFtpRequestDone (Sender: TObject; RqType: TFtpRequest; Error: Word) ;
 begin
 //  error is FTP response, not a real error
+//    if Error <> 0 then doCopyEvent (LogLevelDiag,
+//        '!Error ReqDone=' + LookupFTPReq (RqType) + ' - ' + IntToStr (Error)) ;
 end;
 
-procedure TIcsFtpMulti.OnFtpStateChange (Sender: TObject) ;
+procedure TIcsFtpMultiW.OnFtpStateChange (Sender: TObject) ;
 begin
-//
+// doCopyEvent (LogLevelDiag, '!FTP State Change=' + LookupFtpState (State)) ;  // TEMP !!!!
 end;
 
-procedure TIcsFtpMulti.EndUnZipEvent (Sender: TObject; FileIndex: Integer; FName: String) ;
+procedure TIcsFtpMultiW.EndUnZipEvent (Sender: TObject; FileIndex: Integer; FName: String) ;
 var
     newsize: integer ;
 begin
     if FName = '' then exit ;
-    newsize := IcsGetFileSize (Fname) ;
+    newsize := IcsGetFileSizeW (Fname) ;
     doCopyEvent (LogLevelFile, 'Unzipped OK: ' + Fname + ', size: ' + IntToKByte (newsize, true)) ;
     doCopyEvent (LogLevelDelimFile, 'Unzipped|' + Fname + '|' + IntToStr (newsize) + '|1|0|OK|0|0') ;
 end ;
 
-procedure TIcsFtpMulti.UnZipHandleMessage(Sender: TObject;
+procedure TIcsFtpMultiW.UnZipHandleMessage(Sender: TObject;
           const MessageID: Integer; const Msg1, Msg2: String;
           const flags: Cardinal; var Return: Integer);
 begin
@@ -2992,12 +3002,14 @@ begin
     Return := 0 ;
 end;
 
-function TIcsFtpMulti.FtpCheckFile (const RemDir, RemFile: string ; var FSize: Int64; var FileUDT: TDateTime): boolean;
+function TIcsFtpMultiW.FtpCheckFile (const RemDir, RemFile: UnicodeString ;
+                                 var FSize: Int64; var FileUDT: TDateTime): boolean;
 var
     DirStream: TStream ;
-    FtpFiles: TIcsFDirRecs ;
+    FtpFiles: TIcsFDirRecsW;
     ret: boolean ;
     RFname, RFType, RFAttr, facts: String ;
+    S: UnicodeString ;
     totfiles, I, laststatus: Integer;
 begin
     result := false ;
@@ -3049,7 +3061,7 @@ begin
             if fCancelFlag then exit ;
             laststatus := StatusCode ;
         end ;
-        facts := AnsiLowerCase (RemFacts) ; // 3 Sept 2006, Serv-U is mixed case
+        facts := IcsAnsiLowerCaseW (RemFacts) ; // 3 Sept 2006, Serv-U is mixed case
      //  15 March 2006, check we got some facts - parse may have failed
         if Pos ('size', facts) <= 0 then laststatus := 550 ;
         if laststatus = 250 then
@@ -3112,10 +3124,10 @@ begin
                 UnpackFtpFDir (LocalStream, HostDirName, fServBaseDir, 0, FCodePage, fHostType, totfiles, FtpFiles) ;
                 if (totfiles >= 1) then  // should only be single file, but may have listed more
                 begin
-                    RFname := AnsiLowerCase (RemFile) ;
+                    S := IcsAnsiLowerCaseW (RemFile) ;
                     for I := 0 to Pred (totfiles) do
                     begin
-                        if AnsiLowerCase (FtpFiles [I].FrFileName) = RFname then
+                        if IcsAnsiLowerCaseW (FtpFiles [I].FrFileName) = S then
                         begin
                             FSize := FtpFiles [I].FrFileBytes ;
                             FileUDT := DateTimeToUTC (FtpFiles [I].FrFileDT) ;
@@ -3150,17 +3162,42 @@ begin
     end ;
 end ;
 
+// load and save TStringList from/to wide file name
+
+procedure StrLoadFromWideFile (Obj: TStrings; const FileName: UnicodeString);
+var
+  Stream: TStream;
+begin
+  Stream := TIcsFileStreamW.Create(FileName, fmOpenRead or fmShareDenyWrite);
+  try
+    Obj.LoadFromStream(Stream);
+  finally
+    Stream.Free;
+  end;
+end;
+
+procedure StrSaveToWideFile (Obj: TStrings; const FileName: UnicodeString);
+var
+  Stream: TStream;
+begin
+  Stream := TIcsFileStreamW.Create(FileName, fmCreate);
+  try
+    Obj.SaveToStream(Stream);
+  finally
+    Stream.Free;
+  end;
+end;
+
 // actual FTP download a file, resuming if necessary
 
-function TIcsFtpMulti.IntDownOne (const RemDir, RemFile, RemFull, LocFileFull: string; const RFSize: Int64; RFileUDT: TDateTime): integer ;
+function TIcsFtpMultiW.IntDownOne (const RemDir, RemFile, RemFull, LocFileFull: UnicodeString ;
+                               const RFSize: Int64; RFileUDT: TDateTime): integer ;
 var
-    fnametmp, newtardir, fnameftp, info, fileext: string ;
+    fnametmp, newtardir, fnameftp, info, fileext: UnicodeString ;
     ret, resflag: boolean ;
     duration: longword ;
     newsize, partfsize, lastbytes, actualbytes: Int64 ;
     retval, attempts: Integer;
-//    LocFileUDT: TDateTime ;
-//    LocSize64: Int64 ;
     ResInfRecs: TStringList ;
 begin
     result := 1 ;  // fail
@@ -3190,8 +3227,8 @@ begin
     end ;
 
 // create target directory
-    newtardir := ExtractFileDir (LocFileFull) ;
-    if NOT IcsForceDirsEx (newtardir) then
+    newtardir := IcsExtractFileDirW (LocFileFull) ;
+    if NOT IcsForceDirsExW (newtardir) then
     begin
         doCopyEvent (LogLevelInfo, 'Can Not Create Directory: ' + newtardir) ;
         inc (fCopyProg.ProcFailFiles) ;
@@ -3202,7 +3239,10 @@ begin
     try // finally
 
 // try and delete existing file before copying, removing read only if necessary
-    retval := IcsDeleteFile (LocFileFull, fReplRO) ;
+//    GetAgeSizeFile (LocFileFull, LocFileUDT, LocSize64) ;  // !!! TEMP DIAG
+//    if LocSize64 > 0 then                                  // !!! TEMP DIAG
+//            doCopyEvent (LogLevelDiag, 'Old Time Stamp (local) ' + Date2Packed (LocFileUDT)) ;
+    retval := IcsDeleteFileWW (LocFileFull, fReplRO) ;
     if retval > 0 then
     begin
         if retval = 1 then
@@ -3234,7 +3274,7 @@ begin
 // set compression mode, don't compress certain files
     if fUsingCompression then
     begin
-        fileext := ExtractFileExt(AnsiLowercase (LocFileFull));  // 2 Dec 2007 longer list
+        fileext := IcsExtractFileExtW (IcsAnsiLowerCaseW (LocFileFull));  // 2 Dec 2007 longer list
         if (Pos (fileext, fZlibNoCompExt) > 0) OR (fZlibMaxSize < RFSize) then  // 9 Dec 2007 max size to compress
             TransferMode := ftpTransModeStream
         else
@@ -3272,8 +3312,9 @@ begin
     end
     else
     begin
-        fnametmp := IcsTransChar(AnsiLowerCase (RemFile), '.', '_') ; // don't mess with directories
-        fnametmp := IncludeTrailingPathDelimiter (AnsiLowerCase (newtardir)) + fnametmp ;
+        fnametmp := IcsAnsiLowerCaseW (RemFile);
+        fnametmp := IcsTransCharW (fnametmp, '.', '_') ; // don't mess with directories
+        fnametmp := IcsIncludeTrailingPathDelimiterW (IcsAnsiLowerCaseW (newtardir)) + fnametmp ;
         fnameftp := fnametmp + '.ftp' ;    // control file
         fnametmp := fnametmp + '.tmp' ;    // destination file name for FTP
     end ;
@@ -3284,16 +3325,17 @@ begin
         attempts := 0 ;
 
    // see if resume info file exists, check file on server has same info
-        if FileExists (fnameftp) then
+        if IcsFileExistsW (fnameftp) then
         begin
             try
-                ResInfRecs.LoadFromFile (fnameftp) ;  // resume info text file
-                partfsize := IcsGetFileSize (fnametmp) ;
+                StrLoadFromWideFile (ResInfRecs, fnameftp) ;  // load string list from Unicode file name
+           //     ResInfRecs.LoadFromFile (fnameftp) ;  // resume info text file
+                partfsize := IcsGetFileSizeW (fnametmp) ;
                 if partfsize > 0 then
                 begin
-                    if IcsFileInUse (fnametmp) then  // 31 Dec 2007 ensure file not open
+                    if IcsFileInUseW (fnametmp) then  // 31 Dec 2007 ensure file not open
                     begin
-                        IcsDeleteFile (fnameftp, true) ;
+                        IcsDeleteFileWW (fnameftp, true) ;
                         partfsize := 0 ;
                         doCopyEvent (LogLevelFile, 'Error Temp File in Use - ' + fnametmp) ;
                         fnametmp := fnametmp + '2' ; // new name
@@ -3309,18 +3351,18 @@ begin
                     else if (RFSize < partfsize) then doCopyEvent (LogLevelFile, 'Skipped Resume, Old File too Large') // 9 Dec 2007
                     else
                     begin
-                        if (ResInfRecs [ResInfServer] = fHostName1) and (ResInfRecs [ResInfFName] = RemFull) and
+                        if (ResInfRecs [ResInfServer] = fHostName1) and (ResInfRecs [ResInfFName] = String (StringToUtf8 (RemFull))) and
                            (ResInfRecs [ResInfStamp] = FloatToStr (RFileUDT)) and (ResInfRecs [ResInfSize] = IntToStr (RFSize)) then
                         begin
                         // reduce file size in case content is corrupted near end
-                            newsize := IcsTruncateFile (fnametmp, partfsize - fMinResSize) ;  // 24 June 2006
-                            partfsize := IcsGetFileSize (fnametmp) ;
+                            newsize := IcsTruncateFileW (fnametmp, partfsize - fMinResSize) ;  // 24 June 2006
+                            partfsize := IcsGetFileSizeW (fnametmp) ;
                             if newsize <> partfsize then doCopyEvent (LogLevelFile, 'Failed to Reduce Resume File Size for Overlap')
                             else
                             begin
                                 resflag := true ;
                                 doCopyEvent (LogLevelFile, 'Resuming Partial File Download from: ' +
-                                                       IcsInt64ToCStr (partfsize) + ', with Overlap ' + IcsIntToCStr (fMinResSize)) ;
+                                       IcsInt64ToCStr (partfsize) + ', with Overlap ' + IcsIntToCStr (fMinResSize)) ;
                             end ;
                         end
                         else
@@ -3342,10 +3384,9 @@ begin
             inc (attempts) ;
             ResInfRecs [ResInfAttempts] := IntToStr (attempts) ;
             ResInfRecs [ResInfLastBytes] := IntToStr (partfsize) ;
-            ResInfRecs.SaveToFile (fnameftp) ;
+            StrSaveToWideFile (ResInfRecs, fnameftp) ;
             doCopyEvent (LogLevelFile, 'Saved File Resume Info ' + fnameftp) ;
             fCopyProg.CurStartTick := IcsGetTickCount ;
-       //     onFtpClientProg64 (Self, 0, fCancelFlag) ;
             ret := RestGet ;   // resume download into LocalFileName
             if (NOT (ret OR fCancelFlag)) and (StatusCode = 500) and (Pos ('RT', ErrorMessage) > 1) then
             begin
@@ -3358,8 +3399,8 @@ begin
         else
         begin
          // write current file into into .ftp file so we can resume if necessary
-            IcsDeleteFile (fnametmp, true) ;
-            IcsDeleteFile (fnameftp, true) ;
+            IcsDeleteFileWW (fnametmp, true) ;
+            IcsDeleteFileWW (fnameftp, true) ;
             ResInfRecs.Clear ;
             ResInfRecs.Add (fHostName1) ;               // ResInfServer = 0
             ResInfRecs.Add (String (StringToUtf8 (RemFull))) ;   // ResInfFName = 1
@@ -3367,7 +3408,7 @@ begin
             ResInfRecs.Add (IntToStr (RFSize)) ;        // ResInfSize = 3
             ResInfRecs.Add ('1') ;                      // ResInfAttempts = 4
             ResInfRecs.Add ('0') ;                      // ResInfLastBytes = 5
-            ResInfRecs.SaveToFile (fnameftp) ;
+            StrSaveToWideFile (ResInfRecs, fnameftp) ;
             doCopyEvent (LogLevelFile, 'Saved File Resume Info ' + fnameftp) ;
             fCopyProg.CurStartTick := IcsGetTickCount ;
             ret := Get ;  // download it
@@ -3384,16 +3425,17 @@ begin
     begin
         LocalFileName := fnametmp ;
         ShareMode := ftpShareExclusive ;
-        IcsDeleteFile (fnametmp, true) ;
-        IcsDeleteFile (fnameftp, true) ;
+        IcsDeleteFileWW (fnametmp, true) ;
+        IcsDeleteFileWW (fnameftp, true) ;
         if fCancelFlag then exit ;
         fCopyProg.CurStartTick := IcsGetTickCount ;
         ret := Get ;  // download it
         if (NOT (ret OR fCancelFlag)) and (StatusCode = 500) and (Pos ('RT', ErrorMessage) > 1) then
         begin
-            doCopyEvent (LogLevelDiag, 'Repeating Get Command, Corrupted PORT Bug') ;
+            doCopyEvent (LogLevelDiag, 'Repeating Get Command: ' + ErrorMessage) ;
             sysDelayX (500) ;
             fCopyProg.CurStartTick := IcsGetTickCount ;
+        //    onFtpClientProg64 (Self, 0, fCancelFlag) ;
             ret := Get ;
         end ;
         duration := IcsElapsedTicks (fCopyProg.CurStartTick) ;
@@ -3405,8 +3447,9 @@ begin
     IcsCopyProgDuration (fCopyProg, AppTicksPerFtp) ;
 
 // FTP download failed, give up
-    newsize := IcsGetFileSize (fnametmp) ;
+    newsize := IcsGetFileSizeW (fnametmp) ;
     info := 'Downloaded File ' + fnametmp + ', size ' + IntToKByte (newsize, true) ;
+//    doCopyEvent (LogLevelProg, info) ;
     doCopyEvent (LogLevelDiag, info) ;
     if NOT ret then
     begin
@@ -3414,27 +3457,27 @@ begin
         begin
             if (newsize <= fMinResSize) then  // failed, kill restart if too small
             begin
-                IcsDeleteFile (fnameftp, true) ;  // kill restart info
-                IcsDeleteFile (fnametmp, true) ;
+                IcsDeleteFileWW (fnameftp, true) ;  // kill restart info
+                IcsDeleteFileWW (fnametmp, true) ;
                 doCopyEvent (LogLevelFile, 'Request Failed: Partial File Deleted, ' +   // 19 July 2007
                                                      'Too Small to Resume ' + IntToKByte (newsize, true)) ;
             end
             else if (newsize >= RFsize) then  // failed, kill restart if too big or correct size
             begin
-                IcsDeleteFile (fnameftp, true) ;  // kill restart info
-                IcsDeleteFile (fnametmp, true) ;
-                doCopyEvent (LogLevelFile, 'Request Failed: File Deleted, ' +   // 9 Dec 2007
-                       'Too Large to Resume, Expected File Size ' + IntToKByte (RFSize) + ', Actual Size ' + IntToKByte (newsize))
+                IcsDeleteFileWW (fnameftp, true) ;  // kill restart info
+                IcsDeleteFileWW (fnametmp, true) ;
+                doCopyEvent (LogLevelFile, 'Request Failed: File Deleted, ' + 'Too Large to Resume, Expected File Size ' +
+                                  IntToKByte (RFSize, true) + ', Actual Size ' + IntToKByte (newsize, true))
             end
             else
                 doCopyEvent (LogLevelFile, 'Request Failed: Partial File Downloaded, ' +
-                         'Resume Allowed, Expected File Size ' + IntToKByte (RFSize) + ', Actual Size ' + IntToKByte (newsize)) ;
+                   'Resume Allowed, Expected File Size ' + IntToKByte (RFSize, true) + ', Actual Size ' + IntToKByte (newsize, true)) ;
         end
         else
-            IcsDeleteFile (fnametmp, true) ;
+            IcsDeleteFileWW (fnametmp, true) ;
         doCopyEvent (LogLevelFile, 'Download Failed: ' + LastResponse) ;
-        doCopyEvent (LogLevelDelimFile, RemFull + '|' + LocFileFull +
-                     '|0|0|1|Download Failed: ' + LastResponse + '|' + IntToStr (duration) + '|' + IntToStr (actualbytes)) ;
+        doCopyEvent (LogLevelDelimFile, RemFull + '|' + LocFileFull + '|0|0|1|Download Failed: ' + LastResponse + '|' +
+                                                                    IntToStr (duration) + '|' + IntToStr (actualbytes)) ;
     // 4 Jan 2008 'Unable to establish data connection - Connection refused' - abort to clean up
         if (StatusCode = 550) and (Pos ('#10061', LastResponse) > 1) then
         begin
@@ -3454,42 +3497,42 @@ begin
         begin
             if NOT fResFailed then
             begin
-                IcsDeleteFile (fnametmp, true) ;
-                IcsDeleteFile (fnametmp, true) ;
+                IcsDeleteFileWW (fnametmp, true) ;
+                IcsDeleteFileWW (fnametmp, true) ;
                 doCopyEvent (LogLevelFile, 'Request Failed: Partial File Deleted, ' +  // 19 July 2007
-                                       'Expected File Size ' + IntToKByte (RFSize) + ', Actual Size ' + IntToKByte (newsize)) ;
+                       'Expected File Size ' + IntToKByte (RFSize, true) + ', Actual Size ' + IntToKByte (newsize, true)) ;
             end
             else if (newsize >= RFsize) then  // failed, kill restart if too big or correct size
             begin
-                IcsDeleteFile (fnameftp, true) ;  // kill restart info
-                IcsDeleteFile (fnametmp, true) ;
+                IcsDeleteFileWW (fnameftp, true) ;  // kill restart info
+                IcsDeleteFileWW (fnametmp, true) ;
                 doCopyEvent (LogLevelFile, 'Request Failed: File Deleted, ' +   // 9 Dec 2007
-                   'Too Large to Resume, Expected File Size ' + IntToKByte (RFSize) + ', Actual Size ' + IntToKByte (newsize)) ;
+                   'Too Large to Resume, Expected File Size ' + IntToKByte (RFSize, true) + ', Actual Size ' + IntToKByte (newsize, true)) ;
             end
             else if (actualbytes <= (fMinResSize + 16)) then  // 31 Dec 2007 failed, not enough downloaded on resume
             begin
-                IcsDeleteFile (fnameftp, true) ;  // kill restart info
-                IcsDeleteFile (fnametmp, true) ;
-                doCopyEvent (LogLevelFile, 'Request Failed: File Deleted, ' +   // 9 Dec 2007
-                   'Too Little Downloaded to Resume, Expected File Size ' + IntToKByte (RFSize) + ', Actual Size ' + IntToKByte (newsize)) ;
+                IcsDeleteFileWW (fnameftp, true) ;  // kill restart info
+                IcsDeleteFileWW (fnametmp, true) ;
+                doCopyEvent (LogLevelFile, 'Request Failed: File Deleted, ' + 'Too Little Downloaded to Resume, Expected File Size ' +
+                                                        IntToKByte (RFSize, true) + ', Actual Size ' + IntToKByte (newsize, true)) ;
             end
             else
                 doCopyEvent (LogLevelFile, 'Request Failed: Partial File Downloaded, ' +
-                       'Resume Allowed, Expected File Size ' + IntToKByte (RFSize) + ', Actual Size ' + IntToKByte (newsize)) ;
+                       'Resume Allowed, Expected File Size ' + IntToKByte (RFSize, true) + ', Actual Size ' + IntToKByte (newsize, true)) ;
         end
         else
         begin
-            IcsDeleteFile (fnameftp, true) ;  // kill restart info
-            IcsDeleteFile (fnametmp, true) ;
+            IcsDeleteFileWW (fnameftp, true) ;  // kill restart info
+            IcsDeleteFileWW (fnametmp, true) ;
             doCopyEvent (LogLevelFile, 'Request Failed: No File Downloaded') ;
         end ;
         doCopyEvent (LogLevelDelimFile, RemFull + '|' + LocFileFull +
-                               '|0|0|1|Download Failed|' + IntToStr (duration) + '|' + IntToStr (actualbytes)) ;
+                           '|0|0|1|Download Failed|' + IntToStr (duration) + '|' + IntToStr (actualbytes)) ;
         inc (fCopyProg.ProcFailFiles) ;
         fCopyProg.ProcBytesDone := fCopyProg.ProcBytesLast + RFSize ;
         exit ;
     end ;
-    IcsDeleteFile (fnameftp, true) ;  // kill restart info, got file OK
+    IcsDeleteFileWW (fnameftp, true) ;  // kill restart info, got file OK
 
  // check MD5 or CRC if possible and repeat if allowed
     if ((ftpFeatMD5 in FSupportedExtensions) OR (ftpFeatXMD5 in FSupportedExtensions)) then
@@ -3533,6 +3576,8 @@ begin
         fCopyProg.CurStartTick := IcsGetTickCount ;
         PosStart := 0 ;
         PosEnd := 0 ;
+     // PosStart := 1 ;
+     // PosEnd := newsize ;
         ret := XCRC ;  // get CRC32B
         if NOT Connected then exit ;
         if fCancelFlag then exit ;
@@ -3561,7 +3606,7 @@ begin
 // replace old file, removing read only if necessary
     if NOT (magftpNoTmpFile in fMagFtpOpts) then  // 6 Jan 2008 - download with correct name
     begin
-        retval := IcsRenameFile (fnametmp, LocFileFull, true, fReplRO) ;
+        retval := IcsRenameFileWW (fnametmp, LocFileFull, true, fReplRO) ;
         if retval <> 0 then
         begin
             if (retval = 1) then
@@ -3599,8 +3644,8 @@ begin
                                      IcsSecsToStr (duration div 1000) + ', average speed ' +
                                                       IntToKByte (IcsCalcSpeed (duration, actualbytes)) + '/sec') ;
                                                                          // 10 Oct 2011 added duration and speed
-    doCopyEvent (LogLevelDelimFile, RemFull + '|' + LocFileFull +
-                 '|' + IntToStr (newsize) + '|1|0|OK|' + IntToStr (duration) + '|' + IntToStr (actualbytes)) ;
+    doCopyEvent (LogLevelDelimFile, RemFull + '|' + LocFileFull + '|' + IntToStr (newsize) + '|1|0|OK|' +
+                                                            IntToStr (duration) + '|' + IntToStr (actualbytes)) ;
 
     finally
         ResInfRecs.Free ;
@@ -3612,9 +3657,10 @@ begin
     end ;
 end ;
 
-function TIcsFtpMulti.FtpDownOneFile (const FdirSrc, Fnamesrc, Fnametar: string ; Replopt: TIcsFileCopyRepl) : TIcsTaskResult ;
+function TIcsFtpMultiW.FtpDownOneFile (const FdirSrc, Fnamesrc, Fnametar: UnicodeString ;
+                                            Replopt: TIcsFileCopyRepl) : TIcsTaskResult ;
 var
-    code, fullsrcname, remdir, locfilefull: string ;
+    code, fullsrcname, remdir, locfilefull: UnicodeString ;
     flag: boolean ;
     RFSize, TarFSize: Int64 ;
     TarFileDT: TDateTime;
@@ -3646,7 +3692,7 @@ begin
     try  // finally
 
  // make sure trailing slash for directory
-    remdir := IncludeTrailingUnixDelimiter (FdirSrc) ;
+    remdir := IncludeTrailingUnixDelimiterW (FdirSrc) ;
     fullsrcname := remdir + fnamesrc ;
 
 // 14 Sept 2008 skip Unicode names with substitution characters
@@ -3697,9 +3743,9 @@ begin
         end ;
 
     // see if replacing existing file
-        flag := IcsGetUAgeSizeFile (Fnametar, TarFileDT, TarFSize) ;
+        flag := IcsGetUAgeSizeFileW (Fnametar, TarFileDT, TarFSize) ;
         if (NOT flag) and (replopt <> FCReplAlways) then
-                          doCopyEvent (LogLevelDiag, 'Download Not Skipped: Target Not Found ' + Fnametar) ;
+              doCopyEvent (LogLevelDiag, 'Download Not Skipped: Target Not Found ' + Fnametar) ;
         if flag and (replopt <> FCReplAlways) then
         begin
             flag := IcsCheckReplace (replopt, true, OneSecondDT * 2, RFSize, TarFSize, RFileUDT, TarFileDT) ;
@@ -3717,7 +3763,7 @@ begin
 
     // see if making lower case for PC
         if CaseFile = FileLowerCase then
-            locfilefull := AnsiLowerCase (Fnametar)
+            locfilefull := IcsAnsiLowerCaseW (Fnametar)
         else
             locfilefull := Fnametar ;
 
@@ -3764,7 +3810,7 @@ end ;
 // FTP download multiple local files
 // returns false if error, with fReqResponse completed
 
-function TIcsFtpMulti.FtpDownload (const CheckFiles: boolean): TIcsTaskResult ;
+function TIcsFtpMultiW.FtpDownload (const CheckFiles: boolean): TIcsTaskResult ;
 begin
     fCancelFlag := false ;
 // logon to FTP server
@@ -3789,7 +3835,7 @@ end ;
 
 // FTP log off and close down - check file not left open
 
-procedure TIcsFtpMulti.FtpLogoff ;
+procedure TIcsFtpMultiW.FtpLogoff ;
 var
     endtick: longword ;
 begin
@@ -3821,19 +3867,19 @@ end ;
 // FTP download multiple local files
 // returns false if error, with fReqResponse completed
 
-function TIcsFtpMulti.FtpDownFiles (const CheckFiles: boolean): TIcsTaskResult ;
+function TIcsFtpMultiW.FtpDownFiles (const CheckFiles: boolean): TIcsTaskResult ;
 var
-    newfname, fnametar, cursrcdir, newtardir, fnametmp: string ;
-    tempdir, info, newsubdirs, basetardir: string ;
-    nodeltot, retval: integer ;
+    newfname, fnametar, cursrcdir, newtardir, fnametmp: UnicodeString ;
+    tempdir, info, newsubdirs, basetardir: UnicodeString ;
+    {donenr,} nodeltot, retval: integer ;
     newsize, totsize, delsize, RFSize: Int64;
     RFileUDT: TDateTime ;
     I, J, loop: integer ;
     duration: longword ;
-    SrcFileRec: PTIcsFDirRec ;
-    DelDirList: TStringList ;
-    CopyOnlyList: TStringList ;
-    OldWow64: BOOL ;            // 22 May 2013
+    SrcFileRec: PTIcsFDirRecW ;
+    DelDirList: TWideStringList ;
+    CopyOnlyList: TWideStringList ;
+    OldWow64: BOOL ;        // 22 May 2013
     listing: TIcsStringBuild ;  // 22 May 2013
     {$IFDEF Zipping}
     VCLUnZip: TVCLUnZip ;
@@ -3862,18 +3908,17 @@ begin
           VCLUnZip := TVCLUnZip.Create (self) ;
           VCLUnZip.OnEndUnZip := EndUnZipEvent ;
           VCLUnZip.OnHandleMessage := UnZipHandleMessage ;
-    end ;
-{$ENDIF}
-    DelDirList := TStringList.Create ;
+    end ; {$ENDIF}
+    DelDirList := TWideStringList.Create ;
     DelDirList.Sorted := true ;
     DelDirList.CaseSensitive := false ;
     DelDirList.Duplicates := dupIgnore ;
-    CopyOnlyList := TStringList.Create ;
+    CopyOnlyList := TWideStringList.Create ;
     CopyOnlyList.CaseSensitive := false ;
     CopyOnlyList.Duplicates := dupIgnore ;
     OldWow64 := false ; // 22 May 2013
     if fWow64RedirDisable then DisableWow64Redir (OldWow64) ; // 22 May 2013
-    listing := TIcsStringBuild.Create ; // 22 May 2013 make it faster
+    listing := TIcsStringBuild.Create (20 * 100, True) ;  // 20 May 2013, 20 lines, widestring
     try   // finally
 
 // 8 Apr 2009 - fSrcFName may include directories and masks - yyyy-mm"/D"dd"/*.zip"
@@ -3881,29 +3926,28 @@ begin
     newfname := fSrcFName ;
     if (NOT fSpecificFiles) and fMask then
     begin
-        newfname := IcsPathUnixToDos (newfname) ;
-      // warning - GetMaskedName currently ANSI only in Delphi 7 to D2007
-        newfname := IcsGetMaskedName (newfname, fPrev, fLocalHost) ;
-        newsubdirs := ExtractFilePath (newfname) ;  // DOS delims
+        newfname := IcsPathUnixToDosW (newfname) ;
+        newfname := IcsGetMaskedNameW (newfname, fPrev, fLocalHost) ;
+        newsubdirs := IcsExtractFilePathW (newfname) ;  // DOS delims
         if Length (newsubdirs) > 0 then
         begin
             if newsubdirs [1] = '\' then newsubdirs := Copy (newsubdirs, 2, 999) ;
         end;
-        newfname := ExtractFileName (newfname) ;
+        newfname := IcsExtractFileNameW (newfname) ;
     end ;
     if fSpecificFiles then newfname := '*.*' ;
 
-// set base directory, combining root and remote dir
+// set base directory, combining root and remote dir, and optionally masked sub directories
     if fSrcDir = '' then fSrcDir := '/' ;
     if fSrcDir [1] = '/' then
         fServBaseDir := fServRootDir + Copy (fSrcDir, 2, 999)
     else
         fServBaseDir := fServRootDir + fSrcDir ;
-    fServBaseDir := IncludeTrailingUnixDelimiter (fServBaseDir) ;
+    fServBaseDir := IncludeTrailingUnixDelimiterW (fServBaseDir) ;
     if fMaskRemDir and (newsubdirs <> '') then  // 8 Apr 2009 add sub-directories
     begin
-        fServBaseDir := IcsPathDosToUnix (fServBaseDir + newsubdirs) ;
-        fServBaseDir := IncludeTrailingUnixDelimiter (fServBaseDir) ;
+        fServBaseDir := IcsPathDosToUnixW (fServBaseDir + newsubdirs) ;
+        fServBaseDir := IncludeTrailingUnixDelimiterW (fServBaseDir) ;
     end;
 
 // don't delete target files unless processing full directories
@@ -3925,9 +3969,9 @@ begin
     end ;
     result := FtpDir (SrcFiles, SrcFileList, fEmptyDirs) ;  // 17  Feb 2011, uses fServBaseDir
     if result in [TaskResFail, TaskResAbort] then exit ;
-    if fDispRDir then doCopyEvent (LogLevelInfo, 'Source Files on FTP Server:' + IcsCRLF + IcsFmtFileDirList (SrcFileList, false)) ;
+    if fDispRDir then doCopyEvent (LogLevelInfo, 'Source Files on FTP Server' + IcsCRLF + IcsFmtFileDirListW (SrcFileList, false)) ;
     TotSrcFiles := SrcFileList.Count ;
-    info := IcsPathDosToUnix(fSrcDir + newsubdirs) ;
+    info := IcsPathDosToUnixW (fSrcDir + newsubdirs) ;
     doCopyEvent (LogLevelFile, 'Source Directory: ' + info) ;
     if TotSrcFiles = 0  then
     begin
@@ -3938,14 +3982,15 @@ begin
     MessagePump ; // 15 Sept 2010 needed to support MultiThreaded
     if fCancelFlag then exit ;
 
-// build list of target files, so we don't copy unnecessary stuff
-    basetardir := ExcludeTrailingPathDelimiter (fTarDir) ;
+// build list of target files, so we don't download unnecessary stuff
+    basetardir := IcsExcludeTrailingPathDelimiterW (fTarDir) ;
     if fMaskLocDir and (newsubdirs <> '') then  // 8 Apr 2009 add sub-directories
     begin
-        basetardir := IncludeTrailingPathDelimiter (basetardir) + IncludeTrailingPathDelimiter (newsubdirs) ;
+        basetardir := IcsIncludeTrailingPathDelimiterW (basetardir) +
+                                            IcsExcludeTrailingPathDelimiterW (newsubdirs) ;
     end;
     doCopyEvent (LogLevelFile, 'Target Directory: ' + basetardir) ;
-    if NOT IcsForceDirsEx (basetardir) then
+    if NOT IcsForceDirsExW (basetardir) then
     begin
         result := TaskResFail ;
         fReqResponse := 'Can Not Create Target Directory: ' + basetardir ;
@@ -3954,7 +3999,7 @@ begin
     if fCancelFlag then exit ;
     fIcsFileCopy.Wow64RedirDisable := fWow64RedirDisable ;  // 22 May 2013
     TotTarFiles := fIcsFileCopy.GetDirList (basetardir, newfname, fCopyType, fSubDirs, 0, 0, TarFiles, TarFileList, fEmptyDirs) ; // 17 Feb 2011) ;
-    if fDispLDir then doCopyEvent (LogLevelInfo, 'Target Files on PC:' + IcsCRLF + IcsFmtFileDirList (TarFileList, false)) ;
+    if fDispLDir then doCopyEvent (LogLevelInfo, 'Target Files on PC' + IcsCRLF + IcsFmtFileDirListW (TarFileList, false)) ;
     MessagePump ; // 15 Sept 2010 needed to support MultiThreaded
     if fCancelFlag then exit ;
 
@@ -3982,13 +4027,11 @@ begin
 // see if only copying a list of specific files, deselect any we don't need
     if fSpecificFiles then
     begin
-{$IFDEF COMPILER10_UP}   { only supported D2006 and later }
         CopyOnlyList.Delimiter := '|' ;
         CopyOnlyList.StrictDelimiter := True;
-        CopyOnlyList.DelimitedText := AnsiLowerCase (fSrcFName) ;
+        CopyOnlyList.DelimitedText := IcsAnsiLowerCaseW (fSrcFName) ;
         CopyOnlyList.Sort ;
-        CopyOnlyList.Sorted := true ; 
-{$ENDIF}
+        CopyOnlyList.Sorted := true ; // 11 June 2008 not sure if really needed
         if CopyOnlyList.Count = 0 then
         begin
             result := TaskResOKNone ;
@@ -4002,7 +4045,7 @@ begin
             begin
                 if FrFileCopy = FCStateSelect then
                 begin
-                    if NOT CopyOnlyList.Find (AnsiLowerCase (FrFileName), J) then
+                    if CopyOnlyList.Find (IcsAnsiLowerCaseW (FrFileName), J) then
                     begin
                          FrFileCopy := FCStateNone ;
                          dec (fCopyProg.TotProcFiles) ;
@@ -4026,7 +4069,7 @@ begin
         if CheckFiles then
         begin
             listing.Capacity (TotSrcFiles * 50) ;   // no real idea yet
-            listing.AppendLine ('Old Files Selected for Deletion are: ') ;
+            listing.AppendLineW (IcsCRLF + 'Old Files Selected for Deletion are: ') ;
         end;
         for I := 0 to Pred (TotTarFiles) do
         begin
@@ -4037,7 +4080,7 @@ begin
                 begin
                     if Pos ('_', FrFileName) > 0 then  // resume temporary file
                     begin
-                        fnametmp := AnsiLowerCase (ExtractFileExt (FrFileName)) ;
+                        fnametmp := IcsAnsiLowerCaseW (IcsExtractFileExtW (FrFileName)) ;
                         if (fnametmp = '.tmp') or (fnametmp = '.ftp') then FrFileCopy := FCStateNone ;
                     end ;
                 end ;
@@ -4047,9 +4090,9 @@ begin
                     if CheckFiles then
                     begin
                          if ((FrFileAttr and faDirectory) = faDirectory) then   // 21 Feb 2011 display directory
-                            listing.AppendLine (FrFullName + IcsSpace + sDirLit)
+                            listing.AppendLineW (FrFullName + IcsSpace + sDirLit)
                         else
-                            listing.AppendLine (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
+                            listing.AppendLineW (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
                     end;
                 end ;
             end ;
@@ -4061,7 +4104,7 @@ begin
     if CheckFiles then
     begin
         listing.Capacity (TotSrcFiles * 50) ;   // no real idea yet
-        listing.AppendLine ('Files Selected for Downloading are: ') ;
+        listing.AppendLineW (IcsCRLF + 'Files Selected for Downloading are: ') ;
     end;
     newsize := 0 ;
     for I := 0 to Pred (TotSrcFiles) do
@@ -4075,16 +4118,16 @@ begin
                 if CheckFiles then
                 begin
                     if ((FrFileAttr and faDirectory) = faDirectory) then   // 21 Feb 2011 display directory
-                        listing.AppendLine (FrFullName + IcsSpace + sDirLit)
+                        listing.AppendLineW (FrFullName + IcsSpace + sDirLit)
                     else
-                        listing.AppendLine (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
+                        listing.AppendLineW (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
                end;
             end ;
         end ;
     end ;
     if CheckFiles then
     begin
-        info := listing.GetString ;
+        info := listing.GetWString ;
         doCopyEvent (LogLevelInfo, info) ;
         info := '' ;
     end;
@@ -4127,7 +4170,7 @@ begin
                         continue ;
                     end ;
                     doCopyEvent (LogLevelFile, 'Deleting: ' + FrFullName) ;
-                    retval := IcsDeleteFile (FrFullName, fReplRO) ;
+                    retval := IcsDeleteFileWW (FrFullName, fReplRO) ;
                     if retval <= 0 then
                     begin
                         doCopyEvent (LogLevelDelimFile, '|' + FrFullName + '|0|0|0|Old Target File Deleted|0|0') ;
@@ -4137,7 +4180,7 @@ begin
 
                      // add directory to list we'll try and delete later, 24 Apr 2003
                         newtardir := Trim (FrSubDirs) ;
-                        if NOT DelDirList.Find (newtardir, J) then DelDirList.Add (newtardir) ;
+                        if newtardir <> '' then DelDirList.Add (newtardir) ;
                     end
                     else
                     begin
@@ -4158,7 +4201,6 @@ begin
 
 // start real FTP downloading
     cursrcdir := '.,.,.' ;  // illegal
-//    donenr := 0 ;
     totsize := 0 ;
     LocalStream := Nil ;  // download to files, not stream
     fCopyProg.SessStartTick := IcsGetTickCount ;
@@ -4176,7 +4218,6 @@ begin
         begin
             if FrFileCopy <> FCStateSelect then continue ;
             inc (fCopyProg.TotDoneNr) ;
-        //    fnamesrc := FrFullName ;
             if (FrSubDirs [1] = '/') then     // remove leading slash
                 tempdir := fServBaseDir + Copy (FrSubDirs, 2, 200)
             else
@@ -4185,16 +4226,17 @@ begin
             begin
                 cursrcdir := tempdir ;
                 if (FrSubDirs [1] = '/') then     // check leading slash
-                    newtardir := fTarDir + FrSubDirs
+                    newtardir := basetardir + FrSubDirs
                 else
-                    newtardir := fTarDir + '/' + FrSubDirs ;
-                newtardir := IcsPathUnixToDos (newtardir) ;
-                if CaseFile = FileLowerCase then newtardir := AnsiLowerCase (newtardir) ;
+                    newtardir := basetardir + '/' + FrSubDirs ;
+                newtardir := IcsPathUnixToDosW (newtardir) ;
+                if CaseFile = FileLowerCase then
+                                        newtardir := IcsAnsiLowerCaseW (newtardir) ;
             end ;
 
         // see if making lower case for PC
             if CaseFile = FileLowerCase then
-                fnametar := AnsiLowerCase (newtardir + FrFileName)
+                fnametar := IcsAnsiLowerCaseW (newtardir + FrFileName)
             else
                 fnametar := newtardir + FrFileName ;
 
@@ -4203,7 +4245,7 @@ begin
             begin
             // create target directory
                 doCopyEvent (LogLevelFile, 'Creating Directory: ' + fnametar) ;
-                if NOT IcsForceDirsEx (fnametar) then
+                if NOT IcsForceDirsExW (fnametar) then
                     doCopyEvent (LogLevelInfo, 'Can Not Create Target Directory: ' + fnametar)
                 else
                 begin
@@ -4219,7 +4261,8 @@ begin
             retval := 0 ;
             for loop := 1 to (fFailRepeat + 1) do  // 31 Dec 2007
             begin
-                fCopyProg.ProgMessBase := 'Downloading File ' + IntToStr (fCopyProg.TotDoneNr) + ' of ' + IntToStr (fCopyProg.TotProcFiles) ;
+                fCopyProg.ProgMessBase := 'Downloading File ' + IntToStr (fCopyProg.TotDoneNr) +
+                                                             ' of ' + IntToStr (fCopyProg.TotProcFiles) ;
 
              // try and get latest file size and time stamp, might have changed
                 if FtpCheckFile (cursrcdir, FrFileName, RFSize, RFileUDT) then
@@ -4246,12 +4289,14 @@ begin
                 FrFileCopy := FCStateCopying ;
                 sysDelayX (200) ;  // 11 Aug 2004 - short delay to try and fix corrupted PORT command
                 retval := IntDownOne (cursrcdir, FrFileName, FrFullName, fnametar, FrFileBytes, FrFileUDT) ;
+          //      doCopyEvent (LogLevelProg, '') ;
                 if retval = 0 then break ;   // OK, done break loop
                 if fCancelFlag then break ;   // 20 Sept 2010 not exit so totals reported
                 if NOT Connected then break ;
                 if NOT (retval in [2, 3]) then break ;  // fail download or fail MD5
+             //   if (StatusCode = 501) then break ;  // 19 Oct 2005 permissions or start failed 5 Jan 2008 ignore
                 if (loop < (fFailRepeat + 1)) then   // 31 Dec 2007
-                    doCopyEvent (LogLevelInfo, 'Repeating Download: ' + FrFullName) ;
+                            doCopyEvent (LogLevelInfo, 'Repeating Download: ' + FrFullName) ;
             end ;
             if retval <> 0 then
             begin
@@ -4260,14 +4305,14 @@ begin
             end
             else
             begin
-                newsize := IcsGetFileSize (fnametar) ;
+                newsize := IcsGetFileSizeW (fnametar) ;
                 inc (fCopyProg.ProcOKFiles) ;
                 inc (totsize, newsize) ;
                 FrFileCopy := FCStateOK ;
 
           // see if unzipping it
                 {$IFDEF Zipping}
-                if fZipped and (AnsiLowercase (ExtractFileExt (fnametar)) = '.zip') then
+                if fZipped and (IcsAnsiLowerCaseW (IcsExtractFileExtW (fnametar)) = '.zip') then
                 begin
                     with VCLUnZip do
                     begin
@@ -4283,23 +4328,23 @@ begin
                             if ZipHasComment then info := ZipComment + IcsCRLF ;
                             for J := 0 to Pred (Count) do
                             begin
-                               info := info + Format (sDirLine, [Filename [J], IntToKByte (UnCompressedSize [J]), ' ',
-                                           DateToStr (DateTime [J]) + ' ' + TimeToStr (DateTime [J]), Pathname[J]]) + IcsCRLF ;
+                               info := info + Format (sDirLine, [Filename [J], IntToKByte (UnCompressedSize [J], true), ' ',
+                                             DateToStr (DateTime [J]) + ' ' + TimeToStr (DateTime [J]), Pathname[J]]) + IcsCRLF ;
                             end ;
                             doCopyEvent (LogLevelInfo, 'Unzipping Files:' + IcsCRLF + info) ;
 
                         // extract all files
                             FilesList.Clear ;
                             DoAll := true ;
-                            if (fZipDir = '') and (fZipPath >= PathSpecific) then fZipPath := PathNew ;
-                            DestDir := ExtractFileDir (fnametar) ;     // Set destination directory
+                            if (fZipDir = '') and (fZipPath >= PathSpecific)  then fZipPath := PathNew ;
+                            DestDir := IcsExtractFileDirW (fnametar) ;     // Set destination directory
                             RecreateDirs := false ;
                             RootDir := '' ;   // base subdirectory
                             if fZipPath in [PathOriginal, PathNewOrig, PathSpecOrig] then RecreateDirs := true ;
                             if fZipPath in [PathNew, PathNewOrig] then
-                                                DestDir := ExtractFileDir (fnametar) + '\' + IcsExtractNameOnly (fnametar) ;
+                               DestDir := IcsExtractFileDirW (fnametar) + '\' + IcsExtractNameOnlyW (fnametar) ;
                             if fZipPath >= PathSpecific then DestDir := fZipDir ;
-                            if NOT IcsForceDirsEx (DestDir) then
+                            if NOT IcsForceDirsExW (DestDir) then
                             begin
                                 doCopyEvent (LogLevelFile, 'Failed to Create Unzip Dir: ' + DestDir) ;
                                 doCopyEvent (LogLevelDelimFile, fnametar + '|' + DestDir + '|0|0|1|Failed to Create Unzip Dir|0|0') ;
@@ -4315,7 +4360,7 @@ begin
                                 if fZipDownDel then
                                 begin
                                     doCopyEvent (LogLevelFile, 'Deleting: ' + fnametar) ;
-                                    IcsDeleteFile (fnametar, true) ;
+                                    IcsDeleteFileWW (fnametar, true) ;
                                     doCopyEvent (LogLevelDelimFile, fnametar + '| |0|0|0|File Deleted After Unzipping|0|0') ;
                                 end ;
                             end
@@ -4350,17 +4395,17 @@ begin
 // see if any old empty directories to delete
     if DelDirList.Count <> 0 then
     begin
-        doCopyEvent (LogLevelInfo, 'Checking for Empty Target Directories: ' + fTarDir) ;
+        doCopyEvent (LogLevelInfo, 'Checking for Empty Target Directories: ' + basetardir) ;
         for I := 0 to Pred (DelDirList.Count) do
         begin
-            newtardir := fTarDir + DelDirList [I] ;
+            newtardir := basetardir + DelDirList [I] ;
             J := Length (newtardir) ;
             while J >= 2 do
             begin
                 if newtardir [J] = '\' then dec (J) ;
                 newtardir := copy (newtardir, 1, J) ;
                 doCopyEvent (LogLevelDiag, 'Checking Directory Empty: ' +  newtardir) ;
-                if NOT IcsCheckDirAny (newtardir) then
+                if NOT IcsCheckDirAnyW (newtardir) then
                 begin
                  // doCopyEvent (LogLevelDiag, 'Will Delete Dir: ' + curdir) ;
                    if RemoveDir (newtardir) then
@@ -4421,18 +4466,20 @@ begin
         end ;
         {$IFDEF Zipping}
         if fZipped and (Assigned (VCLUnZip)) then VCLUnZip.Free ;  {$ENDIF}
-        CopyOnlyList.Free ;
-        DelDirList.Free ;
         if fWow64RedirDisable then RevertWow64Redir (OldWow64) ; // 22 May 2013
+        DelDirList.Free ;
+        CopyOnlyList.Free ;
         listing.Free ;
    end ;
 end;
 
 // FTP single file internal upload
+// 21 Feb 2011 - RFSize=-1 means directory not a file
 
-function TIcsFtpMulti.IntUpOne (const LocFileFull, RemDir, RemFile: string; const RFSize: Int64; RFileUDT: TDateTime): integer ;
+function TIcsFtpMultiW.IntUpOne (const LocFileFull, RemDir, RemFile: UnicodeString;
+                                  const RFSize: Int64; RFileUDT: TDateTime): integer ;
 var
-    fnametar, fnametmp, fnameftp, newtardir, info, remfull, fileext: string ;
+    fnametar, fnametmp, fnameftp, newtardir, info, remfull, fileext: UnicodeString ;
     remfileUDT: TDateTime ;
     I, J, attempts: integer;
     newsize, uploadsize, partfsize, lastbytes, actualbytes: Int64 ;
@@ -4444,10 +4491,10 @@ var
 
     // create new directory on FTP server, one level at a time
     // unless directory already exists
-    function CreateFtpDir (XRemDir: string): Boolean;
+    function CreateFtpDir (XRemDir: UnicodeString): Boolean;
     var
         I, J: integer ;
-        newdir, remaindir: string ;
+        newdir, remaindir: UnicodeString ;
     begin
 
     // ignore server root, it must exist so don't try and create it
@@ -4529,7 +4576,7 @@ begin
     {$ENDIF}
 
 // 14 Sept 2008 skip Unicode file with non-ANSI characters unlesss UTF8 enabled
-    if (Pos ('?', LocFileFull) > 0) then
+    if (FCodePage <> CP_UTF8) and (NOT CheckUnicodeToAnsi (LocFileFull)) then
     begin
         doCopyEvent (LogLevelDiag, 'Skipped Inaccessible Unicode Name: ' + LocFileFull) ;
         doCopyEvent (LogLevelDelimFile, LocFileFull + '|' + RemFile + '|0|0|1|Inaccessible Unicode File|0|0') ;
@@ -4557,13 +4604,14 @@ begin
 
     ResInfRecs := TStringList.Create ;
     try  // finally
+//  fLastProgTick := IcsGetTickCount - (LongWord (fProgressSecs + 1) * TicksPerSecond) ; // 22 Oct 2008 ensure progress displayed
     IcsCopyProgClearCur (fCopyProg) ;  // 22 May 2013 clear current about to start a file
 
 // create archive directory
     if fUpArchive then
     begin
         fDelDone := false ;
-        if NOT IcsForceDirsEx (fUpArchDir) then
+        if NOT IcsForceDirsExW (fUpArchDir) then
         begin
             inc (fCopyProg.ProcFailFiles) ;
             fCopyProg.ProcBytesDone := fCopyProg.ProcBytesLast + RFSize ;
@@ -4576,7 +4624,7 @@ begin
     if RFSize < 0 then
     begin
         if CaseFile = FileLowerCase then
-            newtardir := AnsiLowerCase (RemDir + RemFile + '/')
+            newtardir := IcsAnsiLowerCaseW (RemDir + RemFile + '/')
         else
             newtardir := RemDir + RemFile + '/' ;
         HostDirName := '/' ;
@@ -4599,7 +4647,7 @@ begin
 
 // create remote directories, see if making lower case for FTP server
     if CaseFile = FileLowerCase then
-        newtardir := AnsiLowerCase (RemDir)
+        newtardir := IcsAnsiLowerCaseW (RemDir)
     else
         newtardir := RemDir ;
     HostDirName := '/' ;
@@ -4620,7 +4668,7 @@ begin
 
 // see if making lower case for FTP server
     if CaseFile = FileLowerCase then
-        fnametar := AnsiLowerCase (RemFile)
+        fnametar := IcsAnsiLowerCaseW (RemFile)
     else
         fnametar := RemFile ;
     remfull := newtardir + fnametar ;
@@ -4631,7 +4679,7 @@ begin
 // see if zipping file
     zipflag := false ;
     {$IFDEF Zipping}
-    if fZipped and (AnsiLowercase (ExtractFileExt (LocFileFull)) <> '.zip') then
+    if fZipped and (IcsAnsiLowerCaseW (IcsExtractFileExtW (LocFileFull)) <> '.zip') then
     begin
         With VCLZip do
         begin
@@ -4663,7 +4711,7 @@ begin
 
 // start upload, to temporary file, resuming if possible
     if CaseFile = FileLowerCase then     // 23 Feb 2016 was always treated as lower case
-        fnametmp := AnsiLowerCase (fnametar)
+        fnametmp := IcsAnsiLowerCaseW (fnametar)
     else
         fnametmp := fnametar ;
     if (magftpNoTmpFile in fMagFtpOpts) then  // 6 Jan 2008 - download with correct name
@@ -4672,7 +4720,7 @@ begin
     end
     else
     begin
-        fnametmp := IcsTransChar (fnametmp, '.', '_') ;// don't mess with directories
+        IcsTransCharW (fnametmp, '.', '_') ;// don't mess with directories
         fnametmp := fnametmp + '.tmp' ;    // destination file name for FTP
     end ;
 
@@ -4685,33 +4733,36 @@ begin
                                                      + remfull + ', size ' + IntToKByte (uploadsize, true)) ;
     fCopyProg.ProgMessBase :=  fCopyProg.ProgMessBase + IcsCRLF + RemFile ;
     fProgFileSize := uploadsize ;   // keep name and size for event handler
+//    onFtpClientProg64 (Self, 0, fCancelFlag) ;
     if NOT Connected then exit ;
     if fCancelFlag then exit ;
 
 // set compression mode, don't compress zip files
     if fUsingCompression then
     begin
-        fileext := ExtractFileExt(AnsiLowercase (LocFileFull));  // 2 Dec 2007 longer list
+        fileext := IcsExtractFileExtW (IcsAnsiLowerCaseW (LocFileFull));  // 2 Dec 2007 longer list
         if (Pos (fileext, fZlibNoCompExt) > 0) or zipflag OR (fZlibMaxSize < uploadsize) then  // 9 Dec 2007 max size to compress
             TransferMode := ftpTransModeStream
         else
             TransferMode := ftpTransModeZDeflate ;
         if (FCurrTransMode <> TransferMode) then ModeZ ;
     end ;
+//    sysDelayX (200) ;  23 May 2013 why??
     if (NOT zipflag) and fResFailed then
     begin
-        fnameftp := ExtractFileName (LocFileFull) ;
-        fnametmp := IcsTransChar (fnameftp, '.', '_') ;// don't mess with directories
-        fnameftp := ExtractFilePath (LocFileFull) + fnameftp + '.ftp' ;  // control file in local directory
+        fnameftp := IcsExtractFileNameW (LocFileFull) ;
+        IcsTransCharW (fnameftp, '.', '_') ;// don't mess with directories
+        fnameftp := IcsExtractFilePathW (LocFileFull) + fnameftp + '.ftp' ;  // control file in local directory
         resflag := false ;
         attempts := 0 ;
         partfsize := 0 ;
 
    // see if local resume info file and TMP file on FTP server exist
-        if FileExists (fnameftp) then
+        if IcsFileExistsW (fnameftp) then
         begin
             try
-                ResInfRecs.LoadFromFile (fnameftp) ;
+                StrLoadFromWideFile (ResInfRecs, fnameftp) ;  // load string list from Unicode file name
+             //   ResInfRecs.LoadFromFile (fnameftp) ;
                 if NOT FtpCheckFile (newtardir, fnametmp, partfsize, remfileUDT) then
                 begin
                      partfsize := 0 ;
@@ -4731,8 +4782,10 @@ begin
                         doCopyEvent (LogLevelFile, 'Skipped Resume, Part File too Large') // 9 Dec 2007
                     else
                     begin
-                        if (ResInfRecs [ResInfServer] = fHostName1) and (ResInfRecs [ResInfFName] = String (StringToUtf8(remfull))) and
-                           (ResInfRecs [ResInfStamp] = FloatToStr (RFileUDT)) and (ResInfRecs [ResInfSize] = IntToStr (uploadsize)) then
+                        if (ResInfRecs [ResInfServer] = fHostName1) and
+                           (ResInfRecs [ResInfFName] = String (StringToUtf8(remfull))) and
+                           (ResInfRecs [ResInfStamp] = FloatToStr (RFileUDT)) and
+                           (ResInfRecs [ResInfSize] = IntToStr (uploadsize)) then
                         begin
                             if partfsize = uploadsize then
                             begin
@@ -4754,18 +4807,20 @@ begin
             end ;
         end ;
         fCopyProg.CurStartTick := IcsGetTickCount ;
+ //       onFtpClientProg64 (Self, 0, fCancelFlag) ;
         if fCancelFlag then exit ;
         if NOT Connected then exit ;
 
-   // 22 Nov 2007 check if sufficient space ALLOcated for upload
+   // 22 Nov 2007 check if sufficient IcsSpace ALLOcated for upload
         if (NOT (magftpNoFeat in fMagFtpOpts)) then
         begin
             PosEnd := uploadsize - partfsize ;
+        //    PosEnd := 20123456789; // !! TESTING
             Allo ;
             if StatusCode = 501 then   // 500 command not understood, 200 OK
             begin
-                if (Pos ('insufficient', AnsiLowercase (LastResponse)) > 0) or
-                                            (Pos ('not enough', AnsiLowercase (LastResponse)) > 0) then
+                if (Pos ('insufficient', IcsAnsiLowerCaseW (LastResponse)) > 0) or
+                                (Pos ('not enough', IcsAnsiLowerCaseW (LastResponse)) > 0) then
                 begin
                     doCopyEvent (LogLevelFile, 'Upload Failed: ' + LastResponse) ;
                     doCopyEvent (LogLevelDelimFile, LocFileFull + '|' + fnametmp + '|0|0|1|Upload Failed: ' + LastResponse + '|0|0') ;
@@ -4787,7 +4842,8 @@ begin
             inc (attempts) ;
             ResInfRecs [ResInfAttempts] := IntToStr (attempts) ;
             ResInfRecs [ResInfLastBytes] := IntToStr (partfsize) ;
-            ResInfRecs.SaveToFile (fnameftp) ;
+            StrSaveToWideFile (ResInfRecs, fnameftp) ;
+//            ResInfRecs.SaveToFile (fnameftp) ;
             doCopyEvent (LogLevelFile, 'Saved File Resume Info ' + fnameftp) ;
             ResumeAt := partfsize ;
             doCopyEvent (LogLevelFile, 'Resuming FTP Upload from Offset ' +
@@ -4807,7 +4863,7 @@ begin
         else
         begin
          // write current file into into .ftp file so we can resume if necessary
-            IcsDeleteFile (fnameftp, true) ;
+            IcsDeleteFileWW (fnameftp, true) ;
             ResInfRecs.Clear ;
             ResInfRecs.Add (fHostName1) ;               // ResInfServer = 0
             ResInfRecs.Add (String (StringToUtf8 (remfull))) ;   // ResInfFName = 1
@@ -4815,9 +4871,9 @@ begin
             ResInfRecs.Add (IntToStr (uploadsize)) ;    // ResInfSize = 3
             ResInfRecs.Add ('1') ;                      // ResInfAttempts = 4
             ResInfRecs.Add ('0') ;                      // ResInfLastBytes = 5
-            ResInfRecs.SaveToFile (fnameftp) ;
+            StrSaveToWideFile (ResInfRecs, fnameftp) ;
+//            ResInfRecs.SaveToFile (fnameftp) ;
             doCopyEvent (LogLevelFile, 'Saved File Resume Info ' + fnameftp) ;
-            fCopyProg.CurStartTick := IcsGetTickCount ;
             ret := Put ;  // upload it
             if fCancelFlag then exit ;
             if NOT Connected then exit ;
@@ -4834,15 +4890,16 @@ begin
     end
     else
     begin
-   // 22 Nov 2007 check if sufficient space ALLOcated for upload
+   // 22 Nov 2007 check if sufficient IcsSpace ALLOcated for upload
         if (NOT (magftpNoFeat in fMagFtpOpts)) then
         begin
             PosEnd := uploadsize ;
+       //     PosEnd := 20123456789; // !! TESTING
             Allo ;
             if StatusCode = 501 then      // 500 command not understood, 200 OK
             begin
-                if (Pos ('insufficient', AnsiLowercase (LastResponse)) > 0) or
-                                        (Pos ('not enough', AnsiLowercase (LastResponse)) > 0) then
+                if (Pos ('insufficient', IcsAnsiLowerCaseW (LastResponse)) > 0) or
+                                    (Pos ('not enough', IcsAnsiLowerCaseW (LastResponse)) > 0) then
                 begin
                     doCopyEvent (LogLevelFile, 'Upload Failed: ' + LastResponse) ;
                     doCopyEvent (LogLevelDelimFile, LocFileFull + '|' + fnametmp + '|0|0|1|Upload Failed: ' + LastResponse + '|0|0') ;
@@ -4854,7 +4911,7 @@ begin
         end ;
 
     // start FTP upload
-        IcsDeleteFile (fnameftp, true) ;
+        IcsDeleteFileWW (fnameftp, true) ;
         HostFileName := fnametmp ;
       // don't set LocalFileName, it may have been replaced by a zipped LocalStream
         if fCancelFlag then exit ;
@@ -4877,7 +4934,7 @@ begin
     if NOT Connected then exit ;
     if NOT ret then
     begin
-        if actualbytes < fMinResSize then IcsDeleteFile (fnameftp, true) ;  // 15 Sept 2008 kill resume file if insufficient copied
+        if actualbytes < fMinResSize then IcsDeleteFileWW (fnameftp, true) ;  // 15 Sept 2008 kill resume file if insufficient copied
         doCopyEvent (LogLevelFile, 'Upload Failed: ' + LastResponse) ;
         doCopyEvent (LogLevelDelimFile, LocFileFull + '|' + newtardir + fnametar +
                                '|0|0|1|Upload Failed: ' + LastResponse + '|'+ IntToStr (duration) + '|' + IntToStr (actualbytes)) ;
@@ -4908,7 +4965,7 @@ begin
                              '; Client ' + IntToKByte (uploadsize, true) + '; Server ' + IntToKByte (newsize, true)) ;
             doCopyEvent (LogLevelFile, 'Upload Failed: ' + LastResponse) ;
             doCopyEvent (LogLevelDelimFile, LocFileFull + '|' + newtardir + fnametar +
-                       '|0|0|1|Upload Failed: ' + LastResponse + '|'+ IntToStr (duration) + '|' + IntToStr (actualbytes)) ;
+                    '|0|0|1|Upload Failed: ' + LastResponse + '|'+ IntToStr (duration) + '|' + IntToStr (actualbytes)) ;
             HostFileName := fnametmp ;
             Dele ;   // delete temp file, ignore error
             inc (fCopyProg.ProcFailFiles) ;
@@ -4919,10 +4976,11 @@ begin
     else
     begin
         doCopyEvent (LogLevelFile, '!!! File Not Found On FTP Server: ' + HostFileName) ;
+        // exit ;  currently ignore error in case LIST file did not work
     end ;
     if NOT Connected then exit ;
     if fCancelFlag then exit ;
-    IcsDeleteFile (fnameftp, true) ;  // kill resume file
+    IcsDeleteFileWW (fnameftp, true) ;  // kill resume file
 
  // check MD5 or CRC32 if possible (not from zip stream yet) and repeat if allowed
     HostFileName := fnametmp ;
@@ -4944,7 +5002,7 @@ begin
             doCopyEvent (LogLevelProg, fCopyProg.ProgMessBase) ;
             fProgFileSize := uploadsize ;   // keep name and size for event handler
             info := FtpFileMD5 (LocFileFull, Self, MD5Progress) ;  // 8 Apr 2009 - widestring version
-            if (fMD5Result <> info) then  // 6 Apr 2009 don't assume blank MD5sum is OK
+            if { (Length (info) = 32) and } (fMD5Result <> info) then  // 6 Apr 2009 don't assume blank MD5sum is OK
             begin
                 doCopyEvent (LogLevelInfo, 'MD5SUM Compare Failed: ' + LocalFileName + ';Rem='+ fMD5Result + ';Loc=' + info) ;
                 doCopyEvent (LogLevelFile, 'Upload Failed: MD5SUM Compare Failed') ;
@@ -5054,19 +5112,19 @@ begin
     if fDelDone then
     begin
         doCopyEvent (LogLevelFile, 'Deleting: ' + LocFileFull) ;
-        IcsDeleteFile (LocFileFull, true) ;
+        IcsDeleteFileWW (LocFileFull, true) ;
         doCopyEvent (LogLevelDelimFile, LocFileFull + '| |0|0|0|Source File Deleted After Copy|0|0') ;
     end ;
     if fUpArchive then
     begin
         doCopyEvent (LogLevelFile, 'Moving to Archive Directory: ' + LocFileFull) ;
-        fnametar := IncludeTrailingPathDelimiter (fUpArchDir) + ExtractFileName (LocFileFull) ;
-        ret := RenameFile (LocFileFull, fnametar) ;
+        fnametar := IcsIncludeTrailingPathDelimiterW (fUpArchDir) + IcsExtractFileNameW (LocFileFull) ;
+        ret := IcsRenameFileW (LocFileFull, fnametar) ;
         if NOT ret then
         begin
             doCopyEvent (LogLevelFile, 'Failed to Move File to Archive Directory, Using Unique Name') ;
-            fnametar := IncludeTrailingPathDelimiter (fUpArchDir) + FormatDateTime ('"FTP-at-"yyyymmdd"-"hhnnss-z', Now) + ExtractFileExt (LocFileFull) ;
-            ret := RenameFile (LocFileFull, fnametar) ;
+            fnametar := IcsIncludeTrailingPathDelimiterW (fUpArchDir) + FormatDateTime ('"FTP-at-"yyyymmdd"-"hhnnss-z', Now) + IcsExtractFileExtW (LocFileFull) ;
+            ret := IcsRenameFileW (LocFileFull, fnametar) ;
         end ;
         if ret then doCopyEvent (LogLevelFile, 'Archived as: ' + fnametar) ;
     end ;
@@ -5095,9 +5153,10 @@ begin
     end ;
 end ;
 
-function TIcsFtpMulti.FtpUpOneFile (const LocFileFull, RemTarDir, RemTarFile: string; Replopt: TIcsFileCopyRepl) : TIcsTaskResult ;
+function TIcsFtpMultiW.FtpUpOneFile (const LocFileFull, RemTarDir, RemTarFile: UnicodeString;
+                                                       Replopt: TIcsFileCopyRepl) : TIcsTaskResult ;
 var
-    code, fulltarname, remdir: string ;
+    code, fulltarname, remdir: UnicodeString ;
     flag: boolean ;
     SrcFSize, RFSize: Int64 ;
     SrcFileUDT, RFileUDT: TDateTime ;
@@ -5129,11 +5188,11 @@ begin
 
  // make sure trailing slash for directory
     remdir := RemTarDir ;
-    remdir := IncludeTrailingUnixDelimiter (remdir) ;
+    remdir := IncludeTrailingUnixDelimiterW (remdir) ;
     fulltarname := remdir + RemTarFile ;
 
 // 14 Sept 2008 skip Unicode file with non-ANSI characters unlesss UTF8 enabled
-    if (Pos ('?', LocFileFull) > 0) then
+    if (FCodePage <> CP_UTF8) and (NOT CheckUnicodeToAnsi (LocFileFull)) then
     begin
         doCopyEvent (LogLevelDiag, 'Skipped Inaccessible Unicode Name: ' + LocFileFull) ;
         doCopyEvent (LogLevelDelimFile, LocFileFull + '|' + fulltarname + '|0|0|1|Inaccessible Unicode File|0|0') ;
@@ -5141,7 +5200,7 @@ begin
     end ;
 
     doCopyEvent (LogLevelFile, 'Check Exists ' + LocFileFull) ;
-    if NOT IcsGetUAgeSizeFile (LocFileFull, SrcFileUDT, SrcFSize) then
+    if NOT IcsGetUAgeSizeFileW (LocFileFull, SrcFileUDT, SrcFSize) then
     begin
         result := TaskResFail ;
         fReqResponse := 'Can Not Find File: ' + LocFileFull ;
@@ -5206,6 +5265,7 @@ begin
             exit ;
         end ;
         if NOT (retval in [2, 3]) then exit ;  // fail download or fail MD5
+     //   if (StatusCode = 501) then exit ;  // 19 Oct 2005 permissions or start failed 5 Jan 2008 ignore
         if (loop < (fFailRepeat + 1)) then   // 31 Dec 2007
             doCopyEvent (LogLevelInfo, 'Repeating Upload: ' + locfilefull) ;
     end ;
@@ -5218,26 +5278,26 @@ end ;
 // FTP upload multiple local files
 // returns false if error, with fReqResponse completed
 
-function TIcsFtpMulti.FtpUpload (const CheckFiles: boolean): TIcsTaskResult ;
+function TIcsFtpMultiW.FtpUpload (const CheckFiles: boolean): TIcsTaskResult ;
 var
-    newfname, fnamesrc, cursrcdir, newtardir: string ;
+    newfname, fnamesrc, cursrcdir, newtardir: UnicodeString ;
     ret: boolean ;
-    tempdir, info, newsubdirs, basesrcdir: String ;
+    tempdir, info, newsubdirs, basesrcdir: UnicodeString ;
     I, J, nodeltot, loop, retval, duration: integer ;
     newsize, totsize, delsize, SrcFSize: Int64 ;
     SrcFileUDT: TDateTime ;
-    SrcFileRec: PTIcsFDirRec ;
-    CopyOnlyList: TStringList ;
+    SrcFileRec: PTIcsFDirRecW ;
+    CopyOnlyList: TWideStringList ;
     OldWow64: BOOL ;        // 22 May 2013
-    listing: TIcsStringBuild ; // 22 May 2013
+    listing: TIcsStringBuild ;  // 22 May 2013
 begin
     fCancelFlag := false ;
     IcsCopyProgClearAll (fCopyProg) ;  // 22 May 2013 clear all progress stuff
     fSrcDir := ExcludeTrailingBackslash (fSrcDir) ;
-    CopyOnlyList := TStringList.Create ;
+    CopyOnlyList := TWideStringList.Create ;
     OldWow64 := false ; // 22 May 2013
     if fWow64RedirDisable then DisableWow64Redir (OldWow64) ; // 22 May 2013
-    listing := TIcsStringBuild.Create ;
+    listing := TIcsStringBuild.Create (20 * 100, True) ;  // 20 May 2013, 20 lines, widestring
     try
 
 // 8 Apr 2009 - fSrcFName may include directories and masks - yyyy-mm"/D"dd"/*.zip"
@@ -5245,24 +5305,22 @@ begin
     newfname := fSrcFName ;
     if (NOT fSpecificFiles) and fMask then
     begin
-        newfname := IcsPathUnixToDos (newfname) ;
-      // warning - GetMaskedName currently ANSI only in Delphi 7
-        newfname := IcsGetMaskedName (newfname, fPrev, fLocalHost) ;
-        newsubdirs := ExtractFilePath (newfname) ;  // DOS delims
+        newfname := IcsPathUnixToDosW (newfname) ;
+        newfname := IcsGetMaskedNameW (newfname, fPrev, fLocalHost) ;
+        newsubdirs := IcsExtractFilePathW (newfname) ;  // DOS delims
         if Length (newsubdirs) > 0 then
         begin
             if newsubdirs [1] = '\' then newsubdirs := Copy (newsubdirs, 2, 999) ;
         end;
-        newfname := ExtractFileName (newfname) ;
+        newfname := IcsExtractFileNameW (newfname) ;
     end ;
     if fSpecificFiles then newfname := '*.*' ;
 
 // build list of source files on PC - before accessing server
-    basesrcdir := ExcludeTrailingPathDelimiter (fSrcDir) ;
+    basesrcdir := IcsExcludeTrailingPathDelimiterW (fSrcDir) ;
     if fMaskLocDir and (newsubdirs <> '') then  // 8 Apr 2009 add sub-directories
     begin
-        basesrcdir := IncludeTrailingPathDelimiter (basesrcdir) +
-                                        ExcludeTrailingPathDelimiter (newsubdirs) ;
+        basesrcdir := IcsIncludeTrailingPathDelimiterW (basesrcdir) + IcsExcludeTrailingPathDelimiterW (newsubdirs) ;
     end;
     doCopyEvent (LogLevelFile, 'Source Directory: ' + basesrcdir) ;
     fIcsFileCopy.Wow64RedirDisable := fWow64RedirDisable ;  // 22 May 2013
@@ -5288,7 +5346,7 @@ begin
             fDelOldTar := false ;
         end ;
     end ;
-    if fDispLDir then doCopyEvent (LogLevelInfo, 'Source Files on PC:' + IcsCRLF + IcsFmtFileDirList (SrcFileList, false)) ;
+    if fDispLDir then doCopyEvent (LogLevelInfo, 'Source Files on PC' + IcsCRLF + IcsFmtFileDirListW (SrcFileList, false)) ;
 
 // logon to FTP server
     doCopyEvent (LogLevelInfo, 'Connecting to FTP Server: ' + IcsFmtIpv6Addr (fHostName)) ;
@@ -5301,8 +5359,8 @@ begin
  // 8 Apr 2009 base directory already set in FtpLogon, optionally add masked sub directories
     if fMaskRemDir and (newsubdirs <> '') then
     begin
-        fServBaseDir := IcsPathDosToUnix (fServBaseDir + newsubdirs) ;
-        fServBaseDir := IncludeTrailingUnixDelimiter (fServBaseDir) ;
+        fServBaseDir := IcsPathDosToUnixW (fServBaseDir + newsubdirs) ;
+        fServBaseDir := IncludeTrailingUnixDelimiterW (fServBaseDir) ;
     end;
 
 // build list of target files, so we don't copy unnecessary stuff
@@ -5318,9 +5376,10 @@ begin
     begin
         doCopyEvent (LogLevelInfo, fReqResponse) ;
         doCopyEvent (LogLevelInfo, 'Failed to List Files on FTP Server') ;
+     //   if fRepl <> FCReplAlways then exit ;
     end ;
     fReqResponse := '' ;
-    if fDispRDir then doCopyEvent (LogLevelInfo, 'Target Files on FTP Server:' + IcsCRLF + IcsFmtFileDirList (TarFileList, false)) ;
+    if fDispRDir then doCopyEvent (LogLevelInfo, 'Target Files on FTP Server' + IcsCRLF + IcsFmtFileDirListW (TarFileList, false)) ;
     MessagePump ; // 15 Sept 2010 needed to support MultiThreaded
     if fCancelFlag then exit ;
 
@@ -5332,13 +5391,11 @@ begin
 // see if only copying a list of specific files, deselect any we don't need
     if fSpecificFiles then
     begin
-{$IFDEF COMPILER10_UP}   { only supported D2006 and later }
         CopyOnlyList.Delimiter := '|' ;
         CopyOnlyList.StrictDelimiter := True;
-        CopyOnlyList.DelimitedText := AnsiLowerCase (fSrcFName) ;
+        CopyOnlyList.DelimitedText := IcsAnsiLowerCaseW (fSrcFName) ;
         CopyOnlyList.Sort ;
         CopyOnlyList.Sorted := true ;
-{$ENDIF}
         if CopyOnlyList.Count = 0 then
         begin
             result := TaskResOKNone ;
@@ -5352,7 +5409,7 @@ begin
             begin
                 if FrFileCopy = FCStateSelect then
                 begin
-                    if NOT CopyOnlyList.Find (AnsiLowerCase (FrFileName), J) then
+                    if CopyOnlyList.Find (IcsAnsiLowerCaseW (FrFileName), J) then
                     begin
                          FrFileCopy := FCStateNone ;
                          dec (fCopyProg.TotProcFiles) ;
@@ -5388,7 +5445,7 @@ begin
         if CheckFiles then
         begin
             listing.Capacity (TotSrcFiles * 50) ;   // no real idea yet
-            listing.AppendLine ('Old Files Selected for Deletion are: ') ;
+            listing.AppendLineW (IcsCRLF + 'Old Files Selected for Deletion are: ') ;
         end;
         for I := 0 to Pred (TotTarFiles) do
         begin
@@ -5401,9 +5458,9 @@ begin
                     if CheckFiles then
                     begin
                          if ((FrFileAttr and faDirectory) = faDirectory) then   // 21 Feb 2011 display directory
-                            listing.AppendLine (FrFullName + IcsSpace + sDirLit)
+                            listing.AppendLineW (FrFullName + IcsSpace + sDirLit)
                         else
-                            listing.AppendLine (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
+                            listing.AppendLineW (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
                     end;
                 end ;
             end ;
@@ -5413,11 +5470,11 @@ begin
     newsize := 0 ;
     if (fCopyProg.TotProcFiles > 0) then
     begin
-        if CheckFiles then
-        begin
+       if CheckFiles then
+       begin
             listing.Capacity (TotSrcFiles * 50) ;   // no real idea yet
-            listing.AppendLine ('Files Selected for Uploading are: ') ;
-        end;
+            listing.AppendLineW (IcsCRLF + 'Files Selected for Uploading are: ') ;
+       end;
         for I := 0 to Pred (TotSrcFiles) do
         begin
             SrcFileRec := SrcFileList [I] ;
@@ -5429,19 +5486,19 @@ begin
                     if CheckFiles then
                     begin
                         if ((FrFileAttr and faDirectory) = faDirectory) then   // 21 Feb 2011 display directory
-                            listing.AppendLine (FrFullName + IcsSpace + sDirLit)
+                            listing.AppendLineW (FrFullName + IcsSpace + sDirLit)
                         else
-                            listing.AppendLine (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
+                            listing.AppendLineW (FrFullName + ', Size ' + IcsInt64ToCStr (FrFileBytes)) ;
                     end;
                 end ;
             end ;
         end ;
     end
     else
-       if CheckFiles then listing.AppendLine ('No Source Files Selected to Upload') ;
+       if CheckFiles then listing.AppendLineW (IcsCRLF + 'No Source Files Selected to Upload') ;
     if CheckFiles then
     begin
-        info := listing.GetString ;
+        info := listing.GetWString ;
         doCopyEvent (LogLevelInfo, info) ;
         info := '' ;
     end;
@@ -5559,8 +5616,8 @@ begin
         begin
             if FrFileCopy <> FCStateSelect then continue ;
             inc (fCopyProg.TotDoneNr) ;
-            fnamesrc := FrFullName ; // warning - conversion from WideString to AnsiString here for Delphi 2007
-            tempdir := FrSubDirs ;  // for source file, ditto
+            fnamesrc := FrFullName ;
+            tempdir := FrSubDirs ;  // for source file
             if cursrcdir <> tempdir then
             begin
                 cursrcdir := tempdir ;
@@ -5568,11 +5625,11 @@ begin
                     newtardir := fServBaseDir + Copy (tempdir, 2, 200)
                 else
                     newtardir := fServBaseDir + tempdir ;
-                newtardir := IcsPathDosToUnix (newtardir) ;
+                newtardir := IcsPathDosToUnixW (newtardir) ;
             end ;
 
-        // 13 Nov 2008 skip Unicode file with non-ANSI characters
-            if (Pos ('?', fnamesrc) > 0) then
+        // 13 Nov 2008 skip Unicode file with non-ANSI characters unlesss UTF8 enabled
+            if (FCodePage <> CP_UTF8) and (NOT CheckUnicodeToAnsi (fnamesrc)) then
             begin
                 doCopyEvent (LogLevelInfo, 'Skipped Inaccessible Unicode Name: ' + fnamesrc) ;
                 doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + FrFileName + '|0|0|1|Inaccessible Unicode File|0|0') ;
@@ -5591,7 +5648,7 @@ begin
         // 15 Sept 2008 ensure it's not been deleted already, and get current size in case it's changed
             begin
                 doCopyEvent (LogLevelFile, 'Check Exists ' + fnamesrc) ;
-                if NOT IcsGetUAgeSizeFile (fnamesrc, SrcFileUDT, SrcFSize) then
+                if NOT IcsGetUAgeSizeFileW (fnamesrc, SrcFileUDT, SrcFSize) then
                 begin
                     fReqResponse := 'Can Not Find File: ' + fnamesrc ;
                     doCopyEvent (LogLevelInfo, fReqResponse) ;
@@ -5600,7 +5657,7 @@ begin
                     FrFileCopy := FCStateFailed ;
                     continue ;
                 end ;
-            end ;
+            end;
 
       // FTP upload file
             FrFileCopy := FCStateCopying ;
@@ -5616,7 +5673,7 @@ begin
                 if NOT (retval in [2, 3]) then break ;  // fail download or fail MD5
                 if (StatusCode = 501) then break ;  // 19 Oct 2005 permissions or start failed
                 if (loop < (fFailRepeat + 1)) then   // 31 Dec 2007
-                    doCopyEvent (LogLevelInfo, 'Repeating Upload: ' + FrFullName) ;
+                        doCopyEvent (LogLevelInfo, 'Repeating Upload: ' + FrFullName) ;
             end ;
             if retval = 0 then
             begin
@@ -5633,6 +5690,7 @@ begin
     end ;
 
 // done
+//  if NOT fCancelFlag then  14 Oct 2011 still report failure
     doCopyEvent (LogLevelProg, '') ;
     duration := IcsElapsedTicks (fCopyProg.SessStartTick) ;
     result := TaskResOKNone ;
@@ -5650,7 +5708,6 @@ begin
                                         IcsSecsToStr (duration div 1000) + ', average speed ' +
                                                     IntToKByte (IcsCalcSpeed (duration, totsize)) + '/sec') ;
     finally
-        CopyOnlyList.Free ;
         if fLoggedIn and (NOT Connected) then  // 20 Aug 2005
         begin
             result := TaskResFail ;
@@ -5668,11 +5725,12 @@ begin
         doCopyEvent (LogLevelProg, '') ;
         fCancelFlag := false ;
         if fWow64RedirDisable then RevertWow64Redir (OldWow64) ; // 22 May 2013
-        listing.Free ;
+       CopyOnlyList.Free ;
+       listing.Free ;
    end ;
 end;
 
-procedure TIcsFtpMulti.Cancel ;
+procedure TIcsFtpMultiW.Cancel ;
 begin
     doCopyEvent (LogLevelInfo, 'Cancel FTP Triggered') ;
     if Connected then
@@ -5686,7 +5744,7 @@ end ;
 
 // 23 Sept 2010 - threaded version
 
-constructor TIcsFtpMultiThread.CreateThread;
+constructor TIcsFtpMultiThreadW.CreateThread;
 begin
     inherited Create (true) ;  // suspended
     FreeOnTerminate := true ;
@@ -5719,7 +5777,7 @@ begin
     fMagFtpOpts := [] ;
 end;
 
-procedure TIcsFtpMultiThread.CallThreadEvent ;  // called by Synchronise for main thread
+procedure TIcsFtpMultiThreadW.CallThreadEvent ;  // called by Synchronise for main thread
 var
     Cancel: boolean ;
 begin
@@ -5732,15 +5790,15 @@ begin
 //    if AbortFlag then FAbort := true ;
 end;
 
-procedure TIcsFtpMultiThread.LogEvent (LogLevel: TIcsCopyLogLevel ; Info: String ; var Cancel: boolean) ;
+procedure TIcsFtpMultiThreadW.LogEvent (LogLevel: TIcsCopyLogLevel ; Info: UnicodeString ; var Cancel: boolean) ;
 begin
     if FAbort then Cancel := true ;
     if (LogLevel = LogLevelInfo) or (LogLevel = LogLevelFile) or (LogLevel = LogLevelDiag) then
     begin
         if FLogmaskName <> '' then
-            FBuffLogStream.WriteLine (FormatDateTime (ISODateLongTimeMask, Now) + IcsSpace + FId + ': ' + Info) ;
+            FBuffLogStream.WriteLine (FormatDateTime (IsoLongTimeMask, Now) + IcsSpace + FId + ': ' + Info) ;
     end;
-    if (LogLevel = LogLevelInfo) or (LogLevel = LogLevelFile) then
+    if Assigned (FThreadEvent) then
     begin
         FLogLevel := LogLevel ;
         FInfo := Info ;
@@ -5749,17 +5807,17 @@ begin
     end;
 end ;
 
-procedure TIcsFtpMultiThread.IcsLogEvent (Sender: TObject; LogOption: TLogOption; const Msg : String) ;
+procedure TIcsFtpMultiThreadW.IcsLogEvent (Sender: TObject; LogOption: TLogOption; const Msg : String) ;
 begin
     if FLogmaskName <> '' then
-        FBuffLogStream.WriteLine (FormatDateTime (ISODateLongTimeMask, Now) + IcsSpace + FId + ': ' + Msg) ;
+        FBuffLogStream.WriteLine (FormatDateTime (ISOLongTimeMask, Now) + IcsSpace + FId + ': ' + Msg) ;
 end ;
 
-procedure TIcsFtpMultiThread.Execute;
+procedure TIcsFtpMultiThreadW.Execute;
 var
     Cancel: boolean ;
 begin
-    IcsFTPMultiCli := TIcsFtpMulti.Create (Nil) ;
+    IcsFTPMultiCli := TIcsFtpMultiW.Create (Nil) ;
     IcsFTPMultiCli.CopyEvent := LogEvent ;
     if FLogmaskName <> '' then
     begin
@@ -5774,6 +5832,7 @@ begin
     LogEvent (LogLevelInfo, 'FTP Thread Starting', Cancel) ;
     IcsFTPMultiCli.BulkMode := FBulkMode ;
     IcsFTPMultiCli.Multithreaded := true ;  // must use our own message pump
+    IcsFTPMultiCli.Utf8DiagFlag := Utf8DiagFlag ;
     IcsFTPMultiCli.LocalHost := FLocalHost ;
     IcsFTPMultiCli.HostName1 := FHostName1 ;
     IcsFTPMultiCli.HostName2 := FHostName2 ;
@@ -5854,7 +5913,7 @@ begin
     IcsFTPMultiCli.Free ;
 end ;
 
-{$ENDIF USE_SSL}
+{$ENDIF}
 
 end.
 

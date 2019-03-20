@@ -62,7 +62,7 @@ but has been extensively improved with SNTP support added.
               ServerAddr must be set, instead of Addr (which will be set with numeric IP)
               use DnsLookup and loop through alternate IP addresses (for pool.ntp.org)
 27 Mar 2011 - stop exception if no event allocated
-13 Feb 2019 - V8.60 - Adapted for main ICS packages and FMX support.
+12 Mar 2019 - V8.60 - Adapted for main ICS packages and FMX support.
               Renamed from TWSTimeClient to TIcsTimeClient
               Total rewrite of 20 year old component, using wsoIcsDnsLookup, no
                 longer exposing all TWSocket properties, report failure to start.
@@ -745,7 +745,7 @@ constructor TIcsTimeClient.Create(AComponent:TComponent);
 begin
     inherited;
     FOnTime := nil;
-    FTimeoutSecs := 10;
+    FTimeoutSecs := 5;
     FWSocket := TWSocket.Create(Self);
     FWSocket.OnDataAvailable := TimeDataAvailable;
     FWSocket.OnSessionConnected := WSocketSessionConnected;
@@ -753,8 +753,6 @@ begin
     FWSocket.ComponentOptions := FWSocket.ComponentOptions +
                                     [wsoAsyncDnsLookup, wsoIcsDnsLookup];
     FSocketFamily := sfIPv4;
-//    Self.AllocateHWnd;
-    FTimeoutTimer := Nil;
     FTimeoutTimer := TIcsTimer.Create(FWSocket);
     FTimeoutTimer.Enabled := False;
     FTimeoutTimer.OnTimer := TimeoutTimerTimer;
@@ -833,6 +831,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TIcsTimeClient.TimeoutTimerTimer(Sender: TObject);
 begin
+    if FWSocket.State = wsDnsLookup then Exit;  // no timeout for DNS, can be slow 
     FTimeoutTimer.Enabled := False;
     if (FTotDnsResult > 1) and (Attempts <  FTotDnsResult) then begin
         FLastAddrOK := '';

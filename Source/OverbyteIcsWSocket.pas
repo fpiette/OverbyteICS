@@ -1296,7 +1296,7 @@ Nov 2, 2018  V8.58 Increased ListenBacklog property default to 15 to handle
                       higher server loads before rejecting new connections.
                    Corrected some debug error loSslInfo to loSslErr.
 Dec 11, 2018 V8.59 Too many lines in SSL diags for errors only, bug in V8.55
-Mar 6,  2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
+Mar 18, 2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
                      set during Connect method after DNS lookup.
                    Clean-up old commented out code.
                    Made SocketFamilyNames more descriptive.
@@ -1304,6 +1304,8 @@ Mar 6,  2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
                       user can change DNS result, bug in V8.43.
                    DnsResult can now be updated in OnDNSLookupDone event.
                    Added TLS version to SslSrvSecurityNames.
+                   Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
+                     in server IcsHosts if TLS1.3 fails.
 
 
 
@@ -3025,8 +3027,6 @@ type
     TX509Class = class of TX509Base;
     TX509Ex = TX509Base;  { V8.39 moved from OverbyteIcsSslX509Utils }
 
-//    TCustomSslWSocket = class; //forward
-
     TX509ListSort = (xsrtIssuerFirst, xsrtIssuedFirst);
     TX509List  = class(TObject)
     private
@@ -3369,7 +3369,7 @@ const
             TLS_MAX_VERSION);
 
 
-  SslSrvSecurityNames: array [TSslSrvSecurity ] of PChar = (   { V8.55, V8.60 added TLS version  }
+  SslSrvSecurityNames: array [TSslSrvSecurity ] of PChar = (   { V8.55, V8.60 added TLS version and 1.2/1.3 only }
                      'None',                                      { 0 - all protocols and ciphers, any key lengths }
                      'SSLv3 Only',                                { 1 - SSL3 only, all ciphers, any key lengths, MD5 }
                      'Backward Ciphers, TLS1 or Later',           { 2 - TLS1 or later, backward ciphers, RSA/DH keys=>1024, ECC=>160, no MD5, SHA1 }
@@ -3377,7 +3377,9 @@ const
                      'Intermediate Ciphers FS, TLS1.1 or Later',  { 4 - TLS1.1 or later, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
                      'High 112 bit Ciphers, TLS1.2 or Later',     { 5 - TLS1.2 or later, high ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
                      'High 128 bit Ciphers, TLS1.2 or Later',     { 6 - TLS1.2 or later, high ciphers, RSA/DH keys=>3072, ECC=>256, FS forced }
-                     'High 192 bit Ciphers, TLS1.2 or Later');    { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+                     'High 192 bit Ciphers, TLS1.2 or Later',     { 7 - TLS1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
+                     'TLSv1.2 or Earlier',                        { 8 - TLSv1.2 or earlier, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
+                     'TLSv1.3 Only');                             { 9 - TLSv1.3 only, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
 
  SslCliSecurityNames: array [TSslCliSecurity] of PChar = (   { V8.55 }
                      'Ignore',         { 0 - ignore, use old settings }

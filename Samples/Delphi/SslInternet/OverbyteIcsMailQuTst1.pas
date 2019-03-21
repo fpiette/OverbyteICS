@@ -2,7 +2,7 @@
 Description:  Mail Queue Component Demonstration Sample for the TIcsMailQueue
               which is designed to prepare, queue and send email.
 Creation:     Jan 2011
-Updated:      Feb 2019
+Updated:      Mar 2019
 Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -49,7 +49,7 @@ Release 2.0 - 27th Oct 2015
 6 Mar 2017  simplified SSL certificate reporting
 22 Jun 2018 Added SslCliSecurity for SSL client security
     Added RetryWithoutSsl which retries an SSL failure without SSL
-21 Feb 2019 - V8.60 - Adapted for ICS
+20 Mar 2019 - V8.60 - Adapted for ICS
               Two mail servers. log file
 
 
@@ -336,9 +336,7 @@ begin
                         PrefEmailSecurity2.ItemIndex := Ord(sslCliSecDefault);   // June 2018
 end;
 
-{ this event is used to open the log file, or change it's name
-  if already opened, change only needed for GUI applications where the user
-  can change the log path. Note ls written as UTF8 codepage }
+{ this event is used to open the log file, note log ls written as UTF8 codepage }
 
 procedure TDemoForm.OpenLogFile;
 var

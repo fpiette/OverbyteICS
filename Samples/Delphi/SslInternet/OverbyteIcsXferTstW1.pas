@@ -1,6 +1,9 @@
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-Description:  This is a test and demo application for the TIcsHttpMulti,
-              TIcsFtpMulti and TIcsFileCopy multiple file transfer components.
+Description:  This is a test and demo application for the TIcsHttpMultiW,
+              TIcsFtpMultiW and TIcsFileCopyW multiple file transfer components.
+              W version supports widestring/Unicode for Delphi 2007 only
+              Note this sample is not designed to function on Unicode compabible
+              compilers, use OverbyteIcsXferTst instead.
 Creation:     Sept 2004
 Updated:      March 2019
 Version:      8.60
@@ -34,26 +37,28 @@ Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
                  to the author. Use a nice stamp and mention your name, street
                  address, EMail address and any comment you like to say.
 
-History:
 
+This is a test and demo application for the TIcsHttpMultiW, TIcsFtpMultiW and
+TIcsFileCopyW multiple file transfer components.
 
-This is a test and demo application for the TIcsHttpMulti, TIcsFtpMulti and
-TIcsFileCopy multiple file transfer components.
-
-TIcsFileCopy will copy a single file or directory, a list of directories or an
-entire volume of files (250,000 or more). TIcsFileCopy will similarly also
+TIcsFileCopyW will copy a single file or directory, a list of directories or an
+entire volume of files (250,000 or more). TIcsFileCopyW will similarly also
 delete multiple files and directories.  It includes directory listing and
 reporting functions.
 
-TIcsFtpMulti FTP uploads and downloads multiple files and directories,
+TIcsFtpMultiW FTP uploads and downloads multiple files and directories,
 mirroring the directory structures, optionally only transferring changed
 files and deleting old files, including resumed transfers after failure.
 
-TIcsHttpMulti downloads multiple HTTP files, either as a URL list or by
+TIcsHttpMultiW downloads multiple HTTP files, either as a URL list or by
 parsing HTML pages and locating URLs to download.
 
 Note this demo program does not make use of all the component's functionality,
 but there are comments indicating where alternative properties may be set.
+
+Requires TNT Unicode controls to display Unicode with Delphi 2007, last free
+version from https://github.com/rofl0r/TntUnicode), undefine USE_TNT is not installed.
+
 
 22 Sep 2004 - 1.2 - added single file FTP download and upload (faster since no directory listing)
 22 Aug 2005 - 1.3 - various bug fixes
@@ -67,29 +72,33 @@ but there are comments indicating where alternative properties may be set.
 4 Sep 2006  - 1.9 - 64-bit fixes
 8 Jan 2007  - 2.0 - supporting ICS V6, FTP timeout now 10 mins
 17 Aug 2007 - 2.1 - FTP fixes
-3 Mar 2008  - 2.2 - support new ICS and TIcsFtpMulti features
+3 Mar 2008  - 2.2 - support new ICS and TMagFtp features
                     added Clear logs button, several new FTP tick boxes, Bandwidth Limiting
 7 Aug 2008  - 2.3 - updated for latest ICS V6 beta and V7 for Delphi 2009 and Unicode
                     replaced RX FormStorage with local INI file support
-18 Nov 2008 - 3.2 - support ICS V7.02 with UTF-8, but only full Unicode with 2009 and later
+22 Sep 2008 - 3.0 - widestring version for UTF-8 on Delphi 2007 and earlier
                     FTP supports Unicode with UTF8 command, and HOST command
-                    new label shows whether SSL compiled, and whether compiled with 2007 or 2009
-                    SOCKS proxy should now work
+                    new label shows whether SSL compiler, and whether compiled with 2007 or 2009
+-------------------------------------------------------------------------------------------------
+22 Oct 2008 - 3.1 - now using OverbyteIcsFtpcliW, OverbyteIcsFtpSrvWT
+18 Nov 2008 - 3.2 - renamed project to xferdemo3W, uses TMagX3W units
                     keep last 50 FTP host names and HTTP URLs
-07 Jan 2009 - 3.3 - updated OverbyteIcsFtpcli with latest changes, added ftptest.org hosts
+                    use the TNT Unicode controls to display Unicode with Delphi 2007.
+07 Jan 2009 - 3.3 - updated OverbyteIcsFtpcliW with latest changes, added ftptest.org hosts
 17 May 2009 - 3.4 - FTP fixes for md5, added MaskLocDir and MaskRemDir for FTP, Unicode MD5 and CRC32
-                    add magftpNoMd5 and magftpNoCrc to allow them to be tested separately
-17 Aug 2011 - 3.7 - ICS changes, new throttling, zlib 1.2.5, support MultiThreading
+22 May 2009 - 3.5 - new tick boxes for magftpNoMd5 and magftpNoCrc to allow them to be tested separately
+                    subdir listing bug fix
+7 Jun 2010  - 3.6 - fix a problem parsing UNIX file listing with strange upper case file attributes
+11 Aug 2011 - 3.7 - ICS changes, new throttling, zlib 1.2.5, support MultiThreading
                     list and copy empty directories.  Directory functions have a ListDirs parameter,
-                    while TIcsFileCopy has a new EmptyDirs property, directory attributes should be copied
+                    while TIcsFileCopyW has a new EmptyDirs property, directory attributes should be copied
                     large FTP winsock buffers for increased performance
                     fixed bug listing sub-directories from root with MLSD command
                     new FTP thread functions using TIcsFtpMultiThreadW component which runs TIcsFtpMultiW in a thread
-                    show whether 32-bit or 64-bit
 14 Oct 2011 - 3.8 - log time and speed of each download
                     added Replace tickbox for HTTP, multiple HTTP URLs allowed
                     large HTTP winsock buffer for increased performance
-20 Aug 2012 - 4.0 - updated to support ICS V8 with IPv6
+24 Aug 2012 - 4.0 - updated to support ICS V8 with IPv6
 24 Jul 2013 - 4.1 - default to allowing IPv4 or IPv6 host names
                     added IgnorePaths, Wow64Disable
                     added extended file progress for customisable display with percent and time left
@@ -101,15 +110,14 @@ but there are comments indicating where alternative properties may be set.
                     failed certificate report error as last HTTP error
                     Warning, self signed certificates are not trusted
 23 Feb 2016 - 4.4 - fixed a bug that always treated upload file names as lower case
-7 Dec 2016  - 4.5 - more friendly errors
+24 Nov 2016 - 4.5 - more friendly errors
                     fixed an HTTP bug that caused an exception with ICS V8.37
                     force latest OpenSSL from our directory
                     only works with latest digitally signed OpenSSL DLLs
                     using OpenSSL certificate verification host checking
-                    set SSL session caching correctly
-                    only check and report SSL certificates once per session
 6 Mar 2017  - 4.6 - simplified SSL certificate reporting
-27 Nov 2018 - 4.7 - Fixed HTTP to HTTPS relocation failed unless HTTPS URL precessed
+                    set SSL security level low, ideally should be configurable
+18 Jun 2018 - 4.7 - Fixed HTTP to HTTPS relocation failed unless HTTPS URL precessed
                        first, always set SslContext
                     Added SSL Security drop down box to set SslCliSecurity
                     Only support SSL
@@ -120,25 +128,28 @@ but there are comments indicating where alternative properties may be set.
                       Replace tick boxes now combos with all replace options
 
 
-
+pending - use VclZip v4 widestring version
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
-unit OverbyteIcsXferTst1;
+unit OverbyteIcsXferTstW1;
+
+{$I Include\OverbyteIcsDefs.inc}
 
 interface
 
-{$I Include\OverbyteIcsDefs.inc}
-  
+{$IFNDEF UNICODE}
+    {$DEFINE USE_TNT}
+{$ENDIF}
+
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   ComCtrls, StdCtrls, ExtCtrls,
-{$IF CompilerVersion > 23}
-  System.UITypes,
-{$IFEND}
+  {$IFDEF USE_TNT} TntStdCtrls, {$ENDIF}
+  OverbyteIcsTypes,
   OverbyteIcsWsocket,
-  OverbyteIcsFtpcli,
-  OverbyteIcsFtpSrvT,
+  OverbyteIcsFtpcliW,
+  OverbyteIcsFtpSrvWT,
   OverbyteIcsHttpProt,
   OverbyteIcsHttpCCodzlib,
   OverbyteIcsSSLEAY,
@@ -146,16 +157,28 @@ uses
   OverbyteIcsIniFiles,
   OverbyteIcsUtils,
   OverbyteIcsBlacklist,
-  OverbyteIcsFileCopy,
-  OverbyteIcsFtpMulti,
-  OverbyteIcsHttpMulti;
+  OverbyteIcsFileCopyW,
+  OverbyteIcsFtpMultiW,
+  OverbyteIcsHttpMultiW;
 
 type
-  TForm1 = class(TForm)
+{$IFDEF USE_TNT}
+    TCurrentMemo = TTntMemo;   // unicode control
+{$ELSE}
+    TCurrentMemo = TMemo;
+{$ENDIF}
+
+  TFormXferDemo = class(TForm)
 // saved components
+    CopyEmptyDirs: TCheckBox;
+    CopyFileRepl: TComboBox;
+    CopyIgnorePath: TEdit;
     CopySrcDir: TEdit;
     CopySrcFile: TEdit;
+    CopySubdirs: TCheckBox;
     CopyTarDir: TEdit;
+    CopyWow64Disable: TCheckBox;
+    DirLogs: TEdit;
     Ftp1LocDir: TEdit;
     Ftp1Path: TEdit;
     Ftp1SrcName: TEdit;
@@ -164,17 +187,22 @@ type
     FtpCopyAllDir: TCheckBox;
     FtpDelDone: TCheckBox;
     FtpDelOldTar: TCheckBox;
+    FtpEmptyDirs: TCheckBox;
     FtpHost: TComboBox;
+    FtpIgnorePath: TEdit;
+    FtpIgnoreUtf8: TCheckBox;
     FtpKeepAlive: TEdit;
     FtpLocDir: TEdit;
+    FtpMultiFileRepl: TComboBox;
+    FtpNoCrc: TCheckBox;
     FtpNoFeatCmd: TCheckBox;
+    FtpNoHost: TCheckBox;
     FtpNoMd5: TCheckBox;
     FtpNoTmpFile: TCheckBox;
-    FtpNoZlib: TCheckBox;
     FtpNoUtf8: TCheckBox;
-    ftpNoHost: TCheckBox;
-    ftpIgnoreUtf8: TCheckBox;
+    FtpNoZlib: TCheckBox;
     FtpOneDelDone: TCheckBox;
+    FtpOneFileRepl: TComboBox;
     FtpPassive: TCheckBox;
     FtpPassword: TEdit;
     FtpPath: TEdit;
@@ -184,28 +212,22 @@ type
     FtpSrcFile: TEdit;
     FtpSubdirs: TCheckBox;
     FtpUsername: TEdit;
+    HttpBandWidth: TEdit;
+    HttpFileRepl: TComboBox;
+    HttpSrcDir: TMemo;
     HttpSrcFile: TComboBox;
     HttpTarDir: TEdit;
     NetLogon: TEdit;
     NetPassword: TEdit;
+    ReportChain: TCheckBox;
+    RevokeCheck: TCheckBox;
     ShowDiagsHigh: TCheckBox;
     ShowDiagsLow: TCheckBox;
     ShowDiagsSSL: TCheckBox;
-    FtpNoCrc: TCheckBox;
-    CopySubdirs: TCheckBox;
-    CopyEmptyDirs: TCheckBox;
-    FtpEmptyDirs: TCheckBox;
-    HttpSrcDir: TMemo;
-    HttpBandWidth: TEdit;
-    FtpIgnorePath: TEdit;
-    CopyWow64Disable: TCheckBox;
-    CopyIgnorePath: TEdit;
+    ShowDiagsUtf8: TCheckBox;
     ShowXProgesss: TCheckBox;
-    RevokeCheck: TCheckBox;
-    VerifyCertMode: TRadioGroup;
-    ReportChain: TCheckBox;
     SslSecurity: TComboBox;
-    DirLogs: TEdit;
+    VerifyCertMode: TRadioGroup;
     XferSockFamily: TRadioGroup;
 
 // non-saved
@@ -273,14 +295,10 @@ type
     lbl1: TLabel;
     Label29: TLabel;
     TimerUpdates: TTimer;
-    Label31: TLabel;
-    CopyFileRepl: TComboBox;
     Label30: TLabel;
-    FtpMultiFileRepl: TComboBox;
+    Label31: TLabel;
     Label32: TLabel;
-    FtpOneFileRepl: TComboBox;
     Label33: TLabel;
-    HttpFileRepl: TComboBox;
     procedure doCopyListClick(Sender: TObject);
     procedure CopyFiles(Sender: TObject);
     procedure doAbortClick(Sender: TObject);
@@ -301,20 +319,20 @@ type
     procedure TimerUpdatesTimer(Sender: TObject);
   private
     { Private declarations }
-    procedure AddLogText (S: string) ;
-    procedure AddLogDelim (S: string) ;
+    procedure AddLogText (S: Unicodestring) ;
+    procedure AddLogDelim (S: Unicodestring) ;
     function SetFTPGen: boolean ;
     procedure SetFtpButtons (value: boolean) ;
-    procedure onCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: string ;
-                                                      var Cancel: boolean) ;
-    procedure onProgressEvent (Sender: TObject ; CopyProgress: TIcsCopyProgress ;
+    procedure onCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: UnicodeString ;
+                                                  var Cancel: boolean) ;
+    procedure onProgressEvent (Sender: TObject ; CopyProgress: TIcsCopyProgressW ;
                                                   var Cancel: boolean) ;
     procedure IcsLogEvent (Sender: TObject; LogOption: TLogOption;
                               const Msg : String) ;
     procedure GetSettings ;
     procedure PutSettings ;
     function SetFTPThreadGen: integer ;
-    procedure onThreadEvent (LogLevel: TIcsCopyLogLevel ; const Id, Info: String ;
+    procedure onThreadEventW (LogLevel: TIcsCopyLogLevel ; const Id, Info: UnicodeString ;
                                                           var Cancel: boolean) ;
     procedure OnThreadTerminate (Sender: TObject) ;
     procedure OpenLogFile;
@@ -325,23 +343,25 @@ type
 const
     MaxThreads = 20 ;
 var
-    Form1: TForm1;
-    HttpMultiClient: TIcsHttpMulti ;
-    FtpMultiClient: TIcsFtpMulti ;
-    FileCopyClient: TIcsFileCopy ;
+    FormXferDemo: TFormXferDemo;
+    HttpMultiClient: TIcsHttpMultiW ;
+    FtpMultiClient: TIcsFtpMultiW ;
+    FileCopyClient: TIcsFileCopyW ;
     IcsLog: TIcsLogger ;
     AbortFlag: boolean ;
     IniFileName: string ;
-    FtpMultiThreads: array [0..MaxThreads] of TIcsFtpMultiThread ;
+    CurrentLogText: TCurrentMemo;
+    CurrentLogDelim: TCurrentMemo;
+    IcsFtpThreads: array [0..MaxThreads] of TIcsFtpMultiThreadW ;
     CurThreads, NextThread: integer ;
-    BuffDiags: string ;
+    BuffDiags: UnicodeString ;
     FIcsBuffLogStream: TIcsBuffLogStream;
 
 implementation
 
 {$R *.dfm}
 
-procedure TForm1.GetSettings ;
+procedure TFormXferDemo.GetSettings ;
 var
     IniFile: TIcsIniFile ;
     section: string ;
@@ -411,7 +431,7 @@ begin
   if ReadString (section, 'ShowDiagsHigh_Checked', 'False') = 'True' then ShowDiagsHigh.Checked := true else ShowDiagsHigh.Checked := false ;
   if ReadString (section, 'ShowDiagsLow_Checked', 'False') = 'True' then ShowDiagsLow.Checked := true else ShowDiagsLow.Checked := false ;
   if ReadString (section, 'ShowDiagsSSL_Checked', 'False') = 'True' then ShowDiagsSSL.Checked := true else ShowDiagsSSL.Checked := false ;
-//  if ReadString (section, 'ShowDiagsUtf8_Checked', 'False') = 'True' then ShowDiagsUtf8.Checked := true else ShowDiagsUtf8.Checked := false ;
+  if ReadString (section, 'ShowDiagsUtf8_Checked', 'False') = 'True' then ShowDiagsUtf8.Checked := true else ShowDiagsUtf8.Checked := false ;
   if ReadString (section, 'ShowXProgesss_Checked', 'False') = 'True' then ShowXProgesss.Checked := true else ShowXProgesss.Checked := false ;
   SslSecurity.ItemIndex := ReadInteger (section, 'SslSecurity_ItemIndex', 0) ;
   VerifyCertMode.ItemIndex := ReadInteger (section, 'VerifyCertMode_ItemIndex', 0) ;
@@ -424,7 +444,7 @@ begin
    if FtpServerType.ItemIndex < 0 then FtpServerType.ItemIndex := 0;
 end ;
 
-procedure TForm1.PutSettings ;
+procedure TFormXferDemo.PutSettings ;
 var
     IniFile: TIcsIniFile ;
     section, temp: string ;
@@ -493,7 +513,7 @@ begin
   if ShowDiagsHigh.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'ShowDiagsHigh_Checked', temp) ;
   if ShowDiagsLow.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'ShowDiagsLow_Checked', temp) ;
   if ShowDiagsSSL.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'ShowDiagsSSL_Checked', temp) ;
-//  if ShowDiagsUtf8.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'ShowDiagsUtf8_Checked', temp) ;
+  if ShowDiagsUtf8.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'ShowDiagsUtf8_Checked', temp) ;
   if ShowXProgesss.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'ShowXProgesss_Checked', temp) ;
   WriteInteger (section, 'SslSecurity_ItemIndex', SslSecurity.ItemIndex) ;
   WriteInteger (section, 'VerifyCertMode_ItemIndex', VerifyCertMode.ItemIndex) ;
@@ -508,7 +528,7 @@ end ;
 
 { this event is used to open the log file, note log ls written as UTF8 codepage }
 
-procedure TForm1.OpenLogFile;
+procedure TFormXferDemo.OpenLogFile;
 var
     FName: String;
 begin
@@ -517,7 +537,7 @@ begin
                                               'ics-xfertst-"yyyy-mm-dd".log"';
     if NOT Assigned(FIcsBuffLogStream) then
         FIcsBuffLogStream := TIcsBuffLogStream.Create(self, FName,
-                                     Form1.Caption + IcsCRLF, FileCPUtf8)
+                                     FormXferDemo.Caption + IcsCRLF, FileCPUtf8)
     else begin
         if FName = FIcsBuffLogStream.NameMask then Exit; // skip no change
         if FIcsBuffLogStream.LogSize > 0 then
@@ -527,10 +547,11 @@ begin
     AddLogText(IcsCRLF + 'Opened log file: ' + FIcsBuffLogStream.FullName);
 end;
 
-procedure TForm1.AddLogText (S: string) ;
+procedure TFormXferDemo.AddLogText (S: Unicodestring) ;
 begin
     if Application.Terminated then exit ;
-    S := FormatDateTime (ISOLongTimeMask, Now) + IcsSpace + S ;
+    if Length(S) < 200 then
+        S := FormatDateTime (ISOLongTimeMask, Now) + IcsSpace + S ;
     BuffDiags := BuffDiags + S + IcsCRLF ;
 
   { write log file }
@@ -539,15 +560,17 @@ begin
         if NOT Assigned(FIcsBuffLogStream) then Exit; // sanity check
         FIcsBuffLogStream.WriteLine(S);
     except
+        CurrentLogDelim.Lines.Add ('Exception Writing Log') ;
     end;
+//    CurrentLogText.Lines.Add (S) ;   // general unformatted comments about xfers
 end ;
 
-procedure TForm1.AddLogDelim (S: string) ;
+procedure TFormXferDemo.AddLogDelim (S: Unicodestring) ;
 begin
-    LogDelim.Lines.Add (S) ;   // delimited formatted xfer information
+    CurrentLogDelim.Lines.Add (S) ;   // delimited formatted xfer information
 end ;
 
-procedure TForm1.TimerUpdatesTimer(Sender: TObject);
+procedure TFormXferDemo.TimerUpdatesTimer(Sender: TObject);
 var
     displen: integer ;
 begin
@@ -556,7 +579,7 @@ begin
     begin
         try
             SetLength (BuffDiags, displen - 2) ;  // remove CRLF
-            LogText.Lines.Add (BuffDiags) ;
+            CurrentLogText.Lines.Add (BuffDiags) ;
             SendMessage(LogText.Handle, WM_VSCROLL, SB_BOTTOM, 0);
         except
             LabelProgress.Caption := 'Error writing to diag log' ;
@@ -565,19 +588,20 @@ begin
     end;
 end;
 
-procedure TForm1.doAbortClick(Sender: TObject);
+procedure TFormXferDemo.doAbortClick(Sender: TObject);
 begin
     AbortFlag := true ;
 end;
 
-procedure TForm1.doExitClick(Sender: TObject);
+procedure TFormXferDemo.doExitClick(Sender: TObject);
 begin
     AbortFlag := true ;
     Close ;
 end;
 
-procedure TForm1.FormCreate(Sender: TObject);
+procedure TFormXferDemo.FormCreate(Sender: TObject);
 var
+    S: string ;
     I: TFtpType ;
     Level: TSslCliSecurity;
 begin
@@ -588,10 +612,11 @@ begin
                  FtpServerType.Items.Add (FtpTypeStrings [I]) ;
     FtpServerType.ItemIndex := 0;
     IniFileName := GetIcsIniFileName;
+
     {$IFDEF UNICODE}
-    LabelSslState.Caption := 'SSL Enabled, Unicode GUI' ;
+    S := 'SSL Enabled, Unicode GUI' ;
     {$ELSE}
-    LabelSslState.Caption := 'SSL Enabled, ASCII GUI' ;
+    S := 'SSL Enabled, ASCII GUI' ;
     {$ENDIF}
 //    GSSLEAY_DLL_IgnoreNew := true ; // !!! TEMP TESTING
     GSSLEAY_DLL_IgnoreOld := true ;    // Nov 2016 use latest OpenSSL
@@ -601,28 +626,56 @@ begin
     SslSecurity.Items.Clear;  // June 2018 update SSL client security levels
     for Level := Low(TSslCliSecurity) to High(TSslCliSecurity) do
          SslSecurity.Items.Add (SslCliSecurityNames[Level]);
-    GetSettings ; // June 2018 after SslSecurity load
-    if IsWin64 then   // 17 Aug 2011
-        LabelSslState.Caption := LabelSslState.Caption + ', Win64'
-    else
-        LabelSslState.Caption := LabelSslState.Caption + ', Win32' ;
+
+    GetSettings ;  // June 2018 after SslSecurity load
+
+{$IFDEF USE_TNT}
+    LogText.Visible := false ;
+    CurrentLogText := TTntMemo.Create(self);
+    CurrentLogText.ParentFont  := LogText.ParentFont ;
+    CurrentLogText.Parent      := LogText.Parent ;
+    CurrentLogText.Align       := LogText.Align ;
+    CurrentLogText.ScrollBars  := LogText.ScrollBars ;
+    CurrentLogText.WordWrap    := LogText.WordWrap ;
+    CurrentLogText.Font        := LogText.Font ;
+    CurrentLogText.Left        := LogText.Left ;
+    CurrentLogText.Top         := LogText.Top ;
+    CurrentLogText.Width       := LogText.Width ;
+    CurrentLogText.Height      := LogText.Height ;
+    LogDelim.Visible := false ;
+    CurrentLogDelim := TTntMemo.Create(self);
+    CurrentLogDelim.ParentFont  := LogDelim.ParentFont ;
+    CurrentLogDelim.Parent      := LogDelim.Parent ;
+    CurrentLogDelim.Align       := LogDelim.Align ;
+    CurrentLogDelim.ScrollBars  := LogDelim.ScrollBars ;
+    CurrentLogDelim.WordWrap    := LogDelim.WordWrap ;
+    CurrentLogDelim.Font        := LogDelim.Font ;
+    CurrentLogDelim.Left        := LogDelim.Left ;
+    CurrentLogDelim.Top         := LogDelim.Top ;
+    CurrentLogDelim.Width       := LogDelim.Width ;
+    CurrentLogDelim.Height      := LogDelim.Height ;
+    S := S + IcsCRLF + 'Unicode Display' ;
+{$ELSE}
+    CurrentLogText := LogText ;
+    CurrentLogDelim := LogDelim ;
+{$ENDIF}
+    LabelSslState.Caption := S ;
     AddLogText ('INI File: ' + IniFileName) ;
 end;
 
-procedure TForm1.FormDestroy(Sender: TObject);
+procedure TFormXferDemo.FormDestroy(Sender: TObject);
 begin
     PutSettings ;
-    FreeAndNil(FIcsBuffLogStream);
     IcsLog.Free ;
 end;
 
-procedure TForm1.IcsLogEvent (Sender: TObject; LogOption: TLogOption;
+procedure TFormXferDemo.IcsLogEvent (Sender: TObject; LogOption: TLogOption;
                                        const Msg : String) ;
 begin
     AddLogText (Msg) ;
 end ;
 
-procedure TForm1.onCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: String ;
+procedure TFormXferDemo.onCopyEvent (LogLevel: TIcsCopyLogLevel ; Info: UnicodeString ;
                                                   var Cancel: boolean) ;
 begin
     if (LogLevel = LogLevelInfo) or (LogLevel = LogLevelFile) then
@@ -644,7 +697,7 @@ begin
     if AbortFlag then Cancel := true ;
 end ;
 
-procedure TForm1.onProgressEvent (Sender: TObject ; CopyProgress: TIcsCopyProgress ;
+procedure TFormXferDemo.onProgressEvent (Sender: TObject ; CopyProgress: TIcsCopyProgressW ;
                                                   var Cancel: boolean) ;
 var
     S: string ;
@@ -672,7 +725,7 @@ begin
             end ;
             if (TotProcBytes > 0) then
             begin
-                S := S  + IcsCRLF + 'Totals: Copying '  + IcsIntToCStr (TotDoneNr) + ' of ' + IcsIntToCStr (TotProcFiles) +
+                S := S  + IcsCRLF + 'Totals: Copying '  + IcsInttoCStr (TotDoneNr) + ' of ' + IcsInttoCStr (TotProcFiles) +
                          ', Total Size ' + InttoKByte (TotProcBytes) + ', Done ' + IntToStr (SessDonePercent) + '%' ;
                 if (SessEstimateTicks > 0) then S := S +
                     ', time left ' + IcsSecsToStr ((SessEstimateTicks - SessDoneTicks) div 1000) +
@@ -688,12 +741,12 @@ begin
     end;
 end ;
 
-procedure TForm1.doCopyListClick(Sender: TObject);
+procedure TFormXferDemo.doCopyListClick(Sender: TObject);
 begin
     OpenLogFile;
     AddLogText (DateToStr (Now)) ;
     AbortFlag := false ;
-    FileCopyClient := TIcsFileCopy.Create (self) ;
+    FileCopyClient := TIcsFileCopyW.Create (self) ;
     doCopyFiles.Enabled := false ;
     doCopyCheck.Enabled := false ;
     doCopyList.Enabled := false ;
@@ -712,7 +765,7 @@ begin
     end ;
 end;
 
-procedure TForm1.CopyFiles(Sender: TObject);
+procedure TFormXferDemo.CopyFiles(Sender: TObject);
 var
     taskres: TIcsTaskResult ;
     checkflag: boolean ;
@@ -720,7 +773,7 @@ begin
     OpenLogFile;
     AddLogText (DateToStr (Now)) ;
     AbortFlag := false ;
-    FileCopyClient := TIcsFileCopy.Create (self) ;
+    FileCopyClient := TIcsFileCopyW.Create (self) ;
     doCopyFiles.Enabled := false ;
     doCopyCheck.Enabled := false ;
     doCopyList.Enabled := false ;
@@ -754,7 +807,7 @@ begin
                 Repl := TIcsFileCopyRepl (CopyFileRepl.ItemIndex);   { V8.60 }
                 ReplRO := true ;    // true, replace read only files
                 Safe := false ;     // true, copy file with TMP extension, rename when done
-                LocalHost := String (OverbyteIcsWSocket.LocalHostName) ;
+                LocalHost := OverbyteIcsWSocket.LocalHostName ;
                 ProgressEvent := Nil ;
                 CopyEvent := Nil ;
                 if ShowXProgesss.Checked then    // 22 May 2013
@@ -788,7 +841,7 @@ begin
     end ;
 end;
 
-procedure TForm1.DeleteFiles(Sender: TObject);
+procedure TFormXferDemo.DeleteFiles(Sender: TObject);
 var
     taskres: TIcsTaskResult ;
     checkflag: boolean ;
@@ -796,7 +849,7 @@ begin
     OpenLogFile;
     AddLogText (DateToStr (Now)) ;
     AbortFlag := false ;
-    FileCopyClient := TIcsFileCopy.Create (self) ;
+    FileCopyClient := TIcsFileCopyW.Create (self) ;
     doDeleteFiles.Enabled := false ;
     doDeleteCheck.Enabled := false ;
     doCopyAbort.Enabled := true ;
@@ -836,13 +889,11 @@ begin
     end ;
 end;
 
-procedure TForm1.HttpDownload(Sender: TObject);
+procedure TFormXferDemo.HttpDownload(Sender: TObject);
 var
     taskres: TIcsTaskResult ;
     checkflag: boolean ;
     bandwidth: integer ;
-//const
-//    ReplaceList: array[0..2] of TIcsFileCopyRepl = (FCReplNever, FCReplAlways, FCReplNewer) ;
 begin
     OpenLogFile;
     AddLogText (DateToStr (Now)) ;
@@ -850,7 +901,7 @@ begin
     doHttpDownCheck.Enabled := false ;
     doHttpDownFiles.Enabled := false ;
     doHttpAbort.Enabled := true ;
-    HttpMultiClient := TIcsHttpMulti.Create (self) ;
+    HttpMultiClient := TIcsHttpMultiW.Create (self) ;
     try
         try
             checkflag := false ;
@@ -864,11 +915,10 @@ begin
                 KeepPath := false ;           // if true, use HTTP path for subdirs
                 KeepHost := false ;           // if true, use HTTP host for subdir
                 ParseHTML := true ;           // if true, parse HTML page for links to files
-                SocketErrs := wsErrFriendly;        // Nov 2016
                 MaxAttempts := 3 ;  // logon attempts
+                SocketErrs := wsErrFriendly;        // Nov 2016
                 Repl := TIcsFileCopyRepl (HttpFileRepl.ItemIndex);   { V8.60 }
                 ReplRO := true ;              // replace read only files
-  //              Timeout := 60 ;               // command timeout
                 LogFiles := true ;            // log each file downloaded
                 LogProt := ShowDiagsHigh.Checked ;// log HTTP protocol
                 LogLDir := false ;            // log destination directory
@@ -890,12 +940,13 @@ begin
                 if ShowDiagsSSL.Checked then
                     IcsLog.LogOptions := IcsLog.LogOptions + [loSslDump] ;
 {$ENDIF}
+                SslSessCache := false ;  // 27 Nov 2005
                 HttpSslVerMethod := THttpSslVerifyMethod (VerifyCertMode.ItemIndex);  // 20 Apr 2015
                 SslRevocation := RevokeCheck.Checked ;    // 20 Apr 2015
                 SslReportChain := ReportChain.Checked ;   // 20 Apr 2015
                 SslCliSecurity := TSslCliSecurity(SslSecurity.ItemIndex);  // June 2018
-                SslSessCache := true ;  // 27 Nov 2005
                 CopyEvent := onCopyEvent ;
+//              onBeforeHeaderSend := onHttpBeforeHeaderSendEvent ; // 11 July 2012 testing bad headers
            //   ProxyPort :=  ;
            //   Proxy :=  ;
              { following properties only available if VCLZip available
@@ -922,7 +973,7 @@ begin
     end ;
 end;
 
-function TForm1.SetFTPGen: boolean ;
+function TFormXferDemo.SetFTPGen: boolean ;
 var
     bandwidth: integer ;
 begin
@@ -939,7 +990,8 @@ begin
     try
         with FtpMultiClient do
         begin
-            LocalHost := String (OverbyteIcsWSocket.LocalHostName) ;
+            Utf8DiagFlag := ShowDiagsUtf8.Checked ;  // 13 Nov 2008
+            LocalHost := OverbyteIcsWSocket.LocalHostName ;
             HostName1 := FtpHost.Text ;
             HostName2 := '' ;
             SocketFamily := TSocketFamily (XferSockFamily.ItemIndex) ;  // Mar 2019
@@ -948,10 +1000,11 @@ begin
             FtpType := TFtpType (FtpServerType.ItemIndex) ;
             Port := FtpPort.Text ;
             AttemptDelay := 5 ;
-            MaxAttempts := 3 ;  // logon attempts
+            MaxAttempts := 2 ;  // logon attempts
             FailRepeat := 3 ;   // retries for failed xfers
             DataSocketSndBufSize := 32768; // 8 Aug 2011 increase speed
             DataSocketRcvBufSize := 32768; // 8 Aug 2011 increase speed
+            SocketErrs := wsErrFriendly;        // Nov 2016
             KeepAliveSecs := atoi (FtpKeepAlive.Text) ;  // 10 July 2006
        // ConnectionType: ftpDirect, ftpProxy, ftpSocks4, ftpSocks4A, ftpSocks5
             ConnectionType := ftpDirect ;
@@ -962,7 +1015,6 @@ begin
             ProxyServer := '' ;
             SocksUsercode := '' ;
             SocksPassword := '' ;
-            SocketErrs := wsErrFriendly;        // Nov 2016
             if ConnectionType = ftpProxy then
             begin
                 ProxyPort := FtpPort.Text ;
@@ -1007,10 +1059,10 @@ begin
                 MagFtpOpts := MagFtpOpts + [magftpNoFeat]
             else
                 MagFtpOpts := MagFtpOpts - [magftpNoFeat] ;
-          { if FtpNoMd5Crc.Checked then // 5 Jan 2008
+         {   if FtpNoMd5Crc.Checked then // 5 Jan 2008
                 MagFtpOpts := MagFtpOpts + [magftpNoMd5Crc]
             else
-                MagFtpOpts := MagFtpOpts - [magftpNoMd5Crc] ;  }
+                MagFtpOpts := MagFtpOpts - [magftpNoMd5Crc] ;   }
             if FtpNoZlib.Checked then // 5 Jan 2008
                 MagFtpOpts := MagFtpOpts + [magftpNoZlib]
             else
@@ -1041,7 +1093,7 @@ begin
             else
                 MagFtpOpts := MagFtpOpts - [magftpNoCrc] ;
         //  MagFtpOpts := MagFtpOpts + [magftpNoCrc] ;
-        //  MagFtpOpts := MagFtpOpts + [magftpNoMd5] ;
+        //    MagFtpOpts := MagFtpOpts + [magftpNoMd5] ;
 
             ZlibNoCompExt := '.zip;.rar;.7z;.cab;.lzh;.gz;.avi;.wmv;.mpg;.mp3;.jpg;.png;'; // 2 Dec 2007
             ZlibMaxSize := 500000000 ;   // 9 Dec 2007 500 megs
@@ -1069,6 +1121,7 @@ begin
             FtpSslRevocation := RevokeCheck.Checked ;    // 20 Apr 2015
             FtpSslReportChain := ReportChain.Checked ;   // 20 Apr 2015
             FtpSslCliSecurity := TSslCliSecurity(SslSecurity.ItemIndex);  // June 2018
+
         { following properties only available if VCLZip available
             Zipped := false ;
             ZipDownDel := false ;
@@ -1086,17 +1139,17 @@ begin
     end ;
 end;
 
-procedure TForm1.onThreadEvent (LogLevel: TIcsCopyLogLevel ; const Id, Info: String ;
-                                                          var Cancel: boolean) ;
+procedure TFormXferDemo.onThreadEventW (LogLevel: TIcsCopyLogLevel ; const Id, Info: UnicodeString ;
+                                                                  var Cancel: boolean) ;
 begin
     onCopyEvent (LogLevel, Id + ': ' + Info, Cancel) ;
 end ;
 
-procedure TForm1.OnThreadTerminate (Sender: TObject) ;
+procedure TFormXferDemo.OnThreadTerminate (Sender: TObject) ;
 var
-    MagFtpThread: TIcsFtpMultiThread ;
+    MagFtpThread: TIcsFtpMultiThreadW ;
 begin
-    MagFtpThread := (Sender as TIcsFtpMultiThread) ;
+    MagFtpThread := (Sender as TIcsFtpMultiThreadW) ;
     AddLogText ('Terminated FTP: ' + MagFtpThread.ID) ;
     dec (CurThreads) ;
     if CurThreads <= 0 then doFtpAbort.Enabled := false ;
@@ -1110,7 +1163,7 @@ begin
     end;
 end;
 
-function TForm1.SetFTPThreadGen: integer ;
+function TFormXferDemo.SetFTPThreadGen: integer ;
 var
     bandwidth: integer ;
 begin
@@ -1127,21 +1180,22 @@ begin
     end ;
     try
         if CurThreads >= MaxThreads then exit ;
-        FtpMultiThreads [NextThread] := TIcsFtpMultiThread.CreateThread ;
+        IcsFtpThreads [NextThread] := TIcsFtpMultiThreadW.CreateThread ;
         result := NextThread ;
         inc (CurThreads) ;
         inc (NextThread) ;
         if NextThread >= MaxThreads then NextThread := 0 ;  // assume earlier threads have been freed
-        with FtpMultiThreads [result] do
+        with IcsFtpThreads [result] do
         begin
-            FThreadEvent := onThreadEvent ;
+            FThreadEvent := onThreadEventW ;
             OnTerminate := OnThreadTerminate ;
             FreeOnTerminate := true ;
             Tag := result ;
             ID := 'ThreadNr=' + IntToStr (result) ;
       //      LogmaskName := '"' + TestingDir + 'logs\' + ID + '-"yyyymmdd".log"' ;
+            Utf8DiagFlag := ShowDiagsUtf8.Checked ;  // 13 Nov 2008
             NoProgress := true ;  // stop progress log events
-            LocalHost := String (OverbyteIcsWSocket.LocalHostName) ;
+            LocalHost := OverbyteIcsWSocket.LocalHostName ;
             HostName1 := FtpHost.Text ;
             HostName2 := '' ;
             SocketFamily := TSocketFamily (XferSockFamily.ItemIndex) ;  // Mar 2019
@@ -1264,7 +1318,8 @@ begin
     end ;
 end;
 
-procedure TForm1.SetFtpButtons (value: boolean) ;
+
+procedure TFormXferDemo.SetFtpButtons (value: boolean) ;
 begin
     doFtpDownCheck.Enabled := value ;
     doFtpDownFiles.Enabled := value ;
@@ -1276,14 +1331,14 @@ begin
     doFtpAbort1.Enabled := NOT value ;
 end ;
 
-procedure TForm1.doFtpListClick(Sender: TObject);
+procedure TFormXferDemo.doFtpListClick(Sender: TObject);
 var
-    dirlisting: String ;
+    dirlisting: UnicodeString ;
     taskres: TIcsTaskResult ;
 begin
     AbortFlag := false ;
     SetFtpButtons (false) ;
-    FtpMultiClient := TIcsFtpMulti.Create (self) ;
+    FtpMultiClient := TIcsFtpMultiW.Create (self) ;
     try
         if SetFTPGen then exit ;
         try
@@ -1295,7 +1350,7 @@ begin
                 EmptyDirs := FtpEmptyDirs.Checked ; // true copy empty directories
                 taskres := DispFtpDir (dirlisting) ;  // main FTP function
                 AddLogText ('Task Result: ' + IcsGetTaskResName (taskres)) ;
-                AddLogText (dirlisting) ;
+                AddLogText (IcsCRLF + dirlisting) ;
             end ;
         except
             AddLogText ('FTP Error - ' + IcsGetExceptMess (ExceptObject)) ;
@@ -1307,7 +1362,7 @@ begin
     end ;
 end;
 
-procedure TForm1.doFtpListThreadClick(Sender: TObject);
+procedure TFormXferDemo.doFtpListThreadClick(Sender: TObject);
 var
     threadnr: integer ;
 begin
@@ -1315,18 +1370,14 @@ begin
     try
         threadnr := SetFTPThreadGen ;
         if threadnr < 0 then exit ;
-        with FtpMultiThreads [threadnr] do
+        with IcsFtpThreads [threadnr] do
         begin
             BulkMode := BulkModeDownload ;
             SrcDir := FtpPath.Text ;
             SubDirs := FtpSubdirs.Checked ;
             EmptyDirs := FtpEmptyDirs.Checked ; // true copy empty directories
             FtpThreadOpt := ftpthdList ;
-          {$IFDEF COMPILER14_UP}
-              Start;
-          {$ELSE}
-              Resume;
-          {$ENDIF}
+            Resume;   // thread starts
             AddLogText ('Created FTP: ' + ID) ;
         end ;
     except
@@ -1334,14 +1385,14 @@ begin
     end ;
 end;
 
-procedure TForm1.FtpDownload(Sender: TObject);
+procedure TFormXferDemo.FtpDownload(Sender: TObject);
 var
     checkflag: boolean ;
     taskres: TIcsTaskResult ;
 begin
     AbortFlag := false ;
     SetFtpButtons (false) ;
-    FtpMultiClient := TIcsFtpMulti.Create (self) ;
+    FtpMultiClient := TIcsFtpMultiW.Create (self) ;
     try
         if SetFTPGen then exit ;
         try
@@ -1386,14 +1437,14 @@ begin
 end;
 
 
-procedure TForm1.FtpUpload(Sender: TObject);
+procedure TFormXferDemo.FtpUpload(Sender: TObject);
 var
     checkflag: boolean ;
     taskres: TIcsTaskResult ;
 begin
     AbortFlag := false ;
     SetFtpButtons (false) ;
-    FtpMultiClient := TIcsFtpMulti.Create (self) ;
+    FtpMultiClient := TIcsFtpMultiW.Create (self) ;
     try
         if SetFTPGen then exit ;
         try
@@ -1437,14 +1488,14 @@ begin
     end ;
 end;
 
-procedure TForm1.doFtpDown1Click(Sender: TObject);
+procedure TFormXferDemo.doFtpDown1Click(Sender: TObject);
 var
     taskres: TIcsTaskResult ;
     Replace: TIcsFileCopyRepl ;
 begin
     AbortFlag := false ;
     SetFtpButtons (false) ;
-    FtpMultiClient := TIcsFtpMulti.Create (self) ;
+    FtpMultiClient := TIcsFtpMultiW.Create (self) ;
     try
         if SetFTPGen then exit ;
         try
@@ -1452,7 +1503,7 @@ begin
             begin
                 SrcDir := '/' ;
                 BulkMode := BulkModeDownload ;
-            //  DelFile := FtpDelDone.Checked ;    pending TIcsFtpMulti fix
+            //  DelFile := FtpDelDone.Checked ;    pending TMagFtp fix
                 Replace := TIcsFileCopyRepl (FtpOneFileRepl.ItemIndex);   { V8.60 }
                 taskres := FtpLogon ;
                 if taskres = TaskResOKNew then
@@ -1474,14 +1525,14 @@ begin
     end ;
 end;
 
-procedure TForm1.doFtpUp1Click(Sender: TObject);
+procedure TFormXferDemo.doFtpUp1Click(Sender: TObject);
 var
     taskres: TIcsTaskResult ;
     Replace: TIcsFileCopyRepl ;
 begin
     AbortFlag := false ;
     SetFtpButtons (false) ;
-    FtpMultiClient := TIcsFtpMulti.Create (self) ;
+    FtpMultiClient := TIcsFtpMultiW.Create (self) ;
     try
         if SetFTPGen then exit ;
         try
@@ -1489,7 +1540,7 @@ begin
             begin
                 TarDir := '/' ;
                 BulkMode := BulkModeUpload ;
-            //  DelFile := FtpDelDone.Checked ;    pending TIcsFtpMulti fix
+            //  DelFile := FtpDelDone.Checked ;    pending TMagFtp fix
                 Replace := TIcsFileCopyRepl (FtpOneFileRepl.ItemIndex);   { V8.60 }
                 taskres := FtpLogon ;
                 if taskres = TaskResOKNew then
@@ -1511,7 +1562,7 @@ begin
     end ;
 end;
 
-procedure TForm1.doFtpDownThreadClick(Sender: TObject);
+procedure TFormXferDemo.doFtpDownThreadClick(Sender: TObject);
 var
     threadnr: integer ;
 begin
@@ -1519,7 +1570,7 @@ begin
     try
         threadnr := SetFTPThreadGen ;
         if threadnr < 0 then exit ;
-        with FtpMultiThreads [threadnr] do
+        with IcsFtpThreads [threadnr] do
         begin
             BulkMode := BulkModeDownload ;
             SrcDir := FtpPath.Text ;
@@ -1544,11 +1595,7 @@ begin
             Safe := false ;     // true, copy file with TMP extension, rename when done
             IgnoreFileExt := 'tmp;ftp' ;
             FtpThreadOpt := ftpthdDownFiles ;
-          {$IFDEF COMPILER14_UP}
-            Start;
-          {$ELSE}
-            Resume;
-          {$ENDIF}
+            Resume;   // thread starts
             AddLogText ('Created FTP: ' + ID) ;
         end ;
     except
@@ -1556,7 +1603,7 @@ begin
     end ;
 end;
 
-procedure TForm1.doFtpUpThreadClick(Sender: TObject);
+procedure TFormXferDemo.doFtpUpThreadClick(Sender: TObject);
 var
     threadnr: integer ;
 begin
@@ -1564,7 +1611,7 @@ begin
     try
         threadnr := SetFTPThreadGen ;
         if threadnr < 0 then exit ;
-        with FtpMultiThreads [threadnr] do
+        with IcsFtpThreads [threadnr] do
         begin
             BulkMode := BulkModeUpload ;
             SrcDir := FtpLocDir.Text ;
@@ -1589,11 +1636,7 @@ begin
             IgnoreFileExt := 'tmp' ;
             TimeStamp := false ; // update local file time stamp to match remote
             FtpThreadOpt := ftpthdUpFiles ;
-          {$IFDEF COMPILER14_UP}
-            Start;
-          {$ELSE}
-            Resume;
-          {$ENDIF}
+            Resume;   // thread starts
             AddLogText ('Created FTP: ' + ID) ;
         end ;
     except
@@ -1601,10 +1644,10 @@ begin
     end ;
 end;
 
-procedure TForm1.doClearClick(Sender: TObject);
+procedure TFormXferDemo.doClearClick(Sender: TObject);
 begin
-    LogDelim.Lines.Clear ;
-    LogText.Lines.Clear ;
+    CurrentLogDelim.Lines.Clear ;
+    CurrentLogText.Lines.Clear ;
 end;
 
 end.

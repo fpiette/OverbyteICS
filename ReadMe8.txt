@@ -3,8 +3,8 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.3 Rio
 (Aka FPIETTE's Components)
 
 
-Revised: March 8, 2019
-Release: V8.59
+Revised: March 21, 2019
+Release: V8.60
 http://www.overbyte.be/
 http://wiki.overbyte.be/
 http://www.overbyte.eu/
@@ -37,7 +37,7 @@ Legal issues:
               <francois.piette@overbyte.be>
 
               SSL implementation includes code written by Arno Garrels,
-              Berlin, Germany, contact: <arno.garrels@gmx.de>
+              Berlin, Germany
 
               ICS is freeware.
 
@@ -140,11 +140,11 @@ ICS V8 is the current development release which is held in a public Version Cont
 repository that is zipped each night for easy download.  The download page above
 also includes the OpenSSL binaries needed to support SSL. ICS V8 supports Delphi
 64-bit and Mac OS-X projects.  Note that C++ Builder versions supported are up to
-XE3, 10.2 Tokyo and 10.3 Rio.  There are currently no packages for XE4 to 10.1. but
-older or newer ones will often work.
+XE3, 10.2 Tokyo and 10.3 Rio.  There are currently no C++ packages for XE4 to 10.1.
+but older or newer ones will often work.
 
-The latest version is V8.59, which will be reported by the CopyRight constant in
-OverbyteIcsWSocket.pas and the integer WSocketVersion as 859.
+The latest version is V8.60, which will be reported by the CopyRight constant in
+OverbyteIcsWSocket.pas and the integer WSocketVersion as 860.
 
 ICS V9 is in early development and is planned to support Android and Linux Server. There
 are no current plans for ICS for iOS.
@@ -614,20 +614,28 @@ properly add all of the available components in this collection:
 > OverbyteIcsDnsQuery          DNS lookup component - useful for getting MX records
 > OverbyteIcsDprUpdFix.pas     IDE plugin for Delphi 2009 and 2010 to update old projects
 > OverbyteIcsEmulVT.pas        ANSI terminal emulation in a control
+> OverbyteIcsFileCopy.pas      Indexing, copying and deleting of multiple file directories
+> OverbyteIcsFileCopyW.pas     Same as OverbyteIcsFileCopy but Unicode for Delphi 2007.
 > OverbyteIcsFingCli.pas       FINGER client protocol - Find information about user
 > OverbyteIcsFtpCli.pas        FTP client protocol - file transfer
+> OverbyteIcsFtpCliW.pas       Same as OverbyteIcsFtpCli but Unicode for Delphi 2007.
+> OverbyteIcsFtpMulti.pas      FTP client that indexes, uploads or downloads multiple files
+> OverbyteIcsFtpMultiW.pas     Same as OverbyteIcsFtpMulti but Unicode for Delphi 2007.
 > OverbyteIcsFtpSrv.pas        FTP server protocol - file transfer
 > OverbyteIcsFtpSrvT.pas       FTP server protocol - helpers
+> OverbyteIcsFtpSrvW.pas       Same as OverbyteIcsFtpSrvW but Unicode for Delphi 2007.
 > OverbyteIcsHttpAppServer.pas HTTP server protocol - used to build advanced web servers
+> OverbyteIcsHttpMulti.pas     HTTP client that downloads multiple files from a list or by parsing web links
+> OverbyteIcsHttpMultiW.pas    Same as OverbyteIcsHttpMulti but Unicode for Delphi 2007.
 > OverbyteIcsHttpProt.pas      HTTP client protocol - used by the web
 > OverbyteIcsHttpSrv.pas       HTTP server protocol - used to build web servers
+> OverbyteIcsIpStreamLog.pas   IP stream logging, using TCP Client or Server, UDP Client or Server, sends simple text
 > OverbyteIcsLogger.pas        A component to log information
+> OverbyteIcsMailQueue.pas     SMTP Mail Queue with extended retries, multiple SMTP servers or MX look up
 > OverbyteIcsMimeDec.pas       MIME component - decode file attach, use with POP3
 > OverbyteIcsMultiProgressBar.pas A segmented progress bar
-> OverbyteIcsMultipartFtpDownloader.pas
-        FTP client protocol - download one file using simultaneous connections to speedup download
-> OverbyteIcsMultipartHttpDownloader.pas
-        HTTP client protocol - download one file using simultaneous connections to speedup download
+> OverbyteIcsMultipartFtpDownloader.pas   FTP client protocol - download one file using simultaneous connections to speedup download
+> OverbyteIcsMultipartHttpDownloader.pas  HTTP client protocol - download one file using simultaneous connections to speedup download
 > OverbyteIcsNntpCli.pas       NNTP client protocol - send and receive newsgroups messages
 > OverbyteIcsPing.pas          ICMP echo protocol - ping a host
 > OverbyteIcsPop3Prot.pas      POP3 client protocol - get mail from mail server
@@ -637,6 +645,7 @@ properly add all of the available components in this collection:
 > OverbyteIcsSmtpSrv.pas       SMTP server protocol - receive mail from client
 > OverbyteIcsSnmpCli.pas       SNMP client protocol - network management
 > OverbyteIcsSnmpMsgs.pas      SNMP client protocol - message helper
+> OverbyteIcsSntp.pas          Time server and client supporting SNTP time protocol
 > OverbyteIcsSslHttpRest.pas   HTTPS REST functions, descends from THttpCli, includes OAuth2 authentication.
 > OverbyteIcsSysLogClient.pas  Syslog Client Protocol - receive syslog messages
 > OverbyteIcsSysLogDefs.pas    Syslog Protocol - helpers
@@ -649,17 +658,21 @@ properly add all of the available components in this collection:
 > OverbyteIcsWSocketE.pas      Register procedure and property editor for TWSocket
 > OverbyteIcsWSocketS.pas      Winsock component for building servers
 > OverbyteIcsWSocketTS.pas     Winsock component for building multithreaded servers
+> OverbyteIcsWhoisCli.pas      Whois protocol client
 
 - The following list support and utilities units:
 > OverbyteIcsAsn1Utils.pas     ASN1 utilities (for TSnmpClient component)
 > OverbyteIcsAvlTrees.pas      Implements a fast cache-like data storage
+> OverbyteIcsBlacklist.pas     Blacklisting of malicious IP addresses, logging functions
+> OverbyteIcsCRC.pas           32 bit CRC computation
 > OverbyteIcsCharsetUtils.pas  MIME-charset functions
 > OverbyteIcsCookies.pas       Client Cookie Handling
-> OverbyteIcsCRC.pas           32 bit CRC computation
 > OverbyteIcsCsc.pas           character set routines
 > OverbyteIcsDES.pas           Implementation of the Data Encryption Standard (DES)
 > OverbyteIcsDigestAuth.pas    HTTP Digest Access Authentication
 > OverbyteIcsFormDataDecoder.pas Decode a MIME data block as generated by a HTML form
+> OverbyteIcsFtpSrvWT.pas      Same as OverbyteIcsFtpSrvWT but Unicode for Delphi 2007.
+> OverbyteIcsHtmlPars.pas      HTML web page parser
 > OverbyteIcsHttpCCodZLib.pas  Supports GZIP coding for HttpContCod
 > OverbyteIcsHttpContCod.pas   HTTP Content Coding support, uses extra units
 > OverbyteIcsIcmp.pas          ICMP protocol support, used by the PING component
@@ -667,14 +680,14 @@ properly add all of the available components in this collection:
 > OverbyteIcsLIBEAY.pas        Delphi encapsulation for libeay32.dll and libcrypto-1_1.dll (OpenSSL)
 > OverbyteIcsMD4.pas           Implementation of the MD4 Message-Digest Algorithm
 > OverbyteIcsMD5.pas           Implementation of the MD5 Message-Digest Algorithm
-> OverbyteIcsMimeUtil.pas      Support routines for MIME standard
 > OverbyteIcsMLang.pas         A few header translations from MS mlang.h
+> OverbyteIcsMimeUtil.pas      Support routines for MIME standard
 > OverbyteIcsNtlmMsgs.pas      Client NTLM authentification messages used within HTTP protocol
 > OverbyteIcsNtlmSsp.pas       Server NTLM authentification of user credentials using Windows SSPI
 > OverbyteIcsOneTimePw.pas     One Time Password support functions, used by FTP
 > OverbyteIcsSHA1.pas          Implementation of US Secure Hash Algorithm 1 (SHA1)
-> OverbyteIcsSocketUtils.pas   Cross platform socket utilities for ICS
 > OverbyteIcsSSLEAY.pas        Delphi encapsulation for ssleay32.dll and libssl-1_1.dll (OpenSSL)
+> OverbyteIcsSocketUtils.pas   Cross platform socket utilities for ICS
 > OverbyteIcsSslJose.pas       JOSE - Json Object Signing and Encryption
 > OverbyteIcsSslSessionCache.pas  A very fast external SSL-session-cache component
 > OverbyteIcsSslThrdLock.pas   Implementation of OpenSsl thread locking (Windows);
@@ -694,8 +707,8 @@ properly add all of the available components in this collection:
 > OverbyteIcsWinsock.pas       Some Winsock initialisations
 > OverbyteIcsWndControl.pas    A class that encapsulates a windows message queue and a message map
 > OverbyteIcsZLibDll.pas       Zlib support, interface to external zlib.dll functions
-> OverbyteIcsZlibHigh.pas      Zlib support, high level interface for compression and decompression
 > OverbyteIcsZLibObj.pas       Zlib support, interface to zlib linked C OBJ functions
+> OverbyteIcsZlibHigh.pas      Zlib support, high level interface for compression and decompression
 
 
 FireMonkey Cross Platform Support:
@@ -712,27 +725,43 @@ project options. Instead in your existing ICS FireMonkey app. add either "Ics.Fm
 the unit scope names in project options or apply the following changes in the uses clause,
 rename:
 
-OverbyteIcsWndControl              -> Ics.Fmx.OverbyteIcsWndControl
-OverbyteIcsWSocket                 -> Ics.Fmx.OverbyteIcsWSocket
-OverbyteIcsFtpCli                  -> Ics.Fmx.OverbyteIcsFtpCli
-OverbyteIcsFtpSrv                  -> Ics.Fmx.OverbyteIcsFtpSrv
-OverbyteIcsHttpProt                -> Ics.Fmx.OverbyteIcsHttpProt
-OverbyteIcsWSocketS                -> Ics.Fmx.OverbyteIcsWSocketS
-OverbyteIcsSmtpProt                -> Ics.Fmx.OverbyteIcsSmtpProt.pas
-OverbyteIcsPop3Prot                -> Ics.Fmx.OverbyteIcsPop3Prot.pas
-OverbyteIcsNntpCli                 -> Ics.Fmx.OverbyteIcsNntpCli.pas
-OverbyteIcsPing                    -> Ics.Fmx.OverbyteIcsPing.pas
+OverbyteIcsBlacklist               -> Ics.Fmx.OverbyteIcsBlacklist.pas
+OverbyteIcsCharsetComboBox         -> Ics.Fmx.OverbyteIcsCharsetComboBox.pas
 OverbyteIcsDnsQuery                -> Ics.Fmx.OverbyteIcsDnsQuery.pas
+OverbyteIcsFileCopy                -> Ics.Fmx.OverbyteIcsFileCopy.pas
 OverbyteIcsFingCli                 -> Ics.Fmx.OverbyteIcsFingCli.pas
-OverbyteIcsSslSessionCache         -> Ics.Fmx.OverbyteIcsSslSessionCache.pas
-OverbyteIcsSslThrdLock             -> Ics.Fmx.OverbyteIcsSslThrdLock.pas
+OverbyteIcsFtpCli                  -> Ics.Fmx.OverbyteIcsFtpCli
+OverbyteIcsFtpMulti                -> Ics.Fmx.OverbyteIcsFtpMulti.pas
+OverbyteIcsFtpSrv                  -> Ics.Fmx.OverbyteIcsFtpSrv
+OverbyteIcsHttpAppServer           -> Ics.Fmx.OverbyteIcsHttpAppServer.pas
+OverbyteIcsHttpMulti               -> Ics.Fmx.OverbyteIcsHttpMulti.pas
+OverbyteIcsHttpProt                -> Ics.Fmx.OverbyteIcsHttpProt
 OverbyteIcsHttpSrv                 -> Ics.Fmx.OverbyteIcsHttpSrv.pas
-OverbyteIcsSocketUtils             -> Ics.Fmx.OverbyteIcsSocketUtils.pas
+OverbyteIcsIcmp                    -> Ics.Fmx.OverbyteIcsIcmp.pas
+OverbyteIcsIpStreamLog             -> Ics.Fmx.OverbyteIcsIpStreamLog.pas
+OverbyteIcsMailQueue               -> Ics.Fmx.OverbyteIcsMailQueue.pas
+OverbyteIcsMsSslUtils              -> Ics.Fmx.OverbyteIcsMsSslUtils.pas
 OverbyteIcsMultipartFtpDownloader  -> Ics.Fmx.OverbyteIcsMultipartFtpDownloader.pas
 OverbyteIcsMultipartHttpDownloader -> Ics.Fmx.OverbyteIcsMultipartHttpDownloader.pas
-OverbyteIcsHttpAppServer           -> Ics.Fmx.OverbyteIcsHttpAppServer.pas
+OverbyteIcsNntpCli                 -> Ics.Fmx.OverbyteIcsNntpCli.pas
+OverbyteIcsPing                    -> Ics.Fmx.OverbyteIcsPing.pas
+OverbyteIcsPop3Prot                -> Ics.Fmx.OverbyteIcsPop3Prot.pas
+OverbyteIcsProxy                   -> Ics.Fmx.OverbyteIcsProxy.pas
+OverbyteIcsSmtpProt                -> Ics.Fmx.OverbyteIcsSmtpProt.pas
+OverbyteIcsSntp                    -> Ics.Fmx.OverbyteIcsSntp.pas
+OverbyteIcsSocketUtils             -> Ics.Fmx.OverbyteIcsSocketUtils.pas
+OverbyteIcsSslHttpRest             -> Ics.Fmx.OverbyteIcsSslHttpRest.pas
+OverbyteIcsSslJose                 -> Ics.Fmx.OverbyteIcsSslJose.pas
+OverbyteIcsSslSessionCache         -> Ics.Fmx.OverbyteIcsSslSessionCache.pas
+OverbyteIcsSslThrdLock             -> Ics.Fmx.OverbyteIcsSslThrdLock.pas
+OverbyteIcsSslX509Certs            -> Ics.Fmx.OverbyteIcsSslX509Certs.pas
+OverbyteIcsSslX509Utils            -> Ics.Fmx.OverbyteIcsSslX509Utils.pas
 OverbyteIcsThreadTimer             -> Ics.Fmx.OverbyteIcsThreadTimer.pas
-OverbyteIcsCharsetComboBox         -> Ics.Fmx.OverbyteIcsCharsetComboBox.pas
+OverbyteIcsWSocket                 -> Ics.Fmx.OverbyteIcsWSocket
+OverbyteIcsWSocketS                -> Ics.Fmx.OverbyteIcsWSocketS
+OverbyteIcsWhoisCli                -> Ics.Fmx.OverbyteIcsWhoisCli.pas
+OverbyteIcsWndControl              -> Ics.Fmx.OverbyteIcsWndControl
+
 { Demo units }
 OverbyteIcsWebAppServerCounter     -> Ics.Fmx.OverbyteIcsWebAppServerCounter
 OverbyteIcsWebAppServerMailer      -> Ics.Fmx.OverbyteIcsWebAppServerMailer
@@ -777,6 +806,7 @@ Delphi Win32/Win64 FTP sample applications
 > OverbyteIcsFtpServ.dpr        General purpose FTP server, uses TSocketServer - ACTIVE!!
 > OverbyteIcsFtpThrd.dpr        Demo of multithreaded FTP client, see also FTPASY
 > OverbyteIcsFtpTst.dpr         Basic graphical FTP client - ACTIVE!!
+Note better samples under sslinternet with SSL enabled.
 
 Delphi Win32/Win64 SMTP, POP3, NNTP sample applications
 -------------------------------------------------------
@@ -791,6 +821,7 @@ Delphi Win32/Win64 SMTP, POP3, NNTP sample applications
 > OverbyteIcsMimeDemo.dpr       Example of EMail decoding (attached files are extracted) - ACTIVE!!
 > OverbyteIcsNewsReader.dpr     Example of TNntpCli component (Send/receive newsgroups) - ACTIVE!!
 > OverbyteIcsSmtpServer.dpr     Internet EMail server using SMTP protocol - ACTIVE!!
+Note better samples under sslinternet with SSL enabled.
 
 Delphi Win32/Win64 Miscellaneous applications
 ---------------------------------------------
@@ -823,6 +854,8 @@ Delphi Win32/Win64 DNS, Ping, SNMP, Syslog sample applications
 > OverbyteIcsSnmpCliTst.dpr     Demo for SNMP (simple network management protocol) component
 > OverbyteIcsSysLogClientDemo.dpr Demo for SysLog client component
 > OverbyteIcsSysLogServerDemo.dpr Demo for SysLog server component
+> OverbyteIcsTimeTst.dpr       Test SNTP time protocol as client or server
+> OverbyteIcsWhoisCliTst.dpr   Test Whois protocol, looks up servers automatically
 
 Delphi FireMonkey cross-platform samples (Delphi XE2 and later)
 ---------------------------------------------------------------
@@ -877,13 +910,18 @@ All these samples may be built for Mac OS X (and Windows).
 > OverbyteIcsTnSrv.dpr            Basic TCP server with client forms, event-driven
 > OverbyteIcsUdpLstn.dpr          UDP listen demo
 > OverbyteIcsUdpSend.dpr          UDP send demo
+Note better samples under sslinternet with SSL enabled.
 
 Delphi Win32/Win64 SSL-enabled sample applications
 --------------------------------------------------
 .\Samples\delphi\sslinternet\SslDemos.bpg - Project group
 > OverbyteIcsHttpRestTst.dpr      ICS HTTPS REST and OAuth functions demo - ACTIVE!!.
 > OverbyteIcsHttpsTst.dpr         Example of TSslHttpCli component (GET) - ACTIVE!!
+> OverbyteIcsIpStmLogTst.dpr      Test IP stream logging, sending streams as client or server using SSL - ACTIVE!!
 > OverbyteIcsJoseTst.dpr          ICS SSL Json Object Signing (Jose) Demos - ACTIVE!!
+> OverbyteIcsMailQuTst.dpr        Simple mailing list tool using Mail Queue using SSL - ACTIVE!!
+> OverbyteIcsMsVerify.dpr         Verify and show an OpenSSL certificate or certificate chain using
+                                     class TMsCertChainEngine which uses MS crypto API - ACTIVE!!
 > OverbyteIcsPemTool.dpr          ICS Pem Certificate Tool - Create and import certificates in many formats  - ACTIVE!!
 > OverbyteIcsProxySslServer.dpr   ICS Proxy server  - ACTIVE!!
 > OverbyteIcsSimpleSslCli.dpr     Example of simple SSL client using TSslWSocket - ACTIVE!!
@@ -894,13 +932,15 @@ Delphi Win32/Win64 SSL-enabled sample applications
 > OverbyteIcsSslMailSnd.dpr       Example of EMail sending using SMTP and SSL - ACTIVE!!
 > OverbyteIcsSslMultiWebServ.dpr  Advanced multi host web server demo  - ACTIVE!!
 > OverbyteIcsSslNewsRdr.dpr       Example of TSslNntpCli component (Send/receive newsgroups) - ACTIVE!!
-> OverbyteIcsMsVerify.dpr         Verify and show an OpenSSL certificate or certificate chain using
-                                     class TMsCertChainEngine which uses MS crypto API - ACTIVE!!
-> OverbyteIcsSslSniSrv.dpr        Test of Server Name Indication (SNI) in server mode - ACTIVE!!
-> OverbyteIcsSslWebServ.dpr       Demo of HTTPS server, uses TSocketServer - ACTIVE!!
-> OverbyteIcsSslWebAppServer.dpr  Advanced HTTPS server demo, uses WebServ, adds sessions - ACTIVE!!
 > OverbyteIcsSslSmtpServer.dpr    Internet EMail server using SMTP protocol and SSL - ACTIVE!!
+> OverbyteIcsSslSniSrv.dpr        Test of Server Name Indication (SNI) in server mode - ACTIVE!!
+> OverbyteIcsSslWebAppServer.dpr  Advanced HTTPS server demo, uses WebServ, adds sessions - ACTIVE!!
+> OverbyteIcsSslWebServ.dpr       Demo of HTTPS server, uses TSocketServer - ACTIVE!!
 > OverbyteIcsX509CertsTst.dpr     Automatically download SSL X509 certificates from Let's Encrypt and CertCentre AG - ACTIVE!!
+> OverbyteIcsXferTst.dpr          File transfer testing, file copying, FTP up and download, HTTP download, with SSL - ACTIVE!!
+
+Note following sample is not in the project group since it only builds with Delphi 2007.
+> OverbyteIcsXferTstW.dpr         Same as OverbyteIcsXferTst but Unicode for Delphi 2007 - ACTIVE!!
 
 Delphi Win32/Win64 HTTP sample applications (the SSL versions are preferred!)
 -------------------------------------------
@@ -919,6 +959,7 @@ Delphi Win32/Win64 HTTP sample applications (the SSL versions are preferred!)
 > OverbyteIcsIsapi.dll            Example of FTP client component within an ISAPI extension
 > OverbyteIcsWebAppServer.dpr     Advanced HTTP server demo, uses WebServ, adds sessions - ACTIVE!!
 > OverbyteIcsWebServ.dpr          Demo of HTTP server, uses TSocketServer - ACTIVE!!
+Note better samples under sslinternet with SSL enabled.
 
 
 Sample Notes

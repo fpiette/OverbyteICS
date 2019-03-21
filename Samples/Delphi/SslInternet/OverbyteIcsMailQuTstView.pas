@@ -5,6 +5,9 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ExtCtrls, ComCtrls, StdCtrls,
+{$IF CompilerVersion > 23}
+  System.UITypes,
+{$IFEND}
   OverbyteIcsMailQueue, OverbyteIcsIniFiles, OverbyteIcsUtils;
 
 type

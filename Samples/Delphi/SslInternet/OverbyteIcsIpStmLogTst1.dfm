@@ -3,7 +3,7 @@ object IpLogForm: TIpLogForm
   Top = 84
   Caption = 
     'ICS IP Streaming Log Component Demo -  http://www.overbyte.be - ' +
-    'V8.60 - 22nd February 2019'
+    'V8.60 - 20th March 2019'
   ClientHeight = 746
   ClientWidth = 1004
   Color = clBtnFace
@@ -422,8 +422,6 @@ object IpLogForm: TIpLogForm
     end
     object SheetSettings: TTabSheet
       Caption = 'Settings'
-      ExplicitLeft = 8
-      ExplicitTop = 29
       object BoxClient: TGroupBox
         Left = 5
         Top = 5
@@ -441,8 +439,8 @@ object IpLogForm: TIpLogForm
         object Label2: TLabel
           Left = 5
           Top = 20
-          Width = 78
-          Height = 44
+          Width = 77
+          Height = 28
           Caption = 'Remote Host or IP Address'
           WordWrap = True
         end
@@ -588,24 +586,24 @@ object IpLogForm: TIpLogForm
         object Label16: TLabel
           Left = 285
           Top = 20
-          Width = 120
-          Height = 17
+          Width = 108
+          Height = 14
           Caption = 'Server Timeout (secs)'
           WordWrap = True
         end
         object Label8: TLabel
           Left = 5
           Top = 45
-          Width = 76
-          Height = 33
+          Width = 75
+          Height = 28
           Caption = 'Server Host Name (optional)'
           WordWrap = True
         end
         object Label12: TLabel
           Left = 40
           Top = 229
-          Width = 116
-          Height = 53
+          Width = 100
+          Height = 28
           Caption = 'Pending Order X509 Certificate dialogs'
           WordWrap = True
         end
@@ -675,7 +673,7 @@ object IpLogForm: TIpLogForm
           Left = 216
           Top = 205
           Width = 255
-          Height = 154
+          Height = 181
           Caption = 'Server SSL Security Level'
           ItemIndex = 3
           Items.Strings = (
@@ -686,7 +684,9 @@ object IpLogForm: TIpLogForm
             'Intermediate Ciphers FS, TLS1.1 or Later'
             'High 112 bit Ciphers, TLS1.2 or Later'
             'High 128 bit Ciphers, TLS1.2 or Later'
-            'High 192 bit Ciphers, TLS1.2 or Later')
+            'High 192 bit Ciphers, TLS1.2 or Later'
+            'TLSv1.2 or Earlier'
+            'TLSv1.3 Only')
           TabOrder = 8
         end
         object ServerHost: TEdit
@@ -715,14 +715,14 @@ object IpLogForm: TIpLogForm
           Left = 5
           Top = 154
           Width = 68
-          Height = 32
+          Height = 28
           Caption = 'SSL Root Cert Authorities'
           WordWrap = True
         end
         object Label4: TLabel
           Left = 5
           Top = 48
-          Width = 62
+          Width = 58
           Height = 28
           Caption = 'Local Mode Port'
           WordWrap = True

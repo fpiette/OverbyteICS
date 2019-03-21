@@ -1,9 +1,9 @@
-object Form1: TForm1
+object FormXferDemo: TFormXferDemo
   Left = 196
   Top = 51
   Caption = 
-    'ICS Multi File Transfer Demo -  http://www.overbyte.be - V8.60 -' +
-    ' 18th March 2019'
+    'ICS Multi File Transfer Wide Demo -  http://www.overbyte.be - V8' +
+    '.60 - 18th March 2019'
   ClientHeight = 773
   ClientWidth = 908
   Color = clBtnFace
@@ -20,28 +20,28 @@ object Form1: TForm1
   object Label1: TLabel
     Left = 460
     Top = 2
-    Width = 418
+    Width = 426
     Height = 42
     Caption = 
       'The demonstration application is designed to show how the three ' +
-      'multi file rransfer components are used from code, there are num' +
-      'erous properties at are set in code, not through the GUI.  '
+      'Magenta File Transfer components are used from code, there are n' +
+      'umerous properties at are set in code, not through the GUI.  '
     WordWrap = True
   end
   object LabelProgress: TLabel
     Left = 10
     Top = 295
     Width = 890
-    Height = 46
+    Height = 45
     AutoSize = False
     Caption = 'Progress:'
     WordWrap = True
   end
   object LabelSslState: TLabel
-    Left = 660
-    Top = 203
-    Width = 116
-    Height = 37
+    Left = 650
+    Top = 254
+    Width = 137
+    Height = 35
     AutoSize = False
     Caption = 'LabelSslState'
     WordWrap = True
@@ -49,11 +49,12 @@ object Form1: TForm1
   object Label26: TLabel
     Left = 460
     Top = 203
-    Width = 185
-    Height = 28
+    Width = 265
+    Height = 42
     Caption = 
-      'This demo supports full Unicode when built with Delphi 2009 and ' +
-      'later.  '
+      'This Wide demo supports the full Unicode components for Delphi 7' +
+      ' and later, but the GUI is only Unicode when built with Delphi 2' +
+      '009 and later.  '
     WordWrap = True
   end
   object lbl1: TLabel
@@ -86,14 +87,14 @@ object Form1: TForm1
     TabOrder = 0
   end
   object PageControl1: TPageControl
-    Left = 5
-    Top = 5
+    Left = 8
+    Top = 8
     Width = 440
     Height = 281
-    ActivePage = TabSheet2
+    ActivePage = TabSheet3
     TabOrder = 2
     object TabSheet1: TTabSheet
-      Caption = 'TIcsFileCopy'
+      Caption = 'TIcsFileCopyW'
       object Label2: TLabel
         Left = 5
         Top = 0
@@ -103,7 +104,7 @@ object Form1: TForm1
       end
       object Label3: TLabel
         Left = 5
-        Top = 50
+        Top = 52
         Width = 82
         Height = 14
         Caption = 'Source File Mask'
@@ -118,12 +119,12 @@ object Form1: TForm1
       object Label19: TLabel
         Left = 5
         Top = 120
-        Width = 30
+        Width = 54
         Height = 14
-        Caption = 'Logon'
+        Caption = 'UNC Logon'
       end
       object Label20: TLabel
-        Left = 170
+        Left = 200
         Top = 118
         Width = 50
         Height = 14
@@ -153,8 +154,8 @@ object Form1: TForm1
         OnClick = CopyFiles
       end
       object doCopyList: TButton
-        Left = 30
-        Top = 160
+        Left = 31
+        Top = 159
         Width = 101
         Height = 25
         Caption = 'List Source Files'
@@ -164,7 +165,7 @@ object Form1: TForm1
       object CopySrcDir: TEdit
         Left = 5
         Top = 20
-        Width = 416
+        Width = 411
         Height = 22
         TabOrder = 0
         Text = 'c:\windows\system32'
@@ -187,9 +188,9 @@ object Form1: TForm1
         OnClick = CopyFiles
       end
       object CopyTarDir: TEdit
-        Left = 5
-        Top = 85
-        Width = 416
+        Left = 3
+        Top = 83
+        Width = 411
         Height = 22
         TabOrder = 3
         Text = 'c:\tempfiles'
@@ -223,14 +224,14 @@ object Form1: TForm1
         OnClick = DeleteFiles
       end
       object NetLogon: TEdit
-        Left = 45
+        Left = 75
         Top = 115
         Width = 111
         Height = 22
         TabOrder = 4
       end
       object NetPassword: TEdit
-        Left = 230
+        Left = 260
         Top = 115
         Width = 101
         Height = 22
@@ -255,14 +256,6 @@ object Form1: TForm1
         Caption = 'Copy Empty Directories'
         TabOrder = 14
       end
-      object CopyWow64Disable: TCheckBox
-        Left = 270
-        Top = 230
-        Width = 136
-        Height = 17
-        Caption = 'Disable Wow64 Redirect'
-        TabOrder = 15
-      end
       object CopyIgnorePath: TEdit
         Left = 242
         Top = 50
@@ -270,6 +263,14 @@ object Form1: TForm1
         Height = 22
         TabOrder = 2
         Text = 'c:\temp\'
+      end
+      object CopyWow64Disable: TCheckBox
+        Left = 270
+        Top = 230
+        Width = 136
+        Height = 17
+        Caption = 'Disable Wow64 Redirect'
+        TabOrder = 15
       end
       object CopyFileRepl: TComboBox
         Left = 270
@@ -287,7 +288,7 @@ object Form1: TForm1
       end
     end
     object TabSheet2: TTabSheet
-      Caption = 'TIcsFtpMulti'
+      Caption = 'TIcsFtpMultiW'
       ImageIndex = 1
       object Label9: TLabel
         Left = 5
@@ -304,8 +305,8 @@ object Form1: TForm1
         Caption = 'Logon'
       end
       object Label11: TLabel
-        Left = 170
-        Top = 38
+        Left = 212
+        Top = 40
         Width = 50
         Height = 14
         Caption = 'Password'
@@ -349,13 +350,13 @@ object Form1: TForm1
       object FtpUsername: TEdit
         Left = 45
         Top = 35
-        Width = 111
+        Width = 136
         Height = 22
         TabOrder = 1
         Text = 'anonymous'
       end
       object FtpPassword: TEdit
-        Left = 230
+        Left = 285
         Top = 35
         Width = 101
         Height = 22
@@ -375,7 +376,7 @@ object Form1: TForm1
       object FtpHost: TComboBox
         Left = 55
         Top = 5
-        Width = 276
+        Width = 301
         Height = 22
         ItemHeight = 14
         TabOrder = 0
@@ -434,48 +435,8 @@ object Form1: TForm1
         Top = 150
         Width = 46
         Height = 22
-        TabOrder = 9
-        Text = '0'
-      end
-      object FtpNoZlib: TCheckBox
-        Left = 5
-        Top = 175
-        Width = 126
-        Height = 17
-        Caption = 'No Mode Z Compress'
-        TabOrder = 10
-      end
-      object FtpNoTmpFile: TCheckBox
-        Left = 145
-        Top = 175
-        Width = 134
-        Height = 17
-        Caption = 'No TMP File for Xfers'
-        TabOrder = 11
-      end
-      object FtpNoUtf8: TCheckBox
-        Left = 285
-        Top = 174
-        Width = 100
-        Height = 17
-        Caption = 'Turn UTF8 Off'
-        TabOrder = 12
-      end
-      object ftpNoHost: TCheckBox
-        Left = 145
-        Top = 195
-        Width = 117
-        Height = 17
-        Caption = 'No HOST Command'
         TabOrder = 14
-      end
-      object ftpIgnoreUtf8: TCheckBox
-        Left = 285
-        Top = 195
-        Width = 100
-        Height = 17
-        Caption = 'Ignore UTF8 '
-        TabOrder = 15
+        Text = '0'
       end
       object FtpNoMd5: TCheckBox
         Left = 5
@@ -483,7 +444,47 @@ object Form1: TForm1
         Width = 126
         Height = 17
         Caption = 'No MD5 Check'
+        TabOrder = 10
+      end
+      object FtpNoZlib: TCheckBox
+        Left = 5
+        Top = 175
+        Width = 126
+        Height = 17
+        Caption = 'No Mode Z Compress'
+        TabOrder = 9
+      end
+      object FtpNoTmpFile: TCheckBox
+        Left = 145
+        Top = 175
+        Width = 134
+        Height = 17
+        Caption = 'No TMP File for Xfers'
+        TabOrder = 12
+      end
+      object FtpNoUtf8: TCheckBox
+        Left = 285
+        Top = 174
+        Width = 100
+        Height = 17
+        Caption = 'Turn UTF8 Off'
+        TabOrder = 15
+      end
+      object FtpNoHost: TCheckBox
+        Left = 145
+        Top = 195
+        Width = 117
+        Height = 17
+        Caption = 'No HOST Command'
         TabOrder = 13
+      end
+      object FtpIgnoreUtf8: TCheckBox
+        Left = 285
+        Top = 195
+        Width = 100
+        Height = 17
+        Caption = 'Ignore UTF8 '
+        TabOrder = 16
       end
       object FtpNoCrc: TCheckBox
         Left = 5
@@ -491,16 +492,12 @@ object Form1: TForm1
         Width = 126
         Height = 17
         Caption = 'No CRC Check'
-        TabOrder = 16
+        TabOrder = 11
       end
     end
     object TabSheet5: TTabSheet
       Caption = 'Multi FTP'
       ImageIndex = 4
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label8: TLabel
         Left = 5
         Top = 10
@@ -524,7 +521,7 @@ object Form1: TForm1
       end
       object Label28: TLabel
         Left = 143
-        Top = 52
+        Top = 50
         Width = 52
         Height = 28
         Caption = 'Ignore Directories'
@@ -564,25 +561,25 @@ object Form1: TForm1
       object doFtpDownCheck: TButton
         Left = 120
         Top = 155
-        Width = 101
+        Width = 114
         Height = 25
         Caption = 'Check Download'
         TabOrder = 11
         OnClick = FtpDownload
       end
       object doFtpDownFiles: TButton
-        Left = 120
+        Left = 121
         Top = 185
-        Width = 101
+        Width = 113
         Height = 25
         Caption = 'Download Files'
         TabOrder = 14
         OnClick = FtpDownload
       end
       object doFtpAbort: TButton
-        Left = 345
-        Top = 155
-        Width = 60
+        Left = 359
+        Top = 153
+        Width = 66
         Height = 25
         Caption = 'Abort'
         Enabled = False
@@ -590,8 +587,8 @@ object Form1: TForm1
         OnClick = doAbortClick
       end
       object doFtpUpCheck: TButton
-        Left = 230
-        Top = 155
+        Left = 245
+        Top = 154
         Width = 101
         Height = 25
         Caption = 'Check Upload'
@@ -599,7 +596,7 @@ object Form1: TForm1
         OnClick = FtpUpload
       end
       object doFtpUpFiles: TButton
-        Left = 230
+        Left = 245
         Top = 185
         Width = 101
         Height = 25
@@ -649,21 +646,12 @@ object Form1: TForm1
         TabOrder = 1
       end
       object FtpEmptyDirs: TCheckBox
-        Left = 150
+        Left = 143
         Top = 103
         Width = 136
         Height = 17
         Caption = 'Copy Empty Directories'
         TabOrder = 8
-      end
-      object doFtpUpThread: TButton
-        Left = 230
-        Top = 215
-        Width = 101
-        Height = 25
-        Caption = 'Upload (Thread)'
-        TabOrder = 18
-        OnClick = doFtpUpThreadClick
       end
       object doFtpListThread: TButton
         Left = 10
@@ -675,13 +663,22 @@ object Form1: TForm1
         OnClick = doFtpListThreadClick
       end
       object doFtpDownThread: TButton
-        Left = 120
-        Top = 215
-        Width = 101
+        Left = 122
+        Top = 214
+        Width = 112
         Height = 25
         Caption = 'Download  (Thread)'
         TabOrder = 17
         OnClick = doFtpDownThreadClick
+      end
+      object doFtpUpThread: TButton
+        Left = 245
+        Top = 216
+        Width = 101
+        Height = 25
+        Caption = 'Upload (Thread)'
+        TabOrder = 18
+        OnClick = doFtpUpThreadClick
       end
       object FtpIgnorePath: TEdit
         Left = 208
@@ -696,7 +693,7 @@ object Form1: TForm1
         Top = 83
         Width = 113
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 7
         Text = ' Never'
         Items.Strings = (
@@ -709,10 +706,6 @@ object Form1: TForm1
     object TabSheet4: TTabSheet
       Caption = 'Single FTP'
       ImageIndex = 3
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label15: TLabel
         Left = 5
         Top = 10
@@ -751,7 +744,7 @@ object Form1: TForm1
       object Ftp1Path: TEdit
         Left = 75
         Top = 5
-        Width = 346
+        Width = 341
         Height = 22
         TabOrder = 0
         Text = '/software'
@@ -765,9 +758,9 @@ object Form1: TForm1
         Text = 'dunman.zip'
       end
       object Ftp1LocDir: TEdit
-        Left = 3
+        Left = 5
         Top = 80
-        Width = 418
+        Width = 411
         Height = 22
         TabOrder = 2
         Text = 'c:\tempfiles'
@@ -778,7 +771,7 @@ object Form1: TForm1
         Width = 96
         Height = 25
         Caption = 'Single Download'
-        TabOrder = 4
+        TabOrder = 5
         OnClick = doFtpDown1Click
       end
       object doFtpUp1: TButton
@@ -792,19 +785,19 @@ object Form1: TForm1
       end
       object Ftp1UpFile: TEdit
         Left = 3
-        Top = 131
+        Top = 130
         Width = 413
         Height = 22
-        TabOrder = 5
+        TabOrder = 3
         Text = 'c:\tempfiles\dunman.zip'
       end
       object FtpOneDelDone: TCheckBox
         Left = 250
-        Top = 164
+        Top = 160
         Width = 136
         Height = 17
         Caption = 'Delete After Transfer'
-        TabOrder = 3
+        TabOrder = 4
         Visible = False
       end
       object doFtpAbort1: TButton
@@ -822,7 +815,7 @@ object Form1: TForm1
         Top = 160
         Width = 113
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 8
         Text = ' Never'
         Items.Strings = (
@@ -833,12 +826,8 @@ object Form1: TForm1
       end
     end
     object TabSheet3: TTabSheet
-      Caption = 'TIcsHttpMulti'
+      Caption = 'TIcsHttpMultiW'
       ImageIndex = 2
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label5: TLabel
         Left = 5
         Top = 0
@@ -854,15 +843,15 @@ object Form1: TForm1
         Caption = 'Source File Mask'
       end
       object Label7: TLabel
-        Left = 5
-        Top = 167
+        Left = 3
+        Top = 175
         Width = 77
         Height = 14
         Caption = 'Target Directory'
       end
       object Label14: TLabel
-        Left = 217
-        Top = 165
+        Left = 220
+        Top = 175
         Width = 133
         Height = 14
         Caption = 'Bandwidth Limit (KBits/sec)'
@@ -876,16 +865,16 @@ object Form1: TForm1
         Caption = 'File Replacement'
       end
       object HttpTarDir: TEdit
-        Left = 5
-        Top = 187
-        Width = 416
+        Left = 3
+        Top = 195
+        Width = 418
         Height = 22
-        TabOrder = 3
+        TabOrder = 2
         Text = 'c:\tempfiles'
       end
       object doHttpDownCheck: TButton
-        Left = 135
-        Top = 215
+        Left = 161
+        Top = 222
         Width = 101
         Height = 25
         Caption = 'Check Down Files'
@@ -893,8 +882,8 @@ object Form1: TForm1
         OnClick = HttpDownload
       end
       object doHttpDownFiles: TButton
-        Left = 3
-        Top = 215
+        Left = 29
+        Top = 222
         Width = 101
         Height = 25
         Caption = 'Download Files'
@@ -902,8 +891,8 @@ object Form1: TForm1
         OnClick = HttpDownload
       end
       object doHttpAbort: TButton
-        Left = 260
-        Top = 215
+        Left = 284
+        Top = 222
         Width = 101
         Height = 25
         Caption = 'Abort'
@@ -916,7 +905,7 @@ object Form1: TForm1
         Top = 140
         Width = 111
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 1
         Text = '*.zip'
         Items.Strings = (
@@ -924,6 +913,14 @@ object Form1: TForm1
           '*.zip'
           '*.htm'
           '*.*')
+      end
+      object HttpBandWidth: TEdit
+        Left = 364
+        Top = 170
+        Width = 46
+        Height = 22
+        TabOrder = 3
+        Text = '0'
       end
       object HttpSrcDir: TMemo
         Left = 5
@@ -936,20 +933,12 @@ object Form1: TForm1
         TabOrder = 0
         WordWrap = False
       end
-      object HttpBandWidth: TEdit
-        Left = 356
-        Top = 159
-        Width = 46
-        Height = 22
-        TabOrder = 2
-        Text = '0'
-      end
       object HttpFileRepl: TComboBox
         Left = 316
         Top = 140
         Width = 113
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 7
         Text = ' Never'
         Items.Strings = (
@@ -977,17 +966,17 @@ object Form1: TForm1
   end
   object ShowDiagsHigh: TCheckBox
     Left = 460
-    Top = 120
+    Top = 140
     Width = 231
     Height = 17
     Caption = 'Show High Level Diagnostic Information'
     Checked = True
     State = cbChecked
-    TabOrder = 7
+    TabOrder = 8
   end
   object doExit: TButton
-    Left = 474
-    Top = 255
+    Left = 465
+    Top = 264
     Width = 75
     Height = 25
     Caption = 'Exit'
@@ -996,28 +985,36 @@ object Form1: TForm1
   end
   object ShowDiagsLow: TCheckBox
     Left = 460
-    Top = 140
-    Width = 231
-    Height = 17
-    Caption = 'Show Low Level Diagnostic Information'
-    TabOrder = 8
-  end
-  object ShowDiagsSSL: TCheckBox
-    Left = 460
     Top = 160
     Width = 231
     Height = 17
-    Caption = 'Show SSL Dump Diagnostic Information'
+    Caption = 'Show Low Level Diagnostic Information'
     TabOrder = 9
   end
+  object ShowDiagsSSL: TCheckBox
+    Left = 460
+    Top = 180
+    Width = 231
+    Height = 17
+    Caption = 'Show SSL Dump Diagnostic Information'
+    TabOrder = 10
+  end
   object doClear: TButton
-    Left = 570
-    Top = 255
+    Left = 559
+    Top = 264
     Width = 75
     Height = 25
     Caption = 'Clear'
     TabOrder = 13
     OnClick = doClearClick
+  end
+  object ShowDiagsUtf8: TCheckBox
+    Left = 460
+    Top = 120
+    Width = 160
+    Height = 17
+    Caption = 'Show FTP UTF-8 Commands'
+    TabOrder = 7
   end
   object ShowXProgesss: TCheckBox
     Left = 460
@@ -1029,6 +1026,14 @@ object Form1: TForm1
     State = cbChecked
     TabOrder = 6
   end
+  object ReportChain: TCheckBox
+    Left = 460
+    Top = 80
+    Width = 141
+    Height = 17
+    Caption = 'Report SSL Certificates'
+    TabOrder = 3
+  end
   object RevokeCheck: TCheckBox
     Left = 605
     Top = 80
@@ -1038,7 +1043,7 @@ object Form1: TForm1
     TabOrder = 4
   end
   object VerifyCertMode: TRadioGroup
-    Left = 749
+    Left = 745
     Top = 80
     Width = 151
     Height = 68
@@ -1050,14 +1055,6 @@ object Form1: TForm1
       'Windows Cert Store')
     TabOrder = 5
   end
-  object ReportChain: TCheckBox
-    Left = 460
-    Top = 80
-    Width = 141
-    Height = 17
-    Caption = 'Report SSL Certificates'
-    TabOrder = 3
-  end
   object SslSecurity: TComboBox
     Left = 713
     Top = 165
@@ -1065,22 +1062,18 @@ object Form1: TForm1
     Height = 22
     Style = csDropDownList
     ItemHeight = 14
-    ItemIndex = 0
-    TabOrder = 10
-    Text = 'Ignore'
+    TabOrder = 11
     Items.Strings = (
       'Ignore'
       'None'
       'SSLv3 Only'
-      'TLSv1 Only'
-      'TLSv1.1 Only'
       'TLSv1.2 Only'
       'TLSv1.3 Only'
-      'TLSv1 or Better'
-      'TLSv1.1 or Better'
-      'TLSv1.2 or Better'
+      'TLSv1 or better'
+      'TLSv1.1 or better'
+      'TLSv1.2 or better'
       'Backward Ciphers'
-      'Intermediate Ciphers'
+      'Intermedate Ciphers'
       'High Ciphers, 2048 keys'
       'High Ciphers, 3072 keys'
       'High Ciphers, 7680 keys')
@@ -1105,7 +1098,7 @@ object Form1: TForm1
       'Prefer IPv6'
       'Only IPv4 '
       'Only IPv6')
-    TabOrder = 11
+    TabOrder = 15
   end
   object TimerUpdates: TTimer
     OnTimer = TimerUpdatesTimer

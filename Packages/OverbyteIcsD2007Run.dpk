@@ -45,6 +45,11 @@ package OverbyteIcsD2007Run;
 {$R '..\source\OverbyteIcsFileCopy.dcr'}
 {$R '..\source\OverbyteIcsHttpMulti.dcr'}
 {$R '..\source\OverbyteIcsFtpMulti.dcr'}
+{$R '..\source\OverbyteIcsFtpCliW.dcr'}
+{$R '..\source\OverbyteIcsFtpSrvW.dcr'}
+{$R '..\source\OverbyteIcsFileCopyW.dcr'}
+{$R '..\Source\OverbyteIcsFtpMultiW.dcr'}
+{$R '..\Source\OverbyteIcsHttpMultiW.dcr'}
 {$ALIGN 8}
 { ASSERTIONS ON}
 {$BOOLEVAL OFF}
@@ -79,7 +84,8 @@ requires
   xmlrtl,
   vclactnband,
   vclx,
-  inet;
+  inet,
+  VCLZipPack;
 
 contains
   OverbyteIcsTypes in '..\Source\OverbyteIcsTypes.pas',
@@ -175,6 +181,12 @@ contains
   OverbyteIcsFileCopy in '..\Source\OverbyteIcsFileCopy.pas',
   OverbyteIcsHttpMulti in '..\Source\OverbyteIcsHttpMulti.pas',
   OverbyteIcsFtpMulti in '..\Source\OverbyteIcsFtpMulti.pas',
-  OverbyteIcsHtmlPars in '..\Source\OverbyteIcsHtmlPars.pas';
+  OverbyteIcsHtmlPars in '..\Source\OverbyteIcsHtmlPars.pas',
+  OverByteIcsFtpSrvWT in '..\Source\OverByteIcsFtpSrvWT.pas',
+  OverbyteIcsFtpCliW in '..\Source\OverbyteIcsFtpCliW.pas',
+  OverbyteIcsFtpSrvW in '..\Source\OverbyteIcsFtpSrvW.pas',
+  OverbyteIcsFileCopyW in '..\Source\OverbyteIcsFileCopyW.pas',
+  OverbyteIcsFtpMultiW in '..\Source\OverbyteIcsFtpMultiW.pas',
+  OverbyteIcsHttpMultiW in '..\Source\OverbyteIcsHttpMultiW.pas';
 
 end.

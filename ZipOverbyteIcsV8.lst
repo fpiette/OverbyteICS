@@ -560,6 +560,18 @@ Source\OverbyteIcsHttpMulti.pas
 Source\OverbyteIcsHtmlPars.pas
 Source\Include\OverbyteVclZip.inc
 
+Source\OverbyteIcsFileCopyW.dcr
+Source\OverbyteIcsFileCopyW.pas
+Source\OverbyteIcsFtpMultiW.dcr
+Source\OverbyteIcsFtpMultiW.pas
+Source\OverbyteIcsHttpMultiW.dcr
+Source\OverbyteIcsHttpMultiW.pas
+Source\OverbyteIcsFtpCliW.dcr
+Source\OverbyteIcsFtpCliW.pas
+Source\OverbyteIcsFtpSrvW.dcr
+Source\OverbyteIcsFtpSrvW.pas
+Source\OverbyteIcsFtpSrvWT.pas
+
 Source\Include\Ics.InterlockedApi.inc
 Source\Include\OverbyteIcsDefs.inc
 Source\Include\OverbyteIcsDotNetSockImpl.inc
@@ -1663,11 +1675,13 @@ Samples\Delphi\OtherDemos\OverbyteIcsSysLogServerDemo1.pas
 
 Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst.dpr
 Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst.dof
+Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst.res
 Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst1.pas
 Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst1.dfm
 
 Samples\Delphi\OtherDemos\OverbyteIcsTimeTst.dpr
 Samples\Delphi\OtherDemos\OverbyteIcsTimeTst.dof
+Samples\Delphi\OtherDemos\OverbyteIcsTimeTst.res
 Samples\Delphi\OtherDemos\OverbyteIcsTimeTst1.pas
 Samples\Delphi\OtherDemos\OverbyteIcsTimeTst1.dfm
 
@@ -2107,6 +2121,7 @@ Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsMailQuTst.dpr
 Samples\Delphi\SslInternet\OverbyteIcsMailQuTst.dof
+Samples\Delphi\SslInternet\OverbyteIcsMailQuTst.res
 Samples\Delphi\SslInternet\OverbyteIcsMailQuTst1.pas
 Samples\Delphi\SslInternet\OverbyteIcsMailQuTst1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsMailQuTstDiag.pas
@@ -2116,13 +2131,21 @@ Samples\Delphi\SslInternet\OverbyteIcsMailQuTstView.dfm
 
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.dpr
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.dof
+Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.res
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst1.pas
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst1.dfm
 
 Samples\Delphi\SslInternet\OverbyteIcsXferTst.dpr
 Samples\Delphi\SslInternet\OverbyteIcsXferTst.dof
+Samples\Delphi\SslInternet\OverbyteIcsXferTst.res
 Samples\Delphi\SslInternet\OverbyteIcsXferTst1.pas
 Samples\Delphi\SslInternet\OverbyteIcsXferTst1.dfm
+
+Samples\Delphi\SslInternet\OverbyteIcsXferTstW.dpr
+Samples\Delphi\SslInternet\OverbyteIcsXferTstW.dof
+Samples\Delphi\SslInternet\OverbyteIcsXferTstW.res
+Samples\Delphi\SslInternet\OverbyteIcsXferTstW1.pas
+Samples\Delphi\SslInternet\OverbyteIcsXferTstW1.dfm
 
 Samples\Delphi\SslInternet\OverbyteIcsCommonVersion.res
 

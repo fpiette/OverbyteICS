@@ -246,10 +246,14 @@ object DemoForm: TDemoForm
     Top = 0
     Width = 581
     Height = 426
-    ActivePage = TabMessage
+    ActivePage = TabServers
     TabOrder = 3
     object TabMessage: TTabSheet
       Caption = 'Message'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label1: TLabel
         Left = 10
         Top = 5
@@ -378,7 +382,7 @@ object DemoForm: TDemoForm
         Width = 93
         Height = 22
         Style = csDropDownList
-        ItemHeight = 14
+        ItemHeight = 0
         ItemIndex = 4
         TabOrder = 4
         Text = 'Low'
@@ -432,10 +436,6 @@ object DemoForm: TDemoForm
     object TabServers: TTabSheet
       Caption = 'Mail Servers'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object SMTPServer1: TGroupBox
         Left = 10
         Top = 10
@@ -520,7 +520,7 @@ object DemoForm: TDemoForm
           Width = 171
           Height = 22
           Style = csDropDownList
-          ItemHeight = 0
+          ItemHeight = 14
           ItemIndex = 0
           TabOrder = 4
           Text = 'Not Secured'
@@ -562,7 +562,7 @@ object DemoForm: TDemoForm
           Width = 171
           Height = 22
           Style = csDropDownList
-          ItemHeight = 0
+          ItemHeight = 14
           TabOrder = 7
           OnChange = PrefChange
         end
@@ -677,7 +677,7 @@ object DemoForm: TDemoForm
           Width = 173
           Height = 22
           Style = csDropDownList
-          ItemHeight = 0
+          ItemHeight = 14
           ItemIndex = 0
           TabOrder = 4
           Text = 'Not Secured'
@@ -702,7 +702,7 @@ object DemoForm: TDemoForm
           Width = 173
           Height = 22
           Style = csDropDownList
-          ItemHeight = 0
+          ItemHeight = 14
           TabOrder = 7
           OnChange = PrefChange
         end
@@ -720,10 +720,6 @@ object DemoForm: TDemoForm
     object TabSettings: TTabSheet
       Caption = 'Mail Settings'
       ImageIndex = 2
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label8: TLabel
         Left = 10
         Top = 100

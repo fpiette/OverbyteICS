@@ -3,7 +3,7 @@ object TimeDemoForm: TTimeDemoForm
   Top = 122
   Caption = 
     'Simple Network Time Protocol Client and Server Demo - http://www' +
-    '.overbyte.eu/ - 21st February 2019'
+    '.overbyte.eu/ - 18th March 2019'
   ClientHeight = 517
   ClientWidth = 731
   Color = clBtnFace
@@ -44,9 +44,9 @@ object TimeDemoForm: TTimeDemoForm
   TextHeight = 13
   object DisplayMemo: TMemo
     Left = 0
-    Top = 131
+    Top = 151
     Width = 731
-    Height = 386
+    Height = 366
     Align = alClient
     Lines.Strings = (
       'DisplayMemo')
@@ -57,7 +57,7 @@ object TimeDemoForm: TTimeDemoForm
     Left = 0
     Top = 0
     Width = 731
-    Height = 131
+    Height = 151
     Align = alTop
     TabOrder = 0
     object doClose: TButton
@@ -74,7 +74,7 @@ object TimeDemoForm: TTimeDemoForm
       Left = 10
       Top = 5
       Width = 301
-      Height = 117
+      Height = 140
       Caption = 'Time Server'
       TabOrder = 1
       object Label1: TLabel
@@ -139,10 +139,10 @@ object TimeDemoForm: TTimeDemoForm
       end
     end
     object GroupBox2: TGroupBox
-      Left = 330
+      Left = 320
       Top = 5
-      Width = 291
-      Height = 120
+      Width = 301
+      Height = 140
       Caption = 'Time Client'
       TabOrder = 2
       object Label2: TLabel
@@ -153,8 +153,8 @@ object TimeDemoForm: TTimeDemoForm
         Caption = 'Time Server'
       end
       object LabelCorrection: TLabel
-        Left = 115
-        Top = 81
+        Left = 15
+        Top = 112
         Width = 95
         Height = 13
         Caption = 'Correction Needed?'
@@ -203,23 +203,38 @@ object TimeDemoForm: TTimeDemoForm
         TabOrder = 1
       end
       object doClientStart: TButton
-        Left = 115
-        Top = 45
-        Width = 66
+        Left = 110
+        Top = 42
+        Width = 74
         Height = 25
         Caption = 'Get Time'
         TabOrder = 2
         OnClick = doClientStartClick
       end
       object doCorrect: TButton
-        Left = 187
-        Top = 45
-        Width = 93
+        Left = 110
+        Top = 76
+        Width = 74
         Height = 25
-        Caption = 'Correct PC Time'
+        Caption = 'Correct Time'
         Enabled = False
         TabOrder = 3
         OnClick = doCorrectClick
+      end
+      object SockFamily: TRadioGroup
+        Left = 195
+        Top = 41
+        Width = 90
+        Height = 89
+        Caption = 'Socket Family'
+        ItemIndex = 0
+        Items.Strings = (
+          'Any'
+          'Prefer IPv4'
+          'Prefer IPv6'
+          'Only IPv4 '
+          'Only IPv6')
+        TabOrder = 4
       end
     end
     object doClientAbort: TButton

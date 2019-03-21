@@ -7,7 +7,7 @@ Description:  TIcsTimeServer and TIcsTimeClient, time server and client,
               Note current SNTP is RFC4330 but not looked at it.
               Note that full NTP is not supported.
 Creation:     Jan 2019
-Updated:      Feb 2019
+Updated:      Mar 2019
 Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -76,6 +76,7 @@ type
     doClientAbort: TButton;
     doCorrect: TButton;
     LabelCorrection: TLabel;
+    SockFamily: TRadioGroup;
     procedure doCloseClick(Sender: TObject);
     procedure IcsTimeClient1Time(Sender: TObject; DateTime: TDateTime);
     procedure IcsTimeServer1QueryDone(Sender: TObject; Error: Word);
@@ -137,7 +138,7 @@ end;
 
 procedure TTimeDemoForm.FormCreate(Sender: TObject);
 begin
-    ServerIP.Items.Assign(LocalIPList); 
+    ServerIP.Items.Assign(LocalIPList);
 end;
 
 procedure TTimeDemoForm.doClientAbortClick(Sender: TObject);
@@ -150,9 +151,9 @@ begin
     doCorrect.Enabled := False;
     LabelCorrection.Caption := 'Correction Needed?';
     IcsTimeClient1.ServerAddr := ClientTimeServer.Text;
+    IcsTimeClient1.SocketFamily := TSocketFamily(SockFamily.ItemIndex);
     IcsTimeClient1.TimeProtocol := TTimeProtocol(ClientProtocol.ItemIndex);
-    IcsTimeClient1.TimeoutSecs := 10;
-    IcsTimeClient1.SocketFamily := sfAnyIPv4; // prefer IPv4
+    IcsTimeClient1.TimeoutSecs := 5;
     DisplayMemo.Lines.Add ('Starting time request to: ' + IcsTimeClient1.ServerAddr);
     try
         if NOT IcsTimeClient1.GetTime then

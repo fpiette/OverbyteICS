@@ -1006,6 +1006,7 @@ begin
     X509Certs1.LogPkeys := LogPkeys.Checked;
     X509Certs1.DomWebSrvIP := DomWebSrvIP.Text;
     X509Certs1.AutoOrderComplete := AutoOrderComplete.Checked;
+    X509Certs1.SocketFamily := TSocketFamily(IpSocFamily.ItemIndex); { V8.60 }
 end;
 
 procedure TX509CertsForm.SetOAParams;

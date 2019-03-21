@@ -3,10 +3,10 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  IP Log Streaming Component - Test Application
 Creation:     Aug 2007
-Updated:      Jan 2019
+Updated:      Mar 2019
 Version:      8.60
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list ics-ssl@elists.org
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
@@ -93,10 +93,10 @@ in the event when only one was open, tested with Delphi 2010
                        Added SslCliSecurity to set client security, pending
                           server version (needs IcsHosts)
 
-22 Feb 2019 - V8.60 - Adapted for ICS, separate tab for settings, allow to
+20 Mar 2019 - V8.60 - Adapted for ICS, separate tab for settings, allow to
                         order X509 SSL certificates.
 
-                     WARNING NOT FINISHED YET!!!   
+                     WARNING NOT FINISHED YET!!!
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -130,6 +130,9 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   StdCtrls, ExtCtrls, OverbyteIcsIniFiles, Buttons, Dialogs, TypInfo, ComCtrls,
+{$IF CompilerVersion > 23}
+  System.UITypes,
+{$IFEND}
   OverbyteIcsWSocket, OverbyteIcsWinsock, OverbyteIcsLIBEAY,
   OverbyteIcsSSLEAY, OverbyteIcsSslX509Utils, OverbyteIcsSslSessionCache,
   OverbyteIcsUtils, OverbyteIcsLogger, OverbyteIcsStreams,
@@ -342,7 +345,7 @@ begin
     LocalAddr.Items.Insert (1, ICS_LOCAL_HOST_V4);  // May 2017
 
 // get old settings
-    FIniFileName := GetIcsIniFileName;
+    FIniFileName := GetIcsIniFileName;                                     
     FCertificateDir := ExtractFileDir (FIniFileName) + '\';
     IniFile := TIcsIniFile.Create(FIniFileName);
     with IniFile do

@@ -102,6 +102,14 @@
             <DCCReference Include="..\Source\OverbyteIcsProxy.dcr"/>
             <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.dcr"/>
             <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsBlacklist.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsIpStreamLog.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsMailQueue.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsSntp.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsWhoisCli.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsFileCopy.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsHttpMulti.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsFtpMulti.dcr"/>
             <DCCReference Include="rtl.dcp"/>
             <DCCReference Include="vcl.dcp"/>
             <DCCReference Include="..\Source\OverbyteIcsTypes.pas"/>
@@ -218,10 +226,17 @@
             <DCCReference Include="..\Source\OverbyteIcsSslX509Utils.pas" />
             <DCCReference Include="..\Source\OverbyteIcsWinCrypt.pas" />
             <DCCReference Include="..\Source\OverbyteIcsProxy.pas"/>
-            <DCCReference Include="..\Source\OverbyteIcsTicks64.pas"/>
             <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.pas"/>
             <DCCReference Include="..\Source\OverbyteIcsSslJose.pas"/>
             <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsBlacklist.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsIpStreamLog.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsMailQueue.pas',
+        <DCCReference Include="..\Source\OverbyteIcsSntp.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsWhoisCli.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsFileCopy.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsHttpMulti.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsFtpMulti.pas"/>
             <BuildConfiguration Include="Base">
                 <Key>Base</Key>
             </BuildConfiguration>

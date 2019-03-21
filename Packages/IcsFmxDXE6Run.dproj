@@ -160,6 +160,14 @@
         <DCCReference Include="..\Source\OverbyteIcsProxy.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsBlacklist.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsIpStreamLog.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsMailQueue.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsSntp.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsWhoisCli.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsFileCopy.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsHttpMulti.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsFtpMulti.dcr"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="fmx.dcp"/>
         <DCCReference Include="IcsCommonDXE6Run.dcp"/>
@@ -192,6 +200,14 @@
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSslX509Utils.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSslJose.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsProxy.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsBlacklist.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsIpStreamLog.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsMailQueue.pas',
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSntp.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsWhoisCli.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsFileCopy.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsHttpMulti.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsFtpMulti.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_Release</Key>
             <CfgParent>Base</CfgParent>

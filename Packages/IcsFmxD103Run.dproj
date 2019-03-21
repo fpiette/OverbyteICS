@@ -171,6 +171,9 @@
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsMailQueue.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSntp.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsWhoisCli.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsFileCopy.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsHttpMulti.pas"/>
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsFtpMulti.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_Debug</Key>
             <CfgParent>Base</CfgParent>

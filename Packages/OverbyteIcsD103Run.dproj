@@ -72,7 +72,7 @@
         <DCC_Define>USE_SSL;$(DCC_Define)</DCC_Define>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
-        <DCC_Description>Overbyte ICS VCL Run-Time Package for Delphi 10.3 Rio</DCC_Description>
+        <DCC_Description>Overbyte ICS VCL Run-Time Package for Delphi 10.3</DCC_Description>
         <DCC_RangeChecking>true</DCC_RangeChecking>
         <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
         <GenDll>true</GenDll>
@@ -165,6 +165,14 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsProxy.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsBlacklist.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsIpStreamLog.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsMailQueue.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsSntp.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsWhoisCli.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsFileCopy.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsHttpMulti.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsFtpMulti.dcr"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="..\Source\OverbyteIcsTypes.pas"/>
@@ -240,7 +248,6 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsSysLogClient.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSysLogDefs.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSysLogServer.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsTicks64.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSmtpSrv.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSslX509Utils.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsLibeayEx.pas"/>
@@ -252,6 +259,14 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSslJose.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsBlacklist.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsIpStreamLog.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsMailQueue.pas',
+        <DCCReference Include="..\Source\OverbyteIcsSntp.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsWhoisCli.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsFileCopy.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsHttpMulti.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsFtpMulti.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_Debug</Key>
             <CfgParent>Base</CfgParent>

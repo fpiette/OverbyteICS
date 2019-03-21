@@ -169,6 +169,9 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\source\OverbyteIcsMailQueue.dcr"/>
         <DCCReference Include="..\source\OverbyteIcsSntp.dcr"/>
         <DCCReference Include="..\source\OverbyteIcsWhoisCli.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsFileCopy.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsHttpMulti.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsFtpMulti.dcr"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="IcsCommonD103Run.dcp"/>
@@ -220,6 +223,9 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="..\Source\OverbyteIcsMailQueue.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSntp.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsWhoisCli.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsFileCopy.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsHttpMulti.pas"/>
+        <DCCReference Include="..\Source\OverbyteIcsFtpMulti.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_Debug</Key>
             <CfgParent>Base</CfgParent>

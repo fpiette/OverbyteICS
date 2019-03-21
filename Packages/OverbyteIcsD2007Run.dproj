@@ -263,14 +263,13 @@ copy Source\OverbyteIcsTnOptFrm.dfm Lib\Release\Win32\D2007\OverbyteIcsTnOptFrm.
     <DCCReference Include="..\Source\OverbyteIcsZLibDll.pas" />
     <DCCReference Include="..\Source\OverbyteIcsZlibHigh.pas" />
     <DCCReference Include="..\Source\OverbyteIcsZLibObj.pas" />
+    <DCCReference Include="C:\Magdelp\fileserver\designide.dcp" />
+    <DCCReference Include="C:\Magdelp\fileserver\inet.dcp" />
+    <DCCReference Include="C:\Magdelp\fileserver\rtl.dcp" />
+    <DCCReference Include="C:\Magdelp\fileserver\vcl.dcp" />
+    <DCCReference Include="C:\Magdelp\fileserver\vclactnband.dcp" />
+    <DCCReference Include="C:\Magdelp\fileserver\vclx.dcp" />
+    <DCCReference Include="C:\Magdelp\fileserver\xmlrtl.dcp" />
     <DCCReference Include="C:\Users\angus\Desktop\MagentaXfer2007W.dcp" />
-    <DCCReference Include="designide.dcp" />
-    <DCCReference Include="inet.dcp" />
-    <DCCReference Include="rtl.dcp" />
-    <DCCReference Include="vcl.dcp" />
-    <DCCReference Include="vclactnband.dcp" />
-    <DCCReference Include="vclx.dcp" />
-    <DCCReference Include="VCLZipPack.dcp" />
-    <DCCReference Include="xmlrtl.dcp" />
   </ItemGroup>
 </Project>

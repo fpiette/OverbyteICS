@@ -84,8 +84,7 @@ requires
   xmlrtl,
   vclactnband,
   vclx,
-  inet,
-  VCLZipPack;
+  inet;
 
 contains
   OverbyteIcsTypes in '..\Source\OverbyteIcsTypes.pas',

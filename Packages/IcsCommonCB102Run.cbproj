@@ -198,6 +198,9 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DelphiCompile Include="..\Source\OverByteIcsFtpSrvT.pas">
             <BuildOrder>44</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\OverbyteIcsHtmlPars.pas">
+            <BuildOrder>54</BuildOrder>
+        </DelphiCompile>
         <DelphiCompile Include="..\Source\OverbyteIcsHttpCCodZLib.pas">
             <BuildOrder>44</BuildOrder>
         </DelphiCompile>
@@ -406,6 +409,12 @@ $(PreBuildEvent)]]></PreBuildEvent>
                 </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\iossimulator\libcgunwind.1.0.dylib" Class="DependencyModule">
                     <Platform Name="iOSSimulator">
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\19.0\BPL\Win32\IcsCommonCB102Run.bpl" Configuration="Release" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>IcsCommonCB102Run.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

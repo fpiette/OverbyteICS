@@ -165,15 +165,14 @@ access to files is required.
               using TIcsStringBuild to build listings instead of TMemoryStream
               when checking copy, use TIcsStringBuild for improved listing performance
 6 Mar 2017 - 4.6 - changed TULargeInteger to ULARGE_INTEGER to keep modern compilers happy
-18 Mar 2019 - V8.60 - Adapted for main ICS packages and FMX support.
+22 Mar 2019 - V8.60 - Adapted for main ICS packages and FMX support.
               Renamed TMagFileCopy to TIcsFileCopy.
               Most Types have Ics added, so: TTaskResult now TIcsTaskResult.
               No longer needs Forms.
               Using TStringList instead of StringArray
-              Before creating directory check not a file of same name, delete it. 
+              Before creating directory check not a file of same name, delete it.
+              Should build on Posix, not tested, also Delphi 7 again 
 
-
-Warning - this unit is not Posix compatible yet...
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -561,7 +560,6 @@ var
 begin
     result := -1;   // file not found
     if IcsGetFileSize (FName) < 0 then exit;  // unicode
-//    H := FileOpen(FName, fmOpenReadWrite);
     H := Integer(CreateFile (PChar (FName), GENERIC_READ or GENERIC_WRITE, 0,
                                    nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)) ;
     if H < 0 then exit;
@@ -607,11 +605,13 @@ begin
     result := false ;
     if IsWin64 then exit ;
     if NOT IsWow64 then exit ;
+{$IFDEF MSWINDOWS}
     Wow64DisableWow64FsRedirection := GetProcAddress (GetModuleHandle ('kernel32'), 'Wow64DisableWow64FsRedirection') ;
     if Assigned (Wow64DisableWow64FsRedirection) then
     begin
         result := Wow64DisableWow64FsRedirection (OldRedir) ;
     end ;
+{$ENDIF}
 end;
 
 // 17 May 2013, for Win32 apps on Win64 OS, revert WOW64 file system redirection after DisableWow64Redir
@@ -622,11 +622,13 @@ begin
     result := false ;
     if IsWin64 then exit ;
     if NOT IsWow64 then exit ;
+{$IFDEF MSWINDOWS}
     Wow64RevertWow64FsRedirection := GetProcAddress (GetModuleHandle ('kernel32'), 'Wow64RevertWow64FsRedirection') ;
     if Assigned (Wow64RevertWow64FsRedirection) then
     begin
         result := Wow64RevertWow64FsRedirection (OldRedir) ;
     end ;
+{$ENDIF}
 end;
 
 // internal convert TFileTime to Int64
@@ -645,7 +647,7 @@ end;
 
 // convert TFileTime to TDateTime
 
-function FileTimeToDateTime(const FileTime: TFileTime): TDateTime;
+function IcsFileTimeToDateTime(const FileTime: TFileTime): TDateTime;
 begin
     Result := FileTimeToInt64 (FileTime) / FileTimeStep ;
     Result := Result + FileTimeBase ;
@@ -653,7 +655,7 @@ end;
 
 // convert TDateTime to TFileTime
 
-function DateTimeToFileTime(DateTime: TDateTime): TFileTime;
+function IcsDateTimeToFileTime(DateTime: TDateTime): TFileTime;
 var
   E: Extended;
 begin
@@ -1025,7 +1027,9 @@ begin
     if (Attr AND File_Attribute_Hidden)     > 0 then Result := Result + 'H' ;
     if (Attr AND File_Attribute_Temporary)  > 0 then Result := Result + 'T' ;
     if (Attr AND File_Attribute_Compressed) > 0 then Result := Result + 'C' ;
+{$IFDEF COMPILER11_UP}   { not Delphi 7}
     if (Attr AND File_Attribute_Encrypted)  > 0 then Result := Result + 'E' ;
+{$ENDIF}
 end ;
 
 // format file directory from arrays
@@ -1141,41 +1145,78 @@ begin
 end ;
 
 // check if directory has at least one file or subdirectory
-
+// Windows only version
+(*
 function IcsCheckDirAny (LocDir: string): boolean ;
 var
-  FindHandle: THandle;
-  FindData: TWin32FindData;
-  CurName: string;
-  MoreFlag: boolean;
+    FindHandle: THandle;
+    FindData: TWin32FindData;
+    SearchRec: TSearchRec ;
+    CurName: string;
+    MoreFlag: boolean;
 begin
     FindHandle := 0 ;
     result := false ;
     FillChar(FindData, SizeOf(FindData), #0) ;
     LocDir := IncludeTrailingBackslash (LocDir) + '*.*' ;
     try
+        try
+
+        // loop through directory until a real name found
+           FindHandle := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindFirstFile(Pchar(LocDir), FindData);
+            MoreFlag := (FindHandle <> INVALID_HANDLE_VALUE);
+            while MoreFlag do
+            begin
+                CurName := FindData.cFileName;
+                if ((CurName <> '.') and (CurName <> '..')) then
+                begin
+                    result := true ;
+                    MoreFlag := false
+                end
+                else
+                    MoreFlag := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindNextFile(FindHandle, FindData);
+            end;
+        except
+            result := false;
+        end;
+    finally
+        if FindHandle <> INVALID_HANDLE_VALUE then
+          {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindClose(FindHandle);
+    end;
+end;     *)
+
+// check if directory has at least one file or subdirectory
+// V8.60 this version uses sysutils FindFirst for Posix compatbility
+
+function IcsCheckDirAny (LocDir: string): boolean ;
+var
+    SearchRec: TSearchRec ;
+    retcode: integer;
+    CurName: string;
+begin
+    result := false ;
+    LocDir := IncludeTrailingBackslash (LocDir) + '*.*' ;
+    try
     try
 
     // loop through directory until a real name found
-        FindHandle := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindFirstFile(Pchar(LocDir), FindData);
-        MoreFlag := (FindHandle <> INVALID_HANDLE_VALUE);
-        while MoreFlag do
+        retcode := FindFirst (Pchar(LocDir), faAnyFile, SearchRec);
+        while (retcode = 0) do
         begin
-            CurName := FindData.cFileName;
+            CurName := SearchRec.Name;
             if ((CurName <> '.') and (CurName <> '..')) then
             begin
                 result := true ;
-                MoreFlag := false
+                Exit;
             end
             else
-                MoreFlag := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindNextFile(FindHandle, FindData);
+                retcode := FindNext (SearchRec);
         end;
     except
         result := false;
     end;
     finally
-        if FindHandle <> INVALID_HANDLE_VALUE then
-          {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindClose(FindHandle);
+        FindClose(SearchRec);
     end;
 end;
 
@@ -1185,7 +1226,7 @@ end;
 // returns false for error or if cancelled from copyevent
 
 // this version uses W32 FindFirstFile API rather than VCL FindFirst
-
+(*
 function TIcsFileCopy.BuildDirList2 (LocDir, LocPartName: string; const SubDirs: boolean;
                 Level, InitDLen: integer ; const LoDT, HiDT: TDateTime ;
                                 var TotFiles: integer; var LocFiles: TIcsFDirRecs ;
@@ -1217,7 +1258,7 @@ var
             FrDirBaseLen := Pred (InitDLen);
             FrFileAttr := CurAttr;
             FrFileDT := localDT ;
-            FrFileUDT := FileTimeToDateTime (FindData.ftLastWriteTime) ; // UTC time
+            FrFileUDT := IcsFileTimeToDateTime (FindData.ftLastWriteTime) ; // UTC time
             TempSize.LowPart := FindData.nFileSizeLow ;
             TempSize.HighPart := FindData.nFileSizeHigh ;
             FrFileBytes := TempSize.QuadPart ;
@@ -1269,7 +1310,7 @@ begin
                         if ListDirs then  // 9 Feb 2011 keep directory names
                         begin
                             FileTimeToLocalFileTime (FindData.ftLastWriteTime, LocalFileTime);
-                            localDT := FileTimeToDateTime (LocalFileTime) ;
+                            localDT := IcsFileTimeToDateTime (LocalFileTime) ;
                             AddFiletoArray ;
                         end ;
                         if SubDirs then
@@ -1294,7 +1335,7 @@ begin
                         if keepflag then
                         begin
                             FileTimeToLocalFileTime (FindData.ftLastWriteTime, LocalFileTime);
-                            localDT := FileTimeToDateTime (LocalFileTime) ;
+                            localDT := IcsFileTimeToDateTime (LocalFileTime) ;
                             if DateCheckFlag then
                             begin
                                 if (localDT < LoDT) or (localDT > HiDT) then keepflag := false;
@@ -1332,6 +1373,152 @@ begin
            {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.FindClose(FindHandle);
         if fWow64RedirDisable then RevertWow64Redir (OldWow64) ; // 22 May 2013
     end;
+end;  *)
+
+function TIcsFileCopy.BuildDirList2 (LocDir, LocPartName: string; const SubDirs: boolean;
+                Level, InitDLen: integer ; const LoDT, HiDT: TDateTime ;
+                                var TotFiles: integer; var LocFiles: TIcsFDirRecs ;
+                                                        const ListDirs: boolean = false) : boolean ;
+var
+    SearchRec: TSearchRec ;
+    retcode: integer;
+    fullname, CurName: string;
+    CurAttr: integer;
+    CheckMatch, keepflag, succflag, DateCheckFlag: boolean;
+    localDT: TDateTime ;
+    OldWow64: BOOL ;        // 22 May 2013
+
+    procedure AddFiletoArray ;  // 9 Feb 2011 commonise code
+    begin
+        inc(TotFiles);
+// see if allocating more array memory
+        if Length(LocFiles) <= TotFiles then SetLength(LocFiles, TotFiles * 2);  // 11 Feb 2004, was Length
+
+// keep details
+        with LocFiles[pred(TotFiles)] do
+        begin
+            FrFileName := CurName;
+            FrSubDirs := Copy(LocDir, InitDLen, 255);
+            FrFullName := LocDir + CurName;
+            FrDirLevel := Level;
+            FrDirBaseLen := Pred (InitDLen);
+            FrFileAttr := CurAttr;
+            FrFileDT := localDT ;
+{$IFDEF MSWINDOWS}
+            FrFileUDT := IcsFileTimeToDateTime (SearchRec.FindData.ftLastWriteTime) ; // UTC time Windows only
+{$ELSE}
+            FrFileUDT := FrFileDT;
+{$ENDIF}
+            FrFileBytes := SearchRec.Size;
+            FrExtra := '';
+            if ((CurAttr and faDirectory) = faDirectory) then
+            begin
+                FrFileBytes := 0;
+                FrExtra := sDirLit ;
+            end;
+            FrFileCopy := FCStateNone;
+            FrLinks := '';
+        end;
+    end;
+
+begin
+    if (Length (LocFiles) = 0) then SetLength (LocFiles, 1000) ;
+    if fCancelFlag then
+    begin
+        result := false ;
+        exit ;
+    end ;
+    result := true ;
+    LocPartName := Trim (AnsiLowerCase (LocPartName)) ;
+    LocDir := IncludeTrailingBackslash (LocDir) ;  // 7 Jan 2001, keep case
+    if InitDLen = 0 then InitDLen := Length(LocDir) ;
+    CheckMatch := true;
+    DateCheckFlag := (LoDT <> 0) and (HiDT <> 0) ;
+    if (LocPartName = '*.*') or (LocPartName = '') then CheckMatch := false;
+{$IFDEF MSWINDOWS}
+    OldWow64 := false ; // 22 May 2013
+    if fWow64RedirDisable then DisableWow64Redir (OldWow64) ; // 22 May 2013
+{$ENDIF}
+    try
+        try
+
+    // loop through directory getting all file names in directory
+            fullname := LocDir + '*.*';
+            retcode := FindFirst(Pchar(fullname), faAnyFile, SearchRec);
+            while (retcode = 0) do
+            begin
+                CurAttr := SearchRec.Attr;
+                CurName := SearchRec.Name;
+                if ((CurName <> '.') and (CurName <> '..')) then
+                begin
+            // found another directory, recursively call this function to process it
+                    if ((CurAttr and faDirectory) = faDirectory) then
+                    begin
+                        if ListDirs then  // 9 Feb 2011 keep directory names
+                        begin
+                            localDT := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}SysUtils.FileDateToDateTime (SearchRec.Time);
+                            AddFiletoArray ;
+                        end ;
+                        if SubDirs then
+                        begin
+                            succflag := BuildDirList2 (LocDir + CurName, LocPartName,
+                                  SubDirs, succ(Level), InitDLen, loDT, hiDT, TotFiles, LocFiles, ListDirs) ;
+                            if not succflag then exit;
+                        end;
+                    end
+                    else
+                    begin
+                   // if file matches mask, add record with all file details to dynamic array
+                        if CheckMatch then
+                        begin
+                            keepflag := IcsMaskMatches (LocPartName, AnsiLowerCase (CurName), true) ;
+                        end
+                        else
+                           keepflag := true;
+
+                   // see if checking any time stamps
+                        localDT := 0 ;
+                        if keepflag then
+                        begin
+                            localDT := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}SysUtils.FileDateToDateTime (SearchRec.Time);
+                            if DateCheckFlag then
+                            begin
+                                if (localDT < LoDT) or (localDT > HiDT) then keepflag := false;
+                            end ;
+                        end ;
+
+                   // keep file details in dynamic array
+                        if keepflag then AddFiletoArray ;
+                    end;
+                end;
+                retcode := FindNext (SearchRec);
+                if AppProcMessCount <= 0 then      // make sure applications remains responsive
+                begin
+                    MessagePump ; // 16 Sept 2010
+                    AppProcMessCount := AppProcMessMax ;
+                    if AppProgressCount <= 0 then
+                    begin
+                        doCopyEvent (LogLevelProg, 'Listing Files, Total Found ' + IcsIntToCStr (TotFiles)) ; // 20 May 2013
+                        if fCancelFlag then
+                        begin
+                            result := false ;
+                            exit ;
+                        end ;
+                        AppProgressCount := AppProgressMax ;
+                    end ;
+                    dec (AppProgressCount)
+                end ;
+                dec (AppProcMessCount) ;
+            end;
+        except
+            result := false;
+        end;
+    finally
+        FindClose(SearchRec);
+{$IFDEF MSWINDOWS}
+        if fWow64RedirDisable then RevertWow64Redir (OldWow64) ; // 22 May 2013
+{$ENDIF}
+    end;
 end;
 
 // backward compatible version, no dates
@@ -1353,14 +1540,6 @@ function IcsCompareFNext (Item1, Item2: Pointer): Integer;
 var
     Sort1, Sort2: string ;
 begin
-{ // 16 Sept 2010 had to remove this since TMagCopy object not available
-    if AppProcMessCount <= 0 then      // make sure applications remains responsive
-    begin
-        MessagePump ; // 16 Sept 2010
-        AppProcMessCount := AppProcMessMax ;
-    end ;
-    dec (AppProcMessCount) ;  }
-
 // using fullname might be faster, ! as last path delim makes files sort before dirs
     Sort1 := PTIcsFDirRec (Item1).FrSubDirs + '!' + PTIcsFDirRec (Item1).FrFileName ;
     Sort2 := PTIcsFDirRec (Item2).FrSubDirs + '!' + PTIcsFDirRec (Item2).FrFileName ;

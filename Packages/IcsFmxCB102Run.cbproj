@@ -175,11 +175,17 @@
         <PackageImport Include="rtl.bpi">
             <BuildOrder>1</BuildOrder>
         </PackageImport>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsBlacklist.pas">
+            <BuildOrder>52</BuildOrder>
+        </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsCharsetComboBox.pas">
             <BuildOrder>0</BuildOrder>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsDnsQuery.pas">
             <BuildOrder>1</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsFileCopy.pas">
+            <BuildOrder>53</BuildOrder>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsFingCli.pas">
             <BuildOrder>2</BuildOrder>
@@ -187,11 +193,17 @@
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsFtpCli.pas">
             <BuildOrder>3</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsFtpMulti.pas">
+            <BuildOrder>54</BuildOrder>
+        </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsFtpSrv.pas">
             <BuildOrder>4</BuildOrder>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsHttpAppServer.pas">
             <BuildOrder>5</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsHttpMulti.pas">
+            <BuildOrder>55</BuildOrder>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsHttpProt.pas">
             <BuildOrder>6</BuildOrder>
@@ -201,6 +213,12 @@
         </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsIcmp.pas">
             <BuildOrder>44</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsIpStreamLog.pas">
+            <BuildOrder>56</BuildOrder>
+        </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsMailQueue.pas">
+            <BuildOrder>57</BuildOrder>
         </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsMsSslUtils.pas">
             <BuildOrder>48</BuildOrder>
@@ -226,6 +244,9 @@
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSmtpProt.pas">
             <BuildOrder>13</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSntp.pas">
+            <BuildOrder>58</BuildOrder>
+        </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsSocketUtils.pas">
             <BuildOrder>14</BuildOrder>
         </DelphiCompile>
@@ -250,6 +271,9 @@
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsThreadTimer.pas">
             <BuildOrder>18</BuildOrder>
         </DelphiCompile>
+        <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsWhoisCli.pas">
+            <BuildOrder>59</BuildOrder>
+        </DelphiCompile>
         <DelphiCompile Include="..\Source\Ics.Fmx.OverbyteIcsWndControl.pas">
             <BuildOrder>19</BuildOrder>
         </DelphiCompile>
@@ -262,11 +286,17 @@
         <DelphiCompile Include="..\Source\Ics.Posix.Messages.pas">
             <BuildOrder>22</BuildOrder>
         </DelphiCompile>
+        <ResFiles Include="..\Source\OverbyteIcsBlacklist.dcr">
+            <BuildOrder>66</BuildOrder>
+        </ResFiles>
         <ResFiles Include="..\Source\OverbyteIcsCharsetComboBox.dcr">
             <BuildOrder>32</BuildOrder>
         </ResFiles>
         <ResFiles Include="..\Source\OverbyteIcsDnsQuery.dcr">
             <BuildOrder>33</BuildOrder>
+        </ResFiles>
+        <ResFiles Include="..\Source\OverbyteIcsFileCopy.dcr">
+            <BuildOrder>60</BuildOrder>
         </ResFiles>
         <ResFiles Include="..\Source\OverbyteIcsFingCli.dcr">
             <BuildOrder>34</BuildOrder>
@@ -274,17 +304,29 @@
         <ResFiles Include="..\Source\OverbyteIcsFtpCli.dcr">
             <BuildOrder>35</BuildOrder>
         </ResFiles>
+        <ResFiles Include="..\Source\OverbyteIcsFtpMulti.dcr">
+            <BuildOrder>61</BuildOrder>
+        </ResFiles>
         <ResFiles Include="..\Source\OverbyteIcsFtpSrv.dcr">
             <BuildOrder>36</BuildOrder>
         </ResFiles>
         <ResFiles Include="..\Source\OverbyteIcsHttpAppServer.dcr">
             <BuildOrder>37</BuildOrder>
         </ResFiles>
+        <ResFiles Include="..\Source\OverbyteIcsHttpMulti.dcr">
+            <BuildOrder>62</BuildOrder>
+        </ResFiles>
         <ResFiles Include="..\Source\OverbyteIcsHttpProt.dcr">
             <BuildOrder>38</BuildOrder>
         </ResFiles>
         <ResFiles Include="..\Source\OverbyteIcsHttpSrv.dcr">
             <BuildOrder>39</BuildOrder>
+        </ResFiles>
+        <ResFiles Include="..\Source\OverbyteIcsIpStreamLog.dcr">
+            <BuildOrder>63</BuildOrder>
+        </ResFiles>
+        <ResFiles Include="..\Source\OverbyteIcsMailQueue.dcr">
+            <BuildOrder>64</BuildOrder>
         </ResFiles>
         <ResFiles Include="..\Source\OverbyteIcsMultipartFtpDownloader.dcr">
             <BuildOrder>40</BuildOrder>
@@ -304,11 +346,17 @@
         <ResFiles Include="..\Source\OverbyteIcsSmtpProt.dcr">
             <BuildOrder>46</BuildOrder>
         </ResFiles>
+        <ResFiles Include="..\Source\OverbyteIcsSntp.dcr">
+            <BuildOrder>65</BuildOrder>
+        </ResFiles>
         <ResFiles Include="..\Source\OverbyteIcsSslSessionCache.dcr">
             <BuildOrder>47</BuildOrder>
         </ResFiles>
         <ResFiles Include="..\Source\OverbyteIcsSslThrdLock.dcr">
             <BuildOrder>48</BuildOrder>
+        </ResFiles>
+        <ResFiles Include="..\Source\OverbyteIcsWhoisCli.dcr">
+            <BuildOrder>66</BuildOrder>
         </ResFiles>
         <ResFiles Include="..\Source\OverbyteIcsWSocket.dcr">
             <BuildOrder>50</BuildOrder>

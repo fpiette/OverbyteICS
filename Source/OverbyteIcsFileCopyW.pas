@@ -173,7 +173,7 @@ access to files is required.
               when checking copy, use TIcsStringBuild for improved listing performance
 11 May 2015 - 4.2 - TSslCertCheck, SslCertCheckStrings gone
 6 Mar 2017 - 4.6 - changed TULargeInteger to ULARGE_INTEGER to keep modern compilers happy
-18 Mar 2019 - V8.60 - Adapted for main ICS packages and FMX support.
+22 Mar 2019 - V8.60 - Adapted for main ICS packages and FMX support.
               Renamed TMagFileCopyW to TIcsFileCopyW.
               Most Types have Ics added, so: TTaskResult now TIcsTaskResult.
               No longer needs Forms.
@@ -636,7 +636,7 @@ end;
 
 // convert TFileTime to TDateTime
 
-function FileTimeToDateTime(const FileTime: TFileTime): TDateTime;
+function IcsFileTimeToDateTime(const FileTime: TFileTime): TDateTime;
 begin
     Result := FileTimeToInt64 (FileTime) / FileTimeStep ;
     Result := Result + FileTimeBase ;
@@ -644,7 +644,7 @@ end;
 
 // convert TDateTime to TFileTime
 
-function DateTimeToFileTime(DateTime: TDateTime): TFileTime;
+function IcsDateTimeToFileTime(DateTime: TDateTime): TFileTime;
 var
   E: Extended;
 begin
@@ -1260,7 +1260,7 @@ var
             FrDirBaseLen := Pred (InitDLen);
             FrFileAttr := CurAttr;
             FrFileDT := localDT ;
-            FrFileUDT := FileTimeToDateTime (FindData.ftLastWriteTime) ; // UTC time
+            FrFileUDT := IcsFileTimeToDateTime (FindData.ftLastWriteTime) ; // UTC time
             TempSize.LowPart := FindData.nFileSizeLow ;
             TempSize.HighPart := FindData.nFileSizeHigh ;
             FrFileBytes := TempSize.QuadPart ;
@@ -1312,7 +1312,7 @@ begin
                         if ListDirs then  // 9 Feb 2011 keep directory names
                         begin
                             FileTimeToLocalFileTime (FindData.ftLastWriteTime, LocalFileTime);
-                            localDT := FileTimeToDateTime (LocalFileTime) ;
+                            localDT := IcsFileTimeToDateTime (LocalFileTime) ;
                             AddFiletoArray ;
                         end ;
                         if SubDirs then
@@ -1337,7 +1337,7 @@ begin
                         if keepflag then
                         begin
                             FileTimeToLocalFileTime (FindData.ftLastWriteTime, LocalFileTime);
-                            localDT := FileTimeToDateTime (LocalFileTime) ;
+                            localDT := IcsFileTimeToDateTime (LocalFileTime) ;
                             if DateCheckFlag then
                             begin
                                 if (localDT < LoDT) or (localDT > HiDT) then keepflag := false;

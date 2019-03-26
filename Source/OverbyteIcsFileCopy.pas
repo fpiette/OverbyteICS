@@ -165,7 +165,7 @@ access to files is required.
               using TIcsStringBuild to build listings instead of TMemoryStream
               when checking copy, use TIcsStringBuild for improved listing performance
 6 Mar 2017 - 4.6 - changed TULargeInteger to ULARGE_INTEGER to keep modern compilers happy
-22 Mar 2019 - V8.60 - Adapted for main ICS packages and FMX support.
+26 Mar 2019 - V8.60 - Adapted for main ICS packages and FMX support.
               Renamed TMagFileCopy to TIcsFileCopy.
               Most Types have Ics added, so: TTaskResult now TIcsTaskResult.
               No longer needs Forms.
@@ -1456,7 +1456,11 @@ begin
                     begin
                         if ListDirs then  // 9 Feb 2011 keep directory names
                         begin
-                            localDT := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}SysUtils.FileDateToDateTime (SearchRec.Time);
+{$IFDEF COMPILER16_UP}
+                            localDT := SearchRec.TimeStamp;
+{$ELSE}
+                            localDT := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileDateToDateTime (SearchRec.Time);
+{$ENDIF}
                             AddFiletoArray ;
                         end ;
                         if SubDirs then
@@ -1480,7 +1484,11 @@ begin
                         localDT := 0 ;
                         if keepflag then
                         begin
-                            localDT := {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}SysUtils.FileDateToDateTime (SearchRec.Time);
+{$IFDEF COMPILER16_UP}
+                            localDT := SearchRec.TimeStamp;
+{$ELSE}
+                            localDT := {$IFDEF RTL_NAMESPACES}System.{$ENDIF}SysUtils.FileDateToDateTime (SearchRec.Time);
+{$ENDIF}
                             if DateCheckFlag then
                             begin
                                 if (localDT < LoDT) or (localDT > HiDT) then keepflag := false;

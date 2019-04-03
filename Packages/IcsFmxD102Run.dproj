@@ -129,9 +129,6 @@
         <DCCReference Include="..\Source\OverbyteIcsProxy.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.dcr"/>
         <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.dcr"/>
-        <DCCReference Include="..\Source\OverbyteIcsProxy.dcr"/>
-        <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.dcr"/>
-        <DCCReference Include="..\Source\OverbyteIcsSslHttpRest.dcr"/>
         <DCCReference Include="..\source\OverbyteIcsBlacklist.dcr"/>
         <DCCReference Include="..\source\OverbyteIcsIpStreamLog.dcr"/>
         <DCCReference Include="..\source\OverbyteIcsMailQueue.dcr"/>
@@ -174,7 +171,7 @@
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsProxy.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsBlacklist.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsIpStreamLog.pas"/>
-        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsMailQueue.pas',
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsMailQueue.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSntp.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsWhoisCli.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsFileCopy.pas"/>

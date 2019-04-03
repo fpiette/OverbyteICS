@@ -189,7 +189,7 @@
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsProxy.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsBlacklist.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsIpStreamLog.pas"/>
-        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsMailQueue.pas',
+        <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsMailQueue.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsSntp.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsWhoisCli.pas"/>
         <DCCReference Include="..\Source\Ics.Fmx.OverbyteIcsFileCopy.pas"/>

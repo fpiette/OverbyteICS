@@ -188,7 +188,7 @@
             <DCCReference Include="..\Source\OverbyteIcsSslX509Certs.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsBlacklist.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsIpStreamLog.pas"/>
-        <DCCReference Include="..\Source\OverbyteIcsMailQueue.pas',
+        <DCCReference Include="..\Source\OverbyteIcsMailQueue.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsSntp.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsWhoisCli.pas"/>
         <DCCReference Include="..\Source\OverbyteIcsFileCopy.pas"/>

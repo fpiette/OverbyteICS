@@ -134,6 +134,9 @@
         <DCCReference Include="..\source\OverbyteIcsMailQueue.dcr"/>
         <DCCReference Include="..\source\OverbyteIcsSntp.dcr"/>
         <DCCReference Include="..\source\OverbyteIcsWhoisCli.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsFileCopy.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsHttpMulti.dcr"/>
+        <DCCReference Include="..\source\OverbyteIcsFtpMulti.dcr"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="fmx.dcp"/>
         <DCCReference Include="IcsCommonD103Run.dcp"/>

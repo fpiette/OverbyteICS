@@ -9,10 +9,9 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.60
+Version:      8.61
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1999-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
@@ -436,6 +435,9 @@ Dec 04, 2018 V8.59 Added AUTO_X509_CERTS define set in OverbyteIcsDefs.inc which
                       ordering is not required, saves up to 1 meg of code.
 Feb 20, 2019 V8.60 Added WebLogIdx to THttpConnection for web logging.
                    Fixed bug Close did not close multi-listener sockets.
+Mar 29, 2019 V8.61 OAS : Add InBound value for TNtlmAuthSession creation
+                   because server NTLM auth is inbound and Client is outbound
+
 
 
 Quick reference guide:
@@ -566,6 +568,7 @@ uses
 {$IFDEF USE_NTLM_AUTH}
     OverbyteIcsSspi,
     OverbyteIcsNtlmSsp,
+    OverbyteIcsNtlmMsgs,
 {$ENDIF}
 {$IFNDEF NO_DIGEST_AUTH}
     OverbyteIcsDigestAuth,
@@ -578,9 +581,9 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 860;
-    CopyRight : String = ' THttpServer (c) 1999-2019 F. Piette V8.60 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.60';   { V8.09 }
+    THttpServerVersion = 861;
+    CopyRight : String = ' THttpServer (c) 1999-2019 F. Piette V8.61 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.61';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -3087,7 +3090,7 @@ begin
 {$IFDEF USE_NTLM_AUTH}
     else if AuthType = atNtlm then begin
         if not Assigned(FAuthNtlmSession) then begin
-           FAuthNtlmSession := TNtlmAuthSession.Create;
+           FAuthNtlmSession := TNtlmAuthSession.Create (cuInBound) ;
            FAuthNtlmSession.OnBeforeValidate := AuthNtlmSessionBeforeValidate;
         end;
         FAuthenticated := FAuthNtlmSession.ProcessNtlmMsg(Copy(FRequestAuth, 6, Length(FRequestAuth)));

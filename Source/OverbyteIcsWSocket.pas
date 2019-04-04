@@ -3,14 +3,14 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.60
+Version:      8.61
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1996-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
-              Berlin, Germany, contact: <arno.garrels@gmx.de>
+              Berlin, Germany
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -1306,6 +1306,7 @@ Mar 18, 2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
                    Added TLS version to SslSrvSecurityNames.
                    Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
                      in server IcsHosts if TLS1.3 fails.
+Apr 4, 2019  V8.61 Version only so far...
 
 
 
@@ -1515,8 +1516,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 860;
-  CopyRight    : String     = ' TWSocket (c) 1996-2019 Francois Piette V8.60 ';
+  WSocketVersion            = 861;
+  CopyRight    : String     = ' TWSocket (c) 1996-2019 Francois Piette V8.61 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 

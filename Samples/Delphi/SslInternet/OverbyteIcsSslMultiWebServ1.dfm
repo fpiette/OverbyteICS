@@ -1,7 +1,7 @@
 object WeblServerForm: TWeblServerForm
   Left = 339
   Top = 282
-  Caption = 'Web Application Server  - V8.60 21st Feb 2019 '
+  Caption = 'Web Application Server  - V8.61 4th April 2019 '
   ClientHeight = 437
   ClientWidth = 587
   Color = clBtnFace

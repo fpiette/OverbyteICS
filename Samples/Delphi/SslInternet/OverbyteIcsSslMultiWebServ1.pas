@@ -9,8 +9,8 @@ Description:  SSL web application server sample, no real GUI, really designed
               If turned into a Windows service, this sample is really a commercial
               web server.
 Creation:     July 2017
-Updated:      Feb 2019
-Version:      8.60
+Updated:      Apr 2019
+Version:      8.61
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -98,7 +98,7 @@ History:
                      typically any with PHP since this server does not support PHP.
                    Added whiteiplist.txt of IP addresses we don't want to block.
                    Count number of access attempts and block too many.
-
+04 Apr 2019  V8.61 Send Email now on front menu as well as WebApps
 
 
 
@@ -170,14 +170,14 @@ uses
   OverbyteIcsBlacklist;     { V8.60 }
 
 const
-    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2019 Francois Piette V8.60 ';
+    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2019 Francois Piette V8.61 ';
     MaxWinChars = 800000;
     WM_STARTUP = WM_USER + 712 ;
     LogNameMask = '"webapp-"yyyymmdd".log"' ;
     WebLogFields = '#Fields: date time s-sitename s-computername s-ip cs-method cs-uri-stem cs-uri-query ' +
                    's-port cs-username c-ip cs-version cs(User-Agent) cs(Referer) cs-host sc-status ' +
                    'sc-bytes cs-bytes time-taken' ;
-    WebLogHdrMask = '"#Date: "' + ISODateMask + #32 + ISOTimeMask + '"';                 
+    WebLogHdrMask = '"#Date: "' + ISODateMask + #32 + ISOTimeMask + '"';
 //    ISODateMask = 'yyyy-mm-dd' ;
 //    ISODateTimeMask = 'yyyy-mm-dd"T"hh:nn:ss' ;
 //    ISOTimeMask = 'hh:nn:ss' ;
@@ -1892,6 +1892,7 @@ begin
             '<A HREF="/form.html">Data entry</A><BR>'   +
             '<A HREF="/uploadfile.html">Upload a file using POST</A><BR>' +
         {    '<A HREF="/upload">View uploaded files</A><BR>' +   }
+            '<A HREF="/mailer.html">Send Email Form</A><BR>' +   { V8.61 } 
             '<A HREF="/redir.html">Redirection</A><BR>' +
             '<A HREF="/myip.html">Show client IP</A><BR>' +
             '<A HREF="/delayed.html">Delayed Slow Response</A><BR>' +

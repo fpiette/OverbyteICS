@@ -12,8 +12,8 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      Feb 2019
-Version:      8.60
+Updated:      Apr 2019
+Version:      8.61
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -138,10 +138,14 @@ Oct 2, 2018   - V8.57 - Need OAuth local web server for all auth methods.
                         Builds with FMX
 Nov 2, 2018   - V8.58 - Bug fixes, call RequestDone event if it fails
                         Descend components from TIcsWndControl not TComponent
-Feb 6, 2019   - V8.60   Default with SocketFamily Any for both IPv4 and IPv6.
+Feb 6, 2019   - V8.60 - Default with SocketFamily Any for both IPv4 and IPv6.
                         SessionConnect logging shows IP address as well as host name.
-                        Increased OAuth web server timeout from 2 to 30 mins. 
-                        
+                        Increased OAuth web server timeout from 2 to 30 mins.
+Apr 4, 2019   - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttpRest events.
+                        ResponseXX properties available in OnRequestDone and OnRestRequestDone.
+
+
+
 Pending - Simple web server now less simple to supports SSL and ALPN
 Pending - more documentation
 Pending - better SSL error handling when connections fail, due to too high security in particular.
@@ -213,7 +217,7 @@ uses
 {$ENDIF MSWINDOWS}
     OverbyteIcsHttpCCodZLib,
     OverbyteIcsHttpContCod,
-    OverbyteIcsLogger,
+    OverbyteIcsLogger,         { for TLogOption }
     OverbyteIcsCookies,
     OverbyteIcsMimeUtils,
     OverbyteIcsFormDataDecoder,
@@ -225,8 +229,8 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpRestVersion = 860;
-    CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.60 ';
+    THttpRestVersion = 861;
+    CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.61 ';
     DefMaxBodySize = 100*100*100; { max memory/string size 100Mbyte }
     TestState = 'Testing-Redirect';
 
@@ -338,24 +342,31 @@ type
     function  GetResponseJson: ISuperObject;
     function  GetResponseOctet: AnsiString;
     procedure IcsLogEvent (Sender: TObject; LogOption: TLogOption; const Msg : String);
-    procedure onHttpDocBegin(Sender : TObject);
-    procedure onHttpCommand(Sender: TObject; var S: String);
-    procedure onHttpHeaderData(Sender : TObject);
-    procedure onHttpSessionConnected(Sender : TObject);
-    procedure onHttpSessionClosed(Sender : TObject);
-    procedure onHttpLocationChange(Sender : TObject);
-    procedure onHttpRequestDone(Sender: TObject; RqType : THttpRequest; ErrCode : Word);
-    procedure OnHttpSslVerifyPeer(Sender: TObject; var Ok: Integer; Cert : TX509Base);
-    procedure OnHttpSslCliNewSession(Sender: TObject; SslSession: Pointer;
-                                    WasReused: Boolean; var IncRefCount : Boolean);
-    procedure OnHttpSslCliGetSession(Sender: TObject; var SslSession: Pointer;
-                                                            var FreeSession : Boolean);
-    procedure OnHttpSslHandshakeDone(Sender: TObject; ErrCode: Word;
-                                      PeerCert: TX509Base; var Disconnect: Boolean);
-    procedure OnHttpSslCliCertRequest(Sender: TObject; var Cert: TX509Base);
-    procedure onHttpCookie(Sender : TObject; const Data : String; var Accept : Boolean);
     procedure onCookiesNewCookie(Sender : TObject; ACookie : TCookie; var Save : Boolean);
-
+    procedure TriggerCommand(var S: String); override;  { V8.61 }
+    procedure TriggerHeaderData; override;  { V8.61 }
+    procedure TriggerLocationChange; override;  { V8.61 }
+    procedure TriggerRequestDone2; override;  { V8.61 }
+    procedure TriggerDocBegin; override;  { V8.61 }
+    procedure TriggerCookie(const Data : String; var   bAccept : Boolean); override;  { V8.61 }
+    procedure TriggerSessionConnected; override;  { V8.61 }
+    procedure TriggerSessionClosed; override;  { V8.61 }
+    procedure TransferSslVerifyPeer(Sender        : TObject;
+                                    var Ok        : Integer;
+                                    Cert           : TX509Base); override;  { V8.61 }
+    procedure TransferSslCliGetSession(Sender      : TObject;
+                                   var SslSession  : Pointer;
+                                  var FreeSession  : Boolean); override;  { V8.61 }
+    procedure TransferSslCliNewSession(Sender      : TObject;
+                                      SslSession   : Pointer;
+                                      WasReused    : Boolean;
+                                  var IncRefCount  : Boolean); override;  { V8.61 }
+    procedure TransferSslCliCertRequest(Sender     : TObject;
+                                        var Cert   : TX509Base); override;  { V8.61 }
+    procedure TransferSslHandshakeDone(Sender      : TObject;
+                                       ErrCode    : Word;
+                                       PeerCert   : TX509Base;
+                                   var Disconnect : Boolean); override;  { V8.61 }
   public
     { Public declarations }
     RestCookies: TIcsCookies;
@@ -939,21 +950,9 @@ begin
  // winsock bug fix for fast connections
     CtrlSocket.ComponentOptions := [wsoNoReceiveLoop];
     SocketFamily := sfAny;         { V8.60 allow IPv6 or IPv4 }
-    OnDocBegin := onHttpDocBegin;
-    OnCommand := onHttpCommand;
-    OnHeaderData := onHttpHeaderData;
-    OnSessionConnected := onHttpSessionConnected;
-    OnLocationChange := onHttpLocationChange;
-    OnRequestDone := onHttpRequestDone;
-    onCookie := onHttpCookie;
     Options := Options + [httpoEnableContentCoding];
     FSslSessCache := true;
     FExternalSslSessionCache := nil;
-    OnSslVerifyPeer := OnHttpSslVerifyPeer;
-    OnSslCliGetSession := OnHttpSslCliGetSession;
-    OnSslCliNewSession := OnHttpSslCliNewSession;
-    OnSslHandshakeDone := OnHttpSslHandshakeDone;
-    OnSslCliCertRequest := OnHttpSslCliCertRequest;
     RestCookies := TIcsCookies.Create(self);
     RestCookies.OnNewCookie := onCookiesNewCookie;
 {$IFNDEF NO_DEBUG_LOG}
@@ -1109,47 +1108,41 @@ end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.onHttpSessionConnected (Sender : TObject);
-var
-    S: String;
+procedure TSslHttpRest.TriggerCommand(var S: String);    { V8.61 }
 begin
-    if FDebugLevel < DebugConn then Exit;
-    if FState = httpConnected then   { V8.60  }
-        S := 'Connected OK to: '
-    else
-        S := 'Connection failed to: ';
-    S := S + FHostname + ' (' + IcsFmtIpv6Addr(AddrResolvedStr) + ')';    { V8.60  }
-    LogEvent (S) ;
+    Inherited TriggerCommand(S);
+    if FDebugLevel >= DebugHdr then
+        LogEvent ('> ' + S) ;
 end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.onHttpSessionClosed(Sender : TObject);
+procedure TSslHttpRest.TriggerHeaderData;   { V8.61 }
 begin
-    if FDebugLevel < DebugConn then Exit;
-    LogEvent ('Connection closed') ;
+    Inherited TriggerHeaderData;
+    if FDebugLevel >= DebugHdr then
+        LogEvent ('< ' + LastResponse) ;
 end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.onHttpCommand (Sender: TObject; var S: String) ;
+procedure TSslHttpRest.TriggerLocationChange;   { V8.61 }
 begin
-    if FDebugLevel < DebugHdr then Exit;
-    LogEvent ('> ' + S) ;
-end;
+    Inherited TriggerLocationChange;
+  { cookies may have been sent during redirection, so update again now }
+    FCookie := RestCookies.GetCookies(FLocation);
 
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.onHttpHeaderData (Sender : TObject);
-begin
-    if FDebugLevel < DebugHdr then Exit;
-    LogEvent ('< ' + LastResponse) ;
+    if FDebugLevel >= DebugConn then
+        LogEvent('= ' + FURL + ' Redirected to: ' + FLocation);
+    if Assigned(FOnRestLocChange) then
+        FOnRestLocChange(Self);
 end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.onHttpDocBegin(Sender : TObject);
+procedure TSslHttpRest.TriggerDocBegin;   { V8.61 }
 begin
+    Inherited TriggerDocBegin;
     if FRespReq and (FContentLength > FMaxBodySize) then begin
         LogEvent('Aborting connection, Body Size too Large: ' + IntToKbyte(FContentLength));
         Abort;
@@ -1158,73 +1151,85 @@ end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.onHttpLocationChange(Sender : TObject);
+procedure TSslHttpRest.TriggerCookie(const Data : String; var   bAccept : Boolean); { V8.61 }
 begin
-  { cookies may have been sent during redirection, so update again now }
-    FCookie := RestCookies.GetCookies(FLocation);
-
-    if FDebugLevel >= DebugConn then
-        LogEvent('= ' + FURL + ' Redirected to: ' + FLocation);
-    if Assigned(FOnRestLocChange) then
-        FOnRestLocChange(Sender);
+    Inherited TriggerCookie(Data, bAccept);
+    RestCookies.SetCookie(Data, FURL);
 end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.onHttpCookie(Sender : TObject; const Data : String;
-    var Accept : Boolean);
-begin
-    RestCookies.SetCookie(Data, FURL);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.onCookiesNewCookie(Sender : TObject; ACookie : TCookie;
-    var Save : Boolean);
+procedure TSslHttpRest.TriggerSessionConnected;   { V8.61 }
 var
-    S : String;
+    S: String;
 begin
-    if FDebugLevel < DebugParams then Exit;
-
- // tell user what cookie was saved, optional
-    with ACookie do begin
-        S := 'NewCookie: ' + CName + '=' + CValue + ', Domain=' + CDomain + ', Path=' + CPath;
-        if CPersist then
-            S := S + ', Expires=' + DateTimeToStr(CExpireDT)
+    Inherited TriggerSessionConnected;
+    if FDebugLevel >= DebugConn then begin
+        if FState = httpConnected then   { V8.60  }
+            S := 'Connected OK to: '
         else
-            S := S + ', Not Persisent';
-        if CSecureOnly then
-            S := S + ', SecureOnly';
-        if CHttpOnly then
-            S := S + ', HttpOnly';
-        LogEvent(S);
+            S := 'Connection failed to: ';
+        S := S + FHostname + ' (' + IcsFmtIpv6Addr(AddrResolvedStr) + ')';    { V8.60  }
+        LogEvent (S) ;
     end;
-end;
+end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.OnHttpSslVerifyPeer(Sender: TObject;
-                                            var Ok: Integer; Cert : TX509Base);
+procedure TSslHttpRest.TriggerSessionClosed;   { V8.61 }
 begin
+    Inherited TriggerSessionClosed;
+    if FDebugLevel >= DebugConn then
+        LogEvent ('Connection closed') ;
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpRest.TransferSslVerifyPeer(Sender        : TObject;
+                                    var Ok        : Integer;
+                                    Cert           : TX509Base);  { V8.61 }
+begin
+    Inherited TransferSslVerifyPeer(Sender, OK, Cert);
     OK := 1; // don't check certificate until handshaking over
 end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.OnHttpSslCliNewSession(Sender: TObject; SslSession: Pointer;
-                                    WasReused: Boolean; var IncRefCount : Boolean) ;
-var
-    HttpCli: TSslHttpCli;
+procedure TSslHttpRest.TransferSslCliGetSession(Sender      : TObject;
+                                   var SslSession  : Pointer;
+                                  var FreeSession  : Boolean);  { V8.61 }
 begin
+    Inherited TransferSslCliGetSession(Self, SslSession, FreeSession);
+    { SslCliNewSession/SslCliGetSession allow external, client-side session }
+    { caching.                                                              }
+    if not fSslSessCache then Exit;
+    if FDebugLevel >= DebugSslLow then
+        LogEvent ('Check for Old SSL Session');
+    SslSession := fExternalSslSessionCache.GetCliSession(FCtrlSocket.PeerAddr +
+                                                    FCtrlSocket.PeerPort, FreeSession);
+    if FDebugLevel < DebugSslLow then Exit;
+     if Assigned (SslSession) then
+        LogEvent ('Old SSL Session Found Cached')
+    else
+        LogEvent ('No Old SSL Session Cached');
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpRest.TransferSslCliNewSession(Sender      : TObject;
+                                      SslSession   : Pointer;
+                                      WasReused    : Boolean;
+                                  var IncRefCount  : Boolean);  { V8.61 }
+begin
+    Inherited TransferSslCliNewSession(Sender, SslSession, WasReused, IncRefCount);
     { SslCliNewSession/SslCliGetSession allow external, client-side session }
     { caching.                                                              }
     if not fSslSessCache then Exit;
     if FDebugLevel >= DebugSslLow then
         LogEvent ('Starting SSL Session');
     if (not WasReused) then begin
-        HttpCli := (Sender as TSslHttpCli);
         fExternalSslSessionCache.CacheCliSession(SslSession,
-                                   HttpCli.CtrlSocket.PeerAddr + HttpCli.CtrlSocket.PeerPort, IncRefCount);
+                        FCtrlSocket.PeerAddr + FCtrlSocket.PeerPort, IncRefCount);
         if FDebugLevel >= DebugSslLow then
              LogEvent ('Cache SSL Session: New');
     end
@@ -1232,34 +1237,15 @@ begin
         if FDebugLevel >= DebugSslLow then
             LogEvent ('Cache SSL Session: Reuse');
     end;
-end;
+end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.OnHttpSslCliGetSession(Sender: TObject; var SslSession: Pointer;
-                                                            var FreeSession : Boolean);
-var
-    HttpCli: TSslHttpCli;
-begin
-    { SslCliNewSession/SslCliGetSession allow external, client-side session }
-    { caching.                                                              }
-    if not fSslSessCache then Exit;
-    if FDebugLevel >= DebugSslLow then
-        LogEvent ('Check for Old SSL Session');
-    HttpCli := (Sender as TSslHttpCli);
-    SslSession := fExternalSslSessionCache.GetCliSession(HttpCli.CtrlSocket.PeerAddr +
-                                                                    HttpCli.CtrlSocket.PeerPort, FreeSession);
-    if FDebugLevel < DebugSslLow then Exit;
-     if Assigned (SslSession) then
-        LogEvent ('Old SSL Session Found Cached')
-    else
-        LogEvent ('No Old SSL Session Cached');
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.OnHttpSslHandshakeDone(Sender: TObject; ErrCode: Word;
-                                    PeerCert: TX509Base; var Disconnect: Boolean);
+procedure TSslHttpRest.TransferSslHandshakeDone(         { V8.61 }
+    Sender         : TObject;
+    ErrCode        : Word;
+    PeerCert       : TX509Base;
+    var Disconnect : Boolean);
 var
     CertChain: TX509List;
     ChainVerifyResult: LongWord;
@@ -1267,6 +1253,7 @@ var
     Safe: Boolean;
     HttpCtl: TWSocket;
 begin
+    Inherited TransferSslHandshakeDone(Sender, ErrCode, PeerCert, Disconnect);
     HttpCtl := (Sender as TSslHttpCli).CtrlSocket ;
 
   // nothing much to do if SSL failed or event said disconnect
@@ -1277,7 +1264,7 @@ begin
     end  ;
     if FDebugLevel >= DebugSsl then
         LogEvent (HttpCtl.SslServerName + ' ' + HttpCtl.SslHandshakeRespMsg) ;
-    if HttpCtl.SslSessionReused OR (FCertVerMethod = CertVerNone) then  begin
+    if HttpCtl.SslSessionReused OR (FCertVerMethod = CertVerNone) then begin
         exit; // nothing to do, go ahead
     end ;
 
@@ -1368,8 +1355,10 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.OnHttpSslCliCertRequest(Sender: TObject; var Cert: TX509Base);
+procedure TSslHttpRest.TransferSslCliCertRequest(Sender     : TObject;
+                                        var Cert   : TX509Base);  { V8.61 }
 begin
+    Inherited TransferSslCliCertRequest(Sender, Cert);
     if FSslCliCert.IsCertLoaded then begin
         Cert := FSslCliCert;
         if FDebugLevel >= DebugSsl then
@@ -1377,6 +1366,30 @@ begin
     end
     else
         LogEvent('No Client SSL Certificate to Send') ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslHttpRest.onCookiesNewCookie(Sender : TObject; ACookie : TCookie;
+    var Save : Boolean);
+var
+    S : String;
+begin
+    if FDebugLevel < DebugParams then Exit;
+
+ // tell user what cookie was saved, optional
+    with ACookie do begin
+        S := 'NewCookie: ' + CName + '=' + CValue + ', Domain=' + CDomain + ', Path=' + CPath;
+        if CPersist then
+            S := S + ', Expires=' + DateTimeToStr(CExpireDT)
+        else
+            S := S + ', Not Persisent';
+        if CSecureOnly then
+            S := S + ', SecureOnly';
+        if CHttpOnly then
+            S := S + ', HttpOnly';
+        LogEvent(S);
+    end;
 end;
 
 
@@ -1430,13 +1443,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.onHttpRequestDone(Sender : TObject; RqType : THttpRequest; ErrCode : Word);
+procedure TSslHttpRest.TriggerRequestDone2;  { V8.61 }
 var
     Info: String;
 begin
     Info := FReasonPhrase;
     if FStatusCode > 0 then Info := IntToStr(FStatusCode) + ' ' + Info;
-    if ErrCode <> 0 then begin   // ReasonPhrase has description of ErrCode
+    if FRequestDoneError <> 0 then begin   // ReasonPhrase has description of ErrCode
         LogEvent('Request failed: ' + Info) ;
         FRespReq := False;
     end
@@ -1472,7 +1485,8 @@ begin
         end;
     end;
     if Assigned (FOnRestRequestDone) then
-        FOnRestRequestDone(Sender, RqType, ErrCode);
+        FOnRestRequestDone(Self, FRequestType, FRequestDoneError);
+    Inherited TriggerRequestDone2;
 end;
 
 

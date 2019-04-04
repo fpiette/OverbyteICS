@@ -2,7 +2,7 @@
   Version   11.9
   Copyright (c) 1995-2008 by L. David Baldwin
   Copyright (c) 2008-2010 by HtmlViewer Team
-  Copyright (c) 2012-2018 by Angus Robertson delphi@magsys.co.uk
+  Copyright (c) 2012-2019 by Angus Robertson delphi@magsys.co.uk
   Copyright (c) 2013-2015 by HtmlViewer Team
 
   Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -91,6 +91,8 @@
 4 Dec 2018  V8.59 Works with modern compilers again by using Winapi.Messages to
                    avoid conflict with Ics.Posix.Messages.pas (also changed lots
                    of htmlview units....
+
+4 Apr 2019   V8.61 Fixed authentication              
 
 
   Pending - use NoCache header to stop dynamic pages being cached and expire them

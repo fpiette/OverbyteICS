@@ -882,7 +882,7 @@ All these samples may be built for Mac OS X (and Windows).
  Delphi Win32/Win64 Socket sample applications
  ---------------------------------------------
  .\Samples\delphi\SocketDemos\SocketDemos.bpg - Project group
-> OverbyteIcsBinCliDemo.dpr       Client program to receive binary and delimited text data. Works with BinTcpSrv demo.
+> OverbyteIcsBinCliDemo.dpr       Client program to receive binary and delimited text data. Works with OverbyteIcsTcpSrv demo.
 > OverbyteIcsCliDemo.dpr          Example of client for SRVDEMO, IPV4 only  - ACTIVE!!
 > OverbyteIcsClient5.dpr          Basic client GUI applications
 > OverbyteIcsClient7.dpr          Simple client application demonstrating TWSocket

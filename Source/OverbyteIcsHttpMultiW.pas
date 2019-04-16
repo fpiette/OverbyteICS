@@ -7,7 +7,7 @@ Description:  TIcsHttpMultiW is a high level HTTP Delphi component that allows
               W version supports widestring/Unicode for Delphi 2007 and earlier
 Creation:     May 2001
 Updated:      Mar 2019
-Version:      8.60
+Version:      8.61
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -143,6 +143,8 @@ Download - download a list of URLs, optionally parsing HTML for links
              No longer needs Forms.
              Added MaxRetries to repeat each URL, might help if multiple DNS
                addresses are returned.
+9 Apr 2019  - V8.61 - Base component now has more response headers, don't need
+                 to search for them.
 
 
 
@@ -201,7 +203,7 @@ uses
 
 
 const
-    HttpMultiCopyRight : String = ' TIcsHttpMultiW (c) 2019 V8.60 ';
+    HttpMultiCopyRight : String = ' TIcsHttpMultiW (c) 2019 V8.61 ';
 type
     THttpSslVerifyMethod = (httpSslVerNone, httpSslVerBundle, httpSslVerWinStore) ;   // 20 Apr 2015
 
@@ -857,10 +859,10 @@ function TIcsHttpMultiW.Download (CheckFiles: boolean): TIcsTaskResult ;
 var
     fnamesrc, fnametar, newtardir, dochref, myerror: string ;
     ret: boolean ;
-    tempdir, info, curURL, curresp, headfield, headdata, content: string ;
+    tempdir, info, curURL, curresp: string ;
     hostname, rootfname: string ;
-    I, J, K, L, donenr, nsep, statcode, attemptnr: integer ;
-    newsize, totsize, pagesize: int64 ;    // 10 Oct 2011
+    I, J, K, L, donenr, statcode, attemptnr: integer ;
+    newsize, totsize: int64 ;    // 10 Oct 2011
     initURLs, attrs: integer ;
     pageDT, modDT: TDateTime ;
     starttick: DWORD ;
@@ -979,9 +981,6 @@ begin
         if curURL = '' then continue ;
         if curURL [1] = '*' then continue ;
         if curURL [1] = '#' then continue ;  // 11 Oct 2011
-        modDT := 0 ;
-        pageDT := 0 ;
-        pagesize := 0 ;
         UserName := '' ;
         Password := '' ;
 
@@ -1052,7 +1051,7 @@ begin
             continue ;
         end ;
         if RcvdHeader.Count = 0 then continue ;
-        for J := 0 to Pred (RcvdHeader.Count) do
+(*      for J := 0 to Pred (RcvdHeader.Count) do
         begin
             curresp := RcvdHeader [J] ;
         // now check response
@@ -1078,8 +1077,9 @@ begin
             end ;
             if headfield = 'content-type' then content := headdata ;
             if headfield = 'content-length' then pagesize := atoi64 (headdata) ;
-        end ;
-        if modDT = 0 then modDT := pageDT ;
+        end ;     *)
+        modDT := RespLastModDT;   { V8.61 base component now has more response headers }
+        if modDT = 0 then modDT := RespDateDT ;
         if modDT = 0 then modDT := Now ;
 
       // keeping this file, create file record
@@ -1103,7 +1103,7 @@ begin
                 FrFileAttr := 0 ;
                 FrFileDT := modDT ;
                 FrFileUDT := modDT ;
-                FrFileBytes := pagesize ;
+                FrFileBytes := ContentLength ;
                 FrExtra := '' ;
                 FrFileCopy := FCStateNone ;
                 FrLinks := '' ;
@@ -1111,11 +1111,11 @@ begin
         end ;
 
     // see if need to get and parse an html file, DON'T PARSE FILES WE LINKED !!!!
-        if fParseHTML and (I <= initURLs) and (Pos ('text/html', content) = 1) then  // 22 Feb 2008 allow for more stuff in content field
+        if fParseHTML and (I <= initURLs) and (Pos ('text/html', ContentType) = 1) then  // 22 Feb 2008 allow for more stuff in content field
         begin
             doCopyEvent (LogLevelDiag, 'Get: ' + curURL) ;
             fProgMessBase := 'Downloading URL: ' + curURL ;
-            fProgFileSize := pagesize ;   // keep size for event handler
+            fProgFileSize := ContentLength ;   // keep size for event handler
             fLastResponse := '' ;   // clear in case rubbish appears
             DownloadStream.Clear ;
             RcvdStream := DownloadStream ;

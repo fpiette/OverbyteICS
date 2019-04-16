@@ -1306,7 +1306,8 @@ Mar 18, 2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
                    Added TLS version to SslSrvSecurityNames.
                    Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
                      in server IcsHosts if TLS1.3 fails.
-Apr 4, 2019  V8.61 Version only so far...
+Apr 16, 2019 V8.61 Fixed ValidateCertChain to check certificate start and expiry
+                      dates in UTC time instead of local time.
 
 
 
@@ -18697,10 +18698,10 @@ begin
         if IssuerOUName <> '' then Result := Result + ', (OU): ' + IcsUnwrapNames (IssuerOUName);   { V8.53 }
         Result := Result + #13#10;
     end;
-    Result := Result + 'Expires: ' + DateToStr (ValidNotAfter) +    { V8.45 need expiry for brief }
+    Result := Result + 'Expires: ' + DateTimeToStr (ValidNotAfter) +    { V8.45 need expiry for brief, V8.61 added time }
                        ', Signature: ' + SignatureAlgorithm + #13#10;
     if NOT Brief then begin
-        Result := Result + 'Valid From: ' + DateToStr (ValidNotBefore) +      { V8.54 }
+        Result := Result + 'Valid From: ' + DateTimeToStr (ValidNotBefore) +      { V8.61 added time }
             ', Serial Number: ' + GetSerialNumHex + #13#10 +     { V8.40 }
             'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10 +         { V8.41 }
             'Public Key: ' + KeyInfo;                                         { V8.53 not brief }
@@ -18937,7 +18938,7 @@ end;
 { V8.41, V8.57 make ExpireDaya configurable }
 function TX509Base.ValidateCertChain(Host: String; var CertStr, ErrStr: string; ExpireDays: Integer = 30): TChainResult;
 var
-    curDate: TDateTime;
+    curUTC: TDateTime;
     InterList, CAList: TX509List;
     CertIssuer, NextIssuer, OUIssuer: string;
     I: integer;
@@ -18954,11 +18955,11 @@ var
                                                 InterList[J].CertInfo(False);
                 NextIssuer := InterList[J].IssuerCName;
                 OUIssuer := InterList[J].IssuerOUName;  { V8.53 }
-                if curDate > InterList[J].ValidNotAfter then
+                if curUTC > InterList[J].ValidNotAfter then
                     ErrStr := 'SSL certificate has expired - ' +
                                             InterList[J].SubjectCName
                 else begin
-                    if (curDate + ExpireDays) > InterList[J].ValidNotAfter then begin
+                    if (curUTC + ExpireDays) > InterList[J].ValidNotAfter then begin
                         ErrStr := 'SSL certificate expires on ' +
                               DateToStr(InterList[J].ValidNotAfter) +
                                            ' - ' + InterList[J].SubjectCName;;
@@ -18994,7 +18995,7 @@ begin
     Result := chainFail;
     CertStr := '';
     ErrStr := '';
-    curDate := Now;
+    curUTC := IcsGetUTCTime;   { V8.61 certificates have UTC time }
     if NOT IsCertLoaded then begin
         ErrStr := 'No SSL certificate loaded';
         Exit;
@@ -19004,15 +19005,15 @@ begin
     CertStr := 'Server: ' + CertInfo(False);
 
  { check not expired }
-    if curDate < ValidNotBefore then begin
+    if curUTC < ValidNotBefore then begin
         ErrStr := 'SSL certificate not valid yet - ' + SubjectCName;
         Exit;
     end;
-    if curDate > ValidNotAfter then begin
+    if curUTC > ValidNotAfter then begin
         ErrStr := 'SSL certificate has expired - ' + SubjectCName;
         Exit;
     end;
-    if (curDate + ExpireDays) > ValidNotAfter then begin
+    if (curUTC + ExpireDays) > ValidNotAfter then begin
         Result := chainWarn; // not fatal
         ErrStr := 'SSL certificate expires on ' + DateToStr(ValidNotAfter) +
                                                            ' - ' + SubjectCName;

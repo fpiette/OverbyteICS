@@ -534,14 +534,16 @@ Mar 15, 2019 V8.60 Added AddrResolvedStr read only property which is the IPv4/IP
                      when the component is called repeatedly.
                    Only follow relocation for 3xx response codes, not 201 Created,
                     but keep Location for 201 which is often response to a POST.
-Apr 04, 2019 V8.61 OAS : Improved NTLM authentication by adding Single Sign On with
+Apr 09, 2019 V8.61 OAS : Improved NTLM authentication by adding Single Sign On with
                      NTLM Session on Windows Domain to get credentials without needing
-                     then specified here.
+                     them specified here.
                    Added TriggerRequestDone2 to correct overriding RequestDone event.
                    Added TriggerCommand, TriggerHeaderData, TriggerLocationChange
                       and TransferSslHandshakeDone to allow overriding those events.
-
-
+                   Added more header response properties: RespDateDT,
+                     RespLastModDT, RespExpires, RespCacheControl.
+                   NoCache now sends Cache-Control: no-cache for HTTP/1.1
+                     
 
 To convert the received HTML stream to a unicode string with the correct codepage,
 use this function in OverbyteIcsCharsetUtils, it's not used directly by this unit
@@ -891,6 +893,11 @@ type
         FCurrDnsResult        : Integer;       { V8.60 round robin DNS results }
         FTotDnsResult         : Integer;       { V8.60 round robin DNS results }
         FLastAddrOK           : String;        { V8.60 round robin DNS results }
+        FRespDateDT           : TDateTime;     { V8.61 }
+        FRespLastModDT        : TDateTime;     { V8.61 }
+        FRespExpires          : TDateTime;     { V8.61 }
+        FRespAge              : Integer;       { V8.61 }
+        FRespCacheControl     : String;        { V8.61 }
         FTimeout              : UINT;  { V7.04 }            { Sync Timeout Seconds }
         FWMLoginQueued        : Boolean;
         procedure AbortComponent; override; { V7.11 }
@@ -1048,6 +1055,11 @@ type
         property ReasonPhrase         : String       read  FReasonPhrase;
         property DnsResult            : String       read  FDnsResult;
         property AddrResolvedStr      : String       read  GetAddrResolvedStr;    { V8.60 }
+        property RespDateDT           : TDateTime    read  FRespDateDT ;          { V8.61 }
+        property RespLastModDT        : TDateTime    read  FRespLastModDT ;       { V8.61 }
+        property RespExpires          : TDateTime    read  FRespExpires;          { V8.61 }
+        property RespAge              : Integer      read  FRespAge;              { V8.61 }
+        property RespCacheControl     : String       read  FRespCacheControl;     { V8.61 }
         property AuthorizationRequest : TStringList  read  FDoAuthor;
         property DocName              : String       read  FDocName;
         property Location             : String       read  FLocation
@@ -1461,7 +1473,9 @@ begin
 {$IFDEF UseContentCoding}
     FContentCodingHnd.Free;
 {$ENDIF}
-
+{$IFDEF USE_NTLM_AUTH}
+    FreeAndNil(FAuthNtlmSession);  // V8.61
+{$ENDIF}
     inherited Destroy;
 end;
 
@@ -2596,8 +2610,12 @@ begin
             Headers.Add('Host: ' + FTargetHost)
         else
             Headers.Add('Host: ' + FTargetHost + ':' + FTargetPort);
-        if FNoCache then
-            Headers.Add('Pragma: no-cache');
+        if FNoCache then begin
+            if Version = '1.0' then
+                Headers.Add('Pragma: no-cache')
+            else
+                Headers.Add('Cache-Control: no-cache');  { V8.61 }
+        end;
         if FCurrProxyConnection <> '' then
             Headers.Add('Proxy-Connection: ' + FCurrProxyConnection);
         if (Method = 'CONNECT') then                                   // <= 12/29/05 AG
@@ -3285,7 +3303,31 @@ begin
             else if (LowerCase(Trim(Data)) = 'keep-alive') then
                 FCloseReq := FALSE;
         end
-    {   else if Field = 'date' then }
+        else if Field = 'date' then begin     { V8.61 }
+            try
+                FRespDateDT := RFC1123_StrToDate(Data) ;
+            except
+                FRespDateDT := 0 ;
+            end ;
+        end
+        else if Field = 'last-modified' then begin     { V8.61 }
+            try
+                FRespLastModDT := RFC1123_StrToDate(Data) ;
+            except
+                FRespLastModDT := 0 ;
+            end ;
+        end
+        else if Field = 'expires' then begin     { V8.61 }
+            try
+                FRespExpires := RFC1123_StrToDate(Data) ;
+            except
+                FRespExpires := 0 ;
+            end ;
+        end
+        else if Field = 'age' then      { V8.61 }
+            FRespAge := atoi(Data)
+        else if Field = 'cache-control' then      { V8.61 }
+            FRespCacheControl := Data     // should really parse field
     {   else if Field = 'mime-version' then }
     {   else if Field = 'pragma' then }
     {   else if Field = 'allow' then }
@@ -3296,7 +3338,6 @@ begin
           FContentEncoding := Data
 {$ENDIF}
     {   else if Field = 'expires' then }
-    {   else if Field = 'last-modified' then }
    end
    else { Ignore  all other responses }
        ;
@@ -3323,6 +3364,11 @@ begin
     FContentLength    := -1;
     FContentType      := '';  { 25/09/1999 }
     FTransferEncoding := '';  { 28/12/2003 }
+    FRespDateDT       := 0;   { V8.61 }
+    FRespLastModDT    := 0;   { V8.61 }
+    FRespExpires      := 0;   { V8.61 }
+    FRespAge          := -1;  { V8.61 }
+    FRespCacheControl := '';  { V8.61 }
 {$IFDEF UseContentCoding}
     FContentEncoding  := '';
 {$ENDIF}

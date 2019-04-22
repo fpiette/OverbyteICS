@@ -66,19 +66,19 @@ Apr 22 2019 V8.61  Angus added more DnsQuery literals and removed obsolete ones.
                      used for DNS over HTTPS.
                    Queries now started with QueryAny.
                    Added QueryAll to return results from seven queries.
-                   No longer igmores NS and Alternate results that sometimes
-                     return extra useful records (like A for NS and CNAME). 
+                   No longer ignores NS and Alternate results that sometimes
+                     return extra useful records (like A for NS and CNAME).
                    New result array AnswerRecord with AnswerTotal records which
                      is a TRRRecord response record with all result information
                      so other arrays can be ignored, based on unpublished work
-                     by Holger Lembke but implemented with backward compatiblility.
+                     by Holger Lembke but implemented with backward compatibility.
                   Added DnsReqTable of common queries with descriptive literals.
                   Added DnsPublicServerTable and DnsPublicHttpsTabl of public
                     DNS server addresses.
-                  Supporting all queuries and rssponses including AAAA, NS and TXT,
+                  Supporting all queries and responses including AAAA, NS and TXT,
                     common ones decoded in TRRRecord, rest returned as text or hex.
                   PTR query now supports IPv6 addresses as well as IPV4.
-                  Call RequestDone if connection fails. 
+                  Call RequestDone if connection fails.
 
 Note - OverbyteIcsHttpRest contains a derived component DnsQueryHttps which makes
 DNS over HTTPS requests per RFC8484, illustrated in the OverbyteIcsHttpRest sample
@@ -127,7 +127,7 @@ uses
 {$ELSE}
     OverbyteIcsWSocket,
 {$ENDIF}
-    OverbyteIcsUtils, 
+    OverbyteIcsUtils,
     OverbyteIcsWinsock;
 
 const
@@ -1193,7 +1193,7 @@ var
             end;
 
         // pending, DNSSEC buffers contain several fields, should handle them properly
-        // so tempoarily return them as hex 
+        // so tempoarily return them as hex
             DnsQueryRRSIG, DnsQueryDNSKEY, DnsQueryDS, DnsQueryNSEC, DnsQueryNSEC3,
               DnsQueryCDS, DnsQueryCDNSKEY, DnsQueryTLSA, DnsQuerySMIMEA: begin
                    RRRecord.RDData := AnsiString(IcsBufferToHex(RDataPtr^, RRRecord.RDLength));
@@ -1255,7 +1255,7 @@ begin
     FARecordCount   := 0;
     FPTRRecordCount := 0;
   // note we don't reset FAnsTot here to collect answers from multiple queries
-                            
+
  // read all answers
     while PEnd > P do begin
         if ProcessRespRecord then begin

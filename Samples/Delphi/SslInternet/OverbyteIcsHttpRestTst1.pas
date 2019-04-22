@@ -3,8 +3,8 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
-Updated:      Mar 2019
-Version:      8.60
+Updated:      Apr 2019
+Version:      8.61
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -49,6 +49,8 @@ Mar 6,  2019 - V8.60 Add Socket Family selection for IPv4, IPv6 or both.
                      Added log file using new TIcsBuffLogStream for UTF8 file logging,
                       one log per day.
                      Removed onSelectDns event so base component does it for us.
+Apr 22, 2019 - V8.61 Added DNS over HTTPS REST example using Json.
+                     Added DNS over HTTPS sample using TDnsQueryHttps component. 
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -72,7 +74,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, TypInfo, ExtCtrls, Grids, ComCtrls, ActiveX,
+  Dialogs, StdCtrls, TypInfo, ExtCtrls, Grids, ComCtrls, ActiveX, Buttons,
   OverbyteIcsWSocket,
   OverbyteIcsIniFiles,
   OverbyteIcsTypes,
@@ -83,11 +85,12 @@ uses
   OverbyteIcsSSLEAY,
   OverbyteIcsLibeay,
   OverbyteIcsSslHttpRest,
+  OverbyteIcsHttpProt,
   OverbyteIcsSuperObject,
   OverbyteIcsSslJose,
   OverbyteIcsWndControl,
   OverbyteIcsBlacklist,
-  OverbyteIcsHttpProt, Buttons;
+  OverbyteIcsDnsQuery;
 
 type
   THttpRestForm = class(TForm)
@@ -127,6 +130,11 @@ type
     SslSecurity: TRadioGroup;
     IpSockFamily: TRadioGroup;
     DirLogs: TEdit;
+    DnsHttpsUrl: TComboBox;
+    DnsDomainName: TComboBox;
+    DnsQueryType: TComboBox;
+    DnsDnssec: TCheckBox;
+    DnsNoValidation: TCheckBox;
 
  // properties not saved
     LogWin: TMemo;
@@ -171,11 +179,19 @@ type
     doGrantPassword: TButton;
     Label21: TLabel;
     LabelResult: TLabel;
-    TabSheet1: TTabSheet;
-    TabSheet2: TTabSheet;
+    TabDNSHTTPS: TTabSheet;
+    TabTwitter: TTabSheet;
     SelDirLogs: TBitBtn;
     Label22: TLabel;
     OpenDirDiag: TOpenDialog;
+    Label23: TLabel;
+    Label222: TLabel;
+    Label25: TLabel;
+    doDNSJson: TButton;
+    TabSms: TTabSheet;
+    DnsQueryHttps1: TDnsQueryHttps;
+    doDnsQuery1: TButton;
+    doDnsQueryAll: TButton;
     procedure FormCreate(Sender: TObject);
     procedure HttpRest1HttpRestProg(Sender: TObject; LogOption: TLogOption;
       const Msg: string);
@@ -198,6 +214,12 @@ type
     procedure RestOAuth1OAuthNewToken(Sender: TObject);
     procedure SettingsChange(Sender: TObject);
     procedure SelDirLogsClick(Sender: TObject);
+    procedure doDNSJsonClick(Sender: TObject);
+    procedure DnsQueryHttps1DnsProg(Sender: TObject; LogOption: TLogOption;
+      const Msg: string);
+    procedure DnsQueryHttps1RequestDone(Sender: TObject; Error: Word);
+    procedure doDnsQueryAllClick(Sender: TObject);
+    procedure doDnsQuery1Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -210,6 +232,7 @@ type
     procedure AddLog (const S: string) ;
     procedure RestOAuthSetup;
     procedure OpenLogFile;
+    procedure CommonRestSettings;
 
   end;
 
@@ -228,7 +251,6 @@ const
     KeyHeight            = 'Height';
     SectionData          = 'Data';
     KeyRestParams        = 'RestParams';
-
 
 procedure THttpRestForm.FormCreate(Sender: TObject);
 begin
@@ -270,6 +292,18 @@ begin
         for Level := Low(TSslCliSecurity) to High(TSslCliSecurity) do
              SslSecurity.Items.Add (SslCliSecurityNames[Level]);
 
+    // Dns Query drop down
+        DnsQueryType.Items.Clear;
+        for I := Low(DnsReqTable) to High(DnsReqTable) do
+             DnsQueryType.Items.Add (DnsReqTable[I].Asc +
+                                    ' [' + DnsReqTable[I].Desc + ']');
+
+    // Dns HTTPS URL drop down
+        DnsHttpsUrl.Items.Clear;
+        for I := Low(DnsPublicHttpsTable) to High(DnsPublicHttpsTable) do
+             DnsHttpsUrl.Items.Add (DnsPublicHttpsTable[I]);
+
+    // form position
         IniFile := TIcsIniFile.Create(FIniFileName);
         Width := IniFile.ReadInteger(SectionMainWindow, KeyWidth,  Width);
         Height := IniFile.ReadInteger(SectionMainWindow, KeyHeight, Height);
@@ -327,12 +361,18 @@ begin
           SslSecurity.ItemIndex := ReadInteger (SectionData, 'SslSecurity_ItemIndex', SslSecurity.ItemIndex) ;
           IpSockFamily.ItemIndex := ReadInteger (SectionData, 'IpSockFamily_ItemIndex', IpSockFamily.ItemIndex) ;
           DirLogs.Text := ReadString (SectionData, 'DirLogs_Text', DirLogs.Text) ;
+          DnsHttpsUrl.Text := ReadString (SectionData, 'DnsHttpsUrl_Text', DnsHttpsUrl.Text) ;
+          DnsDomainName.Text := ReadString (SectionData, 'DnsDomainName_Text', DnsDomainName.Text) ;
+          DnsQueryType.ItemIndex := ReadInteger (SectionData, 'DnsQueryType_ItemIndex', DnsQueryType.ItemIndex) ;
+          if ReadString (SectionData, 'DnsDnssec_Checked', 'False') = 'True' then DnsDnssec.Checked := true else DnsDnssec.Checked := false ;
+          if ReadString (SectionData, 'DnsNoValidation_Checked', 'False') = 'True' then DnsNoValidation.Checked := true else DnsNoValidation.Checked := false ;
        end;
         IniFile.Free;
     end;
 
     if HttpRest1.SslRootFile = '' then
         SslRootBundleFile.Text := HttpRest1.SslRootFile;
+    if DnsQueryType.ItemIndex < 0 then DnsQueryType.ItemIndex := 0;
     HttpRest1.RestCookies.LoadFromFile(FCookieFileName);
     OAuthWebIP.Items.Assign(LocalIPList);
     OAuthWebIP.Items.Insert(0, ICS_LOCAL_HOST_V4);
@@ -400,6 +440,11 @@ begin
       WriteInteger (SectionData, 'SslSecurity_ItemIndex', SslSecurity.ItemIndex) ;
       WriteInteger (SectionData, 'IpSockFamily_ItemIndex', IpSockFamily.ItemIndex) ;
       WriteString (SectionData, 'DirLogs_Text', DirLogs.Text) ;
+      WriteString (SectionData, 'DnsHttpsUrl_Text', DnsHttpsUrl.Text) ;
+      WriteString (SectionData, 'DnsDomainName_Text', DnsDomainName.Text) ;
+      WriteInteger (SectionData, 'DnsQueryType_ItemIndex', DnsQueryType.ItemIndex) ;
+      if DnsDnssec.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'DnsDnssec_Checked', temp) ;
+      if DnsNoValidation.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'DnsNoValidation_Checked', temp) ;
     end;
     IniFile.UpdateFile;
     IniFile.Free;
@@ -469,6 +514,7 @@ begin
 end;
 
 
+
 procedure THttpRestForm.SelDirLogsClick(Sender: TObject);
 begin
     OpenDirDiag.InitialDir := DirLogs.Text ;
@@ -483,22 +529,8 @@ begin
 end;
 
 
-procedure THttpRestForm.doStartReqClick(Sender: TObject);
-const
-    ReqList: array[0..4] of THttpRequest =
-               (httpGET, httpPOST, httpHEAD, httpPUT, httpDELETE) ;
-var
-    StatCode, Row: Integer;
-    Req: THttpRequest;
-    Async: Boolean;
+procedure THttpRestForm.CommonRestSettings;
 begin
-    doStartReq.Enabled := False;
-    RespList.Items.Clear;
-    OpenLogFile;  { V8.60 } 
-
- // optional HTTP parameters, all have defaults so can be ignored if not needed
-    Req := ReqList[ReqType.ItemIndex];
-    Async := (ReqMode.ItemIndex = 1);
     HttpRest1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
     HttpRest1.CertVerMethod := TCertVerMethod(CertVerMethod.ItemIndex);
     HttpRest1.SslCliSecurity := TSslCliSecurity(SslSecurity.ItemIndex);
@@ -518,8 +550,27 @@ begin
     HttpRest1.AuthBearerToken := AuthBearer.Text;
     HttpRest1.ExtraHeaders := ExtraHeaders.Lines;
     HttpRest1.SocketFamily := TSocketFamily(IpSockFamily.ItemIndex);  { V8.60 IP4 and/or IPV6 }
+end;
 
-  // read grid and build REST paramaters
+procedure THttpRestForm.doStartReqClick(Sender: TObject);
+const
+    ReqList: array[0..4] of THttpRequest =
+               (httpGET, httpPOST, httpHEAD, httpPUT, httpDELETE) ;
+var
+    StatCode, Row: Integer;
+    Req: THttpRequest;
+    Async: Boolean;
+begin
+    doStartReq.Enabled := False;
+    RespList.Items.Clear;
+    OpenLogFile;  { V8.60 }
+
+ // optional HTTP parameters, all have defaults so can be ignored if not needed
+    CommonRestSettings;
+    Req := ReqList[ReqType.ItemIndex];
+    Async := (ReqMode.ItemIndex = 1);
+
+  // read grid and build REST parameters
     HttpRest1.RestParams.Clear;
     for Row := 1 to GridParams.RowCount do begin
         if (Trim(GridParams.Cells[0,Row]) <> '') then begin
@@ -568,7 +619,6 @@ begin
             AddLog ('Json main content type: ' + GetEnumName(TypeInfo(TSuperType),
                                                 Ord(HttpRest1.ResponseJson.DataType)));
 
-         // two columns only
          // note that values containing objects are displayed as raw Json
             if HttpRest1.ResponseJson.DataType = stObject then begin
                 RespList.Columns.Clear;
@@ -583,6 +633,10 @@ begin
                 with RespList.Columns.Add do begin
                     Caption := 'Value';
                     Width := 400;
+                end;
+                with RespList.Columns.Add do begin
+                    Caption := '';
+                    Width := 100;
                 end;
         {        for JsonItem in HttpRest1.ResponseJson.AsObject do begin
                     with RespList.Items.Add do begin
@@ -754,4 +808,212 @@ begin
         LabelResult.Caption := 'Result: Failed - ' + RestOAuth1.LastError;
 end;
 
+procedure THttpRestForm.doDNSJsonClick(Sender: TObject);
+var
+    StatCode, I, qtype, rcode : integer;
+    QueryType: String;
+    ArrayJson: ISuperObject;
+    ResultList: TStringList;
+begin
+    doDNSJson.Enabled := False;
+    ResultList := TStringList.Create;
+    try
+        RespList.Items.Clear;
+        OpenLogFile;
+        CommonRestSettings;
+        HttpRest1.Accept := MimeDnsJson;
+        HttpRest1.NoCache := True;
+        QueryType := DnsQueryType.Text;
+        I := Pos (' [', QueryType);
+        if I > 1 then SetLength (QueryType, I - 1);
+      // Json DNS parameters
+        HttpRest1.RestParams.Clear;
+        HttpRest1.RestParams.AddItem('name', Trim(DnsDomainName.Text), True);
+        HttpRest1.RestParams.AddItem('type', QueryType, True);
+    //    HttpRest1.RestParams.AddItem('ct', MimeDnsJson, True);
+        if DnsDnssec.Checked then
+            HttpRest1.RestParams.AddItem('do', 'true', True);
+        if DnsNoValidation.Checked then
+            HttpRest1.RestParams.AddItem('cd', 'true', True);
+        HttpRest1.RestParams.PContent := PContUrlencoded;
+
+      // make HTTP request
+        AddLog ('Starting sync DNS request');
+        StatCode := HttpRest1.RestRequest(httpGET, DnsHttpsUrl.Text, False);
+        if (StatCode = 200) and Assigned(HttpRest1.ResponseJson) then begin
+      (*  {"Status": 0,
+           "TC": false,
+           "RD": true,
+           "RA": true,
+           "AD": false,
+           "CD": false,
+           "Question":[
+                       {"name": "www.overbyte.eu.",
+                        "type": 1}
+                      ],
+           "Answer":[
+                      {"name": "www.overbyte.eu.",
+                       "type": 1,
+                       "TTL": 1426,
+                       "data": "91.183.89.111"}
+                     ]
+          }
+
+          {"Status": 0,
+           "TC": false,
+           "RD": true,
+           "RA": true,
+           "AD": false,
+           "CD": false,
+           "Question":[
+                      {"name": "www.google.com.",
+                      "type": 2}
+                      ],
+           "Authority":[
+                      {"name": "google.com.",
+                       "type": 6,
+                       "TTL": 60,
+                       "data": "ns1.google.com. dns-admin.google.com. 242408846 900 900 1800 60"
+                       }]
+           }
+         *)
+
+         // we may have multiple Answers
+            rcode := HttpRest1.ResponseJson.I['Status'];
+            if rcode = DnsRCodeNoError then begin
+                ArrayJson := HttpRest1.ResponseJson.O['Answer'];
+                if NOT Assigned(ArrayJson) then
+                    ArrayJson := HttpRest1.ResponseJson.O['Authority'];
+                if Assigned(ArrayJson) then begin
+
+                  // display on grid, sub headers
+                    RespList.Items.Add.Caption := ''; // blank line
+                    with RespList.Items.Add do begin
+                        Caption := 'Query Name';
+                        SubItems.Add('Type');
+                        SubItems.Add('Data');
+                        SubItems.Add('TTL');
+                    end;
+                    for I := 0 to ArrayJson.AsArray.Length - 1 do begin
+                        qtype := ArrayJson.AsArray[I].I['type'];
+                        if qtype in [DnsQueryA, DnsQueryAAAA, DnsQueryMX, DnsQueryNS, DnsQueryCNAME] then
+                            ResultList.Add(ArrayJson.AsArray[I].S['data']);
+
+                      // display on grid, answer line
+                         with RespList.Items.Add do begin
+                            Caption := ArrayJson.AsArray[I].S['name'];
+                            SubItems.Add(FindDnsReqTypeName(qtype));
+                            SubItems.Add(ArrayJson.AsArray[I].S['data']);
+                            SubItems.Add(ArrayJson.AsArray[I].S['TTL']);
+                         end;
+                    end;
+                end
+                else
+                    AddLog ('DNS request no answer');
+
+            end
+            else
+                AddLog ('DNS request failed: ' + DnsRCodeTable[rcode]);
+        end
+        else
+            AddLog ('DNS request failed: HTTP Failed ' + HttpRest1.ResponseRaw);
+
+        if ResultList.Count > 0 then
+            AddLog ('DNS result: ' + ResultList.CommaText);
+    finally
+        ResultList.Free;
+        doDNSJson.Enabled := True;
+    end;
+end;
+
+procedure THttpRestForm.doDnsQuery1Click(Sender: TObject);
+var
+    qtype: integer;
+begin
+    RespList.Items.Clear;
+    OpenLogFile;
+    qtype := DnsReqTable[DnsQueryType.ItemIndex].Num;
+    DnsQueryHttps1.DnsSrvUrl := DnsHttpsUrl.Text;
+    DnsQueryHttps1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
+    DnsQueryHttps1.HttpRest.CertVerMethod := TCertVerMethod(CertVerMethod.ItemIndex);
+    DnsQueryHttps1.HttpRest.SocketFamily := TSocketFamily(IpSockFamily.ItemIndex);
+    if DnsQueryHttps1.DOHQueryAny(AnsiString(Trim(DnsDomainName.Text)), qtype) then
+         AddLog ('Starting async DNS request')
+    else
+         AddLog ('DNS request failed');
+end;
+
+procedure THttpRestForm.doDnsQueryAllClick(Sender: TObject);
+begin
+    RespList.Items.Clear;
+    OpenLogFile;
+    DnsQueryHttps1.DnsSrvUrl := DnsHttpsUrl.Text;
+    DnsQueryHttps1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
+    DnsQueryHttps1.HttpRest.CertVerMethod := TCertVerMethod(CertVerMethod.ItemIndex);
+    DnsQueryHttps1.HttpRest.SocketFamily := TSocketFamily(IpSockFamily.ItemIndex);
+    if DnsQueryHttps1.DOHQueryAll(AnsiString(Trim(DnsDomainName.Text))) then
+         AddLog ('Starting async DNS request')
+    else
+         AddLog ('DNS request failed');
+end;
+
+procedure THttpRestForm.DnsQueryHttps1DnsProg(Sender: TObject;
+  LogOption: TLogOption; const Msg: string);
+begin
+    AddLog (Msg);
+end;
+
+procedure THttpRestForm.DnsQueryHttps1RequestDone(Sender: TObject; Error: Word);
+var
+    MyDnsQuery: TDnsQueryHttps;
+    S: String;
+    I, qtype: Integer;
+begin
+    MyDnsQuery := Sender as TDnsQueryHttps;
+    if Error <> 0 then begin
+        AddLog('Request failed, error #' + IntToStr(Error) +
+              '. Status = ' + IntToStr(MyDnsQuery.HttpRest.StatusCode) +
+                               ' - ' + MyDnsQuery.HttpRest.ReasonPhrase);
+    end
+    else begin
+        if MyDnsQuery.ResponseAuthoritative then
+            S := ', Authoritative Server'
+        else
+            S := ', Not Authoritative';
+        AddLog ('Reponse Code: ' + DnsRCodeTable[MyDnsQuery.ResponseCode] + S +
+             ', Answer Records: ' + IntToStr(MyDnsQuery.ResponseANCount) +
+               ', NS Records: ' + IntToStr(MyDnsQuery.ResponseNSCount) +
+                 ', Additional Records: ' + IntToStr(MyDnsQuery.ResponseARCount));
+        if MyDnsQuery.AnswerTotal > 0 then begin
+
+          // display on grid, sub headers
+            RespList.Items.Add.Caption := ''; // blank line
+            with RespList.Items.Add do begin
+                Caption := 'Query Name';
+                SubItems.Add('Type');
+                SubItems.Add('Data');
+                SubItems.Add('TTL');
+            end;
+            for I := 0 to MyDnsQuery.AnswerTotal - 1 do begin
+              // display on grid, answer line
+                qtype := MyDnsQuery.AnswerRecord[I].RRType;
+                with RespList.Items.Add do begin
+                    Caption := String(MyDnsQuery.AnswerRecord[I].RRName);
+                    SubItems.Add(FindDnsReqTypeName(qtype));
+                    S := String(MyDnsQuery.AnswerRecord[I].RDData);
+
+                  // some records return stuff other than a string
+                    if qtype = DnsQueryMX then
+                        S := IntToStr (MyDnsQuery.AnswerRecord[I].MxPref) + ' = ' + S;
+                    SubItems.Add(S);
+                    SubItems.Add(IntToStr(MyDnsQuery.AnswerRecord[I].TTL));
+                 end;
+
+            end;
+        end;
+    end;
+
+end;
+
 end.
+

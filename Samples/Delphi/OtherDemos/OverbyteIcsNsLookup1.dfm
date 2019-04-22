@@ -2,8 +2,8 @@ object NsLookupForm: TNsLookupForm
   Left = 257
   Top = 327
   Caption = 'Name Server Lookup'
-  ClientHeight = 197
-  ClientWidth = 518
+  ClientHeight = 643
+  ClientWidth = 676
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -19,8 +19,8 @@ object NsLookupForm: TNsLookupForm
   object DisplayMemo: TMemo
     Left = 0
     Top = 65
-    Width = 518
-    Height = 132
+    Width = 676
+    Height = 578
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -36,7 +36,7 @@ object NsLookupForm: TNsLookupForm
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 518
+    Width = 676
     Height = 65
     Align = alTop
     TabOrder = 1
@@ -50,48 +50,24 @@ object NsLookupForm: TNsLookupForm
     object Label2: TLabel
       Left = 10
       Top = 30
-      Width = 37
-      Height = 24
+      Width = 31
+      Height = 26
       Caption = 'DNS Server'
       WordWrap = True
     end
-    object DnsEdit: TEdit
-      Left = 53
-      Top = 32
-      Width = 121
-      Height = 21
-      Hint = 'DNS server to query'
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 0
-      Text = 'DnsEdit'
-    end
-    object NameEdit: TEdit
-      Left = 53
-      Top = 5
-      Width = 121
-      Height = 21
-      Hint = 'Name to lookup'
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 1
-      Text = 'NameEdit'
-    end
-    object MXLookupButton: TButton
-      Left = 185
-      Top = 9
-      Width = 75
-      Height = 21
-      Caption = '&MXLookup'
-      TabOrder = 2
-      OnClick = MXLookupButtonClick
+    object Label3: TLabel
+      Left = 260
+      Top = 11
+      Width = 94
+      Height = 13
+      Caption = 'Lookup Query Type'
     end
     object ClearDisplayBitBtn: TBitBtn
-      Left = 362
+      Left = 582
       Top = 6
       Width = 25
       Height = 25
-      TabOrder = 3
+      TabOrder = 7
       OnClick = ClearDisplayBitBtnClick
       Glyph.Data = {
         F6000000424DF600000000000000760000002800000010000000100000000100
@@ -103,41 +79,93 @@ object NsLookupForm: TNsLookupForm
         07770F00F08FBFBFB0770FFFFFF8FBFBFB070FF00F0F8FBFBFB00FFFFFFFF8FB
         FBF80F00F0FF0F8FBF870FFFFFFFFF08F8770000000000078777}
     end
-    object ALookupButton: TButton
-      Left = 185
-      Top = 36
+    object LookupButton: TButton
+      Left = 385
+      Top = 38
       Width = 75
       Height = 21
-      Caption = '&ALookup'
-      TabOrder = 4
-      OnClick = ALookupButtonClick
-    end
-    object PTRLookupButton: TButton
-      Left = 274
-      Top = 9
-      Width = 75
-      Height = 21
-      Caption = '&PTRLookup'
+      Caption = '&Start Lookup'
       TabOrder = 5
-      OnClick = PTRLookupButtonClick
+      OnClick = LookupButtonClick
     end
     object TcpRadioButton: TRadioButton
-      Left = 290
-      Top = 36
+      Left = 260
+      Top = 42
       Width = 49
       Height = 17
       Caption = 'TCP'
-      Checked = True
-      TabOrder = 6
-      TabStop = True
+      TabOrder = 3
     end
     object UdpRadioButton: TRadioButton
-      Left = 345
-      Top = 36
+      Left = 305
+      Top = 42
       Width = 49
       Height = 17
       Caption = 'UDP'
-      TabOrder = 7
+      Checked = True
+      TabOrder = 4
+      TabStop = True
+    end
+    object DnsEdit: TComboBox
+      Left = 58
+      Top = 36
+      Width = 190
+      Height = 21
+      ItemHeight = 13
+      TabOrder = 2
+      Text = '8.8.8.8'
+      Items.Strings = (
+        '')
+    end
+    object NameEdit: TComboBox
+      Left = 47
+      Top = 9
+      Width = 201
+      Height = 21
+      ItemHeight = 13
+      TabOrder = 0
+      Text = 'pool.ntp.org'
+      Items.Strings = (
+        'pool.ntp.org'
+        'www.google.com'
+        'google.com'
+        'www.overbyte.eu'
+        'overbyte.eu'
+        'wiki.overbyte.eu'
+        'magsys.co.uk'
+        'www.magsys.co.uk'
+        'ftp.magsys.co.uk'
+        'mail.magsys.co.uk'
+        'embarcadero.com'
+        'www.embarcadero.com'
+        '')
+    end
+    object DnsQueryType: TComboBox
+      Left = 360
+      Top = 11
+      Width = 201
+      Height = 21
+      Style = csDropDownList
+      ItemHeight = 13
+      TabOrder = 1
+    end
+    object AllButton: TButton
+      Left = 475
+      Top = 38
+      Width = 75
+      Height = 21
+      Caption = '&Lookup All '
+      TabOrder = 6
+      OnClick = AllButtonClick
+    end
+    object AbortButton: TButton
+      Left = 565
+      Top = 38
+      Width = 75
+      Height = 21
+      Caption = '&Abort '
+      TabOrder = 8
+      OnClick = AbortButtonClick
     end
   end
   object DnsQuery1: TDnsQuery
@@ -147,5 +175,12 @@ object NsLookupForm: TNsLookupForm
     OnRequestDone = DnsQuery1RequestDone
     Left = 248
     Top = 88
+  end
+  object Timer1: TTimer
+    Enabled = False
+    Interval = 30000
+    OnTimer = Timer1Timer
+    Left = 295
+    Top = 95
   end
 end

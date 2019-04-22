@@ -22,7 +22,7 @@ Mar 2019   V8.60 - Angus added TIcsMailQueue, TIcsIpStrmLog, TIcsWhoisCli,
                    For Delphi 2007 only, added TFtpClientW, TFtpServerW,
                      TIcsFileCopyW, TIcsFtpMultiW and TIcsHttpMultiW.
                    Added Forum and Wiki URLs to About Box.
-Apr 2019  V8.61  - Version only
+Apr 2019  V8.61  - Added TDnsQueryHttps
 
 }
 
@@ -276,6 +276,7 @@ begin
       TIcsIpStrmLog,  { V8.60 }
       TIcsFtpMulti,   { V8.60 }
       TIcsHttpMulti,  { V8.60 }
+      TDnsQueryHttps, { V8.61 }
       {$IFDEF DELPHI11}
         TSslFtpClientW,  { V8.60 }
         TSslFtpServerW,  { V8.60 }

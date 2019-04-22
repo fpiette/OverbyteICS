@@ -141,9 +141,11 @@ Nov 2, 2018   - V8.58 - Bug fixes, call RequestDone event if it fails
 Feb 6, 2019   - V8.60 - Default with SocketFamily Any for both IPv4 and IPv6.
                         SessionConnect logging shows IP address as well as host name.
                         Increased OAuth web server timeout from 2 to 30 mins.
-Apr 4, 2019   - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttpRest events.
+Apr 22, 2019  - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttpRest events.
                         ResponseXX properties available in OnRequestDone and OnRestRequestDone.
-
+                        Return javascript content as well as XML and Json
+                        Added new TDnsQueryHttps component to make DNS over HTTPS
+                           queries using wire format.
 
 
 Pending - Simple web server now less simple to supports SSL and ALPN
@@ -202,6 +204,7 @@ uses
     Ics.Fmx.OverbyteIcsSslX509Utils,
     Ics.Fmx.OverbyteIcsMsSslUtils,
     Ics.Fmx.OverbyteIcsSslJose,
+    Ics.Fmx.OverbyteIcsDnsQuery,
 {$ELSE}
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
@@ -211,6 +214,7 @@ uses
     OverbyteIcsSslX509Utils,
     OverbyteIcsMsSslUtils,
     OverbyteIcsSslJose,
+    OverbyteIcsDnsQuery,
 {$ENDIF FMX}
 {$IFDEF MSWINDOWS}
     OverbyteIcsWinCrypt,
@@ -233,6 +237,8 @@ const
     CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.61 ';
     DefMaxBodySize = 100*100*100; { max memory/string size 100Mbyte }
     TestState = 'Testing-Redirect';
+    MimeDnsJson = 'application/dns-json';
+    MimeDnsMess = 'application/dns-message';
 
     OAuthErrBase                     = {$IFDEF MSWINDOWS} 1 {$ELSE} 1061 {$ENDIF};
     OAuthErrNoError                  = 0;
@@ -605,6 +611,36 @@ type
     property OnOAuthNewToken: TNotifyEvent          read  FOnOAuthNewToken
                                                     write FOnOAuthNewToken;
   end;
+
+  { V8.61 TDnsQueryHttps supports DOH - DNS over HTTPS }
+  TDnsQueryHttps = Class(TDnsQuery)
+  private
+    { Private declarations }
+    FDebugLevel: THttpDebugLevel;
+    FDnsSrvUrl: string;
+    FOnDnsProg: THttpRestProgEvent;
+  protected
+    { Protected declarations }
+    procedure DnsRestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
+    procedure DnsRestRequestDone(Sender: TObject; RqType: THttpRequest; ErrCode: Word);
+  public
+    { Public declarations }
+    HttpRest:  TSslHttpRest;
+    constructor  Create (Aowner: TComponent); override;
+    destructor   Destroy; override;
+    function     DOHQueryAll(Host: AnsiString): Boolean;
+    function     DOHQueryAny(Host: AnsiString; QNumber: Integer;
+                                    MultiRequests: Boolean = False) : Boolean;
+  published
+    { Published declarations }
+    property DnsSrvUrl: string                      read  FDnsSrvUrl
+                                                    write FDnsSrvUrl;
+    property DebugLevel: THttpDebugLevel            read  FDebugLevel
+                                                    write FDebugLevel;
+    property OnDnsProg: THttpRestProgEvent          read  FOnDnsProg
+                                                    write FOnDnsProg;
+  end;
+
 
 { Retrieve a single value by name out of an URL encoded data stream.        }
 function IcsExtractURLEncodedValue(
@@ -1465,7 +1501,8 @@ begin
 
                   // convert response to correct codepage, including entities
                     if (Pos ('text/', FContentType) = 1) or
-                           (Pos ('json', FContentType) <> 0) or
+                         (Pos ('json', FContentType) <> 0) or
+                           (Pos ('javascript', FContentType) <> 0) or  { V8.61 }
                              (Pos ('xml', FContentType) <> 0) then begin
                         FResponseRaw := IcsHtmlToStr(FResponseStream, FContentType, true);
                         FResponseStream.Seek (0, soFromBeginning) ;
@@ -2373,6 +2410,113 @@ begin
     if (NOT (OAopAuthNoScope in FOAOptions)) and (FScope <> '') then
         HttpRest.RestParams.AddItem('scope', FScope, False);
     Result := GetToken;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ TDnsQueryHttps V8.61 }
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TDnsQueryHttps.Create (Aowner: TComponent);
+begin
+    inherited Create(AOwner);
+    HttpRest := TSslHttpRest.Create(self);
+    HttpRest.OnHttpRestProg := DnsRestProg;
+    HttpRest.OnRestRequestDone := DnsRestRequestDone;
+    FDnsSrvUrl := DnsPublicHttpsTable[0];
+    FDebugLevel := DebugNone;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TDnsQueryHttps.Destroy;
+begin
+    FreeAndNil(HttpRest);
+    inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TDnsQueryHttps.DnsRestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
+begin
+    if Assigned(FOnDnsProg) then
+        FOnDnsProg(Self, LogOption, Msg) ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  TDnsQueryHttps.DOHQueryAll(Host: AnsiString): Boolean;
+begin
+    FMultiReqSeq  := 1;
+    FMultiHost := Host;
+    FAnsTot := 0;
+    Result := DOHQueryAny(FMultiHost, DnsAllReqTable[FMultiReqSeq], True);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TDnsQueryHttps.DOHQueryAny(Host: AnsiString; QNumber: integer; MultiRequests: Boolean = False): Boolean;
+var
+    QueryBuf: AnsiString;
+    QueryLen, StatCode: Integer;
+begin
+    Result := False;
+    if Pos('https://', FDnsSrvUrl) <> 1 then begin
+        DnsRestProg(Self, loSslErr, 'Must Specify DNS over HTTPS Server URL');
+        Exit;
+    end;
+    if NOT MultiRequests then FAnsTot := 0;  { reset result records }
+    HttpRest.RestParams.Clear;
+    HttpRest.DebugLevel := FDebugLevel;
+    HttpRest.Accept := MimeDnsMess;
+    HttpRest.ContentTypePost := MimeDnsMess;
+    HttpRest.NoCache := True;
+
+// build binary wire format request per RFC8484, same as UDP requests RFC1035,
+// but ID always 0, so we build and parse requests with TDnsQuery component
+    SetLength(QueryBuf, 512);
+    BuildRequestHeader(PDnsRequestHeader(@QueryBuf[1]),0,
+                                           DnsOpCodeQuery, TRUE, 1, 0, 0, 0);
+    QueryLen := BuildQuestionSection(@QueryBuf[SizeOf(TDnsRequestHeader) + 1],
+                                              IcsTrimA(Host), QNumber, DnsClassIN);
+    QueryLen := QueryLen + SizeOf(TDnsRequestHeader);
+    SetLength(QueryBuf, QueryLen);
+    StatCode := HttpRest.RestRequest(httpPOST, FDnsSrvUrl, True, String(QueryBuf));  // async request
+    Result := (StatCode = 0);  // raises exception on failure
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TDnsQueryHttps.DnsRestRequestDone(Sender: TObject; RqType: THttpRequest; ErrCode: Word);
+var
+    RespBuf: AnsiString;
+begin
+    if ErrCode <> 0 then begin
+        DnsRestProg(Self, loSslErr, 'Request failed, error #' + IntToStr(ErrCode) +
+              '. Status = ' + IntToStr(HttpRest.StatusCode) + ' - ' + HttpRest.ReasonPhrase);
+        TriggerRequestDone(ErrCode);
+        Exit;
+    end;
+    DnsRestProg(Self, loSslErr, 'Request done, StatusCode #' + IntToStr(HttpRest.StatusCode));
+    if (HttpRest.StatusCode = 200) and (HttpRest.ContentType = MimeDnsMess) then begin
+        RespBuf := HttpRest.ResponseOctet;
+        if DecodeWireResp(@RespBuf[1], HttpRest.ContentLength) then begin
+
+           // if simulating ALL request make next request in sequence
+            if FMultiReqSeq > 0 then begin
+                FMultiReqSeq := FMultiReqSeq + 1;
+                if FMultiReqSeq <= DnsAllReqTot then begin
+                    DOHQueryAny(FMultiHost, DnsAllReqTable[FMultiReqSeq], True);
+                    Exit;
+                end;
+                FMultiReqSeq := 0;
+            end;
+            TriggerRequestDone(0);  // all done
+        end
+        else
+            TriggerRequestDone(99);
+    end
+    else
+       TriggerRequestDone(HttpRest.StatusCode);
 end;
 
 

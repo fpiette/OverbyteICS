@@ -4,12 +4,11 @@ Program:      NsLookup
 Description:  Demo for DnsQuery ICS component.
 Author:       François Piette
 Creation:     January 29, 1999
-Version:      8.00
+Version:      8.61
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1999-2019 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium. F
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -42,6 +41,17 @@ Jul 19, 2008 V6.00 F.Piette made some changes for Unicode
 Dec 22, 2008 V6.01 F.Piette added a few explicit casts to avoid warning when
                    compiling with D2009.
 Jul 4, 2012  V8.00 Angus changed to Goggle DNS 8.8.8.8 and embarcadero.com
+Apr 22 2019 V8.61  Angus major rewrite to support all important DNS queries
+                     and also new Query All for seven most common queries.
+                   Note new queries return results in single array rather
+                     than multiple arrays, but those old arrays are still
+                     available for backward compatibility.
+                   Added list of public DNS servers.
+
+Note - OverbyteIcsHttpRest contains a derived component DnsQueryHttps which makes
+DNS over HTTPS requests per RFC8484, illustrated in the OverbyteIcsHttpRest sample
+which displays results in a more friendly grid.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsNsLookup1;
@@ -54,32 +64,36 @@ uses
   OverbyteIcsWinSock, OverbyteIcsWSocket, OverbyteIcsDnsQuery;
 
 const
-  NsLookVersion      = 800;
-  CopyRight : String = ' NsLookup (c) 1999-2012 F. Piette V8.00 ';
+  NsLookVersion      = 861;
+  CopyRight : String = ' NsLookup (c) 1999-2019 F. Piette V8.61 ';
 
 type
   TNsLookupForm = class(TForm)
     DisplayMemo: TMemo;
     Panel1: TPanel;
-    DnsEdit: TEdit;
-    NameEdit: TEdit;
-    MXLookupButton: TButton;
     DnsQuery1: TDnsQuery;
     ClearDisplayBitBtn: TBitBtn;
-    ALookupButton: TButton;
-    PTRLookupButton: TButton;
+    LookupButton: TButton;
     TcpRadioButton: TRadioButton;
     UdpRadioButton: TRadioButton;
     Label1: TLabel;
     Label2: TLabel;
+    DnsEdit: TComboBox;
+    Label3: TLabel;
+    NameEdit: TComboBox;
+    DnsQueryType: TComboBox;
+    AllButton: TButton;
+    Timer1: TTimer;
+    AbortButton: TButton;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
-    procedure MXLookupButtonClick(Sender: TObject);
     procedure DnsQuery1RequestDone(Sender: TObject; Error: Word);
     procedure ClearDisplayBitBtnClick(Sender: TObject);
-    procedure ALookupButtonClick(Sender: TObject);
-    procedure PTRLookupButtonClick(Sender: TObject);
+    procedure LookupButtonClick(Sender: TObject);
+    procedure AllButtonClick(Sender: TObject);
+    procedure Timer1Timer(Sender: TObject);
+    procedure AbortButtonClick(Sender: TObject);
   private
     FIniFileName : String;
     FInitialized : Boolean;
@@ -110,8 +124,23 @@ const
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TNsLookupForm.FormCreate(Sender: TObject);
+var
+    I: Integer;
 begin
     FIniFileName := GetIcsIniFileName;
+
+// fill Dns Query drop down
+    DnsQueryType.Items.Clear;
+    for I := Low(DnsReqTable) to High(DnsReqTable) do
+         DnsQueryType.Items.Add (DnsReqTable[I].Asc +
+                                         ' [' + DnsReqTable[I].Desc + ']');
+    DnsQueryType.ItemIndex := 0;
+
+ // fill DNS server drop down
+    DnsEdit.Items.Clear;
+    for I := Low(DnsPublicServerTable) to High(DnsPublicServerTable) do
+         DnsEdit.Items.Add (DnsPublicServerTable[I]);
+
 end;
 
 
@@ -131,7 +160,7 @@ begin
         Left          := IniFile.ReadInteger(SectionWindow, KeyLeft,
                                              (Screen.Width  - Width)  div 2);
         NameEdit.Text := IniFile.ReadString(SectionData, KeyName, 'embarcadero.com');
-        DnsEdit.Text  := IniFile.ReadString(SectionData, KeyDns,  '8.8.8.8');  { Goggle DNS }
+        DnsEdit.Text  := IniFile.ReadString(SectionData, KeyDns, DnsPublicServerTable[0]);
         DisplayMemo.Clear;
         Display(Trim(CopyRight));
         IniFile.Free;
@@ -196,6 +225,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*  backward compatible response handling, only A, PTR and MX requests
 procedure TNsLookupForm.DnsQuery1RequestDone(Sender: TObject; Error: Word);
 var
     I      : Integer;
@@ -249,6 +279,95 @@ begin
     end;
     { Dump complete response }
     DumpDnsResponse;
+end;   *)
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TNsLookupForm.DnsQuery1RequestDone(Sender: TObject; Error: Word);
+var
+    I      : Integer;
+begin
+    Timer1.Enabled := False;
+    AllButton.Enabled := True;
+    LookupButton.Enabled := True;
+    if Error <> 0 then begin
+        Display('Error #' + IntToStr(Error));
+        Exit;
+    end;
+
+  // only show question for a single query, not ALL
+    if DnsQuery1.AnswerTotal = DnsQuery1.ResponseANCount then begin
+        Display('ID                 : ' + IntToStr(DnsQuery1.ResponseID));
+        Display('ResponseCode       : ' + IntToStr(DnsQuery1.ResponseCode) + ' ' +
+                                                DnsRCodeTable[DnsQuery1.ResponseCode]);
+        Display('OpCode             : ' + IntToStr(DnsQuery1.ResponseOpCode));
+        Display('Authoritative      : ' + IntToStr(Ord(DnsQuery1.ResponseAuthoritative)));
+        Display('Truncation         : ' + IntToStr(Ord(DnsQuery1.ResponseTruncation)));
+        Display('RecursionAvailable : ' + IntToStr(Ord(DnsQuery1.ResponseRecursionAvailable)));
+        Display('QDCount            : ' + IntToStr(DnsQuery1.ResponseQDCount));
+        Display('ANCount            : ' + IntToStr(DnsQuery1.ResponseANCount));
+        Display('NSCount            : ' + IntToStr(DnsQuery1.ResponseNSCount));
+        Display('ARCount            : ' + IntToStr(DnsQuery1.ResponseARCount));
+        Display('ResponseLen        : ' + IntToStr(DnsQuery1.ResponseLen));
+        Display('QuestionName       : ' + String(DnsQuery1.QuestionName));
+        Display('QuestionType       : ' + IntToStr(DnsQuery1.QuestionType) + ' ' +
+                                             FindDnsReqTypeName(DnsQuery1.QuestionType));
+        Display('QuestionClass      : ' + IntToStr(DnsQuery1.QuestionClass));
+    end;
+    if DnsQuery1.AnswerTotal > 0 then begin
+        for I := 0 to DnsQuery1.AnswerTotal - 1 do begin
+            Display('Answer #' + IntToStr(I + 1));
+            with  DnsQuery1.AnswerRecord[I] do begin
+                Display('  AnswerName       : ' + String(RRName));
+                Display('  AnswerType       : ' + IntToStr(RRType) + ' ' + FindDnsReqTypeName(RRType));
+                Display('  AnswerClass      : ' + IntToStr(RRClass));
+                Display('  AnswerTTL        : ' + IntToStr(TTL));
+
+                case RRType of
+                DnsQueryMX:
+                    begin
+                        Display('  MXPreference     : ' + IntToStr(MxPref));
+                        Display('  MXExchange       : ' + String(RDData));
+                    end;
+                DnsQueryA, DnsQueryAAAA, DnsQueryNS:
+                    begin
+                        Display('  Address          : ' + String(RDData));
+                    end;
+                DnsQueryPTR:
+                    begin
+                        Display('  Hostname         : ' + String(RDData));
+                    end;
+                else begin
+                        Display('  Result           : ' + String(RDData));
+                     end;
+                end;
+            end;
+        end;
+    end;
+
+    { Dump complete single response }
+    if DnsQuery1.AnswerTotal = DnsQuery1.ResponseANCount then
+        DumpDnsResponse;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TNsLookupForm.AbortButtonClick(Sender: TObject);
+begin
+    if (NOT AllButton.Enabled) or (NOT AllButton.Enabled) then
+        DnsQuery1.AbortQuery;
+end;
+
+procedure TNsLookupForm.AllButtonClick(Sender: TObject);
+begin
+    AllButton.Enabled := False;
+    LookupButton.Enabled := False;
+    if UdpRadioButton.Checked then
+        DnsQuery1.Proto := 'udp'
+    else
+        DnsQuery1.Proto := 'tcp';
+    DnsQuery1.Addr := DnsEdit.Text;
+    Timer1.Enabled := True;
+    FRequestID := DnsQuery1.QueryAll(AnsiString(Trim(NameEdit.Text)));
 end;
 
 
@@ -260,43 +379,29 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TNsLookupForm.MXLookupButtonClick(Sender: TObject);
+procedure TNsLookupForm.LookupButtonClick(Sender: TObject);
 begin
+    AllButton.Enabled := False;
+    LookupButton.Enabled := False;
     if UdpRadioButton.Checked then
         DnsQuery1.Proto := 'udp'
     else
         DnsQuery1.Proto := 'tcp';
     DnsQuery1.Addr := DnsEdit.Text;
-    FRequestID     := DnsQuery1.MXLookup(AnsiString(NameEdit.Text));
+    Timer1.Enabled := True;
+    FRequestID := DnsQuery1.QueryAny(AnsiString(Trim(NameEdit.Text)),
+                                    DnsReqTable[DnsQueryType.ItemIndex].Num);
     Display('Request ID         : ' + IntToStr(FRequestID));
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TNsLookupForm.ALookupButtonClick(Sender: TObject);
+procedure TNsLookupForm.Timer1Timer(Sender: TObject);
 begin
-    if UdpRadioButton.Checked then
-        DnsQuery1.Proto := 'udp'
-    else
-        DnsQuery1.Proto := 'tcp';
-    DnsQuery1.Addr := DnsEdit.Text;
-    FRequestID     := DnsQuery1.ALookup(AnsiString(NameEdit.Text));
-    Display('Request ID         : ' + IntToStr(FRequestID));
+    Timer1.Enabled := False;
+    DnsQuery1.AbortQuery;
+ //   DnsQuery1RequestDone(Self, 999);
 end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TNsLookupForm.PTRLookupButtonClick(Sender: TObject);
-begin
-    if UdpRadioButton.Checked then
-        DnsQuery1.Proto := 'udp'
-    else
-        DnsQuery1.Proto := 'tcp';
-    DnsQuery1.Addr := DnsEdit.Text;
-    FRequestID     := DnsQuery1.PTRLookup(AnsiString(NameEdit.Text));
-    Display('Request ID         : ' + IntToStr(FRequestID));
-end;
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 

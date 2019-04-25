@@ -52,7 +52,7 @@ interface
 { *                                                       * }
 { * March 2015 - Angus improved SSL reporting             * }
 { *                                                       * }
-{ * April 2019 - Angus fixed authentication               * }
+{ * April 2019 - Angus fixed authentication, added NoCahce * }
 { *                                                       * }
 { ********************************************************* }
 
@@ -433,6 +433,7 @@ begin
     HTTP.Cookie        := FCookie;
     HTTP.Options       := HTTP.Options + [httpoEnableContentCoding];
     HTTP.LmCompatLevel := GLmCompatLevel; { AG }
+    HTTP.NoCache       := True;    { V8.61 }
 end;
 
 procedure THTTPConnection.GetPostFinal;

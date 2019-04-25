@@ -3,7 +3,7 @@ object HttpRestForm: THttpRestForm
   Top = 176
   Caption = 
     'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.61 -' +
-    ' 22nd April 2019'
+    ' 24th April 2019'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace
@@ -818,8 +818,130 @@ object HttpRestForm: THttpRestForm
     object TabSms: TTabSheet
       Caption = 'Send SMS'
       ImageIndex = 5
-      ExplicitLeft = 8
       ExplicitTop = 23
+      object BoxKapow: TGroupBox
+        Left = 5
+        Top = 10
+        Width = 426
+        Height = 261
+        Caption = 'https://www.kapow.co.uk/'
+        TabOrder = 0
+        object Label24: TLabel
+          Left = 220
+          Top = 25
+          Width = 50
+          Height = 14
+          Caption = 'Password'
+        end
+        object Label26: TLabel
+          Left = 5
+          Top = 55
+          Width = 75
+          Height = 14
+          Caption = 'Sender Number'
+        end
+        object Label27: TLabel
+          Left = 5
+          Top = 25
+          Width = 74
+          Height = 14
+          Caption = 'Account: Name'
+        end
+        object Label28: TLabel
+          Left = 220
+          Top = 58
+          Width = 62
+          Height = 14
+          Caption = 'SMS Number'
+        end
+        object Label29: TLabel
+          Left = 5
+          Top = 85
+          Width = 44
+          Height = 14
+          Caption = 'Message'
+        end
+        object LabelKapowCredit: TLabel
+          Left = 298
+          Top = 194
+          Width = 78
+          Height = 14
+          Caption = 'Kapow Credits: '
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clRed
+          Font.Height = -11
+          Font.Name = 'Arial'
+          Font.Style = []
+          ParentFont = False
+        end
+        object KapowAccName: TEdit
+          Left = 85
+          Top = 20
+          Width = 126
+          Height = 22
+          TabOrder = 0
+        end
+        object KapowAccPw: TEdit
+          Left = 290
+          Top = 22
+          Width = 126
+          Height = 22
+          PasswordChar = '*'
+          TabOrder = 1
+        end
+        object KapowAccSender: TEdit
+          Left = 85
+          Top = 50
+          Width = 126
+          Height = 22
+          TabOrder = 2
+        end
+        object KapowSmsNum: TEdit
+          Left = 290
+          Top = 50
+          Width = 126
+          Height = 22
+          TabOrder = 3
+        end
+        object KapowMsg: TMemo
+          Left = 85
+          Top = 80
+          Width = 331
+          Height = 91
+          Lines.Strings = (
+            'KapowMsg')
+          ScrollBars = ssVertical
+          TabOrder = 4
+        end
+        object doKapowSend: TButton
+          Left = 14
+          Top = 190
+          Width = 75
+          Height = 25
+          Caption = 'Send SMS'
+          TabOrder = 5
+          OnClick = doKapowSendClick
+        end
+        object doKapowCheck: TButton
+          Left = 106
+          Top = 190
+          Width = 85
+          Height = 25
+          Caption = 'Check Delivery'
+          Enabled = False
+          TabOrder = 6
+          OnClick = doKapowCheckClick
+        end
+        object doKapowCredit: TButton
+          Left = 207
+          Top = 190
+          Width = 75
+          Height = 25
+          Caption = 'Check Credit'
+          TabOrder = 7
+          OnClick = doKapowCreditClick
+        end
+      end
     end
   end
   object LogWin: TMemo
@@ -925,6 +1047,20 @@ object HttpRestForm: THttpRestForm
     DebugLevel = DebugNone
     OnDnsProg = DnsQueryHttps1DnsProg
     Left = 160
+    Top = 375
+  end
+  object TimerLog: TTimer
+    Interval = 2000
+    OnTimer = TimerLogTimer
+    Left = 210
+    Top = 375
+  end
+  object IcsSMS1: TIcsSMS
+    SmsProvider = SmsProvKapow
+    DebugLevel = DebugNone
+    OnSmsProg = IcsSMS1SmsProg
+    OnSmsDone = IcsSMS1SmsDone
+    Left = 255
     Top = 375
   end
 end

@@ -93,9 +93,11 @@ Sep 18, 2017 V8.40 Added various functions to find the codepage for an HTML page
                      and convert a buffer to a unicode string, IcsFindHtmlCharset,
                      IcsFindHtmlCodepage, IcsContentCodepage, IcsHtmlToStr, which
                      take either a TBytes buffer or stream as input.
-Apr 25, 2018 V8.54  IcsHtmlToStr accepts json/xml as textual
-Apr 8, 2019  V8.61  IcsHtmlToStr returns javascript content as well as XML and Json.
+Apr 25, 2018 V8.54 IcsHtmlToStr accepts json/xml as textual
+Apr 24, 2019 V8.61 IcsHtmlToStr returns javascript content as well as XML and Json.
+                   IcsHtmlToStr doesn't give up on tiny responses.
 
+                   
 
 //
 // Windows codepage Identifiers, June 2008, for a current list try
@@ -1774,10 +1776,10 @@ begin
     BOMSize := 0;
     Result := '';
     if Count > Length(HtmlData) then Count := Length(HtmlData);  { sanity check }
-    if Count < 4 then Exit;
 
  { html may have BOM bytes are the front, very easy }
-    IcsGetBufferCodepage(@HtmlData[0], 4, BOMSize);
+    if Count >= 4 then  { V8.61 don't give up on tiny responses }
+        IcsGetBufferCodepage(@HtmlData[0], 4, BOMSize);
 
     if (ACodePage = CP_UTF16) or (ACodePage = CP_UTF16Be) or (NOT Entities) then
  { convert to unicode, ignoring entities like &pound; and &#9741; }

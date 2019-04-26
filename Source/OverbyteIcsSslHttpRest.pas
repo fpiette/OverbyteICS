@@ -141,7 +141,7 @@ Nov 2, 2018   - V8.58 - Bug fixes, call RequestDone event if it fails
 Feb 6, 2019   - V8.60 - Default with SocketFamily Any for both IPv4 and IPv6.
                         SessionConnect logging shows IP address as well as host name.
                         Increased OAuth web server timeout from 2 to 30 mins.
-Apr 24, 2019  - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttpRest events.
+Apr 26, 2019  - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttpRest events.
                         ResponseXX properties available in OnRequestDone and OnRestRequestDone.
                         Return javascript content as well as XML and Json
                         Posted content-type header now specifies UTF-8.
@@ -2675,7 +2675,7 @@ begin
         HttpRest.RestParams.AddItem('returnid', 'TRUE', False);
         HttpRest.RestParams.AddItem('sms', Msg, False);
         FSmsOperation := SmsOpSend;
-        Result := MakeRequest('https://www.kapow.co.uk/scripts/sendsms.php');
+        Result := MakeRequest('https://secure.kapow.co.uk/scripts/sendsms.php');
     end
     else begin
         FLastError := 'Unknown Provider';
@@ -2696,7 +2696,7 @@ begin
         HttpRest.RestParams.Clear;
         HttpRest.RestParams.AddItem('returnid', ID, False);
         FSmsOperation := SmsOpCheck;
-        Result := MakeRequest('https://www.kapow.co.uk/scripts/chk_status.php');
+        Result := MakeRequest('https://secure.kapow.co.uk/scripts/chk_status.php');
     end
     else begin
         FLastError := 'Unknown Provider';
@@ -2712,7 +2712,7 @@ begin
     if FSmsProvider = SmsProvKapow then begin
         HttpRest.RestParams.Clear;
         FSmsOperation := SmsOpCredit;
-        Result := MakeRequest('https://www.kapow.co.uk/scripts/chk_credit.php');
+        Result := MakeRequest('https://secure.kapow.co.uk/scripts/chk_credit.php');
     end
     else begin
         FLastError := 'Unknown Provider';

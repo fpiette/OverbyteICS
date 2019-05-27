@@ -3,7 +3,7 @@ object IpLogForm: TIpLogForm
   Top = 84
   Caption = 
     'ICS IP Streaming Log Component Demo -  http://www.overbyte.be - ' +
-    'V8.60 - 20th March 2019'
+    'V8.62 - 20th May 2019'
   ClientHeight = 746
   ClientWidth = 1004
   Color = clBtnFace
@@ -243,7 +243,7 @@ object IpLogForm: TIpLogForm
     Top = 0
     Width = 1004
     Height = 746
-    ActivePage = SheetOperation
+    ActivePage = SheetSettings
     Align = alClient
     TabOrder = 0
     object SheetOperation: TTabSheet
@@ -557,14 +557,16 @@ object IpLogForm: TIpLogForm
         end
         object Label11: TLabel
           Left = 5
-          Top = 85
-          Width = 56
-          Height = 14
-          Caption = 'Server Cert'
+          Top = 50
+          Width = 89
+          Height = 24
+          AutoSize = False
+          Caption = 'Server Certifcate File or Bundle'
+          WordWrap = True
         end
         object Label10: TLabel
           Left = 5
-          Top = 115
+          Top = 85
           Width = 66
           Height = 14
           Caption = 'Serv Priv Key'
@@ -578,10 +580,10 @@ object IpLogForm: TIpLogForm
         end
         object Label15: TLabel
           Left = 5
-          Top = 175
-          Width = 73
+          Top = 115
+          Width = 50
           Height = 14
-          Caption = 'Serv DH Param'
+          Caption = 'Password'
         end
         object Label16: TLabel
           Left = 285
@@ -592,11 +594,11 @@ object IpLogForm: TIpLogForm
           WordWrap = True
         end
         object Label8: TLabel
-          Left = 5
-          Top = 45
-          Width = 75
+          Left = 228
+          Top = 113
+          Width = 68
           Height = 28
-          Caption = 'Server Host Name (optional)'
+          Caption = 'Domain Name'
           WordWrap = True
         end
         object Label12: TLabel
@@ -632,34 +634,34 @@ object IpLogForm: TIpLogForm
         end
         object SslServCert: TEdit
           Left = 100
-          Top = 80
-          Width = 301
+          Top = 52
+          Width = 346
           Height = 22
-          TabOrder = 4
+          TabOrder = 3
           Text = 'iplog-cert.pem'
         end
         object SslCertKey: TEdit
           Left = 100
-          Top = 110
-          Width = 301
+          Top = 80
+          Width = 346
           Height = 22
-          TabOrder = 5
+          TabOrder = 4
           Text = 'iplog-prvkey.pem'
         end
         object SslCACerts: TEdit
           Left = 100
           Top = 140
-          Width = 301
-          Height = 22
-          TabOrder = 6
-        end
-        object SslDHParams: TEdit
-          Left = 100
-          Top = 170
-          Width = 301
+          Width = 346
           Height = 22
           TabOrder = 7
-          Text = 'dhparam1024.pem'
+        end
+        object SslCertPassword: TEdit
+          Left = 100
+          Top = 110
+          Width = 111
+          Height = 22
+          PasswordChar = '*'
+          TabOrder = 5
         end
         object SrvTimeout: TEdit
           Left = 412
@@ -670,8 +672,8 @@ object IpLogForm: TIpLogForm
           Text = '300'
         end
         object SslSrvSec: TRadioGroup
-          Left = 216
-          Top = 205
+          Left = 201
+          Top = 178
           Width = 255
           Height = 181
           Caption = 'Server SSL Security Level'
@@ -689,12 +691,12 @@ object IpLogForm: TIpLogForm
             'TLSv1.3 Only')
           TabOrder = 8
         end
-        object ServerHost: TEdit
-          Left = 100
-          Top = 50
-          Width = 190
+        object SslDomainName: TEdit
+          Left = 310
+          Top = 108
+          Width = 136
           Height = 22
-          TabOrder = 3
+          TabOrder = 6
         end
       end
       object BoxLocalAddr: TGroupBox

@@ -12,8 +12,8 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      Apr 2019
-Version:      8.61
+Updated:      May 2019
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -153,6 +153,7 @@ Apr 26, 2019  - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttp
                            an account for £6.50 (about $9) which gives 100 message
                            credits. Other similar bureaus can be added, provided
                            there is an account for testing.
+May 16, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
 
 
 Pending - Simple web server now less simple to supports SSL and ALPN
@@ -240,8 +241,8 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpRestVersion = 861;
-    CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.61 ';
+    THttpRestVersion = 862;
+    CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.62 ';
     DefMaxBodySize = 100*100*100; { max memory/string size 100Mbyte }
     TestState = 'Testing-Redirect';
     MimeDnsJson = 'application/dns-json';
@@ -676,15 +677,15 @@ type
     { Protected declarations }
     procedure SmsRestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
     procedure SmsRestRequestDone(Sender: TObject; RqType: THttpRequest; ErrCode: Word);
-    function  MakeRequest(const URL: String): Boolean;
+    function  MakeRequest(const URL: String; AsyncReq: Boolean = True): Boolean;
   public
     { Public declarations }
     HttpRest:  TSslHttpRest;
     constructor  Create (Aowner: TComponent); override;
     destructor   Destroy; override;
-    function     SendSMS(const MobileNum, SmsMsg: String): Boolean;
-    function     CheckSMS(ID: String): Boolean;
-    function     CheckCredit: Boolean;
+    function     SendSMS(const MobileNum, SmsMsg: String; AsyncReq: Boolean = True): Boolean;
+    function     CheckSMS(ID: String; AsyncReq: Boolean = True): Boolean;
+    function     CheckCredit(AsyncReq: Boolean = True): Boolean;
     property     SentID: string                     read  FSentID;
     property     Credits: string                    read  FCredits;
     property     LastResp: string                   read  FLastResp;
@@ -1457,8 +1458,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.TransferSslCliCertRequest(Sender     : TObject;
-                                        var Cert   : TX509Base);  { V8.61 }
+procedure TSslHttpRest.TransferSslCliCertRequest(Sender: TObject; var Cert: TX509Base);  { V8.61 }
 begin
     Inherited TransferSslCliCertRequest(Sender, Cert);
     if FSslCliCert.IsCertLoaded then begin
@@ -2616,7 +2616,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsSms.MakeRequest(const URL: String): Boolean;
+function TIcsSms.MakeRequest(const URL: String; AsyncReq: Boolean): Boolean;
 var
     StatCode: Integer;
 begin
@@ -2636,8 +2636,11 @@ begin
         HttpRest.RestParams.PContent := PContUrlencoded;
         HttpRest.SslCliSecurity := sslCliSecBack;  // only supports TLS1 !!!
         HttpRest.DebugLevel := FDebugLevel;
-        StatCode := HttpRest.RestRequest(httpPOST, URL, True, '');  // async request
-        Result := (StatCode = 0);  // raises exception on failure
+        StatCode := HttpRest.RestRequest(httpPOST, URL, AsyncReq, '');
+        if AsyncReq then
+            Result := (StatCode = 0)
+        else
+            Result := (StatCode = 200);  // raises exception on failure
     end
     else begin
         FLastError := 'Unknown Provider';
@@ -2646,7 +2649,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsSms.SendSms(const MobileNum, SmsMsg: String): Boolean;
+function TIcsSms.SendSms(const MobileNum, SmsMsg: String; AsyncReq: Boolean = True): Boolean;
 var
     Msg, Num: String;
 begin
@@ -2675,7 +2678,7 @@ begin
         HttpRest.RestParams.AddItem('returnid', 'TRUE', False);
         HttpRest.RestParams.AddItem('sms', Msg, False);
         FSmsOperation := SmsOpSend;
-        Result := MakeRequest('https://secure.kapow.co.uk/scripts/sendsms.php');
+        Result := MakeRequest('https://secure.kapow.co.uk/scripts/sendsms.php', AsyncReq);
     end
     else begin
         FLastError := 'Unknown Provider';
@@ -2684,7 +2687,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsSms.CheckSMS(ID: String): Boolean;
+function TIcsSms.CheckSMS(ID: String; AsyncReq: Boolean = True): Boolean;
 begin
     Result := False;
     FLastError := '';
@@ -2696,7 +2699,7 @@ begin
         HttpRest.RestParams.Clear;
         HttpRest.RestParams.AddItem('returnid', ID, False);
         FSmsOperation := SmsOpCheck;
-        Result := MakeRequest('https://secure.kapow.co.uk/scripts/chk_status.php');
+        Result := MakeRequest('https://secure.kapow.co.uk/scripts/chk_status.php', AsyncReq);
     end
     else begin
         FLastError := 'Unknown Provider';
@@ -2705,14 +2708,14 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsSms.CheckCredit: Boolean;
+function TIcsSms.CheckCredit( AsyncReq: Boolean = True): Boolean;
 begin
     Result := False;
     FLastError := '';
     if FSmsProvider = SmsProvKapow then begin
         HttpRest.RestParams.Clear;
         FSmsOperation := SmsOpCredit;
-        Result := MakeRequest('https://secure.kapow.co.uk/scripts/chk_credit.php');
+        Result := MakeRequest('https://secure.kapow.co.uk/scripts/chk_credit.php', AsyncReq);
     end
     else begin
         FLastError := 'Unknown Provider';

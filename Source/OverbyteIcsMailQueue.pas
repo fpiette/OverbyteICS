@@ -2,15 +2,15 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Mail Queue Component
 Creation:     Jan 2011
-Updated:      Feb 2019
-Version:      8.60
+Updated:      May 2019
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
-              implied warranty.  In no event will the author be held liable
+              implied warranty.  In no event will the author be held liable                             
               for any  damages arising from the use of this software.
 
               Permission is granted to anyone to use this software for any
@@ -142,6 +142,8 @@ Release 2.5 - 22 Jun 2018      added RetryWithoutSsl which retries an SSL failur
                       Added IcsLoadMailQuFromIni to load settings from INI file.
                       Property SocketFamily is now MxSocketFamily to explain purpose
                         and avoid conflict with MailServer SocketFamily property.
+9 May 2019 - V8.62 -  Added base MailCliSecurity property for MX servers.
+
 
 
 Pending, use STUN client to get EHLO signon reverse DNS lookup.
@@ -225,7 +227,7 @@ uses
 
 
 const
-    MailQuCopyRight : String = ' TIcsMailQueue (c) 2019 V8.60 ';
+    MailQuCopyRight : String = ' TIcsMailQueue (c) 2019 V8.62 ';
 
 type
     TMailLogLevel = (MLogLevelInfo, MLogLevelFile, MLogLevelProg, MLogLevelDiag,
@@ -416,7 +418,8 @@ type
     FLocalAddr6: String;
     FMxSocketFamily: TSocketFamily;
     FQuChangedEvent: TNotifyEvent;
-    FSslRootFile: string;     // following Jan 2019
+    FSslRootFile: string;     //  Jan 2019
+    FMailCliSecurity: TSslCliSecurity;  // May 2019
     procedure SetMailQuDir(const Value: string);
     procedure SetRetryList(const Value: string);
     procedure SetActive(const Value: boolean);
@@ -431,6 +434,7 @@ type
     procedure SmtpClientAttachContentTypeEh(Sender: TObject; FileNumber: Integer; var FileName, ContentType: string;
       var AttEncoding: TSmtpEncoding);
     procedure SetQuStartDelay(const Value: integer);
+    procedure SetMailCliSecurity(Value: TSslCliSecurity);  { V8.62 }
   protected
     { Protected declarations }
     procedure SaveQuHdrs ;
@@ -491,6 +495,8 @@ type
                                                     write FSslReportChain;
     property SslRootFile: string                    read  FSslRootFile
                                                     write FSslRootFile;
+    property MailCliSecurity: TSslCliSecurity       read  FMailCliSecurity
+                                                    write SetMailCliSecurity;  // May 2019
     property SmtpMethod: TMailSmtpMethod            read  FSmtpMethod
                                                     write FSmtpMethod;
     property FileQuSent: string                     read  FFileQuSent
@@ -649,6 +655,7 @@ begin
                     SendSmtpClient.SslType := smtpTlsNone ;
                     if FIcsMailQueue.FMxSrvUseSsl and (NOT FSkipSsl) then begin   // June 2018 after ssl error
                         SendSmtpClient.SslType := smtpTlsExplicit ;
+                        SendSmtpClient.SslContext.SslCliSecurity := FIcsMailQueue.MailCliSecurity;  // V8.62
                     end ;
                     SendSmtpClient.SocketFamily := FIcsMailQueue.FMxSocketFamily ;
                     if SendSmtpClient.SocketFamily in [sfIPv4, sfIPv6] then
@@ -1362,6 +1369,7 @@ begin
     FDnsServers := TStringList.Create ;
     FFileQuSent := '"MailQuSent-"yyyymmdd".log' ;   // must be a masked file name
     FSslRootFile := '';  // blank will use internal bundle
+    FMailCliSecurity := sslCliSecDefault;  // V8.62
     FLogEvent := Nil ;
 end;
 
@@ -1394,6 +1402,15 @@ begin
         FLogEvent (LogLevel, Info) ;
    end;
 end;
+
+
+procedure TIcsMailQueue.SetMailCliSecurity(Value: TSslCliSecurity);  { V8.62 }
+begin
+    if Value = FMailCliSecurity then Exit;
+    FMailCliSecurity := Value;
+    FMailSslContext.SslCliSecurity := FMailCliSecurity;
+end;
+
 
 function TIcsMailQueue.AddtoQueue (MailQuItem: TMailQuItem): boolean ;
 begin
@@ -1735,7 +1752,7 @@ begin
     begin
         FMailSslContext.SslOptions2 := FMailSslContext.SslOptions2 +
          [sslOpt2_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, sslOpt2_NO_RENEGOTIATION];
-        FMailSslContext.SslCliSecurity := sslCliSecDefault;
+        FMailSslContext.SslCliSecurity := FMailCliSecurity; //  V8.62 sslCliSecDefault;
         FMailSslContext.SslVerifyPeer := (FSslVerMethod > MailSslVerNone) ;
         FileName := fSslRootFile;
         if FileName <> '' then begin
@@ -2214,6 +2231,9 @@ begin
     MyMailQueue.MxSocketFamily := TSocketFamily(GetEnumValue(TypeInfo (TSocketFamily),
                               IcsTrim(MyIniFile.ReadString(Section, 'MxSocketFamily', 'sfIPv4'))));
     if MyMailQueue.MxSocketFamily > High(TSocketFamily) then MyMailQueue.MxSocketFamily := sfIPv4;
+    MyMailQueue.MailCliSecurity := TSslCliSecurity(GetEnumValue(TypeInfo (TSslCliSecurity),
+                               IcsTrim(MyIniFile.ReadString(Section, 'MailCliSecurity', 'sslCliSecDefault'))));  // V8.62
+    if MyMailQueue.MailCliSecurity > High(TSslCliSecurity) then MyMailQueue.MailCliSecurity := sslCliSecDefault;  // V8.62
 
  // up to nine mail servers
     MyMailQueue.MailServers.Clear ;
@@ -2229,7 +2249,7 @@ begin
                 AuthType := TSmtpAuthType(GetEnumValue (TypeInfo (TSmtpAuthType),
                      IcsTrim(MyIniFile.ReadString(Section, 'AuthType'+S, 'smtpAuthAutoSelect'))));
                 if AuthType > High(TSmtpAuthType) then AuthType := smtpAuthAutoSelect;
-                UserName :=MyIniFile. ReadString (Section, 'AuthUser'+S, '');
+                UserName := MyIniFile. ReadString (Section, 'AuthUser'+S, '');
                 if UserName <> '' then  { NOTE !! may need to decrypt password before using it }
                     Password := MyIniFile.ReadString (Section, 'AuthPass'+S, '');
                 SslType := TSmtpSslType(GetEnumValue(TypeInfo (TSmtpSslType),
@@ -2240,8 +2260,9 @@ begin
                 if SocketFamily > High(TSocketFamily) then SocketFamily := sfIPv4;
                 RetryWithoutSsl := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'RetryWithoutSsl'+S, 'False'));
                 SslCliSecurity := TSslCliSecurity(GetEnumValue(TypeInfo (TSslCliSecurity),
-                     IcsTrim(MyIniFile.ReadString(Section, 'SslCliSecurity'+S, 'sslCliSecTls11'))));
-                if SslCliSecurity > High(TSslCliSecurity) then SslCliSecurity := sslCliSecTls11;
+                     IcsTrim(MyIniFile.ReadString(Section, 'SslCliSecurity'+S, 'sslCliSecIgnore'))));
+                if (SslCliSecurity = sslCliSecIgnore) or (SslCliSecurity > High(TSslCliSecurity)) then
+                    SslCliSecurity := MyMailQueue.MailCliSecurity;
             end;
         end;
     end;

@@ -2,8 +2,8 @@
  Author:      Angus Robertson, Magenta Systems Ltd
 Description:  IP Streaming Log Component
 Creation:     Nov 2006
-Updated:      Feb 2019
-Version:      8.60
+Updated:      May 2019
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -179,9 +179,12 @@ in the event when only one was open, tested with Delphi 2010
                       SslContext now internal to component and set-up here.
                       Now SSL only, not sure earlier versions worked without SSL.
                       Client6 and Server6 gone, use SocketFamily for IPv4/v6
-                      Added SslCliSecurity to set client security level. 
+                      Added SslCliSecurity to set client security level.
+20 May 2019 - V8.62 - TCP server now uses root bundle correctly and reports
+                        certificate chain and bindings. 
 
-                  WARNING NOT FINISHED YET!!!   
+
+                  WARNING NOT FINISHED YET!!!
 
 pending - client and server different GetSession events
 
@@ -261,7 +264,7 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    CopyRight : String = ' TIcsIpStrmLog (c) 2019 V8.60 ';
+    CopyRight : String = ' TIcsIpStrmLog (c) 2019 V8.62 ';
 
 type
   TStrmLogProtocol = (logprotUdpClient, logprotUdpServer,
@@ -439,6 +442,7 @@ type
     procedure SetCertExpireDays(const Value : Integer);      // Dec 2018
     function  GetSslCertAutoOrder: Boolean;                  // Dec 2018
     procedure SetSslCertAutoOrder(const Value : Boolean);    // Dec 2018
+    procedure SetLogSslRootFile(const Value: String);              // May 2019
   public
     IpIcsLogger: TIcsLogger ;
     LogRcvdCerts: boolean ;
@@ -543,7 +547,7 @@ type
     property LogSslReportChain: boolean             read  FLogSslReportChain
                                                     write FLogSslReportChain;
     property LogSslRootFile: string                 read  FLogSslRootFile
-                                                    write FLogSslRootFile;
+                                                    write SetLogSslRootFile;
     property SrvDHParams : String                   read  GetDHParams
                                                     write SetDHParams;
     property SrvCertAutoOrder: Boolean              read  GetSslCertAutoOrder
@@ -782,6 +786,23 @@ begin
     FRemoteHost := NewRemHost ;
 end ;
 
+procedure TIcsIpStrmLog.SetLogSslRootFile(const Value: String);              // May 2019
+var
+    rootfname: String;
+begin
+    if Value = FLogSslRootFile then Exit;
+    FLogSslRootFile := Value;
+    if FLogProtocol = logprotTcpServer then begin
+        rootfname := FLogSslRootFile;
+        if rootfname <> '' then begin
+            if (Pos (':', rootfname) = 0) then
+                rootfname := ExtractFileDir (ParamStr (0)) + '\' + rootfname ;
+            if FileExists (rootfname) then
+                FListenSocket.RootCA := rootfname;
+         end;
+     end;
+end;
+
 function TIcsIpStrmLog.GeTStrmChanInfo (Index: integer): TStrmChanInfo ;
 begin
     if (Index < 0) or (Index >= FTotSockets) then Index := 0 ;
@@ -863,6 +884,22 @@ begin
         exit ;
     end ;
 
+ // Dec 2018, load DLLs before cert functions
+    if FForceSsl and (FLogProtocol in [logprotTcpServer, logprotTcpClient]) then
+    begin
+        try
+            if NOT FCliSslContext.IsSslInitialized then begin
+                FCliSslContext.InitializeSsl;
+                LogProgEvent (0, 'SSL Version: ' + OpenSslVersion +
+                                               ', Dir: ' + GLIBEAY_DLL_FileName) ;
+            end;
+        except
+            FLastErrorStr := FCurTitle + ' Error Starting SSL - ' + IcsGetExceptMess (ExceptObject) ;
+            LogErrEvent (0, FLastErrorStr) ;
+            exit ;
+        end;
+    end;
+
 // validate some settings, Oct 2015 was after SSL stuff
     if FLogProtocol in [logprotUdpClient, logprotTcpClient] then
     begin
@@ -941,6 +978,9 @@ begin
         else
             FCurTitle := 'UDP/Server' ;
     end
+
+ // note all TCP/IP Server IcsHosts must be setup before starting in
+ // application, with SSL certifixcates and bindings
     else if FLogProtocol in [logprotTcpServer] then
     begin
         if FListenSocket.IcsHosts.Count = 0 then  // Dec 2018
@@ -959,6 +999,14 @@ begin
             FCurTitle := FLogTitle
         else
             FCurTitle := 'TCP/Server' ;
+        if FForceSsl and LogSslReportChain then
+        begin
+            for I := 0 to Pred(FListenSocket.IcsHosts.Count) do
+            begin
+                 if (FListenSocket.IcsHosts[I].CertInfo <> '') then
+                      LogErrEvent (0, FListenSocket.IcsHosts[I].CertInfo) ;
+            end;
+        end;
     end
     else
     begin
@@ -967,16 +1015,9 @@ begin
         exit ;
     end ;
 
-// sanity check
+// SSL stuff
     if FForceSsl then
     begin
-     // Dec 2018, load DLLs before cert functions
-        if NOT FCliSslContext.IsSslInitialized then begin
-            FCliSslContext.InitializeSsl;
-            LogProgEvent (0, 'SSL Version: ' + OpenSslVersion +
-                                           ', Dir: ' + GLIBEAY_DLL_FileName) ;
-        end;
-
         try
             FCliSslContext.SslSessionCacheModes := [];
             FCliSslContext.SslVerifyPeer := false;
@@ -1029,27 +1070,6 @@ begin
                 begin
                     FCliSslContext.InitContext;
                 end;
-            end;
-            if FLogProtocol = logprotTcpServer then
-            begin
-            //
-            end;
-    //        fLogSslContext.InitContext;
-            if FLogProtocol = logprotTcpServer then
-            begin
-
-           // Nov 2016 see if reporting server certificates
-           // Feb 2017 now usually done when loading files, but not necessarily
-         {       if FLogSslReportChain then
-                begin
-                 // Feb 2017  find what is actually loaded, report chain
-                    TempCert := TX509Base.Create(self) ;
-                    fLogSslContext.SslGetCerts(TempCert) ;
-                    TempCert.ValidateCertChain('', CertStr, ErrStr);
-                    TempCert.Free ;
-                    LogProgEvent (0, FCurTitle + ' Actual Certificate Chain: ' +
-                                                          CertStr + IcsCRLF + ErrStr);
-                end;     }
             end ;
         except
             FLastErrorStr := FCurTitle + ' Error Starting SSL - ' + IcsGetExceptMess (ExceptObject) ;
@@ -1089,19 +1109,6 @@ begin
             end;
         end ;
     end ;
-
-// set socket family
- {   if FLogProtocol in [logprotUdpClient6, logprotTcpClient6,
-                                       logprotUdpServer6, logprotTcpServer6] then
-        FSocFamily := sfIPv6
-    else
-        FSocFamily := sfIPv4 ;  }
-
-// clean up old sockets, create fresh sockets and events
-{    try
-        FreeAndNil (FListenSocket) ;
-    except
-    end ;      }
 
     if FLogProtocol in [logprotUdpClient, logprotTcpClient, logprotUdpServer] then
     begin
@@ -1289,16 +1296,12 @@ begin
         end
         else if FLogProtocol = logprotTcpServer then
         begin
-//            FServerTimer := TTimer.Create (Self);   // 5 July 2016 timer to check for idle timeouts
-//            FServerTimer.Interval := 5000 ;  // 5 seconds
-//            FServerTimer.OnTimer := ServerTimerTimer ;
             FServerTimer.Enabled := (FSrvTimeoutSecs > 10) ;
             with FListenSocket do
             begin
                 MaxClients := FMaxSockets ;
                 Banner := '' ;
                 BannerTooBusy := 'Too Many Remote Connections' ;  // 4 Jan 2012
-            //    ClientClass := TMagClientSocket ;
                 onClientCreate := ServerClientCreate;
                 OnClientConnect := ServerClientConnect;
                 OnClientDisconnect := ServerClientDisconnect;
@@ -1313,12 +1316,9 @@ begin
            //     SocketFamily := FSocFamily ;
                 ExclusiveAddr := true ;  // Oct 2016
                 Listen ;      // start listening for incoming connections
-            end ;
-            for I := 0 to Pred (FMaxSockets) do  // each possible client
-            begin
-                LogChangeState (I, logstateStart) ;
-                LogProgEvent (I, FCurTitle + ' Started on ' + IcsFmtIpv6AddrPort (FLocalIpAddr, FLocalIpPort)) ;
-            end ;
+                for I := 0 to Pred (IcsHosts.Count) do
+                    LogProgEvent (0, FCurTitle + ' Started on ' + IcsHosts[I].BindInfo); // May 2019
+            end;
             result := true ;
             FLogActive := true ;
         end ;

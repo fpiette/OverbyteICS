@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.61
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1996-2019 by François PIETTE
@@ -1308,7 +1308,7 @@ Mar 18, 2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
                      in server IcsHosts if TLS1.3 fails.
 Apr 16, 2019 V8.61 Fixed ValidateCertChain to check certificate start and expiry
                       dates in UTC time instead of local time.
-
+May 21, 2019 V8.62 Version only so far
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -1517,8 +1517,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 861;
-  CopyRight    : String     = ' TWSocket (c) 1996-2019 Francois Piette V8.61 ';
+  WSocketVersion            = 862;
+  CopyRight    : String     = ' TWSocket (c) 1996-2019 Francois Piette V8.62 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -15743,18 +15743,16 @@ begin
             // V8.51 Don't want any retries
             f_SSL_CTX_set_mode(FSslCtx, SSL_MODE_AUTO_RETRY);
 
-            // V8.15 Diffie-Hellman key agreement protocol.- DHparam file needed to generate DH and DHE keys
-           { V8.27 load DHParams from file or PEM string list }
+            { V8.15 Diffie-Hellman key agreement protocol.
+              DHparam file needed to generate DH and DHE keys, but not ECDH or ECDHE.
+              V8.27 load DHParams from file or PEM string list, note FSslDHParamLines
+                is defaulted with 4096 params so used if FSslDHParamFile blank  }
             if (FSslDHParamLines.Count > 0) and (FSslDHParamFile = '') then
                 LoadDHParamsFromString(FSslDHParamLines.Text)
             else
                 LoadDHParamsFromFile(FSslDHParamFile);
 
             // V8.15 Elliptic Curve to generate Ephemeral ECDH keys V8.39 old stuff gone
-        //    if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1002) and  { V8.17 do this after SSL initialised }
-        //        (FSslECDHMethod = sslECDHAuto) then FSslECDHMethod := sslECDH_P256;
-        //    if (FSslVersionMethod < sslV3) then FSslECDHMethod := sslECDHNone;   { V8.24 SSLv2 does not support EC }
-
             if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin    { V8.51 }
                 if FSslECDHMethod = sslECDHAuto then begin
                     if f_SSL_CTX_set_ecdh_auto(FSslCtx, 1) = 0 then   { V8.27 ignored for 1.1.0, auto always enabled }

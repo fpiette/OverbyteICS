@@ -2,8 +2,8 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.3 Rio
 =====================================================================
 (Aka FPIETTE's Components)
 
-Revised: April 3, 2019 \
-Release: V8.60 \
+Revised: April 25, 2019 \
+Release: V8.61 \
 http://www.overbyte.be/ \
 http://wiki.overbyte.be/ \
 http://www.overbyte.eu/ \
@@ -132,7 +132,7 @@ also includes the OpenSSL binaries needed to support SSL. ICS V8 supports Delphi
 XE3, 10.2 Tokyo and 10.3 Rio.  There are currently no C++ packages for XE4 to 10.1.
 but older or newer ones will often work.
 
-The latest version is V8.60, which will be reported by the CopyRight constant in
+The latest version is V8.61, which will be reported by the CopyRight constant in
 OverbyteIcsWSocket.pas and the integer WSocketVersion as 860.
 
 ICS V9 is in early development and is planned to support Android and Linux Server. There
@@ -241,6 +241,9 @@ libcrypto-1_1.dll (or libcrypto-1_1-x64.dll) and libssl-1_1.dll (or libssl-1_1-x
 being available somewhere in the path.  The ICS distribution includes the latest Win32
 OpenSSL files in the .\OpenSSL-Win32 directory and the four main DLLs duplicated in
 .\Samples\delphi\sslinternet for Win32 and Win64 samples.
+
+Note OpenSSL 1.1.1 and later only support Windows Vista and later, and Windows Server
+2008 and later, not Windows XP.
 
 Other OpenSSL files, including older and Win64, may be downloaded from:
 
@@ -622,7 +625,7 @@ properly add all of the available components in this collection:
       > OverbyteIcsSnmpCli.pas       SNMP client protocol - network management
       > OverbyteIcsSnmpMsgs.pas      SNMP client protocol - message helper
       > OverbyteIcsSntp.pas          Time server and client supporting SNTP time protocol
-      > OverbyteIcsSslHttpRest.pas   HTTPS REST functions, descends from THttpCli, includes OAuth2 authentication.
+      > OverbyteIcsSslHttpRest.pas   HTTPS REST functions, descends from THttpCli, includes OAuth2, Send SMS and DNS over HTTPS
       > OverbyteIcsSysLogClient.pas  Syslog Client Protocol - receive syslog messages
       > OverbyteIcsSysLogDefs.pas    Syslog Protocol - helpers
       > OverbyteIcsSysLogServer.pas  Syslog Server Protocol - send syslog messages
@@ -824,13 +827,13 @@ Delphi Win32/Win64 DNS, Ping, SNMP, Syslog sample applications
     > OverbyteIcsDnsLook.dpr        Example of name resolution (IPv6 and IPv4)
     > OverbyteIcsDnsResolver.dpr    Batch async DNS lookup event driven using DnsQuery
     > OverbyteIcsFinger.dpr         Example of TFingerCli component
-    > OverbyteIcsNsLookup.dpr       Demo for the DnsQuery component
-    > OverbyteIcsPingTst.dpr        Demo for the ping component, includes trace route
+    > OverbyteIcsNsLookup.dpr       Demo for the DnsQuery component - ACTIVE!!
+    > OverbyteIcsPingTst.dpr        Demo for the ping component, includes trace route - ACTIVE!!
     > OverbyteIcsSnmpCliTst.dpr     Demo for SNMP (simple network management protocol) component
     > OverbyteIcsSysLogClientDemo.dpr Demo for SysLog client component
     > OverbyteIcsSysLogServerDemo.dpr Demo for SysLog server component
-    > OverbyteIcsTimeTst.dpr       Test SNTP time protocol as client or server
-    > OverbyteIcsWhoisCliTst.dpr   Test Whois protocol, looks up servers automatically
+    > OverbyteIcsTimeTst.dpr       Test SNTP time protocol as client or server - ACTIVE!!
+    > OverbyteIcsWhoisCliTst.dpr   Test Whois protocol, looks up servers automatically - ACTIVE!!
 
 Delphi FireMonkey cross-platform samples (Delphi XE2 and later)
 ---------------------------------------------------------------
@@ -858,7 +861,7 @@ All these samples may be built for Mac OS X (and Windows).
 Delphi Win32/Win64 Socket sample applications
 ---------------------------------------------
     .\Samples\delphi\SocketDemos\SocketDemos.bpg - Project group
-    > OverbyteIcsBinCliDemo.dpr       Client program to receive binary and delimited text data. Works with BinTcpSrv demo.
+    > OverbyteIcsBinCliDemo.dpr       Client program to receive binary and delimited text data. Works with OverbyteIcsTcpSrv demo.
     > OverbyteIcsCliDemo.dpr          Example of client for SRVDEMO, IPV4 only  - ACTIVE!!
     > OverbyteIcsClient5.dpr          Basic client GUI applications
     > OverbyteIcsClient7.dpr          Simple client application demonstrating TWSocket
@@ -891,7 +894,7 @@ Note better samples under sslinternet with SSL enabled.
 Delphi Win32/Win64 SSL-enabled sample applications
 --------------------------------------------------
     .\Samples\delphi\sslinternet\SslDemos.bpg - Project group
-    > OverbyteIcsHttpRestTst.dpr      ICS HTTPS REST and OAuth functions demo - ACTIVE!!.
+    > OverbyteIcsHttpRestTst.dpr      ICS HTTPS REST and OAuth, Send SMS and DNS over HTTPS functions demo - ACTIVE!!.
     > OverbyteIcsHttpsTst.dpr         Example of TSslHttpCli component (GET) - ACTIVE!!
     > OverbyteIcsIpStmLogTst.dpr      Test IP stream logging, sending streams as client or server using SSL - ACTIVE!!
     > OverbyteIcsJoseTst.dpr          ICS SSL Json Object Signing (Jose) Demos - ACTIVE!!

@@ -12,8 +12,8 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      Apr 2019
-Version:      8.61
+Updated:      May 2019
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -141,9 +141,19 @@ Nov 2, 2018   - V8.58 - Bug fixes, call RequestDone event if it fails
 Feb 6, 2019   - V8.60 - Default with SocketFamily Any for both IPv4 and IPv6.
                         SessionConnect logging shows IP address as well as host name.
                         Increased OAuth web server timeout from 2 to 30 mins.
-Apr 4, 2019   - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttpRest events.
+Apr 26, 2019  - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttpRest events.
                         ResponseXX properties available in OnRequestDone and OnRestRequestDone.
-
+                        Return javascript content as well as XML and Json
+                        Posted content-type header now specifies UTF-8.
+                        Added new TDnsQueryHttps component to make DNS over HTTPS
+                           queries using wire format.
+                        Added new TIcsSms component to send SMS text messages via
+                           an HTTP bureau, you will need an account. Initially
+                           supporting https://www.kapow.co.uk/ from where you set-up
+                           an account for £6.50 (about $9) which gives 100 message
+                           credits. Other similar bureaus can be added, provided
+                           there is an account for testing.
+May 16, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
 
 
 Pending - Simple web server now less simple to supports SSL and ALPN
@@ -202,6 +212,7 @@ uses
     Ics.Fmx.OverbyteIcsSslX509Utils,
     Ics.Fmx.OverbyteIcsMsSslUtils,
     Ics.Fmx.OverbyteIcsSslJose,
+    Ics.Fmx.OverbyteIcsDnsQuery,
 {$ELSE}
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
@@ -211,6 +222,7 @@ uses
     OverbyteIcsSslX509Utils,
     OverbyteIcsMsSslUtils,
     OverbyteIcsSslJose,
+    OverbyteIcsDnsQuery,
 {$ENDIF FMX}
 {$IFDEF MSWINDOWS}
     OverbyteIcsWinCrypt,
@@ -229,10 +241,12 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    THttpRestVersion = 861;
-    CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.61 ';
+    THttpRestVersion = 862;
+    CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.62 ';
     DefMaxBodySize = 100*100*100; { max memory/string size 100Mbyte }
     TestState = 'Testing-Redirect';
+    MimeDnsJson = 'application/dns-json';
+    MimeDnsMess = 'application/dns-message';
 
     OAuthErrBase                     = {$IFDEF MSWINDOWS} 1 {$ELSE} 1061 {$ENDIF};
     OAuthErrNoError                  = 0;
@@ -604,6 +618,95 @@ type
                                                     write FOnOAuthNewCode;
     property OnOAuthNewToken: TNotifyEvent          read  FOnOAuthNewToken
                                                     write FOnOAuthNewToken;
+  end;
+
+  { V8.61 TDnsQueryHttps supports DOH - DNS over HTTPS }
+  TDnsQueryHttps = Class(TDnsQuery)
+  private
+    { Private declarations }
+    FDebugLevel: THttpDebugLevel;
+    FDnsSrvUrl: string;
+    FOnDnsProg: THttpRestProgEvent;
+  protected
+    { Protected declarations }
+    procedure DnsRestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
+    procedure DnsRestRequestDone(Sender: TObject; RqType: THttpRequest; ErrCode: Word);
+  public
+    { Public declarations }
+    HttpRest:  TSslHttpRest;
+    constructor  Create (Aowner: TComponent); override;
+    destructor   Destroy; override;
+    function     DOHQueryAll(Host: AnsiString): Boolean;
+    function     DOHQueryAny(Host: AnsiString; QNumber: Integer;
+                                    MultiRequests: Boolean = False) : Boolean;
+  published
+    { Published declarations }
+    property DnsSrvUrl: string                      read  FDnsSrvUrl
+                                                    write FDnsSrvUrl;
+    property DebugLevel: THttpDebugLevel            read  FDebugLevel
+                                                    write FDebugLevel;
+    property OnDnsProg: THttpRestProgEvent          read  FOnDnsProg
+                                                    write FOnDnsProg;
+  end;
+
+  { V8.61 Send SMS using bureau, you will need an account.
+   Initially supporting https://www.kapow.co.uk/ from where you set-up an
+    account for £6.50 (about $9) which gives 100 message credits.
+    Other similar SMS can be added, provided there is an account for testing. }
+
+  TSmsProvider = (SmsProvKapow); // more providers awaited
+  TSmsOperation = (SmsOpSend, SmsOpCheck, SmsOpCredit);
+
+  TIcsSMS = class(TIcsWndControl)
+  private
+    { Private declarations }
+    FDebugLevel: THttpDebugLevel;
+    FSmsProvider: TSmsProvider;
+    FSmsOperation: TSmsOperation;
+    FAccountName: string;
+    FAccountPW: string;
+    FMsgSender: string;
+    FSentID: string;
+    FCredits: string;
+    FLastResp: string;
+    FLastError: string;
+    FDelivery: String;
+    FOnSmsProg: THttpRestProgEvent;
+    FOnSmsDone: TNotifyEvent;
+  protected
+    { Protected declarations }
+    procedure SmsRestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
+    procedure SmsRestRequestDone(Sender: TObject; RqType: THttpRequest; ErrCode: Word);
+    function  MakeRequest(const URL: String; AsyncReq: Boolean = True): Boolean;
+  public
+    { Public declarations }
+    HttpRest:  TSslHttpRest;
+    constructor  Create (Aowner: TComponent); override;
+    destructor   Destroy; override;
+    function     SendSMS(const MobileNum, SmsMsg: String; AsyncReq: Boolean = True): Boolean;
+    function     CheckSMS(ID: String; AsyncReq: Boolean = True): Boolean;
+    function     CheckCredit(AsyncReq: Boolean = True): Boolean;
+    property     SentID: string                     read  FSentID;
+    property     Credits: string                    read  FCredits;
+    property     LastResp: string                   read  FLastResp;
+    property     LastError: string                  read  FLastError;
+    property     Delivery: string                    read  FDelivery;
+  published
+    { Published declarations }
+    property SmsProvider: TSmsProvider              read  FSmsProvider
+                                                    write FSmsProvider;
+    property AccountName: string                    read  FAccountName
+                                                    write FAccountName;
+    property AccountPW: string                      read  FAccountPW
+                                                    write FAccountPW;
+    property MsgSender: string                      read  FMsgSender
+                                                    write FMsgSender;
+    property DebugLevel: THttpDebugLevel            read  FDebugLevel
+                                                    write FDebugLevel;
+    property OnSmsProg: THttpRestProgEvent          read  FOnSmsProg
+                                                    write FOnSmsProg;
+    property OnSmsDone: TNotifyEvent                read  FOnSmsDone
+                                                    write FOnSmsDone;
   end;
 
 { Retrieve a single value by name out of an URL encoded data stream.        }
@@ -1355,8 +1458,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSslHttpRest.TransferSslCliCertRequest(Sender     : TObject;
-                                        var Cert   : TX509Base);  { V8.61 }
+procedure TSslHttpRest.TransferSslCliCertRequest(Sender: TObject; var Cert: TX509Base);  { V8.61 }
 begin
     Inherited TransferSslCliCertRequest(Sender, Cert);
     if FSslCliCert.IsCertLoaded then begin
@@ -1406,10 +1508,10 @@ begin
         end
         else if HttpRequest = httpPOST then begin
             Result := FRestParams.GetParameters;
-            if (FRestParams.PContent = PContJson) then
-                FContentPost := 'application/json'
+            if (FRestParams.PContent = PContJson) then   { V8.61 added UTF8 }
+                FContentPost := 'application/json; charset=UTF-8'
             else
-                FContentPost := 'application/x-www-form-urlencoded';
+                FContentPost := 'application/x-www-form-urlencoded; charset=UTF-8';
         end;
     end;
 end;
@@ -1465,7 +1567,8 @@ begin
 
                   // convert response to correct codepage, including entities
                     if (Pos ('text/', FContentType) = 1) or
-                           (Pos ('json', FContentType) <> 0) or
+                         (Pos ('json', FContentType) <> 0) or
+                           (Pos ('javascript', FContentType) <> 0) or  { V8.61 }
                              (Pos ('xml', FContentType) <> 0) then begin
                         FResponseRaw := IcsHtmlToStr(FResponseStream, FContentType, true);
                         FResponseStream.Seek (0, soFromBeginning) ;
@@ -1543,7 +1646,7 @@ begin
         else if HttpRequest = httpPOST then begin
             if (Params <> '') then begin
                 if (Params[1] = '{') and (RawParams = '') then
-                    FContentPost := 'application/json';
+                    FContentPost := 'application/json; charset=UTF-8';  { V8.61 added UTF8 }
                 FPostStream.Write(Params[1], Length(Params));
                 FPostStream.Seek(0, soFromBeginning) ;
             end
@@ -2377,6 +2480,314 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ TDnsQueryHttps V8.61 }
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TDnsQueryHttps.Create (Aowner: TComponent);
+begin
+    inherited Create(AOwner);
+    HttpRest := TSslHttpRest.Create(self);
+    HttpRest.OnHttpRestProg := DnsRestProg;
+    HttpRest.OnRestRequestDone := DnsRestRequestDone;
+    FDnsSrvUrl := DnsPublicHttpsTable[0];
+    FDebugLevel := DebugNone;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TDnsQueryHttps.Destroy;
+begin
+    FreeAndNil(HttpRest);
+    inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TDnsQueryHttps.DnsRestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
+begin
+    if Assigned(FOnDnsProg) then
+        FOnDnsProg(Self, LogOption, Msg) ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function  TDnsQueryHttps.DOHQueryAll(Host: AnsiString): Boolean;
+begin
+    FMultiReqSeq  := 1;
+    FMultiHost := Host;
+    FAnsTot := 0;
+    Result := DOHQueryAny(FMultiHost, DnsAllReqTable[FMultiReqSeq], True);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TDnsQueryHttps.DOHQueryAny(Host: AnsiString; QNumber: integer; MultiRequests: Boolean = False): Boolean;
+var
+    QueryBuf: AnsiString;
+    QueryLen, StatCode: Integer;
+begin
+    Result := False;
+    if Pos('https://', FDnsSrvUrl) <> 1 then begin
+        DnsRestProg(Self, loSslErr, 'Must Specify DNS over HTTPS Server URL');
+        Exit;
+    end;
+    if NOT MultiRequests then FAnsTot := 0;  { reset result records }
+    HttpRest.RestParams.Clear;
+    HttpRest.DebugLevel := FDebugLevel;
+    HttpRest.Accept := MimeDnsMess;
+    HttpRest.ContentTypePost := MimeDnsMess;
+    HttpRest.NoCache := True;
+
+// build binary wire format request per RFC8484, same as UDP requests RFC1035,
+// but ID always 0, so we build and parse requests with TDnsQuery component
+    SetLength(QueryBuf, 512);
+    BuildRequestHeader(PDnsRequestHeader(@QueryBuf[1]),0,
+                                           DnsOpCodeQuery, TRUE, 1, 0, 0, 0);
+    QueryLen := BuildQuestionSection(@QueryBuf[SizeOf(TDnsRequestHeader) + 1],
+                                              IcsTrimA(Host), QNumber, DnsClassIN);
+    QueryLen := QueryLen + SizeOf(TDnsRequestHeader);
+    SetLength(QueryBuf, QueryLen);
+    StatCode := HttpRest.RestRequest(httpPOST, FDnsSrvUrl, True, String(QueryBuf));  // async request
+    Result := (StatCode = 0);  // raises exception on failure
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TDnsQueryHttps.DnsRestRequestDone(Sender: TObject; RqType: THttpRequest; ErrCode: Word);
+var
+    RespBuf: AnsiString;
+begin
+    if ErrCode <> 0 then begin
+        DnsRestProg(Self, loSslErr, 'Request failed, error #' + IntToStr(ErrCode) +
+              '. Status = ' + IntToStr(HttpRest.StatusCode) + ' - ' + HttpRest.ReasonPhrase);
+        TriggerRequestDone(ErrCode);
+        Exit;
+    end;
+    if (HttpRest.StatusCode = 200) and (HttpRest.ContentType = MimeDnsMess) then begin
+        RespBuf := HttpRest.ResponseOctet;
+        if DecodeWireResp(@RespBuf[1], HttpRest.ContentLength) then begin
+
+           // if simulating ALL request make next request in sequence
+            if FMultiReqSeq > 0 then begin
+                FMultiReqSeq := FMultiReqSeq + 1;
+                if FMultiReqSeq <= DnsAllReqTot then begin
+                    DOHQueryAny(FMultiHost, DnsAllReqTable[FMultiReqSeq], True);
+                    Exit;
+                end;
+                FMultiReqSeq := 0;
+            end;
+            TriggerRequestDone(0);  // all done
+        end
+        else
+            TriggerRequestDone(99);
+    end
+    else
+       TriggerRequestDone(HttpRest.StatusCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ TIcsSms V8.61 }
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+constructor TIcsSms.Create (Aowner: TComponent);
+begin
+    inherited Create(AOwner);
+    HttpRest := TSslHttpRest.Create(self);
+    HttpRest.OnHttpRestProg := SmsRestProg;
+    HttpRest.OnRestRequestDone := SmsRestRequestDone;
+    FSmsProvider := SmsProvKapow;
+    FDebugLevel := DebugNone;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TIcsSms.Destroy;
+begin
+    FreeAndNil(HttpRest);
+    inherited Destroy;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsSms.SmsRestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
+begin
+    if Assigned(FOnSmsProg) then
+        FOnSmsProg(Self, LogOption, Msg) ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsSms.MakeRequest(const URL: String; AsyncReq: Boolean): Boolean;
+var
+    StatCode: Integer;
+begin
+    Result := False;
+    FLastError := '';
+    if FSmsProvider = SmsProvKapow then begin
+        FLastResp := '';
+        FCredits := '';
+        FSentID := '';
+        FDelivery := '';
+        if (FAccountName = '') or (FAccountPw = '') then begin
+            FLastError := 'Must Specify Kapow Account Login';
+            Exit;
+        end;
+        HttpRest.RestParams.AddItem('username', FAccountName, False);
+        HttpRest.RestParams.AddItem('password', FAccountPW, False);
+        HttpRest.RestParams.PContent := PContUrlencoded;
+        HttpRest.SslCliSecurity := sslCliSecBack;  // only supports TLS1 !!!
+        HttpRest.DebugLevel := FDebugLevel;
+        StatCode := HttpRest.RestRequest(httpPOST, URL, AsyncReq, '');
+        if AsyncReq then
+            Result := (StatCode = 0)
+        else
+            Result := (StatCode = 200);  // raises exception on failure
+    end
+    else begin
+        FLastError := 'Unknown Provider';
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsSms.SendSms(const MobileNum, SmsMsg: String; AsyncReq: Boolean = True): Boolean;
+var
+    Msg, Num: String;
+begin
+    Result := False;
+    FLastError := '';
+    if (Length(MobileNum) < 6) then begin
+        FLastError := 'Must Specify Longer Mobile Telephone Number';
+        Exit;
+    end;
+    if (Length(SmsMsg) = 0)  then begin
+       FLastError := 'Must Specify SMS Message';
+        Exit;
+    end;
+    if (Pos ('00', MobileNum) = 1) then begin
+        FLastError := 'Internaional Access Code Not Needed';
+        Exit;
+    end;
+    if FSmsProvider = SmsProvKapow then begin
+        Msg := Trim(SmsMsg); // remove training CRLF
+        Msg := StringReplace(Msg, IcsCRLF, '\r ', [rfReplaceAll]);
+        Num := StringReplace(MobileNum, IcsSpace, '', [rfReplaceAll]);
+        HttpRest.RestParams.Clear;
+        HttpRest.RestParams.AddItem('mobile', Num, False);
+        if FMsgSender <> '' then
+            HttpRest.RestParams.AddItem('from_id', FMsgSender, False);
+        HttpRest.RestParams.AddItem('returnid', 'TRUE', False);
+        HttpRest.RestParams.AddItem('sms', Msg, False);
+        FSmsOperation := SmsOpSend;
+        Result := MakeRequest('https://secure.kapow.co.uk/scripts/sendsms.php', AsyncReq);
+    end
+    else begin
+        FLastError := 'Unknown Provider';
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsSms.CheckSMS(ID: String; AsyncReq: Boolean = True): Boolean;
+begin
+    Result := False;
+    FLastError := '';
+    if (ID = '') then begin
+        FLastError := 'Must Specify Message ID';
+        Exit;
+    end;
+    if FSmsProvider = SmsProvKapow then begin
+        HttpRest.RestParams.Clear;
+        HttpRest.RestParams.AddItem('returnid', ID, False);
+        FSmsOperation := SmsOpCheck;
+        Result := MakeRequest('https://secure.kapow.co.uk/scripts/chk_status.php', AsyncReq);
+    end
+    else begin
+        FLastError := 'Unknown Provider';
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsSms.CheckCredit( AsyncReq: Boolean = True): Boolean;
+begin
+    Result := False;
+    FLastError := '';
+    if FSmsProvider = SmsProvKapow then begin
+        HttpRest.RestParams.Clear;
+        FSmsOperation := SmsOpCredit;
+        Result := MakeRequest('https://secure.kapow.co.uk/scripts/chk_credit.php', AsyncReq);
+    end
+    else begin
+        FLastError := 'Unknown Provider';
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsSms.SmsRestRequestDone(Sender: TObject; RqType: THttpRequest; ErrCode: Word);
+var
+    S: String;
+    J: Integer;
+begin
+    if ErrCode <> 0 then begin
+        FLastError := 'Request failed, error #' + IntToStr(ErrCode) +
+              '. Status ' + IntToStr(HttpRest.StatusCode) + ' - ' + HttpRest.ReasonPhrase;
+        if Assigned(FOnSmsDone) then FOnSmsDone(Self);
+        Exit;
+    end;
+    if (HttpRest.StatusCode = 200) then begin
+        FLastResp := HttpRest.ResponseRaw;
+        if FLastResp = 'ERROR' then
+            FLastError := 'Failed: Kapow Reports an Error'
+        else if FLastResp = 'USERPASS' then
+            FLastError := 'Failed: Kapow Reports Invalid Account Details'
+        else if FLastResp = 'NOCREDIT' then
+            FLastError := 'Failed: Kapow Reports No Account Credit'
+        else begin
+            if FSmsOperation = SmsOpCredit then begin
+                FCredits := FLastResp;
+                FLastError := '';
+            end
+            else if FSmsOperation = SmsOpSend then begin
+                if  Pos ('OK', FLastResp) = 1 then begin // OK 148 11472734895956042
+                    FLastError := '';
+                    S := Trim (Copy (FLastResp, 4, 999));
+                    J := Pos (IcsSpace, S);
+                    if J > 0 then begin
+                        FCredits := Copy (S, 1, Pred (J));
+                        FSentID := Copy (S, Succ (J), 999);
+                    end ;
+                end;
+            end
+            else if FSmsOperation = SmsOpCheck then begin
+                if FLastResp = 'D' then begin
+                    FDelivery := 'SMS Delivered OK';
+                    FLastError := '';
+                end
+                else if FLastResp = 'N' then
+                    FDelivery := 'Message Awaiting Delivery'
+                else if FLastResp = 'S' then
+                    FDelivery := 'Sent to SMSC'
+                else if FLastResp = 'B' then
+                    FDelivery := 'Message Buffered Awaiting Delivery'
+                else if FLastResp = 'R' then
+                    FDelivery := 'Retrying Message'
+                else if FLastResp = 'X' then
+                    FDelivery := 'Message Delivery Failed'
+                else
+                    FDelivery := 'Unknown Delivery: ' + FLastResp;
+            end
+            else
+                FLastError := 'Failed: Unexpected Kapow Response - ' + FLastResp;
+        end
+    end
+    else
+        FLastError := 'Failed: Status ' + IntToStr(HttpRest.StatusCode) + ' - ' +
+                                                          HttpRest.ReasonPhrase;  
+    if Assigned(FOnSmsDone) then FOnSmsDone(Self);
+end;
+
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
 {$ENDIF USE_SSL}

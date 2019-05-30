@@ -120,7 +120,7 @@ object HTTPForm: THTTPForm
         ImageIndex = -1
         MinHeight = 37
         MinWidth = 140
-        Width = 175
+        Width = 176
       end
       item
         Break = False
@@ -129,7 +129,7 @@ object HTTPForm: THTTPForm
         MinHeight = 21
         MinWidth = 170
         Text = 'URL:'
-        Width = 378
+        Width = 377
       end
       item
         Break = False
@@ -142,7 +142,7 @@ object HTTPForm: THTTPForm
     object ToolBar2: TToolBar
       Left = 9
       Top = 0
-      Width = 162
+      Width = 163
       Height = 37
       AutoSize = True
       ButtonHeight = 37
@@ -186,11 +186,11 @@ object HTTPForm: THTTPForm
       end
     end
     object UrlComboBox: TComboBox
-      Left = 215
+      Left = 216
       Top = 8
-      Width = 336
+      Width = 335
       Height = 21
-      ItemHeight = 0
+      ItemHeight = 13
       TabOrder = 1
       OnClick = URLComboBoxClick
       OnKeyPress = URLComboBoxKeyPress
@@ -414,7 +414,7 @@ object HTTPForm: THTTPForm
     Left = 40
     Top = 160
     Bitmap = {
-      494C01010D009400E00011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C01010D009400E40011001100FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000440000004400000001002000000000004048
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1101,5 +1101,11 @@ object HTTPForm: THTTPForm
     UnknownType = 'application/octet-stream'
     Left = 396
     Top = 92
+  end
+  object TimerLog: TTimer
+    Interval = 2000
+    OnTimer = TimerLogTimer
+    Left = 460
+    Top = 90
   end
 end

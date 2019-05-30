@@ -9,8 +9,8 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     Apr 2018
-Updated:      Feb 2019
-Version:      8.60
+Updated:      May 2019
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -673,6 +673,9 @@ Oct 2, 2018   - V8.57 - Added database for domains and challenges (INI file).
 Nov 2, 2018   - V8.58 - Bug fixes and more documentation.
                         Descend components from TIcsWndControl not TComponent
 Feb 6, 2019   - V8.60   Added SocketFamily property to allow both IPv4 and IPv6.
+Apr 16, 2017  - V8.61   Certificate dates are in UTC not local time.
+May 13, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
+
 
 
 Pending - more documentation
@@ -691,7 +694,7 @@ Pending - Add self signed and CA certs to database
 Pending - try and share INI file?
 Pending - check well-known challenge made to TSslHttpServer
 Pending - test challenge may find publc address on LAN rather than WAN,
-            need to restrict failed challenges if this happens. 
+            need to restrict failed challenges if this happens.
 }
 
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -759,7 +762,7 @@ uses
 {$IFDEF USE_SSL}
 
 const
-    ComponentVersion = 'V8.60';  // used in user agent
+    ComponentVersion = 'V8.62';  // used in user agent
 
  // file suffixes to build various file names
     FileSuffPKey     = '-privatekey.pem' ;
@@ -812,6 +815,8 @@ type
         DSuppCertChallg: TChallengeType;
         DStartDT: TDateTime;
         DEndDT: TDateTime;
+        DDirWellKnown: String;   { V8.62 }
+        DDirPubWebCert: String;  { V8.62 }
     end;
     TDomainItems = array of TDomainItem;
 
@@ -1662,7 +1667,7 @@ begin
             FDirWellKnown := ''
         else
             FDirWellKnown := IncludeTrailingPathDelimiter(Trim(Value));
-    end; 
+    end;
 end;
 
 
@@ -1803,7 +1808,7 @@ begin
                     end;
                 end;
             end;
-        end;     
+        end;
     end;
 
     if (RespData = '') then begin
@@ -2200,6 +2205,8 @@ begin
                     DSuppCertChallg := TChallengeType (GetEnumValue (TypeInfo (TChallengeType), ReadString (section, 'SuppCertChallenge', 'ChallNone'))) ;
                     DStartDT := RFC3339_StrToDate(ReadString (section, 'NewCertStartDT', '')) ;
                     DEndDT := RFC3339_StrToDate(ReadString (section, 'NewCertEndDT', '')) ;
+                    DDirWellKnown := ReadString (section, 'DirWellKnown', '');   { V8.62 }
+                    DDirPubWebCert := ReadString (section, 'DirPubWebCert', ''); { V8.62 }
                 end;
             end;
         end;
@@ -3141,7 +3148,7 @@ begin
         if (OutFmtSep in FCertOutFmts) then begin
            FNewSslCert.SaveToPemFile(FFileCertPem, False, True, False);  // no private key or inters
             LogEvent('Saved PEM Certficate Alone: ' + FFileCertPem);
-            FFileFinalBundle := FFileCertPem; // in case no bundle specified 
+            FFileFinalBundle := FFileCertPem; // in case no bundle specified
         end;
     except
         on E:Exception do begin
@@ -3303,7 +3310,7 @@ begin
         LogEvent ('Failed to Read Old Certificate - ' + FFileFinalBundle);
         Exit;
     end;
-    if FNewSslCert.ValidNotAfter < Now then begin
+    if FNewSslCert.ValidNotAfter < IcsGetUTCTime then begin  { V8.61 }
         LogEvent ('Old Certificate Has Expired');
         Exit;
     end;
@@ -3816,7 +3823,7 @@ begin
             end
             else
                 LogEvent ('Failed to get User Agreement: ' + FHttpRest.ResponseJson.AsString);
-        end;         
+        end;
 
     except
         on E:Exception do begin
@@ -3875,7 +3882,7 @@ var
         try
             DataFName := FileAuth.S['FileName'];   // expect fileauth.txt
             DataFPath := FileAuth.S['FilePath'];   // expect /.well-known/pki-validation
-            CurChallenge.ChallgToken := FileAuth.S['FileContents']; // beware may have CRLF 
+            CurChallenge.ChallgToken := FileAuth.S['FileContents']; // beware may have CRLF
             FQDNs := FileAuth.O['FQDNs'];   // array of names
             TotDom := FQDNs.AsArray.Length;
             if TotDom <= 0 then  begin
@@ -4675,35 +4682,35 @@ begin
       }
     },
     "scheduledForReplacement": {
-    	"eventSymantecDistrust": {
-    		"phase1": true,
-    		"phase2": false
-    	}
+        "eventSymantecDistrust": {
+            "phase1": true,
+            "phase2": false
+        }
     },
     "VettingDetails" : {
-   	 	"ct" : -1,
-    	"call" : 0,
+        "ct" : -1,
+        "call" : 0,
         "org" : 0,
-	    "dcv" : 1,
-    	"vcs" : 0
+        "dcv" : 1,
+        "vcs" : 0
     },
     "DCVStatus": [
-    	{
-    		"Domain": "certcenter.com",
-    		"Status": "pending",
-    		"DomainControlValidationID": 1234567890,
-    		"ApproverEmail": "email-1@domain.com,email-2@domain.com",
-    		"LastCheckDate": "2018-01-18T22:59:59Z",
-    		"LastUpdateDate": "2018-01-16T19:49:10Z"
-    	},
-    	{
-    		"Domain": "certcenter.co.uk",
-    		"Status": "approved",
-    		"DomainControlValidationID": 1234567891,
-    		"ApproverEmail": "email@domain.co.uk",
-    		"LastCheckDate": "2018-01-18T22:59:59Z",
-    		"LastUpdateDate": "2018-01-16T19:49:10Z"
-    	}
+        {
+            "Domain": "certcenter.com",
+            "Status": "pending",
+            "DomainControlValidationID": 1234567890,
+            "ApproverEmail": "email-1@domain.com,email-2@domain.com",
+            "LastCheckDate": "2018-01-18T22:59:59Z",
+            "LastUpdateDate": "2018-01-16T19:49:10Z"
+        },
+        {
+            "Domain": "certcenter.co.uk",
+            "Status": "approved",
+            "DomainControlValidationID": 1234567891,
+            "ApproverEmail": "email@domain.co.uk",
+            "LastCheckDate": "2018-01-18T22:59:59Z",
+            "LastUpdateDate": "2018-01-16T19:49:10Z"
+        }
     ]
   ],
   "_meta": {
@@ -4992,12 +4999,12 @@ begin
          //
         end;
         if JsonOrder.S['DCVStatus'] <> '' then begin
-    	{	"Domain": "certcenter.com",
-    		"Status": "pending",
-    		"DomainControlValidationID": 1234567890,
-    		"ApproverEmail": "email-1@domain.com,email-2@domain.com",
-    		"LastCheckDate": "2018-01-18T22:59:59Z",
-    		"LastUpdateDate": "2018-01-16T19:49:10Z"   }
+        {   "Domain": "certcenter.com",
+            "Status": "pending",
+            "DomainControlValidationID": 1234567890,
+            "ApproverEmail": "email-1@domain.com,email-2@domain.com",
+            "LastCheckDate": "2018-01-18T22:59:59Z",
+            "LastUpdateDate": "2018-01-16T19:49:10Z"   }
         end;
 
         if MajorStatus = 'COMPLETE' then begin
@@ -5031,7 +5038,7 @@ function TSslX509Certs.CCCancelOrder (Revoke: Boolean): Boolean;
 var
     JsonOrder: ISuperObject;
     CommonName, OrderId, MajorStatus, MinorStatus: string ;
-    I: Integer; 
+    I: Integer;
 begin
     result := false ;
 
@@ -5653,7 +5660,7 @@ begin
 
  // only allowed five duplicate orders for the same certificate each week
  // so one only per day
-     if ((Now - FNewCertStartDT) < 1) then begin
+     if ((IcsGetUTCTime - FNewCertStartDT) < 1) then begin  { V8.61 }
         LogEvent ('Only One Order Per Domain Per Day Allowed');
         Exit;
      end;
@@ -6169,7 +6176,7 @@ begin
         fNewInterLines := '';
 
     // work file names, in account directory, with orderid (no work names)
-    // fail now if can not create directories 
+    // fail now if can not create directories
         FNewSslCert.ClearAll;
         if NOT SetPartFNames (False) then Exit ;
         SetFullFileNames (FPartFNameWork) ;
@@ -6191,7 +6198,7 @@ begin
                 LogEvent('Failed to collect SSL certificate: ' + errstr  +
                                                      ', ' + FHttpRest.ResponseJson.S['detail']) ;
 
-             // one repeat for badnonce                                         
+             // one repeat for badnonce
                 if Pos('badNonce', errstr) = 0 then Exit;
                 if NOT AcmeGetRequest(httpHEAD, AcmeActionDirs [AcmeNewAuthz1].URL, Nil) then exit;
                 if NOT AcmeGetRequest(httpPOST, AcmeActionDirs [AcmeNewCert1].URL,

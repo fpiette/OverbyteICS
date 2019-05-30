@@ -9,8 +9,8 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     May 2018
-Updated:      Feb 2019
-Version:      8.60
+Updated:      May 2019
+Version:      8.62
 Support:      Use the mailing list ics@elists.org
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
@@ -50,7 +50,7 @@ Oct 19, 2018 - V8.58 Bug fixes
 Feb 21, 2019 - V8.60 Using new TIcsBuffLogStream for UTF8 or UTF16 file logging,
                  one log per day rather than per session.
                Added Socket Family to allow use with IPv6 hosts.
-
+May 13, 2019 - V8.62 Supplier tab display paths for cert and well-known dirs. 
 
 
 For docunentation on how to use this sample, please see a lengthy Overview in
@@ -873,7 +873,9 @@ begin
               'Product: ' + DProduct + IcsCRLF +
               'Issue State: ' + IssueStateLits[DIssueState] + IcsCRLF +
               'Issued: ' + MyDateTimeToStr(DStartDT) + IcsCRLF +
-              'Expires: ' + MyDateTimeToStr(DEndDT) + IcsCRLF;
+              'Expires: ' + MyDateTimeToStr(DEndDT) + IcsCRLF +
+              'Web Cert Dir: ' + DDirPubWebCert + IcsCRLF +     { V8.62 }
+              'Well-Known Dir: ' + DDirWellKnown + IcsCRLF;    { V8.62 }
         end;
         if DIssueState >= IssStateCollect then begin
             doDBRevoke.Enabled := True;

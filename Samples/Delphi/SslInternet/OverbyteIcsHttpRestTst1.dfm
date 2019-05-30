@@ -2,8 +2,8 @@ object HttpRestForm: THttpRestForm
   Left = 86
   Top = 176
   Caption = 
-    'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.60 -' +
-    ' 6th March 2019'
+    'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.61 -' +
+    ' 24th April 2019'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace
@@ -696,15 +696,252 @@ object HttpRestForm: THttpRestForm
         OnClick = doGrantPasswordClick
       end
     end
-    object TabSheet1: TTabSheet
-      Caption = 'DNS over HTTP'
+    object TabDNSHTTPS: TTabSheet
+      Caption = 'DNS over HTTPS'
       ImageIndex = 3
-      TabVisible = False
+      object Label23: TLabel
+        Left = 10
+        Top = 15
+        Width = 104
+        Height = 14
+        Caption = 'DNS over HTTPS URL'
+      end
+      object Label222: TLabel
+        Left = 10
+        Top = 45
+        Width = 115
+        Height = 14
+        Caption = 'Domain Name to Lookup'
+      end
+      object Label25: TLabel
+        Left = 10
+        Top = 75
+        Width = 94
+        Height = 14
+        Caption = 'Lookup Query Type'
+      end
+      object DnsHttpsUrl: TComboBox
+        Left = 150
+        Top = 10
+        Width = 346
+        Height = 22
+        ItemHeight = 14
+        TabOrder = 0
+        Text = 'https://cloudflare-dns.com/dns-query'
+        Items.Strings = (
+          'https://cloudflare-dns.com/dns-query'
+          'https://dns.google.com/resolve'
+          'https://dns.quad9.net/dns-query'
+          'https://doh.powerdns.org'
+          'https://doh.securedns.eu/dns-query'
+          'https://doh.appliedprivacy.net/query')
+      end
+      object DnsDomainName: TComboBox
+        Left = 150
+        Top = 40
+        Width = 201
+        Height = 22
+        ItemHeight = 14
+        TabOrder = 1
+        Text = 'pool.ntp.org'
+        Items.Strings = (
+          'pool.ntp.org'
+          'www.google.com'
+          'google.com'
+          'www.overbyte.eu'
+          'overbyte.eu'
+          'wiki.overbyte.eu'
+          'magsys.co.uk'
+          'www.magsys.co.uk'
+          'ftp.magsys.co.uk'
+          'mail.magsys.co.uk'
+          'embarcadero.com'
+          'www.embarcadero.com')
+      end
+      object DnsQueryType: TComboBox
+        Left = 150
+        Top = 68
+        Width = 201
+        Height = 22
+        Style = csDropDownList
+        ItemHeight = 14
+        TabOrder = 2
+      end
+      object doDNSJson: TButton
+        Left = 10
+        Top = 115
+        Width = 104
+        Height = 25
+        Caption = 'DNS Using Json'
+        TabOrder = 5
+        OnClick = doDNSJsonClick
+      end
+      object DnsDnssec: TCheckBox
+        Left = 370
+        Top = 45
+        Width = 106
+        Height = 17
+        Caption = 'DNSSEC Data'
+        TabOrder = 3
+      end
+      object DnsNoValidation: TCheckBox
+        Left = 370
+        Top = 75
+        Width = 116
+        Height = 17
+        Caption = 'Disable Validation'
+        TabOrder = 4
+      end
+      object doDnsQuery1: TButton
+        Left = 127
+        Top = 115
+        Width = 138
+        Height = 25
+        Caption = 'Single Query (Wire Format)'
+        TabOrder = 6
+        OnClick = doDnsQuery1Click
+      end
+      object doDnsQueryAll: TButton
+        Left = 278
+        Top = 115
+        Width = 138
+        Height = 25
+        Caption = 'All Queries (Wire Format)'
+        TabOrder = 7
+        OnClick = doDnsQueryAllClick
+      end
     end
-    object TabSheet2: TTabSheet
+    object TabTwitter: TTabSheet
       Caption = 'Twiiter'
       ImageIndex = 4
-      TabVisible = False
+    end
+    object TabSms: TTabSheet
+      Caption = 'Send SMS'
+      ImageIndex = 5
+      ExplicitTop = 23
+      object BoxKapow: TGroupBox
+        Left = 5
+        Top = 10
+        Width = 426
+        Height = 261
+        Caption = 'https://www.kapow.co.uk/'
+        TabOrder = 0
+        object Label24: TLabel
+          Left = 220
+          Top = 25
+          Width = 50
+          Height = 14
+          Caption = 'Password'
+        end
+        object Label26: TLabel
+          Left = 5
+          Top = 55
+          Width = 75
+          Height = 14
+          Caption = 'Sender Number'
+        end
+        object Label27: TLabel
+          Left = 5
+          Top = 25
+          Width = 74
+          Height = 14
+          Caption = 'Account: Name'
+        end
+        object Label28: TLabel
+          Left = 220
+          Top = 58
+          Width = 62
+          Height = 14
+          Caption = 'SMS Number'
+        end
+        object Label29: TLabel
+          Left = 5
+          Top = 85
+          Width = 44
+          Height = 14
+          Caption = 'Message'
+        end
+        object LabelKapowCredit: TLabel
+          Left = 298
+          Top = 194
+          Width = 78
+          Height = 14
+          Caption = 'Kapow Credits: '
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clRed
+          Font.Height = -11
+          Font.Name = 'Arial'
+          Font.Style = []
+          ParentFont = False
+        end
+        object KapowAccName: TEdit
+          Left = 85
+          Top = 20
+          Width = 126
+          Height = 22
+          TabOrder = 0
+        end
+        object KapowAccPw: TEdit
+          Left = 290
+          Top = 22
+          Width = 126
+          Height = 22
+          PasswordChar = '*'
+          TabOrder = 1
+        end
+        object KapowAccSender: TEdit
+          Left = 85
+          Top = 50
+          Width = 126
+          Height = 22
+          TabOrder = 2
+        end
+        object KapowSmsNum: TEdit
+          Left = 290
+          Top = 50
+          Width = 126
+          Height = 22
+          TabOrder = 3
+        end
+        object KapowMsg: TMemo
+          Left = 85
+          Top = 80
+          Width = 331
+          Height = 91
+          Lines.Strings = (
+            'KapowMsg')
+          ScrollBars = ssVertical
+          TabOrder = 4
+        end
+        object doKapowSend: TButton
+          Left = 14
+          Top = 190
+          Width = 75
+          Height = 25
+          Caption = 'Send SMS'
+          TabOrder = 5
+          OnClick = doKapowSendClick
+        end
+        object doKapowCheck: TButton
+          Left = 106
+          Top = 190
+          Width = 85
+          Height = 25
+          Caption = 'Check Delivery'
+          Enabled = False
+          TabOrder = 6
+          OnClick = doKapowCheckClick
+        end
+        object doKapowCredit: TButton
+          Left = 207
+          Top = 190
+          Width = 75
+          Height = 25
+          Caption = 'Check Credit'
+          TabOrder = 7
+          OnClick = doKapowCreditClick
+        end
+      end
     end
   end
   object LogWin: TMemo
@@ -735,6 +972,9 @@ object HttpRestForm: THttpRestForm
       item
         Caption = 'Value'
         Width = 400
+      end
+      item
+        Width = 100
       end>
     GridLines = True
     ReadOnly = True
@@ -797,5 +1037,30 @@ object HttpRestForm: THttpRestForm
     Title = 'Select Directory'
     Left = 215
     Top = 750
+  end
+  object DnsQueryHttps1: TDnsQueryHttps
+    Port = '53'
+    Proto = 'udp'
+    MultiThreaded = False
+    OnRequestDone = DnsQueryHttps1RequestDone
+    DnsSrvUrl = 'https://cloudflare-dns.com/dns-query'
+    DebugLevel = DebugNone
+    OnDnsProg = DnsQueryHttps1DnsProg
+    Left = 160
+    Top = 375
+  end
+  object TimerLog: TTimer
+    Interval = 2000
+    OnTimer = TimerLogTimer
+    Left = 210
+    Top = 375
+  end
+  object IcsSMS1: TIcsSMS
+    SmsProvider = SmsProvKapow
+    DebugLevel = DebugNone
+    OnSmsProg = IcsSMS1SmsProg
+    OnSmsDone = IcsSMS1SmsDone
+    Left = 255
+    Top = 375
   end
 end

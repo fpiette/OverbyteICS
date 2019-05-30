@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V8.60
+Version:      V8.61
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1082,7 +1082,10 @@ Mar 6, 2019  V8.60 - Added AddrResolvedStr read only property which is the IPv4/
                      Added IP address and port to 500 Connect error.
                      Added round robin DNS lookup if DNSLookup returns multiple
                         IP addresses so they are used in turn after a failure
-                        when the component is called repeatedly.  
+                        when the component is called repeatedly.
+Apr 23, 2019 V8.61  Set ftpFeatProtC when no PROT parameters passed.
+
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -1173,8 +1176,8 @@ uses
     OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 860;
-  CopyRight : String = ' TFtpCli (c) 1996-2019 F. Piette V8.60 ';
+  FtpCliVersion      = 861;
+  CopyRight : String = ' TFtpCli (c) 1996-2019 F. Piette V8.61 ';
   FtpClientId : String = 'ICS FTP Client V8.60 ';   { V2.113 sent with CLNT command  }
 
 const
@@ -6212,10 +6215,12 @@ begin
                         FSupportedExtensions := FSupportedExtensions + [ftpFeatAuthTLS];
                 end;
                 if Pos('PROT', Feat) = 1 then begin
-                    if Pos('C', Feat) > 5 then
-                        FSupportedExtensions := FSupportedExtensions + [ftpFeatProtC];
-                    if (Pos('P', Feat) > 5) then
-                        FSupportedExtensions := FSupportedExtensions + [ftpFeatProtP];
+                    if Pos('C', Feat) >= 5 then   { V8.61 allow for no space } 
+                        FSupportedExtensions := FSupportedExtensions + [ftpFeatProtC]  { Clear }
+                    else if (Pos('P', Feat) >= 5) then
+                        FSupportedExtensions := FSupportedExtensions + [ftpFeatProtP]  { Private }
+                    else
+                        FSupportedExtensions := FSupportedExtensions + [ftpFeatProtC]; { V8.61 no argument is Clear }
                 end;
                 if Feat = 'PBSZ' then
                     FSupportedExtensions := FSupportedExtensions + [ftpFeatPbsz];    { V2.106 }

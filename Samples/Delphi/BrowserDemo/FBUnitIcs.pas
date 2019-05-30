@@ -92,10 +92,11 @@
                    avoid conflict with Ics.Posix.Messages.pas (also changed lots
                    of htmlview units....
 
-4 Apr 2019   V8.61 Fixed authentication              
+23 Apr 2019   V8.61 Fixed authentication.
+                    Only update log window every two seconds so as not to slow down performance.
+                    Use NoCache header to stop dynamic pages being cached and expire them.
 
 
-  Pending - use NoCache header to stop dynamic pages being cached and expire them
   Pending - cache visited links so we can highlight them
 
 
@@ -225,6 +226,7 @@ type
         ShowLogHTML : TMenuItem;
         MimeTypesList1 : TMimeTypesList;
         ShowLogHTTP: TMenuItem;
+    TimerLog: TTimer;
         procedure FormCreate(Sender : TObject);
         procedure FormDestroy(Sender : TObject);
         procedure GetButtonClick(Sender : TObject);
@@ -325,6 +327,7 @@ type
         procedure CacheImagesClick(Sender : TObject);
         procedure ShowLogHTMLClick(Sender : TObject);
     procedure ShowLogHTTPClick(Sender: TObject);
+    procedure TimerLogTimer(Sender: TObject);
     private
         { Private declarations }
         URLBase     : String;
@@ -404,6 +407,7 @@ var
     Mon      : TextFile;
     Monitor1 : Boolean;
     Cache    : String;
+    BuffLogLines: String;  { V8.61 } 
 
 implementation
 
@@ -815,9 +819,29 @@ procedure THTTPForm.LogLine(S : String);
 begin
     if not ShowDiagWindow.Checked then
         exit;
+ //   LogForm.LogMemo.Lines.Add(S);
+    BuffLogLines := BuffLogLines + S + IcsCRLF;   { V8.61 }
+end;
+
+{ V8.61 only update log window every two seconds so as not to slow down performance }
+procedure THTTPForm.TimerLogTimer(Sender: TObject);
+var
+    displen: integer ;
+begin
+    if not ShowDiagWindow.Checked then
+        exit;
     if not LogForm.Visible then
         LogForm.Visible := True;
-    LogForm.LogMemo.Lines.Add(S);
+    displen := Length(BuffLogLines);
+    if displen > 0 then begin
+        try
+            SetLength(BuffLogLines, displen - 2) ;  // remove CRLF
+            LogForm.LogMemo.Lines.Add(BuffLogLines);
+            SendMessage(LogForm.LogMemo.Handle, WM_VSCROLL, SB_BOTTOM, 0);
+        except
+        end ;
+        BuffLogLines := '';
+    end;
 end;
 
 { ----------------THTTPForm.GetButtonClick }
@@ -2476,6 +2500,7 @@ begin
         CloseHints;
     end;
 end;
+
 
 //-- BG ---------------------------------------------------------- 16.08.2015 --
 procedure THTTPForm.AppMessage(var Msg: TMsg; var Handled: Boolean);

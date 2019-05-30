@@ -22,7 +22,8 @@ Mar 2019   V8.60 - Angus added TIcsMailQueue, TIcsIpStrmLog, TIcsWhoisCli,
                    For Delphi 2007 only, added TFtpClientW, TFtpServerW,
                      TIcsFileCopyW, TIcsFtpMultiW and TIcsHttpMultiW.
                    Added Forum and Wiki URLs to About Box.
-Apr 2019  V8.61  - Version only
+Apr 2019  V8.61  - Added TDnsQueryHttps, TIcsSms
+May 2018  V8.62  - Version only
 
 }
 
@@ -276,6 +277,8 @@ begin
       TIcsIpStrmLog,  { V8.60 }
       TIcsFtpMulti,   { V8.60 }
       TIcsHttpMulti,  { V8.60 }
+      TDnsQueryHttps, { V8.61 }
+      TIcsSms,        { V8.61 }
       {$IFDEF DELPHI11}
         TSslFtpClientW,  { V8.60 }
         TSslFtpServerW,  { V8.60 }
@@ -329,7 +332,7 @@ const
         sIcsSplashImg   = 'ICSPRODUCTICON';
     {$ENDIF}
 {$ENDIF}
-    sIcsLongProductName = 'Internet Component Suite V8.61';
+    sIcsLongProductName = 'Internet Component Suite V8.62';
     sIcsFreeware        = 'Freeware';
     sIcsDescription     = sIcsLongProductName + #13#10 +
                           //'Copyright (C) 1996-2018 by François PIETTE'+ #13#10 +

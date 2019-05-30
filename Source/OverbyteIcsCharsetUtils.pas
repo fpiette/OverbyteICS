@@ -14,11 +14,11 @@ Description:  A place for MIME-charset stuff.
               http://msdn.microsoft.com/en-us/library/ms776446.aspx
               http://www.iana.org/assignments/character-sets
 Creation:     July 17, 2008
-Version:      V8.54
+Version:      V8.61
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2002-2017 by François PIETTE
+Legal issues: Copyright (C) 2002-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -93,8 +93,11 @@ Sep 18, 2017 V8.40 Added various functions to find the codepage for an HTML page
                      and convert a buffer to a unicode string, IcsFindHtmlCharset,
                      IcsFindHtmlCodepage, IcsContentCodepage, IcsHtmlToStr, which
                      take either a TBytes buffer or stream as input.
-Apr 25, 2018 V8.54  IcsHtmlToStr accepts json/xml as textual
+Apr 25, 2018 V8.54 IcsHtmlToStr accepts json/xml as textual
+Apr 24, 2019 V8.61 IcsHtmlToStr returns javascript content as well as XML and Json.
+                   IcsHtmlToStr doesn't give up on tiny responses.
 
+                   
 
 //
 // Windows codepage Identifiers, June 2008, for a current list try
@@ -1773,10 +1776,10 @@ begin
     BOMSize := 0;
     Result := '';
     if Count > Length(HtmlData) then Count := Length(HtmlData);  { sanity check }
-    if Count < 4 then Exit;
 
  { html may have BOM bytes are the front, very easy }
-    IcsGetBufferCodepage(@HtmlData[0], 4, BOMSize);
+    if Count >= 4 then  { V8.61 don't give up on tiny responses }
+        IcsGetBufferCodepage(@HtmlData[0], 4, BOMSize);
 
     if (ACodePage = CP_UTF16) or (ACodePage = CP_UTF16Be) or (NOT Entities) then
  { convert to unicode, ignoring entities like &pound; and &#9741; }
@@ -1821,8 +1824,9 @@ begin
     Result := '';
     if (ContentHdr <>'') then begin
         if (Pos ('text/', ContentHdr) <> 1) and
-             (Pos ('json', ContentHdr) = 0)  and
-                (Pos ('xml', ContentHdr) = 0) then Exit;  { V8.54 json/xml is text }
+            (Pos ('json', ContentHdr) = 0)  and
+               (Pos ('javascript', ContentHdr) = 0) and  { V8.61 }
+                  (Pos ('xml', ContentHdr) = 0) then Exit;  { V8.54 json/xml is text }
     end;
     Count := HtmlStream.Size ;
     if Count < 1 then Exit;

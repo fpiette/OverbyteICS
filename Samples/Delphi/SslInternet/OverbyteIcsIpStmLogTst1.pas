@@ -3,8 +3,8 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  IP Log Streaming Component - Test Application
 Creation:     Aug 2007
-Updated:      Mar 2019
-Version:      8.60
+Updated:      May 2019
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -96,6 +96,9 @@ in the event when only one was open, tested with Delphi 2010
 20 Mar 2019 - V8.60 - Adapted for ICS, separate tab for settings, allow to
                         order X509 SSL certificates.
 
+20 Mat 2019 - V8.62 - SSL server now works properly again
+
+
                      WARNING NOT FINISHED YET!!!
 
 
@@ -140,6 +143,39 @@ uses
 
 type
   TIpLogForm = class(TForm)
+// saved components
+    DataClient: TCheckBox;
+    DataGap: TEdit;
+    DataServer: TCheckBox;
+    HeavyTraffic: TCheckBox;
+    LocalAddr: TComboBox;
+    LocalPort: TEdit;
+    LogErrors: TCheckBox;
+    LogInfo: TCheckBox;
+    MaxSockets: TEdit;
+    PingRemote: TCheckBox;
+    Protocol: TRadioGroup;
+    RawData: TCheckBox;
+    RemoteHosts: TMemo;
+    RemotePort: TComboBox;
+    ReportChain: TCheckBox;
+    RevokeCheck: TCheckBox;
+    SendFileName: TEdit;
+    ServerPort: TComboBox;
+    SocketFamily: TRadioGroup;
+    SrvTimeout: TEdit;
+    SslCACerts: TEdit;
+    SslCertAuth: TEdit;
+    SslCertKey: TEdit;
+    SslCliSec: TRadioGroup;
+    SslDomainName: TEdit;
+    SslCertPassword: TEdit;
+    SslServCert: TEdit;
+    SslSrvSec: TRadioGroup;
+    UseSSL: TCheckBox;
+    VerifyCertMode: TRadioGroup;
+
+// not saved
     DataTimer: TTimer;
     OpenDialog: TOpenDialog;
     PageControl1: TPageControl;
@@ -147,8 +183,6 @@ type
     BoxClient: TGroupBox;
     Label5: TLabel;
     Label2: TLabel;
-    RemoteHosts: TMemo;
-    RemotePort: TComboBox;
     BoxServer: TGroupBox;
     Label6: TLabel;
     Label7: TLabel;
@@ -156,19 +190,8 @@ type
     Label10: TLabel;
     Label14: TLabel;
     Label15: TLabel;
-    ServerPort: TComboBox;
-    MaxSockets: TEdit;
-    SslServCert: TEdit;
-    SslCertKey: TEdit;
-    SslCACerts: TEdit;
-    SslDHParams: TEdit;
     BoxLocalAddr: TGroupBox;
     Label9: TLabel;
-    Protocol: TRadioGroup;
-    LocalAddr: TComboBox;
-    UseSSL: TCheckBox;
-    LogErrors: TCheckBox;
-    LogInfo: TCheckBox;
     SheetOperation: TTabSheet;
     PanelBottom: TPanel;
     doStop: TButton;
@@ -178,7 +201,6 @@ type
     doServer: TButton;
     doClear: TButton;
     doCliSendFile: TButton;
-    SendFileName: TEdit;
     SelectFile: TBitBtn;
     doSrvSendFile: TButton;
     Label1: TLabel;
@@ -187,29 +209,13 @@ type
     LabelSendServer: TLabel;
     LogWin: TMemo;
     DataWin: TMemo;
-    VerifyCertMode: TRadioGroup;
-    RevokeCheck: TCheckBox;
     Label19: TLabel;
-    SslCertAuth: TEdit;
-    PingRemote: TCheckBox;
     Label16: TLabel;
-    SrvTimeout: TEdit;
     SslX509Certs1: TSslX509Certs;
     SslAvlSessionCache: TSslAvlSessionCache;
-    SslCliSec: TRadioGroup;
-    ReportChain: TCheckBox;
-    SslSrvSec: TRadioGroup;
     Label4: TLabel;
-    LocalPort: TEdit;
-    SocketFamily: TRadioGroup;
     BoxSampleData: TGroupBox;
-    DataServer: TCheckBox;
-    DataClient: TCheckBox;
-    HeavyTraffic: TCheckBox;
-    RawData: TCheckBox;
     Label3: TLabel;
-    DataGap: TEdit;
-    ServerHost: TEdit;
     Label8: TLabel;
     Label12: TLabel;
     procedure FormCreate(Sender: TObject);
@@ -266,38 +272,42 @@ var
     section, temp: string ;
 begin
     IniFile := TIcsIniFile.Create(FIniFileName);
-    with IniFile do
-    begin
+    with IniFile do  begin
         section := 'Main' ;
         if DataClient.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'DataClient_Checked', temp) ;
         WriteString (section, 'DataGap_Text', DataGap.Text) ;
         if DataServer.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'DataServer_Checked', temp) ;
-        WriteString (section, 'FileName_Text', SendFileName.Text) ;
+        WriteInteger (section, 'DataServer_State', Ord (DataServer.State)) ;
         if HeavyTraffic.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'HeavyTraffic_Checked', temp) ;
+        WriteInteger (section, 'HeavyTraffic_State', Ord (HeavyTraffic.State)) ;
         WriteString (section, 'LocalAddr_Text', LocalAddr.Text) ;
         WriteString (section, 'LocalPort_Text', LocalPort.Text) ;
+        if LogErrors.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'LogErrors_Checked', temp) ;
+        WriteInteger (section, 'LogErrors_State', Ord (LogErrors.State)) ;
+        if LogInfo.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'LogInfo_Checked', temp) ;
+        WriteInteger (section, 'LogInfo_State', Ord (LogInfo.State)) ;
         WriteString (section, 'MaxSockets_Text', MaxSockets.Text) ;
         if PingRemote.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'PingRemote_Checked', temp) ;
         WriteInteger (section, 'Protocol_ItemIndex', Protocol.ItemIndex) ;
+        if RawData.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'RawData_Checked', temp) ;
         WriteString (section, 'RemoteHosts_Lines', RemoteHosts.Lines.CommaText) ;
         WriteString (section, 'RemotePort_Text', RemotePort.Text) ;
+        if ReportChain.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'ReportChain_Checked', temp) ;
+        if RevokeCheck.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'RevokeCheck_Checked', temp) ;
+        WriteString (section, 'SendFileName_Text', SendFileName.Text) ;
         WriteString (section, 'ServerPort_Text', ServerPort.Text) ;
         WriteInteger (section, 'SocketFamily_ItemIndex', SocketFamily.ItemIndex) ;
-        WriteString (section, 'SslServCert_Text', SslServCert.Text) ;
+        WriteString (section, 'SrvTimeout_Text', SrvTimeout.Text) ;
+        WriteString (section, 'SslCACerts_Text', SslCACerts.Text) ;
         WriteString (section, 'SslCertAuth_Text', SslCertAuth.Text) ;
         WriteString (section, 'SslCertKey_Text', SslCertKey.Text) ;
-        WriteString (section, 'SslCACerts_Text', SslCACerts.Text) ;
-        if UseSSL.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'UseSSL_Checked', temp) ;
-        if RawData.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'RawData_Checked', temp) ;
-        WriteInteger (section, 'VerifyCertMode_ItemIndex', VerifyCertMode.ItemIndex) ;
-        if RevokeCheck.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'RevokeCheck_Checked', temp) ;
-        if ReportChain.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'ReportChain_Checked', temp) ;
-        if LogErrors.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'LogErrors_Checked', temp) ;
-        if LogInfo.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'LogInfo_Checked', temp) ;
-        WriteString (section, 'SslDHParams_Text', SslDHParams.Text) ;
-        WriteString (section, 'SrvTimeout_Text', SrvTimeout.Text) ;
-        WriteInteger (section, 'SslSrvSec_ItemIndex', SslSrvSec.ItemIndex) ;
         WriteInteger (section, 'SslCliSec_ItemIndex', SslCliSec.ItemIndex) ;
+        WriteString (section, 'SslDomainName_Text', SslDomainName.Text) ;
+        WriteString (section, 'SslCertPassword_Text', SslCertPassword.Text) ;
+        WriteString (section, 'SslServCert_Text', SslServCert.Text) ;
+        WriteInteger (section, 'SslSrvSec_ItemIndex', SslSrvSec.ItemIndex) ;
+        if UseSSL.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'UseSSL_Checked', temp) ;
+        WriteInteger (section, 'VerifyCertMode_ItemIndex', VerifyCertMode.ItemIndex) ;
 
         WriteInteger ('Window', 'Top', Top);
         WriteInteger ('Window', 'Left', Left);
@@ -345,41 +355,46 @@ begin
     LocalAddr.Items.Insert (1, ICS_LOCAL_HOST_V4);  // May 2017
 
 // get old settings
-    FIniFileName := GetIcsIniFileName;                                     
+    FIniFileName := GetIcsIniFileName;
     FCertificateDir := ExtractFileDir (FIniFileName) + '\';
     IniFile := TIcsIniFile.Create(FIniFileName);
     with IniFile do
     begin
         section := 'Main' ;
-        if ReadString (section, 'DataClient_Checked', 'True') = 'True' then DataClient.Checked := true else DataClient.Checked := false ;
+        if ReadString (section, 'DataClient_Checked', 'False') = 'True' then DataClient.Checked := true else DataClient.Checked := false ;
         DataGap.Text := ReadString (section, 'DataGap_Text', '1000') ;
         if ReadString (section, 'DataServer_Checked', 'False') = 'True' then DataServer.Checked := true else DataServer.Checked := false ;
-        SendFileName.Text := ReadString (section, 'FileName_Text', '') ;
+        DataServer.State := TCheckBoxState (ReadInteger (section, 'DataServer_State', Ord (cbUnchecked))) ;
         if ReadString (section, 'HeavyTraffic_Checked', 'False') = 'True' then HeavyTraffic.Checked := true else HeavyTraffic.Checked := false ;
+        HeavyTraffic.State := TCheckBoxState (ReadInteger (section, 'HeavyTraffic_State', Ord (cbUnchecked))) ;
         LocalAddr.Text := ReadString (section, 'LocalAddr_Text', '0.0.0.0') ;
         LocalPort.Text := ReadString (section, 'LocalPort_Text', '25678') ;
+        if ReadString (section, 'LogErrors_Checked', 'False') = 'True' then LogErrors.Checked := true else LogErrors.Checked := false ;
+        LogErrors.State := TCheckBoxState (ReadInteger (section, 'LogErrors_State', Ord (cbUnchecked))) ;
+        if ReadString (section, 'LogInfo_Checked', 'False') = 'True' then LogInfo.Checked := true else LogInfo.Checked := false ;
+        LogInfo.State := TCheckBoxState (ReadInteger (section, 'LogInfo_State', Ord (cbUnchecked))) ;
         MaxSockets.Text := ReadString (section, 'MaxSockets_Text', '4') ;
         if ReadString (section, 'PingRemote_Checked', 'False') = 'True' then PingRemote.Checked := true else PingRemote.Checked := false ;
         Protocol.ItemIndex := ReadInteger (section, 'Protocol_ItemIndex', 0) ;
+        if ReadString (section, 'RawData_Checked', 'False') = 'True' then RawData.Checked := true else RawData.Checked := false ;
         RemoteHosts.Lines.CommaText := ReadString (section, 'RemoteHosts_Lines', '192.168.1.120') ;
         RemotePort.Text := ReadString (section, 'RemotePort_Text', '514') ;
+        if ReadString (section, 'ReportChain_Checked', 'False') = 'True' then ReportChain.Checked := true else ReportChain.Checked := false ;
+        if ReadString (section, 'RevokeCheck_Checked', 'False') = 'True' then RevokeCheck.Checked := true else RevokeCheck.Checked := false ;
+        SendFileName.Text := ReadString (section, 'SendFileName_Text', '') ;
         ServerPort.Text := ReadString (section, 'ServerPort_Text', '514') ;
         SocketFamily.ItemIndex := ReadInteger (section, 'SocketFamily_ItemIndex', 0) ;
-        SslServCert.Text := ReadString (section, 'SslServCert_Text', 'iplog-cert.pem') ;
-        SslCertAuth.Text := ReadString (section, 'SslCertAuth_Text', 'RootCaCertsBundle.pem') ;
-        SslCertKey.Text := ReadString (section, 'SslCertKey_Text', 'iplog-prvkey.pem') ;
-        SslCACerts.Text := ReadString (section, 'SslCACerts_Text', '') ;
-        if ReadString (section, 'UseSSL_Checked', 'False') = 'True' then UseSSL.Checked := true else UseSSL.Checked := false ;
-        if ReadString (section, 'RawData_Checked', 'False') = 'True' then RawData.Checked := true else RawData.Checked := false ;
-        VerifyCertMode.ItemIndex := ReadInteger (section, 'VerifyCertMode_ItemIndex', 0) ;
-        if ReadString (section, 'RevokeCheck_Checked', 'False') = 'True' then RevokeCheck.Checked := true else RevokeCheck.Checked := false ;
-        if ReadString (section, 'ReportChain_Checked', 'False') = 'True' then ReportChain.Checked := true else ReportChain.Checked := false ;
-        if ReadString (section, 'LogErrors_Checked', 'False') = 'True' then LogErrors.Checked := true else LogErrors.Checked := false ;
-        if ReadString (section, 'LogInfo_Checked', 'False') = 'True' then LogInfo.Checked := true else LogInfo.Checked := false ;
-        SslDHParams.Text := ReadString (section, 'SslDHParams_Text', 'dhparam2048.pem') ;
         SrvTimeout.Text := ReadString (section, 'SrvTimeout_Text', '300') ;
-        SslSrvSec.ItemIndex := ReadInteger (section, 'SslSrvSec_ItemIndex', 0) ;
+        SslCACerts.Text := ReadString (section, 'SslCACerts_Text', '') ;
+        SslCertAuth.Text := ReadString (section, 'SslCertAuth_Text', '') ;
+        SslCertKey.Text := ReadString (section, 'SslCertKey_Text', '') ;
         SslCliSec.ItemIndex := ReadInteger (section, 'SslCliSec_ItemIndex', 0) ;
+        SslDomainName.Text := ReadString (section, 'SslDomainName_Text', '') ;
+        SslCertPassword.Text := ReadString (section, 'SslCertPassword_Text', '') ;
+        SslServCert.Text := ReadString (section, 'SslServCert_Text', '') ;
+        SslSrvSec.ItemIndex := ReadInteger (section, 'SslSrvSec_ItemIndex', 0) ;
+        if ReadString (section, 'UseSSL_Checked', 'False') = 'True' then UseSSL.Checked := true else UseSSL.Checked := false ;
+        VerifyCertMode.ItemIndex := ReadInteger (section, 'VerifyCertMode_ItemIndex', 0) ;
 
         Top := ReadInteger ('Window', 'Top', (Screen.Height - Height) div 2);
         Left := ReadInteger ('Window', 'Left', (Screen.Width - Width) div 2);
@@ -745,18 +760,15 @@ end;   *)
 
 procedure TIpLogForm.doLocalClick(Sender: TObject);
 var
-    fname: string ;
-//    CertStr
     ErrStr: string;
-//    valres: TChainResult;
 begin
 
 /// server stuff
     IpLogServer.MaxSockets := 1 ;
     IpLogServer.RawData := RawData.Checked ;
-    IpLogServer.ForceSsl := UseSsl.Checked;
     if (Protocol.ItemIndex = ProtoUdp) then
     begin
+        IpLogServer.ForceSsl := False;
         IpLogClient.LogProtocol := logprotUdpClient ;
         IpLogServer.LogProtocol := logprotUdpServer ;
         IpLogServer.SocFamily := TSocketFamily (SocketFamily.ItemIndex) ;
@@ -766,7 +778,10 @@ begin
     else if (Protocol.ItemIndex = ProtoTcp) then
     begin
         IpLogClient.LogProtocol := logprotTcpClient ;
+        IpLogClient.ForceSsl := UseSsl.Checked;
+
         IpLogServer.LogProtocol := logprotTcpServer ;
+        IpLogServer.ForceSsl := UseSsl.Checked;
         IpLogServer.LogSslVerMethod := logSslVerNone ;
         IpLogServer.LogSslRevocation := false ;
         IpLogServer.ExternalSslSessCache := SslAvlSessionCache ;
@@ -776,7 +791,6 @@ begin
         with IpLogServer.SrvIcsHosts [0] do
         begin
             HostEnabled := True;
-            HostNames.Text := 'MyHost';
             BindIpAddr := LocalAddr.Text ;
         //    BindIpAddr2 :=
             if NOT IpLogServer.ForceSsl then
@@ -785,49 +799,41 @@ begin
                 BindSslPort := atoi(LocalPort.Text) ;
             HostTag := 'LocalServer' ;
             Descr := HostTag;
-       //     WellKnownPath :=
             CertSupplierProto := SuppProtoNone;
 
-            if BindSslPort <> 0 then begin
-                IpLogClient.LogSslRootFile := SslCertAuth.Text;
-                fname := SslDHParams.Text;  // May 2015
-                if (Pos (':', fname) = 0) then fname := FCertificateDir + fname ;
-                if NOT FileExists (fname) then
-                begin
-                    LogWin.Lines.Add ('Can Not Find SSL Server DH Params File - ' + fname) ;
-                    exit ;
-                end;
-                IpLogServer.SrvDHParams := fname;
+            if IpLogServer.ForceSsl then begin
+                IpLogServer.LogSslReportChain := ReportChain.Checked ;  // Nov 2016
+                IpLogServer.LogSslRootFile := SslCertAuth.Text;  // before SrvValidateHosts
                 SslSrvSecurity := TSslSrvSecurity(SslSrvSec.ItemIndex);
+                HostNames.Text := IcsTrim(SslDomainName.Text);
                 SslCert := IcsTrim(SslServCert.Text);
                 SslKey := IcsTrim(SslCertKey.Text);
-                SslPassword := IcsTrim('password');
+                SslPassword := IcsTrim(SslCertPassword.text);
                 SslInter := IcsTrim(SslCACerts.Text);
               { following are for automatic ordering and installation of SSL certificates }
                 CertSupplierProto := SuppProtoNone;                          { V8.59 sanity test }
+             //   WellKnownPath :=
              //   CertSupplierProto := TSupplierProto(x);
              //   CertDirWork := IcsTrim(x);
              //   CertChallenge := TChallengeType(x);
              //   CertPKeyType := TSslPrivKeyType(x);
              //   CertProduct := IcsTrim(x);
              //   CertSignDigest := TEvpDigest(x);
-            end;
-        end;
 
-    // set-up binding and SSL contexts, check certificates
-   // validate hosts and keep site certificiate information
-        try
-            ErrStr := IpLogServer.SrvValidateHosts(False, True); // don't stop on first error, no exceptions
-            if ErrStr <> '' then begin
-                LogWin.Lines.Add('Server Host Validation Errors:' + icsCRLF + ErrStr);
-                Exit;
-            end;
-      //    ReportHosts;
-      //    Display('Required Listen Bindings:' + icsCRLF + SslHttpAppSrv1.ListenStates);
-        except
-            on E:Exception do begin
-                LogWin.Lines.Add('Server Host Validation Failed - ' + E.Message);
-                Exit;
+            // set-up binding and SSL contexts, check certificates
+           // validate hosts and keep site certificiate information
+                try
+                    ErrStr := IpLogServer.SrvValidateHosts(False, True); // don't stop on first error, no exceptions
+                    if ErrStr <> '' then begin
+                        LogWin.Lines.Add('Server Host Validation Errors:' + icsCRLF + ErrStr);
+                        Exit;
+                    end;
+                except
+                    on E:Exception do begin
+                        LogWin.Lines.Add('Server Host Validation Failed - ' + E.Message);
+                        Exit;
+                    end;
+                end;
             end;
         end;
     end
@@ -836,7 +842,7 @@ begin
 
     SetButtons (true) ;
 
- // client stuff
+ // client stuff common to UDP and TCP
     IpLogClient.MaxSockets := 1 ;
     IpLogClient.SocFamily := TSocketFamily (SocketFamily.ItemIndex) ;
     if IpLogClient.SocFamily = sfAnyIPv6 then
@@ -848,15 +854,18 @@ begin
     IpLogClient.RemoteIpPort := LocalPort.Text ;
     IpLogClient.CheckPing := PingRemote.Checked ;
     IpLogClient.RawData := RawData.Checked ;
-    IpLogClient.ForceSsl := UseSsl.Checked;
+
+ // client SSL
     if (Protocol.ItemIndex = ProtoTcp) and IpLogClient.ForceSsl then
     begin
+        IpLogClient.LogSslRootFile := SslCertAuth.Text;
         IpLogClient.LogSslVerMethod := TStrmVerifyMethod (VerifyCertMode.ItemIndex) ;
         IpLogClient.LogSslRevocation := RevokeCheck.Checked ;
         IpLogClient.LogSslReportChain := ReportChain.Checked ;
         IpLogClient.ExternalSslSessCache := SslAvlSessionCache ;
         IpLogClient.LogSslCliSecurity := TSslCliSecurity(SslCliSec.ItemIndex);
-        IpLogClient.LogSslRootFile := SslCertAuth.Text;
+        IpLogClient.LogSslRootFile := IcsTrim(SslCertAuth.Text);
+        IpLogClient.RemoteHost := IcsTrim(SslDomainName.Text) ;  // SSL uses host name not IP address
     end;
 
 // diagnostic stuff
@@ -894,9 +903,15 @@ var
     Host: String ;
 begin
     if (Protocol.ItemIndex = ProtoUdp) then
-         IpLogClient.LogProtocol := logprotUdpClient
+    begin
+         IpLogClient.LogProtocol := logprotUdpClient;
+         IpLogClient.ForceSsl := False;
+    end
     else if (Protocol.ItemIndex = ProtoTcp) then
-         IpLogClient.LogProtocol := logprotTcpClient
+    begin
+         IpLogClient.LogProtocol := logprotTcpClient;
+         IpLogClient.ForceSsl := UseSsl.Checked;
+    end
     else
         exit ;
 
@@ -930,41 +945,103 @@ begin
     IpLogClient.LocalIpAddr := LocalAddr.Text ;
     IpLogClient.CheckPing := PingRemote.Checked ;
     IpLogClient.RawData := RawData.Checked ;
-    if (Protocol.ItemIndex = ProtoTcp) then
+    if (Protocol.ItemIndex = ProtoTcp) and IpLogClient.ForceSsl then
     begin
-     {   if NOT SetSsl (true, false) then
-        begin
-            SetButtons (false) ;
-            exit ;
-        end ;    }
+        IpLogClient.LogSslRootFile := SslCertAuth.Text;
+        IpLogClient.LogSslVerMethod := TStrmVerifyMethod (VerifyCertMode.ItemIndex) ;
+        IpLogClient.LogSslRevocation := RevokeCheck.Checked ;
+        IpLogClient.LogSslReportChain := ReportChain.Checked ;
+        IpLogClient.ExternalSslSessCache := SslAvlSessionCache ;
+        IpLogClient.LogSslCliSecurity := TSslCliSecurity(SslCliSec.ItemIndex);
+        IpLogClient.LogSslRootFile := IcsTrim(SslCertAuth.Text);
     end;
     IpLogClient.StartLogging ;
     DataTimerTimer (Self) ;
 end;
 
 procedure TIpLogForm.doServerClick(Sender: TObject);
+var
+    ErrStr: String;
 begin
     SetButtons (true) ;
+    IpLogServer.RawData := RawData.Checked ;
     IpLogServer.MaxSockets := atoi (MaxSockets.Text) ;
+
     if (Protocol.ItemIndex = ProtoUdp) then
-         IpLogServer.LogProtocol := logprotUdpServer
+    begin
+         IpLogServer.LogProtocol := logprotUdpServer;
+         IpLogServer.ForceSsl := False;
+    end
     else if (Protocol.ItemIndex = ProtoTcp) then
-         IpLogServer.LogProtocol := logprotTcpServer
+    begin
+        IpLogServer.LogProtocol := logprotTcpServer;
+        IpLogServer.ForceSsl := UseSsl.Checked;
+    end
     else
         exit ;
 
-    IpLogServer.SocFamily := TSocketFamily (SocketFamily.ItemIndex) ;
-    IpLogServer.LocalIpAddr := LocalAddr.Text ;
-    IpLogServer.LocalIpPort := ServerPort.Text ;
-    IpLogServer.RawData := RawData.Checked ;
-    if (Protocol.ItemIndex = ProtoTcp) then
+  if (Protocol.ItemIndex = ProtoTcp) then
     begin
-    {    if NOT SetSsl (false, true) then
+        IpLogServer.SocFamily := TSocketFamily (SocketFamily.ItemIndex) ;
+        IpLogServer.LocalIpAddr := LocalAddr.Text ;
+        IpLogServer.LocalIpPort := ServerPort.Text ;
+        IpLogServer.LogSslVerMethod := logSslVerNone ;
+        IpLogServer.LogSslRevocation := false ;
+        IpLogServer.ExternalSslSessCache := SslAvlSessionCache ;
+        IpLogServer.SrvTimeoutSecs := atoi(SrvTimeout.Text) ; // 5 July 2016
+        IpLogServer.SrvIcsHosts.Clear;
+        IpLogServer.SrvIcsHosts.Add;  // only need one host
+        with IpLogServer.SrvIcsHosts [0] do
         begin
-            SetButtons (false) ;
-            exit ;
-        end ;   }
+            HostEnabled := True;
+            BindIpAddr := LocalAddr.Text ;
+        //    BindIpAddr2 :=
+            if NOT IpLogServer.ForceSsl then
+                BindNonPort := atoi(ServerPort.Text)
+            else
+                BindSslPort := atoi(ServerPort.Text) ;
+            HostTag := 'TCPServer' ;
+            Descr := HostTag;
+       //     WellKnownPath :=
+            CertSupplierProto := SuppProtoNone;
+
+            if IpLogServer.ForceSsl then begin
+                IpLogServer.LogSslReportChain := ReportChain.Checked ;  // Nov 2016
+                IpLogServer.LogSslRootFile := SslCertAuth.Text;  // before SrvValidateHosts
+                SslSrvSecurity := TSslSrvSecurity(SslSrvSec.ItemIndex);
+                HostNames.Text := IcsTrim(SslDomainName.Text);
+                SslCert := IcsTrim(SslServCert.Text);
+                SslKey := IcsTrim(SslCertKey.Text);
+                SslPassword := IcsTrim(SslCertPassword.text);
+                SslInter := IcsTrim(SslCACerts.Text);
+              { following are for automatic ordering and installation of SSL certificates }
+                CertSupplierProto := SuppProtoNone;                          { V8.59 sanity test }
+             //   WellKnownPath :=
+             //   CertSupplierProto := TSupplierProto(x);
+             //   CertDirWork := IcsTrim(x);
+             //   CertChallenge := TChallengeType(x);
+             //   CertPKeyType := TSslPrivKeyType(x);
+             //   CertProduct := IcsTrim(x);
+             //   CertSignDigest := TEvpDigest(x);
+
+            // set-up binding and SSL contexts, check certificates
+           // validate hosts and keep site certificiate information
+                try
+                    ErrStr := IpLogServer.SrvValidateHosts(False, True); // don't stop on first error, no exceptions
+                    if ErrStr <> '' then begin
+                        LogWin.Lines.Add('Server Host Validation Errors:' + icsCRLF + ErrStr);
+                        Exit;
+                    end;
+                except
+                    on E:Exception do begin
+                        LogWin.Lines.Add('Server Host Validation Failed - ' + E.Message);
+                        Exit;
+                    end;
+                end;
+            end;
+        end;
     end;
+
     if LogInfo.Checked then
         IpLogServer.IpIcsLogger.LogOptions := MyLogOptions2
      else if LogErrors.Checked then

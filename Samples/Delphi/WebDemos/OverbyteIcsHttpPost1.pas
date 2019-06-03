@@ -229,7 +229,7 @@ begin
     HttpCli1.RcvdStream      := TMemoryStream.Create;
     HttpCli1.URL             := Trim(ActionURLEdit.Text);
     HttpCli1.ContentTypePost := 'application/x-www-form-urlencoded';
-    DisplayMemo.Lines.Add('POST data: ' + String(Data));
+    DisplayMemo.Lines.Add('POST data: ' + Data);
     DisplayMemo.Lines.Add('To URL: ' + HttpCli1.URL);
     DisplayMemo.Lines.Add('Content Type: ' + HttpCli1.ContentTypePost);
     StartTime := 0;
@@ -294,8 +294,8 @@ begin
         HttpCli1.SendStream := TIcsBufferedFileStream.Create(FileName,
                                           fmOpenRead, MAX_BUFSIZE);   { V8.00 buffered file stream }
         HttpCli1.ContentTypePost := 'application/binary';
-        Data := String('FileName=' + UrlEncodeToA(NameOnly) + '&' +
-                     'FileTitle='  + UrlEncodeToA(Trim(FileDescr.Text)));
+        Data := 'FileName=' + UrlEncodeToA(NameOnly) + '&' +
+                     'FileTitle='  + UrlEncodeToA(Trim(FileDescr.Text));
         HttpCli1.URL := HttpCli1.URL + '?' + Data;
         DisplayMemo.Lines.Add('To URL: ' + HttpCli1.URL);
         DisplayMemo.Lines.Add('Content Type: ' + HttpCli1.ContentTypePost);
@@ -305,8 +305,8 @@ begin
         HttpCli1.SendStream := TIcsBufferedFileStream.Create(FileName,
                                           fmOpenRead, MAX_BUFSIZE);   { V8.00 buffered file stream }
         HttpCli1.ContentTypePost := 'application/binary';
-        Data := String('FileName=' + UrlEncodeToA(NameOnly) + '&' +
-                     'FileTitle='  + UrlEncodeToA(Trim(FileDescr.Text)));
+        Data := 'FileName=' + UrlEncodeToA(NameOnly) + '&' +
+                     'FileTitle='  + UrlEncodeToA(Trim(FileDescr.Text));
         HttpCli1.URL := HttpCli1.URL + '?' + Data;
         DisplayMemo.Lines.Add('To URL: ' + HttpCli1.URL);
         DisplayMemo.Lines.Add('Content Type: ' + HttpCli1.ContentTypePost);

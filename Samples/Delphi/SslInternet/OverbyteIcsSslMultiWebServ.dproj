@@ -1,11 +1,11 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <ProjectGuid>{42fe4bab-606d-49c7-94fa-763bb5825dbf}</ProjectGuid>
-    <MainSource>OverbyteIcsSslWebAppServer.dpr</MainSource>
+    <ProjectGuid>{bc88abb2-9385-4363-8a4d-007a071a62ef}</ProjectGuid>
+    <MainSource>OverbyteIcsSslMultiWebServ.dpr</MainSource>
     <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
-    <DCC_DependencyCheckOutputName>OverbyteIcsSslWebAppServer.exe</DCC_DependencyCheckOutputName>
+    <DCC_DependencyCheckOutputName>OverbyteIcsSslMultiWebServ.exe</DCC_DependencyCheckOutputName>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Version>7.0</Version>
@@ -42,20 +42,48 @@
     <Borland.Personality>Delphi.Personality</Borland.Personality>
     <Borland.ProjectType>VCLApplication</Borland.ProjectType>
     <BorlandProject>
-<BorlandProject><Delphi.Personality><Parameters><Parameters Name="UseLauncher">False</Parameters><Parameters Name="LoadAllSymbols">True</Parameters><Parameters Name="LoadUnspecifiedSymbols">False</Parameters></Parameters><VersionInfo><VersionInfo Name="IncludeVerInfo">False</VersionInfo><VersionInfo Name="AutoIncBuild">False</VersionInfo><VersionInfo Name="MajorVer">1</VersionInfo><VersionInfo Name="MinorVer">0</VersionInfo><VersionInfo Name="Release">0</VersionInfo><VersionInfo Name="Build">0</VersionInfo><VersionInfo Name="Debug">False</VersionInfo><VersionInfo Name="PreRelease">False</VersionInfo><VersionInfo Name="Special">False</VersionInfo><VersionInfo Name="Private">False</VersionInfo><VersionInfo Name="DLL">False</VersionInfo><VersionInfo Name="Locale">1033</VersionInfo><VersionInfo Name="CodePage">1252</VersionInfo></VersionInfo><VersionInfoKeys><VersionInfoKeys Name="CompanyName"></VersionInfoKeys><VersionInfoKeys Name="FileDescription">OverbyteIcsSslWebAppServer</VersionInfoKeys><VersionInfoKeys Name="FileVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="InternalName"></VersionInfoKeys><VersionInfoKeys Name="LegalCopyright"></VersionInfoKeys><VersionInfoKeys Name="LegalTrademarks"></VersionInfoKeys><VersionInfoKeys Name="OriginalFilename"></VersionInfoKeys><VersionInfoKeys Name="ProductName">OverbyteIcsSslWebAppServer</VersionInfoKeys><VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="Comments"></VersionInfoKeys>  <VersionInfoKeys Name="ProgramID">com.embarcadero.OverbyteIcsSslWebAppServer</VersionInfoKeys>
-    </VersionInfoKeys><Source><Source Name="MainSource">OverbyteIcsSslWebAppServer.dpr</Source></Source></Delphi.Personality></BorlandProject></BorlandProject>
+<BorlandProject xmlns=""> <Delphi.Personality>   <Parameters>
+      <Parameters Name="UseLauncher">False</Parameters>
+      <Parameters Name="LoadAllSymbols">True</Parameters>
+      <Parameters Name="LoadUnspecifiedSymbols">False</Parameters>
+    </Parameters>
+    <VersionInfo>
+      <VersionInfo Name="IncludeVerInfo">False</VersionInfo>
+      <VersionInfo Name="AutoIncBuild">False</VersionInfo>
+      <VersionInfo Name="MajorVer">1</VersionInfo>
+      <VersionInfo Name="MinorVer">0</VersionInfo>
+      <VersionInfo Name="Release">0</VersionInfo>
+      <VersionInfo Name="Build">0</VersionInfo>
+      <VersionInfo Name="Debug">False</VersionInfo>
+      <VersionInfo Name="PreRelease">False</VersionInfo>
+      <VersionInfo Name="Special">False</VersionInfo>
+      <VersionInfo Name="Private">False</VersionInfo>
+      <VersionInfo Name="DLL">False</VersionInfo>
+      <VersionInfo Name="Locale">2060</VersionInfo>
+      <VersionInfo Name="CodePage">1252</VersionInfo>
+    </VersionInfo>
+    <VersionInfoKeys>
+      <VersionInfoKeys Name="CompanyName"></VersionInfoKeys>
+      <VersionInfoKeys Name="FileDescription"></VersionInfoKeys>
+      <VersionInfoKeys Name="FileVersion">1.0.0.0</VersionInfoKeys>
+      <VersionInfoKeys Name="InternalName"></VersionInfoKeys>
+      <VersionInfoKeys Name="LegalCopyright"></VersionInfoKeys>
+      <VersionInfoKeys Name="LegalTrademarks"></VersionInfoKeys>
+      <VersionInfoKeys Name="OriginalFilename"></VersionInfoKeys>
+      <VersionInfoKeys Name="ProductName"></VersionInfoKeys>
+      <VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys>
+      <VersionInfoKeys Name="Comments"></VersionInfoKeys>
+    </VersionInfoKeys>
+    <Source>
+      <Source Name="MainSource">OverbyteIcsSslMultiWebServ.dpr</Source>
+    </Source>
+  </Delphi.Personality> </BorlandProject></BorlandProject>
   </ProjectExtensions>
-  <Import Project="$(MSBuildBinPath)\Borland.Delphi.Targets" />
+  <ItemGroup />
   <ItemGroup>
-    <DelphiCompile Include="OverbyteIcsSslWebAppServer.dpr">
+    <DelphiCompile Include="OverbyteIcsSslMultiWebServ.dpr">
       <MainSource>MainSource</MainSource>
     </DelphiCompile>
-    <RcCompile Include="..\..\OverbyteIcsCommonVersion.rc">
-      <Form>..\..\OverbyteIcsCommonVersion.res</Form>
-    </RcCompile>
-    <RcCompile Include="..\..\OverbyteIcsXpManifest.rc">
-      <Form>..\..\OverbyteIcsXpManifest.res</Form>
-    </RcCompile>
     <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerConfig.pas" />
     <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerCounter.pas" />
     <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerCounterView.pas" />
@@ -64,25 +92,17 @@
       <DesignClass>TDataModule</DesignClass>
     </DCCReference>
     <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHead.pas" />
-    <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHelad.pas" />
-    <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHellad.pas" />
-    <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHelload.pas" />
-    <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHelloWad.pas" />
-    <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHelloWoad.pas" />
-    <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHelloWorad.pas" />
-    <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHelloWorlad.pas" />
     <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHelloWorld.pas" />
-    <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHelloWorldad.pas" />
-    <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHelloWorldd.pas" />
     <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHomePage.pas" />
     <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerHttpHandlerBase.pas" />
     <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerLogin.pas" />
-    <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerMailer.pas" />
     <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerSessionData.pas" />
-    <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerUploads.pas" />
     <DCCReference Include="..\WebDemos\OverbyteIcsWebAppServerUrlDefs.pas" />
-    <DCCReference Include="OverbyteIcsSslWebAppServerMain.pas">
-      <Form>WebAppSrvForm</Form>
+    <DCCReference Include="OverbyteIcsSslMultiWebMailer.pas" />
+    <DCCReference Include="OverbyteIcsSslMultiWebServ1.pas">
+      <Form>WeblServerForm</Form>
     </DCCReference>
+    <DCCReference Include="OverbyteIcsWebAppServerUploads.pas" />
   </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Borland.Delphi.Targets" />
 </Project>

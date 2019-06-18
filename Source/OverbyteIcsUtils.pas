@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.60
+Version:      8.62
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      Use the mailing list twsocket@elists.org
               Follow "support" link at http://www.overbyte.be for subscription.
@@ -176,6 +176,14 @@ Mar 11, 2019 V8.60 Added IcsFormatSettings to replace formatting public vars rem
                    Added IcsDeleteFile, IcsRenameFile and IcsForceDirsEx
                    Added IcsTransChar, IcsPathUnixToDos and IcsPathDosToUnix
                    Added IcsSecsToStr and IcsGetTempPath
+Jun 11, 2019 V8.62 Added IcsGetLocalTZBiasStr get time zone bias as string, ie -0700.
+                   Added Time Zone support for date string conversions, to UTC time with
+                      a time zone, and back to local time using a time zone.
+                   RFC3339_DateToStr and RFC1123_Date add time zone bias if AddTZ=True, ie -0700.
+                   Added RFC3339_DateToUtcStr and RFC1123_UtcDate which convert local
+                      time to UTC and format it per RFC3339 with time zone bias.
+                   RFC3339_StrToDate and RFC1123_StrToDate now recognises time zone
+                      bias and adjusts result if UseTZ=True.
 
 
 
@@ -325,6 +333,7 @@ const
   TriggerImmediate : longword = 0 ;
   OneSecondDT: TDateTime = 1 / SecsPerDay ;         { V8.60 }
   OneMinuteDT: TDateTime = 1 / (SecsPerDay / 60) ;  { V8.60 }
+  MinutesPerDay      = 60.0 * 24.0;                 { V8.62 }
 
   { V8.60 date and time masks }
   ISOTimeMask = 'hh:nn:ss' ;
@@ -396,13 +405,16 @@ const
     procedure IcsCharLowerA(var ACh: AnsiChar); {$IFDEF USE_INLINE} inline; {$ENDIF}
     function  IcsGetCurrentThreadID: TThreadID;
     function  IcsGetFreeDiskSpace(const APath: String): Int64;
-    function  IcsGetLocalTimeZoneBias: LongInt;
+    function  IcsGetLocalTimeZoneBias: LongInt; 
+    function  IcsGetLocalTZBiasStr: String;                   { V8.62 }
     function  IcsDateTimeToUTC (dtDT: TDateTime): TDateTime;
     function  IcsUTCToDateTime (dtDT: TDateTime): TDateTime;
-    function  RFC1123_Date(aDate : TDateTime) : String;       { V8.09 }
-    function  RFC1123_StrToDate(aDate : String) : TDateTime;  { V8.09 }
-    function  RFC3339_StrToDate(aDate: String): TDateTime;    { V8.53 }
-    function  RFC3339_DateToStr(DT: TDateTime): String ;      { V8.53 }
+    function  RFC1123_Date(aDate : TDateTime; AddTZ: Boolean = False) : String;      { V8.09, V8.62 AddTZ }
+    function  RFC1123_UtcDate(aDate : TDateTime) : String;    { V8.62 }
+    function  RFC1123_StrToDate(aDate : String; UseTZ: Boolean = False) : TDateTime;  { V8.09, V8.62 UseTZ }
+    function  RFC3339_StrToDate(aDate: String; UseTZ: Boolean = False): TDateTime;   { V8.53, V8.62 UseTZ }
+    function  RFC3339_DateToStr(DT: TDateTime; AddTZ: Boolean = False): String;   { V8.53, V8.62 AddTZ }
+    function  RFC3339_DateToUtcStr(DT: TDateTime): String;    { V8.62 }
     function  IcsGetUTCTime: TDateTime;                       { V8.60 }
     function  IcsSetUTCTime (DateTime: TDateTime): boolean ;  { V8.60 }
     function  IcsGetNewTime (DateTime, Difference: TDateTime): TDateTime ; { V8.60 }
@@ -1241,6 +1253,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Get time zone bias a signed integer in minutes }
 function IcsGetLocalTimeZoneBias: LongInt;
 {$IFDEF MSWINDOWS}
 var
@@ -1282,12 +1295,34 @@ begin
 end;
 {$ENDIF}
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.62 Get time zone bias as string, ie -0730 }
+function IcsGetLocalTZBiasStr: String;
+var
+    Bias, AbsMins, MyHours, MyMins: Integer;
+    Sign: String;
+begin
+    Bias := -IcsGetLocalTimeZoneBias;  { nagate }
+    if Bias = 0 then
+        Result := 'Z'
+    else begin
+        if Bias < 0 then
+            Sign := '-'
+        else
+            Sign := '+';
+        AbsMins := Abs(Bias);
+        MyHours := AbsMins div 60;
+        MyMins  := AbsMins - (MyHours * 60);
+        Result := Format('%s%.2d%.2d', [Sign, MyHours, MyMins]);
+    end;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { convert local date/time to UTC/GMT }
 function IcsDateTimeToUTC (dtDT: TDateTime): TDateTime;
 begin
-    Result := dtDT + IcsGetLocalTimeZoneBias / (60.0 * 24.0);
+    Result := dtDT + (IcsGetLocalTimeZoneBias / MinutesPerDay);
 end;
 
 
@@ -1295,40 +1330,55 @@ end;
 { convert UTC/GMT to local date/time }
 function IcsUTCToDateTime (dtDT: TDateTime): TDateTime;
 begin
-    Result := dtDT - IcsGetLocalTimeZoneBias / (60.0 * 24.0);
+    Result := dtDT - (IcsGetLocalTimeZoneBias / MinutesPerDay);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ RFC1123/RFC822 TDateTime to short alpha time, HTTP and SMPT headers }
+{ V8.62 optionally add time zone }
 const
    RFC1123_StrWeekDay : String = 'MonTueWedThuFriSatSun';
    RFC1123_StrMonth   : String = 'JanFebMarAprMayJunJulAugSepOctNovDec';
 { We cannot use Delphi own function because the date must be specified in   }
 { english and Delphi use the current language.                              }
-function RFC1123_Date(aDate : TDateTime) : String;
+function RFC1123_Date(aDate : TDateTime; AddTZ: Boolean = False) : String;
 var
-   Year, Month, Day       : Word;
-   Hour, Min,   Sec, MSec : Word;
-   DayOfWeek              : Word;
+    Year, Month, Day       : Word;
+    Hour, Min,   Sec, MSec : Word;
+    DayOfWeek              : Word;
 begin
-   DecodeDate(aDate, Year, Month, Day);
-   DecodeTime(aDate, Hour, Min,   Sec, MSec);
-   DayOfWeek := ((Trunc(aDate) - 2) mod 7);
-   Result := Copy(RFC1123_StrWeekDay, 1 + DayOfWeek * 3, 3) + ', ' +
+    DecodeDate(aDate, Year, Month, Day);
+    DecodeTime(aDate, Hour, Min,   Sec, MSec);
+    DayOfWeek := ((Trunc(aDate) - 2) mod 7);
+    Result := Copy(RFC1123_StrWeekDay, 1 + DayOfWeek * 3, 3) + ', ' +
              Format('%2.2d %s %4.4d %2.2d:%2.2d:%2.2d',
                     [Day, Copy(RFC1123_StrMonth, 1 + 3 * (Month - 1), 3),
                      Year, Hour, Min, Sec]);
+    { Tue, 11 Jun 2019 12:24:13 +0100 }
+    if AddTZ then Result := Result + ' ' + IcsGetLocalTZBiasStr;  { V8.62 }
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ Bug: time zone is ignored !! }
+{ V8.62 RFC1123/RFC822 TDateTime to UTC then to time zone string, HTTP and SMPT headers }
+function RFC1123_UtcDate(aDate : TDateTime): String;
+begin
+    Result := RFC1123_Date(IcsDateTimeToUTC(aDate), True);
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { RFC1123 5.2.14 redefine RFC822 Section 5.                                 }
-function RFC1123_StrToDate(aDate : String) : TDateTime;
+{ V8.62 optionally process time zone and convert to local time }
+function RFC1123_StrToDate(aDate : String; UseTZ: Boolean = False) : TDateTime;
 var
     Year, Month, Day : Word;
     Hour, Min,   Sec : Word;
+    tzvalue: Integer;
+    sign: String;
 begin
     { Fri, 30 Jul 2004 10:10:35 GMT }
+    { Tue, 11 Jun 2019 12:24:13 +0100 }
     Day    := StrToIntDef(Copy(aDate, 6, 2), 0);
     Month  := (Pos(Copy(aDate, 9, 3), RFC1123_StrMonth) + 2) div 3;
     Year   := StrToIntDef(Copy(aDate, 13, 4), 0);
@@ -1337,20 +1387,37 @@ begin
     Sec    := StrToIntDef(Copy(aDate, 24, 2), 0);
     Result := EncodeDate(Year, Month, Day);
     Result := Result + EncodeTime(Hour, Min, Sec, 0);
+
+{ V8.62 check for time zone, GMT, +0700, -1000, -0330 }
+    if NOT UseTZ then Exit;
+    if Length(aDate) < 31 then Exit ;  // no time zone
+    sign := aDate [27];
+    if (sign = '-') or (sign = '+') then begin // ignore GMT/UTC
+        tzvalue := StrToIntDef(copy (aDate, 28, 2), 0) * 60;
+        if (aDate [30] = '3') then
+            tzvalue := tzvalue + 30;
+        if sign = '+' then
+            Result := Result + (tzvalue / MinutesPerDay)
+        else
+            Result := Result - (tzvalue / MinutesPerDay);
+    end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.53 RFC3339 string date to TDateTime, aka ISO 8601 date }
-{ Bug: time zone is ignored !! }
+{ V8.62 optionally process time zone and convert to local time }
 {  yyyy-mm-ddThh:nn:ssZ (ISODateTimeMask), might be NULL
-   yyyy-mm-ddThh:nn:ss-hh:mm (time offset on end, ignored)
+   yyyy-mm-ddThh:nn:ss.sss (milliseconds on end
+   yyyy-mm-ddThh:nn:ss-hh:mm (time offset on end
    or just yyyy-mm-dd
    or just hh:nn:ss }
-function RFC3339_StrToDate(aDate: String): TDateTime;
+function RFC3339_StrToDate(aDate: String; UseTZ: Boolean = False): TDateTime;
 var
-    yy, mm, dd, hh, nn, ss: Word;
-    timeDT: TDateTime ;
+    yy, mm, dd, hh, nn, ss, sss: Word;
+    timeDT: TDateTime;
+    tzoffset, tzvalue: Integer;
+    sign: String;
 begin
     Result := 0;
     aDate := Trim(aDate);
@@ -1375,24 +1442,61 @@ begin
         Result := -1 ;
         Exit ;
     end ;
-    if Length(aDate) < 19 then Exit ;  // might have time, ignore MS and time offsets
+    if Length(aDate) < 19 then Exit ;  // no time
     if aDate[14] <> ':' then Exit ;
     if aDate[17] <> ':' then Exit ;
     hh := StrToIntDef(copy (aDate, 12, 2), 0);
     nn := StrToIntDef(copy (aDate, 15, 2), 0);
     ss := StrToIntDef(copy (aDate, 18, 2), 0);
-    if NOT TryEncodeTime(hh, nn, ss, 0, timeDT) then Exit ;
+    sss := 0;
+    tzoffset := 20;
+{ V8.62 check for milliseconds }
+    if Length(aDate) >= 23 then begin  // check for MS
+        if (aDate [20] = '.') or (aDate [20] = ',') then begin
+            sss := StrToIntDef(copy (aDate, 21, 3), 0);
+            tzoffset := 24;
+        end;
+    end;
+    if NOT TryEncodeTime(hh, nn, ss, sss, timeDT) then Exit ;
     Result := Result + timeDT ;
+    if NOT UseTZ then Exit;
+
+{ V8.62 check for time zone, Z, +07:00, -1000, -03:30 }
+    if Length(aDate) < (tzoffset + 2) then Exit ;  // no time zone
+    sign := aDate [tzoffset];
+    if (sign = '-') or (sign = '+') then begin // ignore Z
+        tzvalue := StrToIntDef(copy (aDate, tzoffset + 1, 2), 0) * 60;
+        if Length(aDate) > (tzoffset + 4) then begin
+            if (aDate [tzoffset + 3] = '3') or (aDate [tzoffset + 4] = '3') then
+                tzvalue := tzvalue + 30;
+        end;
+        if sign = '+' then
+            Result := Result + (tzvalue / MinutesPerDay)
+        else
+            Result := Result - (tzvalue / MinutesPerDay);
+    end;
 end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.53 RFC3339 TDateTime to string, aka ISO 8601 date }
-{ TDateTime to to yyyy-mm-ddThh:nn:ss - no quotes, no Z }
-function RFC3339_DateToStr(DT: TDateTime): String;
+{ TDateTime to to yyyy-mm-ddThh:nn:ss - no quotes }
+{ V8.62 optionally add time zone }
+function RFC3339_DateToStr(DT: TDateTime; AddTZ: Boolean = False): String;
 begin
     Result := FormatDateTime(ISODateTimeMask, DT);
+    if AddTZ then Result := Result + IcsGetLocalTZBiasStr;  { V8.62 }
 end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.62 RFC3339 TDateTime to UTC then to time zone string, aka ISO 8601 date }
+{ TDateTime to to yyyy-mm-ddThh:nn:ss+hhmm - no quotes }
+function RFC3339_DateToUtcStr(DT: TDateTime): String;
+begin
+    Result := RFC3339_DateToStr(IcsDateTimeToUTC(DT), True);
+end ;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.60 get system date and time as UTC/GMT into Delphi time }

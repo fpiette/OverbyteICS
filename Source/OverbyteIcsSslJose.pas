@@ -10,8 +10,8 @@ Description:  JOSE - Json Object Signing and Encryption, used for:
               Includes OpenSSL Message Authentication Code functions used
               for signing JOSE structures with secret or private/public keys.
 Creation:     Feb 2018
-Updated:      Aug 2018
-Version:      8.57
+Updated:      May 2019
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
 Legal issues: Copyright (C) 2018 by Angus Robertson, Magenta Systems Ltd,
@@ -72,6 +72,7 @@ verify it, using a hash alogrithm.
 Updates:
 May 21, 2018  - 8.54 - baseline
 Oct 2, 2018   - 8.57 - build with FMX
+May 28, 2019  - 8.62 - build Jason Web Token (JWT)
 
 
 Pending
@@ -216,6 +217,10 @@ function IcsJoseJWSJson(JoseAlg: TJoseAlg; const Payload, HmacSecret: string;
 { build Acme v1 Json Web Signature or Token, non-standard with extra header }
 function IcsJoseJWSAcme1(JoseAlg: TJoseAlg; const Payload: string;
           PrivateKey: PEVP_PKEY; const Jwk, Nonce: string): string;
+
+{ build Json Web Token (JWT) by Base64Url encoding three components as long string V8.62 }
+function IcsJoseJWT(const Header, Payload, Signature: string): string;
+
 
 implementation
 
@@ -836,6 +841,7 @@ begin
         if HmacSecret = '' then
               Raise EDigestException.Create('HMAC secret key required');
         Result := IcsBase64UrlEncode(String(IcsHMACDigestEx(CombinedEn, HmacSecret, HashDigest)));
+    //    Result := IcsBase64UrlEncode(String(IcsHMACDigest(CombinedEn, HmacSecret, HashDigest)));
     end
     else if (JoseAlg >= jsigRsa256) then begin
         Result := IcsBase64UrlEncode(String(IcsAsymSignDigest(CombinedEn, PrivateKey, HashDigest)));
@@ -845,9 +851,9 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
-{ RFC7515 build Json Web Signature or Token, with Acme private fields, }
-{ using JWS Compact Serialization which is three base64url blocks separated }
-{ by periods, ie xxx.xxx.xxx }
+{ RFC7515 build Json Web Signature (JWS) or Json Web Token (JWT), }
+{ with Acme private fields, using JWS Compact Serialization which is three }
+{ base64url blocks separated by periods, ie xxx.xxx.xxx }
 
 function IcsJoseJWSComp(JoseAlg: TJoseAlg; const Payload, HmacSecret: string;
           PrivateKey: PEVP_PKEY; const Typ, Jwk, Kid, Nonce: string;
@@ -1000,6 +1006,13 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
+{ build Json Web Token (JWT) by Base64Url encoding three components as long string V8.62 }
+function IcsJoseJWT(const Header, Payload, Signature: string): string;
+begin
+    Result := IcsBase64UrlEncode(String(StringToUtf8(Header))) + '.' +
+                 IcsBase64UrlEncode(String(StringToUtf8(Payload))) + '.' +
+                    IcsBase64UrlEncode(String(StringToUtf8(Signature)));
+end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

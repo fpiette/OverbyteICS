@@ -58,6 +58,9 @@ Apr 24, 2019 - V8.61 Added DNS over HTTPS REST example using Json.
                         for £6.50 (about $9) which gives 100 message credits.
                         Other similar bureaus can be added, provided there is an
                         account for testing.
+Jun 12, 2019 - V8.62 Supporting SMS Works at https://thesmsworks.co.uk/ for SMS.
+                     Added Proxy URL for proxy support, ie http://[user[:password]@]host:port
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -127,6 +130,7 @@ type
     OAuthWebIP: TComboBox;
     OAuthWebPort: TEdit;
     ParamContent: TRadioGroup;
+    ProxyURL: TEdit;
     RawParams: TEdit;
     ReportCertChain: TCheckBox;
     ReqMode: TRadioGroup;
@@ -142,11 +146,12 @@ type
     DnsQueryType: TComboBox;
     DnsDnssec: TCheckBox;
     DnsNoValidation: TCheckBox;
-    KapowAccName: TEdit;
+    SmsAccSender: TEdit;
+    SmsMsgText: TMemo;
+    SmsDestNums: TMemo;
     KapowAccPw: TEdit;
-    KapowAccSender: TEdit;
-    KapowSmsNum: TEdit;
-    KapowMsg: TMemo;
+    KapowAccName: TEdit;
+    SmsWorksLoginJson: TMemo;
 
  // properties not saved
     LogWin: TMemo;
@@ -206,16 +211,24 @@ type
     doDnsQueryAll: TButton;
     TimerLog: TTimer;
     IcsSMS1: TIcsSMS;
-    BoxKapow: TGroupBox;
-    Label24: TLabel;
+    BoxSmsMsg: TGroupBox;
     Label26: TLabel;
-    Label27: TLabel;
     Label28: TLabel;
     Label29: TLabel;
+    GroupBox3: TGroupBox;
+    Label24: TLabel;
+    Label27: TLabel;
     doKapowSend: TButton;
     doKapowCheck: TButton;
     doKapowCredit: TButton;
     LabelKapowCredit: TLabel;
+    BoxSmsWorks: TGroupBox;
+    Label30: TLabel;
+    doSmsWorksSend: TButton;
+    doSmsWorksCheck: TButton;
+    doSmsWorksCredit: TButton;
+    LabelSmsWorksCredits: TLabel;
+    Label31: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure HttpRest1HttpRestProg(Sender: TObject; LogOption: TLogOption;
       const Msg: string);
@@ -251,6 +264,9 @@ type
     procedure doKapowSendClick(Sender: TObject);
     procedure doKapowCheckClick(Sender: TObject);
     procedure doKapowCreditClick(Sender: TObject);
+    procedure doSmsWorksCreditClick(Sender: TObject);
+    procedure doSmsWorksSendClick(Sender: TObject);
+    procedure doSmsWorksCheckClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -271,6 +287,7 @@ var
   HttpRestForm: THttpRestForm;
   BuffLogLines: String;  { V8.61 }
   KapowSentId: String;   { V8.61 }
+  SmsWorksSentId: String; { V8.62 }
 
 implementation
 
@@ -384,6 +401,7 @@ begin
           OAuthWebIP.Text := ReadString (SectionData, 'OAuthWebIP_Text', OAuthWebIP.Text) ;
           OAuthWebPort.Text := ReadString (SectionData, 'OAuthWebPort_Text', OAuthWebPort.Text) ;
           ParamContent.ItemIndex := ReadInteger (SectionData, 'ParamContent_ItemIndex', ParamContent.ItemIndex) ;
+          ProxyURL.Text := ReadString (SectionData, 'ProxyURL_Text', ProxyURL.Text) ;
           RawParams.Text := ReadString (SectionData, 'RawParams_Text', RawParams.Text) ;
           if ReadString (SectionData, 'ReportCertChain_Checked', 'False') = 'True' then ReportCertChain.Checked := true else ReportCertChain.Checked := false ;
           ReqMode.ItemIndex := ReadInteger (SectionData, 'ReqMode_ItemIndex', ReqMode.ItemIndex) ;
@@ -401,9 +419,12 @@ begin
           if ReadString (SectionData, 'DnsNoValidation_Checked', 'False') = 'True' then DnsNoValidation.Checked := true else DnsNoValidation.Checked := false ;
           KapowAccName.Text := ReadString (SectionData, 'KapowAccName_Text', KapowAccName.Text) ;
           KapowAccPw.Text := ReadString (SectionData, 'KapowAccPw_Text', KapowAccPw.Text) ;
-          KapowAccSender.Text := ReadString (SectionData, 'KapowAccSender_Text', KapowAccSender.Text) ;
-          KapowSmsNum.Text := ReadString (SectionData, 'KapowSmsNum_Text', KapowSmsNum.Text) ;
-          KapowMsg.Lines.CommaText := ReadString (SectionData, 'KapowMsg_Lines', '') ;
+          SmsAccSender.Text := ReadString (SectionData, 'SmsAccSender_Text', SmsAccSender.Text) ;
+          SmsMsgText.Lines.CommaText := ReadString (SectionData, 'SmsMsgText_Lines', '') ;
+          SmsDestNums.Lines.CommaText := ReadString (SectionData, 'SmsDestNums_Lines', '') ;
+          KapowAccPw.Text := ReadString (SectionData, 'KapowAccPw_Text', KapowAccPw.Text) ;
+          KapowAccName.Text := ReadString (SectionData, 'KapowAccName_Text', KapowAccName.Text) ;
+          SmsWorksLoginJson.Lines.CommaText := ReadString (SectionData, 'SmsWorksLoginJson_Lines', '') ;
        end;
         IniFile.Free;
     end;
@@ -468,6 +489,7 @@ begin
       WriteString (SectionData, 'OAuthWebIP_Text', OAuthWebIP.Text) ;
       WriteString (SectionData, 'OAuthWebPort_Text', OAuthWebPort.Text) ;
       WriteInteger (SectionData, 'ParamContent_ItemIndex', ParamContent.ItemIndex) ;
+      WriteString (SectionData, 'ProxyURL_Text', ProxyURL.Text) ;
       WriteString (SectionData, 'RawParams_Text', RawParams.Text) ;
       if ReportCertChain.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'ReportCertChain_Checked', temp) ;
       WriteInteger (SectionData, 'ReqMode_ItemIndex', ReqMode.ItemIndex) ;
@@ -485,9 +507,12 @@ begin
       if DnsNoValidation.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'DnsNoValidation_Checked', temp) ;
       WriteString (SectionData, 'KapowAccName_Text', KapowAccName.Text) ;
       WriteString (SectionData, 'KapowAccPw_Text', KapowAccPw.Text) ;
-      WriteString (SectionData, 'KapowAccSender_Text', KapowAccSender.Text) ;
-      WriteString (SectionData, 'KapowSmsNum_Text', KapowSmsNum.Text) ;
-      WriteString (SectionData, 'KapowMsg_Lines', KapowMsg.Lines.CommaText) ;
+      WriteString (SectionData, 'SmsAccSender_Text', SmsAccSender.Text) ;
+      WriteString (SectionData, 'SmsMsgText_Lines', SmsMsgText.Lines.CommaText) ;
+      WriteString (SectionData, 'SmsDestNums_Lines', SmsDestNums.Lines.CommaText) ;
+      WriteString (SectionData, 'KapowAccPw_Text', KapowAccPw.Text) ;
+      WriteString (SectionData, 'KapowAccName_Text', KapowAccName.Text) ;
+      WriteString (SectionData, 'SmsWorksLoginJson_Lines', SmsWorksLoginJson.Lines.CommaText) ;
     end;
     IniFile.UpdateFile;
     IniFile.Free;
@@ -496,11 +521,6 @@ end;
 
 procedure THttpRestForm.AddLog (const S: string) ;
 begin
-   {if Pos (IcsLF,S) > 0 then
-        LogWin.Lines.Text := LogWin.Lines.Text + IcsCRLF + S
-    else
-        LogWin.Lines.Add (S) ;
-    SendMessage(LogWin.Handle, EM_LINESCROLL, 0, 999999);  }
     BuffLogLines := BuffLogLines + S + IcsCRLF;   { V8.61 }
 
   { V8.60 write log file }
@@ -521,7 +541,7 @@ begin
         try
             SetLength(BuffLogLines, displen - 2) ;  // remove CRLF
             LogWin.Lines.Add(BuffLogLines);
-            SendMessage(LogWin.Handle, EM_LINESCROLL, 0, 999999);  
+            SendMessage(LogWin.Handle, EM_LINESCROLL, 0, 999999);
         except
         end ;
         BuffLogLines := '';
@@ -607,9 +627,11 @@ begin
     HttpRest1.Username := AuthLogin.Text;
     HttpRest1.Password := AuthPassword.Text;
     HttpRest1.AuthBearerToken := AuthBearer.Text;
+    HttpRest1.ProxyURL := ProxyURL.Text;                        { V8.62 }
     HttpRest1.ExtraHeaders := ExtraHeaders.Lines;
     HttpRest1.SocketFamily := TSocketFamily(IpSockFamily.ItemIndex);  { V8.60 IP4 and/or IPV6 }
 end;
+
 
 procedure THttpRestForm.doStartReqClick(Sender: TObject);
 const
@@ -1077,12 +1099,13 @@ end;
 
 procedure THttpRestForm.doKapowSendClick(Sender: TObject);
 begin
+    OpenLogFile;
     IcsSMS1.SmsProvider := SmsProvKapow;
     IcsSMS1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
     IcsSMS1.AccountName := KapowAccName.Text;
     IcsSMS1.AccountPw := KapowAccPw.Text;
-    IcsSMS1.MsgSender := KapowAccSender.Text;  // premium feature
-    if NOT IcsSMS1.SendSMS (KapowSmsNum.Text, KapowMsg.Lines.Text) then
+    IcsSMS1.MsgSender := SmsAccSender.Text;  // premium feature
+    if NOT IcsSMS1.SendSMS (SmsDestNums.Lines.CommaText, SmsMsgText.Lines.Text) then
         AddLog ('Failed to Send SMS: ' + IcsSMS1.LastError)
     else
         AddLog ('SMS Send Started');
@@ -1090,6 +1113,7 @@ end;
 
 procedure THttpRestForm.doKapowCheckClick(Sender: TObject);
 begin
+    OpenLogFile;
     IcsSMS1.SmsProvider := SmsProvKapow;
     IcsSMS1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
     IcsSMS1.AccountName := KapowAccName.Text;
@@ -1102,6 +1126,7 @@ end;
 
 procedure THttpRestForm.doKapowCreditClick(Sender: TObject);
 begin
+    OpenLogFile;
     IcsSMS1.SmsProvider := SmsProvKapow;
     IcsSMS1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
     IcsSMS1.AccountName := KapowAccName.Text;
@@ -1112,25 +1137,80 @@ begin
         AddLog ('Credit Check Started');
 end;
 
+procedure THttpRestForm.doSmsWorksSendClick(Sender: TObject);
+begin
+    OpenLogFile;
+    IcsSMS1.SmsProvider := SmsProvSmsWorks;
+    IcsSMS1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
+    IcsSMS1.AccountJson := SmsWorksLoginJson.Text;
+    IcsSMS1.MsgSender := SmsAccSender.Text;
+    if NOT IcsSMS1.SendSMS (SmsDestNums.Lines.CommaText, SmsMsgText.Lines.Text) then
+        AddLog ('Failed to Send SMS: ' + IcsSMS1.LastError)
+    else
+        AddLog ('SMS Send Started');
+end;
+
+procedure THttpRestForm.doSmsWorksCheckClick(Sender: TObject);
+begin
+    OpenLogFile;
+    IcsSMS1.SmsProvider := SmsProvSmsWorks;
+    IcsSMS1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
+    IcsSMS1.AccountJson := SmsWorksLoginJson.Text;
+    if NOT IcsSMS1.CheckSMS(SmsWorksSentId, True, (SmsDestNums.Lines.Count > 1)) then
+        AddLog ('Failed to Delivery Check SMS: ' + IcsSMS1.LastError)
+    else
+        AddLog ('Delivery Check Started');
+end;
+
+procedure THttpRestForm.doSmsWorksCreditClick(Sender: TObject);
+begin
+    OpenLogFile;
+    IcsSMS1.SmsProvider := SmsProvSmsWorks;
+    IcsSMS1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
+    IcsSMS1.AccountJson := SmsWorksLoginJson.Text;
+    if NOT IcsSMS1.CheckCredit then
+        AddLog ('Failed to Check Credit: ' + IcsSMS1.LastError)
+    else
+        AddLog ('Credit Check Started');
+end;
+
+
 procedure THttpRestForm.IcsSMS1SmsDone(Sender: TObject);
 begin
+    AddLog ('SMS Response:: ' + IcsSMS1.LastResp);  // !!! TEMP DIAG
     if IcsSMS1.LastError = '' then begin
-        if IcsSMS1.SentID <> '' then begin
-            KapowSentId := IcsSMS1.SentID;
-            AddLog ('SMS Queued for Delivery, Reference: ' + KapowSentId);
-            doKapowCheck.Enabled := True;  
-        end;
-        if IcsSMS1.Credits <> '' then begin
-            LabelKapowCredit.Caption :=  'Kapow Credits: ' + IcsSMS1.Credits;
-            AddLog (LabelKapowCredit.Caption);
-        end;
-        if IcsSMS1.Delivery <> '' then begin
-            AddLog ('SMS Delivery for ' + KapowSentId + ': ' + IcsSMS1.Delivery);
+        if IcsSMS1.SmsProvider = SmsProvKapow then begin
+            if IcsSMS1.SentID <> '' then begin
+                KapowSentId := IcsSMS1.SentID;
+                AddLog ('SMS Queued for Delivery, Reference: ' + KapowSentId);
+                doKapowCheck.Enabled := True;
+            end;
+            if IcsSMS1.Credits <> '' then begin
+                LabelKapowCredit.Caption :=  'Credits: ' + IcsSMS1.Credits;
+                AddLog (LabelKapowCredit.Caption);
+            end;
+            if IcsSMS1.Delivery <> '' then begin
+                AddLog ('SMS Delivery for ' + KapowSentId + ': ' + IcsSMS1.Delivery);
+            end;
+        end
+        else if IcsSMS1.SmsProvider = SmsProvSmsWorks then begin
+            if IcsSMS1.SentID <> '' then begin
+                SmsWorksSentId := IcsSMS1.SentID;
+                AddLog ('SMS Queued for Delivery, Reference: ' + SmsWorksSentId);
+                doSmsWorksCheck.Enabled := True;
+            end;
+            if IcsSMS1.Credits <> '' then begin
+                LabelSmsWorksCredits.Caption :=  'Credits: ' + IcsSMS1.Credits;
+                AddLog (LabelKapowCredit.Caption);
+            end;
+            if IcsSMS1.Delivery <> '' then begin
+                AddLog ('SMS Delivery for ' + SmsWorksSentId + ': ' + IcsSMS1.Delivery);
+            end;
         end;
     end
     else
         AddLog ('Failed: ' + IcsSMS1.LastError);
-    AddLog ('Kapow Response:: ' + IcsSMS1.LastResp);  // !!! TEMP DIAG
+    Beep;
 end;
 
 procedure THttpRestForm.IcsSMS1SmsProg(Sender: TObject; LogOption: TLogOption;

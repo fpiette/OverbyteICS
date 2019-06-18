@@ -3,7 +3,7 @@ object X509CertsForm: TX509CertsForm
   Top = 0
   Caption = 
     'ICS Automatically Download SSL X509 Certificates Development Dem' +
-    'o - http://www.overbyte.be - V8.62 - 13th May 2019'
+    'o - http://www.overbyte.be - V8.62 - 13th June 2019'
   ClientHeight = 637
   ClientWidth = 1024
   Color = clBtnFace
@@ -39,6 +39,7 @@ object X509CertsForm: TX509CertsForm
     TabOrder = 1
     object TabCommon: TTabSheet
       Caption = 'Common'
+      ExplicitTop = 23
       object Label3: TLabel
         Left = 600
         Top = 10
@@ -90,11 +91,22 @@ object X509CertsForm: TX509CertsForm
         Caption = 'Private Key File, optional'#13#10'(needed to build bundles)'
       end
       object Label54: TLabel
-        Left = 590
-        Top = 205
-        Width = 66
-        Height = 14
+        Left = 540
+        Top = 195
+        Width = 44
+        Height = 34
+        AutoSize = False
         Caption = 'Socket Family'
+        WordWrap = True
+      end
+      object Label1: TLabel
+        Left = 700
+        Top = 195
+        Width = 34
+        Height = 34
+        AutoSize = False
+        Caption = 'Proxy URL'
+        WordWrap = True
       end
       object DomWebSrvIP: TComboBox
         Left = 600
@@ -102,7 +114,7 @@ object X509CertsForm: TX509CertsForm
         Width = 176
         Height = 22
         ItemHeight = 14
-        TabOrder = 5
+        TabOrder = 4
         Text = '0.0.0.0'
       end
       object doWebServer: TButton
@@ -111,32 +123,32 @@ object X509CertsForm: TX509CertsForm
         Width = 181
         Height = 25
         Caption = 'Start Challenge Local Web Server'
-        TabOrder = 6
+        TabOrder = 5
         OnClick = doWebServerClick
       end
       object LogJson: TCheckBox
         Left = 10
-        Top = 25
+        Top = 10
         Width = 97
         Height = 17
         Caption = 'Log Raw Json'
-        TabOrder = 1
+        TabOrder = 0
       end
       object DirLogs: TEdit
         Left = 160
         Top = 25
         Width = 382
         Height = 22
-        TabOrder = 3
+        TabOrder = 2
         OnExit = DirLogsExit
       end
       object LogPkeys: TCheckBox
         Left = 10
-        Top = 45
+        Top = 30
         Width = 97
         Height = 17
         Caption = 'Log Private Keys'
-        TabOrder = 2
+        TabOrder = 1
       end
       object SuppCertChallenge: TRadioGroup
         Left = 10
@@ -154,15 +166,7 @@ object X509CertsForm: TX509CertsForm
           'Email manually '
           'TLS-ALPN Cert - Web UNC'
           'TLS-ALPN Cert - Local Web')
-        TabOrder = 10
-      end
-      object OldOSL: TCheckBox
-        Left = 10
-        Top = 5
-        Width = 126
-        Height = 17
-        Caption = 'Old OpenSSL 1.0.2 '
-        TabOrder = 0
+        TabOrder = 9
       end
       object DebugLogging: TComboBox
         Left = 600
@@ -171,7 +175,7 @@ object X509CertsForm: TX509CertsForm
         Height = 22
         ItemHeight = 14
         ItemIndex = 3
-        TabOrder = 8
+        TabOrder = 7
         Text = 'SSL Negotiation'
         Items.Strings = (
           'None'
@@ -197,7 +201,7 @@ object X509CertsForm: TX509CertsForm
           'AES192'
           'AES256'
           'Blowfish')
-        TabOrder = 11
+        TabOrder = 10
       end
       object PrivKeyPassword: TEdit
         Left = 313
@@ -205,7 +209,7 @@ object X509CertsForm: TX509CertsForm
         Width = 153
         Height = 22
         PasswordChar = '*'
-        TabOrder = 7
+        TabOrder = 6
         Text = 'password'
       end
       object AutoOrderComplete: TCheckBox
@@ -216,7 +220,7 @@ object X509CertsForm: TX509CertsForm
         Caption = 'Automatic Order Completion'
         Checked = True
         State = cbChecked
-        TabOrder = 9
+        TabOrder = 8
       end
       object CertCsrOrigin: TRadioGroup
         Left = 428
@@ -228,35 +232,35 @@ object X509CertsForm: TX509CertsForm
         Items.Strings = (
           'From Properties, creates new key'
           'From CSR File, old private key')
-        TabOrder = 12
+        TabOrder = 11
       end
       object SupplierEmail: TEdit
         Left = 755
         Top = 85
         Width = 221
         Height = 22
-        TabOrder = 13
+        TabOrder = 12
       end
       object CertOldCsrFile: TEdit
         Left = 590
         Top = 140
         Width = 369
         Height = 22
-        TabOrder = 14
+        TabOrder = 13
       end
       object CertOldPrvKey: TEdit
         Left = 590
         Top = 170
         Width = 371
         Height = 22
-        TabOrder = 16
+        TabOrder = 15
       end
       object SelDirLogs: TBitBtn
         Left = 548
         Top = 24
         Width = 31
         Height = 25
-        TabOrder = 4
+        TabOrder = 3
         OnClick = SelDirLogsClick
         Glyph.Data = {
           76010000424D7601000000000000760000002800000020000000100000000100
@@ -278,7 +282,7 @@ object X509CertsForm: TX509CertsForm
         Top = 140
         Width = 31
         Height = 25
-        TabOrder = 15
+        TabOrder = 14
         OnClick = SelCertOldCsrFileClick
         Glyph.Data = {
           76010000424D7601000000000000760000002800000020000000100000000100
@@ -300,7 +304,7 @@ object X509CertsForm: TX509CertsForm
         Top = 170
         Width = 31
         Height = 25
-        TabOrder = 17
+        TabOrder = 16
         OnClick = SelCertOldPrvKeyClick
         Glyph.Data = {
           76010000424D7601000000000000760000002800000020000000100000000100
@@ -318,23 +322,23 @@ object X509CertsForm: TX509CertsForm
         NumGlyphs = 2
       end
       object doCheckCSR: TButton
-        Left = 445
-        Top = 196
+        Left = 423
+        Top = 200
         Width = 96
         Height = 25
         Caption = 'Check CSR'
-        TabOrder = 18
+        TabOrder = 17
         OnClick = doCheckCSRClick
       end
       object IpSocFamily: TComboBox
-        Left = 679
+        Left = 590
         Top = 200
         Width = 102
         Height = 22
         Style = csDropDownList
         ItemHeight = 14
         ItemIndex = 0
-        TabOrder = 19
+        TabOrder = 18
         Text = 'Any'
         Items.Strings = (
           'Any'
@@ -342,6 +346,16 @@ object X509CertsForm: TX509CertsForm
           'Prefer IPv6'
           'Only IPv4 '
           'Only IPv6')
+      end
+      object ProxyURL: TEdit
+        Left = 750
+        Top = 201
+        Width = 241
+        Height = 22
+        Hint = 'Use a proxy URL, ie http://[user[:password]@]host:port'
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 19
       end
     end
     object TabDomain: TTabSheet
@@ -770,166 +784,6 @@ object X509CertsForm: TX509CertsForm
         TabOrder = 15
       end
     end
-    object TabAcme1: TTabSheet
-      Caption = 'Acme V1'
-      ImageIndex = 1
-      object Label1: TLabel
-        Left = 10
-        Top = 15
-        Width = 114
-        Height = 14
-        Caption = 'Let'#39's Encrypt v1 Server'
-      end
-      object Label5: TLabel
-        Left = 10
-        Top = 43
-        Width = 153
-        Height = 14
-        Caption = 'Let'#39's Encrypt Account Directory'
-      end
-      object Label28: TLabel
-        Left = 15
-        Top = 105
-        Width = 441
-        Height = 42
-        Caption = 
-          'Each directory is a dedicated Let'#39's Encrypt account with a priva' +
-          'te key and account number.'#13#10'Certificates for the account are cre' +
-          'ated there.  If there is no private key, a new accoint'#13#10'must be ' +
-          'registered before certificates can be ordered. '
-      end
-      object LabelAcme1Cert: TLabel
-        Left = 614
-        Top = 6
-        Width = 377
-        Height = 159
-        AutoSize = False
-        Caption = 'Information'
-        Color = clYellow
-        ParentColor = False
-        Transparent = False
-        WordWrap = True
-      end
-      object Label29: TLabel
-        Left = 10
-        Top = 73
-        Width = 134
-        Height = 14
-        Caption = 'Account Key Type and Size'
-      end
-      object Label53: TLabel
-        Left = 496
-        Top = 171
-        Width = 279
-        Height = 32
-        Caption = 
-          'Acme V1 is only supported for historic reasons, '#13#10'and only parti' +
-          'ally, please use Acme V2 instead. '
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clRed
-        Font.Height = -13
-        Font.Name = 'Arial'
-        Font.Style = []
-        ParentFont = False
-      end
-      object AcmeServerV1: TComboBox
-        Left = 170
-        Top = 10
-        Width = 431
-        Height = 22
-        ItemHeight = 14
-        TabOrder = 0
-      end
-      object doAcmeOrderV1: TButton
-        Left = 245
-        Top = 170
-        Width = 101
-        Height = 25
-        Caption = 'Order Certificate'
-        Enabled = False
-        TabOrder = 6
-        OnClick = doAcmeOrderV1Click
-      end
-      object doAcmeAccV1: TButton
-        Left = 15
-        Top = 170
-        Width = 107
-        Height = 25
-        Caption = 'Register Account'
-        TabOrder = 4
-        OnClick = doAcmeAccV1Click
-      end
-      object DirAcmeConfV1: TEdit
-        Left = 170
-        Top = 40
-        Width = 381
-        Height = 22
-        TabOrder = 1
-      end
-      object doAcmeCheckOrderV1: TButton
-        Left = 137
-        Top = 170
-        Width = 89
-        Height = 25
-        Caption = 'Check Order'
-        TabOrder = 5
-        OnClick = doAcmeCheckOrderV1Click
-      end
-      object doAcmeGetCertV1: TButton
-        Left = 365
-        Top = 170
-        Width = 101
-        Height = 25
-        Caption = 'Collect Certificate'
-        Enabled = False
-        TabOrder = 7
-        OnClick = doAcmeGetCertV1Click
-      end
-      object AccAcmeKeyV1: TComboBox
-        Left = 170
-        Top = 70
-        Width = 251
-        Height = 22
-        Style = csDropDownList
-        ItemHeight = 14
-        ItemIndex = 1
-        TabOrder = 3
-        Text = 'RSA 2,048 bits (level 2 - 112 bits) '
-        Items.Strings = (
-          'RSA 1,024 bits (level 1 - 80 bits)'
-          'RSA 2,048 bits (level 2 - 112 bits) '
-          'RSA 3,072 bits (level 3 - 128 bits, NIST min)'
-          'RSA 4,096 bits (level 3 - 128 bits)'
-          'RSA 7,680 bits (level 4 - 192 bits)'
-          'RSA 15,360 bits (level 5 - 256 bits)'
-          'Elliptic Curve secp256  (level 3 - 128 bits) '
-          'Elliptic Curve secp384  (level 4 - 192 bits) '
-          'Elliptic Curve secp512  (level 5 - 256 bits) '
-          'EdDSA ED25519 (level 3 - 128 bits)  ')
-      end
-      object SelDirAcmeConfV1: TBitBtn
-        Left = 570
-        Top = 40
-        Width = 31
-        Height = 25
-        TabOrder = 2
-        OnClick = SelDirAcmeConfV1Click
-        Glyph.Data = {
-          76010000424D7601000000000000760000002800000020000000100000000100
-          04000000000000010000120B0000120B00001000000000000000000000000000
-          800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
-          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
-          333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
-          300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
-          333337F373F773333333303330033333333337F3377333333333303333333333
-          333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
-          333337777F337F33333330330BB00333333337F373F773333333303330033333
-          333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
-          333377777F77377733330BBB0333333333337F337F33333333330BB003333333
-          333373F773333333333330033333333333333773333333333333}
-        NumGlyphs = 2
-      end
-    end
     object TabAcme2: TTabSheet
       Caption = 'Acme V2'
       ImageIndex = 2
@@ -1191,22 +1045,13 @@ object X509CertsForm: TX509CertsForm
         Height = 22
         TabOrder = 6
       end
-      object doCertCentreAlways: TButton
-        Left = 100
-        Top = 200
-        Width = 121
-        Height = 25
-        Caption = 'Order AlwaysOn Cert'
-        TabOrder = 10
-        OnClick = doCertCentreAlwaysClick
-      end
       object doCertCentreCollect: TButton
         Left = 464
         Top = 200
         Width = 84
         Height = 25
         Caption = 'Collect Order'
-        TabOrder = 13
+        TabOrder = 12
         OnClick = doCertCentreCollectClick
       end
       object doCertCentreOther: TButton
@@ -1216,7 +1061,7 @@ object X509CertsForm: TX509CertsForm
         Height = 25
         Caption = 'Order Commercial Cert'
         Enabled = False
-        TabOrder = 11
+        TabOrder = 10
         OnClick = doCertCentreOtherClick
       end
       object doCertCentreOrders: TButton
@@ -1225,7 +1070,7 @@ object X509CertsForm: TX509CertsForm
         Width = 84
         Height = 25
         Caption = 'List Orders'
-        TabOrder = 12
+        TabOrder = 11
         OnClick = doCertCentreOrdersClick
       end
       object CertCentreApprovEmail: TComboBox
@@ -1297,7 +1142,7 @@ object X509CertsForm: TX509CertsForm
         Width = 221
         Height = 17
         Caption = 'Tick When DNS Server Record Updated'
-        TabOrder = 14
+        TabOrder = 13
         Visible = False
       end
       object doCertCentreSaveOrder: TButton
@@ -1306,7 +1151,7 @@ object X509CertsForm: TX509CertsForm
         Width = 84
         Height = 25
         Caption = 'Save Order'
-        TabOrder = 15
+        TabOrder = 14
         OnClick = doCertCentreSaveOrderClick
       end
     end

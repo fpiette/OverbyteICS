@@ -1308,7 +1308,10 @@ Mar 18, 2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
                      in server IcsHosts if TLS1.3 fails.
 Apr 16, 2019 V8.61 Fixed ValidateCertChain to check certificate start and expiry
                       dates in UTC time instead of local time.
-May 21, 2019 V8.62 Version only so far
+Jun 10, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functions
+                     outside this unit.
+                   DHParams only needed for servers, don't use if using client
+                     security to avoid issues with high security levels.
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -2685,6 +2688,7 @@ const
         'TLS13-AES-128-CCM-8-SHA256:TLS13-AES-128-CCM-SHA256:';
 
    { V8.27 default 2048 and 4096-bit DH Params needed for DH/DHE ciphers - ideally create your own !!!! }
+   { note DH params are not needed for ECDHE ciphers, only DHE, so not needed for sslCiphersMozillaSrvHigh }
     sslDHParams2048 =
         '-----BEGIN DH PARAMETERS-----' + #13#10 +
         'MIIBCAKCAQEA5lgSzWKPV8ZthosYUuPWuawgmUFfSyR/1srizVn7tXNPYE10Pz/t' + #13#10 +
@@ -3562,6 +3566,7 @@ type
         procedure   SetProtoSec;                                        { V8.54 }
         property    SslCertX509     : TX509Base         read  FSslCertX509
                                                         write FSslCertX509;   { V8.41 }
+        property    SslCtxPtr      : PSSL_CTX           read  FSslCtx;        { V8.62 }
     published
         property  SslCertFile       : String            read  FSslCertFile
                                                         write SetSslCertFile;
@@ -15747,10 +15752,13 @@ begin
               DHparam file needed to generate DH and DHE keys, but not ECDH or ECDHE.
               V8.27 load DHParams from file or PEM string list, note FSslDHParamLines
                 is defaulted with 4096 params so used if FSslDHParamFile blank  }
-            if (FSslDHParamLines.Count > 0) and (FSslDHParamFile = '') then
-                LoadDHParamsFromString(FSslDHParamLines.Text)
-            else
-                LoadDHParamsFromFile(FSslDHParamFile);
+           { V8.62 only needed for servers, don't if using client security }
+            if FSslCliSecurity = sslCliSecIgnore then begin
+                if (FSslDHParamLines.Count > 0) and (FSslDHParamFile = '') then
+                    LoadDHParamsFromString(FSslDHParamLines.Text)
+                else
+                    LoadDHParamsFromFile(FSslDHParamFile);
+             end;
 
             // V8.15 Elliptic Curve to generate Ephemeral ECDH keys V8.39 old stuff gone
             if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin    { V8.51 }

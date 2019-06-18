@@ -6,11 +6,11 @@ Description:  A simple  HTTPS SSL Web Client Demo client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.60
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2018 by François PIETTE
+Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -86,7 +86,13 @@ Jul 6, 2018   V8.56 testing SSL application layer protocol negotiation, used
 Feb 6, 2019  V8.60 Add Socket Family selection for IPv4 and/or IPv6, previously
                  ignored IPV6 only hosts.
              Report SessionConnnected event with actual IP address.
-             OpenSSL 1.0.2 only tick box gone, not needed any longer. 
+             OpenSSL 1.0.2 only tick box gone, not needed any longer.
+Jun 10, 2019 V8.82 Removed DH file, only for servers.
+             Security Level uses newer Client Security Levelxxx, note that setting
+               Ignore uses Min/Max Protocol and Cipher instead.
+             Support ProxyURL which combines four proxy options into single URL.
+
+
 
 // pending add persistent cookie support, and gzip content encoding
 // Note these are done by default in the TSslHttpRest component which may
@@ -131,10 +137,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 860;
-     HttpsTstDate        = 'February 5, 2019';
+     HttpsTstVersion     = 862;
+     HttpsTstDate        = 'June 10, 2019';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2019 Francois Piette V8.60 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2019 Francois Piette V8.62 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -188,8 +194,6 @@ type
     HeadButton: TButton;
     AbortButton: TButton;
     SslAvlSessionCache1: TSslAvlSessionCache;
-    Label19: TLabel;
-    DhParamFileEdit: TEdit;
     SslMaxVersion: TComboBox;
     Label20: TLabel;
     Label21: TLabel;
@@ -208,6 +212,8 @@ type
     ProxyLoginEdit: TEdit;
     ProxyPwEdit: TEdit;
     IpSockFamily: TRadioGroup;
+    Label19: TLabel;
+    ProxyURLEdit: TEdit;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -310,7 +316,7 @@ const
     KeyDebugEvent      = 'DebugEvent';
     KeyDebugOutput     = 'DebugOutput';
     KeyDebugFile       = 'DebugFile';
-    KeyDHFile          = 'DHFile';
+    KeyProxyURL        = 'ProxyURL';
     KeySslMinVersion   = 'SslMinVersion';
     KeySslMaxVersion   = 'SslMaxVersion';
     KeySslCipher       = 'SslCipher';
@@ -348,6 +354,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure THttpsTstForm.FormCreate(Sender: TObject);
+var
+    Level: TSslCliSecurity;
 begin
 {$IFDEF DEBUG_OUTPUT}
     BigConsole(80, 100);
@@ -360,6 +368,12 @@ begin
     FTrustedList := TStringList.Create;
     FClientCerts := nil;
     SslHttpCli1.CtrlSocket.OnBgException := BackgroundException;
+               
+ { V8.62 update SSL client security levels }
+    SslSecLevel.Items.Clear;
+    for Level := Low(TSslCliSecurity) to High(TSslCliSecurity) do
+         SslSecLevel.Items.Add (SslCliSecurityNames[Level]);
+
 end;
 
 
@@ -376,16 +390,10 @@ end;
 procedure THttpsTstForm.FormShow(Sender: TObject);
 var
     IniFile : TIcsIniFile;
-    SL : TSslSecLevel;
     mode: integer;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
-
-    { V8.41 set SSL security level items from TSslSecLevel }
-        for SL := Low (TSslSecLevel) to High (TSslSecLevel) do
-            SslSecLevel.Items.Add (GetEnumName(TypeInfo(TSslSecLevel), Ord(SL)));
-
         IniFile      := TIcsIniFile.Create(FIniFileName);
         try
             Width        := IniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
@@ -414,7 +422,7 @@ begin
                                                       'password');
             CAFileEdit.Text      := IniFile.ReadString(SectionData, KeyCAFile, '');
             CAPathEdit.Text      := IniFile.ReadString(SectionData, KeyCAPath, '');
-            DHParamFileEdit.Text := IniFile.ReadString(SectionData, KeyDHFile, ''); { V8.01 }
+            ProxyURLEdit.Text    := IniFile.ReadString(SectionData, KeyProxyURL, ''); { V8.62 }
             SslMinVersion.ItemIndex := IniFile.ReadInteger(SectionData,          { V8.03 }
                                                             KeySslMinVersion,
                                                             0);
@@ -449,7 +457,7 @@ begin
                                                               KeyDebugFile,
                                                               False);
             SslSecLevel.ItemIndex         := IniFile.ReadInteger(SectionData,
-                                                              KeySslSecLevel, 1);  { V8.41 }
+                                                              KeySslSecLevel, 0);  { V8.41 }
             DebugDumpCheckBox.Checked     :=  IniFile.ReadBool(SectionData,
                                                               KeyDebugDump, False);{ V8.51 }
             ProxyLoginEdit.Text           := IniFile.ReadString(SectionData,
@@ -510,7 +518,7 @@ begin
     IniFile.WriteString(SectionData,    KeyPassPhrase,  PassPhraseEdit.Text);
     IniFile.WriteString(SectionData,    KeyCAFile,      CAFileEdit.Text);
     IniFile.WriteString(SectionData,    KeyCAPath,      CAPathEdit.Text);
-    IniFile.WriteString(SectionData,    KeyDHFile,      DhParamFileEdit.Text);        { V8.01 }
+    IniFile.WriteString(SectionData,    KeyProxyURL,    ProxyURLEdit.Text);        { V8.62 }
     IniFile.WriteInteger(SectionData,   KeySslMinVersion,   SslMinVersion.ItemIndex);    { V8.03 }
     IniFile.WriteInteger(SectionData,   KeySslMaxVersion,   SslMaxVersion.ItemIndex);    { V8.03 }
     IniFile.WriteString(SectionData,    KeySslCipher,   SslCipherEdit.Text);          { V8.01 }
@@ -588,34 +596,40 @@ begin
     SslHttpCli1.SocksAuthentication := socksNoAuthentication;    { V8.51 }
     SslHttpCli1.ProxyAuth     := httpAuthNone;            { V8.51 }
 
-    if SocksServerEdit.Text > '' then begin
-        SslHttpCli1.SocksServer := Trim(SocksServerEdit.Text);
-        SslHttpCli1.SocksPort   := Trim(SocksPortEdit.Text);
-        SslHttpCli1.SocksLevel  := SocksLevelValues[SocksLevelComboBox.ItemIndex];
-        if ProxyLoginEdit.Text <> '' then begin
-            SslHttpCli1.SocksAuthentication := socksAuthenticateUsercode;    { V8.51 }
-            SslHttpCli1.SocksUsercode := Trim(ProxyLoginEdit.Text);        { V8.51 }
-            SslHttpCli1.SocksPassword := Trim(ProxyPwEdit.Text);           { V8.51 }
-        end;
+    if ProxyURLEdit.Text <> '' then begin     { V8.62 }
+        SslHttpCli1.ProxyURL := ProxyURLEdit.Text
     end
     else begin
-        SslHttpCli1.SocksServer := '';
-        SslHttpCli1.SocksPort   := '';
-        SslHttpCli1.SocksLevel  := '5';
-    end;
+        if SocksServerEdit.Text <> '' then begin
+            SslHttpCli1.SocksServer := Trim(SocksServerEdit.Text);
+            SslHttpCli1.SocksPort   := Trim(SocksPortEdit.Text);
+            SslHttpCli1.SocksLevel  := SocksLevelValues[SocksLevelComboBox.ItemIndex];
+            if ProxyLoginEdit.Text <> '' then begin
+                SslHttpCli1.SocksAuthentication := socksAuthenticateUsercode;    { V8.51 }
+                SslHttpCli1.SocksUsercode := Trim(ProxyLoginEdit.Text);        { V8.51 }
+                SslHttpCli1.SocksPassword := Trim(ProxyPwEdit.Text);           { V8.51 }
+            end;
+        end
+        else begin
+            SslHttpCli1.SocksServer := '';
+            SslHttpCli1.SocksPort   := '';
+            SslHttpCli1.SocksLevel  := '5';
+        end;
 
-    if ProxyHostEdit.Text > '' then begin
-        SslHttpCli1.Proxy         := Trim(ProxyHostEdit.Text);
-        SslHttpCli1.ProxyPort     := Trim(ProxyPortEdit.Text);
-        if ProxyLoginEdit.Text <> '' then begin
-            SslHttpCli1.ProxyAuth     := httpAuthBasic;              { V8.51 }
-            SslHttpCli1.ProxyUsername := Trim(ProxyLoginEdit.Text);        { V8.51 }
-            SslHttpCli1.ProxyPassword := Trim(ProxyPwEdit.Text);           { V8.51 }
+        if ProxyHostEdit.Text <> '' then begin
+            SslHttpCli1.Proxy         := Trim(ProxyHostEdit.Text);
+            SslHttpCli1.ProxyPort     := Trim(ProxyPortEdit.Text);
+            if ProxyLoginEdit.Text <> '' then begin
+                SslHttpCli1.ProxyAuth     := httpAuthBasic;              { V8.51 }
+                SslHttpCli1.ProxyUsername := Trim(ProxyLoginEdit.Text);        { V8.51 }
+                SslHttpCli1.ProxyPassword := Trim(ProxyPwEdit.Text);           { V8.51 }
+            end;
+        end
+        else begin
+            SslHttpCli1.Proxy         := '';   { V8.51 }
+            SslHttpCli1.ProxyPort     := '';   { V8.51 }
+            SslHttpCli1.ProxyURL      := '';   { V8.62 }
         end;
-    end
-    else begin
-        SslHttpCli1.Proxy         := '';   { V8.51 }
-        SslHttpCli1.ProxyPort     := '';   { V8.51 }
     end;
     SslHttpCli1.URL            := Trim(UrlEdit.Text);
     SslHttpCli1.AcceptLanguage := 'en, fr';
@@ -642,12 +656,11 @@ begin
         (SslContext1.SslCALines.Count = 0) then
             SslContext1.SslCALines.Text := sslRootCACertsBundle;
     SslContext1.SslVerifyPeer       := VerifyPeerCheckBox.Checked;
-    SslContext1.SslDHParamFile      := Trim(DhParamFileEdit.Text);               { V8.01 }
   { V8.03 SslVersionMethod is ignored by OpenSSL 1.1.0 and later which uses SslMinVersion and SslMaxVersion instead }
     SslContext1.SslMinVersion       := TSslVerMethod (SslMinVersion.ItemIndex);  { V8.03}
     SslContext1.SslMaxVersion       := TSslVerMethod (SslMaxVersion.ItemIndex);  { V8.03}
     SslContext1.SslCipherList       := Trim(SslCipherEdit.Text);                 { V8.01 }
-    SslContext1.SslSecLevel         := TSslSecLevel(SslSecLevel.ItemIndex);      { V8.41 }
+    SslContext1.SslCliSecurity      := TSslcliSecurity(SslSecLevel.ItemIndex);   { V8.62 }
 
  { NOTE newer applications should replace SslMin/MaxVersion. SslCipherList and
       SslSecLevel with SslCliSecurity which combines all three  }
@@ -874,11 +887,14 @@ procedure THttpsTstForm.SslHttpCli1SessionConnected(Sender: TObject);    { V8.60
 var
     S: String;
 begin
-    if SslHttpCli1.State = httpConnected then
-        S := 'Connected OK to: '
+    if SslHttpCli1.State = httpConnected then begin
+        S := 'Connected OK to';
+        if (SslHttpCli1.Proxy <> '') or  (SslHttpCli1.SocksServer <> '') then    { V8.62 }
+            S := S + ' Proxy';
+    end
     else
-        S := 'Connection failed to: ';
-    S := S + SslHttpCli1.Hostname + ' (' +
+        S := 'Connection failed to';
+    S := S + ': ' + SslHttpCli1.Hostname + ' (' +
                 IcsFmtIpv6Addr(SslHttpCli1.AddrResolvedStr) + ')';
     Display(S);
 end;

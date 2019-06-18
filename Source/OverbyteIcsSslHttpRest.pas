@@ -12,7 +12,7 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      May 2019
+Updated:      June 2019
 Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list twsocket@elists.org
@@ -51,9 +51,9 @@ Overview
 TRestParams
 -----------
 
-Defines a collection of  REST parameters and allows them to be saved as
-URL encoded or Json. Note only supports Json strings with key/pair values,
-not arrays or nested objects.
+Defines a collection of REST parameters and allows them to be saved as
+URL encoded or Json. Note only creates Json with key/pair values, not
+arrays, but Json arrays or nested objects may be added.
 
 
 TSslHttpRest
@@ -153,7 +153,11 @@ Apr 26, 2019  - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttp
                            an account for £6.50 (about $9) which gives 100 message
                            credits. Other similar bureaus can be added, provided
                            there is an account for testing.
-May 16, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
+Jun 12, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
+                        Supporting SMS Works at https://thesmsworks.co.uk/ for SMS.
+                        Simple web server breaks down full URL for proxy requests.
+                        TRestParams can add Json parameters as PContJson which
+                          means arrays and nested Json can be added.   
 
 
 Pending - Simple web server now less simple to supports SSL and ALPN
@@ -650,11 +654,16 @@ type
   end;
 
   { V8.61 Send SMS using bureau, you will need an account.
-   Initially supporting https://www.kapow.co.uk/ from where you set-up an
+    Initially supporting https://www.kapow.co.uk/ from where you set-up an
     account for £6.50 (about $9) which gives 100 message credits.
     Other similar SMS can be added, provided there is an account for testing. }
 
-  TSmsProvider = (SmsProvKapow); // more providers awaited
+  { V8.62 Added SMS Works at https://thesmsworks.co.uk/  where you set-up an
+    account with a few free SMS messages, then spend a mininum of £10 which
+    buys 350 message credits.  }
+
+
+  TSmsProvider = (SmsProvKapow, SmsProvSmsWorks); // more providers awaited
   TSmsOperation = (SmsOpSend, SmsOpCheck, SmsOpCredit);
 
   TIcsSMS = class(TIcsWndControl)
@@ -665,7 +674,10 @@ type
     FSmsOperation: TSmsOperation;
     FAccountName: string;
     FAccountPW: string;
+    FAccountJson: string;
+    FAccountJwt: string;
     FMsgSender: string;
+    FSendDT: TDateTime;
     FSentID: string;
     FCredits: string;
     FLastResp: string;
@@ -677,14 +689,15 @@ type
     { Protected declarations }
     procedure SmsRestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
     procedure SmsRestRequestDone(Sender: TObject; RqType: THttpRequest; ErrCode: Word);
-    function  MakeRequest(const URL: String; AsyncReq: Boolean = True): Boolean;
+    function  MakeRequest(HttpRequest: THttpRequest; const RestURL: String;
+                      AsyncReq: Boolean = False; const RawParams: String = ''): Boolean;
   public
     { Public declarations }
     HttpRest:  TSslHttpRest;
     constructor  Create (Aowner: TComponent); override;
     destructor   Destroy; override;
-    function     SendSMS(const MobileNum, SmsMsg: String; AsyncReq: Boolean = True): Boolean;
-    function     CheckSMS(ID: String; AsyncReq: Boolean = True): Boolean;
+    function     SendSMS(const MobileNums, SmsMsg: String; AsyncReq: Boolean = True): Boolean;
+    function     CheckSMS(ID: String; AsyncReq: Boolean = True; Batch: Boolean = False): Boolean;
     function     CheckCredit(AsyncReq: Boolean = True): Boolean;
     property     SentID: string                     read  FSentID;
     property     Credits: string                    read  FCredits;
@@ -699,8 +712,12 @@ type
                                                     write FAccountName;
     property AccountPW: string                      read  FAccountPW
                                                     write FAccountPW;
+    property AccountJson: string                    read  FAccountJson
+                                                    write FAccountJson;
     property MsgSender: string                      read  FMsgSender
                                                     write FMsgSender;
+    property SendDT: TDateTime                      read  FSendDT
+                                                    write FSendDT;
     property DebugLevel: THttpDebugLevel            read  FDebugLevel
                                                     write FDebugLevel;
     property OnSmsProg: THttpRestProgEvent          read  FOnSmsProg
@@ -942,9 +959,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TRestParams.GetParameters: AnsiString;
 var
-    I: integer;
+    I, Len: integer;
     PN, PV: String;
-//    ParamJson: ISuperObject;
+    JFlag: Boolean; { V8.62 }
 
     function EscapeChars(const AStr: AnsiString): AnsiString;
     var
@@ -1008,29 +1025,26 @@ begin
         end;
     end
     else if FPContent = PContJson then begin
-      {  ParamJson := SO();   // empty ISuperObject
-        if Count > 0 then begin
-            for I := 0 to Count - 1 do begin
-                if Trim(Items[I].PName) <> '' then
-                    ParamJson.S[Trim(Items[I].PName)] := Trim(Items[I].PValue);
-            end;
-        end;
-        Result := AnsiString(ParamJson.AsJson(false, true));  // reorders names during conversion
-     }
         Result := '{';
         if Count > 0 then begin
             for I := 0 to Count - 1 do begin
                 PN := Trim(Items[I].PName);
                 if PN <> '' then begin
                     PV := Trim(Items[I].PValue);
+                    Len := Length(PV);
+                  { V8.62 check if adding Json, don't quote it }
+                    JFlag := False;
+                    if Len >= 2 then
+                            JFlag := ((PV[1]='{') and (PV[Len]='}')) or
+                                            ((PV[1]='[') and (PV[Len]=']'));
                     if Length(Result) > 1 then Result := Result + ',';
-                    Result := Result + '"' + EscapeChars(AnsiString(PN)) + '":"';
+                    Result := Result + '"' + EscapeChars(AnsiString(PN)) + '":';
+                    if NOT JFlag then Result := Result + '"';
                     if Items[I].PRaw then
-                     // Result := Result + EscapeChars(StringToUtf8(PV))+ '"'
-                       Result := Result + StringToUtf8(PV) + '"'
+                        Result := Result + StringToUtf8(PV)
                     else
-//                        Result := Result + EscapeChars(UrlEncodeToA(PV, CP_UTF8)) + '"';
-                        Result := Result + EscapeChars(StringToUtf8(PV)) + '"';
+                        Result := Result + EscapeChars(StringToUtf8(PV));
+                    if NOT JFlag then Result := Result + '"';
                 end;
             end;
         end;
@@ -1268,11 +1282,14 @@ var
 begin
     Inherited TriggerSessionConnected;
     if FDebugLevel >= DebugConn then begin
-        if FState = httpConnected then   { V8.60  }
-            S := 'Connected OK to: '
+        if FState = httpConnected then begin   { V8.60  }
+            S := 'Connected OK to';
+            if (FProxy <> '') or  (FSocksServer <> '') then    { V8.62 }
+                S := S + ' Proxy';
+        end
         else
-            S := 'Connection failed to: ';
-        S := S + FHostname + ' (' + IcsFmtIpv6Addr(AddrResolvedStr) + ')';    { V8.60  }
+            S := 'Connection failed to';
+        S := S + ': ' + FHostname + ' (' + IcsFmtIpv6Addr(AddrResolvedStr) + ')';    { V8.60  }
         LogEvent (S) ;
     end;
 end ;
@@ -1889,6 +1906,13 @@ begin
                     if (L > 0) then begin
                         RequestParams := Copy(RequestPath, L + 1, 99999);
                         RequestPath := Copy(RequestPath, 1, L - 1);
+                    end;
+                    L := Pos('://', RequestPath);  // V8.62 look for full URL sent by proxy
+                    if (L = 4) or (L = 5) then begin
+                        RequestPath := Copy(RequestPath, L + 3, 99999);  // strip http://
+                        L := Pos('/', RequestPath);  // start of path
+                        if (L > 1) then
+                            RequestPath := Copy(RequestPath, L, 999999);  // strip host
                     end;
                 end;
             end
@@ -2596,6 +2620,7 @@ begin
     HttpRest.OnRestRequestDone := SmsRestRequestDone;
     FSmsProvider := SmsProvKapow;
     FDebugLevel := DebugNone;
+    FSendDT := Now;
 end;
 
 
@@ -2616,17 +2641,22 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsSms.MakeRequest(const URL: String; AsyncReq: Boolean): Boolean;
+function TIcsSms.MakeRequest(HttpRequest: THttpRequest; const RestURL: String;
+                      AsyncReq: Boolean = False; const RawParams: String = ''): Boolean;
 var
     StatCode: Integer;
+    LoginJson: ISuperObject;
+    WideAcc: WideString;
+//    JwtPayload: String;
+//    UnixTime: Int64;
 begin
     Result := False;
     FLastError := '';
+    FLastResp := '';
+    FCredits := '';
+    FSentID := '';
+    FDelivery := '';
     if FSmsProvider = SmsProvKapow then begin
-        FLastResp := '';
-        FCredits := '';
-        FSentID := '';
-        FDelivery := '';
         if (FAccountName = '') or (FAccountPw = '') then begin
             FLastError := 'Must Specify Kapow Account Login';
             Exit;
@@ -2636,7 +2666,69 @@ begin
         HttpRest.RestParams.PContent := PContUrlencoded;
         HttpRest.SslCliSecurity := sslCliSecBack;  // only supports TLS1 !!!
         HttpRest.DebugLevel := FDebugLevel;
-        StatCode := HttpRest.RestRequest(httpPOST, URL, AsyncReq, '');
+        StatCode := HttpRest.RestRequest(httpPOST, RestURL, AsyncReq, RawParams);
+        if AsyncReq then
+            Result := (StatCode = 0)
+        else
+            Result := (StatCode = 200);  // raises exception on failure
+    end
+    else if FSmsProvider = SmsProvSmsWorks then begin
+        WideAcc := FAccountJson;
+        LoginJson := TSuperObject.ParseString(PWideChar(WideAcc), True);
+    (*  this block of Json come from the SMS Works account API, convert it into JWT
+     {
+      "customerid": "8545-xxxx-4e16-45bf-xxxx-506561072b83",
+      "key": "a87166be-xxxx-4cf3-xxxx-d6cdbd85fcfd",
+      "secret": "a29b39ax7x8x1xaxcx9x2xaxbx8x9x7x2xcx4xfxdx2x4xx8078b5f2f49d5f253"
+    }  *)
+        if NOT Assigned(LoginJson) then  begin
+            FLastError := 'SMS Works Needs  Valid Login Json from Account';
+            Exit;
+        end;
+
+     { see if have Json Web Token, otherwise get it using login Json }
+        if FAccountJwt = '' then begin
+            HttpRest.ServerAuth := httpAuthNone;
+            HttpRest.ContentTypePost := 'application/json;charset=UTF-8';
+            HttpRest.SslCliSecurity := sslCliSecHigh;
+            HttpRest.DebugLevel := FDebugLevel;
+            StatCode := HttpRest.RestRequest(httpPOST, 'https://api.thesmsworks.co.uk/v1/auth/token', False, FAccountJson);
+            if (StatCode <> 200) then begin
+                FLastResp := HttpRest.ResponseRaw;
+                FLastError := HttpRest.ResponseJson.S['message'];
+                Exit;
+            end;
+            FAccountJwt := HttpRest.ResponseJson.S['token'];
+            if Pos ('JWT ', FAccountJwt) = 1 then
+                FAccountJwt := Copy(FAccountJwt, 5, 99999)
+            else begin
+                FLastError := 'Invalid JWT Token from SMS Works';
+                Exit;
+            end;
+        end;
+
+     { we should be able to build JWT but SMS Works rejects our attempt with bad signature }
+     (*   if FAccountJwt = '' then begin
+            JwtPayload := IcsHexToBin(LoginJson.S['secret']);
+            if  Length (JwtPayload) <> 32 then  begin
+                FLastError := 'Invalid secret length';
+                Exit;
+            end;
+            UnixTime := IcsGetUnixTime;
+            JwtPayload := '{"key":"' + LoginJson.S['key'] + '","secret":"' +
+                        LoginJson.S['secret'] + '","iat":' + IntToStr(UnixTime) +
+                               '"exp":' + IntToStr(UnixTime+(SecsPerDay*3000)) +'}';  // issued at, expiree at, Unix time
+            FAccountJwt := IcsJoseJWSComp(jsigHmac256, JwtPayload,
+                         IcsHexToBin(LoginJson.S['secret']), Nil, 'JWT', '', '', '', '');
+        end;     *)
+        
+        HttpRest.AuthBearerToken := FAccountJwt;
+        HttpRest.ServerAuth := httpAuthJWT;
+        HttpRest.Accept := 'application/json;charset=UTF-8';
+        HttpRest.RestParams.PContent := PContJson;
+        HttpRest.SslCliSecurity := sslCliSecHigh;
+        HttpRest.DebugLevel := FDebugLevel;
+        StatCode := HttpRest.RestRequest(HttpRequest, RestURL, AsyncReq, RawParams);
         if AsyncReq then
             Result := (StatCode = 0)
         else
@@ -2649,45 +2741,92 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsSms.SendSms(const MobileNum, SmsMsg: String; AsyncReq: Boolean = True): Boolean;
+function TIcsSms.SendSms(const MobileNums, SmsMsg: String; AsyncReq: Boolean = True): Boolean;
 var
-    Msg, Num: String;
+    Msg, NumArray, Path: String;
+    NumList: TStringList;
+    I: Integer;
 begin
     Result := False;
     FLastError := '';
-    if (Length(MobileNum) < 6) then begin
-        FLastError := 'Must Specify Longer Mobile Telephone Number';
-        Exit;
-    end;
-    if (Length(SmsMsg) = 0)  then begin
-       FLastError := 'Must Specify SMS Message';
-        Exit;
-    end;
-    if (Pos ('00', MobileNum) = 1) then begin
-        FLastError := 'Internaional Access Code Not Needed';
-        Exit;
-    end;
-    if FSmsProvider = SmsProvKapow then begin
+    NumList := TStringList.Create;
+    try
+        if (Length(SmsMsg) = 0)  then begin
+           FLastError := 'Must Specify SMS Message';
+            Exit;
+        end;
         Msg := Trim(SmsMsg); // remove training CRLF
-        Msg := StringReplace(Msg, IcsCRLF, '\r ', [rfReplaceAll]);
-        Num := StringReplace(MobileNum, IcsSpace, '', [rfReplaceAll]);
-        HttpRest.RestParams.Clear;
-        HttpRest.RestParams.AddItem('mobile', Num, False);
-        if FMsgSender <> '' then
-            HttpRest.RestParams.AddItem('from_id', FMsgSender, False);
-        HttpRest.RestParams.AddItem('returnid', 'TRUE', False);
-        HttpRest.RestParams.AddItem('sms', Msg, False);
-        FSmsOperation := SmsOpSend;
-        Result := MakeRequest('https://secure.kapow.co.uk/scripts/sendsms.php', AsyncReq);
-    end
-    else begin
-        FLastError := 'Unknown Provider';
+        if (Length(MobileNums) < 6) then begin
+            FLastError := 'Must Specify Longer Mobile Telephone Number';
+            Exit;
+        end;
+        NumList.CommaText := MobileNums;
+        if NumList.Count = 0 then Exit; // can not be blank
+    // remove blank or suppressed lines
+        for I := 0 to NumList.Count - 1 do begin
+            if (Length(NumList[I]) = 0) or
+                (NumList[I][1] = '*') then
+                    NumList.Delete(I);
+            if I >= NumList.Count then break;
+        end;
+        if NumList.Count = 0 then Exit; // can not be blank
+        for I := 0 to NumList.Count - 1 do begin
+            NumList[I] := StringReplace(NumList[I], IcsSpace, '', [rfReplaceAll]);
+            if (Pos ('00', NumList[I]) = 1) then begin
+                FLastError := 'Internaional Access Code Not Needed - ' + NumList[I];
+                Exit;
+            end;
+            if Length(NumList[I]) < 6 then begin
+                FLastError := 'Must Specify Longer Mobile Telephone Number - ' + NumList[I];
+                Exit;
+            end;
+        end;
+        if FSmsProvider = SmsProvKapow then begin
+            HttpRest.ServerAuth := httpAuthNone;
+            Msg := StringReplace(Msg, IcsCRLF, '\r', [rfReplaceAll]);
+            HttpRest.RestParams.Clear;
+            HttpRest.RestParams.AddItem('mobile', NumList[0], False);     // only one at moment!!
+            if FMsgSender <> '' then
+                HttpRest.RestParams.AddItem('from_id', FMsgSender, False);
+            HttpRest.RestParams.AddItem('returnid', 'TRUE', False);
+            HttpRest.RestParams.AddItem('sms', Msg, False);
+            FSmsOperation := SmsOpSend;
+            Result := MakeRequest(httpPOST, 'https://secure.kapow.co.uk/scripts/sendsms.php', AsyncReq);
+        end
+        else if FSmsProvider = SmsProvSmsWorks then begin
+            HttpRest.RestParams.Clear;
+            if NumList.Count = 1 then begin
+                HttpRest.RestParams.AddItem('destination', NumList[0], False);
+                Path := 'message/send';
+            end
+            else begin
+                NumArray := '["';
+                for I := 0 to NumList.Count - 1 do
+                    NumArray := NumArray + NumList[I] + '","';
+                SetLength(NumArray, Length(NumArray)-2);
+                NumArray := NumArray + ']';
+                Path := 'batch/send';
+                HttpRest.RestParams.AddItem('destinations', NumArray, True);
+            end;
+            if FMsgSender <> '' then
+                HttpRest.RestParams.AddItem('sender', FMsgSender, False);
+            HttpRest.RestParams.AddItem('content', Msg, False);
+            HttpRest.RestParams.AddItem('tag', 'ICS', False);
+            HttpRest.RestParams.AddItem('schedule', RFC3339_DateToUtcStr(FSendDT));  // ISO time in UTC with time zone
+            FSmsOperation := SmsOpSend;
+            Result := MakeRequest(httpPOST, 'https://api.thesmsworks.co.uk/v1/' + Path, AsyncReq);
+        end
+        else begin
+            FLastError := 'Unknown Provider';
+        end;
+    finally
+        NumList.Free;
     end;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsSms.CheckSMS(ID: String; AsyncReq: Boolean = True): Boolean;
+function TIcsSms.CheckSMS(ID: String; AsyncReq: Boolean = True; Batch: Boolean = False): Boolean;
 begin
     Result := False;
     FLastError := '';
@@ -2699,7 +2838,15 @@ begin
         HttpRest.RestParams.Clear;
         HttpRest.RestParams.AddItem('returnid', ID, False);
         FSmsOperation := SmsOpCheck;
-        Result := MakeRequest('https://secure.kapow.co.uk/scripts/chk_status.php', AsyncReq);
+        Result := MakeRequest(httpPOST, 'https://secure.kapow.co.uk/scripts/chk_status.php', AsyncReq);
+    end
+    else if FSmsProvider = SmsProvSmsWorks then begin
+        HttpRest.RestParams.Clear;
+        FSmsOperation := SmsOpCheck;
+        if Batch then
+            Result := MakeRequest(httpGET, 'https://api.thesmsworks.co.uk/v1/batch/' + ID, AsyncReq)
+        else
+            Result := MakeRequest(httpGET, 'https://api.thesmsworks.co.uk/v1/messages/' + ID, AsyncReq);
     end
     else begin
         FLastError := 'Unknown Provider';
@@ -2715,7 +2862,12 @@ begin
     if FSmsProvider = SmsProvKapow then begin
         HttpRest.RestParams.Clear;
         FSmsOperation := SmsOpCredit;
-        Result := MakeRequest('https://secure.kapow.co.uk/scripts/chk_credit.php', AsyncReq);
+        Result := MakeRequest(httpPOST, 'https://secure.kapow.co.uk/scripts/chk_credit.php', AsyncReq);
+    end
+    else if FSmsProvider = SmsProvSmsWorks then begin
+        HttpRest.RestParams.Clear;
+        FSmsOperation := SmsOpCredit;
+        Result := MakeRequest(httpGET, 'https://api.thesmsworks.co.uk/v1/credits/balance', AsyncReq);
     end
     else begin
         FLastError := 'Unknown Provider';
@@ -2735,55 +2887,98 @@ begin
         if Assigned(FOnSmsDone) then FOnSmsDone(Self);
         Exit;
     end;
-    if (HttpRest.StatusCode = 200) then begin
-        FLastResp := HttpRest.ResponseRaw;
-        if FLastResp = 'ERROR' then
-            FLastError := 'Failed: Kapow Reports an Error'
-        else if FLastResp = 'USERPASS' then
-            FLastError := 'Failed: Kapow Reports Invalid Account Details'
-        else if FLastResp = 'NOCREDIT' then
-            FLastError := 'Failed: Kapow Reports No Account Credit'
-        else begin
-            if FSmsOperation = SmsOpCredit then begin
-                FCredits := FLastResp;
-                FLastError := '';
-            end
-            else if FSmsOperation = SmsOpSend then begin
-                if  Pos ('OK', FLastResp) = 1 then begin // OK 148 11472734895956042
-                    FLastError := '';
-                    S := Trim (Copy (FLastResp, 4, 999));
-                    J := Pos (IcsSpace, S);
-                    if J > 0 then begin
-                        FCredits := Copy (S, 1, Pred (J));
-                        FSentID := Copy (S, Succ (J), 999);
-                    end ;
-                end;
-            end
-            else if FSmsOperation = SmsOpCheck then begin
-                if FLastResp = 'D' then begin
-                    FDelivery := 'SMS Delivered OK';
+    if FSmsProvider = SmsProvKapow then begin
+
+      // Kapow returns simple text, no formatting or tags or line end
+        if (HttpRest.StatusCode = 200) then begin
+            FLastResp := HttpRest.ResponseRaw;
+            if FLastResp = 'ERROR' then
+                FLastError := 'Failed: Kapow Reports an Error'
+            else if FLastResp = 'USERPASS' then
+                FLastError := 'Failed: Kapow Reports Invalid Account Details'
+            else if FLastResp = 'NOCREDIT' then
+                FLastError := 'Failed: Kapow Reports No Account Credit'
+            else begin
+                if FSmsOperation = SmsOpCredit then begin
+                    FCredits := FLastResp;
                     FLastError := '';
                 end
-                else if FLastResp = 'N' then
-                    FDelivery := 'Message Awaiting Delivery'
-                else if FLastResp = 'S' then
-                    FDelivery := 'Sent to SMSC'
-                else if FLastResp = 'B' then
-                    FDelivery := 'Message Buffered Awaiting Delivery'
-                else if FLastResp = 'R' then
-                    FDelivery := 'Retrying Message'
-                else if FLastResp = 'X' then
-                    FDelivery := 'Message Delivery Failed'
+                else if FSmsOperation = SmsOpSend then begin
+                    if  Pos ('OK', FLastResp) = 1 then begin // OK 148 11472734895956042
+                        FLastError := '';
+                        S := Trim (Copy (FLastResp, 4, 999));
+                        J := Pos (IcsSpace, S);
+                        if J > 0 then begin
+                            FCredits := Copy (S, 1, Pred (J));
+                            FSentID := Copy (S, Succ (J), 999);
+                        end ;
+                    end;
+                end
+                else if FSmsOperation = SmsOpCheck then begin
+                    if FLastResp = 'D' then begin
+                        FDelivery := 'SMS Delivered OK';
+                        FLastError := '';
+                    end
+                    else if FLastResp = 'N' then
+                        FDelivery := 'Message Awaiting Delivery'
+                    else if FLastResp = 'S' then
+                        FDelivery := 'Sent to SMSC'
+                    else if FLastResp = 'B' then
+                        FDelivery := 'Message Buffered Awaiting Delivery'
+                    else if FLastResp = 'R' then
+                        FDelivery := 'Retrying Message'
+                    else if FLastResp = 'X' then
+                        FDelivery := 'Message Delivery Failed'
+                    else
+                        FDelivery := 'Unknown Delivery: ' + FLastResp;
+                end
                 else
-                    FDelivery := 'Unknown Delivery: ' + FLastResp;
+                    FLastError := 'Failed: Unexpected Kapow Response - ' + FLastResp;
             end
-            else
-                FLastError := 'Failed: Unexpected Kapow Response - ' + FLastResp;
         end
+        else
+            FLastError := 'Failed: Status ' + IntToStr(HttpRest.StatusCode) + ' - ' +
+                                                              HttpRest.ReasonPhrase;
     end
-    else
-        FLastError := 'Failed: Status ' + IntToStr(HttpRest.StatusCode) + ' - ' +
-                                                          HttpRest.ReasonPhrase;  
+    else if FSmsProvider = SmsProvSmsWorks then begin
+
+      // SMS Works returns Json
+        if (HttpRest.StatusCode = 201) then begin
+            FLastResp := HttpRest.ResponseRaw;
+            if FSmsOperation = SmsOpSend then begin
+                FSentID := HttpRest.ResponseJson.S['messageid'];
+                FCredits := HttpRest.ResponseJson.S['credits'];
+                FDelivery := HttpRest.ResponseJson.S['status'];
+                if FSentID = '' then
+                    FSentID := HttpRest.ResponseJson.S['batchid'];  // should really keep separately !!
+                FLastError := '';
+            end;
+        end
+        else if (HttpRest.StatusCode = 200) then begin
+          // ignore response getting token, no event 
+            if (Pos ('auth/token', HttpRest.URL) > 0) then Exit;
+            if FSmsOperation = SmsOpCredit then begin
+                FCredits := HttpRest.ResponseJson.S['credits'];
+                FLastError := '';
+            end
+            else if FSmsOperation = SmsOpCheck then begin
+                FCredits := HttpRest.ResponseJson.S['credits'];
+                FDelivery := HttpRest.ResponseJson.S['status'];
+                FLastError := '';
+             // pending check batch response, array for each message    
+            end;
+        end
+        else if (HttpRest.StatusCode >= 400) then begin
+            FLastResp := HttpRest.ResponseRaw;
+            if Assigned(HttpRest.ResponseJson) then
+                FLastError := HttpRest.ResponseJson.S['message']
+            else
+                FLastResp := HttpRest.ReasonPhrase;
+        end
+        else
+            FLastError := 'Failed: Status ' + IntToStr(HttpRest.StatusCode) + ' - ' +
+                                                              HttpRest.ReasonPhrase;
+     end;
     if Assigned(FOnSmsDone) then FOnSmsDone(Self);
 end;
 

@@ -4,11 +4,11 @@ Authors:      Arno Garrels
               Angus Robertson <delphi@magsys.co.uk>
 Creation:     Aug 26, 2007
 Description:  SSL key and X509 certification creation
-Version:      8.57
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2007-2018 by François PIETTE
+Legal issues: Copyright (C) 2007-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -105,7 +105,9 @@ Oct 2, 2018  V8.57 tidy up UnwrapNames.
              Added DoClearCA
              Added SaveToCADatabase which saves CA database entry to CADBFile
              Added COMODO ECC Certification Authority root
-             Build with FMX 
+             Build with FMX
+Jun 17, 2019 V8.62  Added literals for various types to assist apps.
+             Moved BuildCertName here from X509Certs.
 
 
 Pending - long term
@@ -320,7 +322,42 @@ uses
     OverbyteIcsUtils;
 
 const
-  BF_BLOCK_SIZE     = 8;
+    BF_BLOCK_SIZE     = 8;
+
+    DigestDispList: array [0..8] of TEvpDigest =
+        (Digest_sha1, Digest_sha224, Digest_sha256, Digest_sha384, Digest_sha512,
+         Digest_sha3_224, Digest_sha3_256, Digest_sha3_384, Digest_sha3_512);
+
+    DigestListLitsLast = 8;
+    DigestListLits: array [0..DigestListLitsLast] of PChar = (   { V8.62 }
+        'SHA1 (old)', 'SHA224', 'SHA256', 'SHA384', 'SHA512',
+        'SHA3_224', 'SHA3_256', 'SHA3_384', 'SHA3_512');
+
+  { not showing RSA PSS yet }
+    SslPrivKeyTypeLitsLast1 = 9;
+    SslPrivKeyTypeLitsLast2 = 14;
+    SslPrivKeyTypeLits: array [0..SslPrivKeyTypeLitsLast2] of PChar = (   { V8.62 }
+        'RSA 1,024 bits (level 1 - 80 bits)',
+        'RSA 2,048 bits (level 2 - 112 bits)',
+        'RSA 3,072 bits (level 3 - 128 bits, NIST min)',
+        'RSA 4,096 bits (level 3 - 128 bits)',
+        'RSA 7,680 bits (level 4 - 192 bits)',
+        'RSA 15,360 bits (level 5 - 256 bits)',
+        'Elliptic Curve secp256  (level 3 - 128 bits)',
+        'Elliptic Curve secp384  (level 4 - 192 bits)',
+        'Elliptic Curve secp512  (level 5 - 256 bits)',
+        'EdDSA ED25519 (level 3 - 128 bits)',
+        'RSA-PSS 2,048 bits (level 2 - 112 bits)',
+        'RSA-PSS 3,072 bits (level 3 - 128 bits)',
+        'RSA-PSS 4,096 bits (level 3 - 128 bits)',
+        'RSA-PSS 7,680 bits (level 4 - 192 bits)',
+        'RSA-PSS 15,360 bits (level 5 - 256 bits)');
+
+    SslPrivKeyCipherLits: array[TSslPrivKeyCipher] of PChar = (   { V8.62 }
+        'None', 'Triple DES', 'IDEA', 'AES128', 'AES192', 'AES256', 'Blowfish');
+
+    SslCertFileOpenExts = 'Certs *.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
+                 '*.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|All Files *.*|*.*';    { V8.62 }
 
 type
     TCryptProgress = procedure(Obj: TObject; Count: Int64; var Cancel: Boolean);
@@ -516,6 +553,7 @@ procedure CreateSelfSignedCert(const FileName, Country, State,
   IsCA: Boolean; Days: Integer;
   const KeyFileName: String = ''; Comment: boolean = false);  overload;
 
+function BuildCertName(const Domain: String): String;  { V8.62 }
 
 { RSA crypto functions }
 
@@ -1695,6 +1733,15 @@ begin
         sslRootCACerts036;    { V8.57 }
     end ;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// V8.62 create certificate file name from domain common name, change . to _ and * to x
+function BuildCertName(const Domain: String): String;
+begin
+    Result := StringReplace (Domain, '.', '_', [rfReplaceAll]) ;
+    if Result = '' then Exit;
+    if Result [1] = '*' then Result [1] := 'x';  // can not have * in file names
+end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

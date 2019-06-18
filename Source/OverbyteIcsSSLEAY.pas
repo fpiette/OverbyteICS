@@ -5,7 +5,7 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.60
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2003-2019 by François PIETTE
@@ -128,6 +128,8 @@ Nov 27, 2018  V8.59 version only
 Mar 18, 2019  V8.60 Next major OpenSSL version is 3.0.0 (or maybe 4)
                     Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
                       in server IcsHosts if TLS1.3 fails.
+Jun 7, 2019   V8.62 Removed two ciphers from TSslPrivKeyCipher which we did not use.
+                    SuppProtoAcmeV1 gone.
 
 
 
@@ -210,8 +212,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 860;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2019 F. Piette V8.60 ';
+    IcsSSLEAYVersion   = 862;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2019 F. Piette V8.62 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -289,7 +291,7 @@ const
     OSSL_VER_1100ZZ = $10100FFF; // 1.1.0zz not yet released  { V8.35 }
     OSSL_VER_1101   = $1010100F; // 1.1.1 base                { V8.57 }
     OSSL_VER_1101A  = $1010101F; // 1.1.1a                    { V8.59 }
-    OSSL_VER_1101B  = $1010102F; // 1.1.1b not yet released   { V8.59 }
+    OSSL_VER_1101B  = $1010102F; // 1.1.1b                    { V8.59 }
     OSSL_VER_1101ZZ = $10101FFF; // 1.1.1zz not yet released  { V8.57 }
     OSSL_VER_30000  = $30000000; // 3.0.0 dev                 { V8.60 }
     OSSL_VER_MAX    = $FFFFFFFF; // maximum version           { V8.35 }
@@ -1823,8 +1825,8 @@ type
                          sslCliCertRequire);
 
   { V8.57 certificate supplier protocol, determines which functions are used to get certificates }
-    TSupplierProto = (SuppProtoNone, SuppProtoAcmeV1, SuppProtoAcmeV2,
-                      SuppProtoCertCentre, SuppProtoServtas, SuppProtoOwnCA);
+    TSupplierProto = (SuppProtoNone, SuppProtoOwnCA, SuppProtoAcmeV2,    { V8.62 Acmev1 gone }
+                      SuppProtoCertCentre, SuppProtoServtas);
 
  { V8.57 challenge types, differing certificate types support differing challenges,
      some have to be processed manually taking several days. }
@@ -1919,10 +1921,9 @@ type
         PrivKeyEncAES128,
         PrivKeyEncAES192,
         PrivKeyEncAES256,
-        PrivKeyEncBlowfish128,
-        PrivKeyEncBlowfish192,
-        PrivKeyEncBlowfish256);
-
+        PrivKeyEncBlowfish128);
+      {  PrivKeyEncBlowfish192,   V8.62 now sure we need these
+        PrivKeyEncBlowfish256); }
 
 const
     SslPrivKeyEvpCipher: array[TSslPrivKeyCipher] of TEvpCipher = (
@@ -1932,12 +1933,12 @@ const
         Cipher_aes_128_cbc,
         Cipher_aes_192_cbc,
         Cipher_aes_256_cbc,
-        Cipher_bf_cbc,
-        Cipher_bf_cbc,
         Cipher_bf_cbc);
+     {   Cipher_bf_cbc,
+        Cipher_bf_cbc);  }
 
     SslPrivKeyEvpBits: array[TSslPrivKeyCipher] of integer = (
-         0,0,0,0,0,0,128,192,256);
+         0,0,0,0,0,0,128{,192,256});
 
 type
    { V8.57 SSL/TLS certifioate root validation method }

@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.61
+Version:      8.62
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -543,7 +543,11 @@ Apr 09, 2019 V8.61 OAS : Improved NTLM authentication by adding Single Sign On w
                    Added more header response properties: RespDateDT,
                      RespLastModDT, RespExpires, RespCacheControl.
                    NoCache now sends Cache-Control: no-cache for HTTP/1.1
-                     
+Jun 10, 2019 V8.62 Added httpAuthJWT using AuthBearerToken for Json Web Token
+                      authentication.
+                   Added ProxyURL property which combines four proxy properties
+                     as a URL for simplicity, ie http://[user[:password]@]host:port
+
 
 To convert the received HTML stream to a unicode string with the correct codepage,
 use this function in OverbyteIcsCharsetUtils, it's not used directly by this unit
@@ -643,8 +647,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 861;
-    CopyRight : String   = ' THttpCli (c) 1997-2019 F. Piette V8.61 ';
+    HttpCliVersion       = 862;
+    CopyRight : String   = ' THttpCli (c) 1997-2019 F. Piette V8.62 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -694,7 +698,8 @@ type
 {$ENDIF}
     THttpBasicState  = (basicNone, basicMsg1, basicDone);
     THttpAuthType    = (httpAuthNone, httpAuthBasic, httpAuthNtlm,
-                             httpAuthDigest, httpAuthBearer, httpAuthToken);  { V8.54 }
+                        httpAuthDigest, httpAuthBearer, httpAuthToken,   { V8.54 }
+                        httpAuthJWT);  { V8.62 }
     THttpBeforeAuthEvent   = procedure(Sender  : TObject;
                                  AuthType      : THttpAuthType;
                                  ProxyAuth     : Boolean;
@@ -751,6 +756,7 @@ type
         FCurrPassword         : String;
         FProxyUsername        : String;
         FProxyPassword        : String;
+        FProxyURL             : String;     { V8.62 combines Proxy/PrexyPort/ProxyUserName/proxyPassword as URL }
         FProxyConnected       : Boolean;
         FLocation             : String;
         FCurrentHost          : String;
@@ -1119,6 +1125,8 @@ type
                                                      write FProxyUsername;
         property ProxyPassword   : String            read  FProxyPassword
                                                      write FProxyPassword;
+        property ProxyURL        : String            read  FProxyURL
+                                                     write FProxyURL;{ V8.62 }
         property NoCache         : Boolean           read  FNoCache
                                                      write FNoCache;
         property ModifiedSince   : TDateTime         read  FModifiedSince
@@ -2652,6 +2660,8 @@ begin
             Headers.Add('Authorization: Bearer ' + FAuthBearerToken);
         if (FServerAuth = httpAuthToken) and (FAuthBearerToken <> '') then
             Headers.Add('X-Auth-Token: ' + FAuthBearerToken);
+        if (FServerAuth = httpAuthJWT) and (FAuthBearerToken <> '') then   { V8.62 }
+            Headers.Add('Authorization: JWT ' + FAuthBearerToken);
 
 {$IFDEF UseNTLMAuthentication}
         if (FProxyAuthNTLMState <> ntlmMsg1) then begin
@@ -3398,7 +3408,7 @@ begin
     if (Rq <> httpCLOSE) and (FState <> httpReady) then
         raise EHttpException.Create('HTTP component ' + Name + ' is busy', httperrBusy);
 
-    if (Rq in [httpPOST, httpPUT, httpPATCH]) and    { V8.06 } 
+    if (Rq in [httpPOST, httpPUT, httpPATCH]) and    { V8.06 }
        (not Assigned(FSendStream)
        { or (FSendStream.Position = FSendStream.Size)}   { Removed 21/03/05 }
        ) then
@@ -3428,6 +3438,21 @@ begin
     FCurrPassword        := FPassword;
     FCurrConnection      := FConnection;
     FCurrProxyConnection := FProxyConnection;
+
+    { V8.62 if proxy URL is passed, parse it as proxy properties }
+    { http://[user[:password]@]host:port }
+    if (Length(FProxyURL) > 6) and (Pos (':', Copy(FProxyURL, 6, 9999)) > 5) then begin
+        ParseURL(FProxyURL, Proto, User, Pass, Host, Port, Path);
+        { pending, check https for SSL prpoxy, maybe socks for socks proxy }
+        if Proto = 'http' then begin
+            FProxy := Host;
+            FProxyPort := Port;
+            FProxyUsername := User;
+            FProxyPassword := Pass;
+            if (FProxyUsername <> '') and (FProxyPassword <> '') then
+                FProxyAuth := httpAuthBasic;
+        end;
+    end;
 
     { Parse url and proxy to FHostName, FPath and FPort }
     if FProxy <> '' then begin

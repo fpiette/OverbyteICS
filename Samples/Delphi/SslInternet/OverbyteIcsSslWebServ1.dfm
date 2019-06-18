@@ -514,7 +514,7 @@ object SslWebServForm: TSslWebServForm
       Top = 196
       Width = 169
       Height = 21
-      ItemHeight = 13
+      ItemHeight = 0
       TabOrder = 18
       Text = 'SslSecLevel'
     end
@@ -585,6 +585,9 @@ object SslWebServForm: TSslWebServForm
     SslEnable = True
     SslContext = SslContext1
     IcsHosts = <>
+    SslCliCertMethod = sslCliCertNone
+    SslCertAutoOrder = False
+    CertExpireDays = 30
     OnSslVerifyPeer = SslHttpServer1SslVerifyPeer
     OnSslSetSessionIDContext = SslHttpServer1SslSetSessionIDContext
     OnSslSvrNewSession = SslHttpServer1SslSvrNewSession

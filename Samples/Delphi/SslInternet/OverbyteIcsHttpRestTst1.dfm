@@ -2,8 +2,8 @@ object HttpRestForm: THttpRestForm
   Left = 86
   Top = 176
   Caption = 
-    'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.61 -' +
-    ' 24th April 2019'
+    'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.62 -' +
+    ' 12th June 2019'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace
@@ -24,7 +24,7 @@ object HttpRestForm: THttpRestForm
     Top = 0
     Width = 823
     Height = 315
-    ActivePage = TabREST
+    ActivePage = TabSettings
     Align = alTop
     TabOrder = 0
     object TabREST: TTabSheet
@@ -164,7 +164,7 @@ object HttpRestForm: THttpRestForm
       ImageIndex = 1
       object Label2: TLabel
         Left = 10
-        Top = 240
+        Top = 245
         Width = 136
         Height = 14
         Caption = 'Optional Root CA Bundle File'
@@ -178,38 +178,45 @@ object HttpRestForm: THttpRestForm
       end
       object Label6: TLabel
         Left = 460
-        Top = 105
+        Top = 95
         Width = 52
         Height = 14
         Caption = 'Auth Login'
       end
       object Label7: TLabel
         Left = 460
-        Top = 135
+        Top = 120
         Width = 76
         Height = 14
         Caption = 'Auth Password'
       end
       object Label8: TLabel
         Left = 460
-        Top = 165
-        Width = 67
+        Top = 145
+        Width = 64
         Height = 14
-        Caption = ' Bearer Token'
+        Caption = 'Bearer/Token'
       end
       object Label9: TLabel
         Left = 405
-        Top = 240
+        Top = 245
         Width = 253
         Height = 14
         Caption = 'Optional Client SSL Certificate (if required by server)'
       end
       object Label22: TLabel
         Left = 460
-        Top = 185
+        Top = 190
         Width = 65
         Height = 14
         Caption = 'Log Directory'
+      end
+      object Label31: TLabel
+        Left = 462
+        Top = 170
+        Width = 51
+        Height = 14
+        Caption = 'Proxy URL'
       end
       object DebugLogging: TRadioGroup
         Left = 10
@@ -278,14 +285,14 @@ object HttpRestForm: THttpRestForm
       end
       object SslClientCertFile: TEdit
         Left = 405
-        Top = 255
+        Top = 260
         Width = 341
         Height = 22
-        TabOrder = 13
+        TabOrder = 14
       end
       object ExtraHeaders: TMemo
         Left = 490
-        Top = 30
+        Top = 25
         Width = 256
         Height = 59
         Lines.Strings = (
@@ -295,8 +302,8 @@ object HttpRestForm: THttpRestForm
       object AuthType: TRadioGroup
         Left = 337
         Top = 115
-        Width = 104
-        Height = 119
+        Width = 117
+        Height = 129
         Caption = 'Authentication'
         ItemIndex = 0
         Items.Strings = (
@@ -304,20 +311,21 @@ object HttpRestForm: THttpRestForm
           'Basic'
           'NTLM'
           'Digest'
-          'Bearer'
-          'XAuth Token')
+          'Bearer Token'
+          'XAuth Token'
+          'Json Web Token')
         TabOrder = 5
       end
       object AuthLogin: TEdit
         Left = 545
-        Top = 100
+        Top = 90
         Width = 141
         Height = 22
         TabOrder = 7
       end
       object AuthPassword: TEdit
         Left = 545
-        Top = 130
+        Top = 115
         Width = 141
         Height = 22
         PasswordChar = '*'
@@ -325,17 +333,20 @@ object HttpRestForm: THttpRestForm
       end
       object AuthBearer: TEdit
         Left = 545
-        Top = 160
+        Top = 140
         Width = 241
         Height = 22
+        Hint = 'A token is used instead of Auth Login credentials'
+        ParentShowHint = False
+        ShowHint = True
         TabOrder = 9
       end
       object SslRootBundleFile: TEdit
         Left = 10
-        Top = 255
+        Top = 260
         Width = 341
         Height = 22
-        TabOrder = 12
+        TabOrder = 13
       end
       object IpSockFamily: TRadioGroup
         Left = 10
@@ -357,7 +368,7 @@ object HttpRestForm: THttpRestForm
         Top = 233
         Width = 31
         Height = 25
-        TabOrder = 11
+        TabOrder = 12
         OnClick = SelDirLogsClick
         Glyph.Data = {
           76010000424D7601000000000000760000002800000020000000100000000100
@@ -379,6 +390,16 @@ object HttpRestForm: THttpRestForm
         Top = 205
         Width = 326
         Height = 22
+        TabOrder = 11
+      end
+      object ProxyURL: TEdit
+        Left = 545
+        Top = 165
+        Width = 241
+        Height = 22
+        Hint = 'Use a proxy URL, ie http://[user[:password]@]host:port'
+        ParentShowHint = False
+        ShowHint = True
         TabOrder = 10
       end
     end
@@ -818,55 +839,92 @@ object HttpRestForm: THttpRestForm
     object TabSms: TTabSheet
       Caption = 'Send SMS'
       ImageIndex = 5
-      ExplicitTop = 23
-      object BoxKapow: TGroupBox
-        Left = 5
-        Top = 10
+      object BoxSmsMsg: TGroupBox
+        Left = 3
+        Top = 3
         Width = 426
-        Height = 261
-        Caption = 'https://www.kapow.co.uk/'
+        Height = 161
+        Caption = 'SMS Destination and Message'
         TabOrder = 0
-        object Label24: TLabel
-          Left = 220
-          Top = 25
-          Width = 50
-          Height = 14
-          Caption = 'Password'
-        end
         object Label26: TLabel
           Left = 5
-          Top = 55
-          Width = 75
-          Height = 14
+          Top = 15
+          Width = 38
+          Height = 28
           Caption = 'Sender Number'
-        end
-        object Label27: TLabel
-          Left = 5
-          Top = 25
-          Width = 74
-          Height = 14
-          Caption = 'Account: Name'
+          WordWrap = True
         end
         object Label28: TLabel
-          Left = 220
-          Top = 58
-          Width = 62
-          Height = 14
-          Caption = 'SMS Number'
+          Left = 200
+          Top = 20
+          Width = 51
+          Height = 28
+          Caption = 'SMS Dest Number(s)'
+          WordWrap = True
         end
         object Label29: TLabel
           Left = 5
-          Top = 85
+          Top = 82
           Width = 44
           Height = 14
           Caption = 'Message'
         end
-        object LabelKapowCredit: TLabel
-          Left = 298
-          Top = 194
-          Width = 78
+        object SmsAccSender: TEdit
+          Left = 64
+          Top = 20
+          Width = 126
+          Height = 22
+          TabOrder = 0
+          Text = 'Delphi-ICS'
+        end
+        object SmsMsgText: TMemo
+          Left = 64
+          Top = 80
+          Width = 353
+          Height = 71
+          Lines.Strings = (
+            'My test SMS message text. ')
+          ScrollBars = ssVertical
+          TabOrder = 1
+        end
+        object SmsDestNums: TMemo
+          Left = 270
+          Top = 15
+          Width = 147
+          Height = 56
+          Lines.Strings = (
+            '')
+          ScrollBars = ssVertical
+          TabOrder = 2
+        end
+      end
+      object GroupBox3: TGroupBox
+        Left = 3
+        Top = 170
+        Width = 388
+        Height = 104
+        Caption = 'Kapow - https://www.kapow.co.uk/'
+        TabOrder = 1
+        object Label24: TLabel
+          Left = 168
+          Top = 15
+          Width = 50
           Height = 14
-          Caption = 'Kapow Credits: '
+          Caption = 'Password'
+        end
+        object Label27: TLabel
+          Left = 10
+          Top = 15
+          Width = 74
+          Height = 14
+          Caption = 'Account: Name'
+        end
+        object LabelKapowCredit: TLabel
+          Left = 290
+          Top = 68
+          Width = 40
+          Height = 14
+          Caption = 'Credits: '
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clRed
           Font.Height = -11
@@ -874,72 +932,120 @@ object HttpRestForm: THttpRestForm
           Font.Style = []
           ParentFont = False
         end
-        object KapowAccName: TEdit
-          Left = 85
-          Top = 20
-          Width = 126
-          Height = 22
-          TabOrder = 0
-        end
         object KapowAccPw: TEdit
-          Left = 290
-          Top = 22
+          Left = 165
+          Top = 33
           Width = 126
           Height = 22
           PasswordChar = '*'
           TabOrder = 1
         end
-        object KapowAccSender: TEdit
-          Left = 85
-          Top = 50
+        object KapowAccName: TEdit
+          Left = 10
+          Top = 30
           Width = 126
           Height = 22
-          TabOrder = 2
-        end
-        object KapowSmsNum: TEdit
-          Left = 290
-          Top = 50
-          Width = 126
-          Height = 22
-          TabOrder = 3
-        end
-        object KapowMsg: TMemo
-          Left = 85
-          Top = 80
-          Width = 331
-          Height = 91
-          Lines.Strings = (
-            'KapowMsg')
-          ScrollBars = ssVertical
-          TabOrder = 4
+          TabOrder = 0
         end
         object doKapowSend: TButton
-          Left = 14
-          Top = 190
+          Left = 10
+          Top = 63
           Width = 75
           Height = 25
           Caption = 'Send SMS'
-          TabOrder = 5
+          TabOrder = 2
           OnClick = doKapowSendClick
         end
         object doKapowCheck: TButton
-          Left = 106
-          Top = 190
+          Left = 97
+          Top = 63
           Width = 85
           Height = 25
           Caption = 'Check Delivery'
           Enabled = False
-          TabOrder = 6
+          TabOrder = 3
           OnClick = doKapowCheckClick
         end
         object doKapowCredit: TButton
-          Left = 207
-          Top = 190
+          Left = 200
+          Top = 63
           Width = 75
           Height = 25
           Caption = 'Check Credit'
-          TabOrder = 7
+          TabOrder = 4
           OnClick = doKapowCreditClick
+        end
+      end
+      object BoxSmsWorks: TGroupBox
+        Left = 435
+        Top = 3
+        Width = 365
+        Height = 164
+        Caption = 'SMS Works - https://thesmsworks.co.uk/'
+        TabOrder = 2
+        object Label30: TLabel
+          Left = 10
+          Top = 17
+          Width = 81
+          Height = 14
+          Caption = 'Login Json Lines'
+        end
+        object LabelSmsWorksCredits: TLabel
+          Left = 289
+          Top = 132
+          Width = 40
+          Height = 14
+          Caption = 'Credits: '
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clRed
+          Font.Height = -11
+          Font.Name = 'Arial'
+          Font.Style = []
+          ParentFont = False
+        end
+        object SmsWorksLoginJson: TMemo
+          Left = 14
+          Top = 37
+          Width = 329
+          Height = 84
+          Lines.Strings = (
+            '{'
+            '  "customerid": "8545-0426-4e16-45bf-b040-506561072b83",'
+            '  "key": "a87166be-fff4-4cf3-b24c-d6cdbd85fcfd",'
+            
+              '  "secret": "a29b39a976801fa8c49327aeb4849b712fcd44f1d92441c8078' +
+              'b5f2f49d5f253"'
+            '}')
+          ScrollBars = ssBoth
+          TabOrder = 0
+        end
+        object doSmsWorksSend: TButton
+          Left = 12
+          Top = 127
+          Width = 75
+          Height = 25
+          Caption = 'Send SMS'
+          TabOrder = 1
+          OnClick = doSmsWorksSendClick
+        end
+        object doSmsWorksCheck: TButton
+          Left = 99
+          Top = 127
+          Width = 85
+          Height = 25
+          Caption = 'Check Delivery'
+          Enabled = False
+          TabOrder = 2
+          OnClick = doSmsWorksCheckClick
+        end
+        object doSmsWorksCredit: TButton
+          Left = 202
+          Top = 127
+          Width = 75
+          Height = 25
+          Caption = 'Check Credit'
+          TabOrder = 3
+          OnClick = doSmsWorksCreditClick
         end
       end
     end
@@ -1050,13 +1156,13 @@ object HttpRestForm: THttpRestForm
     Top = 375
   end
   object TimerLog: TTimer
-    Interval = 2000
     OnTimer = TimerLogTimer
     Left = 210
     Top = 375
   end
   object IcsSMS1: TIcsSMS
     SmsProvider = SmsProvKapow
+    SendDT = 43627.796545659720000000
     DebugLevel = DebugNone
     OnSmsProg = IcsSMS1SmsProg
     OnSmsDone = IcsSMS1SmsDone

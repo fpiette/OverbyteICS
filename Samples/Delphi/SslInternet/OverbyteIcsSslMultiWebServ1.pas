@@ -1852,7 +1852,6 @@ end;
 procedure TWeblServerForm.IcsSslX509CertsOAuthAuthUrl(Sender: TObject;
   const URL: string);
 begin
- // ideally email this to user, if run as a service!!!!
    Display('Web server demo needs OAuth authenfication for new certificate, ' +
                 'Browse to this URL: ' + URL +  ', From PC: ' + IcsGetCompName) ;
     if (AdminEmailTo <> '') then

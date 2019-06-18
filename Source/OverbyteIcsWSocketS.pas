@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.60
+Version:      8.62
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1999-2019 by François PIETTE
@@ -196,7 +196,16 @@ Dec 04, 2018  V8.59 Sanity checks reading mistyped enumerated values from INI fi
 Mar 18, 2019  V8.60 Added WebLogIdx to IcsHosts for web server logging.
                     Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
                        in server IcsHosts if TLS1.3 fails.
-
+Jun 17 2019  V8.82 If we loaded SSL intermediate certificates, stop OpenSSL
+                     attempting to build a chain.
+                   When ordering X509 certificate, ChallFileSrv challenge now
+                     uses separate local web server for servers not using ports
+                      80 or 443 such as FTP, SMTP, proxies, etc.
+                   If IcsHosts SslCert is not found but have a valid directory,
+                      try default certificate file name based on Common Name instead,
+                      ie www_domain_com.pfx.  Ideally application should check if
+                      SslCert changes during ValidateHosts and update persistent
+                      storage.
 
 
 Quick reference guide:
@@ -454,7 +463,7 @@ CertInfo     - A long multiple line text block describing all the main fields of
                one or more SSL certificates in the chain including subject,
                issuer, expiry, public key type and signature method.
 BindInfo     - List of one or more IP addresses and ports.
-CertExiry    - SSL certificate expiry date and time, as TDateTime.
+CertExiry    - SSL certificate expiry UTC date and time, as TDateTime.
 CertFStamp   - Unix file time stamp for SSL server certificate, to check if
                changed.
 InterFStamp  - Unix file time stamp for SSL intermediate certificates, to check
@@ -676,8 +685,8 @@ uses
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 860;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2019 F. Piette V8.60 ';
+    WSocketServerVersion     = 862;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2019 F. Piette V8.62 ';
 
 type
     TCustomWSocketServer       = class;
@@ -1263,9 +1272,13 @@ implementation
 {$IFDEF USE_SSL}
 {$IFDEF AUTO_X509_CERTS}  { V8.59 }
 {$IFDEF FMX}
-Uses Ics.Fmx.OverbyteIcsSslX509Certs;  { V8.57 }
+Uses
+    Ics.Fmx.OverbyteIcsSslX509Certs,  { V8.57 }
+    Ics.Fmx.OverbyteIcsSslX509Utils;  { V8.62 }
 {$ELSE}
-Uses OverbyteIcsSslX509Certs; { V8.57 }
+Uses
+    OverbyteIcsSslX509Certs, { V8.57 }
+    OverbyteIcsSslX509Utils; { V8.62 }
 {$ENDIF} // FMX
 {$ENDIF} // AUTO_X509_CERTS
 {$ENDIF} // USE_SSL
@@ -2984,9 +2997,37 @@ begin
             FCertErrs := 'Server Does Not Support Certificate Ordering';
             Exit;
         end;
-        if FState <> wsListening then begin
-            FCertErrs := 'Server not Listening';
+        if CertChallenge in [ChallFileFtp, ChallDNS, ChallEmail] then begin    { V8.62 }
+            FCertErrs := 'Unsupported Challenge for Socket Server';
             Exit;
+        end;
+
+     { V8.62 UNC challenge assumes this is a web server that supports the
+          .well-known path or SSI ALPN and only works after server starts }
+        if CertChallenge in [ChallFileUNC, ChallAlpnUNC] then begin    { V8.62 }
+            if WellKnownPath = '' then begin
+                FCertErrs := 'No .Well-Known Directory Specified';
+                Exit;
+            end;
+            if (CertChallenge = ChallFileUNC) and (FBindNonPort <> 80) then begin
+                FCertErrs := 'Port 80 Not Listening';
+                Exit;
+            end;
+            if (CertChallenge = ChallAlpnUNC) and (FBindSslPort <> 443) then begin
+                FCertErrs := 'Port 443 Not Listening';
+                Exit;
+            end;
+            if (FState <> wsListening) then begin
+                FCertErrs := 'Server not Listening';
+                Exit;
+            end;
+        end;
+
+     { V8.62 Local Server uses a separate local web server for servers not using
+        ports 80 or 443 such as FTP, SMTP, etc, configure it, will be started automatrically }
+        if (CertChallenge = ChallFileSrv) or (CertChallenge = ChallAlpnSrv) then begin
+            (FSslX509Certs as TSslX509Certs).DomWebSrvIP := FBindIpAddr;
+            // pending domwebsrv fixed on port 80
         end;
 
       // some sanity checks to make sure sensible settings made
@@ -2996,20 +3037,6 @@ begin
         end;
         if CertDirWork = '' then begin
             FCertErrs := 'No Work Directory Specified';
-            Exit;
-        end;
-        if CertChallenge <> ChallFileUNC then begin
-            FCertErrs := 'Unsupported Challenge';
-            Exit;
-        end;
-
-     // must be running HTTP server with .well-known path
-        if WellKnownPath = '' then begin
-            FCertErrs := 'No .Well-Known Directory Specified';
-            Exit;
-        end;
-        if FBindNonPort <> 80 then begin
-            FCertErrs := 'Port 80 Not Listening';
             Exit;
         end;
 
@@ -3030,9 +3057,9 @@ begin
 
              // must have correct expected SSL certificate file name
                 CertCommonName := HostNames[0];
-                FName := IcsExtractNameOnly(SslCert);
+                FName := IcsExtractNameOnly(FSslCert);
                 if BuildCertName(CertCommonName) <> FName then begin
-                    FCertErrs := 'SslCert File Name Mismatch for New Certificate';
+                    FCertErrs := 'SslCert File Name Mismatch for New Certificate - ' + Fname;
                     Exit;
                 end;
 
@@ -3090,6 +3117,7 @@ function TSslWSocketServer.LoadOneCert(HostNr: Integer; ForceLoad: Boolean;
                                                  var LoadNew: Boolean): Boolean;
 var
     NewFStamp: TDateTime;
+    FDir, FName: String;
 begin
     Result := False;
     LoadNew := False;
@@ -3099,6 +3127,7 @@ begin
         FCertErrs := '';
         FCertInfo := '';
         FCertValRes := chainOK;
+        FName := '';
 
     { load certificate, private key and optional intermediates, that may all be
       in the same PEM or PFX bundle file or seperate files, or may be base64 text }
@@ -3112,13 +3141,27 @@ begin
             if FSslCert <> '' then
                 NewFStamp := IcsGetFileUAge(FSslCert);  { keep file time stamp to check nightly, V8.51 UTC time }
             if NewFStamp <= 0 then begin
-                FCertErrs := 'SSL certificate not found: ' + FSslCert;
+                FCertErrs := 'SSL Certificate Not Found: ' + FSslCert;
 
-               // should we try and download a new certificate, server must be running
-                if (FState = wsListening) and FSslCertAutoOrder and
-                                        (CertSupplierProto > SuppProtoNone) then begin
+              { V8.62 see if adjusting name to default used by ordering, need directory }
+                FDir := ExtractFileDir(FSslCert);
+                if (FDir <> '') and DirectoryExists(FDir) then begin
+                    FName := IncludeTrailingPathDelimiter(FDir) +
+                                                    BuildCertName(HostNames[0]) + '.pfx';
+                    NewFStamp := IcsGetFileUAge(FName);
+                    if (NewFStamp > 0) or FSslCertAutoOrder then begin
+                        FSslCert := FName;
+                        FCertErrs := FCertErrs + ', Using Default SSL certificate Instead: ' + FName;
+                    end;
+                end;
+            end;
+
+         { really need an SSL certificate otherwise SSL does not work }
+            if NewFStamp <= 0 then begin
+               { should we try and download a new certificate }
+                if FSslCertAutoOrder and (CertSupplierProto > SuppProtoNone) then begin
                     if OrderCert(HostNr) then
-                        FCertErrs := FCertErrs + ', Ordered New Certificate'
+                        FCertErrs := FCertErrs + ', Ordered New Certificate, May Not Be Available Yet'
                     else
                         FCertErrs := FCertErrs + ', Failed to Order New Certificate';
                 end;
@@ -3126,20 +3169,19 @@ begin
             end;
             if ForceLoad or (FCertFStamp <> NewFStamp) then begin
                 LoadNew := True;
-    //            Info := 'Loading SSL certificate: ' + FSslCert;
                 FCertFStamp := NewFStamp;
                 SslCtx.SslCertX509.PrivateKey := Nil;  { V8.57 clear old key }
                 SslCtx.SslCertX509.LoadFromFile(FSslCert, croTry, croTry, FSslPassword);
             end;
         end;
         if NOT SslCtx.SslCertX509.IsCertLoaded then begin
-            FCertErrs := 'SSL certificate not loaded - ' + FSslCert;
+            FCertErrs := 'SSL Certificate Not Loaded - ' + FSslCert;
        // should we try and download a new certificate?
              Exit;
         end;
         if NOT SslCtx.SslCertX509.IsPKeyLoaded then begin
             if (FSslKey = '') then begin
-                FCertErrs := 'SSL private key can not be blank for ' + FSslCert;
+                FCertErrs := 'SSL Private Key Can Not Be Blank for ' + FSslCert;
                 Exit;
             end;
             if (Pos(PEM_STRING_HDR_BEGIN, FSslKey) > 0) then begin
@@ -3156,8 +3198,8 @@ begin
             else begin
                 NewFStamp := IcsGetFileUAge(FSslInter);  { keep file time stamp to check nightly, V8.51 UTC time }
                 if NewFStamp <= 0 then begin
-                    FCertErrs := 'SSL intermediate certificate not found: ' +
-                                        FSslInter + ' for certificate ' + FSslCert;
+                    FCertErrs := 'SSL Intermediate Certificate Not Found: ' +
+                                        FSslInter + ' for Certificate ' + FSslCert;
                     Exit;
                 end;
                 if ForceLoad or (FInterFStamp <> NewFStamp) then begin
@@ -3170,6 +3212,10 @@ begin
             end;
         end ;
 
+    { V8.62 if we loaded intermediates, stop OpenSSL attempting to build a chain }
+        if SslCtx.SslCertX509.IsInterLoaded then
+            f_SSL_CTX_set_mode(SslCtx.SslCtxPtr, SSL_MODE_NO_AUTO_CHAIN);
+
      { validate SSL certificate chain, helps to ensure server will work! }
         SslCtx.SslCertX509.X509CATrust := FRootCAX509.X509CATrust;
         FCertDomains := IcsUnwrapNames (SslCtx.SslCertX509.SubAltNameDNS);
@@ -3180,20 +3226,23 @@ begin
                                                 FCertInfo, FCertErrs, FCertExpireDays);
         if FCertValRes = chainOK then begin
             FCertErrs := 'Chain Validated OK';
+            if FName <> '' then FCertErrs := FCertErrs +
+                            ', Using Default SSL certificate Instead: ' + FName;
             Result := True;
         end
         else begin
             if FCertValRes = chainWarn then begin
                 FCertErrs := 'SSL Certificate Chain Warning - ' + FCertErrs;
+                if FName <> '' then FCertErrs := FCertErrs +
+                            ', Using Default SSL certificate Instead: ' + FName;
                 Result := True;
             end
             else begin
                 FCertErrs := 'SSL Certificate Chain Failed - ' + FCertErrs;
             end;
 
-         // should we try and download a new certificate, server must be running
-            if (FState = wsListening) and FSslCertAutoOrder and
-                                     (CertSupplierProto > SuppProtoNone) then begin
+         // should we try and download a new certificate
+            if FSslCertAutoOrder and (CertSupplierProto > SuppProtoNone) then begin
                 if OrderCert(HostNr) then
                     FCertErrs := FCertErrs + ', Ordered New Certificate'
                 else

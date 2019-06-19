@@ -354,12 +354,6 @@ Packages\IcsVclCBXE3Run.cpp
 Packages\IcsVclCBXE3Design.cbproj
 Packages\IcsVclCBXE3Design.cpp
 
-Packages\OverbyteIcsCBXe3Run.cbproj
-Packages\OverbyteIcsCBXe3Run.cpp
-Packages\OverbyteIcsCBXe3Design.cbproj
-Packages\OverbyteIcsCBXe3Design.cpp
-
-
 Packages\IcsCommonCB102Run.cbproj
 Packages\IcsCommonCB102Run.cpp
 Packages\IcsCommonCB102Run.res
@@ -617,11 +611,6 @@ Source\Ics.Fmx.OverbyteIcsWSocket.pas
 Source\Ics.Fmx.OverbyteIcsWSocketS.pas
 Source\Ics.Fmx.OverbyteIcsWndControl.pas
 
-Source\Ics.Fmx.OverbyteIcsBlacklist.pas
-Source\Ics.Fmx.OverbyteIcsIpStreamLog.pas
-Source\Ics.Fmx.OverbyteIcsMailQueue.pas
-Source\Ics.Fmx.OverbyteIcsSntp.pas
-Source\Ics.Fmx.OverbyteIcsWhoisCli.pas
 Source\Ics.Fmx.OverbyteIcsBlacklist.pas
 Source\Ics.Fmx.OverbyteIcsIpStreamLog.pas
 Source\Ics.Fmx.OverbyteIcsMailQueue.pas
@@ -1412,21 +1401,25 @@ Samples\Delphi\FtpDemos\Dcu\dir.txt
 
 Samples\Delphi\FtpDemos\OverbyteIcsBasFtp.dof
 Samples\Delphi\FtpDemos\OverbyteIcsBasFtp.dpr
+Samples\Delphi\FtpDemos\OverbyteIcsBasFtp.dproj
 Samples\Delphi\FtpDemos\OverbyteIcsBasFtp.res
 Samples\Delphi\FtpDemos\OverbyteIcsBasFtp1.dfm
 Samples\Delphi\FtpDemos\OverbyteIcsBasFtp1.pas
 
 Samples\Delphi\FtpDemos\OverbyteIcsConFtp.dof
 Samples\Delphi\FtpDemos\OverbyteIcsConFtp.dpr
+Samples\Delphi\FtpDemos\OverbyteIcsConFtp.dproj
 
 Samples\Delphi\FtpDemos\OverbyteIcsFtpAsy.dof
 Samples\Delphi\FtpDemos\OverbyteIcsFtpAsy.dpr
+Samples\Delphi\FtpDemos\OverbyteIcsFtpAsy.dproj
 Samples\Delphi\FtpDemos\OverbyteIcsFtpAsy.res
 Samples\Delphi\FtpDemos\OverbyteIcsFtpAsy1.dfm
 Samples\Delphi\FtpDemos\OverbyteIcsFtpAsy1.pas
 
 Samples\Delphi\FtpDemos\OverbyteIcsFtpMulti.dof
 Samples\Delphi\FtpDemos\OverbyteIcsFtpMulti.dpr
+Samples\Delphi\FtpDemos\OverbyteIcsFtpMulti.dproj
 Samples\Delphi\FtpDemos\OverbyteIcsFtpMulti.res
 Samples\Delphi\FtpDemos\OverbyteIcsFtpMulti1.dfm
 Samples\Delphi\FtpDemos\OverbyteIcsFtpMulti1.pas
@@ -1438,6 +1431,7 @@ Samples\Delphi\FtpDemos\OverbyteIcsFtpMultipartDownload1.pas
 
 Samples\Delphi\FtpDemos\OverbyteIcsFtpServ.dof
 Samples\Delphi\FtpDemos\OverbyteIcsFtpServ.dpr
+Samples\Delphi\FtpDemos\OverbyteIcsFtpServ.dproj
 Samples\Delphi\FtpDemos\OverbyteIcsFtpServ.res
 Samples\Delphi\FtpDemos\OverbyteIcsFtpServ1.dfm
 Samples\Delphi\FtpDemos\OverbyteIcsFtpServ1.pas
@@ -1446,12 +1440,14 @@ Samples\Delphi\FtpDemos\ftpaccounts-default.ini
 
 Samples\Delphi\FtpDemos\OverbyteIcsFtpThrd.dof
 Samples\Delphi\FtpDemos\OverbyteIcsFtpThrd.dpr
+Samples\Delphi\FtpDemos\OverbyteIcsFtpThrd.dproj
 Samples\Delphi\FtpDemos\OverbyteIcsFtpThrd.res
 Samples\Delphi\FtpDemos\OverbyteIcsFtpThrd1.dfm
 Samples\Delphi\FtpDemos\OverbyteIcsFtpThrd1.pas
 
 Samples\Delphi\FtpDemos\OverbyteIcsFtpTst.dof
 Samples\Delphi\FtpDemos\OverbyteIcsFtpTst.dpr
+Samples\Delphi\FtpDemos\OverbyteIcsFtpTst.dproj
 Samples\Delphi\FtpDemos\OverbyteIcsFtpTst.res
 Samples\Delphi\FtpDemos\OverbyteIcsFtpTst1.dfm
 Samples\Delphi\FtpDemos\OverbyteIcsFtpTst1.pas
@@ -1464,24 +1460,29 @@ Samples\Delphi\MailNewsDemos\Dcu\dir.txt
 
 Samples\Delphi\MailNewsDemos\OverbyteIcsBasNntp.dof
 Samples\Delphi\MailNewsDemos\OverbyteIcsBasNntp.dpr
+Samples\Delphi\MailNewsDemos\OverbyteIcsBasNntp.dproj
 Samples\Delphi\MailNewsDemos\OverbyteIcsBasNntp.res
 Samples\Delphi\MailNewsDemos\OverbyteIcsBasNntp1.dfm
 Samples\Delphi\MailNewsDemos\OverbyteIcsBasNntp1.pas
 
 Samples\Delphi\MailNewsDemos\OverbyteIcsConPop3.dof
 Samples\Delphi\MailNewsDemos\OverbyteIcsConPop3.dpr
+Samples\Delphi\MailNewsDemos\OverbyteIcsConPop3.dproj
 
 Samples\Delphi\MailNewsDemos\OverbyteIcsConSmtp.dof
 Samples\Delphi\MailNewsDemos\OverbyteIcsConSmtp.dpr
+Samples\Delphi\MailNewsDemos\OverbyteIcsConSmtp.dproj
 
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailHtm1.dfm
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailHtm1.pas
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailHtml.dof
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailHtml.dpr
+Samples\Delphi\MailNewsDemos\OverbyteIcsMailHtml.dproj
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailHtml.res
 
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailRcv.dof
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailRcv.dpr
+Samples\Delphi\MailNewsDemos\OverbyteIcsMailRcv.dproj
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailRcv.res
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailRcv1.dfm
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailRcv1.pas
@@ -1490,18 +1491,21 @@ Samples\Delphi\MailNewsDemos\OverbyteIcsMailRcv2.pas
 
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailSnd.dof
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailSnd.dpr
+Samples\Delphi\MailNewsDemos\OverbyteIcsMailSnd.dproj
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailSnd.res
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailSnd1.dfm
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailSnd1.pas
 
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailSndAsync.dof
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailSndAsync.dpr
+Samples\Delphi\MailNewsDemos\OverbyteIcsMailSndAsync.dproj
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailSndAsync.res
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailSndAsync1.dfm
 Samples\Delphi\MailNewsDemos\OverbyteIcsMailSndAsync1.pas
 
 Samples\Delphi\MailNewsDemos\OverbyteIcsMimeDemo.dof
 Samples\Delphi\MailNewsDemos\OverbyteIcsMimeDemo.dpr
+Samples\Delphi\MailNewsDemos\OverbyteIcsMimeDemo.dproj
 Samples\Delphi\MailNewsDemos\OverbyteIcsMimeDemo.res
 Samples\Delphi\MailNewsDemos\OverbyteIcsMimeDemo1.dfm
 Samples\Delphi\MailNewsDemos\OverbyteIcsMimeDemo1.pas
@@ -1514,12 +1518,14 @@ Samples\Delphi\MailNewsDemos\mime.types
 
 Samples\Delphi\MailNewsDemos\OverbyteIcsNewsReader.dof
 Samples\Delphi\MailNewsDemos\OverbyteIcsNewsReader.dpr
+Samples\Delphi\MailNewsDemos\OverbyteIcsNewsReader.dproj
 Samples\Delphi\MailNewsDemos\OverbyteIcsNewsReader.res
 Samples\Delphi\MailNewsDemos\OverbyteIcsNewsReader1.dfm
 Samples\Delphi\MailNewsDemos\OverbyteIcsNewsReader1.pas
 
 Samples\Delphi\MailNewsDemos\OverbyteIcsSmtpServer.dof
 Samples\Delphi\MailNewsDemos\OverbyteIcsSmtpServer.dpr
+Samples\Delphi\MailNewsDemos\OverbyteIcsSmtpServer.dproj
 Samples\Delphi\MailNewsDemos\OverbyteIcsSmtpServer.res
 Samples\Delphi\MailNewsDemos\OverbyteIcsSmtpServ1.dfm
 Samples\Delphi\MailNewsDemos\OverbyteIcsSmtpServ1.pas
@@ -1532,35 +1538,42 @@ Samples\Delphi\MiscDemos\FastAppProcessMessagePatch.pas
 
 Samples\Delphi\MiscDemos\OverbyteIcsBufStrmTst.dof
 Samples\Delphi\MiscDemos\OverbyteIcsBufStrmTst.dpr
+Samples\Delphi\MiscDemos\OverbyteIcsBufStrmTst.dproj
 Samples\Delphi\MiscDemos\OverbyteIcsBufStrmTst.res
 Samples\Delphi\MiscDemos\OverbyteIcsBufStrmTst1.dfm
 Samples\Delphi\MiscDemos\OverbyteIcsBufStrmTst1.pas
 
 Samples\Delphi\MiscDemos\OverbyteIcsCacheTest.dof
 Samples\Delphi\MiscDemos\OverbyteIcsCacheTest.dpr
+Samples\Delphi\MiscDemos\OverbyteIcsCacheTest.dproj
 Samples\Delphi\MiscDemos\OverbyteIcsCacheTest.res
 Samples\Delphi\MiscDemos\OverbyteIcsCacheTest1.dfm
 Samples\Delphi\MiscDemos\OverbyteIcsCacheTest1.pas
 
 Samples\Delphi\MiscDemos\OverbyteIcsMD4Test.dof
 Samples\Delphi\MiscDemos\OverbyteIcsMD4Test.dpr
+Samples\Delphi\MiscDemos\OverbyteIcsMD4Test.dproj
 
 Samples\Delphi\MiscDemos\OverbyteIcsMD5File.dof
 Samples\Delphi\MiscDemos\OverbyteIcsMD5File.dpr
+Samples\Delphi\MiscDemos\OverbyteIcsMD5File.dproj
 
 Samples\Delphi\MiscDemos\OverbyteIcsMD5Test.dof
 Samples\Delphi\MiscDemos\OverbyteIcsMD5Test.dpr
+Samples\Delphi\MiscDemos\OverbyteIcsMD5Test.dproj
 Samples\Delphi\MiscDemos\OverbyteIcsMD5Test.res
 Samples\Delphi\MiscDemos\OverbyteIcsMD5Test1.dfm
 Samples\Delphi\MiscDemos\OverbyteIcsMD5Test1.pas
 
 Samples\Delphi\MiscDemos\OverbyteIcsOneTimePassword.dof
 Samples\Delphi\MiscDemos\OverbyteIcsOneTimePassword.dpr
+Samples\Delphi\MiscDemos\OverbyteIcsOneTimePassword.dproj
 Samples\Delphi\MiscDemos\OverbyteIcsOneTimePassword.res
 Samples\Delphi\MiscDemos\OverbyteIcsOneTimePassword1.dfm
 Samples\Delphi\MiscDemos\OverbyteIcsOneTimePassword1.pas
 
 Samples\Delphi\MiscDemos\OverbyteIcsPrngTst.dpr
+Samples\Delphi\MiscDemos\OverbyteIcsPrngTst.dproj
 Samples\Delphi\MiscDemos\OverbyteIcsPrngTst1.dfm
 Samples\Delphi\MiscDemos\OverbyteIcsPrngTst1.pas
 
@@ -1569,30 +1582,35 @@ Samples\Delphi\MiscDemos\OverbyteIcsRtlTest.dpr
 
 Samples\Delphi\MiscDemos\OverbyteIcsSHA1Test.dof
 Samples\Delphi\MiscDemos\OverbyteIcsSHA1Test.dpr
+Samples\Delphi\MiscDemos\OverbyteIcsSHA1Test.dproj
 Samples\Delphi\MiscDemos\OverbyteIcsSHA1Test.res
 Samples\Delphi\MiscDemos\OverbyteIcsSHA1Test1.dfm
 Samples\Delphi\MiscDemos\OverbyteIcsSHA1Test1.pas
 
 Samples\Delphi\MiscDemos\OverbyteIcsThreadTimerDemo.dof
 Samples\Delphi\MiscDemos\OverbyteIcsThreadTimerDemo.dpr
+Samples\Delphi\MiscDemos\OverbyteIcsThreadTimerDemo.dproj
 Samples\Delphi\MiscDemos\OverbyteIcsThreadTimerDemo.res
 Samples\Delphi\MiscDemos\OverbyteIcsThreadTimerDemo1.dfm
 Samples\Delphi\MiscDemos\OverbyteIcsThreadTimerDemo1.pas
 
 Samples\Delphi\MiscDemos\OverbyteIcsTicks64Demo.dof
 Samples\Delphi\MiscDemos\OverbyteIcsTicks64Demo.dpr
+Samples\Delphi\MiscDemos\OverbyteIcsTicks64Demo.dproj
 Samples\Delphi\MiscDemos\OverbyteIcsTicks64Demo.res
 Samples\Delphi\MiscDemos\OverbyteIcsTicks64Demo1.dfm
 Samples\Delphi\MiscDemos\OverbyteIcsTicks64Demo1.pas
 
 Samples\Delphi\MiscDemos\OverbyteIcsTimerDemo.dof
 Samples\Delphi\MiscDemos\OverbyteIcsTimerDemo.dpr
+Samples\Delphi\MiscDemos\OverbyteIcsTimerDemo.dproj
 Samples\Delphi\MiscDemos\OverbyteIcsTimerDemo.res
 Samples\Delphi\MiscDemos\OverbyteIcsTimerDemo1.dfm
 Samples\Delphi\MiscDemos\OverbyteIcsTimerDemo1.pas
 
 Samples\Delphi\MiscDemos\OverbyteIcsWndControlTest.dof
 Samples\Delphi\MiscDemos\OverbyteIcsWndControlTest.dpr
+Samples\Delphi\MiscDemos\OverbyteIcsWndControlTest.dproj
 Samples\Delphi\MiscDemos\OverbyteIcsWndControlTest.res
 Samples\Delphi\MiscDemos\OverbyteIcsWndControlTest1.dfm
 Samples\Delphi\MiscDemos\OverbyteIcsWndControlTest1.pas
@@ -1603,6 +1621,7 @@ Samples\Delphi\OtherDemos\Dcu\dir.txt
 
 Samples\Delphi\OtherDemos\OverbyteIcsBatchDnsLookup.dof
 Samples\Delphi\OtherDemos\OverbyteIcsBatchDnsLookup.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsBatchDnsLookup.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsBatchDnsLookup.res
 Samples\Delphi\OtherDemos\OverbyteIcsBatchDnsLookup1.dfm
 Samples\Delphi\OtherDemos\OverbyteIcsBatchDnsLookup1.pas
@@ -1617,70 +1636,83 @@ Samples\Delphi\OtherDemos\OverbyteIcsDemoTemplate1.pas
 
 Samples\Delphi\OtherDemos\OverbyteIcsDll1.dof
 Samples\Delphi\OtherDemos\OverbyteIcsDll1.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsDll1.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsDll2.dof
 Samples\Delphi\OtherDemos\OverbyteIcsDll2.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsDll2.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsDllTst.dof
 Samples\Delphi\OtherDemos\OverbyteIcsDllTst.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsDllTst.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsDllTst.res
 Samples\Delphi\OtherDemos\OverbyteIcsDllTst1.dfm
 Samples\Delphi\OtherDemos\OverbyteIcsDllTst1.pas
 
 Samples\Delphi\OtherDemos\OverbyteIcsDnsLook.dof
 Samples\Delphi\OtherDemos\OverbyteIcsDnsLook.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsDnsLook.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsDnsLook.res
 Samples\Delphi\OtherDemos\OverbyteIcsDnsLook1.dfm
 Samples\Delphi\OtherDemos\OverbyteIcsDnsLook1.pas
 
 Samples\Delphi\OtherDemos\OverbyteIcsDnsResolver.dof
 Samples\Delphi\OtherDemos\OverbyteIcsDnsResolver.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsDnsResolver.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsDnsResolver.res
 Samples\Delphi\OtherDemos\OverbyteIcsDnsResolver1.dfm
 Samples\Delphi\OtherDemos\OverbyteIcsDnsResolver1.pas
 
 Samples\Delphi\OtherDemos\OverbyteIcsFinger.dof
 Samples\Delphi\OtherDemos\OverbyteIcsFinger.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsFinger.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsFinger.res
 Samples\Delphi\OtherDemos\OverbyteIcsFinger1.dfm
 Samples\Delphi\OtherDemos\OverbyteIcsFinger1.pas
 
 Samples\Delphi\OtherDemos\OverbyteIcsNsLookup.dof
 Samples\Delphi\OtherDemos\OverbyteIcsNsLookup.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsNsLookup.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsNsLookup.res
 Samples\Delphi\OtherDemos\OverbyteIcsNsLookup1.dfm
 Samples\Delphi\OtherDemos\OverbyteIcsNsLookup1.pas
 
 Samples\Delphi\OtherDemos\OverbyteIcsPingTst.dof
 Samples\Delphi\OtherDemos\OverbyteIcsPingTst.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsPingTst.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsPingTst.res
 Samples\Delphi\OtherDemos\OverbyteIcsPingTst1.dfm
 Samples\Delphi\OtherDemos\OverbyteIcsPingTst1.pas
 
 Samples\Delphi\OtherDemos\OverbyteIcsSnmpCliTst.dof
 Samples\Delphi\OtherDemos\OverbyteIcsSnmpCliTst.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsSnmpCliTst.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsSnmpCliTst.res
 Samples\Delphi\OtherDemos\OverbyteIcsSnmpCliTst1.dfm
 Samples\Delphi\OtherDemos\OverbyteIcsSnmpCliTst1.pas
 
 Samples\Delphi\OtherDemos\OverbyteIcsSysLogClientDemo.dof
 Samples\Delphi\OtherDemos\OverbyteIcsSysLogClientDemo.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsSysLogClientDemo.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsSysLogClientDemo.res
 Samples\Delphi\OtherDemos\OverbyteIcsSysLogClientDemo1.dfm
 Samples\Delphi\OtherDemos\OverbyteIcsSysLogClientDemo1.pas
 
 Samples\Delphi\OtherDemos\OverbyteIcsSysLogServerDemo.dof
 Samples\Delphi\OtherDemos\OverbyteIcsSysLogServerDemo.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsSysLogServerDemo.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsSysLogServerDemo.res
 Samples\Delphi\OtherDemos\OverbyteIcsSysLogServerDemo1.dfm
 Samples\Delphi\OtherDemos\OverbyteIcsSysLogServerDemo1.pas
 
-Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst.dpr
 Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst.dof
+Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst.res
 Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst1.pas
 Samples\Delphi\OtherDemos\OverbyteIcsWhoisCliTst1.dfm
 
-Samples\Delphi\OtherDemos\OverbyteIcsTimeTst.dpr
 Samples\Delphi\OtherDemos\OverbyteIcsTimeTst.dof
+Samples\Delphi\OtherDemos\OverbyteIcsTimeTst.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsTimeTst.dproj
 Samples\Delphi\OtherDemos\OverbyteIcsTimeTst.res
 Samples\Delphi\OtherDemos\OverbyteIcsTimeTst1.pas
 Samples\Delphi\OtherDemos\OverbyteIcsTimeTst1.dfm
@@ -1777,11 +1809,13 @@ Samples\Delphi\PlatformDemos\IcsThread.dproj
 Samples\Delphi\PlatformDemos\IcsThread1.fmx
 Samples\Delphi\PlatformDemos\IcsThread1.pas
 Samples\Delphi\PlatformDemos\Ics.Fmx.DemoUtils.pas
+
 Samples\Delphi\SocketDemos\SocketDemos.bpg
 Samples\Delphi\SocketDemos\Dcu\dir.txt
 
 Samples\Delphi\SocketDemos\OverbyteIcsBinCliDemo.dof
 Samples\Delphi\SocketDemos\OverbyteIcsBinCliDemo.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsBinCliDemo.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsBinCliDemo.res
 Samples\Delphi\SocketDemos\OverbyteIcsBinCliDemo1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsBinCliDemo1.pas
@@ -1794,40 +1828,49 @@ Samples\Delphi\SocketDemos\OverbyteIcsCli7.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsCliDemo.dof
 Samples\Delphi\SocketDemos\OverbyteIcsCliDemo.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsCliDemo.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsCliDemo.res
 Samples\Delphi\SocketDemos\OverbyteIcsCliDemo1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsCliDemo1.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsClient5.dof
 Samples\Delphi\SocketDemos\OverbyteIcsClient5.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsClient5.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsClient5.res
 
 Samples\Delphi\SocketDemos\OverbyteIcsClient7.dof
 Samples\Delphi\SocketDemos\OverbyteIcsClient7.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsClient7.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsClient7.res
 
 Samples\Delphi\SocketDemos\OverbyteIcsConCli1.dof
 Samples\Delphi\SocketDemos\OverbyteIcsConCli1.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsConCli1.dproj
 
 Samples\Delphi\SocketDemos\OverbyteIcsConCli2.dof
 Samples\Delphi\SocketDemos\OverbyteIcsConCli2.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsConCli2.dproj
 
 Samples\Delphi\SocketDemos\OverbyteIcsConSrv1.dof
 Samples\Delphi\SocketDemos\OverbyteIcsConSrv1.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsConSrv1.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsConSrv1C.pas
 Samples\Delphi\SocketDemos\OverbyteIcsConSrv1S.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsConUdpLstn.dof
 Samples\Delphi\SocketDemos\OverbyteIcsConUdpLstn.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsConUdpLstn.dproj
 
 Samples\Delphi\SocketDemos\OverbyteIcsDynCli.dof
 Samples\Delphi\SocketDemos\OverbyteIcsDynCli.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsDynCli.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsDynCli.res
 Samples\Delphi\SocketDemos\OverbyteIcsDynCli1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsDynCli1.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsMtSrv.dof
 Samples\Delphi\SocketDemos\OverbyteIcsMtSrv.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsMtSrv.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsMtSrv.res
 Samples\Delphi\SocketDemos\OverbyteIcsMtSrv1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsMtSrv1.pas
@@ -1835,30 +1878,35 @@ Samples\Delphi\SocketDemos\OverbyteIcsMtSrv2.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsRecv.dof
 Samples\Delphi\SocketDemos\OverbyteIcsRecv.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsRecv.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsRecv.res
 Samples\Delphi\SocketDemos\OverbyteIcsRecv1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsRecv1.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsSender.dof
 Samples\Delphi\SocketDemos\OverbyteIcsSender.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsSender.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsSender.res
 Samples\Delphi\SocketDemos\OverbyteIcsSender1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsSender1.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsServer5.dof
 Samples\Delphi\SocketDemos\OverbyteIcsServer5.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsServer5.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsServer5.res
 Samples\Delphi\SocketDemos\OverbyteIcsSrv5.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsSrv5.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsSocksTst.dof
 Samples\Delphi\SocketDemos\OverbyteIcsSocksTst.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsSocksTst.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsSocksTst.res
 Samples\Delphi\SocketDemos\OverbyteIcsSocksTst1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsSocksTst1.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsSrvDemo.dof
 Samples\Delphi\SocketDemos\OverbyteIcsSrvDemo.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsSrvDemo.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsSrvDemo.res
 Samples\Delphi\SocketDemos\OverbyteIcsSrvDemo1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsSrvDemo1.pas
@@ -1869,17 +1917,14 @@ Samples\Delphi\SocketDemos\clients.MDX
 
 Samples\Delphi\SocketDemos\OverbyteIcsSrvTcp.dof
 Samples\Delphi\SocketDemos\OverbyteIcsSrvTcp.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsSrvTcp.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsSrvTcp.res
 Samples\Delphi\SocketDemos\OverbyteIcsSrvTcp1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsSrvTcp1.pas
-Samples\Delphi\SocketDemos\OverbyteIcsSvcTcp.dof
-Samples\Delphi\SocketDemos\OverbyteIcsSvcTcp.dpr
-Samples\Delphi\SocketDemos\OverbyteIcsSvcTcp.res
-Samples\Delphi\SocketDemos\OverbyteIcsSvcTcp1.dfm
-Samples\Delphi\SocketDemos\OverbyteIcsSvcTcp1.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsTWSChat.dof
 Samples\Delphi\SocketDemos\OverbyteIcsTWSChat.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsTWSChat.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsTWSChat.res
 Samples\Delphi\SocketDemos\OverbyteIcsTWSChat1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsTWSChat1.pas
@@ -1888,30 +1933,35 @@ Samples\Delphi\SocketDemos\OverbyteIcsTcpCmd.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsTcpSrv.dof
 Samples\Delphi\SocketDemos\OverbyteIcsTcpSrv.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsTcpSrv.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsTcpSrv.res
 Samples\Delphi\SocketDemos\OverbyteIcsTcpSrv1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsTcpSrv1.pas
 
-Samples\Delphi\SocketDemos\OverbyteIcsTcpSrv1IPv6.dfm
-Samples\Delphi\SocketDemos\OverbyteIcsTcpSrv1IPv6.pas
 Samples\Delphi\SocketDemos\OverbyteIcsTcpSrvIPv6.dof
 Samples\Delphi\SocketDemos\OverbyteIcsTcpSrvIPv6.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsTcpSrvIPv6.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsTcpSrvIPv6.res
+Samples\Delphi\SocketDemos\OverbyteIcsTcpSrv1IPv6.dfm
+Samples\Delphi\SocketDemos\OverbyteIcsTcpSrv1IPv6.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsTelnetClient.dof
 Samples\Delphi\SocketDemos\OverbyteIcsTelnetClient.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsTelnetClient.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsTelnetClient.res
 Samples\Delphi\SocketDemos\OverbyteIcsTelnetClient1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsTelnetClient1.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsThrdSrv.dof
 Samples\Delphi\SocketDemos\OverbyteIcsThrdSrv.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsThrdSrv.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsThrdSrv.res
 Samples\Delphi\SocketDemos\OverbyteIcsThrdSrv1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsThrdSrv1.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsThrdSrvV2.dof
 Samples\Delphi\SocketDemos\OverbyteIcsThrdSrvV2.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsThrdSrvV2.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsThrdSrvV2.res
 Samples\Delphi\SocketDemos\OverbyteIcsThrdSrvV2_1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsThrdSrvV2_1.pas
@@ -1924,12 +1974,14 @@ Samples\Delphi\SocketDemos\OverbyteIcsThrdSrvV3_1.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsTnDemo.dof
 Samples\Delphi\SocketDemos\OverbyteIcsTnDemo.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsTnDemo.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsTnDemo.res
 Samples\Delphi\SocketDemos\OverbyteIcsTnDemo1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsTnDemo1.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsTnSrv.dof
 Samples\Delphi\SocketDemos\OverbyteIcsTnSrv.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsTnSrv.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsTnSrv.res
 Samples\Delphi\SocketDemos\OverbyteIcsTnSrv1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsTnSrv1.pas
@@ -1938,12 +1990,14 @@ Samples\Delphi\SocketDemos\OverbyteIcsTnSrv2.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsUdpLstn.dof
 Samples\Delphi\SocketDemos\OverbyteIcsUdpLstn.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsUdpLstn.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsUdpLstn.res
 Samples\Delphi\SocketDemos\OverbyteIcsUdpLstn1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsUdpLstn1.pas
 
 Samples\Delphi\SocketDemos\OverbyteIcsUdpSend.dof
 Samples\Delphi\SocketDemos\OverbyteIcsUdpSend.dpr
+Samples\Delphi\SocketDemos\OverbyteIcsUdpSend.dproj
 Samples\Delphi\SocketDemos\OverbyteIcsUdpSend.res
 Samples\Delphi\SocketDemos\OverbyteIcsUdpSend1.dfm
 Samples\Delphi\SocketDemos\OverbyteIcsUdpSend1.pas
@@ -1981,18 +2035,21 @@ Samples/Delphi/SslInternet/jose-rsapss-pubkey.pem
 
 Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst.dof
 Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst.dproj
 Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst.res
 Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsHttpsServer.dof
 Samples\Delphi\SslInternet\OverbyteIcsHttpsServer.dpr
+Samples\Delphi\SslInternet\OverbyteIcsHttpsServer.dproj
 Samples\Delphi\SslInternet\OverbyteIcsHttpsServer.res
 Samples\Delphi\SslInternet\OverbyteIcsHttpsServer1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsHttpsServer1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsHttpsTst.dof
 Samples\Delphi\SslInternet\OverbyteIcsHttpsTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsHttpsTst.dproj
 Samples\Delphi\SslInternet\OverbyteIcsHttpsTst.res
 Samples\Delphi\SslInternet\OverbyteIcsHttpsTst1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsHttpsTst1.pas
@@ -2001,18 +2058,21 @@ Samples\Delphi\SslInternet\OverbyteIcsCliCertDlg.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsJoseTst.dof
 Samples\Delphi\SslInternet\OverbyteIcsJoseTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsJoseTst.dproj
 Samples\Delphi\SslInternet\OverbyteIcsJoseTst.res
 Samples\Delphi\SslInternet\OverbyteIcsJoseTst1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsJoseTst1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsMsVerify.dof
 Samples\Delphi\SslInternet\OverbyteIcsMsVerify.dpr
+Samples\Delphi\SslInternet\OverbyteIcsMsVerify.dproj
 Samples\Delphi\SslInternet\OverbyteIcsMsVerify.res
 Samples\Delphi\SslInternet\OverbyteIcsMsVerify1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsMsVerify1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsPemTool.dof
 Samples\Delphi\SslInternet\OverbyteIcsPemTool.dpr
+Samples\Delphi\SslInternet\OverbyteIcsPemTool.dproj
 Samples\Delphi\SslInternet\OverbyteIcsPemTool.res
 Samples\Delphi\SslInternet\OverbyteIcsPemTool1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsPemTool1.pas
@@ -2023,6 +2083,7 @@ Samples\Delphi\SslInternet\OverbyteIcsPemTool3.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.dof
 Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.dpr
+Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.dproj
 Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.res
 Samples\Delphi\SslInternet\OverbyteIcsProxySslServer.ini
 Samples\Delphi\SslInternet\OverbyteIcsProxySslServer1.dfm
@@ -2030,17 +2091,21 @@ Samples\Delphi\SslInternet\OverbyteIcsProxySslServer1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsSimpleSslCli.dof
 Samples\Delphi\SslInternet\OverbyteIcsSimpleSslCli.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSimpleSslCli.dproj
 Samples\Delphi\SslInternet\OverbyteIcsSimpleSslCli.res
 Samples\Delphi\SslInternet\OverbyteIcsSimpleSslCli1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSimpleSslCli1.pas
+
 Samples\Delphi\SslInternet\OverbyteIcsSimpleSslServer.dof
 Samples\Delphi\SslInternet\OverbyteIcsSimpleSslServer.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSimpleSslServer.dproj
 Samples\Delphi\SslInternet\OverbyteIcsSimpleSslServer.res
 Samples\Delphi\SslInternet\OverbyteIcsSimpleSslServer1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSimpleSslServer1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsSslFtpServ.dof
 Samples\Delphi\SslInternet\OverbyteIcsSslFtpServ.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSslFtpServ.dproj
 Samples\Delphi\SslInternet\OverbyteIcsSslFtpServ.res
 Samples\Delphi\SslInternet\OverbyteIcsSslFtpServ1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslFtpServ1.pas
@@ -2049,6 +2114,7 @@ Samples\Delphi\SslInternet\ftpaccounts-default.ini
 
 Samples\Delphi\SslInternet\OverbyteIcsSslFtpTst.dof
 Samples\Delphi\SslInternet\OverbyteIcsSslFtpTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSslFtpTst.dproj
 Samples\Delphi\SslInternet\OverbyteIcsSslFtpTst.res
 Samples\Delphi\SslInternet\OverbyteIcsSslFtpTst1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslFtpTst1.pas
@@ -2057,6 +2123,7 @@ Samples\Delphi\SslInternet\OverbyteIcsSslFtpTst2.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsSslMailRcv.dof
 Samples\Delphi\SslInternet\OverbyteIcsSslMailRcv.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSslMailRcv.dproj
 Samples\Delphi\SslInternet\OverbyteIcsSslMailRcv.res
 Samples\Delphi\SslInternet\OverbyteIcsSslMailRcv1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslMailRcv1.pas
@@ -2065,12 +2132,14 @@ Samples\Delphi\SslInternet\OverbyteIcsSslMailRcv2.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsSslMailSnd.dof
 Samples\Delphi\SslInternet\OverbyteIcsSslMailSnd.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSslMailSnd.dproj
 Samples\Delphi\SslInternet\OverbyteIcsSslMailSnd.res
 Samples\Delphi\SslInternet\OverbyteIcsSslMailSnd1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslMailSnd1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.dof
 Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.dproj
 Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.ini
 Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.res
 Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ1.dfm
@@ -2082,18 +2151,21 @@ Samples\Delphi\SslInternet\whiteiplist.txt
 
 Samples\Delphi\SslInternet\OverbyteIcsSslNewsRdr.dof
 Samples\Delphi\SslInternet\OverbyteIcsSslNewsRdr.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSslNewsRdr.dproj
 Samples\Delphi\SslInternet\OverbyteIcsSslNewsRdr.res
 Samples\Delphi\SslInternet\OverbyteIcsSslNewsRdr1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslNewsRdr1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsSslSniSrv.dof
 Samples\Delphi\SslInternet\OverbyteIcsSslSniSrv.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSslSniSrv.dproj
 Samples\Delphi\SslInternet\OverbyteIcsSslSniSrv.res
 Samples\Delphi\SslInternet\OverbyteIcsSslSniSrv1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslSniSrv1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsSslWebServ.dof
 Samples\Delphi\SslInternet\OverbyteIcsSslWebServ.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSslWebServ.dproj
 Samples\Delphi\SslInternet\OverbyteIcsSslWebServ.res
 Samples\Delphi\SslInternet\OverbyteIcsSslWebServ1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslWebServ1.pas
@@ -2107,6 +2179,7 @@ Samples\Delphi\SslInternet\OverbyteIcsSslWebAppServerMain.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServer.dof
 Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServer.dpr
+Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServer.dproj
 Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServer.res
 Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServ1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslSmtpServ1.pas
@@ -2119,8 +2192,9 @@ Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst.res
 Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsX509CertsTst1.pas
 
-Samples\Delphi\SslInternet\OverbyteIcsMailQuTst.dpr
 Samples\Delphi\SslInternet\OverbyteIcsMailQuTst.dof
+Samples\Delphi\SslInternet\OverbyteIcsMailQuTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsMailQuTst.dproj
 Samples\Delphi\SslInternet\OverbyteIcsMailQuTst.res
 Samples\Delphi\SslInternet\OverbyteIcsMailQuTst1.pas
 Samples\Delphi\SslInternet\OverbyteIcsMailQuTst1.dfm
@@ -2129,20 +2203,23 @@ Samples\Delphi\SslInternet\OverbyteIcsMailQuTstDiag.dfm
 Samples\Delphi\SslInternet\OverbyteIcsMailQuTstView.pas
 Samples\Delphi\SslInternet\OverbyteIcsMailQuTstView.dfm
 
-Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.dpr
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.dof
+Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.dproj
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.res
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst1.pas
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst1.dfm
 
-Samples\Delphi\SslInternet\OverbyteIcsXferTst.dpr
 Samples\Delphi\SslInternet\OverbyteIcsXferTst.dof
+Samples\Delphi\SslInternet\OverbyteIcsXferTst.dpr
+Samples\Delphi\SslInternet\OverbyteIcsXferTst.dproj
 Samples\Delphi\SslInternet\OverbyteIcsXferTst.res
 Samples\Delphi\SslInternet\OverbyteIcsXferTst1.pas
 Samples\Delphi\SslInternet\OverbyteIcsXferTst1.dfm
 
-Samples\Delphi\SslInternet\OverbyteIcsXferTstW.dpr
 Samples\Delphi\SslInternet\OverbyteIcsXferTstW.dof
+Samples\Delphi\SslInternet\OverbyteIcsXferTstW.dpr
+Samples\Delphi\SslInternet\OverbyteIcsXferTstW.dproj
 Samples\Delphi\SslInternet\OverbyteIcsXferTstW.res
 Samples\Delphi\SslInternet\OverbyteIcsXferTstW1.pas
 Samples\Delphi\SslInternet\OverbyteIcsXferTstW1.dfm
@@ -2158,70 +2235,82 @@ Samples\Delphi\WebDemos\Dcu\dir.txt
 
 Samples\Delphi\WebDemos\OverbyteIcsConHttp.dof
 Samples\Delphi\WebDemos\OverbyteIcsConHttp.dpr
+Samples\Delphi\WebDemos\OverbyteIcsConHttp.dproj
 
 Samples\Delphi\WebDemos\OverbyteIcsHttpAsp.dof
 Samples\Delphi\WebDemos\OverbyteIcsHttpAsp.dpr
+Samples\Delphi\WebDemos\OverbyteIcsHttpAsp.dproj
 Samples\Delphi\WebDemos\OverbyteIcsHttpAsp.res
 Samples\Delphi\WebDemos\OverbyteIcsHttpAsp1.dfm
 Samples\Delphi\WebDemos\OverbyteIcsHttpAsp1.pas
 
 Samples\Delphi\WebDemos\OverbyteIcsHttpAsy.dof
 Samples\Delphi\WebDemos\OverbyteIcsHttpAsy.dpr
+Samples\Delphi\WebDemos\OverbyteIcsHttpAsy.dproj
 Samples\Delphi\WebDemos\OverbyteIcsHttpAsy.res
 Samples\Delphi\WebDemos\OverbyteIcsHttpAsy1.dfm
 Samples\Delphi\WebDemos\OverbyteIcsHttpAsy1.pas
 
 Samples\Delphi\WebDemos\OverbyteIcsHttpChk.dof
 Samples\Delphi\WebDemos\OverbyteIcsHttpChk.dpr
+Samples\Delphi\WebDemos\OverbyteIcsHttpChk.dproj
 Samples\Delphi\WebDemos\OverbyteIcsHttpChk.res
 Samples\Delphi\WebDemos\OverbyteIcsHttpChk1.dfm
 Samples\Delphi\WebDemos\OverbyteIcsHttpChk1.pas
 
 Samples\Delphi\WebDemos\OverbyteIcsHttpDmo.dof
 Samples\Delphi\WebDemos\OverbyteIcsHttpDmo.dpr
+Samples\Delphi\WebDemos\OverbyteIcsHttpDmo.dproj
 Samples\Delphi\WebDemos\OverbyteIcsHttpDmo.res
 Samples\Delphi\WebDemos\OverbyteIcsHttpDmo1.dfm
 Samples\Delphi\WebDemos\OverbyteIcsHttpDmo1.pas
 
 Samples\Delphi\WebDemos\OverbyteIcsHttpGet.dof
 Samples\Delphi\WebDemos\OverbyteIcsHttpGet.dpr
+Samples\Delphi\WebDemos\OverbyteIcsHttpGet.dproj
 Samples\Delphi\WebDemos\OverbyteIcsHttpGet.res
 Samples\Delphi\WebDemos\OverbyteIcsHttpGet1.dfm
 Samples\Delphi\WebDemos\OverbyteIcsHttpGet1.pas
 
 Samples\Delphi\WebDemos\OverbyteIcsHttpMultipartDownload.dof
 Samples\Delphi\WebDemos\OverbyteIcsHttpMultipartDownload.dpr
+Samples\Delphi\WebDemos\OverbyteIcsHttpMultipartDownload.dproj
 Samples\Delphi\WebDemos\OverbyteIcsHttpMultipartDownload.res
 Samples\Delphi\WebDemos\OverbyteIcsHttpMultipartDownload1.dfm
 Samples\Delphi\WebDemos\OverbyteIcsHttpMultipartDownload1.pas
 
 Samples\Delphi\WebDemos\OverbyteIcsHttpPg.dof
 Samples\Delphi\WebDemos\OverbyteIcsHttpPg.dpr
+Samples\Delphi\WebDemos\OverbyteIcsHttpPg.dproj
 Samples\Delphi\WebDemos\OverbyteIcsHttpPg.res
 Samples\Delphi\WebDemos\OverbyteIcsHttpPg1.dfm
 Samples\Delphi\WebDemos\OverbyteIcsHttpPg1.pas
 
 Samples\Delphi\WebDemos\OverbyteIcsHttpPost.dof
 Samples\Delphi\WebDemos\OverbyteIcsHttpPost.dpr
+Samples\Delphi\WebDemos\OverbyteIcsHttpPost.dproj
 Samples\Delphi\WebDemos\OverbyteIcsHttpPost.res
 Samples\Delphi\WebDemos\OverbyteIcsHttpPost1.dfm
 Samples\Delphi\WebDemos\OverbyteIcsHttpPost1.pas
 
+Samples\Delphi\WebDemos\OverbyteIcsHttpThrd.dof
+Samples\Delphi\WebDemos\OverbyteIcsHttpThrd.dpr
+Samples\Delphi\WebDemos\OverbyteIcsHttpThrd.dproj
+Samples\Delphi\WebDemos\OverbyteIcsHttpThrd.res
 Samples\Delphi\WebDemos\OverbyteIcsHttpThr1.dfm
 Samples\Delphi\WebDemos\OverbyteIcsHttpThr1.pas
 Samples\Delphi\WebDemos\OverbyteIcsHttpThr2.pas
-Samples\Delphi\WebDemos\OverbyteIcsHttpThrd.dof
-Samples\Delphi\WebDemos\OverbyteIcsHttpThrd.dpr
-Samples\Delphi\WebDemos\OverbyteIcsHttpThrd.res
 
 Samples\Delphi\WebDemos\OverbyteIcsHttpTst.dof
 Samples\Delphi\WebDemos\OverbyteIcsHttpTst.dpr
+Samples\Delphi\WebDemos\OverbyteIcsHttpTst.dproj
 Samples\Delphi\WebDemos\OverbyteIcsHttpTst.res
 Samples\Delphi\WebDemos\OverbyteIcsHttpTst1.dfm
 Samples\Delphi\WebDemos\OverbyteIcsHttpTst1.pas
 
 Samples\Delphi\WebDemos\OverbyteIcsIsapi.dof
 Samples\Delphi\WebDemos\OverbyteIcsIsapi.dpr
+Samples\Delphi\WebDemos\OverbyteIcsIsapi.dproj
 Samples\Delphi\WebDemos\OverbyteIcsIsapi.res
 Samples\Delphi\WebDemos\OverbyteIcsIsapi1.dfm
 Samples\Delphi\WebDemos\OverbyteIcsIsapi1.pas
@@ -2240,6 +2329,7 @@ Samples\Delphi\WebDemos\OverbyteIcsRestJsonClientDemo1.pas
 
 Samples\Delphi\WebDemos\OverbyteIcsWebAppServer.dof
 Samples\Delphi\WebDemos\OverbyteIcsWebAppServer.dpr
+Samples\Delphi\WebDemos\OverbyteIcsWebAppServer.dproj
 Samples\Delphi\WebDemos\OverbyteIcsWebAppServer.res
 Samples\Delphi\WebDemos\OverbyteIcsWebAppServerConfig.pas
 Samples\Delphi\WebDemos\OverbyteIcsWebAppServerCounter.pas
@@ -2262,6 +2352,7 @@ Samples\Delphi\WebDemos\OverbyteIcsWebAppServerDWScriptUrlHandler.pas
 
 Samples\Delphi\WebDemos\OverbyteIcsWebServ.dof
 Samples\Delphi\WebDemos\OverbyteIcsWebServ.dpr
+Samples\Delphi\WebDemos\OverbyteIcsWebServ.dproj
 Samples\Delphi\WebDemos\OverbyteIcsWebServ.res
 Samples\Delphi\WebDemos\OverbyteIcsWebServ1.dfm
 Samples\Delphi\WebDemos\OverbyteIcsWebServ1.pas

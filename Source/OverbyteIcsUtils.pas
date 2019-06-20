@@ -176,14 +176,14 @@ Mar 11, 2019 V8.60 Added IcsFormatSettings to replace formatting public vars rem
                    Added IcsDeleteFile, IcsRenameFile and IcsForceDirsEx
                    Added IcsTransChar, IcsPathUnixToDos and IcsPathDosToUnix
                    Added IcsSecsToStr and IcsGetTempPath
-Jun 11, 2019 V8.62 Added IcsGetLocalTZBiasStr get time zone bias as string, ie -0700.
+Jun 19, 2019 V8.62 Added IcsGetLocalTZBiasStr get time zone bias as string, ie -0700.
                    Added Time Zone support for date string conversions, to UTC time with
                       a time zone, and back to local time using a time zone.
                    RFC3339_DateToStr and RFC1123_Date add time zone bias if AddTZ=True, ie -0700.
                    Added RFC3339_DateToUtcStr and RFC1123_UtcDate which convert local
                       time to UTC and format it per RFC3339 with time zone bias.
-                   RFC3339_StrToDate and RFC1123_StrToDate now recognises time zone
-                      bias and adjusts result if UseTZ=True.
+                   RFC3339_StrToDate and RFC1123_StrToDate now recognise time zone
+                      bias and adjust result if UseTZ=True from UTC to local time.
 
 
 
@@ -1262,6 +1262,7 @@ begin
     case GetTimeZoneInformation(tzInfo) of
         TIME_ZONE_ID_STANDARD: Result := tzInfo.Bias + tzInfo.StandardBias;
         TIME_ZONE_ID_DAYLIGHT: Result := tzInfo.Bias + tzInfo.DaylightBias;
+    //    TIME_ZONE_ID_DAYLIGHT: Result := tzInfo.Bias + tzInfo.StandardBias;  // cheating winter
         TIME_ZONE_ID_UNKNOWN : Result := tzInfo.Bias;
     else
         Result := 0; // Error
@@ -1299,22 +1300,16 @@ end;
 { V8.62 Get time zone bias as string, ie -0730 }
 function IcsGetLocalTZBiasStr: String;
 var
-    Bias, AbsMins, MyHours, MyMins: Integer;
+    Bias: Integer;
     Sign: String;
 begin
-    Bias := -IcsGetLocalTimeZoneBias;  { nagate }
-    if Bias = 0 then
-        Result := 'Z'
-    else begin
-        if Bias < 0 then
-            Sign := '-'
-        else
-            Sign := '+';
-        AbsMins := Abs(Bias);
-        MyHours := AbsMins div 60;
-        MyMins  := AbsMins - (MyHours * 60);
-        Result := Format('%s%.2d%.2d', [Sign, MyHours, MyMins]);
-    end;
+    Bias := IcsGetLocalTimeZoneBias;
+    if Bias > 0 then
+        Sign := '-'
+    else
+        Sign := '+';
+    Bias := Abs(Bias);
+    Result := Format('%s%.2d%.2d', [Sign, Bias div 60, Bias mod 60]);
 end;
 
 
@@ -1360,10 +1355,10 @@ begin
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.62 RFC1123/RFC822 TDateTime to UTC then to time zone string, HTTP and SMPT headers }
+{ V8.62 RFC1123/RFC822 TDateTime to UTC then to string, HTTP and SMPT headers, add Z or GMT }
 function RFC1123_UtcDate(aDate : TDateTime): String;
 begin
-    Result := RFC1123_Date(IcsDateTimeToUTC(aDate), True);
+    Result := RFC1123_Date(IcsDateTimeToUTC(aDate), False);
 end ;
 
 
@@ -1390,17 +1385,18 @@ begin
 
 { V8.62 check for time zone, GMT, +0700, -1000, -0330 }
     if NOT UseTZ then Exit;
-    if Length(aDate) < 31 then Exit ;  // no time zone
+    if Length(aDate) < 29 then Exit ;  // no time zone
     sign := aDate [27];
     if (sign = '-') or (sign = '+') then begin // ignore GMT/UTC
         tzvalue := StrToIntDef(copy (aDate, 28, 2), 0) * 60;
         if (aDate [30] = '3') then
             tzvalue := tzvalue + 30;
-        if sign = '+' then
+        if sign = '-' then
             Result := Result + (tzvalue / MinutesPerDay)
         else
             Result := Result - (tzvalue / MinutesPerDay);
     end;
+    Result := Result - (IcsGetLocalTimeZoneBias / MinutesPerDay);
 end;
 
 
@@ -1461,7 +1457,7 @@ begin
     Result := Result + timeDT ;
     if NOT UseTZ then Exit;
 
-{ V8.62 check for time zone, Z, +07:00, -1000, -03:30 }
+{ V8.62 check for time zone, Z, GMT, +07:00, +0200, -1000, -03:30 }
     if Length(aDate) < (tzoffset + 2) then Exit ;  // no time zone
     sign := aDate [tzoffset];
     if (sign = '-') or (sign = '+') then begin // ignore Z
@@ -1470,16 +1466,17 @@ begin
             if (aDate [tzoffset + 3] = '3') or (aDate [tzoffset + 4] = '3') then
                 tzvalue := tzvalue + 30;
         end;
-        if sign = '+' then
+        if sign = '-' then
             Result := Result + (tzvalue / MinutesPerDay)
         else
             Result := Result - (tzvalue / MinutesPerDay);
     end;
+    Result := Result - (IcsGetLocalTimeZoneBias / MinutesPerDay);
 end ;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.53 RFC3339 TDateTime to string, aka ISO 8601 date }
+{ V8.53 RFC3339 Local Time TDateTime to string, aka ISO 8601 date }
 { TDateTime to to yyyy-mm-ddThh:nn:ss - no quotes }
 { V8.62 optionally add time zone }
 function RFC3339_DateToStr(DT: TDateTime; AddTZ: Boolean = False): String;
@@ -1491,10 +1488,10 @@ end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.62 RFC3339 TDateTime to UTC then to time zone string, aka ISO 8601 date }
-{ TDateTime to to yyyy-mm-ddThh:nn:ss+hhmm - no quotes }
+{ TDateTime to to yyyy-mm-ddThh:nn:ss+hhmm - no quotes, no Z }
 function RFC3339_DateToUtcStr(DT: TDateTime): String;
 begin
-    Result := RFC3339_DateToStr(IcsDateTimeToUTC(DT), True);
+    Result := RFC3339_DateToStr(IcsDateTimeToUTC(DT), False);
 end ;
 
 

@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.62
+Version:      8.60
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1999-2019 by François PIETTE
@@ -196,16 +196,15 @@ Dec 04, 2018  V8.59 Sanity checks reading mistyped enumerated values from INI fi
 Mar 18, 2019  V8.60 Added WebLogIdx to IcsHosts for web server logging.
                     Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
                        in server IcsHosts if TLS1.3 fails.
-Jun 17 2019  V8.82 If we loaded SSL intermediate certificates, stop OpenSSL
-                     attempting to build a chain.
-                   When ordering X509 certificate, ChallFileSrv challenge now
+Jul 03, 2019  V8.82  When ordering X509 certificate, ChallFileSrv challenge now
                      uses separate local web server for servers not using ports
                       80 or 443 such as FTP, SMTP, proxies, etc.
-                   If IcsHosts SslCert is not found but have a valid directory,
+                    If IcsHosts SslCert is not found but have a valid directory,
                       try default certificate file name based on Common Name instead,
                       ie www_domain_com.pfx.  Ideally application should check if
                       SslCert changes during ValidateHosts and update persistent
                       storage.
+                    Moved BuildCertName here from X509Certs.
 
 
 Quick reference guide:
@@ -1171,12 +1170,8 @@ type
 
 type
     TSslWSocketMultiListenItem = class(TWSocketMultiListenItem)
-    private
- {     FSslEnable : Boolean;      V8.36 moved to base class }
     public
       constructor Create(Collection: TCollection); override;
-    published
- {     property SslEnable : Boolean read FSslEnable write FSslEnable;     V8.36 moved to base class }
     end;
 
     TSslWSocketClient = class(TWSocketClient)
@@ -1185,7 +1180,7 @@ type
         procedure   StartConnection; override;
         procedure   TriggerSslServerName(var Ctx: TSslContext; var ErrCode: TTlsExtError); override; { V8.45 }
         procedure   TriggerSslAlpnSelect(ProtoList: TStrings;
-                             var SelProto: String; var ErrCode: TTlsExtError);  { V8.56 }
+                             var SelProto: String; var ErrCode: TTlsExtError); override; { V8.56 }
     end;
 
     TSslWSocketServer = class(TWSocketServer)
@@ -1264,6 +1259,7 @@ type
 { public functions }
 function IcsLoadIcsHostsFromIni(MyIniFile: TCustomIniFile; IcsHosts:
                 TIcsHostCollection; const Prefix: String = 'IcsHost'): Integer;
+function BuildCertName(const Domain: String): String;  { V8.62 }
 
 {$ENDIF} // USE_SSL
 
@@ -1273,12 +1269,10 @@ implementation
 {$IFDEF AUTO_X509_CERTS}  { V8.59 }
 {$IFDEF FMX}
 Uses
-    Ics.Fmx.OverbyteIcsSslX509Certs,  { V8.57 }
-    Ics.Fmx.OverbyteIcsSslX509Utils;  { V8.62 }
+    Ics.Fmx.OverbyteIcsSslX509Certs;  { V8.57 }
 {$ELSE}
 Uses
-    OverbyteIcsSslX509Certs, { V8.57 }
-    OverbyteIcsSslX509Utils; { V8.62 }
+    OverbyteIcsSslX509Certs; { V8.57 }
 {$ENDIF} // FMX
 {$ENDIF} // AUTO_X509_CERTS
 {$ENDIF} // USE_SSL
@@ -2931,6 +2925,15 @@ begin
 end;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// V8.62 create certificate file name from domain common name, change . to _ and * to x
+function BuildCertName(const Domain: String): String;
+begin
+    Result := StringReplace (Domain, '.', '_', [rfReplaceAll]) ;
+    if Result = '' then Exit;
+    if Result [1] = '*' then Result [1] := 'x';  // can not have * in file names
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF AUTO_X509_CERTS}  { V8.59 }
@@ -3211,10 +3214,6 @@ begin
                 end;
             end;
         end ;
-
-    { V8.62 if we loaded intermediates, stop OpenSSL attempting to build a chain }
-        if SslCtx.SslCertX509.IsInterLoaded then
-            f_SSL_CTX_set_mode(SslCtx.SslCtxPtr, SSL_MODE_NO_AUTO_CHAIN);
 
      { validate SSL certificate chain, helps to ensure server will work! }
         SslCtx.SslCertX509.X509CATrust := FRootCAX509.X509CATrust;
@@ -3616,8 +3615,8 @@ procedure TSslWSocketClient.TriggerSslAlpnSelect(ProtoList: TStrings;
                           var SelProto: String; var ErrCode: TTlsExtError);
 begin
     inherited TriggerSslAlpnSelect(ProtoList, SelProto, ErrCode);
-    if Assigned(FOnSslAlpnSelect) then
-        FOnSslAlpnSelect(Self, ProtoList, SelProto, ErrCode);
+//    if Assigned(FOnSslAlpnSelect) then
+//        FOnSslAlpnSelect(Self, ProtoList, SelProto, ErrCode);
 end;
 
 

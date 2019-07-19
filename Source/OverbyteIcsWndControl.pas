@@ -3,11 +3,10 @@
 Author:       François PIETTE
 Creation:     Octobre 2002
 Description:  Composant non-visuel avec un handle de fenêtre.
-Version:      8.04
+Version:      8.62
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2002-2014 by François PIETTE
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 2002-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -109,6 +108,9 @@ Aug 18, 2013 V8.02 Arno added some default property specifiers.
 Jul 9, 2014  V8.03 Angus break MessageLoop for Terminated flag,
                        suggested by Wolfgang Prinzjakowitsch
 Jan 22, 2016 V8.04 Angus fixed 64-bit bug in UpdateTimer
+Jul 5, 2019  V8.62 AllocateHWnd shows windows error description instead of
+                      error number, probably out of memory.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -152,8 +154,8 @@ uses
   OverbyteIcsTypes;
 
 const
-  TIcsWndControlVersion  = 804;
-  CopyRight : String     = ' TIcsWndControl (c) 2002-2016 F. Piette V8.04 ';
+  TIcsWndControlVersion  = 862;
+  CopyRight : String     = ' TIcsWndControl (c) 2002-2019 F. Piette V8.62 ';
 
   IcsWndControlWindowClassName = 'IcsWndControlWindowClass';
 
@@ -1002,7 +1004,7 @@ begin
            if {$IFDEF RTL_NAMESPACES}Winapi.{$ENDIF}Windows.RegisterClass(IcsWndControlWindowClass) = 0 then
                 raise EIcsException.Create(
                      'Unable to register TIcsWndControl hidden window class.' +
-                     ' Error #' + IntToStr(GetLastError) + '.');
+                     ' Error: ' + SysErrorMessage(GetLastError));    { V8.62 tell user real error }
         end;
 
         // Now we are sure the class is registered, we can create a window using it
@@ -1020,7 +1022,7 @@ begin
         if FHandle = 0 then
             raise EIcsException.Create(
                 'Unable to create TIcsWndControl hidden window. ' +
-                ' Error #' + IntToStr(GetLastError) + '.');
+                ' Error: ' + SysErrorMessage(GetLastError));    { V8.62 tell user real error. probably no memory }
 
         // We have a window. In the associated data, we record a reference
         // to our object. This will later allow to call the WndProc method to

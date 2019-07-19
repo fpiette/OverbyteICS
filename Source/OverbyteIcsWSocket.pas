@@ -1274,8 +1274,8 @@ Jul 14, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
                      extension which is sent with the initial SSL hello.
                     For clients, SslAlpnProtocols sets SslContext with a list of
                       protocols the application supports (ie http/1.1, h2), and
-                      SslGetAlpnProtocol after connection returns whatever the
-                      server selected (if any).
+                      SslAlpnProtocol property after connection returns whatever
+                      the server selected (if any).
                     For servers, there is a new OnSslAlpnSelect event that has
                        the list of protocols from the client, from which one
                        may be selected (ie H2 to support HTTP/2).
@@ -1308,10 +1308,15 @@ Mar 18, 2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
                      in server IcsHosts if TLS1.3 fails.
 Apr 16, 2019 V8.61 Fixed ValidateCertChain to check certificate start and expiry
                       dates in UTC time instead of local time.
-Jun 10, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functions
+Jul 04, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functions
                      outside this unit.
                    DHParams only needed for servers, don't use if using client
                      security to avoid issues with high security levels.
+                   Raise background exception for user exceptions in OnDataAvailable
+                     event rather than silently ignoring them.
+                   SSL ALPN now properly tested, for client SslAlpnProtocol property
+                     returns what the server selects (if anything), for server the
+                     selected protocol is now correctly sent.
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -3526,7 +3531,6 @@ type
         procedure SetSslCliSecurity(Value: TSslCliSecurity);                { V8.54 }
         procedure SetSslCliSec;                                             { V8.54 }
         procedure UpdateAlpnProtocols;                                      { V8.56 }
-        procedure SetSslAlpnProtocols(ProtoList: TStrings);                 { V8.56 }
     {$IFNDEF OPENSSL_NO_ENGINE}
         procedure Notification(AComponent: TComponent; Operation: TOperation); override;
         procedure SetCtxEngine(const Value: TSslEngine);
@@ -3564,6 +3568,7 @@ type
         function    SslGetCerts(Cert: TX509Base): integer;              { V8.41 }
         procedure   SslSetCertX509;                                     { V8.41 }
         procedure   SetProtoSec;                                        { V8.54 }
+        procedure   SetSslAlpnProtocols(ProtoList: TStrings);           { V8.56 }
         property    SslCertX509     : TX509Base         read  FSslCertX509
                                                         write FSslCertX509;   { V8.41 }
         property    SslCtxPtr      : PSSL_CTX           read  FSslCtx;        { V8.62 }
@@ -3792,6 +3797,8 @@ type
         FSslServerName              : String;
         FOnSslProtoMsg              : TSslProtoMsgEvent;  { V8.40 }
         FOnSslAlpnSelect            : TSslAlpnSelect;     { V8.56 }
+        FAlpnProtoAnsi              : AnsiString;         { V8.62 server sending response }
+        FSslAlpnProto               : String;             { V8.62 client received response }
         procedure   RaiseLastOpenSslError(EClass          : ExceptClass;
                                           Dump            : Boolean = FALSE;
                                           const CustomMsg : String  = ''); virtual;
@@ -3836,7 +3843,8 @@ type
         procedure Notification(AComponent: TComponent; Operation: TOperation); override;
         procedure TriggerSslShutDownComplete(ErrCode: Integer); virtual;
         procedure TriggerSslServerName(var Ctx: TSslContext; var ErrCode: TTlsExtError); virtual;  { V8.45 }
-        procedure TriggerSslAlpnSelect(ProtoList: TStrings; var SelProto: String; var ErrCode: TTlsExtError);   { V8.56 }
+        procedure TriggerSslAlpnSelect(ProtoList: TStrings; var SelProto: String; var ErrCode: TTlsExtError); virtual; { V8.56 }
+        procedure SslGetAlpnProtocol;                                   { V8.62 was function }
         function  MsgHandlersCount : Integer; override;
         procedure AllocateMsgHandlers; override;
         procedure FreeMsgHandlers; override;
@@ -3864,7 +3872,6 @@ type
         procedure   AcceptSslHandshake;
         procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
         function    SslGetSupportedCiphers (Supported, Remote: boolean): String;    { V8.27 }
-        function    SslGetAlpnProtocol: String;         { V8.56 }
 
         property    LastSslError       : Integer          read FLastSslError;
         property    ExplizitSsl        : Boolean          read  FExplizitSsl
@@ -3929,8 +3936,9 @@ type
         property  SslEncryption  : String                 read  FSslEncryption;          { V8.14  }
         property  SslKeyExchange : String                 read  FSslKeyExchange;         { V8.14  }
         property  SslMessAuth    : String                 read  FSslMessAuth;            { V8.14  }
-        property  SslCertPeerName : String                read  FSslCertPeerName;        { V8.39 }
+        property  SslCertPeerName : String                read  FSslCertPeerName;        { V8.39  }
         property  SslKeyAuth     : String                 read  FSslKeyAuth;             { V8.41  }
+        property  SslAlpnProto   : String                 read  FSslAlpnProto;           { V8.62  }
   private
       function my_WSocket_recv(s: TSocket;
                                var Buf: TWSocketData; len, flags: Integer): Integer;
@@ -8261,7 +8269,9 @@ begin
             else if lCount = 0 then
                 bMore := FALSE;
         except
-            bMore := FALSE;
+            on E:Exception do
+                HandleBackGroundException(E);       { V8.62 don't ignore user errors } 
+         {   bMore := FALSE;   }
         end;
     end;
 end;
@@ -15606,7 +15616,6 @@ var
     ProtoList: TStringList;
     Count: Integer;
     SelProto: String;
-    ProtoAnsi: AnsiString;
 begin
     Result := SSL_TLSEXT_ERR_NOACK;
     outlen := 0;
@@ -15627,11 +15636,15 @@ begin
                 Err := teeNoAck;
                 Ws.TriggerSslAlpnSelect(ProtoList, SelProto, Err);
                 outlen := Length(SelProto);
-                if (outlen > 0) then begin
-                    ProtoAnsi := AnsiString(SelProto);
-                    output := @ProtoAnsi[1];
-                    Result := Ord(Err);
-                end;
+                if (Err = teeOk) and (outlen > 0) then begin
+                    WS.FAlpnProtoAnsi := AnsiString(SelProto);   { V8.62 made static }
+                    output := @WS.FAlpnProtoAnsi[1];
+                    Result := SSL_TLSEXT_ERR_OK;  { V8.62 }
+                end
+                else if Err = teeAlertWarning then
+                    Result := SSL_TLSEXT_ERR_ALERT_WARNING    { V8.62 }
+                else if Err = teeAlertFatal then
+                    Result := SSL_TLSEXT_ERR_ALERT_FATAL;     { V8.62 }
             end;
         finally
             ProtoList.Free;
@@ -20733,20 +20746,22 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 get application layer protocol sekected by server, clients only }
-function TCustomSslWSocket.SslGetAlpnProtocol: String;
+{ V8.62 get application layer protocol sekected by server, clients only }
+procedure TCustomSslWSocket.SslGetAlpnProtocol;
 var
     plen: integer;
     pdata: Pointer;
+    temp: AnsiString;
 begin
-    Result := '';
+    FSslAlpnProto := '';
     if NOT Assigned(FSsl) then Exit;
     plen := 0;
     pdata := Nil;
-    f_SSL_get0_alpn_selected(FSsl, pdata, plen);
-    if Assigned(pdata) and (plen > 0) then begin
-        SetLength(Result, plen);
-        Move(pdata^, Result[1], plen);
+    f_SSL_get0_alpn_selected(FSsl, pdata, plen);  // not null terminated
+    if (plen > 0) and Assigned(pdata) then begin
+        SetLength(temp, plen);
+        Move(pdata^, temp[1], plen);
+        FSslAlpnProto := String(temp);
     end;
 end;
 
@@ -21286,6 +21301,7 @@ begin
     FSslMessAuth             := '';  { V8.14  }
     FSslCertPeerName         := '';  { V8.39  }
     FHandshakeEventDone      := FALSE;  { V8.55 }
+    FSslAlpnProto            := '';  { V8.62  }
     FPendingSslEvents        := [];
     FMayTriggerFD_Read       := TRUE;  // <= 01/06/2006 AG
     FMayTriggerFD_Write      := TRUE;  // <= 01/06/2006 AG
@@ -22064,6 +22080,7 @@ begin
             f_SSL_get_secure_renegotiation_support(FSsl) = 1;
         FSslVersion := String(f_SSL_get_version(FSsl));
         FSslVersNum := f_SSL_version(FSsl);
+        SslGetAlpnProtocol;  { V8.62 }
         Cipher      := f_SSL_get_current_cipher(FSsl);
         if Assigned(Cipher) then begin
             FSslCipher     := String(f_SSL_CIPHER_get_name(Cipher));

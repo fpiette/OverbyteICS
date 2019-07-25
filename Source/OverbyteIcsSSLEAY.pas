@@ -128,8 +128,9 @@ Nov 27, 2018  V8.59 version only
 Mar 18, 2019  V8.60 Next major OpenSSL version is 3.0.0 (or maybe 4)
                     Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
                       in server IcsHosts if TLS1.3 fails.
-Jun 7, 2019   V8.62 Removed two ciphers from TSslPrivKeyCipher which we did not use.
-                    SuppProtoAcmeV1 gone.
+Jul 15, 2019  V8.62 Removed two ciphers from TSslPrivKeyCipher which we did not use.
+                    SuppProtoAcmeV1 gone, two more added. 
+                    Added ICS_NID_acmeIdentifier created dynamically on startup.
 
 
 
@@ -273,6 +274,10 @@ var
     ICS_OPENSSL_VERSION_NUMBER  : Longword  = 0;
     ICS_SSL_NO_RENEGOTIATION    : Boolean = FALSE;
     ICS_RAND_INIT_DONE          : Boolean = FALSE;   { V8.35 have we initialised random numbers }
+
+  { V8.62 dynamically added NID objects, if any set need call OBJ_cleanup on close down }
+    ICS_NID_acmeIdentifier      : Integer = 0;
+
 
 const
  { found in \include\openssl\opensslv.h }
@@ -1830,8 +1835,9 @@ type
 
  { V8.57 challenge types, differing certificate types support differing challenges,
      some have to be processed manually taking several days. }
-    TChallengeType = (ChallNone, ChallFileUNC, ChallFileFtp, ChallFileSrv, ChallDNS,
-                      ChallEmail, ChallAlpnUNC, ChallAlpnSrv, ChallManual);
+    TChallengeType = (ChallNone, ChallFileUNC, ChallFileFtp, ChallFileSrv,
+                      ChallFileApp, ChallDNS,  ChallEmail, ChallAlpnUNC,
+                      ChallAlpnSrv, ChallAlpnApp, ChallManual);   { V8.62 App added }
 
 { V8.40 OpenSSL streaming ciphers with various modes }
 { pending ciphers, rc5, cast5, if we care }

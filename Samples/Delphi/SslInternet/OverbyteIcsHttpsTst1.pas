@@ -87,11 +87,11 @@ Feb 6, 2019  V8.60 Add Socket Family selection for IPv4 and/or IPv6, previously
                  ignored IPV6 only hosts.
              Report SessionConnnected event with actual IP address.
              OpenSSL 1.0.2 only tick box gone, not needed any longer.
-Jun 10, 2019 V8.82 Removed DH file, only for servers.
+Jul 25, 2019 V8.82 Removed DH file, only for servers.
              Security Level uses newer Client Security Levelxxx, note that setting
                Ignore uses Min/Max Protocol and Cipher instead.
              Support ProxyURL which combines four proxy options into single URL.
-
+             SslAlpnProto replaced SslGetAlpnProto. 
 
 
 // pending add persistent cookie support, and gzip content encoding
@@ -1100,9 +1100,9 @@ begin
     Display('Handshake done, error #' + IntToStr (ErrCode) +
                                      ' - ' + HttpCli.CtrlSocket.SslHandshakeRespMsg);  { V8.00 }
 
-    { V8.56 see if ALPN selected by server }
-    if HttpCli.CtrlSocket.SslGetAlpnProtocol <> '' then
-        Display('Application layer protocol selected: ' + HttpCli.CtrlSocket.SslGetAlpnProtocol);
+    { V8.56 see if ALPN selected by server, V8.62 now property }
+    if HttpCli.CtrlSocket.SslAlpnProto <> '' then
+        Display('Application layer protocol selected: ' + HttpCli.CtrlSocket.SslAlpnProto);
 
     { A simple custom verification that may be unsecure!...               }
     { See also SslVerifyPeer above.                                       }

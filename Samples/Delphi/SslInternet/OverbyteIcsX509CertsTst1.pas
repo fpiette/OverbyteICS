@@ -9,9 +9,9 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     May 2018
-Updated:      June 2019
+Updated:      July 2019
 Version:      8.62
-Support:      Use the mailing list ics@elists.org
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
@@ -50,15 +50,19 @@ Oct 19, 2018 - V8.58 Bug fixes
 Feb 21, 2019 - V8.60 Using new TIcsBuffLogStream for UTF8 or UTF16 file logging,
                  one log per day rather than per session.
                Added Socket Family to allow use with IPv6 hosts.
-Jun 13, 2019 - V8.62 Supplier tab displays paths for cert and well-known dirs.
+Jul 25, 2019 - V8.62 Supplier tab displays paths for cert and well-known dirs.
                      Load several type lists from literals for future proofing.
                      Removed Acme V1 protocol support (withdrawn from Nov 2019)
                      OpenSSL 1.0.2 only tick box gone, not needed any longer.
                      Added Proxy URL support, might be needed for servers behind
                        NAT firewalls for public access.
                      CertCenter AlwaysOn is discontinued and removed.
-                     Comodo is now called Sectigo, sometimes old name still used. 
+                     Comodo is now called Sectigo, sometimes old name still used.
+                     Clear SAN grid properly.
+                   BEWARE tls-alpn-01 challenge not working yet, wrong certificate
+                     is sent to client.
 
+                      
 
 For docunentation on how to use this sample, please see a lengthy Overview in
 the OverbyteIcsSslX509Certs.pas unit.
@@ -705,14 +709,14 @@ end;
 
 procedure TX509CertsForm.AddLog(const S: string);
 begin
-    if Pos (IcsLF, S) > 0 then
-        LogWin.Lines.Text := LogWin.Lines.Text + IcsCRLF + S
-    else
-       LogWin.Lines.Add (S) ;
-    SendMessage(LogWin.Handle, EM_LINESCROLL, 0, 999999);
+    try
+        if Pos (IcsLF, S) > 0 then
+            LogWin.Lines.Text := LogWin.Lines.Text + IcsCRLF + S
+        else
+           LogWin.Lines.Add (S) ;
+        SendMessage(LogWin.Handle, EM_LINESCROLL, 0, 999999);
 
   { V8.60 write log file }
-    try
         if (DirLogs.Text = '') then Exit ;
         if NOT Assigned(FIcsBuffLogStream) then Exit; // sanity check
         FIcsBuffLogStream.WriteLine(S);
@@ -1449,7 +1453,7 @@ begin
     DirWellKnown.Text := '';
     for I := 1 to CertSANGrid.RowCount - 1 do begin
         for J := 0 to 3 do
-            CertSANGrid.Cells[0,J] := '';
+            CertSANGrid.Cells[J,I] := '';
     end;
 end;
 
@@ -1598,7 +1602,7 @@ end;
 procedure TX509CertsForm.doWebServerClick(Sender: TObject);
 begin
     SetCommParams;
-    X509Certs1.StartDomSrv;
+    X509Certs1.StartDomSrv('localhost', '');
 end;
 
 end.

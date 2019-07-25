@@ -1308,7 +1308,7 @@ Mar 18, 2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
                      in server IcsHosts if TLS1.3 fails.
 Apr 16, 2019 V8.61 Fixed ValidateCertChain to check certificate start and expiry
                       dates in UTC time instead of local time.
-Jul 04, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functions
+Jul 25, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functions
                      outside this unit.
                    DHParams only needed for servers, don't use if using client
                      security to avoid issues with high security levels.
@@ -1317,7 +1317,9 @@ Jul 04, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functio
                    SSL ALPN now properly tested, for client SslAlpnProtocol property
                      returns what the server selects (if anything), for server the
                      selected protocol is now correctly sent.
-
+                   Moved FIcsLogger to TIcsWndControl ao that unit can log errors.
+                   Added source to HandleBackGroundException so we know where
+                       errors come from, when using IcsLogger.
 
 Pending - server certificate bundle files may not have server certificate as first
 Pending - intermediate certificate bundle files may have self signed root that should be ignored
@@ -1956,10 +1958,10 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     FonException        : TIcsException; { V8.36 }
     FAddrResolvedStr    : String;        { V8.60 IPv4 or IPv6 address }
 {$IFNDEF NO_DEBUG_LOG}
-    FIcsLogger          : TIcsLogger;                                           { V5.21 }
-    procedure   SetIcsLogger(const Value : TIcsLogger); virtual;                { V5.21 }
-    procedure   DebugLog(LogOption : TLogOption; const Msg : String); virtual;  { V5.21 }
-    function    CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { V5.21 }
+//  FIcsLogger          : TIcsLogger;                        { V5.21, V8.62 moved to TIcsWndControl }
+  procedure   SetIcsLogger(const Value : TIcsLogger); virtual;                { V5.21 }
+  procedure   DebugLog(LogOption : TLogOption; const Msg : String); virtual;  { V5.21 }
+  function    CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { V5.21 }
 {$ENDIF}
     procedure   AbortComponent; override; { V7.35 }
     procedure   WndProc(var MsgRec: TMessage); override;
@@ -7343,7 +7345,7 @@ begin
         end;
     except
         on E:Exception do
-            HandleBackGroundException(E);
+            HandleBackGroundException(E, 'TCustomWSocket.WndProc');
     end;
 end;
 
@@ -8270,8 +8272,7 @@ begin
                 bMore := FALSE;
         except
             on E:Exception do
-                HandleBackGroundException(E);       { V8.62 don't ignore user errors } 
-         {   bMore := FALSE;   }
+                HandleBackGroundException(E, 'TCustomWSocket.ASyncReceive');       { V8.62 don't ignore user errors }
         end;
     end;
 end;
@@ -11043,7 +11044,7 @@ begin
                     OnError := TmpOnError;
                 end;
             except on E: Exception do
-                HandleBackGroundException(E);
+                HandleBackGroundException(E, 'TCustomWSocket.TriggerDNSLookupDone');
             end
         else
             TriggerSessionConnected(Error);
@@ -12308,7 +12309,7 @@ begin
                 WMTriggerDataAvailable(MsgRec)
             except
                 on E:Exception do
-                    HandleBackGroundException(E);
+                    HandleBackGroundException(E, 'TCustomLineWSocket.WndProc');
             end;
         end
         else
@@ -20456,7 +20457,7 @@ begin
                 FSslEnable := FALSE;
                 ResetSSL;
                 inherited InternalClose(FALSE, WSAECONNABORTED);
-                HandleBackGroundException(E);
+                HandleBackGroundException(E, 'TCustomSslWSocket.Dup');
             end;
         end;
     end;
@@ -21855,8 +21856,6 @@ begin
             WMSslASyncSelect(MsgRec)
         else if MsgRec.Msg = FMsg_WM_TRIGGER_DATASENT then
             TriggerDataSent(0)
-        {else if MsgRec.Msg = WM_TRIGGER_SSLHANDSHAKEDONE then
-            WMSslHandshakeDone(MsgRec)}
         else if MsgRec.Msg = FMsg_WM_RESET_SSL then
             ResetSsl
         else if MsgRec.Msg = FMsg_WM_BI_SSL_SHUTDOWN then
@@ -21867,7 +21866,7 @@ begin
             inherited WndProc(MsgRec);
     except                                                       // <= 12/12/05
         on E:Exception do
-            HandleBackGroundException(E);
+            HandleBackGroundException(E, 'TCustomSslWSocket.WndProc');  { V8.62 }
     end;
 end;
 
@@ -21978,7 +21977,7 @@ begin
                 FSslEnable := FALSE;
                 ResetSsl;
                 inherited InternalClose(FALSE, WSAECONNABORTED);
-                HandleBackGroundException(E);
+                HandleBackGroundException(E, 'TCustomSslWSocket.TriggerSessionConnected');
             end;
         end;
     end;
@@ -23258,7 +23257,7 @@ begin
         WMHttpTunnelReconnect(MsgRec)
     except
         on E: Exception do
-            HandleBackGroundException(E);
+            HandleBackGroundException(E, 'TCustomHttpTunnelWSocket');
     end
     else
         inherited WndProc(MsgRec);

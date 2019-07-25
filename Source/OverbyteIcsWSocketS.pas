@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.60
+Version:      8.62
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1999-2019 by François PIETTE
@@ -196,7 +196,7 @@ Dec 04, 2018  V8.59 Sanity checks reading mistyped enumerated values from INI fi
 Mar 18, 2019  V8.60 Added WebLogIdx to IcsHosts for web server logging.
                     Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
                        in server IcsHosts if TLS1.3 fails.
-Jul 03, 2019  V8.82  When ordering X509 certificate, ChallFileSrv challenge now
+Jul 25, 2019  V8.62  When ordering X509 certificate, ChallFileSrv challenge now
                      uses separate local web server for servers not using ports
                       80 or 443 such as FTP, SMTP, proxies, etc.
                     If IcsHosts SslCert is not found but have a valid directory,
@@ -205,6 +205,14 @@ Jul 03, 2019  V8.82  When ordering X509 certificate, ChallFileSrv challenge now
                       SslCert changes during ValidateHosts and update persistent
                       storage.
                     Moved BuildCertName here from X509Certs.
+                    Added source to HandleBackGroundException so we know where
+                        errors come from, when using IcsLogger.
+                    Support tls-alpn-01 SSL certificate challenge, client has new
+                      OnClientAlpnChallg event that should provide the new self
+                      signed ACME certificate for the challenge.
+                   BEWARE tls-alpn-01 challenge not working yet, wrong certificate
+                     is sent to client.
+                     
 
 
 Quick reference guide:
@@ -686,6 +694,10 @@ uses
 const
     WSocketServerVersion     = 862;
     CopyRight : String       = ' TWSocketServer (c) 1999-2019 F. Piette V8.62 ';
+ { V8.62 ALPN requests that may arrive during SSL helo }
+    AlpnAcmeTls1 = 'acme-tls/1';
+    AlpnHttp11   = 'http/1.1';
+    AlpnHttp2    = 'h2';
 
 type
     TCustomWSocketServer       = class;
@@ -1021,6 +1033,9 @@ Description:  A component adding SSL support to TWSocketServer.
 
 type
 
+  TClientAlpnChallgEvent = procedure (Sender: TObject; const Host: string; var CertFName: string) of object;   { V8.62 }
+
+
 { TIcsHost defines the bindings for an SSL TCP/IP server, usually a web server,
    such as which address and port to listen, which host names to accept using
    which SSL certificate, and server related set-up such as directories }
@@ -1059,7 +1074,7 @@ type
     FBindIdx2None: Integer;
     FBindIdx2Ssl: Integer;
     FWellKnownPath: string;    { V8.49 }
-    { see http://www.iana.org/assignments/well-known-uris/well-known-uris.xhtml } 
+    { see http://www.iana.org/assignments/well-known-uris/well-known-uris.xhtml }
     FWebRedirectURL: string;   { V8.49 }
     FWebRedirectStat: integer; { V8.49 }
   { V8.57 following are for automatic ordering and installation of SSL certificates }
@@ -1076,6 +1091,7 @@ type
     procedure SetHostNames(Value : TStrings);
   public
     SslCtx: TSslContext;
+    SavedX509: TX509Base;  { V8.62 used during tls-alpn-01 cert swapping }
     property HostNameTot : Integer               read  GetHostNameTot;
     property DisplayName : String                read  GetDisplayName;
     property CertDomains : String                read  FCertDomains;
@@ -1176,7 +1192,9 @@ type
 
     TSslWSocketClient = class(TWSocketClient)
     public
+        OnClientAlpnChallg: TClientAlpnChallgEvent;       { V8.62 }
         constructor Create(AOwner : TComponent); override;
+        destructor  Destroy; override;                    { V8.62 }
         procedure   StartConnection; override;
         procedure   TriggerSslServerName(var Ctx: TSslContext; var ErrCode: TTlsExtError); override; { V8.45 }
         procedure   TriggerSslAlpnSelect(ProtoList: TStrings;
@@ -1193,6 +1211,7 @@ type
         FSslCliCertMethod: TSslCliCertMethod;     { V8.57 }
         FSslCertAutoOrder: Boolean;               { V8.57 }
         FCertExpireDays: Integer;                 { V8.57 }
+//        FAlpnHost: Integer;                       { V8.62 }
      { should be TSslX509Certs but causes circular reference, so need to cast }
 {$IFDEF AUTO_X509_CERTS}  { V8.59 }
         FSslX509Certs: TComponent;             { V8.57 }
@@ -1402,7 +1421,7 @@ begin
                 WMClientClosed(MsgRec)
             except
                 on E:Exception do
-                    HandleBackGroundException(E);
+                    HandleBackGroundException(E, 'TCustomWSocketServer.WndProc');
             end;
         end
         else
@@ -2900,7 +2919,7 @@ begin
                 Client.SslEnable := False;
                 Client.Abort;
                 { Don't abort silently }
-                Client.HandleBackGroundException(E);            // AG 12/18/05
+                Client.HandleBackGroundException(E, 'TriggerClientConnectd Accept SSL Handshake');    { V8.62 }
             end;
         end;
     end;
@@ -3207,8 +3226,6 @@ begin
                 end;
                 if ForceLoad or (FInterFStamp <> NewFStamp) then begin
                     LoadNew := True;
-               //    Info := Info + #13#10 +
-               //            'Loading new SSL  intermediate certificate: ' + FSslInter;
                     FInterFStamp := NewFStamp;
                     SslCtx.SslCertX509.LoadIntersFromPemFile(FSslInter);
                 end;
@@ -3241,7 +3258,8 @@ begin
             end;
 
          // should we try and download a new certificate
-            if FSslCertAutoOrder and (CertSupplierProto > SuppProtoNone) then begin
+            if FSslCertAutoOrder and (CertSupplierProto > SuppProtoNone) and
+                                                Assigned(FSslX509Certs) then begin
                 if OrderCert(HostNr) then
                     FCertErrs := FCertErrs + ', Ordered New Certificate'
                 else
@@ -3334,6 +3352,8 @@ begin
             if Stop1stErr then Raise;
         end;
     end;
+
+// set-up bindings and SSL context for each host
     MultiListenSockets.Clear;
     for I := 0 to FIcsHosts.Count - 1 do begin
         with FIcsHosts [I] do begin
@@ -3345,7 +3365,7 @@ begin
             FBindIdx2None := -2;
             FBindIdxSsl := -2;
             FBindIdx2Ssl := -2;
-            if NOT (FHostEnabled) then continue;
+            if (NOT FHostEnabled) then continue;
 
          { create up to four bindings for host, IPv4, IPv6, non-SSL, SSL }
             if (FBindNonPort = 0) and (BindSslPort = 0) then continue;
@@ -3475,11 +3495,10 @@ begin
                     Result := Result + 'Host #' + IntToStr(I) + ' ' + FHostNames[0] +
                                                                ', '  + FCertErrs + #13#10;
                 if NOT LoadFlag then begin
-                    if Stop1stErr then begin
+                    if Stop1stErr then begin   //  we may load cert later
                         if NoExceptions then Exit;
                         raise ESocketException.Create(FCertErrs);
                     end;
-                 //   Continue;    we may load cert later
                 end;
                 SslCtx.InitContext;
             end;
@@ -3568,6 +3587,14 @@ begin
 end;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+destructor TSslWSocketClient.Destroy;   { V8.62 }
+begin
+//   FreeAndNil(AlpnSslCtx);
+  inherited;
+end;
+
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TSslWSocketClient.StartConnection;
 begin
@@ -3585,9 +3612,9 @@ begin
 
   { if event has not set an SslContext, look for IcsHost instead }
     if NOT Assigned(Ctx) then begin
-         with FServer as TSslWSocketServer do begin
+        with FServer as TSslWSocketServer do begin
             if FIcsHosts.Count > 0 then begin
-               for I := 0 to FIcsHosts.Count - 1 do begin
+                for I := 0 to FIcsHosts.Count - 1 do begin
                     if NOT (FIcsHosts [I].HostEnabled) then continue;
                     if (FIcsHosts [I].FBindIdxSsl <> Self.FMultiListenIdx) and
                          (FIcsHosts [I].FBindIdx2Ssl <> Self.FMultiListenIdx) then continue;
@@ -3603,6 +3630,19 @@ begin
                         break;
                     end;
                 end;
+
+            { V8.62 is saved real SSL server certifcate during ACME tls-alpn-01 challenge, restore it }
+                if (Self.FIcsHostIdx >= 0) then begin
+                    with FIcsHosts [Self.FIcsHostIdx] do begin
+                        if Assigned(SavedX509) then begin
+                            SslCtx.SslCertX509.X509 := SavedX509.X509;
+                            SslCtx.SslCertX509.PrivateKey := SavedX509.PrivateKey;
+                            SslCtx.SslCertX509.X509Inters := SavedX509.X509Inters;
+                            SslCtx.SslSetCertX509;
+                            FreeAndNil(SavedX509);
+                        end;
+                    end;
+                end;
             end;
         end;
     end;
@@ -3610,13 +3650,91 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 application layer protocol negotiation, servers only }
+{ V8.62 application layer protocol negotiation, servers only }
 procedure TSslWSocketClient.TriggerSslAlpnSelect(ProtoList: TStrings;
                           var SelProto: String; var ErrCode: TTlsExtError);
+var
+    CertFName: String;
+    MyServer: TSslWSocketServer;
+{$IFNDEF NO_DEBUG_LOG}
+    Cert: TX509Base;  // temp
+{$ENDIF}
 begin
+    if ProtoList.Count = 0 then Exit;     { sanity check }
+
+   // check for Acme TLS challenge for Acme SSL certificate, load it
+    if (ProtoList[0] = AlpnAcmeTls1) then begin
+        MyServer := FServer as TSslWSocketServer;
+        ErrCode := teeAlertFatal;   // connection dies unless we handle challenge
+        SelProto := AlpnAcmeTls1;
+        if Assigned(OnClientAlpnChallg) then begin
+
+        // if application can handle ACME tls-alpn-01 challenge, ask for certificate
+            CertFName := '';
+            try
+                OnClientAlpnChallg(Self, Self.SslServerName, CertFName);
+                if (CertFName <> '') and FileExists(CertFName) then begin
+
+                // save original certificate and private key
+                    with MyServer.FIcsHosts [Self.FIcsHostIdx] do begin
+                        if NOT Assigned(SavedX509) then begin
+                            SavedX509 := TX509Base.Create(self);
+                            SavedX509.X509 := SslCtx.SslCertX509.X509;
+                            SavedX509.PrivateKey := SslCtx.SslCertX509.PrivateKey;
+                            SavedX509.X509Inters := SslCtx.SslCertX509.X509Inters;
+                        end;
+
+                  // load new certifcate into existing context
+                  // !!! July 2019 Does not appear to work old certificare presented, perhaps needs to be done earlier.
+                  // also tried changing to new context, but always get exception when sending certificate.
+                        SslCtx.SslCertX509.LoadFromFile(CertFName, croTry, croTry, 'password');
+                        SslCtx.SslSetCertX509;
+                        if SslCtx.CheckPrivateKey then begin
+                            {$IFNDEF NO_DEBUG_LOG}
+                            if CheckLogOptions(loSslInfo) then
+                                DebugLog(loSslInfo, 'Loaded new tls-alpn-01 challenge certificate: ' +
+                                                                     SslCtx.SslCertX509.CertInfo(true));
+                                Cert := TX509Base.Create(self);
+                                SslCtx.SslGetCerts(Cert);
+                                DebugLog(loSslInfo, 'Hosts Ctx: ' + Cert.CertInfo(false) + ', PKey: ' + Cert.PrivateKeyInfo);
+                                Self.SslContext.SslGetCerts(Cert);
+                                DebugLog(loSslInfo, 'Client Ctx: ' + Cert.CertInfo(false) + ', PKey: ' + Cert.PrivateKeyInfo);
+                                Cert.Free;
+                            {$ENDIF}
+                            ErrCode := teeOk;
+                        end
+                        else begin
+                        {$IFNDEF NO_DEBUG_LOG}
+                            if CheckLogOptions(loSslInfo) then
+                                DebugLog(loSslInfo, 'Failed to load certificate, no private key or Context Error: ' + CertFName);
+                        {$ENDIF}
+                        end;
+                    end;
+                end
+                else begin
+                {$IFNDEF NO_DEBUG_LOG}
+                    if CheckLogOptions(loSslInfo) then
+                        DebugLog(loSslInfo, 'Failed to find tls-alpn-01 challenge certificate: ' + CertFName);
+                {$ENDIF}
+                end;
+                Exit;
+            except
+                on E:Exception do begin
+                {$IFNDEF NO_DEBUG_LOG}
+                    if CheckLogOptions(loSslInfo) then
+                        DebugLog(loSslInfo, 'Exception handling tls-alpn-01 challenge: ' + E.Message);
+                {$ENDIF}
+                end;
+            end ;
+        end
+        else begin
+            {$IFNDEF NO_DEBUG_LOG}
+                if CheckLogOptions(loSslInfo) then
+                    DebugLog(loSslInfo, 'ACME tls-alpn-01 challenge not handled');
+            {$ENDIF}
+        end;
+    end;
     inherited TriggerSslAlpnSelect(ProtoList, SelProto, ErrCode);
-//    if Assigned(FOnSslAlpnSelect) then
-//        FOnSslAlpnSelect(Self, ProtoList, SelProto, ErrCode);
 end;
 
 

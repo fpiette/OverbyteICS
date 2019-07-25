@@ -3,10 +3,10 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
-Updated:      Apr 2019
-Version:      8.61
+Updated:      July 2019
+Version:      8.62
 Support:      Use the mailing list ics-ssl@elists.org
-Legal issues: Copyright (C) 2003-2018 by François PIETTE
+Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -58,9 +58,10 @@ Apr 24, 2019 - V8.61 Added DNS over HTTPS REST example using Json.
                         for £6.50 (about $9) which gives 100 message credits.
                         Other similar bureaus can be added, provided there is an
                         account for testing.
-Jun 12, 2019 - V8.62 Supporting SMS Works at https://thesmsworks.co.uk/ for SMS.
+Jul 25, 2019 - V8.62 Supporting SMS Works at https://thesmsworks.co.uk/ for SMS.
                      Added Proxy URL for proxy support, ie http://[user[:password]@]host:port
-
+                     Allow Application Layer Protocol Negotiation (ALPN) to be set,
+                        mainly for HTTP/2 which we don't support yet, also Let's Encrypt. 
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -152,6 +153,7 @@ type
     KapowAccPw: TEdit;
     KapowAccName: TEdit;
     SmsWorksLoginJson: TMemo;
+    AlpnProtos: TEdit;
 
  // properties not saved
     LogWin: TMemo;
@@ -229,6 +231,7 @@ type
     doSmsWorksCredit: TButton;
     LabelSmsWorksCredits: TLabel;
     Label31: TLabel;
+    Label32: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure HttpRest1HttpRestProg(Sender: TObject; LogOption: TLogOption;
       const Msg: string);
@@ -425,6 +428,7 @@ begin
           KapowAccPw.Text := ReadString (SectionData, 'KapowAccPw_Text', KapowAccPw.Text) ;
           KapowAccName.Text := ReadString (SectionData, 'KapowAccName_Text', KapowAccName.Text) ;
           SmsWorksLoginJson.Lines.CommaText := ReadString (SectionData, 'SmsWorksLoginJson_Lines', '') ;
+          AlpnProtos.Text := ReadString (SectionData, 'AlpnProtos_Text', AlpnProtos.Text) ;
        end;
         IniFile.Free;
     end;
@@ -513,6 +517,7 @@ begin
       WriteString (SectionData, 'KapowAccPw_Text', KapowAccPw.Text) ;
       WriteString (SectionData, 'KapowAccName_Text', KapowAccName.Text) ;
       WriteString (SectionData, 'SmsWorksLoginJson_Lines', SmsWorksLoginJson.Lines.CommaText) ;
+      WriteString (SectionData, 'AlpnProtos_Text', AlpnProtos.Text) ;
     end;
     IniFile.UpdateFile;
     IniFile.Free;
@@ -628,6 +633,7 @@ begin
     HttpRest1.Password := AuthPassword.Text;
     HttpRest1.AuthBearerToken := AuthBearer.Text;
     HttpRest1.ProxyURL := ProxyURL.Text;                        { V8.62 }
+    HttpRest1.AlpnProtocols.Text := AlpnProtos.Text;            { V8.62 }
     HttpRest1.ExtraHeaders := ExtraHeaders.Lines;
     HttpRest1.SocketFamily := TSocketFamily(IpSockFamily.ItemIndex);  { V8.60 IP4 and/or IPV6 }
 end;
@@ -683,6 +689,8 @@ var
     CVal: String;
 begin
     doStartReq.Enabled := True;
+    if HttpRest1.GetAlpnProtocol <> '' then
+        AddLog ('ALPN Requested by Server: ' + HttpRest1.GetAlpnProtocol);
     if ErrCode <> 0 then begin
         AddLog('Request failed, error #' + IntToStr(ErrCode) +
               '. Status = ' + IntToStr(HttpRest1.StatusCode) +

@@ -3,7 +3,7 @@ object HttpRestForm: THttpRestForm
   Top = 176
   Caption = 
     'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.62 -' +
-    ' 12th June 2019'
+    ' 25th July 2019'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace
@@ -24,7 +24,7 @@ object HttpRestForm: THttpRestForm
     Top = 0
     Width = 823
     Height = 315
-    ActivePage = TabSettings
+    ActivePage = TabREST
     Align = alTop
     TabOrder = 0
     object TabREST: TTabSheet
@@ -162,6 +162,10 @@ object HttpRestForm: THttpRestForm
     object TabSettings: TTabSheet
       Caption = 'Settings'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label2: TLabel
         Left = 10
         Top = 245
@@ -170,11 +174,13 @@ object HttpRestForm: THttpRestForm
         Caption = 'Optional Root CA Bundle File'
       end
       object Label4: TLabel
-        Left = 490
+        Left = 480
         Top = 5
-        Width = 115
-        Height = 14
+        Width = 56
+        Height = 44
+        AutoSize = False
         Caption = 'Special Extra Header(s)'
+        WordWrap = True
       end
       object Label6: TLabel
         Left = 460
@@ -217,6 +223,13 @@ object HttpRestForm: THttpRestForm
         Width = 51
         Height = 14
         Caption = 'Proxy URL'
+      end
+      object Label32: TLabel
+        Left = 477
+        Top = 74
+        Width = 139
+        Height = 14
+        Caption = 'App Layer Proto Neg (ALPN)'
       end
       object DebugLogging: TRadioGroup
         Left = 10
@@ -288,12 +301,12 @@ object HttpRestForm: THttpRestForm
         Top = 260
         Width = 341
         Height = 22
-        TabOrder = 14
+        TabOrder = 15
       end
       object ExtraHeaders: TMemo
-        Left = 490
-        Top = 25
-        Width = 256
+        Left = 545
+        Top = 5
+        Width = 238
         Height = 59
         Lines.Strings = (
           'ExtraHeaders')
@@ -318,35 +331,35 @@ object HttpRestForm: THttpRestForm
       end
       object AuthLogin: TEdit
         Left = 545
-        Top = 90
+        Top = 95
         Width = 141
         Height = 22
-        TabOrder = 7
+        TabOrder = 8
       end
       object AuthPassword: TEdit
         Left = 545
-        Top = 115
+        Top = 120
         Width = 141
         Height = 22
         PasswordChar = '*'
-        TabOrder = 8
+        TabOrder = 9
       end
       object AuthBearer: TEdit
         Left = 545
-        Top = 140
+        Top = 145
         Width = 241
         Height = 22
         Hint = 'A token is used instead of Auth Login credentials'
         ParentShowHint = False
         ShowHint = True
-        TabOrder = 9
+        TabOrder = 10
       end
       object SslRootBundleFile: TEdit
         Left = 10
         Top = 260
         Width = 341
         Height = 22
-        TabOrder = 13
+        TabOrder = 14
       end
       object IpSockFamily: TRadioGroup
         Left = 10
@@ -368,7 +381,7 @@ object HttpRestForm: THttpRestForm
         Top = 233
         Width = 31
         Height = 25
-        TabOrder = 12
+        TabOrder = 13
         OnClick = SelDirLogsClick
         Glyph.Data = {
           76010000424D7601000000000000760000002800000020000000100000000100
@@ -390,22 +403,38 @@ object HttpRestForm: THttpRestForm
         Top = 205
         Width = 326
         Height = 22
-        TabOrder = 11
+        TabOrder = 12
       end
       object ProxyURL: TEdit
         Left = 545
-        Top = 165
+        Top = 170
         Width = 241
         Height = 22
         Hint = 'Use a proxy URL, ie http://[user[:password]@]host:port'
         ParentShowHint = False
         ShowHint = True
-        TabOrder = 10
+        TabOrder = 11
+      end
+      object AlpnProtos: TEdit
+        Left = 645
+        Top = 70
+        Width = 141
+        Height = 22
+        Hint = 
+          'May be blank, or http/1.1 to negotiate that protocol specificall' +
+          'y'
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 7
       end
     end
     object TabOAuth: TTabSheet
       Caption = 'OAuth'
       ImageIndex = 2
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label19: TLabel
         Left = 300
         Top = 220
@@ -649,7 +678,7 @@ object HttpRestForm: THttpRestForm
         Top = 215
         Width = 106
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 4
         Text = '127.0.0.1'
       end
@@ -720,6 +749,10 @@ object HttpRestForm: THttpRestForm
     object TabDNSHTTPS: TTabSheet
       Caption = 'DNS over HTTPS'
       ImageIndex = 3
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label23: TLabel
         Left = 10
         Top = 15
@@ -746,7 +779,7 @@ object HttpRestForm: THttpRestForm
         Top = 10
         Width = 346
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 0
         Text = 'https://cloudflare-dns.com/dns-query'
         Items.Strings = (
@@ -762,7 +795,7 @@ object HttpRestForm: THttpRestForm
         Top = 40
         Width = 201
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 1
         Text = 'pool.ntp.org'
         Items.Strings = (
@@ -785,7 +818,7 @@ object HttpRestForm: THttpRestForm
         Width = 201
         Height = 22
         Style = csDropDownList
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 2
       end
       object doDNSJson: TButton
@@ -835,10 +868,18 @@ object HttpRestForm: THttpRestForm
     object TabTwitter: TTabSheet
       Caption = 'Twiiter'
       ImageIndex = 4
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
     end
     object TabSms: TTabSheet
       Caption = 'Send SMS'
       ImageIndex = 5
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object BoxSmsMsg: TGroupBox
         Left = 3
         Top = 3
@@ -1118,6 +1159,7 @@ object HttpRestForm: THttpRestForm
     SslRootFile = 'RootCaCertsBundle.pem'
     SslRevocation = False
     SslReportChain = False
+    SslAllowSelfSign = False
     OnHttpRestProg = HttpRest1HttpRestProg
     OnRestRequestDone = HttpRest1RestRequestDone
     Left = 60

@@ -543,10 +543,13 @@ Apr 09, 2019 V8.61 OAS : Improved NTLM authentication by adding Single Sign On w
                    Added more header response properties: RespDateDT,
                      RespLastModDT, RespExpires, RespCacheControl.
                    NoCache now sends Cache-Control: no-cache for HTTP/1.1
-Jun 10, 2019 V8.62 Added httpAuthJWT using AuthBearerToken for Json Web Token
+Jun 25, 2019 V8.62 Added httpAuthJWT using AuthBearerToken for Json Web Token
                       authentication.
                    Added ProxyURL property which combines four proxy properties
                      as a URL for simplicity, ie http://[user[:password]@]host:port
+                   Added AlpnProtocols property which is sent when an SSL connection
+                     starts and GetAlpnProtocol which returns which the server
+                     supports.     
 
 
 To convert the received HTML stream to a unicode string with the correct codepage,
@@ -904,6 +907,7 @@ type
         FRespExpires          : TDateTime;     { V8.61 }
         FRespAge              : Integer;       { V8.61 }
         FRespCacheControl     : String;        { V8.61 }
+        FAlpnProtoList        : TStrings;      { V8.62 only used for SSL }
         FTimeout              : UINT;  { V7.04 }            { Sync Timeout Seconds }
         FWMLoginQueued        : Boolean;
         procedure AbortComponent; override; { V7.11 }
@@ -1300,6 +1304,7 @@ type
         function  GetSslContext: TSslContext;
         procedure SetSslAcceptableHosts(Value : TStrings);
         function  GetSslAcceptableHosts: TStrings;
+        procedure SetAlpnProtocols(ProtoList: TStrings);               { V8.62 }
 
         procedure TransferSslVerifyPeer(Sender        : TObject;
                                         var Ok        : Integer;
@@ -1315,11 +1320,14 @@ type
                                             var Cert   : TX509Base); virtual;
     public
         procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
+        function    GetAlpnProtocol: String;
     published
         property SslContext         : TSslContext         read  GetSslContext
                                                           write SetSslContext;
         property SslAcceptableHosts : TStrings            read  GetSslAcceptableHosts
                                                           write SetSslAcceptableHosts;
+        property AlpnProtocols      : TStrings            read  FAlpnProtoList
+                                                          write SetAlpnProtocols; { V8.62 }
         property OnSslVerifyPeer    : TSslVerifyPeerEvent read  FOnSslVerifyPeer
                                                           write FOnSslVerifyPeer;
         property OnSslCliGetSession : TSslCliGetSession
@@ -1462,6 +1470,7 @@ begin
     FSocketFamily                  := DefaultSocketFamily;   { V8.00 }
     FLastAddrOK                    := '';     { V8.60 }
     FCurrDnsResult                 := -1;     { V8.60 }
+    FAlpnProtoList                 := TStringList.Create;  { V8.62 }
 end;
 
 
@@ -1470,6 +1479,7 @@ destructor THttpCli.Destroy;
 begin
     FDoAuthor.Free;
     FreeAndNil(FCtrlSocket);
+    FAlpnProtoList.Free;     { V8.62 }
     FRcvdHeader.Free;
     FExtraHeaders.Free;      { V8.52 }
     FReqStream.Free;
@@ -5234,6 +5244,9 @@ begin
         FCtrlSocket.SslEnable := FALSE
     else
         FCtrlSocket.SslEnable := (FProtocol = 'https');
+  { V8.62 set Alpn Protocols in SslCtx }
+    if FAlpnProtoList.Count > 0 then
+        FCtrlSocket.SslContext.SetSslAlpnProtocols(FAlpnProtoList);
 end;
 
 
@@ -5335,6 +5348,28 @@ begin
         Result := FCtrlSocket.SslAcceptableHosts
     else
         Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.62 keep application layer protocols supported, may not be able to set
+        it yet since needs SslCtx }
+procedure TSslHttpCli.SetAlpnProtocols(ProtoList: TStrings);
+begin
+    if NOT Assigned(ProtoList) then Exit;
+    if FAlpnProtoList.Text <> ProtoList.Text then
+        FAlpnProtoList.Assign(ProtoList);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.62 keep application layer protocols supported }
+function TSslHttpCli.GetAlpnProtocol: String;
+begin
+    if Assigned(FCtrlSocket) then
+        Result := FCtrlSocket.SslAlpnProto
+    else
+        Result := '';
 end;
 
 

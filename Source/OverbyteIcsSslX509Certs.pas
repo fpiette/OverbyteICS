@@ -9,10 +9,10 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     Apr 2018
-Updated:      June 2019
+Updated:      July 2019
 Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
@@ -661,7 +661,7 @@ Nov 2, 2018   - V8.58 - Bug fixes and more documentation.
                         Descend components from TIcsWndControl not TComponent
 Feb 6, 2019   - V8.60   Added SocketFamily property to allow both IPv4 and IPv6.
 Apr 16, 2017  - V8.61   Certificate dates are in UTC not local time.
-Jun 18, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
+Jul 25, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
                         Added literals for various types to assist apps.
                         Removed Acme V1 protocol support (withdrawn from Nov 2019)
                         AcmeV2 now supports POST-as-GET per RFC8555 for the final
@@ -670,15 +670,21 @@ Jun 18, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
                           NAT firewalls for public access.
                        CertCenter AlwaysOn is discontinued and removed.
                        Comodo is now called Sectigo, sometimes old name still used.
-                       Moved BuildCertName to X509Utils
+                       Moved BuildCertName to X509Utils.
+                       Check can create certificate directories before order starts.
+                       Added ChallFileApp and ChallAlpnApp which mean SocketServer
+                         checks the challenge database in this unit using an event
+                         rather than writing files.
+                       Support tls-alpn-01 challenge for local web server on 443.
+                       BEWARE tls-alpn-01 challenge not working yet, wrong certificate
+                         is sent to client.
 
 
-                       
+
 Pending - more documentation
 Pending - keep CertCentre admin details as supplier
 Pending - Challenge timer relaxed checking for completed orders after waiting
           x minutes (currently every 30 secs)
-Pending - tls-alpn-01 challenge for local web server on 443
 Pending - Acme EC accounts, signing currently fails validation
 Pending - Acme revoke certificate
 Pending - CertCentre re-issue certificate, use ModifiedOrders for last x days
@@ -729,6 +735,7 @@ uses
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsWndControl,
     Ics.Fmx.OverbyteIcsWSocket,
+    Ics.Fmx.OverbyteIcsWSocketS,
     Ics.Fmx.OverbyteIcsHttpProt,
     Ics.Fmx.OverbyteIcsSslJose,
     Ics.Fmx.OverbyteIcsSslHttpRest,
@@ -737,6 +744,7 @@ uses
 {$ELSE}
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
+    OverbyteIcsWSocketS,
     OverbyteIcsHttpProt,
     OverbyteIcsSslJose,
     OverbyteIcsSslHttpRest,
@@ -827,6 +835,7 @@ type
         CPage: String;         // .well-known/page URL for challenge or domain for DNS
         CResp: String;         // page token content for challenge
         CDNSValue: String;     // DNS record value
+        CAcmeAlpnCert: String; // V8.62 full file name for acme-tls/1 challenge SSL certificate
         CStartDT: TDateTime;
         CDoneDT: TDateTime;
         CValidResult: String;   // challenge validation result or error
@@ -861,8 +870,9 @@ const
 
     ChallengeTypeLits: array[TChallengeType] of String =
         ('None', 'File - Web Server - UNC', 'File - Web Server - FTP',
-        'File - Local Web Server', 'Domain Name Server', 'Email manually',
-        'TLS-ALPN Cert - Web UNC', 'TLS-ALPN Cert - Local Web', 'Manual');
+        'File - Local Web Server', 'File - App Web Server', 'Domain Name Server',
+        'Email manually', 'TLS-ALPN Cert - Web UNC', 'TLS-ALPN Cert - Local Web',
+        'TLS-ALPN Cert - App Web', 'Manual');
 
     IssueStateLits: array[TIssueState] of String =
          ('None', 'Ready', 'Checked', 'Challg Pend', 'Challg OK',
@@ -924,7 +934,6 @@ const
         'PfZ+G6Z6h7mjem0Y+iWlkYcV4PIWL1iwBi8saCbGS5jN2p8M+X+Q7UNKEkROb3N6' + #13#10 +
         'KOqkqm57TH2H3eDJAkSnh6/DNFu0Qg==' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10;
-
 
 var
     AcmeActionDirs: array [1..AcmeActionTot] of AcmeActionDir = (
@@ -1154,6 +1163,7 @@ TSslX509Certs = class(TIcsWndControl)
     FPendOpenAccount: String;
     FLastResponse: String;
     FSocketFamily: TSocketFamily;   { V8.60 }
+    FFileCertLocalHost: String;     { V8.60 }
   protected
     { Protected declarations }
     procedure RestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
@@ -1161,6 +1171,7 @@ TSslX509Certs = class(TIcsWndControl)
     procedure LogTimeStamp;
 //    procedure SetError(ErrCode: Integer; const Msg: String);
     procedure WebSrvReq(Sender: TObject; const Host, Path, Params: string; var RespCode, Body: string);
+    procedure WebSrvAlpn(Sender: TObject; const Host: string; var CertFName: string);  { V8.62 } 
     procedure ChallengeOnTimer(Sender: TObject);
     procedure SetSubAltNames(Value: TSubAltNames);
     procedure OAuthNewToken(Sender: TObject);
@@ -1173,7 +1184,7 @@ TSslX509Certs = class(TIcsWndControl)
     { Public declarations }
     constructor  Create (Aowner: TComponent); override;
     destructor   Destroy; override;
-    function  StartDomSrv: boolean ;
+    function  StartDomSrv(const HostName, CertBundle: String): Boolean ;
     function  StopDomSrv: boolean ;
     function  DomSrvIsRunning: Boolean;
     procedure HttpRestRestRequestDone(Sender: TObject;
@@ -1183,6 +1194,7 @@ TSslX509Certs = class(TIcsWndControl)
     function OAGrantRefresh: boolean;
     function OAGrantAuthToken(const Code: String): boolean;
     function TestWellKnown(const aDomain, aDirWellKnown: String): Boolean;
+    function TestTlsAlpn(const aDomain, aDirWellKnown: String): Boolean;  { V8.62 }
     function SaveDataFile(const FName, Data: String): Boolean;
     procedure SetFullFileNames(const FileDir: String);
     function CreateKeyandReq: boolean;
@@ -1251,6 +1263,7 @@ TSslX509Certs = class(TIcsWndControl)
     function SelfSign: Boolean;
     function CheckCSR(RequirePkey: Boolean = True): Boolean;
     function GetOrderResult: String;
+    function CreateAcmeAlpnCert(const FileName, CName, KeyAuth: String): Boolean;  { V8.62 }
 
     property ProductJson: ISuperObject              read FProductJson;
     property ProductDVAuth: String                  read FProductDVAuth;
@@ -1544,6 +1557,7 @@ begin
     FDomWebServer := TSimpleWebSrv.Create(self);
     FDomWebServer.OnServerProg := RestProg;
     FDomWebServer.OnSimpWebSrvReq := WebSrvReq;
+    FDomWebServer.OnSimpWebSrvAlpn := WebSrvAlpn;  { V8.62 } 
     FHttpRest := TSslHttpRest.Create(self);   // REST requests
     FHttpRest.OnHttpRestProg := RestProg;
     FHttpTest := TSslHttpRest.Create(self);   // test .well-known requests
@@ -1691,20 +1705,48 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TSslX509Certs.StartDomSrv: boolean ;
+function TSslX509Certs.StartDomSrv(const HostName, CertBundle: String): Boolean ;
 begin
+//    if (FDomWebServer.WebSrvHostName <> HostName) then StopDomSrv;   { V8.62 }
     Result := DomSrvIsRunning;
-    if NOT Result then begin
+    if (NOT Result) then begin
         DBReadChallenges;  // get pending challenges
         FDomWebServer.DebugLevel := Self.FDebugLevel;
         FDomWebServer.WebSrvIP := FDomWebSrvIP;
         FDomWebServer.WebSrvPort := '80';
+        if HostName <> '' then begin   { V8.62 }
+            FDomWebServer.WebSrvPort := '80';
+            FDomWebServer.WebSrvPortSsl := '443';
+            FDomWebServer.WebSrvHostName := HostName;
+            if CertBundle <> '' then
+                FDomWebServer.WebSrvCertBundle := CertBundle
+            else begin
+                if FDirCertWork = '' then begin
+                    LogEvent('Need Working Directory to Create LocalHost Certificate');
+                    Exit;
+                end;
+                FFileCertLocalHost := IncludeTrailingPathDelimiter(FDirCertWork) + 'cert-localhost.pem';
+                if NOT FileExists(FFileCertLocalHost) then begin
+                    if NOT CreateAcmeAlpnCert(FFileCertLocalHost, 'localhost', '') then begin
+                        LogEvent('Failed to Create LocalHost Certificate: ' + FFileCertLocalHost);
+                        Exit;
+                    end;
+                end;
+                FDomWebServer.WebSrvCertBundle := FFileCertLocalHost;
+;           end;
+        end
+        else begin
+            FDomWebServer.WebSrvPortSsl := '0';
+            FDomWebServer.WebSrvHostName := '';
+        end;
         Result := FDomWebServer.StartSrv;
         if Result then
-            LogEvent('Local Web Server Started on: ' + IcsFmtIpv6AddrPort(FDomWebSrvIP, '80'))
+            LogEvent('Local Web Server Started on: ' + FDomWebServer.ListenStates)    { V8.62 }
         else
             LogEvent('Local Web Server Failed to Start');
-    end;
+    end
+    else
+       LogEvent('Local Web Server Already Running');
 end;
 
 
@@ -1750,9 +1792,7 @@ begin
         Exit;
     end;
 
-//    FLastWebTick := IcsGetTickCountX;   // timeout to close server
-    LogTimeStamp;
-    LogEvent('Web Server Request, Host: ' + Host + ', Path: ' + Path + ', Params: ' + Params);
+    LogEvent(RFC3339_DateToStr(Now) + ' Web Server Request, Host: ' + Host + ', Path: ' + Path + ', Params: ' + Params);
  //   FullURL := 'http://' + Host + Path;
     RespData := '';
 
@@ -1786,6 +1826,37 @@ begin
         Body := RespData;
     end;
   { web page is sent by event handler }
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ event called by simple web server when tls-alpn-01 challenge requested }
+procedure TSslX509Certs.WebSrvAlpn(Sender: TObject; const Host: string; var CertFName: string);
+var
+    I: Integer; 
+begin
+    LogEvent(RFC3339_DateToStr(Now) + ' Web Server tls-alpn-01 Challenge Request, Host: ' + Host);
+
+    try
+      /// check if host has Acme certificate created
+        if ( FChallengesTot > 0) and (Length(FChallengeItems) > 0) then begin
+            for I := 0 to Length(FChallengeItems) - 1 do begin
+                if FChallengeItems [I].CDomain = IcsLowerCase(Host) then begin  // was it for our domain
+                    with FChallengeItems [I] do begin
+                        if (CAcmeAlpnCert <> '') then begin
+                            CertFName := CAcmeAlpnCert;
+                            LogEvent('Web Server tls-alpn-01 Challenge Certificate: ' + CertFName);
+                            break;
+                        end;
+                    end;
+                end;
+            end;
+        end;
+    except
+        on E:Exception do begin
+            LogEvent('Failed to find tls-alpn-01 Challenge - ' + E.Message);
+        end;
+    end;
 end;
 
 
@@ -1960,6 +2031,11 @@ begin
     ChallgNum := -1;
     fullname := '';
 
+ // start local web server if need it
+    if fSuppCertChallenge = ChallFileSrv then begin
+        if NOT StartDomSrv('', '') then Exit;
+    end;
+
  // UNC file share, create file on remote server
     if fSuppCertChallenge = ChallFileUNC then begin
         if (Pos ('\', aDirWellKnown) = 0) or (aDirWellKnown[Length(aDirWellKnown)] <> '\') then begin
@@ -1971,8 +2047,7 @@ begin
         fullname := aDirWellKnown + 'ics-validation\' + testfile;  // backslashes
         if NOT SaveDataFile(fullname, randomstr) then Exit ;
     end
-    else if fSuppCertChallenge = ChallFileSrv then begin
-        if NOT StartDomSrv then Exit;
+    else if fSuppCertChallenge in [ChallFileSrv, ChallFileApp] then begin
       // save database challenge - only in array, never saved to database since temporary
         CurChallenge.CDomain := aDomain;
         CurChallenge.ChallengeURL := URL;
@@ -2013,6 +2088,152 @@ begin
     end;
     if ChallgNum >= 0 then DBRemoveChallenge(ChallgNum); // delete challenge
     if (fullname <> '') and FileExists(FullName) then DeleteFile(FullName);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// create a self signed certificate for the ACME tls-alpn-01 challenge with the provided token
+// also creates simple self signed if no keyauth, for localhost
+function TSslX509Certs.CreateAcmeAlpnCert(const FileName, CName, KeyAuth: String): Boolean;
+var
+    MySslCertTools: TSslCertTools;
+    Hash{, Hash2, temp}: AnsiString;
+ {   Ext: TExtension;  }
+begin
+    Result := False;
+    if KeyAuth <> '' then begin
+        LogEvent ('keyAuthorization: ' + KeyAuth);
+        Hash := IcsHashDigest(AnsiString(KeyAuth), Digest_sha256);
+    end;
+    MySslCertTools := TSslCertTools.Create(nil);
+    try
+        try
+            MySslCertTools.CommonName := CName;
+            MySslCertTools.AltDNSList.Text := CName;
+            if KeyAuth <> '' then begin
+                MySslCertTools.AcmeIdentifier := IcsBufferToHex(Hash);
+                LogEvent ('AcmeIdentifier: ' + MySslCertTools.AcmeIdentifier +
+                            ', Len=' + IntToStr(Length (MySslCertTools.AcmeIdentifier)));
+            end;
+            MySslCertTools.BasicIsCA := False;
+            MySslCertTools.PrivKeyType := PrivKeyRsa2048;
+            if KeyAuth <> '' then
+                MySslCertTools.ExpireDays := 7
+            else
+                MySslCertTools.ExpireDays := 2000;
+            MySslCertTools.KeyCertSign := true;
+            MySslCertTools.KeyDigiSign := true;
+            MySslCertTools.KeyNonRepud := true;
+            MySslCertTools.KeyKeyEnc := true;
+            MySslCertTools.KeyExtServer := true;
+
+          { create private and public key, then create SSL certificate }
+            MySslCertTools.DoKeyPair;
+            MySslCertTools.DoSelfSignCert;
+
+          { now save them to PEM files - no passwords }
+            MySslCertTools.SaveToPemFile(FileName, True, True, False);
+
+           { write raw cert to log }
+            LogEvent ('SSL certificate: ' + IcsCRLF + MySslCertTools.GetRawText);
+         {   if KeyAuth <> '' then begin  // diag
+                Ext := MySslCertTools.GetExtensionByName('acmeIdentifier');
+                LogEvent('extension DER acmeIdentifier=' + Ext.Value);
+                temp := StringReplace(Ext.Value, ':', '', [rfReplaceAll]);
+                Hash2 := IcsHexToBin(Copy (temp, 5, 99));  // skip 0420
+                if Hash = Hash2 then
+                    LogEvent('acmeIdentifier hash matched OK')
+                else
+                    LogEvent('acmeIdentifier hash mismatch failed');
+           end;   }
+           result := true ;  // OK
+        except
+            on E:Exception do begin
+                LogEvent ('Failed to create SSL certificate: ' + E.Message);
+            end;
+        end;
+    finally
+        MySslCertTools.Free;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// make sure the host accessible from the internet with SSL and supports the
+// tls-alpn-01 challenge.  Otherwise domain validation will fail.
+
+function TSslX509Certs.TestTlsAlpn(const aDomain, aDirWellKnown: String): Boolean;
+var
+    URL, CertFName, fakedomain: string;
+    ChallgNum: integer;
+    CurChallenge: TChallengeItem;
+begin
+    result := false;
+    URL := 'https://' + aDomain + '/';
+    ChallgNum := -1;
+    CertFName := 'fake-acmealpn-' + BuildCertName(aDomain) + '.pem';
+    fakedomain := 'fake-' + aDomain;
+    LogEvent('Checking the tls-alpn-01 challenge works from the internet: ' + aDomain);
+
+ // UNC file share, create file on remote server
+    if fSuppCertChallenge = ChallAlpnUNC then begin
+        if (Pos ('\', aDirWellKnown) = 0) or (aDirWellKnown[Length(aDirWellKnown)] <> '\') then begin
+            LogEvent('Invalid Well Known Directory: ' + aDirWellKnown);
+            Exit;
+        end;
+        CertFName := aDirWellKnown + CertFName;
+        if NOT CreateAcmeAlpnCert(CertFName, fakedomain, '1234') then begin
+            LogEvent('Failed to Create ACME ALPN SSL Certificate: ' + CertFName);
+            Exit;
+        end;
+    end
+    else if fSuppCertChallenge in [ChallAlpnSrv, ChallAlpnApp] then begin
+        CertFName := FDirCertWork + CertFName;
+        if NOT CreateAcmeAlpnCert(CertFName, fakedomain, '1234') then begin
+            LogEvent('Failed to Create ACME ALPN SSL Certificate: ' + CertFName);
+            Exit;
+        end;
+      // save database challenge - only in array, never saved to database since temporary
+        CurChallenge.CDomain := aDomain;
+        CurChallenge.CIssueState := IssStateNone;
+        CurChallenge.CAcmeAlpnCert := CertFName;
+        ChallgNum := DBAddChallenge(CurChallenge);
+    end
+    else begin
+        LogEvent('tls-alpn-01 challenge not specified');
+        exit;
+    end;
+
+  // try and connect via HTTPS, expect to fail due to self signed certificate
+    try
+        FHttpTest.AlpnProtocols.Text := AlpnAcmeTls1;
+        FHttpTest.SocketFamily := FSocketFamily;
+        FHttpTest.ProxyURL := FProxyURL;
+        FHttpTest.CertVerMethod := CertVerBundle;
+        FHttpTest.SslAllowSelfSign := True;
+        FHttpTest.SslReportChain := True;
+        FHttpTest.RestParams.Clear;
+        LogEvent('ALPN Request to: ' + URL);
+        FHttpTest.RestRequest(HttpGET, URL, False, '');
+        if (FHttpTest.StatusCode <> 200) and (FHttpTest.GetAlpnProtocol = '') then begin
+            LogEvent('Failed to check tls-alpn-01 challenge:  ' + FHttpTest.LastResponse);
+        end
+        else begin
+            Result := (FHttpTest.GetAlpnProtocol = AlpnAcmeTls1); // we reached Acme aware server
+            if Result then
+                LogEvent('Successfully created and accessed tls-alpn-01 challenge')
+            else
+                LogEvent('Failed tls-alpn-01 challenge, ALPN Received:  ' + FHttpTest.GetAlpnProtocol);
+
+        // pending, check host matched
+        end;
+    except
+        on E:Exception do begin
+            LogEvent('Could not access URL: ' + URL + ' - ' + E.Message);
+        end;
+    end;
+    if ChallgNum >= 0 then DBRemoveChallenge(ChallgNum); // delete challenge
+//  if (CertFName <> '') and FileExists(CertFName) then DeleteFile(CertFName);
 end;
 
 
@@ -2649,6 +2870,7 @@ begin
                     CPage := ReadString (section, 'CPage', '') ;
                     CResp := IcsUnEscapeCRLF(ReadString (section, 'CResp', '')) ;
                     CDNSValue := ReadString (section, 'CDNSValue', '') ;
+                    CAcmeAlpnCert := ReadString (section, 'CAcmeAlpnCert', '') ; // V8.62
                     CStartDT := RFC3339_StrToDate(ReadString (section, 'CStartDT', '')) ;
                     CDoneDT := RFC3339_StrToDate(ReadString (section, 'CDoneDT', '')) ;
                     CValidResult := ReadString (section, 'CValidResult', '') ;
@@ -2714,6 +2936,7 @@ begin
             WriteString (section, 'CPage', CPage) ;
             WriteString (section, 'CResp', IcsEscapeCRLF(CResp)) ;
             WriteString (section, 'CDNSValue', CDNSValue) ;
+            WriteString (section, 'CAcmeAlpnCert', CAcmeAlpnCert) ; // V8.62
             WriteString (section, 'CStartDT', RFC3339_DateToStr(CStartDT)) ;
             WriteString (section, 'CDoneDT', RFC3339_DateToStr(CDoneDT)) ;
             WriteString (section, 'CValidResult', CValidResult) ;
@@ -2831,13 +3054,13 @@ begin
     if (NOT ReadOnly) and (FPartFNameServer.Count > 0) then begin
         for I := 0 to FPartFNameServer.Count - 1 do begin
             if NOT ForceDirectories (FPartFNameServer[I]) then begin
-                LogEvent ('Failed to create directory: ' + FPartFNameServer[I]);
+                LogEvent ('Failed to create certificate directory: ' + FPartFNameServer[I]);
                 Exit;
             end;
         end;
     end;
 
- // finmally add common domain name
+ // finally add common domain name
     FPartFNameServer.Sorted := False;  // now editing list
     if (FPartFNameServer.Count > 0) then begin
         for I := 0 to FPartFNameServer.Count - 1 do begin
@@ -3646,14 +3869,14 @@ begin
     BuildSANList;
 
  // validate some options
-    if ((fSuppCertChallenge = ChallAlpnUNC) or (fSuppCertChallenge = ChallAlpnUNC)) then begin
+    if (fSuppCertChallenge in [ChallAlpnUNC, ChallAlpnUNC, ChallAlpnApp]) then begin
         LogEvent ('ALPN SSL Validation Not Available for this Supplier');
         Exit;
     end;
 
   // see is need to start local web server
     if DomainCheck and (fSuppCertChallenge in [ChallFileSrv]) then begin
-        if NOT StartDomSrv then Exit;
+        if NOT StartDomSrv('', '') then Exit;
     end;
 
   // check challenges and if domain is available for Well-Known
@@ -3839,7 +4062,7 @@ var
 
         // nothing to do for local web server except start it
            if (CurChallenge.CType = ChallFileSrv) then begin
-                if NOT StartDomSrv then Exit;
+                if NOT StartDomSrv('', '') then Exit;
                 LogEvent ('Local web server will respond to .Well-Known URL: ' + CurChallenge.ChallengeURL);
                 Result := True;
             end;
@@ -5112,6 +5335,7 @@ begin
 end;
 
 
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 // find or create Acme account, get action URLs
 function TSslX509Certs.SetAcmeAccount(CreateNew: Boolean = False): boolean;
@@ -5263,6 +5487,10 @@ begin
         LogEvent ('Getting actions from ACME server: ' + FAcmeHost);
         FAcmeRespNonce := '';
         if NOT AcmeGetRequest(httpGET, FSupplierServer, Nil) then exit;
+        if (fAcmeLastStatus <> 200) or (NOT Assigned(FHttpRest.ResponseJson)) then begin     { V8.62 }
+            LogEvent ('Failed to get ACME Server Action URLs');
+            exit;
+        end;
         LogEvent ('Downloaded ACME Server Action URLs OK');
         for I := 1 to AcmeActionTot do begin
             AcmeActionDirs [I].URL := FHttpRest.ResponseJson.S[AcmeActionDirs [I].Action];
@@ -5276,17 +5504,21 @@ begin
                 if I > 0 then begin
                     TermsFname := Copy (FAcmeTermsUrl, I + 1, 999);
                     FullName := DirCertWork + TermsFName;
-                    if NOT (FileExists (FullName)) then begin
+                    if (IcsGetFileSize (FullName) < 2000) then begin  { V8.62 not blank file }
                         if NOT AcmeGetRequest(httpGET, fAcmeTermsUrl, Nil) then exit;
-                        if FHttpRest.ResponseStream.Size > 256 then
-                        try
-                            FHttpRest.ResponseStream.SaveToFile(FullName);
-                            LogEvent ('Downloaded new Terms: ' + FullName);
-                        except
-                            on E:Exception do
-                                LogEvent ('Failed to save terms file: ' +
-                                                Fullname + ' - ' + E.Message);
-                        end;
+                        if (fAcmeLastStatus = 200) and (FHttpRest.ResponseStream.Size > 2000) then begin
+                            try
+                                FHttpRest.ResponseStream.SaveToFile(FullName);
+                                LogEvent ('Downloaded new Terms: ' + FullName);
+                            except
+                                on E:Exception do
+                                    LogEvent ('Failed to save terms file: ' +
+                                                    Fullname + ' - ' + E.Message);
+                            end;
+                        end
+                        else
+                            LogEvent ('Failed to read terms file: ' +
+                                        fAcmeTermsUrl + ' - ' + FHttpRest.LastResponse); 
                     end
                     else
                         LogEvent ('Terms already downloaded: ' + FullName);
@@ -5405,18 +5637,19 @@ begin
  // make sure common name is also in SANs, so we can ignore it subsequently
     BuildSANList;
 
-// validate some settings
-    if (FSupplierProto <> SuppProtoAcmeV2) and (FCertSANTot > 1) then begin
-        LogEvent ('Acme V2 Required for More Than One Domain Name');
-        Exit;
-    end;
-
 // see if challenge supported
     if (fSuppCertChallenge = ChallNone) then begin
         LogEvent ('No Challenge Validation Specified');
         Exit;
     end;
-    if (FSupplierProto <> SuppProtoAcmeV2) and (Pos ('*.', fCertCommonName) = 1) and
+
+ // validate some settings
+  {  if (FSupplierProto <> SuppProtoAcmeV2) and (FCertSANTot > 1) then begin
+        LogEvent ('Acme V2 Required for More Than One Domain Name');
+        Exit;
+    end;      }
+
+ {   if (FSupplierProto <> SuppProtoAcmeV2) and (Pos ('*.', fCertCommonName) = 1) and
                                             (fSuppCertChallenge <> ChallDNS)  then begin
         LogEvent ('Wild Card Certificates Not Supported by Supplier');
         Exit;
@@ -5425,26 +5658,35 @@ begin
                                              (FSupplierProto <> SuppProtoAcmeV2) then begin
         LogEvent ('ALPN SSL Validation Not Available for this Supplier');
         Exit;
-    end;
-    if (fSuppCertChallenge = ChallEmail) then begin
-        LogEvent ('EMAIL Validation Not Available for this Supplier');
+    end;   }
+
+    if (fSuppCertChallenge in [ChallEmail, ChallManual]) then begin
+        LogEvent ('EMAIL and Manual Validation Not Available for this Supplier');
         Exit;
+    end;
+
+  // see is need to start local web server
+    if (fSuppCertChallenge = ChallFileSrv) then begin
+        if NOT StartDomSrv('', '') then Exit;
+    end
+    else if (fSuppCertChallenge = ChallAlpnSrv) then begin
+        if NOT StartDomSrv('localhost', '') then Exit;
     end;
 
  // see if checking challenge by creatng and reading Well-Known file
     if DomainCheck then begin
 
-      // see is need to start local web server
-        if (fSuppCertChallenge in [ChallFileSrv, ChallAlpnSrv]) then begin
-            if NOT StartDomSrv then Exit;
-        end;
-
       // where the well known directory is located for rach domain
         if FIssueState < IssStateChecked then begin
-            if (fSuppCertChallenge in [ChallFileUNC, ChallFileFtp, ChallFileSrv,
-                                              ChallAlpnUNC, ChallAlpnSrv]) then begin
+            if (fSuppCertChallenge in [ChallFileUNC, ChallFileFtp, ChallFileApp]) then begin
                 for I := 0 to FCertSubAltNames.Count - 1 do begin
                     if NOT TestWellKnown(FCertSubAltNames[I].SADomain,
+                                    FCertSubAltNames[I].SADirWellKnown) then exit;
+                end;
+            end
+            else if (fSuppCertChallenge in [ChallAlpnSrv, ChallAlpnUNC, ChallAlpnApp]) then begin
+                for I := 0 to FCertSubAltNames.Count - 1 do begin
+                    if NOT TestTlsAlpn(FCertSubAltNames[I].SADomain,
                                     FCertSubAltNames[I].SADirWellKnown) then exit;
                 end;
             end
@@ -5478,14 +5720,6 @@ begin
         Exit;
     end;
 
- // check challenge allowed,  and well known directory for each domain on certificate
- // loads internal variables from database
-    if FIssueState <> IssStateChecked then begin
-        if NOT AcmeCheckOrder(True, True) then Exit;    // update database
-    end;
-    LogTimeStamp;
-    LogEvent ('Starting Let''s Encrypt Certificate Order for: ' + fCertCommonName);
-
 // new order so clear stuff from last order
     FAcmeOrderFinalizeUrl := '';
     FAcmeOrderObjUrl := '';
@@ -5508,7 +5742,18 @@ begin
     FNewCertStartDT := 0;
     FPendingChallg := 0;
 
-// order info
+// V8.62 check we can creeate certificate directories before order starts
+    if NOT SetPartFNames (False) then Exit ;
+
+ // check challenge allowed,  and well known directory for each domain on certificate
+ // loads internal variables from database
+    if FIssueState <> IssStateChecked then begin
+        if NOT AcmeCheckOrder(True, True) then Exit;    // update database
+    end;
+    LogTimeStamp;
+    LogEvent ('Starting Let''s Encrypt Certificate Order for: ' + fCertCommonName);
+
+    // order info
     FNewOrderNum := DBNewOrderNum;
     if FSuppOrderRef = '' then
             FSuppOrderRef := 'ICS-' + IntToStr(FNewOrderNum);
@@ -5523,9 +5768,11 @@ begin
             ChallFileUNC: AuthMethod := 'http-01';
             ChallFileFtp: AuthMethod := 'http-01';
             ChallFileSrv: AuthMethod := 'http-01';
+            ChallFileApp: AuthMethod := 'http-01';
             ChallDNS:     AuthMethod := 'dns-01';
             ChallAlpnUNC: AuthMethod := 'tls-alpn-01';
             ChallAlpnSrv: AuthMethod := 'tls-alpn-01';
+            ChallAlpnApp: AuthMethod := 'tls-alpn-01';
             else begin
                 LogEvent ('Unsupported Challenge Method');
                 Exit;
@@ -5682,7 +5929,6 @@ Response (length 919)
                 CurChallenge.CDirWellKnown := '';
                 CurChallenge.CDirPubWebCert := '';
                 CurChallenge.CIssueState := IssStateNone;
-//                FindSAN(CurChallenge.Domain);
                 CurChallenge.CSanIdx := DBFindSAN(CurChallenge.CDomain);
                 if CurChallenge.CSanIdx < 0 then begin  // sanity check
                     CurChallenge.CSanIdx := 0;
@@ -5701,11 +5947,17 @@ Response (length 919)
                         if ChallgJson.S['type'] = AuthMethod then begin
                             CurChallenge.ChallengeURL := ChallgJson.S['url'];
                             CurChallenge.ChallgToken := ChallgJson.S['token'];
-                            if fSuppCertChallenge in [ChallFileSrv, ChallAlpnSrv] then
-                                CurChallenge.CPage := 'acme-challenge/' + CurChallenge.ChallgToken  // URL path
+                            CurChallenge.CResp := CurChallenge.ChallgToken  + '.' + fAcmeKwkThumb;   // key authorization
+                            if fSuppCertChallenge in [ChallAlpnSrv, ChallAlpnUNC, ChallAlpnApp] then begin  { V8.62 }
+                                CurChallenge.CAcmeAlpnCert := 'acmealpn-' + BuildCertName(CurChallenge.CDomain) + '.pem';
+                                if fSuppCertChallenge = ChallAlpnUNC then
+                                    CurChallenge.CPage := 'acme-challenge\' + CurChallenge.CAcmeAlpnCert ; // file path for copying
+                                break;
+                            end;
+                            if fSuppCertChallenge in [ChallFileSrv, ChallFileApp] then
+                                CurChallenge.CPage := 'acme-challenge/' + CurChallenge.ChallgToken  // URL path for local server
                             else
-                                CurChallenge.CPage := 'acme-challenge\' + CurChallenge.ChallgToken; // file path
-                            CurChallenge.CResp := CurChallenge.ChallgToken  + '.' + fAcmeKwkThumb;
+                                CurChallenge.CPage := 'acme-challenge\' + CurChallenge.ChallgToken; // file path for copying
                             break;
                         end;
                     end;
@@ -5718,10 +5970,11 @@ Response (length 919)
                     CurChallenge.CDirPubWebCert := FCertSubAltNames[CurChallenge.CSanIdx].SADirPubWebCert;
 
                 // save well-known file with Key Authorization content
-                   if (CurChallenge.CType = ChallFileUNC) then begin
+                    if (CurChallenge.CType = ChallFileUNC) then begin
                         if CurChallenge.CDirWellKnown <> '' then begin
                             CurChallenge.CWKFullName := CurChallenge.CDirWellKnown + CurChallenge.CPage;
-                            LogEvent ('Built domain validation file name: ' + CurChallenge.CWKFullName + ', saving token: ' + CurChallenge.CResp);
+                            LogEvent ('Built domain validation file name: ' +
+                                        CurChallenge.CWKFullName + ', saving token: ' + CurChallenge.CResp);
                             if NOT SaveDataFile (CurChallenge.CWKFullName, CurChallenge.CResp) then Exit ;
                         end
                         else
@@ -5730,7 +5983,7 @@ Response (length 919)
 
                 // create base64 SHA256 digest of CResp for
                 // ie  _acme-challenge.example.org. 300 IN TXT "gfj9Xq...Rg85nM"
-                   if (CurChallenge.CType = ChallDNS) then begin
+                    if (CurChallenge.CType = ChallDNS) then begin
                         CurChallenge.CPage :=  '_acme-challenge.' + CurChallenge.CDomain;
                         CurChallenge.CDNSValue := String(IcsBase64UrlEncodeA
                             (IcsHashDigest(AnsiString(CurChallenge.CResp), Digest_sha256)));
@@ -5739,12 +5992,36 @@ Response (length 919)
                     end;
 
                 // FTP handled by application
-                   if (CurChallenge.CType = ChallFileFtp) then begin
+                    if (CurChallenge.CType = ChallFileFtp) then begin
                         CurChallenge.CWKFullName := FDirCertWork + CurChallenge.CPage;
-                        LogEvent ('Built domain validation file name: ' + CurChallenge.CWKFullName + ', saving token: ' + CurChallenge.CResp);
+                        LogEvent ('Built domain validation file name: ' +
+                                        CurChallenge.CWKFullName + ', saving token: ' + CurChallenge.CResp);
                         if NOT SaveDataFile (CurChallenge.CWKFullName, CurChallenge.CResp) then Exit ;
                         LogEvent ('!!! Must FTP Challege File to .Well-Known Directory for: ' + CurChallenge.CDomain);
                         if Assigned(FonChallengeFTP) then FonChallengeFTP(Self, CurChallenge);
+                    end;
+
+                // V8.62 ALPN local or app server, create ACME certificate in working directory
+                    if fSuppCertChallenge in [ChallAlpnSrv, ChallAlpnApp] then begin
+                        CurChallenge.CAcmeAlpnCert := FDirCertWork + CurChallenge.CAcmeAlpnCert;
+                        if NOT CreateAcmeAlpnCert(CurChallenge.CAcmeAlpnCert,
+                                CurChallenge.CDomain, CurChallenge.CResp) then begin
+                            LogEvent('Failed to Create ACME ALPN SSL Certificate: ' + CurChallenge.CAcmeAlpnCert);
+                            Exit;
+                        end;
+                        LogEvent ('Built ACME ALPN SSL Certificate: ' + CurChallenge.CAcmeAlpnCert);
+                    end;
+
+                // V8.62 ALPN UNC path, create ACME certificate in remote directory
+                    if fSuppCertChallenge = ChallAlpnUNC then begin
+                        CurChallenge.CWKFullName := FDirCertWork + CurChallenge.CPage;
+                        if NOT CreateAcmeAlpnCert(CurChallenge.CWKFullName,
+                                CurChallenge.CDomain, CurChallenge.CResp) then begin
+                            LogEvent('Failed to Create ACME ALPN SSL Certificate: ' + CurChallenge.CWKFullName);
+                            Exit;
+                        end;
+                        LogEvent ('Built ACME ALPN SSL Certificate: ' + CurChallenge.CWKFullName);
+
                     end;
                 end ;
 
@@ -5852,11 +6129,16 @@ begin
             Exit;
         end;
 
-    // delete challenge fileif no longer need it
+    // delete challenge file if no longer need it
         if (CWKFullName <> '') then begin
             if NOT DeleteFile(CWKFullName) then
                         LogEvent ('Failed to delete old file: ' + CWKFullName) ;
         end;
+        if (CAcmeAlpnCert <> '') then begin
+         // if NOT DeleteFile(CAcmeAlpnCert) then
+         //             LogEvent ('Failed to delete old file: ' + CAcmeAlpnCert) ;
+        end;
+
  (*
  Acme V2
 Request completed: 200 OK
@@ -6267,6 +6549,9 @@ begin
              // delete old challenge files
                 if (CWKFullName <> '') then begin
                     if FileExists(CWKFullName) then DeleteFile(CWKFullName);
+                end;
+                if (CAcmeAlpnCert <> '') then begin
+                    if FileExists(CAcmeAlpnCert) then DeleteFile(CAcmeAlpnCert);
                 end;
                 DBDeleteChallenge(CDomain);  // remove from database
             end;

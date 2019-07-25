@@ -6,8 +6,7 @@ Creation:     Aug 26, 2007
 Description:  SSL key and X509 certification creation
 Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list ics-ssl@elists.org
-              Follow "SSL" link at http://www.overbyte.be for subscription.
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2007-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
@@ -106,8 +105,9 @@ Oct 2, 2018  V8.57 tidy up UnwrapNames.
              Added SaveToCADatabase which saves CA database entry to CADBFile
              Added COMODO ECC Certification Authority root
              Build with FMX
-Jun 17, 2019 V8.62  Added literals for various types to assist apps.
-             Moved BuildCertName here from X509Certs.
+Jul 04, 2019 V8.62  Added literals for various types to assist apps.
+             Added AcmeIdentifier property for ACME validation certificate
+
 
 
 Pending - long term
@@ -440,6 +440,7 @@ type
         FAltIa5Str         : array of PASN1_STRING;
         FAltGenStr         : array of PGENERAL_NAME;
         FCADBFile          : String;   { V8.57 }
+        FAcmeIdentifier    : String;   { V8.62 }
     protected
         function    BuildBasicCons(IsCA: Boolean): AnsiString;
         function    BuildKeyUsage: AnsiString;
@@ -520,6 +521,7 @@ type
         property AltIssuer         : String             read FAltIssuer     write FAltIssuer;
         property CRLDistPoint      : String             read FCRLDistPoint  write FCRLDistPoint;
         property AuthInfoAcc       : String             read FAuthInfoAcc   write FAuthInfoAcc;
+        property AcmeIdentifier    : String             read FAcmeIdentifier write FAcmeIdentifier; { V8.62 }
         property BasicIsCA         : Boolean            read FBasicIsCA     write FBasicIsCA;
         property BasicPathLen      : Integer            read FBasicPathLen  write FBasicPathLen;
         property KeyCertSign       : Boolean            read FKeyCertSign   write FKeyCertSign;
@@ -553,7 +555,6 @@ procedure CreateSelfSignedCert(const FileName, Country, State,
   IsCA: Boolean; Days: Integer;
   const KeyFileName: String = ''; Comment: boolean = false);  overload;
 
-function BuildCertName(const Domain: String): String;  { V8.62 }
 
 { RSA crypto functions }
 
@@ -1734,15 +1735,6 @@ begin
     end ;
 
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-// V8.62 create certificate file name from domain common name, change . to _ and * to x
-function BuildCertName(const Domain: String): String;
-begin
-    Result := StringReplace (Domain, '.', '_', [rfReplaceAll]) ;
-    if Result = '' then Exit;
-    if Result [1] = '*' then Result [1] := 'x';  // can not have * in file names
-end;
-
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure RaiseLastOpenSslError(
@@ -2526,7 +2518,7 @@ begin
             TempSerial.HighPart := IcsRandomInt($7FFFFFFF);
             FSerialNum := TempSerial.QuadPart;
         end;
-        if FExpireDays < 30 then FExpireDays := 30;
+        if FExpireDays < 7 then FExpireDays := 7;  { V8.62 was 30 }
         f_ASN1_INTEGER_set_int64(f_X509_get_serialNumber(FNewCert), FSerialNum);
         f_X509_gmtime_adj(f_Ics_X509_get_notBefore(FNewCert), 0);
         f_X509_gmtime_adj(f_Ics_X509_get_notAfter(FNewCert), 60 * 60 * 24 * FExpireDays);
@@ -2628,6 +2620,15 @@ begin
       { Authority Info Access - OCSP;URI:http://ocsp.myhost.com/ }
         if FAuthInfoAcc <> '' then begin
             SetCertExt(FNewCert, NID_info_access, AnsiString(FAuthInfoAcc));
+        end;
+
+      { V8.62 acmeIdentifier "1.3.6.1.5.5.7.1.31" or OBJ_id_pe,31L, dynamically created NID,
+        expecting binary sha256 digest in hex }
+  //    if Length(FAcmeIdentifier) = 64 then begin
+        if Length(FAcmeIdentifier) > 0 then begin
+            SetCertExt(FNewCert, ICS_NID_acmeIdentifier,
+                            AnsiString('critical,DER:04:20:' + FAcmeIdentifier));  // octet string(4), 32 long, converted from hex to binary
+//                            AnsiString('critical,DER:' + FAcmeIdentifier));  // octet string(4), 32 long, converted from hex to binary
         end;
 
       { self sign it with our key and hash digest }
@@ -2732,7 +2733,7 @@ begin
             TempSerial.HighPart := IcsRandomInt($7FFFFFFF);
             FSerialNum := TempSerial.QuadPart;
         end;
-        if FExpireDays < 30 then FExpireDays := 30;
+        if FExpireDays < 7 then FExpireDays := 7;   { V8.62 was 30 }
         if f_ASN1_INTEGER_set_int64(f_X509_get_serialNumber(FNewCert), FSerialNum) = 0 then
             RaiseLastOpenSslError(ECertToolsException, FALSE, 'Failed to set serial num');
         f_X509_gmtime_adj(f_Ics_X509_get_notBefore(FNewCert), 0);

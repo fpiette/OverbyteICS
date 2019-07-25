@@ -12,10 +12,10 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      June 2019
+Updated:      July 2019
 Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
@@ -133,7 +133,7 @@ often available, both are supported by TRestOAuth.
 Updates:
 May 21, 2018  - V8.54 - baseline
 Jul  2, 2018  - V8.55 - Improved Json error handling
-                       Builds with NO_DEBUG_LOG
+                        Builds with NO_DEBUG_LOG
 Oct 2, 2018   - V8.57 - Need OAuth local web server for all auth methods.
                         Builds with FMX
 Nov 2, 2018   - V8.58 - Bug fixes, call RequestDone event if it fails
@@ -153,11 +153,16 @@ Apr 26, 2019  - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttp
                            an account for £6.50 (about $9) which gives 100 message
                            credits. Other similar bureaus can be added, provided
                            there is an account for testing.
-Jun 12, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
+Jul 22, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
                         Supporting SMS Works at https://thesmsworks.co.uk/ for SMS.
                         Simple web server breaks down full URL for proxy requests.
                         TRestParams can add Json parameters as PContJson which
-                          means arrays and nested Json can be added.   
+                          means arrays and nested Json can be added.
+                        TSimpleWebSrv now supports SSL, with certificate bundle
+                          and host name, supports SSL ALPN extension.
+                        Added SslAllowSelfSign property to connect OK to sites
+                          with self signed SSL certificates.
+
 
 
 Pending - Simple web server now less simple to supports SSL and ALPN
@@ -263,8 +268,9 @@ const
 type
 
 { event handlers }
-  THttpRestProgEvent  = procedure (Sender: TObject; LogOption: TLogOption; const Msg: string) of object;
-  TSimpleWebSrvReqEvent  = procedure (Sender: TObject; const Host, Path, Params: string; var RespCode, Body: string) of object;
+  THttpRestProgEvent = procedure (Sender: TObject; LogOption: TLogOption; const Msg: string) of object;
+  TSimpleWebSrvReqEvent = procedure (Sender: TObject; const Host, Path, Params: string; var RespCode, Body: string) of object;
+//  TSimpleWebSrvAlpnEvent = procedure (Sender: TObject; const Host: string; var CertFName: string) of object;   { V8.62 }
   TOAuthAuthUrlEvent = procedure (Sender: TObject; const URL: string) of object;
 
 { property and state types }
@@ -308,7 +314,7 @@ type
   protected
     function GetOwner: TPersistent; override;
   public
-    constructor Create(Owner: TPersistent); 
+    constructor Create(Owner: TPersistent);
     function GetParameters: AnsiString;
     function IndexOf(const aName: string): Integer;
     procedure AddItem(const aName, aValue: string; aRaw: Boolean = False);
@@ -342,6 +348,7 @@ type
     FSslRootFile: string;
     FSslRevocation: boolean;
     FSslReportChain: boolean;
+    FSslAllowSelfSign: boolean;  { V8.62 }
     FSslCliCert: TX509Base;
     FSslCliSecurity:  TSslCliSecurity;
 {$IFDEF MSWINDOWS}
@@ -428,6 +435,8 @@ type
                                                         write FSslRevocation;
     property SslReportChain: boolean                    read  FSslReportChain
                                                         write FSslReportChain;
+    property SslAllowSelfSign: boolean                  read  FSslAllowSelfSign
+                                                        write FSslAllowSelfSign; { V8.62 }
     property OnBgException;
     property OnHttpRestProg: THttpRestProgEvent         read  FOnHttpRestProg
                                                         write FOnHttpRestProg;
@@ -464,6 +473,7 @@ type
     procedure CliSendPage(const Status, ContentType, ExtraHdr, BodyStr: String);
     procedure CliErrorResponse(const RespStatus, Msg: string);
     procedure CliDataAvailable(Sender: TObject; Error: Word);
+    procedure CliAlpnChallg(Sender: TObject; const Host: string; var CertFName: string);
     procedure ParseReqHdr;
   end;
 
@@ -474,9 +484,14 @@ type
     FWebSrvIP: string;
     FWebSrvPort: string;
     FWebSrvPortSsl: string;
+    FWebSrvCertBundle: string;   { following V8.62 for SSL }
+    FWebSrvCertPassword: string;
+    FWebSrvHostName: string;
+    FWebSrvRootFile: string;
     FWebServer: TSslWSocketServer;
     FOnServerProg: THttpRestProgEvent;
     FOnSimpWebSrvReq: TSimpleWebSrvReqEvent;
+    FOnSimpWebSrvAlpn: TClientAlpnChallgEvent;
   protected
     { Protected declarations }
     procedure LogEvent(const Msg : String);
@@ -485,13 +500,19 @@ type
     procedure ServerClientConnect(Sender: TObject; Client: TWSocketClient; Error: Word); virtual;
     procedure ServerClientDisconnect(Sender: TObject;
                                  Client: TWSocketClient; Error: Word);
+    procedure IcsLogEvent (Sender: TObject; LogOption: TLogOption; const Msg : String);
   public
     { Public declarations }
+{$IFNDEF NO_DEBUG_LOG}
+    SrvLogger:  TIcsLogger;
+{$ENDIF}
+    property WebServer: TSslWSocketServer           read FWebServer;
     constructor  Create (Aowner: TComponent); override;
     destructor   Destroy; override;
     function  StartSrv: boolean ;
     function  StopSrv: boolean ;
     function  IsRunning: Boolean;
+    function  ListenStates: String;
   published
     { Published declarations }
     property DebugLevel: THttpDebugLevel            read  FDebugLevel
@@ -502,10 +523,20 @@ type
                                                     write FWebSrvPort;
     property WebSrvPortSsl: string                  read  FWebSrvPortSsl
                                                     write FWebSrvPortSsl;
+    property WebSrvCertBundle: string               read  FWebSrvCertBundle
+                                                    write FWebSrvCertBundle;   { V8.62  }
+    property WebSrvCertPassword: string             read  FWebSrvCertPassword
+                                                    write FWebSrvCertPassword;
+    property WebSrvHostName: string                 read  FWebSrvHostName
+                                                    write FWebSrvHostName;
+    property WebSrvRootFile: string                 read  FWebSrvRootFile
+                                                    write FWebSrvRootFile;
     property OnSimpWebSrvReq: TSimpleWebSrvReqEvent read  FOnSimpWebSrvReq
                                                     write FOnSimpWebSrvReq;
     property OnServerProg: THttpRestProgEvent       read  FOnServerProg
                                                     write FOnServerProg;
+    property OnSimpWebSrvAlpn: TClientAlpnChallgEvent read  FOnSimpWebSrvAlpn
+                                                      write FOnSimpWebSrvAlpn; { V8.62 }
 
   end;
 
@@ -1143,21 +1174,6 @@ begin
             RestSslCtx.SslSessionCacheModes := [sslSESS_CACHE_CLIENT,
                 sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE] ;
         end;
-        if (FCertVerMethod >= CertVerBundle) then begin
-            rootfname := fSslRootFile;
-            if rootfname <> '' then begin
-                if (Pos (':', rootfname) = 0) then
-                    rootfname := ExtractFileDir (ParamStr (0)) + '\' + rootfname ;
-                if NOT FileExists (rootfname) then  begin
-                    LogEvent('Can Not Find SSL CA Bundle File - ' + rootfname);
-                    RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
-                end
-                else
-                   RestSslCtx.SslCAFile := rootfname;
-            end
-            else
-                RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
-        end;
     end ;
     try
         if NOT RestSslCtx.IsCtxInitialized then begin
@@ -1171,6 +1187,23 @@ begin
         begin
             LogEvent('Error Starting SSL: ' + E.Message);
         end;
+    end;
+
+ // V8.62 can not load bundle until context exists
+    if (FCertVerMethod >= CertVerBundle) then begin
+        rootfname := fSslRootFile;
+        if rootfname <> '' then begin
+            if (Pos (':', rootfname) = 0) then
+                rootfname := ExtractFileDir (ParamStr (0)) + '\' + rootfname ;
+            if NOT FileExists (rootfname) then  begin
+                LogEvent('Can Not Find SSL CA Bundle File - ' + rootfname);
+                RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
+            end
+            else
+               RestSslCtx.SslCAFile := rootfname;
+        end
+        else
+            RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
     end;
 end;
 
@@ -1369,7 +1402,7 @@ procedure TSslHttpRest.TransferSslHandshakeDone(         { V8.61 }
 var
     CertChain: TX509List;
     ChainVerifyResult: LongWord;
-    info, VerifyInfo: String;
+    info, host, VerifyInfo: String;
     Safe: Boolean;
     HttpCtl: TWSocket;
 begin
@@ -1433,14 +1466,20 @@ begin
         exit ;  // unknown method
     end ;
 
+   // see if allowing self signed
+   if (PeerCert.VerifyResult = X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN) and
+                                        FSslAllowSelfSign then Safe := True;
+
   // tell user verification failed
     if NOT Safe then begin
         info := 'SSL Chain Verification Failed: ' + VerifyInfo + ', Domain: ';
         if PeerCert.SubAltNameDNS = '' then
-            info := info + IcsUnwrapNames (PeerCert.SubjectCName)
+            host := IcsUnwrapNames(PeerCert.SubjectCName)
         else
-            info := info + IcsUnwrapNames (PeerCert.SubAltNameDNS) ;
-        info := info + ', Expected: ' + HttpCtl.SslServerName ;
+            host := IcsUnwrapNames(PeerCert.SubAltNameDNS);
+        info := info + host;
+        if host <> HttpCtl.SslServerName then  { V8.62 only expected if different }
+            info := info + ', Expected: ' + HttpCtl.SslServerName;
         if FDebugLevel >= DebugSsl then
             LogEvent (info);
         FReasonPhrase := info;  { V8.58 }
@@ -1710,11 +1749,18 @@ begin
     FWebServer.ClientClass := TSimpleClientSocket;
     FWebServer.OnClientConnect := ServerClientConnect;
     FWebServer.OnClientDisconnect := ServerClientDisconnect;
-    FWebServer.OnBgException := SocketBgException ;
-    FWebServer.SocketErrs := wsErrFriendly ;
+    FWebServer.OnBgException := SocketBgException;
+    FWebServer.SocketErrs := wsErrFriendly;
+{$IFNDEF NO_DEBUG_LOG}
+    SrvLogger := TIcsLogger.Create (nil);
+    SrvLogger.OnIcsLogEvent := IcsLogEvent;
+    SrvLogger.LogOptions := [loDestEvent];
+    FWebServer.IcsLogger := SrvLogger;
+{$ENDIF}
     FWebSrvIP := '127.0.0.1';
     FWebSrvPort := '8080';
     FWebSrvPortSsl := '0';
+    FWebSrvHostName := 'localhost';
     FDebugLevel := DebugConn;
 end;
 
@@ -1722,6 +1768,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor TSimpleWebSrv.Destroy;
 begin
+{$IFNDEF NO_DEBUG_LOG}
+    FreeAndNil(SrvLogger) ;
+{$ENDIF}
     FreeAndNil(FWebServer);
     inherited Destroy;
 end;
@@ -1729,17 +1778,50 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TSimpleWebSrv.StartSrv: boolean ;
+var
+    S: String;
 begin
     Result := False;
     try
-        FWebServer.Addr := FWebSrvIP;
-        FWebServer.Port := FWebSrvPort ;
-        if FWebSrvPortSsl <> '0' then begin
-    //    x
+{$IFNDEF NO_DEBUG_LOG}
+        if FDebugLevel >= DebugSslLow then
+            SrvLogger.LogOptions := SrvLogger.LogOptions + [loSslInfo, loProtSpecInfo];
+{$ENDIF}
+        if FWebSrvPortSsl <> '0' then begin  { V8.62 support SSL }
+            FWebServer.IcsHosts.Clear;
+            FWebServer.IcsHosts.Add;  // only need one host
+            with FWebServer.IcsHosts [0] do
+            begin
+                HostEnabled := True;
+                BindIpAddr := FWebSrvIP;
+                HostNames.Text := FWebSrvHostName;
+                BindNonPort := atoi(FWebSrvPort);
+                BindSslPort := atoi(FWebSrvPortSsl) ;
+                HostTag := 'SimpleServer' ;
+                Descr := HostTag;
+                SslSrvSecurity := sslSrvSecTls12Less;
+                SslCert := IcsTrim(FWebSrvCertBundle);
+                SslPassword := IcsTrim(FwebSrvCertPassword);
+                if Assigned(OnSimpWebSrvAlpn) then begin
+                    CertSupplierProto := SuppProtoAcmeV2;
+                    CertChallenge := ChallAlpnSrv;
+                    FWebServer.SslCertAutoOrder := true;
+                end;
+            end;
+            FWebServer.RootCA := FWebSrvRootFile;
+            S := FWebServer.ValidateHosts(False, False);  // don't stop on error, might be self signed certs }
+            LogEvent(S);
+        end
+        else begin
+            FWebServer.Addr := FWebSrvIP;
+            FWebServer.Port := FWebSrvPort;
         end;
-        FWebServer.ExclusiveAddr := true ;
-        FWebServer.Listen ;      // start listening for incoming connections
-        Result := IsRunning;
+        FWebServer.ExclusiveAddr := true;
+        S := FWebServer.MultiListenEx;    // start listening for incoming connections
+        if S = '' then
+            Result := True
+        else
+            LogEvent(S);
     except
         on E:Exception do begin
             LogEvent('Web Server failed to start: ' + E.Message);
@@ -1752,13 +1834,14 @@ end;
 function TSimpleWebSrv.StopSrv: boolean ;
 var
     I: integer;
+    StartTick: longword;
 begin
     try
-        if FWebServer.State <> wsClosed then FWebServer.Close ;
+        if FWebServer.State <> wsClosed then FWebServer.MultiClose;
         if FWebServer.ClientCount > 0 then begin
             for I := 0 to Pred (FWebServer.ClientCount) do begin
                 if FWebServer.Client [I].State = wsConnected then
-                                          FWebServer.Client [I].Close ;
+                                          FWebServer.Client [I].Close;
             end ;
         end ;
     except
@@ -1766,7 +1849,24 @@ begin
             LogEvent('Web Server failed to stop: ' + E.Message);
         end;
     end;
+
+ // wait five seconds for server to close
     Result := IsRunning;
+    if NOT Result then Exit;
+    StartTick := IcsGetTickCountX;
+    while True do begin
+        MessagePump;
+        Result := IsRunning;
+        if NOT Result then break;
+        if IcsElapsedSecs(StartTick) > 5 then break;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSimpleWebSrv.ListenStates: String;   { V8.62 }
+begin
+    Result := FWebServer.ListenStates;
 end;
 
 
@@ -1775,7 +1875,16 @@ procedure TSimpleWebSrv.LogEvent(const Msg : String);
 begin
     if FDebugLevel = DebugNone then Exit;
     if Assigned(FOnServerProg) then
-        FOnServerProg(Self, loProtSpecErr, Msg) ;
+        FOnServerProg(Self, loProtSpecInfo, Msg) ;
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSimpleWebSrv.IcsLogEvent(Sender: TObject; LogOption: TLogOption;
+                                                      const Msg : String);
+begin
+    if Assigned(FOnServerProg) then
+        FOnServerProg(Self, LogOption, Msg) ;
 end ;
 
 
@@ -1801,18 +1910,19 @@ var
     Cli: TSimpleClientSocket;
 begin
     if Error <> 0 then begin
-        LogEvent('Server listen connect error: ' + WSocketErrorDesc(Error));
+        LogEvent(RFC3339_DateToStr(Now) + ' Server listen connect error: ' + WSocketErrorDesc(Error));
         Client.Close;
         exit;
     end;
-    if FDebugLevel >= DebugConn then
-        LogEvent('Client Connected from Address ' + IcsFmtIpv6Addr(Client.GetPeerAddr));
+    if FDebugLevel >= DebugConn then LogEvent(RFC3339_DateToStr(Now) +
+                ' Client Connected from Address ' + IcsFmtIpv6Addr(Client.GetPeerAddr));
     Cli := Client as TSimpleClientSocket;
     Cli.WebSrv := Self;
     Cli.LineMode := false;
     Cli.OnDataAvailable := Cli.CliDataAvailable;
     Cli.OnBgException := SocketBgException;
     Cli.OnSimpWebSrvReq := Self.FOnSimpWebSrvReq;
+    Cli.OnClientAlpnChallg := Cli.CliAlpnChallg;        { V8.62 }
     Cli.Banner := '' ;
     Cli.RecvBufMax := 8096;  // only expecting a request header
     SetLength(Cli.RecvBuffer, Cli.RecvBufMax + 1);
@@ -1824,7 +1934,7 @@ procedure TSimpleWebSrv.ServerClientDisconnect(Sender: TObject;
                                  Client: TWSocketClient; Error: Word);
 begin
     if FDebugLevel >= DebugConn then
-        LogEvent('Client Disconnected') ;
+        LogEvent(RFC3339_DateToStr(Now) + ' Client Disconnected') ;
 end;
 
 
@@ -1863,6 +1973,22 @@ begin
             '<H1>' + RespStatus + '</H1>' + Msg + '<P>' + IcsCRLF +
             '</BODY></HTML>' + IcsCRLF;
     CliSendPage(RespStatus, 'text/html', '', BodyStr);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSimpleClientSocket.CliAlpnChallg(Sender: TObject; const Host: string; var CertFName: string);    { V8.62 }
+begin
+    if Assigned(WebSrv.FOnSimpWebSrvAlpn) then begin
+        WebSrv.LogEvent ('Checking for tls-alpn-01 challenge Acme SSL certificate');
+        WebSrv.FOnSimpWebSrvAlpn(Self, Host, CertFName);
+        if (CertFName <> '') and FileExists(CertFName) then begin
+            WebSrv.LogEvent ('Loading tls-alpn-01 challenge certificate: ' + CertFName);
+        end
+        else begin
+            WebSrv.LogEvent ('Failed to find tls-alpn-01 challenge certificate: ' + CertFName);
+        end;
+    end
 end;
 
 
@@ -1987,9 +2113,13 @@ begin
                 CliErrorResponse('500 Server Error', 'The requested URL ' +
                    TextToHtmlText(RequestPath) + ' was not processed by the server.');
         end
-        else
+        else begin
+            if WebSrv.DebugLevel >= DebugHdr then
+                WebSrv.LogEvent(RFC3339_DateToStr(Now) + ' Web Server Request Ignored, Host: ' +
+                        RequestHost + ', Path: ' + RequestPath + ', Params: ' + RequestParams);   { V8.62 }
             CliErrorResponse('404 Not Found', 'The requested URL ' +
-            TextToHtmlText(RequestPath) + ' was not found on this server.');
+                 TextToHtmlText(RequestPath) + ' was not found on this server.');
+        end;
     except
          on E:Exception do
             WebSrv.LogEvent('Error Receive Data: ' + E.Message);
@@ -2305,7 +2435,7 @@ begin
         SetError(OAuthErrParams, 'Can Not Start Authorization, Need Client ID and Secret');
         Exit;
     end;
-    FRedirState := 'ICS-' + IntToStr(GetTickCount);
+    FRedirState := 'ICS-' + IntToStr(IcsGetTickCountX);
     MyParams := TRestParams.Create(self);
     try
         MyParams.PContent := PContUrlencoded;
@@ -2721,7 +2851,7 @@ begin
             FAccountJwt := IcsJoseJWSComp(jsigHmac256, JwtPayload,
                          IcsHexToBin(LoginJson.S['secret']), Nil, 'JWT', '', '', '', '');
         end;     *)
-        
+
         HttpRest.AuthBearerToken := FAccountJwt;
         HttpRest.ServerAuth := httpAuthJWT;
         HttpRest.Accept := 'application/json;charset=UTF-8';
@@ -2812,7 +2942,7 @@ begin
                 HttpRest.RestParams.AddItem('sender', FMsgSender, False);
             HttpRest.RestParams.AddItem('content', Msg, False);
             HttpRest.RestParams.AddItem('tag', 'ICS', False);
-            HttpRest.RestParams.AddItem('schedule', RFC3339_DateToUtcStr(FSendDT));  // ISO time in UTC with time zone
+            HttpRest.RestParams.AddItem('schedule', RFC3339_DateToStr(FSendDT));  // ISO time in UTC with time zone
             FSmsOperation := SmsOpSend;
             Result := MakeRequest(httpPOST, 'https://api.thesmsworks.co.uk/v1/' + Path, AsyncReq);
         end
@@ -2955,7 +3085,7 @@ begin
             end;
         end
         else if (HttpRest.StatusCode = 200) then begin
-          // ignore response getting token, no event 
+          // ignore response getting token, no event
             if (Pos ('auth/token', HttpRest.URL) > 0) then Exit;
             if FSmsOperation = SmsOpCredit then begin
                 FCredits := HttpRest.ResponseJson.S['credits'];
@@ -2965,7 +3095,7 @@ begin
                 FCredits := HttpRest.ResponseJson.S['credits'];
                 FDelivery := HttpRest.ResponseJson.S['status'];
                 FLastError := '';
-             // pending check batch response, array for each message    
+             // pending check batch response, array for each message
             end;
         end
         else if (HttpRest.StatusCode >= 400) then begin

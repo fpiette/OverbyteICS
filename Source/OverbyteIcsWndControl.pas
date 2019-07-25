@@ -108,9 +108,11 @@ Aug 18, 2013 V8.02 Arno added some default property specifiers.
 Jul 9, 2014  V8.03 Angus break MessageLoop for Terminated flag,
                        suggested by Wolfgang Prinzjakowitsch
 Jan 22, 2016 V8.04 Angus fixed 64-bit bug in UpdateTimer
-Jul 5, 2019  V8.62 AllocateHWnd shows windows error description instead of
+Jul 23, 2019 V8.62 AllocateHWnd shows windows error description instead of
                       error number, probably out of memory.
-
+                   Moved FIcsLogger here from TWSocket ao this unit can log errors.
+                   Added source parameter to HandleBackGroundException so we
+                     know where error came from, and diag log it.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -150,6 +152,9 @@ uses
   {$ELSE}
     {$IFDEF RTL_NAMESPACES}Vcl.Forms{$ELSE}Forms{$ENDIF},
   {$ENDIF}
+{$ENDIF}
+{$IFNDEF NO_DEBUG_LOG}
+  OverbyteIcsLogger,
 {$ENDIF}
   OverbyteIcsTypes;
 
@@ -223,6 +228,15 @@ type
     FOnBgException : TIcsBgExceptionEvent;
     FOnMessagePump : TNotifyEvent;
     FExceptAbortProc : TIcsExceptAbortProc;  { V1.14 }
+{$IFNDEF NO_DEBUG_LOG}
+    FIcsLogger          : TIcsLogger;                                           { V5.21, V8.62 }
+ (*procedure   SetIcsLogger(const Value : TIcsLogger); virtual;                { V5.21, V8.62 }
+    procedure   DebugLog(LogOption : TLogOption; const Msg : String); virtual;  { V5.21, V8.62 }
+    function    CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { V5.21, V8.62 }
+    property IcsLogger : TIcsLogger                   read  FIcsLogger          { V5.21, V8.62 }
+                                                      write SetIcsLogger;       { V5.21, V8.62 }
+ *)
+{$ENDIF}
     procedure   Dispose(Disposing: Boolean); virtual;
     procedure   SetMultiThreaded(const Value: Boolean); virtual;
     function    GetTerminated: Boolean; virtual;
@@ -230,7 +244,8 @@ type
     procedure   SetOnMessagePump(const Value: TNotifyEvent); virtual;
     procedure   SetOnBgException(const Value: TIcsBgExceptionEvent); virtual; { V1.14 }
     procedure   WndProc(var MsgRec: TMessage); virtual;
-    procedure   HandleBackGroundException(E : Exception); virtual;
+    procedure   HandleBackGroundException(E : Exception;
+                                const Source: String = 'Unknown'); virtual;  { V8.62 added source }
     procedure   TriggerBgException(E            : Exception;
                                    var CanClose : Boolean); virtual;
     procedure   WMRelease(var msg: TMessage); virtual;
@@ -830,7 +845,7 @@ begin
         // All exceptions must be handled otherwise the application
         // will terminate as soon as an exception is raised.
         on E: Exception do
-            HandleBackGroundException(E);
+            HandleBackGroundException(E, 'TIcsWndControl.WndProc');
     end;
 end;
 
@@ -838,7 +853,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { All exceptions *MUST* be handled. If an exception is not handled, the     }
 { application will be shut down !                                           }
-procedure TIcsWndControl.HandleBackGroundException(E: Exception);
+procedure TIcsWndControl.HandleBackGroundException(E: Exception;
+                                        const Source: String = 'Unknown');  { V8.62 added source }
 var
     CanAbort : Boolean;
     Handled  : Boolean; { V1.14 }
@@ -846,6 +862,11 @@ begin
     if E is EAbort then { V1.14 }
         Exit;
     CanAbort := TRUE;
+{$IFNDEF NO_DEBUG_LOG}
+    if Assigned(FIcsLogger) then
+        FIcsLogger.DoDebugLog(Self, loWsockErr,
+            'Handle Background Exception, source: ' + Source + ' - ' + E.Message);   { V8.62 }
+{$ENDIF}
     { First call the error event handler, if any }
     Handled := Assigned(FOnBgException); { V1.14 }
     if Handled then begin                { V1.14 }
@@ -935,7 +956,37 @@ begin
     // To be overridden in derived classes
 end;
 
+(*
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *} { V5.21, V8.62 }
+{$IFNDEF NO_DEBUG_LOG}
+function TIcsWndControl.CheckLogOptions(const LogOption: TLogOption): Boolean;
+begin
+    Result := Assigned(FIcsLogger) and (LogOption in FIcsLogger.LogOptions);
+end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TIcsWndControl.DebugLog(LogOption: TLogOption; const Msg: String);  { V5.21, V8.62 }
+begin
+    if Assigned(FIcsLogger) then
+        FIcsLogger.DoDebugLog(Self, LogOption, Msg);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *} { V5.21, V8.62 }
+procedure TIcsWndControl.SetIcsLogger(const Value: TIcsLogger);
+begin
+    if Value <> FIcsLogger then begin
+        if FIcsLogger <> nil then
+            FIcsLogger.RemoveFreeNotification(Self);
+        if Value <> nil then
+            Value.FreeNotification(Self);
+        FIcsLogger := Value;
+    end;
+end;
+{$ENDIF}
+
+*)
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFDEF POSIX}
 constructor TIcsWndHandler.Create;

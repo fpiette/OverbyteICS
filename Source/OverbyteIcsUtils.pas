@@ -5,8 +5,7 @@ Description:  A place for common utilities.
 Creation:     Apr 25, 2008
 Version:      8.62
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2002-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>

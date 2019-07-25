@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.61
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2003-2019 by François PIETTE
@@ -98,7 +98,8 @@ Mar 12, 2018 V8.53 Display Wsocket version in About
 Jun 11, 2018 V8.55 don't load OpenSSL in Create
 Oct 19, 2018 V8.58 version only
 Apr 16, 2019 V8.61 Show certificate expiry and issue time as well as date.
-Jun  4, 2019 V8.62 Load several type lists from literals for future proofing.
+Jul  9, 2019 V8.62 Load several type lists from literals for future proofing.
+                   Report ACME Identifier in certificate, if it exists. 
 
 
 Pending
@@ -137,7 +138,7 @@ uses
 
 const
      PemToolVersion     = 862;
-     PemToolDate        = 'June 4, 2019';
+     PemToolDate        = 'July 9, 2019';
      PemToolName        = 'PEM Certificate Tool';
      CopyRight : String = '(c) 2003-2019 by François PIETTE V8.62 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
@@ -719,6 +720,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function ListCertDetail(Cert: TX509Base): string;
+var
+    Ext: TExtension;
 begin
     if NOT Assigned (Cert) then begin
         Result := 'No certificate loaded';
@@ -760,7 +763,7 @@ begin
                 'Locality (L): ' + IssuerLName + #13#10 +
                 'Email (Email): ' + IssuerEmailName + #13#10;
         end;
-        Result := Result + '' + #13#10 +
+       Result := Result + '' + #13#10 +
             'GENERAL' + #13#10 +
             'Serial Number: ' + SerialNumHex + #13#10 + // Oct 2015 not always very numeric IntToStr (SerialNum));
             'Issued on (UTC): ' + DateTimeToStr(ValidNotBefore) + #13#10 +  { V8.61 }
@@ -775,6 +778,9 @@ begin
             'Subject Key Identifier: ' + IcsUnwrapNames(SubjectKeyId) + #13#10 +
             'Signature Algorithm: ' + SignatureAlgorithm + #13#10 +  // Oct 2015
             'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10;
+        Ext := GetExtensionByName('acmeIdentifier');   { V8.62 } 
+        if Ext.Value <> '' then
+            Result := Result + 'ACME Identifier: ' + Ext.Value + #13#10;
         if ExtendedValidation then
             Result := Result + 'Extended Validation (EV) SSL Server Certificate' + #13#10;
         Result := Result + 'Key Info: ' + KeyInfo + #13#10;                         // Oct 2015

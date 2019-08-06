@@ -3,8 +3,8 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.3 Rio
 (Aka FPIETTE's Components)
 
 
-Revised: April 25, 2019
-Release: V8.61
+Revised: August 6, 2019
+Release: V8.62
 http://www.overbyte.be/
 http://wiki.overbyte.be/
 http://www.overbyte.eu/
@@ -335,6 +335,15 @@ of all the ICS components, see later.
 Manager, opened by clicking a a button.  This allows building multiple packages with
 multiple configurations and platforms with a single click. After building, the
 32-bit design package still need to be installed manually.
+
+7 - Note that some SSL projects may need these (or similar) files adding:
+
+"C:\Program Files (x86)\CodeGear\RAD Studio\6.0\lib\psdk\crypt32.lib"
+"C:\Program Files (x86)\CodeGear\RAD Studio\6.0\lib\psdk\cryptui.lib"
+
+Also define SECURITY_WIN32 in the project which should allow OverbyteIcsSspi.hpp
+to build okay.
+
 
 
 FIREMONKEY CROSS PLATFORM PACKAGES:

@@ -10,7 +10,7 @@ Description:  JOSE - Json Object Signing and Encryption, used for:
               Includes OpenSSL Message Authentication Code functions used
               for signing JOSE structures with secret or private/public keys.
 Creation:     Feb 2018
-Updated:      May 2019
+Updated:      Aug 2019
 Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -72,8 +72,8 @@ verify it, using a hash alogrithm.
 Updates:
 May 21, 2018  - 8.54 - baseline
 Oct 2, 2018   - 8.57 - build with FMX
-May 28, 2019  - 8.62 - build Jason Web Token (JWT)
-
+Aug 07, 2019  - 8.62 - build Jason Web Token (JWT)
+                       Builds without USE_SSL
 
 Pending
 -------
@@ -112,6 +112,8 @@ unit OverbyteIcsSslJose;
 
 interface
 
+{$IFDEF USE_SSL}
+
 uses
 {$IFDEF MSWINDOWS}
     {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
@@ -138,7 +140,6 @@ uses
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
-{$IFDEF USE_SSL}
 type
     EDigestException = class(Exception);
 
@@ -221,9 +222,11 @@ function IcsJoseJWSAcme1(JoseAlg: TJoseAlg; const Payload: string;
 { build Json Web Token (JWT) by Base64Url encoding three components as long string V8.62 }
 function IcsJoseJWT(const Header, Payload, Signature: string): string;
 
+{$ENDIF USE_SSL}
 
 implementation
 
+{$IFDEF USE_SSL}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure RaiseLastOpenSslError(

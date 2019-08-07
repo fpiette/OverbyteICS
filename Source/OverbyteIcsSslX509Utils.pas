@@ -105,9 +105,9 @@ Oct 2, 2018  V8.57 tidy up UnwrapNames.
              Added SaveToCADatabase which saves CA database entry to CADBFile
              Added COMODO ECC Certification Authority root
              Build with FMX
-Jul 04, 2019 V8.62  Added literals for various types to assist apps.
+Aug 07, 2019 V8.62  Added literals for various types to assist apps.
              Added AcmeIdentifier property for ACME validation certificate
-
+             Builds without USE_SSL
 
 
 Pending - long term
@@ -303,7 +303,10 @@ unit OverbyteIcsSslX509Utils;
 
 interface
 
+{$IFDEF USE_SSL}
+
 uses
+
 {$IFDEF MSWINDOWS}
   {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
 {$ENDIF}
@@ -1718,7 +1721,12 @@ const
         'fQjGGoe9GKhzvSbKYAydzpmfz1wPMOG+FDHqAjAU9JM8SaczepBGR7NjfRObTrdv' + #13#10 +
         'GDeAU/7dIOA1mjbRxwG55tzd8/8dLDoWV9mSOdY=' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10;
+
+{$ENDIF}  { USE_SSL }
+
 implementation
+
+{$IFDEF USE_SSL}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function sslRootCACertsBundle: string ;  { V8.32 }
@@ -4056,6 +4064,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
+{$ENDIF}  { USE_SSL }
 
 
 end.

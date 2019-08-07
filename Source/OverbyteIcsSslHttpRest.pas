@@ -12,7 +12,7 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      July 2019
+Updated:      Aug 2019
 Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -153,16 +153,16 @@ Apr 26, 2019  - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttp
                            an account for £6.50 (about $9) which gives 100 message
                            credits. Other similar bureaus can be added, provided
                            there is an account for testing.
-Jul 22, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
+Aug 07, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
                         Supporting SMS Works at https://thesmsworks.co.uk/ for SMS.
                         Simple web server breaks down full URL for proxy requests.
                         TRestParams can add Json parameters as PContJson which
                           means arrays and nested Json can be added.
-                        TSimpleWebSrv now supports SSL, with certificate bundle
+                        TSimpleWebSrv now supports SSL, with certificate bunder
                           and host name, supports SSL ALPN extension.
                         Added SslAllowSelfSign property to connect OK to sites
                           with self signed SSL certificates.
-
+                        Builds without USE_SSL
 
 
 Pending - Simple web server now less simple to supports SSL and ALPN
@@ -193,6 +193,8 @@ unit OverbyteIcsSslHttpRest;
 {$ENDIF}
 
 interface
+
+{$IFDEF USE_SSL}
 
 uses
 {$IFDEF MSWINDOWS}
@@ -246,8 +248,6 @@ uses
     OverbyteIcsSuperObject;
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
-
-{$IFDEF USE_SSL}
 
 const
     THttpRestVersion = 862;
@@ -314,7 +314,7 @@ type
   protected
     function GetOwner: TPersistent; override;
   public
-    constructor Create(Owner: TPersistent);
+    constructor Create(Owner: TPersistent); 
     function GetParameters: AnsiString;
     function IndexOf(const aName: string): Integer;
     procedure AddItem(const aName, aValue: string; aRaw: Boolean = False);
@@ -777,9 +777,11 @@ function IcsExtractURLEncodedValue(
 function IcsShellExec(aFile: String; var PID: LongWord): Boolean; overload;
 function IcsShellExec(aFile: String): Boolean; overload;
 
+{$ENDIF USE_SSL}
 
 implementation
 
+{$IFDEF USE_SSL}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { borrowed from OverbyteIcsHttpSrv and renamed to avoid conflicts }
@@ -1805,7 +1807,7 @@ begin
                 if Assigned(OnSimpWebSrvAlpn) then begin
                     CertSupplierProto := SuppProtoAcmeV2;
                     CertChallenge := ChallAlpnSrv;
-                    FWebServer.SslCertAutoOrder := true;
+                    FWebServer.SslCertAutoOrder := true; 
                 end;
             end;
             FWebServer.RootCA := FWebSrvRootFile;
@@ -2851,7 +2853,7 @@ begin
             FAccountJwt := IcsJoseJWSComp(jsigHmac256, JwtPayload,
                          IcsHexToBin(LoginJson.S['secret']), Nil, 'JWT', '', '', '', '');
         end;     *)
-
+        
         HttpRest.AuthBearerToken := FAccountJwt;
         HttpRest.ServerAuth := httpAuthJWT;
         HttpRest.Accept := 'application/json;charset=UTF-8';
@@ -3085,7 +3087,7 @@ begin
             end;
         end
         else if (HttpRest.StatusCode = 200) then begin
-          // ignore response getting token, no event
+          // ignore response getting token, no event 
             if (Pos ('auth/token', HttpRest.URL) > 0) then Exit;
             if FSmsOperation = SmsOpCredit then begin
                 FCredits := HttpRest.ResponseJson.S['credits'];
@@ -3095,7 +3097,7 @@ begin
                 FCredits := HttpRest.ResponseJson.S['credits'];
                 FDelivery := HttpRest.ResponseJson.S['status'];
                 FLastError := '';
-             // pending check batch response, array for each message
+             // pending check batch response, array for each message    
             end;
         end
         else if (HttpRest.StatusCode >= 400) then begin

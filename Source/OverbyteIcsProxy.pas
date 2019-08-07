@@ -235,6 +235,8 @@ unit OverbyteIcsProxy;
 
 interface
 
+{$IFDEF USE_SSL}
+
 uses
 {$IFDEF MSWINDOWS}
     {$IFDEF RTL_NAMESPACES}Winapi.Messages{$ELSE}Messages{$ENDIF},
@@ -289,8 +291,6 @@ uses
     OverbyteIcsUtils;
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
-
-{$IFDEF USE_SSL}
 
 const
     THttpServerVersion = 859;
@@ -883,9 +883,11 @@ function IcsLoadProxyTargetsFromIni(MyIniFile: TCustomIniFile; ProxyTargets:
 procedure IcsLoadTIcsHttpProxyFromIni(MyIniFile: TCustomIniFile; IcsHttpProxy:
                 TIcsHttpProxy; const Section: String = 'Proxy');
 
+{$ENDIF}  { USE_SSL }
 
 implementation
 
+{$IFDEF USE_SSL}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { TProxyTargets }
@@ -4591,6 +4593,6 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 
-{$ENDIF USE_SSL}
+{$ENDIF} { USE_SSL}
 
 end.

@@ -6,11 +6,9 @@ Description:  Some more function headers of LIBEAY32.DLL which are not
               This is only the subset and may grow.
               WARNING - Oct 2016 this unit now obsolete and not needed
 Creation:     Jan 12, 2005
-Version:      8.35
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list ics-ssl@elists.org
-              Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2005-2016 by François PIETTE
+Legal issues: Copyright (C) 2005-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -54,7 +52,8 @@ Nov 23, 2015 V8.04 Eugene Kotlyarov MacOSX lacks PsAPI SO NO IcsRandPoll
 May 24, 2016 V8.27 Angus match version to Wsocket where most of this API is used
                    Initial support for OpenSSL 1.1.0, RAND_cleanup gone
 Oct 18, 2016  V8.35 Angus, moved all imports to OverbyteIcsLIBEAY to ease maintenance and use
-                   only LoadLibeayEx left for backward compatibility 
+                   only LoadLibeayEx left for backward compatibility
+ Aug 6, 2019 V8.62  Builds without SSL
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$B-}                                 { Enable partial boolean evaluation   }
@@ -74,9 +73,9 @@ uses
     {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF},
     {$IFDEF RTL_NAMESPACES}Winapi.PsApi{$ELSE}PsApi{$ENDIF},
 {$ENDIF}
-    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF},
-    OverbyteIcsSSLEAY, OverbyteIcsLibeay;
-(*
+    {$IFDEF RTL_NAMESPACES}System.SysUtils{$ELSE}SysUtils{$ENDIF};
+(*    OverbyteIcsSSLEAY, OverbyteIcsLibeay;
+
 const
     RSA_PKCS1_PADDING                 = 1;
     RSA_SSLV23_PADDING                = 2;
@@ -313,8 +312,8 @@ procedure LoadLibeayEx;
 //const
 //    Msg = 'GetProcAddress failed ';
 begin
-    if LibeayExLoaded and (GLIBEAY_DLL_Handle <> 0) then Exit;
-(*    if GLIBEAY_DLL_Handle = 0 then
+(*    if LibeayExLoaded and (GLIBEAY_DLL_Handle <> 0) then Exit;
+    if GLIBEAY_DLL_Handle = 0 then
         LibeayLoad;    { V8.27 }
 {    f_RAND_pseudo_bytes := GetProcAddress(GLIBEAY_DLL_Handle, 'RAND_pseudo_bytes');
     if not Assigned(f_RAND_pseudo_bytes) then
@@ -482,9 +481,8 @@ begin
     f_HMAC   := GetProcAddress(GLIBEAY_DLL_Handle, 'HMAC');
     if not Assigned(f_HMAC) then
         raise Exception.Create(Msg + 'HMAC');
-*)
     LibeayExLoaded := TRUE;
-
+*)
 end;
 
 

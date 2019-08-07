@@ -661,7 +661,7 @@ Nov 2, 2018   - V8.58 - Bug fixes and more documentation.
                         Descend components from TIcsWndControl not TComponent
 Feb 6, 2019   - V8.60   Added SocketFamily property to allow both IPv4 and IPv6.
 Apr 16, 2017  - V8.61   Certificate dates are in UTC not local time.
-Jul 25, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
+Auig 07 25, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
                         Added literals for various types to assist apps.
                         Removed Acme V1 protocol support (withdrawn from Nov 2019)
                         AcmeV2 now supports POST-as-GET per RFC8555 for the final
@@ -678,7 +678,7 @@ Jul 25, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
                        Support tls-alpn-01 challenge for local web server on 443.
                        BEWARE tls-alpn-01 challenge not working yet, wrong certificate
                          is sent to client.
-
+                       Builds without USE_SSL
 
 
 Pending - more documentation
@@ -717,6 +717,8 @@ unit OverbyteIcsSslX509Certs;
 {$ENDIF}
 
 interface
+
+{$IFDEF USE_SSL}
 
 uses
 {$IFDEF MSWINDOWS}
@@ -760,8 +762,6 @@ uses
     OverbyteIcsSuperObject;
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
-
-{$IFDEF USE_SSL}
 
 const
     ComponentVersion = 'V8.62';  // used in user agent
@@ -1453,7 +1453,11 @@ TSslX509Certs = class(TIcsWndControl)
                                                     write FOnChallengeManual;
    end;
 
+{$ENDIF USE_SSL}
+
 implementation
+
+{$IFDEF USE_SSL}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

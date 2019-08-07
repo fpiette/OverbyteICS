@@ -2,7 +2,7 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Mail Queue Component
 Creation:     Jan 2011
-Updated:      May 2019
+Updated:      Aug 2019
 Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -142,8 +142,8 @@ Release 2.5 - 22 Jun 2018      added RetryWithoutSsl which retries an SSL failur
                       Added IcsLoadMailQuFromIni to load settings from INI file.
                       Property SocketFamily is now MxSocketFamily to explain purpose
                         and avoid conflict with MailServer SocketFamily property.
-9 May 2019 - V8.62 -  Added base MailCliSecurity property for MX servers.
-
+7 Aug 2019 - V8.62  - Added base MailCliSecurity property for MX servers.
+                      Builds without USE_SSL
 
 
 Pending, use STUN client to get EHLO signon reverse DNS lookup.
@@ -178,6 +178,8 @@ unit OverbyteIcsMailQueue;
 {$ENDIF}
 
 interface
+
+{$IFDEF USE_SSL}
 
 uses
 {$IFDEF MSWINDOWS}
@@ -222,8 +224,6 @@ uses
     OverbyteIcsUtils;
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
-
-{$IFDEF USE_SSL}
 
 
 const
@@ -522,7 +522,11 @@ type
 function IcsLoadMailQuFromIni(MyIniFile: TCustomIniFile; MyMailQueue:
                 TIcsMailQueue; const Section: String = 'MailQueue'): Integer;
 
+{$ENDIF USE_SSL}
+
 implementation
+
+{$IFDEF USE_SSL}
 
 type
   TThreadNameInfo = record

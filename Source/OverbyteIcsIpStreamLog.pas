@@ -2,7 +2,7 @@
  Author:      Angus Robertson, Magenta Systems Ltd
 Description:  IP Streaming Log Component
 Creation:     Nov 2006
-Updated:      June 2019
+Updated:      Aug 2019
 Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -187,11 +187,12 @@ in the event when only one was open, tested with Delphi 2010
                        OverbyteIcsX509CertsTst sample application).  AUTO_X509_CERTS
                        define can be disabled to remove a lot of units if automatic
                        SSL/TLS ordering is not required, saves up to 1 meg of code.
-19 Jul 2019 - V8.62 - TCP server now uses root bundle correctly and reports
+07 Aug 2019 - V8.62 - TCP server now uses root bundle correctly and reports
                         certificate chain and bindings.
                       Ensure all listeners started for TCP Server, if more than one.
+                      Builds without USE_SSL
 
-                
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -215,6 +216,8 @@ unit OverbyteIcsIpStreamLog;
 {$ENDIF}
 
 interface
+
+{$IFDEF USE_SSL}
 
 uses
 {$IFDEF MSWINDOWS}
@@ -266,8 +269,6 @@ uses
     OverbyteIcsUtils;
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
-
-{$IFDEF USE_SSL}
 
 const
     CopyRight : String = ' TIcsIpStrmLog (c) 2019 V8.62 ';
@@ -568,8 +569,11 @@ type
                                                     write FOnHandshakeDone;
   end;
 
+{$ENDIF USE_SSL}
 
 implementation
+
+{$IFDEF USE_SSL}
 
 constructor TIcsIpStrmLog.Create(AOwner: TComponent);
 begin

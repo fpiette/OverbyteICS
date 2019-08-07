@@ -1308,7 +1308,7 @@ Mar 18, 2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
                      in server IcsHosts if TLS1.3 fails.
 Apr 16, 2019 V8.61 Fixed ValidateCertChain to check certificate start and expiry
                       dates in UTC time instead of local time.
-Jul 25, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functions
+Aug 07, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functions
                      outside this unit.
                    DHParams only needed for servers, don't use if using client
                      security to avoid issues with high security levels.

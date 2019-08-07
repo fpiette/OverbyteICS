@@ -196,7 +196,7 @@ Dec 04, 2018  V8.59 Sanity checks reading mistyped enumerated values from INI fi
 Mar 18, 2019  V8.60 Added WebLogIdx to IcsHosts for web server logging.
                     Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
                        in server IcsHosts if TLS1.3 fails.
-Jul 25, 2019  V8.62  When ordering X509 certificate, ChallFileSrv challenge now
+Aug 06, 2019  V8.62  When ordering X509 certificate, ChallFileSrv challenge now
                      uses separate local web server for servers not using ports
                       80 or 443 such as FTP, SMTP, proxies, etc.
                     If IcsHosts SslCert is not found but have a valid directory,
@@ -3258,6 +3258,7 @@ begin
             end;
 
          // should we try and download a new certificate
+{$IFDEF AUTO_X509_CERTS}  { V8.62 }
             if FSslCertAutoOrder and (CertSupplierProto > SuppProtoNone) and
                                                 Assigned(FSslX509Certs) then begin
                 if OrderCert(HostNr) then
@@ -3265,6 +3266,7 @@ begin
                 else
                     FCertErrs := FCertErrs + ', Failed to Order New Certificate';
             end;
+{$ENDIF}
         end;
         except
             on E:Exception do begin

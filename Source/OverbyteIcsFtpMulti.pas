@@ -4,8 +4,8 @@ Description:  TIcsFtpMulti is a high level FTP Delphi component that allows uplo
               or downloading of multiple files from or to an FTP server, from a
               single function call.
 Creation:     May 2001
-Updated:      Mar 2019
-Version:      8.60
+Updated:      Aug 2019
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -273,7 +273,7 @@ Cancel - abort FTP xfers
               Renamed TMagFtp to  TIcsFtpMulti.
               Most Types have Ics added, so: TIcsTaskResult now TIcsTaskResult.
               No longer needs Forms.
-
+7 Aug 2019  - V8.62 - Support NO_DEBUG_LOG properly, Builds USE_SSL.
 
 
 Unicode Compatibility with various web servers
@@ -377,8 +377,8 @@ uses
   OverbyteIcsMd5,
   OverbyteIcsCRC,
   OverbyteIcsTypes,
-  OverbyteIcsUtils,
-  OverbyteIcsLogger
+  OverbyteIcsLogger,
+  OverbyteIcsUtils
   {$IFDEF Zipping} , VCLZip, VCLUnZip, kpZipObj {$ENDIF}
   , OverbyteIcsSSLEAY, OverbyteIcsLIBEAY,
   OverbyteIcsWinCrypt;
@@ -389,7 +389,7 @@ uses
 
 
 const
-    FtpMultiCopyRight : String = ' TIcsFtpMulti (c) 2019 V8.60 ';
+    FtpMultiCopyRight : String = ' TIcsFtpMulti (c) 2019 V8.62 ';
 
 type
 // host type, for directory listing
@@ -687,7 +687,9 @@ type
         FAbort: boolean ;
         FLogmaskName: string ;
         FBuffLogStream: TIcsBuffLogStream ;
-        FIcsLog: TIcsLogger ;
+{$IFNDEF NO_DEBUG_LOG}
+        FIcsLog: TIcsLogger;
+{$ENDIF}
 //  protected
         // from TCustomWSocket
         FLocalAddr          : String;     { IP address for local interface to use }
@@ -948,8 +950,11 @@ type
 const
     AppTicksPerFtp = 50 ;   // 22 May 2013 millisecs to open file when calculation session duration
 
+{$ENDIF USE_SSL}
 
 implementation
+
+{$IFDEF USE_SSL}
 
 function ConvUSADate (info: string): TDateTime ;
 // mm/dd/yyyy
@@ -5764,11 +5769,13 @@ begin
     if FLogmaskName <> '' then
     begin
         FBuffLogStream := TIcsBuffLogStream.Create (IcsFTPMultiCli, FLogmaskName, '', FileCPUtf8) ;  // Format mask for log file name
+{$IFNDEF NO_DEBUG_LOG}
         FIcsLog := TIcsLogger.Create (Nil) ;
         FIcsLog.OnIcsLogEvent := IcsLogEvent ;
         IcsFTPMultiCli.IcsLogger := FIcsLog ;
         FIcsLog.LogOptions := [] ;
     //    FIcsLog.LogOptions := [loDestEvent] + LogAllOptInfo ;
+{$ENDIF}
     end ;
     FAbort := false ;
     LogEvent (LogLevelInfo, 'FTP Thread Starting', Cancel) ;
@@ -5850,7 +5857,9 @@ begin
     FInfo := 'FTP Thread Done, Task Result: ' + IcsGetTaskResName (FTaskRes) + ' - ' + IcsFTPMultiCli.ReqResponse + IcsCRLF ;
     LogEvent (FLogLevel, FInfo, Cancel) ;
     if FLogmaskName <> '' then FBuffLogStream.Free ;
+{$IFNDEF NO_DEBUG_LOG}
     if Assigned (FIcsLog) then FIcsLog.Free ;
+{$ENDIF}
     IcsFTPMultiCli.Free ;
 end ;
 

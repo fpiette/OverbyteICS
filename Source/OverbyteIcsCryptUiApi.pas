@@ -27,7 +27,7 @@
 { 5 Oct 2017 - only compile for Windows                                                                              }
 { Nov 2, 2018 - V8.58 - Use namespaces to keep FMX happy }
 { Mar 4, 2019 - V8.60 - Tring to keep C++ happy }
-
+{ Aug 13, 2019 - V8.63 - Reverted last cnange }
 {******************************************************************************}
 
 
@@ -47,7 +47,7 @@ uses
   OverbyteIcsWinCrypt;
 //#include <prsht.h>
 
-//{$HPPEMIT '#include <OverbyteIcscryptuiapi.h>'}  { V8.60 }
+{$HPPEMIT '#include <cryptuiapi.h>'}  { V8.63 }
 
 //#include <pshpack8.h>
 {.$ALIGN 8}

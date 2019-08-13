@@ -42,6 +42,7 @@
 { Arno Garrels added a few constants from Win7 WinCrypt.h                      }
 { June 2015 - Angus - this unit is not compiled, but inserted into OverbyteIcsWinCrypt }
 { Mar 4, 2019 V8.60 - added ; to end of HPPEMIT typedef lines to keep CB2007 happy }
+{ Aug 13 2019 V8.63 - still trying to keep C++ happy                           } 
 {                                                                              }
 {******************************************************************************}
 
@@ -75,7 +76,7 @@ uses
 {$HPPEMIT 'typedef PUBLICKEYSTRUC *PPUBLICKEYSTRUC;'}
 {$HPPEMIT 'typedef RSAPUBKEY *PRSAPUBKEY;'}
 {$HPPEMIT 'typedef DSSSEED *PDSSSEED;'}
-{$HPPEMIT 'typedef PUBKEYVER3 *PPUBKEYVER3;'}
+{$HPPEMIT 'typedef DHPUBKEY_VER3 *PPUBKEYVER3;'}         // V8.63 
 {$HPPEMIT 'typedef DHPRIVKEY_VER3 *PPRIVKEYVER3;'}
 {$HPPEMIT 'typedef CERT_FORTEZZA_DATA_PROP *PCERT_FORTEZZA_DATA_PROP;'}
 {$HPPEMIT 'typedef HCRYPTMSG *PHCRYPTMSG;'}
@@ -365,6 +366,7 @@ const
 
 type
   PVTableProvStruc = ^VTableProvStruc;
+  {$EXTERNALSYM PVTableProvStruc}              // V8.63 
   _VTableProvStruc = record
     Version: DWORD;
     FuncVerifyImage: FARPROC;
@@ -378,6 +380,7 @@ type
   VTableProvStruc = _VTableProvStruc;
   {$EXTERNALSYM VTableProvStruc}
   TVTableProvStruc = VTableProvStruc;
+  {$EXTERNALSYM TVTableProvStruc}                  // V8.63 
 
   HCRYPTPROV = ULONG_PTR;
   {$EXTERNALSYM HCRYPTPROV}
@@ -1009,7 +1012,7 @@ type
 
 // structure for use with CryptSetHashParam with CALG_HMAC
 
-  PHMAC_Info = ^HMAC_Info;
+  PHMAC_INFO = ^HMAC_Info;
   {$EXTERNALSYM PHMAC_Info}
   _HMAC_Info = record
     HashAlgid: ALG_ID;
@@ -1022,7 +1025,7 @@ type
   HMAC_Info = _HMAC_Info;
   {$EXTERNALSYM HMAC_Info}
   THMacInfo = HMAC_Info;
-  PHMacInfo = PHMAC_Info;
+  PHMacInfo = PHMAC_INFO;                       // V8.63 
 
 // structure for use with CryptSetKeyParam with KP_SCHANNEL_ALG
 
@@ -1153,9 +1156,9 @@ type
   {$EXTERNALSYM _PUBKEYVER3}
   PUBKEYVER3 = _PUBKEYVER3;
   {$EXTERNALSYM PUBKEYVER3}
-  DHPUBKEY_VER3 = PUBKEYVER3;
+  DHPUBKEY_VER3 = _PUBKEYVER3;                // V8.63 
   {$EXTERNALSYM DHPUBKEY_VER3}
-  TPubKeyVer3 = PUBKEYVER3;
+  TPubKeyVer3 = DHPUBKEY_VER3;                 // V8.63  
 
   PPRIVKEYVER3 = ^DHPRIVKEY_VER3;
   {$NODEFINE PPRIVKEYVER3}

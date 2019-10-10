@@ -12,8 +12,8 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      Aug 2019
-Version:      8.62
+Updated:      Sept 2019
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -154,7 +154,7 @@ Apr 26, 2019  - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttp
                            credits. Other similar bureaus can be added, provided
                            there is an account for testing.
 Aug 07, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
-                        Supporting SMS Works at https://thesmsworks.co.uk/ for SMS.
+                        Supporting The SMS Works at https://thesmsworks.co.uk/ for SMS.
                         Simple web server breaks down full URL for proxy requests.
                         TRestParams can add Json parameters as PContJson which
                           means arrays and nested Json can be added.
@@ -163,9 +163,11 @@ Aug 07, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
                         Added SslAllowSelfSign property to connect OK to sites
                           with self signed SSL certificates.
                         Builds without USE_SSL
+Sept 19, 2019 - V8.63 - The SMS Works sync delivery works OK, try and return
+                          similar delivery responses as Kapow.
 
 
-Pending - Simple web server now less simple to supports SSL and ALPN
+
 Pending - more documentation
 Pending - better SSL error handling when connections fail, due to too high security in particular.
 Pending - OAuth don't spawn browser from Windows service
@@ -250,8 +252,8 @@ uses
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
 const
-    THttpRestVersion = 862;
-    CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.62 ';
+    THttpRestVersion = 863;
+    CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.63 ';
     DefMaxBodySize = 100*100*100; { max memory/string size 100Mbyte }
     TestState = 'Testing-Redirect';
     MimeDnsJson = 'application/dns-json';
@@ -689,7 +691,7 @@ type
     account for £6.50 (about $9) which gives 100 message credits.
     Other similar SMS can be added, provided there is an account for testing. }
 
-  { V8.62 Added SMS Works at https://thesmsworks.co.uk/  where you set-up an
+  { V8.62 Added The SMS Works at https://thesmsworks.co.uk/  where you set-up an
     account with a few free SMS messages, then spend a mininum of £10 which
     buys 350 message credits.  }
 
@@ -2807,14 +2809,14 @@ begin
     else if FSmsProvider = SmsProvSmsWorks then begin
         WideAcc := FAccountJson;
         LoginJson := TSuperObject.ParseString(PWideChar(WideAcc), True);
-    (*  this block of Json come from the SMS Works account API, convert it into JWT
+    (*  this block of Json come from The SMS Works account API, convert it into JWT
      {
       "customerid": "8545-xxxx-4e16-45bf-xxxx-506561072b83",
       "key": "a87166be-xxxx-4cf3-xxxx-d6cdbd85fcfd",
       "secret": "a29b39ax7x8x1xaxcx9x2xaxbx8x9x7x2xcx4xfxdx2x4xx8078b5f2f49d5f253"
     }  *)
         if NOT Assigned(LoginJson) then  begin
-            FLastError := 'SMS Works Needs  Valid Login Json from Account';
+            FLastError := 'The SMS Works Needs Valid Login Json from Account';   { V8.63 removed space, added The }
             Exit;
         end;
 
@@ -2834,7 +2836,7 @@ begin
             if Pos ('JWT ', FAccountJwt) = 1 then
                 FAccountJwt := Copy(FAccountJwt, 5, 99999)
             else begin
-                FLastError := 'Invalid JWT Token from SMS Works';
+                FLastError := 'Invalid JWT Token from The SMS Works';    { V8.63 added The }
                 Exit;
             end;
         end;
@@ -2853,7 +2855,7 @@ begin
             FAccountJwt := IcsJoseJWSComp(jsigHmac256, JwtPayload,
                          IcsHexToBin(LoginJson.S['secret']), Nil, 'JWT', '', '', '', '');
         end;     *)
-        
+
         HttpRest.AuthBearerToken := FAccountJwt;
         HttpRest.ServerAuth := httpAuthJWT;
         HttpRest.Accept := 'application/json;charset=UTF-8';
@@ -2864,7 +2866,7 @@ begin
         if AsyncReq then
             Result := (StatCode = 0)
         else
-            Result := (StatCode = 200);  // raises exception on failure
+            Result := (StatCode = 200) or (StatCode = 201);  // raises exception on failure V8.63 or 201
     end
     else begin
         FLastError := 'Unknown Provider';
@@ -3074,7 +3076,7 @@ begin
     end
     else if FSmsProvider = SmsProvSmsWorks then begin
 
-      // SMS Works returns Json
+      // The SMS Works returns Json
         if (HttpRest.StatusCode = 201) then begin
             FLastResp := HttpRest.ResponseRaw;
             if FSmsOperation = SmsOpSend then begin
@@ -3110,6 +3112,13 @@ begin
         else
             FLastError := 'Failed: Status ' + IntToStr(HttpRest.StatusCode) + ' - ' +
                                                               HttpRest.ReasonPhrase;
+        if (FDelivery = 'DELIVERED') or  (FDelivery = 'SENT') then begin   { V8.63 same responses as Kapow }
+            FDelivery := 'SMS Delivered OK';
+            FLastError := '';
+        end
+        else if (FDelivery = 'REJECTED') or (FDelivery = 'UNDELIVERABLE') then
+            FDelivery := 'Message Delivery Failed';
+
      end;
     if Assigned(FOnSmsDone) then FOnSmsDone(Self);
 end;

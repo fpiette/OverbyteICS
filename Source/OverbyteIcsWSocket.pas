@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.62
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1996-2019 by François PIETTE
@@ -1320,6 +1320,10 @@ Aug 07, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functio
                    Moved FIcsLogger to TIcsWndControl ao that unit can log errors.
                    Added source to HandleBackGroundException so we know where
                        errors come from, when using IcsLogger.
+Oct 07, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
+                     version to break receive loop after exception handling.
+
+
 
 Pending - server certificate bundle files may not have server certificate as first
 Pending - intermediate certificate bundle files may have self signed root that should be ignored
@@ -1527,8 +1531,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 862;
-  CopyRight    : String     = ' TWSocket (c) 1996-2019 Francois Piette V8.62 ';
+  WSocketVersion            = 863;
+  CopyRight    : String     = ' TWSocket (c) 1996-2019 Francois Piette V8.63 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -8271,8 +8275,10 @@ begin
             else if lCount = 0 then
                 bMore := FALSE;
         except
-            on E:Exception do
-                HandleBackGroundException(E, 'TCustomWSocket.ASyncReceive');       { V8.62 don't ignore user errors }
+            on E:Exception do begin
+                HandleBackGroundException(E, 'TCustomWSocket.ASyncReceive');  { V8.62 don't ignore user errors }
+                bMore := FALSE;                                               { V8.63 and don't continue looping }
+            end;
         end;
     end;
 end;

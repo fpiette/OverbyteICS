@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.62
+Version:      8.63
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2002-2019 by François PIETTE
@@ -183,7 +183,7 @@ Jun 19, 2019 V8.62 Added IcsGetLocalTZBiasStr get time zone bias as string, ie -
                       time to UTC and format it per RFC3339 with time zone bias.
                    RFC3339_StrToDate and RFC1123_StrToDate now recognise time zone
                       bias and adjust result if UseTZ=True from UTC to local time.
-
+Oct 22, 2018 V8.63 Better error handling in RFC1123_StrToDate to avoid exceptions.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -1370,17 +1370,23 @@ var
     Hour, Min,   Sec : Word;
     tzvalue: Integer;
     sign: String;
+    timeDT: TDateTime;
 begin
+    Result := 0;
+    if Length(aDate) < 17 then Exit ;  // V8.63 must have date
     { Fri, 30 Jul 2004 10:10:35 GMT }
     { Tue, 11 Jun 2019 12:24:13 +0100 }
     Day    := StrToIntDef(Copy(aDate, 6, 2), 0);
     Month  := (Pos(Copy(aDate, 9, 3), RFC1123_StrMonth) + 2) div 3;
     Year   := StrToIntDef(Copy(aDate, 13, 4), 0);
+    if NOT TryEncodeDate(Year, Month, Day, Result) then Exit;
+
+    if Length(aDate) < 25 then Exit ;  // V8.63 no time
     Hour   := StrToIntDef(Copy(aDate, 18, 2), 0);
     Min    := StrToIntDef(Copy(aDate, 21, 2), 0);
     Sec    := StrToIntDef(Copy(aDate, 24, 2), 0);
-    Result := EncodeDate(Year, Month, Day);
-    Result := Result + EncodeTime(Hour, Min, Sec, 0);
+    if NOT TryEncodeTime(Hour, Min, Sec, 0, timeDT) then Exit;
+    Result := Result + timeDT;   // V8.63 add time
 
 { V8.62 check for time zone, GMT, +0700, -1000, -0330 }
     if NOT UseTZ then Exit;

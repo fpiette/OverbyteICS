@@ -1320,9 +1320,11 @@ Aug 07, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functio
                    Moved FIcsLogger to TIcsWndControl ao that unit can log errors.
                    Added source to HandleBackGroundException so we know where
                        errors come from, when using IcsLogger.
-Oct 07, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
+Oct 22, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                      version to break receive loop after exception handling.
-
+                   Added LoadFromP12Buffer to load PFX certificate from buffer,
+                     thanks to Mitzi.
+                   GetSelfSigned now has better check for self signed certificates.
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -2926,6 +2928,8 @@ type
         procedure   PrivateKeyLoadFromText(Lines: String; const Password: String = '');  { V8.27 }
         procedure   LoadFromP12File(const FileName: String; IncludePKey: TCertReadOpt = croNo;
                        IncludeInters: TCertReadOpt = croNo; const Password: String = '');     { V8.40 }
+        procedure   LoadFromP12Buffer(ABuffer: Pointer; ABufferSize: Cardinal;
+                       IncludePKey, IncludeInters: TCertReadOpt; const Password: String);  { V8.63 }
         procedure   LoadFromP7BFile(const FileName: String; IncludeInters: TCertReadOpt = croNo); { V8.40 }
         procedure   LoadFromFile(const FileName: String; IncludePKey: TCertReadOpt = croNo;
                        IncludeInters: TCertReadOpt = croNo; const Password: String = ''); { V8.40 }
@@ -17652,6 +17656,76 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.LoadFromP12Buffer(ABuffer: Pointer; ABufferSize: Cardinal;
+                IncludePKey, IncludeInters: TCertReadOpt; const Password: String);  { V8.63 }
+var
+    FileBio: PBIO;
+    P12: PPKCS12;
+    Cert: PX509;
+    PKey: PEVP_PKEY;
+    Ca: PSTACK_OF_X509;
+    PW: PAnsiChar;
+    I: integer;
+begin
+    InitializeSsl;
+
+    FileBio := f_BIO_new_mem_buf(ABuffer,ABufferSize);
+    if not Assigned(FileBio) then
+      RaiseLastOpenSslError(EX509Exception, TRUE,
+                              'Error reading PKCS12 certificates from buffer');
+    try
+        P12 := f_d2i_PKCS12_bio(FileBio, Nil);
+        if not Assigned(P12) then
+            RaiseLastOpenSslError(EX509Exception, TRUE,
+                              'Error reading PKCS12 certificates from buffer');
+        try
+            Cert := Nil;
+            Pkey := Nil;
+            Ca := Nil;
+            PW := Nil;
+            if Length(Password) > 0 then PW := PAnsiChar(PasswordConvert(Password));   { V8.55 }
+            if f_PKCS12_parse(P12, PW, Pkey, Cert, Ca) = 0 then begin
+                if Ics_Ssl_ERR_GET_REASON(f_ERR_peek_error) = 113 then  { PKCS12_R_MAC_VERIFY_FAILURE }
+                    raise EX509Exception.Create('Error PKCS12 Certificate password invalid for buffer')
+                else
+                    RaiseLastOpenSslError(EX509Exception, TRUE,
+                              'Error parsing PKCS12 certificates from buffer');
+            end;
+            if (IncludePKey > croNo) then begin
+                if Assigned(PKey) then begin
+                    if (f_X509_check_private_key(Cert, PKey) < 1) then
+                        raise EX509Exception.Create('Certificate and private key do not match');
+                     SetX509(Cert);
+                     SetPrivateKey(PKey);
+                     f_EVP_PKEY_free(PKey);
+                end
+                else begin
+                    if IncludePKey = croYes then  { V8.50 require  private key so error }
+                        raise EX509Exception.Create('Error reading private key from buffer');
+                end;
+            end
+            else
+                SetX509(Cert);
+            f_X509_free(Cert);
+            FreeAndNilX509Inters;
+
+          { intermediate certificates are optional, no error if none found }
+            if (IncludeInters > croNo) and Assigned(Ca) then begin
+                FX509Inters := f_OPENSSL_sk_new_null;
+                for I := 0 to f_OPENSSL_sk_num(Ca) - 1 do
+                    f_OPENSSL_sk_insert(FX509Inters, PAnsiChar(f_X509_dup
+                                    (PX509(f_OPENSSL_sk_value(Ca, I)))), I);
+                f_OPENSSL_sk_free(Ca);
+            end;
+        finally
+            f_PKCS12_free(p12);
+        end;
+    finally
+        f_bio_free(FileBio);
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TX509Base.PrivateKeyLoadFromText(Lines: String;          { V8.27 }
                                            const Password: String = '');
 var
@@ -18278,7 +18352,8 @@ end;
 function TX509Base.GetSelfSigned: Boolean;
 begin
     if Assigned(FX509) then
-        Result := f_X509_check_issued(FX509, FX509) = 0
+        Result := (f_X509_check_issued(FX509, FX509) = 0) or (IssuerCName = SubjectCName)
+          { V8.63 double check, check_issued does not always work }   
     else
         Result := FALSE;
 end;
@@ -19125,7 +19200,7 @@ begin
         end;
         if CertIssuer <> '' then begin
             Result := chainWarn;
-            ErrStr := 'Issuer ' + CertIssuer + ' not found for SSL certificate - ' + SubjectCName;;
+            ErrStr := 'Issuer ' + CertIssuer + ' not found for SSL certificate - ' + SubjectCName;
         end
         else if (NextIssuer <> '') then begin
             Result := chainWarn;

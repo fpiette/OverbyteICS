@@ -2,8 +2,8 @@
  Author:      Angus Robertson, Magenta Systems Ltd
 Description:  IP Streaming Log Component
 Creation:     Nov 2006
-Updated:      Aug 2019
-Version:      8.62
+Updated:      Oct 2019
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -190,8 +190,10 @@ in the event when only one was open, tested with Delphi 2010
 07 Aug 2019 - V8.62 - TCP server now uses root bundle correctly and reports
                         certificate chain and bindings.
                       Ensure all listeners started for TCP Server, if more than one.
-                      Builds without USE_SSL
-
+                      Builds without USE_SSL.
+22 Oct 2019 - V.63  - SrvValidateHosts and SrvRecheckSslCerts have new AllowSelfSign
+                         to stop errors with self signed certificates.
+                      Allow TCP server to start with certificate warnings.
 
 
 
@@ -457,9 +459,10 @@ type
     procedure ResetRecvData (Socnr: integer) ;             // 13 Sept 2016
     function GetPartialLine (Socnr: integer): string ;
     function GetSendWaiting (Socnr: integer): integer ;    // 6 Sept 2016
-    function SrvValidateHosts(Stop1stErr: Boolean=True; NoExceptions: Boolean=False): String;
-    function SrvRecheckSslCerts(var CertsInfo: String;
-                        Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean;
+    function SrvValidateHosts(Stop1stErr: Boolean=True; NoExceptions: Boolean=False;
+                                                    AllowSelfSign: Boolean=False): String;  { V8.63 }
+    function SrvRecheckSslCerts(var CertsInfo: String; Stop1stErr: Boolean=True;
+                      NoExceptions: Boolean=False; AllowSelfSign: Boolean=False): Boolean;   { V8.63 }
     property ChanInfos [Index: integer]: TStrmChanInfo read GeTStrmChanInfo ;
     property States [Index: integer]: TStrmLogState read GetState ;
     property LogActive: boolean                     read FLogActive ;
@@ -988,9 +991,10 @@ begin
             LogErrEvent (0, FLastErrorStr) ;
             exit ;
         end ;
-        FLastErrorStr := FListenSocket.ValidateHosts(True, True);
-        if FLastErrorStr <> '' then
+        FLastErrorStr := FListenSocket.ValidateHosts(True, True, True);  { V8.63 allow self sign }
+        if FListenSocket.IcsHosts [0].CertValRes = chainFail then  { V8.63 don't stop on warning, only fatal error }
         begin
+            FLastErrorStr := FCurTitle + FLastErrorStr ;
             LogErrEvent (0, FLastErrorStr) ;
             exit ;
         end ;
@@ -1002,7 +1006,13 @@ begin
         begin
             for I := 0 to Pred(FListenSocket.IcsHosts.Count) do
             begin
-                 if (FListenSocket.IcsHosts[I].CertInfo <> '') then
+                if FListenSocket.IcsHosts [I].CertValRes = chainFail then  { V8.63 any other failures }
+                begin
+                    FLastErrorStr := FCurTitle + FLastErrorStr;
+                    LogErrEvent (0, FLastErrorStr) ;
+                    exit ;
+                end ;
+                if (FListenSocket.IcsHosts[I].CertInfo <> '') then
                       LogErrEvent (0, FListenSocket.IcsHosts[I].CertInfo) ;
             end;
         end;
@@ -3004,18 +3014,18 @@ end;
 {$ENDIF} // AUTO_X509_CERTS
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TIcsIpStrmLog.SrvValidateHosts(Stop1stErr: Boolean=True;
-                                        NoExceptions: Boolean=False): String;
+                 NoExceptions: Boolean=False; AllowSelfSign: Boolean=False): String;  { V8.63 } 
 begin
-     Result := FListenSocket.ValidateHosts(Stop1stErr, NoExceptions);
+     Result := FListenSocket.ValidateHosts(Stop1stErr, NoExceptions, AllowSelfSign);
 end;
 
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsIpStrmLog.SrvRecheckSslCerts(var CertsInfo: String;
-                    Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean;
+function TIcsIpStrmLog.SrvRecheckSslCerts(var CertsInfo: String; Stop1stErr:
+      Boolean=True; NoExceptions: Boolean=False; AllowSelfSign: Boolean=False): Boolean;  { V8.63 }
 begin
-     Result := FListenSocket.RecheckSslCerts(CertsInfo, Stop1stErr, NoExceptions);
+     Result := FListenSocket.RecheckSslCerts(CertsInfo, Stop1stErr, NoExceptions, AllowSelfSign);
 end;
 
 

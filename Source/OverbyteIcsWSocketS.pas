@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.62
+Version:      8.63
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1999-2019 by François PIETTE
@@ -212,7 +212,11 @@ Aug 06, 2019  V8.62  When ordering X509 certificate, ChallFileSrv challenge now
                       signed ACME certificate for the challenge.
                    BEWARE tls-alpn-01 challenge not working yet, wrong certificate
                      is sent to client.
-                     
+Oct 22, 2019 V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
+                      AllowSelfSign to stop errors with self signed certificates.
+                    Automatic cert ordering now works if cert file name has -bundle
+                       or -cert appended to end.
+
 
 
 Quick reference guide:
@@ -692,8 +696,8 @@ uses
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 862;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2019 F. Piette V8.62 ';
+    WSocketServerVersion     = 863;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2019 F. Piette V8.63 ';
  { V8.62 ALPN requests that may arrive during SSL helo }
     AlpnAcmeTls1 = 'acme-tls/1';
     AlpnHttp11   = 'http/1.1';
@@ -1230,12 +1234,12 @@ type
         procedure SetIcsHosts(const Value: TIcsHostCollection);      { V8.45 }
         function  FindBinding(const MAddr: String; MPort: Integer;
                                  var MIndex: Integer): boolean;      { V8.45 }
-        function  ValidateHosts(Stop1stErr: Boolean=True;
-                      NoExceptions: Boolean=False): String; virtual; { V8.48 }
-        function  RecheckSslCerts(var CertsInfo: String;
-                    Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean; { V8.48 }
+        function  ValidateHosts(Stop1stErr: Boolean=True; NoExceptions: Boolean=False;
+                                          AllowSelfSign: Boolean=False): String; virtual; { V8.48, V8.63 }
+        function  RecheckSslCerts(var CertsInfo: String; Stop1stErr: Boolean=True;
+                        NoExceptions: Boolean=False; AllowSelfSign: Boolean=False): Boolean; { V8.48, V8.63 }
         function  LoadOneCert(HostNr: Integer; ForceLoad: Boolean;
-                                             var LoadNew: Boolean): Boolean; { V8.57 }
+                                var LoadNew: Boolean; AllowSelfSign: Boolean=False): Boolean; { V8.57, V8.63 }
         function  OrderCert(HostNr: Integer): Boolean;               { V8.57 }
 {$IFDEF AUTO_X509_CERTS}  { V8.59 }
         function  GetSslX509Certs: TComponent;                       { V8.57 }
@@ -3080,8 +3084,11 @@ begin
              // must have correct expected SSL certificate file name
                 CertCommonName := HostNames[0];
                 FName := IcsExtractNameOnly(FSslCert);
-                if BuildCertName(CertCommonName) <> FName then begin
-                    FCertErrs := 'SslCert File Name Mismatch for New Certificate - ' + Fname;
+             // V8.63 allow for file name having -bundle or -cert appended to end
+                if Pos (BuildCertName(CertCommonName), FName) <> 1 then begin
+                    FCertErrs := 'Certificate File Name Mismatch, File:  ' +
+                                                    Fname + ',  Common Name: ' + CertCommonName;
+                    Result := False;  // V8.63
                     Exit;
                 end;
 
@@ -3123,6 +3130,7 @@ begin
             except
                 on E:Exception do begin
                     FCertErrs := E.Message; { V8.52 keep exception }
+                    Result := False;  // V8.63
                 end;
             end;
         end;
@@ -3136,7 +3144,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.57 load certificates for one host }
 function TSslWSocketServer.LoadOneCert(HostNr: Integer; ForceLoad: Boolean;
-                                                 var LoadNew: Boolean): Boolean;
+                              var LoadNew: Boolean; AllowSelfSign: Boolean=False): Boolean;  { V8.63 }
 var
     NewFStamp: TDateTime;
     FDir, FName: String;
@@ -3238,7 +3246,17 @@ begin
         FCertExiry := SslCtx.SslCertX509.ValidNotAfter;
      { V8.47 warning, currently only checking first Host name }
      { V8.57 expire days now configurable }
-        FCertValRes := SslCtx.SslCertX509.ValidateCertChain(FHostNames[0],
+     { V8.63 optionally don't check self signed }
+        if SslCtx.SslCertX509.SelfSigned then begin
+            if AllowSelfSign then
+                FCertValRes := chainOK
+            else
+                FCertValRes := chainWarn;
+            FCertErrs := 'Certificate self signed';
+            FCertInfo := 'Server: ' + SslCtx.SslCertX509.CertInfo(False);
+        end
+        else
+            FCertValRes := SslCtx.SslCertX509.ValidateCertChain(FHostNames[0],
                                                 FCertInfo, FCertErrs, FCertExpireDays);
         if FCertValRes = chainOK then begin
             FCertErrs := 'Chain Validated OK';
@@ -3285,7 +3303,7 @@ end;
    non=SSL connections }
 
 function TSslWSocketServer.ValidateHosts(Stop1stErr: Boolean=True;
-                                    NoExceptions: Boolean=False): String; { V8.48 }
+                           NoExceptions: Boolean=False; AllowSelfSign: Boolean=False): String; { V8.48, V8.63 }
 var
     I, FirstSsl: integer;
     FirstHost, LoadNew, LoadFlag: Boolean;
@@ -3492,7 +3510,7 @@ begin
               in the same PEM or PFX bundle file or seperate files, or may be base64 text,
               validate SSL certificate chain, helps to ensure server will work!  Note
               will not order new certificate because server not yet running to check domain }
-                LoadFlag := LoadOneCert(I, True, LoadNew);
+                LoadFlag := LoadOneCert(I, True, LoadNew, AllowSelfSign);  { V8.63 self sign }
                 if (NOT LoadFlag) or (FCertValRes <> chainOK) then
                     Result := Result + 'Host #' + IntToStr(I) + ' ' + FHostNames[0] +
                                                                ', '  + FCertErrs + #13#10;
@@ -3523,8 +3541,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.48 if IcsHostCollection has been specified, recheck SSL certificates
   to see if new files found (returns True) or old certificates are about to expire }
-function TSslWSocketServer.RecheckSslCerts(var CertsInfo: String;
-                Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean; { V8.48 }
+function TSslWSocketServer.RecheckSslCerts(var CertsInfo: String; Stop1stErr: Boolean=True;
+                            NoExceptions: Boolean=False; AllowSelfSign: Boolean=False): Boolean; { V8.48, V8.63 }
 var
     I: integer;
     LoadNew, LoadFlag: Boolean;
@@ -3539,7 +3557,7 @@ begin
 
           { load any new certificates, might order new SSL certificate }
             try
-                LoadFlag := LoadOneCert(I, False, LoadNew);
+                LoadFlag := LoadOneCert(I, False, LoadNew, AllowSelfSign); { V8.63 }
                 if FCertValRes <> chainOK then
                     CertsInfo := CertsInfo + 'Host #' + IntToStr(I) + ' ' +
                                           FHostNames[0] + ', '  + FCertErrs + #13#10;
@@ -3574,7 +3592,7 @@ end;
 procedure TSslWSocketServer.Listen;                             { V8.46 }
 begin
 { better to call this before Listen and handle errors better, but in case not }
-    if NOT FValidated then ValidateHosts;
+    if NOT FValidated then ValidateHosts(True, True, False);
     FValidated := False;
     inherited Listen;
 end;

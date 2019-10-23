@@ -9,8 +9,8 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     Apr 2018
-Updated:      July 2019
-Version:      8.62
+Updated:      Oct 2019
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -661,7 +661,7 @@ Nov 2, 2018   - V8.58 - Bug fixes and more documentation.
                         Descend components from TIcsWndControl not TComponent
 Feb 6, 2019   - V8.60   Added SocketFamily property to allow both IPv4 and IPv6.
 Apr 16, 2017  - V8.61   Certificate dates are in UTC not local time.
-Auig 07 25, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
+Aug 07, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
                         Added literals for various types to assist apps.
                         Removed Acme V1 protocol support (withdrawn from Nov 2019)
                         AcmeV2 now supports POST-as-GET per RFC8555 for the final
@@ -670,7 +670,7 @@ Auig 07 25, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
                           NAT firewalls for public access.
                        CertCenter AlwaysOn is discontinued and removed.
                        Comodo is now called Sectigo, sometimes old name still used.
-                       Moved BuildCertName to X509Utils.
+                       Moved BuildCertName to OverbyteIcsWSocketS.
                        Check can create certificate directories before order starts.
                        Added ChallFileApp and ChallAlpnApp which mean SocketServer
                          checks the challenge database in this unit using an event
@@ -679,12 +679,14 @@ Auig 07 25, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
                        BEWARE tls-alpn-01 challenge not working yet, wrong certificate
                          is sent to client.
                        Builds without USE_SSL
+Oct 22, 2019 - V8.63 - OpenAccount will now create a new account correctly.
+                       Better response for CertOrderDomain if order collected.
+                       Changed challenge checking from every 30 seconds to 10 seconds
+                         after a challenge started for faster completion.
 
 
 Pending - more documentation
 Pending - keep CertCentre admin details as supplier
-Pending - Challenge timer relaxed checking for completed orders after waiting
-          x minutes (currently every 30 secs)
 Pending - Acme EC accounts, signing currently fails validation
 Pending - Acme revoke certificate
 Pending - CertCentre re-issue certificate, use ModifiedOrders for last x days
@@ -759,12 +761,13 @@ uses
     OverbyteIcsLogger,     { for TLogOption }
     OverbyteIcsUrl,
     OverbyteIcsMimeUtils,
+    OverbyteIcsTicks64, 
     OverbyteIcsSuperObject;
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
 const
-    ComponentVersion = 'V8.62';  // used in user agent
+    ComponentVersion = 'V8.63';  // used in user agent
 
  // file suffixes to build various file names
     FileSuffPKey     = '-privatekey.pem' ;
@@ -1164,6 +1167,7 @@ TSslX509Certs = class(TIcsWndControl)
     FLastResponse: String;
     FSocketFamily: TSocketFamily;   { V8.60 }
     FFileCertLocalHost: String;     { V8.60 }
+    FChkChallgTrg: Int64;           { V8.63 }
   protected
     { Protected declarations }
     procedure RestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
@@ -1561,7 +1565,7 @@ begin
     FDomWebServer := TSimpleWebSrv.Create(self);
     FDomWebServer.OnServerProg := RestProg;
     FDomWebServer.OnSimpWebSrvReq := WebSrvReq;
-    FDomWebServer.OnSimpWebSrvAlpn := WebSrvAlpn;  { V8.62 } 
+    FDomWebServer.OnSimpWebSrvAlpn := WebSrvAlpn;  { V8.62 }
     FHttpRest := TSslHttpRest.Create(self);   // REST requests
     FHttpRest.OnHttpRestProg := RestProg;
     FHttpTest := TSslHttpRest.Create(self);   // test .well-known requests
@@ -1585,7 +1589,8 @@ begin
     FPrivKeyCipher := PrivKeyEncNone;
     FChallengeTimer := TIcsTimer.Create(FHttpRest);
     FChallengeTimer.OnTimer := ChallengeOnTimer;
-    FChallengeTimer.Interval := 30 * TicksPerSecond;
+    FChallengeTimer.Interval := 5 * TicksPerSecond;  { V8.63 was 30 }
+    FChkChallgTrg := Trigger64Immediate;             { V8.63 }
     FChallengeTimer.Enabled := False;
     FNewSslCert := TSslCertTools.Create(self) ;
     FAcmePrivKey := TSslCertTools.Create(self);
@@ -1811,6 +1816,7 @@ begin
                     if (Pos(CPage, Path) >= 1) then begin
                         RespData := CResp;
                         LogEvent('Web Server Challenge Response Sent for: ' + CDomain);
+                        FChkChallgTrg := IcsGetTrgSecs64 (10);  { V8.63 next check 10 secs }
                         break;
                     end;
                 end;
@@ -4463,6 +4469,7 @@ begin
                                         'the order is completed, hopefully a few minutes for DV');
             FChallgStartDT := Now;
             FIssueState := IssStateChallgPend;
+            FChkChallgTrg := IcsGetTrgSecs64 (10);   { V8.63 first check in 10 seconds }
         end
         else begin
 
@@ -6071,6 +6078,7 @@ Response (length 919)
             end;
             FChallgStartDT := Now;
             FIssueState := IssStateChallgPend;
+            FChkChallgTrg := IcsGetTrgSecs64 (10);   { V8.63 first check in 10 seconds }
             if FChallengeTimer.Enabled then
                 LogEvent('ACME Certificate Order Placed, Automatic Collection Enabled' + IcsCRLF)
             else
@@ -6590,16 +6598,20 @@ var
 
 begin
     if FX509BusyFlag then Exit;
+    if NOT IcsTestTrgTick64 (FChkChallgTrg) then Exit;   { V8.63 not yet }
     FChallengeTimer.Enabled := False;
+    FChkChallgTrg := IcsGetTrgSecs64 (120);  { V8.63 next check two minutes }
     FX509BusyFlag := True;
     try // finally
         if (FChallengesTot > 0) then begin
             for I := 0 to Length(FChallengeItems) - 1 do begin
                 try // except
                   // sanity check, account may have been closed from newcert event
-                    if (FChallengesTot = 0) then Exit;
-                    if (Length(FChallengeItems) = 0) then Exit;
-                    if FSupplierProto = SuppProtoNone then Exit;
+                    if (FChallengesTot = 0) then Break;
+                    if (Length(FChallengeItems) = 0) then Break;
+                    if (FControlFile = Nil) then Break;  { V8.63 account may be closed }
+                    if (FSupplierProto = SuppProtoNone) then Break;
+                    FChkChallgTrg := IcsGetTrgSecs64 (10);  { V8.63 next check 10 secs }
                     with FChallengeItems [I] do begin
                         if (CDomain = '') then continue;
 
@@ -6630,12 +6642,22 @@ begin
                             else
                                 Continue;
                         end;
+
+                      { V8.63 challenge not complete after one hour, slow down checks }
+                        if (CIssueState = IssStateChallgPend) and ((Now - CStartDT) > (1.0/24.0)) then begin
+                            FChkChallgTrg := IcsGetTrgSecs64 (120);
+                        end;
                     end;
                 except
                     on E:Exception do begin
                       LogEvent ('Failed to read Challenge Item in Timer: ' + E.Message);
                     end;
                 end;
+            end;
+
+          { V8.63 challenges finished should we close account }
+            if (FChallengesTot = 0) then begin
+                //
             end;
         end;
     finally
@@ -6675,14 +6697,19 @@ end;
 // sets DbCNDomains list of certificate common name domains created using
 // the account
 function TSslX509Certs.OpenAccount(const WorkDir: String; CreateNew: Boolean = False): Boolean;
+var
+    NewProto: TSupplierProto ;
 begin
     Result := False;
-    CloseAccount;
+    NewProto := FSupplierProto ;  { V8.63 }
     FSupplierProto := SuppProtoNone;
+    CloseAccount;
+
   // ignore public properties, read everything from database
     if NOT DBReadAccount(IncludeTrailingPathDelimiter(WorkDir), True) then begin
         if NOT CreateNew then Exit;
         LogEvent ('Old Account Not Found, Creating New Account in: ' + WorkDir);
+        FSupplierProto := NewProto ;   { V8.63 }
     end;
     if FSupplierProto = SuppProtoAcmeV2 then
         Result := SetAcmeAccount (CreateNew)
@@ -6790,14 +6817,19 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 // order certificate for common domain name and collect certificate when ready
 function TSslX509Certs.CertOrderDomain(const aDomain: String): Boolean;
+var
+    Collected: Boolean;
 begin
     Result := CertReadDomain(aDomain);
     if NOT Result then Exit;
+    Collected := False;
     FIssueState := IssStateNone;
     if SupplierProto = SuppProtoAcmeV2 then begin
         Result := AcmeV2OrderCert;
-        if FIssueState >= IssStateChallgOK then
-              Result := AcmeV2GetCert;
+        if FIssueState >= IssStateChallgOK then begin
+            Result := AcmeV2GetCert;
+            if Result then Collected := True;   { V8.63 }
+        end;
     end
     else if SupplierProto = SuppProtoCertCentre then
         Result := CCOrderCert
@@ -6806,7 +6838,9 @@ begin
     else begin
             LogEvent('Can Not Order Certificate, Unknown Supplier Protocol');
     end;
-    if Result then
+    if Result and Collected then
+        LogEvent('Collected Certificate OK for: ' + aDomain)    { V8.63 }
+    else if Result and (NOT Collected) then
         LogEvent('Ordered Certificate OK for: ' + aDomain)
     else
         LogEvent('Failed to Order Certificate for: ' + aDomain);

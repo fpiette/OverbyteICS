@@ -6,10 +6,9 @@ Description:  A simple  HTTPS SSL Web Client Demo client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.62
-EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list ics-ssl@elists.org
-              Follow "SSL" link at http://www.overbyte.be for subscription.
+Version:      8.63
+EMail:        francois.piette@overbyte.be         http://www.overbyte.be
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
@@ -91,7 +90,8 @@ Jul 25, 2019 V8.82 Removed DH file, only for servers.
              Security Level uses newer Client Security Levelxxx, note that setting
                Ignore uses Min/Max Protocol and Cipher instead.
              Support ProxyURL which combines four proxy options into single URL.
-             SslAlpnProto replaced SslGetAlpnProto. 
+             SslAlpnProto replaced SslGetAlpnProto.
+Oct 25, 2019 V8.63 Unwrap certificate fields for List Cert Store.
 
 
 // pending add persistent cookie support, and gzip content encoding
@@ -1316,6 +1316,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.39 lists the common name of all root certificates in the store }
+{ V8.63 unwrap multliple CN or OU entries into single line  }
 
 procedure THttpsTstForm.StoreButtonClick(Sender: TObject);
 var
@@ -1334,14 +1335,14 @@ begin
             for I := 1 to Tot do begin
                 Info := Info + '#' + IntToStr (I) + ' ';
                 if CertList [I-1].SubAltNameDNS <> '' then
-                    Info := Info + CertList [I-1].SubAltNameDNS
+                    Info := Info + IcsUnwrapNames(CertList [I-1].SubAltNameDNS)
                 else if CertList [I-1].SubjectCName <> '' then  { V8.41 some roots blank }
-                    Info := Info + CertList [I-1].SubjectCName
+                    Info := Info + IcsUnwrapNames(CertList [I-1].SubjectCName)
                 else
-                    Info := Info + CertList [I-1].SubjectOName;
-                Info := Info + ' (' + CertList [I-1].SubjectOName + ')';
+                    Info := Info + IcsUnwrapNames(CertList [I-1].SubjectOName);
+                Info := Info + ' (' + IcsUnwrapNames(CertList [I-1].SubjectOName) + ')';
                 if CertList [I-1].SubjectOUName <> '' then
-                    Info := Info + ' OU: ' + CertList [I-1].SubjectOUName;   { V8.52 }
+                    Info := Info + ' OU: ' + IcsUnwrapNames(CertList [I-1].SubjectOUName);
                 Info := Info + #13#10;
             end;
             Display(Info);

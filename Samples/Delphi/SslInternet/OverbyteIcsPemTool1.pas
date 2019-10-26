@@ -8,7 +8,7 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.62
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2003-2019 by François PIETTE
@@ -99,7 +99,9 @@ Jun 11, 2018 V8.55 don't load OpenSSL in Create
 Oct 19, 2018 V8.58 version only
 Apr 16, 2019 V8.61 Show certificate expiry and issue time as well as date.
 Jul  9, 2019 V8.62 Load several type lists from literals for future proofing.
-                   Report ACME Identifier in certificate, if it exists. 
+                   Report ACME Identifier in certificate, if it exists.
+Oct 24, 2019 V8.63 Report certificate sha256 fingerprint as well as sha1
+
 
 
 Pending
@@ -137,10 +139,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 862;
-     PemToolDate        = 'July 9, 2019';
+     PemToolVersion     = 863;
+     PemToolDate        = 'October 24, 2019';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2019 by François PIETTE V8.62 ';
+     CopyRight : String = '(c) 2003-2019 by François PIETTE V8.63 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -777,8 +779,9 @@ begin
             'Authority Key Identifier: ' + IcsUnwrapNames(AuthorityKeyId) + #13#10 +
             'Subject Key Identifier: ' + IcsUnwrapNames(SubjectKeyId) + #13#10 +
             'Signature Algorithm: ' + SignatureAlgorithm + #13#10 +  // Oct 2015
-            'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10;
-        Ext := GetExtensionByName('acmeIdentifier');   { V8.62 } 
+            'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10 +
+            'Fingerprint (sha56): ' + IcsLowerCase(Sha256Hex) + #13#10;  { V8.63 }
+        Ext := GetExtensionByName('acmeIdentifier');   { V8.62 }
         if Ext.Value <> '' then
             Result := Result + 'ACME Identifier: ' + Ext.Value + #13#10;
         if ExtendedValidation then

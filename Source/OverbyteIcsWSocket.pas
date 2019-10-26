@@ -1320,11 +1320,14 @@ Aug 07, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functio
                    Moved FIcsLogger to TIcsWndControl ao that unit can log errors.
                    Added source to HandleBackGroundException so we know where
                        errors come from, when using IcsLogger.
-Oct 22, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
+Oct 24, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                      version to break receive loop after exception handling.
-                   Added LoadFromP12Buffer to load PFX certificate from buffer,
-                     thanks to Mitzi.
+                   Added LoadFromP12Buffer to load PFX certificate from buffer to
+                     TX509Base, thanks to Mitzi.
                    GetSelfSigned now has better check for self signed certificates.
+                   Added Sha256Digest and Sha256Hex to TX509Base.
+                   CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
+
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -2811,6 +2814,8 @@ type
         FSha1Hex            : String;
         FX509Inters         : PStack;     { V8.41 }
         FX509CATrust        : PStack;     { V8.41 }
+        FSha256Digest       : THashBytes20;  { V8.63 }
+        FSha256Hex          : String;        { V8.63 }
     protected
         FVerifyResult       : Integer;  // current verify result
         FVerifyDepth        : Integer;
@@ -2884,6 +2889,8 @@ type
         function    GetIsCATrustLoaded : Boolean;                          { V8.41 }
         function    GetInterCount: Integer;                                { V8.41 }
         function    GetCATrustCount: Integer;                              { V8.41 }
+        function    GetSha256Digest: THashBytes20;                         { V8.63 }
+        function    GetSha256Hex: String;        { aka fingerprint }       { V8.63 }
     public
         constructor Create(AOwner: TComponent; X509: Pointer = nil); reintroduce;
         destructor  Destroy; override;
@@ -3043,6 +3050,8 @@ type
         property    IsCATrustLoaded     : Boolean       read GetIsCATrustLoaded;      { V8.41 }
         property    InterCount          : Integer       read GetInterCount;           { V8.41 }
         property    CATrustCount        : Integer       read GetCATrustCount;         { V8.41 }
+        property    Sha256Digest        : THashBytes20  read  GetSha256Digest;        { V8.63 }
+        property    Sha256Hex           : String        read  GetSha256Hex; { aka fingerprint V8.63 }
     end;
 
     TX509Class = class of TX509Base;
@@ -16739,6 +16748,8 @@ begin
         FX509 := nil;
         FSha1Hex  := '';
         FSha1Digest  := nil;
+        FSha256Hex  := '';      { V8.83 }
+        FSha256Digest  := nil;
     end;
 end;
 
@@ -17281,6 +17292,35 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetSha256Digest: THashBytes20;                 { V8.63 }
+var
+    Len : Integer;
+begin
+    if Assigned(FX509) and (FSha256Digest = nil) then begin
+        SetLength(FSha256Digest, 32);
+        if f_X509_digest(FX509, f_EVP_sha256, @FSha256Digest[0], @Len) = 0 then
+        begin
+            FSha256Digest := nil;
+            RaiseLastOpenSslError(EX509Exception, TRUE);
+        end;
+    end;
+    Result := FSha256Digest;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetSha256Hex: String;            { aka fingerprint V8.63 }
+begin
+    if FSha256Hex = '' then begin
+        GetSha256Digest;
+        if Assigned(FSha256Digest) then
+            FSha256Hex := IcsBufferToHex(FSha256Digest[0], 32);
+    end;
+    Result := FSha256Hex;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.GetSubjectAltName: TExtension;
 begin
     Result := GetExtensionByName('subjectAltName');  { V8.41 simplify }
@@ -17420,6 +17460,8 @@ begin
     FVerifyDepth        := 0;
     FSha1Hex            := '';
     FSha1Digest         := nil;
+    FSha256Hex          := '';
+    FSha256Digest       := nil;
     FVerifyResult       := X509_V_ERR_APPLICATION_VERIFICATION;
     FCustomVerifyResult := X509_V_ERR_APPLICATION_VERIFICATION;
     FFirstVerifyResult  := X509_V_ERR_APPLICATION_VERIFICATION;
@@ -18783,7 +18825,10 @@ function TX509Base.CertInfo(Brief: Boolean = False): String;   { V8.41 added Bri
 begin
     Result := '';
     if NOT IsCertLoaded then Exit;  { V8.57 sanity check }
-    Result := 'Issued to (CN): ' + IcsUnwrapNames (SubjectCName);
+    if SubjectCName = '' then
+        Result := 'Issued to (CN): (Blank)'    { V8.63 }
+    else
+        Result := 'Issued to (CN): ' + IcsUnwrapNames (SubjectCName);
     if SubjectOName  <> '' then Result := Result + ', (O): '  + IcsUnwrapNames (SubjectOName);
     if SubjectOUName <> '' then Result := Result + ', (OU): ' + IcsUnwrapNames (SubjectOUName);  { V8.53 }
     Result := Result + #13#10;
@@ -18804,7 +18849,7 @@ begin
     if NOT Brief then begin
         Result := Result + 'Valid From: ' + DateTimeToStr (ValidNotBefore) +      { V8.61 added time }
             ', Serial Number: ' + GetSerialNumHex + #13#10 +     { V8.40 }
-            'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10 +         { V8.41 }
+            'Fingerprint (sha256): ' + IcsLowerCase(Sha256Hex) + #13#10 +         { V8.41, V8.63 was Sha1 }
             'Public Key: ' + KeyInfo;                                         { V8.53 not brief }
         if ExtendedValidation then
             Result := Result + #13#10 + 'Extended Validation (EV) SSL Server Certificate';   { V8.40 }
@@ -22224,6 +22269,8 @@ begin
         begin
             FSslPeerCert.FSha1Digest        := RefCert.FSha1Digest;
             FSslPeerCert.FSha1Hex           := RefCert.FSha1Hex;
+            FSslPeerCert.FSha256Digest      := RefCert.FSha256Digest;    { V8.63 } 
+            FSslPeerCert.FSha256Hex         := RefCert.FSha256Hex;
             FSslPeerCert.VerifyResult       := RefCert.VerifyResult;
             FSslPeerCert.CustomVerifyResult := RefCert.CustomVerifyResult;
             FSslPeerCert.FirstVerifyResult  := RefCert.FirstVerifyResult;

@@ -12,7 +12,7 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      Sept 2019
+Updated:      Oct 2019
 Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -163,9 +163,10 @@ Aug 07, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
                         Added SslAllowSelfSign property to connect OK to sites
                           with self signed SSL certificates.
                         Builds without USE_SSL
-Sept 19, 2019 - V8.63 - The SMS Works sync delivery works OK, try and return
+Oct 24, 2019  - V8.63 - The SMS Works sync delivery works OK, try and return
                           similar delivery responses as Kapow.
-
+                        Ensure default CA bundle gets loaded if SslRootFile
+                          blank (broken in V8.62).
 
 
 Pending - more documentation
@@ -1201,13 +1202,15 @@ begin
                 rootfname := ExtractFileDir (ParamStr (0)) + '\' + rootfname ;
             if NOT FileExists (rootfname) then  begin
                 LogEvent('Can Not Find SSL CA Bundle File - ' + rootfname);
-                RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
+             //   RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
+                RestSslCtx.LoadCAFromString(sslRootCACertsBundle);  { V8.63 }
             end
             else
                RestSslCtx.SslCAFile := rootfname;
         end
         else
-            RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
+         //   RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
+            RestSslCtx.LoadCAFromString(sslRootCACertsBundle);  { V8.63 }
     end;
 end;
 

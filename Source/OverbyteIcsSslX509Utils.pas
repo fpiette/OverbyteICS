@@ -108,7 +108,9 @@ Oct 2, 2018  V8.57 tidy up UnwrapNames.
 Aug 07, 2019 V8.62  Added literals for various types to assist apps.
              Added AcmeIdentifier property for ACME validation certificate
              Builds without USE_SSL
-Oct 14, 2019 V8.63 Added Starfield Root Certificate Authority - G2 (used by Amazon buckets)
+Oct 24, 2019 V8.63 Added 'Starfield Services Root Certificate Authority - G2'
+               (used by Amazon buckets), and 'Amazon Root CA 1', CA 2, CA 3,
+               CA 4 which are replacing Starfield.  Removed expired certs.  
 
 
 Pending - long term
@@ -779,31 +781,6 @@ const
         'ksLi4xaNmjICq44Y3ekQEe5+NauQrz4wlHrQMz2nZQ/1/I6eYs9HRCwBXbsdtTLS' + #13#10 +
         'R9I4LtD+gdwyah617jzV/OeBHRnDJELqYzmp' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10;
-    sslRootCACerts006 =
-        '# X509 SSL Certificate' + #13#10 +
-        '# Subject Organisation: Equifax' + #13#10 +
-        '# Subject Organisation Unit: Equifax Secure Certificate Authority' + #13#10 +
-        '# Issuer: Self Signed' + #13#10 +
-        '# Expires: 22/08/2018' + #13#10 +
-        '-----BEGIN CERTIFICATE-----' + #13#10 +
-        'MIIDIDCCAomgAwIBAgIENd70zzANBgkqhkiG9w0BAQUFADBOMQswCQYDVQQGEwJV' + #13#10 +
-        'UzEQMA4GA1UEChMHRXF1aWZheDEtMCsGA1UECxMkRXF1aWZheCBTZWN1cmUgQ2Vy' + #13#10 +
-        'dGlmaWNhdGUgQXV0aG9yaXR5MB4XDTk4MDgyMjE2NDE1MVoXDTE4MDgyMjE2NDE1' + #13#10 +
-        'MVowTjELMAkGA1UEBhMCVVMxEDAOBgNVBAoTB0VxdWlmYXgxLTArBgNVBAsTJEVx' + #13#10 +
-        'dWlmYXggU2VjdXJlIENlcnRpZmljYXRlIEF1dGhvcml0eTCBnzANBgkqhkiG9w0B' + #13#10 +
-        'AQEFAAOBjQAwgYkCgYEAwV2xWGcIYu6gmi0fCG2RFGiYCh7+2gRvE4RiIcPRfM6f' + #13#10 +
-        'BeC4AfBONOziipUEZKzxa1NfBbPLZ4C/QgKO/t0BCezhABRP/PvwDN1Dulsr4R+A' + #13#10 +
-        'cJkVV5MW8Q+XarfCaCMczE1ZMKxRHjuvK9buY0V7xdlfUNLjUA86iOe/FP3gx7kC' + #13#10 +
-        'AwEAAaOCAQkwggEFMHAGA1UdHwRpMGcwZaBjoGGkXzBdMQswCQYDVQQGEwJVUzEQ' + #13#10 +
-        'MA4GA1UEChMHRXF1aWZheDEtMCsGA1UECxMkRXF1aWZheCBTZWN1cmUgQ2VydGlm' + #13#10 +
-        'aWNhdGUgQXV0aG9yaXR5MQ0wCwYDVQQDEwRDUkwxMBoGA1UdEAQTMBGBDzIwMTgw' + #13#10 +
-        'ODIyMTY0MTUxWjALBgNVHQ8EBAMCAQYwHwYDVR0jBBgwFoAUSOZo+SvSspXXR9gj' + #13#10 +
-        'IBBPM5iQn9QwHQYDVR0OBBYEFEjmaPkr0rKV10fYIyAQTzOYkJ/UMAwGA1UdEwQF' + #13#10 +
-        'MAMBAf8wGgYJKoZIhvZ9B0EABA0wCxsFVjMuMGMDAgbAMA0GCSqGSIb3DQEBBQUA' + #13#10 +
-        'A4GBAFjOKer89961zgK5F7WF0bnj4JXMJTENAKaSbn+2kmOeUJXRmm/kEd5jhW6Y' + #13#10 +
-        '7qj/WsjTVbJmcVfewCHrPSqnI0kBBIZCe/zuf6IWUrVnZ9NA2zsmWLIodz2uFHdh' + #13#10 +
-        '1voqZiegDfqnc1zqcPGUIWVEX/r87yloqaKHee9570+sB3c4' + #13#10 +
-        '-----END CERTIFICATE-----' + #13#10;
     sslRootCACerts007 =
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Common Name: QuoVadis Root CA 2' + #13#10 +
@@ -1174,34 +1151,6 @@ const
         'lbwdj2wsqFHMc9ikwFPwTtYmwHYBV4GSXiHx0bH/59AhWM1pF+NEHJwZRDmJXNyc' + #13#10 +
         'AA9WjQKZ7aKQRUzkuxCkPfAyAw7xzvjoyVGM5mKf5p/AfbdynMk2OmufTqj/ZA1k' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10;
-    sslRootCACerts019 =
-        '# X509 SSL Certificate' + #13#10 +
-        '# Subject Common Name: Class 2 Primary CA' + #13#10 +
-        '# Subject Organisation: Certplus' + #13#10 +
-        '# Issuer: Self Signed' + #13#10 +
-        '# Expires: 06/07/2019' + #13#10 +
-        '-----BEGIN CERTIFICATE-----' + #13#10 +
-        'MIIDkjCCAnqgAwIBAgIRAIW9S/PY2uNp9pTXX8OlRCMwDQYJKoZIhvcNAQEFBQAw' + #13#10 +
-        'PTELMAkGA1UEBhMCRlIxETAPBgNVBAoTCENlcnRwbHVzMRswGQYDVQQDExJDbGFz' + #13#10 +
-        'cyAyIFByaW1hcnkgQ0EwHhcNOTkwNzA3MTcwNTAwWhcNMTkwNzA2MjM1OTU5WjA9' + #13#10 +
-        'MQswCQYDVQQGEwJGUjERMA8GA1UEChMIQ2VydHBsdXMxGzAZBgNVBAMTEkNsYXNz' + #13#10 +
-        'IDIgUHJpbWFyeSBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANxQ' + #13#10 +
-        'ltAS+DXSCHh6tlJw/W/uz7kRy1134ezpfgSN1sxvc0NXYKwzCkTsA18cgCSR5aiR' + #13#10 +
-        'VhKC9+Ar9NuuYS6JEI1rbLqzAr3VNsVINyPi8Fo3UjMXEuLRYE2+L0ER4/YXJQyL' + #13#10 +
-        'kcAbmXuZVg2v7tK8R1fjeUl7NIknJITesezpWE7+Tt9avkGtrAjFGA7v0lPubNCd' + #13#10 +
-        'EgETjdyAYveVqUSISnFOYFWe2yMZeVYHDD9jC1yw4r5+FfyUM1hBOHTE4Y+L3yas' + #13#10 +
-        'H7WLO7dDWWuwJKZtkIvEcupdM5i3y95ee++U8Rs+yskhwcWYAqqi9lt3m/V+llU0' + #13#10 +
-        'HGdpwPFC40es/CgcZlUCAwEAAaOBjDCBiTAPBgNVHRMECDAGAQH/AgEKMAsGA1Ud' + #13#10 +
-        'DwQEAwIBBjAdBgNVHQ4EFgQU43Mt38sOKAze3bOkynm4jrvoMIkwEQYJYIZIAYb4' + #13#10 +
-        'QgEBBAQDAgEGMDcGA1UdHwQwMC4wLKAqoCiGJmh0dHA6Ly93d3cuY2VydHBsdXMu' + #13#10 +
-        'Y29tL0NSTC9jbGFzczIuY3JsMA0GCSqGSIb3DQEBBQUAA4IBAQCnVM+IRBnL39R/' + #13#10 +
-        'AN9WM2K191EBkOvDP9GIROkkXe/nFL0gt5o8AP5tn9uQ3Nf0YtaLcF3n5QRIqWh8' + #13#10 +
-        'yfFC82x/xXp8HVGIutIKPidd3i1RTtMTZGnkLuPT55sJmabglZvOGtd/vjzOUrMR' + #13#10 +
-        'FcEPF80Du5wlFbqidon8BvEY0JNLDnyCt6X09l/+7UCmnYR0ObncHoUW2ikbhiMA' + #13#10 +
-        'ybuJfm6AiB4vFLQDJKgybwOaRywwvlbGp0ICcBvqQNi6BQNwB6SW//1IMwrh3KWB' + #13#10 +
-        'kJtN3X3n57LNXMhqlfil9o3EXXgIvnsG1knPGTZQIy4I5p4FTUcY1Rbpsda2ENW7' + #13#10 +
-        'l7+ijrRU' + #13#10 +
-        '-----END CERTIFICATE-----' + #13#10;
     sslRootCACerts020 =
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Common Name: Thawte Premium Server CA' + #13#10 +
@@ -1326,85 +1275,6 @@ const
         'hnacRHr2lVz2XTIIM6RUthg/aFzyQkqFOFSDX9HoLPKsEdao7WNq' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10 +
         '# X509 SSL Certificate' + #13#10;
-    sslRootCACerts024 =
-        '# Subject Common Name: Go Daddy Root Certificate Authority - G2' + #13#10 +
-        '# Subject Organisation: GoDaddy.com, Inc.' + #13#10 +
-        '# Issuer: Self Signed' + #13#10 +
-        '# Expires: 31/12/2037' + #13#10 +
-        '-----BEGIN CERTIFICATE-----' + #13#10 +
-        'MIIDxTCCAq2gAwIBAgIBADANBgkqhkiG9w0BAQsFADCBgzELMAkGA1UEBhMCVVMx' + #13#10 +
-        'EDAOBgNVBAgTB0FyaXpvbmExEzARBgNVBAcTClNjb3R0c2RhbGUxGjAYBgNVBAoT' + #13#10 +
-        'EUdvRGFkZHkuY29tLCBJbmMuMTEwLwYDVQQDEyhHbyBEYWRkeSBSb290IENlcnRp' + #13#10 +
-        'ZmljYXRlIEF1dGhvcml0eSAtIEcyMB4XDTA5MDkwMTAwMDAwMFoXDTM3MTIzMTIz' + #13#10 +
-        'NTk1OVowgYMxCzAJBgNVBAYTAlVTMRAwDgYDVQQIEwdBcml6b25hMRMwEQYDVQQH' + #13#10 +
-        'EwpTY290dHNkYWxlMRowGAYDVQQKExFHb0RhZGR5LmNvbSwgSW5jLjExMC8GA1UE' + #13#10 +
-        'AxMoR28gRGFkZHkgUm9vdCBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkgLSBHMjCCASIw' + #13#10 +
-        'DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL9xYgjx+lk09xvJGKP3gElY6SKD' + #13#10 +
-        'E6bFIEMBO4Tx5oVJnyfq9oQbTqC023CYxzIBsQU+B07u9PpPL1kwIuerGVZr4oAH' + #13#10 +
-        '/PMWdYA5UXvl+TW2dE6pjYIT5LY/qQOD+qK+ihVqf94Lw7YZFAXK6sOoBJQ7Rnwy' + #13#10 +
-        'DfMAZiLIjWltNowRGLfTshxgtDj6AozO091GB94KPutdfMh8+7ArU6SSYmlRJQVh' + #13#10 +
-        'GkSBjCypQ5Yj36w6gZoOKcUcqeldHraenjAKOc7xiID7S13MMuyFYkMlNAJWJwGR' + #13#10 +
-        'tDtwKj9useiciAF9n9T521NtYJ2/LOdYq7hfRvzOxBsDPAnrSTFcaUaz4EcCAwEA' + #13#10 +
-        'AaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYE' + #13#10 +
-        'FDqahQcQZyi27/a9BUFuIMGU2g/eMA0GCSqGSIb3DQEBCwUAA4IBAQCZ21151fmX' + #13#10 +
-        'WWcDYfF+OwYxdS2hII5PZYe096acvNjpL9DbWu7PdIxztDhC2gV7+AJ1uP2lsdeu' + #13#10 +
-        '9tfeE8tTEH6KRtGX+rcuKxGrkLAngPnon1rpN5+r5N9ss4UXnT3ZJE95kTXWXwTr' + #13#10 +
-        'gIOrmgIttRD02JDHBHNA7XIloKmf7J6raBKZV8aPEjoJpL1E/QYVN8Gb5DKj7Tjo' + #13#10 +
-        '2GTzLH4U/ALqn83/B2gX2yKQOC16jdFU8WnjXzPKej17CuPKf1855eJ1usV2GDPO' + #13#10 +
-        'LPAvTK33sefOT6jEm0pUBsV/fdUID+Ic/n4XuKxe9tQWskMJDE32p2u0mYRlynqI' + #13#10 +
-        '4uJEvlz36hz1' + #13#10 +
-        '-----END CERTIFICATE-----' + #13#10;
-    sslRootCACerts025 =
-        '# X509 SSL Certificate' + #13#10 +
-        '# Subject Common Name: StartCom Certification Authority' + #13#10 +
-        '# Subject Organisation: StartCom Ltd.' + #13#10 +
-        '# Subject Organisation Unit: Secure Digital Certificate Signing' + #13#10 +
-        '# Issuer: Self Signed' + #13#10 +
-        '# Expires: 17/09/2036' + #13#10 +
-        '-----BEGIN CERTIFICATE-----' + #13#10 +
-        'MIIHyTCCBbGgAwIBAgIBATANBgkqhkiG9w0BAQUFADB9MQswCQYDVQQGEwJJTDEW' + #13#10 +
-        'MBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg' + #13#10 +
-        'Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNh' + #13#10 +
-        'dGlvbiBBdXRob3JpdHkwHhcNMDYwOTE3MTk0NjM2WhcNMzYwOTE3MTk0NjM2WjB9' + #13#10 +
-        'MQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMi' + #13#10 +
-        'U2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3Rh' + #13#10 +
-        'cnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwggIiMA0GCSqGSIb3DQEBAQUA' + #13#10 +
-        'A4ICDwAwggIKAoICAQDBiNsJvGxGfHiflXu1M5DycmLWwTYgIiRezul38kMKogZk' + #13#10 +
-        'pMyONvg45iPwbm2xPN1yo4UcodM9tDMr0y+v/uqwQVlntsQGfQqedIXWeUyAN3rf' + #13#10 +
-        'OQVSWff0G0ZDpNKFhdLDcfN1YjS6LIp/Ho/u7TTQEceWzVI9ujPW3U3eCztKS5/C' + #13#10 +
-        'Ji/6tRYccjV3yjxd5srhJosaNnZcAdt0FCX+7bWgiA/deMotHweXMAEtcnn6RtYT' + #13#10 +
-        'Kqi5pquDSR3l8u/d5AGOGAqPY1MWhWKpDhk6zLVmpsJrdAfkK+F2PrRt2PZE4XNi' + #13#10 +
-        'HzvEvqBTViVsUQn3qqvKv3b9bZvzndu/PWa8DFaqr5hIlTpL36dYUNk4dalb6kMM' + #13#10 +
-        'Av+Z6+hsTXBbKWWc3apdzK8BMewM69KN6Oqce+Zu9ydmDBpI125C4z/eIT574Q1w' + #13#10 +
-        '+2OqqGwaVLRcJXrJosmLFqa7LH4XXgVNWG4SHQHuEhANxjJ/GP/89PrNbpHoNkm+' + #13#10 +
-        'Gkhpi8KWTRoSsmkXwQqQ1vp5Iki/untp+HDH+no32NgN0nZPV/+Qt+OR0t3vwmC3' + #13#10 +
-        'Zzrd/qqc8NSLf3Iizsafl7b4r4qgEKjZ+xjGtrVcUjyJthkqcwEKDwOzEmDyei+B' + #13#10 +
-        '26Nu/yYwl/WL3YlXtq09s68rxbd2AvCl1iuahhQqcvbjM4xdCUsT37uMdBNSSwID' + #13#10 +
-        'AQABo4ICUjCCAk4wDAYDVR0TBAUwAwEB/zALBgNVHQ8EBAMCAa4wHQYDVR0OBBYE' + #13#10 +
-        'FE4L7xqkQFulF2mHMMo0aEPQQa7yMGQGA1UdHwRdMFswLKAqoCiGJmh0dHA6Ly9j' + #13#10 +
-        'ZXJ0LnN0YXJ0Y29tLm9yZy9zZnNjYS1jcmwuY3JsMCugKaAnhiVodHRwOi8vY3Js' + #13#10 +
-        'LnN0YXJ0Y29tLm9yZy9zZnNjYS1jcmwuY3JsMIIBXQYDVR0gBIIBVDCCAVAwggFM' + #13#10 +
-        'BgsrBgEEAYG1NwEBATCCATswLwYIKwYBBQUHAgEWI2h0dHA6Ly9jZXJ0LnN0YXJ0' + #13#10 +
-        'Y29tLm9yZy9wb2xpY3kucGRmMDUGCCsGAQUFBwIBFilodHRwOi8vY2VydC5zdGFy' + #13#10 +
-        'dGNvbS5vcmcvaW50ZXJtZWRpYXRlLnBkZjCB0AYIKwYBBQUHAgIwgcMwJxYgU3Rh' + #13#10 +
-        'cnQgQ29tbWVyY2lhbCAoU3RhcnRDb20pIEx0ZC4wAwIBARqBl0xpbWl0ZWQgTGlh' + #13#10 +
-        'YmlsaXR5LCByZWFkIHRoZSBzZWN0aW9uICpMZWdhbCBMaW1pdGF0aW9ucyogb2Yg' + #13#10 +
-        'dGhlIFN0YXJ0Q29tIENlcnRpZmljYXRpb24gQXV0aG9yaXR5IFBvbGljeSBhdmFp' + #13#10 +
-        'bGFibGUgYXQgaHR0cDovL2NlcnQuc3RhcnRjb20ub3JnL3BvbGljeS5wZGYwEQYJ' + #13#10 +
-        'YIZIAYb4QgEBBAQDAgAHMDgGCWCGSAGG+EIBDQQrFilTdGFydENvbSBGcmVlIFNT' + #13#10 +
-        'TCBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTANBgkqhkiG9w0BAQUFAAOCAgEAFmyZ' + #13#10 +
-        '9GYMNPXQhV59CuzaEE44HF7fpiUFS5Eyweg78T3dRAlbB0mKKctmArexmvclmAk8' + #13#10 +
-        'jhvh3TaHK0u7aNM5Zj2gJsfyOZEdUauCe37Vzlrk4gNXcGmXCPleWKYK34wGmkUW' + #13#10 +
-        'FjgKXlf2Ysd6AgXmvB618p70qSmD+LIU424oh0TDkBreOKk8rENNZEXO3SipXPJz' + #13#10 +
-        'ewT4F+irsfMuXGRuczE6Eri8sxHkfY+BUZo7jYn0TZNmezwD7dOaHZrzZVD1oNB1' + #13#10 +
-        'ny+v8OqCQ5j4aZyJecRDjkZy42Q2Eq/3JR44iZB3fsNrarnDy0RLrHiQi+fHLB5L' + #13#10 +
-        'EUTINFInzQpdn4XBidUaePKVEFMy3YCEZnXZtWgo+2EuvoSoOMCZEoalHmdkrQYu' + #13#10 +
-        'L6lwhceWD3yJZfWOQ1QOq92lgDmUYMA0yZZwLKMS9R9Ie70cfmu3nZD0Ijuu+Pwq' + #13#10 +
-        'yvqCUqDvr0tVk+vBtfAii6w0TiYiBKGHLHVKt+V9E9e4DGTANtLJL4YSjCMJwRuC' + #13#10 +
-        'O3NJo2pXh5Tl1njFmUNj403gdy3hZZlyaQQaRwnmDwFWJPsfvw55qVguucQJAX6V' + #13#10 +
-        'um0ABj6y6koQOdjQK/W/7HW/lwLFCRsI3FU34oH7N4RDYiDK51ZLZer+bMEkkySh' + #13#10 +
-        'NOsF/5oirpt9P/FlUQqmMGqz9IgcgA38corog14=' + #13#10 +
-        '-----END CERTIFICATE-----' + #13#10;
     sslRootCACerts026 =
         '# X509 SSL Certificate' + #13#10 +
         '# Subject Organisation: The Go Daddy Group, Inc.' + #13#10 +
@@ -1464,40 +1334,6 @@ const
         'H2sMNgcWfzd8qVttevESRmCD1ycEvkvOl77DZypoEd+A5wwzZr8TDRRu838fYxAe' + #13#10 +
         '+o0bJW1sj6W3YQGx0qMmoRBxna3iw/nDmVG3KwcIzi7mULKn+gpFL6Lw8g==' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10;
-    sslRootCACerts028 =
-        '# X509 SSL Certificate' + #13#10 +
-        '# Subject Common Name: UTN-USERFirst-Hardware' + #13#10 +
-        '# Subject Organisation: The USERTRUST Network' + #13#10 +
-        '# Subject Organisation Unit: http://www.usertrust.com' + #13#10 +
-        '# Issuer: Self Signed' + #13#10 +
-        '# Expires: 09/07/2019' + #13#10 +
-        '-----BEGIN CERTIFICATE-----' + #13#10 +
-        'MIIEdDCCA1ygAwIBAgIQRL4Mi1AAJLQR0zYq/mUK/TANBgkqhkiG9w0BAQUFADCB' + #13#10 +
-        'lzELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAlVUMRcwFQYDVQQHEw5TYWx0IExha2Ug' + #13#10 +
-        'Q2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBOZXR3b3JrMSEwHwYDVQQLExho' + #13#10 +
-        'dHRwOi8vd3d3LnVzZXJ0cnVzdC5jb20xHzAdBgNVBAMTFlVUTi1VU0VSRmlyc3Qt' + #13#10 +
-        'SGFyZHdhcmUwHhcNOTkwNzA5MTgxMDQyWhcNMTkwNzA5MTgxOTIyWjCBlzELMAkG' + #13#10 +
-        'A1UEBhMCVVMxCzAJBgNVBAgTAlVUMRcwFQYDVQQHEw5TYWx0IExha2UgQ2l0eTEe' + #13#10 +
-        'MBwGA1UEChMVVGhlIFVTRVJUUlVTVCBOZXR3b3JrMSEwHwYDVQQLExhodHRwOi8v' + #13#10 +
-        'd3d3LnVzZXJ0cnVzdC5jb20xHzAdBgNVBAMTFlVUTi1VU0VSRmlyc3QtSGFyZHdh' + #13#10 +
-        'cmUwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCx98M4P7Sof885glFn' + #13#10 +
-        '0G2f0v9Y8+efK+wNiVSZuTiZFvfgIXlIwrthdBKWHTxqctU8EGc6Oe0rE81m65UJ' + #13#10 +
-        'M6Rsl7HoxuzBdXmcRl6Nq9Bq/bkqVRcQVLMZ8Jr28bFdtqdt++BxF2uiiPsA3/4a' + #13#10 +
-        'MXcMmgF6sTLjKwEHOG7DpV4jvEWbe1DByTCP2+UretNb+zNAHqDVmBe8i4fDidNd' + #13#10 +
-        'oI6yqqr2jmmIBsX6iSHzCJ1pLgkzmykNRg+MzEk0sGlRvfkGzWitZky8PqxhvQqI' + #13#10 +
-        'DsjfPe58BEydCl5rkdbux+0ojatNh4lz0G6k0B4WixThdkQDf2Os5M1JnMWS9Ksy' + #13#10 +
-        'oUhbAgMBAAGjgbkwgbYwCwYDVR0PBAQDAgHGMA8GA1UdEwEB/wQFMAMBAf8wHQYD' + #13#10 +
-        'VR0OBBYEFKFyXyYbKJhDlV0HN9WFlp1L0sNFMEQGA1UdHwQ9MDswOaA3oDWGM2h0' + #13#10 +
-        'dHA6Ly9jcmwudXNlcnRydXN0LmNvbS9VVE4tVVNFUkZpcnN0LUhhcmR3YXJlLmNy' + #13#10 +
-        'bDAxBgNVHSUEKjAoBggrBgEFBQcDAQYIKwYBBQUHAwUGCCsGAQUFBwMGBggrBgEF' + #13#10 +
-        'BQcDBzANBgkqhkiG9w0BAQUFAAOCAQEARxkP3nTGmZev/K0oXnWO6y1n7k57K9cM' + #13#10 +
-        '//bey1WiCuFMVGWTYGufEpytXoMs61quwOQt9ABjHbjAbPLPSbtNk28Gpgoiskli' + #13#10 +
-        'CE7/yMgUsogWXecB5BKV5UU0s4tpvc+0hY91UZ59Ojg6FEgSxvunOxqNDYJAB+gE' + #13#10 +
-        'CJChicsZUN/KHAG8HQQZexB2lzvukJDKxA4fFm517zP4029bHpbj4HR3dHuKom4t' + #13#10 +
-        '3XbWOTCC8KucUvIqx69JXn7HaOWCgchqJ/kniCrVWFCVH/A7HFe7fRQ5YiuayZSS' + #13#10 +
-        'KqMiDP+JJn1fIytH1xUdqWqeUQ0qUZ6B+dQ7XnASfxAynB67nfhmqA==' + #13#10 +
-        '-----END CERTIFICATE-----' + #13#10 +
-        '# X509 SSL Certificate' + #13#10;
     sslRootCACerts029 =
         '# Subject Common Name: AddTrust External CA Root' + #13#10 +
         '# Subject Organisation: AddTrust AB' + #13#10 +
@@ -1723,33 +1559,139 @@ const
         'GDeAU/7dIOA1mjbRxwG55tzd8/8dLDoWV9mSOdY=' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10;
     sslRootCACerts037 =                                                               { V8.63 }
-        '# X509 SSL Certificate' + #13#10 +
-        '# Subject Common Name: Starfield Root Certificate Authority - G2' + #13#10 +
-        '# Subject Organisation: Starfield Technologies, Inc.' + #13#10 +
+        'Issued to (CN): Starfield Services Root Certificate Authority - G2, (O): Starfield Technologies, Inc.' + #13#10 +
         'Issuer: Self Signed' + #13#10 +
-        '# Expires: 31/12/2037' + #13#10 +
+        'Expires: 31/12/2037 23:59:59, Signature: sha256WithRSAEncryption' + #13#10 +
+        'Valid From: 01/09/2009, Serial Number: 00' + #13#10 +
+        'Fingerprint (sha256): 568d6905a2c88708a4b3025190edcfedb1974a606a13c6e5290fcb2ae63edab5' + #13#10 +
+        'Public Key: RSA Key Encryption 2048 bits, 112 security bits' + #13#10 +
         '-----BEGIN CERTIFICATE-----' + #13#10 +
-        'MIID3TCCAsWgAwIBAgIBADANBgkqhkiG9w0BAQsFADCBjzELMAkGA1UEBhMCVVMx' + #13#10 +
+        'MIID7zCCAtegAwIBAgIBADANBgkqhkiG9w0BAQsFADCBmDELMAkGA1UEBhMCVVMx' + #13#10 +
         'EDAOBgNVBAgTB0FyaXpvbmExEzARBgNVBAcTClNjb3R0c2RhbGUxJTAjBgNVBAoT' + #13#10 +
-        'HFN0YXJmaWVsZCBUZWNobm9sb2dpZXMsIEluYy4xMjAwBgNVBAMTKVN0YXJmaWVs' + #13#10 +
-        'ZCBSb290IENlcnRpZmljYXRlIEF1dGhvcml0eSAtIEcyMB4XDTA5MDkwMTAwMDAw' + #13#10 +
-        'MFoXDTM3MTIzMTIzNTk1OVowgY8xCzAJBgNVBAYTAlVTMRAwDgYDVQQIEwdBcml6' + #13#10 +
-        'b25hMRMwEQYDVQQHEwpTY290dHNkYWxlMSUwIwYDVQQKExxTdGFyZmllbGQgVGVj' + #13#10 +
-        'aG5vbG9naWVzLCBJbmMuMTIwMAYDVQQDEylTdGFyZmllbGQgUm9vdCBDZXJ0aWZp' + #13#10 +
-        'Y2F0ZSBBdXRob3JpdHkgLSBHMjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC' + #13#10 +
-        'ggEBAL3twQP89o/8ArFvW59I2Z154qK3A2FWGMNHttfKPTUuiUP3oWmb3ooa/RMg' + #13#10 +
-        'nLRJdzIpVv257IzdIvpy3Cdhl+72WoTsbhm5iSzchFvVdPtrX8WJpRBSiUZV9Lh1' + #13#10 +
-        'HOZ/5FSuS/hVclcCGfgXcVnrHigHdMWdSL5stPSksPNkN3mSwOxGXn/hbVNMYq/N' + #13#10 +
-        'Hwtjuzqd+/x5AJhhdM8mgkBj87JyahkNmcrUDnXMN/uLicFZ8WJ/X7NfZTD4p7dN' + #13#10 +
-        'dloedl40wOiWVpmKs/B/pM293DIxfJHP4F8R+GuqSVzRmZTRouNjWwl2tVZi4Ut0' + #13#10 +
-        'HZbUJtQIBFnQmA4O5t78w+wfkPECAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAO' + #13#10 +
-        'BgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYEFHwMMh+n2TB/xH1oo2Kooc6rB1snMA0G' + #13#10 +
-        'CSqGSIb3DQEBCwUAA4IBAQARWfolTwNvlJk7mh+ChTnUdgWUXuEok21iXQnCoKjU' + #13#10 +
-        'sHU48TRqneSfioYmUeYs0cYtbpUgSpIB7LiKZ3sx4mcujJUDJi5DnUox9g61DLu3' + #13#10 +
-        '4jd/IroAow57UvtruzvE03lRTs2Q9GcHGcg8RnoNAX3FWOdt5oUwF5okxBDgBPfg' + #13#10 +
-        '8n/Uqgr/Qh037ZTlZFkSIHc40zI+OIF1lnP6aI+xy84fxez6nH7PfrHxBy22/L/K' + #13#10 +
-        'pL/QlwVKvOoYKAKQvVR4CSFx09F9HdkWsKlhPdAKACL8x3vLCWRFCztAgfd9fDL1' + #13#10 +
-        'mMpYjn0q7pBZc2T5NnReJaH1ZgUufzkVqSr7UIuOhWn0' + #13#10 +
+        'HFN0YXJmaWVsZCBUZWNobm9sb2dpZXMsIEluYy4xOzA5BgNVBAMTMlN0YXJmaWVs' + #13#10 +
+        'ZCBTZXJ2aWNlcyBSb290IENlcnRpZmljYXRlIEF1dGhvcml0eSAtIEcyMB4XDTA5' + #13#10 +
+        'MDkwMTAwMDAwMFoXDTM3MTIzMTIzNTk1OVowgZgxCzAJBgNVBAYTAlVTMRAwDgYD' + #13#10 +
+        'VQQIEwdBcml6b25hMRMwEQYDVQQHEwpTY290dHNkYWxlMSUwIwYDVQQKExxTdGFy' + #13#10 +
+        'ZmllbGQgVGVjaG5vbG9naWVzLCBJbmMuMTswOQYDVQQDEzJTdGFyZmllbGQgU2Vy' + #13#10 +
+        'dmljZXMgUm9vdCBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkgLSBHMjCCASIwDQYJKoZI' + #13#10 +
+        'hvcNAQEBBQADggEPADCCAQoCggEBANUMOsQq+U7i9b4Zl1+OiFOxHz/Lz58gE20p' + #13#10 +
+        'OsgPfTz3a3Y4Y9k2YKibXlwAgLIvWX/2h/klQ4bnaRtSmpDhcePYLQ1Ob/bISdm2' + #13#10 +
+        '8xpWriu2dBTrz/sm4xq6HZYuajtYlIlHVv8loJNwU4PahHQUw2eeBGg6345AWh1K' + #13#10 +
+        'Ts9DkTvnVtYAcMtS7nt9rjrnvDH5RfbCYM8TWQIrgMw0R9+53pBlbQLPLJGmpufe' + #13#10 +
+        'hRhJfGZOozptqbXuNC66DQO4M99H67FrjSXZm86B0UVGMpZwh94CDklDhbZsc7tk' + #13#10 +
+        '6mFBrMnUVN+HL8cisibMn1lUaJ/8viovxFUcdUBgF4UCVTmLfwUCAwEAAaNCMEAw' + #13#10 +
+        'DwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYEFJxfAN+q' + #13#10 +
+        'AdcwKziIorhtSpzyEZGDMA0GCSqGSIb3DQEBCwUAA4IBAQBLNqaEd2ndOxmfZyMI' + #13#10 +
+        'bw5hyf2E3F/YNoHN2BtBLZ9g3ccaaNnRbobhiCPPE95Dz+I0swSdHynVv/heyNXB' + #13#10 +
+        've6SbzJ08pGCL72CQnqtKrcgfU28elUSwhXqvfdqlS5sdJ/PHLTyxQGjhdByPq1z' + #13#10 +
+        'qwubdQxtRbeOlKyWN7Wg0I8VRw7j6IPdj/3vQQF3zCepYoUz8jcI73HPdwbeyBkd' + #13#10 +
+        'iEDPfUYd/x7H4c7/I9vG+o1VTqkC50cRRj70/b17KSa7qWFiNyi2LSr2EIZkyXCn' + #13#10 +
+        '0q23KXB56jzaYyWf/Wi3MOxw+3WKt21gZ7IeyLnp2KhvAotnDU0mV3HaIPzBSlCN' + #13#10 +
+        'sSi6' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10;
+    sslRootCACerts038 =                                                               { V8.63 }
+        'Issued to (CN): Amazon Root CA 1, (O): Amazon' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        'Expires: 17/01/2038, Signature: sha256WithRSAEncryption' + #13#10 +
+        'Valid From: 26/05/2015, Serial Number: 066c9fcf99bf8c0a39e2f0788a43e696365bca' + #13#10 +
+        'Fingerprint (sha256): 8ecde6884f3d87b1125ba31ac3fcb13d7016de7f57cc904fe1cb97c6ae98196e' + #13#10 +
+        'Public Key: RSA Key Encryption 2048 bits, 112 security bits' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF' + #13#10 +
+        'ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6' + #13#10 +
+        'b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL' + #13#10 +
+        'MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv' + #13#10 +
+        'b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj' + #13#10 +
+        'ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM' + #13#10 +
+        '9O6II8c+6zf1tRn4SWiw3te5djgdYZ6k/oI2peVKVuRF4fn9tBb6dNqcmzU5L/qw' + #13#10 +
+        'IFAGbHrQgLKm+a/sRxmPUDgH3KKHOVj4utWp+UhnMJbulHheb4mjUcAwhmahRWa6' + #13#10 +
+        'VOujw5H5SNz/0egwLX0tdHA114gk957EWW67c4cX8jJGKLhD+rcdqsq08p8kDi1L' + #13#10 +
+        '93FcXmn/6pUCyziKrlA4b9v7LWIbxcceVOF34GfID5yHI9Y/QCB/IIDEgEw+OyQm' + #13#10 +
+        'jgSubJrIqg0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC' + #13#10 +
+        'AYYwHQYDVR0OBBYEFIQYzIU07LwMlJQuCFmcx7IQTgoIMA0GCSqGSIb3DQEBCwUA' + #13#10 +
+        'A4IBAQCY8jdaQZChGsV2USggNiMOruYou6r4lK5IpDB/G/wkjUu0yKGX9rbxenDI' + #13#10 +
+        'U5PMCCjjmCXPI6T53iHTfIUJrU6adTrCC2qJeHZERxhlbI1Bjjt/msv0tadQ1wUs' + #13#10 +
+        'N+gDS63pYaACbvXy8MWy7Vu33PqUXHeeE6V/Uq2V8viTO96LXFvKWlJbYK8U90vv' + #13#10 +
+        'o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU' + #13#10 +
+        '5MsI+yMRQ+hDKXJioaldXgjUkK642M4UwtBV8ob2xJNDd2ZhwLnoQdeXeGADbkpy' + #13#10 +
+        'rqXRfboQnoZsG4q5WTP468SQvvG5' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10;
+    sslRootCACerts039 =                                                               { V8.63 }
+        'Issued to (CN): Amazon Root CA 2, (O): Amazon' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        'Expires: 26/05/2040, Signature: sha384WithRSAEncryption' + #13#10 +
+        'Valid From: 26/05/2015, Serial Number: 066c9fd29635869f0a0fe58678f85b26bb8a37' + #13#10 +
+        'Fingerprint (sha256): 1ba5b2aa8c65401a82960118f80bec4f62304d83cec4713a19c39c011ea46db4' + #13#10 +
+        'Public Key: RSA Key Encryption 4096 bits, 128 security bits' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIFQTCCAymgAwIBAgITBmyf0pY1hp8KD+WGePhbJruKNzANBgkqhkiG9w0BAQwF' + #13#10 +
+        'ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6' + #13#10 +
+        'b24gUm9vdCBDQSAyMB4XDTE1MDUyNjAwMDAwMFoXDTQwMDUyNjAwMDAwMFowOTEL' + #13#10 +
+        'MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv' + #13#10 +
+        'b3QgQ0EgMjCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK2Wny2cSkxK' + #13#10 +
+        'gXlRmeyKy2tgURO8TW0G/LAIjd0ZEGrHJgw12MBvIITplLGbhQPDW9tK6Mj4kHbZ' + #13#10 +
+        'W0/jTOgGNk3Mmqw9DJArktQGGWCsN0R5hYGCrVo34A3MnaZMUnbqQ523BNFQ9lXg' + #13#10 +
+        '1dKmSYXpN+nKfq5clU1Imj+uIFptiJXZNLhSGkOQsL9sBbm2eLfq0OQ6PBJTYv9K' + #13#10 +
+        '8nu+NQWpEjTj82R0Yiw9AElaKP4yRLuH3WUnAnE72kr3H9rN9yFVkE8P7K6C4Z9r' + #13#10 +
+        '2UXTu/Bfh+08LDmG2j/e7HJV63mjrdvdfLC6HM783k81ds8P+HgfajZRRidhW+me' + #13#10 +
+        'z/CiVX18JYpvL7TFz4QuK/0NURBs+18bvBt+xa47mAExkv8LV/SasrlX6avvDXbR' + #13#10 +
+        '8O70zoan4G7ptGmh32n2M8ZpLpcTnqWHsFcQgTfJU7O7f/aS0ZzQGPSSbtqDT6Zj' + #13#10 +
+        'mUyl+17vIWR6IF9sZIUVyzfpYgwLKhbcAS4y2j5L9Z469hdAlO+ekQiG+r5jqFoz' + #13#10 +
+        '7Mt0Q5X5bGlSNscpb/xVA1wf+5+9R+vnSUeVC06JIglJ4PVhHvG/LopyboBZ/1c6' + #13#10 +
+        '+XUyo05f7O0oYtlNc/LMgRdg7c3r3NunysV+Ar3yVAhU/bQtCSwXVEqY0VThUWcI' + #13#10 +
+        '0u1ufm8/0i2BWSlmy5A5lREedCf+3euvAgMBAAGjQjBAMA8GA1UdEwEB/wQFMAMB' + #13#10 +
+        'Af8wDgYDVR0PAQH/BAQDAgGGMB0GA1UdDgQWBBSwDPBMMPQFWAJI/TPlUq9LhONm' + #13#10 +
+        'UjANBgkqhkiG9w0BAQwFAAOCAgEAqqiAjw54o+Ci1M3m9Zh6O+oAA7CXDpO8Wqj2' + #13#10 +
+        'LIxyh6mx/H9z/WNxeKWHWc8w4Q0QshNabYL1auaAn6AFC2jkR2vHat+2/XcycuUY' + #13#10 +
+        '+gn0oJMsXdKMdYV2ZZAMA3m3MSNjrXiDCYZohMr/+c8mmpJ5581LxedhpxfL86kS' + #13#10 +
+        'k5Nrp+gvU5LEYFiwzAJRGFuFjWJZY7attN6a+yb3ACfAXVU3dJnJUH/jWS5E4ywl' + #13#10 +
+        '7uxMMne0nxrpS10gxdr9HIcWxkPo1LsmmkVwXqkLN1PiRnsn/eBG8om3zEK2yygm' + #13#10 +
+        'btmlyTrIQRNg91CMFa6ybRoVGld45pIq2WWQgj9sAq+uEjonljYE1x2igGOpm/Hl' + #13#10 +
+        'urR8FLBOybEfdF849lHqm/osohHUqS0nGkWxr7JOcQ3AWEbWaQbLU8uz/mtBzUF+' + #13#10 +
+        'fUwPfHJ5elnNXkoOrJupmHN5fLT0zLm4BwyydFy4x2+IoZCn9Kr5v2c69BoVYh63' + #13#10 +
+        'n749sSmvZ6ES8lgQGVMDMBu4Gon2nL2XA46jCfMdiyHxtN/kHNGfZQIG6lzWE7OE' + #13#10 +
+        '76KlXIx3KadowGuuQNKotOrN8I1LOJwZmhsoVLiJkO/KdYE+HvJkJMcYr07/R54H' + #13#10 +
+        '9jVlpNMKVv/1F2Rs76giJUmTtt8AF9pYfl3uxRuw0dFfIRDH+fO6AgonB8Xx1sfT' + #13#10 +
+        '4PsJYGw=' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10;
+    sslRootCACerts040 =                                                               { V8.63 }
+        'Issued to (CN): Amazon Root CA 3, (O): Amazon' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        'Expires: 26/05/2040, Signature: ecdsa-with-SHA256' + #13#10 +
+        'Valid From: 26/05/2015, Serial Number: 066c9fd5749736663f3b0b9ad9e89e7603f24a' + #13#10 +
+        'Fingerprint (sha256): 18ce6cfe7bf14e60b2e347b8dfe868cb31d02ebb3ada271569f50343b46db3a4' + #13#10 +
+        'Public Key: ECDSA Key Encryption prime256v1 256 bits, 128 security bits' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIBtjCCAVugAwIBAgITBmyf1XSXNmY/Owua2eiedgPySjAKBggqhkjOPQQDAjA5' + #13#10 +
+        'MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6b24g' + #13#10 +
+        'Um9vdCBDQSAzMB4XDTE1MDUyNjAwMDAwMFoXDTQwMDUyNjAwMDAwMFowOTELMAkG' + #13#10 +
+        'A1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJvb3Qg' + #13#10 +
+        'Q0EgMzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABCmXp8ZBf8ANm+gBG1bG8lKl' + #13#10 +
+        'ui2yEujSLtf6ycXYqm0fc4E7O5hrOXwzpcVOho6AF2hiRVd9RFgdszflZwjrZt6j' + #13#10 +
+        'QjBAMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgGGMB0GA1UdDgQWBBSr' + #13#10 +
+        'ttvXBp43rDCGB5Fwx5zEGbF4wDAKBggqhkjOPQQDAgNJADBGAiEA4IWSoxe3jfkr' + #13#10 +
+        'BqWTrBqYaGFy+uGh0PsceGCmQ5nFuMQCIQCcAu/xlJyzlvnrxir4tiz+OpAUFteM' + #13#10 +
+        'YyRIHN8wfdVoOw==' + #13#10 +
+        '-----END CERTIFICATE-----' + #13#10;
+    sslRootCACerts041 =                                                               { V8.63 }
+        'Issued to (CN): Amazon Root CA 4, (O): Amazon' + #13#10 +
+        'Issuer: Self Signed' + #13#10 +
+        'Expires: 26/05/2040, Signature: ecdsa-with-SHA384' + #13#10 +
+        'Valid From: 26/05/2015, Serial Number: 066c9fd7c1bb104c2943e5717b7b2cc81ac10e' + #13#10 +
+        'Fingerprint (sha256): e35d28419ed02025cfa69038cd623962458da5c695fbdea3c22b0bfb25897092' + #13#10 +
+        'Public Key: ECDSA Key Encryption secp384r1 384 bits, 192 security bits' + #13#10 +
+        '-----BEGIN CERTIFICATE-----' + #13#10 +
+        'MIIB8jCCAXigAwIBAgITBmyf18G7EEwpQ+Vxe3ssyBrBDjAKBggqhkjOPQQDAzA5' + #13#10 +
+        'MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6b24g' + #13#10 +
+        'Um9vdCBDQSA0MB4XDTE1MDUyNjAwMDAwMFoXDTQwMDUyNjAwMDAwMFowOTELMAkG' + #13#10 +
+        'A1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJvb3Qg' + #13#10 +
+        'Q0EgNDB2MBAGByqGSM49AgEGBSuBBAAiA2IABNKrijdPo1MN/sGKe0uoe0ZLY7Bi' + #13#10 +
+        '9i0b2whxIdIA6GO9mif78DluXeo9pcmBqqNbIJhFXRbb/egQbeOc4OO9X4Ri83Bk' + #13#10 +
+        'M6DLJC9wuoihKqB1+IGuYgbEgds5bimwHvouXKNCMEAwDwYDVR0TAQH/BAUwAwEB' + #13#10 +
+        '/zAOBgNVHQ8BAf8EBAMCAYYwHQYDVR0OBBYEFNPsxzplbszh2naaVvuc84ZtV+WB' + #13#10 +
+        'MAoGCCqGSM49BAMDA2gAMGUCMDqLIfG9fhGt0O9Yli/W651+kI0rz2ZVwyzjKKlw' + #13#10 +
+        'CkcO8DdZEv8tmZQoTipPNU0zWgIxAOp1AE47xDqUEpHJWEadIRNyp4iciuRMStuW' + #13#10 +
+        '1KyLa2tJElMzrdfkviT8tQp21KW8EA==' + #13#10 +
         '-----END CERTIFICATE-----' + #13#10;
 
 {$ENDIF}  { USE_SSL }
@@ -1763,13 +1705,14 @@ function sslRootCACertsBundle: string ;  { V8.32 }
 begin
     result :=
         sslRootCACerts001 + sslRootCACerts002 + sslRootCACerts003 + sslRootCACerts004 + sslRootCACerts005 +
-        sslRootCACerts006 + sslRootCACerts007 + sslRootCACerts008 + sslRootCACerts009 + sslRootCACerts010 +
+        sslRootCACerts007 + sslRootCACerts008 + sslRootCACerts009 + sslRootCACerts010 +
         sslRootCACerts011 + sslRootCACerts012 + sslRootCACerts013 + sslRootCACerts014 + sslRootCACerts015 +
-        sslRootCACerts016 + sslRootCACerts017 + sslRootCACerts018 + sslRootCACerts019 + sslRootCACerts020 +
-        sslRootCACerts021 + sslRootCACerts022 + sslRootCACerts023 + sslRootCACerts024 + sslRootCACerts025 +
-        sslRootCACerts026 + sslRootCACerts027 + sslRootCACerts028 + sslRootCACerts029 + sslRootCACerts030 +
+        sslRootCACerts016 + sslRootCACerts017 + sslRootCACerts018 + sslRootCACerts020 +
+        sslRootCACerts021 + sslRootCACerts022 + sslRootCACerts023 +
+        sslRootCACerts026 + sslRootCACerts027 + sslRootCACerts029 + sslRootCACerts030 +
         sslRootCACerts031 + sslRootCACerts032 + sslRootCACerts033 + sslRootCACerts034 + sslRootCACerts035 +
-        sslRootCACerts036 + sslRootCACerts037;  { V8.63}
+        sslRootCACerts036 + sslRootCACerts037 + sslRootCACerts038 + sslRootCACerts039 + sslRootCACerts040 +
+        sslRootCACerts041;  { V8.63}
     end ;
 
 

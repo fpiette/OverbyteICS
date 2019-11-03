@@ -3,8 +3,8 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  TIcsFileCopy allows indexing, copying and deleting of multiple
               file directories, using a single function call.
 Creation:     May 2001
-Updated:      Mar 2019
-Version:      8.60
+Updated:      Nov 2019
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -171,7 +171,8 @@ access to files is required.
               No longer needs Forms.
               Using TStringList instead of StringArray
               Before creating directory check not a file of same name, delete it.
-              Should build on Posix, not tested, also Delphi 7 again 
+              Should build on Posix, not tested, also Delphi 7 again
+2 Nov 2019 - V8.63 - IgnorePaths property now works with D7.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -227,7 +228,7 @@ uses
 {$IFDEF Zipping} , VCLZip, VCLUnZip, kpZipObj {$ENDIF};
 
 const
-    FileCopyCopyRight : String = ' TIcsFileCopy (c) 2019 V8.60 ';
+    FileCopyCopyRight : String = ' TIcsFileCopy (c) 2019 V8.63 ';
 
 
 {ex000616.log.zip      11,123,903  -rwx  23/03/2001 12:57:00    /dir}
@@ -1708,8 +1709,11 @@ begin
 {$IFDEF COMPILER10_UP}   { only supported D2006 and later }
     IgnorePathList.Delimiter := ';';
     IgnorePathList.StrictDelimiter := True;
-    IgnorePathList.DelimitedText := AnsiLowerCase (IgnorePaths) ;
+    IgnorePathList.DelimitedText := AnsiLowerCase (FIgnorePaths) ;
     IgnorePathList.Sort;
+{$ELSE}
+    IgnorePathList.DelimitedText := '"' + StringReplace(AnsiLowerCase(FIgnorePaths),
+        IgnorePathList.Delimiter, '"' + IgnorePathList.Delimiter + '"', [rfReplaceAll]) + '"';  { V8.63 for D7 }
 {$ENDIF}
     if (IgnorePathList.Count > 0) then  { V8.60 }
     begin

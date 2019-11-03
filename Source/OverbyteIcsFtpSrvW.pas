@@ -4,11 +4,10 @@ Author:       François PIETTE
 Description:  TFtpServerW class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      8.60W
+Version:      8.63W
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2017 by François PIETTE
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1998-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -427,7 +426,11 @@ Nov 09 2016  V8.37 - Added ExclusiveAddr property to stop other applications lis
                      Added extended exception information, set SocketErrs = wsErrFriendly for
                        some more friendly messages (without error numbers)
 Aug 25, 2017 V8.50 - Angus stopped LIST/RETV using ..\..\..\ (already stopped for CWD)
-Mar 8, 2019  V8.60 - Version and copyright dates only. 
+Mar 8, 2019  V8.60 - Version and copyright dates only.
+Nov 3, 2019  V8.63 - ftpsNoPasvIpAddrInLan and ftpsNoPasvIpAddrSameSubnet options
+                       now work correctly to present local passive IP address on
+                       LAN rather than PassIpAddr which is usually external address.
+                     Logging various IP addresses for PASV command for debugging. 
 
 
 Angus pending -
@@ -513,8 +516,8 @@ uses
 
 
 const
-    FtpServerVersion         = 860;
-    CopyRight : String       = ' TFtpServerW (c) 1998-2019 F. Piette V8.60';
+    FtpServerVersion         = 863;
+    CopyRight : String       = ' TFtpServerW (c) 1998-2019 F. Piette V8.63';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
     DefaultRcvSize           = 16384;    { V7.00 used for both xmit and recv, was 2048, too small }
 
@@ -5402,15 +5405,6 @@ begin
 end;
 
 
-(*  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-function IsIpPrivate(saddr : TInAddr): Boolean;                    { AG V1.51 }
-begin
-    Result := (Byte(saddr.S_un_b.s_b1) = 10) or   // private class A
-              (saddr.S_un_w.s_w1       = 4268) or // private class B
-              (saddr.S_un_w.s_w1       = 43200);  // private class C
-end; *)
-
-
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TFtpServerW.CommandPASV(
     Client      : TFtpCtrlSocketW;
@@ -5438,7 +5432,7 @@ begin
         { Get our IP address from our control socket }
         saddrlen := SizeOf(saddr);
         Client.GetSockName(saddr, saddrlen);
-        IPAddr   := PIcsInAddr(@saddr.sin_addr)^;       { IPv6 }
+        IPAddr := PIcsInAddr(@saddr.sin_addr)^;       { IPv6 }
 
         { FLD Make sure to free up a previous connected passive data-socket!! }
         { can happen if a PASV-command is issued, but a passive connection is }
@@ -5468,17 +5462,25 @@ begin
         Client.DataSocket.GetSockName(saddr, saddrlen);
         DataPort := WSocket_ntohs(saddr.sin_port);
 
+       { V8.63 log some IP addresses and ports for diagnostics }
+        TriggerDisplay (Client, '! Server IP: ' + Client.CServerAddr +
+                    ', Passive Port: ' + Client.DataSocket.Port + ', External IP: ' +
+                                   FPasvIpAddr + ', Remote IP: ' + Client.CPeerAddr);
+
         if Client.sin.sin_addr.s_addr = WSocket_htonl($7F000001) then
             Answer := WideFormat(msgPasvLocal,
                           [IcsHiByte(DataPort),
                            IcsLoByte(DataPort)])
         else begin
-            APasvIp := FPasvIpAddr;
-            SetPasvIp := (APasvIp <> '') and (not
-                         (((ftpsNoPasvIpAddrInLan in FOptions) and
-                           IcsIsIpPrivate(Client.PeerSAddr.sin_addr)) or
-                          ((ftpsNoPasvIpAddrSameSubnet in FOptions) and
-                           IcsAddrSameSubNet(PInAddr(@IPAddr.S_addr)^, Client.PeerSAddr.sin_addr))));
+            APasvIp := FPasvIpAddr;  { configured external passive IP address }
+          { V8.63 easier to see what is happening here, use string IPs to avoid horrible casts }
+            SetPasvIp := (APasvIp <> '');
+            if (ftpsNoPasvIpAddrInLan in FOptions) and IcsIsIpPrivate(Client.CPeerAddr) then
+                SetPasvIp := False;
+            if (ftpsNoPasvIpAddrSameSubnet in FOptions) and
+                          IcsAddrSameSubNet(Client.CServerAddr, Client.CPeerAddr) then
+                SetPasvIp := False;
+
             if Assigned(FOnPasvIpAddr) then begin
                 FOnPasvIpAddr(Self, Client, APasvIp, SetPasvIp);
                 SetPasvIp := SetPasvIp and (APasvIp <> '');
@@ -6767,48 +6769,6 @@ begin
         Client.DataSocket.GetSockName(PSockAddr(@saddr)^, saddrlen);
         DataPort := WSocket_ntohs(saddr.sin6_port);
         Answer := Format(msgEPSVOk, [DataPort]);
-        (*
-        if Client.sin.sin_addr.s_addr = WSocket_htonl($7F000001) then
-            Answer := Format(msgPasvLocal,
-                          [HiByte(DataPort),
-                           LoByte(DataPort)])
-        else begin
-            APasvIp := FPasvIpAddr;
-            SetPasvIp := (APasvIp <> '') and (not
-                         (((ftpsNoPasvIpAddrInLan in FOptions) and
-                           IsIpPrivate(Client.PeerSAddr.sin_addr)) or
-                          ((ftpsNoPasvIpAddrSameSubnet in FOptions) and
-                           WSocket2IsAddrInSubNet(Client.PeerSAddr.sin_addr))));
-
-            if Assigned(FOnPasvIpAddr) then begin
-                FOnPasvIpAddr(Self, Client, APasvIp, SetPasvIp);
-                SetPasvIp := SetPasvIp and (APasvIp <> '');
-            end;
-
-            if not SetPasvIp then
-                Answer := Format(msgPasvRemote,
-                          [ord(IPAddr.S_un_b.s_b1),
-                           ord(IPAddr.S_un_b.s_b2),
-                           ord(IPAddr.S_un_b.s_b3),
-                           ord(IPAddr.S_un_b.s_b4),
-                           HiByte(DataPort),
-                           LoByte(DataPort)])
-            else begin
-                PASVAddr.S_addr := WSocket_inet_addr(AnsiString(APasvIp));
-                if (PASVAddr.S_addr = u_long(INADDR_NONE)) or
-                            (PASVAddr.S_addr = 0) then { angus v1.53 0.0.0.0 not allowed }
-                        raise Exception.Create('Invalid PASV IP Address')
-                else
-                        Answer := Format(msgPasvRemote,
-                              [ord(PASVAddr.S_un_b.s_b1),
-                               ord(PASVAddr.S_un_b.s_b2),
-                               ord(PASVAddr.S_un_b.s_b3),
-                               ord(PASVAddr.S_un_b.s_b4),
-                               HiByte(DataPort),
-                               LoByte(DataPort)]);
-            end;
-        end;
-        *)
         Client.PassiveMode      := TRUE;
         Client.PassiveStart     := FALSE;
         Client.PassiveConnected := FALSE;

@@ -5,7 +5,7 @@ Description:  TIcsFtpMulti is a high level FTP Delphi component that allows uplo
               single function call.
 Creation:     May 2001
 Updated:      Aug 2019
-Version:      8.62
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -274,6 +274,9 @@ Cancel - abort FTP xfers
               Most Types have Ics added, so: TIcsTaskResult now TIcsTaskResult.
               No longer needs Forms.
 7 Aug 2019  - V8.62 - Support NO_DEBUG_LOG properly, Builds USE_SSL.
+3 Nov 2019  - V8.63 - Added SslCliSecurity, FtpType and IgnorePaths to TIcsFtpMultiThread.
+              Threaded FTP now sends all log events to screen.
+
 
 
 Unicode Compatibility with various web servers
@@ -389,7 +392,7 @@ uses
 
 
 const
-    FtpMultiCopyRight : String = ' TIcsFtpMulti (c) 2019 V8.62 ';
+    FtpMultiCopyRight : String = ' TIcsFtpMulti (c) 2019 V8.63 ';
 
 type
 // host type, for directory listing
@@ -742,12 +745,12 @@ type
         // from TIcsFtpMulti
 //        fLoggedIn: boolean ;
         fFtpType: TFtpType ;
-//        fSslCertCheck: TSslCertCheck ;
         fFtpSslVerMethod: TFtpSslVerifyMethod; // 20 Apr 2015
         fFtpSslPort: String;
         fFtpSslRevocation: boolean;       // 20 Apr 2015
         fFtpSslReportChain: boolean ;     // 20 Apr 2015
         fFtpSslRootFile: string ;  // 20 Apr 2015
+        fFtpSslCliSecurity: TSslCliSecurity;   // V8.63
         fSslSessCache: boolean ;
 //      fSslContext: TSslContext ;
 //      fExternalSslSessionCache: TSslAvlSessionCache ;
@@ -802,6 +805,7 @@ type
         fMaskRemDir: boolean ;
         fNoProgress: boolean ;
         fEmptyDirs: boolean ;
+        fIgnorePaths: UnicodeString ; // V8.63
   public
     IcsFTPMultiCli: TIcsFtpMulti ;
     FThreadEvent: TThreadEvent ;
@@ -920,6 +924,7 @@ type
     property FtpSslRootFile: string    read fFtpSslRootFile write fFtpSslRootFile ;         // 20 Apr 2015
     property FtpSslRevocation: boolean read fFtpSslRevocation write fFtpSslRevocation ;     // 20 Apr 2015
     property FtpSslReportChain: boolean read fFtpSslReportChain write fFtpSslReportChain;   // 20 Apr 2015
+    property FtpSslCliSecurity: TSslCliSecurity read fFtpSslCliSecurity  write fFtpSslCliSecurity;   // V8.63
     property TotProcFiles: integer     read fTotProcFiles ;
     property ProcOKFiles: integer      read fProcOKFiles ;
     property DelOKFiles: integer       read fDelOKFiles ;
@@ -945,6 +950,7 @@ type
     property MaskRemDir: boolean       read fMaskRemDir     write fMaskRemDir ;
     property NoProgress: boolean       read fNoProgress     write fNoProgress ;
     property EmptyDirs: Boolean        read fEmptyDirs      write fEmptyDirs ;
+    property IgnorePaths: UnicodeString read fIgnorePaths   write fIgnorePaths ;    // V8.63
   end ;
 
 const
@@ -5745,7 +5751,8 @@ begin
         if FLogmaskName <> '' then
             FBuffLogStream.WriteLine (FormatDateTime (ISODateLongTimeMask, Now) + IcsSpace + FId + ': ' + Info) ;
     end;
-    if (LogLevel = LogLevelInfo) or (LogLevel = LogLevelFile) then
+    if Assigned (FThreadEvent) then       { V8.63 }
+//  if (LogLevel = LogLevelInfo) or (LogLevel = LogLevelFile) then  { V8.63 }
     begin
         FLogLevel := LogLevel ;
         FInfo := Info ;
@@ -5838,8 +5845,12 @@ begin
     IcsFTPMultiCli.FtpSslPort := fFtpSslPort ;              // 20 Apr 2015
     IcsFTPMultiCli.FtpSslVerMethod := fFtpSslVerMethod ;    // 20 Apr 2015
     IcsFTPMultiCli.FtpSslRootFile := fFtpSslRootFile ;      // 20 Apr 2015
-    IcsFTPMultiCli. FtpSslRevocation := fFtpSslRevocation ; // 20 Apr 2015
+    IcsFTPMultiCli.FtpSslRevocation := fFtpSslRevocation ; // 20 Apr 2015
     IcsFTPMultiCli.FtpSslReportChain := fFtpSslReportChain ;// 20 Apr 2015
+    IcsFTPMultiCli.FtpSslCliSecurity := fFtpSslCliSecurity;   // V8.63
+    IcsFTPMultiCli.FtpType := fFtpType;                       // V8.63
+    IcsFTPMultiCli.IgnorePaths := fIgnorePaths;               // V8.63
+
     FDirListing := '' ;
     case FtpThreadOpt of
         ftpthdList: FTaskRes := IcsFTPMultiCli.DispFtpDir (FDirListing) ;

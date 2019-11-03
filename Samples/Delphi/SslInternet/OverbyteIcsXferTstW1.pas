@@ -5,8 +5,8 @@ Description:  This is a test and demo application for the TIcsHttpMultiW,
               Note this sample is not designed to function on Unicode compabible
               compilers, use OverbyteIcsXferTst instead.
 Creation:     Sept 2004
-Updated:      March 2019
-Version:      8.60
+Updated:      November 2019
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -126,6 +126,9 @@ version from https://github.com/rofl0r/TntUnicode), undefine USE_TNT is not inst
                       Added Log file
                       Use timer to update windows to avoid problems with performance
                       Replace tick boxes now combos with all replace options
+3 Nov 2019 - V8.63 - Added Fix Passive LAN IP Addr option where the FTP server is
+                       behind a NAT router and is not configured to present the
+                       external IP.
 
 
 pending - use VclZip v4 widestring version
@@ -229,6 +232,7 @@ type
     SslSecurity: TComboBox;
     VerifyCertMode: TRadioGroup;
     XferSockFamily: TRadioGroup;
+    FtpFixPassiveLanIP: TCheckBox;  { V8.63 }
 
 // non-saved
     TabSheet5: TTabSheet;
@@ -436,6 +440,7 @@ begin
   SslSecurity.ItemIndex := ReadInteger (section, 'SslSecurity_ItemIndex', 0) ;
   VerifyCertMode.ItemIndex := ReadInteger (section, 'VerifyCertMode_ItemIndex', 0) ;
   XferSockFamily.ItemIndex := ReadInteger (section, 'XferSockFamily_ItemIndex', 0) ;
+  if ReadString (section, 'FtpFixPassiveLanIP_Checked', 'False') = 'True' then FtpFixPassiveLanIP.Checked := true else FtpFixPassiveLanIP.Checked := false ;
     end ;
     finally
         IniFile.Free ;
@@ -518,6 +523,7 @@ begin
   WriteInteger (section, 'SslSecurity_ItemIndex', SslSecurity.ItemIndex) ;
   WriteInteger (section, 'VerifyCertMode_ItemIndex', VerifyCertMode.ItemIndex) ;
   WriteInteger (section, 'XferSockFamily_ItemIndex', XferSockFamily.ItemIndex) ;
+  if FtpFixPassiveLanIP.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'FtpFixPassiveLanIP_Checked', temp) ;
         end ;
     finally
         IniFile.UpdateFile ;
@@ -1106,6 +1112,10 @@ begin
             end
             else
                 Options := Options - [ftpBandwidthControl] ;
+            if FtpFixPassiveLanIP.Checked then                   { V8.63 }
+                Options := Options + [ftpFixPasvLanIP]
+            else
+                Options := Options - [ftpFixPasvLanIP] ;
 {$IFNDEF NO_DEBUG_LOG}
             IcsLogger := IcsLog ;
             IcsLog.LogOptions := [] ;
@@ -1297,6 +1307,10 @@ begin
             end
             else
                 Options := Options - [ftpBandwidthControl] ;
+            if FtpFixPassiveLanIP.Checked then                   { V8.63 }
+                Options := Options + [ftpFixPasvLanIP]
+            else
+                Options := Options - [ftpFixPasvLanIP] ;
             FtpSslPort := FtpPortSsl.Text ;
             SslSessCache := true ;  // 27 Nov 2005
             FtpSslVerMethod := TFtpSslVerifyMethod (VerifyCertMode.ItemIndex);  // 20 Apr 2015

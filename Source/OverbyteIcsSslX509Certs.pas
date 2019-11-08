@@ -9,7 +9,7 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     Apr 2018
-Updated:      Oct 2019
+Updated:      Nov 2019
 Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -679,10 +679,14 @@ Aug 07, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
                        BEWARE tls-alpn-01 challenge not working yet, wrong certificate
                          is sent to client.
                        Builds without USE_SSL
-Oct 22, 2019 - V8.63 - OpenAccount will now create a new account correctly.
+Nov 7, 2019  - V8.63 - OpenAccount will now create a new account correctly.
                        Better response for CertOrderDomain if order collected.
                        Changed challenge checking from every 30 seconds to 10 seconds
                          after a challenge started for faster completion.
+                       Clear Acme nonce after errors so a fresh nonce is found.
+                       Added AutoAccountClose property so account is closed after
+                         order is completed or fails and AccountTimeOutMins to
+                         close it anyway when idle.
 
 
 Pending - more documentation
@@ -695,7 +699,6 @@ Pending - install PKCS12 certificates into Windows cert store for IIS
 Pending - better error reporting and logging
 Pending - Comodo intermediates have too many certificates including a root
 Pending - Add self signed and CA certs to database
-Pending - try and share INI file?
 Pending - check well-known challenge made to TSslHttpServer
 }
 
@@ -1080,6 +1083,8 @@ TSslX509Certs = class(TIcsWndControl)
     FSeqOrderNum: Integer;
     FCertSerNumType: TSerNumType;
     FProxyURL: String;         // following V8.62
+    FAutoAccountClose: Boolean;  // following V8.63
+    FAccountTimeOutMins: Integer;
 
 // internal vars
     FAcmeHost: String;
@@ -1168,6 +1173,8 @@ TSslX509Certs = class(TIcsWndControl)
     FSocketFamily: TSocketFamily;   { V8.60 }
     FFileCertLocalHost: String;     { V8.60 }
     FChkChallgTrg: Int64;           { V8.63 }
+    FPendAccountClose: Boolean;     { V8.63 }
+    FAccountLastTick: Int64;        { V8.63 }
   protected
     { Protected declarations }
     procedure RestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
@@ -1411,6 +1418,10 @@ TSslX509Certs = class(TIcsWndControl)
                                                     write FPrivKeyType;
     property ProxyURL: String                       read  FProxyURL       { V8.62 }
                                                     write FProxyURL;
+    property AutoAccountClose: Boolean              read  FAutoAccountClose     { V8.63 }
+                                                    write FAutoAccountClose;
+    property AccountTimeOutMins: Integer            read  FAccountTimeOutMins  { V8.63 }
+                                                    write FAccountTimeOutMins;
     property SeqOrderNum: Integer                   read  FSeqOrderNum
                                                     write FSeqOrderNum;
     property SocketFamily: TSocketFamily            read  FSocketFamily
@@ -1603,6 +1614,7 @@ begin
     FDBIniSections := TStringList.Create;
     FPartFNameServer := TStringList.Create;
     FSocketFamily := sfAny;         // V8.60 allow IPv6
+    FAccountTimeOutMins := 10;      // V8.63
     Randomize;
 end;
 
@@ -1742,7 +1754,7 @@ begin
                     end;
                 end;
                 FDomWebServer.WebSrvCertBundle := FFileCertLocalHost;
-;           end;
+            end;
         end
         else begin
             FDomWebServer.WebSrvPortSsl := '0';
@@ -1763,7 +1775,8 @@ end;
 function TSslX509Certs.StopDomSrv: boolean ;
 begin
 //    FLastWebTick := TriggerDisabled;
-    Result := FDomWebServer.StopSrv;
+    Result := True;   { V8.63 only if running }
+    if FDomWebServer.IsRunning then Result := FDomWebServer.StopSrv;
 end;
 
 
@@ -3533,6 +3546,7 @@ begin
     FHttpRest.Agent := 'ICS-CertCentre-' + ComponentVersion; // V8.60
     FHttpRest.SocketFamily := FSocketFamily;        // V8.60 allow IPv6
     FHttpRest.ProxyURL := FProxyURL;                // V8.62 proxy support
+    FAccountLastTick := IcsGetTickCount64;  { V8.63 idle account timeout }
 
     try
         FCCLastStatCode := FHttpRest.RestRequest(HttpReq, FullURL, false, RawParams);
@@ -3552,6 +3566,7 @@ begin
     Result := False;
     FSupplierProto := SuppProtoCertCentre;
     FIssueState := IssStateNone;
+    FPendAccountClose := False; { V8.63 }
     if (NOT DBReadAccount(FDirCertWork, False)) and (NOT CreateNew) then Exit;
 
     // create account working directory and database INI file
@@ -4525,6 +4540,7 @@ begin
     Result := SaveCertificateFiles(CertName);
     if NOT Result then Exit;
     FIssueState := IssStateCollect;
+    if FAutoAccountClose then FPendAccountClose := True; { V8.63 }
 end;
 
 
@@ -5242,6 +5258,7 @@ begin
     FHttpRest.FollowRelocation := False;  // nonce will fail since unchanged
     FHttpRest.ContentTypePost := 'application/jose+json';
     fAcmeRespLocation := '';
+    FAccountLastTick := IcsGetTickCount64;  { V8.63 idle account timeout }
     try
 
       // Json parameters need to be signed by private key as a Json Web Signature
@@ -5555,6 +5572,7 @@ begin
     fAcmeAccountUrl := '';
     fAcmeKwkKid := '';   // must be blank for AcmeNewAccount2
     fAcmeAccountNum := '';
+    FPendAccountClose := False; { V8.63 }
     try
 
     // get first Nonce
@@ -5593,6 +5611,7 @@ begin
         else begin
             LogEvent('Failed to Create Acme Account: ' + FHttpRest.ResponseJson.S['type'] +
                                                  ', ' + FHttpRest.ResponseJson.S['detail']) ;
+            FAcmeRespNonce := ''; { V8.63  clear nonce since out of sequence now }
             Exit;
         end;
         FIssueState := IssStateAccount;
@@ -5752,6 +5771,7 @@ begin
     FNewCertEndDT := 0;
     FNewCertStartDT := 0;
     FPendingChallg := 0;
+    FPendAccountClose := False; { V8.63 }
 
 // V8.62 check we can creeate certificate directories before order starts
     if NOT SetPartFNames (False) then Exit ;
@@ -5844,6 +5864,9 @@ Response (length 741)
         if fAcmeLastStatus <> 201 then begin
             LogEvent('Failed to get ACME Order Object: ' + FHttpRest.ResponseJson.S['type'] +
                                                  ', ' + FHttpRest.ResponseJson.S['detail']) ;
+            FAcmeRespNonce := ''; { V8.63  clear nonce since out of sequence now }
+        // see if closing account
+            if FAutoAccountClose then FPendAccountClose := True; { V8.63 }
             Exit;
         end;
         fAcmeOrderFinalizeUrl := FHttpRest.ResponseJson.S['finalize'];
@@ -5864,6 +5887,9 @@ Response (length 741)
         else if (fAcmeOrderStatus = 'invalid') then begin
             FIssueState := IssStateNone;
             LogEvent('ACME Certificate Order Failed, Start Again' + IcsCRLF);
+            FAcmeRespNonce := ''; { V8.63  clear nonce since out of sequence now }
+        // see if closing account
+            if FAutoAccountClose then FPendAccountClose := True; { V8.63 }
         end
 
       // not started challenges yet, add challenges to database
@@ -5896,6 +5922,7 @@ Response (length 741)
                 if fAcmeLastStatus <> 200 then begin
                     LogEvent('Failed to Get ACME Challenges: ' + FHttpRest.ResponseJson.S['type'] +
                                                          ', ' + FHttpRest.ResponseJson.S['detail']) ;
+                    FAcmeRespNonce := ''; { V8.63  clear nonce since out of sequence now }
                     Exit;
                 end;
                 DumpJson;
@@ -6059,6 +6086,7 @@ Response (length 919)
                     if fAcmeLastStatus <> 200 then begin
                         LogEvent('Failed to start Acme challenge: ' + FHttpRest.ResponseJson.S['type'] +
                                                              ', ' + FHttpRest.ResponseJson.S['detail']) ;
+                        FAcmeRespNonce := ''; { V8.63  clear nonce since out of sequence now }
                         Exit;
                     end;
                     ChallgStatus := FHttpRest.ResponseJson.S['status'];
@@ -6114,6 +6142,7 @@ begin
         if NOT AcmeGetRequest(httpPOST, ChallengeURL, Nil) then begin
             LogEvent('Failed to Check ACME Challenge: ' + FHttpRest.ResponseJson.S['type'] +
                                                  ', ' + FHttpRest.ResponseJson.S['detail']) ;
+            FAcmeRespNonce := ''; { V8.63  clear nonce since out of sequence now }
             Exit;
         end;
         if fAcmeLastStatus > 202 then Exit;  // not done
@@ -6390,6 +6419,7 @@ begin
                 errstr := FHttpRest.ResponseJson.S['type'];
                 LogEvent('Failed to collect SSL certificate: ' + errstr  +
                                                      ', ' + FHttpRest.ResponseJson.S['detail']) ;
+                FAcmeRespNonce := ''; { V8.63  clear nonce since out of sequence now }
 
              // one repeat for badnonce
                 if Pos('badNonce', errstr) = 0 then Exit;
@@ -6477,6 +6507,10 @@ begin
         end;
         DBWriteCNDomain;
         if Assigned(FOnNewCert) then FOnNewCert(Self);
+
+    // see if closing account
+        if FAutoAccountClose then FPendAccountClose := True; { V8.63 } 
+
         Result := True;
     except
         on E:Exception do begin
@@ -6654,15 +6688,19 @@ begin
                     end;
                 end;
             end;
-
-          { V8.63 challenges finished should we close account }
-            if (FChallengesTot = 0) then begin
-                //
-            end;
         end;
+
     finally
         FX509BusyFlag := False;
         FChallengeTimer.Enabled := True;
+
+      { V8.63 challenges finished should we stop server and close account }
+        if ((FChallengesTot = 0) and FPendAccountClose) or
+               (IcsElapsedMins64(FAccountLastTick) >= FAccountTimeOutMins) then begin
+            StopDomSrv;
+            CloseAccount;
+            FPendAccountClose := False;
+        end;
     end;
 end;
 
@@ -6672,10 +6710,11 @@ end;
 function TSslX509Certs.CloseAccount: Boolean;
 begin
     Result := False;
+    FChallengeTimer.Enabled := False;
+    FPendAccountClose := False;
+    StopDomSrv;
     if (FSupplierProto = SuppProtoNone) and
                  (FControlFile = Nil) and (FCnrtFileName = '') then Exit;
-    FChallengeTimer.Enabled := False;
-    StopDomSrv;
     FSupplierProto := SuppProtoNone;
     FDirCertWork := '';
     FIssueState := IssStateNone;
@@ -6704,6 +6743,8 @@ begin
     NewProto := FSupplierProto ;  { V8.63 }
     FSupplierProto := SuppProtoNone;
     CloseAccount;
+    FAccountLastTick := IcsGetTickCount64;  { V8.63 }
+    if FAccountTimeOutMins <= 2 then FAccountTimeOutMins := 10; { V8.63 }
 
   // ignore public properties, read everything from database
     if NOT DBReadAccount(IncludeTrailingPathDelimiter(WorkDir), True) then begin
@@ -6730,7 +6771,7 @@ begin
             LogEvent ('Can Not Open Account, Unknown Supplier Protocol');
     end;
 
- // check for old challenges, start time to see if done
+ // check for old challenges, start timer to see if done
     if Result then begin
         LogEvent ('Opened Supplier Account for: ' + FSupplierTitle +  ', Protocol: ' +
                             SupplierProtoLits [FSupplierProto] + ', From: ' + WorkDir);

@@ -212,10 +212,14 @@ Aug 06, 2019  V8.62  When ordering X509 certificate, ChallFileSrv challenge now
                       signed ACME certificate for the challenge.
                    BEWARE tls-alpn-01 challenge not working yet, wrong certificate
                      is sent to client.
-Oct 22, 2019 V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
-                      AllowSelfSign to stop errors with self signed certificates.
-                    Automatic cert ordering now works if cert file name has -bundle
-                       or -cert appended to end.
+Nov 7, 2019  V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
+                     AllowSelfSign to stop errors with self signed certificates.
+                   Automatic cert ordering now works if cert file name has -bundle
+                     or -cert appended to end.
+                   IcsHosts has new AuthSslCmd property for when SSL is allowed
+                     on non-SSL port after AUTH SSL command or similar.
+                   Automatic cert ordering now closes the account and local web
+                     server automatically and after order errors.  
 
 
 
@@ -307,6 +311,8 @@ WebLogDir     - Optional web logging directory for this IcsHost, for use by web
 WebLogIdx     - Optional web logging index for this IcsHost, for use by web
                 server applications (not by the server itself which has not
                 logging).
+AuthSslCmd    - Optional, if SSL/TLS should be initialised to support an AUTH SSL
+                command or similar on an initial non-SSL connection.
 SslCert       - Optional SSL server certificate file name, may be PEM, DER, PFX,
                 P12, P7 format, optionally a bundle including a private key and
                 one or more intermediate certificates.  Required if BindSslPort
@@ -1089,6 +1095,7 @@ type
     FCertProduct: String;
     FCertSignDigest: TEvpDigest;
     FWebLogIdx: Integer;    { V8.60 }
+    FAuthSslCmd: Boolean;   { V8.63 }
   protected
     function GetDisplayName: string; override;
     function GetHostNameTot: integer;
@@ -1153,6 +1160,8 @@ type
                                                  write FSslPassword;
     property SslSrvSecurity : TSslSrvSecurity    read  FSslSrvSecurity
                                                  write FSslSrvSecurity;
+    property AuthSslCmd : Boolean                read  FAuthSslCmd
+                                                 write FAuthSslCmd;      { V8.63 }
     property WellKnownPath: string               read  FWellKnownPath
                                                  write FWellKnownPath;   { V8.49 }
     property WebRedirectURL: string              read  FWebRedirectURL
@@ -3074,6 +3083,9 @@ begin
             // open supplier account, based on file directory
                 if (SupplierProto <> CertSupplierProto) or
                                (CompareText(DirCertWork, CertDirWork) <> 0) then begin
+                  // V8.63 make sure account closes and local web server stops               
+                    AutoAccountClose := True;
+                    AccountTimeOutMins := 5;
                     Result := OpenAccount(CertDirWork, False);  // don't create new account
                     if NOT Result then begin
                         FCertErrs := 'Failed to Open Certificate Supplier Database - ' + LastResponse;
@@ -3118,6 +3130,7 @@ begin
                 Result := CertSaveDomain(CertCommonName);
                 if NOT Result then begin
                     FCertErrs := 'Failed to Save New Domain to Certificate Database - ' + LastResponse;
+                    CloseAccount;  // V8.63
                     Exit;
                 end;
 
@@ -3125,12 +3138,15 @@ begin
                 Result := CertOrderDomain(HostNames[0]);
                 if NOT Result then begin
                     FCertErrs := 'Failed to Order New Certificate - ' + LastResponse;
+                    CloseAccount;  // V8.63
                     Exit;
                 end;
+              // note order may not be completed yet, event called to install new certificate
             except
                 on E:Exception do begin
                     FCertErrs := E.Message; { V8.52 keep exception }
                     Result := False;  // V8.63
+                    CloseAccount; // V8.63
                 end;
             end;
         end;
@@ -3398,16 +3414,16 @@ begin
                 AddBinding(FBindIpAddr, FBindSslPort, True, FBindIdxSsl, FBindInfo);
                 if FBindIpAddr2 <> '' then
                     AddBinding(FBindIpAddr2, FBindSslPort, True, FBindIdx2Ssl, FBindInfo);
+            end;
+
+     { if using SSL, set-up context with server certificates }
+            if (FBindSslPort > 0) or FAuthSslCmd then begin  { V8.63 optional SSL }
                 if (FSslCert = '') then begin
                     FCertErrs := 'Host #' + IntToStr(I) + ', SSL certificate can not be blank';
                     Result := Result + FCertErrs + #13#10;  { V8.52 }
                     if Stop1stErr then raise ESocketException.Create(Result);
                     continue;
                 end;
-            end;
-
-     { if using SSL, set-up context with server certificates }
-            if FBindSslPort > 0 then begin
                 if NOT Assigned(SslCtx) then
                     SslCtx := TSslContext.Create(Self);
                 if FirstSsl < 0 then FirstSsl := I;
@@ -3553,7 +3569,7 @@ begin
     for I := 0 to FIcsHosts.Count - 1 do begin
         with FIcsHosts [I] do begin
             if NOT FHostEnabled then continue;
-            if FBindSslPort = 0 then continue;
+            if (FBindSslPort = 0) and (NOT FAuthSslCmd) then continue;   { V8.63 optional SSL }
 
           { load any new certificates, might order new SSL certificate }
             try
@@ -3900,6 +3916,7 @@ begin
             Descr := IcsTrim(MyIniFile.ReadString(section, 'Descr', ''));
             ForwardProxy := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'ForwardProxy', 'False'));
             Proto := IcsTrim(MyIniFile.ReadString(section, 'Proto', ''));
+            AuthSslCmd := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'AuthSslCmd', 'False'));   { V8.63 }
             WebDocDir := IcsTrim(MyIniFile.ReadString(section, 'WebDocDir', ''));
             WebTemplDir := IcsTrim(MyIniFile.ReadString(section, 'WebTemplDir', ''));
             WebDefDoc := IcsTrim(MyIniFile.ReadString(section, 'WebDefDoc', ''));

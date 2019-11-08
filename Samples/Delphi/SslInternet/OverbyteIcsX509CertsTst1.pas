@@ -9,8 +9,8 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     May 2018
-Updated:      July 2019
-Version:      8.62
+Updated:      Nov 2019
+Version:      8.63
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
@@ -59,9 +59,10 @@ Jul 25, 2019 - V8.62 Supplier tab displays paths for cert and well-known dirs.
                      CertCenter AlwaysOn is discontinued and removed.
                      Comodo is now called Sectigo, sometimes old name still used.
                      Clear SAN grid properly.
-                   BEWARE tls-alpn-01 challenge not working yet, wrong certificate
-                     is sent to client.
-
+                     BEWARE tls-alpn-01 challenge not working yet, wrong certificate
+                      is sent to client.
+Nov 7, 2019 - V8.63  Better selection for supplier database order ListView.
+                     10 minute timeout to close idle account.
                       
 
 For docunentation on how to use this sample, please see a lengthy Overview in
@@ -372,6 +373,8 @@ type
     procedure X509Certs1OAuthAuthUrl(Sender: TObject; const URL: string);
     procedure doDBRedistClick(Sender: TObject);
     procedure DirLogsExit(Sender: TObject);
+    procedure DatabaseDomainsSelectItem(Sender: TObject; Item: TListItem;
+      Selected: Boolean);
   private
     { Private declarations }
   public
@@ -1503,6 +1506,15 @@ begin
     if DatabaseDomains.Items.Count = 0 then Exit;
     if DatabaseDomains.ItemIndex < 0 then Exit;
     SetDomButtons;
+end;
+
+procedure TX509CertsForm.DatabaseDomainsSelectItem(Sender: TObject;
+  Item: TListItem; Selected: Boolean);
+begin
+    ResetDomButtons;
+    if DatabaseDomains.Items.Count = 0 then Exit;
+    if DatabaseDomains.ItemIndex < 0 then Exit;
+    SetDomButtons;   
 end;
 
 procedure TX509CertsForm.DirLogsExit(Sender: TObject);

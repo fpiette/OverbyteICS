@@ -183,7 +183,8 @@ Jun 19, 2019 V8.62 Added IcsGetLocalTZBiasStr get time zone bias as string, ie -
                       time to UTC and format it per RFC3339 with time zone bias.
                    RFC3339_StrToDate and RFC1123_StrToDate now recognise time zone
                       bias and adjust result if UseTZ=True from UTC to local time.
-Oct 22, 2018 V8.63 Better error handling in RFC1123_StrToDate to avoid exceptions.
+Nov 7, 2018  V8.63 Better error handling in RFC1123_StrToDate to avoid exceptions.
+                   Added TypeInfo enumeration sanity check for IcsSetToStr and IcsStrToSet.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -6667,6 +6668,10 @@ function IcsSetToStr(TypInfo: PTypeInfo; const aSet; const aSize: Integer): stri
 var
     I, W: Integer;
 begin
+    if TypInfo.Kind <> tkEnumeration then begin  { V8.63 sanity check }
+        Result := '[]';
+        Exit;
+    end;
     W := IcsSetToInt(aSet, aSize);
     Result := '[';
     for I := 0 to (aSize * 8) - 1 do begin
@@ -6690,6 +6695,7 @@ begin
     W := 0;
     ValueList := TStringList.Create;
     try
+        if TypInfo.Kind <> tkEnumeration then Exit;  { V8.63 sanity check }
         if Length(Values) < 3 then Exit;
         if Pos('[', Values) <> 1 then Exit;
         ValueList.CommaText := Copy (Values, 2, Length(Values) - 2);

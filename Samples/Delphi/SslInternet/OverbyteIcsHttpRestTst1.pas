@@ -4,7 +4,7 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
 Updated:      July 2019
-Version:      8.62
+Version:      8.63
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -61,8 +61,14 @@ Apr 24, 2019 - V8.61 Added DNS over HTTPS REST example using Json.
 Jul 25, 2019 - V8.62 Supporting SMS Works at https://thesmsworks.co.uk/ for SMS.
                      Added Proxy URL for proxy support, ie http://[user[:password]@]host:port
                      Allow Application Layer Protocol Negotiation (ALPN) to be set,
-                        mainly for HTTP/2 which we don't support yet, also Let's Encrypt. 
-
+                        mainly for HTTP/2 which we don't support yet, also Let's Encrypt.
+Nov 11, 2019 - V8.63 OAuth2 progress log display got lost.
+                     Double click on Json array or object grid row to open object window
+                       parsing value, and again on object window.
+                     Added two Google Gmail API URLs to the drop down list.
+                     OAuth has Prompt and Access Offline for Google to requests a
+                       Refresh Token.
+                       
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpRestTst1;
@@ -154,6 +160,8 @@ type
     KapowAccName: TEdit;
     SmsWorksLoginJson: TMemo;
     AlpnProtos: TEdit;
+    OAuthPrompt: TEdit;
+    OAuthAccess: TCheckBox;
 
  // properties not saved
     LogWin: TMemo;
@@ -232,6 +240,8 @@ type
     LabelSmsWorksCredits: TLabel;
     Label31: TLabel;
     Label32: TLabel;
+    Label33: TLabel;
+    Label34: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure HttpRest1HttpRestProg(Sender: TObject; LogOption: TLogOption;
       const Msg: string);
@@ -270,6 +280,9 @@ type
     procedure doSmsWorksCreditClick(Sender: TObject);
     procedure doSmsWorksSendClick(Sender: TObject);
     procedure doSmsWorksCheckClick(Sender: TObject);
+    procedure RestOAuth1OAuthProg(Sender: TObject; LogOption: TLogOption;
+      const Msg: string);
+    procedure RespListDblClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -296,8 +309,11 @@ implementation
 
 {$R *.dfm}
 
+Uses OverbyteIcsHttpRestTst2;
+
 const
     SectionMainWindow    = 'MainWindow';
+    SectionObjWindow     = 'ObjWindow';
     KeyTop               = 'Top';
     KeyLeft              = 'Left';
     KeyWidth             = 'Width';
@@ -356,12 +372,16 @@ begin
         for I := Low(DnsPublicHttpsTable) to High(DnsPublicHttpsTable) do
              DnsHttpsUrl.Items.Add (DnsPublicHttpsTable[I]);
 
-    // form position
+    // form positions
         IniFile := TIcsIniFile.Create(FIniFileName);
         Width := IniFile.ReadInteger(SectionMainWindow, KeyWidth,  Width);
         Height := IniFile.ReadInteger(SectionMainWindow, KeyHeight, Height);
         Top := IniFile.ReadInteger(SectionMainWindow, KeyTop, (Screen.Height - Height) div 2);
         Left := IniFile.ReadInteger(SectionMainWindow, KeyLeft, (Screen.Width  - Width)  div 2);
+        FormObject.Width := IniFile.ReadInteger(SectionObjWindow, KeyWidth,  FormObject.Width);  { V8.63 another form }
+        FormObject.Height := IniFile.ReadInteger(SectionObjWindow, KeyHeight, FormObject.Height);
+        FormObject.Top := IniFile.ReadInteger(SectionObjWindow, KeyTop, (Screen.Height - FormObject.Height) div 2);
+        FormObject.Left := IniFile.ReadInteger(SectionObjWindow, KeyLeft, (Screen.Width  - FormObject.Width)  div 2);
         SL := TStringList.Create;
         try
              SL.Delimiter := '|';
@@ -429,6 +449,8 @@ begin
           KapowAccName.Text := ReadString (SectionData, 'KapowAccName_Text', KapowAccName.Text) ;
           SmsWorksLoginJson.Lines.CommaText := ReadString (SectionData, 'SmsWorksLoginJson_Lines', '') ;
           AlpnProtos.Text := ReadString (SectionData, 'AlpnProtos_Text', AlpnProtos.Text) ;
+          OAuthPrompt.Text := ReadString (SectionData, 'OAuthPrompt_Text', OAuthPrompt.Text) ;
+          if ReadString (SectionData, 'OAuthAccess_Checked', 'False') = 'True' then OAuthAccess.Checked := true else OAuthAccess.Checked := false ;
        end;
         IniFile.Free;
     end;
@@ -518,6 +540,8 @@ begin
       WriteString (SectionData, 'KapowAccName_Text', KapowAccName.Text) ;
       WriteString (SectionData, 'SmsWorksLoginJson_Lines', SmsWorksLoginJson.Lines.CommaText) ;
       WriteString (SectionData, 'AlpnProtos_Text', AlpnProtos.Text) ;
+      WriteString (SectionData, 'OAuthPrompt_Text', OAuthPrompt.Text) ;
+      if OAuthAccess.Checked then temp := 'True' else temp := 'False' ; WriteString (SectionData, 'OAuthAccess_Checked', temp) ;
     end;
     IniFile.UpdateFile;
     IniFile.Free;
@@ -806,6 +830,14 @@ begin
     RestOAuth1.OAOptions := [];
     if OAuthOptNoRedir.Checked then
         RestOAuth1.OAOptions := RestOAuth1.OAOptions  + [OAopAuthNoRedir];
+    if OAuthPrompt.Text <> '' then begin                   { V8.63 }
+        RestOAuth1.LoginPrompt := OAuthPrompt.Text;
+        RestOAuth1.OAOptions := RestOAuth1.OAOptions  + [OAopAuthPrompt];
+    end;
+    if OAuthAccess.Checked then begin                   { V8.63 }
+        RestOAuth1.RefreshOffline := True;
+        RestOAuth1.OAOptions := RestOAuth1.OAOptions  + [OAopAuthAccess];
+    end;
     RestOAuth1.RefreshAuto := OAuthAutoRefresh.Checked;
     RestOAuth1.RefrMinsPrior := atoi(OAuthRefrMins.Text);
     RestOAuth1.RefreshToken := OAuthRefToken.Text;
@@ -817,7 +849,19 @@ begin
 end;
 
 
-{ call back for embedded browser window }
+procedure THttpRestForm.RespListDblClick(Sender: TObject);
+begin
+    if NOT Assigned(FormObject) then Exit;
+    if RespList.ItemIndex < 0 then Exit;
+    with RespList.Items[RespList.ItemIndex] do begin
+        if SubItems.Count < 2 then Exit;
+        if (SubItems[0] = 'stArray') or (SubItems[0] = 'stObject') then
+            FormObject.DispJson(SubItems[1])
+         else
+            FormObject.SubRespList.Items.Clear;
+    end;
+end;
+
 procedure THttpRestForm.RestOAuth1OAuthAuthUrl(Sender: TObject;
                                                 const URL: string);
 begin
@@ -844,6 +888,12 @@ begin
     OAuthExpire.Text := DateTimeToStr((Sender as TRestOAuth).ExpireDT);
     AuthBearer.Text := (Sender as TRestOAuth).AccToken;
     LabelResult.Caption := 'Result: Got New Token OK';
+end;
+
+procedure THttpRestForm.RestOAuth1OAuthProg(Sender: TObject;
+  LogOption: TLogOption; const Msg: string);
+begin
+    AddLog(Msg);   { V8.63 }
 end;
 
 procedure THttpRestForm.doTestRedirClick(Sender: TObject);

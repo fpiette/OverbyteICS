@@ -102,14 +102,21 @@ immediately they are exchanged for a token.
 The Access Token is then sent with all HTTPS REST requests as an 'Authorization:
 Bearer' header.
 
-Access Tokens have a limited life and usually expire within three to 24 hours.
-To avoid user interaction, the token exchange process sometimes offers a Refresh
-Token with the same expiry, but which can be used to get another Access Token,
-and this is automatically handled by TRestOAuth, while it still runs.
+Access Tokens have a limited life and usually expire within one to 24 hours.
+To avoid user interaction, the token exchange process usually offers a Refresh
+Token which can be used to get another Access Token, and this is automatically
+handled by TRestOAuth, by refreshing the Access Token before it expires, allowing
+ your application to keep running.  Store the Refresh Token securely, since it's
+ a potential security risk.
 
-So the trick for native applications is to keep refreshing the Access Token before
-it expires, allowing your application to keep running.  Store the Refresh Token
-securely, since it's a potential security risk.
+Sometimes the Refresh Token has the same life as the Access Token, with Google
+Accounts the Refresh Token remains valid for a few months until the account is
+disabled or changed, avoiding needing to login again or refresh within the expiry
+period.  Beware with Google the Refresh Token is only returned once after initial
+login, not after each refresh.  Google may also need to approve applications
+offering OAuth2, and may show consent warnings during the login process to get
+an Authorization Code until this is done.
+https://developers.google.com/identity/protocols/OAuth2
 
 Setting up OAuth is complex and requires a lot more information than just a site
 user name and password.  You normally need to access the desired site and create
@@ -163,10 +170,21 @@ Aug 07, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
                         Added SslAllowSelfSign property to connect OK to sites
                           with self signed SSL certificates.
                         Builds without USE_SSL
-Oct 24, 2019  - V8.63 - The SMS Works sync delivery works OK, try and return
+Nov 11, 2019  - V8.63 - The SMS Works sync delivery works OK, try and return
                           similar delivery responses as Kapow.
                         Ensure default CA bundle gets loaded if SslRootFile
                           blank (broken in V8.62).
+                        Web server now lonnger adds date/time when logging allowing
+                          application to do it instead.
+                        OAuth2 don't kill old refresh token if no refresh is available,
+                           Google APIs provides a single refresh that remains valid for
+                           weeks rather than a new one with each access token. Clarified
+                           the OAuth documentation to explain the Google process.
+                        OAuth has extra TOAuthOptions OAopAuthPrompt and OAopAuthAccess
+                           for Google, OAopAuthPrompt uses property LoginPrompt usually
+                           'consent', OAopAuthAccess and RefreshOffline=True requests a
+                           Refresh Token.
+
 
 
 Pending - more documentation
@@ -282,7 +300,9 @@ type
   TOAuthType = (OAuthTypeWeb, OAuthTypeMan, OAuthTypeEmbed);
   TOAuthOption = (OAopAuthNoRedir,    { OAuth Auth Request do not send redirect_url }
                   OAopAuthNoScope,    { OAuth Auth Request do not send scope }
-                  OAopAuthNoState);   { OAuth Auth Request do not send state }
+                  OAopAuthNoState,    { OAuth Auth Request do not send state }
+                  OAopAuthPrompt,     { OAuth Auth Request send approval prompt V8.63 }
+                  OAopAuthAccess);    { OAuth Auth Request send access type V8.63 }
   TOAuthOptions = set of TOAuthOption;
 
 { forware declarations }
@@ -576,6 +596,8 @@ type
     FWebSrvPort: string;
     FWebServer: TSimpleWebSrv;
     FRedirState: string;
+    FRefreshOffline: Boolean;  { V8.63 }
+    FLoginPrompt: String;      { V8.63 }
     FOnOAuthProg: THttpRestProgEvent;
     FOnOAuthAuthUrl: TOAuthAuthUrlEvent;
     FOnOAuthNewCode: TNotifyEvent;
@@ -592,6 +614,7 @@ type
     procedure WebSrvReq(Sender: TObject; const Host, Path, Params: string; var RespCode, Body: string);
     function  GetToken: boolean;
     procedure RefreshOnTimer(Sender: TObject);
+    procedure WebSrvProg(Sender: TObject; LogOption: TLogOption; const Msg: string);  { V8.63 }
   public
     { Public declarations }
     HttpRest:    TSslHttpRest;
@@ -648,6 +671,10 @@ type
                                                     write FWebSrvIP;
     property WebSrvPort: string                     read  FWebSrvPort
                                                     write FWebSrvPort;
+    property RefreshOffline: Boolean                read  FRefreshOffline
+                                                    write FRefreshOffline;  { V8.63 }
+    property LoginPrompt: string                    read  FLoginPrompt
+                                                    write FLoginPrompt;     { V8.63 }
     property OnOAuthAuthUrl: TOAuthAuthUrlEvent     read  FOnOAuthAuthUrl
                                                     write FOnOAuthAuthUrl;
     property OnOAuthProg: THttpRestProgEvent        read  FOnOAuthProg
@@ -1917,12 +1944,12 @@ var
     Cli: TSimpleClientSocket;
 begin
     if Error <> 0 then begin
-        LogEvent(RFC3339_DateToStr(Now) + ' Server listen connect error: ' + WSocketErrorDesc(Error));
+        LogEvent({RFC3339_DateToStr(Now) +} 'Server listen connect error: ' + WSocketErrorDesc(Error));  { V8.63 }
         Client.Close;
         exit;
     end;
-    if FDebugLevel >= DebugConn then LogEvent(RFC3339_DateToStr(Now) +
-                ' Client Connected from Address ' + IcsFmtIpv6Addr(Client.GetPeerAddr));
+    if FDebugLevel >= DebugConn then
+       LogEvent({RFC3339_DateToStr(Now) + } 'Client Connected from Address ' + IcsFmtIpv6Addr(Client.GetPeerAddr));
     Cli := Client as TSimpleClientSocket;
     Cli.WebSrv := Self;
     Cli.LineMode := false;
@@ -1941,7 +1968,7 @@ procedure TSimpleWebSrv.ServerClientDisconnect(Sender: TObject;
                                  Client: TWSocketClient; Error: Word);
 begin
     if FDebugLevel >= DebugConn then
-        LogEvent(RFC3339_DateToStr(Now) + ' Client Disconnected') ;
+        LogEvent({RFC3339_DateToStr(Now) +} 'Client Disconnected') ;
 end;
 
 
@@ -2122,7 +2149,7 @@ begin
         end
         else begin
             if WebSrv.DebugLevel >= DebugHdr then
-                WebSrv.LogEvent(RFC3339_DateToStr(Now) + ' Web Server Request Ignored, Host: ' +
+                WebSrv.LogEvent({RFC3339_DateToStr(Now) + } 'Server Request Ignored, Host: ' +
                         RequestHost + ', Path: ' + RequestPath + ', Params: ' + RequestParams);   { V8.62 }
             CliErrorResponse('404 Not Found', 'The requested URL ' +
                  TextToHtmlText(RequestPath) + ' was not found on this server.');
@@ -2141,7 +2168,7 @@ constructor TRestOAuth.Create (Aowner: TComponent);
 begin
     inherited Create(AOwner);
     FWebServer := TSimpleWebSrv.Create(self);
-    FWebServer.OnServerProg := RestProg;
+    FWebServer.OnServerProg := WebSrvProg;  { V8.63 got lost somehow }
     FWebServer.OnSimpWebSrvReq := WebSrvReq;
     HttpRest := TSslHttpRest.Create(self);
     HttpRest.OnHttpRestProg := RestProg;
@@ -2153,6 +2180,7 @@ begin
     FRefrMinsPrior := 120;
     FRefreshDT := 0;
     FScope := '';
+    FLoginPrompt := 'consent';   { V8.63 }
     FLastWebTick := TriggerDisabled;
     FRefreshTimer := TIcsTimer.Create(HttpRest);
     FRefreshTimer.OnTimer := RefreshOnTimer;
@@ -2178,6 +2206,14 @@ procedure TRestOAuth.RestProg(Sender: TObject; LogOption: TLogOption; const Msg:
 begin
     if Assigned(FOnOAuthProg) then
         FOnOAuthProg(Self, LogOption, Msg) ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TRestOAuth.WebSrvProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
+begin
+    if Assigned(FOnOAuthProg) then
+        FOnOAuthProg(Self, LogOption, 'OAuth Web Server ' + Msg);    { V8.63 }
 end;
 
 
@@ -2251,9 +2287,9 @@ begin
     Result := FWebServer.StartSrv;
     FLastWebTick := TriggerDisabled;  { V8.60 don't timeout until request }
     if Result then
-        LogEvent('Local Web Server Started on: ' + IcsFmtIpv6AddrPort(FWebSrvIP, FWebSrvPort))
+        LogEvent('OAuth Web Server Started on: ' + IcsFmtIpv6AddrPort(FWebSrvIP, FWebSrvPort))
     else
-        LogEvent('Local Web Server Failed to Start');
+        LogEvent('OAuth Web Server Failed to Start');
 end;
 
 
@@ -2291,7 +2327,7 @@ begin
      // close web server on idle timeout - 30 minutes
         if SrvIsRunning and (IcsElapsedMins(FLastWebTick) > 30) then begin
             FLastWebTick := TriggerDisabled;
-            LogEvent('Local Web Server Stopping on Idle Timeout');
+            LogEvent('OAuth Web Server Stopping on Idle Timeout');
             StopSrv;
         end;
     finally
@@ -2314,7 +2350,7 @@ var
             '<BODY>' + IcsCRLF +
             '<H1>' + Title + '</H1>' + Msg + '<P>' + IcsCRLF +
             '</BODY></HTML>' + IcsCRLF;
-        LogEvent('Web Response: ' + RespCode);
+        LogEvent('OAuth Web Response: ' + RespCode);
     end;
 
 begin
@@ -2330,7 +2366,7 @@ begin
     end;
 
     FLastWebTick := IcsGetTickCountX;   // timeout to close server
-    LogEvent('Web Server Request, Host: ' + Host + ', Path: ' + Path + ', Params: ' + Params);
+    LogEvent('OAuth Web Request, Host: ' + Host + ', Path: ' + Path + ', Params: ' + Params);
     Redirect := 'http://' + Host + Path;
     if Redirect <> FRedirectUrl then
         LogEvent('Warning, Differing Redirect URL: ' + Redirect);
@@ -2454,6 +2490,14 @@ begin
             MyParams.AddItem('state', FRedirState, False);
         if (NOT (OAopAuthNoScope in FOAOptions)) and (FScope <> '') then
             MyParams.AddItem('scope', FScope, False);
+        if (OAopAuthPrompt in FOAOptions) and (FLoginPrompt <> '') then
+            MyParams.AddItem('prompt', FLoginPrompt, False); { V8.63 none consent select_account }
+        if (OAopAuthAccess in FOAOptions) then begin
+            if FRefreshOffline then
+                MyParams.AddItem('access_type', 'offline', False)   { V8.63 neeed so Google supplies refresh token }
+            else
+                MyParams.AddItem('access_type', 'online', False);
+        end;
         BrowserURL := FAppUrl + '?' + String(MyParams.GetParameters);
     finally
         MyParams.Free;
@@ -2494,7 +2538,7 @@ end;
 function TRestOAuth.GetToken: boolean;
 var
     StatCode, secs: Integer;
-    Info: string;
+    Info, Refresh: string;
 begin
     Result := false;
     StatCode := HttpRest.RestRequest(HttpPOST, FTokenUrl, False, '');
@@ -2504,17 +2548,23 @@ begin
         FAccToken := HttpRest.ResponseJson.S['access_token'];
         if FAccToken <> '' then begin
             Result := true;
-            FRefreshToken := HttpRest.ResponseJson.S['refresh_token'];
+            Refresh := HttpRest.ResponseJson.S['refresh_token'];
             secs := HttpRest.ResponseJson.I['expires_in'];
             FExpireDT := Now + (secs / SecsPerDay);
             FRefreshDT := 0;
             LogEvent('Got New Access Token: ' + FAccToken + ', Which Expires: ' +
                                                            DateTimeToStr(FExpireDT));
-            if FRefreshToken = '' then
-                LogEvent('No Refresh Available')
-            else begin
-               LogEvent('Which Can Be Refreshed With: ' + FRefreshToken);
-               if FRefreshAuto and (FRefrMinsPrior > 30) and (secs > 300) then begin
+
+            if Refresh = '' then begin
+                if  FRefreshToken <> '' then
+                    LogEvent('Kept Existing Refresh Token')
+                else
+                    LogEvent('No New Refresh Available');
+            end
+            else if Refresh <> '' then begin   { V8.63 don't kill old refresh if no new token }
+                FRefreshToken := Refresh;
+                LogEvent('Which Can Be Refreshed With: ' + FRefreshToken);
+                if FRefreshAuto and (FRefrMinsPrior > 30) and (secs > 300) then begin
                     if (secs > (FRefrMinsPrior * 60)) then
                         FRefreshDT := FExpireDT - ((FRefrMinsPrior * 60) / SecsPerDay)
                     else

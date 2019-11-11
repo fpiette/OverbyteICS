@@ -2039,6 +2039,8 @@ Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst.dproj
 Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst.res
 Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst1.pas
+Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst2.dfm
+Samples\Delphi\SslInternet\OverbyteIcsHttpRestTst2.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsHttpsServer.dof
 Samples\Delphi\SslInternet\OverbyteIcsHttpsServer.dpr

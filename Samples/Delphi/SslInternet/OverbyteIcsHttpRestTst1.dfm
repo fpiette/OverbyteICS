@@ -2,8 +2,8 @@ object HttpRestForm: THttpRestForm
   Left = 86
   Top = 176
   Caption = 
-    'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.62 -' +
-    ' 25th July 2019'
+    'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.63 -' +
+    ' 11th November 2019'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace
@@ -50,6 +50,13 @@ object HttpRestForm: THttpRestForm
         Height = 14
         Caption = 'URL (no ? or Params)'
       end
+      object Label33: TLabel
+        Left = 361
+        Top = 260
+        Width = 285
+        Height = 14
+        Caption = 'Double click on a Json stObject or stArray item to expand.  '
+      end
       object RestURL: TComboBox
         Left = 10
         Top = 220
@@ -67,7 +74,13 @@ object HttpRestForm: THttpRestForm
           'https://fakerestapi.azurewebsites.net/api/Activities'
           'https://www.telecom-tariffs.co.uk/serverinfo.htm'
           'https://api.cix.uk/.well-known/openid-configuration'
-          'https://accounts.google.com/.well-known/openid-configuration')
+          'https://accounts.google.com/.well-known/openid-configuration'
+          'https://www.googleapis.com/gmail/v1/users/me/profile'
+          'https://www.googleapis.com/gmail/v1/users/me/messages'
+          'https://www.googleapis.com/gmail/v1/users/me/messages/{id}'
+          'https://www.googleapis.com/gmail/v1/users/me/settings/Pop'
+          ''
+          '')
       end
       object GridParams: TStringGrid
         Left = 10
@@ -162,10 +175,6 @@ object HttpRestForm: THttpRestForm
     object TabSettings: TTabSheet
       Caption = 'Settings'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label2: TLabel
         Left = 10
         Top = 245
@@ -431,10 +440,7 @@ object HttpRestForm: THttpRestForm
     object TabOAuth: TTabSheet
       Caption = 'OAuth'
       ImageIndex = 2
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      ExplicitTop = 23
       object Label19: TLabel
         Left = 300
         Top = 220
@@ -479,38 +485,45 @@ object HttpRestForm: THttpRestForm
         end
         object Label11: TLabel
           Left = 5
-          Top = 55
+          Top = 50
           Width = 37
           Height = 14
           Caption = 'Client Id'
         end
         object Label12: TLabel
           Left = 5
-          Top = 85
+          Top = 75
           Width = 61
           Height = 14
           Caption = 'Client Secret'
         end
         object Label13: TLabel
           Left = 5
-          Top = 115
+          Top = 100
           Width = 60
           Height = 14
           Caption = 'Redirect-URI'
         end
         object Label14: TLabel
           Left = 5
-          Top = 145
+          Top = 125
           Width = 74
           Height = 14
           Caption = 'App Token URL'
         end
         object Label21: TLabel
           Left = 5
-          Top = 175
+          Top = 150
           Width = 31
           Height = 14
           Caption = 'Scope'
+        end
+        object Label34: TLabel
+          Left = 217
+          Top = 170
+          Width = 33
+          Height = 14
+          Caption = 'Prompt'
         end
         object OAuthAppUrl: TEdit
           Left = 90
@@ -521,46 +534,61 @@ object HttpRestForm: THttpRestForm
         end
         object OAuthClientId: TEdit
           Left = 90
-          Top = 50
+          Top = 45
           Width = 281
           Height = 22
           TabOrder = 1
         end
         object OAuthClientSecret: TEdit
           Left = 90
-          Top = 80
+          Top = 70
           Width = 146
           Height = 22
           TabOrder = 2
         end
         object OAuthRedirectUrl: TEdit
           Left = 90
-          Top = 110
+          Top = 95
           Width = 281
           Height = 22
           TabOrder = 4
         end
         object OAuthTokenUrl: TEdit
           Left = 90
-          Top = 140
+          Top = 120
           Width = 281
           Height = 22
           TabOrder = 5
         end
         object OAuthScope: TEdit
           Left = 90
-          Top = 170
+          Top = 145
           Width = 281
           Height = 22
           TabOrder = 6
         end
         object OAuthOptNoRedir: TCheckBox
           Left = 250
-          Top = 80
+          Top = 70
           Width = 121
           Height = 17
           Caption = 'Auth No Redirect'
           TabOrder = 3
+        end
+        object OAuthPrompt: TEdit
+          Left = 263
+          Top = 170
+          Width = 106
+          Height = 22
+          TabOrder = 8
+        end
+        object OAuthAccess: TCheckBox
+          Left = 8
+          Top = 170
+          Width = 203
+          Height = 17
+          Caption = 'Access Offline (get Refresh Token)'
+          TabOrder = 7
         end
       end
       object GroupBox2: TGroupBox
@@ -678,7 +706,7 @@ object HttpRestForm: THttpRestForm
         Top = 215
         Width = 106
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 4
         Text = '127.0.0.1'
       end
@@ -749,10 +777,6 @@ object HttpRestForm: THttpRestForm
     object TabDNSHTTPS: TTabSheet
       Caption = 'DNS over HTTPS'
       ImageIndex = 3
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label23: TLabel
         Left = 10
         Top = 15
@@ -779,7 +803,7 @@ object HttpRestForm: THttpRestForm
         Top = 10
         Width = 346
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 0
         Text = 'https://cloudflare-dns.com/dns-query'
         Items.Strings = (
@@ -795,7 +819,7 @@ object HttpRestForm: THttpRestForm
         Top = 40
         Width = 201
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 1
         Text = 'pool.ntp.org'
         Items.Strings = (
@@ -818,7 +842,7 @@ object HttpRestForm: THttpRestForm
         Width = 201
         Height = 22
         Style = csDropDownList
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 2
       end
       object doDNSJson: TButton
@@ -868,18 +892,10 @@ object HttpRestForm: THttpRestForm
     object TabTwitter: TTabSheet
       Caption = 'Twiiter'
       ImageIndex = 4
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
     end
     object TabSms: TTabSheet
       Caption = 'Send SMS'
       ImageIndex = 5
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object BoxSmsMsg: TGroupBox
         Left = 3
         Top = 3
@@ -1127,6 +1143,8 @@ object HttpRestForm: THttpRestForm
     ReadOnly = True
     TabOrder = 1
     ViewStyle = vsReport
+    OnDblClick = RespListDblClick
+    ExplicitTop = 317
   end
   object HttpRest1: TSslHttpRest
     LocalAddr = '0.0.0.0'
@@ -1175,6 +1193,7 @@ object HttpRestForm: THttpRestForm
     WebSrvIP = '127.0.0.1'
     WebSrvPort = '8080'
     OnOAuthAuthUrl = RestOAuth1OAuthAuthUrl
+    OnOAuthProg = RestOAuth1OAuthProg
     OnOAuthNewCode = RestOAuth1OAuthNewCode
     OnOAuthNewToken = RestOAuth1OAuthNewToken
     Left = 110

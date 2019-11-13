@@ -7,7 +7,10 @@ UnsafeCode=0
 UnsafeCast=0
 [Directories]
 OutputDir=
-UnitOutputDir=.\dcu
-SearchPath=..\Vc32
-Conditionals=
+UnitOutputDir=.\Dcu
+SearchPath=..\..\..\Source\Include
+Conditionals=USE_SSL
 UsePackages=0
+[IcsCustom]
+Win64Supported=1
+Win64Enabled=1

@@ -24,7 +24,7 @@ if exist OverbyteIcsV8_02.zip ren OverbyteIcsV8_02.zip OverbyteIcsV8_03.zip
 if exist OverbyteIcsV8_01.zip ren OverbyteIcsV8_01.zip OverbyteIcsV8_02.zip
 if exist OverbyteIcsV8.zip   ren OverbyteIcsV8.zip OverbyteIcsV8_01.zip
 :ZipIt
-7z a -tzip OverbyteIcsV8.zip @ZipOverbyteIcsV8.lst
+7z a -tzip -bb3 OverbyteIcsV8.zip @ZipOverbyteIcsV8.lst > 7ziplog.log
 REM 7z a -t7z OverbyteIcsV8.7z @ZipOverbyteIcsV8.lst
 ren OverbyteIcsV8.zip OverbyteIcsV8.zip
 pause

@@ -3,7 +3,7 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  IP Log Streaming Component - Test Application
 Creation:     Aug 2007
-Updated:      May 2019
+Updated:      June 2019
 Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -96,10 +96,11 @@ in the event when only one was open, tested with Delphi 2010
 20 Mar 2019 - V8.60 - Adapted for ICS, separate tab for settings, allow to
                         order X509 SSL certificates.
 
-20 Mat 2019 - V8.62 - SSL server now works properly again
+17 Jun 2019 - V8.62 - SSL server now works properly again.
+                      Allow SSL certificates to be ordered and installed automatically.
+                      Added Log Directory for log file.  
 
 
-                     WARNING NOT FINISHED YET!!!
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -139,7 +140,8 @@ uses
   OverbyteIcsWSocket, OverbyteIcsWinsock, OverbyteIcsLIBEAY,
   OverbyteIcsSSLEAY, OverbyteIcsSslX509Utils, OverbyteIcsSslSessionCache,
   OverbyteIcsUtils, OverbyteIcsLogger, OverbyteIcsStreams,
-  OverbyteIcsIpStreamLog, OverbyteIcsSslX509Certs, OverbyteIcsWndControl;
+  OverbyteIcsIpStreamLog, OverbyteIcsSslX509Certs, OverbyteIcsWndControl,
+  OverbyteIcsBlacklist;
 
 type
   TIpLogForm = class(TForm)
@@ -155,6 +157,7 @@ type
     MaxSockets: TEdit;
     PingRemote: TCheckBox;
     Protocol: TRadioGroup;
+    ProxyURL: TEdit;
     RawData: TCheckBox;
     RemoteHosts: TMemo;
     RemotePort: TComboBox;
@@ -167,13 +170,22 @@ type
     SslCACerts: TEdit;
     SslCertAuth: TEdit;
     SslCertKey: TEdit;
-    SslCliSec: TRadioGroup;
     SslDomainName: TEdit;
     SslCertPassword: TEdit;
     SslServCert: TEdit;
-    SslSrvSec: TRadioGroup;
     UseSSL: TCheckBox;
     VerifyCertMode: TRadioGroup;
+    SslCertAutoOrder: TCheckBox;
+    SslCertExpireDays: TEdit;
+    SslCertSupplierProto: TComboBox;
+    SslCertChallenge: TComboBox;
+    SslCertPKeyType: TComboBox;
+    SslCertSignDigest: TComboBox;
+    SslCertProduct: TEdit;
+    SslCertDirWork: TEdit;
+    SslCliSec: TComboBox;
+    SslSrvSec: TComboBox;
+    DirLogs: TEdit;
 
 // not saved
     DataTimer: TTimer;
@@ -211,13 +223,25 @@ type
     DataWin: TMemo;
     Label19: TLabel;
     Label16: TLabel;
-    SslX509Certs1: TSslX509Certs;
+    SslX509Certs: TSslX509Certs;
     SslAvlSessionCache: TSslAvlSessionCache;
     Label4: TLabel;
     BoxSampleData: TGroupBox;
     Label3: TLabel;
     Label8: TLabel;
     Label12: TLabel;
+    Label13: TLabel;
+    Label17: TLabel;
+    Label18: TLabel;
+    Label20: TLabel;
+    Label21: TLabel;
+    Label22: TLabel;
+    Label31: TLabel;
+    Label23: TLabel;
+    Label24: TLabel;
+    Label25: TLabel;
+    SelDirLogs: TBitBtn;
+    TimerLog: TTimer;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure doExitClick(Sender: TObject);
@@ -234,15 +258,24 @@ type
     procedure SelectFileClick(Sender: TObject);
     procedure doSrvSendFileClick(Sender: TObject);
     procedure FormResize(Sender: TObject);
+    procedure SslX509CertsCertProg(Sender: TObject; LogOption: TLogOption;
+      const Msg: string);
+    procedure SslX509CertsNewCert(Sender: TObject);
+    procedure SslX509CertsChallengeDNS(Sender: TObject;
+      ChallengeItem: TChallengeItem);
+    procedure SslX509CertsOAuthAuthUrl(Sender: TObject; const URL: string);
+    procedure SelDirLogsClick(Sender: TObject);
+    procedure TimerLogTimer(Sender: TObject);
   private
     { Private declarations }
+    procedure AddLog (const S: string) ;
+    procedure OpenLogFile;
     procedure SetButtons (Started: boolean) ;
     procedure LogRecvEvent (Sender: TObject; Socnr: integer; const Line: string) ;
     procedure LogProgEvent (Sender: TObject; Socnr: integer;
                               LogOption: TLogOption; const Msg: string);
     procedure LogChangeEvent (Sender: TObject; Socnr: integer;
                                                  LogState: TStrmLogState);
-//    function SetSsl (client, server: boolean): boolean ;
   public
     { Public declarations }
   end;
@@ -261,6 +294,8 @@ var
     FIniFileName: string;
     FCertificateDir: string ;
     FLocalFileStream: TFileStream ;
+    FIcsBuffLogStream: TIcsBuffLogStream;
+    BuffLogLines: String;
 
 implementation
 
@@ -271,6 +306,7 @@ var
     IniFile : TIcsIniFile;
     section, temp: string ;
 begin
+    FreeAndNil(FIcsBuffLogStream); // write log file }
     IniFile := TIcsIniFile.Create(FIniFileName);
     with IniFile do  begin
         section := 'Main' ;
@@ -289,6 +325,7 @@ begin
         WriteString (section, 'MaxSockets_Text', MaxSockets.Text) ;
         if PingRemote.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'PingRemote_Checked', temp) ;
         WriteInteger (section, 'Protocol_ItemIndex', Protocol.ItemIndex) ;
+        WriteString (section, 'ProxyURL_Text', ProxyURL.Text) ;
         if RawData.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'RawData_Checked', temp) ;
         WriteString (section, 'RemoteHosts_Lines', RemoteHosts.Lines.CommaText) ;
         WriteString (section, 'RemotePort_Text', RemotePort.Text) ;
@@ -308,6 +345,15 @@ begin
         WriteInteger (section, 'SslSrvSec_ItemIndex', SslSrvSec.ItemIndex) ;
         if UseSSL.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'UseSSL_Checked', temp) ;
         WriteInteger (section, 'VerifyCertMode_ItemIndex', VerifyCertMode.ItemIndex) ;
+       if SslCertAutoOrder.Checked then temp := 'True' else temp := 'False' ; WriteString (section, 'SslCertAutoOrder_Checked', temp) ;
+       WriteString (section, 'SslCertExpireDays_Text', SslCertExpireDays.Text) ;
+       WriteInteger (section, 'SslCertSupplierProto_ItemIndex', SslCertSupplierProto.ItemIndex) ;
+       WriteInteger (section, 'SslCertChallenge_ItemIndex', SslCertChallenge.ItemIndex) ;
+       WriteInteger (section, 'SslCertPKeyType_ItemIndex', SslCertPKeyType.ItemIndex) ;
+       WriteInteger (section, 'SslCertSignDigest_ItemIndex', SslCertSignDigest.ItemIndex) ;
+       WriteString (section, 'SslCertProduct_Text', SslCertProduct.Text) ;
+       WriteString (section, 'SslCertDirWork_Text', SslCertDirWork.Text) ;
+       WriteString (section, 'DirLogs_Text', DirLogs.Text) ;
 
         WriteInteger ('Window', 'Top', Top);
         WriteInteger ('Window', 'Left', Left);
@@ -323,6 +369,9 @@ var
     SF: TSocketFamily;
     SL: TSslSrvSecurity;
     CL: TSslCliSecurity;
+    I: Integer;
+    CT: TChallengeType;
+    SP: TSupplierProto;
     IniFile : TIcsIniFile;
     section: string ;
 begin
@@ -336,6 +385,18 @@ begin
     SslCliSec.Items.Clear;
     for CL := Low(TSslCliSecurity) to High(TSslCliSecurity) do
          SslCliSec.Items.Add (SslCliSecurityNames[CL]);
+    SslCertSupplierProto.Items.Clear;
+    for SP := Low(TSupplierProto) to High(TSupplierProto) do
+        SslCertSupplierProto.Items.Add(SupplierProtoLits[SP]);
+    SslCertSignDigest.Items.Clear;
+    for I := 0 to DigestListLitsLast do
+      SslCertSignDigest.Items.Add(DigestListLits[I]);    { V8.62 }
+    SslCertPKeyType.Items.Clear;
+    for I := 0 to SslPrivKeyTypeLitsLast1 do
+        SslCertPKeyType.Items.Add(SslPrivKeyTypeLits[I]);     { V8.62 }
+    SslCertChallenge.Items.Clear;
+    for CT := Low(TChallengeType) to High(TChallengeType) do
+        SslCertChallenge.Items.Add(ChallengeTypeLits[CT]);    { V8.62 }
 
 // set local IPs
     try
@@ -356,6 +417,7 @@ begin
 
 // get old settings
     FIniFileName := GetIcsIniFileName;
+    LogWin.Lines.Add ('INI File: ' + FIniFileName) ;
     FCertificateDir := ExtractFileDir (FIniFileName) + '\';
     IniFile := TIcsIniFile.Create(FIniFileName);
     with IniFile do
@@ -376,6 +438,7 @@ begin
         MaxSockets.Text := ReadString (section, 'MaxSockets_Text', '4') ;
         if ReadString (section, 'PingRemote_Checked', 'False') = 'True' then PingRemote.Checked := true else PingRemote.Checked := false ;
         Protocol.ItemIndex := ReadInteger (section, 'Protocol_ItemIndex', 0) ;
+        ProxyURL.Text := ReadString (section, 'ProxyURL_Text', '') ;
         if ReadString (section, 'RawData_Checked', 'False') = 'True' then RawData.Checked := true else RawData.Checked := false ;
         RemoteHosts.Lines.CommaText := ReadString (section, 'RemoteHosts_Lines', '192.168.1.120') ;
         RemotePort.Text := ReadString (section, 'RemotePort_Text', '514') ;
@@ -395,6 +458,15 @@ begin
         SslSrvSec.ItemIndex := ReadInteger (section, 'SslSrvSec_ItemIndex', 0) ;
         if ReadString (section, 'UseSSL_Checked', 'False') = 'True' then UseSSL.Checked := true else UseSSL.Checked := false ;
         VerifyCertMode.ItemIndex := ReadInteger (section, 'VerifyCertMode_ItemIndex', 0) ;
+       if ReadString (section, 'SslCertAutoOrder_Checked', 'False') = 'True' then SslCertAutoOrder.Checked := true else SslCertAutoOrder.Checked := false ;
+       SslCertExpireDays.Text := ReadString (section, 'SslCertExpireDays_Text', '30') ;
+       SslCertSupplierProto.ItemIndex := ReadInteger (section, 'SslCertSupplierProto_ItemIndex', 2) ;
+       SslCertChallenge.ItemIndex := ReadInteger (section, 'SslCertChallenge_ItemIndex', 3) ;
+       SslCertPKeyType.ItemIndex := ReadInteger (section, 'SslCertPKeyType_ItemIndex', 1) ;
+       SslCertSignDigest.ItemIndex := ReadInteger (section, 'SslCertSignDigest_ItemIndex', 2) ;
+       SslCertDirWork.Text := ReadString (section, 'SslCertDirWork_Text', '') ;
+       SslCertProduct.Text := ReadString (section, 'SslCertProduct_Text', SslCertProduct.Text) ;
+       DirLogs.Text := ReadString (section, 'DirLogs_Text', '') ;
 
         Top := ReadInteger ('Window', 'Top', (Screen.Height - Height) div 2);
         Left := ReadInteger ('Window', 'Left', (Screen.Width - Width) div 2);
@@ -446,6 +518,55 @@ begin
     DataWin.Left := LogWin.Width;
 end;
 
+procedure TIpLogForm.AddLog (const S: string) ;
+begin
+    BuffLogLines := BuffLogLines + S + IcsCRLF;
+    try
+        if (DirLogs.Text = '') then Exit ;
+        if NOT Assigned(FIcsBuffLogStream) then Exit; // sanity check
+        FIcsBuffLogStream.WriteLine(S);
+    except
+    end;
+end;
+
+procedure TIpLogForm.TimerLogTimer(Sender: TObject);
+var
+    displen: integer ;
+begin
+    displen := Length(BuffLogLines);
+    if displen > 0 then begin
+        try
+            SetLength(BuffLogLines, displen - 2) ;  // remove CRLF
+            LogWin.Lines.Add(BuffLogLines);
+            SendMessage(LogWin.Handle, EM_LINESCROLL, 0, 999999);
+        except
+        end ;
+        BuffLogLines := '';
+    end;
+end;
+
+{ V8.60 this event is used to open the log file, or change it's name
+  if already opened, change only needed for GUI applications where the user
+  can change the log path. Note ls written as UTF8 codepage }
+procedure TIpLogForm.OpenLogFile;
+var
+    FName: String;
+begin
+    if DirLogs.Text = '' then Exit; // no log
+    FName := '"' + IncludeTrailingPathDelimiter(DirLogs.Text) +
+                                              'ics-httprest-"yyyy-mm-dd".log"';
+    if NOT Assigned(FIcsBuffLogStream) then
+        FIcsBuffLogStream := TIcsBuffLogStream.Create(self, FName,
+                                IpLogForm.Caption + IcsCRLF, FileCPUtf8)
+    else begin
+        if FName = FIcsBuffLogStream.NameMask then Exit; // skip no change
+        if FIcsBuffLogStream.LogSize > 0 then
+            FIcsBuffLogStream.FlushFile(True);  // changing log path, write old log first
+        FIcsBuffLogStream.NameMask := FName;
+    end;
+    AddLog(IcsCRLF + 'Opened log file: ' + FIcsBuffLogStream.FullName);
+end;
+
 procedure TIpLogForm.SetButtons (Started: boolean) ;
 begin
     doStop.Enabled := Started ;
@@ -454,81 +575,6 @@ begin
     doServer.Enabled := NOT Started ;
     doSrvSendFile.Enabled := Started ;
     doCliSendFile.Enabled := Started ;
-end ;
-
-procedure TIpLogForm.SocketFamilyChange(Sender: TObject);
-begin
-    if SocketFamily.ItemIndex = Ord (sfAnyIPv4) then
-        LocalAddr.Text := ICS_ANY_HOST_V4
-    else if SocketFamily.ItemIndex = Ord (sfAnyIPv6) then
-        LocalAddr.Text := ICS_ANY_HOST_V6 ;
-end;
-
-procedure TIpLogForm.LocalAddrChange(Sender: TObject);
-var
-    SF: TSocketFamily;
-begin
-    if NOT WSocketIsIPEx (LocalAddr.Text, SF) then exit;
-    SocketFamily.ItemIndex := Ord (SF);
-end;
-
-procedure TIpLogForm.LogChangeEvent (Sender: TObject; Socnr: integer;
-                                                 LogState: TStrmLogState);
-var
-    S, S2: string ;
-begin
-    case LogState of
-        logstateNone: S2 := 'None' ;
-        logstateStart: S2 := 'Starting' ;
-        logstateHandshake: S2 := 'SSL Handshake' ;
-        logstateOK: S2 := 'OK' ;
-        logstateOKStream: S2 := 'OK Sending Stream' ;
-        logstateStopping: S2 := 'Stopping' ;
-    end ;
-    // close file stream when state changes from logstateOKStream
-    if (LogState <> logstateOKStream) and (Assigned (FLocalFileStream)) then
-                    FreeAndNil (FLocalFileStream) ;
-    S := TimeToStr (Time) ;
-    if (Sender as TIcsIpStrmLog).Tag = 1 then
-        S := S + ' S['
-    else
-        S := S + ' C[' ;
-    S := S + IntToStr (Socnr) + '] State: ' + S2 ;
-    LogWin.Lines.Add (S) ;
-end ;
-
-procedure TIpLogForm.LogProgEvent (Sender: TObject; Socnr: integer;
-                                LogOption: TLogOption; const Msg: string);
-var
-    S: string ;
-begin
-    S := TimeToStr (Time) ;
-    if (Sender as TIcsIpStrmLog).Tag = 1 then
-        S := S + ' S['
-    else
-        S := S + ' C[' ;
-    S := S + IntToStr (Socnr) + '] ' ;
-    case LogOption of
-        loWsockErr: S := S + 'WsockErr ' ;
-        loWsockInfo: S := S + 'WsockInfo ' ;
-        loSslErr: S := S + 'SslErr ' ;
-        loSslInfo: S := S + 'SslInfo ' ;
-    end;
-    S := S  + Msg ;
-    LogWin.Lines.Add (S) ;
-end ;
-
-procedure TIpLogForm.LogRecvEvent (Sender: TObject; Socnr: integer;
-                                                        const Line: string) ;
-var
-    S: string ;
-begin
-    if (Sender as TIcsIpStrmLog).Tag = 1 then
-        S := 'S['
-    else
-        S := 'C[' ;
-     S := S + IntToStr (Socnr) + '] ' + Line ;
-    DataWin.Lines.Add (S) ;
 end ;
 
 procedure TIpLogForm.doExitClick(Sender: TObject);
@@ -584,184 +630,13 @@ begin
     end;
 end;
 
-(*
-function TIpLogForm.SetSsl (client, server: boolean): boolean ;
-var
-    fname: string ;
-    CertStr, ErrStr: string;
-    valres: TChainResult;
-begin
-    Result := false ;
-    IpLogClient.ForceSsl := false ;
-    IpLogServer.ForceSsl := false ;
-    if (Protocol.ItemIndex <> ProtoTcp) or (NOT UseSsl.Checked) then
-    begin
-        Result := true ;
-        exit ;
-    end ;
-    try
-        // Feb 2016, before cert functions
-   {     if NOT SslContextSrv.IsSslInitialized then begin
-            SslContextSrv.InitializeSsl;
-            LogWin.Lines.Add ('SSL Version: ' + OpenSslVersion + ', Dir: ' + GLIBEAY_DLL_FileName) ;
-        end;   }
-
-        // SSL server must have a certificate and private key to work
-        // but generally we don't verify the client talking to the server
-        if server then
-        begin
-            fname := SslServCert.Text;
-            if (Pos (':', fname) = 0) then fname := FCertificateDir + fname ;
-            if NOT FileExists (fname) then
-            begin
-                LogWin.Lines.Add ('Can Not Find SSL Server Certificate File - ' + fname) ;
-                exit ;
-            end;
-
-         // Feb 2017 try and load bundle, certificate, private key and intermediates
-            with SslContextSrv.SslCertX509 do
-            begin
-                LogWin.Lines.Add ('Loading SSL Server Certificate File - ' + fname) ;
-                LoadFromFile (fname, croTry, croTry, 'password');
-                if NOT IsPkeyLoaded then  // no private password, try from separate file
-                begin
-                    fname := SslCertKey.Text;
-                    if (Pos (':', fname) = 0) then fname := FCertificateDir + fname ;
-                    if NOT FileExists (fname) then
-                    begin
-                        LogWin.Lines.Add ('Can Not Find SSL Server Private Key File - ' + fname) ;
-                        exit ;
-                    end;
-                    PrivateKeyLoadFromPemFile (fname, 'password');
-                end;
-                if NOT IsInterLoaded then  // no intermediate certificates, try from separate file
-                begin
-                    fname := SslCACerts.Text;
-                    if fname <> '' then
-                    begin
-                        if (Pos (':', fname) = 0) then fname := FCertificateDir + fname ;
-                        if NOT FileExists (fname) then
-                        begin
-                            LogWin.Lines.Add ('Can Not Find SSL Server CA Bundle File - ' + fname) ;
-                            exit ;
-                        end;
-                        LoadIntersFromPemFile (fname);
-                    end;
-                end;
-
-             // Feb 2017 validate server certificate chain
-                fname := SslCertAuth.Text;
-                if fname <> '' then
-                begin
-                    if (Pos (':', fname) = 0) then fname := FCertificateDir + fname ;
-                    if FileExists (fname) then
-                        LoadCATrustFromPemFile(fname);
-                end
-                else
-                    LoadCATrustFromString(sslRootCACertsBundle);  /? trusted root
-
-                valres := ValidateCertChain('', CertStr, ErrStr);   // really need host name
-                if ReportChain.Checked and (CertStr <> '') then begin
-                    LogWin.Lines.Add (CertStr);
-                    IpLogServer.LogSslReportChain := false;  // not a second time
-                end
-                else
-                    IpLogServer.LogSslReportChain := ReportChain.Checked ;  // Nov 2016
-                if valres = chainOK then
-                    ErrStr := 'Chain Validated OK'
-                else if valres = chainWarn then
-                    ErrStr := 'Chain Warning - ' + ErrStr
-                else
-                    ErrStr := 'Chain Failed - ' + ErrStr;
-                LogWin.Lines.Add (ErrStr + #13#10);
-            end;
-
-            fname := SslDHParams.Text;  // May 2015
-            if (Pos (':', fname) = 0) then fname := FCertificateDir + fname ;
-            if NOT FileExists (fname) then
-            begin
-                LogWin.Lines.Add ('Can Not Find SSL Server DH Params File - ' + fname) ;
-                exit ;
-            end;
-            SslContextSrv.SslDHParamFile := fname;
-            SslContextSrv.SslOptions := { SslContextSrv.SslOptions + } [sslOpt_NO_SSLv2, sslOpt_NO_SSLv3,
-                sslOpt_CIPHER_SERVER_PREFERENCE, sslOpt_NO_SESSION_RESUMPTION_ON_RENEGOTIATION,
-                sslOpt_SINGLE_DH_USE, SslOpt_SINGLE_ECDH_USE] ; //SSLv2/3 are unsecure
-            SslContextSrv.SslCipherList := sslCiphersNormal ;
-         //   SslContextSrv.SslCipherList := sslCiphersMozillaSrvInter ;  // Oct 2014, no SSLv3
-//            SslContextSrv.SslVersionMethod := sslBestVer_SERVER ;
-            SslContextSrv.SslMinVersion := sslVerTLS1;               // Nov 2017
-            SslContextSrv.SslMaxVersion  := sslVerMax;               // Nov 2017
-            SslContextSrv.SslSecLevel := TSslSecLevel (SslSecLevel.ItemIndex);   // Dec 2016
-        // June 2018, pending use IcsHosts so we can use
-            SslContextSrv.InitContext;
-            if NOT SslContextSrv.CheckPrivateKey then   // Dec 2016
-            begin
-                LogWin.Lines.Add ('Mismatch for Certificate and Private Key') ;
-                exit ;
-            end;
-            IpLogServer.ForceSsl := true ;
-         //   IpLogServer.LogSslContext := SslContextSrv ;
-            IpLogServer.LogSslVerMethod := logSslVerNone ;
-            IpLogServer.LogSslRevocation := false ;
-            if IpLogServer.LogSslVerMethod <> logSslVerBundle then SslContextCli.SslCAFile := '' ;
-            IpLogServer.ExternalSslSessCache := SslAvlSessionCache ;
-            IpLogServer.SrvTimeoutSecs := AscToInt(SrvTimeout.Text) ; // 5 July 2016
-        end;
-
-        // SSL client needs certificate authority root certificates if the server
-        // certificate is to be fully verified, but we also have a list of allowed
-        // certificates that fail verfication such as our own self signed certificate
-        // listed in SslAllowNames.Text
-        // not needed if Microsoft Certificate Store is used instead of PEM bundle
-        if client then
-        begin
-       {     fname := SslCertAuth.Text;
-            if fname <> '' then
-            begin
-                if (Pos (':', fname) = 0) then fname := FCertificateDir+ fname ;
-                if NOT FileExists (fname) then
-                begin
-                    LogWin.Lines.Add ('Can Not Find SSL Client CA Bundle File - ' + fname) ;
-                    exit ;
-                end ;
-                SslContextCli.SslCAFile := fname;
-            end
-            else
-                SslContextCli.SslCALines.Text := sslRootCACertsBundle ;  }
-      //      SslContextCli.SslOptions := [] ;              // Nov 2017 kill old stuff
-       //     SslContextCli.SslCipherList := sslCiphersNormal;
- //         SslContextCli.SslVersionMethod := sslBestVer_CLIENT ;
-        //    SslContextCli.SslMinVersion := sslVerTLS1;               // Nov 2017 modern stuff
-        //    SslContextCli.SslMaxVersion  := sslVerMax;               // Nov 2017
-        //    SslContextCli.SslSecLevel := TSslSecLevel (SslSecLevel.ItemIndex);   // Dec 2016
-       //     SslContextCli.SslCliSecurity := TSslCliSecurity(SslCliSecurity.ItemIndex);  // June 2018 replaces prior stuff
-       //     SslContextCli.InitContext;
-
-        if client then
-        begin
-            IpLogClient.ForceSsl := true ;
-       //     IpLogClient.LogSslContext := SslContextCli ;
-            IpLogClient.LogTrustedList := SslAllowNames.Text ;
-            IpLogClient.LogSslVerMethod := TVerifyMethod (VerifyCertMode.ItemIndex) ;
-            IpLogClient.LogSslRevocation := RevokeCheck.Checked ;
-            IpLogClient.LogSslReportChain := ReportChain.Checked ;
-            IpLogClient.ExternalSslSessCache := SslAvlSessionCache ;
-            IpLogClient.LogSslCliSecurity := TSslCliSecurity(SslCliSecurity.ItemIndex);
-            IpLogClient.LogSslRootFile := SslCertAuth.Text;
-        end;
-        Result := true ;
-    except
-        LogWin.Lines.Add ('Failed to Initialise SSL - ' + GetExceptMess (ExceptObject)) ;
-    end ;
-end;   *)
-
 // local needed both client and server to send stuff to each other
 
 procedure TIpLogForm.doLocalClick(Sender: TObject);
 var
     ErrStr: string;
 begin
+    OpenLogFile;
 
 /// server stuff
     IpLogServer.MaxSockets := 1 ;
@@ -788,7 +663,7 @@ begin
         IpLogServer.SrvTimeoutSecs := atoi(SrvTimeout.Text) ; // 5 July 2016
         IpLogServer.SrvIcsHosts.Clear;
         IpLogServer.SrvIcsHosts.Add;  // only need one host
-        with IpLogServer.SrvIcsHosts [0] do
+        with IpLogServer.SrvIcsHosts [0] do  // only one host supported at moment
         begin
             HostEnabled := True;
             BindIpAddr := LocalAddr.Text ;
@@ -802,6 +677,11 @@ begin
             CertSupplierProto := SuppProtoNone;
 
             if IpLogServer.ForceSsl then begin
+                if (SslDomainName.Text = '') or (SslServCert.Text = '') then
+                begin
+                    AddLog('SSL reqires certificate file name and domain name');
+                    exit;
+                end;
                 IpLogServer.LogSslReportChain := ReportChain.Checked ;  // Nov 2016
                 IpLogServer.LogSslRootFile := SslCertAuth.Text;  // before SrvValidateHosts
                 SslSrvSecurity := TSslSrvSecurity(SslSrvSec.ItemIndex);
@@ -811,31 +691,47 @@ begin
                 SslPassword := IcsTrim(SslCertPassword.text);
                 SslInter := IcsTrim(SslCACerts.Text);
               { following are for automatic ordering and installation of SSL certificates }
-                CertSupplierProto := SuppProtoNone;                          { V8.59 sanity test }
-             //   WellKnownPath :=
-             //   CertSupplierProto := TSupplierProto(x);
-             //   CertDirWork := IcsTrim(x);
-             //   CertChallenge := TChallengeType(x);
-             //   CertPKeyType := TSslPrivKeyType(x);
-             //   CertProduct := IcsTrim(x);
-             //   CertSignDigest := TEvpDigest(x);
-
-            // set-up binding and SSL contexts, check certificates
-           // validate hosts and keep site certificiate information
-                try
-                    ErrStr := IpLogServer.SrvValidateHosts(False, True); // don't stop on first error, no exceptions
-                    if ErrStr <> '' then begin
-                        LogWin.Lines.Add('Server Host Validation Errors:' + icsCRLF + ErrStr);
-                        Exit;
-                    end;
-                except
-                    on E:Exception do begin
-                        LogWin.Lines.Add('Server Host Validation Failed - ' + E.Message);
-                        Exit;
-                    end;
+                IpLogServer.CertExpireDays := atoi(SslCertExpireDays.Text);
+                IpLogServer.SrvCertAutoOrder := SslCertAutoOrder.Checked;
+                if IpLogServer.SrvCertAutoOrder then begin            { V8.62 }
+                    CertDirWork := IcsTrim(SslCertDirWork.Text);
+                    if (CertDirWork <> '') and DirectoryExists(CertDirWork) then begin
+                        SslX509Certs.ProxyURL := ProxyURL.Text;
+                        IpLogServer.SrvX509Certs := SslX509Certs;
+                        CertSupplierProto := TSupplierProto(SslCertSupplierProto.ItemIndex);
+                        CertChallenge := TChallengeType(SslCertChallenge.ItemIndex);
+                        CertPKeyType := TSslPrivKeyType(SslCertPKeyType.ItemIndex);
+                        CertProduct := IcsTrim(SslCertProduct.Text);
+                        CertSignDigest := TEvpDigest(SslCertSignDigest.ItemIndex);
+                    end
+                    else
+                        AddLog('Automatic Certificate Ordering Disabled, Work Directory Not Found');
                 end;
             end;
         end;
+
+    // set-up binding and SSL contexts, check certificates
+    // validate hosts and keep site certificiate information
+        if IpLogServer.ForceSsl then begin
+            try
+                ErrStr := IpLogServer.SrvValidateHosts(False, True); // don't stop on first error, no exceptions
+                if ErrStr <> '' then begin
+                    AddLog('Server Host Validation Errors:' + icsCRLF + ErrStr);
+                    Exit;
+                end;
+            except
+                on E:Exception do begin
+                    AddLog('Server Host Validation Failed - ' + E.Message);
+                    Exit;
+                end;
+            end;
+
+          { validation may have changed SSL bundle name }
+            if IpLogServer.SrvIcsHosts [0].SslCert <> SslServCert.Text then begin
+                SslServCert.Text := IpLogServer.SrvIcsHosts [0].SslCert;
+                AddLog('Server changed SSL certificate file name to default: ' + SslServCert.Text);
+            end;
+       end;
     end
     else
         exit ;
@@ -902,6 +798,8 @@ var
     I, tot: integer ;
     Host: String ;
 begin
+    OpenLogFile;
+
     if (Protocol.ItemIndex = ProtoUdp) then
     begin
          IpLogClient.LogProtocol := logprotUdpClient;
@@ -915,7 +813,6 @@ begin
     else
         exit ;
 
-    SetButtons (true) ;
     if RemoteHosts.Lines.Count = 0 then exit ;
     IpLogClient.SocFamily := TSocketFamily (SocketFamily.ItemIndex) ;
     IpLogClient.RemoteIpPort := RemotePort.Text ;
@@ -955,6 +852,7 @@ begin
         IpLogClient.LogSslCliSecurity := TSslCliSecurity(SslCliSec.ItemIndex);
         IpLogClient.LogSslRootFile := IcsTrim(SslCertAuth.Text);
     end;
+    SetButtons (true) ;
     IpLogClient.StartLogging ;
     DataTimerTimer (Self) ;
 end;
@@ -963,7 +861,8 @@ procedure TIpLogForm.doServerClick(Sender: TObject);
 var
     ErrStr: String;
 begin
-    SetButtons (true) ;
+    OpenLogFile;
+
     IpLogServer.RawData := RawData.Checked ;
     IpLogServer.MaxSockets := atoi (MaxSockets.Text) ;
 
@@ -1002,10 +901,14 @@ begin
                 BindSslPort := atoi(ServerPort.Text) ;
             HostTag := 'TCPServer' ;
             Descr := HostTag;
-       //     WellKnownPath :=
             CertSupplierProto := SuppProtoNone;
 
             if IpLogServer.ForceSsl then begin
+                if (SslDomainName.Text = '') or (SslServCert.Text = '') then
+                begin
+                    AddLog('SSL reqires certificate file name and domain name');
+                    exit;
+                end;
                 IpLogServer.LogSslReportChain := ReportChain.Checked ;  // Nov 2016
                 IpLogServer.LogSslRootFile := SslCertAuth.Text;  // before SrvValidateHosts
                 SslSrvSecurity := TSslSrvSecurity(SslSrvSec.ItemIndex);
@@ -1016,32 +919,49 @@ begin
                 SslInter := IcsTrim(SslCACerts.Text);
               { following are for automatic ordering and installation of SSL certificates }
                 CertSupplierProto := SuppProtoNone;                          { V8.59 sanity test }
-             //   WellKnownPath :=
-             //   CertSupplierProto := TSupplierProto(x);
-             //   CertDirWork := IcsTrim(x);
-             //   CertChallenge := TChallengeType(x);
-             //   CertPKeyType := TSslPrivKeyType(x);
-             //   CertProduct := IcsTrim(x);
-             //   CertSignDigest := TEvpDigest(x);
-
-            // set-up binding and SSL contexts, check certificates
-           // validate hosts and keep site certificiate information
-                try
-                    ErrStr := IpLogServer.SrvValidateHosts(False, True); // don't stop on first error, no exceptions
-                    if ErrStr <> '' then begin
-                        LogWin.Lines.Add('Server Host Validation Errors:' + icsCRLF + ErrStr);
-                        Exit;
-                    end;
-                except
-                    on E:Exception do begin
-                        LogWin.Lines.Add('Server Host Validation Failed - ' + E.Message);
-                        Exit;
-                    end;
+                IpLogServer.CertExpireDays := atoi(SslCertExpireDays.Text);
+                IpLogServer.SrvCertAutoOrder := SslCertAutoOrder.Checked;
+                if IpLogServer.SrvCertAutoOrder then begin            { V8.62 }
+                    CertDirWork := IcsTrim(SslCertDirWork.Text);
+                    if (CertDirWork <> '') and DirectoryExists(CertDirWork) then begin
+                        SslX509Certs.ProxyURL := ProxyURL.Text;
+                        IpLogServer.SrvX509Certs := SslX509Certs;
+                        CertSupplierProto := TSupplierProto(SslCertSupplierProto.ItemIndex);
+                        CertChallenge := TChallengeType(SslCertChallenge.ItemIndex);
+                        CertPKeyType := TSslPrivKeyType(SslCertPKeyType.ItemIndex);
+                        CertProduct := IcsTrim(SslCertProduct.Text);
+                        CertSignDigest := TEvpDigest(SslCertSignDigest.ItemIndex);
+                    end
+                    else
+                        AddLog('Automatic Certificate Ordering Disabled, Work Directory Not Found');
                 end;
             end;
         end;
-    end;
 
+    // set-up binding and SSL contexts, check certificates
+    // validate hosts and keep site certificiate information
+        if IpLogServer.ForceSsl then begin
+            try
+                ErrStr := IpLogServer.SrvValidateHosts(False, True); // don't stop on first error, no exceptions
+                if ErrStr <> '' then begin
+                    AddLog('Server Host Validation Errors:' + icsCRLF + ErrStr);
+                    Exit;
+                end;
+            except
+                on E:Exception do begin
+                    AddLog('Server Host Validation Failed - ' + E.Message);
+                    Exit;
+                end;
+            end;
+
+          { validation may have changed SSL bundle name }
+            if IpLogServer.SrvIcsHosts [0].SslCert <> SslServCert.Text then begin
+                SslServCert.Text := IpLogServer.SrvIcsHosts [0].SslCert;
+                AddLog('Server changed SSL certificate file name to default: ' + SslServCert.Text);
+            end;
+        end;
+    end;
+    SetButtons (true) ;
     if LogInfo.Checked then
         IpLogServer.IpIcsLogger.LogOptions := MyLogOptions2
      else if LogErrors.Checked then
@@ -1065,7 +985,7 @@ begin
     begin
         MySocket := IpLogServer.Socket [0] ;
         if Assigned (MySocket) and Assigned (MySocket.Counter) then
-            LogWin.Lines.Add ('Server session lasted ' + IntToStr (IcsCalcTickDiff
+            AddLog ('Server session lasted ' + IntToStr (IcsCalcTickDiff
                  (MySocket.Counter.ConnectTick, IcsGetTickCount) div 1000) + ' secs, Xmit ' +
                     IntToStr (MySocket.WriteCount) + ', Recv ' + IntToStr (MySocket.ReadCount)) ;
     end;
@@ -1073,7 +993,7 @@ begin
     begin
         MySocket := IpLogClient.Socket [0] ;
         if Assigned (MySocket) and Assigned (MySocket.Counter) then
-            LogWin.Lines.Add ('Client session lasted ' + IntToStr (IcsCalcTickDiff
+            AddLog ('Client session lasted ' + IntToStr (IcsCalcTickDiff
                  (MySocket.Counter.ConnectTick, IcsGetTickCount) div 1000) + ' secs, Xmit ' +
                     IntToStr (MySocket.WriteCount) + ', Recv ' + IntToStr (MySocket.ReadCount)) ;
     end;
@@ -1089,13 +1009,20 @@ begin
         if NOT IpLogServer.CheckStopped then stopflag := false ;
         if NOT IpLogClient.CheckStopped then stopflag := false ;
         if stopflag then break ;
-        LogWin.Lines.Add ('Waiting for Streams to Stop') ; // TEMP !!!
+        AddLog ('Waiting for Streams to Stop') ; // TEMP !!!
         Application.ProcessMessages ;
         Sleep (250) ;
         Application.ProcessMessages ;
     end ;
     SetButtons (false) ;
     FreeAndNil (FLocalFileStream) ;
+end;
+
+procedure TIpLogForm.SelDirLogsClick(Sender: TObject);
+begin
+    OpenDialog.InitialDir := DirLogs.Text ;
+    if OpenDialog.Execute then
+        DirLogs.Text := ExtractFilePath(OpenDialog.FileName);
 end;
 
 procedure TIpLogForm.SelectFileClick(Sender: TObject);
@@ -1110,13 +1037,13 @@ procedure TIpLogForm.doCliSendFileClick(Sender: TObject);
 begin
     if (SendFileName.Text = '') or (NOT FileExists (SendFileName.Text)) then
     begin
-        LogWin.Lines.Add ('Must Specify a File Name to Send') ;
+        AddLog ('Must Specify a File Name to Send') ;
         exit ;
     end;
     try
         if Assigned (FLocalFileStream) then
         begin
-            LogWin.Lines.Add ('Last File Still Being Sent') ;
+            AddLog ('Last File Still Being Sent') ;
             exit ;
         end;
         FLocalFileStream := TFileStream.Create (SendFileName.Text,
@@ -1124,15 +1051,15 @@ begin
         if NOT IpLogClient.SendStream (FLocalFileStream) then
         begin
             FreeAndNil (FLocalFileStream) ;
-            LogWin.Lines.Add ('Failed to Send File') ;
+            AddLog ('Failed to Send File') ;
         end
         else
         begin
-            LogWin.Lines.Add ('Client Sending File: ' + SendFileName.Text +
+            AddLog ('Client Sending File: ' + SendFileName.Text +
                                                 ', Size ' + IcsIntToCStr(FLocalFileStream.Size)) ;
         end;
     except
-        LogWin.Lines.Add ('Failed to Open Send File - ' + IcsGetExceptMess (ExceptObject)) ;
+        AddLog ('Failed to Open Send File - ' + IcsGetExceptMess (ExceptObject)) ;
     end;
 end;
 
@@ -1140,13 +1067,13 @@ procedure TIpLogForm.doSrvSendFileClick(Sender: TObject);
 begin
     if (SendFileName.Text = '') or (NOT FileExists (SendFileName.Text)) then
     begin
-        LogWin.Lines.Add ('Must Specify a File Name to Send') ;
+        AddLog ('Must Specify a File Name to Send') ;
         exit ;
     end;
     try
         if Assigned (FLocalFileStream) then
         begin
-            LogWin.Lines.Add ('Last File Still Being Sent') ;
+            AddLog ('Last File Still Being Sent') ;
             exit ;
         end;
         FLocalFileStream := TFileStream.Create (SendFileName.Text,
@@ -1154,16 +1081,133 @@ begin
         if NOT IpLogServer.SendStream (FLocalFileStream) then
         begin
             FreeAndNil (FLocalFileStream) ;
-            LogWin.Lines.Add ('Failed to Send File') ;
+            AddLog ('Failed to Send File') ;
         end
         else
         begin
-            LogWin.Lines.Add ('Server Sending File: ' + SendFileName.Text +
+            AddLog ('Server Sending File: ' + SendFileName.Text +
                                                 ', Size ' + IcsIntToCStr(FLocalFileStream.Size)) ;
         end;
     except
-        LogWin.Lines.Add ('Failed to Open Send File - ' + IcsGetExceptMess (ExceptObject)) ;
+        AddLog ('Failed to Open Send File - ' + IcsGetExceptMess (ExceptObject)) ;
     end;
 end;
+
+procedure TIpLogForm.SocketFamilyChange(Sender: TObject);
+begin
+    if SocketFamily.ItemIndex = Ord (sfAnyIPv4) then
+        LocalAddr.Text := ICS_ANY_HOST_V4
+    else if SocketFamily.ItemIndex = Ord (sfAnyIPv6) then
+        LocalAddr.Text := ICS_ANY_HOST_V6 ;
+end;
+
+procedure TIpLogForm.SslX509CertsCertProg(Sender: TObject;
+  LogOption: TLogOption; const Msg: string);
+begin
+    AddLog(Msg);
+end;
+
+procedure TIpLogForm.SslX509CertsChallengeDNS(Sender: TObject;
+  ChallengeItem: TChallengeItem);
+begin
+//   update DNS server with TXT challenge information
+end;
+
+procedure TIpLogForm.SslX509CertsNewCert(Sender: TObject);
+var
+    S1: String ;
+    NewFlag: Boolean;
+begin
+    AddLog('Server ordered new SSL cerrtificate.' + IcsCRLF +
+                                               SslX509Certs.GetOrderResult);
+
+  { if server not started yet due to no certificate, tell user to do it }
+    if NOT IpLogServer.LogActive then begin
+        AddLog('Server should now be restarted');
+        Exit;
+     end;
+
+  { server running, so we can reload automatically } 
+    NewFlag := IpLogServer.SrvRecheckSslCerts(S1, False, True);
+    if NewFlag then
+        AddLog('Server Recheck Loaded New SSL Certificate(s)');
+    if S1 <> '' then
+        AddLog('Server Recheck SSL Certificate Errors:' + icsCRLF + S1);
+end;
+
+procedure TIpLogForm.SslX509CertsOAuthAuthUrl(Sender: TObject;
+  const URL: string);
+begin
+   AddLog('Demo needs OAuth authenfication for new certificate, ' +
+                'Browse to this URL: ' + URL +  ', From PC: ' + IcsGetCompName) ;
+end;
+
+
+procedure TIpLogForm.LocalAddrChange(Sender: TObject);
+var
+    SF: TSocketFamily;
+begin
+    if NOT WSocketIsIPEx (LocalAddr.Text, SF) then exit;
+    SocketFamily.ItemIndex := Ord (SF);
+end;
+
+procedure TIpLogForm.LogChangeEvent (Sender: TObject; Socnr: integer;
+                                                 LogState: TStrmLogState);
+var
+    S, S2: string ;
+begin
+    case LogState of
+        logstateNone: S2 := 'None' ;
+        logstateStart: S2 := 'Starting' ;
+        logstateHandshake: S2 := 'SSL Handshake' ;
+        logstateOK: S2 := 'OK' ;
+        logstateOKStream: S2 := 'OK Sending Stream' ;
+        logstateStopping: S2 := 'Stopping' ;
+    end ;
+    // close file stream when state changes from logstateOKStream
+    if (LogState <> logstateOKStream) and (Assigned (FLocalFileStream)) then
+                    FreeAndNil (FLocalFileStream) ;
+    S := TimeToStr (Time) ;
+    if (Sender as TIcsIpStrmLog).Tag = 1 then
+        S := S + ' S['
+    else
+        S := S + ' C[' ;
+    S := S + IntToStr (Socnr) + '] State: ' + S2 ;
+    AddLog (S) ;
+end ;
+
+procedure TIpLogForm.LogProgEvent (Sender: TObject; Socnr: integer;
+                                LogOption: TLogOption; const Msg: string);
+var
+    S: string ;
+begin
+    S := TimeToStr (Time) ;
+    if (Sender as TIcsIpStrmLog).Tag = 1 then
+        S := S + ' S['
+    else
+        S := S + ' C[' ;
+    S := S + IntToStr (Socnr) + '] ' ;
+    case LogOption of
+        loWsockErr: S := S + 'WsockErr ' ;
+        loWsockInfo: S := S + 'WsockInfo ' ;
+        loSslErr: S := S + 'SslErr ' ;
+        loSslInfo: S := S + 'SslInfo ' ;
+    end;
+    S := S  + Msg ;
+    AddLog (S) ;
+end ;
+
+procedure TIpLogForm.LogRecvEvent (Sender: TObject; Socnr: integer;
+                                                        const Line: string) ;
+var
+    S: string ;
+begin
+    if (Sender as TIcsIpStrmLog).Tag = 1 then
+        S := 'S['
+    else
+        S := 'C[' ;
+     S := S + IntToStr (Socnr) + '] ' + Line ;
+    DataWin.Lines.Add (S) ;
+end ;
 
 end.

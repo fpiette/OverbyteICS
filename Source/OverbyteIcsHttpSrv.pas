@@ -9,7 +9,7 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.61
+Version:      8.612
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1999-2019 by François PIETTE
@@ -437,6 +437,7 @@ Feb 20, 2019 V8.60 Added WebLogIdx to THttpConnection for web logging.
                    Fixed bug Close did not close multi-listener sockets.
 Mar 29, 2019 V8.61 OAS : Add InBound value for TNtlmAuthSession creation
                    because server NTLM auth is inbound and Client is outbound
+Aug 7, 2019  V8.62 Builds without USE_SSL
 
 
 
@@ -581,9 +582,9 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 861;
-    CopyRight : String = ' THttpServer (c) 1999-2019 F. Piette V8.61 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.61';   { V8.09 }
+    THttpServerVersion = 862;
+    CopyRight : String = ' THttpServer (c) 1999-2019 F. Piette V8.62 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.62';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -4139,7 +4140,9 @@ end;
 procedure THttpConnection.ProcessRequest;
 var
     Handled : Boolean;
+{$IFDEF USE_SSL}
     I, J, TotHosts, NewIdx, MLIndx: integer;
+{$ENDIF}
 begin
     FRequestMethod := httpMethodNone;   { V8.08 keep method as literal }
     if FKeepAlive and (FKeepAliveTimeSec > 0) then

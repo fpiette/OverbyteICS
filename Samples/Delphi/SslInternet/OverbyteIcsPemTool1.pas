@@ -8,11 +8,10 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.53
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list ics-ssl@elists.org
-              Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2018 by François PIETTE
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -98,6 +97,11 @@ Feb 14, 2018 V8.52 TX509 PublicKey now X509PublicKey
 Mar 12, 2018 V8.53 Display Wsocket version in About
 Jun 11, 2018 V8.55 don't load OpenSSL in Create
 Oct 19, 2018 V8.58 version only
+Apr 16, 2019 V8.61 Show certificate expiry and issue time as well as date.
+Jul  9, 2019 V8.62 Load several type lists from literals for future proofing.
+                   Report ACME Identifier in certificate, if it exists.
+Oct 24, 2019 V8.63 Report certificate sha256 fingerprint as well as sha1
+
 
 
 Pending
@@ -135,10 +139,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 858;
-     PemToolDate        = 'Oct 19, 2018';
+     PemToolVersion     = 863;
+     PemToolDate        = 'October 24, 2019';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2018 by François PIETTE V8.58 ';
+     CopyRight : String = '(c) 2003-2019 by François PIETTE V8.63 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -501,6 +505,9 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.FormCreate(Sender: TObject);
+var
+    I: Integer;
+    KC: TSslPrivKeyCipher;
 begin
     Application.OnException := AppOnException;
     FProgDir     := ExtractFilePath(ParamStr(0));
@@ -513,9 +520,19 @@ begin
     GSSL_DLL_DIR := FProgDir;        { V8.38 only from our directory }
     GSSL_SignTest_Check := True;     { V8.38 check digitally signed }
     GSSL_SignTest_Certificate := True; { V8.38 check digital certificate }
-    OpenDlg.Filter := 'Certs *.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
+    OpenDlg.Filter := SslCertFileOpenExts;    { V8.62 }
+   {  'Certs *.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
                             '*.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
-                            'All Files *.*|*.*';
+                            'All Files *.*|*.*'; }
+    CertSignHash.Items.Clear;
+    for I := 0 to DigestListLitsLast do
+      CertSignHash.Items.Add(DigestListLits[I]);    { V8.62 }
+    KeyType.Items.Clear;
+    for I := 0 to SslPrivKeyTypeLitsLast2 do
+        KeyType.Items.Add(SslPrivKeyTypeLits[I]);     { V8.62 }
+    KeyEncrypt.Items.Clear;
+    for KC := Low(TSslPrivKeyCipher) to High(TSslPrivKeyCipher) do
+        KeyEncrypt.Items.Add(SslPrivKeyCipherLits[KC]);     { V8.62 }
 end;
 
 
@@ -705,6 +722,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function ListCertDetail(Cert: TX509Base): string;
+var
+    Ext: TExtension;
 begin
     if NOT Assigned (Cert) then begin
         Result := 'No certificate loaded';
@@ -746,11 +765,11 @@ begin
                 'Locality (L): ' + IssuerLName + #13#10 +
                 'Email (Email): ' + IssuerEmailName + #13#10;
         end;
-        Result := Result + '' + #13#10 +
+       Result := Result + '' + #13#10 +
             'GENERAL' + #13#10 +
             'Serial Number: ' + SerialNumHex + #13#10 + // Oct 2015 not always very numeric IntToStr (SerialNum));
-            'Issued on: ' + DateToStr(ValidNotBefore) + #13#10 +
-            'Expires on: ' + DateToStr(ValidNotAfter) + #13#10 +
+            'Issued on (UTC): ' + DateTimeToStr(ValidNotBefore) + #13#10 +  { V8.61 }
+            'Expires on (UTC): ' + DateTimeToStr(ValidNotAfter) + #13#10 +  { V8.61 }
             'Basic Constraints: ' + IcsUnwrapNames(BasicConstraints) + #13#10 +
             'Key Usage: ' + IcsUnwrapNames(KeyUsage) + #13#10 +
             'Extended Key Usage: ' + IcsUnwrapNames(ExKeyUsage) + #13#10 +
@@ -760,7 +779,11 @@ begin
             'Authority Key Identifier: ' + IcsUnwrapNames(AuthorityKeyId) + #13#10 +
             'Subject Key Identifier: ' + IcsUnwrapNames(SubjectKeyId) + #13#10 +
             'Signature Algorithm: ' + SignatureAlgorithm + #13#10 +  // Oct 2015
-            'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10;
+            'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10 +
+            'Fingerprint (sha56): ' + IcsLowerCase(Sha256Hex) + #13#10;  { V8.63 }
+        Ext := GetExtensionByName('acmeIdentifier');   { V8.62 }
+        if Ext.Value <> '' then
+            Result := Result + 'ACME Identifier: ' + Ext.Value + #13#10;
         if ExtendedValidation then
             Result := Result + 'Extended Validation (EV) SSL Server Certificate' + #13#10;
         Result := Result + 'Key Info: ' + KeyInfo + #13#10;                         // Oct 2015
@@ -1157,10 +1180,6 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.SetCertProps;
-const
-    digestlist: array [0..8] of TEvpDigest =
-        (Digest_sha1, Digest_sha224, Digest_sha256, Digest_sha384, Digest_sha512,
-        Digest_sha3_224, Digest_sha3_256, Digest_sha3_384, Digest_sha3_512);
 begin
     CertCommonName.Text := Trim(CertCommonName.Text);
     with FSslCertTools do begin
@@ -1200,7 +1219,7 @@ begin
         ExpireDays        := atoi(CertDays.Text);
 //        SerialNum
         AddComments       := CertAddComment.Checked;
-        CertDigest        := digestlist[CertSignHash.ItemIndex];
+        CertDigest        := DigestDispList[CertSignHash.ItemIndex];  { V8.62 }
         SerialNum         := 0;   { V8.46 force random serial }
     end;
 end;

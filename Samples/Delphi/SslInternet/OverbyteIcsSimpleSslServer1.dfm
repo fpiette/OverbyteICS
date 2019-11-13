@@ -2,8 +2,8 @@ object SimpleSslServerForm: TSimpleSslServerForm
   Left = 339
   Top = 282
   Caption = 'Simple Ssl Server - http://www.overbyte.be'
-  ClientHeight = 296
-  ClientWidth = 456
+  ClientHeight = 522
+  ClientWidth = 623
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -20,8 +20,8 @@ object SimpleSslServerForm: TSimpleSslServerForm
   object ToolsPanel: TPanel
     Left = 0
     Top = 0
-    Width = 456
-    Height = 157
+    Width = 623
+    Height = 231
     Align = alTop
     TabOrder = 0
     object Label1: TLabel
@@ -167,9 +167,9 @@ object SimpleSslServerForm: TSimpleSslServerForm
   end
   object DisplayMemo: TMemo
     Left = 0
-    Top = 157
-    Width = 456
-    Height = 139
+    Top = 231
+    Width = 623
+    Height = 291
     Align = alClient
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
@@ -191,29 +191,59 @@ object SimpleSslServerForm: TSimpleSslServerForm
     LocalAddr6 = '::'
     LocalPort = '0'
     SocksLevel = '5'
+    ExclusiveAddr = False
     ComponentOptions = []
+    ListenBacklog = 15
+    SocketErrs = wsErrTech
     Banner = 'Welcome to TcpSrv'
     OnClientConnect = SslWSocketServer1ClientConnect
     MultiListenSockets = <>
     SslContext = SslContext1
     SslEnable = False
+    IcsHosts = <>
+    SslCliCertMethod = sslCliCertNone
+    SslCertAutoOrder = False
+    CertExpireDays = 30
     OnSslVerifyPeer = ClientVerifyPeer
     OnSslHandshakeDone = SslWSocketServer1SslHandshakeDone
     Left = 20
     Top = 184
   end
   object SslContext1: TSslContext
+    SslDHParamLines.Strings = (
+      '-----BEGIN DH PARAMETERS-----'
+      'MIICCAKCAgEA45KZVdTCptcakXZb7jJvSuuOdMlUbl1tpncHbQcYbFhRbcFmmefp'
+      'bOmZsTowlWHQpoYRRTe6NEvYox8J+44i/X5cJkMTlIgMb0ZBty7t76U9f6qAId/O'
+      '6elE0gnk2ThER9nmBcUA0ZKgSXn0XCBu6j5lzZ0FS+bx9OVNhlzvIFBclRPXbI58'
+      '71dRoTjOjfO1SIzV69T3FoKJcqur58l8b+no/TOQzekMzz4XJTRDefqvePhj7ULP'
+      'Z/Zg7vtEh11h8gHR0/rlF378S05nRMq5hbbJeLxIbj9kxQunETSbwwy9qx0SyQgH'
+      'g+90+iUCrKCJ9Fb7WKqtQLkQuzJIkkXkXUyuxUuyBOeeP9XBUAOQu+eYnRPYSmTH'
+      'GkhyRbIRTPCDiBWDFOskdyGYYDrxiK7LYJQanqHlEFtjDv9t1XmyzDm0k7W9oP/J'
+      'p0ox1+WIpFgkfv6nvihqCPHtAP5wevqXNIQADhDk5EyrR3XWRFaySeKcmREM9tbc'
+      'bOvmsEp5MWCC81ZsnaPAcVpO66aOPojNiYQZUbmm70fJsr8BDzXGpcQ44+wmL4Ds'
+      'k3+ldVWAXEXs9s1vfl4nLNXefYl74cV8E5Mtki9hCjUrUQ4dzbmNA5fg1CyQM/v7'
+      'JuP6PBYFK7baFDjG1F5YJiO0uHo8sQx+SWdJnGsq8piI3w0ON9JhUvMCAQI='
+      '-----END DH PARAMETERS-----')
     SslVerifyPeer = False
     SslVerifyDepth = 9
     SslVerifyFlags = []
+    SslCheckHostFlags = []
+    SslSecLevel = sslSecLevel80bits
     SslOptions = []
+    SslOptions2 = []
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = [sslSESS_CACHE_SERVER]
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
     SslVersionMethod = sslV23_SERVER
+    SslMinVersion = sslVerSSL3
+    SslMaxVersion = sslVerMax
+    SslECDHMethod = sslECDHAuto
+    SslCryptoGroups = 'P-256:X25519:P-384:P-512'
+    SslCliSecurity = sslCliSecIgnore
     SslSessionTimeout = 300
     SslSessionCacheSize = 20480
     SslDefaultSessionIDContext = 'dfhgdfg'
+    AutoEnableBuiltinEngines = False
     Left = 50
     Top = 184
   end

@@ -4,11 +4,10 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      8.59
+Version:      8.62
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2018 by François PIETTE
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -119,6 +118,7 @@ Oct 10, 2018 V8.57 INI file now reads Options as enumerated type literals,
                    FSessionTimer is now TIcsTimer so Vcl.ExtCtrls can disappear
 Oct 19, 2018 V8.58 INI file reads ListenBacklog.
 Nov 19, 2018 V8.59 Sanity checks reading mistyped enumerated values from INI file.
+Aug 7, 2019  V8.62 Builds without AUTO_X509_CERTS or USE_SSL
 
 
 [WebAppServer]
@@ -236,7 +236,7 @@ type
         destructor Destroy; override;
         function   CreateSession(const Params : String;
                                  Expiration   : TDateTime;
-                                 SessionData  : TWebSessionData) : String; virtual;
+                                 SessionData  : TWebSessionData) : String;
         function   CancelSession : String; virtual;
         function   CheckSession(var Flags                : THttpGetFlag;
                                 const NegativeAnswerHtml : String) : Boolean; overload; virtual;
@@ -299,7 +299,7 @@ type
         procedure Display(const AMsg: String); virtual;
         function  CreateSession(const Params : String;
                                 Expiration   : TDateTime;
-                                SessionData  : TWebSessionData) : String; virtual;
+                                SessionData  : TWebSessionData) : String;
         function  ValidateSession: Boolean; virtual;
         procedure DeleteSession;
         function  CheckSession(const NegativeAnswerHtml : String) : Boolean; overload;
@@ -499,7 +499,9 @@ type
         property SslCliCertMethod;              { V8.57 }
         property SslCertAutoOrder;              { V8.57 }
         property CertExpireDays;                { V8.57 }
+{$IFDEF AUTO_X509_CERTS}  { V8.62 }
         property SslX509Certs;                  { V8.57 }
+{$ENDIF}
         property OnSslVerifyPeer;
         property OnSslSetSessionIDContext;
         property OnSslSvrNewSession;
@@ -847,9 +849,11 @@ begin
             Status := (CompareText(PathBuf, ClientCnx.Path) = 0);
 
       { V8.48 if HostTag specified, match it }
+{$IFDEF USE_SSL}
         if Status and (ClientCnx.HostTag <> '') and (Disp.HostTag <> '') then begin
             if (Disp.HostTag <> ClientCnx.HostTag) then Status := False;
         end;
+{$ENDIF}
 
         if Status then begin
             Result    := TRUE;
@@ -932,9 +936,11 @@ begin
             Status := (CompareText(PathBuf, ClientCnx.Path) = 0);
 
       { V8.48 if HostTag specified, match it }
+{$IFDEF USE_SSL}
         if Status and (ClientCnx.HostTag <> '') and (Disp.HostTag <> '') then begin
             if (Disp.HostTag <> ClientCnx.HostTag) then Status := False;
         end;
+{$ENDIF}
 
         if Status then begin
             Result    := TRUE;
@@ -995,9 +1001,11 @@ begin
         Elem := FGetAllowedPath.Elem[I];
 
        { V8.48 if HostTag specified, match it }
+{$IFDEF USE_SSL}
         if (ClientCnx.HostTag <> '') and (Elem.HostTag <> '') then begin
             if (Elem.HostTag <> ClientCnx.HostTag) then Continue;
         end;
+{$ENDIF}
 
         case Elem.Flags of
         afBeginBy:

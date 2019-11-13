@@ -49,7 +49,7 @@
 			<DCC_UnitSearchPath>$(BDS)\lib;$(BDS)\lib\obj;$(BDS)\source\toolsapi;..\Source;..\Source\Include;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
 			<BCC_GenerateDLL>true</BCC_GenerateDLL>
 			<Multithreaded>true</Multithreaded>
-			<ILINK_LibraryPath>..\Source;$(BDS)\lib;$(BDS)\lib\obj;$(ILINK_LibraryPath)</ILINK_LibraryPath>
+			<ILINK_LibraryPath>$(BDS)\lib\psdk;..\Source;$(BDS)\lib;$(BDS)\lib\obj;$(ILINK_LibraryPath)</ILINK_LibraryPath>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_1)'!=''">
 			<BCC_OutputDir>..\Lib\Debug\Win32\D2009</BCC_OutputDir>
@@ -449,6 +449,14 @@
 			<DelphiCompile Include="..\Source\OverbyteIcsSocketUtils.pas">
 				<BuildOrder>93</BuildOrder>
 			</DelphiCompile>
+    		<LibFiles Include="$(BDS)\lib\psdk\crypt32.lib">
+				<IgnorePath>true</IgnorePath>
+				<BuildOrder>94</BuildOrder>
+			</LibFiles>
+    		<LibFiles Include="$(BDS)\lib\psdk\cryptui.lib">
+				<IgnorePath>true</IgnorePath>
+				<BuildOrder>94</BuildOrder>
+			</LibFiles>
 			<BuildConfiguration Include="Base">
 				<Key>Base</Key>
 			</BuildConfiguration>

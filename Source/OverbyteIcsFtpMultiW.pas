@@ -5,8 +5,8 @@ Description:  TIcsFtpMultiW is a high level FTP Delphi component that allows upl
               single function call.
               W version supports widestring/Unicode for Delphi 2007
 Creation:     May 2001
-Updated:      Mar 2019
-Version:      8.60
+Updated:      November 2019
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -278,6 +278,8 @@ Cancel - abort FTP xfers
                Most Types have Ics added, so: TIcsTaskResult now TIcsTaskResult.
                No longer needs Forms.
                Using TWideStringList instead of UStringArray, not Delphi 7
+7 Aug 2019  - V8.62 - Support NO_DEBUG_LOG properly.
+3 Nov 2019  - V8.63 - Added SslCliSecurity, FtpType and IgnorePaths to TIcsFtpMultiThread.
 
 
 
@@ -379,7 +381,7 @@ uses
 
 
 const
-    FtpMultiCopyRight : String = ' TIcsFtpMultiW (c) 2019 V8.60 ';
+    FtpMultiCopyRight : String = ' TIcsFtpMultiW (c) 2019 V8.63 ';
 
 type
 // host type, for directory listing
@@ -679,7 +681,9 @@ type
         FAbort: boolean ;
         FLogmaskName: UnicodeString ;
         FBuffLogStream: TIcsBuffLogStream ;
-        FIcsLog: TIcsLogger ;
+{$IFNDEF NO_DEBUG_LOG}
+        FIcsLog: TIcsLogger;
+{$ENDIF}
 //  protected
         // from TCustomWSocket
         FLocalAddr          : String;     { IP address for local interface to use }
@@ -735,6 +739,7 @@ type
         fFtpSslRevocation: boolean;       // 20 Apr 2015
         fFtpSslReportChain: boolean ;     // 20 Apr 2015
         fFtpSslRootFile: string ;  // 20 Apr 2015
+        fFtpSslCliSecurity: TSslCliSecurity;   // V8.63
         fSslSessCache: boolean ;
         fBulkMode: TBulkMode ;
         fHostName1: String ;
@@ -787,6 +792,7 @@ type
         fMaskRemDir: boolean ;
         fNoProgress: boolean ;
         fEmptyDirs: boolean ;
+        fIgnorePaths: UnicodeString ; // V8.63
   public
     IcsFTPMultiCli: TIcsFtpMultiW ;
     FThreadEvent: TThreadEventW ;
@@ -904,6 +910,7 @@ type
     property FtpSslRootFile: string    read fFtpSslRootFile write fFtpSslRootFile ;         // 20 Apr 2015
     property FtpSslRevocation: boolean read fFtpSslRevocation write fFtpSslRevocation ;     // 20 Apr 2015
     property FtpSslReportChain: boolean read fFtpSslReportChain write fFtpSslReportChain;   // 20 Apr 2015
+    property FtpSslCliSecurity: TSslCliSecurity read fFtpSslCliSecurity  write fFtpSslCliSecurity;   // V8.63
     property TotProcFiles: integer     read fTotProcFiles ;
     property ProcOKFiles: integer      read fProcOKFiles ;
     property DelOKFiles: integer       read fDelOKFiles ;
@@ -929,6 +936,7 @@ type
     property MaskRemDir: boolean       read fMaskRemDir     write fMaskRemDir ;
     property NoProgress: boolean       read fNoProgress     write fNoProgress ;
     property EmptyDirs: Boolean        read fEmptyDirs      write fEmptyDirs ;
+    property IgnorePaths: UnicodeString read fIgnorePaths   write fIgnorePaths ;    // V8.63
   end ;
 
 const
@@ -5822,11 +5830,13 @@ begin
     if FLogmaskName <> '' then
     begin
         FBuffLogStream := TIcsBuffLogStream.Create (IcsFTPMultiCli, FLogmaskName, '', FileCPUtf8) ;  // Format mask for log file name
+{$IFNDEF NO_DEBUG_LOG}
         FIcsLog := TIcsLogger.Create (Nil) ;
         FIcsLog.OnIcsLogEvent := IcsLogEvent ;
         IcsFTPMultiCli.IcsLogger := FIcsLog ;
         FIcsLog.LogOptions := [] ;
     //    FIcsLog.LogOptions := [loDestEvent] + LogAllOptInfo ;
+{$ENDIF}
     end ;
     FAbort := false ;
     LogEvent (LogLevelInfo, 'FTP Thread Starting', Cancel) ;
@@ -5892,6 +5902,10 @@ begin
     IcsFTPMultiCli.FtpSslRootFile := fFtpSslRootFile ;      // 20 Apr 2015
     IcsFTPMultiCli. FtpSslRevocation := fFtpSslRevocation ; // 20 Apr 2015
     IcsFTPMultiCli.FtpSslReportChain := fFtpSslReportChain ;// 20 Apr 2015
+    IcsFTPMultiCli.FtpSslCliSecurity := fFtpSslCliSecurity;   // V8.63
+    IcsFTPMultiCli.FtpType := fFtpType;                       // V8.63
+    IcsFTPMultiCli.IgnorePaths := fIgnorePaths;               // V8.63
+
     FDirListing := '' ;
     case FtpThreadOpt of
         ftpthdList: FTaskRes := IcsFTPMultiCli.DispFtpDir (FDirListing) ;
@@ -5909,7 +5923,9 @@ begin
     FInfo := 'FTP Thread Done, Task Result: ' + IcsGetTaskResName (FTaskRes) + ' - ' + IcsFTPMultiCli.ReqResponse + IcsCRLF ;
     LogEvent (FLogLevel, FInfo, Cancel) ;
     if FLogmaskName <> '' then FBuffLogStream.Free ;
+{$IFNDEF NO_DEBUG_LOG}
     if Assigned (FIcsLog) then FIcsLog.Free ;
+{$ENDIF}
     IcsFTPMultiCli.Free ;
 end ;
 

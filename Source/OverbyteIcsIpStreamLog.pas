@@ -2,10 +2,10 @@
  Author:      Angus Robertson, Magenta Systems Ltd
 Description:  IP Streaming Log Component
 Creation:     Nov 2006
-Updated:      May 2019
-Version:      8.62
+Updated:      Oct 2019
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
@@ -180,13 +180,22 @@ in the event when only one was open, tested with Delphi 2010
                       Now SSL only, not sure earlier versions worked without SSL.
                       Client6 and Server6 gone, use SocketFamily for IPv4/v6
                       Added SslCliSecurity to set client security level.
-20 May 2019 - V8.62 - TCP server now uses root bundle correctly and reports
-                        certificate chain and bindings. 
+                      Allow SSL certificates to be ordered and installed automatically
+                       by RecheckSslCerts if SslCertAutoOrder=True and so specified in
+                       IcsHosts, if a TSslX509Certs component is attached and a
+                       certificate supplier account has been created (by the
+                       OverbyteIcsX509CertsTst sample application).  AUTO_X509_CERTS
+                       define can be disabled to remove a lot of units if automatic
+                       SSL/TLS ordering is not required, saves up to 1 meg of code.
+07 Aug 2019 - V8.62 - TCP server now uses root bundle correctly and reports
+                        certificate chain and bindings.
+                      Ensure all listeners started for TCP Server, if more than one.
+                      Builds without USE_SSL.
+22 Oct 2019 - V.63  - SrvValidateHosts and SrvRecheckSslCerts have new AllowSelfSign
+                         to stop errors with self signed certificates.
+                      Allow TCP server to start with certificate warnings.
 
 
-                  WARNING NOT FINISHED YET!!!
-
-pending - client and server different GetSession events
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -209,6 +218,8 @@ unit OverbyteIcsIpStreamLog;
 {$ENDIF}
 
 interface
+
+{$IFDEF USE_SSL}
 
 uses
 {$IFDEF MSWINDOWS}
@@ -261,8 +272,6 @@ uses
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
-{$IFDEF USE_SSL}
-
 const
     CopyRight : String = ' TIcsIpStrmLog (c) 2019 V8.62 ';
 
@@ -314,16 +323,6 @@ type
     StreamFlag: boolean ;      // stream currently being sent, 3 July 2014
     StreamNr: integer ;        // how many bytes of stream have been sent 3 July 2014
   end ;
-
-// send TCP Server socket client
-(*  TMagClientSocket = class(TSslWSocketClient)
-  private
-    { Private declarations }
-  public
- // V3.0 use CPeerAddr and CPeerPort instead now in base class
- //   IpAddr: string ;         // IP address from remote computer sending us data
- //   IpPort: string ;         // ditto port
-  end; *)
 
   TIcsIpStrmLog = class(TIcsWndControl)
   private
@@ -444,7 +443,9 @@ type
     procedure SetSslCertAutoOrder(const Value : Boolean);    // Dec 2018
     procedure SetLogSslRootFile(const Value: String);              // May 2019
   public
+{$IFNDEF NO_DEBUG_LOG}
     IpIcsLogger: TIcsLogger ;
+{$ENDIF}
     LogRcvdCerts: boolean ;
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -458,9 +459,10 @@ type
     procedure ResetRecvData (Socnr: integer) ;             // 13 Sept 2016
     function GetPartialLine (Socnr: integer): string ;
     function GetSendWaiting (Socnr: integer): integer ;    // 6 Sept 2016
-    function SrvValidateHosts(Stop1stErr: Boolean=True; NoExceptions: Boolean=False): String;
-    function SrvRecheckSslCerts(var CertsInfo: String;
-                        Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean;
+    function SrvValidateHosts(Stop1stErr: Boolean=True; NoExceptions: Boolean=False;
+                                                    AllowSelfSign: Boolean=False): String;  { V8.63 }
+    function SrvRecheckSslCerts(var CertsInfo: String; Stop1stErr: Boolean=True;
+                      NoExceptions: Boolean=False; AllowSelfSign: Boolean=False): Boolean;   { V8.63 }
     property ChanInfos [Index: integer]: TStrmChanInfo read GeTStrmChanInfo ;
     property States [Index: integer]: TStrmLogState read GetState ;
     property LogActive: boolean                     read FLogActive ;
@@ -570,8 +572,11 @@ type
                                                     write FOnHandshakeDone;
   end;
 
+{$ENDIF USE_SSL}
 
 implementation
+
+{$IFDEF USE_SSL}
 
 constructor TIcsIpStrmLog.Create(AOwner: TComponent);
 begin
@@ -580,19 +585,16 @@ begin
     IpIcsLogger.OnIcsLogEvent := IcsLogEvent ;
 {$ENDIF}
     FCliSslContext := TSslContext.Create (self) ; // Dec 2018
-{$IFNDEF NO_DEBUG_LOG}
-    FCliSslContext.IcsLogger := IpIcsLogger ;     // Dec 2018
-{$ENDIF}
   // create TCP Server
     FListenSocket := TSslWSocketServer.Create(Self);
-//    FListenSocket.SslContext := fCliSslContext;
     FListenSocket.SslMode := sslModeServer ;
     FListenSocket.OnSslHandshakeDone := TlsSslHandshakeDone ;
+{$IFNDEF NO_DEBUG_LOG}
+    FCliSslContext.IcsLogger := IpIcsLogger ;     // Dec 2018
     FListenSocket.IcsLogger := IpIcsLogger ;
+{$ENDIF}
     FListenSocket.SslEnable := False;  // defaulted to true, must reset
-     //   if loSslErr in IpIcsLogger.LogOptions then
-     //       FListenSocket.OnSslProtoMsg := TlsSslProtoMsgEvent ;  // Dec 2016
-    AllocateHWnd; 
+    AllocateHWnd;
     FServerTimer := TIcsTimer.Create (Self);   // 5 July 2016 timer to check for idle timeouts
     FServerTimer.Interval := 5000 ;  // 5 seconds
     FServerTimer.OnTimer := ServerTimerTimer ;
@@ -666,7 +668,9 @@ begin
     end ;
     FreeAndNil (FMsCertChainEngine) ;
     FreeAndNil (FCliSslContext) ;
+{$IFNDEF NO_DEBUG_LOG}
     FreeAndNil (IpIcsLogger) ;
+{$ENDIF}
     inherited Destroy;
 end;
 
@@ -859,8 +863,6 @@ function TIcsIpStrmLog.StartLogging: boolean ;
 var
     I, tothosts: integer ;
     MyFamily: TSocketFamily;
-//  TempCert: TX509Base;
-//  CertStr, ErrStr: string;
     rootfname: String;
 begin
     result := false ;
@@ -989,9 +991,10 @@ begin
             LogErrEvent (0, FLastErrorStr) ;
             exit ;
         end ;
-        FLastErrorStr := FListenSocket.ValidateHosts(True, True);
-        if FLastErrorStr <> '' then
+        FLastErrorStr := FListenSocket.ValidateHosts(True, True, True);  { V8.63 allow self sign }
+        if FListenSocket.IcsHosts [0].CertValRes = chainFail then  { V8.63 don't stop on warning, only fatal error }
         begin
+            FLastErrorStr := FCurTitle + FLastErrorStr ;
             LogErrEvent (0, FLastErrorStr) ;
             exit ;
         end ;
@@ -1003,7 +1006,13 @@ begin
         begin
             for I := 0 to Pred(FListenSocket.IcsHosts.Count) do
             begin
-                 if (FListenSocket.IcsHosts[I].CertInfo <> '') then
+                if FListenSocket.IcsHosts [I].CertValRes = chainFail then  { V8.63 any other failures }
+                begin
+                    FLastErrorStr := FCurTitle + FLastErrorStr;
+                    LogErrEvent (0, FLastErrorStr) ;
+                    exit ;
+                end ;
+                if (FListenSocket.IcsHosts[I].CertInfo <> '') then
                       LogErrEvent (0, FListenSocket.IcsHosts[I].CertInfo) ;
             end;
         end;
@@ -1135,7 +1144,9 @@ begin
                     OnDataAvailable := SocketDataAvailable ;
                     OnBgException := SocketBgException ;
                     SocketErrs := wsErrFriendly ; // Oct 2016
+{$IFNDEF NO_DEBUG_LOG}
                     IcsLogger := IpIcsLogger ;
+{$ENDIF}
                     SetAcceptableHostsList (FLogTrustedList) ;
                 end ;
              // note, multiple remhost already set by SetRemoteHost or SetRemoteHosts
@@ -1306,21 +1317,23 @@ begin
                 OnClientConnect := ServerClientConnect;
                 OnClientDisconnect := ServerClientDisconnect;
                 OnBgException := SocketBgException ;
+{$IFNDEF NO_DEBUG_LOG}
                 IcsLogger := IpIcsLogger ;
+{$ENDIF}
                 SocketErrs := wsErrFriendly ; // Oct 2016
                 Proto := 'tcp' ;
                 Tag := 0 ; // only single listen socket
-            // Dec 2018 using IcsHosts to Addr/Port is ignored
-            //    Addr := FLocalIpAddr ;
-            //    Port := FLocalIpPort ;
-           //     SocketFamily := FSocFamily ;
                 ExclusiveAddr := true ;  // Oct 2016
-                Listen ;      // start listening for incoming connections
-                for I := 0 to Pred (IcsHosts.Count) do
-                    LogProgEvent (0, FCurTitle + ' Started on ' + IcsHosts[I].BindInfo); // May 2019
+                FLastErrorStr := MultiListenEx ;   // start listening for incoming connections
+                if FLastErrorStr = '' then begin   // V8.62 ensure all listeners started
+                    result := true ;
+                    FLogActive := true ;
+                    for I := 0 to Pred (IcsHosts.Count) do
+                        LogProgEvent (0, FCurTitle + ' Started on ' + IcsHosts[I].BindInfo); // May 2019
+                end
+                else
+                    LogErrEvent (0, FLastErrorStr) ;
             end;
-            result := true ;
-            FLogActive := true ;
         end ;
     except
         FLastErrorStr := FCurTitle + ' Error Starting - ' + IcsGetExceptMess (ExceptObject) ;
@@ -1351,7 +1364,7 @@ begin
         if Assigned(FListenSocket) then
         begin
             try
-                if FListenSocket.State <> wsClosed then FListenSocket.Close ;
+                if FListenSocket.State <> wsClosed then FListenSocket.MultiClose;
                 if FListenSocket.ClientCount > 0 then
                 begin
                     for I := 0 to Pred (FListenSocket.ClientCount) do
@@ -1422,8 +1435,6 @@ begin
             try
                 if (FListenSocket.State <> wsClosed) or (FListenSocket.ClientCount > 0) then
                     result := false;
-            //    else
-            //        FreeAndNil (FListenSocket) ;
             except
             end ;
         end ;
@@ -1820,43 +1831,37 @@ begin
                 LogProgEvent (socnr, FCurTitle + ' Already Connected') ;
                 exit ;
             end;
-       //     with TIcsIpStrmLog (Self) do
-       //     begin
-                if FForceSsl and Assigned (FCliSslContext) then
+            if FForceSsl and Assigned (FCliSslContext) then
+            begin
+                if LogState = logstateHandshake then   // 23 July 2014
                 begin
-                    if LogState = logstateHandshake then   // 23 July 2014
-                    begin
-                        LogProgEvent (socnr, FCurTitle + ' Already Starting SSL Handshake') ;
-                        exit ;
-                    end;
-                    with Sender as TSslWSocket do
-                    begin
-                        try
-                            SslContext := FCliSslContext;
-                            SslEnable := true ;
-                            SslMode := sslModeClient ;
-                            OnSslCliGetSession := TlsSslGetSession;
-                            OnSslCliNewSession := TlsSslNewSession;
-                            OnSslHandshakeDone := TlsSslHandshakeDone ;
-                            OnSslVerifyPeer := TlsSslVerifyPeer ;
-                        //    if loSslErr in IpIcsLogger.LogOptions then
-                        //        OnSslProtoMsg := TlsSslProtoMsgEvent ;  // Dec 2016
-                            LogChangeState (socnr, logstateHandshake) ;
-                            LogProgEvent (socnr, FCurTitle + ' Starting SSL Handshake to Address ' +   // 23 July 2014, more info
-                                                                        IcsFmtIpv6AddrPort (RemIP, RemPort)) ;
-                    //        StartSslHandshake;  // June 2018 done in TriggerSessionConnected
-                        except
-                            FLastErrorStr := FCurTitle + ' Error Starting SSL - ' + IcsGetExceptMess (ExceptObject) ;
-                            LogErrEvent (socnr, FLastErrorStr) ;
-                        end ;
-                    end ;
-                end
-                else
-                begin
-                    LogProgEvent (socnr, FCurTitle + ' Connected OK') ;
-                    LogChangeState (socnr, logstateOK) ;
+                    LogProgEvent (socnr, FCurTitle + ' Already Starting SSL Handshake') ;
+                    exit ;
                 end;
-       //     end ;
+                with Sender as TSslWSocket do
+                begin
+                    try
+                        SslContext := FCliSslContext;
+                        SslEnable := true ;
+                        SslMode := sslModeClient ;
+                        OnSslCliGetSession := TlsSslGetSession;
+                        OnSslCliNewSession := TlsSslNewSession;
+                        OnSslHandshakeDone := TlsSslHandshakeDone ;
+                        OnSslVerifyPeer := TlsSslVerifyPeer ;
+                        LogChangeState (socnr, logstateHandshake) ;
+                        LogProgEvent (socnr, FCurTitle + ' Starting SSL Handshake to Address ' +   // 23 July 2014, more info
+                                                                    IcsFmtIpv6AddrPort (RemIP, RemPort)) ;
+                    except
+                        FLastErrorStr := FCurTitle + ' Error Starting SSL - ' + IcsGetExceptMess (ExceptObject) ;
+                        LogErrEvent (socnr, FLastErrorStr) ;
+                    end ;
+                end ;
+            end
+            else
+            begin
+                LogProgEvent (socnr, FCurTitle + ' Connected OK') ;
+                LogChangeState (socnr, logstateOK) ;
+            end;
         end
         else
         begin
@@ -1954,8 +1959,6 @@ begin
         begin
             if FListenSocket.Client [I].Tag >= 0 then  // skip client about to be removed
             begin
-         //       if LogState <> logstateHandshake then
-         //           LogChangeState (FCurSockets, logstateOK) ;  // do we really need this ???
                 FListenSocket.Client [I].Tag := FCurSockets ;
                 inc (FCurSockets) ;
             end ;
@@ -1996,8 +1999,6 @@ begin
     end ;
     with Client as TWSocketClient do
     begin
-     //   IpAddr := GetPeerAddr ;
-     //   IpPort := GetPeerPort ;
         FChanInfo [socnr].BindIpAddr := GetXAddr ;  // keep local address and port
         FChanInfo [socnr].BindIpPort := GetXPort ;
         if (FRcvBufSize <> SocketRcvBufSize) and (FRcvBufSize >= 1024) then
@@ -2538,11 +2539,6 @@ begin
                 end
                 else
                 begin
-                   { if (Ch = #12) then  // form feed Apr 2015 only CRFF
-                    begin
-                        process := true ;
-                    end
-                    else }
                     if LineEndType = lineendLF then
                     begin
                         if (Ch = IcsLF) then process := true ;
@@ -3018,18 +3014,18 @@ end;
 {$ENDIF} // AUTO_X509_CERTS
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TIcsIpStrmLog.SrvValidateHosts(Stop1stErr: Boolean=True;
-                                        NoExceptions: Boolean=False): String;
+                 NoExceptions: Boolean=False; AllowSelfSign: Boolean=False): String;  { V8.63 } 
 begin
-     Result := FListenSocket.ValidateHosts(Stop1stErr, NoExceptions);
+     Result := FListenSocket.ValidateHosts(Stop1stErr, NoExceptions, AllowSelfSign);
 end;
 
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsIpStrmLog.SrvRecheckSslCerts(var CertsInfo: String;
-                    Stop1stErr: Boolean=True; NoExceptions: Boolean=False): Boolean;
+function TIcsIpStrmLog.SrvRecheckSslCerts(var CertsInfo: String; Stop1stErr:
+      Boolean=True; NoExceptions: Boolean=False; AllowSelfSign: Boolean=False): Boolean;  { V8.63 }
 begin
-     Result := FListenSocket.RecheckSslCerts(CertsInfo, Stop1stErr, NoExceptions);
+     Result := FListenSocket.RecheckSslCerts(CertsInfo, Stop1stErr, NoExceptions, AllowSelfSign);
 end;
 
 

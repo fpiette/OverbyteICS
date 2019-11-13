@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.61
+Version:      8.62
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -543,7 +543,14 @@ Apr 09, 2019 V8.61 OAS : Improved NTLM authentication by adding Single Sign On w
                    Added more header response properties: RespDateDT,
                      RespLastModDT, RespExpires, RespCacheControl.
                    NoCache now sends Cache-Control: no-cache for HTTP/1.1
-                     
+Jun 25, 2019 V8.62 Added httpAuthJWT using AuthBearerToken for Json Web Token
+                      authentication.
+                   Added ProxyURL property which combines four proxy properties
+                     as a URL for simplicity, ie http://[user[:password]@]host:port
+                   Added AlpnProtocols property which is sent when an SSL connection
+                     starts and GetAlpnProtocol which returns which the server
+                     supports.     
+
 
 To convert the received HTML stream to a unicode string with the correct codepage,
 use this function in OverbyteIcsCharsetUtils, it's not used directly by this unit
@@ -643,8 +650,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 861;
-    CopyRight : String   = ' THttpCli (c) 1997-2019 F. Piette V8.61 ';
+    HttpCliVersion       = 862;
+    CopyRight : String   = ' THttpCli (c) 1997-2019 F. Piette V8.62 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -694,7 +701,8 @@ type
 {$ENDIF}
     THttpBasicState  = (basicNone, basicMsg1, basicDone);
     THttpAuthType    = (httpAuthNone, httpAuthBasic, httpAuthNtlm,
-                             httpAuthDigest, httpAuthBearer, httpAuthToken);  { V8.54 }
+                        httpAuthDigest, httpAuthBearer, httpAuthToken,   { V8.54 }
+                        httpAuthJWT);  { V8.62 }
     THttpBeforeAuthEvent   = procedure(Sender  : TObject;
                                  AuthType      : THttpAuthType;
                                  ProxyAuth     : Boolean;
@@ -751,6 +759,7 @@ type
         FCurrPassword         : String;
         FProxyUsername        : String;
         FProxyPassword        : String;
+        FProxyURL             : String;     { V8.62 combines Proxy/PrexyPort/ProxyUserName/proxyPassword as URL }
         FProxyConnected       : Boolean;
         FLocation             : String;
         FCurrentHost          : String;
@@ -898,6 +907,7 @@ type
         FRespExpires          : TDateTime;     { V8.61 }
         FRespAge              : Integer;       { V8.61 }
         FRespCacheControl     : String;        { V8.61 }
+        FAlpnProtoList        : TStrings;      { V8.62 only used for SSL }
         FTimeout              : UINT;  { V7.04 }            { Sync Timeout Seconds }
         FWMLoginQueued        : Boolean;
         procedure AbortComponent; override; { V7.11 }
@@ -1119,6 +1129,8 @@ type
                                                      write FProxyUsername;
         property ProxyPassword   : String            read  FProxyPassword
                                                      write FProxyPassword;
+        property ProxyURL        : String            read  FProxyURL
+                                                     write FProxyURL;{ V8.62 }
         property NoCache         : Boolean           read  FNoCache
                                                      write FNoCache;
         property ModifiedSince   : TDateTime         read  FModifiedSince
@@ -1292,6 +1304,7 @@ type
         function  GetSslContext: TSslContext;
         procedure SetSslAcceptableHosts(Value : TStrings);
         function  GetSslAcceptableHosts: TStrings;
+        procedure SetAlpnProtocols(ProtoList: TStrings);               { V8.62 }
 
         procedure TransferSslVerifyPeer(Sender        : TObject;
                                         var Ok        : Integer;
@@ -1307,11 +1320,14 @@ type
                                             var Cert   : TX509Base); virtual;
     public
         procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
+        function    GetAlpnProtocol: String;
     published
         property SslContext         : TSslContext         read  GetSslContext
                                                           write SetSslContext;
         property SslAcceptableHosts : TStrings            read  GetSslAcceptableHosts
                                                           write SetSslAcceptableHosts;
+        property AlpnProtocols      : TStrings            read  FAlpnProtoList
+                                                          write SetAlpnProtocols; { V8.62 }
         property OnSslVerifyPeer    : TSslVerifyPeerEvent read  FOnSslVerifyPeer
                                                           write FOnSslVerifyPeer;
         property OnSslCliGetSession : TSslCliGetSession
@@ -1454,6 +1470,7 @@ begin
     FSocketFamily                  := DefaultSocketFamily;   { V8.00 }
     FLastAddrOK                    := '';     { V8.60 }
     FCurrDnsResult                 := -1;     { V8.60 }
+    FAlpnProtoList                 := TStringList.Create;  { V8.62 }
 end;
 
 
@@ -1462,6 +1479,7 @@ destructor THttpCli.Destroy;
 begin
     FDoAuthor.Free;
     FreeAndNil(FCtrlSocket);
+    FAlpnProtoList.Free;     { V8.62 }
     FRcvdHeader.Free;
     FExtraHeaders.Free;      { V8.52 }
     FReqStream.Free;
@@ -2652,6 +2670,8 @@ begin
             Headers.Add('Authorization: Bearer ' + FAuthBearerToken);
         if (FServerAuth = httpAuthToken) and (FAuthBearerToken <> '') then
             Headers.Add('X-Auth-Token: ' + FAuthBearerToken);
+        if (FServerAuth = httpAuthJWT) and (FAuthBearerToken <> '') then   { V8.62 }
+            Headers.Add('Authorization: JWT ' + FAuthBearerToken);
 
 {$IFDEF UseNTLMAuthentication}
         if (FProxyAuthNTLMState <> ntlmMsg1) then begin
@@ -3398,7 +3418,7 @@ begin
     if (Rq <> httpCLOSE) and (FState <> httpReady) then
         raise EHttpException.Create('HTTP component ' + Name + ' is busy', httperrBusy);
 
-    if (Rq in [httpPOST, httpPUT, httpPATCH]) and    { V8.06 } 
+    if (Rq in [httpPOST, httpPUT, httpPATCH]) and    { V8.06 }
        (not Assigned(FSendStream)
        { or (FSendStream.Position = FSendStream.Size)}   { Removed 21/03/05 }
        ) then
@@ -3428,6 +3448,21 @@ begin
     FCurrPassword        := FPassword;
     FCurrConnection      := FConnection;
     FCurrProxyConnection := FProxyConnection;
+
+    { V8.62 if proxy URL is passed, parse it as proxy properties }
+    { http://[user[:password]@]host:port }
+    if (Length(FProxyURL) > 6) and (Pos (':', Copy(FProxyURL, 6, 9999)) > 5) then begin
+        ParseURL(FProxyURL, Proto, User, Pass, Host, Port, Path);
+        { pending, check https for SSL prpoxy, maybe socks for socks proxy }
+        if Proto = 'http' then begin
+            FProxy := Host;
+            FProxyPort := Port;
+            FProxyUsername := User;
+            FProxyPassword := Pass;
+            if (FProxyUsername <> '') and (FProxyPassword <> '') then
+                FProxyAuth := httpAuthBasic;
+        end;
+    end;
 
     { Parse url and proxy to FHostName, FPath and FPort }
     if FProxy <> '' then begin
@@ -5209,6 +5244,9 @@ begin
         FCtrlSocket.SslEnable := FALSE
     else
         FCtrlSocket.SslEnable := (FProtocol = 'https');
+  { V8.62 set Alpn Protocols in SslCtx }
+    if FAlpnProtoList.Count > 0 then
+        FCtrlSocket.SslContext.SetSslAlpnProtocols(FAlpnProtoList);
 end;
 
 
@@ -5310,6 +5348,28 @@ begin
         Result := FCtrlSocket.SslAcceptableHosts
     else
         Result := nil;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.62 keep application layer protocols supported, may not be able to set
+        it yet since needs SslCtx }
+procedure TSslHttpCli.SetAlpnProtocols(ProtoList: TStrings);
+begin
+    if NOT Assigned(ProtoList) then Exit;
+    if FAlpnProtoList.Text <> ProtoList.Text then
+        FAlpnProtoList.Assign(ProtoList);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.62 keep application layer protocols supported }
+function TSslHttpCli.GetAlpnProtocol: String;
+begin
+    if Assigned(FCtrlSocket) then
+        Result := FCtrlSocket.SslAlpnProto
+    else
+        Result := '';
 end;
 
 

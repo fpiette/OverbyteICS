@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     May 1996
-Version:      V8.61
+Version:      V8.63
 Object:       TFtpClient is a FTP client (RFC 959 implementation)
               Support FTPS (SSL) if ICS-SSL is used (RFC 2228 implementation)
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
@@ -1083,7 +1083,12 @@ Mar 6, 2019  V8.60 - Added AddrResolvedStr read only property which is the IPv4/
                      Added round robin DNS lookup if DNSLookup returns multiple
                         IP addresses so they are used in turn after a failure
                         when the component is called repeatedly.
-Apr 23, 2019 V8.61  Set ftpFeatProtC when no PROT parameters passed.
+Jun 18, 2019 V8.62  Set ftpFeatProtC when no PROT parameters passed.
+Nov 3, 2019  V8.63  Added Option ftpFixPasvLanIP for when '227 Entering Passive Mode ()'
+                      returns a LAN IP instead of a WAN IP, so use control IP instead.
+                      This fixes failed downloads if the FTP server is behind a NAT
+                      router and is not configured to present the external IP.
+                    Log IP addresses and ports for passive connections to ease debugging.
 
 
 
@@ -1166,9 +1171,11 @@ uses
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsWndControl,
     Ics.Fmx.OverbyteIcsWSocket,
+    Ics.Fmx.OverbyteIcsSocketUtils,   { V8.63 }
 {$ELSE}
     OverbyteIcsWndControl,
     OverbyteIcsWSocket,
+    OverbyteIcsSocketUtils,   { V8.63 }
 {$ENDIF}
     OverbyteIcsStreams,
     OverbyteIcsUtils,
@@ -1176,9 +1183,9 @@ uses
     OverByteIcsFtpSrvT;
 
 const
-  FtpCliVersion      = 861;
-  CopyRight : String = ' TFtpCli (c) 1996-2019 F. Piette V8.61 ';
-  FtpClientId : String = 'ICS FTP Client V8.60 ';   { V2.113 sent with CLNT command  }
+  FtpCliVersion      = 863;
+  CopyRight : String = ' TFtpCli (c) 1996-2019 F. Piette V8.63 ';
+  FtpClientId : String = 'ICS FTP Client V8.63 ';   { V2.113 sent with CLNT command  }
 
 const
 //  BLOCK_SIZE       = 1460; { 1514 - TCP header size }
@@ -1206,7 +1213,8 @@ type
   TFtpCliSslType  = (sslTypeNone, sslTypeAuthTls, sslTypeAuthSsl,        { V2.106 }
                      sslTypeImplicit);
   TFtpOption      = (ftpAcceptLF, ftpNoAutoResumeAt, ftpWaitUsingSleep,
-                     ftpBandwidthControl, ftpAutoDetectCodePage); { V2.106 }{ AG V7.02 }
+                     ftpBandwidthControl, ftpAutoDetectCodePage, 
+                     ftpFixPasvLanIP); { V2.106 }{ AG V7.02 } { V8.63 FixPasvLan }
   TFtpOptions     = set of TFtpOption;
   TFtpExtension   = (ftpFeatNone, ftpFeatSize, ftpFeatRest, ftpFeatMDTMYY,
                      ftpFeatMDTM, ftpFeatMLST, ftpFeatMFMT, ftpFeatMD5,
@@ -5328,6 +5336,19 @@ begin
             Delete(Temp, 1, Pos(',', Temp));
             TargetPort := TargetPort + StrToInt(Copy(Temp, 1, Pos(')', Temp) - 1));
 
+         { V8.63 see if FTP server has returned a LAN IP address when the server
+            had a WAN IP for the control channel, use that instead }
+            TriggerDisplay('! Passive connection requested to: ' + TargetIP + ':' +
+               IntToStr(TargetPort) + ', control channel: ' + FControlSocket.AddrResolvedStr);
+            if (TargetIP <> FControlSocket.AddrResolvedStr) and
+                                      (ftpFixPasvLanIP in FOptions) then begin
+                if IcsIsIpPrivate(AnsiString(TargetIP)) and
+                     (NOT IcsIsIpPrivate(AnsiString(FControlSocket.AddrResolvedStr))) then begin
+                    TriggerDisplay('! Suspicious LAN IP changed to control channel address');
+                    TargetIP := FControlSocket.AddrResolvedStr
+                end;
+            end;
+
             DataSocketGetInit(IntToStr(TargetPort), TargetIP);
         end
         else begin  { EPSV IPv6 }
@@ -6088,7 +6109,7 @@ var
     Len  : Integer;
     I, J : Integer;
     p    : PChar;
-    Feat : String;
+    Feat, Arg : String;
     ACodePage : LongWord;
     RawResponse: AnsiString;  { V7.01 }{ AG V7.02 we no not need RawByteString here }
 const
@@ -6215,12 +6236,14 @@ begin
                         FSupportedExtensions := FSupportedExtensions + [ftpFeatAuthTLS];
                 end;
                 if Pos('PROT', Feat) = 1 then begin
-                    if Pos('C', Feat) >= 5 then   { V8.61 allow for no space } 
+                    Arg := '';
+                    if (Length(Feat) > 4) then Arg := Copy(Feat, 5, 5);
+                    if Pos('C', Arg) > 0 then   { V8.62 allow for no space }
                         FSupportedExtensions := FSupportedExtensions + [ftpFeatProtC]  { Clear }
-                    else if (Pos('P', Feat) >= 5) then
+                    else if (Pos('P', Arg) > 0) then
                         FSupportedExtensions := FSupportedExtensions + [ftpFeatProtP]  { Private }
                     else
-                        FSupportedExtensions := FSupportedExtensions + [ftpFeatProtC]; { V8.61 no argument is Clear }
+                        FSupportedExtensions := FSupportedExtensions + [ftpFeatProtC]; { V8.62 no argument is Clear }
                 end;
                 if Feat = 'PBSZ' then
                     FSupportedExtensions := FSupportedExtensions + [ftpFeatPbsz];    { V2.106 }

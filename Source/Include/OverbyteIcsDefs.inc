@@ -3,11 +3,10 @@
 Author:       François PIETTE
 Description:  Version defines for ICS (Internet Component Suite)
 Creation:     2003
-Version:      8.59
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1996-2018 by François PIETTE
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1996-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -69,7 +68,7 @@ Jul 2018 - V8.55 - Angus added NO_DEBUG_LOG as disabled but used for testing
 Oct 2018 - V8.58 - Angus Delphi 10.3 Rio, updated BCB for 10.1 and later
 Dec 2019 - V8.59 - Angus added AUTO_X509_CERTS to enable automatic SSL/TLS ordering
                       in SocketServer and other servers.
-
+Jul 2019 - V8.62 - Angus Turn off IMMUTABLE_STRINGS warnings in case project set them.
 
 
   SYMBOL           Compiler version
@@ -1746,3 +1745,6 @@ Dec 2019 - V8.59 - Angus added AUTO_X509_CERTS to enable automatic SSL/TLS order
   {$DEFINE RTL_NAMESPACES}
 {$ENDIF}
 
+{$IFDEF DELPHI17_UP}
+  {$WARN IMMUTABLE_STRINGS OFF}
+{$ENDIF}

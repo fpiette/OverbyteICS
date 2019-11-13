@@ -3,7 +3,7 @@ object IpLogForm: TIpLogForm
   Top = 84
   Caption = 
     'ICS IP Streaming Log Component Demo -  http://www.overbyte.be - ' +
-    'V8.62 - 20th May 2019'
+    'V8.62 - 17th June 2019'
   ClientHeight = 746
   ClientWidth = 1004
   Color = clBtnFace
@@ -426,7 +426,7 @@ object IpLogForm: TIpLogForm
         Left = 5
         Top = 5
         Width = 401
-        Height = 359
+        Height = 251
         Caption = 'Client Mode'
         TabOrder = 0
         object Label5: TLabel
@@ -443,6 +443,13 @@ object IpLogForm: TIpLogForm
           Height = 28
           Caption = 'Remote Host or IP Address'
           WordWrap = True
+        end
+        object Label23: TLabel
+          Left = 173
+          Top = 107
+          Width = 121
+          Height = 14
+          Caption = 'Client SSL Security Level'
         end
         object RemoteHosts: TMemo
           Left = 95
@@ -484,12 +491,12 @@ object IpLogForm: TIpLogForm
           TabOrder = 3
         end
         object RevokeCheck: TCheckBox
-          Left = 5
-          Top = 260
-          Width = 103
+          Left = 173
+          Top = 183
+          Width = 181
           Height = 17
-          Caption = 'Cert Revoke Check'
-          TabOrder = 5
+          Caption = 'Certificate Revoke Check (slow)'
+          TabOrder = 6
         end
         object PingRemote: TCheckBox
           Left = 5
@@ -499,13 +506,24 @@ object IpLogForm: TIpLogForm
           Caption = 'Ping Remote'
           TabOrder = 2
         end
-        object SslCliSec: TRadioGroup
-          Left = 192
-          Top = 100
-          Width = 169
-          Height = 251
-          Caption = 'Client SSL Security Level'
+        object ReportChain: TCheckBox
+          Left = 173
+          Top = 160
+          Width = 151
+          Height = 17
+          Caption = 'Report Certificate Chain'
+          TabOrder = 5
+        end
+        object SslCliSec: TComboBox
+          Left = 173
+          Top = 127
+          Width = 189
+          Height = 22
+          Style = csDropDownList
+          ItemHeight = 14
           ItemIndex = 8
+          TabOrder = 4
+          Text = 'TLSv1.1 or Better'
           Items.Strings = (
             'Ignore'
             'None'
@@ -522,22 +540,13 @@ object IpLogForm: TIpLogForm
             'High Ciphers, 2048 keys'
             'High Ciphers, 3072 keys'
             'High Ciphers, 7680 keys')
-          TabOrder = 6
-        end
-        object ReportChain: TCheckBox
-          Left = 5
-          Top = 240
-          Width = 151
-          Height = 17
-          Caption = 'Report Certificate Chain'
-          TabOrder = 4
         end
       end
       object BoxServer: TGroupBox
         Left = 428
-        Top = 5
+        Top = 3
         Width = 503
-        Height = 409
+        Height = 424
         Caption = 'Server Mode'
         TabOrder = 1
         object Label6: TLabel
@@ -586,8 +595,8 @@ object IpLogForm: TIpLogForm
           Caption = 'Password'
         end
         object Label16: TLabel
-          Left = 285
-          Top = 20
+          Left = 282
+          Top = 18
           Width = 108
           Height = 14
           Caption = 'Server Timeout (secs)'
@@ -596,18 +605,76 @@ object IpLogForm: TIpLogForm
         object Label8: TLabel
           Left = 228
           Top = 113
-          Width = 68
-          Height = 28
+          Width = 65
+          Height = 14
           Caption = 'Domain Name'
           WordWrap = True
         end
         object Label12: TLabel
-          Left = 40
-          Top = 229
-          Width = 100
+          Left = 5
+          Top = 190
+          Width = 96
           Height = 28
-          Caption = 'Pending Order X509 Certificate dialogs'
+          Caption = 'Days before Expiry to Order'
           WordWrap = True
+        end
+        object Label13: TLabel
+          Left = 5
+          Top = 222
+          Width = 133
+          Height = 14
+          Caption = 'Certificate Supplier Protocol'
+        end
+        object Label17: TLabel
+          Left = 5
+          Top = 265
+          Width = 99
+          Height = 14
+          Caption = 'Certificate Challenge'
+        end
+        object Label18: TLabel
+          Left = 5
+          Top = 305
+          Width = 133
+          Height = 14
+          Caption = 'Certificate Private Key Type'
+        end
+        object Label20: TLabel
+          Left = 5
+          Top = 348
+          Width = 116
+          Height = 27
+          AutoSize = False
+          Caption = 'Certificate Ordering Work Directory'
+          WordWrap = True
+        end
+        object Label21: TLabel
+          Left = 220
+          Top = 265
+          Width = 106
+          Height = 14
+          Caption = 'Certificate Sign Digest'
+        end
+        object Label22: TLabel
+          Left = 220
+          Top = 221
+          Width = 89
+          Height = 14
+          Caption = 'Certificate Product'
+        end
+        object Label31: TLabel
+          Left = 5
+          Top = 390
+          Width = 51
+          Height = 14
+          Caption = 'Proxy URL'
+        end
+        object Label24: TLabel
+          Left = 220
+          Top = 173
+          Width = 128
+          Height = 14
+          Caption = 'Server SSL Security Level'
         end
         object ServerPort: TComboBox
           Left = 80
@@ -671,13 +738,100 @@ object IpLogForm: TIpLogForm
           TabOrder = 2
           Text = '300'
         end
-        object SslSrvSec: TRadioGroup
-          Left = 201
-          Top = 178
-          Width = 255
-          Height = 181
-          Caption = 'Server SSL Security Level'
-          ItemIndex = 3
+        object SslDomainName: TEdit
+          Left = 310
+          Top = 108
+          Width = 136
+          Height = 22
+          TabOrder = 6
+        end
+        object SslCertAutoOrder: TCheckBox
+          Left = 5
+          Top = 170
+          Width = 190
+          Height = 17
+          Caption = 'SSL Certificate Automatic Ordering'
+          TabOrder = 8
+        end
+        object SslCertExpireDays: TEdit
+          Left = 123
+          Top = 193
+          Width = 38
+          Height = 22
+          TabOrder = 9
+          Text = '30'
+        end
+        object SslCertSupplierProto: TComboBox
+          Left = 5
+          Top = 240
+          Width = 196
+          Height = 22
+          Style = csDropDownList
+          ItemHeight = 14
+          TabOrder = 11
+        end
+        object SslCertChallenge: TComboBox
+          Left = 5
+          Top = 280
+          Width = 196
+          Height = 22
+          Style = csDropDownList
+          ItemHeight = 14
+          TabOrder = 13
+        end
+        object SslCertPKeyType: TComboBox
+          Left = 5
+          Top = 320
+          Width = 196
+          Height = 22
+          Style = csDropDownList
+          ItemHeight = 14
+          TabOrder = 15
+        end
+        object SslCertDirWork: TEdit
+          Left = 130
+          Top = 355
+          Width = 346
+          Height = 22
+          TabOrder = 16
+        end
+        object SslCertSignDigest: TComboBox
+          Left = 220
+          Top = 280
+          Width = 161
+          Height = 22
+          Style = csDropDownList
+          ItemHeight = 14
+          TabOrder = 14
+        end
+        object SslCertProduct: TEdit
+          Left = 220
+          Top = 240
+          Width = 201
+          Height = 22
+          TabOrder = 12
+          Text = 'Let'#39's Encrypt'
+        end
+        object ProxyURL: TEdit
+          Left = 130
+          Top = 385
+          Width = 241
+          Height = 22
+          Hint = 'Use a proxy URL, ie http://[user[:password]@]host:port'
+          ParentShowHint = False
+          ShowHint = True
+          TabOrder = 17
+        end
+        object SslSrvSec: TComboBox
+          Left = 220
+          Top = 193
+          Width = 261
+          Height = 22
+          Style = csDropDownList
+          ItemHeight = 14
+          ItemIndex = 5
+          TabOrder = 10
+          Text = 'High 112 bit Ciphers, TLS1.2 or Later'
           Items.Strings = (
             'None'
             'SSLv3 Only'
@@ -689,26 +843,18 @@ object IpLogForm: TIpLogForm
             'High 192 bit Ciphers, TLS1.2 or Later'
             'TLSv1.2 or Earlier'
             'TLSv1.3 Only')
-          TabOrder = 8
-        end
-        object SslDomainName: TEdit
-          Left = 310
-          Top = 108
-          Width = 136
-          Height = 22
-          TabOrder = 6
         end
       end
       object BoxLocalAddr: TGroupBox
-        Left = 3
-        Top = 370
+        Left = 5
+        Top = 300
         Width = 403
-        Height = 203
+        Height = 226
         Caption = 'Client and Server'
-        TabOrder = 2
+        TabOrder = 3
         object Label9: TLabel
           Left = 5
-          Top = 20
+          Top = 25
           Width = 52
           Height = 14
           Caption = 'Local Addr'
@@ -728,6 +874,13 @@ object IpLogForm: TIpLogForm
           Height = 28
           Caption = 'Local Mode Port'
           WordWrap = True
+        end
+        object Label25: TLabel
+          Left = 5
+          Top = 190
+          Width = 65
+          Height = 14
+          Caption = 'Log Directory'
         end
         object Protocol: TRadioGroup
           Left = 293
@@ -755,15 +908,15 @@ object IpLogForm: TIpLogForm
         object UseSSL: TCheckBox
           Left = 5
           Top = 80
-          Width = 75
+          Width = 105
           Height = 17
-          Caption = 'Use SSL'
+          Caption = 'Use SSL/TLS'
           TabOrder = 2
         end
         object LogErrors: TCheckBox
           Left = 5
           Top = 100
-          Width = 75
+          Width = 101
           Height = 17
           Caption = 'Debug Errors'
           TabOrder = 3
@@ -771,7 +924,7 @@ object IpLogForm: TIpLogForm
         object LogInfo: TCheckBox
           Left = 5
           Top = 120
-          Width = 75
+          Width = 91
           Height = 17
           Caption = 'Debug Info'
           TabOrder = 4
@@ -807,14 +960,43 @@ object IpLogForm: TIpLogForm
             'Only IPv6')
           TabOrder = 7
         end
+        object DirLogs: TEdit
+          Left = 84
+          Top = 185
+          Width = 272
+          Height = 22
+          TabOrder = 8
+        end
+        object SelDirLogs: TBitBtn
+          Left = 362
+          Top = 183
+          Width = 31
+          Height = 25
+          TabOrder = 9
+          OnClick = SelDirLogsClick
+          Glyph.Data = {
+            76010000424D7601000000000000760000002800000020000000100000000100
+            04000000000000010000120B0000120B00001000000000000000000000000000
+            800000800000008080008000000080008000808000007F7F7F00BFBFBF000000
+            FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00303333333333
+            333337F3333333333333303333333333333337F33FFFFF3FF3FF303300000300
+            300337FF77777F77377330000BBB0333333337777F337F33333330330BB00333
+            333337F373F773333333303330033333333337F3377333333333303333333333
+            333337F33FFFFF3FF3FF303300000300300337FF77777F77377330000BBB0333
+            333337777F337F33333330330BB00333333337F373F773333333303330033333
+            333337F3377333333333303333333333333337FFFF3FF3FFF333000003003000
+            333377777F77377733330BBB0333333333337F337F33333333330BB003333333
+            333373F773333333333330033333333333333773333333333333}
+          NumGlyphs = 2
+        end
       end
       object BoxSampleData: TGroupBox
-        Left = 433
-        Top = 426
+        Left = 428
+        Top = 433
         Width = 503
-        Height = 119
+        Height = 93
         Caption = 'Sample Data Creation'
-        TabOrder = 3
+        TabOrder = 2
         object Label3: TLabel
           Left = 150
           Top = 20
@@ -849,8 +1031,8 @@ object IpLogForm: TIpLogForm
           TabOrder = 2
         end
         object RawData: TCheckBox
-          Left = 5
-          Top = 80
+          Left = 148
+          Top = 43
           Width = 111
           Height = 17
           Caption = 'Receive Raw Data'
@@ -879,12 +1061,12 @@ object IpLogForm: TIpLogForm
     Left = 533
     Top = 407
   end
-  object SslX509Certs1: TSslX509Certs
+  object SslX509Certs: TSslX509Certs
     AcmeAccKeyType = PrivKeyRsa2048
     AutoOrderComplete = False
     CertSubAltNames = <>
     CertCsrOrigin = CsrOriginProps
-    CertOutFmts = []
+    CertOutFmts = [OutFmtBudl, OutFmtP12]
     CertSerNumType = SerNumRandom
     CertSignDigestType = Digest_sha256
     CertValidity = 365
@@ -903,8 +1085,12 @@ object IpLogForm: TIpLogForm
     SocketFamily = sfAny
     SuppCertChallenge = ChallNone
     SupplierProto = SuppProtoNone
-    Left = 795
-    Top = 415
+    OnCertProg = SslX509CertsCertProg
+    OnNewCert = SslX509CertsNewCert
+    OnOAuthAuthUrl = SslX509CertsOAuthAuthUrl
+    OnChallengeDNS = SslX509CertsChallengeDNS
+    Left = 850
+    Top = 310
   end
   object SslAvlSessionCache: TSslAvlSessionCache
     IdleTimeout = 30
@@ -912,5 +1098,10 @@ object IpLogForm: TIpLogForm
     MaxCacheSize = 1000
     Left = 615
     Top = 410
+  end
+  object TimerLog: TTimer
+    OnTimer = TimerLogTimer
+    Left = 845
+    Top = 415
   end
 end

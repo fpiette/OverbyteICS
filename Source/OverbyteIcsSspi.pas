@@ -4,7 +4,7 @@ Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  Windows API interface Unit for Object Pascal.
               Includes portions of the original file sspi.h as well as security.h.
 Creation:     Jan 11, 2006
-Version:      8.61
+Version:      8.63
 Legal issues: Portions Copyright (C) 2006-2019 by Arno Garrels, Berlin, Germany,
               Portions created by Microsoft are Copyright (C) 1995-2001
               Microsoft Corporation. All Rights Reserved.
@@ -39,6 +39,7 @@ May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
 Mar 29, 2019 V8.61 OAS : for Single Sign On with Session on Windows Domain
                    update types and make some records "packed"
+Aug 13, 2019 V8.63 Fixed last update
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -61,7 +62,7 @@ interface
 
 uses
   {$IFDEF RTL_NAMESPACES}Winapi.Windows{$ELSE}Windows{$ENDIF};
-  
+
 {$HPPEMIT '#include <security.h>'}
 {$HPPEMIT '#include <sspi.h>'}
 
@@ -109,6 +110,7 @@ const
   STATUS_LOGON_FAILURE          = $C000006D;
 
 //OAS 2019 for tests with Domain, check results <
+  {$EXTERNALSYM SEC_E_INVALID_HANDLE}        // V8.63
   SEC_E_INVALID_HANDLE          = $80090301; //OAS 2019 Update from MS codes : to check ???
 
   SEC_I_LOCAL_LOGON                = HRESULT($00090315);
@@ -344,7 +346,7 @@ type
 
   TCredHandle = TSecHandle;
   {$EXTERNALSYM CredHandle}
-  CredHandle = SecHandle; 
+  CredHandle = SecHandle;
   {$EXTERNALSYM PCredHandle}
   PCredHandle = PSecHandle;
 
@@ -559,7 +561,7 @@ type
   TSecurityFunctionTable = TSecurityFunctionTableA;
   {$EXTERNALSYM PSecurityFunctionTable}
   PSecurityFunctionTable = PSecurityFunctionTableA;
-{$ENDIF} 
+{$ENDIF}
 
   {$EXTERNALSYM _SecPkgContext_NamesA}
   _SecPkgContext_NamesA = record
@@ -642,4 +644,3 @@ type
 implementation
 
 end.
- 

@@ -12,10 +12,10 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      May 2019
-Version:      8.62
+Updated:      Oct 2019
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
@@ -51,9 +51,9 @@ Overview
 TRestParams
 -----------
 
-Defines a collection of  REST parameters and allows them to be saved as
-URL encoded or Json. Note only supports Json strings with key/pair values,
-not arrays or nested objects.
+Defines a collection of REST parameters and allows them to be saved as
+URL encoded or Json. Note only creates Json with key/pair values, not
+arrays, but Json arrays or nested objects may be added.
 
 
 TSslHttpRest
@@ -102,14 +102,21 @@ immediately they are exchanged for a token.
 The Access Token is then sent with all HTTPS REST requests as an 'Authorization:
 Bearer' header.
 
-Access Tokens have a limited life and usually expire within three to 24 hours.
-To avoid user interaction, the token exchange process sometimes offers a Refresh
-Token with the same expiry, but which can be used to get another Access Token,
-and this is automatically handled by TRestOAuth, while it still runs.
+Access Tokens have a limited life and usually expire within one to 24 hours.
+To avoid user interaction, the token exchange process usually offers a Refresh
+Token which can be used to get another Access Token, and this is automatically
+handled by TRestOAuth, by refreshing the Access Token before it expires, allowing
+ your application to keep running.  Store the Refresh Token securely, since it's
+ a potential security risk.
 
-So the trick for native applications is to keep refreshing the Access Token before
-it expires, allowing your application to keep running.  Store the Refresh Token
-securely, since it's a potential security risk.
+Sometimes the Refresh Token has the same life as the Access Token, with Google
+Accounts the Refresh Token remains valid for a few months until the account is
+disabled or changed, avoiding needing to login again or refresh within the expiry
+period.  Beware with Google the Refresh Token is only returned once after initial
+login, not after each refresh.  Google may also need to approve applications
+offering OAuth2, and may show consent warnings during the login process to get
+an Authorization Code until this is done.
+https://developers.google.com/identity/protocols/OAuth2
 
 Setting up OAuth is complex and requires a lot more information than just a site
 user name and password.  You normally need to access the desired site and create
@@ -133,7 +140,7 @@ often available, both are supported by TRestOAuth.
 Updates:
 May 21, 2018  - V8.54 - baseline
 Jul  2, 2018  - V8.55 - Improved Json error handling
-                       Builds with NO_DEBUG_LOG
+                        Builds with NO_DEBUG_LOG
 Oct 2, 2018   - V8.57 - Need OAuth local web server for all auth methods.
                         Builds with FMX
 Nov 2, 2018   - V8.58 - Bug fixes, call RequestDone event if it fails
@@ -153,10 +160,33 @@ Apr 26, 2019  - V8.61 - Prevent TSslHttpCli events being overwritten by TSslHttp
                            an account for £6.50 (about $9) which gives 100 message
                            credits. Other similar bureaus can be added, provided
                            there is an account for testing.
-May 16, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
+Aug 07, 2019  - V8.62 - Add AsyncReq to TIcsSms methods for flexibility.
+                        Supporting The SMS Works at https://thesmsworks.co.uk/ for SMS.
+                        Simple web server breaks down full URL for proxy requests.
+                        TRestParams can add Json parameters as PContJson which
+                          means arrays and nested Json can be added.
+                        TSimpleWebSrv now supports SSL, with certificate bunder
+                          and host name, supports SSL ALPN extension.
+                        Added SslAllowSelfSign property to connect OK to sites
+                          with self signed SSL certificates.
+                        Builds without USE_SSL
+Nov 11, 2019  - V8.63 - The SMS Works sync delivery works OK, try and return
+                          similar delivery responses as Kapow.
+                        Ensure default CA bundle gets loaded if SslRootFile
+                          blank (broken in V8.62).
+                        Web server now lonnger adds date/time when logging allowing
+                          application to do it instead.
+                        OAuth2 don't kill old refresh token if no refresh is available,
+                           Google APIs provides a single refresh that remains valid for
+                           weeks rather than a new one with each access token. Clarified
+                           the OAuth documentation to explain the Google process.
+                        OAuth has extra TOAuthOptions OAopAuthPrompt and OAopAuthAccess
+                           for Google, OAopAuthPrompt uses property LoginPrompt usually
+                           'consent', OAopAuthAccess and RefreshOffline=True requests a
+                           Refresh Token.
 
 
-Pending - Simple web server now less simple to supports SSL and ALPN
+
 Pending - more documentation
 Pending - better SSL error handling when connections fail, due to too high security in particular.
 Pending - OAuth don't spawn browser from Windows service
@@ -184,6 +214,8 @@ unit OverbyteIcsSslHttpRest;
 {$ENDIF}
 
 interface
+
+{$IFDEF USE_SSL}
 
 uses
 {$IFDEF MSWINDOWS}
@@ -238,11 +270,9 @@ uses
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
-{$IFDEF USE_SSL}
-
 const
-    THttpRestVersion = 862;
-    CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.62 ';
+    THttpRestVersion = 863;
+    CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.63 ';
     DefMaxBodySize = 100*100*100; { max memory/string size 100Mbyte }
     TestState = 'Testing-Redirect';
     MimeDnsJson = 'application/dns-json';
@@ -259,8 +289,9 @@ const
 type
 
 { event handlers }
-  THttpRestProgEvent  = procedure (Sender: TObject; LogOption: TLogOption; const Msg: string) of object;
-  TSimpleWebSrvReqEvent  = procedure (Sender: TObject; const Host, Path, Params: string; var RespCode, Body: string) of object;
+  THttpRestProgEvent = procedure (Sender: TObject; LogOption: TLogOption; const Msg: string) of object;
+  TSimpleWebSrvReqEvent = procedure (Sender: TObject; const Host, Path, Params: string; var RespCode, Body: string) of object;
+//  TSimpleWebSrvAlpnEvent = procedure (Sender: TObject; const Host: string; var CertFName: string) of object;   { V8.62 }
   TOAuthAuthUrlEvent = procedure (Sender: TObject; const URL: string) of object;
 
 { property and state types }
@@ -269,7 +300,9 @@ type
   TOAuthType = (OAuthTypeWeb, OAuthTypeMan, OAuthTypeEmbed);
   TOAuthOption = (OAopAuthNoRedir,    { OAuth Auth Request do not send redirect_url }
                   OAopAuthNoScope,    { OAuth Auth Request do not send scope }
-                  OAopAuthNoState);   { OAuth Auth Request do not send state }
+                  OAopAuthNoState,    { OAuth Auth Request do not send state }
+                  OAopAuthPrompt,     { OAuth Auth Request send approval prompt V8.63 }
+                  OAopAuthAccess);    { OAuth Auth Request send access type V8.63 }
   TOAuthOptions = set of TOAuthOption;
 
 { forware declarations }
@@ -338,6 +371,7 @@ type
     FSslRootFile: string;
     FSslRevocation: boolean;
     FSslReportChain: boolean;
+    FSslAllowSelfSign: boolean;  { V8.62 }
     FSslCliCert: TX509Base;
     FSslCliSecurity:  TSslCliSecurity;
 {$IFDEF MSWINDOWS}
@@ -424,6 +458,8 @@ type
                                                         write FSslRevocation;
     property SslReportChain: boolean                    read  FSslReportChain
                                                         write FSslReportChain;
+    property SslAllowSelfSign: boolean                  read  FSslAllowSelfSign
+                                                        write FSslAllowSelfSign; { V8.62 }
     property OnBgException;
     property OnHttpRestProg: THttpRestProgEvent         read  FOnHttpRestProg
                                                         write FOnHttpRestProg;
@@ -460,6 +496,7 @@ type
     procedure CliSendPage(const Status, ContentType, ExtraHdr, BodyStr: String);
     procedure CliErrorResponse(const RespStatus, Msg: string);
     procedure CliDataAvailable(Sender: TObject; Error: Word);
+    procedure CliAlpnChallg(Sender: TObject; const Host: string; var CertFName: string);
     procedure ParseReqHdr;
   end;
 
@@ -470,9 +507,14 @@ type
     FWebSrvIP: string;
     FWebSrvPort: string;
     FWebSrvPortSsl: string;
+    FWebSrvCertBundle: string;   { following V8.62 for SSL }
+    FWebSrvCertPassword: string;
+    FWebSrvHostName: string;
+    FWebSrvRootFile: string;
     FWebServer: TSslWSocketServer;
     FOnServerProg: THttpRestProgEvent;
     FOnSimpWebSrvReq: TSimpleWebSrvReqEvent;
+    FOnSimpWebSrvAlpn: TClientAlpnChallgEvent;
   protected
     { Protected declarations }
     procedure LogEvent(const Msg : String);
@@ -481,13 +523,19 @@ type
     procedure ServerClientConnect(Sender: TObject; Client: TWSocketClient; Error: Word); virtual;
     procedure ServerClientDisconnect(Sender: TObject;
                                  Client: TWSocketClient; Error: Word);
+    procedure IcsLogEvent (Sender: TObject; LogOption: TLogOption; const Msg : String);
   public
     { Public declarations }
+{$IFNDEF NO_DEBUG_LOG}
+    SrvLogger:  TIcsLogger;
+{$ENDIF}
+    property WebServer: TSslWSocketServer           read FWebServer;
     constructor  Create (Aowner: TComponent); override;
     destructor   Destroy; override;
     function  StartSrv: boolean ;
     function  StopSrv: boolean ;
     function  IsRunning: Boolean;
+    function  ListenStates: String;
   published
     { Published declarations }
     property DebugLevel: THttpDebugLevel            read  FDebugLevel
@@ -498,10 +546,20 @@ type
                                                     write FWebSrvPort;
     property WebSrvPortSsl: string                  read  FWebSrvPortSsl
                                                     write FWebSrvPortSsl;
+    property WebSrvCertBundle: string               read  FWebSrvCertBundle
+                                                    write FWebSrvCertBundle;   { V8.62  }
+    property WebSrvCertPassword: string             read  FWebSrvCertPassword
+                                                    write FWebSrvCertPassword;
+    property WebSrvHostName: string                 read  FWebSrvHostName
+                                                    write FWebSrvHostName;
+    property WebSrvRootFile: string                 read  FWebSrvRootFile
+                                                    write FWebSrvRootFile;
     property OnSimpWebSrvReq: TSimpleWebSrvReqEvent read  FOnSimpWebSrvReq
                                                     write FOnSimpWebSrvReq;
     property OnServerProg: THttpRestProgEvent       read  FOnServerProg
                                                     write FOnServerProg;
+    property OnSimpWebSrvAlpn: TClientAlpnChallgEvent read  FOnSimpWebSrvAlpn
+                                                      write FOnSimpWebSrvAlpn; { V8.62 }
 
   end;
 
@@ -538,6 +596,8 @@ type
     FWebSrvPort: string;
     FWebServer: TSimpleWebSrv;
     FRedirState: string;
+    FRefreshOffline: Boolean;  { V8.63 }
+    FLoginPrompt: String;      { V8.63 }
     FOnOAuthProg: THttpRestProgEvent;
     FOnOAuthAuthUrl: TOAuthAuthUrlEvent;
     FOnOAuthNewCode: TNotifyEvent;
@@ -554,6 +614,7 @@ type
     procedure WebSrvReq(Sender: TObject; const Host, Path, Params: string; var RespCode, Body: string);
     function  GetToken: boolean;
     procedure RefreshOnTimer(Sender: TObject);
+    procedure WebSrvProg(Sender: TObject; LogOption: TLogOption; const Msg: string);  { V8.63 }
   public
     { Public declarations }
     HttpRest:    TSslHttpRest;
@@ -610,6 +671,10 @@ type
                                                     write FWebSrvIP;
     property WebSrvPort: string                     read  FWebSrvPort
                                                     write FWebSrvPort;
+    property RefreshOffline: Boolean                read  FRefreshOffline
+                                                    write FRefreshOffline;  { V8.63 }
+    property LoginPrompt: string                    read  FLoginPrompt
+                                                    write FLoginPrompt;     { V8.63 }
     property OnOAuthAuthUrl: TOAuthAuthUrlEvent     read  FOnOAuthAuthUrl
                                                     write FOnOAuthAuthUrl;
     property OnOAuthProg: THttpRestProgEvent        read  FOnOAuthProg
@@ -650,11 +715,16 @@ type
   end;
 
   { V8.61 Send SMS using bureau, you will need an account.
-   Initially supporting https://www.kapow.co.uk/ from where you set-up an
+    Initially supporting https://www.kapow.co.uk/ from where you set-up an
     account for £6.50 (about $9) which gives 100 message credits.
     Other similar SMS can be added, provided there is an account for testing. }
 
-  TSmsProvider = (SmsProvKapow); // more providers awaited
+  { V8.62 Added The SMS Works at https://thesmsworks.co.uk/  where you set-up an
+    account with a few free SMS messages, then spend a mininum of £10 which
+    buys 350 message credits.  }
+
+
+  TSmsProvider = (SmsProvKapow, SmsProvSmsWorks); // more providers awaited
   TSmsOperation = (SmsOpSend, SmsOpCheck, SmsOpCredit);
 
   TIcsSMS = class(TIcsWndControl)
@@ -665,7 +735,10 @@ type
     FSmsOperation: TSmsOperation;
     FAccountName: string;
     FAccountPW: string;
+    FAccountJson: string;
+    FAccountJwt: string;
     FMsgSender: string;
+    FSendDT: TDateTime;
     FSentID: string;
     FCredits: string;
     FLastResp: string;
@@ -677,14 +750,15 @@ type
     { Protected declarations }
     procedure SmsRestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
     procedure SmsRestRequestDone(Sender: TObject; RqType: THttpRequest; ErrCode: Word);
-    function  MakeRequest(const URL: String; AsyncReq: Boolean = True): Boolean;
+    function  MakeRequest(HttpRequest: THttpRequest; const RestURL: String;
+                      AsyncReq: Boolean = False; const RawParams: String = ''): Boolean;
   public
     { Public declarations }
     HttpRest:  TSslHttpRest;
     constructor  Create (Aowner: TComponent); override;
     destructor   Destroy; override;
-    function     SendSMS(const MobileNum, SmsMsg: String; AsyncReq: Boolean = True): Boolean;
-    function     CheckSMS(ID: String; AsyncReq: Boolean = True): Boolean;
+    function     SendSMS(const MobileNums, SmsMsg: String; AsyncReq: Boolean = True): Boolean;
+    function     CheckSMS(ID: String; AsyncReq: Boolean = True; Batch: Boolean = False): Boolean;
     function     CheckCredit(AsyncReq: Boolean = True): Boolean;
     property     SentID: string                     read  FSentID;
     property     Credits: string                    read  FCredits;
@@ -699,8 +773,12 @@ type
                                                     write FAccountName;
     property AccountPW: string                      read  FAccountPW
                                                     write FAccountPW;
+    property AccountJson: string                    read  FAccountJson
+                                                    write FAccountJson;
     property MsgSender: string                      read  FMsgSender
                                                     write FMsgSender;
+    property SendDT: TDateTime                      read  FSendDT
+                                                    write FSendDT;
     property DebugLevel: THttpDebugLevel            read  FDebugLevel
                                                     write FDebugLevel;
     property OnSmsProg: THttpRestProgEvent          read  FOnSmsProg
@@ -729,9 +807,11 @@ function IcsExtractURLEncodedValue(
 function IcsShellExec(aFile: String; var PID: LongWord): Boolean; overload;
 function IcsShellExec(aFile: String): Boolean; overload;
 
+{$ENDIF USE_SSL}
 
 implementation
 
+{$IFDEF USE_SSL}
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { borrowed from OverbyteIcsHttpSrv and renamed to avoid conflicts }
@@ -942,9 +1022,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TRestParams.GetParameters: AnsiString;
 var
-    I: integer;
+    I, Len: integer;
     PN, PV: String;
-//    ParamJson: ISuperObject;
+    JFlag: Boolean; { V8.62 }
 
     function EscapeChars(const AStr: AnsiString): AnsiString;
     var
@@ -1008,29 +1088,26 @@ begin
         end;
     end
     else if FPContent = PContJson then begin
-      {  ParamJson := SO();   // empty ISuperObject
-        if Count > 0 then begin
-            for I := 0 to Count - 1 do begin
-                if Trim(Items[I].PName) <> '' then
-                    ParamJson.S[Trim(Items[I].PName)] := Trim(Items[I].PValue);
-            end;
-        end;
-        Result := AnsiString(ParamJson.AsJson(false, true));  // reorders names during conversion
-     }
         Result := '{';
         if Count > 0 then begin
             for I := 0 to Count - 1 do begin
                 PN := Trim(Items[I].PName);
                 if PN <> '' then begin
                     PV := Trim(Items[I].PValue);
+                    Len := Length(PV);
+                  { V8.62 check if adding Json, don't quote it }
+                    JFlag := False;
+                    if Len >= 2 then
+                            JFlag := ((PV[1]='{') and (PV[Len]='}')) or
+                                            ((PV[1]='[') and (PV[Len]=']'));
                     if Length(Result) > 1 then Result := Result + ',';
-                    Result := Result + '"' + EscapeChars(AnsiString(PN)) + '":"';
+                    Result := Result + '"' + EscapeChars(AnsiString(PN)) + '":';
+                    if NOT JFlag then Result := Result + '"';
                     if Items[I].PRaw then
-                     // Result := Result + EscapeChars(StringToUtf8(PV))+ '"'
-                       Result := Result + StringToUtf8(PV) + '"'
+                        Result := Result + StringToUtf8(PV)
                     else
-//                        Result := Result + EscapeChars(UrlEncodeToA(PV, CP_UTF8)) + '"';
-                        Result := Result + EscapeChars(StringToUtf8(PV)) + '"';
+                        Result := Result + EscapeChars(StringToUtf8(PV));
+                    if NOT JFlag then Result := Result + '"';
                 end;
             end;
         end;
@@ -1129,21 +1206,6 @@ begin
             RestSslCtx.SslSessionCacheModes := [sslSESS_CACHE_CLIENT,
                 sslSESS_CACHE_NO_INTERNAL_LOOKUP, sslSESS_CACHE_NO_INTERNAL_STORE] ;
         end;
-        if (FCertVerMethod >= CertVerBundle) then begin
-            rootfname := fSslRootFile;
-            if rootfname <> '' then begin
-                if (Pos (':', rootfname) = 0) then
-                    rootfname := ExtractFileDir (ParamStr (0)) + '\' + rootfname ;
-                if NOT FileExists (rootfname) then  begin
-                    LogEvent('Can Not Find SSL CA Bundle File - ' + rootfname);
-                    RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
-                end
-                else
-                   RestSslCtx.SslCAFile := rootfname;
-            end
-            else
-                RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
-        end;
     end ;
     try
         if NOT RestSslCtx.IsCtxInitialized then begin
@@ -1157,6 +1219,25 @@ begin
         begin
             LogEvent('Error Starting SSL: ' + E.Message);
         end;
+    end;
+
+ // V8.62 can not load bundle until context exists
+    if (FCertVerMethod >= CertVerBundle) then begin
+        rootfname := fSslRootFile;
+        if rootfname <> '' then begin
+            if (Pos (':', rootfname) = 0) then
+                rootfname := ExtractFileDir (ParamStr (0)) + '\' + rootfname ;
+            if NOT FileExists (rootfname) then  begin
+                LogEvent('Can Not Find SSL CA Bundle File - ' + rootfname);
+             //   RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
+                RestSslCtx.LoadCAFromString(sslRootCACertsBundle);  { V8.63 }
+            end
+            else
+               RestSslCtx.SslCAFile := rootfname;
+        end
+        else
+         //   RestSslCtx.SslCALines.Text := sslRootCACertsBundle;
+            RestSslCtx.LoadCAFromString(sslRootCACertsBundle);  { V8.63 }
     end;
 end;
 
@@ -1268,11 +1349,14 @@ var
 begin
     Inherited TriggerSessionConnected;
     if FDebugLevel >= DebugConn then begin
-        if FState = httpConnected then   { V8.60  }
-            S := 'Connected OK to: '
+        if FState = httpConnected then begin   { V8.60  }
+            S := 'Connected OK to';
+            if (FProxy <> '') or  (FSocksServer <> '') then    { V8.62 }
+                S := S + ' Proxy';
+        end
         else
-            S := 'Connection failed to: ';
-        S := S + FHostname + ' (' + IcsFmtIpv6Addr(AddrResolvedStr) + ')';    { V8.60  }
+            S := 'Connection failed to';
+        S := S + ': ' + FHostname + ' (' + IcsFmtIpv6Addr(AddrResolvedStr) + ')';    { V8.60  }
         LogEvent (S) ;
     end;
 end ;
@@ -1352,7 +1436,7 @@ procedure TSslHttpRest.TransferSslHandshakeDone(         { V8.61 }
 var
     CertChain: TX509List;
     ChainVerifyResult: LongWord;
-    info, VerifyInfo: String;
+    info, host, VerifyInfo: String;
     Safe: Boolean;
     HttpCtl: TWSocket;
 begin
@@ -1416,14 +1500,20 @@ begin
         exit ;  // unknown method
     end ;
 
+   // see if allowing self signed
+   if (PeerCert.VerifyResult = X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN) and
+                                        FSslAllowSelfSign then Safe := True;
+
   // tell user verification failed
     if NOT Safe then begin
         info := 'SSL Chain Verification Failed: ' + VerifyInfo + ', Domain: ';
         if PeerCert.SubAltNameDNS = '' then
-            info := info + IcsUnwrapNames (PeerCert.SubjectCName)
+            host := IcsUnwrapNames(PeerCert.SubjectCName)
         else
-            info := info + IcsUnwrapNames (PeerCert.SubAltNameDNS) ;
-        info := info + ', Expected: ' + HttpCtl.SslServerName ;
+            host := IcsUnwrapNames(PeerCert.SubAltNameDNS);
+        info := info + host;
+        if host <> HttpCtl.SslServerName then  { V8.62 only expected if different }
+            info := info + ', Expected: ' + HttpCtl.SslServerName;
         if FDebugLevel >= DebugSsl then
             LogEvent (info);
         FReasonPhrase := info;  { V8.58 }
@@ -1693,11 +1783,18 @@ begin
     FWebServer.ClientClass := TSimpleClientSocket;
     FWebServer.OnClientConnect := ServerClientConnect;
     FWebServer.OnClientDisconnect := ServerClientDisconnect;
-    FWebServer.OnBgException := SocketBgException ;
-    FWebServer.SocketErrs := wsErrFriendly ;
+    FWebServer.OnBgException := SocketBgException;
+    FWebServer.SocketErrs := wsErrFriendly;
+{$IFNDEF NO_DEBUG_LOG}
+    SrvLogger := TIcsLogger.Create (nil);
+    SrvLogger.OnIcsLogEvent := IcsLogEvent;
+    SrvLogger.LogOptions := [loDestEvent];
+    FWebServer.IcsLogger := SrvLogger;
+{$ENDIF}
     FWebSrvIP := '127.0.0.1';
     FWebSrvPort := '8080';
     FWebSrvPortSsl := '0';
+    FWebSrvHostName := 'localhost';
     FDebugLevel := DebugConn;
 end;
 
@@ -1705,6 +1802,9 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor TSimpleWebSrv.Destroy;
 begin
+{$IFNDEF NO_DEBUG_LOG}
+    FreeAndNil(SrvLogger) ;
+{$ENDIF}
     FreeAndNil(FWebServer);
     inherited Destroy;
 end;
@@ -1712,17 +1812,50 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TSimpleWebSrv.StartSrv: boolean ;
+var
+    S: String;
 begin
     Result := False;
     try
-        FWebServer.Addr := FWebSrvIP;
-        FWebServer.Port := FWebSrvPort ;
-        if FWebSrvPortSsl <> '0' then begin
-    //    x
+{$IFNDEF NO_DEBUG_LOG}
+        if FDebugLevel >= DebugSslLow then
+            SrvLogger.LogOptions := SrvLogger.LogOptions + [loSslInfo, loProtSpecInfo];
+{$ENDIF}
+        if FWebSrvPortSsl <> '0' then begin  { V8.62 support SSL }
+            FWebServer.IcsHosts.Clear;
+            FWebServer.IcsHosts.Add;  // only need one host
+            with FWebServer.IcsHosts [0] do
+            begin
+                HostEnabled := True;
+                BindIpAddr := FWebSrvIP;
+                HostNames.Text := FWebSrvHostName;
+                BindNonPort := atoi(FWebSrvPort);
+                BindSslPort := atoi(FWebSrvPortSsl) ;
+                HostTag := 'SimpleServer' ;
+                Descr := HostTag;
+                SslSrvSecurity := sslSrvSecTls12Less;
+                SslCert := IcsTrim(FWebSrvCertBundle);
+                SslPassword := IcsTrim(FwebSrvCertPassword);
+                if Assigned(OnSimpWebSrvAlpn) then begin
+                    CertSupplierProto := SuppProtoAcmeV2;
+                    CertChallenge := ChallAlpnSrv;
+                    FWebServer.SslCertAutoOrder := true; 
+                end;
+            end;
+            FWebServer.RootCA := FWebSrvRootFile;
+            S := FWebServer.ValidateHosts(False, False);  // don't stop on error, might be self signed certs }
+            LogEvent(S);
+        end
+        else begin
+            FWebServer.Addr := FWebSrvIP;
+            FWebServer.Port := FWebSrvPort;
         end;
-        FWebServer.ExclusiveAddr := true ;
-        FWebServer.Listen ;      // start listening for incoming connections
-        Result := IsRunning;
+        FWebServer.ExclusiveAddr := true;
+        S := FWebServer.MultiListenEx;    // start listening for incoming connections
+        if S = '' then
+            Result := True
+        else
+            LogEvent(S);
     except
         on E:Exception do begin
             LogEvent('Web Server failed to start: ' + E.Message);
@@ -1735,13 +1868,14 @@ end;
 function TSimpleWebSrv.StopSrv: boolean ;
 var
     I: integer;
+    StartTick: longword;
 begin
     try
-        if FWebServer.State <> wsClosed then FWebServer.Close ;
+        if FWebServer.State <> wsClosed then FWebServer.MultiClose;
         if FWebServer.ClientCount > 0 then begin
             for I := 0 to Pred (FWebServer.ClientCount) do begin
                 if FWebServer.Client [I].State = wsConnected then
-                                          FWebServer.Client [I].Close ;
+                                          FWebServer.Client [I].Close;
             end ;
         end ;
     except
@@ -1749,7 +1883,24 @@ begin
             LogEvent('Web Server failed to stop: ' + E.Message);
         end;
     end;
+
+ // wait five seconds for server to close
     Result := IsRunning;
+    if NOT Result then Exit;
+    StartTick := IcsGetTickCountX;
+    while True do begin
+        MessagePump;
+        Result := IsRunning;
+        if NOT Result then break;
+        if IcsElapsedSecs(StartTick) > 5 then break;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TSimpleWebSrv.ListenStates: String;   { V8.62 }
+begin
+    Result := FWebServer.ListenStates;
 end;
 
 
@@ -1758,7 +1909,16 @@ procedure TSimpleWebSrv.LogEvent(const Msg : String);
 begin
     if FDebugLevel = DebugNone then Exit;
     if Assigned(FOnServerProg) then
-        FOnServerProg(Self, loProtSpecErr, Msg) ;
+        FOnServerProg(Self, loProtSpecInfo, Msg) ;
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSimpleWebSrv.IcsLogEvent(Sender: TObject; LogOption: TLogOption;
+                                                      const Msg : String);
+begin
+    if Assigned(FOnServerProg) then
+        FOnServerProg(Self, LogOption, Msg) ;
 end ;
 
 
@@ -1784,18 +1944,19 @@ var
     Cli: TSimpleClientSocket;
 begin
     if Error <> 0 then begin
-        LogEvent('Server listen connect error: ' + WSocketErrorDesc(Error));
+        LogEvent({RFC3339_DateToStr(Now) +} 'Server listen connect error: ' + WSocketErrorDesc(Error));  { V8.63 }
         Client.Close;
         exit;
     end;
     if FDebugLevel >= DebugConn then
-        LogEvent('Client Connected from Address ' + IcsFmtIpv6Addr(Client.GetPeerAddr));
+       LogEvent({RFC3339_DateToStr(Now) + } 'Client Connected from Address ' + IcsFmtIpv6Addr(Client.GetPeerAddr));
     Cli := Client as TSimpleClientSocket;
     Cli.WebSrv := Self;
     Cli.LineMode := false;
     Cli.OnDataAvailable := Cli.CliDataAvailable;
     Cli.OnBgException := SocketBgException;
     Cli.OnSimpWebSrvReq := Self.FOnSimpWebSrvReq;
+    Cli.OnClientAlpnChallg := Cli.CliAlpnChallg;        { V8.62 }
     Cli.Banner := '' ;
     Cli.RecvBufMax := 8096;  // only expecting a request header
     SetLength(Cli.RecvBuffer, Cli.RecvBufMax + 1);
@@ -1807,7 +1968,7 @@ procedure TSimpleWebSrv.ServerClientDisconnect(Sender: TObject;
                                  Client: TWSocketClient; Error: Word);
 begin
     if FDebugLevel >= DebugConn then
-        LogEvent('Client Disconnected') ;
+        LogEvent({RFC3339_DateToStr(Now) +} 'Client Disconnected') ;
 end;
 
 
@@ -1846,6 +2007,22 @@ begin
             '<H1>' + RespStatus + '</H1>' + Msg + '<P>' + IcsCRLF +
             '</BODY></HTML>' + IcsCRLF;
     CliSendPage(RespStatus, 'text/html', '', BodyStr);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSimpleClientSocket.CliAlpnChallg(Sender: TObject; const Host: string; var CertFName: string);    { V8.62 }
+begin
+    if Assigned(WebSrv.FOnSimpWebSrvAlpn) then begin
+        WebSrv.LogEvent ('Checking for tls-alpn-01 challenge Acme SSL certificate');
+        WebSrv.FOnSimpWebSrvAlpn(Self, Host, CertFName);
+        if (CertFName <> '') and FileExists(CertFName) then begin
+            WebSrv.LogEvent ('Loading tls-alpn-01 challenge certificate: ' + CertFName);
+        end
+        else begin
+            WebSrv.LogEvent ('Failed to find tls-alpn-01 challenge certificate: ' + CertFName);
+        end;
+    end
 end;
 
 
@@ -1889,6 +2066,13 @@ begin
                     if (L > 0) then begin
                         RequestParams := Copy(RequestPath, L + 1, 99999);
                         RequestPath := Copy(RequestPath, 1, L - 1);
+                    end;
+                    L := Pos('://', RequestPath);  // V8.62 look for full URL sent by proxy
+                    if (L = 4) or (L = 5) then begin
+                        RequestPath := Copy(RequestPath, L + 3, 99999);  // strip http://
+                        L := Pos('/', RequestPath);  // start of path
+                        if (L > 1) then
+                            RequestPath := Copy(RequestPath, L, 999999);  // strip host
                     end;
                 end;
             end
@@ -1963,9 +2147,13 @@ begin
                 CliErrorResponse('500 Server Error', 'The requested URL ' +
                    TextToHtmlText(RequestPath) + ' was not processed by the server.');
         end
-        else
+        else begin
+            if WebSrv.DebugLevel >= DebugHdr then
+                WebSrv.LogEvent({RFC3339_DateToStr(Now) + } 'Server Request Ignored, Host: ' +
+                        RequestHost + ', Path: ' + RequestPath + ', Params: ' + RequestParams);   { V8.62 }
             CliErrorResponse('404 Not Found', 'The requested URL ' +
-            TextToHtmlText(RequestPath) + ' was not found on this server.');
+                 TextToHtmlText(RequestPath) + ' was not found on this server.');
+        end;
     except
          on E:Exception do
             WebSrv.LogEvent('Error Receive Data: ' + E.Message);
@@ -1980,7 +2168,7 @@ constructor TRestOAuth.Create (Aowner: TComponent);
 begin
     inherited Create(AOwner);
     FWebServer := TSimpleWebSrv.Create(self);
-    FWebServer.OnServerProg := RestProg;
+    FWebServer.OnServerProg := WebSrvProg;  { V8.63 got lost somehow }
     FWebServer.OnSimpWebSrvReq := WebSrvReq;
     HttpRest := TSslHttpRest.Create(self);
     HttpRest.OnHttpRestProg := RestProg;
@@ -1992,6 +2180,7 @@ begin
     FRefrMinsPrior := 120;
     FRefreshDT := 0;
     FScope := '';
+    FLoginPrompt := 'consent';   { V8.63 }
     FLastWebTick := TriggerDisabled;
     FRefreshTimer := TIcsTimer.Create(HttpRest);
     FRefreshTimer.OnTimer := RefreshOnTimer;
@@ -2017,6 +2206,14 @@ procedure TRestOAuth.RestProg(Sender: TObject; LogOption: TLogOption; const Msg:
 begin
     if Assigned(FOnOAuthProg) then
         FOnOAuthProg(Self, LogOption, Msg) ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TRestOAuth.WebSrvProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
+begin
+    if Assigned(FOnOAuthProg) then
+        FOnOAuthProg(Self, LogOption, 'OAuth Web Server ' + Msg);    { V8.63 }
 end;
 
 
@@ -2090,9 +2287,9 @@ begin
     Result := FWebServer.StartSrv;
     FLastWebTick := TriggerDisabled;  { V8.60 don't timeout until request }
     if Result then
-        LogEvent('Local Web Server Started on: ' + IcsFmtIpv6AddrPort(FWebSrvIP, FWebSrvPort))
+        LogEvent('OAuth Web Server Started on: ' + IcsFmtIpv6AddrPort(FWebSrvIP, FWebSrvPort))
     else
-        LogEvent('Local Web Server Failed to Start');
+        LogEvent('OAuth Web Server Failed to Start');
 end;
 
 
@@ -2130,7 +2327,7 @@ begin
      // close web server on idle timeout - 30 minutes
         if SrvIsRunning and (IcsElapsedMins(FLastWebTick) > 30) then begin
             FLastWebTick := TriggerDisabled;
-            LogEvent('Local Web Server Stopping on Idle Timeout');
+            LogEvent('OAuth Web Server Stopping on Idle Timeout');
             StopSrv;
         end;
     finally
@@ -2153,7 +2350,7 @@ var
             '<BODY>' + IcsCRLF +
             '<H1>' + Title + '</H1>' + Msg + '<P>' + IcsCRLF +
             '</BODY></HTML>' + IcsCRLF;
-        LogEvent('Web Response: ' + RespCode);
+        LogEvent('OAuth Web Response: ' + RespCode);
     end;
 
 begin
@@ -2169,7 +2366,7 @@ begin
     end;
 
     FLastWebTick := IcsGetTickCountX;   // timeout to close server
-    LogEvent('Web Server Request, Host: ' + Host + ', Path: ' + Path + ', Params: ' + Params);
+    LogEvent('OAuth Web Request, Host: ' + Host + ', Path: ' + Path + ', Params: ' + Params);
     Redirect := 'http://' + Host + Path;
     if Redirect <> FRedirectUrl then
         LogEvent('Warning, Differing Redirect URL: ' + Redirect);
@@ -2281,7 +2478,7 @@ begin
         SetError(OAuthErrParams, 'Can Not Start Authorization, Need Client ID and Secret');
         Exit;
     end;
-    FRedirState := 'ICS-' + IntToStr(GetTickCount);
+    FRedirState := 'ICS-' + IntToStr(IcsGetTickCountX);
     MyParams := TRestParams.Create(self);
     try
         MyParams.PContent := PContUrlencoded;
@@ -2293,6 +2490,14 @@ begin
             MyParams.AddItem('state', FRedirState, False);
         if (NOT (OAopAuthNoScope in FOAOptions)) and (FScope <> '') then
             MyParams.AddItem('scope', FScope, False);
+        if (OAopAuthPrompt in FOAOptions) and (FLoginPrompt <> '') then
+            MyParams.AddItem('prompt', FLoginPrompt, False); { V8.63 none consent select_account }
+        if (OAopAuthAccess in FOAOptions) then begin
+            if FRefreshOffline then
+                MyParams.AddItem('access_type', 'offline', False)   { V8.63 neeed so Google supplies refresh token }
+            else
+                MyParams.AddItem('access_type', 'online', False);
+        end;
         BrowserURL := FAppUrl + '?' + String(MyParams.GetParameters);
     finally
         MyParams.Free;
@@ -2333,7 +2538,7 @@ end;
 function TRestOAuth.GetToken: boolean;
 var
     StatCode, secs: Integer;
-    Info: string;
+    Info, Refresh: string;
 begin
     Result := false;
     StatCode := HttpRest.RestRequest(HttpPOST, FTokenUrl, False, '');
@@ -2343,17 +2548,23 @@ begin
         FAccToken := HttpRest.ResponseJson.S['access_token'];
         if FAccToken <> '' then begin
             Result := true;
-            FRefreshToken := HttpRest.ResponseJson.S['refresh_token'];
+            Refresh := HttpRest.ResponseJson.S['refresh_token'];
             secs := HttpRest.ResponseJson.I['expires_in'];
             FExpireDT := Now + (secs / SecsPerDay);
             FRefreshDT := 0;
             LogEvent('Got New Access Token: ' + FAccToken + ', Which Expires: ' +
                                                            DateTimeToStr(FExpireDT));
-            if FRefreshToken = '' then
-                LogEvent('No Refresh Available')
-            else begin
-               LogEvent('Which Can Be Refreshed With: ' + FRefreshToken);
-               if FRefreshAuto and (FRefrMinsPrior > 30) and (secs > 300) then begin
+
+            if Refresh = '' then begin
+                if  FRefreshToken <> '' then
+                    LogEvent('Kept Existing Refresh Token')
+                else
+                    LogEvent('No New Refresh Available');
+            end
+            else if Refresh <> '' then begin   { V8.63 don't kill old refresh if no new token }
+                FRefreshToken := Refresh;
+                LogEvent('Which Can Be Refreshed With: ' + FRefreshToken);
+                if FRefreshAuto and (FRefrMinsPrior > 30) and (secs > 300) then begin
                     if (secs > (FRefrMinsPrior * 60)) then
                         FRefreshDT := FExpireDT - ((FRefrMinsPrior * 60) / SecsPerDay)
                     else
@@ -2596,6 +2807,7 @@ begin
     HttpRest.OnRestRequestDone := SmsRestRequestDone;
     FSmsProvider := SmsProvKapow;
     FDebugLevel := DebugNone;
+    FSendDT := Now;
 end;
 
 
@@ -2616,17 +2828,22 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsSms.MakeRequest(const URL: String; AsyncReq: Boolean): Boolean;
+function TIcsSms.MakeRequest(HttpRequest: THttpRequest; const RestURL: String;
+                      AsyncReq: Boolean = False; const RawParams: String = ''): Boolean;
 var
     StatCode: Integer;
+    LoginJson: ISuperObject;
+    WideAcc: WideString;
+//    JwtPayload: String;
+//    UnixTime: Int64;
 begin
     Result := False;
     FLastError := '';
+    FLastResp := '';
+    FCredits := '';
+    FSentID := '';
+    FDelivery := '';
     if FSmsProvider = SmsProvKapow then begin
-        FLastResp := '';
-        FCredits := '';
-        FSentID := '';
-        FDelivery := '';
         if (FAccountName = '') or (FAccountPw = '') then begin
             FLastError := 'Must Specify Kapow Account Login';
             Exit;
@@ -2636,49 +2853,73 @@ begin
         HttpRest.RestParams.PContent := PContUrlencoded;
         HttpRest.SslCliSecurity := sslCliSecBack;  // only supports TLS1 !!!
         HttpRest.DebugLevel := FDebugLevel;
-        StatCode := HttpRest.RestRequest(httpPOST, URL, AsyncReq, '');
+        StatCode := HttpRest.RestRequest(httpPOST, RestURL, AsyncReq, RawParams);
         if AsyncReq then
             Result := (StatCode = 0)
         else
             Result := (StatCode = 200);  // raises exception on failure
     end
-    else begin
-        FLastError := 'Unknown Provider';
-    end;
-end;
+    else if FSmsProvider = SmsProvSmsWorks then begin
+        WideAcc := FAccountJson;
+        LoginJson := TSuperObject.ParseString(PWideChar(WideAcc), True);
+    (*  this block of Json come from The SMS Works account API, convert it into JWT
+     {
+      "customerid": "8545-xxxx-4e16-45bf-xxxx-506561072b83",
+      "key": "a87166be-xxxx-4cf3-xxxx-d6cdbd85fcfd",
+      "secret": "a29b39ax7x8x1xaxcx9x2xaxbx8x9x7x2xcx4xfxdx2x4xx8078b5f2f49d5f253"
+    }  *)
+        if NOT Assigned(LoginJson) then  begin
+            FLastError := 'The SMS Works Needs Valid Login Json from Account';   { V8.63 removed space, added The }
+            Exit;
+        end;
 
+     { see if have Json Web Token, otherwise get it using login Json }
+        if FAccountJwt = '' then begin
+            HttpRest.ServerAuth := httpAuthNone;
+            HttpRest.ContentTypePost := 'application/json;charset=UTF-8';
+            HttpRest.SslCliSecurity := sslCliSecHigh;
+            HttpRest.DebugLevel := FDebugLevel;
+            StatCode := HttpRest.RestRequest(httpPOST, 'https://api.thesmsworks.co.uk/v1/auth/token', False, FAccountJson);
+            if (StatCode <> 200) then begin
+                FLastResp := HttpRest.ResponseRaw;
+                FLastError := HttpRest.ResponseJson.S['message'];
+                Exit;
+            end;
+            FAccountJwt := HttpRest.ResponseJson.S['token'];
+            if Pos ('JWT ', FAccountJwt) = 1 then
+                FAccountJwt := Copy(FAccountJwt, 5, 99999)
+            else begin
+                FLastError := 'Invalid JWT Token from The SMS Works';    { V8.63 added The }
+                Exit;
+            end;
+        end;
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsSms.SendSms(const MobileNum, SmsMsg: String; AsyncReq: Boolean = True): Boolean;
-var
-    Msg, Num: String;
-begin
-    Result := False;
-    FLastError := '';
-    if (Length(MobileNum) < 6) then begin
-        FLastError := 'Must Specify Longer Mobile Telephone Number';
-        Exit;
-    end;
-    if (Length(SmsMsg) = 0)  then begin
-       FLastError := 'Must Specify SMS Message';
-        Exit;
-    end;
-    if (Pos ('00', MobileNum) = 1) then begin
-        FLastError := 'Internaional Access Code Not Needed';
-        Exit;
-    end;
-    if FSmsProvider = SmsProvKapow then begin
-        Msg := Trim(SmsMsg); // remove training CRLF
-        Msg := StringReplace(Msg, IcsCRLF, '\r ', [rfReplaceAll]);
-        Num := StringReplace(MobileNum, IcsSpace, '', [rfReplaceAll]);
-        HttpRest.RestParams.Clear;
-        HttpRest.RestParams.AddItem('mobile', Num, False);
-        if FMsgSender <> '' then
-            HttpRest.RestParams.AddItem('from_id', FMsgSender, False);
-        HttpRest.RestParams.AddItem('returnid', 'TRUE', False);
-        HttpRest.RestParams.AddItem('sms', Msg, False);
-        FSmsOperation := SmsOpSend;
-        Result := MakeRequest('https://secure.kapow.co.uk/scripts/sendsms.php', AsyncReq);
+     { we should be able to build JWT but SMS Works rejects our attempt with bad signature }
+     (*   if FAccountJwt = '' then begin
+            JwtPayload := IcsHexToBin(LoginJson.S['secret']);
+            if  Length (JwtPayload) <> 32 then  begin
+                FLastError := 'Invalid secret length';
+                Exit;
+            end;
+            UnixTime := IcsGetUnixTime;
+            JwtPayload := '{"key":"' + LoginJson.S['key'] + '","secret":"' +
+                        LoginJson.S['secret'] + '","iat":' + IntToStr(UnixTime) +
+                               '"exp":' + IntToStr(UnixTime+(SecsPerDay*3000)) +'}';  // issued at, expiree at, Unix time
+            FAccountJwt := IcsJoseJWSComp(jsigHmac256, JwtPayload,
+                         IcsHexToBin(LoginJson.S['secret']), Nil, 'JWT', '', '', '', '');
+        end;     *)
+
+        HttpRest.AuthBearerToken := FAccountJwt;
+        HttpRest.ServerAuth := httpAuthJWT;
+        HttpRest.Accept := 'application/json;charset=UTF-8';
+        HttpRest.RestParams.PContent := PContJson;
+        HttpRest.SslCliSecurity := sslCliSecHigh;
+        HttpRest.DebugLevel := FDebugLevel;
+        StatCode := HttpRest.RestRequest(HttpRequest, RestURL, AsyncReq, RawParams);
+        if AsyncReq then
+            Result := (StatCode = 0)
+        else
+            Result := (StatCode = 200) or (StatCode = 201);  // raises exception on failure V8.63 or 201
     end
     else begin
         FLastError := 'Unknown Provider';
@@ -2687,7 +2928,92 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TIcsSms.CheckSMS(ID: String; AsyncReq: Boolean = True): Boolean;
+function TIcsSms.SendSms(const MobileNums, SmsMsg: String; AsyncReq: Boolean = True): Boolean;
+var
+    Msg, NumArray, Path: String;
+    NumList: TStringList;
+    I: Integer;
+begin
+    Result := False;
+    FLastError := '';
+    NumList := TStringList.Create;
+    try
+        if (Length(SmsMsg) = 0)  then begin
+           FLastError := 'Must Specify SMS Message';
+            Exit;
+        end;
+        Msg := Trim(SmsMsg); // remove training CRLF
+        if (Length(MobileNums) < 6) then begin
+            FLastError := 'Must Specify Longer Mobile Telephone Number';
+            Exit;
+        end;
+        NumList.CommaText := MobileNums;
+        if NumList.Count = 0 then Exit; // can not be blank
+    // remove blank or suppressed lines
+        for I := 0 to NumList.Count - 1 do begin
+            if (Length(NumList[I]) = 0) or
+                (NumList[I][1] = '*') then
+                    NumList.Delete(I);
+            if I >= NumList.Count then break;
+        end;
+        if NumList.Count = 0 then Exit; // can not be blank
+        for I := 0 to NumList.Count - 1 do begin
+            NumList[I] := StringReplace(NumList[I], IcsSpace, '', [rfReplaceAll]);
+            if (Pos ('00', NumList[I]) = 1) then begin
+                FLastError := 'Internaional Access Code Not Needed - ' + NumList[I];
+                Exit;
+            end;
+            if Length(NumList[I]) < 6 then begin
+                FLastError := 'Must Specify Longer Mobile Telephone Number - ' + NumList[I];
+                Exit;
+            end;
+        end;
+        if FSmsProvider = SmsProvKapow then begin
+            HttpRest.ServerAuth := httpAuthNone;
+            Msg := StringReplace(Msg, IcsCRLF, '\r', [rfReplaceAll]);
+            HttpRest.RestParams.Clear;
+            HttpRest.RestParams.AddItem('mobile', NumList[0], False);     // only one at moment!!
+            if FMsgSender <> '' then
+                HttpRest.RestParams.AddItem('from_id', FMsgSender, False);
+            HttpRest.RestParams.AddItem('returnid', 'TRUE', False);
+            HttpRest.RestParams.AddItem('sms', Msg, False);
+            FSmsOperation := SmsOpSend;
+            Result := MakeRequest(httpPOST, 'https://secure.kapow.co.uk/scripts/sendsms.php', AsyncReq);
+        end
+        else if FSmsProvider = SmsProvSmsWorks then begin
+            HttpRest.RestParams.Clear;
+            if NumList.Count = 1 then begin
+                HttpRest.RestParams.AddItem('destination', NumList[0], False);
+                Path := 'message/send';
+            end
+            else begin
+                NumArray := '["';
+                for I := 0 to NumList.Count - 1 do
+                    NumArray := NumArray + NumList[I] + '","';
+                SetLength(NumArray, Length(NumArray)-2);
+                NumArray := NumArray + ']';
+                Path := 'batch/send';
+                HttpRest.RestParams.AddItem('destinations', NumArray, True);
+            end;
+            if FMsgSender <> '' then
+                HttpRest.RestParams.AddItem('sender', FMsgSender, False);
+            HttpRest.RestParams.AddItem('content', Msg, False);
+            HttpRest.RestParams.AddItem('tag', 'ICS', False);
+            HttpRest.RestParams.AddItem('schedule', RFC3339_DateToStr(FSendDT));  // ISO time in UTC with time zone
+            FSmsOperation := SmsOpSend;
+            Result := MakeRequest(httpPOST, 'https://api.thesmsworks.co.uk/v1/' + Path, AsyncReq);
+        end
+        else begin
+            FLastError := 'Unknown Provider';
+        end;
+    finally
+        NumList.Free;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TIcsSms.CheckSMS(ID: String; AsyncReq: Boolean = True; Batch: Boolean = False): Boolean;
 begin
     Result := False;
     FLastError := '';
@@ -2699,7 +3025,15 @@ begin
         HttpRest.RestParams.Clear;
         HttpRest.RestParams.AddItem('returnid', ID, False);
         FSmsOperation := SmsOpCheck;
-        Result := MakeRequest('https://secure.kapow.co.uk/scripts/chk_status.php', AsyncReq);
+        Result := MakeRequest(httpPOST, 'https://secure.kapow.co.uk/scripts/chk_status.php', AsyncReq);
+    end
+    else if FSmsProvider = SmsProvSmsWorks then begin
+        HttpRest.RestParams.Clear;
+        FSmsOperation := SmsOpCheck;
+        if Batch then
+            Result := MakeRequest(httpGET, 'https://api.thesmsworks.co.uk/v1/batch/' + ID, AsyncReq)
+        else
+            Result := MakeRequest(httpGET, 'https://api.thesmsworks.co.uk/v1/messages/' + ID, AsyncReq);
     end
     else begin
         FLastError := 'Unknown Provider';
@@ -2715,7 +3049,12 @@ begin
     if FSmsProvider = SmsProvKapow then begin
         HttpRest.RestParams.Clear;
         FSmsOperation := SmsOpCredit;
-        Result := MakeRequest('https://secure.kapow.co.uk/scripts/chk_credit.php', AsyncReq);
+        Result := MakeRequest(httpPOST, 'https://secure.kapow.co.uk/scripts/chk_credit.php', AsyncReq);
+    end
+    else if FSmsProvider = SmsProvSmsWorks then begin
+        HttpRest.RestParams.Clear;
+        FSmsOperation := SmsOpCredit;
+        Result := MakeRequest(httpGET, 'https://api.thesmsworks.co.uk/v1/credits/balance', AsyncReq);
     end
     else begin
         FLastError := 'Unknown Provider';
@@ -2735,55 +3074,105 @@ begin
         if Assigned(FOnSmsDone) then FOnSmsDone(Self);
         Exit;
     end;
-    if (HttpRest.StatusCode = 200) then begin
-        FLastResp := HttpRest.ResponseRaw;
-        if FLastResp = 'ERROR' then
-            FLastError := 'Failed: Kapow Reports an Error'
-        else if FLastResp = 'USERPASS' then
-            FLastError := 'Failed: Kapow Reports Invalid Account Details'
-        else if FLastResp = 'NOCREDIT' then
-            FLastError := 'Failed: Kapow Reports No Account Credit'
-        else begin
-            if FSmsOperation = SmsOpCredit then begin
-                FCredits := FLastResp;
-                FLastError := '';
-            end
-            else if FSmsOperation = SmsOpSend then begin
-                if  Pos ('OK', FLastResp) = 1 then begin // OK 148 11472734895956042
-                    FLastError := '';
-                    S := Trim (Copy (FLastResp, 4, 999));
-                    J := Pos (IcsSpace, S);
-                    if J > 0 then begin
-                        FCredits := Copy (S, 1, Pred (J));
-                        FSentID := Copy (S, Succ (J), 999);
-                    end ;
-                end;
-            end
-            else if FSmsOperation = SmsOpCheck then begin
-                if FLastResp = 'D' then begin
-                    FDelivery := 'SMS Delivered OK';
+    if FSmsProvider = SmsProvKapow then begin
+
+      // Kapow returns simple text, no formatting or tags or line end
+        if (HttpRest.StatusCode = 200) then begin
+            FLastResp := HttpRest.ResponseRaw;
+            if FLastResp = 'ERROR' then
+                FLastError := 'Failed: Kapow Reports an Error'
+            else if FLastResp = 'USERPASS' then
+                FLastError := 'Failed: Kapow Reports Invalid Account Details'
+            else if FLastResp = 'NOCREDIT' then
+                FLastError := 'Failed: Kapow Reports No Account Credit'
+            else begin
+                if FSmsOperation = SmsOpCredit then begin
+                    FCredits := FLastResp;
                     FLastError := '';
                 end
-                else if FLastResp = 'N' then
-                    FDelivery := 'Message Awaiting Delivery'
-                else if FLastResp = 'S' then
-                    FDelivery := 'Sent to SMSC'
-                else if FLastResp = 'B' then
-                    FDelivery := 'Message Buffered Awaiting Delivery'
-                else if FLastResp = 'R' then
-                    FDelivery := 'Retrying Message'
-                else if FLastResp = 'X' then
-                    FDelivery := 'Message Delivery Failed'
+                else if FSmsOperation = SmsOpSend then begin
+                    if  Pos ('OK', FLastResp) = 1 then begin // OK 148 11472734895956042
+                        FLastError := '';
+                        S := Trim (Copy (FLastResp, 4, 999));
+                        J := Pos (IcsSpace, S);
+                        if J > 0 then begin
+                            FCredits := Copy (S, 1, Pred (J));
+                            FSentID := Copy (S, Succ (J), 999);
+                        end ;
+                    end;
+                end
+                else if FSmsOperation = SmsOpCheck then begin
+                    if FLastResp = 'D' then begin
+                        FDelivery := 'SMS Delivered OK';
+                        FLastError := '';
+                    end
+                    else if FLastResp = 'N' then
+                        FDelivery := 'Message Awaiting Delivery'
+                    else if FLastResp = 'S' then
+                        FDelivery := 'Sent to SMSC'
+                    else if FLastResp = 'B' then
+                        FDelivery := 'Message Buffered Awaiting Delivery'
+                    else if FLastResp = 'R' then
+                        FDelivery := 'Retrying Message'
+                    else if FLastResp = 'X' then
+                        FDelivery := 'Message Delivery Failed'
+                    else
+                        FDelivery := 'Unknown Delivery: ' + FLastResp;
+                end
                 else
-                    FDelivery := 'Unknown Delivery: ' + FLastResp;
+                    FLastError := 'Failed: Unexpected Kapow Response - ' + FLastResp;
             end
-            else
-                FLastError := 'Failed: Unexpected Kapow Response - ' + FLastResp;
         end
+        else
+            FLastError := 'Failed: Status ' + IntToStr(HttpRest.StatusCode) + ' - ' +
+                                                              HttpRest.ReasonPhrase;
     end
-    else
-        FLastError := 'Failed: Status ' + IntToStr(HttpRest.StatusCode) + ' - ' +
-                                                          HttpRest.ReasonPhrase;  
+    else if FSmsProvider = SmsProvSmsWorks then begin
+
+      // The SMS Works returns Json
+        if (HttpRest.StatusCode = 201) then begin
+            FLastResp := HttpRest.ResponseRaw;
+            if FSmsOperation = SmsOpSend then begin
+                FSentID := HttpRest.ResponseJson.S['messageid'];
+                FCredits := HttpRest.ResponseJson.S['credits'];
+                FDelivery := HttpRest.ResponseJson.S['status'];
+                if FSentID = '' then
+                    FSentID := HttpRest.ResponseJson.S['batchid'];  // should really keep separately !!
+                FLastError := '';
+            end;
+        end
+        else if (HttpRest.StatusCode = 200) then begin
+          // ignore response getting token, no event 
+            if (Pos ('auth/token', HttpRest.URL) > 0) then Exit;
+            if FSmsOperation = SmsOpCredit then begin
+                FCredits := HttpRest.ResponseJson.S['credits'];
+                FLastError := '';
+            end
+            else if FSmsOperation = SmsOpCheck then begin
+                FCredits := HttpRest.ResponseJson.S['credits'];
+                FDelivery := HttpRest.ResponseJson.S['status'];
+                FLastError := '';
+             // pending check batch response, array for each message    
+            end;
+        end
+        else if (HttpRest.StatusCode >= 400) then begin
+            FLastResp := HttpRest.ResponseRaw;
+            if Assigned(HttpRest.ResponseJson) then
+                FLastError := HttpRest.ResponseJson.S['message']
+            else
+                FLastResp := HttpRest.ReasonPhrase;
+        end
+        else
+            FLastError := 'Failed: Status ' + IntToStr(HttpRest.StatusCode) + ' - ' +
+                                                              HttpRest.ReasonPhrase;
+        if (FDelivery = 'DELIVERED') or  (FDelivery = 'SENT') then begin   { V8.63 same responses as Kapow }
+            FDelivery := 'SMS Delivered OK';
+            FLastError := '';
+        end
+        else if (FDelivery = 'REJECTED') or (FDelivery = 'UNDELIVERABLE') then
+            FDelivery := 'Message Delivery Failed';
+
+     end;
     if Assigned(FOnSmsDone) then FOnSmsDone(Self);
 end;
 

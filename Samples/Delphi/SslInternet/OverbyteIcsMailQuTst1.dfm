@@ -382,7 +382,7 @@ object DemoForm: TDemoForm
         Width = 93
         Height = 22
         Style = csDropDownList
-        ItemHeight = 0
+        ItemHeight = 14
         ItemIndex = 4
         TabOrder = 4
         Text = 'Low'
@@ -436,6 +436,10 @@ object DemoForm: TDemoForm
     object TabServers: TTabSheet
       Caption = 'Mail Servers'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object SMTPServer1: TGroupBox
         Left = 10
         Top = 10
@@ -562,7 +566,7 @@ object DemoForm: TDemoForm
           Width = 171
           Height = 22
           Style = csDropDownList
-          ItemHeight = 14
+          ItemHeight = 0
           TabOrder = 7
           OnChange = PrefChange
         end
@@ -702,7 +706,7 @@ object DemoForm: TDemoForm
           Width = 173
           Height = 22
           Style = csDropDownList
-          ItemHeight = 14
+          ItemHeight = 0
           TabOrder = 7
           OnChange = PrefChange
         end
@@ -720,6 +724,10 @@ object DemoForm: TDemoForm
     object TabSettings: TTabSheet
       Caption = 'Mail Settings'
       ImageIndex = 2
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label8: TLabel
         Left = 10
         Top = 100
@@ -974,6 +982,7 @@ object DemoForm: TDemoForm
     SslRevocation = False
     SslReportChain = False
     SslRootFile = 'RootCaCertsBundle.pem'
+    MailCliSecurity = sslCliSecTls11
     SmtpMethod = MailSmtpRelay
     FileQuSent = '"MailQuSent-"yyyymmdd".log'
     LogQuSent = False

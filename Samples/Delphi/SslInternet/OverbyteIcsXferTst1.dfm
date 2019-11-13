@@ -2,8 +2,8 @@ object Form1: TForm1
   Left = 196
   Top = 51
   Caption = 
-    'ICS Multi File Transfer Demo -  http://www.overbyte.be - V8.60 -' +
-    ' 18th March 2019'
+    'ICS Multi File Transfer Demo -  http://www.overbyte.be - V8.63 -' +
+    ' 3rd November 2019'
   ClientHeight = 773
   ClientWidth = 908
   Color = clBtnFace
@@ -90,7 +90,7 @@ object Form1: TForm1
     Top = 5
     Width = 440
     Height = 281
-    ActivePage = TabSheet2
+    ActivePage = TabSheet1
     TabOrder = 2
     object TabSheet1: TTabSheet
       Caption = 'TIcsFileCopy'
@@ -434,7 +434,7 @@ object Form1: TForm1
         Top = 150
         Width = 46
         Height = 22
-        TabOrder = 9
+        TabOrder = 15
         Text = '0'
       end
       object FtpNoZlib: TCheckBox
@@ -443,7 +443,7 @@ object Form1: TForm1
         Width = 126
         Height = 17
         Caption = 'No Mode Z Compress'
-        TabOrder = 10
+        TabOrder = 9
       end
       object FtpNoTmpFile: TCheckBox
         Left = 145
@@ -451,7 +451,7 @@ object Form1: TForm1
         Width = 134
         Height = 17
         Caption = 'No TMP File for Xfers'
-        TabOrder = 11
+        TabOrder = 12
       end
       object FtpNoUtf8: TCheckBox
         Left = 285
@@ -459,7 +459,7 @@ object Form1: TForm1
         Width = 100
         Height = 17
         Caption = 'Turn UTF8 Off'
-        TabOrder = 12
+        TabOrder = 16
       end
       object ftpNoHost: TCheckBox
         Left = 145
@@ -467,7 +467,7 @@ object Form1: TForm1
         Width = 117
         Height = 17
         Caption = 'No HOST Command'
-        TabOrder = 14
+        TabOrder = 13
       end
       object ftpIgnoreUtf8: TCheckBox
         Left = 285
@@ -475,7 +475,7 @@ object Form1: TForm1
         Width = 100
         Height = 17
         Caption = 'Ignore UTF8 '
-        TabOrder = 15
+        TabOrder = 17
       end
       object FtpNoMd5: TCheckBox
         Left = 5
@@ -483,24 +483,28 @@ object Form1: TForm1
         Width = 126
         Height = 17
         Caption = 'No MD5 Check'
-        TabOrder = 13
+        TabOrder = 10
       end
       object FtpNoCrc: TCheckBox
-        Left = 5
+        Left = 3
         Top = 215
         Width = 126
         Height = 17
         Caption = 'No CRC Check'
-        TabOrder = 16
+        TabOrder = 11
+      end
+      object FtpFixPassiveLanIP: TCheckBox
+        Left = 145
+        Top = 215
+        Width = 146
+        Height = 17
+        Caption = 'Fix Passive LAN IP Addr'
+        TabOrder = 14
       end
     end
     object TabSheet5: TTabSheet
       Caption = 'Multi FTP'
       ImageIndex = 4
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label8: TLabel
         Left = 5
         Top = 10
@@ -696,7 +700,7 @@ object Form1: TForm1
         Top = 83
         Width = 113
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 7
         Text = ' Never'
         Items.Strings = (
@@ -709,10 +713,6 @@ object Form1: TForm1
     object TabSheet4: TTabSheet
       Caption = 'Single FTP'
       ImageIndex = 3
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label15: TLabel
         Left = 5
         Top = 10
@@ -822,7 +822,7 @@ object Form1: TForm1
         Top = 160
         Width = 113
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 8
         Text = ' Never'
         Items.Strings = (
@@ -835,10 +835,6 @@ object Form1: TForm1
     object TabSheet3: TTabSheet
       Caption = 'TIcsHttpMulti'
       ImageIndex = 2
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label5: TLabel
         Left = 5
         Top = 0
@@ -916,7 +912,7 @@ object Form1: TForm1
         Top = 140
         Width = 111
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 1
         Text = '*.zip'
         Items.Strings = (
@@ -949,7 +945,7 @@ object Form1: TForm1
         Top = 140
         Width = 113
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 7
         Text = ' Never'
         Items.Strings = (

@@ -4,11 +4,11 @@ Author:       François PIETTE
 Creation:     Jan 24, 2003
 Description:  A basic SSL server using TSslWSocket.
               Make use of OpenSSL (http://www.openssl.org)
-Version:      8.00
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2011 by François PIETTE
+Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -42,6 +42,10 @@ Legal issues: Copyright (C) 2003-2011 by François PIETTE
 History:
 Jan 29, 2009 V1.00.2 Arno removed a D2009 warning.
 Dec 10, 2014 V8.0 Angus added handshake response message
+Jun 18, 2019 V8.62 Removed AcceptableHosts, never used with servers.
+
+
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -166,7 +170,7 @@ const
     KeyCAFile          = 'CAFile';
     KeyCAPath          = 'CAPath';
     KeyVerifyPeer      = 'VerifyPeer';
-    KeyAcceptableHosts = 'AcceptableHosts';
+//    KeyAcceptableHosts = 'AcceptableHosts';
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -236,8 +240,6 @@ begin
                                                    'cacert.pem');
         CAPathEdit.Text      := IniFile.ReadString(SectionData, KeyCAPath,
                                                    '');
-        AcceptableHostsEdit.Text := IniFile.ReadString(SectionData, KeyAcceptableHosts,
-                                                       'www.overbyte.be;www.borland.com');
         VerifyPeerCheckBox.Checked := Boolean(IniFile.ReadInteger(SectionData,
                                                                   KeyVerifyPeer,
                                                                   0));
@@ -265,7 +267,6 @@ begin
     IniFile.WriteString(SectionData,    KeyPassPhrase,  PassPhraseEdit.Text);
     IniFile.WriteString(SectionData,    KeyCAFile,      CAFileEdit.Text);
     IniFile.WriteString(SectionData,    KeyCAPath,      CAPathEdit.Text);
-    IniFile.WriteString(SectionData,    KeyAcceptableHosts, AcceptableHostsEdit.Text);
     IniFile.WriteInteger(SectionData,   KeyVerifyPeer,  Ord(VerifyPeerCheckBox.Checked));
     IniFile.UpdateFile;
     IniFile.Free;

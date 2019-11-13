@@ -3,7 +3,7 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.62
+Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1996-2019 by François PIETTE
@@ -1274,8 +1274,8 @@ Jul 14, 2018 V8.56  Support SSL application layer protocol negotiation (ALPN)
                      extension which is sent with the initial SSL hello.
                     For clients, SslAlpnProtocols sets SslContext with a list of
                       protocols the application supports (ie http/1.1, h2), and
-                      SslGetAlpnProtocol after connection returns whatever the
-                      server selected (if any).
+                      SslAlpnProtocol property after connection returns whatever
+                      the server selected (if any).
                     For servers, there is a new OnSslAlpnSelect event that has
                        the list of protocols from the client, from which one
                        may be selected (ie H2 to support HTTP/2).
@@ -1308,7 +1308,26 @@ Mar 18, 2019 V8.60 Added AddrResolvedStr read only resolved IPv4 or IPv6 address
                      in server IcsHosts if TLS1.3 fails.
 Apr 16, 2019 V8.61 Fixed ValidateCertChain to check certificate start and expiry
                       dates in UTC time instead of local time.
-May 21, 2019 V8.62 Version only so far
+Aug 07, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functions
+                     outside this unit.
+                   DHParams only needed for servers, don't use if using client
+                     security to avoid issues with high security levels.
+                   Raise background exception for user exceptions in OnDataAvailable
+                     event rather than silently ignoring them.
+                   SSL ALPN now properly tested, for client SslAlpnProtocol property
+                     returns what the server selects (if anything), for server the
+                     selected protocol is now correctly sent.
+                   Moved FIcsLogger to TIcsWndControl ao that unit can log errors.
+                   Added source to HandleBackGroundException so we know where
+                       errors come from, when using IcsLogger.
+Oct 24, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
+                     version to break receive loop after exception handling.
+                   Added LoadFromP12Buffer to load PFX certificate from buffer to
+                     TX509Base, thanks to Mitzi.
+                   GetSelfSigned now has better check for self signed certificates.
+                   Added Sha256Digest and Sha256Hex to TX509Base.
+                   CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
+
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -1517,8 +1536,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 862;
-  CopyRight    : String     = ' TWSocket (c) 1996-2019 Francois Piette V8.62 ';
+  WSocketVersion            = 863;
+  CopyRight    : String     = ' TWSocket (c) 1996-2019 Francois Piette V8.63 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -1948,10 +1967,10 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     FonException        : TIcsException; { V8.36 }
     FAddrResolvedStr    : String;        { V8.60 IPv4 or IPv6 address }
 {$IFNDEF NO_DEBUG_LOG}
-    FIcsLogger          : TIcsLogger;                                           { V5.21 }
-    procedure   SetIcsLogger(const Value : TIcsLogger); virtual;                { V5.21 }
-    procedure   DebugLog(LogOption : TLogOption; const Msg : String); virtual;  { V5.21 }
-    function    CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { V5.21 }
+//  FIcsLogger          : TIcsLogger;                        { V5.21, V8.62 moved to TIcsWndControl }
+  procedure   SetIcsLogger(const Value : TIcsLogger); virtual;                { V5.21 }
+  procedure   DebugLog(LogOption : TLogOption; const Msg : String); virtual;  { V5.21 }
+  function    CheckLogOptions(const LogOption: TLogOption): Boolean; virtual; { V5.21 }
 {$ENDIF}
     procedure   AbortComponent; override; { V7.35 }
     procedure   WndProc(var MsgRec: TMessage); override;
@@ -2685,6 +2704,7 @@ const
         'TLS13-AES-128-CCM-8-SHA256:TLS13-AES-128-CCM-SHA256:';
 
    { V8.27 default 2048 and 4096-bit DH Params needed for DH/DHE ciphers - ideally create your own !!!! }
+   { note DH params are not needed for ECDHE ciphers, only DHE, so not needed for sslCiphersMozillaSrvHigh }
     sslDHParams2048 =
         '-----BEGIN DH PARAMETERS-----' + #13#10 +
         'MIIBCAKCAQEA5lgSzWKPV8ZthosYUuPWuawgmUFfSyR/1srizVn7tXNPYE10Pz/t' + #13#10 +
@@ -2794,6 +2814,8 @@ type
         FSha1Hex            : String;
         FX509Inters         : PStack;     { V8.41 }
         FX509CATrust        : PStack;     { V8.41 }
+        FSha256Digest       : THashBytes20;  { V8.63 }
+        FSha256Hex          : String;        { V8.63 }
     protected
         FVerifyResult       : Integer;  // current verify result
         FVerifyDepth        : Integer;
@@ -2867,6 +2889,8 @@ type
         function    GetIsCATrustLoaded : Boolean;                          { V8.41 }
         function    GetInterCount: Integer;                                { V8.41 }
         function    GetCATrustCount: Integer;                              { V8.41 }
+        function    GetSha256Digest: THashBytes20;                         { V8.63 }
+        function    GetSha256Hex: String;        { aka fingerprint }       { V8.63 }
     public
         constructor Create(AOwner: TComponent; X509: Pointer = nil); reintroduce;
         destructor  Destroy; override;
@@ -2911,6 +2935,8 @@ type
         procedure   PrivateKeyLoadFromText(Lines: String; const Password: String = '');  { V8.27 }
         procedure   LoadFromP12File(const FileName: String; IncludePKey: TCertReadOpt = croNo;
                        IncludeInters: TCertReadOpt = croNo; const Password: String = '');     { V8.40 }
+        procedure   LoadFromP12Buffer(ABuffer: Pointer; ABufferSize: Cardinal;
+                       IncludePKey, IncludeInters: TCertReadOpt; const Password: String);  { V8.63 }
         procedure   LoadFromP7BFile(const FileName: String; IncludeInters: TCertReadOpt = croNo); { V8.40 }
         procedure   LoadFromFile(const FileName: String; IncludePKey: TCertReadOpt = croNo;
                        IncludeInters: TCertReadOpt = croNo; const Password: String = ''); { V8.40 }
@@ -3024,6 +3050,8 @@ type
         property    IsCATrustLoaded     : Boolean       read GetIsCATrustLoaded;      { V8.41 }
         property    InterCount          : Integer       read GetInterCount;           { V8.41 }
         property    CATrustCount        : Integer       read GetCATrustCount;         { V8.41 }
+        property    Sha256Digest        : THashBytes20  read  GetSha256Digest;        { V8.63 }
+        property    Sha256Hex           : String        read  GetSha256Hex; { aka fingerprint V8.63 }
     end;
 
     TX509Class = class of TX509Base;
@@ -3522,7 +3550,6 @@ type
         procedure SetSslCliSecurity(Value: TSslCliSecurity);                { V8.54 }
         procedure SetSslCliSec;                                             { V8.54 }
         procedure UpdateAlpnProtocols;                                      { V8.56 }
-        procedure SetSslAlpnProtocols(ProtoList: TStrings);                 { V8.56 }
     {$IFNDEF OPENSSL_NO_ENGINE}
         procedure Notification(AComponent: TComponent; Operation: TOperation); override;
         procedure SetCtxEngine(const Value: TSslEngine);
@@ -3560,8 +3587,10 @@ type
         function    SslGetCerts(Cert: TX509Base): integer;              { V8.41 }
         procedure   SslSetCertX509;                                     { V8.41 }
         procedure   SetProtoSec;                                        { V8.54 }
+        procedure   SetSslAlpnProtocols(ProtoList: TStrings);           { V8.56 }
         property    SslCertX509     : TX509Base         read  FSslCertX509
                                                         write FSslCertX509;   { V8.41 }
+        property    SslCtxPtr      : PSSL_CTX           read  FSslCtx;        { V8.62 }
     published
         property  SslCertFile       : String            read  FSslCertFile
                                                         write SetSslCertFile;
@@ -3787,6 +3816,8 @@ type
         FSslServerName              : String;
         FOnSslProtoMsg              : TSslProtoMsgEvent;  { V8.40 }
         FOnSslAlpnSelect            : TSslAlpnSelect;     { V8.56 }
+        FAlpnProtoAnsi              : AnsiString;         { V8.62 server sending response }
+        FSslAlpnProto               : String;             { V8.62 client received response }
         procedure   RaiseLastOpenSslError(EClass          : ExceptClass;
                                           Dump            : Boolean = FALSE;
                                           const CustomMsg : String  = ''); virtual;
@@ -3831,7 +3862,8 @@ type
         procedure Notification(AComponent: TComponent; Operation: TOperation); override;
         procedure TriggerSslShutDownComplete(ErrCode: Integer); virtual;
         procedure TriggerSslServerName(var Ctx: TSslContext; var ErrCode: TTlsExtError); virtual;  { V8.45 }
-        procedure TriggerSslAlpnSelect(ProtoList: TStrings; var SelProto: String; var ErrCode: TTlsExtError);   { V8.56 }
+        procedure TriggerSslAlpnSelect(ProtoList: TStrings; var SelProto: String; var ErrCode: TTlsExtError); virtual; { V8.56 }
+        procedure SslGetAlpnProtocol;                                   { V8.62 was function }
         function  MsgHandlersCount : Integer; override;
         procedure AllocateMsgHandlers; override;
         procedure FreeMsgHandlers; override;
@@ -3859,7 +3891,6 @@ type
         procedure   AcceptSslHandshake;
         procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
         function    SslGetSupportedCiphers (Supported, Remote: boolean): String;    { V8.27 }
-        function    SslGetAlpnProtocol: String;         { V8.56 }
 
         property    LastSslError       : Integer          read FLastSslError;
         property    ExplizitSsl        : Boolean          read  FExplizitSsl
@@ -3924,8 +3955,9 @@ type
         property  SslEncryption  : String                 read  FSslEncryption;          { V8.14  }
         property  SslKeyExchange : String                 read  FSslKeyExchange;         { V8.14  }
         property  SslMessAuth    : String                 read  FSslMessAuth;            { V8.14  }
-        property  SslCertPeerName : String                read  FSslCertPeerName;        { V8.39 }
+        property  SslCertPeerName : String                read  FSslCertPeerName;        { V8.39  }
         property  SslKeyAuth     : String                 read  FSslKeyAuth;             { V8.41  }
+        property  SslAlpnProto   : String                 read  FSslAlpnProto;           { V8.62  }
   private
       function my_WSocket_recv(s: TSocket;
                                var Buf: TWSocketData; len, flags: Integer): Integer;
@@ -7330,7 +7362,7 @@ begin
         end;
     except
         on E:Exception do
-            HandleBackGroundException(E);
+            HandleBackGroundException(E, 'TCustomWSocket.WndProc');
     end;
 end;
 
@@ -8256,7 +8288,10 @@ begin
             else if lCount = 0 then
                 bMore := FALSE;
         except
-            bMore := FALSE;
+            on E:Exception do begin
+                HandleBackGroundException(E, 'TCustomWSocket.ASyncReceive');  { V8.62 don't ignore user errors }
+                bMore := FALSE;                                               { V8.63 and don't continue looping }
+            end;
         end;
     end;
 end;
@@ -11028,7 +11063,7 @@ begin
                     OnError := TmpOnError;
                 end;
             except on E: Exception do
-                HandleBackGroundException(E);
+                HandleBackGroundException(E, 'TCustomWSocket.TriggerDNSLookupDone');
             end
         else
             TriggerSessionConnected(Error);
@@ -12293,7 +12328,7 @@ begin
                 WMTriggerDataAvailable(MsgRec)
             except
                 on E:Exception do
-                    HandleBackGroundException(E);
+                    HandleBackGroundException(E, 'TCustomLineWSocket.WndProc');
             end;
         end
         else
@@ -15601,7 +15636,6 @@ var
     ProtoList: TStringList;
     Count: Integer;
     SelProto: String;
-    ProtoAnsi: AnsiString;
 begin
     Result := SSL_TLSEXT_ERR_NOACK;
     outlen := 0;
@@ -15622,11 +15656,15 @@ begin
                 Err := teeNoAck;
                 Ws.TriggerSslAlpnSelect(ProtoList, SelProto, Err);
                 outlen := Length(SelProto);
-                if (outlen > 0) then begin
-                    ProtoAnsi := AnsiString(SelProto);
-                    output := @ProtoAnsi[1];
-                    Result := Ord(Err);
-                end;
+                if (Err = teeOk) and (outlen > 0) then begin
+                    WS.FAlpnProtoAnsi := AnsiString(SelProto);   { V8.62 made static }
+                    output := @WS.FAlpnProtoAnsi[1];
+                    Result := SSL_TLSEXT_ERR_OK;  { V8.62 }
+                end
+                else if Err = teeAlertWarning then
+                    Result := SSL_TLSEXT_ERR_ALERT_WARNING    { V8.62 }
+                else if Err = teeAlertFatal then
+                    Result := SSL_TLSEXT_ERR_ALERT_FATAL;     { V8.62 }
             end;
         finally
             ProtoList.Free;
@@ -15747,10 +15785,13 @@ begin
               DHparam file needed to generate DH and DHE keys, but not ECDH or ECDHE.
               V8.27 load DHParams from file or PEM string list, note FSslDHParamLines
                 is defaulted with 4096 params so used if FSslDHParamFile blank  }
-            if (FSslDHParamLines.Count > 0) and (FSslDHParamFile = '') then
-                LoadDHParamsFromString(FSslDHParamLines.Text)
-            else
-                LoadDHParamsFromFile(FSslDHParamFile);
+           { V8.62 only needed for servers, don't if using client security }
+            if FSslCliSecurity = sslCliSecIgnore then begin
+                if (FSslDHParamLines.Count > 0) and (FSslDHParamFile = '') then
+                    LoadDHParamsFromString(FSslDHParamLines.Text)
+                else
+                    LoadDHParamsFromFile(FSslDHParamFile);
+             end;
 
             // V8.15 Elliptic Curve to generate Ephemeral ECDH keys V8.39 old stuff gone
             if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1100) then begin    { V8.51 }
@@ -16707,6 +16748,8 @@ begin
         FX509 := nil;
         FSha1Hex  := '';
         FSha1Digest  := nil;
+        FSha256Hex  := '';      { V8.83 }
+        FSha256Digest  := nil;
     end;
 end;
 
@@ -17249,6 +17292,35 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetSha256Digest: THashBytes20;                 { V8.63 }
+var
+    Len : Integer;
+begin
+    if Assigned(FX509) and (FSha256Digest = nil) then begin
+        SetLength(FSha256Digest, 32);
+        if f_X509_digest(FX509, f_EVP_sha256, @FSha256Digest[0], @Len) = 0 then
+        begin
+            FSha256Digest := nil;
+            RaiseLastOpenSslError(EX509Exception, TRUE);
+        end;
+    end;
+    Result := FSha256Digest;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function TX509Base.GetSha256Hex: String;            { aka fingerprint V8.63 }
+begin
+    if FSha256Hex = '' then begin
+        GetSha256Digest;
+        if Assigned(FSha256Digest) then
+            FSha256Hex := IcsBufferToHex(FSha256Digest[0], 32);
+    end;
+    Result := FSha256Hex;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TX509Base.GetSubjectAltName: TExtension;
 begin
     Result := GetExtensionByName('subjectAltName');  { V8.41 simplify }
@@ -17388,6 +17460,8 @@ begin
     FVerifyDepth        := 0;
     FSha1Hex            := '';
     FSha1Digest         := nil;
+    FSha256Hex          := '';
+    FSha256Digest       := nil;
     FVerifyResult       := X509_V_ERR_APPLICATION_VERIFICATION;
     FCustomVerifyResult := X509_V_ERR_APPLICATION_VERIFICATION;
     FFirstVerifyResult  := X509_V_ERR_APPLICATION_VERIFICATION;
@@ -17622,6 +17696,76 @@ begin
     LoadFromText(Lines, IncludePKey, croNo, Password);     { V8.40 }
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TX509Base.LoadFromP12Buffer(ABuffer: Pointer; ABufferSize: Cardinal;
+                IncludePKey, IncludeInters: TCertReadOpt; const Password: String);  { V8.63 }
+var
+    FileBio: PBIO;
+    P12: PPKCS12;
+    Cert: PX509;
+    PKey: PEVP_PKEY;
+    Ca: PSTACK_OF_X509;
+    PW: PAnsiChar;
+    I: integer;
+begin
+    InitializeSsl;
+
+    FileBio := f_BIO_new_mem_buf(ABuffer,ABufferSize);
+    if not Assigned(FileBio) then
+      RaiseLastOpenSslError(EX509Exception, TRUE,
+                              'Error reading PKCS12 certificates from buffer');
+    try
+        P12 := f_d2i_PKCS12_bio(FileBio, Nil);
+        if not Assigned(P12) then
+            RaiseLastOpenSslError(EX509Exception, TRUE,
+                              'Error reading PKCS12 certificates from buffer');
+        try
+            Cert := Nil;
+            Pkey := Nil;
+            Ca := Nil;
+            PW := Nil;
+            if Length(Password) > 0 then PW := PAnsiChar(PasswordConvert(Password));   { V8.55 }
+            if f_PKCS12_parse(P12, PW, Pkey, Cert, Ca) = 0 then begin
+                if Ics_Ssl_ERR_GET_REASON(f_ERR_peek_error) = 113 then  { PKCS12_R_MAC_VERIFY_FAILURE }
+                    raise EX509Exception.Create('Error PKCS12 Certificate password invalid for buffer')
+                else
+                    RaiseLastOpenSslError(EX509Exception, TRUE,
+                              'Error parsing PKCS12 certificates from buffer');
+            end;
+            if (IncludePKey > croNo) then begin
+                if Assigned(PKey) then begin
+                    if (f_X509_check_private_key(Cert, PKey) < 1) then
+                        raise EX509Exception.Create('Certificate and private key do not match');
+                     SetX509(Cert);
+                     SetPrivateKey(PKey);
+                     f_EVP_PKEY_free(PKey);
+                end
+                else begin
+                    if IncludePKey = croYes then  { V8.50 require  private key so error }
+                        raise EX509Exception.Create('Error reading private key from buffer');
+                end;
+            end
+            else
+                SetX509(Cert);
+            f_X509_free(Cert);
+            FreeAndNilX509Inters;
+
+          { intermediate certificates are optional, no error if none found }
+            if (IncludeInters > croNo) and Assigned(Ca) then begin
+                FX509Inters := f_OPENSSL_sk_new_null;
+                for I := 0 to f_OPENSSL_sk_num(Ca) - 1 do
+                    f_OPENSSL_sk_insert(FX509Inters, PAnsiChar(f_X509_dup
+                                    (PX509(f_OPENSSL_sk_value(Ca, I)))), I);
+                f_OPENSSL_sk_free(Ca);
+            end;
+        finally
+            f_PKCS12_free(p12);
+        end;
+    finally
+        f_bio_free(FileBio);
+    end;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TX509Base.PrivateKeyLoadFromText(Lines: String;          { V8.27 }
@@ -18250,7 +18394,8 @@ end;
 function TX509Base.GetSelfSigned: Boolean;
 begin
     if Assigned(FX509) then
-        Result := f_X509_check_issued(FX509, FX509) = 0
+        Result := (f_X509_check_issued(FX509, FX509) = 0) or (IssuerCName = SubjectCName)
+          { V8.63 double check, check_issued does not always work }   
     else
         Result := FALSE;
 end;
@@ -18680,7 +18825,10 @@ function TX509Base.CertInfo(Brief: Boolean = False): String;   { V8.41 added Bri
 begin
     Result := '';
     if NOT IsCertLoaded then Exit;  { V8.57 sanity check }
-    Result := 'Issued to (CN): ' + IcsUnwrapNames (SubjectCName);
+    if SubjectCName = '' then
+        Result := 'Issued to (CN): (Blank)'    { V8.63 }
+    else
+        Result := 'Issued to (CN): ' + IcsUnwrapNames (SubjectCName);
     if SubjectOName  <> '' then Result := Result + ', (O): '  + IcsUnwrapNames (SubjectOName);
     if SubjectOUName <> '' then Result := Result + ', (OU): ' + IcsUnwrapNames (SubjectOUName);  { V8.53 }
     Result := Result + #13#10;
@@ -18701,7 +18849,7 @@ begin
     if NOT Brief then begin
         Result := Result + 'Valid From: ' + DateTimeToStr (ValidNotBefore) +      { V8.61 added time }
             ', Serial Number: ' + GetSerialNumHex + #13#10 +     { V8.40 }
-            'Fingerprint (sha1): ' + IcsLowerCase(Sha1Hex) + #13#10 +         { V8.41 }
+            'Fingerprint (sha256): ' + IcsLowerCase(Sha256Hex) + #13#10 +         { V8.41, V8.63 was Sha1 }
             'Public Key: ' + KeyInfo;                                         { V8.53 not brief }
         if ExtendedValidation then
             Result := Result + #13#10 + 'Extended Validation (EV) SSL Server Certificate';   { V8.40 }
@@ -19097,7 +19245,7 @@ begin
         end;
         if CertIssuer <> '' then begin
             Result := chainWarn;
-            ErrStr := 'Issuer ' + CertIssuer + ' not found for SSL certificate - ' + SubjectCName;;
+            ErrStr := 'Issuer ' + CertIssuer + ' not found for SSL certificate - ' + SubjectCName;
         end
         else if (NextIssuer <> '') then begin
             Result := chainWarn;
@@ -20435,7 +20583,7 @@ begin
                 FSslEnable := FALSE;
                 ResetSSL;
                 inherited InternalClose(FALSE, WSAECONNABORTED);
-                HandleBackGroundException(E);
+                HandleBackGroundException(E, 'TCustomSslWSocket.Dup');
             end;
         end;
     end;
@@ -20725,20 +20873,22 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 get application layer protocol sekected by server, clients only }
-function TCustomSslWSocket.SslGetAlpnProtocol: String;
+{ V8.62 get application layer protocol sekected by server, clients only }
+procedure TCustomSslWSocket.SslGetAlpnProtocol;
 var
     plen: integer;
     pdata: Pointer;
+    temp: AnsiString;
 begin
-    Result := '';
+    FSslAlpnProto := '';
     if NOT Assigned(FSsl) then Exit;
     plen := 0;
     pdata := Nil;
-    f_SSL_get0_alpn_selected(FSsl, pdata, plen);
-    if Assigned(pdata) and (plen > 0) then begin
-        SetLength(Result, plen);
-        Move(pdata^, Result[1], plen);
+    f_SSL_get0_alpn_selected(FSsl, pdata, plen);  // not null terminated
+    if (plen > 0) and Assigned(pdata) then begin
+        SetLength(temp, plen);
+        Move(pdata^, temp[1], plen);
+        FSslAlpnProto := String(temp);
     end;
 end;
 
@@ -21278,6 +21428,7 @@ begin
     FSslMessAuth             := '';  { V8.14  }
     FSslCertPeerName         := '';  { V8.39  }
     FHandshakeEventDone      := FALSE;  { V8.55 }
+    FSslAlpnProto            := '';  { V8.62  }
     FPendingSslEvents        := [];
     FMayTriggerFD_Read       := TRUE;  // <= 01/06/2006 AG
     FMayTriggerFD_Write      := TRUE;  // <= 01/06/2006 AG
@@ -21831,8 +21982,6 @@ begin
             WMSslASyncSelect(MsgRec)
         else if MsgRec.Msg = FMsg_WM_TRIGGER_DATASENT then
             TriggerDataSent(0)
-        {else if MsgRec.Msg = WM_TRIGGER_SSLHANDSHAKEDONE then
-            WMSslHandshakeDone(MsgRec)}
         else if MsgRec.Msg = FMsg_WM_RESET_SSL then
             ResetSsl
         else if MsgRec.Msg = FMsg_WM_BI_SSL_SHUTDOWN then
@@ -21843,7 +21992,7 @@ begin
             inherited WndProc(MsgRec);
     except                                                       // <= 12/12/05
         on E:Exception do
-            HandleBackGroundException(E);
+            HandleBackGroundException(E, 'TCustomSslWSocket.WndProc');  { V8.62 }
     end;
 end;
 
@@ -21954,7 +22103,7 @@ begin
                 FSslEnable := FALSE;
                 ResetSsl;
                 inherited InternalClose(FALSE, WSAECONNABORTED);
-                HandleBackGroundException(E);
+                HandleBackGroundException(E, 'TCustomSslWSocket.TriggerSessionConnected');
             end;
         end;
     end;
@@ -22056,6 +22205,7 @@ begin
             f_SSL_get_secure_renegotiation_support(FSsl) = 1;
         FSslVersion := String(f_SSL_get_version(FSsl));
         FSslVersNum := f_SSL_version(FSsl);
+        SslGetAlpnProtocol;  { V8.62 }
         Cipher      := f_SSL_get_current_cipher(FSsl);
         if Assigned(Cipher) then begin
             FSslCipher     := String(f_SSL_CIPHER_get_name(Cipher));
@@ -22119,6 +22269,8 @@ begin
         begin
             FSslPeerCert.FSha1Digest        := RefCert.FSha1Digest;
             FSslPeerCert.FSha1Hex           := RefCert.FSha1Hex;
+            FSslPeerCert.FSha256Digest      := RefCert.FSha256Digest;    { V8.63 } 
+            FSslPeerCert.FSha256Hex         := RefCert.FSha256Hex;
             FSslPeerCert.VerifyResult       := RefCert.VerifyResult;
             FSslPeerCert.CustomVerifyResult := RefCert.CustomVerifyResult;
             FSslPeerCert.FirstVerifyResult  := RefCert.FirstVerifyResult;
@@ -23233,7 +23385,7 @@ begin
         WMHttpTunnelReconnect(MsgRec)
     except
         on E: Exception do
-            HandleBackGroundException(E);
+            HandleBackGroundException(E, 'TCustomHttpTunnelWSocket');
     end
     else
         inherited WndProc(MsgRec);

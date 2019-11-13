@@ -3,7 +3,7 @@ object FormXferDemo: TFormXferDemo
   Top = 51
   Caption = 
     'ICS Multi File Transfer Wide Demo -  http://www.overbyte.be - V8' +
-    '.60 - 18th March 2019'
+    '.63 - 3rd November 2019'
   ClientHeight = 773
   ClientWidth = 908
   Color = clBtnFace
@@ -91,7 +91,7 @@ object FormXferDemo: TFormXferDemo
     Top = 8
     Width = 440
     Height = 281
-    ActivePage = TabSheet3
+    ActivePage = TabSheet1
     TabOrder = 2
     object TabSheet1: TTabSheet
       Caption = 'TIcsFileCopyW'
@@ -290,6 +290,7 @@ object FormXferDemo: TFormXferDemo
     object TabSheet2: TTabSheet
       Caption = 'TIcsFtpMultiW'
       ImageIndex = 1
+      ExplicitTop = 29
       object Label9: TLabel
         Left = 5
         Top = 10
@@ -435,7 +436,7 @@ object FormXferDemo: TFormXferDemo
         Top = 150
         Width = 46
         Height = 22
-        TabOrder = 14
+        TabOrder = 15
         Text = '0'
       end
       object FtpNoMd5: TCheckBox
@@ -468,7 +469,7 @@ object FormXferDemo: TFormXferDemo
         Width = 100
         Height = 17
         Caption = 'Turn UTF8 Off'
-        TabOrder = 15
+        TabOrder = 16
       end
       object FtpNoHost: TCheckBox
         Left = 145
@@ -484,7 +485,7 @@ object FormXferDemo: TFormXferDemo
         Width = 100
         Height = 17
         Caption = 'Ignore UTF8 '
-        TabOrder = 16
+        TabOrder = 17
       end
       object FtpNoCrc: TCheckBox
         Left = 5
@@ -493,6 +494,14 @@ object FormXferDemo: TFormXferDemo
         Height = 17
         Caption = 'No CRC Check'
         TabOrder = 11
+      end
+      object FtpFixPassiveLanIP: TCheckBox
+        Left = 145
+        Top = 215
+        Width = 146
+        Height = 17
+        Caption = 'Fix Passive LAN IP Addr'
+        TabOrder = 14
       end
     end
     object TabSheet5: TTabSheet

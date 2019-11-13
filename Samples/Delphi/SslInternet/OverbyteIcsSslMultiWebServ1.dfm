@@ -196,6 +196,7 @@ object WeblServerForm: TWeblServerForm
     SslRevocation = False
     SslReportChain = False
     SslRootFile = 'RootCaCertsBundle.pem'
+    MailCliSecurity = sslCliSecTls11
     SmtpMethod = MailSmtpRelay
     FileQuSent = '"MailQuSent-"yyyymmdd".log'
     LogQuSent = False

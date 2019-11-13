@@ -5,8 +5,8 @@ Description:  TIcsHttpMulti is a high level HTTP Delphi component that allows
               or listed by parsing links from a web page, using a single
               function call.
 Creation:     May 2001
-Updated:      Mar 2019
-Version:      8.61
+Updated:      Aug 2019
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -145,6 +145,7 @@ Download - download a list of URLs, optionally parsing HTML for links
                 addresses are returned.
 17 Apr 2019 - V8.61 - Base component now has more response headers, don't need
                  to search for them.
+Aug 7, 2019  V8.62 Builds without AUTO_X509_CERTS or USE_SSL
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -170,6 +171,8 @@ unit OverbyteIcsHttpMulti;
 {$ENDIF}
 
 interface
+
+{$IFDEF USE_SSL}
 
 uses
 {$IFDEF MSWINDOWS}
@@ -215,11 +218,10 @@ uses
 
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
-{$IFDEF USE_SSL}
 
 
 const
-    HttpMultiCopyRight : String = ' TIcsHttpMulti (c) 2019 V8.61 ';
+    HttpMultiCopyRight : String = ' TIcsHttpMulti (c) 2019 V8.62 ';
 
 type
     THttpSslVerifyMethod = (httpSslVerNone, httpSslVerBundle, httpSslVerWinStore) ;   // 20 Apr 2015
@@ -358,8 +360,11 @@ type
                                 Dirs, Fname, Section, Query: string): string ;
     function RelativeName (Dirs, Rname: string): string ;
 
+{$ENDIF USE_SSL}
 
 implementation
+
+{$IFDEF USE_SSL}
 
 function ExtractUNIXName(const FileName: string): string;
 var

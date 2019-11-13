@@ -5,11 +5,11 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.58
+Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      Use the mailing list ics-ssl@elists.org
               Follow "SSL" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2003-2018 by François PIETTE
+Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -148,7 +148,10 @@ Feb 16, 2018  V8.52 Added more EVP functions for keys, hashing and signing
                     Ics_EVP_PKEY_dup now uses EVP_PKEY_up_ref for 1.1.0 up
 Oct 10, 2018  V8.57 Removed duplicate EVP_MAX lits
 Oct 19, 2018  V8.58 version only
-
+Jul 04, 2019  V8.62 Added f_OBJ_create to add new NIDs.
+                    ICS_NID_acmeIdentifier created dynamically since NID missing.
+                    Fixed Asn1ToString bad octet conversion to hex.
+                    
 
 Pending - OpenSSL 3.0.0 may require numeric NID_xx to be replaced by string
 SN_xx and/or LN_xx (short/long name), ie CN or CommonName for NID_CommonName = 13.
@@ -260,8 +263,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 858;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2018 F. Piette V8.58 ';
+    IcsLIBEAYVersion   = 862;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2018 F. Piette V8.62 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -2114,6 +2117,7 @@ const
     f_GENERAL_NAME_new :                       function: PGENERAL_NAME; cdecl = nil;                                    { V8.40 }
     f_GENERAL_NAME_set0_value :                procedure(gen: PGENERAL_NAME; atype: Integer; avalue: Pointer); cdecl = nil;  { V8.40 }
     f_HMAC :                                   function(evp: pEVP_MD; key: PByte; key_len: integer; data: PByte; data_len: integer; md: PByte; var md_len: integer): PByte; cdecl = nil;    { V8.03 }
+    f_OBJ_create :                             function(oid, sn, ln: PAnsiChar): Integer; cdecl = nil;  { V8.62 }
     f_OBJ_nid2ln :                             function(N: Integer): PAnsiChar; cdecl = nil;
     f_OBJ_nid2obj :                            function(N: Integer): PASN1_OBJECT; cdecl = nil;    { V8.40 }
     f_OBJ_nid2sn :                             function(N: Integer): PAnsiChar; cdecl = nil;
@@ -2524,7 +2528,7 @@ procedure IcsRandPoll;
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GLIBEAYImports1: array[0..614] of TOSSLImports = (
+    GLIBEAYImports1: array[0..615] of TOSSLImports = (
 
     (F: @@f_ASN1_INTEGER_get ;        N: 'ASN1_INTEGER_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_INTEGER_get_int64 ;  N: 'ASN1_INTEGER_get_int64';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
@@ -2860,11 +2864,12 @@ const
     (F: @@f_GENERAL_NAME_get0_value ; N: 'GENERAL_NAME_get0_value';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_GENERAL_NAME_new ;        N: 'GENERAL_NAME_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),          { V8.40 }
     (F: @@f_GENERAL_NAME_set0_value ; N: 'GENERAL_NAME_set0_value';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
-    (F: @@f_HMAC  ;        N: 'HMAC';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_OBJ_nid2ln ;   N: 'OBJ_nid2ln';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_OBJ_nid2obj ;  N: 'OBJ_nid2obj';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),              { V8.40 }
-    (F: @@f_OBJ_nid2sn ;   N: 'OBJ_nid2sn';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_OBJ_obj2nid;   N: 'OBJ_obj2nid';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_HMAC  ;              N: 'HMAC';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_OBJ_create ;         N: 'OBJ_create';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),          { V8.62 }
+    (F: @@f_OBJ_nid2ln ;         N: 'OBJ_nid2ln';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_OBJ_nid2obj ;        N: 'OBJ_nid2obj';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),          { V8.40 }
+    (F: @@f_OBJ_nid2sn       ;   N: 'OBJ_nid2sn';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_OBJ_obj2nid;         N: 'OBJ_obj2nid';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_OPENSSL_sk_delete;   N: 'OPENSSL_sk_delete';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
     (F: @@f_OPENSSL_sk_delete;   N: 'sk_delete';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_OPENSSL_sk_dup ;     N: 'OPENSSL_sk_dup';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
@@ -2889,8 +2894,8 @@ const
     (F: @@f_OPENSSL_sk_set ;     N: 'sk_set';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_OPENSSL_sk_value ;   N: 'OPENSSL_sk_value';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
     (F: @@f_OPENSSL_sk_value ;   N: 'sk_value';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
-    (F: @@f_OpenSSL_version ;   N: 'OpenSSL_version';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
-    (F: @@f_OpenSSL_version ;   N: 'SSLeay_version';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
+    (F: @@f_OpenSSL_version ;    N: 'OpenSSL_version';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
+    (F: @@f_OpenSSL_version ;    N: 'SSLeay_version';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_PEM_X509_INFO_read_bio ;   N: 'PEM_X509_INFO_read_bio';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_PEM_do_header;   N: 'PEM_do_header';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_PEM_read_bio_DHparams;   N: 'PEM_read_bio_DHparams';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -3387,6 +3392,11 @@ begin
         @f_EVP_cleanup                            := @IcsSslStub;  { V8.35 }
         @f_ENGINE_cleanup                         := @IcsSslStub;  { V8.35 }
     end;
+
+  { V8.62 add extra objects to create certificates  }
+    if ICS_NID_acmeIdentifier = 0 then
+        ICS_NID_acmeIdentifier := f_OBJ_create(PAnsiChar('1.3.6.1.5.5.7.1.31'),
+                   PAnsiChar('acmeIdentifier'), PAnsiChar('X509v3 ACME Identifier'));
 end;
 
 
@@ -3897,7 +3907,7 @@ begin
       V_ASN1_OCTET_STRING :
           //Result := EncodeOctetStr(PAsn1^.data, PAsn1^.length);
       //    Result := IcsBufferToHex(PAsn1^.data, PAsn1^.length, ':');
-          Result := IcsBufferToHex(DataPtr, DataLen, ':');
+          Result := IcsBufferToHex(PAnsiChar(DataPtr)^, DataLen, ':');  { V8.62 needs buffer }
 
 {$IFNDEF UNICODE}
       V_ASN1_UTF8STRING :
@@ -3912,7 +3922,6 @@ begin
       V_ASN1_BMPSTRING :
           { Reverse byte order and convert to Ansi }
           Result := UnicodeToAnsi(BMPStrToWideStr(DataPtr, DataLen));
-
       else  { dump }
 //          SetLength(Result, PAsn1^.length);
 //          Move(Pointer(PAsn1^.data)^, Pointer(Result)^, PAsn1^.length);

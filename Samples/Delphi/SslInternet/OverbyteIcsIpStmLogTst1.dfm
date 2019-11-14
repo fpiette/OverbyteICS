@@ -3,7 +3,7 @@ object IpLogForm: TIpLogForm
   Top = 84
   Caption = 
     'ICS IP Streaming Log Component Demo -  http://www.overbyte.be - ' +
-    'V8.62 - 17th June 2019'
+    'V8.63 - 13th November 2019'
   ClientHeight = 746
   ClientWidth = 1004
   Color = clBtnFace
@@ -243,7 +243,7 @@ object IpLogForm: TIpLogForm
     Top = 0
     Width = 1004
     Height = 746
-    ActivePage = SheetSettings
+    ActivePage = SheetOperation
     Align = alClient
     TabOrder = 0
     object SheetOperation: TTabSheet
@@ -1081,6 +1081,8 @@ object IpLogForm: TIpLogForm
     OAWebSrvPort = '8080'
     PrivKeyCipher = PrivKeyEncNone
     PrivKeyType = PrivKeyRsa2048
+    AutoAccountClose = False
+    AccountTimeOutMins = 10
     SeqOrderNum = 0
     SocketFamily = sfAny
     SuppCertChallenge = ChallNone

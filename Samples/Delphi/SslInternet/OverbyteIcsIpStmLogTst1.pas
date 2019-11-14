@@ -100,7 +100,8 @@ in the event when only one was open, tested with Delphi 2010
                       Allow SSL certificates to be ordered and installed automatically.
                       Added Log Directory for log file.  
 
-
+13 Nov 2019 - V8.63 - Restart server once first certificate issued.
+                      Corrected log file name.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -554,7 +555,7 @@ var
 begin
     if DirLogs.Text = '' then Exit; // no log
     FName := '"' + IncludeTrailingPathDelimiter(DirLogs.Text) +
-                                              'ics-httprest-"yyyy-mm-dd".log"';
+                                              'ics-ipstmlog-"yyyy-mm-dd".log"';
     if NOT Assigned(FIcsBuffLogStream) then
         FIcsBuffLogStream := TIcsBuffLogStream.Create(self, FName,
                                 IpLogForm.Caption + IcsCRLF, FileCPUtf8)
@@ -736,8 +737,6 @@ begin
     else
         exit ;
 
-    SetButtons (true) ;
-
  // client stuff common to UDP and TCP
     IpLogClient.MaxSockets := 1 ;
     IpLogClient.SocFamily := TSocketFamily (SocketFamily.ItemIndex) ;
@@ -782,9 +781,11 @@ begin
     end;
 
 // start logging
-    IpLogServer.StartLogging ;
+    if IpLogServer.StartLogging then begin
+        SetButtons (true) ;
+        DataTimerTimer (Self) ;
+    end;
     IpLogClient.StartLogging ;
-    DataTimerTimer (Self) ;
 end;
 
 procedure TIpLogForm.doClearClick(Sender: TObject);
@@ -879,6 +880,13 @@ begin
     else
         exit ;
 
+    if LogInfo.Checked then
+        IpLogServer.IpIcsLogger.LogOptions := MyLogOptions2
+     else if LogErrors.Checked then
+        IpLogServer.IpIcsLogger.LogOptions := MyLogOptions
+    else
+        IpLogServer.IpIcsLogger.LogOptions := [] ;
+
   if (Protocol.ItemIndex = ProtoTcp) then
     begin
         IpLogServer.SocFamily := TSocketFamily (SocketFamily.ItemIndex) ;
@@ -961,15 +969,10 @@ begin
             end;
         end;
     end;
-    SetButtons (true) ;
-    if LogInfo.Checked then
-        IpLogServer.IpIcsLogger.LogOptions := MyLogOptions2
-     else if LogErrors.Checked then
-        IpLogServer.IpIcsLogger.LogOptions := MyLogOptions
-    else
-        IpLogServer.IpIcsLogger.LogOptions := [] ;
-    IpLogServer.StartLogging ;
-    DataTimerTimer (Self) ;
+    if IpLogServer.StartLogging then begin
+        SetButtons (true) ;
+        DataTimerTimer (Self) ;
+    end;
 end;
 
 procedure TIpLogForm.doStopClick(Sender: TObject);
@@ -984,16 +987,18 @@ begin
     if IpLogServer.LogActive then
     begin
         MySocket := IpLogServer.Socket [0] ;
-        if Assigned (MySocket) and Assigned (MySocket.Counter) then
-            AddLog ('Server session lasted ' + IntToStr (IcsCalcTickDiff
+        if Assigned (MySocket) and Assigned (MySocket.Counter) and
+            (MySocket.Counter.ConnectTick > 0) then   { V8.63 }
+               AddLog ('Server session lasted ' + IntToStr (IcsCalcTickDiff
                  (MySocket.Counter.ConnectTick, IcsGetTickCount) div 1000) + ' secs, Xmit ' +
                     IntToStr (MySocket.WriteCount) + ', Recv ' + IntToStr (MySocket.ReadCount)) ;
     end;
     if IpLogClient.LogActive then
     begin
         MySocket := IpLogClient.Socket [0] ;
-        if Assigned (MySocket) and Assigned (MySocket.Counter) then
-            AddLog ('Client session lasted ' + IntToStr (IcsCalcTickDiff
+        if Assigned (MySocket) and Assigned (MySocket.Counter) and
+            (MySocket.Counter.ConnectTick > 0) then   { V8.63 }
+              AddLog ('Client session lasted ' + IntToStr (IcsCalcTickDiff
                  (MySocket.Counter.ConnectTick, IcsGetTickCount) div 1000) + ' secs, Xmit ' +
                     IntToStr (MySocket.WriteCount) + ', Recv ' + IntToStr (MySocket.ReadCount)) ;
     end;
@@ -1104,7 +1109,7 @@ end;
 procedure TIpLogForm.SslX509CertsCertProg(Sender: TObject;
   LogOption: TLogOption; const Msg: string);
 begin
-    AddLog(Msg);
+    AddLog (TimeToStr (Time) + ' ' + Msg);  { V8.63 }
 end;
 
 procedure TIpLogForm.SslX509CertsChallengeDNS(Sender: TObject;
@@ -1123,11 +1128,15 @@ begin
 
   { if server not started yet due to no certificate, tell user to do it }
     if NOT IpLogServer.LogActive then begin
-        AddLog('Server should now be restarted');
+        AddLog('Restarting Server');
+        if IpLogServer.StartLogging then begin      { V8.63 }
+            SetButtons (true) ;
+            DataTimerTimer (Self) ;
+        end;
         Exit;
      end;
 
-  { server running, so we can reload automatically } 
+  { server running, so we can reload automatically }
     NewFlag := IpLogServer.SrvRecheckSslCerts(S1, False, True);
     if NewFlag then
         AddLog('Server Recheck Loaded New SSL Certificate(s)');

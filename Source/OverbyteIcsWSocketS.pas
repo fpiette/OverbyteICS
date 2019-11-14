@@ -196,7 +196,7 @@ Dec 04, 2018  V8.59 Sanity checks reading mistyped enumerated values from INI fi
 Mar 18, 2019  V8.60 Added WebLogIdx to IcsHosts for web server logging.
                     Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
                        in server IcsHosts if TLS1.3 fails.
-Aug 06, 2019  V8.62  When ordering X509 certificate, ChallFileSrv challenge now
+Aug 06, 2019  V8.62 When ordering X509 certificate, ChallFileSrv challenge now
                      uses separate local web server for servers not using ports
                       80 or 443 such as FTP, SMTP, proxies, etc.
                     If IcsHosts SslCert is not found but have a valid directory,
@@ -212,14 +212,17 @@ Aug 06, 2019  V8.62  When ordering X509 certificate, ChallFileSrv challenge now
                       signed ACME certificate for the challenge.
                    BEWARE tls-alpn-01 challenge not working yet, wrong certificate
                      is sent to client.
-Nov 7, 2019  V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
+Nov 13, 2019 V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
                      AllowSelfSign to stop errors with self signed certificates.
                    Automatic cert ordering now works if cert file name has -bundle
                      or -cert appended to end.
                    IcsHosts has new AuthSslCmd property for when SSL is allowed
                      on non-SSL port after AUTH SSL command or similar.
                    Automatic cert ordering now closes the account and local web
-                     server automatically and after order errors.  
+                     server automatically and after order errors, and when the
+                     the server is stopped.
+                   Automatic cert ordering now Logs activity via the SslX509Certs
+                     component since this one does not have logging.
 
 
 
@@ -1234,6 +1237,7 @@ type
     public
         constructor Create(AOwner : TComponent); override;
         destructor Destroy; override;
+        procedure Close; override;                                   { V8.63 }
         property  ClientClass;
         property  ClientCount;
         property  Client;
@@ -1250,6 +1254,7 @@ type
         function  LoadOneCert(HostNr: Integer; ForceLoad: Boolean;
                                 var LoadNew: Boolean; AllowSelfSign: Boolean=False): Boolean; { V8.57, V8.63 }
         function  OrderCert(HostNr: Integer): Boolean;               { V8.57 }
+        procedure OrderClose;                                        { V8.63 }
 {$IFDEF AUTO_X509_CERTS}  { V8.59 }
         function  GetSslX509Certs: TComponent;                       { V8.57 }
         procedure SetSslX509Certs(const Value : TComponent);         { V8.57 }
@@ -2853,6 +2858,14 @@ begin
 end;
 
 
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslWSocketServer.Close;                        { V8.63 }
+begin
+    OrderClose;   { stop any pending X509 certificate orders }
+    inherited Close;
+end;
+
+
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TSslWSocketServer.MultiListenItemClass: TWSocketMultiListenItemClass;
 begin
@@ -2979,8 +2992,6 @@ end;
 procedure TSslWSocketServer.SetSslX509Certs(const Value : TComponent);   { V8.57 }
 begin
     if Value <> FSslX509Certs then begin
-    //    if Assigned(FSslX509Certs) then
-    //        FSslX509Certs.Free;
         FSslX509Certs := Value;
     end;
 end;
@@ -3018,6 +3029,14 @@ function TSslWSocketServer.OrderCert(HostNr: Integer): Boolean;
 var
     I: Integer;
     FName: String;
+
+ { V8.63 log what is happening via SslX509Certs component }
+    procedure X509Log(const Msg: String);
+    begin
+        FIcsHosts[HostNr].FCertErrs := Msg;
+        (FSslX509Certs as TSslX509Certs).LogEvent(Msg);
+    end;
+
 {$ENDIF}
 begin
     Result := False;
@@ -3032,8 +3051,15 @@ begin
             FCertErrs := 'Server Does Not Support Certificate Ordering';
             Exit;
         end;
+
+     { V8.63 something sensible in log before all the ordering stuff }
+        X509Log('Starting SSL/TLS Certificate Order for Domain: ' + HostNames[0] +
+             ', From: ' + CertProduct + ' Using Challenge: ' + ChallengeTypeLits[CertChallenge] +
+             ', With: ' + SupplierProtoLits[CertSupplierProto]);
+        FCertErrs := '';  // last one was not an error
+
         if CertChallenge in [ChallFileFtp, ChallDNS, ChallEmail] then begin    { V8.62 }
-            FCertErrs := 'Unsupported Challenge for Socket Server';
+            X509Log('Unsupported Challenge for Socket Server');
             Exit;
         end;
 
@@ -3041,19 +3067,19 @@ begin
           .well-known path or SSI ALPN and only works after server starts }
         if CertChallenge in [ChallFileUNC, ChallAlpnUNC] then begin    { V8.62 }
             if WellKnownPath = '' then begin
-                FCertErrs := 'No .Well-Known Directory Specified';
+                X509Log('No .Well-Known Directory Specified');
                 Exit;
             end;
             if (CertChallenge = ChallFileUNC) and (FBindNonPort <> 80) then begin
-                FCertErrs := 'Port 80 Not Listening';
+                X509Log('Port 80 Not Listening');
                 Exit;
             end;
             if (CertChallenge = ChallAlpnUNC) and (FBindSslPort <> 443) then begin
-                FCertErrs := 'Port 443 Not Listening';
+                X509Log('Port 443 Not Listening');
                 Exit;
             end;
             if (FState <> wsListening) then begin
-                FCertErrs := 'Server not Listening';
+                X509Log('Server not Listening');
                 Exit;
             end;
         end;
@@ -3067,11 +3093,11 @@ begin
 
       // some sanity checks to make sure sensible settings made
         if CertSupplierProto = SuppProtoNone then begin
-            FCertErrs := 'No Supplier Protocol';
+            X509Log('No Supplier Protocol');
             Exit;
         end;
         if CertDirWork = '' then begin
-            FCertErrs := 'No Work Directory Specified';
+            X509Log('No Work Directory Specified');
             Exit;
         end;
 
@@ -3083,12 +3109,12 @@ begin
             // open supplier account, based on file directory
                 if (SupplierProto <> CertSupplierProto) or
                                (CompareText(DirCertWork, CertDirWork) <> 0) then begin
-                  // V8.63 make sure account closes and local web server stops               
+                  // V8.63 make sure account closes and local web server stops
                     AutoAccountClose := True;
                     AccountTimeOutMins := 5;
                     Result := OpenAccount(CertDirWork, False);  // don't create new account
                     if NOT Result then begin
-                        FCertErrs := 'Failed to Open Certificate Supplier Database - ' + LastResponse;
+                        X509Log('Failed to Open Certificate Supplier Database - ' + LastError);  // V8.63
                         Exit;
                     end;
                 end;
@@ -3098,8 +3124,8 @@ begin
                 FName := IcsExtractNameOnly(FSslCert);
              // V8.63 allow for file name having -bundle or -cert appended to end
                 if Pos (BuildCertName(CertCommonName), FName) <> 1 then begin
-                    FCertErrs := 'Certificate File Name Mismatch, File:  ' +
-                                                    Fname + ',  Common Name: ' + CertCommonName;
+                    X509Log('Certificate File Name Mismatch, File:  ' +
+                                              Fname + ',  Common Name: ' + CertCommonName);
                     Result := False;  // V8.63
                     Exit;
                 end;
@@ -3129,7 +3155,7 @@ begin
                     CertSubAltNames.AddItem(HostNames[I], DirWellKnown, DirPubWebCert.Text, CertApprovEmail);
                 Result := CertSaveDomain(CertCommonName);
                 if NOT Result then begin
-                    FCertErrs := 'Failed to Save New Domain to Certificate Database - ' + LastResponse;
+                    X509Log('Failed to Save New Domain to Certificate Database - ' + LastError);  // V8.63
                     CloseAccount;  // V8.63
                     Exit;
                 end;
@@ -3137,7 +3163,7 @@ begin
              // order new SSL certificate
                 Result := CertOrderDomain(HostNames[0]);
                 if NOT Result then begin
-                    FCertErrs := 'Failed to Order New Certificate - ' + LastResponse;
+                    X509Log('Failed to Order New Certificate - ' + LastError);  // V8.63
                     CloseAccount;  // V8.63
                     Exit;
                 end;
@@ -3154,6 +3180,19 @@ begin
        FCertErrs := 'Server Does Not Support Certificate Ordering';
 {$ENDIF}
     end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.63 close certificate ordering account, stop challenge web server }
+procedure TSslWSocketServer.OrderClose;
+begin
+{$IFDEF AUTO_X509_CERTS}
+    if FIcsHosts.Count = 0 then Exit;
+    if NOT FSslCertAutoOrder then Exit;
+    if NOT Assigned(FSslX509Certs) then Exit;
+    (FSslX509Certs as TSslX509Certs).CloseAccount;
+{$ENDIF}
 end;
 
 

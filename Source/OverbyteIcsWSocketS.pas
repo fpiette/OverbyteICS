@@ -212,7 +212,7 @@ Aug 06, 2019  V8.62 When ordering X509 certificate, ChallFileSrv challenge now
                       signed ACME certificate for the challenge.
                    BEWARE tls-alpn-01 challenge not working yet, wrong certificate
                      is sent to client.
-Nov 13, 2019 V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
+Nov 18, 2019 V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
                      AllowSelfSign to stop errors with self signed certificates.
                    Automatic cert ordering now works if cert file name has -bundle
                      or -cert appended to end.
@@ -223,6 +223,7 @@ Nov 13, 2019 V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
                      the server is stopped.
                    Automatic cert ordering now Logs activity via the SslX509Certs
                      component since this one does not have logging.
+                   Corrected INI file reading NostEnabled instead of HostEnabled.
 
 
 
@@ -3937,7 +3938,7 @@ begin
         hosts := IcsTrim(MyIniFile.ReadString(section, 'Hosts', ''));
         if hosts = '' then continue;
      { V8.57 prefer new HostEnabled over older Enabled, if supplied }
-        S := MyIniFile.ReadString(section, 'NostEnabled', '');
+        S := MyIniFile.ReadString(section, 'HostEnabled', '');   { V8.63 typo, was Nost }
         if S = '' then S := MyIniFile.ReadString(section, 'Enabled', 'False');
         if NOT IcsCheckTrueFalse(S) then continue;
         IcsHosts.Add;

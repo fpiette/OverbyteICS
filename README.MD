@@ -11,23 +11,23 @@ http://wiki.overbyte.eu/
 
 Table of content:
 -----------------
-- Legal issues
-- Donate
-- Register
-- Contributions
-- Latest Versions
-- Version Control repository
-- Installation
-- Available VCL Components
-- Sample applications
-- About SSL
-- Support
-- Release notes
-- Midware
-- Known problems
-- Special thanks
+   * [Legal issues](#legal-issues)
+   * [Donate](#donate)
+   * [Register](#register)
+   * [Contributions](#contributions)
+   * [Latest Versions](#latest-versions)
+   * [Version Control repository](#version-control-repository)
+   * [Installation](#installation)
+   * [Available VCL Components](#available-vcl-components)
+   * [Sample applications](#sample-applications)
+   * [About SSL](#about-ssl)
+   * [Support](#support)
+   * [Release notes](#release-notes)
+   * [Midware](#midware)
+   * [Known problems](#known-problems)
+   * [Special thanks](#special-thanks)
 
-Legal issues:
+# Legal issues
 -------------
     Copyright (C) 1997-2019 by François PIETTE
     Rue de Grady 24, 4053 Embourg, Belgium
@@ -67,7 +67,7 @@ Legal issues:
        by OpenSSL license as soon as you use any SSL feature.
        See http://www.openssl.org for details.
 
-Donate
+# Donate
 ------
 ICS is freeware. You can use it without paying anything except the registration
 postcard (see "register" below). But of course donations are welcome. You can
@@ -77,7 +77,7 @@ Here is the direct URL at Amazon UK (nearest to my home, please don't use anothe
 http://www.amazon.co.uk/exec/obidos/gc-email-order1/ref=g_gc_email/202-6198323-6681414
 For more generous amount, contact me by email.
 
-Register
+# Register
 --------
 ICS is freeware. If you use the components, you must register by sending a
 picture postcard showing the area you live in and some beautiful stamps for
@@ -87,7 +87,7 @@ postcards sent to me. Write on the postcard that it is your ICS registration.
 Address your card to: Francois PIETTE, rue de Grady 24, 4053 Embourg, Belgium.
 Don't forget to mention your name, street address, EMail and web site.
 
-Contributions:
+# Contributions
 --------------
 ICS has been designed by François PIETTE but many other peoples are working on the
 components and sample programs. The history of changes in each source file list
@@ -98,7 +98,7 @@ contributors: \
     - Angus Robertson <angus@magsys.co.uk>
 
 
-Support:
+# Support
 --------
 
 A new web support forum was created for ICS in February 2019:
@@ -114,7 +114,7 @@ The old twsocket mailing list ceased accepting new messages in late 2018, but
 http://lists.elists.org/pipermail/twsocket/
 
 
-Latest versions:
+# Latest versions
 ---------------
 The latest versions of ICS can be downloaded from the ICS Wiki web site:
 
@@ -138,12 +138,12 @@ OverbyteIcsWSocket.pas and the integer WSocketVersion as 860.
 ICS V9 is in early development and is planned to support Android and Linux Server. There
 are no current plans for ICS for iOS.
 
-Version Control repository:
+# Version Control repository
 ---------------------------
 svn://svn.overbyte.be/ics or http://svn.overbyte.be:8443/svn/ics \
 (Usercode = ics, password = ics)
 
-Installation:
+# Installation
 -------------
 ICS V8 has been designed for Embarcadero Delphi 2009 and up, and C++ Builder
 2009 and up, but is fully compatible with Borland Delphi 7 and CodeGear 2006 and
@@ -591,7 +591,7 @@ indicate that the *.pas files are displayed when installing). C++Builder
 will create the *.hpp files. There are some on-line help files in the VC32
 directory.
 
-Available VCL Components
+# Available VCL Components
 ------------------------
 
 - The following is a list of the files that should be installed in order to
@@ -699,7 +699,7 @@ properly add all of the available components in this collection:
       > OverbyteIcsZlibHigh.pas      Zlib support, high level interface for compression and decompression
 
 
-FireMonkey Cross Platform Support:
+# FireMonkey Cross Platform Support
 ----------------------------------
 For Delphi and C++ Builder XE2 and later, FireMonkey Desktop applications are an alternate
 to VCL Forms applications, supporting cross platforms of Windows 32-bit and 64-bit and Mac
@@ -763,7 +763,7 @@ Unit OverbyteIcsLibrary.pas has been *deprecated* and ICS IPv8 doesn't use it an
 If you used it in your own code read the comment in OverbyteIcsLibrary.pas, search
 for "deprecated".
 
-Sample applications:
+# Sample applications
 --------------------
 
 With V8, the 96 sample applications are now grouped into directories according to
@@ -775,13 +775,13 @@ below, ACTIVE!! indicates applications that are actively maintained to test and
 support new functionality in the ICS components.  These may not be simplest
 samples, but are usually the first to try when learning about a component.
 
-Delphi Win32/Win64 Web Browser sample application
+# Delphi Win32/Win64 Web Browser sample application
 -------------------------------------------------
     .\Samples\delphi\BroswerDemo
     > FrameBrowserIcs.dpr           Web Browser using HtmlViewer component - ACTIVE!!
 Note this sample needs HtmlViewer component installed
 
-Delphi Win32/Win64 FTP sample applications
+# Delphi Win32/Win64 FTP sample applications
 ------------------------------------------
     .\Samples\delphi\FtpDemos\FtpDemos.bpg - Project group
     > OverbyteIcsBasFtp.dpr         Basic FTP client program
@@ -794,7 +794,7 @@ Delphi Win32/Win64 FTP sample applications
     > OverbyteIcsFtpTst.dpr         Basic graphical FTP client - ACTIVE!!
 Note better samples under sslinternet with SSL enabled.
 
-Delphi Win32/Win64 SMTP, POP3, NNTP sample applications
+# Delphi Win32/Win64 SMTP, POP3, NNTP sample applications
 -------------------------------------------------------
     .\Samples\delphi\MailNewsDemos\MailNewsDemos.bpg - Project group
     > OverbyteIcsBasNntp.dpr        Basic NNTP client program
@@ -809,7 +809,7 @@ Delphi Win32/Win64 SMTP, POP3, NNTP sample applications
     > OverbyteIcsSmtpServer.dpr     Internet EMail server using SMTP protocol - ACTIVE!!
 Note better samples under sslinternet with SSL enabled.
 
-Delphi Win32/Win64 Miscellaneous applications
+# Delphi Win32/Win64 Miscellaneous applications
 ---------------------------------------------
     .\Samples\delphi\MiscDemos\MiscDemos.bpg - Project group
     > OverbyteIcsBufStrmTst.dpr     Test of buffered stream classes
@@ -824,7 +824,7 @@ Delphi Win32/Win64 Miscellaneous applications
     > OverbyteIcsTimerDemo.dpr      Very simple demo for TIcsTimer
     > OverByteIcsWndControlTest.dpr Test program for windows and threads
 
-Delphi Win32/Win64 DNS, Ping, SNMP, Syslog sample applications
+# Delphi Win32/Win64 DNS, Ping, SNMP, Syslog sample applications
 --------------------------------------------------------------
     .\Samples\delphi\OtherDemos\OtherDemos.bpg - Project group
     > OverbyteIcsBatchDnsLookup.dpr Batch async DNS lookup using DnsLookup (IPv6 and IPv4)
@@ -843,7 +843,7 @@ Delphi Win32/Win64 DNS, Ping, SNMP, Syslog sample applications
     > OverbyteIcsTimeTst.dpr       Test SNTP time protocol as client or server - ACTIVE!!
     > OverbyteIcsWhoisCliTst.dpr   Test Whois protocol, looks up servers automatically - ACTIVE!!
 
-Delphi FireMonkey cross-platform samples (Delphi XE2 and later)
+# Delphi FireMonkey cross-platform samples (Delphi XE2 and later)
 ---------------------------------------------------------------
 All these samples may be built for Mac OS X (and Windows).
 
@@ -866,7 +866,7 @@ All these samples may be built for Mac OS X (and Windows).
     > IcsDllTst.dproj               Test program calling ICSDLL1 and ICSDLL2
     > IcsThreadTimerDemo.dproj      Very simple demo for TIcsTimer
 
-Delphi Win32/Win64 Socket sample applications
+# Delphi Win32/Win64 Socket sample applications
 ---------------------------------------------
     .\Samples\delphi\SocketDemos\SocketDemos.bpg - Project group
     > OverbyteIcsBinCliDemo.dpr       Client program to receive binary and delimited text data. Works with OverbyteIcsTcpSrv demo.
@@ -899,7 +899,7 @@ Delphi Win32/Win64 Socket sample applications
     > OverbyteIcsUdpSend.dpr          UDP send demo
 Note better samples under sslinternet with SSL enabled.
 
-Delphi Win32/Win64 SSL-enabled sample applications
+# Delphi Win32/Win64 SSL-enabled sample applications
 --------------------------------------------------
     .\Samples\delphi\sslinternet\SslDemos.bpg - Project group
     > OverbyteIcsHttpRestTst.dpr      ICS HTTPS REST and OAuth, Send SMS and DNS over HTTPS functions demo - ACTIVE!!.
@@ -929,7 +929,7 @@ Delphi Win32/Win64 SSL-enabled sample applications
 Note following sample is not in the project group since it only builds with Delphi 2007.
     > OverbyteIcsXferTstW.dpr         Same as OverbyteIcsXferTst but Unicode for Delphi 2007 - ACTIVE!!
 
-Delphi Win32/Win64 HTTP sample applications (the SSL versions are preferred!)
+# Delphi Win32/Win64 HTTP sample applications (the SSL versions are preferred!)
 -------------------------------------------
     .\Samples\delphi\WebDemos\WebDemos.bpg - Project group
     > OverbyteIcsConHttp.dpr          Basic console mode HTTP client
@@ -949,7 +949,7 @@ Delphi Win32/Win64 HTTP sample applications (the SSL versions are preferred!)
 Note better samples under sslinternet with SSL enabled.
 
 
-Sample Notes
+# Sample Notes
 ------------
 Note 1: Not all samples have been rewritten in C++ for C++ Builder. And those rewritten are
         frequently much simpler. So C++ Builder user: have a look at the Delphi sample too !
@@ -973,7 +973,7 @@ Close everything before recompiling the library or packages.
 When installing a new version, be sure to unzip it in the same directory
 tree as the old one or you'll mess both versions.
 
-About SSL:
+# About SSL
 ----------
 TSslWSocket and TSslWSocketServer component are derived from the standard
 TWSocket and TWSocketServer component. The SSL code is compiled into the
@@ -1092,14 +1092,14 @@ your application, with properties SslCertFile, SslPrivKeyFile and SslCAFile.
 The request certificate file has no further use.
 
 
-Release notes
+# Release notes
 -------------
 There is no global release notes. Each component and sample has his own history.
 You can find those histories in the comment in the beginning of each source file.
 There are also a bunch of useful comments in the source code. You should at least
 browse the source for the components you are interested in.
 
-MidWare
+# MidWare
 -------
 If you wants to build client/server applications using TCP/IP protocol, you
 can do it easily with ICS. But you can do it much more easily using another

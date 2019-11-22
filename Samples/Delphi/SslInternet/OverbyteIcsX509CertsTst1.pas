@@ -61,14 +61,14 @@ Jul 25, 2019 - V8.62 Supplier tab displays paths for cert and well-known dirs.
                      Clear SAN grid properly.
                      BEWARE tls-alpn-01 challenge not working yet, wrong certificate
                       is sent to client.
-Nov 7, 2019 - V8.63  Better selection for supplier database order ListView.
+Nov 12, 2019 - V8.63 Better selection for supplier database order ListView.
                      10 minute timeout to close idle account.
-                      
+                     Added List Challenges button to log list of pending challenges
+                       from the database.
+
 
 For docunentation on how to use this sample, please see a lengthy Overview in
 the OverbyteIcsSslX509Certs.pas unit.
-
-Pending - Waiting challenges list window
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsX509CertsTst1;
@@ -174,7 +174,7 @@ type
     PrivKeyType: TRadioGroup;
     SuppCertChallenge: TRadioGroup;
     SupplierEmail: TEdit;
-    IpSocFamily: TComboBox;   { V8.60 } 
+    IpSocFamily: TComboBox;   { V8.60 }
     ProxyURL: TEdit;          { V8.62 }
 
  // properties not saved
@@ -309,6 +309,7 @@ type
     doDBRedist: TButton;
     Label54: TLabel;
     Label1: TLabel;
+    doDBListChallg: TButton;
 
 
     procedure FormCreate(Sender: TObject);
@@ -375,6 +376,7 @@ type
     procedure DirLogsExit(Sender: TObject);
     procedure DatabaseDomainsSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
+    procedure doDBListChallgClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -832,6 +834,7 @@ begin
     doDBCancel.Enabled := False;
     doDBRemove.Enabled := False;
     doDBRedist.Enabled := False;
+    doDBListChallg.Enabled := False;
     LabelInfoDomain.Caption := 'Order Information:';
 end;
 
@@ -924,6 +927,8 @@ begin
         end;
         SetDomButtons;
     end;
+    doCloseDatabase.Enabled := True;
+    doDBListChallg.Enabled := (X509Certs1.ChallengesTot <> 0);
 end;
 
 procedure TX509CertsForm.X509Certs1DomainsRefresh(Sender: TObject);
@@ -931,6 +936,7 @@ begin
     RefreshDomains;
 end;
 
+// called when database opened, closed or changes
 procedure TX509CertsForm.X509Certs1SuppDBRefresh(Sender: TObject);
 var
     S: String;
@@ -941,10 +947,14 @@ begin
         S := 'Account Database Supplier: ' + X509Certs1.SupplierTitle + IcsCRLF +
           'Supplier Protocol: ' + SupplierProtoLits [X509Certs1.SupplierProto] + IcsCRLF;
         LabelDB.Caption := S;
+        doCloseDatabase.Enabled := True;
+        doDBListChallg.Enabled := (X509Certs1.ChallengesTot <> 0);
     end
     else begin
         LabelDB.Caption := 'No Supplier Account Database Open';
         DatabaseDomains.Items.Clear;
+        doCloseDatabase.Enabled := False;
+        doDBListChallg.Enabled := False;
     end;
 end;
 
@@ -1489,7 +1499,7 @@ begin
     DirDatabase.Text := Trim(DirDatabase.Text);
     if DirDatabase.Text = '' then Exit;
     X509Certs1.OpenAccount(DirDatabase.Text, False);
-    // result checked in event
+    // result checked in onSuppDBRefresh event
 end;
 
 procedure TX509CertsForm.doCloseDatabaseClick(Sender: TObject);
@@ -1498,6 +1508,7 @@ begin
     ResetDomButtons;
     DatabaseDomains.Items.Clear;
     LabelDB.Caption := '';
+    doCloseDatabase.Enabled := False;
 end;
 
 procedure TX509CertsForm.DatabaseDomainsClick(Sender: TObject);
@@ -1576,6 +1587,28 @@ begin
     SetCommParams;
     if NOT X509Certs1.CertRevokeDomain(DatabaseDomains.Items[DatabaseDomains.ItemIndex].Caption) then Exit;
     SetDomButtons;
+end;
+
+procedure TX509CertsForm.doDBListChallgClick(Sender: TObject);
+var
+    J: Integer;
+begin
+    if (X509Certs1.ChallengesTot = 0) then begin
+        AddLog('No Pending Challenges in Database');
+        Exit;
+    end;
+    AddLog('Pending Challenges in Database:');
+    with X509Certs1 do begin
+        for J:= 0 to Length(ChallengeItems) - 1 do begin
+        with ChallengeItems [J] do begin
+            if (CDomain = '') then continue;
+            AddLog('Domain: ' + CDomain + ', Issue State: ' + IssueStateLits[CIssueState] +
+                  ', Challenge Type: ' + ChallengeTypeLits[CType] + ', Proto: ' +
+                  SupplierProtoLits[CSupplierProto] +
+                  ', Started: ' + MyDateTimeToStr(CStartDT) );
+            end;
+       end;
+   end;              
 end;
 
 procedure TX509CertsForm.doLoadCAClick(Sender: TObject);

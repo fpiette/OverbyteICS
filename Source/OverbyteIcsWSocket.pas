@@ -1320,7 +1320,7 @@ Aug 07, 2019 V8.62 Added SslCtxPtr to SslContext to allow use of OpenSSL functio
                    Moved FIcsLogger to TIcsWndControl ao that unit can log errors.
                    Added source to HandleBackGroundException so we know where
                        errors come from, when using IcsLogger.
-Oct 24, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
+Nov 18, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                      version to break receive loop after exception handling.
                    Added LoadFromP12Buffer to load PFX certificate from buffer to
                      TX509Base, thanks to Mitzi.

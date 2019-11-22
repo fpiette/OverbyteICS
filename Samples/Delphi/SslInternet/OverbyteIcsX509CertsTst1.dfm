@@ -3,7 +3,7 @@ object X509CertsForm: TX509CertsForm
   Top = 0
   Caption = 
     'ICS Automatically Download SSL X509 Certificates Development Dem' +
-    'o - http://www.overbyte.be - V8.63 - 7th November 2019'
+    'o - http://www.overbyte.be - V8.63 - 12th November 2019'
   ClientHeight = 637
   ClientWidth = 1024
   Color = clBtnFace
@@ -1687,10 +1687,11 @@ object X509CertsForm: TX509CertsForm
       end
       object doCloseDatabase: TButton
         Left = 690
-        Top = 9
+        Top = 10
         Width = 99
         Height = 25
         Caption = 'Close Supplier'
+        Enabled = False
         TabOrder = 3
         OnClick = doCloseDatabaseClick
       end
@@ -1789,6 +1790,16 @@ object X509CertsForm: TX509CertsForm
         Enabled = False
         TabOrder = 6
         OnClick = doDBRedistClick
+      end
+      object doDBListChallg: TButton
+        Left = 805
+        Top = 9
+        Width = 99
+        Height = 25
+        Caption = 'List Challenges'
+        Enabled = False
+        TabOrder = 12
+        OnClick = doDBListChallgClick
       end
     end
     object TabChallenges: TTabSheet

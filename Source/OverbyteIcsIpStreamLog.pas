@@ -2,7 +2,7 @@
  Author:      Angus Robertson, Magenta Systems Ltd
 Description:  IP Streaming Log Component
 Creation:     Nov 2006
-Updated:      Oct 2019
+Updated:      Nov 2019
 Version:      8.63
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -191,7 +191,7 @@ in the event when only one was open, tested with Delphi 2010
                         certificate chain and bindings.
                       Ensure all listeners started for TCP Server, if more than one.
                       Builds without USE_SSL.
-22 Oct 2019 - V.63  - SrvValidateHosts and SrvRecheckSslCerts have new AllowSelfSign
+13 Nov 2019 - V8.63 - SrvValidateHosts and SrvRecheckSslCerts have new AllowSelfSign
                          to stop errors with self signed certificates.
                       Allow TCP server to start with certificate warnings.
 
@@ -273,7 +273,7 @@ uses
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
 const
-    CopyRight : String = ' TIcsIpStrmLog (c) 2019 V8.62 ';
+    CopyRight : String = ' TIcsIpStrmLog (c) 2019 V8.63 ';
 
 type
   TStrmLogProtocol = (logprotUdpClient, logprotUdpServer,

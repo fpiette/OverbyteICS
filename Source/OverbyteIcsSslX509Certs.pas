@@ -679,14 +679,21 @@ Aug 07, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
                        BEWARE tls-alpn-01 challenge not working yet, wrong certificate
                          is sent to client.
                        Builds without USE_SSL
-Nov 7, 2019  - V8.63 - OpenAccount will now create a new account correctly.
+Nov 12, 2019 - V8.63 - OpenAccount will now create a new account correctly.
                        Better response for CertOrderDomain if order collected.
                        Changed challenge checking from every 30 seconds to 10 seconds
                          after a challenge started for faster completion.
                        Clear Acme nonce after errors so a fresh nonce is found.
                        Added AutoAccountClose property so account is closed after
                          order is completed or fails and AccountTimeOutMins to
-                         close it anyway when idle.
+                         close it anyway when idle.  This avoids potential hacking
+                         attempts that often follow listing in SSL certificate
+                         transparency logs immediately after issue. 
+                       Improved local web server and REST logging.
+                       Added LastError to try and keep the last real order error.
+                       Expire and remove challenges from the databsee after 24 hours
+                         or a week for manual/email/dns.
+                         
 
 
 Pending - more documentation
@@ -696,7 +703,6 @@ Pending - Acme revoke certificate
 Pending - CertCentre re-issue certificate, use ModifiedOrders for last x days
 Pending - Servertastic APIv2 for commercial certificates
 Pending - install PKCS12 certificates into Windows cert store for IIS
-Pending - better error reporting and logging
 Pending - Comodo intermediates have too many certificates including a root
 Pending - Add self signed and CA certs to database
 Pending - check well-known challenge made to TSslHttpServer
@@ -1175,14 +1181,14 @@ TSslX509Certs = class(TIcsWndControl)
     FChkChallgTrg: Int64;           { V8.63 }
     FPendAccountClose: Boolean;     { V8.63 }
     FAccountLastTick: Int64;        { V8.63 }
+    FLastError: String;             { V8.63 }
   protected
     { Protected declarations }
     procedure RestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
-    procedure LogEvent(const Msg: String);
     procedure LogTimeStamp;
 //    procedure SetError(ErrCode: Integer; const Msg: String);
     procedure WebSrvReq(Sender: TObject; const Host, Path, Params: string; var RespCode, Body: string);
-    procedure WebSrvAlpn(Sender: TObject; const Host: string; var CertFName: string);  { V8.62 } 
+    procedure WebSrvAlpn(Sender: TObject; const Host: string; var CertFName: string);  { V8.62 }
     procedure ChallengeOnTimer(Sender: TObject);
     procedure SetSubAltNames(Value: TSubAltNames);
     procedure OAuthNewToken(Sender: TObject);
@@ -1191,10 +1197,12 @@ TSslX509Certs = class(TIcsWndControl)
     procedure SetDirWellKnown(const Value: String);
     procedure SetDirPubWebCert(const Value: TStringList);
     procedure SetDirCertWork(const Value: String);
+    procedure WebSrvProg(Sender: TObject; LogOption: TLogOption; const Msg: string);  { V8.63 }
   public
     { Public declarations }
     constructor  Create (Aowner: TComponent); override;
     destructor   Destroy; override;
+    procedure LogEvent(const Msg: String);                              { V8.63  was protected }
     function  StartDomSrv(const HostName, CertBundle: String): Boolean ;
     function  StopDomSrv: boolean ;
     function  DomSrvIsRunning: Boolean;
@@ -1302,10 +1310,10 @@ TSslX509Certs = class(TIcsWndControl)
     property ChallengesTot: Integer                 read FChallengesTot;
     property CertSANs: TStringList                  read FCertSANs;  // matches FCertSubAltNames.Domain
     property LastResponse: String                   read FLastResponse;
-    property FileBundPem: String                    read FFileBundPem;  { V8.62 }
-    property FileBundP12: String                    read FFileBundP12;    { V8.62 }
+    property FileBundPem: String                    read FFileBundPem;      { V8.62 }
+    property FileBundP12: String                    read FFileBundP12;      { V8.62 }
     property FileFinalPrvKey: String                read FFileFinalPrvKey;  { V8.62 }
-
+    property LastError: String                      read FLastError;        { V8.63 }
   published
     { Published declarations }
     property AcmeAccKeyType: TSslPrivKeyType        read  FAcmeAccKeyType
@@ -1574,7 +1582,7 @@ constructor TSslX509Certs.Create (Aowner: TComponent);
 begin
     inherited Create(AOwner);
     FDomWebServer := TSimpleWebSrv.Create(self);
-    FDomWebServer.OnServerProg := RestProg;
+    FDomWebServer.OnServerProg := WebSrvProg;      { V8.63 } 
     FDomWebServer.OnSimpWebSrvReq := WebSrvReq;
     FDomWebServer.OnSimpWebSrvAlpn := WebSrvAlpn;  { V8.62 }
     FHttpRest := TSslHttpRest.Create(self);   // REST requests
@@ -1703,7 +1711,15 @@ end;
 procedure TSslX509Certs.RestProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
 begin
     if Assigned(FOnCertProg) then
-        FOnCertProg(Self, LogOption, Msg);
+        FOnCertProg(Self, LogOption, 'HTTP REST ' + Msg);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TSslX509Certs.WebSrvProg(Sender: TObject; LogOption: TLogOption; const Msg: string);
+begin
+    if Assigned(FOnCertProg) then
+        FOnCertProg(Self, LogOption, 'Challenge Web Server ' + Msg);    { V8.63 }
 end;
 
 
@@ -1762,21 +1778,27 @@ begin
         end;
         Result := FDomWebServer.StartSrv;
         if Result then
-            LogEvent('Local Web Server Started on: ' + FDomWebServer.ListenStates)    { V8.62 }
+            LogEvent('Challenge Web Server Started on: ' + FDomWebServer.ListenStates)    { V8.62 }
         else
-            LogEvent('Local Web Server Failed to Start');
+            LogEvent('Challenge Web Server Failed to Start');
     end
     else
-       LogEvent('Local Web Server Already Running');
+       LogEvent('Challenge Web Server Already Running');
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TSslX509Certs.StopDomSrv: boolean ;
+function TSslX509Certs.StopDomSrv: boolean ;    { returns false if stopped }
 begin
 //    FLastWebTick := TriggerDisabled;
-    Result := True;   { V8.63 only if running }
-    if FDomWebServer.IsRunning then Result := FDomWebServer.StopSrv;
+    Result := False;   { V8.63 only if running, log it }
+    if FDomWebServer.IsRunning then begin
+        Result := FDomWebServer.StopSrv;
+        if Result then
+            LogEvent('Challenge Web Server Failed to Stop')
+        else
+            LogEvent('Challenge Web Server Stopped OK');
+    end;
 end;
 
 
@@ -1801,7 +1823,7 @@ var
             '<BODY>' + IcsCRLF +
             '<H1>' + Title + '</H1>' + Msg + '<P>' + IcsCRLF +
             '</BODY></HTML>' + IcsCRLF;
-        LogEvent('Web Response: ' + RespCode);
+        LogEvent('Challenge Web Response: ' + RespCode);
     end;
 
 begin
@@ -1814,7 +1836,7 @@ begin
         Exit;
     end;
 
-    LogEvent(RFC3339_DateToStr(Now) + ' Web Server Request, Host: ' + Host + ', Path: ' + Path + ', Params: ' + Params);
+    LogEvent({RFC3339_DateToStr(Now) + } 'Challenge Web Request, Host: ' + Host + ', Path: ' + Path + ', Params: ' + Params);
  //   FullURL := 'http://' + Host + Path;
     RespData := '';
 
@@ -1828,7 +1850,7 @@ begin
                  // check it our page requested - beware need forward slashes
                     if (Pos(CPage, Path) >= 1) then begin
                         RespData := CResp;
-                        LogEvent('Web Server Challenge Response Sent for: ' + CDomain);
+                        LogEvent('Challenge Web Server Response Sent for: ' + CDomain);
                         FChkChallgTrg := IcsGetTrgSecs64 (10);  { V8.63 next check 10 secs }
                         break;
                     end;
@@ -1856,9 +1878,9 @@ end;
 { event called by simple web server when tls-alpn-01 challenge requested }
 procedure TSslX509Certs.WebSrvAlpn(Sender: TObject; const Host: string; var CertFName: string);
 var
-    I: Integer; 
+    I: Integer;
 begin
-    LogEvent(RFC3339_DateToStr(Now) + ' Web Server tls-alpn-01 Challenge Request, Host: ' + Host);
+    LogEvent({RFC3339_DateToStr(Now) +} 'Challenge Web tls-alpn-01 Challenge Request, Host: ' + Host);
 
     try
       /// check if host has Acme certificate created
@@ -1868,7 +1890,7 @@ begin
                     with FChallengeItems [I] do begin
                         if (CAcmeAlpnCert <> '') then begin
                             CertFName := CAcmeAlpnCert;
-                            LogEvent('Web Server tls-alpn-01 Challenge Certificate: ' + CertFName);
+                            LogEvent('Challenge Web tls-alpn-01 Challenge Certificate: ' + CertFName);
                             break;
                         end;
                     end;
@@ -1967,7 +1989,7 @@ begin
     Result := FRestOAuth.GrantRefresh;
     if NOT Result then begin
         FOAAccToken := '';
-        FOARefreshToken := '';
+    //    FOARefreshToken := '';  { V8.63 don't clear it, might not get new one 
         FOAExpireDT := 0;
         if Assigned(FOnNewToken) then FOnNewToken(self);
         if NOT FRestOAuth.StartAuthorization then Exit;
@@ -2864,11 +2886,15 @@ end;
 function TSslX509Certs.DBReadChallenges: Boolean;
 var
     section: string;
-    I: Integer;
+    I, Days: Integer;
+    StartedDT: TDateTime;
+    Updated: Boolean;
+    ChallgType: TChallengeType;
 begin
     Result := False;
     if NOT DBReadSections then Exit;
     FChallengesTot := 0;
+    Updated := False;
     SetLength(FChallengeItems, FDBIniSections.Count + 2);
     for I := 0 to Length(FChallengeItems) - 1 do
                             FChallengeItems [I].CDomain := '';    // clear all records
@@ -2876,6 +2902,17 @@ begin
         if Pos(CntlDBChallenge, FDBIniSections[I]) = 1 then begin
             section := FDBIniSections[I];
             with FControlFile do begin
+
+              { V8.63 expire and remove challenge after 24 hours or a week }
+                StartedDT := RFC3339_StrToDate(ReadString (section, 'CStartDT', '')) ;
+                ChallgType := TChallengeType(GetEnumValue (TypeInfo (TChallengeType), ReadString (section, 'CType', ''))) ;
+                Days := 1;
+                if (ChallgType in [ChallDNS, ChallEmail, ChallManual]) then Days := 7;
+                if ((StartedDT + Days) < Now) then begin
+                    EraseSection(section);
+                    Updated := True;
+                    Continue;
+                end;
                 with FChallengeItems [FChallengesTot] do begin
                     CDomain := ReadString (section, 'CDomain', '') ;
                     CCommonName := ReadString (section, 'CCommonName', '') ;
@@ -2885,7 +2922,7 @@ begin
                     CDirPubWebCert := ReadString (section, 'CDirPubWebCert', '') ;
                     CWKFullName := ReadString (section, 'CWKFullName', '') ;
                     CSupplierProto := TSupplierProto(GetEnumValue (TypeInfo (TSupplierProto), ReadString (section, 'CSupplierProto', ''))) ;
-                    CType := TChallengeType(GetEnumValue (TypeInfo (TChallengeType), ReadString (section, 'CType', ''))) ;
+                    CType := ChallgType;
                     CIssueState := TIssueState(GetEnumValue (TypeInfo (TIssueState), ReadString (section, 'CIssueState', ''))) ;
                     CAuthzURL := ReadString (section, 'CAuthzURL', '') ;
                     ChallgToken := IcsUnEscapeCRLF(ReadString (section, 'ChallgToken', '')) ;
@@ -2894,15 +2931,16 @@ begin
                     CResp := IcsUnEscapeCRLF(ReadString (section, 'CResp', '')) ;
                     CDNSValue := ReadString (section, 'CDNSValue', '') ;
                     CAcmeAlpnCert := ReadString (section, 'CAcmeAlpnCert', '') ; // V8.62
-                    CStartDT := RFC3339_StrToDate(ReadString (section, 'CStartDT', '')) ;
+                    CStartDT := StartedDT;
                     CDoneDT := RFC3339_StrToDate(ReadString (section, 'CDoneDT', '')) ;
                     CValidResult := ReadString (section, 'CValidResult', '') ;
                 end;
+                FChallengesTot := FChallengesTot + 1;
             end;
-            FChallengesTot := FChallengesTot + 1;
         end;
     end;
     LogEvent('Number of Domain Challenges Found: ' + IntToStr(FChallengesTot));
+    if Updated then FControlFile.UpdateFile;  // write INI file
     Result := True;
 end;
 
@@ -6744,6 +6782,7 @@ begin
     FSupplierProto := SuppProtoNone;
     CloseAccount;
     FAccountLastTick := IcsGetTickCount64;  { V8.63 }
+    FLastError := '';                       { V8.63 }
     if FAccountTimeOutMins <= 2 then FAccountTimeOutMins := 10; { V8.63 }
 
   // ignore public properties, read everything from database
@@ -6779,8 +6818,10 @@ begin
         FChallengeTimer.Enabled := True;
         ChallengeOnTimer(Self);  // immediate
      end
-     else
+     else begin
          FSupplierProto := SuppProtoNone;
+         FLastError := FLastResponse;   { V8.63 }
+     end;
     if Assigned(FOnSuppDBRefresh) then FOnSuppDBRefresh(Self);
 end;
 
@@ -6793,6 +6834,7 @@ begin
     if aDomain <> CertCommonName then Exit;
     if CertSubAltNames.Count = 0 then Exit;
     if SupplierProto = SuppProtoNone then Exit;
+    FLastError := '';                       { V8.63 }
 
   // read non-public props, it the domain exists
     DBReadCNDomain(aDomain, False);
@@ -6806,8 +6848,10 @@ begin
         LogEvent('Can Not Check Order, Unknown Supplier Protocol');
     if Result then
         LogEvent('Saved New Domain OK in Database: ' + aDomain)
-    else
+    else begin
+        FLastError := FLastResponse;   { V8.63 }
         LogEvent('Failed to Save New Domain in Database: ' + aDomain);
+    end;
 end;
 
 
@@ -6828,9 +6872,11 @@ begin
     FSuppCertProduct := '';
     FSuppOrderId := '';
     FSuppOrderRef := '';
+    FLastError := '';                       { V8.63 }
 
   // ignore public properties, read everything from database
     Result := DBReadCNDomain(aDomain, True);
+    if NOT Result then FLastError := FLastResponse;   { V8.63 }
 end;
 
 
@@ -6850,8 +6896,10 @@ begin
         LogEvent('Can Not Check Order, Unknown Supplier Protocol');
     if Result then
         LogEvent('Checked Certificate Order OK for: ' + aDomain)
-    else
+    else begin
+        FLastError := FLastResponse;   { V8.63 }
         LogEvent('Failed to Check Certificate Order for: ' + aDomain);
+    end;
 end;
 
 
@@ -6883,8 +6931,10 @@ begin
         LogEvent('Collected Certificate OK for: ' + aDomain)    { V8.63 }
     else if Result and (NOT Collected) then
         LogEvent('Ordered Certificate OK for: ' + aDomain)
-    else
+    else begin
+        FLastError := FLastResponse;   { V8.63 }
         LogEvent('Failed to Order Certificate for: ' + aDomain);
+    end;
 end;
 
 
@@ -6893,6 +6943,7 @@ end;
 function TSslX509Certs.CertCollectDomain(const aDomain: String): Boolean;
 begin
     Result := false ;
+    FLastError := '';                       { V8.63 }
     if aDomain <> fCertCommonName then begin
         if NOT CertReadDomain(aDomain) then Exit;
     end;
@@ -6915,8 +6966,10 @@ begin
      end;
     if Result then
         LogEvent('Collected Certificate OK for: ' + aDomain)
-    else
+    else begin
+        FLastError := FLastResponse;   { V8.63 }
         LogEvent('Failed to Collect Certificate for: ' + aDomain);
+    end;
 end;
 
 
@@ -6925,6 +6978,7 @@ end;
 function TSslX509Certs.CertCancelDomain(const aDomain: String): Boolean;
 begin
     Result := false ;
+    FLastError := '';                       { V8.63 }
     if aDomain <> fCertCommonName then begin
         if NOT CertReadDomain(aDomain) then Exit;
     end;
@@ -6939,7 +6993,7 @@ begin
      else if SupplierProto = SuppProtoServtas then
       //  Result := ServtasCancelOrder(False);
      else begin
-            LogEvent('Can Not Cancel Order, Unknown Supplier Protocol');
+        LogEvent('Can Not Cancel Order, Unknown Supplier Protocol');
      end;
 end;
 
@@ -6964,7 +7018,7 @@ begin
     else if SupplierProto = SuppProtoServtas then
       //  Result := ServtasCancelOrder(True);
     else begin
-            LogEvent('Can Not Cancel Order, Unknown Supplier Protocol');
+        LogEvent('Can Not Cancel Order, Unknown Supplier Protocol');
     end;
 end;
 

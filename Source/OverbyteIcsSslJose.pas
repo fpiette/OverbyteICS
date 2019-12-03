@@ -75,7 +75,7 @@ Oct 2, 2018   - 8.57 - build with FMX
 Aug 07, 2019  - 8.62 - build Jason Web Token (JWT)
                        Builds without USE_SSL
 Dec 3, 2019   - 8.64 - IcsJoseFindAlg accepts RSA-PSS keys for jsigRsa256/512 (Google).
-                       But IcsJoseJWKPubKey does not support RSA-PSS keys due to OpenSSL.  
+                       IcsJoseJWKPubKey need OpenSSL 1.1.1e to support RSA-PSS keys.
 
 
 Pending
@@ -627,10 +627,7 @@ begin
         if (Alg <> '') and (Pos ('RS', Alg) <> 1) and (Pos ('PS', Alg) <> 1) then
                 Raise EDigestException.Create('Need RSxxx Alg for RSA key');
 
-      { V8.64 RSA functions don't yet work with RSA-PSS }
-        if (keytype = EVP_PKEY_RSA_PSS) then begin
-                Raise EDigestException.Create('Do not support RSA-PSS key yet');
-        end;
+      { V8.64 RSA functions need 1.1.1e to work with RSA-PSS }
         MyRSA := f_EVP_PKEY_get1_RSA(PrivateKey);
         if NOT Assigned(myRSA) then
             RaiseLastOpenSslError(EDigestException, FALSE, 'Failed to read RSA key');

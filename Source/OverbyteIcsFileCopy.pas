@@ -3,8 +3,8 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  TIcsFileCopy allows indexing, copying and deleting of multiple
               file directories, using a single function call.
 Creation:     May 2001
-Updated:      Nov 2019
-Version:      8.63
+Updated:      Dec 2019
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -173,6 +173,8 @@ access to files is required.
               Before creating directory check not a file of same name, delete it.
               Should build on Posix, not tested, also Delphi 7 again
 2 Nov 2019 - V8.63 - IgnorePaths property now works with D7.
+2 Dec 2019 - V8.64 - Using TFile.Copy class on MacOS (but no progress display).
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -211,6 +213,9 @@ uses
     {$Ifdef Rtl_Namespaces}System.Classes{$Else}Classes{$Endif},
     {$Ifdef Rtl_Namespaces}System.Sysutils{$Else}Sysutils{$Endif},
     {$IFDEF Rtl_Namespaces}System.Masks{$ELSE}Masks{$ENDIF},
+{$IFDEF COMPILER16_UP}
+    System.IOUtils,
+{$ENDIF}
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsWndControl,
     Ics.Fmx.OverbyteIcsWSocket,
@@ -228,7 +233,7 @@ uses
 {$IFDEF Zipping} , VCLZip, VCLUnZip, kpZipObj {$ENDIF};
 
 const
-    FileCopyCopyRight : String = ' TIcsFileCopy (c) 2019 V8.63 ';
+    FileCopyCopyRight : String = ' TIcsFileCopy (c) 2019 V8.64 ';
 
 
 {ex000616.log.zip      11,123,903  -rwx  23/03/2001 12:57:00    /dir}
@@ -2081,13 +2086,15 @@ end ;
 function TIcsFileCopy.CopyOneFile (const Fnamesrc, Fnametar: string ;
                 Replopt: TIcsFileCopyRepl; const Safe: boolean; var Fsize: Int64) : TIcsTaskResult ;
 var
-    fnamecopy, newdir, code: string ;
+    fnamecopy, newdir, code, errmess: string ;
     ret, flag: boolean ;
     retval: integer ;
     duration: longword ;
     SrcFSize, TarFSize: Int64 ;
     SrcFileDT, TarFileDT: TDateTime;
+{$IFNDEF POSIX}
     WideFnamesrc, WideFnamecopy: array [0..MAX_PATH] of WideChar ;   // Unicode
+{$ENDIF}
     OldWow64: BOOL ;        // 22 May 2013
 begin
     result := TaskResFail ;
@@ -2162,9 +2169,21 @@ begin
 
 // copy file and it's attributes
     inc (fCopyProg.TotDoneNr) ;
+    errmess := '';
+{$IFDEF POSIX}
+    try
+        TFile.Copy(fnamesrc, fnamecopy, False);     { V8.64 MacOS compatible }
+        Ret := True;
+    except
+        Ret := False;
+        errmess := IcsGetExceptMess (ExceptObject)
+    end;
+{$ELSE}
     ret := CopyFileExW (StringToWideChar (fnamesrc, WideFnamesrc, MAX_PATH),
                     StringToWideChar (fnamecopy, WideFnamecopy, MAX_PATH),
                                         Pointer (@CopyProgressRoutine), Pointer (Self), Nil, 0) ;  // Unicode
+    if NOT ret then errmess := SysErrorMessage (GetLastError) ;
+{$ENDIF}
     duration := IcsElapsedTicks (fCopyProg.CurStartTick) ;
     doCopyEvent (LogLevelProg, '') ;  // clear progress display
     IcsCopyProgClearCur (fCopyProg) ;  // 16 May 2013 clear current since copying done
@@ -2176,8 +2195,8 @@ begin
     end ;
     if NOT ret then
     begin
-        doCopyEvent (LogLevelInfo, 'Copy Failed: ' + fnametar + ' - ' +  SysErrorMessage (GetLastError)) ;
-        doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + fnametar + '|0|0|1|Copy Failed: ' + SysErrorMessage (GetLastError)+ '|0|0') ;
+        doCopyEvent (LogLevelInfo, 'Copy Failed: ' + fnametar + ' - ' +  errmess) ;
+        doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + fnametar + '|0|0|1|Copy Failed: ' + errmess + '|0|0') ;
         exit ;
     end ;
 
@@ -2236,7 +2255,9 @@ var
     DelDirSrcList, DelDirTarList: TStringList ;
     duration: longword ;
     OldWow64: BOOL ;        // 22 May 2013
+{$IFNDEF POSIX}
     WideFnamesrc, WideFnamecopy: array [0..MAX_PATH] of WideChar ;   // Unicode
+{$ENDIF}
 {$IFDEF Zipping}
     info: string ;
     VCLUnZip: TVCLUnZip ;
@@ -2477,10 +2498,23 @@ begin
                                     IcsIntToCStr (fCopyProg.TotProcFiles) + ' - ' + fnamesrc  + ' to ' + fnametar ;
                 doCopyEvent (LogLevelFile, fCopyProg.ProgMessBase) ;
 
+
             // actual file copy
+                errmess := '';
+{$IFDEF POSIX}
+                try
+                    TFile.Copy(fnamesrc, fnamecopy, False);     { V8.64 MacOS compatible, no progress }
+                    Ret := True;
+                except
+                    Ret := False;
+                    errmess := IcsGetExceptMess (ExceptObject)
+                end;
+{$ELSE}
                 ret := CopyFileExW (StringToWideChar (fnamesrc, WideFnamesrc, MAX_PATH),
                                 StringToWideChar (fnamecopy, WideFnamecopy, MAX_PATH),
-                                             Pointer (@CopyProgressRoutine), Pointer (Self), Nil, 0) ;  // Unicode
+                                            Pointer (@CopyProgressRoutine), Pointer (Self), Nil, 0) ;  // Unicode
+                if NOT ret then errmess := SysErrorMessage (GetLastError) ;
+{$ENDIF}
                 duration := IcsElapsedTicks (fCopyProg.CurStartTick) ;
             end ;
             doCopyEvent (LogLevelProg, '') ;  // clear progress display
@@ -2491,9 +2525,7 @@ begin
                 if Length (fnamesrc) > 259 then  // 20 Oct 2011 explict file name length errors
                     errmess := 'Source file name too long ' + IcsIntToCStr (Length (fnamesrc))
                 else if Length (fnametar) > 259 then
-                    errmess := 'Target file name too long ' + IcsIntToCStr (Length (fnametar))
-                else
-                    errmess := SysErrorMessage (GetLastError) ;
+                    errmess := 'Target file name too long ' + IcsIntToCStr (Length (fnametar));
                 doCopyEvent (LogLevelInfo, 'Copy Failed: ' + fnametar + ' - ' +  errmess) ;
                 doCopyEvent (LogLevelDelimFile, fnamesrc + '|' + fnametar + '|0|0|1|Copy Failed: ' + errmess + '|0|0') ;
                 inc (fCopyProg.ProcFailFiles) ;

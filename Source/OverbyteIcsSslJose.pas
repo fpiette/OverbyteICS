@@ -6,15 +6,15 @@ Description:  JOSE - Json Object Signing and Encryption, used for:
                  JWT (Json Web Tokens)
                  JWK (Json Web Key)
                  JWE (Hson Web Encryption)
-                 variously used by OAuth1, ACME and other protcols.
+                 variously used by OAuth1, ACME and other protocols.
               Includes OpenSSL Message Authentication Code functions used
               for signing JOSE structures with secret or private/public keys.
 Creation:     Feb 2018
-Updated:      Aug 2019
-Version:      8.62
+Updated:      Dec 2019
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2018 by Angus Robertson, Magenta Systems Ltd,
+Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
@@ -74,6 +74,9 @@ May 21, 2018  - 8.54 - baseline
 Oct 2, 2018   - 8.57 - build with FMX
 Aug 07, 2019  - 8.62 - build Jason Web Token (JWT)
                        Builds without USE_SSL
+Dec 3, 2019   - 8.64 - IcsJoseFindAlg accepts RSA-PSS keys for jsigRsa256/512 (Google).
+                       But IcsJoseJWKPubKey does not support RSA-PSS keys due to OpenSSL.  
+
 
 Pending
 -------
@@ -623,6 +626,11 @@ begin
     if (keytype = EVP_PKEY_RSA) or (keytype = EVP_PKEY_RSA_PSS) then begin
         if (Alg <> '') and (Pos ('RS', Alg) <> 1) and (Pos ('PS', Alg) <> 1) then
                 Raise EDigestException.Create('Need RSxxx Alg for RSA key');
+
+      { V8.64 RSA functions don't yet work with RSA-PSS }
+        if (keytype = EVP_PKEY_RSA_PSS) then begin
+                Raise EDigestException.Create('Do not support RSA-PSS key yet');
+        end;
         MyRSA := f_EVP_PKEY_get1_RSA(PrivateKey);
         if NOT Assigned(myRSA) then
             RaiseLastOpenSslError(EDigestException, FALSE, 'Failed to read RSA key');
@@ -771,8 +779,10 @@ begin
         KeyType := f_EVP_PKEY_base_id(PrivateKey);
 
         if (JoseAlg >= jsigRsa256) and (JoseAlg <= jsigRsa512) then begin
-            if (keytype <> EVP_PKEY_RSA) or (f_EVP_PKEY_bits(PrivateKey) < 2048) then
+            if (f_EVP_PKEY_bits(PrivateKey) < 2048) then    { V8.64 clearer exceptions }
                    Raise EDigestException.Create('RSA private key 2,048 or longer required');
+            if (keytype <> EVP_PKEY_RSA) and (keytype <> EVP_PKEY_RSA_PSS) then  { V8.64 allow PSS as well }
+                   Raise EDigestException.Create('RSA private key required');
             case JoseAlg of
                 jsigRsa256: Result := 'RS256';
                 jsigRsa384: Result := 'RS384';
@@ -812,8 +822,10 @@ begin
 
         end
         else if (JoseAlg >= jsigRsaPss256) and (JoseAlg <= jsigRsaPss512) then begin
-             if (keytype <> EVP_PKEY_RSA_PSS) or (f_EVP_PKEY_bits(PrivateKey) < 2048) then
+            if (f_EVP_PKEY_bits(PrivateKey) < 2048) then   { V8.64 clearer exceptions }
                    Raise EDigestException.Create('RSA-PSS private key 2,048 or longer required');
+            if (keytype <> EVP_PKEY_RSA_PSS) then  { V8.64 }
+                   Raise EDigestException.Create('RSA-PSS private key required');
             case JoseAlg of
                 jsigRsaPss256: Result := 'PS256';
                 jsigRsaPss384: Result := 'PS384';

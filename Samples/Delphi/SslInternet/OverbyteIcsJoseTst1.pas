@@ -3,8 +3,8 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS SSL Json Object Signing (Jose) Demos
 Creation:     Apr 2018
-Updated:      Apr 2018
-Version:      8.54
+Updated:      Dec 2019
+Version:      8.64
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2018 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -39,7 +39,7 @@ Legal issues: Copyright (C) 2003-2018 by François PIETTE
 
 History:
 25 Apr 2018 - 8.54 baseline
-
+3 Dec 2019  - 8.64 corrected jose-ras files to jose-rsa and rsapsss to rsapss. 
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

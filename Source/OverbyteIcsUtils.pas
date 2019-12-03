@@ -3,7 +3,7 @@
 Author:       Arno Garrels <arno.garrels@gmx.de>
 Description:  A place for common utilities.
 Creation:     Apr 25, 2008
-Version:      8.63
+Version:      8.64
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2002-2019 by François PIETTE
@@ -164,7 +164,7 @@ Sep 18, 2018 V8.57 Added IcsWireFmtToStrList and IcsStrListToWireFmt converting
                      and vice versa
                    Added IcsSetToInt, IcsIntToSet, IcsSetToStr, IcsStrToSet to
                      ease saving set bit maps to INI files and registry.
-                   Added IcsExtractNameOnly and IsPathDelim
+                   Added IcsExtractNameOnly, IsPathDelim and IcsGetCompName
 Dec 17, 2019 V8.59 Added IcsGetExceptMess
 Mar 11, 2019 V8.60 Added IcsFormatSettings to replace formatting public vars removed in XE3.
                    Added IcsAddThouSeps to add thousand separators to a numeric string.
@@ -185,6 +185,11 @@ Jun 19, 2019 V8.62 Added IcsGetLocalTZBiasStr get time zone bias as string, ie -
                       bias and adjust result if UseTZ=True from UTC to local time.
 Nov 7, 2018  V8.63 Better error handling in RFC1123_StrToDate to avoid exceptions.
                    Added TypeInfo enumeration sanity check for IcsSetToStr and IcsStrToSet.
+Dec 2, 2019  V8.64 Allow IcsGetUTCTime, IcsSetUTCTime, GetIcsFormatSettings to build
+                     on MacOS again, they use Windows only APIs.
+                   IcsGetTempPath builds on MacOS.
+                   IcsGetCompName now Windows only, only used in samples.
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -246,6 +251,7 @@ uses
     {$IFDEF Rtl_Namespaces}System.DateUtils{$ELSE}DateUtils{$ENDIF},  { V8.60 }
 {$IFDEF COMPILER16_UP}
     System.SyncObjs,
+    System.IOUtils,    { V8.64 }
 {$ENDIF}
 {$IFDEF COMPILER18_UP}
     {$IFDEF RTL_NAMESPACES}System.AnsiStrings{$ELSE}AnsiStrings{$ENDIF},
@@ -653,7 +659,6 @@ const
     function IcsSetToStr(TypInfo: PTypeInfo; const aSet; const aSize: Integer): string;   { V8.57 }
     procedure IcsStrToSet(TypInfo: PTypeInfo; const Values: String; var aSet; const aSize: Integer);  { V8.57 }
     function IcsExtractNameOnly(const FileName: String): String; { V8.57 }
-    function IcsGetCompName: String;                             { V8.57 }
     function IcsGetExceptMess(ExceptObject: TObject): string;   { V8.59 }
     function IcsAddThouSeps (const S: String): String;          { V8.60 }
     function IcsInt64ToCStr (const N: Int64): String ;          { V8.60 }
@@ -670,6 +675,9 @@ const
     function IcsPathDosToUnixW(const Path: UnicodeString): UnicodeString;   { V8.60 }
     function IcsSecsToStr(Seconds: Integer): String;         { V8.60 }
     function IcsGetTempPath: String;                         { V8.60 }
+{$IFDEF MSWINDOWS}   { V8.64 not MacOS }
+    function IcsGetCompName: String;                         { V8.57 }
+{$ENDIF}
 
     { V8.54 Tick and Trigger functions for timing stuff moved here from OverbyteIcsFtpSrvT   }
     function IcsGetTickCountX: longword ;
@@ -1503,7 +1511,9 @@ end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.60 get system date and time as UTC/GMT into Delphi time }
+{ V8.64 TSystemTime is windows only, alternate for Linux }
 function IcsGetUTCTime: TDateTime;
+  {$IFDEF MSWINDOWS}
 var
     SystemTime: TSystemTime;
 begin
@@ -1512,18 +1522,30 @@ begin
         Result := EncodeTime (wHour, wMinute, wSecond, wMilliSeconds) +
                                               EncodeDate (wYear, wMonth, wDay);
     end ;
+  {$ENDIF}
+  {$IFDEF POSIX}
+begin
+    Result := IcsDateTimeToUTC(Now);
+  {$ENDIF}
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.60 set system date and time as UTC/GMT, requires administrator rights }
+{ V8.64 TSystemTime is windows only, alternate for Linux }
 function IcsSetUTCTime (DateTime: TDateTime): boolean;
+  {$IFDEF MSWINDOWS}
 var
     SystemTime: TSystemTime;
 begin
     with SystemTime do DecodeDateTime (DateTime, wYear, wMonth,
                                  wDay, wHour, wMinute, wSecond, wMilliSeconds);
     Result := SetSystemTime (SystemTime);
+  {$ENDIF}
+  {$IFDEF POSIX}
+begin
+    Result := False;  { V8.64 pending, do we care? }
+  {$ENDIF}
 end ;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -6746,6 +6768,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.57 get the computer name from networking, moved from web sample }
+{$IFDEF MSWINDOWS}   { V8.64 not MacOS }
 function IcsGetCompName: String;
 var
     Buffer: array[0..255] of WideChar ;
@@ -6756,6 +6779,7 @@ begin
     NLen := Length (Buffer) ;
     if GetComputerNameW (Buffer, NLen) then Result := Buffer ;
 end ;
+{$ENDIF}
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -6828,7 +6852,11 @@ end ;
 procedure GetIcsFormatSettings;
 begin
 {$IF CompilerVersion >= 23.0}   // XE2 and later
+  {$IFDEF MSWINDOWS}
      IcsFormatSettings := TFormatSettings.Create (GetThreadLocale) ;
+  {$ELSE}
+     IcsFormatSettings := TFormatSettings.Create ; { V8.64 MacOs no GetThreadLocale }
+  {$ENDIF}
 {$ELSE}
      GetLocaleFormatSettings (GetThreadLocale, IcsFormatSettings) ;
 {$IFEND}
@@ -7067,10 +7095,15 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function IcsGetTempPath: String;      { V8.60 }
+{$IFDEF MSWINDOWS}
 var
     Buffer: array [0..MAX_PATH] of WideChar;
 begin
     SetString(Result, Buffer, GetTempPathW (Length (Buffer) - 1, Buffer));
+{$ELSE}
+begin
+    Result := TPath.GetTempPath;   { V8.64 MacOS }
+{$ENDIF}
 end;
 
 

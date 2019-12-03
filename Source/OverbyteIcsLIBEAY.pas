@@ -5,10 +5,9 @@ Description:  Delphi encapsulation for LIBEAY32.DLL (OpenSSL)
               Renamed libcrypto32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.62
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list ics-ssl@elists.org
-              Follow "SSL" link at http://www.overbyte.be for subscription.
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
@@ -151,7 +150,9 @@ Oct 19, 2018  V8.58 version only
 Jul 04, 2019  V8.62 Added f_OBJ_create to add new NIDs.
                     ICS_NID_acmeIdentifier created dynamically since NID missing.
                     Fixed Asn1ToString bad octet conversion to hex.
-                    
+Dec 02, 2019  V8.64 Added f_EVP_PKEY_set_alias_type
+
+
 
 Pending - OpenSSL 3.0.0 may require numeric NID_xx to be replaced by string
 SN_xx and/or LN_xx (short/long name), ie CN or CommonName for NID_CommonName = 13.
@@ -263,8 +264,8 @@ uses
     OverbyteIcsSSLEAY;
 
 const
-    IcsLIBEAYVersion   = 862;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2018 F. Piette V8.62 ';
+    IcsLIBEAYVersion   = 864;
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2019 F. Piette V8.64 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -2047,6 +2048,7 @@ const
     f_EVP_PKEY_print_private :                 function (outbio: PBIO; pkey: PEVP_PKEY; indent: Integer; pctx: PASN1_PCTX): Integer; cdecl = Nil;        { V8.40 }
     f_EVP_PKEY_print_public :                  function (outbio: PBIO; pkey: PEVP_PKEY; indent: Integer; pctx: PASN1_PCTX): Integer; cdecl = Nil;        { V8.40 }
     f_EVP_PKEY_security_bits :                 function(Pkey: PEVP_PKEY): Integer; cdecl = nil;                              { V8.51 }
+    f_EVP_PKEY_set_alias_type :                function(Pkey: PEVP_PKEY; ptype: Integer): Integer; cdecl = nil;                                          { V8.64 }
     f_EVP_PKEY_sign :                          function(pctx: PEVP_PKEY_CTX; sig: PAnsiChar; var siglen: size_t; tbs: PAnsiChar; tbslen: size_t): Integer; cdecl = Nil;      { V8.49 }
     f_EVP_PKEY_sign_init :                     function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;      { V8.49 }
     f_EVP_PKEY_size :                          function(Pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
@@ -2528,7 +2530,7 @@ procedure IcsRandPoll;
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GLIBEAYImports1: array[0..615] of TOSSLImports = (
+    GLIBEAYImports1: array[0..616] of TOSSLImports = (
 
     (F: @@f_ASN1_INTEGER_get ;        N: 'ASN1_INTEGER_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_INTEGER_get_int64 ;  N: 'ASN1_INTEGER_get_int64';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
@@ -2795,6 +2797,7 @@ const
     (F: @@f_EVP_PKEY_print_private ;  N: 'EVP_PKEY_print_private';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
     (F: @@f_EVP_PKEY_print_public ;   N: 'EVP_PKEY_print_public';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
     (F: @@f_EVP_PKEY_security_bits;   N: 'EVP_PKEY_security_bits';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.51 }
+    (F: @@f_EVP_PKEY_set_alias_type;  N: 'EVP_PKEY_set_alias_type';     MI: OSSL_VER_1101; MX: OSSL_VER_MAX), { V8.64 }
     (F: @@f_EVP_PKEY_sign;            N: 'EVP_PKEY_sign';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.49 }
     (F: @@f_EVP_PKEY_sign_init;       N: 'EVP_PKEY_sign_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_size;            N: 'EVP_PKEY_size';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),

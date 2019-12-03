@@ -3,7 +3,7 @@ object IpLogForm: TIpLogForm
   Top = 84
   Caption = 
     'ICS IP Streaming Log Component Demo -  http://www.overbyte.be - ' +
-    'V8.63 - 13th November 2019'
+    'V8.64 - 26th November 2019'
   ClientHeight = 746
   ClientWidth = 1004
   Color = clBtnFace

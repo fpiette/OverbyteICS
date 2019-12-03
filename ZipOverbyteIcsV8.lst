@@ -2028,8 +2028,8 @@ Samples/Delphi/SslInternet/jose-ec-prvkey.pem
 Samples/Delphi/SslInternet/jose-ec-pubkey.pem
 Samples/Delphi/SslInternet/jose-ed25519-prvkey.pem
 Samples/Delphi/SslInternet/jose-ed25519-pubkey.pem
-Samples/Delphi/SslInternet/jose-ras-prvkey.pem
-Samples/Delphi/SslInternet/jose-ras-pubkey.pem
+Samples/Delphi/SslInternet/jose-rsa-prvkey.pem
+Samples/Delphi/SslInternet/jose-rsa-pubkey.pem
 Samples/Delphi/SslInternet/jose-rsapss-prvkey.pem
 Samples/Delphi/SslInternet/jose-rsapss-pubkey.pem
 

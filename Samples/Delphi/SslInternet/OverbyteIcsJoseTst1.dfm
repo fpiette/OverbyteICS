@@ -3,7 +3,7 @@ object JsonDemoForm: TJsonDemoForm
   Top = 180
   Caption = 
     'ICS SSL Json Object Signing Demos - http://www.overbyte.be - V8.' +
-    '54 - 25th April 2018'
+    '64 - 3rd December 2019'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace
@@ -276,13 +276,12 @@ object JsonDemoForm: TJsonDemoForm
     Width = 406
     Height = 22
     ItemHeight = 14
-    ItemIndex = 0
     TabOrder = 4
-    Text = 'jose-ras-prvkey.pem'
+    Text = 'jose-rsa-prvkey.pem'
     Items.Strings = (
-      'jose-ras-prvkey.pem'
+      'jose-rsa-prvkey.pem'
       'jose-ec-prvkey.pem'
-      'jose-raspsss-prvkey.pem'
+      'jose-rsapss-prvkey.pem'
       'jose-ed25519-prvkey.pem')
   end
   object doHashDigest: TButton

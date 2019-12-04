@@ -74,8 +74,9 @@ May 21, 2018  - 8.54 - baseline
 Oct 2, 2018   - 8.57 - build with FMX
 Aug 07, 2019  - 8.62 - build Jason Web Token (JWT)
                        Builds without USE_SSL
-Dec 3, 2019   - 8.64 - IcsJoseFindAlg accepts RSA-PSS keys for jsigRsa256/512 (Google).
-                       IcsJoseJWKPubKey need OpenSSL 1.1.1e to support RSA-PSS keys.
+Dec 4, 2019   - 8.64 - IcsJoseFindAlg accepts RSA-PSS keys for jsigRsa256/512
+                         (Google) and Ed25519 keys for jsigEdDSA
+                       IcsJoseJWKPubKey needs OpenSSL 1.1.1e to support RSA-PSS keys.
 
 
 Pending
@@ -90,7 +91,7 @@ Verify Json Web Signed message using public key (only creating at moment)
 More testing of ECDSA based signatures and keys, possible compatibility
 isses with other libraries.
 
-Implement RSA-PSS and Ed25519 (OpenSSL 1.1.1 and later).
+Test RSA-PSS and Ed25519 keys for signing with IcsAsymSignDigest
 
 }
 
@@ -667,26 +668,6 @@ begin
                     else
                         Curve := 'P-256';
                 end;
-
-             (* SetLength(Buff, 129);
-                // get public key, split it into x and y
-                { the point is encoded as z||x||y, where z is the octet 0x04  }
-                KeyLen := f_EC_POINT_point2oct(ecgroup, ecpoint,
-                            POINT_CONVERSION_UNCOMPRESSED, @Buff[1], 129, Nil);
-                if KeyLen <= 0 then
-                    RaiseLastOpenSslError(EDigestException, FALSE, 'Failed to read ECDSA key');
-                SetLength(Buff, KeyLen);
-                if Buff [1] <> #4 then
-                    Raise EDigestException.Create('Failed to read ECDSA public key');
-                KeyLen := KeyLen div 2;
-                Result := '{"crv":"' + Curve + '",' +
-                          '"kty":"EC",' +
-                          '"x":"' + IcsBase64UrlEncode(Copy(Buff, 2, KeyLen)) + '",' +
-                      //  '"xh":"' + IcsBufferToHex(Buff[2], KeyLen, ':') + '",' +
-                      //  '"yh":"' + IcsBufferToHex(Buff[KeyLen + 2], KeyLen, ':') + '",' +
-                          '"y":"' + IcsBase64UrlEncode(Copy(Buff, KeyLen + 2, KeyLen)) + '"';
-                 // both versions generated the same output that matched the public key  *)
-
                 big1 := f_BN_new;
                 big2 := f_BN_new;
                 f_EC_POINT_get_affine_coordinates_GFp(ecgroup, ecpoint, big1, big2, Nil);
@@ -703,24 +684,20 @@ begin
         end;
     end
     else if (keytype = EVP_PKEY_ED25519) then begin // different type of EC, 1.1.1 and later
+        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then       { V8.64 }
+                 Raise EDigestException.Create('Need OpenSSL 1.1.1 or later for Ed25519 key');
         if (Alg <> '') and (Alg <> 'EdDSA') then
                  Raise EDigestException.Create('Need EdDSA Alg for Ed25519 key');
-    //    eckey := f_EVP_PKEY_get1_EC_KEY(PrivateKey);
-    //    if eckey = nil then
-    //        RaiseLastOpenSslError(EDigestException, FALSE, 'Failed to read Ed25519 key');
-    //    try
-            SetLength(Buff, 256);
-       //     KeyLen := f_i2o_ECPublicKey(eckey, @Buff[1]);
-            KeyLen := f_i2d_PublicKey(PrivateKey, @Buff[1]);
-            if KeyLen < 1 then
-               RaiseLastOpenSslError(EDigestException, FALSE, 'Failed to read Ed25519 public key');
-            SetLength(Buff, KeyLen);
-            Result := '{"kty":"OKP",' +   // Ocktet string key pairs
-                       '"crv":"Ed25519",' +
-                       '"x"="' +IcsBase64UrlEncode(String(Buff)) + '"';
-     //   finally
-     //       f_EC_KEY_free(eckey);
-     //   end;
+        SetLength(Buff, 256);
+        FillChar(Buff[1], 256, #0);
+        KeyLen := 255;
+        if f_EVP_PKEY_get_raw_public_key(PrivateKey, @Buff[1], KeyLen) = 0 then   { V8.64 correct function }
+           RaiseLastOpenSslError(EDigestException, FALSE, 'Failed to read Ed25519 public key');
+        SetLength(Buff, KeyLen);
+        Result := '{"kty":"OKP",' +   // Ocktet string key pairs
+                   '"crv":"Ed25519",' +
+               //    '"hex":"' + IcsBufferToHex(Buff[1], KeyLen, ':') + '",' +  // TEMP DIAG
+                   '"x":"' + IcsBase64UrlEncode(String(Buff)) + '"';      { V8.64 }
     end
     else
         Result := '';

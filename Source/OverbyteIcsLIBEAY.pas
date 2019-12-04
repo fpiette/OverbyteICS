@@ -150,7 +150,8 @@ Oct 19, 2018  V8.58 version only
 Jul 04, 2019  V8.62 Added f_OBJ_create to add new NIDs.
                     ICS_NID_acmeIdentifier created dynamically since NID missing.
                     Fixed Asn1ToString bad octet conversion to hex.
-Dec 02, 2019  V8.64 Added f_EVP_PKEY_set_alias_type
+Dec 04, 2019  V8.64 Added f_EVP_PKEY_set_alias_type, f_EVP_PKEY_id, f_d2i_PUBKEY(_bio),
+                      f_i2d_PUBKEY_bio, f_EVP_PKEY_new/get_raw_private/public_key. 
 
 
 
@@ -2038,10 +2039,17 @@ const
     f_EVP_PKEY_get1_DSA :                      function (pkey: PEVP_PKEY): PDSA; cdecl = nil; //Angus
     f_EVP_PKEY_get1_EC_KEY :                   function (pkey: PEVP_PKEY): PEC_KEY; cdecl = nil; //Angus
     f_EVP_PKEY_get1_RSA :                      function (pkey: PEVP_PKEY): PRSA; cdecl = nil; //Angus
+    f_EVP_PKEY_id :                            function(Pkey: PEVP_PKEY): Integer; cdecl = nil;                               { V8.64 }
     f_EVP_PKEY_keygen :                        function(pctx: PEVP_PKEY_CTX; var pkey: PEVP_PKEY): Integer; cdecl = Nil;      { V8.49 }
     f_EVP_PKEY_keygen_init :                   function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;                           { V8.49 }
     f_EVP_PKEY_new :                           function: PEVP_PKEY; cdecl = nil;//AG
     f_EVP_PKEY_new_mac_key :                   function(keytype: Integer; eng: PEngine; key: PAnsiChar; keylen: Integer): PEVP_PKEY;  cdecl = Nil;  { V8.49 }
+
+    f_EVP_PKEY_new_raw_private_key :           function(keytype: Integer; eng: PEngine; key: PAnsiChar; keylen: Integer): PEVP_PKEY; cdecl = nil; { V8.64 }
+    f_EVP_PKEY_new_raw_public_key :            function(keytype: Integer; eng: PEngine; key: PAnsiChar; keylen: Integer): PEVP_PKEY; cdecl = nil; { V8.64 }
+    f_EVP_PKEY_get_raw_private_key :           function(PKey: PEVP_PKEY; privkey: PAnsiChar; var outlen: Integer): Integer; cdecl = nil;           { V8.64 }
+    f_EVP_PKEY_get_raw_public_key :            function(PKey: PEVP_PKEY; pubkey: PAnsiChar; var outlen: Integer): Integer; cdecl = nil;            { V8.64 }
+
     f_EVP_PKEY_paramgen :                      function(pctx: PEVP_PKEY_CTX; pkey: PEVP_PKEY): Integer; cdecl = Nil;          { V8.49 }
     f_EVP_PKEY_paramgen_init :                 function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;                           { V8.49 }
     f_EVP_PKEY_print_params :                  function (outbio: PBIO; pkey: PEVP_PKEY; indent: Integer; pctx: PASN1_PCTX): Integer; cdecl = Nil;        { V8.40 }
@@ -2242,10 +2250,10 @@ const
     f_X509_NAME_new :                          function: PX509_NAME; cdecl = nil;//AG
     f_X509_NAME_oneline :                      function(CertName: PX509_NAME; Buf: PAnsiChar; BufSize: Integer): PAnsiChar; cdecl = nil;
     f_X509_NAME_print_ex :                     function(B: PBIO; Name: PX509_NAME; indent: Integer; flags: Integer): Integer; cdecl = Nil;  { V8.40 }
-    f_X509_PKEY_free :                         procedure(PKey: PX509_PKEY); cdecl = nil;//AG;
     f_X509_OBJECT_get_type :                   function (a: PX509_OBJECT): TX509_LOOKUP_TYPE; cdecl = nil; { V8.39 }
     f_X509_OBJECT_get0_X509 :                  function (a: PX509_OBJECT): PX509; cdecl = nil; { V8.39 }
     f_X509_OBJECT_get0_X509_CRL :              function (a: PX509_OBJECT): PX509_CRL; cdecl = nil; { V8.39 }
+    f_X509_PKEY_free :                         procedure(PKey: PX509_PKEY); cdecl = nil;//AG;
     f_X509_PUBKEY_free :                       procedure(Key: PEVP_PKEY); cdecl = nil; //AG;
     f_X509_PURPOSE_get0 :                      function(Idx: Integer): PX509_PURPOSE; cdecl = nil;//AG;
     f_X509_PURPOSE_get0_name :                 function(XP: PX509_PURPOSE): PAnsiChar; cdecl = nil;//AG;
@@ -2369,6 +2377,8 @@ const
     f_d2i_PKCS8PrivateKey_bio:                 function(bp: PBIO; x: PPEVP_PKEY; cb: Tpem_password_cb; u: pointer): PEVP_PKEY; cdecl = nil;     { V8.11 }
     f_d2i_PrivateKey :                         function(type_: Integer; var a: PEVP_PKEY; var pp : PAnsiChar; length: Integer): PEVP_PKEY; cdecl = nil;//AG
     f_d2i_PrivateKey_bio :                     function(B: PBIO; A: PPEVP_PKEY): PEVP_PKEY; cdecl = nil;//AG
+    f_d2i_PUBKEY :                             function(a: PPEVP_PKEY; var pp: PAnsiChar; Len: Integer): PEVP_PKEY; cdecl = nil; { V8.64 }
+    f_d2i_PUBKEY_bio :                         function(B: PBIO; a: PPEVP_PKEY): PEVP_PKEY; cdecl = nil;                         { V8.64 }
     f_d2i_PublicKey :                          function(keytype: Integer; a: PPEVP_PKEY; var Buf: PAnsiChar; Len: Integer): PEVP_PKEY; cdecl = nil; { V8.52 }
     f_d2i_RSAPrivateKey:                       function(a: PPRSA; var pp: PByte; length: Integer): PRSA; cdecl = nil;
     f_d2i_X509 :                               function(C509: PPX509; Buf: PPAnsiChar; Len: Integer): PX509; cdecl = nil;
@@ -2381,6 +2391,8 @@ const
     f_i2d_PKCS7_bio :                          function(B: PBIO; p7: PPKCS7): Integer; cdecl = nil;                            { V8.41 }
     f_i2d_PrivateKey :                         function(A: PEVP_PKEY; PP: PPAnsiChar): Integer; cdecl = nil;//AG
     f_i2d_PrivateKey_bio :                     function(B: PBIO; pkey: PEVP_PKEY): Integer; cdecl = nil;//AG
+    f_i2d_PUBKEY :                             function(a: PEVP_PKEY; pp: PPAnsiChar): Integer; cdecl = nil;                     { V8.64 }
+    f_i2d_PUBKEY_bio :                         function(B: PBIO;a: PEVP_PKEY): Integer; cdecl = nil;                             { V8.64 }
     f_i2d_PublicKey :                          function(a: PEVP_PKEY; pp: PPAnsiChar): Integer; cdecl = nil;                   { V8.52 }
     f_i2d_RSAPublicKey:                        function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
     f_i2d_RSA_PUBKEY:                          function(a: PRSA; var pp: PByte): Integer; cdecl = nil;
@@ -2390,6 +2402,8 @@ const
     f_i2d_X509_bio :                           function(B: PBIO; X509: PX509): Integer; cdecl = nil;
     f_i2o_ECPublicKey :                        function(key: PEC_KEY; out: PAnsiChar): Integer; cdecl = nil;                { V8.52 }
     f_o2i_ECPublicKey :                        function(var key: PEC_KEY; inp: PAnsiChar; len: Integer): PEC_KEY; cdecl = nil;  { V8.52 }
+
+
 
 {$IFDEF OPENSSL_USE_DELPHI_MM}
     f_CRYPTO_set_mem_functions :               function(M: TCryptoMallocFunc; R: TCryptoReallocFunc; F: TCryptoFreeMemFunc): Integer; cdecl = nil; //AG
@@ -2530,7 +2544,7 @@ procedure IcsRandPoll;
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GLIBEAYImports1: array[0..616] of TOSSLImports = (
+    GLIBEAYImports1: array[0..625] of TOSSLImports = (
 
     (F: @@f_ASN1_INTEGER_get ;        N: 'ASN1_INTEGER_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_INTEGER_get_int64 ;  N: 'ASN1_INTEGER_get_int64';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
@@ -2781,18 +2795,25 @@ const
     (F: @@f_EVP_PKEY_derive_set_peer; N: 'EVP_PKEY_derive_set_peer';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_encrypt;         N: 'EVP_PKEY_encrypt';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_encrypt_init;    N: 'EVP_PKEY_encrypt_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
-    (F: @@f_EVP_PKEY_free;            N: 'EVP_PKEY_free';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_PKEY_get0;            N: 'EVP_PKEY_get0';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_PKEY_get1_DH;         N: 'EVP_PKEY_get1_DH';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_PKEY_get1_DSA;        N: 'EVP_PKEY_get1_DSA';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_PKEY_free;            N: 'EVP_PKEY_free';          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_PKEY_get0;            N: 'EVP_PKEY_get0';          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_PKEY_get1_DH;         N: 'EVP_PKEY_get1_DH';       MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_PKEY_get1_DSA;        N: 'EVP_PKEY_get1_DSA';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_PKEY_get1_EC_KEY;     N: 'EVP_PKEY_get1_EC_KEY';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_PKEY_get1_RSA;        N: 'EVP_PKEY_get1_RSA';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_PKEY_keygen;          N: 'EVP_PKEY_keygen';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_get1_RSA;        N: 'EVP_PKEY_get1_RSA';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_PKEY_id;              N: 'EVP_PKEY_id';            MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.64 }
+    (F: @@f_EVP_PKEY_keygen;          N: 'EVP_PKEY_keygen';        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_keygen_init;     N: 'EVP_PKEY_keygen_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
-    (F: @@f_EVP_PKEY_new ;            N: 'EVP_PKEY_new';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_EVP_PKEY_new ;            N: 'EVP_PKEY_new';           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_PKEY_new_mac_key;     N: 'EVP_PKEY_new_mac_key';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
-    (F: @@f_EVP_PKEY_paramgen;        N: 'EVP_PKEY_paramgen';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
-    (F: @@f_EVP_PKEY_paramgen_init;   N: 'EVP_PKEY_paramgen_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+
+    (F: @@f_EVP_PKEY_new_raw_private_key; N: 'EVP_PKEY_new_raw_private_key'; MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
+    (F: @@f_EVP_PKEY_new_raw_public_key;  N: 'EVP_PKEY_new_raw_public_key';  MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
+    (F: @@f_EVP_PKEY_get_raw_private_key; N: 'EVP_PKEY_get_raw_private_key'; MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
+    (F: @@f_EVP_PKEY_get_raw_public_key;  N: 'EVP_PKEY_get_raw_public_key';  MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
+
+    (F: @@f_EVP_PKEY_paramgen;        N: 'EVP_PKEY_paramgen';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
+    (F: @@f_EVP_PKEY_paramgen_init;   N: 'EVP_PKEY_paramgen_init';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_print_params ;   N: 'EVP_PKEY_print_params';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
     (F: @@f_EVP_PKEY_print_private ;  N: 'EVP_PKEY_print_private';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
     (F: @@f_EVP_PKEY_print_public ;   N: 'EVP_PKEY_print_public';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
@@ -3129,6 +3150,8 @@ const
     (F: @@f_d2i_PKCS8PrivateKey_bio;   N: 'd2i_PKCS8PrivateKey_bio';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_d2i_PrivateKey ;           N: 'd2i_PrivateKey';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_d2i_PrivateKey_bio ;       N: 'd2i_PrivateKey_bio'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_d2i_PUBKEY ;               N: 'd2i_PUBKEY';         MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.64 }
+    (F: @@f_d2i_PUBKEY_bio ;           N: 'd2i_PUBKEY_bio';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.64 }
     (F: @@f_d2i_PublicKey ;            N: 'd2i_PublicKey';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.52 }
     (F: @@f_d2i_RSAPrivateKey;         N: 'd2i_RSAPrivateKey';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_d2i_X509 ;                 N: 'd2i_X509';           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -3140,6 +3163,8 @@ const
     (F: @@f_i2d_PKCS7_bio ;            N: 'i2d_PKCS7_bio';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.41 }
     (F: @@f_i2d_PrivateKey ;           N: 'i2d_PrivateKey';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_i2d_PrivateKey_bio ;       N: 'i2d_PrivateKey_bio'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_i2d_PUBKEY ;               N: 'i2d_PUBKEY';         MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.64 }
+    (F: @@f_i2d_PUBKEY_bio ;           N: 'i2d_PUBKEY_bio';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.64 }
     (F: @@f_i2d_PublicKey ;            N: 'i2d_PublicKey';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),      { V8.52 }
     (F: @@f_i2d_RSAPublicKey ;         N: 'i2d_RSAPublicKey';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_i2d_RSA_PUBKEY ;           N: 'i2d_RSA_PUBKEY';     MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),

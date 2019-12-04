@@ -407,7 +407,7 @@ begin
     Data := Trim(TextLines.Lines.Text);
     AddLog ('Data: ' + Data);
     try
-        Mykid := DateTimeToStr(Now);
+        Mykid := TimeToStr(Now);
         if TestJWSAlg.ItemIndex < 1 then Exit;
         JoseAlg := TJoseAlg(TestJWSAlg.ItemIndex);
         if JoseAlg >= jsigRsa256 then begin
@@ -418,7 +418,10 @@ begin
         begin
             AddLog ('Alg: ' + TestJWSAlg.Items[TestJWSAlg.ItemIndex] +
                             ', Private Key: ' + FPrivateKey.PrivateKeyInfo);
+            AddLog ( FPrivateKey.GetPKeyRawText);  { V8.64 }
             KwkPub := IcsJoseJWKPubKey(FPrivateKey.PrivateKey, Myalg, Mykid, 'sig');
+            AddLog ('IcsJoseJWKPkey Raw: ' + KwkPub);     { V8.64 }
+            AddLog ('');
             RespJson := SO(KwkPub);
             AddLog ('IcsJoseJWKPkey: ' + RespJson.AsJson(true, false));
         end
@@ -430,11 +433,13 @@ begin
             RespJson := SO(KwkPub);
             AddLog ('IcsJoseJWKMac: ' + RespJson.AsJson(true, false));
         end;
+        AddLog ('');
 
         S := IcsJoseHeader(Myalg, 'jws', KwkPub, '', 'Nonce');
-        AddLog (S);
+        AddLog ('IcsJoseHeader Raw: ' + S);
+        AddLog ('');
         RespJson := SO(S);
-        AddLog (' IcsJoseHeader: ' + RespJson.AsJson(true, false));
+        AddLog ('IcsJoseHeader: ' + RespJson.AsJson(true, false));
         AddLog ('');
 
         S := IcsJoseJWSComp(JoseAlg, Data, TestHmacKey.Text, FPrivateKey.PrivateKey,

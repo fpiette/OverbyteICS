@@ -3,7 +3,7 @@ object JsonDemoForm: TJsonDemoForm
   Top = 180
   Caption = 
     'ICS SSL Json Object Signing Demos - http://www.overbyte.be - V8.' +
-    '64 - 3rd December 2019'
+    '64 - 4th December 2019'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace

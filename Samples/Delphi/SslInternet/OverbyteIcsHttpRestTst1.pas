@@ -3,8 +3,8 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
-Updated:      July 2019
-Version:      8.63
+Updated:      Dec 2019
+Version:      8.64
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
@@ -68,7 +68,16 @@ Nov 11, 2019 - V8.63 OAuth2 progress log display got lost.
                      Added two Google Gmail API URLs to the drop down list.
                      OAuth has Prompt and Access Offline for Google to requests a
                        Refresh Token.
-                       
+Dec 10, 2019 - V8.64 Added XML response parsing into a ISuperOject which can be
+                       processed similarly to a Json object, beware that XML content
+                       is converted into Json values, each level with two or three
+                       names: #attributes is an optional object from opening tag,
+                       #Name is the string from <Tag>, and #children which is an
+                       array of other Json objects and arrays nested within the tag.
+                       Note XML does have a concept of arrays as such.
+                     Improved Json object double clicking display again.
+
+                     
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpRestTst1;
@@ -107,7 +116,8 @@ uses
   OverbyteIcsSslJose,
   OverbyteIcsWndControl,
   OverbyteIcsBlacklist,
-  OverbyteIcsDnsQuery;
+  OverbyteIcsDnsQuery,
+  OverbyteIcsSuperXMLParser;  { V8.64 }
 
 type
   THttpRestForm = class(TForm)
@@ -706,7 +716,7 @@ procedure THttpRestForm.HttpRest1RestRequestDone(Sender: TObject;
   RqType: THttpRequest; ErrCode: Word);
 var
     JsonItem: TSuperAvlEntry;
-    JsonObj: ISuperObject;
+    JsonObj, RespObj: ISuperObject;
     JsonEnum: TSuperAvlIterator;
     I, CWid: integer;
     FirstCol, FirstRow: Boolean;
@@ -725,15 +735,33 @@ begin
     AddLog('Request done, StatusCode #' + IntToStr(HttpRest1.StatusCode));
     AddLog (String(HttpRest1.ResponseRaw));
 
+  // look for Json response }
     if ((Pos('{', HttpRest1.ResponseRaw) > 0) or
-           (Pos('[', HttpRest1.ResponseRaw) > 0)) and
-                Assigned(HttpRest1.ResponseJson) then begin
-        try
-            AddLog ('Json main content type: ' + GetEnumName(TypeInfo(TSuperType),
-                                                Ord(HttpRest1.ResponseJson.DataType)));
+           (Pos('json', HttpRest1.ContentType) > 0)) then begin
+        RespObj := HttpRest1.ResponseJson;
+        if Assigned(RespObj) then
+            AddLog ('Json main content type: ' +
+               GetEnumName(TypeInfo(TSuperType), Ord(RespObj.DataType)));
+    end;
 
+  // V8.64 look for XML response }
+    if ((Pos('<?xml version=', HttpRest1.ResponseRaw) > 0) or
+                       (Pos('xml', HttpRest1.ContentType) > 0)) then begin
+        try
+            RespObj := XMLParseStream(HttpRest1.ResponseStream, false);  // don't pack
+            AddLog ('XML content as Json: ' + RespObj.AsString);  // !!! TEMP Json version of XML
+        except
+            on E:Exception do
+                AddLog('Error parsing XML: ' + E.Message);
+        end;
+    end;
+
+
+  // parse Json or XML response to grid
+    if Assigned(RespObj) then begin
+        try
          // note that values containing objects are displayed as raw Json
-            if HttpRest1.ResponseJson.DataType = stObject then begin
+            if RespObj.DataType = stObject then begin
                 RespList.Columns.Clear;
                 with RespList.Columns.Add do begin
                     Caption := 'Name';
@@ -745,21 +773,13 @@ begin
                 end;
                 with RespList.Columns.Add do begin
                     Caption := 'Value';
-                    Width := 400;
+                    Width := 1000;
                 end;
                 with RespList.Columns.Add do begin
                     Caption := '';
                     Width := 100;
                 end;
-        {        for JsonItem in HttpRest1.ResponseJson.AsObject do begin
-                    with RespList.Items.Add do begin
-                        Caption := JsonItem.Name;
-                        SubItems.Add(GetEnumName(TypeInfo(TSuperType),
-                                                Ord(JsonItem.Value.DataType)));
-                        SubItems.Add(JsonItem.Value.AsString);
-                    end;
-                end;   }
-                JsonEnum := HttpRest1.ResponseJson.AsObject.GetEnumerator;
+                JsonEnum := RespObj.AsObject.GetEnumerator;
                 try
                     while JsonEnum.MoveNext do begin
                         JsonItem := JsonEnum.GetIter;
@@ -767,7 +787,8 @@ begin
                             Caption := JsonItem.Name;
                             SubItems.Add(GetEnumName(TypeInfo(TSuperType),
                                                     Ord(JsonItem.Value.DataType)));
-                            SubItems.Add(JsonItem.Value.AsString);
+                            CVal := JsonItem.Value.AsString;
+                            SubItems.Add(CVal);
                         end;
                     end;
                 finally
@@ -776,12 +797,12 @@ begin
             end;
 
          // one column per Value, with Name as title
-            if HttpRest1.ResponseJson.DataType = stArray then begin
+            if RespObj.DataType = stArray then begin
                 RespList.Items.BeginUpdate;
                 RespList.Columns.Clear;
                 FirstRow := True;
-                for I := 0 to  HttpRest1.ResponseJson.AsArray.Length - 1 do begin
-                    JsonObj := HttpRest1.ResponseJson.AsArray[I];
+                for I := 0 to  RespObj.AsArray.Length - 1 do begin
+                    JsonObj := RespObj.AsArray[I];
                     FirstCol := True;
                     with RespList.Items.Add do begin
                         JsonEnum := JsonObj.AsObject.GetEnumerator;
@@ -789,7 +810,8 @@ begin
                             JsonItem := JsonEnum.GetIter;
                             CVal := JsonItem.Value.AsString;
                             if FirstRow then begin
-                                CWid := (Length(CVal) * 5) + 20;
+                                CWid := (Length(CVal) * 5) + 30;
+                                if CWid > 400 then CWid := 400;
                                 with RespList.Columns.Add do begin
                                     Caption := JsonItem.Name;
                                     Width := CWid;
@@ -813,6 +835,33 @@ begin
         end;
     end;
     TimerLogTimer(Self); // update log window
+end;
+
+procedure THttpRestForm.RespListDblClick(Sender: TObject);
+var
+    I: Integer;
+begin
+    if NOT Assigned(FormObject) then Exit;
+    if RespList.ItemIndex < 0 then Exit;
+    FormObject.SubRespList.Items.Clear;
+    with RespList.Items[RespList.ItemIndex] do begin
+        if (SubItems.Count >= 2) and ((SubItems[0] = 'stArray') or
+                                            (SubItems[0] = 'stObject')) then
+            FormObject.DispJson(SubItems[1])
+
+     // V8.64 array may have Json object in any column, search for first, sorry ignore others...
+        else if ((Pos ('{', Caption) = 1) or (Pos ('[', Caption) = 1)) then
+            FormObject.DispJson(Caption)
+        else if (SubItems.Count > 0) then begin
+            for I := 0 to SubItems.Count - 1 do begin
+                if ((Pos ('{', SubItems[I]) = 1) or (Pos ('[', SubItems[I]) = 1)) then begin
+                    FormObject.DispJson(SubItems[I]);
+                    break;
+                end;
+            end;
+        end;
+        FormObject.BringToFront;
+    end;
 end;
 
 
@@ -846,20 +895,6 @@ begin
     RestOAuth1.RedirectUrl := Trim(OAuthRedirectUrl.Text);
     RestOAuth1.WebSrvIP := Trim(OAuthWebIP.Text);
     RestOAuth1.WebSrvPort := Trim(OAuthWebPort.Text);
-end;
-
-
-procedure THttpRestForm.RespListDblClick(Sender: TObject);
-begin
-    if NOT Assigned(FormObject) then Exit;
-    if RespList.ItemIndex < 0 then Exit;
-    with RespList.Items[RespList.ItemIndex] do begin
-        if SubItems.Count < 2 then Exit;
-        if (SubItems[0] = 'stArray') or (SubItems[0] = 'stObject') then
-            FormObject.DispJson(SubItems[1])
-         else
-            FormObject.SubRespList.Items.Clear;
-    end;
 end;
 
 procedure THttpRestForm.RestOAuth1OAuthAuthUrl(Sender: TObject;

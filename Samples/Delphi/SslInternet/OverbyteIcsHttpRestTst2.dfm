@@ -41,9 +41,5 @@ object FormObject: TFormObject
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = SubRespListDblClick
-    ExplicitLeft = -265
-    ExplicitTop = 281
-    ExplicitWidth = 823
-    ExplicitHeight = 119
   end
 end

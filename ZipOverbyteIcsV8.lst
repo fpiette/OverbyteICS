@@ -494,6 +494,7 @@ Source\OverbyteIcsSslX509Utils.pas
 Source\OverbyteIcsSspi.pas
 Source\OverbyteIcsStreams.pas
 Source\OverbyteIcsSuperObject.pas
+Source\OverbyteIcsSuperXMLParser.pas
 Source\OverbyteIcsSysLogClient.dcr
 Source\OverbyteIcsSysLogClient.pas
 Source\OverbyteIcsSysLogDefs.pas

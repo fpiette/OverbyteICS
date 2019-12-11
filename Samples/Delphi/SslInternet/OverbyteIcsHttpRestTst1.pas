@@ -68,13 +68,8 @@ Nov 11, 2019 - V8.63 OAuth2 progress log display got lost.
                      Added two Google Gmail API URLs to the drop down list.
                      OAuth has Prompt and Access Offline for Google to requests a
                        Refresh Token.
-Dec 10, 2019 - V8.64 Added XML response parsing into a ISuperOject which can be
-                       processed similarly to a Json object, beware that XML content
-                       is converted into Json values, each level with two or three
-                       names: #attributes is an optional object from opening tag,
-                       #Name is the string from <Tag>, and #children which is an
-                       array of other Json objects and arrays nested within the tag.
-                       Note XML does have a concept of arrays as such.
+Dec 11, 2019 - V8.64 Added XML response parsing into a ISuperOject which can be
+                       processed similarly to a Json object.
                      Improved Json object double clicking display again.
 
                      
@@ -734,6 +729,7 @@ begin
 
     AddLog('Request done, StatusCode #' + IntToStr(HttpRest1.StatusCode));
     AddLog (String(HttpRest1.ResponseRaw));
+    RespObj := Nil; 
 
   // look for Json response }
     if ((Pos('{', HttpRest1.ResponseRaw) > 0) or
@@ -748,14 +744,14 @@ begin
     if ((Pos('<?xml version=', HttpRest1.ResponseRaw) > 0) or
                        (Pos('xml', HttpRest1.ContentType) > 0)) then begin
         try
-            RespObj := XMLParseStream(HttpRest1.ResponseStream, false);  // don't pack
+        //    RespObj := XMLParseStream(HttpRest1.ResponseStream, false); // no pack for all tags
+            RespObj := XMLParseStream(HttpRest1.ResponseStream, true);    // pack for easier display
             AddLog ('XML content as Json: ' + RespObj.AsString);  // !!! TEMP Json version of XML
         except
             on E:Exception do
                 AddLog('Error parsing XML: ' + E.Message);
         end;
     end;
-
 
   // parse Json or XML response to grid
     if Assigned(RespObj) then begin

@@ -18,8 +18,27 @@
  *  Dec 11, 2019, created ICS version for XML applications in older versions
  *  of Delphi, using OverbyteIcsDefs.inc for versions to allow use with newer
  *  versions although generally try to use Delphi stuff instead.
- *  Beware only documentation is readme.md file.
+ *  Beware only documentation is readme.md file, but added some parsing comments
+ *  here with an example.
  *  Taken from https://github.com/hgourvest/superobject
+
+The XMLParseXX functions have a Pack option that determines the ISuperObject format
+returned, Pack=False (default) returns all tags as values with multiple nested
+levels of objects, Pack=True is simpler and easier to process but does lose some
+tag names.
+
+Pack=False (default): all XML content is converted into Json values, each level
+with two or three names: #attributes is an optional object from opening tag, #Name
+is the string from <Tag>, and #children which is an array of other Json objects
+and arrays nested within the tag.
+
+Pack=True: tags are converted to Names and their content to Values, or nested
+objects.  For a single record, a single object is returned with the tag names
+lost, for multiple records (ie tags of the same name) an array is created with
+each record being an object.
+
+
+Note XML does have a concept of arrays as such.
 
  Origin XML sample:
 <?xml version="1.0" encoding="UTF-8"?>
@@ -38,7 +57,7 @@
   </food>
 </breakfast_menu>
 
-Parsed Json output:
+Parsed Json output, Pack=False:
 
 {   "#attributes":{
         "xmlns":"http:\/\/schemas.microsoft.com\/developer\/msbuild\/2003"
@@ -101,11 +120,30 @@ Parsed Json output:
                 }
             ],
             "#name":"food"
-        },
+        }
     ],
     "#name":"breakfast_menu"
 }
 
+Parsed Json output, Pack=True:
+
+{
+    "food":[
+        {
+            "description":"Two of our famous Belgian Waffles with plenty of real maple syrup",
+            "name":"Belgian Waffles",
+            "calories":"650",
+            "price":"$5.95"
+        },
+        {
+            "description":"Light Belgian waffles covered with strawberries and whipped cream",
+            "name":"Strawberry Belgian Waffles",
+            "calories":"900",
+            "price":"$7.95"
+        }
+    ],
+    "xmlns":"http:\/\/schemas.microsoft.com\/developer\/msbuild\/2003"
+}
 
  *)
 
@@ -147,7 +185,10 @@ const
 
 
 implementation
-uses sysutils {$IFNDEF UNIX}, windows{$ENDIF};
+
+uses
+    {$IFDEF RTL_NAMESPACES}System.Sysutils{$ELSE}Sysutils{$ENDIF}
+    {$IFNDEF UNIX},Windows{$ENDIF};
 
 const
   XML_SPACE : PSOChar = #32;
@@ -1306,9 +1347,11 @@ label
   redo;
 begin
   Result := 0;
-//  ret := 0;   // ANGUS remove hints
-//  rem := 0;
-//  min := 0;
+{$IFNDEF UNICODE}
+  ret := 0;   // ANGUS remove hints, not sure which compiler started them...
+  rem := 0;
+  min := 0;
+{$ENDIF}
 
   if unused <> nil then
     unused^ := 0;

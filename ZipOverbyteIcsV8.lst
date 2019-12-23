@@ -2065,6 +2065,8 @@ Samples\Delphi\SslInternet\OverbyteIcsJoseTst.dproj
 Samples\Delphi\SslInternet\OverbyteIcsJoseTst.res
 Samples\Delphi\SslInternet\OverbyteIcsJoseTst1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsJoseTst1.pas
+Samples\Delphi\SslInternet\OverbyteIcsJoseTst2.dfm
+Samples\Delphi\SslInternet\OverbyteIcsJoseTst2.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsMsVerify.dof
 Samples\Delphi\SslInternet\OverbyteIcsMsVerify.dpr

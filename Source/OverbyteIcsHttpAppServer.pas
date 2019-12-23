@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  THttpAppSrv is a specialized THttpServer component to ease
               his use for writing application servers.
 Creation:     Dec 20, 2003
-Version:      8.62
+Version:      8.64
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2003-2019 by François PIETTE
@@ -119,6 +119,7 @@ Oct 10, 2018 V8.57 INI file now reads Options as enumerated type literals,
 Oct 19, 2018 V8.58 INI file reads ListenBacklog.
 Nov 19, 2018 V8.59 Sanity checks reading mistyped enumerated values from INI file.
 Aug 7, 2019  V8.62 Builds without AUTO_X509_CERTS or USE_SSL
+Dec 23, 2019 V8.64 Ignore handler free errors.
 
 
 [WebAppServer]
@@ -1109,7 +1110,10 @@ var
 begin
     for I := Count - 1 downto 0 do begin
         if Assigned(Objects[I]) then begin
-            Objects[I].Free;
+            try
+                Objects[I].Free;
+            except     { V8.64 ignore errors }
+            end;
             Objects[I] := nil;
         end;
         Self.Delete(I);

@@ -185,10 +185,12 @@ Jun 19, 2019 V8.62 Added IcsGetLocalTZBiasStr get time zone bias as string, ie -
                       bias and adjust result if UseTZ=True from UTC to local time.
 Nov 7, 2018  V8.63 Better error handling in RFC1123_StrToDate to avoid exceptions.
                    Added TypeInfo enumeration sanity check for IcsSetToStr and IcsStrToSet.
-Dec 2, 2019  V8.64 Allow IcsGetUTCTime, IcsSetUTCTime, GetIcsFormatSettings to build
+Dec 18, 2019 V8.64 Allow IcsGetUTCTime, IcsSetUTCTime, GetIcsFormatSettings to build
                      on MacOS again, they use Windows only APIs.
                    IcsGetTempPath builds on MacOS.
                    IcsGetCompName now Windows only, only used in samples.
+                   IcsStrListToWireFmt supports Unicode correctly.
+                   IcsWireFmtToStrList checks buffer length valid.
 
 
 
@@ -6598,7 +6600,7 @@ begin
     offset := 0;
     while offset < Len do begin
         mylen := Buffer[offset];
-        if mylen = 0 then Exit;  // illegal
+        if (mylen = 0) or (mylen + offset >= Len) then Exit;  // illegal, V8.64 check not outside buffer
         offset := offset + 1;
         SetLength(AStr, mylen);
         Move(Buffer[offset], AStr[1], mylen);
@@ -6614,6 +6616,7 @@ end;
 function IcsStrListToWireFmt(SList: TStrings; var Buffer: TBytes): Integer;
 var
     I, offset, mylen: integer;
+    AStr: AnsiString;
 begin
     Result := 0;
     if NOT Assigned(SList) then Exit;
@@ -6623,11 +6626,12 @@ begin
     SetLength(Buffer, Result);
     offset := 0;
     for I := 0 to SList.Count - 1 do  begin
-        mylen := Length(SList[I]);
+        AStr := SList[I];     { V8.64 support Unicode }
+        mylen := Length(AStr);
         if mylen > 0 then begin
             Buffer[offset] := mylen;
             offset := offset + 1;
-            Move(SList[I] [1], Buffer[offset], mylen);
+            Move(AStr[1], Buffer[offset], mylen);
             offset := offset + mylen;
         end;
     end;

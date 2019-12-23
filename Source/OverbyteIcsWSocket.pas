@@ -1327,7 +1327,7 @@ Nov 18, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                    GetSelfSigned now has better check for self signed certificates.
                    Added Sha256Digest and Sha256Hex to TX509Base.
                    CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
-Dec 2, 2019  V8.64 Version only.
+Dec 19, 2019 V8.64 Ignore any errors with SSL APLN during handshake.
 
 
 
@@ -15644,28 +15644,34 @@ begin
     if Assigned(Ws) then begin
         ProtoList := TStringList.Create;
         try
-            Count := IcsWireFmtToStrList(TBytes(input), inlen, ProtoList);
-            if Count > 0 then begin
+            try
+                Count := IcsWireFmtToStrList(TBytes(input), inlen, ProtoList);
+                if Count > 0 then begin
 
-                {$IFNDEF NO_DEBUG_LOG}
-                    if Ws.CheckLogOptions(loSslInfo) then
-                        Ws.DebugLog(loSslInfo, 'AlpnCB> Protocols: ' + ProtoList.CommaText);
-                {$ENDIF}
+                    {$IFNDEF NO_DEBUG_LOG}
+                        if Ws.CheckLogOptions(loSslInfo) then begin
+                            Ws.DebugLog(loSslInfo, 'AlpnCB> inlen: ' + IntToStr(inlen) +
+                                           ' - ' + IcsBufferToHex(input^, inlen));  { V8.64 }
+                            Ws.DebugLog(loSslInfo, 'AlpnCB> Protocols: ' + ProtoList.CommaText);
+                        end;
+                    {$ENDIF}
 
-             { ask user if they want to select a single protocol to use from the list }
-                SelProto := '';
-                Err := teeNoAck;
-                Ws.TriggerSslAlpnSelect(ProtoList, SelProto, Err);
-                outlen := Length(SelProto);
-                if (Err = teeOk) and (outlen > 0) then begin
-                    WS.FAlpnProtoAnsi := AnsiString(SelProto);   { V8.62 made static }
-                    output := @WS.FAlpnProtoAnsi[1];
-                    Result := SSL_TLSEXT_ERR_OK;  { V8.62 }
-                end
-                else if Err = teeAlertWarning then
-                    Result := SSL_TLSEXT_ERR_ALERT_WARNING    { V8.62 }
-                else if Err = teeAlertFatal then
-                    Result := SSL_TLSEXT_ERR_ALERT_FATAL;     { V8.62 }
+                 { ask user if they want to select a single protocol to use from the list }
+                    SelProto := '';
+                    Err := teeNoAck;
+                    Ws.TriggerSslAlpnSelect(ProtoList, SelProto, Err);
+                    outlen := Length(SelProto);
+                    if (Err = teeOk) and (outlen > 0) then begin
+                        WS.FAlpnProtoAnsi := AnsiString(SelProto);   { V8.62 made static }
+                        output := @WS.FAlpnProtoAnsi[1];
+                        Result := SSL_TLSEXT_ERR_OK;  { V8.62 }
+                    end
+                    else if Err = teeAlertWarning then
+                        Result := SSL_TLSEXT_ERR_ALERT_WARNING    { V8.62 }
+                    else if Err = teeAlertFatal then
+                        Result := SSL_TLSEXT_ERR_ALERT_FATAL;     { V8.62 }
+                end;
+            except   { V8.64 ignore any error here }
             end;
         finally
             ProtoList.Free;

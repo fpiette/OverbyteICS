@@ -39,8 +39,10 @@ Legal issues: Copyright (C) 2003-2018 by François PIETTE
 
 History:
 25 Apr 2018 - 8.54 baseline
-3 Dec 2019  - 8.64 corrected jose-ras files to jose-rsa and rsapsss to rsapss. 
-
+23 Dec 2019 - 8.64 Corrected jose-ras files to jose-rsa and rsapsss to rsapss.
+                   Added new Json/XML tab that allows blocks of Json or XML to
+                     be copy/pasted and parsed to objects in a grid, repeatedly.
+                     Also pretty prints Json, all to help Json debugging.  
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsJoseTst1;
@@ -63,7 +65,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls,
+  Dialogs, StdCtrls, TypInfo, ComCtrls, ExtCtrls,
   OverbyteIcsWSocket,
   OverbyteIcsUtils,
   OverbyteIcsMimeUtils,
@@ -73,6 +75,7 @@ uses
   OverbyteIcsLibeay,
 //  OverbyteIcsSslX509Utils,
   OverbyteIcsSuperObject,
+  OverbyteIcsSuperXMLParser,   { V8.64 }
   OverbyteIcsSslJose;
 
 type
@@ -92,7 +95,6 @@ type
     doTestSign: TButton;
     doJWS: TButton;
     doSignHmac: TButton;
-    LogWin: TMemo;
     Label1: TLabel;
     Base64Text: TEdit;
     Label2: TLabel;
@@ -106,6 +108,20 @@ type
     doHashDigest: TButton;
     Label5: TLabel;
     URLText: TEdit;
+    PageControl: TPageControl;
+    TabSheetJose: TTabSheet;
+    TabSheetJson: TTabSheet;
+    JsonGrid: TListView;
+    JsonInput: TMemo;
+    PanelButtons: TPanel;
+    doParseJson: TButton;
+    doLoadFile: TButton;
+    doParseXML: TButton;
+    CompactXML: TCheckBox;
+    LogWin: TMemo;
+    Label33: TLabel;
+    OpenDialog: TOpenDialog;
+    LogJson: TCheckBox;
     procedure doBase64DecClick(Sender: TObject);
     procedure doBase64EncClick(Sender: TObject);
     procedure doB64URLEnClick(Sender: TObject);
@@ -122,6 +138,9 @@ type
     procedure doHashDigestClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure TextLinesDblClick(Sender: TObject);
+    procedure doParseClick(Sender: TObject);
+    procedure doLoadFileClick(Sender: TObject);
+    procedure JsonGridDblClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -137,6 +156,8 @@ var
 implementation
 
 {$R *.dfm}
+
+Uses OverbyteIcsJoseTst2;
 
 procedure TJsonDemoForm.FormCreate(Sender: TObject);
 begin
@@ -472,6 +493,155 @@ begin
     AddLog ('');
 end;
 
+procedure TJsonDemoForm.doLoadFileClick(Sender: TObject);
+begin
+    if OpenDialog.Execute then begin
+        JsonInput.Lines.LoadFromFile(OpenDialog.FileName);
+    end;
+end;
+
+procedure TJsonDemoForm.doParseClick(Sender: TObject);
+var
+    JsonItem: TSuperAvlEntry;
+    JsonObj, RespObj: ISuperObject;
+    JsonEnum: TSuperAvlIterator;
+    I, CWid: integer;
+    FirstCol, FirstRow: Boolean;
+    SourceTxt: WideString;
+    CVal: String;
+begin
+    RespObj := Nil;
+    JsonGrid.Items.Clear;
+    SourceTxt := JsonInput.Lines.Text;
+
+  // look for Json response }
+    if ((Pos('{', SourceTxt) > 0) or (Sender = doParseJson)) then begin
+        try
+            RespObj := TSuperObject.ParseString(PWideChar(SourceTxt), True);
+        except
+            on E:Exception do
+                AddLog('Error parsing Json: ' + E.Message);
+        end;
+        if Assigned(RespObj) then
+            AddLog ('Json main content type: ' +
+               GetEnumName(TypeInfo(TSuperType), Ord(RespObj.DataType)));
+    end;
+
+  // V8.64 look for XML response }
+    if ((Pos('<?xml version=', SourceTxt) > 0) or (Sender = doParseXML)) then begin
+        try
+            RespObj := XMLParseString(SourceTxt, CompactXML.Checked);
+        except
+            on E:Exception do
+                AddLog('Error parsing XML: ' + E.Message);
+        end;
+    end;
+    if NOT Assigned(RespObj) then Exit;  // nothing to show
+
+  // parse Json or XML response to grid
+    if LogJson.Checked then AddLog (RespObj.AsJson (True, False));  // formatted
+    try
+     // note that values containing objects are displayed as raw Json
+        if RespObj.DataType = stObject then begin
+            JsonGrid.Columns.Clear;
+            with JsonGrid.Columns.Add do begin
+                Caption := 'Name';
+                Width := 100;
+            end;
+            with JsonGrid.Columns.Add do begin
+                Caption := 'Type';
+                Width := 70;
+            end;
+            with JsonGrid.Columns.Add do begin
+                Caption := 'Value';
+                Width := 1000;
+            end;
+            with JsonGrid.Columns.Add do begin
+                Caption := '';
+                Width := 100;
+            end;
+            JsonEnum := RespObj.AsObject.GetEnumerator;
+            try
+                while JsonEnum.MoveNext do begin
+                    JsonItem := JsonEnum.GetIter;
+                    with JsonGrid.Items.Add do begin
+                        Caption := JsonItem.Name;
+                        SubItems.Add(GetEnumName(TypeInfo(TSuperType),
+                                                Ord(JsonItem.Value.DataType)));
+                        CVal := JsonItem.Value.AsString;
+                        SubItems.Add(CVal);
+                    end;
+                end;
+            finally
+                JsonEnum.Free;
+            end;
+        end;
+
+     // one column per Value, with Name as title
+        if RespObj.DataType = stArray then begin
+            JsonGrid.Items.BeginUpdate;
+            JsonGrid.Columns.Clear;
+            FirstRow := True;
+            for I := 0 to  RespObj.AsArray.Length - 1 do begin
+                JsonObj := RespObj.AsArray[I];
+                FirstCol := True;
+                with JsonGrid.Items.Add do begin
+                    JsonEnum := JsonObj.AsObject.GetEnumerator;
+                    while JsonEnum.MoveNext do begin
+                        JsonItem := JsonEnum.GetIter;
+                        CVal := JsonItem.Value.AsString;
+                        if FirstRow then begin
+                            CWid := (Length(CVal) * 5) + 30;
+                            if CWid > 400 then CWid := 400;
+                            with JsonGrid.Columns.Add do begin
+                                Caption := JsonItem.Name;
+                                Width := CWid;
+                            end;
+                        end;
+                        if FirstCol then
+                            Caption := CVal
+                        else
+                            SubItems.Add(CVal);
+                        FirstCol := False;
+                    end;
+                end;
+                FirstRow := False;
+            end;
+            JsonGrid.Items.EndUpdate;
+        end;
+
+    except
+        on E:Exception do
+            AddLog('Error parsing Json: ' + E.Message);
+    end;
+end;
+
+procedure TJsonDemoForm.JsonGridDblClick(Sender: TObject);
+var
+    I: Integer;
+begin
+    if NOT Assigned(FormObject) then Exit;
+    if JsonGrid.ItemIndex < 0 then Exit;
+    FormObject.SubJsonGrid.Items.Clear;
+    with JsonGrid.Items[JsonGrid.ItemIndex] do begin
+        if (SubItems.Count >= 2) and ((SubItems[0] = 'stArray') or
+                                            (SubItems[0] = 'stObject')) then
+            FormObject.DispJson(SubItems[1])
+
+     // V8.64 array may have Json object in any column, search for first, sorry ignore others...
+        else if ((Pos ('{', Caption) = 1) or (Pos ('[', Caption) = 1)) then
+            FormObject.DispJson(Caption)
+        else if (SubItems.Count > 0) then begin
+            for I := 0 to SubItems.Count - 1 do begin
+                if ((Pos ('{', SubItems[I]) = 1) or (Pos ('[', SubItems[I]) = 1)) then begin
+                    FormObject.DispJson(SubItems[I]);
+                    break;
+                end;
+            end;
+        end;
+        FormObject.BringToFront;
+    end;
+end;
 
 
 end.

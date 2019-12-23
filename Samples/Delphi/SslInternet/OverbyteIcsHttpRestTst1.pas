@@ -68,10 +68,10 @@ Nov 11, 2019 - V8.63 OAuth2 progress log display got lost.
                      Added two Google Gmail API URLs to the drop down list.
                      OAuth has Prompt and Access Offline for Google to requests a
                        Refresh Token.
-Dec 11, 2019 - V8.64 Added XML response parsing into a ISuperOject which can be
+Dec 18, 2019 - V8.64 Added XML response parsing into a ISuperOject which can be
                        processed similarly to a Json object.
                      Improved Json object double clicking display again.
-
+                     Corrected passing ALPN list to component.  
                      
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -662,7 +662,7 @@ begin
     HttpRest1.Password := AuthPassword.Text;
     HttpRest1.AuthBearerToken := AuthBearer.Text;
     HttpRest1.ProxyURL := ProxyURL.Text;                        { V8.62 }
-    HttpRest1.AlpnProtocols.Text := AlpnProtos.Text;            { V8.62 }
+    HttpRest1.AlpnProtocols.CommaText := AlpnProtos.Text;            { V8.64 }
     HttpRest1.ExtraHeaders := ExtraHeaders.Lines;
     HttpRest1.SocketFamily := TSocketFamily(IpSockFamily.ItemIndex);  { V8.60 IP4 and/or IPV6 }
 end;

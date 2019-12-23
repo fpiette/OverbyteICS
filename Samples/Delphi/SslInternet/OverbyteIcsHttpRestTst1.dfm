@@ -3,7 +3,7 @@ object HttpRestForm: THttpRestForm
   Top = 176
   Caption = 
     'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.64 -' +
-    ' 11th December 2019'
+    ' 18th December 2019'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace
@@ -177,10 +177,6 @@ object HttpRestForm: THttpRestForm
     object TabSettings: TTabSheet
       Caption = 'Settings'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label2: TLabel
         Left = 10
         Top = 245
@@ -446,10 +442,6 @@ object HttpRestForm: THttpRestForm
     object TabOAuth: TTabSheet
       Caption = 'OAuth'
       ImageIndex = 2
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label19: TLabel
         Left = 300
         Top = 220
@@ -715,7 +707,7 @@ object HttpRestForm: THttpRestForm
         Top = 215
         Width = 106
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 4
         Text = '127.0.0.1'
       end
@@ -786,10 +778,6 @@ object HttpRestForm: THttpRestForm
     object TabDNSHTTPS: TTabSheet
       Caption = 'DNS over HTTPS'
       ImageIndex = 3
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label23: TLabel
         Left = 10
         Top = 15
@@ -816,7 +804,7 @@ object HttpRestForm: THttpRestForm
         Top = 10
         Width = 346
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 0
         Text = 'https://cloudflare-dns.com/dns-query'
         Items.Strings = (
@@ -832,7 +820,7 @@ object HttpRestForm: THttpRestForm
         Top = 40
         Width = 201
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 1
         Text = 'pool.ntp.org'
         Items.Strings = (
@@ -855,7 +843,7 @@ object HttpRestForm: THttpRestForm
         Width = 201
         Height = 22
         Style = csDropDownList
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 2
       end
       object doDNSJson: TButton
@@ -905,18 +893,10 @@ object HttpRestForm: THttpRestForm
     object TabTwitter: TTabSheet
       Caption = 'Twiiter'
       ImageIndex = 4
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
     end
     object TabSms: TTabSheet
       Caption = 'Send SMS'
       ImageIndex = 5
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object BoxSmsMsg: TGroupBox
         Left = 3
         Top = 3

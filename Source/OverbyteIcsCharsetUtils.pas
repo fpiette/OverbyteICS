@@ -14,13 +14,11 @@ Description:  A place for MIME-charset stuff.
               http://msdn.microsoft.com/en-us/library/ms776446.aspx
               http://www.iana.org/assignments/character-sets
 Creation:     July 17, 2008
-Version:      V8.61
-EMail:        http://www.overbyte.be       francois.piette@overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2002-2019 by François PIETTE
+Version:      V8.64
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 2002-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
-              <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -96,6 +94,10 @@ Sep 18, 2017 V8.40 Added various functions to find the codepage for an HTML page
 Apr 25, 2018 V8.54 IcsHtmlToStr accepts json/xml as textual
 Apr 24, 2019 V8.61 IcsHtmlToStr returns javascript content as well as XML and Json.
                    IcsHtmlToStr doesn't give up on tiny responses.
+Jan 08, 2020 V8.64 Declare TBytess function parameters as const to avoid reference
+                     counting corruption with cast pointers, thanks to Kas Ob for
+                     finding this, which caused stack corruption and unexpected
+                     errors mainly with 64-bit applications, probably.
 
                    
 
@@ -548,16 +550,16 @@ procedure GetFriendlyCharsetList(Items: TStrings; IncludeList: TMimeCharsets; Cl
 procedure GetMimeCharsetList(Items: TStrings; IncludeList: TMimeCharsets; ClearItems: Boolean = True);
 
 { find charset for HTML page in buffer from meta tags }
-function IcsFindHtmlCharset(HtmlData: TBytes; Count: Integer): String;      { V8.50 }
+function IcsFindHtmlCharset(const HtmlData: TBytes; Count: Integer): String;      { V8.50, V8.64 }
 { find codepage for HTML page in buffer }
-function IcsFindHtmlCodepage(HtmlData: TBytes; Count: Integer; var BOMSize: Integer): Longword; overload;  { V8.50 }
+function IcsFindHtmlCodepage(const HtmlData: TBytes; Count: Integer; var BOMSize: Integer): Longword; overload;  { V8.50, V8.64 }
 { find codepage for HTML page in stream }
 function IcsFindHtmlCodepage(HtmlStream: TStream; var BOMSize: Integer): Longword; overload;  { V8.50 }
 { find codepage from HTTP content-type header }
 function IcsContentCodepage(ContentType: String): Longword;   { V8.50 }
 { convert HTML page in buffer to string with correct codepage }
-function IcsHtmlToStr(HtmlData: TBytes; Count: Integer; ACodePage: Longword;
-                                            Entities: Boolean = False): UnicodeString; overload;   { V8.50 }
+function IcsHtmlToStr(const HtmlData: TBytes; Count: Integer; ACodePage: Longword;
+                                            Entities: Boolean = False): UnicodeString; overload;   { V8.50, V8.64 }
 { convert HTML page in stream to string with correct codepage }
 function IcsHtmlToStr(HtmlStream: TStream; ACodePage: Longword;
                                             Entities: Boolean = False): UnicodeString; overload;    { V8.50 }
@@ -1611,7 +1613,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { find charset for HTML page in buffer from meta tags }
-function IcsFindHtmlCharset(HtmlData: TBytes; Count: Integer): String;    { V8.50 }
+function IcsFindHtmlCharset(const HtmlData: TBytes; Count: Integer): String;    { V8.50, V8.64 }
 var
     offset, I: Integer;
     value: String;
@@ -1698,7 +1700,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { find codepage for HTML page in buffer }
-function IcsFindHtmlCodepage(HtmlData: TBytes; Count: Integer; var BOMSize: Integer): Longword;   { V8.50 }
+function IcsFindHtmlCodepage(const HtmlData: TBytes; Count: Integer; var BOMSize: Integer): Longword;   { V8.50, V8.64 }
 var
     charset: CsuString;
     CharsetDetectResult: TCharsetDetectResult;
@@ -1768,8 +1770,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { convert HTML page in buffer to string with correct codepage }
-function IcsHtmlToStr(HtmlData: TBytes; Count: Integer; ACodePage: Longword;
-                                            Entities: Boolean = False): UnicodeString;   { V8.50 }
+function IcsHtmlToStr(const HtmlData: TBytes; Count: Integer; ACodePage: Longword;
+                                            Entities: Boolean = False): UnicodeString;   { V8.50, V8.64 }
 var
     BOMSize: Integer;
 begin

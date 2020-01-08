@@ -6,7 +6,7 @@ Creation:     Apr 25, 2008
 Version:      8.64
 EMail:        http://www.overbyte.be       francois.piette@overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2002-2019 by François PIETTE
+Legal issues: Copyright (C) 2002-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -185,13 +185,16 @@ Jun 19, 2019 V8.62 Added IcsGetLocalTZBiasStr get time zone bias as string, ie -
                       bias and adjust result if UseTZ=True from UTC to local time.
 Nov 7, 2018  V8.63 Better error handling in RFC1123_StrToDate to avoid exceptions.
                    Added TypeInfo enumeration sanity check for IcsSetToStr and IcsStrToSet.
-Dec 18, 2019 V8.64 Allow IcsGetUTCTime, IcsSetUTCTime, GetIcsFormatSettings to build
+Jan 08, 2020 V8.64 Allow IcsGetUTCTime, IcsSetUTCTime, GetIcsFormatSettings to build
                      on MacOS again, they use Windows only APIs.
                    IcsGetTempPath builds on MacOS.
                    IcsGetCompName now Windows only, only used in samples.
                    IcsStrListToWireFmt supports Unicode correctly.
                    IcsWireFmtToStrList checks buffer length valid.
-
+                   Declare TBytess function parameters as const to avoid reference
+                     counting corruption with cast pointers, thanks to Kas Ob for
+                     finding this, which caused stack corruption and unexpected
+                     errors mainly with 64-bit applications, probably.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -634,7 +637,6 @@ const
     procedure IcsMoveTBytesToString(const Buffer: TBytes; OffsetFrom: Integer;
         var Dest: AnsiString; OffsetTo: Integer; Count: Integer; ACodePage: LongWord); overload; { V8.50 }
 { Beware - this function treats buffers as ANSI, no Unicode conversion }
- //   procedure IcsMoveStringToTBytes(const Source: String; var Buffer: TBytes; Count: Integer);  { V8.49 }
     function IcsMoveStringToTBytes(const Source: String; var Buffer: TBytes;
                                                         Count: Integer): Integer; overload;  { V8.50 }
     function IcsMoveStringToTBytes(const Source: UnicodeString; var Buffer: TBytes;
@@ -645,14 +647,14 @@ const
               OffsetFrom, OffsetTo, Count: Integer); {$IFDEF USE_INLINE} inline; {$ENDIF}  { V8.49 }
 { Pos that ignores nulls in the TBytes buffer, so avoid PAnsiChar functions }
     function IcsTBytesPos(const Substr: String; const S: TBytes; Offset, Count: Integer): Integer;  { V8.49 }
-    function IcsTbytesStarts(Source: TBytes; Find: PAnsiChar) : Boolean;    { V8.49 }
-    function IcsTbytesContains(Source : TBytes; Find : PAnsiChar) : Boolean;   { V8.49 }
+    function IcsTbytesStarts(const Source: TBytes; Find: PAnsiChar) : Boolean;    { V8.49, V8.64 }
+    function IcsTbytesContains(const Source : TBytes; Find : PAnsiChar) : Boolean;   { V8.49, V8.64 }
     function IcsGetFileUAge(const FileName : String) : TDateTime;            { V8.51 }
     function IcsFmtIpv6Addr (const Addr: string): string;              { V8.52 }
     function IcsFmtIpv6AddrPort (const Addr, Port: string): string;    { V8.52 }
     function IcsStripIpv6Addr (const Addr: string): string;            { V8.52 }
     function IntToKbyte (Value: Int64; Bytes: boolean = false): String; { V8.54  moved here from OverbyteIcsFtpSrvT }
-    function IcsWireFmtToStrList(Buffer: TBytes; Len: Integer; SList: TStrings): Integer;  { V8.57 }
+    function IcsWireFmtToStrList(const Buffer: TBytes; Len: Integer; SList: TStrings): Integer;  { V8.57, V8.64 }
     function IcsStrListToWireFmt(SList: TStrings; var Buffer: TBytes): Integer;            { V8.57 }
     function IcsEscapeCRLF(const Value: String): String;               { V8.57 }
     function IcsUnEscapeCRLF(const Value: String): String;             { V8.57 }
@@ -6295,7 +6297,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { case insensitive check for null terminated Find at start of buffer }
-function IcsTbytesStarts(Source: TBytes; Find: PAnsiChar) : Boolean;    { V8.49 }
+function IcsTbytesStarts(const Source: TBytes; Find: PAnsiChar) : Boolean;    { V8.49, V8.64 }
 begin
     Result := FALSE;
 {$IFDEF COMPILER18_UP}
@@ -6310,7 +6312,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { case sensitive check for Find within null terminated buffer }
-function IcsTbytesContains(Source : TBytes; Find : PAnsiChar) : Boolean;   { V8.49 }
+function IcsTbytesContains(const Source: TBytes; Find : PAnsiChar) : Boolean;   { V8.49, V8.64 }
 begin
     Result := FALSE;
 {$IFDEF COMPILER18_UP}
@@ -6589,7 +6591,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.57 convert wire-format concactanted length prefixed strings to TStrings }
-function IcsWireFmtToStrList(Buffer: TBytes; Len: Integer; SList: TStrings): Integer;
+{ V8.64 added const so Buffer reference count not updated, might be cast }
+function IcsWireFmtToStrList(const Buffer: TBytes; Len: Integer; SList: TStrings): Integer;
 var
     offset, mylen: integer;
     AStr: AnsiString;

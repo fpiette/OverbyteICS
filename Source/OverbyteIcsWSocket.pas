@@ -6,7 +6,7 @@ Creation:     April 1996
 Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 1996-2019 by François PIETTE
+Legal issues: Copyright (C) 1996-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -1327,8 +1327,9 @@ Nov 18, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                    GetSelfSigned now has better check for self signed certificates.
                    Added Sha256Digest and Sha256Hex to TX509Base.
                    CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
-Dec 19, 2019 V8.64 Ignore any errors with SSL APLN during handshake.
-
+Jan 08, 2020 V8.64 Ignore any errors with SSL APLN during handshake.
+                   Fixed a problem with SSL ALPN server handshake that may have
+                     caused unexpected exceptions mainly on 64-bit applications.
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -1538,7 +1539,7 @@ type
 
 const
   WSocketVersion            = 864;
-  CopyRight    : String     = ' TWSocket (c) 1996-2019 Francois Piette V8.64 ';
+  CopyRight    : String     = ' TWSocket (c) 1996-2020 Francois Piette V8.64 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 

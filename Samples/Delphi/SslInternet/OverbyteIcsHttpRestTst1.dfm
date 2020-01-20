@@ -2,8 +2,8 @@ object HttpRestForm: THttpRestForm
   Left = 86
   Top = 176
   Caption = 
-    'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.63 -' +
-    ' 11th November 2019'
+    'ICS HTTPS REST and OAuth Demo - http://www.overbyte.be - V8.64 -' +
+    ' 18th December 2019'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace
@@ -79,7 +79,9 @@ object HttpRestForm: THttpRestForm
           'https://www.googleapis.com/gmail/v1/users/me/messages'
           'https://www.googleapis.com/gmail/v1/users/me/messages/{id}'
           'https://www.googleapis.com/gmail/v1/users/me/settings/Pop'
-          ''
+          'https://www.w3schools.com/xml/note.xml'
+          'https://www.w3schools.com/xml/simple.xml'
+          'https://www.w3schools.com/xml/cd_catalog.xml'
           '')
       end
       object GridParams: TStringGrid
@@ -440,7 +442,6 @@ object HttpRestForm: THttpRestForm
     object TabOAuth: TTabSheet
       Caption = 'OAuth'
       ImageIndex = 2
-      ExplicitTop = 23
       object Label19: TLabel
         Left = 300
         Top = 220
@@ -1134,17 +1135,17 @@ object HttpRestForm: THttpRestForm
       end
       item
         Caption = 'Value'
-        Width = 400
+        Width = 1000
       end
       item
         Width = 100
       end>
     GridLines = True
     ReadOnly = True
+    RowSelect = True
     TabOrder = 1
     ViewStyle = vsReport
     OnDblClick = RespListDblClick
-    ExplicitTop = 317
   end
   object HttpRest1: TSslHttpRest
     LocalAddr = '0.0.0.0'
@@ -1192,6 +1193,8 @@ object HttpRestForm: THttpRestForm
     RefrMinsPrior = 0
     WebSrvIP = '127.0.0.1'
     WebSrvPort = '8080'
+    RefreshOffline = False
+    LoginPrompt = 'consent'
     OnOAuthAuthUrl = RestOAuth1OAuthAuthUrl
     OnOAuthProg = RestOAuth1OAuthProg
     OnOAuthNewCode = RestOAuth1OAuthNewCode

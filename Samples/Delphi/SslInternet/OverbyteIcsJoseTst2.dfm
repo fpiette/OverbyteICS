@@ -14,7 +14,7 @@ object FormObject: TFormObject
   OnClose = FormClose
   PixelsPerInch = 96
   TextHeight = 13
-  object SubRespList: TListView
+  object SubJsonGrid: TListView
     Left = 0
     Top = 0
     Width = 686
@@ -40,6 +40,6 @@ object FormObject: TFormObject
     ReadOnly = True
     TabOrder = 0
     ViewStyle = vsReport
-    OnDblClick = SubRespListDblClick
+    OnDblClick = SubJsonGridDblClick
   end
 end

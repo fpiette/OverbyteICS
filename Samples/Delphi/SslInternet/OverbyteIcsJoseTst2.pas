@@ -44,7 +44,7 @@ Dec 09, 2019 - V8.64 Allow clicking on nested arrays.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-unit OverbyteIcsHttpRestTst2;
+unit OverbyteIcsJoseTst2;
 
 interface
 
@@ -54,8 +54,8 @@ uses
 
 type
   TFormObject = class(TForm)
-    SubRespList: TListView;
-    procedure SubRespListDblClick(Sender: TObject);
+    SubJsonGrid: TListView;
+    procedure SubJsonGridDblClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
   private
     { Private declarations }
@@ -71,17 +71,17 @@ implementation
 
 {$R *.dfm}
 
-Uses OverbyteIcsHttpRestTst1;
+Uses OverbyteIcsJoseTst1;
 
 procedure TFormObject.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
     Action := caHide;
 end;
 
-procedure TFormObject.SubRespListDblClick(Sender: TObject);
+procedure TFormObject.SubJsonGridDblClick(Sender: TObject);
 begin
-    if SubRespList.ItemIndex < 0 then Exit;
-    with SubRespList.Items[SubRespList.ItemIndex] do begin
+    if SubJsonGrid.ItemIndex < 0 then Exit;
+    with SubJsonGrid.Items[SubJsonGrid.ItemIndex] do begin
         if SubItems.Count >= 2 then begin
             if (SubItems[0] = 'stArray') or (SubItems[0] = 'stObject') then { objects }
                 DispJson(SubItems[1])
@@ -102,10 +102,10 @@ var
 begin
     try
         if (Pos ('{', JsonStr) <> 1) and (Pos ('[', JsonStr) <> 1) then Exit;
-        JsonObj := TSuperObject.ParseString(PWideChar(JsonStr), True);
-        SubRespList.Items.Clear;
+        JsonObj := TSuperObject.ParseString(PWideChar(JsonStr), False);
+        SubJsonGrid.Items.Clear;
         if NOT Assigned(JsonObj) then begin
-            HttpRestForm.AddLog('Failed to parse Json');
+            JsonDemoForm.AddLog('Failed to parse Json');
             Exit;
         end;
         Visible := True;
@@ -113,7 +113,7 @@ begin
         if JsonObj.DataType = stArray then begin
             tot := JsonObj.AsArray.Length;
             if tot = 0 then Exit;
-            with SubRespList do begin
+            with SubJsonGrid do begin
                 Items.BeginUpdate;
                 Columns.Clear;
                 FirstRow := True;
@@ -163,7 +163,7 @@ begin
 
         if JsonObj.DataType = stObject then begin
          // note that values containing objects are displayed as raw Json
-            with SubRespList do begin
+            with SubJsonGrid do begin
                 Columns.Clear;
                 with Columns.Add do begin
                     Caption := 'Name';
@@ -199,7 +199,7 @@ begin
         end;
     except
         on E:Exception do
-             HttpRestForm.AddLog('Error parsing Json: ' + E.Message);
+             JsonDemoForm.AddLog('Error parsing Json: ' + E.Message);
     end;
 end;
 

@@ -9,12 +9,12 @@ Description:  SSL web application server sample, no real GUI, really designed
               If turned into a Windows service, this sample is really a commercial
               web server.
 Creation:     July 2017
-Updated:      Apr 2019
-Version:      8.61
-Support:      Use the mailing list ics-ssl@elists.org
+Updated:      Dec 2019
+Version:      8.64
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
-              <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
 
@@ -99,7 +99,9 @@ History:
                    Added whiteiplist.txt of IP addresses we don't want to block.
                    Count number of access attempts and block too many.
 04 Apr 2019  V8.61 Send Email now on front menu as well as WebApps
-
+23 Dec 2019  V8.64 Log SSL APLN from client, if any and select HTTP/1.1
+                   Rearranged INI file code so file only opened briefly, avoids
+                      conflict with WebAppSrvDataModule. 
 
 
 Insalling note:
@@ -170,7 +172,7 @@ uses
   OverbyteIcsBlacklist;     { V8.60 }
 
 const
-    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2019 Francois Piette V8.61 ';
+    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2019 Francois Piette V8.64 ';
     MaxWinChars = 800000;
     WM_STARTUP = WM_USER + 712 ;
     LogNameMask = '"webapp-"yyyymmdd".log"' ;
@@ -276,14 +278,16 @@ type
     function TestFilters (const Argtype, Value: String): Boolean ;
     function TestIpWhiteList (const Value: String): Boolean ;
     procedure onBlackLogEvent (const info: string);
+    procedure SslHttpAppSrv1SslAlpnSelect(Sender: TObject; ProtoList: TStrings;
+      var SelProto: string; var ErrCode: TTlsExtError);
   private
     FIniFileName : String;
     FInitialized : Boolean;
+    FFinalized   : Boolean;  { V8.64}
     FDataDir     : String;
     FSessionFile : String;
     FCountRequests : Integer;
     FUploadsDir  : String;
-    FIniFile     : TIcsIniFile;
     procedure CreateVirtualDocument_Demo(Sender    : TObject;
                                          ClientCnx : TMyHttpConnection;
                                          var Flags : THttpGetFlag);
@@ -611,6 +615,7 @@ end;
 procedure TWeblServerForm.FormCreate(Sender: TObject);
 var
     List: TStringList;
+    FIniFile: TIcsIniFile;
     FName, FHdr: String;
 begin
     FIniFileName := GetIcsIniFileName;
@@ -648,6 +653,8 @@ begin
     FIniFile := TIcsIniFile.Create(FIniFileName);
     FName := FIniFile.ReadString(SectionGeneral, KeyServLogDir,  '');
     AdminEmailTo := FIniFile.ReadString(SectionGeneral, KeyAdminEmailTo,  '');
+    IcsLoadMailQuFromIni(FIniFile, IcsMailQueue, 'MailQueue');
+    FIniFile.Free;
     if FName <> '' then begin
         ForceDirectories(ExtractFileDir(FName));
         FName := '"' + IncludeTrailingPathDelimiter(FName) + '"' + LogNameMask;  // file name is a mask to add date
@@ -658,7 +665,6 @@ begin
         Display('Log File: ' + DiagLogBuffer.FullName);
     end;
     Display('INI file: ' + FIniFileName);
-
     HackFilterList := TStringList.Create  ;  // Feb 2019 - hackers bad paths and IP addresses
     WhiteIpList := TStringList.Create  ;  // Feb 2019 - address we don't want to block
     PostMessage (Handle, WM_STARTUP, 0, 0) ;
@@ -668,21 +674,25 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TWeblServerForm.FormDestroy(Sender: TObject);
 begin
-    OverbyteIcsWSocket.UnLoadSsl;
+//    OverbyteIcsWSocket.UnLoadSsl;
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TWeblServerForm.FormShow(Sender: TObject);
+var
+    FIniFile: TIcsIniFile;
 begin
     if not FInitialized then begin
         FInitialized := TRUE;
+        FIniFile := TIcsIniFile.Create(FIniFileName);
         Width        := FIniFile.ReadInteger(SectionWindow, KeyWidth,  Width);
         Height       := FIniFile.ReadInteger(SectionWindow, KeyHeight, Height);
         Top          := FIniFile.ReadInteger(SectionWindow, KeyTop,
                                             (Screen.Height - Height) div 2);
         Left         := FIniFile.ReadInteger(SectionWindow, KeyLeft,
                                             (Screen.Width  - Width)  div 2);
+        FIniFile.Free;
         DisplayMemo.Clear;
     end;
 end;
@@ -699,7 +709,12 @@ end;
 procedure TWeblServerForm.FormClose(
     Sender     : TObject;
     var Action : TCloseAction);
+var
+    FIniFile: TIcsIniFile;
 begin
+    if FFinalized then Exit;   { V8.64 only once }
+    FFinalized := True;
+    Timer1.Enabled := False;
     CertCheckTrigger := Trigger64Disabled;  { V8.57 }
     HouseKeepingTrg := Trigger64Disabled;  { V8.57 }
     StopButtonClick(Self);
@@ -709,6 +724,7 @@ begin
     FreeAndNil(WhiteIpList);
     FreeAndNil(HackBlackList);
     FreeAndNil(AttemptsBlackList);
+    FIniFile := TIcsIniFile.Create(FIniFileName);
     FIniFile.WriteInteger(SectionWindow, KeyTop,         Top);
     FIniFile.WriteInteger(SectionWindow, KeyLeft,        Left);
     FIniFile.WriteInteger(SectionWindow, KeyWidth,       Width);
@@ -766,7 +782,6 @@ var
 begin
     try
         if NOT IcsMailQueue.Active then begin
-            IcsLoadMailQuFromIni(FIniFile, IcsMailQueue, 'MailQueue');
             if (IcsMailQueue.MailQuDir = '') or
                          (NOT ForceDirectories (IcsMailQueue.MailQuDir)) then begin
                 Display('!! Failed to Start Mail Queue, No Directory');
@@ -874,6 +889,7 @@ procedure TWeblServerForm.StartButtonClick(Sender: TObject);
 var
     J, K: Integer;
     Errs, S, BaseDir: String;
+    FIniFile: TIcsIniFile;
 
     function BuildDemoURIs: String;
     var
@@ -912,6 +928,7 @@ begin
                                     ', Dir: ' + GLIBEAY_DLL_FileName + icsCRLF);
 
       // main web server settings from INI file, built in CA if no file found
+        FIniFile := TIcsIniFile.Create(FIniFileName);
         IcsLoadTHttpAppSrvFromIni(FIniFile, SslHttpAppSrv1, 'WebAppServer');
         if (SslHttpAppSrv1.RootCA = '') or (NOT FileExists(SslHttpAppSrv1.RootCA)) then
                                          SslHttpAppSrv1.RootCA := sslRootCACertsBundle;
@@ -922,6 +939,8 @@ begin
             Display('Can Not Start Server - No Source Server Hosts Configured') ;
             exit ;
         end;
+        Display('Number of Hosts Configured: ' + IntToStr(SslHttpAppSrv1.IcsHosts.Count));  { V8.64 }
+        FIniFile.Free; 
 
     { V8.60  each host may have a different log file, or share a log with other hosts }
         TotWebLogs := 0;
@@ -999,10 +1018,10 @@ begin
         SslHttpAppSrv1.AddGetAllowedPath('/images/', afBeginBy, 'WEB-APP');
 
       // Add all dynamic webpage handlers
-//        SslHttpAppSrv1.AddGetHandler('/', TUrlHandlerDefaultDoc, hgWillSendMySelf, 'WEB-APP');
+        SslHttpAppSrv1.AddGetHandler('/', TUrlHandlerDefaultDoc, hgWillSendMySelf, 'WEB-APP');
         SslHttpAppSrv1.AddGetHandler('/appindex.html', TUrlHandlerDefaultDoc, hgWillSendMySelf, 'WEB-APP');
         SslHttpAppSrv1.AddGetHandler(UrlLogin, TUrlHandlerLoginFormHtml, hgWillSendMySelf, 'WEB-APP');
-        SslHttpAppSrv1.AddGetHandler(UrlDoLoginSecure, TUrlHandlerDoLoginSecureHtml, hgWillSendMySelf, 'WEB-APP');
+        SslHttpAppSrv1.AddGetHandler(UrlDoLoginSecure, TUrlHandlerDoLoginSecureHtml, hgWillSendMySelf, 'WEB-APP');    // !! handler causes crash on exit?
         SslHttpAppSrv1.AddGetHandler(UrlCounter, TUrlHandlerCounterJpg, hgWillSendMySelf, 'WEB-APP');
         SslHttpAppSrv1.AddGetHandler(UrlHomePage, TUrlHandlerHomePageHtml, hgWillSendMySelf, 'WEB-APP');
         SslHttpAppSrv1.AddGetHandler(UrlConfigForm, TUrlHandlerConfigFormHtml, hgWillSendMySelf, 'WEB-APP');
@@ -1110,6 +1129,7 @@ begin
      // try and show URLSs that will access the first host
         Display('Now browse to one of these URLs:' + icsCRLF + BuildDemoURIs);
 
+    Timer1.Enabled := True;  { V8.64 } 
     except
         on E:Exception do begin
            Display('Failed to start web server - ' + E.Message);
@@ -1125,6 +1145,7 @@ var
     S: string;
 begin
     if NOT StopButton.Enabled then Exit;
+    Timer1.Enabled := False;  { V8.64 }
     CertCheckTrigger := Trigger64Disabled;  { V8.57 }
     StartButton.Enabled := true;
     StopButton.Enabled := false;
@@ -1777,6 +1798,31 @@ var
 begin
     ClientCnx := Sender as TMyHttpConnection;
     Display(ClientCnx.PeerAddr + ' - ' + ClientCnx.HostTag + ' ' + ClientCnx.SslHandshakeRespMsg);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TWeblServerForm.SslHttpAppSrv1SslAlpnSelect(Sender: TObject;
+  ProtoList: TStrings; var SelProto: string; var ErrCode: TTlsExtError);    { V8.64 }
+var
+    ClientCnx : TMyHttpConnection;
+    I: Integer;
+begin
+    if ProtoList.Count = 0 then Exit;
+    ClientCnx := Sender as TMyHttpConnection;
+    Display(ClientCnx.PeerAddr + ' - ' + ClientCnx.HostTag + ' ' +
+                                    'ALPN Protocols: ' + ProtoList.CommaText) ;
+  // optionally select a protocol we want to use
+    for I := 0 to ProtoList.Count - 1 do begin
+        if ProtoList[I] = ALPN_ID_HTTP11 then begin
+            SelProto := ALPN_ID_HTTP11;
+        //    SelProto := ALPN_ID_HTTP2; // TEMP confuse them
+            ErrCode := teeOk;
+            Exit;
+        end;
+   //     if ProtoList[I] = ALPN_ID_HTTP2 then begin  don't support HTTP/2 yet
+
+    end;
 end;
 
 

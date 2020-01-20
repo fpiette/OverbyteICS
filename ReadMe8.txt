@@ -3,8 +3,8 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.3 Rio
 (Aka FPIETTE's Components)
 
 
-Revised: November 18, 2019
-Release: V8.63
+Revised: December 19, 2019
+Release: V8.64
 http://www.overbyte.be/
 http://wiki.overbyte.be/
 http://www.overbyte.eu/
@@ -491,10 +491,12 @@ DELPHI XE2/WIN32, XE3/WIN32, XE4/WIN32, XE5/WIN32, XE6/WIN32, XE7/WIN32, XE8/WIN
 XE3/WIN64, XE4/WIN64,XE5/WIN64, XE6/WIN64, XE7/WIN64, XE8/WIN64, 10 Seattle/WIN64,
 10.1 Berlin/WIN64, 10.2 Tokyo/WIN64, 10.3 Rio/WIN64:
 
-Similar to above, but the Library path is specified separately for 32-bit and 64-bit
-Windows Platforms. Beware Delphi seems to default to 64-bit platform, and needs to
-be changed to 32-bit plaform before setting the Library path.
-
+Similar to above, but now an extra level, so Tools / Options / Language / Delphi/
+Library / select platform as Windows 32-bit or 64-bit, or MacOs 32-bit or 64-bit.
+Note the Library path is specified separately for 32-bit and 64-bit Platforms.
+Beware Delphi seems to default to 64-bit platform, and needs to be changed to
+32-bit plaform before setting the Library path, .\Lib subdirectory according to
+version, ie .\Lib\Debug\Win64\D103 for Delphi 10.3 Rio 64-bit,
 
 DELPHI 7: Add VC32 directory path to your library path (Tools menu / Environment
 Options / Library / Library Path. Add .\Lib\Debug\Win32\D7 path at the end of the

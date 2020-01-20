@@ -25,6 +25,7 @@ Mar 2019   V8.60 - Angus added TIcsMailQueue, TIcsIpStrmLog, TIcsWhoisCli,
 Apr 2019  V8.61  - Added TDnsQueryHttps, TIcsSms
 May 2019  V8.62  - Version only
 Oct 2019  V8.63  - Version only
+Nov 2019  V8.64  - Version only
 
 }
 
@@ -210,12 +211,12 @@ begin
       TNntpCli, THtmlNntpCli,
       TDnsQuery, TFingerCli, TPing,
       TIcsCharsetComboBox,
-      TIcsBlacklist,     { V8.60 }
       {$IFDEF DELPHI11}
         TFtpClientW,    { V8.60 }
         TFtpServerW,    { V8.60 }
         TIcsFileCopyW,  { V8.60 }
       {$ENDIF}
+      TIcsBlacklist,     { V8.60 }
       TIcsFileCopy       { V8.60 }
     ]);
 {$ENDIF}
@@ -333,7 +334,7 @@ const
         sIcsSplashImg   = 'ICSPRODUCTICON';
     {$ENDIF}
 {$ENDIF}
-    sIcsLongProductName = 'Internet Component Suite V8.63';
+    sIcsLongProductName = 'Internet Component Suite V8.64';
     sIcsFreeware        = 'Freeware';
     sIcsDescription     = sIcsLongProductName + #13#10 +
                           //'Copyright (C) 1996-2018 by François PIETTE'+ #13#10 +

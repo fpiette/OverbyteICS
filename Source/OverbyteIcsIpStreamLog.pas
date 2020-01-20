@@ -3,7 +3,7 @@
 Description:  IP Streaming Log Component
 Creation:     Nov 2006
 Updated:      Nov 2019
-Version:      8.63
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -194,7 +194,9 @@ in the event when only one was open, tested with Delphi 2010
 13 Nov 2019 - V8.63 - SrvValidateHosts and SrvRecheckSslCerts have new AllowSelfSign
                          to stop errors with self signed certificates.
                       Allow TCP server to start with certificate warnings.
-
+26 Nov 2019 - V8.64 - If TCP Server listening on port 0, log random port allocated.
+                      Don't start TCP Server if validation failed.
+                      TCP Server shows listening ports.  
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -273,7 +275,7 @@ uses
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
 const
-    CopyRight : String = ' TIcsIpStrmLog (c) 2019 V8.63 ';
+    CopyRight : String = ' TIcsIpStrmLog (c) 2019 V8.64 ';
 
 type
   TStrmLogProtocol = (logprotUdpClient, logprotUdpServer,
@@ -992,9 +994,10 @@ begin
             exit ;
         end ;
         FLastErrorStr := FListenSocket.ValidateHosts(True, True, True);  { V8.63 allow self sign }
-        if FListenSocket.IcsHosts [0].CertValRes = chainFail then  { V8.63 don't stop on warning, only fatal error }
+        if (NOT FListenSocket.Validated) or                              { V8.64 stop if not validated }
+                 (FListenSocket.IcsHosts [0].CertValRes = chainFail) then  { V8.63 don't stop on warning, only fatal error }
         begin
-            FLastErrorStr := FCurTitle + FLastErrorStr ;
+            FLastErrorStr := FCurTitle + ' ' + FLastErrorStr ;
             LogErrEvent (0, FLastErrorStr) ;
             exit ;
         end ;
@@ -1330,6 +1333,8 @@ begin
                     FLogActive := true ;
                     for I := 0 to Pred (IcsHosts.Count) do
                         LogProgEvent (0, FCurTitle + ' Started on ' + IcsHosts[I].BindInfo); // May 2019
+                    LogProgEvent (0, FCurTitle + ' ' + Trim(ListenStates));  { V8.64 show dynamic port }
+
                 end
                 else
                     LogErrEvent (0, FLastErrorStr) ;

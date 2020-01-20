@@ -1028,6 +1028,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Width = 165
       Height = 21
       Style = csDropDownList
+      ItemHeight = 13
       TabOrder = 58
       Items.Strings = (
         'sslTypeNone'
@@ -1445,6 +1446,7 @@ object FtpReceiveForm: TFtpReceiveForm
       Top = 71
       Width = 126
       Height = 21
+      ItemHeight = 13
       TabOrder = 15
       Text = 'UTF8 ON'
       Items.Strings = (
@@ -1514,13 +1516,16 @@ object FtpReceiveForm: TFtpReceiveForm
     SslCheckHostFlags = []
     SslSecLevel = sslSecLevel80bits
     SslOptions = [sslOpt_NO_SSLv2]
+    SslOptions2 = []
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = []
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
-    SslVersionMethod = sslV23_CLIENT
+    SslVersionMethod = sslBestVer_CLIENT
     SslMinVersion = sslVerSSL3
     SslMaxVersion = sslVerMax
     SslECDHMethod = sslECDHAuto
+    SslCryptoGroups = 'P-256:X25519:P-384:P-512'
+    SslCliSecurity = sslCliSecIgnore
     SslSessionTimeout = 0
     SslSessionCacheSize = 20480
     AutoEnableBuiltinEngines = False
@@ -1531,7 +1536,6 @@ object FtpReceiveForm: TFtpReceiveForm
     TimeStampFormatString = 'hh:nn:ss:zzz'
     TimeStampSeparator = ' '
     LogFileOption = lfoOverwrite
-    LogFileEncoding = lfeUtf8
     LogFileName = 'Debug_SslFtpTst.txt'
     LogOptions = []
     Left = 152

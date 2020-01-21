@@ -4,10 +4,10 @@ Authors:      Arno Garrels
               Angus Robertson <delphi@magsys.co.uk>
 Creation:     Aug 26, 2007
 Description:  SSL key and X509 certification creation
-Version:      8.63
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2007-2019 by François PIETTE
+Legal issues: Copyright (C) 2007-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -110,7 +110,9 @@ Aug 07, 2019 V8.62  Added literals for various types to assist apps.
              Builds without USE_SSL
 Oct 24, 2019 V8.63 Added 'Starfield Services Root Certificate Authority - G2'
                (used by Amazon buckets), and 'Amazon Root CA 1', CA 2, CA 3,
-               CA 4 which are replacing Starfield.  Removed expired certs.  
+               CA 4 which are replacing Starfield.  Removed expired certs.
+Jan 20, 2019 V8.64 DoKeyPair raises exception for unknown key type.
+              CreateSelfSignedCert ignored Days and always created 7 day expiry.
 
 
 Pending - long term
@@ -2913,8 +2915,10 @@ begin
                 CurveNid := NID_X9_62_prime256v1;
         end;
     end
-    else
+    else begin
+        RaiseLastOpenSslError(ECertToolsException, true, 'Unknown Private Key Type');  { V8.64 need an error }
         Exit;
+    end;
 
  { initialise context for private keys }
     Pctx := f_EVP_PKEY_CTX_new_id(KeyNid, Nil);
@@ -3170,10 +3174,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ PENDING - replace code within following four functions with TSslCertTools }
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{x$IFDEF UNICODE}
 
 { V8.41 replaced old code with TSslCertTools component }
 procedure CreateSelfSignedCert(const FileName, Country, State,
@@ -3194,6 +3194,7 @@ begin
         MySslCertTools.Email          := EMail;
         MySslCertTools.CommonName     := CName;
         MySslCertTools.BasicIsCA      := IsCA;
+        MySslCertTools.ExpireDays     := Days;   { V8.64 got lost }
         if Bits > 4096 then
             KeyType := PrivKeyRsa7680
         else if Bits > 3072 then

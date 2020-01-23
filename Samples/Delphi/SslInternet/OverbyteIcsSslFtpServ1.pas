@@ -8,16 +8,15 @@ Description:  This is a demo program showing how to use the TFtpServer
               In production program, you should add code to implement
               security issues.
 Creation:     April 21, 1998
-Version:      8.50
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1998-2017 by François PIETTE
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1998-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
-              
+
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
               for any  damages arising from the use of this software.
@@ -74,7 +73,9 @@ Nov 12 2016  V8.37 Set friendly errors
                    Specify minimum and maximum SSL version supported
                    Allow server IP address to be specified
 Apr 15, 2017  V8.38 FPiette removed compiler warnings for D10.2
-Aug 25, 2107, V8.50 Angus added server onDisplay event
+Aug 25, 2017, V8.50 Angus added server onDisplay event
+Jan 22, 2020, V8.64 Added TFtpOptions ftpsAuthForceSsl which require SSL/TLS for
+                       LOGIN so no clear credentials allowed.
 
 Sample entry from ftpaccounts-default.ini
 
@@ -112,8 +113,8 @@ uses
   OverbyteIcsSsLeay, OverbyteIcsWndControl, OverbyteIcsOneTimePw;
 
 const
-  FtpServVersion      = 850;
-  CopyRight : String  = ' SslFtpServ (c) 1998-2017 F. Piette V8.50 ';
+  FtpServVersion      = 864;
+  CopyRight : String  = ' SslFtpServ (c) 1998-2020 F. Piette V8.64 ';
   WM_APPSTARTUP       = WM_USER + 1;
 
 type

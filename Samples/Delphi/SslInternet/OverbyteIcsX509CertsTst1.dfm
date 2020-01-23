@@ -3,7 +3,7 @@ object X509CertsForm: TX509CertsForm
   Top = 0
   Caption = 
     'ICS Automatically Download SSL X509 Certificates Development Dem' +
-    'o - http://www.overbyte.be - V8.63 - 12th November 2019'
+    'o - http://www.overbyte.be - V8.64 - 15th January 2020'
   ClientHeight = 637
   ClientWidth = 1024
   Color = clBtnFace
@@ -34,11 +34,15 @@ object X509CertsForm: TX509CertsForm
     Top = 0
     Width = 1024
     Height = 261
-    ActivePage = TabCommon
+    ActivePage = TabAcme2
     Align = alTop
     TabOrder = 1
     object TabCommon: TTabSheet
       Caption = 'Common'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label3: TLabel
         Left = 600
         Top = 10
@@ -112,7 +116,7 @@ object X509CertsForm: TX509CertsForm
         Top = 25
         Width = 176
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 4
         Text = '0.0.0.0'
       end
@@ -174,7 +178,7 @@ object X509CertsForm: TX509CertsForm
         Top = 55
         Width = 175
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         ItemIndex = 3
         TabOrder = 7
         Text = 'SSL Negotiation'
@@ -337,7 +341,7 @@ object X509CertsForm: TX509CertsForm
         Width = 102
         Height = 22
         Style = csDropDownList
-        ItemHeight = 14
+        ItemHeight = 0
         ItemIndex = 0
         TabOrder = 18
         Text = 'Any'
@@ -362,6 +366,10 @@ object X509CertsForm: TX509CertsForm
     object TabDomain: TTabSheet
       Caption = 'Domain'
       ImageIndex = 4
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label9: TLabel
         Left = 5
         Top = 5
@@ -951,6 +959,10 @@ object X509CertsForm: TX509CertsForm
     object TabCCOrder: TTabSheet
       Caption = 'CertCentre Order'
       ImageIndex = 3
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label6: TLabel
         Left = 10
         Top = 15
@@ -1020,7 +1032,7 @@ object X509CertsForm: TX509CertsForm
         Top = 10
         Width = 431
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 0
       end
       object DirCertCenConf: TEdit
@@ -1079,7 +1091,7 @@ object X509CertsForm: TX509CertsForm
         Top = 70
         Width = 179
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 4
       end
       object CertBuy: TEdit
@@ -1159,6 +1171,10 @@ object X509CertsForm: TX509CertsForm
     object TabCCOAuth: TTabSheet
       Caption = 'CertCentre OAuth'
       ImageIndex = 5
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object BoxOAuthApp: TGroupBox
         Left = 10
         Top = 3
@@ -1384,7 +1400,7 @@ object X509CertsForm: TX509CertsForm
           Top = 70
           Width = 171
           Height = 22
-          ItemHeight = 14
+          ItemHeight = 0
           TabOrder = 1
           Text = '127.0.0.1'
         end
@@ -1394,10 +1410,18 @@ object X509CertsForm: TX509CertsForm
       Caption = 'Servertastic'
       ImageIndex = 7
       TabVisible = False
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
     end
     object TabOwnCA: TTabSheet
       Caption = 'Own CA'
       ImageIndex = 9
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label48: TLabel
         Left = 10
         Top = 205
@@ -1586,6 +1610,10 @@ object X509CertsForm: TX509CertsForm
     object TabDatabase: TTabSheet
       Caption = 'Supplier Database'
       ImageIndex = 8
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label43: TLabel
         Left = 10
         Top = 15
@@ -1631,7 +1659,7 @@ object X509CertsForm: TX509CertsForm
         Top = 10
         Width = 381
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 0
       end
       object SelDirDatabase: TBitBtn
@@ -1806,6 +1834,10 @@ object X509CertsForm: TX509CertsForm
       Caption = 'Challenges'
       ImageIndex = 10
       TabVisible = False
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label47: TLabel
         Left = 10
         Top = 5

@@ -4,10 +4,10 @@ Author:       François PIETTE
 Description:  TFtpServerW class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      8.63W
+Version:      8.64W
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 1998-2019 by François PIETTE
+Legal issues: Copyright (C) 1998-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -447,7 +447,11 @@ Nov 6, 2019  V8.63 - ftpsNoPasvIpAddrInLan and ftpsNoPasvIpAddrSameSubnet option
                      New IcsLoadFtpServerWFromIni function that reads server settings
                        from INI file, IcsHosts can be read using IcsLoadIcsHostsFromIni. 
                      When using IcsHosts, FtpSslTypes is set automatically to Implicit
-                       if an SSL port is specified or Explicit if AuthSslCmd is true. 
+                       if an SSL port is specified or Explicit if AuthSslCmd is true.
+Jan 22, 2020 V8.64 - Added TFtpOptions ftpsAuthForceSsl which require SSL/TLS for
+                       LOGIN so no clear credentials allowed.  May also be set using
+                       IcsHosts with AuthForceSsl=True for specific Hosts only.
+                       Failure gives '533 USER requires a secure connection'. 
 
 
 Angus pending -
@@ -543,8 +547,8 @@ uses
 
 
 const
-    FtpServerVersion         = 863;
-    CopyRight : String       = ' TFtpServerW (c) 1998-2019 F. Piette V8.63';
+    FtpServerVersion         = 864;
+    CopyRight : String       = ' TFtpServerW (c) 1998-2020 F. Piette V8.64';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
     DefaultRcvSize           = 16384;    { V7.00 used for both xmit and recv, was 2048, too small }
 
@@ -643,7 +647,8 @@ type
                                                          { requires ftpsEnableUtf8 and sets ftpEnableUtf8   }
                                                          { once a valid UTF-8 buffer has been received from }
                                                          { a client.                                        }
-                        ftpsCompressDirs                 { angus V8.04 zmode compress directory listings }
+                        ftpsCompressDirs,                { angus V8.04 zmode compress directory listings }
+                        ftpsAuthForceSsl                 { angus V8.64 require SSL/TLS for LOGIN so no clear credentials }
                          );
     TFtpsOptions     = set of TFtpsOption;               { angus V1.38 }
 
@@ -654,10 +659,11 @@ type
                      ftpHidePhysicalPath,    { AG V1.52 }
                      ftpModeZCompress,       { angus V1.54 }
                      ftpUtf8On,              { angus V7.01 this is changed by the OPTS UTF8 ON/OFF command }
-                     ftpAutoDetectCodePage   { AG V7.02 actually detects UTF-8 only! }
+                     ftpAutoDetectCodePage,  { AG V7.02 actually detects UTF-8 only! }
                                              { requires ftpsEnableUtf8 and sets ftpEnableUtf8   }
                                              { once a valid UTF-8 buffer has been received from }
                                              { a client.                                        }
+                     ftpAuthForceSsl         { angus V8.64 require SSL/TLS for LOGIN so no clear credentials }
                      );      { angus V1.54 }
     TFtpOptions   = set of TFtpOption;
 
@@ -2644,6 +2650,17 @@ begin
           MyClient.FtpSslTypes := TSslFtpWSocketMultiListenItem(MultiListenSockets[MultiListenIndex]).FFtpSslTypes;
         if ftpImplicitSsl in MyClient.FtpSslTypes then   { V1.47 }
             MyClient.CurFtpSslType := curftpImplicitSsl;               { V1.47 }
+
+       { V8.64 see if LOGIN only allowed after SSL/TLS negotiated }
+        if ftpsAuthForceSsl in FOptions then
+            MyClient.Options := MyClient.Options + [ftpAuthForceSsl];  { V8.64 }
+        if TSslFtpserverW(Self).GetIcsHosts <> Nil then begin
+             if (TSslFtpserverW(Self).GetIcsHosts.Count > 0) and
+                                            (MyClient.FIcsHostIdx >= 0) then begin       { V8.64 }
+                if TSslFtpserverW(Self).GetIcsHosts[MyClient.FIcsHostIdx].AuthForceSsl then
+                    MyClient.Options := MyClient.Options + [ftpAuthForceSsl];
+             end;
+         end;
     end;
 {$ENDIF}
     if ftpsCdupHome in FOptions then
@@ -3414,6 +3431,18 @@ var
     Challenge: string;
 begin
     Client.CurCmdType := ftpcUSER;
+
+{$IFDEF USE_SSL}
+    { V8.64 check if login only allowed with SSL/TLS }
+    if Self is TSslFtpServerW then begin
+        if (ftpAuthForceSsl in Client.Options) and
+                 (Client.SslState <> sslEstablished) then begin
+            Answer := WideFormat(msgErrInSslOnly, ['USER']);
+            Exit;
+        end;
+    end;
+{$ENDIF}
+
     Client.UserName   := Trim(Params);
     Client.FtpState   := ftpcWaitingPassword;
   { angus V1.54 - check if user account is set-up for authentication using a

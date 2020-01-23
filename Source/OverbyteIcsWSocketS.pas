@@ -7,7 +7,7 @@ Creation:     Aug 29, 1999
 Version:      8.64
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 1999-2019 by François PIETTE
+Legal issues: Copyright (C) 1999-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -224,12 +224,12 @@ Nov 18, 2019 V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
                    Automatic cert ordering now Logs activity via the SslX509Certs
                      component since this one does not have logging.
                    Corrected INI file reading NostEnabled instead of HostEnabled.
-Dec 03, 2019 V8.64 IcsHosts allows NonSSlPort to be zero for random port, not for SSL.
+Jan 22, 2020 V8.64 IcsHosts allows NonSSlPort to be zero for random port, not for SSL.
                    Added BindPort read only property with real port while listening.
                    Added BindSrvPort to IcsHosts set while listening.
                    ListenStates now shows BindPort rather than requested port.
-
-
+                   IcsHosts has new AuthForceSsl property, login only allowed once
+                     SSL/TLS negotiated so credentials never sent clear.
 
                    
 
@@ -323,6 +323,8 @@ WebLogIdx     - Optional web logging index for this IcsHost, for use by web
                 logging).
 AuthSslCmd    - Optional, if SSL/TLS should be initialised to support an AUTH SSL
                 command or similar on an initial non-SSL connection.
+AuthForceSsl  - Optional, if login only allowed once SSL/TLS negotiated so
+                   credentials never sent clear.
 SslCert       - Optional SSL server certificate file name, may be PEM, DER, PFX,
                 P12, P7 format, optionally a bundle including a private key and
                 one or more intermediate certificates.  Required if BindSslPort
@@ -716,7 +718,7 @@ uses
 
 const
     WSocketServerVersion     = 864;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2019 F. Piette V8.64 ';
+    CopyRight : String       = ' TWSocketServer (c) 1999-2020 F. Piette V8.64 ';
  { V8.62 ALPN requests that may arrive during SSL helo }
     AlpnAcmeTls1 = 'acme-tls/1';
     AlpnHttp11   = 'http/1.1';
@@ -1115,6 +1117,7 @@ type
     FWebLogIdx: Integer;    { V8.60 }
     FAuthSslCmd: Boolean;   { V8.63 }
     FBindSrvPort: string;   { V8.64 }
+    FAuthForceSsl: Boolean; { V8.64 }
   protected
     function GetDisplayName: string; override;
     function GetHostNameTot: integer;
@@ -1181,6 +1184,8 @@ type
                                                  write FSslSrvSecurity;
     property AuthSslCmd : Boolean                read  FAuthSslCmd
                                                  write FAuthSslCmd;      { V8.63 }
+    property AuthForceSsl: Boolean               read  FAuthForceSsl
+                                                 write FAuthForceSsl;    { V8.64 }
     property WellKnownPath: string               read  FWellKnownPath
                                                  write FWellKnownPath;   { V8.49 }
     property WebRedirectURL: string              read  FWebRedirectURL
@@ -4016,7 +4021,8 @@ begin
             Descr := IcsTrim(MyIniFile.ReadString(section, 'Descr', ''));
             ForwardProxy := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'ForwardProxy', 'False'));
             Proto := IcsTrim(MyIniFile.ReadString(section, 'Proto', ''));
-            AuthSslCmd := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'AuthSslCmd', 'False'));   { V8.63 }
+            AuthSslCmd := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'AuthSslCmd', 'False'));      { V8.63 }
+            AuthForceSsl := IcsCheckTrueFalse(MyIniFile.ReadString (section, 'AuthForceSsl', 'False'));  { V8.64 }
             WebDocDir := IcsTrim(MyIniFile.ReadString(section, 'WebDocDir', ''));
             WebTemplDir := IcsTrim(MyIniFile.ReadString(section, 'WebTemplDir', ''));
             WebDefDoc := IcsTrim(MyIniFile.ReadString(section, 'WebDefDoc', ''));

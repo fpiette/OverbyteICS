@@ -8,10 +8,10 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.63
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2003-2019 by François PIETTE
+Legal issues: Copyright (C) 2003-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -139,10 +139,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 863;
-     PemToolDate        = 'October 24, 2019';
+     PemToolVersion     = 864;
+     PemToolDate        = 'January 20, 2020';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2019 by François PIETTE V8.63 ';
+     CopyRight : String = '(c) 2003-2020 by François PIETTE V8.64 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 

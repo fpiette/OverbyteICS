@@ -9,10 +9,10 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     May 2018
-Updated:      Nov 2019
-Version:      8.63
+Updated:      Jan 2020
+Version:      8.64
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
+Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
@@ -65,6 +65,12 @@ Nov 12, 2019 - V8.63 Better selection for supplier database order ListView.
                      10 minute timeout to close idle account.
                      Added List Challenges button to log list of pending challenges
                        from the database.
+Jan 15, 2020 - V8.64 Fixed bug that stopped new orders after a successful one
+                        saying no more today, due to date not being cleared.
+                     Retain TRadiGroup defaults when reloading literals on first run.
+                     No longer logs errors while waiting for DNS challenge to be
+                       manually updated. There will be one 'wait' for each domain
+                       being checked.  
 
 
 For docunentation on how to use this sample, please see a lengthy Overview in
@@ -417,7 +423,7 @@ implementation
 
 procedure TX509CertsForm.FormCreate(Sender: TObject);
 var
-    I: Integer;
+    I, J: Integer;
     CT: TChallengeType;
     KC: TSslPrivKeyCipher;
 begin
@@ -440,18 +446,26 @@ begin
       {  'Certs *.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
                           '*.pem;*.cer;*.crt;*.der;*.p12;*.pfx;*.p7*;*.spc|' +
                           'All Files *.*|*.*'; }
+    J := CertSignDigestType.ItemIndex;                    { V8.84 keep initial default }
     CertSignDigestType.Items.Clear;
     for I := 0 to DigestListLitsLast do
       CertSignDigestType.Items.Add(DigestListLits[I]);    { V8.62 }
+    CertSignDigestType.ItemIndex := j;                    { V8.84 reset default }
+    J := PrivKeyType.ItemIndex;                           { V8.84 keep initial default }
     PrivKeyType.Items.Clear;
     for I := 0 to SslPrivKeyTypeLitsLast1 do
         PrivKeyType.Items.Add(SslPrivKeyTypeLits[I]);     { V8.62 }
+    PrivKeyType.ItemIndex := j;                           { V8.84 reset default }
+    J := SuppCertChallenge.ItemIndex;                     { V8.84 keep initial default }
     SuppCertChallenge.Items.Clear;
     for CT := Low(TChallengeType) to High(TChallengeType) do
-        SuppCertChallenge.Items.Add(ChallengeTypeLits[CT]);    { V8.62 }
+        SuppCertChallenge.Items.Add(ChallengeTypeLits[CT]);  { V8.62 }
+    SuppCertChallenge.ItemIndex := j;                        { V8.84 reset default }
+    J := PrivKeyCipher.ItemIndex;                            { V8.84 keep initial default }
     PrivKeyCipher.Items.Clear;
     for KC := Low(TSslPrivKeyCipher) to High(TSslPrivKeyCipher) do
-        PrivKeyCipher.Items.Add(SslPrivKeyCipherLits[KC]);     { V8.62 }
+        PrivKeyCipher.Items.Add(SslPrivKeyCipherLits[KC]);  { V8.62 }
+    PrivKeyCipher.ItemIndex := j;                           { V8.84 reset default }
 end;
 
 procedure TX509CertsForm.FormDestroy(Sender: TObject);

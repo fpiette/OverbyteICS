@@ -9,11 +9,11 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     Apr 2018
-Updated:      Nov 2019
-Version:      8.63
+Updated:      Jan 2020
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
+Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
@@ -691,10 +691,21 @@ Nov 12, 2019 - V8.63 - OpenAccount will now create a new account correctly.
                          transparency logs immediately after issue. 
                        Improved local web server and REST logging.
                        Added LastError to try and keep the last real order error.
-                       Expire and remove challenges from the databsee after 24 hours
+                       Expire and remove challenges from the database after 24 hours
                          or a week for manual/email/dns.
-                         
+Jan 15, 2020 - V8.64 - Fixed bug that stopped new orders after a successful one
+                         saying no more today, due to date not being cleared.
+                       Allow use of EC keys for ACME account, not sure they work yet.
+                       Added sanity check for private key type and check private
+                          key is generated OK.
+                       With automatic order completion don't report errors if the
+                         challenges are not actually started, may take several minutes
+                         for manual DNS updating.
 
+
+Pending real soon - ACME challenge tokens remain valid for a week so don't need
+to be checked immediately, DNS in particular but also files, so add new state
+IssStateChallgReady while tokens are prepared before ACME is instructed to test them.
 
 Pending - more documentation
 Pending - keep CertCentre admin details as supplier
@@ -776,7 +787,7 @@ uses
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
 const
-    ComponentVersion = 'V8.63';  // used in user agent
+    ComponentVersion = 'V8.64';  // used in user agent
 
  // file suffixes to build various file names
     FileSuffPKey     = '-privatekey.pem' ;
@@ -1243,7 +1254,7 @@ TSslX509Certs = class(TIcsWndControl)
     function AcmeCheckOrder(DomainCheck: Boolean = True; UpdateDB: Boolean = False): Boolean;
     function AcmeV2NewAccount: Boolean;
     function AcmeV2OrderCert: Boolean;
-    function AcmeV2GetCert: Boolean;
+    function AcmeV2GetCert(LogErrors: Boolean = True): Boolean;   { V8.64 added param }
     function AcmeV2CheckChallg(ChallgNum: Integer): Boolean;
     function AcmeV2OrderCancel (Revoke: Boolean): Boolean;
     function CheckChallg(const aDomain: String): Boolean;
@@ -3171,10 +3182,17 @@ begin
         end;
         LogEvent ('Generating Private and Public Key Pair, Please Wait');
         try
+            FNewSslCert.X509Req := Nil;   { V8.64 before key creation }
+            if FPrivKeyType < PrivKeyRsa2048 then FPrivKeyType := PrivKeyRsa2048; { V8.64 sanity check }
             FNewSslCert.PrivKeyType := FPrivKeyType;
             FNewSslCert.PrivateKey := Nil;
             FNewSslCert.DoKeyPair;
-            LogEvent ('Generated private and public key pair OK:' + IcsCRLF + FNewSslCert.PrivateKeyInfo);
+            if FNewSslCert.IsPKeyLoaded then  { V8.64 check actually created }
+                LogEvent ('Generated private and public key pair OK:' + IcsCRLF + FNewSslCert.PrivateKeyInfo)
+            else begin
+                LogEvent ('Failed to Generate Private Key - Bad Key Parameters?');
+                exit ;
+            end;
         except
             on E:Exception do  begin
                 LogEvent ('Failed to Generate Private Key - ' + E.Message);
@@ -3184,7 +3202,6 @@ begin
 
         LogEvent ('Generating Certificate Signing Request');
         try
-            FNewSslCert.X509Req := Nil;
             with fNewSslCert do begin
                 CommonName := fCertCommonName;
                 AltDNSList.Clear;
@@ -5471,12 +5488,14 @@ end;
 function TSslX509Certs.AcmeLoadPKey(New: Boolean): Boolean;
 begin
     Result := False;
-    if FAcmeAccKeyType > PrivKeyRsa4096 then begin
+  {  if FAcmeAccKeyType > PrivKeyRsa4096 then begin   // V8.64 allow testing EC keys
         LogEvent ('Sorry, Only RSA Private Keys Currently Supported for Acme Accounts');
         exit;
-    end;
+    end;   }
+
     try
     // get private keys, Acme prefers Elliptic Curve since shorter
+        if FAcmeAccKeyType < PrivKeyRsa2048 then FAcmeAccKeyType := PrivKeyRsa2048;  { V8.64 sanity check }
         FAcmePrivKey.PrivKeyType := FAcmeAccKeyType;
         case FAcmeAccKeyType of
             PrivKeyRsa2048, PrivKeyRsa3072, PrivKeyRsa4096: FAcmeJoseAlg := jsigRsa256;
@@ -5507,6 +5526,10 @@ begin
             end;
             try
                 FAcmePrivKey.DoKeyPair;
+                if NOT FAcmePrivKey.IsPKeyLoaded then  begin { V8.64 check actually created }
+                    LogEvent ('Failed to generate private key - Bad parameters?');
+                    exit ;
+                end;
                 LogEvent ('Generated private key OK: ' + FAcmePrivKey.PrivateKeyInfo);
                 FAcmePrivKey.PrivateKeySaveToPemFile (FAcmePrivFName, '', PrivKeyEncNone);
                 LogEvent ('Saved private key file: ' + FAcmePrivFName);
@@ -5688,19 +5711,13 @@ begin
     FAcmeOrderFinalizeUrl := '';
     FAcmeOrderObjUrl := '';
     FIssueState := IssStateNone;
+    FNewCertStartDT := 0;   { V8.64 in case new domain }
 
  // read internal variables, but not saved public properties, they may be new
     DBReadCNDomain(fCertCommonName, False);  // ignore errors, may be new domain
     if FIssueState > IssStateChecked then FIssueState := IssStateNone;   // reset old order
     LogTimeStamp;
     LogEvent ('Checking Let''s Encrypt Certificate Order for: ' + fCertCommonName);
-
- // only allowed five duplicate orders for the same certificate each week
- // so one only per day
-     if ((IcsGetUTCTime - FNewCertStartDT) < 1) then begin  { V8.61 }
-        LogEvent ('Only One Order Per Domain Per Day Allowed');
-        Exit;
-     end;
 
  // make sure common name is also in SANs, so we can ignore it subsequently
     BuildSANList;
@@ -5710,6 +5727,13 @@ begin
         LogEvent ('No Challenge Validation Specified');
         Exit;
     end;
+
+ // only allowed five duplicate orders for the same certificate each week
+ // so one only per day
+     if ((IcsGetUTCTime - FNewCertStartDT) < 1) then begin  { V8.61 }
+        LogEvent ('Only One Order Per Domain Per Day Allowed');
+        Exit;
+     end;
 
  // validate some settings
   {  if (FSupplierProto <> SuppProtoAcmeV2) and (FCertSANTot > 1) then begin
@@ -6045,7 +6069,7 @@ Response (length 919)
                     CurChallenge.CDirWellKnown := FCertSubAltNames[CurChallenge.CSanIdx].SADirWellKnown;
                     CurChallenge.CDirPubWebCert := FCertSubAltNames[CurChallenge.CSanIdx].SADirPubWebCert;
 
-                // save well-known file with Key Authorization content
+                // Acme save well-known file with Key Authorization content
                     if (CurChallenge.CType = ChallFileUNC) then begin
                         if CurChallenge.CDirWellKnown <> '' then begin
                             CurChallenge.CWKFullName := CurChallenge.CDirWellKnown + CurChallenge.CPage;
@@ -6057,7 +6081,7 @@ Response (length 919)
                             LogEvent ('Challenge Failed, No Well-Known Directory Found');
                     end;
 
-                // create base64 SHA256 digest of CResp for
+                // Acme create base64 SHA256 digest of CResp for
                 // ie  _acme-challenge.example.org. 300 IN TXT "gfj9Xq...Rg85nM"
                     if (CurChallenge.CType = ChallDNS) then begin
                         CurChallenge.CPage :=  '_acme-challenge.' + CurChallenge.CDomain;
@@ -6065,6 +6089,7 @@ Response (length 919)
                             (IcsHashDigest(AnsiString(CurChallenge.CResp), Digest_sha256)));
                         LogEvent ('!!! Add DNS TXT Record for: ' + CurChallenge.CPage + ', with: ' + CurChallenge.CDNSValue);
                         if Assigned(FOnChallengeDNS) then FOnChallengeDNS(Self, CurChallenge);
+                     // beware event may block waiting for manual update of DNS server
                     end;
 
                 // FTP handled by application
@@ -6107,6 +6132,10 @@ Response (length 919)
                     Exit;
                 end;
 
+         // pending, challenge is valid for several days, don't need to check it immediately
+         // but could wait until DNS servers updated or files copied manually to servers
+
+
                //  start challenge, so they look up our file, no parameters, just a special URL
                 if CurChallenge.CIssueState <> IssStateChallgOK then begin
                     LogEvent('Starting ACME Challenge for: ' + CurChallenge.CDomain);
@@ -6142,6 +6171,8 @@ Response (length 919)
                 FCertSubAltNames[CurChallenge.CSanIdx].SAStartDT := CurChallenge.CStartDT;
                 FCertSubAltNames[CurChallenge.CSanIdx].SADoneDT := CurChallenge.CDoneDT;
             end;
+
+         // challenges for all domains now started or validated, wait for Acme server to check them
             FChallgStartDT := Now;
             FIssueState := IssStateChallgPend;
             FChkChallgTrg := IcsGetTrgSecs64 (10);   { V8.63 first check in 10 seconds }
@@ -6346,7 +6377,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TSslX509Certs.AcmeV2GetCert: Boolean;
+function TSslX509Certs.AcmeV2GetCert(LogErrors: Boolean = True): Boolean;   { V8.64 added param }
 var
     CSREn, errstr: string ;
     I: Integer;
@@ -6355,24 +6386,31 @@ begin
     fAcmeOrderStatus := '';
     FAcmeOrderFinalizeUrl := '';
     FAcmeOrderObjUrl := '';
+
+ { V8.64 challenges may not be ready yet, waiting for DNS update, etc, so
+    don't log errors if running from timer }
     if (fCertCommonName = '') or (FCertSubAltNames.Count = 0) then begin
-        LogEvent('Must Specify Domain Common Name for Certifcate');
+        if LogErrors then  { V8.64 }
+            LogEvent('Must Specify Domain Common Name for Certifcate');
         Exit;
     end;
  // read internal variables and public properties from database, so same as order
     if NOT DBReadCNDomain(fCertCommonName, True) then Exit;
     if FIssueState < IssStateChallgPend then begin
-        LogEvent('ACME Challenge Not Started, Must Order First');
+        if LogErrors then  { V8.64 }
+            LogEvent('ACME Challenge Not Started, Must Order First');
         Exit;
     end;
     if (FAcmeOrderFinalizeURL = '') or (FAcmeOrderObjUrl = '') then begin
-        LogEvent('Need ACME Order and Fianalize URLs first');
+        if LogErrors then  { V8.64 }
+            LogEvent('Need ACME Order and Fianalize URLs first');
         Exit;
     end;
 
 // look through challenges, keep results
     if NOT DBReadChallenges then begin
-        LogEvent('Failed to Read Challenge Database');
+        if LogErrors then  { V8.64 }
+            LogEvent('Failed to Read Challenge Database');
         Exit;
     end;
     if FChallengesTot > 0 then begin
@@ -6413,7 +6451,8 @@ begin
                 RemoveChallgs(fCertCommonName);
             end
             else begin
-                LogEvent('ACME Challenges Not Compeleted Yet');
+                if LogErrors then  { V8.64 }
+                    LogEvent('ACME Challenges Not Compeleted Yet');
                 FIssueState := IssStateChallgPend;
             end;
             DBWriteCNDomain;  // update database
@@ -6708,7 +6747,7 @@ begin
 
                          // collect certificates
                             if SupplierProto = SuppProtoAcmeV2 then
-                                AcmeV2GetCert
+                                AcmeV2GetCert(False)  { V8.64 no errors for not started }
                             else if SupplierProto = SuppProtoCertCentre then
                                 CCGetCert
                             else
@@ -6916,7 +6955,7 @@ begin
     if SupplierProto = SuppProtoAcmeV2 then begin
         Result := AcmeV2OrderCert;
         if FIssueState >= IssStateChallgOK then begin
-            Result := AcmeV2GetCert;
+            Result := AcmeV2GetCert(True);  { V8.64 show errors }
             if Result then Collected := True;   { V8.63 }
         end;
     end
@@ -6956,7 +6995,7 @@ begin
         Exit;
     end;
     if SupplierProto = SuppProtoAcmeV2 then
-        Result := AcmeV2GetCert
+        Result := AcmeV2GetCert(True)   { V8.64 show errors }
      else if SupplierProto = SuppProtoCertCentre then
         Result := CCGetCert
      else if SupplierProto = SuppProtoServtas then

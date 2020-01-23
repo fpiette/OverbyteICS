@@ -5,10 +5,10 @@ Description:  Delphi encapsulation for SSLEAY32.DLL (OpenSSL)
               Renamed libssl32.dll for OpenSSL 1.1.0 and later
               This is only the subset needed by ICS.
 Creation:     Jan 12, 2003
-Version:      8.62
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2003-2019 by François PIETTE
+Legal issues: Copyright (C) 2003-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -125,12 +125,14 @@ Oct 10, 2018  V8.57 added APLN APIs and literals
                     EVP_MAX_KEY_LENGTH now 64
 Oct 19, 2018  V8.58 version only
 Nov 27, 2018  V8.59 version only
-Mar 18, 2019  V8.60 Next major OpenSSL version is 3.0.0 (or maybe 4)
+Mar 18, 2019  V8.60 Next major OpenSSL version is 3.0.0 (due mid 2020)
                     Added sslSrvSecTls12Less and sslSrvSecTls13Only to disable
                       in server IcsHosts if TLS1.3 fails.
 Jul 15, 2019  V8.62 Removed two ciphers from TSslPrivKeyCipher which we did not use.
-                    SuppProtoAcmeV1 gone, two more added. 
+                    SuppProtoAcmeV1 gone, two more added.
                     Added ICS_NID_acmeIdentifier created dynamically on startup.
+Jan 15, 2010  V8.64 Changed sslSrvSecDefault to sslSrvSecHigh since TLSv1.1
+                       disabled in most browsers from early 2020
 
 
 
@@ -213,8 +215,8 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsSSLEAYVersion   = 862;
-    CopyRight : String = ' IcsSSLEAY (c) 2003-2019 F. Piette V8.62 ';
+    IcsSSLEAYVersion   = 864;
+    CopyRight : String = ' IcsSSLEAY (c) 2003-2020 F. Piette V8.64 ';
 
     EVP_MAX_IV_LENGTH                 = 16;       { 03/02/07 AG }
     EVP_MAX_BLOCK_LENGTH              = 32;       { 11/08/07 AG }
@@ -297,6 +299,10 @@ const
     OSSL_VER_1101   = $1010100F; // 1.1.1 base                { V8.57 }
     OSSL_VER_1101A  = $1010101F; // 1.1.1a                    { V8.59 }
     OSSL_VER_1101B  = $1010102F; // 1.1.1b                    { V8.59 }
+    OSSL_VER_1101C  = $1010103F; // 1.1.1c                    { V8.64 }
+    OSSL_VER_1101D  = $1010104F; // 1.1.1d                    { V8.65 }
+    OSSL_VER_1101E  = $1010105F; // 1.1.1e                    { V8.66 }
+    OSSL_VER_1101F  = $1010106F; // 1.1.1f                    { V8.66 }
     OSSL_VER_1101ZZ = $10101FFF; // 1.1.1zz not yet released  { V8.57 }
     OSSL_VER_30000  = $30000000; // 3.0.0 dev                 { V8.60 }
     OSSL_VER_MAX    = $FFFFFFFF; // maximum version           { V8.35 }
@@ -1987,7 +1993,7 @@ type
                      sslSrvSecTls13Only);   { 9 - TLSv1.3 only, intermediate FS ciphers, RSA/DH keys=>2048, ECC=>224, no RC4, no SHA1 certs }
 
 const
-    sslSrvSecDefault = sslSrvSecInterFS;    { V8.55 recommended default }
+    sslSrvSecDefault = sslSrvSecHigh;       { V8.55 recommended default, V8.64 improved default since TLSv1.1 disabled in most browsers from early 2020 }
 
 type
    { V8.54 SSL client security level, used by context, sets protocol, cipher and SslSecLevel }

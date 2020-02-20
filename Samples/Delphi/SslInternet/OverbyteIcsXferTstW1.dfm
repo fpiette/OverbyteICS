@@ -3,7 +3,7 @@ object FormXferDemo: TFormXferDemo
   Top = 51
   Caption = 
     'ICS Multi File Transfer Wide Demo -  http://www.overbyte.be - V8' +
-    '.63 - 3rd November 2019'
+    '.64 - 20th February 2020'
   ClientHeight = 773
   ClientWidth = 908
   Color = clBtnFace
@@ -290,7 +290,10 @@ object FormXferDemo: TFormXferDemo
     object TabSheet2: TTabSheet
       Caption = 'TIcsFtpMultiW'
       ImageIndex = 1
+      ExplicitLeft = 0
       ExplicitTop = 29
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label9: TLabel
         Left = 5
         Top = 10
@@ -379,7 +382,7 @@ object FormXferDemo: TFormXferDemo
         Top = 5
         Width = 301
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 0
         Text = 'www.magsys.co.uk'
         Items.Strings = (
@@ -507,6 +510,10 @@ object FormXferDemo: TFormXferDemo
     object TabSheet5: TTabSheet
       Caption = 'Multi FTP'
       ImageIndex = 4
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label8: TLabel
         Left = 5
         Top = 10
@@ -702,7 +709,7 @@ object FormXferDemo: TFormXferDemo
         Top = 83
         Width = 113
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 7
         Text = ' Never'
         Items.Strings = (
@@ -715,6 +722,10 @@ object FormXferDemo: TFormXferDemo
     object TabSheet4: TTabSheet
       Caption = 'Single FTP'
       ImageIndex = 3
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label15: TLabel
         Left = 5
         Top = 10
@@ -824,7 +835,7 @@ object FormXferDemo: TFormXferDemo
         Top = 160
         Width = 113
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 8
         Text = ' Never'
         Items.Strings = (
@@ -837,6 +848,10 @@ object FormXferDemo: TFormXferDemo
     object TabSheet3: TTabSheet
       Caption = 'TIcsHttpMultiW'
       ImageIndex = 2
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label5: TLabel
         Left = 5
         Top = 0
@@ -914,7 +929,7 @@ object FormXferDemo: TFormXferDemo
         Top = 140
         Width = 111
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 1
         Text = '*.zip'
         Items.Strings = (
@@ -947,7 +962,7 @@ object FormXferDemo: TFormXferDemo
         Top = 140
         Width = 113
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 7
         Text = ' Never'
         Items.Strings = (

@@ -3,14 +3,12 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
-Updated:      Dec 2019
+Updated:      Feb 2020
 Version:      8.64
-Support:      Use the mailing list ics-ssl@elists.org
-Legal issues: Copyright (C) 2003-2019 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium.
-              <francois.piette@overbyte.be>
-              SSL implementation includes code written by Arno Garrels,
-              Berlin, Germany, contact: <arno.garrels@gmx.de>
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
+              Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -68,11 +66,20 @@ Nov 11, 2019 - V8.63 OAuth2 progress log display got lost.
                      Added two Google Gmail API URLs to the drop down list.
                      OAuth has Prompt and Access Offline for Google to requests a
                        Refresh Token.
-Dec 18, 2019 - V8.64 Added XML response parsing into a ISuperOject which can be
+Feb 20, 2019 - V8.64 Added XML response parsing into a ISuperOject which can be
                        processed similarly to a Json object.
                      Improved Json object double clicking display again.
-                     Corrected passing ALPN list to component.  
-                     
+                     Corrected passing ALPN list to component.
+                     Added more parameter content types: PContXML, PContBodyUrlEn,
+                        PContBodyJson, PContBodyXML. The existing PContUrlEn and
+                        PContJson now specify REST params are sent as URL ? arguments,
+                        while the PContBodyxx version send params as content body.
+                     This fixes a bug that meant PUT request params were always sent
+                        as URL ? arguments.  Note POST is always content body so
+                        the wrong PContent is corrected automatically for backward
+                        compatibility.
+                     XML content type is experimental, not tested.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpRestTst1;
@@ -670,8 +677,8 @@ end;
 
 procedure THttpRestForm.doStartReqClick(Sender: TObject);
 const
-    ReqList: array[0..4] of THttpRequest =
-               (httpGET, httpPOST, httpHEAD, httpPUT, httpDELETE) ;
+    ReqList: array[0..5] of THttpRequest =
+      (httpGET, httpPOST, httpHEAD, httpPUT, httpDELETE, httpPATCH);  { V8.64 added PATCH }
 var
     StatCode, Row: Integer;
     Req: THttpRequest;

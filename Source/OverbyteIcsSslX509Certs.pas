@@ -688,12 +688,12 @@ Nov 12, 2019 - V8.63 - OpenAccount will now create a new account correctly.
                          order is completed or fails and AccountTimeOutMins to
                          close it anyway when idle.  This avoids potential hacking
                          attempts that often follow listing in SSL certificate
-                         transparency logs immediately after issue. 
+                         transparency logs immediately after issue.
                        Improved local web server and REST logging.
                        Added LastError to try and keep the last real order error.
                        Expire and remove challenges from the database after 24 hours
                          or a week for manual/email/dns.
-Jan 15, 2020 - V8.64 - Fixed bug that stopped new orders after a successful one
+Feb 07, 2020 - V8.64 - Fixed bug that stopped new orders after a successful one
                          saying no more today, due to date not being cleared.
                        Allow use of EC keys for ACME account, not sure they work yet.
                        Added sanity check for private key type and check private
@@ -701,6 +701,7 @@ Jan 15, 2020 - V8.64 - Fixed bug that stopped new orders after a successful one
                        With automatic order completion don't report errors if the
                          challenges are not actually started, may take several minutes
                          for manual DNS updating.
+                       Fixed several typos, sorry.   
 
 
 Pending real soon - ACME challenge tokens remain valid for a week so don't need
@@ -810,7 +811,7 @@ const
 
 type
 
- // certficate serial number
+ // certificate serial number
     TSerNumType = (SerNumRandom, SerNumSequential);
 
  // issue state within the component
@@ -3333,19 +3334,19 @@ var
                 FNewSslCert.PrivateKeySaveToPemFile (FFilePrvKey, FPrivKeyPassword, FPrivKeyCipher);
                 LogEvent ('Saved Private Key File: ' + FFilePrvKey);
                 FNewSslCert.SaveToPemFile(FFileCertPem, False, True, False);  // no private key or inters
-                LogEvent('Saved PEM Certficate Alone: ' + FFileCertPem);
+                LogEvent('Saved PEM Certificate Alone: ' + FFileCertPem);
                 if FNewSslCert.IsInterLoaded then begin
                     FNewSslCert.SaveIntersToToPemFile(FFileInterPem, True);
-                    LogEvent('Saved PEM Intermediate Certficate: ' + FFileInterPem);
+                    LogEvent('Saved PEM Intermediate Certificate: ' + FFileInterPem);
                 end;
             end;
             if (OutFmtBudl in FCertOutFmts) then begin
                 FNewSslCert.SaveToPemFile(FFileBundPem, True, True, True, FPrivKeyPassword, FPrivKeyCipher);  // add private key and inters
-                LogEvent('Saved PEM Bundle with Certficate, Key and Intermediate: ' + FFileBundPem);
+                LogEvent('Saved PEM Bundle with Certificate, Key and Intermediate: ' + FFileBundPem);
             end;
             if (OutFmtP12 in FCertOutFmts) then begin
                 FNewSslCert.SaveToP12File(fFileBundP12, P12Password, True, P12KeyCipher);  // add private key and inters
-                LogEvent('Saved PKCS12 Bundle with Certficate, Key and Intermediate: ' + FFileBundP12);
+                LogEvent('Saved PKCS12 Bundle with Certificate, Key and Intermediate: ' + FFileBundP12);
             end;
             if (FNewCertP7Lines <> '') and (OutFmtP7 in FCertOutFmts) then begin
                 SaveDataFile (FFileBundP7, FNewCertP7Lines) ;
@@ -3396,7 +3397,7 @@ begin
             LogEvent ('!!! WARNING, Private Key Does Not Match Certificate Public Key');
         if (OutFmtSep in FCertOutFmts) then begin
            FNewSslCert.SaveToPemFile(FFileCertPem, False, True, False);  // no private key or inters
-            LogEvent('Saved PEM Certficate Alone: ' + FFileCertPem);
+            LogEvent('Saved PEM Certificate Alone: ' + FFileCertPem);
             FFileFinalBundle := FFileCertPem; // in case no bundle specified
         end;
     except
@@ -3433,7 +3434,7 @@ begin
     if FNewSslCert.IsInterLoaded and (OutFmtSep in FCertOutFmts) then begin
         try
             FNewSslCert.SaveIntersToToPemFile(FFileInterPem, True);
-            LogEvent('Saved PEM Intermediate Certficate: ' + FFileInterPem);
+            LogEvent('Saved PEM Intermediate Certificate: ' + FFileInterPem);
         except
             on E:Exception do begin
                 LogEvent ('Failed to Recognise Intermediate Certificate - ' + E.Message);
@@ -3454,13 +3455,13 @@ begin
     try
         if (OutFmtBudl in FCertOutFmts) then begin
             FNewSslCert.SaveToPemFile(FFileBundPem, True, True, True, FPrivKeyPassword, FPrivKeyCipher);  // add private key and inters
-            LogEvent('Saved PEM Bundle with Certficate, Key and Intermediate: ' + fFileBundPem);
+            LogEvent('Saved PEM Bundle with Certificate, Key and Intermediate: ' + fFileBundPem);
             FFileFinalBundle := FFileBundPem;
         end;
 
         if (OutFmtP12 in FCertOutFmts) then begin
             FNewSslCert.SaveToP12File(FFileBundP12, P12Password, True, P12KeyCipher);  // add private key and inters
-            LogEvent('Saved PKCS12 Bundle with Certficate, Key and Intermediate: ' + FFileBundP12);
+            LogEvent('Saved PKCS12 Bundle with Certificate, Key and Intermediate: ' + FFileBundP12);
             FFileFinalBundle := FFileBundP12;
         end;
     except
@@ -6461,7 +6462,7 @@ begin
 
     // challenges compelete
         LogTimeStamp;
-        LogEvent ('Collecing Let''s Encrypt SSL certificate for: ' + fCertCommonName);
+        LogEvent ('Collecting Let''s Encrypt SSL certificate for: ' + fCertCommonName);  // V8.64 typo
 
     //  must have a valid nonce to do POST requests
         if fAcmeRespNonce = '' then begin

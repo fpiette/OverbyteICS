@@ -3,7 +3,7 @@ object X509CertsForm: TX509CertsForm
   Top = 0
   Caption = 
     'ICS Automatically Download SSL X509 Certificates Development Dem' +
-    'o - http://www.overbyte.be - V8.64 - 15th January 2020'
+    'o - http://www.overbyte.be - V8.64 - 20th February 2020'
   ClientHeight = 637
   ClientWidth = 1024
   Color = clBtnFace
@@ -556,6 +556,10 @@ object X509CertsForm: TX509CertsForm
     object TabInfo: TTabSheet
       Caption = 'Cert Admin'
       ImageIndex = 6
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object lbCountry: TLabel
         Left = 585
         Top = 165

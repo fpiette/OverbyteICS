@@ -6,7 +6,7 @@ Description:  Composant non-visuel avec un handle de fenêtre.
 Version:      8.62
 EMail:        francois.piette@overbyte.be   http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2002-2019 by François PIETTE
+Legal issues: Copyright (C) 2002-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 

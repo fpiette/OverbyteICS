@@ -185,7 +185,7 @@ Jun 19, 2019 V8.62 Added IcsGetLocalTZBiasStr get time zone bias as string, ie -
                       bias and adjust result if UseTZ=True from UTC to local time.
 Nov 7, 2018  V8.63 Better error handling in RFC1123_StrToDate to avoid exceptions.
                    Added TypeInfo enumeration sanity check for IcsSetToStr and IcsStrToSet.
-Jan 08, 2020 V8.64 Allow IcsGetUTCTime, IcsSetUTCTime, GetIcsFormatSettings to build
+Mar 10, 2020 V8.64 Allow IcsGetUTCTime, IcsSetUTCTime, GetIcsFormatSettings to build
                      on MacOS again, they use Windows only APIs.
                    IcsGetTempPath builds on MacOS.
                    IcsGetCompName now Windows only, only used in samples.
@@ -195,7 +195,21 @@ Jan 08, 2020 V8.64 Allow IcsGetUTCTime, IcsSetUTCTime, GetIcsFormatSettings to b
                      counting corruption with cast pointers, thanks to Kas Ob for
                      finding this, which caused stack corruption and unexpected
                      errors mainly with 64-bit applications, probably.
+                   Added support for International Domain Names for Applications,
+                     i.e. using accents and unicode characters in domain names.
+                   IcsIDNAToASCII converts a Unicode domain or host name into
+                     A-Label (Punycode ASCII) if any characters over x7F, preceding
+                     with ACE (ASCII Compatible Encoding) prefix xn--.
+                   IcsIDNAToUnicode converts an A-Label (Punycode ASCII) domain or
+                     host name into Unicode if any ACE (ASCII Compatible Encoding)
+                     prefixes xn-- are found.
+                   IcsToASCII and IcsToUnicode are similar but work on simple
+                     labels (the nodes in a domain name), uses ACE.
+                   IcsPunyEncode and IcsPunyDecode do the actual Unicode conversion
+                     to and from A-Label (Punycode ASCII), no ACE.
+                   Sample OverbyteIcsBatchDnsLookup has lots of ISN test names.
 
+                     
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUtils;
@@ -352,6 +366,9 @@ const
   ISODateMask = 'yyyy-mm-dd' ;
   ISODateTimeMask = 'yyyy-mm-dd"T"hh:nn:ss' ;
   ISODateLongTimeMask = 'yyyy-mm-dd"T"hh:nn:ss.zzz' ;
+
+  { V8.64 International Domain Name support }
+  ACE_PREFIX = 'xn--';
 
 var
   IcsFormatSettings: TFormatSettings;  { V8.60 }
@@ -682,6 +699,16 @@ const
 {$IFDEF MSWINDOWS}   { V8.64 not MacOS }
     function IcsGetCompName: String;                         { V8.57 }
 {$ENDIF}
+    function IcsPunyDecode(const Input: String; var ErrFlag: Boolean): UnicodeString;    { V8.64 }
+    function IcsPunyEncode(const Input: UnicodeString; var ErrFlag: Boolean): String;    { V8.64 }
+    function IcsToASCII(const Input: UnicodeString; UseSTD3AsciiRules: Boolean; var ErrFlag: Boolean): String; overload;     { V8.64 }
+    function IcsIDNAToASCII(const Input: UnicodeString; UseSTD3AsciiRules: Boolean; var ErrFlag: Boolean): String; overload; { V8.64 }
+    function IcsToASCII(const Input: UnicodeString): String; overload;        { V8.64 }
+    function IcsIDNAToASCII(const Input: UnicodeString): String; overload;    { V8.64 }
+    function IcsToUnicode(const Input: String; var ErrFlag: Boolean): UnicodeString; overload;     { V8.64 }
+    function IcsIDNAToUnicode(const Input: String; var ErrFlag: Boolean): UnicodeString; overload; { V8.64 }
+    function IcsToUnicode(const Input: String): UnicodeString; overload;      { V8.64 }
+    function IcsIDNAToUnicode(const Input: String): UnicodeString; overload;  { V8.64 }
 
     { V8.54 Tick and Trigger functions for timing stuff moved here from OverbyteIcsFtpSrvT   }
     function IcsGetTickCountX: longword ;
@@ -7111,6 +7138,444 @@ begin
 begin
     Result := TPath.GetTempPath;   { V8.64 MacOS }
 {$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
+{ V8.64 Bootstring parameters for Punycode and International Domain Names }
+const
+  PUNY_TMIN:Integer=1;
+  PUNY_TMAX:Integer=26;
+  PUNY_BASE:Integer = 36;
+  PUNY_INITIAL_N:Integer = 128;
+  PUNY_INITIAL_BIAS:Integer = 72;
+  PUNY_DAMP:Integer = 700;
+  PUNY_SKEW:Integer = 38;
+  PUNY_DELIMITER:char = '-';
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Bias adaptation function }
+ function IcsPunyAdapt(Delta, Numpoints: Integer; First: Boolean): Integer;
+var
+    K:Integer;
+begin
+    if First then
+        Delta := Delta div PUNY_DAMP
+    else
+        Delta := Delta div 2;
+    Delta := Delta + (Delta div Numpoints);
+    K := 0;
+    while (Delta > ((PUNY_BASE - PUNY_TMIN) * PUNY_TMAX) div 2) do begin
+        Delta := Delta div (PUNY_BASE - PUNY_TMIN);
+        K := K + PUNY_BASE;
+    end;
+    Result := K + ((PUNY_BASE - PUNY_TMIN + 1) * Delta) div (Delta + PUNY_SKEW);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Returns the numeric value of a basic code point (for use in representing
+  integers) in the range 0 to BASE-1, }
+function IcsPunyCodepoint2Digit(C: Integer): Integer;
+begin
+    if C - Ord('0') < 10 then
+        Result := C - Ord('0') + 26
+    else if C - Ord('a') < 26 then
+        Result := C - Ord('a')
+    else
+        Result := -1;   // error BAD_INPUT
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ Returns the basic code point whose value (when used for representing
+  integers) is d, which needs to be in the range 0 to BASE-1.
+  0..25 map to ASCII a..z or A..Z
+  26..35 map to ASCII 0..9         }
+function IcsPunyDigit2Codepoint(D: Integer): Integer;
+begin
+    if D < 26 then
+        Result := D + Ord('a')
+    else if D < 36 then
+        Result := D - 26 + Ord('0')
+    else
+        Result := -1;  // error BAD_INPUT
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsPunyIsBasic(const C: WideChar): Boolean; Inline;
+begin
+    Result := Ord(C) < $80;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ converts ASCII Punycode to Unicode }
+function IcsPunyDecode(const Input: String; var ErrFlag: Boolean): UnicodeString;
+var
+    N, I, J, Bias, D, Oldi, W, K, Digit, T, Outlen: Integer;
+    Ch: Char;
+begin
+    N := PUNY_INITIAL_N;
+    I := 0;
+    Bias := PUNY_INITIAL_BIAS;
+    ErrFlag := True;
+    Result := '';
+    D := LastDelimiter(PUNY_DELIMITER, Input);
+    if D > 1 then begin
+        for J := 1 to D-1 do begin
+            Ch := Input[J];
+            if Ord(Ch) >= $80 then Exit; // error, only allowed ASCII
+            Result := Result + Ch;
+        end;
+        inc (D);
+    end
+    else
+        D := 1;
+    Outlen := Length(Result);
+    while D <= Length(Input) do begin // was <
+        Oldi := I;
+        W := 1;
+        K := PUNY_BASE;
+        while True do  begin
+            if D = Length(input) + 1 then Exit; // error BAD_INPUT
+            Ch := Input[D];
+            Inc (D);
+            Digit := IcsPunyCodepoint2Digit(Ord(Ch));
+            if Digit < 0 then Exit;
+            if Digit > (MAXINT - I) div W then Exit;  // error OVERFLOW
+            I := I + Digit * W;
+            if K <= Bias then
+                T := PUNY_TMIN
+            else if K >= Bias + PUNY_TMAX then
+                T := PUNY_TMAX
+            else
+                T := K - Bias;
+            if Digit < T then Break;
+            W := W * (PUNY_BASE - T);
+            Inc(K, PUNY_BASE);
+        end;
+        Bias := IcsPunyAdapt(I - Oldi, Outlen + 1, (Oldi = 0));
+        if I div (Outlen + 1) > MAXINT - N then Exit; // error OVERFLOW
+        N := N + I div (Outlen + 1);
+        I := I mod (Outlen + 1);
+        Insert(Chr(N), Result, I + 1);
+        inc(Outlen);
+        Inc (I);
+    end;
+    ErrFlag := False;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ converts Unicode to A-Label (Punycode ASCII) }
+function IcsPunyEncode(const Input: UnicodeString; var ErrFlag: Boolean): String;
+var
+    N, B, Delta, Bias, M, I, H, J, Q, K, T, V: Integer;
+    Ch: WideChar;
+begin
+    N := PUNY_INITIAL_N;
+    Delta := 0;
+    Bias := PUNY_INITIAL_BIAS;
+    ErrFlag := True;
+    Result := '';
+    B := 0;
+    for I := 1 to Length(Input) do begin
+        Ch := Input[I];
+        if IcsPunyIsBasic(Ch) then  begin
+            Result := Result + Ch;
+            Inc(B);
+        end;
+    end;
+    if B > 0 then
+        Result := Result + PUNY_DELIMITER;
+    H := B;
+    while H < Length(Input) do begin
+        M := MaxInt;
+        for I := 1 to Length(Input) do begin
+            Ch := Input[I];
+            if (Ord(Ch) >= N) and (Ord(Ch) < M) then M := Ord(Ch);
+        end;
+        if M - N > (MaxInt - Delta) div (H + 1) then Exit; // error OVERFLOW
+        Delta := Delta + (M - N) * (H + 1);
+        N := M;
+        for J := 1 to Length(Input) do begin
+            Ch := Input[J];
+            if Ord(Ch) < N then begin
+                Inc(Delta);
+                if Delta = 0 then Exit;  // error OVERFLOW
+            end;
+            if Ord(Ch) = N then begin
+                Q := Delta;
+                K := PUNY_BASE;
+                while True do begin
+                //    t := 0;
+                    if K <= Bias then
+                        T := PUNY_TMIN
+                    else if K >= Bias + PUNY_TMAX then
+                        T := PUNY_TMAX
+                    else
+                        T := K - Bias;
+                    if Q < T then Break;  // done with this character
+                    V := IcsPunyDigit2Codepoint(T + (Q - T) mod (PUNY_BASE - T));
+                    if V <= 0 then Exit;  // error BAD_INPUT
+                    Result := Result + chr(V);
+                    Q := (Q - T) div (PUNY_BASE - T);
+                    Inc(K, PUNY_BASE);
+                end;
+                V := IcsPunyDigit2Codepoint(Q);
+                if V <= 0 then Exit;  // error BAD_INPUT
+                Result := Result + chr(V);
+                Bias := IcsPunyAdapt(Delta, H + 1, (H = B));
+                Delta := 0;
+                Inc(H);
+              end;
+        end;
+        Inc(Delta);
+        Inc(N);
+    end;
+    ErrFlag := False;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsIsSTD3Ascii(C: Integer): Boolean;
+begin
+    Result := NOT ((C <= $2c) or (C = $2e) or (C = $2f) or
+                   ((C >= $3a) and (C <= $40)) or
+                     ((C >= $5b) and (C <= $60)) or
+                           ((C >= $7b) and (C <= $7f)));
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ RFC 3490 ToASCII consists of the following steps:
+   1. If the sequence contains any code points outside the ASCII range
+      (0..7F) then proceed to step 2, otherwise skip to step 3.
+   2. Perform the steps specified in [NAMEPREP] and fail if there is an
+      error.  The AllowUnassigned flag is used in [NAMEPREP].
+   3. If the UseSTD3ASCIIRules flag is set, then perform these checks:
+     (a) Verify the absence of non-LDH ASCII code points; that is, the
+         absence of 0..2C, 2E..2F, 3A..40, 5B..60, and 7B..7F.
+     (b) Verify the absence of leading and trailing hyphen-minus; that
+         is, the absence of U+002D at the beginning and end of the sequence.
+   4. If the sequence contains any code points outside the ASCII range
+      (0..7F) then proceed to step 5, otherwise skip to step 8.
+   5. Verify that the sequence does NOT begin with the ACE prefix.
+   6. Encode the sequence using the encoding algorithm in [PUNYCODE] and
+      fail if there is an error.
+   7. Prepend the ACE prefix.
+   8. Verify that the number of code points is in the range 1 to 63 inclusive.  }
+
+{ converts a Unicode label (no dota) into A-Label (Punycode ASCII) if any characters over x7F,
+  preceding with ASCII Compatible Encoding (ACE) prefix xn-- }
+function IcsToASCII(const Input: UnicodeString; UseSTD3AsciiRules: Boolean; var ErrFlag: Boolean): String;
+var
+    Nonascii: Boolean;
+    I: Integer;
+    Output: AnsiString;
+begin
+    ErrFlag := True;
+    Result := AnsiString(input);
+
+  // should do Nameprep algorithm to check valid unicode characters
+  // including converting uppercase to lowercase, not trivial for unicode.
+
+    if UseSTD3AsciiRules then begin
+        for I := 1 to Length(Input) do begin
+        //    C := ;
+            if NOT IcsIsSTD3Ascii(Ord(Input[I])) then Exit;  // error CONTAINS_NON_LDH
+         //   if (C <= $2c) or (C = $2e) or (C = $2f) or ((C >= $3a) and (C <= $40)) or
+         //            ((C >= $5b) and (C <= $60)) or ((C >= $7b) and (C <= $7f)) then Exit;  // error CONTAINS_NON_LDH
+        end;
+        if (Pos('-', Input) = 1) or (Pos('-', Input) = Length(Input)) then Exit;  // error CONTAINS_HYPHEN
+    end;
+    Nonascii := false;
+    for I := 1 to Length(Input) do begin
+        if Ord(Input[I]) > $7f then  begin
+            Nonascii := true;
+            break;
+        end;
+    end;
+    Output := AnsiString(Input);
+    if Nonascii then begin
+      { if ACE found with unicode characters, we are in trouble }
+        if Pos(ACE_PREFIX, input) = 1 then Exit;  // error CONTAINS_ACE_PREFIX)
+        Output:= IcsPunyEncode(input, ErrFlag);
+        if ErrFlag then Exit;    // error
+        Output := ACE_PREFIX + Output;
+    end;
+    if (Length(Output) < 1) or (Length(Output) > 63) then Exit;  // error TOO_LONG
+    ErrFlag := False;
+    Result := Output;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ converts a Unicode domain or host name into A-Label (Punycode ASCII) if any characters
+  over x7F, preceding with ASCII Compatible Encoding (ACE) prefix xn-- }
+function IcsIDNAToASCII(const Input: UnicodeString; UseSTD3AsciiRules: Boolean; var ErrFlag: Boolean): String;
+var
+    Nonascii: Boolean;
+    I, C: Integer;
+    Ch: WideChar;
+    Node: UnicodeString;
+begin
+    Result := '';
+    Node := '';
+    ErrFlag := True;
+    Nonascii := False;
+    for I := 1 to Length(Input) do begin
+        C := Ord(Input[I]);
+        if C > $7f then begin
+            Nonascii := True;
+            break;
+        end;
+        if UseSTD3AsciiRules then begin  // don't check . now
+            if (C <> $2e) AND (NOT IcsIsSTD3Ascii(C)) then Exit; // error CONTAINS_NON_LDH
+        end;
+    end;
+    if NOT Nonascii then begin
+        Result := AnsiString(Input);
+        ErrFlag := False;
+    end
+    else begin
+        for I := 1 to Length(Input) do begin
+            Ch:=Input[I];
+            if (Ch = '.')  or (Ch = #$3002)  or (Ch = #$ff0e) or (Ch = #$ff61) then  begin
+                Result := Result + IcsToASCII(Node, UseSTD3AsciiRules, ErrFlag) + '.';
+                if ErrFlag then Exit;
+                Node := '';
+            end
+            else
+                Node := Node + Ch;
+        end;
+        Result := Result + IcsToASCII(Node, True, ErrFlag);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsToASCII(const Input: UnicodeString): String;
+var
+    ErrFlag: Boolean;
+begin
+    Result := IcsToASCII(Input, False, ErrFlag);
+    if ErrFlag then Result := AnsiString(Input);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsIDNAToASCII(const Input: UnicodeString): String;
+var
+    ErrFlag: Boolean;
+begin
+    Result := IcsIDNAToASCII(Input, False, ErrFlag);
+    if ErrFlag then Result := AnsiString(Input);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ RFC 3490 ToUnicode are a sequence of code points, the
+   AllowUnassigned flag, and the UseSTD3ASCIIRules flag.  The output of
+   ToUnicode is always a sequence of Unicode code points.
+   1. If all code points in the sequence are in the ASCII range (0..7F)
+      then skip to step 3.
+   2. Perform the steps specified in [NAMEPREP] and fail if there is an
+      error.  (If step 3 of ToASCII is also performed here, it will not
+      affect the overall behavior of ToUnicode, but it is not
+      necessary.)  The AllowUnassigned flag is used in [NAMEPREP].
+   3. Verify that the sequence begins with the ACE prefix, and save a
+      copy of the sequence.
+   4. Remove the ACE prefix.
+   5. Decode the sequence using the decoding algorithm in [PUNYCODE] and
+      fail if there is an error.  Save a copy of the result of this step.
+   6. Apply ToASCII.
+   7. Verify that the result of step 6 matches the saved copy from step
+      3, using a case-insensitive ASCII comparison.
+   8. Return the saved copy from step 5.  }
+
+{ converts an A-Label (Punycode ASCII) into Unicode label if ACE (ASCII Compatible
+  Encoding) prefix xn-- found, returns unchanged if conversion fails }
+function IcsToUnicode(const Input: String; var ErrFlag: Boolean): UnicodeString;
+var
+  Original, Working, Newone: String;
+  Output: UnicodeString;
+begin
+    Original := Input;
+    Result := UnicodeString(Original);
+
+  // skip setps 1 and 2 since our input should be ANSI
+
+    if Pos(ACE_PREFIX, Input) <> 1 then begin
+        ErrFlag := False;
+        exit;
+    end;
+    Working:= Copy(Input, Length(ACE_PREFIX) + 1, 999);
+    Output := IcsPunyDecode(Working, ErrFlag);
+    if ErrFlag then begin
+        exit;
+    end;
+
+ // now convert it back to ASCII to confirm our decoding worked
+    Newone := IcsToASCII(Output, false, ErrFlag);
+    if ErrFlag then begin
+        exit;
+    end;
+    if IcsUpperCaseA(Newone) <> IcsUpperCaseA(Input) then begin
+        exit;
+    end;
+    ErrFlag := False;
+    result := Output;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ converts a A-Label (Punycode ASCII) domain or host name into Unicode if any ACE (ASCII
+  Compatible Encoding) prefixes xn-- are found, returns unchanged if conversion fails }
+function IcsIDNAToUnicode(const Input: String; var ErrFlag: Boolean): UnicodeString;
+var
+    Ch: Char;
+    I: Integer;
+    Node: String;
+begin
+    if (Pos(ACE_PREFIX, Input) <= 0) then begin
+        Result := UnicodeString(Input);
+        ErrFlag := False;
+    end
+    else begin
+        Result := '';
+        Node := '';
+        for I := 1 to Length(Input) do begin
+            Ch := Input[I];
+            if (Ch = '.') then begin
+                Result := Result + IcsToUnicode(Node, ErrFlag) + Ch;
+                Node := '';
+            end
+            else
+                Node := Node + Ch;
+        end;
+        Result := Result + IcsToUnicode(Node, ErrFlag);
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsToUnicode(const Input: String): UnicodeString;
+var
+    ErrFlag: Boolean;
+begin
+    Result := IcsToUnicode(Input, ErrFlag);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+function IcsIDNAToUnicode(const Input: String): UnicodeString;
+var
+    ErrFlag: Boolean;
+begin
+    Result := IcsIDNAToUnicode(Input, ErrFlag);
 end;
 
 

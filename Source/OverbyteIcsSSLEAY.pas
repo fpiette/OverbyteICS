@@ -131,9 +131,8 @@ Mar 18, 2019  V8.60 Next major OpenSSL version is 3.0.0 (due mid 2020)
 Jul 15, 2019  V8.62 Removed two ciphers from TSslPrivKeyCipher which we did not use.
                     SuppProtoAcmeV1 gone, two more added.
                     Added ICS_NID_acmeIdentifier created dynamically on startup.
-Jan 15, 2010  V8.64 Changed sslSrvSecDefault to sslSrvSecHigh since TLSv1.1
+Mar 08, 2020  V8.64 Changed sslSrvSecDefault to sslSrvSecHigh since TLSv1.1
                        disabled in most browsers from early 2020
-
 
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
@@ -2715,7 +2714,7 @@ end;
 function f_SSL_set_tlsext_host_name(const S: PSSL; const name: String): Longint;
 begin
     Result := f_SSL_ctrl(S, SSL_CTRL_SET_TLSEXT_HOSTNAME,
-                      TLSEXT_NAMETYPE_host_name, Pointer(StringToUtf8(name)));
+                          TLSEXT_NAMETYPE_host_name, Pointer(AnsiString(name)));
 end;
 
 

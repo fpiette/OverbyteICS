@@ -12,7 +12,7 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      Feb 2020
+Updated:      Mar 2020
 Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -184,7 +184,11 @@ Nov 11, 2019  - V8.63 - The SMS Works sync delivery works OK, try and return
                            for Google, OAopAuthPrompt uses property LoginPrompt usually
                            'consent', OAopAuthAccess and RefreshOffline=True requests a
                            Refresh Token.
-Feb 20, 2020  - V8.64 - Added more parameter content types: PContXML, PContBodyUrlEn,
+Mar 11, 2020  - V8.64 - Added support for International Domain Names for Applications (IDNA),
+                         i.e. using accents and unicode characters in domain names.
+                        Only  REST change here is to report A-Label domain looked up by DNS.
+                        SimpleWebSrv returns host: name in Unicode.   
+                        Added more parameter content types: PContXML, PContBodyUrlEn,
                           PContBodyJson, PContBodyXML. The existing PContUrlEn and
                           PContJson now specify REST params are sent as URL ? arguments,
                           while the PContBodyxx version send params as content body.
@@ -192,7 +196,10 @@ Feb 20, 2020  - V8.64 - Added more parameter content types: PContXML, PContBodyU
                           as URL ? arguments.  Note POST is always content body so
                           the wrong PContent is corrected automatically for backward
                           compatibility.
-                        XML content type is experimental, not tested. 
+                        XML content type is experimental, not tested.
+                        Verifying the SSL certificate chain with the Windows Store
+                          works again.
+                        TDnsQueryHttps component now uses strings and support IDNs.
 
 
 Pending - more documentation
@@ -345,7 +352,7 @@ type
   protected
     function GetOwner: TPersistent; override;
   public
-    constructor Create(Owner: TPersistent); 
+    constructor Create(Owner: TPersistent);
     function GetParameters: AnsiString;
     function IndexOf(const aName: string): Integer;
     procedure AddItem(const aName, aValue: string; aRaw: Boolean = False);
@@ -709,8 +716,8 @@ type
     HttpRest:  TSslHttpRest;
     constructor  Create (Aowner: TComponent); override;
     destructor   Destroy; override;
-    function     DOHQueryAll(Host: AnsiString): Boolean;
-    function     DOHQueryAny(Host: AnsiString; QNumber: Integer;
+    function     DOHQueryAll(Host: String): Boolean;          { V8.64 }
+    function     DOHQueryAny(Host: String; QNumber: Integer;  { V8.64 }
                                     MultiRequests: Boolean = False) : Boolean;
   published
     { Published declarations }
@@ -1425,7 +1432,7 @@ begin
         end
         else
             S := 'Connection failed to';
-        S := S + ': ' + FHostname + ' (' + IcsFmtIpv6Addr(AddrResolvedStr) + ')';    { V8.60  }
+        S := S + ': ' + FPunyCodeHost + ' (' + IcsFmtIpv6Addr(AddrResolvedStr) + ')';    { V8.64 }
         LogEvent (S) ;
     end;
 end ;
@@ -1528,7 +1535,7 @@ begin
     CertChain := HttpCtl.SslCertChain;
 
  // see if validating against Windows certificate store
-    if FCertVerMethod = CertVerNone then begin
+    if FCertVerMethod = CertVerWinStore then begin
         // start engine
         if not Assigned (FMsCertChainEngine) then
             FMsCertChainEngine := TMsCertChainEngine.Create;
@@ -2159,15 +2166,17 @@ begin
                 Arg := IcsTrim(Copy(Line, K, 999)); // convert any arguments we scan to lower case later
                 if (Pos('Content-Length:', Line) = 1) then RequestContentLength := atoi64(Arg);
                 if (Pos('Host:', Line) = 1) then begin
-                    RequestHost := Arg;
+                    RequestHost := IcsLowerCase(Arg);  { need to separate host and port before punycoding }
                     L := Pos(':', RequestHost);
                     if L > 0 then begin
-                        RequestHostName := Copy(RequestHost, 1, L - 1);
+                        RequestHostName := IcsIDNAToUnicode(Copy(RequestHost, 1, L - 1));  { V8.64 }
                         RequestHostPort := Copy(RequestHost, L + 1, 99);
+                        RequestHost := RequestHostName + ':' + RequestHostPort;      { V8.64 }
                     end
                     else begin
-                        RequestHostName := RequestHost;
+                        RequestHostName := IcsIDNAToUnicode(RequestHost); { V8.64 }
                         RequestHostPort := WebSrv.FWebSrvPort;
+                        RequestHost := RequestHostName;       { V8.64 }
                     end;
                 end;
                 if (Pos('Referer:', Line) = 1) then RequestReferer := IcsLowercase(Arg);
@@ -2800,7 +2809,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function  TDnsQueryHttps.DOHQueryAll(Host: AnsiString): Boolean;
+function  TDnsQueryHttps.DOHQueryAll(Host: String): Boolean;
 begin
     FMultiReqSeq  := 1;
     FMultiHost := Host;
@@ -2810,7 +2819,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TDnsQueryHttps.DOHQueryAny(Host: AnsiString; QNumber: integer; MultiRequests: Boolean = False): Boolean;
+function TDnsQueryHttps.DOHQueryAny(Host: String; QNumber: integer; MultiRequests: Boolean = False): Boolean;
 var
     QueryBuf: AnsiString;
     QueryLen, StatCode: Integer;
@@ -2833,7 +2842,7 @@ begin
     BuildRequestHeader(PDnsRequestHeader(@QueryBuf[1]),0,
                                            DnsOpCodeQuery, TRUE, 1, 0, 0, 0);
     QueryLen := BuildQuestionSection(@QueryBuf[SizeOf(TDnsRequestHeader) + 1],
-                                              IcsTrimA(Host), QNumber, DnsClassIN);
+                                              IcsTrim(Host), QNumber, DnsClassIN);  { V8.64 }
     QueryLen := QueryLen + SizeOf(TDnsRequestHeader);
     SetLength(QueryBuf, QueryLen);
     StatCode := HttpRest.RestRequest(httpPOST, FDnsSrvUrl, True, String(QueryBuf));  // async request

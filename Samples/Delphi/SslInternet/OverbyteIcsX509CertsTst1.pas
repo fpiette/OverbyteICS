@@ -65,12 +65,21 @@ Nov 12, 2019 - V8.63 Better selection for supplier database order ListView.
                      10 minute timeout to close idle account.
                      Added List Challenges button to log list of pending challenges
                        from the database.
-Jan 15, 2020 - V8.64 Fixed bug that stopped new orders after a successful one
+Mar 11, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
+                       i.e. using accents and unicode characters in domain names.
+                     X509 certificates always have A-Lavels (Punycode ASCII) domain names,
+                      never UTF8 or Unicode.   IDNs are converted back to Unicode
+                      for display, but X509 subject remains as A-Labels.
+                     Fixed bug that stopped new orders after a successful one
                         saying no more today, due to date not being cleared.
                      Retain TRadiGroup defaults when reloading literals on first run.
                      No longer logs errors while waiting for DNS challenge to be
                        manually updated. There will be one 'wait' for each domain
-                       being checked.  
+                       being checked.
+                     Added DNS Challenge Server Type, update Windows DNS Server
+                       with TXT records for DNS Challenges.  Pending Cloudfare.
+
+Pending - Automatic of Windows DNS Server using WMI for DNS challenges.                         
 
 
 For docunentation on how to use this sample, please see a lengthy Overview in
@@ -114,7 +123,15 @@ uses
   OverbyteIcsSslJose,
   OverbyteIcsSslX509Utils,
   OverbyteIcsSslX509Certs,
+//  OverbyteIcsWmi,      { V8.64 }
   OverbyteIcsBlacklist;
+
+
+const
+    DnsChlgManual = 0;
+    DnsChlgWindows = 1;
+    DnsChlgCloudfare = 2;
+
 
 type
   TX509CertsForm = class(TForm)
@@ -182,6 +199,7 @@ type
     SupplierEmail: TEdit;
     IpSocFamily: TComboBox;   { V8.60 }
     ProxyURL: TEdit;          { V8.62 }
+    DnsChlgType: TComboBox;   { V8.64 }
 
  // properties not saved
     X509Certs1: TSslX509Certs;
@@ -316,6 +334,7 @@ type
     Label54: TLabel;
     Label1: TLabel;
     doDBListChallg: TButton;
+    Label5: TLabel;
 
 
     procedure FormCreate(Sender: TObject);
@@ -341,11 +360,11 @@ type
     procedure doOARefreshNowClick(Sender: TObject);
     procedure doOACodeTokenClick(Sender: TObject);
     procedure X509Certs1ChallengeDNS(Sender: TObject;
-      ChallengeItem: TChallengeItem);
+      ChallengeItem: TChallengeItem; var ChlgOK: Boolean);
     procedure X509Certs1ChallengeEmail(Sender: TObject;
-      ChallengeItem: TChallengeItem);
+      ChallengeItem: TChallengeItem; var ChlgOK: Boolean);
     procedure X509Certs1ChallengeFTP(Sender: TObject;
-      ChallengeItem: TChallengeItem);
+      ChallengeItem: TChallengeItem; var ChlgOK: Boolean);
     procedure SelDirDatabaseClick(Sender: TObject);
     procedure doOpenDatabaseClick(Sender: TObject);
     procedure DatabaseDomainsClick(Sender: TObject);
@@ -581,6 +600,7 @@ begin
   SupplierEmail.Text := ReadString (SectionData, 'SupplierEmail_Text', SupplierEmail.Text) ;
   IpSocFamily.ItemIndex := ReadInteger (SectionData, 'IpSocFamily_ItemIndex', IpSocFamily.ItemIndex) ;
   ProxyURL.Text := ReadString (SectionData, 'ProxyURL_Text', ProxyURL.Text) ;
+  DnsChlgType.ItemIndex := ReadInteger (SectionData, 'DnsChlgType_ItemIndex', DnsChlgType.ItemIndex) ;
        end;
         IniFile.Free;
     end;
@@ -721,6 +741,7 @@ begin
   WriteString (SectionData, 'SupplierEmail_Text', SupplierEmail.Text) ;
   WriteInteger (SectionData, 'IpSocFamily_ItemIndex', IpSocFamily.ItemIndex) ;
   WriteString (SectionData, 'ProxyURL_Text', ProxyURL.Text) ;
+  WriteInteger (SectionData, 'DnsChlgType_ItemIndex', DnsChlgType.ItemIndex) ;
     end;
     IniFile.UpdateFile;
     IniFile.Free;
@@ -750,76 +771,106 @@ begin
 end;
 
 procedure TX509CertsForm.X509Certs1ChallengeDNS(Sender: TObject;
-  ChallengeItem: TChallengeItem);
+  ChallengeItem: TChallengeItem; var ChlgOK: Boolean);
 var
-    secswait: integer;
+    secswait {, I}: integer;
     Trg: LongWord;
-    S1, S2: String;
-
+    S1, S2 {, Zone}: String;
+//    WmiDnsRec: TWmiDnsRec;
+//    Errinfo: string;
 begin
-     S1 := 'Add DNS ' + ChallengeItem.CAuthzURL + ' Record for: ' +
-        ChallengeItem.CPage + ', with: ' + IcsCRLF + ChallengeItem.CDNSValue;
-     S2 := 'Waiting up to five minutes for DNS Server to be manually updated with challenge, Tick box when done';
-    if ChallengeItem.CSupplierProto = SuppProtoAcmeV2 then begin
-    // !!! must now wait until DNS server is updated, or challenge will fail
-    // might be able to use WMI to do this automatically???
-        AddLog(S1);
-        AddLog(S2);
-        Acme2DnsUpdated.Checked := False;
-        Acme2DnsUpdated.Visible := True;
-        secswait := 300;  // 5 minutes
-        while NOT Acme2DnsUpdated.Checked do begin
-            LabelAcme2Info.Caption := 'DNS Challenge: ' + IcsCRLF + S1 +
-              IcsCRLF + 'Challenge Will Continue in ' + IntToStr(secswait) + ' seconds';
-            Trg := IcsGetTrgSecs(5); // five second wait
-            while True do begin
-                Application.ProcessMessages;
-                if Application.Terminated then Exit;
-                if IcsTestTrgTick(Trg) then break ;
-                Sleep(0);   // thread now stops for rest of time slice
-            end ;
-            secswait := secswait - 5;
-            if secswait <= 0 then break;
+    if DnsChlgType.ItemIndex = DnsChlgManual then
+    begin
+// !!! Add DNS TXT Record for: _acme-challenge.ftptest.org, with: 4haqLIK79RaOO7X8YYCo3f5gCzq1j6CqNy-4i34Q3sA
+         S1 := 'Add DNS TXT Record for: ' + ChallengeItem.CPage + ', with: ' + IcsCRLF + ChallengeItem.CDNSValue;
+         S2 := 'Waiting up to five minutes for DNS Server to be manually updated with challenge, Tick box when done';
+        if ChallengeItem.CSupplierProto = SuppProtoAcmeV2 then begin
+        // !!! must now wait until DNS server is updated, or challenge will fail
+        // might be able to use WMI to do this automatically???
+            AddLog(S1);
+            AddLog(S2);
+            Acme2DnsUpdated.Checked := False;
+            Acme2DnsUpdated.Visible := True;
+            secswait := 300;  // 5 minutes
+            while NOT Acme2DnsUpdated.Checked do begin
+                LabelAcme2Info.Caption := 'DNS Challenge: ' + IcsCRLF + S1 +
+                  IcsCRLF + 'Challenge Will Continue in ' + IntToStr(secswait) + ' seconds';
+                Trg := IcsGetTrgSecs(5); // five second wait
+                while True do begin
+                    Application.ProcessMessages;
+                    if Application.Terminated then Exit;
+                    if IcsTestTrgTick(Trg) then break ;
+                    Sleep(0);   // thread now stops for rest of time slice
+                end ;
+                secswait := secswait - 5;
+                if secswait <= 0 then break;
+            end;
+            ChlgOK := Acme2DnsUpdated.Checked;
+            LabelAcme2Info.Caption := '';
+            Acme2DnsUpdated.Visible := False;
         end;
-        LabelAcme2Info.Caption := '';
-        Acme2DnsUpdated.Visible := False;
-    end;
-    if ChallengeItem.CSupplierProto = SuppProtoCertCentre then begin
-    // !!! must now wait until DNS server is updated, or challenge will fail
-    // might be able to use WMI to do this automatically???
-        AddLog(S1);
-        AddLog(S2);
-        CCDnsUpdated.Checked := False;
-        CCDnsUpdated.Visible := True;
-        secswait := 300;  // 5 minutes
-        while NOT CCDnsUpdated.Checked do begin
-            LabelCertInfo.Caption := 'DNS Challenge: ' + IcsCRLF + S1 +
-              IcsCRLF + 'Challenge Will Continue in ' + IntToStr(secswait) + ' seconds';
-            Trg := IcsGetTrgSecs(5); // five second wait
-            while True do begin
-                Application.ProcessMessages;
-                if Application.Terminated then Exit;
-                if IcsTestTrgTick(Trg) then break ;
-                Sleep(0);   // thread now stops for rest of time slice
-            end ;
-            secswait := secswait - 5;
-            if secswait <= 0 then break;
+        if ChallengeItem.CSupplierProto = SuppProtoCertCentre then begin
+        // !!! must now wait until DNS server is updated, or challenge will fail
+        // might be able to use WMI to do this automatically???
+            AddLog(S1);
+            AddLog(S2);
+            CCDnsUpdated.Checked := False;
+            CCDnsUpdated.Visible := True;
+            secswait := 300;  // 5 minutes
+            while NOT CCDnsUpdated.Checked do begin
+                LabelCertInfo.Caption := 'DNS Challenge: ' + IcsCRLF + S1 +
+                  IcsCRLF + 'Challenge Will Continue in ' + IntToStr(secswait) + ' seconds';
+                Trg := IcsGetTrgSecs(5); // five second wait
+                while True do begin
+                    Application.ProcessMessages;
+                    if Application.Terminated then Exit;
+                    if IcsTestTrgTick(Trg) then break ;
+                    Sleep(0);   // thread now stops for rest of time slice
+                end ;
+                secswait := secswait - 5;
+                if secswait <= 0 then break;
+            end;
+            ChlgOK := CCDnsUpdated.Checked;
+            CCDnsUpdated.Visible := False;
+            LabelCertInfo.Caption := '';
         end;
-        CCDnsUpdated.Visible := False;
-        LabelCertInfo.Caption := '';
+    end
+    else if DnsChlgType.ItemIndex = DnsChlgWindows then
+    begin
+    {  not finished yet!!!
+        AddLog('Starting to Update Windows DNS Server TXT Record');
+        Zone := ChallengeItem.CDomain;
+        WmiDnsRec.OwnerName := ChallengeItem.CPage;
+        WmiDnsRec.RecType := 'TXT';
+        WmiDnsRec.RecData := ChallengeItem.CDNSValue;
+        WmiDnsRec.TextRep := IcsLowerCase(WmiDnsRec.OwnerName) + ' IN ' +
+                                    WmiDnsRec.RecType + ' ' + WmiDnsRec.RecData;
+        AddLog('Zone: ' + Zone + ': ' + WmiDnsRec.TextRep);
+        I := IcsWmiUpdDnsRec ('', '', '', Zone, WmiDnsRec, EdtFuncAdd, Errinfo);
+        if I = 0 then begin
+            AddLog('Updated Windows DNS Server TXT Record OK');
+            ChlgOK := True;
+        end
+        else
+            AddLog('Failed to Update Windows DNS Server: ' + ErrInfo);  }
+    end
+    else if DnsChlgType.ItemIndex = DnsChlgCloudfare then
+    begin
+         AddLog('Cloudfare DNS Server Not Supported Yet');
     end;
 end;
 
 procedure TX509CertsForm.X509Certs1ChallengeEmail(Sender: TObject;
-  ChallengeItem: TChallengeItem);
+  ChallengeItem: TChallengeItem; var ChlgOK: Boolean);
 begin
     LabelCertInfo.Caption := 'Email Challenge: ' + icsCRLF +
         'Please collect order once email challenge has been completed for ' +
                                                          ChallengeItem.CDomain;
+    ChlgOK := True;
 end;
 
 procedure TX509CertsForm.X509Certs1ChallengeFTP(Sender: TObject;
-  ChallengeItem: TChallengeItem);
+  ChallengeItem: TChallengeItem; var ChlgOK: Boolean);
 var
     S: String;
 begin
@@ -832,6 +883,7 @@ begin
         LabelCertInfo.Caption := S;
     // need some FTP code here
     // !!! must now wait until server is updated, or challenge will fail
+    ChlgOK := False;
 end;
 
 procedure TX509CertsForm.X509Certs1ChallgRefresh(Sender: TObject);

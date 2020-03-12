@@ -3,7 +3,7 @@ object X509CertsForm: TX509CertsForm
   Top = 0
   Caption = 
     'ICS Automatically Download SSL X509 Certificates Development Dem' +
-    'o - http://www.overbyte.be - V8.64 - 20th February 2020'
+    'o - http://www.overbyte.be - V8.64 - 11th March 2020'
   ClientHeight = 637
   ClientWidth = 1024
   Color = clBtnFace
@@ -34,7 +34,7 @@ object X509CertsForm: TX509CertsForm
     Top = 0
     Width = 1024
     Height = 261
-    ActivePage = TabAcme2
+    ActivePage = TabDomain
     Align = alTop
     TabOrder = 1
     object TabCommon: TTabSheet
@@ -178,7 +178,7 @@ object X509CertsForm: TX509CertsForm
         Top = 55
         Width = 175
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         ItemIndex = 3
         TabOrder = 7
         Text = 'SSL Negotiation'
@@ -341,7 +341,7 @@ object X509CertsForm: TX509CertsForm
         Width = 102
         Height = 22
         Style = csDropDownList
-        ItemHeight = 0
+        ItemHeight = 14
         ItemIndex = 0
         TabOrder = 18
         Text = 'Any'
@@ -800,6 +800,10 @@ object X509CertsForm: TX509CertsForm
     object TabAcme2: TTabSheet
       Caption = 'Acme V2'
       ImageIndex = 2
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label30: TLabel
         Left = 10
         Top = 15
@@ -824,13 +828,14 @@ object X509CertsForm: TX509CertsForm
       object Label33: TLabel
         Left = 15
         Top = 105
-        Width = 441
-        Height = 42
+        Width = 237
+        Height = 70
         Caption = 
           'Each directory is a dedicated Let'#39's Encrypt account with a priva' +
-          'te key and account number.'#13#10'Certificates for the account are cre' +
-          'ated there.  If there is no private key, a new accoint'#13#10'must be ' +
-          'registered before certificates can be ordered. '
+          'te key and account number. Certificates for the account are crea' +
+          'ted there.  If there is no private key, a new accoint must be re' +
+          'gistered before certificates can be ordered. '
+        WordWrap = True
       end
       object LabelAcme2Info: TLabel
         Left = 616
@@ -844,12 +849,19 @@ object X509CertsForm: TX509CertsForm
         Transparent = False
         WordWrap = True
       end
+      object Label5: TLabel
+        Left = 267
+        Top = 105
+        Width = 71
+        Height = 14
+        Caption = 'DNS Challenge'
+      end
       object AcmeServerV2: TComboBox
         Left = 170
         Top = 10
         Width = 431
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 0
       end
       object DirAcmeConfV2: TEdit
@@ -883,7 +895,7 @@ object X509CertsForm: TX509CertsForm
       end
       object doAcmeAccV2: TButton
         Left = 15
-        Top = 170
+        Top = 200
         Width = 107
         Height = 25
         Caption = 'Register Account'
@@ -892,7 +904,7 @@ object X509CertsForm: TX509CertsForm
       end
       object doAcmeCheckOrderV2: TButton
         Left = 137
-        Top = 170
+        Top = 200
         Width = 89
         Height = 25
         Caption = 'Check Order'
@@ -901,7 +913,7 @@ object X509CertsForm: TX509CertsForm
       end
       object doAcmeOrderV2: TButton
         Left = 245
-        Top = 170
+        Top = 200
         Width = 101
         Height = 25
         Caption = 'Order Certificate'
@@ -911,7 +923,7 @@ object X509CertsForm: TX509CertsForm
       end
       object doAcmeGetCertV2: TButton
         Left = 365
-        Top = 170
+        Top = 200
         Width = 101
         Height = 25
         Caption = 'Collect Certificate'
@@ -920,8 +932,8 @@ object X509CertsForm: TX509CertsForm
         OnClick = doAcmeGetCertV2Click
       end
       object Acme2DnsUpdated: TCheckBox
-        Left = 365
-        Top = 142
+        Left = 267
+        Top = 128
         Width = 221
         Height = 17
         Caption = 'Tick When DNS Server Record Updated'
@@ -952,12 +964,26 @@ object X509CertsForm: TX509CertsForm
       end
       object doAcmeSaveOrderV2: TButton
         Left = 486
-        Top = 170
+        Top = 200
         Width = 101
         Height = 25
         Caption = 'Save Order'
         TabOrder = 8
         OnClick = doAcmeSaveOrderV2Click
+      end
+      object DnsChlgType: TComboBox
+        Left = 374
+        Top = 100
+        Width = 187
+        Height = 22
+        ItemHeight = 14
+        ItemIndex = 0
+        TabOrder = 10
+        Text = 'Manual'
+        Items.Strings = (
+          'Manual'
+          'Local Windows DNS Server'
+          'Cloudfare DNS Server')
       end
     end
     object TabCCOrder: TTabSheet

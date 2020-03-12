@@ -145,7 +145,7 @@ object PingTstForm: TPingTstForm
     end
     object HostNames: TListBox
       Left = 10
-      Top = 4
+      Top = 0
       Width = 221
       Height = 171
       ItemHeight = 14
@@ -156,11 +156,10 @@ object PingTstForm: TPingTstForm
         'www.google.com'
         'www.embarcadero.com'
         'ipv6.google.com'
+        #233'x'#224'mpl'#234'.ftptest.co.uk'
+        'str'#248'm.no'
         '2607:f8b0:400c:c01::93'
-        'ipv6.roysdon.net'
         '2001:470:1f05:36a::3'
-        'fe80::306b:7ecb:1f6f:24ff'
-        '217.146.102.159'
         '2222:22:22:22::22')
       TabOrder = 0
       OnDblClick = HostNamesDblClick

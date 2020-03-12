@@ -3,12 +3,11 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Client Cookie Handling, see RFC2109/RFC6265 (RFC2965 is obsolete)
 Creation:     19 March 2012
-Updated:      Feb 2019
-Version:      8.60
-EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2019 by François PIETTE
+Updated:      Mar 2020
+Version:      8.64
+Support:      Use the mailing list ics-ssl@elists.org
+              Follow "SSL" link at http://www.overbyte.be for subscription.
+Legal issues: Copyright (C) 2003-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -56,6 +55,9 @@ Dec 15, 2012 V8.02 Arno removed Windows.pas from uses clause and fixed a small b
                    in GetCookies() for better debugging.
 Nov 5, 2015 V8.03  restored Windows to remove compiler warning
 Feb 8 2019  V8.60  Using new ISO date functions in Utils instead of local versions
+Mar 9 2020  V8.64  Try and support Unicode domains.
+
+
 
 Note - needs more testing for domain and path matching
 Pending - not yet thread safe
@@ -393,7 +395,7 @@ begin
     Fields := THashedStringList.Create;
     curDT := Now ;
     try
-        ParseURL (AnsiLowercase (AURL), Proto, User, Pass, Host, Port, Path);
+        ParseURL (IcsLowercase (AURL), Proto, User, Pass, Host, Port, Path);  { V8.64 don't force ANSI }
         if Length (Path) = 0 then Path := '/';
         P1 := Posn('/', Path, -1); // last /
         P2 := Pos('.', Path);      // first .
@@ -407,7 +409,7 @@ begin
         Fields.DelimitedText := ACookieHdr;
     {$ELSE}
         SetStrictDelimitedText(Fields, ACookieHdr, ';');
-    {$ENDIF}    
+    {$ENDIF}
         if Fields.Count = 0 then exit;
         if Pos ('=', Fields [0]) = 0 then exit;
         for I := 0 to Fields.Count - 1 do
@@ -419,8 +421,8 @@ begin
             CDelete := false;
             CName :=  Fields.Names [0];
             CValue := Fields.ValueFromIndex [0];
-            CPath := AnsiLowerCase (Fields.Values ['Path']);
-            CDomain := AnsiLowerCase (Fields.Values ['Domain']);
+            CPath := IcsLowerCase (Fields.Values ['Path']);      { V8.64 don't force ANSI }
+            CDomain := IcsLowerCase (Fields.Values ['Domain']);  { V8.64 don't force ANSI }
             S := Fields.Values ['Expires'];
             if S <> '' then
             begin
@@ -523,7 +525,7 @@ begin
     result := '';
     expireflag := false;
     curDT := Now;
-    ParseURL (AnsiLowercase (AURL), Proto, User, Pass, Host, Port, Path);
+    ParseURL (IcsLowercase(AURL), Proto, User, Pass, Host, Port, Path);
     if Path = '' then
         Path := '/';
 

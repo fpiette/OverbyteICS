@@ -4,10 +4,10 @@ Author:       François PIETTE
 Description:  Component to query DNS records.
               Implement most of RFC 1035 (A, NS, AAAA, PTR, MX, etc).
 Creation:     January 29, 1999
-Version:      8.61
+Version:      8.64
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 1999-2019 by François PIETTE
+Legal issues: Copyright (C) 1999-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -79,6 +79,14 @@ Apr 22 2019 V8.61  Angus added more DnsQuery literals and removed obsolete ones.
                     common ones decoded in TRRRecord, rest returned as text or hex.
                   PTR query now supports IPv6 addresses as well as IPV4.
                   Call RequestDone if connection fails.
+ Mar 10 2020 V8.64 Make sure data not processed beyond end of response buffer.
+                  Added support for International Domain Names for Applications (IDNA),
+                  All methods and arrays use String instead of AnsiString to support
+                    Unicode domain names.  This may need application changes.
+                  All Unicode queries are converted to Punycode ASCII, and responses
+                    with ACE zn-- prefix are converted back to Unicode.
+
+
 
 Note - OverbyteIcsHttpRest contains a derived component DnsQueryHttps which makes
 DNS over HTTPS requests per RFC8484, illustrated in the OverbyteIcsHttpRest sample
@@ -131,8 +139,8 @@ uses
     OverbyteIcsWinsock;
 
 const
-  DnsQueryVersion    = 861;
-  CopyRight : String = ' TDnsQuery  (c) 1999-2019 F. Piette V8.61 ';
+  DnsQueryVersion    = 864;
+  CopyRight : String = ' TDnsQuery  (c) 1999-2020 F. Piette V8.64 ';
 
   { Maximum answers (responses) count }
   MAX_ANCOUNT     = 50;
@@ -429,6 +437,7 @@ type
     TTL       : Cardinal;  // same
     RDLength  : Word;
     RDData    : AnsiString;  // actual result as string
+    HostName  : String;      // V8.64 for MX and PTR hostnames
     IPV4      : TInAddr;
     IPv6      : TIcsIPv6Address;
     MxPref    : Integer;
@@ -436,16 +445,16 @@ type
     Locdecode : TLogGeo;
  end;
 
-  TDnsAnswerNameArray   = packed array [0..MAX_ANCOUNT - 1]     of AnsiString;
+  TDnsAnswerNameArray   = packed array [0..MAX_ANCOUNT - 1]     of String;     { V8.64 }
   TDnsAnswerTypeArray   = packed array [0..MAX_ANCOUNT - 1]     of Integer;
   TDnsAnswerClassArray  = packed array [0..MAX_ANCOUNT - 1]     of Integer;
   TDnsAnswerTTLArray    = packed array [0..MAX_ANCOUNT - 1]     of LongInt;
   TDnsAnswerTagArray    = packed array [0..MAX_ANCOUNT - 1]     of Integer;
   TDnsRRRecordArray     = packed array [0..MAX_ANCOUNT - 1]     of TRRRecord; // V8.61
   TDnsMXPreferenceArray = packed array [0..MAX_MX_RECORDS - 1]  of Integer;
-  TDnsMXExchangeArray   = packed array [0..MAX_MX_RECORDS - 1]  of AnsiString;
+  TDnsMXExchangeArray   = packed array [0..MAX_MX_RECORDS - 1]  of String;     { V8.64 }
   TDnsAddressArray      = packed array [0..MAX_A_RECORDS - 1]   of TInAddr;
-  TDnsHostnameArray     = packed array [0..MAX_PTR_RECORDS - 1] of AnsiString;
+  TDnsHostnameArray     = packed array [0..MAX_PTR_RECORDS - 1] of String;     { V8.64 }
 
   TDnsQuery = class(TComponent)
   protected
@@ -469,7 +478,7 @@ type
     FResponseARCount            : Integer;
     FQuestionType               : Integer;
     FQuestionClass              : Integer;
-    FQuestionName               : AnsiString;
+    FQuestionName               : String;              { V8.64 }
     FAnswerNameArray            : TDnsAnswerNameArray;
     FAnswerTypeArray            : TDnsAnswerTypeArray;
     FAnswerClassArray           : TDnsAnswerClassArray;
@@ -478,7 +487,7 @@ type
     FAnswerRecordArray          : TDnsRRRecordArray;   { V8.61 }
     FAnsTot                     : Integer;             { V8.61 }
     FMultiReqSeq                : Integer;             { V8.61 }
-    FMultiHost                  : AnsiString;          { V8.61 }
+    FMultiHost                  : String;              { V8.64 }
     FMXRecordCount              : Integer;
     FMXPreferenceArray          : TDnsMXPreferenceArray; { For MX request  }
     FMXExchangeArray            : TDnsMXExchangeArray;   { For MX request  }
@@ -492,15 +501,15 @@ type
     FLengthByte                 : array [0..1] of BYTE; {  for tcp         }
     fLOCInfo                    : TLOCInfo;
     function GetMXPreference(nIndex : Integer) : Integer;
-    function GetMXExchange(nIndex : Integer)   : AnsiString;
-    function GetAnswerName(nIndex : Integer)   : AnsiString;
+    function GetMXExchange(nIndex : Integer)   : String;
+    function GetAnswerName(nIndex : Integer)   : String;
     function GetAnswerType(nIndex : Integer)   : Integer;
     function GetAnswerClass(nIndex : Integer)  : Integer;
     function GetAnswerTTL(nIndex : Integer)    : LongInt;
     function GetAnswerRecord(nIndex : Integer) : TRRRecord;   { V8.61 }
     function GetAnswerTag(nIndex : Integer)    : Integer;
     function GetAddress(nIndex : Integer)      : TInAddr;
-    function GetHostname(nIndex : Integer)     : AnsiString;
+    function GetHostname(nIndex : Integer)     : String;
     procedure WSocketDataAvailable(Sender: TObject; Error: WORD); virtual;
     procedure WSocketSessionConnected(Sender: TObject; Error: WORD); virtual;
     procedure TriggerRequestDone(Error: WORD); virtual;
@@ -523,18 +532,18 @@ type
                                  NSCount   : WORD;
                                  ARCount   : WORD); virtual;
     function    BuildQuestionSection(Dst       : PAnsiChar;
-                                   QName       : AnsiString;
+                                   QName       : String;   { V8.64 }
                                    QType       : WORD;
                                    QClass      : WORD) : Integer; virtual;
   public
     constructor Create(AOwner : TComponent); override;
     destructor  Destroy; override;
     procedure   Notification(AComponent: TComponent; operation: TOperation); override;
-    function    MXLookup(Domain : AnsiString) : Integer;
-    function    ALookup(Host : AnsiString) : Integer;
-    function    PTRLookup(IP : AnsiString) : Integer;
-    function    QueryAll(Host : AnsiString) : Integer;     { V8.61 }
-    function    QueryAny(Host : AnsiString; QNumber : integer; MultiRequests: Boolean = False) : Integer;   { V8.61 }
+    function    MXLookup(Domain : String) : Integer;    { V8.64 }
+    function    ALookup(Host : String) : Integer;       { V8.64 }
+    function    PTRLookup(IP : String) : Integer;       { V8.64 }
+    function    QueryAll(Host : String) : Integer;      { V8.64 }
+    function    QueryAny(Host : String; QNumber : integer; MultiRequests: Boolean = False) : Integer;  { V8.64 }
     procedure   AbortQuery;                                { V8.61 }
     property ResponseID                 : Integer read FResponseID;
     property ResponseCode               : Integer read FResponseCode;
@@ -550,8 +559,8 @@ type
     property ResponseLen                : Integer read FResponseLen;
     property QuestionType               : Integer read FQuestionType;
     property QuestionClass              : Integer read FQuestionClass;
-    property QuestionName               : AnsiString  read FQuestionName;
-    property AnswerName[nIndex : Integer]   : AnsiString  read GetAnswerName;
+    property QuestionName               : String  read FQuestionName;       { V8.64 }
+    property AnswerName[nIndex : Integer]   : String  read GetAnswerName;   { V8.64 }
     property AnswerType[nIndex : Integer]   : Integer read GetAnswerType;
     property AnswerClass[nIndex : Integer]  : Integer read GetAnswerClass;
     property AnswerTTL[nIndex : Integer]    : LongInt read GetAnswerTTL;
@@ -559,9 +568,9 @@ type
     property AnswerRecord[nIndex : Integer] : TRRRecord read GetAnswerRecord;  { V8.61 }
     property AnswerTotal                    : Integer read FAnsTot;            { V8.61 }
     property MXPreference[nIndex : Integer] : Integer read GetMXPreference;
-    property MXExchange[nIndex : Integer]   : AnsiString  read GetMXExchange;
+    property MXExchange[nIndex : Integer]   : String  read GetMXExchange;    { V8.64 }
     property Address[nIndex : Integer]      : TInAddr read GetAddress;
-    property Hostname[nIndex : Integer]     : AnsiString  read GetHostname;
+    property Hostname[nIndex : Integer]     : String  read GetHostname;      { V8.64 }
     property Loc                            : TLOCInfo read fLOCInfo;
   published
     property Port    : String read  FPort  write FPort;
@@ -574,8 +583,8 @@ type
   end;
 
 
-function ReverseIP(const IP : AnsiString) : AnsiString;
-function ReverseIPv6(const IPv6: AnsiString): AnsiString;  { V8.61 }
+function ReverseIP(const IP : String) : AnsiString;
+function ReverseIPv6(const IPv6: String): AnsiString;  { V8.61 }
 function LongLatToDMS(longlat : longint; hemis : AnsiString) : AnsiString; { !!KAP!! }
 function Loc2Geo(loc : TLOCInfo) : TLogGeo;                        { !!KAP!! }
 function FindDnsReqTypeName(TypeID: Integer): String;  { V8.61 }
@@ -589,18 +598,18 @@ type
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function ReverseIP(const IP : AnsiString) : AnsiString;
+function ReverseIP(const IP : String) : AnsiString;   { V8.64 was ansi }
 var
     I, J : Integer;
 begin
     Result := '';
     if Length(IP) = 0 then
         Exit;
-    J      := Length(IP);
-    I      := J;
+    J := Length(IP);
+    I := J;
     while I >= 0 do begin
         if (I = 0) or (IP[I] = '.') then begin
-            Result := Result + '.' + Copy(IP, I + 1, J - I);
+            Result := Result + '.' + AnsiString(Copy(IP, I + 1, J - I));
             J := I - 1;
         end;
         Dec(I);
@@ -611,7 +620,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function ReverseIPv6(const IPv6: AnsiString): AnsiString;    { V8.61 }
+function ReverseIPv6(const IPv6: String): AnsiString;    { V8.61 } { V8.64 was ansi }
 var
     I, J: Integer;
     Pair: Word;
@@ -620,7 +629,7 @@ var
     Hex: AnsiString;
 begin
     Result := '';
-    IPv6Addr := WSocketStrToIPv6(String(IPv6), Success);
+    IPv6Addr := WSocketStrToIPv6(IPv6, Success);
     if NOT Success then Exit;
     for I := 7 downto 0 do begin
         pair := IPv6Addr.Words[I];
@@ -752,7 +761,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TDnsQuery.GetMXExchange(nIndex : Integer) : AnsiString;
+function TDnsQuery.GetMXExchange(nIndex : Integer) : String;  { V8.64 }
 begin
     { Silently ignore index out of bounds error }
     if (nIndex < Low(FMXExchangeArray)) or
@@ -764,7 +773,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TDnsQuery.GetAnswerName(nIndex : Integer) : AnsiString;
+function TDnsQuery.GetAnswerName(nIndex : Integer) : String;  { V8.64 }
 begin
     { Silently ignore index out of bounds error }
     if (nIndex < Low(FAnswerNameArray)) or
@@ -847,7 +856,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TDnsQuery.GetHostname(nIndex : Integer) : AnsiString;
+function TDnsQuery.GetHostname(nIndex : Integer) : String;  { V8.64 }
 begin
     { Silently ignore index out of bounds error }
     if (nIndex < Low(FHostnameArray)) or
@@ -866,21 +875,21 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TDnsQuery.MXLookup(Domain : AnsiString) : Integer;
+function TDnsQuery.MXLookup(Domain : String) : Integer;
 begin
     Result := QueryAny(Domain, DnsQueryMX);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TDnsQuery.ALookup(Host : AnsiString) : Integer;
+function TDnsQuery.ALookup(Host : String) : Integer;
 begin
     Result := QueryAny(Host, DnsQueryA);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TDnsQuery.PTRLookup(IP : AnsiString) : Integer;
+function TDnsQuery.PTRLookup(IP : String) : Integer;
 begin
     Result := QueryAny(IP, DnsQueryPTR);
 end;
@@ -888,7 +897,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
  { V8.61 simulate ALL by asking list of multiple questions }
-function TDnsQuery.QueryAll(Host : AnsiString) : Integer;
+function TDnsQuery.QueryAll(Host : String) : Integer;
 begin
     FMultiReqSeq  := 1;
     FMultiHost := Host;
@@ -899,7 +908,7 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.61 support all request }
-function TDnsQuery.QueryAny(Host : AnsiString; QNumber : integer; MultiRequests: Boolean = False) : Integer;
+function TDnsQuery.QueryAny(Host : String; QNumber : integer; MultiRequests: Boolean = False) : Integer;
 begin
     Inc(FIDCount);
     if NOT MultiRequests then FAnsTot := 0;  { V8.61 reset result records }
@@ -945,13 +954,15 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TDnsQuery.BuildQuestionSection(
     Dst         : PAnsiChar;
-    QName       : AnsiString;
+    QName       : String;   { V8.64 }
     QType       : WORD;
     QClass      : WORD) : Integer;
 var
     I   : Integer;
     p   : PAnsiChar;
     Ptr : PAnsiChar;
+    PunycodeHost: AnsiString;
+    ErrFlag: Boolean;
 begin
     Ptr := Dst;
     if Ptr = nil then begin
@@ -963,16 +974,23 @@ begin
 // IPv6  4321:0:1:2:3:4:567:89ab becomes  b.a.9.8.7.6.5.0.4.0.0.0.3.0.0.0.2.0.0.0.1.0.0.0.0.0.0.0.1.2.3.4.ip6.arpa.
 // IPv4  217.146.102.139 becomes 139.102.146.217.in-addr.arpa.
     if QType = DnsQueryPTR then begin   { V8.61 }
-        if Pos (':', String(QName)) > 1 then
-            QName := ReverseIPv6(QName) + '.ip6.arpa.'
+        if Pos (':', QName) > 1 then
+            PunycodeHost := ReverseIPv6(QName) + '.ip6.arpa.'
         else
-            QName := ReverseIP(QName) + '.in-addr.arpa.';
+            PunycodeHost := ReverseIP(QName) + '.in-addr.arpa.';
+    end
+    else begin
+    { V8.64 convert Unicode International Domain Name into Punycode ASCII }
+    { ignore any conversion errors }
+        PunycodeHost := AnsiString(IcsIDNAToASCII(IcsTrim(QName), False, ErrFlag));
+        if ErrFlag then PunycodeHost := AnsiString(QName);
     end;
-    while I <= Length(QName) do begin
+
+    while I <= Length(PunycodeHost) do begin
         p := Ptr;
         Inc(Ptr);
-        while (I <= Length(QName)) and (QName[I] <> '.') do begin
-            Ptr^ := QName[I];
+        while (I <= Length(PunycodeHost)) and (PunycodeHost[I] <> '.') do begin
+            Ptr^ := PunycodeHost[I];
             Inc(Ptr);
             Inc(I);
         end;
@@ -1024,6 +1042,7 @@ procedure TDnsQuery.WSocketDataAvailable(Sender: TObject; Error: WORD);
 var
     Len    : Integer;
 begin
+    FillChar(FResponseBuf, SizeOf(FResponseBuf), 0);  { V8.64 }
     if FProto = 'tcp' then begin
         if not FGotPacketLength then begin
             Len := FWSocket.PeekData(@FLengthByte, 2);
@@ -1090,6 +1109,7 @@ var
     AnsPtr: PDnsRequestHeader;
     Flags  : Integer;
     P, PEnd  : PAnsiChar;
+    Temp: AnsiString;   { V8.64 }
 
     function ProcessRespRecord: Boolean;
     var
@@ -1114,7 +1134,7 @@ var
         if FAnsTot >= MAX_ANCOUNT then Exit;  // sanity test, too many results
 
      // keep backward compatible vy filling old arrays
-        FAnswerNameArray[FAnsTot] :=  RRRecord.RRName;
+        FAnswerNameArray[FAnsTot] := String(RRRecord.RRName);
         FAnswerTypeArray[FAnsTot] := RRRecord.RRType;
         FAnswerClassArray[FAnsTot] := RRRecord.RRClass;
         FAnswerTTLArray[FAnsTot] := RRRecord.TTL;
@@ -1128,7 +1148,9 @@ var
                         FMXPreferenceArray[FMXRecordCount] := RRRecord.MxPref;
                         Inc(RDataPtr, 2);
                         ExtractName(RespBuffer, RDataPtr, RRRecord.RDData);
-                        FMXExchangeArray[FMXRecordCount] := RRRecord.RDData;
+                    { V8.64 if result has ACE xn--. convert it to Unicode, ignore errors }
+                        RRRecord.HostName := IcsIDNAToUnicode(String(RRRecord.RDData));
+                        FMXExchangeArray[FMXRecordCount] := RRRecord.HostName;
                         Inc(FMXRecordCount);
                     end;
             end;
@@ -1145,7 +1167,9 @@ var
                     if FPTRRecordCount <= High(FHostnameArray) then begin
                         FAnswerTagArray[FAnsTot] := FPTRRecordCount;
                         ExtractName(RespBuffer, RDataPtr, RRRecord.RDData);
-                        FHostnameArray[FPTRRecordCount] := RRRecord.RDData;
+                    { V8.64 if result has ACE xn--. convert it to Unicode, ignore errors }
+                        RRRecord.HostName := IcsIDNAToUnicode(String(RRRecord.RDData));
+                        FHostnameArray[FPTRRecordCount] := RRRecord.HostName;
                         Inc(FPTRRecordCount);
                     end;
             end;
@@ -1236,6 +1260,7 @@ begin
 
     P := RespBuffer + SizeOf(TDnsRequestHeader);
     PEnd := RespBuffer + FResponseLen;
+    PEnd^ := #0;  // V8.84 null at end of buffer
     if FResponseQDCount = 0 then begin
         { I don't think we could receive 0 questions }
         FQuestionName  := '';
@@ -1244,7 +1269,8 @@ begin
     end
     else begin
         { Should never be greater than 1 because we sent only one question }
-        P := ExtractName(RespBuffer, P, FQuestionName);
+        P := ExtractName(RespBuffer, P, Temp);
+        FQuestionName := String(Temp);              { V8.64 }
         FQuestionType := WSocket_ntohs(PWORD(P)^);
         Inc(P, 2);
         FQuestionClass := WSocket_ntohs(PWORD(P)^);

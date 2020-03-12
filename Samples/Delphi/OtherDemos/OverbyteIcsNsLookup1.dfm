@@ -134,10 +134,14 @@ object NsLookupForm: TNsLookupForm
         'wiki.overbyte.eu'
         'magsys.co.uk'
         'www.magsys.co.uk'
-        'ftp.magsys.co.uk'
         'mail.magsys.co.uk'
         'embarcadero.com'
         'www.embarcadero.com'
+        'str'#248'm.no'
+        #233'x'#224'mpl'#234'.ftptest.co.uk'
+        'scr'#250'd'#250'.ftptest.co.uk'
+        'pr'#248've.ftptest.co.uk'
+        ''
         '')
     end
     object DnsQueryType: TComboBox

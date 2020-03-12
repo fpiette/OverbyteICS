@@ -1327,10 +1327,25 @@ Nov 18, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                    GetSelfSigned now has better check for self signed certificates.
                    Added Sha256Digest and Sha256Hex to TX509Base.
                    CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
-Jan 08, 2020 V8.64 Ignore any errors with SSL APLN during handshake.
+Mar 12, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+                     i.e. using accents and unicode characters in domain names.
+                   DnsLookup now converts Unicode IDN into A-Label (Punycode ASCII)
+                     so accented and non-ansi domains lookup correctly.  PunycodeHost
+                     is read only with the converted name for display, i.e.
+                     éxàmplê.ftptest.co.uk converts to xn--xmpl-0na6cm.ftptest.co.uk.
+                   ReverseDnsLookup converts a A-Label (Punycode ASCII) domain name
+                     to Unicode, if the ACE prefix xn-- is found in a name.
+                   Added new ComponentOptions: wsoUseSTD3AsciiRules will cause
+                     DnsLookup to fails if there are illegal symbols in domain names,
+                     wsoIgnoreIDNA uses old behaviour for ANSI domain names so
+                     no Unicode support, only limited ASNI, sometimes.
+                   X509 certificate A-Label domain names converted to Unicode.
+                   OpenSSL uses A-Label (Punycode ASCII) in host names, not UTF8.
+                   Open and save SSL certificate files with Unicode names not ANSI.
+                   Sample OverbyteIcsBatchDnsLookup has lots of ISN test names.
+                   Ignore any errors with SSL APLN during handshake.
                    Fixed a problem with SSL ALPN server handshake that may have
                      caused unexpected exceptions mainly on 64-bit applications.
-
 
 Pending - server certificate bundle files may not have server certificate as first
 Pending - intermediate certificate bundle files may have self signed root that should be ignored
@@ -1789,7 +1804,9 @@ type
                           wsoNotifyAddressListChange,
                           wsoNotifyRoutingInterfaceChange,
                           wsoAsyncDnsLookup,    { V8.43 Connect uses Async lookup }
-                          wsoIcsDnsLookup);     { V8.43 DNSLookup uses thread }
+                          wsoIcsDnsLookup,      { V8.43 DNSLookup uses thread }
+                          wsoUseSTD3AsciiRules, { V8.64 stop illegal symbols in domain names }
+                          wsoIgnoreIDNA);       { V8.64 old behaviour for ANSI domain names }
   TWSocketOptions      = set of TWSocketOption;   { published as ComponentOptions }
 
   TTcpKeepAlive = packed record
@@ -1968,6 +1985,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     FSocketErrs         : TSocketErrs;   { V8.36 }
     FonException        : TIcsException; { V8.36 }
     FAddrResolvedStr    : String;        { V8.60 IPv4 or IPv6 address }
+    FPunycodeHost       : String;        { V8.64 Puncycode result of last DnsLookup  }
 {$IFNDEF NO_DEBUG_LOG}
 //  FIcsLogger          : TIcsLogger;                        { V5.21, V8.62 moved to TIcsWndControl }
   procedure   SetIcsLogger(const Value : TIcsLogger); virtual;                { V5.21 }
@@ -2174,6 +2192,7 @@ type  { <== Required to make D7 code explorer happy, AG 05/24/2007 }
     property    BufferedByteCount  : LongInt        read FBufferedByteCount;  { V5.20 }
     property    CurrentSocketFamily: TSocketFamily  read GetCurrentSocketFamily;
     property    AddrResolvedStr : String            read FAddrResolvedStr;    { V8.60 IPv4 or IPv6 address }
+    property    PunycodeHost : String               read FPunycodeHost;       { V8.64 Puncycode result of last DnsLookup }
   protected
 {$IFNDEF NO_DEBUG_LOG}
     property IcsLogger : TIcsLogger                 read  FIcsLogger          { V5.21 }
@@ -5289,11 +5308,6 @@ function WSocket_Synchronized_WSAStartup(
     var WSData: TWSAData): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
 begin
     Result := Ics_WSAStartup(wVersionRequired, WSData)
-   (*
-    if @FWSAStartup = nil then
-        @FWSAStartup := WSocketGetProc('WSAStartup');
-    Result := FWSAStartup(wVersionRequired, WSData);
-    *)
 end;
 
 
@@ -5302,11 +5316,6 @@ function WSocket_Synchronized_WSACleanup : Integer;
   {$IFDEF USE_INLINE} inline; {$ENDIF}
 begin
     Result := Ics_WSACleanup;
-    (*
-    if @FWSACleanup = nil then
-        @FWSACleanup := WSocketGetProc('WSACleanup');
-    Result := FWSACleanup;
-    *)
 end;
 {$ENDIF}
 
@@ -5321,11 +5330,6 @@ begin
   {$IFDEF POSIX}
     SetLastError(IError);
   {$ENDIF}
-    (*
-    if @FWSASetLastError = nil then
-        @FWSASetLastError := WSocketGetProc('WSASetLastError');
-    FWSASetLastError(iError);
-    *)
 end;
 
 
@@ -5352,11 +5356,6 @@ function WSocket_Synchronized_WSACancelAsyncRequest(hAsyncTaskHandle: THandle): 
   {$IFDEF USE_INLINE} inline; {$ENDIF}
 begin
     Result := Ics_WSACancelAsyncRequest(hAsyncTaskHandle);
-    (*
-    if @FWSACancelAsyncRequest = nil then
-        @FWSACancelAsyncRequest := WSocketGetProc('WSACancelAsyncRequest');
-    Result := FWSACancelAsyncRequest(hAsyncTaskHandle);
-    *)
 end;
 
 
@@ -5367,11 +5366,6 @@ function WSocket_Synchronized_WSAAsyncGetHostByName(
     buflen: Integer): THandle; {$IFDEF USE_INLINE} inline; {$ENDIF}
 begin
     Result := Ics_WSAAsyncGetHostByName(HWindow, wMsg, name, buf, buflen);
-    (*
-    if @FWSAAsyncGetHostByName = nil then
-        @FWSAAsyncGetHostByName := WSocketGetProc('WSAAsyncGetHostByName');
-    Result := FWSAAsyncGetHostByName(HWindow, wMsg, name, buf, buflen);
-    *)
 end;
 
 
@@ -5385,11 +5379,6 @@ function WSocket_Synchronized_WSAAsyncGetHostByAddr(
 begin
     Result := Ics_WSAAsyncGetHostByAddr(HWindow, wMsg, addr,
                                                       len, struct, buf, buflen);
-    (*
-    if @FWSAAsyncGetHostByAddr = nil then
-        @FWSAAsyncGetHostByAddr := WSocketGetProc('WSAAsyncGetHostByAddr');
-    Result := FWSAAsyncGetHostByAddr(HWindow, wMsg, addr, len, struct, buf, buflen);
-    *)
 end;
 
 
@@ -5401,11 +5390,6 @@ function WSocket_Synchronized_WSAAsyncSelect(
     lEvent: Longint): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
 begin
     Result := Ics_WSAAsyncSelect(s, HWindow, wMsg, lEvent);
-    (*
-    if @FWSAAsyncSelect = nil then
-        @FWSAAsyncSelect := WSocketGetProc('WSAAsyncSelect');
-    Result := FWSAAsyncSelect(s, HWindow, wMsg, lEvent);
-    *)
 end;
 {$ENDIF}
 
@@ -5435,11 +5419,6 @@ begin
   {$ELSE}
     Result := getprotobyname(PAnsiChar(Name));
   {$ENDIF}
-    (*
-    if @Fgetprotobyname = nil then
-        @Fgetprotobyname := WSocketGetProc('getprotobyname');
-    Result := Fgetprotobyname(PAnsiChar(Name));
-    *)
 end;
 
 
@@ -5458,11 +5437,6 @@ begin
   {$IFDEF POSIX}
     Result := internal_gethostbyname(name);
   {$ENDIF}
-    (*
-    if @Fgethostbyname = nil then
-        @Fgethostbyname := WSocketGetProc('gethostbyname');
-    Result := Fgethostbyname(name);
-    *)
 end;
 
 
@@ -5481,11 +5455,6 @@ begin
   {$IFDEF POSIX}
     Result := internal_gethostbyaddr(addr, len, Struct);
   {$ENDIF}
-    (*
-    if @Fgethostbyaddr = nil then
-        @Fgethostbyaddr := WSocketGetProc('gethostbyaddr');
-    Result := Fgethostbyaddr(addr, len, Struct);
-    *)
 end;
 
 
@@ -5499,11 +5468,6 @@ begin
   {$IFDEF POSIX}
     Result := gethostname(name, len);
   {$ENDIF}
-    (*
-    if @Fgethostname = nil then
-        @Fgethostname := WSocketGetProc('gethostname');
-    Result := Fgethostname(name, len);
-    *)
 end;
 
 
@@ -5517,11 +5481,6 @@ begin
   {$IFDEF POSIX}
     Result := socket(af, Struct, protocol);
   {$ENDIF}
-    (*
-    if @FOpenSocket= nil then
-        @FOpenSocket := WSocketGetProc('socket');
-    Result := FOpenSocket(af, Struct, protocol);
-    *)
 end;
 
 
@@ -5535,11 +5494,6 @@ begin
   {$IFDEF POSIX}
     Result := shutdown(s, how);
   {$ENDIF}
-    (*
-    if @FShutdown = nil then
-        @FShutdown := WSocketGetProc('shutdown');
-    Result := FShutdown(s, how);
-    *)
 end;
 
 
@@ -5554,11 +5508,6 @@ begin
   {$IFDEF POSIX}
     Result := setsockopt(s, level, optname, optval^, optlen);
   {$ENDIF}
-    (*
-    if @FSetSockOpt = nil then
-        @FSetSockOpt := WSocketGetProc('setsockopt');
-    Result := FSetSockOpt(s, level, optname, optval, optlen);
-    *)
 end;
 
 
@@ -5573,11 +5522,6 @@ begin
   {$IFDEF POSIX}
     Result := setsockopt(s, level, optname, optval, optlen);
   {$ENDIF}
-    (*
-    if @FSetSockOpt = nil then
-        @FSetSockOpt := WSocketGetProc('setsockopt');
-    Result := FSetSockOpt(s, level, optname, @optval, optlen);
-    *)
 end;
 
 
@@ -5592,11 +5536,6 @@ begin
   {$IFDEF POSIX}
     Result := setsockopt(s, level, optname, optval, optlen);
   {$ENDIF}
-    (*
-    if @FSetSockOpt = nil then
-        @FSetSockOpt := WSocketGetProc('setsockopt');
-    Result := FSetSockOpt(s, level, optname, @optval, optlen);
-    *)
 end;
 
 
@@ -5611,11 +5550,6 @@ begin
   {$IFDEF POSIX}
     Result := setsockopt(s, level, optname, optval, optlen);
   {$ENDIF}
-    (*
-    if @FSetSockOpt = nil then
-        @FSetSockOpt := WSocketGetProc('setsockopt');
-    Result := FSetSockOpt(s, level, optname, @optval, optlen);
-    *)
 end;
 
 
@@ -5630,11 +5564,6 @@ begin
   {$IFDEF POSIX}
     Result := setsockopt(s, level, optname, optval, optlen);
   {$ENDIF}
-    (*
-    if @FSetSockOpt = nil then
-        @FSetSockOpt := WSocketGetProc('setsockopt');
-    Result := FSetSockOpt(s, level, optname, @optval, optlen);
-    *)
 end;
 
 
@@ -5655,11 +5584,6 @@ begin
   {$IFDEF POSIX}
     Result := internal_getsockopt(s, level, optname, optval, optlen);
   {$ENDIF}
-    (*
-    if @FGetSockOpt = nil then
-        @FGetSockOpt := WSocketGetProc('getsockopt');
-    Result := FGetSockOpt(s, level, optname, optval, optlen);
-    *)
 end;
 
 
@@ -5677,11 +5601,6 @@ begin
   {$IFDEF POSIX}
     Result := sendto(s, Buf^, len, flags, Posix.SysSocket.psockaddr(@addrto)^, tolen);
   {$ENDIF}
-    (*
-    if @FSendTo = nil then
-        @FSendTo := WSocketGetProc('sendto');
-    Result := FSendTo(s, Buf^, len, flags, addrto, tolen);
-    *)
 end;
 
 
@@ -5695,11 +5614,6 @@ begin
   {$IFDEF POSIX}
     Result := send(s, Buf^, len, flags);
   {$ENDIF}
-    (*
-    if @FSend = nil then
-        @FSend := WSocketGetProc('send');
-    Result := FSend(s, Buf^, len, flags);
-    *)
 end;
 
 
@@ -5713,11 +5627,6 @@ begin
   {$IFDEF POSIX}
     Result := ntohs(netshort);
   {$ENDIF}
-    (*
-    if @Fntohs = nil then
-        @Fntohs := WSocketGetProc('ntohs');
-    Result := Fntohs(netshort);
-    *)
 end;
 
 
@@ -5731,11 +5640,6 @@ begin
   {$IFDEF POSIX}
     Result := ntohl(netlong);
   {$ENDIF}
-    (*
-    if @Fntohl = nil then
-        @Fntohl := WSocketGetProc('ntohl');
-    Result := Fntohl(netlong);
-    *)
 end;
 
 
@@ -5749,11 +5653,6 @@ begin
   {$IFDEF POSIX}
     Result := listen(s, backlog);
   {$ENDIF}
-    (*
-    if @FListen = nil then
-        @FListen := WSocketGetProc('listen');
-    Result := FListen(s, backlog);
-    *)
 end;
 
 
@@ -5767,11 +5666,6 @@ begin
   {$IFDEF POSIX}
     Result :=  Posix.StrOpts.ioctl(s, cmd, @arg);
   {$ENDIF}
-    (*
-    if @FIoctlSocket = nil then
-        @FIoctlSocket := WSocketGetProc('ioctlsocket');
-    Result := FIoctlSocket(s, cmd, arg);
-    *)
 end;
 
 
@@ -5788,12 +5682,6 @@ begin
     Result := Ics_WSAIoctl(s, IoControlCode, InBuffer,
                         InBufferSize, OutBuffer, OutBufferSize, BytesReturned,
                         Overlapped, CompletionRoutine);
-    (*
-    if @FWSAIoctl = nil then
-        @FWSAIoctl := WSocket2GetProc('WSAIoctl');
-    Result := FWSAIoctl(s, IoControlCode, InBuffer, InBufferSize, OutBuffer,
-                        OutBufferSize, BytesReturned, Overlapped, CompletionRoutine);
-    *)
 end;
 {$ENDIF}
 
@@ -5807,11 +5695,6 @@ begin
   {$IFDEF POSIX}
     Result := inet_ntoa(inaddr);
   {$ENDIF}
-    (*
-    if @FInet_ntoa = nil then
-        @FInet_ntoa := WSocketGetProc('inet_ntoa');
-    Result := FInet_ntoa(inaddr);
-    *)
 end;
 
 
@@ -5825,11 +5708,6 @@ begin
   {$IFDEF POSIX}
     Result := inet_addr(PAnsiChar(cp));
   {$ENDIF}
-    (*
-    if @FInet_addr = nil then
-        @FInet_addr := WSocketGetProc('inet_addr');
-    Result := FInet_addr(PAnsiChar(cp));
-    *)
 end;
 
 
@@ -5843,11 +5721,6 @@ begin
   {$IFDEF POSIX}
     Result := htons(hostshort);
   {$ENDIF}
-    (*
-    if @Fhtons = nil then
-        @Fhtons := WSocketGetProc('htons');
-    Result := Fhtons(hostshort);
-    *)
 end;
 
 
@@ -5861,11 +5734,6 @@ begin
   {$IFDEF POSIX}
     Result := htonl(hostlong);
   {$ENDIF}
-    (*
-    if @Fhtonl = nil then
-        @Fhtonl := WSocketGetProc('htonl');
-    Result := Fhtonl(hostlong);
-    *)
 end;
 
 
@@ -5881,11 +5749,6 @@ begin
   {$IFDEF POSIX}
     Result := getsockname(s, Posix.SysSocket.psockaddr(@name)^, LongWord(namelen));
   {$ENDIF}
-    (*
-    if @FGetSockName = nil then
-        @FGetSockName := WSocketGetProc('getsockname');
-    Result := FGetSockName(s, name, namelen);
-    *)
 end;
 
 
@@ -5901,11 +5764,6 @@ begin
   {$IFDEF POSIX}
     Result := getpeername(s, Posix.SysSocket.psockaddr(@name)^, LongWord(namelen));
   {$ENDIF}
-    (*
-    if @FGetPeerName = nil then
-        @FGetPeerName := WSocketGetProc('getpeername');
-    Result := FGetPeerName(s, name, namelen);
-    *)
 end;
 
 
@@ -5921,11 +5779,6 @@ begin
   {$IFDEF POSIX}
     Result := connect(s, Posix.SysSocket.psockaddr(@name)^, namelen);
   {$ENDIF}
-    (*
-    if @FConnect= nil then
-        @FConnect := WSocketGetProc('connect');
-    Result := FConnect(s, name, namelen);
-    *)
 end;
 
 
@@ -5939,11 +5792,6 @@ begin
   {$IFDEF POSIX}
     Result := Posix.UniStd.__close(s);
   {$ENDIF}
-    (*
-    if @FCloseSocket = nil then
-        @FCloseSocket := WSocketGetProc('closesocket');
-    Result := FCloseSocket(s);
-    *)
 end;
 
 
@@ -5958,11 +5806,6 @@ begin
   {$ELSE}
     Result := Ics_bind(s, addr, namelen);
   {$ENDIF}
-    (*
-    if @FBind = nil then
-        @FBind := WSocketGetProc('bind');
-    Result := FBind(s, addr, namelen);
-    *)
 end;
 
 
@@ -5984,11 +5827,6 @@ begin
   {$IFDEF POSIX}
     Result := internal_accept(s, addr, addrlen);
   {$ENDIF}
-    (*
-    if @FAccept = nil then
-        @FAccept := WSocketGetProc('accept');
-    Result := FAccept(s, addr, addrlen);
-    *)
 end;
 
 
@@ -6002,11 +5840,6 @@ begin
   {$IFDEF POSIX}
     Result := recv(s, Buf^, len, flags);
   {$ENDIF}
-    (*
-    if @FRecv= nil then
-        @FRecv := WSocketGetProc('recv');
-    Result := FRecv(s, Buf^, len, flags);
-    *)
 end;
 
 
@@ -6023,11 +5856,6 @@ begin
   {$IFDEF POSIX}
     Result := recvfrom(s, Buf^, len, flags, Posix.SysSocket.psockaddr(@from)^, LongWord(fromlen));
   {$ENDIF}
-    (*
-    if @FRecvFrom = nil then
-        @FRecvFrom := WSocketGetProc('recvfrom');
-    Result := FRecvFrom(s, Buf^, len, flags, from, fromlen);
-    *)
 end;
 
 
@@ -6040,12 +5868,6 @@ function WSocket_Synchronized_GetAddrInfo(
     var Addrinfo: PAddrInfo): Integer; {$IFDEF USE_INLINE} inline; {$ENDIF}
 begin
     Result := Ics_GetAddrInfo(NodeName, ServName, Hints, Addrinfo);
-    (*
-    if @FGetAddrInfo = nil then
-        @FGetAddrInfo := WSocket2GetProc(
-           {$IFDEF UNICODE}'GetAddrInfoW' {$ELSE} 'getaddrinfo' {$ENDIF});
-    Result := FGetAddrInfo(NodeName, ServName, Hints, Addrinfo);
-    *)
 end;
 {$ENDIF}
 {$IFDEF POSIX}
@@ -6069,12 +5891,6 @@ begin
   {$IFDEF MSWINDOWS}
     Ics_FreeAddrInfo(ai);
   {$ENDIF}
-    (*
-    if @FFreeAddrInfo = nil then
-        @FFreeAddrInfo := WSocket2GetProc(
-              {$IFDEF UNICODE}'FreeAddrInfoW' {$ELSE} 'freeaddrinfo' {$ENDIF});
-    FFreeAddrInfo(ai);
-    *)
 end;
 
 
@@ -6091,12 +5907,6 @@ function WSocket_Synchronized_GetNameInfo(
 begin
     Result := Ics_GetNameInfo(addr, namelen, host, hostlen, serv,
                                              servlen, flags);
-    (*
-    if @FGetNameInfo = nil then
-        @FGetNameInfo := WSocket2GetProc(
-                 {$IFDEF UNICODE}'GetNameInfoW' {$ELSE} 'getnameinfo' {$ENDIF});
-    Result := FGetNameInfo(addr, namelen, host, hostlen, serv, servlen, flags);
-    *)
 end;
 {$ENDIF}
 {$IFDEF POSIX}
@@ -6133,20 +5943,6 @@ begin
 {$IFDEF MSWINDOWS}
     OverbyteIcsWinsock.ForceLoadWinsock;
 {$ENDIF}
-(*
-{$IFDEF MSWINDOWS}
-    _EnterCriticalSection(GWSockCritSect);
-    try
-        if not WSocketGForced then begin
-            WSocketGForced := TRUE;
-            Inc(WSocketGCount);
-            WSocketGetProc('');
-        end;
-    finally
-        _LeaveCriticalSection(GWSockCritSect);
-    end;
-{$ENDIF}
-*)
 end;
 
 
@@ -6157,21 +5953,6 @@ begin
 {$IFDEF MSWINDOWS}
     OverbyteIcsWinsock.CancelForceLoadWinsock;
 {$ENDIF}
-(*
-{$IFDEF MSWINDOWS}
-    _EnterCriticalSection(GWSockCritSect);
-    try
-        if WSocketGForced then begin
-            WSocketGForced := FALSE;
-            Dec(WSocketGCount);
-            if WSocketGCount <= 0 then
-                WSocketUnloadWinsock;
-        end;
-    finally
-        _LeaveCriticalSection(GWSockCritSect);
-    end;
-{$ENDIF}
-*)
 end;
 
 
@@ -7206,6 +6987,7 @@ begin
     FFlushTimeout       := 60;
     FInternalDnsActive  := FALSE;    { V8.43 }
     FAddrResolvedStr    := '';       { V8.60 }
+    FPunycodeHost       := '';       { V8.64 }
 end;
 
 
@@ -8603,9 +8385,8 @@ begin
         if (FSocketFamily = sfIPv4) and (not (wsoIcsDnsLookup in ComponentOptions)) then begin  { V8.44 }
             Phe := PHostent(@FDnsLookupBuffer);
             if phe <> nil then begin
-                //SetLength(FDnsResult, StrLen(Phe^.h_name));
-                //StrCopy(PAnsiChar(FDnsResult), Phe^.h_name);
                 FDnsResult := String(StrPas(Phe^.h_name));
+                FDnsResult := IcsIDNAToUnicode(FDnsResult);   { V8.64 }
                 FDnsResultList.Add(FDnsResult);
                 GetAliasList(Phe, FDnsResultList);  {AG 03/03/06}
             end;
@@ -8917,19 +8698,6 @@ begin
         Exit;
     end
     else begin
-        (*  Call GetAddrInfo() below in order to get the scope_id
-        if AFamily = sfIPv4 then
-            Success := FALSE
-        else
-            ASockAddrIn6.sin6_addr := TInAddr6(WSocketStrToIPv6(AHostName, Success));
-        if Success then
-        begin
-            { Address is valid IPv6 IP address }
-            ASockAddrIn6.sin6_family := AF_INET6;
-            Exit;
-        end
-        else begin
-        *)
             FillChar(Hints, SizeOf(Hints), 0);
             if AFamily = sfIPv4 then
                 Hints.ai_family := AF_INET
@@ -9004,7 +8772,6 @@ begin
             finally
                 WSocket_Synchronized_FreeAddrInfo(AddrInfo);
             end;
-        //end;
     end;
 end;
 
@@ -9289,10 +9056,11 @@ procedure TCustomWSocket.DnsLookup(const AHostName : String;
 var
     IPAddr   : TInAddr;
     IPv6Addr : TIcsIPv6Address;
-    HostName : AnsiString;
+//  HostName    : AnsiString;
     Success  : Boolean;
     ScopeID  : LongWord;
     Err      : integer;
+    ErrFlag  : Boolean;   { V8.64 }
 begin
     if AHostName = '' then begin
         try
@@ -9318,11 +9086,38 @@ begin
     FDnsResult := '';
     FDnsResultList.Clear;
 
-    HostName := AnsiString(AHostName);
+  { V8.64 see if passed an IPv6 address, IDN can not cope }
+    if (FSocketFamily <> sfIPv4) then
+    begin
+        IPv6Addr := WSocketStrToIPv6(IcsTrim(AHostName), Success, ScopeID);
+        if Success and (ScopeID = 0) then
+        begin
+            FPunycodeHost := AHostName;   { V8.64 }
+            FDnsResult := WSocketIPv6ToStr(IPv6Addr);
+            FDnsResultList.Add(FDnsResult);
+            TriggerDnsLookupDone(0);
+            Exit;
+        end;
+    end;
+
+  { V8.64 convert Unicode International Domain Name into Punycode ASCII }
+    if (wsoIgnoreIDNA in ComponentOptions) then
+        FPunycodeHost := IcsTrim(AHostName)  // convert to ANSI, backward compatible
+    else begin
+        FPunycodeHost := IcsIDNAToASCII(IcsTrim(AHostName),
+                                (wsoUseSTD3AsciiRules in ComponentOptions), ErrFlag);
+        if ErrFlag then begin
+            FPunycodeHost := '';
+         // don't raise exception since previously this would be a host not found error
+         //   RaiseException(String(AHostName) + ': can''t start DNS lookup - invalid host name');
+            TriggerDnsLookupDone(WSAEINVAL);
+            Exit;
+        end;
+    end;
 
     if (FSocketFamily <> sfIPv6) and
-       WSocketIsDottedIP(Hostname) then begin   { 28/09/2002 }
-        IPAddr.S_addr := WSocket_Synchronized_inet_addr(PAnsiChar(HostName));
+       WSocketIsDottedIP(AnsiString(FPunycodeHost)) then begin   { 28/09/2002 }
+        IPAddr.S_addr := WSocket_Synchronized_inet_addr(PAnsiChar(AnsiString(FPunycodeHost)));
         if IPAddr.S_addr <> u_long(INADDR_NONE) then begin
             FDnsResult := String(WSocket_Synchronized_inet_ntoa(IPAddr));
             FDnsResultList.Add(FDnsResult);     { 28/09/2002 }{ 12/02/2003 }
@@ -9331,20 +9126,9 @@ begin
         end;
     end;
 
-    if (FSocketFamily <> sfIPv4) then
-    begin
-        IPv6Addr := WSocketStrToIPv6(IcsTrim(AHostName), Success, ScopeID);
-        if Success and (ScopeID = 0) then
-        begin
-            FDnsResult := WSocketIPv6ToStr(IPv6Addr);
-            FDnsResultList.Add(FDnsResult);
-            TriggerDnsLookupDone(0);
-            Exit;
-        end;
-    end;
-
     if FWindowHandle = 0 then begin
         RaiseException('DnsLookup: Window not assigned');
+        TriggerDnsLookupDone(WSAEINVAL);  { V8.64 }
         Exit;   { V8.36 }
     end;
 
@@ -9357,11 +9141,13 @@ begin
   {$IFDEF MSWINDOWS}
    { V8.43 new option for IPv4 DNS lookups to be done using thread, previously
      only IPv6 used thread.  This avoids windows limitation of one lookup at a time }
+//    HostName := AnsiString(FPunycodeHost);     { V8.64 }
     if (FSocketFamily = sfIPv4) and (not (wsoIcsDnsLookup in ComponentOptions)) then
         FDnsLookupHandle   := WSocket_Synchronized_WSAAsyncGetHostByName(
                                   FWindowHandle,
                                   FMsg_WM_ASYNCGETHOSTBYNAME,
-                                  @HostName[1],
+                                  PAnsiChar(AnsiString(FPunycodeHost)),   { V8.64 }
+                               //   @HostName[1],
                                   @FDnsLookupBuffer,
                                   SizeOf(FDnsLookupBuffer))
     else
@@ -9370,13 +9156,14 @@ begin
                                   FWindowHandle,
                                   FMsg_WM_ASYNCGETHOSTBYNAME,
                                   FSocketFamily,
-                                  IcsTrim(AHostName),
+                                  FPunycodeHost,          { V8.64 }
                                   AProtocol);
 
     if FDnsLookupHandle = 0 then begin
         Err := WSocket_Synchronized_WSAGetLastError;
-        RaiseException(String(HostName) + ': can''t start DNS lookup - ' +
+        RaiseException(FPunycodeHost + ': can''t start DNS lookup - ' +
                                                 GetWinsockErr(Err), Err);  { V5.26, V8.36 }
+        TriggerDnsLookupDone(WSAEINVAL);   { V8.64 }
         Exit;
     end;
     if FDnsLookupCheckMsg then begin
@@ -9470,7 +9257,6 @@ var
     szAddr : array [0..256] of AnsiChar;
     lAddr  : u_long;
     Phe    : Phostent;
-
 begin
     if (Length(HostAddr) = 0) or (Length(HostAddr) >= SizeOf(szAddr)) then begin
         try
@@ -9513,6 +9299,8 @@ begin
           {$ELSE}
             FDnsResult := String(StrPas(Phe^.h_name));
           {$ENDIF}
+          { V8.64 if result has ACE xn--. convert it to Unicode, ignore errors }
+            FDnsResult := IcsIDNAToUnicode(FDnsResult);
             FDnsResultList.Add(FDnsResult);
             GetAliasList(Phe, FDnsResultList);
             TriggerDnsLookupDone(0);
@@ -9524,8 +9312,9 @@ begin
         if lAddr <> 0 then
             TriggerDnsLookupDone(lAddr)
         else begin
-            if FDnsResultList.Count > 0 then
+            if FDnsResultList.Count > 0 then begin
                 FDnsResult := FDnsResultList[0];
+            end;
             TriggerDnsLookupDone(0);
         end;
     end;
@@ -9743,6 +9532,7 @@ var
     optlen  : Integer;
     lAddr   : TSockAddrIn6;
     TmpOnError: TNotifyEvent;
+    ErrFlag  : boolean;  { V8.64 } 
 begin
     if ((FHSocket <> INVALID_SOCKET) and
          (NOT (FState in [wsClosed, wsDnsLookup]))) or
@@ -9811,14 +9601,28 @@ begin
                   end;
             end
             else begin
-              { The next line will trigger an exception in case of failure }
+
+           { V8.64 convert Unicode International Domain Name into ASCII Punycode }
+               if (wsoIgnoreIDNA in ComponentOptions) then
+                    FPunycodeHost := String(AnsiString(IcsTrim(FAddrStr)))  // convert to ANSI, backward compatible
+               else begin
+                    FPunycodeHost := IcsIDNAToASCII(IcsTrim(FAddrStr),
+                                  (wsoUseSTD3AsciiRules in ComponentOptions), ErrFlag);
+                    if ErrFlag then begin
+                        FPunycodeHost := '';
+                        RaiseException('Connect: Invalid Host Name Specified');
+                        Exit;
+                    end;
+               end;
+
+           { The next line will trigger an exception in case of failure }
               if FSocketFamily = sfIPv4 then
               begin
                   Fsin.sin6_family := AF_INET;
-                  PSockAddrIn(@Fsin).sin_addr.S_addr := WSocket_Synchronized_ResolveHost(AnsiString(FAddrStr)).s_addr;
+                  PSockAddrIn(@Fsin).sin_addr.S_addr := WSocket_Synchronized_ResolveHost(AnsiString(FPunycodeHost)).s_addr;   { V8.64 }
               end
               else
-                  WSocket_Synchronized_ResolveHost(FAddrStr, Fsin, FSocketFamily, FProto);
+                  WSocket_Synchronized_ResolveHost(FPunycodeHost, Fsin, FSocketFamily, FProto);   { V8.64 }
             end;
             FAddrResolved := TRUE;
             FAddrFormat := Fsin.sin6_family;
@@ -14743,14 +14547,15 @@ begin
         if fsize < 16 then    { V8.52 }
             raise ESslContextException.Create('File empty "' + Filename + '"');
     end;
+  { V8.64 open and save certificate file with Unicode names not ANSI }
     if Methode = bomRead then
-        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('r+b'))
+        Result := f_BIO_new_file(PAnsiChar(StringToUtf8(Filename)), PAnsiChar('r+b'))
     else if Methode = bomReadOnly then             { V8.40 mostly we don't want to update certs }
-        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('rb'))
+        Result := f_BIO_new_file(PAnsiChar(StringToUtf8(Filename)), PAnsiChar('rb'))
     else if Methode = bomWriteBin then             { V8.40 mostly we don't want to update certs }
-        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('w+b'))   { V8.41 binary write mode }
+        Result := f_BIO_new_file(PAnsiChar(StringToUtf8(Filename)), PAnsiChar('w+b'))   { V8.41 binary write mode }
     else
-        Result := f_BIO_new_file(PAnsiChar(AnsiString(Filename)), PAnsiChar('w+'));   { writes ASCII CRLF }
+        Result := f_BIO_new_file(PAnsiChar(StringToUtf8(Filename)), PAnsiChar('w+'));   { writes ASCII CRLF }
     if Result = nil then
         raise ESslContextException.Create ('Error on opening file "' + Filename + '"');
 end;
@@ -17168,11 +16973,12 @@ begin
             for I := 0 to Li.Count -1 do begin
                 if (FieldName = '') then begin
                     if Result <> '' then Result := Result + #13#10;
-                    Result := Result + Li[I];
+                { V8.64 if domain has ACE xn--. convert it to Unicode, ignore errors }
+                    Result := Result + IcsIDNAToUnicode(Li[I]);
                 end
                 else if (Pos(FieldName, IcsUpperCase(Li.Names[I])) = 1) then begin
                     if Result <> '' then Result := Result + #13#10;
-                    Result := Result + Copy (Li[I], Length(Li.Names[I])+2,999);
+                    Result := Result + IcsIDNAToUnicode(Copy (Li[I], Length(Li.Names[I])+2,999));
                 end;
             end;
         end;
@@ -17365,7 +17171,8 @@ begin
             if Assigned(Entry) then begin
                 Asn1 := f_X509_NAME_ENTRY_get_data(Entry);
                 if Assigned(Asn1) then
-                    Result := Result + Asn1ToString(Asn1) + #13#10;
+                { V8.64 if domain has ACE xn--. convert it to Unicode, ignore errors }
+                    Result := Result + IcsIDNAToUnicode(Asn1ToString(Asn1)) + #13#10;
             end;
         until
             LastPos = -1;
@@ -18275,9 +18082,9 @@ begin
         end;
         if IncludeInters then
             castack := f_OPENSSL_sk_dup(FX509Inters);    { V8.41 only if required }
-        P12 := f_PKCS12_create(PW, PAnsiChar(AnsiString(IcsUnwrapNames(SubjectCName))),
+        P12 := f_PKCS12_create(PW, PAnsiChar(AnsiString(IcsIDNAToASCII(IcsUnwrapNames(SubjectCName)))),  { V8.64 }
                  Ics_EVP_PKEY_dup(FPrivateKey), f_X509_dup(FX509), castack,
-                                keyenc, certenc, PKCS12_DEFAULT_ITER, 1, KEY_EX);
+                                   keyenc, certenc, PKCS12_DEFAULT_ITER, 1, KEY_EX);
 
         if not Assigned(P12) then
             RaiseLastOpenSslError(EX509Exception, TRUE,
@@ -18479,8 +18286,9 @@ begin
             Break;
         if Assigned(Entry) then begin
             Asn1 := f_X509_NAME_ENTRY_get_data(Entry);
+      { V8.64 if domain has ACE xn--. convert it to Unicode, ignore errors }
             if Assigned(Asn1) then
-                Result := Result + Asn1ToString(Asn1) + #13#10;
+                Result := Result + IcsIDNAToUnicode(Asn1ToString(Asn1)) + #13#10;
         end;
     until
         LastPos = -1;
@@ -18872,12 +18680,15 @@ end;
 function TX509Base.CheckHost(const Host: string; Flags: integer): String;   { V8.39 }
 var
     peername: AnsiString;
+    PunycodeHost: AnsiString;
 begin
     Result := '';
     if not Assigned(X509) then Exit;
     SetLength (peername, 512);
-    if f_X509_check_host (X509, PAnsiChar(AnsiString(Host)),
-                        Length(Host), Flags, peername) <> 1 then exit;
+ { V8.64 needs A-Label punycode, not ANSI }
+    PunycodeHost := AnsiString(IcsIDNAToASCII(IcsTrim(Host)));
+    if f_X509_check_host (X509, PAnsiChar(PunycodeHost),
+                        Length(PunycodeHost), Flags, peername) <> 1 then exit;
     SetLength (peername, StrLen(PAnsiChar(peername)));
     Result := String (peername);
 end;
@@ -20775,7 +20586,7 @@ end;
 function ServerNameCallback(SSL: PSSL; var ad: Integer; arg: Pointer): Longint; cdecl;
 var
     Ws : TCustomSslWSocket;
-    PServerName : PAnsiChar; // Pointer to UTF-8 string
+    PServerName : PAnsiChar; // Pointer to A-Label string
     Ctx : TSslContext;
     Err : TTlsExtError;
 begin
@@ -20791,7 +20602,8 @@ begin
         begin
             Ws.FSsl_In_CB := TRUE;
             try
-                Ws.FSslServerName := String(UTF8String(PServerName));
+             { V8.64 if result has ACE xn--. convert it to Unicode, ignore errors }
+                Ws.FSslServerName := IcsIDNAToUnicode(String(PServerName));
                 Ctx := nil;
              {   Err := teeAlertWarning; //SSL_TLSEXT_ERR_ALERT_WARNING  }
                 Err := teeOk;  { V8.26 warning stop Java clients connecting }
@@ -21406,6 +21218,7 @@ var
     SIdCtxLen         : Integer;
     Dummy             : Byte;
     VerifyParam       : PX509_VERIFY_PARAM;  { V8.39 }
+    AHost             : AnsiString;  { V8.64 }
 begin
     if not FSslEnable then
         Exit;
@@ -21507,7 +21320,9 @@ begin
                 { FSslServerName is the servername to be sent in client helo. }
                 { If not empty, enables SNI in SSL client mode.               }
                 if (FSslServerName <> '') then begin
-                    if (f_SSL_set_tlsext_host_name(FSsl, FSslServerName) = 0) then
+                 { V8.64 needs A-Label punycode, not UTF8 }
+                    AHost := AnsiString(IcsIDNAToASCII(FSslServerName));
+                    if (f_SSL_set_tlsext_host_name(FSsl, String(AHost)) = 0) then
                         RaiseLastOpenSslError(EOpenSslError, TRUE,
                              'Unable to set TLS servername extension');
 
@@ -21516,10 +21331,8 @@ begin
                         f_X509_VERIFY_PARAM_set_flags(VerifyParam, FSslContext.FSslVerifyFlags);
                         f_X509_VERIFY_PARAM_set_depth(VerifyParam, FSslContext.FSslVerifyDepth);
                         f_X509_VERIFY_PARAM_set_hostflags(VerifyParam, FSslContext.FSslCheckHostFlags);
-                        if (f_X509_VERIFY_PARAM_set1_host(VerifyParam,
-                               Pointer(AnsiString(FSslServerName)), Length (FSslServerName)) = 0) then
-                                 RaiseLastOpenSslError(EOpenSslError, TRUE,
-                                    'Unable to set host varify param');
+                        if (f_X509_VERIFY_PARAM_set1_host(VerifyParam, Pointer(AHost), Length (AHost)) = 0) then  { V8.64 }
+                                 RaiseLastOpenSslError(EOpenSslError, TRUE, 'Unable to set host varify param');
                     end;
                 end
                 else
@@ -22232,7 +22045,8 @@ begin
 
           { V8.39 get pointer to verify parameters, which we may alter in a moment }
             VerifyParam := f_SSL_get0_param(FSsl);    { do not free it! }
-            FSslCertPeerName := String (f_X509_VERIFY_PARAM_get0_peername (VerifyParam));
+          { V8.64 if domain has ACE xn--. convert it to Unicode, ignore errors }
+            FSslCertPeerName := IcsIDNAToUnicode(String(f_X509_VERIFY_PARAM_get0_peername (VerifyParam)));
         end;
 
      { V8.14 set with success or failure message once handshake completes }
@@ -24325,6 +24139,7 @@ var
     NextInfo  : PAddrInfo;
     RetVal    : Integer;
     LHost     : {$IFNDEF POSIX} string; {$ELSE} AnsiString; {$ENDIF}
+    UniHost   : String;   { V8.64 }
     IDX       : Integer;
 begin
     AResultList.Clear;
@@ -24368,10 +24183,13 @@ begin
                   {$ENDIF}
                     if RetVal = 0 then
                     begin
+                 { V8.64 if result has ACE xn--. convert it to Unicode, ignore errors }
                       {$IFNDEF POSIX}
-                        AResultList.Add(PChar(LHost));
+                        UniHost := IcsIDNAToUnicode(LHost);
+                        AResultList.Add(PChar(UniHost));
                       {$ELSE}
-                        AResultList.Add(PChar(string(LHost)));
+                        UniHost := IcsIDNAToUnicode(LHost);
+                        AResultList.Add(PChar(UniHost));
                       {$ENDIF}
                     end
                     else begin

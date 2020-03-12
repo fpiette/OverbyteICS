@@ -68,7 +68,6 @@ object HttpsTstForm: THttpsTstForm
     Height = 261
     Align = alTop
     TabOrder = 2
-    ExplicitTop = -6
     object Label1: TLabel
       Left = 40
       Top = 7
@@ -527,8 +526,8 @@ object HttpsTstForm: THttpsTstForm
       OnChange = ResetSsl
     end
     object UrlEdit: TComboBox
-      Left = 68
-      Top = 2
+      Left = 70
+      Top = 1
       Width = 373
       Height = 21
       Hint = 'Enter the hostname or IP address of the host to connect to'
@@ -543,7 +542,8 @@ object HttpsTstForm: THttpsTstForm
         'https://www.telecom-tariffs.co.uk/serverinfo.htm'
         'https://ipv6.telecom-tariffs.co.uk/serverinfo.htm'
         'https://www.magsys.co.uk/'
-        'https://ipv6.magsys.co.uk/')
+        'https://ipv6.magsys.co.uk/'
+        'https://www.m'#226'gs'#255'st'#233'st.eu/')
     end
     object ResetButton: TButton
       Left = 467

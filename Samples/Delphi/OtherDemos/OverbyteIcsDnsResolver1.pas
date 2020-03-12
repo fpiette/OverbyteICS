@@ -5,12 +5,11 @@ Description:  Demo program for TDnsQuery component.
               It shows how to query a list of domains without using loops but
               using pure event driven operation
 Creation:     March 06, 2005
-Version:      8.00
+Version:      8.64
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2005-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1999-2020 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -43,6 +42,8 @@ Dec 21, 2008 V1.01 F.Piette added astring casts in DnsQuery1RequestDone and
              an AnsiString cast in ResolveNext to avoid a warning when
              compiling with Delphi 2009.
 Jul 4, 2012  V8.00 Angus changed to Goggle DNS 8.8.8.8
+Mar 10, 2020 V8.64 Added support for International Domain Names for Applications
+                     (IDNA), i.e. using accents and unicode characters in domain names.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -122,13 +123,11 @@ begin
     Timer1.Enabled  := TRUE;
     if MXRecordRadioButton.Checked then begin
         Memo1.Lines.Add('Resolving ' + DomainListBox.Items[FCurrentItem]);
-        FCurrentID := DnsQuery1.MXLookup(
-                          AnsiString(DomainListBox.Items[FCurrentItem]));
+        FCurrentID := DnsQuery1.MXLookup(DomainListBox.Items[FCurrentItem]);
     end
     else begin
         Memo1.Lines.Add('Resolving www.' + DomainListBox.Items[FCurrentItem]);
-        FCurrentID := DnsQuery1.ALookup(
-                          AnsiString('www.' + DomainListBox.Items[FCurrentItem]));
+        FCurrentID := DnsQuery1.ALookup('www.' + DomainListBox.Items[FCurrentItem]);
     end;
 end;
 
@@ -151,7 +150,7 @@ begin
         ResultListBox.Items.Add('*** not found ***')
     else begin
         if MXRecordRadioButton.Checked then
-            ResultListBox.Items.Add(String(DnsQuery1.MXExchange[nIndex]))
+            ResultListBox.Items.Add(DnsQuery1.MXExchange[nIndex])
         else
             ResultListBox.Items.Add(
                 String(WSocket_inet_ntoa(DnsQuery1.Address[nIndex])));

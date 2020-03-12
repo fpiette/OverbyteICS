@@ -3,7 +3,7 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
-Updated:      Feb 2020
+Updated:      Mar 2020
 Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -66,7 +66,10 @@ Nov 11, 2019 - V8.63 OAuth2 progress log display got lost.
                      Added two Google Gmail API URLs to the drop down list.
                      OAuth has Prompt and Access Offline for Google to requests a
                        Refresh Token.
-Feb 20, 2019 - V8.64 Added XML response parsing into a ISuperOject which can be
+Mar 12, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
+                       i.e. using accents and unicode characters in domain names.
+                     Only change here is to report A-Label domain looked up by DNS.
+                     Added XML response parsing into a ISuperOject which can be
                        processed similarly to a Json object.
                      Improved Json object double clicking display again.
                      Corrected passing ALPN list to component.
@@ -1007,7 +1010,7 @@ begin
         if I > 1 then SetLength (QueryType, I - 1);
       // Json DNS parameters
         HttpRest1.RestParams.Clear;
-        HttpRest1.RestParams.AddItem('name', Trim(DnsDomainName.Text), True);
+        HttpRest1.RestParams.AddItem('name', IcsIDNAToASCII(Trim(DnsDomainName.Text)), True);  { V8.64 }
         HttpRest1.RestParams.AddItem('type', QueryType, True);
     //    HttpRest1.RestParams.AddItem('ct', MimeDnsJson, True);
         if DnsDnssec.Checked then
@@ -1116,7 +1119,7 @@ begin
     DnsQueryHttps1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
     DnsQueryHttps1.HttpRest.CertVerMethod := TCertVerMethod(CertVerMethod.ItemIndex);
     DnsQueryHttps1.HttpRest.SocketFamily := TSocketFamily(IpSockFamily.ItemIndex);
-    if DnsQueryHttps1.DOHQueryAny(AnsiString(Trim(DnsDomainName.Text)), qtype) then
+    if DnsQueryHttps1.DOHQueryAny(Trim(DnsDomainName.Text), qtype) then
          AddLog ('Starting async DNS request')
     else
          AddLog ('DNS request failed');
@@ -1130,7 +1133,7 @@ begin
     DnsQueryHttps1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
     DnsQueryHttps1.HttpRest.CertVerMethod := TCertVerMethod(CertVerMethod.ItemIndex);
     DnsQueryHttps1.HttpRest.SocketFamily := TSocketFamily(IpSockFamily.ItemIndex);
-    if DnsQueryHttps1.DOHQueryAll(AnsiString(Trim(DnsDomainName.Text))) then
+    if DnsQueryHttps1.DOHQueryAll(Trim(DnsDomainName.Text)) then
          AddLog ('Starting async DNS request')
     else
          AddLog ('DNS request failed');

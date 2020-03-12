@@ -4,7 +4,7 @@ Program:      NsLookup
 Description:  Demo for DnsQuery ICS component.
 Author:       François Piette
 Creation:     January 29, 1999
-Version:      8.61
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1999-2019 by François PIETTE
@@ -41,12 +41,17 @@ Jul 19, 2008 V6.00 F.Piette made some changes for Unicode
 Dec 22, 2008 V6.01 F.Piette added a few explicit casts to avoid warning when
                    compiling with D2009.
 Jul 4, 2012  V8.00 Angus changed to Goggle DNS 8.8.8.8 and embarcadero.com
-Apr 22 2019 V8.61  Angus major rewrite to support all important DNS queries
+Apr 22 2019  V8.61 Angus major rewrite to support all important DNS queries
                      and also new Query All for seven most common queries.
                    Note new queries return results in single array rather
                      than multiple arrays, but those old arrays are still
                      available for backward compatibility.
                    Added list of public DNS servers.
+ Mar 10 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+                  All Unicode queries are converted to Punycode ASCII, and responses
+                    with ACE zn-- prefix are converted back to Unicode.
+
+
 
 Note - OverbyteIcsHttpRest contains a derived component DnsQueryHttps which makes
 DNS over HTTPS requests per RFC8484, illustrated in the OverbyteIcsHttpRest sample
@@ -64,8 +69,8 @@ uses
   OverbyteIcsWinSock, OverbyteIcsWSocket, OverbyteIcsDnsQuery;
 
 const
-  NsLookVersion      = 861;
-  CopyRight : String = ' NsLookup (c) 1999-2019 F. Piette V8.61 ';
+  NsLookVersion      = 864;
+  CopyRight : String = ' NsLookup (c) 1999-2020 F. Piette V8.64 ';
 
 type
   TNsLookupForm = class(TForm)
@@ -326,7 +331,7 @@ begin
                 DnsQueryMX:
                     begin
                         Display('  MXPreference     : ' + IntToStr(MxPref));
-                        Display('  MXExchange       : ' + String(RDData));
+                        Display('  MXExchange       : ' + HostName);
                     end;
                 DnsQueryA, DnsQueryAAAA, DnsQueryNS:
                     begin
@@ -334,7 +339,7 @@ begin
                     end;
                 DnsQueryPTR:
                     begin
-                        Display('  Hostname         : ' + String(RDData));
+                        Display('  Hostname         : ' + HostName);
                     end;
                 else begin
                         Display('  Result           : ' + String(RDData));
@@ -367,7 +372,7 @@ begin
         DnsQuery1.Proto := 'tcp';
     DnsQuery1.Addr := DnsEdit.Text;
     Timer1.Enabled := True;
-    FRequestID := DnsQuery1.QueryAll(AnsiString(Trim(NameEdit.Text)));
+    FRequestID := DnsQuery1.QueryAll(Trim(NameEdit.Text));
 end;
 
 
@@ -389,7 +394,7 @@ begin
         DnsQuery1.Proto := 'tcp';
     DnsQuery1.Addr := DnsEdit.Text;
     Timer1.Enabled := True;
-    FRequestID := DnsQuery1.QueryAny(AnsiString(Trim(NameEdit.Text)),
+    FRequestID := DnsQuery1.QueryAny(Trim(NameEdit.Text),
                                     DnsReqTable[DnsQueryType.ItemIndex].Num);
     Display('Request ID         : ' + IntToStr(FRequestID));
 end;

@@ -2,7 +2,7 @@
 
 Author:       François PIETTE
 Creation:     November 23, 1997
-Version:      8.62
+Version:      8.64
 Description:  THttpCli is an implementation for the HTTP protocol
               RFC 1945 (V1.0), and some of RFC 2068 (V1.1)
 Credit:       This component was based on a freeware from by Andreas
@@ -10,7 +10,7 @@ Credit:       This component was based on a freeware from by Andreas
               andy@hoerstemeier.de http://www.hoerstemeier.com/index.htm
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 1997-2019 by François PIETTE
+Legal issues: Copyright (C) 1997-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -549,7 +549,13 @@ Jun 25, 2019 V8.62 Added httpAuthJWT using AuthBearerToken for Json Web Token
                      as a URL for simplicity, ie http://[user[:password]@]host:port
                    Added AlpnProtocols property which is sent when an SSL connection
                      starts and GetAlpnProtocol which returns which the server
-                     supports.     
+                     supports.
+Mar 10, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+                     i.e. using accents and unicode characters in domain names.
+                    Host: header now has A-Label (Punycode ASCII) domain name.
+                    Proxy URL host is converted to A-Label. 
+                    Location property returms a Unicode URL.
+                    PunyCodeHost read only returns A-Label for first DNSLookup.
 
 
 To convert the received HTML stream to a unicode string with the correct codepage,
@@ -650,8 +656,8 @@ uses
     OverbyteIcsTypes, OverbyteIcsUtils;
 
 const
-    HttpCliVersion       = 862;
-    CopyRight : String   = ' THttpCli (c) 1997-2019 F. Piette V8.62 ';
+    HttpCliVersion       = 864;
+    CopyRight : String   = ' THttpCli (c) 1997-2020 F. Piette V8.64 ';
     DefaultProxyPort     = '80';
     //HTTP_RCV_BUF_SIZE    = 8193;
     //HTTP_SND_BUF_SIZE    = 8193;
@@ -908,6 +914,7 @@ type
         FRespAge              : Integer;       { V8.61 }
         FRespCacheControl     : String;        { V8.61 }
         FAlpnProtoList        : TStrings;      { V8.62 only used for SSL }
+        FPunyCodeHost         : String;        { V8.64 }
         FTimeout              : UINT;  { V7.04 }            { Sync Timeout Seconds }
         FWMLoginQueued        : Boolean;
         procedure AbortComponent; override; { V7.11 }
@@ -1065,6 +1072,7 @@ type
         property ReasonPhrase         : String       read  FReasonPhrase;
         property DnsResult            : String       read  FDnsResult;
         property AddrResolvedStr      : String       read  GetAddrResolvedStr;    { V8.60 }
+        property PunyCodeHost         : String       read  FPunyCodeHost;         { V8.64 }
         property RespDateDT           : TDateTime    read  FRespDateDT ;          { V8.61 }
         property RespLastModDT        : TDateTime    read  FRespLastModDT ;       { V8.61 }
         property RespExpires          : TDateTime    read  FRespExpires;          { V8.61 }
@@ -2228,7 +2236,7 @@ begin
     FWMLoginQueued := FALSE;
     FStatusCode    := 0;
     FLocationFlag  := False;
-    FReasonPhrase  := '';  { V8.55 } 
+    FReasonPhrase  := '';  { V8.55 }
 
     FCtrlSocket.OnSessionClosed := SocketSessionClosed;
 
@@ -2247,9 +2255,9 @@ begin
         { The setter of TCustomWSocket.Addr sets the correct internal     }
         { SocketFamily in case a host name is either a valid IPv6 or IPv4 }
         { address.                                                        }
-        FCtrlSocket.Addr := FHostName;
+        FCtrlSocket.Addr := FHostName;   { Unicode}
         if (FSocksServer = '') or (FSocksLevel = '4') then  { V8.51 socks5 takes host name }
-            FCtrlSocket.DnsLookup(FHostName)
+            FCtrlSocket.DnsLookup(FHostName)  { Unicode}
         else
             SocketDNSLookupDone(self, 0);    { V8.51 skip DNS lookup }
     except
@@ -2301,6 +2309,7 @@ begin
         DebugLog(loProtSpecInfo, 'Socket DNS Lookup Done - '  +
                                 FCtrlSocket.DnsResultList.CommaText);  { V8.60 }
 {$ENDIF}
+    if FPunyCodeHost = '' then FPunyCodeHost := FCtrlSocket.PunyCodeHost; // only first connection
     if ErrCode <> 0 then begin
         if FState = httpAborting then
             Exit;
@@ -2576,6 +2585,7 @@ procedure THttpCli.SendRequest(const Method, Version: String);
 var
     Headers : TStrings;
     N       : Integer;
+    AHost   : String;
 begin
 {$IFDEF UseBandwidthControl}
     FBandwidthCount := 0; // Reset byte counter
@@ -2596,9 +2606,10 @@ begin
     try
         FReqStream.Clear;
         TriggerRequestHeaderBegin;
-        {* OutputDebugString(method + ' ' + FPath + ' HTTP/' + Version); *}
+     { V8.64 needs A-Label punycode for Host: not Unicode }
+        AHost := IcsIDNAToASCII(IcsTrim(FTargetHost));
         if Method = 'CONNECT' then
-            Headers.Add(Method + ' ' + FTargetHost + ':' + FTargetPort +
+            Headers.Add(Method + ' ' + AHost + ':' + FTargetPort +   { V8.64 A-Label }
                        ' HTTP/' + Version)
         else begin
             Headers.Add(method + ' ' + FPath + ' HTTP/' + Version);
@@ -2616,18 +2627,16 @@ begin
             if (FContentCodingHnd.HeaderText <> '') and (FRequestType <> httpHEAD) then
                 Headers.Add('Accept-Encoding: ' + FContentCodingHnd.HeaderText);
         {$ENDIF}
-            if (FRequestType in [httpPOST, httpPUT, httpPATCH]) and   { V8.06 } 
+            if (FRequestType in [httpPOST, httpPUT, httpPATCH]) and   { V8.06 }
                (FContentPost <> '') then
                 Headers.Add('Content-Type: ' + FContentPost);
-            {if ((method = 'PUT') or (method = 'POST')) and (FContentPost <> '') then
-                Headers.Add('Content-Type: ' + FContentPost);}
         end;
         if FAgent <> '' then
             Headers.Add('User-Agent: ' + FAgent);
         if (FTargetPort = '80') or (FTargetPort = '443') or (FTargetPort = '') then { V8.05 }
-            Headers.Add('Host: ' + FTargetHost)
+            Headers.Add('Host: ' + AHost)    { V8.64 A-Label }
         else
-            Headers.Add('Host: ' + FTargetHost + ':' + FTargetPort);
+            Headers.Add('Host: ' + AHost + ':' + FTargetPort);   { V8.64 A-Label }
         if FNoCache then begin
             if Version = '1.0' then
                 Headers.Add('Pragma: no-cache')
@@ -2639,7 +2648,7 @@ begin
         if (Method = 'CONNECT') then                                   // <= 12/29/05 AG
             Headers.Add('Content-Length: 0')                           // <= 12/29/05 AG}
         else begin  { V7.05 begin }
-            if FRequestType in [httpPOST, httpPUT, httpPATCH] then begin   { V8.06 } 
+            if FRequestType in [httpPOST, httpPUT, httpPATCH] then begin   { V8.06 }
             {$IFDEF UseNTLMAuthentication}
                 if (FAuthNTLMState = ntlmMsg1) or
                    (FProxyAuthNTLMState = ntlmMsg1) then
@@ -3128,6 +3137,8 @@ begin
               Inc(nSep);
         Data  := Copy(FLastResponse, nSep, Length(FLastResponse));
         if Field = 'location' then begin { Change the URL ! }
+       { V8.64 Location is A-Label (Punycode ASCII with ACE xn--), leave it alone
+           and only convert to Unicode for the read only Location property }
             if Copy(Data, 1, 2) = '//' then         { V7.22 }
                 Data := FProtocol + ':' + Data;     { V7.22 }
             if FRequestType in [httpPUT, httpPATCH] then begin   { V8.06 }
@@ -3152,6 +3163,8 @@ begin
                     if Data[1] = '/' then begin
                         { Absolute location }
                         ParseURL(FPath, proto, user, pass, Host, port, Path);
+                    { V8.64 need Unicode for SSL }
+                        Host := IcsIDNAToUnicode(Host);
                         if Proto = '' then
                             Proto := 'http';
                         FLocation := Proto + '://' + Host + Data;
@@ -3173,6 +3186,8 @@ begin
                     end
                     else begin
                         ParseURL(Data, proto, user, pass, Host, port, Path);
+                    { V8.64 need Unicode for SSL }
+                        Host := IcsIDNAToUnicode(Host);
                         if port <> '' then
                             FPort := port
                         else begin
@@ -3221,7 +3236,7 @@ begin
                         FPath     := Data;
                         if Proto = '' then
                             Proto := 'http';
-                        FLocation := Proto + '://' + FHostName + FPath;
+                        FLocation := Proto + '://' + FHostName + FPath;  { Unicode }
                     end
                     else if (CompareText(Copy(Data, 1, 7), 'http://') <> 0)
                             and     { 05/02/2005 }
@@ -3235,6 +3250,8 @@ begin
                     end
                     else begin
                         ParseURL(Data, proto, user, pass, FHostName, port, FPath);
+                    { V8.64 need Unicode for SSL }
+                        FHostName := IcsIDNAToUnicode(FHostName);
                         if port <> '' then
                             FPort := port
                         else begin
@@ -3389,6 +3406,7 @@ begin
     FRespExpires      := 0;   { V8.61 }
     FRespAge          := -1;  { V8.61 }
     FRespCacheControl := '';  { V8.61 }
+    FPunyCodeHost     := '';  { V8.64 }
 {$IFDEF UseContentCoding}
     FContentEncoding  := '';
 {$ENDIF}
@@ -3477,7 +3495,7 @@ begin
 {$ENDIF}
                 FTargetPort := '80';
         end;
-        FPath       := FURL;
+    //    FPath       := FURL;  not used
         FDocName    := Path;
         if User <> '' then
             FCurrUserName := User;
@@ -3487,6 +3505,8 @@ begin
         { but preserve the port                                               }
         if Port <> '' then
             Port := ':' + Port;
+      { V8.64 for proxy use complete URL as path, converting IDN host to A-Label }
+        Host := IcsIDNAToASCII(Host);
         if Proto = '' then
             FPath := 'http://'+ Host + Port + Path
         else
@@ -3526,6 +3546,7 @@ begin
 
     AdjustDocName;
 
+ { host and port we'll connect to, Unicode }
     FHostName   := Host;
     FPort       := Port;
 
@@ -3996,13 +4017,6 @@ begin
         {$ENDIF}
             if not (FProxyAuthBasicState in [basicNone, basicDone]) then
                 FProxyAuthBasicState := basicDone;
-            // 12/27/05 AG begin, reset some more defaults
-            FCurrProxyConnection := '';
-            (*if FRequestVer = '1.0' then
-                FCloseReq := TRUE
-            else
-                FCloseReq := FALSE; *)
-            // 12/27/05 AG end
 
     {$IFNDEF NO_DEBUG_LOG}
             if CheckLogOptions(loProtSpecInfo) then  { V1.91 } { replaces $IFDEF DEBUG_OUTPUT  }
@@ -4058,26 +4072,12 @@ begin
         Exit;
     end;
 
-{ 26/11/2003: next 2 lines commented out to allow receiving data outside }
-{ of any request (server push)                                           }
-{    if FState <> httpWaitingHeader then
-        Exit;   }{ Should never occur ! }
-
     while FReceiveLen > 0 do begin
-//        I := Pos(#10, FReceiveBuffer);
         I := 0;                                                   // FP 09/09/06
         while (I <= FReceiveLen) and (Ord(FReceiveBuffer[I]) <> 10) do // FP 09/09/06
             Inc(I);                                               // FP 09/09/06
-
-//      if I <= 0 then
-//            break;
         if I > FReceiveLen then
             break;
-
-//      if (I > 1) and (FReceiveBuffer[I-2] = #13) then
-//          FLastResponse := Copy(FReceiveBuffer, 1, I - 2)
-//      else
-//          FLastResponse := Copy(FReceiveBuffer, 1, I - 1);
         if I = 0 then                                             // FP 09/09/06
             SetLength(FLastResponse, 0)                           // FP 09/09/06
         else begin                                                // FP 09/09/06
@@ -4096,10 +4096,7 @@ begin
 {$ENDIF}
         FReceiveLen := FReceiveLen - I - 1;                               // FP 09/09/06
         if FReceiveLen > 0 then begin
-//          Move(FReceiveBuffer[I], FReceiveBuffer[0], FReceiveLen + 1);
             IcsMoveTBytes(FReceiveBuffer, I + 1, 0, FReceiveLen);  // FP 09/09/06
-            // Debugging purpose only
-            //FillChar(FReceiveBuffer[FReceiveLen], I + 1, '*');
         end
         else if FReceiveLen < 0 then                           // AG 03/19/07
             FReceiveLen := 0;                                  // AG 03/19/07

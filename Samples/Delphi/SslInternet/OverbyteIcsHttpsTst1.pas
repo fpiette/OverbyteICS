@@ -6,10 +6,10 @@ Description:  A simple  HTTPS SSL Web Client Demo client.
               Make use of OpenSSL (http://www.openssl.org).
               Make use of freeware TSslHttpCli and TSslWSocket components
               from ICS (Internet Component Suite).
-Version:      8.63
+Version:      8.64
 EMail:        francois.piette@overbyte.be         http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2003-2019 by François PIETTE
+Legal issues: Copyright (C) 2003-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -92,6 +92,10 @@ Jul 25, 2019 V8.82 Removed DH file, only for servers.
              Support ProxyURL which combines four proxy options into single URL.
              SslAlpnProto replaced SslGetAlpnProto.
 Oct 25, 2019 V8.63 Unwrap certificate fields for List Cert Store.
+Mar 12, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+                     i.e. using accents and unicode characters in domain names.
+                   Only change here is to report A-Label domain looked up by DNS.
+
 
 
 // pending add persistent cookie support, and gzip content encoding
@@ -137,10 +141,10 @@ uses
 
 
 const
-     HttpsTstVersion     = 862;
-     HttpsTstDate        = 'June 10, 2019';
+     HttpsTstVersion     = 864;
+     HttpsTstDate        = 'March 12, 2020';
      HttpsTstName        = 'HttpsTst';
-     CopyRight : String  = ' HttpsTst (c) 2005-2019 Francois Piette V8.62 ';
+     CopyRight : String  = ' HttpsTst (c) 2005-2020 Francois Piette V8.64 ';
      WM_SSL_NOT_TRUSTED  = WM_USER + 1;
 
 type
@@ -894,7 +898,7 @@ begin
     end
     else
         S := 'Connection failed to';
-    S := S + ': ' + SslHttpCli1.Hostname + ' (' +
+    S := S + ': ' + String(SslHttpCli1.PunyCodeHost) + ' (' +
                 IcsFmtIpv6Addr(SslHttpCli1.AddrResolvedStr) + ')';
     Display(S);
 end;

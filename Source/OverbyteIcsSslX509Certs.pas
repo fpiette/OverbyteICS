@@ -427,7 +427,7 @@ SANMaxHosts: 250 at 60.2 GBP/year each
 Predicted Approval Duration: 3 hours
 
 
-Only certifcates showing DV Methods as FILE or DNS can use automated challenges,
+Only certificates showing DV Methods as FILE or DNS can use automated challenges,
 EMAIL will need a manual response but collection will be automatic.  Organisation
 and Extended validation (OV and EV) are processed manually.  ECC means that
 EC private keys are supported.  WC means wild card, SAN is multiple domain names.
@@ -693,7 +693,11 @@ Nov 12, 2019 - V8.63 - OpenAccount will now create a new account correctly.
                        Added LastError to try and keep the last real order error.
                        Expire and remove challenges from the database after 24 hours
                          or a week for manual/email/dns.
-Feb 07, 2020 - V8.64 - Fixed bug that stopped new orders after a successful one
+Mar 11, 2020 - V8.64 - Added support for International Domain Names for Applications (IDNA),
+                         i.e. using accents and unicode characters in domain names.
+                       X509 certificates always have A-Lavels (Punycode ASCII) domain names,
+                        never UTF8 or Unicode.   IDNs are converted back to Unicode
+                       Fixed bug that stopped new orders after a successful one
                          saying no more today, due to date not being cleared.
                        Allow use of EC keys for ACME account, not sure they work yet.
                        Added sanity check for private key type and check private
@@ -701,7 +705,11 @@ Feb 07, 2020 - V8.64 - Fixed bug that stopped new orders after a successful one
                        With automatic order completion don't report errors if the
                          challenges are not actually started, may take several minutes
                          for manual DNS updating.
-                       Fixed several typos, sorry.   
+                       The onChallengeDNS/Email/FTP events have an extra parameter
+                         ChlgOK which the application should set once the challenge
+                         have been set-up, so the component can stop if necessary.
+                         Sorry, this requires application changes.  
+                       Fixed several literal typos, sorry.
 
 
 Pending real soon - ACME challenge tokens remain valid for a week so don't need
@@ -872,7 +880,8 @@ type
         URL: string ;
     end;
 
-    TChallengeEvent = procedure (Sender: TObject; ChallengeItem: TChallengeItem) of object;
+    TChallengeEvent = procedure (Sender: TObject; ChallengeItem:
+                         TChallengeItem; var ChlgOK: Boolean) of object;   { V8.64 added ChlgOK }
 
 (*
 { Acme V2
@@ -1848,7 +1857,7 @@ begin
         Exit;
     end;
 
-    LogEvent({RFC3339_DateToStr(Now) + } 'Challenge Web Request, Host: ' + Host + ', Path: ' + Path + ', Params: ' + Params);
+    LogEvent('Challenge Web Request, Host: ' + Host + ', Path: ' + Path + ', Params: ' + Params);
  //   FullURL := 'http://' + Host + Path;
     RespData := '';
 
@@ -1856,7 +1865,7 @@ begin
     if ( FChallengesTot > 0) and (Pos ('/.well-known/', Path) = 1) and
                                          (Length(FChallengeItems) > 0) then begin
         for I := 0 to Length(FChallengeItems) - 1 do begin
-            if FChallengeItems [I].CDomain = IcsLowerCase(Host) then begin  // was it for our domain
+            if (FChallengeItems [I].CDomain = Host) then begin  // was it for our domain
                 with FChallengeItems [I] do begin
 
                  // check it our page requested - beware need forward slashes
@@ -2349,7 +2358,7 @@ begin
         end;
         OldWorkDir := ReadString (section, 'DirCertWork', '') ;
         if (OldWorkDir <> '') and (CompareText(OldWorkDir, WorkDir) <> 0) then begin
-            LogEvent('Certifcate Work Directory, Expected ' + WorkDir + ' but found ' + OldWorkDir);
+            LogEvent('Certificate Work Directory, Expected ' + WorkDir + ' but found ' + OldWorkDir);
             Exit;
         end;
         if UseStoredProps then begin
@@ -3319,7 +3328,7 @@ end;
 function TSslX509Certs.SaveCertificateFiles(const CertName: string): Boolean;
 var
     P12KeyCipher: TSslPrivKeyCipher;
-    P12Password: String;
+    P12Password, FDir: String;
     I: Integer;
 
     function SaveAllCerts: Boolean;
@@ -3514,10 +3523,15 @@ begin
     if (FPartFNameServer.Count > 0) then begin
         LogEvent ('Saving Final Versions Of All Files Without Order Numbers on Server');
         for I := 0 to FPartFNameServer.Count - 1 do begin
-            SetFullFileNames (FPartFNameServer[I]);
-            if NOT SaveAllCerts then begin
-                if NOT SaveAllCerts then SaveAllCerts;  // two repeats
-            end;
+            FDir := FPartFNameServer[I];
+            if (Pos ('\\', FDir) = 1) or (Pos (':', FDir) = 2) then begin  { V8.64 }
+                SetFullFileNames (FDir);
+                if NOT SaveAllCerts then begin
+                    if NOT SaveAllCerts then SaveAllCerts;  // two repeats
+                end;
+            end
+            else
+                LogEvent ('Skipped Copying, Bad Directory: ' + FDir);
         end;
     end;
     LogEvent('Finished Collecting and Saving Certificate for ' + CertName + IcsCRLF + IcsCRLF);
@@ -3530,14 +3544,14 @@ function TSslX509Certs.RedistribteFiles: Boolean;
 begin
     Result := False;
     if (fCertCommonName = '') then begin
-        LogEvent('Must Specify Domain Common Name for Certifcate');
+        LogEvent('Must Specify Domain Common Name for Certificate');
         Exit;
     end;
 
  // read internal variables and public properties from database, so same as order
     if NOT DBReadCNDomain(fCertCommonName, True) then Exit;
     if FIssueState < IssStateCollect then begin
-        LogEvent('Certifcate Order Must Be Completed First');
+        LogEvent('Certificate Order Must Be Completed First');
         Exit;
     end;
     LogEvent ('Redistributing Old Certificate');
@@ -3850,9 +3864,15 @@ begin
     FHttpRest.RestParams.Clear;
     FHttpRest.RestParams.PContent := PContUrlencoded;
     FHttpRest.RestParams.AddItem('ProductCode', FSuppCertProduct, False);
-    FHttpRest.RestParams.AddItem('CommonName', FCertCommonName, False);
-    if FCertSANTot > 1 then
-        FHttpRest.RestParams.AddItem('DNSNames', FCertSANs.CommaText, False);
+    FHttpRest.RestParams.AddItem('CommonName', IcsIDNAToASCII(FCertCommonName), False);  { V8.64 }
+    if FCertSANTot >= 1 then begin
+        S := '';
+        for I := 0 to FCertSANTot - 1 do begin   { V8.64 }
+            if I > 0 then S := S + ',';
+            S := S + IcsIDNAToASCII(FCertSANs[I]);
+        end;
+        FHttpRest.RestParams.AddItem('DNSNames', S, False);   { V8.64 }
+    end;
     if NOT CCGetRequest (HttpGET, 'ApproverList') then exit ;
     DumpJson;
 (* {"DomainApprovers":
@@ -3925,7 +3945,7 @@ begin
 
 // initial set-up
     if (FCertCommonName = '') then begin
-        LogEvent('Must Specify Domain Common Name for Certifcate');
+        LogEvent('Must Specify Domain Common Name for Certificate');
         Exit;
     end;
     if (FSuppCertProduct = '') then begin
@@ -4058,9 +4078,10 @@ var
     SigHash, AuthMethod, Partnerorderid, OrderDT: string ;
     JsonItems, JsonOrderParam, JsonContact, JsonOrg, JsonAddr: ISuperObject;
     SANArray, DomAppArray: ISuperObject;
-    HashMd5, HashSha256, UniqueValue: string;
+    HashMd5, HashSha256, UniqueValue, ALabel: string;
     I, PeriodMonths: Integer;
     CurChallenge: TChallengeItem;
+    ChlgOK: Boolean;  { V8.64 }
 
     function SaveFileChallg (FileAuth: ISuperObject): boolean;
     var
@@ -4131,13 +4152,17 @@ var
 
         // FTP handled by application
            if (CurChallenge.CType = ChallFileFtp) then begin
-                CurChallenge.CWKFullName := FDirCertWork + CurChallenge.CPage;
-                LogEvent ('Built domain validation file name: ' + CurChallenge.CWKFullName + ', saving token: ' + CurChallenge.CResp);
-                if NOT SaveDataFile (CurChallenge.CWKFullName, CurChallenge.CResp) then Exit ;
-                LogEvent ('!!! Must FTP Challege File to .Well-Known Directory: ' + CurChallenge.CWKFullName);
+                ChlgOK := False;  { V8.64 is challege set-up OK }
                 if Assigned(FonChallengeFTP) then begin
-                    FonChallengeFTP(Self, CurChallenge);
-                    Result := True;
+                    CurChallenge.CWKFullName := FDirCertWork + CurChallenge.CPage;
+                    LogEvent ('Built domain validation file name: ' + CurChallenge.CWKFullName + ', saving token: ' + CurChallenge.CResp);
+                    if NOT SaveDataFile (CurChallenge.CWKFullName, CurChallenge.CResp) then Exit ;
+                    LogEvent ('!!! Must FTP Challege File to .Well-Known Directory: ' + CurChallenge.CWKFullName);
+                    FonChallengeFTP(Self, CurChallenge, ChlgOK);
+                end;
+                if NOT ChlgOK then begin
+                    LogEvent ('FTP Challenge Setup Failed');
+                    Exit;
                 end;
             end;
 
@@ -4199,6 +4224,10 @@ var
                 exit ;
             end;
         end;
+        if NOT Assigned(FOnChallengeDNS) then begin
+            LogEvent ('DNS Challenge Setup Failed');
+            Exit;
+        end;
         for I := 0 to TotDom - 1 do begin
             CurChallenge.CDomain := FQDNs.AsArray.S[I];
             CurChallenge.CSanIdx := DBFindSAN(CurChallenge.CDomain);
@@ -4206,11 +4235,16 @@ var
                 CurChallenge.CSanIdx := 0;
                 LogEvent('!!! Failed to Find Sub Alt Name for ' + CurChallenge.CDomain);
             end;
-            CurChallenge.CPage :=  CurChallenge.CDomain;
+            CurChallenge.CPage := IcsIDNAToASCII(CurChallenge.CDomain);  { V8.64 }
             CurChallenge.CDNSValue := CurChallenge.ChallgToken;
             LogEvent ('!!! Add DNS ' + CurChallenge.CAuthzURL + ' Record for: ' + CurChallenge.CPage + ', with: ' + CurChallenge.CDNSValue);
             LogEvent ('!!! Example: ' + CurChallenge.ChallengeURL);
-            if Assigned(FOnChallengeDNS) then FOnChallengeDNS(Self, CurChallenge);
+            ChlgOK := False;  { V8.64 is challege set-up OK }
+            FOnChallengeDNS(Self, CurChallenge, ChlgOK);
+           if NOT ChlgOK then begin
+                LogEvent ('DNS Challenge Setup Failed');
+                Exit;
+            end;
 
          // update SANs
             FCertSubAltNames[CurChallenge.CSanIdx].SAIssueState := CurChallenge.CIssueState;
@@ -4234,7 +4268,7 @@ begin
         Exit;
     end;
     if (FSuppCertProduct = '') then begin
-        LogEvent ('Must specify certifcate product to place order');
+        LogEvent ('Must specify certificate product to place order');
         Exit;
     end;
 
@@ -4349,7 +4383,7 @@ begin
         DBWriteCNDomain;
 
      // step five  real order
-        LogEvent (IcsCRLF + 'Ordering ' + FSuppCertProduct + ' certifcate from CertCentre');
+        LogEvent (IcsCRLF + 'Ordering ' + FSuppCertProduct + ' certificate from CertCentre');
         FHttpRest.RestParams.Clear;
         FHttpRest.RestParams.PContent := PContJson;
         JsonOrderParam := SO(['CSR', fCSRLines, 'ProductCode', FSuppCertProduct,
@@ -4362,8 +4396,9 @@ begin
             DomAppArray := SA([]);
             for I := 0 to FCertSubAltNames.Count - 1 do begin
              //   if FCertSubAltNames[I].SADomain = FCertCommonName then Continue;
-                SANArray.S[''] := FCertSubAltNames[I].SADomain;
-                DomAppArray.O[''] := SO(['Domain', FCertSubAltNames[I].SADomain,
+                ALabel := IcsIDNAToASCII(FCertSubAltNames[I].SADomain);  { V8.64 }
+                SANArray.S[''] := ALabel;
+                DomAppArray.O[''] := SO(['Domain', ALabel,
                       'Approvers', '[' + FCertSubAltNames[I].SAApprovalEmail + ']' ]);
             end;
             JsonOrderParam.O['SubjectAltNames'] := SANArray;
@@ -4476,7 +4511,7 @@ begin
         FSuppOrderId := FHttpRest.ResponseJson.S['CertCenterOrderID'];  // very important !!
         OrderDT  := FHttpRest.ResponseJson.S['Timestamp'];
         Partnerorderid := FHttpRest.ResponseJson['OrderParameters'].S['PartnerOrderID'];
-        LogEvent ('Succesfully ordered ' + FSuppCertProduct + ' certifcate for ' + fCertCommonName +
+        LogEvent ('Succesfully ordered ' + FSuppCertProduct + ' certificate for ' + fCertCommonName +
                       ', CertCenterOrderID: ' + fSuppOrderId + ', at ' + OrderDT +
                                                           ', PartnerOrderID: ' + Partnerorderid);
 
@@ -4519,7 +4554,7 @@ begin
                 CurChallenge.CDomain := FCertCommonName;
                 CurChallenge.ChallengeURL := fCertApprovEmail;
                 CurChallenge.CSanIdx := 0;
-                if Assigned(FOnChallengeEmail) then FOnChallengeEmail(Self, CurChallenge);
+                if Assigned(FOnChallengeEmail) then FOnChallengeEmail(Self, CurChallenge, ChlgOK);
 
              // update SANs
                 FCertSubAltNames[CurChallenge.CSanIdx].SAIssueState := CurChallenge.CIssueState;
@@ -4941,7 +4976,7 @@ begin
     end;
     JsonOrder := FHttpRest.ResponseJson.O['OrderInfo'];
     OrderId := JsonOrder.S['CertCenterOrderID'];
-    CommonName := JsonOrder.S['CommonName'];
+    CommonName := IcsIDNAToUnicode(JsonOrder.S['CommonName']);   { V8.64 }
     MajorStatus := JsonOrder.S['OrderStatus.MajorStatus'];
     MinorStatus := JsonOrder.S['OrderStatus.MinorStatus'];
     Product := JsonOrder.S['OrderParameters.ProductCode'];
@@ -5202,7 +5237,7 @@ begin
             FNewSslCert.LoadFromPemFile (FFileFinalCert) ;
         except
             on E:Exception do begin
-                LogEvent ('Failed to load certifcate file: ' + FFileFinalCert + ' - ' + E.Message);
+                LogEvent ('Failed to load certificate file: ' + FFileFinalCert + ' - ' + E.Message);
                 Exit ;
             end;
         end;
@@ -5232,7 +5267,7 @@ begin
     end;
     JsonOrder := FHttpRest.ResponseJson.O['OrderInfo'];
     OrderId := JsonOrder.S['CertCenterOrderID'] ;
-    CommonName := JsonOrder.S['CommonName'] ;
+    CommonName := IcsIDNAToUnicode(JsonOrder.S['CommonName']) ;   { V8.64 }
     if CommonName <> fCertCommonName then begin
         LogEvent ('Mismatch common name, found: ' +  CommonName);
         exit;
@@ -5705,7 +5740,7 @@ begin
 
 // initial set-up
     if (FCertCommonName = '') then begin
-        LogEvent('Must Specify Domain Common Name for Certifcate');
+        LogEvent('Must Specify Domain Common Name for Certificate');
         Exit;
     end;
     fAcmeOrderStatus := '';
@@ -5806,6 +5841,7 @@ var
     AuthMethod, ChallgStatus: string ;
     I, J: integer;
     CurChallenge: TChallengeItem;
+    ChlgOK: Boolean;  { V8.64 }
 begin
     Result := False;
     if (fAcmeKwkKid = '') then begin
@@ -5882,7 +5918,8 @@ begin
     // Acme V2 may have multiple host names, which will get separate challenges
         ArrayIdents := SA([]);
         for I := 0 to FCertSubAltNames.Count - 1 do begin
-            ArrayIdents.O[''] := SO (['type', 'dns', 'value', FCertSubAltNames[I].SADomain]);
+            ArrayIdents.O[''] := SO (['type', 'dns', 'value',
+                                IcsIDNAToASCII(FCertSubAltNames[I].SADomain)]); { V8/64 }
             FCertSubAltNames[I].SAIssueState := FIssueState;
             if FIssueState < IssStateChallgPend then begin
                 FCertSubAltNames[I].SAStartDT := 0;
@@ -6024,7 +6061,7 @@ Response (length 919)
            // ACME should have offered us several challenges with different types, we need to choose
            // one and start it, ignore the others
                 IdentsJson := FHttpRest.ResponseJson.O['identifier'];
-                CurChallenge.CDomain := IdentsJson.S['value'];
+                CurChallenge.CDomain := IcsIDNAToUnicode(IdentsJson.S['value']);  { V8.64 }
                 ChallgStatus := FHttpRest.ResponseJson.S['status'];
                 CurChallenge.ChallengeURL := '';
                 CurChallenge.CDirWellKnown := '';
@@ -6085,22 +6122,36 @@ Response (length 919)
                 // Acme create base64 SHA256 digest of CResp for
                 // ie  _acme-challenge.example.org. 300 IN TXT "gfj9Xq...Rg85nM"
                     if (CurChallenge.CType = ChallDNS) then begin
-                        CurChallenge.CPage :=  '_acme-challenge.' + CurChallenge.CDomain;
-                        CurChallenge.CDNSValue := String(IcsBase64UrlEncodeA
-                            (IcsHashDigest(AnsiString(CurChallenge.CResp), Digest_sha256)));
-                        LogEvent ('!!! Add DNS TXT Record for: ' + CurChallenge.CPage + ', with: ' + CurChallenge.CDNSValue);
-                        if Assigned(FOnChallengeDNS) then FOnChallengeDNS(Self, CurChallenge);
-                     // beware event may block waiting for manual update of DNS server
+                        ChlgOK := False;  { V8.64 is challege set-up OK }
+                        if Assigned(FOnChallengeDNS) then begin
+                            CurChallenge.CPage :=  '_acme-challenge.' + IcsIDNAToASCII(CurChallenge.CDomain);  { V8.64 }
+                            CurChallenge.CDNSValue := String(IcsBase64UrlEncodeA
+                                (IcsHashDigest(AnsiString(CurChallenge.CResp), Digest_sha256)));
+                            LogEvent ('!!! Add DNS TXT Record for: ' + CurChallenge.CPage + ', with: ' + CurChallenge.CDNSValue);
+                            FOnChallengeDNS(Self, CurChallenge, ChlgOK);
+                         // beware event may block waiting for manual update of DNS server
+                         end;
+                        if NOT ChlgOK then begin
+                            LogEvent ('DNS Challenge Setup Failed');
+                            Exit;
+                        end;
                     end;
 
                 // FTP handled by application
                     if (CurChallenge.CType = ChallFileFtp) then begin
-                        CurChallenge.CWKFullName := FDirCertWork + CurChallenge.CPage;
-                        LogEvent ('Built domain validation file name: ' +
-                                        CurChallenge.CWKFullName + ', saving token: ' + CurChallenge.CResp);
-                        if NOT SaveDataFile (CurChallenge.CWKFullName, CurChallenge.CResp) then Exit ;
-                        LogEvent ('!!! Must FTP Challege File to .Well-Known Directory for: ' + CurChallenge.CDomain);
-                        if Assigned(FonChallengeFTP) then FonChallengeFTP(Self, CurChallenge);
+                        ChlgOK := False;  { V8.64 is challege set-up OK }
+                        if Assigned(FonChallengeFTP) then begin
+                            CurChallenge.CWKFullName := FDirCertWork + CurChallenge.CPage;
+                            LogEvent ('Built domain validation file name: ' +
+                                            CurChallenge.CWKFullName + ', saving token: ' + CurChallenge.CResp);
+                            if NOT SaveDataFile (CurChallenge.CWKFullName, CurChallenge.CResp) then Exit ;
+                            LogEvent ('!!! Must FTP Challege File to .Well-Known Directory for: ' + CurChallenge.CDomain);
+                            FonChallengeFTP(Self, CurChallenge, ChlgOK);
+                        end;
+                        if NOT ChlgOK then begin
+                            LogEvent ('FTP Challenge Setup Failed');
+                            Exit;
+                        end;
                     end;
 
                 // V8.62 ALPN local or app server, create ACME certificate in working directory
@@ -6322,7 +6373,7 @@ Response xx
             if ValidJson <> Nil then begin
                 for J := 0 to ValidJson.AsArray.Length - 1 do begin // should only be one
                     RecJson := ValidJson.AsArray[J];
-                    if (RecJson.S['hostname'] = CDomain) then begin;
+                    if (IcsIDNAToUnicode(RecJson.S['hostname']) = CDomain) then begin  { V8.64 }
                         CValidResult := 'OK, URL: ' + RecJson.S['url'] +
                                   ', IP address ' +  RecJson.S['[addressUsed]'];
                         LogEvent('Challenge Validated: ' + CValidResult + '  for: ' + CDomain);
@@ -6392,7 +6443,7 @@ begin
     don't log errors if running from timer }
     if (fCertCommonName = '') or (FCertSubAltNames.Count = 0) then begin
         if LogErrors then  { V8.64 }
-            LogEvent('Must Specify Domain Common Name for Certifcate');
+            LogEvent('Must Specify Domain Common Name for Certificate');
         Exit;
     end;
  // read internal variables and public properties from database, so same as order
@@ -6587,7 +6638,7 @@ begin
         if Assigned(FOnNewCert) then FOnNewCert(Self);
 
     // see if closing account
-        if FAutoAccountClose then FPendAccountClose := True; { V8.63 } 
+        if FAutoAccountClose then FPendAccountClose := True; { V8.63 }
 
         Result := True;
     except
@@ -6618,7 +6669,7 @@ begin
             FNewSslCert.LoadFromPemFile (fFileCertPem) ;
         except
             on E:Exception do begin
-                LogEvent ('Failed to load certifcate file: ' + fFileCertPem + ' - ' + E.Message);
+                LogEvent ('Failed to load certificate file: ' + fFileCertPem + ' - ' + E.Message);
                 Exit ;
             end;
         end;
@@ -7188,7 +7239,7 @@ begin
 
 // initial set-up
     if (FCertCommonName = '') then begin
-        LogEvent('Must Specify Domain Common Name for Certifcate');
+        LogEvent('Must Specify Domain Common Name for Certificate');
         Exit;
     end;
     LogEvent('Creating Certificate Signed by Own CA Certificate for' + FCertCommonName) ;

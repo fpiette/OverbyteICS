@@ -10,11 +10,10 @@ Description:  This unit encapsulate the ICMP.DLL into an object of type TICMP.
               to change properties or event handler. This is much simpler to
               use for a GUI program.
 Creation:     January 6, 1997
-Version:      8.05
-EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2012 by François PIETTE
+Version:      8.64
+EMail:        http://www.overbyte.be       francois.piette@overbyte.be
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1997-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -78,7 +77,10 @@ Feb 20, 2013 V8.02 Angus - icmp.dll was replaced with iphlpapi.dll from Windows 
 Mai 03, 2013 V8.03 Arno included OverbyteIcsTypes.pas to make it compile with Delphi 7
 Sep 29, 2013 V8.04 Angus convert PingMsg to ANSI before sending it
 Apr 17, 2014 V8.05 Angus don't call WSACleanup unless WSAStartup called, thanks to spanfkyous@163.com
+Mar 10, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+                     PunycodeHost returns name lookuped up.
 
+Note Async ping still does not work, not looked into it yet, use threaded ping instead                     
 
 API History
 IcmpSendEcho - Windows 95 and later - sync
@@ -137,8 +139,8 @@ uses
 {$ENDIF FMX}
 
 const
-  IcmpVersion = 8.05;
-  CopyRight : String   = ' TICMP (c) 1997-2014 F. Piette V8.05 ';
+  IcmpVersion = 8.64;
+  CopyRight : String   = ' TICMP (c) 1997-2020 F. Piette V8.64 ';
   IcmpDLL     = 'icmp.dll';
   IphlpapiDLL = 'iphlpapi.dll';     { V8.02 }
 
@@ -469,6 +471,7 @@ type
     FLastError :      DWORD;                      // After sending ICMP packet
     FLastErrStr :     String;                     // Last error string if Result=0 V8.02
     FAddrResolved :   Boolean;
+    FPunycodeHost :   String;                    { V8.64 }
     procedure ResolveAddr;
     procedure ParseReply;
     function    InternalPing (Async: boolean): Integer;  { V8.02 }
@@ -500,6 +503,7 @@ type
     property LastErrStr    : String         read  FLastErrStr;                       { V8.02 }
     property HostName      : String         read  FHostName;
     property HostIP        : String         read  FHostIP;
+    property PunycodeHost  : String         read  FPunycodeHost;                     { V8.64 }
     property ICMPDLLHandle : HModule        read  hICMPdll;
     property ReplyIP       : String         read  FReplyIP;                          { V8.02 }
     Property ReplyRTT      : Integer        read  FReplyRTT;                         { V8.02 }
@@ -608,10 +612,12 @@ end;
 procedure TICMP.ResolveAddr;
 var
     flag: boolean;
+    ErrFlag: Boolean;
     LSocketFamily: TSocketFamily;
 begin
     FAddrResolved := FALSE;
     FSrcIPAddr := 0;
+    FPunycodeHost := '';
     FillChar(FSrcIPAddr6, SizeOf(FSrcIPAddr6), 0);
     FAddress := IcsTrim(FAddress);
     if Length(FAddress) = 0 then begin
@@ -642,9 +648,16 @@ begin
 
     // need a DNS lookup of host name, might return IPv4 or IPv6 address
     else begin
+        FPunycodeHost := IcsIDNAToASCII(IcsTrim(FAddress), False, ErrFlag);
+        if ErrFlag then begin
+            FPunycodeHost := '';
+            FLastErrStr := 'Invalid host name: ' + FAddress;
+            raise TICMPException.Create(FLastErrStr);
+        end;
+
         { The next line will trigger an exception in case of failure }
         try
-            WSocketResolveHost(FAddress, FIPAddress6, FSocketFamily, IPPROTO_TCP);
+            WSocketResolveHost(FPunycodeHost, FIPAddress6, FSocketFamily, IPPROTO_TCP);
             if FIPAddress6.sin6_family <> PF_INET6 then begin
                 FSocketFamily := sfIPv4 ;
                 FIPAddress := PSockAddrIn(@FIPAddress6)^.sin_addr.S_addr ;

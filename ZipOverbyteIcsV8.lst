@@ -535,6 +535,7 @@ Source\OverbyteIcsZLibDll.pas
 Source\OverbyteIcsZLibObj.pas
 Source\OverbyteIcsZlibHigh.pas
 Source\OverbyteIcsWinCrypt.pas
+Source\OverbyteIcsWebSockets.pas
 
 Source\OverbyteIcsBlacklist.dcr
 Source\OverbyteIcsBlacklist.pas
@@ -2214,6 +2215,13 @@ Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.dproj
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst.res
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst1.pas
 Samples\Delphi\SslInternet\OverbyteIcsIpStmLogTst1.dfm
+
+Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.dof
+Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.dpr
+Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.dproj
+Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.res
+Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.dfm
+Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsXferTst.dof
 Samples\Delphi\SslInternet\OverbyteIcsXferTst.dpr

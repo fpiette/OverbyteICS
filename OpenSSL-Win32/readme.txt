@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------
-OpenSSL v1.1.1d Win32 for ICS, http://www.overbyte.be
+OpenSSL v1.1.1e Win32 for ICS, http://www.overbyte.be
 -----------------------------------------------------------------------
 
 Only supports Windows Vista/Server 2008, and later, not Windows XP.
@@ -9,8 +9,8 @@ Developer, François PIETTE', the lead developer for ICS.  ICS V8.38 and
 later check the DLLs are correctly signed when opening them.  Beware
 that Windows needs recent root certificates to check newly signed code,
 and may give an error if the root store has not been kept current by
-Windows Update, particularly on older versions of Windows such as XP,
-Vista and 7.
+Windows Update, particularly on older versions of Windows such as Vista,
+7 and Windows 2008.
 
 Built with:
                   Visual Studio Build Tools 2017

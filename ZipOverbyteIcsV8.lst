@@ -2242,8 +2242,8 @@ Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.dof
 Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.dpr
 Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.dproj
 Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.res
-Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.dfm
-Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.pas
+Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv1.dfm
+Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv1.pas
 
 Samples\Delphi\SslInternet\OverbyteIcsXferTst.dof
 Samples\Delphi\SslInternet\OverbyteIcsXferTst.dpr

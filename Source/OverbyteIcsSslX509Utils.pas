@@ -111,7 +111,7 @@ Aug 07, 2019 V8.62  Added literals for various types to assist apps.
 Oct 24, 2019 V8.63 Added 'Starfield Services Root Certificate Authority - G2'
                (used by Amazon buckets), and 'Amazon Root CA 1', CA 2, CA 3,
                CA 4 which are replacing Starfield.  Removed expired certs.
-Mar 12, 2020 V8.64 DoKeyPair raises exception for unknown key type.
+Mar 27, 2020 V8.64 DoKeyPair raises exception for unknown key type.
               CreateSelfSignedCert ignored Days and always created 7 day expiry.
               Added support for International Domain Names for Applications (IDNA),
                 i.e. using accents and unicode characters in domain names.
@@ -2264,7 +2264,7 @@ end;
 function TSslCertTools.BuildAltStack(AltType: Integer; Names: TStrings; PunyFlag: Boolean): PStack;
 var
     I, Tot: Integer;
-    ErrFlag: Boolean;
+    ErrFlag, CheckFlag: Boolean;
 begin
     result := f_OPENSSL_sk_new_null;
     Tot := Names.Count;
@@ -2277,8 +2277,10 @@ begin
         if NOT Assigned(FAltGenStr[I]) then Exit;
         FAltIa5Str[I] := f_ASN1_STRING_new;
         if NOT Assigned(FAltIa5Str[I]) then Exit;
-        if PunyFlag then  { V8.64 see if convert domain name to A-Label }
-            FAltAnsiStr[I] := AnsiString(IcsIDNAToASCII(IcsTrim(Names[I]), True, ErrFlag))
+        if PunyFlag then begin  { V8.64 see if convert domain name to A-Label }
+            CheckFlag := (Pos('*', FCommonName) = 0);  // wild card will fail domain name check
+            FAltAnsiStr[I] := AnsiString(IcsIDNAToASCII(IcsTrim(Names[I]), CheckFlag, ErrFlag));
+        end
         else
             FAltAnsiStr[I] := AnsiString(trim(Names[I]));
         if FAltAnsiStr[I] <> '' then begin    { V8.50 skip blanks }
@@ -2381,7 +2383,7 @@ var
     SubjName  : PX509_NAME;
     Exts      : PSTACK_OF_X509_EXTENSION;
     AName     : String;  { V8.64 }
-    ErrFlag   : Boolean;
+    ErrFlag, CheckFlag : Boolean;
 begin
     InitializeSsl;
     if NOT Assigned(PrivateKey) then
@@ -2390,8 +2392,9 @@ begin
         raise ECertToolsException.Create('SHA3 hashes not supported');
 
     { V8.64 convert domain to A-Label (Punycode ASCII, validate for allowed characters }
-     AName := IcsIDNAToASCII(IcsTrim(FCommonName), True, ErrFlag);
-     if ErrFlag then
+    CheckFlag := (Pos('*', FCommonName) = 0);  // wild card will fail domain name check
+    AName := IcsIDNAToASCII(IcsTrim(FCommonName), CheckFlag, ErrFlag);
+    if ErrFlag then
         raise ECertToolsException.Create('Invalid Common Name, Illegal Characters');
 
     if Assigned(FNewReq) then f_X509_REQ_free(FNewReq);
@@ -2494,7 +2497,7 @@ var
     AltItems: String;
     TempList: TStringList;
     AName     : String;  { V8.64 }
-    ErrFlag   : Boolean;
+    ErrFlag, CheckFlag : Boolean;
 begin
     InitializeSsl;
     TempList := TStringList.Create;
@@ -2509,8 +2512,9 @@ begin
         end;
 
         { V8.64 convert domain to A-Label (Punycode ASCII, validate for allowed characters }
-         AName := IcsIDNAToASCII(IcsTrim(FCommonName), True, ErrFlag);
-         if ErrFlag then
+        CheckFlag := (Pos('*', FCommonName) = 0);  // wild card will fail domain name check
+        AName := IcsIDNAToASCII(IcsTrim(FCommonName), CheckFlag, ErrFlag);
+        if ErrFlag then
             raise ECertToolsException.Create('Invalid Common Name, Illegal Characters');
 
         if Assigned(FNewCert) then f_X509_free(FNewCert);

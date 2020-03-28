@@ -184,10 +184,10 @@ Nov 11, 2019  - V8.63 - The SMS Works sync delivery works OK, try and return
                            for Google, OAopAuthPrompt uses property LoginPrompt usually
                            'consent', OAopAuthAccess and RefreshOffline=True requests a
                            Refresh Token.
-Mar 11, 2020  - V8.64 - Added support for International Domain Names for Applications (IDNA),
+Mar 26, 2020  - V8.64 - Added support for International Domain Names for Applications (IDNA),
                          i.e. using accents and unicode characters in domain names.
                         Only  REST change here is to report A-Label domain looked up by DNS.
-                        SimpleWebSrv returns host: name in Unicode.   
+                        SimpleWebSrv returns host: name in Unicode.
                         Added more parameter content types: PContXML, PContBodyUrlEn,
                           PContBodyJson, PContBodyXML. The existing PContUrlEn and
                           PContJson now specify REST params are sent as URL ? arguments,
@@ -200,7 +200,9 @@ Mar 11, 2020  - V8.64 - Added support for International Domain Names for Applica
                         Verifying the SSL certificate chain with the Windows Store
                           works again.
                         TDnsQueryHttps component now uses strings and support IDNs.
+                        TSimpleWebSrv no longer processes ALPN, done in SocketServer.
 
+                        
 
 Pending - more documentation
 Pending - better SSL error handling when connections fail, due to too high security in particular.
@@ -511,7 +513,7 @@ type
     procedure CliSendPage(const Status, ContentType, ExtraHdr, BodyStr: String);
     procedure CliErrorResponse(const RespStatus, Msg: string);
     procedure CliDataAvailable(Sender: TObject; Error: Word);
-    procedure CliAlpnChallg(Sender: TObject; const Host: string; var CertFName: string);
+//    procedure CliAlpnChallg(Sender: TObject; const Host: string; var CertFName: string);
     procedure ParseReqHdr;
   end;
 
@@ -574,7 +576,7 @@ type
     property OnServerProg: THttpRestProgEvent       read  FOnServerProg
                                                     write FOnServerProg;
     property OnSimpWebSrvAlpn: TClientAlpnChallgEvent read  FOnSimpWebSrvAlpn
-                                                      write FOnSimpWebSrvAlpn; { V8.62 }
+                                                    write FOnSimpWebSrvAlpn; { V8.62 }
 
   end;
 
@@ -1922,11 +1924,11 @@ begin
                 SslSrvSecurity := sslSrvSecTls12Less;
                 SslCert := IcsTrim(FWebSrvCertBundle);
                 SslPassword := IcsTrim(FwebSrvCertPassword);
-                if Assigned(OnSimpWebSrvAlpn) then begin
+             {   if Assigned(FOnSimpWebSrvAlpn) then begin
                     CertSupplierProto := SuppProtoAcmeV2;
                     CertChallenge := ChallAlpnSrv;
-                    FWebServer.SslCertAutoOrder := true; 
-                end;
+                    FWebServer.SslCertAutoOrder := true;
+                end; }
             end;
             FWebServer.RootCA := FWebSrvRootFile;
             S := FWebServer.ValidateHosts(False, False);  // don't stop on error, might be self signed certs }
@@ -2030,7 +2032,7 @@ var
     Cli: TSimpleClientSocket;
 begin
     if Error <> 0 then begin
-        LogEvent({RFC3339_DateToStr(Now) +} 'Server listen connect error: ' + WSocketErrorDesc(Error));  { V8.63 }
+        LogEvent('Server listen connect error: ' + WSocketErrorDesc(Error));  { V8.63 }
         Client.Close;
         exit;
     end;
@@ -2042,7 +2044,7 @@ begin
     Cli.OnDataAvailable := Cli.CliDataAvailable;
     Cli.OnBgException := SocketBgException;
     Cli.OnSimpWebSrvReq := Self.FOnSimpWebSrvReq;
-    Cli.OnClientAlpnChallg := Cli.CliAlpnChallg;        { V8.62 }
+    Cli.OnClientAlpnChallg := Self.FOnSimpWebSrvAlpn; { V8.64 }
     Cli.Banner := '' ;
     Cli.RecvBufMax := 8096;  // only expecting a request header
     SetLength(Cli.RecvBuffer, Cli.RecvBufMax + 1);
@@ -2054,7 +2056,7 @@ procedure TSimpleWebSrv.ServerClientDisconnect(Sender: TObject;
                                  Client: TWSocketClient; Error: Word);
 begin
     if FDebugLevel >= DebugConn then
-        LogEvent({RFC3339_DateToStr(Now) +} 'Client Disconnected') ;
+        LogEvent('Client Disconnected') ;
 end;
 
 
@@ -2093,22 +2095,6 @@ begin
             '<H1>' + RespStatus + '</H1>' + Msg + '<P>' + IcsCRLF +
             '</BODY></HTML>' + IcsCRLF;
     CliSendPage(RespStatus, 'text/html', '', BodyStr);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSimpleClientSocket.CliAlpnChallg(Sender: TObject; const Host: string; var CertFName: string);    { V8.62 }
-begin
-    if Assigned(WebSrv.FOnSimpWebSrvAlpn) then begin
-        WebSrv.LogEvent ('Checking for tls-alpn-01 challenge Acme SSL certificate');
-        WebSrv.FOnSimpWebSrvAlpn(Self, Host, CertFName);
-        if (CertFName <> '') and FileExists(CertFName) then begin
-            WebSrv.LogEvent ('Loading tls-alpn-01 challenge certificate: ' + CertFName);
-        end
-        else begin
-            WebSrv.LogEvent ('Failed to find tls-alpn-01 challenge certificate: ' + CertFName);
-        end;
-    end
 end;
 
 

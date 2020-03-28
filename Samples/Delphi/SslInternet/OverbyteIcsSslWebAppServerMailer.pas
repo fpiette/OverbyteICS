@@ -69,8 +69,13 @@ uses
   {$ELSE}
     ExtCtrls,
   {$ENDIF}
-    OverbyteIcsWndControl, OverbyteIcsHttpAppServer, OverbyteIcsHttpSrv, OverbyteIcsWebSession,
-    OverbyteIcsUtils, OverbyteIcsWSocket, OverbyteIcsFormDataDecoder;
+    OverbyteIcsWndControl,
+    OverbyteIcsHttpAppServer,
+    OverbyteIcsHttpSrv,
+    OverbyteIcsWebSession,
+    OverbyteIcsUtils,
+    OverbyteIcsWSocket,
+    OverbyteIcsFormDataDecoder;
 
 type
 

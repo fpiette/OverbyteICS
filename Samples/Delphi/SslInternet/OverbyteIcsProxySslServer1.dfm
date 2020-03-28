@@ -136,13 +136,15 @@ object ProxySslServerForm: TProxySslServerForm
     OAWebSrvPort = '8080'
     PrivKeyCipher = PrivKeyEncNone
     PrivKeyType = PrivKeyRsa2048
+    AutoAccountClose = False
+    AccountTimeOutMins = 10
     SeqOrderNum = 0
+    SocketFamily = sfAny
     SuppCertChallenge = ChallNone
     SupplierProto = SuppProtoNone
     OnCertProg = IcsSslX509CertsCertProg
     OnNewCert = IcsSslX509CertsNewCert
     OnOAuthAuthUrl = IcsSslX509CertsOAuthAuthUrl
-    OnChallengeDNS = IcsSslX509CertsChallengeDNS
     Left = 390
     Top = 5
   end

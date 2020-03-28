@@ -66,7 +66,7 @@ Nov 11, 2019 - V8.63 OAuth2 progress log display got lost.
                      Added two Google Gmail API URLs to the drop down list.
                      OAuth has Prompt and Access Offline for Google to requests a
                        Refresh Token.
-Mar 12, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
+Mar 26, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
                        i.e. using accents and unicode characters in domain names.
                      Only change here is to report A-Label domain looked up by DNS.
                      Added XML response parsing into a ISuperOject which can be

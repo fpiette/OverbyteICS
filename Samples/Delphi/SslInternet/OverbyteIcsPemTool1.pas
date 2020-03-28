@@ -101,11 +101,12 @@ Apr 16, 2019 V8.61 Show certificate expiry and issue time as well as date.
 Jul  9, 2019 V8.62 Load several type lists from literals for future proofing.
                    Report ACME Identifier in certificate, if it exists.
 Oct 24, 2019 V8.63 Report certificate sha256 fingerprint as well as sha1
-Mar 10, 2020 V8.64  Added support for International Domain Names for Applications (IDNA),
+Mar 26, 2020 V8.64  Added support for International Domain Names for Applications (IDNA),
                      i.e. using accents and unicode characters in domain names.
                     X509 certificates always have A-Lavels (Punycode ASCII) domain names,
                       never UTF8 or Unicode.   IDNs are converted back to Unicode
-                      for display, but X509 subject remains as A-Labels.  
+                      for display, but X509 subject remains as A-Labels.
+                   Certificate chain validation changed to use TX509List.  
 
 
 
@@ -1429,6 +1430,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.doCheckBundleSelfClick(Sender: TObject);
 var
+    CAList: TX509List;       { V8.64 }
     CertStr, ErrStr: string;
     ValRes: TChainResult;
 begin
@@ -1440,14 +1442,16 @@ begin
         DispError('Must load or create a private key first');
         exit;
     end;
-    FSslCertTools.LoadCATrustFromString(sslRootCACertsBundle);  { trusted root }
-    ValRes := FSslCertTools.ValidateCertChain('', CertStr, ErrStr);   
+    CAList := TX509List.Create(Self);      { V8.64 }
+    CAList.LoadAllFromString(sslRootCACertsBundle);  { V8.64 trusted root so we check chain }
+    ValRes := FSslCertTools.ValidateCertChain('', CAList, CertStr, ErrStr);
     if ValRes = chainOK then
         ErrStr := 'Chain Validated OK'
     else if ValRes = chainWarn then
         ErrStr := 'Chain Warning - ' + ErrStr
     else
         ErrStr := 'Chain Failed - ' + ErrStr;
+    CAList.Destroy;
     DispError(ErrStr);
 end;
 

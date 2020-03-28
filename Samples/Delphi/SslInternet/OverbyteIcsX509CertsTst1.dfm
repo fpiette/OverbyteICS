@@ -3,7 +3,7 @@ object X509CertsForm: TX509CertsForm
   Top = 0
   Caption = 
     'ICS Automatically Download SSL X509 Certificates Development Dem' +
-    'o - http://www.overbyte.be - V8.64 - 11th March 2020'
+    'o - http://www.overbyte.be - V8.64 - 27th March 2020'
   ClientHeight = 637
   ClientWidth = 1024
   Color = clBtnFace
@@ -34,15 +34,11 @@ object X509CertsForm: TX509CertsForm
     Top = 0
     Width = 1024
     Height = 261
-    ActivePage = TabDomain
+    ActivePage = TabCommon
     Align = alTop
     TabOrder = 1
     object TabCommon: TTabSheet
       Caption = 'Common'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label3: TLabel
         Left = 600
         Top = 10
@@ -116,7 +112,7 @@ object X509CertsForm: TX509CertsForm
         Top = 25
         Width = 176
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 4
         Text = '0.0.0.0'
       end
@@ -877,7 +873,7 @@ object X509CertsForm: TX509CertsForm
         Width = 251
         Height = 22
         Style = csDropDownList
-        ItemHeight = 14
+        ItemHeight = 0
         ItemIndex = 1
         TabOrder = 3
         Text = 'RSA 2,048 bits (level 2 - 112 bits) '
@@ -976,7 +972,7 @@ object X509CertsForm: TX509CertsForm
         Top = 100
         Width = 187
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         ItemIndex = 0
         TabOrder = 10
         Text = 'Manual'

@@ -536,6 +536,9 @@ Source\OverbyteIcsZLibObj.pas
 Source\OverbyteIcsZlibHigh.pas
 Source\OverbyteIcsWinCrypt.pas
 Source\OverbyteIcsWebSockets.pas
+Source\OverbyteIcsWMI.pas
+Source\WbemScripting_TLB.dcr
+Source\WbemScripting_TLB.pas
 
 Source\OverbyteIcsBlacklist.dcr
 Source\OverbyteIcsBlacklist.pas
@@ -1719,6 +1722,13 @@ Samples\Delphi\OtherDemos\OverbyteIcsTimeTst.res
 Samples\Delphi\OtherDemos\OverbyteIcsTimeTst1.pas
 Samples\Delphi\OtherDemos\OverbyteIcsTimeTst1.dfm
 
+Samples\Delphi\OtherDemos\OverbyteIcsWmiTst.dof
+Samples\Delphi\OtherDemos\OverbyteIcsWmiTst.dpr
+Samples\Delphi\OtherDemos\OverbyteIcsWmiTst.dproj
+Samples\Delphi\OtherDemos\OverbyteIcsWmiTst.res
+Samples\Delphi\OtherDemos\OverbyteIcsWmiTst1.pas
+Samples\Delphi\OtherDemos\OverbyteIcsWmiTst1.dfm
+
 Samples\Delphi\PlatformDemos\xSamples.groupproj
 
 Samples\Delphi\PlatformDemos\IcsBatchDnsLookup.dpr
@@ -2150,7 +2160,19 @@ Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.ini
 Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ.res
 Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebServ1.pas
-Samples\Delphi\SslInternet\OverbyteIcsWebAppServerUploads.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebUploads.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebConfig.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebCounter.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebCounterView.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebDataModule.dfm
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebDataModule.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebHead.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebHelloWorld.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebHomePage.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebHttpHandlerBase.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebLogin.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebSessionData.pas
+Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebUrlDefs.pas
 Samples\Delphi\SslInternet\OverbyteIcsSslMultiWebMailer.pas
 Samples\Delphi\SslInternet\hackfilterlist.txt
 Samples\Delphi\SslInternet\whiteiplist.txt

@@ -185,12 +185,12 @@ Jun 19, 2019 V8.62 Added IcsGetLocalTZBiasStr get time zone bias as string, ie -
                       bias and adjust result if UseTZ=True from UTC to local time.
 Nov 7, 2018  V8.63 Better error handling in RFC1123_StrToDate to avoid exceptions.
                    Added TypeInfo enumeration sanity check for IcsSetToStr and IcsStrToSet.
-Mar 10, 2020 V8.64 Allow IcsGetUTCTime, IcsSetUTCTime, GetIcsFormatSettings to build
+Mar 18, 2020 V8.64 Allow IcsGetUTCTime, IcsSetUTCTime, GetIcsFormatSettings to build
                      on MacOS again, they use Windows only APIs.
                    IcsGetTempPath builds on MacOS.
                    IcsGetCompName now Windows only, only used in samples.
                    IcsStrListToWireFmt supports Unicode correctly.
-                   IcsWireFmtToStrList checks buffer length valid.
+                   IcsWireFmtToStrList checks buffer length valid, added IcsWireFmtToCSV
                    Declare TBytess function parameters as const to avoid reference
                      counting corruption with cast pointers, thanks to Kas Ob for
                      finding this, which caused stack corruption and unexpected
@@ -672,6 +672,7 @@ const
     function IcsStripIpv6Addr (const Addr: string): string;            { V8.52 }
     function IntToKbyte (Value: Int64; Bytes: boolean = false): String; { V8.54  moved here from OverbyteIcsFtpSrvT }
     function IcsWireFmtToStrList(const Buffer: TBytes; Len: Integer; SList: TStrings): Integer;  { V8.57, V8.64 }
+    function IcsWireFmtToCSV(const Buffer: TBytes; Len: Integer): String;   { V8.64 }
     function IcsStrListToWireFmt(SList: TStrings; var Buffer: TBytes): Integer;            { V8.57 }
     function IcsEscapeCRLF(const Value: String): String;               { V8.57 }
     function IcsUnEscapeCRLF(const Value: String): String;             { V8.57 }
@@ -6640,6 +6641,27 @@ begin
     Result := Slist.Count;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 convert wire-format concactanted length prefixed strings to CSV }
+function IcsWireFmtToCSV(const Buffer: TBytes; Len: Integer): String;
+var
+    offset, mylen: integer;
+    AStr: AnsiString;
+begin
+    Result := '';
+    offset := 0;
+    while offset < Len do begin
+        mylen := Buffer[offset];
+        if (mylen = 0) or (mylen + offset >= Len) then Exit;  // illegal, V8.64 check not outside buffer
+        offset := offset + 1;
+        SetLength(AStr, mylen);
+        Move(Buffer[offset], AStr[1], mylen);
+        if Result <> '' then Result := Result + ',';
+        Result := Result + String(AStr);
+        offset := offset + mylen;
+    end;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.57 convert TStrings to wire-format concactanted length prefixed strings  }

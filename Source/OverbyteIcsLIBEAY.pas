@@ -150,9 +150,9 @@ Oct 19, 2018  V8.58 version only
 Jul 04, 2019  V8.62 Added f_OBJ_create to add new NIDs.
                     ICS_NID_acmeIdentifier created dynamically since NID missing.
                     Fixed Asn1ToString bad octet conversion to hex.
-Dec 04, 2019  V8.64 Added f_EVP_PKEY_set_alias_type, f_EVP_PKEY_id, f_d2i_PUBKEY(_bio),
-                      f_i2d_PUBKEY_bio, f_EVP_PKEY_new/get_raw_private/public_key. 
-
+Mar 18, 2019  V8.64 Added f_EVP_PKEY_set_alias_type, f_EVP_PKEY_id, f_d2i_PUBKEY(_bio),
+                      f_i2d_PUBKEY_bio, f_EVP_PKEY_new/get_raw_private/public_key.
+                    Added f_OPENSSL_free.
 
 
 Pending - OpenSSL 3.0.0 may require numeric NID_xx to be replaced by string
@@ -180,7 +180,7 @@ lhash functions lh_xx to OPENSSL_lh_xx  (not used here)
 
 New threading API used so locking functions removed:
 (also see OverbyteIcsSslThrdLock.pas)
-CRYPTO_lock
+CRYPTO_lock                                                                                                                                        F
 CRYPTO_add_lock
 CRYPTO_num_locks
 CRYPTO_set_locking_callback
@@ -2044,12 +2044,10 @@ const
     f_EVP_PKEY_keygen_init :                   function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;                           { V8.49 }
     f_EVP_PKEY_new :                           function: PEVP_PKEY; cdecl = nil;//AG
     f_EVP_PKEY_new_mac_key :                   function(keytype: Integer; eng: PEngine; key: PAnsiChar; keylen: Integer): PEVP_PKEY;  cdecl = Nil;  { V8.49 }
-
     f_EVP_PKEY_new_raw_private_key :           function(keytype: Integer; eng: PEngine; key: PAnsiChar; keylen: Integer): PEVP_PKEY; cdecl = nil; { V8.64 }
     f_EVP_PKEY_new_raw_public_key :            function(keytype: Integer; eng: PEngine; key: PAnsiChar; keylen: Integer): PEVP_PKEY; cdecl = nil; { V8.64 }
     f_EVP_PKEY_get_raw_private_key :           function(PKey: PEVP_PKEY; privkey: PAnsiChar; var outlen: Integer): Integer; cdecl = nil;           { V8.64 }
     f_EVP_PKEY_get_raw_public_key :            function(PKey: PEVP_PKEY; pubkey: PAnsiChar; var outlen: Integer): Integer; cdecl = nil;            { V8.64 }
-
     f_EVP_PKEY_paramgen :                      function(pctx: PEVP_PKEY_CTX; pkey: PEVP_PKEY): Integer; cdecl = Nil;          { V8.49 }
     f_EVP_PKEY_paramgen_init :                 function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;                           { V8.49 }
     f_EVP_PKEY_print_params :                  function (outbio: PBIO; pkey: PEVP_PKEY; indent: Integer; pctx: PASN1_PCTX): Integer; cdecl = Nil;        { V8.40 }
@@ -2196,7 +2194,6 @@ const
     f_RSA_private_decrypt :                    function(flen: Integer; from: PAnsiChar; to_: PAnsiChar; rsa: PRSA; padding: Integer): Integer; cdecl = nil;
     f_RSA_public_encrypt :                     function(flen: Integer; from: PAnsiChar; to_: PAnsiChar; rsa: PRSA; padding: Integer): Integer; cdecl = nil;
     f_RSA_size :                               function(Rsa: PRSA): Integer; cdecl = nil; //Angus
-
     f_RSA_set0_key :                           function(Rsa: PRSA; n: PBIGNUM; e: PBIGNUM; d: PBIGNUM): Integer; cdecl = nil;  { V8.52 }
     f_RSA_set0_factors :                       function(Rsa: PRSA; p: PBIGNUM; q: PBIGNUM): Integer; cdecl = nil;  { V8.52 }
     f_RSA_set0_crt_params :                    function(Rsa: PRSA; dmp1: PBIGNUM; dmq1: PBIGNUM; iqmp: PBIGNUM): Integer; cdecl = nil;  { V8.52 1.1.1 or later }
@@ -2212,7 +2209,6 @@ const
     f_RSA_set_flags :                          procedure(Rsa: PRSA; flags: Integer); cdecl = nil;  { V8.52 }
     f_RSA_get_version :                        function(Rsa: PRSA): Integer; cdecl = nil;         { V8.52 1.1.1 or later }
     f_RSA_get0_engine :                        function(Rsa: PRSA): PENGINE; cdecl = nil;          { V8.52 }
-
     f_X509V3_EXT_conf_nid :                    function(Conf: PLHASH; Ctx: PX509V3_CTX; ext_nid: Integer; value: PAnsiChar): PX509_EXTENSION; cdecl = nil;
     f_X509V3_EXT_d2i :                         function(Ext: PX509_EXTENSION): Pointer; cdecl = nil;//AG;
     f_X509V3_EXT_get :                         function(Ext: PX509_EXTENSION): PX509V3_EXT_METHOD; cdecl = nil;
@@ -2403,8 +2399,6 @@ const
     f_i2o_ECPublicKey :                        function(key: PEC_KEY; out: PAnsiChar): Integer; cdecl = nil;                { V8.52 }
     f_o2i_ECPublicKey :                        function(var key: PEC_KEY; inp: PAnsiChar; len: Integer): PEC_KEY; cdecl = nil;  { V8.52 }
 
-
-
 {$IFDEF OPENSSL_USE_DELPHI_MM}
     f_CRYPTO_set_mem_functions :               function(M: TCryptoMallocFunc; R: TCryptoReallocFunc; F: TCryptoFreeMemFunc): Integer; cdecl = nil; //AG
 {$ENDIF}
@@ -2530,6 +2524,7 @@ function f_EVP_PKEY_CTX_set_rsa_pss_keygen_md(pctx: PEVP_PKEY_CTX; md: Pointer):
 function f_EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md(pctx: PEVP_PKEY_CTX; md: Pointer): integer;      { V8.51 }
 function f_RSA_PKEY_CTX_ctrl(pctx: PEVP_PKEY_CTX; optype: Integer; cmd: Integer; p1: Integer; p2: Pointer): Integer;   { V8.51 }
 function f_BIO_get_ssl(Bio: PBIO; Sslp: PSSL): Integer;   { V8.51 }
+procedure f_OPENSSL_free(Addr: Pointer);                  { V8.64 }
 
 function  IcsRandSeedFromFile(const FileName: String; MaxBytes: Integer = -1): Integer;
 
@@ -2806,12 +2801,10 @@ const
     (F: @@f_EVP_PKEY_keygen_init;     N: 'EVP_PKEY_keygen_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_new ;            N: 'EVP_PKEY_new';           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_PKEY_new_mac_key;     N: 'EVP_PKEY_new_mac_key';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
-
     (F: @@f_EVP_PKEY_new_raw_private_key; N: 'EVP_PKEY_new_raw_private_key'; MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
     (F: @@f_EVP_PKEY_new_raw_public_key;  N: 'EVP_PKEY_new_raw_public_key';  MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
     (F: @@f_EVP_PKEY_get_raw_private_key; N: 'EVP_PKEY_get_raw_private_key'; MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
     (F: @@f_EVP_PKEY_get_raw_public_key;  N: 'EVP_PKEY_get_raw_public_key';  MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
-
     (F: @@f_EVP_PKEY_paramgen;        N: 'EVP_PKEY_paramgen';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_paramgen_init;   N: 'EVP_PKEY_paramgen_init';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_print_params ;   N: 'EVP_PKEY_print_params';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.40 }
@@ -2892,8 +2885,9 @@ const
     (F: @@f_OBJ_create ;         N: 'OBJ_create';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),          { V8.62 }
     (F: @@f_OBJ_nid2ln ;         N: 'OBJ_nid2ln';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_OBJ_nid2obj ;        N: 'OBJ_nid2obj';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),          { V8.40 }
-    (F: @@f_OBJ_nid2sn       ;   N: 'OBJ_nid2sn';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_OBJ_obj2nid;         N: 'OBJ_obj2nid';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_OBJ_nid2sn ;         N: 'OBJ_nid2sn';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_OBJ_obj2nid;         N: 'OBJ_obj2nid';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+//    (F: @@f_OPENSSL_free ;       N: 'OPENSSL_free'; MI: OSSL_VER_1100; MX: OSSL_VER_MAX),         { V8.64 }
     (F: @@f_OPENSSL_sk_delete;   N: 'OPENSSL_sk_delete';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
     (F: @@f_OPENSSL_sk_delete;   N: 'sk_delete';   MI: OSSL_VER_MIN; MX: OSSL_VER_1002ZZ),
     (F: @@f_OPENSSL_sk_dup ;     N: 'OPENSSL_sk_dup';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),
@@ -4356,6 +4350,12 @@ begin
     Result := f_BIO_ctrl(Bio, BIO_C_GET_SSL, 0, Sslp);
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure f_OPENSSL_free(Addr: Pointer);                  { V8.64 }
+begin
+    f_CRYPTO_free(Addr);
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$ENDIF} //USE_SSL

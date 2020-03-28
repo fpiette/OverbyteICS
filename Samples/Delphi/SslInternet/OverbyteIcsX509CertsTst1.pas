@@ -65,7 +65,7 @@ Nov 12, 2019 - V8.63 Better selection for supplier database order ListView.
                      10 minute timeout to close idle account.
                      Added List Challenges button to log list of pending challenges
                        from the database.
-Mar 11, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
+Mar 27, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
                        i.e. using accents and unicode characters in domain names.
                      X509 certificates always have A-Lavels (Punycode ASCII) domain names,
                       never UTF8 or Unicode.   IDNs are converted back to Unicode
@@ -76,10 +76,12 @@ Mar 11, 2020 - V8.64 Added support for International Domain Names for Applicatio
                      No longer logs errors while waiting for DNS challenge to be
                        manually updated. There will be one 'wait' for each domain
                        being checked.
-                     Added DNS Challenge Server Type, update Windows DNS Server
-                       with TXT records for DNS Challenges.  Pending Cloudfare.
-
-Pending - Automatic of Windows DNS Server using WMI for DNS challenges.                         
+                     Support Domain Name Server Challenge automatically, updates
+                       Windows DNS Server with TXT records for DNS Challenges using
+                       WMI and local web server. Pending Cloudfare DNS using REST.
+                     Support TLS-ALPN Cert Challenge for tls-alpn-01 SSL Certificate,
+                        using local web server.
+                     Certificate chain validation changed to use TX509List.
 
 
 For docunentation on how to use this sample, please see a lengthy Overview in
@@ -123,7 +125,7 @@ uses
   OverbyteIcsSslJose,
   OverbyteIcsSslX509Utils,
   OverbyteIcsSslX509Certs,
-//  OverbyteIcsWmi,      { V8.64 }
+  OverbyteIcsWmi,      { V8.64 }
   OverbyteIcsBlacklist;
 
 
@@ -773,11 +775,11 @@ end;
 procedure TX509CertsForm.X509Certs1ChallengeDNS(Sender: TObject;
   ChallengeItem: TChallengeItem; var ChlgOK: Boolean);
 var
-    secswait {, I}: integer;
+    secswait , I: integer;
     Trg: LongWord;
-    S1, S2 {, Zone}: String;
-//    WmiDnsRec: TWmiDnsRec;
-//    Errinfo: string;
+    S1, S2, Zone: String;
+    WmiDnsRec: TWmiDnsRec;
+    Errinfo: string;
 begin
     if DnsChlgType.ItemIndex = DnsChlgManual then
     begin
@@ -837,13 +839,12 @@ begin
     end
     else if DnsChlgType.ItemIndex = DnsChlgWindows then
     begin
-    {  not finished yet!!!
         AddLog('Starting to Update Windows DNS Server TXT Record');
         Zone := ChallengeItem.CDomain;
-        WmiDnsRec.OwnerName := ChallengeItem.CPage;
+        WmiDnsRec.HostName := ChallengeItem.CPage;
         WmiDnsRec.RecType := 'TXT';
         WmiDnsRec.RecData := ChallengeItem.CDNSValue;
-        WmiDnsRec.TextRep := IcsLowerCase(WmiDnsRec.OwnerName) + ' IN ' +
+        WmiDnsRec.TextRep := IcsLowerCase(WmiDnsRec.HostName) + ' IN ' +
                                     WmiDnsRec.RecType + ' ' + WmiDnsRec.RecData;
         AddLog('Zone: ' + Zone + ': ' + WmiDnsRec.TextRep);
         I := IcsWmiUpdDnsRec ('', '', '', Zone, WmiDnsRec, EdtFuncAdd, Errinfo);
@@ -852,7 +853,7 @@ begin
             ChlgOK := True;
         end
         else
-            AddLog('Failed to Update Windows DNS Server: ' + ErrInfo);  }
+            AddLog('Failed to Update Windows DNS Server: ' + ErrInfo);
     end
     else if DnsChlgType.ItemIndex = DnsChlgCloudfare then
     begin

@@ -131,9 +131,11 @@ Mar 18, 2019  V8.60 Next major OpenSSL version is 3.0.0 (due mid 2020)
 Jul 15, 2019  V8.62 Removed two ciphers from TSslPrivKeyCipher which we did not use.
                     SuppProtoAcmeV1 gone, two more added.
                     Added ICS_NID_acmeIdentifier created dynamically on startup.
-Mar 08, 2020  V8.64 Changed sslSrvSecDefault to sslSrvSecHigh since TLSv1.1
-                       disabled in most browsers from early 2020
+Mar 20, 2020  V8.64 Changed sslSrvSecDefault to sslSrvSecHigh since TLSv1.1
+                       disabled in most browsers from early 2020.
+                    Added SSL_client_hello functions and SSL_bytes_to_cipher_list.
 
+                    
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -1176,7 +1178,7 @@ const
            which solution of the quadratic equation y is  }
     POINT_CONVERSION_HYBRID = 6;
 
-type 
+type
   { V8.27  The valid handshake states (one for each type message sent and one for each
            type of message received). There are also two "special" states:
      TLS = TLS or DTLS state
@@ -1273,6 +1275,9 @@ type
 
     TSsl_alpn_cb = function (s: PSSL; var output: Pointer; var outlen: Integer;
               input: Pointer; inlen: Integer; arg: Pointer): Integer; cdecl;  { V8.56 application layer protocol callback }
+
+    TSsl_client_hello_cb = function(s: PSSL; var al: Integer; arg: Pointer): Integer; cdecl; { V8.64 client hello callback, 1.1.1 and later, replaces servername_cb }
+
 
 const
     SSL2_VERSION                                = $0002;
@@ -1793,6 +1798,7 @@ const
     TLSEXT_TYPE_key_share                       = 51;  { V8.56 }
  { Temporary extension type }
     TLSEXT_TYPE_renegotiate                     = $ff01;  { V8.56 }
+    TLSEXT_TYPE_next_proto_neg                  = 13172;  { V8.64 }
 
     TLSEXT_MAXLEN_host_name                     = 255;
     TLSEXT_NAMETYPE_host_name                   = 0;
@@ -1802,6 +1808,11 @@ const
     SSL_TLSEXT_ERR_ALERT_WARNING                = 1;
     SSL_TLSEXT_ERR_ALERT_FATAL                  = 2;
     SSL_TLSEXT_ERR_NOACK                        = 3;
+
+  { V8.64 return from SSL_client_hello_cb_fn }   
+    SSL_CLIENT_HELLO_SUCCESS                    = 1;
+    SSL_CLIENT_HELLO_ERROR                      = 0;
+    SSL_CLIENT_HELLO_RETRY                      = -1;
 
 // V8.51 Extension context codes
 // This extension is only allowed in TLS
@@ -1841,7 +1852,7 @@ type
  { V8.57 challenge types, differing certificate types support differing challenges,
      some have to be processed manually taking several days. }
     TChallengeType = (ChallNone, ChallFileUNC, ChallFileFtp, ChallFileSrv,
-                      ChallFileApp, ChallDNS,  ChallEmail, ChallAlpnUNC,
+                      ChallFileApp, ChallDNS, ChallEmail, ChallAlpnUNC,
                       ChallAlpnSrv, ChallAlpnApp, ChallManual);   { V8.62 App added }
 
 { V8.40 OpenSSL streaming ciphers with various modes }
@@ -2053,6 +2064,7 @@ const
     f_SSL_CTX_set_cipher_list :                function(C: PSSL_CTX; CipherString: PAnsiChar): Integer; cdecl = nil;
     f_SSL_CTX_set_client_CA_list :             procedure(C: PSSL_CTX; List: PSTACK_OF_X509_NAME); cdecl = nil; //AG
     f_SSL_CTX_set_client_cert_cb:              procedure(CTX: PSSL_CTX; CB: TClient_cert_cb); cdecl = nil; //AG
+    f_SSL_CTX_set_client_hello_cb :            procedure(C: PSSL_CTX; cb: TSsl_client_hello_cb; arg: Pointer); cdecl = nil;  { V8.64 }
     f_SSL_CTX_set_default_passwd_cb :          procedure(C: PSSL_CTX; CallBack: TPem_password_cb); cdecl = nil;
     f_SSL_CTX_set_default_passwd_cb_userdata : procedure(C: PSSL_CTX; UData: Pointer); cdecl = nil;
     f_SSL_CTX_set_default_verify_paths :       function(C: PSSL_CTX): Integer; cdecl = nil;
@@ -2080,8 +2092,17 @@ const
     f_SSL_add_client_CA :                      function(ssl: PSSL; CaCert: PX509): Integer; cdecl = nil; //AG
     f_SSL_alert_desc_string_long :             function(value: Integer): PAnsiChar; cdecl = nil;
     f_SSL_alert_type_string_long :             function(value: Integer): PAnsiChar; cdecl = nil;
+    f_SSL_bytes_to_cipher_list :               function(s: PSSL; cbytes: PAnsiChar; len: size_t; isv2format: Boolean; sk, scvsvs: PSTACK_OF_SSL_CIPHER): LongInt; cdecl = nil;   { V8.64 }
     f_SSL_callback_ctrl:                       function(s: PSSL; cb_id: Integer; fp: TCallback_ctrl_fp): Longint; cdecl = nil;
     f_SSL_clear :                              procedure(S: PSSL); cdecl = nil;
+    f_SSL_client_hello_isv2 :                  function(s: PSSL): Longint; cdecl = nil;    { V8.64 }
+    f_SSL_client_hello_get0_legacy_version :   function(s: PSSL): Longword; cdecl = nil;   { V8.64 }
+    f_SSL_client_hello_get0_random :           function(s: PSSL; var OutData: PAnsiChar): size_t; cdecl = nil;       { V8.64 }
+    f_SSL_client_hello_get0_session_id :       function(s: PSSL; var OutData: PAnsiChar): size_t; cdecl = nil;       { V8.64 }
+    f_SSL_client_hello_get0_ciphers :          function(s: PSSL; var OutData: PAnsiChar): size_t; cdecl = nil;       { V8.64 }
+    f_SSL_client_hello_get0_compression_methods : function(s: PSSL; var OutData: PAnsiChar): size_t; cdecl = nil;    { V8.64 }
+    f_SSL_client_hello_get1_extensions_present :  function(s: PSSL; var OutData: PAnsiChar; var OutLen: size_t): Longint; cdecl = nil;        { V8.64 }
+    f_SSL_client_hello_get0_ext :              function(s: PSSL; EType: LongWord; var OutData: PAnsiChar; var OutLen: size_t): Longint; cdecl = nil; { V8.64 }
     f_SSL_connect :                            function(S: PSSL): Integer; cdecl = nil;
     f_SSL_ctrl :                               function(S: PSSL; Cmd: Integer; LArg: LongInt; PArg: Pointer): LongInt; cdecl = nil;
     f_SSL_do_handshake :                       function(S: PSSL): Integer; cdecl = nil; //AG
@@ -2265,7 +2286,7 @@ procedure  f_SSL_set_msg_callback_arg(S: PSSL; arg: Pointer); {$IFDEF USE_INLINE
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GSSLEAYImports1: array[0..165] of TOSSLImports = (
+    GSSLEAYImports1: array[0..175] of TOSSLImports = (
     (F: @@f_BIO_f_ssl;                              N: 'BIO_f_ssl';                                 MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_BIO_new_buffer_ssl_connect;             N: 'BIO_new_buffer_ssl_connect';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),    { V8.51 }
     (F: @@f_BIO_new_ssl;                            N: 'BIO_new_ssl';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),    { V8.51 }
@@ -2307,6 +2328,7 @@ const
     (F: @@f_SSL_CTX_set_cipher_list;                N: 'SSL_CTX_set_cipher_list';                   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_set_client_CA_list;             N: 'SSL_CTX_set_client_CA_list';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_set_client_cert_cb;             N: 'SSL_CTX_set_client_cert_cb';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_CTX_set_client_hello_cb;             N: 'SSL_CTX_set_client_hello_cb';              MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
     (F: @@f_SSL_CTX_set_default_passwd_cb;          N: 'SSL_CTX_set_default_passwd_cb';             MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_set_default_passwd_cb_userdata; N: 'SSL_CTX_set_default_passwd_cb_userdata';    MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_CTX_set_default_verify_paths;       N: 'SSL_CTX_set_default_verify_paths';          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
@@ -2336,9 +2358,18 @@ const
     (F: @@f_SSL_add_client_CA;                      N: 'SSL_add_client_CA';                         MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_alert_desc_string_long;             N: 'SSL_alert_desc_string_long';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_alert_type_string_long;             N: 'SSL_alert_type_string_long';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
+    (F: @@f_SSL_bytes_to_cipher_list;               N: 'SSL_bytes_to_cipher_list';                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.64 }
     (F: @@f_SSL_callback_ctrl;                      N: 'SSL_callback_ctrl';                         MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_clear;                              N: 'SSL_clear';                                 MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_clear_options;                      N: 'SSL_clear_options';                         MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.51 }
+    (F: @@f_SSL_client_hello_isv2;                   N: 'SSL_client_hello_isv2';                    MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
+    (F: @@f_SSL_client_hello_get0_legacy_version;    N: 'SSL_client_hello_get0_legacy_version';     MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
+    (F: @@f_SSL_client_hello_get0_random;            N: 'SSL_client_hello_get0_random';             MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
+    (F: @@f_SSL_client_hello_get0_session_id;        N: 'SSL_client_hello_get0_session_id';         MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
+    (F: @@f_SSL_client_hello_get0_ciphers;           N: 'SSL_client_hello_get0_ciphers';            MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
+    (F: @@f_SSL_client_hello_get0_compression_methods; N: 'SSL_client_hello_get0_compression_methods'; MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
+    (F: @@f_SSL_client_hello_get1_extensions_present;  N: 'SSL_client_hello_get1_extensions_present';  MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
+    (F: @@f_SSL_client_hello_get0_ext;               N: 'SSL_client_hello_get0_ext';                MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
     (F: @@f_SSL_connect;                            N: 'SSL_connect';                               MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_ctrl;                               N: 'SSL_ctrl';                                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_do_handshake;                       N: 'SSL_do_handshake';                          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),

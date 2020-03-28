@@ -1327,7 +1327,7 @@ Nov 18, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                    GetSelfSigned now has better check for self signed certificates.
                    Added Sha256Digest and Sha256Hex to TX509Base.
                    CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
-Mar 12, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+Mar 26, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
                      i.e. using accents and unicode characters in domain names.
                    DnsLookup now converts Unicode IDN into A-Label (Punycode ASCII)
                      so accented and non-ansi domains lookup correctly.  PunycodeHost
@@ -1343,9 +1343,30 @@ Mar 12, 2020 V8.64 Added support for International Domain Names for Applications
                    OpenSSL uses A-Label (Punycode ASCII) in host names, not UTF8.
                    Open and save SSL certificate files with Unicode names not ANSI.
                    Sample OverbyteIcsBatchDnsLookup has lots of ISN test names.
+                   Support new OpenSSL 1.1.1 ClientHelloCallback which mostly
+                     replaces ServerName callback setting all client negotiation
+                     information before the SSL session starts in the CliHelloData
+                     property.  The onSslServerName event is still called, from
+                     where you can access CliHelloData and SslServerName.
+                   WSocketGetCliHelloStr function returns description of CliHelloData.
+                   Allows the server to choose an SSL context appropriate to the
+                     client's capabilities, such as for Let'S Encrypt acme-tls/1
+                     challenge which did not work before, or ECC SSL certificates
+                     which are smaller than RSA but not always supported.
+                   The onSslAlpnSelect event is now only needed to tell the client
+                     which ALPN to choose, generally for HTTP/2 only.
                    Ignore any errors with SSL APLN during handshake.
                    Fixed a problem with SSL ALPN server handshake that may have
                      caused unexpected exceptions mainly on 64-bit applications.
+                   Removed TlsExtension_cb callback which wrote a lot to the
+                     debug log, same information now in CliHelloData property
+                     from ClientHelloCallback.
+                   Another attempt to improve handshake error messages.
+                   Removed X509CATrust and related properties and methods from
+                      TX509Base, it was used by the ValidateCertChain method which
+                      now accepts a shared TX509List instead for efficiency.
+
+
 
 Pending - server certificate bundle files may not have server certificate as first
 Pending - intermediate certificate bundle files may have self signed root that should be ignored
@@ -2834,7 +2855,7 @@ type
         FSha1Digest         : THashBytes20;
         FSha1Hex            : String;
         FX509Inters         : PStack;     { V8.41 }
-        FX509CATrust        : PStack;     { V8.41 }
+  //      FX509CATrust        : PStack;     { V8.41 }
         FSha256Digest       : THashBytes20;  { V8.63 }
         FSha256Hex          : String;        { V8.63 }
     protected
@@ -2844,12 +2865,12 @@ type
         FFirstVerifyResult  : Integer;                      {05/21/2007 AG}
         procedure   FreeAndNilX509;
         procedure   FreeAndNilX509Inters;               { V8.41 }
-        procedure   FreeAndNilX509CATrust;              { V8.41 }
+//        procedure   FreeAndNilX509CATrust;              { V8.41 }
         procedure   FreeAndNilPrivateKey;
         procedure   SetX509(X509: Pointer);
         procedure   SetPrivateKey(PKey: Pointer);
         procedure   SetX509Inters(X509Inters: PStack);   { V8.41 }
-        procedure   SetX509CATrust(X509CATrust: PStack); { V8.41 }
+//        procedure   SetX509CATrust(X509CATrust: PStack); { V8.41 }
         function    GetX509PublicKey: Pointer;           { V8.52 renamed from GetPublicKey }
         function    GetVerifyErrorMsg: String;
         function    GetFirstVerifyErrorMsg: String;         {05/21/2007 AG}
@@ -2907,9 +2928,9 @@ type
         function    GetIsCertLoaded: Boolean;                              { V8.41 }
         function    GetIsPKeyLoaded: Boolean;                              { V8.41 }
         function    GetIsInterLoaded: Boolean;                             { V8.41 }
-        function    GetIsCATrustLoaded : Boolean;                          { V8.41 }
+//        function    GetIsCATrustLoaded : Boolean;                          { V8.41 }
         function    GetInterCount: Integer;                                { V8.41 }
-        function    GetCATrustCount: Integer;                              { V8.41 }
+//        function    GetCATrustCount: Integer;                              { V8.41 }
         function    GetSha256Digest: THashBytes20;                         { V8.63 }
         function    GetSha256Hex: String;        { aka fingerprint }       { V8.63 }
     public
@@ -2982,11 +3003,12 @@ type
         procedure   GetIntersList(CertList: TX509List);                    { V8.41 }
         procedure   AddToInters(X509: Pointer);                            { V8.41 }
         function    ListInters: string;                                    { V8.41 }
-        procedure   LoadCATrustFromPemFile(const FileName: String);        { V8.41 }
-        procedure   LoadCATrustFromString(const Value: String);            { V8.41 }
-        procedure   GetCATrustList(CertList: TX509List);                   { V8.41 }
-        procedure   AddToCATrust(X509: Pointer);                           { V8.41 }
-        function    ValidateCertChain(Host: String; var CertStr, ErrStr: String; ExpireDays: Integer = 30): TChainResult;  { V8.57 }
+//        procedure   LoadCATrustFromPemFile(const FileName: String);        { V8.41 }
+//        procedure   LoadCATrustFromString(const Value: String);            { V8.41 }
+//        procedure   GetCATrustList(CertList: TX509List);                   { V8.41 }
+//        procedure   AddToCATrust(X509: Pointer);                           { V8.41 }
+        function    ValidateCertChain(Host: String; X509CAList: TX509List;
+                       var CertStr, ErrStr: String; ExpireDays: Integer = 30): TChainResult;  { V8.57, V8.64 }
         function    GetPX509NameByNid(XName: PX509_NAME; ANid: Integer): String;  { V8.41 }
         function    CheckExtName(Ext: PX509_EXTENSION; const ShortName: String): Boolean;  { V8.41 }
         function    GetExtDetail(Ext: PX509_EXTENSION): TExtension;        { V8.41 }
@@ -3019,8 +3041,8 @@ type
         property    X509PublicKey       : Pointer       read  GetX509PublicKey; { V8.52 renamed from PublicKey }
         property    X509Inters          : PStack        read  FX509Inters
                                                         write SetX509Inters;    { V8.41 }
-        property    X509CATrust         : PStack        read  FX509CATrust
-                                                        write SetX509CATrust;   { V8.41 }
+ //       property    X509CATrust         : PStack        read  FX509CATrust
+ //                                                       write SetX509CATrust;   { V8.41 }
         property    SslPWUtf8           : Boolean       read  FSslPWUtf8
                                                         write FSslPWUtf8;       { V8.55 }
         property    SubjectCName        : String        read  GetSubjectCName;
@@ -3068,9 +3090,9 @@ type
         property    IsCertLoaded        : Boolean       read GetIsCertLoaded;         { V8.41 }
         property    IsPKeyLoaded        : Boolean       read GetIsPKeyLoaded;         { V8.41 }
         property    IsInterLoaded       : Boolean       read GetIsInterLoaded;        { V8.41 }
-        property    IsCATrustLoaded     : Boolean       read GetIsCATrustLoaded;      { V8.41 }
+//        property    IsCATrustLoaded     : Boolean       read GetIsCATrustLoaded;      { V8.41 }
         property    InterCount          : Integer       read GetInterCount;           { V8.41 }
-        property    CATrustCount        : Integer       read GetCATrustCount;         { V8.41 }
+//        property    CATrustCount        : Integer       read GetCATrustCount;         { V8.41 }
         property    Sha256Digest        : THashBytes20  read  GetSha256Digest;        { V8.63 }
         property    Sha256Hex           : String        read  GetSha256Hex; { aka fingerprint V8.63 }
     end;
@@ -3113,6 +3135,7 @@ type
         function    Extract(Item: TX509Base): TX509Base;
         function    LoadAllFromFile(const Filename: string): integer;    { V8.39 }
         function    LoadAllStack(CertStack: PStack): integer;            { V8.41 }
+        function    LoadAllFromString(const Value: String): integer;     { V8.64 }
         function    AllCertInfo(Brief: Boolean=False; Reverse: Boolean=False): String;   { V8.41 }
         procedure   SortChain(ASortOrder: TX509ListSort);
         property    Count                       : Integer       read  GetCount;
@@ -3450,6 +3473,39 @@ const
                      'High Ciphers, 7680 keys'); { 14 - TLSv1.2 or later, high ciphers, RSA/DH keys=>7680, ECC=>384, FS forced }
 
 type
+    TIcsIntArray = Array of Integer;
+    TIcsWordArray = Array of Word;
+    TTlsExtError = (teeOk, teeAlertWarning, teeAlertFatal, teeNoAck);
+
+
+ { V8.64 data received by a server when a client starts a session, used by the
+   server to decide what ciphers and protocol to initiate, see
+   https://tls.ulfheim.net/  and https://tls13.ulfheim.net/ }
+    TClientHelloData = record
+        ServerName: String;
+        PunyServerName: String;
+        SslTlsExtErr: TTlsExtError;
+        Sslv2: Boolean;  // too old to support
+        LegacyVersion: LongWord;
+        SuppVersions: TIcsWordArray;
+        Random: TBytes;
+        SessionId: TBytes;
+        CipherSuites: TBytes;
+        ExtnList: TIcsIntArray;
+        ExtnTotal: Integer;
+        AlpnRaw: TBytes;
+        AlpnList: String;
+        EllipCurves: TIcsWordArray;
+        SigAlgos: TIcsWordArray;
+        ECPoints: TIcsWordArray;
+        Renegotiate: TBytes;
+        StatusRequest: TBytes;
+        KeyShare: TBytes;
+        PSKExchMode: TBytes;
+        PSKData: TBytes;
+    end;
+
+type
 
 {$IFNDEF OPENSSL_NO_ENGINE}
     ESslEngineError = class(Exception);
@@ -3744,8 +3800,6 @@ type
   TSslShutDownComplete      = procedure(Sender          : TObject;
                                         Bidirectional   : Boolean;
                                         ErrCode         : Integer) of object;
-  TTlsExtError = (teeOk, teeAlertWarning, teeAlertFatal, teeNoAck);
-
   TSslServerNameEvent       = procedure(Sender               : TObject;
                                         var Ctx              : TSslContext;
                                         var ErrCode          : TTlsExtError) of object;
@@ -3839,6 +3893,7 @@ type
         FOnSslAlpnSelect            : TSslAlpnSelect;     { V8.56 }
         FAlpnProtoAnsi              : AnsiString;         { V8.62 server sending response }
         FSslAlpnProto               : String;             { V8.62 client received response }
+        FCliHelloData               : TClientHelloData;   { V8.64 client hello data received by server, includes SNI and Alpn }
         procedure   RaiseLastOpenSslError(EClass          : ExceptClass;
                                           Dump            : Boolean = FALSE;
                                           const CustomMsg : String  = ''); virtual;
@@ -3912,6 +3967,7 @@ type
         procedure   AcceptSslHandshake;
         procedure   SetAcceptableHostsList(const SemiColonSeparatedList : String);
         function    SslGetSupportedCiphers (Supported, Remote: boolean): String;    { V8.27 }
+        function    SslBytesToCiphers(const CList: TBytes): String;                 { V8.64 }
 
         property    LastSslError       : Integer          read FLastSslError;
         property    ExplizitSsl        : Boolean          read  FExplizitSsl
@@ -3979,6 +4035,7 @@ type
         property  SslCertPeerName : String                read  FSslCertPeerName;        { V8.39  }
         property  SslKeyAuth     : String                 read  FSslKeyAuth;             { V8.41  }
         property  SslAlpnProto   : String                 read  FSslAlpnProto;           { V8.62  }
+        property  CliHelloData   : TClientHelloData       read  FCliHelloData;           { V8.64  } 
   private
       function my_WSocket_recv(s: TSocket;
                                var Buf: TWSocketData; len, flags: Integer): Integer;
@@ -4484,6 +4541,8 @@ function OpenSslErrMsg(const AErrCode: LongWord): String;
 function LastOpenSslErrMsg(Dump: Boolean): AnsiString;  { V8.14 made public }
 function IsSslRenegotiationDisallowed(Obj: TCustomSslWSocket): Boolean;
     {$IFDEF USE_INLINE} inline; {$ENDIF}
+function WSocketGetSslVerStr(ver: LongWord): String;                  { V8.64 }
+function WSocketGetCliHelloStr(CliHello: TClientHelloData): String;  { V8.64 }
 {$ENDIF}
 {
 const
@@ -13783,15 +13842,37 @@ end;
 function TX509List.LoadAllStack(CertStack: PStack): integer;
 var
     I: integer;
+    P: PAnsiChar;
 begin
     Result := 0;
     if NOT Assigned (CertStack) then Exit;
     Result := f_OPENSSL_sk_num(CertStack);   { don't free stack }
     if Result = 0 then Exit;
     for I := 0 to Result - 1 do begin
-        Add(f_X509_dup(PX509(f_OPENSSL_sk_value(CertStack, I))));
+        P := f_OPENSSL_sk_value(CertStack, I);
+        if Assigned(P) then  { V8.64 sanity test }
+            Add(f_X509_dup(PX509(P)));
     end;
 end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 load all certificates from a string }
+function TX509List.LoadAllFromString(const Value: string): integer;
+var
+    MyStack: PStack;
+begin
+    MyStack := IcsSslLoadStackFromInfoString(Value, emCert);
+    Result := f_OPENSSL_sk_num(MyStack);
+    try
+        while f_OPENSSL_sk_num(MyStack) > 0 do begin
+            Add(f_X509_dup(PX509(f_OPENSSL_sk_delete(MyStack, 0))));
+        end;
+    finally
+       f_OPENSSL_sk_pop_free(MyStack, @f_X509_free);
+    end;
+end;
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.41 list all certificates, forwards or backwards (client handshake) }
@@ -15432,6 +15513,234 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure InfoCallBack(const ssl: PSSL; Where: Integer; Ret: Integer); cdecl;
+var
+{$IFNDEF NO_DEBUG_LOG}
+    Str : String;
+    Pre : String;
+    W   : Integer;
+    Err : Integer;
+{$ENDIF}
+    Obj : TCustomSslWSocket;
+begin
+{$IFNDEF NO_SSL_MT}
+    LockInfoCB.Enter;
+    try
+{$ENDIF}
+        // TSslDebugLevel = (ssldbgNone, ssldbgError, ssldbgInfo, ssldbgDump);
+        Obj := TCustomSslWSocket(f_SSL_get_ex_data(Ssl, 0));
+        if not Assigned(Obj) then
+            raise Exception.Create('ICB> Extended data not assigned fatal error!');
+        Obj.FSsl_In_CB := TRUE;
+        try
+{$IFNDEF NO_DEBUG_LOG}
+
+        { all this stuff is debug logging, not necessary for normal operation }
+            if Obj.CheckLogOptions(loSslErr) or
+               Obj.CheckLogOptions(loSslInfo) then begin
+
+                Pre := IntToHex(INT_PTR(Obj), SizeOf(Pointer) * 2) + ' ICB> ';
+
+                W := Where and (not SSL_ST_MASK);
+                if (W and SSL_ST_CONNECT) <> 0 then
+                    Str := 'SSL_connect: '
+                else if (w and SSL_ST_ACCEPT) <> 0 then
+                    Str := 'SSL_accept: '
+                else if (Where and SSL_CB_HANDSHAKE_START) <> 0 then
+                    Str := 'SSL_handshake_start: '                { V8.53 }
+                else if (Where and SSL_CB_HANDSHAKE_DONE) <> 0 then
+                    Str := 'SSL_handshake_done: '                 { V8.53 }
+                else if (Where and SSL_CB_ALERT) <> 0 then
+                    Str := 'SSL_alert: '                          { V8.55 }
+                else
+                    Str := 'undefined: ';
+
+                if ((Where and SSL_CB_LOOP) <> 0) then begin
+                    if Obj.CheckLogOptions(loSslInfo) then    { V8.55 was SslDevel, really Errs }
+                        Obj.DebugLog(loSslInfo, Pre + Str +   { V8.59 really meant Info }
+                                        String(f_SSL_state_string_long(ssl)));
+                end
+                else if ((Where and SSL_CB_ALERT) <> 0) and
+                        Obj.CheckLogOptions(loSslInfo) then begin    { V8.59 was SslDevel, really meant Info }
+                    if (Where and SSL_CB_READ) <> 0 then
+                        Str := 'read '
+                    else
+                        Str := 'write ';
+                    Obj.DebugLog(loSslInfo, Pre + 'SSL3 alert ' + Str +
+                                 String(f_SSL_alert_type_string_long(ret)) + ' ' +
+                                 String(f_SSL_alert_desc_string_long(ret)));
+                end
+                else if (Where and SSL_CB_EXIT) <> 0 then begin
+                    if Ret = 0 then begin
+             //         if Obj.CheckLogOptions(loSslErr) then   { V8.59 was Devel, Err and Info }
+                            Obj.DebugLog(loSslErr, Pre + Str + 'failed in ' +
+                                            String(f_SSL_state_string_long(ssl)));
+                    end
+                    else if Ret < 0 then begin
+                        Err := f_ssl_get_error(ssl, Ret);
+                        if NOT ((Err = SSL_ERROR_WANT_READ) or        { V8.14 only want real errors }
+                                 (Err = SSL_ERROR_WANT_WRITE)) then begin
+                              {  if Err = SSL_ERROR_SSL then  { V8.14 report proper error }
+                              {      Obj.HandleSslError  V8.55 clears error, don't use for debug purposes }
+                              {  else   }
+                            Obj.DebugLog(loSslErr, Pre + Str + 'error ' + IntToStr (Err) + { V8.14 actual error }
+                                                    ' in ' + String(f_SSL_state_string_long(ssl)));
+                        end;
+                    end;
+                end
+                else begin
+                    if Obj.CheckLogOptions(loSslInfo) then     { V8.59 really meant Info }
+                        Obj.DebugLog(loSslDevel, Pre + Str + 'where=' + IntToHex(where, 8) +
+                              ', state=' + String(f_SSL_state_string_long(ssl))); { V8.53 added state }
+                end;
+            end;
+{$ENDIF}
+         { OpenSSL InfoCallback is when state changes }
+            if (Where and SSL_CB_HANDSHAKE_START) <> 0 then begin
+             {   Obj.FInHandshake   := TRUE;   V8.55 does not seem to be used anywhere ???? }
+                Inc(Obj.FHandShakeCount);
+
+           { V8.53 TLSv1.3 does not have renegotiation so skip these checks }
+                if (f_SSL_version(Obj.FSsl) < TLS1_3_VERSION) then begin   { V8.55 }
+                    if (Obj.FHandShakeCount > 1) and
+                                IsSslRenegotiationDisallowed(Obj) then begin
+                        Obj.CloseDelayed;
+                       { todo: We need to handle this much better }
+                    {$IFNDEF NO_DEBUG_LOG}
+                        if Obj.CheckLogOptions(loSslErr) or
+                           Obj.CheckLogOptions(loSslDevel) then
+                            Obj.DebugLog(loSslErr, Pre + 'Renegotiaton not supported ' +
+                                                    'or not allowed. Connection ' +
+                                                    'closed delayed');
+                    {$ENDIF}
+                    end;
+                    if Obj.FHandShakeCount > 1 then
+                        Obj.FSslInRenegotiation := TRUE;
+    {$IFNDEF NO_DEBUG_LOG}
+                    if Obj.CheckLogOptions(loSslInfo) then
+                        Obj.DebugLog(loSslInfo, Pre + 'SSL_CB_HANDSHAKE_START');
+    {$ENDIF}
+                end;
+            end
+          { V8.55 TLSv1.3 comes here too often due to tickets, FHandshakeEventDone is
+            used to make sure the event is only called once }
+            else if ((Where and SSL_CB_HANDSHAKE_DONE) > 0) and
+                                             (NOT Obj.FHandshakeEventDone) then begin
+              {  Obj.FInHandshake     := FALSE;   V8.55 does not seem to be used anywhere ???? }
+                Obj.FHandshakeDone   := TRUE;  { triggers event once then reset }
+{$IFNDEF NO_DEBUG_LOG}
+                if Obj.CheckLogOptions(loSslErr) or
+                   Obj.CheckLogOptions(loSslInfo) then begin
+                    Err := f_SSL_get_verify_result(Ssl);
+                    if Obj.CheckLogOptions(loSslInfo) or (Err <> X509_V_OK) then
+                       Obj.DebugLog(loSslErr, Pre + 'SSL_CB_HANDSHAKE_DONE, Error ' +
+                            IcsX509VerifyErrorToStr (Err));   { V8.14 real literal, V8.39 better function }
+                end;
+{$ENDIF}
+            end
+        finally
+            Obj.FSsl_In_CB := FALSE;
+            if Obj.FHSocket = INVALID_SOCKET then
+                PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
+        end;
+{$IFNDEF NO_SSL_MT}
+    finally
+        LockInfoCB.Leave;
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomSslWSocket.TriggerSslServerName(var Ctx: TSslContext; var ErrCode: TTlsExtError);  { V8.45 }
+begin
+    if Assigned(FOnSslServerName) then
+        FOnSslServerName(Self, Ctx, ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ this callback not really used with OpenSSL 1.1.1 and later, uses ClientHello instead,
+  but still need to send SslTlsExtErr saved from ClientHello from here }
+function ServerNameCallback(SSL: PSSL; var ad: Integer; arg: Pointer): Longint; cdecl;
+var
+    Ws : TCustomSslWSocket;
+    PServerName : PAnsiChar; // Pointer to A-Label string
+    Ctx : TSslContext;
+    Err : TTlsExtError;
+begin
+    Ws := TCustomSslWSocket(f_SSL_get_ex_data(SSL, 0));
+    if NOT Assigned(Ws) then begin   { V8.45 }
+        Result := SSL_TLSEXT_ERR_OK;
+        exit;
+    end;
+
+ { V8.64 we already have SNI from ClientHello callback, just need to tell client }
+    if (Ws.FSslServerName <> '') then begin
+        Result := Ord(Ws.FCliHelloData.SslTlsExtErr);
+        Exit;
+    end;
+
+{$IFNDEF NO_SSL_MT}
+    LockServerNameCB.Enter;  { V8.15 }
+    try
+{$ENDIF}
+    PServerName := f_SSL_get_servername(SSL, TLSEXT_NAMETYPE_host_name);
+    if Assigned(PServerName) then
+    begin
+        Ws.FSsl_In_CB := TRUE;
+        try
+         { V8.64 if result has ACE xn--. convert it to Unicode, ignore errors }
+            Ws.FSslServerName := IcsIDNAToUnicode(String(PServerName));
+            Ctx := nil;
+         {   Err := teeAlertWarning; //SSL_TLSEXT_ERR_ALERT_WARNING  }
+            Err := teeOk;  { V8.26 warning stop Java clients connecting }
+            Ws.TriggerSslServerName(Ctx, Err);     { V8.45 }
+            { Do not switch context if not initialized }
+            if Assigned(Ctx) and Assigned(Ctx.FSslCtx) then
+            begin
+                if Ws.SslContext <> Ctx then
+                begin
+                    { Clear the options inherited from current Ctx.    }
+                    { Not sure whether it is required, shouldn't hurt. }
+                    f_Ics_SSL_clear_options(SSL,
+                             f_Ics_SSL_CTX_get_options(Ws.SslContext.FSslCtx));     { V8.51 }
+                    Ws.SslContext := Ctx;
+                    f_SSL_set_SSL_CTX(SSL, Ctx.FSslCtx);
+                    f_Ics_SSL_set_options(SSL, f_Ics_SSL_CTX_get_options(ctx.FSslCtx));    { V8.51 }
+                    f_SSL_CTX_set_tlsext_servername_callback(Ctx.FSslCtx,
+                                                     @ServerNameCallBack);
+                {$IFNDEF NO_DEBUG_LOG}
+                    if Ws.CheckLogOptions(loSslInfo) then
+                        Ws.DebugLog(loSslInfo,
+                                'SNICB> Switching context server_name "'
+                                + Ws.FSslServerName + '"');
+                {$ENDIF}
+                end;
+                Result := SSL_TLSEXT_ERR_OK;
+            end
+            else begin
+                if Err = teeAlertFatal then ad := 112; // AD_UNRECOGNIZED_NAME;
+                if Err = teeAlertWarning then ad := 112; // AD_UNRECOGNIZED_NAME;
+                Result := Ord(Err);  { may return warning or error if no SNI }
+            end;
+        finally
+            Ws.FSsl_In_CB := FALSE;
+            if Ws.FHSocket = INVALID_SOCKET then
+                PostMessage(Ws.FWindowHandle, Ws.FMsg_WM_RESET_SSL, 0, 0);
+        end;
+    end
+    else
+        Result := SSL_TLSEXT_ERR_OK;
+{$IFNDEF NO_SSL_MT}
+    finally
+        LockServerNameCB.Leave;  { V8.15 }
+    end;
+{$ENDIF}
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.56 application layer protocol negotiation, servers only }
 { client sends us a list of protocols it supports, and we can select one or
  ignore them all, ie spdy/1, http/1.1, h2 (http/2). pop3, acme-tls/1, etc }
@@ -15482,6 +15791,282 @@ begin
         finally
             ProtoList.Free;
         end;
+    end;
+end;
+
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 new callback in OpenSSL 1.1.1 that replaces ServerNameCallback and ALPN callback and has more info }
+function ClientHelloCallback(SSL: PSSL; var al: Integer; arg: Pointer): Longint; cdecl;
+var
+    Ws: TCustomSslWSocket;
+    Ctx: TSslContext;
+    DataPtr: PAnsiChar;
+    DataLen: size_t;
+    DataExt: TBytes;
+    I, Slen: Integer;
+{$IFNDEF NO_DEBUG_LOG}
+    S: String;
+{$ENDIF}
+
+    function GetExtension(EType: Integer): Integer;
+    begin
+        Result := 0;
+        DataLen := 0;
+        if (f_SSL_client_hello_get0_ext(SSL, EType, DataPtr, DataLen) <> 1) then Exit;
+        if DataLen = 0 then Exit;
+        Result := DataLen;
+        SetLength(DataExt, DataLen);
+        Move(DataPtr^, DataExt[0], DataLen);
+    end;
+
+    function GetByteDataPtr: TBytes;
+    begin
+        SetLength(Result, DataLen);
+        if DataLen > 0 then
+            Move(DataPtr^, Result[0], DataLen);
+    end;
+
+    function GetWordExt(Base: Integer): TIcsWordArray;
+    var
+        WLen, J: Integer;
+    begin
+        Wlen := DataExt[Base] div 2;
+        SetLength(Result, WLen);
+        if WLen > 0 then begin
+            Move(DataExt[Base + 1], Result[0], WLen * 2);
+            for J := 0 to Wlen - 1 do
+                Result[J] := Swap(Result[J]);  // change endian
+        end;
+    end;
+
+    function GetByteExt: TBytes;
+    var
+        Len: Integer;
+    begin
+        len := DataExt[1];
+        SetLength(Result, Len);
+        if Len > 0 then
+            Move(DataExt[2], Result[0], Len);
+    end;
+
+begin
+    Result := SSL_CLIENT_HELLO_SUCCESS;
+    Ws := TCustomSslWSocket(f_SSL_get_ex_data(SSL, 0));
+    if NOT Assigned(Ws) then begin   // can not do anything useful
+        Exit;
+    end;
+
+{ client hello is SSLv2 format, nothing more ICS can do, not supported }
+    Ws.FCliHelloData.Sslv2 := (f_SSL_client_hello_isv2(SSL) = 1);
+    if Ws.FCliHelloData.Sslv2 then begin
+        {$IFNDEF NO_DEBUG_LOG}
+             Ws.DebugLog(loSslErr, 'CliHello> SSLv2 protocol not supported');
+        {$ENDIF}
+        al := 70; // TLS1_AD_PROTOCOL_VERSION
+        Result := SSL_CLIENT_HELLO_ERROR;
+        Exit;
+    end;
+
+ { client version }
+    Ws.FCliHelloData.LegacyVersion := f_SSL_client_hello_get0_legacy_version(SSL);
+
+ { get random bytes for keys }
+    DataLen := f_SSL_client_hello_get0_random(SSL, DataPtr);
+    Ws.FCliHelloData.Random := GetByteDataPtr;
+
+ { get session ID, server may use old session }
+    DataLen := f_SSL_client_hello_get0_session_id(SSL, DataPtr);
+    Ws.FCliHelloData.SessionId := GetByteDataPtr;
+
+ { get ciphers client can accept from us }
+    DataLen := f_SSL_client_hello_get0_ciphers(SSL, DataPtr);
+    Ws.FCliHelloData.CipherSuites := GetByteDataPtr;
+
+ { get list of extensions available in hello }
+    if (f_SSL_client_hello_get1_extensions_present(SSL, DataPtr, DataLen) = 1) then begin
+        SetLength(Ws.FCliHelloData.ExtnList, DataLen);
+        Move(DataPtr^, Ws.FCliHelloData.ExtnList[0], (DataLen*SizeOf(Integer)));
+        Ws.FCliHelloData.ExtnTotal := DataLen;
+        f_OPENSSL_free(DataPtr);
+    end;
+
+ { check extensions }
+    if Ws.FCliHelloData.ExtnTotal > 0 then begin
+        for I := 0 to Ws.FCliHelloData.ExtnTotal - 1 do begin
+            if (GetExtension(Ws.FCliHelloData.ExtnList[I]) > 0) then begin
+                case Ws.FCliHelloData.ExtnList[I] of
+        // SNI "000C 00 0009 6C6F63616C686F7374" received
+        //       len dns len l o c a l h o s t
+                    TLSEXT_TYPE_server_name: begin
+                        if (DataExt[0] = 0) and (DataExt[1] = DataLen - 2) then begin
+                            SLen := DataExt[4]; // skip entry type
+                            SetLength(Ws.FCliHelloData.PunyServerName, SLen);
+                            Move(DataExt[5], Ws.FCliHelloData.PunyServerName[1], Slen);
+                        { V8.64 if result has ACE xn--. convert it to Unicode, ignore errors }
+                            Ws.FCliHelloData.ServerName := IcsIDNAToUnicode(String(Ws.FCliHelloData.PunyServerName));
+                            Ws.FSslServerName := Ws.FCliHelloData.ServerName;
+                        end;
+                    end;
+                    TLSEXT_TYPE_application_layer_protocol_negotiation: begin
+                        Ws.FCliHelloData.AlpnRaw := GetByteExt;
+                        Ws.FCliHelloData.AlpnList := IcsWireFmtToCSV(Ws.FCliHelloData.AlpnRaw,
+                                                              Length(Ws.FCliHelloData.AlpnRaw));
+                    end;
+                    TLSEXT_TYPE_elliptic_curves: begin
+                        Ws.FCliHelloData.EllipCurves := GetWordExt(1);
+                    end;
+                    TLSEXT_TYPE_signature_algorithms: begin
+                        Ws.FCliHelloData.SigAlgos := GetWordExt(1);
+                    end;
+                    TLSEXT_TYPE_ec_point_formats: begin
+                        Ws.FCliHelloData.ECPoints := GetWordExt(1);
+                    end;
+                    TLSEXT_TYPE_status_request: begin
+                       Ws.FCliHelloData.StatusRequest := GetByteExt;
+                    end;
+                    TLSEXT_TYPE_renegotiate: begin
+                       Ws.FCliHelloData.Renegotiate := GetByteExt;
+                    end;
+                    TLSEXT_TYPE_key_share: begin
+                       Ws.FCliHelloData.KeyShare := GetByteExt;
+                    end;
+                    TLSEXT_TYPE_psk_kex_modes: begin
+                       Ws.FCliHelloData.PSKExchMode := GetByteExt;
+                    end;
+                    TLSEXT_TYPE_psk: begin
+                       Ws.FCliHelloData.PSKData := GetByteExt;
+                    end;
+                    TLSEXT_TYPE_supported_versions: begin
+                        Ws.FCliHelloData.SuppVersions := GetWordExt(0);
+                    end;
+                end;
+            end;
+        end;
+    end;
+
+{$IFNDEF NO_DEBUG_LOG}
+    if Ws.CheckLogOptions(loSslInfo) then begin
+        S := WSocketGetSslVerStr(Ws.FCliHelloData.LegacyVersion);
+        if Length(Ws.FCliHelloData.SuppVersions) > 0 then begin
+            for I := 0 to Length(Ws.FCliHelloData.SuppVersions) - 1 do
+                S := S + ', ' + WSocketGetSslVerStr(Ws.FCliHelloData.SuppVersions[I]);
+        end;
+        Ws.DebugLog(loSslInfo,
+            'CliHello> Server Name: ' + Ws.FCliHelloData.PunyServerName + ', ' +
+            'ALPN: ' + Ws.FCliHelloData.AlpnList + ', ' + 'CliHello> Versions: ' + S);
+       { application can log ciphers, algos, etc in ServerName event, if it's called }
+    end;
+{$ENDIF}
+
+ { SNI server name indication extension }
+    if (Ws.FSslServerName <> '') then begin
+        Ctx := nil;
+        Ws.FSsl_In_CB := TRUE;
+        try
+            Ws.FCliHelloData.SslTlsExtErr := teeOk;  { V8.26 ExtWarning stopped Java clients connecting }
+            Ws.TriggerSslServerName(Ctx, Ws.FCliHelloData.SslTlsExtErr);
+            if Ws.FCliHelloData.SslTlsExtErr = teeAlertFatal then begin     { reject SSL connection }
+                Result := SSL_CLIENT_HELLO_ERROR;
+                al := 112; // AD_UNRECOGNIZED_NAME;
+                Exit;
+            end;
+
+        { Do not switch context if not initialized }
+            if Assigned(Ctx) and Assigned(Ctx.FSslCtx) then begin
+                if Ws.SslContext <> Ctx then begin
+                {$IFNDEF NO_SSL_MT}
+                    LockServerNameCB.Enter;  { V8.15 }
+                    try
+                {$ENDIF}
+                        { Clear the options inherited from current Ctx.    }
+                        { Not sure whether it is required, shouldn't hurt. }
+                        f_Ics_SSL_clear_options(SSL,
+                                 f_Ics_SSL_CTX_get_options(Ws.SslContext.FSslCtx));     { V8.51 }
+                        Ws.SslContext := Ctx;
+                        f_SSL_set_SSL_CTX(SSL, Ctx.FSslCtx);
+                        f_Ics_SSL_set_options(SSL, f_Ics_SSL_CTX_get_options(ctx.FSslCtx));    { V8.51 }
+                    {$IFNDEF NO_DEBUG_LOG}
+                        if Ws.CheckLogOptions(loSslInfo) then
+                            Ws.DebugLog(loSslInfo, 'CliHello> Switching context server_name "'
+                                                                    + Ws.FSslServerName + '"');
+                    {$ENDIF}
+                {$IFNDEF NO_SSL_MT}
+                    finally
+                        LockServerNameCB.Leave;  { V8.15 }
+                    end;
+                {$ENDIF}
+                end;
+            end;
+        finally
+            Ws.FSsl_In_CB := FALSE;
+            if Ws.FHSocket = INVALID_SOCKET then begin
+                PostMessage(Ws.FWindowHandle, Ws.FMsg_WM_RESET_SSL, 0, 0);
+                Result := SSL_CLIENT_HELLO_ERROR;
+            end;
+        end;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 application layer protocol negotiation, servers only }
+procedure TCustomSslWSocket.TriggerSslAlpnSelect(ProtoList: TStrings;
+                          var SelProto: String; var ErrCode: TTlsExtError);
+begin
+    if Assigned(FOnSslAlpnSelect) then
+        FOnSslAlpnSelect(Self, ProtoList, SelProto, ErrCode);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 set application layer protocols supported, clients only }
+procedure TSslContext.UpdateAlpnProtocols;
+var
+    buffer: TBytes;
+    bufflen: Integer;
+begin
+    if FSslAlpnProtoList.Count = 0 then Exit;
+    if NOT Assigned(FSslCtx) then Exit;
+    IcsStrListToWireFmt(FSslAlpnProtoList, buffer);
+    bufflen := Length(buffer);
+    if bufflen = 0 then Exit;
+//   if f_SSL_CTX_set_alpn_protos(FSslCtx, @buffer[0], bufflen) <> 0 then
+    if f_SSL_CTX_set_alpn_protos(FSslCtx, buffer, bufflen) <> 0 then
+        RaiseLastOpenSslError(Exception, TRUE, 'Error setting alpn protos');
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.56 keep application layer protocols supported, clients only }
+procedure TSslContext.SetSslAlpnProtocols(ProtoList: TStrings);
+begin
+    if NOT Assigned(ProtoList) then Exit;
+    if FSslAlpnProtoList.Text <> ProtoList.Text then
+        FSslAlpnProtoList.Assign(ProtoList);
+    if Assigned(FSslCtx) then
+        UpdateAlpnProtocols;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.62 get application layer protocol sekected by server, clients only }
+procedure TCustomSslWSocket.SslGetAlpnProtocol;
+var
+    plen: integer;
+    pdata: Pointer;
+    temp: AnsiString;
+begin
+    FSslAlpnProto := '';
+    if NOT Assigned(FSsl) then Exit;
+    plen := 0;
+    pdata := Nil;
+    f_SSL_get0_alpn_selected(FSsl, pdata, plen);  // not null terminated
+    if (plen > 0) and Assigned(pdata) then begin
+        SetLength(temp, plen);
+        Move(pdata^, temp[1], plen);
+        FSslAlpnProto := String(temp);
     end;
 end;
 
@@ -15672,9 +16257,13 @@ begin
           { V8.56 see if setting APLN Protocol for HTTP/2 or something, client only  }
             UpdateAlpnProtocols;
 
+         { V8.64 OpenSSL 1.1.1 and later server uses client_hello callback instead of ServerName }
+            if ICS_OPENSSL_VERSION_NUMBER >= OSSL_VER_1101 then begin
+                f_SSL_CTX_set_client_hello_cb(FSslCtx, @ClientHelloCallBack, Self);
+            end;
+
           { V8.56 set application layer protocol select callback, servers only }
             f_SSL_CTX_set_alpn_select_cb(FSslCtx, @AlpnSelectCallBack, Self);
-
         except
             if Assigned(FSslCtx) then begin
                 f_SSL_CTX_free(FSslCtx);
@@ -16535,7 +17124,7 @@ begin
     FX509 := nil;
     FPrivateKey := nil;
     FX509Inters := nil;     { V8.41 }
-    FX509CATrust := nil;    { V8.41 }
+//    FX509CATrust := nil;    { V8.41 }
     AssignDefaults;
     FSslPWUtf8 := True;     { V8.55 }
     if Assigned(X509) then begin
@@ -16578,13 +17167,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TX509Base.FreeAndNilX509CATrust;         { V8.41 }
+{procedure TX509Base.FreeAndNilX509CATrust;
 begin
     if Assigned(FX509CATrust) then begin
         f_OPENSSL_sk_free(FX509CATrust);
         FX509CATrust := nil;
     end;
-end;
+end;                          }
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -16604,7 +17193,7 @@ begin
     FreeAndNilX509;
     FreeAndNilPrivateKey;
     FreeAndNilX509Inters;
-    FreeAndNilX509CATrust;
+ //   FreeAndNilX509CATrust;
 end;
 
 
@@ -16632,14 +17221,14 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TX509Base.SetX509CATrust(X509CATrust: PStack);  { V8.41 }
+{procedure TX509Base.SetX509CATrust(X509CATrust: PStack);
 begin
     InitializeSsl;
     FreeAndNilX509CATrust;
     if Assigned(X509CATrust) then begin
         FX509CATrust := f_OPENSSL_sk_dup(X509CATrust);
     end;
-end;
+end;                                                       }
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -16686,10 +17275,10 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.GetIsCATrustLoaded : Boolean;                          { V8.41 }
+{function TX509Base.GetIsCATrustLoaded : Boolean;
 begin
     result := Assigned(FX509CATrust);
-end;
+end;       }
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -16702,12 +17291,12 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TX509Base.GetCATrustCount: Integer;                              { V8.41 }
+{ function TX509Base.GetCATrustCount: Integer;
 begin
     result := 0;
     if NOT GetIsCATrustLoaded then Exit;
     Result := f_OPENSSL_sk_num(FX509CATrust);
-end;
+end;   }
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -18856,6 +19445,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+(*
 procedure TX509Base.LoadCATrustFromPemFile(const FileName: String);   { V8.41 }
 begin
     InitializeSsl;
@@ -18890,7 +19480,7 @@ begin
     f_OPENSSL_sk_insert(FX509CATrust, PAnsiChar(f_X509_dup(PX509(X509))), -1);
 
 end;
-
+  *)
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { this function is designed to validate and report a server certificate chain
@@ -18901,12 +19491,14 @@ end;
  error and chainFail if the chain is broken or expired.  CertStr returns a
  reportable list of all certificates in the chain for logs, etc.  }
 { V8.41, V8.57 make ExpireDaya configurable }
-function TX509Base.ValidateCertChain(Host: String; var CertStr, ErrStr: string; ExpireDays: Integer = 30): TChainResult;
+{ V8.64 pass X509CAList as parameter rather than loading it from FX509CATrust }
+function TX509Base.ValidateCertChain(Host: String; X509CAList: TX509List;
+                var CertStr, ErrStr: string; ExpireDays: Integer = 30): TChainResult;
 var
     curUTC: TDateTime;
-    InterList, CAList: TX509List;
+    InterList: TX509List;
     CertIssuer, NextIssuer, OUIssuer: string;
-    I: integer;
+    CATotal, I: integer;
 
     function FindInter(const AName: string): Boolean;
     var
@@ -18941,14 +19533,14 @@ var
         J: Integer;
     begin
         Result := False;
-        if NOT IsCATrustLoaded then Exit;
-        for J := 0 to CAList.Count - 1 do begin
-            if ((CAList[J].SubjectCName = AName) or
-                  (CAList[J].SubjectOName = AName)) then begin
+        if (CATotal = 0) then Exit;
+        for J := 0 to CATotal - 1 do begin
+            if ((X509CAList[J].SubjectCName = AName) or
+                  (X509CAList[J].SubjectOName = AName)) then begin
               { V8.53 also check Organisation Name, if used }
-                if (OUName = '') or (CAList[J].SubjectOUName = OUName) then begin
+                if (OUName = '') or (X509CAList[J].SubjectOUName = OUName) then begin
                     CertStr := CertStr + #13#10 + 'Trusted CA: ' +
-                                                    CAList[J].CertInfo(False);
+                                                  X509CAList[J].CertInfo(False);
                     Result := True;
                     Exit;
                 end;
@@ -18958,68 +19550,74 @@ var
 
 begin
     Result := chainFail;
-    CertStr := '';
-    ErrStr := '';
-    curUTC := IcsGetUTCTime;   { V8.61 certificates have UTC time }
-    if NOT IsCertLoaded then begin
-        ErrStr := 'No SSL certificate loaded';
-        Exit;
-    end;
-
- { keep server cert details }
-    CertStr := 'Server: ' + CertInfo(False);
-
- { check not expired }
-    if curUTC < ValidNotBefore then begin
-        ErrStr := 'SSL certificate not valid yet - ' + SubjectCName;
-        Exit;
-    end;
-    if curUTC > ValidNotAfter then begin
-        ErrStr := 'SSL certificate has expired - ' + SubjectCName;
-        Exit;
-    end;
-    if (curUTC + ExpireDays) > ValidNotAfter then begin
-        Result := chainWarn; // not fatal
-        ErrStr := 'SSL certificate expires on ' + DateToStr(ValidNotAfter) +
-                                                           ' - ' + SubjectCName;
-    end;
-
-  { check host is listed - optional, may not be using SNI }
-  { WARNING - Host may have several lines, should check each one }
-    if (Host <> '') and NOT PostConnectionCheck (Host) then begin
-        Result := chainWarn;
-        ErrStr := 'SSL certificate expected host name not found: ' +
-                         Host + ', certificate DNS: ';
-        if (SubAltNameDNS <> '') then         { V8.47 sometimes blank }
-            ErrStr := ErrStr + IcsUnwrapNames(SubAltNameDNS)
-        else
-            ErrStr := ErrStr + SubjectCName;
-    end;
-
- { self signed means nothing to check }
-    if SelfSigned then begin
-        Result := chainWarn;
-        ErrStr := 'SSL certificate is self signed - ' + SubjectCName;;
-        Exit;
-    end;
-
- { build lists of inter and CA }
     InterList := Nil;
-    CAList := Nil;
-    if IsInterLoaded then begin
-        InterList := TX509List.Create(self);
-        InterList.LoadAllStack(FX509Inters);
-    end;
-    if IsCATrustLoaded then begin
-        CAList := TX509List.Create(self);
-        CAList.LoadAllStack(FX509CATrust);
-    end;
+//    CAList := Nil;
+    try // finally
+    try // except
+        CertStr := '';
+        ErrStr := '';
+        curUTC := IcsGetUTCTime;   { V8.61 certificates have UTC time }
+        if NOT IsCertLoaded then begin
+            ErrStr := 'No SSL certificate loaded';
+            Exit;
+        end;
 
-  { check inter chain or CA contains certificate that signed ours  }
-    CertIssuer := IssuerCName;
-    OUIssuer := IssuerOUName;  { V8.53 }
-    NextIssuer := '';
-    try
+     { keep server cert details }
+        CertStr := 'Server: ' + CertInfo(False);
+
+     { check not expired }
+        if curUTC < ValidNotBefore then begin
+            ErrStr := 'SSL certificate not valid yet - ' + SubjectCName;
+            Exit;
+        end;
+        if curUTC > ValidNotAfter then begin
+            ErrStr := 'SSL certificate has expired - ' + SubjectCName;
+            Exit;
+        end;
+        if (curUTC + ExpireDays) > ValidNotAfter then begin
+            Result := chainWarn; // not fatal
+            ErrStr := 'SSL certificate expires on ' + DateToStr(ValidNotAfter) +
+                                                               ' - ' + SubjectCName;
+        end;
+
+      { check host is listed - optional, may not be using SNI }
+      { WARNING - Host may have several lines, should check each one }
+        if (Host <> '') and NOT PostConnectionCheck (Host) then begin
+            Result := chainWarn;
+            ErrStr := 'SSL certificate expected host name not found: ' +
+                             Host + ', certificate DNS: ';
+            if (SubAltNameDNS <> '') then         { V8.47 sometimes blank }
+                ErrStr := ErrStr + IcsUnwrapNames(SubAltNameDNS)
+            else
+                ErrStr := ErrStr + SubjectCName;
+        end;
+
+     { self signed means nothing to check }
+        if SelfSigned then begin
+            Result := chainWarn;
+            ErrStr := 'SSL certificate is self signed - ' + SubjectCName;;
+            Exit;
+        end;
+
+     { build lists of inter and CA }
+        if IsInterLoaded then begin
+            InterList := TX509List.Create(self);
+            InterList.LoadAllStack(FX509Inters);
+        end;
+
+     { V8.64 now using a passed shared list of CA root certificates instead of
+        creating the list from a stack each time we come here }
+   {     if NOT Assigned(X509CAList) then begin
+            X509CAList := TX509List.Create(self);
+            X509CAList.LoadFrom(xx);
+        end;   }
+        CATotal := 0;
+        if Assigned(X509CAList) then CATotal := X509CAList.Count;
+
+      { check inter chain or CA contains certificate that signed ours  }
+        CertIssuer := IssuerCName;
+        OUIssuer := IssuerOUName;  { V8.53 }
+        NextIssuer := '';
         if IsInterLoaded and (NOT Selfsigned) then begin
 
         { keep inter cert details }
@@ -19033,7 +19631,7 @@ begin
             if (InterList.Count > 1) and (NextIssuer <> '') then begin
                 for I := 0 to InterList.Count - 1 do begin
                     if NOT FindInter(NextIssuer) then begin
-                        if NOT IsCATrustLoaded then begin
+                        if (CATotal = 0) then begin
                             CertStr := CertStr + #13#10 + 'Intermediates, Total ' +
                                     IntToStr (InterList.Count) + #13#10 +
                                         InterList.AllCertInfo(False, false);
@@ -19049,7 +19647,7 @@ begin
 
     { see if server signed directly by trusted CA }
         if CertIssuer <> '' then begin
-            if IsCATrustLoaded and FindCA(CertIssuer, OUIssuer) then begin
+            if FindCA(CertIssuer, OUIssuer) then begin
                 if Result = chainFail then Result := chainOK;  // no warnings so OK  V8.47
                 Exit;
             end;
@@ -19057,7 +19655,7 @@ begin
 
    { see if intermediate signed by a trusted CA }
         if (NextIssuer <> '') then begin
-            if IsCATrustLoaded and FindCA(NextIssuer, OUIssuer) then begin
+            if FindCA(NextIssuer, OUIssuer) then begin
                 if Result = chainFail then Result := chainOK;  // no warnings so OK  V8.47
                 Exit;
             end;
@@ -19071,9 +19669,14 @@ begin
             ErrStr := 'Issuer for SSL certificate not found - ' + NextIssuer;
         end;
         if Result = chainFail then Result := chainOK;  // no warnings so OK
+    except
+        on E: Exception do begin   { V8.64 more error handling }
+           ErrStr := 'Failed to check certificate chain: ' + E.Classname + ' ' + E.Message;
+        end;
+    end;
     finally
         if Assigned(InterList) then InterList.Free;
-        if Assigned(CAList) then CAList.Free;
+  //      if Assigned(CAList) then CAList.Free;
     end;
 end;
 
@@ -20436,284 +21039,6 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure InfoCallBack(const ssl: PSSL; Where: Integer; Ret: Integer); cdecl;
-var
-{$IFNDEF NO_DEBUG_LOG}
-    Str : String;
-    Pre : String;
-    W   : Integer;
-    Err : Integer;
-{$ENDIF}
-    Obj : TCustomSslWSocket;
-begin
-{$IFNDEF NO_SSL_MT}
-    LockInfoCB.Enter;
-    try
-{$ENDIF}
-        // TSslDebugLevel = (ssldbgNone, ssldbgError, ssldbgInfo, ssldbgDump);
-        Obj := TCustomSslWSocket(f_SSL_get_ex_data(Ssl, 0));
-        if not Assigned(Obj) then
-            raise Exception.Create('ICB> Extended data not assigned fatal error!');
-        Obj.FSsl_In_CB := TRUE;
-        try
-{$IFNDEF NO_DEBUG_LOG}
-
-        { all this stuff is debug logging, not necessary for normal operation }
-            if Obj.CheckLogOptions(loSslErr) or
-               Obj.CheckLogOptions(loSslInfo) then begin
-
-                Pre := IntToHex(INT_PTR(Obj), SizeOf(Pointer) * 2) + ' ICB> ';
-
-                W := Where and (not SSL_ST_MASK);
-                if (W and SSL_ST_CONNECT) <> 0 then
-                    Str := 'SSL_connect: '
-                else if (w and SSL_ST_ACCEPT) <> 0 then
-                    Str := 'SSL_accept: '
-                else if (Where and SSL_CB_HANDSHAKE_START) <> 0 then
-                    Str := 'SSL_handshake_start: '                { V8.53 }
-                else if (Where and SSL_CB_HANDSHAKE_DONE) <> 0 then
-                    Str := 'SSL_handshake_done: '                 { V8.53 }
-                else if (Where and SSL_CB_ALERT) <> 0 then
-                    Str := 'SSL_alert: '                          { V8.55 }
-                else
-                    Str := 'undefined: ';
-
-                if ((Where and SSL_CB_LOOP) <> 0) then begin
-                    if Obj.CheckLogOptions(loSslInfo) then    { V8.55 was SslDevel, really Errs }
-                        Obj.DebugLog(loSslInfo, Pre + Str +   { V8.59 really meant Info }
-                                        String(f_SSL_state_string_long(ssl)));
-                end
-                else if ((Where and SSL_CB_ALERT) <> 0) and
-                        Obj.CheckLogOptions(loSslInfo) then begin    { V8.59 was SslDevel, really meant Info }
-                    if (Where and SSL_CB_READ) <> 0 then
-                        Str := 'read '
-                    else
-                        Str := 'write ';
-                    Obj.DebugLog(loSslInfo, Pre + 'SSL3 alert ' + Str +
-                                 String(f_SSL_alert_type_string_long(ret)) + ' ' +
-                                 String(f_SSL_alert_desc_string_long(ret)));
-                end
-                else if (Where and SSL_CB_EXIT) <> 0 then begin
-                    if Ret = 0 then begin
-             //         if Obj.CheckLogOptions(loSslErr) then   { V8.59 was Devel, Err and Info }
-                            Obj.DebugLog(loSslErr, Pre + Str + 'failed in ' +
-                                            String(f_SSL_state_string_long(ssl)));
-                    end
-                    else if Ret < 0 then begin
-                        Err := f_ssl_get_error(ssl, Ret);
-                        if NOT ((Err = SSL_ERROR_WANT_READ) or        { V8.14 only want real errors }
-                                 (Err = SSL_ERROR_WANT_WRITE)) then begin
-                              {  if Err = SSL_ERROR_SSL then  { V8.14 report proper error }
-                              {      Obj.HandleSslError  V8.55 clears error, don't use for debug purposes }
-                              {  else   }
-                            Obj.DebugLog(loSslErr, Pre + Str + 'error ' + IntToStr (Err) + { V8.14 actual error }
-                                                    ' in ' + String(f_SSL_state_string_long(ssl)));
-                        end;
-                    end;
-                end
-                else begin
-                    if Obj.CheckLogOptions(loSslInfo) then     { V8.59 really meant Info }
-                        Obj.DebugLog(loSslDevel, Pre + Str + 'where=' + IntToHex(where, 8) +
-                              ', state=' + String(f_SSL_state_string_long(ssl))); { V8.53 added state }
-                end;
-            end;
-{$ENDIF}
-         { OpenSSL InfoCallback is when state changes }
-            if (Where and SSL_CB_HANDSHAKE_START) <> 0 then begin
-             {   Obj.FInHandshake   := TRUE;   V8.55 does not seem to be used anywhere ???? }
-                Inc(Obj.FHandShakeCount);
-
-           { V8.53 TLSv1.3 does not have renegotiation so skip these checks }
-                if (f_SSL_version(Obj.FSsl) < TLS1_3_VERSION) then begin   { V8.55 }
-                    if (Obj.FHandShakeCount > 1) and
-                                IsSslRenegotiationDisallowed(Obj) then begin
-                        Obj.CloseDelayed;
-                       { todo: We need to handle this much better }
-                    {$IFNDEF NO_DEBUG_LOG}
-                        if Obj.CheckLogOptions(loSslErr) or
-                           Obj.CheckLogOptions(loSslDevel) then
-                            Obj.DebugLog(loSslErr, Pre + 'Renegotiaton not supported ' +
-                                                    'or not allowed. Connection ' +
-                                                    'closed delayed');
-                    {$ENDIF}
-                    end;
-                    if Obj.FHandShakeCount > 1 then
-                        Obj.FSslInRenegotiation := TRUE;
-    {$IFNDEF NO_DEBUG_LOG}
-                    if Obj.CheckLogOptions(loSslInfo) then
-                        Obj.DebugLog(loSslInfo, Pre + 'SSL_CB_HANDSHAKE_START');
-    {$ENDIF}
-                end;
-            end
-          { V8.55 TLSv1.3 comes here too often due to tickets, FHandshakeEventDone is
-            used to make sure the event is only called once }
-            else if ((Where and SSL_CB_HANDSHAKE_DONE) > 0) and
-                                             (NOT Obj.FHandshakeEventDone) then begin
-              {  Obj.FInHandshake     := FALSE;   V8.55 does not seem to be used anywhere ???? }
-                Obj.FHandshakeDone   := TRUE;  { triggers event once then reset }
-{$IFNDEF NO_DEBUG_LOG}
-                if Obj.CheckLogOptions(loSslErr) or
-                   Obj.CheckLogOptions(loSslInfo) then begin
-                    Err := f_SSL_get_verify_result(Ssl);
-                    if Obj.CheckLogOptions(loSslInfo) or (Err <> X509_V_OK) then
-                       Obj.DebugLog(loSslErr, Pre + 'SSL_CB_HANDSHAKE_DONE, Error ' +
-                            IcsX509VerifyErrorToStr (Err));   { V8.14 real literal, V8.39 better function }
-                end;
-{$ENDIF}
-            end
-        finally
-            Obj.FSsl_In_CB := FALSE;
-            if Obj.FHSocket = INVALID_SOCKET then
-                PostMessage(Obj.FWindowHandle, Obj.FMsg_WM_RESET_SSL, 0, 0);
-        end;
-{$IFNDEF NO_SSL_MT}
-    finally
-        LockInfoCB.Leave;
-    end;
-{$ENDIF}
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TCustomSslWSocket.TriggerSslServerName(var Ctx: TSslContext; var ErrCode: TTlsExtError);  { V8.45 }
-begin
-    if Assigned(FOnSslServerName) then
-        FOnSslServerName(Self, Ctx, ErrCode);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function ServerNameCallback(SSL: PSSL; var ad: Integer; arg: Pointer): Longint; cdecl;
-var
-    Ws : TCustomSslWSocket;
-    PServerName : PAnsiChar; // Pointer to A-Label string
-    Ctx : TSslContext;
-    Err : TTlsExtError;
-begin
-{$IFNDEF NO_SSL_MT}
-    LockServerNameCB.Enter;  { V8.15 }
-    try
-{$ENDIF}
-    PServerName := f_SSL_get_servername(SSL, TLSEXT_NAMETYPE_host_name);
-    if Assigned(PServerName) then
-    begin
-        Ws := TCustomSslWSocket(f_SSL_get_ex_data(SSL, 0));
-        if Assigned(Ws) { and Assigned(Ws.FOnSslServerName) } then    { V8.45 }
-        begin
-            Ws.FSsl_In_CB := TRUE;
-            try
-             { V8.64 if result has ACE xn--. convert it to Unicode, ignore errors }
-                Ws.FSslServerName := IcsIDNAToUnicode(String(PServerName));
-                Ctx := nil;
-             {   Err := teeAlertWarning; //SSL_TLSEXT_ERR_ALERT_WARNING  }
-                Err := teeOk;  { V8.26 warning stop Java clients connecting }
-            {   Ws.FOnSslServerName(Ws, Ctx, Err);  }
-                Ws.TriggerSslServerName(Ctx, Err);     { V8.45 }
-                { Do not switch context if not initialized }
-                if Assigned(Ctx) and Assigned(Ctx.FSslCtx) then
-                begin
-                    if Ws.SslContext <> Ctx then
-                    begin
-                        { Clear the options inherited from current Ctx.    }
-                        { Not sure whether it is required, shouldn't hurt. }
-                        f_Ics_SSL_clear_options(SSL,
-                                 f_Ics_SSL_CTX_get_options(Ws.SslContext.FSslCtx));     { V8.51 }
-                        Ws.SslContext := Ctx;
-                        f_SSL_set_SSL_CTX(SSL, Ctx.FSslCtx);
-                        f_Ics_SSL_set_options(SSL, f_Ics_SSL_CTX_get_options(ctx.FSslCtx));    { V8.51 }
-                        f_SSL_CTX_set_tlsext_servername_callback(Ctx.FSslCtx,
-                                                         @ServerNameCallBack);
-                    {$IFNDEF NO_DEBUG_LOG}
-                        if Ws.CheckLogOptions(loSslInfo) then
-                            Ws.DebugLog(loSslInfo,
-                                    'SNICB> Switching context server_name "'
-                                    + Ws.FSslServerName + '"');
-                    {$ENDIF}
-                    end;
-                    Result := SSL_TLSEXT_ERR_OK;
-                end
-                else
-                    Result := Ord(Err);
-            finally
-                Ws.FSsl_In_CB := FALSE;
-                if Ws.FHSocket = INVALID_SOCKET then
-                    PostMessage(Ws.FWindowHandle, Ws.FMsg_WM_RESET_SSL, 0, 0);
-            end;
-        end
-        else
-            Result := SSL_TLSEXT_ERR_OK;// SSL_TLSEXT_ERR_NOACK;
-    end
-    else
-        Result := SSL_TLSEXT_ERR_OK;
-{$IFNDEF NO_SSL_MT}
-    finally
-        LockServerNameCB.Leave;  { V8.15 }
-    end;
-{$ENDIF}
-end;
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 application layer protocol negotiation, servers only }
-procedure TCustomSslWSocket.TriggerSslAlpnSelect(ProtoList: TStrings;
-                          var SelProto: String; var ErrCode: TTlsExtError);
-begin
-    if Assigned(FOnSslAlpnSelect) then
-        FOnSslAlpnSelect(Self, ProtoList, SelProto, ErrCode);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 set application layer protocols supported, clients only }
-procedure TSslContext.UpdateAlpnProtocols;
-var
-    buffer: TBytes;
-    bufflen: Integer;
-begin
-    if FSslAlpnProtoList.Count = 0 then Exit;
-    if NOT Assigned(FSslCtx) then Exit;
-    IcsStrListToWireFmt(FSslAlpnProtoList, buffer);
-    bufflen := Length(buffer);
-    if bufflen = 0 then Exit;
-//   if f_SSL_CTX_set_alpn_protos(FSslCtx, @buffer[0], bufflen) <> 0 then
-    if f_SSL_CTX_set_alpn_protos(FSslCtx, buffer, bufflen) <> 0 then
-        RaiseLastOpenSslError(Exception, TRUE, 'Error setting alpn protos');
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.56 keep application layer protocols supported, clients only }
-procedure TSslContext.SetSslAlpnProtocols(ProtoList: TStrings);
-begin
-    if NOT Assigned(ProtoList) then Exit;
-    if FSslAlpnProtoList.Text <> ProtoList.Text then
-        FSslAlpnProtoList.Assign(ProtoList);
-    if Assigned(FSslCtx) then
-        UpdateAlpnProtocols;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.62 get application layer protocol sekected by server, clients only }
-procedure TCustomSslWSocket.SslGetAlpnProtocol;
-var
-    plen: integer;
-    pdata: Pointer;
-    temp: AnsiString;
-begin
-    FSslAlpnProto := '';
-    if NOT Assigned(FSsl) then Exit;
-    plen := 0;
-    pdata := Nil;
-    f_SSL_get0_alpn_selected(FSsl, pdata, plen);  // not null terminated
-    if (plen > 0) and Assigned(pdata) then begin
-        SetLength(temp, plen);
-        Move(pdata^, temp[1], plen);
-        FSslAlpnProto := String(temp);
-    end;
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.40 handshake protocol message callback }
 {$IFNDEF NO_DEBUG_LOG}
 
@@ -20816,6 +21141,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {x$IFDEF NEVER V84.0 enabled this }
 {$IFNDEF NO_DEBUG_LOG}
+{ V8.64 don't need this now got ClientHello callback }
+(*
 procedure TlsExtension_cb(SSL: PSSL; client_server: Integer; type_: Integer;
   data: PAnsiChar; len: Integer; arg: Pointer); cdecl;
 var
@@ -20890,6 +21217,7 @@ begin
          Ws.DebugLog(loSslInfo, Format('TLSExtCB> TLS %s extension "%s" (id=%d), len=%d',
                                         [CS, ExtName, Type_, len]));
 end;
+*)
 {$ENDIF}
 
 
@@ -20931,7 +21259,7 @@ begin
     else
         MyStack := f_SSL_get_ciphers(MySsl);   // all ciphers
     Total := f_OPENSSL_sk_num(MyStack);
-    if Total = 0 then Exit;
+    if Total <= 0 then Exit;
     for I := 0 to Total - 1 do begin
         MyCipher := f_OPENSSL_sk_value(MyStack, I);
         if Assigned (MyCipher) then
@@ -20939,6 +21267,36 @@ begin
     end;
     if Supported and (NOT Remote) then f_OPENSSL_sk_free(MyStack);
     if NewSSL then f_SSL_free(MySsl);
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 convert list of ciphers from Client Hello to strings  }
+{ Warning - not working yet }
+function TCustomSslWSocket.SslBytesToCiphers(const CList: TBytes): String;
+var
+    I, Total: Integer;
+    MyStack1, MyStack2: PSTACK_OF_SSL_CIPHER;
+    MyCipher: PAnsiChar;
+begin
+    Result := '';
+    if (NOT Assigned(FSsl)) then Exit;
+    if Length(CList) = 0 then Exit;
+    MyStack1 := Nil;
+    MyStack2 := Nil;
+    if f_SSL_bytes_to_cipher_list(FSsl, @CList, Length(CList), False, MyStack1, MyStack2)<> 1 then begin
+      //  RaiseLastOpenSslError(Exception, TRUE, 'Error converting cipher list');
+        Exit;
+    end;
+    Total := f_OPENSSL_sk_num(MyStack1);
+    if (Total <= 0) or (Total > 50) then Exit;
+    for I := 0 to Total - 1 do begin
+        MyCipher := f_OPENSSL_sk_value(MyStack1, I);
+        if Assigned (MyCipher) then
+            Result := Result + String(f_SSL_CIPHER_get_name(MyCipher)) + #13#10;
+    end;
+    f_OPENSSL_sk_free(MyStack1);
+    f_OPENSSL_sk_free(MyStack2);
 end;
 
 
@@ -21376,20 +21734,22 @@ begin
                 FSslServerName := '';
 //              if { Assigned(FOnSslServerName) and }
 //                    (FSslContext.FSslVersionMethod >= sslV3) then begin   { V8.24 not SSLv2, V8.56 always enabled }
+
+
 {$IFNDEF NO_DEBUG_LOG}
                 if CheckLogOptions(loSslInfo) then  { V8.40 }
                     DebugLog(loSslInfo, IntToHex(INT_PTR(Self), SizeOf(Pointer) * 2) +
                       ' Setting servername callback for SNI');
 {$ENDIF}
                 if (f_SSL_CTX_set_tlsext_servername_callback(pSSLContext,
-                                              @ServerNameCallBack) = 0) then
+                                          @ServerNameCallBack) = 0) then
                     RaiseLastOpenSslError(EOpenSslError, TRUE,
                         'Unable to initialize servername callback for SNI');
 
-//              end;
 {$IFNDEF NO_DEBUG_LOG}
-                if CheckLogOptions(loSslInfo) then
-                        f_SSL_set_tlsext_debug_callback(FSsl, @TlsExtension_CB);
+           { V8.64 don't need this now got ClientHello callback }
+           //     if CheckLogOptions(loSslInfo) then
+           //             f_SSL_set_tlsext_debug_callback(FSsl, @TlsExtension_CB);
 {$ENDIF}
 
                 f_SSL_set_accept_state(FSsl);
@@ -22062,15 +22422,25 @@ begin
     end  // FSslState = sslEstablished
     else begin
         if (FSslHandshakeRespMsg = '') then begin  { V8.14  }
-            if (ErrCode = 1) then begin
+        (*    if (ErrCode = 1) then begin
                 if Fssl = Nil then    { V8.57 }
                     FSslHandshakeRespMsg := 'Error, connection closed unexpectedly'
                 else
                     FSslHandshakeRespMsg := 'Failed TLS protocol negotiation: ' +
                                           String(f_SSL_state_string_long(Fssl));   { V8.54 }
             end else
-               FSslHandshakeRespMsg := String(LastOpenSslErrMsg(true));
+               FSslHandshakeRespMsg := String(LastOpenSslErrMsg(true));  *)
+
+       { V8.64 always show real error, add state if possible }
+            if FSslHandshakeErr = 0 then
+                FSslHandshakeRespMsg := String(LastOpenSslErrMsg(true))
+            else
+                FSslHandshakeRespMsg := OpenSslErrMsg(FSslHandshakeErr);
         end;
+        if Fssl <>  Nil then FSslHandshakeRespMsg := FSslHandshakeRespMsg +
+                            ', State: ' + String(f_SSL_state_string_long(Fssl));   { V8.54 }
+        if (ErrCode = 1) then FSslHandshakeRespMsg := FSslHandshakeRespMsg +
+                                              ', connection closed unexpectedly'
     end;
 {$IFNDEF NO_DEBUG_LOG}
     if CheckLogOptions(loSslInfo) then  { V5.21 } { replaces $IFDEF DEBUG_OUTPUT  }
@@ -24721,6 +25091,204 @@ begin
         Result := nil;
 end;
 
+{$IFDEF USE_SSL}
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 get name of TLS extension type }
+function WSocketGetTlsExtStr(Etype: Integer): String;
+begin
+    Result := 'Unknown ' + IntToHex(Etype, 4);
+    case Etype of
+      TLSEXT_TYPE_server_name :
+          Result := 'server name';
+      TLSEXT_TYPE_max_fragment_length :
+          Result := 'max frag length';
+      TLSEXT_TYPE_client_certificate_url :
+          Result := 'client cert URL';
+      TLSEXT_TYPE_trusted_ca_keys :
+          Result := 'trusted CA keys';
+      TLSEXT_TYPE_truncated_hmac :
+          Result := 'truncated HMAC';
+      TLSEXT_TYPE_status_request :
+          Result := 'status request';
+      TLSEXT_TYPE_elliptic_curves :
+          Result := 'elliptic curves';
+      TLSEXT_TYPE_ec_point_formats :
+          Result := 'EC point formats';
+      TLSEXT_TYPE_session_ticket :
+          Result := 'server ticket';
+      TLSEXT_TYPE_signature_algorithms :
+          Result := 'signature algos';    { V8.56 }
+      TLSEXT_TYPE_use_srtp :
+          Result := 'use srtp';    { V8.56 }
+      TLSEXT_TYPE_heartbeat :
+          Result := 'heartbeat';    { V8.56 }
+      TLSEXT_TYPE_application_layer_protocol_negotiation :
+          Result := 'app layer prot neg';    { V8.56 }
+      TLSEXT_TYPE_signed_certificate_timestamp :
+          Result := 'signed cert stamp';    { V8.56 }
+      TLSEXT_TYPE_padding :
+          Result := 'padding';    { V8.56 }
+      TLSEXT_TYPE_encrypt_then_mac :
+          Result := 'encrypt then mac';    { V8.56 }
+      TLSEXT_TYPE_extended_master_secret :
+          Result := 'ext master secret';    { V8.56 }
+      TLSEXT_TYPE_psk :
+          Result := 'psk';    { V8.56 }
+      TLSEXT_TYPE_early_data :
+          Result := 'early_data';    { V8.56 }
+      TLSEXT_TYPE_supported_versions :
+          Result := 'supp versions';    { V8.56 }
+      TLSEXT_TYPE_cookie :
+          Result := 'cookie';    { V8.56 }
+      TLSEXT_TYPE_psk_kex_modes :
+          Result := 'psk kex modes';    { V8.56 }
+      TLSEXT_TYPE_certificate_authorities :
+          Result := 'cert auth';    { V8.56 }
+      TLSEXT_TYPE_post_handshake_auth :
+          Result := 'post handshake auth';    { V8.56 }
+      TLSEXT_TYPE_signature_algorithms_cert :
+          Result := 'sig algo cert';    { V8.56 }
+      TLSEXT_TYPE_key_share :
+          Result := 'key share';    { V8.56 }
+      TLSEXT_TYPE_renegotiate :
+          Result := 'renegotiate';    { V8.56 }
+      TLSEXT_TYPE_next_proto_neg:
+        Result := 'next proto neg';
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 get name of Elliptic Curve group }
+{ from t1_lib.c, can not find API }
+function WSocketGetECStr(EC: LongWord): String;
+begin
+    case EC of
+      $14:  Result := 'secp224k1';
+      $15:  Result := 'secp224r1';
+      $16:  Result := 'secp256k1';
+      $17:  Result := 'secp256r1';
+      $18:  Result := 'secp384r1';
+      $19:  Result := 'secp521r1';
+      $1D:  Result := 'X25519';
+      $1E:  Result := 'X448';
+      $0100:  Result := 'ffdhe2048';  { following TLSv1.3 with Firefox }
+      $0101:  Result := 'ffdhe3072';
+      $0102:  Result := 'ffdhe4096';
+      $0103:  Result := 'ffdhe6144';
+      $0104:  Result := 'ffdhe8192';
+    else
+        Result := IntToHex(EC, 4);
+     // GREASE (Generate Random Extensions And Sustain Extensibility) by Google
+        if Pos ('A', Result) > 0 then
+            Result := 'Grease-' + Result
+        else
+            Result := 'Unknown ' + Result;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 get name of Signature Algorithm }
+{ from s_cb.c, can not find API }
+function WSocketGetSigAlgStr(SigAlg: LongWord): String;
+begin
+    case SigAlg of
+      $0101:  Result := 'rsa_pkcs1_md5';
+      $0201:  Result := 'rsa_pkcs1_sha1';
+      $0202:  Result := 'dsa_sha1';
+      $0203:  Result := 'ecdsa_sha1';
+      $0301:  Result := 'drsa_pkcs1_sha224';
+      $0302:  Result := 'dsa_sha224';
+      $0303:  Result := 'ecdsa_sha224';
+      $0401:  Result := 'rsa_pkcs1_sha256';
+      $0402:  Result := 'dsa_pkcs1_sha256';
+      $0403:  Result := 'ecdsa_secp256r1_sha256';
+      $0501:  Result := 'rsa_pkcs1_sha384';
+      $0502:  Result := 'dsa_pkcs1_sha384';
+      $0503:  Result := 'ecdsa_secp384r1_sha384';
+      $0601:  Result := 'rsa_pkcs1_sha384';
+      $0602:  Result := 'dsa_pkcs1_sha384';
+      $0603:  Result := 'ecdsa_secp521r1_sha512';
+      $0804:  Result := 'rsa_pss_rsae_sha256';
+      $0805:  Result := 'rsa_pss_rsae_sha384';
+      $0806:  Result := 'rsa_pss_rsae_sha512';
+      $0807:  Result := 'ed25519';
+      $0808:  Result := 'ed448';
+      $0809:  Result := 'rsa_pss_pss_sha256';
+      $080A:  Result := 'rsa_pss_pss_sha384';
+      $080B:  Result := 'rsa_pss_pss_sha512';
+    else
+        Result := IntToHex(SigAlg, 4);
+     // GREASE (Generate Random Extensions And Sustain Extensibility) by Google
+        if Pos ('A', Result) > 0 then
+            Result := 'Grease-' + Result
+        else
+            Result := 'Unknown ' + Result;
+    end;
+ end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 get name TLS version }
+function WSocketGetSslVerStr(ver: LongWord): String;
+begin
+    if ver = SSL3_VERSION then
+        Result := 'SSLv3'
+    else if (ver >= TLS1_VERSION) and (ver <= TLS1_3_VERSION) then
+        Result := 'TLSv1.' + IntToStr(ver-SSL3_VERSION-1)
+    else begin
+        Result := IntToHex(ver, 4);
+     // GREASE (Generate Random Extensions And Sustain Extensibility) by Google
+        if Pos ('A', Result) > 0 then Result := 'Grease-' + Result;
+    end;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 get description of important parts of Client Hello which lists
+   it's capabilities so the server can select protocols and ciphers that match
+   Note CipherSuite names are ignored here but can be listed with SslBytesToCiphers }
+function WSocketGetCliHelloStr(CliHello: TClientHelloData): String;
+var
+    I: Integer;
+    S: String;
+begin
+    S := WSocketGetSslVerStr(CliHello.LegacyVersion);
+    if Length(CliHello.SuppVersions) > 0 then begin
+        for I := 0 to Length(CliHello.SuppVersions) - 1 do
+            S := S + ', ' + WSocketGetSslVerStr(CliHello.SuppVersions[I]);
+    end;
+    Result := 'Server Name: ' + CliHello.ServerName + ', ' +
+            'ALPN: ' + CliHello.AlpnList + ', Versions: ' + S;
+    if Length(CliHello.KeyShare) > 0 then begin
+        Result := Result + ', TLSv1.3 Key Share Data';
+    end;
+    Result := Result + IcsCRLF;
+    S := 'Extensions';
+    if CliHello.ExtnTotal > 0 then begin
+        for I := 0 to CliHello.ExtnTotal - 1 do
+            S := S + ', ' + WSocketGetTlsExtStr(CliHello.ExtnList[I]);
+    end;
+    Result := Result + S + IcsCRLF;
+    S := 'Cipher Suites, Total: ' + IntToStr(Length(CliHello.CipherSuites) div 2);
+    if Length(CliHello.EllipCurves) > 0 then begin
+        S := S + ', EC Groups';
+        for I := 0 to Length(CliHello.EllipCurves) - 1 do
+            S := S + ', ' + WSocketGetECStr(CliHello.EllipCurves[I]);
+    Result := Result + S + IcsCRLF;
+    end;
+    if Length(CliHello.SigAlgos) > 0 then begin
+        S := 'Signature Algorithms';
+        for I := 0 to Length(CliHello.SigAlgos) - 1 do
+            S := S + ', ' + WSocketGetSigAlgStr(CliHello.SigAlgos[I]);
+        Result := Result + S+ IcsCRLF;
+    end;
+end;
+
+{$ENDIF}
+
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 initialization
@@ -24781,6 +25349,7 @@ finalization
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+
 
 end.
 

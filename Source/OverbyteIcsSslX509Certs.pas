@@ -675,9 +675,6 @@ Aug 07, 2019  - V8.62   TDomainItem adds DDirWellKnown and DDirPubWebCert
                        Added ChallFileApp and ChallAlpnApp which mean SocketServer
                          checks the challenge database in this unit using an event
                          rather than writing files.
-                       Support tls-alpn-01 challenge for local web server on 443.
-                       BEWARE tls-alpn-01 challenge not working yet, wrong certificate
-                         is sent to client.
                        Builds without USE_SSL
 Nov 12, 2019 - V8.63 - OpenAccount will now create a new account correctly.
                        Better response for CertOrderDomain if order collected.
@@ -693,7 +690,7 @@ Nov 12, 2019 - V8.63 - OpenAccount will now create a new account correctly.
                        Added LastError to try and keep the last real order error.
                        Expire and remove challenges from the database after 24 hours
                          or a week for manual/email/dns.
-Mar 11, 2020 - V8.64 - Added support for International Domain Names for Applications (IDNA),
+Mar 19, 2020 - V8.64 - Added support for International Domain Names for Applications (IDNA),
                          i.e. using accents and unicode characters in domain names.
                        X509 certificates always have A-Lavels (Punycode ASCII) domain names,
                         never UTF8 or Unicode.   IDNs are converted back to Unicode
@@ -708,8 +705,9 @@ Mar 11, 2020 - V8.64 - Added support for International Domain Names for Applicat
                        The onChallengeDNS/Email/FTP events have an extra parameter
                          ChlgOK which the application should set once the challenge
                          have been set-up, so the component can stop if necessary.
-                         Sorry, this requires application changes.  
+                         Sorry, this requires application changes.
                        Fixed several literal typos, sorry.
+                       Support tls-alpn-01 challenge for local web server on 443.
 
 
 Pending real soon - ACME challenge tokens remain valid for a week so don't need
@@ -726,6 +724,7 @@ Pending - install PKCS12 certificates into Windows cert store for IIS
 Pending - Comodo intermediates have too many certificates including a root
 Pending - Add self signed and CA certs to database
 Pending - check well-known challenge made to TSslHttpServer
+Pending - Certificate Management Protocol support with OpenSSL 3.0 
 }
 
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -1030,7 +1029,8 @@ TSslX509Certs = class(TIcsWndControl)
     FDomWebServer: TSimpleWebSrv;
     FNewSslCert: TSslCertTools;
     FAcmePrivKey: TSslCertTools;
-    FRootCAX509: TX509Base;
+//    FRootCAX509: TX509Base;
+    FX509CAList: TX509List;   { V8.64 }
     FChallengeTimer: TIcsTimer;
 
 // published properties
@@ -1209,7 +1209,6 @@ TSslX509Certs = class(TIcsWndControl)
     procedure LogTimeStamp;
 //    procedure SetError(ErrCode: Integer; const Msg: String);
     procedure WebSrvReq(Sender: TObject; const Host, Path, Params: string; var RespCode, Body: string);
-    procedure WebSrvAlpn(Sender: TObject; const Host: string; var CertFName: string);  { V8.62 }
     procedure ChallengeOnTimer(Sender: TObject);
     procedure SetSubAltNames(Value: TSubAltNames);
     procedure OAuthNewToken(Sender: TObject);
@@ -1304,6 +1303,7 @@ TSslX509Certs = class(TIcsWndControl)
     function CheckCSR(RequirePkey: Boolean = True): Boolean;
     function GetOrderResult: String;
     function CreateAcmeAlpnCert(const FileName, CName, KeyAuth: String): Boolean;  { V8.62 }
+    procedure WebSrvAlpn(Sender: TObject; const Host: string; var CertFName: string);  { V8.64 }
 
     property ProductJson: ISuperObject              read FProductJson;
     property ProductDVAuth: String                  read FProductDVAuth;
@@ -1660,7 +1660,7 @@ begin
     FreeAndNil(FRestOAuth);
     FreeAndNil(FNewSslCert);
     FreeAndNil(FAcmePrivKey);
-    FreeAndNil(FRootCAX509);
+    FreeAndNil(FX509CAList);
     FreeAndNil(FDirPubWebCert);
     FreeAndNil(FProductList);
     FreeAndNil(FApproverEmails);
@@ -1896,13 +1896,12 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ event called by simple web server when tls-alpn-01 challenge requested }
+{ event called by web server when tls-alpn-01 challenge requested }
 procedure TSslX509Certs.WebSrvAlpn(Sender: TObject; const Host: string; var CertFName: string);
 var
     I: Integer;
 begin
-    LogEvent({RFC3339_DateToStr(Now) +} 'Challenge Web tls-alpn-01 Challenge Request, Host: ' + Host);
-
+    LogEvent('Challenge Web tls-alpn-01 Challenge Request, Host: ' + Host);
     try
       /// check if host has Acme certificate created
         if ( FChallengesTot > 0) and (Length(FChallengeItems) > 0) then begin
@@ -3482,13 +3481,13 @@ begin
 
 // now validate and report certificate  chain
     try
-        if NOT Assigned(FRootCAX509) then begin  { V8.55  }
-            FRootCAX509 := TX509Base.Create (Self);
-            FRootCAX509.LoadCATrustFromString(sslRootCACertsBundle);  // builtin roots
+        if NOT Assigned(FX509CAList) then begin  { V8.64  }
+            FX509CAList := TX509List.Create (Self);
+            FX509CAList.LoadAllFromString(sslRootCACertsBundle);  // builtin roots
         end ;
-        FNewSslCert.X509CATrust := FRootCAX509.X509CATrust;
      { V8.47 warning, currently only checking first Host name }
-        FNewCertValRes := FNewSslCert.ValidateCertChain(CertName, FNewCertChainInfo, FNewCertErrs, 30);
+        FNewCertValRes := FNewSslCert.ValidateCertChain(CertName, FX509CAList,
+                                                 FNewCertChainInfo, FNewCertErrs, 30);
         if FNewCertValRes = chainOK then
             LogEvent ('SSL Certificate Chain Validated OK: ' + IcsCRLF +
                                                 FNewCertChainInfo + IcsCRLF + IcsCRLF)

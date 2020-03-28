@@ -249,6 +249,10 @@ object IpLogForm: TIpLogForm
     object SheetOperation: TTabSheet
       Caption = 'Operation'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label1: TLabel
         Left = 290
         Top = 5
@@ -422,6 +426,10 @@ object IpLogForm: TIpLogForm
     end
     object SheetSettings: TTabSheet
       Caption = 'Settings'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object BoxClient: TGroupBox
         Left = 5
         Top = 5
@@ -767,7 +775,7 @@ object IpLogForm: TIpLogForm
           Width = 196
           Height = 22
           Style = csDropDownList
-          ItemHeight = 14
+          ItemHeight = 0
           TabOrder = 11
         end
         object SslCertChallenge: TComboBox
@@ -776,7 +784,7 @@ object IpLogForm: TIpLogForm
           Width = 196
           Height = 22
           Style = csDropDownList
-          ItemHeight = 14
+          ItemHeight = 0
           TabOrder = 13
         end
         object SslCertPKeyType: TComboBox
@@ -785,7 +793,7 @@ object IpLogForm: TIpLogForm
           Width = 196
           Height = 22
           Style = csDropDownList
-          ItemHeight = 14
+          ItemHeight = 0
           TabOrder = 15
         end
         object SslCertDirWork: TEdit
@@ -801,7 +809,7 @@ object IpLogForm: TIpLogForm
           Width = 161
           Height = 22
           Style = csDropDownList
-          ItemHeight = 14
+          ItemHeight = 0
           TabOrder = 14
         end
         object SslCertProduct: TEdit
@@ -899,7 +907,7 @@ object IpLogForm: TIpLogForm
           Top = 20
           Width = 194
           Height = 22
-          ItemHeight = 14
+          ItemHeight = 0
           MaxLength = 5
           TabOrder = 0
           Text = '0.0.0.0'
@@ -1090,7 +1098,6 @@ object IpLogForm: TIpLogForm
     OnCertProg = SslX509CertsCertProg
     OnNewCert = SslX509CertsNewCert
     OnOAuthAuthUrl = SslX509CertsOAuthAuthUrl
-    OnChallengeDNS = SslX509CertsChallengeDNS
     Left = 850
     Top = 310
   end

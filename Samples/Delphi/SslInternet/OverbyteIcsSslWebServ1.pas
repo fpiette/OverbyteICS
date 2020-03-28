@@ -11,7 +11,7 @@ Description:  WebSrv1 show how to use THttpServer component to implement
 Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 1999-2019 by François PIETTE
+Legal issues: Copyright (C) 1999-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -96,8 +96,10 @@ Feb 14, 2018 V8.52 Added IPv6 support by listing IPv6 local listen addresses,
                    Add TLSv3 ciphers for OpenSSL 1.1.1 and later only
 Jul 6, 2018  V8.56 Added SslAlpnSelect callback for SSL application layer protocol
                       negotiation, used for HTTP/2 (not supported yet)
-Dec 22, 2019 V8.64 Stop web servers before closing.
-
+Mar 26, 2020 V8.64 Stop web servers before closing.
+                   Display SSL client hello information.
+                   Certificate chain validation changed to use TX509List.  
+                   
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
@@ -139,7 +141,7 @@ uses
   OverbyteIcsSocketUtils;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2019 F. Piette V8.64 ';
+  CopyRight : String         = 'WebServ (c) 1999-2020 F. Piette V8.64 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -603,14 +605,8 @@ end;
 { client.                                                                   }
 { When server is started, we will get OnServerStarted event triggered.      }
 procedure TSslWebServForm.StartHttpsButtonClick(Sender: TObject);
-//const
-//    SslSrvVersions : array [0..5] of TSslVersionMethod =
-//        (sslBestVer_SERVER,sslV2_SERVER,sslV3_SERVER,sslTLS_V1_SERVER,sslTLS_V1_1_SERVER,sslTLS_V1_2_SERVER);  { V8.05 }
 var
-//    MyCert: TX509Base;
-//    CertList: TX509List;
-//    Tot, I: Integer;
-//    Info: string;
+    CAList: TX509List;       { V8.64 }
     ErrStr: string;
     valres: TChainResult;
 
@@ -648,8 +644,9 @@ begin
             SslContext1.SslCertX509.LoadIntersFromPemFile(CAFileEdit.Text);
 
      { V8.41 check certificate chain for errors }
-     SslContext1.SslCertX509.LoadCATrustFromString(sslRootCACertsBundle);  { trusted root so we check chain }
-     valres := SslContext1.SslCertX509.ValidateCertChain('', FSrvSslCert, ErrStr);  { really need host name  }
+     CAList := TX509List.Create(Self);      { V8.64 }
+     CAList.LoadAllFromString(sslRootCACertsBundle);  { V8.64 trusted root so we check chain }
+     valres := SslContext1.SslCertX509.ValidateCertChain('', CAList, FSrvSslCert, ErrStr);  { really need host name  }
     if valres = chainOK then
         ErrStr := 'Chain Validated OK'
     else if valres = chainWarn then
@@ -657,6 +654,7 @@ begin
     else
         ErrStr := 'Chain Failed - ' + ErrStr;
     Display(FSrvSslCert + #13#10 + ErrStr + #13#10);
+    CAList.Destroy;
     if valres = chainFail then Exit;
 
     SslContext1.SslDHParamFile      := DhParamFileEdit.Text;      { V8.02 }
@@ -691,10 +689,6 @@ begin
         FSrvCipherList := SslContext1.SslGetAllCiphers;
         FSrvCipherList := StringReplace(FSrvCipherList, #13#10, ', ', [rfReplaceAll]);
         Display('SSL Ciphers Accepted: ' + #13#10 + FSrvCipherList + #13#10);
-
-        FCliCipherList := SslHttpServer1.WSocketServer.SslGetSupportedCiphers (True, False);
-        FCliCipherList := StringReplace(FCliCipherList, #13#10, ', ', [rfReplaceAll]);
-        Display('SSL Ciphers Supported: ' + #13#10 + FCliCipherList + #13#10);
 
      except
         on E:Exception do begin
@@ -860,6 +854,7 @@ procedure TSslWebServForm.SslHttpServer1SslServerName(      { V8.02 }
   var ErrCode : TTlsExtError); // Optional error code
 var
     Cli : TSslWSocketClient;
+//    CipherList: String;
 begin
    { V8.06 tell SSL whether server can handle SslServerName }
     ErrCode := teeOk;              { accept SSL connection }
@@ -870,8 +865,17 @@ begin
     Display('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
             Cli.GetPeerAddr + '] SNI "' + Cli.SslServerName +'" received');
 
+ // list SMI, ALPN, versioon, extensions and stuff from Cli.CliHelloData
+    Display('Client Hello: ' + WSocketGetCliHelloStr(Cli.CliHelloData));
+
+  { does not work yet }
+//  CipherList := Cli.SslBytesToCiphers(Cli.CliHelloData.CipherSuites);
+ // Display(StringReplace(CipherList, #13#10, ', ', [rfReplaceAll]));
+
+
     { Provide a SslContext that corresponds to the server name received }
     { this allows different hosts and certificates on the same IP address }
+    { note this is better done using IcsHosts in SslSocketServer }
 
  {   if FComputerName = Cli.SslServerName then begin
         if not SslContext2.IsCtxInitialized then
@@ -892,13 +896,11 @@ var
     I: Integer;
 begin
     if ProtoList.Count = 0 then Exit;
-    Display('[' + FormatDateTime('HH:NN:SS', Now) +
-     '] SSL Application Layer Protocols allowed from client: ' + ProtoList.CommaText);
   // optionally select a protocol we want to use
     for I := 0 to ProtoList.Count - 1 do begin
         if ProtoList[I] = ALPN_ID_HTTP11 then begin
             SelProto := ALPN_ID_HTTP11;
-        //    SelProto := ALPN_ID_HTTP2; // TEMP confuse them 
+        //    SelProto := ALPN_ID_HTTP2; // TEMP confuse them
             ErrCode := teeOk;
             Exit;
         end;
@@ -1509,16 +1511,15 @@ begin
     Remote := Sender as TMyHttpConnection;
     FCliCipherList := Remote.SslGetSupportedCiphers (True, True);
     FCliCipherList := StringReplace(FCliCipherList, #13#10, ', ', [rfReplaceAll]);
+
+ // normally list Client Hello in Server Name event, do it here if no name
+ // list SMI, ALPN, versioon, extensions and stuff from Cli.CliHelloData
+    if Remote.SslServerName = '' then
+        Display('Client Hello: ' + WSocketGetCliHelloStr(Remote.CliHelloData));
+
     if ErrCode = 0 then begin
         Remote.LastHandshake := GetTickCount;
         if DisplaySslInfoCheckBox.Checked then begin
-      {     Display(Format('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
-                    Remote.GetPeerAddr + '] SslHandshakeDone. Secure ' +
-                    'connection with %s, cipher %s, %d secret bits ' +
-                    '(%d total), SessionReused %d',
-                    [Remote.SslVersion, Remote.SslCipher,
-                    Remote.SslSecretBits, Remote.SslTotalBits,
-                    Ord(Remote.SslSessionReused)]));  }
             Display('[' + FormatDateTime('HH:NN:SS', Now) + ' ' +
                     Remote.GetPeerAddr + '] ' + Remote.SslHandshakeRespMsg +
                     ', SessionReused ' + IntToStr (Ord(Remote.SslSessionReused)));    { V8.01 }

@@ -8,11 +8,10 @@ Description:  WebSrv1 show how to use THttpServer component to implement
               The code below allows to get all files on the computer running
               the demo. Add code in OnGetDocument, OnHeadDocument and
               OnPostDocument to check for authorized access to files.
-Version:      8.56
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2018 by François PIETTE
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1999-2019 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -97,6 +96,8 @@ Feb 14, 2018 V8.52 Added IPv6 support by listing IPv6 local listen addresses,
                    Add TLSv3 ciphers for OpenSSL 1.1.1 and later only
 Jul 6, 2018  V8.56 Added SslAlpnSelect callback for SSL application layer protocol
                       negotiation, used for HTTP/2 (not supported yet)
+Dec 22, 2019 V8.64 Stop web servers before closing.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsSslWebServ1;
@@ -138,7 +139,7 @@ uses
   OverbyteIcsSocketUtils;
 
 const
-  CopyRight : String         = 'WebServ (c) 1999-2018 F. Piette V8.56 ';
+  CopyRight : String         = 'WebServ (c) 1999-2019 F. Piette V8.64 ';
   Ssl_Session_ID_Context     = 'WebServ_Test';
 
 type
@@ -520,6 +521,7 @@ procedure TSslWebServForm.FormClose(Sender: TObject; var Action: TCloseAction);
 var
     IniFile : TIcsIniFile;
 begin
+     StopButtonClick(Self);   { V8.64 }
     { Save persistent data to INI file }
     IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionWindow, KeyTop,         Top);

@@ -52,7 +52,7 @@ Dec 06, 2010 V6.05 Thread-safe FreeNotification and RemoveFreeNotification.
 Apr 15, 2011 V6.06 Arno prepared for 64-bit.
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
-Dec 19, 2016 V8.40 Angus added loSslDevel
+Dec 19, 2016 V8.40 Angus added loSslDevel   
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsLogger;

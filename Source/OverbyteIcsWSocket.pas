@@ -3,10 +3,10 @@
 Author:       François PIETTE
 Description:  TWSocket class encapsulate the Windows Socket paradigm
 Creation:     April 1996
-Version:      8.63
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 1996-2019 by François PIETTE
+Legal issues: Copyright (C) 1996-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -1327,7 +1327,9 @@ Nov 18, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                    GetSelfSigned now has better check for self signed certificates.
                    Added Sha256Digest and Sha256Hex to TX509Base.
                    CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
-
+Jan 08, 2020 V8.64 Ignore any errors with SSL APLN during handshake.
+                   Fixed a problem with SSL ALPN server handshake that may have
+                     caused unexpected exceptions mainly on 64-bit applications.
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -1536,8 +1538,8 @@ type
   TSocketFamily = (sfAny, sfAnyIPv4, sfAnyIPv6, sfIPv4, sfIPv6);
 
 const
-  WSocketVersion            = 863;
-  CopyRight    : String     = ' TWSocket (c) 1996-2019 Francois Piette V8.63 ';
+  WSocketVersion            = 864;
+  CopyRight    : String     = ' TWSocket (c) 1996-2020 Francois Piette V8.64 ';
   WSA_WSOCKET_TIMEOUT       = 12001;
   DefaultSocketFamily       = sfIPv4;
 
@@ -15643,28 +15645,34 @@ begin
     if Assigned(Ws) then begin
         ProtoList := TStringList.Create;
         try
-            Count := IcsWireFmtToStrList(TBytes(input), inlen, ProtoList);
-            if Count > 0 then begin
+            try
+                Count := IcsWireFmtToStrList(TBytes(input), inlen, ProtoList);
+                if Count > 0 then begin
 
-                {$IFNDEF NO_DEBUG_LOG}
-                    if Ws.CheckLogOptions(loSslInfo) then
-                        Ws.DebugLog(loSslInfo, 'AlpnCB> Protocols: ' + ProtoList.CommaText);
-                {$ENDIF}
+                    {$IFNDEF NO_DEBUG_LOG}
+                        if Ws.CheckLogOptions(loSslInfo) then begin
+                            Ws.DebugLog(loSslInfo, 'AlpnCB> inlen: ' + IntToStr(inlen) +
+                                           ' - ' + IcsBufferToHex(input^, inlen));  { V8.64 }
+                            Ws.DebugLog(loSslInfo, 'AlpnCB> Protocols: ' + ProtoList.CommaText);
+                        end;
+                    {$ENDIF}
 
-             { ask user if they want to select a single protocol to use from the list }
-                SelProto := '';
-                Err := teeNoAck;
-                Ws.TriggerSslAlpnSelect(ProtoList, SelProto, Err);
-                outlen := Length(SelProto);
-                if (Err = teeOk) and (outlen > 0) then begin
-                    WS.FAlpnProtoAnsi := AnsiString(SelProto);   { V8.62 made static }
-                    output := @WS.FAlpnProtoAnsi[1];
-                    Result := SSL_TLSEXT_ERR_OK;  { V8.62 }
-                end
-                else if Err = teeAlertWarning then
-                    Result := SSL_TLSEXT_ERR_ALERT_WARNING    { V8.62 }
-                else if Err = teeAlertFatal then
-                    Result := SSL_TLSEXT_ERR_ALERT_FATAL;     { V8.62 }
+                 { ask user if they want to select a single protocol to use from the list }
+                    SelProto := '';
+                    Err := teeNoAck;
+                    Ws.TriggerSslAlpnSelect(ProtoList, SelProto, Err);
+                    outlen := Length(SelProto);
+                    if (Err = teeOk) and (outlen > 0) then begin
+                        WS.FAlpnProtoAnsi := AnsiString(SelProto);   { V8.62 made static }
+                        output := @WS.FAlpnProtoAnsi[1];
+                        Result := SSL_TLSEXT_ERR_OK;  { V8.62 }
+                    end
+                    else if Err = teeAlertWarning then
+                        Result := SSL_TLSEXT_ERR_ALERT_WARNING    { V8.62 }
+                    else if Err = teeAlertFatal then
+                        Result := SSL_TLSEXT_ERR_ALERT_FATAL;     { V8.62 }
+                end;
+            except   { V8.64 ignore any error here }
             end;
         finally
             ProtoList.Free;

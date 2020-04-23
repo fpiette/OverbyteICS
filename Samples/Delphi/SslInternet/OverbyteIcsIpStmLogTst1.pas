@@ -3,8 +3,8 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  IP Log Streaming Component - Test Application
 Creation:     Aug 2007
-Updated:      June 2019
-Version:      8.62
+Updated:      Dec 2019
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
@@ -98,10 +98,13 @@ in the event when only one was open, tested with Delphi 2010
 
 17 Jun 2019 - V8.62 - SSL server now works properly again.
                       Allow SSL certificates to be ordered and installed automatically.
-                      Added Log Directory for log file.  
+                      Added Log Directory for log file.
 
 13 Nov 2019 - V8.63 - Restart server once first certificate issued.
                       Corrected log file name.
+
+26 Nov 2019 - V8.64 - Ensure old server port cleared when changing SSL.
+
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -669,10 +672,14 @@ begin
             HostEnabled := True;
             BindIpAddr := LocalAddr.Text ;
         //    BindIpAddr2 :=
-            if NOT IpLogServer.ForceSsl then
-                BindNonPort := atoi(LocalPort.Text)
-            else
+            if NOT IpLogServer.ForceSsl then begin
+                BindNonPort := atoi(LocalPort.Text);
+                BindSslPort := 0;  { V8.64 }
+            end
+            else begin
                 BindSslPort := atoi(LocalPort.Text) ;
+                BindNonPort := 0;  { V8.64 }
+            end;
             HostTag := 'LocalServer' ;
             Descr := HostTag;
             CertSupplierProto := SuppProtoNone;
@@ -903,10 +910,14 @@ begin
             HostEnabled := True;
             BindIpAddr := LocalAddr.Text ;
         //    BindIpAddr2 :=
-            if NOT IpLogServer.ForceSsl then
-                BindNonPort := atoi(ServerPort.Text)
-            else
+            if NOT IpLogServer.ForceSsl then begin
+                BindNonPort := atoi(ServerPort.Text);
+                BindSslPort := 0;  { V8.64 }
+            end
+            else begin
                 BindSslPort := atoi(ServerPort.Text) ;
+                BindNonPort := 0;  { V8.64 }
+            end;
             HostTag := 'TCPServer' ;
             Descr := HostTag;
             CertSupplierProto := SuppProtoNone;

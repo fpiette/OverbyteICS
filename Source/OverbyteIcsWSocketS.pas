@@ -4,7 +4,7 @@ Author:       François PIETTE
 Description:  A TWSocket that has server functions: it listen to connections
               an create other TWSocket to handle connection for each client.
 Creation:     Aug 29, 1999
-Version:      8.63
+Version:      8.64
 EMail:        francois.piette@overbyte.be     http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 1999-2019 by François PIETTE
@@ -224,8 +224,14 @@ Nov 18, 2019 V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
                    Automatic cert ordering now Logs activity via the SslX509Certs
                      component since this one does not have logging.
                    Corrected INI file reading NostEnabled instead of HostEnabled.
+Dec 03, 2019 V8.64 IcsHosts allows NonSSlPort to be zero for random port, not for SSL.
+                   Added BindPort read only property with real port while listening.
+                   Added BindSrvPort to IcsHosts set while listening.
+                   ListenStates now shows BindPort rather than requested port.
 
 
+
+                   
 
 Quick reference guide:
 ----------------------
@@ -497,6 +503,7 @@ BindIdxNone  - MultiListenIdx for first IP address, non-SSL.
 BindIdxSsl   - MultiListenIdx for first IP address, SSL.
 BindIdx2None - MultiListenIdx for second IP address, non-SSL.
 BindIdx2Ssl  - MultiListenIdx for second IP address, SSL.
+BindSrvPort  - Actual listening port, useful if Port=0 for dynamic port.
 
 
 0Auth2 Consideration
@@ -508,8 +515,9 @@ login to the supplier account.  For a background server, the application can
 send an email to an administrator who performs the login manually on the same
 PC as the server is running, and the TSslX509Certs component will accept and
 save the authentication token automatically and use it for the next certificate
-order attempt. Tokens usually expire after 12 to 24 hours, but the server will
-automatically refresh the token provided it is not stopped before token expiry.
+order attempt. Authentication tokens usually expire after one to 24 hours. Often
+a refresh token is also supplied allowing the server to automatically refresh
+the token, sometimes within the expiry period, sometimes for several months.
 
 
 TSslWSocketServer
@@ -521,7 +529,8 @@ Addr         - Server listen IP address, IPv4 or IPv6, maybe 0.0.0.0 or :: to
                specified.  IP address must exist and not be in use elsewhere
                for the same port.
 Port         - Server listen port, usually 80 or 443, ignored if any IcsHosts
-               specified.
+               specified, zero means dynamic port.
+BindPort     - While listening actual port, useful if Port=0 for dynamic port.
 SocketFamily - IP address socket family as TSocketFamily, from sfIPv4, sfIPv6.
 SslEnable    - True if an SSL connection should be negotiated. ignored if any
                IcsHosts specified.
@@ -706,8 +715,8 @@ uses
     OverbyteIcsTypes;
 
 const
-    WSocketServerVersion     = 863;
-    CopyRight : String       = ' TWSocketServer (c) 1999-2019 F. Piette V8.63 ';
+    WSocketServerVersion     = 864;
+    CopyRight : String       = ' TWSocketServer (c) 1999-2019 F. Piette V8.64 ';
  { V8.62 ALPN requests that may arrive during SSL helo }
     AlpnAcmeTls1 = 'acme-tls/1';
     AlpnHttp11   = 'http/1.1';
@@ -793,6 +802,7 @@ type
         FClientNum              : LongInt;
         FMaxClients             : LongInt;
         FMsg_WM_CLIENT_CLOSED   : UINT;
+        FBindPort               : string;                           { V8.64 }
         FOnClientCreate         : TWSocketClientCreateEvent;
         FOnClientConnect        : TWSocketClientConnectEvent;
         FOnClientDisconnect     : TWSocketClientConnectEvent;
@@ -814,8 +824,10 @@ type
         destructor  Destroy; override;
         { Check  if a given object is one of our clients }
         function  IsClient(SomeThing : TObject) : Boolean;
+        procedure Listen; override;                                   { V8.64 }
         procedure Disconnect(Client: TWSocketClient); virtual;        { angus V6.01 }
         procedure DisconnectAll; virtual;                             { angus V6.01 }
+        property  BindPort: string                    read FBindPort; { V8.64 }
     protected
         { TWSocketClient derived class to instanciate for each client }
         property  ClientClass            : TWSocketClientClass
@@ -872,6 +884,7 @@ type
 {$IFDEF USE_SSL}
       FSslEnable : Boolean;         { V8.36 moved from SSL class }
 {$ENDIF} // USE_SSL
+      FBindPort: string;                           { V8.64 }
       procedure SetAddr(const Value: string);
       procedure SetSocketFamily(const Value: TSocketFamily);
       function GetAddrResolved: string;
@@ -922,6 +935,7 @@ type
       function  SetAddressListChangeNotification: Boolean;
       function  SetRoutingInterfaceChangeNotification: Boolean;
       property  SelectEvent: LongWord read FSelectEvent;
+      property  BindPort: string read FBindPort;                      { V8.64 }
     published
       property Addr: string read FAddr write SetAddr;
       property ListenBacklog: Integer           read  FListenBacklog
@@ -1100,6 +1114,7 @@ type
     FCertSignDigest: TEvpDigest;
     FWebLogIdx: Integer;    { V8.60 }
     FAuthSslCmd: Boolean;   { V8.63 }
+    FBindSrvPort: string;   { V8.64 }
   protected
     function GetDisplayName: string; override;
     function GetHostNameTot: integer;
@@ -1260,6 +1275,7 @@ type
         function  GetSslX509Certs: TComponent;                       { V8.57 }
         procedure SetSslX509Certs(const Value : TComponent);         { V8.57 }
 {$ENDIF} // AUTO_X509_CERTS
+        property  Validated: Boolean                     read FValidated;    { V8.64 }
     published
         property  SslContext;
         property  Banner;
@@ -1612,6 +1628,14 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TCustomWSocketServer.Listen;     { V8.64 }
+begin
+    inherited Listen;
+    FBindPort := GetXPort;  { V8.64 keep actual port listening, might be random }
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { Client has closed. Remove it from client list and destroy component.        }
 procedure TCustomWSocketServer.WMClientClosed(var msg: TMessage);
 var
@@ -1894,9 +1918,12 @@ var
     ErrorCode : Integer;
     FriendlyMsg : string;
     optval : Integer;
+    saddr : TSockAddrIn6;
+    saddrlen : Integer;
 begin
     FMultiListenIndex := AItem.Index;
     FriendlyMsg := '';
+    AItem.FBindPort := '';  { V8.64 }
     try
         if (AItem.State <> wsClosed) then begin
             WSocket_WSASetLastError(WSAEINVAL);
@@ -1986,8 +2013,14 @@ begin
         end;
 
         iStatus := WSocket_listen(AItem.HSocket, AItem.ListenBacklog);
-        if iStatus = 0 then
-            AItem.State := wsListening
+        if iStatus = 0 then begin
+            AItem.State := wsListening;
+         { V8.64 keep actual port }
+            saddrlen := sizeof(saddr);
+            if WSocket_getsockname(AItem.HSocket,
+                                      PSockAddr(@saddr)^, saddrlen) = 0 then
+                AItem.FBindPort := IntToStr(WSocket_ntohs(saddr.sin6_port));
+        end
         else begin
             MlSocketError(AItem, 'listen: Listen');
             Exit;
@@ -2331,15 +2364,18 @@ end;
 function TCustomMultiListenWSocketServer.ListenStates: String;
 var
     K: integer ;
+    RealPort: String;   { V8.64 }
 {$IFDEF USE_SSL}
     ListenItem: TSslWSocketMultiListenItem;    { V8.59 }
 {$ELSE}
     ListenItem: TWSocketMultiListenItem;
 {$ENDIF}
 begin
+    RealPort := Self.Port;
+    if Self.FState = wsListening then RealPort := Self.BindPort;  { V8.64 for dynamic ports }
     Result := 'Socket 1 State: ' + SocketStateNames[Self.FState] + ' ' +
                   SocketFamilyNames [Self.SocketFamily] + ' on ' +
-                                        Self.Addr + ' port ' + Self.Port;
+                                        Self.Addr + ' port ' + RealPort;
 {$IFDEF USE_SSL}
     if SslEnable then
         Result := Result + ' SSL' + #13#10
@@ -2354,10 +2390,12 @@ begin
 {$ELSE}
                 TWSocketMultiListenItem;
 {$ENDIF}
+            RealPort := ListenItem.FPort;
+            if ListenItem.FState = wsListening then RealPort := ListenItem.BindPort;  { V8.64 for dynamic ports }
             Result := Result + 'Socket ' + IntToStr (K + 2) +
                  ' State: ' + SocketStateNames[ListenItem.FState] + ' ' +
                      SocketFamilyNames [ListenItem.SocketFamily] +
-                       ' on ' + ListenItem.FAddr + ' port ' + ListenItem.FPort;
+                       ' on ' + ListenItem.FAddr + ' port ' + RealPort;
 {$IFDEF USE_SSL}
             if ListenItem.SslEnable then
                Result := Result + ' SSL' + #13#10
@@ -2893,13 +2931,11 @@ begin
     Client.FMultiListenIdx := FMultiListenIndex;
     if FMultiListenIndex = -1 then begin
         Client.FServerAddr := GetXAddr;
-        Client.FServerPort := GetXPort;
+        Client.FServerPort := FBindPort;  { V8.64 }
     end
     else begin
-        with MultiListenSockets [FMultiListenIndex] do begin
-            Client.FServerAddr := Addr ;
-            Client.FServerPort := Port ;
-        end;
+        Client.FServerAddr := MultiListenSockets[FMultiListenIndex].Addr;  { V8.64 }
+        Client.FServerPort := MultiListenSockets[FMultiListenIndex].FBindPort; { V8.64 }
     end ;
 
   { V8.45 check binding for IcsHost - may be changed later if SNI or Host: header checked }
@@ -3411,6 +3447,7 @@ begin
     Result := '';
     FValidated := False;                                      { V8.48 }
     if FIcsHosts.Count = 0 then Exit;
+    Port := '0';        { V8.64 illegal port in case no hosts set }
     FirstSsl := -1;
     FirstHost := True;
 
@@ -3444,8 +3481,9 @@ begin
             if (NOT FHostEnabled) then continue;
 
          { create up to four bindings for host, IPv4, IPv6, non-SSL, SSL }
-            if (FBindNonPort = 0) and (BindSslPort = 0) then continue;
-            if (FBindNonPort > 0) then begin
+          //  if (FBindNonPort = 0) and (BindSslPort = 0) then continue;
+         { V8.64 allow NonSSlPort to be zero for random port, not for SSL }
+            if (FBindNonPort > 0) or (FBindSslPort = 0) then begin
                 AddBinding(FBindIpAddr, FBindNonPort, False, FBindIdxNone, FBindInfo);
                 if FBindIpAddr2 <> '' then
                     AddBinding(FBindIpAddr2, FBindNonPort, False, FBindIdx2None, FBindInfo);
@@ -3587,6 +3625,11 @@ begin
             end;
         end;
     end;
+    if FirstHost then begin    { V8.64 sanity check }
+        Result := Result + 'No Bindings Found';
+        if NoExceptions then Exit;
+        raise ESocketException.Create(Result);
+    end;
 
   { set server context as first host with SSL }
     if FirstSsl >= 0 then FSslContext := FIcsHosts [FirstSsl].SslCtx;
@@ -3646,11 +3689,28 @@ end;
 { also called when MultiListen is called }
 { beware this function does not give errors if some listeners fail due to port conflicts }
 procedure TSslWSocketServer.Listen;                             { V8.46 }
+var
+    I, K: Integer;
 begin
 { better to call this before Listen and handle errors better, but in case not }
-    if NOT FValidated then ValidateHosts(True, True, False);
+    if NOT FValidated then ValidateHosts(True, False, False);    { V8.64 exception for IcsHosts errors }
     FValidated := False;
     inherited Listen;
+
+  { V8.64 keep bindport for each IcsHost }
+    if FIcsHosts.Count > 0 then begin
+        FIcsHosts[0].FBindSrvPort := Self.FBindPort;
+        if MultiListenSockets.Count > 0 then begin
+            for K := 0 to MultiListenSockets.Count - 1 do begin
+                for I := 0 to FIcsHosts.Count - 1 do begin
+                    if NOT (FIcsHosts[I].HostEnabled) then continue;
+                    if (FIcsHosts[I].FBindIdxNone = K) or
+                                    (FIcsHosts[I].FBindIdxSsl = K) then
+                        FIcsHosts[I].FBindSrvPort := MultiListenSockets[K].FBindPort;
+                end;
+            end;
+        end;
+    end;
 end;
 
 

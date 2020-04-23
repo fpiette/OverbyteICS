@@ -1,7 +1,7 @@
 object WeblServerForm: TWeblServerForm
   Left = 339
   Top = 282
-  Caption = 'Web Application Server  - V8.61 4th April 2019 '
+  Caption = 'Web Application Server  - V8.64 23rd Decemberl 2019 '
   ClientHeight = 437
   ClientWidth = 587
   Color = clBtnFace
@@ -87,6 +87,7 @@ object WeblServerForm: TWeblServerForm
     TabOrder = 1
   end
   object Timer1: TTimer
+    Enabled = False
     OnTimer = Timer1Timer
     Left = 320
     Top = 5
@@ -112,7 +113,7 @@ object WeblServerForm: TWeblServerForm
     MaxBlkSize = 8192
     BandwidthLimit = 0
     BandwidthSampling = 1000
-    ServerHeader = 'Server: ICS-HttpServer-8.57'
+    ServerHeader = 'Server: ICS-HttpServer-8.64'
     OnServerStarted = SslHttpAppSrv1ServerStarted
     OnServerStopped = SslHttpAppSrv1ServerStopped
     OnClientConnect = SslHttpAppSrv1ClientConnect
@@ -149,6 +150,7 @@ object WeblServerForm: TWeblServerForm
     CertExpireDays = 30
     SslX509Certs = IcsSslX509Certs
     OnSslHandshakeDone = SslHttpAppSrv1SslHandshakeDone
+    OnSslAlpnSelect = SslHttpAppSrv1SslAlpnSelect
     Left = 365
     Top = 5
   end
@@ -172,6 +174,8 @@ object WeblServerForm: TWeblServerForm
     OAWebSrvPort = '8080'
     PrivKeyCipher = PrivKeyEncNone
     PrivKeyType = PrivKeyRsa2048
+    AutoAccountClose = False
+    AccountTimeOutMins = 10
     SeqOrderNum = 0
     SocketFamily = sfAny
     SuppCertChallenge = ChallNone

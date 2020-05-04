@@ -448,11 +448,15 @@ Nov 6, 2019  V8.63 - ftpsNoPasvIpAddrInLan and ftpsNoPasvIpAddrSameSubnet option
                        from INI file, IcsHosts can be read using IcsLoadIcsHostsFromIni. 
                      When using IcsHosts, FtpSslTypes is set automatically to Implicit
                        if an SSL port is specified or Explicit if AuthSslCmd is true.
-Jan 22, 2020 V8.64 - Added TFtpOptions ftpsAuthForceSsl which require SSL/TLS for
+May 01, 2020 V8.64 - Added TFtpOptions ftpsAuthForceSsl which require SSL/TLS for
                        LOGIN so no clear credentials allowed.  May also be set using
                        IcsHosts with AuthForceSsl=True for specific Hosts only.
-                       Failure gives '533 USER requires a secure connection'. 
-
+                       Failure gives '533 USER requires a secure connection'.
+                     Better error handling when all passive ports are being used.
+                     Fixed a range error with passive connections is range checking
+                       was enabled, option ftpsNoPasvIpAddrSameSubnet and adaptors
+                       had IPv6 addresses.
+                       
 
 Angus pending -
 CRC on the fly
@@ -1050,7 +1054,7 @@ type
         FUserData               : LongInt;      { Reserved for component user }
         FPasvPortRangeStart     : Integer;
         FPasvPortRangeSize      : Integer;
-        FPasvPortTable          : PBoolean;
+        FPasvPortTable          : PBoolean;     { list of passive ports being used, port freed when closed }
         FPasvPortTableSize      : Integer;
         FPasvIpAddr             : String;
         FPasvNextNr             : Integer;      { angus V1.56 }
@@ -5453,7 +5457,7 @@ begin
         while TRUE do begin
             TablePtr := IncPtr(FPasvPortTable, SizeOf(Boolean) * FPasvNextNr); { AG V6.02 }
             if TablePtr^ = FALSE then begin
-                TablePtr^ := TRUE;
+                TablePtr^ := TRUE;    { mark port as being used }
                 NewPort   := FPasvPortRangeStart + FPasvNextNr;          { angus V1.56 }
                 Inc(FPasvNextNr);                                        { angus V1.56 }
                 Result    := IntToStr(NewPort);
@@ -5462,8 +5466,11 @@ begin
             Inc(FPasvNextNr);                                            { angus V1.56 }
             if FPasvNextNr >= FPasvPortRangeSize then FPasvNextNr := 0;  { angus V1.56 }
             Inc(I);
-            if I >= FPasvPortRangeSize then
+            if I >= FPasvPortRangeSize then begin  { V8.64 reset to start if no free ports }
+                Result := IntToStr(FPasvPortRangeStart);
+                FPasvNextNr := 0;
                 break;  { no free ports in range - angus V1.56 }
+            end;
         end;
     end;
 end;
@@ -5496,7 +5503,7 @@ begin
     if (CurrentPort >= FPasvPortRangeStart) and
        (CurrentPort <= (FPasvPortRangeStart + FPasvPortRangeSize)) then begin
         PBoolean(IncPtr(FPasvPortTable,                        { AG V6.02 }
-                 SizeOf(Boolean) * (CurrentPort - FPasvPortRangeStart)))^ := FALSE;
+                 SizeOf(Boolean) * (CurrentPort - FPasvPortRangeStart)))^ := FALSE;   { free port in table }
     end;
     AClient.PassiveMode := FALSE;  // FLD 29.12.05
 end;
@@ -5612,6 +5619,7 @@ begin
         on E:Exception do begin
             Answer := WideFormat(msgPasvExcept, [E.Message]);
             try
+                FreeCurrentPasvPort(Client);  { V8.64 clean up }
                 Client.DataSocket.Close;
             except
                 { Ignore any exception here }

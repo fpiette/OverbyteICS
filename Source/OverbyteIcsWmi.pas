@@ -3,7 +3,7 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  WMI compoments for IP address and DNS server updating.
 Creation:     Mar 2020
-Updated:      Mar 2020
+Updated:      Apr 2020
 Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -44,7 +44,7 @@ Overview
 Borrowed from Magenta Systems WMI and SMART Component v5.6 magwmi.pas, no disk drive stuff.
 Updates:
 November 2003 - baseline Magenta Systems Ltd
-Mar 27, 2020  - 8.64 - ICS version
+Apr 21, 2020  - 8.64 - ICS version
 
 
 
@@ -1173,11 +1173,23 @@ begin
     end;
     PunyZone := IcsToASCII(Zone);
     WmiDnsRec.HostName := IcsLowerCase(WmiDnsRec.HostName);
-    CheckFlag := (Pos('_acme', WmiDnsRec.HostName) = 0);  // will fail name rules 
+  // don't check illegal characters _ at start of name, used for ACME DNS challenges
+    CheckFlag := (Pos('_', WmiDnsRec.HostName) = 0);
+    if (Pos('._', WmiDnsRec.HostName) > 1) then CheckFlag := False;
     WmiDnsRec.PunyName := IcsIDNAToASCII(WmiDnsRec.HostName, CheckFlag, ErrFlag);
     if ErrFlag then begin
         Errinfo := 'Host Name Contains Invalid Characters - ' + WmiDnsRec.HostName ;
         Exit;
+    end;
+    if WmiDnsRec.RecType = 'TXT' then begin // make sure TXT is dellmited else delete fails
+        if WmiDnsRec.RecData = '' then
+            WmiDnsRec.RecData := IcsDQUOTE + IcsDQUOTE
+         else begin
+             if WmiDnsRec.RecData[1] <> IcsDQUOTE then
+                                WmiDnsRec.RecData := IcsDQUOTE + WmiDnsRec.RecData;
+             if WmiDnsRec.RecData[Length(WmiDnsRec.RecData)] <> IcsDQUOTE then
+                                WmiDnsRec.RecData := WmiDnsRec.RecData + IcsDQUOTE;
+         end;
     end;
     NewRRRec := WmiDnsRec.PunyName + ' IN ' + WmiDnsRec.RecType + ' ' + WmiDnsRec.RecData;
     MClass := 'MicrosoftDNS_' + WmiDnsRec.RecType + 'Type';

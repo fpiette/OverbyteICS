@@ -150,9 +150,11 @@ Oct 19, 2018  V8.58 version only
 Jul 04, 2019  V8.62 Added f_OBJ_create to add new NIDs.
                     ICS_NID_acmeIdentifier created dynamically since NID missing.
                     Fixed Asn1ToString bad octet conversion to hex.
-Mar 18, 2019  V8.64 Added f_EVP_PKEY_set_alias_type, f_EVP_PKEY_id, f_d2i_PUBKEY(_bio),
+May 04, 2020  V8.64 Added f_EVP_PKEY_set_alias_type, f_EVP_PKEY_id, f_d2i_PUBKEY(_bio),
                       f_i2d_PUBKEY_bio, f_EVP_PKEY_new/get_raw_private/public_key.
                     Added f_OPENSSL_free.
+                    Fixed declarations of f_X509_check_ip_asc thanks to Ralf Junker.
+                    Added more exports for key processing, thanks to Linden Roth. 
 
 
 Pending - OpenSSL 3.0.0 may require numeric NID_xx to be replaced by string
@@ -266,7 +268,7 @@ uses
 
 const
     IcsLIBEAYVersion   = 864;
-    CopyRight : String = ' IcsLIBEAY (c) 2003-2019 F. Piette V8.64 ';
+    CopyRight : String = ' IcsLIBEAY (c) 2003-2020 F. Piette V8.64 ';
 
 type
     EIcsLibeayException = class(Exception);
@@ -1823,6 +1825,7 @@ const
     f_BN_GENCB_new :                           function : PBN_GENCB; cdecl = nil;                    { V8.40 }
     f_BN_GENCB_set :                           procedure(cb: PBN_GENCB; callback: TBNGENCBcallFunc; arg: pointer); cdecl = nil;  { V8.40 }
     f_BN_bn2bin :                              function(const a: PBIGNUM; binto: PAnsiChar): Integer; cdecl = nil;  { V8.52 }
+    f_BN_bin2bn :                              function(bins: PAnsiChar; lens : integer; updateNum : PBIGNUM = nil ): PBIGNUM; cdecl = nil;  { V8.64 }
     f_BN_free:                                 procedure (a: PBIGNUM); cdecl = nil;
     f_BN_new:                                  function : PBIGNUM; cdecl = nil;                 { V8.11 }
     f_BN_num_bits :                            function(const a: PBIGNUM): Integer; cdecl = nil;    { V8.52 }
@@ -1993,7 +1996,8 @@ const
     f_EVP_DigestSignUpdate :                   function(ctx: PEVP_MD_CTX; d: Pointer; cnt: Integer): Integer; cdecl = Nil;             { V8.52 macro  }
     f_EVP_DigestVerify :                       function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; siglen: Integer; tbsret: PAnsiChar; tbslen: Integer): Integer; cdecl = Nil;  { V8.52 }
     f_EVP_DigestVerifyInit :                   function(ctx: PEVP_MD_CTX; pctx: PEVP_PKEY_CTX; etype: PEVP_MD; impl: PEngine; pkey: PEVP_PKEY): Integer; cdecl = Nil;   { V8.40 }
-    f_EVP_DigestVerifyFinal:                   function(ctx: PEVP_MD_CTX; sig: PAnsiChar; siglen: Integer): Integer; cdecl = Nil;                     { V8.40 }
+    f_EVP_DigestVerifyUpdate :                 function(ctx: PEVP_MD_CTX; d: Pointer; cnt: Integer): Integer; cdecl = Nil;                  { V8.64 }
+    f_EVP_DigestVerifyFinal:                   function(ctx: PEVP_MD_CTX; sig: PAnsiChar; siglen: Integer): Integer; cdecl = Nil;           { V8.40 }
     f_EVP_EncryptFinal_ex :                    function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer): LongBool; cdecl = nil;   { V8.40 }
     f_EVP_EncryptInit_ex :                     function(ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; const key: PAnsiChar; const iv: PAnsiChar): LongBool; cdecl = nil;
     f_EVP_EncryptUpdate :                      function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
@@ -2039,6 +2043,7 @@ const
     f_EVP_PKEY_get1_DSA :                      function (pkey: PEVP_PKEY): PDSA; cdecl = nil; //Angus
     f_EVP_PKEY_get1_EC_KEY :                   function (pkey: PEVP_PKEY): PEC_KEY; cdecl = nil; //Angus
     f_EVP_PKEY_get1_RSA :                      function (pkey: PEVP_PKEY): PRSA; cdecl = nil; //Angus
+    f_EVP_PKEY_set1_RSA :                      function (pkey: PEVP_PKEY; _RSAkey: PRSA ): integer; cdecl = nil;              { V8.64 }
     f_EVP_PKEY_id :                            function(Pkey: PEVP_PKEY): Integer; cdecl = nil;                               { V8.64 }
     f_EVP_PKEY_keygen :                        function(pctx: PEVP_PKEY_CTX; var pkey: PEVP_PKEY): Integer; cdecl = Nil;      { V8.49 }
     f_EVP_PKEY_keygen_init :                   function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;                           { V8.49 }
@@ -2333,7 +2338,7 @@ const
     f_X509_check_email :                       function(Cert: PX509; Paddress: PAnsiChar; namelen: size_t;  flags: Cardinal): Integer; cdecl = nil;   { V8.39 }
     f_X509_check_host :                        function(Cert: PX509; Pname: PAnsiChar; namelen: size_t;  flags: Cardinal; var peername: AnsiString): Integer; cdecl = nil;   { V8.39 }
     f_X509_check_ip :                          function(Cert: PX509; Paddress: PAnsiChar; namelen: size_t;  flags: Cardinal): Integer; cdecl = nil;   { V8.39 }
-    f_X509_check_ip_asc :                      function(Cert: PX509; Paddress: PAnsiChar; namelen: size_t;  flags: Cardinal): Integer; cdecl = nil;   { V8.39 }
+    f_X509_check_ip_asc :                      function(Cert: PX509; Paddress: PAnsiChar; flags: Cardinal): Integer; cdecl = nil;   { V8.39, V8.64 corrected declaration }
     f_X509_check_issued :                      function(Issuer: PX509; Subject: PX509): Integer; cdecl = nil;//AG;
     f_X509_check_private_key :                 function(Cert: PX509; PKey: PEVP_PKEY): Integer; cdecl = nil; //AG
     f_X509_check_purpose :                     function(Cert: PX509; ID: Integer; CA: Integer): Integer; cdecl = nil;//AG;
@@ -2539,7 +2544,7 @@ procedure IcsRandPoll;
 
 // V8.35 all OpenSSL exports now in tables, with versions if only available conditionally
 const
-    GLIBEAYImports1: array[0..625] of TOSSLImports = (
+    GLIBEAYImports1: array[0..628] of TOSSLImports = (
 
     (F: @@f_ASN1_INTEGER_get ;        N: 'ASN1_INTEGER_get';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_ASN1_INTEGER_get_int64 ;  N: 'ASN1_INTEGER_get_int64';   MI: OSSL_VER_1100; MX: OSSL_VER_MAX),    { V8.40 }
@@ -2590,6 +2595,7 @@ const
     (F: @@f_BN_GENCB_new ;            N: 'BN_GENCB_new';     MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
     (F: @@f_BN_GENCB_set ;            N: 'BN_GENCB_set';     MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.40 }
     (F: @@f_BN_bn2bin;                N: 'BN_bn2bin';        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_BN_bin2bn;                N: 'BN_bin2bn';        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.64 }
     (F: @@f_BN_free;                  N: 'BN_free';          MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_BN_new ;                  N: 'BN_new';           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_BN_num_bits;              N: 'BN_num_bits';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 }
@@ -2747,6 +2753,7 @@ const
     (F: @@f_EVP_DigestSignUpdate ;    N: 'EVP_DigestUpdate';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.52 macro }
     (F: @@f_EVP_DigestUpdate ;        N: 'EVP_DigestUpdate';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EVP_DigestVerify ;        N: 'EVP_DigestVerify';      MI: OSSL_VER_1101; MX: OSSL_VER_MAX),   { V8.52 }
+    (F: @@f_EVP_DigestVerifyUpdate ;  N: 'EVP_DigestUpdate';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.64 macro }
     (F: @@f_EVP_DigestVerifyFinal;    N: 'EVP_DigestVerifyFinal'; MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EVP_DigestVerifyInit ;    N: 'EVP_DigestVerifyInit';  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
     (F: @@f_EVP_EncryptFinal_ex ;     N: 'EVP_EncryptFinal_ex';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.40 }
@@ -2796,7 +2803,8 @@ const
     (F: @@f_EVP_PKEY_get1_DSA;        N: 'EVP_PKEY_get1_DSA';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_PKEY_get1_EC_KEY;     N: 'EVP_PKEY_get1_EC_KEY';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_EVP_PKEY_get1_RSA;        N: 'EVP_PKEY_get1_RSA';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_EVP_PKEY_id;              N: 'EVP_PKEY_id';            MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),   { V8.64 }
+    (F: @@f_EVP_PKEY_set1_RSA;        N: 'EVP_PKEY_set1_RSA';      MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.64 }
+    (F: @@f_EVP_PKEY_id;              N: 'EVP_PKEY_id';            MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.64 }
     (F: @@f_EVP_PKEY_keygen;          N: 'EVP_PKEY_keygen';        MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_keygen_init;     N: 'EVP_PKEY_keygen_init';   MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),  { V8.49 }
     (F: @@f_EVP_PKEY_new ;            N: 'EVP_PKEY_new';           MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),

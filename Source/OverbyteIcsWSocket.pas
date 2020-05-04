@@ -1327,7 +1327,7 @@ Nov 18, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                    GetSelfSigned now has better check for self signed certificates.
                    Added Sha256Digest and Sha256Hex to TX509Base.
                    CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
-Mar 26, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+May 04, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
                      i.e. using accents and unicode characters in domain names.
                    DnsLookup now converts Unicode IDN into A-Label (Punycode ASCII)
                      so accented and non-ansi domains lookup correctly.  PunycodeHost
@@ -1365,7 +1365,9 @@ Mar 26, 2020 V8.64 Added support for International Domain Names for Applications
                    Removed X509CATrust and related properties and methods from
                       TX509Base, it was used by the ValidateCertChain method which
                       now accepts a shared TX509List instead for efficiency.
-
+                   Fixed memory leak in SslGetAllCerts, and bad declarations of
+                      SslProtoMsgCallback and CheckIPaddr thanks to Ralf Junker.
+                      
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -14618,9 +14620,12 @@ end;
 function IcsSslOpenFileBio( const FileName : String;  Methode: TBioOpenMethode): PBIO;   { V8.39 was in TSslContext }
 var
     fsize: Integer;
+    AFName: PAnsiChar;
 begin
     if Filename = '' then
         raise ESslContextException.Create('File name not specified');
+    if NOT Assigned(f_BIO_new_file) then   { V8.64 sanity check } 
+        raise ESslContextException.Create('OPENSSL not yet loaded');
     if (Methode in [bomRead, bomReadOnly]) then begin
         fsize := IcsGetFileSize(Filename);   { V8.52 check PEM file not empty, which gives strange ASN errors }
         if fsize < 0 then
@@ -14629,14 +14634,15 @@ begin
             raise ESslContextException.Create('File empty "' + Filename + '"');
     end;
   { V8.64 open and save certificate file with Unicode names not ANSI }
+    AFName := PAnsiChar(StringToUtf8(Filename));
     if Methode = bomRead then
-        Result := f_BIO_new_file(PAnsiChar(StringToUtf8(Filename)), PAnsiChar('r+b'))
+        Result := f_BIO_new_file(AFName, PAnsiChar('r+b'))
     else if Methode = bomReadOnly then             { V8.40 mostly we don't want to update certs }
-        Result := f_BIO_new_file(PAnsiChar(StringToUtf8(Filename)), PAnsiChar('rb'))
+        Result := f_BIO_new_file(AFName, PAnsiChar('rb'))
     else if Methode = bomWriteBin then             { V8.40 mostly we don't want to update certs }
-        Result := f_BIO_new_file(PAnsiChar(StringToUtf8(Filename)), PAnsiChar('w+b'))   { V8.41 binary write mode }
+        Result := f_BIO_new_file(AFName, PAnsiChar('w+b'))   { V8.41 binary write mode }
     else
-        Result := f_BIO_new_file(PAnsiChar(StringToUtf8(Filename)), PAnsiChar('w+'));   { writes ASCII CRLF }
+        Result := f_BIO_new_file(AFName, PAnsiChar('w+'));   { writes ASCII CRLF }
     if Result = nil then
         raise ESslContextException.Create ('Error on opening file "' + Filename + '"');
 end;
@@ -15009,7 +15015,7 @@ begin
         for I := 0 to Tot - 1 do begin
             MyX509Obj := PX509_OBJECT(f_OPENSSL_sk_value(MyStack, I));
             if f_X509_OBJECT_get_type(MyX509Obj) = X509_LU_X509 then
-               Cert.AddToInters(f_X509_dup(f_X509_OBJECT_get0_X509 (MyX509Obj)));
+               Cert.AddToInters({f_X509_dup(}f_X509_OBJECT_get0_X509 (MyX509Obj));  { V8.64 memory leak }
         end;
     end;
 end;
@@ -15832,6 +15838,8 @@ var
     var
         WLen, J: Integer;
     begin
+        SetLength(Result, 0);
+        if (Length(DataExt) <= Base) then Exit;
         Wlen := DataExt[Base] div 2;
         SetLength(Result, WLen);
         if WLen > 0 then begin
@@ -15845,6 +15853,8 @@ var
     var
         Len: Integer;
     begin
+        SetLength(Result, 0);
+        if (Length(DataExt) <= 1) then Exit;
         len := DataExt[1];
         SetLength(Result, Len);
         if Len > 0 then
@@ -17096,7 +17106,7 @@ begin
     for I := 0 to Result - 1 do begin
         MyX509Obj := PX509_OBJECT(f_OPENSSL_sk_value(MyStack, I));
         if f_X509_OBJECT_get_type(MyX509Obj) = X509_LU_X509 then
-           CertList.Add(f_X509_dup(f_X509_OBJECT_get0_X509 (MyX509Obj)));
+           CertList.Add({f_X509_dup(}f_X509_OBJECT_get0_X509 (MyX509Obj));  { V8.64 memory leak }
       //  if f_X509_OBJECT_get_type (MyX509Obj) = X509_LU_CRL then  not needed yet }
     end;
 end;
@@ -19299,7 +19309,7 @@ function TX509Base.CheckIPaddr(const IPadddr: string; Flags: integer): Boolean; 
 begin
     Result := False;
     if not Assigned(X509) then Exit;
-    result := (f_X509_check_ip_asc (X509, PAnsiChar(AnsiString(IPadddr)), Length(IPadddr), Flags) <> 1);
+    result := (f_X509_check_ip_asc (X509, PAnsiChar(AnsiString(IPadddr)), Flags) <> 1);  { V8.64 corrected declaration }
 end;
 
 
@@ -21081,14 +21091,13 @@ begin
     end;
 end ;
 
-function SslProtoMsgCallback(write_p, version, content_type: integer;
-              buf: PAnsiChar; len: size_t; ssl: PSSL; arg: Pointer): Integer; cdecl;  { V8.51 corrected len }
+procedure SslProtoMsgCallback(write_p, version, content_type: integer;
+                      buf: PAnsiChar; len: size_t; ssl: PSSL; arg: Pointer); cdecl;  { V8.51 corrected len, V8.64 not a function }
 var
     Ws : TCustomSslWSocket;
     info: string;
     arg0, arg1: integer;
 begin
-    Result := 0;
     Ws := TCustomSslWSocket(f_SSL_get_ex_data(ssl, 0));
     arg0 := Ord(buf [0]);
     arg1 := Ord(buf [1]);
@@ -21282,10 +21291,10 @@ begin
     Result := '';
     if (NOT Assigned(FSsl)) then Exit;
     if Length(CList) = 0 then Exit;
-    MyStack1 := Nil;
-    MyStack2 := Nil;
+    MyStack1 := f_OPENSSL_sk_new_null;
+    MyStack2 := f_OPENSSL_sk_new_null;
     if f_SSL_bytes_to_cipher_list(FSsl, @CList, Length(CList), False, MyStack1, MyStack2)<> 1 then begin
-      //  RaiseLastOpenSslError(Exception, TRUE, 'Error converting cipher list');
+        RaiseLastOpenSslError(Exception, TRUE, 'Error converting cipher list');
         Exit;
     end;
     Total := f_OPENSSL_sk_num(MyStack1);
@@ -25283,8 +25292,9 @@ begin
         S := 'Signature Algorithms';
         for I := 0 to Length(CliHello.SigAlgos) - 1 do
             S := S + ', ' + WSocketGetSigAlgStr(CliHello.SigAlgos[I]);
-        Result := Result + S+ IcsCRLF;
+        Result := Result + S + IcsCRLF;
     end;
+    SetLength(Result, Length(Result) - 2); // strip last CRLF 
 end;
 
 {$ENDIF}

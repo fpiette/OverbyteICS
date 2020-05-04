@@ -514,7 +514,7 @@ object SslWebServForm: TSslWebServForm
       Top = 196
       Width = 169
       Height = 21
-      ItemHeight = 13
+      ItemHeight = 0
       TabOrder = 18
       Text = 'SslSecLevel'
     end

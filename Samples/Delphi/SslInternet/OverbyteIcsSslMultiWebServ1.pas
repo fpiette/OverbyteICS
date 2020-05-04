@@ -78,15 +78,15 @@ certificate is being ordered. See OverbyteIcsSslX509Certs.pas fore more info.
 
 History:
 6 July 2017  - V8.49 baseline
-20 Sep 2017 - V8.50 - Close connection after sending redirection
-12 Dec 2017 - V8.51 - Try and enable FIPS mode if supported by OpenSSL.
-2 Oct 2018  - V8.57 - INI file now reads Options as enumerated type literals,
-                        ie Options=[hoContentEncoding,hoAllowDirList,hoSendServerHdr,hoAllowPut]
-                      INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays
-                      Allow SSL certificates to be ordered and installed automatically if
-                        SslCertAutoOrder=True and so specified in IcsHosts, and a
-                        certificate supplier account has been created (by the
-                        OverbyteIcsX509CertsTst sample application).
+20 Sep 2017  V8.50 Close connection after sending redirection
+12 Dec 2017  V8.51 Try and enable FIPS mode if supported by OpenSSL.
+2 Oct 2018   V8.57 INI file now reads Options as enumerated type literals,
+                     ie Options=[hoContentEncoding,hoAllowDirList,hoSendServerHdr,hoAllowPut]
+                   INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays
+                   Allow SSL certificates to be ordered and installed automatically if
+                      SslCertAutoOrder=True and so specified in IcsHosts, and a
+                      certificate supplier account has been created (by the
+                      OverbyteIcsX509CertsTst sample application).
 19 Oct 2018  V8.58 version only
 21 Feb 2019  V8.60 Using new TIcsBuffLogStream for logging in UTF8 (or UTF16)
                    Using new TIcsMailQueue to send email
@@ -99,13 +99,15 @@ History:
                    Added whiteiplist.txt of IP addresses we don't want to block.
                    Count number of access attempts and block too many.
 04 Apr 2019  V8.61 Send Email now on front menu as well as WebApps
-26 Mar 2020  V8.64 Check SSL APLN from client and select HTTP/1.1.
+27 Apr 2020  V8.64 Check SSL APLN from client and select HTTP/1.1.
                    Rearranged INI file code so file only opened briefly, avoids
                       conflict with SslMultiWebDataModule.
                    Added Display SSL Client Info box logs client hello and ciphers.
                    No longer sharing OverbyteIcsWebAppServerXX units from WebDemos
                      directory, renamed to OverbyteIcsSslMultiWebXX. Note still
-                     shares templates with WebDemos.  
+                     shares templates with WebDemos.
+                   Added SSL certificate ordering ChallFileApp and ChallAlpnApp
+                      challenges, as well as ChallFileUNC.
 
 
 
@@ -1166,6 +1168,7 @@ var
 begin
     if NOT StopButton.Enabled then Exit;
     Timer1.Enabled := False;  { V8.64 }
+    IcsSslX509Certs.CloseAccount;           { V8.64 }
     CertCheckTrigger := Trigger64Disabled;  { V8.57 }
     StartButton.Enabled := true;
     StopButton.Enabled := false;
@@ -1399,6 +1402,8 @@ begin
     ClientCnx := Client as TMyHttpConnection;
     ClientCnx.WSessionCookie := 'OverbyteIcsWebAppServer' + SslHttpAppSrv1.Port;
     ClientCnx.OnBgException  := HttpAppSrvClientBgException;
+    ClientCnx.OnClientAlpnChallg := IcsSslX509Certs.WebSrvAlpn; { V8.64 }
+
  { V8.64 log something at start }
     Display('New Remote Client: ' + ClientCnx.CPeerAddr) ;
 end;
@@ -1911,7 +1916,15 @@ var
     ClientCnx : TMyHttpConnection;
 begin
     ClientCnx := Client as TMyHttpConnection;
-    Display(ClientCnx.PeerAddr + ' - ' + ClientCnx.HostTag + '  Well-Known File Requested: ' + Path);
+    Display(ClientCnx.PeerAddr + ' - ' + ClientCnx.HostTag +
+                                        ' Well-Known File Requested: ' + Path);
+    if (Pos('/acme-challenge/', Path) > 1) or  (Pos('/ics-validation/', Path) > 1) then begin  { V8.64 }
+     // check challenge token received Let's Encrypt and return key authorization
+        IcsSslX509Certs.WebSrvHttp(Self, ClientCnx.RequestHost, Path, BodyStr);
+        if BodyStr <> '' then
+           Display(ClientCnx.PeerAddr + ' - ' + ClientCnx.HostTag +
+                                            ' acme-challenge response: ' + BodyStr);
+    end;
 end;
 
 
@@ -1930,8 +1943,9 @@ end;
 procedure TWeblServerForm.IcsSslX509CertsChallengeDNS(Sender: TObject;
   ChallengeItem: TChallengeItem; var ChlgOK: Boolean);
 begin
+    ChlgOK := False;
 //   update DNS server with TXT challenge information
-
+//   not sure worth the trouble for a web server
 end;
 
 

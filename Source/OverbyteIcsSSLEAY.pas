@@ -131,11 +131,13 @@ Mar 18, 2019  V8.60 Next major OpenSSL version is 3.0.0 (due mid 2020)
 Jul 15, 2019  V8.62 Removed two ciphers from TSslPrivKeyCipher which we did not use.
                     SuppProtoAcmeV1 gone, two more added.
                     Added ICS_NID_acmeIdentifier created dynamically on startup.
-Mar 20, 2020  V8.64 Changed sslSrvSecDefault to sslSrvSecHigh since TLSv1.1
+Apr 24, 2020  V8.64 Changed sslSrvSecDefault to sslSrvSecHigh since TLSv1.1
                        disabled in most browsers from early 2020.
                     Added SSL_client_hello functions and SSL_bytes_to_cipher_list.
-
-                    
+                    Added ChallDnsAuto and ChallDnsMan
+                    Fixed declarations of f_SSL_clear, TProto_msg_cb and
+                      f_SSL_bytes_to_cipher_list thanks to Ralf Junker.
+                      
 
 Notes - OpenSSL ssleay32 changes between 1.0.2 and 1.1.0 - August 2016
 
@@ -1267,8 +1269,8 @@ type
     TCallback_ctrl_fp = procedure (p : Pointer); cdecl;
     TSsl_servername_cb = function (s: PSSL; var ad: Integer; arg: Pointer): Integer; cdecl;
 
-    TProto_msg_cb = function (write_p, version, content_type: integer;
-              buf: PAnsiChar; size_t: integer; ssl: PSSL; arg: Pointer): Integer; cdecl;   { V8.40 handshake protocol message callback }
+    TProto_msg_cb = procedure (write_p, version, content_type: integer;
+              buf: PAnsiChar; size_t: integer; ssl: PSSL; arg: Pointer); cdecl;   { V8.40 handshake protocol message callback, V8.64 not a function }
 
     TSecurity_level_cb = function  (s: PSSL; ctx: PSSL_CTX; op, bits,
               nid: integer; other, ex: Pointer): Integer; cdecl;  { V8.40 security level callback }
@@ -1852,8 +1854,8 @@ type
  { V8.57 challenge types, differing certificate types support differing challenges,
      some have to be processed manually taking several days. }
     TChallengeType = (ChallNone, ChallFileUNC, ChallFileFtp, ChallFileSrv,
-                      ChallFileApp, ChallDNS, ChallEmail, ChallAlpnUNC,
-                      ChallAlpnSrv, ChallAlpnApp, ChallManual);   { V8.62 App added }
+                      ChallFileApp, ChallDnsAuto, ChallDnsMan, ChallEmail,      { V8.64 DnsMan added }
+                      ChallAlpnUNC, ChallAlpnSrv, ChallAlpnApp, ChallManual);   { V8.62 App added }
 
 { V8.40 OpenSSL streaming ciphers with various modes }
 { pending ciphers, rc5, cast5, if we care }
@@ -2092,9 +2094,9 @@ const
     f_SSL_add_client_CA :                      function(ssl: PSSL; CaCert: PX509): Integer; cdecl = nil; //AG
     f_SSL_alert_desc_string_long :             function(value: Integer): PAnsiChar; cdecl = nil;
     f_SSL_alert_type_string_long :             function(value: Integer): PAnsiChar; cdecl = nil;
-    f_SSL_bytes_to_cipher_list :               function(s: PSSL; cbytes: PAnsiChar; len: size_t; isv2format: Boolean; sk, scvsvs: PSTACK_OF_SSL_CIPHER): LongInt; cdecl = nil;   { V8.64 }
+    f_SSL_bytes_to_cipher_list :               function(s: PSSL; cbytes: PAnsiChar; len: size_t; isv2format: Boolean; var sk: PSTACK_OF_SSL_CIPHER; var scvsvs: PSTACK_OF_SSL_CIPHER): LongInt; cdecl = nil;   { V8.64 }
     f_SSL_callback_ctrl:                       function(s: PSSL; cb_id: Integer; fp: TCallback_ctrl_fp): Longint; cdecl = nil;
-    f_SSL_clear :                              procedure(S: PSSL); cdecl = nil;
+    f_SSL_clear :                              function(S: PSSL): Integer; cdecl = nil;    { V8.64 was procedure }
     f_SSL_client_hello_isv2 :                  function(s: PSSL): Longint; cdecl = nil;    { V8.64 }
     f_SSL_client_hello_get0_legacy_version :   function(s: PSSL): Longword; cdecl = nil;   { V8.64 }
     f_SSL_client_hello_get0_random :           function(s: PSSL; var OutData: PAnsiChar): size_t; cdecl = nil;       { V8.64 }

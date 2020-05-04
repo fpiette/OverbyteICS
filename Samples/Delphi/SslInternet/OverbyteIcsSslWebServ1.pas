@@ -96,7 +96,7 @@ Feb 14, 2018 V8.52 Added IPv6 support by listing IPv6 local listen addresses,
                    Add TLSv3 ciphers for OpenSSL 1.1.1 and later only
 Jul 6, 2018  V8.56 Added SslAlpnSelect callback for SSL application layer protocol
                       negotiation, used for HTTP/2 (not supported yet)
-Mar 26, 2020 V8.64 Stop web servers before closing.
+Apr 24, 2020 V8.64 Stop web servers before closing.
                    Display SSL client hello information.
                    Certificate chain validation changed to use TX509List.  
                    
@@ -461,8 +461,8 @@ begin
         InterfaceList.Sorted := True;  { V8.52 sort the list } 
         try
        { V8.52 get local IP list from newer cross platform function }
-         //  IcsGetInterfaceList(InterfaceList);
-            InterfaceList.AddStrings(LocalIPList(sfAny));   { V8.52 show IPv6 as well }
+            IcsGetInterfaceList(InterfaceList);
+         //   InterfaceList.AddStrings(LocalIPList(sfAny));   { V8.52 show IPv6 as well }
             ListenAddr.Items.Text := 'localhost' + #13#10 +
                                 '0.0.0.0' + #13#10 + InterfaceList.Text;
         finally
@@ -689,7 +689,6 @@ begin
         FSrvCipherList := SslContext1.SslGetAllCiphers;
         FSrvCipherList := StringReplace(FSrvCipherList, #13#10, ', ', [rfReplaceAll]);
         Display('SSL Ciphers Accepted: ' + #13#10 + FSrvCipherList + #13#10);
-
      except
         on E:Exception do begin
             Display('Failed to initialize SSL Context: ' + E.Message);
@@ -869,9 +868,8 @@ begin
     Display('Client Hello: ' + WSocketGetCliHelloStr(Cli.CliHelloData));
 
   { does not work yet }
-//  CipherList := Cli.SslBytesToCiphers(Cli.CliHelloData.CipherSuites);
- // Display(StringReplace(CipherList, #13#10, ', ', [rfReplaceAll]));
-
+//    CipherList := Cli.SslBytesToCiphers(Cli.CliHelloData.CipherSuites);
+//    Display('Client Ciphers: ' + StringReplace(CipherList, #13#10, ', ', [rfReplaceAll]));
 
     { Provide a SslContext that corresponds to the server name received }
     { this allows different hosts and certificates on the same IP address }

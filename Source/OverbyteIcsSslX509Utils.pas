@@ -111,7 +111,7 @@ Aug 07, 2019 V8.62  Added literals for various types to assist apps.
 Oct 24, 2019 V8.63 Added 'Starfield Services Root Certificate Authority - G2'
                (used by Amazon buckets), and 'Amazon Root CA 1', CA 2, CA 3,
                CA 4 which are replacing Starfield.  Removed expired certs.
-Mar 27, 2020 V8.64 DoKeyPair raises exception for unknown key type.
+May 04, 2020 V8.64 DoKeyPair raises exception for unknown key type.
               CreateSelfSignedCert ignored Days and always created 7 day expiry.
               Added support for International Domain Names for Applications (IDNA),
                 i.e. using accents and unicode characters in domain names.
@@ -119,6 +119,10 @@ Mar 27, 2020 V8.64 DoKeyPair raises exception for unknown key type.
                 never UTF8 or Unicode.
               CreateRsaKeyPair uses Unicode file names, as do all other SSL
                 certificate functions (through IcsSslOpenFileBio).
+              Added CreateSelfSignCertEx to create self signed certificates with
+                 subject alternate names and specific key type, used by TSocketServer
+                 to start servers with missing certificates.
+
 
 Pending - long term
 Create string and file encryption component from existing functions
@@ -567,6 +571,9 @@ procedure CreateSelfSignedCert(const FileName, Country, State,
   Locality, Organization, OUnit, CName, Email: String; Bits: Integer;
   IsCA: Boolean; Days: Integer;
   const KeyFileName: String = ''; Comment: boolean = false);  overload;
+procedure CreateSelfSignCertEx(const FileName, CName: String; AltDNSLst: TStrings;
+       PKeyType: TSslPrivKeyType = PrivKeyECsecp256; const PW: String = '';
+                                             const AcmeId: String = '');  { V8.64 }
 
 
 { RSA crypto functions }
@@ -2391,11 +2398,15 @@ begin
     if (ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101) and (FCertDigest >= Digest_sha3_224) then   { V8.51 }
         raise ECertToolsException.Create('SHA3 hashes not supported');
 
-    { V8.64 convert domain to A-Label (Punycode ASCII, validate for allowed characters }
-    CheckFlag := (Pos('*', FCommonName) = 0);  // wild card will fail domain name check
-    AName := IcsIDNAToASCII(IcsTrim(FCommonName), CheckFlag, ErrFlag);
-    if ErrFlag then
-        raise ECertToolsException.Create('Invalid Common Name, Illegal Characters');
+ { V8.64 convert domain to A-Label (Punycode ASCII, validate for allowed characters }
+    if NOT FBasicIsCA then begin
+        CheckFlag := (Pos('*', FCommonName) = 0);  // wild card will fail domain name check
+        AName := IcsIDNAToASCII(IcsTrim(FCommonName), CheckFlag, ErrFlag);
+        if ErrFlag then
+            raise ECertToolsException.Create('Invalid Common Name, Illegal Characters');
+        end
+    else
+        AName := IcsTrim(FCommonName); // CA is usually a company name, not a domain
 
     if Assigned(FNewReq) then f_X509_REQ_free(FNewReq);
     FNewReq := f_X509_Req_new;
@@ -2511,11 +2522,15 @@ begin
                 raise ECertToolsException.Create('Must open certificate request first');
         end;
 
-        { V8.64 convert domain to A-Label (Punycode ASCII, validate for allowed characters }
-        CheckFlag := (Pos('*', FCommonName) = 0);  // wild card will fail domain name check
-        AName := IcsIDNAToASCII(IcsTrim(FCommonName), CheckFlag, ErrFlag);
-        if ErrFlag then
-            raise ECertToolsException.Create('Invalid Common Name, Illegal Characters');
+     { V8.64 convert domain to A-Label (Punycode ASCII, validate for allowed characters }
+        if NOT FBasicIsCA then begin
+            CheckFlag := (Pos('*', FCommonName) = 0);  // wild card will fail domain name check
+            AName := IcsIDNAToASCII(IcsTrim(FCommonName), CheckFlag, ErrFlag);
+            if ErrFlag then
+                raise ECertToolsException.Create('Invalid Common Name, Illegal Characters');
+         end
+         else
+            AName := IcsTrim(FCommonName); // CA is usually a company name, not a domain
 
         if Assigned(FNewCert) then f_X509_free(FNewCert);
         FNewCert := f_X509_new;
@@ -2581,7 +2596,7 @@ begin
             SubjName := f_X509_get_subject_name(FNewCert);
             if not Assigned(SubjName) then
                 RaiseLastOpenSslError(ECertToolsException, FALSE, 'Can not read X509 subject_name');
-            AddNameEntryByTxt(SubjName, 'CN', AName);      { V8.64 } 
+            AddNameEntryByTxt(SubjName, 'CN', AName);      { V8.64 }
             AddNameEntryByTxt(SubjName, 'OU', FOrgUnit);
             AddNameEntryByTxt(SubjName, 'ST', FState);
             AddNameEntryByTxt(SubjName, 'O',  FOrganization);
@@ -3253,6 +3268,50 @@ begin
     end;
 end;
 
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+// create a self signed certificate with subject alternative names, specific
+// private key, optionally with ACME tls-alpn-01 challenge identifier
+// used by TSocketServer to create certificate if missing so it can start-up
+procedure CreateSelfSignCertEx(const FileName, CName: String; AltDNSLst: TStrings;
+        PKeyType: TSslPrivKeyType = PrivKeyECsecp256; const PW: String = '';
+                                                      const AcmeId: String = '');  { V8.64 }
+var
+    MySslCertTools: TSslCertTools;
+    PrivKeyType: TSslPrivKeyCipher;
+begin
+    MySslCertTools := TSslCertTools.Create(nil);
+    try
+        MySslCertTools.CommonName := CName;
+        if Assigned(AltDNSLst) then
+            MySslCertTools.AltDNSList.Assign(AltDNSLst)
+        else
+            MySslCertTools.AltDNSList.Add(CName);
+        MySslCertTools.AcmeIdentifier := AcmeId;
+        MySslCertTools.BasicIsCA := False;
+        MySslCertTools.PrivKeyType := PKeyType;
+        if AcmeId <> '' then
+            MySslCertTools.ExpireDays := 7
+        else
+            MySslCertTools.ExpireDays := 2000;
+        MySslCertTools.KeyCertSign := true;
+        MySslCertTools.KeyDigiSign := true;
+        MySslCertTools.KeyNonRepud := true;
+        MySslCertTools.KeyKeyEnc := true;
+        MySslCertTools.KeyExtServer := true;
+
+      { create private and public key, then create SSL certificate }
+        MySslCertTools.DoKeyPair;
+        MySslCertTools.DoSelfSignCert;
+
+      { now save them to file - no password unless PKX }
+        PrivKeyType := PrivKeyEncNone;
+        if PW <> '' then PrivKeyType := PrivKeyEncTripleDES;
+        MySslCertTools.SaveToFile(FileName, True, True, False, PW, PrivKeyType);
+    finally
+        MySslCertTools.Free;
+    end;
+end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.41 replaced old code with TSslCertTools component }

@@ -9,7 +9,7 @@ Description:  Automatically download SSL X509 certificates from various
               generally be issued without internvention, other commercial
               certificates may take days to be approved.
 Creation:     May 2018
-Updated:      Jan 2020
+Updated:      Apr 2020
 Version:      8.64
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
 Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
@@ -65,7 +65,7 @@ Nov 12, 2019 - V8.63 Better selection for supplier database order ListView.
                      10 minute timeout to close idle account.
                      Added List Challenges button to log list of pending challenges
                        from the database.
-Mar 27, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
+May 04, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
                        i.e. using accents and unicode characters in domain names.
                      X509 certificates always have A-Lavels (Punycode ASCII) domain names,
                       never UTF8 or Unicode.   IDNs are converted back to Unicode
@@ -82,8 +82,14 @@ Mar 27, 2020 - V8.64 Added support for International Domain Names for Applicatio
                      Support TLS-ALPN Cert Challenge for tls-alpn-01 SSL Certificate,
                         using local web server.
                      Certificate chain validation changed to use TX509List.
+                     Split Acme ordering into get, local test and then start
+                       challenges, added step numbers (1) to buttons to make process
+                       more obvious. This allows manual updating of servers for
+                       DNS or file challenge.
+                     Self Signed button now works and will create CA Cert.
 
 
+                     
 For docunentation on how to use this sample, please see a lengthy Overview in
 the OverbyteIcsSslX509Certs.pas unit.
 
@@ -130,9 +136,7 @@ uses
 
 
 const
-    DnsChlgManual = 0;
-    DnsChlgWindows = 1;
-    DnsChlgCloudfare = 2;
+    DnsChlgWindows = 0;  DnsChlgCloudfare = 1;
 
 
 type
@@ -213,13 +217,12 @@ type
     TabCommon: TTabSheet;
     Label3: TLabel;
     Label15: TLabel;
-    doWebServer: TButton;
     TabDomain: TTabSheet;
     Label9: TLabel;
     Label2: TLabel;
     Label13: TLabel;
     Label23: TLabel;
-    doTestWellKnown: TButton;
+    doTestChallenge: TButton;
     TabInfo: TTabSheet;
     lbCountry: TLabel;
     lbState: TLabel;
@@ -238,10 +241,10 @@ type
     Label31: TLabel;
     Label32: TLabel;
     Label33: TLabel;
-    doAcmeAccV2: TButton;
-    doAcmeCheckOrderV2: TButton;
-    doAcmeOrderV2: TButton;
-    doAcmeGetCertV2: TButton;
+    doAcmeAcc: TButton;
+    doAcmeCheckOrder: TButton;
+    doAcmeStartChallng: TButton;
+    doAcmeGetCert: TButton;
     TabCCOrder: TTabSheet;
     Label6: TLabel;
     Label8: TLabel;
@@ -290,7 +293,6 @@ type
     doDBCheck: TButton;
     doDBOrder: TButton;
     LabelInfoDomain: TLabel;
-    Acme2DnsUpdated: TCheckBox;
     doClearDomain: TButton;
     doCloseDatabase: TButton;
     TabOwnCA: TTabSheet;
@@ -329,14 +331,18 @@ type
     doDBCollect: TButton;
     doDBCancel: TButton;
     doDBRemove: TButton;
-    CCDnsUpdated: TCheckBox;
-    doAcmeSaveOrderV2: TButton;
+    doAcmeSaveOrder: TButton;
     doCertCentreSaveOrder: TButton;
     doDBRedist: TButton;
     Label54: TLabel;
     Label1: TLabel;
     doDBListChallg: TButton;
     Label5: TLabel;
+    doAcmeGetChallng: TButton;
+    doAcmeTestChallng: TButton;
+    doDBGetChallg: TButton;
+    Label28: TLabel;
+    SelfSignedCA: TCheckBox;
 
 
     procedure FormCreate(Sender: TObject);
@@ -349,12 +355,11 @@ type
     procedure doCertCentreOrdersClick(Sender: TObject);
     procedure doCertCentreCollectClick(Sender: TObject);
     procedure CertCentreProductsClick(Sender: TObject);
-    procedure doTestWellKnownClick(Sender: TObject);
-    procedure doAcmeAccV2Click(Sender: TObject);
-    procedure doAcmeCheckOrderV2Click(Sender: TObject);
-    procedure doAcmeOrderV2Click(Sender: TObject);
-    procedure doAcmeGetCertV2Click(Sender: TObject);
-    procedure doWebServerClick(Sender: TObject);
+    procedure doTestChallengeClick(Sender: TObject);
+    procedure doAcmeAccClick(Sender: TObject);
+    procedure doAcmeCheckOrderClick(Sender: TObject);
+    procedure doAcmeStartChallngClick(Sender: TObject);
+    procedure doAcmeGetCertClick(Sender: TObject);
     procedure X509Certs1CertProg(Sender: TObject; LogOption: TLogOption;
       const Msg: string);
     procedure X509Certs1NewCert(Sender: TObject);
@@ -396,7 +401,7 @@ type
     procedure X509Certs1ChallgRefresh(Sender: TObject);
     procedure X509Certs1DomainsRefresh(Sender: TObject);
     procedure X509Certs1SuppDBRefresh(Sender: TObject);
-    procedure doAcmeSaveOrderV2Click(Sender: TObject);
+    procedure doAcmeSaveOrderClick(Sender: TObject);
     procedure doCertCentreSaveOrderClick(Sender: TObject);
     procedure X509Certs1OAuthAuthUrl(Sender: TObject; const URL: string);
     procedure doDBRedistClick(Sender: TObject);
@@ -404,6 +409,9 @@ type
     procedure DatabaseDomainsSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
     procedure doDBListChallgClick(Sender: TObject);
+    procedure doAcmeGetChallngClick(Sender: TObject);
+    procedure doAcmeTestChallngClick(Sender: TObject);
+    procedure doDBGetChallgClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -655,6 +663,7 @@ var
     SL: TStringList;
     I: Integer;
 begin
+    X509Certs1.StopDomSrv;  // V8.64
     FreeAndNil(FIcsBuffLogStream); // V8.60 write log file }
     IniFile := TIcsIniFile.Create(FIniFileName);
     IniFile.WriteInteger(SectionMainWindow, KeyTop, Top);
@@ -775,85 +784,48 @@ end;
 procedure TX509CertsForm.X509Certs1ChallengeDNS(Sender: TObject;
   ChallengeItem: TChallengeItem; var ChlgOK: Boolean);
 var
-    secswait , I: integer;
-    Trg: LongWord;
-    S1, S2, Zone: String;
+    I: integer;
+    Zone: String;
     WmiDnsRec: TWmiDnsRec;
     Errinfo: string;
 begin
-    if DnsChlgType.ItemIndex = DnsChlgManual then
+    if ChallengeItem.CType = ChallDnsMan then
     begin
 // !!! Add DNS TXT Record for: _acme-challenge.ftptest.org, with: 4haqLIK79RaOO7X8YYCo3f5gCzq1j6CqNy-4i34Q3sA
-         S1 := 'Add DNS TXT Record for: ' + ChallengeItem.CPage + ', with: ' + IcsCRLF + ChallengeItem.CDNSValue;
-         S2 := 'Waiting up to five minutes for DNS Server to be manually updated with challenge, Tick box when done';
-        if ChallengeItem.CSupplierProto = SuppProtoAcmeV2 then begin
-        // !!! must now wait until DNS server is updated, or challenge will fail
-        // might be able to use WMI to do this automatically???
-            AddLog(S1);
-            AddLog(S2);
-            Acme2DnsUpdated.Checked := False;
-            Acme2DnsUpdated.Visible := True;
-            secswait := 300;  // 5 minutes
-            while NOT Acme2DnsUpdated.Checked do begin
-                LabelAcme2Info.Caption := 'DNS Challenge: ' + IcsCRLF + S1 +
-                  IcsCRLF + 'Challenge Will Continue in ' + IntToStr(secswait) + ' seconds';
-                Trg := IcsGetTrgSecs(5); // five second wait
-                while True do begin
-                    Application.ProcessMessages;
-                    if Application.Terminated then Exit;
-                    if IcsTestTrgTick(Trg) then break ;
-                    Sleep(0);   // thread now stops for rest of time slice
-                end ;
-                secswait := secswait - 5;
-                if secswait <= 0 then break;
-            end;
-            ChlgOK := Acme2DnsUpdated.Checked;
-            LabelAcme2Info.Caption := '';
-            Acme2DnsUpdated.Visible := False;
-        end;
-        if ChallengeItem.CSupplierProto = SuppProtoCertCentre then begin
-        // !!! must now wait until DNS server is updated, or challenge will fail
-        // might be able to use WMI to do this automatically???
-            AddLog(S1);
-            AddLog(S2);
-            CCDnsUpdated.Checked := False;
-            CCDnsUpdated.Visible := True;
-            secswait := 300;  // 5 minutes
-            while NOT CCDnsUpdated.Checked do begin
-                LabelCertInfo.Caption := 'DNS Challenge: ' + IcsCRLF + S1 +
-                  IcsCRLF + 'Challenge Will Continue in ' + IntToStr(secswait) + ' seconds';
-                Trg := IcsGetTrgSecs(5); // five second wait
-                while True do begin
-                    Application.ProcessMessages;
-                    if Application.Terminated then Exit;
-                    if IcsTestTrgTick(Trg) then break ;
-                    Sleep(0);   // thread now stops for rest of time slice
-                end ;
-                secswait := secswait - 5;
-                if secswait <= 0 then break;
-            end;
-            ChlgOK := CCDnsUpdated.Checked;
-            CCDnsUpdated.Visible := False;
-            LabelCertInfo.Caption := '';
-        end;
+        if ChallengeItem.CIssueState = IssStateCancel then   // delete DNS
+            AddLog('Manually Remove DNS TXT Record for: ' + ChallengeItem.CPage + ', with: ' + ChallengeItem.CDNSValue)
+        else
+            AddLog('Manually Add DNS TXT Record for: ' + ChallengeItem.CPage + ', with: ' + ChallengeItem.CDNSValue);
+        ChlgOK := True;
     end
     else if DnsChlgType.ItemIndex = DnsChlgWindows then
     begin
-        AddLog('Starting to Update Windows DNS Server TXT Record');
+        if ChallengeItem.CIssueState = IssStateCancel then   // delete DNS
+            AddLog('Removing Windows DNS Server TXT Record')
+        else
+            AddLog('Updating Windows DNS Server TXT Record');
         Zone := ChallengeItem.CDomain;
+      // strip off wild card prefix
+        if Pos ('*.', Zone) = 1 then Zone := Copy(Zone, 3, 99);
         WmiDnsRec.HostName := ChallengeItem.CPage;
         WmiDnsRec.RecType := 'TXT';
         WmiDnsRec.RecData := ChallengeItem.CDNSValue;
-        WmiDnsRec.TextRep := IcsLowerCase(WmiDnsRec.HostName) + ' IN ' +
-                                    WmiDnsRec.RecType + ' ' + WmiDnsRec.RecData;
-        AddLog('Zone: ' + Zone + ': ' + WmiDnsRec.TextRep);
-        I := IcsWmiUpdDnsRec ('', '', '', Zone, WmiDnsRec, EdtFuncAdd, Errinfo);
-        if I = 0 then begin
-            AddLog('Updated Windows DNS Server TXT Record OK');
-            ChlgOK := True;
+        AddLog('Zone: ' + Zone + ': ' + WmiDnsRec.HostName + ' IN ' +
+                                    WmiDnsRec.RecType + ' ' + WmiDnsRec.RecData);
+        if ChallengeItem.CIssueState = IssStateCancel then   // delete DNS
+        begin
+            IcsWmiUpdDnsRec ('', '', '', Zone, WmiDnsRec, EdtFuncDel, Errinfo);
+            ChlgOK := True;  // don't care if it worked
         end
-        else
-            AddLog('Failed to Update Windows DNS Server: ' + ErrInfo);
+        else begin
+            I := IcsWmiUpdDnsRec ('', '', '', Zone, WmiDnsRec, EdtFuncAdd, Errinfo);
+            if I = 0 then begin
+                AddLog('Updated Windows DNS Server TXT Record OK');
+                ChlgOK := True;
+            end
+            else
+                AddLog('Failed to Update Windows DNS Server: ' + ErrInfo);
+        end;
     end
     else if DnsChlgType.ItemIndex = DnsChlgCloudfare then
     begin
@@ -895,12 +867,14 @@ end;
 procedure TX509CertsForm.ResetDomButtons;
 begin
     doDBCheck.Enabled := False;
+    doDBGetChallg.Enabled := False;
     doDBOrder.Enabled := False;
     doDBCollect.Enabled := False;
     doDBRevoke.Enabled := False;
     doDBCancel.Enabled := False;
     doDBRemove.Enabled := False;
     doDBRedist.Enabled := False;
+    doDBGetChallg.Enabled := False;
     doDBListChallg.Enabled := False;
     LabelInfoDomain.Caption := 'Order Information:';
 end;
@@ -932,7 +906,8 @@ begin
     with X509Certs1.DomainItems[SelNr] do begin
         doDBCheck.Enabled := True;
         doDBRemove.Enabled := True;
-        if DIssueState >= IssStateChecked then doDBOrder.Enabled := True;
+        if DIssueState >= IssStateChecked then doDBGetChallg.Enabled := True;
+        if DIssueState >= IssStateChallgReq then doDBOrder.Enabled := True;
         if DIssueState >= IssStateChallgPend then begin
             doDBCollect.Enabled := True;
             doDBCancel.Enabled := True;
@@ -1062,9 +1037,11 @@ end;
 
 procedure TX509CertsForm.ResetButtons;
 begin
-    doAcmeCheckOrderV2.Enabled := False;
-    doAcmeGetCertV2.Enabled := False;
-    doAcmeOrderV2.Enabled := False;
+    doAcmeCheckOrder.Enabled := False;
+    doAcmeGetCert.Enabled := False;
+    doAcmeGetChallng.Enabled := False;
+    doAcmeTestChallng.Enabled := False;
+    doAcmeStartChallng.Enabled := False;
     doCertCentreCollect.Enabled := False;
     doCertCentreOrders.Enabled := False;
     doCertCentreCheck.Enabled := False;
@@ -1206,7 +1183,8 @@ var
 begin
     SetCommParams;
     X509Certs1.CertCsrOrigin := TCertCsrOrigin(CertCsrOrigin.ItemIndex);
-    CertCommonName.Text := IcsLowerCase(Trim(CertCommonName.Text));
+    if NOT SelfSignedCA.Checked then
+        CertCommonName.Text := IcsLowerCase(Trim(CertCommonName.Text));
     X509Certs1.CertCommonName := '';  // set later, may come from CSR
     X509Certs1.DirWellKnown := DirWellKnown.Text;
     X509Certs1.DirPubWebCert.Text := DirPubWebCert.Text;
@@ -1289,8 +1267,11 @@ begin
     end;
 end;
 
-procedure TX509CertsForm.doAcmeAccV2Click(Sender: TObject);
+// step 1 - register or open Acme account
+
+procedure TX509CertsForm.doAcmeAccClick(Sender: TObject);
 begin
+    AddLog('Register or Open ACME Account (1)');
     ResetButtons;
     X509Certs1.CloseAccount;
     SetCommParams;
@@ -1301,59 +1282,118 @@ begin
     X509Certs1.AcmeAccKeyType := TSslPrivKeyType (AccAcmeKeyV2.ItemIndex);
     X509Certs1.SupplierEmail := SupplierEmail.Text;
     if X509Certs1.SetAcmeAccount(True) then begin
-        doAcmeCheckOrderV2.Enabled := True;
+        doAcmeCheckOrder.Enabled := True;
     end;
     X509Certs1SuppDBRefresh(Self);
 end;
 
-procedure TX509CertsForm.doAcmeCheckOrderV2Click(Sender: TObject);
+// step 2 - local checks for challenges, copying and accessing files by URL, setting up DNS, etc
+
+procedure TX509CertsForm.doAcmeCheckOrderClick(Sender: TObject);
 begin
     if X509Certs1.SupplierProto <> SuppProtoAcmeV2 then begin
         AddLog('Must Register ACME Account First');
         Exit;
     end;
+    AddLog('Check ACME Order Locally (2)');
+    ResetButtons;
+    doAcmeAcc.Enabled := true;
+    doAcmeCheckOrder.Enabled := true;
     SetCertParams;
+    if X509Certs1.SuppCertChallenge in [ChallFileApp, ChallAlpnApp] then begin
+        AddLog('Can Not Place Orders using Application Challenges Here');
+        Exit;
+    end;
     if NOT X509Certs1.AcmeCheckOrder(True, True) then exit;
     LabelAcme2Info.Caption := 'Let''s Encrypt three month SSL certificate' +
                        icsCRLF + 'Domain(s): ' + X509Certs1.CertSANs.CommaText;
-    doAcmeOrderV2.Enabled := true;
-    if X509Certs1.IssueState >= IssStateChallgPend then doAcmeGetCertV2.Enabled := true;
+    doAcmeGetChallng.Enabled := true;
+    if X509Certs1.IssueState >= IssStateChallgPend then doAcmeGetCert.Enabled := true;
 end;
 
-procedure TX509CertsForm.doAcmeOrderV2Click(Sender: TObject);
+// step 3 - get Acme challenge data, copy files to servers, set-up DNS
+// note challenges and results remain valid for one week
+
+procedure TX509CertsForm.doAcmeGetChallngClick(Sender: TObject);
 begin
     if X509Certs1.IssueState < IssStateChecked then begin
         AddLog('Must Check New Certificate First');
         Exit;
     end;
-    if NOT X509Certs1.AcmeV2OrderCert then Exit;
-    if X509Certs1.IssueState >= IssStateChallgPend then doAcmeGetCertV2.Enabled := true;
+    AddLog('Get ACME Challenges (3)');
+    if NOT X509Certs1.AcmeV2GetChallgs then Exit;
+    doAcmeTestChallng.Enabled := true;
+    if X509Certs1.IssueState >= IssStateChallgTest then doAcmeGetCert.Enabled := true;
     if X509Certs1.IssueState = IssStateChallgOK then X509Certs1.AcmeV2GetCert;
 end;
 
-procedure TX509CertsForm.doAcmeRevokeV2Click(Sender: TObject);
+// step 4 - locally test the Acme challenges work by URL
+// we might have manually set-up files or DNS
+
+procedure TX509CertsForm.doAcmeTestChallngClick(Sender: TObject);
 begin
-//
+    if X509Certs1.IssueState < IssStateChallgReq then begin
+        AddLog('Must Request Acme Challenges First');
+        Exit;
+    end;
+    AddLog('Test ACME Challenges Locally (4)');
+    if NOT X509Certs1.AcmeV2TestChallgs then Exit;
+    doAcmeStartChallng.Enabled := true;
+    if X509Certs1.IssueState >= IssStateChallgPend then doAcmeGetCert.Enabled := true;
+    if X509Certs1.IssueState = IssStateChallgOK then X509Certs1.AcmeV2GetCert;
 end;
 
-procedure TX509CertsForm.doAcmeSaveOrderV2Click(Sender: TObject);
+// step 5 - once challenges checked locally, start certificate order process
+// so challenges checked by Let's Encrypt and order approved.
+// normally runs step 6 automatically unless an error.
+
+procedure TX509CertsForm.doAcmeStartChallngClick(Sender: TObject);
+begin
+    if X509Certs1.IssueState < IssStateChallgTest then begin
+        AddLog('Must Test Acme Challenges First');
+        Exit;
+    end;
+    AddLog('Start ACME Challenges (5)');
+    if NOT X509Certs1.AcmeV2StartChallgs then Exit;
+    if X509Certs1.IssueState >= IssStateChallgPend then doAcmeGetCert.Enabled := true;
+    if X509Certs1.IssueState = IssStateChallgOK then X509Certs1.AcmeV2GetCert;
+end;
+
+// step 6 - once order approved, collect the new certificate and save all
+// the certificate, private key, intermediate and bundle files.
+// Can be repeated if files not saved correctly.
+
+procedure TX509CertsForm.doAcmeGetCertClick(Sender: TObject);
+begin
+    if X509Certs1.IssueState < IssStateChallgTest then begin
+         AddLog('Must Get and Test Acme Challenges First');
+        Exit;
+    end;
+    if X509Certs1.IssueState < IssStateChallgPend then begin
+         AddLog('Must Start Acme Order First');
+        Exit;
+    end;
+    AddLog('Collect ACME Certificate (6)');
+    X509Certs1.AcmeV2GetCert;
+end;
+
+// once an order checked, saves it in the database, normally done automatically.
+
+procedure TX509CertsForm.doAcmeSaveOrderClick(Sender: TObject);
 begin
     if X509Certs1.SupplierProto <> SuppProtoAcmeV2 then begin
         AddLog('Must Register ACME Account First');
         Exit;
     end;
+    AddLog('Saving ACME Order');
     SetCertParams;
     if NOT X509Certs1.AcmeCheckOrder(False, True) then exit;
     AddLog('Saved Certificate Order');
 end;
 
-procedure TX509CertsForm.doAcmeGetCertV2Click(Sender: TObject);
+procedure TX509CertsForm.doAcmeRevokeV2Click(Sender: TObject);
 begin
-    if X509Certs1.IssueState < IssStateChallgPend then begin
-         AddLog('Acme Challenge Not Started, Must Order First');
-        Exit;
-    end;
-    X509Certs1.AcmeV2GetCert;
+//
 end;
 
 procedure TX509CertsForm.doCASignCertClick(Sender: TObject);
@@ -1528,6 +1568,7 @@ procedure TX509CertsForm.doClearDomainClick(Sender: TObject);
 var
     I, J: Integer;
 begin
+    ResetButtons;
     CertCommonName.Text := '';
     DirPubWebCert.Text := '';
     DirWellKnown.Text := '';
@@ -1607,6 +1648,15 @@ begin
     SetCommParams;
     if NOT X509Certs1.CertCheckDomain(DatabaseDomains.Items[DatabaseDomains.ItemIndex].Caption) then Exit;
     SetDomButtons;
+    if X509Certs1.IssueState >= IssStateChecked then doDBGetChallg.Enabled := True;  { V8.64 event not called for check }
+end;
+
+procedure TX509CertsForm.doDBGetChallgClick(Sender: TObject);
+begin
+    if DatabaseDomains.ItemIndex < 0 then Exit;
+    SetCommParams;
+    if NOT X509Certs1.CertGetChallgDomain(DatabaseDomains.Items[DatabaseDomains.ItemIndex].Caption) then Exit;
+    SetDomButtons;
 end;
 
 procedure TX509CertsForm.doDBOrderClick(Sender: TObject);
@@ -1675,7 +1725,7 @@ begin
                   ', Started: ' + MyDateTimeToStr(CStartDT) );
             end;
        end;
-   end;              
+   end;
 end;
 
 procedure TX509CertsForm.doLoadCAClick(Sender: TObject);
@@ -1695,26 +1745,18 @@ procedure TX509CertsForm.doSelfSignedClick(Sender: TObject);
 begin
     SetCommParams;
     X509Certs1.DirCertWork := IncludeTrailingPathDelimiter(OwnCACertDir.Text);
-    X509Certs1.SelfSign;
-end;
-
-procedure TX509CertsForm.doTestWellKnownClick(Sender: TObject);
-var
-    I: Integer;
-begin
     SetCertParams;
-    if X509Certs1.CertSubAltNames.Count > 0 then begin
-        for I := 0 to X509Certs1.CertSubAltNames.Count - 1 do begin
-            X509Certs1.TestWellKnown(X509Certs1.CertSubAltNames[I].Domain,
-                                 X509Certs1.CertSubAltNames[I].DirWellKnown);
-        end;
-     end;
+    X509Certs1.SelfSign(SelfSignedCA.Checked);
 end;
 
-procedure TX509CertsForm.doWebServerClick(Sender: TObject);
+procedure TX509CertsForm.doTestChallengeClick(Sender: TObject);
 begin
+    doTestChallenge.Enabled := False;
     SetCommParams;
-    X509Certs1.StartDomSrv('localhost', '');
+    X509Certs1.DirCertWork := IncludeTrailingPathDelimiter (DirAcmeConfV2.Text) ;
+    SetCertParams;
+    X509Certs1.TestAltNameChallgs;
+    doTestChallenge.Enabled := True;
 end;
 
 end.

@@ -150,7 +150,7 @@ object NsLookupForm: TNsLookupForm
       Width = 201
       Height = 21
       Style = csDropDownList
-      ItemHeight = 13
+      ItemHeight = 0
       TabOrder = 1
     end
     object AllButton: TButton

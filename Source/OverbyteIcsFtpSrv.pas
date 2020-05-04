@@ -445,10 +445,16 @@ Nov 7, 2019  V8.63 - ftpsNoPasvIpAddrInLan and ftpsNoPasvIpAddrSameSubnet option
                        from INI file, IcsHosts can be read using IcsLoadIcsHostsFromIni. 
                      When using IcsHosts, FtpSslTypes is set automatically to Implicit
                        if an SSL port is specified or Explicit if AuthSslCmd is true. 
-Jan 22, 2020 V8.64 - Added TFtpOptions ftpsAuthForceSsl which require SSL/TLS for
+May 01, 2020 V8.64 - Added TFtpOptions ftpsAuthForceSsl which require SSL/TLS for
                        LOGIN so no clear credentials allowed.  May also be set using
                        IcsHosts with AuthForceSsl=True for specific Hosts only.
-                       Failure gives '533 USER requires a secure connection'. 
+                       Failure gives '533 USER requires a secure connection'.
+                     Better error handling when all passive ports are being used.
+                     Fixed a range error with passive connections is range checking
+                       was enabled, option ftpsNoPasvIpAddrSameSubnet and adaptors
+                       had IPv6 addresses.
+
+
 
 
 Angus pending -
@@ -5579,8 +5585,11 @@ begin
             Inc(FPasvNextNr);                                            { angus V1.56 }
             if FPasvNextNr >= FPasvPortRangeSize then FPasvNextNr := 0;  { angus V1.56 }
             Inc(I);
-            if I >= FPasvPortRangeSize then
+            if I >= FPasvPortRangeSize then begin  { V8.64 reset to start if no free ports }
+                Result := IntToStr(FPasvPortRangeStart);
+                FPasvNextNr := 0;
                 break;  { no free ports in range - angus V1.56 }
+            end;
         end;
     end;
 end;
@@ -5732,6 +5741,7 @@ begin
         on E:Exception do begin
             Answer := Format(msgPasvExcept, [E.Message]);
             try
+                FreeCurrentPasvPort(Client);  { V8.64 clean up }
                 Client.DataSocket.Close;
             except
                 { Ignore any exception here }

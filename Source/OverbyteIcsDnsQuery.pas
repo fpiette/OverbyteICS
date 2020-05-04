@@ -79,13 +79,13 @@ Apr 22 2019 V8.61  Angus added more DnsQuery literals and removed obsolete ones.
                     common ones decoded in TRRRecord, rest returned as text or hex.
                   PTR query now supports IPv6 addresses as well as IPV4.
                   Call RequestDone if connection fails.
- Mar 10 2020 V8.64 Make sure data not processed beyond end of response buffer.
+ May 04 2020 V8.64 Make sure data not processed beyond end of response buffer.
                   Added support for International Domain Names for Applications (IDNA),
                   All methods and arrays use String instead of AnsiString to support
                     Unicode domain names.  This may need application changes.
                   All Unicode queries are converted to Punycode ASCII, and responses
                     with ACE zn-- prefix are converted back to Unicode.
-
+                    TRRRecord has AnswerName and HostName for unicode responses.
 
 
 Note - OverbyteIcsHttpRest contains a derived component DnsQueryHttps which makes
@@ -436,8 +436,9 @@ type
     RRClass   : Word;      // same
     TTL       : Cardinal;  // same
     RDLength  : Word;
-    RDData    : AnsiString;  // actual result as string
-    HostName  : String;      // V8.64 for MX and PTR hostnames
+    RDData    : AnsiString;  // actual result as raw string
+    HostName  : String;      // V8.64 for MX and PTR hostnames, IDN
+    AnswerName : String;     // V8.64 for MX and PTR hostnames, IDN xxxx
     IPV4      : TInAddr;
     IPv6      : TIcsIPv6Address;
     MxPref    : Integer;
@@ -1119,6 +1120,8 @@ var
         Result := False;
         FillChar(RRRecord, SizeOf(RRRecord), 0);
         P := ExtractName(RespBuffer, P, RRRecord.RRName);
+     { V8.64 if rrname has ACE xn--. convert it to Unicode, ignore errors }
+        RRRecord.AnswerName := IcsIDNAToUnicode(String(RRRecord.RRName));
         RRRecord.RRType := ntohs(PWORD(P)^);  { 06/03/2005 WSocket_ntohs(PWORD(P)^); }
       // ignore if SOA response to different question
         Inc(P, 2);
@@ -1134,7 +1137,7 @@ var
         if FAnsTot >= MAX_ANCOUNT then Exit;  // sanity test, too many results
 
      // keep backward compatible vy filling old arrays
-        FAnswerNameArray[FAnsTot] := String(RRRecord.RRName);
+        FAnswerNameArray[FAnsTot] := RRRecord.AnswerName;   { V8.64 }
         FAnswerTypeArray[FAnsTot] := RRRecord.RRType;
         FAnswerClassArray[FAnsTot] := RRRecord.RRClass;
         FAnswerTTLArray[FAnsTot] := RRRecord.TTL;
@@ -1166,7 +1169,10 @@ var
             DnsQueryPTR: begin
                     if FPTRRecordCount <= High(FHostnameArray) then begin
                         FAnswerTagArray[FAnsTot] := FPTRRecordCount;
-                        ExtractName(RespBuffer, RDataPtr, RRRecord.RDData);
+                         SetLength(Temp, RRRecord.RDLength - 1);   { V8.64 }
+                         Inc(RDataPtr, 1);  // skip length byte
+                         Move(RDataPtr^, Temp[1], RRRecord.RDLength - 1);
+                         RRRecord.RDData := Temp;  // us ascii conversion
                     { V8.64 if result has ACE xn--. convert it to Unicode, ignore errors }
                         RRRecord.HostName := IcsIDNAToUnicode(String(RRRecord.RDData));
                         FHostnameArray[FPTRRecordCount] := RRRecord.HostName;
@@ -1220,10 +1226,16 @@ var
         // so tempoarily return them as hex
             DnsQueryRRSIG, DnsQueryDNSKEY, DnsQueryDS, DnsQueryNSEC, DnsQueryNSEC3,
               DnsQueryCDS, DnsQueryCDNSKEY, DnsQueryTLSA, DnsQuerySMIMEA: begin
-                   RRRecord.RDData := AnsiString(IcsBufferToHex(RDataPtr^, RRRecord.RDLength));
+                 SetLength(Temp, RRRecord.RDLength);   { V8.64 }
+                 Move(RDataPtr^ , Temp[1], RRRecord.RDLength);
+                 RRRecord.RDData := AnsiString(IcsBufferToHex(Temp, RRRecord.RDLength));
             end
-            else begin   // assume all other records are textual
-                ExtractName(RespBuffer, RDataPtr, RRRecord.RDData);
+            else begin   // assume all other records are textual, TXT, etc
+            //    ExtractName(RespBuffer, RDataPtr, RRRecord.RDData);  failed if multiple responses
+                 SetLength(Temp, RRRecord.RDLength - 1);   { V8.64 }
+                 Inc(RDataPtr, 1);  // skip length byte
+                 Move(RDataPtr^ , Temp[1], RRRecord.RDLength - 1);
+                 RRRecord.RDData := Temp;  // us ascii conversion
             end;
         end;
         FAnswerRecordArray[FAnsTot] := RRRecord;

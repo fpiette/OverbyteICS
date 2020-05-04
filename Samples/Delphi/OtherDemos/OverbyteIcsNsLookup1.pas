@@ -47,9 +47,9 @@ Apr 22 2019  V8.61 Angus major rewrite to support all important DNS queries
                      than multiple arrays, but those old arrays are still
                      available for backward compatibility.
                    Added list of public DNS servers.
- Mar 10 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
-                  All Unicode queries are converted to Punycode ASCII, and responses
-                    with ACE zn-- prefix are converted back to Unicode.
+May 04 2020 V8.64  Added support for International Domain Names for Applications (IDNA),
+                   All Unicode queries are converted to Punycode ASCII, and responses
+                     with ACE zn-- prefix are converted back to Unicode.
 
 
 
@@ -322,16 +322,17 @@ begin
         for I := 0 to DnsQuery1.AnswerTotal - 1 do begin
             Display('Answer #' + IntToStr(I + 1));
             with  DnsQuery1.AnswerRecord[I] do begin
-                Display('  AnswerName       : ' + String(RRName));
+                Display('  AnswerName       : ' + AnswerName + '  (' + String(RRName) + ')');    { V8.64 }
                 Display('  AnswerType       : ' + IntToStr(RRType) + ' ' + FindDnsReqTypeName(RRType));
                 Display('  AnswerClass      : ' + IntToStr(RRClass));
                 Display('  AnswerTTL        : ' + IntToStr(TTL));
+                Display('  Result Length    : ' + IntToStr(RDLength));   { V8.64 }
 
                 case RRType of
                 DnsQueryMX:
                     begin
                         Display('  MXPreference     : ' + IntToStr(MxPref));
-                        Display('  MXExchange       : ' + HostName);
+                        Display('  MXExchange       : ' + HostName);     { V8.64 }
                     end;
                 DnsQueryA, DnsQueryAAAA, DnsQueryNS:
                     begin
@@ -339,7 +340,7 @@ begin
                     end;
                 DnsQueryPTR:
                     begin
-                        Display('  Hostname         : ' + HostName);
+                        Display('  Hostname         : ' + HostName);    { V8.64 }
                     end;
                 else begin
                         Display('  Result           : ' + String(RDData));

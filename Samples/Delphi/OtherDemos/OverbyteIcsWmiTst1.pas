@@ -3,7 +3,7 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS WMI Demos
 Creation:     Mar 2020
-Updated:      Mar 2020
+Updated:      Apr 2020
 Version:      8.64
 Support:      Use the mailing list ics-ssl@elists.org
 Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
@@ -35,7 +35,7 @@ Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
                  address, EMail address and any comment you like to say.
 
 History:
-27 Mar 2020 - 8.64 baseline
+21 Apr 2020 - 8.64 baseline
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

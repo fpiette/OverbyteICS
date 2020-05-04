@@ -219,7 +219,7 @@ Nov 18, 2019 V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
                    Automatic cert ordering now Logs activity via the SslX509Certs
                      component since this one does not have logging.
                    Corrected INI file reading NostEnabled instead of HostEnabled.
-Mar 26, 2020 V8.64 IcsHosts allows NonSSlPort to be zero for random port, not for SSL.
+May 04, 2020 V8.64 IcsHosts allows NonSSlPort to be zero for random port, not for SSL.
                    Added BindPort read only property with real port while listening.
                    Added BindSrvPort to IcsHosts set while listening.
                    ListenStates now shows BindPort rather than requested port.
@@ -230,12 +230,21 @@ Mar 26, 2020 V8.64 IcsHosts allows NonSSlPort to be zero for random port, not fo
                       ertificate challenge, client has new OnClientAlpnChallg
                       event that should provide the new self signed ACME certificate
                       for the challenge sent using a temporary SslContext.
+                   Support CertChallenge=ChallFileApp for http challenge, needs
+                       code adding in HTTP server onWellKnownDir event but avoids
+                       writing files.
                    Removed ALPN handling added in V8.62 which was called too
                       late by OpenSSL to change the SSL context, now checking
                       ALPN earlier from new ClientHello callback.
-                   Internally replaced FRootCAX509 with FX509CAList for use by
-                      ValidateCertChain as Root CA store.
-
+                   Internally replaced FRootCAX509 with FX509CAList TX509List for
+                      use by ValidateCertChain as Root CA store, specified by file
+                      RootCA, loaded by LoadRootCAList and available as RootCAList.
+                   Create a self signed SSL certificate so server can start if
+                      certificate file can not be found or is missing.  Needed
+                      for ChallengeType=ChallAlpnApp to create a new certificate,
+                      but always done to make life easier.  Tries to use the
+                      specified certificate directory, TEMPDIR if none specified.
+                    Don't start SSL certificate order until server is listening.
 
 
 Quick reference guide:
@@ -715,8 +724,10 @@ uses
 {$ENDIF}
 {$IFDEF FMX}
     Ics.Fmx.OverbyteIcsWSocket,
+    Ics.Fmx.OverbyteIcsSslX509Utils,
 {$ELSE}
     OverbyteIcsWSocket,
+    OverbyteIcsSslX509Utils,   { V8.64 }
 {$ENDIF}
     OverbyteIcsUtils,
     OverbyteIcsTypes;
@@ -1247,7 +1258,6 @@ type
     TSslWSocketServer = class(TWSocketServer)
     protected
         FIcsHosts: TIcsHostCollection;            { V8.45 }
-//        FRootCAX509: TX509Base;                   { V8.46 }
         FX509CAList: TX509List;                   { V8.64 replaced FRootCAX509: TX509Base }
         FRootCA: String;                          { V8.46 }
         FDHParams: String;                        { V8.45 }
@@ -1282,11 +1292,13 @@ type
                                 var LoadNew: Boolean; AllowSelfSign: Boolean=False): Boolean; { V8.57, V8.63 }
         function  OrderCert(HostNr: Integer): Boolean;               { V8.57 }
         procedure OrderClose;                                        { V8.63 }
+        procedure LoadRootCAList;                                    { V8.64 }
 {$IFDEF AUTO_X509_CERTS}  { V8.59 }
         function  GetSslX509Certs: TComponent;                       { V8.57 }
         procedure SetSslX509Certs(const Value : TComponent);         { V8.57 }
 {$ENDIF} // AUTO_X509_CERTS
         property  Validated: Boolean                     read FValidated;    { V8.64 }
+        property  RootCAList: TX509List                  read  FX509CAList;  { V8.64 }
     published
         property  SslContext;
         property  Banner;
@@ -2887,7 +2899,6 @@ begin
     Addr             := '0.0.0.0';
     SslMode          := sslModeServer;
     FIcsHosts        := TIcsHostCollection.Create(self);            { V8.45 }
-//    FRootCAX509      := TX509Base.Create(self);                     { V8.46 }
     FX509CAList      := TX509List.Create(self);                     { V8.64 }
     FValidated       := False;                                      { V8.48 }
     FCertExpireDays  := 30;                                         { V8.57 }
@@ -2901,10 +2912,6 @@ begin
         FIcsHosts.Free;
         FIcsHosts := nil;
     end;
- {   if Assigned(FRootCAX509) then begin
-        FRootCAX509.Free;
-        FRootCAX509 := nil;
-    end;     }
     if Assigned(FX509CAList) then begin
         FX509CAList.Free;
         FX509CAList := nil;
@@ -3024,10 +3031,11 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-// V8.62 create certificate file name from domain common name, change . to _ and * to x
+// V8.62 create certificate file name from domain common name, change . and space to _ and * to x
 function BuildCertName(const Domain: String): String;
 begin
     Result := StringReplace (Domain, '.', '_', [rfReplaceAll]) ;
+    Result := StringReplace (Result, IcsSpace, '_', [rfReplaceAll]) ;  { V8.64 }
     if Result = '' then Exit;
     if Result [1] = '*' then Result [1] := 'x';  // can not have * in file names
 end;
@@ -3081,7 +3089,7 @@ function TSslWSocketServer.OrderCert(HostNr: Integer): Boolean;
 {$IFDEF AUTO_X509_CERTS}  { V8.59 }
 var
     I: Integer;
-    FName: String;
+    FName, CName: String;
 
  { V8.63 log what is happening via SslX509Certs component }
     procedure X509Log(const Msg: String);
@@ -3111,23 +3119,23 @@ begin
              ', With: ' + SupplierProtoLits[CertSupplierProto]);
         FCertErrs := '';  // last one was not an error
 
-        if CertChallenge in [ChallFileFtp, ChallDNS, ChallEmail] then begin    { V8.62 }
+        if CertChallenge in [ChallFileFtp, ChallDnsMan, ChallEmail] then begin    { V8.62 }
             X509Log('Unsupported Challenge for Socket Server');
             Exit;
         end;
 
-     { V8.62 UNC challenge assumes this is a web server that supports the
+     { V8.62 HTTP challenges assumes this is a web server that supports the
           .well-known path or SSI ALPN and only works after server starts }
-        if CertChallenge in [ChallFileUNC, ChallAlpnUNC] then begin    { V8.62 }
+        if CertChallenge in [ChallFileUNC, ChallAlpnUNC, ChallAlpnApp, ChallFileApp] then begin    { V8.62 }
             if WellKnownPath = '' then begin
-                X509Log('No .Well-Known Directory Specified');
+                X509Log('No .Well-Known Directory Specified for HTTP Challenge');
                 Exit;
             end;
-            if (CertChallenge = ChallFileUNC) and (FBindNonPort <> 80) then begin
+            if (CertChallenge in [ChallFileUNC, ChallFileApp] ) and (FBindNonPort <> 80) then begin
                 X509Log('Port 80 Not Listening');
                 Exit;
             end;
-            if (CertChallenge = ChallAlpnUNC) and (FBindSslPort <> 443) then begin
+            if (CertChallenge in [ChallAlpnUNC, ChallAlpnApp]) and (FBindSslPort <> 443) then begin
                 X509Log('Port 443 Not Listening');
                 Exit;
             end;
@@ -3136,14 +3144,6 @@ begin
                 Exit;
             end;
         end;
-
-    { V8.64 ALPN challenge needs event that create false certificate }
-    {   if (CertChallenge = ChallAlpnApp) or (CertChallenge = ChallAlpnSrv) then begin
-            if NOT Assigned(OnClientAlpnChallg) then begin
-                X509Log('ALPN Challenge Event Not Configured');
-                Exit;
-            end;
-        end;      }
 
      { V8.62 Local Server uses a separate local web server for servers not using
         ports 80 or 443 such as FTP, SMTP, etc, configure it, will be started automatrically }
@@ -3183,15 +3183,17 @@ begin
                 CertCommonName := HostNames[0];
                 FName := IcsExtractNameOnly(FSslCert);
              // V8.63 allow for file name having -bundle or -cert appended to end
-                if Pos (BuildCertName(CertCommonName), FName) <> 1 then begin
-                    X509Log('Certificate File Name Mismatch, File:  ' +
-                                              Fname + ',  Common Name: ' + CertCommonName);
+                CName := BuildCertName(CertCommonName);
+                if Pos (CName, FName) <> 1 then begin
+                    X509Log('Certificate File Name Mismatch, File: ' +
+                                              Fname + ',  Common Name: ' + CName);
                     Result := False;  // V8.63
                     Exit;
                 end;
 
             // if common name not in database, set minimal stuff
                 if NOT CertReadDomain(CertCommonName) then begin
+                    CertCommonName := HostNames[0];   { V8.64 }
                     CertCsrOrigin := CsrOriginProps;
                     CertApprovEmail := '';
                     CertSerNumType := SerNumRandom;
@@ -3213,6 +3215,7 @@ begin
                 CertSubAltNames.Clear;
                 for I := 0 to HostNames.Count - 1 do
                     CertSubAltNames.AddItem(HostNames[I], DirWellKnown, DirPubWebCert.Text, CertApprovEmail);
+
                 Result := CertSaveDomain(CertCommonName);
                 if NOT Result then begin
                     X509Log('Failed to Save New Domain to Certificate Database - ' + LastError);  // V8.63
@@ -3220,8 +3223,15 @@ begin
                     Exit;
                 end;
 
+                Result := CertGetChallgDomain(CertCommonName);  { V8.64 get challenges first }
+                if NOT Result then begin
+                    X509Log('Failed to Get Certificate Challenges - ' + LastError);  // V8.63
+                    CloseAccount;  // V8.63
+                    Exit;
+                end;
+
              // order new SSL certificate
-                Result := CertOrderDomain(HostNames[0]);
+                Result := CertOrderDomain(CertCommonName);      { test and start challenges }
                 if NOT Result then begin
                     X509Log('Failed to Order New Certificate - ' + LastError);  // V8.63
                     CloseAccount;  // V8.63
@@ -3258,12 +3268,74 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 load Root CA to validate SSL certificate chains }
+procedure TSslWSocketServer.LoadRootCAList;
+begin
+    if (Pos(PEM_STRING_HDR_BEGIN, FRootCA) > 0) then
+        FX509CAList.LoadAllFromString(FRootCA)
+    else if (FRootCA <> '') and FileExists(FRootCA) then
+        FX509CAList.LoadAllFromFile(FRootCA)
+    else
+        FX509CAList.LoadAllFromString(sslRootCACertsBundle);  // builtin roots
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { V8.57 load certificates for one host }
+{ ForceLoad=True means ignore timestamps and always load certs but no ordering }
 function TSslWSocketServer.LoadOneCert(HostNr: Integer; ForceLoad: Boolean;
                               var LoadNew: Boolean; AllowSelfSign: Boolean=False): Boolean;  { V8.63 }
 var
     NewFStamp: TDateTime;
     FDir, FName: String;
+
+  { V8.64 create self signed certificate }
+    function CreateSelfSigned: Boolean;
+    begin
+        Result := False;
+        AllowSelfSign := True;
+        with FIcsHosts[HostNr] do begin
+            if FName = '' then begin
+                FDir := ExtractFileDir(FSslCert);
+                if (FDir = '') OR (NOT DirectoryExists(FDir)) then FDir := IcsGetTempPath;
+                FName := IncludeTrailingPathDelimiter(FDir) + BuildCertName(HostNames[0]) + '.pfx';
+            end;
+            if NOT FileExists(FName) then begin
+                try
+                    CreateSelfSignCertEx(FName, HostNames[0], HostNames,
+                                                            PrivKeyECsecp256, FSslPassword, '');
+                    NewFStamp := IcsGetFileUAge(FName);
+                    FCertErrs := FCertErrs + ', Created New Self Signed Certificate: ' + FName;
+                    Result := True;
+                except
+                   on E:Exception do begin
+                        FCertErrs := FCertErrs + ', Failed to Create Signed Certificate: ' +
+                                                                        FName + ' - ' + E.Message;
+                        Exit;
+                   end;
+                end;
+            end
+            else begin
+                Result := True;
+                FCertErrs := FCertErrs + ', Using Existing Self Signed Certificate: ' + FName;
+            end;
+
+      { should we try and download a new certificate }
+{$IFDEF AUTO_X509_CERTS}
+            if FSslCertAutoOrder and (CertSupplierProto > SuppProtoNone) and
+                                                Assigned(FSslX509Certs) then begin
+                if ForceLoad then
+                    FCertErrs := FCertErrs + ', Pending Order fo New Certificate'
+                else if OrderCert(HostNr) then
+                    FCertErrs := FCertErrs + ', Ordered New Certificate, May Not Be Available Yet'
+                else
+                    FCertErrs := FCertErrs + ', Failed to Order New Certificate';
+            end;
+{$ENDIF}
+        end;
+    end;
+
+
 begin
     Result := False;
     LoadNew := False;
@@ -3305,14 +3377,11 @@ begin
 
          { really need an SSL certificate otherwise SSL does not work }
             if NewFStamp <= 0 then begin
-               { should we try and download a new certificate }
-                if FSslCertAutoOrder and (CertSupplierProto > SuppProtoNone) then begin
-                    if OrderCert(HostNr) then
-                        FCertErrs := FCertErrs + ', Ordered New Certificate, May Not Be Available Yet'
-                    else
-                        FCertErrs := FCertErrs + ', Failed to Order New Certificate';
-                end;
-                Exit;
+
+              { V8.64 create self signed certificate so server can start }
+                 if NOT CreateSelfSigned then Exit;
+                 FSslCert := FName;
+            //    Exit;
             end;
             if ForceLoad or (FCertFStamp <> NewFStamp) then begin
                 LoadNew := True;
@@ -3322,9 +3391,13 @@ begin
             end;
         end;
         if NOT SslCtx.SslCertX509.IsCertLoaded then begin
-            FCertErrs := 'SSL Certificate Not Loaded - ' + FSslCert;
-       // should we try and download a new certificate?
-             Exit;
+            FCertErrs := 'SSL Certificate Failed to Load - ' + FSslCert;
+
+       { V8.64 create self signed certificate so server can start }
+           if NOT CreateSelfSigned then Exit;
+           FSslCert := FName;
+           SslCtx.SslCertX509.PrivateKey := Nil;
+           SslCtx.SslCertX509.LoadFromFile(FSslCert, croTry, croTry, FSslPassword);
         end;
         if NOT SslCtx.SslCertX509.IsPKeyLoaded then begin
             if (FSslKey = '') then begin
@@ -3358,7 +3431,6 @@ begin
         end ;
 
      { validate SSL certificate chain, helps to ensure server will work! }
-    //    SslCtx.SslCertX509.X509CATrust := FRootCAX509.X509CATrust;   { gone V8.64 }
         FCertDomains := IcsUnwrapNames (SslCtx.SslCertX509.SubAltNameDNS);
         FCertExiry := SslCtx.SslCertX509.ValidNotAfter;
      { V8.47 warning, currently only checking first Host name }
@@ -3373,7 +3445,8 @@ begin
             FCertInfo := 'Server: ' + SslCtx.SslCertX509.CertInfo(False);
         end
         else
-          { V8.64 pass CAList to validate against } 
+          { V8.64 pass CAList to validate against }
+            if FX509CAList.Count = 0 then LoadRootCAList;
             FCertValRes := SslCtx.SslCertX509.ValidateCertChain(FHostNames[0],
                               FX509CAList, FCertInfo, FCertErrs, FCertExpireDays);
         if FCertValRes = chainOK then begin
@@ -3394,10 +3467,13 @@ begin
             end;
 
          // should we try and download a new certificate
+         // V8.64 only once the server is listening, challenges fail otherwise
 {$IFDEF AUTO_X509_CERTS}  { V8.62 }
             if FSslCertAutoOrder and (CertSupplierProto > SuppProtoNone) and
-                                                Assigned(FSslX509Certs) then begin
-                if OrderCert(HostNr) then
+                                             Assigned(FSslX509Certs) then begin
+                if ForceLoad then
+                    FCertErrs := FCertErrs + ', Pending Order fo New Certificate'
+                else if OrderCert(HostNr) then
                     FCertErrs := FCertErrs + ', Ordered New Certificate'
                 else
                     FCertErrs := FCertErrs + ', Failed to Order New Certificate';
@@ -3477,21 +3553,6 @@ begin
     FirstSsl := -1;
     FirstHost := True;
 
- { keep Root CA to validate SSL certificate chains }
-    try
-        if FRootCA <> '' then begin    { V8.46 }
-            if (Pos(PEM_STRING_HDR_BEGIN, FRootCA) > 0) then
-                FX509CAList.LoadAllFromString(FRootCA)
-            else
-                FX509CAList.LoadAllFromFile(FRootCA);
-        end;
-    except
-        on E:Exception do begin
-            Result := E.Message + #13#10;
-            if Stop1stErr then Raise;
-        end;
-    end;
-
 // set-up bindings and SSL context for each host
     MultiListenSockets.Clear;
     for I := 0 to FIcsHosts.Count - 1 do begin
@@ -3528,6 +3589,8 @@ begin
                     if Stop1stErr then raise ESocketException.Create(Result);
                     continue;
                 end;
+             { V8.64 really need a hostname of some sort to create a certificate file }
+                if Length(FHostNames[0]) <= 1 then FHostNames[0] := 'unknown';
                 if NOT Assigned(SslCtx) then
                     SslCtx := TSslContext.Create(Self);
                 if FirstSsl < 0 then FirstSsl := I;

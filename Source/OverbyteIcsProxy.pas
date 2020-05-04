@@ -3,15 +3,14 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Forward and Reverse SSL HTTP Proxy
 Creation:     May 2017
-Updated:      Oct 2018
-Version:      8.59
+Updated:      Apr 2020
+Version:      8.64
 Sponsor:      This component was sponsored in part by Avenir Health and
               Banxia Software Ltd. http://www.avenirhealth.org
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-Legal issues: Copyright (C) 1997-2018 by François PIETTE
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1997-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
-              <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -206,6 +205,8 @@ Nov 19, 2018  V8.59 Sanity checks reading mistyped enumerated values from INI fi
 Dec 04, 2018  V8.59 Added AUTO_X509_CERTS define set in OverbyteIcsDefs.inc which
                       can be disabled to remove a lot of units if automatic SSL/TLS
                       ordering is not required, saves up to 1 meg of code.
+27 Apr 2020 - V8.64 Added SSL certificate ordering ChallFileApp and ChallAlpnApp
+                      challenges, as well as ChallFileUNC.
 
 
 
@@ -293,9 +294,9 @@ uses
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
 const
-    THttpServerVersion = 859;
-    CopyRight : String = ' TIcsHttpProxy (c) 2018 F. Piette V8.59 ';
-    DefServerHeader : string = 'Server: ICS-Proxy-8.59';
+    THttpServerVersion = 864;
+    CopyRight : String = ' TIcsHttpProxy (c) 2020 F. Piette V8.64 ';
+    DefServerHeader : string = 'Server: ICS-Proxy-8.64';
     CompressMinSize = 5000;     // 5K minimum to make it worth compressing a page
     CompressMaxSize = 5000000;  // 5M bigger takes too long
     DefRxBuffSize = 65536;

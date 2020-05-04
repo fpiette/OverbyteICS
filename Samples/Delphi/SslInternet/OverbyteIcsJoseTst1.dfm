@@ -3,7 +3,7 @@ object JsonDemoForm: TJsonDemoForm
   Top = 180
   Caption = 
     'ICS SSL Json Object Signing Demos - http://www.overbyte.be - V8.' +
-    '64 -12th March 2020'
+    '64 -4th May 2020'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace
@@ -22,12 +22,16 @@ object JsonDemoForm: TJsonDemoForm
     Top = 0
     Width = 823
     Height = 436
-    ActivePage = TabSheetJson
+    ActivePage = TabSheetJose
     Align = alTop
     TabOrder = 0
     object TabSheetJson: TTabSheet
       Caption = 'JSON/XML'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object JsonGrid: TListView
         Left = 0
         Top = 171
@@ -229,7 +233,7 @@ object JsonDemoForm: TJsonDemoForm
         Top = 305
         Width = 111
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         ItemIndex = 1
         TabOrder = 6
         Text = 'jsigHmac256'
@@ -382,7 +386,7 @@ object JsonDemoForm: TJsonDemoForm
         Top = 245
         Width = 406
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 4
         Text = 'jose-rsa-prvkey.pem'
         Items.Strings = (

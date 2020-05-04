@@ -586,7 +586,7 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 862;
+    THttpServerVersion = 864;
     CopyRight : String = ' THttpServer (c) 1999-2020 F. Piette V8.64 ';
     DefServerHeader : string = 'Server: ICS-HttpServer-8.64';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }

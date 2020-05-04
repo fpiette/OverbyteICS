@@ -3,7 +3,7 @@ object IpLogForm: TIpLogForm
   Top = 84
   Caption = 
     'ICS IP Streaming Log Component Demo -  http://www.overbyte.be - ' +
-    'V8.64 - 26th November 2019'
+    'V8.64 - 27th April 2020'
   ClientHeight = 746
   ClientWidth = 1004
   Color = clBtnFace
@@ -249,10 +249,6 @@ object IpLogForm: TIpLogForm
     object SheetOperation: TTabSheet
       Caption = 'Operation'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label1: TLabel
         Left = 290
         Top = 5
@@ -426,10 +422,6 @@ object IpLogForm: TIpLogForm
     end
     object SheetSettings: TTabSheet
       Caption = 'Settings'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object BoxClient: TGroupBox
         Left = 5
         Top = 5
@@ -684,6 +676,13 @@ object IpLogForm: TIpLogForm
           Height = 14
           Caption = 'Server SSL Security Level'
         end
+        object Label26: TLabel
+          Left = 220
+          Top = 305
+          Width = 71
+          Height = 14
+          Caption = 'DNS Challenge'
+        end
         object ServerPort: TComboBox
           Left = 80
           Top = 15
@@ -775,7 +774,7 @@ object IpLogForm: TIpLogForm
           Width = 196
           Height = 22
           Style = csDropDownList
-          ItemHeight = 0
+          ItemHeight = 14
           TabOrder = 11
         end
         object SslCertChallenge: TComboBox
@@ -784,7 +783,7 @@ object IpLogForm: TIpLogForm
           Width = 196
           Height = 22
           Style = csDropDownList
-          ItemHeight = 0
+          ItemHeight = 14
           TabOrder = 13
         end
         object SslCertPKeyType: TComboBox
@@ -793,7 +792,7 @@ object IpLogForm: TIpLogForm
           Width = 196
           Height = 22
           Style = csDropDownList
-          ItemHeight = 0
+          ItemHeight = 14
           TabOrder = 15
         end
         object SslCertDirWork: TEdit
@@ -801,7 +800,7 @@ object IpLogForm: TIpLogForm
           Top = 355
           Width = 346
           Height = 22
-          TabOrder = 16
+          TabOrder = 17
         end
         object SslCertSignDigest: TComboBox
           Left = 220
@@ -809,7 +808,7 @@ object IpLogForm: TIpLogForm
           Width = 161
           Height = 22
           Style = csDropDownList
-          ItemHeight = 0
+          ItemHeight = 14
           TabOrder = 14
         end
         object SslCertProduct: TEdit
@@ -828,7 +827,7 @@ object IpLogForm: TIpLogForm
           Hint = 'Use a proxy URL, ie http://[user[:password]@]host:port'
           ParentShowHint = False
           ShowHint = True
-          TabOrder = 17
+          TabOrder = 18
         end
         object SslSrvSec: TComboBox
           Left = 220
@@ -851,6 +850,19 @@ object IpLogForm: TIpLogForm
             'High 192 bit Ciphers, TLS1.2 or Later'
             'TLSv1.2 or Earlier'
             'TLSv1.3 Only')
+        end
+        object DnsChlgType: TComboBox
+          Left = 220
+          Top = 320
+          Width = 187
+          Height = 22
+          ItemHeight = 14
+          ItemIndex = 0
+          TabOrder = 16
+          Text = 'Local Windows DNS Server'
+          Items.Strings = (
+            'Local Windows DNS Server'
+            'Cloudfare DNS Server')
         end
       end
       object BoxLocalAddr: TGroupBox
@@ -907,7 +919,7 @@ object IpLogForm: TIpLogForm
           Top = 20
           Width = 194
           Height = 22
-          ItemHeight = 0
+          ItemHeight = 14
           MaxLength = 5
           TabOrder = 0
           Text = '0.0.0.0'
@@ -1098,8 +1110,9 @@ object IpLogForm: TIpLogForm
     OnCertProg = SslX509CertsCertProg
     OnNewCert = SslX509CertsNewCert
     OnOAuthAuthUrl = SslX509CertsOAuthAuthUrl
-    Left = 850
-    Top = 310
+    OnChallengeDNS = SslX509CertsChallengeDNS
+    Left = 675
+    Top = 410
   end
   object SslAvlSessionCache: TSslAvlSessionCache
     IdleTimeout = 30
@@ -1110,7 +1123,7 @@ object IpLogForm: TIpLogForm
   end
   object TimerLog: TTimer
     OnTimer = TimerLogTimer
-    Left = 845
-    Top = 415
+    Left = 745
+    Top = 410
   end
 end

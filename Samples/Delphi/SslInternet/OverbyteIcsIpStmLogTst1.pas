@@ -7,7 +7,7 @@ Updated:      Dec 2019
 Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
+Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
@@ -103,7 +103,12 @@ in the event when only one was open, tested with Delphi 2010
 13 Nov 2019 - V8.63 - Restart server once first certificate issued.
                       Corrected log file name.
 
-26 Nov 2019 - V8.64 - Ensure old server port cleared when changing SSL.
+27 Apr 2020 - V8.64 - Ensure old server port cleared when changing SSL.
+                      Updated X509Certs slightly.
+                      Support for X509Cert DNS challenge using WMI on Windowe Server.
+                      Still start servers with certificate warnings.
+                      Now starts with SSL self signed certificate if no certificate
+                        found, then orders a certificate after five seconds.
 
 
 
@@ -145,7 +150,10 @@ uses
   OverbyteIcsSSLEAY, OverbyteIcsSslX509Utils, OverbyteIcsSslSessionCache,
   OverbyteIcsUtils, OverbyteIcsLogger, OverbyteIcsStreams,
   OverbyteIcsIpStreamLog, OverbyteIcsSslX509Certs, OverbyteIcsWndControl,
-  OverbyteIcsBlacklist;
+  OverbyteIcsBlacklist,
+  OverbyteIcsTicks64,  { V8.64 }
+  OverbyteIcsWmi;      { V8.64 }
+
 
 type
   TIpLogForm = class(TForm)
@@ -190,6 +198,7 @@ type
     SslCliSec: TComboBox;
     SslSrvSec: TComboBox;
     DirLogs: TEdit;
+    DnsChlgType: TComboBox;
 
 // not saved
     DataTimer: TTimer;
@@ -246,6 +255,7 @@ type
     Label25: TLabel;
     SelDirLogs: TBitBtn;
     TimerLog: TTimer;
+    Label26: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure doExitClick(Sender: TObject);
@@ -266,7 +276,7 @@ type
       const Msg: string);
     procedure SslX509CertsNewCert(Sender: TObject);
     procedure SslX509CertsChallengeDNS(Sender: TObject;
-      ChallengeItem: TChallengeItem);
+      ChallengeItem: TChallengeItem; var ChlgOK: Boolean);
     procedure SslX509CertsOAuthAuthUrl(Sender: TObject; const URL: string);
     procedure SelDirLogsClick(Sender: TObject);
     procedure TimerLogTimer(Sender: TObject);
@@ -288,6 +298,8 @@ const
     ProtoUdp = 0 ; ProtoTcp = 1 ;
     MyLogOptions: TLogOptions = [loDestEvent, loWsockErr, loSslErr] ;
     MyLogOptions2: TLogOptions = [loDestEvent, loWsockErr, loWsockInfo, loSslErr , loSslInfo] ;
+    DnsChlgWindows = 0;  DnsChlgCloudfare = 1;
+
 
 var
     IpLogForm: TIpLogForm;
@@ -300,6 +312,7 @@ var
     FLocalFileStream: TFileStream ;
     FIcsBuffLogStream: TIcsBuffLogStream;
     BuffLogLines: String;
+    CertCheckTrigger: int64 ;  { V8.64 }
 
 implementation
 
@@ -358,6 +371,7 @@ begin
        WriteString (section, 'SslCertProduct_Text', SslCertProduct.Text) ;
        WriteString (section, 'SslCertDirWork_Text', SslCertDirWork.Text) ;
        WriteString (section, 'DirLogs_Text', DirLogs.Text) ;
+       WriteInteger (section, 'DnsChlgType_ItemIndex', DnsChlgType.ItemIndex) ;
 
         WriteInteger ('Window', 'Top', Top);
         WriteInteger ('Window', 'Left', Left);
@@ -471,6 +485,7 @@ begin
        SslCertDirWork.Text := ReadString (section, 'SslCertDirWork_Text', '') ;
        SslCertProduct.Text := ReadString (section, 'SslCertProduct_Text', SslCertProduct.Text) ;
        DirLogs.Text := ReadString (section, 'DirLogs_Text', '') ;
+       DnsChlgType.ItemIndex := ReadInteger (section, 'DnsChlgType_ItemIndex', 0) ;
 
         Top := ReadInteger ('Window', 'Top', (Screen.Height - Height) div 2);
         Left := ReadInteger ('Window', 'Left', (Screen.Width - Width) div 2);
@@ -497,6 +512,8 @@ begin
     IpLogClient.onLogChangeEvent := LogChangeEvent ;
     IpLogClient.RetryWaitSecs := 10 ;
     IpLogServer.MaxSockets := 1 ;
+    CertCheckTrigger := Trigger64Disabled;  { V8.64 }
+
 
   // ignore OpenSSL 1.1.0 and later, or earlier
 //    GSSLEAY_DLL_IgnoreNew := True;
@@ -510,6 +527,7 @@ end;
 
 procedure TIpLogForm.FormDestroy(Sender: TObject);
 begin
+    CertCheckTrigger := Trigger64Disabled;  { V8.64 }
     DataTimer.Enabled := false ;
     FreeAndNil (IpLogClient) ;
     FreeAndNil (IpLogServer) ;
@@ -536,7 +554,27 @@ end;
 procedure TIpLogForm.TimerLogTimer(Sender: TObject);
 var
     displen: integer ;
+    S1: String ;
+    NewFlag: Boolean;
 begin
+  // check SSL certificates every two hours, may order expired certs
+    if IcsTestTrgTick64 (CertCheckTrigger) then  { V8.57 }
+    begin
+        CertCheckTrigger := IcsGetTrgMins64 (120) ;
+        try
+          // don't stop on first error, no exceptions
+            NewFlag := IpLogServer.SrvRecheckSslCerts(S1, False, True);
+            if NewFlag or (S1 <> '') then  begin
+                if NewFlag then AddLog('Server Recheck Loaded New SSL Certificate(s)');
+                AddLog('Recheck SSL Certificate Errors:' + IcsCRLF + S1);
+            end;
+        except
+            on E:Exception do begin
+               AddLog('Recheck SSL Certificate Failed - ' + E.Message);
+            end;
+        end;
+    end;
+
     displen := Length(BuffLogLines);
     if displen > 0 then begin
         try
@@ -594,6 +632,8 @@ var
 begin
     DataTimer.Enabled := false ;
     try
+
+    // sending sample data
         DataTimer.Interval := atoi (DataGap.Text) ;
         if DataClient.Checked then
         begin
@@ -723,13 +763,13 @@ begin
         if IpLogServer.ForceSsl then begin
             try
                 ErrStr := IpLogServer.SrvValidateHosts(False, True); // don't stop on first error, no exceptions
-                if ErrStr <> '' then begin
-                    AddLog('Server Host Validation Errors:' + icsCRLF + ErrStr);
+                if IpLogServer.SrvIcsHosts [0].CertValRes = chainFail then begin  // V8.64  don't stop on warnings
+                    AddLog('Server Not Started, Host Validation Errors:' + icsCRLF + ErrStr);
                     Exit;
                 end;
             except
                 on E:Exception do begin
-                    AddLog('Server Host Validation Failed - ' + E.Message);
+                    AddLog('Server Not Started, Host Validation Failed - ' + E.Message);
                     Exit;
                 end;
             end;
@@ -790,6 +830,7 @@ begin
 // start logging
     if IpLogServer.StartLogging then begin
         SetButtons (true) ;
+        CertCheckTrigger := IcsGetTrgSecs64 (5) ;  { V8.64 first check is early to order new certificates }
         DataTimerTimer (Self) ;
     end;
     IpLogClient.StartLogging ;
@@ -962,13 +1003,13 @@ begin
         if IpLogServer.ForceSsl then begin
             try
                 ErrStr := IpLogServer.SrvValidateHosts(False, True); // don't stop on first error, no exceptions
-                if ErrStr <> '' then begin
-                    AddLog('Server Host Validation Errors:' + icsCRLF + ErrStr);
+                if IpLogServer.SrvIcsHosts [0].CertValRes = chainFail then begin  // V8.64  don't stop on warnings
+                    AddLog('Server Not Started, Host Validation Errors:' + icsCRLF + ErrStr);
                     Exit;
                 end;
             except
                 on E:Exception do begin
-                    AddLog('Server Host Validation Failed - ' + E.Message);
+                    AddLog('Server Not Started, Host Validation Failed - ' + E.Message);
                     Exit;
                 end;
             end;
@@ -983,6 +1024,7 @@ begin
     if IpLogServer.StartLogging then begin
         SetButtons (true) ;
         DataTimerTimer (Self) ;
+        CertCheckTrigger := IcsGetTrgSecs64 (5) ;  { V8.64 first check is early to order new certificates }
     end;
 end;
 
@@ -992,6 +1034,7 @@ var
     stopflag: boolean ;
     MySocket: TWSocket ;
 begin
+    CertCheckTrigger := Trigger64Disabled;  { V8.64 }
     DataTimer.Enabled := false ;
 
  // 7 July 2016 report traffic
@@ -1124,9 +1167,55 @@ begin
 end;
 
 procedure TIpLogForm.SslX509CertsChallengeDNS(Sender: TObject;
-  ChallengeItem: TChallengeItem);
+  ChallengeItem: TChallengeItem; var ChlgOK: Boolean);            { V8.64 }
+var
+    I: integer;
+    Zone: String;
+    WmiDnsRec: TWmiDnsRec;
+    Errinfo: string;
 begin
-//   update DNS server with TXT challenge information
+    if ChallengeItem.CType = ChallDnsMan then
+    begin
+// !!! Add DNS TXT Record for: _acme-challenge.ftptest.org, with: 4haqLIK79RaOO7X8YYCo3f5gCzq1j6CqNy-4i34Q3sA
+        if ChallengeItem.CIssueState = IssStateCancel then   // delete DNS
+            AddLog('Manually Remove DNS TXT Record for: ' + ChallengeItem.CPage + ', with: ' + ChallengeItem.CDNSValue)
+        else
+            AddLog('Manually Add DNS TXT Record for: ' + ChallengeItem.CPage + ', with: ' + ChallengeItem.CDNSValue);
+        ChlgOK := True;
+    end
+    else if DnsChlgType.ItemIndex = DnsChlgWindows then
+    begin
+        if ChallengeItem.CIssueState = IssStateCancel then   // delete DNS
+            AddLog('Removing Windows DNS Server TXT Record')
+        else
+            AddLog('Updating Windows DNS Server TXT Record');
+        Zone := ChallengeItem.CDomain;
+      // strip off wild card prefix
+        if Pos ('*.', Zone) = 1 then Zone := Copy(Zone, 3, 99);
+        WmiDnsRec.HostName := ChallengeItem.CPage;
+        WmiDnsRec.RecType := 'TXT';
+        WmiDnsRec.RecData := ChallengeItem.CDNSValue;
+        AddLog('Zone: ' + Zone + ': ' + WmiDnsRec.HostName + ' IN ' +
+                                    WmiDnsRec.RecType + ' ' + WmiDnsRec.RecData);
+        if ChallengeItem.CIssueState = IssStateCancel then   // delete DNS
+        begin
+            IcsWmiUpdDnsRec ('', '', '', Zone, WmiDnsRec, EdtFuncDel, Errinfo);
+            ChlgOK := True;  // don't care if it worked
+        end
+        else begin
+            I := IcsWmiUpdDnsRec ('', '', '', Zone, WmiDnsRec, EdtFuncAdd, Errinfo);
+            if I = 0 then begin
+                AddLog('Updated Windows DNS Server TXT Record OK');
+                ChlgOK := True;
+            end
+            else
+                AddLog('Failed to Update Windows DNS Server: ' + ErrInfo);
+        end;
+    end
+    else if DnsChlgType.ItemIndex = DnsChlgCloudfare then
+    begin
+         AddLog('Cloudfare DNS Server Not Supported Yet');
+    end;
 end;
 
 procedure TIpLogForm.SslX509CertsNewCert(Sender: TObject);

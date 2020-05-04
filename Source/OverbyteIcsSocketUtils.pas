@@ -4,10 +4,10 @@ Author:       Arno Garrels
               Contact address <forename.surname@gmx.de>
 Description:  Crossplatform socket utilities for ICS.
 Creation:     January 2012
-Version:      8.63
+Version:      8.64
 EMail:        http://www.overbyte.be        francois.piette@overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2019 by François PIETTE and Author
+Legal issues: Copyright (C) 2020 by François PIETTE and Author
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -37,9 +37,11 @@ Jan 04, 2012 Moved code from unit OverbyteIcsWinsock2 here and made some
              breaking changes to support OSX and IPv6.
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
-Mar 21, 2016 - V8.01 - added Types to remove inline warning
-Nov 3, 2019  - V8.63 - added IcsIsIpPrivate override with a simple string IP
-
+Mar 21, 2016 - V8.01 - Added Types to remove inline warning
+Nov 3, 2019  - V8.63 - Added IcsIsIpPrivate override with a simple string IP
+May 01, 2020 - V8.64 - Disable range checks else PSockAddrIn6 casting sometimes
+                          fails with IPV6 addresses (no idea why).
+                        Don't get IPv6 addresses when checking IPv4 subnet.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 {$IFNDEF ICS_INCLUDE_MODE}
@@ -127,8 +129,8 @@ type
         property  Items[Index: Integer]: PIcsInterfaceInfo read GetItem write SetItem; default;
     end;
 
-    procedure IcsGetInterfaceList(InterfaceList : TInterfaceList); overload;
-    procedure IcsGetInterfaceList(StrList : TStrings); overload;
+    procedure IcsGetInterfaceList(InterfaceList : TInterfaceList; SkipIPv6: Boolean = False); overload;  { V8.64 added SkipIPv6 }
+    procedure IcsGetInterfaceList(StrList : TStrings; SkipIPv6: Boolean = False); overload;  { V8.64 added SkipIPv6 }
     function  IcsAddrSameSubNet(const LocalIPv4Addr, SomeIPv4Addr: in_addr) : Boolean; overload;
     function  IcsAddrSameSubNet(const LocalIpv4Addr, SomeIPv4Addr : AnsiString) : Boolean; overload;
     function  IcsIsIpPrivate(saddr : in_addr): Boolean; overload;
@@ -141,7 +143,7 @@ uses
   Ics.Fmx.OverbyteIcsWSocket
 {$ELSE}
   OverbyteIcsWSocket
-{$ENDIF}  
+{$ENDIF}
   ;
 
 {$IFDEF MSWINDOWS}
@@ -337,7 +339,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure IcsGetInterfaceList(InterfaceList : TInterfaceList);
+procedure IcsGetInterfaceList(InterfaceList : TInterfaceList; SkipIPv6: Boolean = False); overload;  { V8.64 added SkipIPv6 }
 {$IFDEF MSWINDOWS}
 var
     NumInterfaces   : Integer;
@@ -414,7 +416,9 @@ begin
     finally
         FreeMem(PBuf);
     end;
+    if SkipIPv6 then Exit;   { V9.64 }
 
+{$R-}   { V8.64 disable range checks else PSockAddrIn6 casting sometimes fals }
     { IPv6 ignore any error }
     s := WSocket_Socket(AF_INET6, SOCK_DGRAM, IPPROTO_IP);
     if s = INVALID_SOCKET then
@@ -471,7 +475,8 @@ begin
       while Next <> nil do begin
         if (Next.ifa_flags and IFF_UP = IFF_UP) and
            //(Next.ifa_flags and IFF_LOOPBACK = 0) and // Vista+ doesn't return the loopback interface ?
-           ((Next.ifa_addr.sa_family = AF_INET) or (Next.ifa_addr.sa_family = AF_INET6)) then
+           ((Next.ifa_addr.sa_family = AF_INET) or
+              ((NOT SkipIPv6) and (Next.ifa_addr.sa_family = AF_INET6))) then   { V8.64 }
         begin
             New(PInfo);
             FillChar(PInfo^, SizeOf(TIcsInterfaceInfo), 0);
@@ -496,7 +501,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure IcsGetInterfaceList(StrList : TStrings); overload;
+procedure IcsGetInterfaceList(StrList : TStrings; SkipIPv6: Boolean = False); overload;  { V8.64 added SkipIPv6 }
 var
     iList : TInterfaceList;
     I     : Integer;
@@ -506,7 +511,7 @@ begin
     StrList.Clear;
     iList := TInterfaceList.Create;
     try
-       IcsGetInterfaceList(iList);
+       IcsGetInterfaceList(iList, SkipIPv6);
         for I := 0 to IList.Count -1 do begin
             if IList[I]^.iiAddress.AddressIn.sin_family = AF_INET then
                 StrList.Add(String(WSocket_inet_ntoa(
@@ -531,7 +536,7 @@ begin
     Result := FALSE;
     iList := TInterfaceList.Create;
     try
-       IcsGetInterfaceList(iList);
+       IcsGetInterfaceList(iList, True);  { V8.64 don't need IPv6 addresses }
         for I := 0 to iList.Count -1 do
         begin
             iInfo := IList[I];

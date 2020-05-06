@@ -3,15 +3,14 @@
 Original Author: Ian Baker, ADV Systems 2003
 Updated by:   Angus Robertson, Magenta Systems Ltd
 Creation:     20 September 2013
-Version:      8.37
+Version:      8.64
 Description:  Implements a TWSocket-based SMTP server component.
               For further details please see
               RFC-821, RFC-1869, RFC-1870, RFC-1893, RFC-1985,
               RFC-2034, RFC-2025, RFC-2920
-EMail:        francois.piette@overbyte.be      http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 2004-2016 by François PIETTE
+EMail:        http://www.overbyte.be        francois.piette@overbyte.be
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1999-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -144,6 +143,8 @@ Jun 8, 2016  V8.04 Angus - corrected client timeout, thanks to Alex Markov
 Nov 12, 2016 V8.37 Added ExclusiveAddr property to stop other applications listening on same socket
                    Added extended exception information, set FSocketErrs = wsErrFriendly for
                       some more friendly messages (without error numbers)
+Mar 10, 2020 V8.64 Added support for International Domain Names for Applications (IDNA).
+                      Currently just DnsQuery returns Unicode.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -234,8 +235,8 @@ uses
     OverbyteIcsTypes;
 
 const
-    SmtpCliVersion     = 837;
-    CopyRight : String = ' SMTP Server (c) 1997-2016 Francois Piette V8.37 ';
+    SmtpCliVersion     = 864;
+    CopyRight : String = ' SMTP Server (c) 1997-2020 Francois Piette V8.64 ';
 
 const
   // ESMTP commands. Please note that not all are implemented - use AddCommand() to add a handler of your own
@@ -1609,7 +1610,7 @@ begin
                 FDnsQuery := TDNSquery.Create(nil);
                 FDnsQuery.Addr          := FDNSaddr;
                 FDnsQuery.OnRequestDone := LookupComplete;
-                FDnsQuery.PTRLookup (AnsiString (FClientIpAddr));
+                FDnsQuery.PTRLookup (FClientIpAddr);   { V8.64 now string }
             end;
         end;
     end;
@@ -2824,7 +2825,7 @@ begin
                 if ResponseANCount = 0 then
                 begin
           // Failed. Remove front subdomain and try again
-                    i := Pos ('.', String(QuestionName));
+                    i := Pos ('.', QuestionName);      { V8.64 }
                     if i = 0 then
                // MX does not exist
                         PostMessage (Handle, FMsg_wmClientLookupDone, 0, lParam(Self))  { V8.03}

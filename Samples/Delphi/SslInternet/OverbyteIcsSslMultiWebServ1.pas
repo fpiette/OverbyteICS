@@ -9,11 +9,11 @@ Description:  SSL web application server sample, no real GUI, really designed
               If turned into a Windows service, this sample is really a commercial
               web server.
 Creation:     July 2017
-Updated:      Dec 2019
+Updated:      Mar 2020
 Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2003-2019 by François PIETTE
+Legal issues: Copyright (C) 2003-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -78,15 +78,15 @@ certificate is being ordered. See OverbyteIcsSslX509Certs.pas fore more info.
 
 History:
 6 July 2017  - V8.49 baseline
-20 Sep 2017 - V8.50 - Close connection after sending redirection
-12 Dec 2017 - V8.51 - Try and enable FIPS mode if supported by OpenSSL.
-2 Oct 2018  - V8.57 - INI file now reads Options as enumerated type literals,
-                        ie Options=[hoContentEncoding,hoAllowDirList,hoSendServerHdr,hoAllowPut]
-                      INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays
-                      Allow SSL certificates to be ordered and installed automatically if
-                        SslCertAutoOrder=True and so specified in IcsHosts, and a
-                        certificate supplier account has been created (by the
-                        OverbyteIcsX509CertsTst sample application).
+20 Sep 2017  V8.50 Close connection after sending redirection
+12 Dec 2017  V8.51 Try and enable FIPS mode if supported by OpenSSL.
+2 Oct 2018   V8.57 INI file now reads Options as enumerated type literals,
+                     ie Options=[hoContentEncoding,hoAllowDirList,hoSendServerHdr,hoAllowPut]
+                   INI file reads SslCliCertMethod, SslCertAutoOrder and CertExpireDays
+                   Allow SSL certificates to be ordered and installed automatically if
+                      SslCertAutoOrder=True and so specified in IcsHosts, and a
+                      certificate supplier account has been created (by the
+                      OverbyteIcsX509CertsTst sample application).
 19 Oct 2018  V8.58 version only
 21 Feb 2019  V8.60 Using new TIcsBuffLogStream for logging in UTF8 (or UTF16)
                    Using new TIcsMailQueue to send email
@@ -99,9 +99,16 @@ History:
                    Added whiteiplist.txt of IP addresses we don't want to block.
                    Count number of access attempts and block too many.
 04 Apr 2019  V8.61 Send Email now on front menu as well as WebApps
-23 Dec 2019  V8.64 Log SSL APLN from client, if any and select HTTP/1.1
+27 Apr 2020  V8.64 Check SSL APLN from client and select HTTP/1.1.
                    Rearranged INI file code so file only opened briefly, avoids
-                      conflict with WebAppSrvDataModule. 
+                      conflict with SslMultiWebDataModule.
+                   Added Display SSL Client Info box logs client hello and ciphers.
+                   No longer sharing OverbyteIcsWebAppServerXX units from WebDemos
+                     directory, renamed to OverbyteIcsSslMultiWebXX. Note still
+                     shares templates with WebDemos.
+                   Added SSL certificate ordering ChallFileApp and ChallAlpnApp
+                      challenges, as well as ChallFileUNC.
+
 
 
 Insalling note:
@@ -149,21 +156,17 @@ uses
   OverbyteIcsLogger, OverbyteIcsSslX509Utils, OverbyteIcsFtpSrvT,
   OverbyteIcsHttpSrv, OverbyteIcsHttpAppServer, OverbyteIcsWebSession,
   OverbyteIcsFormDataDecoder, OverbyteIcsMimeUtils, OverbyteIcsSmtpProt,
-{ note following units shared with two other server samples }
-  OverbyteIcsWebAppServerDataModule,
-  OverbyteIcsWebAppServerSessionData,
-  OverbyteIcsWebAppServerConfig,
-  OverbyteIcsWebAppServerUrlDefs,
-  OverbyteIcsWebAppServerHomePage,
-  OverbyteIcsWebAppServerHelloWorld,
-  OverbyteIcsWebAppServerCounter,
-  OverbyteIcsWebAppServerLogin,
-  OverbyteIcsWebAppServerCounterView,
-{$IFDEF use_DWScript}
-  OverbyteIcsWebAppServerDWScriptUrlHandler,
-{$ENDIF}
-  OverbyteIcsWebAppServerHead,
-  OverbyteIcsWebAppServerUploads,
+  OverbyteIcsSslMultiWebDataModule,   { V8.64 }
+  OverbyteIcsSslMultiWebSessionData,  { V8.64 }
+  OverbyteIcsSslMultiWebConfig,       { V8.64 }
+  OverbyteIcsSslMultiWebUrlDefs,      { V8.64 }
+  OverbyteIcsSslMultiWebHomePage,     { V8.64 }
+  OverbyteIcsSslMultiWebHelloWorld,   { V8.64 }
+  OverbyteIcsSslMultiWebCounter,      { V8.64 }
+  OverbyteIcsSslMultiWebLogin,        { V8.64 }
+  OverbyteIcsSslMultiWebCounterView,  { V8.64 }
+  OverbyteIcsSslMultiWebHead,         { V8.64 }
+  OverbyteIcsSslMultiWebUploads,      { V8.64 }
   OverbyteIcsTicks64,       { V8.57 }
   OverbyteIcsSslX509Certs,  { V8.57 }
   OverbyteIcsSslHttpRest,   { V8.57 }
@@ -172,7 +175,7 @@ uses
   OverbyteIcsBlacklist;     { V8.60 }
 
 const
-    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2019 Francois Piette V8.64 ';
+    SrvCopyRight : String = ' OverbyteIcsSslMultiWebServ (c) 2020 Francois Piette V8.64 ';
     MaxWinChars = 800000;
     WM_STARTUP = WM_USER + 712 ;
     LogNameMask = '"webapp-"yyyymmdd".log"' ;
@@ -180,14 +183,9 @@ const
                    's-port cs-username c-ip cs-version cs(User-Agent) cs(Referer) cs-host sc-status ' +
                    'sc-bytes cs-bytes time-taken' ;
     WebLogHdrMask = '"#Date: "' + ISODateMask + #32 + ISOTimeMask + '"';
-//    ISODateMask = 'yyyy-mm-dd' ;
-//    ISODateTimeMask = 'yyyy-mm-dd"T"hh:nn:ss' ;
-//    ISOTimeMask = 'hh:nn:ss' ;
     XmitBufSize = 65536 ;
     RecvBufSize = 65536;
-//  FILE_UPLOAD_URL    = '/cgi-bin/FileUpload/';
-//  UPLOAD_DIR         = 'upload\';
-  MAX_UPLOAD_SIZE    = 1024 * 1024 * 60; // Accept max 60MB file
+    MAX_UPLOAD_SIZE    = 1024 * 1024 * 60; // Accept max 60MB file
 
 type
   TMyHttpConnection = class(THttpAppSrvConnection)
@@ -198,6 +196,7 @@ type
     FRespTimer        : TTimer;    { send a delayed response }
     constructor Create(AOwner: TComponent); override;
     destructor  Destroy; override;
+    procedure BgExceptionEvent (Sender : TObject; E : Exception; var CanClose : Boolean);
     procedure TimerRespTimer(Sender: TObject);
   end ;
 
@@ -213,6 +212,7 @@ type
     DisplayHeaderCheckBox: TCheckBox;
     IcsSslX509Certs: TSslX509Certs;
     IcsMailQueue: TIcsMailQueue;
+    DisplaySslInfo: TCheckBox;
     procedure WMCMSTARTUP (var Msg : TMessage); message WM_STARTUP ;
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -265,8 +265,6 @@ type
       var Flags: THttpGetFlag);
     procedure IcsSslX509CertsCertProg(Sender: TObject; LogOption: TLogOption;
       const Msg: string);
-    procedure IcsSslX509CertsChallengeDNS(Sender: TObject;
-      ChallengeItem: TChallengeItem);
     procedure IcsSslX509CertsNewCert(Sender: TObject);
     procedure IcsSslX509CertsOAuthAuthUrl(Sender: TObject; const URL: string);
     procedure IcsMailQueueLogEvent(LogLevel: TMailLogLevel; const Info: string);
@@ -280,6 +278,12 @@ type
     procedure onBlackLogEvent (const info: string);
     procedure SslHttpAppSrv1SslAlpnSelect(Sender: TObject; ProtoList: TStrings;
       var SelProto: string; var ErrCode: TTlsExtError);
+    procedure IcsSslX509CertsChallengeDNS(Sender: TObject;
+      ChallengeItem: TChallengeItem; var ChlgOK: Boolean);
+    procedure ApplicationEventsException(Sender: TObject; E: Exception);
+    procedure HttpAppSrvClientBgException(Sender: TObject; E: Exception; var CanClose : Boolean);
+    procedure SslHttpAppSrv1SslServerName(Sender: TObject; var Ctx: TSslContext;
+      var ErrCode: TTlsExtError);
   private
     FIniFileName : String;
     FInitialized : Boolean;
@@ -324,7 +328,6 @@ type
     procedure DisplayHeader(ClientCnx : TMyHttpConnection);
   public
     procedure Display(Msg : String);
-    procedure HttpAppSrvClientBgException(Sender: TObject; E: Exception; var CanClose : Boolean);
     procedure ReportHosts;
     property IniFileName : String read FIniFileName write FIniFileName;
     property DataDir : String read FDataDir write FDataDir;
@@ -374,8 +377,17 @@ begin
     inherited Create(AOwner);
   { keep alive means connection may be used for multiple requests so we must track how much
     data is sent before and after each request }
+    OnBgException := BgExceptionEvent ;
     CLastRead := 0 ;
     CLastWrite := 0 ;
+end;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TMyHttpConnection.BgExceptionEvent(Sender : TObject;
+                                  E : Exception; var CanClose : Boolean);
+begin
+     WeblServerForm.Display('Client Error - ' + IcsGetExceptMess (E)) ;
 end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -418,6 +430,7 @@ end;
 { we update DisplayMemo once a second in the timer }
 procedure TWeblServerForm.Display(Msg : String);
 begin
+//    DisplayMemo.Lines.Add (Msg) ;    // !!! TEMP
     WinLinesBuff := WinLinesBuff + Msg + icsCRLF ;
     if Assigned (DiagLogBuffer) then begin    { V8.60 log file as well }
         try
@@ -434,12 +447,13 @@ var
     S1: String ;
     NewFlag: Boolean;
 begin
-
   // check SSL certificates every two hours, may order expired certs
     if IcsTestTrgTick64 (CertCheckTrigger) then begin { V8.57 }
         CertCheckTrigger := IcsGetTrgMins64 (120) ;
         try
           // don't stop on first error, no exceptions
+            Display('Regular Server Recheck for New SSL Certificates Starting');
+            DiagLogBuffer.FlushFile(True);
             NewFlag := SslHttpAppSrv1.RecheckSslCerts(S1, False, True);
             if NewFlag or (S1 <> '') then  begin
                 if NewFlag then Display('Server Recheck Loaded New SSL Certificate(s)');
@@ -449,7 +463,10 @@ begin
                 LastErrorEmail := S1 ;
                 ReportHosts;    // report everything again
                 Display('Listen Bindings:' + icsCRLF + SslHttpAppSrv1.ListenStates);
-            end;
+            end
+            else
+                Display('Server Recheck SSL Certificate Nothing New');
+
             LoadHackLists;  //update filters
         except
             on E:Exception do begin
@@ -463,22 +480,22 @@ begin
         LogDate := Trunc(Date);
 
       { V8.60 flush all logs with old file name, new stuff will be new date }
-        if Assigned (DiagLogBuffer) then
-        begin
-            try
+        try
+            if Assigned (DiagLogBuffer) then
                 DiagLogBuffer.FlushFile(True);
-            except
-            end ;
-        end ;
-        if TotWebLogs > 0 then begin
-            for K := 0 to TotWebLogs - 1 do begin
-                WebLogBuffers[K].FlushFile(True);
+            if TotWebLogs > 0 then begin
+                for K := 0 to TotWebLogs - 1 do begin
+                    if Assigned (WebLogBuffers[K]) then
+                        WebLogBuffers[K].FlushFile(True);
+                end;
             end;
-        end;
+        except
+        end ;
         Display('Nightly Server Recheck Starting');
         ReportHosts;    // report everything again
         Display('Listen Bindings:' + icsCRLF + SslHttpAppSrv1.ListenStates);
         CertCheckTrigger := Trigger64Immediate; { V8.57 }
+        DiagLogBuffer.FlushFile(True);
     end;
 
   // see if updating the log window with multiple lines
@@ -513,7 +530,7 @@ begin
  // house keeping every five minutes
     if IcsTestTrgTick(HouseKeepingTrg) then begin
         HouseKeepingTrg := IcsGetTrgMSecs64 (300);
-        CleanupTimeStampedDir(WebAppSrvDataModule.DataDir);
+        CleanupTimeStampedDir(SslMultiWebDataModule.DataDir);
     end;
 
 end;
@@ -612,6 +629,13 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TWeblServerForm.ApplicationEventsException(Sender: TObject;    { V8.64 }
+  E: Exception);
+begin
+    Display('!!! Application Exception Event - ' + IcsGetExceptMess (E));
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TWeblServerForm.FormCreate(Sender: TObject);
 var
     List: TStringList;
@@ -620,8 +644,8 @@ var
 begin
     FIniFileName := GetIcsIniFileName;
   // ensure SSL DLLs come from program directory, and exist, else die
- // GSSLEAY_DLL_IgnoreNew := true ; // !!! TEMP TESTING
     GSSLEAY_DLL_IgnoreOld := true;
+    Application.OnException := ApplicationEventsException ;
     ProgDirectory := ExtractFileDir(IcsLowercase (ParamStr(0)));
     GSSL_DLL_DIR := ProgDirectory + '\';
     GSSL_SignTest_Check := True;
@@ -667,6 +691,7 @@ begin
     Display('INI file: ' + FIniFileName);
     HackFilterList := TStringList.Create  ;  // Feb 2019 - hackers bad paths and IP addresses
     WhiteIpList := TStringList.Create  ;  // Feb 2019 - address we don't want to block
+    DiagLogBuffer.FlushFile(True);
     PostMessage (Handle, WM_STARTUP, 0, 0) ;
 end;
 
@@ -674,7 +699,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TWeblServerForm.FormDestroy(Sender: TObject);
 begin
-//    OverbyteIcsWSocket.UnLoadSsl;
+//
 end;
 
 
@@ -900,12 +925,12 @@ var
             with SslHttpAppSrv1.IcsHosts [I] do begin
                 if NOT HostEnabled then continue;
                 if BindNonPort <> 0 then begin
-                    Result := Result + 'http://' + SslHttpAppSrv1.IcsHosts [0].HostNames[0];
+                    Result := Result + 'http://' + SslHttpAppSrv1.IcsHosts [I].HostNames[0];
                     if BindNonPort <> 80 then Result := Result + ':' + IntToStr(BindNonPort);
                     Result := Result + '/' + WebDefDoc + icsCRLF;
                 end;
                 if BindSslPort <> 0 then begin
-                    Result := Result + 'https://' + SslHttpAppSrv1.IcsHosts [0].HostNames[0];
+                    Result := Result + 'https://' + SslHttpAppSrv1.IcsHosts [I].HostNames[0];
                     if BindSslPort <> 443 then Result := Result + ':' + IntToStr(BindSslPort);
                     Result := Result + '/' + WebDefDoc + icsCRLF;
                 end;
@@ -940,7 +965,7 @@ begin
             exit ;
         end;
         Display('Number of Hosts Configured: ' + IntToStr(SslHttpAppSrv1.IcsHosts.Count));  { V8.64 }
-        FIniFile.Free; 
+        FIniFile.Free;
 
     { V8.60  each host may have a different log file, or share a log with other hosts }
         TotWebLogs := 0;
@@ -1000,11 +1025,11 @@ begin
         ForceDirectories(SslHttpAppSrv1.DocDir + '\Styles');
         ForceDirectories(SslHttpAppSrv1.DocDir + '\Images');
 
-        WebAppSrvDataModule.IniFileName := FIniFileName;
-        WebAppSrvDataModule.OnDisplay   := SslHttpAppSrv1Display;
-        WebAppSrvDataModule.DataDir     := FDataDir;
-        WebAppSrvDataModule.ImagesDir   := SslHttpAppSrv1.DocDir + '\Images';
-        WebAppSrvDataModule.LoadConfig;
+        SslMultiWebDataModule.IniFileName := FIniFileName;
+        SslMultiWebDataModule.OnDisplay   := SslHttpAppSrv1Display;
+        SslMultiWebDataModule.DataDir     := FDataDir;
+        SslMultiWebDataModule.ImagesDir   := SslHttpAppSrv1.DocDir + '\Images';
+        SslMultiWebDataModule.LoadConfig;
 
       // note that AllowedPaths and Handlers must match a HostTag for each Host in INI file
 
@@ -1034,9 +1059,6 @@ begin
         SslHttpAppSrv1.AddGetHandler('/mailer.html', TUrlHandlerMailer, hgWillSendMySelf, 'WEB-APP');
         SslHttpAppSrv1.AddPostHandler('/mailer.html', TUrlHandlerMailer, hgWillSendMySelf, 'WEB-APP');
         SslHttpAppSrv1.AddGetHandler(UrlHeadForm, TUrlHandlerHead, hgWillSendMySelf, 'WEB-APP');
-    {$IFDEF use_DWScript}
-        SslHttpAppSrv1.AddGetHandler('/DWScripts/*', TUrlHandlerDWScript, hgWillSendMySelf, 'WEB-APP');
-    {$ENDIF}
 
       // Just for demoing the simplest handler, let's add an "Helloworld" one
         SslHttpAppSrv1.AddGetHandler('/HelloWorld.html', TUrlHandlerHelloWorld, hgWillSendMySelf, 'WEB-APP');
@@ -1083,7 +1105,7 @@ begin
         HackBlackList.WhiteFile := FDataDir + '\HackWhitelist.lst' ;
 
       // Cleanup temporary files left from a previous run
-        CleanupTimeStampedDir(WebAppSrvDataModule.DataDir);
+//        CleanupTimeStampedDir(SslMultiWebDataModule.DataDir);
 
       // start logging file for each host
         for J := 0 to SslHttpAppSrv1.IcsHosts.Count - 1 do begin
@@ -1128,8 +1150,8 @@ begin
 
      // try and show URLSs that will access the first host
         Display('Now browse to one of these URLs:' + icsCRLF + BuildDemoURIs);
-
-    Timer1.Enabled := True;  { V8.64 } 
+        DiagLogBuffer.FlushFile(True);
+        Timer1.Enabled := True;  { V8.64 }
     except
         on E:Exception do begin
            Display('Failed to start web server - ' + E.Message);
@@ -1146,9 +1168,11 @@ var
 begin
     if NOT StopButton.Enabled then Exit;
     Timer1.Enabled := False;  { V8.64 }
+    IcsSslX509Certs.CloseAccount;           { V8.64 }
     CertCheckTrigger := Trigger64Disabled;  { V8.57 }
     StartButton.Enabled := true;
     StopButton.Enabled := false;
+    DiagLogBuffer.FlushFile(True);
     SslHttpAppSrv1.Stop;
 
   { V8.60 report Blacklisted remotes }
@@ -1175,6 +1199,7 @@ begin
         SendAdminEmail (AdminEmailTo, 'ICS Multi Web Server Stopped',
                                     'ICS Multi Web Server Stopped' + IcsCRLF);
     Display('Server stopped');
+    DiagLogBuffer.FlushFile(True);
 end;
 
 
@@ -1202,7 +1227,7 @@ var
 
 begin
     RemoteClient := TMyHttpConnection(Client) ;
-    if RemoteClient.WebLogIdx < 0 then Exit; // no logging 
+    if RemoteClient.WebLogIdx < 0 then Exit; // no logging
     info := FormatDateTime (ISODateMask + #32 + ISOTimeMask, Now) ;
     with RemoteClient do
     begin
@@ -1232,6 +1257,7 @@ begin
         end;
     end;
     RemoteClient.CLastRead := RemoteClient.ReadCount ;   // reset read ready for next request
+    DiagLogBuffer.FlushFile(True);  // !!! TEMP
 end;
 
 
@@ -1373,9 +1399,13 @@ procedure TWeblServerForm.SslHttpAppSrv1ClientConnect(Sender,
 var
     ClientCnx : TMyHttpConnection;
 begin
-    ClientCnx                := Client as TMyHttpConnection;
+    ClientCnx := Client as TMyHttpConnection;
     ClientCnx.WSessionCookie := 'OverbyteIcsWebAppServer' + SslHttpAppSrv1.Port;
     ClientCnx.OnBgException  := HttpAppSrvClientBgException;
+    ClientCnx.OnClientAlpnChallg := IcsSslX509Certs.WebSrvAlpn; { V8.64 }
+
+ { V8.64 log something at start }
+    Display('New Remote Client: ' + ClientCnx.CPeerAddr) ;
 end;
 
 
@@ -1571,7 +1601,7 @@ begin
             Flags := hgWillSendMySelf;
         end;
     end;
-
+    DiagLogBuffer.FlushFile(True);  // !!! TEMP
 end;
 
 
@@ -1785,7 +1815,7 @@ end;
 procedure TWeblServerForm.SslHttpAppSrv1ServerStopped(Sender: TObject);
 begin
     SslHttpAppSrv1.WSessions.SaveToFile(FSessionFile);
-    CleanupTimeStampedDir(WebAppSrvDataModule.DataDir);
+    CleanupTimeStampedDir(SslMultiWebDataModule.DataDir);
     Display('Server is now stopped');
 end;
 
@@ -1795,23 +1825,49 @@ procedure TWeblServerForm.SslHttpAppSrv1SslHandshakeDone(Sender: TObject;
   ErrCode: Word; PeerCert: TX509Base; var Disconnect: Boolean);
 var
     ClientCnx : TMyHttpConnection;
+    Ciphers: String;
 begin
     ClientCnx := Sender as TMyHttpConnection;
+  { V8.64 need to log client hello if no SNI, then ciphers }
+    if DisplaySslInfo.Checked then begin
+        if ClientCnx.SslServerName = '' then begin
+            Display(ClientCnx.CPeerAddr + ' - Client Hello: ' +
+                              Trim(WSocketGetCliHelloStr(ClientCnx.CliHelloData))) ;
+        end;
+        Ciphers := Trim(ClientCnx.SslGetSupportedCiphers (True, True));
+        if Ciphers <> '' then begin
+            Ciphers := StringReplace(Ciphers, #13#10, ', ', [rfReplaceAll]);
+            Display('SSL Ciphers from Client: ' + Ciphers);
+        end;
+    end;
     Display(ClientCnx.PeerAddr + ' - ' + ClientCnx.HostTag + ' ' + ClientCnx.SslHandshakeRespMsg);
 end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+procedure TWeblServerForm.SslHttpAppSrv1SslServerName(Sender: TObject;     { V8.64 }
+  var Ctx: TSslContext; var ErrCode: TTlsExtError);
+var
+    ClientCnx : TMyHttpConnection;
+begin
+    if DisplaySslInfo.Checked then begin
+        ClientCnx := Sender as TMyHttpConnection;
+        Display('Client Hello from ' + ClientCnx.CPeerAddr + ', ' +
+                    Trim(WSocketGetCliHelloStr(ClientCnx.CliHelloData))) ;
+    end;
+end;
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TWeblServerForm.SslHttpAppSrv1SslAlpnSelect(Sender: TObject;
   ProtoList: TStrings; var SelProto: string; var ErrCode: TTlsExtError);    { V8.64 }
 var
-    ClientCnx : TMyHttpConnection;
+//    ClientCnx : TMyHttpConnection;
     I: Integer;
 begin
-    if ProtoList.Count = 0 then Exit;
-    ClientCnx := Sender as TMyHttpConnection;
-    Display(ClientCnx.PeerAddr + ' - ' + ClientCnx.HostTag + ' ' +
-                                    'ALPN Protocols: ' + ProtoList.CommaText) ;
+   if ProtoList.Count = 0 then Exit;
+//  ClientCnx := Sender as TMyHttpConnection;
+//  { ALPN already logged from CliHelloData }
+
   // optionally select a protocol we want to use
     for I := 0 to ProtoList.Count - 1 do begin
         if ProtoList[I] = ALPN_ID_HTTP11 then begin
@@ -1860,7 +1916,15 @@ var
     ClientCnx : TMyHttpConnection;
 begin
     ClientCnx := Client as TMyHttpConnection;
-    Display(ClientCnx.PeerAddr + ' - ' + ClientCnx.HostTag + '  Well-Known File Requested: ' + Path);
+    Display(ClientCnx.PeerAddr + ' - ' + ClientCnx.HostTag +
+                                        ' Well-Known File Requested: ' + Path);
+    if (Pos('/acme-challenge/', Path) > 1) or  (Pos('/ics-validation/', Path) > 1) then begin  { V8.64 }
+     // check challenge token received Let's Encrypt and return key authorization
+        IcsSslX509Certs.WebSrvHttp(Self, ClientCnx.RequestHost, Path, BodyStr);
+        if BodyStr <> '' then
+           Display(ClientCnx.PeerAddr + ' - ' + ClientCnx.HostTag +
+                                            ' acme-challenge response: ' + BodyStr);
+    end;
 end;
 
 
@@ -1877,10 +1941,13 @@ begin
 end;
 
 procedure TWeblServerForm.IcsSslX509CertsChallengeDNS(Sender: TObject;
-  ChallengeItem: TChallengeItem);
+  ChallengeItem: TChallengeItem; var ChlgOK: Boolean);
 begin
+    ChlgOK := False;
 //   update DNS server with TXT challenge information
+//   not sure worth the trouble for a web server
 end;
+
 
 procedure TWeblServerForm.IcsSslX509CertsNewCert(Sender: TObject);    { V8.57 }
 begin
@@ -1937,7 +2004,7 @@ begin
             '<A HREF="/form.html">Data entry</A><BR>'   +
             '<A HREF="/uploadfile.html">Upload a file using POST</A><BR>' +
         {    '<A HREF="/upload">View uploaded files</A><BR>' +   }
-            '<A HREF="/mailer.html">Send Email Form</A><BR>' +   { V8.61 } 
+            '<A HREF="/mailer.html">Send Email Form</A><BR>' +   { V8.61 }
             '<A HREF="/redir.html">Redirection</A><BR>' +
             '<A HREF="/myip.html">Show client IP</A><BR>' +
             '<A HREF="/delayed.html">Delayed Slow Response</A><BR>' +

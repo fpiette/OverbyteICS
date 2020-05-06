@@ -6,13 +6,12 @@ Description:  This unit encapsulate the ICMP.DLL into a VCL of type TPing.
               Works only in 32 bits mode (no Delphi 1) under NT or 95.
               If you wants to build a console mode program, use the TICMP
               object. You'll have a much smaller program.
-Version:      8.02
+Version:      8.64
 Creation:     January 6, 1997
-EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. 
+EMail:        http://www.overbyte.be       francois.piette@overbyte.be
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1997-2020 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -77,7 +76,8 @@ Feb 20, 2013 V8.02 Angus -  Pings IPv4 or IPv6 addresses or host names
                    Added TPingThread which pings using a thread to allow multiple pings
                        to run without blocking the main thread, simple and trace route
                        demos in OverbyteIcsPingTst1
-
+Mar 10, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+                     PunycodeHost returns name lookuped up.
 
 
 Pending - ping using raw ICMP socket, will be async and should work on POSIX/MacOS
@@ -134,8 +134,8 @@ uses
     OverbyteIcsWinsock;
 
 const
-  PingVersion           = 802;
-  CopyRight : String    = ' TPing (c) 1997-2013 F. Piette V8.02 ';
+  PingVersion           = 864;
+  CopyRight : String    = ' TPing (c) 1997-2020 F. Piette V8.64 ';
 
 type
   TDnsLookupDone = procedure (Sender: TObject; Error: Word) of object;
@@ -149,6 +149,7 @@ type
   protected
     FIcmp             : TICMP;
     FDnsResult        : String;
+    FPunycodeHost     : String;           { V8.64 }
     FDnsSocket        : TWSocket;         { V8.02 use wsocket instead of local functions }
     FDnsLookPending   : boolean;          { V8.02 }
     FOnDnsLookupDone  : TDnsLookupDone;
@@ -206,6 +207,7 @@ type
     property    HostName      : String         read GetHostName;
     property    HostIP        : String         read GetHostIP;
     property    DnsResult     : String         read FDnsResult;
+    property    PunycodeHost  : String         read FPunycodeHost;    { V8.64 }
     property    ICMPDLLHandle : HModule        read GetICMPHandle;
   published
     property    Address     : String         read  GetAddress
@@ -358,8 +360,10 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function TPing.PingAsync : Integer;       { V8.02 }
 begin
-    if Assigned(FIcmp) then
-        Result := FIcmp.PingAsync
+    if Assigned(FIcmp) then  begin
+        Result := FIcmp.PingAsync;
+        FPunycodeHost := FIcmp.PunycodeHost;  { V8.64 }
+    end
     else
         Result := 0;
 end;
@@ -372,6 +376,7 @@ var
 begin
     if Error = 0 then begin
         FDnsResult := FDnsSocket.DnsResult;
+        FPunycodeHost := FDnsSocket.PunycodeHost;  { V8.64 }
         if Assigned(FIcmp) then begin
             if WSocketIsIP(FDnsResult, MyFamily) then
                             FIcmp.SocketFamily := MyFamily;

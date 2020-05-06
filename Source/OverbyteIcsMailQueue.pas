@@ -2,11 +2,11 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Mail Queue Component
 Creation:     Jan 2011
-Updated:      Aug 2019
+Updated:      Mar 2020
 Version:      8.62
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
+Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
@@ -144,6 +144,8 @@ Release 2.5 - 22 Jun 2018      added RetryWithoutSsl which retries an SSL failur
                         and avoid conflict with MailServer SocketFamily property.
 7 Aug 2019 - V8.62  - Added base MailCliSecurity property for MX servers.
                       Builds without USE_SSL
+9 Mar 2020 - V8.64  - Added support for International Domain Names for Applications (IDNA).
+                      Currently just DnsQuery returns Unicode.
 
 
 Pending, use STUN client to get EHLO signon reverse DNS lookup.
@@ -227,7 +229,7 @@ uses
 
 
 const
-    MailQuCopyRight : String = ' TIcsMailQueue (c) 2019 V8.62 ';
+    MailQuCopyRight : String = ' TIcsMailQueue (c) 2020 V8.64 ';
 
 type
     TMailLogLevel = (MLogLevelInfo, MLogLevelFile, MLogLevelProg, MLogLevelDiag,
@@ -967,7 +969,7 @@ Mail Exchange Server: mx4.hotmail.com (preference 5)
         begin
             J := DnsQuery.AnswerTag [I ];
             if (J >= 0) and (DnsQuery.AnswerType [I] = DnsQueryMX) then  // add 1000 to make alpha sorting work
-                MXList.Add (IntToStr (DnsQuery.MXPreference [J] + 1000) + '=' + string(DnsQuery.MXExchange [J])) ;
+                MXList.Add (IntToStr (DnsQuery.MXPreference [J] + 1000) + '=' + DnsQuery.MXExchange [J]) ;
         end ;
         if MXList.Count = 0 then
         begin
@@ -1125,7 +1127,7 @@ begin
                                         DnsQuery.Addr := FDnsServers [servnr] ;  // multiple DNS servers
                                         inc (servnr) ;
                                         ThreadLogEvent (MLogLevelDiag, 'Looking-up ' + domain + ' at ' + DnsQuery.Addr);
-                                        FDNSReqId := DnsQuery.MXLookup (AnsiString (domain)) ;
+                                        FDNSReqId := DnsQuery.MXLookup (domain) ;  { V8.64 now Unicode string }
                                         Trg := IcsGetTrgSecs (MXWaitSecs) ;  // wait for UDP response
                                         while (FMailQuItem.SmtpSrvTot = 0) do
                                         begin

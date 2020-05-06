@@ -4,11 +4,11 @@ Description:  TIcsFileCopyW allows indexing, copying and deleting of multiple
               file directories, using a single function call.
               W version supports widestring/Unicode for Delphi 2007 and 2005, not D7
 Creation:     May 2001
-Updated:      Mar 2019
-Version:      8.60
+Updated:      Feb 2020
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
+Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
@@ -179,6 +179,7 @@ access to files is required.
               No longer needs Forms.
               Using TWideStringList instead of UStringArray, not Delphi 7
               Before creating directory check not a file of same name, delete it. 
+20 Feb 2020 - V8.64 - Removed MultiThreaded no longer used, TIcsWndControl version now used.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -214,7 +215,7 @@ uses
   OverbyteIcsFtpSrvWT ;
 
 const
-    FileCopyCopyRight : String = ' TIcsFileCopyW (c) 2019 V8.60 ';
+    FileCopyCopyRight : String = ' TIcsFileCopyW (c) 2020 V8.64 ';
 
 {ex000616.log.zip      11,123,903  -rwx  23/03/2001 12:57:00    /dir}
 {dvdimage.nrg           4,610,785,436    A 26/08/2005 16:01:49  \    }
@@ -362,7 +363,7 @@ type
         fRemoteName: UnicodeString;
         fRemConnected: UnicodeString ;
         fProgressSecs: integer ;     // 5 Sept 2005
-        fMultiThreaded: boolean ;    // 16 Sept 2010
+//      fMultiThreaded: boolean ;    // 16 Sept 2010 gone V8.64
         fEmptyDirs: boolean ;        // 7 Feb 2011
         fIgnorePaths: UnicodeString ; // 22 May 2013
         fCopyProg: TIcsCopyProgressW ;   // 22 May 2013 replaces most fTotxx/fProcxx variables
@@ -474,7 +475,7 @@ type
     property LocalName: UnicodeString  read fLocalName      write fLocalName ;
     property RemoteName: UnicodeString read fRemoteName     write fRemoteName ;
     property RemConnected: UnicodeString read fRemConnected ;
-    property MultiThreaded : Boolean   read fMultiThreaded  write fMultiThreaded;   // 16 Sept 2010
+//  property MultiThreaded : Boolean   read fMultiThreaded  write fMultiThreaded;   // 16 Sept 2010 gone V8.64
     property EmptyDirs: Boolean        read fEmptyDirs      write fEmptyDirs ;      // 7 Feb 2011
     property IgnorePaths: UnicodeString read fIgnorePaths   write fIgnorePaths ;    // 22 May 2013
     property CopyProg: TIcsCopyProgressW  read fCopyProg ;                             // 22 May 2013

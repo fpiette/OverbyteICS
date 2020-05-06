@@ -211,6 +211,9 @@ object WebAppSrvForm: TWebAppSrvForm
     SslEnable = True
     SslContext = SslContext1
     IcsHosts = <>
+    SslCliCertMethod = sslCliCertNone
+    SslCertAutoOrder = False
+    CertExpireDays = 30
     OnSslHandshakeDone = HttpAppSrv1SslHandshakeDone
     Left = 44
     Top = 228

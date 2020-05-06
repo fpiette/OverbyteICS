@@ -2,11 +2,11 @@
  Author:      Angus Robertson, Magenta Systems Ltd
 Description:  IP Streaming Log Component
 Creation:     Nov 2006
-Updated:      Nov 2019
+Updated:      Apr 2020
 Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
+Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
@@ -194,9 +194,9 @@ in the event when only one was open, tested with Delphi 2010
 13 Nov 2019 - V8.63 - SrvValidateHosts and SrvRecheckSslCerts have new AllowSelfSign
                          to stop errors with self signed certificates.
                       Allow TCP server to start with certificate warnings.
-26 Nov 2019 - V8.64 - If TCP Server listening on port 0, log random port allocated.
+27 Apr 2020 - V8.64 - If TCP Server listening on port 0, log random port allocated.
                       Don't start TCP Server if validation failed.
-                      TCP Server shows listening ports.  
+                      TCP Server shows listening ports.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -275,7 +275,7 @@ uses
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
 const
-    CopyRight : String = ' TIcsIpStrmLog (c) 2019 V8.64 ';
+    CopyRight : String = ' TIcsIpStrmLog (c) 2020 V8.64 ';
 
 type
   TStrmLogProtocol = (logprotUdpClient, logprotUdpServer,

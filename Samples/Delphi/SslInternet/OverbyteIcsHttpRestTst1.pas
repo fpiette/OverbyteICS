@@ -3,14 +3,12 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS HTTPS REST functions demo.
 Creation:     Apr 2018
-Updated:      Dec 2019
+Updated:      Mar 2020
 Version:      8.64
-Support:      Use the mailing list ics-ssl@elists.org
-Legal issues: Copyright (C) 2003-2019 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium.
-              <francois.piette@overbyte.be>
-              SSL implementation includes code written by Arno Garrels,
-              Berlin, Germany, contact: <arno.garrels@gmx.de>
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
+              Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -68,11 +66,23 @@ Nov 11, 2019 - V8.63 OAuth2 progress log display got lost.
                      Added two Google Gmail API URLs to the drop down list.
                      OAuth has Prompt and Access Offline for Google to requests a
                        Refresh Token.
-Dec 18, 2019 - V8.64 Added XML response parsing into a ISuperOject which can be
+Mar 26, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
+                       i.e. using accents and unicode characters in domain names.
+                     Only change here is to report A-Label domain looked up by DNS.
+                     Added XML response parsing into a ISuperOject which can be
                        processed similarly to a Json object.
                      Improved Json object double clicking display again.
-                     Corrected passing ALPN list to component.  
-                     
+                     Corrected passing ALPN list to component.
+                     Added more parameter content types: PContXML, PContBodyUrlEn,
+                        PContBodyJson, PContBodyXML. The existing PContUrlEn and
+                        PContJson now specify REST params are sent as URL ? arguments,
+                        while the PContBodyxx version send params as content body.
+                     This fixes a bug that meant PUT request params were always sent
+                        as URL ? arguments.  Note POST is always content body so
+                        the wrong PContent is corrected automatically for backward
+                        compatibility.
+                     XML content type is experimental, not tested.
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsHttpRestTst1;
@@ -670,8 +680,8 @@ end;
 
 procedure THttpRestForm.doStartReqClick(Sender: TObject);
 const
-    ReqList: array[0..4] of THttpRequest =
-               (httpGET, httpPOST, httpHEAD, httpPUT, httpDELETE) ;
+    ReqList: array[0..5] of THttpRequest =
+      (httpGET, httpPOST, httpHEAD, httpPUT, httpDELETE, httpPATCH);  { V8.64 added PATCH }
 var
     StatCode, Row: Integer;
     Req: THttpRequest;
@@ -1000,7 +1010,7 @@ begin
         if I > 1 then SetLength (QueryType, I - 1);
       // Json DNS parameters
         HttpRest1.RestParams.Clear;
-        HttpRest1.RestParams.AddItem('name', Trim(DnsDomainName.Text), True);
+        HttpRest1.RestParams.AddItem('name', IcsIDNAToASCII(Trim(DnsDomainName.Text)), True);  { V8.64 }
         HttpRest1.RestParams.AddItem('type', QueryType, True);
     //    HttpRest1.RestParams.AddItem('ct', MimeDnsJson, True);
         if DnsDnssec.Checked then
@@ -1109,7 +1119,7 @@ begin
     DnsQueryHttps1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
     DnsQueryHttps1.HttpRest.CertVerMethod := TCertVerMethod(CertVerMethod.ItemIndex);
     DnsQueryHttps1.HttpRest.SocketFamily := TSocketFamily(IpSockFamily.ItemIndex);
-    if DnsQueryHttps1.DOHQueryAny(AnsiString(Trim(DnsDomainName.Text)), qtype) then
+    if DnsQueryHttps1.DOHQueryAny(Trim(DnsDomainName.Text), qtype) then
          AddLog ('Starting async DNS request')
     else
          AddLog ('DNS request failed');
@@ -1123,7 +1133,7 @@ begin
     DnsQueryHttps1.DebugLevel := THttpDebugLevel(DebugLogging.ItemIndex);
     DnsQueryHttps1.HttpRest.CertVerMethod := TCertVerMethod(CertVerMethod.ItemIndex);
     DnsQueryHttps1.HttpRest.SocketFamily := TSocketFamily(IpSockFamily.ItemIndex);
-    if DnsQueryHttps1.DOHQueryAll(AnsiString(Trim(DnsDomainName.Text))) then
+    if DnsQueryHttps1.DOHQueryAll(Trim(DnsDomainName.Text)) then
          AddLog ('Starting async DNS request')
     else
          AddLog ('DNS request failed');

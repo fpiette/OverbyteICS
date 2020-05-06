@@ -8,10 +8,10 @@ Description:  A small utility to export SSL certificate from IE certificate
               LIBEAY32.DLL (OpenSSL) by Francois Piette <francois.piette@overbyte.be>
               Makes use of OpenSSL (http://www.openssl.org)
               Makes use of the Jedi JwaWincrypt.pas (MPL).
-Version:      8.63
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2003-2019 by François PIETTE
+Legal issues: Copyright (C) 2003-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -101,6 +101,12 @@ Apr 16, 2019 V8.61 Show certificate expiry and issue time as well as date.
 Jul  9, 2019 V8.62 Load several type lists from literals for future proofing.
                    Report ACME Identifier in certificate, if it exists.
 Oct 24, 2019 V8.63 Report certificate sha256 fingerprint as well as sha1
+Mar 26, 2020 V8.64  Added support for International Domain Names for Applications (IDNA),
+                     i.e. using accents and unicode characters in domain names.
+                    X509 certificates always have A-Lavels (Punycode ASCII) domain names,
+                      never UTF8 or Unicode.   IDNs are converted back to Unicode
+                      for display, but X509 subject remains as A-Labels.
+                   Certificate chain validation changed to use TX509List.  
 
 
 
@@ -139,10 +145,10 @@ uses
   OverbyteIcsUtils, OverbyteIcsSslX509Utils;
 
 const
-     PemToolVersion     = 863;
-     PemToolDate        = 'October 24, 2019';
+     PemToolVersion     = 864;
+     PemToolDate        = 'March 11, 2020';
      PemToolName        = 'PEM Certificate Tool';
-     CopyRight : String = '(c) 2003-2019 by François PIETTE V8.63 ';
+     CopyRight : String = '(c) 2003-2020 by François PIETTE V8.64 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';
      WM_APPSTARTUP      = WM_USER + 1;
 
@@ -1180,6 +1186,8 @@ end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.SetCertProps;
+var
+    I: Integer;
 begin
     CertCommonName.Text := Trim(CertCommonName.Text);
     with FSslCertTools do begin
@@ -1192,11 +1200,13 @@ begin
         Email             := CertEMail.Text;
         CommonName        := CertCommonName.Text;
 
-     // make sure alt domain contains common name
-        if CertAltDomains.Lines.Count > 0 then begin
-            if CertAltDomains.Lines.IndexOf(CertCommonName.Text) < 0 then
-                CertAltDomains.Lines.Add(CertCommonName.Text);
-        end;
+     // V8.64 make sure alt domain contains common name
+        if (CertAltDomains.Lines.Count = 0) or
+            ((CertAltDomains.Lines.Count > 0) and
+             (CertAltDomains.Lines.IndexOf(CertCommonName.Text) < 0)) then
+                                CertAltDomains.Lines.Add(CertCommonName.Text);
+        for I := 0 to CertAltDomains.Lines.Count - 1 do
+              CertAltDomains.Lines[I] := Trim(CertAltDomains.Lines[I]);
         AltDNSList.Assign(CertAltDomains.Lines);
         AltIpList.Assign(CertAltIPs.Lines);
   //      AltEmailList
@@ -1420,6 +1430,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 procedure TfrmPemTool1.doCheckBundleSelfClick(Sender: TObject);
 var
+    CAList: TX509List;       { V8.64 }
     CertStr, ErrStr: string;
     ValRes: TChainResult;
 begin
@@ -1431,14 +1442,16 @@ begin
         DispError('Must load or create a private key first');
         exit;
     end;
-    FSslCertTools.LoadCATrustFromString(sslRootCACertsBundle);  { trusted root }
-    ValRes := FSslCertTools.ValidateCertChain('', CertStr, ErrStr);   
+    CAList := TX509List.Create(Self);      { V8.64 }
+    CAList.LoadAllFromString(sslRootCACertsBundle);  { V8.64 trusted root so we check chain }
+    ValRes := FSslCertTools.ValidateCertChain('', CAList, CertStr, ErrStr);
     if ValRes = chainOK then
         ErrStr := 'Chain Validated OK'
     else if ValRes = chainWarn then
         ErrStr := 'Chain Warning - ' + ErrStr
     else
         ErrStr := 'Chain Failed - ' + ErrStr;
+    CAList.Destroy;
     DispError(ErrStr);
 end;
 

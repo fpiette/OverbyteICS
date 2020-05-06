@@ -12,11 +12,11 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      Oct 2019
-Version:      8.63
+Updated:      Mar 2020
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
+Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
@@ -184,8 +184,25 @@ Nov 11, 2019  - V8.63 - The SMS Works sync delivery works OK, try and return
                            for Google, OAopAuthPrompt uses property LoginPrompt usually
                            'consent', OAopAuthAccess and RefreshOffline=True requests a
                            Refresh Token.
+Mar 26, 2020  - V8.64 - Added support for International Domain Names for Applications (IDNA),
+                         i.e. using accents and unicode characters in domain names.
+                        Only  REST change here is to report A-Label domain looked up by DNS.
+                        SimpleWebSrv returns host: name in Unicode.
+                        Added more parameter content types: PContXML, PContBodyUrlEn,
+                          PContBodyJson, PContBodyXML. The existing PContUrlEn and
+                          PContJson now specify REST params are sent as URL ? arguments,
+                          while the PContBodyxx version send params as content body.
+                        This fixes a bug that meant PUT request params were always sent
+                          as URL ? arguments.  Note POST is always content body so
+                          the wrong PContent is corrected automatically for backward
+                          compatibility.
+                        XML content type is experimental, not tested.
+                        Verifying the SSL certificate chain with the Windows Store
+                          works again.
+                        TDnsQueryHttps component now uses strings and support IDNs.
+                        TSimpleWebSrv no longer processes ALPN, done in SocketServer.
 
-
+                        
 
 Pending - more documentation
 Pending - better SSL error handling when connections fail, due to too high security in particular.
@@ -271,8 +288,8 @@ uses
 { NOTE - these components only build with SSL, there is no non-SSL option }
 
 const
-    THttpRestVersion = 863;
-    CopyRight : String = ' TSslHttpRest (c) 2019 F. Piette V8.63 ';
+    THttpRestVersion = 864;
+    CopyRight : String = ' TSslHttpRest (c) 2020 F. Piette V8.64 ';
     DefMaxBodySize = 100*100*100; { max memory/string size 100Mbyte }
     TestState = 'Testing-Redirect';
     MimeDnsJson = 'application/dns-json';
@@ -295,7 +312,7 @@ type
   TOAuthAuthUrlEvent = procedure (Sender: TObject; const URL: string) of object;
 
 { property and state types }
-  TPContent = (PContUrlencoded, PContJson);
+  TPContent = (PContUrlencoded, PContJson, PContXML, PContBodyUrlEn, PContBodyJson, PContBodyXML); { V8.64 added Body versions and XML }
   TOAuthProto = (OAuthv1, OAuthv1A, OAuthv2);
   TOAuthType = (OAuthTypeWeb, OAuthTypeMan, OAuthTypeEmbed);
   TOAuthOption = (OAopAuthNoRedir,    { OAuth Auth Request do not send redirect_url }
@@ -337,7 +354,7 @@ type
   protected
     function GetOwner: TPersistent; override;
   public
-    constructor Create(Owner: TPersistent); 
+    constructor Create(Owner: TPersistent);
     function GetParameters: AnsiString;
     function IndexOf(const aName: string): Integer;
     procedure AddItem(const aName, aValue: string; aRaw: Boolean = False);
@@ -427,7 +444,7 @@ type
     procedure    InitSsl;
     procedure    ResetSsl;
     procedure    ClearResp;
-    function     GetParams(HttpRequest: THttpRequest): AnsiString;
+    function     GetParams: AnsiString;   { V8.64 lost reqtype }
     function     RestRequest(HttpRequest: THttpRequest; const RestURL: String;
                     AsyncReq: Boolean = False; const RawParams: String = ''): Integer;
 
@@ -496,7 +513,7 @@ type
     procedure CliSendPage(const Status, ContentType, ExtraHdr, BodyStr: String);
     procedure CliErrorResponse(const RespStatus, Msg: string);
     procedure CliDataAvailable(Sender: TObject; Error: Word);
-    procedure CliAlpnChallg(Sender: TObject; const Host: string; var CertFName: string);
+//    procedure CliAlpnChallg(Sender: TObject; const Host: string; var CertFName: string);
     procedure ParseReqHdr;
   end;
 
@@ -559,7 +576,7 @@ type
     property OnServerProg: THttpRestProgEvent       read  FOnServerProg
                                                     write FOnServerProg;
     property OnSimpWebSrvAlpn: TClientAlpnChallgEvent read  FOnSimpWebSrvAlpn
-                                                      write FOnSimpWebSrvAlpn; { V8.62 }
+                                                    write FOnSimpWebSrvAlpn; { V8.62 }
 
   end;
 
@@ -701,8 +718,8 @@ type
     HttpRest:  TSslHttpRest;
     constructor  Create (Aowner: TComponent); override;
     destructor   Destroy; override;
-    function     DOHQueryAll(Host: AnsiString): Boolean;
-    function     DOHQueryAny(Host: AnsiString; QNumber: Integer;
+    function     DOHQueryAll(Host: String): Boolean;          { V8.64 }
+    function     DOHQueryAny(Host: String; QNumber: Integer;  { V8.64 }
                                     MultiRequests: Boolean = False) : Boolean;
   published
     { Published declarations }
@@ -1026,7 +1043,7 @@ var
     PN, PV: String;
     JFlag: Boolean; { V8.62 }
 
-    function EscapeChars(const AStr: AnsiString): AnsiString;
+    function EscapeJson(const AStr: AnsiString): AnsiString;
     var
         I, outoff, inlen: integer;
         Ch: PAnsiChar;
@@ -1068,10 +1085,53 @@ var
         SetLength(Result, outoff - 1);
     end;
 
+    function EscapeXML(const AStr: AnsiString): AnsiString;  { V8.64 }
+    var
+        I, outoff, inlen: integer;
+        Ch: PAnsiChar;
+
+        procedure AddEntity(NewStr: AnsiString);
+        var
+            J: Integer;
+        begin
+            Result[outoff] := '&';
+            Inc(outoff);
+            for J := 1 to Length(NewStr) do begin
+                Result[outoff] := NewStr[J];
+                Inc(outoff);
+            end;
+            Result[outoff] := ';';
+        end;
+
+    begin
+        Result := '';
+        outoff := 1;
+        inlen := Length(AStr);
+        if inlen = 0 then Exit;
+        SetLength(Result, inlen * 2);
+        Ch := Pointer(AStr);
+        for I := 1 to inlen do begin
+            if Ch^ = '&'  then
+                AddEntity('amp')
+            else if Ch^ = '''' then
+                AddEntity('apos')
+            else if Ch^ = '"' then
+                AddEntity('quot')
+            else if Ch^ = '<' then
+                AddEntity('lt')
+            else if Ch^ = '>' then
+                AddEntity('gt')
+            else
+                Result[outoff] := Ch^;
+            Inc(Ch);
+            Inc(outoff);
+        end;
+        SetLength(Result, outoff - 1);
+    end;
 
 begin
     Result := '';
-    if FPContent = PContUrlencoded then begin
+    if FPContent in [PContUrlencoded, PContBodyUrlen] then begin  { V8.64 added Body version }
         if Count > 0 then begin
             for I := 0 to Count - 1 do begin
                 PN := Trim(Items[I].PName);
@@ -1087,7 +1147,7 @@ begin
             end;
         end;
     end
-    else if FPContent = PContJson then begin
+    else if FPContent in [PContJson, PContBodyJson] then begin  { V8.64 added Body version }
         Result := '{';
         if Count > 0 then begin
             for I := 0 to Count - 1 do begin
@@ -1101,17 +1161,35 @@ begin
                             JFlag := ((PV[1]='{') and (PV[Len]='}')) or
                                             ((PV[1]='[') and (PV[Len]=']'));
                     if Length(Result) > 1 then Result := Result + ',';
-                    Result := Result + '"' + EscapeChars(AnsiString(PN)) + '":';
+                    Result := Result + '"' + EscapeJson(AnsiString(PN)) + '":';
                     if NOT JFlag then Result := Result + '"';
                     if Items[I].PRaw then
                         Result := Result + StringToUtf8(PV)
                     else
-                        Result := Result + EscapeChars(StringToUtf8(PV));
+                        Result := Result + EscapeJson(StringToUtf8(PV));
                     if NOT JFlag then Result := Result + '"';
                 end;
             end;
         end;
         Result := Result + '}'
+    end
+    else if FPContent in [PContXml, PContBodyXml] then begin  { V8.64 new }
+        Result := '<?xml version="1.0" encoding="UTF-8"><ICS>';
+        if Count > 0 then begin
+            for I := 0 to Count - 1 do begin
+                PN := Trim(Items[I].PName);
+                if PN <> '' then begin
+                    PV := Trim(Items[I].PValue);
+                    Result := Result + '<' + EscapeXML(AnsiString(PN)) + '>';
+                    if Items[I].PRaw then
+                        Result := Result + StringToUtf8(PV)
+                    else
+                        Result := Result + EscapeXML(StringToUtf8(PV));
+                    Result := Result + '</' + EscapeXML(AnsiString(PN)) + '>';
+                end;
+            end;
+        end;
+        Result := Result + '</ICS>';
     end;
 end;
 
@@ -1356,7 +1434,7 @@ begin
         end
         else
             S := 'Connection failed to';
-        S := S + ': ' + FHostname + ' (' + IcsFmtIpv6Addr(AddrResolvedStr) + ')';    { V8.60  }
+        S := S + ': ' + FPunyCodeHost + ' (' + IcsFmtIpv6Addr(AddrResolvedStr) + ')';    { V8.64 }
         LogEvent (S) ;
     end;
 end ;
@@ -1459,7 +1537,7 @@ begin
     CertChain := HttpCtl.SslCertChain;
 
  // see if validating against Windows certificate store
-    if FCertVerMethod = CertVerNone then begin
+    if FCertVerMethod = CertVerWinStore then begin
         // start engine
         if not Assigned (FMsCertChainEngine) then
             FMsCertChainEngine := TMsCertChainEngine.Create;
@@ -1586,23 +1664,20 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TSslHttpRest.GetParams(HttpRequest: THttpRequest): AnsiString;
+function TSslHttpRest.GetParams: AnsiString;  { V8.64 lost reqtype }
 begin
     Result := '';
     if (FRestParams.Count > 0) then begin
-        if HttpRequest in [httpGET, httpPut, httpHead, httpDelete] then begin
-            if (FRestParams.PContent = PContJson) then  // must flatten Json for GET
-                Result:= IcsBase64UrlEncodeA(FRestParams.GetParameters)
-            else
-                Result := FRestParams.GetParameters;
-        end
-        else if HttpRequest = httpPOST then begin
-            Result := FRestParams.GetParameters;
-            if (FRestParams.PContent = PContJson) then   { V8.61 added UTF8 }
+        Result := FRestParams.GetParameters;
+    { V8.64 use PContBodyJson for POST, set automatically in RestRequest }
+        if (FRestParams.PContent = PContJson) then  // must flatten Json for GET/PUT
+            Result:= IcsBase64UrlEncodeA(Result);
+        if (FRestParams.PContent = PContBodyJson) then   { V8.61 added UTF8 }
                 FContentPost := 'application/json; charset=UTF-8'
-            else
-                FContentPost := 'application/x-www-form-urlencoded; charset=UTF-8';
-        end;
+        else if (FRestParams.PContent = PContBodyUrlEn) then   { V8.61 added UTF8 }
+                FContentPost := 'application/x-www-form-urlencoded; charset=UTF-8'
+        else if (FRestParams.PContent = PContBodyXML) then   { V8.61 added UTF8 }
+                FContentPost := 'application/xml; charset=UTF-8';
     end;
 end;
 
@@ -1697,13 +1772,13 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { make an HTTP request to RestURL.  If RestURL has no parameters (ie ?, except
   POST)) then RawParams are added if not blank, otherwise RestParams are added }
+{ V8.64 added ConType for POST/PUT/PATCH body content type }
 
 function TSslHttpRest.RestRequest(HttpRequest: THttpRequest; const RestURL: String;
-                      AsyncReq: Boolean = False; const RawParams: String = ''): Integer;
+                    AsyncReq: Boolean = False; const RawParams: String = ''): Integer;
 var
     Info: String;
     Params: AnsiString;
-//    I: Integer;
 begin
     result := -1;
     FReasonPhrase := '';
@@ -1726,20 +1801,33 @@ begin
     try
         FURL := RestURL;
         FCookie := RestCookies.GetCookies (RestURL);
+
+    { V8.64 PContent now used to determine if PUT paramaters should be
+      be sent as a content body or in the URL, but POST is always body to
+      correct PContent if wrong }
+        if (HttpRequest = httpPOST) then begin
+            if (FRestParams.PContent = PContJson) then
+                FRestParams.PContent := PContBodyJson;
+            if (FRestParams.PContent = PContUrlencoded) then
+                FRestParams.PContent := PContBodyUrlEn;
+        end;
         Params := StringToUtf8(RawParams);
-        if (Params = '') then Params := GetParams(HttpRequest);
-        if  (Params <> '') and (HttpRequest in
-                 [httpGET, httpPUT, httpHEAD, httpDELETE, httpPATCH]) then begin
-            if (Pos('?', FURL) = 0) then
-                FURL := RestURL + '?' + String(Params);
-        end
-        else if HttpRequest = httpPOST then begin
-            if (Params <> '') then begin
-                if (Params[1] = '{') and (RawParams = '') then
-                    FContentPost := 'application/json; charset=UTF-8';  { V8.61 added UTF8 }
+        if (Params = '') then Params := GetParams;
+
+     { V8.64 set Json content type if empty }
+        if (Params <> '') and (FContentPost = '') then begin
+           if (Params[1] = '{') or (Params[1] = '[') then
+                FContentPost := 'application/json; charset=UTF-8';  { V8.61 added UTF8 }
+        end;
+
+     { V8.64 no content type means URL arguments }
+        if (FRestParams.PContent in [PContBodyJson, PContBodyUrlEn, PContBodyXML]) then begin
                 FPostStream.Write(Params[1], Length(Params));
                 FPostStream.Seek(0, soFromBeginning) ;
-            end
+        end
+        else begin
+            if (Pos('?', FURL) = 0) then
+                FURL := RestURL + '?' + String(Params);
         end;
         if HttpRequest = httpGET then Info := 'GET '
         else if HttpRequest = httpHEAD then Info := 'HEAD '
@@ -1836,11 +1924,11 @@ begin
                 SslSrvSecurity := sslSrvSecTls12Less;
                 SslCert := IcsTrim(FWebSrvCertBundle);
                 SslPassword := IcsTrim(FwebSrvCertPassword);
-                if Assigned(OnSimpWebSrvAlpn) then begin
+             {   if Assigned(FOnSimpWebSrvAlpn) then begin
                     CertSupplierProto := SuppProtoAcmeV2;
                     CertChallenge := ChallAlpnSrv;
-                    FWebServer.SslCertAutoOrder := true; 
-                end;
+                    FWebServer.SslCertAutoOrder := true;
+                end; }
             end;
             FWebServer.RootCA := FWebSrvRootFile;
             S := FWebServer.ValidateHosts(False, False);  // don't stop on error, might be self signed certs }
@@ -1944,7 +2032,7 @@ var
     Cli: TSimpleClientSocket;
 begin
     if Error <> 0 then begin
-        LogEvent({RFC3339_DateToStr(Now) +} 'Server listen connect error: ' + WSocketErrorDesc(Error));  { V8.63 }
+        LogEvent('Server listen connect error: ' + WSocketErrorDesc(Error));  { V8.63 }
         Client.Close;
         exit;
     end;
@@ -1956,7 +2044,7 @@ begin
     Cli.OnDataAvailable := Cli.CliDataAvailable;
     Cli.OnBgException := SocketBgException;
     Cli.OnSimpWebSrvReq := Self.FOnSimpWebSrvReq;
-    Cli.OnClientAlpnChallg := Cli.CliAlpnChallg;        { V8.62 }
+    Cli.OnClientAlpnChallg := Self.FOnSimpWebSrvAlpn; { V8.64 }
     Cli.Banner := '' ;
     Cli.RecvBufMax := 8096;  // only expecting a request header
     SetLength(Cli.RecvBuffer, Cli.RecvBufMax + 1);
@@ -1968,7 +2056,7 @@ procedure TSimpleWebSrv.ServerClientDisconnect(Sender: TObject;
                                  Client: TWSocketClient; Error: Word);
 begin
     if FDebugLevel >= DebugConn then
-        LogEvent({RFC3339_DateToStr(Now) +} 'Client Disconnected') ;
+        LogEvent('Client Disconnected') ;
 end;
 
 
@@ -2007,22 +2095,6 @@ begin
             '<H1>' + RespStatus + '</H1>' + Msg + '<P>' + IcsCRLF +
             '</BODY></HTML>' + IcsCRLF;
     CliSendPage(RespStatus, 'text/html', '', BodyStr);
-end;
-
-
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-procedure TSimpleClientSocket.CliAlpnChallg(Sender: TObject; const Host: string; var CertFName: string);    { V8.62 }
-begin
-    if Assigned(WebSrv.FOnSimpWebSrvAlpn) then begin
-        WebSrv.LogEvent ('Checking for tls-alpn-01 challenge Acme SSL certificate');
-        WebSrv.FOnSimpWebSrvAlpn(Self, Host, CertFName);
-        if (CertFName <> '') and FileExists(CertFName) then begin
-            WebSrv.LogEvent ('Loading tls-alpn-01 challenge certificate: ' + CertFName);
-        end
-        else begin
-            WebSrv.LogEvent ('Failed to find tls-alpn-01 challenge certificate: ' + CertFName);
-        end;
-    end
 end;
 
 
@@ -2080,15 +2152,17 @@ begin
                 Arg := IcsTrim(Copy(Line, K, 999)); // convert any arguments we scan to lower case later
                 if (Pos('Content-Length:', Line) = 1) then RequestContentLength := atoi64(Arg);
                 if (Pos('Host:', Line) = 1) then begin
-                    RequestHost := Arg;
+                    RequestHost := IcsLowerCase(Arg);  { need to separate host and port before punycoding }
                     L := Pos(':', RequestHost);
                     if L > 0 then begin
-                        RequestHostName := Copy(RequestHost, 1, L - 1);
+                        RequestHostName := IcsIDNAToUnicode(Copy(RequestHost, 1, L - 1));  { V8.64 }
                         RequestHostPort := Copy(RequestHost, L + 1, 99);
+                        RequestHost := RequestHostName + ':' + RequestHostPort;      { V8.64 }
                     end
                     else begin
-                        RequestHostName := RequestHost;
+                        RequestHostName := IcsIDNAToUnicode(RequestHost); { V8.64 }
                         RequestHostPort := WebSrv.FWebSrvPort;
+                        RequestHost := RequestHostName;       { V8.64 }
                     end;
                 end;
                 if (Pos('Referer:', Line) = 1) then RequestReferer := IcsLowercase(Arg);
@@ -2721,7 +2795,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function  TDnsQueryHttps.DOHQueryAll(Host: AnsiString): Boolean;
+function  TDnsQueryHttps.DOHQueryAll(Host: String): Boolean;
 begin
     FMultiReqSeq  := 1;
     FMultiHost := Host;
@@ -2731,7 +2805,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-function TDnsQueryHttps.DOHQueryAny(Host: AnsiString; QNumber: integer; MultiRequests: Boolean = False): Boolean;
+function TDnsQueryHttps.DOHQueryAny(Host: String; QNumber: integer; MultiRequests: Boolean = False): Boolean;
 var
     QueryBuf: AnsiString;
     QueryLen, StatCode: Integer;
@@ -2754,7 +2828,7 @@ begin
     BuildRequestHeader(PDnsRequestHeader(@QueryBuf[1]),0,
                                            DnsOpCodeQuery, TRUE, 1, 0, 0, 0);
     QueryLen := BuildQuestionSection(@QueryBuf[SizeOf(TDnsRequestHeader) + 1],
-                                              IcsTrimA(Host), QNumber, DnsClassIN);
+                                              IcsTrim(Host), QNumber, DnsClassIN);  { V8.64 }
     QueryLen := QueryLen + SizeOf(TDnsRequestHeader);
     SetLength(QueryBuf, QueryLen);
     StatCode := HttpRest.RestRequest(httpPOST, FDnsSrvUrl, True, String(QueryBuf));  // async request

@@ -3,12 +3,11 @@
 Author:       François PIETTE
 Description:  This demo show how to use the TPing object to ping any host.
 Creation:     November 30, 1997
-Version:      8,02
-EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium. Fax: +32-4-365.74.56
+Version:      8.64
+EMail:        http://www.overbyte.be        francois.piette@overbyte.be
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1999-2020 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
               This software is provided 'as-is', without any express or
@@ -55,6 +54,8 @@ Feb 20, 2013 V8.02 Angus - pings IPv4 or IPv6 addresses or host names
                    Added Ping (Thread) using TPingThread
                    Added Ping All to ping a list of addresses using TPingThread
                    Added Trace Route to list a route using TPingThread
+Mar 10, 2020  V8.64 Added support for International Domain Names for Applications
+                     (IDNA), i.e. using accents and unicode characters in domain names.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -70,8 +71,8 @@ uses
   OverbyteIcsPing, OverbyteIcsIcmp;
 
 const
-  PingTestVersion    = 802;
-  CopyRight : String = ' PingTest (c) 1997-2013 Francois Piette  V8.02 ';
+  PingTestVersion    = 864;
+  CopyRight : String = ' PingTest (c) 1997-2020 Francois Piette  V8.64 ';
 
 type
   TPingTstForm = class(TForm)
@@ -431,9 +432,8 @@ begin
         SetButtons (true);
         Exit;
     end;
-
-    DisplayMemo.Lines.Add('Host ''' + HostNames.Items[HostNames.ItemIndex] +
-                                                 ''' is ' + Ping1.DnsResult);
+  { V8.64 show real name looked up }
+    DisplayMemo.Lines.Add('Host ''' + String(Ping1.PunycodeHost) + ''' is ' + Ping1.DnsResult);
     Ping1.Address := Ping1.DnsResult;
     retvalue := Ping1.Ping;
     if retvalue = 0 then

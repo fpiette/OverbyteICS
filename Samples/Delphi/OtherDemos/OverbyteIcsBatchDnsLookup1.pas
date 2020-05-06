@@ -1,14 +1,13 @@
-unit OverbyteIcsBatchDnsLookup1;
+﻿unit OverbyteIcsBatchDnsLookup1;
 {
 Program:      NsLookup
 Description:  ICS batch async DNS lookup DnsLookup (IPv6 and IPv4)
-Author:       Fran�ois Piette
+Author:       François Piette
 Creation:      ?
-Version:      8.44
-EMail:        francois.piette@overbyte.be  http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1999-2017 by Fran�ois PIETTE
+Version:      8.64
+EMail:        http://www.overbyte.be        francois.piette@overbyte.be
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1999-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -36,6 +35,15 @@ Legal issues: Copyright (C) 1999-2017 by Fran�ois PIETTE
 Mar  7, 2017  V8.43  Added Use Thread tick box so wsockets uses thread for
                     all DNS lookups instead of just IPv4
 Apr 15, 2017  V8.44 FPiette removed compiler warnings for D10.2
+Mar 10, 2020  V8.64 Added support for International Domain Names for Applications
+                     (IDNA), i.e. using accents and unicode characters in domain names.
+                    The IDN button encodes the IDN list into Punycode ASCII and
+                      then back to Unicode again.  If built on a pre-Unicode compiler,
+                      some domains will appear as ???.
+                    When doing DNS Lookups, the actual Punycode ASCII domain looked-up
+                      is shown.  
+                    A blank IDN list on startup loads default list.
+                    
 }
 
 interface
@@ -70,6 +78,13 @@ type
     Label5: TLabel;
     Label6: TLabel;
     UseThread: TCheckBox;
+    IDNMemo: TMemo;
+    doIDNEncode: TButton;
+    DecodeMemo: TMemo;
+    Label7: TLabel;
+    Label8: TLabel;
+    Label9: TLabel;
+    Label10: TLabel;
     procedure StartButtonClick(Sender: TObject);
     procedure WSocket1DnsLookupDone(Sender: TObject; ErrCode: Word);
     procedure FormCreate(Sender: TObject);
@@ -77,6 +92,8 @@ type
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure SocketFamilyComboBoxChange(Sender: TObject);
+    procedure doIDNEncodeClick(Sender: TObject);
+    procedure DnsNamesMemoDblClick(Sender: TObject);
   private
     FDummyWSocket: TWSocket;
     FHostList: TStringList;
@@ -154,27 +171,44 @@ begin
         FMax         := IniFile.ReadInteger(SectionSetup, KeyMax,  4);
         FInstances   := IniFile.ReadInteger(SectionSetup, KeyInstances, 4);
         UseThread.Checked :=  IniFile.ReadBool(SectionSetup, KeyUseThread, False);
-        if not IniFile.ReadStrings(SectionDnsNames, KeyDnsName, DnsNamesMemo.Lines) then
+        IniFile.ReadStrings(SectionDnsNames, KeyDnsName, DnsNamesMemo.Lines);
+        if DnsNamesMemo.Lines.Count = 0 then  { V8.64 }
         begin
             DnsNamesMemo.Text :=
             'www.overbyte.be'#13#10 +
             'svn.overbyte.be'#13#10 +
             'wiki.overbyte.be'#13#10 +
-            'wiki.overbyte.eu'#13#10 +
+            'ipv4.magsys.co.uk'#13#10 +
+            'ipv6.magsys.co.uk'#13#10 +
             'www.embarcardero.com'#13#10 +
             'edn.embarcardero.com'#13#10 +
             'nonexisting'#13#10 +
             'www.microsoft.com'#13#10 +
             'ipv6.google.com'#13#10 +
             'www.goggle.com'#13#10 +
-            'www.aol.com'#13#10 +
             'sourceforge.net'#13#10 +
-            'www.borland.com'#13#10 +
             'msdn.microsoft.com'#13#10 +
             'localhost'#13#10 +
             '127.0.0.1'#13#10 +
             '::1'#13#10 +
-            'www.sixxs.net';
+            'strøm.no'#13#10 +
+            'www.mâgsÿstést.eu'#13#10 +
+            'www.háčkyčárky.cz'#13#10 +         { needs Unicode }
+            'stránky.háčkyčárky.cz'#13#10 +     { needs Unicode }
+            'мособлеирц.рф'#13#10 +             { needs Unicode }
+            '例子.测试'#13#10 +                 { needs Unicode, lookup fails }
+            'scrúdú.mâgsÿstést.eu'#13#10 +
+            'prøve.mâgsÿstést.eu'#13#10 +
+            'тест.mâgsÿstést.eu'#13#10 +        { needs Unicode }
+            'Ölçek.mâgsÿstést.eu'#13#10 +
+            '测试.mâgsÿstést.eu'#13#10 +        { needs Unicode }
+            'δοκιμή.mâgsÿstést.eu'#13#10 +      { needs Unicode }
+            'тестовоезадание.mâgsÿstést.eu'#13#10 +   { needs Unicode }
+            'próf.mâgsÿstést.eu'#13#10 +
+            'テスト.mâgsÿstést.eu'#13#10 +      { needs Unicode }
+            '테스트.mâgsÿstést.eu'#13#10 +      { needs Unicode }
+            'www.bad(name).com'#13#10 +
+            'www.-badname.com'#13#10;
         end;
         MinEdit.Text := IntToStr(FMin);
         MaxEdit.Text := IntToStr(FMax);
@@ -249,7 +283,11 @@ begin
     if FHostList.Count > 0 then
     begin
         WSocket.Tag := FHostList.Count - 1;
-        WSocket.DnsLookup(FHostList[WSocket.Tag]);
+        try
+            WSocket.DnsLookup(FHostList[WSocket.Tag]);
+        except
+            FResultList[WSocket.Tag] := IcsGetExceptMess(ExceptObject);
+        end;
         FHostList.Delete(WSocket.Tag);
     end
     else
@@ -259,13 +297,18 @@ end;
 procedure TBatchDnsLookupForm.WSocket1DnsLookupDone(
     Sender  : TObject;
     ErrCode : Word);
+var
+    Row: Integer;
 begin
+    Row := TWSocket(Sender).Tag;
     if ErrCode = 0 then
-        FResultList[TWSocket(Sender).Tag] := TWSocket(Sender).DnsResult
+        FResultList[Row] := TWSocket(Sender).DnsResult
     else
-        FResultList[TWSocket(Sender).Tag] := WSocketErrorDesc(ErrCode);
+        FResultList[Row] := WSocketErrorDesc(ErrCode);
     ResultMemo.Lines.Assign(FResultList);
     ResultMemo.Update;
+    IDNMemo.Lines[Row] := String(TWSocket(Sender).PunycodeHost);
+    IDNMemo.Update;
     PostMessage(Handle, WM_USER, WPARAM(Sender), 0);
 end;
 
@@ -276,8 +319,13 @@ var
     LMin, LMax : Byte;
 begin
     FWSocketList.Clear;
+    IDNMemo.Clear;
+    DecodeMemo.Clear;
+    for I := 0 to DnsNamesMemo.Lines.Count - 1 do
+        IDNMemo.Lines.Add('line');
     ResultMemo.Clear;
     ResultMemo.Update;
+    IDNMemo.Update;
 
     LMin := StrToIntDef(MinEdit.Text, 0);
     LMax := StrToIntDef(MaxEdit.Text, 1);
@@ -306,9 +354,42 @@ begin
             WSocket.ComponentOptions := WSocket.ComponentOptions + [wsoIcsDnsLookup];
         WSocket.SocketFamily := TSocketFamily(SocketFamilyComboBox.ItemIndex);
         WSocket.OnDnsLookupDone := WSocket1DnsLookupDone;
-        WSocket.DnsLookup(FHostList[WSocket.Tag]);
+        try
+            WSocket.DnsLookup(FHostList[WSocket.Tag]);
+        except
+            FResultList[WSocket.Tag] := IcsGetExceptMess(ExceptObject);
+        end;
         FHostList.Delete(WSocket.Tag);
     end;
 end;
+
+procedure TBatchDnsLookupForm.DnsNamesMemoDblClick(Sender: TObject);
+begin
+    DnsNamesMemo.Lines.Clear;
+end;
+
+procedure TBatchDnsLookupForm.doIDNEncodeClick(Sender: TObject);
+var
+    I: Integer;
+    PunyStr, UniStr: String;
+    ErrFlag: Boolean;
+begin
+    IDNMemo.Clear;
+    DecodeMemo.Clear;
+    for I := 0 to DnsNamesMemo.Lines.Count -1 do begin
+        UniStr := '';
+        PunyStr := IcsIDNAToASCII(DnsNamesMemo.Lines[I], True, ErrFlag);
+        if ErrFlag then
+            PunyStr := 'IDNAToAscii Failed'
+        else begin
+            UniStr := IcsIDNAToUnicode(PunyStr, ErrFlag);
+            if ErrFlag then
+                UniStr := 'IDNAToUnicode Failed'
+        end;
+        IDNMemo.Lines.Add(PunyStr);
+        DecodeMemo.Lines.Add(UniStr);
+    end;
+end;
+
 
 end.

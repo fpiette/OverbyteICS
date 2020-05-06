@@ -3,7 +3,7 @@ object JsonDemoForm: TJsonDemoForm
   Top = 180
   Caption = 
     'ICS SSL Json Object Signing Demos - http://www.overbyte.be - V8.' +
-    '64 - 23rd December 2019'
+    '64 -4th May 2020'
   ClientHeight = 636
   ClientWidth = 823
   Color = clBtnFace
@@ -28,6 +28,10 @@ object JsonDemoForm: TJsonDemoForm
     object TabSheetJson: TTabSheet
       Caption = 'JSON/XML'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object JsonGrid: TListView
         Left = 0
         Top = 171
@@ -130,6 +134,10 @@ object JsonDemoForm: TJsonDemoForm
     end
     object TabSheetJose: TTabSheet
       Caption = 'JOSE'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label25: TLabel
         Left = 8
         Top = 280

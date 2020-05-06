@@ -29,12 +29,16 @@ object frmPemTool1: TfrmPemTool1
     Top = 0
     Width = 880
     Height = 759
-    ActivePage = TabCertLv
+    ActivePage = TabViewCerts
     Align = alClient
     TabOrder = 0
     OnChange = PageControl1Change
     object TabCertLv: TTabSheet
       Caption = 'List Certificates'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object LvCerts: TListView
         Left = 0
         Top = 0
@@ -289,7 +293,7 @@ object frmPemTool1: TfrmPemTool1
         Height = 22
         Hint = 'Select a Windows store type'
         Style = csDropDownList
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 0
         Items.Strings = (
           'Certificate Authorities'
@@ -1198,6 +1202,10 @@ object frmPemTool1: TfrmPemTool1
     object TabNew: TTabSheet
       Caption = 'New Certificate Properties'
       ImageIndex = 3
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GroupBoxCertCreate: TGroupBox
         Left = 3
         Top = 337
@@ -1728,7 +1736,7 @@ object frmPemTool1: TfrmPemTool1
     Left = 260
     Top = 751
     Bitmap = {
-      494C010103000500380010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010103000500440010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

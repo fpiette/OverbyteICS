@@ -252,7 +252,7 @@ object SslFtpServerForm: TSslFtpServerForm
     MaxClients = 0
     PasvPortRangeStart = 16384
     PasvPortRangeSize = 5
-    Options = [ftpsCwdCheck, ftpsHidePhysicalPath, ftpsModeZCompress, ftpsSiteXmlsd, ftpsThreadRecurDirs, ftpsEnableUtf8]
+    Options = [ftpsCwdCheck, ftpsHidePhysicalPath, ftpsModeZCompress, ftpsSiteXmlsd, ftpsThreadRecurDirs, ftpsEnableUtf8, ftpsAuthForceSsl]
     MD5UseThreadFileSize = 0
     TimeoutSecsLogin = 60
     TimeoutSecsIdle = 300
@@ -299,6 +299,9 @@ object SslFtpServerForm: TSslFtpServerForm
     OnSslVerifyPeer = SslFtpServer1SslVerifyPeer
     OnSslHandshakeDone = SslFtpServer1SslHandshakeDone
     FtpSslTypes = []
+    IcsHosts = <>
+    SslCertAutoOrder = False
+    CertExpireDays = 30
     Left = 30
     Top = 162
   end
@@ -371,6 +374,7 @@ object SslFtpServerForm: TSslFtpServerForm
     SslCheckHostFlags = []
     SslSecLevel = sslSecLevel80bits
     SslOptions = [sslOpt_NO_SSLv2]
+    SslOptions2 = []
     SslVerifyPeerModes = [SslVerifyMode_PEER]
     SslSessionCacheModes = []
     SslCipherList = 'ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH'
@@ -378,6 +382,8 @@ object SslFtpServerForm: TSslFtpServerForm
     SslMinVersion = sslVerSSL3
     SslMaxVersion = sslVerMax
     SslECDHMethod = sslECDHAuto
+    SslCryptoGroups = 'P-256:X25519:P-384:P-512'
+    SslCliSecurity = sslCliSecIgnore
     SslSessionTimeout = 0
     SslSessionCacheSize = 20480
     AutoEnableBuiltinEngines = False
@@ -396,7 +402,7 @@ object SslFtpServerForm: TSslFtpServerForm
     MaxClients = 0
     PasvPortRangeStart = 16380
     PasvPortRangeSize = 5
-    Options = [ftpsCwdCheck, ftpsHidePhysicalPath, ftpsModeZCompress, ftpsSiteXmlsd, ftpsThreadRecurDirs, ftpsEnableUtf8]
+    Options = [ftpsCwdCheck, ftpsHidePhysicalPath, ftpsModeZCompress, ftpsSiteXmlsd, ftpsThreadRecurDirs, ftpsEnableUtf8, ftpsAuthForceSsl]
     MD5UseThreadFileSize = 0
     TimeoutSecsLogin = 60
     TimeoutSecsIdle = 300
@@ -442,6 +448,9 @@ object SslFtpServerForm: TSslFtpServerForm
     OnSslVerifyPeer = SslFtpServer1SslVerifyPeer
     OnSslHandshakeDone = SslFtpServer1SslHandshakeDone
     FtpSslTypes = []
+    IcsHosts = <>
+    SslCertAutoOrder = False
+    CertExpireDays = 30
     Left = 35
     Top = 205
   end

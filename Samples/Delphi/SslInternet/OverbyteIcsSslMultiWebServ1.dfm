@@ -1,7 +1,7 @@
 object WeblServerForm: TWeblServerForm
   Left = 339
   Top = 282
-  Caption = 'Web Application Server  - V8.64 23rd Decemberl 2019 '
+  Caption = 'Web Application Server  - V8.64 27th April 2020'
   ClientHeight = 437
   ClientWidth = 587
   Color = clBtnFace
@@ -54,12 +54,22 @@ object WeblServerForm: TWeblServerForm
       OnClick = RecheckCertsButtonClick
     end
     object DisplayHeaderCheckBox: TCheckBox
-      Left = 405
+      Left = 447
       Top = 10
-      Width = 146
+      Width = 134
       Height = 17
       Caption = 'Display HTTP Protocol'
       TabOrder = 3
+    end
+    object DisplaySslInfo: TCheckBox
+      Left = 302
+      Top = 10
+      Width = 129
+      Height = 17
+      Caption = 'Display SSL Client Info'
+      Checked = True
+      State = cbChecked
+      TabOrder = 4
     end
   end
   object DisplayMemo: TMemo
@@ -89,8 +99,8 @@ object WeblServerForm: TWeblServerForm
   object Timer1: TTimer
     Enabled = False
     OnTimer = Timer1Timer
-    Left = 320
-    Top = 5
+    Left = 290
+    Top = 125
   end
   object SslHttpAppSrv1: TSslHttpAppSrv
     ListenBacklog = 5
@@ -150,9 +160,10 @@ object WeblServerForm: TWeblServerForm
     CertExpireDays = 30
     SslX509Certs = IcsSslX509Certs
     OnSslHandshakeDone = SslHttpAppSrv1SslHandshakeDone
+    OnSslServerName = SslHttpAppSrv1SslServerName
     OnSslAlpnSelect = SslHttpAppSrv1SslAlpnSelect
-    Left = 365
-    Top = 5
+    Left = 345
+    Top = 130
   end
   object IcsSslX509Certs: TSslX509Certs
     AcmeAccKeyType = PrivKeyRsa2048
@@ -184,8 +195,8 @@ object WeblServerForm: TWeblServerForm
     OnNewCert = IcsSslX509CertsNewCert
     OnOAuthAuthUrl = IcsSslX509CertsOAuthAuthUrl
     OnChallengeDNS = IcsSslX509CertsChallengeDNS
-    Left = 545
-    Top = 5
+    Left = 240
+    Top = 125
   end
   object IcsMailQueue: TIcsMailQueue
     MailServers = <>
@@ -207,7 +218,7 @@ object WeblServerForm: TWeblServerForm
     MxSrvUseSsl = False
     MxSocketFamily = sfIPv4
     LogEvent = IcsMailQueueLogEvent
-    Left = 295
-    Top = 5
+    Left = 190
+    Top = 125
   end
 end

@@ -3,11 +3,11 @@ Author:       Angus Robertson, Magenta Systems Ltd
 Description:  TIcsFileCopy allows indexing, copying and deleting of multiple
               file directories, using a single function call.
 Creation:     May 2001
-Updated:      Dec 2019
+Updated:      Feb 2020
 Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 2019 by Angus Robertson, Magenta Systems Ltd,
+Legal issues: Copyright (C) 2020 by Angus Robertson, Magenta Systems Ltd,
               Croydon, England. delphi@magsys.co.uk, https://www.magsys.co.uk/delphi/
 
               This software is provided 'as-is', without any express or
@@ -172,9 +172,9 @@ access to files is required.
               Using TStringList instead of StringArray
               Before creating directory check not a file of same name, delete it.
               Should build on Posix, not tested, also Delphi 7 again
-2 Nov 2019 - V8.63 - IgnorePaths property now works with D7.
-2 Dec 2019 - V8.64 - Using TFile.Copy class on MacOS (but no progress display).
-
+2 Nov 2019  - V8.63 - IgnorePaths property now works with D7.
+20 Feb 2020 - V8.64 - Using TFile.Copy class on MacOS (but no progress display).
+              Removed MultiThreaded no longer used, TIcsWndControl version now used.
 
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
@@ -233,7 +233,7 @@ uses
 {$IFDEF Zipping} , VCLZip, VCLUnZip, kpZipObj {$ENDIF};
 
 const
-    FileCopyCopyRight : String = ' TIcsFileCopy (c) 2019 V8.64 ';
+    FileCopyCopyRight : String = ' TIcsFileCopy (c) 2020 V8.64 ';
 
 
 {ex000616.log.zip      11,123,903  -rwx  23/03/2001 12:57:00    /dir}
@@ -384,7 +384,7 @@ type
         fRemoteName: string;
         fRemConnected: string ;
         fProgressSecs: integer ;     // 5 Sept 2005
-        fMultiThreaded: boolean ;    // 16 Sept 2010
+//        fMultiThreaded: boolean ;    // 16 Sept 2010, gone V8.64
         fEmptyDirs: boolean ;        // 7 Feb 2011
         fIgnorePaths: String ;       // 22 May 2013
         fCopyProg: TIcsCopyProgress ;   // 22 May 2013 replaces most fTotxx/fProcxx variables
@@ -493,7 +493,7 @@ type
     property LocalName: string         read fLocalName      write fLocalName ;
     property RemoteName: string        read fRemoteName     write fRemoteName ;
     property RemConnected: string      read fRemConnected ;
-    property MultiThreaded : Boolean   read fMultiThreaded  write fMultiThreaded;   // 16 Sept 2010
+//  property MultiThreaded : Boolean   read fMultiThreaded  write fMultiThreaded;   // 16 Sept 2010 gone V8.64
     property EmptyDirs: Boolean        read fEmptyDirs      write fEmptyDirs ;  // 7 Feb 2011
     property IgnorePaths: String       read fIgnorePaths    write fIgnorePaths ;    // 22 May 2013
     property CopyProg: TIcsCopyProgress  read fCopyProg ;                             // 22 May 2013

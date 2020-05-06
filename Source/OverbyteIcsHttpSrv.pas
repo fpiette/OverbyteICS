@@ -9,10 +9,10 @@ Description:  THttpServer implement the HTTP server protocol, that is a
               check for '..\', '.\', drive designation and UNC.
               Do the check in OnGetDocument and similar event handlers.
 Creation:     Oct 10, 1999
-Version:      8.612
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 1999-2019 by François PIETTE
+Legal issues: Copyright (C) 1999-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -438,6 +438,10 @@ Feb 20, 2019 V8.60 Added WebLogIdx to THttpConnection for web logging.
 Mar 29, 2019 V8.61 OAS : Add InBound value for TNtlmAuthSession creation
                    because server NTLM auth is inbound and Client is outbound
 Aug 7, 2019  V8.62 Builds without USE_SSL
+Mar 11, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+                     i.e. using accents and unicode characters in domain names.
+                   Host: header contains A-Label (Punycode ASCII) name, convert
+                     to Unicode to compare Hosts.
 
 
 
@@ -582,9 +586,9 @@ uses
     OverbyteIcsFormDataDecoder;
 
 const
-    THttpServerVersion = 862;
-    CopyRight : String = ' THttpServer (c) 1999-2019 F. Piette V8.62 ';
-    DefServerHeader : string = 'Server: ICS-HttpServer-8.62';   { V8.09 }
+    THttpServerVersion = 864;
+    CopyRight : String = ' THttpServer (c) 1999-2020 F. Piette V8.64 ';
+    DefServerHeader : string = 'Server: ICS-HttpServer-8.64';   { V8.09 }
     CompressMinSize = 5000;  { V7.20 only compress responses within a size range, these are defaults only }
     CompressMaxSize = 5000000;
     MinSndBlkSize = 8192 ;  { V7.40 }
@@ -3291,15 +3295,18 @@ begin
             else if StrLIComp(@FRcvdLine[1], 'Cookie:', 7) = 0 then {DAVID}
                 FRequestCookies := Copy(FRcvdLine, I, Length(FRcvdLine))
             else if StrLIComp(@FRcvdLine[1], 'Host:', 5) = 0 then begin
-                FRequestHost := Copy(FRcvdLine, I, Length(FRcvdLine));
-                J := Pos(':', FRequestHost); {DAVID}
+            { V8.64 need to separate host and port before punycoding }
+                FRequestHost := IcsLowerCase(Copy(FRcvdLine, I, Length(FRcvdLine)));
+                J := Pos(':', FRequestHost);
                 if J > 0 then begin
-                    FRequestHostName := Copy(FRequestHost, 1, J - 1);
+                    FRequestHostName := IcsIDNAToUnicode(Copy(FRequestHost, 1, J - 1));  { V8.64 }
                     FRequestHostPort := Copy(FRequestHost, J + 1, 100);
+                    FRequestHost := FRequestHostName + ':' + FRequestHostPort;           { V8.64 }
                 end
                 else begin
-                    FRequestHostName := FRequestHost;
+                    FRequestHostName := IcsIDNAToUnicode(FRequestHost);         { V8.64 }
                     FRequestHostPort := FServer.Port; { by default server port }
+                    FRequestHost := FRequestHostName;                           { V8.64 }
                 end;
             end
             else if StrLIComp(@FRcvdLine[1], 'Connection:', 11) = 0 then begin

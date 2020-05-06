@@ -2,12 +2,11 @@
 
 Author:       François PIETTE
 Creation:     Aug 08, 2004 (extracted from various ICS components)
-Version:      8.00
+Version:      8.64
 Description:  This unit contain support routines for URL handling.
-EMail:        francois.piette@overbyte.be   http://www.overbyte.be
-Support:      Use the mailing list twsocket@elists.org
-              Follow "support" link at http://www.overbyte.be for subscription.
-Legal issues: Copyright (C) 1997-2010 by François PIETTE
+EMail:        francois.piette@overbyte.be         http://www.overbyte.be
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 1997-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
 
@@ -49,7 +48,9 @@ Aug 07, 2010 V6.04 Bjørnar Nielsen suggested to add an overloaded UrlDecode()
 Jan 20, 2012 V6.05 RTT changed ParseUrl() to support URLs starting with "//".
 May 2012 - V8.00 - Arno added FireMonkey cross platform support with POSIX/MacOS
                    also IPv6 support, include files now in sub-directory
-
+Mar 10, 2020 V8.64 Added IcsBuildURL, IcsURLtoASCII and IcsURLtoUnicode to
+                     support International Domain Names, note these are primarily
+                     for display purposes, ICS now handles IDNs internally.
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsUrl;
@@ -80,13 +81,20 @@ uses
     OverbyteIcsUtils;
 
 const
-    IcsUrlVersion        = 800;
-    CopyRight : String   = ' TIcsURL (c) 1997-2012 F. Piette V8.00 ';
+    IcsUrlVersion        = 864;
+    CopyRight : String   = ' TIcsURL (c) 1997-2020 F. Piette V8.64 ';
 
 { Syntax of an URL: protocol://[user[:password]@]server[:port]/path }
 procedure ParseURL(const URL : String;
                    var Proto, User, Pass, Host, Port, Path : String);
 function  Posn(const s, t : String; count : Integer) : Integer;
+{ V8.64 build a URL without changing any encoding }
+function IcsBuildURL(const Proto, User, Pass, Host, Port, Path: string): string ;
+{ V8.64 convert the Unicode domain host name in a URL to A-Label (Punycode ASCII) and vice versa }
+function IcsURLtoASCII(const Input: string): string ;
+function IcsURLtoUnicode(const Input: string): string ;
+
+{ following functions are not for host domain names, but Unicode paths and queries in URLs }
 function  UrlEncode(const S : String; DstCodePage: LongWord = CP_UTF8) : String;
 function  UrlDecode(const S     : String;
                     SrcCodePage : LongWord = CP_ACP;
@@ -325,6 +333,48 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 build a URL without changing any encoding }
+function IcsBuildURL (const Proto, User, Pass, Host, Port, Path: string): string ;
+begin
+    Result := Proto + '://' ;
+    if User <> '' then begin
+        Result := Result + User ;
+        if Pass <> '' then Result := Result + ':' + Pass ;
+        Result := Result + '@' ;
+    end ;
+    Result := Result + Host ;
+    if Port <> '' then Result := Result + ':' + Port ;
+    if Path <> '' then begin
+        if Path[1] <> '/' then Result := Result + '/' ;
+        Result := Result + Path ;
+    end;
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 convert the Unicode domain host name in a URL to A-Label (Punycode ASCII) }
+function IcsURLtoASCII (const Input: string): string ;
+var
+    Proto, User, Pass, Host, Port, Path: string;
+begin
+    ParseURL(Input, Proto, User, Pass, Host, Port, Path);
+    Result := IcsBuildURL(Proto, User, Pass, IcsIDNAToASCII(Host), Port, Path);
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
+{ V8.64 convert the A-Label (Punycode ASCII) domain host name in a URL to Unicode }
+{ not does not change path }
+function IcsURLtoUnicode (const Input: string): string ;
+var
+    Proto, User, Pass, Host, Port, Path: string;
+begin
+    ParseURL(Input, Proto, User, Pass, Host, Port, Path);
+    Result := IcsBuildURL(Proto, User, Pass, IcsIDNAToUnicode(Host), Port, Path);
+end ;
+
+
+{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function UrlEncodeToA(const S : String; DstCodePage: LongWord = CP_UTF8) : AnsiString;
 var
     I, J   : Integer;
@@ -371,32 +421,6 @@ begin
 end;
 
 
-{* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-(*
-function UrlDecode(S : String) : String;
-var
-    I  : Integer;
-    Ch : Char;
-begin
-    Result := '';
-    I := 1;
-    while (I <= Length(S)) and (S[I] <> '&') do begin
-        Ch := S[I];
-        if Ch = '%' then begin
-{$IFDEF CLR}
-            Ch := chr(htoi2(S[I + 1], S[I + 2]));
-{$ELSE}
-            Ch := chr(htoi2(@S[I + 1]));
-{$ENDIF}
-            Inc(I, 2);
-        end
-        else if Ch = '+' then
-            Ch := ' ';
-        Result := Result + Ch;
-        Inc(I);
-    end;
-end;
-*)
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 function UrlDecode(const S : String; SrcCodePage: LongWord = CP_ACP;
   DetectUtf8: Boolean = TRUE) : String;

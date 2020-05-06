@@ -3,14 +3,14 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  Forward and Reverse SSL HTTP Proxy
 Creation:     May 2017
-Updated:      Sept 2018
-Version:      8.50
-Support:      Use the mailing list ics-ssl@elists.org
-Legal issues: Copyright (C) 2003-2018 by François PIETTE
+Updated:      Aprt 2020
+Version:      8.64
+EMail:        francois.piette@overbyte.be  http://www.overbyte.be
+Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
+Legal issues: Copyright (C) 2003-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
-              <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
-              Berlin, Germany, contact: <arno.garrels@gmx.de>
+              Berlin, Germany
 
               This software is provided 'as-is', without any express or
               implied warranty.  In no event will the author be held liable
@@ -51,6 +51,10 @@ History:
                       certificate supplier account has been created (by the
                       OverbyteIcsX509CertsTst sample application).
                     Note certificate ordering currently only works with Proto=HTTP.
+27 Apr 2020 - V8.64 Updated X509Certs slightly.
+                    Added SSL certificate ordering ChallFileApp and ChallAlpnApp
+                      challenges, as well as ChallFileUNC.
+
 
 
 Insalling note:
@@ -98,7 +102,7 @@ uses
   OverbyteIcsSslHttpRest;   { V8.57 }
 
 const
-    ProxyCopyRight : String = ' OverbyteIcsProxySslServer (c) 2018 Francois Piette V8.57 ';
+    ProxyCopyRight : String = ' OverbyteIcsProxySslServer (c) 2020 Francois Piette V8.64 ';
     MaxWinChars = 800000;
     WM_STARTUP = WM_USER + 711 ;
 
@@ -138,7 +142,7 @@ type
     procedure IcsSslX509CertsCertProg(Sender: TObject; LogOption: TLogOption;
       const Msg: string);
     procedure IcsSslX509CertsChallengeDNS(Sender: TObject;
-      ChallengeItem: TChallengeItem);
+      ChallengeItem: TChallengeItem; var ChlgOK: Boolean);            { V8.64 }
     procedure IcsSslX509CertsNewCert(Sender: TObject);
     procedure IcsSslX509CertsOAuthAuthUrl(Sender: TObject; const URL: string);
   private
@@ -347,7 +351,7 @@ begin
 end;
 
 procedure TProxySslServerForm.IcsSslX509CertsChallengeDNS(Sender: TObject;
-  ChallengeItem: TChallengeItem);                                        { V8.57 }
+  ChallengeItem: TChallengeItem; var ChlgOK: Boolean);            { V8.64 }
 begin
 //   update DNS server with TXT challenge information
 end;

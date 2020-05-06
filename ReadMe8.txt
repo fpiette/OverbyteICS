@@ -3,7 +3,7 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.3 Rio
 (Aka FPIETTE's Components)
 
 
-Revised: December 19, 2019
+Revised: January 23, 2020
 Release: V8.64
 http://www.overbyte.be/
 http://wiki.overbyte.be/
@@ -32,7 +32,7 @@ Table of content:
 
 Legal issues:
 -------------
-              Copyright (C) 1997-2019 by François PIETTE
+              Copyright (C) 1997-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium
               <francois.piette@overbyte.be>
 
@@ -153,7 +153,7 @@ are no current plans for ICS for iOS.
 Version Control repository:
 ---------------------------
 
-svn://svn.overbyte.be/ics or http://svn.overbyte.be:8443/svn/ics
+svn://svn.overbyte.be/ics/trunk or https://svn.overbyte.be/svn/ics/trunk
 (Usercode = ics, password = ics)
 
 

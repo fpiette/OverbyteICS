@@ -4,11 +4,11 @@ Author:       François PIETTE
 Description:  TFtpServer class encapsulate the FTP protocol (server side)
               See RFC-959 for a complete protocol description.
 Creation:     April 21, 1998
-Version:      8.63
+Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
-Legal issues: Copyright (C) 1998-2019 by François PIETTE
-              Rue de Grady 24, 4053 Embourg, Belgium.
+Legal issues: Copyright (C) 1998-2020 by François PIETTE
+              Rue de Grady 24, 4053 Embourg, Belgium
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
               Berlin, Germany, contact: <arno.garrels@gmx.de>
@@ -445,6 +445,16 @@ Nov 7, 2019  V8.63 - ftpsNoPasvIpAddrInLan and ftpsNoPasvIpAddrSameSubnet option
                        from INI file, IcsHosts can be read using IcsLoadIcsHostsFromIni. 
                      When using IcsHosts, FtpSslTypes is set automatically to Implicit
                        if an SSL port is specified or Explicit if AuthSslCmd is true. 
+May 01, 2020 V8.64 - Added TFtpOptions ftpsAuthForceSsl which require SSL/TLS for
+                       LOGIN so no clear credentials allowed.  May also be set using
+                       IcsHosts with AuthForceSsl=True for specific Hosts only.
+                       Failure gives '533 USER requires a secure connection'.
+                     Better error handling when all passive ports are being used.
+                     Fixed a range error with passive connections is range checking
+                       was enabled, option ftpsNoPasvIpAddrSameSubnet and adaptors
+                       had IPv6 addresses.
+
+
 
 
 Angus pending -
@@ -571,8 +581,8 @@ uses
 
 
 const
-    FtpServerVersion         = 863;
-    CopyRight : String       = ' TFtpServer (c) 1998-2019 F. Piette V8.63 ';
+    FtpServerVersion         = 864;
+    CopyRight : String       = ' TFtpServer (c) 1998-2020 F. Piette V8.64 ';
     UtcDateMaskPacked        = 'yyyymmddhhnnss';         { angus V1.38 }
     DefaultRcvSize           = 16384;    { V7.00 used for both xmit and recv, was 2048, too small }
 
@@ -670,8 +680,9 @@ type
                         ftpsAutoDetectCodePage,          { AG V7.02 actually detects UTF-8 only! }
                                                          { requires ftpsEnableUtf8 and sets ftpEnableUtf8   }
                                                          { once a valid UTF-8 buffer has been received from }
-                        ftpsCompressDirs                 { angus V8.04 zmode compress directory listings }
                                                          { a client.                                        }
+                        ftpsCompressDirs,                { angus V8.04 zmode compress directory listings }
+                        ftpsAuthForceSsl                 { angus V8.64 require SSL/TLS for LOGIN so no clear credentials }
                          );
     TFtpsOptions     = set of TFtpsOption;               { angus V1.38 }
 
@@ -682,10 +693,11 @@ type
                      ftpHidePhysicalPath,    { AG V1.52 }
                      ftpModeZCompress,       { angus V1.54 }
                      ftpUtf8On,              { angus V7.01 this is changed by the OPTS UTF8 ON/OFF command }
-                     ftpAutoDetectCodePage   { AG V7.02 actually detects UTF-8 only! }
+                     ftpAutoDetectCodePage,  { AG V7.02 actually detects UTF-8 only! }
                                              { requires ftpsEnableUtf8 and sets ftpEnableUtf8   }
                                              { once a valid UTF-8 buffer has been received from }
                                              { a client.                                        }
+                     ftpAuthForceSsl         { angus V8.64 require SSL/TLS for LOGIN so no clear credentials }
                      );      { angus V1.54 }
     TFtpOptions   = set of TFtpOption;
 
@@ -2715,6 +2727,17 @@ begin
           MyClient.FtpSslTypes := TSslFtpWSocketMultiListenItem(MultiListenSockets[MultiListenIndex]).FFtpSslTypes;
         if ftpImplicitSsl in MyClient.FtpSslTypes then   { V1.47 }
             MyClient.CurFtpSslType := curftpImplicitSsl;               { V1.47 }
+
+       { V8.64 see if LOGIN only allowed after SSL/TLS negotiated }
+        if ftpsAuthForceSsl in FOptions then
+            MyClient.Options := MyClient.Options + [ftpAuthForceSsl];  { V8.64 }
+        if TSslFtpserver(Self).GetIcsHosts <> Nil then begin
+             if (TSslFtpserver(Self).GetIcsHosts.Count > 0) and
+                                            (MyClient.FIcsHostIdx >= 0) then begin       { V8.64 }
+                if TSslFtpserver(Self).GetIcsHosts[MyClient.FIcsHostIdx].AuthForceSsl then
+                    MyClient.Options := MyClient.Options + [ftpAuthForceSsl];
+             end;
+         end;
     end;
 {$ENDIF}
     if ftpsCdupHome in FOptions then
@@ -3502,6 +3525,18 @@ var
     Challenge: string;
 begin
     Client.CurCmdType := ftpcUSER;
+
+{$IFDEF USE_SSL}
+    { V8.64 check if login only allowed with SSL/TLS }
+    if Self is TSslFtpServer then begin
+        if (ftpAuthForceSsl in Client.Options) and
+                 (Client.SslState <> sslEstablished) then begin
+            Answer := WideFormat(msgErrInSslOnly, ['USER']);
+            Exit;
+        end;
+    end;
+{$ENDIF}
+
     Client.UserName   := Trim(Params);
     Client.FtpState   := ftpcWaitingPassword;
   { angus V1.54 - check if user account is set-up for authentication using a
@@ -5550,8 +5585,11 @@ begin
             Inc(FPasvNextNr);                                            { angus V1.56 }
             if FPasvNextNr >= FPasvPortRangeSize then FPasvNextNr := 0;  { angus V1.56 }
             Inc(I);
-            if I >= FPasvPortRangeSize then
+            if I >= FPasvPortRangeSize then begin  { V8.64 reset to start if no free ports }
+                Result := IntToStr(FPasvPortRangeStart);
+                FPasvNextNr := 0;
                 break;  { no free ports in range - angus V1.56 }
+            end;
         end;
     end;
 end;
@@ -5703,6 +5741,7 @@ begin
         on E:Exception do begin
             Answer := Format(msgPasvExcept, [E.Message]);
             try
+                FreeCurrentPasvPort(Client);  { V8.64 clean up }
                 Client.DataSocket.Close;
             except
                 { Ignore any exception here }

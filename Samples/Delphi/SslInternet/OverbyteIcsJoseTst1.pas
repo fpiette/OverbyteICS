@@ -3,10 +3,10 @@
 Author:       Angus Robertson, Magenta Systems Ltd
 Description:  ICS SSL Json Object Signing (Jose) Demos
 Creation:     Apr 2018
-Updated:      Dec 2019
+Updated:      May 2020
 Version:      8.64
 Support:      Use the mailing list ics-ssl@elists.org
-Legal issues: Copyright (C) 2003-2018 by François PIETTE
+Legal issues: Copyright (C) 2003-2020 by François PIETTE
               Rue de Grady 24, 4053 Embourg, Belgium.
               <francois.piette@overbyte.be>
               SSL implementation includes code written by Arno Garrels,
@@ -39,10 +39,12 @@ Legal issues: Copyright (C) 2003-2018 by François PIETTE
 
 History:
 25 Apr 2018 - 8.54 baseline
-23 Dec 2019 - 8.64 Corrected jose-ras files to jose-rsa and rsapsss to rsapss.
+04 May 2020 - 8.64 Corrected jose-ras files to jose-rsa and rsapsss to rsapss.
                    Added new Json/XML tab that allows blocks of Json or XML to
                      be copy/pasted and parsed to objects in a grid, repeatedly.
-                     Also pretty prints Json, all to help Json debugging.  
+                     Also pretty prints Json, all to help Json debugging.
+
+
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 unit OverbyteIcsJoseTst1;
@@ -74,6 +76,7 @@ uses
   OverbyteIcsSSLEAY,
   OverbyteIcsLibeay,
 //  OverbyteIcsSslX509Utils,
+  OverbyteIcsTypes,            { V8.64 }
   OverbyteIcsSuperObject,
   OverbyteIcsSuperXMLParser,   { V8.64 }
   OverbyteIcsSslJose;
@@ -486,6 +489,7 @@ begin
                                                     'jws', KwkPub, '', 'Nonce');
         RespJson := SO(S);
         AddLog ('TestJoseJWS Json JWK: ' + RespJson.AsJson(true, false)); }
+
     except
         on E:Exception do
             AddLog ('Json Web Signature exception - ' + E.Message);
@@ -507,7 +511,7 @@ var
     JsonEnum: TSuperAvlIterator;
     I, CWid: integer;
     FirstCol, FirstRow: Boolean;
-    SourceTxt: WideString;
+    SourceTxt: UnicodeString;
     CVal: String;
 begin
     RespObj := Nil;

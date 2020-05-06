@@ -10,7 +10,7 @@ Description:  JOSE - Json Object Signing and Encryption, used for:
               Includes OpenSSL Message Authentication Code functions used
               for signing JOSE structures with secret or private/public keys.
 Creation:     Feb 2018
-Updated:      Dec 2019
+Updated:      May 2020
 Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -74,9 +74,11 @@ May 21, 2018  - 8.54 - baseline
 Oct 2, 2018   - 8.57 - build with FMX
 Aug 07, 2019  - 8.62 - build Jason Web Token (JWT)
                        Builds without USE_SSL
-Dec 4, 2019   - 8.64 - IcsJoseFindAlg accepts RSA-PSS keys for jsigRsa256/512
+May 4, 2020   - 8.64 - IcsJoseFindAlg accepts RSA-PSS keys for jsigRsa256/512
                          (Google) and Ed25519 keys for jsigEdDSA
                        IcsJoseJWKPubKey needs OpenSSL 1.1.1e to support RSA-PSS keys.
+                       Fixed a bug in IcsBase64UrlDecode thanks to Linden Roth.
+                       Cleaned up signing and verifying functions.
 
 
 Pending
@@ -215,13 +217,15 @@ function IcsJoseJWSComp(JoseAlg: TJoseAlg; const Payload, HmacSecret: string;
 
 { RFC7515 build Json Web Signature or Token, with Acme private fields, }
 { using JWS JSON Serialization with is three Json blocks }
+{ used by ACME v2 }
 function IcsJoseJWSJson(JoseAlg: TJoseAlg; const Payload, HmacSecret: string;
           PrivateKey: PEVP_PKEY; const Typ, Jwk, Kid, Nonce: string;
                                                  const Url: string = ''): string;
 
 { build Acme v1 Json Web Signature or Token, non-standard with extra header }
+{ gone V8.64 no longer used
 function IcsJoseJWSAcme1(JoseAlg: TJoseAlg; const Payload: string;
-          PrivateKey: PEVP_PKEY; const Jwk, Nonce: string): string;
+          PrivateKey: PEVP_PKEY; const Jwk, Nonce: string): string;  }
 
 { build Json Web Token (JWT) by Base64Url encoding three components as long string V8.62 }
 function IcsJoseJWT(const Header, Payload, Signature: string): string;
@@ -292,6 +296,7 @@ begin
         if NOT Assigned(Etype) then
               Raise EDigestException.Create('Unsupported hash digest ' +
                            GetEnumName(TypeInfo(TEvpDigest), Ord(HashDigest)));
+    // ?? this might not be necessary...test it
         Ret := f_EVP_DigestInit_Ex(DigestCtx, Etype, Nil);
         if (Ret <= 0) then RaiseLastOpenSslError(EDigestException, FALSE,
                                     'Failed to initialise hash digest');
@@ -312,6 +317,7 @@ begin
         end;
     finally
         f_EVP_MD_CTX_free(DigestCtx);
+        f_EVP_PKEY_free(Pkey);  { V8.64 }
     end;
 end;
 
@@ -326,6 +332,7 @@ var
     NewDigest: AnsiString;
 begin
     NewDigest := IcsHMACDigestEx(Data, Key, HashDigest);
+  // constant time comparison to avoid timing attacks 
     Result := (f_CRYPTO_memcmp(PAnsiChar(OldDigest), PAnsiChar(NewDigest), Length(NewDigest)) = 0);
 end;
 
@@ -405,7 +412,7 @@ begin
                                     'Failed to initialise signing digest');
 
      { do we really need to set digest type?? }
-        if PkeyCtx <> Nil then begin
+    (*   if PkeyCtx <> Nil then begin
             if f_EVP_PKEY_CTX_ctrl(PkeyCtx, -1, EVP_PKEY_OP_TYPE_SIG,
                                                   EVP_PKEY_CTRL_MD, 0, Etype) <> 0 then
                     RaiseLastOpenSslError(EDigestException, FALSE,
@@ -421,17 +428,17 @@ begin
                                         'Failed to set EC curve for signing digest');
             end;
          { pending, may need to set RSA PSS stuff }
-        end;
+        end;  *)
 
-        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then begin
+  //      if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then begin   // V8.64 latest Wiki uses this version
             ret := f_EVP_DigestSignUpdate(DigestCtx, Pointer(Data), Length(Data));
             if (Ret <= 0) then RaiseLastOpenSslError(EDigestException, FALSE,
-                                      'Failed to update signing digest');
+                                               'Failed to update signing digest');
             ret := f_EVP_DigestSignFinal(DigestCtx, @Signature, SigLen);
-        end
+  {      end
         else
             ret := f_EVP_DigestSign(DigestCtx, @Signature, SigLen,
-                                                PAnsiChar(Data), Length(Data));  // Needs 1.1.1
+                                                PAnsiChar(Data), Length(Data));  // Needs 1.1.1  }
         if (Ret <= 0) then RaiseLastOpenSslError(EDigestException, FALSE,
                                     'Failed to finalise signing digest');
         if SigLen > 0 then begin
@@ -474,15 +481,15 @@ begin
         Ret := f_EVP_DigestVerifyInit(DigestCtx, Nil, Etype, Nil, PublicKey);
         if (Ret <= 0) then RaiseLastOpenSslError(EDigestException, FALSE,
                                     'Failed to initialise signing digest');
-        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then begin
-            ret := f_EVP_DigestSignUpdate(DigestCtx, Pointer(Data), Length(Data));  // aka EVP_DigestVerifyUpdate
+  //      if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then begin
+            ret := f_EVP_DigestVerifyUpdate(DigestCtx, Pointer(Data), Length(Data));  { V8.64 }
             if (Ret <= 0) then RaiseLastOpenSslError(EDigestException, FALSE,
                                         'Failed to update signing digest');
             ret := f_EVP_DigestVerifyFinal(DigestCtx, PAnsiChar(OldDigest), Length(OldDigest));
-        end
+    {    end
         else
             ret := f_EVP_DigestVerify(DigestCtx, PAnsiChar(OldDigest),
-                            Length(OldDigest), PAnsiChar(Data), Length(Data));
+                            Length(OldDigest), PAnsiChar(Data), Length(Data));  }
         if (Ret = 1) then
             Result := True
         else
@@ -506,7 +513,7 @@ var
     NewLen, I: Integer;
 begin
     S := Input;
-    NewLen := ((4 + Length(S)) div 4) * 4;
+    NewLen := ((3 + Length(S)) div 4) * 4;   { V8.64 too long } 
     while (NewLen > Length(S)) do S := S + '=';
     for I := 1 to Length(S) do begin
         if S[I] = '-' then S[I] := '+';
@@ -902,7 +909,7 @@ end;
 
 { RFC7515 build Json Web Signature or Token, with Acme private fields, }
 { using JWS JSON Serialization which is three Json blocks }
-
+{ used by ACME v2 }
 function IcsJoseJWSJson(JoseAlg: TJoseAlg; const Payload, HmacSecret: string;
           PrivateKey: PEVP_PKEY; const Typ, Jwk, Kid, Nonce: string;
                                                  const Url: string = ''): string;
@@ -958,7 +965,7 @@ end;
    "signature": "UYdG9MGyFE0ib68HOISHHq2VdASsLs3Kz1wXzdVWCZxxxx"
  }
 *)
-
+(* gone V8.64  no longer used
 function IcsJoseJWSAcme1(JoseAlg: TJoseAlg; const Payload: string;
           PrivateKey: PEVP_PKEY; const Jwk, Nonce: string): string;
 var
@@ -990,7 +997,7 @@ begin
                 '","payload":"' + PayloadEn +
                 '","signature":"' + SignatureEn + '"}';
 end;
-
+*)
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}

@@ -69,7 +69,7 @@ Oct 2018 - V8.58 - Angus Delphi 10.3 Rio, updated BCB for 10.1 and later
 Dec 2019 - V8.59 - Angus added AUTO_X509_CERTS to enable automatic SSL/TLS ordering
                       in SocketServer and other servers.
 Jul 2019 - V8.62 - Angus Turn off IMMUTABLE_STRINGS warnings in case project set them.
-Mar 2020 - V8.64 - Angus Delphi 10.4
+May 2020 - V8.64 - Angus Delphi 10.4 Sydney
 
 
   SYMBOL           Compiler version
@@ -114,7 +114,7 @@ Mar 2020 - V8.64 - Angus Delphi 10.4
   DELPHI24_UP      Delphi 24 or higher  (Delphi 10.1 Berlin - BigBen - BDS18)
   DELPHI25_UP      Delphi 25 or higher  (Delphi 10.2 Tokyo - Godzilla - BDS19)
   DELPHI26_UP      Delphi 26 or higher  (Delphi 10.3 Rio - Carnival - BDS20)
-  DELPHI27_UP      Delphi 27 or higher  (Delphi 10.4 ? - Denali - BDS21)
+  DELPHI27_UP      Delphi 27 or higher  (Delphi 10.4 Sydney - Denali - BDS21)
 
   BCB1             C++ Builder 1
   BCB3             C++ Builder 3
@@ -142,7 +142,7 @@ Mar 2020 - V8.64 - Angus Delphi 10.4
   BCB24_UP         C++ Builder 10.1 Berlin or higher
   BCB25_UP         C++ Builder 10.2 Tokyo or higher
   BCB26_UP         C++ Builder 10.3 Rio or higher
-  BCB27_UP         C++ Builder 10.4 ? or higher
+  BCB27_UP         C++ Builder 10.4 Sydney or higher
 
   COMPILER1        Delphi 1
   COMPILER2        Delphi 2  or C++ Builder 1
@@ -170,7 +170,7 @@ Mar 2020 - V8.64 - Angus Delphi 10.4
   COMPILER24       Delphi or C++ Builder 10.1 Berlin
   COMPILER25       Delphi or C++ Builder 10.2 Tokyo
   COMPILER26       Delphi or C++ Builder 10.3 Rio
-  COMPILER27       Delphi or C++ Builder 10.4 ?
+  COMPILER27       Delphi or C++ Builder 10.4 Sydney
 
   COMPILER1_UP     Delphi 1  or higher
   COMPILER2_UP     Delphi 2  or C++ Builder 1 or higher
@@ -198,7 +198,7 @@ Mar 2020 - V8.64 - Angus Delphi 10.4
   COMPILER24_UP    Delphi or C++ Builder 10.1 Berlin or higher (BigBen)
   COMPILER25_UP    Delphi or C++ Builder 10.2 Tokyo or higher (Godzilla)
   COMPILER26_UP    Delphi or C++ Builder 10.3 Rio or higher (Carnival)
-  COMPILER27_UP    Delphi or C++ Builder 10.4 ? or higher (Denali)
+  COMPILER27_UP    Delphi or C++ Builder 10.4 Sydney or higher (Denali)
 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * }
 

@@ -219,7 +219,7 @@ Nov 18, 2019 V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
                    Automatic cert ordering now Logs activity via the SslX509Certs
                      component since this one does not have logging.
                    Corrected INI file reading NostEnabled instead of HostEnabled.
-May 04, 2020 V8.64 IcsHosts allows NonSSlPort to be zero for random port, not for SSL.
+May 08, 2020 V8.64 IcsHosts allows NonSSlPort to be zero for random port, not for SSL.
                    Added BindPort read only property with real port while listening.
                    Added BindSrvPort to IcsHosts set while listening.
                    ListenStates now shows BindPort rather than requested port.
@@ -236,15 +236,21 @@ May 04, 2020 V8.64 IcsHosts allows NonSSlPort to be zero for random port, not fo
                    Removed ALPN handling added in V8.62 which was called too
                       late by OpenSSL to change the SSL context, now checking
                       ALPN earlier from new ClientHello callback.
-                   Internally replaced FRootCAX509 with FX509CAList TX509List for
-                      use by ValidateCertChain as Root CA store, specified by file
-                      RootCA, loaded by LoadRootCAList and available as RootCAList.
+                   Breaking change!  Internally replaced FRootCAX509 with FX509CAList
+                      TX509List for use by ValidateCertChain as Root CA store,
+                      specified by file RootCA, loaded by LoadRootCAList and
+                      available as RootCAList.  Any applications directly calling
+                      ValidateCertChain will need to load CA certificates into a
+                      TX509List to pass to that function.
                    Create a self signed SSL certificate so server can start if
                       certificate file can not be found or is missing.  Needed
                       for ChallengeType=ChallAlpnApp to create a new certificate,
                       but always done to make life easier.  Tries to use the
                       specified certificate directory, TEMPDIR if none specified.
-                    Don't start SSL certificate order until server is listening.
+                   Don't start SSL certificate order until server is listening.
+                   ACME tls-alpn-01 challenge context swapping now logged to
+                      X509Certs log instead of debug log.
+
 
 
 Quick reference guide:
@@ -3289,6 +3295,15 @@ var
     NewFStamp: TDateTime;
     FDir, FName: String;
 
+ { V8.64 SslX509Certs component allows better logging }
+    procedure X509Log(const Msg: String);
+    begin
+{$IFDEF AUTO_X509_CERTS}
+        if Assigned(FSslX509Certs) then
+            (FSslX509Certs as TSslX509Certs).LogEvent(Msg);
+{$ENDIF}
+    end;
+
   { V8.64 create self signed certificate }
     function CreateSelfSigned: Boolean;
     begin
@@ -3311,13 +3326,14 @@ var
                    on E:Exception do begin
                         FCertErrs := FCertErrs + ', Failed to Create Signed Certificate: ' +
                                                                         FName + ' - ' + E.Message;
+                        X509Log(FCertErrs);
                         Exit;
                    end;
                 end;
             end
             else begin
                 Result := True;
-                FCertErrs := FCertErrs + ', Using Existing Self Signed Certificate: ' + FName;
+                FCertErrs := FCertErrs + ', Skipped  New Self Signed Certificate, using: ' + FName;
             end;
 
       { should we try and download a new certificate }
@@ -3331,6 +3347,7 @@ var
                 else
                     FCertErrs := FCertErrs + ', Failed to Order New Certificate';
             end;
+            X509Log(FCertErrs);
 {$ENDIF}
         end;
     end;
@@ -3451,15 +3468,11 @@ begin
                               FX509CAList, FCertInfo, FCertErrs, FCertExpireDays);
         if FCertValRes = chainOK then begin
             FCertErrs := 'Chain Validated OK';
-            if FName <> '' then FCertErrs := FCertErrs +
-                            ', Using Default SSL certificate Instead: ' + FName;
             Result := True;
         end
         else begin
             if FCertValRes = chainWarn then begin
                 FCertErrs := 'SSL Certificate Chain Warning - ' + FCertErrs;
-                if FName <> '' then FCertErrs := FCertErrs +
-                            ', Using Default SSL certificate Instead: ' + FName;
                 Result := True;
             end
             else begin
@@ -3478,6 +3491,7 @@ begin
                 else
                     FCertErrs := FCertErrs + ', Failed to Order New Certificate';
             end;
+            X509Log(FCertErrs);
 {$ENDIF}
         end;
         except
@@ -3815,8 +3829,8 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 destructor TSslWSocketClient.Destroy;   { V8.62 }
 begin
-   FreeAndNil(AlpnSslCtx);
-  inherited;
+    FreeAndNil(AlpnSslCtx);
+    inherited;
 end;
 
 
@@ -3836,6 +3850,14 @@ var
     MyServer: TSslWSocketServer;
 {$IFDEF AUTO_X509_CERTS}  { V8.62 }
     CertFName: String;
+
+ { V8.64 log what is happening via SslX509Certs component }
+    procedure X509Log(const Msg: String);
+    begin
+        if Assigned(MyServer.FSslX509Certs) then
+            (MyServer.FSslX509Certs as TSslX509Certs).LogEvent(Msg);
+    end;
+
 {$ENDIF}
 begin
     inherited TriggerSslServerName(Ctx, ErrCode);
@@ -3881,47 +3903,32 @@ begin
                 if (CertFName <> '') and FileExists(CertFName) then begin
                     if NOT Assigned(AlpnSslCtx) then
                         AlpnSslCtx := TSslContext.Create(Self);
-                    if Assigned(Ctx) then
-                         AlpnSslCtx.Assign(Ctx);
                     AlpnSslCtx.SslCertX509.LoadFromFile(CertFName, croTry, croTry, 'password');
+                    AlpnSslCtx.SslVerifyPeer := false;
+                    AlpnSslCtx.SslVersionMethod := sslBestVer_SERVER;
+                    AlpnSslCtx.SslMinVersion := sslVerTLS1_2;
+                    AlpnSslCtx.SslMaxVersion := sslVerMax;
+                    AlpnSslCtx.SslCipherList := sslCiphersServer;
                     AlpnSslCtx.InitContext;
                     if AlpnSslCtx.CheckPrivateKey then begin
                         Ctx := AlpnSslCtx;
-                        {$IFNDEF NO_DEBUG_LOG}
-                        if CheckLogOptions(loSslInfo) then
-                            DebugLog(loSslInfo, 'Loaded new tls-alpn-01 challenge certificate: ' +
+                         X509Log('Client Hello Loaded new tls-alpn-01 challenge certificate: ' +
                                                                  AlpnSslCtx.SslCertX509.CertInfo(true));
-                        {$ENDIF}
                         ErrCode := teeOk;
                     end
-                    else begin
-                    {$IFNDEF NO_DEBUG_LOG}
-                        if CheckLogOptions(loSslInfo) then
-                            DebugLog(loSslInfo, 'Failed to load certificate, no private key or Context Error: ' + CertFName);
-                    {$ENDIF}
-                    end;
+                    else
+                        X509Log('Client Hello Failed to load certificate, no private key or Context Error: ' + CertFName);
                 end
-                else begin
-                {$IFNDEF NO_DEBUG_LOG}
-                    if CheckLogOptions(loSslInfo) then
-                        DebugLog(loSslInfo, 'Failed to find tls-alpn-01 challenge certificate: ' + CertFName);
-                {$ENDIF}
-                end;
+                else
+                    X509Log('Client Hello Failed to find tls-alpn-01 challenge certificate: ' + CertFName);
             except
                 on E:Exception do begin
-                {$IFNDEF NO_DEBUG_LOG}
-                    if CheckLogOptions(loSslInfo) then
-                        DebugLog(loSslInfo, 'Exception handling tls-alpn-01 challenge: ' + E.Message);
-                {$ENDIF}
+                    X509Log('Client Hello Exception handling tls-alpn-01 challenge: ' + E.Message);
                 end;
             end ;
         end
-        else begin
-            {$IFNDEF NO_DEBUG_LOG}
-                if CheckLogOptions(loSslInfo) then
-                    DebugLog(loSslInfo, 'ACME tls-alpn-01 challenge not handled');
-            {$ENDIF}
-        end;
+        else
+            X509Log('Client Hello ACME tls-alpn-01 challenge not handled');
     end;
    {$ENDIF}
 end;

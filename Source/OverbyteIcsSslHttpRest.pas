@@ -12,7 +12,7 @@ Description:  HTTPS REST functions, descends from THttpCli, and publishes all
               client SSL certificate.
               Includes functions for OAuth2 authentication.
 Creation:     Apr 2018
-Updated:      Mar 2020
+Updated:      May 2020
 Version:      8.64
 EMail:        francois.piette@overbyte.be  http://www.overbyte.be
 Support:      https://en.delphipraxis.net/forum/37-ics-internet-component-suite/
@@ -184,7 +184,7 @@ Nov 11, 2019  - V8.63 - The SMS Works sync delivery works OK, try and return
                            for Google, OAopAuthPrompt uses property LoginPrompt usually
                            'consent', OAopAuthAccess and RefreshOffline=True requests a
                            Refresh Token.
-Mar 26, 2020  - V8.64 - Added support for International Domain Names for Applications (IDNA),
+May 05, 2020  - V8.64 - Added support for International Domain Names for Applications (IDNA),
                          i.e. using accents and unicode characters in domain names.
                         Only  REST change here is to report A-Label domain looked up by DNS.
                         SimpleWebSrv returns host: name in Unicode.
@@ -201,8 +201,9 @@ Mar 26, 2020  - V8.64 - Added support for International Domain Names for Applica
                           works again.
                         TDnsQueryHttps component now uses strings and support IDNs.
                         TSimpleWebSrv no longer processes ALPN, done in SocketServer.
-
+                        Made TSimpleWebSrv.WebServer writable to set properties.
                         
+
 
 Pending - more documentation
 Pending - better SSL error handling when connections fail, due to too high security in particular.
@@ -546,7 +547,8 @@ type
 {$IFNDEF NO_DEBUG_LOG}
     SrvLogger:  TIcsLogger;
 {$ENDIF}
-    property WebServer: TSslWSocketServer           read FWebServer;
+    property WebServer: TSslWSocketServer           read  FWebServer
+                                                    write FWebServer;  { V8.64 }
     constructor  Create (Aowner: TComponent); override;
     destructor   Destroy; override;
     function  StartSrv: boolean ;

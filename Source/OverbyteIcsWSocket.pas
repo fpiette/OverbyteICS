@@ -1327,7 +1327,7 @@ Nov 18, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                    GetSelfSigned now has better check for self signed certificates.
                    Added Sha256Digest and Sha256Hex to TX509Base.
                    CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
-May 04, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+May 08, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
                      i.e. using accents and unicode characters in domain names.
                    DnsLookup now converts Unicode IDN into A-Label (Punycode ASCII)
                      so accented and non-ansi domains lookup correctly.  PunycodeHost
@@ -21280,7 +21280,7 @@ end;
 
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
-{ V8.64 convert list of ciphers from Client Hello to strings  }
+{ V8.64 convert list of ciphers from Client Hello to strings, 1.1.1 and later }
 { Warning - not working yet }
 function TCustomSslWSocket.SslBytesToCiphers(const CList: TBytes): String;
 var
@@ -21291,6 +21291,7 @@ begin
     Result := '';
     if (NOT Assigned(FSsl)) then Exit;
     if Length(CList) = 0 then Exit;
+    if NOT Assigned(f_SSL_bytes_to_cipher_list) then Exit;
     MyStack1 := f_OPENSSL_sk_new_null;
     MyStack2 := f_OPENSSL_sk_new_null;
     if f_SSL_bytes_to_cipher_list(FSsl, @CList, Length(CList), False, MyStack1, MyStack2)<> 1 then begin

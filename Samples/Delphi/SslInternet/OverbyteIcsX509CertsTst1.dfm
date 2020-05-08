@@ -3,7 +3,7 @@ object X509CertsForm: TX509CertsForm
   Top = 0
   Caption = 
     'ICS Automatically Download SSL X509 Certificates Development Dem' +
-    'o - http://www.overbyte.be - V8.64 - 4th May 2020'
+    'o - http://www.overbyte.be - V8.64 - 8th May 2020'
   ClientHeight = 742
   ClientWidth = 1024
   Color = clBtnFace
@@ -34,15 +34,11 @@ object X509CertsForm: TX509CertsForm
     Top = 0
     Width = 1024
     Height = 291
-    ActivePage = TabAcme2
+    ActivePage = TabCommon
     Align = alTop
     TabOrder = 1
     object TabCommon: TTabSheet
       Caption = 'Common'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label3: TLabel
         Left = 600
         Top = 10
@@ -116,7 +112,7 @@ object X509CertsForm: TX509CertsForm
         Top = 25
         Width = 176
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         TabOrder = 4
         Text = '0.0.0.0'
       end
@@ -170,7 +166,7 @@ object X509CertsForm: TX509CertsForm
         Top = 55
         Width = 175
         Height = 22
-        ItemHeight = 0
+        ItemHeight = 14
         ItemIndex = 3
         TabOrder = 6
         Text = 'SSL Negotiation'
@@ -333,7 +329,7 @@ object X509CertsForm: TX509CertsForm
         Width = 102
         Height = 22
         Style = csDropDownList
-        ItemHeight = 0
+        ItemHeight = 14
         ItemIndex = 0
         TabOrder = 17
         Text = 'Any'
@@ -792,6 +788,10 @@ object X509CertsForm: TX509CertsForm
     object TabAcme2: TTabSheet
       Caption = 'Acme V2'
       ImageIndex = 2
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label30: TLabel
         Left = 10
         Top = 15
@@ -849,7 +849,7 @@ object X509CertsForm: TX509CertsForm
         Top = 10
         Width = 431
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         TabOrder = 0
       end
       object DirAcmeConfV2: TEdit
@@ -865,7 +865,7 @@ object X509CertsForm: TX509CertsForm
         Width = 251
         Height = 22
         Style = csDropDownList
-        ItemHeight = 14
+        ItemHeight = 0
         ItemIndex = 1
         TabOrder = 3
         Text = 'RSA 2,048 bits (level 2 - 112 bits) '
@@ -955,7 +955,7 @@ object X509CertsForm: TX509CertsForm
         Top = 100
         Width = 187
         Height = 22
-        ItemHeight = 14
+        ItemHeight = 0
         ItemIndex = 0
         TabOrder = 11
         Text = 'Local Windows DNS Server'
@@ -1826,7 +1826,7 @@ object X509CertsForm: TX509CertsForm
       end
       object doDBCancel: TButton
         Left = 525
-        Top = 170
+        Top = 171
         Width = 100
         Height = 20
         Caption = 'Cancel Order'

@@ -1327,7 +1327,7 @@ Nov 18, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                    GetSelfSigned now has better check for self signed certificates.
                    Added Sha256Digest and Sha256Hex to TX509Base.
                    CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
-May 08, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+May 12, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
                      i.e. using accents and unicode characters in domain names.
                    DnsLookup now converts Unicode IDN into A-Label (Punycode ASCII)
                      so accented and non-ansi domains lookup correctly.  PunycodeHost
@@ -1367,7 +1367,7 @@ May 08, 2020 V8.64 Added support for International Domain Names for Applications
                       now accepts a shared TX509List instead for efficiency.
                    Fixed memory leak in SslGetAllCerts, and bad declarations of
                       SslProtoMsgCallback and CheckIPaddr thanks to Ralf Junker.
-                      
+
 
 
 Pending - server certificate bundle files may not have server certificate as first
@@ -15839,7 +15839,7 @@ var
         WLen, J: Integer;
     begin
         SetLength(Result, 0);
-        if (Length(DataExt) <= Base) then Exit;
+        if (Length(DataExt) <= (Base + 1)) then Exit;
         Wlen := DataExt[Base] div 2;
         SetLength(Result, WLen);
         if WLen > 0 then begin
@@ -15854,7 +15854,7 @@ var
         Len: Integer;
     begin
         SetLength(Result, 0);
-        if (Length(DataExt) <= 1) then Exit;
+        if (Length(DataExt) <= 2) then Exit;
         len := DataExt[1];
         SetLength(Result, Len);
         if Len > 0 then

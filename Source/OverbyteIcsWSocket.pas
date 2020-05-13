@@ -1327,7 +1327,7 @@ Nov 18, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                    GetSelfSigned now has better check for self signed certificates.
                    Added Sha256Digest and Sha256Hex to TX509Base.
                    CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
-May 12, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+May 13, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
                      i.e. using accents and unicode characters in domain names.
                    DnsLookup now converts Unicode IDN into A-Label (Punycode ASCII)
                      so accented and non-ansi domains lookup correctly.  PunycodeHost
@@ -15868,92 +15868,98 @@ begin
         Exit;
     end;
 
-{ client hello is SSLv2 format, nothing more ICS can do, not supported }
-    Ws.FCliHelloData.Sslv2 := (f_SSL_client_hello_isv2(SSL) = 1);
-    if Ws.FCliHelloData.Sslv2 then begin
-        {$IFNDEF NO_DEBUG_LOG}
-             Ws.DebugLog(loSslErr, 'CliHello> SSLv2 protocol not supported');
-        {$ENDIF}
-        al := 70; // TLS1_AD_PROTOCOL_VERSION
-        Result := SSL_CLIENT_HELLO_ERROR;
-        Exit;
-    end;
+{ decode client hello data, ignore if badly formatted or corrupted }
+    try
 
- { client version }
-    Ws.FCliHelloData.LegacyVersion := f_SSL_client_hello_get0_legacy_version(SSL);
+    { client hello is SSLv2 format, nothing more ICS can do, not supported }
+        Ws.FCliHelloData.Sslv2 := (f_SSL_client_hello_isv2(SSL) = 1);
+        if Ws.FCliHelloData.Sslv2 then begin
+            {$IFNDEF NO_DEBUG_LOG}
+                 Ws.DebugLog(loSslErr, 'CliHello> SSLv2 protocol not supported');
+            {$ENDIF}
+            al := 70; // TLS1_AD_PROTOCOL_VERSION
+            Result := SSL_CLIENT_HELLO_ERROR;
+            Exit;
+        end;
 
- { get random bytes for keys }
-    DataLen := f_SSL_client_hello_get0_random(SSL, DataPtr);
-    Ws.FCliHelloData.Random := GetByteDataPtr;
+     { client version }
+        Ws.FCliHelloData.LegacyVersion := f_SSL_client_hello_get0_legacy_version(SSL);
 
- { get session ID, server may use old session }
-    DataLen := f_SSL_client_hello_get0_session_id(SSL, DataPtr);
-    Ws.FCliHelloData.SessionId := GetByteDataPtr;
+     { get random bytes for keys }
+        DataLen := f_SSL_client_hello_get0_random(SSL, DataPtr);
+        Ws.FCliHelloData.Random := GetByteDataPtr;
 
- { get ciphers client can accept from us }
-    DataLen := f_SSL_client_hello_get0_ciphers(SSL, DataPtr);
-    Ws.FCliHelloData.CipherSuites := GetByteDataPtr;
+     { get session ID, server may use old session }
+        DataLen := f_SSL_client_hello_get0_session_id(SSL, DataPtr);
+        Ws.FCliHelloData.SessionId := GetByteDataPtr;
 
- { get list of extensions available in hello }
-    if (f_SSL_client_hello_get1_extensions_present(SSL, DataPtr, DataLen) = 1) then begin
-        SetLength(Ws.FCliHelloData.ExtnList, DataLen);
-        Move(DataPtr^, Ws.FCliHelloData.ExtnList[0], (DataLen*SizeOf(Integer)));
-        Ws.FCliHelloData.ExtnTotal := DataLen;
-        f_OPENSSL_free(DataPtr);
-    end;
+     { get ciphers client can accept from us }
+        DataLen := f_SSL_client_hello_get0_ciphers(SSL, DataPtr);
+        Ws.FCliHelloData.CipherSuites := GetByteDataPtr;
 
- { check extensions }
-    if Ws.FCliHelloData.ExtnTotal > 0 then begin
-        for I := 0 to Ws.FCliHelloData.ExtnTotal - 1 do begin
-            if (GetExtension(Ws.FCliHelloData.ExtnList[I]) > 0) then begin
-                case Ws.FCliHelloData.ExtnList[I] of
-        // SNI "000C 00 0009 6C6F63616C686F7374" received
-        //       len dns len l o c a l h o s t
-                    TLSEXT_TYPE_server_name: begin
-                        if (DataExt[0] = 0) and (DataExt[1] = DataLen - 2) then begin
-                            SLen := DataExt[4]; // skip entry type
-                            SetLength(Ws.FCliHelloData.PunyServerName, SLen);
-                            Move(DataExt[5], Ws.FCliHelloData.PunyServerName[1], Slen);
-                        { V8.64 if result has ACE xn--. convert it to Unicode, ignore errors }
-                            Ws.FCliHelloData.ServerName := IcsIDNAToUnicode(String(Ws.FCliHelloData.PunyServerName));
-                            Ws.FSslServerName := Ws.FCliHelloData.ServerName;
+     { get list of extensions available in hello }
+        if (f_SSL_client_hello_get1_extensions_present(SSL, DataPtr, DataLen) = 1) then begin
+            SetLength(Ws.FCliHelloData.ExtnList, DataLen);
+            Move(DataPtr^, Ws.FCliHelloData.ExtnList[0], (DataLen*SizeOf(Integer)));
+            Ws.FCliHelloData.ExtnTotal := DataLen;
+            f_OPENSSL_free(DataPtr);
+        end;
+
+     { check extensions }
+        if Ws.FCliHelloData.ExtnTotal > 0 then begin
+            for I := 0 to Ws.FCliHelloData.ExtnTotal - 1 do begin
+                if (GetExtension(Ws.FCliHelloData.ExtnList[I]) > 0) then begin
+                    case Ws.FCliHelloData.ExtnList[I] of
+            // SNI "000C 00 0009 6C6F63616C686F7374" received
+            //       len dns len l o c a l h o s t
+                        TLSEXT_TYPE_server_name: begin
+                            if (DataExt[0] = 0) and (DataExt[1] = DataLen - 2) then begin
+                                SLen := DataExt[4]; // skip entry type
+                                SetLength(Ws.FCliHelloData.PunyServerName, SLen);
+                                Move(DataExt[5], Ws.FCliHelloData.PunyServerName[1], Slen);
+                            { V8.64 if result has ACE xn--. convert it to Unicode, ignore errors }
+                                Ws.FCliHelloData.ServerName := IcsIDNAToUnicode(String(Ws.FCliHelloData.PunyServerName));
+                                Ws.FSslServerName := Ws.FCliHelloData.ServerName;
+                            end;
                         end;
-                    end;
-                    TLSEXT_TYPE_application_layer_protocol_negotiation: begin
-                        Ws.FCliHelloData.AlpnRaw := GetByteExt;
-                        Ws.FCliHelloData.AlpnList := IcsWireFmtToCSV(Ws.FCliHelloData.AlpnRaw,
-                                                              Length(Ws.FCliHelloData.AlpnRaw));
-                    end;
-                    TLSEXT_TYPE_elliptic_curves: begin
-                        Ws.FCliHelloData.EllipCurves := GetWordExt(1);
-                    end;
-                    TLSEXT_TYPE_signature_algorithms: begin
-                        Ws.FCliHelloData.SigAlgos := GetWordExt(1);
-                    end;
-                    TLSEXT_TYPE_ec_point_formats: begin
-                        Ws.FCliHelloData.ECPoints := GetWordExt(1);
-                    end;
-                    TLSEXT_TYPE_status_request: begin
-                       Ws.FCliHelloData.StatusRequest := GetByteExt;
-                    end;
-                    TLSEXT_TYPE_renegotiate: begin
-                       Ws.FCliHelloData.Renegotiate := GetByteExt;
-                    end;
-                    TLSEXT_TYPE_key_share: begin
-                       Ws.FCliHelloData.KeyShare := GetByteExt;
-                    end;
-                    TLSEXT_TYPE_psk_kex_modes: begin
-                       Ws.FCliHelloData.PSKExchMode := GetByteExt;
-                    end;
-                    TLSEXT_TYPE_psk: begin
-                       Ws.FCliHelloData.PSKData := GetByteExt;
-                    end;
-                    TLSEXT_TYPE_supported_versions: begin
-                        Ws.FCliHelloData.SuppVersions := GetWordExt(0);
+                        TLSEXT_TYPE_application_layer_protocol_negotiation: begin
+                            Ws.FCliHelloData.AlpnRaw := GetByteExt;
+                            Ws.FCliHelloData.AlpnList := IcsWireFmtToCSV(Ws.FCliHelloData.AlpnRaw,
+                                                                  Length(Ws.FCliHelloData.AlpnRaw));
+                        end;
+                        TLSEXT_TYPE_elliptic_curves: begin
+                            Ws.FCliHelloData.EllipCurves := GetWordExt(1);
+                        end;
+                        TLSEXT_TYPE_signature_algorithms: begin
+                            Ws.FCliHelloData.SigAlgos := GetWordExt(1);
+                        end;
+                        TLSEXT_TYPE_ec_point_formats: begin
+                            Ws.FCliHelloData.ECPoints := GetWordExt(1);
+                        end;
+                        TLSEXT_TYPE_status_request: begin
+                           Ws.FCliHelloData.StatusRequest := GetByteExt;
+                        end;
+                        TLSEXT_TYPE_renegotiate: begin
+                           Ws.FCliHelloData.Renegotiate := GetByteExt;
+                        end;
+                        TLSEXT_TYPE_key_share: begin
+                           Ws.FCliHelloData.KeyShare := GetByteExt;
+                        end;
+                        TLSEXT_TYPE_psk_kex_modes: begin
+                           Ws.FCliHelloData.PSKExchMode := GetByteExt;
+                        end;
+                        TLSEXT_TYPE_psk: begin
+                           Ws.FCliHelloData.PSKData := GetByteExt;
+                        end;
+                        TLSEXT_TYPE_supported_versions: begin
+                            Ws.FCliHelloData.SuppVersions := GetWordExt(0);
+                        end;
                     end;
                 end;
             end;
         end;
+    except
+       // ignore badly formatted extensions
     end;
 
 {$IFNDEF NO_DEBUG_LOG}
@@ -15971,51 +15977,55 @@ begin
 {$ENDIF}
 
  { SNI server name indication extension }
-    if (Ws.FSslServerName <> '') then begin
-        Ctx := nil;
-        Ws.FSsl_In_CB := TRUE;
-        try
-            Ws.FCliHelloData.SslTlsExtErr := teeOk;  { V8.26 ExtWarning stopped Java clients connecting }
-            Ws.TriggerSslServerName(Ctx, Ws.FCliHelloData.SslTlsExtErr);
-            if Ws.FCliHelloData.SslTlsExtErr = teeAlertFatal then begin     { reject SSL connection }
-                Result := SSL_CLIENT_HELLO_ERROR;
-                al := 112; // AD_UNRECOGNIZED_NAME;
-                Exit;
-            end;
+    try
+        if (Ws.FSslServerName <> '') then begin
+            Ctx := nil;
+            Ws.FSsl_In_CB := TRUE;
+            try
+                Ws.FCliHelloData.SslTlsExtErr := teeOk;  { V8.26 ExtWarning stopped Java clients connecting }
+                Ws.TriggerSslServerName(Ctx, Ws.FCliHelloData.SslTlsExtErr);
+                if Ws.FCliHelloData.SslTlsExtErr = teeAlertFatal then begin     { reject SSL connection }
+                    Result := SSL_CLIENT_HELLO_ERROR;
+                    al := 112; // AD_UNRECOGNIZED_NAME;
+                    Exit;
+                end;
 
-        { Do not switch context if not initialized }
-            if Assigned(Ctx) and Assigned(Ctx.FSslCtx) then begin
-                if Ws.SslContext <> Ctx then begin
-                {$IFNDEF NO_SSL_MT}
-                    LockServerNameCB.Enter;  { V8.15 }
-                    try
-                {$ENDIF}
-                        { Clear the options inherited from current Ctx.    }
-                        { Not sure whether it is required, shouldn't hurt. }
-                        f_Ics_SSL_clear_options(SSL,
-                                 f_Ics_SSL_CTX_get_options(Ws.SslContext.FSslCtx));     { V8.51 }
-                        Ws.SslContext := Ctx;
-                        f_SSL_set_SSL_CTX(SSL, Ctx.FSslCtx);
-                        f_Ics_SSL_set_options(SSL, f_Ics_SSL_CTX_get_options(ctx.FSslCtx));    { V8.51 }
-                    {$IFNDEF NO_DEBUG_LOG}
-                        if Ws.CheckLogOptions(loSslInfo) then
-                            Ws.DebugLog(loSslInfo, 'CliHello> Switching context server_name "'
-                                                                    + Ws.FSslServerName + '"');
+            { Do not switch context if not initialized }
+                if Assigned(Ctx) and Assigned(Ctx.FSslCtx) then begin
+                    if Ws.SslContext <> Ctx then begin
+                    {$IFNDEF NO_SSL_MT}
+                        LockServerNameCB.Enter;  { V8.15 }
+                        try
                     {$ENDIF}
-                {$IFNDEF NO_SSL_MT}
-                    finally
-                        LockServerNameCB.Leave;  { V8.15 }
+                            { Clear the options inherited from current Ctx.    }
+                            { Not sure whether it is required, shouldn't hurt. }
+                            f_Ics_SSL_clear_options(SSL,
+                                     f_Ics_SSL_CTX_get_options(Ws.SslContext.FSslCtx));     { V8.51 }
+                            Ws.SslContext := Ctx;
+                            f_SSL_set_SSL_CTX(SSL, Ctx.FSslCtx);
+                            f_Ics_SSL_set_options(SSL, f_Ics_SSL_CTX_get_options(ctx.FSslCtx));    { V8.51 }
+                        {$IFNDEF NO_DEBUG_LOG}
+                            if Ws.CheckLogOptions(loSslInfo) then
+                                Ws.DebugLog(loSslInfo, 'CliHello> Switching context server_name "'
+                                                                        + Ws.FSslServerName + '"');
+                        {$ENDIF}
+                    {$IFNDEF NO_SSL_MT}
+                        finally
+                            LockServerNameCB.Leave;  { V8.15 }
+                        end;
+                    {$ENDIF}
                     end;
-                {$ENDIF}
+                end;
+            finally
+                Ws.FSsl_In_CB := FALSE;
+                if Ws.FHSocket = INVALID_SOCKET then begin
+                    PostMessage(Ws.FWindowHandle, Ws.FMsg_WM_RESET_SSL, 0, 0);
+                    Result := SSL_CLIENT_HELLO_ERROR;
                 end;
             end;
-        finally
-            Ws.FSsl_In_CB := FALSE;
-            if Ws.FHSocket = INVALID_SOCKET then begin
-                PostMessage(Ws.FWindowHandle, Ws.FMsg_WM_RESET_SSL, 0, 0);
-                Result := SSL_CLIENT_HELLO_ERROR;
-            end;
         end;
+    except
+       // ignore SNI/ALPN event exceptions
     end;
 end;
 
@@ -25295,7 +25305,7 @@ begin
             S := S + ', ' + WSocketGetSigAlgStr(CliHello.SigAlgos[I]);
         Result := Result + S + IcsCRLF;
     end;
-    SetLength(Result, Length(Result) - 2); // strip last CRLF 
+    SetLength(Result, Length(Result) - 2); // strip last CRLF
 end;
 
 {$ENDIF}

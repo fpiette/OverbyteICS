@@ -1327,7 +1327,7 @@ Nov 18, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                    GetSelfSigned now has better check for self signed certificates.
                    Added Sha256Digest and Sha256Hex to TX509Base.
                    CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
-May 13, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+May 14, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
                      i.e. using accents and unicode characters in domain names.
                    DnsLookup now converts Unicode IDN into A-Label (Punycode ASCII)
                      so accented and non-ansi domains lookup correctly.  PunycodeHost
@@ -15812,6 +15812,7 @@ var
     DataLen: size_t;
     DataExt: TBytes;
     I, Slen: Integer;
+    ATemp: AnsiString;
 {$IFNDEF NO_DEBUG_LOG}
     S: String;
 {$ENDIF}
@@ -15915,10 +15916,11 @@ begin
                         TLSEXT_TYPE_server_name: begin
                             if (DataExt[0] = 0) and (DataExt[1] = DataLen - 2) then begin
                                 SLen := DataExt[4]; // skip entry type
-                                SetLength(Ws.FCliHelloData.PunyServerName, SLen);
-                                Move(DataExt[5], Ws.FCliHelloData.PunyServerName[1], Slen);
+                                SetLength(ATemp, SLen);
+                                Move(DataExt[5], Atemp[1], Slen);
+                                Ws.FCliHelloData.PunyServerName := String(ATemp);
                             { V8.64 if result has ACE xn--. convert it to Unicode, ignore errors }
-                                Ws.FCliHelloData.ServerName := IcsIDNAToUnicode(String(Ws.FCliHelloData.PunyServerName));
+                                Ws.FCliHelloData.ServerName := IcsIDNAToUnicode(Ws.FCliHelloData.PunyServerName);
                                 Ws.FSslServerName := Ws.FCliHelloData.ServerName;
                             end;
                         end;

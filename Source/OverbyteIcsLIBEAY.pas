@@ -150,10 +150,11 @@ Oct 19, 2018  V8.58 version only
 Jul 04, 2019  V8.62 Added f_OBJ_create to add new NIDs.
                     ICS_NID_acmeIdentifier created dynamically since NID missing.
                     Fixed Asn1ToString bad octet conversion to hex.
-May 04, 2020  V8.64 Added f_EVP_PKEY_set_alias_type, f_EVP_PKEY_id, f_d2i_PUBKEY(_bio),
+May 13, 2020  V8.64 Added f_EVP_PKEY_set_alias_type, f_EVP_PKEY_id, f_d2i_PUBKEY(_bio),
                       f_i2d_PUBKEY_bio, f_EVP_PKEY_new/get_raw_private/public_key.
                     Added f_OPENSSL_free.
-                    Fixed declarations of f_X509_check_ip_asc thanks to Ralf Junker.
+                    Fixed declarations of f_X509_check_ip_asc, f_EVP_DigestSignInit
+                       and f_EVP_DigestVerifyInit thanks to Ralf Junker.
                     Added more exports for key processing, thanks to Linden Roth. 
 
 
@@ -1991,11 +1992,11 @@ const
     f_EVP_DigestFinal :                        function(ctx: PEVP_MD_CTX; md: PAnsiChar; var s: integer): Integer; cdecl = Nil;           { V8.40 }
     f_EVP_DigestInit :                         function(ctx: PEVP_MD_CTX; etype: PEVP_MD): Integer; cdecl = Nil;                      { V8.40 }
     f_EVP_DigestSign :                         function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; var siglen: Integer; tbsret: PAnsiChar; tbslen: Integer): Integer; cdecl = Nil;  { V8.52 }
-    f_EVP_DigestSignInit :                     function(ctx: PEVP_MD_CTX; pctx: PEVP_PKEY_CTX; etype: PEVP_MD; impl: PEngine; pkey: PEVP_PKEY): Integer; cdecl = Nil;   { V8.40 }
+    f_EVP_DigestSignInit :                     function(ctx: PEVP_MD_CTX; var pctx: PEVP_PKEY_CTX; etype: PEVP_MD; impl: PEngine; pkey: PEVP_PKEY): Integer; cdecl = Nil;   { V8.40, V8.64 corrected declaration }
     f_EVP_DigestSignFinal :                    function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; var siglen: Integer): Integer; cdecl = Nil;  { V8.40 }
     f_EVP_DigestSignUpdate :                   function(ctx: PEVP_MD_CTX; d: Pointer; cnt: Integer): Integer; cdecl = Nil;             { V8.52 macro  }
     f_EVP_DigestVerify :                       function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; siglen: Integer; tbsret: PAnsiChar; tbslen: Integer): Integer; cdecl = Nil;  { V8.52 }
-    f_EVP_DigestVerifyInit :                   function(ctx: PEVP_MD_CTX; pctx: PEVP_PKEY_CTX; etype: PEVP_MD; impl: PEngine; pkey: PEVP_PKEY): Integer; cdecl = Nil;   { V8.40 }
+    f_EVP_DigestVerifyInit :                   function(ctx: PEVP_MD_CTX; var pctx: PEVP_PKEY_CTX; etype: PEVP_MD; impl: PEngine; pkey: PEVP_PKEY): Integer; cdecl = Nil;   { V8.40, V8.64 corrected declaration }
     f_EVP_DigestVerifyUpdate :                 function(ctx: PEVP_MD_CTX; d: Pointer; cnt: Integer): Integer; cdecl = Nil;                  { V8.64 }
     f_EVP_DigestVerifyFinal:                   function(ctx: PEVP_MD_CTX; sig: PAnsiChar; siglen: Integer): Integer; cdecl = Nil;           { V8.40 }
     f_EVP_EncryptFinal_ex :                    function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer): LongBool; cdecl = nil;   { V8.40 }

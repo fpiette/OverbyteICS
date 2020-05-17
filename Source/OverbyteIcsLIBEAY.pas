@@ -150,13 +150,15 @@ Oct 19, 2018  V8.58 version only
 Jul 04, 2019  V8.62 Added f_OBJ_create to add new NIDs.
                     ICS_NID_acmeIdentifier created dynamically since NID missing.
                     Fixed Asn1ToString bad octet conversion to hex.
-May 13, 2020  V8.64 Added f_EVP_PKEY_set_alias_type, f_EVP_PKEY_id, f_d2i_PUBKEY(_bio),
+May 17, 2020  V8.64 Added f_EVP_PKEY_set_alias_type, f_EVP_PKEY_id, f_d2i_PUBKEY(_bio),
                       f_i2d_PUBKEY_bio, f_EVP_PKEY_new/get_raw_private/public_key.
                     Added f_OPENSSL_free.
                     Fixed declarations of f_X509_check_ip_asc, f_EVP_DigestSignInit
                        and f_EVP_DigestVerifyInit thanks to Ralf Junker.
-                    Added more exports for key processing, thanks to Linden Roth. 
-
+                    Added more exports for key processing, thanks to Linden Roth.
+                    Fixed various EVP digest exports with size_t for Win64, thanks
+                       to Alexander Pastuhov.
+                       
 
 Pending - OpenSSL 3.0.0 may require numeric NID_xx to be replaced by string
 SN_xx and/or LN_xx (short/long name), ie CN or CommonName for NID_CommonName = 13.
@@ -1136,7 +1138,7 @@ const
     RSA_X931_PADDING                  = 5;
 // EVP_PKEY_ only
     RSA_PKCS1_PSS_PADDING             = 6;
-    
+
     RSA_PKCS1_PADDING_SIZE            = 11;
     RSA_PKCS1_OAEP_PADDING_SIZE       = 41;
     PKCS5_SALT_LEN                    =  8;
@@ -1985,20 +1987,20 @@ const
     f_EVP_DecryptFinal_ex :                    function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer): LongBool; cdecl = nil;   { V8.40 }
     f_EVP_DecryptInit_ex :                     function(ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; const key: PAnsiChar; const iv: PAnsiChar): LongBool; cdecl = nil;
     f_EVP_DecryptUpdate :                      function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
-    f_EVP_Digest :                             function(edata: Pointer; count: Integer; md: PAnsiChar; var size: integer; etype: PEVP_MD; impl: PEngine): Integer; cdecl = Nil;    { V8.40 }
+    f_EVP_Digest :                             function(edata: Pointer; count: size_t; md: PAnsiChar; var size: integer; etype: PEVP_MD; impl: PEngine): Integer; cdecl = Nil;    { V8.40, V8.64 corrected declaration }
     f_EVP_DigestFinal_ex :                     function(ctx: PEVP_MD_CTX; md: PAnsiChar; var s: integer): Integer; cdecl = Nil;               { V8.40 }
     f_EVP_DigestInit_ex :                      function(ctx: PEVP_MD_CTX; etype: PEVP_MD; impl: PEngine): Integer; cdecl = Nil;       { V8.40 }
-    f_EVP_DigestUpdate :                       function(ctx: PEVP_MD_CTX; d: Pointer; cnt: Integer): Integer; cdecl = Nil;             { V8.40 }
-    f_EVP_DigestFinal :                        function(ctx: PEVP_MD_CTX; md: PAnsiChar; var s: integer): Integer; cdecl = Nil;           { V8.40 }
+    f_EVP_DigestUpdate :                       function(ctx: PEVP_MD_CTX; d: Pointer; cnt: size_t): Integer; cdecl = Nil;             { V8.40, V8.64 corrected declaration }
+    f_EVP_DigestFinal :                        function(ctx: PEVP_MD_CTX; md: PAnsiChar; var s: Integer): Integer; cdecl = Nil;       { V8.40 }
     f_EVP_DigestInit :                         function(ctx: PEVP_MD_CTX; etype: PEVP_MD): Integer; cdecl = Nil;                      { V8.40 }
-    f_EVP_DigestSign :                         function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; var siglen: Integer; tbsret: PAnsiChar; tbslen: Integer): Integer; cdecl = Nil;  { V8.52 }
+    f_EVP_DigestSign :                         function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; var siglen: size_t; tbsret: PAnsiChar; tbslen: size_t): Integer; cdecl = Nil;  { V8.52, V8.64 corrected declaration }
     f_EVP_DigestSignInit :                     function(ctx: PEVP_MD_CTX; var pctx: PEVP_PKEY_CTX; etype: PEVP_MD; impl: PEngine; pkey: PEVP_PKEY): Integer; cdecl = Nil;   { V8.40, V8.64 corrected declaration }
-    f_EVP_DigestSignFinal :                    function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; var siglen: Integer): Integer; cdecl = Nil;  { V8.40 }
-    f_EVP_DigestSignUpdate :                   function(ctx: PEVP_MD_CTX; d: Pointer; cnt: Integer): Integer; cdecl = Nil;             { V8.52 macro  }
-    f_EVP_DigestVerify :                       function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; siglen: Integer; tbsret: PAnsiChar; tbslen: Integer): Integer; cdecl = Nil;  { V8.52 }
+    f_EVP_DigestSignFinal :                    function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; var siglen: size_t): Integer; cdecl = Nil;  { V8.40, V8.64 corrected declaration }
+    f_EVP_DigestSignUpdate :                   function(ctx: PEVP_MD_CTX; d: Pointer; cnt: size_t): Integer; cdecl = Nil;             { V8.52 macro, V8.64 corrected declaration }
+    f_EVP_DigestVerify :                       function(ctx: PEVP_MD_CTX; sigret: PAnsiChar; siglen: size_t; tbsret: PAnsiChar; tbslen: size_t): Integer; cdecl = Nil;  { V8.52, V8.64 corrected declaration }
     f_EVP_DigestVerifyInit :                   function(ctx: PEVP_MD_CTX; var pctx: PEVP_PKEY_CTX; etype: PEVP_MD; impl: PEngine; pkey: PEVP_PKEY): Integer; cdecl = Nil;   { V8.40, V8.64 corrected declaration }
-    f_EVP_DigestVerifyUpdate :                 function(ctx: PEVP_MD_CTX; d: Pointer; cnt: Integer): Integer; cdecl = Nil;                  { V8.64 }
-    f_EVP_DigestVerifyFinal:                   function(ctx: PEVP_MD_CTX; sig: PAnsiChar; siglen: Integer): Integer; cdecl = Nil;           { V8.40 }
+    f_EVP_DigestVerifyUpdate :                 function(ctx: PEVP_MD_CTX; d: Pointer; cnt: size_t): Integer; cdecl = Nil;                  { V8.64 }
+    f_EVP_DigestVerifyFinal:                   function(ctx: PEVP_MD_CTX; sig: PAnsiChar; siglen: size_t): Integer; cdecl = Nil;           { V8.40, V8.64 corrected declaration }
     f_EVP_EncryptFinal_ex :                    function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer): LongBool; cdecl = nil;   { V8.40 }
     f_EVP_EncryptInit_ex :                     function(ctx: PEVP_CIPHER_CTX; const cipher: PEVP_CIPHER; impl: PEngine; const key: PAnsiChar; const iv: PAnsiChar): LongBool; cdecl = nil;
     f_EVP_EncryptUpdate :                      function(ctx: PEVP_CIPHER_CTX; out_: PAnsiChar; var outl: Integer; const in_: PAnsiChar; inl: Integer): LongBool; cdecl = nil;
@@ -2013,7 +2015,7 @@ const
     f_EVP_MD_block_size :                      function(md: PEVP_MD): Integer; cdecl = Nil;                       { V8.40 }
     f_EVP_MD_flags :                           function(md: PEVP_MD): LongInt; cdecl = Nil;                       { V8.40 }
     f_EVP_MD_CTX_md :                          function(ctx: PEVP_MD_CTX): PEVP_MD; cdecl = Nil;                  { V8.40 }
-    f_EVP_PKEY_CTX_ctrl :                      function(pctx: PEVP_PKEY_CTX; keytype: Integer; optype: Integer; cmd: Integer; p1: Integer; p2: Pointer): Integer; cdecl = Nil; { V8.49 }                  { V8.49 }
+    f_EVP_PKEY_CTX_ctrl :                      function(pctx: PEVP_PKEY_CTX; keytype: Integer; optype: Integer; cmd: Integer; p1: Integer; p2: Pointer): Integer; cdecl = Nil; { V8.49 }                  
     f_EVP_PKEY_CTX_ctrl_str :                  function(pctx: PEVP_PKEY_CTX; typestr: PAnsichar; valuestr: PAnsiChar): Integer; cdecl = Nil;   { V8.49 }
     f_EVP_PKEY_CTX_dup :                       function(pctx: PEVP_PKEY_CTX): PEVP_PKEY_CTX; cdecl = Nil;             { V8.49 }
     f_EVP_PKEY_CTX_free :                      procedure(pctx: PEVP_PKEY_CTX); cdecl = Nil;                           { V8.49 }
@@ -2069,8 +2071,8 @@ const
     f_EVP_PKEY_verify_init :                   function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;      { V8.49 }
     f_EVP_PKEY_verify_recover :                function(pctx: PEVP_PKEY_CTX; rout: PAnsiChar; var routlen: size_t; const sig: PAnsiChar; siglen: size_t): Integer; cdecl = Nil;      { V8.49 }
     f_EVP_PKEY_verify_recover_init :           function(pctx: PEVP_PKEY_CTX): Integer; cdecl = Nil;      { V8.49 }
-    f_EVP_SignFinal :                          function(ctx: PEVP_MD_CTX; var md: Byte; var s: Word; pkey: PEVP_PKEY): Integer; cdecl = Nil;        { V8.40 }
-    f_EVP_VerifyFinal :                        function(ctx: PEVP_MD_CTX; sigbuf: PByte; siglen: Word; pkey: PEVP_PKEY): Integer; cdecl = Nil;      { V8.40 }
+    f_EVP_SignFinal :                          function(ctx: PEVP_MD_CTX; var md: Byte; var s: Integer; pkey: PEVP_PKEY): Integer; cdecl = Nil;        { V8.40, V8.64 corrected declaration }
+    f_EVP_VerifyFinal :                        function(ctx: PEVP_MD_CTX; sigbuf: PByte; siglen: Integer; pkey: PEVP_PKEY): Integer; cdecl = Nil;      { V8.40, V8.64 corrected declaration }
     f_EVP_aes_128_cbc :                        function: PEVP_CIPHER; cdecl = nil;
     f_EVP_aes_128_cfb128 :                     function: PEVP_CIPHER; cdecl = nil; { V8.40 }
     f_EVP_aes_128_ecb :                        function: PEVP_CIPHER; cdecl = nil; { V8.40 }

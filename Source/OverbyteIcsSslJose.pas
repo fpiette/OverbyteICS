@@ -74,11 +74,13 @@ May 21, 2018  - 8.54 - baseline
 Oct 2, 2018   - 8.57 - build with FMX
 Aug 07, 2019  - 8.62 - build Jason Web Token (JWT)
                        Builds without USE_SSL
-May 14, 2020  - 8.64 - IcsJoseFindAlg accepts RSA-PSS keys for jsigRsa256/512
+May 17, 2020  - 8.64 - IcsJoseFindAlg accepts RSA-PSS keys for jsigRsa256/512
                          (Google) and Ed25519 keys for jsigEdDSA
                        IcsJoseJWKPubKey needs OpenSSL 1.1.1e to support RSA-PSS keys.
                        Fixed a bug in IcsBase64UrlDecode thanks to Linden Roth.
                        Cleaned up signing and verifying functions.
+                       Fixed various EVP digests with size_t for Win64, thanks
+                         to Alexander Pastuhov.
 
 
 
@@ -287,7 +289,8 @@ var
     Etype: PEVP_MD;
     DigestCtx: PEVP_MD_CTX;
     PkeyCtx: PEVP_PKEY_CTX;   { V8.64 }
-    SigLen, Ret: integer;
+    SigLen: size_t;           { V8.64 }
+    Ret: integer;
 begin
     Result := '';
     PKey := f_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, Nil, PAnsiChar(Key), Length(Key));
@@ -387,7 +390,8 @@ var
     Etype: PEVP_MD;
     PkeyCtx: PEVP_PKEY_CTX;
     DigestCtx: PEVP_MD_CTX;
-    SigLen, Ret, keytype: integer;
+    SigLen: size_t;           { V8.64 }
+    Ret, keytype: integer;
 begin
     Result := '';
     if not Assigned(PrivateKey) then
@@ -481,6 +485,7 @@ begin
         (keytype <> EVP_PKEY_ED25519) and (keytype <> EVP_PKEY_RSA_PSS) then
               Raise EDigestException.Create('Unsupported public key type');
     DigestCtx := f_EVP_MD_CTX_new;
+    PkeyCtx := Nil;
     try
         Etype := IcsSslGetEVPDigest(HashDigest);
         if keytype = EVP_PKEY_ED25519 then
@@ -506,7 +511,7 @@ begin
         if (Ret = 0) then
             Result := False
         else
-            RaiseLastOpenSslError(EDigestException, FALSE, 'Failed to verifyse signing digest');
+            RaiseLastOpenSslError(EDigestException, FALSE, 'Failed to verify signing digest');
     finally
         f_EVP_MD_CTX_free(DigestCtx);
     end;

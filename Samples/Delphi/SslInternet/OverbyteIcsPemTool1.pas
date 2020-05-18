@@ -101,7 +101,7 @@ Apr 16, 2019 V8.61 Show certificate expiry and issue time as well as date.
 Jul  9, 2019 V8.62 Load several type lists from literals for future proofing.
                    Report ACME Identifier in certificate, if it exists.
 Oct 24, 2019 V8.63 Report certificate sha256 fingerprint as well as sha1
-May 08, 2020 V8.64  Added support for International Domain Names for Applications (IDNA),
+May 18, 2020 V8.64  Added support for International Domain Names for Applications (IDNA),
                      i.e. using accents and unicode characters in domain names.
                     X509 certificates always have A-Lavels (Punycode ASCII) domain names,
                       never UTF8 or Unicode.   IDNs are converted back to Unicode
@@ -147,7 +147,7 @@ uses
 
 const
      PemToolVersion     = 864;
-     PemToolDate        = 'May 08, 2020';
+     PemToolDate        = 'May 18, 2020';
      PemToolName        = 'PEM Certificate Tool';
      CopyRight : String = '(c) 2003-2020 by François PIETTE V8.64 ';
      CaptionMain        = 'ICS PEM Certificate Tool - ';

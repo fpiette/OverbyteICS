@@ -68,17 +68,17 @@ the server returning a special self signed SSL certificate. and email validation
 where an email is sent to a predefined address at the domain, ie admin@domain,
 with a supplier link that must be clicked to confirm receipt and domain ownership.
 
-File, SNI and domain validation challenges can both be automated, file is easiest
-using a simple HTTP server, SNI using an HTTPS server, while domain validation is
-dependent on being able to access and control the DNS server of which there are
-many different products.  Note file validation challenges are not instant, the
-supplier may have a queue of challenges waiting to the tested, but usually happen
-within a couple of minutes. Applications need to be aware the wait may be longer.
+File, TLS-ALPN and domain validation challenges can be automated, file is easiest
+using a simple HTTP server, TLS-ALPN using an HTTPS server, while domain validation
+is dependent on being able to access and control the DNS server of which there are
+many different products.  Note validating challenges are not instant, the supplier
+may have a queue of challenges waiting to the tested, but usually happen within a
+couple of minutes. Applications need to be aware the wait may be longer.
 Automated wild card certificates typically use the domain validation challenge.
 
 Organisation and Extended Validated certificates can be ordered online, but
 require manual validation that the company or organisation legally exists and is
-entitled to use the domain name, which may take several days or weeks for extended
+entitled to use the domain name which may take several days or weeks for extended
 validation if legal evidence is required.  Once approved, the certificate and be
 downloaded automatically.
 
@@ -89,40 +89,27 @@ TSslX509Certs Overview
 The TSslX509Certs component automatically downloads SSL/TLS X509 certificates from
 various suppliers, including free certificates from Let's Encrypt, and commercial
 certificates for Digicert, Comodo, Thawte and GeoTrust from CertCentre AG and
-Servertastic (not done yet).  The component  automates the process from creating
+Servertastic (not done yet).  The component automates the process from creating
 a new private key and certificate request, placing the order, arranging for
 domain validated certificates to be checked by various challenge methods,
 collecting the certificate and intermediate, creating PEM and PKC12 bundle files
 with the private key, then copying the files to the web server ready for
 automatic installation. The TSslWSocketServer, TSslHttpServer, TSslHttpAppSrv,
-TIcsProxy and TIcsHttpProxy components can assign a TSslX509Certs component to
-support automatic certificate ordering of domain validated certificates with
-very little extra code.
+TIcsProxy, TIcsHttpProxy, TSslFtpServer and TIcsIpStrmLog components can assign
+a TSslX509Certs component to support automatic certificate ordering of domain
+validated certificates with very little extra code.
 
-The component supports automated file challenge for Domain Validated certificates,
-using an external HTTP server such as IIS or HTTP server component such as
-TSslHttpServer or TSslHttpAppSrv to which files may be copied using UNC
-shares, or a built-in local HTTP server so the component is self contained.
-In all cases, the web server must be accessible from the public internet for the
-domain (or domains) for which a certificate is being ordered.  The application
-can also use an FTP server to copy files to an external HTTP server. DNS
-challenge currently require the application to update the DNS server, the demo
-application waits a few minutes for the user to manually update the DNS server
-which allows wild card certificates to be ordered.  A pending feature is
-TLS-ALPN SSL SNI challenges for Let's Encrypt using HTTPS.
-
-The component supports the ACME V1 and V2 protocols as implemented by Let's
-Encrypt to download free domain validated certificates, beware V1 bears little
-resemblance to any of the Acme Internet Draft specifications, V2 is much closer
-to draft 10 but only implemented sufficiently for Let's Encrypt, V2 is designed
+The component supports the Acme V2 protocol specified in RFC8555 as implemented
+by Let's Encrypt to download free domain validated certificates. Note the Acme
+protocol is only implemented sufficiently for Let's Encrypt, it is designed
 to also handle commercial certificates which are more complicated to process.
-Note that Acme V1 has been superseded by V2, and was only supported because V2
-did not go public until March 2018.
+The component will be updated to support commercial suppliers with Acme, when
+we find one.
 
 You don't need to register with Let's Encrypt, but it only supplies domain
 validated certificates so the domains for which you order certificates must
-already be registered and have DNS pointing to a live HTTP (HTTPS next release)
-server to satisfy the domain challenge.
+already be registered and have DNS pointing to a live server to satisfy most
+challenges.
 
 Commercial suppliers of certificates have their own APIs, usually using HTTP
 REST, currently the component supports CertCentre AG https://www.certcenter.de/,
@@ -142,6 +129,108 @@ checked to see if a challenge has been successful when the X509 certificate can
 be automatically downloaded and installed.  Events are generated upon completion
 or failure, allowing the application to inform the user (by email) of certificate
 ordering progress.
+
+
+TSslX509Certs Challenges
+------------------------
+
+To authenticate Domain Validated X509 certificates, the TSslX509Certs component
+offers various challenge methods, variously used by different suppliers, products
+and ICS components.  Challenges work by the supplier generating a short random
+phrase which must become accessible on the public internet using the domains for
+which a certificate is being ordered to prove that domain is controlled by whoever
+placed the order.
+
+ChallFileUNC  - File - Web Server - UNC: copies a small file into the .well-known
+                directory of the server using a UNC path, may be any type of web
+                server on the same or remote PC.  Once the challenge is done,
+                the issued X509 certificate may be copied to that server.
+                Requires a web server listening on port 80 and the domain being
+                validated and path /.well-known/.  If a certificate is being
+                ordered with two or more Alternate Subject Names, separate
+                challenges are required for each separate domain name.  Wild card
+                certificates are not supported.
+
+ChallFileFtp  - File - Web Server - FTP: similar to ChallFileUNC, but the
+                application needs extra code to copy the file using FTP.
+
+ChallFileApp  - File - App Web Server: similar to ChallFileUNC, but handles the
+                challenge file virtually without creating any files using a
+                little code in the web server onWellKnownDir event to call an
+                function in TSslX509Certs where the path is checked and a virtual
+                file returned with the challenge data.  Currently supported by
+                the SslHttpServer, TSslHttpAppSrv, TIcsProxy and TIcsHttpProxy
+                components, see SslHttpAppSrv1WellKnownDir in the sample
+                OverbyteIcsSslMultiWebServ1.pas for an example.
+
+ChallFileSrv  - File - Local Web Server: similar to ChallFileApp, but uses a
+                local web server TSimpleWebSrv listening on port 80 and the
+                domain being validated, provided no other web server is using
+                the same port and address.  This is used by the sample
+                OverbyteIcsX509CertsTst to order certificates separately without
+                needing a web server, and by the TSslFtpServer and TIcsIpStrmLog
+                components which don't usually listen on port 80.  The local web
+                server is only run while waiting for the challenge to be accessed
+                by the supplier, usually about a minute, but can not conflict
+                with any other web server on the same IP address.
+
+ChallDnsAuto  - DNS - Automatic: the challenge comprises a TXT record in the
+                Domain Name Server Forward Lookup Zone for the domain.  Currently,
+                this requires application code to access the DNS server which is
+                in the sample OverbyteIcsX509CertsTst.  It uses WMI to access a
+                Windows 2012 or later public DNS Server on the same PC.  The next
+                release will also support Cloudfare DNS via a REST API, and maybe
+                other cloud providers.  The benefit of using DNS is no conflicts
+                with web servers, and ordering wild card certificates like
+                *.ftptest.org that work with any sub-domains to avoid ordering
+                certificates for each.  A certificate may have multiple wild card
+                names, such as *.ftptest.org.uk and *.ftptest.co.uk.
+
+ChallDnsMan   - DNS - Manual: similar to ChallDnsAuto, but just calls an event
+                in the application which finds an alternate method of updating
+                the Domain Name Server, supported in OverbyteIcsX509CertsTst
+                which allows DNS to be updated manually before starting the
+                actual certificate order.
+
+ChallAlpnApp  - TLS-ALPN - App Web: this challenge uses the normal SSL port 443
+                to avoid needing a non-SSL web server running on port 80. A
+                special SSL/TLS certificate is created for the domain containing
+                the challenge phrase which is returned instead of the normal
+                certificate when the SSL client hello includes a special ALPN.
+                This needs one line in the onClientConnect event to call a
+                function in TSslX509Certs where the certificate is created.
+                See the sample OverbyteIcsSslMultiWebServ1.pas for an example.
+                Only catch with this challenge is requesting the first certificate
+                for a new domain, the server won't start without a certificate,
+                so will automatically create a self signed certificate to start.
+
+ChallAlpnSrv  - TLS-ALPN - Local Web: similar to ChallAlpnApp, but uses a local
+                web server TSimpleWebSrv listening on port 443 and the domain
+                being validated, provided no other web server is using the same
+                port and address, see comments about ChallFileSrv above.
+
+ChallAlpnUNC  - TLS-ALPN - Web UNC: similar to ChallAlpnApp, but copies the
+                special SSL certificate to another server that is responsible
+                for implementing the ALPN part of the process, don't know of
+                such a web server.
+
+ChallEmail    - Email Manually:  calls an event in the application, that could
+                send an email automatically, only supported for CertCentre.
+
+For all the automated challenges above, the certificate order process involves
+first testing the challenge with locally generated data to ensure the servers
+are responding correctly from the public internet, then getting the real
+challenge data from the supplier and again checking it can be accessed from the
+public internet, before asking the supplier to start testing the challenges.
+Let's Encrypt currently tests challenges three times from servers on different
+networks to avoid DNS spoofing.  In practice this all takes place within
+seconds.
+
+Beware that within a few seconds of a certificate order being completed, hackers
+will start making intrusion attempts on the server domain name, typically looking
+for PHP pages used to administer popular web servers, which ICS applications
+will ignore.  This happens because all SSL certificate appear in public
+transparency logs, and the hackers watch these logs.
 
 
 TSslX509Certs Accounts
@@ -256,7 +345,7 @@ IssStateInstall    - Certificate has been installed for the server by the
                      component. not supported yet.
 IssStateCancel     - Cancelled order, perhaps revoked certificate, so can not
                      collect certificate again.
-                     
+
 
 TSslX509Certs Sample Application
 --------------------------------
@@ -313,14 +402,14 @@ Alternate Names, the sample application will add the Common Name to the SAN list
 if not done manually. If Domain Challenge is for UNC file, set the Web Server UNC
 HTTP .Well-Known Directory' for the Common Name, and optionally for each SAN if
 different.  If the final certificates are to be copied to the web server, set the
-Web Server UNC Public Certificates Directory. Clicking the Test Well-Known button
-will copy a file to the web server and attempt to access it using the domain name,
-to prove future challenges will be successful.  If commercial certificates are
-being ordered using Email Challenge, each SAN should specify the Approval Email
-address required (scroll across the grid).  There are various Output Certificate
-Formats that may be ticked or unticked to reduce the number of unneeded files,
-Separate PEM Files, PEM Bundle File, PKCS12/PFX Bundle File, PKCS7 Bundle File
-and CSR PEM File.
+Web Server UNC Public Certificates Directory. Clicking the Test Domain Challenges
+button set-up challenges for all the domains and try to access them locally, to
+prove future challenges will be successful.  If commercial certificates are being
+ordered using Email Challenge, each SAN should specify the Approval Email address
+required (scroll across the grid).  There are various Output Certificate Formats
+that may be ticked or unticked to reduce the number of unneeded files, Separate
+PEM Files, PEM Bundle File, PKCS12/PFX Bundle File, PKCS7 Bundle File and CSR
+PEM File.
 
 The Cert Admin tab has a lot more fields relating to certificate orders. All
 certificates need to specify a Private Key Type and Size depending on security
@@ -350,45 +439,60 @@ Let's Encrypt offers live and staging servers, the latter is best for testing
 since it issue certificates signed by a fake CA and there are fewer rate limits
 than the live server which will only issue five duplicate certificates a week
 (if ordering goes mad), no more than 50 per domain per week and five failed
-domain validations per hour.
+domain validations per hour.   The component stops more than one order per
+day for each domain.
+
+For local orders using the sample, there are six buttons numbered in the sequence
+in which they are used during ordering.  For orders from applications, some of
+these steps are combined.
 
 Select a Account Directory for the database and certificates files, either by
 typing a path or clicking the square path box to select a Database Directory
-using a dialog window.  Click 'Register Account' which will create a new account
-private key or open an old one, and then register the account.  Once the account
- is open, the Supplier Database tab will be updated with account details and any
- certificate orders in the account database, with their issue state and details.
+using a dialog window.  Click 'Register Account (1)' which will create a new
+account private key or open an old one, and then register the account.  Once the
+account is open, the Supplier Database tab will be updated with account details
+and any certificate orders in the account database, with their issue state and
+details.
 
 After completing all the necessary domain name and certificate details on the
-Common, Domain and Cert Admin tabs, click 'Check Order' which will check the
-challenge method specified on the Common tab is valid and repeat the local
-'Test Well-Known' check for file challenges.  If the checks succeed, the order
-will be written to the account database, and the 'Order Certificate' button
-enabled.  The Supplier Database tab will be updated with the new order with
-an Issue State of Checked.
+Common, Domain and Cert Admin tabs, click 'Check Order (2)' which will check the
+challenge method specified on the Common tab is valid and locally test all the
+challenges for all domains specified.  If the local order checks succeed, the
+order will be written to the account database, and the 'Get Challenges (3)'
+button enabled.  The Supplier Database tab will be updated with the new order
+with an Issue State of Checked.
 
-Now click the 'Order Certificate' button to start the order process.  There will
-be another local 'Test Well-Known' check.  Then Let's Encrypt is asked if it can
-register each of the domain names for the certificate.  If the names are
-acceptable, information about the actual challenge is returned by the supplier
-and the component prepares it by writing a queue record to the database and then
-by copying a file to the web server .well-known directory or starting the local
-web server, or for FTP and DNS by raising an event so the application can prepare
-the challenge before returning.  The sample application waits five minutes for
-the DNS server to be updated manually.
+Now click the 'Get Challenges (3)' button to start the order process.  Let's
+Encrypt is asked to issue challenges for each of the domain names requested,
+which the component then prepares and writes to queue records in the database.
+As discussed above, challenges may include writing files, creating special
+SSL certificates or adding records to a Domain Name Server.  Let's Encrypt
+challenge data remains valid for about one week, so the certificate does not
+need to ordered immediately, or the same domains may have further certificates
+issued without new challenges.  This also allows time for a Domain Name Server
+to me manually updated (only for orders from the sample application).  Once
+the challenges are ready, the 'Test Challenges (4)' button is enabled and order
+state changes to ChallgReq.
 
-Once the challenge is ready, Let's Encrypt is instructed to test the challenge,
-which may take a few seconds or minutes, and the Issue State on the Supplier
-Database tab will be updated to 'Challg Pend', and the 'Collect Certificate'
-button will be enabled.
+Clicking 'Test Challenges (4)' button starts locally test them, to make sure the
+domains, files, etc are available from the public internet correctly.  Once
+successful the 'Start Challenges (5)' button is enabled and order state changes
+to ChallgTest.
+
+Clicking 'Start Challenges (5)' asks Let's Encrypt to test the challenges,
+which usually takes from 15 seconds to a minute, unless they are very busy.
+there are usually at least three challenge tests from different networks.
+The Issue State on the Supplier Database tab will be updated to ChallgPend.
 
 If Automatic Order Completion is enabled (on the Common tab), the component will
-check for successful or failed challenges every 30 seconds while the sample
-application is running, updating Issue Status to 'Challg OK', 'Collected' and
-'Installed' if the order is successful, or 'None' if it fails the challenges or
-problems in collecting the certificate. If Automatic Order Completion is not
-enabled, clicking the 'Collect Certificate' button will check if the challenges
-have been successful and proceed to collect the new SSL certificate.
+check for successful or failed challenges every 10 seconds while the sample
+application is running, updating Issue Status to ChallgOK, Collected and
+Installed if the order is successful, or None if it fails the challenges or
+problems in collecting the certificate.
+
+If Automatic Order Completion is not enabled, clicking the 'Collect Certificate
+(6)' button will check if the challenges have been successful and proceed to
+collect the new SSL certificate.
 
 Multiple certificate orders may be placed using the same account, without waiting
 for earlier orders to be completed.  If the sample application is stopped, the
@@ -406,12 +510,19 @@ the certificate chain, and reports all the details. If validation passes, all th
 files are saved a second time without the order number, as detailed above. and
 the Issue Status updated to 'Collected'.  If a Web Server UNC Public Certificate
 Directory has been specified, the certificates will be copied to the servers,
-and the Issue Status updated to 'Installed'.  Servers based on TWSocketServer
-will periodically check for new SSL certificates (RecheckSslCerts method) and
-will automatically install the new certificate.
+and the Issue Status updated to 'Installed'.
 
 Note that Let's Encrypt certificates are only valid for three months since they
 are intended to be renewed automatically.
+
+Servers based on TWSocketServer will periodically check for new SSL certificates
+(RecheckSslCerts method) and will automatically order and install new
+certificates typically 30 days before the old one expires.
+
+Beware the account database is not designed to shared between multiple
+applications running at the same time.  So it is better for each application
+that will order certificates to use a separate Acme account and directory,
+and only use the sample application to briefly check orders.
 
 
 TSslX509Certs CertCentre Order Process
@@ -497,8 +608,9 @@ not accessible from the public internet.  To avoid horrible browser warnings,
 your CA certificate needs to be installed as a trusted root on each device that
 will access servers running certificates issued by the CA.
 
-The sample application does not currently create self signed SSL certificates,
-you need to use the OverbyteIcsPemTool sample instead.  You should create a new
+The sample application has a button that will create self signed SSL certificates
+with a 'CA Cert' check box so it can sign other certificates., but the
+OverbyteIcsPemTool sample has more control over fields. You should create a new
 private key and self signed certificate with your organisation's common name,
 ie Magenta Development CA.  Rather than signing certificates directly with the
 new trusted CA, it is better create an intermediate CA signed by the trusted CA,
@@ -544,10 +656,11 @@ Orders list populated with the principal order details, clicking any line will
 show extra details in the yellow box.  Certain buttons will be enabled or
 disabled depending on each Issue State.
 
-Buttons available are: Check Order, Order Certificate, Collect Certificate,
-Redistribute (copy to web server again), Cancel Order (without revoke), Revoke
-Certificate and Remove Order (removed from database only), most of which have
-been described for the order process earlier.
+Buttons available are: Check Order, Get Challenges, Order Certificate (same as
+Test and Start Challenges above), Collect Certificate, Redistribute (copy to web
+server again), Cancel Order (without revoke), Revoke Certificate and Remove
+Order (removed from database only), most of which have been described for the
+order process earlier.
 
 Revoke an order should generally only be done if the certificate is in public
 use and the private key has been compromised.  Revoke means the certificate will
@@ -722,7 +835,7 @@ Nov 12, 2019 - V8.63 - OpenAccount will now create a new account correctly.
                        Added LastError to try and keep the last real order error.
                        Expire and remove challenges from the database after 24 hours
                          or a week for manual/email/dns.
-May 06, 2020 - V8.64 - Added support for International Domain Names for Applications (IDNA),
+May 18, 2020 - V8.64 - Added support for International Domain Names for Applications (IDNA),
                          i.e. using accents and unicode characters in domain names.
                        X509 certificates always have A-Lavels (Punycode ASCII) domain names,
                         never UTF8 or Unicode.   IDNs are converted back to Unicode
@@ -757,7 +870,7 @@ May 06, 2020 - V8.64 - Added support for International Domain Names for Applicat
                          former useful to remove old challenges (which remain valid
                          for a week or more) so fresh challenges can be tested.
 
-                       
+
 
 Pending - more documentation
 Pending - keep CertCentre admin details as supplier

@@ -1327,7 +1327,7 @@ Nov 18, 2019 V8.63 Corrected fix for user exceptions in OnDataAvailable in last
                    GetSelfSigned now has better check for self signed certificates.
                    Added Sha256Digest and Sha256Hex to TX509Base.
                    CertInfo in TX509Base shows SHA256 fingerprint instead of SHA1.
-May 14, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
+May 18, 2020 V8.64 Added support for International Domain Names for Applications (IDNA),
                      i.e. using accents and unicode characters in domain names.
                    DnsLookup now converts Unicode IDN into A-Label (Punycode ASCII)
                      so accented and non-ansi domains lookup correctly.  PunycodeHost

@@ -99,7 +99,7 @@ History:
                    Added whiteiplist.txt of IP addresses we don't want to block.
                    Count number of access attempts and block too many.
 04 Apr 2019  V8.61 Send Email now on front menu as well as WebApps
-27 Apr 2020  V8.64 Check SSL APLN from client and select HTTP/1.1.
+18 May 2020  V8.64 Check SSL APLN from client and select HTTP/1.1.
                    Rearranged INI file code so file only opened briefly, avoids
                       conflict with SslMultiWebDataModule.
                    Added Display SSL Client Info box logs client hello and ciphers.

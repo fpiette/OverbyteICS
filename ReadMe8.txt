@@ -3,7 +3,7 @@ ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.4 Sydney
 (Aka FPIETTE's Components)
 
 
-Revised: May 14, 2020
+Revised: May 18, 2020
 Release: V8.64
 http://www.overbyte.be/
 http://wiki.overbyte.be/

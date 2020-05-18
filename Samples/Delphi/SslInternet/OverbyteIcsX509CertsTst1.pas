@@ -65,7 +65,7 @@ Nov 12, 2019 - V8.63 Better selection for supplier database order ListView.
                      10 minute timeout to close idle account.
                      Added List Challenges button to log list of pending challenges
                        from the database.
-May 08, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
+May 18, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
                        i.e. using accents and unicode characters in domain names.
                      X509 certificates always have A-Lavels (Punycode ASCII) domain names,
                       never UTF8 or Unicode.   IDNs are converted back to Unicode

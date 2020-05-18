@@ -111,7 +111,7 @@ Aug 07, 2019 V8.62  Added literals for various types to assist apps.
 Oct 24, 2019 V8.63 Added 'Starfield Services Root Certificate Authority - G2'
                (used by Amazon buckets), and 'Amazon Root CA 1', CA 2, CA 3,
                CA 4 which are replacing Starfield.  Removed expired certs.
-May 08, 2020 V8.64 DoKeyPair raises exception for unknown key type.
+May 18, 2020 V8.64 DoKeyPair raises exception for unknown key type.
               CreateSelfSignedCert ignored Days and always created 7 day expiry.
               Added support for International Domain Names for Applications (IDNA),
                 i.e. using accents and unicode characters in domain names.
@@ -128,6 +128,8 @@ May 08, 2020 V8.64 DoKeyPair raises exception for unknown key type.
               Simplified building alternate subject name extensions so that both
                 DNS and IP Address can be used together, and IP address is now
                 saved correctly.
+              ClearAltStack dies on Win64 so suppressed part of the code until
+                work out why.
 
 
 Pending - long term
@@ -1838,6 +1840,9 @@ begin
     FAltDNSList  := TStringList.Create;
     FAltIpList := TStringList.Create;
     FAltEmailList := TStringList.Create;
+    SetLength (FAltAnsiStr, 0);
+    SetLength (FAltGenStr, 0);
+    SetLength (FAltIa5Str, 0);
 end;
 
 
@@ -2390,10 +2395,11 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { clear alt extension stack }
 procedure TSslCertTools.ClearAltStack;
-var
-    I: Integer;
+//var
+//    I: Integer;
 begin
-    if Length (FAltGenStr) > 0 then begin
+  { V8.64 fails on Win64, so possible memory leak without this
+   if Length (FAltGenStr) > 0 then begin
         for I := 0 to Length (FAltGenStr) - 1 do begin
             if Assigned(FAltGenStr[I]) then f_GENERAL_NAME_free(FAltGenStr[I]);
         end;
@@ -2403,6 +2409,7 @@ begin
             if Assigned(FAltIa5Str[I]) then f_ASN1_STRING_free(FAltIa5Str[I]);
         end;
     end;
+    }
     SetLength (FAltAnsiStr, 0);
     SetLength (FAltGenStr, 0);
     SetLength (FAltIa5Str, 0);

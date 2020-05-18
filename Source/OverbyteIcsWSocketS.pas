@@ -219,7 +219,7 @@ Nov 18, 2019 V8.63 ValidateHosts, RecheckSslCerts and LoadOneCert have new
                    Automatic cert ordering now Logs activity via the SslX509Certs
                      component since this one does not have logging.
                    Corrected INI file reading NostEnabled instead of HostEnabled.
-May 08, 2020 V8.64 IcsHosts allows NonSSlPort to be zero for random port, not for SSL.
+May 18, 2020 V8.64 IcsHosts allows NonSSlPort to be zero for random port, not for SSL.
                    Added BindPort read only property with real port while listening.
                    Added BindSrvPort to IcsHosts set while listening.
                    ListenStates now shows BindPort rather than requested port.
@@ -444,17 +444,11 @@ CertDirWork   - Optional, if CertSupplierProto is not SuppProtoNone, specifies
 CertChallenge - Optional, if CertSupplierProto is not SuppProtoNone, specifies
                 the Challenge Type as TChallengeType, used by the supplier to
                 check the domain names for the certificate resolve to this server.
-                Currently supports ChallNone, ChallFileUNC, ChallDNS and
-                ChallEmail.  Note that DNS require extra code in the server
-                application to update DNS records. ChallFileUNC means the server
-                will create a special file in the .Well-Known directory which
-                the supplier will read for each different HostName to confirm
-                they can all be accessed from the public internet, this usually
-                happens within a few seconds for domain validated certificates.
-                ChallEmail means that manual validation of the host names will
-                be needed, with notification by email when ready, but the
-                component will periodically check with the supplier to see when
-                the order is completed and can be downloaded and installed.
+                Currently supports ChallNone, ChallFileUNC, ChallFileFtp,
+                ChallFileSrv, ChallFileApp, ChallDnsAuto, ChallDnsMan, ChallEmail,
+                ChallAlpnUNC, ChallAlpnSrv and ChallAlpnApp, which are described
+                in OverbyteIcsSslX509Certs.pas.  Note most challenges need a
+                little extra code in the server application.
 CertProduct   - Optional, primarily for CertSupplierProto is SuppProtoCertCentre
                 to specify the particular certificate issuer and product,
                 currently only AlwaysOnSSL.AlwaysOnSSL supported since all

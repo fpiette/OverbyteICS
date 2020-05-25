@@ -74,24 +74,26 @@ May 21, 2018  - 8.54 - baseline
 Oct 2, 2018   - 8.57 - build with FMX
 Aug 07, 2019  - 8.62 - build Jason Web Token (JWT)
                        Builds without USE_SSL
-May 4, 2020   - 8.64 - IcsJoseFindAlg accepts RSA-PSS keys for jsigRsa256/512
+May 17, 2020  - 8.64 - IcsJoseFindAlg accepts RSA-PSS keys for jsigRsa256/512
                          (Google) and Ed25519 keys for jsigEdDSA
                        IcsJoseJWKPubKey needs OpenSSL 1.1.1e to support RSA-PSS keys.
                        Fixed a bug in IcsBase64UrlDecode thanks to Linden Roth.
                        Cleaned up signing and verifying functions.
+                       Fixed various EVP digests with size_t for Win64, thanks
+                         to Alexander Pastuhov.
+
 
 
 Pending
 -------
+
+Check IcsJoseJWKPubKey creates correct EC values
 
 Create Json Web Key from OpenSSL private key (only public at moment)
 
 Convert Json Web Key into OpenSSL public and private key (needed for verify)
 
 Verify Json Web Signed message using public key (only creating at moment)
-
-More testing of ECDSA based signatures and keys, possible compatibility
-isses with other libraries.
 
 Test RSA-PSS and Ed25519 keys for signing with IcsAsymSignDigest
 
@@ -286,7 +288,9 @@ var
     PKey: PEVP_PKEY;
     Etype: PEVP_MD;
     DigestCtx: PEVP_MD_CTX;
-    SigLen, Ret: integer;
+    PkeyCtx: PEVP_PKEY_CTX;   { V8.64 }
+    SigLen: size_t;           { V8.64 }
+    Ret: integer;
 begin
     Result := '';
     PKey := f_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, Nil, PAnsiChar(Key), Length(Key));
@@ -300,7 +304,7 @@ begin
         Ret := f_EVP_DigestInit_Ex(DigestCtx, Etype, Nil);
         if (Ret <= 0) then RaiseLastOpenSslError(EDigestException, FALSE,
                                     'Failed to initialise hash digest');
-        Ret := f_EVP_DigestSignInit(DigestCtx, Nil, Etype, Nil, PKey);
+        Ret := f_EVP_DigestSignInit(DigestCtx, PkeyCtx, Etype, Nil, PKey);
         if (Ret <= 0) then RaiseLastOpenSslError(EDigestException, FALSE,
                                     'Failed to initialise signing digest');
      // Update can be called repeatedly for large streams
@@ -332,7 +336,7 @@ var
     NewDigest: AnsiString;
 begin
     NewDigest := IcsHMACDigestEx(Data, Key, HashDigest);
-  // constant time comparison to avoid timing attacks 
+  // constant time comparison to avoid timing attacks
     Result := (f_CRYPTO_memcmp(PAnsiChar(OldDigest), PAnsiChar(NewDigest), Length(NewDigest)) = 0);
 end;
 
@@ -378,7 +382,7 @@ end;
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { create asymmetic MAC hash keyed message authentication code for some data with
   a private key, using md5, sha1, sha256, sha512, etc  }
-
+{Note - ECDSA keys contain a random element, so are dfferent each time for same data }
 function IcsAsymSignDigest(const Data: AnsiString; PrivateKey: PEVP_PKEY;
                 HashDigest: TEvpDigest = Digest_sha256): AnsiString;
 var
@@ -386,7 +390,8 @@ var
     Etype: PEVP_MD;
     PkeyCtx: PEVP_PKEY_CTX;
     DigestCtx: PEVP_MD_CTX;
-    SigLen, Ret, keytype: integer;
+    SigLen: size_t;           { V8.64 }
+    Ret, keytype: integer;
 begin
     Result := '';
     if not Assigned(PrivateKey) then
@@ -397,7 +402,7 @@ begin
               Raise EDigestException.Create('Unsupported private key type');
 
     DigestCtx := f_EVP_MD_CTX_new;
-    PkeyCtx := Nil; // f_PEVP_PKEY_CTX_new;
+    PkeyCtx := Nil;
     SigLen := SizeOf(Signature);
     try
         Etype := IcsSslGetEVPDigest(HashDigest);
@@ -411,31 +416,40 @@ begin
         if (Ret <= 0) then RaiseLastOpenSslError(EDigestException, FALSE,
                                     'Failed to initialise signing digest');
 
-     { do we really need to set digest type?? }
-    (*   if PkeyCtx <> Nil then begin
-            if f_EVP_PKEY_CTX_ctrl(PkeyCtx, -1, EVP_PKEY_OP_TYPE_SIG,
-                                                  EVP_PKEY_CTRL_MD, 0, Etype) <> 0 then
+     { send an algorithm specific control operation to context }
+     { V8.64 these were never called since PkeyCtx was never set due to
+         DigestSignInit not having a var declaration, but don't seem to make
+         any differece to the output so not yet used }
+  (*     if PkeyCtx <> Nil then begin
+
+          // pending, 3.0 uses APIs not macros, need to create in OverbyteIcsSSLEAY
+
+          { do we really need to set digest type?? }
+             // EVP_PKEY_CTX_set_signature_md macro, API in 3.0
+              if f_EVP_PKEY_CTX_ctrl(PkeyCtx, -1, EVP_PKEY_OP_TYPE_SIG,
+                                                  EVP_PKEY_CTRL_MD, 0, Etype) = 0 then   { V8.64 }
                     RaiseLastOpenSslError(EDigestException, FALSE,
                                         'Failed to set digest type for signing digest');
 
          { set specific EC curve NID}
-            if (keytype = EVP_PKEY_EC) then begin
-             //   if f_EVP_PKEY_CTX_ctrl_str(PkeyCtx, ? , PAnsiStr('P-256') <> 0 then
+              if (keytype = EVP_PKEY_EC) then begin
+             //  EVP_PKEY_CTX_set_ec_paramgen_curve_nid macro, API in 3.0
                 if f_EVP_PKEY_CTX_ctrl(
                      PkeyCtx, EVP_PKEY_EC, EVP_PKEY_OP_PARAMGEN OR EVP_PKEY_OP_KEYGEN,
-                        EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID, NID_X9_62_prime256v1, Nil) <> 0 then
+                        EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID, NID_X9_62_prime256v1, Nil) = 0 then
                     RaiseLastOpenSslError(EDigestException, FALSE,
                                         'Failed to set EC curve for signing digest');
             end;
          { pending, may need to set RSA PSS stuff }
-        end;  *)
 
-  //      if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then begin   // V8.64 latest Wiki uses this version
+        end;   *)
+
+        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then begin   // V8.64 latest Wiki uses this version
             ret := f_EVP_DigestSignUpdate(DigestCtx, Pointer(Data), Length(Data));
             if (Ret <= 0) then RaiseLastOpenSslError(EDigestException, FALSE,
                                                'Failed to update signing digest');
             ret := f_EVP_DigestSignFinal(DigestCtx, @Signature, SigLen);
-  {      end
+        end
         else
             ret := f_EVP_DigestSign(DigestCtx, @Signature, SigLen,
                                                 PAnsiChar(Data), Length(Data));  // Needs 1.1.1  }
@@ -446,7 +460,6 @@ begin
             Move(Signature[0], Result[1], SigLen);
         end;
     finally
-        f_EVP_PKEY_CTX_free(PkeyCtx);
         f_EVP_MD_CTX_free(DigestCtx);
     end;
 end;
@@ -461,6 +474,7 @@ function IcsAsymVerifyDigest(const Data, OldDigest: AnsiString; PublicKey: PEVP_
 var
     Etype: PEVP_MD;
     DigestCtx: PEVP_MD_CTX;
+    PkeyCtx: PEVP_PKEY_CTX;   { V8.64 }
     Ret, keytype: integer;
 begin
     Result := false;
@@ -471,6 +485,7 @@ begin
         (keytype <> EVP_PKEY_ED25519) and (keytype <> EVP_PKEY_RSA_PSS) then
               Raise EDigestException.Create('Unsupported public key type');
     DigestCtx := f_EVP_MD_CTX_new;
+    PkeyCtx := Nil;
     try
         Etype := IcsSslGetEVPDigest(HashDigest);
         if keytype = EVP_PKEY_ED25519 then
@@ -478,25 +493,25 @@ begin
         else if NOT Assigned(Etype) then
             Raise EDigestException.Create('Unsupported hash digest ' +
                            GetEnumName(TypeInfo(TEvpDigest), Ord(HashDigest)));
-        Ret := f_EVP_DigestVerifyInit(DigestCtx, Nil, Etype, Nil, PublicKey);
+        Ret := f_EVP_DigestVerifyInit(DigestCtx, PkeyCtx, Etype, Nil, PublicKey);
         if (Ret <= 0) then RaiseLastOpenSslError(EDigestException, FALSE,
                                     'Failed to initialise signing digest');
-  //      if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then begin
+        if ICS_OPENSSL_VERSION_NUMBER < OSSL_VER_1101 then begin
             ret := f_EVP_DigestVerifyUpdate(DigestCtx, Pointer(Data), Length(Data));  { V8.64 }
             if (Ret <= 0) then RaiseLastOpenSslError(EDigestException, FALSE,
                                         'Failed to update signing digest');
             ret := f_EVP_DigestVerifyFinal(DigestCtx, PAnsiChar(OldDigest), Length(OldDigest));
-    {    end
+        end
         else
             ret := f_EVP_DigestVerify(DigestCtx, PAnsiChar(OldDigest),
-                            Length(OldDigest), PAnsiChar(Data), Length(Data));  }
+                            Length(OldDigest), PAnsiChar(Data), Length(Data));
         if (Ret = 1) then
             Result := True
         else
         if (Ret = 0) then
             Result := False
         else
-            RaiseLastOpenSslError(EDigestException, FALSE, 'Failed to verifyse signing digest');
+            RaiseLastOpenSslError(EDigestException, FALSE, 'Failed to verify signing digest');
     finally
         f_EVP_MD_CTX_free(DigestCtx);
     end;

@@ -131,7 +131,7 @@ Mar 18, 2019  V8.60 Next major OpenSSL version is 3.0.0 (due mid 2020)
 Jul 15, 2019  V8.62 Removed two ciphers from TSslPrivKeyCipher which we did not use.
                     SuppProtoAcmeV1 gone, two more added.
                     Added ICS_NID_acmeIdentifier created dynamically on startup.
-Apr 24, 2020  V8.64 Changed sslSrvSecDefault to sslSrvSecHigh since TLSv1.1
+May 07, 2020  V8.64 Changed sslSrvSecDefault to sslSrvSecHigh since TLSv1.1
                        disabled in most browsers from early 2020.
                     Added SSL_client_hello functions and SSL_bytes_to_cipher_list.
                     Added ChallDnsAuto and ChallDnsMan
@@ -2360,7 +2360,7 @@ const
     (F: @@f_SSL_add_client_CA;                      N: 'SSL_add_client_CA';                         MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_alert_desc_string_long;             N: 'SSL_alert_desc_string_long';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_alert_type_string_long;             N: 'SSL_alert_type_string_long';                MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
-    (F: @@f_SSL_bytes_to_cipher_list;               N: 'SSL_bytes_to_cipher_list';                  MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),     { V8.64 }
+    (F: @@f_SSL_bytes_to_cipher_list;               N: 'SSL_bytes_to_cipher_list';                  MI: OSSL_VER_1101; MX: OSSL_VER_MAX),  { V8.64 }
     (F: @@f_SSL_callback_ctrl;                      N: 'SSL_callback_ctrl';                         MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_clear;                              N: 'SSL_clear';                                 MI: OSSL_VER_MIN; MX: OSSL_VER_MAX),
     (F: @@f_SSL_clear_options;                      N: 'SSL_clear_options';                         MI: OSSL_VER_1100; MX: OSSL_VER_MAX),  { V8.51 }

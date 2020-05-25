@@ -114,8 +114,9 @@ unit FBUnitIcs;
 interface
 
 uses
-    {$ifdef Compiler16_Plus}Winapi.Windows{$ELSE}Windows{$ENDIF},
-    {$ifdef Compiler16_Plus}Winapi.Messages{$ELSE}Messages{$ENDIF},
+//    {$ifdef Compiler16_Plus}Winapi.Windows{$ELSE}Windows{$ENDIF},
+//    {$ifdef Compiler16_Plus}Winapi.Messages{$ELSE}Messages{$ENDIF},
+    Windows, Messages,
     SysUtils, Classes, Graphics, Controls, Forms,
     ShellAPI, Menus, StdCtrls, Buttons, ExtCtrls, Gauges, mmSystem, IniFiles,
     MPlayer, ImgList, ComCtrls, ToolWin, Dialogs,

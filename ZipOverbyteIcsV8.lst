@@ -279,6 +279,27 @@ Packages\OverbyteIcsD103Design.dproj
 Packages\OverbyteIcsD103Design.dpk
 
 
+Packages\IcsCommonD104Run.dpk
+Packages\IcsCommonD104Run.dproj
+Packages\IcsCommonD104Design.dpk
+Packages\IcsCommonD104Design.dproj
+
+Packages\IcsFmxD104Run.dpk
+Packages\IcsFmxD104Run.dproj
+Packages\IcsFmxD104Design.dpk
+Packages\IcsFmxD104Design.dproj
+
+Packages\IcsVclD104Run.dpk
+Packages\IcsVclD104Run.dproj
+Packages\IcsVclD104Design.dpk
+Packages\IcsVclD104Design.dproj
+
+Packages\OverbyteIcsD104Run.dproj
+Packages\OverbyteIcsD104Run.dpk
+Packages\OverbyteIcsD104Design.dproj
+Packages\OverbyteIcsD104Design.dpk
+
+
 Packages\OverbyteIcsCB2006Run.bdsproj
 Packages\OverbyteIcsCB2006Run.cpp
 Packages\OverbyteIcsCB2006Run.res
@@ -398,6 +419,27 @@ Packages\IcsVclCB103Design.cbproj
 Packages\IcsVclCB103Design.cpp
 Packages\IcsVclCB103Design.res
 
+
+Packages\IcsCommonCB104Run.cbproj
+Packages\IcsCommonCB104Run.cpp
+Packages\IcsCommonCB104Run.res
+Packages\IcsCommonCB104Design.cbproj
+Packages\IcsCommonCB104Design.cpp
+Packages\IcsCommonCB104Design.res
+
+Packages\IcsFmxCB104Run.cbproj
+Packages\IcsFmxCB104Run.cpp
+Packages\IcsFmxCB104Run.res
+Packages\IcsFmxCB104Design.cbproj
+Packages\IcsFmxCB104Design.cpp
+Packages\IcsFmxCB104Design.res
+
+Packages\IcsVclCB104Run.cbproj
+Packages\IcsVclCB104Run.cpp
+Packages\IcsVclCB104Run.res
+Packages\IcsVclCB104Design.cbproj
+Packages\IcsVclCB104Design.cpp
+Packages\IcsVclCB104Design.res
 
 
 Packages\OverbyteIcsProductIcon.res
@@ -683,6 +725,8 @@ Install\D102Install.groupproj
 Install\D102InstallVclFmx.groupproj
 Install\D103Install.groupproj
 Install\D103InstallVclFmx.groupproj
+Install\D104Install.groupproj
+Install\D104InstallVclFmx.groupproj
 
 Install\CB2006Install.bdsgroup
 Install\CB2007Install.groupproj
@@ -695,6 +739,7 @@ Install\CBXe2InstallVclFmx.groupproj
 Install\CBXe3InstallVclFmx.groupproj
 Install\CB102InstallVclFmx.groupproj
 Install\CB103InstallVclFmx.groupproj
+Install\CB104InstallVclFmx.groupproj
 
 Samples\OverbyteIcsCommonVersion.rc
 Samples\OverbyteIcsCommonVersion.res
@@ -2237,6 +2282,7 @@ Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.dproj
 Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv.res
 Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv1.dfm
 Samples\Delphi\SslInternet\OverbyteIcsWebSocketSrv1.pas
+Samples\Delphi\SslInternet\websocketclient.html
 
 Samples\Delphi\SslInternet\OverbyteIcsXferTst.dof
 Samples\Delphi\SslInternet\OverbyteIcsXferTst.dpr

@@ -65,7 +65,7 @@ Nov 12, 2019 - V8.63 Better selection for supplier database order ListView.
                      10 minute timeout to close idle account.
                      Added List Challenges button to log list of pending challenges
                        from the database.
-May 04, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
+May 18, 2020 - V8.64 Added support for International Domain Names for Applications (IDNA),
                        i.e. using accents and unicode characters in domain names.
                      X509 certificates always have A-Lavels (Punycode ASCII) domain names,
                       never UTF8 or Unicode.   IDNs are converted back to Unicode
@@ -87,9 +87,11 @@ May 04, 2020 - V8.64 Added support for International Domain Names for Applicatio
                        more obvious. This allows manual updating of servers for
                        DNS or file challenge.
                      Self Signed button now works and will create CA Cert.
+                     Acme Cancel Order and Revoke Order now work, former useful
+                       to remove old challenges so fresh challenges can be tested.
 
 
-                     
+
 For docunentation on how to use this sample, please see a lengthy Overview in
 the OverbyteIcsSslX509Certs.pas unit.
 
@@ -379,7 +381,6 @@ type
     procedure doDBOrderClick(Sender: TObject);
     procedure doClearDomainClick(Sender: TObject);
     procedure doCloseDatabaseClick(Sender: TObject);
-    procedure doAcmeRevokeV2Click(Sender: TObject);
     procedure SelCACertFileClick(Sender: TObject);
     procedure doLoadCAClick(Sender: TObject);
     procedure SelCAPkeyFileClick(Sender: TObject);
@@ -1278,7 +1279,8 @@ begin
     X509Certs1.SupplierTitle := 'ACME V2 by Let''s Encrypt';
     X509Certs1.SupplierProto := SuppProtoAcmeV2;
     X509Certs1.SupplierServer := trim(AcmeServerV2.Text);
-    X509Certs1.DirCertWork := IncludeTrailingPathDelimiter (DirAcmeConfV2.Text) ;
+    DirAcmeConfV2.Text := IncludeTrailingPathDelimiter (DirAcmeConfV2.Text);
+    X509Certs1.DirCertWork := DirAcmeConfV2.Text;
     X509Certs1.AcmeAccKeyType := TSslPrivKeyType (AccAcmeKeyV2.ItemIndex);
     X509Certs1.SupplierEmail := SupplierEmail.Text;
     if X509Certs1.SetAcmeAccount(True) then begin
@@ -1291,7 +1293,8 @@ end;
 
 procedure TX509CertsForm.doAcmeCheckOrderClick(Sender: TObject);
 begin
-    if X509Certs1.SupplierProto <> SuppProtoAcmeV2 then begin
+    if (X509Certs1.SupplierProto <> SuppProtoAcmeV2) or
+                 (X509Certs1.DirCertWork <> DirAcmeConfV2.Text) then begin
         AddLog('Must Register ACME Account First');
         Exit;
     end;
@@ -1316,6 +1319,11 @@ end;
 
 procedure TX509CertsForm.doAcmeGetChallngClick(Sender: TObject);
 begin
+    if (X509Certs1.SupplierProto <> SuppProtoAcmeV2) or
+                 (X509Certs1.DirCertWork <> DirAcmeConfV2.Text) then begin
+        AddLog('Must Register ACME Account First');
+        Exit;
+    end;
     if X509Certs1.IssueState < IssStateChecked then begin
         AddLog('Must Check New Certificate First');
         Exit;
@@ -1332,6 +1340,11 @@ end;
 
 procedure TX509CertsForm.doAcmeTestChallngClick(Sender: TObject);
 begin
+    if (X509Certs1.SupplierProto <> SuppProtoAcmeV2) or
+                 (X509Certs1.DirCertWork <> DirAcmeConfV2.Text) then begin
+        AddLog('Must Register ACME Account First');
+        Exit;
+    end;
     if X509Certs1.IssueState < IssStateChallgReq then begin
         AddLog('Must Request Acme Challenges First');
         Exit;
@@ -1349,6 +1362,11 @@ end;
 
 procedure TX509CertsForm.doAcmeStartChallngClick(Sender: TObject);
 begin
+    if (X509Certs1.SupplierProto <> SuppProtoAcmeV2) or
+                 (X509Certs1.DirCertWork <> DirAcmeConfV2.Text) then begin
+        AddLog('Must Register ACME Account First');
+        Exit;
+    end;
     if X509Certs1.IssueState < IssStateChallgTest then begin
         AddLog('Must Test Acme Challenges First');
         Exit;
@@ -1365,6 +1383,11 @@ end;
 
 procedure TX509CertsForm.doAcmeGetCertClick(Sender: TObject);
 begin
+    if (X509Certs1.SupplierProto <> SuppProtoAcmeV2) or
+                 (X509Certs1.DirCertWork <> DirAcmeConfV2.Text) then begin
+        AddLog('Must Register ACME Account First');
+        Exit;
+    end;
     if X509Certs1.IssueState < IssStateChallgTest then begin
          AddLog('Must Get and Test Acme Challenges First');
         Exit;
@@ -1381,6 +1404,11 @@ end;
 
 procedure TX509CertsForm.doAcmeSaveOrderClick(Sender: TObject);
 begin
+    if (X509Certs1.SupplierProto <> SuppProtoAcmeV2) or
+                 (X509Certs1.DirCertWork <> DirAcmeConfV2.Text) then begin
+        AddLog('Must Register ACME Account First');
+        Exit;
+    end;
     if X509Certs1.SupplierProto <> SuppProtoAcmeV2 then begin
         AddLog('Must Register ACME Account First');
         Exit;
@@ -1391,17 +1419,13 @@ begin
     AddLog('Saved Certificate Order');
 end;
 
-procedure TX509CertsForm.doAcmeRevokeV2Click(Sender: TObject);
-begin
-//
-end;
-
 procedure TX509CertsForm.doCASignCertClick(Sender: TObject);
 begin
     SetCommParams;
     SetCertParams;
     X509Certs1.SupplierProto := SuppProtoOwnCA;
-    X509Certs1.DirCertWork := IncludeTrailingPathDelimiter(OwnCACertDir.Text);
+    OwnCACertDir.Text := IncludeTrailingPathDelimiter(OwnCACertDir.Text);
+    X509Certs1.DirCertWork := OwnCACertDir.Text;
     X509Certs1.OwnCASign;
 end;
 
@@ -1414,7 +1438,8 @@ begin
     X509Certs1.SupplierTitle := 'CertCenter AG';
     X509Certs1.SupplierProto := SuppProtoCertCentre;
     X509Certs1.SupplierServer := trim(CertCentreServer.Text);
-    X509Certs1.DirCertWork := IncludeTrailingPathDelimiter (DirCertCenConf.Text) ;
+    DirCertCenConf.Text := IncludeTrailingPathDelimiter (DirCertCenConf.Text);
+    X509Certs1.DirCertWork := DirCertCenConf.Text;
 
     X509Certs1.SetCertCentre(True);
     if X509Certs1.CCGetProfile then begin
@@ -1443,7 +1468,8 @@ end;
 
 procedure TX509CertsForm.doCertCentreCheckClick(Sender: TObject);
 begin
-    if X509Certs1.SupplierProto <> SuppProtoCertCentre then begin
+    if (X509Certs1.SupplierProto <> SuppProtoCertCentre) or
+                    (X509Certs1.DirCertWork <> DirCertCenConf.Text) then begin
         AddLog('Must Get CertCentre Profile First');
         Exit;
     end;
@@ -1477,6 +1503,11 @@ end;
 
 procedure TX509CertsForm.doCertCentreOtherClick(Sender: TObject);
 begin
+    if (X509Certs1.SupplierProto <> SuppProtoCertCentre) or
+                    (X509Certs1.DirCertWork <> DirCertCenConf.Text) then begin
+        AddLog('Must Get CertCentre Profile First');
+        Exit;
+    end;
     if X509Certs1.IssueState < IssStateChecked then begin
         AddLog('Must Check New Certificate First');
         Exit;
@@ -1502,7 +1533,8 @@ end;
 
 procedure TX509CertsForm.doCertCentreSaveOrderClick(Sender: TObject);
 begin
-    if X509Certs1.SupplierProto <> SuppProtoCertCentre then begin
+    if (X509Certs1.SupplierProto <> SuppProtoCertCentre) or
+                    (X509Certs1.DirCertWork <> DirCertCenConf.Text) then begin
         AddLog('Must Get CertCentre Profile First');
         Exit;
     end;
@@ -1744,7 +1776,8 @@ end;
 procedure TX509CertsForm.doSelfSignedClick(Sender: TObject);
 begin
     SetCommParams;
-    X509Certs1.DirCertWork := IncludeTrailingPathDelimiter(OwnCACertDir.Text);
+    OwnCACertDir.Text := IncludeTrailingPathDelimiter(OwnCACertDir.Text);
+    X509Certs1.DirCertWork := OwnCACertDir.Text;
     SetCertParams;
     X509Certs1.SelfSign(SelfSignedCA.Checked);
 end;

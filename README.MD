@@ -1,13 +1,15 @@
-ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.3 Rio
-=====================================================================
+ICS - Internet Component Suite - V8 - Delphi 7 to RAD Studio 10.4 Sydney
+========================================================================
 (Aka FPIETTE's Components)
 
-Revised: January 23, 2020 \
+Revised: May 18, 2020 \
 Release: V8.64 \
 http://www.overbyte.be/ \
 http://wiki.overbyte.be/ \
 http://www.overbyte.eu/ \
-http://wiki.overbyte.eu/
+http://wiki.overbyte.eu/ \
+https://svn.overbyte.be/svn/ics/
+
 
 Table of content:
 -----------------
@@ -121,11 +123,11 @@ ICS V8 is the current development release which is held in a public Version Cont
 repository that is zipped each night for easy download.  The download page above
 also includes the OpenSSL binaries needed to support SSL. ICS V8 supports Delphi
 64-bit and Mac OS-X projects.  Note that C++ Builder versions supported are up to
-XE3, 10.2 Tokyo and 10.3 Rio.  There are currently no C++ packages for XE4 to 10.1.
+XE3, 10.2 Tokyo and later.  There are currently no C++ packages for XE4 to 10.1.
 but older or newer ones will often work.
 
-The latest version is V8.61  which will be reported by the CopyRight constant in
-OverbyteIcsWSocket.pas and the integer WSocketVersion as 860.
+The latest version is V8.64  which will be reported by the CopyRight constant in
+OverbyteIcsWSocket.pas and the integer WSocketVersion as 864.
 
 ICS V9 is in early development and is planned to support Android and Linux Server. There
 are no current plans for ICS for iOS.
@@ -239,6 +241,12 @@ Other OpenSSL files, including older and Win64, may be downloaded from:
 
 http://wiki.overbyte.eu/wiki/index.php/ICS_Download
 
+Note that OpenSSL support for 1.0.2 and 1.1.0 has ceased with no more security fixes,
+but ICS will continue support them until the end of 2020. But please move to 1.1.1
+for which support will continue by OpenSSL until late 2023 and by ICS for a year
+longer.  ICS will no longer start with OpenSSL 0.9.8 or 1.0.0.
+
+
 INSTALLATION USING THE INSTALL PROJECT GROUPS
 
 For each Delphi and C++ Builder version one project group is provided in directory 
@@ -272,6 +280,8 @@ For each Delphi and C++ Builder version one project group is provided in directo
     Delphi 10.2 Tokyo       : D102InstallVclFmx.groupproj // Both VCL and FireMonkey components
     Delphi 10.3 Rio         : D103Install.groupproj // VCL only, no FireMonkey components
     Delphi 10.3 Rio         : D103InstallVclFmx.groupproj // Both VCL and FireMonkey components
+    Delphi 10.4 Sydney      : D104Install.groupproj // VCL only, no FireMonkey components
+    Delphi 10.4 Sydney      : D104InstallVclFmx.groupproj // Both VCL and FireMonkey components
     C++ Builder 2006        : CB2006Install.bdsgroup
     C++ Builder 2007        : CB2007Install.groupproj
     C++ Builder 2009        : CB2009Install.groupproj
@@ -282,6 +292,7 @@ For each Delphi and C++ Builder version one project group is provided in directo
     C++ Builder XE3         : CBXe3InstallVclFmx.groupproj // Both VCL and FireMonkey components
     C++ Builder 10.2 Tokyo  : CB102InstallVclFmx.groupproj // Both VCL and FireMonkey components
     C++ Builder 10.3 Rio    : CB103InstallVclFmx.groupproj // Both VCL and FireMonkey components
+    C++ Builder 10.4 Sydney : CB104InstallVclFmx.groupproj // Both VCL and FireMonkey components
 
 1 - Do a File/Open Project, navigate to the Install directory, select the correct
 file and open it. The project manager view should now display two package
@@ -375,6 +386,7 @@ PACKAGE PROJECT FILE NAMES - VCL:
     Delphi 10.1 Berlin : OverbyteIcsD101Run.dproj, OverbyteIcsD101Design.dproj
     Delphi 10.2 Tokyo  : OverbyteIcsD102Run.dproj, OverbyteIcsD102Design.dproj
     Delphi 10.3 Rio    : OverbyteIcsD103Run.dproj, OverbyteIcsD103Design.dproj
+    Delphi 10.4 Sydney : OverbyteIcsD104Run.dproj, OverbyteIcsD103Design.dproj
     C++ Builder 2006   : OverbyteIcsCB2006Run.bdsproj, OverbyteIcsCB2006Design.bdsproj
     C++ Builder 2007   : OverbyteIcsCB2007Run.cbproj, OverbyteIcsCB2007Design.cbproj
     C++ Builder 2009   : OverbyteIcsCB2009Run.cbproj, OverbyteIcsCB2009Design.cbproj
@@ -418,6 +430,9 @@ PACKAGE PROJECT FILE NAMES - FireMonkey and VCL:
     Delphi 10.3 Rio FMX/VCL    : IcsCommonD103Run.dproj, IcsCommonD103Design.dproj
     Delphi 10.3 Rio VCL        : IcsVclD103Run.dproj, IcsVclD103Design.dproj
     Delphi 10.3 Rio FMX        : IcsFmxD103Run.dproj, IcsFmxD103Design.dproj
+    Delphi 10.4 Sydney FMX/VCL : IcsCommonD104Run.dproj, IcsCommonD104Design.dproj
+    Delphi 10.4 Sydney VCL     : IcsVclD104Run.dproj, IcsVclD104Design.dproj
+    Delphi 10.4 Sydney FMX     : IcsFmxD104Run.dproj, IcsFmxD104Design.dproj
     C++ Builder XE2 FMX/VCL    : IcsCommonCBXe2Run.dproj, IcsCommonDXe2Design.dproj
     C++ Builder XE2 VCL        : IcsVclCBXe2Run.dproj, IcsVclCBXe2Design.dproj
     C++ Builder XE2 FMX        : IcsFmxCBXe2Run.dproj, IcsFmxCBXe2Design.dproj
@@ -428,6 +443,9 @@ PACKAGE PROJECT FILE NAMES - FireMonkey and VCL:
     C++ Builder 10.2 Tokyo FMX : IcsFmxCB102Run.dproj, IcsFmxCB102Design.dproj
     C++ Builder 10.3 Rio VCL   : IcsVclCB103Run.dproj, IcsVclCB103Design.dproj
     C++ Builder 10.3 Rio FMX   : IcsFmxCB103Run.dproj, IcsFmxCB103Design.dproj
+    C++ Builder 10.4 Sydney VCL: IcsVclCB104Run.dproj, IcsVclCB104Design.dproj
+    C++ Builder 10.4 Sydney FMX: IcsFmxCB104Run.dproj, IcsFmxCB104Design.dproj
+
 
 1 - Open and Build the run-time package project (do not install!).
 
@@ -455,15 +473,15 @@ but it will be much easier for you because otherwise you'll have to add it to ea
 project.
 
 DELPHI XE2/WIN32, XE3/WIN32, XE4/WIN32, XE5/WIN32, XE6/WIN32, XE7/WIN32, XE8/WIN32,
-10 Seattle/WIN32, 10.1 Berlin/WIN32, 10.2 Tokyo/WIN32, 10.3 Rio/WIN32, XE2/WIN64,
-XE3/WIN64, XE4/WIN64,XE5/WIN64, XE6/WIN64, XE7/WIN64, XE8/WIN64, 10 Seattle/WIN64,
-10.1 Berlin/WIN64, 10.2 Tokyo/WIN64, 10.3 Rio/WIN64:
+10 Seattle/WIN32, 10.1 Berlin/WIN32, 10.2 Tokyo/WIN32, 10.3 Rio/WIN32, 10.4 Sydney/WIN32,
+XE2/WIN64, XE3/WIN64, XE4/WIN64,XE5/WIN64, XE6/WIN64, XE7/WIN64, XE8/WIN64,
+10 Seattle/WIN64, 10.1 Berlin/WIN64, 10.2 Tokyo/WIN64, 10.3 Rio/WIN64, 10.4 Sydney/WIN64:
 
 Similar to above, but now an extra level, so Tools / Options / Language / Delphi/
 Library / select platform as Windows 32-bit or 64-bit, or MacOs 32-bit or 64-bit.
-Note the Library path is specified separately for 32-bit and 64-bit
-Windows Platforms. Beware Delphi seems to default to 64-bit platform, and needs to
-be changed to 32-bit plaform before setting the Library path, .\Lib subdirectory according to
+Note the Library path is specified separately for 32-bit and 64-bit Platforms.
+Beware Delphi seems to default to 64-bit platform, and needs to be changed to
+32-bit plaform before setting the Library path, .\Lib subdirectory according to
 version, ie .\Lib\Debug\Win64\D103 for Delphi 10.3 Rio 64-bit,
 
 DELPHI 7: Add VC32 directory path to your library path (Tools menu / Environment
@@ -514,7 +532,7 @@ Once the components are all installed, you may open the sample projects
 each one after the other and compile them. For each project, do file/open
 and select the dpr file in the internet directory. Then Project/Build All.
 
-C++ BUILDER 2006, 2007, 2009, 2010, XE, XE2, XE3, 10.2 Tokyo, 10.3 Rio:
+C++ BUILDER 2006, 2007, 2009, 2010, XE, XE2, XE3, 10.2 Tokyo, 10.3 Rio, 10.4 Sydney:
 
 Follow the installation procedure described for Delphi 2006. Just change
 the project group and package name: use CB2006, CBXe, etc, see above.
@@ -633,6 +651,7 @@ properly add all of the available components in this collection:
       > OverbyteIcsTnEmulVT.pas                TELNET and ANSI terminal emulation combined
       > OverbyteIcsTnOptFrm.pas                TELNET Client configuration form
       > OverbyteIcsTnScript.pas                TELNET client protocol - with automation
+      > OverbyteIcsWebSockets.pas              WebSockets Server protocol
       > OverbyteIcsWSocket.pas                 Winsock component - TCP, UDP, DNS,...
       > OverbyteIcsWSocketE.pas                Register procedure and property editor for TWSocket
       > OverbyteIcsWSocketS.pas                Winsock component for building servers
@@ -685,10 +704,12 @@ properly add all of the available components in this collection:
       > OverbyteIcsWebSession.pas      Web session support for THttpAppSrv and MidWare
       > OverbyteIcsWinnls.pas          A few header translations for Unicode Normalization in winnls.h
       > OverbyteIcsWinsock.pas         Some Winsock initialisations
+      > OverbyteIcsWMI.pas             WMI support functions, setting IP addresses, controlling DNS server.
       > OverbyteIcsWndControl.pas      A class that encapsulates a windows message queue and a message map
       > OverbyteIcsZLibDll.pas         Zlib support, interface to external zlib.dll functions
       > OverbyteIcsZLibObj.pas         Zlib support, interface to zlib linked C OBJ functions
       > OverbyteIcsZlibHigh.pas        Zlib support, high level interface for compression and decompression
+      > WbemScripting_TLB.pas          WMI API headers.
 
 # FireMonkey Cross Platform Support
 For Delphi and C++ Builder XE2 and later, FireMonkey Desktop applications are an alternate
@@ -826,6 +847,7 @@ Note better samples under sslinternet with SSL enabled.
     > OverbyteIcsSysLogServerDemo.dpr Demo for SysLog server component
     > OverbyteIcsTimeTst.dpr          Test SNTP time protocol as client or server - ACTIVE!!
     > OverbyteIcsWhoisCliTst.dpr      Test Whois protocol, looks up servers automatically - ACTIVE!!
+    > OverbyteIcsWmiTst.dpr           Test WMI functions, general purpose, IP addressses and DNS Server - ACTIVE!!
 
 ## Delphi FireMonkey cross-platform samples (Delphi XE2 and later)
 All these samples may be built for Mac OS X (and Windows).
@@ -904,6 +926,8 @@ Note better samples under sslinternet with SSL enabled.
     > OverbyteIcsSslSniSrv.dpr        Test of Server Name Indication (SNI) in server mode - ACTIVE!!
     > OverbyteIcsSslWebAppServer.dpr  Advanced HTTPS server demo, uses WebServ, adds sessions - ACTIVE!!
     > OverbyteIcsSslWebServ.dpr       Demo of HTTPS server, uses TSocketServer - ACTIVE!!
+    > OverbyteIcsWebSocketSrv.dpr     Demo of WebSockets server, used with websocketclient.html - ACTIVE!!
+    > websocketclient.html            Web page for WebSockets demo
     > OverbyteIcsX509CertsTst.dpr     Automatically download SSL X509 certificates from Let's Encrypt and CertCentre AG - ACTIVE!!
     > OverbyteIcsXferTst.dpr          File transfer testing, file copying, FTP up and download, HTTP download, with SSL - ACTIVE!!
 
@@ -1013,60 +1037,6 @@ convert existing certificates in the Windows Certificate Store
 to PEM format understood by OpenSSL and to examine PEM certificates.
 
 You will find more information in IcsSslHowTo.txt file.
-
-Commercial SSL certificates:
-To avoid browsers giving certificate warning messages, you need to purchase
-a SSL certificate from one of numerous companies, such as Verisign, Thawte
-GeoTrust or RapidSSL.  Prices vary dramatically and are often cheaper from
-resellers such as Servertastic than from the main issuing companies.
-
-The main purpose of an SSL certificate is to prove the identity of the owner
-of a web site, ideally the company behind the web site.  That usually requires
-paper work identifying the company is submitted and also proof the domain being
-protected is owned by that company, it usually also involves telephone calls.
-Such certificates are usually called fully validated and cost $120 or more each
-year for a single domain, ie secure.website.com.  Wild card certificates cost
-$350 or more, but protect multiple sub-domains, ie web.website.com as well.
-Extended Validation certificates cost from $450 a year, and show the company name
-in green in the address bar.  For testing and simple use, instant issued SSL
-certificates cost from $15 per year and protect a single domain only with automated
-checking reducing the cost (an email to admin@website.com to prove you receive
-email for the domain, perhaps a telephone call as well).  Note these instant
-certificates do not include a company name.
-
-To buy and install an SSL certificate for use with ICS and OpenSSL follow these
-steps:
-
-1 - Build the SSL demo project OverbyteIcsPemTool. Take Extras, Create Certificate
-Requests, fill in the various fields (check other certificates if uncertain, the
-Common Name is the domain to protect, ie secure.website.com and E-Mail should be
-an email address at the than domain, ideally admin or administrator, 2048 bits.
-Click Create, and specify two file names, first for the private key (mykey.pem)
-then the certificate request file (myreq.pem).  The request can also be done using
-OpenSSL command line arguments, or you can build it into your own application.
-
-2 - Choose you SSL supplier and certificate type, at some point during the ordering
-process you will be asked for the certificate request, so open the PEM file you
-saved with a text editor and copy the base64 encoded block starting
--BEGIN CERTIFICATE REQUEST- into the web form.  It should be decoded and displayed
-so you check it's correct.  The private key is not needed for the certificate to
-be issued.  At this point the validation process starts as mentioned above, which
-might take hours or weeks to complete.
-
-3 - Eventually the SSL certificate should be issued, either by email or made
-available to download from the supplier's web site.  It should be in X.509 format
-in a base64 encoded block starting -BEGIN CERTIFICATE- which should be saved as
-a PEM file (mycert.pem).  There should also be an Intermediate CA certificate,
-with which your new certificate was signed, which should also be saved as a file
-(mycacert.pem). This may also be downloadable from the supplier as a bundle file
-and should be common to any certificates they issue, ie RapidSSL_CA_bundle.pem.
-
-4 - The OverbyteIcsPemTool tool has a View PEM button that allows examination of
-your new PEM files.
-
-5 - The three PEM files now need to be attached to the SslContext component in
-your application, with properties SslCertFile, SslPrivKeyFile and SslCAFile.
-The request certificate file has no further use.
 
 # Release notes
 There is no global release notes. Each component and sample has his own history.
